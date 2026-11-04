@@ -565,6 +565,11 @@ async function handleChargeDraft(
         return
       }
 
+      if (action.type === 'generic') {
+        toast.add({ title: 'Error', description: action.message, color: 'error' })
+        return
+      }
+
       if (action.type === 'new-key') {
         toast.add({ title: 'Advertencia', description: action.message, color: 'warning' })
         return

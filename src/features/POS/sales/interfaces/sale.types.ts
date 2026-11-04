@@ -461,6 +461,10 @@ export type ChargeDomainErrorCode =
   // `salePaymentErrors.utils.ts`. TS exhaustiveness on
   // `Record<ChargeDomainErrorCode, ...>` forces the ERROR_ACTIONS entry.
   | 'SHIPPING_ADDRESS_REQUIRED_FOR_DELIVERY'
+  // O1 S7: 422 on charge / confirm / cancel when the stock journal is not wired
+  // into the sales service (fail closed). Never expected in a deployed build:
+  // a generic error with no retry, mapped in `salePaymentErrors.utils.ts`.
+  | 'SALE_STOCK_UNAVAILABLE'
 
 export interface SaleItem {
   id: string

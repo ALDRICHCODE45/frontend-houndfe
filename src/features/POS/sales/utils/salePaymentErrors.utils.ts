@@ -1,6 +1,6 @@
 import type { ChargeDomainErrorCode } from '../interfaces/sale.types'
 
-type SalePaymentUxActionType = 'inline' | 'retry' | 'refetch' | 'new-key'
+type SalePaymentUxActionType = 'inline' | 'retry' | 'refetch' | 'new-key' | 'generic'
 
 export interface SalePaymentUxAction {
   type: SalePaymentUxActionType
@@ -86,6 +86,12 @@ const ERROR_ACTIONS: Record<ChargeDomainErrorCode, SalePaymentUxAction> = {
   SHIPPING_ADDRESS_REQUIRED_FOR_DELIVERY: {
     type: 'inline',
     message: 'Para entrega a domicilio asigna una dirección de envío.',
+  },
+  // O1 S7: an unexpected server fault. 'generic' = show the error, change
+  // nothing (no inline error, no reload, no retry).
+  SALE_STOCK_UNAVAILABLE: {
+    type: 'generic',
+    message: 'No se pudo cobrar la venta. Avisa a soporte: reintentar no lo resuelve.',
   },
 }
 

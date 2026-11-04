@@ -5,8 +5,14 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import type { Sale } from '../../interfaces/sale.types'
 import SalesView from '../SalesView.vue'
 
-const addToast = vi.fn()
+const addToast = vi.hoisted(() => vi.fn())
 vi.stubGlobal('useToast', () => ({ add: addToast }))
+// SalesView resolves useToast from Nuxt UI, so the global stub alone never sees
+// its toasts: route the module through the same spy to assert them.
+vi.mock('@nuxt/ui/composables/useToast', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@nuxt/ui/composables/useToast')>()
+  return { ...actual, useToast: () => ({ ...actual.useToast(), add: addToast }) }
+})
 
 const invalidateQueries = vi.fn()
 vi.mock('@tanstack/vue-query', async () => {
@@ -322,6 +328,17 @@ function mountView() {
   })
 }
 
+const chargeableItem: Sale['items'][number] = {
+  id: 'item-1',
+  productId: 'prod-1',
+  variantId: null,
+  productName: 'A',
+  variantName: null,
+  quantity: 1,
+  unitPriceCents: 10000,
+  unitPriceCurrency: 'MXN',
+}
+
 describe('SalesView charge orchestration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -549,6 +566,74 @@ describe('SalesView charge orchestration', () => {
     await vi.waitFor(() => {
       expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sales', 'tenant-1', 'drafts'] })
     })
+  })
+
+  // O1 S7: 409 STOCK_INSUFFICIENT_AT_CONFIRM — "Stock insuficiente" and the
+  // cart availability is reloaded; nothing is retried by itself.
+  it('STOCK_INSUFFICIENT_AT_CONFIRM: error toast by code, closes the payment modal, reloads the drafts once', async () => {
+    chargeDraft.mockRejectedValueOnce({
+      response: {
+        status: 409,
+        data: {
+          statusCode: 409,
+          error: 'STOCK_INSUFFICIENT_AT_CONFIRM',
+          message: 'Insufficient stock for product X. Available: 2, Requested: 3',
+        },
+      },
+    })
+    // Earlier specs leave the shared draft without items, which blocks opening the modal.
+    drafts.value = [{ ...drafts.value[0]!, items: [chargeableItem], totalCents: 10000 }]
+    const wrapper = mountView()
+
+    await wrapper.get('[data-testid="charge-click"]').trigger('click')
+    expect(wrapper.get('[data-testid="payment-modal-open"]').text()).toBe('true')
+    addToast.mockClear()
+    await wrapper.get('[data-testid="submit-charge"]').trigger('click')
+
+    await vi.waitFor(() => expect(addToast).toHaveBeenCalledTimes(1))
+    expect(addToast).toHaveBeenCalledWith({
+      title: 'Error',
+      description: 'No hay stock suficiente para confirmar. Recalculamos la venta.',
+      color: 'error',
+    })
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sales', 'tenant-1', 'drafts'] })
+    expect(wrapper.get('[data-testid="payment-modal-open"]').text()).toBe('false')
+    expect(wrapper.get('[data-testid="external-error"]').text()).toBe('')
+    expect(chargeDraft).toHaveBeenCalledTimes(1)
+  })
+
+  // O1 S7: 422 SALE_STOCK_UNAVAILABLE — an unexpected server fault. Generic
+  // copy (never the server wording), no inline error, no reload, no retry.
+  it('SALE_STOCK_UNAVAILABLE: generic error toast, no retry, no inline error, nothing reloaded', async () => {
+    chargeDraft.mockRejectedValueOnce({
+      response: {
+        status: 422,
+        data: {
+          statusCode: 422,
+          error: 'SALE_STOCK_UNAVAILABLE',
+          message: 'Stock journal is not available',
+        },
+      },
+    })
+    // Earlier specs leave the shared draft without items, which blocks opening the modal.
+    drafts.value = [{ ...drafts.value[0]!, items: [chargeableItem], totalCents: 10000 }]
+    const wrapper = mountView()
+
+    await wrapper.get('[data-testid="charge-click"]').trigger('click')
+    addToast.mockClear()
+    invalidateQueries.mockClear()
+    await wrapper.get('[data-testid="submit-charge"]').trigger('click')
+
+    await vi.waitFor(() => expect(addToast).toHaveBeenCalledTimes(1))
+    expect(addToast).toHaveBeenCalledWith({
+      title: 'Error',
+      description: 'No se pudo cobrar la venta. Avisa a soporte: reintentar no lo resuelve.',
+      color: 'error',
+    })
+    expect(JSON.stringify(addToast.mock.calls)).not.toContain('Stock journal')
+    expect(wrapper.get('[data-testid="external-error"]').text()).toBe('')
+    expect(invalidateQueries).not.toHaveBeenCalled()
+    expect(chargeDraft).toHaveBeenCalledTimes(1)
   })
 
   it('keeps payment flow disabled while mutation is pending (S31)', async () => {

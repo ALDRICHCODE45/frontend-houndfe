@@ -27,6 +27,7 @@ const ALL_CHARGE_DOMAIN_ERROR_CODES: ChargeDomainErrorCode[] = [
   'NO_OUTSTANDING_DEBT',
   'PAYMENT_EXCEEDS_DEBT',
   'SHIPPING_ADDRESS_REQUIRED_FOR_DELIVERY',
+  'SALE_STOCK_UNAVAILABLE',
 ]
 
 describe('getSalePaymentErrorAction', () => {
@@ -83,6 +84,28 @@ describe('getSalePaymentErrorAction', () => {
 
     expect(action.message).toContain('Para entrega a domicilio')
     expect(action.message).toContain('dirección de envío')
+  })
+
+  // O1 S7: 409 STOCK_INSUFFICIENT_AT_CONFIRM (journal charge/confirm) — the
+  // draft is re-read and the cashier is told the stock fell short.
+  it('pins STOCK_INSUFFICIENT_AT_CONFIRM as a refetch with its copy', () => {
+    expect(getSalePaymentErrorAction('STOCK_INSUFFICIENT_AT_CONFIRM')).toEqual({
+      type: 'refetch',
+      message: 'No hay stock suficiente para confirmar. Recalculamos la venta.',
+    })
+  })
+
+  // O1 S7: 422 SALE_STOCK_UNAVAILABLE is a fail-closed server fault (the
+  // journal was not wired in). A generic error: not inline, not a retry, not a
+  // refetch, and it never carries the raw server wording.
+  it('maps SALE_STOCK_UNAVAILABLE to a generic, no-retry action', () => {
+    const action = getSalePaymentErrorAction('SALE_STOCK_UNAVAILABLE')
+
+    expect(action).toEqual({
+      type: 'generic',
+      message: 'No se pudo cobrar la venta. Avisa a soporte: reintentar no lo resuelve.',
+    })
+    expect(['retry', 'refetch', 'new-key', 'inline']).not.toContain(action.type)
   })
 
   // TRIANGULATE: every member of `ChargeDomainErrorCode` MUST resolve to a
