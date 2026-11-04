@@ -103,6 +103,8 @@ describe('order editor by status', () => {
     expect(wrapper.text()).not.toContain('Continuar borrador')
     expect(wrapper.text()).not.toContain('Puedes guardar datos incompletos')
     expect(wrapper.text()).not.toContain('Para guardar cambios necesitas permiso de lectura')
+    expect(wrapper.text()).not.toContain('Borrador guardado')
+    expect(wrapper.find('[data-testid="draft-form"]').attributes('read-only')).toBe('true')
     wrapper.unmount()
   })
 })
