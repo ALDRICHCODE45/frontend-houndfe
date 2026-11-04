@@ -61,9 +61,20 @@ describe('CatalogSettingsForm — composition (REQ-12)', () => {
 
     const publicationCard = wrapper.find('[data-testid="publication-card"]')
     expect(publicationCard.classes()).toContain('border')
-    expect(publicationCard.classes()).toContain('bg-muted')
+    // Balanced color: a bordered neutral box, no decorative tinted fill.
+    expect(publicationCard.classes()).not.toContain('bg-muted')
     expect(publicationCard.classes()).toContain('min-w-0')
     expect(publicationCard.find('[data-testid="publish-switch"]').exists()).toBe(true)
+  })
+
+  it('says "sin listas" once: the validation summary replaces the field helper when both would appear', () => {
+    const empty = makeDraft({ catalogPublished: true, publicPriceListIds: [], catalogDefaultPriceListId: null })
+    const withBanner = mountForm(empty, { validationErrors: ['Publicar el catálogo requiere al menos una lista de precios pública'] })
+    expect(withBanner.find('[data-testid="validation-summary"]').exists()).toBe(true)
+    expect(withBanner.find('[data-testid="contexts-empty"]').exists()).toBe(false)
+
+    const withoutBanner = mountForm(makeDraft({ publicPriceListIds: [], catalogDefaultPriceListId: null }))
+    expect(withoutBanner.find('[data-testid="contexts-empty"]').exists()).toBe(true)
   })
 
   it('lays contexts and stock out in a responsive one/two-column internal grid', () => {

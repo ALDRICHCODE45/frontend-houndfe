@@ -65,6 +65,7 @@ function onQuantityInput(raw: string | number) {
 <template>
   <UFormField
     label="Stock en catálogo"
+    :ui="{ label: 'font-semibold' }"
     :help="
       props.stockDefault.mode === 'CUSTOM_QUANTITY' && props.stockDefault.customQuantity === 0
         ? 'Mostrar 0'
@@ -86,7 +87,7 @@ function onQuantityInput(raw: string | number) {
 
     <!-- Selected-mode preview: what the public catalog shows, and why. -->
     <div
-      class="mt-3 rounded-lg border border-default bg-muted px-3 py-2"
+      class="mt-3 rounded-lg border border-default px-3 py-2"
       role="status"
       data-testid="stock-mode-preview"
     >

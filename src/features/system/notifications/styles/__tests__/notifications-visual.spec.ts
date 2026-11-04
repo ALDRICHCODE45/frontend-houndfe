@@ -12,6 +12,15 @@ const recipients = read('components/RecipientSelect.vue')
 const formPortal = 'hf-theme hf-ui hf-form-overlay'
 
 // Source contracts, not rendered geometry or browser fidelity evidence.
+describe('Notification switches (non-text contrast)', () => {
+  const css = readFileSync('src/features/system/notifications/styles/notifications-visual.css', 'utf8')
+
+  it('paints an unchecked switch with a visible track outline and thumb in both themes', () => {
+    expect(css).toMatch(/\[role='switch'\]\[data-state='unchecked'\] \{[^}]*box-shadow: inset 0 0 0 1px var\(--hf-muted\)/)
+    expect(css).toMatch(/\[role='switch'\]\[data-state='unchecked'\] \[data-slot='thumb'\] \{[^}]*background-color: var\(--hf-muted\)/)
+  })
+})
+
 describe('Notificaciones presentation adapter', () => {
   it('reuses the shared hf roles without a local palette', () => {
     expect(css).toContain("@import '../../../../core/shared/design-system/houndfe-ui.css'")

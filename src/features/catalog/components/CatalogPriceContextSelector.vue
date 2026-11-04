@@ -34,7 +34,7 @@ const message = computed(() => {
     case 'rate-limit':
       return 'Demasiadas solicitudes. Intenta de nuevo más tarde.'
     case 'network':
-      return 'No se pudo conectar. Revisa tu conexión.'
+      return 'No se pudo conectar. Inténtalo de nuevo en un momento.'
     default:
       return 'No pudimos cargar las listas de precios.'
   }

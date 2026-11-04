@@ -34,8 +34,10 @@ const props = withDefaults(
     acceptedContexts: Array<CatalogPriceContextDto>
     candidates: Array<{ id: string; name: string }>
     disabled?: boolean
+    /** A validation summary already says there are no lists: drop the helper so it is said once. */
+    hideEmptyHint?: boolean
   }>(),
-  { disabled: false },
+  { disabled: false, hideEmptyHint: false },
 )
 
 const emit = defineEmits<{
@@ -144,13 +146,13 @@ function onDefaultChange(next: unknown) {
         </USelectMenu>
 
         <p
-          v-if="selectedIds.length === 0"
+          v-if="selectedIds.length === 0 && !props.hideEmptyHint"
           class="mt-1.5 text-sm text-muted"
           data-testid="contexts-empty"
         >
           Sin listas públicas: la configuración no se mostrará públicamente
         </p>
-        <p v-else class="mt-1.5 text-xs text-muted" data-testid="contexts-summary">
+        <p v-else-if="selectedIds.length > 0" class="mt-1.5 text-xs text-muted" data-testid="contexts-summary">
           {{ summaryCopy }}
         </p>
       </UFormField>
@@ -158,6 +160,7 @@ function onDefaultChange(next: unknown) {
       <!-- Principal list: single, clearable, limited to the selected lists. -->
       <UFormField
         label="Lista predeterminada"
+        :ui="{ label: 'font-semibold' }"
         description="Los clientes públicos verán esta lista primero."
         class="w-full"
       >

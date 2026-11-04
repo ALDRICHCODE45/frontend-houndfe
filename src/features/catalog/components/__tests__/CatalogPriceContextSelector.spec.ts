@@ -97,7 +97,7 @@ describe('CatalogPriceContextSelector', () => {
     ['unavailable', 'La lista de precios no está disponible.'],
     ['rate-limit', 'Demasiadas solicitudes. Intenta de nuevo más tarde.'],
     ['server', 'No pudimos cargar las listas de precios.'],
-    ['network', 'No se pudo conectar. Revisa tu conexión.'],
+    ['network', 'No se pudo conectar. Inténtalo de nuevo en un momento.'],
   ] as const)(
     'surfaces the %s discovery state with a separate discovery retry',
     async (state, copy) => {

@@ -50,7 +50,7 @@ const branchesCopy = computed(() => {
     case 'rate-limit':
       return 'Demasiadas solicitudes. Intenta de nuevo más tarde.'
     case 'network':
-      return 'No se pudo conectar. Revisa tu conexión.'
+      return 'No se pudo conectar. Inténtalo de nuevo en un momento.'
     default:
       return 'No pudimos cargar las sucursales.'
   }
@@ -67,7 +67,7 @@ const contextCopy = computed(() => {
     case 'context-rate-limit':
       return 'Demasiadas solicitudes. Intenta de nuevo más tarde.'
     case 'context-network':
-      return 'No se pudo conectar. Revisa tu conexión.'
+      return 'No se pudo conectar. Inténtalo de nuevo en un momento.'
     default:
       return 'No pudimos cargar las listas de precios.'
   }
@@ -101,7 +101,7 @@ const productsErrorTitle = computed(() =>
   props.state === 'rate-limit'
     ? 'Demasiadas solicitudes. Intenta de nuevo más tarde.'
     : props.state === 'network'
-      ? 'No se pudo conectar. Revisa tu conexión.'
+      ? 'No se pudo conectar. Inténtalo de nuevo en un momento.'
       : 'No pudimos cargar los productos.',
 )
 

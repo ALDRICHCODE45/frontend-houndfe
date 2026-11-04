@@ -178,6 +178,12 @@ describe('CatalogPriceContextsField — Nuxt UI select pattern (U9)', () => {
     expect(wrapper.find('[data-testid="contexts-empty"]').exists()).toBe(false)
   })
 
+  it('names Lista predeterminada with the same weight as the section heading', () => {
+    const wrapper = mountField()
+    const label = wrapper.findAll('label').find((node) => node.text() === 'Lista predeterminada')!
+    expect(label.classes()).toContain('font-semibold')
+  })
+
   it('shows the honest empty state when no public list is selected', () => {
     const wrapper = mountField(
       makeDraft({ publicPriceListIds: [], catalogDefaultPriceListId: null }),

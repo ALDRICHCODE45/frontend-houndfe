@@ -330,7 +330,7 @@ function errorCopy(state: CatalogProductDetailState) {
     case 'rate-limit':
       return 'Hay muchas solicitudes en este momento. Intenta de nuevo en unos momentos.'
     case 'network':
-      return 'No se pudo conectar para cargar el detalle. Revisa tu conexión.'
+      return 'No se pudo conectar para cargar el detalle. Inténtalo de nuevo en un momento.'
     default:
       return 'No pudimos cargar el detalle del producto. Intenta de nuevo.'
   }

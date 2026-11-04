@@ -390,7 +390,7 @@ describe('CatalogView public browse', () => {
   it.each([
     [429, 'Demasiadas solicitudes. Intenta de nuevo más tarde.'],
     [500, 'No pudimos cargar los productos.'],
-    ['network', 'No se pudo conectar. Revisa tu conexión.'],
+    ['network', 'No se pudo conectar. Inténtalo de nuevo en un momento.'],
   ])(
     'renders the %s product failure state and retries through the DOM',
     async (failure, expectedCopy) => {
@@ -699,7 +699,7 @@ describe('CatalogView public browse', () => {
     [
       'network',
       () => Promise.reject(new TypeError('Failed to fetch')),
-      'No se pudo conectar. Revisa tu conexión.',
+      'No se pudo conectar. Inténtalo de nuevo en un momento.',
     ],
   ])(
     'keeps the %s context discovery state separate from products and retries discovery only',
@@ -993,7 +993,7 @@ describe('CatalogView public browse', () => {
     [
       'network',
       () => Promise.reject(new TypeError('Failed to fetch')),
-      'No se pudo conectar. Revisa tu conexión.',
+      'No se pudo conectar. Inténtalo de nuevo en un momento.',
     ],
   ])(
     'keeps the %s branch state and its retry reachable inside the polite chooser region',

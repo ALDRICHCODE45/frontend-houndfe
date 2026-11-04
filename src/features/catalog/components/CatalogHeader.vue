@@ -35,7 +35,7 @@ const errorCopy: Record<'empty' | 'rate-limit' | 'server' | 'network', string> =
   empty: 'No hay sucursales publicadas',
   'rate-limit': 'Demasiadas solicitudes. Intenta de nuevo más tarde.',
   server: 'No pudimos cargar las sucursales.',
-  network: 'No se pudo conectar. Revisa tu conexión.',
+  network: 'No se pudo conectar. Inténtalo de nuevo en un momento.',
 }
 const retryMessage = computed(() =>
   props.state === 'empty' ||

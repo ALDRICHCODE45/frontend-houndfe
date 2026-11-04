@@ -55,6 +55,14 @@ async function selectRenderedMode(wrapper: ReturnType<typeof mountField>, label:
   }
 }
 
+describe('CatalogStockPresentationField — label weight', () => {
+  it('weights its label like the other section labels', () => {
+    const wrapper = mountField()
+    const label = wrapper.findAll('label').find((node) => node.text().startsWith('Stock en catálogo'))!
+    expect(label.classes()).toContain('font-semibold')
+  })
+})
+
 describe('CatalogStockPresentationField — closed mode set (REQ-8)', () => {
   it('renders the four documented customer-facing modes in the opened menu', async () => {
     const wrapper = mountField()
@@ -105,6 +113,7 @@ describe('CatalogStockPresentationField — closed mode set (REQ-8)', () => {
   it('explains the detailed mode as operational status without publishing quantities', () => {
     const wrapper = mountField({ mode: 'SYSTEM_STATUS', customQuantity: null })
     const preview = wrapper.find('[data-testid="stock-mode-preview"]')
+    expect(preview.classes()).not.toContain('bg-muted')
 
     expect(preview.exists()).toBe(true)
     expect(preview.text()).toContain('Estado detallado')

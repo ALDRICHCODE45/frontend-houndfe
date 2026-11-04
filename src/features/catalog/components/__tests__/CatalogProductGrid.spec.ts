@@ -131,7 +131,7 @@ describe('CatalogProductGrid', () => {
     ['context-unavailable', 'La lista de precios seleccionada no está disponible'],
     ['context-no-default', 'Elige una lista de precios para ver productos'],
     ['context-rate-limit', 'Demasiadas solicitudes. Intenta de nuevo más tarde.'],
-    ['context-network', 'No se pudo conectar. Revisa tu conexión.'],
+    ['context-network', 'No se pudo conectar. Inténtalo de nuevo en un momento.'],
     ['context-server', 'No pudimos cargar las listas de precios.'],
   ] as const)(
     'surfaces the %s context state without claiming a product failure',
@@ -233,7 +233,7 @@ describe('CatalogProductGrid', () => {
 
   it.each([
     ['branches', { branchesState: 'server' as const, selectionState: 'none' as const }, 'No pudimos cargar las sucursales.', 'catalog-retry-branches'],
-    ['price lists', { contextState: 'context-network' as const }, 'No se pudo conectar. Revisa tu conexión.', 'catalog-retry-context'],
+    ['price lists', { contextState: 'context-network' as const }, 'No se pudo conectar. Inténtalo de nuevo en un momento.', 'catalog-retry-context'],
     ['products', { state: 'rate-limit' as const, products: [] }, 'Demasiadas solicitudes. Intenta de nuevo más tarde.', 'catalog-retry-products'],
   ])('shows the %s failure through the shared error state with Reintentar', async (_label, props, title, retryId) => {
     const wrapper = mountGrid(props)

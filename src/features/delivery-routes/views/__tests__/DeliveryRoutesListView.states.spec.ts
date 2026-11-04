@@ -195,7 +195,7 @@ describe('DeliveryRoutesListView states — empty', () => {
 
 describe('DeliveryRoutesListView states — toolbar and layout (round 2)', () => {
   const labels = (wrapper: ReturnType<typeof mountView>) =>
-    (wrapper.findComponent(ToolbarSelectFilter).props('items') as Array<{ label: string }>).map((item) => item.label)
+    (wrapper.findComponent(ToolbarSelectFilter).props('items') as unknown as Array<{ label: string }>).map((item) => item.label)
 
   it.each([
     ['loading', () => { state.isLoading.value = true }],
