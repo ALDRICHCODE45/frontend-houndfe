@@ -7,10 +7,6 @@ const css = existsSync(cssPath) ? readFileSync(cssPath, 'utf8') : ''
 const read = (p: string) => readFileSync(`${dir}/${p}`, 'utf8')
 const tenants = read('views/AdminTenantsView.vue')
 const members = read('memberships/views/AdminTenantMembersView.vue')
-const cards = {
-  tenant: [read('components/TenantCard.vue'), read('components/TenantCardGrid.vue')],
-  member: [read('memberships/components/MemberCard.vue'), read('memberships/components/MemberCardGrid.vue')],
-}
 const tenantSlideover = read('components/TenantUpsertSlideover.vue')
 const memberSlideover = read('memberships/components/MembershipUpsertSlideover.vue')
 
@@ -20,32 +16,57 @@ const count = (source: string, needle: string) => source.split(needle).length - 
 
 // Source contracts, not rendered geometry or browser fidelity evidence.
 describe('Sucursales presentation adapter', () => {
-  it('loads a scoped adapter with light and dark palettes for every surface', () => {
+  it('loads a scoped adapter without global overrides', () => {
     expect(css).toContain("@import '../../../../core/shared/design-system/houndfe-ui.css'")
     expect(css).not.toContain(':root')
     expect(css).not.toContain('!important')
     for (const marker of ['tenants-visual', 'tenants-list-portal', 'tenants-form-portal']) {
       expect(css).toContain(`.hf-theme.${marker}`)
-      expect(css).toContain(`.dark .hf-theme.${marker}`)
+    }
+    expect(css).toContain('--radius-xl: var(--hf-radius-card)')
+  })
+
+  it('paints only on --hf roles: no palette literals, no local re-theme', () => {
+    const declarations = css.replace(/\/\*[\s\S]*?\*\//g, '')
+    expect(declarations).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
+    expect(declarations).not.toMatch(
+      /--hf-(?:page|surface|surface-muted|field|ink|heading|muted|border|action|on-action|active|focus):/,
+    )
+    expect(declarations).not.toMatch(/coco|--brand|--light/)
+    expect(css).not.toContain('.dark ')
+  })
+
+  it('has no rules for the retired card grid or view toggle', () => {
+    for (const retired of ['tenants-card', 'tenants-view-toggle', 'transform: none', 'hf-pagination']) {
+      expect(css).not.toContain(retired)
     }
   })
 
   for (const [name, view] of [['tenants', tenants], ['members', members]] as const) {
-    it(`${name}: canonical workspace with themed toolbar, pagination, row menu and confirmation`, () => {
+    it(`${name}: canonical workspace on the shared table pattern`, () => {
       expect(view, name).toMatch(/import '\.\.\/(\.\.\/)?styles\/tenants-visual\.css'/)
       expect(view, name).toContain('hf-theme hf-ui tenants-visual')
       expect(view, name).toContain('class="hf-page-header"')
       expect(view, name).toContain('class="hf-page-title"')
-      expect(view, name).toContain('hf-page-subtitle')
       expect(view, name).toContain('hf-table-surface')
       expect(view, name).toContain('class="hf-data-table"')
+      expect(view, name).toContain('mobile-render="cards"')
+      expect(view, name).toContain('#mobile-card')
+      expect(view, name).toContain(':row-open="rowOpen"')
+      expect(view, name).toContain('<RowActionsMenu')
+      expect(view, name).toContain('<StatusBadge')
       expect(view, name).not.toContain('AdminPageHeader')
       expect(view, name).not.toContain('bg-coco-neutral')
+      for (const retired of ['ViewToggle', 'CardGrid', 'AppBadge', 'StatusDotBadge', 'UDropdownMenu']) {
+        expect(view, name).not.toContain(retired)
+      }
+    })
+
+    it(`${name}: themes toolbar, pagination, row menu and the confirmation`, () => {
       expect(view, name).toContain(`portal-class="${listPortal}"`)
       expect(view, name).toContain(`pagination-portal-class="${listPortal}"`)
-      expect(view, name).toContain(`:ui="{ content: '${listPortal}' }"`)
+      expect(view, name).toContain('portal-class="tenants-list-portal"')
       expect(view, name).toContain(`:ui="{ content: '${formPortal}' }"`)
-      expect(view, name).toContain('tenants-view-toggle')
     })
   }
 
@@ -54,14 +75,10 @@ describe('Sucursales presentation adapter', () => {
     expect(members).toContain('<USkeleton')
   })
 
-  it('keeps cards restrained through owned hooks', () => {
-    for (const [name, [card, grid]] of Object.entries(cards)) {
-      expect(card, name).toContain('tenants-card')
-      expect(grid, name).toContain('tenants-card-grid')
-    }
-    expect(css).toContain('.tenants-visual .tenants-card:hover')
-    expect(css).toContain('transform: none')
-    expect(css).toContain('.tenants-visual .tenants-view-toggle')
+  it('members: the confirmation is labelled with the shared ConfirmModal props', () => {
+    expect(members).toContain('confirm-label="Eliminar"')
+    expect(members).toContain('confirm-color="error"')
+    expect(members).not.toContain('confirm-text')
   })
 
   it('themes both slideovers and the membership menus', () => {
@@ -72,10 +89,11 @@ describe('Sucursales presentation adapter', () => {
   })
 })
 
-describe('Sucursales "Mostrar inactivos" filter', () => {
-  it('uses a switch and keeps it out of the 44px toolbar control rule', () => {
-    expect(tenants).toContain('<USwitch v-model="includeInactive" label="Mostrar inactivos"')
-    expect(tenants).not.toContain('<UCheckbox')
-    expect(css).toContain(":not([role='switch'], [role='checkbox'])")
+describe('Sucursales status filter', () => {
+  it('is a named single-choice select, not a switch', () => {
+    expect(tenants).toContain('<ToolbarSelectFilter')
+    expect(tenants).toContain('label="Estado"')
+    expect(tenants).not.toContain('USwitch')
+    expect(tenants).not.toContain('Mostrar inactivos')
   })
 })

@@ -3,21 +3,22 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { AxiosError } from 'axios'
-import { AppDataTable, FilterSectionCard, SortableHeader } from '@/core/shared/components/DataTable'
+import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
+import ToolbarSelectFilter from '@/core/shared/components/DataTable/ToolbarSelectFilter.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
-import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
-import ViewToggle from '@/core/shared/components/ViewToggle.vue'
+import RowActionsMenu from '@/core/shared/components/RowActionsMenu.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { adminTenantQueryKeys } from '@/core/shared/constants/query-keys'
-import { activityToBadgeTone } from '@/core/shared/utils/badge.utils'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { tenantsApi, mapTenantError } from '../api/tenants.api'
 import { useTenantColumns } from '../composables/useTenantColumns'
-import { useTenantViewMode, isTenantViewMode } from '../composables/useTenantViewMode'
 import type { TenantTableRow } from '../interfaces/tenant.types'
 import type { EditTenantFormValues } from '../composables/useTenantForm'
 import TenantUpsertSlideover from '../components/TenantUpsertSlideover.vue'
-import TenantCardGrid from '../components/TenantCardGrid.vue'
+import AdminMobileCard from '../../shared/components/AdminMobileCard.vue'
+import { noMatchTitleFor, resolveListErrorMessage } from '../../shared/utils/list-state.utils'
 import '../styles/tenants-visual.css'
 import { buildTenantRowActions } from '../utils/tenant-actions.utils'
 
@@ -35,22 +36,12 @@ const authStore = useAuthStore()
 const toast = useToast()
 const { columns } = useTenantColumns()
 
-// ── View mode (table ↔ card) ──────────────────────────────────────────────────
-const { viewMode, setMode: setViewMode, displayMode } = useTenantViewMode()
-
-function handleViewModeChange(mode: string) {
-  if (!isTenantViewMode(mode)) return
-  setViewMode(mode)
-}
-
 const includeInactive = ref(false)
 
 const {
   pagination,
   sorting,
   globalFilter,
-  columnPinning,
-  columnVisibility,
   data,
   totalCount,
   pageCount,
@@ -68,34 +59,11 @@ const {
   defaultPageSize: 10,
   persistKey: 'admin-tenants',
   defaultSorting: [{ id: 'name', desc: false }],
-  defaultPinning: { left: [], right: ['actions'] },
 })
 
-// Human-readable error message for the admin tenants table. Mirrors
-// AdminRolesView: prefer backend `response.data.message`, then
-// `error.message`, then the Spanish fallback. The error block in
-// AppDataTable is rendered instead of "No se encontraron sucursales"
-// whenever `isError` is true.
-const tenantsErrorMessage = computed(() => {
-  const err = error.value as
-    | { response?: { data?: { message?: unknown } }; message?: string }
-    | null
-    | undefined
-  const backendMessage = err?.response?.data?.message
-  if (typeof backendMessage === 'string' && backendMessage.trim()) {
-    return backendMessage
-  }
-  if (Array.isArray(backendMessage) && backendMessage.length > 0) {
-    const first = backendMessage[0]
-    if (typeof first === 'string') return first
-  }
-  if (typeof err?.message === 'string' && err.message.trim()) {
-    return err.message
-  }
-  return 'No se pudieron cargar las sucursales. Reintenta.'
-})
-
-const headerDescription = 'Gestión global de sucursales (solo super-admin).'
+const tenantsErrorMessage = computed(() =>
+  resolveListErrorMessage(error.value, 'No se pudieron cargar las sucursales. Reintenta.'),
+)
 
 const isCreateOpen = ref(false)
 const isEditOpen = ref(false)
@@ -175,22 +143,11 @@ const isSubmitting = computed(
 const canCreateTenant = computed(() => authStore.isSuperAdmin)
 const canUpdateTenant = computed(() => authStore.isSuperAdmin)
 const canDeleteTenant = computed(() => authStore.isSuperAdmin)
-const canManageTenantActions = computed(() => authStore.isSuperAdmin)
-
-const dateFormatter = new Intl.DateTimeFormat('es-AR', {
-  day: '2-digit',
-  month: 'short',
-  year: 'numeric',
-})
 
 function openEdit(tenant: TenantTableRow) {
   if (!canUpdateTenant.value) return
   selectedTenant.value = tenant
   isEditOpen.value = true
-}
-
-function handleCardClick(tenant: TenantTableRow) {
-  openEdit(tenant)
 }
 
 async function handleDeactivate(tenant: TenantTableRow) {
@@ -204,15 +161,47 @@ function handleManageMembers(tenant: TenantTableRow) {
   void router.push(`/admin/tenants/${tenant.id}/members`)
 }
 
-function getRowItems(tenant: TenantTableRow) {
-  return buildTenantRowActions(tenant, {
+const rowActions = computed(() =>
+  buildTenantRowActions({
     canUpdate: canUpdateTenant.value,
     canDelete: canDeleteTenant.value,
     canManageMembers: authStore.isSuperAdmin,
-    onEdit: openEdit,
-    onDeactivate: handleDeactivate,
-    onManageMembers: handleManageMembers,
-  })
+  }),
+)
+
+function handleRowAction(key: string, tenant: TenantTableRow) {
+  if (key === 'edit') openEdit(tenant)
+  else if (key === 'members') handleManageMembers(tenant)
+  else if (key === 'deactivate') void handleDeactivate(tenant)
+}
+
+const rowOpen = computed(() => (canUpdateTenant.value ? openEdit : undefined))
+
+// "Activas" is the default view; "Todas" is the one active filter.
+const statusItems = [
+  { label: 'Activas', value: 'active' },
+  { label: 'Todas', value: 'all' },
+]
+const statusFilter = computed({
+  get: () => (includeInactive.value ? 'all' : 'active'),
+  set: (value: string) => {
+    includeInactive.value = value === 'all'
+  },
+})
+
+const searchTerm = computed(() => globalFilter.value.trim())
+const noMatchTitle = computed(() => noMatchTitleFor(searchTerm.value))
+const emptyState = computed(() => ({
+  title: 'Aún no hay sucursales',
+  description: 'Aquí aparecerán las sucursales que crees.',
+  ...(canCreateTenant.value
+    ? { actionLabel: 'Crear sucursal', actionIcon: 'i-lucide-building' }
+    : {}),
+}))
+
+function clearFilters() {
+  globalFilter.value = ''
+  includeInactive.value = false
 }
 </script>
 
@@ -247,114 +236,138 @@ function getRowItems(tenant: TenantTableRow) {
       @confirm="handleConfirm"
     />
 
-    <!-- Canonical table workspace (design-system §4): heading outside the surface. -->
-    <div class="hf-page-header">
-      <h1 class="hf-page-title">Gestión de sucursales</h1>
-      <p class="hf-page-subtitle">{{ headerDescription }}</p>
-    </div>
+    <header class="hf-page-header">
+      <h1 class="hf-page-title">Sucursales</h1>
+    </header>
 
-    <UCard :ui="{ body: 'p-0 sm:p-0' }" class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm">
-
+    <UCard
+      :ui="{ body: 'p-0 sm:p-0' }"
+      class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm"
+    >
       <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
           v-model:global-filter="globalFilter"
-          v-model:column-pinning="columnPinning"
-          v-model:column-visibility="columnVisibility"
           :columns="columns"
           :data="data"
           :loading="isLoading"
           :fetching="isFetching"
           :error="isError"
           :error-message="tenantsErrorMessage"
+          :empty-state="emptyState"
+          :filtered="searchTerm !== ''"
+          :no-match-title="noMatchTitle"
           :page-count="pageCount"
           :total-count="totalCount"
           :showing-from="showingFrom"
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
-          :display-mode="displayMode"
+          :row-open="rowOpen"
+          display-mode="auto"
+          mobile-render="cards"
           search-placeholder="Buscar sucursales..."
           :show-add-button="canCreateTenant"
           :active-filter-count="includeInactive ? 1 : 0"
           add-button-text="Crear sucursal"
           add-button-icon="i-lucide-building"
-          enable-column-visibility
           empty="No se encontraron sucursales"
           class="hf-data-table"
           portal-class="hf-theme hf-ui tenants-list-portal"
           pagination-portal-class="hf-theme hf-ui tenants-list-portal"
           data-testid="create-tenant-button"
           @add="isCreateOpen = true"
+          @empty-action="isCreateOpen = true"
+          @clear-filters="clearFilters"
           @refresh="refresh"
-          @clear-filters="includeInactive = false"
         >
           <template #filters>
-            <!-- polish-filters-bottom-sheet: FilterSectionCard owns the card
-                 chrome + "Estado" title so the mobile sheet renders the slot
-                 directly (no vnode capture). -->
-            <FilterSectionCard title="Estado">
-              <USwitch v-model="includeInactive" label="Mostrar inactivos" />
-            </FilterSectionCard>
+            <ToolbarSelectFilter
+              v-model="statusFilter"
+              :items="statusItems"
+              label="Estado"
+              portal-class="hf-theme hf-ui tenants-list-portal"
+              test-id="tenant-status-filter"
+            />
           </template>
 
           <template #name-header="{ column }">
-            <SortableHeader :column="column" label="Nombre" />
-          </template>
-
-          <template #slug-header="{ column }">
-            <SortableHeader :column="column" label="Slug" />
+            <SortableHeader :column="column" label="Sucursal" />
           </template>
 
           <template #createdAt-header="{ column }">
             <SortableHeader :column="column" label="Creación" />
           </template>
 
+          <template #name-cell="{ row }">
+            <button
+              v-if="canUpdateTenant"
+              type="button"
+              class="hf-row-primary text-left"
+              data-testid="tenant-name"
+              @click="openEdit(row.original)"
+            >
+              {{ row.original.name }}
+            </button>
+            <span v-else class="hf-row-primary" data-testid="tenant-name">{{
+              row.original.name
+            }}</span>
+            <span class="hf-row-secondary">{{ row.original.slug }}</span>
+          </template>
+
           <template #isActive-cell="{ row }">
-            <StatusDotBadge
-              :data-testid="`status-badge-${row.original.id}`"
-              :tone="activityToBadgeTone(row.original.isActive)"
+            <StatusBadge
               :label="row.original.isActive ? 'Activa' : 'Inactiva'"
+              :tone="row.original.isActive ? 'success' : 'neutral'"
             />
+          </template>
+
+          <template #address-cell="{ row }">
+            <span class="text-sm text-muted">{{ row.original.address || '—' }}</span>
+          </template>
+
+          <template #phone-cell="{ row }">
+            <span class="hf-figure text-sm">{{ row.original.phone || '—' }}</span>
           </template>
 
           <template #createdAt-cell="{ row }">
-            <span>{{ dateFormatter.format(new Date(row.original.createdAt)) }}</span>
+            <span class="text-sm text-muted">{{ formatShortDateTime(row.original.createdAt) }}</span>
           </template>
+
+          <template #actions-header><span class="sr-only">Acciones</span></template>
 
           <template #actions-cell="{ row }">
-            <UDropdownMenu
-              v-if="canManageTenantActions"
-              :items="getRowItems(row.original)"
-              :content="{ align: 'end' }"
-              :ui="{ content: 'hf-theme hf-ui tenants-list-portal' }"
+            <RowActionsMenu
+              :actions="rowActions"
+              :row-label="row.original.name"
+              portal-class="tenants-list-portal"
+              @select="handleRowAction($event, row.original)"
+            />
+          </template>
+
+          <template #mobile-card="{ row }">
+            <AdminMobileCard
+              :item="row"
+              :label="row.name"
+              :actions="rowActions"
+              :openable="canUpdateTenant"
+              portal-class="tenants-list-portal"
+              test-id="tenant-card"
+              @open="openEdit"
+              @action="handleRowAction"
             >
-              <UButton
-                :data-testid="`edit-tenant-${row.original.id}`"
-                icon="i-lucide-ellipsis-vertical"
-                color="neutral"
-                variant="ghost"
-                class="size-7"
-              />
-            </UDropdownMenu>
-          </template>
-
-          <template #actions>
-            <ViewToggle
-              :model-value="viewMode"
-              class="tenants-view-toggle"
-              aria-label="Seleccionar vista de sucursales"
-              @update:model-value="handleViewModeChange"
-            />
-          </template>
-
-          <template #cards>
-            <TenantCardGrid
-              :tenants="data"
-              :loading="isLoading || isFetching"
-              :empty="'No se encontraron sucursales'"
-              @card-click="handleCardClick"
-            />
+              <template #secondary>{{ row.slug }}</template>
+              <template #badges>
+                <StatusBadge
+                  :label="row.isActive ? 'Activa' : 'Inactiva'"
+                  :tone="row.isActive ? 'success' : 'neutral'"
+                />
+              </template>
+              <template #footer>
+                <span class="min-w-0 truncate">{{ row.address || '—' }}</span>
+                <span class="shrink-0">{{ formatShortDateTime(row.createdAt) }}</span>
+              </template>
+            </AdminMobileCard>
           </template>
         </AppDataTable>
       </div>

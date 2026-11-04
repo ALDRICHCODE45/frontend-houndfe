@@ -1,89 +1,36 @@
 import { describe, it, expect } from 'vitest'
 import { useTenantColumns } from '../useTenantColumns'
 
+const keyOf = (column: { accessorKey?: unknown; id?: string }) =>
+  (column.accessorKey as string | undefined) ?? column.id
+
 describe('useTenantColumns', () => {
-  it('returns a columns array', () => {
+  it('orders columns by job: name, status, address, phone, date, then the ⋮ column', () => {
     const { columns } = useTenantColumns()
-    expect(Array.isArray(columns)).toBe(true)
-    expect(columns.length).toBeGreaterThan(0)
+    expect(columns.map(keyOf)).toEqual(['name', 'isActive', 'address', 'phone', 'createdAt', 'actions'])
+    expect(columns.length).toBeLessThanOrEqual(8)
   })
 
-  it('orders columns as [name, slug, address, phone, isActive, createdAt, actions]', () => {
+  it('folds the slug under the name instead of a column of its own', () => {
     const { columns } = useTenantColumns()
-    const ids = columns.map((c) => {
-      if ('accessorKey' in c && c.accessorKey) return c.accessorKey as string
-      return (c as { id: string }).id
-    })
-    expect(ids).toEqual([
-      'name',
-      'slug',
-      'address',
-      'phone',
-      'isActive',
-      'createdAt',
-      'actions',
-    ])
+    expect(columns.map(keyOf)).not.toContain('slug')
   })
 
-  it('name column uses header "Nombre" and is sortable + hideable', () => {
+  it('names the first column after the record and sorts by name and date', () => {
     const { columns } = useTenantColumns()
-    const col = columns.find((c) => 'accessorKey' in c && c.accessorKey === 'name')
-    expect(col).toBeDefined()
-    expect(col!.header).toBe('Nombre')
-    expect(col!.enableSorting).toBe(true)
-    expect(col!.enableHiding).toBe(true)
+    const byKey = (key: string) => columns.find((column) => keyOf(column) === key)!
+    expect(byKey('name').header).toBe('Sucursal')
+    expect(byKey('name').enableSorting).toBe(true)
+    expect(byKey('createdAt').enableSorting).toBe(true)
+    for (const key of ['isActive', 'address', 'phone']) expect(byKey(key).enableSorting).toBe(false)
   })
 
-  it('slug column uses header "Slug" and is sortable + hideable', () => {
+  it('makes the actions column last, narrow, non-sortable and non-hideable', () => {
     const { columns } = useTenantColumns()
-    const col = columns.find((c) => 'accessorKey' in c && c.accessorKey === 'slug')
-    expect(col).toBeDefined()
-    expect(col!.header).toBe('Slug')
-    expect(col!.enableSorting).toBe(true)
-    expect(col!.enableHiding).toBe(true)
-  })
-
-  it('address column uses header "Dirección" and is non-sortable but hideable', () => {
-    const { columns } = useTenantColumns()
-    const col = columns.find((c) => 'accessorKey' in c && c.accessorKey === 'address')
-    expect(col).toBeDefined()
-    expect(col!.header).toBe('Dirección')
-    expect(col!.enableSorting).toBe(false)
-    expect(col!.enableHiding).toBe(true)
-  })
-
-  it('phone column uses header "Teléfono" and is non-sortable but hideable', () => {
-    const { columns } = useTenantColumns()
-    const col = columns.find((c) => 'accessorKey' in c && c.accessorKey === 'phone')
-    expect(col).toBeDefined()
-    expect(col!.header).toBe('Teléfono')
-    expect(col!.enableSorting).toBe(false)
-    expect(col!.enableHiding).toBe(true)
-  })
-
-  it('isActive column uses header "Estado" and is non-sortable but hideable', () => {
-    const { columns } = useTenantColumns()
-    const col = columns.find((c) => 'id' in c && c.id === 'isActive')
-    expect(col).toBeDefined()
-    expect(col!.enableSorting).toBe(false)
-    expect(col!.enableHiding).toBe(true)
-  })
-
-  it('createdAt column uses header "Creación" and is sortable + hideable', () => {
-    const { columns } = useTenantColumns()
-    const col = columns.find((c) => 'accessorKey' in c && c.accessorKey === 'createdAt')
-    expect(col).toBeDefined()
-    expect(col!.header).toBe('Creación')
-    expect(col!.enableSorting).toBe(true)
-    expect(col!.enableHiding).toBe(true)
-  })
-
-  it('actions column is non-sortable, non-hideable and has text-right cell alignment', () => {
-    const { columns } = useTenantColumns()
-    const col = columns.find((c) => 'id' in c && c.id === 'actions')
-    expect(col).toBeDefined()
-    expect(col!.enableSorting).toBe(false)
-    expect(col!.enableHiding).toBe(false)
-    expect(col!.meta?.class?.td).toBe('text-right')
+    const actions = columns[columns.length - 1]!
+    expect(keyOf(actions)).toBe('actions')
+    expect(actions.enableSorting).toBe(false)
+    expect(actions.enableHiding).toBe(false)
+    expect(actions.meta?.class).toEqual({ th: 'w-16', td: 'w-16 text-right' })
   })
 })
