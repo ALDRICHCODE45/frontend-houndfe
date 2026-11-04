@@ -3,8 +3,8 @@ import { computed } from 'vue'
 import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
 import type { TableColumn } from '@/core/shared/types/table.types'
 import type { Supplier } from '../interfaces/supplier.types'
-const props = defineProps<{ items: readonly Supplier[]; canEdit: boolean; canDelete?: boolean; loading?: boolean; fetching?: boolean; error?: boolean; disabled?: boolean }>()
-const emit = defineEmits<{ open: [supplier: Supplier]; changeStatus: [supplier: Supplier]; delete: [supplier: Supplier]; refresh: [] }>()
+const props = defineProps<{ items: readonly Supplier[]; canEdit: boolean; canDelete?: boolean; loading?: boolean; fetching?: boolean; error?: boolean; disabled?: boolean; activeFilterCount?: number }>()
+const emit = defineEmits<{ open: [supplier: Supplier]; changeStatus: [supplier: Supplier]; delete: [supplier: Supplier]; refresh: []; 'clear-filters': [] }>()
 const search = defineModel<string>('search', { default: '' })
 const data = computed(() => [...props.items])
 const columns = computed<TableColumn<Supplier, unknown>[]>(() => [
@@ -24,7 +24,8 @@ const columns = computed<TableColumn<Supplier, unknown>[]>(() => [
     display-mode="auto" mobile-render="cards" search-placeholder="Buscar proveedor..."
     refresh-button-test-id="refresh-suppliers"
     portal-class="hf-theme hf-ui suppliers-list-portal"
-    class="hf-data-table" @refresh="emit('refresh')"
+    :active-filter-count="activeFilterCount"
+    class="hf-data-table" @refresh="emit('refresh')" @clear-filters="emit('clear-filters')"
   >
     <template #filters><slot name="filters" /></template>
     <template #actions><slot name="actions" /></template>

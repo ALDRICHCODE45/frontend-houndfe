@@ -21,6 +21,8 @@ const order = {
   ...input, id: orderId, version: 1, status: 'DRAFT', createdAt: '2026-11-03T00:00:00.000Z',
   updatedAt: '2026-11-03T00:00:00.000Z', supplierDisplaySnapshot: null, lineDisplaySnapshots: [], lineSubtotals: [],
   locationSnapshot: { tenantId: 't', tenantName: 'Sucursal', detail: null }, validation: { issues: [] },
+  supplierCurrentVersion: null, referenceToken: null, canConfirm: false,
+  confirmedAt: null, confirmedBy: null, cancelledAt: null, cancelledBy: null,
 } as PurchaseOrder
 
 describe('purchase order transport', () => {
@@ -34,6 +36,32 @@ describe('purchase order transport', () => {
     expect(http.get).toHaveBeenCalledExactlyOnceWith('/procurement/purchase-orders', {
       params: { supplierId: input.supplierId, search: '  nota  ', cursor: 'c', limit: 25 }, signal,
     })
+  })
+
+  it('sends the single status filter and omits it when absent', async () => {
+    vi.mocked(http.get).mockResolvedValue({ data: { items: [], nextCursor: null } })
+    await purchaseOrdersApi.list({ status: 'CONFIRMED' })
+    expect(http.get).toHaveBeenLastCalledWith('/procurement/purchase-orders', {
+      params: { supplierId: undefined, search: undefined, cursor: undefined, limit: undefined, status: 'CONFIRMED' }, signal: undefined,
+    })
+  })
+
+  it('confirms with exactly the three server-issued expectations and the caller-owned key', async () => {
+    vi.mocked(http.post).mockResolvedValue({ data: { ...order, status: 'CONFIRMED', version: 2 } })
+    const signal = new AbortController().signal
+    const injected = { expectedVersion: 1, expectedSupplierVersion: 4, expectedReferenceToken: 'opaque', canConfirm: true } as never
+    await purchaseOrdersApi.confirm(orderId, injected, 'confirm-key', signal)
+    expect(http.post).toHaveBeenCalledExactlyOnceWith('/procurement/purchase-orders/' + orderId + '/confirm',
+      { expectedVersion: 1, expectedSupplierVersion: 4, expectedReferenceToken: 'opaque' },
+      { headers: { 'Idempotency-Key': 'confirm-key' }, signal })
+  })
+
+  it('cancels with a closed CAS body and no reason', async () => {
+    vi.mocked(http.post).mockResolvedValue({ data: { ...order, status: 'CANCELLED', version: 2 } })
+    const signal = new AbortController().signal
+    await purchaseOrdersApi.cancel(orderId, { expectedVersion: 1, reason: 'x' } as never, 'cancel-key', signal)
+    expect(http.post).toHaveBeenCalledExactlyOnceWith('/procurement/purchase-orders/' + orderId + '/cancel',
+      { expectedVersion: 1 }, { headers: { 'Idempotency-Key': 'cancel-key' }, signal })
   })
 
   it('reads one order by encoded id', async () => {

@@ -1,38 +1,5 @@
 @import '../../../../core/shared/design-system/houndfe-ui.css';
 
-/* Match payment-details: search/actions first, filters below on desktop.
- * Mobile keeps the shared toolbar's search, actions and filter sheet. */
-@media (min-width: 768px) {
-  .suppliers-page .hf-toolbar {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 0.5rem 0.75rem;
-  }
-
-  .suppliers-page .hf-toolbar-search-region {
-    display: contents;
-  }
-
-  .suppliers-page .hf-toolbar-search {
-    grid-area: 1 / 1;
-    width: 100%;
-    max-width: 26rem;
-  }
-
-  .suppliers-page .hf-toolbar-actions {
-    grid-area: 1 / 2;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    justify-self: end;
-  }
-
-  .suppliers-page .hf-toolbar-filters {
-    grid-area: 2 / 1 / 3 / -1;
-    flex-wrap: wrap;
-  }
-}
-
 .suppliers-page .hf-toolbar :where(button, input, [data-slot='root']):not([role='switch'], [role='checkbox']) {
   min-height: var(--hf-control-height);
 }

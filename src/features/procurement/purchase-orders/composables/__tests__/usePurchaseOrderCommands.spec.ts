@@ -5,7 +5,7 @@ import { usePurchaseOrderCommands, type PurchaseOrderCommandContext } from '../u
 import type { OrderInput, PurchaseOrder } from '../../interfaces/purchase-order.types'
 
 vi.mock('../../api/purchase-orders.api', () => ({
-  purchaseOrdersApi: { create: vi.fn(), saveDraft: vi.fn(), delete: vi.fn() },
+  purchaseOrdersApi: { create: vi.fn(), saveDraft: vi.fn(), delete: vi.fn(), confirm: vi.fn(), cancel: vi.fn() },
 }))
 const input = (): OrderInput => ({
   supplierId: null, note: 'Pedido semanal', location: { detail: null },
@@ -14,7 +14,8 @@ const input = (): OrderInput => ({
 const order = { ...input(), id: 'order-1', version: 1, status: 'DRAFT' } as PurchaseOrder
 function setup(overrides: Partial<PurchaseOrderCommandContext> = {}) {
   const context = shallowRef<PurchaseOrderCommandContext>({
-    userId: 'user-1', tenantId: 'branch-1', ready: true, canCreate: true, canUpdate: true, canDelete: true, ...overrides,
+    userId: 'user-1', tenantId: 'branch-1', ready: true, canCreate: true, canUpdate: true, canDelete: true,
+    canConfirm: true, canCancel: true, ...overrides,
   })
   const scope = effectScope()
   const owner = scope.run(() => usePurchaseOrderCommands(context))!
@@ -25,6 +26,7 @@ function deferred<T>() {
   const promise = new Promise<T>(done => { resolve = done })
   return { promise, resolve }
 }
+const expectations = { expectedVersion: 1, expectedSupplierVersion: 4, expectedReferenceToken: 'opaque' }
 const httpError = (status: number, error: string) => Object.assign(new Error(error), { response: { status, data: { statusCode: status, error } } })
 beforeEach(() => vi.resetAllMocks())
 
@@ -111,6 +113,57 @@ describe('purchase order command ownership', () => {
     expect(purchaseOrdersApi.create).not.toHaveBeenCalled()
     expect(purchaseOrdersApi.saveDraft).not.toHaveBeenCalled()
     expect(purchaseOrdersApi.delete).not.toHaveBeenCalled()
+    scope.stop()
+  })
+
+  it('confirms with its own permission, the server expectations and a fresh key per deliberate attempt', async () => {
+    const { owner, context, scope } = setup({ canConfirm: false })
+    expect(await owner.confirm('order-1', expectations)).toEqual({ status: 'blocked' })
+    context.value = { ...context.value, canConfirm: true, canUpdate: false, canCreate: false, canDelete: false }
+    const confirmed = { ...order, version: 2, status: 'CONFIRMED' } as PurchaseOrder
+    vi.mocked(purchaseOrdersApi.confirm).mockResolvedValue(confirmed)
+    expect(await owner.confirm('order-1', { ...expectations, canConfirm: true } as never)).toEqual({ status: 'applied', order: confirmed })
+    const [id, body, key, signal] = vi.mocked(purchaseOrdersApi.confirm).mock.calls[0]!
+    expect([id, body]).toEqual(['order-1', expectations])
+    expect(Object.isFrozen(body)).toBe(true)
+    expect(signal).toEqual(expect.any(AbortSignal))
+    await owner.confirm('order-1', expectations)
+    expect(vi.mocked(purchaseOrdersApi.confirm).mock.calls[1]![2]).not.toBe(key)
+    scope.stop()
+  })
+
+  it('cancels with its own permission and only the expected version', async () => {
+    const { owner, context, scope } = setup({ canCancel: false })
+    expect(await owner.cancel('order-1', { expectedVersion: 2 })).toEqual({ status: 'blocked' })
+    context.value = { ...context.value, canCancel: true, canConfirm: false, canUpdate: false, canDelete: false }
+    const cancelled = { ...order, version: 3, status: 'CANCELLED' } as PurchaseOrder
+    vi.mocked(purchaseOrdersApi.cancel).mockResolvedValueOnce(cancelled)
+    expect(await owner.cancel('order-1', { expectedVersion: 2, reason: 'x' } as never)).toEqual({ status: 'applied', order: cancelled })
+    expect(vi.mocked(purchaseOrdersApi.cancel).mock.calls[0]!.slice(0, 2)).toEqual(['order-1', { expectedVersion: 2 }])
+    scope.stop()
+  })
+
+  it.each(['ORDER_NOT_READY', 'ELIGIBILITY_CHANGED', 'SUPPLIER_VERSION_CONFLICT', 'ORDER_STATE_CONFLICT', 'SUPPLIER_ARCHIVED', 'ORDER_VERSION_CONFLICT'])(
+    'rejects a confirmation answered with 409 %s without keeping it for replay', async code => {
+      const { owner, scope } = setup()
+      vi.mocked(purchaseOrdersApi.confirm).mockRejectedValueOnce(httpError(409, code))
+      expect(await owner.confirm('order-1', expectations)).toEqual({ status: 'rejected' })
+      expect(owner.hasUncertainResult.value).toBe(false)
+      expect(await owner.retry()).toEqual({ status: 'blocked' })
+      scope.stop()
+    })
+
+  it.each(['canConfirm', 'canCancel'] as const)('retires a late transition when %s is revoked', async flag => {
+    const { owner, context, scope } = setup()
+    const pending = deferred<PurchaseOrder>()
+    const api = flag === 'canConfirm' ? purchaseOrdersApi.confirm : purchaseOrdersApi.cancel
+    vi.mocked(api).mockReturnValueOnce(pending.promise)
+    const result = flag === 'canConfirm' ? owner.confirm('order-1', expectations) : owner.cancel('order-1', { expectedVersion: 1 })
+    const signal = vi.mocked(api).mock.calls[0]![3]!
+    context.value = { ...context.value, [flag]: false }
+    expect(signal.aborted).toBe(true)
+    pending.resolve(order)
+    expect(await result).toEqual({ status: 'discarded' })
     scope.stop()
   })
 })

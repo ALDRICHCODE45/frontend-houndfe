@@ -8,6 +8,8 @@ const APP_SUBJECTS: AppSubject[] = [
   'Product',
   'ProcurementSupplier',
   'ProcurementPurchaseOrder',
+  'ProcurementOrderConfirmation',
+  'ProcurementOrderCancellation',
   'Order',
   'User',
   'Role',

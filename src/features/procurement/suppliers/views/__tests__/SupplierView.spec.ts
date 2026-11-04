@@ -41,33 +41,36 @@ beforeEach(() => {
 afterEach(() => dispose.splice(0).forEach(fn => fn()))
 
 describe('supplier screen integration', () => {
-  it('keeps Estado in shared filters and matches the canonical desktop toolbar regions', async () => {
+  it('keeps Estado in the shared filters, inline beside the search on one row like Products', async () => {
     const wrapper = setup()
     await flushPromises()
     const toolbar = wrapper.getComponent(DataTableToolbar)
-    expect(toolbar.get('.hf-toolbar-filters select').element).toBe(wrapper.get('select').element)
+    const filter = toolbar.get('.hf-toolbar-filters [data-testid="supplier-status-filter"]')
+    expect(filter.attributes('role')).toBe('combobox')
+    expect(filter.attributes('aria-label')).toBe('Estado')
+    expect(filter.text()).toContain('Activos')
+    expect(wrapper.find('select').exists()).toBe(false)
     expect(toolbar.get('.hf-toolbar-search-region input').attributes('placeholder')).toBe('Buscar proveedor...')
     expect(toolbar.get('.hf-toolbar-actions [data-testid="create-supplier"]').text()).toBe('Crear proveedor')
-
-    // Public presentation contract: the same desktop grid as payment-details.
-    // jsdom does not apply media queries, so inspect the shipped stylesheet rules.
-    const style = document.createElement('style')
-    style.textContent = suppliersCss.replace(/@import[^;]+;/g, '')
-    document.head.append(style)
-    try {
-      const desktop = Array.from(style.sheet!.cssRules).find(rule => rule.type === CSSRule.MEDIA_RULE && (rule as CSSMediaRule).media.mediaText === '(min-width: 768px)') as CSSMediaRule | undefined
-      expect(desktop, 'supplier toolbar must ship the canonical desktop layout').toBeDefined()
-      const rules = Array.from(desktop!.cssRules) as CSSStyleRule[]
-      const region = (selector: string) => rules.find(rule => rule.selectorText === `.suppliers-page ${selector}`)?.style
-      expect(region('.hf-toolbar')?.getPropertyValue('grid-template-columns')).toBe('minmax(0, 1fr) auto')
-      expect(region('.hf-toolbar-search-region')?.display).toBe('contents')
-      expect(region('.hf-toolbar-search')?.getPropertyValue('grid-area')).toBe('1 / 1')
-      expect(region('.hf-toolbar-search')?.getPropertyValue('max-width')).toBe('26rem')
-      expect(region('.hf-toolbar-actions')?.getPropertyValue('grid-area')).toBe('1 / 2')
-      expect(region('.hf-toolbar-filters')?.getPropertyValue('grid-area')).toBe('2 / 1 / 3 / -1')
-    } finally {
-      style.remove()
-    }
+    // The filter shares the search row: no feature rule may push it onto a second grid row.
+    expect(suppliersCss).not.toMatch(/hf-toolbar-filters/)
+    expect(suppliersCss).not.toMatch(/grid-area/)
+  })
+  it('chooses a status by its readable label and clears back to the default', async () => {
+    const wrapper = setup(undefined, true)
+    await flushPromises()
+    expect(wrapper.find('[data-testid="toolbar-filtros-badge"]').exists()).toBe(false)
+    document.querySelector<HTMLElement>('[data-testid="supplier-status-filter"]')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+    await vi.waitFor(() => expect(document.querySelector('[role="listbox"]')).not.toBeNull())
+    const options = Array.from(document.querySelectorAll<HTMLElement>('[role="option"]'))
+    expect(options.map(option => option.textContent?.trim())).toEqual(['Activos', 'Archivados', 'Todos'])
+    options[1]!.focus()
+    options[1]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    await vi.waitFor(() => expect(suppliersApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'ARCHIVED' }), expect.any(AbortSignal)))
+    expect(wrapper.getComponent(DataTableToolbar).props('activeFilterCount')).toBe(1)
+    wrapper.getComponent(DataTableToolbar).vm.$emit('clear-filters')
+    await vi.waitFor(() => expect(suppliersApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'ACTIVE' }), expect.any(AbortSignal)))
+    expect(wrapper.getComponent(DataTableToolbar).props('activeFilterCount')).toBe(0)
   })
   it.each([
     { mobile: false, trigger: 'supplier-detail', overlay: 'detalle' },
@@ -149,14 +152,18 @@ describe('supplier screen integration', () => {
     isMobile.value = true
     const wrapper = setup(undefined, true)
     await flushPromises()
-    expect(wrapper.find('select').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="supplier-status-filter"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="toolbar-mobile-actions-row"] [data-testid="create-supplier"]').text()).toBe('Crear proveedor')
     await wrapper.get('[data-testid="toolbar-filtros-button"]').trigger('click')
-    await vi.waitFor(() => expect(document.querySelector('[role="dialog"] select')).not.toBeNull())
-    const select = document.querySelector<HTMLSelectElement>('[role="dialog"] select')!
-    expect(select.closest('label')?.textContent).toContain('Estado')
-    select.value = 'ALL'
-    select.dispatchEvent(new Event('change', { bubbles: true }))
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"] [data-testid="supplier-status-filter"]')).not.toBeNull())
+    const select = document.querySelector<HTMLElement>('[role="dialog"] [data-testid="supplier-status-filter"]')!
+    expect(select.closest('[role="dialog"]')?.querySelector('select')).toBeNull()
+    expect(select.parentElement?.querySelector('p')?.textContent).toBe('Estado')
+    select.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+    await vi.waitFor(() => expect(document.querySelector('[role="listbox"]')).not.toBeNull())
+    const all = Array.from(document.querySelectorAll<HTMLElement>('[role="option"]')).find(option => option.textContent?.trim() === 'Todos')!
+    all.focus()
+    all.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
     await flushPromises()
     expect(suppliersApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'ALL' }), expect.any(AbortSignal))
     document.querySelector('[role="dialog"]')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))

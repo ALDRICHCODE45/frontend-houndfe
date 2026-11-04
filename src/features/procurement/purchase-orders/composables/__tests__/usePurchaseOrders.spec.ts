@@ -8,7 +8,7 @@ import { usePurchaseOrder, usePurchaseOrders } from '../usePurchaseOrders'
 
 vi.mock('../../api/purchase-orders.api', () => ({ purchaseOrdersApi: { list: vi.fn(), get: vi.fn() } }))
 const row: PurchaseOrderSummary = { id: 'one', version: 1, status: 'DRAFT', supplierDisplaySnapshot: null, lineCount: 0, issueCount: 0, note: null, locationDetail: null, createdAt: '', updatedAt: '' }
-const order: PurchaseOrder = { ...row, supplierId: null, location: { detail: null }, lines: [], lineDisplaySnapshots: [], lineSubtotals: [], locationSnapshot: { tenantId: 'tenant', tenantName: '', detail: null }, validation: { issues: [] } }
+const order: PurchaseOrder = { ...row, supplierId: null, location: { detail: null }, lines: [], lineDisplaySnapshots: [], lineSubtotals: [], locationSnapshot: { tenantId: 'tenant', tenantName: '', detail: null }, validation: { issues: [] }, supplierCurrentVersion: null, referenceToken: null, canConfirm: false, confirmedAt: null, confirmedBy: null, cancelledAt: null, cancelledBy: null }
 const cleanups: Array<() => void> = []
 function setup(patch = {}) {
   const context = shallowRef({ userId: 'user', tenantId: 'tenant', ready: true, canRead: true, ...patch })
@@ -59,6 +59,20 @@ describe('purchase order scoped reads', () => {
     expect(purchaseOrdersApi.list).toHaveBeenLastCalledWith({ supplierId: 'supplier', search: 'Proveedor', cursor: undefined, limit: 25 }, expect.any(AbortSignal))
     list.search.value = '   '; await flushPromises()
     expect(vi.mocked(purchaseOrdersApi.list).mock.lastCall?.[0]).toMatchObject({ search: undefined, cursor: undefined })
+  })
+  it('sends the single status filter, defaults to every order and resets the cursor when it changes', async () => {
+    const { list } = setup(); await flushPromises()
+    expect(list.status.value).toBeUndefined()
+    expect(vi.mocked(purchaseOrdersApi.list).mock.lastCall?.[0]).not.toHaveProperty('status', 'DRAFT')
+    list.next(); await flushPromises()
+    expect(list.hasPrevious.value).toBe(true)
+    list.status.value = 'CONFIRMED'
+    expect(list.items.value).toEqual([])
+    await flushPromises()
+    expect(list.hasPrevious.value).toBe(false)
+    expect(purchaseOrdersApi.list).toHaveBeenLastCalledWith({ supplierId: undefined, search: undefined, status: 'CONFIRMED', cursor: undefined, limit: 25 }, expect.any(AbortSignal))
+    list.status.value = undefined; await flushPromises()
+    expect(vi.mocked(purchaseOrdersApi.list).mock.lastCall?.[0].status).toBeUndefined()
   })
   it.each([{ ready: false }, { canRead: false }, { userId: '' }, { tenantId: '' }])('does not dispatch without complete access: %j', async patch => {
     const { list, detail } = setup(patch)

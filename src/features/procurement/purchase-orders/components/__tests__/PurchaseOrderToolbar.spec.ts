@@ -9,4 +9,9 @@ describe('draft mobile shared toolbar', () => {
     expect(wrapper.find('[data-testid="toolbar-mobile-filters-row"]').exists()).toBe(false)
     wrapper.unmount()
   })
+  it('does expose the filters trigger once a status filter is slotted in', () => {
+    const wrapper = mount(PurchaseOrderList, { props: { items: [], canEdit: false, canDelete: false }, slots: { filters: '<label>Estado<select><option>Todas</option></select></label>' }, global: { stubs: { Slideover: true, Tooltip: { template: '<span><slot/></span>' }, Button: { template: '<button><slot/></button>' } } } })
+    expect(wrapper.find('[data-testid="toolbar-mobile-filters-row"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
 })

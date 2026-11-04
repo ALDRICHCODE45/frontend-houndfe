@@ -31,4 +31,10 @@ describe('draft form', () => {
     expect(wrapper.emitted('save')).toBeUndefined()
     expect(wrapper.text()).toContain('2000 caracteres')
   })
+  it('has no read-only mode: the save hint always shows and a read-only draft uses the description list instead', () => {
+    const wrapper = mount(PurchaseOrderForm, { props: { initial: null, context } })
+    expect(wrapper.text()).toContain('Puedes guardar el borrador incompleto.')
+    expect(PurchaseOrderForm.props).not.toHaveProperty('readOnly')
+    wrapper.unmount()
+  })
 })
