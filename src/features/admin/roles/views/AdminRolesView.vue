@@ -17,6 +17,7 @@ import RoleUpsertSlideover from '../components/RoleUpsertSlideover.vue'
 import RolePermissionsSlideover from '../components/RolePermissionsSlideover.vue'
 import AdminMobileCard from '../../shared/components/AdminMobileCard.vue'
 import { noMatchTitleFor } from '../../shared/utils/list-state.utils'
+import { countOf } from '../../shared/utils/plural.utils'
 import '../styles/roles-visual.css'
 
 const queryClient = useQueryClient()
@@ -34,7 +35,6 @@ const {
   isLoading,
   isFetching,
   isError,
-  error,
   refresh,
   pageSizeOptions,
   showingFrom,
@@ -346,7 +346,7 @@ function clearFilters() {
                 />
               </template>
               <template #footer>
-                <span class="hf-figure">{{ row.permissionCount }} permisos · {{ row.userCount }} usuarios</span>
+                <span class="hf-figure">{{ countOf(row.permissionCount, 'permiso', 'permisos') }} · {{ countOf(row.userCount, 'usuario', 'usuarios') }}</span>
                 <span>{{ formatShortDateTime(row.createdAt) }}</span>
               </template>
             </AdminMobileCard>

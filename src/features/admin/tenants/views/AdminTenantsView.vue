@@ -48,7 +48,6 @@ const {
   isLoading,
   isFetching,
   isError,
-  error,
   refresh,
   pageSizeOptions,
   showingFrom,
@@ -310,7 +309,6 @@ function clearFilters() {
             <span v-else class="hf-row-primary" data-testid="tenant-name">{{
               row.original.name
             }}</span>
-            <span class="hf-row-secondary">{{ row.original.slug }}</span>
           </template>
 
           <template #isActive-cell="{ row }">
@@ -354,7 +352,7 @@ function clearFilters() {
               @open="openEdit"
               @action="handleRowAction"
             >
-              <template #secondary>{{ row.slug }}</template>
+              <template v-if="row.address" #secondary>{{ row.address }}</template>
               <template #badges>
                 <StatusBadge
                   :label="row.isActive ? 'Activa' : 'Inactiva'"
@@ -362,8 +360,8 @@ function clearFilters() {
                 />
               </template>
               <template #footer>
-                <span class="min-w-0 truncate">{{ row.address || '—' }}</span>
-                <span class="shrink-0">{{ formatShortDateTime(row.createdAt) }}</span>
+                <span v-if="row.phone" class="hf-figure min-w-0 truncate">{{ row.phone }}</span>
+                <span class="ml-auto shrink-0">{{ formatShortDateTime(row.createdAt) }}</span>
               </template>
             </AdminMobileCard>
           </template>

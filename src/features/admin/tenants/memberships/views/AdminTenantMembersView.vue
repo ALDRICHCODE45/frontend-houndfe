@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { AxiosError } from 'axios'
 import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
@@ -36,6 +36,7 @@ declare const useToast: () => {
 }
 
 const route = useRoute()
+const router = useRouter()
 const queryClient = useQueryClient()
 const toast = useToast()
 const authStore = useAuthStore()
@@ -57,7 +58,6 @@ const {
   isLoading,
   isFetching,
   isError,
-  error,
   refresh,
   pageSizeOptions,
   showingFrom,
@@ -69,6 +69,10 @@ const {
   persistKey: `admin-tenant-members-${tenantId.value}`,
   defaultSorting: [{ id: 'userName', desc: false }],
 })
+
+const pageTitle = computed(() =>
+  !isLoadingTenantName.value && tenantName.value ? `Miembros de ${tenantName.value}` : 'Miembros',
+)
 
 const membershipsErrorMessage = 'No se pudieron cargar los miembros'
 
@@ -97,7 +101,7 @@ const createMutation = useMutation({
     isCreateOpen.value = false
     toast.add({
       title: 'Miembro agregado',
-      description: 'El usuario se agregó al tenant correctamente.',
+      description: 'El usuario se agregó a la sucursal correctamente.',
       color: 'success',
     })
     await queryClient.invalidateQueries({
@@ -139,7 +143,7 @@ const removeMutation = useMutation({
   onSuccess: async () => {
     toast.add({
       title: 'Miembro eliminado',
-      description: 'El usuario se eliminó del tenant correctamente.',
+      description: 'El usuario se eliminó de la sucursal correctamente.',
       color: 'success',
     })
     await queryClient.invalidateQueries({
@@ -174,7 +178,7 @@ function openEdit(membership: MembershipTableRow) {
 
 function openRemoveConfirm(membership: MembershipTableRow) {
   openConfirm(
-    `¿Estás seguro de que deseas eliminar a ${membership.userEmail} de este tenant?`,
+    `¿Estás seguro de que deseas eliminar a ${membership.userEmail} de esta sucursal?`,
     () => removeMutation.mutate(membership.id),
   )
 }
@@ -210,13 +214,24 @@ function clearFilters() {
 
 <template>
   <div class="hf-theme hf-ui tenants-visual flex w-full min-w-0 flex-col gap-6 md:px-6 lg:px-10">
-    <!-- The subtitle names the branch and shows a skeleton while the name loads. -->
+    <!-- The title names the branch (a skeleton shows while the name loads) and a
+         back link returns to the Sucursales list. -->
     <header class="hf-page-header">
-      <h1 class="hf-page-title">Miembros</h1>
+      <div class="-ml-2 mb-1">
+        <UButton
+          icon="i-lucide-arrow-left"
+          color="neutral"
+          variant="ghost"
+          data-testid="tenant-members-back"
+          @click="router.push({ name: 'admin-tenants' })"
+        >
+          Sucursales
+        </UButton>
+      </div>
+      <h1 class="hf-page-title">{{ pageTitle }}</h1>
       <div v-if="isLoadingTenantName" data-testid="tenant-members-subtitle-loading" class="mt-1">
         <USkeleton class="h-4 w-48" />
       </div>
-      <p v-else class="hf-page-subtitle">{{ tenantName }}</p>
     </header>
 
     <UCard
@@ -253,7 +268,7 @@ function clearFilters() {
           display-mode="auto"
           mobile-render="cards"
           search-placeholder="Buscar por email, nombre o rol..."
-          empty="No hay miembros en este tenant"
+          empty="No hay miembros en esta sucursal"
           class="hf-data-table"
           portal-class="hf-theme hf-ui tenants-list-portal"
           pagination-portal-class="hf-theme hf-ui tenants-list-portal"
@@ -354,7 +369,7 @@ function clearFilters() {
                 />
               </template>
               <template #footer>
-                <span class="min-w-0 truncate font-medium">{{ row.roleName }}</span>
+                <span class="min-w-0 truncate font-medium">Rol: {{ row.roleName }}</span>
                 <span class="shrink-0">{{ formatShortDateTime(row.createdAt) }}</span>
               </template>
             </AdminMobileCard>

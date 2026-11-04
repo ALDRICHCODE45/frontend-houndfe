@@ -210,14 +210,29 @@ beforeEach(() => {
 })
 
 describe('AdminPaymentDetailsView — "Sin cuenta activa" banner (REQ-PD-006)', () => {
-  it('renders the banner when there is no active account', async () => {
+  it('renders the banner inside the table surface, under the title, when accounts exist but none is active', async () => {
+    mockTable.fullList.value = [{ id: 'pd-1', isActive: false }] as never
     mockTable.hasActiveAccount.value = false
     const wrapper = mountView()
     await flushPromises()
-    expect(wrapper.find('[data-testid="no-active-account-banner"]').exists()).toBe(true)
+    const banner = wrapper.get('[data-testid="no-active-account-banner"]')
+    expect(wrapper.get('.hf-table-surface').element.contains(banner.element)).toBe(true)
+    // The title never moves: the banner is not a sibling above the page header.
+    const root = wrapper.element as HTMLElement
+    expect(Array.from(root.children).some((child) => child.contains(banner.element) && child.matches('.hf-page-header'))).toBe(false)
+    expect(wrapper.get('.hf-page-header').element).toBe(root.querySelector('.hf-page-header'))
+  })
+
+  it('does not repeat the empty state: no banner when there are no accounts at all', async () => {
+    mockTable.fullList.value = []
+    mockTable.hasActiveAccount.value = false
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="no-active-account-banner"]').exists()).toBe(false)
   })
 
   it('hides the banner when there is at least one active account', async () => {
+    mockTable.fullList.value = [{ id: 'pd-1', isActive: true }] as never
     mockTable.hasActiveAccount.value = true
     const wrapper = mountView()
     await flushPromises()
@@ -226,6 +241,7 @@ describe('AdminPaymentDetailsView — "Sin cuenta activa" banner (REQ-PD-006)', 
 
   it('suppresses the banner while loading', async () => {
     mockTable.isLoading.value = true
+    mockTable.fullList.value = [{ id: 'pd-1', isActive: false }] as never
     mockTable.hasActiveAccount.value = false
     const wrapper = mountView()
     await flushPromises()
@@ -234,6 +250,7 @@ describe('AdminPaymentDetailsView — "Sin cuenta activa" banner (REQ-PD-006)', 
 
   it('suppresses the banner while erroring', async () => {
     mockTable.isError.value = true
+    mockTable.fullList.value = [{ id: 'pd-1', isActive: false }] as never
     mockTable.hasActiveAccount.value = false
     const wrapper = mountView()
     await flushPromises()

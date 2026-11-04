@@ -164,6 +164,16 @@ describe('AdminRolesView states — data', () => {
     expect(card.find('.hf-status-badge').exists()).toBe(true)
   })
 
+  it('agrees the counts in number on the mobile card ("1 usuario", "1 permiso")', () => {
+    isBelowBreakpoint.value = true
+    tableState.data.value = [
+      makeRole({ permissionCount: 1, userCount: 1 }),
+      makeRole({ id: 'role-2', name: 'Cajero', permissionCount: 8, userCount: 3 }),
+    ]
+    const footers = mountView().findAll('[data-testid="role-card"] .admin-card-footer .hf-figure')
+    expect(footers.map((footer) => footer.text())).toEqual(['1 permiso · 1 usuario', '8 permisos · 3 usuarios'])
+  })
+
   it('makes rows clickable for roles that can update', () => {
     tableState.data.value = [makeRole()]
     const wrapper = mountView()

@@ -161,10 +161,11 @@ describe('AdminTenantMembersView states — loading', () => {
     expect(wrapper.findAll('[data-testid="mobile-card-skeleton"]')).toHaveLength(3)
   })
 
-  it('shows a skeleton in the subtitle while the branch name loads', () => {
+  it('shows a skeleton next to the title while the branch name loads', () => {
     summary.isLoadingTenantName.value = true
     const wrapper = mountView()
     expect(wrapper.find('[data-testid="tenant-members-subtitle-loading"]').exists()).toBe(true)
+    expect(wrapper.get('.hf-page-title').text()).toBe('Miembros')
     expect(wrapper.find('.hf-page-subtitle').exists()).toBe(false)
   })
 })
@@ -198,6 +199,13 @@ describe('AdminTenantMembersView states — data', () => {
     expect(card.find('[aria-label="Acciones de María Pérez"]').exists()).toBe(true)
     expect(card.get('.hf-status-badge').text()).toBe('Activo')
     expect(card.text()).toContain('Cajero')
+  })
+
+  it('names the role in the card footer so it does not repeat the member name', () => {
+    isBelowBreakpoint.value = true
+    tableState.data.value = [makeMember({ userName: 'Cajero', roleName: 'Cajero' })]
+    const footer = mountView().get('[data-testid="member-card"] .admin-card-footer')
+    expect(footer.text()).toContain('Rol: Cajero')
   })
 
   it('omits the status badge in the card when the user state is unknown', () => {
@@ -290,10 +298,14 @@ describe('AdminTenantMembersView states — error', () => {
 })
 
 describe('AdminTenantMembersView states — page header', () => {
-  it('shows the title with the branch name as the only subtitle, outside the table surface', () => {
+  it('puts the branch name in the title, with a way back to Sucursales, outside the table surface', async () => {
     const wrapper = mountView()
-    expect(wrapper.get('.hf-page-title').text()).toBe('Miembros')
-    expect(wrapper.get('.hf-page-subtitle').text()).toBe('Sucursal Centro')
+    expect(wrapper.get('.hf-page-title').text()).toBe('Miembros de Sucursal Centro')
+    expect(wrapper.find('.hf-page-subtitle').exists()).toBe(false)
     expect(wrapper.find('.hf-table-surface .hf-page-title').exists()).toBe(false)
+    const back = wrapper.get('[data-testid="tenant-members-back"]')
+    expect(back.text()).toBe('Sucursales')
+    await back.trigger('click')
+    expect(push).toHaveBeenCalledWith({ name: 'admin-tenants' })
   })
 })

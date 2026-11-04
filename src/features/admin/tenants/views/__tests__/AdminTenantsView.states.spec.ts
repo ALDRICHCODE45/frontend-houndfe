@@ -138,13 +138,14 @@ describe('AdminTenantsView states — loading', () => {
 })
 
 describe('AdminTenantsView states — data', () => {
-  it('renders rows with the name and slug, a StatusBadge and the ⋮ menu, with no state chrome', () => {
+  it('renders rows with the name, a StatusBadge and the ⋮ menu, never the slug, with no state chrome', () => {
     tableState.data.value = [makeTenant(), makeTenant({ id: 'tenant-2', name: 'Sucursal Norte', slug: 'norte', isActive: false })]
     const wrapper = mountView()
     const rows = wrapper.findAll('tbody tr')
     expect(rows).toHaveLength(2)
     expect(rows[0]!.get('.hf-row-primary').text()).toBe('Sucursal Centro')
-    expect(rows[0]!.get('.hf-row-secondary').text()).toBe('centro')
+    expect(wrapper.find('.hf-row-secondary').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('centro')
     const badges = wrapper.findAll('tbody .hf-status-badge')
     expect(badges.map((badge) => badge.text())).toEqual(['Activa', 'Inactiva'])
     expect(badges.map((badge) => badge.attributes('data-tone'))).toEqual(['success', 'neutral'])
@@ -162,6 +163,22 @@ describe('AdminTenantsView states — data', () => {
     const card = wrapper.get('[data-testid="tenant-card"]')
     expect(card.find('[aria-label="Acciones de Sucursal Centro"]').exists()).toBe(true)
     expect(card.get('.hf-status-badge').text()).toBe('Activa')
+  })
+
+  it('uses the address as the card secondary line, never the slug', () => {
+    isBelowBreakpoint.value = true
+    tableState.data.value = [makeTenant()]
+    const card = mountView().get('[data-testid="tenant-card"]')
+    expect(card.get('.hf-row-secondary').text()).toBe('Av. Principal 123')
+    expect(card.text()).not.toContain('centro')
+  })
+
+  it('does not start the card footer with a lone dash when the branch has no address or phone', () => {
+    isBelowBreakpoint.value = true
+    tableState.data.value = [makeTenant({ address: undefined, phone: undefined })]
+    const card = mountView().get('[data-testid="tenant-card"]')
+    expect(card.find('.hf-row-secondary').exists()).toBe(false)
+    expect(card.get('.admin-card-footer').text()).not.toContain('—')
   })
 
   it('opens the edit slideover on a row click and not from the ⋮ menu', async () => {

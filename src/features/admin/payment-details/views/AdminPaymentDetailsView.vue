@@ -35,7 +35,8 @@ import '../styles/payment-details-visual.css'
  *     tenants/users pattern, no dedicated mutation composables.
  *   - isActive is NEVER editable (no toggle, no checkbox). Deactivation is the
  *     DELETE (baja lógica) path only, gated by `delete:PaymentDetail`.
- *   - Banner: inline `UAlert` "Sin cuenta activa" shown when `!hasActiveAccount`.
+ *   - Banner: inline `UAlert` "Sin cuenta activa" inside the table surface, shown
+ *     when accounts exist and none is active (not in the empty state).
  *   - Gating: menu/route (read) + create/edit/delete buttons via `userCan`.
  *
  * The view destructures the wrapper return at the TOP LEVEL of `<script setup>`
@@ -60,7 +61,6 @@ const {
   isLoading,
   isFetching,
   isError,
-  error,
   refresh,
   pageSizeOptions,
   showingFrom,
@@ -68,6 +68,11 @@ const {
   fullList,
   hasActiveAccount,
 } = usePaymentDetailsTable()
+
+// The notice repeats nothing: with no accounts at all the empty state says it.
+const showNoActiveNotice = computed(
+  () => !isLoading.value && !isError.value && fullList.value.length > 0 && !hasActiveAccount.value,
+)
 
 // ── View gating (CASL) ─────────────────────────────────────────────────────────
 const canCreatePaymentDetail = computed(() => authStore.userCan('create', 'PaymentDetail'))
@@ -209,17 +214,6 @@ function clearFilters() {
 
 <template>
   <div class="hf-theme hf-ui payment-details-visual flex w-full min-w-0 flex-col gap-6 md:px-6 lg:px-10">
-    <UAlert
-      v-if="!isLoading && !isError && !hasActiveAccount"
-      data-testid="no-active-account-banner"
-      color="warning"
-      variant="soft"
-      icon="i-lucide-triangle-alert"
-      class="payment-details-notice"
-      title="Sin cuenta activa"
-      description="El bot no puede cobrar por transferencia hasta que haya una cuenta activa."
-    />
-
     <PaymentDetailUpsertSlideover
       v-model:open="isCreateOpen"
       mode="create"
@@ -258,7 +252,20 @@ function clearFilters() {
       :ui="{ body: 'p-0 sm:p-0' }"
       class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm"
     >
-      <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
+      <div class="hf-table-content flex w-full min-w-0 flex-col gap-4 px-3 py-3 sm:px-4 sm:py-4">
+        <!-- Inside the surface so the title never jumps; only when accounts exist
+             (with none, the empty state already says it). -->
+        <UAlert
+          v-if="showNoActiveNotice"
+          data-testid="no-active-account-banner"
+          color="warning"
+          variant="soft"
+          icon="i-lucide-triangle-alert"
+          class="payment-details-notice"
+          title="Sin cuenta activa"
+          description="El bot no puede cobrar por transferencia hasta que haya una cuenta activa."
+        />
+
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"

@@ -1,7 +1,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { TenantTableRow } from '../interfaces/tenant.types'
 
-// Name first (with the slug under it), then the status, then how to find the
+// Name first (the slug is an id-like value, so it is not shown), then the status, then how to find the
 // branch, then the date and the ⋮ column. Sortable headers come from the
 // #<key>-header slots (SortableHeader) in AdminTenantsView.vue, since NuxtUI
 // components need template context.
