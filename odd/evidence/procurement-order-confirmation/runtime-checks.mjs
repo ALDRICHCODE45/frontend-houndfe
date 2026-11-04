@@ -782,7 +782,9 @@ export async function run(browserPage, stage, part = null) {
         mixedTaxBasis: drafts.find(d => d.totals?.length === 2), confirmedMixedTaxBasis: confirmed.find(d => d.totals?.length === 2),
         confirmed: confirmed.find(d => d.confirmedBy), confirmedSpare: confirmed.at(-1),
         cancelledFromDraft: cancelled.find(d => !d.confirmedAt && d.lines.length > 0),
-        cancelledFromConfirmed: cancelled.find(d => d.confirmedAt && d.cancelledAt && d.confirmedBy && d.cancelledBy),
+        // The seeded one (confirmed by Sofía, cancelled by Jorge); later runs leave other confirmed-then-cancelled orders behind.
+        cancelledFromConfirmed: cancelled.find(d => d.confirmedAt && d.cancelledAt && [d.confirmedBy, d.cancelledBy].join('|') === [NAMES.confirmer, NAMES.canceller].join('|'))
+          ?? cancelled.find(d => d.confirmedAt && d.cancelledAt && d.confirmedBy && d.cancelledBy),
         templates: [], confirmedPool: confirmed,
       }
       // Templates for cloned probe orders: complete orders with an active supplier.
