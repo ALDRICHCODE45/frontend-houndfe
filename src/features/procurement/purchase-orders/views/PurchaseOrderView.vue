@@ -27,8 +27,10 @@ const { search, status, items, hasNext, hasPrevious, isLoading, isFetching, erro
 const workspace = usePurchaseOrderWorkspace(context, list.refresh)
 const { commands, selected, open, editorOpen, deleteOpen, dirty, formKey, detailLoading, detailError, deleteTarget, notice, locked, message, conflict, deleteRejected, canSave, transition, transitionOpen, transitionRejected, needsSave, canConfirm, canCancel } = workspace
 const statusFilter = computed({ get: () => status.value ?? 'ALL', set: value => { status.value = value === 'ALL' ? undefined : value as PurchaseOrderStatus } })
-const editorTitle = computed(() => !selected.value ? 'Nueva orden' : { DRAFT: 'Continuar borrador', CONFIRMED: 'Orden confirmada', CANCELLED: 'Orden cancelada' }[selected.value.status])
-const editorDescription = computed(() => !selected.value || selected.value.status === 'DRAFT' ? 'Puedes guardar datos incompletos y retomarlos después.' : selected.value.status === 'CONFIRMED' ? 'Proveedor, productos y costos quedaron congelados. No se modifican existencias, pagos ni deuda.' : 'Esta orden fue cancelada y ya no admite cambios.')
+// Confirm/cancel-only and read-only users open drafts without update permission (S7).
+const readOnlyDraft = computed(() => selected.value?.status === 'DRAFT' && !context.value.canUpdate)
+const editorTitle = computed(() => !selected.value ? 'Nueva orden' : readOnlyDraft.value ? 'Ver borrador' : { DRAFT: 'Continuar borrador', CONFIRMED: 'Orden confirmada', CANCELLED: 'Orden cancelada' }[selected.value.status])
+const editorDescription = computed(() => readOnlyDraft.value ? 'Solo lectura: no tienes permiso para editar este borrador.' : !selected.value || selected.value.status === 'DRAFT' ? 'Puedes guardar datos incompletos y retomarlos después.' : selected.value.status === 'CONFIRMED' ? 'Proveedor, productos y costos quedaron congelados. No se modifican existencias, pagos ni deuda.' : 'Esta orden fue cancelada y ya no admite cambios.')
 const { isPending, hasUncertainResult } = commands
 if (getCurrentInstance()?.appContext.config.globalProperties.$router) onBeforeRouteLeave(workspace.canLeave)
 function preventUnload(event: BeforeUnloadEvent) { event.preventDefault(); event.returnValue = '' }
@@ -68,7 +70,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', preventUnload))
           <p v-if="needsSave" role="status" class="order-warning">Guarda tus cambios antes de confirmar o cancelar.</p>
           <p v-else-if="selected.status === 'DRAFT' && context.canConfirm && selected.canConfirm !== true" role="status" class="order-help">Completa los avisos del borrador para poder confirmarla.</p>
         </div>
-        <p v-if="(!selected || selected.status === 'DRAFT') && (!context.canReadSupplier || !context.canReadProduct)" role="status" class="order-warning">Para guardar cambios necesitas permiso de lectura de proveedores y productos.</p>
+        <p v-if="(!selected || (selected.status === 'DRAFT' && !readOnlyDraft)) && (!context.canReadSupplier || !context.canReadProduct)" role="status" class="order-warning">Para guardar cambios necesitas permiso de lectura de proveedores y productos.</p>
         <p v-else-if="selected?.status === 'DRAFT' && !context.canUpdate" role="status" class="order-warning">Borrador guardado. Para seguir editándolo necesitas permiso para editar órdenes de compra.</p>
         <PurchaseOrderReadonly v-if="open && selected && selected.status !== 'DRAFT'" :order="selected" />
         <PurchaseOrderForm v-else-if="open" :key="formKey" :initial="selected" :context="context" :disabled="locked || detailLoading || !canSave" @save="workspace.save" @cancel="workspace.close" @dirty="dirty = $event" />
