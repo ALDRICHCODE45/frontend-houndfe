@@ -1,0 +1,139 @@
+{
+  "task": "T8 (S11) product content table, runtime check",
+  "product": "Alimento Premium para Perro Adulto 15 kg",
+  "viewports": [
+    "1440x900",
+    "390x844"
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "users": {
+    "admin": "admin@houndfe.com (editorial permissions)",
+    "manager": "manager@houndfe.com (no editorial permission)"
+  },
+  "harness": {
+    "capture": "odd/evidence/product-content-table/capture.mjs (--user admin|manager)",
+    "artboard": "odd/evidence/product-content-table/artboard.mjs"
+  },
+  "shots": {
+    "admin": 56,
+    "manager": 4,
+    "artboard": 18,
+    "dir": "odd/evidence/product-content-table/shots (git-ignored)"
+  },
+  "checks": {
+    "tabs": {
+      "pass": true,
+      "evidence": "Identidad · Presentaciones · Contenido · Inventario"
+    },
+    "emptyState": {
+      "pass": true,
+      "evidence": "Aún no hay ficha para el catálogo + Empezar ficha; started with the real action"
+    },
+    "humanLabels": {
+      "pass": true,
+      "evidence": "21 row labels, e.g. Análisis clínico / Cantidad contenida / Comportamiento en el agua; families: Sin familia, Accesorios, Alimento, Cuidado y salud, Higiene, Hábitat, Juguetes, Premios y snacks, Starter: General"
+    },
+    "table": {
+      "pass": true,
+      "evidence": "Dato | Producto; 21 rows (this product has no variants, all food bindings are per sellable: one column, named Producto)"
+    },
+    "stateChipsAndCellMenu": {
+      "pass": true,
+      "evidence": "Sin dato / Con dato / Desconocido / No aplica chips; the ⋯ menu shows Desconocido, No aplica, Agregar evidencia, Quitar dato"
+    },
+    "editAndSave": {
+      "pass": true,
+      "evidence": "Cambios sin guardar | Guardado · 4 nov, 17:14 | 0 de 21 datos -> 6 de 21 datos"
+    },
+    "onlyMissing": {
+      "pass": true,
+      "evidence": "21 -> 15 rows"
+    },
+    "historyDrawer": {
+      "pass": true,
+      "evidence": "timeline + empty note (no published version to diff); redesigned, see fixes. The two-column diff itself was not seen in the browser: nothing is published in the dev DB"
+    },
+    "completeToPublish": {
+      "pass": true,
+      "evidence": "folded, opens, holds the declarations"
+    },
+    "familyChangeConfirm": {
+      "pass": true,
+      "evidence": "dialog(confirm): ¿Cambiar de familia? Se borrarán los datos y las declaraciones de este borrador. Lo publicado no cambia. (a native window.confirm, not the ConfirmModal)"
+    },
+    "mobile390": {
+      "pass": true,
+      "evidence": "{\"tableScrollsInside\":true,\"pageOverflow\":false,\"stickyLabel\":\"sticky\",\"barSticky\":\"sticky\",\"barBottom\":24}"
+    },
+    "readOnlyManager": {
+      "evidence": "manager sees the forbidden block (editorial-unavailable): No tienes permiso para consultar el contenido editorial de este producto. No table, no footer. The header still shows Guardar cambios (the product save).",
+      "pass": true
+    },
+    "validationError": {
+      "pass": true,
+      "evidence": "No se guardó · corrige 1 dato | Este dato no admite «No aplica». | client: Escribe solo números | title over the limit: No se guardó · corrige 1 dato"
+    },
+    "consoleErrors": {
+      "pass": true,
+      "evidence": "only 3x 401 on the first GET /products,/categories,/brands of the run (stale session refresh, outside the editor); 0 errors from the editor",
+      "unauthorized": [
+        "GET /products",
+        "GET /categories",
+        "GET /brands"
+      ]
+    },
+    "horizontalOverflow": {
+      "pass": true,
+      "evidence": "0 page overflow in 60 shots"
+    }
+  },
+  "differencesFromArtboard": [
+    "No topic group rows (Para quién, Sabor y tipo...): the vocabulary has no topic metadata (BE follow-up)",
+    "No Buscar dato search and no Agregar dato button; the table lists every attribute of the family",
+    "No Completar · pendientes → Guardar → Publicación próximamente step bar; the footer carries it",
+    "Título y descripción is always open (artboard: folded with the title as summary)",
+    "Footer is a floating sticky card, the artboard has a full-width bar; the footer has ⋯ and the disabled Publicación próximamente",
+    "Historial drawer: artboard stacks old (struck) over new with plain summaries; we keep two columns Publicado | Borrador",
+    "Artboard shows presentation columns; this product has none"
+  ],
+  "fixes": [
+    {
+      "commit": "f7fdc3b7",
+      "what": "after Descartar borrador the Contenido area stayed blank: now refreshes and shows the empty state"
+    },
+    {
+      "commit": "006a43c0",
+      "what": "the only column of a product without variants is named Producto, not Sin presentación"
+    },
+    {
+      "commit": "a987494c",
+      "what": "the multi-choice list closes on Escape or an outside press; known cells show a Con dato chip (artboard)"
+    },
+    {
+      "commit": "ec54d3d8",
+      "what": "history drawer redesign: one name per version with a plain line, cards, a note when there is nothing to compare"
+    },
+    {
+      "commit": "044775fd",
+      "what": "header band (Ficha para el catálogo, state, Historial) apart from the filter toolbar; mobile footer without the disabled publication button"
+    },
+    {
+      "commit": "89932e35",
+      "what": "mobile: narrow sticky attribute column, 3-row toolbar, Historial as an icon"
+    },
+    {
+      "commit": "87171980",
+      "what": "completeness count stays on one line"
+    }
+  ],
+  "openQuestions": [
+    "The family-change confirmation is a native window.confirm; the design system uses ConfirmModal. Replace it?",
+    "On Contenido without editorial permission the header still shows Guardar cambios (the product save); intended?",
+    "Should Título y descripción fold like the artboard, and should we add Buscar dato for 30+ row families?",
+    "The two-column history diff needs a published version to be seen in the browser",
+    "The harness discards the existing draft to re-check the empty state (dev DB only)"
+  ]
+}
