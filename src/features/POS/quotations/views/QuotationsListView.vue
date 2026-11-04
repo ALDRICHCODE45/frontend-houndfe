@@ -123,7 +123,7 @@ interface StatusTab {
 }
 
 const STATUS_TABS: StatusTab[] = [
-  { label: 'Todos', value: 'ALL' },
+  { label: 'Todas', value: 'ALL' },
   { label: 'Borradores', value: QUOTATION_STATUS.DRAFT },
   { label: 'Enviadas', value: QUOTATION_STATUS.SENT },
   { label: 'Expiradas', value: QUOTATION_STATUS.EXPIRED },
@@ -361,7 +361,7 @@ const errorMessage = 'No se pudieron cargar las cotizaciones'
     >
       <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4 space-y-4">
         <div class="space-y-4">
-          <div class="flex flex-wrap items-center gap-1" data-testid="status-tabs" role="tablist" aria-label="Filtrar cotizaciones por estado">
+          <div class="quotations-status-tabs flex flex-nowrap items-center gap-1 overflow-x-auto" data-testid="status-tabs" role="tablist" aria-label="Filtrar cotizaciones por estado">
             <button
               v-for="tab in STATUS_TABS"
               :key="tab.value"
@@ -519,7 +519,12 @@ const errorMessage = 'No se pudieron cargar las cotizaciones'
 </template>
 
 <style scoped>
-.quotations-status-tab { border: 1px solid transparent; border-radius: var(--hf-radius-control); padding: 8px 14px; color: var(--hf-muted); font-size: 14px; font-weight: 500; transition: background-color 150ms, color 150ms; }
+.quotations-status-tabs { scrollbar-width: none; }
+.quotations-status-tabs::-webkit-scrollbar { display: none; }
+@media (max-width: 767px) {
+  .quotations-status-tabs { mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); }
+}
+.quotations-status-tab { flex: none; white-space: nowrap; border: 1px solid transparent; border-radius: var(--hf-radius-control); padding: 8px 14px; color: var(--hf-muted); font-size: 14px; font-weight: 500; transition: background-color 150ms, color 150ms; }
 .quotations-status-tab:hover { background: var(--hf-surface-muted); color: var(--hf-heading); }
 .quotations-status-tab.is-active { border-color: var(--hf-border); background: var(--hf-surface-muted); color: var(--hf-heading); font-weight: 600; }
 .quotation-row-link { padding: 0; border: 0; background: none; text-align: left; font-size: 14px; cursor: pointer; }

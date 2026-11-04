@@ -405,7 +405,7 @@ describe('QuotationsListView — status tabs (REQ-QAF-010)', () => {
     const tabBar = wrapper.find('[data-testid="status-tabs"]')
     expect(tabBar.exists()).toBe(true)
     const labels = tabBar.findAll('button').map((b) => b.text().trim())
-    expect(labels).toEqual(['Todos', 'Borradores', 'Enviadas', 'Expiradas', 'Canceladas'])
+    expect(labels).toEqual(['Todas', 'Borradores', 'Enviadas', 'Expiradas', 'Canceladas'])
   })
 
   it('clicking "Borradores" calls setStatusFilter("DRAFT")', async () => {
@@ -448,11 +448,11 @@ describe('QuotationsListView — status tabs (REQ-QAF-010)', () => {
     expect(composableState.setStatusFilter).toHaveBeenCalledWith('CANCELLED')
   })
 
-  it('clicking "Todos" calls setStatusFilter(undefined) (the no-filter sentinel)', async () => {
+  it('clicking "Todas" calls setStatusFilter(undefined) (the no-filter sentinel)', async () => {
     const wrapper = mountView()
 
     const tabs = wrapper.findAll('[data-testid="status-tabs"] button')
-    const allTab = tabs.find((b) => b.text().trim() === 'Todos')!
+    const allTab = tabs.find((b) => b.text().trim() === 'Todas')!
     await allTab.trigger('click')
 
     expect(composableState.setStatusFilter).toHaveBeenCalledWith(undefined)
@@ -992,6 +992,16 @@ describe('QuotationsListView — design-system boundary', () => {
 
     expect(table.attributes('data-show-refresh')).toBe('false')
     expect(wrapper.findAll('[data-testid="filters-chips"]')).toHaveLength(1)
+  })
+})
+
+describe('QuotationsListView — review round 1', () => {
+  it('keeps the status tabs on one scrollable row (no wrapping onto two rows)', () => {
+    const wrapper = mountView()
+    const tabBar = wrapper.get('[data-testid="status-tabs"]')
+    expect(tabBar.classes()).toContain('flex-nowrap')
+    expect(tabBar.classes()).toContain('overflow-x-auto')
+    expect(tabBar.classes()).not.toContain('flex-wrap')
   })
 })
 
