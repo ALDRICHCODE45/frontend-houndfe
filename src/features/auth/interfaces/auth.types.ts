@@ -117,6 +117,12 @@ export type AppSubject =
   // returns null, the ability never updates, and the inbox silently disappears
   // — hence the explicit no-silent-drop pin-tests in ability.test.ts.
   | 'HumanDecision'
+  // ODD inventory-journal-o1 T1: 'InventoryJournal' (read: stock and kardex) and
+  // 'InventoryAdjustment' (create: adjust stock) join the AppSubject union before
+  // 'all'. Granular and never inherited from Product/Sale; the runtime half is
+  // APP_SUBJECTS in authorization/ability.ts.
+  | 'InventoryJournal'
+  | 'InventoryAdjustment'
   | 'CashRegister'
   | 'CashSession'
   | 'CashSessionAudit'
