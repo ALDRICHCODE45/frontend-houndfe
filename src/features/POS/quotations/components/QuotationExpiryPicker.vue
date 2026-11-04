@@ -170,7 +170,7 @@ function handleChipClick(chip: ShortcutChip): void {
       </div>
 
       <!-- T-UI-17/18/19 — shortcut chips. Inactive = white outlined pill;
-           active = accent-50 background with accent text. The
+           active = action-tinted background with action text. The
            data-active attribute drives the visual state via Tailwind
            arbitrary-value utilities. -->
       <div class="flex flex-wrap items-center gap-2" data-testid="expiry-chips">
@@ -181,7 +181,7 @@ function handleChipClick(chip: ShortcutChip): void {
           class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-colors"
           :class="
             isChipActive(chip.id)
-              ? 'quotations-gold-ink border-[var(--coco-accent)] bg-[var(--coco-accent-50)] text-[var(--coco-accent)]'
+              ? 'border-[var(--hf-action)] bg-[var(--hf-active-soft)] text-[var(--hf-action)]'
               : 'border-default bg-default text-muted hover:bg-elevated'
           "
           :data-testid="`expiry-chip-${chip.id}`"

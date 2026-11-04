@@ -7,17 +7,15 @@ import { afterEach, describe, expect, it } from 'vitest'
  * Source and cascade contracts only. jsdom never renders light/dark fidelity,
  * teleported geometry or browser behaviour, so the visual smoke remains
  * user-owned. Every path asserted here belongs to the T2 authored surface;
- * `houndfe-ui.css` and `coco-tokens.css` are read, never changed.
+ * `houndfe-ui.css` is read, never changed.
  */
 
 const cssPath = 'src/features/POS/quotations/styles/quotations-list-visual.css'
 const sharedPath = 'src/core/shared/design-system/houndfe-ui.css'
-const cocoPath = 'src/features/POS/quotations/styles/coco-tokens.css'
 const viewPath = 'src/features/POS/quotations/views/QuotationsListView.vue'
 
 const css = existsSync(cssPath) ? readFileSync(cssPath, 'utf8') : ''
 const sharedCss = readFileSync(sharedPath, 'utf8')
-const coco = readFileSync(cocoPath, 'utf8')
 const view = readFileSync(viewPath, 'utf8')
 
 const PORTAL_MARKER = 'hf-theme hf-ui quotations-list-portal'
@@ -72,13 +70,11 @@ function selectorsOf(source: string): string[] {
 }
 
 describe('Quotations listing adapter — scope and tokens (S1/S3/S4)', () => {
-  it('loads a scoped adapter and no longer pulls the Coco tokens', () => {
+  it('loads a scoped adapter and no Coco tokens remain', () => {
     expect(css).toContain("@import '../../../../core/shared/design-system/houndfe-ui.css'")
     expect(view).not.toContain('coco-tokens')
     expect(view).toContain("import '../styles/quotations-list-visual.css'")
-    // The legacy Coco stylesheet stays for the detail view only.
-    expect(coco).toContain('@layer coco-quotations')
-    expect(coco).not.toContain('quotations-list-visual')
+    expect(existsSync('src/features/POS/quotations/styles/coco-tokens.css')).toBe(false)
     expect(css).not.toContain(':root')
     expect(css).not.toContain('!important')
     expect(css).not.toContain('.products-visual')

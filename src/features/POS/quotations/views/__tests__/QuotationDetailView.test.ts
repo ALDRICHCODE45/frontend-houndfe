@@ -20,6 +20,7 @@ const state = {
   createDraft: vi.fn(),
   assignCustomer: vi.fn(),
   changePriceList: vi.fn(),
+  refetch: vi.fn(),
   addItem: vi.fn(),
   updateQuantity: vi.fn(),
   removeItem: vi.fn(),
@@ -118,6 +119,7 @@ vi.mock('../../composables/useQuotationDetail', () => ({
     isLoading: computed(() => state.isLoading.value),
     isError: computed(() => state.isError.value),
     error: computed(() => state.error.value),
+    refetch: state.refetch,
     createDraft: state.createDraft,
     assignCustomer: state.assignCustomer,
     changePriceList: state.changePriceList,
@@ -261,9 +263,25 @@ const USelectMenuStub = {
 }
 
 const stubs = {
-  StatusDotBadge: {
+  StatusBadge: {
     props: ['label', 'tone'],
     template: '<span data-testid="status-badge" :data-tone="tone">{{ label }}</span>',
+  },
+  RowActionsMenu: {
+    props: ['actions', 'rowLabel', 'ariaLabel', 'portalClass'],
+    emits: ['select'],
+    template: `
+      <div data-testid="header-actions-menu" :data-aria-label="ariaLabel">
+        <button
+          v-for="action in actions"
+          :key="action.key"
+          type="button"
+          :data-action="action.key"
+          :data-destructive="String(!!action.destructive)"
+          @click="$emit('select', action.key)"
+        >{{ action.label }}</button>
+      </div>
+    `,
   },
   AssignCustomerSlideover: {
     props: ['open', 'saleId', 'portalClass'],
@@ -505,10 +523,11 @@ beforeEach(() => {
 })
 
 describe('QuotationDetailView header', () => {
-  it('renders the truncated folio, status badge, expiry, and created date', () => {
+  it('names the record by its customer (never the id), with status badge, expiry and created date', () => {
     const wrapper = mountView()
 
-    expect(wrapper.text()).toContain('Cotización #quotatio')
+    expect(wrapper.get('h1').text()).toBe('Cotización sin cliente')
+    expect(wrapper.text()).not.toContain('quotatio')
     expect(wrapper.get('[data-testid="status-badge"]').text()).toBe('Borrador')
     expect(wrapper.get('[data-testid="status-badge"]').attributes('data-tone')).toBe('info')
     expect(wrapper.text()).toContain('Expira')
@@ -704,7 +723,8 @@ describe('QuotationDetailView items section (S5)', () => {
     const wrapper = mountView()
 
     expect(wrapper.find('[data-testid="items-empty-state"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('No hay productos en esta cotización')
+    expect(wrapper.get('[data-testid="items-empty-state"]').attributes('data-kind')).toBe('empty')
+    expect(wrapper.text()).toContain('Aún no hay productos')
   })
 
   it('renders one QuotationItemRow per item', () => {
@@ -1114,11 +1134,21 @@ describe('QuotationDetailView — customer notes placeholder (T-UI-04)', () => {
     )
   })
 
-  it('renders the spec character counter starting at "0 / 280"', () => {
+  it('hides the character counter until 90% of the limit (text diet)', async () => {
     const wrapper = mountView()
-    const counter = wrapper.find('[data-testid="notes-char-counter"]')
-    expect(counter.exists()).toBe(true)
-    expect(counter.text()).toBe('0 / 280')
+    expect(wrapper.find('[data-testid="notes-char-counter"]').exists()).toBe(false)
+
+    await wrapper
+      .get<HTMLTextAreaElement>('[data-testid="customer-notes-textarea"]')
+      .setValue('x'.repeat(251))
+    expect(wrapper.find('[data-testid="notes-char-counter"]').exists()).toBe(false)
+
+    await wrapper
+      .get<HTMLTextAreaElement>('[data-testid="customer-notes-textarea"]')
+      .setValue('x'.repeat(252))
+    const counter = wrapper.get('[data-testid="notes-char-counter"]')
+    expect(counter.text()).toBe('252 / 280')
+    expect(counter.attributes('aria-live')).toBe('polite')
   })
 
   it('does NOT show the "(no implementado aún)" hint anymore (backend is live)', () => {
@@ -1145,8 +1175,7 @@ describe('QuotationDetailView — customer notes backend persistence (T-UI-21/22
     expect((textarea.element as HTMLTextAreaElement).value).toBe(
       'Entrega en domicilio, pago en efectivo',
     )
-    const counter = wrapper.find('[data-testid="notes-char-counter"]')
-    expect(counter.text()).toBe('38 / 280')
+    expect(wrapper.find('[data-testid="notes-char-counter"]').exists()).toBe(false)
   })
 
   it('hydrates to an empty string when quotation.customerNotes is null', async () => {
@@ -1185,8 +1214,7 @@ describe('QuotationDetailView — customer notes backend persistence (T-UI-21/22
 
       const textarea = wrapper.find<HTMLTextAreaElement>('[data-testid="customer-notes-textarea"]')
       await textarea.setValue('Hola')
-      const counter = wrapper.find('[data-testid="notes-char-counter"]')
-      expect(counter.text()).toBe('4 / 280')
+      expect(wrapper.find('[data-testid="notes-char-counter"]').exists()).toBe(false)
 
       // Past 280 chars → counter MUST stop at "280 / 280" (the textarea
       // also enforces `maxlength` so we don't write beyond 280).
@@ -1194,7 +1222,7 @@ describe('QuotationDetailView — customer notes backend persistence (T-UI-21/22
       await textarea.setValue(longText)
       const finalLength = (textarea.element as HTMLTextAreaElement).value.length
       expect(finalLength).toBeLessThanOrEqual(280)
-      expect(counter.text()).toBe('280 / 280')
+      expect(wrapper.get('[data-testid="notes-char-counter"]').text()).toBe('280 / 280')
     } finally {
       vi.useRealTimers()
     }
@@ -1359,7 +1387,7 @@ describe('QuotationDetailView — testid migration (T-UI-28 / design.md)', () =>
     // PDF preview lives in the header action bar.
     expect(headerActions.find('[data-testid="preview-pdf-button"]').exists()).toBe(true)
     // Cancel lives in the header action bar (DRAFT only).
-    expect(headerActions.find('[data-testid="cancel-button"]').exists()).toBe(true)
+    expect(headerActions.find('[data-action="cancel"]').exists()).toBe(true)
   })
 
   it('does NOT expose the old "quotation-actions" testid anymore (migrated)', () => {
@@ -1453,7 +1481,7 @@ describe('QuotationDetailView — anti-requirements (T-UI-27 / REQ-UI-004 + REQ-
       // The 3 spec-mandated labels must be present.
       expect(text).toContain('borrador')
       expect(text).toContain('enviada')
-      expect(text).toContain('expirada/cancelada')
+      expect(text).toContain('expirada o cancelada')
       // And the forbidden forward-compat labels must NOT appear.
       expect(text).not.toContain('aceptada')
       expect(text).not.toContain('pedido')
@@ -1838,13 +1866,13 @@ describe('QuotationDetailView — send dialog (S7)', () => {
 describe('QuotationDetailView — cancel dialog (S7)', () => {
   it('renders the "Cancelar" button in DRAFT mode', () => {
     const wrapper = mountView()
-    expect(wrapper.find('[data-testid="cancel-button"]').exists()).toBe(true)
+    expect(wrapper.find('[data-action="cancel"]').exists()).toBe(true)
   })
 
   it('hides the "Cancelar" button for non-DRAFT statuses', () => {
     state.quotation.value = makeQuotation({ status: 'CANCELLED' })
     const wrapper = mountView()
-    expect(wrapper.find('[data-testid="cancel-button"]').exists()).toBe(false)
+    expect(wrapper.find('[data-action="cancel"]').exists()).toBe(false)
   })
 
   it('hides the "Cancelar" button when the user lacks update:Quotation', () => {
@@ -1853,21 +1881,21 @@ describe('QuotationDetailView — cancel dialog (S7)', () => {
       return true
     })
     const wrapper = mountView()
-    expect(wrapper.find('[data-testid="cancel-button"]').exists()).toBe(false)
+    expect(wrapper.find('[data-action="cancel"]').exists()).toBe(false)
   })
 
   it('opens the cancel dialog when "Cancelar" is clicked', async () => {
     const wrapper = mountView()
 
     expect(wrapper.find('[data-testid="quotation-cancel-dialog"]').exists()).toBe(false)
-    await wrapper.get('[data-testid="cancel-button"]').trigger('click')
+    await wrapper.get('[data-action="cancel"]').trigger('click')
     await flushPromises()
     expect(wrapper.find('[data-testid="quotation-cancel-dialog"]').exists()).toBe(true)
   })
 
   it('closes the cancel dialog on the dialog "close" event', async () => {
     const wrapper = mountView()
-    await wrapper.get('[data-testid="cancel-button"]').trigger('click')
+    await wrapper.get('[data-action="cancel"]').trigger('click')
     await flushPromises()
 
     await wrapper.get('[data-testid="cancel-dialog-stub-close"]').trigger('click')
@@ -1886,7 +1914,7 @@ const ALL_EDIT_SELECTORS = [
   '[data-testid="change-customer-button"]',
   '[data-testid="manual-promo-select"]',
   '[data-testid="summary-send-btn"]',
-  '[data-testid="cancel-button"]',
+  '[data-action="cancel"]',
 ] as const
 
 describe('QuotationDetailView — read-only enforcement (REQ-QTN-012 / S8)', () => {
@@ -2074,7 +2102,7 @@ describe('QuotationDetailView — read-only enforcement (REQ-QTN-012 / S8)', () 
     // T-UI-23 — the send CTA moved to the sidebar; cancel stays in the
     // header. Both must be hidden when the quotation is read-only.
     expect(wrapper.find('[data-testid="summary-send-btn"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="cancel-button"]').exists()).toBe(false)
+    expect(wrapper.find('[data-action="cancel"]').exists()).toBe(false)
     expect(state.sendQuotation).not.toHaveBeenCalled()
     expect(state.cancelQuotation).not.toHaveBeenCalled()
   })
@@ -2296,11 +2324,12 @@ describe('QuotationDetailView — workspace visual boundary (S3/S4)', () => {
     expect(workspace.classes()).toContain('flex-col')
   })
 
-  it('adopts the shared page-title role and the action foreground for the primary CTA', () => {
+  it('uses the detail-title role and keeps "Agregar producto" as an outline action', () => {
     const wrapper = mountView()
-    expect(wrapper.get('h1').classes()).toContain('hf-page-title')
+    expect(wrapper.get('h1').classes()).toContain('quotation-detail-title')
     const addButton = wrapper.get('[data-testid="add-product-button"]')
-    expect(addButton.classes()).toContain('quotations-primary-action')
+    expect(addButton.classes()).toContain('quotation-outline-action')
+    expect(addButton.classes()).not.toContain('quotations-primary-action')
     expect(addButton.text()).toContain('Agregar producto')
   })
 
@@ -2364,5 +2393,60 @@ describe('QuotationDetailView — shared Sales portal opt-ins (T6)', () => {
     expect(wrapper.findComponent(stubs.ProductSearchPanel).classes()).toContain(
       'quotations-product-search',
     )
+  })
+})
+
+// ─── S10: the four page states ───────────────────────────────────────────────
+
+describe('QuotationDetailView — page states (S10)', () => {
+  it('empty: an items-less draft shows the empty state, not a table of nothing', () => {
+    state.quotation.value = makeQuotation({ items: [] })
+    const wrapper = mountView()
+    const empty = wrapper.get('[data-testid="items-empty-state"]')
+    expect(empty.classes()).toContain('hf-empty-state')
+    expect(empty.get('.hf-empty-state__title').text()).toBe('Aún no hay productos')
+  })
+
+  it('loading: a page skeleton shaped like the workspace, no content', () => {
+    state.quotation.value = undefined
+    state.isLoading.value = true
+    const wrapper = mountView()
+    const skeleton = wrapper.get('[data-testid="detail-loading"]')
+    expect(skeleton.attributes('aria-busy')).toBe('true')
+    expect(skeleton.findAll('.animate-pulse').length).toBeGreaterThan(1)
+    expect(wrapper.find('[data-testid="quotation-detail-layout"]').exists()).toBe(false)
+  })
+
+  it('data: the status badge, the ⋮ menu and the layout, with no state chrome', () => {
+    state.quotation.value = makeQuotation({ items: [] })
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="status-badge"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="header-actions-menu"]').attributes('data-aria-label')).toBe(
+      'Más acciones de la cotización',
+    )
+    expect(wrapper.find('[data-testid="quotation-detail-layout"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="detail-error"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="detail-loading"]').exists()).toBe(false)
+  })
+
+  it('error: the error state offers Reintentar, which refetches the quotation', async () => {
+    state.quotation.value = undefined
+    state.isError.value = true
+    state.error.value = new Error('boom')
+    const wrapper = mountView()
+    const error = wrapper.get('[data-testid="detail-error"] .hf-empty-state')
+    expect(error.attributes('data-kind')).toBe('error')
+    expect(error.attributes('role')).toBe('alert')
+    expect(wrapper.text()).not.toContain('boom')
+
+    await wrapper.get('[data-testid="detail-error-retry"]').trigger('click')
+    expect(state.refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('menu: cancel comes first and delete is the destructive item', () => {
+    const wrapper = mountView()
+    const items = wrapper.findAll('[data-testid="header-actions-menu"] button')
+    expect(items.map((item) => item.attributes('data-action'))).toEqual(['cancel', 'delete'])
+    expect(items[1]!.attributes('data-destructive')).toBe('true')
   })
 })

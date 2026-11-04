@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { computed } from 'vue'
 import QuotationItemRow from '../QuotationItemRow.vue'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
 import type { QuotationItemResponseDto } from '../../interfaces/quotation.types'
 
 function makeItem(overrides: Partial<QuotationItemResponseDto> = {}): QuotationItemResponseDto {
@@ -65,9 +64,26 @@ const UInputNumberStub = {
 }
 
 const stubs = {
-  AppBadge: {
-    props: ['label', 'tone', 'icon'],
-    template: '<span class="app-badge" :data-tone="tone" :data-icon="icon">{{ label }}</span>',
+  StatusBadge: {
+    props: ['label', 'tone'],
+    template: '<span class="status-badge" :data-tone="tone">{{ label }}</span>',
+  },
+  RowActionsMenu: {
+    name: 'RowActionsMenu',
+    props: ['actions', 'rowLabel', 'portalClass'],
+    emits: ['select'],
+    template: `
+      <div v-if="actions.length" :data-row-label="rowLabel">
+        <button
+          v-for="action in actions"
+          :key="action.key"
+          type="button"
+          :data-action="action.key"
+          :data-destructive="String(!!action.destructive)"
+          @click="$emit('select', action.key)"
+        >{{ action.label }}</button>
+      </div>
+    `,
   },
   UButton: {
     props: ['icon', 'color', 'variant', 'disabled'],
@@ -79,9 +95,6 @@ const stubs = {
   // auto-imported InputNumber resolves to this deterministic stub.
   UInputNumber: UInputNumberStub,
   InputNumber: UInputNumberStub,
-  UDropdownMenu: {
-    template: '<div><slot /></div>',
-  },
 }
 
 function mountRow(item: QuotationItemResponseDto, readonly = false, emitStub = false) {
@@ -89,14 +102,12 @@ function mountRow(item: QuotationItemResponseDto, readonly = false, emitStub = f
     props: { item, readonly },
     global: {
       stubs,
-      // Auto-imported globals (AppBadge, UButton) must be provided because
+      // Auto-imported globals (UButton) must be provided because
       // globalThis stubs don't override them in @vue/test-utils mount.
       components: {
-        AppBadge,
         UButton: stubs.UButton,
         UInputNumber: stubs.UInputNumber,
         InputNumber: stubs.InputNumber,
-        UDropdownMenu: stubs.UDropdownMenu,
       },
     },
   })
@@ -155,12 +166,12 @@ describe('QuotationItemRow rendering', () => {
 })
 
 describe('QuotationItemRow price source indicator', () => {
-  it('shows "PRECIO MANUAL" badge when priceSource is CUSTOM', () => {
+  it('shows "Precio manual" badge when priceSource is CUSTOM', () => {
     const wrapper = mountRow(makeItem({ priceSource: 'CUSTOM', manuallyAdjusted: true }))
 
     const badge = wrapper.find('[data-testid="manual-price-badge"]')
     expect(badge.exists()).toBe(true)
-    expect(badge.text()).toContain('PRECIO MANUAL')
+    expect(badge.text()).toContain('Precio manual')
   })
 
   it('hides the manual price badge when priceSource is PRICE_LIST', () => {
@@ -273,59 +284,47 @@ describe('QuotationItemRow quantity controls', () => {
 describe('QuotationItemRow actions dropdown', () => {
   it('renders the actions dropdown trigger in DRAFT mode', () => {
     const wrapper = mountRow(makeItem(), false)
-    expect(wrapper.find('[data-testid="item-actions-trigger"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="item-actions-menu"]').exists()).toBe(true)
   })
 
-  it('marks the teleported actions menu with the workspace portal boundary', () => {
+  it('names the ⋮ menu after the product and keeps the workspace portal boundary', () => {
     const wrapper = mountRow(makeItem(), false)
-
-    // Nuxt UI's DropdownMenu is auto-imported, so the runtime component (not a
-    // stub) owns the teleported menu content and its `ui` contract.
-    const menu = wrapper.findComponent({ name: 'DropdownMenu' })
+    const menu = wrapper.findComponent({ name: 'RowActionsMenu' })
     expect(menu.exists()).toBe(true)
-    expect(menu.props('ui')).toEqual({
-      content: 'hf-theme hf-ui quotations-workspace-portal',
-    })
-    // The anchor alignment config stays untouched next to the theme opt-in.
-    expect(menu.props('content')).toEqual({ align: 'end' })
+    expect(menu.props('rowLabel')).toBe(makeItem().productName)
+    expect(menu.props('portalClass')).toBe('quotations-workspace-portal')
   })
 
-  it('hides the actions dropdown trigger in readonly mode', () => {
-    const wrapper = mountRow(makeItem(), true)
-    expect(wrapper.find('[data-testid="item-actions-trigger"]').exists()).toBe(false)
-    const vm = wrapper.vm as unknown as { itemActions: unknown[] }
-    expect(vm.itemActions).toEqual([])
-  })
-
-  it('emits request-remove when the delete action is selected', () => {
+  it('lists Cambiar precio… first and the destructive Quitar producto… last', () => {
     const wrapper = mountRow(makeItem(), false)
-    const vm = wrapper.vm as unknown as {
-      itemActions: Array<Array<{ label: string; onSelect: () => void }>>
-    }
-    const deleteAction = vm.itemActions[1]?.find((action) => action.label === 'Eliminar producto')
-    expect(deleteAction).toBeDefined()
-    deleteAction!.onSelect()
+    const items = wrapper.findAll('[data-testid="item-actions-menu"] button')
+    expect(items.map((item) => item.attributes('data-action'))).toEqual(['override', 'remove'])
+    expect(items[1]!.attributes('data-destructive')).toBe('true')
+  })
+
+  it('hides the actions menu in readonly mode', () => {
+    const wrapper = mountRow(makeItem(), true)
+    expect(wrapper.find('[data-testid="item-actions-menu"]').exists()).toBe(false)
+  })
+
+  it('emits request-remove when the remove action is selected', async () => {
+    const wrapper = mountRow(makeItem(), false)
+    await wrapper.get('[data-action="remove"]').trigger('click')
     expect(wrapper.emitted('request-remove')).toEqual([['item-1']])
   })
 })
 
 describe('QuotationItemRow price override', () => {
-  it('exposes a Cambiar precio action in the dropdown', () => {
+  it('exposes a Cambiar precio action in the menu', async () => {
     const wrapper = mountRow(makeItem({ unitPriceCents: 15000 }), false)
-    const vm = wrapper.vm as unknown as {
-      itemActions: Array<Array<{ label: string; onSelect: () => void }>>
-    }
-    const priceAction = vm.itemActions[0]?.find((action) => action.label === 'Cambiar precio')
-    expect(priceAction).toBeDefined()
-    priceAction!.onSelect()
+    await wrapper.get('[data-action="override"]').trigger('click')
     expect(wrapper.emitted('request-price-override')).toEqual([['item-1']])
   })
 
   it('hides the price override action when readonly is true', () => {
     const wrapper = mountRow(makeItem(), true)
-    const vm = wrapper.vm as unknown as { itemActions: unknown[] }
-    expect(vm.itemActions).toEqual([])
-    expect(wrapper.find('[data-testid="item-actions-trigger"]').exists()).toBe(false)
+    expect(wrapper.find('[data-action="override"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="item-actions-menu"]').exists()).toBe(false)
   })
 })
 
@@ -397,7 +396,7 @@ describe('QuotationItemRow stock badge (REQ-QTN-013 / S8.2)', () => {
     expect(badge.exists()).toBe(true)
     expect(badge.text()).toContain('Stock: 12')
     // Neutral / muted tone — never blocks actions
-    expect(badge.attributes('data-tone')).not.toBe('error')
+    expect(badge.attributes('data-tone')).not.toBe('danger')
     expect(badge.attributes('data-tone')).not.toBe('warning')
   })
 
@@ -420,13 +419,13 @@ describe('QuotationItemRow stock badge (REQ-QTN-013 / S8.2)', () => {
     expect(badge.attributes('data-tone')).toBe('warning')
   })
 
-  it('renders the stock badge with error tone when stock is zero', () => {
+  it('renders the stock badge with danger tone when stock is zero', () => {
     setStock(0, 1)
     const wrapper = mountRow(makeItem())
 
     const badge = wrapper.find('[data-testid="stock-badge"]')
     expect(badge.exists()).toBe(true)
-    expect(badge.attributes('data-tone')).toBe('error')
+    expect(badge.attributes('data-tone')).toBe('danger')
   })
 
   it('renders the stock badge even in readonly mode (purely informational)', () => {
@@ -441,6 +440,6 @@ describe('QuotationItemRow stock badge (REQ-QTN-013 / S8.2)', () => {
 
     expect(wrapper.find('[data-testid="quantity-increase"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="quantity-decrease"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="item-actions-trigger"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="item-actions-menu"]').exists()).toBe(true)
   })
 })

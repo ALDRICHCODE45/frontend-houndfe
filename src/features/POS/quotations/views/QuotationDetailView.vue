@@ -2,15 +2,13 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-// REQ-UI-001 — Coco design tokens are scoped to `.quotation-detail-view`
-// via an `@layer coco-quotations` block. Importing the stylesheet here
-// keeps the token lifecycle tied to the view that owns it.
-import '../styles/coco-tokens.css'
 // T3 / S3-S4 — owned visual adapter for the shared creation/detail workspace.
 // Imported only here so the list workspace and unmigrated screens keep their
 // current presentation.
 import '../styles/quotations-workspace-visual.css'
-import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
+import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import AssignCustomerSlideover from '@/features/POS/sales/components/AssignCustomerSlideover.vue'
 import PriceListSelector from '@/features/POS/sales/components/PriceListSelector.vue'
 import ProductSearchPanel from '@/features/POS/sales/components/ProductSearchPanel.vue'
@@ -69,8 +67,15 @@ const quotationId = computed(() => {
   return typeof value === 'string' && value ? value : null
 })
 
-const { quotation, isLoading, isError, error, createDraft, assignCustomer, changePriceList } =
-  useQuotationDetail(quotationId)
+const {
+  quotation,
+  isLoading,
+  isError,
+  refetch,
+  createDraft,
+  assignCustomer,
+  changePriceList,
+} = useQuotationDetail(quotationId)
 
 // `useQuotationDraft` is only safe to instantiate when we have a real
 // quotation id. `createDraft` lives on `useQuotationDetail` because it
@@ -78,7 +83,19 @@ const { quotation, isLoading, isError, error, createDraft, assignCustomer, chang
 const draft = useQuotationDraft(quotationId)
 
 const isDraft = computed(() => quotation.value?.status === 'DRAFT')
-const folio = computed(() => quotation.value?.id.slice(0, 8) ?? 'Nueva')
+
+// The notes counter shows from 90% of the limit (text diet).
+const NOTES_MAX = 280
+const NOTES_COUNTER_FROM = 252
+
+/** The record's name: the customer, never the id. */
+const title = computed(() => {
+  const q = quotation.value
+  if (!q) return 'Nueva cotización'
+  const customer = q.customer
+  const name = customer ? `${customer.firstName} ${customer.lastName ?? ''}`.trim() : ''
+  return name ? `Cotización de ${name}` : 'Cotización sin cliente'
+})
 
 // Read-only price-list display (SENT / EXPIRED / CANCELLED). Same query
 // key as PriceListSelector, so both surfaces share one TanStack cache
@@ -100,7 +117,7 @@ const priceListsQuery = useQuery({
 const priceListLabel = computed<string>(() => {
   const id = quotation.value?.globalPriceListId
   if (!id) return 'PUBLICO'
-  return priceListsQuery.data.value?.find((list) => list.id === id)?.name ?? id
+  return priceListsQuery.data.value?.find((list) => list.id === id)?.name ?? '—'
 })
 
 // ── REQ-QTN-016: seller assignment (backend §3.13d) ───────────────────────────
@@ -710,8 +727,7 @@ onUnmounted(() => {
   }
 })
 
-onMounted(async () => {
-  if (!isCreateRoute.value) return
+async function runCreate(): Promise<void> {
   const rawCustomerId = route.query.customerId
   const customerId = typeof rawCustomerId === 'string' && rawCustomerId ? rawCustomerId : undefined
 
@@ -724,7 +740,32 @@ onMounted(async () => {
   } finally {
     isCreating.value = false
   }
+}
+
+onMounted(() => {
+  if (isCreateRoute.value) void runCreate()
 })
+
+/** Reintentar: re-run the creation on the create route, else refetch the record. */
+function retryLoad(): void {
+  if (isCreateRoute.value) void runCreate()
+  else void refetch()
+}
+
+// ── Header actions (⋮ menu: cancel first, destructive last) ─────────────────
+const headerActions = computed<RowAction[]>(() => [
+  ...(isDraft.value && canUpdateQuotation.value
+    ? [{ key: 'cancel', label: 'Cancelar cotización…', icon: 'i-lucide-ban' }]
+    : []),
+  ...(isDraft.value && canDeleteQuotation.value
+    ? [{ key: 'delete', label: 'Eliminar…', icon: 'i-lucide-trash-2', destructive: true }]
+    : []),
+])
+
+function onHeaderAction(key: string): void {
+  if (key === 'cancel') openCancelDialog()
+  else if (key === 'delete') isDeleteConfirmOpen.value = true
+}
 </script>
 
 <template>
@@ -744,32 +785,27 @@ onMounted(async () => {
       </button>
 
       <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 class="hf-page-title">Cotización #{{ folio }}</h1>
-          <div v-if="quotation" class="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted">
-            <StatusDotBadge
+        <div class="min-w-0">
+          <div v-if="quotation" class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">
+            <StatusBadge
               v-if="headerStatus"
               :label="headerStatus.label"
               :tone="headerStatus.tone"
-              compact
               data-testid="status-badge"
             />
             <span v-if="quotation.expiresAt">Expira {{ formatDate(quotation.expiresAt) }}</span>
             <span v-else>Sin fecha de expiración</span>
             <span>Creada {{ formatDate(quotation.createdAt) }}</span>
           </div>
+          <h1 class="quotation-detail-title" :class="{ 'mt-2': quotation }">{{ title }}</h1>
         </div>
 
-        <!-- S7 — actions bar: PDF preview (always), cancel (DRAFT only).
-             T-UI-28 — REQ-UI-004 + design.md testid migration: the old
-             `quotation-actions` testid is renamed to `detail-header-actions`
-             (PDF/cancel) so it stays distinguishable from the new
-             `detail-sidebar-actions` wrapper (send/save) that owns the
-             RESUMEN sidebar CTAs. -->
+        <!-- One outline action (PDF) and the ⋮ menu for the rest; the single
+             primary, "Enviar cotización", lives in the RESUMEN sidebar. -->
         <div class="flex flex-wrap items-center gap-2" data-testid="detail-header-actions">
           <button
             type="button"
-            class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-2 text-sm font-medium hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-50"
+            class="quotation-outline-action"
             :disabled="isPdfLoading"
             data-testid="preview-pdf-button"
             @click="handlePreviewPdf"
@@ -777,34 +813,13 @@ onMounted(async () => {
             <UIcon name="i-lucide-file-text" class="h-4 w-4" />
             <span>{{ isPdfLoading ? 'Generando…' : 'Previsualizar PDF' }}</span>
           </button>
-          <!-- T-UI-23 — REQ-UI-009: the "Enviar cotización" CTA moved out
-               of the header into the RESUMEN sidebar (QuotationTotalsFooter).
-               The header keeps the destructive "Cancelar" action since
-               it operates on the quotation, not the totals. -->
-          <button
-            v-if="isDraft && canUpdateQuotation"
-            type="button"
-            class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-2 text-sm font-medium text-error hover:bg-elevated"
-            data-testid="cancel-button"
-            @click="openCancelDialog"
-          >
-            <UIcon name="i-lucide-ban" class="h-4 w-4" />
-            <span>Cancelar</span>
-          </button>
-          <!-- REQ-QTN-013 — Delete (DRAFT only, gated by `delete:Quotation`).
-               Permanently removes the quotation via DELETE /quotations/:id.
-               SENT / EXPIRED / CANCELLED rows don't show this affordance —
-               the backend would reject the mutation with 409 anyway. -->
-          <button
-            v-if="isDraft && canDeleteQuotation"
-            type="button"
-            class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-2 text-sm font-medium text-error hover:bg-elevated"
-            data-testid="delete-button"
-            @click="isDeleteConfirmOpen = true"
-          >
-            <UIcon name="i-lucide-trash-2" class="h-4 w-4" />
-            <span>Eliminar</span>
-          </button>
+          <RowActionsMenu
+            :actions="headerActions"
+            row-label="la cotización"
+            aria-label="Más acciones de la cotización"
+            portal-class="quotations-workspace-portal"
+            @select="onHeaderAction"
+          />
         </div>
       </div>
 
@@ -816,29 +831,41 @@ onMounted(async () => {
 
     <div
       v-if="isCreating"
-      class="flex min-h-56 items-center justify-center gap-3 text-muted"
+      class="quotation-skeleton"
+      aria-busy="true"
       data-testid="create-loading"
     >
-      <span class="size-5 animate-spin rounded-full border-2 border-current border-r-transparent" />
-      Creando cotización…
+      <span class="sr-only">Creando cotización…</span>
+      <div class="quotation-skeleton-main">
+        <div class="quotation-skeleton-block animate-pulse h-24" />
+        <div class="quotation-skeleton-block animate-pulse h-48" />
+      </div>
+      <div class="quotation-skeleton-block animate-pulse h-64" />
     </div>
 
     <div
       v-else-if="isLoading"
-      class="flex min-h-56 items-center justify-center gap-3 text-muted"
+      class="quotation-skeleton"
+      aria-busy="true"
       data-testid="detail-loading"
     >
-      <span class="size-5 animate-spin rounded-full border-2 border-current border-r-transparent" />
-      Cargando cotización…
+      <span class="sr-only">Cargando cotización…</span>
+      <div class="quotation-skeleton-main">
+        <div class="quotation-skeleton-block animate-pulse h-24" />
+        <div class="quotation-skeleton-block animate-pulse h-48" />
+      </div>
+      <div class="quotation-skeleton-block animate-pulse h-64" />
     </div>
 
-    <div
-      v-else-if="isError || createError"
-      class="rounded-lg border border-error/30 bg-error/5 p-6 text-error"
-      data-testid="detail-error"
-    >
-      No se pudo cargar la cotización.
-      <span class="sr-only">{{ String(error ?? createError) }}</span>
+    <div v-else-if="isError || createError" data-testid="detail-error">
+      <EmptyState
+        kind="error"
+        title="No se pudo cargar la cotización"
+        description="Revisa tu conexión e inténtalo de nuevo."
+        action-label="Reintentar"
+        action-test-id="detail-error-retry"
+        @action="retryLoad"
+      />
     </div>
 
     <template v-else-if="quotation">
@@ -989,7 +1016,7 @@ onMounted(async () => {
               <button
                 v-if="isDraft"
                 type="button"
-                class="quotations-primary-action inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                class="quotation-outline-action"
                 data-testid="add-product-button"
                 @click="isProductSearchOpen = true"
               >
@@ -998,16 +1025,11 @@ onMounted(async () => {
               </button>
             </div>
 
-            <p
+            <EmptyState
               v-if="items.length === 0"
-              class="rounded-lg border border-dashed border-default px-4 py-10 text-center text-sm text-muted"
+              title="Aún no hay productos"
               data-testid="items-empty-state"
-            >
-              No hay productos en esta cotización.<br />
-              <span v-if="isDraft" class="text-xs"
-                >Usá el botón "Agregar producto" para buscar y añadir productos.</span
-              >
-            </p>
+            />
 
             <ul v-else class="flex flex-col gap-2" data-testid="items-list">
               <li v-for="item in items" :key="item.id">
@@ -1075,9 +1097,7 @@ onMounted(async () => {
                 >
                   <div class="flex-1 min-w-0">
                     <p class="text-sm font-medium text-highlighted truncate">{{ promo.title }}</p>
-                    <span
-                      class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-blue-500/10 text-blue-500 mt-1"
-                      >Automática</span
+                    <StatusBadge class="mt-1" label="Automática" tone="info" aria-label="Promoción automática" />
                     >
                   </div>
                   <button
@@ -1122,11 +1142,11 @@ onMounted(async () => {
                PDF copy / later access makes the cancellation traceable. -->
           <section
             v-if="quotation?.status === 'CANCELLED' && cancelReasonLabel"
-            class="rounded-xl border border-error/40 bg-error/5 p-4 text-sm text-error"
+            class="quotation-banner quotation-banner--danger"
             data-testid="cancel-reason-banner"
           >
             <p class="font-semibold">Cotización cancelada</p>
-            <p class="mt-1 text-error/80">
+            <p class="mt-1 text-muted">
               {{ cancelReasonLabel
               }}<span v-if="canceledAtFormatted"> · {{ canceledAtFormatted }}</span>
             </p>
@@ -1137,14 +1157,11 @@ onMounted(async () => {
                persist this — the next GET will return status=EXPIRED for real. -->
           <section
             v-if="isLazyExpired"
-            class="rounded-xl border border-warning/40 bg-warning/5 p-4 text-sm text-warning"
+            class="quotation-banner quotation-banner--warning"
             data-testid="lazy-expired-notice"
           >
-            <p class="font-semibold">Cotización expirada (vista)</p>
-            <p class="mt-1 text-warning/80">
-              El servidor aún la reporta como Enviada. Esta cotización pasó a Expirada al cruzar la
-              fecha límite y se mostrará así la próxima vez que el sistema la recargue.
-            </p>
+            <p class="font-semibold">Cotización expirada</p>
+            <p class="mt-1 text-muted">Pasó su fecha límite; se actualizará al recargar.</p>
           </section>
 
           <!-- S8 — generic read-only banner. Placed BELOW the more specific
@@ -1201,15 +1218,21 @@ onMounted(async () => {
               >
                 Notas
               </label>
-              <span class="text-xs text-muted tabular-nums" data-testid="notes-char-counter">
-                {{ customerNotes.length }} / 280
+              <span
+                v-if="customerNotes.length >= NOTES_COUNTER_FROM"
+                class="quotation-notes-counter"
+                :class="{ 'is-limit': customerNotes.length >= NOTES_MAX }"
+                aria-live="polite"
+                data-testid="notes-char-counter"
+              >
+                {{ customerNotes.length }} / {{ NOTES_MAX }}
               </span>
             </div>
             <textarea
               id="customer-notes"
               :value="customerNotes"
               rows="4"
-              maxlength="280"
+              :maxlength="NOTES_MAX"
               :readonly="!isDraft"
               :class="[
                 'w-full resize-none rounded-lg border border-default bg-default p-2 text-sm text-highlighted focus:outline-none focus:ring-1 focus:ring-primary',
@@ -1250,8 +1273,8 @@ onMounted(async () => {
            button stays disabled while DELETE /quotations/:id is in-flight. -->
       <ConfirmModal
         :open="isDeleteConfirmOpen"
-        title="Eliminar cotización"
-        :description="`¿Eliminar la cotización #${folio}? Esta acción no se puede deshacer.`"
+        title="¿Eliminar esta cotización?"
+        description="Esta acción no se puede deshacer."
         confirm-label="Eliminar"
         confirm-color="error"
         :loading="deleteMutation.isPending.value"
@@ -1335,4 +1358,66 @@ onMounted(async () => {
 .product-search-panel--two-cols :deep(.grid) {
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
 }
+
+.quotation-detail-title {
+  margin: 0;
+  overflow: hidden;
+  color: var(--hf-heading);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .quotation-detail-title { font-size: 17px; }
+}
+
+.quotation-outline-action {
+  display: inline-flex;
+  min-height: var(--hf-control-height);
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  background: var(--hf-surface);
+  padding: 0 14px;
+  color: var(--hf-heading);
+  font-size: 14px;
+  font-weight: 500;
+}
+.quotation-outline-action:hover:not(:disabled) { background: var(--hf-surface-muted); }
+.quotation-outline-action:disabled { cursor: not-allowed; opacity: 0.5; }
+
+.quotation-skeleton { display: grid; gap: 16px; }
+@media (min-width: 1024px) { .quotation-skeleton { grid-template-columns: 2fr 1fr; } }
+.quotation-skeleton-main { display: grid; gap: 16px; }
+.quotation-skeleton-block {
+  border-radius: var(--hf-radius-card);
+  background: var(--hf-surface-muted);
+}
+
+.quotation-banner {
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  padding: 16px;
+  font-size: 14px;
+}
+.quotation-banner--danger {
+  border-color: var(--hf-danger-border);
+  background: var(--hf-danger-soft);
+}
+.quotation-banner--danger > p:first-child { color: var(--hf-danger); }
+.quotation-banner--warning { background: var(--hf-warning-soft); }
+.quotation-banner--warning > p:first-child { color: var(--hf-warning); }
+
+.quotation-notes-counter {
+  color: var(--hf-warning);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.quotation-notes-counter.is-limit { color: var(--hf-danger); }
 </style>

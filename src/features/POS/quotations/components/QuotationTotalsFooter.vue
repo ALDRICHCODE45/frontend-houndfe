@@ -5,9 +5,9 @@
  * Sticky right-sidebar RESUMEN card for the quotation detail view. Mirrors
  * the Coco reference layout (`docs/redesign/quotations-detail-comparison.md`):
  *   - Title "RESUMEN" + context subtitle (N productos · M unidades · lista X)
- *   - Subtotal (muted), Descuentos (blue, info), IVA 16% (gray, computed),
+ *   - Subtotal (muted), Descuentos (heading ink, with a minus), IVA 16% (gray, computed),
  *     separator, TOTAL (large, bold, black).
- *   - Full-width primary CTA "Enviar cotización" in --coco-primary.
+ *   - Full-width primary CTA "Enviar cotización" in --hf-action.
  *   - Secondary "Guardar borrador" outlined.
  *   - Validity notice "Válida hasta …".
  *
@@ -208,13 +208,13 @@ function handleTaxRateChange(value: number | null | undefined): void {
       </div>
 
       <div v-if="hasDiscount" class="flex items-center justify-between" data-testid="discount-row">
-        <span class="text-sm text-[var(--coco-info)] flex items-center gap-1">
+        <span class="text-sm text-muted flex items-center gap-1">
           <UIcon name="i-lucide-badge-percent" class="h-3.5 w-3.5" />
           Descuentos
         </span>
         <span
           data-testid="discount-amount"
-          class="text-sm font-medium text-[var(--coco-info)] tabular-nums"
+          class="text-sm font-medium text-[var(--hf-heading)] tabular-nums"
           >-{{ discountFormatted }}</span
         >
       </div>
@@ -255,7 +255,7 @@ function handleTaxRateChange(value: number | null | undefined): void {
       <!-- TOTAL — large, bold, prominent -->
       <div class="flex items-baseline justify-between">
         <p class="text-xs font-semibold text-muted uppercase tracking-wider">Total</p>
-        <span data-testid="total-amount" class="text-3xl font-bold text-highlighted tabular-nums">{{
+        <span data-testid="total-amount" class="text-3xl font-semibold text-highlighted tabular-nums">{{
           totalFormatted
         }}</span>
       </div>
@@ -270,7 +270,7 @@ function handleTaxRateChange(value: number | null | undefined): void {
     <div v-if="editable" class="flex flex-col gap-2" data-testid="detail-sidebar-actions">
       <button
         type="button"
-        class="quotations-primary-action inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--coco-primary)] px-4 py-3 text-sm font-semibold text-white hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+        class="quotations-primary-action inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--hf-action)] px-4 py-3 text-sm font-semibold text-[var(--hf-on-action)] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
         data-testid="summary-send-btn"
         @click="handleSend"
       >
@@ -294,7 +294,7 @@ function handleTaxRateChange(value: number | null | undefined): void {
       class="flex items-center gap-2 text-xs text-muted"
       data-testid="summary-validity-notice"
     >
-      <UIcon name="i-lucide-shield-check" class="h-4 w-4 text-[var(--coco-success)]" />
+      <UIcon name="i-lucide-shield-check" class="h-4 w-4 text-[var(--hf-success)]" />
       Válida hasta el {{ validityLabel }}.
     </p>
   </div>

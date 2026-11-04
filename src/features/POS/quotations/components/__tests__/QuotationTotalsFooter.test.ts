@@ -365,14 +365,14 @@ describe('QuotationTotalsFooter — RESUMEN sidebar (T-UI-22/23 / REQ-UI-009)', 
     expect(wrapper.find('[data-testid="summary-validity-notice"]').exists()).toBe(false)
   })
 
-  it('renders the discount row with blue (info) accent color', () => {
+  it('renders the discount row in the heading ink with a minus (no accent color)', () => {
     const wrapper = mount(QuotationTotalsFooter, {
       props: { quotation: makeQuotation({ discountCents: 1500 }) },
     })
     const discountRow = wrapper.find('[data-testid="discount-row"]')
-    // The discount text class is the Coco info-blue color.
+    expect(discountRow.exists()).toBe(true)
     const discountAmount = wrapper.find('[data-testid="discount-amount"]')
-    expect(discountAmount.classes().join(' ')).toMatch(/text-\[var\(--coco-info\)\]/)
+    expect(discountAmount.classes().join(' ')).toMatch(/text-\[var\(--hf-heading\)\]/)
   })
 })
 
@@ -583,13 +583,13 @@ describe('QuotationTotalsFooter — workspace visual boundary (S3/S4)', () => {
     expect(cta.text()).toContain('Enviar cotización')
   })
 
-  it('keeps the discount row on the existing semantic info role', () => {
+  it('keeps the discount amount on the heading role', () => {
     const wrapper = mount(QuotationTotalsFooter, {
       props: { quotation: makeQuotation({ discountCents: 1500, taxRate: 0.16, taxCents: 1600 }) },
     })
 
     expect(wrapper.find('[data-testid="discount-amount"]').classes().join(' ')).toMatch(
-      /text-\[var\(--coco-info\)\]/,
+      /text-\[var\(--hf-heading\)\]/,
     )
   })
 })

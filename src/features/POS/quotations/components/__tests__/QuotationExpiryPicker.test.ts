@@ -260,14 +260,14 @@ describe('QuotationExpiryPicker — shortcut chips (T-UI-17/18/19 / REQ-UI-006)'
     expect(wrapper.get('[data-testid="expiry-chip-7"]').attributes('data-active')).toBe('false')
   })
 
-  it('exposes the workspace gold-ink hook on the selected shortcut chip only', () => {
+  it('paints the selected shortcut chip with the action role only', () => {
     const wrapper = mountPicker({ expiresAt: null, readonly: false })
 
     expect(wrapper.get('[data-testid="expiry-chip-none"]').classes()).toContain(
-      'quotations-gold-ink',
+      'text-[var(--hf-action)]',
     )
     expect(wrapper.get('[data-testid="expiry-chip-7"]').classes()).not.toContain(
-      'quotations-gold-ink',
+      'text-[var(--hf-action)]',
     )
   })
 
