@@ -17,7 +17,8 @@
  *     filtered on); calendar boundaries are formatted from their own digits.
  */
 import { computed } from 'vue'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import {
   SELLER_REPORT_PAYMENT_STATUS_LABELS,
   SELLER_REPORT_PAYMENT_STATUS_TONES,
@@ -53,38 +54,35 @@ const isRefreshing = computed(() => props.report !== null && props.isFetching)
 
 <template>
   <div data-testid="seller-report-content" class="flex w-full min-w-0 flex-col gap-4">
-    <!-- Initial load: a status, never placeholder numbers. -->
+    <!-- Initial load: a skeleton shaped like the report, never placeholder numbers. -->
     <div
       v-if="isInitialLoading && !report"
       data-testid="seller-report-loading"
       role="status"
       aria-busy="true"
-      class="flex min-w-0 flex-col gap-3"
+      class="flex min-w-0 flex-col gap-4"
     >
       <span class="sr-only">Cargando el reporte de ventas…</span>
       <USkeleton class="h-5 w-1/3" />
-      <USkeleton class="h-24 w-full" />
+      <div class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <USkeleton v-for="tile in 3" :key="tile" class="h-16 w-full" />
+      </div>
+      <div class="flex min-w-0 flex-col gap-2">
+        <USkeleton v-for="row in 4" :key="row" class="h-10 w-full" />
+      </div>
     </div>
 
     <!-- Failure with nothing valid to show: one message, one retry. -->
-    <div
+    <EmptyState
       v-else-if="isError && !report"
       data-testid="seller-report-error"
-      role="alert"
-      class="flex min-w-0 flex-col items-start gap-3 rounded-lg border border-error/30 bg-error/5 p-4"
-    >
-      <p data-testid="seller-report-error-message" class="text-sm text-error">
-        {{ errorMessage }}
-      </p>
-      <UButton
-        color="primary"
-        class="min-h-11"
-        data-testid="seller-report-retry"
-        @click="$emit('retry')"
-      >
-        Reintentar
-      </UButton>
-    </div>
+      kind="error"
+      title="No se pudo cargar el reporte"
+      :description="errorMessage ?? undefined"
+      action-label="Reintentar"
+      action-test-id="seller-report-retry"
+      @action="$emit('retry')"
+    />
 
     <p
       v-else-if="!report"
@@ -111,7 +109,7 @@ const isRefreshing = computed(() => props.report !== null && props.isFetching)
       </div>
 
       <header class="flex min-w-0 flex-col gap-1">
-        <h3 data-testid="seller-report-seller-name" class="text-base font-bold text-highlighted">
+        <h3 data-testid="seller-report-seller-name" class="text-base font-semibold text-highlighted">
           {{ report.seller.name }}
         </h3>
         <p data-testid="seller-report-period" class="text-sm text-muted">Periodo {{ period }}</p>
@@ -219,14 +217,14 @@ const isRefreshing = computed(() => props.report !== null && props.isFetching)
                 <td class="py-2 pr-3">{{ sale.folio ?? 'Sin folio' }}</td>
                 <td class="py-2 pr-3">{{ formatSellerReportInstant(sale.confirmedAt) }}</td>
                 <td class="py-2 pr-3">
-                  <AppBadge
+                  <StatusBadge
                     :label="SELLER_REPORT_PAYMENT_STATUS_LABELS[sale.paymentStatus]"
                     :tone="SELLER_REPORT_PAYMENT_STATUS_TONES[sale.paymentStatus]"
                   />
                 </td>
-                <td class="py-2 pr-3 text-right">{{ formatSellerReportCents(sale.totalCents) }}</td>
-                <td class="py-2 pr-3 text-right">{{ formatSellerReportCents(sale.paidCents) }}</td>
-                <td class="py-2 text-right">{{ formatSellerReportCents(sale.debtCents) }}</td>
+                <td class="hf-figure py-2 pr-3 text-right">{{ formatSellerReportCents(sale.totalCents) }}</td>
+                <td class="hf-figure py-2 pr-3 text-right">{{ formatSellerReportCents(sale.paidCents) }}</td>
+                <td class="hf-figure py-2 text-right">{{ formatSellerReportCents(sale.debtCents) }}</td>
               </tr>
               <tr v-if="report.confirmed.rows.length === 0">
                 <td
@@ -274,7 +272,7 @@ const isRefreshing = computed(() => props.report !== null && props.isFetching)
                   {{ sale.confirmedAt ? formatSellerReportInstant(sale.confirmedAt) : '—' }}
                 </td>
                 <td class="py-2 pr-3">{{ formatSellerReportInstant(sale.canceledAt) }}</td>
-                <td class="py-2 text-right">{{ formatSellerReportCents(sale.totalCents) }}</td>
+                <td class="hf-figure py-2 text-right">{{ formatSellerReportCents(sale.totalCents) }}</td>
               </tr>
               <tr v-if="report.canceled.rows.length === 0">
                 <td
