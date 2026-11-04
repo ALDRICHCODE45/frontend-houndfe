@@ -400,9 +400,10 @@ const isProductNotFound = computed(
 const showWorkspace = computed(
   () => isCreateMode.value || (!isProductError.value && !isLoadingProduct.value),
 )
-/** The product's own save stays out of Contenido, which has its own footer: one primary per view. */
+/** The product's own save saves the operational form, which is not on Contenido: hidden there for every
+ * user. Creating a product keeps it, since the content task only says to create the product first. */
 const showProductSave = computed(
-  () => showWorkspace.value && !isFormReadonly.value && !(isEditorialTask.value && canAccessEditorial.value),
+  () => showWorkspace.value && !isFormReadonly.value && !(isEditorialTask.value && !isCreateMode.value),
 )
 
 const { data: categories } = useQuery<CategoryOption[]>({

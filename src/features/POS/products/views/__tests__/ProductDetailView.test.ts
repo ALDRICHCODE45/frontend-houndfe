@@ -425,6 +425,24 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       wrapper.unmount()
     })
 
+    it.each([
+      ['an editor', ['read:ProductEditorialDraft', 'update:ProductEditorialDraft']],
+      ['a user without editorial permission', []],
+    ])('hides the product header and mobile save on Contenido for %s, and brings them back on the other tasks', async (_who, permissionCodes) => {
+      editorialSession.permissionCodes = permissionCodes
+      const wrapper = await mountTasks()
+      expect(wrapper.find('button[form="product-detail-form"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="mobile-action-bar"]').exists()).toBe(true)
+      await wrapper.get('[data-task="content"]').trigger('click')
+      await flushPromises()
+      expect(wrapper.find('button[form="product-detail-form"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="mobile-action-bar"]').exists()).toBe(false)
+      await wrapper.get('[data-task="presentations"]').trigger('click')
+      expect(wrapper.get('button[form="product-detail-form"]').text()).toBe('Guardar cambios')
+      expect(wrapper.find('[data-testid="mobile-action-bar"]').exists()).toBe(true)
+      wrapper.unmount()
+    })
+
     it('lazily mounts one real editor outside UForm and retains its pending input', async () => {
       editorialSession.permissionCodes = ['read:ProductEditorialDraft', 'update:ProductEditorialDraft']
       const wrapper = await mountTasks()
