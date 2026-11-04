@@ -17,11 +17,7 @@
  */
 
 import { computed } from 'vue'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
-import {
-  workModalityToBadgeTone,
-  formatHireDate,
-} from '../composables/useEmployeeColumns'
+import { formatHireDate } from '../composables/useEmployeeColumns'
 import {
   WORK_MODALITY_LABELS,
   CONTRACT_TYPE_LABELS,
@@ -42,7 +38,6 @@ const emit = defineEmits<{
 }>()
 
 const hireDateFormatted = computed(() => formatHireDate(props.employee.hireDate))
-const modalityTone = computed(() => workModalityToBadgeTone(props.employee.workModality))
 const modalityLabel = computed(() => WORK_MODALITY_LABELS[props.employee.workModality])
 const contractLabel = computed(() => CONTRACT_TYPE_LABELS[props.employee.contractType])
 </script>
@@ -92,13 +87,7 @@ const contractLabel = computed(() => CONTRACT_TYPE_LABELS[props.employee.contrac
         <!-- Modalidad de trabajo -->
         <div class="border-b border-default px-5 py-4 sm:border-r">
           <p class="text-xs text-muted">Modalidad</p>
-          <div class="mt-1">
-            <AppBadge
-              :label="modalityLabel"
-              :tone="modalityTone"
-              :aria-label="`Modalidad: ${modalityLabel}`"
-            />
-          </div>
+          <p class="mt-1 font-medium text-default">{{ modalityLabel }}</p>
         </div>
 
         <!-- Fecha de ingreso -->

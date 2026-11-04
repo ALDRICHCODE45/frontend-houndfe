@@ -366,86 +366,58 @@ describe('canReactivate — status guard (WU-05B.4)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('getEmployeeRowActions — row action menu items (WU-05B.5)', () => {
+  const labelsFor = (status: Employee['status'], canUpdate = true) =>
+    getEmployeeRowActions(makeEmployee({ status }), canUpdate).map((a) => a.label)
+
   it('returns empty array when canUpdate is false (no permission)', () => {
-    const emp = makeEmployee({ status: 'ACTIVE' })
-    const actions = getEmployeeRowActions(emp, false)
-    expect(actions).toEqual([])
+    expect(getEmployeeRowActions(makeEmployee({ status: 'ACTIVE' }), false)).toEqual([])
   })
 
-  it('includes Editar action when canUpdate is true', () => {
-    const emp = makeEmployee({ status: 'ACTIVE' })
-    const actions = getEmployeeRowActions(emp, true)
-    const labels = actions.map((a) => a.label)
-    expect(labels).toContain('Editar')
+  it('includes Editar when canUpdate is true', () => {
+    expect(labelsFor('ACTIVE')).toContain('Editar')
   })
 
-  it('includes Dar de baja action for ACTIVE employee when canUpdate is true', () => {
-    const emp = makeEmployee({ status: 'ACTIVE' })
-    const actions = getEmployeeRowActions(emp, true)
-    const labels = actions.map((a) => a.label)
-    expect(labels).toContain('Dar de baja')
+  it('includes Dar de baja… for ACTIVE and ON_LEAVE employees', () => {
+    expect(labelsFor('ACTIVE')).toContain('Dar de baja…')
+    expect(labelsFor('ON_LEAVE')).toContain('Dar de baja…')
   })
 
-  it('includes Dar de baja action for ON_LEAVE employee when canUpdate is true', () => {
-    const emp = makeEmployee({ status: 'ON_LEAVE' })
-    const actions = getEmployeeRowActions(emp, true)
-    const labels = actions.map((a) => a.label)
-    expect(labels).toContain('Dar de baja')
+  it('does NOT include Dar de baja… for TERMINATED employee', () => {
+    expect(labelsFor('TERMINATED')).not.toContain('Dar de baja…')
   })
 
-  it('does NOT include Dar de baja for TERMINATED employee', () => {
-    const emp = makeEmployee({ status: 'TERMINATED' })
-    const actions = getEmployeeRowActions(emp, true)
-    const labels = actions.map((a) => a.label)
-    expect(labels).not.toContain('Dar de baja')
+  it('includes Reactivar… only for TERMINATED employee', () => {
+    expect(labelsFor('TERMINATED')).toContain('Reactivar…')
+    expect(labelsFor('ACTIVE')).not.toContain('Reactivar…')
+    expect(labelsFor('ON_LEAVE')).not.toContain('Reactivar…')
   })
 
-  it('includes Reactivar action for TERMINATED employee when canUpdate is true', () => {
-    const emp = makeEmployee({ status: 'TERMINATED' })
-    const actions = getEmployeeRowActions(emp, true)
-    const labels = actions.map((a) => a.label)
-    expect(labels).toContain('Reactivar')
+  it('names the item that opens a confirmation with a trailing ellipsis', () => {
+    const actions = getEmployeeRowActions(makeEmployee({ status: 'ACTIVE' }), true)
+    expect(actions.find((a) => a.key === 'edit')?.label).toBe('Editar')
+    expect(actions.find((a) => a.key === 'terminate')?.label.endsWith('…')).toBe(true)
   })
 
-  it('does NOT include Reactivar for ACTIVE employee', () => {
-    const emp = makeEmployee({ status: 'ACTIVE' })
-    const actions = getEmployeeRowActions(emp, true)
-    const labels = actions.map((a) => a.label)
-    expect(labels).not.toContain('Reactivar')
-  })
-
-  it('does NOT include Reactivar for ON_LEAVE employee', () => {
-    const emp = makeEmployee({ status: 'ON_LEAVE' })
-    const actions = getEmployeeRowActions(emp, true)
-    const labels = actions.map((a) => a.label)
-    expect(labels).not.toContain('Reactivar')
-  })
-
-  it('each action item has a label string and an onSelect function', () => {
-    const emp = makeEmployee({ status: 'ACTIVE' })
-    const actions = getEmployeeRowActions(emp, true)
+  it('each action has a stable key, a label and an icon', () => {
+    const actions = getEmployeeRowActions(makeEmployee({ status: 'ACTIVE' }), true)
+    expect(actions.map((a) => a.key)).toEqual(['edit', 'terminate'])
     for (const action of actions) {
       expect(typeof action.label).toBe('string')
-      expect(typeof action.onSelect).toBe('function')
+      expect(action.icon).toMatch(/^i-lucide-/)
     }
   })
 
-  it('Dar de baja action has color error for visual distinction', () => {
-    const emp = makeEmployee({ status: 'ACTIVE' })
-    const actions = getEmployeeRowActions(emp, true)
-    const terminate = actions.find((a) => a.label === 'Dar de baja')
-    expect(terminate?.color).toBe('error')
+  it('marks Dar de baja… destructive and keeps it last', () => {
+    const actions = getEmployeeRowActions(makeEmployee({ status: 'ACTIVE' }), true)
+    expect(actions[actions.length - 1]).toMatchObject({ key: 'terminate', destructive: true })
+    expect(actions.filter((a) => a.destructive)).toHaveLength(1)
   })
 
-  it('ACTIVE employee with canUpdate has exactly 2 actions: Editar + Dar de baja', () => {
-    const emp = makeEmployee({ status: 'ACTIVE' })
-    const actions = getEmployeeRowActions(emp, true)
-    expect(actions).toHaveLength(2)
+  it('ACTIVE employee with canUpdate has exactly 2 actions: Editar + Dar de baja…', () => {
+    expect(labelsFor('ACTIVE')).toEqual(['Editar', 'Dar de baja…'])
   })
 
-  it('TERMINATED employee with canUpdate has exactly 2 actions: Editar + Reactivar', () => {
-    const emp = makeEmployee({ status: 'TERMINATED' })
-    const actions = getEmployeeRowActions(emp, true)
-    expect(actions).toHaveLength(2)
+  it('TERMINATED employee with canUpdate has exactly 2 actions: Editar + Reactivar…', () => {
+    expect(labelsFor('TERMINATED')).toEqual(['Editar', 'Reactivar…'])
   })
 })

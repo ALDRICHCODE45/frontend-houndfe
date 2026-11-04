@@ -1,25 +1,13 @@
 @import '../../../../core/shared/design-system/houndfe-ui.css';
 
-/* Colaboradores listing and its teleported menus, dialogs and slideovers.
- * Owned portals repeat the approved shell palette because they cannot
- * inherit it after teleport. This local bridge does not change the shared
- * shell or other modules' contracts. */
+/* Colaboradores (list, detail, trays) and their teleported menus, dialogs and
+ * slideovers: what the shared table, badge and form patterns do not cover, on
+ * `--hf-*` roles only. Colors come from the shared theme through
+ * `hf-theme hf-ui`, which teleported portals carry on their own root. */
+
 .hf-theme.employees-visual,
 .hf-theme.employees-list-portal,
 .hf-theme.employees-form-portal {
-  --hf-page: #f3f6fa;
-  --hf-surface: #ffffff;
-  --hf-surface-muted: #eaf0f8;
-  --hf-field: #f3f6fa;
-  --hf-ink: #1e3555;
-  --hf-heading: #1e3555;
-  --hf-muted: #63748b;
-  --hf-border: #dce3ed;
-  --hf-action: #315ce7;
-  --hf-on-action: #ffffff;
-  --hf-active: #315ce7;
-  --hf-active-soft: #e9effd;
-  --hf-focus: #315ce7;
   --radius-sm: 6px;
   --radius-md: var(--hf-radius-control);
   --radius-lg: var(--hf-radius-card);
@@ -28,24 +16,6 @@
   --radius-3xl: 20px;
 }
 
-.dark .hf-theme.employees-visual,
-.dark .hf-theme.employees-list-portal,
-.dark .hf-theme.employees-form-portal {
-  --hf-page: #101720;
-  --hf-surface: #1b2736;
-  --hf-surface-muted: #223044;
-  --hf-field: #101720;
-  --hf-ink: #e4ebf5;
-  --hf-heading: #e4ebf5;
-  --hf-muted: #9aaac0;
-  --hf-border: #2d3b4d;
-  --hf-action: #91b0ff;
-  --hf-on-action: #172b51;
-  --hf-active: #91b0ff;
-  --hf-active-soft: #253b60;
-  --hf-focus: #91b0ff;
-}
-
 .hf-theme.employees-list-portal,
 .hf-theme.employees-form-portal {
   background-color: var(--hf-surface);
@@ -53,138 +23,98 @@
   color: var(--hf-ink);
 }
 
-/* ── Toolbar and pagination ──────────────────────────────────────────────── */
-
-/* Search and actions share the first desktop row; the status filter takes its
- * own row. Mobile retains the shared toolbar's stacked sheet. */
-@media (min-width: 768px) {
-  .employees-visual .hf-toolbar {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 0.5rem 0.75rem;
-  }
-
-  .employees-visual .hf-toolbar-search-region {
-    display: contents;
-  }
-
-  .employees-visual .hf-toolbar-search {
-    grid-area: 1 / 1;
-    width: 100%;
-    max-width: 26rem;
-  }
-
-  .employees-visual .hf-toolbar-actions {
-    grid-area: 1 / 2;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    justify-self: end;
-  }
-
-  .employees-visual .hf-toolbar-filters {
-    grid-area: 2 / 1 / 3 / -1;
-    flex-wrap: wrap;
-  }
-}
-
 .employees-visual .hf-toolbar :where(button, input, [data-slot='root']) {
   min-height: var(--hf-control-height);
 }
 
-.employees-visual .employees-view-toggle {
-  width: auto;
-  flex-shrink: 0;
-}
-
-.employees-visual .employees-view-toggle :where(button, [role='tab']) {
-  min-width: max-content;
-  white-space: nowrap;
-}
-
-.employees-visual .hf-pagination-summary {
-  white-space: nowrap;
-}
-
-.employees-visual .hf-pagination-size {
-  width: auto;
-  min-height: 36px;
-}
-
-.employees-visual .hf-pagination-navigation {
-  margin-inline-start: auto;
-}
-
-.employees-visual .hf-pagination-navigation :where(button) {
-  min-height: 36px;
-}
-
-/* ── Cards ───────────────────────────────────────────────────────────────── */
-
-.employees-visual .employees-card-grid {
-  align-content: start;
-}
-
-.employees-visual .employees-card {
-  background-color: var(--hf-surface);
-  border: 1px solid var(--hf-border);
-  border-radius: var(--hf-radius-card);
-  color: var(--hf-ink);
-  box-shadow: none;
-}
-
-.employees-visual .employees-card:hover {
-  transform: none;
-  border-color: var(--hf-action);
-  box-shadow: none;
-}
-
-/* ── Work modality badges ────────────────────────────────────────────────── */
-
-/* Modality is a category, not a status: remote reads as the active role,
- * hybrid as the warning role, on-site stays neutral. Text always carries the
- * meaning. */
-.employees-visual .employees-modality {
-  border: 1px solid var(--hf-border);
-  background-color: var(--hf-surface-muted);
-  color: var(--hf-ink);
-}
-
-.employees-visual .employees-modality--remote {
-  border-color: color-mix(in srgb, var(--hf-active) 35%, transparent);
-  background-color: var(--hf-active-soft);
-  color: var(--hf-heading);
-}
-
-.employees-visual .employees-modality--hybrid {
-  border-color: color-mix(in srgb, var(--hf-warning) 40%, transparent);
-  background-color: var(--hf-warning-soft);
-  color: var(--hf-ink);
-}
-
-.employees-visual .employees-modality--onsite {
-  border-color: var(--hf-border);
-  background-color: var(--hf-surface-muted);
-  color: var(--hf-ink);
-}
 /* ── Collaborator detail ─────────────────────────────────────────────────── */
 
 /* Cards repaint the surface role: the global UCard theme paints literal
- * palette colors that the semantic aliases never reach. */
-.employees-detail .employees-detail-section {
+ * palette colors that the semantic aliases never reach. The review dialog of
+ * the pending tray carries the same card inside the form portal. */
+.employees-detail .employees-detail-section,
+.employees-form-portal .employees-detail-section {
   border: 1px solid var(--hf-border);
   background-color: var(--hf-surface);
   color: var(--hf-ink);
   box-shadow: none;
 }
 
+/* Header: back, meta line over the title, then the actions. */
+.employees-detail .employee-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.employees-detail .employee-detail-heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.employees-detail .employee-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  color: var(--hf-muted);
+  font-size: 13px;
+}
+
+.employees-detail .employee-detail-job {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employees-detail .employee-detail-title {
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: var(--hf-heading);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employees-detail .employee-detail-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 767px) {
+  .employees-detail .employee-detail-title {
+    font-size: 17px;
+  }
+}
+
+/* Tabs: an underline strip that scrolls inside its own region on mobile. */
+.employees-detail .employees-detail-tabs-scroll {
+  overflow-x: auto;
+  border-bottom: 1px solid var(--hf-border);
+}
+
 .employees-detail .employees-detail-tabs {
-  border: 1px solid var(--hf-border);
-  background-color: var(--hf-surface-muted);
+  display: flex;
+  gap: 4px;
+  min-width: max-content;
 }
 
 .employees-detail .employees-detail-tab {
+  min-height: 44px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  padding: 0 12px;
   color: var(--hf-muted);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .employees-detail .employees-detail-tab:hover {
@@ -192,64 +122,12 @@
 }
 
 .employees-detail .employees-detail-tab[aria-selected='true'] {
-  background-color: var(--hf-surface);
+  border-bottom-color: var(--hf-action);
   color: var(--hf-heading);
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--hf-ink) 12%, transparent);
+  font-weight: 600;
 }
 
 .employees-detail .employees-detail-tab:focus-visible {
   outline: 2px solid var(--hf-focus);
-  outline-offset: 2px;
-}
-
-/* Document categories group into semantic tones; the label names the
- * category. Expiry reads as a warning. */
-.employees-detail .employees-doc-category {
-  border: 1px solid var(--hf-border);
-  background-color: var(--hf-surface-muted);
-  color: var(--hf-ink);
-}
-
-.employees-detail .employees-doc-category--active {
-  border-color: color-mix(in srgb, var(--hf-active) 35%, transparent);
-  background-color: var(--hf-active-soft);
-  color: var(--hf-heading);
-}
-
-.employees-detail .employees-doc-category--success {
-  border-color: color-mix(in srgb, var(--hf-success) 40%, transparent);
-  background-color: color-mix(in srgb, var(--hf-success) 14%, var(--hf-surface));
-  color: var(--hf-ink);
-}
-
-.employees-detail .employees-doc-category--warning,
-.employees-detail .employees-doc-expiry {
-  border: 1px solid color-mix(in srgb, var(--hf-warning) 40%, transparent);
-  background-color: var(--hf-warning-soft);
-  color: var(--hf-ink);
-}
-
-.employees-detail .employees-doc-category--neutral {
-  border-color: var(--hf-border);
-  background-color: var(--hf-surface-muted);
-  color: var(--hf-ink);
-}
-/* ── Employees dashboards ────────────────────────────────────────────────── */
-
-.employees-visual .employees-approval-card {
-  border-color: var(--hf-border);
-  background-color: var(--hf-surface);
-  color: var(--hf-ink);
-}
-
-.employees-visual .employees-approval-card:hover {
-  border-color: var(--hf-action);
-}
-
-/* Cards inside the form portal (review dialog) repaint the surface role. */
-.employees-form-portal .employees-detail-section {
-  border: 1px solid var(--hf-border);
-  background-color: var(--hf-surface);
-  color: var(--hf-ink);
-  box-shadow: none;
+  outline-offset: -2px;
 }

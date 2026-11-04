@@ -13,10 +13,9 @@
  */
 
 import { computed } from 'vue'
-import { computeSeniority } from '../composables/useEmployeeViewMode'
 import { formatCurrencyMXN } from '../composables/useEmployeeDetail'
 import { hasSalary } from '../interfaces/employee.types'
-import { formatHireDate } from '../composables/useEmployeeColumns'
+import { computeSeniority, formatHireDate } from '../composables/useEmployeeColumns'
 import type { Employee } from '../interfaces/employee.types'
 import type { ManagerInfo } from '../composables/useManagerResolution'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'

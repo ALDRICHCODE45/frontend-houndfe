@@ -6,13 +6,11 @@ const cssPath = `${dir}/styles/employees-visual.css`
 const css = existsSync(cssPath) ? readFileSync(cssPath, 'utf8') : ''
 const read = (p: string) => readFileSync(`${dir}/${p}`, 'utf8')
 const view = read('views/EmployeesListView.vue')
-const card = read('components/EmployeeCard.vue')
-const grid = read('components/EmployeeCardGrid.vue')
 
 const listPortal = 'hf-theme hf-ui employees-list-portal'
 
 // Source contracts, not rendered geometry or browser fidelity evidence.
-describe('Employees listing presentation adapter', () => {
+describe('Employees adapter', () => {
   it('loads a scoped adapter without borrowing other modules or global overrides', () => {
     expect(css).toContain("@import '../../../../core/shared/design-system/houndfe-ui.css'")
     expect(view).toContain("import '../styles/employees-visual.css'")
@@ -22,11 +20,33 @@ describe('Employees listing presentation adapter', () => {
     expect(css).not.toContain('!important')
   })
 
-  it('follows the canonical table workspace: heading outside one table surface', () => {
+  it('paints on --hf roles only: no literal palette, no per-feature palette bridge', () => {
+    expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
+    expect(css).not.toMatch(/\b(coco|brand|light)-/)
+    expect(css).not.toContain('--hf-surface:')
+    expect(css).not.toContain('--hf-action:')
+    expect(css).not.toMatch(/uppercase|letter-spacing:\s*0\.0[4-9]|font-weight:\s*700/)
+  })
+
+  it('keeps no rule for the retired card grid, view toggle or modality badges', () => {
+    for (const hook of ['employees-card', 'employees-view-toggle', 'employees-modality', 'employees-approval-card', 'employees-doc-category']) {
+      expect(css, hook).not.toContain(hook)
+    }
+  })
+
+  it('owns the teleported surfaces of the listing and its forms', () => {
+    for (const marker of ['employees-visual', 'employees-list-portal', 'employees-form-portal']) {
+      expect(css).toContain(`.hf-theme.${marker}`)
+    }
+  })
+})
+
+describe('Employees listing presentation', () => {
+  it('follows the canonical table workspace: heading outside one table surface, no subtitle', () => {
     expect(view).toContain('hf-theme hf-ui employees-visual')
     expect(view).toContain('class="hf-page-header"')
     expect(view).toContain('class="hf-page-title"')
-    expect(view).toContain('class="hf-page-subtitle"')
+    expect(view).not.toContain('hf-page-subtitle')
     expect(view).toContain('hf-table-surface')
     expect(view).toContain('hf-table-content')
     expect(view).toContain('class="hf-data-table"')
@@ -34,42 +54,20 @@ describe('Employees listing presentation adapter', () => {
     expect(view).not.toContain('bg-coco-neutral')
   })
 
-  it('owns light and dark palettes for the listing and every teleported surface', () => {
-    for (const marker of ['employees-visual', 'employees-list-portal', 'employees-form-portal']) {
-      expect(css).toContain(`.hf-theme.${marker}`)
-      expect(css).toContain(`.dark .hf-theme.${marker}`)
-    }
-    expect(css).toContain('--hf-surface: #ffffff')
-    expect(css).toContain('--hf-surface: #1b2736')
-  })
-
-  it('themes toolbar, pagination and both row-action menus', () => {
+  it('themes toolbar, pagination, the status filter and the row menu', () => {
     expect(view).toContain(`portal-class="${listPortal}"`)
     expect(view).toContain(`pagination-portal-class="${listPortal}"`)
-    expect(view).toContain(`:ui="{ content: '${listPortal}' }"`)
-    expect(card).toContain(`:ui="{ content: '${listPortal}' }"`)
+    expect(view).toContain('portal-class="employees-list-portal"')
   })
 
-  it('wraps the toolbar and keeps the view toggle content-sized', () => {
-    expect(view).toContain('employees-view-toggle')
-    expect(css).toContain('.employees-visual .employees-view-toggle')
-    expect(css).toContain('.employees-visual .hf-toolbar-actions')
-    expect(css).toContain('.employees-visual .hf-pagination-size')
-  })
-
-  it('keeps cards restrained through owned hooks', () => {
-    expect(grid).toContain('employees-card-grid')
-    expect(card).toContain('employees-card')
-    expect(css).toContain('.employees-visual .employees-card:hover')
-    expect(css).toContain('transform: none')
-  })
-
-  it('paints work modality badges with semantic owned hooks instead of literal palette', () => {
-    expect(view).not.toMatch(/border-blue-200|bg-blue-50|border-orange-200|bg-orange-50|bg-slate-100/)
-    for (const modality of ['remote', 'hybrid', 'onsite']) {
-      expect(view).toContain(`employees-modality--${modality}`)
-      expect(css).toContain(`.employees-visual .employees-modality--${modality}`)
+  it('is one layout: table plus cards, no card grid, toggle or legacy badges', () => {
+    expect(view).toContain('mobile-render="cards"')
+    expect(view).toContain('#mobile-card')
+    for (const legacy of ['ViewToggle', 'EmployeeCardGrid', 'StatusDotBadge', 'DotBadge', 'UBadge', 'UDropdownMenu']) {
+      expect(view, legacy).not.toContain(legacy)
     }
+    expect(view).toContain('StatusBadge')
+    expect(view).toContain('RowActionsMenu')
   })
 })
 
@@ -112,121 +110,35 @@ describe('Employees dialogs and slideovers presentation adapter', () => {
   })
 })
 
-// ── Collaborator detail (odd employee-detail-visual) ─────────────────────────
+// ── Collaborator detail ──────────────────────────────────────────────────────
 const detail = read('views/EmployeeDetailView.vue')
-const profile = read('components/EmployeeProfileCard.vue')
+const header = read('components/EmployeeDetailHeader.vue')
 
-describe('Employee detail shell and profile card adapter', () => {
-  it('opts the detail into the employees boundary, centered at the Caja page width', () => {
+describe('Employee detail shell and header', () => {
+  it('opts the detail into the employees boundary, centered at the page width', () => {
     expect(detail).toContain("import '../styles/employees-visual.css'")
     expect(detail).toContain('hf-theme hf-ui employees-visual employees-detail')
     expect(detail).toContain('mx-auto')
-    expect(detail).toContain('max-w-[1320px]')
+    expect(detail).toContain('max-w-5xl')
   })
 
-  it('paints the tab bar with semantic roles instead of literal white', () => {
+  it('paints the tab bar with the owned hooks instead of literal white', () => {
     expect(detail).not.toContain('bg-white')
     expect(detail).toContain('employees-detail-tabs')
     expect(detail).toContain('employees-detail-tab')
-    expect(css).toContain('.employees-detail .employees-detail-tab[aria-selected=\'true\']')
+    expect(css).toContain(".employees-detail .employees-detail-tab[aria-selected='true']")
   })
 
-  it('gives the profile card an owned section hook and themes its action menu', () => {
-    expect(profile).toContain('employees-detail-section')
-    expect(css).toContain('.employees-detail .employees-detail-section')
-    expect(profile).toContain(`:ui="{ content: '${formPortal}' }"`)
+  it('has a detail header with one primary, the ⋮ menu, a neutral avatar-free identity and no eyebrows', () => {
+    expect(header).toContain('StatusBadge')
+    expect(header).toContain('RowActionsMenu')
+    expect(header).not.toMatch(/StatusDotBadge|DotBadge|UBadge|uppercase|font-bold/)
+    expect(css).toContain('.employees-detail .employee-detail-title')
+    expect(css).toContain('font-weight: 600')
   })
 
-  it('replaces literal palette chips and rings in the profile card with semantic hooks', () => {
-    expect(profile).not.toMatch(/(bg|text|border)-(blue|orange|slate|emerald)-|ring-white|border-white|dark:ring-gray|dark:border-gray/)
-    for (const modality of ['remote', 'hybrid', 'onsite']) expect(profile).toContain(`employees-modality--${modality}`)
-  })
-
-  it('renders every employee avatar through the neutral EntityAvatar, never a palette hash', () => {
-    const resumen = read('components/ResumenPanel.vue')
-    const approvalComposable = read('composables/usePendingApprovalCard.ts')
-    for (const source of [profile, resumen, read('components/PendingApprovalCard.vue')]) {
-      expect(source).toContain('EntityAvatar')
-    }
-    for (const source of [profile, resumen, approvalComposable]) {
-      expect(source).not.toContain('AVATAR_PALETTE')
-      expect(source).not.toContain('avatarPalette')
-    }
-    expect(profile).toContain('show-dot')
-    expect(css).not.toContain('employees-avatar-ring')
-    expect(css).not.toContain('employees-active-dot')
-  })
-})
-
-const panels = Object.fromEntries(
-  ['ResumenPanel', 'PersonalPanel', 'EmergencyContactsPanel', 'LaboralPanel', 'CompensacionPanel', 'OrganigramaPanel', 'CvPanel', 'DocumentosPanel', 'AusenciasPanel']
-    .map((name) => [name, read(`components/${name}.vue`)]),
-)
-
-describe('Employee detail panels adapter', () => {
-  it('gives every panel card an owned section hook', () => {
-    for (const [name, source] of Object.entries(panels)) {
-      const cards = source.match(/<UCard\b/g)?.length ?? 0
-      const hooked = source.match(/<UCard\b[^>]*employees-detail-section/g)?.length ?? 0
-      expect(hooked, name).toBe(cards)
-    }
-  })
-
-  it('marks every teleport opened from a panel with an owned portal', () => {
-    for (const [name, source] of Object.entries(panels)) {
-      const teleports = source.match(/<(UModal|USelect|USelectMenu|UTooltip|UDropdownMenu|DateFieldPopover)\b/g)?.length ?? 0
-      const marked = source.match(/hf-theme hf-ui (hf-form-overlay )?employees-(form|list)-portal/g)?.length ?? 0
-      expect(marked, name).toBe(teleports)
-    }
-  })
-
-  it('keeps the existing upload footer alignment while theming its dialog', () => {
-    expect(panels.DocumentosPanel).toContain(`:ui="{ content: '${formPortal}', footer: 'justify-end' }"`)
-  })
-
-  it('maps document categories and the expiry chip to semantic owned hooks', () => {
-    expect(panels.DocumentosPanel).not.toMatch(/(bg|text)-(blue|purple|green|teal|orange|yellow|cyan|red|neutral|amber)-\d/)
-    for (const tone of ['active', 'success', 'warning', 'neutral']) {
-      expect(panels.DocumentosPanel).toContain(`employees-doc-category--${tone}`)
-      expect(css).toContain(`.employees-detail .employees-doc-category--${tone}`)
-    }
-    expect(panels.DocumentosPanel).toContain('employees-doc-expiry')
-    expect(css).toContain('.employees-detail .employees-doc-expiry')
-  })
-})
-
-// ── Employees dashboards (odd employees-dashboards-visual) ───────────────────
-const expiring = read('views/ExpiringDocumentsView.vue')
-const pending = read('views/PendingApprovalsView.vue')
-const approvalCard = read('components/PendingApprovalCard.vue')
-
-describe('Employees dashboards follow the canonical table workspace', () => {
-  for (const [name, source] of [['expiring', expiring], ['pending', pending]] as const) {
-    it(`${name}: heading outside one table surface inside the employees boundary`, () => {
-      expect(source, name).toContain("import '../styles/employees-visual.css'")
-      expect(source, name).toContain('hf-theme hf-ui employees-visual')
-      expect(source, name).toContain('class="hf-page-header"')
-      expect(source, name).toContain('class="hf-page-title"')
-      expect(source, name).toContain('class="hf-page-subtitle"')
-      expect(source, name).toContain('hf-table-surface')
-      expect(source, name).toContain('class="hf-data-table"')
-      expect(source, name).not.toContain('AdminPageHeader')
-      expect(source, name).not.toContain('bg-coco-neutral')
-      expect(source, name).toContain(`portal-class="${listPortal}"`)
-      expect(source, name).toContain(`pagination-portal-class="${listPortal}"`)
-    })
-  }
-
-  it('expiring: themes the expiry-window select', () => {
-    expect(expiring).toContain(`:ui="{ content: '${listPortal}' }"`)
-  })
-
-  it('pending: themes the review dialog, its card and the approval cards', () => {
-    expect(pending).toContain(`:ui="{ content: '${formPortal}' }"`)
-    expect(pending).toMatch(/<UCard\b[^>]*employees-detail-section/)
-    expect(pending).toContain('employees-view-toggle')
-    expect(approvalCard).toContain('employees-approval-card')
-    expect(css).toContain('.employees-visual .employees-approval-card')
-    expect(css).toContain('.employees-form-portal .employees-detail-section')
+  it('retired the profile card sidebar', () => {
+    expect(existsSync(`${dir}/components/EmployeeProfileCard.vue`)).toBe(false)
+    expect(detail).not.toContain('EmployeeProfileCard')
   })
 })

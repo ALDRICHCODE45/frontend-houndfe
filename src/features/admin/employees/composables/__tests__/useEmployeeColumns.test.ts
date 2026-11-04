@@ -2,8 +2,9 @@
  * WU-A — useEmployeeColumns specs (REQ-5, REQ-9)
  *
  * Pinned:
- *  - Column order: colaborador, cargo, departamento, jefedirecto, fechaIngreso,
- *                  modalidad, estado, actions
+ *  - Column order (person, status, then the job fields, then the ⋮ column):
+ *                  colaborador, estado, cargo, departamento, jefedirecto,
+ *                  modalidad, fechaIngreso, actions
  *  - Headers (string form): 'Colaborador', 'Cargo', 'Departamento',
  *                            'Jefe directo', 'Fecha de ingreso', 'Modalidad', 'Estado'
  *  - 7 data columns: `enableHiding: true`
@@ -48,17 +49,17 @@ describe('useEmployeeColumns — column order & headers', () => {
     setActivePinia(createPinia())
   })
 
-  it('orders columns as [colaborador, cargo, departamento, jefedirecto, fechaIngreso, modalidad, estado, actions]', () => {
+  it('orders columns as [colaborador, estado, cargo, departamento, jefedirecto, modalidad, fechaIngreso, actions]', () => {
     const { columns } = useEmployeeColumns()
     const ids = columns.value.map((col) => getId(col as ColumnLike))
     expect(ids).toEqual([
       'colaborador',
+      'estado',
       'cargo',
       'departamento',
       'jefedirecto',
-      'fechaIngreso',
       'modalidad',
-      'estado',
+      'fechaIngreso',
       'actions',
     ])
   })
@@ -114,7 +115,7 @@ describe('useEmployeeColumns — enableHiding (REQ-5)', () => {
 
   it('marks all 7 data columns as hideable (enableHiding: true)', () => {
     const { columns } = useEmployeeColumns()
-    const dataIds = ['colaborador', 'cargo', 'departamento', 'jefedirecto', 'fechaIngreso', 'modalidad', 'estado']
+    const dataIds = ['colaborador', 'estado', 'cargo', 'departamento', 'jefedirecto', 'modalidad', 'fechaIngreso']
     for (const id of dataIds) {
       const col = columns.value.find((c) => getId(c as ColumnLike) === id) as ColumnLike
       expect(col, `missing column ${id}`).toBeDefined()
@@ -144,12 +145,13 @@ describe('useEmployeeColumns — enableSorting (REQ-9)', () => {
     }
   })
 
-  it('marks actions column with non-sortable AND non-hideable AND right-aligned', () => {
+  it('marks actions column with non-sortable AND non-hideable AND right-aligned in 64px', () => {
     const { columns } = useEmployeeColumns()
     const col = columns.value.find((c) => getId(c as ColumnLike) === 'actions') as ColumnLike
     expect(col!.enableSorting).toBe(false)
     expect(col!.enableHiding).toBe(false)
-    expect(col!.meta?.class?.td).toBe('text-right')
+    expect(col!.meta?.class?.td).toBe('w-16 text-right')
+    expect(col!.header).toBe('Acciones')
   })
 })
 

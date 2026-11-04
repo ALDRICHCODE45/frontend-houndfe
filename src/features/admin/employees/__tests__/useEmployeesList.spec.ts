@@ -43,7 +43,6 @@ import { buildEmployeesQueryParams } from '@/features/admin/employees/composable
 // ─── Task 2.3 — Columns helper + WU-02 fix imports ───────────────────────────
 import {
   employeeStatusToBadgeTone,
-  workModalityToBadgeTone,
   formatHireDate,
   getManagerDisplay,
 } from '@/features/admin/employees/composables/useEmployeeColumns'
@@ -368,28 +367,12 @@ describe('employeeStatusToBadgeTone — badge tone mapping (task 2.3)', () => {
     expect(employeeStatusToBadgeTone('ACTIVE')).toBe('success')
   })
 
-  it('maps ON_LEAVE to warning tone', () => {
-    expect(employeeStatusToBadgeTone('ON_LEAVE')).toBe('warning')
+  it('maps ON_LEAVE to info tone (a leave in progress is not pending action)', () => {
+    expect(employeeStatusToBadgeTone('ON_LEAVE')).toBe('info')
   })
 
-  it('maps TERMINATED to error tone', () => {
-    // Spec: "Terminated chip shows Baja with error color"
-    expect(employeeStatusToBadgeTone('TERMINATED')).toBe('error')
-  })
-})
-
-// ─── workModalityToBadgeTone ──────────────────────────────────────────────────
-describe('workModalityToBadgeTone — badge tone mapping (task 2.3)', () => {
-  it('maps ONSITE to neutral tone', () => {
-    expect(workModalityToBadgeTone('ONSITE')).toBe('neutral')
-  })
-
-  it('maps REMOTE to info tone', () => {
-    expect(workModalityToBadgeTone('REMOTE')).toBe('info')
-  })
-
-  it('maps HYBRID to pending tone', () => {
-    expect(workModalityToBadgeTone('HYBRID')).toBe('pending')
+  it('maps TERMINATED to neutral tone (a closed state, not an error)', () => {
+    expect(employeeStatusToBadgeTone('TERMINATED')).toBe('neutral')
   })
 })
 
