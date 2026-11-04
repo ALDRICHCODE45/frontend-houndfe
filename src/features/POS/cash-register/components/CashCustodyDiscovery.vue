@@ -13,6 +13,8 @@
  *   as reserved.
  */
 import { computed, ref } from 'vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import { pesosToCents } from '../utils/cash-input'
 import { canReceiveHandover, floatSourceDrawerAdvisory } from '../composables/cashRules'
@@ -58,6 +60,8 @@ function kindLabel(kind: CashCustodyItem['kind']): string {
   return kind === 'FLOAT' ? 'FLOAT (próximo fondo)' : 'WITHDRAWAL (retiro)'
 }
 
+const kindTone = (kind: CashCustodyItem['kind']) => (kind === 'FLOAT' ? 'info' : 'neutral')
+
 /** Only the designated, still-unreceived recipient may act on the item. */
 function isMine(item: CashCustodyItem): boolean {
   return canReceiveHandover(item, props.currentUserId)
@@ -96,204 +100,178 @@ function submitReceive(item: CashCustodyItem) {
 </script>
 
 <template>
-  <section class="cash-panel" data-testid="cash-custody-discovery">
-    <header class="cash-panel-header">
-      <span class="cash-icon-tile" aria-hidden="true">
-        <UIcon name="i-lucide-hand-coins" />
-      </span>
-      <div class="cash-panel-header-text">
-        <h2 class="cash-panel-title">Mi custodia pendiente</h2>
-        <p class="cash-panel-subtitle">
-          Solo la persona destinataria puede recibir; el FLOAT listado es una referencia, no una
-          reserva.
-        </p>
-      </div>
-      <div class="cash-panel-header-actions">
-        <UButton
-          v-if="allowed"
-          type="button"
-          color="neutral"
-          variant="ghost"
-          class="cash-control"
-          data-testid="cash-custody-refresh"
-          @click="emit('refresh')"
-        >
-          Actualizar
-        </UButton>
-      </div>
+  <section class="cash-list-section" data-testid="cash-custody-discovery">
+    <header class="cash-list-header">
+      <h2 class="cash-list-title">Mi custodia pendiente</h2>
     </header>
 
-    <div class="cash-panel-body">
-      <p
-        v-if="!allowed"
-        class="rounded-lg border border-default p-3 text-sm text-muted"
-        data-testid="cash-custody-forbidden"
+    <EmptyState
+      v-if="!allowed"
+      kind="forbidden"
+      title="Sin acceso a tus entregas"
+      description="Pide a la persona administradora el permiso para ver la custodia."
+      data-testid="cash-custody-forbidden"
+    />
+
+    <template v-else>
+      <div
+        v-if="loading"
+        class="flex flex-col gap-3"
+        aria-busy="true"
+        data-testid="cash-custody-loading"
       >
-        Necesitas el permiso para ver tus entregas de custodia (read:CashHandover). No lo otorgamos
-        automáticamente.
-      </p>
+        <span class="sr-only">Cargando</span>
+        <div
+          v-for="index in 2"
+          :key="`custody-skeleton-${index}`"
+          class="h-28 animate-pulse rounded-lg border border-[var(--hf-border)] bg-[var(--hf-surface-muted)]"
+          aria-hidden="true"
+        />
+      </div>
+
+      <EmptyState
+        v-else-if="error"
+        kind="error"
+        title="No se pudo cargar tu custodia"
+        :description="errorMessage"
+        action-label="Reintentar"
+        data-testid="cash-custody-error"
+        @action="emit('refresh')"
+      />
+
+      <EmptyState
+        v-else-if="!hasAny"
+        title="No hay entregas pendientes"
+        description="Aquí aparecerán las entregas y el FLOAT que recibas."
+        data-testid="cash-custody-empty"
+      />
 
       <template v-else>
-        <div v-if="loading" aria-busy="true" data-testid="cash-custody-loading">
-          <USkeleton class="h-16 w-full" />
-        </div>
-
-        <UAlert
-          v-else-if="error"
-          color="error"
-          variant="subtle"
-          title="No se pudo cargar tu custodia"
-          :description="errorMessage"
-          data-testid="cash-custody-error"
-        />
-
-        <p v-else-if="!hasAny" class="text-sm text-muted" data-testid="cash-custody-empty">
-          No tienes entregas pendientes ni FLOAT recibidos disponibles.
-        </p>
-
-        <template v-else>
-          <section class="flex flex-col gap-2" data-testid="cash-custody-pending">
-            <h3 class="text-sm font-medium text-highlighted">Entregas por recibir</h3>
-            <p
-              v-if="pendingHandovers.length === 0"
-              class="text-xs text-muted"
-              data-testid="cash-custody-pending-empty"
-            >
-              No hay entregas pendientes para ti.
-            </p>
-            <article
-              v-for="item in pendingHandovers"
-              :key="item.id"
-              class="flex flex-col gap-3 rounded-lg border border-default p-3"
-              :data-testid="`cash-custody-pending-${item.id}`"
-            >
-              <div class="flex flex-wrap items-center justify-between gap-2">
-                <UBadge
-                  :color="item.kind === 'FLOAT' ? 'primary' : 'neutral'"
-                  variant="subtle"
-                  :data-testid="`cash-custody-kind-${item.id}`"
+        <section class="flex flex-col gap-3" data-testid="cash-custody-pending">
+          <h3 class="text-sm font-semibold text-highlighted">Entregas por recibir</h3>
+          <p
+            v-if="pendingHandovers.length === 0"
+            class="cash-meta"
+            data-testid="cash-custody-pending-empty"
+          >
+            No hay entregas pendientes para ti.
+          </p>
+          <article
+            v-for="item in pendingHandovers"
+            :key="item.id"
+            class="cash-card"
+            :data-testid="`cash-custody-pending-${item.id}`"
+          >
+            <div class="cash-card-heading">
+              <StatusBadge
+                :label="kindLabel(item.kind)"
+                :tone="kindTone(item.kind)"
+                aria-prefix="Tipo:"
+                :data-testid="`cash-custody-kind-${item.id}`"
+              />
+              <dl>
+                <dt class="sr-only">Declarado</dt>
+                <dd
+                  class="hf-figure text-sm font-semibold text-highlighted"
+                  :data-testid="`cash-custody-declared-${item.id}`"
                 >
-                  {{ kindLabel(item.kind) }}
-                </UBadge>
-                <span class="text-xs text-muted">Entrega {{ item.id.slice(0, 8) }}</span>
-              </div>
-
-              <!-- Declared vs actually received: two separate, explicit facts. -->
-              <dl class="grid grid-cols-2 gap-x-4 gap-y-1">
-                <div class="min-w-0">
-                  <dt class="text-xs text-muted">Declarado</dt>
-                  <dd
-                    class="text-sm font-semibold text-highlighted"
-                    :data-testid="`cash-custody-declared-${item.id}`"
-                  >
-                    {{ formatCentsMXN(item.declaredCents) }}
-                  </dd>
-                </div>
-                <div class="min-w-0">
-                  <dt class="text-xs text-muted">Recibido</dt>
-                  <dd class="text-xs text-muted">Se confirma al recibir</dd>
-                </div>
+                  {{ formatCentsMXN(item.declaredCents) }}
+                </dd>
               </dl>
+            </div>
+            <p class="cash-meta mt-1">Declarado</p>
 
-              <p
-                v-if="!isMine(item)"
-                class="text-xs text-muted"
-                :data-testid="`cash-custody-not-mine-${item.id}`"
-              >
-                Destinatario distinto: solo la persona destinataria puede recibir esta entrega.
-              </p>
-
-              <template v-else>
-                <div class="cash-form-content flex flex-wrap items-end gap-2">
-                  <UFormField label="Monto recibido (pesos)">
-                    <UInput
-                      v-model="receivedInputs[item.id]"
-                      inputmode="decimal"
-                      class="cash-control"
-                      :data-testid="`cash-custody-received-input-${item.id}`"
-                    />
-                  </UFormField>
-                  <UFormField label="Notas de recepción">
-                    <UInput
-                      v-model="notesInputs[item.id]"
-                      class="cash-control"
-                      :data-testid="`cash-custody-received-notes-${item.id}`"
-                    />
-                  </UFormField>
-                  <UButton
-                    v-if="canReceive"
-                    type="button"
-                    class="cash-control min-h-11"
-                    :loading="receivingId === item.id"
-                    :disabled="receivingId === item.id"
-                    :data-testid="`cash-custody-receive-${item.id}`"
-                    @click="submitReceive(item)"
-                  >
-                    Recibir
-                  </UButton>
-                </div>
-                <p
-                  class="text-xs text-muted"
-                  :data-testid="`cash-custody-received-note-hint-${item.id}`"
-                >
-                  Si el monto difiere del declarado, la nota es obligatoria.
-                </p>
-                <p
-                  v-if="!canReceive"
-                  class="text-xs text-muted"
-                  :data-testid="`cash-custody-receive-forbidden-${item.id}`"
-                >
-                  Necesitas permiso para confirmar la recepción (update:CashHandover).
-                </p>
-              </template>
-            </article>
-          </section>
-
-          <section class="flex flex-col gap-2" data-testid="cash-custody-float">
-            <h3 class="text-sm font-medium text-highlighted">FLOAT recibidos disponibles</h3>
             <p
-              v-if="eligibleFloat.length === 0"
-              class="text-xs text-muted"
-              data-testid="cash-custody-float-empty"
+              v-if="!isMine(item)"
+              class="cash-meta mt-3"
+              :data-testid="`cash-custody-not-mine-${item.id}`"
             >
-              No tienes FLOAT sin usar.
+              Destinatario distinto: solo la persona destinataria puede recibir esta entrega.
             </p>
-            <article
-              v-for="item in eligibleFloat"
-              :key="item.id"
-              class="flex flex-col gap-1 rounded-lg border border-default p-3"
-              :data-testid="`cash-custody-float-${item.id}`"
-            >
-              <div class="flex flex-wrap items-center justify-between gap-2">
-                <span
-                  class="text-sm font-medium text-highlighted"
-                  :data-testid="`cash-custody-float-received-${item.id}`"
+
+            <template v-else>
+              <div class="cash-form-content mt-3 flex flex-wrap items-end gap-2">
+                <UFormField label="Monto recibido (pesos)">
+                  <UInput
+                    v-model="receivedInputs[item.id]"
+                    inputmode="decimal"
+                    class="cash-control"
+                    :data-testid="`cash-custody-received-input-${item.id}`"
+                  />
+                </UFormField>
+                <UFormField label="Notas de recepción">
+                  <UInput
+                    v-model="notesInputs[item.id]"
+                    class="cash-control"
+                    :data-testid="`cash-custody-received-notes-${item.id}`"
+                  />
+                </UFormField>
+                <UButton
+                  v-if="canReceive"
+                  type="button"
+                  class="cash-control min-h-11"
+                  :loading="receivingId === item.id"
+                  :disabled="receivingId === item.id"
+                  :data-testid="`cash-custody-receive-${item.id}`"
+                  @click="submitReceive(item)"
                 >
-                  Recibido {{ formatCentsMXN(item.receivedCents ?? 0) }}
-                </span>
-                <span class="text-xs text-muted"
-                  >Declarado {{ formatCentsMXN(item.declaredCents) }}</span
-                >
+                  Recibir
+                </UButton>
               </div>
-              <p class="text-xs text-muted">
-                El fondo de apertura es el monto RECIBIDO; puede diferir del declarado y sigue
-                siendo válido.
+              <p
+                class="cash-meta mt-2"
+                :data-testid="`cash-custody-received-note-hint-${item.id}`"
+              >
+                La nota es obligatoria si el monto difiere del declarado.
               </p>
               <p
-                v-if="advisoryFor(item)"
-                class="text-xs text-warning"
-                :data-testid="`cash-custody-float-drawer-${item.id}`"
+                v-if="!canReceive"
+                class="cash-meta mt-2"
+                :data-testid="`cash-custody-receive-forbidden-${item.id}`"
               >
-                {{ advisoryFor(item) }}
+                No tienes permiso para confirmar la recepción.
               </p>
-            </article>
-          </section>
-        </template>
+            </template>
+          </article>
+        </section>
 
-        <p v-if="localError" class="text-sm text-error" data-testid="cash-custody-local-error">
-          {{ localError }}
-        </p>
+        <section class="flex flex-col gap-3" data-testid="cash-custody-float">
+          <h3 class="text-sm font-semibold text-highlighted">FLOAT disponibles</h3>
+          <p v-if="eligibleFloat.length === 0" class="cash-meta" data-testid="cash-custody-float-empty">
+            No tienes FLOAT sin usar.
+          </p>
+          <p v-else class="cash-meta">
+            Cada FLOAT es una referencia, no una reserva: el fondo de apertura es el monto recibido.
+          </p>
+          <article
+            v-for="item in eligibleFloat"
+            :key="item.id"
+            class="cash-card"
+            :data-testid="`cash-custody-float-${item.id}`"
+          >
+            <div class="cash-card-heading">
+              <span
+                class="hf-figure text-sm font-semibold text-highlighted"
+                :data-testid="`cash-custody-float-received-${item.id}`"
+              >
+                Recibido {{ formatCentsMXN(item.receivedCents ?? 0) }}
+              </span>
+              <span class="cash-meta">Declarado {{ formatCentsMXN(item.declaredCents) }}</span>
+            </div>
+            <p
+              v-if="advisoryFor(item)"
+              class="mt-2 text-xs text-warning"
+              :data-testid="`cash-custody-float-drawer-${item.id}`"
+            >
+              {{ advisoryFor(item) }}
+            </p>
+          </article>
+        </section>
       </template>
-    </div>
+
+      <p v-if="localError" class="text-sm text-error" data-testid="cash-custody-local-error">
+        {{ localError }}
+      </p>
+    </template>
   </section>
 </template>
