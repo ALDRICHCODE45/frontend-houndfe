@@ -957,12 +957,11 @@ async function handleChangePriceList(globalPriceListId: string | null) {
       class="h-full w-full flex flex-col bg-(--hf-page) sales-entry-page"
     >
       <!-- S8 (fidelity): the accepted v0 workspace heading sits on the page
-           canvas BEFORE the draft strip. Static sale-page copy from the
-           authorized v0 source; the draft strip, Caja binding and every
+           canvas BEFORE the draft strip: the title and one short subtitle, no
+           eyebrow (Page header pattern); the draft strip, Caja binding and every
            shortcut/navigation contract below are untouched. -->
       <header class="shrink-0 sales-pos-workspace-header">
         <div class="min-w-0">
-          <p class="sales-pos-workspace-eyebrow">PUNTO DE VENTA</p>
           <h1 class="sales-pos-workspace-title">Nueva venta</h1>
         </div>
         <span class="sales-pos-workspace-helper">Todo listo para tu próxima venta.</span>

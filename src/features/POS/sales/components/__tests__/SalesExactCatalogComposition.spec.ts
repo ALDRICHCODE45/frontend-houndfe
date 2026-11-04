@@ -15,7 +15,7 @@ import ProductSearchPanel from '../ProductSearchPanel.vue'
  * S8 / S10 — the REQUESTED catalog composition (T2, workspace unit A).
  *
  * The user's last fidelity report is specific and public:
- *   1. the v0 workspace heading `PUNTO DE VENTA` / `Nueva venta` is missing and
+ *   1. the workspace heading `Nueva venta` is missing and
  *      must sit on the page canvas BEFORE the draft strip;
  *   2. the catalog controls are one titled SURFACE, not a tall decorative card
  *      that also holds the whole product grid; the title carries the REAL
@@ -200,7 +200,7 @@ function mountView() {
 
 // ── E1 — the requested workspace heading, before the draft strip ────────────
 
-describe('E1 — PUNTO DE VENTA / Nueva venta heading', () => {
+describe('E1 — Nueva venta heading', () => {
   beforeEach(() => {
     mobileViewport.value = false
     listLoading.value = false
@@ -211,7 +211,9 @@ describe('E1 — PUNTO DE VENTA / Nueva venta heading', () => {
     const wrapper = mountView()
 
     const header = wrapper.get('.sales-pos-workspace-header')
-    expect(header.get('.sales-pos-workspace-eyebrow').text()).toBe('PUNTO DE VENTA')
+    // The uppercase eyebrow is retired (Page header pattern).
+    expect(header.find('.sales-pos-workspace-eyebrow').exists()).toBe(false)
+    expect(header.text()).not.toContain('PUNTO DE VENTA')
     expect(header.get('.sales-pos-workspace-title').text()).toBe('Nueva venta')
   })
 

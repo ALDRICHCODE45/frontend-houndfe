@@ -14,7 +14,7 @@
  * workspace (`max-width: 1900px`) with a NEUTRAL, padding-free cart wrapper
  * whose VISIBLE 388px (420px from 1500px) surface is owned by the cart panel
  * itself. The earlier candidate was rejected on four points, all corrected
- * here: the `PUNTO DE VENTA` / `Nueva venta` heading was missing before the
+ * here: the workspace heading was missing before the
  * draft strip, the catalog controls were merged into one tall card that also
  * held the products, the desktop grid was denser than the reference (4/5/6
  * columns), and the cart wrapper added its own padding/border/rounding on top
@@ -78,23 +78,15 @@
 
 /* ── Workspace heading ─────────────────────────────────────────────────── */
 
-/* S8: the accepted v0 heading — `PUNTO DE VENTA` above `Nueva venta` — sits on
- * the page canvas before the draft strip. The copy and ordering come from the
- * authorized v0 source; the prototype's decorative gold dot is intentionally
- * dropped (the shared foundation carries no decorative status dot). */
+/* S8: the `Nueva venta` heading sits on the page canvas before the draft
+ * strip. The uppercase `PUNTO DE VENTA` eyebrow of the v0 prototype is retired
+ * (Page header pattern: a title and at most one short subtitle), and so is its
+ * decorative gold dot. */
 .sales-pos-workspace .sales-pos-workspace-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-}
-
-.sales-pos-workspace .sales-pos-workspace-eyebrow {
-  color: var(--hf-muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .sales-pos-workspace .sales-pos-workspace-title {

@@ -255,10 +255,8 @@
 
 .sales-pos-checkout .sales-pos-detail-eyebrow {
   margin-bottom: 0.375rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-size: 0.8125rem;
+  font-weight: 500;
   color: var(--hf-muted);
 }
 
