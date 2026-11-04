@@ -68,6 +68,9 @@ const sessionParams = computed(() => ({
 }))
 
 const sessions = useCashSessions(sessionParams)
+const registerNames = computed(() =>
+  Object.fromEntries(registers.registers.value.map((register) => [register.id, register.name])),
+)
 const detailQuery = useCashSessionDetail(selectedSessionId)
 
 // One presentation channel for command feedback; each panel receives only its
@@ -487,16 +490,17 @@ function handleReleaseDrawer() {
         <CashSessionsPanel
           v-if="access.canReadSessions.value"
           :sessions="sessions.sessions.value"
+          :register-names="registerNames"
           :selected-session-id="selectedSessionId"
           :loading="sessions.isLoading.value"
           :fetching="sessions.isFetching.value"
           :error="sessions.isError.value"
           :can-filter-by-cashier="sessions.canFilterByCashier.value"
-          :page="sessions.page.value"
-          :limit="sessions.limit.value"
+          :can-open="access.canOpenSession.value"
           :total="sessions.total.value"
           @select="selectSession"
           @refresh="sessions.refetch()"
+          @request-opening="selectTask('apertura')"
         />
       </div>
 

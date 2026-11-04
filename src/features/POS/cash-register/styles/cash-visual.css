@@ -531,3 +531,98 @@
   background: var(--cash-warning-soft);
   color: var(--cash-warning);
 }
+
+/* ── Lists: one table on desktop, cards on mobile ────────────────────────── */
+
+.cash-list-section {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.cash-list-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+}
+
+.cash-list-title {
+  color: var(--hf-heading);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.cash-list-subtitle,
+.cash-list-note,
+.cash-meta {
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+}
+
+.cash-meta {
+  white-space: nowrap;
+}
+
+.cash-row-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cash-row-link:disabled {
+  cursor: default;
+}
+
+.cash-card {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background: var(--hf-surface);
+}
+
+.cash-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.cash-card-title {
+  min-width: 0;
+}
+
+.cash-card-menu {
+  flex-shrink: 0;
+  margin: -0.5rem -0.5rem 0 0;
+}
+
+.cash-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.cash-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--hf-border);
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+}
+
+.cash-card-footer .hf-figure {
+  color: var(--hf-heading);
+  font-weight: 600;
+}
