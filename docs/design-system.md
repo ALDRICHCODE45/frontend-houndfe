@@ -279,7 +279,7 @@ The footer of the workspace (border-top, `--hf-surface`) holds the **save state*
 
 ### Sticky mobile action bar
 
-On mobile the workspace's actions live in a bar pinned to the bottom of the screen (artboard 05): `--hf-surface`, border-top, 12px/16px padding, 8px gap, 44px buttons; the secondary (`Guardar`, outline) and the primary (`Confirmar orden`) have **equal widths** (`flex: 1 1 0`) and **centered labels**. The body scrolls under it. It replaces the footer and the header primary on small screens, and never holds more than one primary.
+On mobile the workspace's actions live in a bar pinned to the bottom of the screen (artboard 05): `--hf-surface`, border-top, 12px/16px padding, 8px gap, 44px buttons; the secondary (`Guardar`, outline) and the primary (`Confirmar orden`) have **equal widths** (a grid of equal columns: `display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr)`; not `flex: 1 1 0`, which keeps each control's own padding and leaves mixed buttons unequal) and **centered labels**. The body scrolls under it. It replaces the footer and the header primary on small screens, and never holds more than one primary.
 
 ### Mobile cards
 

@@ -106,8 +106,8 @@
 .purchase-orders-portal .order-save-state { display: flex; align-items: center; gap: 6px; margin-right: auto; color: var(--hf-muted); font-size: 13px; }
 .purchase-orders-portal .order-save-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--hf-warning); }
 .purchase-orders-portal .order-save-ok { color: var(--hf-success); font-weight: 600; }
-.purchase-orders-portal .order-action-bar { position: sticky; bottom: 0; display: flex; flex: none; gap: 8px; padding: 12px 16px max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--hf-border); background: var(--hf-surface); }
-.purchase-orders-portal .order-action-bar > * { flex: 1 1 0; justify-content: center; min-width: 0; text-align: center; }
+.purchase-orders-portal .order-action-bar { position: sticky; bottom: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); flex: none; gap: 8px; padding: 12px 16px max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--hf-border); background: var(--hf-surface); }
+.purchase-orders-portal .order-action-bar > * { justify-content: center; min-width: 0; text-align: center; }
 
 /* ── Read-only record and the confirm/cancel summary ── */
 .purchase-orders-portal .order-readonly { display: grid; gap: 20px; min-width: 0; color: var(--hf-ink); }

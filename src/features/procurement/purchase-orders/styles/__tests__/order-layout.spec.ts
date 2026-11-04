@@ -81,9 +81,14 @@ describe('open order shell', () => {
     expect(rule('.purchase-orders-portal .order-footer')).toMatch(/flex: none/)
   })
   it('pins the mobile action bar to the bottom with equal-width buttons and centered labels', () => {
-    expect(rule('.purchase-orders-portal .order-action-bar')).toMatch(/position: sticky; bottom: 0/)
+    // Equal columns, not flex shares: flex-basis 0 still keeps each button's own padding, so mixed controls end up unequal.
+    const bar = rule('.purchase-orders-portal .order-action-bar')!
+    expect(bar).toMatch(/position: sticky; bottom: 0/)
+    expect(bar).toMatch(/display: grid/)
+    expect(bar).toMatch(/grid-auto-flow: column/)
+    expect(bar).toMatch(/grid-auto-columns: minmax\(0, 1fr\)/)
     const buttons = rule('.purchase-orders-portal .order-action-bar > *')!
-    expect(buttons).toMatch(/flex: 1 1 0/)
+    expect(buttons).not.toMatch(/flex:/)
     expect(buttons).toMatch(/justify-content: center/)
     expect(buttons).toMatch(/text-align: center/)
     expect(rule('.purchase-orders-portal .order-action-bar > .hf-primary-control')).toBeNull()
