@@ -58,7 +58,8 @@ export function isEditorialInputBlank(input: EditorialAssignmentInput): boolean 
 /**
  * Rows are the definitions bound to the family, by human label. Columns are Producto plus one per
  * presentation, and a column exists only where some binding allows its target. Definitions carry no
- * topic metadata (their `groups` are option groups), so every row is one group.
+ * topic metadata (their `groups` are option groups), so every row is one group. A product without
+ * variants whose data is all per sellable has a single column, named Producto.
  */
 export function buildEditorialAttributeTable({ family, definitions, values, subjects }: {
   family: EditorialFamily | null
@@ -82,6 +83,8 @@ export function buildEditorialAttributeTable({ family, definitions, values, subj
     return definition ? [{ binding, definition }] : []
   })
   const used = candidates.filter(column => bound.some(({ binding }) => binding.owner === column.owner))
+  // With no Producto column and no variants, the one sellable column is the product itself.
+  if (!used.some(column => column.owner === 'product') && used.length === 1 && used[0]!.variantId === null) used[0] = { ...used[0]!, label: 'Producto' }
   const matched = new Set<string>()
   let answered = 0
   let total = 0

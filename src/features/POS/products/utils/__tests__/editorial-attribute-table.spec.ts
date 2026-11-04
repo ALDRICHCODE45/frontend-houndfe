@@ -55,6 +55,13 @@ describe('buildEditorialAttributeTable', () => {
     expect(table.rows.find(item => item.label === 'Peso neto')!.cells[1]!.target).toEqual({ code: 'measure.net_mass', owner: 'sellable', variantId: null })
   })
 
+  it('calls the only column Producto when the data lives on the product itself, without variants', () => {
+    const onlySellable = { ...family, bindings: [binding('measure.net_mass', 'sellable')] }
+    const table = build([], { family: onlySellable, subjects: [{ variantId: null, label: 'Sin presentación' }] })
+    expect(table.columns.map(column => column.label)).toEqual(['Producto'])
+    expect(table.rows[0]!.cells[0]!.target).toEqual({ code: 'measure.net_mass', owner: 'sellable', variantId: null })
+  })
+
   it('reads each cell from its assignment and keeps absent ones omitted', () => {
     const table = build([row('a', 'material', 'product', null, known('Nylon')), row('b', 'animal.target', 'product', null, { state: 'unknown' })])
     const material = table.rows.find(item => item.label === 'Material')!.cells[0]!
