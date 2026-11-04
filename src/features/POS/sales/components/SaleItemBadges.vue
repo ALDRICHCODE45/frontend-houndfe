@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { getRewardBadgeLabel } from '../utils/promotion.utils'
 import type { PriceSource, SaleRewardKind } from '../interfaces/sale.types'
@@ -64,14 +64,12 @@ const priceSourceBadge = computed(() => {
   if (props.priceSource === 'price_list' && priceChanged.value) {
     return {
       label: 'PRECIO LISTA',
-      icon: 'i-lucide-tags',
       tone: 'info' as const,
     }
   }
   if (props.priceSource === 'custom' && priceChanged.value) {
     return {
       label: 'PRECIO MANUAL',
-      icon: 'i-lucide-pencil-ruler',
       tone: 'warning' as const,
     }
   }
@@ -114,11 +112,11 @@ function handleRemovePromo() {
     data-testid="sale-item-badge-group"
     class="flex flex-wrap items-center gap-1"
   >
-    <AppBadge
+    <StatusBadge
       v-if="priceSourceBadge"
       :tone="priceSourceBadge.tone"
-      :icon="priceSourceBadge.icon"
       :label="priceSourceBadge.label"
+      :aria-label="priceSourceBadge.label"
     />
 
     <span
@@ -131,17 +129,17 @@ function handleRemovePromo() {
         :text="discountTitle"
         :ui="portalClass ? { content: portalClass } : undefined"
       >
-        <AppBadge
+        <StatusBadge
           tone="info"
-          icon="i-lucide-tag"
           :label="discountTitle"
+          :aria-label="discountTitle"
         />
       </UTooltip>
-      <AppBadge
+      <StatusBadge
         v-else
         tone="info"
-        icon="i-lucide-tag"
         label="Promoción"
+        aria-label="Promoción"
       />
       <UButton
         v-if="removable"
@@ -160,24 +158,24 @@ function handleRemovePromo() {
       :text="discountTitle"
       :ui="portalClass ? { content: portalClass } : undefined"
     >
-      <AppBadge
+      <StatusBadge
         tone="success"
-        icon="i-lucide-badge-percent"
         :label="discountBadgeLabel"
+        :aria-label="discountBadgeLabel"
       />
     </UTooltip>
-    <AppBadge
+    <StatusBadge
       v-else-if="discountType"
       tone="success"
-      icon="i-lucide-badge-percent"
       :label="discountBadgeLabel"
+      :aria-label="discountBadgeLabel"
     />
 
-    <AppBadge
+    <StatusBadge
       v-if="rewardBadgeLabel != null"
       tone="success"
-      icon="i-lucide-gift"
       :label="rewardBadgeLabel"
+      :aria-label="rewardBadgeLabel"
       data-testid="sale-item-reward-badge"
     />
   </div>

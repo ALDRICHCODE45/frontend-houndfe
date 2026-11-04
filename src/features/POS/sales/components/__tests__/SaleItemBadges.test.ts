@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import SaleItemBadges from '../SaleItemBadges.vue'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import type { SaleRewardKind } from '../../interfaces/sale.types'
 
@@ -198,7 +198,7 @@ describe('SaleItemBadges', () => {
     expect(wrapper.find('[data-testid="sale-item-badge-group"]').exists()).toBe(false)
   })
 
-  it('keeps success tone and gift icon for free and partial reward badges', () => {
+  it('keeps the success tone for free and partial reward badges', () => {
     for (const rewardDiscountPercent of [100, 50]) {
       const wrapper = mountWithUApp(SaleItemBadges, {
         props: {
@@ -209,9 +209,8 @@ describe('SaleItemBadges', () => {
         },
       })
 
-      const rewardBadge = wrapper.findComponent(AppBadge)
+      const rewardBadge = wrapper.findComponent(StatusBadge)
       expect(rewardBadge.props('tone')).toBe('success')
-      expect(rewardBadge.props('icon')).toBe('i-lucide-gift')
     }
   })
 
@@ -342,7 +341,7 @@ describe('SaleItemBadges', () => {
     expect(rewardBadge.text()).toBe('Recompensa')
   })
 
-  it('keeps success tone + gift icon for ADVANCED free and partial reward badges', () => {
+  it('keeps the success tone for ADVANCED free and partial reward badges', () => {
     for (const rewardDiscountPercent of [100, 50]) {
       const wrapper = mountWithUApp(SaleItemBadges, {
         props: {
@@ -353,13 +352,12 @@ describe('SaleItemBadges', () => {
         },
       })
 
-      const rewardBadge = wrapper.findComponent(AppBadge)
+      const rewardBadge = wrapper.findComponent(StatusBadge)
       expect(rewardBadge.props('tone')).toBe('success')
-      expect(rewardBadge.props('icon')).toBe('i-lucide-gift')
     }
   })
 
-  it('keeps success tone + gift icon for the generic "Recompensa" fallback badge', () => {
+  it('keeps the success tone for the generic "Recompensa" fallback badge', () => {
     const wrapper = mountWithUApp(SaleItemBadges, {
       props: {
         priceSource: 'default',
@@ -369,8 +367,7 @@ describe('SaleItemBadges', () => {
       },
     })
 
-    const rewardBadge = wrapper.findComponent(AppBadge)
+    const rewardBadge = wrapper.findComponent(StatusBadge)
     expect(rewardBadge.props('tone')).toBe('success')
-    expect(rewardBadge.props('icon')).toBe('i-lucide-gift')
   })
 })
