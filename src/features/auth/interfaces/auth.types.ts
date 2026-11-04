@@ -50,6 +50,8 @@ export type AppSubject =
   | 'Product'
   | 'ProcurementSupplier'
   | 'ProcurementPurchaseOrder'
+  | 'ProcurementOrderConfirmation'
+  | 'ProcurementOrderCancellation'
   | 'Order'
   | 'User'
   | 'Role'
