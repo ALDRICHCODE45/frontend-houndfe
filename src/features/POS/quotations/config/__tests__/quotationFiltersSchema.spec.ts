@@ -3,9 +3,10 @@
  *
  * The schema is the source of truth for the slideover's filter inputs and the
  * URL state. This spec asserts:
- *   - The 5 fields are wired with the right kinds (multi-enum, multi-async,
- *     date-range × 2, numeric-range).
- *   - Section grouping matches design.md (Estado / Personas / Fechas / Montos).
+ *   - The 4 fields are wired with the right kinds (multi-async, date-range × 2,
+ *     numeric-range). There is NO status field: the status tabs are the only
+ *     status filter (L48).
+ *   - Section grouping (Personas / Fechas / Montos).
  *   - Seriliaze → deserialize round-trip is canonical-stable.
  *   - Active chips reflect active multi-value filters.
  *   - The customer async field reuses the live `customerOptions` & `loading`.
@@ -15,7 +16,6 @@
 
 import { describe, expect, it } from 'vitest'
 import { createQuotationFiltersSchema } from '../quotationFiltersSchema'
-import { QUOTATION_STATUS } from '../../constants/quotation.constants'
 import type { FilterOption } from '@/core/shared/data-table-filters'
 
 const customerOptions: FilterOption[] = [
@@ -31,12 +31,11 @@ function makeSchema() {
 }
 
 describe('createQuotationFiltersSchema — field shape', () => {
-  it('defines the five expected filters in order', () => {
+  it('defines the four expected filters in order, with no status select', () => {
     const schema = makeSchema()
     const ids = schema.fields.map(field => field.id)
 
     expect(ids).toEqual([
-      'status',
       'customerId',
       'createdAt',
       'expiresAt',
@@ -49,28 +48,11 @@ describe('createQuotationFiltersSchema — field shape', () => {
     const sections = Object.fromEntries(schema.fields.map(field => [field.id, field.section]))
 
     expect(sections).toMatchObject({
-      status: 'Estado',
       customerId: 'Personas',
       createdAt: 'Fechas',
       expiresAt: 'Fechas',
       totalCents: 'Montos',
     })
-  })
-
-  it('uses multi-enum for status with the four backend status values', () => {
-    const schema = makeSchema()
-    const status = schema.byId.status
-
-    expect(status?.kind).toBe('multi-enum')
-    if (status?.kind === 'multi-enum') {
-      expect(status.param).toBe('status')
-      expect(status.options.map(o => o.value)).toEqual([
-        QUOTATION_STATUS.DRAFT,
-        QUOTATION_STATUS.SENT,
-        QUOTATION_STATUS.EXPIRED,
-        QUOTATION_STATUS.CANCELLED,
-      ])
-    }
   })
 
   it('uses multi-async for customerId bound to the live options', () => {
@@ -135,16 +117,6 @@ describe('createQuotationFiltersSchema — field shape', () => {
 })
 
 describe('createQuotationFiltersSchema — serialize round-trip', () => {
-  it('serializes a multi-status selection as a CSV string', () => {
-    const schema = makeSchema()
-    const state = schema.defaults()
-    state.status = ['DRAFT', 'SENT']
-
-    const serialized = schema.serialize(state)
-
-    expect(serialized.status).toBe('DRAFT,SENT')
-  })
-
   it('serializes a date-range as ISO strings', () => {
     const schema = makeSchema()
     const state = schema.defaults()
@@ -173,7 +145,6 @@ describe('createQuotationFiltersSchema — serialize round-trip', () => {
 
     const serialized = schema.serialize(state)
 
-    expect('status' in serialized).toBe(false)
     expect('customerId' in serialized).toBe(false)
     expect('expiresFrom' in serialized).toBe(false)
     expect('expiresTo' in serialized).toBe(false)
@@ -181,17 +152,15 @@ describe('createQuotationFiltersSchema — serialize round-trip', () => {
     expect('maxTotalCents' in serialized).toBe(false)
   })
 
-  it('round-trips status + date + numeric-range fields', () => {
+  it('round-trips date + numeric-range fields', () => {
     const schema = makeSchema()
     const original = schema.defaults()
-    original.status = ['DRAFT', 'SENT']
     original.expiresAt = { from: '2026-01-01', to: '2026-01-31' }
     original.totalCents = { min: 1000, max: 50000 }
 
     const serialized = schema.serialize(original)
     const deserialized = schema.deserialize(serialized)
 
-    expect(deserialized.status).toEqual(['DRAFT', 'SENT'])
     expect(deserialized.expiresAt).toEqual({ from: '2026-01-01', to: '2026-01-31' })
     expect(deserialized.totalCents).toEqual({ min: 1000, max: 50000 })
   })
@@ -207,22 +176,14 @@ describe('createQuotationFiltersSchema — active chips', () => {
   it('emits one chip per active filter with the contract labels', () => {
     const schema = makeSchema()
     const state = schema.defaults()
-    state.status = ['DRAFT', 'SENT']
+    state.customerId = ['cust-1']
     state.expiresAt = { from: '2026-01-01', to: '2026-01-31' }
 
     const chips = schema.activeChips(state)
     const ids = chips.map(chip => chip.filterId)
 
-    expect(ids).toEqual(expect.arrayContaining(['status', 'expiresAt']))
+    expect(ids).toEqual(expect.arrayContaining(['customerId', 'expiresAt']))
     expect(chips).toHaveLength(2)
-  })
-
-  it('marks a status chip as active when the field has at least one value', () => {
-    const schema = makeSchema()
-    const state = schema.defaults()
-    state.status = ['DRAFT']
-
-    expect(schema.isActive('status', state)).toBe(true)
   })
 
   it('marks a totalCents chip as active when min OR max is set', () => {

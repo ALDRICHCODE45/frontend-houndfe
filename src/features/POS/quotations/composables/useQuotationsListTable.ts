@@ -12,8 +12,8 @@
  *   - Query key MUST keep the `['quotations', tenantId, 'list', params]`
  *     prefix so the `deleteMutation` in `QuotationsListView` keeps
  *     invalidating correctly via `quotationQueryKeys.list(tenantId)`.
- *   - `setStatusFilter(status)` resets pageIndex to 0 and combines the tab
- *     value with the slideover-supplied filters (slideover wins).
+ *   - `setStatusFilter(status)` resets pageIndex to 0 and feeds the status tab
+ *     into the query — the tabs are the only status filter.
  *
  * `filters` is passed in as a `Ref<Record<string, unknown>>` — the slideover
  * uses `useDataTableFilters(...).backendParams` directly, which already
@@ -57,23 +57,6 @@ export function mapServerTableParamsToListQuotationsParams(params: ServerTablePa
 }
 
 /**
- * Normalize the slideover-supplied `status` value (string / array / CSV) to
- * an array, symmetric with `resolveDeliveryStatus` in `useConfirmedSales`.
- * The schema serializes multi-enum filters as CSV strings, so the slideover
- * passes strings; the status tab passes a single literal. We accept both.
- */
-function resolveStatus(schemaValue: unknown, tabValue: QuotationStatus | undefined): QuotationStatus[] | undefined {
-  if (Array.isArray(schemaValue) && schemaValue.length > 0) {
-    return schemaValue as QuotationStatus[]
-  }
-  if (typeof schemaValue === 'string' && schemaValue.length > 0) {
-    const parsed = schemaValue.split(',').map(s => s.trim()).filter(Boolean) as QuotationStatus[]
-    if (parsed.length > 0) return parsed
-  }
-  return tabValue ? [tabValue] : undefined
-}
-
-/**
  * Normalize the slideover-supplied `customerId` filter (string / array /
  * CSV) to an array; the CSV serializer produces strings for the network.
  */
@@ -93,7 +76,7 @@ export function useQuotationsListTable(filters: Ref<Record<string, unknown>>) {
 
   const table = useServerTable<QuotationResponseDto>({
     queryKey: () => {
-      const status = resolveStatus(filters.value.status, statusTabFilter.value)
+      const status = statusTabFilter.value ? [statusTabFilter.value] : undefined
       const customerId = resolveCustomerId(filters.value.customerId)
       const baseParams: Record<string, unknown> = {
         ...(status ? { status } : {}),
@@ -108,7 +91,7 @@ export function useQuotationsListTable(filters: Ref<Record<string, unknown>>) {
       return quotationQueryKeys.list(tenantId.value, baseParams)
     },
     queryFn: async (params) => {
-      const status = resolveStatus(filters.value.status, statusTabFilter.value)
+      const status = statusTabFilter.value ? [statusTabFilter.value] : undefined
       const customerId = resolveCustomerId(filters.value.customerId)
 
       const baseParams: Record<string, unknown> = {
@@ -123,6 +106,7 @@ export function useQuotationsListTable(filters: Ref<Record<string, unknown>>) {
         ...(typeof filters.value.maxTotalCents === 'number' ? { maxTotalCents: filters.value.maxTotalCents } : {}),
       }
 
+      // SAFETY: baseParams only holds keys of QuotationListParams, built above from typed sources.
       const response = await quotationApi.list(baseParams as unknown as QuotationListParams)
 
       return {

@@ -477,6 +477,49 @@ describe('QuotationsListView — status tabs (REQ-QAF-010)', () => {
   })
 })
 
+describe('QuotationsListView — status tabs are the only status filter (L48)', () => {
+  it('has no Estado select in the Filtros schema', () => {
+    const wrapper = mountView()
+    const schema = wrapper.getComponent(dataTableFiltersStub).props('schema') as {
+      fields: { id: string, label: string }[]
+    }
+
+    expect(schema.fields.map((field) => field.id)).not.toContain('status')
+    expect(schema.fields.map((field) => field.label)).not.toContain('Estado')
+  })
+
+  it('does not count the selected tab as an active filter', async () => {
+    const wrapper = mountView()
+    const draftTab = wrapper.findAll('[data-testid="status-tabs"] button').find((b) => b.text().trim() === 'Borradores')!
+    await draftTab.trigger('click')
+
+    expect(wrapper.get('[data-testid="app-data-table"]').attributes('data-active-filter-count')).toBe('0')
+  })
+
+  it('still flags the table as filtered while a tab is selected', async () => {
+    const wrapper = mountView()
+    const draftTab = wrapper.findAll('[data-testid="status-tabs"] button').find((b) => b.text().trim() === 'Borradores')!
+    await draftTab.trigger('click')
+
+    expect(wrapper.get('[data-testid="app-data-table"]').attributes('data-filtered')).toBe('true')
+  })
+
+  it('counts the remaining filters and resets them and the tab from Limpiar filtros', async () => {
+    const wrapper = mountView()
+    const filters = wrapper.getComponent(dataTableFiltersStub)
+    await filters.vm.$emit('update:state', { customerId: ['cust-1'] })
+    await wrapper.findAll('[data-testid="status-tabs"] button').find((b) => b.text().trim() === 'Enviadas')!.trigger('click')
+    expect(wrapper.get('[data-testid="app-data-table"]').attributes('data-active-filter-count')).toBe('1')
+
+    await wrapper.get('[data-testid="stub-clear-filters"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="app-data-table"]').attributes('data-active-filter-count')).toBe('0')
+    expect(composableState.setStatusFilter).toHaveBeenLastCalledWith(undefined)
+    const all = wrapper.findAll('[data-testid="status-tabs"] button').find((b) => b.text().trim() === 'Todas')!
+    expect(all.attributes('aria-current')).toBe('page')
+  })
+})
+
 describe('QuotationsListView — Filtros slideover + chips (REQ-QAF-010)', () => {
   it('renders a Filtros trigger for the slideover', () => {
     const wrapper = mountView()

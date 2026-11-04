@@ -130,38 +130,12 @@ const STATUS_TABS: StatusTab[] = [
   { label: 'Canceladas', value: QUOTATION_STATUS.CANCELLED },
 ]
 
-/**
- * Effective active status used for the tab's aria-current state.
- * The slideover status (when set) takes precedence over the tab — we
- * detect that by reading the slideover's serialized status field. When
- * the user clicks a tab, we mirror the value into the slideover's status
- * (single-element array) so the same source of truth drives both the
- * visual indication and the filter.
- */
-const activeStatusTab = computed<QuotationStatus | 'ALL'>(() => {
-  const slideover = filtersState.value.status
-  if (Array.isArray(slideover) && slideover.length > 0) {
-    return slideover[0] as QuotationStatus
-  }
-  if (typeof slideover === 'string' && slideover.length > 0) {
-    const first = slideover.split(',')[0]?.trim()
-    if (first) return first as QuotationStatus
-  }
-  return 'ALL'
-})
+/** The selected tab — the only status filter (the Filtros panel has no Estado). */
+const activeStatusTab = ref<QuotationStatus | 'ALL'>('ALL')
 
 function onStatusTabClick(value: QuotationStatus | 'ALL'): void {
-  // Tab → set the slideover status to a single element (keeps the
-  // single source of truth consistent with the composable's tab) and
-  // notify the composable. REQ-QAF-010: selecting a tab "clears" the
-  // slideover's prior status by overwriting it with a single value.
-  if (value === 'ALL') {
-    filtersCtl.clearFilter('status')
-    setStatusFilter(undefined)
-  } else {
-    filtersState.value = { ...filtersState.value, status: [value] }
-    setStatusFilter(value)
-  }
+  activeStatusTab.value = value
+  setStatusFilter(value === 'ALL' ? undefined : value)
 }
 
 // Reset pagination to page 0 whenever the slideover filter state changes.
@@ -342,7 +316,7 @@ const emptyState = computed(() => ({
 function clearAllFilters(): void {
   globalFilter.value = ''
   filtersCtl.clearAll()
-  setStatusFilter(undefined)
+  onStatusTabClick('ALL')
 }
 
 const errorMessage = 'No se pudieron cargar las cotizaciones'

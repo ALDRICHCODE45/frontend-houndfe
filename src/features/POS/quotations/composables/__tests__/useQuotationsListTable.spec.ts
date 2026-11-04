@@ -13,7 +13,7 @@
  *     query record). The schema already serializes multi-value fields as CSV
  *     strings, so the composable forwards them verbatim.
  *   - `setStatusFilter(status)` resets pageIndex to 0 and feeds the status
- *     value into the query key (slideover wins over the tab).
+ *     value into the query key (the tab is the only status filter).
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -183,22 +183,15 @@ describe('useQuotationsListTable — query + filter wiring', () => {
     })
   })
 
-  it('forwards slideover status as a parsed array (CSV string from schema serializer)', async () => {
-    // The schema's backendParams serializes multi-enum filters as CSV
-    // strings (e.g. "DRAFT,SENT"). The composable normalizes that to an
-    // array (sales pattern) so the network still emits `status=DRAFT,SENT`
-    // via Axios's csvParamsSerializer.
+  it('ignores a stray `status` in the slideover filters (the tabs are the only status filter)', async () => {
     const filters = ref<Record<string, unknown>>({ status: 'DRAFT,SENT' })
 
     mountComposable(() => useQuotationsListTable(filters))
 
-    await vi.waitFor(() => {
-      expect(quotationApi.list).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          status: ['DRAFT', 'SENT'],
-        }),
-      )
-    })
+    await vi.waitFor(() => expect(quotationApi.list).toHaveBeenCalledTimes(1))
+    expect(quotationApi.list).toHaveBeenLastCalledWith(
+      expect.not.objectContaining({ status: expect.anything() }),
+    )
   })
 
   it('forwards slideover customerId as a parsed array', async () => {
@@ -309,34 +302,34 @@ describe('useQuotationsListTable — setStatusFilter combiner (REQ-QAF-010)', ()
     })
   })
 
-  it('setStatusFilter(EXPIRED) does NOT override the slideover status (slideover wins)', async () => {
-    // REQ-QAF-010: the slideover status is the more explicit source of
-    // truth — when both are set, the slideover wins. The view layer
-    // implements "tab clears slideover" by calling filtersCtl.clearFilter
-    // when a tab is clicked, so the composable only sees a single value.
-    const filters = ref<Record<string, unknown>>({ status: 'DRAFT,SENT' })
-    const { result } = mountComposable(() => useQuotationsListTable(filters))
+  it('setStatusFilter(EXPIRED) replaces the previous tab status', async () => {
+    const { result } = mountComposable(() => useQuotationsListTable(ref({})))
     await vi.waitFor(() => expect(quotationApi.list).toHaveBeenCalledTimes(1))
 
+    result.setStatusFilter('DRAFT')
+    await vi.waitFor(() => {
+      expect(quotationApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ status: ['DRAFT'] }))
+    })
     result.setStatusFilter('EXPIRED')
 
     await vi.waitFor(() => {
-      expect(quotationApi.list).toHaveBeenLastCalledWith(
-        expect.objectContaining({ status: ['DRAFT', 'SENT'] }),
-      )
+      expect(quotationApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ status: ['EXPIRED'] }))
     })
   })
 
-  it('setStatusFilter(undefined) clears the tab status so the slideover wins', async () => {
-    const filters = ref<Record<string, unknown>>({ status: 'DRAFT,SENT' })
-    const { result } = mountComposable(() => useQuotationsListTable(filters))
+  it('setStatusFilter(undefined) clears the tab status', async () => {
+    const { result } = mountComposable(() => useQuotationsListTable(ref({})))
     await vi.waitFor(() => expect(quotationApi.list).toHaveBeenCalledTimes(1))
 
+    result.setStatusFilter('DRAFT')
+    await vi.waitFor(() => {
+      expect(quotationApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ status: ['DRAFT'] }))
+    })
     result.setStatusFilter(undefined)
 
     await vi.waitFor(() => {
       expect(quotationApi.list).toHaveBeenLastCalledWith(
-        expect.objectContaining({ status: ['DRAFT', 'SENT'] }),
+        expect.not.objectContaining({ status: expect.anything() }),
       )
     })
   })
