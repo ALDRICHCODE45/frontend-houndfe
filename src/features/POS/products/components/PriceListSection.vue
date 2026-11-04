@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import '../styles/products-plain-table.css'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { AxiosError } from 'axios'
 import { computed, reactive, ref, watch } from 'vue'
@@ -455,8 +456,8 @@ function formatMarginAmount(list: PriceList): string {
     </template>
 
     <div class="overflow-x-auto rounded-md border border-default">
-      <table class="min-w-full divide-y divide-default text-sm">
-        <thead class="bg-elevated/40">
+      <table class="products-plain-table min-w-full divide-y divide-default text-sm">
+        <thead>
           <tr>
             <th class="px-4 py-3 text-left font-semibold">Lista de precios</th>
             <th class="px-4 py-3 text-right font-semibold">
@@ -563,7 +564,7 @@ function formatMarginAmount(list: PriceList): string {
     <div class="mt-3">
       <UButton
         v-if="canUpdate"
-        label="Agregar Lista de Precios"
+        label="Agregar lista de precios"
         icon="i-lucide-plus"
         variant="link"
         class="min-h-11 text-[var(--hf-action)]"

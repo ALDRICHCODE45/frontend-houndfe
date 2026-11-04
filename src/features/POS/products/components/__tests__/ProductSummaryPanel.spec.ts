@@ -1,9 +1,19 @@
 /**
  * ProductSummaryPanel — identity, the four figures and the readiness checklist.
  */
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { ref } from 'vue'
 import ProductSummaryPanel from '../ProductSummaryPanel.vue'
+
+const isNarrow = ref(false)
+vi.mock('@vueuse/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@vueuse/core')>()
+  return { ...actual, useMediaQuery: () => isNarrow }
+})
+beforeEach(() => {
+  isNarrow.value = false
+})
 
 const props = {
   name: 'Collar ajustable',
@@ -53,8 +63,8 @@ describe('ProductSummaryPanel', () => {
   it('speaks each checklist item state and keeps no permanent help paragraph', () => {
     const wrapper = mount(ProductSummaryPanel, { props })
     const items = wrapper.findAll('li')
+    expect(items).toHaveLength(1)
     expect(items[0]!.text()).toContain(': Completo')
-    expect(items[1]!.text()).toContain(': Después de crear')
     expect(wrapper.text()).toContain('1/1')
     expect(wrapper.text()).not.toContain('No indica elegibilidad')
     expect(wrapper.find('progress').attributes('value')).toBe('100')
@@ -68,5 +78,48 @@ describe('ProductSummaryPanel', () => {
     const without = mount(ProductSummaryPanel, { props })
     expect(without.text()).toContain('Sin imagen')
     without.unmount()
+  })
+
+  it('counts what it lists: the item that waits for creation is a note, not a list row', () => {
+    const wrapper = mount(ProductSummaryPanel, {
+      props: {
+        ...props,
+        checklist: [
+          { label: 'Nombre del producto', done: false, disabled: false },
+          { label: 'Precio de venta definido', done: false, disabled: false },
+          { label: 'Categoría asignada', done: false, disabled: false },
+          { label: 'Imágenes disponibles después de crear', done: false, disabled: true },
+        ],
+        completedItems: 0,
+        applicableItems: 3,
+        completionPercent: 0,
+      },
+    })
+    expect(wrapper.text()).toContain('0/3')
+    expect(wrapper.findAll('li')).toHaveLength(3)
+    expect(wrapper.get('[data-testid="summary-deferred"]').text()).toBe(
+      'Imágenes disponibles después de crear',
+    )
+    wrapper.unmount()
+  })
+
+  it('on mobile collapses the figures and checklist behind a toggle', async () => {
+    isNarrow.value = true
+    const wrapper = mount(ProductSummaryPanel, { props })
+    const hidden = () => (wrapper.get('.product-summary-body').attributes('style') ?? '').includes('display: none')
+    expect(hidden()).toBe(true)
+    const toggle = wrapper.get('[data-testid="summary-toggle"]')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    await toggle.trigger('click')
+    expect(hidden()).toBe(false)
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+    wrapper.unmount()
+  })
+
+  it('on desktop always shows the body and no toggle', () => {
+    const wrapper = mount(ProductSummaryPanel, { props })
+    expect(wrapper.get('.product-summary-body').attributes('style') ?? '').not.toContain('display: none')
+    expect(wrapper.find('[data-testid="summary-toggle"]').exists()).toBe(false)
+    wrapper.unmount()
   })
 })

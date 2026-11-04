@@ -17,6 +17,7 @@ import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import PriceListSection from '../components/PriceListSection.vue'
@@ -324,6 +325,7 @@ const {
   data: product,
   isLoading: isLoadingProduct,
   isError: isProductError,
+  error: productError,
   refetch: refetchProduct,
 } = useQuery({
   queryKey: computed(() => productQueryKeys.detail(tenantId.value, productIdOrEmpty.value)),
@@ -331,6 +333,18 @@ const {
   enabled: computed(() => !isCreateMode.value),
   refetchOnWindowFocus: false,
 })
+
+/** A missing record (404) is an empty state with a way back, not the error design. */
+const isProductNotFound = computed(
+  () =>
+    !isCreateMode.value &&
+    isProductError.value &&
+    (productError.value as { response?: { status?: number } } | null)?.response?.status === 404,
+)
+/** The form, its save actions and the summary exist only once there is a record (or a new one). */
+const showWorkspace = computed(
+  () => isCreateMode.value || (!isProductError.value && !isLoadingProduct.value),
+)
 
 const { data: categories } = useQuery<CategoryOption[]>({
   queryKey: computed(() => productQueryKeys.categories(tenantId.value)),
@@ -678,7 +692,7 @@ watch(
     if (previousType && previousType !== type) {
       if (type === 'PRODUCT' && previousType === 'SERVICE') {
         toast.add({
-          title: 'Cambiaste a Producto',
+          title: 'Cambiaste a producto',
           description:
             'Después de guardar, agrega existencias y costos nuevamente. La información de servicio no se traslada.',
           color: 'warning',
@@ -1988,7 +2002,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
   <div class="hf-theme hf-ui product-workspace -m-4 flex h-[calc(100%+2rem)] flex-col sm:-m-6 sm:h-[calc(100%+3rem)]">
     <div class="product-workspace-header shrink-0 border-b border-default px-4 py-4 sm:px-6 lg:px-10">
       <div class="mx-auto flex w-full max-w-[1480px] flex-wrap items-center justify-between gap-4">
-        <div class="flex min-w-0 items-center gap-3">
+        <div class="flex min-w-0 flex-1 items-center gap-3">
           <UButton
             icon="i-lucide-arrow-left"
             color="neutral"
@@ -1998,24 +2012,28 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
             @click="handleBack"
           />
           <div class="min-w-0">
-            <div v-if="!isCreateMode && productStatus" class="mb-1">
+            <div
+              v-if="showWorkspace && !isCreateMode && productStatus"
+              class="product-header-meta mb-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted"
+            >
               <StatusBadge :label="productStatus.label" :tone="productStatus.tone" />
+              <span v-if="product?.updatedAt">Actualizado {{ formatShortDateTime(product.updatedAt) }}</span>
             </div>
-            <h1 class="hf-page-title truncate">
-              {{ isCreateMode ? createModeTitle : formState.name || 'Producto' }}
+            <h1 class="hf-page-title line-clamp-2 break-words">
+              {{ isCreateMode ? createModeTitle : showWorkspace ? formState.name || 'Producto' : 'Producto' }}
             </h1>
           </div>
         </div>
 
         <UButton
-          v-if="!isFormReadonly"
+          v-if="showWorkspace && !isFormReadonly"
           :label="isCreateMode ? createModeSubmitLabel : 'Guardar cambios'"
           type="submit"
           form="product-detail-form"
           :loading="updateMutation.isPending.value || createMutation.isPending.value"
           :disabled="!canSubmitMainForm"
           color="primary"
-          class="hf-primary-control"
+          class="hf-primary-control max-md:hidden"
         />
       </div>
     </div>
@@ -2024,7 +2042,16 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
       class="mx-auto flex w-full max-w-[1480px] flex-1 flex-col gap-6 overflow-y-auto px-4 pb-6 pt-6 sm:px-6 lg:px-10"
     >
       <EmptyState
-        v-if="!isCreateMode && isProductError"
+        v-if="isProductNotFound"
+        title="No encontramos el producto"
+        description="Pudo haberse eliminado o el enlace no es correcto."
+        action-label="Volver a productos"
+        action-icon="i-lucide-arrow-left"
+        @action="handleBack"
+      />
+
+      <EmptyState
+        v-else-if="!isCreateMode && isProductError"
         kind="error"
         title="No se pudo cargar el producto"
         description="Revisa tu conexión e inténtalo de nuevo."
@@ -2101,11 +2128,11 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                 </UFormField>
 
                 <UFormField v-if="showInventoryFields" label="Código de barras" name="barcode">
-                  <UInput v-model="formState.barcode" placeholder="Opcional" />
+                  <UInput v-model="formState.barcode" class="w-full" placeholder="Opcional" />
                 </UFormField>
 
                 <UFormField v-if="showInventoryFields" label="SKU" name="sku">
-                  <UInput v-model="formState.sku" placeholder="Opcional" />
+                  <UInput v-model="formState.sku" class="w-full" placeholder="Opcional" />
                 </UFormField>
               </div>
 
@@ -2114,7 +2141,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
               <div class="space-y-3">
                 <USwitch
                   v-model="formState.sellInPos"
-                  label="Vender en Punto de Venta"
+                  label="Vender en punto de venta"
                   description="Este producto aparecerá en la pantalla del POS"
                 />
                 <USwitch
@@ -2200,7 +2227,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
           <div v-show="activeTask === 'presentations'" data-product-task="presentations" class="space-y-6">
           <UCard v-if="showInventoryFields">
             <template #header>
-              <h2 class="text-base font-semibold">Precio de Compra</h2>
+              <h2 class="text-base font-semibold">Precio de compra</h2>
             </template>
 
             <div class="space-y-4">
@@ -2479,7 +2506,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
           <UCard v-if="isCreateMode">
             <template #header>
               <div class="flex items-center justify-between gap-3">
-                <h2 class="text-base font-semibold">Listas de Precios</h2>
+                <h2 class="text-base font-semibold">Listas de precios</h2>
               </div>
             </template>
 
@@ -2522,7 +2549,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                 v-if="availablePriceListOptions.length > 0 && !isAddPriceListPickerOpen"
                 type="button"
                 icon="i-lucide-plus"
-                label="Agregar Lista de Precios"
+                label="Agregar lista de precios"
                 color="neutral"
                 variant="ghost"
                 class="text-(--hf-active)"
@@ -2569,9 +2596,25 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
       </div>
     </div>
 
+    <!-- Mobile: the single primary lives in the sticky bottom bar. -->
+    <div
+      v-if="showWorkspace && !isFormReadonly"
+      class="product-action-bar shrink-0 md:hidden"
+      data-testid="mobile-action-bar"
+    >
+      <button
+        type="submit"
+        form="product-detail-form"
+        class="product-bar-primary"
+        :disabled="!canSubmitMainForm || updateMutation.isPending.value || createMutation.isPending.value"
+      >
+        {{ isCreateMode ? createModeSubmitLabel : 'Guardar cambios' }}
+      </button>
+    </div>
+
     <UModal
       v-model:open="isTierPricesModalOpen"
-      title="Precios por Cantidad"
+      title="Precios por cantidad"
       :content="{ class: 'hf-theme hf-ui sm:max-w-3xl' }"
     >
       <template #body>
@@ -2651,7 +2694,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
               <UFormField v-if="inventoryFieldsVisible(formState.type)" label="SKU">
                 <UInput v-model="pendingVariantDetailState.sku" placeholder="SKU" />
               </UFormField>
-              <UFormField v-if="inventoryFieldsVisible(formState.type)" label="Código de barras / Barcode">
+              <UFormField v-if="inventoryFieldsVisible(formState.type)" label="Código de barras">
                 <UInput v-model="pendingVariantDetailState.barcode" placeholder="Código de barras" />
               </UFormField>
               <UFormField label="Costo (del producto)" class="md:col-span-2">
@@ -2712,7 +2755,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
 
     <UModal
       v-model:open="isPendingVariantTierModalOpen"
-      title="Precios por Cantidad"
+      title="Precios por cantidad"
       :content="{ class: 'hf-theme hf-ui sm:max-w-3xl' }"
     >
       <template #body>
@@ -3028,5 +3071,25 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
 }
 @media (max-width: 720px) {
   .product-workspace-grid { grid-template-columns: minmax(0, 1fr); }
+  /* The summary leads on mobile, collapsed behind its toggle. */
+  .product-workspace-grid > :last-child { order: -1; }
 }
+.product-action-bar {
+  border-top: 1px solid var(--hf-border);
+  background: var(--hf-surface);
+  padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+}
+.product-bar-primary {
+  display: inline-flex;
+  width: 100%;
+  min-height: var(--hf-control-height);
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--hf-radius-control);
+  background: var(--hf-action);
+  color: var(--hf-on-action);
+  font-size: 14px;
+  font-weight: 600;
+}
+.product-bar-primary:disabled { cursor: not-allowed; opacity: 0.5; }
 </style>

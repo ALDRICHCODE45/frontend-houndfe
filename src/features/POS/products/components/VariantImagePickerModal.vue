@@ -164,7 +164,7 @@ function isImageBroken(imageId: string): boolean {
 }
 
 const modalTitle = computed(() => {
-  return `Elegir Fotos de ${props.productName} ${props.variant.value || props.variant.name}`
+  return `Elegir fotos de ${props.productName} ${props.variant.value || props.variant.name}`
 })
 </script>
 

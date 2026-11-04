@@ -4,6 +4,8 @@
  * product form: identity, the four figures and the readiness checklist.
  * Presentational only; `ProductDetailView` owns every value.
  */
+import { computed, ref } from 'vue'
+import { useMediaQuery } from '@vueuse/core'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 
 interface ProductSummaryChecklistItem {
@@ -12,7 +14,7 @@ interface ProductSummaryChecklistItem {
   disabled: boolean
 }
 
-defineProps<{
+const props = defineProps<{
   name: string
   imageUrl?: string | null
   isProduct: boolean
@@ -27,6 +29,17 @@ defineProps<{
   applicableItems: number
   completionPercent: number
 }>()
+
+// Below 720px the summary leads the page, so its figures and checklist fold
+// behind a toggle instead of pushing the form down.
+const isNarrow = useMediaQuery('(max-width: 720px)')
+const expanded = ref(false)
+const bodyVisible = computed(() => !isNarrow.value || expanded.value)
+
+// The count and the list agree: only applicable items are rows; what waits for
+// creation is a single muted note.
+const applicableChecklist = computed(() => props.checklist.filter((item) => !item.disabled))
+const deferredItems = computed(() => props.checklist.filter((item) => item.disabled))
 </script>
 
 <template>
@@ -44,9 +57,20 @@ defineProps<{
           <span v-if="includeInOnlineCatalog">Online</span>
         </div>
       </div>
+      <button
+        v-if="isNarrow"
+        type="button"
+        class="product-summary-toggle"
+        data-testid="summary-toggle"
+        :aria-expanded="expanded"
+        @click="expanded = !expanded"
+      >
+        {{ expanded ? 'Ocultar resumen' : 'Ver resumen' }}
+        <UIcon :name="expanded ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" class="size-4" />
+      </button>
     </div>
 
-    <div class="product-summary-body">
+    <div v-show="bodyVisible" class="product-summary-body">
       <dl class="product-summary-values">
         <div>
           <dt>Precio de venta</dt>
@@ -82,7 +106,7 @@ defineProps<{
         aria-labelledby="operation-readiness"
       />
       <ul class="product-summary-checklist">
-        <li v-for="item in checklist" :key="item.label" :class="{ 'text-muted': item.disabled }">
+        <li v-for="item in applicableChecklist" :key="item.label">
           <UIcon
             :name="item.done ? 'i-lucide-check' : 'i-lucide-minus'"
             class="mt-0.5 size-4 shrink-0"
@@ -90,12 +114,18 @@ defineProps<{
           />
           <span
             >{{ item.label
-            }}<span class="sr-only"
-              >: {{ item.disabled ? 'Después de crear' : item.done ? 'Completo' : 'Pendiente' }}</span
-            ></span
+            }}<span class="sr-only">: {{ item.done ? 'Completo' : 'Pendiente' }}</span></span
           >
         </li>
       </ul>
+      <p
+        v-for="item in deferredItems"
+        :key="item.label"
+        class="product-summary-deferred"
+        data-testid="summary-deferred"
+      >
+        {{ item.label }}
+      </p>
     </div>
   </aside>
 </template>
@@ -226,6 +256,21 @@ defineProps<{
 .product-summary-checklist li {
   display: flex;
   gap: 8px;
+}
+.product-summary-deferred {
+  margin-top: 12px;
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+}
+.product-summary-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  grid-column: 1 / -1;
+  color: var(--hf-action);
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 @media (max-width: 720px) {
   .product-summary {

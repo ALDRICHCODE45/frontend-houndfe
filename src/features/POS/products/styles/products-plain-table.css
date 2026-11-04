@@ -1,0 +1,15 @@
+/*
+ * Plain <table>s inside the product detail (variants, price lists, lots, margin)
+ * wear the same header as AppDataTable: a faint wash of ink over the surface
+ * (the `--hf-table-head` value of houndfe-ui.css, no blue role) and muted
+ * 13px/600 headings, so every table in the system looks the same.
+ */
+.products-plain-table thead {
+  background-color: color-mix(in srgb, var(--hf-ink) 4%, var(--hf-surface));
+}
+
+.products-plain-table th {
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}

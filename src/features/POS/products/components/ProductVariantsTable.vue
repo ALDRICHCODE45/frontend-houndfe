@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import '../styles/products-plain-table.css'
 /**
  * ProductVariantsTable — The variants of a product, as pending rows while
  * creating and as saved rows otherwise: name with SKU and barcode under it,
@@ -75,8 +76,8 @@ function priceFromEvent(event: Event): string {
 
 <template>
   <div class="overflow-x-auto rounded-md border border-default" data-testid="product-variants-table">
-    <table class="min-w-full divide-y divide-default text-sm">
-      <thead class="bg-elevated/40">
+    <table class="products-plain-table min-w-full divide-y divide-default text-sm">
+      <thead>
         <tr>
           <th class="px-4 py-3 text-left font-semibold">Variante</th>
           <th v-if="showStock" class="px-4 py-3 text-right font-semibold">Existencias</th>

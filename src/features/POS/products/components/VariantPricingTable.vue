@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import '../styles/products-plain-table.css'
 import type { AxiosError } from 'axios'
 import { computed, reactive, ref, watch } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
@@ -251,8 +252,8 @@ function handleSaveTierPrices() {
 
 <template>
   <div class="overflow-x-auto rounded-md border border-default">
-    <table class="min-w-full divide-y divide-default text-sm">
-      <thead class="bg-elevated/40">
+    <table class="products-plain-table min-w-full divide-y divide-default text-sm">
+      <thead>
         <tr>
           <th class="px-4 py-3 text-left font-semibold">Lista de precios</th>
           <th class="px-4 py-3 text-right font-semibold">

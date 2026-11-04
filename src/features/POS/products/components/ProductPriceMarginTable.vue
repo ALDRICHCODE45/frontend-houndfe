@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import '../styles/products-plain-table.css'
 /**
  * ProductPriceMarginTable — Price lists with their sale price, margin and
  * gain over the purchase cost, for the prices the owner holds locally
@@ -48,8 +49,8 @@ function centsFromEvent(event: Event): number {
 
 <template>
   <div class="overflow-x-auto rounded-md border border-default" data-testid="product-price-margin-table">
-    <table class="min-w-full divide-y divide-default text-sm">
-      <thead class="bg-elevated/40">
+    <table class="products-plain-table min-w-full divide-y divide-default text-sm">
+      <thead>
         <tr>
           <th class="px-4 py-3 text-left font-semibold">Lista de precios</th>
           <th class="px-4 py-3 text-right font-semibold">

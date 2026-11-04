@@ -3,15 +3,18 @@
  * (EmptyState kind error with Reintentar that refetches) and data (status
  * badge in the header, no permanent help text).
  */
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { flushPromises } from '@vue/test-utils'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import ProductDetailView from '@/features/POS/products/views/ProductDetailView.vue'
 
+const routerPush = vi.hoisted(() => vi.fn())
 vi.mock('vue-router', () => ({
   useRoute: vi.fn(() => ({ params: { id: 'prod-1' } })),
-  useRouter: vi.fn(() => ({ push: vi.fn() })),
+  useRouter: vi.fn(() => ({ push: routerPush })),
 }))
 vi.stubGlobal('useToast', () => ({ add: vi.fn() }))
 
@@ -103,6 +106,7 @@ function mountView() {
 
 beforeEach(() => {
   api.getById.mockReset()
+  routerPush.mockReset()
   document.body.innerHTML = ''
 })
 
@@ -150,5 +154,74 @@ describe('ProductDetailView four states (S10)', () => {
     expect(wrapper.text()).not.toContain('Datos operativos y contenido editorial')
     expect(wrapper.text()).not.toContain('Precios, impuestos y existencias son datos operativos')
     expect(wrapper.find('[data-testid="product-detail-skeleton"]').exists()).toBe(false)
+  })
+})
+
+describe('ProductDetailView — review round 1', () => {
+  it('not found: an empty state with a way back, not the error design', async () => {
+    api.getById.mockRejectedValue(Object.assign(new Error('Not found'), { response: { status: 404 } }))
+    const wrapper = mountView()
+    await flushPromises()
+
+    const empty = wrapper.get('.hf-empty-state[data-kind="empty"]')
+    expect(empty.get('.hf-empty-state__title').text()).toBe('No encontramos el producto')
+    expect(wrapper.find('.hf-empty-state[data-kind="error"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="empty-state-action"]').trigger('click')
+    expect(routerPush).toHaveBeenCalledWith('/pos/products')
+  })
+
+  it.each(['loading', 'error', 'not-found'] as const)('%s: no save action in the header or the bottom bar', async (state) => {
+    if (state === 'loading') api.getById.mockReturnValue(new Promise(() => {}))
+    else if (state === 'error') api.getById.mockRejectedValue(new Error('boom'))
+    else api.getById.mockRejectedValue(Object.assign(new Error('x'), { response: { status: 404 } }))
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.find('button[form="product-detail-form"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="mobile-action-bar"]').exists()).toBe(false)
+    expect(wrapper.get('h1').text()).toBe('Producto')
+  })
+
+  it('mobile: the single primary rides in the sticky bottom bar', async () => {
+    api.getById.mockResolvedValue(product)
+    const wrapper = mountView()
+    await flushPromises()
+
+    const bar = wrapper.get('[data-testid="mobile-action-bar"]')
+    expect(bar.classes()).toContain('md:hidden')
+    const submit = bar.get('button[type="submit"]')
+    expect(submit.attributes('form')).toBe('product-detail-form')
+    expect(submit.text()).toBe('Guardar cambios')
+    expect(wrapper.get('.product-workspace-header button[type="submit"]').classes()).toContain('max-md:hidden')
+  })
+
+  it('shows the status as a badge in a meta line above the title, in sentence case', async () => {
+    api.getById.mockResolvedValue({ ...product, status: 'out_of_stock' })
+    const wrapper = mountView()
+    await flushPromises()
+
+    const meta = wrapper.get('.product-header-meta')
+    expect(meta.get('.hf-status-badge').text()).toBe('Sin stock')
+    expect(wrapper.text()).not.toContain('Sin Stock')
+    const h1 = wrapper.get('.product-workspace-header h1')
+    expect(meta.element.compareDocumentPosition(h1.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('lets the title wrap to two lines instead of cutting to a few letters', async () => {
+    api.getById.mockResolvedValue(product)
+    const wrapper = mountView()
+    await flushPromises()
+    const classes = wrapper.get('.product-workspace-header h1').classes()
+    expect(classes).toContain('line-clamp-2')
+    expect(classes).not.toContain('truncate')
+  })
+
+  it('uses sentence case labels and full-width barcode and SKU inputs', () => {
+    const source = readFileSync(resolve(__dirname, '../ProductDetailView.vue'), 'utf8')
+    expect(source).toContain('label="Vender en punto de venta"')
+    expect(source).not.toMatch(/Vender en Punto de Venta|Precio de Compra|Listas de Precios|Precios por Cantidad|Agregar Lista de Precios/)
+    expect(source).not.toContain('Código de barras / Barcode')
+    expect(source).toMatch(/<UInput v-model="formState\.barcode" class="w-full"/)
+    expect(source).toMatch(/<UInput v-model="formState\.sku" class="w-full"/)
   })
 })

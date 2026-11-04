@@ -329,7 +329,7 @@ function handleCancel() {
               />
             </UFormField>
 
-            <UFormField v-if="showGeneralSkuBarcode" label="Código de barras / Barcode">
+            <UFormField v-if="showGeneralSkuBarcode" label="Código de barras">
               <UInput
                 v-model="formState.barcode"
                 placeholder="Código de barras"
