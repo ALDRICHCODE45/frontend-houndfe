@@ -440,7 +440,7 @@ export async function run(browserPage, stage, part = null) {
     // Money in read-only views is es-MX currency in tabular right-aligned cells; absent amounts read a dash, a missing one Falta.
     const moneyCells = async name => {
       const cells = slide().locator('[data-testid="line-cost"], [data-testid="line-subtotal"]')
-      const texts = (await cells.allInnerTexts()).map(t => t.trim())
+      const texts = (await cells.allInnerTexts()).map(t => t.replace(/\s+/g, " ").trim())
       check(texts.length > 0 && texts.every(text => text === '—' || /^Falta( el costo| la cantidad)?$/.test(text) || MONEY.test(text)), `read-only money matches $1,234.00 with 2 decimals (or a dash, or Falta): ${name}`)
       check(await cells.evaluateAll(nodes => nodes.every(n => { const s = getComputedStyle(n); return s.fontVariantNumeric.includes('tabular-nums') && ['right', 'end'].includes(s.textAlign) })), `read-only money is right-aligned with tabular numerals: ${name}`)
     }
