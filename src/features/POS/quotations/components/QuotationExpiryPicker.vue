@@ -151,7 +151,7 @@ function handleChipClick(chip: ShortcutChip): void {
         <DateFieldPopover
           :model-value="dateIso"
           :disabled="readonly"
-          placeholder="Sin expiración"
+          placeholder="Elige una fecha"
           testid="expiry-date-field"
           :portal-class="portalClass"
           @update:model-value="handleDateUpdate"

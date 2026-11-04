@@ -55,6 +55,8 @@ describe('QuotationExpiryPicker — display', () => {
       .findAll('span, p')
       .filter((node) => node.text() === 'Sin expiración' && !node.element.closest('[data-testid="expiry-chips"]'))
     expect(outside).toHaveLength(0)
+    // The date field and the chip never both say it: one "Sin expiración" in the whole picker.
+    expect(wrapper.text().match(/Sin expiración/g)).toHaveLength(1)
     expect(wrapper.html()).not.toMatch(/uppercase|tracking-wide/)
     expect(wrapper.get('[data-testid="quotation-expiry-picker"] p').text()).toBe('Expira')
   })

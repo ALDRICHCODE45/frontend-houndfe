@@ -49,13 +49,13 @@ export const CANCEL_REASONS = {
 //
 // Used by the list view's status column and the detail view's header badge.
 // Mapping follows the same pattern as sales (`SaleStatusBadge`) and employees:
-//   DRAFT      → info    (the editable, neutral state)
+//   DRAFT      → neutral (drafts are neutral everywhere)
 //   SENT       → success (committed / delivered)
 //   EXPIRED    → warning (lazy transition, no longer active)
 //   CANCELLED  → error   (terminal, rejected)
 
 export const QUOTATION_STATUS_TONE = {
-  DRAFT: 'info',
+  DRAFT: 'neutral',
   SENT: 'success',
   EXPIRED: 'warning',
   CANCELLED: 'error',

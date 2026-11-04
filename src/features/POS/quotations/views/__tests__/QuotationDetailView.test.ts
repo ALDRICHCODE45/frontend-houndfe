@@ -529,7 +529,7 @@ describe('QuotationDetailView header', () => {
     expect(wrapper.get('h1').text()).toBe('Cotización sin cliente')
     expect(wrapper.text()).not.toContain('quotatio')
     expect(wrapper.get('[data-testid="status-badge"]').text()).toBe('Borrador')
-    expect(wrapper.get('[data-testid="status-badge"]').attributes('data-tone')).toBe('info')
+    expect(wrapper.get('[data-testid="status-badge"]').attributes('data-tone')).toBe('neutral')
     expect(wrapper.text()).toContain('Expira')
     expect(wrapper.text()).toContain('Creada')
   })
@@ -2516,7 +2516,7 @@ describe('QuotationDetailView — review round 1', () => {
     const wrapper = mountView()
     const bar = wrapper.get('[data-testid="mobile-action-bar"]')
     expect(bar.classes()).toContain('lg:hidden')
-    expect(bar.get('[data-testid="mobile-send-btn"]').text()).toContain('Enviar cotización')
+    expect(bar.get('[data-testid="mobile-send-btn"]').text()).toBe('Enviar')
     expect(bar.get('[data-testid="mobile-save-draft-btn"]').text()).toContain('Guardar borrador')
 
     await bar.get('[data-testid="mobile-send-btn"]').trigger('click')

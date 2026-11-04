@@ -1293,7 +1293,7 @@ function onHeaderAction(key: string): void {
           @click="openSendDialog"
         >
           <UIcon name="i-lucide-send" class="h-4 w-4" />
-          Enviar cotización
+          Enviar
         </button>
       </div>
 
@@ -1469,7 +1469,6 @@ function onHeaderAction(key: string): void {
   position: sticky;
   bottom: 0;
   z-index: 20;
-  display: grid;
   grid-auto-flow: column;
   grid-auto-columns: minmax(0, 1fr);
   gap: 8px;
@@ -1477,6 +1476,11 @@ function onHeaderAction(key: string): void {
   border-top: 1px solid var(--hf-border);
   background: var(--hf-surface);
   padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+}
+/* `display` lives in the media query: a scoped `display: grid` would beat
+ * `lg:hidden` and paint the mobile bar beside the desktop summary. */
+@media (max-width: 1023px) {
+  .quotation-action-bar { display: grid; }
 }
 .quotation-action-bar > button { min-height: var(--hf-control-height); }
 .quotation-bar-primary {
