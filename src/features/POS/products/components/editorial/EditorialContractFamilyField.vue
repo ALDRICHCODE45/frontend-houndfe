@@ -21,7 +21,7 @@ function changed(event: Event) {
   const familyCode = raw === 'none' ? null : choice!.code
   let result = requestEditorialFamilyChange(props.modelValue, familyCode)
   if (result.status === 'confirmation_required') {
-    if (!window.confirm('¿Cambiar de familia? Se eliminarán los atributos, evidencias y hechos del borrador local. La publicación actual no cambiará.')) return
+    if (!window.confirm('¿Cambiar de familia? Se borrarán los datos y las declaraciones de este borrador. Lo publicado no cambia.')) return
     result = requestEditorialFamilyChange(props.modelValue, familyCode, true)
   }
   if (result.status === 'changed') emit('update:modelValue', result.state)
@@ -30,7 +30,7 @@ function changed(event: Event) {
 
 <template>
   <div class="family-field">
-    <label :for="id" class="label">Familia editorial</label>
+    <label :for="id" class="label">Familia</label>
     <select :id="id" class="control" :value="selection" :disabled="disabled" :aria-describedby="described" :aria-invalid="!!issue" @change="changed">
       <option value="none">Sin familia</option>
       <option v-if="selection === 'unavailable'" value="unavailable" disabled>{{ modelValue.familyCode }} (No disponible)</option>
@@ -42,10 +42,10 @@ function changed(event: Event) {
 </template>
 
 <style scoped>
-.family-field { min-width: 0; color: var(--hf-ink); }
-.label { display: block; margin-bottom: 6px; line-height: 1.5; }
-.control { box-sizing: border-box; width: 100%; min-height: max(44px, var(--hf-control-height, 44px)); padding: 8px 12px; border: 1px solid var(--hf-field-border); border-radius: var(--hf-radius-control); background: var(--hf-field); color: var(--hf-ink); font: inherit; }
+.family-field { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; color: var(--hf-ink); }
+.label { margin: 0; color: var(--hf-muted); font-size: 13px; font-weight: 500; white-space: nowrap; }
+.control { box-sizing: border-box; width: auto; min-width: 11rem; max-width: 100%; min-height: var(--hf-control-height); padding: 8px 12px; border: 1px solid var(--hf-field-border); border-radius: var(--hf-radius-control); background: var(--hf-field); color: var(--hf-ink); font: inherit; font-size: 14px; }
 .control:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
 .control:disabled { cursor: not-allowed; opacity: .65; }
-.notice { margin: 8px 0 0; overflow-wrap: anywhere; line-height: 1.5; color: var(--hf-warning); }
+.notice { flex-basis: 100%; margin: 0; overflow-wrap: anywhere; font-size: 13px; line-height: 1.4; color: var(--hf-warning); }
 </style>

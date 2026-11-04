@@ -7,7 +7,7 @@ const fixture = (): State => ({ schemaVersion: 2, commercialTitle: ' Título ', 
   values: [{ id: 'a', target: { code: 'x', owner: 'product', variantId: null }, input: { state: 'known', payload: { type: 'number', value: '1e', unit: null }, evidence: { sourceRef: 'Etiqueta', verifiedOn: '2026-' } } }],
   facts: [{ id: 'f', variantId: null, presentation: '', declarations: [], careReview: { state: 'omitted' }, careRowIds: { requirements: [], warnings: [] } }] })
 const families = [{ code: 'care', label: 'Cuidado' }, { code: 'hygiene', label: 'Higiene' }, { code: 'none', label: '<img src=x>' }]
-const message = '¿Cambiar de familia? Se eliminarán los atributos, evidencias y hechos del borrador local. La publicación actual no cambiará.'
+const message = '¿Cambiar de familia? Se borrarán los datos y las declaraciones de este borrador. Lo publicado no cambia.'
 const stops: (() => void)[] = []
 afterEach(() => { stops.splice(0).forEach(stop => stop()); vi.restoreAllMocks() })
 function freeze<T>(value: T): T { if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value) }; return value }

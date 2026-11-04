@@ -54,7 +54,7 @@ describe('controlled facts collection', () => {
     const { wrapper, state, choices, events, nextId } = render(initial)
     choices.value = []; await nextTick()
     expect(wrapper.findAllComponents(Row)).toHaveLength(3)
-    expect(wrapper.text()).toContain('gone'); expect(wrapper.text()).toContain('No disponible')
+    expect(wrapper.text()).not.toContain('gone'); expect(wrapper.text()).toContain('Presentación'); expect(wrapper.text()).toContain('ya no existe')
     expect(state.value).toBe(initial); expect(events).toEqual([]); expect(nextId).not.toHaveBeenCalled()
   })
   it.each(['whitespace', 'omitted declaration', 'unknown care', 'prepared care'])('confirms %s deletion by UI ID, cancelling exactly and preserving survivors', async kind => {
@@ -66,7 +66,7 @@ describe('controlled facts collection', () => {
     const initial = [first, second], { wrapper, state, events, nextId } = render(initial)
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
     await wrapper.findAllComponents(Row)[0]!.get('[data-action="remove-facts"]').trigger('click')
-    expect(confirm).toHaveBeenCalledWith('¿Eliminar estos hechos? Se perderán los cambios locales.')
+    expect(confirm).toHaveBeenCalledWith('¿Quitar lo declarado para esta presentación? Se perderán los cambios sin guardar.')
     expect(state.value).toBe(initial); expect(events).toEqual([]); expect(nextId).not.toHaveBeenCalled()
     confirm.mockReturnValue(true)
     await wrapper.findAllComponents(Row)[0]!.get('[data-action="remove-facts"]').trigger('click')

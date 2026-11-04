@@ -39,7 +39,7 @@ function remove(id: string, requestedId: string) {
   if (props.disabled || id !== requestedId || !props.modelValue.some(row => row.id === id)) return
   let result = requestEditorialFactsRowRemoval(props.modelValue, id)
   if (result.status === 'confirmation_required') {
-    if (!window.confirm('¿Eliminar estos hechos? Se perderán los cambios locales.')) return
+    if (!window.confirm('¿Quitar lo declarado para esta presentación? Se perderán los cambios sin guardar.')) return
     result = requestEditorialFactsRowRemoval(props.modelValue, id, true)
   }
   emit('update:modelValue', result.state)
@@ -48,18 +48,18 @@ function remove(id: string, requestedId: string) {
 
 <template>
   <section class="facts-list" :aria-labelledby="`${id}-heading`" :aria-describedby="described">
-    <h3 :id="`${id}-heading`" class="heading">Hechos del producto</h3>
+    <h3 :id="`${id}-heading`" class="heading">Por presentación</h3>
     <p v-if="issue" :id="`${id}-issue`" class="notice" role="status">{{ issue }}</p>
     <div v-for="{ row, subject } in displayed" :key="row.id" class="entry" :data-facts-id="row.id">
-      <p v-if="!subject" class="notice">No disponible en los sujetos actuales. Los hechos se conservan para su corrección explícita.</p>
-      <FactsRow :id="`${id}-row-${row.id}`" :subject-label="subject?.label ?? (row.variantId === null ? 'Producto simple' : row.variantId)"
+      <p v-if="!subject" class="notice">Esta presentación ya no existe. Lo declarado se conserva hasta que lo corrijas.</p>
+      <FactsRow :id="`${id}-row-${row.id}`" :subject-label="subject?.label ?? (row.variantId === null ? 'Sin presentación' : 'Presentación')"
         :model-value="row" :allowed="allowed" :care-allowed="careAllowed" :next-id="nextId" :disabled="disabled"
         @update:model-value="update(row.id, $event)" @remove="remove(row.id, $event)" />
     </div>
     <div class="add">
-      <label :for="`${id}-add`" class="label">Añadir hechos para</label>
+      <label :for="`${id}-add`" class="label">Agregar una presentación</label>
       <select :id="`${id}-add`" class="control" value="" :disabled="disabled" :aria-describedby="described" @change="add">
-        <option value="">Selecciona un sujeto</option>
+        <option value="">Elige una presentación</option>
         <option v-for="entry in available" :key="entry.value" :value="entry.value">{{ entry.subject.label }}</option>
       </select>
     </div>

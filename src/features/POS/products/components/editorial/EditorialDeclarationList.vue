@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import EditorialContractDeclarationField from './EditorialContractDeclarationField.vue'
+import { editorialDeclarationLabel } from '../../utils/editorial-contract-declaration-choices'
 import type { EditorialDeclarationValues } from '../../interfaces/editorial-contract-declaration.types'
 import type { EditorialDeclarationInput } from '../../utils/editorial-contract-declaration-input'
 
@@ -49,11 +50,11 @@ function remove(id: string) {
     <h3 :id="`${id}-heading`" class="heading">Declaraciones</h3>
     <p v-if="issue" :id="`${id}-issue`" class="issue" role="status">{{ issue }}</p>
     <div v-for="row in displayedRows" :key="row.id" class="declaration-row" :data-row-id="row.id">
-      <p v-if="!row.metadata" class="unavailable">{{ row.declarationKey }}: No disponible en las declaraciones permitidas.</p>
+      <p v-if="!row.metadata" class="unavailable">{{ editorialDeclarationLabel(row.declarationKey) }}: ya no está disponible para esta familia. Se conserva hasta que lo corrijas.</p>
       <EditorialContractDeclarationField
         :id="`${id}-row-${row.id}`"
         :declaration-key="row.declarationKey"
-        :label="row.metadata?.label ?? row.declarationKey"
+        :label="row.metadata?.label ?? editorialDeclarationLabel(row.declarationKey)"
         :model-value="row.input"
         :choices="row.metadata?.choices ?? []"
         :toy-type-choices="row.metadata?.toyTypeChoices ?? []"
@@ -61,15 +62,15 @@ function remove(id: string) {
         @update:model-value="update(row.id, $event)"
       />
       <button type="button" class="control remove" data-action="remove" :disabled="disabled"
-        :aria-label="`Eliminar declaración: ${row.metadata?.label ?? row.declarationKey}`" @click="remove(row.id)">
-        Eliminar declaración
+        :aria-label="`Quitar declaración: ${row.metadata?.label ?? editorialDeclarationLabel(row.declarationKey)}`" @click="remove(row.id)">
+        Quitar declaración
       </button>
     </div>
     <div class="add">
-      <label :for="`${id}-add`" class="label">Añadir declaración</label>
+      <label :for="`${id}-add`" class="label">Agregar declaración</label>
       <select :id="`${id}-add`" class="control add-select" value="" :disabled="disabled"
         :aria-describedby="described" @change="add">
-        <option value="">Selecciona una declaración</option>
+        <option value="">Elige una declaración</option>
         <option v-for="entry in allowed" :key="entry.key" :value="entry.key">{{ entry.label }}</option>
       </select>
     </div>
