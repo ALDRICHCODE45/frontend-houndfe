@@ -383,7 +383,7 @@ defineExpose({
     v-else-if="isLoading && !routeData"
     data-testid="detail-loading-skeleton"
     aria-busy="true"
-    class="hf-theme hf-ui delivery-routes-visual mx-auto flex w-full min-w-0 max-w-[1320px] flex-col gap-6 px-4 py-6 sm:px-6 md:px-10"
+    class="hf-theme hf-ui delivery-routes-visual mx-auto flex w-full min-w-0 max-w-[1320px] flex-col gap-6 px-4 py-6 sm:px-6"
   >
     <div class="flex items-start justify-between gap-4">
       <div class="flex min-w-0 flex-1 flex-col gap-3">
@@ -460,7 +460,7 @@ defineExpose({
   <div
     v-else-if="isManager && routeData && routeData.id === routeId && managerDetail"
     data-testid="detail-manager-workspace"
-    class="hf-theme hf-ui delivery-routes-visual delivery-routes-detail mx-auto flex w-full min-w-0 max-w-[1320px] flex-col gap-6 px-4 py-6 sm:px-6 md:px-10"
+    class="hf-theme hf-ui delivery-routes-visual delivery-routes-detail mx-auto flex w-full min-w-0 max-w-[1320px] flex-col gap-6 px-4 py-6 sm:px-6"
   >
     <DeliveryRouteUpsertSlideover
       v-model:open="isEditOpen"
@@ -532,7 +532,7 @@ defineExpose({
               <span class="sr-only">: {{ routeIssues.join(', ') }}</span>
             </span>
             <template v-for="moment in managerDetail.moments" :key="moment">
-              <span aria-hidden="true">·</span>
+              <span aria-hidden="true" class="hidden sm:inline">·</span>
               <span class="route-detail-moment">{{ moment }}</span>
             </template>
           </div>
@@ -770,6 +770,7 @@ defineExpose({
 .route-skeleton-bar { border-radius: 6px; background: var(--hf-surface-muted); }
 .route-progress-track { background: var(--hf-border); }
 .route-back-link { display: inline-flex; width: fit-content; align-items: center; gap: 6px; border-radius: 6px; color: var(--hf-muted); font-size: 14px; }
+@media (min-width: 768px) { .route-back-link { display: none; } }
 .route-back-link:hover { color: var(--hf-heading); }
 .route-back-link:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
 .route-detail-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; color: var(--hf-muted); font-size: 13px; }

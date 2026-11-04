@@ -1534,6 +1534,29 @@ describe('DeliveryRouteDetailView — mobile detail header and progress (review 
     expect(wrapper.get('[data-testid="detail-back-link"]').classes()).toContain('md:hidden')
   })
 
+  it('hides the back link from md with real CSS, because the scoped display rule beats the md:hidden utility', () => {
+    const source = readFileSync('src/features/delivery-routes/views/DeliveryRouteDetailView.vue', 'utf8')
+    expect(source).toMatch(/@media \(min-width: 768px\) \{[^}]*\.route-back-link \{ display: none; \}/)
+  })
+
+  it('adds no horizontal inset of its own on top of the shell gutter', () => {
+    const source = readFileSync('src/features/delivery-routes/views/DeliveryRouteDetailView.vue', 'utf8')
+    expect(source).not.toContain('md:px-10')
+  })
+
+  it('shows the meta separators only from sm, so a wrapped phone line never dangles a dot', async () => {
+    resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+    resetDetailState({ data: activeRoute() })
+    const wrapper = mountView()
+    await flushPromises()
+    const separators = wrapper.get('[data-testid="detail-route-meta"]').findAll('[aria-hidden="true"]').filter((node) => node.text() === '·')
+    expect(separators.length).toBeGreaterThan(0)
+    for (const separator of separators) {
+      expect(separator.classes()).toContain('hidden')
+      expect(separator.classes()).toContain('sm:inline')
+    }
+  })
+
   it('moves the one primary to a sticky bottom bar on mobile and keeps the ⋮ in the header', async () => {
     resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true }, canDelete: { value: true } })
     resetDetailState({ data: makeDraftRoute() })

@@ -9,9 +9,12 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { readFileSync } from 'node:fs'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { computed, ref } from 'vue'
 import DeliveryRoutesListView from '../DeliveryRoutesListView.vue'
+import ToolbarSelectFilter from '@/core/shared/components/DataTable/ToolbarSelectFilter.vue'
+import { DELIVERY_ROUTE_COPY } from '../../copy'
 import type { DeliveryRouteResponseDto } from '../../interfaces/delivery-route.types'
 
 const isBelowBreakpoint = ref(false)
@@ -187,6 +190,36 @@ describe('DeliveryRoutesListView states — empty', () => {
     expect(wrapper.get('.hf-empty-state').attributes('data-kind')).toBe('no-match')
     await wrapper.get('.hf-empty-state button').trigger('click')
     expect(state.statusFilter.value).toBe('ALL')
+  })
+})
+
+describe('DeliveryRoutesListView states — toolbar and layout (round 2)', () => {
+  const labels = (wrapper: ReturnType<typeof mountView>) =>
+    (wrapper.findComponent(ToolbarSelectFilter).props('items') as Array<{ label: string }>).map((item) => item.label)
+
+  it.each([
+    ['loading', () => { state.isLoading.value = true }],
+    ['error', () => { state.isError.value = true }],
+  ])('keeps counts out of the Estado options while %s (no "Todas (0)")', (_name, setup) => {
+    setup()
+    const wrapper = mountView()
+    expect(labels(wrapper)).toEqual(['Todas', 'Borrador', 'Activa', 'Completada', 'Cancelada'])
+  })
+
+  it('shows the counts once the list loaded', () => {
+    state.data.value = [makeRoute('r1')]
+    const wrapper = mountView()
+    expect(labels(wrapper)[0]).toBe('Todas (0)')
+  })
+
+  it('keeps the search placeholder short enough for a 390px field', () => {
+    expect(DELIVERY_ROUTE_COPY.list.searchPlaceholder.length).toBeLessThanOrEqual(24)
+  })
+
+  it('adds no horizontal inset of its own on top of the shell gutter', () => {
+    const source = readFileSync('src/features/delivery-routes/views/DeliveryRoutesListView.vue', 'utf8')
+    expect(source).toMatch(/delivery-routes-visual flex w-full min-w-0 flex-col gap-6"/)
+    expect(source).not.toContain('md:px-10')
   })
 })
 

@@ -30,8 +30,7 @@
 
 // Plain script block: timestamp formatting is a pure helper exported for the
 // spec (and reused by the cockpit header) — `<script setup>` cannot export.
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 
 /**
  * Human-readable Spanish timestamp for a timeline event instant.
@@ -41,7 +40,7 @@ import { es } from 'date-fns/locale'
 export function formatTimelineTimestamp(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ''
-  return format(date, 'd MMM yyyy · HH:mm', { locale: es })
+  return formatShortDateTime(date)
 }
 </script>
 

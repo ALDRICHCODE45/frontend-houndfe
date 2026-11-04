@@ -111,9 +111,10 @@ const {
 const statusItems = computed(() =>
   (['ALL', ...DELIVERY_ROUTE_STATUS_ORDER] as DeliveryRouteStatusFilter[]).map((value) => ({
     value,
+    // Counts describe loaded data: while loading or failed they would all read "(0)".
     label: `${
       value === 'ALL' ? DELIVERY_ROUTE_COPY.list.managerTabs.all : DELIVERY_ROUTE_STATUS_LABELS[value]
-    } (${statusCounts.value[value]})`,
+    }${isLoading.value || isError.value ? '' : ` (${statusCounts.value[value]})`}`,
   })),
 )
 
@@ -420,7 +421,7 @@ function stopsSummary(route: DeliveryRouteResponseDto): string {
 
   <div
     v-else-if="isManager"
-    class="hf-theme hf-ui delivery-routes-visual flex w-full min-w-0 flex-col gap-6 md:px-10"
+    class="hf-theme hf-ui delivery-routes-visual flex w-full min-w-0 flex-col gap-6"
   >
     <DeliveryRouteUpsertSlideover
       v-model:open="isCreateOpen"
