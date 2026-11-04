@@ -1,0 +1,28 @@
+{
+  "title": "Contenido del producto · editor de la ficha",
+  "brief": "Rediseño de Contenido y Revisar dentro del detalle de producto en HoundFe: una sola pestaña Contenido, sin Revisar. Tres estructuras para escribir la ficha del catálogo futuro (borrador, familia, título y descripción, datos por tema, datos por presentación), con avance, estados de cada dato, historial aparte y publicación como paso futuro deshabilitado. Datos de ejemplo e interacciones locales; no es producción.",
+  "feature": "odd/tasks/system-redesign.md",
+  "artboards": [
+    {
+      "file": "01-guided-sections.html",
+      "title": "Ficha guiada por secciones",
+      "tradeoff": "Un solo camino claro, con avance visible y datos agrupados por tema; recorrer 12 datos exige más scroll y la carga masiva es lenta.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "02-live-preview.html",
+      "title": "Ficha con vista previa",
+      "tradeoff": "Ves al instante cómo se verá en el catálogo y qué falta; la vista previa ocupa un tercio de la pantalla y el formulario queda más angosto.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "03-attribute-table.html",
+      "title": "Tabla de atributos",
+      "tradeoff": "Máxima velocidad para cargar y comparar producto y presentaciones con teclado; menos guía para quien llega por primera vez y los datos de una presentación se ven como celdas sueltas.",
+      "width": 1440,
+      "height": 900
+    }
+  ]
+}

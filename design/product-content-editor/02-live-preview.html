@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HoundFe · Ficha con vista previa</title>
+<style>
+:root{
+--hf-page:#f5f6f8;--hf-surface:#ffffff;--hf-surface-muted:#e7eef7;--hf-field:#ffffff;--hf-field-border:#8593a3;
+--hf-ink:#24313d;--hf-heading:#173968;--hf-muted:#576574;--hf-border:#dce2e8;
+--hf-action:#2442f6;--hf-on-action:#ffffff;--hf-active:#2442f6;--hf-active-soft:#edf0ff;--hf-focus:#2442f6;
+--hf-gold:#f6bb13;--hf-gold-soft:#fff5d6;--hf-gold-ink:#443218;
+--hf-warning:#805511;--hf-warning-soft:#fff5d6;--hf-success:#236044;
+--hf-danger:#b42318;--hf-danger-soft:#fef3f2;--hf-danger-border:#f4b8b2;
+--hf-font:'Geist', ui-sans-serif, system-ui, sans-serif;
+--hf-radius-card:12px;--hf-radius-control:6px;--hf-control-height:44px;
+--hf-table-head:color-mix(in srgb,var(--hf-ink) 4%,var(--hf-surface));
+--hf-skeleton:color-mix(in srgb,var(--hf-ink) 16%,var(--hf-surface));
+--hf-shadow:0 1px 2px color-mix(in srgb,var(--hf-ink) 5%,transparent);
+}
+html.dark{
+--hf-page:#0e1520;--hf-surface:#192332;--hf-surface-muted:#202e43;--hf-field:#121d2c;--hf-field-border:#64758d;
+--hf-ink:#edf2fa;--hf-heading:#edf2fa;--hf-muted:#adbcd0;--hf-border:#354459;
+--hf-action:#91b0ff;--hf-on-action:#132344;--hf-active:#b3caff;--hf-active-soft:#223555;--hf-focus:#a6c1ff;
+--hf-gold:#f2c456;--hf-gold-soft:#3b311d;--hf-gold-ink:#f2cb71;
+--hf-warning:#f2cb71;--hf-warning-soft:#3b311d;--hf-success:#a2d9b9;
+--hf-danger:#ffb4ab;--hf-danger-soft:#3d2220;--hf-danger-border:#7a3f3b;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--hf-page);color:var(--hf-ink);font:400 14px/1.5 var(--hf-font);overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3,p{margin:0}
+h1,h2,h3{color:var(--hf-heading);font-weight:600}
+.icon{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.icon.sm{width:16px;height:16px}
+.muted{color:var(--hf-muted)}.small{font-size:13px}
+:focus-visible{outline:2px solid var(--hf-focus);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.fig{font-variant-numeric:tabular-nums}
+
+/* buttons */
+.btn,.icon-btn,.link{cursor:pointer}
+.btn{min-height:var(--hf-control-height);padding:8px 16px;border:1px solid var(--hf-field-border);border-radius:var(--hf-radius-control);background:var(--hf-field);font-size:14px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap}
+.btn:hover:not(:disabled){background:var(--hf-surface-muted)}
+.btn.primary{background:var(--hf-action);color:var(--hf-on-action);border-color:var(--hf-action)}
+.btn.primary:hover:not(:disabled){background:var(--hf-action)}
+.btn.danger{background:var(--hf-danger);color:var(--hf-surface);border-color:var(--hf-danger)}
+.btn.danger:hover:not(:disabled){background:var(--hf-danger)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.ghost:hover:not(:disabled){background:var(--hf-surface-muted)}
+.btn:disabled,.btn[aria-disabled="true"]{cursor:not-allowed;color:var(--hf-muted);background:var(--hf-surface-muted);border-color:var(--hf-border)}
+.icon-btn{width:var(--hf-control-height);height:var(--hf-control-height);min-height:var(--hf-control-height);padding:0;border:1px solid transparent;border-radius:var(--hf-radius-control);background:transparent;display:inline-flex;align-items:center;justify-content:center;color:var(--hf-muted)}
+.icon-btn:hover,.icon-btn[aria-expanded="true"]{background:var(--hf-surface-muted);color:var(--hf-ink)}
+.link{min-height:var(--hf-control-height);padding:0 4px;border:0;background:transparent;color:var(--hf-action);font-size:13px;font-weight:500;text-decoration:underline;text-underline-offset:2px}
+
+/* badge */
+.badge{display:inline-flex;align-items:center;gap:8px;height:24px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap;background:var(--hf-surface-muted);color:var(--hf-muted)}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.badge.info{background:var(--hf-active-soft);color:var(--hf-active)}
+.badge.success{background:color-mix(in srgb,var(--hf-success) 12%,var(--hf-surface));color:var(--hf-success)}
+.badge.warning{background:var(--hf-warning-soft);color:var(--hf-warning)}
+.badge.danger{background:var(--hf-danger-soft);color:var(--hf-danger)}
+
+/* fields */
+label,.lbl{font-size:14px;font-weight:600;color:var(--hf-ink)}
+input[type=text],select,textarea,input:not([type]){width:100%;min-width:0;min-height:var(--hf-control-height);padding:8px 12px;background:var(--hf-field);border:1px solid var(--hf-field-border);border-radius:var(--hf-radius-control);font-size:14px;font-weight:400}
+textarea{resize:vertical;min-height:144px;line-height:1.5}
+select{appearance:none;padding-right:36px;background-image:linear-gradient(45deg,transparent 50%,var(--hf-muted) 50%),linear-gradient(135deg,var(--hf-muted) 50%,transparent 50%);background-repeat:no-repeat;background-position:calc(100% - 20px) 50%,calc(100% - 14px) 50%;background-size:6px 6px}
+[aria-invalid="true"]{border-color:var(--hf-danger)!important;box-shadow:0 0 0 1px var(--hf-danger)}
+.ferr{color:var(--hf-danger);font-size:13px;font-weight:500;margin-top:0}
+.drow .ferr,.attr .ferr{margin-top:8px}
+.counter{font-size:12px;font-weight:600;color:var(--hf-warning);margin-top:0;text-align:right}
+.counter.over{color:var(--hf-danger)}
+.unit{position:relative;display:flex;align-items:center}
+.unit input{padding-right:56px!important}
+.unit span{position:absolute;right:12px;font-size:13px;color:var(--hf-muted);pointer-events:none}
+.range{display:grid;grid-template-columns:1fr auto 1fr auto;align-items:center;gap:8px}
+.range .to,.range .u{font-size:13px;color:var(--hf-muted)}
+.seg{display:inline-flex;border:1px solid var(--hf-field-border);border-radius:var(--hf-radius-control);overflow:hidden;background:var(--hf-field)}
+.seg label{position:relative;display:flex;align-items:center;justify-content:center;min-width:72px;min-height:44px;cursor:pointer;font-weight:500}
+.seg label+label{border-left:1px solid var(--hf-field-border)}
+.seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.seg label:has(input:checked){background:var(--hf-active-soft);color:var(--hf-active);font-weight:600}
+.seg label:has(input:focus-visible){outline:2px solid var(--hf-focus);outline-offset:-2px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chk{position:relative;display:inline-flex;align-items:center;min-height:var(--hf-control-height);padding:0 16px;border:1px solid var(--hf-field-border);border-radius:var(--hf-radius-control);background:var(--hf-field);cursor:pointer;font-weight:500}
+.chk input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.chk:has(input:checked){background:var(--hf-active-soft);color:var(--hf-active);border-color:var(--hf-active);font-weight:600}
+.chk:has(input:checked)::before{content:"";width:6px;height:10px;border:solid currentColor;border-width:0 2px 2px 0;transform:rotate(45deg) translate(-2px,-2px);margin-right:12px}
+.chk:has(input:focus-visible){outline:2px solid var(--hf-focus);outline-offset:2px}
+
+/* attribute states */
+.attr .stateview{display:none;align-items:center;gap:8px;min-height:var(--hf-control-height);padding:0 12px;border:1px dashed var(--hf-field-border);border-radius:var(--hf-radius-control);background:var(--hf-surface-muted);flex:1;color:var(--hf-muted);font-weight:500}
+.attr[data-state="unknown"] .val,.attr[data-state="na"] .val{display:none}
+.attr[data-state="unknown"] .stateview,.attr[data-state="na"] .stateview{display:flex}
+.attr .sin{display:none}.attr[data-eff="none"] .sin{display:inline-flex}
+.a-ctl{display:flex;align-items:flex-start;gap:4px}
+.a-ctl .val{flex:1;min-width:0}
+.ev{font-size:13px;color:var(--hf-muted);display:flex;align-items:center;gap:8px;margin-top:4px}
+.ev .icon{width:16px;height:16px}
+
+/* menu */
+.menu-wrap{position:relative;flex-shrink:0}
+.menu{position:absolute;right:0;top:calc(100% + 4px);z-index:30;min-width:232px;padding:4px;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:8px;box-shadow:var(--hf-shadow)}
+.menu.up{top:auto;bottom:calc(100% + 4px)}
+.menu.left{right:auto;left:0}
+.menu button{display:flex;align-items:center;gap:12px;width:100%;min-height:var(--hf-control-height);padding:0 12px;border:0;border-radius:6px;background:transparent;text-align:left;font-size:14px;font-weight:500;cursor:pointer}
+.menu button:hover,.menu button:focus-visible{background:var(--hf-surface-muted)}
+.menu button:disabled{color:var(--hf-muted);cursor:not-allowed;background:transparent}
+.menu button.dng{color:var(--hf-danger)}
+.menu button.dng:hover{background:color-mix(in srgb,var(--hf-danger) 10%,var(--hf-surface))}
+.menu hr{border:0;border-top:1px solid var(--hf-border);margin:4px 0}
+.menu .mh{padding:8px 12px 4px;font-size:12px;font-weight:600;color:var(--hf-muted)}
+
+/* shell */
+.shell{display:grid;grid-template-columns:184px minmax(0,1fr);height:100vh}
+.side{padding:24px 16px;border-right:1px solid var(--hf-border);background:var(--hf-surface);display:flex;flex-direction:column;gap:24px}
+.brand{display:flex;align-items:center;gap:8px;color:var(--hf-heading);font-size:16px;font-weight:600}
+.brand .icon{width:32px;height:32px;padding:4px;border-radius:6px;background:var(--hf-gold-soft);color:var(--hf-gold-ink)}
+.side nav{display:grid;gap:4px}
+.side nav button{display:flex;align-items:center;gap:12px;min-height:var(--hf-control-height);padding:0 12px;border:0;border-radius:var(--hf-radius-control);background:transparent;text-align:left;font-size:14px;font-weight:500;color:var(--hf-ink);cursor:pointer}
+.side nav button:hover{background:var(--hf-surface-muted)}
+.side nav button[aria-current="page"]{background:var(--hf-active-soft);color:var(--hf-active);font-weight:600}
+.col{display:flex;flex-direction:column;min-width:0;height:100vh}
+.proto{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:8px 32px;border-bottom:1px solid var(--hf-border);background:var(--hf-surface);font-size:13px;color:var(--hf-muted)}
+.proto .states{display:flex;gap:4px;flex-wrap:wrap}
+.proto .states .btn{padding:0 12px;font-size:13px;font-weight:500;border-color:var(--hf-border)}
+.proto .states .btn[aria-pressed="true"]{background:var(--hf-active-soft);border-color:var(--hf-active);color:var(--hf-active);font-weight:600}
+.phead{padding:16px 32px 0;background:var(--hf-surface);border-bottom:1px solid var(--hf-border)}
+.meta{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--hf-muted)}
+.trow{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:4px 0 4px}
+.trow h1{font-size:22px;line-height:1.3;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trow .acts{display:flex;gap:4px;align-items:center}
+.tabs{display:flex;gap:4px}
+.tabs button{min-height:var(--hf-control-height);padding:0 16px;border:0;border-bottom:2px solid transparent;background:transparent;font-size:14px;font-weight:500;color:var(--hf-muted);cursor:pointer}
+.tabs button:hover{color:var(--hf-ink)}
+.tabs button[aria-current="page"]{border-bottom-color:var(--hf-active);color:var(--hf-active);font-weight:600}
+.band{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:12px 32px;background:var(--hf-surface);border-bottom:1px solid var(--hf-border);min-height:68px}
+.band .bl{display:flex;align-items:center;gap:12px}
+.band h2{font-size:16px}
+.band .bacts{display:flex;align-items:center;gap:8px}
+.steps{display:flex;align-items:center;list-style:none;margin:0;padding:0;font-size:13px;font-weight:600;color:var(--hf-muted)}
+.steps li{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.steps li+li::before{content:"";width:24px;border-top:1px solid var(--hf-border);margin:0 8px}
+.steps .c{width:22px;height:22px;border-radius:50%;border:1px solid var(--hf-field-border);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600}
+.steps .c .icon{width:14px;height:14px;stroke-width:2.5}
+.steps li.done .c{background:var(--hf-success);border-color:var(--hf-success);color:var(--hf-surface)}
+.steps li.current{color:var(--hf-ink)}
+.steps li.current .c{background:var(--hf-action);border-color:var(--hf-action);color:var(--hf-on-action)}
+.steps .n{color:var(--hf-warning);font-weight:500}
+.work{flex:1;min-height:0;display:flex;flex-direction:column}
+.scroll{flex:1;min-height:0;overflow:auto;padding:24px 32px 32px}
+@media (prefers-reduced-motion:no-preference){.scroll{scroll-behavior:smooth}}
+.foot{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 32px;border-top:1px solid var(--hf-border);background:var(--hf-surface)}
+.save{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--hf-muted)}
+.save b{font-weight:600}.save .ok{color:var(--hf-success)}
+.save .dotw{width:8px;height:8px;border-radius:50%;background:var(--hf-warning)}
+.save .bad{color:var(--hf-danger);font-weight:600}
+
+/* panels and states */
+.panel{background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);padding:24px}
+.panel>h2,.sec-h h2{font-size:16px}
+.sec-h{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px;min-height:44px}
+.fields{display:grid;gap:16px}
+.field{display:grid;gap:8px;align-content:start}
+.field-row{display:flex;align-items:center;justify-content:space-between}
+.checklist{background:var(--hf-surface-muted);border:1px solid var(--hf-border);border-radius:12px;padding:16px;font-size:13px}
+.checklist ul{list-style:none;margin:8px 0 0;padding:0;display:grid}
+.checklist li{display:flex;align-items:center;gap:8px;min-height:44px;color:var(--hf-warning);font-weight:600}
+.checklist li+li{border-top:1px solid var(--hf-border)}
+.checklist li .link{margin-left:auto}
+.checklist .ok{display:none;color:var(--hf-success);font-weight:600;align-items:center;gap:8px;min-height:44px}
+.checklist.clear ul{display:none}.checklist.clear .ok{display:flex}
+.bar{height:6px;border-radius:9999px;background:var(--hf-border);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--hf-heading);border-radius:9999px}
+.media-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.media-list li{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-surface-muted);font-size:14px}
+.media-list li .muted{margin-left:auto;font-size:12px}
+.fold{border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);background:var(--hf-surface)}
+.fold>summary{display:flex;align-items:center;gap:12px;min-height:56px;padding:0 24px;cursor:pointer;list-style:none;font-size:16px;font-weight:600;color:var(--hf-heading)}
+.fold>summary::-webkit-details-marker{display:none}
+.fold>summary .chev{margin-left:auto;transition:transform .15s}
+.fold[open]>summary .chev{transform:rotate(180deg)}
+@media (prefers-reduced-motion:reduce){.fold>summary .chev{transition:none}}
+.fold .inner{padding:0 24px 24px;display:grid;gap:24px}
+.hr{border:0;border-top:1px solid var(--hf-border);margin:0}
+
+/* empty and skeleton */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:40px 16px;min-height:8rem;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);max-width:720px;margin:48px auto 0}
+.empty .icon{width:24px;height:24px;color:var(--hf-muted)}
+.empty h3{font-size:15px}
+.empty p{font-size:13px;color:var(--hf-muted);max-width:28rem}
+.empty .btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+.sk{display:block;height:16px;border-radius:6px;background:var(--hf-skeleton)}
+@media (prefers-reduced-motion:no-preference){.sk{animation:pulse 1.6s ease-in-out infinite}}
+@keyframes pulse{50%{opacity:.5}}
+.sk.h{height:44px}.sk.t{height:20px;width:40%}
+
+/* drawer + dialog */
+.scrim{position:fixed;inset:0;z-index:40;background:color-mix(in srgb,var(--hf-page) 75%,transparent)}
+.drawer{position:fixed;top:0;right:0;bottom:0;z-index:41;width:min(28rem,100%);background:var(--hf-surface);border-left:1px solid var(--hf-border);display:flex;flex-direction:column}
+.drawer header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 24px;border-bottom:1px solid var(--hf-border)}
+.drawer header h2{font-size:16px}
+.drawer .body{flex:1;overflow:auto;padding:24px;display:grid;gap:24px;align-content:start}
+.drawer h3{font-size:14px;margin-bottom:8px}
+.hist-row{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:56px;padding:8px 0;border-top:1px solid var(--hf-border)}
+.hist-row:first-of-type{border-top:0}
+.hist-row small{display:block;font-size:13px;color:var(--hf-muted)}
+.hist-row strong{font-weight:600}
+.diff{list-style:none;margin:0;padding:0;display:grid}
+.diff li{padding:12px 0;border-top:1px solid var(--hf-border);display:grid;gap:4px;font-size:13px}
+.diff li:first-child{border-top:0}
+.diff .w{font-weight:600;font-size:14px}
+.diff .was{color:var(--hf-muted);text-decoration:line-through}
+.diff .now{color:var(--hf-ink)}
+dialog{color:var(--hf-ink);background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:12px;padding:24px;width:min(480px,calc(100% - 32px))}
+dialog::backdrop{background:color-mix(in srgb,var(--hf-page) 75%,transparent)}
+dialog h2{font-size:16px;margin-bottom:8px}
+dialog p{font-size:14px;color:var(--hf-muted)}
+dialog .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:24px}
+dialog .fields{margin-top:16px}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+
+.g2{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:24px;max-width:1192px;margin:0 auto;align-items:start}
+.left{display:grid;gap:24px;min-width:0}
+.chk-h{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center}
+.chk-h strong{font-size:16px;color:var(--hf-heading);font-weight:600}
+.checklist .ok{margin-top:8px}
+.checklist.clear .ok{display:flex}
+.rows{display:grid}
+.attr,.drow{display:grid;grid-template-columns:176px minmax(0,1fr);column-gap:24px;padding:12px 0;border-top:1px solid var(--hf-border);align-items:start}
+.rows>:first-child{border-top:0;padding-top:0}
+.attr .a-lab{flex-direction:column;align-items:flex-start;gap:4px;padding-top:10px}
+.drow>label,.drow>.lbl{padding-top:10px}
+.attr .ev,.attr .ferr{grid-column:2}
+.attr .a-ctl{grid-column:2}
+.attr .a-lab{grid-column:1;grid-row:1}
+.attr .a-ctl{grid-row:1}
+.attr .ev{grid-row:2}.attr .ferr{grid-row:3}
+.topics{display:grid;gap:24px}
+.topic+.topic{border-top:1px solid var(--hf-border);padding-top:24px}
+.topic h3{font-size:14px;margin-bottom:12px}
+.ptabs{display:inline-flex;border:1px solid var(--hf-field-border);border-radius:var(--hf-radius-control);overflow:hidden}
+.ptab{min-height:44px;padding:0 16px;border:0;background:var(--hf-field);font-size:14px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.ptab+.ptab{border-left:1px solid var(--hf-field-border)}
+.ptab[aria-selected="true"]{background:var(--hf-active-soft);color:var(--hf-active);font-weight:600}
+.cnt{font-size:12px;font-weight:600}.cnt.pend{color:var(--hf-warning)}
+.ppanel.is-off{display:none}
+.decl{border:0;margin:0;padding:0;min-width:0}
+.decl legend{padding:0;font-size:14px;font-weight:600;color:var(--hf-heading);margin-bottom:12px}
+.decl+.decl{border-top:1px solid var(--hf-border);padding-top:24px}
+.care{display:grid}
+.range2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.media-list.inline{display:flex;flex-wrap:wrap}.media-list.inline li{min-width:160px}
+.checklist li .link{min-height:44px}
+/* preview */
+.preview{position:sticky;top:0;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);overflow:hidden;box-shadow:var(--hf-shadow);max-height:calc(100vh - 372px);display:flex;flex-direction:column}
+.pv-top{display:flex;align-items:center;padding:12px 16px;background:var(--hf-surface-muted);border-bottom:1px solid var(--hf-border)}
+.pv-top h2{font-size:13px;color:var(--hf-muted)}
+.pv-body{padding:16px;overflow:auto;display:flex;flex-direction:column;gap:12px;min-height:0}
+.pv-body>*{flex-shrink:0}
+.pv-img{height:96px;border-radius:8px;background:var(--hf-surface-muted);display:flex;align-items:center;justify-content:center;color:var(--hf-muted)}
+.pv-img .big{width:48px;height:48px;stroke-width:1.25}
+.pv-brand{font-size:13px;color:var(--hf-muted)}
+.pv-body h3{font-size:16px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.pv-pres{display:flex;gap:8px;flex-wrap:wrap}
+.pv-pres .btn{font-weight:500;padding:0 16px}
+.pv-pres .btn[aria-pressed="true"]{background:var(--hf-active-soft);border-color:var(--hf-active);color:var(--hf-active);font-weight:600}
+.pv-desc{font-size:14px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.pv-body h4{font-size:14px;color:var(--hf-heading);font-weight:600;margin-top:4px}
+#pv-dl{margin:0;display:grid;font-size:13px}
+#pv-dl .g{margin:8px 0 0;font-size:12px;font-weight:600;color:var(--hf-muted)}
+#pv-dl .r{display:flex;justify-content:space-between;gap:16px;padding:4px 0;border-bottom:1px solid var(--hf-border)}
+#pv-dl dt{color:var(--hf-muted)}#pv-dl dd{margin:0;text-align:right;font-weight:500}
+.pv-empty{color:var(--hf-muted);font-size:13px}
+</style>
+</head>
+<body data-state="edit">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><symbol id="i-ellipsis" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol><symbol id="i-ellipsis-v" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></symbol><symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol><symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3M12 9v4M12 17h.01"/></symbol><symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol><symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol><symbol id="i-search-x" viewBox="0 0 24 24"><path d="m13.5 8.5-5 5M8.5 8.5l5 5"/><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol><symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></symbol><symbol id="i-chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol><symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol><symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol><symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/></symbol><symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></symbol><symbol id="i-clip" viewBox="0 0 24 24"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></symbol><symbol id="i-undo" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></symbol><symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></symbol><symbol id="i-package" viewBox="0 0 24 24"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></symbol><symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21"/></symbol><symbol id="i-cart" viewBox="0 0 24 24"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></symbol><symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol><symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol><symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></symbol><symbol id="i-columns" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18"/></symbol><symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol><symbol id="i-filter" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54z"/></symbol></svg><svg id="tpl-icon" class="icon" viewBox="0 0 24 24" aria-hidden="true" hidden><use href="#i-x"/></svg>
+<div class="shell">
+<aside class="side" aria-label="Navegación de HoundFe">
+  <div class="brand"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-package"/></svg>HoundFe</div>
+  <nav aria-label="Principal">
+    <button type="button" aria-current="page"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-package"/></svg>Productos</button>
+    <button type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-cart"/></svg>Ventas</button>
+    <button type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-users"/></svg>Clientes</button>
+    <button type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-list"/></svg>Familias</button>
+  </nav>
+</aside>
+<div class="col">
+  <header class="proto"><span>Propuesta visual · datos de ejemplo</span>
+    <div class="states" role="group" aria-label="Estado de la pantalla"><button type="button" class="btn" data-set-state="edit" aria-pressed="true">Con cambios</button><button type="button" class="btn" data-set-state="saved" aria-pressed="false">Guardada</button><button type="button" class="btn" data-set-state="error" aria-pressed="false">Con error</button><button type="button" class="btn" data-set-state="loading" aria-pressed="false">Cargando</button><button type="button" class="btn" data-set-state="empty" aria-pressed="false">Sin ficha</button><button type="button" class="btn" data-set-state="emptypub" aria-pressed="false">Sin borrador</button></div>
+    <button type="button" class="btn" id="theme" aria-pressed="false">Tema oscuro</button></header>
+  <header class="phead">
+    <div class="meta"><span class="badge success">Activo</span><span>Pro Plan · 2 presentaciones</span></div>
+    <div class="trow"><h1>Alimento Premium para Perro Adulto 15 kg</h1>
+      <div class="acts"><div class="menu-wrap "><button type="button" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Más acciones del producto"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ellipsis-v"/></svg></button><div class="menu" role="menu" hidden><button type="button" role="menuitem"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-package"/></svg>Duplicar producto</button><hr role="separator"><button type="button" role="menuitem" class="dng"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-trash"/></svg>Archivar producto…</button></div></div><button type="button" class="icon-btn" aria-label="Volver a productos"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-x"/></svg></button></div></div>
+    <nav class="tabs" aria-label="Secciones del producto"><button type="button">Identidad</button><button type="button">Presentaciones</button><button type="button" aria-current="page">Contenido</button><button type="button">Inventario</button></nav>
+  </header>
+  <div class="band">
+    <div class="bl"><h2>Ficha para el catálogo</h2><span class="badge" data-show="edit saved error">Borrador</span></div>
+    <ol class="steps" aria-label="Pasos de la ficha" data-steps data-show="edit saved error"><li class="current"><span class="c">1</span><span>Completar<span class="n"></span></span></li><li><span class="c">2</span><span>Guardar</span></li><li aria-disabled="true"><span class="c">3</span><span>Publicación próximamente</span></li></ol>
+    <div class="bacts" data-show="edit saved error"><button type="button" class="btn" data-open-history><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-history"/></svg>Historial</button><div class="menu-wrap "><button type="button" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Más acciones de la ficha"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ellipsis-v"/></svg></button><div class="menu" role="menu" hidden><button type="button" role="menuitem" data-act="history"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-columns"/></svg>Comparar con lo publicado</button><hr role="separator"><button type="button" role="menuitem" class="dng" data-act="discard"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-trash"/></svg>Descartar borrador…</button></div></div></div>
+  </div>
+  <div class="work">
+    <div class="scroll" id="scroll">
+      <section class="empty" role="status" data-show="empty emptypub" aria-labelledby="empty-t"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-inbox"/></svg><h3 id="empty-t">Aún no hay ficha para el catálogo</h3><p data-show="empty">Aquí vas a escribir cómo se presenta este producto cuando el catálogo público esté listo.</p><p data-show="emptypub">Hay una versión publicada del 28 oct. Empieza en blanco o parte de ella.</p><div class="btns"><button type="button" class="btn primary" data-start>Empezar ficha</button><button type="button" class="btn" data-start data-show="emptypub">Empezar desde lo publicado</button></div></section>
+      <div data-show="loading" aria-busy="true" aria-label="Cargando la ficha"><div class="g2" aria-hidden="true"><div class="left">
+  <div class="checklist"><span class="sk" style="width:30%"></span><span class="sk" style="height:6px;margin-top:12px"></span></div>
+  <div class="panel"><span class="sk t" style="margin-bottom:24px"></span><div class="fields"><span class="sk h"></span><span class="sk h"></span><span class="sk" style="height:112px"></span></div></div>
+  <div class="panel"><span class="sk t" style="margin-bottom:24px"></span><div class="fields"><span class="sk h"></span><span class="sk h"></span><span class="sk h"></span><span class="sk h"></span></div></div></div>
+  <div class="preview"><div class="pv-top"><span class="sk" style="width:60%"></span></div><div class="pv-body"><span class="sk" style="height:160px"></span><span class="sk" style="width:30%"></span><span class="sk t" style="width:80%"></span><span class="sk h"></span><span class="sk"></span><span class="sk" style="width:70%"></span></div></div></div></div>
+      <div id="editor" data-show="edit saved error"><div class="g2">
+  <div class="left">
+    <section class="checklist" id="chk" aria-label="Pendientes de la ficha">
+      <div class="chk-h"><strong class="fig"><span id="kA">8</span> de <span id="kT">12</span> datos</strong><div class="bar" aria-hidden="true"><i id="kBar" style="width:67%"></i></div></div>
+      <ul id="pendlist"></ul>
+      <p class="ok"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-check"/></svg>Ficha completa</p>
+    </section>
+    <section class="panel" id="s-basico" aria-labelledby="h-basico">
+      <div class="sec-h"><h2 id="h-basico">Básico</h2></div>
+      <div class="rows">
+        <div class="drow"><label for="family">Familia</label><select id="family" style="max-width:280px"><option selected>Alimento</option><option>Premio</option><option>Juguete</option><option>Higiene</option><option>Accesorio</option><option>Hábitat</option><option>Cuidado</option></select></div>
+        <div class="drow"><label for="title">Título comercial</label><div><input type="text" id="title" value="Alimento Premium para Perro Adulto 15 kg" aria-describedby="title-err"><p class="ferr" id="title-err" role="alert" hidden></p><p class="counter fig" id="title-count" aria-live="polite" hidden></p></div></div>
+        <div class="drow"><label for="desc">Descripción</label><div><textarea id="desc" style="min-height:112px">Croquetas con pollo y arroz para perros adultos de raza mediana y grande. Con 24 % de proteína para mantener la masa muscular y fibra que ayuda a la digestión.
+
+Sirve la porción según el peso de tu perro y deja agua fresca siempre a la mano.</textarea><p class="counter fig" id="desc-count" aria-live="polite" hidden></p></div></div>
+        <div class="drow"><span class="lbl">Imágenes vinculadas</span><ul class="media-list inline"><li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-image"/></svg>Foto frontal<span class="muted">Solo lectura</span></li><li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-image"/></svg>Foto trasera<span class="muted">Solo lectura</span></li><li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-image"/></svg>Tabla nutrimental<span class="muted">Solo lectura</span></li></ul></div>
+      </div>
+    </section>
+    <section class="panel" id="s-ficha" aria-labelledby="h-ficha">
+      <div class="sec-h"><h2 id="h-ficha">Ficha técnica</h2><div class="menu-wrap "><button type="button" class="btn" aria-haspopup="menu" aria-expanded="false" aria-label="Agregar dato"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-plus"/></svg>Agregar dato</button><div class="menu" role="menu" hidden><div class="mh" role="presentation">Otros datos de Alimento</div><button type="button" role="menuitem" data-act="extra" data-target="x-origen">País de origen</button><button type="button" role="menuitem" data-act="extra" data-target="x-certificaciones">Certificaciones</button></div></div></div>
+      <div class="topics"><section class="topic" id="g-quien" aria-labelledby="g-quien-h"><h3 id="g-quien-h">Para quién</h3><div class="rows"><div class="attr" data-attr id="x-especie" data-key="especie" data-label="Especie" data-type="single" data-topic="Para quién" data-unit="" data-state="value" data-pres-label=""><div class="a-lab"><label for="f-especie">Especie</label><span class="badge neutral sin">Sin dato</span></div><div class="a-ctl"><div class="val"><select id="f-especie"><option value="">Elige una opción</option><option selected>Perro</option><option>Gato</option><option>Ave</option><option>Roedor</option><option>Pez</option></select></div><div class="stateview"><span class="sv-t">Desconocido</span><button type="button" class="link" data-act="value">Poner valor</button></div><div class="menu-wrap "><button type="button" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Opciones de Especie"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ellipsis"/></svg></button><div class="menu" role="menu" hidden><button type="button" role="menuitem" data-act="unknown"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-help"/></svg>Desconocido</button><button type="button" role="menuitem" data-act="na"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ban"/></svg>No aplica</button><button type="button" role="menuitem" data-act="evidence"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-clip"/></svg>Agregar evidencia</button><hr role="separator"><button type="button" role="menuitem" data-act="clear"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-undo"/></svg>Dejar sin dato</button></div></div></div><p class="ev" hidden></p><p class="ferr" id="ferr-especie" role="alert" hidden>Escribe solo números, por ejemplo 24</p></div><div class="attr" data-attr id="x-etapa" data-key="etapa" data-label="Etapa de vida" data-type="single" data-topic="Para quién" data-unit="" data-state="value" data-pres-label=""><div class="a-lab"><label for="f-etapa">Etapa de vida</label><span class="badge neutral sin">Sin dato</span></div><div class="a-ctl"><div class="val"><select id="f-etapa"><option value="">Elige una opción</option><option>Cachorro</option><option selected>Adulto</option><option>Senior</option><option>Todas las etapas</option></select></div><div class="stateview"><span class="sv-t">Desconocido</span><button type="button" class="link" data-act="value">Poner valor</button></div><div class="menu-wrap "><button type="button" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Opciones de Etapa de vida"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ellipsis"/></svg></button><div class="menu" role="menu" hidden><button type="button" role="menuitem" data-act="unknown"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-help"/></svg>Desconocido</button><button type="button" role="menuitem" data-act="na"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ban"/></svg>No aplica</button><button type="button" role="menuitem" data-act="evidence"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-clip"/></svg>Agregar evidencia</button><hr role="separator"><button type="button" role="menuitem" data-act="clear"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-undo"/></svg>Dejar sin dato</button></div></div></div><p class="ev" hidden></p><p class="ferr" id="ferr-etapa" role="alert" hidden>Escribe solo números, por ejemplo 24</p></div><div class="attr wide" data-attr id="x-tamano" data-key="tamano" data-label="Tamaño de raza" data-type="multi" data-topic="Para quién" data-unit="" data-state="value" data-pres-label=""><div class="a-lab"><span class="lbl" id="l-tamano">Tamaño de raza</span><span class="badge neutral sin">Sin dato</span></div><div class="a-ctl"><div class="val"><div class="chips" role="group" aria-labelledby="l-tamano"><label class="chk"><input type="checkbox" value="Miniatura"><span>Miniatura</span></label><label class="chk"><input type="checkbox" value="Pequeña"><span>Pequeña</span></label><label class="chk"><input type="checkbox" value="Mediana" checked><span>Mediana</span></label><label class="chk"><input type="checkbox" value="Grande" checked><span>Grande</span></label><label class="chk"><input type="checkbox" value="Gigante"><span>Gigante</span></label></div></div><div class="stateview"><span class="sv-t">Desconocido</span><button type="button" class="link" data-act="value">Poner valor</button></div><div class="menu-wrap "><button type="button" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Opciones de Tamaño de raza"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ellipsis"/></svg></button><div class="menu" role="menu" hidden><button type="button" role="menuitem" data-act="unknown"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-help"/></svg>Desconocido</button><button type="button" role="menuitem" data-act="na"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ban"/></svg>No aplica</button><button type="button" role="menuitem" data-act="evidence"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-clip"/></svg>Agregar evidencia</button><hr role="separator"><button type="button" role="menuitem" data-act="clear"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-undo"/></svg>Dejar sin dato</button></div></div></div><p class="ev" hidden></p><p class="ferr" id="ferr-tamano" role="alert" hidden>Escribe solo números, por ejemplo 24</p></div></div></section><section class="topic" id="g-sabor" aria-labelledby="g-sabor-h"><h3 id="g-sabor-h">Sabor y tipo</h3><div class="rows"><div class="attr" data-attr id="x-sabor" data-key="sabor" data-label="Sabor principal" data-type="single" data-topic="Sabor y tipo" data-unit="" data-state="value" data-pres-label=""><div class="a-lab"><label for="f-sabor">Sabor principal</label><span class="badge neutral sin">Sin dato</span></div><div class="a-ctl"><div class="val"><select id="f-sabor"><option value="">Elige una opción</option><option selected>Pollo</option><option>Res</option><option>Cordero</option><option>Salmón</option><option>Pavo</option></select></div><div class="stateview"><span class="sv-t">Desconocido</span><button type="button" class="link" data-act="value">Poner valor</button></div><div class="menu-wrap "><button type="button" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Opciones de Sabor principal"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ellipsis"/></svg></button><div class="menu" role="menu" hidden><button type="button" role="menuitem" data-act="unknown"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-help"/></svg>Desconocido</button><button type="button" role="menuitem" data-act="na"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ban"/></svg>No aplica</button><button type="button" role="menuitem" data-act="evidence"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-clip"/></svg>Agregar evidencia</button><hr role="separator"><button type="button" role="menuitem" data-act="clear"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-undo"/></svg>Dejar sin dato</button></div></div></div><p class="ev" hidden></p><p class="ferr" id="ferr-sabor" role="alert" hidden>Escribe solo números, por ejemplo 24</p></div><div class="attr" data-attr id="x-singranos" data-key="singranos" data-label="Sin granos" data-type="yesno" data-topic="Sabor y tipo" data-unit="" data-state="value" data-pres-label=""><div class="a-lab"><span class="lbl" id="l-singranos">Sin granos</span><span class="badge neutral sin">Sin dato</span></div><div class="a-ctl"><div class="val"><div class="seg" role="radiogroup" aria-labelledby="l-singranos"><label><input type="radio" name="r-singranos" value="Sí"><span>Sí</span></label><label><input type="radio" name="r-singranos" value="No"><span>No</span></label></div></div><div class="stateview"><span class="sv-t">Desconocido</span><button type="button" class="link" data-act="value">Poner valor</button></div><div class="menu-wrap "><button type="button" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Opciones de Sin granos"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ellipsis"/></svg></button><div class="menu" role="menu" hidden><button type="button" role="menuitem" data-act="unknown"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-help"/></svg>Desconocido</button><button type="button" role="menuitem" data-act="na"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ban"/></svg>No aplica</button><button type="button" role="menuitem" data-act="evidence"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-clip"/></svg>Agregar evidencia</button><hr role="separator"><button type="button" role="menuitem" data-act="clear"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-undo"/></svg>Dejar sin dato</button></div></div></div><p class="ev" hidden></p><p class="ferr" id="ferr-singranos" role="alert" hidden>Escribe solo números, por ejemplo 24</p></div></div></section><section class="topic" id="g-comp" aria-labelledby="g-comp-h"><h3 id="g-comp-h">Composición</h3><div class="rows"><div class="attr" data-attr id="x-proteina" data-key="proteina" data-label="Proteína mínima" data-type="number" data-topic="Composición" data-unit="%" data-state="value" data-pres-label="" data-ev-src="Ficha del proveedor" data-ev-date="12 oct"><div class="a-lab"><label for="f-proteina">Proteína mínima</label><span class="badge neutral sin">Sin dato</span></div><div class="a-ctl"><div class="val"><div class="unit"><input type="text" inputmode="decimal" id="f-proteina" value="24" aria-describedby="ferr-proteina"><span>%</span></div></div><div class="stateview"><span class="sv-t">Desconocido</span><button type="button" class="link" data-act="value">Poner valor</button></div><div class="menu-wrap "><button type="button" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Opciones de Proteína mínima"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ellipsis"/></svg></button><div class="menu" role="menu" hidden><button type="button" role="menuitem" data-act="unknown"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-help"/></svg>Desconocido</button><button type="button" role="menuitem" data-act="na"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ban"/></svg>No aplica</button><button type="button" role="menuitem" data-act="evidence"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-clip"/></svg>Agregar evidencia</button><hr role="separator"><button type="button" role="menuitem" data-act="clear"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-undo"/></svg>Dejar sin dato</button></div></div></div><p class="ev" hidden></p><p class="ferr" id="ferr-proteina" role="alert" hidden>Escribe solo números, por ejemplo 24</p></div><div class="attr" data-attr id="x-grasa" data-key="grasa" data-label="Contenido de grasa" data-type="range" data-topic="Composición" data-unit="%" data-state="value" data-pres-label=""><div class="a-lab"><span class="lbl" id="l-grasa">Contenido de grasa</span><span class="badge neutral sin">Sin dato</span></div><div class="a-ctl"><div class="val"><div class="range" role="group" aria-labelledby="l-grasa"><input type="text" inputmode="decimal" placeholder="Mín" aria-label="Mínimo de Contenido de grasa"><span class="to">a</span><input type="text" inputmode="decimal" placeholder="Máx" aria-label="Máximo de Contenido de grasa"><span class="u">%</span></div></div><div class="stateview"><span class="sv-t">Desconocido</span><button type="button" class="link" data-act="value">Poner valor</button></div><div class="menu-wrap "><button type="button" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Opciones de Contenido de grasa"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ellipsis"/></svg></button><div class="menu" role="menu" hidden><button type="button" role="menuitem" data-act="unknown"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-help"/></svg>Desconocido</button><button type="button" role="menuitem" data-act="na"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ban"/></svg>No aplica</button><button type="button" role="menuitem" data-act="evidence"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-clip"/></svg>Agregar evidencia</button><hr role="separator"><button type="button" role="menuitem" data-act="clear"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-undo"/></svg>Dejar sin dato</button></div></div></div><p class="ev" hidden></p><p class="ferr" id="ferr-grasa" role="alert" hidden>Escribe solo números, por ejemplo 24</p></div><div class="attr wide" data-attr id="x-ingredientes" data-key="ingredientes" data-label="Ingredientes principales" data-type="text" data-topic="Composición" data-unit="" data-state="value" data-pres-label=""><div class="a-lab"><label for="f-ingredientes">Ingredientes principales</label><span class="badge neutral sin">Sin dato</span></div><div class="a-ctl"><div class="val"><input type="text" id="f-ingredientes" value="Pollo, arroz, cebada, grasa de pollo"></div><div class="stateview"><span class="sv-t">Desconocido</span><button type="button" class="link" data-act="value">Poner valor</button></div><div class="menu-wrap "><button type="button" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Opciones de Ingredientes principales"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ellipsis"/></svg></button><div class="menu" role="menu" hidden><button type="button" role="menuitem" data-act="unknown"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-help"/></svg>Desconocido</button><button type="button" role="menuitem" data-act="na"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ban"/></svg>No aplica</button><button type="button" role="menuitem" data-act="evidence"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-clip"/></svg>Agregar evidencia</button><hr role="separator"><button type="button" role="menuitem" data-act="clear"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-undo"/></svg>Dejar sin dato</button></div></div></div><p class="ev" hidden></p><p class="ferr" id="ferr-ingredientes" role="alert" hidden>Escribe solo números, por ejemplo 24</p></div><div class="attr" data-attr id="x-origen" data-key="origen" data-label="País de origen" data-type="text" data-topic="Composición" data-unit="" data-state="value" data-pres-label="" hidden><div class="a-lab"><label for="f-origen">País de origen</label><span class="badge neutral sin">Sin dato</span></div><div class="a-ctl"><div class="val"><input type="text" id="f-origen" value=""></div><div class="stateview"><span class="sv-t">Desconocido</span><button type="button" class="link" data-act="value">Poner valor</button></div><div class="menu-wrap "><button type="button" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Opciones de País de origen"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ellipsis"/></svg></button><div class="menu" role="menu" hidden><button type="button" role="menuitem" data-act="unknown"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-help"/></svg>Desconocido</button><button type="button" role="menuitem" data-act="na"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ban"/></svg>No aplica</button><button type="button" role="menuitem" data-act="evidence"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-clip"/></svg>Agregar evidencia</button><hr role="separator"><button type="button" role="menuitem" data-act="clear"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-undo"/></svg>Dejar sin dato</button></div></div></div><p class="ev" hidden></p><p class="ferr" id="ferr-origen" role="alert" hidden>Escribe solo números, por ejemplo 24</p></div><div class="attr" data-attr id="x-certificaciones" data-key="certificaciones" data-label="Certificaciones" data-type="text" data-topic="Composición" data-unit="" data-state="value" data-pres-label="" hidden><div class="a-lab"><label for="f-certificaciones">Certificaciones</label><span class="badge neutral sin">Sin dato</span></div><div class="a-ctl"><div class="val"><input type="text" id="f-certificaciones" value=""></div><div class="stateview"><span class="sv-t">Desconocido</span><button type="button" class="link" data-act="value">Poner valor</button></div><div class="menu-wrap "><button type="button" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Opciones de Certificaciones"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ellipsis"/></svg></button><div class="menu" role="menu" hidden><button type="button" role="menuitem" data-act="unknown"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-help"/></svg>Desconocido</button><button type="button" role="menuitem" data-act="na"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ban"/></svg>No aplica</button><button type="button" role="menuitem" data-act="evidence"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-clip"/></svg>Agregar evidencia</button><hr role="separator"><button type="button" role="menuitem" data-act="clear"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-undo"/></svg>Dejar sin dato</button></div></div></div><p class="ev" hidden></p><p class="ferr" id="ferr-certificaciones" role="alert" hidden>Escribe solo números, por ejemplo 24</p></div></div></section></div>
+    </section>
+    <section class="panel" id="s-pres" aria-labelledby="h-pres">
+      <div class="sec-h"><h2 id="h-pres">Por presentación</h2><div class="ptabs" role="tablist" aria-label="Presentación"><button type="button" role="tab" class="ptab" data-pres-tab="15" id="pt-15" aria-controls="pp-15" aria-selected="true">15 kg<span class="cnt" data-pcnt="15"></span></button><button type="button" role="tab" class="ptab" data-pres-tab="75" id="pt-75" aria-controls="pp-75" aria-selected="false">7.5 kg<span class="cnt" data-pcnt="75"></span></button></div></div>
+      <div role="tabpanel" class="ppanel" id="pp-15" aria-labelledby="pt-15" data-ppanel="15"><div class="rows"><div class="attr" data-attr id="x-peso-15" data-key="peso" data-label="Peso neto" data-type="number" data-topic="Por presentación" data-unit="kg" data-state="value" data-pres-label="15 kg" data-pres="15"><div class="a-lab"><label for="f-peso-15">Peso neto</label><span class="badge neutral sin">Sin dato</span></div><div class="a-ctl"><div class="val"><div class="unit"><input type="text" inputmode="decimal" id="f-peso-15" value="15" aria-describedby="ferr-peso-15"><span>kg</span></div></div><div class="stateview"><span class="sv-t">Desconocido</span><button type="button" class="link" data-act="value">Poner valor</button></div><div class="menu-wrap "><button type="button" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Opciones de Peso neto · 15 kg"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ellipsis"/></svg></button><div class="menu" role="menu" hidden><button type="button" role="menuitem" data-act="unknown"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-help"/></svg>Desconocido</button><button type="button" role="menuitem" data-act="na"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ban"/></svg>No aplica</button><button type="button" role="menuitem" data-act="evidence"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-clip"/></svg>Agregar evidencia</button><hr role="separator"><button type="button" role="menuitem" data-act="clear"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-undo"/></svg>Dejar sin dato</button></div></div></div><p class="ev" hidden></p><p class="ferr" id="ferr-peso-15" role="alert" hidden>Escribe solo números, por ejemplo 24</p></div><div class="attr" data-attr id="x-vida-15" data-key="vida" data-label="Vida útil" data-type="number" data-topic="Por presentación" data-unit="meses" data-state="value" data-pres-label="15 kg" data-pres="15"><div class="a-lab"><label for="f-vida-15">Vida útil</label><span class="badge neutral sin">Sin dato</span></div><div class="a-ctl"><div class="val"><div class="unit"><input type="text" inputmode="decimal" id="f-vida-15" value="" aria-describedby="ferr-vida-15"><span>meses</span></div></div><div class="stateview"><span class="sv-t">Desconocido</span><button type="button" class="link" data-act="value">Poner valor</button></div><div class="menu-wrap "><button type="button" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Opciones de Vida útil · 15 kg"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ellipsis"/></svg></button><div class="menu" role="menu" hidden><button type="button" role="menuitem" data-act="unknown"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-help"/></svg>Desconocido</button><button type="button" role="menuitem" data-act="na"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ban"/></svg>No aplica</button><button type="button" role="menuitem" data-act="evidence"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-clip"/></svg>Agregar evidencia</button><hr role="separator"><button type="button" role="menuitem" data-act="clear"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-undo"/></svg>Dejar sin dato</button></div></div></div><p class="ev" hidden></p><p class="ferr" id="ferr-vida-15" role="alert" hidden>Escribe solo números, por ejemplo 24</p></div></div></div><div role="tabpanel" class="ppanel is-off" id="pp-75" aria-labelledby="pt-75" data-ppanel="75"><div class="rows"><div class="attr" data-attr id="x-peso-75" data-key="peso" data-label="Peso neto" data-type="number" data-topic="Por presentación" data-unit="kg" data-state="value" data-pres-label="7.5 kg" data-pres="75"><div class="a-lab"><label for="f-peso-75">Peso neto</label><span class="badge neutral sin">Sin dato</span></div><div class="a-ctl"><div class="val"><div class="unit"><input type="text" inputmode="decimal" id="f-peso-75" value="7.5" aria-describedby="ferr-peso-75"><span>kg</span></div></div><div class="stateview"><span class="sv-t">Desconocido</span><button type="button" class="link" data-act="value">Poner valor</button></div><div class="menu-wrap "><button type="button" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Opciones de Peso neto · 7.5 kg"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ellipsis"/></svg></button><div class="menu" role="menu" hidden><button type="button" role="menuitem" data-act="unknown"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-help"/></svg>Desconocido</button><button type="button" role="menuitem" data-act="na"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ban"/></svg>No aplica</button><button type="button" role="menuitem" data-act="evidence"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-clip"/></svg>Agregar evidencia</button><hr role="separator"><button type="button" role="menuitem" data-act="clear"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-undo"/></svg>Dejar sin dato</button></div></div></div><p class="ev" hidden></p><p class="ferr" id="ferr-peso-75" role="alert" hidden>Escribe solo números, por ejemplo 24</p></div><div class="attr" data-attr id="x-vida-75" data-key="vida" data-label="Vida útil" data-type="number" data-topic="Por presentación" data-unit="meses" data-state="value" data-pres-label="7.5 kg" data-pres="75"><div class="a-lab"><label for="f-vida-75">Vida útil</label><span class="badge neutral sin">Sin dato</span></div><div class="a-ctl"><div class="val"><div class="unit"><input type="text" inputmode="decimal" id="f-vida-75" value="" aria-describedby="ferr-vida-75"><span>meses</span></div></div><div class="stateview"><span class="sv-t">Desconocido</span><button type="button" class="link" data-act="value">Poner valor</button></div><div class="menu-wrap "><button type="button" class="icon-btn" aria-haspopup="menu" aria-expanded="false" aria-label="Opciones de Vida útil · 7.5 kg"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ellipsis"/></svg></button><div class="menu" role="menu" hidden><button type="button" role="menuitem" data-act="unknown"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-help"/></svg>Desconocido</button><button type="button" role="menuitem" data-act="na"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ban"/></svg>No aplica</button><button type="button" role="menuitem" data-act="evidence"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-clip"/></svg>Agregar evidencia</button><hr role="separator"><button type="button" role="menuitem" data-act="clear"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-undo"/></svg>Dejar sin dato</button></div></div></div><p class="ev" hidden></p><p class="ferr" id="ferr-vida-75" role="alert" hidden>Escribe solo números, por ejemplo 24</p></div></div></div>
+    </section>
+    <details class="fold" id="s-publicar"><summary>Completar para publicar<span class="badge">Opcional por ahora</span><svg class="icon chev" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chev-d"/></svg></summary>
+      <div class="inner"><fieldset class="decl"><legend>Presentación 15 kg</legend>
+          <div class="rows">
+            <div class="drow"><span class="lbl" id="co-15">Es consumible</span><div class="seg" role="radiogroup" aria-labelledby="co-15"><label><input type="radio" name="co-15" value="Sí" checked><span>Sí</span></label><label><input type="radio" name="co-15" value="No"><span>No</span></label></div></div>
+            <div class="drow"><span class="lbl" id="an-15">Se aplica al animal</span><div class="seg" role="radiogroup" aria-labelledby="an-15"><label><input type="radio" name="an-15" value="Sí" checked><span>Sí</span></label><label><input type="radio" name="an-15" value="No"><span>No</span></label></div></div>
+            <div class="drow"><label for="mg-15">Contenido</label><div class="range2"><select aria-label="Tipo de medida de 15 kg"><option selected>Peso</option><option>Volumen</option><option>Piezas</option><option>Longitud</option><option>Área</option></select><div class="unit"><input type="text" inputmode="decimal" id="mg-15" value="15"><span>kg</span></div></div></div>
+            <div class="drow"><label for="tp-15">Tipo de presentación</label><select id="tp-15"><option value="">Elige una opción</option><option selected>Bolsa</option><option>Lata</option><option>Caja</option><option>Botella</option><option>Pieza</option></select></div>
+            <div class="care" hidden>
+              <div class="drow"><label for="rq-15">Requisitos de cuidado</label><textarea id="rq-15" style="min-height:96px"></textarea></div>
+              <div class="drow"><label for="ad-15">Advertencias</label><textarea id="ad-15" style="min-height:96px"></textarea></div>
+            </div>
+          </div></fieldset><fieldset class="decl"><legend>Presentación 7.5 kg</legend>
+          <div class="rows">
+            <div class="drow"><span class="lbl" id="co-75">Es consumible</span><div class="seg" role="radiogroup" aria-labelledby="co-75"><label><input type="radio" name="co-75" value="Sí" checked><span>Sí</span></label><label><input type="radio" name="co-75" value="No"><span>No</span></label></div></div>
+            <div class="drow"><span class="lbl" id="an-75">Se aplica al animal</span><div class="seg" role="radiogroup" aria-labelledby="an-75"><label><input type="radio" name="an-75" value="Sí"><span>Sí</span></label><label><input type="radio" name="an-75" value="No"><span>No</span></label></div></div>
+            <div class="drow"><label for="mg-75">Contenido</label><div class="range2"><select aria-label="Tipo de medida de 7.5 kg"><option selected>Peso</option><option>Volumen</option><option>Piezas</option><option>Longitud</option><option>Área</option></select><div class="unit"><input type="text" inputmode="decimal" id="mg-75" value="7.5"><span>kg</span></div></div></div>
+            <div class="drow"><label for="tp-75">Tipo de presentación</label><select id="tp-75"><option value="">Elige una opción</option><option>Bolsa</option><option>Lata</option><option>Caja</option><option>Botella</option><option>Pieza</option></select></div>
+            <div class="care" hidden>
+              <div class="drow"><label for="rq-75">Requisitos de cuidado</label><textarea id="rq-75" style="min-height:96px"></textarea></div>
+              <div class="drow"><label for="ad-75">Advertencias</label><textarea id="ad-75" style="min-height:96px"></textarea></div>
+            </div>
+          </div></fieldset></div></details>
+  </div>
+  <aside class="preview" aria-labelledby="pv-h">
+    <div class="pv-top"><h2 id="pv-h">Vista previa · aún no publicada</h2></div>
+    <div class="pv-body">
+      <div class="pv-img" aria-hidden="true"><svg class="icon big" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-package"/></svg></div>
+      <p class="pv-brand">Pro Plan · <span id="pv-fam">Alimento</span></p>
+      <h3 id="pv-title"></h3>
+      <div class="pv-pres" role="group" aria-label="Presentaciones"><button type="button" class="btn" data-pv-pres="15" aria-pressed="true">15 kg</button><button type="button" class="btn" data-pv-pres="75" aria-pressed="false">7.5 kg</button></div>
+      <p class="pv-desc" id="pv-desc"></p>
+      <h4>Ficha técnica</h4>
+      <dl id="pv-dl"></dl>
+    </div>
+  </aside>
+</div></div>
+    </div>
+    <footer class="foot" data-show="edit saved error">
+      <div class="save" aria-live="polite">
+        <span data-show="edit" style="display:inline-flex;align-items:center;gap:8px"><i class="dotw"></i><b style="color:var(--hf-ink)">Cambios sin guardar</b> · último guardado 3 nov, 20:43</span>
+        <span data-show="saved"><b class="ok">Guardado</b> · <span id="saved-at">4 nov, 10:32</span></span>
+        <span data-show="error" class="bad">No se guardó · corrige 1 campo</span>
+      </div>
+      <button type="button" class="btn primary" id="save">Guardar</button>
+    </footer>
+  </div>
+</div>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="history" role="dialog" aria-modal="true" aria-labelledby="hist-t" hidden>
+  <header><h2 id="hist-t">Historial</h2><button type="button" class="icon-btn" id="hist-close" aria-label="Cerrar historial"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-x"/></svg></button></header>
+  <div class="body">
+    <section aria-labelledby="h1t"><h3 id="h1t">Lo que hay guardado</h3>
+      <div class="hist-row"><div><strong>Borrador</strong><small>Guardado el 3 nov, 20:43 por Mariana Ruiz</small></div><span class="badge">Borrador</span></div>
+      <div class="hist-row"><div><strong>Versión publicada</strong><small>Publicada el 28 oct, 11:05</small></div><span class="badge info">Publicada</span></div>
+    </section>
+    <section aria-labelledby="h2t"><h3 id="h2t">Cambios del borrador frente a lo publicado</h3>
+      <ul class="diff">
+        <li><span class="w">Título comercial</span><span class="was">Alimento Pro Plan Adulto 15 kg</span><span class="now">Alimento Premium para Perro Adulto 15 kg</span></li>
+        <li><span class="w">Descripción</span><span class="now">Se agregaron dos párrafos sobre ingredientes y porciones.</span></li>
+        <li><span class="w">Ficha técnica</span><span class="now">6 datos nuevos: Especie, Etapa de vida, Tamaño de raza, Sabor principal, Proteína mínima e Ingredientes principales.</span></li>
+        <li><span class="w">Por presentación</span><span class="now">Peso neto agregado en las 2 presentaciones.</span></li>
+      </ul>
+    </section>
+  </div>
+</aside>
+
+<dialog id="dlg-family" aria-labelledby="df-t"><h2 id="df-t">¿Cambiar la familia a <span id="fam-new">Cuidado</span>?</h2>
+  <p>La familia decide qué datos aplican. Se borrarán los <span id="fam-count" class="fig">8</span> datos de la ficha técnica. El título y la descripción no cambian.</p>
+  <div class="actions"><button type="button" class="btn" data-close>Cancelar</button><button type="button" class="btn danger" id="fam-ok">Cambiar familia</button></div></dialog>
+<dialog id="dlg-discard" aria-labelledby="dd-t"><h2 id="dd-t">¿Descartar el borrador?</h2>
+  <p>Se pierden los cambios guardados y los que no has guardado. Lo publicado no cambia.</p>
+  <div class="actions"><button type="button" class="btn" data-close>Cancelar</button><button type="button" class="btn danger" id="discard-ok">Descartar borrador</button></div></dialog>
+<dialog id="dlg-ev" aria-labelledby="de-t"><h2 id="de-t">Evidencia de <span id="ev-name">dato</span></h2>
+  <p>Solo la ve tu equipo. No aparece en el catálogo.</p>
+  <form id="ev-form" method="dialog"><div class="fields">
+    <div class="field"><label for="ev-src">Fuente</label><input type="text" id="ev-src" placeholder="Ficha del proveedor"></div>
+    <div class="field"><label for="ev-date">Fecha</label><input type="text" id="ev-date" placeholder="12 oct"></div></div>
+    <div class="actions"><button type="button" class="btn" data-close>Cancelar</button><button type="submit" class="btn primary">Guardar evidencia</button></div></form></dialog>
+<script>window.PCE_CFG={};</script>
+<script>
+(()=>{
+const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+const PCE=window.PCE={hooks:[],cfg:window.PCE_CFG||{}};
+let state='edit',lastOpener=null,family='Alimento',pendingFamily=null;
+const fam=$('#family');
+/* theme */
+$('#theme').addEventListener('click',e=>{const d=document.documentElement.classList.toggle('dark');e.currentTarget.setAttribute('aria-pressed',d);e.currentTarget.textContent=d?'Tema claro':'Tema oscuro'});
+/* visibility by state */
+function showState(s){
+  state=s;document.body.dataset.state=s;
+  $$('[data-show]').forEach(e=>{e.hidden=!e.dataset.show.split(' ').includes(s)});
+  $$('[data-set-state]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.setState===s)));
+  PCE.refresh();
+}
+PCE.state=()=>state;
+/* attribute model */
+const live=()=>$$('[data-attr]').filter(a=>!a.closest('[hidden]'));
+function hasValue(a){
+  const t=a.dataset.type;
+  if(t==='single'||t==='yesno'){const s=$('select',a);if(s)return !!s.value;return !!$('input[type=radio]:checked',a)}
+  if(t==='multi'){return $$('input[type=checkbox]:checked',a).length>0||!!($('input[type=text]',a)&&$('input[type=text]',a).value.trim())}
+  if(t==='range')return $$('input',a).some(i=>i.value.trim());
+  const i=$('input[type=text]',a);return !!(i&&i.value.trim());
+}
+function eff(a){const s=a.dataset.state;if(s==='unknown'||s==='na')return s;return hasValue(a)?'value':'none'}
+const LAB={value:'Con dato',none:'Sin dato',unknown:'Desconocido',na:'No aplica'};
+const TONE={value:'success',none:'neutral',unknown:'neutral',na:'neutral'};
+function readValue(a){
+  const t=a.dataset.type,u=a.dataset.unit;
+  if(t==='single'){const s=$('select',a);return s.value}
+  if(t==='yesno'){const s=$('select',a);if(s)return s.value;const r=$('input[type=radio]:checked',a);return r?r.value:''}
+  if(t==='multi'){const c=$$('input[type=checkbox]:checked',a).map(i=>i.value);if(c.length)return c.join(', ');const x=$('input[type=text]',a);return x?x.value.trim():''}
+  if(t==='range'){const [a1,b1]=$$('input',a).map(i=>i.value.trim());if(a1&&b1)return a1+'–'+b1+' '+u;if(a1)return 'Desde '+a1+' '+u;if(b1)return 'Hasta '+b1+' '+u;return ''}
+  const i=$('input[type=text]',a).value.trim();return i&&t==='number'?i+' '+u:i;
+}
+PCE.eff=eff;PCE.readValue=readValue;PCE.live=live;
+PCE.icon=(name,cls)=>{const s=$('#tpl-icon').cloneNode(true);s.removeAttribute('id');s.setAttribute('class',cls||'icon');$('use',s).setAttribute('href','#i-'+name);return s};
+function renderEv(a){
+  const src=a.dataset.evSrc,date=a.dataset.evDate;
+  const p=$('.ev',a);
+  if(p){
+    if(src&&eff(a)==='value'){p.hidden=false;p.replaceChildren();const sp=document.createElement('span');sp.textContent='Evidencia interna · '+src+(date?', '+date:'');const b=document.createElement('button');b.type='button';b.className='link';b.dataset.act='evidence';b.textContent='Editar';p.append(PCE.icon('clip'),sp,b)}
+    else p.hidden=true;
+  }
+}
+function refreshAttr(a){
+  const e=eff(a);a.dataset.eff=e;
+  const sv=$('.sv-t',a);if(sv)sv.textContent=LAB[e];
+  const chip=$('.chip',a);
+  if(chip){chip.className='chip badge '+TONE[e];chip.replaceChildren();const ev=a.dataset.evSrc&&e==='value';if(ev)chip.appendChild(PCE.icon('clip','icon sm'));chip.append(LAB[e]);const cb=chip.closest('button');if(cb)cb.setAttribute('aria-label',(a.dataset.label||'')+(a.dataset.presLabel?' · '+a.dataset.presLabel:'')+': '+LAB[e]+(ev?', con evidencia interna':'')+'. Cambiar estado')}
+  $$('.menu [data-act=evidence]',a).forEach(b=>{b.disabled=e!=='value'});
+  renderEv(a);
+}
+/* counts */
+PCE.counts=()=>{const l=live();const ans=l.filter(a=>eff(a)!=='none').length;return {ans,total:l.length,pend:l.length-ans}};
+/* validation */
+const NUM=/^\d+([.,]\d+)?$/;
+function validate(){
+  let bad=[];
+  const t=$('#title');
+  if(t){const over=t.value.length>200;t.setAttribute('aria-invalid',over?'true':'false');if(!over)t.removeAttribute('aria-invalid');
+    const te=$('#title-err');if(te){te.hidden=!over;te.textContent=over?'El título tiene '+t.value.length+' caracteres. El máximo es 200.':''}
+    const tc=$('#title-count');if(tc){const n=t.value.length;tc.hidden=n<180;tc.textContent=n+' / 200';tc.classList.toggle('over',n>=200)}
+    if(over)bad.push(t)}
+  const d=$('#desc'),dc=$('#desc-count');if(d&&dc){const n=d.value.length;dc.hidden=n<18000;dc.textContent=n.toLocaleString('es-MX')+' / 20,000';dc.classList.toggle('over',n>=20000)}
+  live().filter(a=>a.dataset.type==='number'&&a.dataset.state==='value').forEach(a=>{
+    const i=$('input[type=text]',a),e=$('.ferr',a);const v=i.value.trim();const badv=v&&!NUM.test(v);
+    if(badv){i.setAttribute('aria-invalid','true');bad.push(i)}else i.removeAttribute('aria-invalid');
+    if(e)e.hidden=!badv;
+  });
+  return bad;
+}
+PCE.validate=validate;
+/* refresh */
+PCE.refresh=()=>{
+  live().forEach(refreshAttr);
+  const c=PCE.counts();
+  $$('[data-steps]').forEach(ol=>{
+    const [s1,s2]=$$('li',ol);const dirty=state==='edit'||state==='error';
+    const cur=c.pend>0?1:(dirty?2:3);
+    $('.n',s1).textContent=c.pend>0?' · '+c.pend+(c.pend===1?' pendiente':' pendientes'):'';
+    s1.className=cur>1?'done':'current';s2.className=cur>2?'done':(cur===2?'current':'');
+    $$('.c',ol).forEach((el,i)=>{const done=$$('li',ol)[i].classList.contains('done');el.replaceChildren(done?PCE.icon('check'):document.createTextNode(String(i+1)))});
+    $$('li',ol).forEach(li=>li.removeAttribute('aria-current'));const curli=$('li.current',ol);if(curli)curli.setAttribute('aria-current','step');
+  });
+  PCE.hooks.forEach(f=>f(c));
+};
+/* menus */
+function closeMenus(except){$$('[aria-haspopup][aria-expanded="true"]').forEach(b=>{if(b!==except){b.setAttribute('aria-expanded','false');const m=b.nextElementSibling;if(m)m.hidden=true}})}
+document.addEventListener('click',e=>{
+  const trig=e.target.closest('[aria-haspopup]');
+  closeMenus(trig);
+  if(trig){
+    const m=trig.nextElementSibling,open=trig.getAttribute('aria-expanded')==='true';
+    trig.setAttribute('aria-expanded',String(!open));m.hidden=open;
+    if(!open){m.classList.remove('up');const sc=$('#scroll'),r=m.getBoundingClientRect(),lim=Math.min(innerHeight-72,sc?sc.getBoundingClientRect().bottom:innerHeight);if(r.bottom>lim)m.classList.add('up');
+      const f=$('button:not(:disabled)',m);if(f&&e.detail===0)f.focus()}
+    return;
+  }
+  const act=e.target.closest('[data-act]');
+  if(act)onAct(act);
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){const o=$('[aria-haspopup][aria-expanded="true"]');if(o){closeMenus();o.focus();return}if(!$('#history').hidden)closeHistory()}
+  const m=e.target.closest&&e.target.closest('.menu');
+  if(m&&(e.key==='ArrowDown'||e.key==='ArrowUp')){e.preventDefault();const it=$$('button:not(:disabled)',m);let i=it.indexOf(document.activeElement);i=e.key==='ArrowDown'?(i+1)%it.length:(i-1+it.length)%it.length;it[i].focus()}
+});
+function setDirty(){if(state==='saved')showState('edit');}
+function onAct(b){
+  const act=b.dataset.act,a=b.closest('[data-attr]');
+  closeMenus();
+  if(act==='history'){openHistory(b);return}
+  if(act==='discard'){openDlg('dlg-discard');return}
+  if(act==='extra'){const x=$('#'+b.dataset.target);if(x){x.hidden=false;if(x.tagName==='TR'){x.hidden=false}b.disabled=true;const c=$('input,select',x);if(c)c.focus();setDirty();PCE.refresh();(PCE.afterExtra||(()=>{}))(x)}return}
+  if(!a)return;
+  if(act==='unknown'||act==='na'){a.dataset.state=act}
+  if(act==='value'){a.dataset.state='value';const c=$('input,select',$('.val',a));if(c)c.focus()}
+  if(act==='clear'){a.dataset.state='value';$$('input[type=text]',a).forEach(i=>i.value='');$$('select',a).forEach(s=>s.value='');$$('input[type=checkbox],input[type=radio]',a).forEach(i=>i.checked=false);delete a.dataset.evSrc;delete a.dataset.evDate}
+  if(act==='evidence'){openEvidence(a);return}
+  setDirty();validate();PCE.refresh();
+}
+/* evidence dialog */
+let evTarget=null;
+function openEvidence(a){evTarget=a;$('#ev-name').textContent=a.dataset.label+(a.dataset.presLabel?' · '+a.dataset.presLabel:'');$('#ev-src').value=a.dataset.evSrc||'';$('#ev-date').value=a.dataset.evDate||'';$('#dlg-ev').showModal();}
+$('#ev-form').addEventListener('submit',e=>{
+  e.preventDefault();if(!evTarget)return;
+  evTarget.dataset.evSrc=$('#ev-src').value.trim();evTarget.dataset.evDate=$('#ev-date').value.trim();
+  if(!evTarget.dataset.evSrc)delete evTarget.dataset.evSrc;
+  $('#dlg-ev').close();setDirty();PCE.refresh();
+});
+/* dialogs */
+function openDlg(id){const d=$('#'+id);lastOpener=document.activeElement;d.showModal()}
+$$('dialog').forEach(d=>{d.addEventListener('click',e=>{if(e.target===d)d.close()});$$('[data-close]',d).forEach(b=>b.addEventListener('click',()=>d.close()))});
+if(fam){
+  fam.addEventListener('change',()=>{
+    if(fam.value===family)return;
+    pendingFamily=fam.value;fam.value=family;
+    $('#fam-new').textContent=pendingFamily;
+    $('#fam-count').textContent=PCE.counts().ans;
+    openDlg('dlg-family');
+  });
+  $('#fam-ok').addEventListener('click',()=>{
+    family=pendingFamily;fam.value=family;
+    live().forEach(a=>{a.dataset.state='value';$$('input[type=text]',a).forEach(i=>i.value='');$$('select',a).forEach(s=>s.value='');$$('input[type=checkbox],input[type=radio]',a).forEach(i=>i.checked=false);delete a.dataset.evSrc;delete a.dataset.evDate});
+    $('#dlg-family').close();
+    $$('.care').forEach(c=>c.hidden=family!=='Cuidado');
+    setDirty();validate();PCE.refresh();
+  });
+}
+$('#discard-ok').addEventListener('click',()=>{$('#dlg-discard').close();showState('emptypub')});
+/* history drawer */
+function openHistory(op){lastOpener=op||document.activeElement;$('#history').hidden=false;$('#scrim').hidden=false;$('#hist-close').focus()}
+function closeHistory(){$('#history').hidden=true;$('#scrim').hidden=true;if(lastOpener&&document.contains(lastOpener))lastOpener.focus()}
+$('#hist-close').addEventListener('click',closeHistory);$('#scrim').addEventListener('click',closeHistory);
+$$('[data-open-history]').forEach(b=>b.addEventListener('click',()=>openHistory(b)));
+/* state switcher */
+const ORIG=$('#title')?$('#title').value:'';
+const LONG='Alimento Premium para Perro Adulto de Raza Mediana y Grande con Pollo, Arroz y Cebada, Receta Balanceada con Proteína de Alta Calidad para Mantener Peso Saludable, Digestión Equilibrada y Pelaje Brillante, Bolsa de 15 kilogramos';
+function setCellError(on){const a=$('#'+(PCE.cfg.errCell||'x-proteina'));if(!a)return;const i=$('input[type=text]',a);if(on){a.dataset.keep=i.value;i.value='24x'}else if(a.dataset.keep!==undefined){i.value=a.dataset.keep;delete a.dataset.keep}}
+function go(s){
+  if(s==='error'){
+    if(PCE.cfg.errorMode==='cell'){setCellError(true)}else{const t=$('#title');t.value=LONG}
+    showState('error');validate();return;
+  }
+  if(PCE.cfg.errorMode==='cell')setCellError(false);else{const t=$('#title');if(t&&t.value.length>200)t.value=ORIG}
+  showState(s);validate();
+}
+$$('[data-set-state]').forEach(b=>b.addEventListener('click',()=>{go(b.dataset.setState);if(b.dataset.setState==='error'){const bad=validate();if(bad[0])bad[0].scrollIntoView({block:'center'})}}));
+$$('[data-start]').forEach(b=>b.addEventListener('click',()=>{go('edit')}));
+document.addEventListener('input',e=>{
+  if(!e.target.closest('#editor'))return;
+  const bad=validate();
+  if(state==='error'&&!bad.length)showState('edit');else if(state==='saved')showState('edit');
+  PCE.refresh();
+});
+document.addEventListener('change',e=>{if(e.target.closest('#editor')&&e.target!==fam){if(state==='saved')showState('edit');PCE.refresh()}});
+$('#save').addEventListener('click',()=>{
+  const bad=validate();
+  if(bad.length){showState('error');bad[0].scrollIntoView({block:'center'});bad[0].focus();return}
+  $('#saved-at').textContent='4 nov, 10:32';showState('saved');
+});
+PCE.go=go;PCE.showState=showState;
+window.addEventListener('DOMContentLoaded',()=>{validate();showState('edit')});
+})();
+</script>
+<script>
+(()=>{
+const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+let pres='15';
+function setPres(p,focus){
+  pres=p;
+  $$('[data-pres-tab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.presTab===p)));
+  $$('[data-ppanel]').forEach(x=>x.classList.toggle('is-off',x.dataset.ppanel!==p));
+  $$('[data-pv-pres]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.pvPres===p)));
+  PCE.refresh();
+}
+$$('[data-pres-tab]').forEach(b=>b.addEventListener('click',()=>setPres(b.dataset.presTab)));
+$$('[data-pv-pres]').forEach(b=>b.addEventListener('click',()=>setPres(b.dataset.pvPres)));
+function goto(a){
+  if(a.dataset.pres&&a.dataset.pres!==pres)setPres(a.dataset.pres);
+  a.scrollIntoView({block:'center'});const c=$('input,select',a);if(c)c.focus();
+}
+PCE.afterExtra=x=>{x.scrollIntoView({block:'center'})};
+PCE.hooks.push(c=>{
+  $('#kA').textContent=c.ans;$('#kT').textContent=c.total;$('#kBar').style.width=(c.total?c.ans/c.total*100:0)+'%';
+  const l=PCE.live(),pend=l.filter(a=>PCE.eff(a)==='none');
+  const byKey={};pend.forEach(a=>{(byKey[a.dataset.key]=byKey[a.dataset.key]||[]).push(a)});
+  const ul=$('#pendlist');ul.replaceChildren();
+  Object.values(byKey).forEach(g=>{
+    const a=g[0],li=document.createElement('li');
+    const sp=document.createElement('span'),b=document.createElement('button');b.type='button';b.className='link';
+    sp.textContent=g.length>1?'Falta '+a.dataset.label+' en '+g.length+' presentaciones':'Falta '+a.dataset.label;
+    li.append(PCE.icon('alert','icon sm'),sp,b);
+    b.textContent='Ir a '+a.dataset.label;b.addEventListener('click',()=>goto(a));ul.appendChild(li);
+  });
+  $('#chk').classList.toggle('clear',pend.length===0);
+  PRES_LIST.forEach(p=>{const n=pend.filter(a=>a.dataset.pres===p).length,el=$('[data-pcnt="'+p+'"]');el.className='cnt'+(n?' pend':'');el.textContent=n?'Falta '+n:''});
+  /* preview */
+  $('#pv-title').textContent=$('#title').value.trim()||'Sin título';
+  $('#pv-fam').textContent=$('#family').value;
+  const d=$('#desc').value.trim();$('#pv-desc').textContent=d||'';
+  const dl=$('#pv-dl');dl.replaceChildren();let any=false;
+  const add=(g,items)=>{const rows=items.filter(a=>PCE.eff(a)==='value'&&PCE.readValue(a));if(!rows.length)return;any=true;
+    const h=document.createElement('p');h.className='g';h.textContent=g;dl.appendChild(h);
+    rows.forEach(a=>{const r=document.createElement('div');r.className='r';const t=document.createElement('dt'),v=document.createElement('dd');t.textContent=a.dataset.label;v.textContent=PCE.readValue(a);r.append(t,v);dl.appendChild(r)})};
+  ['Para quién','Sabor y tipo','Composición'].forEach(t=>add(t,l.filter(a=>!a.dataset.pres&&a.dataset.topic===t)));
+  add('Presentación '+(pres==='15'?'15 kg':'7.5 kg'),l.filter(a=>a.dataset.pres===pres));
+  if(!any){const p=document.createElement('p');p.className='pv-empty';p.textContent='Aún no hay datos para mostrar.';dl.appendChild(p)}
+});
+const PRES_LIST=['15','75'];
+})();
+</script>
+</body>
+</html>
