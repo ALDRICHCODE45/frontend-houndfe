@@ -27,6 +27,7 @@ Shared pieces:
   - Never commit `auto-imports.d.ts` or `components.d.ts`.
   - Never run `git checkout`, `reset`, `stash` or `rm` on other people's files.
   - If `.git/index.lock` is busy, wait a few seconds and retry.
+  - The index is shared: always commit with an explicit pathspec, `git commit -m "..." -- <your paths>`. Never run a bare `git commit`. Commit each `git rm` right away, with its pathspec.
 - **Crash recovery:** a previous run crashed, so your surfaces may hold partial UNCOMMITTED work. Start with `git status --short -- <your surfaces>` and `git diff -- <your surfaces>`. Keep what is correct and continue from it. Do not throw it away.
 - **Commit early and often:** make a reviewable Conventional Commit, about 400 changed lines with its tests, every time a screen is green. A crash must lose at most one screen. Example: `feat(ui): migrate <feature> lists to the shared table pattern`.
 - **Scope:** "Visual + estructura" means style, hierarchy, layouts, tables and forms with the new patterns. Do NOT change any business flow, field, API, permission or calculation.
