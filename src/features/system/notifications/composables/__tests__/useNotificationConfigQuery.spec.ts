@@ -42,6 +42,7 @@ async function setupQueryReturn(data: unknown) {
     isLoading: ref(false),
     isError: ref(false),
     error: ref(null),
+    refetch: vi.fn(),
   } as never)
 }
 
@@ -87,6 +88,12 @@ describe('useNotificationConfigQuery', () => {
     expect(data.value).toEqual(fromConfigResponse(backend))
     // Specifically: the GET view key "recipients" is NEVER visible.
     expect((data.value as unknown as Record<string, unknown>)?.recipients).toBeUndefined()
+  })
+
+  it('exposes the query refetch so the error state can retry', async () => {
+    await setupQueryReturn(null)
+    const { refetch } = useNotificationConfigQuery(() => 'tenant-1')
+    expect(typeof refetch).toBe('function')
   })
 
   it('exposes isLoading, isError, error passthroughs from useQuery', async () => {

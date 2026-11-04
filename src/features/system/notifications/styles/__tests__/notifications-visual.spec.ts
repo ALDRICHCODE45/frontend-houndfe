@@ -9,30 +9,30 @@ const view = read('views/NotificationConfigView.vue')
 const copy = read('copy.ts')
 const recipients = read('components/RecipientSelect.vue')
 
-const formPortal = 'hf-theme hf-ui hf-form-overlay notifications-form-portal'
+const formPortal = 'hf-theme hf-ui hf-form-overlay'
 
 // Source contracts, not rendered geometry or browser fidelity evidence.
 describe('Notificaciones presentation adapter', () => {
-  it('loads a scoped adapter with light and dark palettes', () => {
+  it('reuses the shared hf roles without a local palette', () => {
     expect(css).toContain("@import '../../../../core/shared/design-system/houndfe-ui.css'")
     expect(css).not.toContain(':root')
     expect(css).not.toContain('!important')
-    for (const marker of ['notifications-visual', 'notifications-form-portal']) {
-      expect(css).toContain(`.hf-theme.${marker}`)
-      expect(css).toContain(`.dark .hf-theme.${marker}`)
-    }
+    expect(css).not.toMatch(/#[\da-f]{3,8}\b/i)
+    expect(css).not.toContain('.dark')
+    expect(css).toContain('--ui-warning: var(--hf-warning)')
+    expect(recipients).not.toContain('notifications-form-portal')
   })
 
-  it('adds the canonical page header and centers the page at the Caja width', () => {
+  it('adds the canonical page header, with no subtitle, centered at the Caja width', () => {
     expect(view).toContain("import '../styles/notifications-visual.css'")
     expect(view).toContain('hf-theme hf-ui notifications-visual')
     expect(view).toContain('mx-auto')
     expect(view).toContain('max-w-[1320px]')
     expect(view).toContain('class="hf-page-header"')
     expect(view).toContain('NOTIFICATION_CONFIG_COPY.pageTitle')
-    expect(view).toContain('NOTIFICATION_CONFIG_COPY.pageSubtitle')
+    expect(view).not.toContain('hf-page-subtitle')
     expect(copy).toContain("pageTitle: 'Configuración de notificaciones'")
-    expect(copy).toContain("pageSubtitle: 'Elige quién recibe notificaciones y qué acciones las disparan.'")
+    expect(copy).not.toMatch(/pageSubtitle|masterDescription|recipientsDescription|actionsDescription/)
   })
 
   it('paints the three section cards through an owned surface hook', () => {

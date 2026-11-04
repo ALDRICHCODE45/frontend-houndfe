@@ -1,53 +1,11 @@
 @import '../../../../core/shared/design-system/houndfe-ui.css';
 
-/* Notification settings and the teleported recipient menu.
- * Owned portals repeat the approved shell palette because they cannot
- * inherit it after teleport. This local bridge does not change the shared
- * shell or other modules' contracts. */
-.hf-theme.notifications-visual,
-.hf-theme.notifications-form-portal {
-  --hf-page: #f3f6fa;
-  --hf-surface: #ffffff;
-  --hf-surface-muted: #eaf0f8;
-  --hf-field: #f3f6fa;
-  --hf-ink: #1e3555;
-  --hf-heading: #1e3555;
-  --hf-muted: #63748b;
-  --hf-border: #dce3ed;
-  --hf-action: #315ce7;
-  --hf-on-action: #ffffff;
-  --hf-active: #315ce7;
-  --hf-active-soft: #e9effd;
-  --hf-focus: #315ce7;
-  --radius-sm: 6px;
-  --radius-md: var(--hf-radius-control);
-  --radius-lg: var(--hf-radius-card);
-  --radius-xl: var(--hf-radius-card);
-  --radius-2xl: 16px;
-  --radius-3xl: 20px;
-}
-
-.dark .hf-theme.notifications-visual,
-.dark .hf-theme.notifications-form-portal {
-  --hf-page: #101720;
-  --hf-surface: #1b2736;
-  --hf-surface-muted: #223044;
-  --hf-field: #101720;
-  --hf-ink: #e4ebf5;
-  --hf-heading: #e4ebf5;
-  --hf-muted: #9aaac0;
-  --hf-border: #2d3b4d;
-  --hf-action: #91b0ff;
-  --hf-on-action: #172b51;
-  --hf-active: #91b0ff;
-  --hf-active-soft: #253b60;
-  --hf-focus: #91b0ff;
-}
-
-.hf-theme.notifications-form-portal {
-  background-color: var(--hf-surface);
-  border-color: var(--hf-border);
-  color: var(--hf-ink);
+/* Notification settings. The palette comes from the shared `.hf-theme` roles;
+ * this file only maps Nuxt's warning role for the zero-recipient hint and
+ * paints the section cards and recipient chips. */
+.hf-theme.notifications-visual {
+  --ui-warning: var(--hf-warning);
+  --color-warning: var(--hf-warning);
 }
 
 /* ── Section cards ───────────────────────────────────────────────────────── */
@@ -57,4 +15,20 @@
   border-radius: var(--hf-radius-card);
   background-color: var(--hf-surface);
   color: var(--hf-ink);
+}
+
+/* ── Recipient chips ─────────────────────────────────────────────────────── */
+
+/* A selected recipient is neutral; one that is no longer assignable is the
+ * only pending item, so only it takes the warning tint. */
+.notifications-visual .notifications-chip {
+  border: 1px solid var(--hf-border);
+  background-color: var(--hf-surface-muted);
+  color: var(--hf-ink);
+}
+
+.notifications-visual .notifications-chip[data-stale='true'] {
+  border-color: var(--hf-warning);
+  background-color: var(--hf-warning-soft);
+  color: var(--hf-warning);
 }

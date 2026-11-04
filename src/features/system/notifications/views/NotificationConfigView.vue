@@ -30,6 +30,7 @@ import {
 } from '../composables/useNotificationConfigQuery'
 import { useNotificationConfigForm } from '../composables/useNotificationConfigForm'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import MasterToggle from '../components/MasterToggle.vue'
 import RecipientSelect from '../components/RecipientSelect.vue'
 import ActionsAccordion from '../components/ActionsAccordion.vue'
@@ -57,6 +58,16 @@ const isLoading = computed(() => query.isLoading.value)
  */
 const showZeroRecipientHint = computed(() => form.zeroRecipientViolation.value)
 
+/**
+ * The error state only replaces the form when nothing is on screen; a refetch
+ * that fails while data is shown keeps the form (keepPreviousData).
+ */
+const showError = computed(() => query.isError.value && !query.data.value)
+
+function onRetry() {
+  void query.refetch()
+}
+
 /** Whether to render the "no update perm" notice (REQ-6). */
 const showNoUpdatePerm = computed(() => !form.canUpdate.value)
 
@@ -73,11 +84,21 @@ function onSave() {
     <!-- Canonical page header (design-system §4), on the page background. -->
     <div class="hf-page-header">
       <h1 class="hf-page-title">{{ NOTIFICATION_CONFIG_COPY.pageTitle }}</h1>
-      <p class="hf-page-subtitle">{{ NOTIFICATION_CONFIG_COPY.pageSubtitle }}</p>
     </div>
 
+    <!-- Error state — nothing to show and no synthetic defaults; one way to retry. -->
+    <EmptyState
+      v-if="showError"
+      data-testid="notifications-error"
+      kind="error"
+      :title="NOTIFICATION_CONFIG_COPY.loadError"
+      action-label="Reintentar"
+      action-test-id="notifications-retry"
+      @action="onRetry"
+    />
+
     <!-- Loading state — placeholders for the three cards (REQ-9). -->
-    <template v-if="isLoading">
+    <template v-else-if="isLoading">
       <div
         v-for="i in 3"
         :key="i"
@@ -93,16 +114,11 @@ function onSave() {
       <section
         class="notifications-section rounded-lg p-6"
         data-testid="notifications-card-master"
+        :aria-label="NOTIFICATION_CONFIG_COPY.masterLabel"
       >
-        <header class="mb-4">
-          <h2 class="text-lg font-semibold text-default">
-            {{ NOTIFICATION_CONFIG_COPY.masterLabel }}
-          </h2>
-        </header>
         <MasterToggle
           :model-value="form.form.enabled"
           :label="NOTIFICATION_CONFIG_COPY.masterLabel"
-          :description="NOTIFICATION_CONFIG_COPY.masterDescription"
           @update:model-value="(v: boolean) => (form.form.enabled = v)"
         />
       </section>
@@ -113,12 +129,9 @@ function onSave() {
         data-testid="notifications-card-recipients"
       >
         <header class="mb-4">
-          <h2 class="text-lg font-semibold text-default">
+          <h2 class="text-base font-semibold text-default">
             {{ NOTIFICATION_CONFIG_COPY.recipientsLabel }}
           </h2>
-          <p class="mt-1 text-sm text-muted">
-            {{ NOTIFICATION_CONFIG_COPY.recipientsDescription }}
-          </p>
         </header>
         <RecipientSelect
           :model-value="form.form.recipientUserIds"
@@ -143,12 +156,9 @@ function onSave() {
         data-testid="notifications-card-actions"
       >
         <header class="mb-4">
-          <h2 class="text-lg font-semibold text-default">
+          <h2 class="text-base font-semibold text-default">
             {{ NOTIFICATION_CONFIG_COPY.actionsLabel }}
           </h2>
-          <p class="mt-1 text-sm text-muted">
-            {{ NOTIFICATION_CONFIG_COPY.actionsDescription }}
-          </p>
         </header>
         <ActionsAccordion
           :model-value="form.form.enabledActions"
@@ -166,13 +176,13 @@ function onSave() {
          cleanly to the right within the page flow. sticky-to-bottom keeps it
          within reach when the actions card scrolls past the viewport. -->
     <footer
-      v-if="!isLoading"
+      v-if="!isLoading && !showError"
       class="sticky bottom-0 flex items-center justify-end gap-3 py-4"
       data-testid="notifications-footer"
     >
       <p
         v-if="showNoUpdatePerm"
-        class="mr-auto text-xs text-warning"
+        class="mr-auto text-xs text-muted"
         data-testid="no-update-perm-notice"
       >
         {{ NOTIFICATION_CONFIG_COPY.noUpdatePerm }}

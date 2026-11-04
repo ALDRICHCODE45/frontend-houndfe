@@ -54,6 +54,7 @@ export function useNotificationConfigQuery(tenantId: MaybeRefOrGetter<string>) {
     isPending: query.isPending,
     isError: query.isError,
     error: query.error,
+    refetch: query.refetch,
   }
 }
 
