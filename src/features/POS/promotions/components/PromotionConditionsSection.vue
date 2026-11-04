@@ -197,7 +197,7 @@ defineExpose({ updateField })
     <!-- ── Card 2: Condiciones adicionales ──────────────────────────────── -->
     <UCard class="promotions-form-section" data-testid="conditions-section">
       <template #header>
-        <h3 class="font-semibold text-highlighted">Condiciones Adicionales</h3>
+        <h3 class="font-semibold text-highlighted">Condiciones adicionales</h3>
       </template>
 
       <div class="flex flex-col gap-5">

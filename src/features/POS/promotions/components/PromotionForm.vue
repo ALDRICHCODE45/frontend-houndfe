@@ -186,6 +186,12 @@ const overlappingTargets = computed(() =>
     formState.getTargetItems,
   ),
 )
+
+const overlapTitle = computed(() =>
+  overlappingTargets.value.length === 1
+    ? '1 objetivo en común'
+    : `${overlappingTargets.value.length} objetivos en común`,
+)
 </script>
 
 <template>
@@ -216,7 +222,7 @@ const overlappingTargets = computed(() =>
 
           <div class="flex flex-col gap-5">
             <!-- Title -->
-            <UFormField label="Nombre de la Promoción" name="title" required class="w-full">
+            <UFormField label="Nombre de la promoción" name="title" required class="w-full">
               <UInput
                 v-model="formState.title"
                 class="w-full"
@@ -263,7 +269,7 @@ const overlappingTargets = computed(() =>
                 <span class="ml-1 text-xs text-muted">(no editable)</span>
               </div>
               <!-- Create mode: interactive cards -->
-              <div v-else class="grid grid-cols-2 gap-3">
+              <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <button
                   v-for="m in [PROMOTION_METHOD.AUTOMATIC, PROMOTION_METHOD.MANUAL] as const"
                   :key="m"
@@ -326,7 +332,7 @@ const overlappingTargets = computed(() =>
           data-testid="product-discount-section"
         >
           <template #header>
-            <h3 class="font-semibold text-highlighted">Valor del Descuento</h3>
+            <h3 class="font-semibold text-highlighted">Valor del descuento</h3>
           </template>
 
           <div class="flex flex-col gap-5">
@@ -383,7 +389,7 @@ const overlappingTargets = computed(() =>
           data-testid="order-discount-section"
         >
           <template #header>
-            <h3 class="font-semibold text-highlighted">Valor del Descuento</h3>
+            <h3 class="font-semibold text-highlighted">Valor del descuento</h3>
           </template>
 
           <div class="flex flex-col gap-5">
@@ -436,13 +442,13 @@ const overlappingTargets = computed(() =>
           data-testid="buy-x-get-y-section"
         >
           <template #header>
-            <h3 class="font-semibold text-highlighted">Tipo de Promoción</h3>
+            <h3 class="font-semibold text-highlighted">Tipo de promoción</h3>
           </template>
 
           <div class="flex flex-col gap-5">
             <!-- Presets -->
             <div>
-              <p class="mb-2 text-sm font-medium text-toned">Presets rápidos</p>
+              <p class="mb-2 text-sm font-medium text-toned">Combinaciones rápidas</p>
               <div class="flex flex-wrap gap-2">
                 <button
                   v-for="preset in BUY_X_GET_Y_PRESETS"
@@ -516,7 +522,7 @@ const overlappingTargets = computed(() =>
                 :selected-items="formState.buyTargetItems"
                 :allow-variants="true"
                 :side="TARGET_SIDE.BUY"
-                label="Items de cualquiera de los siguientes"
+                label="Elementos de cualquiera de los siguientes"
                 @update:target-type="onBuyTargetTypeChange"
                 @update:selected-items="formState.buyTargetItems = $event"
               />
@@ -571,7 +577,7 @@ const overlappingTargets = computed(() =>
             icon="i-lucide-triangle-alert"
             data-testid="overlap-alert"
             class="mt-4"
-            :title="`${overlappingTargets.length} objetivo(s) en común`"
+            :title="overlapTitle"
             description="Los objetivos de compra y obtención no pueden superponerse. El backend rechazará la promoción si los mismos productos aparecen en ambos lados."
           />
         </UCard>

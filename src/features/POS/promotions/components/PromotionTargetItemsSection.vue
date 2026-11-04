@@ -68,7 +68,7 @@ const targetTypeOptions = computed(() =>
 // prominent, type-aware). Reuses the same noun map as the empty-state so
 // the wording stays consistent across the section.
 const addButtonLabel = computed(() => {
-  const noun = TARGET_TYPE_CARDS[props.targetType]?.noun ?? 'items'
+  const noun = TARGET_TYPE_CARDS[props.targetType]?.noun ?? 'elementos'
   return `Agregar ${noun}`
 })
 
@@ -106,7 +106,7 @@ function removeItem(id: string) {
 // ── Empty state text ─────────────────────────────────────────────────────────
 
 const emptyStateLabel = computed(() => {
-  const noun = TARGET_TYPE_CARDS[props.targetType]?.noun ?? 'items'
+  const noun = TARGET_TYPE_CARDS[props.targetType]?.noun ?? 'elementos'
   return `Elige los ${noun} a los que aplicará la promoción`
 })
 
@@ -133,7 +133,7 @@ defineExpose({ openModal, removeItem, onTargetTypeChange, onModalConfirm })
     <div
       role="radiogroup"
       aria-label="Tipo de objetivo de la promoción"
-      class="flex w-full gap-1 rounded-lg border border-default bg-elevated/20 p-1"
+      class="grid w-full grid-cols-2 gap-1 rounded-lg border border-default bg-elevated/20 p-1 sm:grid-cols-4"
     >
       <button
         v-for="opt in targetTypeOptions"
@@ -151,7 +151,7 @@ defineExpose({ openModal, removeItem, onTargetTypeChange, onModalConfirm })
         @click="onTargetTypeChange(opt.value)"
       >
         <UIcon :name="TARGET_TYPE_CARDS[opt.value]!.icon" class="h-4 w-4 shrink-0" />
-        <span class="w-full truncate text-xs font-medium">{{ opt.label }}</span>
+        <span class="w-full text-xs font-medium">{{ opt.label }}</span>
       </button>
     </div>
 
@@ -160,12 +160,11 @@ defineExpose({ openModal, removeItem, onTargetTypeChange, onModalConfirm })
          three flat types and to VariantsPanel for VARIANTS (Slice 2). -->
     <div class="flex">
       <UButton
-        color="primary"
-        variant="solid"
+        color="neutral"
+        variant="outline"
         size="lg"
         icon="i-lucide-plus"
         block
-        class="hf-primary-control"
         data-testid="open-target-modal"
         @click="openModal"
       >

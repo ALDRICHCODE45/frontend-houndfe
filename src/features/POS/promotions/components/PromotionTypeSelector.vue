@@ -37,7 +37,7 @@ defineExpose({ selectType })
 <template>
   <UModal
     v-model:open="open"
-    title="Elige el Tipo de Promoción"
+    title="Elige el tipo de promoción"
     :ui="
       props.portalClass
         ? { width: 'max-w-xl', content: props.portalClass }

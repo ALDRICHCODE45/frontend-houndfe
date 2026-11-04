@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
@@ -419,5 +421,38 @@ describe('PromotionForm', () => {
     })
     const alert = wrapper.find('[data-testid="overlap-alert"]')
     expect(alert.exists()).toBe(false)
+  })
+})
+
+// ── T4 review round 1 ─────────────────────────────────────────────────────────
+
+describe('PromotionForm — review round 1', () => {
+  it('uses sentence case for field and section labels', () => {
+    const product = mountForm('PRODUCT_DISCOUNT')
+    expect(product.text()).toContain('Nombre de la promoción')
+    expect(product.text()).toContain('Valor del descuento')
+    expect(product.text()).not.toMatch(/Nombre de la Promoción|Valor del Descuento/)
+
+    const bxgy = mountForm('BUY_X_GET_Y')
+    expect(bxgy.text()).toContain('Tipo de promoción')
+    expect(bxgy.text()).not.toContain('Tipo de Promoción')
+  })
+
+  it('stacks the method cards on mobile so "Aplicar automáticamente" never overflows', () => {
+    const wrapper = mountForm('PRODUCT_DISCOUNT')
+    const grid = wrapper.get('[data-testid="method-card-AUTOMATIC"]').element.parentElement!
+    expect(grid.className).toContain('grid-cols-1')
+    expect(grid.className).toContain('sm:grid-cols-2')
+  })
+
+  it('agrees the overlap alert count in number', () => {
+    const source = readFileSync(resolve(__dirname, '../PromotionForm.vue'), 'utf8')
+    expect(source).not.toContain('objetivo(s)')
+  })
+
+  it('names the quick combinations in Spanish', () => {
+    const wrapper = mountForm('BUY_X_GET_Y')
+    expect(wrapper.text()).toContain('Combinaciones rápidas')
+    expect(wrapper.text()).not.toContain('Presets')
   })
 })

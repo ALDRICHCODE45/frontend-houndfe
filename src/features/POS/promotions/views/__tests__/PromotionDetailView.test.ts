@@ -202,18 +202,25 @@ describe('PromotionDetailView — Invalid Type Guard (CRITICAL 4)', () => {
     vi.clearAllMocks()
   })
 
-  it('redirects to /pos/promociones when type param is invalid', async () => {
+  it('shows a not-found state instead of redirecting with a toast when the type is invalid', async () => {
     mockRoute.mockReturnValue({ params: { type: 'INVALID_TYPE' }, query: {} })
-    mount(PromotionDetailView, {
+    const wrapper = mount(PromotionDetailView, {
       global: {
         plugins: [[VueQueryPlugin, { queryClient: makeQueryClient() }]],
-        stubs: STUBS,
+        stubs: { ...STUBS, EmptyState: false },
         mocks: {
           useToast: () => ({ add: mockToastAdd }),
         },
       },
     })
-    await new Promise((r) => setTimeout(r, 0))
+    await flushPromises()
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(mockToastAdd).not.toHaveBeenCalled()
+    const empty = wrapper.get('[data-testid="detail-not-found"] .hf-empty-state')
+    expect(empty.attributes('data-kind')).toBe('empty')
+    expect(empty.get('.hf-empty-state__title').text()).toBe('No encontramos ese tipo de promoción')
+    expect(wrapper.find('[data-testid="promotion-form"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="detail-not-found-back"]').trigger('click')
     expect(mockPush).toHaveBeenCalledWith('/pos/promociones')
   })
 
@@ -476,7 +483,7 @@ describe('PromotionDetailView — page states (S10)', () => {
     const wrapper = mountEditUnseeded()
     const loading = wrapper.get('[data-testid="detail-loading"]')
     expect(loading.attributes('aria-busy')).toBe('true')
-    expect(loading.findAll('.animate-pulse')).toHaveLength(3)
+    expect(loading.findAll('.animate-pulse').length).toBeGreaterThanOrEqual(3)
     expect(wrapper.find('[data-testid="promotion-form"]').exists()).toBe(false)
   })
 
@@ -500,7 +507,79 @@ describe('PromotionDetailView — page states (S10)', () => {
     await wrapper.get('[data-testid="detail-error-retry"]').trigger('click')
     await flushPromises()
     expect(vi.mocked(promotionApi.getById).mock.calls.length).toBeGreaterThan(calls)
-    // The existing 404 flow still toasts and returns to the list.
+    // A failed request stays on the page: no toast, no redirect.
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(mockToastAdd).not.toHaveBeenCalled()
+  })
+})
+
+describe('PromotionDetailView — review round 1', () => {
+  function mountEditUnseeded(id = 'promo-404') {
+    mockRoute.mockReturnValue({ params: { id }, query: {} })
+    return mount(PromotionDetailView, {
+      global: {
+        plugins: [[VueQueryPlugin, { queryClient: makeQueryClient() }]],
+        stubs: { ...STUBS, EmptyState: false },
+        mocks: { useToast: () => ({ add: mockToastAdd }) },
+      },
+    })
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('not found: an empty state with a way back, no toast and no redirect', async () => {
+    vi.mocked(promotionApi.getById).mockRejectedValue(
+      Object.assign(new Error('Not found'), { response: { status: 404 } }),
+    )
+    const wrapper = mountEditUnseeded()
+    await flushPromises()
+    const empty = wrapper.get('[data-testid="detail-not-found"] .hf-empty-state')
+    expect(empty.attributes('data-kind')).toBe('empty')
+    expect(empty.get('.hf-empty-state__title').text()).toBe('No encontramos la promoción')
+    expect(wrapper.find('[data-testid="detail-error"]').exists()).toBe(false)
+    expect(mockToastAdd).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+
+    await wrapper.get('[data-testid="detail-not-found-back"]').trigger('click')
     expect(mockPush).toHaveBeenCalledWith('/pos/promociones')
+  })
+
+  it('shows no save action while loading, on error or when not found', async () => {
+    vi.mocked(promotionApi.getById).mockReturnValue(new Promise(() => {}))
+    const loading = mountEditUnseeded()
+    expect(loading.text()).not.toContain('Guardar cambios')
+    expect(loading.find('[data-testid="mobile-action-bar"]').exists()).toBe(false)
+
+    vi.mocked(promotionApi.getById).mockRejectedValue(new Error('boom'))
+    const failed = mountEditUnseeded()
+    await flushPromises()
+    expect(failed.text()).not.toContain('Guardar cambios')
+    expect(failed.find('[data-testid="mobile-action-bar"]').exists()).toBe(false)
+  })
+
+  it('loading: the skeleton is shaped like the form (type badge, name field, sections)', () => {
+    vi.mocked(promotionApi.getById).mockReturnValue(new Promise(() => {}))
+    const wrapper = mountEditUnseeded()
+    const loading = wrapper.get('[data-testid="detail-loading"]')
+    expect(loading.findAll('[data-skeleton="section"]').length).toBeGreaterThanOrEqual(3)
+    expect(loading.find('[data-skeleton="field"]').exists()).toBe(true)
+  })
+
+  it('mobile: the single primary rides in the sticky bottom bar and submits the form', () => {
+    const wrapper = mountCreate()
+    const bar = wrapper.get('[data-testid="mobile-action-bar"]')
+    expect(bar.classes()).toContain('md:hidden')
+    const submit = bar.get('button[type="submit"]')
+    expect(submit.attributes('form')).toBe('promotion-detail-form')
+    expect(submit.text()).toBe('Crear promoción')
+  })
+
+  it('the title never shares a squeezed row with the primary below md', () => {
+    const wrapper = mountCreate()
+    const header = wrapper.get('.promotions-workspace-header')
+    expect(header.get('h1').classes()).toContain('min-w-0')
+    expect(header.get('[data-testid="header-submit"]').classes()).toContain('hidden')
   })
 })

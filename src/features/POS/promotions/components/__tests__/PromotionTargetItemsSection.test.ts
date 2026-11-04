@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, it, expect, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
@@ -547,5 +549,23 @@ describe('PromotionTargetItemsSection', () => {
     const emitNames = Object.keys(wrapper.emitted()).sort()
     // Must be exactly these two — no leakage of internal events.
     expect(emitNames).toEqual(['update:selectedItems', 'update:targetType'])
+  })
+})
+
+describe('PromotionTargetItemsSection — review round 1', () => {
+  it('the add button is outline: the page keeps a single solid primary', () => {
+    const source = readFileSync(resolve(__dirname, '../PromotionTargetItemsSection.vue'), 'utf8')
+    expect(source).not.toMatch(/variant="solid"/)
+    expect(source).not.toContain('hf-primary-control')
+    expect(source).toMatch(/data-testid="open-target-modal"/)
+    expect(source).toMatch(/variant="outline"/)
+  })
+
+  it('shows the four target types in a grid that never truncates the labels', () => {
+    const wrapper = mountSection({ targetType: 'PRODUCTS', allowVariants: true })
+    const group = wrapper.get('[role="radiogroup"]')
+    expect(group.classes()).toContain('grid')
+    expect(group.classes()).toContain('grid-cols-2')
+    expect(group.html()).not.toContain('truncate')
   })
 })
