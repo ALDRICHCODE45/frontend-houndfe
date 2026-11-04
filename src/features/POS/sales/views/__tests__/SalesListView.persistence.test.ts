@@ -94,7 +94,7 @@ describe('useConfirmedSales – real localStorage persistence roundtrip', () => 
     expect(visibility.confirmedAt).toBe(true)
     expect(visibility.customer).toBe(true)
     expect(visibility.paymentStatus).toBe(true)
-    expect(visibility.paymentMethods).toBe(true)
+    expect(visibility.paymentMethods).toBe(false)
     expect(visibility.totalCents).toBe(true)
     expect(visibility.debtCents).toBe(true)
     expect(visibility.deliveryStatus).toBe(true)

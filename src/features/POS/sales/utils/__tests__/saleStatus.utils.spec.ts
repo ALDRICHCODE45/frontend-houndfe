@@ -21,6 +21,7 @@ import {
   deliveryStatusBadgeMap,
   getPaymentStatusBadge,
   getDeliveryStatusBadge,
+  saleBadgeTone,
 } from '../saleStatus.utils'
 import { SALE_DELIVERY_STATUS } from '../../constants/sale.constants'
 
@@ -114,5 +115,22 @@ describe('saleStatus.utils — delivery badge map', () => {
       label: 'Desconocido',
       color: 'neutral',
     })
+  })
+})
+describe('saleStatus.utils — saleBadgeTone', () => {
+  it.each([
+    ['success', 'success'],
+    ['warning', 'warning'],
+    ['error', 'danger'],
+    ['neutral', 'neutral'],
+  ] as const)('maps the %s badge color to the %s StatusBadge tone', (color, tone) => {
+    expect(saleBadgeTone(color)).toBe(tone)
+  })
+
+  it('resolves every payment and delivery badge to a StatusBadge tone', () => {
+    const tones = ['neutral', 'info', 'success', 'warning', 'danger']
+    for (const badge of [...Object.values(paymentStatusBadgeMap), ...Object.values(deliveryStatusBadgeMap)]) {
+      expect(tones).toContain(saleBadgeTone(badge.color))
+    }
   })
 })

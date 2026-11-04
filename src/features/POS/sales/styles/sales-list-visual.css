@@ -2,8 +2,8 @@
 
 /* Sales listing visual entry.
  *
- * Opt-in presentation adapter for the Sales list, its cards and the teleported
- * popups the listing owns. Every rule is scoped under `.sales-list-visual` or
+ * Opt-in presentation adapter for the Sales list toolbar, pagination and the
+ * teleported popups the listing owns. Rows and cards are styled by the view. Every rule is scoped under `.sales-list-visual` or
  * the owned `.sales-list-portal` marker, so unmigrated screens, the sale-entry
  * workspace and the Caja pilot keep their current presentation.
  *
@@ -31,8 +31,8 @@
 
 /* From `md` up the toolbar becomes a two-row grid: search and the action
  * cluster share the first row and the filter region (chips + status tabs +
- * sort) drops to a second row, so neither the tabs nor the segmented view
- * toggle is clipped by an inline filter. Mobile keeps the shared three-region
+ * sort) drops to a second row, so the tabs are never clipped by an inline
+ * filter. Mobile keeps the shared three-region
  * stack untouched. */
 @media (min-width: 768px) {
   .sales-list-visual .hf-toolbar {
@@ -70,18 +70,6 @@
   min-height: var(--hf-control-height);
 }
 
-/* The segmented view toggle sizes to its own content and never shrinks, so its
- * labels stay on one line and the tabs do not squeeze it. */
-.sales-list-visual .sales-view-toggle {
-  width: auto;
-  flex-shrink: 0;
-}
-
-.sales-list-visual .sales-view-toggle :where(button, [role='tab']) {
-  min-width: max-content;
-  white-space: nowrap;
-}
-
 /* ── Status tabs ─────────────────────────────────────────────────────────── */
 
 /* The quick tabs keep their existing composition; the adapter only supplies
@@ -113,49 +101,6 @@
  * not the 44px toolbar control height. */
 .sales-list-visual .hf-pagination-navigation :where(button) {
   min-height: 36px;
-}
-
-/* ── Card grid ───────────────────────────────────────────────────────────── */
-
-/* `auto-fill` (not `auto-fit`) reserves every track, so a lone sale keeps its
- * card width instead of stretching across the whole workspace. */
-.sales-list-visual .sales-card-grid {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
-  gap: 0.75rem;
-  align-content: start;
-}
-
-/* Sale card surface. Restrained geometry and a single border, with no nested
- * decorative panel; the legacy hover lift is neutralised so the card stays
- * quiet. The interest is feature-owned, so another SaleCard consumer outside
- * this root is never repainted. */
-.sales-list-visual .sales-card {
-  background-color: var(--hf-surface);
-  border: 1px solid var(--hf-border);
-  border-radius: var(--hf-radius-card);
-  color: var(--hf-ink);
-  box-shadow: none;
-}
-
-.sales-list-visual .sales-card:hover {
-  transform: none;
-  box-shadow: none;
-  border-color: var(--hf-action);
-}
-
-/* Keyboard focus inside the card stays visible on the card surface itself. */
-.sales-list-visual .sales-card:focus-within {
-  border-color: var(--hf-action);
-}
-
-/* ── Numeric cells ───────────────────────────────────────────────────────── */
-
-/* Money stays readable and comparable: tabular figures on the semantic ink
- * role. The value hook is feature-owned and never reaches a shared table slot. */
-.sales-list-visual .sales-total-value {
-  color: var(--hf-ink);
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
 }
 
 /* ── Owned portal boundary ───────────────────────────────────────────────── */

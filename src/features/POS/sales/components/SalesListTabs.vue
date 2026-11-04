@@ -3,12 +3,17 @@ import type { SalesListCounts, SaleDeliveryStatus } from '../interfaces/sale.typ
 import { SALE_DELIVERY_STATUS } from '../constants/sale.constants'
 import { pendingPaymentsBadge } from '../utils/salesListTabs.utils'
 
+// Which quick tab is selected; the list owns it (it also drives the no-match state).
+export type SalesListTab = 'all' | 'pending-payments' | 'pending-delivery'
+
 withDefaults(
   defineProps<{
     counts?: SalesListCounts
+    active?: SalesListTab
   }>(),
   {
     counts: () => ({ all: 0, pendingPayments: 0, notDelivered: 0 }),
+    active: 'all',
   },
 )
 
@@ -34,20 +39,22 @@ function clearAll(): SalesListTabChange {
 <template>
   <div class="flex items-center gap-2">
     <UButton
-      variant="soft"
+      :variant="active === 'all' ? 'soft' : 'ghost'"
       color="neutral"
       class="sales-status-tab whitespace-nowrap"
       data-testid="sales-tab-all"
+      :aria-pressed="active === 'all'"
       @click="emit('change', clearAll())"
     >
       Todas ({{ counts.all }})
     </UButton>
 
     <UButton
-      variant="soft"
+      :variant="active === 'pending-payments' ? 'soft' : 'ghost'"
       color="neutral"
       class="sales-status-tab whitespace-nowrap"
       data-testid="sales-tab-pending-payments"
+      :aria-pressed="active === 'pending-payments'"
       @click="emit('change', { paymentStatus: 'PARTIAL,CREDIT' })"
     >
       <span>Pagos Pendientes</span>
@@ -61,10 +68,11 @@ function clearAll(): SalesListTabChange {
     </UButton>
 
     <UButton
-      variant="soft"
+      :variant="active === 'pending-delivery' ? 'soft' : 'ghost'"
       color="neutral"
       class="sales-status-tab whitespace-nowrap"
       data-testid="sales-tab-pending-delivery"
+      :aria-pressed="active === 'pending-delivery'"
       @click="emit('change', { deliveryStatus: SALE_DELIVERY_STATUS.PENDING })"
     >
       No Entregadas ({{ counts.notDelivered }})

@@ -10,23 +10,44 @@ describe('useSalesColumns', () => {
   it('returns all expected columns in order', () => {
     const { columns } = useSalesColumns()
 
-    expect(columns).toHaveLength(14)
+    expect(columns).toHaveLength(15)
     expect(columns.map((column) => keyOf(column))).toEqual([
       'select',
       'venta',
-      'confirmedAt',
       'customer',
       'paymentStatus',
+      'deliveryStatus',
       'paymentMethods',
       'totalCents',
       'debtCents',
+      'confirmedAt',
       'dueDate',
-      'deliveryStatus',
       'cashier',
       'seller',
       'channel',
       'invoice',
+      'actions',
     ])
+  })
+
+  it('shows at most eight columns by default, with the row menu last', () => {
+    const { columns } = useSalesColumns()
+    const visible = columns
+      .map((column) => keyOf(column) as string)
+      .filter((key) => key !== 'select' && defaultColumnVisibility[key] !== false)
+
+    expect(visible).toEqual([
+      'venta',
+      'customer',
+      'paymentStatus',
+      'deliveryStatus',
+      'totalCents',
+      'debtCents',
+      'confirmedAt',
+      'actions',
+    ])
+    expect(visible.length).toBeLessThanOrEqual(8)
+    expect(defaultColumnVisibility.paymentMethods).toBe(false)
   })
 
   it('defines Vence column as non-sortable and hidden by default', () => {
@@ -62,8 +83,8 @@ describe('useSalesColumns', () => {
       .map((column) => keyOf(column))
 
     expect(sortable).toEqual([
-      'confirmedAt',
       'totalCents',
+      'confirmedAt',
     ])
   })
 
@@ -89,14 +110,15 @@ describe('useSalesColumns', () => {
       'venta',
       'customer',
       'paymentStatus',
+      'deliveryStatus',
       'paymentMethods',
       'debtCents',
       'dueDate',
-      'deliveryStatus',
       'cashier',
       'seller',
       'channel',
       'invoice',
+      'actions',
     ])
   })
 })

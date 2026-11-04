@@ -3,6 +3,7 @@ import { mount as _mount, RouterLinkStub } from '@vue/test-utils'
 import { computed, ref, onUnmounted } from 'vue'
 import { VueWrapper } from '@vue/test-utils'
 import _SalesListView from '../SalesListView.vue'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import SortableHeader from '@/core/shared/components/DataTable/SortableHeader.vue'
 import type { ConfirmedSaleRow } from '../../interfaces/sale.types'
 
@@ -176,18 +177,19 @@ vi.mock('../../composables/useSalesColumns', () => ({
     columns: [
       { id: 'select', header: '', enableSorting: false },
       { id: 'venta', accessorKey: 'folio', header: 'Venta', enableSorting: false },
-      { id: 'confirmedAt', accessorKey: 'confirmedAt', header: 'Fecha', enableSorting: true },
       { id: 'customer', accessorKey: 'customer', header: 'Cliente', enableSorting: false },
       { id: 'paymentStatus', accessorKey: 'paymentStatus', header: 'Pago', enableSorting: false },
+      { id: 'deliveryStatus', accessorKey: 'deliveryStatus', header: 'Productos', enableSorting: false },
       { id: 'paymentMethods', accessorKey: 'paymentMethods', header: 'Método', enableSorting: false },
       { id: 'totalCents', accessorKey: 'totalCents', header: 'Total', enableSorting: true },
       { id: 'debtCents', accessorKey: 'debtCents', header: 'Deuda', enableSorting: false },
+      { id: 'confirmedAt', accessorKey: 'confirmedAt', header: 'Fecha', enableSorting: true },
       { id: 'dueDate', accessorKey: 'dueDate', header: 'Vence', enableSorting: false },
-      { id: 'deliveryStatus', accessorKey: 'deliveryStatus', header: 'Productos', enableSorting: false },
       { id: 'cashier', accessorKey: 'cashier', header: 'Cajero', enableSorting: false },
       { id: 'seller', accessorKey: 'seller', header: 'Vendedor', enableSorting: false },
       { id: 'channel', header: 'Canal', enableSorting: false },
       { id: 'invoice', header: 'Factura', enableSorting: false },
+      { id: 'actions', header: 'Acciones', enableSorting: false },
     ],
   }),
   defaultColumnVisibility: {
@@ -249,8 +251,12 @@ const appDataTableStub = {
     paginationPortalClass: { default: undefined },
     displayMode: { default: 'auto' },
     mobileRender: { default: 'table' },
+    rowOpen: { default: undefined },
+    filtered: { default: false },
+    noMatchTitle: { default: 'Ningún resultado' },
+    emptyState: { default: undefined },
   },
-  emits: ['update:columnVisibility', 'refresh', 'add'],
+  emits: ['update:columnVisibility', 'refresh', 'add', 'empty-action', 'clear-filters'],
   methods: {
     headerColumn(id: string) {
       return makeHeaderColumn(id)
@@ -264,6 +270,7 @@ const appDataTableStub = {
       :data-error="error ? 'true' : 'false'"
       :data-display-mode="displayMode"
       :data-mobile-render="mobileRender"
+      :data-clickable="rowOpen ? 'true' : 'false'"
       :data-show-add-button="showAddButton ? 'true' : 'false'"
       :data-add-button-text="addButtonText"
       :data-portal-class="portalClass ?? ''"
@@ -283,22 +290,30 @@ const appDataTableStub = {
         <button data-testid="table-error-retry" @click="$emit('refresh')">Reintentar</button>
       </div>
       <template v-else>
-        <div v-if="(data ?? []).length === 0" data-testid="table-empty-state">{{ empty }}</div>
+        <div v-if="(data ?? []).length === 0 && filtered" data-testid="table-no-match" :data-title="noMatchTitle">
+          <button data-testid="no-match-clear" @click="$emit('clear-filters')">Limpiar filtros</button>
+        </div>
+        <div v-else-if="(data ?? []).length === 0 && emptyState" data-testid="table-empty-state" :data-title="emptyState.title">
+          {{ emptyState.title }}
+          <button v-if="emptyState.actionLabel" data-testid="empty-state-action" @click="$emit('empty-action')">{{ emptyState.actionLabel }}</button>
+        </div>
+        <div v-else-if="(data ?? []).length === 0" data-testid="table-empty-state">{{ empty }}</div>
         <div v-for="row in data" :key="row.id">
           <slot name="venta-cell" :row="{ original: row }" />
-          <slot name="confirmedAt-cell" :row="{ original: row }" />
           <slot name="customer-cell" :row="{ original: row }" />
           <slot name="paymentStatus-cell" :row="{ original: row }" />
+          <slot name="deliveryStatus-cell" :row="{ original: row }" />
           <slot name="paymentMethods-cell" :row="{ original: row }" />
           <slot name="totalCents-cell" :row="{ original: row }" />
           <slot name="debtCents-cell" :row="{ original: row }" />
+          <slot name="confirmedAt-cell" :row="{ original: row }" />
           <slot name="dueDate-cell" :row="{ original: row }" />
-          <slot name="deliveryStatus-cell" :row="{ original: row }" />
           <slot name="cashier-cell" :row="{ original: row }" />
           <slot name="seller-cell" :row="{ original: row }" />
           <slot name="channel-cell" :row="{ original: row }" />
           <slot name="invoice-cell" :row="{ original: row }" />
-          <div data-testid="cards-host"><slot name="cards" :data="data ?? []" :loading="loading" :empty="empty" /></div>
+          <slot name="actions-cell" :row="{ original: row }" />
+          <div data-testid="cards-host"><slot name="mobile-card" :row="row" /></div>
         </div>
       </template>
       <!-- Header slot passthrough: UTable resolves #<id>-header per column, so
@@ -316,10 +331,6 @@ const appDataTableStub = {
 const stubs = {
   UCard: { template: '<div><slot name="header" /><slot /></div>' },
   AppBadge: { template: '<span><slot /></span>' },
-  StatusDotBadge: {
-    props: ['label', 'tone'],
-    template: '<span :data-tone="tone">{{ label }}</span>',
-  },
   SalesListTabs: {
     template: `<button data-testid="tab-pending" @click="$emit('change', { deliveryStatus: 'PENDING' })">tab</button>`,
     props: ['counts'],
@@ -358,21 +369,6 @@ const stubs = {
           data-testid="clear-extended-filters"
           @click="$emit('update:state', {})"
         />
-      </div>
-    `,
-  },
-  SaleCard: {
-    props: ['sale'],
-    template: '<div data-testid="sale-card-stub">{{ sale.id }}</div>',
-  },
-  SaleCardGrid: {
-    props: ['sales', 'loading', 'empty'],
-    emits: ['card-click'],
-    template: `
-      <div data-testid="sale-card-grid-stub">
-        <div v-for="sale in sales" :key="sale.id">
-          <div data-testid="sale-card-stub" @click="$emit('card-click', sale)">{{ sale.id }}</div>
-        </div>
       </div>
     `,
   },
@@ -540,44 +536,52 @@ describe('SalesListView', () => {
     expect(wrapper.text()).toContain('—')
   })
 
-  // status-badge-unification: paymentStatus + deliveryStatus render via StatusDotBadge.
-  // The StatusDotBadge stub exposes :data-tone so we assert both the label text
-  // and the tone attribute (the AppBadge stub has no data-tone, so the attribute
-  // assertion is the RED→GREEN gate).
+  // paymentStatus + deliveryStatus render through the shared StatusBadge: a
+  // mapped tone (error → danger) and a label, scoped to the table cells.
+  const cellBadge = (wrapper: VueWrapper, testId: string) =>
+    wrapper.get(`[data-testid="${testId}"]`)
 
-  it('renders PAID payment status via StatusDotBadge (Pagada, success)', () => {
+  it('renders PAID payment status with the shared StatusBadge (Pagada, success)', () => {
     mockState.data.value = [{ ...initialRow, paymentStatus: 'PAID' }]
-    const wrapper = mountSalesList()
-    expect(wrapper.text()).toContain('Pagada')
-    expect(wrapper.find('[data-tone="success"]').exists()).toBe(true)
+    const badge = cellBadge(mountSalesList(), 'sale-payment-status')
+    expect(badge.classes()).toContain('hf-status-badge')
+    expect(badge.text()).toBe('Pagada')
+    expect(badge.attributes('data-tone')).toBe('success')
+    expect(badge.attributes('aria-label')).toBe('Pago: Pagada')
   })
 
-  it('renders PARTIAL payment status via StatusDotBadge (Impaga, warning)', () => {
+  it('renders PARTIAL payment status with the shared StatusBadge (Impaga, warning)', () => {
     mockState.data.value = [{ ...initialRow, paymentStatus: 'PARTIAL' }]
-    const wrapper = mountSalesList()
-    expect(wrapper.text()).toContain('Impaga')
-    expect(wrapper.find('[data-tone="warning"]').exists()).toBe(true)
+    const badge = cellBadge(mountSalesList(), 'sale-payment-status')
+    expect(badge.text()).toBe('Impaga')
+    expect(badge.attributes('data-tone')).toBe('warning')
   })
 
-  it('renders DELIVERED status via StatusDotBadge (Entregados, success)', () => {
+  it('renders CREDIT payment status with the danger tone (Deuda)', () => {
+    mockState.data.value = [{ ...initialRow, paymentStatus: 'CREDIT' }]
+    const badge = cellBadge(mountSalesList(), 'sale-payment-status')
+    expect(badge.text()).toBe('Deuda')
+    expect(badge.attributes('data-tone')).toBe('danger')
+  })
+
+  it('renders DELIVERED status with the shared StatusBadge (Entregados, success)', () => {
     mockState.data.value = [{ ...initialRow, deliveryStatus: 'DELIVERED' }]
-    const wrapper = mountSalesList()
-    expect(wrapper.text()).toContain('Entregados')
-    expect(wrapper.find('[data-tone="success"]').exists()).toBe(true)
+    const badge = cellBadge(mountSalesList(), 'sale-delivery-status')
+    expect(badge.text()).toBe('Entregados')
+    expect(badge.attributes('data-tone')).toBe('success')
+    expect(badge.attributes('aria-label')).toBe('Productos: Entregados')
   })
 
-  it('renders PENDING delivery status via StatusDotBadge (No Entregados, error)', () => {
+  it('renders PENDING delivery status with the danger tone (No Entregados)', () => {
     mockState.data.value = [{ ...initialRow, deliveryStatus: 'PENDING' }]
-    const wrapper = mountSalesList()
-    expect(wrapper.text()).toContain('No Entregados')
-    expect(wrapper.find('[data-tone="error"]').exists()).toBe(true)
+    const badge = cellBadge(mountSalesList(), 'sale-delivery-status')
+    expect(badge.text()).toBe('No Entregados')
+    expect(badge.attributes('data-tone')).toBe('danger')
   })
 
-  // HST-REQ-002/003/004: the folio link uses coco-gold-800 for AA contrast at
-  // 14px inline text. The "Nueva Venta" half of this case moved to the
-  // AppDataTable toolbar (REQ-15), which owns the CTA's styling now — so the
-  // assertion is on the toolbar contract instead of hand-applied classes.
-  it('drives Nueva Venta from the toolbar and keeps coco-gold on the folio link', () => {
+  // The "Nueva Venta" CTA is AppDataTable's toolbar button; the folio is the
+  // row's text button on the shared row-primary pattern, with no gold classes.
+  it('drives Nueva Venta from the toolbar and keeps the folio on the row-primary button', () => {
     mockState.data.value = [{ ...initialRow }]
     const wrapper = mountSalesList()
 
@@ -586,8 +590,9 @@ describe('SalesListView', () => {
     expect(wrapper.get('[data-testid="toolbar-add-button"]').text()).toBe('Nueva Venta')
 
     const folioLink = wrapper.get('[data-testid="sale-link-sale-1"]')
-    expect(folioLink.classes()).toEqual(expect.arrayContaining(['text-coco-gold-800', 'dark:text-coco-gold-400']))
-    expect(folioLink.attributes('data-color')).not.toBe('primary')
+    expect(folioLink.element.tagName).toBe('BUTTON')
+    expect(folioLink.classes()).toContain('hf-row-primary')
+    expect(folioLink.classes().join(' ')).not.toContain('coco')
   })
 
   // sdd customer-sales-history S1: null-fallback coverage for SalesListView
@@ -606,7 +611,7 @@ describe('SalesListView', () => {
       mockState.data.value = [{ ...initialRow, paymentStatus: null }]
       const wrapper = mountSalesList()
       expect(wrapper.text()).toContain('Sin estado')
-      expect(wrapper.find('[data-tone="neutral"]').exists()).toBe(true)
+      expect(wrapper.get('[data-testid="sale-payment-status"]').attributes('data-tone')).toBe('neutral')
     })
     it('shows all three fallbacks simultaneously when all are null', () => {
       mockState.data.value = [{ ...initialRow, folio: null, confirmedAt: null, paymentStatus: null }]
@@ -629,7 +634,7 @@ describe('SalesListView — confirmed sales request errors (REQ-12)', () => {
 
     const wrapper = mountSalesList()
 
-    expect(wrapper.find('[data-testid="table-empty-state"]').text()).toBe('No hay ventas todavía')
+    expect(wrapper.find('[data-testid="table-empty-state"]').attributes('data-title')).toBe('Aún no hay ventas')
     expect(wrapper.find('[data-testid="table-error-state"]').exists()).toBe(false)
   })
 
@@ -643,7 +648,7 @@ describe('SalesListView — confirmed sales request errors (REQ-12)', () => {
     expect(wrapper.get('[data-testid="table-error-state"]').text()).toContain(
       'Las ventas no se pudieron consultar',
     )
-    expect(wrapper.text()).not.toContain('No hay ventas todavía')
+    expect(wrapper.text()).not.toContain('Aún no hay ventas')
     expect(wrapper.find('[data-testid="table-empty-state"]').exists()).toBe(false)
   })
 
@@ -694,11 +699,19 @@ describe('SalesListView — sortable column headers (REQ-13)', () => {
   it('renders no sort control on the columns the backend cannot order by', () => {
     const wrapper = mountSalesList()
 
-    for (const id of ['select', 'venta', 'customer', 'paymentStatus', 'paymentMethods', 'debtCents', 'dueDate', 'deliveryStatus', 'cashier', 'seller', 'channel', 'invoice']) {
+    for (const id of ['select', 'venta', 'customer', 'paymentStatus', 'deliveryStatus', 'paymentMethods', 'debtCents', 'dueDate', 'cashier', 'seller', 'channel', 'invoice']) {
       const slot = wrapper.get(`[data-header-for="${id}"]`)
       expect(slot.findComponent(SortableHeader).exists()).toBe(false)
       expect(slot.text()).toBe('')
     }
+  })
+
+  it('keeps the Acciones header for assistive tech only', () => {
+    const wrapper = mountSalesList()
+    const header = wrapper.get('[data-header-for="actions"]')
+
+    expect(header.get('span').classes()).toContain('sr-only')
+    expect(header.findComponent(SortableHeader).exists()).toBe(false)
   })
 
   it('updates sorting to totalCents when the Total header is clicked', async () => {
@@ -771,35 +784,15 @@ describe('SalesListView — consolidated toolbar (REQ-14, REQ-15)', () => {
     expect(push).toHaveBeenCalledWith('/pos/ventas/nueva')
   })
 
-  it('renders the ViewToggle in the actions slot with the sales aria-label', () => {
-    const wrapper = mountSalesList()
-
-    const toggle = wrapper.get('[role="tablist"]')
-    expect(toggle.attributes('aria-label')).toBe('Seleccionar vista de ventas')
-    expect(toggle.findAll('[role="tab"]').map((t) => t.text())).toEqual(['Tabla', 'Tarjetas'])
-  })
-
-  it('switches AppDataTable to cards when Tarjetas is selected, and persists it', async () => {
-    const wrapper = mountSalesList()
-
-    expect(wrapper.get('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe('table')
-
-    const tarjetas = wrapper.findAll('[role="tab"]').find((t) => t.text() === 'Tarjetas')
-    await tarjetas!.trigger('click')
-
-    expect(wrapper.get('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe('cards')
-    expect(localStorage.getItem('pos-sales-view-mode')).toBe('card')
-  })
-
-  it('lets the persisted mode win at every viewport instead of a mobile override', () => {
-    // Design decision #4: mobile-render="cards" forced cards on small screens
-    // regardless of the stored preference, so it must be gone.
-    localStorage.setItem('pos-sales-view-mode', 'card')
+  it('has one list layout: a table on desktop and cards on mobile, with no view toggle', () => {
     const wrapper = mountSalesList()
 
     const table = wrapper.get('[data-testid="app-data-table"]')
-    expect(table.attributes('data-display-mode')).toBe('cards')
-    expect(table.attributes('data-mobile-render')).toBe('table')
+    expect(table.attributes('data-display-mode')).toBe('auto')
+    expect(table.attributes('data-mobile-render')).toBe('cards')
+    expect(wrapper.find('[role="tablist"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Tarjetas')
+    expect(localStorage.getItem('pos-sales-view-mode')).toBeNull()
   })
 
   it('renders DataTableFilters inside the AppDataTable filters slot', () => {
@@ -867,11 +860,11 @@ describe('SalesListView — list visual adaptation (S1, S3-S5)', () => {
     expect(rootClasses.join(' ')).not.toContain('bg-coco-neutral')
   })
 
-  it('renders the Products-style page header outside the separate table surface', () => {
+  it('renders the page header, title only, outside the separate table surface', () => {
     const wrapper = mountSalesList()
 
     expect(wrapper.get('.hf-page-title').text()).toBe('Ventas')
-    expect(wrapper.get('.hf-page-subtitle').text()).toBe('Listado de ventas confirmadas')
+    expect(wrapper.find('.hf-page-subtitle').exists()).toBe(false)
 
     const header = wrapper.get('.hf-page-header')
     const surface = wrapper.get('.hf-table-surface')
@@ -904,11 +897,13 @@ describe('SalesListView — list visual adaptation (S1, S3-S5)', () => {
     expect(sortSelect.props('ui')).toEqual({ content: MARKER })
   })
 
-  it('keeps the view toggle and money cells on feature-owned hooks', () => {
+  it('right-aligns money in tabular figures', () => {
+    mockState.data.value = [{ ...initialRow, debtCents: 5000 }]
     const wrapper = mountSalesList()
 
-    expect(wrapper.find('[role="tablist"]').classes()).toContain('sales-view-toggle')
-    expect(wrapper.find('.sales-total-value').exists()).toBe(true)
+    for (const cell of [wrapper.get('.sale-total'), wrapper.get('[data-testid="sale-debt"]')]) {
+      expect(cell.classes()).toEqual(expect.arrayContaining(['hf-figure', 'text-right']))
+    }
   })
 })
 
@@ -955,20 +950,41 @@ describe('SalesListView — preserved invariants (REQ-16)', () => {
     expect(wrapper.find('[data-testid="payment-method-pills"]').exists()).toBe(true)
   })
 
-  it('keeps SaleCardGrid wired to the cards slot', () => {
+  it('opens the sale from the whole row through the shared row-open contract', () => {
     const wrapper = mountSalesList()
+    const table = wrapper.getComponent(appDataTableStub)
 
-    const cards = wrapper.get('[data-testid="sale-card-grid-stub"]')
-    expect(cards.find('[data-testid="sale-card-stub"]').text()).toBe('sale-1')
-  })
-
-  it('navigates to sale detail when a card in the cards slot is clicked', async () => {
-    // REQ-12: card-click from SaleCardGrid drives the view's goToSaleDetail.
-    const wrapper = mountSalesList()
-
-    await wrapper.get('[data-testid="sale-card-stub"]').trigger('click')
+    expect(table.props('rowOpen')).toBeTypeOf('function')
+    ;(table.props('rowOpen') as (row: ConfirmedSaleRow) => void)(initialRow)
 
     expect(push).toHaveBeenCalledWith('/pos/ventas/sale-1')
+  })
+
+  it('renders a mobile card per sale with the folio, customer, badges, total and short date', () => {
+    mockState.data.value = [
+      { ...initialRow, customer: { id: 'c-1', name: 'Ada Lovelace' }, debtCents: 5000, paymentStatus: 'PARTIAL' },
+    ]
+    const wrapper = mountSalesList()
+
+    const card = wrapper.get('[data-testid="cards-host"] [data-testid="sale-card"]')
+    expect(card.get('.hf-row-primary').text()).toBe('#12')
+    expect(card.get('[data-testid="sale-customer"]').text()).toBe('Ada Lovelace')
+    expect(card.findAll('.hf-status-badge').map((b) => b.text())).toEqual(['Impaga', 'Entregados'])
+    expect(card.get('[data-testid="sale-card-debt"]').text()).toContain('$50.00')
+    expect(card.text()).toContain('$1,270.00')
+    expect(card.text()).toContain(formatShortDateTime(initialRow.confirmedAt))
+  })
+
+  it('opens the sale detail when the card is clicked, but not from its row menu', async () => {
+    const wrapper = mountSalesList()
+    const card = wrapper.get('[data-testid="cards-host"] [data-testid="sale-card"]')
+
+    await card.trigger('click')
+    expect(push).toHaveBeenCalledTimes(1)
+    expect(push).toHaveBeenCalledWith('/pos/ventas/sale-1')
+
+    await card.get('button[aria-haspopup="menu"]').trigger('click')
+    expect(push).toHaveBeenCalledTimes(1)
   })
 
   it('keeps SalesListTabs driving the delivery-status quick filter', async () => {

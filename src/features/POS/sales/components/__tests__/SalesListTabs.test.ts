@@ -121,4 +121,27 @@ describe('SalesListTabs', () => {
       expect(btn.classes()).toContain('whitespace-nowrap')
     })
   })
+
+  it('marks the active quick tab with aria-pressed (Todas by default)', async () => {
+    const wrapper = mount(SalesListTabs, {
+      props: { counts: { all: 5, pendingPayments: 1, notDelivered: 2 } },
+    })
+    const pressed = () =>
+      wrapper
+        .findAll('button[data-testid^="sales-tab-"]')
+        .map((btn) => [btn.attributes('data-testid'), btn.attributes('aria-pressed')])
+
+    expect(pressed()).toEqual([
+      ['sales-tab-all', 'true'],
+      ['sales-tab-pending-payments', 'false'],
+      ['sales-tab-pending-delivery', 'false'],
+    ])
+
+    await wrapper.setProps({ active: 'pending-delivery' })
+    expect(pressed()).toEqual([
+      ['sales-tab-all', 'false'],
+      ['sales-tab-pending-payments', 'false'],
+      ['sales-tab-pending-delivery', 'true'],
+    ])
+  })
 })

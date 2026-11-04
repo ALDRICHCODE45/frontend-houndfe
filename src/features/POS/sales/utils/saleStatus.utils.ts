@@ -1,3 +1,5 @@
+import { statusBadgeTone, type StatusBadgeTone } from '@/core/shared/utils/badge.utils'
+
 export type SaleBadgeConfig = {
   label: string
   color: 'success' | 'warning' | 'error' | 'neutral'
@@ -43,4 +45,9 @@ export function getPaymentStatusBadge(status: string): SaleBadgeConfig {
 
 export function getDeliveryStatusBadge(status: string): SaleBadgeConfig {
   return deliveryStatusBadgeMap[status] ?? unknownBadge
+}
+
+/** Domain badge color → StatusBadge tone (`error` becomes `danger`). */
+export function saleBadgeTone(color: SaleBadgeConfig['color']): StatusBadgeTone {
+  return statusBadgeTone(color)
 }
