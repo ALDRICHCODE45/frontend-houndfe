@@ -8,35 +8,17 @@
     "select-tenant": {
       "path": "/select-tenant",
       "status": "captured",
-      "user": "manager",
-      "notApplicableStates": [
-        "empty",
-        "loading",
-        "error"
-      ],
-      "notApplicableReason": "static screen, no API request"
+      "user": "manager"
     },
     "forbidden-403": {
       "path": "/403",
       "status": "captured",
-      "user": "manager",
-      "notApplicableStates": [
-        "empty",
-        "loading",
-        "error"
-      ],
-      "notApplicableReason": "static screen, no API request"
+      "user": "manager"
     },
     "not-found-404": {
       "path": "/this-page-does-not-exist",
       "status": "captured",
-      "user": "manager",
-      "notApplicableStates": [
-        "empty",
-        "loading",
-        "error"
-      ],
-      "notApplicableReason": "static screen, no API request"
+      "user": "manager"
     },
     "public-catalog": {
       "path": "/catalogo",
@@ -65,12 +47,12 @@
       "user": "manager"
     },
     "pos-product-detail": {
-      "path": "/pos/products/8c6c4ba7-1d09-4a59-aa82-da88e1c3e2f2",
+      "path": "/pos/products/fb23a977-6cc4-40da-8aca-94561d0206b6",
       "status": "captured",
       "user": "manager"
     },
     "pos-product-editorial": {
-      "path": "/pos/products/8c6c4ba7-1d09-4a59-aa82-da88e1c3e2f2/editorial",
+      "path": "/pos/products/fb23a977-6cc4-40da-8aca-94561d0206b6/editorial",
       "status": "captured",
       "user": "admin",
       "managerForbidden": true,
@@ -112,7 +94,7 @@
       "user": "manager"
     },
     "pos-sale-detail": {
-      "path": "/pos/ventas/c03d92cf-d51b-4cba-83e8-7626aad2327c",
+      "path": "/pos/ventas/ed328df7-7d5c-46eb-884f-a9e5125cf3a7",
       "status": "captured",
       "user": "manager"
     },
@@ -137,7 +119,7 @@
       "managerForbidden": true
     },
     "pos-promotion-detail": {
-      "path": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "path": "/pos/promociones/ffc5d5c8-100e-485d-80c9-1463710f73bc",
       "status": "captured",
       "user": "admin",
       "managerForbidden": true,
@@ -157,7 +139,7 @@
       "reason": "Opening it POSTs a new draft quotation and redirects to /pos/cotizaciones/:id, which pos-quotation-detail covers; capturing it would create one draft per shot."
     },
     "pos-quotation-detail": {
-      "path": "/pos/cotizaciones/853cce87-c401-4aa6-821d-28cdc7c1e240",
+      "path": "/pos/cotizaciones/163fa5c5-5899-45f9-8091-d0ac81e81555",
       "status": "captured",
       "user": "admin",
       "managerForbidden": true,
@@ -238,7 +220,7 @@
       "managerForbidden": true
     },
     "pos-delivery-route-detail": {
-      "path": "/pos/rutas-de-entrega/9ea3c7b1-3c0d-4d89-b030-f78d0cac2312",
+      "path": "/pos/rutas-de-entrega/cfc4440a-3a24-4227-b114-72e3adaa1683",
       "status": "captured",
       "user": "admin",
       "managerForbidden": true
@@ -1704,7 +1686,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 2318,
+      "height": 2271,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -1750,7 +1732,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 2318,
+      "height": 2271,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -2405,11 +2387,11 @@
       "file": "pos-product-detail__data__1440__light.png",
       "route": "pos-product-detail",
       "user": "manager",
-      "path": "/pos/products/8c6c4ba7-1d09-4a59-aa82-da88e1c3e2f2",
+      "path": "/pos/products/fb23a977-6cc4-40da-8aca-94561d0206b6",
       "state": "data",
       "viewport": "1440",
       "theme": "light",
-      "finalPath": "/pos/products/8c6c4ba7-1d09-4a59-aa82-da88e1c3e2f2",
+      "finalPath": "/pos/products/fb23a977-6cc4-40da-8aca-94561d0206b6",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 1440,
@@ -2428,11 +2410,11 @@
       "file": "pos-product-detail__data__390__light.png",
       "route": "pos-product-detail",
       "user": "manager",
-      "path": "/pos/products/8c6c4ba7-1d09-4a59-aa82-da88e1c3e2f2",
+      "path": "/pos/products/fb23a977-6cc4-40da-8aca-94561d0206b6",
       "state": "data",
       "viewport": "390",
       "theme": "light",
-      "finalPath": "/pos/products/8c6c4ba7-1d09-4a59-aa82-da88e1c3e2f2",
+      "finalPath": "/pos/products/fb23a977-6cc4-40da-8aca-94561d0206b6",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 390,
@@ -2451,11 +2433,11 @@
       "file": "pos-product-detail__data__1440__dark.png",
       "route": "pos-product-detail",
       "user": "manager",
-      "path": "/pos/products/8c6c4ba7-1d09-4a59-aa82-da88e1c3e2f2",
+      "path": "/pos/products/fb23a977-6cc4-40da-8aca-94561d0206b6",
       "state": "data",
       "viewport": "1440",
       "theme": "dark",
-      "finalPath": "/pos/products/8c6c4ba7-1d09-4a59-aa82-da88e1c3e2f2",
+      "finalPath": "/pos/products/fb23a977-6cc4-40da-8aca-94561d0206b6",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 1440,
@@ -2474,11 +2456,11 @@
       "file": "pos-product-detail__data__390__dark.png",
       "route": "pos-product-detail",
       "user": "manager",
-      "path": "/pos/products/8c6c4ba7-1d09-4a59-aa82-da88e1c3e2f2",
+      "path": "/pos/products/fb23a977-6cc4-40da-8aca-94561d0206b6",
       "state": "data",
       "viewport": "390",
       "theme": "dark",
-      "finalPath": "/pos/products/8c6c4ba7-1d09-4a59-aa82-da88e1c3e2f2",
+      "finalPath": "/pos/products/fb23a977-6cc4-40da-8aca-94561d0206b6",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 390,
@@ -2785,7 +2767,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 900,
+      "height": 1155,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -2808,7 +2790,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 1750,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -2831,7 +2813,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 900,
+      "height": 1155,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -2854,7 +2836,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 1750,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -3153,7 +3135,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 900,
+      "height": 1731,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -3176,7 +3158,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1140,
+      "height": 3898,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -3199,7 +3181,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 900,
+      "height": 1731,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -3222,7 +3204,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1140,
+      "height": 3898,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -3521,7 +3503,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 5505,
+      "height": 5460,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -3567,7 +3549,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 5505,
+      "height": 5460,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -3877,11 +3859,11 @@
       "file": "pos-sale-detail__data__1440__light.png",
       "route": "pos-sale-detail",
       "user": "manager",
-      "path": "/pos/ventas/c03d92cf-d51b-4cba-83e8-7626aad2327c",
+      "path": "/pos/ventas/ed328df7-7d5c-46eb-884f-a9e5125cf3a7",
       "state": "data",
       "viewport": "1440",
       "theme": "light",
-      "finalPath": "/pos/ventas/c03d92cf-d51b-4cba-83e8-7626aad2327c",
+      "finalPath": "/pos/ventas/ed328df7-7d5c-46eb-884f-a9e5125cf3a7",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 1440,
@@ -3889,7 +3871,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1063,
+      "height": 1003,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -3900,11 +3882,11 @@
       "file": "pos-sale-detail__data__390__light.png",
       "route": "pos-sale-detail",
       "user": "manager",
-      "path": "/pos/ventas/c03d92cf-d51b-4cba-83e8-7626aad2327c",
+      "path": "/pos/ventas/ed328df7-7d5c-46eb-884f-a9e5125cf3a7",
       "state": "data",
       "viewport": "390",
       "theme": "light",
-      "finalPath": "/pos/ventas/c03d92cf-d51b-4cba-83e8-7626aad2327c",
+      "finalPath": "/pos/ventas/ed328df7-7d5c-46eb-884f-a9e5125cf3a7",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 390,
@@ -3912,7 +3894,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1482,
+      "height": 1510,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -3923,11 +3905,11 @@
       "file": "pos-sale-detail__data__1440__dark.png",
       "route": "pos-sale-detail",
       "user": "manager",
-      "path": "/pos/ventas/c03d92cf-d51b-4cba-83e8-7626aad2327c",
+      "path": "/pos/ventas/ed328df7-7d5c-46eb-884f-a9e5125cf3a7",
       "state": "data",
       "viewport": "1440",
       "theme": "dark",
-      "finalPath": "/pos/ventas/c03d92cf-d51b-4cba-83e8-7626aad2327c",
+      "finalPath": "/pos/ventas/ed328df7-7d5c-46eb-884f-a9e5125cf3a7",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 1440,
@@ -3935,7 +3917,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1063,
+      "height": 1003,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -3946,11 +3928,11 @@
       "file": "pos-sale-detail__data__390__dark.png",
       "route": "pos-sale-detail",
       "user": "manager",
-      "path": "/pos/ventas/c03d92cf-d51b-4cba-83e8-7626aad2327c",
+      "path": "/pos/ventas/ed328df7-7d5c-46eb-884f-a9e5125cf3a7",
       "state": "data",
       "viewport": "390",
       "theme": "dark",
-      "finalPath": "/pos/ventas/c03d92cf-d51b-4cba-83e8-7626aad2327c",
+      "finalPath": "/pos/ventas/ed328df7-7d5c-46eb-884f-a9e5125cf3a7",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 390,
@@ -3958,7 +3940,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1482,
+      "height": 1510,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -4257,7 +4239,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 900,
+      "height": 1233,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -4280,7 +4262,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 1790,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -4303,7 +4285,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 900,
+      "height": 1233,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -4326,7 +4308,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 1790,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -4625,7 +4607,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 900,
+      "height": 1687,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -5404,7 +5386,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 900,
+      "height": 1048,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -5427,7 +5409,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 2062,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -5450,7 +5432,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 900,
+      "height": 1048,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -5473,7 +5455,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 2062,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -5838,18 +5820,10 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 878,
-      "consoleErrors": [
-        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
-      ],
+      "height": 1050,
+      "consoleErrors": [],
       "expectedConsoleErrors": 0,
-      "failedRequests": [
-        {
-          "method": "GET",
-          "path": "/admin/roles",
-          "status": 401
-        }
-      ],
+      "failedRequests": [],
       "intercepted": 0,
       "unwired": []
     },
@@ -5892,7 +5866,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 878,
+      "height": 1050,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6191,7 +6165,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 900,
+      "height": 1067,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6214,7 +6188,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 906,
+      "height": 1586,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6237,7 +6211,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 900,
+      "height": 1067,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6260,7 +6234,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 906,
+      "height": 1586,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6559,7 +6533,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1798,
+      "height": 1986,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6582,7 +6556,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 3007,
+      "height": 3533,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6605,7 +6579,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1798,
+      "height": 1986,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6628,7 +6602,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 3007,
+      "height": 3533,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6915,11 +6889,11 @@
       "file": "pos-product-editorial__data__1440__light.png",
       "route": "pos-product-editorial",
       "user": "admin",
-      "path": "/pos/products/8c6c4ba7-1d09-4a59-aa82-da88e1c3e2f2/editorial",
+      "path": "/pos/products/fb23a977-6cc4-40da-8aca-94561d0206b6/editorial",
       "state": "data",
       "viewport": "1440",
       "theme": "light",
-      "finalPath": "/pos/products/8c6c4ba7-1d09-4a59-aa82-da88e1c3e2f2/editorial",
+      "finalPath": "/pos/products/fb23a977-6cc4-40da-8aca-94561d0206b6/editorial",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 1440,
@@ -6938,11 +6912,11 @@
       "file": "pos-product-editorial__data__390__light.png",
       "route": "pos-product-editorial",
       "user": "admin",
-      "path": "/pos/products/8c6c4ba7-1d09-4a59-aa82-da88e1c3e2f2/editorial",
+      "path": "/pos/products/fb23a977-6cc4-40da-8aca-94561d0206b6/editorial",
       "state": "data",
       "viewport": "390",
       "theme": "light",
-      "finalPath": "/pos/products/8c6c4ba7-1d09-4a59-aa82-da88e1c3e2f2/editorial",
+      "finalPath": "/pos/products/fb23a977-6cc4-40da-8aca-94561d0206b6/editorial",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 390,
@@ -6961,11 +6935,11 @@
       "file": "pos-product-editorial__data__1440__dark.png",
       "route": "pos-product-editorial",
       "user": "admin",
-      "path": "/pos/products/8c6c4ba7-1d09-4a59-aa82-da88e1c3e2f2/editorial",
+      "path": "/pos/products/fb23a977-6cc4-40da-8aca-94561d0206b6/editorial",
       "state": "data",
       "viewport": "1440",
       "theme": "dark",
-      "finalPath": "/pos/products/8c6c4ba7-1d09-4a59-aa82-da88e1c3e2f2/editorial",
+      "finalPath": "/pos/products/fb23a977-6cc4-40da-8aca-94561d0206b6/editorial",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 1440,
@@ -6984,11 +6958,11 @@
       "file": "pos-product-editorial__data__390__dark.png",
       "route": "pos-product-editorial",
       "user": "admin",
-      "path": "/pos/products/8c6c4ba7-1d09-4a59-aa82-da88e1c3e2f2/editorial",
+      "path": "/pos/products/fb23a977-6cc4-40da-8aca-94561d0206b6/editorial",
       "state": "data",
       "viewport": "390",
       "theme": "dark",
-      "finalPath": "/pos/products/8c6c4ba7-1d09-4a59-aa82-da88e1c3e2f2/editorial",
+      "finalPath": "/pos/products/fb23a977-6cc4-40da-8aca-94561d0206b6/editorial",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 390,
@@ -7295,7 +7269,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 900,
+      "height": 1063,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7318,7 +7292,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 1279,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7341,7 +7315,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 900,
+      "height": 1063,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7364,7 +7338,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 1279,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8031,7 +8005,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1158,
+      "height": 3750,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8054,7 +8028,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 900,
+      "height": 1687,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8077,7 +8051,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1158,
+      "height": 3750,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8744,7 +8718,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 900,
+      "height": 1210,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8767,7 +8741,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 2103,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8790,7 +8764,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 900,
+      "height": 1210,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8813,7 +8787,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 2103,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -9100,11 +9074,11 @@
       "file": "pos-quotation-detail__data__1440__light.png",
       "route": "pos-quotation-detail",
       "user": "admin",
-      "path": "/pos/cotizaciones/853cce87-c401-4aa6-821d-28cdc7c1e240",
+      "path": "/pos/cotizaciones/163fa5c5-5899-45f9-8091-d0ac81e81555",
       "state": "data",
       "viewport": "1440",
       "theme": "light",
-      "finalPath": "/pos/cotizaciones/853cce87-c401-4aa6-821d-28cdc7c1e240",
+      "finalPath": "/pos/cotizaciones/163fa5c5-5899-45f9-8091-d0ac81e81555",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 1440,
@@ -9112,7 +9086,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 970,
+      "height": 1430,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -9123,11 +9097,11 @@
       "file": "pos-quotation-detail__data__390__light.png",
       "route": "pos-quotation-detail",
       "user": "admin",
-      "path": "/pos/cotizaciones/853cce87-c401-4aa6-821d-28cdc7c1e240",
+      "path": "/pos/cotizaciones/163fa5c5-5899-45f9-8091-d0ac81e81555",
       "state": "data",
       "viewport": "390",
       "theme": "light",
-      "finalPath": "/pos/cotizaciones/853cce87-c401-4aa6-821d-28cdc7c1e240",
+      "finalPath": "/pos/cotizaciones/163fa5c5-5899-45f9-8091-d0ac81e81555",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 390,
@@ -9135,7 +9109,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1810,
+      "height": 2302,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -9146,11 +9120,11 @@
       "file": "pos-quotation-detail__data__1440__dark.png",
       "route": "pos-quotation-detail",
       "user": "admin",
-      "path": "/pos/cotizaciones/853cce87-c401-4aa6-821d-28cdc7c1e240",
+      "path": "/pos/cotizaciones/163fa5c5-5899-45f9-8091-d0ac81e81555",
       "state": "data",
       "viewport": "1440",
       "theme": "dark",
-      "finalPath": "/pos/cotizaciones/853cce87-c401-4aa6-821d-28cdc7c1e240",
+      "finalPath": "/pos/cotizaciones/163fa5c5-5899-45f9-8091-d0ac81e81555",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 1440,
@@ -9158,7 +9132,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 970,
+      "height": 1430,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -9169,11 +9143,11 @@
       "file": "pos-quotation-detail__data__390__dark.png",
       "route": "pos-quotation-detail",
       "user": "admin",
-      "path": "/pos/cotizaciones/853cce87-c401-4aa6-821d-28cdc7c1e240",
+      "path": "/pos/cotizaciones/163fa5c5-5899-45f9-8091-d0ac81e81555",
       "state": "data",
       "viewport": "390",
       "theme": "dark",
-      "finalPath": "/pos/cotizaciones/853cce87-c401-4aa6-821d-28cdc7c1e240",
+      "finalPath": "/pos/cotizaciones/163fa5c5-5899-45f9-8091-d0ac81e81555",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 390,
@@ -9181,7 +9155,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1810,
+      "height": 2302,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -9480,7 +9454,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1106,
+      "height": 1278,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -9526,7 +9500,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1106,
+      "height": 1278,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -9848,7 +9822,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1068,
+      "height": 1097,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -9894,7 +9868,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1068,
+      "height": 1097,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -10929,7 +10903,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 900,
+      "height": 1284,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -10952,7 +10926,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1199,
+      "height": 3035,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -10975,7 +10949,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 900,
+      "height": 1284,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -10998,7 +10972,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1199,
+      "height": 3035,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -11688,7 +11662,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 1178,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -11734,7 +11708,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 1178,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -12021,11 +11995,11 @@
       "file": "pos-delivery-route-detail__data__1440__light.png",
       "route": "pos-delivery-route-detail",
       "user": "admin",
-      "path": "/pos/rutas-de-entrega/9ea3c7b1-3c0d-4d89-b030-f78d0cac2312",
+      "path": "/pos/rutas-de-entrega/cfc4440a-3a24-4227-b114-72e3adaa1683",
       "state": "data",
       "viewport": "1440",
       "theme": "light",
-      "finalPath": "/pos/rutas-de-entrega/9ea3c7b1-3c0d-4d89-b030-f78d0cac2312",
+      "finalPath": "/pos/rutas-de-entrega/cfc4440a-3a24-4227-b114-72e3adaa1683",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 1440,
@@ -12033,7 +12007,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 900,
+      "height": 957,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -12044,11 +12018,11 @@
       "file": "pos-delivery-route-detail__data__390__light.png",
       "route": "pos-delivery-route-detail",
       "user": "admin",
-      "path": "/pos/rutas-de-entrega/9ea3c7b1-3c0d-4d89-b030-f78d0cac2312",
+      "path": "/pos/rutas-de-entrega/cfc4440a-3a24-4227-b114-72e3adaa1683",
       "state": "data",
       "viewport": "390",
       "theme": "light",
-      "finalPath": "/pos/rutas-de-entrega/9ea3c7b1-3c0d-4d89-b030-f78d0cac2312",
+      "finalPath": "/pos/rutas-de-entrega/cfc4440a-3a24-4227-b114-72e3adaa1683",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 390,
@@ -12056,7 +12030,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1154,
+      "height": 1730,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -12067,11 +12041,11 @@
       "file": "pos-delivery-route-detail__data__1440__dark.png",
       "route": "pos-delivery-route-detail",
       "user": "admin",
-      "path": "/pos/rutas-de-entrega/9ea3c7b1-3c0d-4d89-b030-f78d0cac2312",
+      "path": "/pos/rutas-de-entrega/cfc4440a-3a24-4227-b114-72e3adaa1683",
       "state": "data",
       "viewport": "1440",
       "theme": "dark",
-      "finalPath": "/pos/rutas-de-entrega/9ea3c7b1-3c0d-4d89-b030-f78d0cac2312",
+      "finalPath": "/pos/rutas-de-entrega/cfc4440a-3a24-4227-b114-72e3adaa1683",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 1440,
@@ -12079,7 +12053,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 900,
+      "height": 957,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -12090,11 +12064,11 @@
       "file": "pos-delivery-route-detail__data__390__dark.png",
       "route": "pos-delivery-route-detail",
       "user": "admin",
-      "path": "/pos/rutas-de-entrega/9ea3c7b1-3c0d-4d89-b030-f78d0cac2312",
+      "path": "/pos/rutas-de-entrega/cfc4440a-3a24-4227-b114-72e3adaa1683",
       "state": "data",
       "viewport": "390",
       "theme": "dark",
-      "finalPath": "/pos/rutas-de-entrega/9ea3c7b1-3c0d-4d89-b030-f78d0cac2312",
+      "finalPath": "/pos/rutas-de-entrega/cfc4440a-3a24-4227-b114-72e3adaa1683",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 390,
@@ -12102,7 +12076,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1154,
+      "height": 1730,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -12401,7 +12375,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 992,
+      "height": 1026,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -12424,7 +12398,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1061,
+      "height": 1095,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -12447,7 +12421,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 992,
+      "height": 1026,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -12470,7 +12444,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1061,
+      "height": 1095,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -13493,11 +13467,11 @@
       "file": "pos-promotion-detail__data__1440__light.png",
       "route": "pos-promotion-detail",
       "user": "admin",
-      "path": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "path": "/pos/promociones/ffc5d5c8-100e-485d-80c9-1463710f73bc",
       "state": "data",
       "viewport": "1440",
       "theme": "light",
-      "finalPath": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "finalPath": "/pos/promociones/ffc5d5c8-100e-485d-80c9-1463710f73bc",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 1440,
@@ -13505,7 +13479,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1260,
+      "height": 1480,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -13516,11 +13490,11 @@
       "file": "pos-promotion-detail__data__390__light.png",
       "route": "pos-promotion-detail",
       "user": "admin",
-      "path": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "path": "/pos/promociones/ffc5d5c8-100e-485d-80c9-1463710f73bc",
       "state": "data",
       "viewport": "390",
       "theme": "light",
-      "finalPath": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "finalPath": "/pos/promociones/ffc5d5c8-100e-485d-80c9-1463710f73bc",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 390,
@@ -13528,7 +13502,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1296,
+      "height": 2123,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -13539,11 +13513,11 @@
       "file": "pos-promotion-detail__data__1440__dark.png",
       "route": "pos-promotion-detail",
       "user": "admin",
-      "path": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "path": "/pos/promociones/ffc5d5c8-100e-485d-80c9-1463710f73bc",
       "state": "data",
       "viewport": "1440",
       "theme": "dark",
-      "finalPath": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "finalPath": "/pos/promociones/ffc5d5c8-100e-485d-80c9-1463710f73bc",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 1440,
@@ -13551,7 +13525,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1260,
+      "height": 1480,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -13562,11 +13536,11 @@
       "file": "pos-promotion-detail__data__390__dark.png",
       "route": "pos-promotion-detail",
       "user": "admin",
-      "path": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "path": "/pos/promociones/ffc5d5c8-100e-485d-80c9-1463710f73bc",
       "state": "data",
       "viewport": "390",
       "theme": "dark",
-      "finalPath": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "finalPath": "/pos/promociones/ffc5d5c8-100e-485d-80c9-1463710f73bc",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 390,
@@ -13574,7 +13548,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1296,
+      "height": 2123,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -13858,7 +13832,7 @@
       "unwired": []
     }
   },
-  "generatedAt": "2026-11-04T16:46:11.121Z",
+  "generatedAt": "2026-11-04T20:18:38.389Z",
   "base": "http://127.0.0.1:5173",
   "api": "http://127.0.0.1:3000"
 }

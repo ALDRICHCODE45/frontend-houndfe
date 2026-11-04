@@ -51,8 +51,10 @@ const STATE_FILE = join(AUTH, `state-${WHO}.json`)
 const FORCE = flag('force')
 const RETAKE_FLAGGED = flag('retake-flagged')
 const INVENTORY = flag('inventory')
+// --prefer id-source-slug=needle[+needle],...: the detail id comes from the first row of that list whose JSON contains every needle (case-insensitive); falls back to the first row.
+const PREFER = Object.fromEntries((csv(opt('prefer')) ?? []).map((p) => [p.slice(0, p.indexOf('=')), p.slice(p.indexOf('=') + 1).split('+').map((n) => n.toLowerCase())]))
 if (flag('help')) {
-  console.log('node capture.mjs [--user manager|admin] [--only slug,slug] [--states data,empty,loading,error] [--themes light,dark] [--viewports 1440,390] [--force] [--retake-flagged] [--inventory]')
+  console.log('node capture.mjs [--user manager|admin] [--only slug,slug] [--states data,empty,loading,error] [--themes light,dark] [--viewports 1440,390] [--force] [--retake-flagged] [--inventory] [--prefer id-source-slug=needle[+needle],...]')
   process.exit(0)
 }
 for (const s of states) if (!ALL_STATES.includes(s)) throw new Error(`unknown state ${s}`)
@@ -148,9 +150,9 @@ function emptied(value, zero, key = '', keepRows = false) {
   return value
 }
 
-function firstId(body) {
+function firstId(body, needles) {
   const rows = Array.isArray(body) ? body : Object.values(body ?? {}).find((v) => Array.isArray(v) && v.length) ?? body?.data
-  const first = Array.isArray(rows) ? rows[0] : undefined
+  const first = Array.isArray(rows) ? (needles && rows.find((r) => needles.every((n) => JSON.stringify(r).toLowerCase().includes(n)))) ?? rows[0] : undefined
   const id = first?.id
   return typeof id === 'string' || typeof id === 'number' ? String(id) : undefined
 }
@@ -261,7 +263,7 @@ for (const page of [appPage, anonPage]) {
         const shape = (memory.shapes[cur.route.slug] ??= {})
         shape[path] = { list: emptied(body, false), zero: emptied(body, true), zerofill: emptied(body, true, '', true), alreadyEmpty: JSON.stringify(emptied(body, false)) === JSON.stringify(body) }
         if (cur.route.idSource) {
-          const id = firstId(body)
+          const id = firstId(body, PREFER[cur.route.slug])
           if (id) memory.ids[cur.route.slug] = id
         }
       }).catch(() => {}),
@@ -416,8 +418,8 @@ function needsMemory(route, wanted) {
   const idMissing = route.path.includes(':id') && !memory.ids[route.idFrom]
   const shapeMissing = wanted.some((s) => s !== 'data') && (route.gets ?? []).some((x) => x.method === 'GET' && x.empty !== 404 && x.empty !== 'real' && !Object.keys(memory.shapes[route.slug] ?? {}).some((p) => x.re.test(p)))
   const idSourceMissing = route.idSource === true && !memory.ids[route.slug] && ROUTES.some((r) => r.idFrom === route.slug)
-  // --force also relearns the response shapes, so seeded data replaces a shape (and its alreadyEmpty flag) cached while the screen was empty
-  const stale = FORCE && wanted.some((s) => s !== 'data') && (route.gets ?? []).length > 0
+  // --force also relearns the response shapes, so seeded data replaces a shape (and its alreadyEmpty flag) cached while the screen was empty, and, for list screens that feed a detail route, the cached id (a data-only run included)
+  const stale = FORCE && (route.gets ?? []).length > 0 && (wanted.some((s) => s !== 'data') || route.idSource === true)
   return idMissing || shapeMissing || idSourceMissing || stale
 }
 
