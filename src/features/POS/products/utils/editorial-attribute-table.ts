@@ -50,7 +50,7 @@ export function isEditorialInputFilled(input: EditorialAssignmentInput): boolean
 }
 
 /** Nothing left to store: an omitted state or a known value whose control is back to its placeholder. */
-function isNothingToStore(input: EditorialAssignmentInput): boolean {
+export function isEditorialInputBlank(input: EditorialAssignmentInput): boolean {
   return input.state === 'omitted' || (input.state === 'known' && input.evidence === null && isEmptyPayload(input.payload, true))
 }
 
@@ -111,7 +111,7 @@ export function applyEditorialCellInput(
   input: EditorialAssignmentInput,
   nextId: () => string,
 ): EditorialAssignmentEditingRow[] {
-  if (isNothingToStore(input)) return cell.rowId === null ? [...values] : removeEditorialCell(values, cell.rowId)
+  if (isEditorialInputBlank(input)) return cell.rowId === null ? [...values] : removeEditorialCell(values, cell.rowId)
   if (cell.rowId !== null) return values.map(item => (item.id === cell.rowId ? { ...item, input } : item))
   return [...values, { id: nextId(), target: { ...cell.target }, input }]
 }
