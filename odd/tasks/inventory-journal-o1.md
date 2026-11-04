@@ -84,8 +84,11 @@ Delegated by the user ("esa tarea te la quedas tu"):
   - Done: aa1c79ba (StockKardex, utils/kardex.ts), c63376a9 (InventoryStockPanel, utils/stock.ts). Components only; T6 mounts `<InventoryStockPanel :product-id>` in the detail.
 - T6 [S8]: the "Inventario" task in the product detail.
 - T7 [S1]: read-only quantity on edit, with quantity stripped from every PATCH. High risk (data integrity).
+  - Done: 8c6d07b4 (toUpdatePayload, productApi.update/updateVariant/updateLot strip it, update types exclude it, ReadOnlyStock in the detail, variant table, variant modals and slideover). Own commit, high risk.
 - T8 [S7]: product error-code mapping and the first-variant confirmation.
+  - Done: a4d9e0c2 (utils/productStockErrors.ts; detail view and slideover; "Controlar inventario"/"Usar stock" lock; first-variant ConfirmModal).
 - T9 [S7]: sales pins for STOCK_INSUFFICIENT_AT_CONFIRM and SALE_STOCK_UNAVAILABLE.
+  - Done: 7658b937 (salePaymentErrors.utils 'generic' action, SalesView branch, pins).
 - T10 [S8,S9]: runtime check with the README §7 data, as manager and as cashier (403).
 
 ## Log
@@ -119,3 +122,17 @@ L5. Stream A done (T1-T5), all in src/features/POS/inventory and src/features/au
   - A single-row sale is a plain row. No ids are shown.
   - The kardex has no whole-row click, because only grouped rows expand.
 - Open: `Idempotency-Key` conflict copy says to reopen the dialog. Check it against the real BE in T10.
+
+L6. Stream B done (T7-T9), in src/features/POS/products and src/features/POS/sales. Suite of both dirs: 210 files, 4644 tests green; `pnpm type-check` clean.
+- Decisions taken without asking:
+  - Quantity is stripped in three places (toUpdatePayload, the types, and `withoutQuantity` in the API client), so a stray caller cannot send it. Saved variants lose the inline stock input and the VariantDetailModal blur autosave; `ReadOnlyStock` shows the figure with "Se ajusta desde Inventario".
+  - In the detail the toggle is "Controlar inventario" (the slideover says "Usar stock"). Both lock while the product (or its variants) has stock, with "Hay existencias: ajusta el stock a 0 para desactivarlo."
+  - The four stock codes show inline copy at their field AND keep the failure toast, with the same human copy. The toast stays because the field can sit in another task of the detail. The copy for PRODUCT_TYPE_CHANGE_BLOCKED changed from "ventas o movimientos" to "existencias o lotes", per the handoff; one old test was updated.
+  - The error also switches the detail to the task that holds the field (identity for the type, presentations for the rest).
+  - First variant: ConfirmModal "¿Crear la primera variante?" / "El stock actual pasa a 0.", confirm "Crear variante" in the destructive tone. It only shows when the product has quantity > 0 and no variants.
+  - SALE_STOCK_UNAVAILABLE is a new `generic` action: error toast with fixed copy, no inline error, no reload, no retry. It never shows the server wording.
+- Notes for T6/T10:
+  - Both T7 and T8 touch ProductDetailView.vue (the inventory card and the lots card), so T6 should rebase mentally on a4d9e0c2 before mounting `InventoryStockPanel`.
+  - SalesView.test.ts now routes `useToast` through `@nuxt/ui/composables/useToast` too, so toasts can be asserted. Earlier specs in that file leave the shared draft with no items; the new tests seed their own.
+  - The compact slideover has no "Tipo" field, so PRODUCT_TYPE_CHANGE_BLOCKED there is a toast only.
+- Open: the product list "Existencias" (L3) is untouched. `pnpm exec eslint` reports one old unused `error` in ProductsView.vue:73 (not mine).
