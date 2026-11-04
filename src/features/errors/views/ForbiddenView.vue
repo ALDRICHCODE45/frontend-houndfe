@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 
 const router = useRouter()
 
@@ -13,18 +14,15 @@ function goBack() {
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center p-4">
-    <div class="text-center space-y-4">
-      <h1 class="text-6xl font-bold text-muted">403</h1>
-      <h2 class="text-xl font-semibold">Acceso denegado</h2>
-      <p class="text-muted max-w-md">
-        No tienes permisos para acceder a esta página. Contacta al administrador si crees que es un
-        error.
-      </p>
-      <div class="flex justify-center gap-3 pt-2">
-        <UButton label="Volver" color="neutral" variant="outline" @click="goBack" />
-        <UButton label="Ir al inicio" @click="goHome" />
-      </div>
-    </div>
+  <div class="flex min-h-screen flex-col items-center justify-center gap-2 p-4">
+    <EmptyState
+      kind="forbidden"
+      title="Tu rol no tiene acceso a esta página"
+      description="Si lo necesitas, pide acceso a un administrador."
+      action-label="Ir al inicio"
+      action-variant="solid"
+      @action="goHome"
+    />
+    <UButton label="Volver" color="neutral" variant="ghost" @click="goBack" />
   </div>
 </template>
