@@ -7,9 +7,11 @@ const date = (value: string) => new Date(value).toLocaleString('es-MX')
 const statusLabel = { DRAFT: 'Borrador', CONFIRMED: 'Confirmada', CANCELLED: 'Cancelada' }
 const closure = computed(() => {
   const { confirmedBy, confirmedAt, cancelledBy, cancelledAt } = props.order
-  if (cancelledAt) return `Cancelada${cancelledBy ? ` por ${cancelledBy.displayName}` : ''} el ${date(cancelledAt)}`
-  if (confirmedAt) return `Confirmada${confirmedBy ? ` por ${confirmedBy.displayName}` : ''} el ${date(confirmedAt)}`
-  return ''
+  // A cancelled order that was confirmed first keeps both records.
+  return [
+    confirmedAt && `Confirmada${confirmedBy ? ` por ${confirmedBy.displayName}` : ''} el ${date(confirmedAt)}`,
+    cancelledAt && `Cancelada${cancelledBy ? ` por ${cancelledBy.displayName}` : ''} el ${date(cancelledAt)}`,
+  ].filter(Boolean).join(' · ')
 })
 const lines = computed(() => props.order.lines.map(line => {
   const display = props.order.lineDisplaySnapshots.find(item => item.lineId === line.lineId)

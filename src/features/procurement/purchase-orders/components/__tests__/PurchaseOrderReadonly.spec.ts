@@ -27,6 +27,11 @@ describe('closed order read-only block', () => {
     expect(cancelled.text()).toContain(`Cancelada por Luis Gómez el ${new Date('2026-11-04T09:00:00Z').toLocaleString('es-MX')}`)
     expect(cancelled.text()).not.toContain('Confirmada por')
   })
+  it('keeps who confirmed a later cancelled order next to who cancelled it', () => {
+    const both = mount(PurchaseOrderReadonly, { props: { order: { ...confirmed, status: 'CANCELLED', cancelledAt: '2026-11-04T09:00:00Z', cancelledBy: { displayName: 'Luis Gómez' } } } })
+    expect(both.text()).toContain(`Confirmada por Ana Pérez el ${new Date(confirmed.confirmedAt!).toLocaleString('es-MX')}`)
+    expect(both.text()).toContain(`Cancelada por Luis Gómez el ${new Date('2026-11-04T09:00:00Z').toLocaleString('es-MX')}`)
+  })
   it('keeps readable fallbacks for missing optional data', () => {
     const wrapper = mount(PurchaseOrderReadonly, { props: { order: { ...confirmed, note: null, location: { detail: null }, locationSnapshot: { tenantId: 't', tenantName: 'Sucursal Centro', detail: null }, supplierDisplaySnapshot: null, lineDisplaySnapshots: [], lineSubtotals: [] } } })
     expect(wrapper.text()).toContain('Sin proveedor')

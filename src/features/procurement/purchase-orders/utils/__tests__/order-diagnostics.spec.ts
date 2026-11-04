@@ -28,6 +28,8 @@ describe('order diagnostics', () => {
     expect(commandMessage(fail('SUPPLIER_VERSION_CONFLICT'))).toBe('Los datos del proveedor cambiaron. Revisa la orden actualizada antes de confirmar.')
     expect(commandMessage(fail('ORDER_STATE_CONFLICT'))).toBe('La orden ya no está en un estado que permita esta acción. Revisa su estado actual.')
     expect(commandMessage(fail('SUPPLIER_ARCHIVED'), false, 'confirm')).toBe('El proveedor de esta orden está archivado. Elige un proveedor activo y guarda el borrador antes de confirmar.')
+    for (const operation of ['confirm', 'cancel'] as const) expect(commandMessage(fail('ORDER_VERSION_CONFLICT'), false, operation)).toBe('La orden cambió en otra sesión. Ya se cargó su versión actual; revísala antes de continuar.')
+    expect(commandMessage(fail('ORDER_VERSION_CONFLICT'))).toBe('La orden cambió en otra sesión. Tus cambios locales se conservan. Puedes cargar la versión actual.')
     expect(commandMessage(fail('SUPPLIER_ARCHIVED'))).toBe('El proveedor seleccionado está archivado. Elige un proveedor activo para esta sustitución.')
     for (const code of ['ORDER_NOT_READY', 'ELIGIBILITY_CHANGED', 'SUPPLIER_VERSION_CONFLICT', 'ORDER_STATE_CONFLICT']) expect(commandMessage(fail(code))).not.toBe(generic)
   })

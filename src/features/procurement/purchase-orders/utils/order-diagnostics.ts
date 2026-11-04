@@ -35,6 +35,8 @@ export function commandMessage(error: unknown, uncertain = false, operation: 'ed
   if (uncertain) return 'El resultado no está confirmado. Reintenta el mismo intento antes de continuar.'
   if (!error) return ''
   const code = (error as { response?: { data?: { error?: string } } }).response?.data?.error
+  // Transitions re-read the order after a conflict, so there are no local edits to keep.
+  if (code === 'ORDER_VERSION_CONFLICT' && operation !== 'edit') return 'La orden cambió en otra sesión. Ya se cargó su versión actual; revísala antes de continuar.'
   if (code === 'SUPPLIER_ARCHIVED' && operation === 'confirm') return 'El proveedor de esta orden está archivado. Elige un proveedor activo y guarda el borrador antes de confirmar.'
   const copy: Record<string, string> = {
     ORDER_VERSION_CONFLICT: 'La orden cambió en otra sesión. Tus cambios locales se conservan. Puedes cargar la versión actual.',
