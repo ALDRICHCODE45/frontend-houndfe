@@ -631,6 +631,19 @@ describe('TransferDeliveryRouteStopModal — accessibility (verifier correction 
     await flushPromises()
     expect(wrapper.find('[data-testid="transfer-destinations-error"]').attributes('role')).toBe('alert')
   })
+
+  it('shows the destination-list failure through the shared error state with Reintentar', async () => {
+    destinationsIsError.value = true
+    destinationsErrorRef.value = { response: { status: 500, data: { message: 'boom' } } }
+    const wrapper = mountModal()
+    await flushPromises()
+    const state = wrapper.get('[data-testid="transfer-destinations-error"]')
+    expect(state.classes()).toContain('hf-empty-state')
+    expect(state.attributes('data-kind')).toBe('error')
+    expect(wrapper.get('[data-testid="transfer-destinations-retry"]').text()).toBe(
+      DELIVERY_ROUTE_COPY.transfer.retry,
+    )
+  })
 })
 
 describe('TransferDeliveryRouteStopModal — design-system portal (manager detail redesign)', () => {

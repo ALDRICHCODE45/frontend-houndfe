@@ -24,6 +24,7 @@
 
 import { computed, reactive, ref, watch } from 'vue'
 import { refDebounced } from '@vueuse/core'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import { formatAddress } from '@/core/shared/utils/formatAddress'
@@ -596,25 +597,16 @@ const errorMessage = computed(() =>
       {{ copy.loading }}
     </div>
 
-    <div
+    <EmptyState
       v-if="isError"
-      class="flex flex-col gap-2"
+      class="eligible-sales-error"
       data-testid="eligible-sales-picker-error"
-    >
-      <p class="text-xs text-error">{{ errorMessage }}</p>
-      <div>
-        <UButton
-          type="button"
-          color="neutral"
-          variant="outline"
-          size="sm"
-          :label="copy.retry"
-          icon="i-lucide-refresh-cw"
-          data-testid="eligible-sales-picker-error-retry"
-          @click="onRefreshAvailability"
-        />
-      </div>
-    </div>
+      kind="error"
+      :title="errorMessage"
+      :action-label="copy.retry"
+      action-test-id="eligible-sales-picker-error-retry"
+      @action="onRefreshAvailability"
+    />
 
     <p
       v-if="props.error"

@@ -34,6 +34,7 @@
  *     stop changes.
  */
 import { computed, ref, watch } from 'vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import { DELIVERY_ROUTE_COPY } from '../copy'
 import { buildRouteTitle } from '../utils/delivery-route-list.utils'
 import {
@@ -337,23 +338,15 @@ async function confirmMove(): Promise<void> {
           {{ DELIVERY_ROUTE_COPY.transfer.loading }}
         </p>
 
-        <div
+        <EmptyState
           v-else-if="destinationsError"
           data-testid="transfer-destinations-error"
-          role="alert"
-          class="flex flex-col gap-2 rounded-md border border-default p-3"
-        >
-          <p class="text-sm text-error">{{ destinationsError }}</p>
-          <div>
-            <UButton
-              color="neutral"
-              variant="outline"
-              :label="DELIVERY_ROUTE_COPY.transfer.retry"
-              data-testid="transfer-destinations-retry"
-              @click="retryDestinations"
-            />
-          </div>
-        </div>
+          kind="error"
+          :title="destinationsError"
+          :action-label="DELIVERY_ROUTE_COPY.transfer.retry"
+          action-test-id="transfer-destinations-retry"
+          @action="retryDestinations"
+        />
 
         <p
           v-else-if="destinationOptions.length === 0"

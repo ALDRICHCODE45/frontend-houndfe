@@ -719,6 +719,11 @@ describe('EligibleSalesPicker — failed refresh keeps the conflict blocked (fix
     await vi.waitFor(() => expect(wrapper.find('[data-testid="eligible-sales-picker-error"]').exists()).toBe(true))
     await nextTick()
 
+    // The failure is the shared error state, not a bold red sentence.
+    const state = wrapper.get('[data-testid="eligible-sales-picker-error"]')
+    expect(state.classes()).toContain('hf-empty-state')
+    expect(state.attributes('data-kind')).toBe('error')
+
     // Still blocked, and the retry affordance is present.
     expect(lastValidity(picker).valid).toBe(false)
     expect(wrapper.find('[data-testid="eligible-sales-picker-error-retry"]').exists()).toBe(true)

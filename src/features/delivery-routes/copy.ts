@@ -255,7 +255,7 @@ export const DELIVERY_ROUTE_COPY = {
     quickActions: {
       map: 'Ver en mapa',
       copyAddress: 'Copiar dirección',
-      email: 'Email',
+      email: 'Correo',
       successMap: 'Mapa abierto',
       successCopy: 'Dirección copiada',
       successEmail: 'Enviando correo',

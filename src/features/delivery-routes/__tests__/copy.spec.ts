@@ -113,7 +113,7 @@ describe('copy.ts — single Spanish copy source (design.md §3)', () => {
   it('exposes quick-action labels in map/copy/email order (REQ-DCK-005)', () => {
     expect(DELIVERY_ROUTE_COPY.cockpit.quickActions.map).toBe('Ver en mapa')
     expect(DELIVERY_ROUTE_COPY.cockpit.quickActions.copyAddress).toBe('Copiar dirección')
-    expect(DELIVERY_ROUTE_COPY.cockpit.quickActions.email).toBe('Email')
+    expect(DELIVERY_ROUTE_COPY.cockpit.quickActions.email).toBe('Correo')
   })
 
   // ─── B3 correction: centralized success copy for the unified settled handler ───
