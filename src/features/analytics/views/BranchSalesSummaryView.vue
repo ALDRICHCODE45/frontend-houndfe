@@ -145,14 +145,10 @@ const metricsSummary = computed(() =>
 )
 
 /**
- * A retry from the no-data error shows the skeleton again, so the shared error
- * state (which has no busy button) never sits there while the request runs.
+ * A retry from the no-data error keeps the error in place with a busy button
+ * (`actionLoading`); the skeleton is only for the first load.
  */
-const showSummarySkeleton = computed(
-  () =>
-    summaryState.isInitialLoading.value ||
-    (summaryState.isError.value && summaryState.isRefetching.value && !summaryState.summary.value),
-)
+const showSummarySkeleton = computed(() => summaryState.isInitialLoading.value)
 
 /** HTTP status is the ONLY error signal consumed for presentation copy. */
 function httpStatus(error: unknown): number | undefined {
@@ -164,6 +160,9 @@ const errorMessage = computed(() => {
   const status = httpStatus(summaryState.error.value)
   return (status !== undefined ? ERROR_MESSAGES[status] : undefined) ?? ERROR_FALLBACK_MESSAGE
 })
+
+/** The empty period offers the previous month, unless it is already the selection. */
+const canOfferPreviousMonth = computed(() => activePreset.value !== 'previousMonth')
 
 /** Preset intent -> committed helper boundaries; never local date arithmetic. */
 function onPreset(id: MexicoCityRangePresetId) {
@@ -333,6 +332,7 @@ function onPendingRefundsRetry() {
             :title="errorMessage"
             action-label="Reintentar"
             action-test-id="branch-summary-retry"
+            :action-loading="summaryState.isRefetching.value"
             @action="onRetry"
           />
 
@@ -341,9 +341,13 @@ function onPendingRefundsRetry() {
           <EmptyState
             v-else-if="summaryState.summary.value"
             data-testid="branch-summary-empty"
-            class="dashboard-summary-feedback"
+            class="dashboard-summary-empty"
             kind="empty"
             title="Sin actividad en el periodo"
+            description="Prueba con otro periodo para ver ventas."
+            :action-label="canOfferPreviousMonth ? 'Ver mes anterior' : undefined"
+            action-test-id="branch-summary-empty-action"
+            @action="onPreset('previousMonth')"
           />
 
           <!-- No active query (for example, no tenant context yet). -->

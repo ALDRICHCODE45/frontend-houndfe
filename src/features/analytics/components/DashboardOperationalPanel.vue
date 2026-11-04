@@ -21,14 +21,11 @@ const emit = defineEmits<{
 }>()
 
 const headingId = computed(() => `${props.id}-heading`)
-// A retry from the no-data error shows the skeleton again, so the shared error
-// state (which has no busy button) never sits there while the request runs.
-const showFatalError = computed(() => props.isError && !props.hasItems && !props.isRefetching)
+// A retry from the no-data error keeps the error in place with a busy button
+// (`actionLoading`); the skeleton is only for the first load.
+const showFatalError = computed(() => props.isError && !props.hasItems && !props.isInitialLoading)
 const showInitialLoading = computed(
-  () =>
-    !props.hasItems &&
-    !showFatalError.value &&
-    (props.isInitialLoading || (props.isError && props.isRefetching)),
+  () => !props.hasItems && !showFatalError.value && props.isInitialLoading,
 )
 const showEmpty = computed(
   () => !props.hasItems && !showFatalError.value && !showInitialLoading.value,
@@ -63,9 +60,11 @@ const isBusy = computed(() => props.isInitialLoading || props.isRefetching)
       <EmptyState
         v-if="showFatalError"
         data-testid="dashboard-operational-error"
+        class="dashboard-compact-error"
         kind="error"
         :title="errorMessage"
         action-label="Reintentar"
+        :action-loading="isRefetching"
         @action="emit('retry')"
       />
 

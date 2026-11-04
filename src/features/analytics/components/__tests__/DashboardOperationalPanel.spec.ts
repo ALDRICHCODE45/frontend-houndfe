@@ -84,6 +84,7 @@ describe('DashboardOperationalPanel — structure and independent states', () =>
     expect(alert.classes()).toContain('hf-empty-state')
     expect(alert.attributes('data-kind')).toBe('error')
     expect(alert.attributes('role')).toBe('alert')
+    expect(alert.classes()).toContain('dashboard-compact-error')
     expect(alert.text()).toContain('No pudimos cargar las ventas recientes.')
     expect(buttons).toHaveLength(1)
     expect(w.find('[data-testid="dashboard-operational-empty"]').exists()).toBe(false)
@@ -116,10 +117,14 @@ describe('DashboardOperationalPanel — structure and independent states', () =>
     expect(w.findAll('[data-testid^="row-"]')).toHaveLength(2)
   })
 
-  it('swaps the no-data error for the skeleton while a retry is in flight', () => {
+  it('keeps the no-data error in place with a busy retry while the request runs', () => {
     const w = mountPanel({ isError: true, isRefetching: true })
-    expect(w.find('[data-testid="dashboard-operational-loading"]').exists()).toBe(true)
-    expect(w.find('[data-testid="dashboard-operational-error"]').exists()).toBe(false)
+    expect(w.find('[data-testid="dashboard-operational-loading"]').exists()).toBe(false)
+    const alert = w.find('[data-testid="dashboard-operational-error"]')
+    expect(alert.exists()).toBe(true)
+    const retry = alert.find('button')
+    expect(retry.attributes('disabled')).toBeDefined()
+    expect(retry.find('.animate-spin').exists()).toBe(true)
   })
 
   it('disables the retained-data retry and shows its spinner while refetching', () => {

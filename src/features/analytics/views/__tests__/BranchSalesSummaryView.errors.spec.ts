@@ -374,12 +374,32 @@ describe('BranchSalesSummaryView — T4 state presentation', () => {
     expect(retry.find('.animate-spin').exists()).toBe(true)
   })
 
-  it('swaps the no-data error for the skeleton while a retry is in flight', () => {
+  it('keeps the no-data error in place with a busy retry while a retry is in flight', () => {
     state.isError.value = true
     state.isRefetching.value = true
     const view = mountView()
-    expect(view.find('[data-testid="branch-summary-loading"]').exists()).toBe(true)
-    expect(view.find('[data-testid="branch-summary-error"]').exists()).toBe(false)
+    expect(view.find('[data-testid="branch-summary-loading"]').exists()).toBe(false)
+    expect(view.find('[data-testid="branch-summary-error"]').exists()).toBe(true)
+    const retry = view.find('[data-testid="branch-summary-retry"]')
+    expect(retry.attributes('disabled')).toBeDefined()
+    expect(retry.find('.animate-spin').exists()).toBe(true)
+  })
+
+  it('shows one page-level error and compact inline errors when everything fails', () => {
+    grantPermissions('read:Sale', 'read:SaleRefund')
+    state.isError.value = true
+    timeseriesState.isError.value = true
+    recentSalesState.isError.value = true
+    debtSalesState.isError.value = true
+    pendingRefundsState.isError.value = true
+    const view = mountView()
+
+    const page = view.find('[data-testid="branch-summary-error"]')
+    expect(page.classes()).not.toContain('dashboard-compact-error')
+    const compact = view.findAll('.dashboard-compact-error')
+    // trend + 3 operational panels, all compact; only the summary is page-level.
+    expect(compact).toHaveLength(4)
+    expect(view.findAll('[data-kind="error"]')).toHaveLength(5)
   })
 
   it('dims the summary without dimming its independent operational siblings', () => {

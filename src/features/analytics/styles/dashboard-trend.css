@@ -90,8 +90,15 @@ html.dark .dashboard-visual .branch-sales-trend-chart {
   --vis-tooltip-background-color: var(--hf-surface);
   --vis-tooltip-text-color: var(--hf-ink);
 }
-.dashboard-visual .dashboard-trend-canvas,
-.dashboard-visual .dashboard-trend-skeleton { height: 240px; width: 100%; min-width: 0; }
+.dashboard-visual .dashboard-trend-canvas { height: 240px; width: 100%; min-width: 0; }
+/* Loading skeleton in the chart's own geometry: six tabs, the grid, rising bars. */
+.dashboard-visual .dashboard-trend-skeleton-shape { padding: 16px 24px 24px; }
+.dashboard-visual .dashboard-trend-skeleton-tabs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.dashboard-visual .dashboard-trend-skeleton-tabs > span { height: 32px; border-radius: var(--hf-radius-control); }
+.dashboard-visual .dashboard-trend-skeleton-chart { position: relative; display: flex; flex-direction: column; justify-content: space-between; height: 240px; margin-top: 16px; }
+.dashboard-visual .dashboard-trend-skeleton-line { display: block; height: 1px; background: var(--hf-border); }
+.dashboard-visual .dashboard-trend-skeleton-bars { position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; padding-inline: 8px; }
+.dashboard-visual .dashboard-trend-skeleton-bars > span { flex: 1 1 0; min-width: 0; border-radius: 4px 4px 0 0; }
 .dashboard-visual .dashboard-trend-defs { position: absolute; pointer-events: none; }
 .dashboard-visual .branch-sales-trend-chart [class*="grid"] line { stroke-dasharray: 3 5; }
 /* Reveal the real series, never interpolate or synthesize backend values. */
@@ -145,6 +152,16 @@ html.dark .dashboard-visual .branch-sales-trend-chart {
 .dashboard-visual .dashboard-trend :is(.branch-sales-trend-chart, .dashboard-trend-table) { transition: opacity 200ms; }
 .dashboard-visual .dashboard-trend-refreshing :is(.branch-sales-trend-chart, .dashboard-trend-table) { opacity: 0.6; }
 .dashboard-visual .dashboard-trend > :is([role="status"], [role="alert"]) { margin: 16px 24px; }
+/* Below the desktop layout the six metric tabs wrap into a 3x2 grid; a clipped
+ * scroller hid half of them with no cue that more existed. The pressed tab is
+ * tinted itself, so the sliding indicator is not needed. */
+@media (max-width: 1190px) {
+  .dashboard-visual .dashboard-trend-tabs-scroll { overflow: visible; }
+  .dashboard-visual .dashboard-trend-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; min-width: 0; }
+  .dashboard-visual .dashboard-trend-tab-indicator { display: none; }
+  .dashboard-visual .dashboard-trend-tab { padding: 4px 8px; line-height: 1.25; white-space: normal; text-align: center; }
+  .dashboard-visual .dashboard-trend-tab[aria-pressed="true"] { background: var(--hf-active-soft); }
+}
 @keyframes dashboard-trend-enter {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -160,8 +177,11 @@ html.dark .dashboard-visual .branch-sales-trend-chart {
   .dashboard-visual .dashboard-trend-caption { min-height: 0; padding: 12px 16px 0; }
   .dashboard-visual .dashboard-trend-table { padding-inline: 16px; }
   .dashboard-visual .dashboard-trend-table summary { position: static; }
-  .dashboard-visual .dashboard-trend-canvas,
-  .dashboard-visual .dashboard-trend-skeleton { height: 220px; }
+  .dashboard-visual .dashboard-trend-canvas { height: 220px; }
+  .dashboard-visual .dashboard-trend-skeleton-shape { padding-inline: 16px; }
+  .dashboard-visual .dashboard-trend-skeleton-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dashboard-visual .dashboard-trend-skeleton-tabs > span:nth-child(n + 4) { display: none; }
+  .dashboard-visual .dashboard-trend-skeleton-chart { height: 200px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .dashboard-visual .dashboard-trend,

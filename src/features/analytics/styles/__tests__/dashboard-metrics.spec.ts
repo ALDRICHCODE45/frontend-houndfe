@@ -26,6 +26,13 @@ describe('Dashboard metrics presentation contract', () => {
     expect(css).toContain('@media (max-width: 700px)')
   })
 
+  it('turns the five KPIs into one row each on a phone, so none sits alone', () => {
+    const phone = css.slice(css.indexOf('@media (max-width: 700px)'))
+    expect(phone).toMatch(/dashboard-metric-grid \{ grid-template-columns: minmax\(0, 1fr\)/)
+    expect(phone).not.toContain('grid-column: 1 / -1; min-height: 104px')
+    expect(phone).toMatch(/dashboard-card-spark \{ display: none; \}/)
+  })
+
   it('gives Ventas netas clear priority over the quieter secondary cards', () => {
     const size = (selector: string) =>
       Number(new RegExp(`${selector}[^}]*?font-size: (\\d+)px`).exec(css)?.[1])

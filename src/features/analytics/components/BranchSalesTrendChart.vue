@@ -36,8 +36,10 @@ import {
   BRANCH_SALES_TIMESERIES_METRICS,
   DEFAULT_BRANCH_SALES_TIMESERIES_METRIC,
   buildBranchSalesTimeseriesChartLabel,
+  formatBranchSalesTimeseriesAxisDate,
   formatBranchSalesTimeseriesAxisTick,
   formatBranchSalesTimeseriesDate,
+  formatBranchSalesTimeseriesWindow,
   formatBranchSalesTimeseriesValue,
   getBranchSalesTimeseriesMetric,
   readBranchSalesTimeseriesValue,
@@ -73,12 +75,10 @@ const selectedKey = shallowRef<BranchSalesTimeseriesMetricKey>(
 const selectedMetric = computed(() => getBranchSalesTimeseriesMetric(selectedKey.value))
 
 const hasPoints = computed(() => props.points.length > 0)
-// A retry from the no-data error shows the skeleton again, so the shared error
-// state (which has no busy button) never sits there while the request runs.
-const showLoading = computed(
-  () => !hasPoints.value && (props.isInitialLoading || (props.isError && props.isRefetching)),
-)
-const showError = computed(() => props.isError && !props.isRefetching && !hasPoints.value)
+// A retry from the no-data error keeps the error in place with a busy button
+// (`actionLoading`); the skeleton is only for the first load.
+const showLoading = computed(() => !hasPoints.value && props.isInitialLoading)
+const showError = computed(() => props.isError && !hasPoints.value && !props.isInitialLoading)
 const showEmpty = computed(() => !hasPoints.value && !props.isInitialLoading && !props.isError)
 
 const chartLabel = computed(() =>
@@ -86,9 +86,19 @@ const chartLabel = computed(() =>
 )
 
 const tableCaption = computed(
-  () =>
-    `${selectedMetric.value.label} por día del ${props.from} al ${props.to} (Hasta excluyente).`,
+  () => `${selectedMetric.value.label} por día, del ${formatBranchSalesTimeseriesWindow(props.from, props.to)}`,
 )
+
+/** A series with no movement draws a flat line and "$0" ticks; say it in words instead. */
+const isFlatSeries = computed(
+  () =>
+    hasPoints.value &&
+    props.points.every((point) => readBranchSalesTimeseriesValue(point, selectedKey.value) === 0),
+)
+
+/** Skeleton shape: the six metric tabs, the grid and a rising run of bars. */
+const SKELETON_BARS = [18, 26, 22, 34, 30, 44, 38, 52, 48, 64, 58, 76] as const
+const SKELETON_TABS = 6
 
 const LINE_STROKE = 'var(--hf-action)'
 const keyboardIndex = shallowRef<number | undefined>()
@@ -170,7 +180,7 @@ const xTickValues = computed(() => props.points.map((_point, index) => index))
 const xTickFormat = computed(() => (tick: number | Date): string => {
   if (typeof tick !== 'number' || !Number.isInteger(tick)) return ''
   const point = props.points[tick]
-  return point ? formatBranchSalesTimeseriesDate(point.date) : ''
+  return point ? formatBranchSalesTimeseriesAxisDate(point.date) : ''
 })
 
 /**
@@ -266,26 +276,42 @@ const areaFill = `url(#${gradientId})`
       </UButton>
     </div>
 
-    <!-- Initial load: accessible skeleton, never a synthetic series. -->
+    <!-- Initial load: accessible skeleton shaped like the chart, never a synthetic series. -->
     <div
       v-if="showLoading"
       data-testid="branch-sales-trend-loading"
       role="status"
       aria-busy="true"
-      class="flex min-w-0 flex-col gap-2"
+      class="dashboard-trend-skeleton-shape"
     >
       <span class="sr-only">Cargando la tendencia diaria…</span>
-      <USkeleton class="dashboard-trend-skeleton w-full" />
+      <div class="dashboard-trend-skeleton-tabs" aria-hidden="true">
+        <span v-for="n in SKELETON_TABS" :key="n" data-skeleton="tab" class="dashboard-state-skeleton" />
+      </div>
+      <div class="dashboard-trend-skeleton-chart" aria-hidden="true">
+        <span v-for="n in 5" :key="n" data-skeleton="grid-line" class="dashboard-trend-skeleton-line" />
+        <div class="dashboard-trend-skeleton-bars">
+          <span
+            v-for="(height, index) in SKELETON_BARS"
+            :key="index"
+            data-skeleton="bar"
+            class="dashboard-state-skeleton"
+            :style="{ height: `${height}%` }"
+          />
+        </div>
+      </div>
     </div>
 
     <!-- Error with no data: chart-scoped copy and one guarded recovery. -->
     <EmptyState
       v-else-if="showError"
       data-testid="branch-sales-trend-error"
+      class="dashboard-compact-error"
       kind="error"
       title="No pudimos cargar la tendencia diaria"
       action-label="Reintentar"
       action-test-id="branch-sales-trend-retry"
+      :action-loading="props.isRefetching"
       @action="onRetry"
     />
 
@@ -328,7 +354,15 @@ const areaFill = `url(#${gradientId})`
         `.dark` chrome overrides; Unovis resolves `var()` inside its fill/stroke
         presentation values, so both themes follow the tokens.
       -->
+      <EmptyState
+        v-if="isFlatSeries"
+        data-testid="branch-sales-trend-flat"
+        kind="empty"
+        title="Sin movimiento en el periodo"
+      />
+
       <div
+        v-else
         data-testid="branch-sales-trend-chart"
         role="img"
         :aria-label="chartLabel"
@@ -363,7 +397,7 @@ const areaFill = `url(#${gradientId})`
           :data="props.points"
           :prevent-empty-domain="true"
           :auto-margin="false"
-          :margin="{ top: 18, right: 16, left: 58, bottom: 32 }"
+          :margin="{ top: 18, right: 28, left: 58, bottom: 32 }"
           :duration="0"
           class="dashboard-trend-canvas"
         >

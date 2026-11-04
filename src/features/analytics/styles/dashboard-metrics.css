@@ -99,10 +99,13 @@
   .dashboard-visual .dashboard-hero-period { max-width: 100%; }
   .dashboard-visual .dashboard-hero-value { font-size: 43px; }
   .dashboard-visual .dashboard-hero-visual { position: static; width: 100%; margin-top: 12px; padding-left: 0; }
-  .dashboard-visual .dashboard-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .dashboard-visual .dashboard-metric-card { padding: 16px; min-height: 120px; }
-  .dashboard-visual .dashboard-metric-card:last-child { grid-column: 1 / -1; min-height: 104px; }
-  .dashboard-visual .dashboard-metric-value { font-size: 22px; }
+  /* Five cards never tile a two-column grid (the last one sat alone), so on a
+   * phone each KPI is one row: label on the left, figure on the right. */
+  .dashboard-visual .dashboard-metric-grid { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .dashboard-visual .dashboard-metric-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; min-height: 56px; }
+  .dashboard-visual .dashboard-metric-card dd { text-align: right; }
+  .dashboard-visual .dashboard-metric-value { margin-top: 0; font-size: 18px; }
+  .dashboard-visual .dashboard-card-spark { display: none; }
   .dashboard-visual .dashboard-refund-grid { grid-template-columns: minmax(0, 1fr); }
   .dashboard-visual .dashboard-refund-item + .dashboard-refund-item { border-left: 0; border-top: 1px solid var(--hf-border); }
   .dashboard-visual .dashboard-refund-item strong { font-size: 16px; }

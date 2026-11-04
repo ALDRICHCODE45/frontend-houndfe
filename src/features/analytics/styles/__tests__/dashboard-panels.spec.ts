@@ -15,14 +15,21 @@ describe('Dashboard operational and summary state presentation', () => {
     expect(css).toContain('border-bottom: 1px solid var(--hf-border)')
     expect(css).toContain('border-radius: 12px')
     expect(css).toContain('min-height: 450px')
-    expect(css).toContain('min-height: 444px')
+    // The page-level states are compact, not a 444px box.
+    expect(css).not.toContain('min-height: 444px')
+    expect(css).toContain('.dashboard-summary-feedback { min-height: 220px; }')
     expect(css).not.toMatch(/#[\da-f]{3,8}\b|:root|!important/i)
   })
 
   it('leaves the words and tone of empty and error states to the shared EmptyState', () => {
     expect(panel).toContain('<EmptyState')
     expect(css).not.toMatch(/dashboard-(empty|error)-block|dashboard-empty-icon|dashboard-row-status|dashboard-status-warning/)
-    expect(css).toContain(".hf-empty-state[data-kind='error']")
+  })
+
+  it('shrinks the errors of the trend and each panel into one compact row', () => {
+    expect(css).toContain('.hf-empty-state.dashboard-compact-error')
+    expect(css).toMatch(/dashboard-compact-error \{[^}]*flex-direction: row/)
+    expect(css).toContain('.dashboard-operations:has(.dashboard-compact-error) { min-height: 0; }')
   })
 
   it('animates entry, ordered rows, skeletons and refresh with a reduced-motion escape', () => {
