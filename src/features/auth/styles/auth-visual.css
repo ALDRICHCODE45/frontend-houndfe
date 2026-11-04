@@ -45,13 +45,10 @@
   gap: 24px;
 }
 
-/* The card keeps one height in every state: the failure notice hangs below it
- * and Cancelar sits in its corner, so neither pushes the form. */
-.hf-auth-feedback {
-  position: absolute;
-  top: calc(100% + 12px);
-  right: 0;
-  left: 0;
+/* The failure notice lives inside the card above the primary action; the live
+ * region collapses while empty so it adds no gap. Cancelar sits in the corner. */
+.hf-auth-feedback:empty {
+  display: none;
 }
 
 .hf-auth-cancel {

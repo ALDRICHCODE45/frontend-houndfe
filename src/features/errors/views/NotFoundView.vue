@@ -28,13 +28,14 @@ function goBack() {
           label="Volver"
           color="neutral"
           variant="outline"
+          class="hf-error-action"
           data-testid="error-back"
           @click="goBack"
         />
         <UButton
           label="Ir al inicio"
           color="primary"
-          class="hf-primary-control"
+          class="hf-primary-control hf-error-action"
           data-testid="error-home"
           @click="goHome"
         />

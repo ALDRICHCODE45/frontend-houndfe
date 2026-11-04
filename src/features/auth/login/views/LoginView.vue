@@ -141,18 +141,20 @@ async function navigateAfterLogin() {
         @resend="handleResend"
         @restart="restart"
       />
-      <LoginForm v-else :loading="isLoading" @submit="handleLogin" />
-
-      <!-- The failure notice sits just below the card, out of its flow, so the card never changes height. -->
-      <div data-testid="login-feedback" class="hf-auth-feedback" aria-live="assertive">
-        <UAlert
-          v-if="loginError"
-          color="error"
-          variant="subtle"
-          icon="i-lucide-triangle-alert"
-          :title="loginError"
-        />
-      </div>
+      <LoginForm v-else :loading="isLoading" @submit="handleLogin">
+        <!-- The failure notice sits inside the card, above Ingresar; the live region is always present so it is announced. -->
+        <template #feedback>
+          <div data-testid="login-feedback" class="hf-auth-feedback" aria-live="assertive">
+            <UAlert
+              v-if="loginError"
+              color="error"
+              variant="subtle"
+              icon="i-lucide-triangle-alert"
+              :title="loginError"
+            />
+          </div>
+        </template>
+      </LoginForm>
     </div>
   </div>
 </template>

@@ -39,6 +39,11 @@
   gap: 12px;
 }
 
+/* Both buttons are 44px: the outline Volver would otherwise sit at the small default. */
+.hf-error-actions .hf-error-action {
+  min-height: var(--hf-control-height);
+}
+
 @media (max-width: 480px) {
   .hf-error-card {
     padding: 24px 20px;

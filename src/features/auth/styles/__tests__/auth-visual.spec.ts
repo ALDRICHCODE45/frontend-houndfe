@@ -21,10 +21,11 @@ describe('auth stylesheet', () => {
     expect(rule('.hf-auth-head')).toContain('text-align: center')
   })
 
-  it('holds the card height: the failure notice and Cancelar are out of the flow', () => {
+  it('keeps Cancelar out of the flow and the failure notice inside the card, collapsing when empty', () => {
     expect(rule('.hf-auth-card')).toContain('position: relative')
-    expect(rule('.hf-auth-feedback')).toContain('position: absolute')
     expect(rule('.hf-auth-cancel')).toContain('position: absolute')
+    expect(rule('.hf-auth-feedback')).not.toContain('position: absolute')
+    expect(rule('.hf-auth-feedback:empty')).toContain('display: none')
   })
 
   it('keeps the busy primary on the action pairing at full strength, light and dark', () => {

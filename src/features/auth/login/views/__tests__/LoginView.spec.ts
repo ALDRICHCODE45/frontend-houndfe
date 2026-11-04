@@ -54,16 +54,24 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({ useAuthStore: () => stor
 vi.mock('@/features/auth/login/components/LoginForm.vue', () => ({
   default: defineComponent({
     emits: ['submit'],
-    setup(_, { emit }) {
+    setup(_, { emit, slots }) {
+      // Mirrors the real form: the feedback slot renders above the submit button.
       return () =>
-        h(
-          'button',
-          {
-            'data-test': 'password',
-            onClick: () => emit('submit', { email: 'user@hound.test', password: 'synthetic' }),
-          },
-          'Ingresar',
-        )
+        h('form', [
+          slots.feedback?.(),
+          h(
+            'button',
+            {
+              type: 'submit',
+              'data-test': 'password',
+              onClick: (event: Event) => {
+                event.preventDefault()
+                emit('submit', { email: 'user@hound.test', password: 'synthetic' })
+              },
+            },
+            'Ingresar',
+          ),
+        ])
     },
   }),
 }))
@@ -347,6 +355,11 @@ describe('LoginView layout', () => {
     expect(feedback.text()).toContain('No se pudo iniciar sesión')
     expect(feedback.attributes('aria-live')).toBe('assertive')
     expect(wrapper.get('.hf-auth-card').element.contains(feedback.element)).toBe(true)
+    // The failure sits inside the card's form, above the submit button, not floating below the card.
+    const form = wrapper.get('form')
+    expect(form.element.contains(feedback.element)).toBe(true)
+    const submit = form.get('button[type="submit"]').element
+    expect(feedback.element.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     // The slot is always rendered (empty or not), so the notice only fills it.
     wrapper.unmount()
     const quiet = mount(LoginView, {

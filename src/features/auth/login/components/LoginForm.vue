@@ -61,6 +61,9 @@ function handleSubmit(event: FormSubmitEvent<LoginFormValues>) {
         </UInput>
       </UFormField>
 
+      <!-- The failure notice (owned by the view) sits inside the card, right above the action it blocks. -->
+      <slot name="feedback" />
+
       <UButton
         type="submit"
         size="lg"
