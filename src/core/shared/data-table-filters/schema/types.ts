@@ -1,4 +1,4 @@
-export type FilterKind = 'multi-enum' | 'multi-async' | 'multi-text' | 'numeric-range' | 'date-range'
+type FilterKind = 'multi-enum' | 'multi-async' | 'multi-text' | 'numeric-range' | 'date-range'
 
 export interface FilterOption {
   label: string
@@ -6,12 +6,12 @@ export interface FilterOption {
   icon?: string
 }
 
-export interface IncludeNullConfig {
+interface IncludeNullConfig {
   param: string
   label: string
 }
 
-export interface BaseFilterDefinition<Kind extends FilterKind, Value> {
+interface BaseFilterDefinition<Kind extends FilterKind, Value> {
   id: string
   kind: Kind
   label: string

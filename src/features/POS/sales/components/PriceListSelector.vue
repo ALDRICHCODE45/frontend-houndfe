@@ -169,7 +169,7 @@ defineExpose({ handleUpdate })
     />
     <span
       v-if="priceListsQuery.isError.value && !priceListsQuery.isFetching.value"
-      class="text-[11px] text-error-500 dark:text-error-400"
+      class="text-[11px] text-error"
     >
       Error al cargar listas
     </span>

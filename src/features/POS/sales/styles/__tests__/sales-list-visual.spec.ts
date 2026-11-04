@@ -12,7 +12,7 @@ import { defineFiltersSchema, filter } from '@/core/shared/data-table-filters'
  *
  * Two layers:
  *  1. Source/cascade contracts: the owned stylesheet, the routed view and the
- *     card/grid/tab components. They prove scoping, token mapping and where
+ *     tab component. They prove scoping, token mapping and where
  *     the class markers live. jsdom never renders light/dark fidelity or
  *     pixel geometry, so the visual smoke remains user-owned.
  *  2. Native portal ownership: the REAL installed `@nuxt/ui` / Reka UI
@@ -29,15 +29,11 @@ import { defineFiltersSchema, filter } from '@/core/shared/data-table-filters'
 const cssPath = 'src/features/POS/sales/styles/sales-list-visual.css'
 const sharedPath = 'src/core/shared/design-system/houndfe-ui.css'
 const viewPath = 'src/features/POS/sales/views/SalesListView.vue'
-const cardPath = 'src/features/POS/sales/components/SaleCard.vue'
-const gridPath = 'src/features/POS/sales/components/SaleCardGrid.vue'
 const tabsPath = 'src/features/POS/sales/components/SalesListTabs.vue'
 
 const css = existsSync(cssPath) ? readFileSync(cssPath, 'utf8') : ''
 const sharedCss = readFileSync(sharedPath, 'utf8')
 const view = readFileSync(viewPath, 'utf8')
-const card = readFileSync(cardPath, 'utf8')
-const grid = readFileSync(gridPath, 'utf8')
 const tabs = readFileSync(tabsPath, 'utf8')
 
 const ROOT_MARKER = 'hf-theme hf-ui sales-list-visual'
@@ -178,40 +174,29 @@ describe('Sales listing adapter — scope and tokens (S1/S3/S4)', () => {
   it('keeps the Products-style page header outside the separate table surface', () => {
     expect(view).toContain('hf-page-header')
     expect(view).toContain('hf-page-title')
-    expect(view).toContain('hf-page-subtitle')
+    expect(view).not.toContain('hf-page-subtitle')
     expect(view).toContain('hf-table-surface')
     expect(view).toContain('hf-table-content')
     expect(view).toContain('hf-data-table')
     // The fixed Coco body override of the old wrapping card is gone.
     expect(view).not.toMatch(/bg-coco-neutral-/)
-    // Spanish copy preserved verbatim.
-    expect(view).toContain('Listado de ventas confirmadas')
+    // Text diet: the title says it, so there is no explanatory subtitle.
+    expect(view).not.toContain('Listado de ventas confirmadas')
   })
 
-  it('compacts toolbar, pagination and numeric cells inside the listing only', () => {
+  it('compacts toolbar and pagination inside the listing only', () => {
     expect(css).toContain('.sales-list-visual .hf-toolbar-actions')
     expect(css).toContain('.sales-list-visual .hf-toolbar-filters')
-    expect(css).toContain('.sales-list-visual .sales-view-toggle')
     expect(css).toContain('.sales-list-visual .hf-pagination-size')
     expect(css).toContain('.sales-list-visual .hf-pagination-navigation')
-    expect(css).toContain('.sales-list-visual .sales-total-value')
-    expect(css).toContain('font-variant-numeric: tabular-nums')
   })
 
-  it('styles the card surface and grid behind the opted-in root, never globally', () => {
-    expect(css).toContain('.sales-list-visual .sales-card-grid')
-    expect(css).toContain('.sales-list-visual .sales-card')
-    expect(css).toContain('.sales-list-visual .sales-card:hover')
-    expect(css).toContain('.sales-list-visual .sales-card:focus-within')
-    expect(grid).toContain('sales-card-grid')
-    expect(card).toContain('sales-card')
-    // Effective child paint stays feature-owned: every card/grid selector is
-    // anchored on the routed root so another consumer is never repainted.
-    for (const selector of selectorsOf(css)) {
-      if (selector.includes('.sales-card')) {
-        expect(selector).toContain('.sales-list-visual')
-      }
-    }
+  it('carries no card grid, view toggle or legacy card paint (one list layout)', () => {
+    expect(css).not.toContain('sales-card')
+    expect(css).not.toContain('sales-view-toggle')
+    expect(css).not.toContain('sales-total-value')
+    expect(view).not.toContain('ViewToggle')
+    expect(view).not.toContain('SaleCardGrid')
   })
 
   it('gives the quick tabs an owned hook without changing their behaviour', () => {

@@ -1,22 +1,19 @@
-type BadgeColor = 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'primary'
-
 interface MethodMeta {
   label: string
-  color: BadgeColor
   icon: string
 }
 
+// A payment method is not a state, so it carries no status color: its chip is neutral.
 const METHOD_META = {
-  CASH: { label: 'Efectivo', color: 'success', icon: 'i-lucide-banknote' },
-  CARD_DEBIT: { label: 'Débito', color: 'warning', icon: 'i-lucide-credit-card' },
-  CARD_CREDIT: { label: 'T. Crédito', color: 'warning', icon: 'i-lucide-credit-card' },
-  TRANSFER: { label: 'Transferencia', color: 'warning', icon: 'i-lucide-arrow-left-right' },
-  CREDIT: { label: 'Crédito', color: 'error', icon: 'i-lucide-hand-coins' },
+  CASH: { label: 'Efectivo', icon: 'i-lucide-banknote' },
+  CARD_DEBIT: { label: 'Débito', icon: 'i-lucide-credit-card' },
+  CARD_CREDIT: { label: 'T. Crédito', icon: 'i-lucide-credit-card' },
+  TRANSFER: { label: 'Transferencia', icon: 'i-lucide-arrow-left-right' },
+  CREDIT: { label: 'Crédito', icon: 'i-lucide-hand-coins' },
 } as const satisfies Record<string, MethodMeta>
 
 const FALLBACK_META: MethodMeta = {
   label: 'Otro',
-  color: 'neutral',
   icon: 'i-lucide-circle-help',
 }
 

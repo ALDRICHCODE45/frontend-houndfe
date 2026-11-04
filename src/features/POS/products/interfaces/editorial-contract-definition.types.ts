@@ -1,12 +1,12 @@
-export type EditorialUnit = { code: string | null; label: string | null; sortOrder: number }
-export type EditorialOption = {
+type EditorialUnit = { code: string | null; label: string | null; sortOrder: number }
+type EditorialOption = {
   code: string;
   label: string;
   archived: boolean;
   sortOrder: number;
 }
-export type EditorialGroup = { code: string; label: string; optionCodes: string[] }
-export type EditorialAlias = { label: string; optionCode: string }
+type EditorialGroup = { code: string; label: string; optionCodes: string[] }
+type EditorialAlias = { label: string; optionCode: string }
 export type EditorialNumericPolicy =
   | { status: 'pending' }
   | {

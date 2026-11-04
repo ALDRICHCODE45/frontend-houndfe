@@ -7,12 +7,18 @@ import { useClickableRow } from '@/core/shared/composables/useClickableRow'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { TableColumn } from '@/core/shared/types/table.types'
 import type { Supplier } from '../interfaces/supplier.types'
-const props = defineProps<{ items: readonly Supplier[]; canEdit: boolean; canDelete?: boolean; loading?: boolean; fetching?: boolean; error?: boolean; disabled?: boolean; activeFilterCount?: number }>()
+const props = defineProps<{ items: readonly Supplier[]; canEdit: boolean; canDelete?: boolean; canCreate?: boolean; filtered?: boolean; loading?: boolean; fetching?: boolean; error?: boolean; disabled?: boolean; activeFilterCount?: number }>()
 // `invoker` is the control focus returns to when the overlay it opens closes.
-const emit = defineEmits<{ open: [supplier: Supplier, invoker?: HTMLElement | null]; changeStatus: [supplier: Supplier, invoker?: HTMLElement | null]; delete: [supplier: Supplier, invoker?: HTMLElement | null]; refresh: []; 'clear-filters': [] }>()
+const emit = defineEmits<{ open: [supplier: Supplier, invoker?: HTMLElement | null]; changeStatus: [supplier: Supplier, invoker?: HTMLElement | null]; delete: [supplier: Supplier, invoker?: HTMLElement | null]; refresh: []; create: []; 'clear-filters': [] }>()
 const search = defineModel<string>('search', { default: '' })
 const root = useTemplateRef<HTMLElement>('root')
 const data = computed(() => [...props.items])
+// "Nada todavía" vs "sin resultados": the table picks by `filtered`; the create action only shows with permission.
+const emptyState = computed(() => ({
+  title: 'Aún no hay proveedores',
+  description: 'Los proveedores que registres aparecerán aquí.',
+  ...(props.canCreate ? { actionLabel: 'Crear proveedor' } : {}),
+}))
 const hasActions = computed(() => props.canEdit || !!props.canDelete)
 const columns = computed<TableColumn<Supplier, unknown>[]>(() => [
   { accessorKey: 'displayName', header: 'Proveedor', enableSorting: false },
@@ -56,13 +62,12 @@ const clickable = useClickableRow<Supplier>(open, { focusable: false })
     <AppDataTable
       v-model:global-filter="search"
       :columns="columns" :data="data" :loading="loading" :fetching="fetching" :error="error"
-      error-message="No se pudieron cargar los proveedores. Puedes volver a actualizar."
-      empty="No hay proveedores para esta búsqueda."
+      error-message="No se pudieron cargar los proveedores"
+      :empty-state="emptyState" :filtered="filtered" no-match-title="Ningún proveedor con estos filtros"
       :row-open="open" display-mode="auto" mobile-render="cards" search-placeholder="Buscar proveedor..."
-      refresh-button-test-id="refresh-suppliers"
       portal-class="hf-theme hf-ui suppliers-list-portal"
       :active-filter-count="activeFilterCount"
-      class="hf-data-table" @refresh="emit('refresh')" @clear-filters="emit('clear-filters')"
+      class="hf-data-table" @refresh="emit('refresh')" @empty-action="emit('create')" @clear-filters="emit('clear-filters')"
     >
       <template #filters><slot name="filters" /></template>
       <template #actions><slot name="actions" /></template>
@@ -97,6 +102,7 @@ const clickable = useClickableRow<Supplier>(open, { focusable: false })
 
 <style scoped>
 .supplier-name { text-align: left; }
+.supplier-card .supplier-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; white-space: normal; }
 .supplier-date { color: var(--hf-muted); font-size: 13px; white-space: nowrap; }
 .supplier-card { min-width: 0; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); padding: 16px; }
 .supplier-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }

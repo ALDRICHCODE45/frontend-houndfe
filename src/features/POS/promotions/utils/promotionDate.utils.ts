@@ -7,7 +7,7 @@ import { es } from 'date-fns/locale'
  * where "2026-04-01T00:00:00.000Z" could display as March 31 in local time.
  *
  * @param isoString - ISO date string or null
- * @returns Formatted date (e.g., "1 de abr 2026") or "—" if null
+ * @returns Short date ("1 abr"; the year only when it is not the current one) or "—" if null
  */
 export function formatPromotionDate(isoString: string | null): string {
   if (!isoString) return '—'
@@ -17,7 +17,7 @@ export function formatPromotionDate(isoString: string | null): string {
     if (!year || !month || !day) return '—'
     // Use noon to avoid any timezone boundary issues
     const date = new Date(year, month - 1, day, 12, 0, 0)
-    return format(date, "d 'de' MMM yyyy", { locale: es })
+    return format(date, year === new Date().getFullYear() ? 'd MMM' : 'd MMM yyyy', { locale: es })
   } catch {
     return '—'
   }

@@ -8,35 +8,35 @@ export interface CatalogProductsOptions {
 }
 
 /** Public response contract for GET /public/catalog/:tenantSlug/products. */
-export type PublicCatalogProductAvailability = 'available' | 'low_stock' | 'out_of_stock' | null
-export type PublicCatalogStockPresentationMode =
+type PublicCatalogProductAvailability = 'available' | 'low_stock' | 'out_of_stock' | null
+type PublicCatalogStockPresentationMode =
   | 'SYSTEM_STATUS'
   | 'ABSTRACT_STATUS'
   | 'CUSTOM_QUANTITY'
   | 'HIDDEN'
 
-export interface PublicCatalogProductPriceDto {
+interface PublicCatalogProductPriceDto {
   fromPriceCents: number | null
   priceCents: number | null
   hidden: boolean
 }
 
-export interface PublicCatalogProductStockPresentationDto {
+interface PublicCatalogProductStockPresentationDto {
   mode: PublicCatalogStockPresentationMode
   status: PublicCatalogProductAvailability
   customQuantity: number | null
 }
 
-export interface PublicCatalogProductCategoryDto {
+interface PublicCatalogProductCategoryDto {
   id: string
   name: string
 }
 
-export interface PublicCatalogProductBrandDto {
+interface PublicCatalogProductBrandDto {
   name: string
 }
 
-export interface PublicCatalogProductImageDto {
+interface PublicCatalogProductImageDto {
   url: string
 }
 
@@ -56,7 +56,7 @@ export interface PublicCatalogProductDto {
   featuredLabel: null
 }
 
-export interface PublicCatalogProductsMetaDto {
+interface PublicCatalogProductsMetaDto {
   page: number
   limit: number
   total: number
@@ -68,8 +68,6 @@ export interface PublicCatalogProductsCategoryFacetDto {
   name: string
   count: number
 }
-
-export type { PublicCatalogPriceContextDto }
 
 export interface PublicCatalogProductsResponseDto {
   items: PublicCatalogProductDto[]

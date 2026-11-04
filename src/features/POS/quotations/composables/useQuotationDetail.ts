@@ -102,6 +102,7 @@ export function useQuotationDetail(
     isLoading: detailQuery.isLoading,
     isError: detailQuery.isError,
     error: detailQuery.error,
+    refetch: detailQuery.refetch,
     createDraft: (customerId?: string) =>
       createDraftMutation.mutateAsync(customerId),
     assignCustomer: (customerId: string) =>

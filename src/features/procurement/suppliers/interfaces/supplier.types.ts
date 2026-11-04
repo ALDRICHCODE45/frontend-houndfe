@@ -1,4 +1,4 @@
-export type SupplierStatus = 'ACTIVE' | 'ARCHIVED'
+type SupplierStatus = 'ACTIVE' | 'ARCHIVED'
 export interface SupplierInput {
   displayName: string
   termsText: string | null

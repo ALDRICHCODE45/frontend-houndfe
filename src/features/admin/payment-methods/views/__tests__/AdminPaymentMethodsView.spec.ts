@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import AdminPaymentMethodsView from '../AdminPaymentMethodsView.vue'
 import type { PaymentMethodTableRow } from '../../interfaces/payment-method.types'
 
@@ -50,15 +50,6 @@ vi.mock('@/features/admin/payment-methods/composables/usePaymentMethodColumns', 
   usePaymentMethodColumns: () => ({ columns: [] }),
 }))
 
-vi.mock('@/features/admin/payment-methods/composables/usePaymentMethodViewMode', () => ({
-  usePaymentMethodViewMode: () => ({
-    viewMode: ref('table'),
-    setMode: vi.fn(),
-    displayMode: computed(() => 'table'),
-  }),
-  isPaymentMethodViewMode: (value: string) => value === 'table' || value === 'card',
-}))
-
 // AppDataTable stub: exposes showAddButton + displayMode + error + empty so
 // the view's gating assertions are genuine (not no-ops).
 vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
@@ -92,7 +83,7 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
       displayMode: { default: 'auto' },
       showAddButton: { type: Boolean, default: false },
       error: { default: false },
-      errorMessage: { default: 'No se pudieron cargar los datos. Reintenta.' },
+      errorMessage: { default: 'No se pudieron cargar los datos.' },
       empty: { default: 'No se encontraron resultados' },
     },
     emits: ['add', 'refresh'],
@@ -105,16 +96,6 @@ vi.mock('@/core/shared/components/DataTable/SortableHeader.vue', () => ({
     template:
       '<button :data-column="column.id" :data-testid="`sortable-${column.id}`">{{ label }}</button>',
     props: ['column', 'label'],
-  },
-}))
-
-vi.mock('@/core/shared/components/ViewToggle.vue', () => ({
-  default: {
-    name: 'ViewToggle',
-    template:
-      '<div data-testid="view-toggle"><button data-testid="view-toggle-table" @click="$emit(\'update:modelValue\', \'table\')">Tabla</button><button data-testid="view-toggle-card" @click="$emit(\'update:modelValue\', \'card\')">Tarjetas</button></div>',
-    props: ['modelValue', 'options', 'ariaLabel'],
-    emits: ['update:modelValue'],
   },
 }))
 
@@ -168,17 +149,15 @@ beforeEach(() => {
 })
 
 describe('AdminPaymentMethodsView — read view (sdd custom-payment-methods S2B, REQ-PM-001/006/011)', () => {
-  it('renders the page header with title and description (REQ-PM-001)', async () => {
+  it('renders the page header with the title only (REQ-PM-001)', async () => {
     const wrapper = mountView()
     await flushPromises()
     // Canonical page header (design-system §4), outside the table surface.
     const titleEl = wrapper.find('.hf-page-title')
-    const descEl = wrapper.find('.hf-page-subtitle')
     expect(wrapper.find('.hf-table-surface .hf-page-title').exists()).toBe(false)
     expect(titleEl.exists()).toBe(true)
     expect(titleEl.text()).toBe('Métodos de cobro')
-    expect(descEl.exists()).toBe(true)
-    expect(descEl.text()).toContain('Catálogo personalizado')
+    expect(wrapper.find('.hf-page-subtitle').exists()).toBe(false)
   })
 
   it('renders active + inactive rows; active shows "Activo", inactive shows "Inactivo" (REQ-PM-001)', async () => {
@@ -249,19 +228,6 @@ describe('AdminPaymentMethodsView — read view (sdd custom-payment-methods S2B,
     expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-show-add-button')).toBe('true')
   })
 
-  it('uses displayMode from usePaymentMethodViewMode for the AppDataTable', async () => {
-    const wrapper = mountView()
-    await flushPromises()
-    // The view forwards displayMode from the wrapper; the stub exposes it.
-    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe('table')
-  })
-
-  it('uses displayMode from usePaymentMethodViewMode for the AppDataTable', async () => {
-    const wrapper = mountView()
-    await flushPromises()
-    // The view forwards displayMode from the wrapper; the stub exposes it.
-    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe('table')
-  })
 })
 
 describe('AdminPaymentMethodsView — list error state (sdd custom-payment-methods S2B, REQ-PM-011)', () => {
@@ -271,10 +237,11 @@ describe('AdminPaymentMethodsView — list error state (sdd custom-payment-metho
     const wrapper = mountView()
     await flushPromises()
     expect(wrapper.find('[data-testid="table-error-state"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="error-message"]').text()).toContain('Falla de red')
+    expect(wrapper.find('[data-testid="error-message"]').text()).toBe('No se pudieron cargar los métodos de cobro')
+    expect(wrapper.text()).not.toContain('Falla de red')
   })
 
-  it('falls back to Spanish copy when no backend message is available', async () => {
+  it('keeps the human title when no backend message is available', async () => {
     mockTable.isError.value = true
     mockTable.error.value = null
     const wrapper = mountView()
@@ -307,13 +274,6 @@ describe('AdminPaymentMethodsView — permission gating (sdd custom-payment-meth
 
   })
 
-describe('AdminPaymentMethodsView — view-mode toggle (sdd custom-payment-methods S2B, REQ-PM-001)', () => {
-  it('renders the view toggle inside the actions slot', async () => {
-    const wrapper = mountView()
-    await flushPromises()
-    expect(wrapper.find('[data-testid="view-toggle"]').exists()).toBe(true)
-  })
-})
 // ─── S3B: mutation lifecycle + CASL gating + ConfirmModal + error dispatch ──
 
 const toastMock = { add: vi.fn() }
@@ -359,16 +319,6 @@ vi.mock('@/features/admin/payment-methods/components/PaymentMethodUpsertSlideove
       '<div :data-testid="`upsert-slideover-${mode}`" :data-mode="mode"><slot /></div>',
     props: ['open', 'mode', 'loading', 'paymentMethod'],
     emits: ['create', 'edit', 'update:open'],
-  },
-}))
-
-vi.mock('@/features/admin/payment-methods/components/PaymentMethodCardGrid.vue', () => ({
-  default: {
-    name: 'PaymentMethodCardGrid',
-    template:
-      '<div data-testid="card-grid"><button v-for="row in paymentMethods" :key="row.id" :data-testid="`card-${row.id}`" @click="$emit(\'card-click\', row)">{{ row.name }}</button></div>',
-    props: ['paymentMethods', 'loading', 'empty'],
-    emits: ['card-click'],
   },
 }))
 

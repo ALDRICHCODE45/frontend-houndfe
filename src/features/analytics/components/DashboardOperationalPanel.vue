@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import '../styles/dashboard-panels.css'
 
 const props = defineProps<{
   id: string
   title: string
-  description: string
   icon: string
   hasItems: boolean
   isInitialLoading: boolean
@@ -21,9 +21,11 @@ const emit = defineEmits<{
 }>()
 
 const headingId = computed(() => `${props.id}-heading`)
-const showFatalError = computed(() => props.isError && !props.hasItems)
+// A retry from the no-data error keeps the error in place with a busy button
+// (`actionLoading`); the skeleton is only for the first load.
+const showFatalError = computed(() => props.isError && !props.hasItems && !props.isInitialLoading)
 const showInitialLoading = computed(
-  () => props.isInitialLoading && !props.hasItems && !showFatalError.value,
+  () => !props.hasItems && !showFatalError.value && props.isInitialLoading,
 )
 const showEmpty = computed(
   () => !props.hasItems && !showFatalError.value && !showInitialLoading.value,
@@ -49,47 +51,22 @@ const isBusy = computed(() => props.isInitialLoading || props.isRefetching)
       >
         <UIcon :name="icon" class="size-[18px]" />
       </span>
-      <div class="min-w-0">
-        <h2 :id="headingId">
-          {{ title }}
-        </h2>
-        <p>
-          {{ description }}
-        </p>
-      </div>
+      <h2 :id="headingId">
+        {{ title }}
+      </h2>
     </header>
 
     <div class="min-w-0">
-      <div
+      <EmptyState
         v-if="showFatalError"
         data-testid="dashboard-operational-error"
-        class="dashboard-error-block"
-        role="alert"
-      >
-        <div class="dashboard-error-content">
-          <UIcon
-            name="i-lucide-circle-alert"
-            class="size-6 text-error"
-            aria-hidden="true"
-          />
-          <div class="dashboard-error-content">
-            <p class="font-medium text-highlighted">No disponible</p>
-            <p class="mt-1 text-sm leading-5 text-muted">{{ errorMessage }}</p>
-            <UButton
-              type="button"
-              color="neutral"
-              variant="soft"
-              icon="i-lucide-refresh-cw"
-              class="dashboard-retry min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              :loading="isRefetching"
-              :disabled="isBusy"
-              @click="emit('retry')"
-            >
-              Reintentar
-            </UButton>
-          </div>
-        </div>
-      </div>
+        class="dashboard-compact-error"
+        kind="error"
+        :title="errorMessage"
+        action-label="Reintentar"
+        :action-loading="isRefetching"
+        @action="emit('retry')"
+      />
 
       <div
         v-else-if="showInitialLoading"
@@ -99,22 +76,21 @@ const isBusy = computed(() => props.isInitialLoading || props.isRefetching)
         aria-live="polite"
       >
         <span class="sr-only">{{ loadingMessage }}</span>
-        <USkeleton class="dashboard-state-skeleton h-5 w-40" aria-hidden="true" />
-        <USkeleton class="dashboard-state-skeleton h-10 w-56 max-w-full" aria-hidden="true" />
-        <USkeleton class="dashboard-state-skeleton w-full flex-1" aria-hidden="true" />
+        <div v-for="row in 3" :key="row" class="dashboard-skeleton-row" aria-hidden="true">
+          <div class="dashboard-skeleton-lines">
+            <USkeleton class="dashboard-state-skeleton h-4 w-32 max-w-full" />
+            <USkeleton class="dashboard-state-skeleton h-3 w-24 max-w-full" />
+          </div>
+          <USkeleton class="dashboard-state-skeleton h-5 w-16" />
+        </div>
       </div>
 
-      <div
+      <EmptyState
         v-else-if="showEmpty"
         data-testid="dashboard-operational-empty"
-        class="dashboard-empty-block"
-        role="status"
-      >
-        <span class="dashboard-empty-icon" aria-hidden="true">
-          <UIcon name="i-lucide-inbox" class="size-[26px]" />
-        </span>
-        <strong>{{ emptyMessage }}</strong>
-      </div>
+        kind="empty"
+        :title="emptyMessage"
+      />
 
       <template v-else>
         <div

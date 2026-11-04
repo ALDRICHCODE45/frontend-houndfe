@@ -13,7 +13,7 @@ export interface AdminUser {
   createdAt: string
 }
 
-export interface RolePermission {
+interface RolePermission {
   id?: string
   subject: string
   action: string
@@ -45,7 +45,7 @@ export interface RoleWithUserCountResponse {
   userCount: number
 }
 
-export interface GroupedPermission {
+interface GroupedPermission {
   id: string
   action: string
   description: string | null

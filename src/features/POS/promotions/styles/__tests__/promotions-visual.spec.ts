@@ -4,8 +4,6 @@ import { describe, expect, it } from 'vitest'
 const path = 'src/features/POS/promotions/styles/promotions-visual.css'
 const css = existsSync(path) ? readFileSync(path, 'utf8') : ''
 const view = readFileSync('src/features/POS/promotions/views/PromotionsView.vue', 'utf8')
-const card = readFileSync('src/features/POS/promotions/components/PromotionCard.vue', 'utf8')
-const grid = readFileSync('src/features/POS/promotions/components/PromotionCardGrid.vue', 'utf8')
 const typeSelector = readFileSync(
   'src/features/POS/promotions/components/PromotionTypeSelector.vue',
   'utf8',
@@ -32,7 +30,7 @@ describe('Promotions listing presentation adapter', () => {
     expect(view).toContain('hf-theme hf-ui promotions-visual')
     expect(view).toContain('class="hf-page-header"')
     expect(view).toContain('class="hf-page-title"')
-    expect(view).toContain('class="hf-page-subtitle"')
+    expect(view).not.toContain('hf-page-subtitle')
     expect(view).toContain('hf-table-surface')
     expect(view).toContain('hf-table-content')
     expect(view).toContain('class="hf-data-table"')
@@ -40,24 +38,28 @@ describe('Promotions listing presentation adapter', () => {
     expect(view).not.toContain('bg-coco-neutral')
   })
 
-  it('owns light and dark palettes for the listing and every teleported surface', () => {
+  it('declares no local palette: light and dark come from the shared roles', () => {
+    expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
+    expect(css).not.toMatch(
+      /--hf-(page|surface|surface-muted|field|ink|heading|muted|border|action|on-action|active|active-soft|focus)\s*:/,
+    )
+    expect(css).not.toContain('.dark .hf-theme.promotions-visual')
     for (const marker of [
       'promotions-visual',
       'promotions-list-portal',
       'promotions-form-portal',
     ]) {
       expect(css).toContain(`.hf-theme.${marker}`)
-      expect(css).toContain(`.dark .hf-theme.${marker}`)
     }
-    expect(css).toContain('--hf-surface: #ffffff')
-    expect(css).toContain('--hf-surface: #1b2736')
     expect(css).toContain('--radius-xl: var(--hf-radius-card)')
   })
 
   it('themes toolbar, pagination, filter, row-menu and dialog portals', () => {
     expect(view).toContain(`portal-class="${listPortal}"`)
     expect(view).toContain(`pagination-portal-class="${listPortal}"`)
-    expect(view.match(new RegExp(`:ui="\\{ content: '${listPortal}' \\}"`, 'g'))?.length).toBe(4)
+    expect(view.match(new RegExp(`portal-class="${listPortal}"`, 'g'))?.length).toBeGreaterThanOrEqual(
+      5,
+    )
     expect(view).toContain(`:ui="{ content: '${formPortal}' }"`)
     expect(view).toContain(`portal-class="${formPortal}"`)
     // PromotionTypeSelector forwarding is proven by its own mounted test.
@@ -73,30 +75,26 @@ describe('Promotions listing presentation adapter', () => {
     expect(css).toContain('.promotions-form-portal .promotions-type-icon')
   })
 
-  it('keeps cards bounded, restrained and content-sized', () => {
-    expect(grid).toContain('promotions-card-grid')
-    expect(card).toContain('promotions-card')
-    expect(css).toContain('.promotions-visual .promotions-card-grid')
-    expect(css).toContain('repeat(auto-fill, minmax(min(100%, 14rem), 1fr))')
-    expect(css).toContain('.promotions-visual .promotions-card:hover')
-    expect(css).toContain('transform: none')
+  it('retires the card grid, the view toggle and their dead rules', () => {
+    expect(view).not.toContain('ViewToggle')
+    expect(view).not.toContain('PromotionCardGrid')
+    expect(view).not.toContain('usePromotionViewMode')
+    expect(view).toContain('mobile-render="cards"')
+    expect(view).toContain('#mobile-card')
+    expect(css).not.toContain('promotions-card-grid')
+    expect(css).not.toContain('promotions-view-toggle')
+    expect(css).not.toContain('promotions-empty')
+    expect(css).not.toContain('hf-pagination')
+    // The toolbar container stays shared; only the select and search widths are fitted.
+    expect(css).not.toMatch(/\.hf-toolbar(?![-\w])/)
   })
 
-  it('wraps toolbar controls with filters on their own row and compacts pagination', () => {
-    expect(css).toContain('.promotions-visual .hf-toolbar-actions')
-    expect(css).toContain('.promotions-visual .hf-toolbar-filters')
-    expect(css).toContain('flex-wrap: wrap')
-    expect(css).toContain('.promotions-visual .hf-pagination-size')
-    expect(view).toContain('promotions-view-toggle')
-    expect(css).toContain('.promotions-visual .promotions-view-toggle')
-  })
-
-  it('restyles the existing empty state through owned hooks only', () => {
-    expect(view).toContain('promotions-empty-state')
-    expect(view).toContain('promotions-empty-icon')
-    expect(view).toContain('promotions-empty-title')
-    expect(css).toContain('.promotions-visual .promotions-empty-icon')
-    expect(css).toContain('.promotions-visual .promotions-empty-title')
+  it('takes the empty, no-match and error states from the shared table', () => {
+    expect(view).toContain(':empty-state="emptyState"')
+    expect(view).toContain(':filtered="filtered"')
+    expect(view).toContain(':no-match-title="noMatchTitle"')
+    expect(view).toContain('@empty-action="handleAddPromotion"')
+    expect(view).not.toContain('#empty-state')
   })
 })
 
@@ -120,7 +118,7 @@ describe('Promotions creation/edit workspace adapter', () => {
     expect(detail).toContain('promotions-workspace-title')
     expect(detail).toContain('max-w-6xl')
     expect(css).toContain('.hf-theme.promotions-workspace')
-    expect(css).toContain('.dark .hf-theme.promotions-workspace')
+    expect(css).not.toContain('.dark .hf-theme.promotions-workspace')
     expect(css).toContain('.promotions-workspace .promotions-workspace-header')
   })
 
@@ -135,11 +133,12 @@ describe('Promotions creation/edit workspace adapter', () => {
   it('pairs primary actions with the shared action foreground', () => {
     expect(form).toContain('data-testid="submit-btn"')
     expect(form.match(/hf-primary-control/g)?.length).toBe(1)
-    expect(targets).toContain('hf-primary-control')
+    // "Agregar productos" is outline: the page keeps one solid primary.
+    expect(targets).not.toContain('hf-primary-control')
     expect(targetModal).toContain('hf-primary-control')
   })
 
-  it('marks selection with action/active roles and keeps gold as a restrained accent', () => {
+  it('marks selection with action/active roles and keeps the identity accents neutral', () => {
     expect(form).toContain('promotions-choice-selected')
     expect(form).toContain('promotions-choice')
     expect(form).toContain('promotions-preset')
@@ -150,8 +149,9 @@ describe('Promotions creation/edit workspace adapter', () => {
     expect(css).toContain('.promotions-workspace .promotions-choice-selected')
     expect(css).toContain(".promotions-workspace .promotions-segment[aria-checked='true']")
     expect(css).toContain('.promotions-workspace .promotions-segment:focus-visible')
-    expect(css).toContain('var(--hf-gold-soft)')
-    expect(css).toContain('var(--hf-gold-ink)')
+    // Color is reserved for status/urgency/action: the identity accents are neutral.
+    expect(css).not.toContain('var(--hf-gold')
+    expect(css).toContain('.promotions-workspace .promotions-chip')
   })
 
   it('repaints every section card over the global literal UCard theme', () => {
@@ -174,5 +174,19 @@ describe('Promotions creation/edit workspace adapter', () => {
     expect(conditions.split(portal).length - 1).toBe(4)
     expect(targetModal).toContain(portal)
     expect(targetModal).toContain("width: 'max-w-2xl'")
+  })
+})
+
+describe('Promotions toolbar fit (review round 1)', () => {
+  it('narrows the three filters and the search so they never cover the primary at 1440', () => {
+    expect(css).toMatch(
+      /@media \(min-width: 768px\) \{[^}]*\.promotions-visual \.hf-toolbar-select\.hf-toolbar-select \{ width: 9\.5rem; \}/s,
+    )
+    expect(css).toMatch(/\.promotions-visual \.hf-toolbar-search \{ max-width: 16rem; \}/)
+  })
+
+  it('names each filter by its prefix, so the options read just "Todos"', () => {
+    expect(view).not.toMatch(/label: 'Todos los (tipos|estados|métodos)'/)
+    expect(view.match(/label: 'Todos', value: ALL_FILTER_VALUE/g)).toHaveLength(3)
   })
 })

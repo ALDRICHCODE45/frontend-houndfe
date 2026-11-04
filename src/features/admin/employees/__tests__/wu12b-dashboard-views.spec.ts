@@ -155,9 +155,10 @@ describe('formatDaysRemaining', () => {
     expect(formatDaysRemaining(15)).toBe('15 días')
   })
 
-  it('returns "Vencido" for negative days (already expired)', () => {
-    expect(formatDaysRemaining(-1)).toBe('Vencido')
-    expect(formatDaysRemaining(-30)).toBe('Vencido')
+  it('says how long ago a document expired, in the singular and the plural', () => {
+    expect(formatDaysRemaining(-1)).toBe('Vencido hace 1 día')
+    expect(formatDaysRemaining(-30)).toBe('Vencido hace 30 días')
+    expect(formatDaysRemaining(-142)).toBe('Vencido hace 142 días')
   })
 })
 
@@ -184,7 +185,6 @@ describe('computeExpiringDocumentRow', () => {
     // expiresAtLabel is the localized, human-readable date (via the shared
     // formatTimeOffDate formatter) — NOT the raw ISO string.
     expect(row.expiresAtLabel).toBe(formatTimeOffDate('2026-06-30'))
-    expect(row.expiresAtLabel).toContain('2026')
   })
 
   it('falls back to category label when notes is null', () => {

@@ -101,14 +101,13 @@ function statusLabel(status: string): string {
   >
     <template #body>
       <div class="flex flex-col gap-4">
-        <!-- Warning context -->
+        <!-- Consequence, in one line -->
         <p class="text-sm text-muted">
-          Estás a punto de dar de baja a
           <span class="font-semibold text-highlighted">
             {{ props.employees.length }}
             {{ props.employees.length === 1 ? 'colaborador' : 'colaboradores' }}
-          </span>.
-          Esta acción cambiará su estado a <span class="font-medium text-error">Baja</span>.
+          </span>
+          {{ props.employees.length === 1 ? 'pasará' : 'pasarán' }} a estado Baja.
         </p>
 
         <!-- Selected employees list (scrollable, mirrors ConfirmModal items) -->
@@ -126,7 +125,7 @@ function statusLabel(status: string): string {
             <span data-testid="batch-terminate-employee-name" class="font-medium text-default">
               {{ employee.fullName }}
             </span>
-            <span class="text-xs text-muted">{{ statusLabel(employee.status) }}</span>
+            <span class="text-[13px] text-muted">{{ statusLabel(employee.status) }}</span>
           </li>
         </ul>
 
@@ -164,7 +163,7 @@ function statusLabel(status: string): string {
         />
         <UButton
           label="Dar de baja"
-          color="warning"
+          color="error"
           :disabled="isConfirmDisabled"
           :loading="props.loading"
           data-testid="btn-confirm"

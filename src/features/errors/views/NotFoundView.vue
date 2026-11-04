@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
+import '../styles/errors-visual.css'
 
 const router = useRouter()
 
@@ -13,15 +15,31 @@ function goBack() {
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center p-4">
-    <div class="text-center space-y-4">
-      <h1 class="text-6xl font-bold text-muted">404</h1>
-      <h2 class="text-xl font-semibold">Página no encontrada</h2>
-      <p class="text-muted max-w-md">La página que buscas no existe o fue movida.</p>
-      <div class="flex justify-center gap-3 pt-2">
-        <UButton label="Volver" color="neutral" variant="outline" @click="goBack" />
-        <UButton label="Ir al inicio" @click="goHome" />
+  <main class="hf-error-page">
+    <div class="hf-error-card">
+      <img src="/hounfeLogos/primary.png" alt="HounFe" class="hf-error-logo" />
+      <EmptyState
+        icon="i-lucide-compass"
+        title="No encontramos esta página"
+        description="Puede que se haya movido o que el enlace no sea correcto."
+      />
+      <div class="hf-error-actions">
+        <UButton
+          label="Volver"
+          color="neutral"
+          variant="outline"
+          class="hf-error-action"
+          data-testid="error-back"
+          @click="goBack"
+        />
+        <UButton
+          label="Ir al inicio"
+          color="primary"
+          class="hf-primary-control hf-error-action"
+          data-testid="error-home"
+          @click="goHome"
+        />
       </div>
     </div>
-  </div>
+  </main>
 </template>

@@ -226,7 +226,7 @@ describe('resolveCancelErrorMessage — 409 TIME_OFF_INVALID_TRANSITION surfacin
     // own DEFAULT_CANCEL_FALLBACK). resolveDomainErrorMessage then
     // receives that fallback as its fallback and returns it (code
     // is unknown). The S3 `DEFAULT_FALLBACK` ('No pudimos completar la
-    // operación. Reintenta.') is the deeper safety net that ONLY fires
+    // operación.') is the deeper safety net that ONLY fires
     // when the caller passes an empty/non-string fallback.
     const envelopeWithoutMessage = {
       response: {

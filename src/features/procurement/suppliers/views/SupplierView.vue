@@ -23,6 +23,10 @@ const context = computed(() => ({
 }))
 const { search, status, items, hasNext, hasPrevious, next, back, refresh, isLoading, isFetching, error: listError } = useSuppliers(context)
 const statusItems = [{ label: 'Activos', value: 'ACTIVE' }, { label: 'Archivados', value: 'ARCHIVED' }, { label: 'Todos', value: 'ALL' }]
+// Search or a non-default status is what makes an empty page a "sin resultados".
+const filtered = computed(() => search.value.trim() !== '' || status.value !== 'ACTIVE')
+function clearFilters() { search.value = ''; status.value = 'ACTIVE' }
+const hasPages = computed(() => hasNext.value || hasPrevious.value)
 const statusFilter = computed({ get: () => status.value ?? 'ACTIVE', set: value => { status.value = value as NonNullable<typeof status.value> } })
 const commands = useSupplierCommands(context)
 const { isPending, hasUncertainResult, error: commandError } = commands
@@ -204,7 +208,7 @@ async function reloadSelected() {
 </script>
 
 <template>
-  <main ref="page" class="hf-theme hf-ui suppliers-page">
+  <main ref="page" class="hf-theme hf-ui suppliers-page md:px-10">
     <header class="hf-page-header suppliers-header">
       <h1 class="hf-page-title">Proveedores</h1>
     </header>
@@ -212,7 +216,7 @@ async function reloadSelected() {
     <p v-if="!context.ready || !context.canRead" role="status">No tienes acceso a los proveedores de esta sucursal.</p>
     <UCard v-else :ui="{ body: 'p-0 sm:p-0' }" class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm" aria-label="Directorio de proveedores">
       <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
-      <SupplierList v-model:search="search" :items="items" :loading="isLoading" :fetching="isFetching" :error="!!listError" :can-edit="context.canUpdate" :can-delete="context.ready && context.canDelete" :disabled="locked || detailLoading" :active-filter-count="status !== 'ACTIVE' ? 1 : 0" @refresh="refresh" @open="show" @change-status="requestStatus" @delete="requestDelete" @clear-filters="status = 'ACTIVE'">
+      <SupplierList v-model:search="search" :items="items" :loading="isLoading" :fetching="isFetching" :error="!!listError" :can-edit="context.canUpdate" :can-delete="context.ready && context.canDelete" :can-create="context.ready && context.canCreate" :filtered="filtered" :disabled="locked || detailLoading" :active-filter-count="status !== 'ACTIVE' ? 1 : 0" @refresh="refresh" @open="show" @change-status="requestStatus" @delete="requestDelete" @create="create" @clear-filters="clearFilters">
         <template #filters>
           <ToolbarSelectFilter v-model="statusFilter" :items="statusItems" label="Estado" portal-class="hf-theme hf-ui suppliers-portal" test-id="supplier-status-filter" />
         </template>
@@ -222,7 +226,7 @@ async function reloadSelected() {
       </SupplierList>
       <p v-if="detailLoading" role="status">Consultando proveedor…</p>
       <p v-if="detailError" role="alert">No se pudo consultar el proveedor. Intenta abrirlo de nuevo.</p>
-      <div class="supplier-pagination" aria-label="Páginas de proveedores">
+      <div v-if="hasPages" class="supplier-pagination" aria-label="Páginas de proveedores">
         <button type="button" class="supplier-button" :disabled="!hasPrevious || isFetching" @click="back">Anterior</button>
         <button type="button" class="supplier-button" :disabled="!hasNext || isFetching" @click="next">Siguiente</button>
       </div>

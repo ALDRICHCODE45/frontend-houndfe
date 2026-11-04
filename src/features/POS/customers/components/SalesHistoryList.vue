@@ -1,23 +1,25 @@
 <script setup lang="ts">
 import type { ConfirmedSaleRow } from '@/features/POS/sales/interfaces/sale.types'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import type { StatusBadgeTone } from '@/core/shared/utils/badge.utils'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { formatCentsMXN } from '@/features/POS/sales/utils/currency.utils'
-import { formatSaleDate } from '@/features/POS/sales/utils/saleDate.utils'
-import { getPaymentStatusBadge } from '@/features/POS/sales/utils/saleStatus.utils'
+import { getPaymentStatusBadge, saleBadgeTone } from '@/features/POS/sales/utils/saleStatus.utils'
 
 defineProps<{ sales: readonly ConfirmedSaleRow[] }>()
 
 const emit = defineEmits<{ select: [sale: ConfirmedSaleRow] }>()
 
 function dateLabel(iso: string | null): string {
-  return iso ? formatSaleDate(iso) : 'Fecha no disponible'
+  return iso ? formatShortDateTime(iso) : 'Fecha no disponible'
 }
 
-function statusBadge(sale: ConfirmedSaleRow): { label: string; tone: 'neutral' | 'success' | 'warning' | 'error' } {
+function statusBadge(sale: ConfirmedSaleRow): { label: string; tone: StatusBadgeTone } {
   if (sale.paymentStatus == null) {
     return { label: 'Sin estado', tone: 'neutral' }
   }
   const badge = getPaymentStatusBadge(sale.paymentStatus)
-  return { label: badge.label, tone: badge.color }
+  return { label: badge.label, tone: saleBadgeTone(badge.color) }
 }
 
 function accessibleName(sale: ConfirmedSaleRow): string {
@@ -30,16 +32,16 @@ function accessibleName(sale: ConfirmedSaleRow): string {
 </script>
 
 <template>
-  <ul class="divide-y divide-gray-100 dark:divide-gray-800">
+  <ul class="divide-y divide-[var(--hf-border)]">
     <li v-for="sale in sales" :key="sale.id">
       <button
         type="button"
         :aria-label="accessibleName(sale)"
-        class="grid w-full min-w-0 grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-3 text-left transition-colors duration-100 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 dark:hover:bg-gray-800/50"
+        class="grid w-full min-w-0 grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-3 text-left transition-colors duration-100 hover:bg-[var(--hf-surface-muted)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--hf-focus)]"
         @click="emit('select', sale)"
       >
         <div
-          class="col-start-1 row-span-2 row-start-1 flex size-10 items-center justify-center rounded-xl border border-default bg-elevated/70"
+          class="col-start-1 row-span-2 row-start-1 flex size-10 items-center justify-center rounded-xl border border-[var(--hf-border)] bg-[var(--hf-surface-muted)]"
           data-testid="sale-history-row-icon"
           aria-hidden="true"
         >
@@ -52,7 +54,7 @@ function accessibleName(sale: ConfirmedSaleRow): string {
 
         <span
           data-testid="sale-history-row-total"
-          class="col-start-3 row-start-1 shrink-0 justify-self-end text-sm font-semibold tabular-nums text-highlighted"
+          class="col-start-3 row-start-1 shrink-0 justify-self-end hf-figure text-sm font-semibold text-highlighted"
         >
           {{ formatCentsMXN(sale.totalCents) }}
         </span>
@@ -62,12 +64,8 @@ function accessibleName(sale: ConfirmedSaleRow): string {
             <UIcon name="i-lucide-clock-3" class="size-3 shrink-0" aria-hidden="true" />
             <span class="truncate">{{ dateLabel(sale.confirmedAt) }}</span>
           </span>
-          <StatusDotBadge
-            :label="statusBadge(sale).label"
-            :tone="statusBadge(sale).tone"
-            compact
-          />
-          <span v-if="sale.debtCents > 0" class="font-medium tabular-nums text-error">
+          <StatusBadge :label="statusBadge(sale).label" :tone="statusBadge(sale).tone" />
+          <span v-if="sale.debtCents > 0" class="hf-figure font-medium text-[var(--hf-warning)]">
             {{ formatCentsMXN(sale.debtCents) }} pendiente
           </span>
         </span>

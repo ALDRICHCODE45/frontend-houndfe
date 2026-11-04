@@ -193,7 +193,7 @@ function isLowStock(item: PosCatalogItem): boolean {
         :class="[
           'absolute top-2 right-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-md sales-pos-product-stock',
           isLowStock(item)
-            ? 'bg-(--brand-danger)/15 text-(--brand-danger)'
+            ? 'bg-(--hf-warning-soft) text-(--hf-warning)'
             : 'bg-default/80 text-muted',
         ]"
         data-testid="stock-badge"
@@ -205,10 +205,10 @@ function isLowStock(item: PosCatalogItem): boolean {
     <!-- Card body: right column on mobile, bottom band from sm. -->
     <div class="flex-1 min-w-0 flex flex-col px-3 py-3 space-y-1.5 sm:border-t sm:border-default/50 sales-pos-product-body">
       <!-- Brand -->
-      <p v-if="item.brand" class="text-[10px] text-dimmed uppercase tracking-wider font-medium truncate sales-pos-product-brand">
+      <p v-if="item.brand" class="text-xs text-dimmed font-medium truncate sales-pos-product-brand">
         {{ item.brand.name }}
       </p>
-      <p v-else-if="item.sku" class="text-[11px] text-muted uppercase tracking-wider font-medium truncate sales-pos-product-brand" data-testid="sku-subtitle">
+      <p v-else-if="item.sku" class="text-xs text-muted font-medium truncate sales-pos-product-brand" data-testid="sku-subtitle">
         {{ item.sku }}
       </p>
 
@@ -220,7 +220,7 @@ function isLowStock(item: PosCatalogItem): boolean {
       <!-- Price row + action -->
       <div class="flex items-center justify-between pt-1">
         <div>
-          <p v-if="item.price" class="text-sm font-bold text-primary dark:text-(--brand-accent) tabular-nums sales-pos-product-price">
+          <p v-if="item.price" class="text-sm font-semibold text-(--hf-heading) tabular-nums sales-pos-product-price">
             {{ formatPrice(item.price.priceDecimal) }}
           </p>
           <p v-else class="text-xs text-toned flex items-center gap-0.5">
@@ -241,14 +241,14 @@ function isLowStock(item: PosCatalogItem): boolean {
       </div>
 
       <!-- Variant count badge -->
-      <p v-if="item.hasVariants && item.variants.length > 0" class="text-[11px] text-(--brand-primary) dark:text-(--brand-accent) font-medium">
+      <p v-if="item.hasVariants && item.variants.length > 0" class="text-[11px] text-(--hf-muted) font-medium">
         {{ item.variants.length }} variantes
       </p>
 
       <button
         type="button"
         data-testid="add-action"
-        class="mt-1 w-full flex items-center justify-center gap-1 rounded-xl bg-primary/10 text-primary text-xs font-semibold py-2 hover:bg-primary/20 active:bg-primary/20 transition-colors duration-150 sm:hidden dark:bg-primary dark:text-white dark:hover:bg-primary/90 dark:active:bg-primary/90 sales-pos-product-add"
+        class="mt-1 w-full flex items-center justify-center gap-1 rounded-xl bg-(--hf-active-soft) text-(--hf-action) text-xs font-semibold py-2 hover:bg-primary/20 active:bg-primary/20 transition-colors duration-150 sm:hidden dark:bg-(--hf-action) dark:text-(--hf-on-action) dark:hover:bg-primary/90 dark:active:bg-primary/90 sales-pos-product-add"
         @click.stop="emit('select', item)"
       >
         <UIcon name="i-lucide-plus" class="h-3.5 w-3.5" />

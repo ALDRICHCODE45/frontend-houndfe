@@ -4,7 +4,7 @@ import type { SaleItem } from '../interfaces/sale.types'
 import type { ApplyItemDiscountPayload, OverrideItemPricePayload } from '../interfaces/sale.types'
 import { formatCentsMXN, lineCents } from '../utils/currency.utils'
 import { getRewardBadgeLabel } from '../utils/promotion.utils'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import SaleItemBadges from './SaleItemBadges.vue'
 import PriceOverrideModal from './PriceOverrideModal.vue'
 import ItemDiscountModal from './ItemDiscountModal.vue'
@@ -156,10 +156,10 @@ const lineDisplay = computed(() => {
 
 const inlinePriceSourceBadge = computed(() => {
   if (showPriceOrigin.value && props.item.priceSource === 'price_list') {
-    return { label: 'PRECIO LISTA', icon: 'i-lucide-tags', tone: 'info' as const }
+    return { label: 'PRECIO LISTA', tone: 'info' as const }
   }
   if (showPriceOrigin.value && props.item.priceSource === 'custom') {
-    return { label: 'PRECIO MANUAL', icon: 'i-lucide-pencil-ruler', tone: 'warning' as const }
+    return { label: 'PRECIO MANUAL', tone: 'warning' as const }
   }
   return null
 })
@@ -306,7 +306,7 @@ function handleQtyCommit() {
 
         <!-- Specs line (prior paint): variant + unit price context. -->
         <p v-if="!composition" class="text-[11px] text-muted truncate">
-          <span v-if="item.variantName" class="uppercase tracking-wide">{{ item.variantName }}</span>
+          <span v-if="item.variantName">{{ item.variantName }}</span>
           <span v-if="item.variantName"> · </span>
           <span
             v-if="showPriceOrigin"
@@ -392,11 +392,11 @@ function handleQtyCommit() {
           data-testid="sale-item-badge-group"
           class="flex flex-wrap items-center gap-1 mt-0.5 sales-pos-cart-row-badges"
         >
-          <AppBadge
+          <StatusBadge
             v-if="inlinePriceSourceBadge"
             :tone="inlinePriceSourceBadge.tone"
-            :icon="inlinePriceSourceBadge.icon"
             :label="inlinePriceSourceBadge.label"
+            :aria-label="inlinePriceSourceBadge.label"
           />
           <span
             v-if="item.promotionId"
@@ -408,9 +408,9 @@ function handleQtyCommit() {
               :text="inlinePromotionTitle"
               :ui="portalClass ? { content: portalClass } : undefined"
             >
-              <AppBadge tone="info" icon="i-lucide-tag" :label="inlinePromotionTitle" />
+              <StatusBadge tone="info" :label="inlinePromotionTitle" :aria-label="inlinePromotionTitle" />
             </UTooltip>
-            <AppBadge v-else tone="info" icon="i-lucide-tag" label="Promoción" />
+            <StatusBadge v-else tone="info" label="Promoción" aria-label="Promoción" />
             <UButton
               size="xs"
               color="neutral"
@@ -426,19 +426,19 @@ function handleQtyCommit() {
             :text="item.discountTitle"
             :ui="portalClass ? { content: portalClass } : undefined"
           >
-            <AppBadge tone="success" icon="i-lucide-badge-percent" :label="inlineDiscountLabel ?? ''" />
+            <StatusBadge tone="success" :label="inlineDiscountLabel ?? ''" :aria-label="inlineDiscountLabel ?? ''" />
           </UTooltip>
-          <AppBadge
+          <StatusBadge
             v-else-if="item.discountType"
             tone="success"
-            icon="i-lucide-badge-percent"
             :label="inlineDiscountLabel ?? ''"
+            :aria-label="inlineDiscountLabel ?? ''"
           />
-          <AppBadge
+          <StatusBadge
             v-if="inlineRewardLabel != null"
             tone="success"
-            icon="i-lucide-gift"
             :label="inlineRewardLabel"
+            :aria-label="inlineRewardLabel"
             data-testid="sale-item-reward-badge"
           />
         </div>
@@ -461,7 +461,7 @@ function handleQtyCommit() {
         </p>
         <p
           data-testid="sale-item-line-net"
-          class="font-bold text-highlighted tabular-nums leading-tight"
+          class="font-semibold text-highlighted tabular-nums leading-tight"
           :class="mobileSheet ? 'text-base' : 'text-sm'"
         >
           {{ formatCentsMXN(lineDisplay.netLine) }}

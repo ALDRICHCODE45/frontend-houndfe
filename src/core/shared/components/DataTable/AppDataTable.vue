@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
-import { useTemplateRef, computed, useSlots } from 'vue'
+import { useTemplateRef, computed, useSlots, defineComponent, type PropType, type VNode } from 'vue'
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import type {
   TableColumn,
@@ -14,6 +14,26 @@ import DataTableToolbar from './DataTableToolbar.vue'
 import DataTablePagination from './DataTablePagination.vue'
 import DataTableBulkActions from './DataTableBulkActions.vue'
 import { useClickableRow } from '../../composables/useClickableRow'
+import EmptyState from '../EmptyState.vue'
+import {
+  declaredCellClasses,
+  findPrimaryColumnKey,
+  isUtilityColumn,
+  PRIMARY_COLUMN_CLASS,
+  columnKey,
+  resolveSkeletonHeader,
+  withPrimaryColumn,
+} from './primaryColumn.utils'
+
+/** Copy for the shared "nothing yet" state (`emptyState` prop). */
+interface TableEmptyState {
+  title: string
+  description?: string
+  actionLabel?: string
+  actionIcon?: string
+}
+
+const SKELETON_ROW_COUNT = 5
 
 const props = withDefaults(
   defineProps<{
@@ -26,7 +46,30 @@ const props = withDefaults(
     // INSTEAD of the empty placeholder, so a failed request is never masked
     // as "0 results". Consumers wire this to useServerTable's isError.
     error?: boolean
+    /**
+     * Title of the error state. Optional: the default is a fixed human
+     * sentence. Pass a better one per list (`No se pudieron cargar los
+     * productos`), never a server or HTTP message.
+     */
     errorMessage?: string
+    /**
+     * Shared "nothing yet" state. When the list is empty (not loading, not
+     * failed, not filtered) it renders `EmptyState kind="empty"` with this copy
+     * and emits `empty-action` from its button. Unset → the plain `empty`
+     * string behaves exactly as before.
+     */
+    emptyState?: TableEmptyState
+    /**
+     * The list is empty because search or filters matched nothing. Wins over
+     * `emptyState`: renders `EmptyState kind="no-match"` titled `noMatchTitle`
+     * with "Limpiar filtros", which emits `clear-filters`.
+     */
+    filtered?: boolean
+    /**
+     * Title of the no-match state when there is no search term (filters only).
+     * With a search term the title is `Ningún resultado para «<term>»`.
+     */
+    noMatchTitle?: string
     // Pagination
     pageCount?: number
     totalCount?: number
@@ -42,6 +85,11 @@ const props = withDefaults(
     showAddButton?: boolean
     addButtonText?: string
     addButtonIcon?: string
+    /**
+     * Toolbar refresh button. Off by default: the error state's `Reintentar` is
+     * the retry and background refresh shows in the table. A consumer that
+     * passes it explicitly keeps its button.
+     */
     showRefresh?: boolean
     /** Optional presentation boundary for toolbar content rendered through portals. */
     portalClass?: string
@@ -89,7 +137,10 @@ const props = withDefaults(
     fetching: false,
     empty: 'No se encontraron resultados',
     error: false,
-    errorMessage: 'No se pudieron cargar los datos. Reintenta.',
+    errorMessage: 'No se pudo cargar la lista',
+    emptyState: undefined,
+    filtered: false,
+    noMatchTitle: 'Ningún resultado',
     pageCount: 0,
     totalCount: 0,
     pageSizeOptions: () => [5, 10, 20, 50],
@@ -102,7 +153,7 @@ const props = withDefaults(
     showAddButton: false,
     addButtonText: 'Agregar',
     addButtonIcon: 'i-lucide-plus',
-    showRefresh: true,
+    showRefresh: false,
     refreshButtonTestId: undefined,
     addButtonTestId: undefined,
     activeFilterCount: 0,
@@ -117,6 +168,8 @@ const emit = defineEmits<{
   add: []
   refresh: []
   'clear-filters': []
+  /** The button of the shared empty state (`emptyState.actionLabel`) was clicked. */
+  'empty-action': []
 }>()
 
 // v-model bindings for table state
@@ -162,6 +215,59 @@ const isCardsMode = computed(() => {
   return props.mobileRender === 'cards' && isMobileViewport.value
 })
 const isLoading = computed(() => props.loading || props.fetching)
+
+// Shared empty / no-match state: only for a settled, successful, empty list.
+// A consumer `#empty` slot always wins, and with neither prop set the plain
+// `empty` string path below stays untouched.
+const sharedEmptyKind = computed<'no-match' | 'empty' | null>(() => {
+  if (props.data.length > 0 || props.loading || props.error) return null
+  if (props.filtered) return 'no-match'
+  return props.emptyState ? 'empty' : null
+})
+const noMatchTitleText = computed(() => {
+  const term = globalFilter.value.trim()
+  return term ? `Ningún resultado para «${term}»` : props.noMatchTitle
+})
+const showTableSkeleton = computed(() => props.loading && props.data.length === 0)
+
+// C1: the name column has priority width. `meta.primary` picks it; the default is the first data
+// column after the selection column.
+const primaryKey = computed(() => findPrimaryColumnKey(props.columns, columnVisibility.value))
+const displayColumns = computed(() => withPrimaryColumn(props.columns, primaryKey.value))
+
+// C2: the loading skeleton keeps the real header row and `min(pageSize, 5)` rows, so the surface
+// does not change height when the data arrives.
+const SkeletonHeaderNode = defineComponent({
+  props: { node: { type: Object as PropType<VNode>, required: true } },
+  setup: props => () => props.node,
+})
+const skeletonRowCount = computed(() =>
+  Math.max(1, Math.min(pagination.value.pageSize, SKELETON_ROW_COUNT)),
+)
+const skeletonColumns = computed(() => {
+  const hidden = columnVisibility.value
+  return props.columns
+    .filter(column => {
+      const key = columnKey(column)
+      return key === undefined || hidden[key] !== false
+    })
+    .map((column, index) => {
+      const key = columnKey(column)
+      const classes = declaredCellClasses(column)
+      const primary = key !== undefined && key === primaryKey.value
+      const utility = isUtilityColumn(column)
+      return {
+        key: key ?? `column-${index}`,
+        select: key === 'select',
+        actions: utility && key !== 'select',
+        header: resolveSkeletonHeader(column),
+        thClass: [classes.th, primary ? PRIMARY_COLUMN_CLASS : ''],
+        tdClass: [classes.td, primary ? PRIMARY_COLUMN_CLASS : ''],
+        barClass: index === 0 || primary ? 'w-2/3' : 'w-1/2',
+      }
+    })
+})
+
 const forwardedTableSlots = computed(() =>
   Object.keys(slots).filter((name) => !SLOTS_NOT_FORWARDED_TO_TABLE.has(name)),
 )
@@ -229,10 +335,13 @@ function handleClearSelection() {
       @refresh="emit('refresh')"
       @clear-filters="emit('clear-filters')"
     >
-      <template #filters>
+      <!-- Forward a slot only when the screen provides it: an always-present wrapper renders an
+           empty fragment, which made the toolbar draw a mobile "Filtros" button (and an empty
+           actions row) on lists that have neither. -->
+      <template v-if="$slots.filters" #filters>
         <slot name="filters" />
       </template>
-      <template #actions>
+      <template v-if="$slots.actions" #actions>
         <slot name="actions" />
       </template>
     </DataTableToolbar>
@@ -250,25 +359,16 @@ function handleClearSelection() {
            fallback, so a failed request is never masked as an empty card grid.
            (W3 fix — previously the error block lived only in the v-else branch
            below, which is unreachable when a parent provides the #cards slot.) -->
-      <div
+      <EmptyState
         v-if="props.error"
-        class="flex min-h-32 w-full min-w-0 max-w-full flex-col items-center justify-center gap-3 rounded-lg border border-error/30 bg-error/5 px-4 py-8 text-sm"
+        kind="error"
+        :title="props.errorMessage"
+        action-label="Reintentar"
+        action-test-id="cards-error-retry"
+        class="w-full min-w-0 max-w-full"
         data-testid="cards-error-state"
-        role="alert"
-      >
-        <UIcon name="i-lucide-alert-triangle" class="size-6 text-error" />
-        <p class="text-center text-error">{{ props.errorMessage }}</p>
-        <UButton
-          v-if="props.showRefresh"
-          color="neutral"
-          variant="outline"
-          size="sm"
-          icon="i-lucide-rotate-cw"
-          label="Reintentar"
-          data-testid="cards-error-retry"
-          @click="emit('refresh')"
-        />
-      </div>
+        @action="emit('refresh')"
+      />
 
       <slot
         v-else-if="slots.cards"
@@ -282,15 +382,60 @@ function handleClearSelection() {
         <div
           v-if="isLoading"
           class="grid w-full min-w-0 max-w-full gap-3"
+          aria-busy="true"
           data-testid="mobile-cards-loading"
         >
+          <span class="sr-only">Cargando</span>
           <div
             v-for="index in 3"
             :key="`mobile-skeleton-${index}`"
-            class="h-28 animate-pulse rounded-lg border border-default bg-elevated"
+            class="flex animate-pulse flex-col gap-3 rounded-[var(--hf-radius-card)] border border-[var(--hf-border)] bg-[var(--hf-surface-muted)] p-4"
+            aria-hidden="true"
             data-testid="mobile-card-skeleton"
-          />
+          >
+            <span
+              class="hf-skeleton h-4 w-3/5 rounded"
+              data-testid="mobile-card-skeleton-title"
+            />
+            <span
+              class="hf-skeleton h-3 w-2/5 rounded"
+              data-testid="mobile-card-skeleton-secondary"
+            />
+            <span
+              class="hf-skeleton h-6 w-20 rounded-full"
+              data-testid="mobile-card-skeleton-badge"
+            />
+            <div
+              class="flex items-center justify-between border-t border-[var(--hf-border)] pt-3"
+              data-testid="mobile-card-skeleton-footer"
+            >
+              <span class="hf-skeleton h-3 w-28 rounded" />
+              <span class="hf-skeleton h-3 w-12 rounded" />
+            </div>
+          </div>
         </div>
+
+        <EmptyState
+          v-else-if="sharedEmptyKind === 'no-match'"
+          kind="no-match"
+          :title="noMatchTitleText"
+          action-label="Limpiar filtros"
+          class="w-full min-w-0 max-w-full"
+          data-testid="mobile-empty-state"
+          @action="emit('clear-filters')"
+        />
+
+        <EmptyState
+          v-else-if="sharedEmptyKind === 'empty' && props.emptyState"
+          kind="empty"
+          :title="props.emptyState.title"
+          :description="props.emptyState.description"
+          :action-label="props.emptyState.actionLabel"
+          :action-icon="props.emptyState.actionIcon"
+          class="w-full min-w-0 max-w-full"
+          data-testid="mobile-empty-state"
+          @action="emit('empty-action')"
+        />
 
         <div
           v-else-if="props.data.length === 0 || !slots['mobile-card']"
@@ -316,24 +461,79 @@ function handleClearSelection() {
       <!-- Error state for the table view: shown instead of UTable so a failed
            request never renders as the generic "No se encontraron resultados"
            empty row inside UTable. -->
-      <div
+      <EmptyState
         v-if="props.error"
-        class="flex min-h-32 w-full min-w-0 max-w-full flex-col items-center justify-center gap-3 rounded-lg border border-error/30 bg-error/5 px-4 py-10 text-sm"
+        kind="error"
+        :title="props.errorMessage"
+        action-label="Reintentar"
+        action-test-id="table-error-retry"
+        class="w-full min-w-0 max-w-full"
         data-testid="table-error-state"
-        role="alert"
+        @action="emit('refresh')"
+      />
+
+      <!-- First load with no rows yet: the table's own geometry (real header, same cell classes, the
+           primary column floor) with placeholder bars, and no border of its own, so nothing jumps
+           when the rows arrive. A background refetch with rows keeps UTable's progress bar. -->
+      <div
+        v-else-if="showTableSkeleton"
+        class="relative w-full min-w-0 max-w-full flex-1 overflow-auto"
+        aria-busy="true"
+        data-testid="table-skeleton"
       >
-        <UIcon name="i-lucide-alert-triangle" class="size-6 text-error" />
-        <p class="text-center text-error">{{ props.errorMessage }}</p>
-        <UButton
-          v-if="props.showRefresh"
-          color="neutral"
-          variant="outline"
-          size="sm"
-          icon="i-lucide-rotate-cw"
-          label="Reintentar"
-          data-testid="table-error-retry"
-          @click="emit('refresh')"
-        />
+        <span class="sr-only">Cargando</span>
+        <table data-slot="base" class="min-w-full overflow-clip" aria-hidden="true">
+          <thead data-slot="thead" class="relative" inert data-testid="table-skeleton-header">
+            <tr data-slot="tr">
+              <th
+                v-for="column in skeletonColumns"
+                :key="`skeleton-heading-${column.key}`"
+                data-slot="th"
+                class="border-b border-[var(--hf-border)] px-4 py-3.5 text-left text-sm font-semibold"
+                :class="column.thClass"
+                :style="column.select ? 'width:3rem;min-width:3rem;max-width:3rem;padding-inline:0.75rem 0' : undefined"
+              >
+                <span v-if="column.header.kind === 'text'" :class="column.actions ? 'sr-only' : undefined">
+                  {{ column.header.text }}
+                </span>
+                <SkeletonHeaderNode v-else-if="column.header.kind === 'node'" :node="column.header.node" />
+                <span
+                  v-else-if="!column.select && !column.actions"
+                  class="hf-skeleton block h-2.5 w-14 rounded"
+                />
+              </th>
+            </tr>
+          </thead>
+          <!-- Rows sit straight under the table (the DOM builds them without a tbody): the loading
+               state has no body section, which is what "no rows yet" means to the screens' specs. -->
+          <tr
+            v-for="row in skeletonRowCount"
+            :key="`skeleton-row-${row}`"
+            data-slot="tr"
+            class="h-16"
+            data-testid="table-skeleton-row"
+          >
+            <td
+              v-for="column in skeletonColumns"
+              :key="`skeleton-cell-${row}-${column.key}`"
+              data-slot="td"
+              class="border-b border-[var(--hf-border)] p-4 text-sm"
+              :class="column.tdClass"
+              :style="column.select ? 'width:3rem;min-width:3rem;max-width:3rem;padding-inline:0.75rem 0;overflow:visible' : undefined"
+            >
+              <span
+                class="hf-skeleton block animate-pulse"
+                :class="
+                  column.select
+                    ? 'size-4 rounded'
+                    : column.actions
+                      ? 'ml-auto size-6 rounded-md'
+                      : ['h-3 rounded', column.barClass]
+                "
+              />
+            </td>
+          </tr>
+        </table>
       </div>
 
       <UTable
@@ -345,7 +545,7 @@ function handleClearSelection() {
         v-model:row-selection="rowSelection"
         :row-selection-options="{ enableRowSelection: props.enableRowSelection }"
         :data="props.data"
-        :columns="props.columns"
+        :columns="displayColumns"
         :loading="isLoading"
         loading-color="primary"
         loading-animation="carousel"
@@ -361,6 +561,24 @@ function handleClearSelection() {
       >
         <template v-for="name in forwardedTableSlots" #[name]="slotProps">
           <slot :name="name" v-bind="slotProps ?? {}" />
+        </template>
+        <template v-if="sharedEmptyKind && !slots.empty" #empty>
+          <EmptyState
+            v-if="sharedEmptyKind === 'no-match'"
+            kind="no-match"
+            :title="noMatchTitleText"
+            action-label="Limpiar filtros"
+            @action="emit('clear-filters')"
+          />
+          <EmptyState
+            v-else-if="props.emptyState"
+            kind="empty"
+            :title="props.emptyState.title"
+            :description="props.emptyState.description"
+            :action-label="props.emptyState.actionLabel"
+            :action-icon="props.emptyState.actionIcon"
+            @action="emit('empty-action')"
+          />
         </template>
       </UTable>
     </template>

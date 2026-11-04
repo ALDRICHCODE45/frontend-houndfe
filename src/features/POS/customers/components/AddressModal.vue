@@ -223,7 +223,7 @@ function handleClose() {
         </UFormField>
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <UFormField label="Número Exterior" name="exteriorNumber">
+          <UFormField label="Número exterior" name="exteriorNumber">
             <UInput
               v-model="formState.exteriorNumber"
               class="w-full"
@@ -233,7 +233,7 @@ function handleClose() {
             />
           </UFormField>
 
-          <UFormField label="Número Interior" name="interiorNumber">
+          <UFormField label="Número interior" name="interiorNumber">
             <UInput
               v-model="formState.interiorNumber"
               class="w-full"
@@ -245,7 +245,7 @@ function handleClose() {
         </div>
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <UFormField label="Código Postal" name="zipCode">
+          <UFormField label="Código postal" name="zipCode">
             <UInput
               v-model="formState.zipCode"
               class="w-full"

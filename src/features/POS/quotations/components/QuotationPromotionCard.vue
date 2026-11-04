@@ -2,11 +2,10 @@
 /**
  * `QuotationPromotionCard.vue` — T-UI-18/19 / REQ-UI-008.
  *
- * Renders a single applied promotion as a Coco-style card:
- *   - 4px left accent border in `--coco-accent` (mustard)
- *   - Title (bold) + optional description (muted)
- *   - AUTOMÁTICA / MANUAL method badge
- *   - Discount in `--coco-info` blue
+ * Renders a single applied promotion as a neutral bordered row:
+ *   - Title (semibold) + optional description (muted)
+ *   - Automática / Manual method badge (StatusBadge)
+ *   - Discount in the heading ink with a minus
  *   - Outlined removal button: "Vetar" for AUTOMATIC, "Quitar" for MANUAL
  *
  * The component emits `veto` (AUTOMATIC) or `remove` (MANUAL) so the
@@ -34,6 +33,7 @@
 import { computed } from 'vue'
 import type { AppliedPromotion } from '../interfaces/quotation.types'
 import { formatCentsMXN } from '../utils/currency.utils'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -77,7 +77,7 @@ const hasDescription = computed<boolean>(() => {
 
 <template>
   <article
-    class="flex items-start justify-between gap-3 rounded-lg border border-default bg-default px-3 py-2 border-l-4 border-l-[var(--coco-accent)]"
+    class="flex items-start justify-between gap-3 rounded-lg border border-default bg-default px-3 py-2"
     data-testid="quotation-promotion-card"
     :data-promotion-id="props.promotion.promotionId"
   >
@@ -92,12 +92,14 @@ const hasDescription = computed<boolean>(() => {
         data-testid="promo-description"
       >{{ props.promotion.description }}</p>
       <div class="flex items-center gap-2">
-        <span
-          class="inline-flex items-center rounded-full border border-default px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted"
+        <StatusBadge
+          :label="badgeLabel"
+          :tone="method === 'MANUAL' ? 'neutral' : 'info'"
+          :aria-label="`Promoción ${badgeLabel.toLowerCase()}`"
           data-testid="promo-method-badge"
-        >{{ badgeLabel }}</span>
+        />
         <span
-          class="text-xs font-medium tabular-nums text-[var(--coco-info)]"
+          class="text-xs font-semibold tabular-nums text-[var(--hf-heading)]"
           data-testid="promo-discount"
         >−${{ discountFormatted }}</span>
       </div>
@@ -105,7 +107,7 @@ const hasDescription = computed<boolean>(() => {
     <button
       v-if="!readonly"
       type="button"
-      class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-1.5 text-xs font-medium hover:bg-eleved shrink-0"
+      class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-1.5 text-xs font-medium hover:bg-elevated shrink-0"
       data-testid="promo-remove-btn"
       @click="handleRemoveClick"
     >

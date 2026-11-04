@@ -14,11 +14,10 @@ import {
   formatRouteMoment,
   getRouteProgress,
   minutesBetween,
-  shortRouteId,
   type DeliveryRouteProgress,
 } from './delivery-route-list.utils'
 
-export interface DriverRouteMissionTarget {
+interface DriverRouteMissionTarget {
   heading: 'Parada en curso' | 'Siguiente parada'
   /** 1-based position of the stop in the route. */
   position: number
@@ -29,7 +28,6 @@ export interface DriverRouteMissionTarget {
 
 export interface DriverRouteMission {
   title: string
-  reference: string
   startedAtLabel: string | null
   elapsedLabel: string | null
   progress: DeliveryRouteProgress
@@ -73,7 +71,6 @@ export function buildDriverRouteMission(route: DeliveryRouteResponseDto, now: Da
 
   return {
     title: buildRouteTitle(route),
-    reference: shortRouteId(route.id),
     startedAtLabel: startedAt ? `Iniciada ${formatRouteMoment(route.startedAt, now)}` : null,
     elapsedLabel: startedAt ? formatElapsed(startedAt, now) : null,
     progress,

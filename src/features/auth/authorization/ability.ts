@@ -64,6 +64,13 @@ const APP_SUBJECTS: AppSubject[] = [
   // in ability.test.ts assert both grants AND that malformed sibling permissions
   // cannot drop the well-formed rule.
   'HumanDecision',
+  // ODD inventory-journal-o1 T1: the two inventory subjects join the runtime
+  // registry (before 'all'). `read:InventoryJournal` covers stock and kardex;
+  // `create:InventoryAdjustment` covers adjusting and still needs the read grant.
+  // Without these entries parsePermissionCode returns null and both grants drop
+  // silently, hiding the Inventario panel. No other subject inherits them.
+  'InventoryJournal',
+  'InventoryAdjustment',
   'CashRegister',
   'CashSession',
   'CashSessionAudit',

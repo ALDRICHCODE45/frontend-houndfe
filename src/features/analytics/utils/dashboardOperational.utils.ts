@@ -3,17 +3,8 @@ import type {
   PendingRefundReason,
 } from '@/features/POS/sales/interfaces/pending-refund.types'
 
-const MEXICO_CITY_TIME_ZONE = 'America/Mexico_City'
-
-const mexicoCityInstantFormatter = new Intl.DateTimeFormat('es-MX', {
-  timeZone: MEXICO_CITY_TIME_ZONE,
-  day: '2-digit',
-  month: '2-digit',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-})
+/** Contractual zone of every dashboard event instant. */
+export const MEXICO_CITY_TIME_ZONE = 'America/Mexico_City'
 
 const REFUND_METHOD_LABELS: Record<PendingRefundMethod, string> = {
   cash: 'Efectivo',
@@ -29,11 +20,6 @@ const REFUND_REASON_LABELS: Record<PendingRefundReason, string> = {
   OUT_OF_STOCK: 'Sin existencias',
   DUPLICATE_SALE: 'Venta duplicada',
   OTHER: 'Otro',
-}
-
-/** Format one backend event instant in the dashboard's contractual timezone. */
-export function formatDashboardInstant(iso: string): string {
-  return mexicoCityInstantFormatter.format(new Date(iso))
 }
 
 /**

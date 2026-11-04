@@ -82,7 +82,7 @@ export function useUpdatePaymentReference(saleId: MaybeRefOrGetter<string>) {
         if (error.code === 'SALE_UPDATE_FORBIDDEN') {
           toast.add({
             title: 'Sin permisos',
-            description: 'No tenés permisos para editar la referencia',
+            description: 'No tienes permisos para editar la referencia',
             color: 'error',
           })
           return

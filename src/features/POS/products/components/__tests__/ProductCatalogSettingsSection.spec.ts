@@ -30,15 +30,13 @@ const mountAttachedSection = (props: Record<string, unknown> = {}) =>
   })
 
 describe('ProductCatalogSettingsSection — advanced Catálogo online (REQ-14/REQ-15)', () => {
-  it('renders one card with visible title, purpose, and control labels', () => {
+  it('renders one card with visible title and control labels, without a purpose paragraph', () => {
     const wrapper = mountSection()
 
     expect(wrapper.find('[data-testid="catalog-settings-section"]').exists()).toBe(true)
     expect(wrapper.findAllComponents({ name: 'Card' })).toHaveLength(1)
     expect(wrapper.text()).toContain('Catálogo online')
-    expect(wrapper.text()).toContain(
-      'Controla la visibilidad de precios y stock de este producto en el catálogo público',
-    )
+    expect(wrapper.text()).not.toContain('Controla la visibilidad de precios y stock')
     expect(wrapper.text()).toContain('Ocultar precios')
     expect(wrapper.text()).toContain('Los precios no serán visibles en el catálogo en línea')
     expect(wrapper.text()).toContain('Stock en catálogo')

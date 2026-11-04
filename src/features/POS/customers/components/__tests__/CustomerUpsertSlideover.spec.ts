@@ -57,6 +57,17 @@ for (const [key, stub] of Object.entries({ ...editorStubs })) {
   Object.assign(editorStubs, { [key.slice(1)]: stub })
 }
 
+// Edit-mode address rows hold their actions in the shared ⋮ menu; select an action
+// straight from the row's RowActionsMenu (the menu itself is covered by its own spec).
+function selectAddressAction(
+  wrapper: ReturnType<typeof mount>,
+  addressId: string,
+  key: 'edit' | 'remove',
+) {
+  const row = wrapper.get(`[data-testid="address-row-${addressId}"]`)
+  row.getComponent({ name: 'RowActionsMenu' }).vm.$emit('select', key)
+}
+
 describe('CustomerUpsertSlideover', () => {
   const mockCustomer: CustomerDetail = {
     id: 'customer-1',
@@ -144,7 +155,7 @@ describe('CustomerUpsertSlideover', () => {
       global: { stubs: editorStubs },
     })
     try {
-      await wrapper.find('[data-testid="edit-address-addr-1"]').trigger('click')
+      selectAddressAction(wrapper, 'addr-1', 'edit')
       const modal = wrapper.findComponent(AddressModal)
       const vm = wrapper.vm as unknown as {
         handleAddressSave: (payload: CreateCustomerAddressPayload) => void
@@ -178,7 +189,7 @@ describe('CustomerUpsertSlideover', () => {
       global: { stubs: editorStubs },
     })
     try {
-      await wrapper.find('[data-testid="edit-address-addr-1"]').trigger('click')
+      selectAddressAction(wrapper, 'addr-1', 'edit')
       const modal = wrapper.findComponent(AddressModal)
       const vm = wrapper.vm as unknown as {
         handleAddressSave: (payload: CreateCustomerAddressPayload) => void
@@ -192,7 +203,7 @@ describe('CustomerUpsertSlideover', () => {
         .findAll('button')
         .find((button) => button.text() === 'Cancelar')!
         .trigger('click')
-      await wrapper.find('[data-testid="edit-address-addr-1"]').trigger('click')
+      selectAddressAction(wrapper, 'addr-1', 'edit')
       acknowledge(true)
       await nextTick()
       expect(vm.isAddressModalOpen).toBe(true)
@@ -210,7 +221,7 @@ describe('CustomerUpsertSlideover', () => {
       global: { stubs: editorStubs },
     })
     try {
-      await wrapper.find('[data-testid="edit-address-addr-1"]').trigger('click')
+      selectAddressAction(wrapper, 'addr-1', 'edit')
       await nextTick()
       const vm = wrapper.vm as unknown as {
         state: { firstName: string }
@@ -274,8 +285,8 @@ describe('CustomerUpsertSlideover', () => {
       global: { stubs: editorStubs },
     })
     try {
-      expect(edit.find('[data-testid="edit-address-addr-1"]').exists(), edit.html()).toBe(true)
-      await edit.find('[data-testid="edit-address-addr-1"]').trigger('click')
+      expect(edit.find('[data-testid="address-row-addr-1"]').exists(), edit.html()).toBe(true)
+      selectAddressAction(edit, 'addr-1', 'edit')
       await nextTick()
       const modal = edit.findComponent(AddressModal)
       expect(edit.text()).toContain('Editar dirección')
@@ -303,7 +314,7 @@ describe('CustomerUpsertSlideover', () => {
         .find((button) => button.text() === 'Cancelar')!
         .trigger('click')
       await nextTick()
-      await edit.find('[data-testid="edit-address-addr-2"]').trigger('click')
+      selectAddressAction(edit, 'addr-2', 'edit')
       await nextTick()
       expect((modal.vm as unknown as { formState: { street: string } }).formState.street).toBe(
         'Second Street',
@@ -432,6 +443,31 @@ describe('CustomerUpsertSlideover', () => {
 
       // Should emit remove-address with customer ID and address ID
       expect(wrapper.emitted('remove-address')).toBeTruthy()
+      expect(wrapper.emitted('remove-address')?.[0]).toEqual(['customer-1', 'addr-1'])
+    })
+
+    it('keeps an existing address row to one ⋮ menu: edit first, destructive removal last', () => {
+      const wrapper = mount(CustomerUpsertSlideover, {
+        props: { mode: 'edit', customer: mockCustomer, open: true },
+        global: { stubs: editorStubs },
+      })
+      const row = wrapper.get('[data-testid="address-row-addr-1"]')
+      const menu = row.getComponent({ name: 'RowActionsMenu' })
+      expect((menu.props('actions') as Array<{ key: string; destructive?: boolean }>).map((a) => a.key)).toEqual([
+        'edit',
+        'remove',
+      ])
+      expect((menu.props('actions') as Array<{ destructive?: boolean }>)[1]!.destructive).toBe(true)
+      expect(menu.props('rowLabel')).not.toBe('')
+      expect(row.find('[data-testid="remove-address-addr-1"]').exists()).toBe(false)
+    })
+
+    it('removes the address from the row menu with the customer and address ids', () => {
+      const wrapper = mount(CustomerUpsertSlideover, {
+        props: { mode: 'edit', customer: mockCustomer, open: true },
+        global: { stubs: editorStubs },
+      })
+      selectAddressAction(wrapper, 'addr-1', 'remove')
       expect(wrapper.emitted('remove-address')?.[0]).toEqual(['customer-1', 'addr-1'])
     })
 

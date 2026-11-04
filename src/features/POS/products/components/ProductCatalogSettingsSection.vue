@@ -71,12 +71,7 @@ const contextRows = computed(() =>
 <template>
   <UCard :ui="{ root: 'overflow-visible' }" data-testid="catalog-settings-section">
     <template #header>
-      <div class="flex flex-col gap-1">
-        <h2 class="text-lg font-semibold">Catálogo online</h2>
-        <p class="text-sm text-muted">
-          Controla la visibilidad de precios y stock de este producto en el catálogo público
-        </p>
-      </div>
+      <h2 class="text-base font-semibold">Catálogo online</h2>
     </template>
 
     <div class="flex flex-col gap-6">
@@ -110,12 +105,7 @@ const contextRows = computed(() =>
 
       <!-- ③ Public contexts -->
       <div class="flex flex-col gap-3" data-testid="supported-contexts">
-        <div class="flex flex-col gap-1">
-          <h3 class="text-sm font-semibold text-default">Contextos públicos soportados</h3>
-          <p class="text-xs text-muted">
-            Listas de precios visibles para clientes públicos de este producto
-          </p>
-        </div>
+        <h3 class="text-sm font-semibold text-default">Contextos públicos soportados</h3>
 
         <!-- supportsAll indicator (response-only, never sent) -->
         <p

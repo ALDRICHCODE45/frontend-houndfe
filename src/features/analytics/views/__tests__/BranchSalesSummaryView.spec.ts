@@ -581,6 +581,10 @@ describe('BranchSalesSummaryView — render states stay distinct', () => {
     expect(loading.attributes('role')).toBe('status')
     expect(loading.attributes('aria-busy')).toBe('true')
     expect(loading.findAll('.animate-pulse').length).toBeGreaterThan(0)
+    // Final geometry: one hero panel and five metric cards, no numbers.
+    expect(loading.findAll('.dashboard-hero')).toHaveLength(1)
+    expect(loading.findAll('.dashboard-metric-card')).toHaveLength(5)
+    expect(loading.text()).not.toMatch(/\d/)
     for (const testid of [
       'branch-summary-metrics',
       'branch-summary-empty',
@@ -610,8 +614,25 @@ describe('BranchSalesSummaryView — render states stay distinct', () => {
 
     const empty = view.find('[data-testid="branch-summary-empty"]')
     expect(empty.attributes('role')).toBe('status')
+    expect(empty.attributes('data-kind')).toBe('empty')
     expect(empty.text()).toContain('Sin actividad en el periodo')
     expect(view.find('[data-testid="branch-summary-metrics"]').exists()).toBe(false)
+  })
+
+  it('offers the previous month as the next step from the empty state, and hides it once chosen', async () => {
+    summaryRef.value = EMPTY_PAYLOAD
+    const view = mountView()
+
+    const empty = view.find('[data-testid="branch-summary-empty"]')
+    expect(empty.find('.hf-empty-state__description').text()).not.toBe('')
+    // Not a tall empty box: the shared state keeps its own compact height.
+    expect(empty.classes()).not.toContain('dashboard-summary-feedback')
+    const action = empty.find('[data-testid="branch-summary-empty-action"]')
+    expect(action.text()).toBe('Ver mes anterior')
+
+    await action.trigger('click')
+    expect(presetButton(view, 'previousMonth').attributes('aria-pressed')).toBe('true')
+    expect(view.find('[data-testid="branch-summary-empty-action"]').exists()).toBe(false)
   })
 
   it('reaches metrics for refund-only activity instead of the empty state', () => {
@@ -726,14 +747,14 @@ describe('BranchSalesSummaryView — daily trend composition', () => {
     expect(initialChart.props('from')).toBe('2025-03-01')
     expect(initialChart.props('to')).toBe('2025-03-04')
     expect(view.find('[data-testid="branch-sales-trend-table"] caption').text()).toContain(
-      '2025-03-04',
+      '3 mar 2025',
     )
     expect(
       view.find('[data-testid="branch-sales-trend-chart"]').attributes('aria-label'),
-    ).toContain('2025-03-04')
+    ).toContain('3 mar 2025')
     expect(
       view.find('[data-testid="branch-sales-trend-chart"]').attributes('aria-label'),
-    ).not.toContain('2025-03-16')
+    ).not.toContain('15 mar')
 
     // Move the requested window while the previous response is still retained and
     // the refetch is in flight. The edit is applied in ONE valid step (a manual
@@ -754,12 +775,12 @@ describe('BranchSalesSummaryView — daily trend composition', () => {
     expect(view.find('[data-testid="branch-sales-trend"]').exists()).toBe(true)
     expect(
       view.find('[data-testid="branch-sales-trend-chart"]').attributes('aria-label'),
-    ).toContain('2025-03-04')
+    ).toContain('3 mar 2025')
     expect(
       view.find('[data-testid="branch-sales-trend-chart"]').attributes('aria-label'),
-    ).not.toContain('2025-03-16')
+    ).not.toContain('15 mar')
     expect(view.find('[data-testid="branch-sales-trend-table"] caption').text()).not.toContain(
-      '2025-03-16',
+      '15 mar',
     )
     // The buckets are still the retained ones, in retained order.
     expect(
@@ -780,9 +801,9 @@ describe('BranchSalesSummaryView — daily trend composition', () => {
     expect(settled.props('to')).toBe('2025-03-16')
     expect(
       view.find('[data-testid="branch-sales-trend-chart"]').attributes('aria-label'),
-    ).toContain('2025-03-16')
+    ).toContain('15 mar 2025')
     expect(view.find('[data-testid="branch-sales-trend-table"] caption').text()).toContain(
-      '2025-03-16',
+      '15 mar 2025',
     )
   })
 
@@ -820,17 +841,14 @@ describe('BranchSalesSummaryView — daily trend composition', () => {
     expect(view.find('[data-testid="branch-sales-trend-chart"]').exists()).toBe(true)
   })
 
-  it('keeps the trend and its own state when the summary fails', () => {
+  it('shows only the page error, not the trend, when the summary fails with no data', () => {
     state.isError.value = true
     state.error.value = { response: { status: 403 } }
     timeseriesPointsRef.value = TIMESERIES_POINTS
     const view = mountView()
 
     expect(view.find('[data-testid="branch-summary-error"]').exists()).toBe(true)
-    expect(view.find('[data-testid="branch-sales-trend"]').exists()).toBe(true)
-    expect(view.find('[data-testid="branch-sales-trend-chart"]').exists()).toBe(true)
-    expect(view.find('[data-testid="branch-sales-trend-error"]').exists()).toBe(false)
-    expect(view.find('[data-testid="branch-sales-trend-table"]').text()).toContain('2025-03-01')
+    expect(view.find('[data-testid="branch-sales-trend"]').exists()).toBe(false)
   })
 
   it('keeps the loaded summary KPIs when the trend itself fails', () => {

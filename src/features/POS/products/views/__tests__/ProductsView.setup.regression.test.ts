@@ -16,7 +16,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { mount } from '@vue/test-utils'
-import { nextTick, ref } from 'vue'
+import { nextTick } from 'vue'
 import ProductsView from '../ProductsView.vue'
 
 vi.mock('vue-router', () => ({
@@ -47,28 +47,10 @@ vi.mock('../../api/product.api', () => ({
   },
 }))
 
-vi.mock('../../composables/useProductColumns', () => ({
-  useProductColumns: () => ({
-    columns: [],
-    currencyFormatter: new Intl.NumberFormat('en-US'),
-  }),
-}))
-
-vi.mock('../../composables/useProductViewMode', () => ({
-  useProductViewMode: () => ({
-    viewMode: ref<'table' | 'card'>('table'),
-    setMode: vi.fn(),
-    toggleViewMode: vi.fn(),
-  }),
-  isProductViewMode: (v: string) => v === 'table' || v === 'card',
-}))
-
 vi.stubGlobal('useToast', () => ({ add: vi.fn() }))
 
 const baseStubs = {
-  AppDataTable: { template: '<div />' },
-  ViewToggle: { template: '<div />' },
-  ProductCardGrid: { template: '<div />' },
+  ProductList: { template: '<div />' },
   UCard: { template: '<div><slot name="header" /><slot /></div>' },
   Card: { template: '<div><slot name="header" /><slot /></div>' },
   UModal: { template: '<div />' },
@@ -80,11 +62,6 @@ const baseStubs = {
   Button: { template: '<button><slot /></button>' },
   ConfirmModal: { template: '<div />' },
   ProductUpsertSlideover: { template: '<div />' },
-  SortableHeader: true,
-  SelectColumn: true,
-  StatusDotBadge: { template: '<span><slot /></span>' },
-  DotBadge: { template: '<span><slot /></span>' },
-  AppBadge: { template: '<span><slot /></span>' },
   USelect: { template: '<select><slot /></select>' },
 }
 

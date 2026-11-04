@@ -82,6 +82,18 @@ describe('DriverStopCard — rich content (sequence, status, folio, customer, ad
     }
   })
 
+  it('shows the stop status as a StatusBadge with the stop tone (skipped is warning, never danger)', async () => {
+    const cases: Array<[DeliveryRouteStop['status'], string]> = [
+      ['PENDING', 'neutral'], ['IN_PROGRESS', 'info'], ['COMPLETED', 'success'], ['SKIPPED', 'warning'],
+    ]
+    for (const [status, tone] of cases) {
+      const w = mountCard({ stop: mkStop('sx', 0, status), nodeState: 'current' })
+      const badge = w.get('[data-testid="driver-stop-card-status"]')
+      expect(badge.classes()).toContain('hf-status-badge')
+      expect(badge.attributes('data-tone')).toBe(tone)
+    }
+  })
+
   it('renders the optional folio in mono when present; omits it entirely when null/blank', async () => {
     const withFolio = mountCard({ stop: mkStop('s0', 0, 'PENDING', { saleFolio: 'FOLIO-77' }) })
     expect(withFolio.find('[data-testid="driver-stop-card-folio"]').text()).toContain('FOLIO-77')

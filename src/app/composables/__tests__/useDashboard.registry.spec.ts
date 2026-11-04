@@ -49,12 +49,12 @@ describe('useDashboard — palette derives from navigation registry', () => {
     const labels = pageItems.map((i) => i.label)
 
     expect(labels).toContain('RR.HH. / Colaboradores')
-    expect(labels).toContain('RR.HH. / Vencimientos')
+    expect(labels).toContain('RR.HH. / Documentos por vencer')
     expect(labels).toContain('RR.HH. / Validaciones pendientes')
     expect(labels).toContain('Sistema / Notificaciones')
   })
 
-  it('surfaces the "Nuevo Colaborador" action when the user can create Employees', async () => {
+  it('surfaces the "Nuevo colaborador" action when the user can create Employees', async () => {
     vi.mocked(useAuthStore).mockReturnValue(
       makeAuthStore() as unknown as ReturnType<typeof useAuthStore>,
     )
@@ -64,7 +64,7 @@ describe('useDashboard — palette derives from navigation registry', () => {
 
     const actionItems = dashboard.searchGroups.value.find((g) => g.id === 'actions')?.items ?? []
     expect(
-      actionItems.some((i) => i.id === 'new-employee' && i.label === 'Nuevo Colaborador'),
+      actionItems.some((i) => i.id === 'new-employee' && i.label === 'Nuevo colaborador'),
     ).toBe(true)
   })
 
@@ -137,7 +137,7 @@ describe('useDashboard — Dashboard page visibility (ODD dashboard-analytics D1
     const dashboard = useDashboard()
 
     const pageItems = dashboard.searchGroups.value.find((g) => g.id === 'pages')?.items ?? []
-    expect(pageItems[0]).toMatchObject({ id: 'dashboard', label: 'Dashboard', to: DASHBOARD_PATH })
+    expect(pageItems[0]).toMatchObject({ id: 'dashboard', label: 'Resumen', to: DASHBOARD_PATH })
     expect(pageItems[0]?.to).toBe(DASHBOARD_PATH)
   })
 

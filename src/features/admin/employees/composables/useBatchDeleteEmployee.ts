@@ -23,7 +23,6 @@ import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { AxiosError } from 'axios'
 import { computed } from 'vue'
 import { employeesApi } from '../api/employees.api'
-import type { Employee } from '../interfaces/employee.types'
 import { EMPLOYEE_ERROR_MAP } from '../interfaces/errors'
 import { employeeQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
@@ -52,7 +51,7 @@ export function useBatchDeleteEmployee() {
 
     onSuccess: (result) => {
       toast.add({
-        title: `${result.deleted} empleados eliminados`,
+        title: result.deleted === 1 ? '1 colaborador eliminado' : `${result.deleted} colaboradores eliminados`,
         color: 'success',
       })
       void queryClient.invalidateQueries({
@@ -87,7 +86,7 @@ export function useBatchDeleteEmployee() {
           break
         }
         default: {
-          const normalized = normalizeApiError(error, 'No se pudieron eliminar los empleados.')
+          const normalized = normalizeApiError(error, 'No se pudieron eliminar los colaboradores.')
           toast.add({
             title: 'Error',
             description: normalized.message,
@@ -104,7 +103,3 @@ export function useBatchDeleteEmployee() {
     error: mutation.error,
   }
 }
-
-// Type-only re-export for callers — avoids importing Employee in every file
-// that only uses the API result type.
-export type { Employee }

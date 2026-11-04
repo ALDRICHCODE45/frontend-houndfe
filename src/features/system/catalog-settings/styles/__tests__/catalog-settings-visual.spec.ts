@@ -8,19 +8,19 @@ const read = (p: string) => readFileSync(`${dir}/${p}`, 'utf8')
 const view = read('views/TenantCatalogSettingsView.vue')
 const contexts = read('components/CatalogPriceContextsField.vue')
 
-const formPortal = 'hf-theme hf-ui hf-form-overlay catalog-settings-form-portal'
+const formPortal = 'hf-theme hf-ui hf-form-overlay'
 const count = (source: string, needle: string) => source.split(needle).length - 1
 
 // Source contracts, not rendered geometry or browser fidelity evidence.
 describe('Catálogo en línea presentation adapter', () => {
-  it('loads a scoped adapter with light and dark palettes', () => {
+  it('reuses the shared hf roles without a local palette', () => {
     expect(css).toContain("@import '../../../../core/shared/design-system/houndfe-ui.css'")
     expect(css).not.toContain(':root')
     expect(css).not.toContain('!important')
-    for (const marker of ['catalog-settings-visual', 'catalog-settings-form-portal']) {
-      expect(css).toContain(`.hf-theme.${marker}`)
-      expect(css).toContain(`.dark .hf-theme.${marker}`)
-    }
+    expect(css).not.toMatch(/#[\da-f]{3,8}\b/i)
+    expect(css).not.toContain('.dark')
+    expect(css).toContain('--ui-warning: var(--hf-warning)')
+    expect(read('views/TenantCatalogSettingsView.vue')).not.toContain('catalog-settings-form-portal')
   })
 
   it('puts the canonical page header outside the settings card, centered at the Caja width', () => {

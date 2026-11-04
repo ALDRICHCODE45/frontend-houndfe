@@ -6,11 +6,12 @@
  *
  * Layout:
  *   1. Vacation balance card (year at a glance)
- *   2. Time-off list with status badges
+ *   2. Time-off list with a StatusBadge per request
  *      - Filter by year (current year default)
- *      - Per-row: type badge, dates, day count, reason, status
- *      - Cancel button (gated by canUpdate + canCancelTimeOff logic)
- *      - Review button — APPROVED / REJECTED (gated by canReview = can('update', 'EmployeeTimeOff'))
+ *      - Per-row: dates and day count, then type and reason, then status
+ *      - ⋮ menu: Revisar… (PENDING, gated by canReview = can('update', 'EmployeeTimeOff'))
+ *        and Cancelar solicitud (destructive, last; canCancelTimeOff logic)
+ *      - Four states (S10): skeleton, error with Reintentar, empty, data
  *   3. "Solicitar ausencia" button (gated by canCreate = can('create', 'EmployeeTimeOff'))
  *
  * CASL gates:
@@ -38,9 +39,12 @@
 
 import { computed, reactive, ref } from 'vue'
 import DateFieldPopover from '@/features/POS/sales/components/DateFieldPopover.vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
+import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { TIME_OFF_STATUS, TIME_OFF_TYPE, REVIEW_DECISION } from '../constants/employee.constants'
 import type { ReviewDecisionValue } from '../constants/employee.constants'
-import type { Employee } from '../interfaces/employee.types'
+import type { Employee, TimeOffStatus } from '../interfaces/employee.types'
 import { ReviewTimeOffDtoSchema, CreateTimeOffDtoSchema } from '../interfaces/employee.types'
 import {
   useEmployeeTimeOff,
@@ -73,10 +77,12 @@ const employeeId = computed(() => props.employee.id)
 const currentYear = new Date().getFullYear()
 const selectedYear = ref(currentYear)
 
-const { data: timeOffResponse, isLoading: isLoadingList } = useEmployeeTimeOff(
-  employeeId,
-  selectedYear,
-)
+const {
+  data: timeOffResponse,
+  isLoading: isLoadingList,
+  isError: isListError,
+  refetch: refetchList,
+} = useEmployeeTimeOff(employeeId, selectedYear)
 const { data: balance, isLoading: isLoadingBalance } = useVacationBalance(employeeId, selectedYear)
 
 const { mutateAsync: requestTimeOff, isPending: isRequesting } = useCreateTimeOff(employeeId)
@@ -213,77 +219,94 @@ const REVIEW_DECISION_OPTIONS = [
   { label: 'Rechazar', value: REVIEW_DECISION.REJECTED },
 ] as const
 
-// ─── Status badge color helper ────────────────────────────────────────────────
+// ─── Status badge tone ────────────────────────────────────────────────────────
+// Pending is the only state that needs action (warning). A decision or a
+// cancellation closes the request, so rejected and cancelled stay neutral.
 
-function statusColor(status: string): string {
-  const map: Record<string, string> = {
+type TimeOffTone = 'warning' | 'success' | 'neutral'
+
+function statusTone(status: string): TimeOffTone {
+  const map: Record<string, TimeOffTone> = {
     [TIME_OFF_STATUS.PENDING]: 'warning',
     [TIME_OFF_STATUS.APPROVED]: 'success',
-    [TIME_OFF_STATUS.REJECTED]: 'error',
+    [TIME_OFF_STATUS.REJECTED]: 'neutral',
     [TIME_OFF_STATUS.CANCELLED]: 'neutral',
   }
   return map[status] ?? 'neutral'
 }
 
-// ─── Type badge color helper ──────────────────────────────────────────────────
+// ─── Row menu ─────────────────────────────────────────────────────────────────
 
-function typeColor(type: string): string {
-  const map: Record<string, string> = {
-    [TIME_OFF_TYPE.VACATION]: 'primary',
-    [TIME_OFF_TYPE.SICK]: 'error',
-    [TIME_OFF_TYPE.PERSONAL]: 'secondary',
-    [TIME_OFF_TYPE.UNPAID]: 'neutral',
+function rowActionsFor(item: { status: TimeOffStatus; startDate: string }): RowAction[] {
+  const actions: RowAction[] = []
+  if (props.canUpdate && item.status === TIME_OFF_STATUS.PENDING) {
+    actions.push({ key: 'review', label: 'Revisar…', icon: 'i-lucide-clipboard-check' })
   }
-  return map[type] ?? 'neutral'
+  if (props.canUpdate && canCancelTimeOff(item.status, item.startDate)) {
+    actions.push({
+      key: 'cancel',
+      label: 'Cancelar solicitud',
+      icon: 'i-lucide-x-circle',
+      destructive: true,
+      disabled: isCancelling.value,
+    })
+  }
+  return actions
+}
+
+function onRowAction(key: string, timeOffId: string): void {
+  if (key === 'review') openReview(timeOffId)
+  else if (key === 'cancel') void handleCancel(timeOffId)
 }
 </script>
 
 <template>
   <div class="flex flex-col gap-6">
 
-    <!-- Balance card -->
+    <!-- Balance -->
     <div
       v-if="isLoadingBalance"
-      class="h-24 animate-pulse rounded-xl bg-elevated"
+      class="h-24 animate-pulse rounded-xl bg-(--hf-surface-muted)"
+      aria-busy="true"
+      data-testid="balance-skeleton"
     />
-    <div
-      v-else-if="balance"
-      class="grid grid-cols-2 gap-4 rounded-xl border border-default bg-elevated/40 p-5 sm:grid-cols-4"
-    >
-      <div class="flex flex-col gap-0.5">
-        <span class="text-xs text-muted">Asignadas</span>
-        <span class="text-2xl font-semibold text-highlighted">{{ balance.entitlement }}</span>
-      </div>
-      <div class="flex flex-col gap-0.5">
-        <span class="text-xs text-muted">Usadas</span>
-        <span class="text-2xl font-semibold text-highlighted">{{ balance.used }}</span>
-      </div>
-      <div class="flex flex-col gap-0.5">
-        <span class="text-xs text-muted">Pendientes</span>
-        <span class="text-2xl font-semibold text-warning">{{ balance.pending }}</span>
-      </div>
-      <div class="flex flex-col gap-0.5">
-        <span class="text-xs text-muted">Disponibles</span>
-        <span class="text-2xl font-semibold text-success">{{ balance.remaining }}</span>
-      </div>
-    </div>
+    <UCard v-else-if="balance" class="employees-detail-section" :ui="{ body: 'p-5 sm:p-5' }">
+      <dl class="grid grid-cols-2 gap-4 sm:grid-cols-4" data-testid="vacation-balance">
+        <div class="flex flex-col gap-0.5">
+          <dt class="text-[13px] text-muted">Asignadas</dt>
+          <dd class="hf-figure text-2xl font-semibold text-highlighted">{{ balance.entitlement }}</dd>
+        </div>
+        <div class="flex flex-col gap-0.5">
+          <dt class="text-[13px] text-muted">Usadas</dt>
+          <dd class="hf-figure text-2xl font-semibold text-highlighted">{{ balance.used }}</dd>
+        </div>
+        <div class="flex flex-col gap-0.5">
+          <dt class="text-[13px] text-muted">Pendientes</dt>
+          <dd class="hf-figure text-2xl font-semibold text-(--hf-warning)">{{ balance.pending }}</dd>
+        </div>
+        <div class="flex flex-col gap-0.5">
+          <dt class="text-[13px] text-muted">Disponibles</dt>
+          <dd class="hf-figure text-2xl font-semibold text-highlighted">{{ balance.remaining }}</dd>
+        </div>
+      </dl>
+    </UCard>
 
     <!-- Controls row: year selector + request button -->
     <div class="flex items-center justify-between gap-3">
-      <div class="flex items-center gap-2">
-        <span class="text-sm font-medium text-muted">Año:</span>
-        <USelect :ui="{ content: 'hf-theme hf-ui employees-list-portal' }"
-          v-model="selectedYear"
-          :items="yearOptions"
-          value-key="value"
-          label-key="label"
-          size="sm"
-        />
-      </div>
+      <USelect
+        v-model="selectedYear"
+        :items="yearOptions"
+        value-key="value"
+        label-key="label"
+        aria-label="Año"
+        class="w-28"
+        :ui="{ content: 'hf-theme hf-ui employees-list-portal' }"
+      />
       <UButton
         v-if="canCreate"
         icon="i-lucide-plus"
-        size="sm"
+        color="neutral"
+        variant="outline"
         @click="isRequestOpen = true"
       >
         Solicitar ausencia
@@ -291,22 +314,36 @@ function typeColor(type: string): string {
     </div>
 
     <!-- Time-off list -->
-    <div class="rounded-xl border border-default bg-elevated/30">
+    <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
       <!-- Loading -->
-      <div v-if="isLoadingList" class="flex flex-col gap-3 p-5">
-        <div v-for="n in 3" :key="n" class="h-14 animate-pulse rounded-lg bg-elevated" />
+      <div
+        v-if="isLoadingList"
+        class="flex flex-col gap-3 p-5"
+        aria-busy="true"
+        data-testid="time-off-skeleton"
+      >
+        <span class="sr-only">Cargando</span>
+        <div v-for="n in 3" :key="n" class="h-14 animate-pulse rounded-lg bg-(--hf-surface-muted)" aria-hidden="true" />
       </div>
 
-      <!-- Empty state -->
-      <div
-        v-else-if="timeOffList.length === 0"
-        class="flex flex-col items-center justify-center gap-3 py-14 text-center"
-      >
-        <UIcon name="i-lucide-calendar-off" class="size-9 text-muted opacity-60" />
-        <div>
-          <p class="font-medium text-highlighted">Sin ausencias registradas</p>
-          <p class="text-sm text-muted">No hay solicitudes de ausencia para {{ selectedYear }}.</p>
-        </div>
+      <!-- Error -->
+      <div v-else-if="isListError" class="p-5" data-testid="time-off-error">
+        <EmptyState
+          kind="error"
+          title="No se pudieron cargar las ausencias"
+          action-label="Reintentar"
+          action-test-id="time-off-retry"
+          @action="() => refetchList()"
+        />
+      </div>
+
+      <!-- Empty -->
+      <div v-else-if="timeOffList.length === 0" class="p-5" data-testid="time-off-empty">
+        <EmptyState
+          :title="`Sin ausencias en ${selectedYear}`"
+          description="Aquí aparecerán las solicitudes del colaborador."
+          icon="i-lucide-calendar-off"
+        />
       </div>
 
       <!-- List -->
@@ -314,60 +351,33 @@ function typeColor(type: string): string {
         <li
           v-for="item in timeOffList"
           :key="item.id"
-          class="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between"
+          class="flex items-center gap-3 px-5 py-3"
+          data-testid="time-off-row"
         >
-          <div class="flex flex-col gap-1">
-            <div class="flex items-center gap-2">
-              <UBadge :color="typeColor(item.type)" variant="subtle" size="xs">
-                {{ formatTimeOffType(item.type) }}
-              </UBadge>
-              <UBadge :color="statusColor(item.status)" variant="subtle" size="xs">
-                {{ formatTimeOffStatus(item.status) }}
-              </UBadge>
-            </div>
-            <p class="text-sm font-medium text-highlighted">
+          <div class="min-w-0 flex-1">
+            <p class="hf-row-primary">
               {{ formatTimeOffDateRange(item.startDate, item.endDate) }}
               <span class="font-normal text-muted">
-                ({{ computeTimeOffDays(item.startDate, item.endDate) }}
-                {{ computeTimeOffDays(item.startDate, item.endDate) === 1 ? 'día' : 'días' }})
+                · {{ computeTimeOffDays(item.startDate, item.endDate) }}
+                {{ computeTimeOffDays(item.startDate, item.endDate) === 1 ? 'día' : 'días' }}
               </span>
             </p>
-            <p v-if="item.reason !== undefined" class="text-xs text-muted">
-              {{ resolveSickReason(item.type, item.reason) }}
+            <p class="hf-row-secondary">
+              {{ formatTimeOffType(item.type) }}<template v-if="item.reason !== undefined"> · {{ resolveSickReason(item.type, item.reason) }}</template>
             </p>
           </div>
 
-          <!-- Actions -->
-          <div class="flex items-center gap-2">
-            <!-- Review button — only for PENDING items, requires canUpdate -->
-            <UButton
-              v-if="canUpdate && item.status === TIME_OFF_STATUS.PENDING"
-              size="xs"
-              color="primary"
-              variant="outline"
-              icon="i-lucide-check-circle"
-              :loading="isReviewing && reviewingId === item.id"
-              @click="openReview(item.id)"
-            >
-              Revisar
-            </UButton>
+          <StatusBadge :tone="statusTone(item.status)" :label="formatTimeOffStatus(item.status)" />
 
-            <!-- Cancel button -->
-            <UButton
-              v-if="canUpdate && canCancelTimeOff(item.status, item.startDate)"
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-x-circle"
-              :loading="isCancelling && cancellingId === item.id"
-              @click="handleCancel(item.id)"
-            >
-              Cancelar
-            </UButton>
-          </div>
+          <RowActionsMenu
+            :actions="rowActionsFor(item)"
+            :row-label="`la ausencia del ${formatTimeOffDateRange(item.startDate, item.endDate)}`"
+            portal-class="employees-list-portal"
+            @select="onRowAction($event, item.id)"
+          />
         </li>
       </ul>
-    </div>
+    </UCard>
 
   </div>
 
@@ -407,14 +417,11 @@ function typeColor(type: string): string {
             class="w-full"
           />
         </UFormField>
-        <p v-if="requestError" class="text-sm text-error">{{ requestError }}</p>
+        <p v-if="requestError" class="text-sm text-(--hf-danger)" role="alert">{{ requestError }}</p>
       </div>
     </template>
     <template #footer>
-      <div class="flex justify-end gap-2">
-        <UButton color="neutral" variant="outline" @click="isRequestOpen = false">
-          Cancelar
-        </UButton>
+      <div class="flex w-full justify-end">
         <UButton :loading="isRequesting" @click="submitRequest">
           Solicitar
         </UButton>
@@ -443,14 +450,11 @@ function typeColor(type: string): string {
             class="w-full"
           />
         </UFormField>
-        <p v-if="reviewError" class="text-sm text-error">{{ reviewError }}</p>
+        <p v-if="reviewError" class="text-sm text-(--hf-danger)" role="alert">{{ reviewError }}</p>
       </div>
     </template>
     <template #footer>
-      <div class="flex justify-end gap-2">
-        <UButton color="neutral" variant="outline" @click="isReviewOpen = false">
-          Cancelar
-        </UButton>
+      <div class="flex w-full justify-end">
         <UButton :loading="isReviewing" @click="submitReview">
           Confirmar
         </UButton>

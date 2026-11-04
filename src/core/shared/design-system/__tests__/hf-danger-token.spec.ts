@@ -109,6 +109,20 @@ describe('--hf-danger token', () => {
   })
 })
 
+describe('Nuxt error role follows the one red', () => {
+  it('binds --ui-error to --hf-danger inside .hf-ui, like --ui-primary to --hf-action', () => {
+    const root = rule(uiCss, '.hf-ui')
+    expect(get(root, '--ui-primary')).toBe('var(--hf-action)')
+    expect(get(root, '--ui-error')).toBe('var(--hf-danger)')
+  })
+
+  it('reaches the toast error accent, which reads --ui-error', () => {
+    const toastCss = readFileSync('src/core/shared/design-system/hf-toast.css', 'utf8')
+    const error = rule(toastCss, '.hf-shell-toast.hf-toast--error')
+    expect(get(error, '--toast-accent')).toBe('var(--ui-error)')
+  })
+})
+
 describe('status badge tones keep WCAG AA in both themes', () => {
   it('has a tone recipe for every tone', () => {
     for (const tone of TONES) {

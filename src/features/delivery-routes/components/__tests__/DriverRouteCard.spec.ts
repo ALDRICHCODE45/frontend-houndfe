@@ -6,8 +6,7 @@
 //   - Renders:
 //       * A status badge (tone + label) sourced from `DELIVERY_ROUTE_STATUS_*`
 //         maps (single source — manager + driver share the labels).
-//       * The route id (short form, first 8 chars + ellipsis) — the driver has no
-//         folio, so the id IS the human reference.
+//       * The route by its creation day, never by its id.
 //       * The driver name (from `route.driver?.name`); falls back to "—" when
 //         the projection is null (the route is the driver's own, so the name is
 //         almost always present — fallback is defensive).
@@ -22,7 +21,7 @@
 //     and renders.
 //
 // Co-located spec mirrors the precedent of `DeliveryRouteReorderPanel.spec.ts`:
-// mocks the card's child UI affordances where possible (StatusDotBadge),
+// mocks the card's child UI affordances where possible (StatusBadge),
 // and asserts the public surface via stable testids + emitted events.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -42,11 +41,11 @@ const UButtonStub = defineComponent({
     '<button :disabled="disabled" :data-testid="$attrs[\'data-testid\']" :data-label="label" @click.prevent="$emit(\'click\')"><slot />{{ label }}</button>',
 })
 
-const StatusDotBadgeStub = defineComponent({
-  name: 'StatusDotBadge',
+const StatusBadgeStub = defineComponent({
+  name: 'StatusBadge',
   props: ['tone', 'label'],
   template:
-    '<span data-testid="status-dot-badge-stub" :data-tone="tone" :data-label="label">{{ label }}</span>',
+    '<span data-testid="status-badge-stub" :data-tone="tone" :data-label="label">{{ label }}</span>',
 })
 
 // ─── Fixture helpers ────────────────────────────────────────────────────────
@@ -100,7 +99,7 @@ function mountCard(props: Record<string, unknown> = {}) {
       stubs: {
         UApp,
         UButton: UButtonStub,
-        StatusDotBadge: StatusDotBadgeStub,
+        StatusBadge: StatusBadgeStub,
       },
     },
   })
@@ -112,12 +111,11 @@ beforeEach(() => {
 })
 
 describe('DriverRouteCard — rendering (design §4.2, REQ-DRC-001)', () => {
-  it('renders the route id in short form (first 8 chars + ellipsis)', async () => {
+  it('never shows the route id', async () => {
     const route = makeRoute({ id: 'route-abcdef1234567890' })
     const wrapper = mountCard({ route })
     await flushPromises()
-    // The id appears in the card with the convention: first 8 chars + '…'.
-    expect(wrapper.text()).toContain('route-ab')
+    expect(wrapper.text()).not.toContain('route-ab')
   })
 
   it('does not repeat the driver name: the list is already scoped to the driver', async () => {
@@ -131,9 +129,9 @@ describe('DriverRouteCard — rendering (design §4.2, REQ-DRC-001)', () => {
     const route = makeRoute({ status: 'ACTIVE' })
     const wrapper = mountCard({ route })
     await flushPromises()
-    const badge = wrapper.find('[data-testid="status-dot-badge-stub"]')
+    const badge = wrapper.find('[data-testid="status-badge-stub"]')
     expect(badge.exists()).toBe(true)
-    expect(badge.attributes('data-tone')).toBe('warning')
+    expect(badge.attributes('data-tone')).toBe('info')
     expect(badge.attributes('data-label')).toBe('Activa')
   })
 
@@ -231,12 +229,12 @@ describe('DriverRouteCard — tap target (REQ-DRC-007, design §11)', () => {
 })
 
 describe('DriverRouteCard — status badge per status (REQ-DRC-001, design §11)', () => {
-  it('renders the ACTIVE badge with the warning tone', async () => {
+  it('renders the ACTIVE badge with the info tone', async () => {
     const route = makeRoute({ status: 'ACTIVE' })
     const wrapper = mountCard({ route })
     await flushPromises()
-    const badge = wrapper.find('[data-testid="status-dot-badge-stub"]')
-    expect(badge.attributes('data-tone')).toBe('warning')
+    const badge = wrapper.find('[data-testid="status-badge-stub"]')
+    expect(badge.attributes('data-tone')).toBe('info')
     expect(badge.attributes('data-label')).toBe('Activa')
   })
 
@@ -244,7 +242,7 @@ describe('DriverRouteCard — status badge per status (REQ-DRC-001, design §11)
     const route = makeRoute({ status: 'COMPLETED' })
     const wrapper = mountCard({ route })
     await flushPromises()
-    const badge = wrapper.find('[data-testid="status-dot-badge-stub"]')
+    const badge = wrapper.find('[data-testid="status-badge-stub"]')
     expect(badge.attributes('data-tone')).toBe('success')
     expect(badge.attributes('data-label')).toBe('Completada')
   })

@@ -43,5 +43,5 @@ export function usePromotionBotEligibility(state: PromotionFormState) {
     },
     { immediate: true },
   )
-  return { evaluation, notice }
+  return { evaluation, notice, loadFailed: query.isError, retry: () => query.refetch() }
 }

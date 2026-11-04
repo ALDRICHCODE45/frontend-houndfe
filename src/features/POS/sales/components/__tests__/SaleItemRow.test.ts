@@ -27,9 +27,9 @@ describe('SaleItemRow', () => {
     Tooltip: { props: ['text'], template: '<div><slot />{{ text }}</div>' },
     PriceOverrideModal: true,
     ItemDiscountModal: true,
-    AppBadge: {
-      name: 'AppBadge',
-      props: ['label', 'tone', 'icon', 'variant'],
+    StatusBadge: {
+      name: 'StatusBadge',
+      props: ['label', 'tone', 'ariaLabel'],
       template: '<span>{{ label }}</span>',
     },
     USeparator: true,
@@ -426,7 +426,7 @@ describe('SaleItemRow', () => {
 
   // ── D.1 — Draft cart line renders backend NET + reward badge (REQ-3) ──────
 
-  it('renders NET bold + struck gross + GRATIS badge + NO unit strikethrough on a BXGY draft line', () => {
+  it('renders NET semibold + struck gross + GRATIS badge + NO unit strikethrough on a BXGY draft line', () => {
      const bxgyItem: SaleItem = {
        id: 'item-bxgy',
        productId: 'prod-1',
@@ -457,7 +457,7 @@ describe('SaleItemRow', () => {
      const netLine = wrapper.find('[data-testid="sale-item-line-net"]')
      expect(netLine.exists()).toBe(true)
      expect(netLine.text()).toContain('$200.00')
-     expect(netLine.classes()).toContain('font-bold')
+     expect(netLine.classes()).toContain('font-semibold')
 
      const grossLine = wrapper.find('[data-testid="sale-item-line-gross-strike"]')
      expect(grossLine.exists()).toBe(true)
@@ -519,7 +519,7 @@ describe('SaleItemRow', () => {
      expect(wrapper.text()).not.toContain('GRATIS')
    })
 
-   it('renders NET bold + struck gross + unit-price strikethrough on a cashier line discount', () => {
+   it('renders NET semibold + struck gross + unit-price strikethrough on a cashier line discount', () => {
     const cashierDiscountItem: SaleItem = {
       ...mockItem,
       quantity: 1,
@@ -764,7 +764,7 @@ describe('SaleItemRow', () => {
 
     const netLine = wrapper.find('[data-testid="sale-item-line-net"]')
     expect(netLine.exists()).toBe(true)
-    expect(netLine.classes()).toContain('font-bold')
+    expect(netLine.classes()).toContain('font-semibold')
   })
 
   it('renders sale-item-unit-strike-original in the specs line', () => {

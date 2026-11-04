@@ -2,11 +2,11 @@
  * `quotationFiltersSchema.ts` — REQ-QAF-015 / T-FE-04.
  *
  * `defineFiltersSchema` for the Quotations list slideover. Mirrors the
- * `salesFiltersSchema` pattern (5 filters, 4 sections, customerId as a
- * `multi-async` loaded from the customer API).
+ * `salesFiltersSchema` pattern (customerId as a `multi-async` loaded from the
+ * customer API). There is no status filter here: the list's status tabs are
+ * the only status filter.
  *
- * The 5 first-slice filters:
- *   - `status`   (multi-enum, 4 backend values) → `status`
+ * The 4 filters:
  *   - `customerId` (multi-async, customer API) → `customerId`
  *   - `createdAt` (date-range) → `createdFrom` / `createdTo`
  *   - `expiresAt` (date-range) → `expiresFrom` / `expiresTo`
@@ -18,7 +18,6 @@
  */
 
 import { defineFiltersSchema, filter, type FilterOption } from '@/core/shared/data-table-filters'
-import { QUOTATION_STATUS } from '../constants/quotation.constants'
 
 type QuotationFilterSchemaSources = {
   customerOptions: FilterOption[]
@@ -27,18 +26,6 @@ type QuotationFilterSchemaSources = {
 
 export function createQuotationFiltersSchema(sources: QuotationFilterSchemaSources) {
   return defineFiltersSchema([
-    filter.multiEnum({
-      id: 'status',
-      section: 'Estado',
-      label: 'Estado',
-      param: 'status',
-      options: [
-        { value: QUOTATION_STATUS.DRAFT, label: 'Borrador' },
-        { value: QUOTATION_STATUS.SENT, label: 'Enviada' },
-        { value: QUOTATION_STATUS.EXPIRED, label: 'Expirada' },
-        { value: QUOTATION_STATUS.CANCELLED, label: 'Cancelada' },
-      ],
-    }),
     filter.multiAsync({
       id: 'customerId',
       section: 'Personas',

@@ -2,24 +2,21 @@
 import { computed, ref, shallowRef } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { AxiosError } from 'axios'
-import { AppDataTable, SortableHeader, SelectColumn } from '@/core/shared/components/DataTable'
+import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { customerQueryKeys, productQueryKeys } from '@/core/shared/constants/query-keys'
-import CustomersEmptyState from '../components/CustomersEmptyState.vue'
 import '../styles/clients-visual.css'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
-import ViewToggle from '@/core/shared/components/ViewToggle.vue'
+import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
+import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
-import { formatPhoneCountryCode } from '@/core/shared/utils/phone.utils'
-import type { BulkAction } from '@/core/shared/types/table.types'
 import { productApi } from '@/features/POS/products/api/product.api'
 import { customerApi } from '../api/customer.api'
-import CustomerCardGrid from '../components/CustomerCardGrid.vue'
+import CustomerMobileCard from '../components/CustomerMobileCard.vue'
 import CustomerSalesHistorySlideover from '../components/CustomerSalesHistorySlideover.vue'
 import CustomerUpsertSlideover from '../components/CustomerUpsertSlideover.vue'
 import { useCustomerColumns } from '../composables/useCustomerColumns'
-import { useCustomerViewMode, isCustomerViewMode } from '../composables/useCustomerViewMode'
+import { formatCustomerPhone } from '../utils/customerPhone.utils'
 import type {
   CreateCustomerAddressPayload,
   CreateCustomerPayload,
@@ -48,32 +45,17 @@ const canCreate = computed(() => authStore.userCan('create', 'Customer'))
 const canUpdate = computed(() => authStore.userCan('update', 'Customer'))
 const canDelete = computed(() => authStore.userCan('delete', 'Customer'))
 const canReadSales = computed(() => authStore.userCan('read', 'Sale'))
-const canShowCustomerActions = computed(
-  () => canUpdate.value || canDelete.value || canReadSales.value,
-)
-
-// ── View mode (table ↔ card) ──────────────────────────────────────────────────
-const { viewMode, setMode: setViewMode, displayMode } = useCustomerViewMode()
-
-function handleViewModeChange(mode: string) {
-  if (!isCustomerViewMode(mode)) return
-  setViewMode(mode)
-}
 
 const {
   pagination,
   sorting,
   globalFilter,
-  rowSelection,
-  columnPinning,
-  columnVisibility,
   data,
   totalCount,
   pageCount,
   isLoading,
   isFetching,
   isError,
-  error,
   refresh,
   pageSizeOptions,
   showingFrom,
@@ -84,31 +66,10 @@ const {
   defaultPageSize: 10,
   persistKey: 'pos-customers',
   defaultSorting: [{ id: 'fullName', desc: false }],
-  defaultPinning: { left: [], right: ['actions'] },
 })
 
-// Human-readable error message for the customers table. Mirrors
-// ProductsView: prefer backend `response.data.message`, then `error.message`,
-// then the Spanish fallback. The error block in AppDataTable is rendered
-// instead of "No se encontraron clientes" whenever `isError` is true.
-const customersErrorMessage = computed(() => {
-  const err = error.value as
-    | { response?: { data?: { message?: unknown } }; message?: string }
-    | null
-    | undefined
-  const backendMessage = err?.response?.data?.message
-  if (typeof backendMessage === 'string' && backendMessage.trim()) {
-    return backendMessage
-  }
-  if (Array.isArray(backendMessage) && backendMessage.length > 0) {
-    const first = backendMessage[0]
-    if (typeof first === 'string') return first
-  }
-  if (typeof err?.message === 'string' && err.message.trim()) {
-    return err.message
-  }
-  return 'No se pudieron cargar los clientes. Reintenta.'
-})
+// Error title of the customers table: a human sentence, never the server message.
+const customersErrorMessage = 'No se pudieron cargar los clientes'
 
 // Reuse globalPriceLists from products endpoint (same endpoint)
 const { data: globalPriceLists = [] } = useQuery({
@@ -163,7 +124,7 @@ function mapDomainError(error: AxiosError<DomainApiError>): {
   const normalized = (message ?? '').toLowerCase()
 
   if (normalized.includes('email')) {
-    fields.email = 'Ya existe un cliente con ese email.'
+    fields.email = 'Ya existe un cliente con ese correo electrónico.'
   }
 
   if (normalized.includes('rfc')) {
@@ -496,38 +457,47 @@ function handleOpenHistory(customer: Customer) {
   isHistoryOpen.value = true
 }
 
-// ── Table kebab: main group includes history action ──────────────────────────
-function getRowItems(customer: Customer) {
-  const mainActions =
-    canUpdate.value || canReadSales.value
-      ? [
-          ...(canUpdate.value
-            ? [{ label: 'Editar', onSelect: () => handleOpenEdit(customer) }]
-            : []),
-          ...(canReadSales.value
-            ? [{ label: 'Ver historial de ventas', onSelect: () => handleOpenHistory(customer) }]
-            : []),
-        ]
-      : []
-
-  const destructiveActions = canDelete.value
-    ? [
-        {
-          label: 'Eliminar',
-          color: 'error' as const,
-          onSelect: () => handleDelete(customer),
-        },
-      ]
-    : []
-
-  return [mainActions, destructiveActions].filter((section) => section.length > 0)
+// ── Row actions (⋮ menu in the table, same menu on the mobile card) ──────────
+function actionsFor(): RowAction[] {
+  return [
+    ...(canUpdate.value ? [{ key: 'edit', label: 'Editar', icon: 'i-lucide-pencil' }] : []),
+    ...(canReadSales.value
+      ? [{ key: 'history', label: 'Ver historial de ventas', icon: 'i-lucide-receipt-text' }]
+      : []),
+    ...(canDelete.value
+      ? [{ key: 'delete', label: 'Eliminar…', icon: 'i-lucide-trash-2', destructive: true }]
+      : []),
+  ]
 }
 
-function handleCardClick(customer: Customer) {
-  void handleOpenEdit(customer)
+function handleRowAction(key: string, customer: Customer) {
+  if (key === 'edit') void handleOpenEdit(customer)
+  else if (key === 'history') handleOpenHistory(customer)
+  else if (key === 'delete') void handleDelete(customer)
 }
 
-const bulkActions = computed<BulkAction<Customer>[]>(() => [])
+// The whole row (or card) opens the editor for roles that can update; the name
+// button stays the single tab stop.
+function openRow(customer: Customer) {
+  if (canUpdate.value) void handleOpenEdit(customer)
+}
+const rowOpen = computed(() => (canUpdate.value ? openRow : undefined))
+
+// ── List states ───────────────────────────────────────────────────────────────
+const searchTerm = computed(() => globalFilter.value.trim())
+const noMatchTitle = computed(() =>
+  searchTerm.value ? `Ningún resultado para «${searchTerm.value}»` : 'Ningún resultado',
+)
+const emptyState = computed(() => ({
+  title: 'Aún no hay clientes',
+  description: 'Aquí aparecerán los clientes que registres.',
+  ...(canCreate.value ? { actionLabel: 'Crear cliente', actionIcon: 'i-lucide-user-plus' } : {}),
+}))
+
+function clearFilters() {
+  globalFilter.value = ''
+  pagination.value = { ...pagination.value, pageIndex: 0 }
+}
 </script>
 
 <template>
@@ -575,7 +545,6 @@ const bulkActions = computed<BulkAction<Customer>[]>(() => [])
     >
       <header class="hf-page-header">
         <h1 id="clients-title" class="hf-page-title">Clientes</h1>
-        <p class="hf-page-subtitle">Gestión de clientes</p>
       </header>
       <UCard
         :ui="{ body: 'p-0 sm:p-0' }"
@@ -586,86 +555,63 @@ const bulkActions = computed<BulkAction<Customer>[]>(() => [])
             v-model:sorting="sorting"
             v-model:pagination="pagination"
             v-model:global-filter="globalFilter"
-            v-model:column-pinning="columnPinning"
-            v-model:column-visibility="columnVisibility"
-            v-model:row-selection="rowSelection"
             :columns="columns"
             :data="data"
             :loading="isLoading"
             :fetching="isFetching"
             :error="isError"
             :error-message="customersErrorMessage"
+            :empty-state="emptyState"
+            :filtered="searchTerm !== ''"
+            :no-match-title="noMatchTitle"
             :page-count="pageCount"
             :total-count="totalCount"
             :showing-from="showingFrom"
             :showing-to="showingTo"
             :page-size-options="pageSizeOptions"
-            :display-mode="displayMode"
-            :bulk-actions="bulkActions"
+            :row-open="rowOpen"
+            display-mode="auto"
+            mobile-render="cards"
             :show-add-button="canCreate"
             search-placeholder="Buscar clientes..."
-            add-button-text="Nuevo Cliente"
+            add-button-text="Crear cliente"
             add-button-icon="i-lucide-user-plus"
-            enable-column-visibility
-            :enable-row-selection="false"
             empty="No se encontraron clientes"
             class="hf-data-table"
             portal-class="hf-theme hf-ui clients-list-portal"
             pagination-portal-class="hf-theme hf-ui clients-list-portal"
             @add="handleAdd"
+            @empty-action="handleAdd"
+            @clear-filters="clearFilters"
             @refresh="refresh"
           >
-            <template #actions>
-              <ViewToggle
-                :model-value="viewMode"
-                class="clients-view-toggle"
-                aria-label="Seleccionar vista de clientes"
-                @update:model-value="handleViewModeChange"
-              />
-            </template>
-
-            <template #empty>
-              <CustomersEmptyState />
-            </template>
-
-            <template #cards>
-              <CustomerCardGrid
-                :customers="data"
-                :loading="isLoading || isFetching"
-                :empty="'No se encontraron clientes'"
-                :can-update="canUpdate"
-                :can-delete="canDelete"
-                :can-read-sales="canReadSales"
-                portal-class="hf-theme hf-ui clients-list-portal"
-                @card-click="handleCardClick"
-                @edit="handleOpenEdit"
-                @delete="handleDelete"
-                @view-history="handleOpenHistory"
-              >
-                <template #empty>
-                  <CustomersEmptyState />
-                </template>
-              </CustomerCardGrid>
-            </template>
-
-            <template #select-header="{ table }">
-              <SelectColumn mode="header" :table="table" />
-            </template>
-
-            <template #select-cell="{ row }">
-              <SelectColumn mode="cell" :row="row" />
-            </template>
-
             <template #fullName-header="{ column }">
               <SortableHeader :column="column" label="Nombre" />
             </template>
 
             <template #fullName-cell="{ row }">
-              <span class="font-medium">{{ row.original.fullName }}</span>
+              <div class="flex min-w-0 items-center gap-3">
+                <EntityAvatar
+                  :name="row.original.fullName"
+                  aria-hidden="true"
+                />
+                <button
+                  v-if="canUpdate"
+                  type="button"
+                  class="hf-row-primary text-left"
+                  data-testid="customer-name"
+                  @click="handleOpenEdit(row.original)"
+                >
+                  {{ row.original.fullName }}
+                </button>
+                <span v-else class="hf-row-primary" data-testid="customer-name">{{
+                  row.original.fullName
+                }}</span>
+              </div>
             </template>
 
             <template #email-header="{ column }">
-              <SortableHeader :column="column" label="Email" />
+              <SortableHeader :column="column" label="Correo electrónico" />
             </template>
 
             <template #email-cell="{ row }">
@@ -677,47 +623,41 @@ const bulkActions = computed<BulkAction<Customer>[]>(() => [])
             </template>
 
             <template #phone-cell="{ row }">
-              <span class="font-mono text-sm">
-                <template v-if="row.original.phone">
-                  {{
-                    [formatPhoneCountryCode(row.original.phoneCountryCode), row.original.phone]
-                      .filter(Boolean)
-                      .join(' ')
-                  }}
-                </template>
-                <template v-else>—</template>
+              <span class="hf-figure text-sm" data-testid="customer-phone">
+                {{ formatCustomerPhone(row.original.phoneCountryCode, row.original.phone) }}
               </span>
             </template>
 
             <template #globalPriceListName-header="{ column }">
-              <SortableHeader :column="column" label="Lista de Precios" />
+              <SortableHeader :column="column" label="Lista de precios" />
             </template>
 
             <template #globalPriceListName-cell="{ row }">
-              <AppBadge
-                v-if="row.original.globalPriceListName"
-                tone="neutral"
-                class="clients-badge"
-              >
-                {{ row.original.globalPriceListName }}
-              </AppBadge>
-              <span v-else class="text-sm text-muted">—</span>
+              <span class="text-sm" :class="row.original.globalPriceListName ? '' : 'text-muted'">{{
+                row.original.globalPriceListName ?? '—'
+              }}</span>
             </template>
 
+            <template #actions-header><span class="sr-only">Acciones</span></template>
+
             <template #actions-cell="{ row }">
-              <UDropdownMenu
-                v-if="canShowCustomerActions"
-                :items="getRowItems(row.original)"
-                :content="{ align: 'end' }"
-                :ui="{ content: 'hf-theme hf-ui clients-list-portal' }"
-              >
-                <UButton
-                  icon="i-lucide-ellipsis-vertical"
-                  color="neutral"
-                  variant="ghost"
-                  class="size-7"
-                />
-              </UDropdownMenu>
+              <RowActionsMenu
+                :actions="actionsFor()"
+                :row-label="row.original.fullName"
+                portal-class="clients-list-portal"
+                @select="handleRowAction($event, row.original)"
+              />
+            </template>
+
+            <template #mobile-card="{ row }">
+              <CustomerMobileCard
+                :customer="row"
+                :actions="actionsFor()"
+                :openable="canUpdate"
+                portal-class="clients-list-portal"
+                @open="openRow"
+                @action="handleRowAction"
+              />
             </template>
           </AppDataTable>
         </div>

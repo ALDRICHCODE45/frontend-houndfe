@@ -142,7 +142,7 @@ describe('ProductDetailView rejected variant updates', () => {
   it.each([
     [
       { response: { data: { error: 'PRODUCT_TYPE_CHANGE_BLOCKED' } } },
-      'No se puede cambiar el tipo de producto porque tiene ventas o movimientos asociados.',
+      'El producto tiene existencias o lotes. Ajusta el stock a 0 antes de cambiar el tipo.',
     ],
     [
       { response: { data: { error: 'SAT_KEY_NOT_FOUND', message: 'Clave SAT inválida.' } } },

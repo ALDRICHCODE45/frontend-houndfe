@@ -83,7 +83,7 @@ function removeChip(id: string) {
       multiple
       ignore-filter
       class="w-full"
-      :ui="{ content: 'hf-theme hf-ui hf-form-overlay notifications-form-portal' }"
+      :ui="{ content: 'hf-theme hf-ui hf-form-overlay' }"
       data-testid="recipient-select-trigger"
       @update:model-value="onUpdate"
     />
@@ -102,19 +102,15 @@ function removeChip(id: string) {
         <span
           v-for="row in rows"
           :key="row.id"
-          class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs"
-          :class="
-            row.isStale
-              ? 'border border-warning/40 bg-warning/10 text-warning'
-              : 'border border-default bg-elevated/50 text-default'
-          "
+          class="notifications-chip inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs"
+          :data-stale="row.isStale ? 'true' : undefined"
           :data-testid="`recipient-chip-${row.id}`"
         >
           <span>{{ row.label }}</span>
           <button
             type="button"
             :aria-label="`Quitar ${row.label}`"
-            class="inline-flex size-4 items-center justify-center rounded-full hover:bg-elevated"
+            class="inline-flex size-4 items-center justify-center rounded-full hover:bg-muted"
             :data-testid="`recipient-chip-remove-${row.id}`"
             @click="removeChip(row.id)"
           >

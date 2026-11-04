@@ -7,7 +7,8 @@ import { productApi } from '../api/product.api'
 import { mapDomainError, type DomainApiError } from '@/core/shared/utils/error.utils'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import type { ProductImage, ProductVariant } from '../interfaces/product.types'
 import { useImageUpload } from '../composables/useImageUpload'
 
@@ -163,7 +164,7 @@ function isImageBroken(imageId: string): boolean {
 }
 
 const modalTitle = computed(() => {
-  return `Elegir Fotos de ${props.productName} ${props.variant.value || props.variant.name}`
+  return `Elegir fotos de ${props.productName} ${props.variant.value || props.variant.name}`
 })
 </script>
 
@@ -171,7 +172,7 @@ const modalTitle = computed(() => {
   <UModal
     :open="open"
     :title="modalTitle"
-    :content="{ class: 'sm:max-w-5xl' }"
+    :content="{ class: 'hf-theme hf-ui sm:max-w-5xl' }"
     @update:open="emit('update:open', $event)"
   >
     <template #body>
@@ -186,7 +187,7 @@ const modalTitle = computed(() => {
         class="relative rounded-lg border transition-all cursor-pointer"
         :class="[
           isOverDropZone
-            ? 'border-solid border-coco-gold-500 bg-coco-gold-500/10'
+            ? 'border-solid border-(--hf-active) bg-(--hf-active-soft)'
             : 'border-dashed border-default bg-default',
           isUploading ? 'pointer-events-none' : '',
         ]"
@@ -197,10 +198,10 @@ const modalTitle = computed(() => {
           <UIcon
             :name="isOverDropZone ? 'i-lucide-upload-cloud' : 'i-lucide-image-plus'"
             class="text-5xl mb-3"
-            :class="isOverDropZone ? 'text-coco-gold-700 dark:text-coco-gold-400' : 'text-muted'"
+            :class="isOverDropZone ? 'text-(--hf-active)' : 'text-muted'"
           />
           <p class="text-base font-medium mb-1">
-            Arrastra tus imágenes aquí o hacé click para elegir
+            Arrastra tus imágenes aquí o haz clic para elegir
           </p>
           <p class="text-sm text-muted">JPG, PNG, WEBP o GIF — máx 10 MB</p>
         </div>
@@ -210,23 +211,28 @@ const modalTitle = computed(() => {
           v-if="isUploading"
           class="absolute inset-0 bg-elevated/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 rounded-lg"
         >
-          <UIcon name="i-lucide-loader-2" class="text-4xl text-coco-gold-700 dark:text-coco-gold-400 animate-spin" />
+          <UIcon name="i-lucide-loader-2" class="text-4xl text-(--hf-active) animate-spin" />
           <p class="text-sm font-medium">Subiendo imágenes...</p>
           <UProgress :value="100" animation="carousel" class="w-48" />
         </div>
       </div>
 
       <!-- Loading -->
-      <div v-if="isFetching" class="text-sm text-muted">Cargando imágenes...</div>
+      <div
+        v-if="isFetching"
+        class="grid grid-cols-2 gap-3 sm:grid-cols-3"
+        data-testid="picker-skeleton"
+        aria-busy="true"
+      >
+        <USkeleton v-for="n in 3" :key="n" class="aspect-square w-full rounded-lg" />
+      </div>
 
       <!-- Empty state -->
-      <div
+      <EmptyState
         v-else-if="variantImages.length === 0"
-        class="flex flex-col items-center justify-center py-8 text-center"
-      >
-        <UIcon name="i-lucide-image-off" class="text-4xl text-muted mb-2" />
-        <p class="text-sm text-muted">Sin imágenes para esta variante.</p>
-      </div>
+        icon="i-lucide-image-off"
+        title="Sin imágenes para esta variante"
+      />
 
       <!-- Variant image gallery -->
       <div v-else class="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -234,11 +240,11 @@ const modalTitle = computed(() => {
           v-for="image in variantImages"
           :key="image.id"
           class="group relative rounded-lg border border-default overflow-hidden transition-shadow hover:shadow-md"
-          :class="{ 'ring-2 ring-coco-gold-500 ring-offset-2': image.isMain }"
+          :class="{ 'ring-2 ring-(--hf-active) ring-offset-2': image.isMain }"
         >
           <!-- Main badge -->
           <div v-if="image.isMain" class="absolute top-1.5 right-1.5 z-10">
-            <AppBadge tone="info" variant="solid"> Principal </AppBadge>
+            <StatusBadge label="Principal" tone="info" aria-prefix="Imagen:" />
           </div>
 
           <!-- Image or broken fallback -->
@@ -270,10 +276,10 @@ const modalTitle = computed(() => {
                 <UButton
                   icon="i-lucide-star"
                   color="primary"
-                  variant="ghost"
+                  variant="soft"
                   size="2xs"
+                  aria-label="Marcar como imagen principal"
                   :loading="setMainMutation.isPending.value"
-                  class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
                   @click="handleSetMain(image)"
                 />
               </UTooltip>
@@ -284,6 +290,7 @@ const modalTitle = computed(() => {
                   color="error"
                   variant="ghost"
                   size="2xs"
+                  aria-label="Eliminar imagen"
                   :loading="deleteMutation.isPending.value"
                   @click="handleDelete(image)"
                 />

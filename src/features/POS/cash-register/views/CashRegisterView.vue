@@ -21,6 +21,7 @@
  * closure/PDF and any live backend call.
  */
 import { computed, ref, watch } from 'vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import { useCashAccess } from '../composables/useCashAccess'
 import { useCashRegisters } from '../composables/useCashRegisters'
 import { useCashSessionDetail, useCashSessions } from '../composables/useCashSessions'
@@ -36,7 +37,9 @@ import {
 } from '../composables/cashRules'
 import type { CashComparison, CashCountPayload } from '../interfaces/cash.types'
 import CashWorkspace from '../components/CashWorkspace.vue'
-import CashWorkspaceShiftCard from '../components/CashWorkspaceShiftCard.vue'
+import CashWorkspaceShiftCard, {
+  type CashShiftContext,
+} from '../components/CashWorkspaceShiftCard.vue'
 import '../styles/cash-visual.css'
 import CashRegistersPanel from '../components/CashRegistersPanel.vue'
 import CashOpenSessionForm from '../components/CashOpenSessionForm.vue'
@@ -68,6 +71,9 @@ const sessionParams = computed(() => ({
 }))
 
 const sessions = useCashSessions(sessionParams)
+const registerNames = computed(() =>
+  Object.fromEntries(registers.registers.value.map((register) => [register.id, register.name])),
+)
 const detailQuery = useCashSessionDetail(selectedSessionId)
 
 // One presentation channel for command feedback; each panel receives only its
@@ -262,6 +268,24 @@ const { visibleTasks, activeTaskId, selectTask } = useCashWorkspace({
   defaultTaskId: 'apertura',
 })
 
+/**
+ * What the unselected "Tu turno" card reflects: the registers read decides the
+ * next step. A failed read stays quiet here (the registers panel owns that
+ * error), and without the grants to open a turn the card points at the sessions.
+ */
+const shiftContext = computed<CashShiftContext>(() => {
+  if (registers.isLoading.value) return 'loading'
+  if (
+    registers.isError.value ||
+    !access.canReadRegisters.value ||
+    !access.canOpenSession.value
+  ) {
+    return 'choose-session'
+  }
+  if (registers.registers.value.length === 0) return 'no-registers'
+  return selectedRegisterId.value ? 'register-chosen' : 'choose-register'
+})
+
 function selectRegister(registerId: string) {
   invalidateSessionContext()
   selectedRegisterId.value = registerId
@@ -279,19 +303,19 @@ function selectSession(sessionId: string) {
 }
 
 function handleCreateRegister(name: string) {
-  return withIdentityGuard('registers', 'No se pudo crear la caja. Reintenta.', async () => {
+  return withIdentityGuard('registers', 'No se pudo crear la caja.', async () => {
     await registers.createRegister({ name })
   })
 }
 
 function handleUpdateRegister(id: string, payload: { name?: string; isActive?: boolean }) {
-  return withIdentityGuard('registers', 'No se pudo actualizar la caja. Reintenta.', async () => {
+  return withIdentityGuard('registers', 'No se pudo actualizar la caja.', async () => {
     await registers.updateRegister(id, payload)
   })
 }
 
 function handleOpenSession(payload: { openingCents: number; openingHandoverId?: string }) {
-  return withIdentityGuard('open', 'No se pudo abrir la sesión. Reintenta.', async () => {
+  return withIdentityGuard('open', 'No se pudo abrir la sesión.', async () => {
     // Captured once, before the request: a stale promise must never select an
     // old session for the new user.
     const registerId = selectedRegisterId.value
@@ -309,7 +333,7 @@ function handleMovement(payload: {
 }) {
   return withIdentityGuard(
     'movements',
-    'No se pudo registrar el movimiento. Reintenta.',
+    'No se pudo registrar el movimiento.',
     async () => {
       const sessionId = selectedSessionId.value
       if (!sessionId) return
@@ -324,7 +348,7 @@ function handleMovement(payload: {
 }
 
 function handleFreeze() {
-  return withIdentityGuard('freeze', 'No se pudo iniciar el conteo. Reintenta.', async () => {
+  return withIdentityGuard('freeze', 'No se pudo iniciar el conteo.', async () => {
     const sessionId = selectedSessionId.value
     if (!sessionId) return
     await commands.startCount(sessionId)
@@ -333,7 +357,7 @@ function handleFreeze() {
 }
 
 function handleDeclare(payload: CashCountPayload) {
-  return withIdentityGuard('declare', 'No se pudo enviar la declaración. Reintenta.', async () => {
+  return withIdentityGuard('declare', 'No se pudo enviar la declaración.', async () => {
     const sessionId = selectedSessionId.value
     if (!sessionId) return
     // A comparison belongs to the shift that was selected when it was requested;
@@ -348,7 +372,7 @@ function handleDeclare(payload: CashCountPayload) {
 }
 
 function handleAppendNotes(notes: string) {
-  return withIdentityGuard('notes', 'No se pudo agregar la nota. Reintenta.', async () => {
+  return withIdentityGuard('notes', 'No se pudo agregar la nota.', async () => {
     const sessionId = selectedSessionId.value
     if (!sessionId) return
     await commands.appendNotes(sessionId, notes)
@@ -357,7 +381,7 @@ function handleAppendNotes(notes: string) {
 }
 
 function handleVerify(payload: CashCountPayload) {
-  return withIdentityGuard('verify', 'No se pudo enviar la verificación. Reintenta.', async () => {
+  return withIdentityGuard('verify', 'No se pudo enviar la verificación.', async () => {
     const sessionId = selectedSessionId.value
     if (!sessionId) return
     // Same shift-scoped rule as the declaration: never render B's comparison
@@ -371,7 +395,7 @@ function handleVerify(payload: CashCountPayload) {
 
 function handleReceive(payload: { id: string; receivedCents: number; notes?: string }) {
   receivingId.value = payload.id
-  return withIdentityGuard('custody', 'No se pudo registrar la recepción. Reintenta.', async () => {
+  return withIdentityGuard('custody', 'No se pudo registrar la recepción.', async () => {
     await commands.receiveHandover(payload.id, {
       receivedCents: payload.receivedCents,
       ...(payload.notes ? { notes: payload.notes } : {}),
@@ -388,7 +412,7 @@ function handleDeclareHandover(payload: {
   declaredCents: number
   notes?: string
 }) {
-  return withIdentityGuard('custody', 'No se pudo declarar la entrega. Reintenta.', async () => {
+  return withIdentityGuard('custody', 'No se pudo declarar la entrega.', async () => {
     const sessionId = selectedSessionId.value
     if (!sessionId) return
     await commands.declareHandover(sessionId, payload)
@@ -397,7 +421,7 @@ function handleDeclareHandover(payload: {
 }
 
 function handleReleaseDrawer() {
-  return withIdentityGuard('custody', 'No se pudo liberar el cajón. Reintenta.', async () => {
+  return withIdentityGuard('custody', 'No se pudo liberar el cajón.', async () => {
     const sessionId = selectedSessionId.value
     if (!sessionId) return
     await commands.releaseDrawer(sessionId)
@@ -408,23 +432,18 @@ function handleReleaseDrawer() {
 
 <template>
   <section class="cash-visual cash-page flex flex-col gap-6 md:px-10">
-    <UCard
+    <EmptyState
       v-if="!access.canAnyCashRead.value"
-      :ui="{ body: 'p-4 sm:p-5' }"
+      kind="forbidden"
+      title="Sin acceso a Caja"
+      description="Pide a la persona administradora que asigne los permisos de caja a tu rol."
       data-testid="cash-access-denied"
-    >
-      <h1 class="text-lg font-semibold text-highlighted">Caja</h1>
-      <p class="mt-1 text-sm text-muted">
-        No tienes permisos de caja. Pídele a la persona administradora que asigne los permisos de
-        caja en tu rol.
-      </p>
-    </UCard>
+    />
 
     <CashWorkspace
       v-else
       :key="identityScope"
       title="Caja"
-      subtitle="Opera la caja por tareas: apertura, movimientos, conteo ciego, verificación y custodia. Elige la tarea que necesites."
       :tasks="visibleTasks"
       :active-task-id="activeTaskId"
       @select-task="selectTask"
@@ -436,8 +455,10 @@ function handleReleaseDrawer() {
           :loading="detailQuery.isLoading.value"
           :error="detailQuery.isError.value"
           :is-own-shift="isOwnShift"
-          @request-sessions="selectTask('historial')"
+          :no-shift-context="shiftContext"
+          :opening-active="activeTaskId === 'apertura'"
           @request-opening="selectTask('apertura')"
+          @retry="detailQuery.refetch()"
         />
       </template>
 
@@ -458,7 +479,6 @@ function handleReleaseDrawer() {
           :can-open="access.canOpenSession.value"
           :creating="registers.creating.value"
           :updating="registers.updating.value"
-          :error-message="errorFor('registers') ?? undefined"
           @select="selectRegister"
           @create="handleCreateRegister"
           @update="handleUpdateRegister"
@@ -487,16 +507,17 @@ function handleReleaseDrawer() {
         <CashSessionsPanel
           v-if="access.canReadSessions.value"
           :sessions="sessions.sessions.value"
+          :register-names="registerNames"
           :selected-session-id="selectedSessionId"
           :loading="sessions.isLoading.value"
           :fetching="sessions.isFetching.value"
           :error="sessions.isError.value"
           :can-filter-by-cashier="sessions.canFilterByCashier.value"
-          :page="sessions.page.value"
-          :limit="sessions.limit.value"
+          :can-open="access.canOpenSession.value"
           :total="sessions.total.value"
           @select="selectSession"
           @refresh="sessions.refetch()"
+          @request-opening="selectTask('apertura')"
         />
       </div>
 
@@ -522,7 +543,10 @@ function handleReleaseDrawer() {
               commands.activeCommand.value === 'cashOut'
             "
             :error-message="errorFor('movements')"
+            :loading="detailQuery.isLoading.value"
+            :error="detailQuery.isError.value"
             @submit="handleMovement"
+            @refresh="detailQuery.refetch()"
           />
         </div>
 

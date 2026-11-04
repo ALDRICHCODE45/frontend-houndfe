@@ -74,17 +74,6 @@ function inMedia(source: string, selector: string): CSSStyleRule | undefined {
   return rulesInMedia(source, 'min-width').find((rule) => rule.selectorText.trim() === selector)
 }
 
-/** A rule declared outside every media query. */
-function topLevelRule(source: string, selector: string): CSSStyleRule | undefined {
-  const style = document.createElement('style')
-  style.textContent = source.replace(/^@import.*$/gm, '')
-  document.head.append(style)
-  styles.push(style)
-  return Array.from(style.sheet?.cssRules ?? [])
-    .filter((rule): rule is CSSStyleRule => rule.type === CSSRule.STYLE_RULE)
-    .find((rule) => rule.selectorText.trim() === selector)
-}
-
 function splitTopLevel(selectorText: string): string[] {
   const parts: string[] = []
   let depth = 0
@@ -186,8 +175,10 @@ describe('shared HF UI adapter', () => {
     expect(control!.style.getPropertyValue('color').trim()).toBe('var(--hf-on-action)')
 
     // Destructive/status roles keep their existing semantic colors; the adapter
-    // must never remap every colored control onto the primary hue.
-    for (const source of [shared, products]) {
+    // must never remap every colored control onto the primary hue. The one
+    // allowed binding is Nuxt's error role onto the shared danger token.
+    expect(shared).toMatch(/--ui-error:\s*var\(--hf-danger\)/)
+    for (const source of [shared.replace(/--ui-error:\s*var\(--hf-danger\)/g, ''), products]) {
       expect(source).not.toMatch(
         /--(?:ui|color|text-color|background-color|border-color)[-a-z]*-(?:error|danger|destructive)\s*:/,
       )
@@ -219,7 +210,7 @@ describe('shared HF UI adapter', () => {
         rule.selectorText.includes('.hf-data-table') &&
         /\[data-slot=['"]th['"]\]/.test(rule.selectorText),
     )
-    expect(header!.style.getPropertyValue('color').trim()).toBe('var(--hf-heading)')
+    expect(header!.style.getPropertyValue('color').trim()).toBe('var(--hf-muted)')
 
     const menuItem = rules.find((rule) => /\[role=['"]menuitem['"]\]/.test(rule.selectorText))
     expect(menuItem!.style.getPropertyValue('min-height').trim()).toBe('var(--hf-control-height)')
@@ -363,9 +354,6 @@ describe('Products pilot adapter', () => {
     for (const selector of selectorsOf(products)) {
       expect(selector).toContain('.products-visual')
     }
-    expect(selectorsOf(products).some((selector) => selector.includes('.products-card-grid'))).toBe(
-      true,
-    )
   })
 
   it('paints a single visible field boundary on the select trigger', () => {
@@ -424,22 +412,14 @@ describe('Products pilot adapter', () => {
     expect(scope.style.getPropertyValue('--radius-full')).toBe('')
   })
 
-  it('balances the desktop toolbar into a search/actions row plus a filters row', () => {
-    const toolbar = inMedia(products, '.products-visual .hf-toolbar')!
-    expect(toolbar.style.getPropertyValue('display').trim()).toBe('grid')
-    expect(toolbar.style.getPropertyValue('grid-template-columns').trim()).toContain(
-      'minmax(0, 1fr)',
-    )
-
-    const searchRegion = inMedia(products, '.products-visual .hf-toolbar-search-region')!
-    expect(searchRegion.style.getPropertyValue('display').trim()).toBe('contents')
-
-    const search = inMedia(products, '.products-visual .hf-toolbar-search')!
-    const actions = inMedia(products, '.products-visual .hf-toolbar-actions')!
-    const filters = inMedia(products, '.products-visual .hf-toolbar-filters')!
-    expect(search.style.getPropertyValue('grid-area').trim()).toMatch(/^1\s*\/\s*1$/)
-    expect(actions.style.getPropertyValue('grid-area').trim()).toMatch(/^1\s*\/\s*2$/)
-    expect(filters.style.getPropertyValue('grid-area').trim()).toMatch(/^2\s*\//)
+  it('leaves the desktop toolbar layout to the shared component: the type filter stays on the search row', () => {
+    // The shared DataTableToolbar already puts the search, the filters and the
+    // actions on one row from md. A feature must not move `.hf-toolbar-filters`
+    // onto a second grid row (docs/design-system.md, Toolbar select filter).
+    expect(inMedia(products, '.products-visual .hf-toolbar')).toBeUndefined()
+    expect(inMedia(products, '.products-visual .hf-toolbar-search-region')).toBeUndefined()
+    expect(inMedia(products, '.products-visual .hf-toolbar-filters')).toBeUndefined()
+    expect(styleRules(products).some(rule => rule.style.getPropertyValue('grid-area'))).toBe(false)
 
     const controls = styleRules(products).find(
       (rule) =>
@@ -449,47 +429,6 @@ describe('Products pilot adapter', () => {
     expect(controls).toBeDefined()
     expect(controls!.selectorText).toContain('button')
 
-    // The grid must stay desktop-only: the shared mobile three-row stack must
-    // not be replaced by an unscoped toolbar rule.
-    expect(exactRule(products, '.products-visual .hf-toolbar')).toBeDefined()
-    expect(topLevelRule(products, '.products-visual .hf-toolbar')).toBeUndefined()
-    expect(inMedia(products, '.products-visual .hf-toolbar')).toBeDefined()
-  })
-
-  it('keeps the segmented view toggle intact so its labels never truncate', () => {
-    const toggle = exactRule(products, '.products-visual .products-view-toggle')!
-    expect(toggle.style.getPropertyValue('flex-shrink').trim()).toBe('0')
-    expect(toggle.style.getPropertyValue('width').trim()).toBe('auto')
-
-    // The shared ViewToggle renders real `<button role="tab">` segments. Target
-    // them with a fixture element so the selector is proven to reach the DOM.
-    const scope = document.createElement('div')
-    scope.className = 'products-visual'
-    const tablist = document.createElement('div')
-    tablist.className = 'products-view-toggle'
-    tablist.setAttribute('role', 'tablist')
-    const segment = document.createElement('button')
-    segment.setAttribute('role', 'tab')
-    segment.type = 'button'
-    segment.textContent = 'Tarjetas'
-    tablist.append(segment)
-    scope.append(tablist)
-    document.body.append(scope)
-
-    const segmentRules = styleRules(products).filter(
-      (rule) =>
-        rule.selectorText.includes('.products-view-toggle') && segment.matches(rule.selectorText),
-    )
-    expect(segmentRules.length).toBeGreaterThan(0)
-    expect(
-      segmentRules.some((rule) => rule.style.getPropertyValue('white-space').trim() === 'nowrap'),
-    ).toBe(true)
-    expect(
-      segmentRules.some(
-        (rule) => rule.style.getPropertyValue('min-width').trim() === 'max-content',
-      ),
-    ).toBe(true)
-    scope.remove()
   })
 
   it('compacts the pagination controls and keeps the summary on a single line', () => {
@@ -519,94 +458,13 @@ describe('Products pilot adapter', () => {
     expect(navButtons!.style.getPropertyValue('min-height').trim()).toBe('36px')
   })
 
-  it('applies the restrained radius to every product badge shell and leaves the dot alone', () => {
-    const badge = exactRule(products, '.products-visual .products-badge')!
-    expect(badge.style.getPropertyValue('width').trim()).toBe('fit-content')
-    expect(badge.style.getPropertyValue('max-width').trim()).toBe('100%')
-    expect(badge.style.getPropertyValue('border-radius').trim()).toBe('var(--hf-radius-control)')
-
-    // A round leading dot does not require a pill-shaped shell: the DotBadge
-    // and StatusDotBadge roots must match the same restrained rule.
-    const scope = document.createElement('div')
-    scope.className = 'products-visual'
-    scope.innerHTML = `
-      <span class="products-badge"></span>
-      <span class="products-badge"><span class="rounded-full"></span></span>`
-    document.body.append(scope)
-    const [plain, pill] = Array.from(scope.querySelectorAll('.products-badge')) as HTMLElement[]
-    expect(plain!.matches(badge.selectorText)).toBe(true)
-    expect(pill!.matches(badge.selectorText)).toBe(true)
-
-    // The circular child dot keeps its own shape; the adapter never restyles
-    // avatars or dot indicators.
-    expect(styleRules(products).some((rule) => rule.selectorText.includes('.rounded-full'))).toBe(
-      false,
-    )
-    scope.remove()
-  })
-
-  it('stops a lone product card from stretching across the grid', () => {
-    const grid = exactRule(products, '.products-visual .products-card-grid')!
-    const columns = grid.style.getPropertyValue('grid-template-columns').trim()
-    expect(columns).toContain('auto-fill')
-    expect(columns).toContain('min(100%')
-  })
-
-  it('gives the empty state a soft tile, a larger title and vertical breathing room', () => {
-    const state = exactRule(products, '.products-visual .products-empty-state')!
-    // About 20rem of minimum vertical space gives the empty view reference
-    // breathing room without a fixed height that could break small viewports.
-    expect(Number.parseFloat(state.style.getPropertyValue('min-height'))).toBeGreaterThanOrEqual(18)
-    expect(state.style.getPropertyValue('height')).toBe('')
-    expect(state.style.getPropertyValue('padding-block').trim()).toBe('2rem')
-
-    const icon = exactRule(products, '.products-visual .products-empty-icon')!
-    expect(icon.style.getPropertyValue('background-color').trim()).toBe('var(--hf-active-soft)')
-    expect(icon.style.getPropertyValue('color').trim()).toBe('var(--hf-heading)')
-    expect(icon.style.getPropertyValue('border-radius').trim()).toContain('--hf-radius')
-    expect(Number.parseFloat(icon.style.getPropertyValue('width'))).toBeCloseTo(3.5, 5)
-    expect(Number.parseFloat(icon.style.getPropertyValue('height'))).toBeCloseTo(3.5, 5)
-
-    const title = exactRule(products, '.products-visual .products-empty-title')!
-    expect(Number.parseFloat(title.style.getPropertyValue('font-size'))).toBeCloseTo(1.125, 5)
-    expect(['500', '600']).toContain(title.style.getPropertyValue('font-weight').trim())
-    expect(title.style.getPropertyValue('color').trim()).toBe('var(--hf-heading)')
-
-    const description = exactRule(products, '.products-visual .products-empty-description')!
-    expect(description.style.getPropertyValue('color').trim()).toBe('var(--hf-muted)')
-    expect(description.style.getPropertyValue('max-width').trim()).toBe('42ch')
-
-    // The glyph inside the tile must actually read as heading-colored; the
-    // unit's own `text-muted` utility must be overridden by the scoped tile.
-    const scope = document.createElement('div')
-    scope.className = 'products-visual'
-    const tile = document.createElement('div')
-    tile.className = 'products-empty-icon'
-    const glyph = document.createElement('span')
-    glyph.className = 'text-muted'
-    tile.append(glyph)
-    scope.append(tile)
-    document.body.append(scope)
-    const glyphRules = styleRules(products).filter(
-      (rule) =>
-        rule.selectorText.includes('.products-empty-icon') && glyph.matches(rule.selectorText),
-    )
-    expect(
-      glyphRules.some(
-        (rule) =>
-          rule.style.getPropertyValue('color').trim() === 'inherit' ||
-          rule.style.getPropertyValue('color').trim() === 'var(--hf-heading)',
-      ),
-    ).toBe(true)
-    scope.remove()
-  })
-
-  it('themes product cards with foundation tokens and keeps operational controls operable', () => {
+  it('keeps operational controls operable and carries no rule of the retired card grid', () => {
     const rules = styleRules(products)
-    const card = rules.find((rule) => rule.selectorText.trim().endsWith('.products-card'))!
-    expect(card.style.getPropertyValue('background-color').trim()).toBe('var(--hf-surface)')
-    expect(card.style.getPropertyValue('border')).toContain('--hf-border')
-    expect(card.style.getPropertyValue('border-radius').trim()).toBe('var(--hf-radius-card)')
+    expect(
+      selectorsOf(products).some((selector) =>
+        /products-(card|badge|empty)/.test(selector),
+      ),
+    ).toBe(false)
 
     const primary = rules.find((rule) => rule.selectorText.includes('.hf-primary-control'))!
     expect(primary.style.getPropertyValue('min-height').trim()).toBe('var(--hf-control-height)')

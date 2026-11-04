@@ -16,10 +16,11 @@
  *
  * UI redesign: semantic internal sections (publication status, lists, stock
  * default) are separated by responsive spacing and dividers inside the routed
- * view's single outer card. UBadge replaces AppBadge for tone-consistent Nuxt
- * UI styling. All data-testid, props, and rendering contracts are preserved.
+ * view's single outer card. StatusBadge carries the publication tones. All data-testid, props, and rendering contracts are preserved.
  */
 import { computed } from 'vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { CatalogSettingsResponseDto } from '../interfaces/catalog-settings.types'
 import {
   mapCatalogSettingsWarning,
@@ -32,9 +33,10 @@ const { settings } = defineProps<{
 }>()
 
 const publicationLabel = computed(() => (settings.catalogPublished ? 'Publicado' : 'No publicado'))
-const publicationColor = computed(() => (settings.catalogPublished ? 'success' : 'neutral'))
+const publicationTone = computed(() => (settings.catalogPublished ? 'success' : 'neutral'))
 const effectiveLabel = computed(() => (settings.effectivePublication ? 'Activa' : 'Inactiva'))
-const effectiveColor = computed(() => (settings.effectivePublication ? 'success' : 'warning'))
+// Inactive is not something the user can act on from here, so it stays neutral.
+const effectiveTone = computed(() => (settings.effectivePublication ? 'success' : 'neutral'))
 
 /** Closed-set warnings: known codes → Spanish copy; unknown dropped silently. */
 const visibleWarnings = computed(() =>
@@ -59,19 +61,15 @@ const stockQuantityLabel = computed(() =>
     <!-- Publication + effective status (REQ-11: read-as-is, never recomputed). -->
     <section data-testid="publication-card">
       <div class="flex flex-wrap items-center gap-3">
-        <UBadge
+        <StatusBadge
           data-testid="publication-badge"
           :label="`Catálogo: ${publicationLabel}`"
-          :color="publicationColor"
-          variant="subtle"
-          size="md"
+          :tone="publicationTone"
         />
-        <UBadge
+        <StatusBadge
           data-testid="effective-badge"
           :label="`Publicación efectiva: ${effectiveLabel}`"
-          :color="effectiveColor"
-          variant="subtle"
-          size="md"
+          :tone="effectiveTone"
         />
       </div>
       <p v-if="!settings.effectivePublication" class="mt-2 text-sm text-muted">
@@ -82,7 +80,6 @@ const stockQuantityLabel = computed(() =>
     <!-- Public contexts + default (REQ-5/REQ-6: server order, isCatalogDefault). -->
     <section class="border-t border-default pt-6 sm:pt-8" data-testid="contexts-card">
       <h2 class="text-sm font-semibold text-default">Listas públicas</h2>
-      <p class="mt-0.5 text-xs text-muted">Listas de precios visibles para clientes públicos</p>
       <p
         v-if="settings.priceContexts.length === 0"
         class="mt-4 text-sm text-muted"
@@ -98,13 +95,7 @@ const stockQuantityLabel = computed(() =>
           data-testid="context-row"
         >
           <span class="min-w-0 break-words text-sm text-default">{{ context.name }}</span>
-          <UBadge
-            v-if="context.isCatalogDefault"
-            label="Predeterminada"
-            color="primary"
-            variant="subtle"
-            size="sm"
-          />
+          <StatusBadge v-if="context.isCatalogDefault" label="Predeterminada" tone="info" />
         </li>
       </ul>
     </section>
@@ -135,7 +126,7 @@ const stockQuantityLabel = computed(() =>
 
     <!-- Accepted timestamp. -->
     <p class="text-xs text-muted" data-testid="updated-at">
-      Última actualización: {{ new Date(settings.updatedAt).toLocaleString() }}
+      Última actualización: {{ formatShortDateTime(settings.updatedAt) }}
     </p>
   </section>
 </template>

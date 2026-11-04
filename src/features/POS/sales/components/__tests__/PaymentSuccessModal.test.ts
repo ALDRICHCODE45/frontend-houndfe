@@ -60,19 +60,19 @@ describe('PaymentSuccessModal', () => {
     expect(wrapper.find('[data-color="error"]').exists()).toBe(true)
   })
 
-  it('Cambio dd renders coco-gold text when changeDueCents > 0 [PMT-REQ-003]', () => {
+  it('Cambio dd renders heading ink when changeDueCents > 0 [PMT-REQ-003]', () => {
     const wrapper = mountModal({ changeDueCents: 500 })
 
-    const cambioRow = wrapper.find('dd.text-coco-gold-700')
+    const cambioRow = wrapper.find('dd.text-\\(--hf-heading\\)')
     expect(cambioRow.exists()).toBe(true)
     expect(cambioRow.text()).toContain('$5.00')
   })
 
-  it('Cerrar button uses the Cobrar precedent coco-gold class [PMT-REQ-004]', () => {
+  it('Cerrar button takes the shared primary control [PMT-REQ-004]', () => {
     const wrapper = mountModal()
 
     const closeButton = wrapper.get('button')
-    expect(closeButton.classes()).toContain('!bg-(--brand-action)')
-    expect(closeButton.classes()).toContain('!text-black')
+    expect(closeButton.classes()).toContain('hf-primary-control')
+    expect(closeButton.classes()).not.toContain('!bg-(--brand-action)')
   })
 })

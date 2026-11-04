@@ -107,7 +107,7 @@ watch(
             <UButton type="button" class="w-full" label="Monto" :variant="mode === 'amount' ? 'solid' : 'outline'" @click="mode = 'amount'" />
             <UButton type="button" class="w-full" label="Porcentaje" :variant="mode === 'percentage' ? 'solid' : 'outline'" @click="mode = 'percentage'" />
           </div>
-          <p v-if="mode === 'amount'" class="text-xs text-muted">Descontá un monto fijo en MXN sobre el precio unitario.</p>
+          <p v-if="mode === 'amount'" class="text-xs text-muted">Descuenta un monto fijo en MXN sobre el precio unitario.</p>
           <p v-else class="text-xs text-muted">Aplica un porcentaje del 0 al 100 sobre el precio unitario.</p>
         </section>
 

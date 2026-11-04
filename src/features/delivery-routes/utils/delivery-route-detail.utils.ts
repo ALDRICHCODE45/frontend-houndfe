@@ -5,10 +5,12 @@
  * manager sees the same stop the driver is working on.
  */
 import { formatAddress } from '@/core/shared/utils/formatAddress'
-import type { AppBadgeTone } from '@/core/shared/utils/badge.utils'
+import type { StatusBadgeTone } from '@/core/shared/utils/badge.utils'
+import { DELIVERY_ROUTE_COPY } from '../copy'
 import { deriveDriverRouteCockpit } from '../composables/cockpit/useDriverRouteCockpit'
 import {
   DELIVERY_ROUTE_STOP_STATUS_LABELS,
+  DELIVERY_ROUTE_STOP_STATUS_TONES,
   type DeliveryRouteResponseDto,
   type DeliveryRouteStop,
   type DeliveryRouteStopStatus,
@@ -20,31 +22,23 @@ import {
   getRouteCreatedAt,
   getRouteProgress,
   minutesBetween,
-  shortRouteId,
   type DeliveryRouteProgress,
 } from './delivery-route-list.utils'
 
-export const DELIVERY_ROUTE_STOP_STATUS_TONES: Record<DeliveryRouteStopStatus, AppBadgeTone> = {
-  PENDING: 'neutral',
-  IN_PROGRESS: 'warning',
-  COMPLETED: 'success',
-  SKIPPED: 'inactive',
-}
-
-export interface ManagerRouteKpi {
+interface ManagerRouteKpi {
   key: 'delivered' | 'pending' | 'skipped' | 'time'
   label: string
   value: string
 }
 
-export interface ManagerRouteStopRow {
+interface ManagerRouteStopRow {
   stop: DeliveryRouteStop
   /** 1-based position in the route. */
   position: number
   customer: string
   folio: string
   statusLabel: string
-  statusTone: AppBadgeTone
+  statusTone: StatusBadgeTone
   address: string | null
   /** "Entregada 10:05" or "Check-in 10:40"; null when nothing happened yet. */
   timeLabel: string | null
@@ -53,7 +47,6 @@ export interface ManagerRouteStopRow {
 
 export interface ManagerRouteDetail {
   title: string
-  reference: string
   /** "Creada 08:00", "Iniciada 09:40", "Completada …" / "Cancelada …". */
   moments: string[]
   kpis: ManagerRouteKpi[]
@@ -87,7 +80,7 @@ function buildStopRow(stop: DeliveryRouteStop, currentId: string | null, now: Da
     stop,
     position: stop.sortOrder + 1,
     customer: stop.customer?.name ?? 'Cliente sin nombre',
-    folio: stop.saleFolio ?? stop.id.slice(0, 8),
+    folio: stop.saleFolio ?? DELIVERY_ROUTE_COPY.eligibleSales.noFolio,
     statusLabel: DELIVERY_ROUTE_STOP_STATUS_LABELS[stop.status],
     statusTone: DELIVERY_ROUTE_STOP_STATUS_TONES[stop.status],
     address: address.length > 0 ? address : null,
@@ -110,7 +103,6 @@ export function buildManagerRouteDetail(route: DeliveryRouteResponseDto, now: Da
 
   return {
     title: buildRouteDisplayName(route),
-    reference: shortRouteId(route.id),
     moments,
     kpis: [
       { key: 'delivered', label: 'Entregadas', value: String(count('COMPLETED')) },

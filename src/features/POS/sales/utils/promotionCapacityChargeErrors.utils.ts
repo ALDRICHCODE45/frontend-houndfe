@@ -20,11 +20,11 @@ export interface PromotionCapacityReQuoteError {
   excludedPromotionIds: string[]
 }
 
-export type PromotionCapacityRaceErrorCode =
+type PromotionCapacityRaceErrorCode =
   | 'PROMOTION_CAPACITY_EXCEEDED'
   | 'PROMOTION_CAPACITY_CLAIM_MISMATCH'
 
-export interface PromotionCapacityRaceError {
+interface PromotionCapacityRaceError {
   kind: 'race'
   code: PromotionCapacityRaceErrorCode
   saleId: string

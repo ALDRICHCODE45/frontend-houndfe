@@ -37,5 +37,5 @@ export const EMPLOYEE_ERROR_MAP: Record<EmployeeDomainErrorCode, string> = {
   // endpoints (delete, terminate, reactivate). Mirror the same quirk that
   // exists in PromotionsView.vue:339 (promotions-batch-end).
   BATCH_DELETE_NOT_FOUND: 'Algunos colaboradores ya no existen. La lista se actualizó.',
-  INSUFFICIENT_PERMISSIONS: 'No tenés permisos para realizar esta acción en lote.',
+  INSUFFICIENT_PERMISSIONS: 'No tienes permisos para realizar esta acción en lote.',
 } as const

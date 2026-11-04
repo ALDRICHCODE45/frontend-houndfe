@@ -1,4 +1,4 @@
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { refDebounced } from '@vueuse/core'
 import { useQuery, keepPreviousData } from '@tanstack/vue-query'
 import { saleApi } from '../api/sale.api'
@@ -22,7 +22,7 @@ export function useProductSearch() {
   // 14a.3 (sales-screen-redesign): page sizes bumped from 24/30 → 36/42 so
   // the fixed 3-col grid has enough rows to fill the panel without the
   // seller hitting an empty-feeling state on initial mount.
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: computed(() =>
       saleQueryKeys.posCatalog(tenantId.value, {
         q: debouncedQuery.value || undefined,
@@ -94,6 +94,7 @@ export function useProductSearch() {
     isLoading,
     isError,
     isEmpty,
+    refetch,
     categoryId,
     categories,
     totalUnfiltered,

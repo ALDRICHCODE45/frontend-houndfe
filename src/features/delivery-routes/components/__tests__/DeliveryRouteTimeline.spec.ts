@@ -268,14 +268,20 @@ describe('DeliveryRouteTimeline — prop contract', () => {
 // DeliveryRouteTimeline owns accessible timeline rows AND timestamp formatting.
 
 import { formatTimelineTimestamp } from '../DeliveryRouteTimeline.vue'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 
 describe('formatTimelineTimestamp — human-readable timestamps (exported helper)', () => {
-  it('formats a valid ISO instant in Spanish (day month year · time)', () => {
+  it('formats a past-year instant as the short list date, with its year', () => {
     const out = formatTimelineTimestamp('2025-01-01T09:30:00Z')
-    // Format is locale-dependent; pin the structure against the same date-fns call.
-    expect(out).toBe(format(new Date('2025-01-01T09:30:00Z'), 'd MMM yyyy · HH:mm', { locale: es }))
+    expect(out).toBe(formatShortDateTime('2025-01-01T09:30:00Z'))
+    expect(out).toContain('2025')
+  })
+
+  it('drops the year for an instant of the current year, like every other short date', () => {
+    const now = new Date()
+    now.setUTCMonth(5, 15)
+    now.setUTCHours(18, 0, 0, 0)
+    expect(formatTimelineTimestamp(now.toISOString())).not.toContain(String(now.getUTCFullYear()))
   })
 
   it.each([

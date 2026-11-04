@@ -106,7 +106,7 @@ watch(isSearchOpen, async (open) => {
     <DefineSidebarContent v-slot="{ collapsed, inDrawer }">
       <!--
         S7: the brand row reuses the real login logo asset
-        (`/hounfeLogos/primary.png`, the same file LoginHero renders) instead of
+        (`/hounfeLogos/primary.png`, the same file the login card renders) instead of
         the v0 text imitation. The CSS unit owns `.hf-shell-brand-logo` sizing,
         including the compact-rail rule.
       -->
@@ -116,13 +116,32 @@ watch(isSearchOpen, async (open) => {
 
       <!-- Tenant switcher: real tenant data, existing dropdown behavior -->
       <div class="px-4 py-3">
-        <UDropdownMenu
-          v-if="showTenantSwitcher"
-          :items="teamsItems"
-          :content="{ align: 'start', collisionPadding: 12 }"
-          :ui="{ content: 'hf-shell-portal hf-shell-menu hf-shell-tenant-menu' }"
+        <UTooltip
+          :text="currentTenantLabel"
+          :disabled="!collapsed"
+          :delay-duration="0"
+          :content="{ side: 'right' }"
         >
-          <button type="button" class="hf-shell-tenant" :aria-label="tenantTriggerLabel">
+          <UDropdownMenu
+            v-if="showTenantSwitcher"
+            :items="teamsItems"
+            :content="{ align: 'start', collisionPadding: 12 }"
+            :ui="{ content: 'hf-shell-portal hf-shell-menu hf-shell-tenant-menu' }"
+          >
+            <button type="button" class="hf-shell-tenant" :aria-label="tenantTriggerLabel">
+              <span class="hf-shell-tenant-tile" aria-hidden="true">{{ tenantInitial }}</span>
+              <span v-if="!collapsed" class="min-w-0 flex-1">
+                <strong class="block truncate">{{ currentTenantLabel }}</strong>
+                <small v-if="currentTenantSlug" class="block truncate text-muted">
+                  {{ currentTenantSlug }}
+                </small>
+              </span>
+              <UIcon v-if="!collapsed" name="i-lucide-chevrons-up-down" class="size-4 shrink-0" />
+            </button>
+          </UDropdownMenu>
+
+          <!-- Single-tenant: label only, no switcher (existing behavior) -->
+          <div v-else class="hf-shell-tenant">
             <span class="hf-shell-tenant-tile" aria-hidden="true">{{ tenantInitial }}</span>
             <span v-if="!collapsed" class="min-w-0 flex-1">
               <strong class="block truncate">{{ currentTenantLabel }}</strong>
@@ -130,25 +149,18 @@ watch(isSearchOpen, async (open) => {
                 {{ currentTenantSlug }}
               </small>
             </span>
-            <UIcon v-if="!collapsed" name="i-lucide-chevrons-up-down" class="size-4 shrink-0" />
-          </button>
-        </UDropdownMenu>
-
-        <!-- Single-tenant: label only, no switcher (existing behavior) -->
-        <div v-else class="hf-shell-tenant">
-          <span class="hf-shell-tenant-tile" aria-hidden="true">{{ tenantInitial }}</span>
-          <span v-if="!collapsed" class="min-w-0 flex-1">
-            <strong class="block truncate">{{ currentTenantLabel }}</strong>
-            <small v-if="currentTenantSlug" class="block truncate text-muted">
-              {{ currentTenantSlug }}
-            </small>
-          </span>
-        </div>
+          </div>
+        </UTooltip>
       </div>
 
       <!-- Shell search trigger: opens the shared dashboard search -->
       <div class="px-4 pb-3">
-        <UDashboardSearchButton :collapsed="collapsed" label="Buscar..." class="hf-shell-search" />
+        <UDashboardSearchButton
+          :collapsed="collapsed"
+          tooltip
+          label="Buscar..."
+          class="hf-shell-search"
+        />
       </div>
 
       <UNavigationMenu
@@ -156,6 +168,7 @@ watch(isSearchOpen, async (open) => {
         :items="navigationFor(collapsed)"
         :collapsed="collapsed"
         orientation="vertical"
+        tooltip
         popover
         :ui="{ content: 'hf-shell-portal hf-shell-nav-portal' }"
       />
@@ -167,17 +180,24 @@ watch(isSearchOpen, async (open) => {
           class="hf-shell-icon-button mr-auto"
         />
 
-        <UDropdownMenu
-          :items="userItems"
-          :content="{ align: collapsed ? 'start' : 'end', collisionPadding: 12 }"
-          :ui="{ content: 'min-w-48 hf-shell-portal hf-shell-menu' }"
+        <UTooltip
+          :text="user.name"
+          :disabled="!collapsed"
+          :delay-duration="0"
+          :content="{ side: 'right' }"
         >
-          <button type="button" class="hf-shell-user" aria-label="Abrir menú de usuario">
-            <UAvatar :alt="user.avatar.alt" :text="user.avatar.text" size="sm" />
-            <span v-if="!collapsed" class="min-w-0 flex-1 truncate">{{ user.name }}</span>
-            <UIcon v-if="!collapsed" name="i-lucide-chevrons-up-down" class="size-4 shrink-0" />
-          </button>
-        </UDropdownMenu>
+          <UDropdownMenu
+            :items="userItems"
+            :content="{ align: collapsed ? 'start' : 'end', collisionPadding: 12 }"
+            :ui="{ content: 'min-w-48 hf-shell-portal hf-shell-menu' }"
+          >
+            <button type="button" class="hf-shell-user" aria-label="Abrir menú de usuario">
+              <UAvatar :alt="user.avatar.alt" :text="user.avatar.text" size="sm" />
+              <span v-if="!collapsed" class="min-w-0 flex-1 truncate">{{ user.name }}</span>
+              <UIcon v-if="!collapsed" name="i-lucide-chevrons-up-down" class="size-4 shrink-0" />
+            </button>
+          </UDropdownMenu>
+        </UTooltip>
       </div>
     </DefineSidebarContent>
 

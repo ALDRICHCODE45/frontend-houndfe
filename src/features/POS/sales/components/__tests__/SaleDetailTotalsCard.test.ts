@@ -12,13 +12,11 @@ const globalStubs = {
 }
 
 // Helper so every `mount(SaleDetailTotalsCard, ...)` call picks up the WU-E
-// stubs without per-test boilerplate. We intentionally relax the options
-// type to `any` here so each call site keeps its precise props payload
-// without dragging the full MountingOptions generic through.
-function mountCard(options: Record<string, any> = {}) {
+// stubs without per-test boilerplate.
+type CardProps = InstanceType<typeof SaleDetailTotalsCard>['$props']
+function mountCard(options: { props: CardProps; global?: { stubs?: Record<string, unknown> } }) {
   const stubs = { ...globalStubs, ...(options.global?.stubs ?? {}) }
-  const global = { ...(options.global ?? {}), stubs }
-  return mount(SaleDetailTotalsCard as any, { ...options, global })
+  return mount(SaleDetailTotalsCard, { ...options, global: { ...options.global, stubs } })
 }
 
 describe('SaleDetailTotalsCard', () => {
@@ -138,7 +136,7 @@ describe('SaleDetailTotalsCard', () => {
     expect(wrapper.text()).toContain('$100.00')
   })
 
-  it('colors Deuda red when there is outstanding debt', () => {
+  it('colors Deuda with the warning role when there is outstanding debt (pending, not wrong)', () => {
     const wrapper = mountCard({
       props: {
         subtotalCents: 100000,
@@ -153,10 +151,10 @@ describe('SaleDetailTotalsCard', () => {
     const debtRow = wrapper.get('[data-testid="totals-debt-row"]')
     const valueSpan = debtRow.findAll('span').find((s) => s.text().includes('$500.00'))
     expect(valueSpan).toBeDefined()
-    expect(valueSpan?.classes()).toContain('text-error-600')
+    expect(valueSpan?.classes()).toContain('text-(--hf-warning)')
   })
 
-  it('colors Deuda green when there is no debt', () => {
+  it('colors Deuda with the success role when there is no debt', () => {
     const wrapper = mountCard({
       props: {
         subtotalCents: 100000,
@@ -171,102 +169,25 @@ describe('SaleDetailTotalsCard', () => {
     const debtRow = wrapper.get('[data-testid="totals-debt-row"]')
     const valueSpan = debtRow.findAll('span').find((s) => s.text().includes('$0.00'))
     expect(valueSpan).toBeDefined()
-    expect(valueSpan?.classes()).toContain('text-success-600')
+    expect(valueSpan?.classes()).toContain('text-(--hf-success)')
   })
 
-  it('hides Registrar Pago button when canRegisterPayment is false or unset', () => {
+  // One primary per view: the header (desktop) or the sticky bar (mobile)
+  // owns "Registrar pago", so the totals card never renders a button.
+  it('has no payment button of its own', () => {
     const wrapper = mountCard({
       props: {
         subtotalCents: 100000,
         discountCents: 0,
         totalCents: 100000,
-        paidCents: 100000,
-        debtCents: 0,
+        paidCents: 50000,
+        debtCents: 50000,
         changeDueCents: 0,
       },
     })
 
+    expect(wrapper.find('button').exists()).toBe(false)
     expect(wrapper.find('[data-testid="register-debt-payment"]').exists()).toBe(false)
-  })
-
-  it('shows Registrar Pago button when canRegisterPayment is true', () => {
-    const wrapper = mountCard({
-      props: {
-        subtotalCents: 100000,
-        discountCents: 0,
-        totalCents: 100000,
-        paidCents: 50000,
-        debtCents: 50000,
-        changeDueCents: 0,
-        canRegisterPayment: true,
-      },
-    })
-
-    expect(wrapper.find('[data-testid="register-debt-payment"]').exists()).toBe(true)
-  })
-
-  it('disables Registrar Pago button while isPaymentSubmitting is true', () => {
-    const wrapper = mountCard({
-      props: {
-        subtotalCents: 100000,
-        discountCents: 0,
-        totalCents: 100000,
-        paidCents: 50000,
-        debtCents: 50000,
-        changeDueCents: 0,
-        canRegisterPayment: true,
-        isPaymentSubmitting: true,
-      },
-    })
-
-    const button = wrapper.get('[data-testid="register-debt-payment"]')
-    expect(button.attributes('disabled')).toBeDefined()
-  })
-
-  it('emits register-payment when Registrar Pago button is clicked', async () => {
-    const wrapper = mountCard({
-      props: {
-        subtotalCents: 100000,
-        discountCents: 0,
-        totalCents: 100000,
-        paidCents: 50000,
-        debtCents: 50000,
-        changeDueCents: 0,
-        canRegisterPayment: true,
-      },
-    })
-
-    await wrapper.get('[data-testid="register-debt-payment"]').trigger('click')
-    expect(wrapper.emitted('register-payment')).toBeTruthy()
-  })
-
-  // HST-REQ-003: register-debt-payment UButton follows the Cobrar precedent
-  // (gold action background, !text-black override, rounded-xl, font-semibold,
-  // shadow-sm) so both the totals card and the header CTA open the same modal
-  // with identical visual prominence.
-  it('pins Cobrar precedent on the Registrar Pago button (HST-REQ-003)', () => {
-    const wrapper = mountCard({
-      props: {
-        subtotalCents: 100000,
-        discountCents: 0,
-        totalCents: 100000,
-        paidCents: 50000,
-        debtCents: 50000,
-        changeDueCents: 0,
-        canRegisterPayment: true,
-      },
-    })
-
-    const button = wrapper.get('[data-testid="register-debt-payment"]')
-    expect(button.classes()).toEqual(
-      expect.arrayContaining([
-        '!bg-(--brand-action)',
-        '!text-black',
-        'rounded-xl',
-        'font-semibold',
-        'shadow-sm',
-      ]),
-    )
   })
 
   // ── sale-detail-redesign WU-E — wrap totals in UCard with header

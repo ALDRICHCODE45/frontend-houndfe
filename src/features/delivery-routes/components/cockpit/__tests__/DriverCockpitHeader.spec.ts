@@ -9,8 +9,8 @@
 //   - "Ruta de entrega" is the primary title; NO driver identity line (the
 //     header is driver-only and the line collided with the title).
 //   - NO completed/total progress fraction (the summary card owns progress).
-//   - Status, compact uppercase 8-char route id (full id via native title),
-//     truthful lifecycle timestamp are KEPT.
+//   - Status badge and the truthful lifecycle timestamp are KEPT; the route id
+//     is never shown.
 //   - The separate visible history + refresh buttons are REMOVED; one
 //     UDropdownMenu holds "Ver historial" then "Actualizar ruta" (existing
 //     copy.ts keys). History selection emits open-history EXACTLY ONCE with
@@ -54,11 +54,11 @@ vi.mock('@nuxt/ui/components/DropdownMenu.vue', () => ({
   },
 }))
 
-const StatusDotBadgeStub = defineComponent({
-  name: 'StatusDotBadge',
+const StatusBadgeStub = defineComponent({
+  name: 'StatusBadge',
   props: ['tone', 'label', 'ariaLabel'],
   template:
-    '<span data-testid="status-dot-badge-stub" :data-tone="tone" :data-label="label">{{ label }}</span>',
+    '<span data-testid="status-badge-stub" :data-tone="tone" :data-label="label">{{ label }}</span>',
 })
 
 function makeRoute(
@@ -89,7 +89,7 @@ function mountHeader(props: Record<string, unknown> = {}) {
       isFetching: false,
       ...props,
     },
-    global: { stubs: { StatusDotBadge: StatusDotBadgeStub } },
+    global: { stubs: { StatusBadge: StatusBadgeStub } },
   })
 }
 function getMenuItems(w: ReturnType<typeof mount>): HeaderMenuItem[] {
@@ -136,14 +136,15 @@ describe('DriverCockpitHeader — back emit (REQ-DCS-002)', () => {
 describe('DriverCockpitHeader — status badge tones (REQ-DCS-002, shared maps)', () => {
   it.each([
     ['DRAFT', 'neutral', 'Borrador'],
-    ['ACTIVE', 'warning', 'Activa'],
+    ['ACTIVE', 'info', 'Activa'],
     ['COMPLETED', 'success', 'Completada'],
-    ['CANCELLED', 'error', 'Cancelada'],
+    ['CANCELLED', 'neutral', 'Cancelada'],
   ] as const)('renders %s badge with tone=%s label=%s', async (status, tone, label) => {
     const w = mountHeader({ route: makeRoute({ status }) })
     await flushPromises()
-    const badge = w.find('[data-testid="status-dot-badge-stub"]')
-    expect(badge.attributes('data-tone')).toBe(DELIVERY_ROUTE_STATUS_TONES[tone === 'neutral' ? 'DRAFT' : status])
+    const badge = w.find('[data-testid="status-badge-stub"]')
+    expect(badge.attributes('data-tone')).toBe(tone)
+    expect(badge.attributes('data-tone')).toBe(DELIVERY_ROUTE_STATUS_TONES[status])
     expect(badge.attributes('data-label')).toBe(DELIVERY_ROUTE_STATUS_LABELS[status])
     expect(w.text()).toContain(label)
   })
@@ -259,14 +260,12 @@ describe('DriverCockpitHeader — refinement: compact rounded card composition (
     const w = mountHeader({
       route: makeRoute({ driver: { id: 'd-x', name: 'Concepción Hernández del Río Montejo y Sánchez', email: 'x@x' } }),
     })
-    // The route id is the longest fixed metadata atom; it must truncate.
+    // The route id is never rendered, whatever its length.
     const long = makeRoute()
     long.id = 'route-abc12345xyz'
     const wLong = mountHeader({ route: long })
-    const idEl = wLong.find('[data-testid="cockpit-header-route-id"]')
-    expect(idEl.classes().join(' ')).toMatch(/\btruncate\b/)
-    expect(idEl.text()).toBe('ROUTE-AB')
-    expect(idEl.attributes('title')).toBe('route-abc12345xyz')
+    expect(wLong.find('[data-testid="cockpit-header-route-id"]').exists()).toBe(false)
+    expect(wLong.text()).not.toMatch(/route-ab/i)
     // The flexible middle column clamps (min-w-0) and the title truncates.
     const summary = w.find('[data-testid="cockpit-header-summary"]')
     expect(summary.classes().join(' ')).toMatch(/\bmin-w-0\b/)

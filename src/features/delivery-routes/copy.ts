@@ -24,8 +24,7 @@
 export const DELIVERY_ROUTE_COPY = {
   list: {
     title: 'Rutas de entrega',
-    subtitle: 'Planeación y seguimiento de las entregas a clientes',
-    searchPlaceholder: 'Buscar por repartidor, cliente, folio o nota...',
+    searchPlaceholder: 'Buscar rutas...',
     statusTabsLabel: 'Filtrar rutas por estado',
     managerTabs: {
       all: 'Todas',
@@ -35,6 +34,9 @@ export const DELIVERY_ROUTE_COPY = {
   detail: {
     title: 'Detalle de ruta',
     driverTitle: 'Detalle de parada',
+    notFoundTitle: 'No encontramos la ruta',
+    notFoundBack: 'Volver a las rutas',
+    loadError: 'No se pudo cargar la ruta',
   },
   actions: {
     view: 'Ver detalle',
@@ -76,7 +78,10 @@ export const DELIVERY_ROUTE_COPY = {
   },
   empty: {
     manager: 'No hay rutas de entrega',
-    driver: 'No tienes rutas activas en este momento.',
+    managerTitle: 'Aún no hay rutas',
+    managerDescription: 'Aquí aparecerán las rutas de entrega que crees.',
+    driverTitle: 'No tienes rutas activas',
+    driverDescription: 'Cuando te asignen una ruta, aparecerá aquí.',
     noEligibleSales:
       'No hay ventas pendientes o enviadas disponibles para asignar.',
   },
@@ -90,7 +95,7 @@ export const DELIVERY_ROUTE_COPY = {
     empty: 'No hay ventas pendientes o enviadas',
     noResults: 'No hay ventas que coincidan con la búsqueda',
     loading: 'Cargando ventas elegibles…',
-    errorFallback: 'No se pudieron cargar las ventas elegibles. Reintenta.',
+    errorFallback: 'No se pudieron cargar las ventas elegibles.',
     retry: 'Reintentar',
     selectedHeading: 'Ventas seleccionadas',
     remove: 'Quitar {folio}',
@@ -224,7 +229,6 @@ export const DELIVERY_ROUTE_COPY = {
       // Route-page evolution: visible stop-list heading + supporting line
       // above the ordered rich cards (the ONE canonical stop presentation).
       listHeading: 'Tus paradas',
-      listSubheading: 'Sigue el orden recomendado',
     },
     // Route-page evolution: compact recent-activity section heading (the
     // timeline component renders it via its `heading` prop).
@@ -251,7 +255,7 @@ export const DELIVERY_ROUTE_COPY = {
     quickActions: {
       map: 'Ver en mapa',
       copyAddress: 'Copiar dirección',
-      email: 'Email',
+      email: 'Correo',
       successMap: 'Mapa abierto',
       successCopy: 'Dirección copiada',
       successEmail: 'Enviando correo',
@@ -277,5 +281,3 @@ export const DELIVERY_ROUTE_COPY = {
     },
   },
 } as const
-
-export type DeliveryRouteCopy = typeof DELIVERY_ROUTE_COPY

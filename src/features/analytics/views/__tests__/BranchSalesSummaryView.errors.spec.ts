@@ -365,15 +365,61 @@ describe('BranchSalesSummaryView — T4 state presentation', () => {
     else expect(grid.exists()).toBe(false)
   })
 
-  it.each([false, true])('disables summary retry with a spinner (retained: %s)', (retained) => {
-    if (retained) summaryRef.value = NON_EMPTY_PAYLOAD
+  it('disables the retained-data retry with a spinner while refetching', () => {
+    summaryRef.value = NON_EMPTY_PAYLOAD
+    state.isError.value = true
+    state.isRefetching.value = true
+    const retry = mountView().find('[data-testid="branch-summary-refresh-retry"]')
+    expect(retry.attributes('disabled')).toBeDefined()
+    expect(retry.find('.animate-spin').exists()).toBe(true)
+  })
+
+  it('keeps the no-data error in place with a busy retry while a retry is in flight', () => {
     state.isError.value = true
     state.isRefetching.value = true
     const view = mountView()
-    const testId = retained ? 'branch-summary-refresh-retry' : 'branch-summary-retry'
-    const retry = view.find(`[data-testid="${testId}"]`)
+    expect(view.find('[data-testid="branch-summary-loading"]').exists()).toBe(false)
+    expect(view.find('[data-testid="branch-summary-error"]').exists()).toBe(true)
+    const retry = view.find('[data-testid="branch-summary-retry"]')
     expect(retry.attributes('disabled')).toBeDefined()
     expect(retry.find('.animate-spin').exists()).toBe(true)
+  })
+
+  it('shows ONE page-level error and renders no trend or panels when the summary fails', () => {
+    grantPermissions('read:Sale', 'read:SaleRefund')
+    state.isError.value = true
+    timeseriesState.isError.value = true
+    recentSalesState.isError.value = true
+    debtSalesState.isError.value = true
+    pendingRefundsState.isError.value = true
+    const view = mountView()
+
+    const page = view.find('[data-testid="branch-summary-error"]')
+    expect(page.classes()).not.toContain('dashboard-compact-error')
+    expect(view.findAll('[data-kind="error"]')).toHaveLength(1)
+    expect(view.find('[data-testid="branch-sales-trend"]').exists()).toBe(false)
+    expect(view.find('[data-testid="branch-summary-operational-grid"]').exists()).toBe(false)
+    expect(view.findAll('[data-testid="dashboard-operational-panel"]')).toHaveLength(0)
+  })
+
+  it('shows a compact inline error per failed panel once the summary has loaded', () => {
+    grantPermissions('read:Sale', 'read:SaleRefund')
+    summaryRef.value = NON_EMPTY_PAYLOAD
+    timeseriesState.isError.value = true
+    recentSalesState.isError.value = true
+    debtSalesState.isError.value = true
+    pendingRefundsState.isError.value = true
+    const view = mountView()
+
+    expect(view.find('[data-testid="branch-summary-error"]').exists()).toBe(false)
+    expect(view.findAll('.dashboard-compact-error')).toHaveLength(4)
+  })
+
+  it('never tells the reader to wait or retry inside the error text', () => {
+    state.isError.value = true
+    const title = mountView().find('[data-testid="branch-summary-error"] .hf-empty-state__title').text()
+    expect(title).not.toMatch(/reintent/i)
+    expect(title).not.toMatch(/segundos/i)
   })
 
   it('dims the summary without dimming its independent operational siblings', () => {
@@ -399,8 +445,10 @@ describe('BranchSalesSummaryView — no-data error copy and retry', () => {
     state.error.value = error
     const view = mountView()
 
-    expect(view.find('[data-testid="branch-summary-error"]').attributes('role')).toBe('alert')
-    expect(view.find('[data-testid="branch-summary-error-message"]').text()).toContain(expected)
+    const alert = view.find('[data-testid="branch-summary-error"]')
+    expect(alert.attributes('role')).toBe('alert')
+    expect(alert.attributes('data-kind')).toBe('error')
+    expect(alert.find('.hf-empty-state__title').text()).toContain(expected)
     expect(view.find('[data-testid="branch-summary-metrics"]').exists()).toBe(false)
   })
 
@@ -408,7 +456,7 @@ describe('BranchSalesSummaryView — no-data error copy and retry', () => {
     const rendered = [400, 403, 500].map((status) => {
       state.isError.value = true
       state.error.value = { response: { status } }
-      return mountView().find('[data-testid="branch-summary-error-message"]').text()
+      return mountView().find('[data-testid="branch-summary-error"] .hf-empty-state__title').text()
     })
 
     expect(new Set(rendered).size).toBe(3)
@@ -432,7 +480,7 @@ describe('BranchSalesSummaryView — no-data error copy and retry', () => {
     for (const [status, body, expected] of contradicting) {
       state.isError.value = true
       state.error.value = { response: { status, data: body } }
-      const message = mountView().find('[data-testid="branch-summary-error-message"]')
+      const message = mountView().find('[data-testid="branch-summary-error"] .hf-empty-state__title')
 
       expect(message.text(), `status ${status}`).toContain(expected)
       expect(message.text()).not.toContain(body.error)
@@ -447,7 +495,6 @@ describe('BranchSalesSummaryView — no-data error copy and retry', () => {
 
     const buttons = retryButtons(view)
     expect(buttons).toHaveLength(1)
-    expect(buttons[0]!.classes()).toContain('min-h-11')
     await buttons[0]!.trigger('click')
     await nextTick()
 
@@ -655,14 +702,14 @@ describe('BranchSalesSummaryView — dashboard page shell and composition', () =
     // No wrapping card anywhere. (A `data-slot="body"` probe is ambiguous: the
     // calendar fields render their own `body` slot.)
     expect(view.findComponent({ name: 'Card' }).exists()).toBe(false)
-    expect(column.find('.dashboard-page-header').text()).toContain('CONTROL DE VENTAS')
+    expect(column.find('.dashboard-page-header').text()).not.toMatch(/CONTROL DE VENTAS/i)
     expect(column.find('.dashboard-page-footer').text()).toContain('HoundFe/Resumen de ventas')
     expect(column.find('.dashboard-page-footer').text()).toContain(
       'Todos los importes en MXN · Hora de Ciudad de México',
     )
   })
 
-  it('renders one H1 with a descriptive subtitle and the exact range as its own element', () => {
+  it('renders one H1 with no eyebrow or subtitle and the exact range as its own element', () => {
     summaryRef.value = NON_EMPTY_PAYLOAD
     const view = mountView()
 
@@ -671,14 +718,12 @@ describe('BranchSalesSummaryView — dashboard page shell and composition', () =
     expect(headings[0]!.text()).toBe('Resumen de ventas')
 
     const header = view.find('.dashboard-page-header')
-    const subtitle = header.find('p')
-    expect(subtitle.text().trim().length).toBeGreaterThan(0)
-    expect(subtitle.text()).toMatch(/ventas|reembolsos/i)
+    expect(header.find('.dashboard-eyebrow').exists()).toBe(false)
+    expect(header.find('.dashboard-title-block').findAll('p:not(.sr-only)')).toHaveLength(0)
 
     const range = view.find('[data-testid="branch-summary-range"]')
     expect(range.exists()).toBe(true)
     expect(range.text()).toMatch(/^\d{4}-\d{2}-\d{2} → \d{4}-\d{2}-\d{2}$/)
-    expect(range.element).not.toBe(subtitle.element)
     expect(headings[0]!.element.contains(range.element)).toBe(false)
 
     const cardText = view.find('[data-testid="branch-summary-card"]').text()

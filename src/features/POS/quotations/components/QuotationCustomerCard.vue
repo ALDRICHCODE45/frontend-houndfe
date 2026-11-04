@@ -74,7 +74,6 @@ const hasEmail = computed<boolean>(() => {
     <div v-if="customer" class="flex items-center gap-3" data-testid="customer-header-row">
       <EntityAvatar
         :name="customerName"
-        :seed="customer.id"
         size="lg"
       />
       <p

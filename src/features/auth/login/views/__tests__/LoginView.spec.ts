@@ -51,22 +51,27 @@ vi.mock('@tanstack/vue-query', () => ({
   useMutation: ({ mutationFn }: { mutationFn: unknown }) => ({ mutateAsync: mutationFn }),
 }))
 vi.mock('@/features/auth/stores/useAuthStore', () => ({ useAuthStore: () => store }))
-vi.mock('@/features/auth/login/components/LoginHero.vue', () => ({
-  default: { template: '<div />' },
-}))
 vi.mock('@/features/auth/login/components/LoginForm.vue', () => ({
   default: defineComponent({
     emits: ['submit'],
-    setup(_, { emit }) {
+    setup(_, { emit, slots }) {
+      // Mirrors the real form: the feedback slot renders above the submit button.
       return () =>
-        h(
-          'button',
-          {
-            'data-test': 'password',
-            onClick: () => emit('submit', { email: 'user@hound.test', password: 'synthetic' }),
-          },
-          'Ingresar',
-        )
+        h('form', [
+          slots.feedback?.(),
+          h(
+            'button',
+            {
+              type: 'submit',
+              'data-test': 'password',
+              onClick: (event: Event) => {
+                event.preventDefault()
+                emit('submit', { email: 'user@hound.test', password: 'synthetic' })
+              },
+            },
+            'Ingresar',
+          ),
+        ])
     },
   }),
 }))
@@ -322,5 +327,61 @@ describe('LoginView password then OTP', () => {
     expect(resend).toHaveBeenCalledOnce()
     wrapper.unmount()
     expect(vi.getTimerCount()).toBe(0)
+  })
+})
+
+describe('LoginView layout', () => {
+  it('renders one centered card on the page surface, without a brand hero panel', () => {
+    const wrapper = mount(LoginView, {
+      global: { stubs: { UAlert: { props: ['title'], template: '<div>{{ title }}</div>' } } },
+    })
+
+    expect(wrapper.find('.hf-auth-card').exists()).toBe(true)
+    expect(wrapper.html()).not.toContain('lg:w-1/2')
+    expect(wrapper.html()).not.toContain('bg-neutral-950')
+    wrapper.unmount()
+  })
+
+  it('keeps the failure notice out of the card flow, so the card never changes height', async () => {
+    store.authError = 'No se pudo iniciar sesión. Verifica credenciales.'
+    login.mockRejectedValue(new Error('rejected'))
+    const wrapper = mount(LoginView, {
+      global: { stubs: { UAlert: { props: ['title'], template: '<div>{{ title }}</div>' } } },
+    })
+    await wrapper.get('[data-test="password"]').trigger('click')
+    await flushPromises()
+
+    const feedback = wrapper.get('[data-testid="login-feedback"]')
+    expect(feedback.text()).toContain('No se pudo iniciar sesión')
+    expect(feedback.attributes('aria-live')).toBe('assertive')
+    expect(wrapper.get('.hf-auth-card').element.contains(feedback.element)).toBe(true)
+    // The failure sits inside the card's form, above the submit button, not floating below the card.
+    const form = wrapper.get('form')
+    expect(form.element.contains(feedback.element)).toBe(true)
+    const submit = form.get('button[type="submit"]').element
+    expect(feedback.element.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // The slot is always rendered (empty or not), so the notice only fills it.
+    wrapper.unmount()
+    const quiet = mount(LoginView, {
+      global: { stubs: { UAlert: { props: ['title'], template: '<div>{{ title }}</div>' } } },
+    })
+    expect(quiet.find('[data-testid="login-feedback"]').exists()).toBe(true)
+    expect(quiet.get('[data-testid="login-feedback"]').text()).toBe('')
+    quiet.unmount()
+  })
+
+  it('shows Cancelar only while signing in, in the corner of the card rather than a new row', async () => {
+    login.mockReturnValue(new Promise(() => {}))
+    const wrapper = mount(LoginView, {
+      global: { stubs: { UAlert: { props: ['title'], template: '<div>{{ title }}</div>' } } },
+    })
+    expect(wrapper.find('[data-testid="login-cancel"]').exists()).toBe(false)
+
+    await wrapper.get('[data-test="password"]').trigger('click')
+    await flushPromises()
+    const cancelButton = wrapper.get('[data-testid="login-cancel"]')
+    expect(cancelButton.classes()).toContain('hf-auth-cancel')
+    expect(cancelButton.text()).toBe('Cancelar')
+    wrapper.unmount()
   })
 })

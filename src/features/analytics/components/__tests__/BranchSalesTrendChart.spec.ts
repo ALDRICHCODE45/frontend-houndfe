@@ -147,7 +147,7 @@ function tableRows(wrapper: ReturnType<typeof mountChart>) {
 describe('BranchSalesTrendChart — v0 interaction', () => {
   it('renders the accepted heading, icon and table action', () => {
     const w = mountChart()
-    expect(w.text()).toContain('El comportamiento de tus ventas, día a día.')
+    expect(w.text()).not.toContain('El comportamiento de tus ventas, día a día.')
     expect(w.find('.dashboard-trend-heading [data-slot="icon"]').exists() || w.find('.dashboard-trend-heading .size-5').exists()).toBe(true)
     expect(w.find('summary').text()).toContain('Ver datos en tabla')
   })
@@ -168,19 +168,20 @@ describe('BranchSalesTrendChart — v0 interaction', () => {
     expect(w.find('[data-testid="branch-sales-trend-announcement"]').exists()).toBe(false)
   })
 
-  it('resets the keyboard cursor on metric changes and backend replacement, including a singleton zero', async () => {
+  it('resets the keyboard cursor on metric changes and backend replacement, including a singleton at index zero', async () => {
     const props = shallowReactive({ points: POINTS, from: FROM, to: TO })
     const w = mountWithUApp(BranchSalesTrendChart, { props })
     const chart = w.find('[data-testid="branch-sales-trend-chart"]')
     await chart.trigger('keydown', { key: 'ArrowRight' })
     await w.find('[data-metric-key="saleCount"]').trigger('click')
     expect(w.find('[data-testid="branch-sales-trend-announcement"]').exists()).toBe(false)
-    props.points = [POINTS[1]!]
+    // A bucket with no movement draws the flat empty state, so the singleton carries one sale.
+    props.points = [{ ...POINTS[1]!, saleCount: 7 }]
     await nextTick()
     await chart.trigger('keydown', { key: 'ArrowRight' })
     await chart.trigger('keydown', { key: 'ArrowRight' })
     expect(w.findComponent({ name: 'VisCrosshair' }).props('forceShowAt')).toBe(0)
-    expect(w.find('[data-testid="branch-sales-trend-announcement"]').text()).toContain('02 mar 2025 · 0')
+    expect(w.find('[data-testid="branch-sales-trend-announcement"]').text()).toContain('02 mar 2025 · 7')
     props.points = []
     await nextTick()
     expect(w.find('[data-testid="branch-sales-trend-announcement"]').exists()).toBe(false)
@@ -213,6 +214,10 @@ describe('BranchSalesTrendChart — chart-scoped query states', () => {
     expect(loading.exists()).toBe(true)
     expect(loading.attributes('role')).toBe('status')
     expect(loading.attributes('aria-busy')).toBe('true')
+    // Shaped like the final chart: the metric tabs, the grid and the bars.
+    expect(loading.findAll('[data-skeleton="tab"]')).toHaveLength(6)
+    expect(loading.findAll('[data-skeleton="grid-line"]').length).toBeGreaterThanOrEqual(4)
+    expect(loading.findAll('[data-skeleton="bar"]').length).toBeGreaterThanOrEqual(8)
     for (const testid of [
       'branch-sales-trend-chart',
       'branch-sales-trend-empty',
@@ -229,10 +234,12 @@ describe('BranchSalesTrendChart — chart-scoped query states', () => {
     const alert = w.find('[data-testid="branch-sales-trend-error"]')
     expect(alert.exists()).toBe(true)
     expect(alert.attributes('role')).toBe('alert')
+    expect(alert.attributes('data-kind')).toBe('error')
+    // Compact inline error, so a failed summary never stacks a tall box per panel.
+    expect(alert.classes()).toContain('dashboard-compact-error')
 
     const buttons = retryButtons(w)
     expect(buttons).toHaveLength(1)
-    expect(buttons[0]!.classes()).toContain('min-h-11')
   })
 
   it('keeps the loaded chart and exact table values visible during a stale-data error', () => {
@@ -263,8 +270,19 @@ describe('BranchSalesTrendChart — chart-scoped query states', () => {
     const empty = w.find('[data-testid="branch-sales-trend-empty"]')
     expect(empty.exists()).toBe(true)
     expect(empty.attributes('role')).toBe('status')
+    expect(empty.attributes('data-kind')).toBe('empty')
     expect(w.find('[data-testid="branch-sales-trend-chart"]').exists()).toBe(false)
     expect(w.find('[data-testid="branch-sales-trend-table"]').exists()).toBe(false)
+  })
+
+  it('keeps the no-data error in place with a busy retry while the request runs', () => {
+    const w = mountChart({ points: [], isError: true, isRefetching: true })
+
+    expect(w.find('[data-testid="branch-sales-trend-loading"]').exists()).toBe(false)
+    const alert = w.find('[data-testid="branch-sales-trend-error"]')
+    expect(alert.exists()).toBe(true)
+    const retry = w.find('[data-testid="branch-sales-trend-retry"]')
+    expect(retry.attributes('disabled')).toBeDefined()
   })
 
   it('emits exactly one retry event per click and never calls anything else', async () => {
@@ -357,15 +375,14 @@ describe('BranchSalesTrendChart — metric selector semantics', () => {
     expect(countValues.join(' ')).not.toContain('$')
   })
 
-  it('changes the chart region label with the selected metric while keeping the exact window', () => {
+  it('changes the chart region label with the selected metric while keeping the window', () => {
     const w = mountChart()
 
     const defaultLabel = w
       .find('[data-testid="branch-sales-trend-chart"]')
       .attributes('aria-label')!
     expect(defaultLabel).toContain('Ventas netas')
-    expect(defaultLabel).toContain(FROM)
-    expect(defaultLabel).toContain(TO)
+    expect(defaultLabel).toContain('1 mar al 3 mar 2025')
   })
 
   it('round-trips back to MXN formatting and never reorders the backend buckets', async () => {
@@ -409,14 +426,69 @@ describe('BranchSalesTrendChart — chart region and Unovis wiring', () => {
     expect(w.findAll('[data-unovis="VisAxis"]').length).toBeGreaterThanOrEqual(2)
   })
 
-  it('labels the chart region as an image with the metric and the exact half-open window', () => {
+  it('labels the chart region as an image with the metric and the human window', () => {
     const w = mountChart()
 
     const chart = w.find('[data-testid="branch-sales-trend-chart"]')
     expect(chart.attributes('role')).toBe('img')
-    expect(chart.attributes('aria-label')).toBe(
-      `Ventas netas por día del ${FROM} al ${TO} (Hasta excluyente)`,
-    )
+    expect(chart.attributes('aria-label')).toBe('Ventas netas por día, del 1 mar al 3 mar 2025')
+  })
+
+  it('replaces a flat all-zero series with an empty state but keeps the exact table', () => {
+    const flat = POINTS.map((point) => ({
+      ...point,
+      grossSalesCents: 0,
+      netSalesCents: 0,
+      collectedCents: 0,
+      outstandingDebtCents: 0,
+      saleCount: 0,
+      averageTicketCents: 0,
+    }))
+    const w = mountChart({ points: flat })
+
+    expect(w.find('[data-testid="branch-sales-trend-flat"]').exists()).toBe(true)
+    expect(w.find('[data-testid="branch-sales-trend-chart"]').exists()).toBe(false)
+    // No metric has movement, so the strip has nothing to switch between.
+    expect(metricButtons(w)).toHaveLength(0)
+    expect(tableRows(w)).toHaveLength(flat.length)
+  })
+
+  it('keeps the metric tabs when only the selected metric is flat', () => {
+    const onlyCounts = POINTS.map((point) => ({
+      ...point,
+      grossSalesCents: 0,
+      netSalesCents: 0,
+      collectedCents: 0,
+      outstandingDebtCents: 0,
+      averageTicketCents: 0,
+      saleCount: 2,
+    }))
+    const w = mountChart({ points: onlyCounts })
+
+    expect(w.find('[data-testid="branch-sales-trend-flat"]').exists()).toBe(true)
+    expect(metricButtons(w)).toHaveLength(6)
+  })
+
+  it('draws the chart as soon as the selected metric has one non-zero bucket', () => {
+    const w = mountChart()
+
+    expect(w.find('[data-testid="branch-sales-trend-flat"]').exists()).toBe(false)
+    expect(w.find('[data-testid="branch-sales-trend-chart"]').exists()).toBe(true)
+  })
+
+  it('shows the x ticks as short days and the caption without ISO dates or boundary wording', () => {
+    const w = mountChart()
+
+    const xAxis = w
+      .findAllComponents({ name: 'VisAxis' })
+      .find((axis) => axis.props('type') === 'x')!
+    const xFormat = xAxis.props('tickFormat') as (tick: number | Date) => string
+    expect(xFormat(0)).toBe('1 mar')
+    expect(xFormat(2)).toBe('3 mar')
+
+    const caption = w.find('.dashboard-trend-caption').text()
+    expect(caption).toBe('Ventas netas por día, del 1 mar al 3 mar 2025')
+    expect(caption).not.toMatch(/\d{4}-\d{2}-\d{2}|excluyente/i)
   })
 
   it('does not require SVG or hover interaction to reach the values', () => {
@@ -440,14 +512,13 @@ describe('BranchSalesTrendChart — keyboard-reachable semantic table', () => {
     expect(summary.classes().some((token) => /focus-visible:ring-/.test(token))).toBe(true)
   })
 
-  it('captions the table with the selected metric and the exact window', () => {
+  it('captions the table with the selected metric and the human window', () => {
     const w = mountChart()
 
     const caption = w.find('[data-testid="branch-sales-trend-table"] caption')
     expect(caption.exists()).toBe(true)
     expect(caption.text()).toContain('Ventas netas')
-    expect(caption.text()).toContain(FROM)
-    expect(caption.text()).toContain(TO)
+    expect(caption.text()).toContain('1 mar al 3 mar 2025')
   })
 
   it('scopes both column headers and every row header correctly', () => {

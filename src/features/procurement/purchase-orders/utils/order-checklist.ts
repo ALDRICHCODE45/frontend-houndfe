@@ -69,8 +69,8 @@ export function lineFlags(order: Checked, lineId: string): LineFlags {
   return flags
 }
 
-export type StepKey = 'complete' | 'save' | 'confirm'
-export const stepLabels: Record<StepKey, string> = { complete: 'Completar', save: 'Guardar', confirm: 'Confirmar' }
+type StepKey = 'complete' | 'save' | 'confirm'
+const stepLabels: Record<StepKey, string> = { complete: 'Completar', save: 'Guardar', confirm: 'Confirmar' }
 // The current step is derived from the record: pending items first, then unsaved changes, then ready.
 export function confirmSteps({ pending, dirty }: { pending: number; dirty: boolean }) {
   const keys: StepKey[] = ['complete', 'save', 'confirm']

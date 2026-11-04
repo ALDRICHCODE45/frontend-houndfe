@@ -27,15 +27,15 @@ describe('useSidebar sales links', () => {
     setActivePinia(createPinia())
   })
 
-  it('has Nueva Venta as top-level item and Ventas inside POS', () => {
+  it('has Nueva venta as top-level item and Ventas inside POS', () => {
     const { getNavigationItems } = useSidebar()
     const items = getNavigationItems(false)
-    const nuevaVenta = items.find((item) => item.label === 'Nueva Venta')
+    const nuevaVenta = items.find((item) => item.label === 'Nueva venta')
     const posSection = items.find((item) => item.label === 'POS')
     const ventas = posSection?.children?.find((child) => child.label === 'Ventas')
 
     expect(nuevaVenta?.to).toBe('/pos/ventas/nueva')
     expect(ventas?.to).toBe('/pos/ventas')
-    expect(posSection?.children?.some((child) => child.label === 'Nueva Venta')).toBe(false)
+    expect(posSection?.children?.some((child) => child.label === 'Nueva venta')).toBe(false)
   })
 })

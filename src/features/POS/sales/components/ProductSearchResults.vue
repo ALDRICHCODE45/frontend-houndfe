@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import ProductSearchResultItem from './ProductSearchResultItem.vue'
 import type { PosCatalogItem } from '../interfaces/sale.types'
 
@@ -9,6 +10,8 @@ defineProps<{
   isLoading: boolean
   isEmpty: boolean
   hasQuery: boolean
+  /** The catalog request failed; only shown while there is nothing to list. */
+  isError?: boolean
   /** S12: Venta-only v0 card opt-in, forwarded to every result card. */
   composition?: boolean
 }>()
@@ -18,6 +21,7 @@ defineProps<{
 const emit = defineEmits<{
   select: [item: PosCatalogItem]
   'view-detail': [item: PosCatalogItem]
+  retry: []
 }>()
 </script>
 
@@ -43,21 +47,26 @@ const emit = defineEmits<{
       </div>
     </div>
 
-    <!-- Empty state -->
-    <div v-else-if="isEmpty" class="flex flex-col items-center justify-center py-20 px-4 sales-pos-catalog-empty">
-      <div class="rounded-2xl bg-elevated/70 border border-default p-5 mb-4">
-        <UIcon name="i-lucide-package-x" class="h-10 w-10 text-dimmed" />
-      </div>
-      <p class="text-sm font-semibold text-highlighted mb-1">
-        Sin resultados
-      </p>
-      <p class="text-xs text-muted text-center max-w-xs">
-        {{ hasQuery
-          ? 'No encontramos productos habilitados para POS con ese término'
-          : 'No hay productos disponibles en el catálogo POS'
-        }}
-      </p>
-    </div>
+    <!-- Error: a failed request never reads as an empty catalog. -->
+    <EmptyState
+      v-else-if="isError && items.length === 0"
+      kind="error"
+      title="No se pudo cargar el catálogo"
+      action-label="Reintentar"
+      action-test-id="catalog-retry"
+      data-testid="catalog-error-state"
+      class="py-20 sales-pos-catalog-error"
+      @action="emit('retry')"
+    />
+
+    <!-- Nothing yet, or nothing matches the search. -->
+    <EmptyState
+      v-else-if="isEmpty"
+      :kind="hasQuery ? 'no-match' : 'empty'"
+      :title="hasQuery ? 'Ningún resultado' : 'Aún no hay productos para vender'"
+      :description="hasQuery ? 'No hay productos habilitados para POS con ese término' : 'Los productos habilitados para el punto de venta aparecen aquí.'"
+      class="py-20 sales-pos-catalog-empty"
+    />
 
     <!-- Results card grid — horizontal single-column cards on mobile. -->
     <div

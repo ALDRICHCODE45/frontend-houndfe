@@ -31,7 +31,7 @@ import SellerSalesReportContent from './SellerSalesReportContent.vue'
 import { useSellerSalesReport } from '../composables/useSellerSalesReport'
 import '../../styles/users-visual.css'
 
-export interface SellerReportSeller {
+interface SellerReportSeller {
   id: string
   name: string
   isActive: boolean

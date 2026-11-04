@@ -388,39 +388,22 @@ describe('AssignCustomerSlideover', () => {
     expect(pageText()).not.toContain('+ Nuevo cliente')
   })
 
-  it('keeps the empty-customer CTA legacy paint when no portal theme is requested', async () => {
-    const wrapper = mountSlideoverWithRealOverlay()
+  it.each([
+    ['no portal theme', undefined],
+    ['the quotation portal', 'hf-theme hf-ui hf-form-overlay quotations-workspace-portal'],
+  ])('offers one outline "Nuevo cliente" in the search step and none in the empty state (%s)', async (_label, portalClass) => {
+    const wrapper = mountSlideoverWithRealOverlay(portalClass)
     await wrapper.setProps({ saleId: undefined })
     await flushPromises()
 
-    const button = document.querySelector<HTMLElement>(
-      '[data-testid="assign-customer-slideover"] .border-dashed [data-testid="open-create-customer"]',
-    )!
-    expect(button).not.toBeNull()
-    expect(button.classList.contains('!bg-(--brand-action)')).toBe(true)
-    expect(button.classList.contains('!text-black')).toBe(true)
-    expect(button.classList.contains('hf-primary-control')).toBe(false)
-    wrapper.unmount()
-  })
-
-  it('pairs the reachable quotation empty-customer CTA with the opted-in action role', async () => {
-    const wrapper = mountSlideoverWithRealOverlay(
-      'hf-theme hf-ui hf-form-overlay quotations-workspace-portal',
+    const buttons = document.querySelectorAll<HTMLElement>(
+      '[data-testid="assign-customer-slideover"] [data-testid="open-create-customer"]',
     )
-    await wrapper.setProps({ saleId: undefined })
-    await flushPromises()
-
-    const button = document.querySelector<HTMLElement>(
-      '[data-testid="assign-customer-slideover"] .border-dashed [data-testid="open-create-customer"]',
-    )!
-    expect(button).not.toBeNull()
-    expect(button.classList.contains('hf-primary-control')).toBe(true)
-    expect(button.classList.contains('!bg-(--brand-action)')).toBe(false)
-    expect(button.classList.contains('!text-black')).toBe(false)
-    expect(button.textContent).toContain('+ Nuevo cliente')
-    button.click()
-    await flushPromises()
-    expect(assignCustomerMock).not.toHaveBeenCalled()
+    expect(buttons).toHaveLength(1)
+    expect(document.querySelector('[data-testid="assign-customer-slideover"] .border-dashed [data-testid="open-create-customer"]')).toBeNull()
+    expect(buttons[0]!.classList.contains('hf-primary-control')).toBe(false)
+    expect(buttons[0]!.textContent).toContain('Nuevo cliente')
+    expect(buttons[0]!.textContent).not.toContain('+ Nuevo cliente')
     wrapper.unmount()
   })
 

@@ -158,29 +158,18 @@ function submit() {
 
 <template>
   <section
-    :class="variant === 'card' ? 'cash-panel' : 'flex flex-col'"
+    :class="variant === 'card' ? 'cash-list-section' : 'flex flex-col gap-4'"
     data-testid="cash-count-form"
   >
-    <header v-if="variant === 'card'" class="cash-panel-header">
-      <span class="cash-icon-tile" aria-hidden="true">
-        <UIcon name="i-lucide-calculator" />
-      </span>
-      <div class="cash-panel-header-text">
-        <h2 class="cash-panel-title">{{ heading }}</h2>
-        <p class="cash-panel-subtitle">{{ lede }}</p>
-      </div>
-    </header>
-    <header v-else class="flex items-start gap-3 border-t border-default pt-4">
-      <span class="cash-icon-tile cash-icon-tile-sm" aria-hidden="true">
-        <UIcon name="i-lucide-calculator" />
-      </span>
-      <div class="cash-panel-header-text">
-        <h2 class="cash-panel-title">{{ heading }}</h2>
-        <p class="cash-panel-subtitle">{{ lede }}</p>
-      </div>
+    <header
+      class="cash-list-header"
+      :class="{ 'border-t border-[var(--hf-border)] pt-4': variant !== 'card' }"
+    >
+      <h2 class="cash-list-title">{{ heading }}</h2>
+      <p class="cash-list-subtitle">{{ lede }}</p>
     </header>
 
-    <div :class="variant === 'card' ? 'cash-panel-body' : 'flex flex-col gap-4'">
+    <div class="flex flex-col gap-4">
       <div
         v-if="channels.length === 0"
         class="text-sm text-muted"
@@ -201,11 +190,11 @@ function submit() {
           class="flex flex-col gap-1"
           :data-testid="`cash-count-row-${channel.channelKey}`"
         >
-          <UFormField :label="`${channel.channelLabel} (${channel.channelKey})`">
+          <UFormField :label="channel.channelLabel">
             <UInput
               v-model="values[channel.channelKey]"
               inputmode="decimal"
-              class="cash-control w-full"
+              class="w-full"
               placeholder="0.00"
               :data-testid="`cash-count-input-${channel.channelKey}`"
             />
@@ -219,7 +208,7 @@ function submit() {
           </p>
         </div>
 
-        <div class="flex flex-col gap-2 border-t border-default pt-4">
+        <div class="flex flex-col gap-2 border-t border-[var(--hf-border)] pt-4">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <p class="text-sm font-medium text-highlighted">Detalle de denominaciones (opcional)</p>
             <UButton
@@ -305,7 +294,7 @@ function submit() {
 
         <UButton
           type="submit"
-          class="cash-control self-start"
+          class="min-h-11 self-start"
           :loading="submitting"
           :disabled="!canSubmit || submitting"
           data-testid="cash-count-submit"

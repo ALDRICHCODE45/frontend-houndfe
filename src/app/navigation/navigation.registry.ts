@@ -29,15 +29,6 @@ export const navigationGroups: NavGroup[] = [
         to: '/pos/products',
         permission: ['read', 'Product'],
       },
-      // Orders is paused: hidden from navigation, the /pos/orders route and
-      // OrdersView stay registered. Uncomment to bring it back.
-      // {
-      //   id: 'pos-orders',
-      //   label: 'Órdenes',
-      //   icon: 'i-lucide-receipt',
-      //   to: '/pos/orders',
-      //   permission: ['read', 'Order'],
-      // },
       {
         id: 'pos-customers',
         label: 'Clientes',
@@ -146,7 +137,7 @@ export const navigationGroups: NavGroup[] = [
       },
       {
         id: 'rrhh-vencimientos',
-        label: 'Vencimientos',
+        label: 'Documentos por vencer',
         icon: 'i-lucide-file-clock',
         to: '/admin/colaboradores/documentos-vencer',
         permission: ['read', 'EmployeeDocument'],
@@ -241,43 +232,35 @@ export const navigationGroups: NavGroup[] = [
 export const quickActions: NavAction[] = [
   {
     id: 'new-product',
-    label: 'Nuevo Producto',
+    label: 'Nuevo producto',
     icon: 'i-lucide-plus',
     to: '/pos/products/new',
     permission: ['create', 'Product'],
   },
-  // Orders is paused (see the pos-orders entry above).
-  // {
-  //   id: 'new-order',
-  //   label: 'Nueva Orden',
-  //   icon: 'i-lucide-plus',
-  //   to: '/pos/orders/new',
-  //   permission: ['create', 'Order'],
-  // },
   {
     id: 'new-sale',
-    label: 'Nueva Venta',
+    label: 'Nueva venta',
     icon: 'i-lucide-receipt-text',
     to: '/pos/ventas/nueva',
     permission: ['read', 'Sale'],
   },
   {
     id: 'new-customer',
-    label: 'Nuevo Cliente',
+    label: 'Nuevo cliente',
     icon: 'i-lucide-user-plus',
     to: '/pos/customers',
     permission: ['create', 'Customer'],
   },
   {
     id: 'new-promotion',
-    label: 'Nueva Promoción',
+    label: 'Nueva promoción',
     icon: 'i-lucide-percent',
     to: '/pos/promociones',
     permission: ['create', 'Promotion'],
   },
   {
     id: 'new-employee',
-    label: 'Nuevo Colaborador',
+    label: 'Nuevo colaborador',
     icon: 'i-lucide-user-plus',
     to: '/admin/colaboradores',
     permission: ['create', 'Employee'],

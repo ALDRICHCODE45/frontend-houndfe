@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ResolvedHumanDecisionCard from '../ResolvedHumanDecisionCard.vue'
 import type { ResolvedHumanDecision } from '../../interfaces/human-decision.types'
-import { createdAtPresentationLabel } from '../../utils/humanDecisionPresentation'
+import { listDatePresentationLabel } from '../../utils/humanDecisionPresentation'
 
 const decision: ResolvedHumanDecision = {
   id: 'r1',
@@ -46,25 +46,28 @@ describe('ResolvedHumanDecisionCard', () => {
               resolvedBy: decision.resolution.resolvedBy,
             },
       }
-      const wrapper = mount(ResolvedHumanDecisionCard, {
-        props: { decision: row },
-        global: { stubs: { UButton: { template: '<button><slot /></button>' } } },
-      })
+      const wrapper = mount(ResolvedHumanDecisionCard, { props: { decision: row } })
       expect(wrapper.text()).toContain(
         positive
           ? 'Reposición estimada en 5 días naturales.'
           : 'Por ahora no tenemos una fecha estimada de reposición.',
       )
-      expect(wrapper.get('[data-testid="human-decision-status"]').text()).toBe('Respondida')
+      const badge = wrapper.get('[data-testid="human-decision-status"]')
+      expect(badge.text()).toBe('Respondida')
+      expect(badge.attributes('data-tone')).toBe('success')
       expect(wrapper.text()).toContain('Ana')
       expect(wrapper.text()).toContain('Centro')
       expect(wrapper.text()).toContain('SKU-1')
+      expect(wrapper.text()).not.toContain('r1')
       expect(wrapper.get('time').attributes('datetime')).toBe(row.resolution.resolvedAt)
-      expect(wrapper.get('time').text()).toBe(createdAtPresentationLabel(row.resolution.resolvedAt))
+      expect(wrapper.get('time').text()).toBe(listDatePresentationLabel(row.resolution.resolvedAt))
+      // The name button is the only control: a ⋮ holding just "Ver respuesta" would repeat the card click.
       expect(wrapper.findAll('button')).toHaveLength(1)
-      expect(wrapper.get('button').classes()).toContain('min-h-11')
+      const open = wrapper.get('[data-testid="resolved-human-decision-open-detail"]')
+      expect(open.classes()).toContain('hf-row-primary')
+      expect(wrapper.find('button[aria-haspopup="menu"]').exists()).toBe(false)
       expect(wrapper.find('input').exists()).toBe(false)
-      await wrapper.get('button').trigger('click')
+      await open.trigger('click')
       expect(wrapper.emitted('openDetail')).toEqual([['r1']])
       expect(wrapper.emitted('resolve')).toBeUndefined()
       if (!positive) expect(wrapper.text()).not.toContain('días naturales')

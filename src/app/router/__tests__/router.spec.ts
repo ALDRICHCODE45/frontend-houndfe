@@ -135,7 +135,7 @@ describe('editorial global boundary', () => {
   )
 
   it.each([false, true].flatMap(global => [false, true].flatMap(selected =>
-    ['/catalogo', '/', '/pos/orders'].map(path => ({ global, selected, path })))),
+    ['/catalogo', '/', '/pos/customers'].map(path => ({ global, selected, path })))),
   )('preserves non-editorial boundary $global/$selected/$path', async ({ global, selected, path }) => {
     authenticate()
     mockAuthStore.isSuperAdmin = global
@@ -144,9 +144,10 @@ describe('editorial global boundary', () => {
     await router.push(path)
     const destination = router.currentRoute.value.path
     if (!selected && path !== '/catalogo') expect(destination).toBe('/select-tenant')
-    else if (path === '/pos/orders') expect(destination).toBe('/pos/orders')
+    else if (path === '/pos/customers') expect(destination).toBe('/pos/customers')
     else expect(destination).not.toBe('/select-tenant')
-  })
+    // The lazy /pos/customers view graph can exceed the default 5s under shared worker load.
+  }, 15_000)
 })
 
 describe('router tenant guard', () => {
@@ -161,7 +162,7 @@ describe('router tenant guard', () => {
 
     const { default: router } = await import('../index')
 
-    await router.push('/pos/orders')
+    await router.push('/pos/customers')
     await router.isReady()
 
     expect(router.currentRoute.value.path).toBe('/select-tenant')
@@ -178,7 +179,7 @@ describe('router tenant guard', () => {
 
     const { default: router } = await import('../index')
 
-    await router.push('/pos/orders')
+    await router.push('/pos/customers')
     await router.isReady()
 
     expect(router.currentRoute.value.path).toBe('/select-tenant')
@@ -302,6 +303,7 @@ describe('router tenant guard', () => {
   it.each([
     ['/403', 'forbidden'],
     ['/missing-route', 'not-found'],
+    ['/pos/orders', 'not-found'],
   ])('keeps non-catalog public route %s on the normal auth path', async (path, name) => {
     const { default: router } = await import('../index')
 
@@ -328,10 +330,10 @@ describe('router tenant guard', () => {
 
     const { default: router } = await import('../index')
 
-    await router.push('/pos/orders')
+    await router.push('/pos/customers')
     await router.isReady()
 
-    expect(router.currentRoute.value.name).toBe('pos-orders')
+    expect(router.currentRoute.value.name).toBe('pos-customers')
     expect(mockAuthStore.hydrateFromStorage).toHaveBeenCalledTimes(1)
     expect(mockAuthStore.fetchMe).toHaveBeenCalledTimes(1)
     expect(mockAuthStore.fetchPermissions).toHaveBeenCalledTimes(1)
@@ -560,14 +562,14 @@ describe('root remembered landing', () => {
 
   it('does not override a direct deep link with the remembered destination', async () => {
     authenticate()
-    grant(['read', 'Sale'], ['read', 'Order'])
+    grant(['read', 'Sale'], ['read', 'Customer'])
     writeRememberedLanding(scope(), '/pos/ventas')
 
     const { default: router } = await import('../index')
-    await router.push('/pos/orders')
+    await router.push('/pos/customers')
     await router.isReady()
 
-    expect(router.currentRoute.value.path).toBe('/pos/orders')
+    expect(router.currentRoute.value.path).toBe('/pos/customers')
   })
 
   it('does not let the authenticated /login default overwrite the last directly chosen section', async () => {

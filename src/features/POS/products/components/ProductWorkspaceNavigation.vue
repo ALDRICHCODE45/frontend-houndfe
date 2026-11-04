@@ -1,18 +1,58 @@
 <script setup lang="ts">
-export type ProductWorkspaceTask = 'identity' | 'presentations' | 'content' | 'review'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useResizeObserver } from '@vueuse/core'
 
-defineProps<{ activeTask: ProductWorkspaceTask }>()
+export type ProductWorkspaceTask = 'identity' | 'presentations' | 'content' | 'review' | 'inventory'
+
+const props = defineProps<{ activeTask: ProductWorkspaceTask; showInventory?: boolean }>()
 const emit = defineEmits<{ select: [task: ProductWorkspaceTask] }>()
-const tasks: { id: ProductWorkspaceTask; label: string }[] = [
+const tasks = computed<{ id: ProductWorkspaceTask; label: string }[]>(() => [
   { id: 'identity', label: 'Identidad' },
   { id: 'presentations', label: 'Presentaciones' },
   { id: 'content', label: 'Contenido' },
   { id: 'review', label: 'Revisar' },
-]
+  ...(props.showInventory ? [{ id: 'inventory' as const, label: 'Inventario' }] : []),
+])
+
+// A fade at the end while more tasks wait off-screen, and at the start once the
+// strip has scrolled (the same cue as the employee detail tabs).
+const strip = ref<HTMLElement | null>(null)
+const hasMore = ref(false)
+const hasLess = ref(false)
+
+function measure(): void {
+  const el = strip.value
+  hasMore.value = !!el && el.scrollWidth - el.clientWidth - el.scrollLeft > 1
+  hasLess.value = !!el && el.scrollLeft > 1
+}
+
+useResizeObserver(strip, measure)
+onMounted(measure)
+watch(() => props.showInventory, () => void nextTick(measure))
+
+// A task picked from elsewhere (a field error switches it) scrolls into view.
+watch(
+  () => props.activeTask,
+  async () => {
+    await nextTick()
+    strip.value?.querySelector<HTMLElement>('[aria-current="page"]')?.scrollIntoView?.({
+      inline: 'nearest',
+      block: 'nearest',
+    })
+    measure()
+  },
+)
 </script>
 
 <template>
-  <nav class="product-task-navigation" aria-label="Tareas del producto, sin orden obligatorio">
+  <nav
+    ref="strip"
+    class="product-task-navigation"
+    :data-more="hasMore"
+    :data-less="hasLess"
+    aria-label="Tareas del producto, sin orden obligatorio"
+    @scroll.passive="measure"
+  >
     <button
       v-for="task in tasks"
       :key="task.id"
@@ -30,14 +70,29 @@ const tasks: { id: ProductWorkspaceTask; label: string }[] = [
 <style scoped>
 .product-task-navigation {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: auto;
+  justify-content: space-between;
   gap: 4px;
   margin-bottom: 24px;
   border-bottom: 1px solid var(--hf-border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.product-task-navigation::-webkit-scrollbar { display: none; }
+.product-task-navigation[data-more='true'] {
+  mask-image: linear-gradient(to right, black calc(100% - 40px), transparent);
+}
+.product-task-navigation[data-less='true'] {
+  mask-image: linear-gradient(to right, transparent, black 40px);
+}
+.product-task-navigation[data-less='true'][data-more='true'] {
+  mask-image: linear-gradient(to right, transparent, black 40px, black calc(100% - 40px), transparent);
 }
 .product-task-button {
+  white-space: nowrap;
   min-height: var(--hf-control-height);
-  padding: 12px 4px;
+  padding: 12px 8px;
   border-radius: var(--hf-radius-control) var(--hf-radius-control) 0 0;
   color: var(--hf-muted);
   background: transparent;

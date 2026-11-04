@@ -1,55 +1,36 @@
 import { describe, it, expect } from 'vitest'
 import { useMembershipColumns } from '../useMembershipColumns'
 
+const keyOf = (column: { accessorKey?: unknown; id?: string }) =>
+  (column.accessorKey as string | undefined) ?? column.id
+
 describe('useMembershipColumns', () => {
-  it('returns a columns array', () => {
+  it('orders columns by job: user, status, role, date, then the ⋮ column', () => {
     const { columns } = useMembershipColumns()
-    expect(Array.isArray(columns)).toBe(true)
-    expect(columns.length).toBeGreaterThan(0)
+    expect(columns.map(keyOf)).toEqual(['userName', 'status', 'roleName', 'createdAt', 'actions'])
+    expect(columns.length).toBeLessThanOrEqual(8)
   })
 
-  it('orders columns as [userName, roleName, createdAt, actions]', () => {
+  it('uses the Spanish headers and sorts by user, role and date', () => {
     const { columns } = useMembershipColumns()
-    const ids = columns.map((c) => {
-      if ('accessorKey' in c && c.accessorKey) return c.accessorKey as string
-      return (c as { id: string }).id
-    })
-    expect(ids).toEqual(['userName', 'roleName', 'createdAt', 'actions'])
+    const byKey = (key: string) => columns.find((column) => keyOf(column) === key)!
+    expect(columns.map((column) => column.header)).toEqual([
+      'Usuario',
+      'Estado',
+      'Rol',
+      'Ingreso',
+      'Acciones',
+    ])
+    for (const key of ['userName', 'roleName', 'createdAt']) expect(byKey(key).enableSorting).toBe(true)
+    expect(byKey('status').enableSorting).toBe(false)
   })
 
-  it('userName column uses header "Usuario" and is sortable + hideable', () => {
+  it('makes the actions column last, narrow, non-sortable and non-hideable', () => {
     const { columns } = useMembershipColumns()
-    const col = columns.find((c) => 'accessorKey' in c && c.accessorKey === 'userName')
-    expect(col).toBeDefined()
-    expect(col!.header).toBe('Usuario')
-    expect(col!.enableSorting).toBe(true)
-    expect(col!.enableHiding).toBe(true)
-  })
-
-  it('roleName column uses header "Rol" and is sortable + hideable', () => {
-    const { columns } = useMembershipColumns()
-    const col = columns.find((c) => 'accessorKey' in c && c.accessorKey === 'roleName')
-    expect(col).toBeDefined()
-    expect(col!.header).toBe('Rol')
-    expect(col!.enableSorting).toBe(true)
-    expect(col!.enableHiding).toBe(true)
-  })
-
-  it('createdAt column uses header "Fecha de ingreso" and is sortable + hideable', () => {
-    const { columns } = useMembershipColumns()
-    const col = columns.find((c) => 'accessorKey' in c && c.accessorKey === 'createdAt')
-    expect(col).toBeDefined()
-    expect(col!.header).toBe('Fecha de ingreso')
-    expect(col!.enableSorting).toBe(true)
-    expect(col!.enableHiding).toBe(true)
-  })
-
-  it('actions column is non-sortable, non-hideable and has text-right cell alignment', () => {
-    const { columns } = useMembershipColumns()
-    const col = columns.find((c) => 'id' in c && c.id === 'actions')
-    expect(col).toBeDefined()
-    expect(col!.enableSorting).toBe(false)
-    expect(col!.enableHiding).toBe(false)
-    expect(col!.meta?.class?.td).toBe('text-right')
+    const actions = columns[columns.length - 1]!
+    expect(keyOf(actions)).toBe('actions')
+    expect(actions.enableSorting).toBe(false)
+    expect(actions.enableHiding).toBe(false)
+    expect(actions.meta?.class).toEqual({ th: 'w-16', td: 'w-16 text-right' })
   })
 })

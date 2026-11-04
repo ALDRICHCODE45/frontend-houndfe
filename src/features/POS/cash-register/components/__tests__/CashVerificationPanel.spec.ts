@@ -64,6 +64,9 @@ describe('CashVerificationPanel', () => {
       props: { detail: makeDetail(), canVerify: false, currentUserId: 'verifier-2' },
     })
     expect(wrapper.find('[data-testid="cash-verification-forbidden"]').exists()).toBe(true)
+    expect(wrapper.get('.hf-empty-state[data-kind="forbidden"]').text()).toContain(
+      'Sin permiso para verificar',
+    )
     expect(wrapper.find('[data-testid="cash-count-form"]').exists()).toBe(false)
   })
 

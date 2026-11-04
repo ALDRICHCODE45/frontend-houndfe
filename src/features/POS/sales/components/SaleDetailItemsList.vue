@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import { formatCentsMXN } from '../utils/currency.utils'
 import type { SaleDetailItem } from '../interfaces/sale.types'
 import SaleItemBadges from './SaleItemBadges.vue'
@@ -9,6 +10,10 @@ const props = defineProps<{
   /** Forwarded only to the owned badge tooltips; absent by default. */
   portalClass?: string
 }>()
+
+// Below md the lines are compact rows: a 5-column table at 390px squeezes
+// every cell to ~11px text.
+const mobile = useBreakpoints(breakpointsTailwind).smaller('md')
 
 // Per-item view model. Decoupling presentation logic from the template
 // keeps the v-for body readable and makes the strikethrough rules
@@ -36,22 +41,53 @@ const itemsView = computed(() =>
   <UCard>
     <template #header>
       <div class="flex items-center justify-between">
-        <h3 class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted">
+        <h3 class="sale-detail-section-title">
           <UIcon name="i-lucide-package" class="size-4" />
           Productos
         </h3>
-        <UBadge variant="soft" color="neutral" :data-testid="`items-count`">
+        <span class="text-[13px] text-(--hf-muted)" data-testid="items-count">
           {{ items.length }} {{ items.length === 1 ? 'artículo' : 'artículos' }}
-        </UBadge>
+        </span>
       </div>
     </template>
-    <table class="w-full text-sm" data-testid="items-table">
+    <ul v-if="mobile" class="divide-y divide-(--hf-border)" data-testid="items-compact">
+      <li
+        v-for="(item, index) in itemsView"
+        :key="`${item.productName}-${index}`"
+        :data-testid="`item-compact-${index}`"
+        class="space-y-1 py-3 first:pt-0 last:pb-0"
+      >
+        <p class="line-clamp-2 text-sm font-semibold text-(--hf-heading)">{{ item.productName }}</p>
+        <p v-if="item.variantName" class="text-[13px] text-(--hf-muted)">{{ item.variantName }}</p>
+        <div class="flex items-baseline justify-between gap-3 text-sm">
+          <span class="text-(--hf-muted) tabular-nums">
+            {{ item.quantity }} × {{ formatCentsMXN(item.unitPriceCents) }}
+            <span v-if="item.discountAmountCents"> · -{{ formatCentsMXN(item.discountAmountCents) }}</span>
+          </span>
+          <span class="hf-figure font-semibold text-(--hf-heading)">{{ formatCentsMXN(item.subtotalCents) }}</span>
+        </div>
+        <SaleItemBadges
+          :portal-class="portalClass"
+          :price-source="item.priceSource"
+          :original-price-cents="item.originalPriceCents"
+          :unit-price-cents="item.unitPriceCents"
+          :discount-type="item.discountType"
+          :discount-value="item.discountValue"
+          :discount-amount-cents="item.discountAmountCents"
+          :discount-title="item.discountTitle"
+          :reward-kind="item.rewardKind"
+          :reward-discount-percent="item.rewardDiscountPercent"
+          :promotion-id="item.promotionId"
+        />
+      </li>
+    </ul>
+    <table v-else class="w-full text-sm" data-testid="items-table">
       <thead>
-        <tr class="border-b border-default text-xs font-semibold uppercase tracking-wider text-muted">
+        <tr class="border-b border-default text-[13px] font-semibold text-(--hf-muted)">
           <th class="py-2 text-left">Producto</th>
-          <th class="py-2 text-right">Cant</th>
-          <th class="py-2 text-right">Precio Unit</th>
-          <th class="py-2 text-right">Desc</th>
+          <th class="py-2 text-right">Cant.</th>
+          <th class="py-2 text-right">Precio unit.</th>
+          <th class="py-2 text-right">Desc.</th>
           <th class="py-2 text-right">Subtotal</th>
         </tr>
       </thead>

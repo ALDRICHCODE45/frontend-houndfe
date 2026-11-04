@@ -8,6 +8,7 @@ import {
   type EditUserFormValues,
 } from '../composables/useUserForm'
 import { useAdminRolesQuery } from '../composables/useAdminRolesQuery'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import type { UserTableRow } from '../interfaces/user.types'
 import type { UserWithRolesResponse } from '../../shared/interfaces/rbac.types'
@@ -54,13 +55,19 @@ const {
 
 const title = computed(() => (props.mode === 'create' ? 'Crear usuario' : 'Editar usuario'))
 
-const description = computed(() =>
-  props.mode === 'create'
-    ? 'Completa los datos para crear un nuevo usuario'
-    : 'Actualiza el nombre, email y roles del usuario',
-)
 
 const formId = computed(() => (props.mode === 'create' ? 'create-user-form' : 'edit-user-form'))
+
+// The roles field exists only for identities that can change roles; everyone
+// else sees the current roles as a read-only line.
+const showRolesField = computed(
+  () => canReadRoles.value && authStore.userCan('update', 'TenantMembership'),
+)
+// The form gives way to a skeleton while the detail loads and to the error state
+// when it could not be loaded.
+const showDetailPlaceholder = computed(
+  () => props.mode === 'edit' && (props.detailLoading || (!!props.errorMessage && !props.detail)),
+)
 
 const initialDetail = ref<UserWithRolesResponse | null>(null)
 const selectedRoleIds = ref<string[]>([])
@@ -163,23 +170,35 @@ function onSubmit(event: FormSubmitEvent<CreateUserFormValues | EditUserFormValu
   <USlideover
     v-model:open="open"
     :title="title"
-    :description="description"
     side="right"
     inset
     :ui="{ content: 'hf-theme hf-ui hf-form-overlay users-form-portal' }"
   >
     <template #body>
-      <p v-if="mode === 'edit' && detailLoading" role="status">Cargando usuario…</p>
-      <div v-if="errorMessage" role="alert" class="mb-4 text-error">
+      <div
+        v-if="mode === 'edit' && detailLoading"
+        role="status"
+        aria-busy="true"
+        class="space-y-4"
+        data-testid="user-detail-skeleton"
+      >
+        <span class="sr-only">Cargando usuario…</span>
+        <USkeleton v-for="field in 3" :key="field" class="h-10 w-full" />
+      </div>
+      <EmptyState
+        v-else-if="mode === 'edit' && errorMessage && !detail"
+        data-testid="user-detail-error"
+        kind="error"
+        title="No se pudo cargar el usuario"
+        :description="errorMessage"
+        action-label="Reintentar"
+        @action="emit('retry')"
+      />
+      <div v-else-if="errorMessage" role="alert" class="mb-4 text-error">
         <p>{{ errorMessage }}</p>
-        <UButton
-          v-if="!detail && !detailLoading"
-          label="Reintentar"
-          variant="link"
-          @click="emit('retry')"
-        />
       </div>
       <UForm
+        v-show="!showDetailPlaceholder"
         :id="formId"
         :schema="schema"
         :state="activeState"
@@ -200,11 +219,11 @@ function onSubmit(event: FormSubmitEvent<CreateUserFormValues | EditUserFormValu
         </UFormField>
 
         <template v-if="mode === 'edit'">
-          <UFormField label="Email" name="email">
+          <UFormField label="Correo electrónico" name="email">
             <UInput v-model="editState.email" type="email" class="w-full" size="lg" />
           </UFormField>
           <UFormField
-            v-if="canReadRoles && authStore.userCan('update', 'TenantMembership')"
+            v-if="showRolesField"
             label="Roles"
             name="roleIds"
           >
@@ -223,7 +242,7 @@ function onSubmit(event: FormSubmitEvent<CreateUserFormValues | EditUserFormValu
               @update:model-value="updateRoles"
             />
           </UFormField>
-          <p v-if="initialDetail" class="text-sm text-muted">
+          <p v-if="initialDetail && !showRolesField" class="text-sm text-muted">
             Roles actuales:
             {{ initialDetail.roles.map((role) => role.name).join(', ') || 'Sin roles' }}
           </p>
@@ -234,7 +253,7 @@ function onSubmit(event: FormSubmitEvent<CreateUserFormValues | EditUserFormValu
         </template>
 
         <template v-if="mode === 'create'">
-          <UFormField label="Email" name="email">
+          <UFormField label="Correo electrónico" name="email">
             <UInput
               v-model="createState.email"
               class="w-full"

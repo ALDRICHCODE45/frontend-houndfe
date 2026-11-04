@@ -91,7 +91,7 @@ const isError = computed(() => assignableQuery.isError.value)
 // `message` when present, else the friendly fallback. Mirrors the
 // EligibleSalesPicker + DeliveryRoutesListView (design §11).
 const errorMessage = computed(() =>
-  normalizeApiError(assignableQuery.error.value, 'No se pudieron cargar los repartidores. Reintenta.').message,
+  normalizeApiError(assignableQuery.error.value, 'No se pudieron cargar los repartidores.').message,
 )
 
 /**

@@ -29,7 +29,6 @@ export const WorkModalitySchema = z.enum(['ONSITE', 'REMOTE', 'HYBRID'])
 export type WorkModality = z.infer<typeof WorkModalitySchema>
 
 export const GenderSchema = z.enum(['MALE', 'FEMALE'])
-export type Gender = z.infer<typeof GenderSchema>
 
 export const MaritalStatusSchema = z.enum(['SINGLE', 'MARRIED', 'WIDOWED'])
 
@@ -229,7 +228,7 @@ export interface EmployeesBackendList {
   pageSize: number
 }
 
-export const SalaryChangeSchema = z.object({
+const SalaryChangeSchema = z.object({
   id: z.string(),
   employeeId: z.string(),
   amountCents: z.number().int(),
@@ -240,7 +239,7 @@ export const SalaryChangeSchema = z.object({
 })
 export type SalaryChange = z.infer<typeof SalaryChangeSchema>
 
-export const PositionChangeSchema = z.object({
+const PositionChangeSchema = z.object({
   id: z.string(),
   employeeId: z.string(),
   position: z.string(),
@@ -251,7 +250,7 @@ export const PositionChangeSchema = z.object({
 })
 export type PositionChange = z.infer<typeof PositionChangeSchema>
 
-export const EmployeeDocumentSchema = z.object({
+const EmployeeDocumentSchema = z.object({
   id: z.string(),
   employeeId: z.string(),
   fileId: z.string(),
@@ -314,7 +313,7 @@ export const VacationBalanceSchema = z.object({
 })
 export type VacationBalance = z.infer<typeof VacationBalanceSchema>
 
-export const EmergencyContactSchema = z.object({
+const EmergencyContactSchema = z.object({
   id: z.string(),
   employeeId: z.string(),
   name: z.string(),

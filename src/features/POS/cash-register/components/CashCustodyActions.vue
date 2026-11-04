@@ -151,21 +151,12 @@ function submitRelease() {
 </script>
 
 <template>
-  <section class="cash-panel" data-testid="cash-custody-actions">
-    <header class="cash-panel-header">
-      <span class="cash-icon-tile" aria-hidden="true">
-        <UIcon name="i-lucide-handshake" />
-      </span>
-      <div class="cash-panel-header-text">
-        <h2 class="cash-panel-title">Custodia y liberación de cajón</h2>
-        <p class="cash-panel-subtitle">
-          Las entregas deben sumar exactamente el efectivo contado; todas se reciben antes de
-          liberar el cajón.
-        </p>
-      </div>
+  <section class="cash-list-section" data-testid="cash-custody-actions">
+    <header class="cash-list-header">
+      <h2 class="cash-list-title">Custodia y liberación de cajón</h2>
     </header>
 
-    <div class="cash-panel-body">
+    <div class="flex flex-col gap-4">
       <p v-if="!sessionId" class="text-sm text-muted" data-testid="cash-custody-actions-no-session">
         Selecciona una sesión para declarar custodia.
       </p>
@@ -173,7 +164,7 @@ function submitRelease() {
       <template v-else>
         <p
           v-if="countedCashCents !== null"
-          class="text-xs text-muted"
+          class="cash-meta"
           data-testid="cash-custody-actions-counted"
         >
           Efectivo contado disponible para asignar: {{ formatCentsMXN(countedCashCents) }}.
@@ -186,7 +177,7 @@ function submitRelease() {
           @submit.prevent="submitDeclare"
         >
           <fieldset class="flex flex-col gap-2">
-            <legend class="text-xs font-medium text-muted">Tipo de entrega</legend>
+            <legend class="cash-meta">Tipo de entrega</legend>
             <div class="grid gap-2 sm:grid-cols-2">
               <label class="handover-kind" :class="{ 'is-selected': handoverKind === 'FLOAT' }">
                 <input
@@ -196,13 +187,7 @@ function submitRelease() {
                   class="sr-only"
                   data-testid="cash-handover-kind-float"
                 />
-                <span class="handover-kind-tile text-primary">
-                  <UIcon name="i-lucide-package-plus" aria-hidden="true" class="size-5" />
-                </span>
-                <span class="handover-kind-copy">
-                  <strong>FLOAT (fondo)</strong>
-                  <small>Queda como fondo de la próxima apertura</small>
-                </span>
+                <span class="handover-kind-copy">Fondo</span>
               </label>
               <label
                 class="handover-kind"
@@ -215,13 +200,7 @@ function submitRelease() {
                   class="sr-only"
                   data-testid="cash-handover-kind-withdrawal"
                 />
-                <span class="handover-kind-tile text-warning">
-                  <UIcon name="i-lucide-arrow-up-right" aria-hidden="true" class="size-5" />
-                </span>
-                <span class="handover-kind-copy">
-                  <strong>WITHDRAWAL (retiro)</strong>
-                  <small>Sale del cajón hacia otra persona</small>
-                </span>
+                <span class="handover-kind-copy">Retiro</span>
               </label>
             </div>
           </fieldset>
@@ -248,27 +227,25 @@ function submitRelease() {
           </UFormField>
           <p
             v-if="!selectorEntitled"
-            class="text-xs text-muted"
+            class="cash-meta"
             data-testid="cash-handover-recipient-copy"
           >
-            No tienes permiso para listar personas: ingresa el UUID de la persona destinataria. La
-            recepción la hace esa persona desde su propia sesión.
+            No tienes permiso para listar personas: ingresa el UUID de la persona destinataria.
           </p>
 
           <p
             v-if="handoverKind === 'FLOAT'"
-            class="text-xs text-muted"
+            class="cash-meta"
             data-testid="cash-handover-float-copy"
           >
-            El FLOAT declarado requiere una recepción explícita de la persona destinataria antes de
-            usarse como fondo de apertura.
+            Requiere recepción explícita de la persona destinataria.
           </p>
 
           <UFormField label="Importe declarado (pesos)">
             <UInput
               v-model="amountInput"
               inputmode="decimal"
-              class="cash-control w-full"
+              class="w-full"
               placeholder="350.00"
               data-testid="cash-handover-amount"
             />
@@ -276,7 +253,7 @@ function submitRelease() {
           <UFormField label="Notas (opcional)">
             <UInput
               v-model="notesInput"
-              class="cash-control w-full"
+              class="w-full"
               data-testid="cash-handover-notes"
             />
           </UFormField>
@@ -300,24 +277,15 @@ function submitRelease() {
           </UButton>
         </form>
 
-        <p v-else class="text-sm text-muted" data-testid="cash-handover-forbidden">
-          Necesitas permiso para declarar entregas de custodia (create:CashHandover).
+        <p v-else class="cash-meta" data-testid="cash-handover-forbidden">
+          No tienes permiso para declarar entregas de custodia.
         </p>
 
         <div class="cash-note flex flex-col gap-2">
-          <header class="flex items-center gap-2">
-            <span class="cash-icon-tile cash-icon-tile-sm" aria-hidden="true">
-              <UIcon name="i-lucide-lock-keyhole" />
-            </span>
-            <p class="cash-panel-title">Liberar cajón físico</p>
-          </header>
-          <p>
-            Congelar la sesión no libera el cajón: es un evento aparte y no cambia el estado de la
-            sesión.
-          </p>
+          <h3 class="cash-list-title">Liberar cajón físico</h3>
           <p
             v-if="releaseBlockedReason"
-            class="text-xs text-muted"
+            class="cash-meta"
             data-testid="cash-drawer-release-blocked"
           >
             {{ releaseBlockedReason }}
@@ -329,7 +297,7 @@ function submitRelease() {
             type="button"
             color="neutral"
             variant="outline"
-            class="cash-control min-h-11 self-start"
+            class="min-h-11 self-start"
             :loading="releasing"
             :disabled="Boolean(releaseBlockedReason) || releasing || busy"
             data-testid="cash-drawer-release"
@@ -359,61 +327,31 @@ function submitRelease() {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  min-height: 44px;
   padding: 0.75rem;
   cursor: pointer;
-  border: 1px solid var(--cash-border, var(--ui-border));
-  border-radius: var(--cash-radius-control, 0.5rem);
-  background-color: var(--cash-surface, var(--ui-bg));
-  transition:
-    border-color 150ms ease,
-    background-color 150ms ease;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-surface);
 }
 
 .handover-kind:hover {
-  border-color: var(--cash-primary, var(--ui-primary));
+  border-color: var(--hf-action);
 }
 
 .handover-kind.is-selected {
-  border-color: var(--cash-primary, var(--ui-primary));
-  background-color: color-mix(
-    in srgb,
-    var(--cash-primary, var(--ui-primary)) 8%,
-    var(--cash-surface, var(--ui-bg))
-  );
+  border-color: var(--hf-action);
+  background-color: var(--hf-active-soft);
 }
 
 .handover-kind:focus-within {
-  outline: 2px solid var(--cash-primary, var(--ui-primary));
+  outline: 2px solid var(--hf-focus);
   outline-offset: 2px;
 }
 
-.handover-kind-tile {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--cash-border, var(--ui-border));
-  background-color: var(--cash-surface-muted, var(--ui-bg-elevated));
-}
-
 .handover-kind-copy {
-  min-width: 0;
-}
-
-.handover-kind-copy strong {
-  display: block;
-  font-size: 0.75rem;
+  color: var(--hf-heading);
+  font-size: 0.875rem;
   font-weight: 600;
-  color: var(--cash-ink, var(--ui-text-highlighted));
-}
-
-.handover-kind-copy small {
-  display: block;
-  margin-top: 0.125rem;
-  font-size: 0.6875rem;
-  color: var(--cash-muted, var(--ui-text-muted));
 }
 </style>

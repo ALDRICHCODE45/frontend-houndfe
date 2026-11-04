@@ -43,9 +43,7 @@ import { buildEmployeesQueryParams } from '@/features/admin/employees/composable
 // ─── Task 2.3 — Columns helper + WU-02 fix imports ───────────────────────────
 import {
   employeeStatusToBadgeTone,
-  workModalityToBadgeTone,
   formatHireDate,
-  getManagerDisplay,
 } from '@/features/admin/employees/composables/useEmployeeColumns'
 
 import type { Employee } from '@/features/admin/employees/interfaces/employee.types'
@@ -368,28 +366,12 @@ describe('employeeStatusToBadgeTone — badge tone mapping (task 2.3)', () => {
     expect(employeeStatusToBadgeTone('ACTIVE')).toBe('success')
   })
 
-  it('maps ON_LEAVE to warning tone', () => {
-    expect(employeeStatusToBadgeTone('ON_LEAVE')).toBe('warning')
+  it('maps ON_LEAVE to info tone (a leave in progress is not pending action)', () => {
+    expect(employeeStatusToBadgeTone('ON_LEAVE')).toBe('info')
   })
 
-  it('maps TERMINATED to error tone', () => {
-    // Spec: "Terminated chip shows Baja with error color"
-    expect(employeeStatusToBadgeTone('TERMINATED')).toBe('error')
-  })
-})
-
-// ─── workModalityToBadgeTone ──────────────────────────────────────────────────
-describe('workModalityToBadgeTone — badge tone mapping (task 2.3)', () => {
-  it('maps ONSITE to neutral tone', () => {
-    expect(workModalityToBadgeTone('ONSITE')).toBe('neutral')
-  })
-
-  it('maps REMOTE to info tone', () => {
-    expect(workModalityToBadgeTone('REMOTE')).toBe('info')
-  })
-
-  it('maps HYBRID to pending tone', () => {
-    expect(workModalityToBadgeTone('HYBRID')).toBe('pending')
+  it('maps TERMINATED to neutral tone (a closed state, not an error)', () => {
+    expect(employeeStatusToBadgeTone('TERMINATED')).toBe('neutral')
   })
 })
 
@@ -406,57 +388,6 @@ describe('formatHireDate — date formatting (task 2.3)', () => {
     const d1 = formatHireDate('2023-01-15')
     const d2 = formatHireDate('2024-06-20')
     expect(d1).not.toBe(d2)
-  })
-})
-
-// ─── WU-02 Warning Fix Tests (ported to pageIndex contract) ──────────────────
-
-// Fix 1: EmployeeStatusFilter type cannot include 'on_leave'
-describe('EmployeeStatusFilter — backend contract guard (WU-02 fix)', () => {
-  it('buildEmployeesQueryParams only accepts valid statuses: all, active, terminated', () => {
-    // Each of the 3 supported values must produce a params object with that status
-    const all = buildEmployeesQueryParams({ statusTab: 'all', pageIndex: 0, pageSize: 10 })
-    const active = buildEmployeesQueryParams({ statusTab: 'active', pageIndex: 0, pageSize: 10 })
-    const terminated = buildEmployeesQueryParams({ statusTab: 'terminated', pageIndex: 0, pageSize: 10 })
-
-    expect(all.status).toBe('all')
-    expect(active.status).toBe('active')
-    expect(terminated.status).toBe('terminated')
-  })
-
-  it('EmployeeStatusFilter type does not contain on_leave (regression: cast removed)', () => {
-    // EmployeeStatusFilter = 'active' | 'terminated' | 'all'
-    // The valid values are a closed set — 'on_leave' is NOT one of them.
-    // This test verifies the type constraint at runtime via the buildEmployeesQueryParams
-    // pure function, which accepts only EmployeeStatusFilter inputs.
-    const supportedValues: string[] = ['all', 'active', 'terminated']
-    expect(supportedValues).not.toContain('on_leave')
-    // The function must handle all three supported values without throwing
-    supportedValues.forEach((v) => {
-      expect(() =>
-        buildEmployeesQueryParams({ statusTab: v as 'all' | 'active' | 'terminated', pageIndex: 0, pageSize: 10 }),
-      ).not.toThrow()
-    })
-  })
-})
-
-// Fix 4: getManagerDisplay pure helper
-describe('getManagerDisplay — manager display helper (WU-02 fix)', () => {
-  it('returns "—" when managerId is null', () => {
-    const emp = makeEmployee({ managerId: null })
-    expect(getManagerDisplay(emp)).toBe('—')
-  })
-
-  it('returns "—" when managerId is a UUID (no name resolution in WU-02)', () => {
-    // In WU-02, the list API only returns managerId (UUID), not manager fullName.
-    // The correct UX is "—" until WU-03 adds name resolution, NOT a truncated UUID.
-    const emp = makeEmployee({ managerId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' })
-    expect(getManagerDisplay(emp)).toBe('—')
-  })
-
-  it('returns "—" for empty string managerId', () => {
-    const emp = makeEmployee({ managerId: '' })
-    expect(getManagerDisplay(emp)).toBe('—')
   })
 })
 

@@ -1,25 +1,29 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { AxiosError } from 'axios'
 import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
-import ViewToggle from '@/core/shared/components/ViewToggle.vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
+import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
+import RowActionsMenu from '@/core/shared/components/RowActionsMenu.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { adminTenantMembershipQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { membershipsApi, mapMembershipError } from '../api/memberships.api'
 import { useMembershipColumns } from '../composables/useMembershipColumns'
-import { useMembershipViewMode, isMembershipViewMode } from '../composables/useMembershipViewMode'
 import type { MembershipTableRow } from '../interfaces/membership.types'
 import type {
   CreateMembershipFormValues,
   UpdateMembershipFormValues,
 } from '../composables/useMembershipForm'
 import MembershipUpsertSlideover from '../components/MembershipUpsertSlideover.vue'
-import MemberCardGrid from '../components/MemberCardGrid.vue'
+import AdminMobileCard from '../../../shared/components/AdminMobileCard.vue'
+import { noMatchTitleFor } from '../../../shared/utils/list-state.utils'
+import { buildMembershipRowActions } from '../utils/membership-actions.utils'
 import '../../styles/tenants-visual.css'
 import { useTenantSummary } from '@/features/admin/tenants/composables/useTenantSummary'
 
@@ -32,6 +36,7 @@ declare const useToast: () => {
 }
 
 const route = useRoute()
+const router = useRouter()
 const queryClient = useQueryClient()
 const toast = useToast()
 const authStore = useAuthStore()
@@ -41,46 +46,18 @@ const canReadMemberships = computed(() => authStore.userCan('read', 'TenantMembe
 const canCreateMembership = computed(() => authStore.userCan('create', 'TenantMembership'))
 const canUpdateMembership = computed(() => authStore.userCan('update', 'TenantMembership'))
 const canDeleteMembership = computed(() => authStore.userCan('delete', 'TenantMembership'))
-const dateFormatter = new Intl.DateTimeFormat('es-AR', {
-  day: '2-digit',
-  month: 'short',
-  year: 'numeric',
-})
-
-function getInitials(name?: string | null) {
-  if (!name) return 'U'
-  const parts = name.trim().split(' ').filter(Boolean)
-  const initials = parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '')
-  return initials.join('') || 'U'
-}
-
 const tenantId = computed(() => route.params.tenantId as string)
 const { tenantName, isLoadingTenantName } = useTenantSummary(tenantId)
-const headerDescription = computed(
-  () => `Administrá los usuarios que pertenecen a ${tenantName.value} y sus roles.`,
-)
-
-// ── View mode (table ↔ card) ──────────────────────────────────────────────────
-const { viewMode, setMode: setViewMode, displayMode } = useMembershipViewMode()
-
-function handleViewModeChange(mode: string) {
-  if (!isMembershipViewMode(mode)) return
-  setViewMode(mode)
-}
-
 const {
   pagination,
   sorting,
   globalFilter,
-  columnPinning,
-  columnVisibility,
   data,
   totalCount,
   pageCount,
   isLoading,
   isFetching,
   isError,
-  error,
   refresh,
   pageSizeOptions,
   showingFrom,
@@ -91,32 +68,13 @@ const {
   defaultPageSize: 10,
   persistKey: `admin-tenant-members-${tenantId.value}`,
   defaultSorting: [{ id: 'userName', desc: false }],
-  defaultPinning: { left: [], right: ['actions'] },
 })
 
-// Human-readable error message for the admin tenant members table.
-// Mirrors AdminTenantsView: prefer backend `response.data.message`, then
-// `error.message`, then the Spanish fallback. The error block in
-// AppDataTable is rendered instead of the empty placeholder whenever
-// `isError` is true.
-const membershipsErrorMessage = computed(() => {
-  const err = error.value as
-    | { response?: { data?: { message?: unknown } }; message?: string }
-    | null
-    | undefined
-  const backendMessage = err?.response?.data?.message
-  if (typeof backendMessage === 'string' && backendMessage.trim()) {
-    return backendMessage
-  }
-  if (Array.isArray(backendMessage) && backendMessage.length > 0) {
-    const first = backendMessage[0]
-    if (typeof first === 'string') return first
-  }
-  if (typeof err?.message === 'string' && err.message.trim()) {
-    return err.message
-  }
-  return 'No se pudieron cargar los miembros. Reintenta.'
-})
+const pageTitle = computed(() =>
+  !isLoadingTenantName.value && tenantName.value ? `Miembros de ${tenantName.value}` : 'Miembros',
+)
+
+const membershipsErrorMessage = 'No se pudieron cargar los miembros'
 
 const isCreateOpen = ref(false)
 const isEditOpen = ref(false)
@@ -143,7 +101,7 @@ const createMutation = useMutation({
     isCreateOpen.value = false
     toast.add({
       title: 'Miembro agregado',
-      description: 'El usuario se agregó al tenant correctamente.',
+      description: 'El usuario se agregó a la sucursal correctamente.',
       color: 'success',
     })
     await queryClient.invalidateQueries({
@@ -185,7 +143,7 @@ const removeMutation = useMutation({
   onSuccess: async () => {
     toast.add({
       title: 'Miembro eliminado',
-      description: 'El usuario se eliminó del tenant correctamente.',
+      description: 'El usuario se eliminó de la sucursal correctamente.',
       color: 'success',
     })
     await queryClient.invalidateQueries({
@@ -211,88 +169,115 @@ function handleEdit(data: UpdateMembershipFormValues) {
 }
 
 function openEdit(membership: MembershipTableRow) {
-  // Defense-in-depth: the table kebab already gates via getRowItems, but
-  // the card click path bypasses that helper — guard here so a card
-  // click without update permission is a no-op (no slideover, no nav).
+  // Defense-in-depth: the row click bypasses the ⋮ menu gating, so guard here
+  // so a click without update permission is a no-op (no slideover, no nav).
   if (!canUpdateMembership.value) return
   selectedMembership.value = membership
   isEditOpen.value = true
 }
 
-function handleCardClick(membership: MembershipTableRow) {
-  openEdit(membership)
-}
-
 function openRemoveConfirm(membership: MembershipTableRow) {
   openConfirm(
-    `¿Estás seguro de que deseas eliminar a ${membership.userEmail} de este tenant?`,
+    `¿Estás seguro de que deseas eliminar a ${membership.userEmail} de esta sucursal?`,
     () => removeMutation.mutate(membership.id),
   )
 }
 
-function getRowItems(membership: MembershipTableRow) {
-  const items: Array<{ label: string; color?: 'error'; onSelect: () => void }> = []
-  if (canUpdateMembership.value) {
-    items.push({ label: 'Editar rol', onSelect: () => openEdit(membership) })
-  }
-  if (canDeleteMembership.value) {
-    items.push({
-      label: 'Eliminar miembro',
-      color: 'error' as const,
-      onSelect: () => openRemoveConfirm(membership),
-    })
-  }
-  return items.length > 0 ? [items] : []
+const rowActions = computed(() =>
+  buildMembershipRowActions({
+    canUpdate: canUpdateMembership.value,
+    canDelete: canDeleteMembership.value,
+  }),
+)
+
+function handleRowAction(key: string, membership: MembershipTableRow) {
+  if (key === 'edit') openEdit(membership)
+  else if (key === 'remove') openRemoveConfirm(membership)
+}
+
+const rowOpen = computed(() => (canUpdateMembership.value ? openEdit : undefined))
+
+const searchTerm = computed(() => globalFilter.value.trim())
+const noMatchTitle = computed(() => noMatchTitleFor(searchTerm.value))
+const emptyState = computed(() => ({
+  title: 'Aún no hay miembros',
+  description: 'Aquí aparecerán los usuarios que agregues a esta sucursal.',
+  ...(canCreateMembership.value
+    ? { actionLabel: 'Agregar miembro', actionIcon: 'i-lucide-user-plus' }
+    : {}),
+}))
+
+function clearFilters() {
+  globalFilter.value = ''
 }
 </script>
 
 <template>
   <div class="hf-theme hf-ui tenants-visual flex w-full min-w-0 flex-col gap-6 md:px-6 lg:px-10">
-    <!-- Canonical table workspace (design-system §4): heading outside the surface;
-         the subtitle shows a skeleton while the tenant name loads. -->
-    <div class="hf-page-header">
-      <h1 class="hf-page-title">Miembros del tenant</h1>
+    <!-- The title names the branch (a skeleton shows while the name loads) and a
+         back link returns to the Sucursales list. -->
+    <header class="hf-page-header">
+      <div class="-ml-2 mb-1">
+        <UButton
+          icon="i-lucide-arrow-left"
+          color="neutral"
+          variant="ghost"
+          data-testid="tenant-members-back"
+          @click="router.push({ name: 'admin-tenants' })"
+        >
+          Sucursales
+        </UButton>
+      </div>
+      <h1 class="hf-page-title">{{ pageTitle }}</h1>
       <div v-if="isLoadingTenantName" data-testid="tenant-members-subtitle-loading" class="mt-1">
         <USkeleton class="h-4 w-48" />
       </div>
-      <p v-else class="hf-page-subtitle">{{ headerDescription }}</p>
-    </div>
+    </header>
 
-    <UCard :ui="{ body: 'p-0 sm:p-0' }" class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm">
-
-      <div v-if="!canReadMemberships" class="px-6 py-10 text-center text-sm text-muted">
-        No tienes acceso a esta sección.
-      </div>
+    <UCard
+      :ui="{ body: 'p-0 sm:p-0' }"
+      class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm"
+    >
+      <EmptyState
+        v-if="!canReadMemberships"
+        kind="forbidden"
+        title="No tienes acceso a los miembros"
+        description="Tu rol no permite ver esta sección."
+      />
 
       <div v-else class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
           v-model:global-filter="globalFilter"
-          v-model:column-pinning="columnPinning"
-          v-model:column-visibility="columnVisibility"
           :columns="columns"
           :data="data"
           :loading="isLoading"
           :fetching="isFetching"
           :error="isError"
           :error-message="membershipsErrorMessage"
+          :empty-state="emptyState"
+          :filtered="searchTerm !== ''"
+          :no-match-title="noMatchTitle"
           :page-count="pageCount"
           :total-count="totalCount"
           :showing-from="showingFrom"
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
-          :display-mode="displayMode"
+          :row-open="rowOpen"
+          display-mode="auto"
+          mobile-render="cards"
           search-placeholder="Buscar por email, nombre o rol..."
-          empty="No hay miembros en este tenant"
+          empty="No hay miembros en esta sucursal"
           class="hf-data-table"
           portal-class="hf-theme hf-ui tenants-list-portal"
           pagination-portal-class="hf-theme hf-ui tenants-list-portal"
           :show-add-button="canCreateMembership"
           add-button-text="Agregar miembro"
           add-button-icon="i-lucide-user-plus"
-          enable-column-visibility
           @add="isCreateOpen = true"
+          @empty-action="isCreateOpen = true"
+          @clear-filters="clearFilters"
           @refresh="refresh"
         >
           <template #userName-header="{ column }">
@@ -304,54 +289,90 @@ function getRowItems(membership: MembershipTableRow) {
           </template>
 
           <template #createdAt-header="{ column }">
-            <SortableHeader :column="column" label="Fecha de ingreso" />
+            <SortableHeader :column="column" label="Ingreso" />
           </template>
 
           <template #userName-cell="{ row }">
-            <div class="flex items-center gap-3">
-              <UAvatar :alt="row.original.userName" :text="getInitials(row.original.userName)" />
-              <div>
-                <p class="font-medium">{{ row.original.userName }}</p>
-                <p class="text-sm text-muted">{{ row.original.userEmail }}</p>
+            <div class="flex min-w-0 items-center gap-3">
+              <EntityAvatar
+                :name="row.original.userName"
+                aria-hidden="true"
+              />
+              <div class="min-w-0">
+                <button
+                  v-if="canUpdateMembership"
+                  type="button"
+                  class="hf-row-primary text-left"
+                  data-testid="member-name"
+                  @click="openEdit(row.original)"
+                >
+                  {{ row.original.userName }}
+                </button>
+                <span v-else class="hf-row-primary" data-testid="member-name">{{
+                  row.original.userName
+                }}</span>
+                <span class="hf-row-secondary">{{ row.original.userEmail }}</span>
               </div>
             </div>
           </template>
 
+          <template #status-cell="{ row }">
+            <StatusBadge
+              v-if="row.original.userIsActive !== undefined"
+              :label="row.original.userIsActive ? 'Activo' : 'Inactivo'"
+              :tone="row.original.userIsActive ? 'success' : 'neutral'"
+            />
+            <span v-else class="text-sm text-muted">—</span>
+          </template>
+
           <template #roleName-cell="{ row }">
-            <AppBadge tone="info" :label="row.original.roleName" />
+            <span class="text-sm font-medium">{{ row.original.roleName }}</span>
           </template>
 
           <template #createdAt-cell="{ row }">
-            <span>{{ row.original.createdAt ? dateFormatter.format(new Date(row.original.createdAt)) : '-' }}</span>
+            <span class="text-sm text-muted">{{ formatShortDateTime(row.original.createdAt) }}</span>
           </template>
+
+          <template #actions-header><span class="sr-only">Acciones</span></template>
 
           <template #actions-cell="{ row }">
-            <UDropdownMenu
-              v-if="getRowItems(row.original).length > 0"
-              :items="getRowItems(row.original)"
-              :content="{ align: 'end' }"
-              :ui="{ content: 'hf-theme hf-ui tenants-list-portal' }"
+            <RowActionsMenu
+              :actions="rowActions"
+              :row-label="row.original.userName"
+              portal-class="tenants-list-portal"
+              @select="handleRowAction($event, row.original)"
+            />
+          </template>
+
+          <template #mobile-card="{ row }">
+            <AdminMobileCard
+              :item="row"
+              :label="row.userName"
+              :actions="rowActions"
+              :openable="canUpdateMembership"
+              portal-class="tenants-list-portal"
+              test-id="member-card"
+              @open="openEdit"
+              @action="handleRowAction"
             >
-              <UButton icon="i-lucide-ellipsis-vertical" color="neutral" variant="ghost" class="size-7" />
-            </UDropdownMenu>
-          </template>
-
-          <template #actions>
-            <ViewToggle
-              :model-value="viewMode"
-              class="tenants-view-toggle"
-              aria-label="Seleccionar vista de miembros"
-              @update:model-value="handleViewModeChange"
-            />
-          </template>
-
-          <template #cards>
-            <MemberCardGrid
-              :members="data"
-              :loading="isLoading || isFetching"
-              :empty="'No se encontraron miembros'"
-              @card-click="handleCardClick"
-            />
+              <template #leading>
+                <EntityAvatar
+                  :name="row.userName"
+                  aria-hidden="true"
+                />
+              </template>
+              <template #secondary>{{ row.userEmail }}</template>
+              <template v-if="row.userIsActive !== undefined" #badges>
+                <StatusBadge
+                  :label="row.userIsActive ? 'Activo' : 'Inactivo'"
+                  :tone="row.userIsActive ? 'success' : 'neutral'"
+                />
+              </template>
+              <template #footer>
+                <span class="min-w-0 truncate font-medium">Rol: {{ row.roleName }}</span>
+                <span class="shrink-0">{{ formatShortDateTime(row.createdAt) }}</span>
+              </template>
+            </AdminMobileCard>
           </template>
         </AppDataTable>
       </div>
@@ -376,10 +397,10 @@ function getRowItems(membership: MembershipTableRow) {
 
     <ConfirmModal
       v-model:open="confirmState.open"
-      title="Confirmar eliminación"
+      title="Eliminar miembro"
       :description="confirmState.description"
-      confirm-text="Eliminar"
-      cancel-text="Cancelar"
+      confirm-label="Eliminar"
+      confirm-color="error"
       :ui="{ content: 'hf-theme hf-ui hf-form-overlay tenants-form-portal' }"
       @confirm="handleConfirm"
     />

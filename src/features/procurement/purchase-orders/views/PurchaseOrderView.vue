@@ -38,6 +38,10 @@ const mobile = useBreakpoints(breakpointsTailwind).smaller('md')
 const statusItems = [{ label: 'Todas', value: 'ALL' }, { label: 'Borradores', value: 'DRAFT' }, { label: 'Confirmadas', value: 'CONFIRMED' }, { label: 'Canceladas', value: 'CANCELLED' }]
 const statusFilter = computed({ get: () => status.value ?? 'ALL', set: value => { status.value = value === 'ALL' ? undefined : value as PurchaseOrderStatus } })
 // Confirm/cancel-only and read-only users open drafts without update permission (S7).
+// Search or a status make an empty page a "sin resultados" instead of "nada todavía".
+const filtered = computed(() => search.value.trim() !== '' || Boolean(status.value))
+function clearFilters() { search.value = ''; statusFilter.value = 'ALL' }
+const hasPages = computed(() => hasNext.value || hasPrevious.value)
 const readOnlyDraft = computed(() => selected.value?.status === 'DRAFT' && !context.value.canUpdate)
 const editorTitle = computed(() => !selected.value ? 'Nueva orden' : readOnlyDraft.value ? 'Ver borrador' : { DRAFT: 'Continuar borrador', CONFIRMED: 'Orden confirmada', CANCELLED: 'Orden cancelada' }[selected.value.status])
 const editorDescription = computed(() => readOnlyDraft.value ? 'Solo lectura: no tienes permiso para editar este borrador.' : !selected.value || selected.value.status === 'DRAFT' ? 'Puedes guardar datos incompletos y retomarlos después.' : selected.value.status === 'CONFIRMED' ? 'Proveedor, productos y costos quedaron congelados. No se modifican existencias, pagos ni deuda.' : 'Esta orden fue cancelada y ya no admite cambios.')
@@ -63,20 +67,20 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', preventUnload))
 </script>
 
 <template>
-  <main class="hf-theme hf-ui purchase-orders-page">
+  <main class="hf-theme hf-ui purchase-orders-page md:px-10">
     <header class="hf-page-header"><h1 class="hf-page-title">Órdenes de compra</h1></header>
     <p v-if="notice" role="status" class="order-notice">{{ notice }}</p>
     <p v-if="!context.ready || !context.canRead" role="status">No tienes acceso a las órdenes de compra de esta sucursal.</p>
     <UCard v-else :ui="{ body: 'p-0 sm:p-0' }" class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm" aria-label="Órdenes de compra">
       <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
-        <PurchaseOrderList v-model:search="search" :items="items" :loading="isLoading" :fetching="isFetching" :error="!!error" :can-edit="context.canUpdate" :can-delete="context.canDelete" :can-confirm="context.canConfirm" :can-cancel="context.canCancel" :disabled="busy" :active-filter-count="status ? 1 : 0" @refresh="list.refresh" @open="(order, origin) => workspace.show(order, false, origin)" @confirm="(order, origin) => workspace.showThenTransition(order, 'confirm', origin)" @cancel="(order, origin) => workspace.showThenTransition(order, 'cancel', origin)" @discard="workspace.requestDelete" @clear-filters="statusFilter = 'ALL'">
+        <PurchaseOrderList v-model:search="search" :items="items" :loading="isLoading" :fetching="isFetching" :error="!!error" :can-edit="context.canUpdate" :can-delete="context.canDelete" :can-create="context.ready && context.canCreate" :filtered="filtered" :can-confirm="context.canConfirm" :can-cancel="context.canCancel" :disabled="busy" :active-filter-count="status ? 1 : 0" @refresh="list.refresh" @open="(order, origin) => workspace.show(order, false, origin)" @confirm="(order, origin) => workspace.showThenTransition(order, 'confirm', origin)" @cancel="(order, origin) => workspace.showThenTransition(order, 'cancel', origin)" @discard="workspace.requestDelete" @create="workspace.create" @clear-filters="clearFilters">
           <template #filters>
             <ToolbarSelectFilter v-model="statusFilter" :items="statusItems" label="Estado" portal-class="hf-theme hf-ui purchase-orders-portal" test-id="order-status-filter" />
           </template>
           <template #actions><UButton v-if="context.ready && context.canCreate" data-testid="create-order" class="hf-primary-control" :disabled="busy" icon="i-lucide-plus" @click="workspace.create">Nueva orden</UButton></template>
         </PurchaseOrderList>
         <p v-if="detailLoading" role="status">Consultando orden…</p><p v-if="detailError && !open" role="alert">{{ detailError }}</p>
-        <div class="order-pagination" aria-label="Páginas de órdenes"><UButton type="button" color="neutral" variant="outline" :disabled="!hasPrevious || isFetching || locked" @click="list.back">Anterior</UButton><UButton type="button" color="neutral" variant="outline" :disabled="!hasNext || isFetching || locked" @click="list.next">Siguiente</UButton></div>
+        <div v-if="hasPages" class="order-pagination" aria-label="Páginas de órdenes"><UButton type="button" color="neutral" variant="outline" :disabled="!hasPrevious || isFetching || locked" @click="list.back">Anterior</UButton><UButton type="button" color="neutral" variant="outline" :disabled="!hasNext || isFetching || locked" @click="list.next">Siguiente</UButton></div>
       </div>
     </UCard>
     <!-- The title and description stay as the dialog's hidden name; the visible header is ours (#content). -->

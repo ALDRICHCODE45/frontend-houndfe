@@ -306,12 +306,12 @@ describe('DebtPaymentModal', () => {
     expect(wrapper.text()).toContain('Deuda pendiente')
   })
 
-  it('confirm-debt-payment button uses the Cobrar precedent coco-gold class [PMT-REQ-004]', () => {
+  it('confirm-debt-payment button uses the shared primary control [PMT-REQ-004]', () => {
     const wrapper = mountModal()
 
     const confirmButton = wrapper.get('[data-testid="confirm-debt-payment"]')
-    expect(confirmButton.classes()).toContain('!bg-(--brand-action)')
-    expect(confirmButton.classes()).toContain('!text-black')
+    expect(confirmButton.classes()).toContain('hf-primary-control')
+    expect(confirmButton.classes().join(' ')).not.toContain('brand-action')
   })
 })
 

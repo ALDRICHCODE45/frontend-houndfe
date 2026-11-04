@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  getProductStockCompactLabel,
   getProductStockDisplay,
-  getProductStockDotClass,
   getProductStockTone,
   getStockTone,
+  productStatusConfig,
+  stockNeedsAttention,
 } from '../productStatusConfig.utils'
 import type { Product } from '../../interfaces/product.types'
 
@@ -83,13 +85,13 @@ describe('getProductStockDisplay (card label) reuses the shared tone', () => {
       getProductStockDisplay(
         makeProduct({ hasVariants: true, variantStockTotal: 12, variantCount: 1 }),
       ).label,
-    ).toBe('12 unidades en 1 variante')
+    ).toBe('12 · 1 variante')
 
     expect(
       getProductStockDisplay(
         makeProduct({ hasVariants: true, variantStockTotal: 12, variantCount: 4 }),
       ).label,
-    ).toBe('12 unidades en 4 variantes')
+    ).toBe('12 · 4 variantes')
   })
 
   it('labels variants without a total as "En variantes"', () => {
@@ -100,28 +102,55 @@ describe('getProductStockDisplay (card label) reuses the shared tone', () => {
   })
 })
 
-describe('getProductStockDotClass derives the dot color from the stock tone', () => {
-  it('healthy stock -> emerald dot', () => {
-    expect(getProductStockDotClass(makeProduct({ quantity: 50, minQuantity: 5 }))).toBe(
-      'bg-emerald-500',
-    )
+describe('stockNeedsAttention flags only low or empty stock', () => {
+  it('healthy stock reads as plain text', () => {
+    expect(stockNeedsAttention(makeProduct({ quantity: 50, minQuantity: 5 }))).toBe(false)
   })
 
-  it('low stock -> amber dot', () => {
-    expect(getProductStockDotClass(makeProduct({ quantity: 3, minQuantity: 5 }))).toBe(
-      'bg-amber-500',
-    )
+  it('low stock and out of stock earn a badge', () => {
+    expect(stockNeedsAttention(makeProduct({ quantity: 3, minQuantity: 5 }))).toBe(true)
+    expect(stockNeedsAttention(makeProduct({ quantity: 0, minQuantity: 5 }))).toBe(true)
   })
 
-  it('out of stock -> red dot', () => {
-    expect(getProductStockDotClass(makeProduct({ quantity: 0, minQuantity: 5 }))).toBe('bg-red-500')
-  })
-
-  it('variants without a total -> blue (info) dot', () => {
+  it('variants without a known total stay quiet', () => {
     expect(
-      getProductStockDotClass(
+      stockNeedsAttention(
         makeProduct({ hasVariants: true, variantStockTotal: null, variantCount: 3 }),
       ),
-    ).toBe('bg-blue-500')
+    ).toBe(false)
+  })
+})
+
+describe('productStatusConfig maps the domain status to a StatusBadge tone', () => {
+  it('uses success, neutral (never red) and danger', () => {
+    expect(productStatusConfig.active).toEqual({ tone: 'success', label: 'Activo' })
+    expect(productStatusConfig.inactive).toEqual({ tone: 'neutral', label: 'Inactivo' })
+    expect(productStatusConfig.out_of_stock).toEqual({ tone: 'danger', label: 'Sin stock' })
+  })
+})
+
+describe('stock labels agree in number and have a compact form for cards', () => {
+  it('writes 1 unidad, never "1 unidades"', () => {
+    expect(getProductStockDisplay(makeProduct({ quantity: 1, minQuantity: 0 })).label).toBe('1 unidad')
+    expect(getProductStockDisplay(makeProduct({ quantity: 24 })).label).toBe('24 unidades')
+    expect(
+      getProductStockDisplay(
+        makeProduct({ hasVariants: true, variantStockTotal: 1, variantCount: 1 }),
+      ).label,
+    ).toBe('1 · 1 variante')
+  })
+
+  it('shortens variants to the unit total so a card footer fits on one line', () => {
+    expect(
+      getProductStockCompactLabel(
+        makeProduct({ hasVariants: true, variantStockTotal: 24, variantCount: 2 }),
+      ),
+    ).toBe('24 unidades')
+    expect(
+      getProductStockCompactLabel(
+        makeProduct({ hasVariants: true, variantStockTotal: null, variantCount: 2 }),
+      ),
+    ).toBe('En variantes')
+    expect(getProductStockCompactLabel(makeProduct({ quantity: 7 }))).toBe('7 unidades')
   })
 })

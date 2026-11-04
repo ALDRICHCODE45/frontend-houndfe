@@ -156,16 +156,29 @@ describe('HumanDecisionDetailSlideover', () => {
   })
 
   it('renders distinct loading, error/retry, and no-selection states', async () => {
-    expect(mountDetail(null, { loading: true }).get('[role="status"]').text()).toContain(
-      'Cargando detalle',
-    )
+    const loading = mountDetail(null, { loading: true })
+    expect(loading.get('[role="status"]').text()).toContain('Cargando detalle')
+    expect(loading.get('[data-testid="human-decision-detail-skeleton"]').attributes('aria-busy')).toBe('true')
+    expect(loading.find('.hf-empty-state').exists()).toBe(false)
 
     const failed = mountDetail(null, { error: true })
-    expect(failed.get('[role="alert"]').text()).toContain('No se pudo cargar el detalle.')
+    expect(failed.get('.hf-empty-state').attributes('data-kind')).toBe('error')
+    expect(failed.get('[role="alert"]').text()).toContain('No se pudo cargar el detalle')
+    // The retry is the button: the title never carries a second "Reintenta." sentence.
+    expect(failed.get('[role="alert"]').text()).not.toContain('Reintenta.')
     await failed.get('[data-testid="human-decision-detail-retry"]').trigger('click')
     expect(failed.emitted('retry')).toHaveLength(1)
 
-    expect(mountDetail(null).get('[role="status"]').text()).toContain('Selecciona una decisión')
+    const none = mountDetail(null)
+    expect(none.get('.hf-empty-state').attributes('data-kind')).toBe('empty')
+    expect(none.get('[role="status"]').text()).toContain('Selecciona una decisión')
+  })
+
+  it('shows the status with the shared badge and keeps the summary as literal text', () => {
+    const wrapper = mountDetail({ ...pending(), sanitizedSummary: '<img src=x onerror=alert(1)>' })
+    expect(wrapper.get('.hf-status-badge').attributes('data-tone')).toBe('warning')
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(wrapper.text()).toContain('<img src=x onerror=alert(1)>')
   })
 
   it('shows a resolve error while keeping the pending controls available to retry', () => {

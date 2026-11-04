@@ -18,7 +18,7 @@ import {
 import { DASHBOARD_NAV_ITEM, DASHBOARD_PATH, DASHBOARD_PERMISSION } from '../navigation.landing'
 
 const DASHBOARD_ID = 'dashboard'
-const DASHBOARD_LABEL = 'Dashboard'
+const DASHBOARD_LABEL = 'Resumen'
 
 function store(granted: 'analytics' | 'unrelated' | 'none'): AccessAuthStore {
   if (granted === 'none') return { isSuperAdmin: false, userCan: () => false }

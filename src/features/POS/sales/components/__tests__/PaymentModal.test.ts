@@ -717,7 +717,7 @@ describe('PaymentModal', () => {
     expect(submitted?.payload).not.toHaveProperty('dueDate')
   })
 
-  it('confirm-charge button uses the Cobrar precedent coco-gold class [PMT-REQ-004]', () => {
+  it('confirm-charge button takes the shared primary control [PMT-REQ-004]', () => {
     const wrapper = mount(PaymentModal, {
       props: {
         open: true,
@@ -728,11 +728,11 @@ describe('PaymentModal', () => {
     })
 
     const confirmButton = wrapper.get('[data-testid="confirm-charge"]')
-    expect(confirmButton.classes()).toContain('!bg-(--brand-action)')
-    expect(confirmButton.classes()).toContain('!text-black')
+    expect(confirmButton.classes()).toContain('hf-primary-control')
+    expect(confirmButton.classes()).not.toContain('!bg-(--brand-action)')
   })
 
-  it('selected method tile renders coco-gold tint when toggled on [PMT-REQ-002]', async () => {
+  it('selected method tile renders the action tint when toggled on [PMT-REQ-002]', async () => {
     const wrapper = mount(PaymentModal, {
       props: {
         open: true,
@@ -745,8 +745,8 @@ describe('PaymentModal', () => {
     const cashTile = wrapper.get('[data-testid="add-payment-entry"]')
     await cashTile.trigger('click')
 
-    expect(cashTile.classes()).toContain('border-coco-gold-500/40')
-    expect(cashTile.classes()).toContain('bg-coco-gold-500/5')
+    expect(cashTile.classes()).toContain('border-(--hf-action)')
+    expect(cashTile.classes()).toContain('bg-(--hf-active-soft)')
   })
 })
 
@@ -1036,7 +1036,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
 
     const toggle = wrapper.get('[data-testid="delivery-toggle"]')
     expect(toggle.attributes('disabled')).toBeDefined()
-    expect(wrapper.html()).toContain('asigná cliente y dirección primero')
+    expect(wrapper.html()).toContain('asigna cliente y dirección primero')
   })
 
   it('toggle is enabled and hint absent when shippingAddress is present', () => {
@@ -1052,7 +1052,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
 
     const toggle = wrapper.get('[data-testid="delivery-toggle"]')
     expect(toggle.attributes('disabled')).toBeUndefined()
-    expect(wrapper.html()).not.toContain('asigná cliente y dirección primero')
+    expect(wrapper.html()).not.toContain('asigna cliente y dirección primero')
   })
 
   // Backend sale shipping snapshot: a customer who deletes the address after
@@ -1071,7 +1071,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
 
     const toggle = wrapper.get('[data-testid="delivery-toggle"]')
     expect(toggle.attributes('disabled')).toBeUndefined()
-    expect(wrapper.html()).not.toContain('asigná cliente y dirección primero')
+    expect(wrapper.html()).not.toContain('asigna cliente y dirección primero')
   })
 
   it('CTA emits request-assign-customer when toggle is gated (shippingAddress null)', async () => {
@@ -1324,7 +1324,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
     // cannot leak into a subsequent buildPayload().
     expect((toggle.element as HTMLInputElement).checked).toBe(false)
     expect(toggle.attributes('disabled')).toBeDefined()
-    expect(wrapper.html()).toContain('asigná cliente y dirección primero')
+    expect(wrapper.html()).toContain('asigna cliente y dirección primero')
 
     // Regression: a submit AFTER the address clears MUST omit the delivery key,
     // even if the cashier never flipped the toggle back manually.
@@ -1352,7 +1352,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
     const toggle = wrapper.get('[data-testid="delivery-toggle"]')
     expect(toggle.attributes('disabled')).toBeDefined()
     // No hint when an address IS present (gate is open); only isSubmitting.
-    expect(wrapper.html()).not.toContain('asigná cliente y dirección primero')
+    expect(wrapper.html()).not.toContain('asigna cliente y dirección primero')
   })
 
   // TRIANGULATE: when hasShippingAddress is true, the CTA MUST NOT render

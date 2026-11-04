@@ -1,48 +1,36 @@
 import { describe, expect, it } from 'vitest'
 import { useCustomerColumns } from '../useCustomerColumns'
 
+type Column = { id?: string; accessorKey?: string; enableSorting?: boolean; meta?: { class?: { th?: string; td?: string } } }
+
 describe('useCustomerColumns', () => {
-  const { columns } = useCustomerColumns()
+  const columns = useCustomerColumns().columns as Column[]
+  const keyOf = (column: Column) => column.id ?? column.accessorKey
 
-  it('exposes the expected column order: select, fullName, email, phone, globalPriceListName, actions', () => {
-    expect(columns.map((c) => c.id ?? (c as { accessorKey?: string }).accessorKey)).toEqual([
-      'select',
-      'fullName',
-      'email',
-      'phone',
-      'globalPriceListName',
-      'actions',
-    ])
+  it('orders the columns by job: name first, contact, price list, then the ⋮ column last', () => {
+    expect(columns.map(keyOf)).toEqual(['fullName', 'email', 'phone', 'globalPriceListName', 'actions'])
+    expect(columns.length).toBeLessThanOrEqual(8)
   })
 
-  it('locks email/phone/globalPriceListName as sortable with accessorKey', () => {
-    const email = columns.find((c) => (c as { accessorKey?: string }).accessorKey === 'email')
-    const phone = columns.find((c) => (c as { accessorKey?: string }).accessorKey === 'phone')
-    const priceList = columns.find((c) => (c as { accessorKey?: string }).accessorKey === 'globalPriceListName')
-
-    expect(email).toBeDefined()
-    expect(phone).toBeDefined()
-    expect(priceList).toBeDefined()
-    // createSimpleHeader returns a function — string header means no wrapper.
-    expect(typeof email?.header).toBe('string')
-    expect(typeof phone?.header).toBe('string')
-    expect(typeof priceList?.header).toBe('string')
+  it('keeps no selection column: nothing in the list acts on a selection', () => {
+    expect(columns.find((column) => column.id === 'select')).toBeUndefined()
   })
 
-  it('keeps the actions column pinned right, non-sortable, and non-hideable', () => {
-    const actions = columns.find((c) => c.id === 'actions')
-    expect(actions).toBeDefined()
-    expect(actions?.enableSorting).toBe(false)
-    expect(actions?.enableHiding).toBe(false)
-    // The view-level defaultPinning handles right-pinning; the column carries
-    // the right-aligned cell styling.
-    const tdClass = (actions as { meta?: { class?: { td?: string } } })?.meta?.class?.td
-    expect(tdClass).toContain('text-right')
+  it('keeps the data columns sortable by accessorKey with plain string headers', () => {
+    for (const key of ['fullName', 'email', 'phone', 'globalPriceListName']) {
+      const column = columns.find((candidate) => candidate.accessorKey === key)
+      expect(column).toBeDefined()
+      expect(typeof (column as { header?: unknown }).header).toBe('string')
+    }
   })
 
-  it('keeps the select column non-sortable and non-hideable', () => {
-    const select = columns.find((c) => c.id === 'select')
-    expect(select?.enableSorting).toBe(false)
-    expect(select?.enableHiding).toBe(false)
+  it('keeps the actions column last, 64px wide, non-sortable and non-hideable', () => {
+    const actions = columns[columns.length - 1]!
+    expect(actions.id).toBe('actions')
+    expect(actions.enableSorting).toBe(false)
+    expect((actions as { enableHiding?: boolean }).enableHiding).toBe(false)
+    expect(actions.meta?.class?.th).toContain('w-16')
+    expect(actions.meta?.class?.td).toContain('w-16')
+    expect(actions.meta?.class?.td).toContain('text-right')
   })
 })

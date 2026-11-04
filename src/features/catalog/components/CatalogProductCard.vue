@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
+import { catalogAvailabilityConfig } from '../utils/availability'
 import type { PublicCatalogProductDto } from '../interfaces/public-catalog-products.types'
 
 const props = defineProps<{ product: PublicCatalogProductDto }>()
@@ -37,27 +38,10 @@ const formattedPrice = computed(() => {
   const cents = priceCents.value
   return !props.product.price.hidden && cents !== null ? formatCentsMXN(cents) : null
 })
-const availabilityConfig = {
-  available: {
-    label: 'Disponible',
-    dot: 'bg-emerald-500',
-    text: 'text-emerald-700 dark:text-emerald-400',
-  },
-  low_stock: {
-    label: 'Pocas piezas',
-    dot: 'bg-amber-500',
-    text: 'text-amber-700 dark:text-amber-400',
-  },
-  out_of_stock: {
-    label: 'Agotado',
-    dot: 'bg-red-500',
-    text: 'text-red-700 dark:text-red-400',
-  },
-} as const
 const availability = computed(() => {
   const presentation = props.product.stockPresentation
   if (presentation.mode === 'HIDDEN' || presentation.status === null) return null
-  return availabilityConfig[presentation.status]
+  return catalogAvailabilityConfig[presentation.status]
 })
 const presentationQuantity = computed(() => {
   const presentation = props.product.stockPresentation
@@ -95,33 +79,23 @@ function openDetail(event: MouseEvent) {
         <div
           v-else
           data-testid="catalog-product-image-fallback"
-          class="flex size-full flex-col items-center justify-center gap-2.5 bg-coco-50 px-4 text-center dark:bg-coco-950/40"
+          class="catalog-product-fallback flex size-full flex-col items-center justify-center text-center"
           :aria-label="`Imagen no disponible para ${product.name}`"
           role="img"
         >
-          <!--
-            Honest media absence: a calm cobalt surface, one contained glyph and the written state.
-            It never substitutes an invented URL, and the visible copy is never icon-only.
-          -->
-          <span
-            class="flex size-14 items-center justify-center rounded-2xl bg-white/80 text-coco-500 ring-1 ring-coco-200/80 dark:bg-coco-900/50 dark:text-coco-300 dark:ring-coco-800/60"
-          >
-            <UIcon name="i-lucide-image-off" class="size-6" />
-          </span>
-          <span class="text-xs font-medium text-coco-700 dark:text-coco-200">
-            Imagen no disponible
-          </span>
+          <!-- Honest media absence: one contained glyph and the written state, never an invented URL. -->
+          <UIcon name="i-lucide-image-off" class="size-6" />
+          <span class="text-xs font-medium">Imagen no disponible</span>
         </div>
 
         <span
           v-if="availability"
           data-testid="catalog-product-availability"
-          class="catalog-product-availability inline-flex max-w-full items-center gap-1.5"
+          class="catalog-availability catalog-product-availability inline-flex max-w-full items-center gap-1.5"
+          :data-tone="availability.tone"
         >
-          <span class="size-1.5 rounded-full" :class="availability.dot" />
-          <span class="text-xs font-semibold" :class="availability.text">
-            {{ availability.label }}
-          </span>
+          <span class="catalog-availability-dot" aria-hidden="true" />
+          <span class="text-xs font-semibold">{{ availability.label }}</span>
         </span>
       </div>
 
@@ -159,7 +133,7 @@ function openDetail(event: MouseEvent) {
           <p
             v-if="formattedPrice"
             data-testid="catalog-product-price"
-            class="catalog-product-price min-w-0 break-words font-bold tracking-tight text-highlighted tabular-nums"
+            class="catalog-product-price min-w-0 break-words font-semibold tracking-tight text-highlighted tabular-nums"
           >
             {{ formattedPrice }}
           </p>

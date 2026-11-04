@@ -53,26 +53,13 @@ describe('useCashWorkspace', () => {
     expect(history?.label).toBe('Mis sesiones')
   })
 
-  it('exposes a neutral Spanish heading for every catalog task', () => {
+  it('keeps every catalog task to an id, a label and an icon: no per-task heading, description or hint', () => {
     for (const task of CASH_WORKSPACE_TASKS) {
-      expect(task.heading).toBeTruthy()
-      expect(task.description).toBeTruthy()
+      expect(task.label).toBeTruthy()
+      expect(task.icon).toBeTruthy()
+      expect(task).not.toHaveProperty('heading')
+      expect(task).not.toHaveProperty('description')
+      expect(task).not.toHaveProperty('hint')
     }
-    expect(CASH_WORKSPACE_TASKS.find((task) => task.id === 'apertura')?.heading).toBe(
-      'Abrir un turno',
-    )
-    expect(CASH_WORKSPACE_TASKS.find((task) => task.id === 'conteo')?.heading).toBe(
-      'Cuenta el dinero de tu cajón',
-    )
-  })
-
-  it('keeps the task heading independent from the scope-honest label override', () => {
-    const { visibleTasks } = useCashWorkspace({
-      labelFor: (task) => (task.id === 'historial' ? 'Mis sesiones' : task.label),
-    })
-
-    const history = visibleTasks.value.find((task) => task.id === 'historial')
-    expect(history?.label).toBe('Mis sesiones')
-    expect(history?.heading).toBe('Historial de turnos')
   })
 })

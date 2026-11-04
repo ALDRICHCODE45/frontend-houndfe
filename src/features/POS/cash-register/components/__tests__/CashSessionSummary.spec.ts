@@ -43,7 +43,20 @@ describe('CashSessionSummary', () => {
     expect(loading.find('[data-testid="cash-session-loading"]').exists()).toBe(true)
 
     const error = mountWithUApp(CashSessionSummary, { props: { error: true } })
-    expect(error.find('[data-testid="cash-session-error"]').exists()).toBe(true)
+    expect(error.get('[data-testid="cash-session-error"]').attributes('role')).toBe('alert')
+  })
+
+  it('names status and drawer with shared status badges and tones', () => {
+    const wrapper = mountWithUApp(CashSessionSummary, {
+      props: { detail: makeDetail({ session: makeSession({ status: 'COUNTING' }) }) },
+    })
+    const status = wrapper.get('[data-testid="cash-session-status"]')
+    expect(status.classes()).toContain('hf-status-badge')
+    expect(status.attributes('data-tone')).toBe('warning')
+    expect(wrapper.get('[data-testid="cash-session-drawer-state"]').attributes('data-tone')).toBe(
+      'warning',
+    )
+    expect(wrapper.find('.cash-panel-subtitle').exists()).toBe(false)
   })
 
   it('hides expected/difference and movements in the blind window even with malformed loaded values', () => {
@@ -111,6 +124,13 @@ describe('CashSessionSummary', () => {
     expect(released.get('[data-testid="cash-session-status"]').text()).toContain('Congelada')
     expect(released.get('[data-testid="cash-session-drawer-state"]').text()).toContain(
       'Cajón liberado',
+    )
+    expect(
+      released.get('[data-testid="cash-session-drawer-state"]').attributes('data-tone'),
+    ).toBe('success')
+    // The release time is a short date, never the raw ISO string.
+    expect(released.get('[data-testid="cash-session-drawer-released-at"]').text()).not.toContain(
+      '2026-10-07T19:00',
     )
   })
 

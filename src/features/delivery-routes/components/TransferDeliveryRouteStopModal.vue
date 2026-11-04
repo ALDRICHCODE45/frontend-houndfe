@@ -34,7 +34,9 @@
  *     stop changes.
  */
 import { computed, ref, watch } from 'vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import { DELIVERY_ROUTE_COPY } from '../copy'
+import { buildRouteTitle } from '../utils/delivery-route-list.utils'
 import {
   useDraftTransferDestinations,
   useTransferDeliveryRouteStop,
@@ -150,12 +152,12 @@ watch(selectedDestination, (destination) => {
 
 // ─── Copy interpolation ────────────────────────────────────────────────────────
 const stopFolio = computed<string>(
-  () => props.stop?.saleFolio ?? props.stop?.id?.slice(0, 8) ?? '—',
+  () => props.stop?.saleFolio ?? DELIVERY_ROUTE_COPY.eligibleSales.noFolio,
 )
 
 function destinationLabel(route: DeliveryRouteResponseDto): string {
   const driver = route.driver?.name ?? DELIVERY_ROUTE_COPY.transfer.driverFallback
-  return `${driver} · ${route.id.slice(0, 8)}`
+  return `${driver} · ${buildRouteTitle(route)}`
 }
 
 const confirmBody = computed<string>(() =>
@@ -336,23 +338,15 @@ async function confirmMove(): Promise<void> {
           {{ DELIVERY_ROUTE_COPY.transfer.loading }}
         </p>
 
-        <div
+        <EmptyState
           v-else-if="destinationsError"
           data-testid="transfer-destinations-error"
-          role="alert"
-          class="flex flex-col gap-2 rounded-md border border-default p-3"
-        >
-          <p class="text-sm text-error">{{ destinationsError }}</p>
-          <div>
-            <UButton
-              color="neutral"
-              variant="outline"
-              :label="DELIVERY_ROUTE_COPY.transfer.retry"
-              data-testid="transfer-destinations-retry"
-              @click="retryDestinations"
-            />
-          </div>
-        </div>
+          kind="error"
+          :title="destinationsError"
+          :action-label="DELIVERY_ROUTE_COPY.transfer.retry"
+          action-test-id="transfer-destinations-retry"
+          @action="retryDestinations"
+        />
 
         <p
           v-else-if="destinationOptions.length === 0"
@@ -382,7 +376,7 @@ async function confirmMove(): Promise<void> {
             @click="selectDestination(route.id)"
             @keydown="onOptionKeydown($event, index)"
           >
-            <span class="font-medium">{{ destinationLabel(route) }}</span>
+            <span class="font-semibold text-highlighted">{{ destinationLabel(route) }}</span>
             <span class="text-xs text-muted">
               {{ DELIVERY_ROUTE_COPY.cockpit.summary.totalLabel }}: {{ route.stops.length }}
             </span>

@@ -1,3 +1,4 @@
+import type { RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import type {
   PaymentDetailResponse,
   PaymentDetailTableRow,
@@ -9,7 +10,7 @@ import type {
  * Pure helpers for:
  *   - Detecting the "last active account" case (REQ-PD-005).
  *   - Building the deactivate confirm description (base vs last-active copy).
- *   - Building the dropdown row actions gated on `*:PaymentDetail` permissions
+ *   - Building the row actions menu gated on `*:PaymentDetail` permissions
  *     (REQ-PD-007).
  *
  * No coupling to the employees module's `extractDomainErrorCode`; this file
@@ -56,37 +57,21 @@ export function buildPaymentDetailDeactivateDescription(
 export interface PaymentDetailRowActionContext {
   canUpdate: boolean
   canDelete: boolean
-  onEdit: (row: PaymentDetailTableRow) => void
-  onDelete: (row: PaymentDetailTableRow) => void
-}
-
-export interface PaymentDetailRowActionItem {
-  label: string
-  color?: 'error'
-  onSelect: () => void
 }
 
 /**
- * buildPaymentDetailRowActions — Build the kebab-menu sections per the gate
- * contract:
+ * buildPaymentDetailRowActions — Build the ⋮ menu items per the gate contract:
  *
- *   - `canUpdate` only          → [ [Editar] ]
- *   - `canDelete` only          → [ [Desactivar (error)] ]
- *   - both                      → [ [Editar], [Desactivar (error)] ]
- *   - neither                   → [ ]  (parent hides the kebab)
- *
- * Sections with zero items are filtered out, so the empty-array contract
- * cascades naturally to `UDropdownMenu`'s empty-state behavior.
+ *   - `canUpdate` only          → [ ]  (opening the row already edits; a menu of
+ *                                      only "Editar" would repeat the row click)
+ *   - `canDelete` only          → [ Desactivar… (destructive) ]
+ *   - both                      → [ Editar, Desactivar… (destructive, last) ]
+ *   - neither                   → [ ]  (no ⋮)
  */
-export function buildPaymentDetailRowActions(
-  row: PaymentDetailTableRow,
-  ctx: PaymentDetailRowActionContext,
-): PaymentDetailRowActionItem[][] {
-  const main: PaymentDetailRowActionItem[] = ctx.canUpdate
-    ? [{ label: 'Editar', onSelect: () => ctx.onEdit(row) }]
-    : []
-  const destructive: PaymentDetailRowActionItem[] = ctx.canDelete
-    ? [{ label: 'Desactivar', color: 'error', onSelect: () => ctx.onDelete(row) }]
-    : []
-  return [main, destructive].filter((section) => section.length > 0)
+export function buildPaymentDetailRowActions(ctx: PaymentDetailRowActionContext): RowAction[] {
+  if (!ctx.canDelete) return []
+  return [
+    ...(ctx.canUpdate ? [{ key: 'edit', label: 'Editar', icon: 'i-lucide-pencil' }] : []),
+    { key: 'delete', label: 'Desactivar…', icon: 'i-lucide-power', destructive: true },
+  ]
 }

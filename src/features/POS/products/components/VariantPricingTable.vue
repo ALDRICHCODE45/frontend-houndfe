@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import '../styles/products-plain-table.css'
 import type { AxiosError } from 'axios'
 import { computed, reactive, ref, watch } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
@@ -7,7 +8,7 @@ import { currencyFormatter } from '@/core/shared/utils/currency.utils'
 import { mapDomainError, type DomainApiError } from '@/core/shared/utils/error.utils'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
+import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import { centsToDecimalInput, decimalInputToCents } from '../composables/useProductForm'
 import type {
   ProductVariant,
@@ -125,6 +126,17 @@ function marginClass(variantPrice: VariantPrice): string {
   return (variantPrice.margin?.amountCents ?? 0) >= 0 ? 'text-success' : 'text-error'
 }
 
+function actionsFor(variantPrice: VariantPrice): RowAction[] {
+  return [
+    {
+      key: 'tiers',
+      label: variantPrice.tierPrices.length > 0 ? 'Editar cantidades' : 'Precios por cantidad',
+      icon: 'i-lucide-layers',
+      disabled: !props.canUpdate,
+    },
+  ]
+}
+
 function formatMarginPercent(variantPrice: VariantPrice): string {
   if (!shouldShowMargin(variantPrice)) return '--'
   return `${variantPrice.margin?.percent ?? 0}%`
@@ -239,15 +251,18 @@ function handleSaveTierPrices() {
 </script>
 
 <template>
-  <div class="rounded-md border border-default">
-    <table class="min-w-full divide-y divide-default text-sm">
-      <thead class="bg-elevated/40">
+  <div class="overflow-x-auto rounded-md border border-default">
+    <table class="products-plain-table min-w-full divide-y divide-default text-sm">
+      <thead>
         <tr>
-          <th class="px-4 py-3 text-left font-medium">Lista de Precios</th>
-          <th class="px-4 py-3 text-left font-medium">Precio de Venta (Con Impuestos Incluidos)</th>
-          <th class="px-4 py-3 text-center font-medium">+</th>
-          <th class="px-4 py-3 text-left font-medium">Márgen</th>
-          <th class="px-4 py-3 text-left font-medium">Ganancia</th>
+          <th class="px-4 py-3 text-left font-semibold">Lista de precios</th>
+          <th class="px-4 py-3 text-right font-semibold">
+            Precio de venta
+            <span class="block text-xs font-normal text-muted">Con impuestos</span>
+          </th>
+          <th class="px-4 py-3 text-right font-semibold">Margen</th>
+          <th class="px-4 py-3 text-right font-semibold">Ganancia</th>
+          <th class="w-16 px-4 py-3"><span class="sr-only">Acciones</span></th>
         </tr>
       </thead>
 
@@ -261,12 +276,12 @@ function handleSaveTierPrices() {
         <template v-for="variantPrice in variant.variantPrices" :key="variantPrice.id">
           <!-- Main price row -->
           <tr>
-            <td class="px-4 py-3 font-medium" :rowspan="variantPrice.tierPrices.length > 0 ? 1 : 1">
+            <td class="px-4 py-3 font-semibold text-highlighted">
               {{ variantPrice.priceListName }}
             </td>
 
-            <td class="px-4 py-3">
-              <div class="relative max-w-xs">
+            <td class="px-4 py-3 text-right">
+              <div class="relative ml-auto max-w-xs">
                 <span
                   class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
                   >$</span
@@ -276,88 +291,63 @@ function handleSaveTierPrices() {
                   class="w-full"
                   inputmode="decimal"
                   placeholder="0.00"
-                  :ui="{ base: 'pl-7' }"
+                  :ui="{ base: 'hf-figure pl-7 text-right' }"
                   :disabled="!canUpdate"
+                  :aria-label="`Precio de venta de ${variantPrice.priceListName}, con impuestos incluidos`"
                   @blur="handleInlinePriceSave(variantPrice)"
                   @keyup.enter="handleInlinePriceSave(variantPrice)"
                 />
               </div>
             </td>
 
-            <td class="px-4 py-3 text-center">
-              <UButton
-                type="button"
-                icon="i-lucide-plus"
-                color="neutral"
-                variant="outline"
-                size="xs"
-                :disabled="!canUpdate"
-                @click="openTierPricesModal(variantPrice)"
-              />
-            </td>
-
             <td
-              class="px-4 py-3"
-              :class="shouldShowMargin(variantPrice) ? marginClass(variantPrice) : ''"
+              class="hf-figure px-4 py-3 text-right"
+              :class="shouldShowMargin(variantPrice) ? marginClass(variantPrice) : 'text-muted'"
             >
               {{ formatMarginPercent(variantPrice) }}
             </td>
 
             <td
-              class="px-4 py-3"
-              :class="shouldShowMargin(variantPrice) ? marginClass(variantPrice) : ''"
+              class="hf-figure px-4 py-3 text-right"
+              :class="shouldShowMargin(variantPrice) ? marginClass(variantPrice) : 'text-muted'"
             >
               {{ formatMarginAmount(variantPrice) }}
             </td>
+
+            <td class="px-4 py-3 text-right">
+              <RowActionsMenu
+                :actions="actionsFor(variantPrice)"
+                :row-label="`la lista ${variantPrice.priceListName}`"
+                @select="openTierPricesModal(variantPrice)"
+              />
+            </td>
           </tr>
 
-          <!-- Tier prices sub-rows (inline display like legacy) -->
-          <template v-if="variantPrice.tierPrices.length > 0">
-            <tr v-for="tier in variantPrice.tierPrices" :key="tier.id" class="bg-elevated/20">
-              <td class="py-2 pl-8 pr-4 text-sm text-muted">{{ tier.minQuantity }} o más</td>
-              <td class="px-4 py-2">
-                <span class="text-sm">
-                  $ {{ centsToDecimalInput(tier.priceCents) }}
-                  <span class="text-xs text-muted">por Unidad</span>
-                </span>
-              </td>
-              <td />
-              <td
-                class="px-4 py-2 text-sm"
-                :class="
-                  tier.margin ? (tier.margin.amountCents >= 0 ? 'text-success' : 'text-error') : ''
-                "
-              >
-                {{ tier.margin ? `${tier.margin.percent}%` : '--' }}
-              </td>
-              <td
-                class="px-4 py-2 text-sm"
-                :class="
-                  tier.margin ? (tier.margin.amountCents >= 0 ? 'text-success' : 'text-error') : ''
-                "
-              >
-                {{
-                  tier.margin
-                    ? `${currencyFormatter.format(tier.margin.amountDecimal)} por Unidad`
-                    : '--'
-                }}
-              </td>
-            </tr>
-            <tr class="bg-elevated/20">
-              <td colspan="5" class="px-4 py-2">
-                <UButton
-                  type="button"
-                  label="Editar Cantidades"
-                  icon="i-lucide-pencil"
-                  color="neutral"
-                  variant="outline"
-                  size="xs"
-                  :disabled="!canUpdate"
-                  @click="openTierPricesModal(variantPrice)"
-                />
-              </td>
-            </tr>
-          </template>
+          <!-- Tier prices sub-rows -->
+          <tr v-for="tier in variantPrice.tierPrices" :key="tier.id" class="bg-elevated/20">
+            <td class="py-2 pl-8 pr-4 text-sm text-muted">{{ tier.minQuantity }} o más</td>
+            <td class="hf-figure px-4 py-2 text-right text-sm">
+              $ {{ centsToDecimalInput(tier.priceCents) }}
+              <span class="text-xs text-muted">por unidad</span>
+            </td>
+            <td
+              class="hf-figure px-4 py-2 text-right text-sm"
+              :class="tier.margin ? (tier.margin.amountCents >= 0 ? 'text-success' : 'text-error') : 'text-muted'"
+            >
+              {{ tier.margin ? `${tier.margin.percent}%` : '--' }}
+            </td>
+            <td
+              class="hf-figure px-4 py-2 text-right text-sm"
+              :class="tier.margin ? (tier.margin.amountCents >= 0 ? 'text-success' : 'text-error') : 'text-muted'"
+            >
+              {{
+                tier.margin
+                  ? `${currencyFormatter.format(tier.margin.amountDecimal)} por unidad`
+                  : '--'
+              }}
+            </td>
+            <td />
+          </tr>
         </template>
       </tbody>
     </table>
@@ -365,14 +355,14 @@ function handleSaveTierPrices() {
 
   <UModal
     v-model:open="isTierModalOpen"
-    title="Precios por Cantidad"
-    :content="{ class: 'sm:max-w-3xl' }"
+    title="Precios por cantidad"
+    :content="{ class: 'hf-theme hf-ui sm:max-w-3xl' }"
   >
     <template #body>
       <div class="space-y-4">
         <div class="flex flex-wrap items-center gap-2">
           <span class="font-medium">{{ variant.name }}</span>
-          <AppBadge tone="info">{{ selectedPriceListName }}</AppBadge>
+          <span class="rounded-md bg-elevated px-2 py-0.5 text-xs font-medium">{{ selectedPriceListName }}</span>
         </div>
 
         <div class="space-y-3">
@@ -409,6 +399,7 @@ function handleSaveTierPrices() {
                 icon="i-lucide-trash-2"
                 color="error"
                 variant="ghost"
+                aria-label="Quitar este precio por cantidad"
                 :disabled="tierRows.length === 1 && index === 0"
                 @click="removeTierRow(index)"
               />
@@ -439,6 +430,8 @@ function handleSaveTierPrices() {
         <UButton
           type="button"
           label="Guardar"
+          color="primary"
+          class="hf-primary-control"
           :loading="upsertVariantPriceMutation.isPending.value"
           @click="handleSaveTierPrices"
         />

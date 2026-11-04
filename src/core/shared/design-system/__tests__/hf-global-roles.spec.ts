@@ -12,7 +12,6 @@ import CatalogLayout from '@/app/layouts/CatalogLayout.vue'
 const main = readFileSync('src/assets/main.css', 'utf8')
 const foundation = readFileSync('src/core/shared/design-system/houndfe-theme.css', 'utf8')
 const adapter = readFileSync('src/core/shared/design-system/houndfe-ui.css', 'utf8')
-const detail = readFileSync('src/features/POS/sales/styles/sales-detail-visual.css', 'utf8')
 const styles: HTMLStyleElement[] = []
 const wrappers: ReturnType<typeof mount>[] = []
 
@@ -65,17 +64,12 @@ afterEach(() => {
 })
 
 describe('legacy semantic roles consume the HF foundation', () => {
-  it.each(['light', 'dark'])('resolves the default roles in %s without flattening status or scales', theme => {
+  it.each(['light', 'dark'])('resolves the brand roles in %s without flattening status or scales', theme => {
     document.documentElement.className = theme
     document.body.className = 'hf-theme hf-ui hf-app'
     installFoundation()
     const roles = {
-      '--surface-page': '--hf-page', '--surface-card': '--hf-surface',
-      '--surface-hover': '--hf-surface-muted', '--surface-input': '--hf-field',
-      '--border-subtle': '--hf-border', '--border-card': '--hf-border',
-      '--text-primary': '--hf-ink', '--text-secondary': '--hf-muted', '--text-muted': '--hf-muted',
-      '--brand-primary': '--hf-action', '--brand-soft': '--hf-active-soft',
-      '--brand-accent': '--hf-active', '--brand-warm': '--hf-gold-ink', '--brand-warm-soft': '--hf-gold-soft',
+      '--brand-primary': '--hf-action', '--brand-accent': '--hf-active',
     }
     for (const [legacy, hf] of Object.entries(roles))
       expect(value(document.body, legacy), legacy).toBe(value(document.body, hf))
@@ -86,7 +80,7 @@ describe('legacy semantic roles consume the HF foundation', () => {
     expect(value(document.body, '--color-coco-900')).toBe('#080e31')
   })
 
-  it.each(['light', 'dark'])('preserves the actual unthemed charge action and its behavior in %s', async theme => {
+  it.each(['light', 'dark'])('paints the unthemed charge action as the shared primary and keeps its behavior in %s', async theme => {
     document.documentElement.className = theme
     document.body.className = 'hf-theme hf-ui hf-app'
     installFoundation()
@@ -104,22 +98,17 @@ describe('legacy semantic roles consume the HF foundation', () => {
     wrappers.push(host)
     const wrapper = host.getComponent(SaleTotalsFooter)
     const button = wrapper.get('button')
-    expect(button.classes()).toContain('!bg-(--brand-action)')
-    expect(button.classes()).toContain('!text-black')
-    expect(value(button.element, '--brand-action')).toBe(value(button.element, '--hf-gold'))
-    expect(value(button.element, '--brand-action')).not.toBe(value(button.element, '--hf-action'))
+    // The unthemed charge action is the shared primary control now; the legacy
+    // forced gold paint (!bg-(--brand-action) !text-black) is retired.
+    expect(button.classes()).toContain('hf-primary-control')
+    expect(button.classes()).not.toContain('!bg-(--brand-action)')
+    expect(button.classes()).not.toContain('!text-black')
     await button.trigger('click')
     expect(wrapper.emitted('charge-click')).toHaveLength(1)
     props.isChargePending = true
     await wrapper.vm.$nextTick()
     expect(wrapper.get('button').attributes('disabled')).toBeDefined()
 
-    // The existing detail composition explicitly owns a blue action/foreground
-    // pair; the compatibility mapping must not override that local ownership.
-    install(detail)
-    wrapper.element.classList.add('sales-detail-visual')
-    expect(value(button.element, '--brand-action')).toBe(value(button.element, '--hf-action'))
-    expect(value(button.element, '--color-black')).toBe(value(button.element, '--hf-on-action'))
   })
 
   it('preserves the public catalog light policy under a dark app boundary', () => {
@@ -142,6 +131,6 @@ describe('legacy semantic roles consume the HF foundation', () => {
     expect(value(document.body, '--hf-page')).toBeUndefined()
     expect(value(document.body, 'background-color')).toBeUndefined()
     expect(value(document.body, '--brand-action')).toBe('#f6bb13')
-    expect(adapter).not.toMatch(/--ui-(error|warning|success):/)
+    expect(adapter).not.toMatch(/--ui-(warning|success):/)
   })
 })

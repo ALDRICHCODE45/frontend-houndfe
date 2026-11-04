@@ -37,14 +37,14 @@ function route(overrides: Partial<DeliveryRouteResponseDto> = {}): DeliveryRoute
 const NOW = new Date('2026-10-14T11:00:00')
 
 describe('buildDriverRouteMission — identity and time on route', () => {
-  it('titles the route by its creation day without the driver name, keeping the short id as reference', () => {
+  it('titles the route by its creation day without the driver name and never exposes the id', () => {
     const mission = buildDriverRouteMission(route(), NOW)
     expect(mission.title).toBe('Ruta del 14 oct')
-    expect(mission.reference).toBe('9ea3c7b1')
+    expect(JSON.stringify(mission)).not.toContain('9ea3c7b1')
   })
 
-  it('falls back to the short id when the creation date is unknown', () => {
-    expect(buildDriverRouteMission(route({ timeline: [] }), NOW).title).toBe('Ruta 9ea3c7b1')
+  it('reads "Ruta sin fecha" when the creation date is unknown', () => {
+    expect(buildDriverRouteMission(route({ timeline: [] }), NOW).title).toBe('Ruta sin fecha')
   })
 
   it('reports the start time and the elapsed time on route', () => {

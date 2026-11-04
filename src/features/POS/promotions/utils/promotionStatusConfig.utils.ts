@@ -12,17 +12,17 @@ export interface StatusBadgeConfig {
 export const PROMOTION_STATUS_CONFIG: Record<PromotionStatus, StatusBadgeConfig> = {
   ACTIVE: {
     label: 'Activa',
-    tone: 'active',
+    tone: 'success',
     icon: 'i-lucide-circle-check',
   },
   SCHEDULED: {
     label: 'Programada',
-    tone: 'pending',
+    tone: 'info',
     icon: 'i-lucide-clock',
   },
   ENDED: {
     label: 'Finalizada',
-    tone: 'inactive',
+    tone: 'neutral',
     icon: 'i-lucide-circle-x',
   },
 }

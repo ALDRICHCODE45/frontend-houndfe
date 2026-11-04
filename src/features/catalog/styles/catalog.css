@@ -76,6 +76,15 @@ body[data-catalog-theme='light'] {
   --catalog-action: #2442f6;
   --catalog-on-action: #ffffff;
   --catalog-border: #dce2e8;
+  --catalog-border-strong: #7b8999;
+  --catalog-active-soft: #edf0ff;
+  --catalog-success: #236044;
+  --catalog-success-soft: #eaf5ef;
+  --catalog-warning: #805511;
+  --catalog-warning-soft: #fff5d6;
+  --catalog-danger: #b42318;
+  --catalog-danger-soft: #fdecea;
+  --catalog-danger-border: #f2b8b2;
   --catalog-control-radius: 6px;
   --catalog-panel-radius: 12px;
   --catalog-panel-shadow: 0 12px 32px rgb(23 57 104 / 12%), 0 2px 6px rgb(23 57 104 / 6%);
@@ -98,6 +107,30 @@ body[data-catalog-theme='light'] {
   font-family: var(--hf-font, 'Geist', ui-sans-serif, system-ui, sans-serif);
 }
 
+/* The catalog is forced light, but body also carries `hf-theme hf-ui`, whose
+ * `.dark` palette would turn the shared pieces dark on this surface. Bind the
+ * hf roles to the catalog palette so shared badges and states stay light. */
+html body.hf-theme[data-catalog-theme='light'] {
+  --hf-page: var(--catalog-page);
+  --hf-surface: var(--catalog-surface);
+  --hf-surface-muted: var(--catalog-soft);
+  --hf-ink: var(--catalog-text);
+  --hf-heading: var(--catalog-title);
+  --hf-muted: var(--catalog-muted);
+  --hf-border: var(--catalog-border);
+  --hf-action: var(--catalog-action);
+  --hf-on-action: var(--catalog-on-action);
+  --hf-active: var(--catalog-action);
+  --hf-active-soft: var(--catalog-active-soft);
+  --hf-focus: var(--catalog-action);
+  --hf-success: var(--catalog-success);
+  --hf-warning: var(--catalog-warning);
+  --hf-warning-soft: var(--catalog-warning-soft);
+  --hf-danger: var(--catalog-danger);
+  --hf-danger-soft: var(--catalog-danger-soft);
+  --hf-danger-border: var(--catalog-danger-border);
+}
+
 body[data-catalog-theme='light'] .catalog-layout {
   background: var(--catalog-page);
 }
@@ -114,30 +147,31 @@ body[data-catalog-theme='light'] .catalog-header {
   border-bottom: 1px solid var(--catalog-border);
 }
 
+/* Phone first: one compact row (small logo, branch, price list). */
 body[data-catalog-theme='light'] .catalog-header-inner {
   display: grid;
-  grid-template-columns: 80px minmax(0, 1fr);
+  grid-template-columns: 48px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0 20px;
+  gap: 0 12px;
   padding-block: 8px;
-  min-height: 96px;
+  min-height: 64px;
 }
 
 body[data-catalog-theme='light'] .catalog-logo {
-  width: 80px;
-  height: 80px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
   flex-shrink: 0;
 }
 
 body[data-catalog-theme='light'] .catalog-header > .catalog-container > .catalog-logo {
-  grid-row: 1 / 3;
+  grid-row: 1;
 }
 
 body[data-catalog-theme='light'] .catalog-header-controls {
-  grid-column: 2;
+  grid-column: 3;
   min-width: 0;
-  max-width: 260px;
+  max-width: 8.5rem;
 }
 
 body[data-catalog-theme='light'] .catalog-branch-trigger {
@@ -202,7 +236,7 @@ body[data-catalog-theme='light'] .catalog-hero-copy {
 body[data-catalog-theme='light'] .catalog-hero h1 {
   max-width: 72%;
   font-size: 22px;
-  font-weight: 750;
+  font-weight: 600;
   letter-spacing: -1px;
   line-height: 1.16;
   text-wrap: balance;
@@ -213,16 +247,13 @@ body[data-catalog-theme='light'] .catalog-hero p {
   line-height: 1.4;
   color: var(--catalog-muted);
 }
-body[data-catalog-theme='light'] .catalog-hero-eyebrow {
-  display: none;
-}
 body[data-catalog-theme='light'] .catalog-hero-link {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   min-height: 44px;
   font-size: 14px;
-  font-weight: 750;
+  font-weight: 600;
   color: var(--catalog-title);
   text-underline-offset: 5px;
 }
@@ -242,9 +273,6 @@ body[data-catalog-theme='light'] .catalog-hero-image img {
   object-fit: cover;
   object-position: 48% center;
   mix-blend-mode: multiply;
-}
-body[data-catalog-theme='light'] .catalog-hero-caption {
-  display: none;
 }
 body[data-catalog-theme='light'] .catalog-listing {
   scroll-margin-top: 20px;
@@ -307,13 +335,13 @@ body[data-catalog-theme='light'] .catalog-price-search:focus-visible {
   body[data-catalog-theme='light']
     .catalog-price-context
     button[aria-label='Lista de precios']:enabled:hover {
-    border-color: #7b8999;
+    border-color: var(--catalog-border-strong);
   }
 }
 
 body[data-catalog-theme='light'] .catalog-category-toolbar h2 {
   font-size: 23px;
-  font-weight: 750;
+  font-weight: 600;
   letter-spacing: -0.6px;
   color: var(--catalog-title);
 }
@@ -356,7 +384,7 @@ body[data-catalog-theme='light'] .catalog-category-controls .catalog-filter-butt
 }
 .catalog-filter-button[aria-pressed='true'] {
   border-color: var(--catalog-action, #304acb);
-  background: var(--catalog-soft, #edf0ff);
+  background: var(--catalog-soft, var(--catalog-active-soft));
   color: var(--catalog-action, #304acb);
 }
 .catalog-pagination {
@@ -374,14 +402,6 @@ body[data-catalog-theme='light'] .catalog-category-controls .catalog-filter-butt
   opacity: 0.5;
   cursor: not-allowed;
 }
-.catalog-range-recovery {
-  display: grid;
-  justify-items: center;
-  gap: 12px;
-  padding-block: 48px;
-  text-align: center;
-  color: var(--catalog-title, #242b36);
-}
 .catalog-filter-button:focus-visible {
   outline: 2px solid var(--catalog-action, #304acb);
   outline-offset: 2px;
@@ -393,8 +413,13 @@ body[data-catalog-theme='light'] .catalog-category-toolbar {
   gap: 8px 14px;
 }
 
+body[data-catalog-theme='light'] .catalog-footer .catalog-logo {
+  width: 40px;
+  height: 40px;
+}
+
 body[data-catalog-theme='light'] .catalog-footer p {
-  margin-top: 8px;
+  margin-top: 4px;
   color: var(--catalog-muted);
   font-size: 14px;
   line-height: 1.5;
@@ -402,7 +427,7 @@ body[data-catalog-theme='light'] .catalog-footer p {
 
 body[data-catalog-theme='light'] .catalog-footer {
   margin-top: 24px;
-  padding-block: 32px;
+  padding-block: 20px;
   border-top: 1px solid var(--catalog-border);
   background: var(--catalog-surface);
 }
@@ -412,7 +437,7 @@ body[data-catalog-theme='light'] .catalog-footer-inner {
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 28px 32px;
+  gap: 8px 32px;
 }
 
 /* Listing surfaces only: no dialog or backoffice selectors. */
@@ -422,7 +447,7 @@ body[data-catalog-theme='light'] .catalog-product-card {
 }
 
 body[data-catalog-theme='light'] .catalog-product-card:hover {
-  border-color: #7b8999;
+  border-color: var(--catalog-border-strong);
 }
 
 body[data-catalog-theme='light'] .catalog-product-card:focus-visible {
@@ -461,13 +486,12 @@ body[data-catalog-theme='light'] .catalog-product-body {
 }
 body[data-catalog-theme='light'] .catalog-product-brand {
   font-size: 14px;
-  font-weight: 650;
-  text-transform: uppercase;
+  font-weight: 600;
 }
 body[data-catalog-theme='light'] .catalog-product-name {
   font-size: 14px;
   line-height: 1.4;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.2px;
 }
 body[data-catalog-theme='light'] .catalog-product-price-row {
@@ -475,7 +499,7 @@ body[data-catalog-theme='light'] .catalog-product-price-row {
 }
 body[data-catalog-theme='light'] .catalog-product-price {
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.5;
 }
 body[data-catalog-theme='light'] .catalog-product-price-note {
@@ -495,11 +519,11 @@ body[data-catalog-theme='light'] .catalog-product-action {
   border-radius: 8px;
   color: var(--catalog-title);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
 }
 body[data-catalog-theme='light'] .catalog-product-card:hover .catalog-product-action,
 body[data-catalog-theme='light'] .catalog-product-card:focus-visible .catalog-product-action {
-  background: #edf0ff;
+  background: var(--catalog-active-soft);
   border-color: var(--catalog-action);
   color: var(--catalog-action);
 }
@@ -514,8 +538,7 @@ body[data-catalog-theme='light'] .catalog-product-card:focus-visible .catalog-pr
     gap: 6px;
   }
   body[data-catalog-theme='light'] .catalog-product-brand {
-    font-size: 10px;
-    letter-spacing: 1px;
+    font-size: 13px;
   }
   body[data-catalog-theme='light'] .catalog-product-name {
     font-size: 16px;
@@ -569,7 +592,7 @@ body[data-catalog-theme='light'] .catalog-detail-image-frame > button > img {
 body[data-catalog-theme='light'] .catalog-detail-identity h2 {
   font-size: 26px;
   line-height: 1.25;
-  font-weight: 750;
+  font-weight: 600;
 }
 body[data-catalog-theme='light'] .catalog-detail-variant {
   border-radius: 8px;
@@ -580,7 +603,7 @@ body[data-catalog-theme='light'] .catalog-detail-details {
 }
 body[data-catalog-theme='light'] [data-testid='catalog-detail-price'] {
   font-size: 28px;
-  font-weight: 800;
+  font-weight: 600;
 }
 body[data-catalog-theme='light'] [data-testid='catalog-detail-image-zoom-affordance'] {
   right: 8px;
@@ -679,42 +702,6 @@ body[data-catalog-theme='light'] .catalog-detail-general {
   }
 }
 
-/* Compatibility with existing card/detail dark utilities until their own visual units.
-   Keep their light surfaces readable under a dark host without touching html.dark. */
-body[data-catalog-theme='light'] .bg-coco-50 {
-  background-color: #edf0ff;
-}
-body[data-catalog-theme='light'] .bg-coco-neutral-100 {
-  background-color: var(--catalog-soft);
-}
-body[data-catalog-theme='light'] .bg-white,
-body[data-catalog-theme='light'] .bg-white\/80,
-body[data-catalog-theme='light'] .bg-white\/95 {
-  background-color: var(--catalog-surface);
-}
-body[data-catalog-theme='light'] .text-coco-500,
-body[data-catalog-theme='light'] .text-coco-700 {
-  color: var(--catalog-title);
-}
-body[data-catalog-theme='light'] .text-emerald-700 {
-  color: #236044;
-}
-body[data-catalog-theme='light'] .text-amber-700 {
-  color: #805511;
-}
-body[data-catalog-theme='light'] .text-red-700 {
-  color: #b42318;
-}
-body[data-catalog-theme='light'] .bg-emerald-50 {
-  background-color: #eaf5ef;
-}
-body[data-catalog-theme='light'] .bg-amber-50 {
-  background-color: #fff5d6;
-}
-body[data-catalog-theme='light'] .bg-red-50 {
-  background-color: #fef3f2;
-}
-
 /* Final v0 responsive geometry, after its late corrective overrides. */
 @media (min-width: 601px) {
   body[data-catalog-theme='light'] .catalog-container {
@@ -726,9 +713,18 @@ body[data-catalog-theme='light'] .bg-red-50 {
   body[data-catalog-theme='light'] .catalog-header-inner {
     grid-template-columns: 80px minmax(0, 1fr) auto;
     gap: 28px;
+    min-height: 96px;
   }
-  body[data-catalog-theme='light'] .catalog-header > .catalog-container > .catalog-logo {
-    grid-row: 1;
+  body[data-catalog-theme='light'] .catalog-header .catalog-logo {
+    width: 80px;
+    height: 80px;
+  }
+  body[data-catalog-theme='light'] .catalog-footer .catalog-logo {
+    width: 80px;
+    height: 80px;
+  }
+  body[data-catalog-theme='light'] .catalog-footer-inner {
+    gap: 28px 32px;
   }
   body[data-catalog-theme='light'] .catalog-header-controls {
     grid-column: 3;
@@ -757,21 +753,6 @@ body[data-catalog-theme='light'] .bg-red-50 {
   body[data-catalog-theme='light'] .catalog-hero-image img {
     object-position: center 40%;
   }
-  body[data-catalog-theme='light'] .catalog-hero-eyebrow {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 11px;
-    font-weight: 750;
-    letter-spacing: 1.3px;
-    text-transform: uppercase;
-  }
-  body[data-catalog-theme='light'] .catalog-hero-eyebrow > span {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #f6bb13;
-  }
   body[data-catalog-theme='light'] .catalog-category-toolbar h2 {
     font-size: 28px;
   }
@@ -795,17 +776,6 @@ body[data-catalog-theme='light'] .bg-red-50 {
   body[data-catalog-theme='light'] .catalog-container {
     padding-inline: 32px;
   }
-  body[data-catalog-theme='light'] .catalog-hero-caption {
-    display: block;
-    position: absolute;
-    bottom: 22px;
-    right: 24px;
-    padding: 10px 14px;
-    border-radius: 8px;
-    background: var(--catalog-surface);
-    color: var(--catalog-title);
-    font-size: 11px;
-  }
 }
 @media (max-width: 359px) {
   /* A slightly wider photo and smaller title keep both faces in the narrowest crop. */
@@ -828,4 +798,124 @@ body[data-catalog-theme='light'] .bg-red-50 {
   body[data-catalog-theme='light'] .catalog-price-context > span {
     padding-left: 12px;
   }
+}
+
+/* Availability: the dot always travels with the written label. Tones are
+ * roles, never palette colors; sold out is neutral because nothing is wrong. */
+.catalog-availability {
+  --tone-fg: var(--catalog-muted);
+  --tone-bg: var(--catalog-soft);
+  color: var(--tone-fg);
+}
+.catalog-availability[data-tone='success'] {
+  --tone-fg: var(--catalog-success);
+  --tone-bg: var(--catalog-success-soft);
+}
+.catalog-availability[data-tone='warning'] {
+  --tone-fg: var(--catalog-warning);
+  --tone-bg: var(--catalog-warning-soft);
+}
+.catalog-availability[data-tone='neutral'] {
+  --tone-fg: var(--catalog-muted);
+  --tone-bg: var(--catalog-soft);
+}
+.catalog-availability-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background-color: var(--tone-fg);
+}
+.catalog-availability--pill {
+  padding: 3px 10px;
+  border-radius: 6px;
+  background-color: var(--tone-bg);
+}
+
+body[data-catalog-theme='light'] .catalog-product-fallback {
+  gap: 6px;
+  background: var(--catalog-page);
+  color: var(--catalog-muted);
+}
+
+/* Skeleton cards share the card's geometry so loading never shifts the grid. */
+.catalog-skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--catalog-border, #dce2e8);
+  border-radius: 12px;
+  background: var(--catalog-surface, #fff);
+}
+.catalog-skeleton {
+  display: block;
+  border-radius: 6px;
+  background: var(--catalog-soft, #e7eef7);
+  animation: catalog-skeleton-pulse 1.4s ease-in-out infinite;
+}
+.catalog-skeleton-media {
+  height: 130px;
+}
+.catalog-skeleton-line {
+  height: 14px;
+}
+.catalog-skeleton-line--short {
+  width: 60%;
+}
+.catalog-skeleton-price {
+  width: 40%;
+  height: 22px;
+}
+@keyframes catalog-skeleton-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+@media (min-width: 601px) {
+  .catalog-skeleton-media {
+    height: 170px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .catalog-skeleton {
+    animation: none;
+  }
+}
+
+/* Listing states come from the shared EmptyState. Two catalog-only touches: the
+ * category error is one compact row inside the filter strip (not a tall box),
+ * and the loading pills match the category buttons. */
+.catalog-category-error.hf-empty-state {
+  flex: 1 1 100%;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 8px 12px;
+  min-height: 0;
+  padding: 10px 14px;
+  text-align: left;
+}
+.catalog-category-error.hf-empty-state .hf-empty-state__title {
+  flex: 1 1 12rem;
+  min-width: 0;
+  font-size: 13px;
+}
+body[data-catalog-theme='light'] .catalog-category-controls .catalog-category-error > button {
+  margin: 0 0 0 auto;
+  padding-inline: 12px;
+  border-color: var(--catalog-border);
+  background: var(--catalog-surface);
+  color: var(--catalog-title);
+  text-decoration: none;
+}
+.catalog-category-skeleton {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.catalog-skeleton-pill {
+  width: 88px;
+  height: 36px;
+  border-radius: 6px;
 }

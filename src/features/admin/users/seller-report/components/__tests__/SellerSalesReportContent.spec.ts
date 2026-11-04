@@ -213,11 +213,39 @@ describe('SellerSalesReportContent — loaded report', () => {
   })
 })
 
+describe('SellerSalesReportContent — design system', () => {
+  it('renders each payment state as a shared StatusBadge with the mapped tone', () => {
+    const wrapper = mountContent()
+    const badges = wrapper
+      .findAll('[data-testid="seller-report-confirmed-row"] .hf-status-badge')
+      .map((badge) => [badge.text(), badge.attributes('data-tone')])
+
+    expect(badges).toEqual([
+      ['Parcial', 'warning'],
+      ['Pagada', 'success'],
+    ])
+  })
+
+  it('names the seller with a semibold title and keeps money tabular and right-aligned', () => {
+    const wrapper = mountContent()
+
+    expect(wrapper.get('[data-testid="seller-report-seller-name"]').classes()).toContain(
+      'font-semibold',
+    )
+    const money = wrapper.findAll('[data-testid="seller-report-confirmed-row"] td.hf-figure')
+    expect(money).toHaveLength(6)
+    expect(money.every((cell) => cell.classes().includes('text-right'))).toBe(true)
+  })
+})
+
 describe('SellerSalesReportContent — states', () => {
-  it('shows a loading status and claims no report while the first load runs', () => {
+  it('shows a loading skeleton shaped like the report and claims no report while the first load runs', () => {
     const wrapper = mountContent({ report: null, isInitialLoading: true })
 
-    expect(wrapper.find('[data-testid="seller-report-loading"]').exists()).toBe(true)
+    const loading = wrapper.get('[data-testid="seller-report-loading"]')
+    expect(loading.attributes('aria-busy')).toBe('true')
+    // Metric tiles plus table rows, not a bare bar.
+    expect(loading.findAll('[data-slot="base"], .animate-pulse').length).toBeGreaterThanOrEqual(8)
     expect(wrapper.find('[data-testid="seller-report-summary"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="seller-report-seller-name"]').exists()).toBe(false)
   })
@@ -229,7 +257,11 @@ describe('SellerSalesReportContent — states', () => {
       errorMessage: 'El reporte supera el límite de 1,000 filas: el periodo tiene 1,500 ventas.',
     })
 
-    expect(wrapper.find('[data-testid="seller-report-error-message"]').text()).toBe(
+    const failure = wrapper.get('[data-testid="seller-report-error"]')
+    expect(failure.attributes('data-kind')).toBe('error')
+    expect(failure.attributes('role')).toBe('alert')
+    expect(failure.get('.hf-empty-state__title').text()).toBe('No se pudo cargar el reporte')
+    expect(failure.get('.hf-empty-state__description').text()).toBe(
       'El reporte supera el límite de 1,000 filas: el periodo tiene 1,500 ventas.',
     )
     expect(wrapper.findAll('[data-testid="seller-report-confirmed-row"]')).toHaveLength(0)

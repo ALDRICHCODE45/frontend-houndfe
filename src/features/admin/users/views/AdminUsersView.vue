@@ -3,53 +3,39 @@ import { computed, ref, watch, onScopeDispose } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
-import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
+import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { adminUserQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { usersApi } from '../api/users.api'
 import { useUserColumns } from '../composables/useUserColumns'
-import { useUserViewMode, isUserViewMode } from '../composables/useUserViewMode'
 import type { UserTableRow, UpdateUserRequest } from '../interfaces/user.types'
 import type { UserWithRolesResponse } from '../../shared/interfaces/rbac.types'
 import { editUserSchema, sameRoleIds } from '../composables/useUserForm'
 import UserUpsertSlideover from '../components/UserUpsertSlideover.vue'
-import UserCardGrid from '../components/UserCardGrid.vue'
+import AdminMobileCard from '../../shared/components/AdminMobileCard.vue'
+import { noMatchTitleFor } from '../../shared/utils/list-state.utils'
 import SellerSalesReportDrawer from '../seller-report/components/SellerSalesReportDrawer.vue'
 import '../styles/users-visual.css'
 
 const queryClient = useQueryClient()
 const authStore = useAuthStore()
 const tenantId = computed(() => authStore.currentTenantId)
-const headerDescription = computed(() => {
-  const name = authStore.currentTenant?.name ?? '(Global)'
-  return `Administrá los usuarios de ${name}`
-})
 const { columns } = useUserColumns()
-
-// ── View mode (table ↔ card) ──────────────────────────────────────────────────
-const { viewMode, setMode: setViewMode, displayMode } = useUserViewMode()
-
-function handleViewModeChange(mode: string) {
-  if (!isUserViewMode(mode)) return
-  setViewMode(mode)
-}
 
 const {
   pagination,
   sorting,
   globalFilter,
-  columnPinning,
-  columnVisibility,
   data,
   totalCount,
   pageCount,
   isLoading,
   isFetching,
   isError,
-  error,
   refresh,
   pageSizeOptions,
   showingFrom,
@@ -60,31 +46,9 @@ const {
   defaultPageSize: 10,
   persistKey: 'admin-users',
   defaultSorting: [{ id: 'name', desc: false }],
-  defaultPinning: { left: [], right: ['actions'] },
 })
 
-// Human-readable error message for the admin users table. Mirrors
-// CustomersView: prefer backend `response.data.message`, then `error.message`,
-// then the Spanish fallback. The error block in AppDataTable is rendered
-// instead of "No se encontraron usuarios" whenever `isError` is true.
-const usersErrorMessage = computed(() => {
-  const err = error.value as
-    | { response?: { data?: { message?: unknown } }; message?: string }
-    | null
-    | undefined
-  const backendMessage = err?.response?.data?.message
-  if (typeof backendMessage === 'string' && backendMessage.trim()) {
-    return backendMessage
-  }
-  if (Array.isArray(backendMessage) && backendMessage.length > 0) {
-    const first = backendMessage[0]
-    if (typeof first === 'string') return first
-  }
-  if (typeof err?.message === 'string' && err.message.trim()) {
-    return err.message
-  }
-  return 'No se pudieron cargar los usuarios. Reintenta.'
-})
+const usersErrorMessage = 'No se pudieron cargar los usuarios'
 
 const isCreateOpen = ref(false)
 const isEditOpen = ref(false)
@@ -114,7 +78,7 @@ function editErrorMessage(error: unknown) {
     const messages = message.filter((item): item is string => typeof item === 'string')
     if (messages.length) return messages.join('. ')
   }
-  return err?.message || 'No se pudo guardar el usuario. Reintenta.'
+  return err?.message || 'No se pudo guardar el usuario.'
 }
 
 function isCurrentEdit(session: number) {
@@ -131,7 +95,7 @@ async function loadEditDetail() {
   try {
     const detail = await usersApi.getById(userId)
     if (!isCurrentEdit(session)) return
-    if (detail.user.id !== userId) throw new Error('El usuario recibido no coincide. Reintenta.')
+    if (detail.user.id !== userId) throw new Error('El usuario recibido no coincide.')
     editDetail.value = detail
     queryClient.setQueryData(adminUserQueryKeys.detail(tenant, userId), detail)
   } catch (error) {
@@ -296,10 +260,6 @@ const canReadSalesReport = computed(
     authStore.userCan('read', 'Analytics'),
 )
 
-const canShowUserActions = computed(
-  () => canUpdateUser.value || canDeleteUser.value || canReadSalesReport.value,
-)
-
 // Synchronous revision changes fence cancel/reopen and A→B→A before promises settle.
 watch(
   [isEditOpen, () => selectedUser.value?.id, tenantId, canUpdateUser],
@@ -342,12 +302,6 @@ watch(
   { flush: 'sync' },
 )
 
-const dateFormatter = new Intl.DateTimeFormat('es-AR', {
-  day: '2-digit',
-  month: 'short',
-  year: 'numeric',
-})
-
 function openEdit(user: UserTableRow) {
   if (!canUpdateUser.value) return
   selectedUser.value = user
@@ -367,10 +321,6 @@ function closeReport() {
   reportTenantId.value = null
 }
 
-function handleCardClick(user: UserTableRow) {
-  openEdit(user)
-}
-
 async function handleDelete(user: UserTableRow) {
   if (!canDeleteUser.value) return
   openConfirm(`¿Quieres desactivar al usuario ${user.name}?`, () => {
@@ -378,28 +328,45 @@ async function handleDelete(user: UserTableRow) {
   })
 }
 
-function getRowItems(user: UserTableRow) {
-  const mainActions =
-    canUpdateUser.value || canReadSalesReport.value
-      ? [
-          ...(canUpdateUser.value ? [{ label: 'Editar', onSelect: () => openEdit(user) }] : []),
-          ...(canReadSalesReport.value
-            ? [{ label: 'Ver reporte de ventas', onSelect: () => openReport(user) }]
-            : []),
-        ]
-      : []
+// Opening the row already edits, so a menu whose only item would be "Editar"
+// is not shown (no ⋮). The destructive entry always goes last.
+function actionsFor(): RowAction[] {
+  const extras: RowAction[] = [
+    ...(canReadSalesReport.value
+      ? [{ key: 'report', label: 'Ver reporte de ventas', icon: 'i-lucide-chart-no-axes-column' }]
+      : []),
+    ...(canDeleteUser.value
+      ? [{ key: 'delete', label: 'Eliminar…', icon: 'i-lucide-trash-2', destructive: true }]
+      : []),
+  ]
+  if (extras.length === 0) return []
+  return [...(canUpdateUser.value ? [{ key: 'edit', label: 'Editar', icon: 'i-lucide-pencil' }] : []), ...extras]
+}
 
-  const destructiveActions = canDeleteUser.value
-    ? [
-        {
-          label: 'Eliminar',
-          color: 'error' as const,
-          onSelect: () => handleDelete(user),
-        },
-      ]
-    : []
+const rowActions = computed(() => actionsFor())
 
-  return [mainActions, destructiveActions].filter((section) => section.length > 0)
+function handleRowAction(key: string, user: UserTableRow) {
+  if (key === 'edit') openEdit(user)
+  else if (key === 'report') openReport(user)
+  else if (key === 'delete') void handleDelete(user)
+}
+
+const rowOpen = computed(() => (canUpdateUser.value ? openEdit : undefined))
+
+function rolesLabel(user: UserTableRow) {
+  return user.roles.map((role) => role.name).join(', ')
+}
+
+const searchTerm = computed(() => globalFilter.value.trim())
+const noMatchTitle = computed(() => noMatchTitleFor(searchTerm.value))
+const emptyState = computed(() => ({
+  title: 'Aún no hay usuarios',
+  description: 'Aquí aparecerán los usuarios que crees.',
+  ...(canCreateUser.value ? { actionLabel: 'Crear usuario', actionIcon: 'i-lucide-user-plus' } : {}),
+}))
+
+function clearFilters() {
+  globalFilter.value = ''
 }
 </script>
 
@@ -412,7 +379,7 @@ function getRowItems(user: UserTableRow) {
       @create="createMutation.mutate"
     />
 
-    <p v-if="saveNotice" role="status" class="text-sm text-warning">{{ saveNotice }}</p>
+    <p v-if="saveNotice" role="status" class="users-notice">{{ saveNotice }}</p>
 
     <UserUpsertSlideover
       :key="editSession"
@@ -452,50 +419,51 @@ function getRowItems(user: UserTableRow) {
       :can-read="canReadSalesReport"
     />
 
-    <!-- Canonical table workspace (design-system §4): heading outside the surface. -->
-    <div class="hf-page-header">
-      <h1 class="hf-page-title">Gestión de usuarios</h1>
-      <p class="hf-page-subtitle">{{ headerDescription }}</p>
-    </div>
+    <header class="hf-page-header">
+      <h1 class="hf-page-title">Usuarios</h1>
+    </header>
 
-    <UCard :ui="{ body: 'p-0 sm:p-0' }" class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm">
+    <UCard
+      :ui="{ body: 'p-0 sm:p-0' }"
+      class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm"
+    >
       <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
           v-model:global-filter="globalFilter"
-          v-model:column-pinning="columnPinning"
-          v-model:column-visibility="columnVisibility"
           :columns="columns"
           :data="data"
           :loading="isLoading"
           :fetching="isFetching"
           :error="isError"
           :error-message="usersErrorMessage"
+          :empty-state="emptyState"
+          :filtered="searchTerm !== ''"
+          :no-match-title="noMatchTitle"
           :page-count="pageCount"
           :total-count="totalCount"
           :showing-from="showingFrom"
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
-          :display-mode="displayMode"
+          :row-open="rowOpen"
+          display-mode="auto"
+          mobile-render="cards"
           search-placeholder="Buscar por email..."
           :show-add-button="canCreateUser"
-          add-button-text="Crear Usuario"
+          add-button-text="Crear usuario"
           add-button-icon="i-lucide-user-plus"
-          enable-column-visibility
           empty="No se encontraron usuarios"
           class="hf-data-table"
           portal-class="hf-theme hf-ui users-list-portal"
           pagination-portal-class="hf-theme hf-ui users-list-portal"
           @add="isCreateOpen = true"
+          @empty-action="isCreateOpen = true"
+          @clear-filters="clearFilters"
           @refresh="refresh"
         >
           <template #name-header="{ column }">
             <SortableHeader :column="column" label="Usuario" />
-          </template>
-
-          <template #email-header="{ column }">
-            <SortableHeader :column="column" label="Email" />
           </template>
 
           <template #createdAt-header="{ column }">
@@ -503,71 +471,89 @@ function getRowItems(user: UserTableRow) {
           </template>
 
           <template #name-cell="{ row }">
-            <div class="flex items-center gap-3">
+            <div class="flex min-w-0 items-center gap-3">
               <EntityAvatar
                 :name="row.original.name"
-                :seed="row.original.id"
-                :show-dot="row.original.isActive"
+                aria-hidden="true"
               />
-              <p class="font-medium">{{ row.original.name }}</p>
+              <div class="min-w-0">
+                <button
+                  v-if="canUpdateUser"
+                  type="button"
+                  class="hf-row-primary text-left"
+                  data-testid="user-name"
+                  @click="openEdit(row.original)"
+                >
+                  {{ row.original.name }}
+                </button>
+                <span v-else class="hf-row-primary" data-testid="user-name">{{
+                  row.original.name
+                }}</span>
+                <span class="hf-row-secondary">{{ row.original.email }}</span>
+              </div>
             </div>
           </template>
 
-          <template #email-cell="{ row }">
-            <span class="text-sm text-muted">{{ row.original.email }}</span>
+          <template #status-cell="{ row }">
+            <StatusBadge
+              :label="row.original.isActive ? 'Activo' : 'Inactivo'"
+              :tone="row.original.isActive ? 'success' : 'neutral'"
+            />
           </template>
 
           <template #roles-cell="{ row }">
-            <div class="flex flex-wrap gap-2">
-              <AppBadge
-                v-for="role in row.original.roles"
-                :key="role.id"
-                tone="info"
-                :label="role.name"
-              >
-              </AppBadge>
-              <span v-if="row.original.roles.length === 0" class="text-sm text-muted"
-                >Sin roles</span
-              >
-            </div>
+            <span
+              v-if="row.original.roles.length"
+              class="block max-w-64 truncate text-sm"
+              :title="rolesLabel(row.original)"
+              >{{ rolesLabel(row.original) }}</span
+            >
+            <span v-else class="text-sm text-muted">Sin roles</span>
           </template>
 
           <template #createdAt-cell="{ row }">
-            <span>{{ dateFormatter.format(new Date(row.original.createdAt)) }}</span>
+            <span class="text-sm text-muted">{{ formatShortDateTime(row.original.createdAt) }}</span>
           </template>
+
+          <template #actions-header><span class="sr-only">Acciones</span></template>
 
           <template #actions-cell="{ row }">
-            <UDropdownMenu
-              v-if="canShowUserActions"
-              :items="getRowItems(row.original)"
-              :content="{ align: 'end' }"
-              :ui="{ content: 'hf-theme hf-ui users-list-portal' }"
+            <RowActionsMenu
+              :actions="rowActions"
+              :row-label="row.original.name"
+              portal-class="users-list-portal"
+              @select="handleRowAction($event, row.original)"
+            />
+          </template>
+
+          <template #mobile-card="{ row }">
+            <AdminMobileCard
+              :item="row"
+              :label="row.name"
+              :actions="rowActions"
+              :openable="canUpdateUser"
+              portal-class="users-list-portal"
+              test-id="user-card"
+              @open="openEdit"
+              @action="handleRowAction"
             >
-              <UButton
-                icon="i-lucide-ellipsis-vertical"
-                color="neutral"
-                variant="ghost"
-                class="size-7"
-              />
-            </UDropdownMenu>
-          </template>
-
-          <template #actions>
-            <ViewToggle
-              :model-value="viewMode"
-              class="users-view-toggle"
-              aria-label="Seleccionar vista de usuarios"
-              @update:model-value="handleViewModeChange"
-            />
-          </template>
-
-          <template #cards>
-            <UserCardGrid
-              :users="data"
-              :loading="isLoading || isFetching"
-              :empty="'No se encontraron usuarios'"
-              @card-click="handleCardClick"
-            />
+              <template #leading>
+                <EntityAvatar :name="row.name" aria-hidden="true" />
+              </template>
+              <template #secondary>{{ row.email }}</template>
+              <template #badges>
+                <StatusBadge
+                  :label="row.isActive ? 'Activo' : 'Inactivo'"
+                  :tone="row.isActive ? 'success' : 'neutral'"
+                />
+              </template>
+              <template #footer>
+                <span class="min-w-0 truncate font-medium">{{
+                  row.roles.length ? rolesLabel(row) : 'Sin roles'
+                }}</span>
+                <span class="shrink-0">{{ formatShortDateTime(row.createdAt) }}</span>
+              </template>
+            </AdminMobileCard>
           </template>
         </AppDataTable>
       </div>

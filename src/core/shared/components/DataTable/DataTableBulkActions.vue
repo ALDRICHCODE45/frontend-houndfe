@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { BulkAction } from '../../types/table.types'
-import AppBadge from '../AppBadge.vue'
 
 defineProps<{
   selectedCount: number
@@ -50,7 +49,7 @@ function resolveActionColor(variant: BulkAction<unknown>['variant']): string {
       class="bg-elevated border-default sticky bottom-0 z-10 flex items-center justify-between gap-3 rounded-lg border p-3 shadow-lg"
     >
       <div class="flex items-center gap-2 text-sm">
-        <AppBadge tone="info" :label="String(selectedCount)" />
+        <span class="hf-bulk-count" data-testid="bulk-selected-count">{{ selectedCount }}</span>
         <span class="text-muted"> de {{ totalCount }} seleccionados </span>
         <UButton
           color="neutral"
@@ -76,3 +75,20 @@ function resolveActionColor(variant: BulkAction<unknown>['variant']): string {
     </div>
   </Transition>
 </template>
+
+<style scoped>
+.hf-bulk-count {
+  display: inline-flex;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.5rem;
+  border-radius: 6px;
+  background: var(--hf-active-soft);
+  color: var(--hf-heading);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+</style>

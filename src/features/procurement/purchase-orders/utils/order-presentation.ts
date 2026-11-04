@@ -4,10 +4,11 @@ import type { OrderTotal, PurchaseOrderStatus, PurchaseOrderSummary } from '../i
 
 export const statusLabels: Record<PurchaseOrderStatus, string> = { DRAFT: 'Borrador', CONFIRMED: 'Confirmada', CANCELLED: 'Cancelada' }
 // Domain state to badge tone, defined once for the list, the cards and the open order.
-export const statusTones = { DRAFT: 'warning', CONFIRMED: 'success', CANCELLED: 'neutral' } as const
+export const statusTones = { DRAFT: 'neutral', CONFIRMED: 'success', CANCELLED: 'neutral' } as const
 const basisLabels: Record<OrderTotal['taxBasis'], string> = { EXCLUDES_TAX: 'sin imp.', INCLUDES_TAX: 'con imp.' }
 
-export const avisoLabel = (count: number) => `${count} ${count === 1 ? 'aviso' : 'avisos'}`
+// The list row only carries the server's raw issue count (one per sub-field), not the checklist's issue families, so the marker never shows a number.
+export const avisoLabel = 'Con avisos'
 export function orderRowLabel(order: Pick<PurchaseOrderSummary, 'status' | 'supplierDisplaySnapshot'>) {
   const supplier = order.supplierDisplaySnapshot?.displayName
   return `${supplier ? `la orden de ${supplier}` : 'la orden sin proveedor'}, ${statusLabels[order.status].toLowerCase()}`

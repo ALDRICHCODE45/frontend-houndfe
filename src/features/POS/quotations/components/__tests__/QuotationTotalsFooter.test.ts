@@ -78,7 +78,7 @@ describe('QuotationTotalsFooter — items count', () => {
       },
     })
 
-    expect(wrapper.find('[data-testid="items-count"]').text()).toMatch(/1\s*productos/i)
+    expect(wrapper.find('[data-testid="items-count"]').text()).toMatch(/1\s*producto(?!s)/i)
   })
 
   it('renders the total quantity across multiple items', () => {
@@ -205,7 +205,7 @@ describe('QuotationTotalsFooter — RESUMEN sidebar (T-UI-22/23 / REQ-UI-009)', 
     const wrapper = mount(QuotationTotalsFooter, {
       props: { quotation: makeQuotation() },
     })
-    expect(wrapper.find('[data-testid="summary-title"]').text()).toBe('RESUMEN')
+    expect(wrapper.find('[data-testid="summary-title"]').text()).toBe('Resumen')
   })
 
   it('renders the context subtitle (N productos · M unidades · lista [name])', () => {
@@ -365,14 +365,14 @@ describe('QuotationTotalsFooter — RESUMEN sidebar (T-UI-22/23 / REQ-UI-009)', 
     expect(wrapper.find('[data-testid="summary-validity-notice"]').exists()).toBe(false)
   })
 
-  it('renders the discount row with blue (info) accent color', () => {
+  it('renders the discount row in the heading ink with a minus (no accent color)', () => {
     const wrapper = mount(QuotationTotalsFooter, {
       props: { quotation: makeQuotation({ discountCents: 1500 }) },
     })
     const discountRow = wrapper.find('[data-testid="discount-row"]')
-    // The discount text class is the Coco info-blue color.
+    expect(discountRow.exists()).toBe(true)
     const discountAmount = wrapper.find('[data-testid="discount-amount"]')
-    expect(discountAmount.classes().join(' ')).toMatch(/text-\[var\(--coco-info\)\]/)
+    expect(discountAmount.classes().join(' ')).toMatch(/text-\[var\(--hf-heading\)\]/)
   })
 })
 
@@ -583,13 +583,36 @@ describe('QuotationTotalsFooter — workspace visual boundary (S3/S4)', () => {
     expect(cta.text()).toContain('Enviar cotización')
   })
 
-  it('keeps the discount row on the existing semantic info role', () => {
+  it('keeps the discount amount on the heading role', () => {
     const wrapper = mount(QuotationTotalsFooter, {
       props: { quotation: makeQuotation({ discountCents: 1500, taxRate: 0.16, taxCents: 1600 }) },
     })
 
     expect(wrapper.find('[data-testid="discount-amount"]').classes().join(' ')).toMatch(
-      /text-\[var\(--coco-info\)\]/,
+      /text-\[var\(--hf-heading\)\]/,
     )
+  })
+})
+
+describe('QuotationTotalsFooter — review round 1', () => {
+  it('has no uppercase eyebrows', () => {
+    const wrapper = mount(QuotationTotalsFooter, { props: { quotation: makeQuotation() } })
+    expect(wrapper.html()).not.toMatch(/uppercase|tracking-wide/)
+  })
+
+  it('agrees singular and plural in the context line', () => {
+    const one = makeQuotation()
+    one.items = [{ ...(makeQuotation().items[0] ?? {}), quantity: 1 }] as never
+    const wrapper = mount(QuotationTotalsFooter, { props: { quotation: one } })
+    expect(wrapper.get('[data-testid="items-count"]').text()).toBe('1 producto · 1 unidad')
+  })
+
+  it('hides its actions below lg (the sticky bar carries them on mobile)', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: { quotation: makeQuotation(), editable: true },
+    })
+    const actions = wrapper.get('[data-testid="detail-sidebar-actions"]')
+    expect(actions.classes()).toContain('hidden')
+    expect(actions.classes()).toContain('lg:flex')
   })
 })

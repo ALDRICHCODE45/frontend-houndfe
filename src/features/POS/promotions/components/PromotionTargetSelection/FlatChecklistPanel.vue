@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
-import type {
-  PromotionTargetItemFormEntry,
-  PromotionTargetType,
-} from '../../interfaces/promotion.types'
+import type { PromotionTargetItemFormEntry } from '../../interfaces/promotion.types'
 import { PROMOTION_TARGET_TYPE } from '../../constants/promotion.constants'
 
 // ── Props & emits ─────────────────────────────────────────────────────────────
@@ -137,10 +134,6 @@ const dataSourceLabel: Record<typeof props.dataSource, string> = {
 }
 
 const searchPlaceholder = computed(() => `Buscar ${dataSourceLabel[props.dataSource]}...`)
-
-// Suppress unused-type warning while keeping the type available for future
-// type-specific formatting (Slice 3 may add per-type badges / icons).
-type _ReservedType = PromotionTargetType
 </script>
 
 <template>

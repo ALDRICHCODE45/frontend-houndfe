@@ -22,11 +22,11 @@
  * action (REQ-QTN-013).
  */
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import type { DropdownMenuItem } from '@nuxt/ui'
 import { useQuotationItemStock } from '../composables/useQuotationItemStock'
 import type { QuotationItemResponseDto } from '../interfaces/quotation.types'
 import { formatCentsMXN, lineCents } from '../utils/currency.utils'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -88,13 +88,13 @@ const { stock, isAvailable: isStockAvailable } = useQuotationItemStock(
 )
 
 /** Stock badge tone ladder:
- *    isOut  → error   (zero quantity, "Agotado")
+ *    isOut  → danger  (zero quantity, "Agotado")
  *    isLow  → warning (below minQuantity but > 0)
  *    else   → neutral (informational, never gates actions)
  * Mirrors the `ProductSearchResultItem` stock chip from sales. */
-const stockBadgeTone = computed<'error' | 'warning' | 'neutral'>(() => {
+const stockBadgeTone = computed<'danger' | 'warning' | 'neutral'>(() => {
   if (!stock.value) return 'neutral'
-  if (stock.value.isOut) return 'error'
+  if (stock.value.isOut) return 'danger'
   if (stock.value.isLow) return 'warning'
   return 'neutral'
 })
@@ -103,13 +103,6 @@ const stockBadgeLabel = computed<string | null>(() => {
   if (!stock.value) return null
   if (stock.value.isOut) return 'Agotado'
   return `Stock: ${stock.value.quantity}`
-})
-
-const stockBadgeIcon = computed<string | undefined>(() => {
-  if (!stock.value) return undefined
-  if (stock.value.isOut) return 'i-lucide-package-x'
-  if (stock.value.isLow) return 'i-lucide-package-minus'
-  return 'i-lucide-package'
 })
 
 // ── Quantity stepper handlers ────────────────────────────────────────────────
@@ -159,29 +152,20 @@ function handleRemove(): void {
   emit('request-remove', props.item.id)
 }
 
-/** Loose draft-only actions consolidated into a single dropdown menu.
- *  Empty (no groups) when readonly so no trigger renders. Mirrors the
- *  `SaleItemRow` grouped-items pattern. */
-const itemActions = computed<DropdownMenuItem[][]>(() => {
+/** Draft-only actions in the ⋮ menu (destructive last). Empty when readonly,
+ *  so no trigger renders. */
+const itemActions = computed<RowAction[]>(() => {
   if (props.readonly) return []
   return [
-    [
-      {
-        label: 'Cambiar precio',
-        icon: 'i-lucide-pencil',
-        onSelect: () => handleOverride(),
-      },
-    ],
-    [
-      {
-        label: 'Eliminar producto',
-        icon: 'i-lucide-trash-2',
-        color: 'error' as const,
-        onSelect: () => handleRemove(),
-      },
-    ],
+    { key: 'override', label: 'Cambiar precio…', icon: 'i-lucide-pencil' },
+    { key: 'remove', label: 'Quitar producto…', icon: 'i-lucide-trash-2', destructive: true },
   ]
 })
+
+function onItemAction(key: string): void {
+  if (key === 'override') handleOverride()
+  else if (key === 'remove') handleRemove()
+}
 </script>
 
 <template>
@@ -221,7 +205,7 @@ const itemActions = computed<DropdownMenuItem[][]>(() => {
 
       <!-- Variant + unit price meta -->
       <p class="text-xs text-muted truncate" data-testid="product-meta">
-        <span v-if="variantName" class="uppercase tracking-wide" data-testid="variant-badge"
+        <span v-if="variantName" data-testid="variant-badge"
           >{{ variantName }} ·
         </span>
         <span v-if="props.item.product?.sku" class="font-mono"
@@ -233,7 +217,7 @@ const itemActions = computed<DropdownMenuItem[][]>(() => {
       </p>
 
       <!-- Discount info -->
-      <p v-if="hasDiscount" class="text-xs text-primary truncate" data-testid="discount-info">
+      <p v-if="hasDiscount" class="text-xs text-muted truncate" data-testid="discount-info">
         {{ discountLabel }}
       </p>
 
@@ -249,7 +233,7 @@ const itemActions = computed<DropdownMenuItem[][]>(() => {
         />
         <span class="text-sm tabular-nums ml-auto" data-testid="line-subtotal">
           <span class="text-muted">× {{ unitPriceText }} = </span>
-          <span class="font-bold text-highlighted">{{ lineSubtotalText }}</span>
+          <span class="font-semibold text-highlighted">{{ lineSubtotalText }}</span>
         </span>
       </div>
 
@@ -259,25 +243,25 @@ const itemActions = computed<DropdownMenuItem[][]>(() => {
         class="flex flex-wrap items-center gap-1 pt-0.5"
         data-testid="badges-row"
       >
-        <AppBadge
+        <StatusBadge
           v-if="isStockAvailable && stockBadgeLabel"
           :tone="stockBadgeTone"
-          :icon="stockBadgeIcon"
           :label="stockBadgeLabel"
+          :aria-label="stockBadgeLabel"
           data-testid="stock-badge"
         />
-        <AppBadge
+        <StatusBadge
           v-if="isCustomPrice"
           tone="warning"
-          icon="i-lucide-pencil-ruler"
-          label="PRECIO MANUAL"
+          label="Precio manual"
+          aria-label="Precio manual"
           data-testid="manual-price-badge"
         />
-        <AppBadge
+        <StatusBadge
           v-if="isPromotionPriced && props.item.discountTitle"
           tone="info"
-          icon="i-lucide-tag"
           :label="props.item.discountTitle"
+          :aria-label="`Promoción: ${props.item.discountTitle}`"
           data-testid="promotion-badge"
         />
       </div>
@@ -286,27 +270,17 @@ const itemActions = computed<DropdownMenuItem[][]>(() => {
     <!-- RIGHT: compact pricing (read-only or alongside stepper) -->
     <div v-if="props.readonly" class="shrink-0 text-right flex flex-col items-end min-w-[80px]">
       <p class="text-xs text-muted tabular-nums">{{ unitPriceText }} c/u</p>
-      <p v-if="hasDiscount" class="text-[10px] text-primary tabular-nums">{{ discountLabel }}</p>
-      <p class="text-sm font-bold text-highlighted tabular-nums">{{ lineSubtotalText }}</p>
+      <p v-if="hasDiscount" class="text-xs text-muted tabular-nums">{{ discountLabel }}</p>
+      <p class="text-sm font-semibold text-highlighted tabular-nums">{{ lineSubtotalText }}</p>
     </div>
 
-    <!-- Item actions dropdown (DRAFT only, right-aligned) -->
-    <UDropdownMenu
-      v-if="!props.readonly"
-      :items="itemActions"
-      :content="{ align: 'end' }"
-      :ui="{ content: 'hf-theme hf-ui quotations-workspace-portal' }"
+    <!-- Item actions (DRAFT only, right-aligned) -->
+    <RowActionsMenu
+      :actions="itemActions"
+      :row-label="props.item.productName"
+      portal-class="quotations-workspace-portal"
       data-testid="item-actions-menu"
-    >
-      <UButton
-        size="xs"
-        color="neutral"
-        variant="ghost"
-        icon="i-lucide-ellipsis-vertical"
-        aria-label="Acciones del ítem"
-        class="shrink-0"
-        data-testid="item-actions-trigger"
-      />
-    </UDropdownMenu>
+      @select="onItemAction"
+    />
   </article>
 </template>

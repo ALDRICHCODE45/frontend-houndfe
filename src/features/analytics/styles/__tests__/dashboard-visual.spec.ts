@@ -24,13 +24,14 @@ describe('Dashboard shell presentation boundary', () => {
     expect(view).toContain("import '../styles/dashboard-visual.css'")
     expect(view).toContain('hf-theme hf-ui dashboard-visual')
     expect(view).not.toContain('<UCard')
-    expect(view).toContain('CONTROL DE VENTAS')
+    expect(view).not.toContain('CONTROL DE VENTAS')
+    expect(view).not.toContain('dashboard-eyebrow')
     expect(view).toContain('dashboard-page-header')
     expect(view).toContain('dashboard-page-footer')
     expect(view).toContain('Todos los importes en MXN · Hora de Ciudad de México')
     expect(css).toContain('max-width: 1320px')
     expect(css).toContain('gap: 24px')
-    expect(css).toContain('background: var(--hf-gold)')
+    expect(css).not.toContain('dashboard-eyebrow')
   })
 
   // The shell body already pads routed pages (`p-4 sm:p-6`) and paints the page

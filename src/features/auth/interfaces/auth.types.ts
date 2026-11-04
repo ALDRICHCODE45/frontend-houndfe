@@ -117,6 +117,12 @@ export type AppSubject =
   // returns null, the ability never updates, and the inbox silently disappears
   // — hence the explicit no-silent-drop pin-tests in ability.test.ts.
   | 'HumanDecision'
+  // ODD inventory-journal-o1 T1: 'InventoryJournal' (read: stock and kardex) and
+  // 'InventoryAdjustment' (create: adjust stock) join the AppSubject union before
+  // 'all'. Granular and never inherited from Product/Sale; the runtime half is
+  // APP_SUBJECTS in authorization/ability.ts.
+  | 'InventoryJournal'
+  | 'InventoryAdjustment'
   | 'CashRegister'
   | 'CashSession'
   | 'CashSessionAudit'
@@ -127,7 +133,7 @@ export type AppSubject =
   | 'CashHandover'
   | 'all'
 
-export interface EffectivePermission {
+interface EffectivePermission {
   subject: AppSubject
   action: AppAction
 }
@@ -159,13 +165,13 @@ export interface VerifyLoginOtpRequest {
   code: string
 }
 
-export interface LoginSuccessResponse extends AuthTokens {
+interface LoginSuccessResponse extends AuthTokens {
   requiresTenantSelection: false
   user: AuthUser
   tenants: TenantSummary[]
 }
 
-export interface LoginTenantSelectionResponse {
+interface LoginTenantSelectionResponse {
   requiresTenantSelection: true
   user: AuthUser
   tenants: TenantSummary[]

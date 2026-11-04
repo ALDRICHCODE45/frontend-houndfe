@@ -171,7 +171,7 @@ describe('QuotationPriceOverrideModal — submit', () => {
     await flushPromises()
 
     expect(wrapper.emitted('update:open')).toBeUndefined()
-    expect(wrapper.text()).toContain('No se pudo aplicar el cambio de precio. Reintenta.')
+    expect(wrapper.text()).toContain('No se pudo aplicar el cambio de precio.')
   })
 })
 

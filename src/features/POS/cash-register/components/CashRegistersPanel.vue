@@ -3,10 +3,16 @@
  * Cash registers list + create / activate.
  *
  * Presentational: the parent owns the query and the commands. Loading, error,
- * empty and access states are all explicit; the "Abrir caja" action is offered
- * only for an active register and only when the identity may open sessions.
+ * empty and access states are explicit; "Abrir caja" is offered only for an
+ * active register and only when the identity may open sessions. A register that
+ * cannot be opened has no name button and no whole-row click.
  */
-import { computed, ref } from 'vue'
+import { computed, ref, useTemplateRef } from 'vue'
+import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
+import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { useClickableRow } from '@/core/shared/composables/useClickableRow'
+import type { TableColumn } from '@/core/shared/types/table.types'
 import type { CashRegister } from '../interfaces/cash.types'
 
 const props = withDefaults(
@@ -15,7 +21,6 @@ const props = withDefaults(
     selectedRegisterId?: string | null
     loading?: boolean
     error?: boolean
-    errorMessage?: string
     canCreate?: boolean
     canUpdate?: boolean
     canOpen?: boolean
@@ -26,7 +31,6 @@ const props = withDefaults(
     selectedRegisterId: null,
     loading: false,
     error: false,
-    errorMessage: 'No se pudieron cargar las cajas. Reintenta.',
     canCreate: false,
     canUpdate: false,
     canOpen: false,
@@ -42,10 +46,65 @@ const emit = defineEmits<{
   refresh: []
 }>()
 
+const columns: TableColumn<CashRegister, unknown>[] = [
+  { id: 'name', header: 'Caja', enableSorting: false },
+  { id: 'status', header: 'Estado', enableSorting: false },
+  {
+    id: 'actions',
+    header: 'Acciones',
+    enableSorting: false,
+    meta: { class: { th: 'w-16', td: 'w-16 text-right' } },
+  },
+]
+
+const root = useTemplateRef<HTMLElement>('root')
 const newName = ref('')
 const formError = ref<string | null>(null)
 
-const showEmpty = computed(() => !props.loading && !props.error && props.registers.length === 0)
+const data = computed(() => [...props.registers])
+const emptyState = computed(() => ({
+  title: 'Aún no hay cajas',
+  description: 'Crea la primera para operar.',
+  ...(props.canCreate ? { actionLabel: 'Crear caja' } : {}),
+}))
+
+const isSelected = (register: CashRegister) => props.selectedRegisterId === register.id
+const isOpenable = (register: CashRegister) => props.canOpen && register.isActive
+const statusOf = (register: CashRegister) => ({
+  label: register.isActive ? 'Activa' : 'Inactiva',
+  tone: register.isActive ? ('success' as const) : ('neutral' as const),
+})
+
+function actionsFor(register: CashRegister): RowAction[] {
+  return [
+    ...(isOpenable(register) && !isSelected(register)
+      ? [{ key: 'open', label: 'Abrir caja', icon: 'i-lucide-door-open' }]
+      : []),
+    ...(props.canUpdate
+      ? [
+          {
+            key: 'toggle',
+            label: register.isActive ? 'Desactivar' : 'Activar',
+            icon: register.isActive ? 'i-lucide-power-off' : 'i-lucide-power',
+            disabled: props.updating,
+          },
+        ]
+      : []),
+  ]
+}
+
+function open(register: CashRegister) {
+  if (isOpenable(register) && !isSelected(register)) emit('select', register.id)
+}
+
+function onAction(key: string, register: CashRegister) {
+  if (key === 'open') open(register)
+  else if (key === 'toggle') emit('update', register.id, { isActive: !register.isActive })
+}
+
+function focusCreate() {
+  root.value?.querySelector<HTMLInputElement>('[data-testid="cash-register-name-input"]')?.focus()
+}
 
 function submitCreate() {
   const name = newName.value.trim()
@@ -58,154 +117,122 @@ function submitCreate() {
   newName.value = ''
 }
 
-function toggleActive(register: CashRegister) {
-  emit('update', register.id, { isActive: !register.isActive })
-}
+const { rowProps } = useClickableRow<CashRegister>(open, { focusable: false })
 </script>
 
 <template>
-  <section class="cash-panel" data-testid="cash-registers-panel">
-    <header class="cash-panel-header">
-      <span class="cash-icon-tile" aria-hidden="true">
-        <UIcon name="i-lucide-store" />
-      </span>
-      <div class="cash-panel-header-text">
-        <h2 class="cash-panel-title">Cajas</h2>
-        <p class="cash-panel-subtitle">Elige una caja activa para abrir su sesión de caja.</p>
-      </div>
-      <div class="cash-panel-header-actions">
-        <UButton
-          type="button"
-          color="neutral"
-          variant="ghost"
-          class="cash-control"
-          data-testid="cash-registers-refresh"
-          @click="emit('refresh')"
-        >
-          Actualizar
-        </UButton>
-      </div>
+  <section ref="root" class="cash-list-section" data-testid="cash-registers-panel">
+    <header class="cash-list-header">
+      <h2 class="cash-list-title">Cajas</h2>
     </header>
 
-    <div class="cash-panel-body">
-      <div v-if="loading" aria-busy="true" data-testid="cash-registers-loading">
-        <USkeleton class="h-12 w-full" />
-      </div>
-
-      <UAlert
-        v-else-if="error"
-        color="error"
-        variant="subtle"
-        title="No se pudieron cargar las cajas"
-        :description="errorMessage"
-        data-testid="cash-registers-error"
-      />
-
-      <p v-else-if="showEmpty" class="text-sm text-muted" data-testid="cash-registers-empty">
-        No hay cajas registradas todavía. Crea la primera para operar.
-      </p>
-
-      <ul v-else class="flex flex-col gap-2">
-        <li
-          v-for="register in registers"
-          :key="register.id"
-          class="flex flex-wrap items-center gap-3 rounded-lg border p-3"
-          :class="
-            selectedRegisterId === register.id ? 'border-primary/40 bg-primary/5' : 'border-default'
-          "
-          :data-testid="`cash-register-item-${register.id}`"
-        >
-          <span
-            class="cash-icon-tile flex size-10 shrink-0 items-center justify-center rounded-lg bg-elevated text-muted ring-1 ring-default"
-          >
-            <UIcon name="i-lucide-store" aria-hidden="true" class="size-5" />
-          </span>
-          <div class="min-w-0 flex-1">
-            <div class="flex flex-wrap items-center gap-2">
-              <h3
-                class="truncate text-sm font-semibold text-highlighted"
-                data-testid="cash-register-name"
-              >
-                {{ register.name }}
-              </h3>
-              <UBadge
-                v-if="selectedRegisterId === register.id"
-                color="primary"
-                variant="subtle"
-                size="sm"
-                data-testid="cash-register-selected"
-              >
-                Seleccionada
-              </UBadge>
-            </div>
-            <p class="mt-0.5 text-xs text-muted">
-              <span data-testid="cash-register-active-state">
-                {{ register.isActive ? 'Activa' : 'Inactiva' }}
-              </span>
-              <span aria-hidden="true"> · </span>
-              <span>{{
-                register.isActive ? 'Lista para abrir sesión' : 'No admite apertura'
-              }}</span>
-            </p>
-          </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <UButton
-              v-if="canOpen"
-              type="button"
-              color="primary"
-              class="cash-control min-h-11"
-              :disabled="!register.isActive || selectedRegisterId === register.id"
-              :data-testid="`cash-register-open-${register.id}`"
-              @click="emit('select', register.id)"
-            >
-              {{ selectedRegisterId === register.id ? 'Caja seleccionada' : 'Abrir caja' }}
-            </UButton>
-            <UButton
-              v-if="canUpdate"
-              type="button"
-              color="neutral"
-              variant="outline"
-              class="cash-control min-h-11"
-              :loading="updating"
-              :data-testid="`cash-register-toggle-${register.id}`"
-              @click="toggleActive(register)"
-            >
-              {{ register.isActive ? 'Desactivar' : 'Activar' }}
-            </UButton>
-          </div>
-        </li>
-      </ul>
-
-      <form
-        v-if="canCreate"
-        class="flex flex-wrap items-end gap-2 border-t border-default pt-4"
-        data-testid="cash-register-create-form"
-        @submit.prevent="submitCreate"
+    <form
+      v-if="canCreate"
+      class="flex flex-wrap items-end gap-2"
+      data-testid="cash-register-create-form"
+      @submit.prevent="submitCreate"
+    >
+      <UFormField label="Nombre de la nueva caja" class="min-w-56 flex-1">
+        <UInput
+          v-model="newName"
+          class="w-full"
+          placeholder="Caja principal"
+          data-testid="cash-register-name-input"
+        />
+      </UFormField>
+      <UButton
+        type="submit"
+        color="neutral"
+        variant="outline"
+        class="min-h-11"
+        :loading="creating"
+        data-testid="cash-register-create-submit"
       >
-        <UFormField label="Nombre de la nueva caja" class="min-w-56 flex-1">
-          <UInput
-            v-model="newName"
-            class="w-full"
-            placeholder="Caja principal"
-            data-testid="cash-register-name-input"
-          />
-        </UFormField>
-        <UButton
-          type="submit"
-          class="min-h-11"
-          :loading="creating"
-          data-testid="cash-register-create-submit"
-        >
-          Crear caja
-        </UButton>
-        <p v-if="formError" class="text-xs text-error" data-testid="cash-register-form-error">
-          {{ formError }}
-        </p>
-      </form>
-
-      <p v-else class="text-xs text-muted" data-testid="cash-registers-create-forbidden">
-        No tienes permiso para crear cajas.
+        Crear caja
+      </UButton>
+      <p v-if="formError" class="w-full text-xs text-error" data-testid="cash-register-form-error">
+        {{ formError }}
       </p>
-    </div>
+    </form>
+
+    <AppDataTable
+      :show-toolbar="false"
+      :columns="columns"
+      :data="data"
+      :loading="loading"
+      :error="error"
+      error-message="No se pudieron cargar las cajas"
+      :empty-state="emptyState"
+      :row-open="canOpen ? open : undefined"
+      display-mode="auto"
+      mobile-render="cards"
+      class="hf-data-table"
+      @refresh="emit('refresh')"
+      @empty-action="focusCreate"
+    >
+      <template #name-cell="{ row }">
+        <button
+          v-if="isOpenable(row.original)"
+          type="button"
+          class="hf-row-primary cash-row-link"
+          :data-testid="`cash-register-open-${row.original.id}`"
+          @click="open(row.original)"
+        >
+          {{ row.original.name }}
+        </button>
+        <span v-else class="hf-row-primary cash-row-link" data-testid="cash-register-name">{{
+          row.original.name
+        }}</span>
+        <span v-if="isSelected(row.original)" class="hf-row-secondary">Seleccionada</span>
+      </template>
+      <template #status-cell="{ row }">
+        <StatusBadge
+          v-bind="statusOf(row.original)"
+          :data-testid="`cash-register-status-${row.original.id}`"
+        />
+      </template>
+      <template #actions-header><span class="sr-only">Acciones</span></template>
+      <template #actions-cell="{ row }">
+        <RowActionsMenu
+          :actions="actionsFor(row.original)"
+          :row-label="row.original.name"
+          @select="onAction($event, row.original)"
+        />
+      </template>
+
+      <template #mobile-card="{ row }">
+        <article v-bind="rowProps(row)" class="cash-card">
+          <div class="cash-card-heading">
+            <div class="cash-card-title">
+              <button
+                v-if="isOpenable(row)"
+                type="button"
+                class="hf-row-primary cash-row-link"
+                :data-testid="`cash-register-open-${row.id}`"
+                @click="open(row)"
+              >
+                {{ row.name }}
+              </button>
+              <span v-else class="hf-row-primary cash-row-link" data-testid="cash-register-name">{{
+                row.name
+              }}</span>
+              <span v-if="isSelected(row)" class="hf-row-secondary">Seleccionada</span>
+            </div>
+            <RowActionsMenu
+              class="cash-card-menu"
+              :actions="actionsFor(row)"
+              :row-label="row.name"
+              @select="onAction($event, row)"
+            />
+          </div>
+          <div class="cash-card-meta">
+            <StatusBadge
+              v-bind="statusOf(row)"
+              :data-testid="`cash-register-status-${row.id}`"
+            />
+          </div>
+        </article>
+      </template>
+    </AppDataTable>
   </section>
 </template>

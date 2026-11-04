@@ -18,6 +18,9 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ select: [priceListId: string]; retry: [] }>()
 
+const selectedName = computed(
+  () => props.options.find((option) => option.priceListId === props.modelValue)?.name ?? null,
+)
 const isReady = computed(() => props.state === 'populated')
 const isLoading = computed(() => props.state === 'loading' || props.state === 'retry-pending')
 
@@ -31,7 +34,7 @@ const message = computed(() => {
     case 'rate-limit':
       return 'Demasiadas solicitudes. Intenta de nuevo más tarde.'
     case 'network':
-      return 'No se pudo conectar. Revisa tu conexión.'
+      return 'No se pudo conectar. Inténtalo de nuevo en un momento.'
     default:
       return 'No pudimos cargar las listas de precios.'
   }
@@ -49,7 +52,7 @@ function onSelect(value: string | null) {
     data-testid="catalog-price-context-selector"
     class="catalog-price-context w-full min-w-0"
   >
-    <span data-testid="catalog-price-context-label" class="text-xs font-medium text-muted">
+    <span data-testid="catalog-price-context-label" class="text-xs font-medium text-muted max-sm:sr-only">
       Lista de precios
     </span>
     <USelectMenu
@@ -75,7 +78,15 @@ function onSelect(value: string | null) {
       aria-label="Lista de precios"
       data-testid="catalog-price-context-menu"
       @update:model-value="onSelect"
-    />
+    >
+      <!-- On a phone the visible label gives way, so the control names itself (`Lista · Público`). -->
+      <template v-if="selectedName !== null" #default>
+        <span class="truncate">
+          <span data-testid="catalog-price-context-prefix" class="text-muted sm:hidden">Lista ·</span>
+          {{ selectedName }}
+        </span>
+      </template>
+    </USelectMenu>
 
     <div
       v-if="isLoading"
@@ -92,8 +103,8 @@ function onSelect(value: string | null) {
         {{ message }}
       </p>
       <UButton
-        color="primary"
-        variant="solid"
+        color="neutral"
+        variant="outline"
         size="sm"
         icon="i-lucide-refresh-cw"
         aria-label="Reintentar listas de precios"

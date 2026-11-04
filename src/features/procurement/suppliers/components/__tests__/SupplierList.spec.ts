@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
@@ -184,6 +185,11 @@ describe('supplier list', () => {
       expect(card.findAll('button')).toHaveLength(2)
       expect(card.get('button[aria-haspopup="menu"]').attributes('aria-label')).toBe('Acciones de Proveedor Centro')
       wrapper.unmount()
+    })
+    it('clamps a long card name to two lines instead of one ellipsized line', () => {
+      const source = readFileSync('src/features/procurement/suppliers/components/SupplierList.vue', 'utf8')
+      expect(source).toMatch(/\.supplier-card \.supplier-name \{[^}]*-webkit-line-clamp: 2/)
+      expect(source).toMatch(/\.supplier-card \.supplier-name \{[^}]*white-space: normal/)
     })
     it('opens from the whole card but not from the menu, and offers the same actions', async () => {
       holder.mobile = true

@@ -99,7 +99,7 @@ export const SELLER_REPORT_FAILURE_MESSAGES: Record<SellerReportFailure['kind'],
     'El servidor rechazó el periodo solicitado. Ajusta las fechas e inténtalo de nuevo.',
   'pdf-generation-failed':
     'No se pudo generar el PDF del reporte. Inténtalo de nuevo en unos segundos.',
-  unknown: 'No pudimos cargar el reporte de ventas. Reintenta en unos segundos.',
+  unknown: 'Puede ser un problema temporal del servidor.',
 }
 
 /**

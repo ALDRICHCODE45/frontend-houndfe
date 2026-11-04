@@ -33,8 +33,8 @@
   color: var(--hf-muted);
   background: var(--hf-surface-muted);
 }
+.dashboard-visual .dashboard-operation-header { align-items: center; }
 .dashboard-visual .dashboard-operation-header h2 { color: var(--hf-heading); font-size: 14px; font-weight: 600; }
-.dashboard-visual .dashboard-operation-header p { margin-top: 4px; color: var(--hf-muted); font-size: 12px; }
 .dashboard-visual .dashboard-operation-row {
   min-width: 0;
   padding: 16px 20px;
@@ -57,38 +57,34 @@
 .dashboard-visual .dashboard-row-date { color: var(--hf-muted); font-size: 12px; }
 .dashboard-visual .dashboard-row-date { margin-top: 2px; }
 .dashboard-visual .dashboard-row-amount { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; min-width: 0; max-width: 55%; text-align: right; }
-.dashboard-visual .dashboard-row-amount > strong { font-size: 15px; font-weight: 600; letter-spacing: -0.3px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
-.dashboard-visual .dashboard-row-status { font-size: 12px; color: var(--hf-success); border-radius: 4px; padding: 2px 5px; background: color-mix(in srgb, var(--hf-success) 7%, transparent); }
-.dashboard-visual .dashboard-status-warning { color: var(--hf-warning); background: var(--hf-warning-soft); }
-.dashboard-visual .dashboard-row-amount.text-warning { color: var(--hf-warning); }
-.dashboard-visual .dashboard-refund-facts { display: flex; flex-direction: column; gap: 3px; margin-top: 10px; color: var(--hf-muted); font-size: 12px; }
-.dashboard-visual .dashboard-refund-facts > div { display: flex; gap: 8px; min-width: 0; }
-.dashboard-visual .dashboard-refund-facts dt { width: 42px; flex-shrink: 0; opacity: 0.85; }
-.dashboard-visual .dashboard-refund-facts dd { min-width: 0; overflow-wrap: anywhere; }
-.dashboard-visual .dashboard-empty-block,
-.dashboard-visual .dashboard-error-block,
-.dashboard-visual .dashboard-error-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  min-width: 0;
-  text-align: center;
-  color: var(--hf-muted);
-  font-size: 13px;
-}
-.dashboard-visual .dashboard-empty-block,
-.dashboard-visual .dashboard-error-block { min-height: 220px; padding: 32px; }
-.dashboard-visual .dashboard-empty-icon { display: flex; padding: 14px; margin-bottom: 8px; border: 6px solid var(--hf-page); border-radius: 16px; box-shadow: 0 0 0 1px var(--hf-border); background: var(--hf-surface-muted); }
-.dashboard-visual .dashboard-empty-block strong { color: var(--hf-heading); font-weight: 600; }
-.dashboard-visual .dashboard-loading-block { display: flex; flex-direction: column; gap: 20px; min-height: 240px; padding: 24px; }
-.dashboard-visual .dashboard-loading-block .dashboard-state-skeleton {
+.dashboard-visual .dashboard-row-amount > strong { color: var(--hf-heading); font-size: 15px; font-weight: 600; letter-spacing: -0.3px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.dashboard-visual .dashboard-skeleton-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.dashboard-visual .dashboard-skeleton-lines { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.dashboard-visual .dashboard-loading-block { display: flex; flex-direction: column; gap: 24px; min-height: 240px; padding: 20px; }
+.dashboard-visual .dashboard-state-skeleton {
   background: linear-gradient(90deg, var(--hf-surface-muted), var(--hf-page), var(--hf-surface-muted));
   background-size: 200% 100%;
   animation: dashboard-panel-shimmer 1.8s infinite;
 }
-.dashboard-visual .dashboard-summary-feedback { min-height: 444px; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); }
+/* The shared EmptyState owns the words and the tone; the dashboard only sizes it. */
+.dashboard-visual .dashboard-operations .hf-empty-state { min-height: 220px; }
+.dashboard-visual .dashboard-summary-feedback { min-height: 220px; }
+.dashboard-visual .dashboard-summary-empty { min-height: 220px; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); }
+/* A failed summary is the one page-level error; the trend and each panel say it
+ * in one compact row (icon, title, retry) so five boxes never shout at once. */
+.dashboard-visual .hf-empty-state.dashboard-compact-error {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 8px 12px;
+  min-height: 0;
+  padding: 12px 16px;
+  text-align: left;
+}
+.dashboard-visual .hf-empty-state.dashboard-compact-error .hf-empty-state__title { flex: 1 1 12rem; min-width: 0; font-size: 13px; }
+.dashboard-visual .hf-empty-state.dashboard-compact-error > button { margin: 0; margin-left: auto; }
+.dashboard-visual .dashboard-operations:has(.dashboard-compact-error) { min-height: 0; }
+.dashboard-visual .dashboard-operations .hf-empty-state.dashboard-compact-error { margin: 12px; }
 .dashboard-visual .dashboard-refresh-note { display: flex; align-items: center; gap: 8px; padding: 8px 0; color: var(--hf-action); font-size: 12px; }
 .dashboard-visual .dashboard-stale-alert { display: flex; align-items: center; gap: 12px; padding: 12px; margin-bottom: 12px; border: 1px solid color-mix(in srgb, var(--hf-warning) 30%, transparent); border-radius: 6px; background: var(--hf-warning-soft); color: var(--hf-warning); font-size: 12px; }
 .dashboard-visual .dashboard-stale-content { display: flex; align-items: center; flex: 1; gap: 12px; min-width: 0; }
@@ -113,7 +109,10 @@
   .dashboard-visual .dashboard-operations:last-child:nth-child(3) { grid-column: 1 / -1; }
 }
 @media (max-width: 700px) {
-  .dashboard-visual .dashboard-panel-grid { grid-template-columns: minmax(0, 1fr); }
+  /* The counted tiers out-rank a bare class, so they are repeated here. */
+  .dashboard-visual .dashboard-panel-grid,
+  .dashboard-visual .dashboard-panel-grid[data-panel-count='2'],
+  .dashboard-visual .dashboard-panel-grid[data-panel-count='3'] { grid-template-columns: minmax(0, 1fr); }
   .dashboard-visual .dashboard-operations { min-height: 0; }
   .dashboard-visual .dashboard-operations:last-child:nth-child(3) { grid-column: auto; }
   .dashboard-visual .dashboard-stale-alert,
@@ -122,7 +121,7 @@
 @media (prefers-reduced-motion: reduce) {
   .dashboard-visual .dashboard-panel-grid,
   .dashboard-visual .dashboard-operation-row,
-  .dashboard-visual .dashboard-loading-block .dashboard-state-skeleton,
+  .dashboard-visual .dashboard-state-skeleton,
   .dashboard-visual .dashboard-operations :is(.animate-spin, .animate-pulse),
   .dashboard-visual .dashboard-summary-state :is(.animate-spin, .animate-pulse),
   .dashboard-visual .dashboard-stale-alert .animate-spin,

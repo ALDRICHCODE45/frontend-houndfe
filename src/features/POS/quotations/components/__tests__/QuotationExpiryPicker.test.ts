@@ -49,6 +49,18 @@ describe('QuotationExpiryPicker — display', () => {
     expect(wrapper.text()).toMatch(/sin expiraci[oó]n/i)
   })
 
+  it('says "Sin expiración" once in the editable picker besides its chip', () => {
+    const wrapper = mountPicker({ expiresAt: null, readonly: false })
+    const outside = wrapper
+      .findAll('span, p')
+      .filter((node) => node.text() === 'Sin expiración' && !node.element.closest('[data-testid="expiry-chips"]'))
+    expect(outside).toHaveLength(0)
+    // The date field and the chip never both say it: one "Sin expiración" in the whole picker.
+    expect(wrapper.text().match(/Sin expiración/g)).toHaveLength(1)
+    expect(wrapper.html()).not.toMatch(/uppercase|tracking-wide/)
+    expect(wrapper.get('[data-testid="quotation-expiry-picker"] p').text()).toBe('Expira')
+  })
+
   it('renders the formatted current expiry date when expiresAt is set', () => {
     const wrapper = mountPicker({
       expiresAt: '2026-09-15T12:00:00.000Z',
@@ -260,14 +272,14 @@ describe('QuotationExpiryPicker — shortcut chips (T-UI-17/18/19 / REQ-UI-006)'
     expect(wrapper.get('[data-testid="expiry-chip-7"]').attributes('data-active')).toBe('false')
   })
 
-  it('exposes the workspace gold-ink hook on the selected shortcut chip only', () => {
+  it('paints the selected shortcut chip with the action role only', () => {
     const wrapper = mountPicker({ expiresAt: null, readonly: false })
 
     expect(wrapper.get('[data-testid="expiry-chip-none"]').classes()).toContain(
-      'quotations-gold-ink',
+      'text-[var(--hf-action)]',
     )
     expect(wrapper.get('[data-testid="expiry-chip-7"]').classes()).not.toContain(
-      'quotations-gold-ink',
+      'text-[var(--hf-action)]',
     )
   })
 

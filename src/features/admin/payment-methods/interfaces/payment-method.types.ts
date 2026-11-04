@@ -140,7 +140,7 @@ export function normalizeSubtitle(subtitle: string | undefined): string | undefi
  * PAYMENT_METHOD_STATUS_LABELS — single source for the Activo/Inactivo badge.
  * Gender matches "método".
  */
-export const PAYMENT_METHOD_STATUS_LABELS = {
+const PAYMENT_METHOD_STATUS_LABELS = {
   active: 'Activo',
   inactive: 'Inactivo',
 } as const

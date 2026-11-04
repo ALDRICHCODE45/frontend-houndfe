@@ -1,57 +1,55 @@
 <script setup lang="ts">
+/**
+ * HumanDecisionCard — the mobile form of a pending request (Mobile cards
+ * rules): title as the primary text, the product as the secondary line, the status badge, and a separated footer with the
+ * quantity and the short date. The whole card opens the detail.
+ */
 import { computed } from 'vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { useClickableRow } from '@/core/shared/composables/useClickableRow'
 import type { HumanDecision } from '../interfaces/human-decision.types'
-import { presentPendingHumanDecision } from '../utils/humanDecisionPresentation'
+import {
+  listDatePresentationLabel,
+  presentPendingHumanDecision,
+} from '../utils/humanDecisionPresentation'
 
 const props = defineProps<{ decision: Extract<HumanDecision, { status: 'PENDING' }> }>()
 const emit = defineEmits<{ openDetail: [decisionId: string] }>()
 const presentation = computed(() => presentPendingHumanDecision(props.decision))
+
+const { rowProps } = useClickableRow<string>((id) => emit('openDetail', id), { focusable: false })
 </script>
 
 <template>
   <article
+    v-bind="rowProps(decision.id)"
     data-testid="human-decision-card"
-    class="human-decisions-card flex w-full flex-col gap-3 rounded-xl p-4"
+    class="human-decisions-card flex w-full flex-col gap-3 p-4"
   >
-    <header class="space-y-1">
-      <UBadge color="warning" variant="subtle" data-testid="human-decision-status"
-        >Pendiente</UBadge
-      >
-      <h2 class="text-base font-semibold text-highlighted">{{ decision.title }}</h2>
-      <p class="text-sm text-muted">{{ decision.sanitizedSummary }}</p>
+    <header class="human-decisions-card-heading">
+      <div class="min-w-0 flex-1">
+        <button
+          type="button"
+          class="hf-row-primary text-left"
+          data-testid="human-decision-open-detail"
+          @click="emit('openDetail', decision.id)"
+        >
+          {{ decision.title }}
+        </button>
+        <span class="hf-row-secondary">
+          {{ presentation.productLabel }} · {{ presentation.productMetaLabel }}
+        </span>
+      </div>
     </header>
-    <dl class="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-      <div class="col-span-2 min-w-0">
-        <dt class="text-muted">Producto</dt>
-        <dd class="mt-0.5 min-w-0">
-          <p class="truncate font-medium text-default">{{ presentation.productLabel }}</p>
-          <p class="truncate text-muted">{{ presentation.productMetaLabel }}</p>
-        </dd>
-      </div>
-      <div class="min-w-0">
-        <dt class="text-muted">Sucursal</dt>
-        <dd class="mt-0.5 truncate text-default">{{ presentation.branchLabel }}</dd>
-      </div>
-      <div v-if="presentation.requestedQuantityLabel" class="min-w-0">
-        <dt class="text-muted">Solicitado</dt>
-        <dd class="mt-0.5 truncate text-default">{{ presentation.requestedQuantityLabel }}</dd>
-      </div>
-      <div class="min-w-0">
-        <dt class="text-muted">Creada</dt>
-        <dd class="mt-0.5 truncate text-default">{{ presentation.createdAtLabel }}</dd>
-      </div>
-    </dl>
-    <UButton
-      type="button"
-      color="primary"
-      variant="solid"
-      block
-      data-testid="human-decision-open-detail"
-      class="min-h-11 w-full justify-center"
-      :aria-label="`Abrir detalle: ${decision.title}`"
-      @click="emit('openDetail', decision.id)"
-    >
-      Ver detalle
-    </UButton>
+    <StatusBadge label="Pendiente" tone="warning" data-testid="human-decision-status" />
+    <footer class="human-decisions-card-footer">
+      <span class="min-w-0 truncate">
+        <template v-if="presentation.requestedQuantityLabel">
+          <span class="hf-figure">{{ presentation.requestedQuantityLabel }}</span> ·
+        </template>
+        {{ presentation.branchLabel }}
+      </span>
+      <span>{{ listDatePresentationLabel(decision.createdAt) }}</span>
+    </footer>
   </article>
 </template>

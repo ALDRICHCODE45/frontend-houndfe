@@ -26,7 +26,7 @@ export function isExpired(quotation: Pick<QuotationResponseDto, 'expiresAt'>): b
   return new Date(quotation.expiresAt).getTime() < Date.now()
 }
 
-/** Map a status to its `AppBadge` tone. */
+/** Map a status to its badge tone. */
 export function statusToTone(status: QuotationStatus): QuotationStatusTone {
   return QUOTATION_STATUS_TONE[status]
 }

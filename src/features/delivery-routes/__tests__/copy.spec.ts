@@ -57,7 +57,8 @@ describe('copy.ts — single Spanish copy source (design.md §3)', () => {
 
   it('contains the empty states for the list view (manager + driver)', () => {
     expect(DELIVERY_ROUTE_COPY.empty.manager).toBe('No hay rutas de entrega')
-    expect(DELIVERY_ROUTE_COPY.empty.driver).toMatch(/no tienes rutas activas/i)
+    expect(DELIVERY_ROUTE_COPY.empty.managerTitle).toBe('Aún no hay rutas')
+    expect(DELIVERY_ROUTE_COPY.empty.driverTitle).toMatch(/no tienes rutas activas/i)
   })
 
   it('contains the confirm copy (delete/cancel/start) per REQ-DR-007', () => {
@@ -112,7 +113,7 @@ describe('copy.ts — single Spanish copy source (design.md §3)', () => {
   it('exposes quick-action labels in map/copy/email order (REQ-DCK-005)', () => {
     expect(DELIVERY_ROUTE_COPY.cockpit.quickActions.map).toBe('Ver en mapa')
     expect(DELIVERY_ROUTE_COPY.cockpit.quickActions.copyAddress).toBe('Copiar dirección')
-    expect(DELIVERY_ROUTE_COPY.cockpit.quickActions.email).toBe('Email')
+    expect(DELIVERY_ROUTE_COPY.cockpit.quickActions.email).toBe('Correo')
   })
 
   // ─── B3 correction: centralized success copy for the unified settled handler ───
@@ -251,7 +252,7 @@ describe('copy.ts — single Spanish copy source (design.md §3)', () => {
 
   it('exposes the stop-list heading + supporting line above the ordered rich cards (route-page evolution)', () => {
     expect(DELIVERY_ROUTE_COPY.cockpit.stops.listHeading).toBe('Tus paradas')
-    expect(DELIVERY_ROUTE_COPY.cockpit.stops.listSubheading).toBe('Sigue el orden recomendado')
+    expect('listSubheading' in DELIVERY_ROUTE_COPY.cockpit.stops).toBe(false)
   })
 
   it('exposes the recent-activity heading (compact timeline section)', () => {

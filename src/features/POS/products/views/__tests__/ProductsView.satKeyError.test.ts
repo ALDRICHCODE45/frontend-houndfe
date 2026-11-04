@@ -20,8 +20,6 @@ import type { DomainApiError } from '@/core/shared/utils/error.utils'
 const push = vi.fn()
 const invalidateQueries = vi.fn()
 const refetchQueries = vi.fn()
-const setMode = vi.fn()
-const viewMode = ref<'table' | 'card'>('table')
 
 const serverData = [] as Product[]
 
@@ -70,23 +68,6 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
   }),
 }))
 
-const productApiMock = {
-  create: vi.fn(),
-  createBrand: vi.fn(),
-  createCategory: vi.fn(),
-  update: vi.fn(),
-  remove: vi.fn(),
-  getById: vi.fn(),
-  getCategories: vi.fn(),
-  getBrands: vi.fn(),
-  getPaginated: vi.fn(),
-}
-// NOTE: vi.mock factories are hoisted, so we cannot reference
-// `productApiMock` directly inside the factory. We use a module-level
-// vi.hoisted() to bind the mock BEFORE the import graph runs.
-vi.hoisted(() => {
-  // no-op; the mock object is mutated post-mount from the test.
-})
 vi.mock('../../api/product.api', () => ({
   productApi: {
     create: vi.fn(),
@@ -101,25 +82,12 @@ vi.mock('../../api/product.api', () => ({
   },
 }))
 
-vi.mock('../../composables/useProductColumns', () => ({
-  useProductColumns: () => ({
-    columns: [{ id: 'select' }, { accessorKey: 'name' }, { id: 'actions' }],
-    currencyFormatter: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }),
-  }),
-}))
-
-vi.mock('../../composables/useProductViewMode', () => ({
-  useProductViewMode: () => ({
-    viewMode,
-    setMode: setMode.mockImplementation((mode: 'table' | 'card') => {
-      viewMode.value = mode
-    }),
-    toggleViewMode: vi.fn(),
-  }),
-  isProductViewMode: (value: string) => value === 'table' || value === 'card',
-}))
-
-vi.stubGlobal('useToast', () => ({ add: vi.fn() }))
+const toastAdd = vi.hoisted(() => vi.fn())
+vi.stubGlobal('useToast', () => ({ add: toastAdd }))
+vi.mock('@nuxt/ui/composables/useToast', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@nuxt/ui/composables/useToast')>()
+  return { ...actual, useToast: () => ({ ...actual.useToast(), add: toastAdd }) }
+})
 
 // A slideover stub that exposes the current `errors` prop via a ref,
 // so the test can assert what the parent passed down.
@@ -140,9 +108,7 @@ function mountView() {
   return shallowMount(ProductsView, {
     global: {
       stubs: {
-        AppDataTable: { template: '<div><slot /></div>' },
-        ViewToggle: { template: '<div />' },
-        ProductCardGrid: { template: '<div />' },
+        ProductList: { template: '<div><slot /></div>' },
         UCard: { template: '<div><slot name="header" /><slot /></div>' },
         UModal: { template: '<div />' },
         UForm: { template: '<form><slot /></form>' },
@@ -151,10 +117,6 @@ function mountView() {
         UButton: { template: '<button><slot /></button>' },
         ConfirmModal: { template: '<div />' },
         ProductUpsertSlideover: ProductUpsertSlideoverStub,
-        SortableHeader: true,
-        SelectColumn: true,
-        StatusDotBadge: { template: '<span><slot /></span>' },
-        DotBadge: { template: '<span><slot /></span>' },
       },
     },
   })
@@ -211,5 +173,43 @@ describe('ProductsView — SAT_KEY_NOT_FOUND field error mapping', () => {
 
     expect(slideoverErrors.value?.satKey ?? '').toBe('')
     expect(slideoverErrors.value?.price).toBe('price must be positive')
+  })
+})
+
+// O1 S7: the stock codes map by `error`, never by `message`, to the field they block.
+describe('ProductsView — product stock error codes', () => {
+  beforeEach(() => {
+    capturedHandlers.length = 0
+    slideoverErrors.value = undefined
+    toastAdd.mockClear()
+  })
+
+  const fire = async (status: number, data: DomainApiError) => {
+    mountView()
+    capturedHandlers.find((h) => h.onError)!.onError!(makeAxiosError(status, data))
+    await nextTick()
+  }
+
+  it('STOCK_TRACKING_HAS_STOCK → the "Usar stock" field and the toast', async () => {
+    await fire(409, { error: 'STOCK_TRACKING_HAS_STOCK', message: 'raw server wording' })
+    const copy = 'Hay existencias. Ajusta el stock a 0 antes de desactivar «Usar stock».'
+    expect(slideoverErrors.value?.useStock).toBe(copy)
+    expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ description: copy, color: 'error' }))
+  })
+
+  it('STOCK_QUANTITY_READ_ONLY → the Stock field', async () => {
+    await fire(400, { error: 'STOCK_QUANTITY_READ_ONLY', message: 'raw server wording' })
+    expect(slideoverErrors.value?.quantity).toBe('El stock no se edita aquí. Ajústalo desde Inventario.')
+  })
+
+  it('PRODUCT_TYPE_CHANGE_BLOCKED → human toast, no field in the compact form', async () => {
+    await fire(422, { error: 'PRODUCT_TYPE_CHANGE_BLOCKED', message: 'raw server wording' })
+    expect(slideoverErrors.value?.type).toBeUndefined()
+    expect(toastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description:
+          'El producto tiene existencias o lotes. Ajusta el stock a 0 antes de cambiar el tipo.',
+      }),
+    )
   })
 })

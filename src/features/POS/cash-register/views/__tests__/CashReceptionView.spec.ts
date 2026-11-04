@@ -83,7 +83,7 @@ describe('recipient-only cash reception', () => {
 
     expect(wrapper.find('[data-testid="cash-reception-context"]').exists()).toBe(true)
     const text = wrapper.text()
-    expect(text).toContain('destinadas a ti')
+    expect(text).not.toContain('destinadas a ti')
     // Neutral Mexican Spanish: no Argentine voseo imperatives.
     expect(text).not.toMatch(/\bvos\b|tenés|consultá|recibí|elegí/i)
     // Reception stays a single surface: no task navigation is fabricated here.
@@ -95,16 +95,18 @@ describe('recipient-only cash reception', () => {
     await settle()
 
     const heading = wrapper.get('[data-testid="cash-reception-heading"]')
-    expect(heading.get('[data-testid="cash-reception-task-label"]').text()).toContain('Recepción')
-    expect(heading.get('h1').text().length).toBeGreaterThan(0)
-    expect(heading.get('p').text()).toContain('destinadas a ti')
+    expect(heading.get('h1').text()).toBe('Recepciones de caja')
+    // One text level above the state: the title says it, so no subtitle and no eyebrow.
+    expect(heading.find('p').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="cash-reception-task-label"]').exists()).toBe(false)
 
     // The context column summarizes the REAL recipient custody as label/value rows.
     const context = wrapper.get('[data-testid="cash-reception-context"]')
     expect(context.get('[data-testid="cash-reception-context-pending"]').text()).toBe('1')
     expect(context.get('[data-testid="cash-reception-context-declared"]').text()).toMatch(/1[.,]00/)
     expect(context.get('[data-testid="cash-reception-context-float"]').text()).toBe('0')
-    expect(context.text()).toMatch(/destinataria/i)
+    // The context column is just the three facts: no explanatory paragraph.
+    expect(context.find('p').exists()).toBe(false)
   })
 
   it('loads only recipient custody and exposes receipt under the two minimal grants', async () => {
@@ -113,6 +115,8 @@ describe('recipient-only cash reception', () => {
     const panel = wrapper.getComponent(CashCustodyDiscovery)
     expect(panel.props('allowed')).toBe(true)
     expect(panel.props('canReceive')).toBe(true)
+    // The page title already names the section, so the panel heading is not repeated visibly.
+    expect(panel.props('showHeading')).toBe(false)
     expect(panel.props('pendingHandovers')).toEqual([item])
     expect(cashApi.getCustody).toHaveBeenCalledWith({ page: 1, limit: 25 })
     panel.vm.$emit('receive', { id: 'handover', receivedCents: 100 })
@@ -227,5 +231,59 @@ describe('recipient-only cash reception', () => {
 
     expect(cashApi.receiveHandover).not.toHaveBeenCalled()
     expect(wrapper.find('[data-testid="cash-custody-local-error"]').exists()).toBe(true)
+  })
+})
+
+describe('cash reception · four states (S10)', () => {
+  it('empty: "No hay entregas pendientes" when there is no custody at all', async () => {
+    vi.mocked(cashApi.getCustody).mockResolvedValue({
+      pendingHandovers: { items: [], page: 1, limit: 25, total: 0 },
+      eligibleFloat: { items: [], page: 1, limit: 25, total: 0 },
+    } as never)
+    const wrapper = renderIntegrated()
+    await settle()
+
+    expect(wrapper.get('.hf-empty-state[data-kind="empty"]').text()).toContain(
+      'No hay entregas pendientes',
+    )
+  })
+
+  it('loading: shows the skeleton cards while the custody is in flight', async () => {
+    vi.mocked(cashApi.getCustody).mockReturnValue(new Promise(() => {}) as never)
+    const wrapper = renderIntegrated()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="cash-custody-loading"]').attributes('aria-busy')).toBe('true')
+    expect(wrapper.find('[data-testid="cash-custody-pending"]').exists()).toBe(false)
+    // The summary does not claim zero while the custody is still loading.
+    for (const fact of ['pending', 'declared', 'float']) {
+      expect(wrapper.get(`[data-testid="cash-reception-context-${fact}"]`).text()).toBe('—')
+    }
+  })
+
+  it('data: the handover card with its kind badge and the receipt form', async () => {
+    const wrapper = renderIntegrated()
+    await settle()
+
+    expect(wrapper.get('[data-testid="cash-custody-kind-handover"]').classes()).toContain(
+      'hf-status-badge',
+    )
+    expect(wrapper.find('[data-testid="cash-custody-receive-handover"]').exists()).toBe(true)
+  })
+
+  it('error: shows the alert with Reintentar that reads the custody again', async () => {
+    vi.mocked(cashApi.getCustody).mockRejectedValue(new Error('boom'))
+    const wrapper = renderIntegrated()
+    await settle()
+
+    const state = wrapper.get('[data-testid="cash-custody-error"]')
+    expect(state.attributes('role')).toBe('alert')
+    vi.mocked(cashApi.getCustody).mockClear()
+    vi.mocked(cashApi.getCustody).mockResolvedValue(custody as never)
+    await wrapper.get('[data-testid="empty-state-action"]').trigger('click')
+    await settle()
+
+    expect(cashApi.getCustody).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('[data-testid="cash-custody-error"]').exists()).toBe(false)
   })
 })

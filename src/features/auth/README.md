@@ -1,69 +1,25 @@
 # Auth Feature Module
 
-Módulo de autenticación con diseño split-screen moderno.
+Inicio de sesión (contraseña y OTP) y selección de sucursal.
 
 ## Estructura
 
 ```
 auth/
 ├── login/
-│   ├── views/
-│   │   └── LoginView.vue          # Vista principal (container)
+│   ├── views/LoginView.vue            # Tarjeta única sobre la superficie de página
 │   └── components/
-│       ├── LoginForm.vue           # Formulario de login (lado izquierdo)
-│       └── LoginHero.vue           # Hero visual (lado derecho)
+│       ├── LoginForm.vue              # Email, contraseña y una acción primaria
+│       └── LoginOtpForm.vue           # Código de verificación
+├── tenant-selection/                  # Lista de sucursales y "Continuar"
+├── styles/auth-visual.css             # Roles --hf-* de login y selección
 └── README.md
 ```
 
 ## Diseño
 
-### Split Screen Layout
-
-- **Izquierda (40%)**: Formulario de login con logo, campos, y CTA
-- **Derecha (60%)**: Hero visual con branding, gradientes, animaciones
-
-### Paleta de colores
-
-- **Primary**: Emerald (600-950) — verde esmeralda de la marca Hound
-- **Secondary**: Teal (400-950) — verde azulado para contraste
-- **Accent**: Cyan (300-500) — detalles y highlights
-
-### Logos disponibles
-
-- `/public/hounfeLogos/primary.png` — logo principal (2000x2000 PNG)
-- `/public/hounfeLogos/secondary.png` — logo secundario (2000x2000 PNG)
-
-## Componentes
-
-### LoginView.vue
-
-- Container principal con responsive layout
-- Maneja estado de email/password
-- Emite eventos de submit
-
-### LoginForm.vue
-
-- Formulario con validación
-- Toggle de mostrar/ocultar contraseña
-- Links a "Olvidé mi contraseña" y "Registrate"
-- Botón con gradient y animaciones
-
-### LoginHero.vue
-
-- Background con gradient animado (emerald → teal → emerald)
-- Blobs animados con blur para profundidad
-- Grid decorativo sutil
-- Logo flotante con efecto hover
-- Hero text con shimmer effect
-- 3 feature cards glassmorphism con hover states
-
-## Animaciones
-
-- **Fade-in**: Entrada suave del formulario
-- **Blob**: Movimiento orgánico del fondo
-- **Text shimmer**: Efecto de brillo en el título
-- **Hover states**: Escalado, rotación, y shadow en cards
-- **Staggered animations**: Cards aparecen con delay progresivo
+Una tarjeta centrada, sin panel de marca ni texto de ayuda permanente, con una sola acción
+primaria por pantalla. Los colores salen de los roles `--hf-*` (ver `docs/design-system.md`).
 
 ## Layout System
 

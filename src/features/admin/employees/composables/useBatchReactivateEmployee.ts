@@ -16,7 +16,6 @@ import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { AxiosError } from 'axios'
 import { computed } from 'vue'
 import { employeesApi } from '../api/employees.api'
-import type { Employee } from '../interfaces/employee.types'
 import { EMPLOYEE_ERROR_MAP } from '../interfaces/errors'
 import { employeeQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
@@ -44,7 +43,7 @@ export function useBatchReactivateEmployee() {
 
     onSuccess: (result) => {
       toast.add({
-        title: `${result.updated} empleados reactivados`,
+        title: result.updated === 1 ? '1 colaborador reactivado' : `${result.updated} colaboradores reactivados`,
         color: 'success',
       })
       void queryClient.invalidateQueries({
@@ -75,7 +74,7 @@ export function useBatchReactivateEmployee() {
           break
         }
         default: {
-          const normalized = normalizeApiError(error, 'No se pudieron reactivar los empleados.')
+          const normalized = normalizeApiError(error, 'No se pudieron reactivar los colaboradores.')
           toast.add({
             title: 'Error',
             description: normalized.message,
@@ -92,5 +91,3 @@ export function useBatchReactivateEmployee() {
     error: mutation.error,
   }
 }
-
-export type { Employee }

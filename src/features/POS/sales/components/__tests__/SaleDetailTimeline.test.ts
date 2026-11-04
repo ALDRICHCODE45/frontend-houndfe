@@ -43,20 +43,20 @@ describe('SaleDetailTimeline', () => {
     })
 
     expect(wrapper.get('[data-testid="timeline-event-icon-SALE_REGISTERED"]').classes()).toEqual(
-      expect.arrayContaining(['text-coco-gold-700', 'dark:text-coco-gold-400', 'bg-coco-gold-500/10'])
+      expect.arrayContaining(['text-(--hf-action)', 'bg-(--hf-active-soft)'])
     )
     expect(wrapper.get('[data-testid="timeline-event-icon-PAYMENT_RECEIVED"]').classes()).toEqual(
-      expect.arrayContaining(['text-success', 'bg-success/10'])
+      expect.arrayContaining(['text-(--hf-success)', 'bg-(--hf-surface-muted)'])
     )
     expect(wrapper.get('[data-testid="timeline-event-icon-PRODUCTS_DELIVERED"]').classes()).toEqual(
-      expect.arrayContaining(['text-info', 'bg-info/10'])
+      expect.arrayContaining(['text-(--hf-action)', 'bg-(--hf-active-soft)'])
     )
     expect(wrapper.get('[data-testid="timeline-event-icon-COMMENT"]').classes()).toEqual(
-      expect.arrayContaining(['text-muted', 'bg-muted/10'])
+      expect.arrayContaining(['text-(--hf-muted)', 'bg-(--hf-surface-muted)'])
     )
   })
 
-  it('pins coco-neutral-200 on the timeline connector line (HST-REQ-004)', () => {
+  it('paints the timeline connector line with the border role', () => {
     const wrapper = mountWithUApp(SaleDetailTimeline, {
       props: { timeline: mockTimeline },
     })
@@ -64,7 +64,7 @@ describe('SaleDetailTimeline', () => {
     const connectors = wrapper.findAll('div.w-px')
     expect(connectors.length).toBeGreaterThan(0)
     for (const connector of connectors) {
-      expect(connector.classes()).toEqual(expect.arrayContaining(['bg-coco-neutral-200']))
+      expect(connector.classes()).toEqual(expect.arrayContaining(['bg-(--hf-border)']))
       expect(connector.classes()).not.toContain('bg-gray-200')
     }
   })
@@ -76,10 +76,10 @@ describe('SaleDetailTimeline', () => {
 
     const rows = wrapper.findAll('[data-testid="timeline-event"]')
     expect(rows).toHaveLength(4)
-    expect(rows[0]!.text()).toContain('Entrega de Productos')
-    expect(rows[1]!.text()).toContain('Cobro de $100.00 en Tarjeta de Débito')
+    expect(rows[0]!.text()).toContain('Entrega de productos')
+    expect(rows[1]!.text()).toContain('Cobro de $100.00 en Tarjeta de débito')
     expect(rows[2]!.text()).toContain('Cobro de $50.00 en Efectivo')
-    expect(rows[3]!.text()).toContain('Venta Registrada')
+    expect(rows[3]!.text()).toContain('Venta registrada')
   })
 
   it('renders actor name only when present for non-comment events', () => {
@@ -266,7 +266,7 @@ describe('SaleDetailTimeline', () => {
         props: { timeline: mockTimeline },
       })
 
-      expect(wrapper.text()).toContain('Cobro de $100.00 en Tarjeta de Débito')
+      expect(wrapper.text()).toContain('Cobro de $100.00 en Tarjeta de débito')
       expect(wrapper.find('[data-testid="timeline-payment-subtitle"]').exists()).toBe(false)
     })
 

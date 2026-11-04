@@ -1,8 +1,8 @@
 import type { PublicBranchDto } from '../interfaces/catalog.types'
 
-export type CatalogBranchesErrorKind = 'rate-limit' | 'server' | 'network'
+type CatalogBranchesErrorKind = 'rate-limit' | 'server' | 'network'
 
-export class CatalogBranchesError extends Error {
+class CatalogBranchesError extends Error {
   readonly kind: CatalogBranchesErrorKind
   readonly status?: number
 

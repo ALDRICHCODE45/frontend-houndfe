@@ -10,7 +10,7 @@
 //   - Driver branch (`isManager=false`, `isDriver=true`): the view returns
 //     `null` (placeholder marker `// TODO(S6b)` — until S6b lands).
 //   - Loading state: `AppDataTable` shows its loading skeleton.
-//   - Empty state: `AppDataTable` renders "No hay rutas de entrega".
+//   - Empty state: `AppDataTable` gets the shared `emptyState` ("Aún no hay rutas").
 //   - Error state: `AppDataTable` renders the error block (with retry via
 //     `normalizeApiError`); empty text is NOT rendered.
 //
@@ -226,6 +226,8 @@ vi.mock('../../components/DeliveryRouteUpsertSlideover.vue', () => ({
 
 // ─── Stub AppDataTable so we can assert its props directly without rendering
 const dataTableProps: Array<Record<string, unknown>> = []
+// The real AppDataTable renders rows OR cards; the stub renders cards only on request.
+const stubView = { mobile: false }
 vi.mock('@/core/shared/components/DataTable', () => ({
   AppDataTable: defineComponent({
     name: 'AppDataTable',
@@ -248,10 +250,16 @@ vi.mock('@/core/shared/components/DataTable', () => ({
       'addButtonIcon',
       'enableColumnVisibility',
       'empty',
+      'emptyState',
+      'filtered',
+      'noMatchTitle',
+      'activeFilterCount',
+      'rowOpen',
+      'mobileRender',
       'portalClass',
       'paginationPortalClass',
     ],
-    emits: ['add', 'refresh'],
+    emits: ['add', 'refresh', 'empty-action', 'clear-filters'],
     setup(props, { emit, slots }) {
       dataTableProps.push({ ...props })
       function fireAdd() {
@@ -269,8 +277,13 @@ vi.mock('@/core/shared/components/DataTable', () => ({
             'div',
             { 'data-testid': 'app-data-table-row', key: String((item as { id?: unknown }).id ?? index) },
             [
-              slots['name-cell']?.({ row: { original: item }, index }),
-              slots['actions-cell']?.({ row: { original: item }, index }),
+              ...(stubView.mobile
+                ? [h('div', { 'data-testid': 'app-data-table-stub-card' }, [slots['mobile-card']?.({ row: item })])]
+                : [
+                    slots['name-cell']?.({ row: { original: item }, index }),
+                    slots['status-cell']?.({ row: { original: item }, index }),
+                    slots['actions-cell']?.({ row: { original: item }, index }),
+                  ]),
             ],
           ),
         )
@@ -292,11 +305,10 @@ vi.mock('@/core/shared/components/DataTable', () => ({
               { type: 'button', 'data-testid': 'app-data-table-stub-refresh', onClick: fireRefresh },
               'refresh',
             ),
-            h('div', { 'data-testid': 'app-data-table-stub-toolbar-actions' }, [slots.actions?.()]),
-            props.displayMode === 'cards'
-              ? h('div', { 'data-testid': 'app-data-table-stub-cards' }, [slots.cards?.()])
-              : null,
-            ...(props.displayMode === 'cards' ? [] : rowNodes),
+            h('button', { type: 'button', 'data-testid': 'app-data-table-stub-empty-action', onClick: () => emit('empty-action') }, 'empty-action'),
+            h('button', { type: 'button', 'data-testid': 'app-data-table-stub-clear', onClick: () => emit('clear-filters') }, 'clear'),
+            h('div', { 'data-testid': 'app-data-table-stub-filters' }, [slots.filters?.()]),
+            ...rowNodes,
           ],
         )
       }
@@ -371,6 +383,34 @@ vi.mock('@/core/shared/components/ConfirmModal.vue', () => ({
   }),
 }))
 
+// ─── Stub the shared Estado filter so the spec can drive its v-model ─────────
+vi.mock('@/core/shared/components/DataTable/ToolbarSelectFilter.vue', () => ({
+  default: defineComponent({
+    name: 'ToolbarSelectFilter',
+    props: ['modelValue', 'items', 'label', 'portalClass', 'testId'],
+    emits: ['update:modelValue'],
+    setup(props, { emit }) {
+      return () =>
+        h(
+          'div',
+          { 'data-testid': 'status-filter-stub', 'data-label': props.label as string },
+          (props.items as Array<{ label: string; value: string }>).map((item) =>
+            h(
+              'button',
+              {
+                type: 'button',
+                'data-testid': `status-option-${item.value}`,
+                'aria-pressed': String(props.modelValue === item.value),
+                onClick: () => emit('update:modelValue', item.value),
+              },
+              item.label,
+            ),
+          ),
+        )
+    },
+  }),
+}))
+
 // useToast stub.
 vi.stubGlobal('useToast', () => ({ add: vi.fn() }))
 
@@ -391,7 +431,9 @@ const UDropdownMenuStub = defineComponent({
   props: ['items', 'content'],
   setup(props) {
     return () => {
-      const items = ((props.items as unknown[][]) ?? []).flat() as Array<{ label: string; onSelect: () => void }>
+      const items = ((props.items as unknown[]) ?? [])
+        .flat()
+        .filter((item) => (item as { label?: string }).label) as Array<{ label: string; onSelect: () => void }>
       return h('div', { 'data-testid': 'row-actions-menu' }, [
         h('button', { type: 'button', 'data-testid': 'row-actions-trigger' }, '⋯'),
         ...items.map((item) =>
@@ -488,6 +530,7 @@ function makeRoute(overrides: Record<string, unknown> = {}): Record<string, unkn
 beforeEach(() => {
   vi.clearAllMocks()
   dataTableProps.length = 0
+  stubView.mobile = false
   slideoverState.emits.create.length = 0
   slideoverState.emits.edit.length = 0
   resetConfirmModalState()
@@ -504,6 +547,32 @@ describe('DeliveryRoutesListView — manager branch (design.md §6.4, §11, REQ-
     expect(wrapper.find('[data-testid="app-data-table-stub"]').exists()).toBe(true)
     const lastProps = dataTableProps[dataTableProps.length - 1]!
     expect(lastProps.empty).toBe(DELIVERY_ROUTE_COPY.empty.manager)
+  })
+
+  it('wires the shared list states: empty state with the create action, row-open and cards on mobile', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+    const lastProps = dataTableProps[dataTableProps.length - 1]!
+    expect(lastProps.emptyState).toEqual({
+      title: 'Aún no hay rutas',
+      description: DELIVERY_ROUTE_COPY.empty.managerDescription,
+      actionLabel: DELIVERY_ROUTE_COPY.actions.create,
+      actionIcon: 'i-lucide-route',
+    })
+    expect(lastProps.mobileRender).toBe('cards')
+    expect(lastProps.displayMode).toBe('auto')
+    expect(typeof lastProps.rowOpen).toBe('function')
+    await wrapper.find('[data-testid="app-data-table-stub-empty-action"]').trigger('click')
+    expect(wrapper.find('[data-testid="slideover-stub-open"]').text()).toBe('true')
+  })
+
+  it('drops the create action from the empty state without permission', async () => {
+    resetRoleFlags({ isManager: { value: true }, canCreate: { value: false }, canDelete: { value: true } })
+    mountView()
+    await flushPromises()
+    const emptyState = dataTableProps[dataTableProps.length - 1]!.emptyState as Record<string, unknown>
+    expect(emptyState.title).toBe('Aún no hay rutas')
+    expect(emptyState.actionLabel).toBeUndefined()
   })
 
   it('exposes the "Nueva ruta" button when canCreate=true (REQ-DRM-002)', async () => {
@@ -577,6 +646,7 @@ describe('DeliveryRoutesListView — manager branch (design.md §6.4, §11, REQ-
     await flushPromises()
     const lastProps = dataTableProps[dataTableProps.length - 1]!
     expect(lastProps.loading).toBe(false)
+    expect(lastProps.filtered).toBe(false)
     expect(String(lastProps.empty)).toBe(DELIVERY_ROUTE_COPY.empty.manager)
   })
 
@@ -587,7 +657,7 @@ describe('DeliveryRoutesListView — manager branch (design.md §6.4, §11, REQ-
     await flushPromises()
     const lastProps = dataTableProps[dataTableProps.length - 1]!
     expect(lastProps.error).toBe(true)
-    expect(String(lastProps.errorMessage)).toMatch(/red rota|operación|reintenta/i)
+    expect(lastProps.errorMessage).toBe('No se pudieron cargar las rutas de entrega')
   })
 
   // ─── T3 S2 — create conflict stays open + surfaces the conflict inline ─────
@@ -696,6 +766,10 @@ describe('DeliveryRoutesListView — manager branch (design.md §6.4, §11, REQ-
 
     describe('DeliveryRoutesListView — manager row menu (same gates as the detail view)', () => {
       const { view, edit, start, cancel, delete: remove } = DELIVERY_ROUTE_COPY.actions
+      // Items that open a confirmation end in an ellipsis.
+      const startItem = `${start}…`
+      const cancelItem = `${cancel}…`
+      const removeItem = `${remove}…`
       const itemLabels = (wrapper: ReturnType<typeof mountView>) =>
         wrapper.findAll('[data-testid="row-action-item"]').map((item) => item.text())
       async function select(wrapper: ReturnType<typeof mountView>, label: string) {
@@ -716,34 +790,35 @@ describe('DeliveryRoutesListView — manager branch (design.md §6.4, §11, REQ-
       it('offers view, edit, start and cancel for a DRAFT route with stops', async () => {
         const wrapper = mountView()
         await flushPromises()
-        expect(itemLabels(wrapper)).toEqual([view, edit, start, cancel])
+        expect(itemLabels(wrapper)).toEqual([view, edit, startItem, cancelItem])
       })
 
       it('offers delete only for an empty DRAFT route', async () => {
         resetTableState({ data: [makeRoute()] })
         const wrapper = mountView()
         await flushPromises()
-        expect(itemLabels(wrapper)).toEqual([view, edit, cancel, remove])
+        expect(itemLabels(wrapper)).toEqual([view, edit, cancelItem, removeItem])
       })
 
-      it('offers only view and cancel for an ACTIVE route, and only view when closed', async () => {
+      it('offers only view and cancel for an ACTIVE route', async () => {
         resetTableState({ data: [makeRoute({ status: 'ACTIVE', stops: [{ id: 's1' }] })] })
-        let wrapper = mountView()
-        await flushPromises()
-        expect(itemLabels(wrapper)).toEqual([view, cancel])
-        wrapper.unmount()
-
-        resetTableState({ data: [makeRoute({ status: 'COMPLETED' })] })
-        wrapper = mountView()
-        await flushPromises()
-        expect(itemLabels(wrapper)).toEqual([view])
-      })
-
-      it('keeps only view without update/delete permissions', async () => {
-        resetRoleFlags({ isManager: { value: true }, canCreate: { value: true } })
         const wrapper = mountView()
         await flushPromises()
-        expect(itemLabels(wrapper)).toEqual([view])
+        expect(itemLabels(wrapper)).toEqual([view, cancelItem])
+      })
+
+      it('draws no ⋮ when "Ver detalle" would be the only item (it repeats the row click)', async () => {
+        resetTableState({ data: [makeRoute({ status: 'COMPLETED' })] })
+        let wrapper = mountView()
+        await flushPromises()
+        expect(wrapper.find('[data-testid="row-actions-menu"]').exists()).toBe(false)
+        wrapper.unmount()
+
+        resetRoleFlags({ isManager: { value: true }, canCreate: { value: true } })
+        resetTableState({ data: [makeRoute({ stops: [{ id: 's1' }] })] })
+        wrapper = mountView()
+        await flushPromises()
+        expect(wrapper.find('[data-testid="row-actions-menu"]').exists()).toBe(false)
       })
 
       it('"Ver detalle" navigates to the route detail', async () => {
@@ -756,7 +831,7 @@ describe('DeliveryRoutesListView — manager branch (design.md §6.4, §11, REQ-
       it('opens ConfirmModal with the confirm.start copy; the mutation fires only after confirm', async () => {
         const wrapper = mountView()
         await flushPromises()
-        await select(wrapper, start)
+        await select(wrapper, startItem)
         expect(confirmModalState.open).toBe(true)
         expect(confirmModalState.title).toBe(DELIVERY_ROUTE_COPY.confirm.start.title)
         expect(confirmModalState.description).toBe(DELIVERY_ROUTE_COPY.confirm.start.body)
@@ -773,7 +848,7 @@ describe('DeliveryRoutesListView — manager branch (design.md §6.4, §11, REQ-
       it('closing the modal without confirming fires no mutation (TRIANGULATE)', async () => {
         const wrapper = mountView()
         await flushPromises()
-        await select(wrapper, start)
+        await select(wrapper, startItem)
         await wrapper.find('[data-testid="list-confirm-modal-cancel"]').trigger('click')
         await flushPromises()
         expect(startMutateMock).not.toHaveBeenCalled()
@@ -783,7 +858,7 @@ describe('DeliveryRoutesListView — manager branch (design.md §6.4, §11, REQ-
       it('cancel uses the confirm.cancel copy with warning color and fires only after confirm', async () => {
         const wrapper = mountView()
         await flushPromises()
-        await select(wrapper, cancel)
+        await select(wrapper, cancelItem)
         expect(confirmModalState.title).toBe(DELIVERY_ROUTE_COPY.confirm.cancel.title)
         expect(confirmModalState.description).toBe(DELIVERY_ROUTE_COPY.confirm.cancel.body)
         expect(confirmModalState.confirmColor).toBe('warning')
@@ -797,7 +872,7 @@ describe('DeliveryRoutesListView — manager branch (design.md §6.4, §11, REQ-
         resetTableState({ data: [makeRoute()] })
         const wrapper = mountView()
         await flushPromises()
-        await select(wrapper, remove)
+        await select(wrapper, removeItem)
         expect(confirmModalState.title).toBe(DELIVERY_ROUTE_COPY.confirm.delete.title)
         expect(confirmModalState.confirmColor).toBe('error')
         await wrapper.find('[data-testid="list-confirm-modal-confirm"]').trigger('click')
@@ -843,9 +918,8 @@ describe('DeliveryRoutesListView — manager branch (design.md §6.4, §11, REQ-
       })
     })
 
-    describe('DeliveryRoutesListView — canonical workspace, status tabs, navigation and cards', () => {
+    describe('DeliveryRoutesListView — canonical workspace, Estado filter, navigation and cards', () => {
       beforeEach(() => {
-        localStorage.clear()
         routerPushMock.mockClear()
         resetRoleFlags({ isManager: { value: true }, canCreate: { value: true } })
         resetTableState({
@@ -853,19 +927,21 @@ describe('DeliveryRoutesListView — manager branch (design.md §6.4, §11, REQ-
             makeRoute({
               timeline: [{ type: 'ROUTE_CREATED', at: '2026-10-13T15:00:00', actor: null }],
               driver: { id: 'd1', name: 'Juan Pérez', email: 'j@x.mx' },
+              stops: [{ id: 's1' }],
             }),
           ],
         })
         tableMock.statusFilter.value = 'ALL'
+        tableMock.globalFilter.value = ''
         tableMock.statusCounts.value = { ALL: 5, DRAFT: 2, ACTIVE: 1, COMPLETED: 1, CANCELLED: 1 }
       })
 
-      it('puts the page heading outside the table surface', async () => {
+      it('puts the page heading outside the table surface, without a subtitle', async () => {
         const wrapper = mountView()
         await flushPromises()
         const title = wrapper.find('h1.hf-page-title')
         expect(title.text()).toBe(DELIVERY_ROUTE_COPY.list.title)
-        expect(wrapper.find('.hf-page-subtitle').exists()).toBe(true)
+        expect(wrapper.find('.hf-page-subtitle').exists()).toBe(false)
         const surface = wrapper.find('.hf-table-surface')
         expect(surface.exists()).toBe(true)
         expect(surface.find('h1').exists()).toBe(false)
@@ -880,59 +956,133 @@ describe('DeliveryRoutesListView — manager branch (design.md §6.4, §11, REQ-
         expect(lastProps.paginationPortalClass).toBe('hf-theme hf-ui delivery-routes-list-portal')
       })
 
-      it('renders one status tab per status with its count and selects ALL by default', async () => {
+      it('offers the Estado filter with one option per status and its count', async () => {
         const wrapper = mountView()
         await flushPromises()
-        const tabs = wrapper.findAll('[data-testid^="status-tab-"]')
-        expect(tabs.map((tab) => tab.attributes('data-testid'))).toEqual([
-          'status-tab-ALL',
-          'status-tab-DRAFT',
-          'status-tab-ACTIVE',
-          'status-tab-COMPLETED',
-          'status-tab-CANCELLED',
+        const filter = wrapper.get('[data-testid="status-filter-stub"]')
+        expect(filter.attributes('data-label')).toBe('Estado')
+        const options = filter.findAll('button')
+        expect(options.map((option) => option.attributes('data-testid'))).toEqual([
+          'status-option-ALL',
+          'status-option-DRAFT',
+          'status-option-ACTIVE',
+          'status-option-COMPLETED',
+          'status-option-CANCELLED',
         ])
-        expect(tabs[0]!.text()).toContain('Todas')
-        expect(tabs[0]!.text()).toContain('5')
-        expect(tabs[1]!.text()).toContain('Borrador')
-        expect(tabs[1]!.text()).toContain('2')
-        expect(tabs[0]!.attributes('aria-selected')).toBe('true')
+        expect(options[0]!.text()).toBe('Todas (5)')
+        expect(options[1]!.text()).toBe('Borrador (2)')
+        expect(options[0]!.attributes('aria-pressed')).toBe('true')
       })
 
-      it('selecting a tab sets the table status filter and resets to the first page', async () => {
+      it('choosing a status sets the table status filter and resets to the first page', async () => {
         tableMock.pagination.value = { pageIndex: 3, pageSize: 10 }
         const wrapper = mountView()
         await flushPromises()
-        await wrapper.find('[data-testid="status-tab-ACTIVE"]').trigger('click')
+        await wrapper.find('[data-testid="status-option-ACTIVE"]').trigger('click')
         expect(tableMock.statusFilter.value).toBe('ACTIVE')
         expect(tableMock.pagination.value.pageIndex).toBe(0)
       })
 
-      it('shows the derived route name and opens the detail from it', async () => {
+      it('reports a filtered (no-match) list with the search term, and clears everything', async () => {
+        tableMock.globalFilter.value = 'zzz'
+        tableMock.statusFilter.value = 'ACTIVE'
+        tableMock.pagination.value = { pageIndex: 2, pageSize: 10 }
+        const wrapper = mountView()
+        await flushPromises()
+        const props = dataTableProps[dataTableProps.length - 1]!
+        expect(props.filtered).toBe(true)
+        expect(props.noMatchTitle).toBe('Ningún resultado para «zzz»')
+        expect(props.activeFilterCount).toBe(1)
+        await wrapper.find('[data-testid="app-data-table-stub-clear"]').trigger('click')
+        expect(tableMock.globalFilter.value).toBe('')
+        expect(tableMock.statusFilter.value).toBe('ALL')
+        expect(tableMock.pagination.value.pageIndex).toBe(0)
+      })
+
+      it('shows the route by its day and opens the detail from it, never showing the id', async () => {
         const wrapper = mountView()
         await flushPromises()
         const link = wrapper.find('[data-testid="route-name-link"]')
-        expect(link.text()).toContain('Ruta del 13 oct · Juan Pérez')
-        expect(link.text()).toContain('route-42')
+        expect(link.text()).toBe('Ruta del 13 oct')
+        expect(wrapper.text()).not.toContain('route-42')
         await link.trigger('click')
         expect(routerPushMock).toHaveBeenCalledWith('/pos/rutas-de-entrega/route-42')
       })
 
-      it('switches to cards with the view toggle and persists the choice', async () => {
+      it('opens the detail from the whole row through row-open', async () => {
+        mountView()
+        await flushPromises()
+        const rowOpen = dataTableProps[dataTableProps.length - 1]!.rowOpen as (route: unknown) => void
+        rowOpen(makeRoute({ id: 'route-7' }))
+        expect(routerPushMock).toHaveBeenCalledWith('/pos/rutas-de-entrega/route-7')
+      })
+
+      it('renders the status as a StatusBadge with the mapped tone', async () => {
+        resetTableState({
+          data: [makeRoute({ status: 'ACTIVE', stops: [{ id: 's1' }] }), makeRoute({ id: 'r2', status: 'CANCELLED' })],
+        })
         const wrapper = mountView()
         await flushPromises()
-        expect(dataTableProps[dataTableProps.length - 1]!.displayMode).toBe('table')
-        const cardsTab = wrapper
-          .findAll('[data-testid="app-data-table-stub-toolbar-actions"] [role="tab"]')
-          .find((tab) => tab.text().includes('Tarjetas'))
-        expect(cardsTab).toBeDefined()
-        expect(wrapper.find('[data-testid="app-data-table-stub-cards"]').exists()).toBe(false)
-        await cardsTab!.trigger('click')
+        const badges = wrapper.findAll('[data-testid="route-status"]')
+        expect(badges.map((badge) => badge.attributes('data-tone'))).toEqual(['info', 'neutral'])
+        expect(badges.map((badge) => badge.text())).toEqual(['Activa', 'Cancelada'])
+      })
+
+      it('marks a draft that cannot start with an inline aviso instead of tinting the badge', async () => {
+        resetTableState({ data: [makeRoute()] })
+        const wrapper = mountView()
         await flushPromises()
-        // The stub snapshots props at setup only; the live render reflects the mode.
-        expect(wrapper.find('[data-testid="app-data-table-stub-cards"]').exists()).toBe(true)
-        expect(wrapper.find('[data-testid="delivery-route-card-grid"]').exists()).toBe(true)
-        expect(wrapper.find('[data-testid="route-name-link"]').exists()).toBe(false)
-        expect(localStorage.getItem('delivery-routes-view-mode')).toContain('card')
+        const aviso = wrapper.get('[data-testid="route-aviso"]')
+        expect(aviso.text()).toContain('2 avisos')
+        expect(aviso.text()).toContain('Sin paradas, Sin repartidor')
+        expect(wrapper.get('[data-testid="route-status"]').attributes('data-tone')).toBe('neutral')
+      })
+
+      it('shows no aviso for a draft ready to start or for a started route', async () => {
+        resetTableState({
+          data: [
+            makeRoute({ stops: [{ id: 's1' }], driver: { id: 'd1', name: 'Ana', email: 'a@x.mx' } }),
+            makeRoute({ id: 'r2', status: 'ACTIVE' }),
+          ],
+        })
+        const wrapper = mountView()
+        await flushPromises()
+        expect(wrapper.find('[data-testid="route-aviso"]').exists()).toBe(false)
+      })
+
+      it('renders the mobile card with driver, status, progress and the short date, and opens from it', async () => {
+        stubView.mobile = true
+        resetTableState({
+          data: [
+            makeRoute({
+              status: 'ACTIVE',
+              timeline: [{ type: 'ROUTE_CREATED', at: '2026-10-13T15:00:00', actor: null }],
+              driver: { id: 'd1', name: 'Juan Pérez', email: 'j@x.mx' },
+              stops: [
+                { id: 's1', status: 'COMPLETED', customer: { id: 'c1', name: 'Cliente Uno', email: null } },
+                { id: 's2', status: 'PENDING', customer: null },
+              ],
+            }),
+          ],
+        })
+        const wrapper = mountView()
+        await flushPromises()
+        const card = wrapper.get('[data-testid="delivery-route-card"]')
+        expect(card.text()).toContain('Ruta del 13 oct')
+        expect(card.text()).toContain('Juan Pérez')
+        expect(card.text()).toContain('Cliente Uno')
+        expect(card.text()).toContain('1/2 paradas')
+        expect(card.text()).toContain('13 oct')
+        expect(card.text()).not.toContain('route-42')
+        await card.get('[data-testid="delivery-route-card-open"]').trigger('click')
+        expect(routerPushMock).toHaveBeenCalledWith('/pos/rutas-de-entrega/route-42')
+      })
+
+      it('names the row in the ⋮ trigger and removes the card grid and the view toggle', async () => {
+        const wrapper = mountView()
+        await flushPromises()
+        expect(wrapper.find('[role="tab"]').exists()).toBe(false)
+        expect(wrapper.find('[data-testid="delivery-route-card-grid"]').exists()).toBe(false)
       })
     })
 
@@ -1002,7 +1152,7 @@ describe('DeliveryRoutesListView — manager branch (design.md §6.4, §11, REQ-
         const wrapper = mountView()
         await flushPromises()
         expect(wrapper.find('[data-testid="driver-list-empty"]').exists()).toBe(true)
-        expect(wrapper.text()).toContain(DELIVERY_ROUTE_COPY.empty.driver)
+        expect(wrapper.text()).toContain(DELIVERY_ROUTE_COPY.empty.driverTitle)
       })
 
       it('renders the loading skeleton when isLoading=true', async () => {

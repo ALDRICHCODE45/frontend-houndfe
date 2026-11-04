@@ -4,13 +4,13 @@ export type PublicCatalogProductDetailAvailability =
   | 'low_stock'
   | 'out_of_stock'
   | null
-export type PublicCatalogProductDetailStockPresentationMode =
+type PublicCatalogProductDetailStockPresentationMode =
   | 'SYSTEM_STATUS'
   | 'ABSTRACT_STATUS'
   | 'CUSTOM_QUANTITY'
   | 'HIDDEN'
 
-export interface PublicCatalogProductDetailPriceDto {
+interface PublicCatalogProductDetailPriceDto {
   priceCents: number | null
   hidden: boolean
 }
@@ -21,22 +21,22 @@ export interface PublicCatalogProductDetailStockPresentationDto {
   customQuantity: number | null
 }
 
-export interface PublicCatalogProductDetailCategoryDto {
+interface PublicCatalogProductDetailCategoryDto {
   id: string
   name: string
 }
 
-export interface PublicCatalogProductDetailBrandDto {
+interface PublicCatalogProductDetailBrandDto {
   name: string
 }
 
-export interface PublicCatalogProductDetailImageDto {
+interface PublicCatalogProductDetailImageDto {
   id: string
   url: string
   isMain: boolean
 }
 
-export interface PublicCatalogProductDetailVariantAvailabilityDto {
+interface PublicCatalogProductDetailVariantAvailabilityDto {
   branchId: string
   branchName: string
   branchSlug: string
@@ -44,7 +44,7 @@ export interface PublicCatalogProductDetailVariantAvailabilityDto {
   isSelected: boolean
 }
 
-export interface PublicCatalogProductDetailVariantDto {
+interface PublicCatalogProductDetailVariantDto {
   id: string
   name: string
   option: string | null
@@ -55,7 +55,7 @@ export interface PublicCatalogProductDetailVariantDto {
   stockPresentation: PublicCatalogProductDetailStockPresentationDto
 }
 
-export interface PublicCatalogProductDetailPriceContextDto {
+interface PublicCatalogProductDetailPriceContextDto {
   priceListId: string
   name: string
   isCatalogDefault: boolean

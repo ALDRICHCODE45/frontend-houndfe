@@ -9,9 +9,9 @@ import type { ExpirationDecision } from './expiration-decision.types'
 
 export type HumanDecisionType = 'RESTOCK' | 'EXPIRATION'
 
-export type HumanDecisionStatus = 'PENDING' | 'RESOLVED'
+type HumanDecisionStatus = 'PENDING' | 'RESOLVED'
 
-export type HumanDecisionActionCode =
+type HumanDecisionActionCode =
   | 'PROVIDE_RESTOCK_ESTIMATE'
   | 'REPORT_RESTOCK_ESTIMATE_UNAVAILABLE'
 
@@ -39,7 +39,7 @@ type HumanDecisionStockObservation =
   | { observedStockAtRequest: null; stockObservedAt: null }
 
 /** All nine snapshot keys required; the stock observation pair is both-or-neither. */
-export type HumanDecisionSnapshot = {
+type HumanDecisionSnapshot = {
   branchId: string
   branchName: string | null
   productId: string
@@ -49,7 +49,7 @@ export type HumanDecisionSnapshot = {
   requestedQuantity: number | null
 } & HumanDecisionStockObservation
 
-export interface HumanDecisionResolver {
+interface HumanDecisionResolver {
   id: string
   displayName: string
 }
@@ -106,14 +106,14 @@ export interface ResolvedHumanDecision extends HumanDecisionBase {
 export type HumanDecision = PendingHumanDecision | ResolvedHumanDecision | ExpirationDecision
 
 /** Resolve payloads ship in HD4; `restockDays` is an integer 1..365. */
-export interface ResolveProvideRestockEstimatePayload {
+interface ResolveProvideRestockEstimatePayload {
   action: 'PROVIDE_RESTOCK_ESTIMATE'
   restockDays: number
   expectedVersion: number
   resolutionRequestId: string
 }
 
-export interface ResolveReportRestockEstimateUnavailablePayload {
+interface ResolveReportRestockEstimateUnavailablePayload {
   action: 'REPORT_RESTOCK_ESTIMATE_UNAVAILABLE'
   expectedVersion: number
   resolutionRequestId: string

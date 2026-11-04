@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef, watch } from 'vue'
 import type { PaginationState } from '@/core/shared/types/table.types'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import HumanDecisionDetailSlideover from '../components/HumanDecisionDetailSlideover.vue'
 import HumanDecisionsListPanel from '../components/HumanDecisionsListPanel.vue'
 import type {
@@ -143,25 +144,28 @@ function resolveInMemory(input: HumanDecisionResolutionInput): void {
 <template>
   <section class="flex flex-col gap-6 md:px-10" data-testid="human-decisions-offline-demo">
     <header class="space-y-2">
-      <p
+      <StatusBadge
         data-testid="offline-demo-label"
-        class="inline-flex rounded-full border border-warning/40 bg-warning/10 px-3 py-1 text-xs font-semibold tracking-wide text-warning"
-      >
-        SIMULACIÓN · datos sintéticos · sin HTTP
-      </p>
-      <p class="text-sm text-muted">Sucursal de la simulación: {{ tenantName }}</p>
-      <p class="max-w-3xl text-sm text-muted">
-        No contiene una conversación del cliente ni información del proveedor. La persona
-        responsable usa su conocimiento operativo para registrar una estimación o indicar que aún no
-        hay fecha.
+        tone="warning"
+        label="Simulación · datos sintéticos · sin HTTP"
+        aria-prefix=""
+      />
+      <p class="text-sm text-muted">
+        Sucursal de la simulación: {{ tenantName }}. No contiene conversaciones del cliente ni
+        datos del proveedor.
       </p>
     </header>
 
     <p
       v-if="resolutionRecorded"
       role="status"
-      class="rounded-lg border border-success/30 bg-success/5 p-3 text-sm text-success"
+      class="flex items-start gap-2 rounded-lg border border-[var(--hf-border)] bg-[var(--hf-surface-muted)] p-3 text-sm text-[var(--hf-heading)]"
     >
+      <UIcon
+        name="i-lucide-circle-check"
+        class="mt-0.5 size-4 shrink-0 text-[var(--hf-success)]"
+        aria-hidden="true"
+      />
       Respuesta registrada solo en esta simulación. No se envió a ningún sistema o canal.
     </p>
 

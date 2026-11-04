@@ -25,6 +25,7 @@ import { useUpdateCatalogSettingsMutation } from '../composables/useUpdateCatalo
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import CatalogSettingsReadView from '../components/CatalogSettingsReadView.vue'
 import CatalogSettingsForm from '../components/CatalogSettingsForm.vue'
 import { mapCatalogSettingsError } from '../utils/catalogSettingsMappers'
@@ -138,9 +139,6 @@ async function submit() {
     <!-- Canonical page header (design-system §4), outside the settings surface. -->
     <div class="hf-page-header">
       <h1 class="hf-page-title">Configuración del catálogo online</h1>
-      <p class="hf-page-subtitle">
-        Controla la visibilidad, listas de precios y presentación de stock en el catálogo público.
-      </p>
     </div>
 
     <UCard
@@ -150,30 +148,55 @@ async function submit() {
       <!-- Card body: loading skeleton, error state, editable form, or read-only view.
          Inner responsive padding matches the Products list pattern. -->
       <div class="px-3 py-3 sm:px-4 sm:py-4">
-        <!-- Loading state: skeleton cards matching the three logical sections;
-           no enabled controls, no synthetic values. -->
-        <template v-if="query.isLoading.value">
+        <!-- Loading state: the form's own shape (publication row, two columns of
+           label + control); no enabled controls, no synthetic values. -->
+        <div
+          v-if="query.isLoading.value"
+          data-testid="settings-loading"
+          role="status"
+          aria-busy="true"
+          class="flex flex-col gap-6 sm:gap-8"
+        >
+          <span class="sr-only">Cargando la configuración del catálogo…</span>
           <div
-            v-for="i in 3"
-            :key="i"
-            class="mb-4 rounded-lg border border-default bg-default p-6 last:mb-0"
+            data-skeleton="publication"
+            class="settings-skeleton-block flex animate-pulse items-center gap-3 rounded-lg px-4 py-3"
+            aria-hidden="true"
           >
-            <USkeleton class="mb-3 h-5 w-1/3" />
-            <USkeleton class="h-4 w-2/3" />
+            <span class="settings-skeleton-bar h-5 w-9 rounded-full" />
+            <span class="flex flex-col gap-2">
+              <span class="settings-skeleton-bar h-4 w-24" />
+              <span class="settings-skeleton-bar h-3 w-56 max-w-full" />
+            </span>
           </div>
-        </template>
+          <div
+            class="grid grid-cols-1 gap-6 border-t border-default pt-6 sm:gap-8 sm:pt-8 lg:grid-cols-2"
+            aria-hidden="true"
+          >
+            <div
+              v-for="n in 2"
+              :key="n"
+              data-skeleton="section"
+              class="flex animate-pulse flex-col gap-3"
+            >
+              <span class="settings-skeleton-bar h-4 w-40" />
+              <span data-skeleton="control" class="settings-skeleton-bar h-11 w-full" />
+              <span class="settings-skeleton-bar h-3 w-48 max-w-full" />
+              <span data-skeleton="control" class="settings-skeleton-bar h-11 w-full" />
+            </div>
+          </div>
+        </div>
 
         <!-- GET error state: explicit retry, never a 404-as-default fallback. -->
-        <div
+        <EmptyState
           v-else-if="query.isError.value"
-          class="flex flex-col gap-3 rounded-lg border border-error/30 bg-error/5 p-6"
           data-testid="settings-error"
-        >
-          <p class="text-sm text-error">No se pudo cargar la configuración del catálogo.</p>
-          <UButton color="primary" data-testid="retry-button" @click="onRetry">
-            Reintentar
-          </UButton>
-        </div>
+          kind="error"
+          title="No se pudo cargar la configuración del catálogo"
+          action-label="Reintentar"
+          action-test-id="retry-button"
+          @action="onRetry"
+        />
 
         <template v-else-if="query.settings.value">
           <!-- Editable surface (REQ-12: only with update:TenantCatalogSettings). -->
@@ -196,20 +219,19 @@ async function submit() {
         </template>
       </div>
 
-      <template #footer>
+      <template v-if="showFooter" #footer>
         <!-- Save/read-only action surface — non-sticky, inside the card.
            Renders only when content is loaded; connects to dirty/loading state
            through the form composable refs. The no-update-permission notice
            appears here so the read-only surface stays focused on its data.
            Responsive: mobile-stacked with full-width button, sm horizontal with auto-width button. -->
         <div
-          v-if="showFooter"
           class="flex w-full flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end"
           data-testid="settings-footer"
         >
           <p
             v-if="!canUpdate"
-            class="text-xs text-warning sm:mr-auto"
+            class="text-xs text-muted sm:mr-auto"
             data-testid="readonly-notice"
           >
             No tienes permisos para guardar cambios
@@ -245,7 +267,7 @@ async function submit() {
       confirm-label="Confirmar"
       cancel-label="Cancelar"
       :loading="saving"
-      :ui="{ content: 'hf-theme hf-ui hf-form-overlay catalog-settings-form-portal' }"
+      :ui="{ content: 'hf-theme hf-ui hf-form-overlay' }"
       @confirm="onConfirm"
       @cancel="form.cancelPublish()"
       @update:open="

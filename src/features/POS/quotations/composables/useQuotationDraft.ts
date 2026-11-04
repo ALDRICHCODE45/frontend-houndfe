@@ -89,7 +89,7 @@ function userMessageForError(error: unknown): string {
   // testable (every assertion reads exactly what the backend sent) while
   // letting us localize incrementally per backend doc §8.
   if (status === 409) return 'La cotización ya no admite cambios'
-  if (status === 502) return 'Error al enviar, reintentá'
+  if (status === 502) return 'Error al enviar, reintenta'
   if (status === 422 && innerCode === 'QUOTATION_HAS_NO_ITEMS') {
     return 'La cotización no tiene productos'
   }

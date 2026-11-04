@@ -19,11 +19,27 @@ describe('Dashboard metrics presentation contract', () => {
   })
 
   it('pins hero, five-card grid and refund-band geometry', () => {
-    for (const declaration of ['min-height: 201px', 'padding: 28px 32px', 'font-size: 48px', 'width: 55%', 'height: 120px', 'repeat(5, minmax(0, 1fr))', 'gap: 12px', 'padding: 20px', 'min-height: 147px', 'font-size: 25px', 'height: 30px', 'opacity: 0.6']) {
+    for (const declaration of ['min-height: 201px', 'padding: 28px 32px', 'font-size: 56px', 'width: 55%', 'height: 120px', 'repeat(5, minmax(0, 1fr))', 'gap: 12px', 'padding: 20px', 'min-height: 128px', 'font-size: 22px', 'height: 30px', 'opacity: 0.6']) {
       expect(css).toContain(declaration)
     }
     expect(css).toContain('@media (max-width: 1190px)')
     expect(css).toContain('@media (max-width: 700px)')
+  })
+
+  it('turns the five KPIs into one row each on a phone, so none sits alone', () => {
+    const phone = css.slice(css.indexOf('@media (max-width: 700px)'))
+    expect(phone).toMatch(/dashboard-metric-grid \{ grid-template-columns: minmax\(0, 1fr\)/)
+    expect(phone).not.toContain('grid-column: 1 / -1; min-height: 104px')
+    expect(phone).toMatch(/dashboard-card-spark \{ display: none; \}/)
+  })
+
+  it('gives Ventas netas clear priority over the quieter secondary cards', () => {
+    const size = (selector: string) =>
+      Number(new RegExp(`${selector}[^}]*?font-size: (\\d+)px`).exec(css)?.[1])
+    expect(size('\\.dashboard-hero-value \\{')).toBeGreaterThanOrEqual(2 * size('\\.dashboard-metric-value \\{'))
+    // Only the pending marker is warm; the debt value and label stay neutral.
+    expect(css).not.toContain('.dashboard-debt-card :is(')
+    expect(css).toContain('.dashboard-metric-status { display: flex; align-items: center; gap: 4px; margin-top: 4px; color: var(--hf-warning)')
   })
 
   it('provides entry, hover and draw-in with a reduced-motion escape', () => {

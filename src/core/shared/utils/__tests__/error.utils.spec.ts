@@ -46,7 +46,7 @@ function makeAxiosError(
   return err
 }
 
-const DEFAULT_FALLBACK = 'No pudimos completar la operación. Reintenta.'
+const DEFAULT_FALLBACK = 'No pudimos completar la operación.'
 
 // ── normalizeApiError — DOMAIN envelope ───────────────────────────────────────
 

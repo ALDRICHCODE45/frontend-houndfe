@@ -13,7 +13,7 @@ import { adminTenantMembershipQueryKeys } from '@/core/shared/constants/query-ke
  * click, columns). This spec keeps the lower-cost unit + permission-
  * guard assertions: query key construction, useServerTable args
  * (pageSize, persistKey, pinning), mutation invalidation, and the
- * `getRowItems` CASL gating matrix.
+ * `rowActions` CASL gating matrix.
  */
 
 // Mock dependencies
@@ -191,7 +191,7 @@ describe('AdminTenantMembersView - useServerTable wiring', () => {
     expect(callArgs.persistKey).toContain('admin-tenant-members')
   })
 
-  it('pins actions column to the right by default', async () => {
+  it('sorts by the member name by default, never by email', async () => {
     const { useServerTable } = await import('@/core/shared/composables/useServerTable')
 
     mount(AdminTenantMembersView, {
@@ -206,7 +206,7 @@ describe('AdminTenantMembersView - useServerTable wiring', () => {
     })
 
     const callArgs = vi.mocked(useServerTable).mock.calls[0]![0]
-    expect(callArgs.defaultPinning).toEqual({ left: [], right: ['actions'] })
+    expect(callArgs.defaultSorting).toEqual([{ id: 'userName', desc: false }])
   })
 
   it('invalidates membership queries after successful create', async () => {
@@ -293,7 +293,7 @@ describe('AdminTenantMembersView - useServerTable wiring', () => {
     // Canonical page header: exactly one page title, never duplicated.
     expect(wrapper.findAll('h1')).toHaveLength(1)
     expect(wrapper.find('h1').classes()).toContain('hf-page-title')
-    expect(wrapper.text().match(/Miembros del tenant/g)?.length ?? 0).toBe(1)
+    expect(wrapper.text().match(/Miembros/g)?.length ?? 0).toBe(1)
     expect(wrapper.text().match(/Agregar miembro/g)?.length ?? 0).toBe(1)
   })
 })
@@ -357,7 +357,7 @@ describe('AdminTenantMembersView - permission guards', () => {
 
   it('renders neutral empty state and hides the table when read is denied', async () => {
     const wrapper = await mountWithPermissions({ read: false })
-    expect(wrapper.text()).toContain('No tienes acceso a esta sección.')
+    expect(wrapper.text()).toContain('No tienes acceso a los miembros')
     expect(wrapper.find('.app-data-table-stub').exists()).toBe(false)
   })
 
@@ -384,47 +384,36 @@ describe('AdminTenantMembersView - permission guards', () => {
     expect(btn.text()).toBe('Agregar miembro')
   })
 
-  it('getRowItems returns empty when both update and delete are denied', async () => {
+  const rowActionLabels = (wrapper: Awaited<ReturnType<typeof mountWithPermissions>>) =>
+    (wrapper.vm as unknown as { rowActions: Array<{ label: string }> }).rowActions.map(
+      (action) => action.label,
+    )
+
+  it('rowActions is empty when both update and delete are denied', async () => {
     const wrapper = await mountWithPermissions({
       read: true,
       create: false,
       update: false,
       delete: false,
     })
-    const vm = wrapper.vm as unknown as {
-      getRowItems: (m: { id: string; userEmail: string }) => unknown[]
-    }
-    const items = vm.getRowItems({ id: 'm1', userEmail: 'u@example.com' })
-    expect(items).toEqual([])
+    expect(rowActionLabels(wrapper)).toEqual([])
   })
 
-  it('getRowItems exposes only "Editar rol" when delete is denied but update is allowed', async () => {
+  it('rowActions is empty when only update is allowed: "Editar rol" would repeat the row click', async () => {
     const wrapper = await mountWithPermissions({
       read: true,
       update: true,
       delete: false,
     })
-    const vm = wrapper.vm as unknown as {
-      getRowItems: (m: { id: string; userEmail: string }) => Array<Array<{ label: string }>>
-    }
-    const items = vm.getRowItems({ id: 'm1', userEmail: 'u@example.com' })
-    expect(items.length).toBe(1)
-    expect(items[0]?.length).toBe(1)
-    expect(items[0]?.[0]?.label).toBe('Editar rol')
+    expect(rowActionLabels(wrapper)).toEqual([])
   })
 
-  it('getRowItems exposes only "Eliminar miembro" when update is denied but delete is allowed', async () => {
+  it('rowActions exposes only "Eliminar miembro…" when update is denied but delete is allowed', async () => {
     const wrapper = await mountWithPermissions({
       read: true,
       update: false,
       delete: true,
     })
-    const vm = wrapper.vm as unknown as {
-      getRowItems: (m: { id: string; userEmail: string }) => Array<Array<{ label: string }>>
-    }
-    const items = vm.getRowItems({ id: 'm1', userEmail: 'u@example.com' })
-    expect(items.length).toBe(1)
-    expect(items[0]?.length).toBe(1)
-    expect(items[0]?.[0]?.label).toBe('Eliminar miembro')
+    expect(rowActionLabels(wrapper)).toEqual(['Eliminar miembro…'])
   })
 })

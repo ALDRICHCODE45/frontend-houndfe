@@ -1,84 +1,43 @@
 <script setup lang="ts">
 /**
- * EmployeesListView — WU-05B (action menu + edit/terminate/reactivate dialogs)
- *                       + WU-A (useServerTable migration, error surfacing,
- *                              page header, column visibility, dead-UI cleanup)
+ * EmployeesListView — the Colaboradores list.
  *
- * Orchestrator view for the Colaboradores list page.
- * Composition surface: wires useEmployeesList + useEmployeeColumns +
- * useEmployeeViewMode + useManagerResolution + EmployeeFilters.
+ * One layout: an AppDataTable on desktop and cards on mobile
+ * (`mobile-render="cards"` + `#mobile-card`). Columns follow the work: the
+ * person, the status, then the job fields; the ⋮ menu is last. A row opens the
+ * detail for everyone who can read employees; Editar, Dar de baja… and
+ * Reactivar… live in the ⋮ menu and need update:Employee.
  *
- * WU-03 additions:
- * - Tabla / Tarjetas segmented toggle via shared ViewToggle (with displayMode bridge)
- * - Card grid view via EmployeeCardGrid (delegates to EmployeeCard per item)
- * - Manager name resolution via useManagerResolution (batch, no N+1)
- * - View mode persisted in localStorage via useEmployeeViewMode
- *
- * WU-04C additions:
- * - "Nuevo colaborador" button opens CreateEmployeeSlideover (gated by create:Employee)
- * - On success: slideover closes, list auto-refreshes via TanStack query invalidation
- *
- * WU-05B additions:
- * - Row action menu (table + card) — Editar, Dar de baja, Reactivar
- * - EmployeeEditSlideover — pre-fills form from selected employee
- * - TerminateEmployeeDialog — terminationDate + terminationReason fields
- * - ReactivateEmployeeDialog — simple confirm dialog
- * - All actions gated by update:Employee CASL permission
- *
- * WU-A additions:
- * - Migrate to useServerTable (shared composable) via Approach C (closure refs)
- * - Surface isError/error → employeesErrorMessage → AppDataTable :error/:error-message
- * - Canonical page header (hf-page-header) sits outside the table surface
- * - enable-column-visibility + 7 data columns marked enableHiding: true
- * - :display-mode bridge (card → cards) via useEmployeeViewMode.displayMode
- * - v-model:sorting/global-filter/column-pinning/column-visibility wired
- * - Dead UI removed: Importar / Exportar buttons, Filtros button, department select,
- *   modality select, "Más recientes" sort select
- * - viewMode → useEmployeeViewMode (with displayMode computed)
- * - selection-clear watcher: [viewMode, () => pagination.value.pageIndex]
- *
- * WU-B additions:
- * - EmployeeCardGrid rendered inside AppDataTable's #cards slot (kebab +
- *   card-click → admin-employee-detail preserved); the sibling v-else card
- *   branch and its duplicated prev/next pagination are gone — AppDataTable's
- *   pagination now governs both views
- * - EmployeeFilters (status tabs only) rendered inside AppDataTable's #filters
- *   slot; the toolbar owns the search box via globalFilter
- *
- * Design: Claude "Colaboradores" adapted to warm-orange Nuxt UI 4 tokens.
- * Status tabs: Todos / Activos / Bajas (EmployeeFilters, in the #filters slot)
- * Table columns: Colaborador, Cargo, Departamento, Jefe directo, Fecha de ingreso, Modalidad, Estado
- * Salary: intentionally NOT shown in list or cards — belongs in Compensación detail tab
+ * Composition surface: useEmployeesList (useServerTable + the status filter),
+ * useEmployeeColumns, useManagerResolution (batch, no N+1) and the lifecycle
+ * dialogs. Batch delete / terminate / reactivate keep the table's selection
+ * column and bulk bar (desktop table only).
  *
  * Permission gate: route-level meta.permission ['read', 'Employee'].
- * Create button gated by create:Employee (passed to :show-add-button on AppDataTable).
- * Edit/terminate/reactivate gated by update:Employee.
+ * Create is gated by create:Employee, edit/terminate/reactivate by update:Employee.
  */
 
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { AppDataTable, FilterSectionCard } from '@/core/shared/components/DataTable'
+import type { TableColumn } from '@nuxt/ui'
+import { AppDataTable } from '@/core/shared/components/DataTable'
 import SelectColumn from '@/core/shared/components/DataTable/SelectColumn.vue'
+import ToolbarSelectFilter from '@/core/shared/components/DataTable/ToolbarSelectFilter.vue'
 import ConfirmModal, { type ConfirmModalItem } from '@/core/shared/components/ConfirmModal.vue'
+import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
+import RowActionsMenu from '@/core/shared/components/RowActionsMenu.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import type { BulkAction } from '@/core/shared/types/table.types'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
-import { EMPLOYEE_STATUS, WORK_MODALITY } from '../constants/employee.constants'
-import { WORK_MODALITY_LABELS } from '../interfaces/employee.types'
+import { EMPLOYEE_STATUS_FILTER } from '../constants/employee.constants'
+import type { EmployeeStatusFilter } from '../api/employees.api'
 import { useEmployeesList } from '../composables/useEmployeesList'
-import {
-  useEmployeeColumns,
-  formatHireDate,
-} from '../composables/useEmployeeColumns'
-import { useEmployeeViewMode, isEmployeeViewMode } from '../composables/useEmployeeViewMode'
-import { useManagerResolution, resolveManagerName, resolveManagerEmail } from '../composables/useManagerResolution'
-import { getEmployeeRowActions } from '../composables/useEmployeeActions'
-import { employeeStatusConfig, getDepartmentDotClass } from '../utils/employeeBadgeConfig.utils'
-import EmployeeCardGrid from '../components/EmployeeCardGrid.vue'
-import EmployeeFilters from '../components/EmployeeFilters.vue'
-import ViewToggle from '@/core/shared/components/ViewToggle.vue'
-import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
-import DotBadge from '@/core/shared/components/DotBadge.vue'
-import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
+import { useEmployeeColumns, formatHireDate } from '../composables/useEmployeeColumns'
+import { useManagerResolution, resolveManagerName } from '../composables/useManagerResolution'
+import { getEmployeeRowActions, type EmployeeRowActionKey } from '../composables/useEmployeeActions'
+import { employeeStatusConfig } from '../utils/employeeBadgeConfig.utils'
+import AdminMobileCard from '../../shared/components/AdminMobileCard.vue'
+import { noMatchTitleFor } from '../../shared/utils/list-state.utils'
 import CreateEmployeeSlideover from '../components/CreateEmployeeSlideover.vue'
 import EmployeeEditSlideover from '../components/EmployeeEditSlideover.vue'
 import TerminateEmployeeDialog from '../components/TerminateEmployeeDialog.vue'
@@ -143,14 +102,16 @@ function openReactivateDialog(employee: Employee): void {
   isReactivateOpen.value = true
 }
 
-// ── Table row action menu builder ──────────────────────────────────────────────
-function getTableRowItems(employee: Employee) {
-  const actions = getEmployeeRowActions(employee, canUpdate.value, {
-    onEdit: () => openEditSlideover(employee),
-    onTerminate: () => openTerminateDialog(employee),
-    onReactivate: () => openReactivateDialog(employee),
-  })
-  return actions.length > 0 ? [actions] : []
+// ── Row actions (⋮ menu in the table and on the card) ─────────────────────────
+function actionsFor(employee: Employee) {
+  return getEmployeeRowActions(employee, canUpdate.value)
+}
+
+function handleRowAction(key: string, employee: Employee): void {
+  const action = key as EmployeeRowActionKey
+  if (action === 'edit') openEditSlideover(employee)
+  else if (action === 'terminate') openTerminateDialog(employee)
+  else if (action === 'reactivate') openReactivateDialog(employee)
 }
 
 // ── List composable (useServerTable-backed) ───────────────────────────────────
@@ -169,7 +130,6 @@ const {
   isLoading,
   isFetching,
   isError,
-  error,
   refresh,
   selectedEmployees,
   clearSelection,
@@ -180,39 +140,43 @@ const {
 
 // ── Column definitions ─────────────────────────────────────────────────────────
 const { columns: employeeColumns } = useEmployeeColumns()
-const columns = computed(() =>
+const columns = computed<TableColumn<Employee>[]>(() =>
   canUseBatchActions.value
     ? [{ id: 'select', enableSorting: false, enableHiding: false }, ...employeeColumns.value]
     : employeeColumns.value,
 )
 
-// ── View mode (Tabla / Tarjetas) + displayMode bridge ──────────────────────────
-const { viewMode, setMode: setViewMode, displayMode } = useEmployeeViewMode()
-
-function handleViewModeChange(mode: string) {
-  if (!isEmployeeViewMode(mode)) return
-  setViewMode(mode)
-}
-
-// ── Error message (REQ-1: backend.message > error.message > Spanish fallback) ──
-const employeesErrorMessage = computed(() => {
-  const err = error.value as
-    | { response?: { data?: { message?: unknown } }; message?: string }
-    | null
-    | undefined
-  const backendMessage = err?.response?.data?.message
-  if (typeof backendMessage === 'string' && backendMessage.trim()) {
-    return backendMessage
-  }
-  if (Array.isArray(backendMessage) && backendMessage.length > 0) {
-    const first = backendMessage[0]
-    if (typeof first === 'string') return first
-  }
-  if (typeof err?.message === 'string' && err.message.trim()) {
-    return err.message
-  }
-  return 'No se pudieron cargar los colaboradores. Reintenta.'
+// ── Status filter (a named select inside the toolbar) ─────────────────────────
+const statusModel = computed({
+  get: () => statusTab.value,
+  set: (value: string) => setStatusTab(value as EmployeeStatusFilter),
 })
+const statusItems = [
+  { label: 'Todos', value: EMPLOYEE_STATUS_FILTER.ALL },
+  { label: 'Activos', value: EMPLOYEE_STATUS_FILTER.ACTIVE },
+  { label: 'Bajas', value: EMPLOYEE_STATUS_FILTER.TERMINATED },
+]
+
+// ── Four states (S10) ──────────────────────────────────────────────────────────
+const employeesErrorMessage = 'No se pudieron cargar los colaboradores'
+
+const searchTerm = computed(() => globalFilter.value.trim())
+const isFiltered = computed(
+  () => searchTerm.value !== '' || statusTab.value !== EMPLOYEE_STATUS_FILTER.ALL,
+)
+const noMatchTitle = computed(() => noMatchTitleFor(searchTerm.value))
+const emptyState = computed(() => ({
+  title: 'Aún no hay colaboradores',
+  description: 'Aquí aparecerá tu equipo cuando lo registres.',
+  ...(canCreate.value
+    ? { actionLabel: 'Nuevo colaborador', actionIcon: 'i-lucide-user-plus' }
+    : {}),
+}))
+
+function clearFilters(): void {
+  globalFilter.value = ''
+  setStatusTab(EMPLOYEE_STATUS_FILTER.ALL)
+}
 
 // ── Batch operations ───────────────────────────────────────────────────────────
 const BATCH_OPS_CAP = 100
@@ -231,9 +195,9 @@ const isBatchPending = computed(
     batchReactivateMutation.isPending.value,
 )
 
-// Selection-clear when the user switches view mode OR changes page index.
+// Selection-clear when the user changes page index.
 watch(
-  [viewMode, () => pagination.value.pageIndex],
+  () => pagination.value.pageIndex,
   () => {
     clearSelection()
   },
@@ -286,8 +250,6 @@ async function confirmBatchReactivate(): Promise<void> {
 }
 
 const bulkActions = computed<BulkAction<Employee>[]>(() => {
-  if (viewMode.value === 'card') return []
-
   const count = selectedEmployees.value.length
   const disabled = count === 0 || count > BATCH_OPS_CAP
   const actions: BulkAction<Employee>[] = []
@@ -329,33 +291,17 @@ const { managerMap } = useManagerResolution(
   () => tenantId.value,
 )
 
-// ── Modality badge hook — semantic roles live in employees-visual.css ────────
-function getModalityBadgeClass(modality: Employee['workModality']): string {
-  switch (modality) {
-    case WORK_MODALITY.REMOTE:
-      return 'employees-modality employees-modality--remote'
-    case WORK_MODALITY.HYBRID:
-      return 'employees-modality employees-modality--hybrid'
-    case WORK_MODALITY.ONSITE:
-      return 'employees-modality employees-modality--onsite'
-  }
-}
-
-function getPositionLevel(position: string | null): string {
-  const value = position?.toLowerCase() ?? ''
-  if (value.includes('senior') || value.includes('gerente') || value.includes('director')) return 'Senior'
-  if (value.includes('junior') || value.includes('practicante')) return 'Junior'
-  if (!position) return '—'
-  return 'Mid'
-}
-
-// ── Manager display (table view — reads from resolved map via pure helper) ─────
 function getManagerDisplay(employee: Employee): string {
   return resolveManagerName(employee.managerId, managerMap.value)
 }
 
-function getManagerEmail(employee: Employee): string | null {
-  return resolveManagerEmail(employee.managerId, managerMap.value)
+function statusBadgeOf(employee: Employee) {
+  return employeeStatusConfig[employee.status]
+}
+
+/** The card's footer line: what the person does, in one muted line. */
+function jobLine(employee: Employee): string {
+  return [employee.currentPosition, employee.currentDepartment].filter(Boolean).join(' · ') || '—'
 }
 
 // ── selectedEmployeeItems — used by ConfirmModal (bulk delete/reactivate) ──────
@@ -369,13 +315,10 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
 </script>
 
 <template>
-  <div class="hf-theme hf-ui employees-visual flex w-full min-w-0 flex-col gap-6 py-3 md:px-6 lg:px-8">
-    <!-- Canonical table workspace (design-system §4): heading on the page
-         background, outside the single data surface. -->
-    <div class="hf-page-header">
+  <div class="hf-theme hf-ui employees-visual flex w-full min-w-0 flex-col gap-6 md:px-6 lg:px-10">
+    <header class="hf-page-header">
       <h1 class="hf-page-title">Colaboradores</h1>
-      <p class="hf-page-subtitle">Equipo, lifecycle, organigrama y documentos del personal</p>
-    </div>
+    </header>
 
     <UCard :ui="{ body: 'p-0 sm:p-0' }" class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm">
       <div class="hf-table-content flex w-full min-w-0 flex-col gap-4 px-3 py-3 sm:px-4 sm:py-4">
@@ -388,21 +331,25 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
           v-model:column-visibility="columnVisibility"
           :columns="columns"
           :data="employees"
-          :enable-row-selection="canUseBatchActions && viewMode === 'table'"
+          :enable-row-selection="canUseBatchActions"
           :bulk-actions="bulkActions"
           :loading="isLoading"
           :fetching="isFetching"
           :error="isError"
           :error-message="employeesErrorMessage"
+          :empty-state="emptyState"
+          :filtered="isFiltered"
+          :no-match-title="noMatchTitle"
           :page-count="pageCount"
           :total-count="totalCount"
           :showing-from="showingFrom"
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
-          :display-mode="displayMode"
+          :row-open="navigateToDetail"
           :show-add-button="canCreate"
-          :show-refresh="false"
           :active-filter-count="statusTab !== 'all' ? 1 : 0"
+          display-mode="auto"
+          mobile-render="cards"
           add-button-text="Nuevo colaborador"
           add-button-icon="i-lucide-user-plus"
           empty="No se encontraron colaboradores"
@@ -413,28 +360,17 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
           pagination-portal-class="hf-theme hf-ui employees-list-portal"
           @refresh="refresh"
           @add="openCreateSlideover"
-          @clear-filters="setStatusTab('all')"
+          @empty-action="openCreateSlideover"
+          @clear-filters="clearFilters"
         >
-          <template #actions>
-            <ViewToggle
-              :model-value="viewMode"
-              class="employees-view-toggle"
-              aria-label="Seleccionar vista de empleados"
-              @update:model-value="handleViewModeChange"
-            />
-          </template>
-
-          <!-- WU-B: status tabs in #filters — toolbar keeps the globalFilter search box.
-               polish-filters-bottom-sheet: FilterSectionCard owns the card
-               chrome + "Estado" title so the mobile sheet renders the slot
-               directly (no vnode capture). -->
           <template #filters>
-            <FilterSectionCard title="Estado">
-              <EmployeeFilters
-                :status-tab="statusTab"
-                @update:status-tab="setStatusTab"
-              />
-            </FilterSectionCard>
+            <ToolbarSelectFilter
+              v-model="statusModel"
+              :items="statusItems"
+              label="Estado"
+              portal-class="hf-theme hf-ui employees-list-portal"
+              test-id="employee-status-filter"
+            />
           </template>
 
           <template #select-header="{ table }">
@@ -444,121 +380,81 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
             <SelectColumn :row="row" mode="cell" />
           </template>
 
-          <!-- Colaborador cell — avatar + name + email (click → detail view) -->
           <template #colaborador-cell="{ row }">
-            <div
-              class="flex cursor-pointer items-center gap-3"
-              @click="navigateToDetail(row.original)"
-            >
-              <EntityAvatar
-                :name="row.original.fullName"
-                :seed="row.original.id"
-                :show-dot="row.original.status === EMPLOYEE_STATUS.ACTIVE"
-              />
+            <div class="flex min-w-0 items-center gap-3">
+              <EntityAvatar :name="row.original.fullName" aria-hidden="true" />
               <div class="min-w-0">
-                <p class="truncate text-sm font-semibold text-highlighted hover:text-primary hover:underline">
+                <button
+                  type="button"
+                  class="hf-row-primary text-left"
+                  data-testid="employee-name"
+                  @click="navigateToDetail(row.original)"
+                >
                   {{ row.original.fullName }}
-                </p>
-                <p v-if="row.original.email" class="truncate text-xs text-muted">
-                  {{ row.original.email }}
-                </p>
-                <p v-else class="text-xs text-muted">{{ row.original.employeeNumber }}</p>
+                </button>
+                <span class="hf-row-secondary">{{ row.original.email ?? row.original.employeeNumber }}</span>
               </div>
             </div>
           </template>
 
-          <!-- Cargo cell -->
-          <template #cargo-cell="{ row }">
-            <div class="min-w-0">
-              <p class="truncate text-sm font-semibold text-highlighted">
-                {{ row.original.currentPosition ?? '—' }}
-              </p>
-              <p class="text-xs text-muted">{{ getPositionLevel(row.original.currentPosition) }}</p>
-            </div>
-          </template>
-
-          <!-- Departamento cell -->
-          <template #departamento-cell="{ row }">
-            <DotBadge
-              v-if="row.original.currentDepartment"
-              :label="row.original.currentDepartment"
-              :dot-class="getDepartmentDotClass(row.original.currentDepartment)"
-            />
-            <span v-else class="text-sm text-muted">—</span>
-          </template>
-
-          <!-- Jefe directo cell — resolved manager name or "—" -->
-          <template #jefedirecto-cell="{ row }">
-            <div v-if="getManagerDisplay(row.original) !== '—'" class="flex items-center gap-2">
-              <EntityAvatar
-                :name="getManagerDisplay(row.original)"
-                :seed="getManagerDisplay(row.original)"
-                size="sm"
-              />
-              <div class="min-w-0">
-                <p class="truncate text-sm font-medium text-default">{{ getManagerDisplay(row.original) }}</p>
-                <p v-if="getManagerEmail(row.original)" class="truncate text-xs text-muted">{{ getManagerEmail(row.original) }}</p>
-              </div>
-            </div>
-            <span v-else class="text-sm text-muted">—</span>
-          </template>
-
-          <!-- Fecha de ingreso cell -->
-          <template #fechaIngreso-cell="{ row }">
-            <span class="text-sm font-medium text-default">{{ formatHireDate(row.original.hireDate) }}</span>
-          </template>
-
-          <!-- Modalidad cell — badge chip -->
-          <template #modalidad-cell="{ row }">
-            <UBadge
-              variant="outline"
-              size="md"
-              :class="getModalityBadgeClass((row.original as Employee).workModality)"
-              :ui="{ base: 'rounded-full px-3 py-1.5 shadow-none ring-0', label: 'text-xs font-semibold' }"
-            >
-              {{ WORK_MODALITY_LABELS[(row.original as Employee).workModality] }}
-            </UBadge>
-          </template>
-
-          <!-- Estado cell — semantic status badge (tone + dark mode from shared component) -->
           <template #estado-cell="{ row }">
-            <StatusDotBadge
-              :tone="employeeStatusConfig[(row.original as Employee).status].tone"
-              :label="employeeStatusConfig[(row.original as Employee).status].label"
-            />
+            <StatusBadge v-bind="statusBadgeOf(row.original)" />
           </template>
 
-          <!-- Actions cell — row action dropdown (WU-05B) -->
+          <template #cargo-cell="{ row }">
+            <span class="block max-w-56 truncate text-sm" :title="row.original.currentPosition ?? undefined">
+              {{ row.original.currentPosition ?? '—' }}
+            </span>
+          </template>
+
+          <template #departamento-cell="{ row }">
+            <span class="block max-w-48 truncate text-sm" :title="row.original.currentDepartment ?? undefined">
+              {{ row.original.currentDepartment ?? '—' }}
+            </span>
+          </template>
+
+          <template #jefedirecto-cell="{ row }">
+            <span class="block max-w-48 truncate text-sm">{{ getManagerDisplay(row.original) }}</span>
+          </template>
+
+          <template #fechaIngreso-cell="{ row }">
+            <span class="text-sm text-muted">{{ formatHireDate(row.original.hireDate) }}</span>
+          </template>
+
+          <template #actions-header><span class="sr-only">Acciones</span></template>
+
           <template #actions-cell="{ row }">
-            <UDropdownMenu
-              v-if="getTableRowItems(row.original).length > 0"
-              :items="getTableRowItems(row.original)"
-              :content="{ align: 'end' }"
-              :ui="{ content: 'hf-theme hf-ui employees-list-portal' }"
-            >
-              <UButton
-                icon="i-lucide-ellipsis-vertical"
-                color="neutral"
-                variant="ghost"
-                class="size-7"
-                aria-label="Acciones del colaborador"
-              />
-            </UDropdownMenu>
+            <RowActionsMenu
+              :actions="actionsFor(row.original)"
+              :row-label="row.original.fullName"
+              portal-class="employees-list-portal"
+              @select="handleRowAction($event, row.original)"
+            />
           </template>
 
-          <!-- WU-A: Card view in #cards slot — preserves kebab + card-click navigation -->
-          <template #cards>
-            <EmployeeCardGrid
-              :employees="employees"
-              :manager-map="managerMap"
-              :loading="isLoading || isFetching"
-              :can-update="canUpdate"
-              empty="No se encontraron colaboradores"
-              @edit="openEditSlideover"
-              @terminate="openTerminateDialog"
-              @reactivate="openReactivateDialog"
-              @card-click="navigateToDetail"
-            />
+          <template #mobile-card="{ row }">
+            <AdminMobileCard
+              :item="row"
+              :label="row.fullName"
+              :actions="actionsFor(row)"
+              openable
+              portal-class="employees-list-portal"
+              test-id="employee-card"
+              @open="navigateToDetail"
+              @action="handleRowAction"
+            >
+              <template #leading>
+                <EntityAvatar :name="row.fullName" aria-hidden="true" />
+              </template>
+              <template #secondary>{{ row.email ?? row.employeeNumber }}</template>
+              <template #badges>
+                <StatusBadge v-bind="statusBadgeOf(row)" />
+              </template>
+              <template #footer>
+                <span class="min-w-0 truncate font-medium">{{ jobLine(row) }}</span>
+                <span class="shrink-0">{{ formatHireDate(row.hireDate) }}</span>
+              </template>
+            </AdminMobileCard>
           </template>
         </AppDataTable>
       </div>

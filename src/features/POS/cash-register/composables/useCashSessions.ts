@@ -99,8 +99,6 @@ export function useCashSessions(params: MaybeRefOrGetter<CashSessionListParams> 
   return {
     sessions: computed(() => listQuery.data.value?.items ?? []),
     total: computed(() => listQuery.data.value?.total ?? 0),
-    page: computed(() => listQuery.data.value?.page ?? effectiveParams.value.page ?? 1),
-    limit: computed(() => listQuery.data.value?.limit ?? effectiveParams.value.limit ?? 25),
     effectiveParams,
     /** Whether the cashier filter may be used at all. */
     canFilterByCashier: canAudit,

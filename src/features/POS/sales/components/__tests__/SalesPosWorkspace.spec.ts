@@ -432,7 +432,7 @@ describe('D2 — catalog hooks (shared components stay inert by default)', () =>
       }),
     )
     expect(wrapper.find('.sales-pos-catalog-empty').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Sin resultados')
+    expect(wrapper.text()).toContain('Ningún resultado')
   })
 
   it('marks the product card facts and preserves the shared card defaults', () => {
@@ -452,7 +452,7 @@ describe('D2 — catalog hooks (shared components stay inert by default)', () =>
     expect(wrapper.get('[data-testid="image-area"]').classes()).toEqual(
       expect.arrayContaining(['w-[43%]', 'min-h-28', 'sm:h-32', 'sm:w-full']),
     )
-    expect(wrapper.get('.tabular-nums').classes()).toContain('dark:text-(--brand-accent)')
+    expect(wrapper.get('.tabular-nums').classes()).toContain('text-(--hf-heading)')
     expect(wrapper.get('[data-testid="add-action"]').classes()).toContain('sm:hidden')
   })
 })
@@ -490,7 +490,6 @@ const rowStubs = {
   PriceOverrideModal: true,
   ItemDiscountModal: true,
   ProductDetailModal: true,
-  AppBadge: { props: ['label'], template: '<span>{{ label }}</span>' },
   USeparator: true,
 }
 
@@ -618,7 +617,7 @@ describe('D3 — cart hooks and public events', () => {
     expect(wrapper.emitted('charge-click')).toHaveLength(1)
   })
 
-  it('leaves the legacy charge classes byte-identical when the opt-in is omitted', () => {
+  it('takes the shared primary control when the opt-in is omitted', () => {
     const wrapper = track(
       mount(SaleTotalsFooter, {
         props: { sale: makeSale(), isChargePending: false },
@@ -627,8 +626,8 @@ describe('D3 — cart hooks and public events', () => {
     )
 
     const button = wrapper.get('button')
-    expect(button.classes()).toContain('!bg-(--brand-action)')
-    expect(button.classes()).toContain('!text-black')
+    expect(button.classes()).toContain('hf-primary-control')
+    expect(button.classes()).not.toContain('!bg-(--brand-action)')
     expect(button.classes()).not.toContain('sales-pos-charge-button')
     expect(button.classes()).not.toContain('sales-entry-primary-action')
   })

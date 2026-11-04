@@ -16,6 +16,7 @@ import type {
   VariantPatchCatalogPayload,
 } from '../interfaces/product.types'
 import OnlineStockOverrideFields from './OnlineStockOverrideFields.vue'
+import ReadOnlyStock from './ReadOnlyStock.vue'
 
 declare const useToast: () => {
   add: (options: {
@@ -47,7 +48,6 @@ const tenantId = useSafeTenantId()
 const formState = reactive({
   sku: '',
   barcode: '',
-  quantity: 0,
   minQuantity: 0,
   purchaseCost: '',
 })
@@ -55,7 +55,6 @@ const formState = reactive({
 const initialState = reactive({
   sku: '',
   barcode: '',
-  quantity: 0,
   minQuantity: 0,
   purchaseCost: '',
 })
@@ -126,7 +125,7 @@ const saveChangeableKeys = computed<ChangeableField[]>(() =>
   isServiceProduct.value
     ? ['purchaseCost']
     : props.useStock
-      ? ['sku', 'barcode', 'quantity', 'minQuantity', 'purchaseCost']
+      ? ['sku', 'barcode', 'minQuantity', 'purchaseCost']
       : ['sku', 'barcode', 'purchaseCost'],
 )
 
@@ -154,7 +153,6 @@ function normalizeQuantity(value: number | null | undefined): number {
 function syncFormFromVariant(variant: ProductVariant | null) {
   initialState.sku = normalizeText(variant?.sku)
   initialState.barcode = normalizeText(variant?.barcode)
-  initialState.quantity = normalizeQuantity(variant?.quantity)
   initialState.minQuantity = normalizeQuantity(variant?.minQuantity)
   initialState.purchaseCost =
     variant?.purchaseNetCostCents != null
@@ -163,7 +161,6 @@ function syncFormFromVariant(variant: ProductVariant | null) {
 
   formState.sku = initialState.sku
   formState.barcode = initialState.barcode
-  formState.quantity = initialState.quantity
   formState.minQuantity = initialState.minQuantity
   formState.purchaseCost = initialState.purchaseCost
 
@@ -193,7 +190,8 @@ const updateVariantMutation = useMutation({
   }) => productApi.updateVariant(props.productId, params.variantId, params.values),
 })
 
-type ChangeableField = 'sku' | 'barcode' | 'quantity' | 'minQuantity' | 'purchaseCost'
+// O1 S1: quantity is not a changeable field; stock moves through an adjustment.
+type ChangeableField = 'sku' | 'barcode' | 'minQuantity' | 'purchaseCost'
 
 function getChanges(keys: ChangeableField[]): UpdateVariantPayload {
   const changes: UpdateVariantPayload = {}
@@ -209,14 +207,6 @@ function getChanges(keys: ChangeableField[]): UpdateVariantPayload {
     const nextBarcode = normalizeText(formState.barcode)
     if (nextBarcode !== initialState.barcode) {
       changes.barcode = nextBarcode
-    }
-  }
-
-  if (keys.includes('quantity')) {
-    const nextQuantity = normalizeQuantity(formState.quantity)
-    formState.quantity = nextQuantity
-    if (nextQuantity !== initialState.quantity) {
-      changes.quantity = nextQuantity
     }
   }
 
@@ -275,7 +265,6 @@ async function persistChanges(
 
     initialState.sku = normalizeText(changes.sku ?? initialState.sku)
     initialState.barcode = normalizeText(changes.barcode ?? initialState.barcode)
-    initialState.quantity = normalizeQuantity(changes.quantity ?? initialState.quantity)
     initialState.minQuantity = normalizeQuantity(changes.minQuantity ?? initialState.minQuantity)
     if (changes.purchaseNetCostCents != null) {
       initialState.purchaseCost = centsToDecimalInput(changes.purchaseNetCostCents)
@@ -310,7 +299,7 @@ function handleCancel() {
 </script>
 
 <template>
-  <UModal v-model:open="modalOpen" :title="modalTitle" :content="{ class: 'sm:max-w-3xl' }">
+  <UModal v-model:open="modalOpen" :title="modalTitle" :content="{ class: 'hf-theme hf-ui sm:max-w-3xl' }">
     <template #body>
       <div v-if="variant" class="space-y-4">
         <UCard>
@@ -329,7 +318,7 @@ function handleCancel() {
               />
             </UFormField>
 
-            <UFormField v-if="showGeneralSkuBarcode" label="Código de barras / Barcode">
+            <UFormField v-if="showGeneralSkuBarcode" label="Código de barras">
               <UInput
                 v-model="formState.barcode"
                 placeholder="Código de barras"
@@ -371,13 +360,10 @@ function handleCancel() {
 
           <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <UFormField label="Cantidad">
-              <UInputNumber
-                v-model="formState.quantity"
-                :min="0"
-                class="w-full"
-                :disabled="!canUpdate"
-                @blur="persistChanges(['quantity'], 'Existencias actualizadas')"
-                @keyup.enter="persistChanges(['quantity'], 'Existencias actualizadas')"
+              <ReadOnlyStock
+                :value="variant.quantity"
+                label="Cantidad"
+                data-testid="variant-modal-stock-readonly"
               />
             </UFormField>
 
@@ -449,6 +435,8 @@ function handleCancel() {
         <UButton
           type="button"
           label="Guardar"
+          color="primary"
+          class="hf-primary-control"
           :disabled="!canUpdate"
           :loading="updateVariantMutation.isPending.value"
           @click="persistChanges(saveChangeableKeys, 'Variante actualizada', true, true)"

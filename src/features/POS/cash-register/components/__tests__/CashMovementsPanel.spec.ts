@@ -8,10 +8,25 @@
 //   so the authorized manual command forms MUST remain available to its owner.
 // Ownership is enforced from the caller identity, and a non-owner never gets the
 // command forms.
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { enableAutoUnmount } from '@vue/test-utils'
+import { ref } from 'vue'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import CashMovementsPanel from '../CashMovementsPanel.vue'
 import type { CashSession, CashSessionDetail } from '../../interfaces/cash.types'
+
+const isMobile = ref(false)
+
+vi.mock('@vueuse/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@vueuse/core')>()
+  return { ...actual, useBreakpoints: () => ({ smaller: () => isMobile }) }
+})
+
+enableAutoUnmount(afterEach)
+
+beforeEach(() => {
+  isMobile.value = false
+})
 
 function makeSession(overrides: Partial<CashSession> = {}): CashSession {
   return {
@@ -244,22 +259,95 @@ describe('CashMovementsPanel · readable history', () => {
       },
     })
     const table = wrapper.get('[data-testid="cash-movements-table"]')
-    const region = table.element.parentElement!
-    expect(region.getAttribute('role')).toBe('region')
-    expect(region.getAttribute('aria-label')).toBe('Historial de movimientos de efectivo')
-    expect(region.getAttribute('tabindex')).toBe('0')
-    expect(table.classes()).toContain('movement-history-table')
     expect(table.findAll('th').map((header) => header.text())).toEqual([
       'Tipo',
       'Canal',
       'Importe',
       'Motivo',
     ])
-    const cells = wrapper.get('[data-testid="cash-movement-m-1"]').findAll('td')
+    const cells = table.get('tbody tr').findAll('td')
+    expect(cells[0].text()).toBe('Ingreso manual')
     expect(cells[2].text()).toBe('$200.00')
-    expect(cells[3].classes()).toContain('movement-history-reason')
-    expect(cells[3].element.textContent).toBe(reason)
+    expect(cells[2].find('.hf-figure').exists()).toBe(true)
+    expect(cells[3].get('.movement-history-reason').element.textContent).toBe(reason)
     expect(wrapper.emitted('submit')).toBeUndefined()
+  })
+
+  it('signs outgoing money and never shows ids', () => {
+    const wrapper = mountWithUApp(CashMovementsPanel, {
+      props: {
+        detail: makeDetail({
+          movements: [{ ...ONE_MOVEMENT, id: 'm-9', kind: 'CASH_OUT', deltaCents: -4550 }],
+        }),
+        currentUserId: 'cashier-1',
+        canCashIn: true,
+      },
+    })
+    const row = wrapper.get('[data-testid="cash-movement-m-9"]')
+    expect(row.text()).toBe('Retiro manual')
+    expect(wrapper.get('tbody tr').text()).toContain('-$45.50')
+    expect(wrapper.text()).not.toMatch(/\bm-9\b|\bsrc-1\b/)
+  })
+})
+
+describe('CashMovementsPanel · four states (S10)', () => {
+  const props = { currentUserId: 'cashier-1', canCashIn: true, canCashOut: true }
+
+  it('empty: "Aún no hay movimientos" on the shared empty state', () => {
+    const wrapper = mountWithUApp(CashMovementsPanel, {
+      props: { ...props, detail: makeDetail() },
+    })
+    expect(wrapper.get('.hf-empty-state[data-kind="empty"]').text()).toContain(
+      'Aún no hay movimientos',
+    )
+    expect(wrapper.find('[data-testid="cash-movements-empty"]').exists()).toBe(true)
+  })
+
+  it('loading: renders the table skeleton while the session loads', () => {
+    const wrapper = mountWithUApp(CashMovementsPanel, { props: { ...props, loading: true } })
+    expect(wrapper.find('[data-testid="table-skeleton"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="cash-movements-empty-detail"]').exists()).toBe(false)
+  })
+
+  it('loading on mobile: renders card skeletons', () => {
+    isMobile.value = true
+    const wrapper = mountWithUApp(CashMovementsPanel, { props: { ...props, loading: true } })
+    expect(wrapper.findAll('[data-testid="mobile-card-skeleton"]')).toHaveLength(3)
+  })
+
+  it('data: rows of the history, and cards on mobile', () => {
+    const detail = makeDetail({ movements: [ONE_MOVEMENT] })
+    const table = mountWithUApp(CashMovementsPanel, { props: { ...props, detail } })
+    expect(table.findAll('tbody tr')).toHaveLength(1)
+
+    isMobile.value = true
+    const cards = mountWithUApp(CashMovementsPanel, { props: { ...props, detail } })
+    const card = cards.get('[data-testid="mobile-cards-list"] article')
+    expect(card.text()).toContain('Ingreso manual')
+    expect(card.text()).toContain('$200.00')
+    expect(card.text()).toContain('Cambio adicional')
+  })
+
+  it('error: shows the table error with Reintentar that asks for a refresh', async () => {
+    const wrapper = mountWithUApp(CashMovementsPanel, { props: { ...props, error: true } })
+    const state = wrapper.get('[data-testid="table-error-state"]')
+    expect(state.attributes('role')).toBe('alert')
+    await wrapper.get('[data-testid="table-error-retry"]').trigger('click')
+    expect(wrapper.emitted('refresh')).toEqual([[]])
+  })
+
+  it('keeps the blind window closed even while the session is loading again', () => {
+    const wrapper = mountWithUApp(CashMovementsPanel, {
+      props: {
+        ...props,
+        detail: makeDetail({
+          session: makeSession({ status: 'OPEN', blind: true }),
+          movements: [ONE_MOVEMENT],
+        }),
+      },
+    })
+    expect(wrapper.find('[data-testid="cash-movements-history-hidden"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="table-view"]').exists()).toBe(false)
   })
 })
 

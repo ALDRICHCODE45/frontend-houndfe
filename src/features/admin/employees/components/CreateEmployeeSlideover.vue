@@ -90,11 +90,6 @@ const WORK_MODALITY_OPTIONS = computed(() =>
 
 // ─── Handlers ─────────────────────────────────────────────────────────────────
 
-function handleClose(): void {
-  resetForm()
-  open.value = false
-}
-
 async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
   // Build a clean DTO — strips empty optionals, casts types
   const dto = formStateToDto(event.data as typeof state)
@@ -115,7 +110,6 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
   <USlideover
     v-model:open="open"
     title="Nuevo colaborador"
-    description="Completa los datos para registrar al colaborador en el sistema"
     side="right"
     inset
     :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
@@ -171,7 +165,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
         <div class="rounded-lg border border-default bg-elevated/30 px-4 py-4">
           <p class="mb-4 text-sm font-semibold text-highlighted">Contacto</p>
           <div class="flex flex-col gap-4">
-            <UFormField label="Email" name="email">
+            <UFormField label="Correo electrónico" name="email">
               <UInput
                 v-model="state.email"
                 class="w-full"
@@ -254,7 +248,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
                 v-model="state.currentDepartment"
                 class="w-full"
                 size="lg"
-                placeholder="Ej: Recursos Humanos"
+                placeholder="Ej: Recursos humanos"
                 :disabled="isPending"
               />
             </UFormField>
@@ -303,14 +297,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
     </template>
 
     <template #footer>
-      <div class="flex justify-end gap-3">
-        <UButton
-          label="Cancelar"
-          color="neutral"
-          variant="outline"
-          :disabled="isPending"
-          @click="handleClose"
-        />
+      <div class="flex w-full justify-end">
         <UButton
           label="Crear colaborador"
           type="submit"

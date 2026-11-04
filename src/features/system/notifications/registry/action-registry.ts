@@ -39,7 +39,7 @@ export const ACTION_REGISTRY: readonly ModuleDescriptor[] = [
   },
   {
     moduleKey: 'hr',
-    moduleLabel: 'Recursos Humanos',
+    moduleLabel: 'Recursos humanos',
     actions: [
       {
         key: 'TIME_OFF_REQUESTED',

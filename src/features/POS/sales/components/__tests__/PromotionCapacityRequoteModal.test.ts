@@ -73,7 +73,7 @@ describe('PromotionCapacityRequoteModal — content', () => {
   it('instructs the cashier to review payments and confirm again (no auto-charge copy)', () => {
     const wrapper = mountModal()
 
-    expect(wrapper.text()).toContain('Revisá los pagos y confirmá el cobro nuevamente')
+    expect(wrapper.text()).toContain('Revisa los pagos y confirma el cobro nuevamente')
   })
 
   it('omits the excluded list when no promotions were excluded', () => {

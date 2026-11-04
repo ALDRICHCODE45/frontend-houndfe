@@ -56,7 +56,7 @@ describe('SaleDetailSalesDataCard', () => {
   // <section>). The UCard's own surface provides the coco-neutral
   // background — the 5 reflow cards keep their byte-identical HST-REQ-002
   // classes per the spec.
-  it('renders all five reflow cards with HST-REQ-002 coco-neutral classes; sidebar-data-reflow testid is on the UCard wrapper', async () => {
+  it('renders all five facts as a read-only definition list; sidebar-data-reflow testid is on the UCard wrapper', async () => {
     getGlobalPriceListsMock.mockResolvedValue([])
 
     const wrapper = mountWithUApp(SaleDetailSalesDataCard, {
@@ -73,9 +73,9 @@ describe('SaleDetailSalesDataCard', () => {
 
     for (const testid of ['reflow-cajero', 'reflow-vendedor', 'reflow-cliente', 'reflow-price-list', 'reflow-payment-methods']) {
       const card = wrapper.get(`[data-testid="${testid}"]`)
-      expect(card.classes()).toEqual(expect.arrayContaining(['bg-coco-neutral-50', 'dark:bg-coco-neutral-950', 'border', 'border-default', 'p-3']))
-      expect(card.classes()).not.toContain('bg-white')
-      expect(card.classes()).not.toContain('dark:bg-zinc-900')
+      expect(card.find('dt').exists()).toBe(true)
+      expect(card.find('dd').exists()).toBe(true)
+      expect(card.classes().join(' ')).not.toMatch(/coco-|bg-white|border|rounded|p-3/)
     }
   })
 
@@ -159,7 +159,7 @@ describe('SaleDetailSalesDataCard', () => {
   })
 
   // uniquePaymentMethods: dedupes case-sensitively and uses formatPaymentMethod
-  // labels — CASH → "Efectivo", CARD_DEBIT → "Tarjeta de Débito".
+  // labels — CASH → "Efectivo", CARD_DEBIT → "Tarjeta de débito".
   it('renders deduplicated payment methods using localized labels', async () => {
     const saleWithPayments: SaleDetail = {
       ...baseSale,
@@ -178,34 +178,38 @@ describe('SaleDetailSalesDataCard', () => {
 
     const methods = wrapper.get('[data-testid="reflow-payment-methods"]').text()
     expect(methods).toContain('Efectivo')
-    expect(methods).toContain('Tarjeta de Débito')
+    expect(methods).toContain('Tarjeta de débito')
     // CASH appears twice in input but should be deduplicated — count "Efectivo" occurrences.
     expect((methods.match(/Efectivo/g) ?? []).length).toBe(1)
   })
 
   // REQ-LAYOUT-006: emit assign-seller upward so the view opens
   // AssignSellerSlideover.
-  it('emits assign-seller from the reflow-vendedor card on click, Enter, and Space', async () => {
+  it('emits assign-seller from the "Asignar vendedor" button', async () => {
     const wrapper = mountWithUApp(SaleDetailSalesDataCard, {
       props: { sale: baseSale },
       global: { stubs: globalStubs },
     })
     await nextTick()
 
-    const card = wrapper.get('[data-testid="reflow-vendedor"]')
-
-    await card.trigger('click')
-    expect(wrapper.emitted('assign-seller')).toBeTruthy()
+    const button = wrapper.get('[data-testid="assign-seller"]')
+    expect(button.text()).toBe('Asignar vendedor')
+    await button.trigger('click')
     expect(wrapper.emitted('assign-seller')?.length).toBe(1)
-
-    await card.trigger('keydown', { key: 'Enter' })
-    expect(wrapper.emitted('assign-seller')?.length).toBe(2)
-
-    await card.trigger('keydown', { key: ' ' })
-    expect(wrapper.emitted('assign-seller')?.length).toBe(3)
   })
 
-  // Cajero from baseSale = 'Cajero'; customer falls back to 'Público en General';
+  it('offers "Cambiar" when a seller is already assigned', async () => {
+    const wrapper = mountWithUApp(SaleDetailSalesDataCard, {
+      props: { sale: { ...baseSale, seller: { id: 's1', name: 'Ana' } } },
+      global: { stubs: globalStubs },
+    })
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="reflow-vendedor"]').text()).toContain('Ana')
+    expect(wrapper.get('[data-testid="assign-seller"]').text()).toBe('Cambiar')
+  })
+
+  // Cajero from baseSale = 'Cajero'; customer falls back to 'Público en general';
   // seller null → 'Sin asignar'.
   it('renders identity fallback text for null seller/customer', async () => {
     const wrapper = mountWithUApp(SaleDetailSalesDataCard, {
@@ -215,7 +219,7 @@ describe('SaleDetailSalesDataCard', () => {
     await nextTick()
 
     expect(wrapper.get('[data-testid="reflow-cajero"]').text()).toContain('Cajero')
-    expect(wrapper.get('[data-testid="reflow-cliente"]').text()).toContain('Público en General')
+    expect(wrapper.get('[data-testid="reflow-cliente"]').text()).toContain('Público en general')
     expect(wrapper.get('[data-testid="reflow-vendedor"]').text()).toContain('Sin asignar')
   })
 })

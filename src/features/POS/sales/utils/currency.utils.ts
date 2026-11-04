@@ -11,6 +11,4 @@ export {
   sumLineCents,
   normalizeDecimalInput,
   currencyToCents,
-  currencyFormatter,
-  CURRENCY_CONFIG,
 } from '@/core/shared/utils/currency.utils'

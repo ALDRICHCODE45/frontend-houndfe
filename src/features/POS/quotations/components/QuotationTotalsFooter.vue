@@ -2,12 +2,12 @@
 /**
  * `QuotationTotalsFooter.vue` — T-UI-22/23 / REQ-UI-009.
  *
- * Sticky right-sidebar RESUMEN card for the quotation detail view. Mirrors
+ * Sticky right-sidebar Resumen card for the quotation detail view. Mirrors
  * the Coco reference layout (`docs/redesign/quotations-detail-comparison.md`):
- *   - Title "RESUMEN" + context subtitle (N productos · M unidades · lista X)
- *   - Subtotal (muted), Descuentos (blue, info), IVA 16% (gray, computed),
+ *   - Title "Resumen" + context subtitle (N productos · M unidades · lista X)
+ *   - Subtotal (muted), Descuentos (heading ink, with a minus), IVA 16% (gray, computed),
  *     separator, TOTAL (large, bold, black).
- *   - Full-width primary CTA "Enviar cotización" in --coco-primary.
+ *   - Full-width primary CTA "Enviar cotización" in --hf-action.
  *   - Secondary "Guardar borrador" outlined.
  *   - Validity notice "Válida hasta …".
  *
@@ -120,17 +120,12 @@ const validityLabel = computed<string | null>(() => {
 
 const hasValidityNotice = computed<boolean>(() => validityLabel.value !== null)
 
-const contextLine = computed<string>(() => {
-  const parts: string[] = [`${itemCount.value} productos`, `${totalUnits.value} unidades`]
-  if (props.priceListName) parts.push(`lista ${props.priceListName}`)
-  return parts.join(' · ')
+/** Counts agree in number: "1 producto · 1 unidad", "2 productos · 3 unidades". */
+const legacyItemsCount = computed<string>(() => {
+  const products = itemCount.value === 1 ? 'producto' : 'productos'
+  const units = totalUnits.value === 1 ? 'unidad' : 'unidades'
+  return `${itemCount.value} ${products} · ${totalUnits.value} ${units}`
 })
-
-/** The legacy `items-count` row used the same plural-only wording so
- *  the original tests continue to anchor on "1 productos" / "1 unidades". */
-const legacyItemsCount = computed<string>(
-  () => `${itemCount.value} productos · ${totalUnits.value} unidades`,
-)
 
 function handleSend(): void {
   emit('send')
@@ -186,18 +181,13 @@ function handleTaxRateChange(value: number | null | undefined): void {
     class="flex flex-col gap-4 rounded-xl border border-default bg-default p-5"
     data-testid="quotation-totals-footer"
   >
-    <!-- Header: RESUMEN title + context subtitle. The `items-count`
+    <!-- Header: Resumen title + context subtitle. The `items-count`
          testid stays attached to the context line so the original test
          ("renders N productos · M unidades") continues to anchor on a
          stable point — the new `summary-context` testid is the
          augmented one that includes the price-list segment. -->
     <div class="flex flex-col gap-1">
-      <p
-        class="text-xs font-semibold uppercase tracking-wide text-muted"
-        data-testid="summary-title"
-      >
-        RESUMEN
-      </p>
+      <p class="text-sm font-semibold text-highlighted" data-testid="summary-title">Resumen</p>
       <p class="text-xs text-muted" data-testid="summary-context">
         <span data-testid="items-count">{{ legacyItemsCount }}</span>
         <template v-if="props.priceListName"> · lista {{ props.priceListName }}</template>
@@ -214,13 +204,13 @@ function handleTaxRateChange(value: number | null | undefined): void {
       </div>
 
       <div v-if="hasDiscount" class="flex items-center justify-between" data-testid="discount-row">
-        <span class="text-sm text-[var(--coco-info)] flex items-center gap-1">
+        <span class="text-sm text-muted flex items-center gap-1">
           <UIcon name="i-lucide-badge-percent" class="h-3.5 w-3.5" />
           Descuentos
         </span>
         <span
           data-testid="discount-amount"
-          class="text-sm font-medium text-[var(--coco-info)] tabular-nums"
+          class="text-sm font-medium text-[var(--hf-heading)] tabular-nums"
           >-{{ discountFormatted }}</span
         >
       </div>
@@ -260,8 +250,8 @@ function handleTaxRateChange(value: number | null | undefined): void {
 
       <!-- TOTAL — large, bold, prominent -->
       <div class="flex items-baseline justify-between">
-        <p class="text-xs font-semibold text-muted uppercase tracking-wider">Total</p>
-        <span data-testid="total-amount" class="text-3xl font-bold text-highlighted tabular-nums">{{
+        <p class="text-sm font-semibold text-muted">Total</p>
+        <span data-testid="total-amount" class="text-3xl font-semibold text-highlighted tabular-nums">{{
           totalFormatted
         }}</span>
       </div>
@@ -273,10 +263,10 @@ function handleTaxRateChange(value: number | null | undefined): void {
          migration: `summary-actions` → `detail-sidebar-actions` per
          design.md migration table (the header action wrapper is
          `detail-header-actions`). -->
-    <div v-if="editable" class="flex flex-col gap-2" data-testid="detail-sidebar-actions">
+    <div v-if="editable" class="hidden flex-col gap-2 lg:flex" data-testid="detail-sidebar-actions">
       <button
         type="button"
-        class="quotations-primary-action inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--coco-primary)] px-4 py-3 text-sm font-semibold text-white hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+        class="quotations-primary-action inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--hf-action)] px-4 py-3 text-sm font-semibold text-[var(--hf-on-action)] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
         data-testid="summary-send-btn"
         @click="handleSend"
       >
@@ -300,7 +290,7 @@ function handleTaxRateChange(value: number | null | undefined): void {
       class="flex items-center gap-2 text-xs text-muted"
       data-testid="summary-validity-notice"
     >
-      <UIcon name="i-lucide-shield-check" class="h-4 w-4 text-[var(--coco-success)]" />
+      <UIcon name="i-lucide-shield-check" class="h-4 w-4 text-[var(--hf-success)]" />
       Válida hasta el {{ validityLabel }}.
     </p>
   </div>

@@ -460,12 +460,12 @@ describe('DriverRouteCockpit — route-page evolution: summary / spine cards / r
         expect(isp).toBeLessThan(ir)
       })
 
-      it('renders the visible stop-list heading + supporting line from copy.ts above the ordered rich cards', async () => {
+      it('renders the visible stop-list heading from copy.ts above the ordered rich cards, with no help line', async () => {
         const { inner } = mountCockpit() ; await flushPromises()
         const heading = inner.find('[data-testid="cockpit-stop-list-heading"]')
         expect(heading.exists()).toBe(true)
         expect(heading.text()).toContain(DELIVERY_ROUTE_COPY.cockpit.stops.listHeading)
-        expect(heading.text()).toContain(DELIVERY_ROUTE_COPY.cockpit.stops.listSubheading)
+        expect(heading.find('p').exists()).toBe(false)
         const h = inner.html()
         expect(h.indexOf('cockpit-stop-list-heading')).toBeLessThan(h.indexOf('cockpit-spine-stub'))
       })

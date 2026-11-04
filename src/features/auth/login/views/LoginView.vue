@@ -2,13 +2,13 @@
 import { computed, onBeforeUnmount, shallowRef } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import LoginForm from '@/features/auth/login/components/LoginForm.vue'
-import LoginHero from '@/features/auth/login/components/LoginHero.vue'
 import LoginOtpForm from '@/features/auth/login/components/LoginOtpForm.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { buildCanAccess, canAccessMeta } from '@/app/navigation/navigation.access'
 import { resolveLandingDestinationForAuth } from '@/app/navigation/navigation.landing'
 import type { AccessMeta } from '@/app/navigation/navigation.types'
 import type { LoginFormValues } from '../composables/useLoginForm'
+import '@/features/auth/styles/auth-visual.css'
 
 const isLoading = shallowRef(false)
 const loginError = shallowRef<string | null>(null)
@@ -110,58 +110,51 @@ async function navigateAfterLogin() {
 </script>
 
 <template>
-  <div class="relative h-full w-full flex overflow-hidden bg-white dark:bg-neutral-950">
-    <!-- Left Side: Hero / Brand -->
-    <div class="hidden lg:flex lg:w-1/2 relative overflow-hidden">
-      <LoginHero />
-    </div>
+  <div class="hf-auth-page">
+    <div class="hf-auth-card">
+      <!-- Cancelar lives in the card's corner: it appears while signing in without adding a row. -->
+      <UButton
+        v-if="isLoading && !showingOtp"
+        type="button"
+        color="neutral"
+        variant="ghost"
+        size="xs"
+        class="hf-auth-cancel"
+        data-testid="login-cancel"
+        @click="restart"
+      >
+        Cancelar
+      </UButton>
 
-    <!-- Right Side: Login Form -->
-    <div
-      class="relative w-full lg:w-1/2 flex items-center justify-center p-8 lg:p-16 overflow-y-auto"
-    >
-      <!-- Mobile logo (visible only on small screens) -->
-      <div class="absolute top-8 left-8 lg:hidden">
-        <img src="/hounfeLogos/primary.png" alt="Coco" class="w-12 h-12 object-contain" />
-      </div>
+      <img src="/hounfeLogos/primary.png" alt="HounFe" class="hf-auth-logo" />
 
-      <div class="w-full max-w-sm">
-        <UAlert
-          v-if="loginError"
-          color="error"
-          variant="subtle"
-          icon="i-lucide-triangle-alert"
-          :title="loginError"
-          class="mb-4"
-        />
-
-        <LoginOtpForm
-          v-if="showingOtp"
-          :key="otpFormVersion"
-          :loading="authStore.loginBusy"
-          :error="authStore.otpError"
-          :restart-required="authStore.otpRestartRequired"
-          :resend-seconds="resendSeconds"
-          :expires-seconds="expiresSeconds"
-          :retry-seconds="retrySeconds"
-          @verify="handleVerify"
-          @resend="handleResend"
-          @restart="restart"
-        />
-        <template v-else>
-          <LoginForm :loading="isLoading" @submit="handleLogin" />
-          <UButton
-            v-if="isLoading"
-            type="button"
-            color="neutral"
-            variant="ghost"
-            block
-            @click="restart"
-          >
-            Cancelar
-          </UButton>
+      <LoginOtpForm
+        v-if="showingOtp"
+        :key="otpFormVersion"
+        :loading="authStore.loginBusy"
+        :error="authStore.otpError"
+        :restart-required="authStore.otpRestartRequired"
+        :resend-seconds="resendSeconds"
+        :expires-seconds="expiresSeconds"
+        :retry-seconds="retrySeconds"
+        @verify="handleVerify"
+        @resend="handleResend"
+        @restart="restart"
+      />
+      <LoginForm v-else :loading="isLoading" @submit="handleLogin">
+        <!-- The failure notice sits inside the card, above Ingresar; the live region is always present so it is announced. -->
+        <template #feedback>
+          <div data-testid="login-feedback" class="hf-auth-feedback" aria-live="assertive">
+            <UAlert
+              v-if="loginError"
+              color="error"
+              variant="subtle"
+              icon="i-lucide-triangle-alert"
+              :title="loginError"
+            />
+          </div>
         </template>
-      </div>
+      </LoginForm>
     </div>
   </div>
 </template>

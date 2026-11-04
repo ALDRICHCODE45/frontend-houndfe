@@ -10,7 +10,7 @@ import type {
 
 // ── Select options ─────────────────────────────────────────
 
-export const MEXICO_STATES = [
+const MEXICO_STATES = [
   'Aguascalientes',
   'Baja California',
   'Baja California Sur',
@@ -112,7 +112,7 @@ export const COUNTRY_CODE_OPTIONS = COUNTRY_CODES.map((c) => ({
 
 // ── Schema ─────────────────────────────────────────────────
 
-export const customerFormSchema = z.object({
+const customerFormSchema = z.object({
   firstName: z
     .string({ required_error: 'El nombre es obligatorio' })
     .trim()
@@ -127,7 +127,7 @@ export const customerFormSchema = z.object({
     .max(150, 'Máximo 150 caracteres')
     .refine(
       (val) => val === '' || z.string().email().safeParse(val).success,
-      'Ingresa un email válido',
+      'Ingresa un correo electrónico válido',
     ),
   comments: z.string().trim().max(2000, 'Máximo 2000 caracteres'),
   assignPriceList: z.boolean(),

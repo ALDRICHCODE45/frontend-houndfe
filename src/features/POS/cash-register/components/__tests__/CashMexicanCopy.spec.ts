@@ -106,7 +106,7 @@ describe('CashMexicanCopy · helper error and reason copy (S2)', () => {
       { sourceRegisterId: 'r-1', sourceDrawerReleasedAt: null },
       'r-2',
     )
-    expect(advisory?.message).toMatch(/puedes usar el FLOAT en otra caja/)
+    expect(advisory?.message).toMatch(/puedes usar el fondo en otra caja/)
     expectNeutralMexicanSpanish(advisory?.message ?? '')
   })
 })

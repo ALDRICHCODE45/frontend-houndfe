@@ -23,7 +23,7 @@ interface PromotionBackendListResponse {
 
 // ── Query params ───────────────────────────────────────────────────────────────
 
-export interface PromotionFilters {
+interface PromotionFilters {
   type?: string
   status?: string
   method?: string

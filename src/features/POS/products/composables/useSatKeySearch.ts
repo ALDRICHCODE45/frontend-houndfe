@@ -36,10 +36,7 @@ export {
   buildSatKeyOptions,
   mergeCurrentKeyOption,
   deriveSearchState,
-  MIN_SEARCH_CHARS,
-  SEARCH_DEBOUNCE_MS,
   type SatKeyOption,
-  type SatSearchState,
 } from './satKeyHelpers'
 
 export function useSatKeySearch(search: MaybeRefOrGetter<string>) {

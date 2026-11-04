@@ -26,7 +26,7 @@ describe('publication presentation availability', () => {
   })
   it('removes publication and care consent without removing stored comparison or server discard', async () => {
     render(false)
-    expect(wrapper.text()).toContain('Publicación pendiente de habilitación del backend')
+    expect(wrapper.text()).toContain('La publicación aún no está disponible')
     expect(button('Publicar borrador…')).toBeUndefined()
     expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
     expect(wrapper.get('details').text()).toContain('Comparar borrador guardado')

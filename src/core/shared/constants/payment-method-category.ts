@@ -50,14 +50,3 @@ export const PAYMENT_METHOD_CATEGORY_ICONS: Record<PaymentMethodCategory, string
   card_debit: 'i-lucide-wallet-cards',
   transfer: 'i-lucide-arrow-right-left',
 }
-
-/**
- * paymentMethodCategoryLabel — Spanish label for a category value.
- * Pure; used by the slideover's category selector (REQ-PM-008) and the
- * kebab/columns helpers (REQ-PM-001). Falls back to the raw value if the
- * caller hands in an unknown string (defensive — never observed, but the
- * tests cover it).
- */
-export function paymentMethodCategoryLabel(value: string): string {
-  return (PAYMENT_METHOD_CATEGORY_LABELS as Record<string, string>)[value] ?? value
-}

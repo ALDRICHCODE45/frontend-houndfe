@@ -1,24 +1,23 @@
 /**
  * useEmployeeColumns — WU-02 (warning fixes applied)
  *
- * Column definitions for the EmployeesListView table.
+ * Column definitions for the EmployeesListView table: the person first, then
+ * the status, then the fields that describe the job, then the ⋮ column. The
+ * work modality lives in the Laboral tab, so the table fits 1440 (8 columns
+ * with the selection one).
  *
- * Design fidelity note: The Claude Design table for the employee list does NOT
- * include a salary column — salary belongs in the Compensación detail tab (WU-06+).
- * The `hasSalary()` guard is preserved in employee.types for detail/card slices.
+ * Salary is intentionally NOT in the list — it belongs in the Compensación
+ * detail tab (WU-06+). The `hasSalary()` guard is preserved in employee.types.
  *
- * Pure helpers (employeeStatusToBadgeTone, workModalityToBadgeTone,
- * formatHireDate, getManagerDisplay) are exported for unit testing without
- * component mounting.
+ * Pure helpers (employeeStatusToBadgeTone, formatHireDate, computeSeniority)
+ * are exported for unit testing without component mounting.
  */
 
 import type { TableColumn } from '@nuxt/ui'
 import { computed } from 'vue'
 import { createSimpleHeader } from '@/core/shared/components/DataTable'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
-import type { AppBadgeTone } from '@/core/shared/utils/badge.utils'
-import { WORK_MODALITY } from '../constants/employee.constants'
-import type { Employee, WorkModality } from '../interfaces/employee.types'
+import type { Employee } from '../interfaces/employee.types'
 import { employeeStatusToBadgeTone } from '../utils/employeeBadgeConfig.utils'
 
 // Re-export so existing call sites (table columns, tests) keep working.
@@ -29,25 +28,11 @@ export { employeeStatusToBadgeTone }
 // ─── Pure helpers (exported for unit testing) ─────────────────────────────────
 
 const HIRE_DATE_FORMATTER = new Intl.DateTimeFormat('es-MX', {
-  day: '2-digit',
+  timeZone: 'UTC',
+  day: 'numeric',
   month: 'short',
   year: 'numeric',
 })
-
-/**
- * Map WorkModality → AppBadgeTone.
- * Design spec: ONSITE→neutral, REMOTE→info, HYBRID→pending
- */
-export function workModalityToBadgeTone(modality: WorkModality): AppBadgeTone {
-  switch (modality) {
-    case WORK_MODALITY.ONSITE:
-      return 'neutral'
-    case WORK_MODALITY.REMOTE:
-      return 'info'
-    case WORK_MODALITY.HYBRID:
-      return 'pending'
-  }
-}
 
 /**
  * Format an ISO date string (hireDate) to localized display.
@@ -58,56 +43,81 @@ export function formatHireDate(isoDate: string): string {
 }
 
 /**
+ * Compute a human-readable seniority string from a hireDate ISO string.
+ *
+ * Pure function — accepts an optional reference date for deterministic testing.
+ *
+ * Examples:
+ *   computeSeniority('2026-03-01') → '< 1 año'  (if called from May 2026)
+ *   computeSeniority('2025-05-27') → '1 año'    (if called from May 27 2026)
+ *   computeSeniority('2024-01-01') → '2 años'   (if called from May 2026)
+ */
+export function computeSeniority(hireDate: string, referenceDate: Date = new Date()): string {
+  const start = new Date(hireDate)
+
+  // Full years elapsed, minus one when the anniversary hasn't happened yet this year.
+  let years = referenceDate.getFullYear() - start.getFullYear()
+  if (
+    referenceDate.getMonth() < start.getMonth() ||
+    (referenceDate.getMonth() === start.getMonth() && referenceDate.getDate() < start.getDate())
+  ) {
+    years -= 1
+  }
+
+  if (years < 1) return '< 1 año'
+  if (years === 1) return '1 año'
+  return `${years} años`
+}
+
+/**
  * Format a single ISO date or YYYY-MM-DD string as a short localized date
- * (e.g. "27 may 2026").
+ * (e.g. "27 may"; "27 may 2025" when the year is not the current one).
  *
  * Backend returns time-off dates either as full ISO strings (with time and Z
  * suffix) or as date-only `YYYY-MM-DD`. Both produce a valid Date when handed
  * to `new Date(...)`. Using UTC timezone avoids the day-shift that happens
  * when the local timezone is west of UTC.
  *
- * Pure function — no side effects.
+ * Pure function — accepts an optional reference date for deterministic testing.
  */
 const TIME_OFF_DATE_FORMATTER = new Intl.DateTimeFormat('es-MX', {
-  day: '2-digit',
+  day: 'numeric',
+  month: 'short',
+  timeZone: 'UTC',
+})
+
+const TIME_OFF_DATE_WITH_YEAR_FORMATTER = new Intl.DateTimeFormat('es-MX', {
+  day: 'numeric',
   month: 'short',
   year: 'numeric',
   timeZone: 'UTC',
 })
 
-export function formatTimeOffDate(isoDate: string): string {
+export function formatTimeOffDate(isoDate: string, now: Date = new Date()): string {
   if (!isoDate) return '—'
   const d = new Date(isoDate)
   if (Number.isNaN(d.getTime())) return isoDate
-  return TIME_OFF_DATE_FORMATTER.format(d)
+  const formatter =
+    d.getUTCFullYear() === now.getFullYear()
+      ? TIME_OFF_DATE_FORMATTER
+      : TIME_OFF_DATE_WITH_YEAR_FORMATTER
+  return formatter.format(d).replace(/\./g, '')
 }
 
 /**
  * Format a start/end date pair as a human-readable range.
- * Example: "27 may 2026 – 1 jun 2026".
+ * Example: "27 may – 1 jun"; a one-day range reads once ("27 may").
  *
  * Pure function — no side effects.
  */
-export function formatTimeOffDateRange(startIso: string, endIso: string): string {
-  return `${formatTimeOffDate(startIso)} – ${formatTimeOffDate(endIso)}`
-}
-
-/**
- * Resolve the manager display string for a given employee.
- *
- * Pure function — returns "—" in all WU-02 scenarios:
- * - managerId is null → "—"
- * - managerId is a UUID → "—" (manager name resolution deferred to WU-03+)
- *
- * Design rationale: the list API returns only `managerId`, not the manager's
- * fullName. Rendering a truncated UUID exposes implementation detail to end
- * users. The correct UX is "—" until WU-03 adds a name lookup / join.
- */
-export function getManagerDisplay(employee: Employee): string {
-  if (!employee.managerId) return '—'
-  // WU-02: no name resolution available on the list endpoint.
-  // Return "—" until WU-03 provides manager name lookup.
-  return '—'
+export function formatTimeOffDateRange(
+  startIso: string,
+  endIso: string,
+  now: Date = new Date(),
+): string {
+  const start = formatTimeOffDate(startIso, now)
+  const end = formatTimeOffDate(endIso, now)
+  return start === end ? start : `${start} – ${end}`
 }
 
 // ─── Column definitions ────────────────────────────────────────────────────────
@@ -116,72 +126,56 @@ export function useEmployeeColumns() {
   const authStore = useAuthStore()
   const canReadSalary = computed(() => authStore.userCan('read', 'EmployeeSalary'))
 
-  const columns = computed<TableColumn<Employee>[]>(() => {
-    const base: TableColumn<Employee>[] = [
-      {
-        id: 'colaborador',
-        header: createSimpleHeader('Colaborador'),
-        enableSorting: false,
-        enableHiding: true,
-      },
-      {
-        id: 'cargo',
-        accessorKey: 'currentPosition',
-        header: 'Cargo',
-        enableSorting: false,
-        enableHiding: true,
-      },
-      {
-        id: 'departamento',
-        accessorKey: 'currentDepartment',
-        header: 'Departamento',
-        enableSorting: false,
-        enableHiding: true,
-      },
-      {
-        id: 'jefedirecto',
-        header: createSimpleHeader('Jefe directo'),
-        enableSorting: false,
-        enableHiding: true,
-      },
-      {
-        id: 'fechaIngreso',
-        accessorKey: 'hireDate',
-        header: 'Fecha de ingreso',
-        enableSorting: false,
-        enableHiding: true,
-      },
-      {
-        id: 'modalidad',
-        accessorKey: 'workModality',
-        header: 'Modalidad',
-        enableSorting: false,
-        enableHiding: true,
-      },
-      {
-        id: 'estado',
-        accessorKey: 'status',
-        header: 'Estado',
-        enableSorting: false,
-        enableHiding: true,
-      },
-      {
-        id: 'actions',
-        header: createSimpleHeader(''),
-        enableSorting: false,
-        enableHiding: false,
-        meta: { class: { td: 'text-right' } },
-      },
-    ]
-
-    // NOTE: salary column is intentionally NOT in the list table.
-    // The Claude Design for the employee list does not include salary —
-    // salary belongs in the Compensación detail tab (WU-06+).
-    // hasSalary() from employee.types is preserved for card/detail slices.
-    // canReadSalary is kept in return for future detail-view consumers.
-
-    return base
-  })
+  // Hideable data columns keep their ids: the user's column visibility is persisted per id.
+  const columns = computed<TableColumn<Employee>[]>(() => [
+    {
+      id: 'colaborador',
+      header: createSimpleHeader('Colaborador'),
+      enableSorting: false,
+      enableHiding: true,
+    },
+    {
+      id: 'estado',
+      accessorKey: 'status',
+      header: 'Estado',
+      enableSorting: false,
+      enableHiding: true,
+    },
+    {
+      id: 'cargo',
+      accessorKey: 'currentPosition',
+      header: 'Cargo',
+      enableSorting: false,
+      enableHiding: true,
+    },
+    {
+      id: 'departamento',
+      accessorKey: 'currentDepartment',
+      header: 'Departamento',
+      enableSorting: false,
+      enableHiding: true,
+    },
+    {
+      id: 'jefedirecto',
+      header: createSimpleHeader('Jefe directo'),
+      enableSorting: false,
+      enableHiding: true,
+    },
+    {
+      id: 'fechaIngreso',
+      accessorKey: 'hireDate',
+      header: 'Fecha de ingreso',
+      enableSorting: false,
+      enableHiding: true,
+    },
+    {
+      id: 'actions',
+      header: 'Acciones',
+      enableSorting: false,
+      enableHiding: false,
+      meta: { class: { th: 'w-16', td: 'w-16 text-right' } },
+    },
+  ])
 
   return { columns, canReadSalary }
 }

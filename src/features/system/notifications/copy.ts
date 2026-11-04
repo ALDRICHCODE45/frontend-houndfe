@@ -6,15 +6,12 @@
 export const NOTIFICATION_CONFIG_COPY = {
   // ── Page header ──
   pageTitle: 'Configuración de notificaciones',
-  pageSubtitle: 'Elige quién recibe notificaciones y qué acciones las disparan.',
 
   // ── Sections ──
   masterLabel: 'Notificaciones',
-  masterDescription: 'Activa o desactiva el envío de notificaciones',
   recipientsLabel: 'Usuarios a notificar',
-  recipientsDescription: 'Estos usuarios recibirán las notificaciones seleccionadas',
   actionsLabel: 'Acciones a notificar',
-  actionsDescription: 'Selecciona las acciones que dispararán una notificación',
+  loadError: 'No se pudo cargar la configuración de notificaciones',
 
   // ── Toasts ──
   success: 'Configuración de notificaciones guardada',

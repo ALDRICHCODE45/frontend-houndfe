@@ -27,7 +27,7 @@ import type { CancelReason, PaginatedQuotations, QuotationListParams, QuotationR
 // ─── PDF error surface ────────────────────────────────────────────────────────
 
 /** Format codes the quotation PDF endpoint accepts. Mirrors backend §3.4. */
-export type QuotationPdfFormat = 'quotation-a4'
+type QuotationPdfFormat = 'quotation-a4'
 
 /** Domain error codes the backend embeds in the PDF Blob body on failure. */
 export type QuotationPdfErrorCode =
@@ -73,49 +73,49 @@ async function parsePdfError(error: unknown): Promise<QuotationPdfError | null> 
 // ─── Request payload types ───────────────────────────────────────────────────
 
 /** Body of POST /quotations/drafts. `customerId` is optional. */
-export interface CreateDraftPayload {
+interface CreateDraftPayload {
   customerId?: string
 }
 
 /** Body of POST /quotations/drafts/:id/items. */
-export interface AddItemPayload {
+interface AddItemPayload {
   productId: string
   variantId?: string
   quantity: number
 }
 
 /** Body of PATCH /quotations/drafts/:id/items/:itemId/quantity. */
-export interface UpdateQuantityPayload {
+interface UpdateQuantityPayload {
   quantity: number
 }
 
 /** Body of PATCH /quotations/drafts/:id/items/:itemId/price. */
-export interface OverridePricePayload {
+interface OverridePricePayload {
   unitPriceCents: number
 }
 
 /** Body of PUT /quotations/drafts/:id/price-list. */
-export interface SetPriceListPayload {
+interface SetPriceListPayload {
   globalPriceListId: string | null
 }
 
 /** Body of PATCH /quotations/drafts/:id/expiry. */
-export interface SetExpiryPayload {
+interface SetExpiryPayload {
   expiresAt: string | null
 }
 
 /** Body of PATCH /quotations/drafts/:id/notes. */
-export interface UpdateNotesPayload {
+interface UpdateNotesPayload {
   customerNotes: string | null
 }
 
 /** Body of PUT /quotations/drafts/:id/seller. */
-export interface SetSellerPayload {
+interface SetSellerPayload {
   sellerUserId: string
 }
 
 /** Body of POST /quotations/drafts/:id/cancel. */
-export interface CancelQuotationPayload {
+interface CancelQuotationPayload {
   cancelReason: CancelReason
 }
 

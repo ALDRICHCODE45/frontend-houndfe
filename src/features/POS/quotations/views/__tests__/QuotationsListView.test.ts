@@ -1,28 +1,12 @@
 /**
- * QuotationsListView — REQ-QAF-009..013, REQ-QAF-016 tests.
+ * QuotationsListView — composition tests on a stubbed AppDataTable.
  *
  * Drives the real list view with a mocked `useQuotationsListTable` composable
  * and a stubbed `AppDataTable` so we can assert the composition surface
- * (header, status tabs, filters slideover, toolbar, columns, navigation,
- * CASL gates, delete flow) without pulling the whole TanStack / Nuxt UI
- * runtime into the unit test.
- *
- * The view was rewritten to mirror the Sales pattern end-to-end:
- *   - Page heading outside the UCard table workspace (Products composition).
- *   - Status tabs + slideover + chips (REQ-QAF-010).
- *   - Single toolbar row assembled inside AppDataTable's DataTableToolbar:
- *     search + Filtros + refresh + Columnas + "Nueva cotización" + ViewToggle
- *     (REQ-QAF-011 / standardize-quotations-table).
- *   - Sortable headers via #<id>-header slots rendering SortableHeader on
- *     customer / status / totalCents / expiresAt / createdAt.
- *   - View mode persistence via useQuotationsViewMode → AppDataTable
- *     `displayMode` bridge.
- *   - URL persistence via useFiltersUrlAdapter (REQ-QAF-012).
- *   - Delete flow remains intact (REQ-QAF-013).
- *   - The legacy `QuotationsSearchInput` testid is gone (REQ-QAF-016);
- *     `refresh-quotations-button` + `new-quotation-button` testids now
- *     resolve through AppDataTable's `refreshButtonTestId` /
- *     `addButtonTestId` props instead of external buttons.
+ * (header, status tabs, filters, columns, row-open, ⋮ menu, CASL gates, delete
+ * flow) without pulling the whole TanStack / Nuxt UI runtime into the unit
+ * test. The four S10 states are asserted against the REAL AppDataTable in
+ * `QuotationsListView.states.spec.ts`.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -190,13 +174,17 @@ const appDataTableStub = {
     'addButtonText',
     'addButtonIcon',
     'addButtonTestId',
-    'refreshButtonTestId',
     'showRefresh',
     'mobileRender',
     'displayMode',
     'enableColumnVisibility',
     'portalClass',
     'paginationPortalClass',
+    'rowOpen',
+    'emptyState',
+    'filtered',
+    'noMatchTitle',
+    'activeFilterCount',
   ],
   emits: [
     'update:pagination',
@@ -207,6 +195,8 @@ const appDataTableStub = {
     'update:column-visibility',
     'refresh',
     'add',
+    'empty-action',
+    'clear-filters',
   ],
   template: `
     <div
@@ -219,26 +209,22 @@ const appDataTableStub = {
       :data-empty="empty"
       :data-row-count="(data ?? []).length"
       :data-enable-column-visibility="enableColumnVisibility ? 'true' : 'false'"
-      :data-show-refresh="showRefresh === false ? 'false' : 'true'"
+      :data-show-refresh="showRefresh ? 'true' : 'false'"
       :data-show-add-button="showAddButton ? 'true' : 'false'"
       :data-add-button-text="addButtonText ?? ''"
       :data-add-button-icon="addButtonIcon ?? ''"
       :data-add-button-test-id="addButtonTestId ?? ''"
-      :data-refresh-button-test-id="refreshButtonTestId ?? ''"
       :data-display-mode="displayMode ?? 'auto'"
+      :data-filtered="String(!!filtered)"
+      :data-empty-title="emptyState?.title ?? ''"
+      :data-empty-action="emptyState?.actionLabel ?? ''"
+      :data-no-match-title="noMatchTitle ?? ''"
+      :data-active-filter-count="activeFilterCount ?? 0"
       :data-portal-class="portalClass ?? ''"
       :data-pagination-portal-class="paginationPortalClass ?? ''"
     >
       <slot name="filters" />
         <slot name="actions" />
-        <!-- Render the refresh button (with its testid) so click tests work.
-             showRefresh defaults to true in AppDataTable; only false disables it. -->
-        <button
-          v-if="showRefresh !== false && refreshButtonTestId"
-          :data-testid="refreshButtonTestId"
-          :aria-label="'Actualizar cotizaciones'"
-          @click="$emit('refresh')"
-        />
         <!-- Render the add button (with its testid) so click tests work. -->
         <button
           v-if="showAddButton && addButtonTestId"
@@ -246,18 +232,15 @@ const appDataTableStub = {
           :data-label="addButtonText"
           @click="$emit('add')"
         />
-        <!-- The cards slot is rendered ONCE for the whole grid, mirroring
-             AppDataTable's real cards display-mode shape. -->
-        <div data-testid="cards-host">
-          <slot name="cards" :data="data ?? []" :loading="loading" :empty="empty" />
-        </div>
+        <button data-testid="stub-empty-action" @click="$emit('empty-action')" />
+        <button data-testid="stub-clear-filters" @click="$emit('clear-filters')" />
+        <button data-testid="stub-row-open" @click="rowOpen && rowOpen((data ?? [])[0])" />
         <div
           v-for="(row, index) in data"
           :key="row.id"
           :data-testid="'row-' + row.id"
           :data-index="index"
         >
-          <slot name="id-cell" :row="{ original: row, index }" />
           <slot name="customer-cell" :row="{ original: row, index }" />
           <slot name="status-cell" :row="{ original: row, index }" />
           <slot name="totalCents-cell" :row="{ original: row, index }" />
@@ -300,35 +283,6 @@ const stubs = {
   DataTableFilters: dataTableFiltersStub,
   DataTableFiltersChips: dataTableFiltersChipsStub,
   SortableHeader: true,
-  ViewToggle: {
-    props: ['modelValue'],
-    emits: ['update:modelValue'],
-    template: `
-      <div data-testid="view-toggle" :data-model-value="modelValue">
-        <slot />
-      </div>
-    `,
-  },
-  QuotationCard: {
-    props: ['quotation', 'canDelete'],
-    emits: ['navigate', 'delete', 'click'],
-    template: '<div data-testid="quotation-card" :data-can-delete="String(canDelete)" @click="$emit(\'click\', quotation)">{{ quotation.id }}</div>',
-  },
-  QuotationCardGrid: {
-    name: 'QuotationCardGrid',
-    props: ['quotations', 'loading', 'empty', 'canDelete'],
-    emits: ['card-click', 'delete', 'navigate'],
-    template: `
-      <div data-testid="quotation-card-grid-stub" :data-can-delete="String(canDelete)">
-        <div v-for="q in quotations" :key="q.id">
-          <div
-            data-testid="quotation-card-stub"
-            @click="$emit('card-click', q)"
-          >{{ q.id }}</div>
-        </div>
-      </div>
-    `,
-  },
   ConfirmModal: {
     props: ['open', 'title', 'description', 'confirmLabel', 'confirmColor', 'loading', 'ui'],
     emits: ['update:open', 'confirm'],
@@ -347,9 +301,21 @@ const stubs = {
       </div>
     `,
   },
-  UDropdownMenu: {
-    props: ['items'],
-    template: '<div data-testid="dropdown-stub"><slot /></div>',
+  RowActionsMenu: {
+    name: 'RowActionsMenu',
+    props: ['actions', 'rowLabel', 'portalClass'],
+    emits: ['select'],
+    template: `
+      <div data-testid="row-actions-stub" :data-row-label="rowLabel" :data-portal-class="portalClass ?? ''">
+        <button
+          v-for="action in actions"
+          :key="action.key"
+          :data-action="action.key"
+          :data-destructive="String(!!action.destructive)"
+          @click="$emit('select', action.key)"
+        >{{ action.label }}</button>
+      </div>
+    `,
   },
   UButton: {
     props: ['label', 'color', 'variant', 'icon', 'loading', 'disabled'],
@@ -403,15 +369,13 @@ function mountView(extraOpts: Parameters<typeof mount>[1] = {}) {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('QuotationsListView — header chrome (REQ-QAF-009)', () => {
-  it('keeps the Products-style page heading outside the table surface', () => {
+  it('keeps the page heading outside the table surface, with a title and no subtitle (text diet)', () => {
     const wrapper = mountView()
     const header = wrapper.get('.hf-page-header')
     const surface = wrapper.get('[data-testid="quotations-list-view"]')
 
     expect(header.get('h1.hf-page-title').text()).toBe('Cotizaciones')
-    expect(header.get('p.hf-page-subtitle').text()).toBe(
-      'Listado de cotizaciones por cliente, con filtros por estado, fechas y montos.',
-    )
+    expect(header.find('.hf-page-subtitle').exists()).toBe(false)
     expect(header.element.parentElement).toBe(surface.element.parentElement)
     expect(header.element.nextElementSibling).toBe(surface.element)
     expect(surface.find('.hf-page-header').exists()).toBe(false)
@@ -421,24 +385,9 @@ describe('QuotationsListView — header chrome (REQ-QAF-009)', () => {
     wrapper.unmount()
   })
 
-  it('renders the page title and description', () => {
-    const wrapper = mountView()
-
-    expect(wrapper.text()).toContain('Cotizaciones')
-    expect(wrapper.text()).toContain('Listado de cotizaciones')
-  })
-
-  it('keeps the `.quotations-list-view` token-scope class so Coco tokens still resolve', () => {
-    const wrapper = mountView()
-    const root = wrapper.get('[data-testid="quotations-list-view"]')
-    expect(root.classes()).toContain('quotations-list-view')
-  })
-
   it('renders the "Nueva cotización" CTA via AppDataTable with addButtonTestId="new-quotation-button"', () => {
-    // After the toolbar standardization (REQ-QAF-016) the CTA lives inside
-    // AppDataTable's toolbar instead of an external UButton. We assert the
-    // testid is wired through the new `addButtonTestId` prop so the legacy
-    // `new-quotation-button` selector keeps working for e2e flows.
+    // The CTA lives inside AppDataTable's toolbar; the testid is wired through
+    // `addButtonTestId` so the legacy `new-quotation-button` selector keeps working.
     authMock.userCan.mockReturnValue(true)
     const wrapper = mountView()
 
@@ -456,7 +405,7 @@ describe('QuotationsListView — status tabs (REQ-QAF-010)', () => {
     const tabBar = wrapper.find('[data-testid="status-tabs"]')
     expect(tabBar.exists()).toBe(true)
     const labels = tabBar.findAll('button').map((b) => b.text().trim())
-    expect(labels).toEqual(['Todos', 'Borradores', 'Enviadas', 'Expiradas', 'Canceladas'])
+    expect(labels).toEqual(['Todas', 'Borradores', 'Enviadas', 'Expiradas', 'Canceladas'])
   })
 
   it('clicking "Borradores" calls setStatusFilter("DRAFT")', async () => {
@@ -499,11 +448,11 @@ describe('QuotationsListView — status tabs (REQ-QAF-010)', () => {
     expect(composableState.setStatusFilter).toHaveBeenCalledWith('CANCELLED')
   })
 
-  it('clicking "Todos" calls setStatusFilter(undefined) (the no-filter sentinel)', async () => {
+  it('clicking "Todas" calls setStatusFilter(undefined) (the no-filter sentinel)', async () => {
     const wrapper = mountView()
 
     const tabs = wrapper.findAll('[data-testid="status-tabs"] button')
-    const allTab = tabs.find((b) => b.text().trim() === 'Todos')!
+    const allTab = tabs.find((b) => b.text().trim() === 'Todas')!
     await allTab.trigger('click')
 
     expect(composableState.setStatusFilter).toHaveBeenCalledWith(undefined)
@@ -525,6 +474,49 @@ describe('QuotationsListView — status tabs (REQ-QAF-010)', () => {
       (b) => b.text().trim() === 'Enviadas',
     )!
     expect(sentTabAfter.attributes('aria-current')).toBe('page')
+  })
+})
+
+describe('QuotationsListView — status tabs are the only status filter (L48)', () => {
+  it('has no Estado select in the Filtros schema', () => {
+    const wrapper = mountView()
+    const schema = wrapper.getComponent(dataTableFiltersStub).props('schema') as {
+      fields: { id: string, label: string }[]
+    }
+
+    expect(schema.fields.map((field) => field.id)).not.toContain('status')
+    expect(schema.fields.map((field) => field.label)).not.toContain('Estado')
+  })
+
+  it('does not count the selected tab as an active filter', async () => {
+    const wrapper = mountView()
+    const draftTab = wrapper.findAll('[data-testid="status-tabs"] button').find((b) => b.text().trim() === 'Borradores')!
+    await draftTab.trigger('click')
+
+    expect(wrapper.get('[data-testid="app-data-table"]').attributes('data-active-filter-count')).toBe('0')
+  })
+
+  it('still flags the table as filtered while a tab is selected', async () => {
+    const wrapper = mountView()
+    const draftTab = wrapper.findAll('[data-testid="status-tabs"] button').find((b) => b.text().trim() === 'Borradores')!
+    await draftTab.trigger('click')
+
+    expect(wrapper.get('[data-testid="app-data-table"]').attributes('data-filtered')).toBe('true')
+  })
+
+  it('counts the remaining filters and resets them and the tab from Limpiar filtros', async () => {
+    const wrapper = mountView()
+    const filters = wrapper.getComponent(dataTableFiltersStub)
+    await filters.vm.$emit('update:state', { customerId: ['cust-1'] })
+    await wrapper.findAll('[data-testid="status-tabs"] button').find((b) => b.text().trim() === 'Enviadas')!.trigger('click')
+    expect(wrapper.get('[data-testid="app-data-table"]').attributes('data-active-filter-count')).toBe('1')
+
+    await wrapper.get('[data-testid="stub-clear-filters"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="app-data-table"]').attributes('data-active-filter-count')).toBe('0')
+    expect(composableState.setStatusFilter).toHaveBeenLastCalledWith(undefined)
+    const all = wrapper.findAll('[data-testid="status-tabs"] button').find((b) => b.text().trim() === 'Todas')!
+    expect(all.attributes('aria-current')).toBe('page')
   })
 })
 
@@ -605,108 +597,107 @@ describe('QuotationsListView — AppDataTable wiring (REQ-QAF-011)', () => {
     expect(table.attributes('data-fetching')).toBe('true')
   })
 
-  it('passes enableColumnVisibility to the table', () => {
-    const wrapper = mountView()
-    // The stub exposes the table via the data-testid attribute. We grab the
-    // data-attribute rather than the props() API because vue-test-utils
-    // treats object-style stubs as "no name" components.
-    const table = wrapper.find('[data-testid="app-data-table"]')
-    const value = table.attributes('data-enable-column-visibility')
-    expect(value).toBe('true')
-  })
-
-  it('enables the AppDataTable toolbar refresh so it carries refresh-quotations-button (REQ-QAF-016)', () => {
-    // After the toolbar standardization, the refresh icon lives in the
-    // AppDataTable toolbar (default `show-refresh=true`) carrying the
-    // `refresh-quotations-button` testid instead of a standalone UButton.
+  it('leaves the refresh button out of the AppDataTable toolbar (Reintentar is the retry)', () => {
     const wrapper = mountView()
     const table = wrapper.find('[data-testid="app-data-table"]')
 
-    expect(table.attributes('data-show-refresh')).toBe('true')
-    expect(table.attributes('data-refresh-button-test-id')).toBe('refresh-quotations-button')
+    expect(table.attributes('data-show-refresh')).toBe('false')
+    expect(wrapper.find('[data-testid="refresh-quotations-button"]').exists()).toBe(false)
   })
 })
 
-describe('QuotationsListView — cards slot (REQ-QAF-011 / REQ-17)', () => {
-  it('renders QuotationCardGrid per row via the #cards slot', () => {
+describe('QuotationsListView — mobile cards and row menu', () => {
+  it('renders one #mobile-card per row, named by the customer, with no id on screen', () => {
     composableState.data.value = [
       makeQuotation({ id: 'qtn-mobile-a' }),
-      makeQuotation({ id: 'qtn-mobile-b' }),
+      makeQuotation({ id: 'qtn-mobile-b', customer: { id: 'c2', firstName: 'Luis', lastName: null, email: null } as never }),
     ]
     composableState.totalCount.value = 2
 
     const wrapper = mountView()
-    const grid = wrapper.find('[data-testid="quotation-card-grid-stub"]')
-    expect(grid.exists()).toBe(true)
-    const cards = wrapper.findAll('[data-testid="quotation-card-stub"]')
+    const cards = wrapper.findAll('[data-testid="quotation-card"]')
     expect(cards).toHaveLength(2)
-    expect(cards[0]!.text()).toContain('qtn-mobile-a')
-    expect(cards[1]!.text()).toContain('qtn-mobile-b')
+    expect(cards[0]!.text()).toContain('María Pérez')
+    expect(cards[1]!.text()).toContain('Luis')
+    expect(cards[0]!.classes()).toContain('hf-clickable-row')
+    expect(wrapper.text()).not.toContain('qtn-mobile')
   })
 
-  it('forwards the canDelete CASL gate into QuotationCardGrid', () => {
-    composableState.data.value = [makeQuotation({ id: 'qtn-mobile-c' })]
-    composableState.totalCount.value = 1
-
+  it('shows the status badge and the total in the card footer', () => {
+    composableState.data.value = [makeQuotation({ id: 'qtn-card', totalCents: 12345 })]
     const wrapper = mountView()
-    const grid = wrapper.get('[data-testid="quotation-card-grid-stub"]')
-
-    expect(grid.attributes('data-can-delete')).toBe('true')
+    const card = wrapper.get('[data-testid="quotation-card"]')
+    expect(card.get('.hf-status-badge').text()).toBe('Borrador')
+    expect(card.get('.quotation-card-footer').text()).toContain('$123.45')
   })
 
-  it('navigates to /pos/cotizaciones/:id when a card is clicked', async () => {
+  it('navigates to /pos/cotizaciones/:id when the whole card is clicked', async () => {
     composableState.data.value = [makeQuotation({ id: 'qtn-card-click' })]
 
     const wrapper = mountView()
-    await wrapper.get('[data-testid="quotation-card-stub"]').trigger('click')
+    await wrapper.get('[data-testid="quotation-card"]').trigger('click')
 
-    expect(routerPush).toHaveBeenCalled()
     const arg = routerPush.mock.calls[routerPush.mock.calls.length - 1]?.[0]
     const path = typeof arg === 'string' ? arg : (arg as { path?: string })?.path
     expect(path).toBe('/pos/cotizaciones/qtn-card-click')
   })
 
-  it('opens the delete confirmation when a card emits delete', async () => {
+  it('opens the whole row through AppDataTable row-open', async () => {
+    composableState.data.value = [makeQuotation({ id: 'qtn-row-open' })]
+    const wrapper = mountView()
+    await wrapper.get('[data-testid="stub-row-open"]').trigger('click')
+    expect(routerPush).toHaveBeenCalledWith('/pos/cotizaciones/qtn-row-open')
+  })
+
+  it('names the ⋮ menu after the quotation and orders Ver detalle before Eliminar…', () => {
+    composableState.data.value = [makeQuotation({ id: 'qtn-menu', status: 'DRAFT' })]
+    const wrapper = mountView()
+    const menu = wrapper.getComponent({ name: 'RowActionsMenu' })
+    expect(menu.props('rowLabel')).toBe('cotización de María Pérez')
+    const actions = menu.props('actions') as Array<{ key: string, label: string, destructive?: boolean }>
+    expect(actions.map((a) => a.label)).toEqual(['Ver detalle', 'Eliminar…'])
+    expect(actions[1]!.destructive).toBe(true)
+  })
+
+  it('offers only Ver detalle for SENT rows and when the user cannot delete', () => {
+    composableState.data.value = [makeQuotation({ id: 'qtn-sent', status: 'SENT', expiresAt: null })]
+    let wrapper = mountView()
+    expect((wrapper.getComponent({ name: 'RowActionsMenu' }).props('actions') as Array<{ label: string }>).map((a) => a.label)).toEqual(['Ver detalle'])
+    wrapper.unmount()
+
+    composableState.data.value = [makeQuotation({ id: 'qtn-draft', status: 'DRAFT' })]
+    authMock.userCan.mockImplementation((action: unknown) => action !== 'delete')
+    wrapper = mountView()
+    expect((wrapper.getComponent({ name: 'RowActionsMenu' }).props('actions') as Array<{ label: string }>).map((a) => a.label)).toEqual(['Ver detalle'])
+  })
+
+  it('opens the delete confirmation naming the customer when Eliminar… is chosen', async () => {
     composableState.data.value = [makeQuotation({ id: 'qtn-card-del' })]
 
     const wrapper = mountView()
-    const grid = wrapper.findComponent({ name: 'QuotationCardGrid' })
-    grid.vm.$emit('delete', composableState.data.value[0])
-    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-action="delete"]').trigger('click')
 
-    expect(wrapper.find('[data-testid="confirm-modal"]').exists()).toBe(true)
-  })
-
-  it('does not render cards when the list is empty', () => {
-    composableState.data.value = []
-
-    const wrapper = mountView()
-
-    expect(wrapper.findAll('[data-testid="quotation-card-stub"]')).toHaveLength(0)
+    expect(wrapper.get('[data-testid="confirm-description"]').text()).toBe(
+      '¿Eliminar la cotización de María Pérez? Esta acción no se puede deshacer.',
+    )
   })
 })
 
 // ─── Refresh action (REQ-QAF-014) ─────────────────────────────────────────────
 
 describe('QuotationsListView — refresh action', () => {
-  it('renders the refresh button wired to the composable refresh() inside AppDataTable', async () => {
-    // After the toolbar standardization the refresh button lives inside the
-    // AppDataTable stub (we render it there with the testid so the legacy
-    // selector keeps working). Clicking it still fires refresh().
+  it('wires the table refresh event (its Reintentar) to the composable refresh()', async () => {
     const wrapper = mountView()
-    const button = wrapper.get('[data-testid="refresh-quotations-button"]')
+    wrapper.getComponent(appDataTableStub).vm.$emit('refresh')
 
-    expect(button.attributes('aria-label')).toBe('Actualizar cotizaciones')
-
-    await button.trigger('click')
-    expect(composableState.refresh).toHaveBeenCalled()
+    expect(composableState.refresh).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps the refresh button rendered while fetching (spinner is theme-driven)', () => {
+  it('renders no refresh button of its own, even while fetching', () => {
     composableState.isFetching.value = true
 
     const wrapper = mountView()
-    expect(wrapper.find('[data-testid="refresh-quotations-button"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="refresh-quotations-button"]').exists()).toBe(false)
   })
 })
 
@@ -800,7 +791,6 @@ describe('QuotationsListView — standardized toolbar (standardize-quotations-ta
     // that no extra `<button data-testid="refresh-quotations-button">`
     // exists outside the data-testid="app-data-table" container.
     const table = wrapper.get('[data-testid="app-data-table"]')
-    expect(table.attributes('data-refresh-button-test-id')).toBe('refresh-quotations-button')
     expect(table.attributes('data-add-button-test-id')).toBe('new-quotation-button')
 
     const root = wrapper.element as HTMLElement
@@ -818,21 +808,12 @@ describe('QuotationsListView — standardized toolbar (standardize-quotations-ta
     expect(strayAdd).toHaveLength(0)
   })
 
-  it('passes displayMode to AppDataTable from the useQuotationsViewMode bridge', () => {
+  it('lays out the list as a table on desktop and cards on mobile (no view toggle)', () => {
     const wrapper = mountView()
 
     const table = wrapper.find('[data-testid="app-data-table"]')
-    // Default mode is `table` → AppDataTable displayMode `table`.
-    expect(table.attributes('data-display-mode')).toBe('table')
-  })
-
-  it('renders the ViewToggle inside the AppDataTable #actions slot', () => {
-    const wrapper = mountView()
-
-    const viewToggle = wrapper.find('[data-testid="view-toggle"]')
-    expect(viewToggle.exists()).toBe(true)
-    // viewMode defaults to `table` per useQuotationsViewMode.
-    expect(viewToggle.attributes('data-model-value')).toBe('table')
+    expect(table.attributes('data-display-mode')).toBe('auto')
+    expect(wrapper.find('[data-testid="view-toggle"]').exists()).toBe(false)
   })
 
   it('renders SortableHeader for the 3 backend-sortable columns with Spanish labels', () => {
@@ -851,19 +832,48 @@ describe('QuotationsListView — standardized toolbar (standardize-quotations-ta
     // no header slot).
     expect(stubHeaders).toHaveLength(3)
     const labels = stubHeaders.map((h) => h.attributes('label'))
-    expect(labels).toEqual(['Total', 'Expira', 'Fecha'])
+    expect(labels).toEqual(['Total', 'Expira', 'Creada'])
   })
 })
 
-describe('QuotationsListView — empty state (REQ-QTN-016)', () => {
-  it('forwards the empty message to AppDataTable', () => {
-    composableState.data.value = []
-    composableState.totalCount.value = 0
-
+describe('QuotationsListView — shared states wiring (S10)', () => {
+  it('passes the nada-todavía copy with the create action only when the user can create', () => {
     const wrapper = mountView()
-    const table = wrapper.find('[data-testid="app-data-table"]')
+    const table = wrapper.get('[data-testid="app-data-table"]')
+    expect(table.attributes('data-empty-title')).toBe('Aún no hay cotizaciones')
+    expect(table.attributes('data-empty-action')).toBe('Nueva cotización')
+    wrapper.unmount()
 
-    expect(table.attributes('data-empty')).toContain('No hay cotizaciones')
+    authMock.userCan.mockReturnValue(false)
+    const readOnly = mountView()
+    expect(readOnly.get('[data-testid="app-data-table"]').attributes('data-empty-action')).toBe('')
+  })
+
+  it('goes to the creator from the empty-state action', async () => {
+    const wrapper = mountView()
+    await wrapper.get('[data-testid="stub-empty-action"]').trigger('click')
+    expect(routerPush).toHaveBeenCalledWith('/pos/cotizaciones/nueva')
+  })
+
+  it('flags a search as filtered and titles the no-match with the term', () => {
+    composableState.globalFilter.value = 'collar'
+    const wrapper = mountView()
+    const table = wrapper.get('[data-testid="app-data-table"]')
+    expect(table.attributes('data-filtered')).toBe('true')
+    expect(table.attributes('data-no-match-title')).toBe('Ningún resultado para «collar»')
+  })
+
+  it('is not filtered with no search, tab or filters', () => {
+    const wrapper = mountView()
+    expect(wrapper.get('[data-testid="app-data-table"]').attributes('data-filtered')).toBe('false')
+  })
+
+  it('clears the search and the status tab from Limpiar filtros', async () => {
+    composableState.globalFilter.value = 'collar'
+    const wrapper = mountView()
+    await wrapper.get('[data-testid="stub-clear-filters"]').trigger('click')
+    expect(composableState.globalFilter.value).toBe('')
+    expect(composableState.setStatusFilter).toHaveBeenCalledWith(undefined)
   })
 })
 
@@ -962,31 +972,19 @@ describe('QuotationsListView — REQ-QAF-016 anti-requirements', () => {
 
 // ─── T2 / S1-S4: listing visual adaptation (presentation only) ───────────────
 
-describe('QuotationsListView — listing visual adaptation (S1/S3/S4)', () => {
+describe('QuotationsListView — design-system boundary', () => {
   const PORTAL_MARKER = 'hf-theme hf-ui quotations-list-portal'
   const OVERLAY_MARKER = 'hf-theme hf-ui hf-form-overlay quotations-list-portal'
 
-  it('opts the routed root into the shared hf boundary without the Products marker', () => {
+  it('opts the routed root into the shared hf boundary', () => {
     const wrapper = mountView()
     const root = wrapper.element as HTMLElement
 
     expect(root.classList.contains('hf-theme')).toBe(true)
     expect(root.classList.contains('hf-ui')).toBe(true)
     expect(root.classList.contains('quotations-list-visual')).toBe(true)
-    expect(root.classList.contains('hf-shell-products-portal')).toBe(false)
-    // The routed root is inert: the teleported-portal marker belongs to the
-    // owned popups only and must not leak onto the listing surface.
     expect(root.classList.contains('quotations-list-portal')).toBe(false)
-    // Existing composition classes stay in place.
-    expect(root.classList.contains('flex')).toBe(true)
     expect(root.classList.contains('md:px-10')).toBe(true)
-  })
-
-  it('keeps the Coco scope class on the table surface', () => {
-    const wrapper = mountView()
-    expect(wrapper.get('[data-testid="quotations-list-view"]').classes()).toContain(
-      'quotations-list-view',
-    )
   })
 
   it('forwards the owned portal boundary to the toolbar and pagination popups', () => {
@@ -998,24 +996,18 @@ describe('QuotationsListView — listing visual adaptation (S1/S3/S4)', () => {
     expect(table.attributes('data-pagination-portal-class')).toBe(PORTAL_MARKER)
   })
 
-  it('themes the row action menu with the owned portal boundary', () => {
+  it('themes the row action menu with the owned portal class', () => {
     composableState.data.value = [makeQuotation({ id: 'qtn-row-menu' })]
     const wrapper = mountView()
 
-    // Nuxt UI's UDropdownMenu is a global component and is not replaceable by
-    // a vue-test-utils stub, so the public `ui` contract is read from the
-    // rendered component itself.
-    const menu = wrapper.getComponent({ name: 'DropdownMenu' })
-    expect(menu.props('ui')).toEqual({ content: PORTAL_MARKER })
+    expect(wrapper.getComponent({ name: 'RowActionsMenu' }).props('portalClass')).toBe('quotations-list-portal')
   })
 
   it('opts the delete confirmation into the overlay boundary and keeps destructive semantics', async () => {
     composableState.data.value = [makeQuotation({ id: 'qtn-del-boundary' })]
     const wrapper = mountView()
 
-    const grid = wrapper.findComponent({ name: 'QuotationCardGrid' })
-    grid.vm.$emit('delete', composableState.data.value[0])
-    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-action="delete"]').trigger('click')
 
     const modal = wrapper.get('[data-testid="confirm-modal"]')
     expect(modal.attributes('data-ui-content')).toBe(OVERLAY_MARKER)
@@ -1023,36 +1015,36 @@ describe('QuotationsListView — listing visual adaptation (S1/S3/S4)', () => {
     expect(modal.attributes('data-confirm-label')).toBe('Eliminar')
   })
 
-  it('gives the status tabs and the view toggle owned presentation hooks', () => {
+  it('gives the status tabs an owned presentation hook', () => {
     const wrapper = mountView()
 
-    expect(wrapper.get('[data-testid="status-tabs"] button').classes()).toContain(
-      'quotations-status-tab',
-    )
-    expect(wrapper.get('[data-testid="view-toggle"]').classes()).toContain('quotations-view-toggle')
+    expect(wrapper.get('[data-testid="status-tabs"] button').classes()).toContain('quotations-status-tab')
   })
 
-  it('opts the filter wrapper into the owned portal boundary in both render paths', () => {
+  it('opts the filter wrapper into the owned portal boundary', () => {
     const wrapper = mountView()
     const filters = wrapper.get('[data-testid="data-table-filters-stub"]')
 
-    // Mobile default of the mounted view => embedded path. The marker is still
-    // forwarded so the nested enum/async/date popups inherit the boundary.
     expect(filters.attributes('data-embedded')).toBe('true')
     expect(filters.attributes('data-portal-class')).toBe(PORTAL_MARKER)
   })
 
-  it('keeps model bindings, display mode and filter configuration unchanged', () => {
+  it('keeps model bindings and filter configuration', () => {
     const wrapper = mountView()
     const table = wrapper.find('[data-testid="app-data-table"]')
 
-    expect(table.attributes('data-display-mode')).toBe('table')
-    expect(table.attributes('data-enable-column-visibility')).toBe('true')
-    expect(table.attributes('data-show-refresh')).toBe('true')
+    expect(table.attributes('data-show-refresh')).toBe('false')
     expect(wrapper.findAll('[data-testid="filters-chips"]')).toHaveLength(1)
-    expect(
-      wrapper.find('[data-testid="data-table-filters-stub"]').attributes('data-embedded'),
-    ).toBe('true')
+  })
+})
+
+describe('QuotationsListView — review round 1', () => {
+  it('keeps the status tabs on one scrollable row (no wrapping onto two rows)', () => {
+    const wrapper = mountView()
+    const tabBar = wrapper.get('[data-testid="status-tabs"]')
+    expect(tabBar.classes()).toContain('flex-nowrap')
+    expect(tabBar.classes()).toContain('overflow-x-auto')
+    expect(tabBar.classes()).not.toContain('flex-wrap')
   })
 })
 

@@ -125,7 +125,7 @@ async function handleSelectUser(user: AssignableUser) {
 
           <div
             v-else-if="usersQuery.isError.value"
-            class="rounded-md border border-error/50 p-4 text-sm text-error"
+            class="rounded-md border border-(--hf-danger-border) bg-(--hf-danger-soft) p-4 text-sm text-(--hf-danger)" role="alert"
           >
             No se pudieron cargar los usuarios.
           </div>

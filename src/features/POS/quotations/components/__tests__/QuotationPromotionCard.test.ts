@@ -28,8 +28,8 @@ beforeEach(() => {
 })
 
 // T-UI-18/19 — REQ-UI-008 promotion card. Each applied promotion becomes
-// a card with `border-l-4` in `--coco-accent`, a bold title, the discount
-// rendered in `--coco-info` blue, an `AUTOMÁTICA` / `MANUAL` badge, and a
+// a neutral bordered row with a semibold title, the discount in the heading
+// ink, an `Automática` / `Manual` StatusBadge, and a
 // removal button that emits either `remove` (MANUAL) or `veto` (AUTOMATIC).
 
 describe('QuotationPromotionCard — root contract', () => {
@@ -58,10 +58,11 @@ describe('QuotationPromotionCard — root contract', () => {
     expect(discount.text()).toMatch(/30\.00/)
   })
 
-  it('uses the accent border-left-4 styling for visual prominence', () => {
+  it('is a neutral bordered row: no accent border and no Coco color', () => {
     const wrapper = mountCard({ promotion: makePromotion(), method: 'AUTOMATIC' })
     const root = wrapper.find('[data-testid="quotation-promotion-card"]')
-    expect(root.classes()).toContain('border-l-4')
+    expect(root.classes()).not.toContain('border-l-4')
+    expect(root.html()).not.toContain('coco')
   })
 })
 

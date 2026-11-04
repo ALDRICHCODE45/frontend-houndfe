@@ -265,7 +265,8 @@ describe('ProductSearchResultItem.vue', () => {
 
       const price = wrapper.get('.tabular-nums')
       expect(price.text()).toContain('$49.98')
-      expect(price.classes()).toContain('dark:text-(--brand-accent)')
+      expect(price.classes()).toContain('text-(--hf-heading)')
+      expect(price.classes()).toContain('font-semibold')
     })
 
     it('should show variant count for products with variants', () => {
@@ -275,7 +276,7 @@ describe('ProductSearchResultItem.vue', () => {
 
       const variantCount = wrapper.findAll('p').find((node) => node.text() === '2 variantes')
       expect(variantCount).toBeDefined()
-      expect(variantCount?.classes()).toContain('dark:text-(--brand-accent)')
+      expect(variantCount?.classes()).toContain('text-(--hf-muted)')
     })
   })
 
@@ -314,8 +315,8 @@ describe('ProductSearchResultItem.vue', () => {
       expect(addAction.text()).toContain('Agregar')
       expect(addAction.classes()).toContain('w-full')
       expect(addAction.classes()).toContain('sm:hidden')
-      expect(addAction.classes()).toContain('dark:bg-primary')
-      expect(addAction.classes()).toContain('dark:text-white')
+      expect(addAction.classes()).toContain('dark:bg-(--hf-action)')
+      expect(addAction.classes()).toContain('dark:text-(--hf-on-action)')
     })
 
     it('hides the hover-revealed Agregar badge on mobile (sm+ only)', () => {

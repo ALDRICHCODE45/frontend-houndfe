@@ -84,7 +84,7 @@ describe('SaleTotalsFooter — totals binding (work-unit B)', () => {
     expect(wrapper.html()).toContain('Descuentos')
     expect(wrapper.html()).toContain('$15.00')
     // Total a cobrar: 8500 cents → $85.00 (NOT 340.00 from a client-side reduce!)
-    expect(wrapper.html()).toContain('TOTAL A COBRAR')
+    expect(wrapper.html()).toContain('Total a cobrar')
     expect(wrapper.html()).toContain('$85.00')
   })
 
@@ -133,7 +133,7 @@ describe('SaleTotalsFooter — totals binding (work-unit B)', () => {
     expect(wrapper.html()).toContain('Descuentos')
     expect(wrapper.html()).toContain('$15.00')
     // Total a cobrar — formatted from sale.totalCents (8500 → $85.00)
-    expect(wrapper.html()).toContain('TOTAL A COBRAR')
+    expect(wrapper.html()).toContain('Total a cobrar')
     expect(wrapper.html()).toContain('$85.00')
     // No client-side recompute: $340.00 must NOT appear (that would be
     // 2 × $50 + 3 × $80 = $340 from the items list, not the backend total).
@@ -228,7 +228,7 @@ describe('SaleTotalsFooter — totals binding (work-unit B)', () => {
 
     const wrapper = mountFooter(makeSale())
     expect(wrapper.html()).toContain('Subtotal')
-    expect(wrapper.html()).toContain('TOTAL A COBRAR')
+    expect(wrapper.html()).toContain('Total a cobrar')
     expect(wrapper.html()).toContain('$0.00')
     // No discounts line when 0 (v-if on > 0)
     expect(wrapper.html()).not.toContain('Descuentos')
@@ -321,7 +321,7 @@ describe('SaleTotalsFooter — Phase 14b breakdown', () => {
 
   it('renders TOTAL A COBRAR with an adaptive foreground', () => {
     const wrapper = mountFooter(makeSale(TOTALS))
-    expect(wrapper.html()).toContain('TOTAL A COBRAR')
+    expect(wrapper.html()).toContain('Total a cobrar')
 
     const totalEl = wrapper.find('[data-testid="total-amount"]')
     expect(totalEl.exists()).toBe(true)

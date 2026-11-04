@@ -37,7 +37,7 @@ import { PROMOTION_TARGET_TYPE } from '../constants/promotion.constants'
 // tenantId. These caches are per-process and can be invalidated later via
 // queryClient.invalidateQueries if the products feature needs to push updates.
 
-export const promotionTargetNameQueryKeys = {
+const promotionTargetNameQueryKeys = {
   categories: () => ['promotions', 'categories-all'] as const,
   brands: () => ['promotions', 'brands-all'] as const,
   product: (id: string) => ['promotions', 'product-by-id', id] as const,

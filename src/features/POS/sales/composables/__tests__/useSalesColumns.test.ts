@@ -10,23 +10,47 @@ describe('useSalesColumns', () => {
   it('returns all expected columns in order', () => {
     const { columns } = useSalesColumns()
 
-    expect(columns).toHaveLength(14)
+    expect(columns).toHaveLength(13)
     expect(columns.map((column) => keyOf(column))).toEqual([
-      'select',
       'venta',
-      'confirmedAt',
       'customer',
       'paymentStatus',
+      'deliveryStatus',
       'paymentMethods',
       'totalCents',
       'debtCents',
+      'confirmedAt',
       'dueDate',
-      'deliveryStatus',
       'cashier',
       'seller',
       'channel',
       'invoice',
     ])
+  })
+
+  it('shows at most eight columns by default, with no row-menu column', () => {
+    const { columns } = useSalesColumns()
+    const visible = columns
+      .map((column) => keyOf(column) as string)
+      .filter((key) => key !== 'select' && defaultColumnVisibility[key] !== false)
+
+    expect(visible).toEqual([
+      'venta',
+      'customer',
+      'paymentStatus',
+      'deliveryStatus',
+      'totalCents',
+      'debtCents',
+      'confirmedAt',
+    ])
+    expect(visible.length).toBeLessThanOrEqual(8)
+    expect(defaultColumnVisibility.paymentMethods).toBe(false)
+  })
+
+  it('has no select column: the list offers no bulk action, so it would be a blank gutter', () => {
+    const { columns } = useSalesColumns()
+
+    expect(columns.map((column) => keyOf(column))).not.toContain('select')
   })
 
   it('defines Vence column as non-sortable and hidden by default', () => {
@@ -62,8 +86,8 @@ describe('useSalesColumns', () => {
       .map((column) => keyOf(column))
 
     expect(sortable).toEqual([
-      'confirmedAt',
       'totalCents',
+      'confirmedAt',
     ])
   })
 
@@ -85,14 +109,13 @@ describe('useSalesColumns', () => {
       .map((column) => keyOf(column))
 
     expect(nonSortable).toEqual([
-      'select',
       'venta',
       'customer',
       'paymentStatus',
+      'deliveryStatus',
       'paymentMethods',
       'debtCents',
       'dueDate',
-      'deliveryStatus',
       'cashier',
       'seller',
       'channel',

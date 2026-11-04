@@ -4,9 +4,8 @@
  * RED stubs written before the WU-A production change to PendingApprovalsView.
  *
  * Pinned contracts for WU-A scope only (WU-B/C tests land later):
- *  - pendingErrorMessage precedence: response.data.message (string | array[0])
- *    > error.message > "No se pudieron cargar las solicitudes pendientes.
- *    Intenta de nuevo."
+ *  - error title: always "No se pudieron cargar las solicitudes pendientes",
+ *    never the backend message or error.message
  *  - retry button triggers refetch
  *  - :data receives paged.pageRows (client-side full-array pagination)
  *  - v-model:pagination bridge (0-based AppDataTable ↔ 1-based view)
@@ -18,14 +17,16 @@
  *  - Page heading with title "Validaciones pendientes"
  *
  * Mocks usePendingApprovals (mockState incl. isError / error / refetch) + the
- * picker listForPicker query + useReviewTimeOff (isReviewing). Real
- * usePendingApprovalsViewMode (localStorage-driven) + real
- * usePendingApprovalsColumns.
+ * picker listForPicker query + useReviewTimeOff (isReviewing) against a STUBBED
+ * AppDataTable, to pin the props the view forwards. Real
+ * usePendingApprovalsColumns. The rendered states (empty, loading, data, error,
+ * row menu, review dialog) live in PendingApprovalsView.states.spec.ts, against
+ * the real table.
  */
 
 import { describe, it, expect as chaiExpect, vi, beforeEach, beforeAll } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 
 // ── Mock state for `usePendingApprovals` ───────────────────────────────────────
 
@@ -132,7 +133,7 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
       displayMode: { default: 'auto' },
       enableColumnVisibility: { type: Boolean, default: false },
       error: { default: false },
-      errorMessage: { default: 'No se pudieron cargar los datos. Reintenta.' },
+      errorMessage: { default: 'No se pudieron cargar los datos.' },
       empty: { default: 'No se encontraron resultados' },
       pageSizeOptions: { default: () => [5, 10, 20, 50] },
       showToolbar: { type: Boolean, default: true },
@@ -148,44 +149,6 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
       bulkActions: { default: () => [] },
     },
     emits: ['add', 'refresh', 'update:global-filter', 'update:pagination', 'update:column-pinning', 'update:column-visibility'],
-  },
-}))
-
-vi.mock('@/core/shared/components/ViewToggle.vue', () => ({
-  default: {
-    name: 'ViewToggle',
-    template:
-      '<div data-testid="view-toggle" :data-aria-label="ariaLabel" :data-value="modelValue"><slot /></div>',
-    props: ['modelValue', 'options', 'ariaLabel'],
-    emits: ['update:modelValue'],
-  },
-}))
-
-vi.mock('@/features/admin/employees/components/PendingApprovalCard.vue', () => ({
-  default: {
-    name: 'PendingApprovalCard',
-    props: ['data', 'canReview', 'isReviewing'],
-    emits: ['approve', 'reject'],
-    template: `
-      <div
-        data-testid="pending-approval-card"
-        :data-can-review="String(canReview)"
-        :data-is-reviewing="String(isReviewing)"
-        :data-employee-name="data ? data.employeeName : ''"
-      >
-        <span v-if="data" class="card-name">{{ data.employeeName }}</span>
-        <div v-if="canReview" class="card-actions">
-          <button
-            data-testid="pending-approval-card-reject"
-            @click="$emit('reject', data.request)"
-          >Rechazar</button>
-          <button
-            data-testid="pending-approval-card-approve"
-            @click="$emit('approve', data.request)"
-          >Aprobar</button>
-        </div>
-      </div>
-    `,
   },
 }))
 
@@ -243,54 +206,23 @@ beforeEach(() => {
   authMock.userCan.mockReturnValue(false)
 })
 
-// ── REQ-5: pendingErrorMessage precedence ─────────────────────────────────────
+// ── REQ-5: error title (a fixed human sentence) ───────────────────────────────
 
-describe('PendingApprovalsView — pendingErrorMessage precedence (REQ-5)', () => {
-  it('prefers response.data.message (string) over error.message and fallback', async () => {
+describe('PendingApprovalsView — error title (REQ-5)', () => {
+  it.each([
+    ['a backend string', { response: { data: { message: 'Falla específica del backend' } }, message: 'Generic axios error' }, 'Falla específica del backend'],
+    ['a backend array', { response: { data: { message: ['Mensaje array 0', 'Mensaje array 1'] } }, message: 'Generic axios error' }, 'Mensaje array 0'],
+    ['only error.message', { response: { data: {} }, message: 'Network Error' }, 'Network Error'],
+    ['no error details', {}, 'sin detalle'],
+  ])('shows the same human title with %s, never the server message', async (_label, error, raw) => {
     mockPending.isError.value = true
-    mockPending.error.value = {
-      response: { data: { message: 'Falla específica del backend' } },
-      message: 'Generic axios error',
-    }
+    mockPending.error.value = error
     const wrapper = mount(getView().default)
     await flushPromises()
     chaiExpect(wrapper.find('[data-testid="error-message"]').text()).toBe(
-      'Falla específica del backend',
+      'No se pudieron cargar las solicitudes pendientes',
     )
-  })
-
-  it('prefers response.data.message[0] when the backend returns an array', async () => {
-    mockPending.isError.value = true
-    mockPending.error.value = {
-      response: { data: { message: ['Mensaje array 0', 'Mensaje array 1'] } },
-      message: 'Generic axios error',
-    }
-    const wrapper = mount(getView().default)
-    await flushPromises()
-    chaiExpect(wrapper.find('[data-testid="error-message"]').text()).toBe(
-      'Mensaje array 0',
-    )
-  })
-
-  it('falls back to error.message when response.data.message is missing', async () => {
-    mockPending.isError.value = true
-    mockPending.error.value = {
-      response: { data: {} },
-      message: 'Network Error',
-    }
-    const wrapper = mount(getView().default)
-    await flushPromises()
-    chaiExpect(wrapper.find('[data-testid="error-message"]').text()).toBe('Network Error')
-  })
-
-  it('falls back to the Spanish message when no error details are available', async () => {
-    mockPending.isError.value = true
-    mockPending.error.value = {}
-    const wrapper = mount(getView().default)
-    await flushPromises()
-    chaiExpect(wrapper.find('[data-testid="error-message"]').text()).toBe(
-      'No se pudieron cargar las solicitudes pendientes. Intenta de nuevo.',
-    )
+    chaiExpect(wrapper.text()).not.toContain(raw)
   })
 
   it('retry button triggers refetch', async () => {
@@ -313,33 +245,16 @@ describe('PendingApprovalsView — pendingErrorMessage precedence (REQ-5)', () =
   })
 })
 
-// ── REQ-2: displayMode + view-mode default + storage ─────────────────────────
+// ── Layout: one table + cards form, no view-mode toggle ──────────────────────
 
-describe('PendingApprovalsView — view-mode + displayMode (REQ-2)', () => {
-  it('passes display-mode="cards" by default (default mode is "card")', async () => {
+describe('PendingApprovalsView — one layout (table + cards)', () => {
+  it('lets the viewport pick table or cards: display-mode="auto", never a persisted toggle', async () => {
+    localStorage.setItem('pending-approvals-view-mode', 'card')
     const wrapper = mount(getView().default)
     await flushPromises()
     chaiExpect(
       wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode'),
-    ).toBe('cards')
-  })
-
-  it('passes display-mode="table" when localStorage pending-approvals-view-mode is "table"', async () => {
-    localStorage.setItem('pending-approvals-view-mode', 'table')
-    const wrapper = mount(getView().default)
-    await flushPromises()
-    chaiExpect(
-      wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode'),
-    ).toBe('table')
-  })
-
-  it('passes display-mode="cards" when localStorage has an invalid value', async () => {
-    localStorage.setItem('pending-approvals-view-mode', 'kanban')
-    const wrapper = mount(getView().default)
-    await flushPromises()
-    chaiExpect(
-      wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode'),
-    ).toBe('cards')
+    ).toBe('auto')
   })
 })
 
@@ -401,13 +316,13 @@ describe('PendingApprovalsView — client-side pagination + toolbar (REQ-1, REQ-
     ).toBe('true')
   })
 
-  it('hides the toolbar when the queue is empty (REQ-4 scenario "empty queue summary")', async () => {
+  it('keeps the toolbar when the queue is empty so the screen does not jump between states', async () => {
     mockPending.data.value = []
     const wrapper = mount(getView().default)
     await flushPromises()
     chaiExpect(
       wrapper.find('[data-testid="app-data-table"]').attributes('data-show-toolbar'),
-    ).toBe('false')
+    ).not.toBe('false')
   })
 
   it('forwards paged.pageRows to :data on AppDataTable', async () => {
@@ -625,270 +540,6 @@ describe('PendingApprovalsView — search → globalFilter binding + page reset 
     chaiExpect(pagination.pageIndex).toBe(0)
   })
 })
-
-// ── WU-C — ViewToggle rendered with aria-label (REQ-2) ────────────────────────
-
-describe('PendingApprovalsView — ViewToggle (REQ-2)', () => {
-  it('renders ViewToggle in the #actions slot with aria-label', async () => {
-    const wrapper = mount(getView().default)
-    await flushPromises()
-    const toggle = wrapper.find('[data-testid="view-toggle"]')
-    chaiExpect(toggle.exists()).toBe(true)
-    chaiExpect(toggle.attributes('data-aria-label')).toBe(
-      'Seleccionar vista de validaciones pendientes',
-    )
-  })
-})
-
-// ── WU-C — no-match vs empty copy distinct (REQ-4) ────────────────────────────
-
-describe('PendingApprovalsView — no-match vs empty copy (REQ-4)', () => {
-  const fixtureRow = {
-    id: 'to-1',
-    employeeId: 'emp-unknown',
-    type: 'VACATION',
-    startDate: '2026-08-01',
-    endDate: '2026-08-10',
-    reason: 'r',
-    status: 'PENDING',
-    createdAt: '2026-07-01T10:00:00Z',
-    requestedByUserId: null,
-    reviewerUserId: null,
-    reviewedAt: null,
-    reviewerNotes: null,
-    tenantId: 'tenant-1',
-    updatedAt: '2026-07-01T10:00:00Z',
-  }
-
-  it('renders the no-match block when search empties the result set', async () => {
-    mockPending.data.value = [fixtureRow]
-    const wrapper = mount(getView().default)
-    await flushPromises()
-    const table = wrapper.findComponent({ name: 'AppDataTable' })
-    // Use a search term that won't match the unknown employee name.
-    table.vm.$emit('update:global-filter', 'zzzzzzz')
-    await flushPromises()
-    const noMatch = wrapper.find('[data-testid="pending-approvals-no-match"]')
-    chaiExpect(noMatch.exists()).toBe(true)
-    chaiExpect(noMatch.text()).toContain('zzzzzzz')
-  })
-
-  it('renders the empty placeholder when the queue is empty AND no search is active', async () => {
-    mockPending.data.value = []
-    const wrapper = mount(getView().default)
-    await flushPromises()
-    // The empty placeholder lives on AppDataTable's `:empty` prop
-    // ("Sin solicitudes pendientes") and is rendered by the stub when the
-    // data array is empty and there is no error.
-    const empty = wrapper.find('[data-testid="table-empty-state"]')
-    chaiExpect(empty.exists()).toBe(true)
-    chaiExpect(empty.text()).toBe('Sin solicitudes pendientes')
-  })
-})
-
-// ── WU-C — summary "N solicitudes pendientes (de M en total)" (REQ-4) ──────────
-
-describe('PendingApprovalsView — above-table summary (REQ-4)', () => {
-  it('renders the summary inside #above-table when the queue is non-empty and no search is active', async () => {
-    const rows = Array.from({ length: 25 }, (_, i) => ({
-      id: `to-${i + 1}`,
-      employeeId: 'emp-unknown',
-      type: 'VACATION',
-      startDate: '2026-08-01',
-      endDate: '2026-08-10',
-      reason: 'r',
-      status: 'PENDING',
-      createdAt: '2026-07-01T10:00:00Z',
-      requestedByUserId: null,
-      reviewerUserId: null,
-      reviewedAt: null,
-      reviewerNotes: null,
-      tenantId: 'tenant-1',
-      updatedAt: '2026-07-01T10:00:00Z',
-    }))
-    mockPending.data.value = rows
-    const wrapper = mount(getView().default)
-    await flushPromises()
-    const summary = wrapper.find('[data-testid="pending-approvals-summary"]')
-    chaiExpect(summary.exists()).toBe(true)
-    chaiExpect(summary.text()).toContain('solicitudes pendientes')
-  })
-
-  it('hides the #above-table summary once the search query is active (cards summary takes over)', async () => {
-    const rows = Array.from({ length: 25 }, (_, i) => ({
-      id: `to-${i + 1}`,
-      employeeId: 'emp-unknown',
-      type: 'VACATION',
-      startDate: '2026-08-01',
-      endDate: '2026-08-10',
-      reason: 'r',
-      status: 'PENDING',
-      createdAt: '2026-07-01T10:00:00Z',
-      requestedByUserId: null,
-      reviewerUserId: null,
-      reviewedAt: null,
-      reviewerNotes: null,
-      tenantId: 'tenant-1',
-      updatedAt: '2026-07-01T10:00:00Z',
-    }))
-    mockPending.data.value = rows
-    const wrapper = mount(getView().default)
-    await flushPromises()
-    const table = wrapper.findComponent({ name: 'AppDataTable' })
-    table.vm.$emit('update:global-filter', 'maría')
-    await flushPromises()
-    // The #above-table summary is gated by `v-if="queueNonEmpty && !isSearchActive"`
-    // — with an active search the slot's summary is suppressed. The "(de M
-    // en total)" suffix therefore renders from the #cards slot instead.
-    chaiExpect(wrapper.find('[data-testid="pending-approvals-summary"]').exists()).toBe(false)
-  })
-
-  it('surfaces the "(de M en total)" suffix when search narrows the queue', async () => {
-    // When search is active and the filter empties the result set, the
-    // cards-slot summary still renders the suffix with the underlying total.
-    const rows = Array.from({ length: 25 }, (_, i) => ({
-      id: `to-${i + 1}`,
-      employeeId: 'emp-unknown',
-      type: 'VACATION',
-      startDate: '2026-08-01',
-      endDate: '2026-08-10',
-      reason: 'r',
-      status: 'PENDING',
-      createdAt: '2026-07-01T10:00:00Z',
-      requestedByUserId: null,
-      reviewerUserId: null,
-      reviewedAt: null,
-      reviewerNotes: null,
-      tenantId: 'tenant-1',
-      updatedAt: '2026-07-01T10:00:00Z',
-    }))
-    mockPending.data.value = rows
-    const wrapper = mount(getView().default)
-    await flushPromises()
-    const table = wrapper.findComponent({ name: 'AppDataTable' })
-    table.vm.$emit('update:global-filter', 'maría')
-    await flushPromises()
-    // No employee named "maría" in the empty picker map → filtered list is
-    // empty → the cards-slot summary must surface "(de 25 en total)".
-    chaiExpect(wrapper.html()).toContain('(de 25 en total)')
-  })
-})
-
-// ── WU-C — canReview: false hides Aprobar/Rechazar (REQ-3) ────────────────────
-
-describe('PendingApprovalsView — canReview gating (REQ-3)', () => {
-  const fixture = () => [
-    {
-      id: 'to-1',
-      employeeId: 'emp-1',
-      type: 'VACATION',
-      startDate: '2026-08-01',
-      endDate: '2026-08-10',
-      reason: 'r',
-      status: 'PENDING',
-      createdAt: '2026-07-01T10:00:00Z',
-      requestedByUserId: null,
-      reviewerUserId: null,
-      reviewedAt: null,
-      reviewerNotes: null,
-      tenantId: 'tenant-1',
-      updatedAt: '2026-07-01T10:00:00Z',
-    },
-  ]
-
-  it('hides card Aprobar/Rechazar when CASL canReview (update:EmployeeTimeOff) is false', async () => {
-    authMock.userCan.mockReturnValue(false)
-    mockPending.data.value = fixture()
-    const wrapper = mount(getView().default)
-    await flushPromises()
-    const card = wrapper.find('[data-testid="pending-approval-card"]')
-    chaiExpect(card.exists()).toBe(true)
-    chaiExpect(card.attributes('data-can-review')).toBe('false')
-    chaiExpect(wrapper.find('[data-testid="pending-approval-card-approve"]').exists()).toBe(false)
-    chaiExpect(wrapper.find('[data-testid="pending-approval-card-reject"]').exists()).toBe(false)
-  })
-
-  it('hides table #acciones-cell Aprobar/Rechazar when canReview is false', async () => {
-    authMock.userCan.mockReturnValue(false)
-    // Switch to TABLE mode so the #acciones-cell slot renders.
-    localStorage.setItem('pending-approvals-view-mode', 'table')
-    mockPending.data.value = fixture()
-    const wrapper = mount(getView().default)
-    await flushPromises()
-    // Table mode + data present → rows render with the acciones-cell slot.
-    // canReview=false → the slot template wraps the buttons in v-if, so
-    // neither approve nor reject button testid must exist.
-    chaiExpect(wrapper.find('[data-testid="pending-approvals-row-approve"]').exists()).toBe(false)
-    chaiExpect(wrapper.find('[data-testid="pending-approvals-row-reject"]').exists()).toBe(false)
-  })
-})
-
-// ── WU-C — PendingApprovalCard approve/reject emits open the review dialog ─────
-
-describe('PendingApprovalsView — review dialog flow (REQ-3, REQ-6)', () => {
-  const fixture = () => [
-    {
-      id: 'to-1',
-      employeeId: 'emp-1',
-      type: 'VACATION',
-      startDate: '2026-08-01',
-      endDate: '2026-08-10',
-      reason: 'r',
-      status: 'PENDING',
-      createdAt: '2026-07-01T10:00:00Z',
-      requestedByUserId: null,
-      reviewerUserId: null,
-      reviewedAt: null,
-      reviewerNotes: null,
-      tenantId: 'tenant-1',
-      updatedAt: '2026-07-01T10:00:00Z',
-    },
-  ]
-
-  it('opens the review dialog with approve copy when card Aprobar is clicked', async () => {
-    authMock.userCan.mockReturnValue(true)
-    mockPending.data.value = fixture()
-    const wrapper = mount(getView().default)
-    await flushPromises()
-    const card = wrapper.findComponent({ name: 'PendingApprovalCard' })
-    chaiExpect(card.exists()).toBe(true)
-    // Emit the `approve` event directly on the card component instance.
-    // The view listens via @approve and routes to openReviewDialog →
-    // isReviewDialogOpen=true → UModal opens → UCard with the title renders.
-    card.vm.$emit('approve', fixture()[0])
-    await flushPromises()
-    // The dialog content (UCard inside UModal) renders "Aprobar solicitud
-    // de ausencia" as the header title. UModal teleports to body — query
-    // the global document so we capture the teleported tree.
-    const html =
-      typeof document !== 'undefined' ? document.body.innerHTML : wrapper.html()
-    chaiExpect(html).toContain('Aprobar solicitud de ausencia')
-  })
-
-  it('opens the review dialog with reject copy when card Rechazar is clicked', async () => {
-    authMock.userCan.mockReturnValue(true)
-    mockPending.data.value = fixture()
-    const wrapper = mount(getView().default)
-    await flushPromises()
-    const card = wrapper.findComponent({ name: 'PendingApprovalCard' })
-    chaiExpect(card.exists()).toBe(true)
-    card.vm.$emit('reject', fixture()[0])
-    await flushPromises()
-    const html =
-      typeof document !== 'undefined' ? document.body.innerHTML : wrapper.html()
-    chaiExpect(html).toContain('Rechazar solicitud de ausencia')
-    // REQ-3 scenario "reject routes to dialog with reject copy": placeholder
-    // for notes reads "Motivo del rechazo...".
-    chaiExpect(html).toContain('Motivo del rechazo')
-  })
-})
-
-// ── Fix: table view renders the data columns (not only acciones) ──────────────
-//
-// Regression guard for the empty-table-cells bug: the 7 data columns
-// (colaborador, tipo, fechas, dias, motivo, estado, solicitada) previously had
-// no `#{id}-cell` slot, so every cell rendered empty while the cards view
-// worked. The stub forwards those slots so the fix is exercised in TABLE mode.
 
 describe('PendingApprovalsView — table data cells (fix)', () => {
   const fixture = () => [

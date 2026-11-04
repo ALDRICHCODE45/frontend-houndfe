@@ -30,8 +30,7 @@
 
 // Plain script block: timestamp formatting is a pure helper exported for the
 // spec (and reused by the cockpit header) — `<script setup>` cannot export.
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 
 /**
  * Human-readable Spanish timestamp for a timeline event instant.
@@ -41,7 +40,7 @@ import { es } from 'date-fns/locale'
 export function formatTimelineTimestamp(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ''
-  return format(date, 'd MMM yyyy · HH:mm', { locale: es })
+  return formatShortDateTime(date)
 }
 </script>
 
@@ -146,7 +145,7 @@ const rows = computed<TimelineRowViewModel[]>(() =>
     class="flex flex-col gap-2"
     aria-label="Historial de la ruta"
   >
-    <h3 class="text-sm font-medium">{{ heading }}</h3>
+    <h3 class="text-base font-semibold text-highlighted">{{ heading }}</h3>
 
     <ol
       v-if="rows.length > 0"
@@ -159,7 +158,7 @@ const rows = computed<TimelineRowViewModel[]>(() =>
         :data-testid="row.testId"
         class="relative flex flex-col gap-0.5"
       >
-        <span class="absolute -left-[1.4rem] top-1 h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
+        <span class="absolute -left-[1.4rem] top-1 h-2 w-2 rounded-full bg-[var(--hf-muted)]" aria-hidden="true" />
             <span class="text-sm font-medium">{{ row.label }}</span>
             <time
               data-testid="timeline-row-timestamp"

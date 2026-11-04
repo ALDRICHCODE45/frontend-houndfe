@@ -242,7 +242,7 @@ defineExpose({ open, close })
 
           <div class="min-h-0 flex-1 space-y-4 overflow-y-auto p-4" data-testid="filters-body">
             <section v-for="group in groupsWithActivity" :key="group.key" :data-testid="`section-group-${group.key}`" :class="group.section ? 'space-y-4' : 'space-y-4 pb-2'">
-              <p v-if="group.section" class="text-[11px] font-semibold uppercase tracking-wider text-muted" :data-testid="`section-header-${group.key}`">
+              <p v-if="group.section" class="text-xs font-semibold text-muted" :data-testid="`section-header-${group.key}`">
                 {{ group.section }}
               </p>
               <div class="space-y-4">

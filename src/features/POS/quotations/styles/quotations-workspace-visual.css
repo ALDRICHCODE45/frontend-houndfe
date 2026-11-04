@@ -9,23 +9,11 @@
  * this file never changes another screen, and the shared foundation files stay
  * read-only.
  *
- * `coco-tokens.css` is shared with the quotations list workspace and keeps its
- * legacy values. Inside this owned boundary the legacy `--coco-*` roles are
- * re-pointed at the shared `--hf-*` semantics, so light/dark fidelity comes
- * from `houndfe-theme.css` instead of a second local palette. Info, warning
- * and destructive roles keep their existing semantic values.
+ * Light/dark fidelity comes from `houndfe-theme.css` through the shared
+ * `hf-theme hf-ui` boundary, so this file declares no second palette.
  */
 
 .quotations-workspace-visual {
-  --coco-primary: var(--hf-action);
-  --coco-accent: var(--hf-gold);
-  --coco-accent-50: var(--hf-gold-soft);
-  --coco-card: var(--hf-surface);
-  --coco-border: var(--hf-border);
-  --coco-text: var(--hf-ink);
-  --coco-text-tertiary: var(--hf-muted);
-  --coco-success: var(--hf-success);
-
   /* Restrained geometry: section cards land on the foundation card radius and
    * buttons/chips on the control radius. Circles and the shared Coco stylesheet
    * stay untouched. */
@@ -59,23 +47,6 @@
 .quotations-workspace-visual :where(button, a):focus-visible {
   outline: 2px solid var(--hf-focus);
   outline-offset: 2px;
-}
-
-/* ── Accent foreground pairing ───────────────────────────────────────────── */
-
-/* Gold-family text uses the dedicated gold-ink role, which stays readable on
- * the page surface and the soft gold tint in both modes. The filled gold node
- * needs the dark ink on light and the dark soft tint on dark. */
-.quotations-workspace-visual .quotations-gold-ink {
-  color: var(--hf-gold-ink);
-}
-
-.quotations-workspace-visual .quotations-gold-fill {
-  color: var(--hf-gold-ink);
-}
-
-.dark .quotations-workspace-visual .quotations-gold-fill {
-  color: var(--hf-gold-soft);
 }
 
 /* Shared product children keep their Sales presentation unless the quotation

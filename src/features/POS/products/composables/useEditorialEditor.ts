@@ -39,6 +39,8 @@ export function useEditorialEditor(productId: MaybeRefOrGetter<string>, api: May
   const qualification = computed(() => lifecycle.snapshot.value?.context ?? null)
   const loading = shallowRef(false)
   const readError = shallowRef<string | null>(null)
+  /** HTTP status of the failed read (404 → not found, 401/403 → forbidden), else null. */
+  const readStatus = shallowRef<number | null>(null)
   const metadataMessage = computed(() => readError.value ? 'No se pudieron cargar metadatos editoriales coherentes. Vuelve a consultar.' : null)
   let generation = 0
   let controller: AbortController | null = null
@@ -52,7 +54,7 @@ export function useEditorialEditor(productId: MaybeRefOrGetter<string>, api: May
     const requestedProduct = context.value.productId
     const abort = new AbortController(); controller = abort
     const current = () => !disposed && generation === requestedGeneration && requestedApi === toValue(api) && !abort.signal.aborted && lifecycle.canRead.value
-    loading.value = true; readError.value = null
+    loading.value = true; readError.value = null; readStatus.value = null
     try {
       const snapshot = await loadEditorialContractSnapshot(requestedApi, requestedProduct, abort.signal)
       if (!current()) return false
@@ -61,13 +63,14 @@ export function useEditorialEditor(productId: MaybeRefOrGetter<string>, api: May
     } catch (failure) {
       if (!current()) return false
       lifecycle.cancelSnapshotRead(ticket)
+      readStatus.value = failure instanceof EditorialContractApiError ? failure.status : null
       readError.value = failure instanceof EditorialContractApiError && [401, 403, 404].includes(failure.status ?? 0)
         ? editorialErrorMessage(failure.status) : 'No se pudo consultar el contenido editorial coherente. Puedes actualizar para intentar de nuevo.'
       return false
     } finally { if (current()) { loading.value = false; controller = null } }
   }
   watch([() => JSON.stringify(context.value), () => toValue(api)], () => {
-    generation++; controller?.abort(); controller = null; readError.value = null; loading.value = false
+    generation++; controller?.abort(); controller = null; readError.value = null; readStatus.value = null; loading.value = false
     if (lifecycle.canRead.value) void refresh('discard')
   }, { immediate: true, flush: 'sync' })
   onScopeDispose(() => { disposed = true; generation++; controller?.abort(); loading.value = false; readError.value = null }, true)
@@ -85,7 +88,7 @@ export function useEditorialEditor(productId: MaybeRefOrGetter<string>, api: May
   // admission or current metadata. A failed read cannot rewrite the original R/token.
   async function retransmit() { return !loading.value ? lifecycle.retransmit() : false }
   const errorMessage = computed(() => !lifecycle.canRead.value ? 'No tienes acceso al contenido editorial en el contexto actual.' : readError.value)
-  return { lifecycle, vocabulary, qualification, loading, errorMessage, metadataMessage, issues: lifecycle.issues,
+  return { lifecycle, vocabulary, qualification, loading, errorMessage, readStatus, metadataMessage, issues: lifecycle.issues,
     sections, editable, canSave, canInitialize, canPublish, canDiscard, publishIssues: lifecycle.publishIssues, hasUnsavedChanges: lifecycle.hasUnsavedChanges,
     replaceDocument, refresh, retransmit, save: () => canSave.value ? lifecycle.save() : Promise.resolve(false),
     initialize: () => canInitialize.value ? lifecycle.initialize() : Promise.resolve(false),

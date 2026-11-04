@@ -107,7 +107,7 @@ function handleClose(): void {
     <template #body>
       <div class="flex flex-col gap-4" data-testid="cancel-dialog">
         <p class="text-sm text-muted">
-          Seleccioná el motivo de cancelación. Esta acción es terminal y no se puede deshacer.
+          Selecciona el motivo de cancelación. Esta acción es terminal y no se puede deshacer.
         </p>
 
         <div role="radiogroup" class="flex flex-col gap-2">

@@ -1,37 +1,17 @@
 <script setup lang="ts">
 /**
- * QuotationsListView — REQ-QAF-009..014 / T-FE-10.
+ * QuotationsListView — the quotations list on the shared table pattern.
  *
- * Brings the quotations list to feature parity with the Sales list:
- *   - Products-style page heading outside the table workspace surface.
- *   - UCard containing the existing tabs, controls and data region.
- *   - Status tabs (Todos / Borradores / Enviadas / Expiradas / Canceladas).
- *   - Slideover with the 5 first-slice filters (status, customerId, createdAt,
- *     expiresAt, totalCents) + active chips (REQ-QAF-010).
- *   - AppDataTable with toolbar global search, column visibility, page-size
- *     options (REQ-QAF-011).
- *   - URL persistence via useFiltersUrlAdapter (REQ-QAF-012).
- *   - Delete flow preserved exactly (REQ-QAF-013).
- *   - The legacy `QuotationsSearchInput` is gone (REQ-QAF-016).
+ * Desktop: AppDataTable (customer, status, total, expiry, created, ⋮) with a
+ * whole-row open; mobile (< 768px): cards through `#mobile-card`. Status tabs,
+ * the filters slideover and URL persistence keep their behavior. Empty, no
+ * match, loading and error come from AppDataTable's shared states.
  *
- * After the standardize-quotations-table change the toolbar is a single
- * DataTableToolbar row assembling: search, Filtros, refresh, Columnas,
- * "Nueva cotización", and ViewToggle (in #actions). The external refresh +
- * "Nueva cotización" UButtons are gone — the buttons now live inside
- * AppDataTable's toolbar and carry the legacy `refresh-quotations-button` /
- * `new-quotation-button` testids via the new optional
- * `refreshButtonTestId` / `addButtonTestId` props (REQ-QAF-016 invariant).
- * Columns are sorted by `enableSorting: true` + SortableHeader ONLY for
- * totalCents, expiresAt, createdAt — the fields the backend accepts as
- * `sortBy` (createdAt | updatedAt | totalCents | expiresAt). `customer`
- * keeps its accessorFn that resolves `firstName lastName` for display but is
- * NOT sortable, matching the backend contract; sorting it would 400.
- *
- * The token scope class `.quotations-list-view` stays on the surface root so
- * `@layer coco-quotations` keeps resolving `--coco-primary` for the CTA.
+ * Columns are sortable ONLY for totalCents, expiresAt, createdAt — the fields
+ * the backend accepts as `sortBy`; `customer` keeps its accessorFn for display
+ * but is NOT sortable (sorting it would 400).
  */
 
-import '../styles/coco-tokens.css'
 import '../styles/quotations-list-visual.css'
 
 import { computed, ref, watch } from 'vue'
@@ -41,13 +21,15 @@ import { useRouter } from 'vue-router'
 import type { TableColumn } from '@nuxt/ui'
 import { AppDataTable } from '@/core/shared/components/DataTable'
 import SortableHeader from '@/core/shared/components/DataTable/SortableHeader.vue'
-import ViewToggle from '@/core/shared/components/ViewToggle.vue'
+import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { useClickableRow } from '@/core/shared/composables/useClickableRow'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import {
   DataTableFilters,
   useDataTableFilters,
   useFiltersUrlAdapter,
 } from '@/core/shared/data-table-filters'
-import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { customerApi } from '@/features/POS/customers/api/customer.api'
 import { customerQueryKeys } from '@/core/shared/constants/query-keys'
@@ -56,8 +38,6 @@ import type { QuotationStatus, QuotationResponseDto } from '../interfaces/quotat
 import { isExpired, statusToTone, statusToLabel } from '../utils/quotation.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { useQuotationsListTable } from '../composables/useQuotationsListTable'
-import { useQuotationsViewMode } from '../composables/useQuotationsViewMode'
-import QuotationCardGrid from '../components/QuotationCardGrid.vue'
 import { quotationApi } from '../api/quotation.api'
 import { quotationQueryKeys } from '@/core/shared/constants/query-keys'
 import { createQuotationFiltersSchema } from '../config/quotationFiltersSchema'
@@ -135,10 +115,6 @@ const {
   setStatusFilter,
 } = useQuotationsListTable(filtersCtl.backendParams)
 
-// ─── View mode (table ↔ cards), persisted to localStorage ────────────────────
-
-const { viewMode, displayMode } = useQuotationsViewMode()
-
 // ─── Status tabs definition ───────────────────────────────────────────────────
 
 interface StatusTab {
@@ -147,45 +123,19 @@ interface StatusTab {
 }
 
 const STATUS_TABS: StatusTab[] = [
-  { label: 'Todos', value: 'ALL' },
+  { label: 'Todas', value: 'ALL' },
   { label: 'Borradores', value: QUOTATION_STATUS.DRAFT },
   { label: 'Enviadas', value: QUOTATION_STATUS.SENT },
   { label: 'Expiradas', value: QUOTATION_STATUS.EXPIRED },
   { label: 'Canceladas', value: QUOTATION_STATUS.CANCELLED },
 ]
 
-/**
- * Effective active status used for the tab's aria-current state.
- * The slideover status (when set) takes precedence over the tab — we
- * detect that by reading the slideover's serialized status field. When
- * the user clicks a tab, we mirror the value into the slideover's status
- * (single-element array) so the same source of truth drives both the
- * visual indication and the filter.
- */
-const activeStatusTab = computed<QuotationStatus | 'ALL'>(() => {
-  const slideover = filtersState.value.status
-  if (Array.isArray(slideover) && slideover.length > 0) {
-    return slideover[0] as QuotationStatus
-  }
-  if (typeof slideover === 'string' && slideover.length > 0) {
-    const first = slideover.split(',')[0]?.trim()
-    if (first) return first as QuotationStatus
-  }
-  return 'ALL'
-})
+/** The selected tab — the only status filter (the Filtros panel has no Estado). */
+const activeStatusTab = ref<QuotationStatus | 'ALL'>('ALL')
 
 function onStatusTabClick(value: QuotationStatus | 'ALL'): void {
-  // Tab → set the slideover status to a single element (keeps the
-  // single source of truth consistent with the composable's tab) and
-  // notify the composable. REQ-QAF-010: selecting a tab "clears" the
-  // slideover's prior status by overwriting it with a single value.
-  if (value === 'ALL') {
-    filtersCtl.clearFilter('status')
-    setStatusFilter(undefined)
-  } else {
-    filtersState.value = { ...filtersState.value, status: [value] }
-    setStatusFilter(value)
-  }
+  activeStatusTab.value = value
+  setStatusFilter(value === 'ALL' ? undefined : value)
 }
 
 // Reset pagination to page 0 whenever the slideover filter state changes.
@@ -203,6 +153,29 @@ function goToDetail(quotation: QuotationResponseDto): void {
   void router.push(`/pos/cotizaciones/${quotation.id}`)
 }
 
+// ─── Display helpers ──────────────────────────────────────────────────────────
+
+function customerName(quotation: QuotationResponseDto): string {
+  const c = quotation.customer
+  if (!c) return 'Sin cliente'
+  const full = `${c.firstName} ${c.lastName ?? ''}`.trim()
+  return full || 'Sin cliente'
+}
+
+function effectiveStatus(quotation: QuotationResponseDto): QuotationStatus {
+  if (quotation.status === 'SENT' && isExpired(quotation)) {
+    return 'EXPIRED'
+  }
+  return quotation.status
+}
+
+function rowStatus(quotation: QuotationResponseDto) {
+  const status = effectiveStatus(quotation)
+  return { tone: statusToTone(status), label: statusToLabel(status) }
+}
+
+const rowLabel = (quotation: QuotationResponseDto) => `cotización de ${customerName(quotation)}`
+
 // ─── Delete flow (REQ-QAF-013) ────────────────────────────────────────────────
 
 const queryClient = useQueryClient()
@@ -210,13 +183,13 @@ const queryClient = useQueryClient()
 const confirmState = ref({
   open: false,
   id: '',
-  folio: '',
+  customer: '',
 })
 
 const deleteMutation = useMutation({
   mutationFn: (id: string) => quotationApi.deleteQuotation(id),
   onSuccess: async () => {
-    confirmState.value = { open: false, id: '', folio: '' }
+    confirmState.value = { open: false, id: '', customer: '' }
     useToast().add({ title: 'Cotización eliminada', color: 'success' })
     await queryClient.invalidateQueries({
       queryKey: quotationQueryKeys.list(tenantId.value),
@@ -234,7 +207,7 @@ function handleDelete(quotation: QuotationResponseDto): void {
   confirmState.value = {
     open: true,
     id: quotation.id,
-    folio: quotation.id.slice(0, 8),
+    customer: customerName(quotation),
   }
 }
 
@@ -246,80 +219,22 @@ function handleConfirmDelete(): void {
 
 // ─── Column definitions ───────────────────────────────────────────────────────
 
-function truncatedId(id: string): string {
-  return id.length > 8 ? `${id.slice(0, 8)}…` : id
-}
-
-function customerName(quotation: QuotationResponseDto): string {
-  const c = quotation.customer
-  if (!c) return 'Sin cliente'
-  const full = `${c.firstName} ${c.lastName ?? ''}`.trim()
-  return full || 'Sin cliente'
-}
-
 /**
  * accessorFn for the `customer` column. Sorting by `customer` must use the
  * resolved `firstName lastName` (what the cashier sees in the UI), not the
- * raw nested object — otherwise sort order is undefined and the click feels
- * broken.
+ * raw nested object.
  */
-function customerAccessorFn(row: QuotationResponseDto): string {
-  return customerName(row)
-}
-
-function effectiveStatus(quotation: QuotationResponseDto): QuotationStatus {
-  if (quotation.status === 'SENT' && isExpired(quotation)) {
-    return 'EXPIRED'
-  }
-  return quotation.status
-}
-
-function rowStatusTone(quotation: QuotationResponseDto): ReturnType<typeof statusToTone> {
-  return statusToTone(effectiveStatus(quotation))
-}
-
-function rowStatusLabel(quotation: QuotationResponseDto): string {
-  return statusToLabel(effectiveStatus(quotation))
-}
-
-function formatExpiryDate(iso: string | null): string {
-  if (!iso) return '—'
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return '—'
-  return new Intl.DateTimeFormat('es-MX', {
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit',
-  }).format(date)
-}
-
-function formatCreatedAt(iso: string): string {
-  return new Intl.DateTimeFormat('es-MX', {
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit',
-  }).format(new Date(iso))
-}
-
 const columns: TableColumn<QuotationResponseDto>[] = [
-  {
-    id: 'id',
-    accessorKey: 'id',
-    header: 'ID',
-    enableSorting: false,
-    meta: { class: { th: 'w-28', td: 'font-mono text-xs' } },
-  },
   {
     // Not backend-sortable (sortBy accepts only createdAt/updatedAt/
     // totalCents/expiresAt) — kept unsortable so no click can fire an
-    // invalid sortBy. The accessorFn still resolves the display name.
+    // invalid sortBy.
     id: 'customer',
-    accessorFn: customerAccessorFn,
+    accessorFn: customerName,
     header: 'Cliente',
     enableSorting: false,
   },
   {
-    // Not backend-sortable (see customer above).
     id: 'status',
     accessorKey: 'status',
     header: 'Estado',
@@ -331,77 +246,96 @@ const columns: TableColumn<QuotationResponseDto>[] = [
     accessorKey: 'totalCents',
     header: 'Total',
     enableSorting: true,
-    meta: { class: { th: 'w-32 text-right', td: 'text-right tabular-nums' } },
+    meta: { class: { th: 'w-36 text-right', td: 'text-right' } },
   },
   {
     id: 'expiresAt',
     accessorKey: 'expiresAt',
     header: 'Expira',
     enableSorting: true,
-    meta: { class: { th: 'w-32' } },
+    meta: { class: { th: 'w-36' } },
   },
   {
     id: 'createdAt',
     accessorKey: 'createdAt',
-    header: 'Fecha',
+    header: 'Creada',
     enableSorting: true,
-    meta: { class: { th: 'w-32' } },
+    meta: { class: { th: 'w-36' } },
   },
   {
     id: 'actions',
-    header: '',
+    header: 'Acciones',
     enableSorting: false,
-    meta: { class: { th: 'w-12' } },
+    meta: { class: { th: 'w-16', td: 'w-16 text-right' } },
   },
 ]
 
-// ─── Row actions (UDropdownMenu items per row) ────────────────────────────────
+// ─── Row actions (⋮ menu: open first, destructive last) ───────────────────────
 
-function getRowItems(quotation: QuotationResponseDto) {
-  const navigationActions = [
-    { label: 'Ver detalle', onSelect: () => goToDetail(quotation) },
-  ]
-
+function actionsFor(quotation: QuotationResponseDto): RowAction[] {
   const isDeletableStatus =
     quotation.status === QUOTATION_STATUS.DRAFT ||
     quotation.status === QUOTATION_STATUS.CANCELLED
 
-  const destructiveActions = canDelete.value && isDeletableStatus
-    ? [{
-        label: 'Eliminar',
-        color: 'error' as const,
-        onSelect: () => handleDelete(quotation),
-      }]
-    : []
-
-  return [navigationActions, destructiveActions].filter((section) => section.length > 0)
+  return [
+    { key: 'open', label: 'Ver detalle', icon: 'i-lucide-eye' },
+    ...(canDelete.value && isDeletableStatus
+      ? [{ key: 'delete', label: 'Eliminar…', icon: 'i-lucide-trash-2', destructive: true }]
+      : []),
+  ]
 }
 
-// ─── Error message ───────────────────────────────────────────────────────────
+function onAction(key: string, quotation: QuotationResponseDto): void {
+  if (key === 'open') goToDetail(quotation)
+  else if (key === 'delete') handleDelete(quotation)
+}
 
-const errorMessage = computed(() => {
-  const err = error.value as { response?: { data?: { message?: string } }; message?: string } | null
-  if (!err) return 'No se pudieron cargar las cotizaciones. Reintenta.'
-  return err.response?.data?.message ?? err.message ?? 'No se pudieron cargar las cotizaciones. Reintenta.'
-})
+// The whole row opens the quotation: AppDataTable's `row-open` for table rows,
+// `rowProps` for cards. The customer button is the tab stop, so neither row is.
+const clickable = useClickableRow<QuotationResponseDto>(goToDetail, { focusable: false })
+
+// ─── States ──────────────────────────────────────────────────────────────────
+
+const search = computed(() => globalFilter.value.trim())
+
+/** The list is empty because a search, a tab or a filter matched nothing. */
+const filtered = computed(
+  () => search.value.length > 0 || filtersCtl.activeCount.value > 0 || activeStatusTab.value !== 'ALL',
+)
+
+const noMatchTitle = computed(() =>
+  search.value ? `Ningún resultado para «${search.value}»` : 'Ningún resultado',
+)
+
+const emptyState = computed(() => ({
+  title: 'Aún no hay cotizaciones',
+  description: 'Aquí aparecerán las cotizaciones que crees.',
+  ...(canCreate.value ? { actionLabel: 'Nueva cotización', actionIcon: 'i-lucide-file-plus' } : {}),
+}))
+
+function clearAllFilters(): void {
+  globalFilter.value = ''
+  filtersCtl.clearAll()
+  onStatusTabClick('ALL')
+}
+
+const errorMessage = 'No se pudieron cargar las cotizaciones'
 </script>
 
 <template>
   <div class="hf-theme hf-ui quotations-list-visual flex w-full min-w-0 flex-col gap-6 md:px-10">
     <div class="hf-page-header">
       <h1 class="hf-page-title">Cotizaciones</h1>
-      <p class="hf-page-subtitle">Listado de cotizaciones por cliente, con filtros por estado, fechas y montos.</p>
     </div>
 
     <UCard
       :ui="{ body: 'p-0 sm:p-0' }"
-      class="hf-table-surface quotations-list-view w-full min-w-0 max-w-full overflow-hidden shadow-sm"
+      class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm"
       data-testid="quotations-list-view"
     >
-
       <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4 space-y-4">
         <div class="space-y-4">
-          <div class="flex flex-wrap items-center gap-1" data-testid="status-tabs" role="tablist" aria-label="Filtrar cotizaciones por estado">
+          <div class="quotations-status-tabs flex flex-nowrap items-center gap-1 overflow-x-auto" data-testid="status-tabs" role="tablist" aria-label="Filtrar cotizaciones por estado">
             <button
               v-for="tab in STATUS_TABS"
               :key="tab.value"
@@ -409,12 +343,8 @@ const errorMessage = computed(() => {
               role="tab"
               :aria-selected="activeStatusTab === tab.value"
               :aria-current="activeStatusTab === tab.value ? 'page' : undefined"
-              class="quotations-status-tab rounded-lg px-3.5 py-2 text-sm font-medium transition-colors"
-              :class="
-                activeStatusTab === tab.value
-                  ? 'border border-default bg-elevated text-highlighted shadow-sm'
-                  : 'text-muted hover:bg-elevated/60 hover:text-default'
-              "
+              class="quotations-status-tab"
+              :class="{ 'is-active': activeStatusTab === tab.value }"
               @click="onStatusTabClick(tab.value)"
             >
               {{ tab.label }}
@@ -440,9 +370,13 @@ const errorMessage = computed(() => {
             :showing-to="showingTo"
             :page-size-options="pageSizeOptions"
             :enable-row-selection="false"
+            :row-open="goToDetail"
+            :empty-state="emptyState"
+            :filtered="filtered"
+            :no-match-title="noMatchTitle"
+            :active-filter-count="filtersCtl.activeCount.value"
             mobile-render="cards"
-            :display-mode="displayMode"
-            :enable-column-visibility="true"
+            display-mode="auto"
             class="hf-data-table"
             portal-class="hf-theme hf-ui quotations-list-portal"
             pagination-portal-class="hf-theme hf-ui quotations-list-portal"
@@ -452,18 +386,13 @@ const errorMessage = computed(() => {
             add-button-text="Nueva cotización"
             add-button-icon="i-lucide-file-plus"
             add-button-test-id="new-quotation-button"
-            refresh-button-test-id="refresh-quotations-button"
             @refresh="refresh"
             @add="goToCreate"
-            @clear-filters="filtersCtl.clearAll()"
+            @empty-action="goToCreate"
+            @clear-filters="clearAllFilters"
           >
-            <!-- Filtros moved inside AppDataTable's #filters slot — REQ-QAF-011.
-                 Embedded mode (WU-3 / polish-filters-bottom-sheet): the
-                 wrapper's USlideover owns the trigger, header and footer —
-                 DataTableFilters v2 renders only its sections + chips
-                 inside the unified bottom-sheet so users see ONE "Filtros"
-                 tap → ONE sheet (no nested slideover-in-slideover).
-                 Card sections are owned by DataTableFilters' embedded groups. -->
+            <!-- Embedded below md: the wrapper's bottom sheet owns the trigger,
+                 header and footer, so users see ONE "Filtros" tap → ONE sheet. -->
             <template #filters>
               <DataTableFilters
                 v-model:state="filtersState"
@@ -473,15 +402,7 @@ const errorMessage = computed(() => {
               />
             </template>
 
-            <!-- ViewToggle persisted via useQuotationsViewMode. -->
-            <template #actions>
-              <ViewToggle v-model="viewMode" class="quotations-view-toggle" />
-            </template>
-
-            <!-- Sortable header slots — only columns the backend accepts as
-                 sortBy (createdAt / updatedAt / totalCents / expiresAt) get a
-                 live sort control. Customer and status are unsortable so no
-                 click can fire an invalid sortBy. -->
+            <!-- Sortable headers only for the columns the backend accepts as sortBy. -->
             <template #totalCents-header="{ column }">
               <SortableHeader :column="column" label="Total" />
             </template>
@@ -489,70 +410,68 @@ const errorMessage = computed(() => {
               <SortableHeader :column="column" label="Expira" />
             </template>
             <template #createdAt-header="{ column }">
-              <SortableHeader :column="column" label="Fecha" />
+              <SortableHeader :column="column" label="Creada" />
             </template>
-
-            <template #id-cell="{ row }">
-              <span class="font-mono text-xs text-muted">{{ truncatedId(row.original.id) }}</span>
-            </template>
+            <template #actions-header><span class="sr-only">Acciones</span></template>
 
             <template #customer-cell="{ row }">
-              <UButton
-                variant="link"
-                color="primary"
-                class="!p-0 text-sm font-medium hover:underline"
+              <button
+                type="button"
+                class="hf-row-primary quotation-row-link"
                 :data-testid="`quotation-link-${row.original.id}`"
                 @click="goToDetail(row.original)"
-              >
-                {{ customerName(row.original) }}
-              </UButton>
+              >{{ customerName(row.original) }}</button>
             </template>
 
             <template #status-cell="{ row }">
-              <StatusDotBadge
-                :tone="rowStatusTone(row.original)"
-                :label="rowStatusLabel(row.original)"
-                compact
-              />
+              <StatusBadge v-bind="rowStatus(row.original)" />
             </template>
 
             <template #totalCents-cell="{ row }">
-              <span class="quotations-total-value font-medium text-default">{{ formatCentsMXN(row.original.totalCents) }}</span>
+              <span class="hf-figure quotations-total-value">{{ formatCentsMXN(row.original.totalCents) }}</span>
             </template>
 
             <template #expiresAt-cell="{ row }">
-              <span class="text-sm text-muted">{{ formatExpiryDate(row.original.expiresAt) }}</span>
+              <span class="quotation-when">{{ formatShortDateTime(row.original.expiresAt) }}</span>
             </template>
 
             <template #createdAt-cell="{ row }">
-              <span class="text-sm text-muted">{{ formatCreatedAt(row.original.createdAt) }}</span>
+              <span class="quotation-when">{{ formatShortDateTime(row.original.createdAt) }}</span>
             </template>
 
             <template #actions-cell="{ row }">
-              <UDropdownMenu
-                :items="getRowItems(row.original)"
-                :content="{ align: 'end' }"
-                :ui="{ content: 'hf-theme hf-ui quotations-list-portal' }"
-              >
-                <UButton
-                  icon="i-lucide-ellipsis-vertical"
-                  color="neutral"
-                  variant="ghost"
-                  class="size-7 cursor-pointer"
-                  :data-testid="`row-actions-${row.original.id}`"
-                />
-              </UDropdownMenu>
+              <RowActionsMenu
+                :actions="actionsFor(row.original)"
+                :row-label="rowLabel(row.original)"
+                portal-class="quotations-list-portal"
+                @select="onAction($event, row.original)"
+              />
             </template>
 
-            <template #cards="{ data, loading, empty }">
-              <QuotationCardGrid
-                :quotations="data"
-                :loading="loading"
-                :empty="empty"
-                :can-delete="canDelete"
-                @card-click="goToDetail"
-                @delete="handleDelete"
-              />
+            <template #mobile-card="{ row }">
+              <article v-bind="clickable.rowProps(row)" class="quotation-card" data-testid="quotation-card">
+                <div class="quotation-card-head">
+                  <button
+                    type="button"
+                    class="hf-row-primary quotation-row-link"
+                    :data-testid="`quotation-link-${row.id}`"
+                    @click="goToDetail(row)"
+                  >{{ customerName(row) }}</button>
+                  <RowActionsMenu
+                    :actions="actionsFor(row)"
+                    :row-label="rowLabel(row)"
+                    portal-class="quotations-list-portal"
+                    @select="onAction($event, row)"
+                  />
+                </div>
+                <div class="quotation-card-meta">
+                  <StatusBadge v-bind="rowStatus(row)" />
+                </div>
+                <div class="quotation-card-footer">
+                  <span class="hf-figure quotations-total-value">{{ formatCentsMXN(row.totalCents) }}</span>
+                  <span>{{ formatShortDateTime(row.createdAt) }}</span>
+                </div>
+              </article>
             </template>
           </AppDataTable>
         </div>
@@ -561,7 +480,7 @@ const errorMessage = computed(() => {
       <ConfirmModal
         :open="confirmState.open"
         title="Eliminar cotización"
-        :description="`¿Eliminar la cotización #${confirmState.folio}? Esta acción no se puede deshacer.`"
+        :description="`¿Eliminar la cotización de ${confirmState.customer}? Esta acción no se puede deshacer.`"
         confirm-label="Eliminar"
         confirm-color="error"
         :ui="{ content: 'hf-theme hf-ui hf-form-overlay quotations-list-portal' }"
@@ -572,3 +491,23 @@ const errorMessage = computed(() => {
     </UCard>
   </div>
 </template>
+
+<style scoped>
+.quotations-status-tabs { scrollbar-width: none; }
+.quotations-status-tabs::-webkit-scrollbar { display: none; }
+@media (max-width: 767px) {
+  .quotations-status-tabs { mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); }
+}
+.quotations-status-tab { flex: none; white-space: nowrap; border: 1px solid transparent; border-radius: var(--hf-radius-control); padding: 8px 14px; color: var(--hf-muted); font-size: 14px; font-weight: 500; transition: background-color 150ms, color 150ms; }
+.quotations-status-tab:hover { background: var(--hf-surface-muted); color: var(--hf-heading); }
+.quotations-status-tab.is-active { border-color: var(--hf-border); background: var(--hf-surface-muted); color: var(--hf-heading); font-weight: 600; }
+.quotation-row-link { padding: 0; border: 0; background: none; text-align: left; font-size: 14px; cursor: pointer; }
+.quotation-when { color: var(--hf-muted); font-size: 13px; white-space: nowrap; }
+.quotation-card { position: relative; min-width: 0; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); padding: 16px; }
+.quotation-card-head { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
+.quotation-card-head .quotation-row-link { flex: 1; min-width: 0; padding-top: 2px; font-size: 15px; line-height: 1.4; white-space: normal; }
+.quotation-card-head > :last-child { margin: -8px -8px 0 0; flex: none; }
+.quotation-card-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.quotation-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hf-border); color: var(--hf-muted); font-size: 13px; }
+.quotation-card-footer .quotations-total-value { color: var(--hf-ink); }
+</style>

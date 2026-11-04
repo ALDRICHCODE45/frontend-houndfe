@@ -62,7 +62,15 @@ const emit = defineEmits<{
 const formState = reactive<PromotionFormState>(
   props.initialData ? promotionToFormState(props.initialData) : getInitialState(props.type),
 )
-const { evaluation: botEligibility, notice: botEligibilityNotice } = usePromotionBotEligibility(formState)
+const {
+  evaluation: botEligibility,
+  notice: botEligibilityNotice,
+  loadFailed: botEligibilityFailed,
+  retry: retryBotEligibility,
+} = usePromotionBotEligibility(formState)
+function onRetryBotEligibility(): void {
+  void retryBotEligibility()
+}
 
 // ── Edit-mode name resolution ─────────────────────────────────────────────────
 //
@@ -186,6 +194,12 @@ const overlappingTargets = computed(() =>
     formState.getTargetItems,
   ),
 )
+
+const overlapTitle = computed(() =>
+  overlappingTargets.value.length === 1
+    ? '1 objetivo en común'
+    : `${overlappingTargets.value.length} objetivos en común`,
+)
 </script>
 
 <template>
@@ -216,7 +230,7 @@ const overlappingTargets = computed(() =>
 
           <div class="flex flex-col gap-5">
             <!-- Title -->
-            <UFormField label="Nombre de la Promoción" name="title" required class="w-full">
+            <UFormField label="Nombre de la promoción" name="title" required class="w-full">
               <UInput
                 v-model="formState.title"
                 class="w-full"
@@ -238,7 +252,7 @@ const overlappingTargets = computed(() =>
 
             <!-- Method selector — read-only in edit mode -->
             <div>
-              <p class="mb-2 text-sm font-medium text-toned">Cómo se Aplica</p>
+              <p class="mb-2 text-sm font-medium text-toned">Cómo se aplica</p>
               <!-- Edit mode: show read-only badge -->
               <div
                 v-if="mode === 'edit'"
@@ -263,7 +277,7 @@ const overlappingTargets = computed(() =>
                 <span class="ml-1 text-xs text-muted">(no editable)</span>
               </div>
               <!-- Create mode: interactive cards -->
-              <div v-else class="grid grid-cols-2 gap-3">
+              <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <button
                   v-for="m in [PROMOTION_METHOD.AUTOMATIC, PROMOTION_METHOD.MANUAL] as const"
                   :key="m"
@@ -305,12 +319,28 @@ const overlappingTargets = computed(() =>
                 :editing="mode === 'edit'"
                 @update:max-product-units="formState.maxProductUnits = $event"
               />
-              <UFormField name="botEligible" :description="botEligibility.reason">
+              <UFormField name="botEligible" :description="botEligibilityFailed ? undefined : botEligibility.reason">
                 <USwitch
                   v-model="formState.botEligible"
                   label="Disponible para el chatbot (WhatsApp)"
                   :disabled="!botEligibility.supported"
                 />
+                <div
+                  v-if="botEligibilityFailed"
+                  role="alert"
+                  class="promotions-inline-error"
+                  data-testid="bot-eligibility-error"
+                >
+                  <span>{{ botEligibility.reason }}</span>
+                  <button
+                    type="button"
+                    class="promotions-inline-retry"
+                    data-testid="bot-eligibility-retry"
+                    @click="onRetryBotEligibility"
+                  >
+                    Reintentar
+                  </button>
+                </div>
                 <p v-if="botEligibilityNotice" role="status" class="promotions-bot-notice">
                   {{ botEligibilityNotice }}
                 </p>
@@ -326,7 +356,7 @@ const overlappingTargets = computed(() =>
           data-testid="product-discount-section"
         >
           <template #header>
-            <h3 class="font-semibold text-highlighted">Valor del Descuento</h3>
+            <h3 class="font-semibold text-highlighted">Valor del descuento</h3>
           </template>
 
           <div class="flex flex-col gap-5">
@@ -383,7 +413,7 @@ const overlappingTargets = computed(() =>
           data-testid="order-discount-section"
         >
           <template #header>
-            <h3 class="font-semibold text-highlighted">Valor del Descuento</h3>
+            <h3 class="font-semibold text-highlighted">Valor del descuento</h3>
           </template>
 
           <div class="flex flex-col gap-5">
@@ -436,13 +466,13 @@ const overlappingTargets = computed(() =>
           data-testid="buy-x-get-y-section"
         >
           <template #header>
-            <h3 class="font-semibold text-highlighted">Tipo de Promoción</h3>
+            <h3 class="font-semibold text-highlighted">Tipo de promoción</h3>
           </template>
 
           <div class="flex flex-col gap-5">
             <!-- Presets -->
             <div>
-              <p class="mb-2 text-sm font-medium text-toned">Presets rápidos</p>
+              <p class="mb-2 text-sm font-medium text-toned">Combinaciones rápidas</p>
               <div class="flex flex-wrap gap-2">
                 <button
                   v-for="preset in BUY_X_GET_Y_PRESETS"
@@ -516,7 +546,7 @@ const overlappingTargets = computed(() =>
                 :selected-items="formState.buyTargetItems"
                 :allow-variants="true"
                 :side="TARGET_SIDE.BUY"
-                label="Items de cualquiera de los siguientes"
+                label="Elementos de cualquiera de los siguientes"
                 @update:target-type="onBuyTargetTypeChange"
                 @update:selected-items="formState.buyTargetItems = $event"
               />
@@ -571,7 +601,7 @@ const overlappingTargets = computed(() =>
             icon="i-lucide-triangle-alert"
             data-testid="overlap-alert"
             class="mt-4"
-            :title="`${overlappingTargets.length} objetivo(s) en común`"
+            :title="overlapTitle"
             description="Los objetivos de compra y obtención no pueden superponerse. El backend rechazará la promoción si los mismos productos aparecen en ambos lados."
           />
         </UCard>
@@ -584,7 +614,9 @@ const overlappingTargets = computed(() =>
         />
 
         <!-- ── Action buttons ─────────────────────────────────────────── -->
-        <div class="flex justify-end gap-3">
+        <!-- Hosted by a workspace that supplies `formId`, the header owns the
+             one primary action, so the footer is omitted. -->
+        <div v-if="!formId" class="flex justify-end gap-3">
           <UButton
             type="button"
             color="neutral"
@@ -601,7 +633,7 @@ const overlappingTargets = computed(() =>
             class="hf-primary-control"
             data-testid="submit-btn"
           >
-            {{ mode === 'create' ? 'Crear Promoción' : 'Guardar Cambios' }}
+            {{ mode === 'create' ? 'Crear promoción' : 'Guardar cambios' }}
           </UButton>
         </div>
       </UForm>

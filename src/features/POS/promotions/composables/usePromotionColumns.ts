@@ -1,6 +1,5 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { PromotionResponse } from '../interfaces/promotion.types'
-import { createSimpleHeader } from '@/core/shared/components/DataTable'
 import {
   getStatusConfig,
   getTypeConfig,
@@ -20,10 +19,10 @@ export function usePromotionColumns() {
       enableHiding: false,
     },
 
-    // ── Título (sortable) ─────────────────────────────────────────────
+    // ── Promoción: título (sortable) con el tipo como línea secundaria ──
     {
       accessorKey: 'title',
-      header: 'Título',
+      header: 'Promoción',
       enableSorting: true,
     },
 
@@ -34,14 +33,7 @@ export function usePromotionColumns() {
       enableSorting: false,
     },
 
-    // ── Tipo — badge via getTypeConfig ────────────────────────────────
-    {
-      accessorKey: 'type',
-      header: 'Tipo',
-      enableSorting: false,
-    },
-
-    // ── Método — badge via getMethodConfig ────────────────────────────
+    // ── Método — texto vía getMethodConfig ────────────────────────────
     {
       accessorKey: 'method',
       header: 'Método',
@@ -72,20 +64,13 @@ export function usePromotionColumns() {
       enableSorting: true,
     },
 
-    // ── Fecha de actualización (sortable) ─────────────────────────────
-    {
-      accessorKey: 'updatedAt',
-      header: 'Actualizada',
-      enableSorting: true,
-    },
-
     // ── Acciones ──────────────────────────────────────────────────────
     {
       id: 'actions',
-      header: createSimpleHeader(''),
+      header: 'Acciones',
       enableHiding: false,
       enableSorting: false,
-      meta: { class: { td: 'text-right' } },
+      meta: { class: { th: 'w-16', td: 'w-16 text-right' } },
     },
   ]
 

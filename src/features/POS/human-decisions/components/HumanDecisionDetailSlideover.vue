@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import AppResponsiveDrawer from '@/core/shared/components/AppResponsiveDrawer.vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import type { HumanDecision } from '../interfaces/human-decision.types'
 import type { HumanDecisionResolutionInput } from '../utils/humanDecisionResolutionAttempt'
 import type { ExpirationDecisionResolutionInput } from '../utils/expirationResolutionAttempt'
@@ -30,7 +32,7 @@ const props = withDefaults(
   {
     loading: false,
     error: false,
-    errorMessage: 'No se pudo cargar el detalle. Reintenta.',
+    errorMessage: 'No se pudo cargar el detalle',
     canUpdate: false,
     resolving: false,
     conflict: false,
@@ -71,43 +73,42 @@ function unitsLabel(value: number | null): string {
         v-if="loading"
         role="status"
         aria-live="polite"
-        class="flex min-h-48 items-center justify-center p-6 text-sm text-muted"
+        aria-busy="true"
+        data-testid="human-decision-detail-skeleton"
+        class="space-y-6 p-4 sm:p-6"
       >
-        Cargando detalle…
+        <span class="sr-only">Cargando detalle…</span>
+        <div class="space-y-2" aria-hidden="true">
+          <USkeleton class="h-6 w-24 !rounded-md" />
+          <USkeleton class="h-4 w-3/4 !rounded" />
+        </div>
+        <div class="space-y-3" aria-hidden="true">
+          <USkeleton class="h-4 w-20 !rounded" />
+          <USkeleton class="h-40 w-full !rounded-xl" />
+        </div>
+        <USkeleton class="h-11 w-full !rounded-lg" aria-hidden="true" />
       </div>
 
-      <div
+      <EmptyState
         v-else-if="error"
-        role="alert"
-        class="flex min-h-48 flex-col items-center justify-center gap-3 p-6 text-center"
-      >
-        <UIcon name="i-lucide-alert-triangle" class="size-6 text-error" />
-        <p class="text-sm text-error">{{ errorMessage }}</p>
-        <UButton
-          type="button"
-          color="neutral"
-          variant="outline"
-          class="min-h-11"
-          data-testid="human-decision-detail-retry"
-          @click="emit('retry')"
-        >
-          Reintentar
-        </UButton>
-      </div>
+        kind="error"
+        :title="errorMessage"
+        action-label="Reintentar"
+        action-test-id="human-decision-detail-retry"
+        @action="emit('retry')"
+      />
 
-      <div
+      <EmptyState
         v-else-if="!decision"
-        role="status"
-        class="flex min-h-48 items-center justify-center p-6 text-center text-sm text-muted"
-      >
-        Selecciona una decisión para ver su detalle.
-      </div>
+        title="Selecciona una decisión para ver su detalle."
+      />
 
       <article v-else class="space-y-6 p-4 sm:p-6" data-testid="human-decision-detail">
         <div class="space-y-2">
-          <UBadge :color="decision.status === 'PENDING' ? 'warning' : 'success'" variant="subtle">
-            {{ decision.status === 'PENDING' ? 'Pendiente' : 'Respondida' }}
-          </UBadge>
+          <StatusBadge
+            :label="decision.status === 'PENDING' ? 'Pendiente' : 'Respondida'"
+            :tone="decision.status === 'PENDING' ? 'warning' : 'success'"
+          />
           <p class="text-sm text-muted">{{ decision.sanitizedSummary }}</p>
         </div>
 
@@ -165,7 +166,7 @@ function unitsLabel(value: number | null): string {
         <section
           v-if="decision.status === 'RESOLVED'"
           aria-labelledby="human-decision-resolution-heading"
-          class="space-y-3 rounded-xl border border-success/30 bg-success/5 p-4"
+          class="space-y-3 rounded-xl border border-[var(--hf-border)] bg-[var(--hf-surface-muted)] p-4"
         >
           <h2 id="human-decision-resolution-heading" class="text-sm font-semibold text-highlighted">
             Respuesta registrada
@@ -181,7 +182,7 @@ function unitsLabel(value: number | null): string {
           <p
             v-if="resolutionErrorMessage"
             role="alert"
-            class="rounded-lg border border-error/30 bg-error/5 p-3 text-sm text-error"
+            class="rounded-lg border border-[var(--hf-danger-border)] bg-[var(--hf-danger-soft)] p-3 text-sm text-[var(--hf-danger)]"
           >
             {{ resolutionErrorMessage }}
           </p>

@@ -169,6 +169,21 @@ describe('PromotionForm WhatsApp switch', () => {
     expect((await submitted(wrapper)).botEligible).toBe(false)
     expect(wrapper.get('[role="status"]').text()).toContain('Se desactivó')
   })
+  it('shows a failed availability read as an inline error with Reintentar that reads again', async () => {
+    vi.mocked(promotionApi.getBotEligibilityCapabilities).mockRejectedValue(new Error('offline'))
+    const { wrapper } = mountForm({ pending: true })
+    await flushPromises()
+    const error = wrapper.get('[data-testid="bot-eligibility-error"]')
+    expect(error.attributes('role')).toBe('alert')
+    expect(error.text()).toContain('No se pudo consultar la disponibilidad para WhatsApp.')
+    // One message: the field description does not repeat it.
+    expect(wrapper.text().match(/No se pudo consultar/g)).toHaveLength(1)
+    const calls = vi.mocked(promotionApi.getBotEligibilityCapabilities).mock.calls.length
+    await wrapper.get('[data-testid="bot-eligibility-retry"]').trigger('click')
+    await flushPromises()
+    expect(vi.mocked(promotionApi.getBotEligibilityCapabilities).mock.calls.length).toBeGreaterThan(calls)
+  })
+
   it('keeps saved true on request failure, even when a cached rule is incompatible', async () => {
     vi.mocked(promotionApi.getBotEligibilityCapabilities).mockRejectedValue(new Error('offline'))
     const { wrapper, queryClient } = mountForm({ pending: true })

@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import type { CatalogProductDetailState } from '../composables/useCatalogProductDetail'
+import { catalogAvailabilityConfig } from '../utils/availability'
 import type {
   PublicCatalogProductDetailAvailability,
   PublicCatalogProductDetailDto,
@@ -46,37 +47,13 @@ function markMainImageFailed() {
 const isLoading = computed(() => props.state === 'loading' || props.state === 'retry-pending')
 const canRetry = computed(() => ['rate-limit', 'network', 'server'].includes(props.state))
 
-/**
- * Availability is a semantic status, never a commerce affordance: the tinted pill only repeats the
- * strict DTO status, and the dot always travels with the written label.
- */
-const availabilityConfig = {
-  available: {
-    label: 'Disponible',
-    dot: 'bg-emerald-500',
-    text: 'text-emerald-700 dark:text-emerald-300',
-    pill: 'bg-emerald-50 ring-emerald-200/80 dark:bg-emerald-950/40 dark:ring-emerald-900',
-  },
-  low_stock: {
-    label: 'Pocas piezas',
-    dot: 'bg-amber-500',
-    text: 'text-amber-700 dark:text-amber-300',
-    pill: 'bg-amber-50 ring-amber-200/80 dark:bg-amber-950/40 dark:ring-amber-900',
-  },
-  out_of_stock: {
-    label: 'Agotado',
-    dot: 'bg-red-500',
-    text: 'text-red-700 dark:text-red-300',
-    pill: 'bg-red-50 ring-red-200/80 dark:bg-red-950/40 dark:ring-red-900',
-  },
-} as const
 
 function displayAvailability(
   presentation: PublicCatalogProductDetailStockPresentationDto,
   availability: PublicCatalogProductDetailAvailability,
 ) {
   if (presentation.mode === 'HIDDEN' || availability === null) return null
-  return availabilityConfig[availability]
+  return catalogAvailabilityConfig[availability]
 }
 
 function displayQuantity(presentation: PublicCatalogProductDetailStockPresentationDto) {
@@ -353,7 +330,7 @@ function errorCopy(state: CatalogProductDetailState) {
     case 'rate-limit':
       return 'Hay muchas solicitudes en este momento. Intenta de nuevo en unos momentos.'
     case 'network':
-      return 'No se pudo conectar para cargar el detalle. Revisa tu conexión.'
+      return 'No se pudo conectar para cargar el detalle. Inténtalo de nuevo en un momento.'
     default:
       return 'No pudimos cargar el detalle del producto. Intenta de nuevo.'
   }
@@ -484,7 +461,7 @@ onBeforeUnmount(() => {
           </div>
           <h2
             data-testid="catalog-detail-name"
-            class="mt-2 text-balance break-words text-2xl leading-tight font-bold tracking-tight text-highlighted sm:text-3xl"
+            class="mt-2 text-balance break-words text-2xl leading-tight font-semibold tracking-tight text-highlighted sm:text-3xl"
           >
             {{ detail.name }}
           </h2>
@@ -495,7 +472,7 @@ onBeforeUnmount(() => {
         >
           <div
             data-testid="catalog-detail-image-frame"
-            class="catalog-detail-image-frame flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-default"
+            class="catalog-detail-image-frame flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl bg-default ring-1 ring-default"
           >
             <!--
               The real main image is one full-frame media control: it opens the read-only preview and
@@ -560,13 +537,11 @@ onBeforeUnmount(() => {
             <span
               v-if="detailAvailability"
               data-testid="catalog-detail-availability"
-              class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 ring-1"
-              :class="detailAvailability.pill"
+              class="catalog-availability catalog-availability--pill inline-flex items-center gap-1.5"
+              :data-tone="detailAvailability.tone"
             >
-              <span class="size-1.5 rounded-full" :class="detailAvailability.dot" />
-              <span class="text-xs font-semibold" :class="detailAvailability.text">
-                {{ detailAvailability.label }}
-              </span>
+              <span class="catalog-availability-dot" aria-hidden="true" />
+              <span class="text-xs font-semibold">{{ detailAvailability.label }}</span>
             </span>
           </div>
 
@@ -581,7 +556,7 @@ onBeforeUnmount(() => {
             <p
               v-if="detailPrice"
               data-testid="catalog-detail-price"
-              class="break-words text-3xl font-bold tracking-tight text-highlighted tabular-nums"
+              class="break-words text-3xl font-semibold tracking-tight text-highlighted tabular-nums"
             >
               {{ detailPrice }}
             </p>
@@ -642,7 +617,7 @@ onBeforeUnmount(() => {
                 v-for="variant in variants"
                 :key="variant.id"
                 data-testid="catalog-detail-variant"
-                class="catalog-detail-variant flex min-w-0 items-start gap-3 rounded-xl bg-white p-3 ring-1 ring-default"
+                class="catalog-detail-variant flex min-w-0 items-start gap-3 rounded-xl bg-default p-3 ring-1 ring-default"
               >
                 <!--
                   Read-only media thumbnail inside a read-only row: a real variant image opens the
@@ -733,12 +708,11 @@ onBeforeUnmount(() => {
                     <span
                       v-if="variant.availability"
                       data-testid="catalog-detail-variant-availability"
-                      class="inline-flex items-center gap-1.5"
+                      class="catalog-availability inline-flex items-center gap-1.5"
+                      :data-tone="variant.availability.tone"
                     >
-                      <span class="size-1.5 rounded-full" :class="variant.availability.dot" />
-                      <span class="font-medium" :class="variant.availability.text">
-                        {{ variant.availability.label }}
-                      </span>
+                      <span class="catalog-availability-dot" aria-hidden="true" />
+                      <span class="font-medium">{{ variant.availability.label }}</span>
                     </span>
                   </div>
                 </div>

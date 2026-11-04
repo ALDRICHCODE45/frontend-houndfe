@@ -1,6 +1,6 @@
 import type { ChargeDomainErrorCode } from '../interfaces/sale.types'
 
-export type SalePaymentUxActionType = 'inline' | 'retry' | 'refetch' | 'new-key'
+type SalePaymentUxActionType = 'inline' | 'retry' | 'refetch' | 'new-key' | 'generic'
 
 export interface SalePaymentUxAction {
   type: SalePaymentUxActionType
@@ -22,7 +22,7 @@ const ERROR_ACTIONS: Record<ChargeDomainErrorCode, SalePaymentUxAction> = {
   },
   PAYMENT_AMOUNT_INSUFFICIENT: {
     type: 'inline',
-    message: 'Agregá un pago en efectivo o ajustá los montos para cubrir el total',
+    message: 'Agrega un pago en efectivo o ajusta los montos para cubrir el total',
   },
   PAYMENT_METHOD_NOT_SUPPORTED: {
     type: 'inline',
@@ -58,15 +58,15 @@ const ERROR_ACTIONS: Record<ChargeDomainErrorCode, SalePaymentUxAction> = {
   },
   IDEMPOTENCY_KEY_CONFLICT: {
     type: 'new-key',
-    message: 'Ese intento ya fue usado con otros datos. Genera una nueva clave y reintentá.',
+    message: 'Ese intento ya fue usado con otros datos. Genera una nueva clave y reintenta.',
   },
   IDEMPOTENCY_KEY_IN_FLIGHT: {
     type: 'retry',
-    message: 'Ya hay un cobro en proceso con esta clave. Espera y reintentá.',
+    message: 'Ya hay un cobro en proceso con esta clave. Espera y reintenta.',
   },
   IDEMPOTENCY_KEY_REQUIRED: {
     type: 'new-key',
-    message: 'Falta clave de idempotencia. Genera una nueva e intentá otra vez.',
+    message: 'Falta clave de idempotencia. Genera una nueva e intenta otra vez.',
   },
   SALE_NOT_CONFIRMABLE_FOR_PAYMENT: {
     type: 'refetch',
@@ -78,7 +78,7 @@ const ERROR_ACTIONS: Record<ChargeDomainErrorCode, SalePaymentUxAction> = {
   },
   PAYMENT_EXCEEDS_DEBT: {
     type: 'inline',
-    message: 'El monto supera la deuda actual. Revisa el saldo y reintentá.',
+    message: 'El monto supera la deuda actual. Revisa el saldo y reintenta.',
   },
   // pos-sale-delivery S1 (CAP-DLV-2): 422 when `delivery:true` is sent
   // without a shipping address. Inline copy is locked by the spec — do
@@ -86,6 +86,12 @@ const ERROR_ACTIONS: Record<ChargeDomainErrorCode, SalePaymentUxAction> = {
   SHIPPING_ADDRESS_REQUIRED_FOR_DELIVERY: {
     type: 'inline',
     message: 'Para entrega a domicilio asigna una dirección de envío.',
+  },
+  // O1 S7: an unexpected server fault. 'generic' = show the error, change
+  // nothing (no inline error, no reload, no retry).
+  SALE_STOCK_UNAVAILABLE: {
+    type: 'generic',
+    message: 'No se pudo cobrar la venta. Avisa a soporte: reintentar no lo resuelve.',
   },
 }
 

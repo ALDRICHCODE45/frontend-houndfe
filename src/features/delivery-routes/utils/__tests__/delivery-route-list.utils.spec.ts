@@ -6,13 +6,14 @@ import type {
 import {
   buildRouteDisplayName,
   countRoutesByStatus,
-  formatRouteDateTime,
+  formatDurationMinutes,
   getRouteCreatedAt,
   getRouteCustomers,
+  getRouteIssues,
   getRouteProgress,
   matchesRouteSearch,
   queryDeliveryRoutes,
-  shortRouteId,
+  routeAvisoLabel,
   sortDeliveryRoutes,
 } from '../delivery-route-list.utils'
 
@@ -75,18 +76,33 @@ describe('buildRouteDisplayName', () => {
     expect(buildRouteDisplayName(r)).toBe('Ruta del 2 ene · Sin repartidor')
   })
 
-  it('falls back to the short id when the creation date is unknown', () => {
-    expect(buildRouteDisplayName(route({ driver: driver('Ana') }))).toBe('Ruta 3f2a9c1b · Ana')
+  it('never shows the id when the creation date is unknown', () => {
+    const name = buildRouteDisplayName(route({ driver: driver('Ana') }))
+    expect(name).toBe('Ruta sin fecha · Ana')
+    expect(name).not.toContain('3f2a9c1b')
   })
 })
 
-describe('shortRouteId', () => {
-  it('keeps the first 8 characters of a long id', () => {
-    expect(shortRouteId('3f2a9c1b-0000-4000')).toBe('3f2a9c1b')
+describe('getRouteIssues', () => {
+  it('flags a draft without stops or driver', () => {
+    expect(getRouteIssues(route())).toEqual(['Sin paradas', 'Sin repartidor'])
   })
 
-  it('returns short ids unchanged', () => {
-    expect(shortRouteId('abc')).toBe('abc')
+  it('flags only what is missing on a draft', () => {
+    expect(getRouteIssues(route({ driver: driver('Ana') }))).toEqual(['Sin paradas'])
+    expect(getRouteIssues(route({ stops: [stop()] }))).toEqual(['Sin repartidor'])
+    expect(getRouteIssues(route({ stops: [stop()], driver: driver('Ana') }))).toEqual([])
+  })
+
+  it.each(['ACTIVE', 'COMPLETED', 'CANCELLED'] as const)('%s routes carry no issues', (status) => {
+    expect(getRouteIssues(route({ status }))).toEqual([])
+  })
+})
+
+describe('routeAvisoLabel', () => {
+  it('pluralizes the count', () => {
+    expect(routeAvisoLabel(1)).toBe('1 aviso')
+    expect(routeAvisoLabel(2)).toBe('2 avisos')
   })
 })
 
@@ -296,13 +312,18 @@ describe('queryDeliveryRoutes', () => {
   })
 })
 
-describe('formatRouteDateTime', () => {
-  it('formats a timestamp as day, short month, year and time', () => {
-    expect(formatRouteDateTime('2026-10-13T15:05:00')).toBe('13 oct 2026, 15:05')
+describe('formatDurationMinutes', () => {
+  it('reads minutes, then hours and minutes', () => {
+    expect(formatDurationMinutes(0)).toBe('Menos de 1 min')
+    expect(formatDurationMinutes(45)).toBe('45 min')
+    expect(formatDurationMinutes(60)).toBe('1 h')
+    expect(formatDurationMinutes(135)).toBe('2 h 15 min')
   })
 
-  it('returns an em dash for null or invalid values', () => {
-    expect(formatRouteDateTime(null)).toBe('—')
-    expect(formatRouteDateTime('no-date')).toBe('—')
+  it('switches to days from 24 hours so a stale route never reads as "496 h 2 min"', () => {
+    expect(formatDurationMinutes(24 * 60 - 1)).toBe('23 h 59 min')
+    expect(formatDurationMinutes(24 * 60)).toBe('1 d')
+    expect(formatDurationMinutes(25 * 60 + 30)).toBe('1 d 1 h')
+    expect(formatDurationMinutes(496 * 60 + 2)).toBe('20 d 16 h')
   })
 })

@@ -62,6 +62,17 @@ function mountDiscovery(props = {}) {
 }
 
 describe('CashCustodyDiscovery · access state', () => {
+  it('keeps the section heading visible by default and only for assistive tech when the page names it', () => {
+    const shown = mountDiscovery()
+    expect(shown.get('.cash-list-title').text()).toBe('Mi custodia pendiente')
+    expect(shown.get('.cash-list-title').classes()).not.toContain('sr-only')
+
+    const quiet = mountDiscovery({ showHeading: false })
+    // The heading stays in the outline (h1 → h2) but is not a third visible text level.
+    expect(quiet.get('.cash-list-title').text()).toBe('Mi custodia pendiente')
+    expect(quiet.get('.cash-list-title').classes()).toContain('sr-only')
+  })
+
   it('shows the missing-grant copy instead of an empty page without read:CashHandover', () => {
     const wrapper = mountWithUApp(CashCustodyDiscovery, { props: { allowed: false } })
     expect(wrapper.find('[data-testid="cash-custody-forbidden"]').exists()).toBe(true)
@@ -69,15 +80,62 @@ describe('CashCustodyDiscovery · access state', () => {
     expect(wrapper.find('[data-testid="cash-custody-refresh"]').exists()).toBe(false)
   })
 
-  it('renders loading, error and empty states', () => {
-    const loading = mountDiscovery({ loading: true })
-    expect(loading.find('[data-testid="cash-custody-loading"]').exists()).toBe(true)
+  it('names the missing access on the shared forbidden state', () => {
+    const wrapper = mountWithUApp(CashCustodyDiscovery, { props: { allowed: false } })
+    expect(wrapper.get('.hf-empty-state[data-kind="forbidden"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('read:CashHandover')
+  })
+})
 
-    const error = mountDiscovery({ error: true, errorMessage: 'Falla de red' })
-    expect(error.get('[data-testid="cash-custody-error"]').text()).toContain('Falla de red')
+describe('CashCustodyDiscovery · four states (S10)', () => {
+  it('empty: "No hay entregas pendientes" on the shared empty state, with no action', () => {
+    const wrapper = mountDiscovery()
+    const state = wrapper.get('.hf-empty-state[data-kind="empty"]')
+    expect(state.text()).toContain('No hay entregas pendientes')
+    expect(wrapper.find('[data-testid="empty-state-action"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="cash-custody-empty"]').exists()).toBe(true)
+  })
 
-    const empty = mountDiscovery()
-    expect(empty.find('[data-testid="cash-custody-empty"]').exists()).toBe(true)
+  it('loading: renders a skeleton shaped like the cards and no content', () => {
+    const wrapper = mountDiscovery({ loading: true })
+    const loading = wrapper.get('[data-testid="cash-custody-loading"]')
+    expect(loading.attributes('aria-busy')).toBe('true')
+    expect(wrapper.find('[data-testid="cash-custody-pending"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="cash-custody-empty"]').exists()).toBe(false)
+    // Two card-shaped placeholders (badge, amount, meta line, fields), not plain boxes.
+    const cards = loading.findAll('.cash-card')
+    expect(cards).toHaveLength(2)
+    expect(cards[0]!.findAll('.animate-pulse').length).toBeGreaterThanOrEqual(5)
+  })
+
+  it('error: the default state is a title and Reintentar, with no repeated sentence', () => {
+    const wrapper = mountDiscovery({ error: true })
+    const state = wrapper.get('[data-testid="cash-custody-error"]')
+    expect(state.text()).toContain('No se pudo cargar tu custodia')
+    expect(state.text()).not.toContain('Reintenta.')
+    expect(state.find('p').exists()).toBe(true)
+    expect(state.findAll('p')).toHaveLength(1)
+  })
+
+  it('error: shows the message with Reintentar that asks for a refresh', async () => {
+    const wrapper = mountDiscovery({ error: true, errorMessage: 'Falla de red' })
+    const state = wrapper.get('[data-testid="cash-custody-error"]')
+    expect(state.attributes('role')).toBe('alert')
+    expect(state.text()).toContain('Falla de red')
+    await wrapper.get('[data-testid="empty-state-action"]').trigger('click')
+    expect(wrapper.emitted('refresh')).toEqual([[]])
+  })
+
+  it('data: a card per handover with the kind badge, the declared money and no ids', () => {
+    const wrapper = mountDiscovery({ pendingHandovers: PENDING })
+    const badge = wrapper.get('[data-testid="cash-custody-kind-h-1"]')
+    expect(badge.classes()).toContain('hf-status-badge')
+    expect(badge.attributes('data-tone')).toBe('info')
+    expect(wrapper.get('[data-testid="cash-custody-kind-h-2"]').attributes('data-tone')).toBe(
+      'neutral',
+    )
+    expect(wrapper.text()).not.toMatch(/\bh-1\b|\bh-2\b|Entrega h/)
+    expect(wrapper.text()).not.toContain('Se confirma al recibir')
   })
 })
 
@@ -131,10 +189,10 @@ describe('CashCustodyDiscovery · receipt is recipient-only', () => {
     expect(card.get('[data-testid="cash-custody-declared-h-1"]').text()).not.toMatch(/recibido/i)
   })
 
-  it('distinguishes FLOAT from WITHDRAWAL', () => {
+  it('distinguishes a fondo from a retiro, in Spanish', () => {
     const wrapper = mountDiscovery({ pendingHandovers: PENDING })
-    expect(wrapper.get('[data-testid="cash-custody-kind-h-1"]').text()).toMatch(/FLOAT/i)
-    expect(wrapper.get('[data-testid="cash-custody-kind-h-2"]').text()).toMatch(/WITHDRAWAL/i)
+    expect(wrapper.get('[data-testid="cash-custody-kind-h-1"]').text()).toBe('Fondo')
+    expect(wrapper.get('[data-testid="cash-custody-kind-h-2"]').text()).toBe('Retiro')
   })
 })
 

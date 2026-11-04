@@ -15,8 +15,10 @@ import {
   BRANCH_SALES_TIMESERIES_METRICS,
   DEFAULT_BRANCH_SALES_TIMESERIES_METRIC,
   buildBranchSalesTimeseriesChartLabel,
+  formatBranchSalesTimeseriesAxisDate,
   formatBranchSalesTimeseriesAxisTick,
   formatBranchSalesTimeseriesDate,
+  formatBranchSalesTimeseriesWindow,
   formatBranchSalesTimeseriesValue,
   getBranchSalesTimeseriesMetric,
   readBranchSalesTimeseriesValue,
@@ -198,13 +200,45 @@ describe('branchSalesTimeseries.utils — timezone-neutral date formatting', () 
     expect(formatBranchSalesTimeseriesDate('2024-02-29')).toBe('29 feb 2024')
   })
 
-  it('builds the chart region label from the metric label plus the exact half-open window', () => {
+  it('builds the chart region label from the metric label plus the human window', () => {
     expect(buildBranchSalesTimeseriesChartLabel('collectedCents', '2025-03-01', '2025-03-16')).toBe(
-      'Cobrado por día del 2025-03-01 al 2025-03-16 (Hasta excluyente)',
+      'Cobrado por día, del 1 mar al 15 mar 2025',
     )
     expect(buildBranchSalesTimeseriesChartLabel('saleCount', '2025-06-01', '2025-06-16')).toContain(
       'Cantidad de ventas',
     )
+  })
+})
+
+describe('formatBranchSalesTimeseriesWindow', () => {
+  it('shows the last included day, never the exclusive boundary, and no ISO strings', () => {
+    expect(formatBranchSalesTimeseriesWindow('2026-11-01', '2026-11-05')).toBe('1 nov al 4 nov 2026')
+  })
+
+  it('collapses a one-day window and repeats the year only when it changes', () => {
+    expect(formatBranchSalesTimeseriesWindow('2026-11-04', '2026-11-05')).toBe('4 nov 2026')
+    expect(formatBranchSalesTimeseriesWindow('2025-12-20', '2026-01-05')).toBe(
+      '20 dic 2025 al 4 ene 2026',
+    )
+  })
+
+  it('crosses a month boundary on the exclusive day', () => {
+    expect(formatBranchSalesTimeseriesWindow('2026-10-01', '2026-11-01')).toBe('1 oct al 31 oct 2026')
+  })
+
+  it('returns the raw boundaries when they are not real calendar days', () => {
+    expect(formatBranchSalesTimeseriesWindow('nope', '2026-11-01')).toBe('nope al 2026-11-01')
+  })
+})
+
+describe('formatBranchSalesTimeseriesAxisDate', () => {
+  it('labels an x tick as a short day and month without the year', () => {
+    expect(formatBranchSalesTimeseriesAxisDate('2026-11-01')).toBe('1 nov')
+    expect(formatBranchSalesTimeseriesAxisDate('2026-11-30')).toBe('30 nov')
+  })
+
+  it('returns a malformed value verbatim', () => {
+    expect(formatBranchSalesTimeseriesAxisDate('2026-02-31')).toBe('2026-02-31')
   })
 })
 
@@ -215,12 +249,24 @@ describe('branchSalesTimeseries.utils — timezone-neutral date formatting', () 
  * and the label must stay short instead of printing every cent.
  */
 describe('formatBranchSalesTimeseriesAxisTick', () => {
-  it('abbreviates cents as thousands of pesos without a long decimal tail', () => {
+  it('abbreviates cents as thousands of pesos from one thousand up', () => {
     expect(formatBranchSalesTimeseriesAxisTick('netSalesCents', 0)).toBe('$0')
     expect(formatBranchSalesTimeseriesAxisTick('netSalesCents', 250_000)).toBe('$2.5k')
     expect(formatBranchSalesTimeseriesAxisTick('netSalesCents', 600_000)).toBe('$6k')
     expect(formatBranchSalesTimeseriesAxisTick('netSalesCents', 123_456)).toBe('$1.2k')
-    expect(formatBranchSalesTimeseriesAxisTick('averageTicketCents', 77_652)).toBe('$0.8k')
+  })
+
+  it('keeps whole pesos below one thousand so neighbouring ticks never repeat', () => {
+    expect(formatBranchSalesTimeseriesAxisTick('netSalesCents', 5_000)).toBe('$50')
+    expect(formatBranchSalesTimeseriesAxisTick('netSalesCents', 10_000)).toBe('$100')
+    expect(formatBranchSalesTimeseriesAxisTick('netSalesCents', 15_000)).toBe('$150')
+    expect(formatBranchSalesTimeseriesAxisTick('netSalesCents', 20_000)).toBe('$200')
+    expect(formatBranchSalesTimeseriesAxisTick('averageTicketCents', 77_652)).toBe('$776.52')
+    expect(formatBranchSalesTimeseriesAxisTick('netSalesCents', 50)).toBe('$0.50')
+  })
+
+  it('drops a negative tick instead of printing a money axis below zero', () => {
+    expect(formatBranchSalesTimeseriesAxisTick('netSalesCents', -10_000)).toBe('')
   })
 
   it('keeps a count an integer and drops a fractional tick', () => {

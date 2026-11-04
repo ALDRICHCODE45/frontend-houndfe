@@ -70,24 +70,15 @@ vi.mock('../../api/promotion.api', () => ({
   },
 }))
 
-vi.mock('@/core/shared/components/ViewToggle.vue', () => ({
-  default: {
-    name: 'ViewToggle',
-    template:
-      '<div data-testid="view-toggle"><button data-testid="view-toggle-table" @click="$emit(\'update:modelValue\', \'table\')">Tabla</button><button data-testid="view-toggle-card" @click="$emit(\'update:modelValue\', \'card\')">Tarjetas</button></div>',
-    props: ['modelValue', 'options', 'ariaLabel'],
-    emits: ['update:modelValue'],
-  },
-}))
-
 vi.mock('../../composables/usePromotionColumns', () => ({
   usePromotionColumns: () => ({
     columns: [],
+    formatDate: (value: string | null) => value ?? '—',
     getStatusConfig: (status: string) => {
       const map: Record<string, { label: string; tone: string; icon: string }> = {
-        ACTIVE: { label: 'Activa', tone: 'active', icon: 'i-lucide-circle-check' },
-        SCHEDULED: { label: 'Programada', tone: 'pending', icon: 'i-lucide-clock' },
-        ENDED: { label: 'Finalizada', tone: 'inactive', icon: 'i-lucide-circle-x' },
+        ACTIVE: { label: 'Activa', tone: 'success', icon: 'i-lucide-circle-check' },
+        SCHEDULED: { label: 'Programada', tone: 'info', icon: 'i-lucide-clock' },
+        ENDED: { label: 'Finalizada', tone: 'neutral', icon: 'i-lucide-circle-x' },
       }
       return map[status] ?? { label: status, tone: 'neutral', icon: '' }
     },
@@ -160,8 +151,15 @@ const STUBS = {
       'error',
       'errorMessage',
       'displayMode',
+      'mobileRender',
+      'emptyState',
+      'filtered',
+      'noMatchTitle',
+      'activeFilterCount',
+      'showAddButton',
+      'rowOpen',
     ],
-    emits: ['add', 'refresh'],
+    emits: ['add', 'refresh', 'empty-action', 'clear-filters'],
     // The view passes `:error="isError"` and the mock may return either a
     // real Vue ref (after auto-unwrap → boolean) or a plain `{ value: ... }`
     // object (no auto-unwrap). Resolve both forms with a small helper.
@@ -181,6 +179,12 @@ const STUBS = {
         :data-bulk-count="String((bulkActions?.length) ?? 0)"
         :data-enable-row-selection="String(enableRowSelection)"
         :data-display-mode="displayMode"
+        :data-mobile-render="mobileRender"
+        :data-filtered="String(!!filtered)"
+        :data-empty-title="emptyState?.title ?? ''"
+        :data-empty-action="emptyState?.actionLabel ?? ''"
+        :data-no-match-title="noMatchTitle ?? ''"
+        :data-active-filter-count="activeFilterCount ?? 0"
         :data-error="errorFlag ? 'true' : 'false'"
         :data-error-message="errorMessage"
       >
@@ -192,12 +196,10 @@ const STUBS = {
           <p data-testid="error-message">{{ errorMessage }}</p>
           <button data-testid="table-error-retry" @click="$emit('refresh')">Reintentar</button>
         </div>
-        <template v-else-if="displayMode === 'cards'">
-          <slot name="cards" />
-        </template>
         <template v-else>
-          <slot name="empty-state" />
           <button data-testid="add-btn" @click="$emit('add')">Add</button>
+          <button data-testid="stub-empty-action" @click="$emit('empty-action')" />
+          <button data-testid="stub-clear-filters" @click="$emit('clear-filters')" />
           <div
             v-for="row in (Array.isArray(data) ? data : (data?.value ?? []))"
             :key="row.id"
@@ -207,12 +209,14 @@ const STUBS = {
             <slot name="title-header" :column="{ id: 'title', getIsSorted: () => false, toggleSorting: () => {} }" />
             <slot name="createdAt-header" :column="{ id: 'createdAt', getIsSorted: () => false, toggleSorting: () => {} }" />
             <slot name="startDate-header" :column="{ id: 'startDate', getIsSorted: () => false, toggleSorting: () => {} }" />
-            <slot name="updatedAt-header" :column="{ id: 'updatedAt', getIsSorted: () => false, toggleSorting: () => {} }" />
             <slot name="title-cell" :row="{ original: row }" />
             <slot name="status-cell" :row="{ original: row }" />
-            <slot name="type-cell" :row="{ original: row }" />
             <slot name="method-cell" :row="{ original: row }" />
+            <slot name="capacity-cell" :row="{ original: row }" />
+            <slot name="startDate-cell" :row="{ original: row }" />
+            <slot name="createdAt-cell" :row="{ original: row }" />
             <slot name="actions-cell" :row="{ original: row }" />
+            <slot name="mobile-card" :row="row" />
           </div>
         </template>
       </div>
@@ -282,9 +286,30 @@ const STUBS = {
     props: ['mode', 'table', 'row'],
     template: '<div />',
   },
-  StatusDotBadge: {
+  StatusBadge: {
     props: ['label', 'tone'],
-    template: '<span :data-tone="tone">{{ label }}</span>',
+    template: '<span data-testid="status-badge" :data-tone="tone">{{ label }}</span>',
+  },
+  PromotionCapacityStatus: {
+    props: ['maxProductUnits', 'consumedProductUnits', 'remainingProductUnits', 'compact'],
+    template: '<span data-testid="capacity-status" />',
+  },
+  RowActionsMenu: {
+    name: 'RowActionsMenu',
+    props: ['actions', 'rowLabel', 'portalClass'],
+    emits: ['select'],
+    template: `
+      <div data-testid="row-actions-stub" :data-row-label="rowLabel">
+        <button
+          v-for="action in actions"
+          :key="action.key"
+          type="button"
+          :data-action="action.key"
+          :data-destructive="String(!!action.destructive)"
+          @click="$emit('select', action.key)"
+        >{{ action.label }}</button>
+      </div>
+    `,
   },
 }
 
@@ -362,23 +387,17 @@ describe('PromotionsView', () => {
     return mountView()
   }
 
-  function whatsAppBadges(wrapper: ReturnType<typeof mountView>) {
-    return wrapper
-      .findAllComponents({ name: 'AppBadge' })
-      .filter((badge) => badge.props('label') === 'WhatsApp')
-  }
-
-  it('shows one WhatsApp table badge with its icon when botEligible is true', async () => {
+  it('shows one WhatsApp marker (icon + text, not a badge) when botEligible is true', async () => {
     const wrapper = await mountWithPromotion(true)
-    const badges = whatsAppBadges(wrapper)
-    expect(badges).toHaveLength(1)
-    expect(badges[0]!.props('icon')).toBe('i-lucide-message-circle')
+    const markers = wrapper.findAll('[data-testid="whatsapp-marker"]')
+    expect(markers).toHaveLength(1)
+    expect(markers[0]!.text()).toBe('WhatsApp')
     wrapper.unmount()
   })
 
-  it('shows no WhatsApp table badge when botEligible is false', async () => {
+  it('shows no WhatsApp marker when botEligible is false', async () => {
     const wrapper = await mountWithPromotion(false)
-    expect(whatsAppBadges(wrapper)).toHaveLength(0)
+    expect(wrapper.find('[data-testid="whatsapp-marker"]').exists()).toBe(false)
     wrapper.unmount()
   })
 
@@ -387,7 +406,7 @@ describe('PromotionsView', () => {
     const wrapper = mountView()
     const title = wrapper.find('h1.hf-page-title')
     expect(title.text()).toBe('Promociones')
-    expect(wrapper.find('.hf-page-subtitle').text()).toBe('Gestión de promociones y descuentos')
+    expect(wrapper.find('.hf-page-subtitle').exists()).toBe(false)
     const surface = wrapper.find('.hf-table-surface')
     expect(surface.exists()).toBe(true)
     expect(surface.find('h1').exists()).toBe(false)
@@ -439,9 +458,19 @@ describe('PromotionsView', () => {
     expect(wrapper.find('[data-testid="filter-method"]').exists()).toBe(true)
   })
 
-  it('clear filters button is hidden initially (no active filters)', () => {
+  it('has no active filters initially (the toolbar counter is 0 and the list is not filtered)', () => {
+    const wrapper = mountView()
+    const table = wrapper.get('[data-testid="app-data-table"]')
+    expect(table.attributes('data-active-filter-count')).toBe('0')
+    expect(table.attributes('data-filtered')).toBe('false')
+  })
+
+  it('labels each filter inside its control, with no inline Limpiar filtros button', () => {
     const wrapper = mountView()
     expect(wrapper.find('[data-testid="clear-filters-btn"]').exists()).toBe(false)
+    expect(wrapper.find('[aria-label="Tipo"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="Estado"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="Método"]').exists()).toBe(true)
   })
 
   // ── S02: Filter by type ───────────────────────────────────────────────────
@@ -452,30 +481,31 @@ describe('PromotionsView', () => {
     expect(wrapper.find('[data-testid="filter-type"]').attributes('modelvalue')).toBe('__ALL__')
   })
 
-  it('S02: filterType ref updates and clear-filters button appears when type is set', async () => {
+  it('S02: filterType ref updates and the list becomes filtered when type is set', async () => {
     const wrapper = mountView()
     const vm = wrapper.vm as unknown as { filterType: string }
-    expect(wrapper.find('[data-testid="clear-filters-btn"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="app-data-table"]').attributes('data-filtered')).toBe('false')
     ;(wrapper.vm as unknown as Record<string, string>)['filterType'] = 'PRODUCT_DISCOUNT'
     await wrapper.vm.$nextTick()
     expect(vm.filterType).toBe('PRODUCT_DISCOUNT')
     expect(wrapper.find('[data-testid="filter-type"]').attributes('modelvalue')).toBe(
       'PRODUCT_DISCOUNT',
     )
-    expect(wrapper.find('[data-testid="clear-filters-btn"]').exists()).toBe(true)
+    const table = wrapper.get('[data-testid="app-data-table"]')
+    expect(table.attributes('data-filtered')).toBe('true')
+    expect(table.attributes('data-active-filter-count')).toBe('1')
   })
 
-  it('S02: clear-filters button resets filterType to empty string on click', async () => {
+  it('S02: the table clear-filters event resets filterType to empty string', async () => {
     const wrapper = mountView()
     ;(wrapper.vm as unknown as Record<string, string>)['filterType'] = 'BUY_X_GET_Y'
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('[data-testid="clear-filters-btn"]').exists()).toBe(true)
-    await wrapper.find('[data-testid="clear-filters-btn"]').trigger('click')
+    await wrapper.find('[data-testid="stub-clear-filters"]').trigger('click')
     await wrapper.vm.$nextTick()
     const vm = wrapper.vm as unknown as { filterType: string }
     expect(vm.filterType).toBe('')
     expect(wrapper.find('[data-testid="filter-type"]').attributes('modelvalue')).toBe('__ALL__')
-    expect(wrapper.find('[data-testid="clear-filters-btn"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="app-data-table"]').attributes('data-filtered')).toBe('false')
   })
 
   // ── S03: Filter by status ─────────────────────────────────────────────────
@@ -486,28 +516,30 @@ describe('PromotionsView', () => {
     expect(wrapper.find('[data-testid="filter-status"]').attributes('modelvalue')).toBe('__ALL__')
   })
 
-  it('S03: filterStatus ref updates and clear-filters button appears when status is set', async () => {
+  it('S03: filterStatus ref updates and the filter counter reflects it when status is set', async () => {
     const wrapper = mountView()
     ;(wrapper.vm as unknown as Record<string, string>)['filterStatus'] = 'ACTIVE'
     await wrapper.vm.$nextTick()
     const vm = wrapper.vm as unknown as { filterStatus: string }
     expect(vm.filterStatus).toBe('ACTIVE')
     expect(wrapper.find('[data-testid="filter-status"]').attributes('modelvalue')).toBe('ACTIVE')
-    expect(wrapper.find('[data-testid="clear-filters-btn"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="app-data-table"]').attributes('data-active-filter-count')).toBe(
+      '1',
+    )
   })
 
-  it('S03: clear-filters button resets filterStatus to empty on click', async () => {
+  it('S03: the table clear-filters event resets filterStatus to empty', async () => {
     const wrapper = mountView()
     ;(wrapper.vm as unknown as Record<string, string>)['filterStatus'] = 'ENDED'
     await wrapper.vm.$nextTick()
-    await wrapper.find('[data-testid="clear-filters-btn"]').trigger('click')
+    await wrapper.find('[data-testid="stub-clear-filters"]').trigger('click')
     await wrapper.vm.$nextTick()
     const vm = wrapper.vm as unknown as { filterStatus: string }
     expect(vm.filterStatus).toBe('')
     expect(wrapper.find('[data-testid="filter-status"]').attributes('modelvalue')).toBe('__ALL__')
   })
 
-  it('renders ACTIVE status via StatusDotBadge (Activa, active tone)', async () => {
+  it('renders ACTIVE status via StatusBadge (Activa, success tone)', async () => {
     const { useServerTable } = await import('@/core/shared/composables/useServerTable')
     vi.mocked(useServerTable).mockReturnValueOnce({
       pagination: { value: { pageIndex: 0, pageSize: 20 } },
@@ -532,11 +564,16 @@ describe('PromotionsView', () => {
     const wrapper = mountView()
     await wrapper.vm.$nextTick()
     expect(wrapper.text()).toContain('Activa')
-    expect(wrapper.find('[data-tone="active"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="status-badge"]').attributes('data-tone')).toBe('success')
   })
 })
 
 // ── Row action tests ──────────────────────────────────────────────────────────
+
+interface RowActionsVm {
+  getRowActions: (p: PromotionResponse) => Array<{ key: string; label: string; destructive?: boolean }>
+  handleRowAction: (key: string, p: PromotionResponse) => void
+}
 
 describe('PromotionsView — Row Actions', () => {
   const samplePromotion: PromotionResponse = makePromotion('promo-001', 'Test Promo')
@@ -551,25 +588,19 @@ describe('PromotionsView — Row Actions', () => {
 
   it('S08: Edit action navigates to /pos/promociones/:id', async () => {
     const wrapper = mountView()
-    const vm = wrapper.vm as unknown as { getRowItems: (p: PromotionResponse) => unknown[][] }
-    const rowItems = vm.getRowItems(samplePromotion)
-    const allItems = rowItems.flat() as Array<{ label: string; onSelect: () => void }>
-    const editAction = allItems.find((a) => a.label === 'Editar')
-    expect(editAction).toBeDefined()
-    editAction!.onSelect()
+    const vm = wrapper.vm as unknown as RowActionsVm
+    expect(vm.getRowActions(samplePromotion).map((a) => a.key)).toContain('edit')
+    vm.handleRowAction('edit', samplePromotion)
     await wrapper.vm.$nextTick()
     expect(mockRouterPush).toHaveBeenCalledWith('/pos/promociones/promo-001')
   })
 
   it('S09: End action opens confirm modal with promotion title in description', async () => {
     const wrapper = mountView()
-    const vm = wrapper.vm as unknown as { getRowItems: (p: PromotionResponse) => unknown[][] }
+    const vm = wrapper.vm as unknown as RowActionsVm
     expect(wrapper.find('[data-testid="confirm-modal"]').attributes('data-open')).toBe('false')
-    const rowItems = vm.getRowItems(samplePromotion)
-    const allItems = rowItems.flat() as Array<{ label: string; onSelect: () => void }>
-    const endAction = allItems.find((a) => a.label === 'Finalizar')
-    expect(endAction).toBeDefined()
-    endAction!.onSelect()
+    expect(vm.getRowActions(samplePromotion).map((a) => a.key)).toContain('end')
+    vm.handleRowAction('end', samplePromotion)
     await wrapper.vm.$nextTick()
     expect(wrapper.find('[data-testid="confirm-modal"]').attributes('data-open')).toBe('true')
     expect(wrapper.find('[data-testid="confirm-modal"]').attributes('data-description')).toContain(
@@ -579,12 +610,8 @@ describe('PromotionsView — Row Actions', () => {
 
   it('S09: Confirming End calls promotionApi.end with promotion id', async () => {
     const wrapper = mountView()
-    const vm = wrapper.vm as unknown as { getRowItems: (p: PromotionResponse) => unknown[][] }
-    const allItems = vm.getRowItems(samplePromotion).flat() as Array<{
-      label: string
-      onSelect: () => void
-    }>
-    allItems.find((a) => a.label === 'Finalizar')!.onSelect()
+    const vm = wrapper.vm as unknown as RowActionsVm
+    vm.handleRowAction('end', samplePromotion)
     await wrapper.vm.$nextTick()
     await wrapper.find('[data-testid="confirm-btn"]').trigger('click')
     await flushPromises()
@@ -593,14 +620,9 @@ describe('PromotionsView — Row Actions', () => {
 
   it('S10: Delete action opens confirm modal with promotion title in description', async () => {
     const wrapper = mountView()
-    const vm = wrapper.vm as unknown as { getRowItems: (p: PromotionResponse) => unknown[][] }
-    const allItems = vm.getRowItems(samplePromotion).flat() as Array<{
-      label: string
-      onSelect: () => void
-    }>
-    const deleteAction = allItems.find((a) => a.label === 'Eliminar')
-    expect(deleteAction).toBeDefined()
-    deleteAction!.onSelect()
+    const vm = wrapper.vm as unknown as RowActionsVm
+    expect(vm.getRowActions(samplePromotion).map((a) => a.key)).toContain('delete')
+    vm.handleRowAction('delete', samplePromotion)
     await wrapper.vm.$nextTick()
     expect(wrapper.find('[data-testid="confirm-modal"]').attributes('data-open')).toBe('true')
     expect(wrapper.find('[data-testid="confirm-modal"]').attributes('data-description')).toContain(
@@ -610,12 +632,8 @@ describe('PromotionsView — Row Actions', () => {
 
   it('S10: Confirming Delete calls promotionApi.remove with promotion id', async () => {
     const wrapper = mountView()
-    const vm = wrapper.vm as unknown as { getRowItems: (p: PromotionResponse) => unknown[][] }
-    const allItems = vm.getRowItems(samplePromotion).flat() as Array<{
-      label: string
-      onSelect: () => void
-    }>
-    allItems.find((a) => a.label === 'Eliminar')!.onSelect()
+    const vm = wrapper.vm as unknown as RowActionsVm
+    vm.handleRowAction('delete', samplePromotion)
     await wrapper.vm.$nextTick()
     await wrapper.find('[data-testid="confirm-btn"]').trigger('click')
     await flushPromises()
@@ -624,14 +642,17 @@ describe('PromotionsView — Row Actions', () => {
 
   it('ENDED promotion does not show Finalizar action', () => {
     const wrapper = mountView()
-    const vm = wrapper.vm as unknown as { getRowItems: (p: PromotionResponse) => unknown[][] }
+    const vm = wrapper.vm as unknown as RowActionsVm
     const endedPromotion: PromotionResponse = { ...samplePromotion, status: 'ENDED' }
-    const allItems = vm.getRowItems(endedPromotion).flat() as Array<{
-      label: string
-      onSelect: () => void
-    }>
-    const endAction = allItems.find((a) => a.label === 'Finalizar')
-    expect(endAction).toBeUndefined()
+    expect(vm.getRowActions(endedPromotion).map((a) => a.key)).not.toContain('end')
+  })
+
+  it('orders Editar, Finalizar… and the destructive Eliminar… last, with an ellipsis on confirmations', () => {
+    const wrapper = mountView()
+    const vm = wrapper.vm as unknown as RowActionsVm
+    const actions = vm.getRowActions(samplePromotion)
+    expect(actions.map((a) => a.label)).toEqual(['Editar', 'Finalizar…', 'Eliminar…'])
+    expect(actions.map((a) => !!a.destructive)).toEqual([false, false, true])
   })
 })
 
@@ -923,7 +944,7 @@ describe('PromotionsView — batch delete (sdd-10)', () => {
 
     const errorToast = toastCalls.find((t) => t.color === 'error')
     expect(errorToast).toBeDefined()
-    expect(errorToast?.title).toContain('No tenés permisos')
+    expect(errorToast?.title).toContain('No tienes permisos')
 
     const vm = wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }
     expect(vm.rowSelection.value).toEqual({ 0: true })
@@ -1171,7 +1192,7 @@ describe('PromotionsView — batch end', () => {
     await flushPromises()
 
     expect(toastCalls.find((toast) => toast.color === 'error')?.title).toContain(
-      'No tenés permisos',
+      'No tienes permisos',
     )
     expect(
       (wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }).rowSelection
@@ -1390,7 +1411,7 @@ describe('PromotionsView — batch activate (sdd-13)', () => {
     await flushPromises()
 
     expect(toastCalls.find((toast) => toast.color === 'error')?.title).toContain(
-      'No tenés permisos',
+      'No tienes permisos',
     )
     expect(
       (wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }).rowSelection
@@ -1452,7 +1473,7 @@ describe('PromotionsView — standardization (REQ-1..7)', () => {
   })
 
   // ── REQ-1: error state propagation ─────────────────────────────────────────
-  it('REQ-1: renders the error block with backend message when isError=true', async () => {
+  it('REQ-1: renders the error block with a human title, never the backend message, when isError=true', async () => {
     const { useServerTable } = await import('@/core/shared/composables/useServerTable')
     vi.mocked(useServerTable).mockReturnValueOnce({
       pagination: { value: { pageIndex: 0, pageSize: 20 } },
@@ -1480,13 +1501,14 @@ describe('PromotionsView — standardization (REQ-1..7)', () => {
     await wrapper.vm.$nextTick()
     expect(wrapper.find('[data-testid="table-error-state"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="error-message"]').text()).toBe(
-      'No se pudo conectar al servidor',
+      'No se pudieron cargar las promociones',
     )
+    expect(wrapper.text()).not.toContain('No se pudo conectar al servidor')
     // The empty placeholder must NOT render when there is an error.
     expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-error')).toBe('true')
   })
 
-  it('REQ-1: falls back to error.message when backend message is missing', async () => {
+  it('REQ-1: keeps the human title when only error.message exists', async () => {
     const { useServerTable } = await import('@/core/shared/composables/useServerTable')
     vi.mocked(useServerTable).mockReturnValueOnce({
       pagination: { value: { pageIndex: 0, pageSize: 20 } },
@@ -1512,10 +1534,13 @@ describe('PromotionsView — standardization (REQ-1..7)', () => {
 
     const wrapper = mountView()
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('[data-testid="error-message"]').text()).toBe('Network Error')
+    expect(wrapper.find('[data-testid="error-message"]').text()).toBe(
+      'No se pudieron cargar las promociones',
+    )
+    expect(wrapper.text()).not.toContain('Network Error')
   })
 
-  it('REQ-1: falls back to Spanish message when nothing else is available', async () => {
+  it('REQ-1: keeps the human title when nothing else is available', async () => {
     const { useServerTable } = await import('@/core/shared/composables/useServerTable')
     vi.mocked(useServerTable).mockReturnValueOnce({
       pagination: { value: { pageIndex: 0, pageSize: 20 } },
@@ -1542,7 +1567,7 @@ describe('PromotionsView — standardization (REQ-1..7)', () => {
     const wrapper = mountView()
     await wrapper.vm.$nextTick()
     expect(wrapper.find('[data-testid="error-message"]').text()).toBe(
-      'No se pudieron cargar las promociones. Reintenta.',
+      'No se pudieron cargar las promociones',
     )
   })
 
@@ -1577,31 +1602,17 @@ describe('PromotionsView — standardization (REQ-1..7)', () => {
     expect(mockRefresh).toHaveBeenCalled()
   })
 
-  // ── REQ-2: view mode (ViewToggle + display-mode bridge) ─────────────────────
-  it('REQ-2: renders ViewToggle in the toolbar actions slot', () => {
+  // ── REQ-2: one layout (table on desktop, cards on mobile) ───────────────────
+  it('REQ-2: has no ViewToggle and lets the table pick table or cards by breakpoint', () => {
     const wrapper = mountView()
-    expect(wrapper.find('[data-testid="view-toggle"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="view-toggle"]').exists()).toBe(false)
+    const table = wrapper.get('[data-testid="app-data-table"]')
+    expect(table.attributes('data-display-mode')).toBe('auto')
+    expect(table.attributes('data-mobile-render')).toBe('cards')
   })
 
-  it('REQ-2: passes display-mode="table" by default', async () => {
-    const wrapper = mountView()
-    await wrapper.vm.$nextTick()
-    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe(
-      'table',
-    )
-  })
-
-  it('REQ-2: passes display-mode="cards" after toggling to card mode', async () => {
-    localStorage.setItem('promotions-view-mode', 'card')
-    const wrapper = mountView()
-    await wrapper.vm.$nextTick()
-    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe(
-      'cards',
-    )
-  })
-
-  // ── REQ-3: card view ───────────────────────────────────────────────────────
-  it('REQ-3: renders PromotionCardGrid inside the cards slot when display-mode is cards', async () => {
+  // ── REQ-3: mobile card ─────────────────────────────────────────────────────
+  it('REQ-3: renders a mobile card per row, named by the promotion, whose click opens it', async () => {
     const { useServerTable } = await import('@/core/shared/composables/useServerTable')
     vi.mocked(useServerTable).mockReturnValueOnce({
       pagination: { value: { pageIndex: 0, pageSize: 20 } },
@@ -1625,13 +1636,19 @@ describe('PromotionsView — standardization (REQ-1..7)', () => {
       clearSelection: vi.fn(),
     } as unknown as ReturnType<typeof useServerTable>)
 
-    localStorage.setItem('promotions-view-mode', 'card')
     const wrapper = mountView()
     await wrapper.vm.$nextTick()
-    // The cards slot renders PromotionCardGrid → it surfaces an `article` per row.
-    expect(wrapper.findAll('article').length).toBeGreaterThanOrEqual(1)
-    // Card click should NOT bubble to the row-selection mechanism (no checkboxes).
+    const card = wrapper.get('[data-testid="promotion-card"]')
+    expect(card.text()).toContain('Promo Card')
+    expect(card.text()).not.toContain('p1')
+    expect(card.find('[data-testid="status-badge"]').exists()).toBe(true)
+    expect(card.get('[data-testid="row-actions-stub"]').attributes('data-row-label')).toBe(
+      'promoción Promo Card',
+    )
+    // No checkboxes on cards.
     expect(wrapper.findAll('input[type="checkbox"]').length).toBe(0)
+    await card.get('[data-testid="promotion-link-p1"]').trigger('click')
+    expect(mockRouterPush).toHaveBeenCalledWith('/pos/promociones/p1')
   })
 
   // ── REQ-4: filters testids resolve inside AppDataTable toolbar ─────────────
@@ -1676,10 +1693,8 @@ describe('PromotionsView — standardization (REQ-1..7)', () => {
     await wrapper.vm.$nextTick()
     const rows = wrapper.findAll('[data-testid="row"]')
     expect(rows.length).toBeGreaterThanOrEqual(1)
-    // The kebab trigger renders as a button with aria-haspopup="menu" (Reka UI).
-    // When canManagePromotionActions is false, the v-if gate removes the entire
-    // UDropdownMenu element so no kebab trigger is rendered.
-    expect(wrapper.findAll('[aria-haspopup="menu"]').length).toBe(0)
+    // canManagePromotionActions false → the v-if gate renders no ⋮ menu.
+    expect(wrapper.findAll('[data-testid="row-actions-stub"]').length).toBe(0)
   })
 
   it('REQ-5: shows the kebab dropdown when user has update permission', async () => {
@@ -1712,12 +1727,11 @@ describe('PromotionsView — standardization (REQ-1..7)', () => {
 
     const wrapper = mountView()
     await wrapper.vm.$nextTick()
-    // The kebab trigger renders as a button with aria-haspopup="menu" (Reka UI).
-    expect(wrapper.findAll('[aria-haspopup="menu"]').length).toBeGreaterThanOrEqual(1)
+    expect(wrapper.findAll('[data-testid="row-actions-stub"]').length).toBeGreaterThanOrEqual(1)
   })
 
   // ── REQ-6: updatedAt SortableHeader renders ─────────────────────────────────
-  it('REQ-6: renders the SortableHeader for updatedAt with label "Actualizada"', async () => {
+  it('REQ-6: renders the sortable headers (Promoción, Creada, Inicio) and no Actualizada', async () => {
     const { useServerTable } = await import('@/core/shared/composables/useServerTable')
     vi.mocked(useServerTable).mockReturnValueOnce({
       pagination: { value: { pageIndex: 0, pageSize: 20 } },
@@ -1743,7 +1757,10 @@ describe('PromotionsView — standardization (REQ-1..7)', () => {
 
     const wrapper = mountView()
     await wrapper.vm.$nextTick()
-    expect(wrapper.text()).toContain('Actualizada')
+    expect(wrapper.text()).toContain('Promoción')
+    expect(wrapper.text()).toContain('Creada')
+    expect(wrapper.text()).toContain('Inicio')
+    expect(wrapper.text()).not.toContain('Actualizada')
   })
 
   // ── REQ-7: preserved invariants ────────────────────────────────────────────

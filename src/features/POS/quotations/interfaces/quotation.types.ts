@@ -93,7 +93,7 @@ export interface AppliedPromotion {
 /** Compact seller reference embedded in the quotation response.
  *  Mirrors `SaleActorRef` (POS sales module) — id + display name only,
  *  no email/avatar in the wire. */
-export interface QuotationSellerDto {
+interface QuotationSellerDto {
   id: string
   name: string
 }
@@ -177,7 +177,7 @@ export interface QuotationListParams {
 
 // ─── Paginated envelope ───────────────────────────────────────────────────────
 
-export interface PaginatedQuotationsPagination {
+interface PaginatedQuotationsPagination {
   page: number
   limit: number
   total: number

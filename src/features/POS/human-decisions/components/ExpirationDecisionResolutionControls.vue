@@ -103,7 +103,7 @@ watch([() => props.canUpdate, () => props.conflict, canProvideText, canReportUna
     <h2 id="expiration-actions-heading" class="text-sm font-semibold text-highlighted">
       Registrar respuesta
     </h2>
-    <p v-if="conflict" role="alert" class="rounded-lg bg-warning/5 p-3 text-sm text-warning">
+    <p v-if="conflict" role="alert" class="rounded-lg bg-[var(--hf-warning-soft)] p-3 text-sm text-[var(--hf-warning)]">
       Esta decisión ya fue atendida. Revisa el detalle actualizado.
     </p>
     <p v-else-if="!canUpdate" role="status" class="text-sm text-muted">

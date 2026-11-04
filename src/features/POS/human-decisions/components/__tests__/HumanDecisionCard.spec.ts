@@ -12,13 +12,12 @@ import {
   VARIANT_PRESENT_LABEL,
   branchPresentationLabel,
   createdAtPresentationLabel,
+  listDatePresentationLabel,
   requestedQuantityPresentationLabel,
   skuPresentationLabel,
   variantPresentationLabel,
 } from '../../utils/humanDecisionPresentation'
 import type { PendingHumanDecision } from '../../interfaces/human-decision.types'
-
-const UButtonStub = { template: '<button type="button"><slot /></button>' }
 
 function makePending(overrides: Partial<PendingHumanDecision> = {}): PendingHumanDecision {
   return {
@@ -47,10 +46,7 @@ function makePending(overrides: Partial<PendingHumanDecision> = {}): PendingHuma
 }
 
 function mountCard(decision: PendingHumanDecision) {
-  return mount(HumanDecisionCard, {
-    props: { decision },
-    global: { stubs: { UButton: UButtonStub } },
-  })
+  return mount(HumanDecisionCard, { props: { decision } })
 }
 
 type Columns = ReturnType<typeof useHumanDecisionColumns>['columns']
@@ -91,51 +87,64 @@ describe('HD3B1 · presentation labels', () => {
 })
 
 describe('HD3B1 · HumanDecisionCard', () => {
-  it('renders title, product, branch, quantity and created time', () => {
+  it('renders title, product, branch, quantity and a short created date', () => {
     const wrapper = mountCard(makePending())
     expect(wrapper.find('[data-testid="human-decision-card"]').exists()).toBe(true)
     const text = wrapper.text()
     expect(wrapper.get('[data-testid="human-decision-status"]').text()).toBe('Pendiente')
-    expect(text).toContain('Reposición solicitada')
-    expect(text).toContain('Kibble 15kg')
+    expect(wrapper.get('[data-testid="human-decision-status"]').attributes('data-tone')).toBe('warning')
+    expect(wrapper.get('.hf-row-primary').text()).toBe('Reposición solicitada')
+    expect(wrapper.get('.hf-row-secondary').text()).toContain('Kibble 15kg')
     expect(text).toContain('Sucursal Centro')
     expect(text).toContain('2 unidades')
-    expect(text).toContain('31/12/2025, 18:00')
+    expect(text).toContain(listDatePresentationLabel('2026-01-01T00:00:00.000Z'))
+    expect(text).not.toContain('31/12/2025')
+    expect(text).not.toContain('hd-1')
   })
   it('renders HTML-bearing fields as literal text, never v-html', () => {
-    const wrapper = mountCard(
-      makePending({ title: '<b>t</b>', sanitizedSummary: '<img src=x onerror=alert(1)>' }),
-    )
+    const wrapper = mountCard(makePending({ title: '<b>t</b>', snapshot: { ...makePending().snapshot, productName: '<img src=x onerror=alert(1)>' } }))
     expect(wrapper.find('b').exists()).toBe(false)
     expect(wrapper.find('img').exists()).toBe(false)
     expect(wrapper.text()).toContain('<b>t</b>')
     expect(wrapper.text()).toContain('<img src=x onerror=alert(1)>')
   })
-  it('exposes one accessible 44px-min open-detail button that emits the id', async () => {
+  it('opens the detail from the name button and the whole card, with no ⋮ menu to duplicate it', async () => {
     const wrapper = mountCard(makePending({ id: 'hd-42' }))
     const buttons = wrapper.findAll('[data-testid="human-decision-open-detail"]')
     expect(buttons).toHaveLength(1)
     const button = buttons[0]!
     expect(button.element.tagName).toBe('BUTTON')
-    expect(button.classes()).toContain('min-h-11')
-    expect(button.attributes('aria-label')).toBeTruthy()
+    expect(button.classes()).toContain('hf-row-primary')
     await button.trigger('click')
     expect(wrapper.emitted('openDetail')).toEqual([['hd-42']])
+    await wrapper.get('article').trigger('click')
+    expect(wrapper.emitted('openDetail')).toHaveLength(2)
+    expect(wrapper.find('button[aria-haspopup="menu"]').exists()).toBe(false)
+    expect(wrapper.findAll('button')).toHaveLength(1)
+  })
+  it('shows only the branch when the quantity does not apply (EXPIRATION)', () => {
+    const wrapper = mountCard({ ...makePending(), type: 'EXPIRATION' } as unknown as PendingHumanDecision)
+    expect(wrapper.get('.human-decisions-card-footer').text()).toContain('Sucursal Centro')
   })
 })
 
 describe('HD3B1 · useHumanDecisionColumns', () => {
-  it('exposes product, branch, requestedQuantity, createdAt and actions ids', () => {
+  it('exposes product, branch, requestedQuantity and createdAt ids, with no actions column', () => {
     const { columns } = useHumanDecisionColumns()
     expect(columns.map((c) => c.id)).toEqual([
       'product',
       'status',
-      'branch',
       'requestedQuantity',
+      'branch',
       'createdAt',
       'response',
-      'actions',
     ])
+    expect(columns.length).toBeLessThanOrEqual(8)
+  })
+  it('right-aligns the quantity', () => {
+    const { columns } = useHumanDecisionColumns()
+    const quantity = columns.find((c) => c.id === 'requestedQuantity') as { meta?: { class?: { td?: string } } }
+    expect(quantity.meta?.class?.td).toContain('text-right')
   })
   it('disables sorting on every column because the server owns ordering', () => {
     const { columns } = useHumanDecisionColumns()
@@ -149,8 +158,8 @@ describe('HD3B1 · useHumanDecisionColumns', () => {
     expect(cell(columns, 'requestedQuantity', row)).toBe('2 unidades')
     expect(cell(columns, 'createdAt', row)).toBe('2026-01-01T00:00:00.000Z')
   })
-  it('keeps the actions column visible', () => {
+  it('has no actions column: the ⋮ would only repeat the row click', () => {
     const { columns } = useHumanDecisionColumns()
-    expect(columns.find((c) => c.id === 'actions')?.enableHiding).toBe(false)
+    expect(columns.find((c) => c.id === 'actions')).toBeUndefined()
   })
 })

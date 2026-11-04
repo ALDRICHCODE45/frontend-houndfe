@@ -164,7 +164,7 @@ describe('DriverPicker — loading / error states', () => {
     await vi.waitFor(() => {
       expect(wrapper.find('[data-testid="driver-picker-error"]').exists()).toBe(true)
     })
-    expect(wrapper.text()).toContain('No se pudieron cargar los repartidores. Reintenta.')
+    expect(wrapper.text()).toContain('No se pudieron cargar los repartidores.')
     expect(wrapper.text()).not.toContain('Request failed with status code 400')
   })
 

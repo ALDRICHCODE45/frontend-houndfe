@@ -35,7 +35,7 @@ src/core/shared/
 │   └── useTableUrlSync.ts            # URL query params sync
 └── components/DataTable/
     ├── AppDataTable.vue              # Wrapper principal
-    ├── DataTableToolbar.vue          # Search + refresh + filters + actions
+    ├── DataTableToolbar.vue          # Search + filters + actions (mobile: search, then Filtros + labelled primary)
     ├── DataTablePagination.vue       # UPagination + page size selector
     ├── DataTableBulkActions.vue      # Sticky bottom bar
     ├── DataTableColumnHeader.ts      # Helper: createSimpleHeader

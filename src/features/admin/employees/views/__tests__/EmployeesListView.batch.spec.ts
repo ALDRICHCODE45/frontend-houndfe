@@ -13,11 +13,12 @@ describe('EmployeesListView batch operations', () => {
     expect(source.match(/userCan\('update', 'Employee'\)/g)?.length).toBeGreaterThanOrEqual(3)
   })
 
-  it('gates row selection and actions to table view', () => {
-    expect(source).toContain(":enable-row-selection=\"canUseBatchActions && viewMode === 'table'\"")
+  it('gates row selection to the batch permissions and drops the card view mode', () => {
+    expect(source).toContain(':enable-row-selection="canUseBatchActions"')
     expect(source).toContain('v-model:row-selection="rowSelection"')
     expect(source).toContain(':bulk-actions="bulkActions"')
-    expect(source).toContain("if (viewMode.value === 'card') return []")
+    expect(source).not.toContain('viewMode')
+    expect(source).not.toContain('ViewToggle')
   })
 
   it('renders reusable select column slots', () => {

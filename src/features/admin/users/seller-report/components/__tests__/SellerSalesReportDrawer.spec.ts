@@ -270,7 +270,7 @@ describe('SellerSalesReportDrawer — request identity', () => {
     const wrapper = mountDrawer()
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="seller-report-error-message"]').text()).toContain('vendedor')
+    expect(wrapper.find('[data-testid="seller-report-error"] .hf-empty-state__description').text()).toContain('vendedor')
     expect(
       wrapper.find('[data-testid="seller-report-download"]').attributes('disabled'),
     ).toBeDefined()

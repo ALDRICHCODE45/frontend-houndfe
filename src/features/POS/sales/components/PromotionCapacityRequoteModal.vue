@@ -13,7 +13,7 @@ import { hasSalesEntryToken } from '../utils/salesEntryPortal'
  * charges; the cashier must return to the payment modal and click the
  * existing charge action again (with a fresh idempotency key).
  */
-export interface ExcludedPromotion {
+interface ExcludedPromotion {
   id: string
   label: string
 }
@@ -59,7 +59,7 @@ const modalUi = computed(() => {
 const acceptButtonClass = computed(() =>
   props.portalClass
     ? 'w-full justify-center sales-entry-primary-action rounded-xl font-semibold shadow-sm sm:w-auto'
-    : 'w-full justify-center rounded-xl font-semibold shadow-sm sm:w-auto !bg-(--brand-action) !text-black hover:!brightness-110',
+    : 'w-full justify-center sm:w-auto hf-primary-control',
 )
 
 function handleAccept() {
@@ -73,7 +73,7 @@ function handleAccept() {
     :dismissible="false"
     :close="false"
     title="Actualizamos los totales de tu venta"
-    description="El cupo de una promoción cambió al confirmar el cobro. Revisá los nuevos importes antes de volver a cobrar."
+    description="El cupo de una promoción cambió al confirmar el cobro. Revisa los nuevos importes antes de volver a cobrar."
     :ui="modalUi"
   >
     <template #body>
@@ -101,7 +101,7 @@ function handleAccept() {
           </div>
           <div class="flex items-center justify-between gap-4 border-t border-default pt-2">
             <dt class="font-semibold text-highlighted">Total</dt>
-            <dd data-testid="requote-total" class="text-lg font-bold tabular-nums text-highlighted">
+            <dd data-testid="requote-total" class="text-lg font-semibold tabular-nums text-highlighted">
               {{ totalFormatted }}
             </dd>
           </div>
@@ -126,7 +126,7 @@ function handleAccept() {
           </ul>
         </div>
 
-        <p class="text-xs text-muted">Revisá los pagos y confirmá el cobro nuevamente.</p>
+        <p class="text-xs text-muted">Revisa los pagos y confirma el cobro nuevamente.</p>
       </div>
     </template>
 

@@ -16,7 +16,7 @@
  * follow draft order, additions follow selection order. Props are never
  * mutated.
  */
-import { computed } from 'vue'
+import { computed, useId } from 'vue'
 import type {
   CatalogSettingsDraft,
   CatalogPriceContextDto,
@@ -34,8 +34,10 @@ const props = withDefaults(
     acceptedContexts: Array<CatalogPriceContextDto>
     candidates: Array<{ id: string; name: string }>
     disabled?: boolean
+    /** A validation summary already says there are no lists: drop the helper so it is said once. */
+    hideEmptyHint?: boolean
   }>(),
-  { disabled: false },
+  { disabled: false, hideEmptyHint: false },
 )
 
 const emit = defineEmits<{
@@ -54,6 +56,7 @@ function resolveName(priceListId: string): string {
   )
 }
 
+const headingId = useId()
 const selectedIds = computed(() => [...props.draft.publicPriceListIds])
 
 /** Selectable allowlist: every visible candidate plus any accepted/stale draft
@@ -115,16 +118,13 @@ function onDefaultChange(next: unknown) {
 <template>
   <fieldset class="contents" data-testid="contexts-field">
     <legend class="sr-only">Listas de precios públicas</legend>
-    <div class="flex flex-col gap-1">
-      <h2 class="text-sm font-semibold text-default">Listas de precios públicas</h2>
-      <p class="text-xs text-muted">Listas de precios visibles para clientes públicos</p>
-    </div>
+    <h2 :id="headingId" class="text-sm font-semibold text-default">Listas de precios públicas</h2>
 
     <div class="flex w-full flex-col gap-4">
-      <!-- Visible allowlist: one searchable multiple selection. -->
-      <UFormField label="Listas visibles" class="w-full">
+      <!-- Visible allowlist: one searchable multiple selection, named by the heading above. -->
+      <UFormField class="w-full">
         <USelectMenu
-          :ui="{ content: 'hf-theme hf-ui hf-form-overlay catalog-settings-form-portal' }"
+          :ui="{ content: 'hf-theme hf-ui hf-form-overlay' }"
           :model-value="selectedIds"
           :items="listOptions"
           value-key="value"
@@ -132,7 +132,7 @@ function onDefaultChange(next: unknown) {
           multiple
           :search-input="{ placeholder: 'Buscar lista de precios...' }"
           placeholder="Buscar lista de precios..."
-          aria-label="Listas visibles"
+          :aria-labelledby="headingId"
           class="w-full"
           :disabled="props.disabled"
           data-testid="public-lists-select"
@@ -146,13 +146,13 @@ function onDefaultChange(next: unknown) {
         </USelectMenu>
 
         <p
-          v-if="selectedIds.length === 0"
+          v-if="selectedIds.length === 0 && !props.hideEmptyHint"
           class="mt-1.5 text-sm text-muted"
           data-testid="contexts-empty"
         >
           Sin listas públicas: la configuración no se mostrará públicamente
         </p>
-        <p v-else class="mt-1.5 text-xs text-muted" data-testid="contexts-summary">
+        <p v-else-if="selectedIds.length > 0" class="mt-1.5 text-xs text-muted" data-testid="contexts-summary">
           {{ summaryCopy }}
         </p>
       </UFormField>
@@ -160,11 +160,12 @@ function onDefaultChange(next: unknown) {
       <!-- Principal list: single, clearable, limited to the selected lists. -->
       <UFormField
         label="Lista predeterminada"
+        :ui="{ label: 'font-semibold' }"
         description="Los clientes públicos verán esta lista primero."
         class="w-full"
       >
         <USelectMenu
-          :ui="{ content: 'hf-theme hf-ui hf-form-overlay catalog-settings-form-portal' }"
+          :ui="{ content: 'hf-theme hf-ui hf-form-overlay' }"
           :model-value="props.draft.catalogDefaultPriceListId"
           :items="defaultOptions"
           value-key="value"

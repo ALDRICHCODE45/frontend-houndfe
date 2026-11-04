@@ -36,7 +36,7 @@ export const PROMOTION_TYPE_CARDS: PromotionTypeCard[] = [
     type: 'ADVANCED',
     icon: 'i-lucide-settings-2',
     title: 'Promoción avanzada',
-    description: 'Compra productos de un grupo y obtené productos de otro con descuento.',
+    description: 'Compra productos de un grupo y obtén productos de otro con descuento.',
     example: 'Ej.: Compra short → Gorra gratis',
   },
 ]

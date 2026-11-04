@@ -48,8 +48,8 @@ describe('quotation.utils', () => {
   })
 
   describe('statusToTone', () => {
-    it('maps DRAFT to info tone', () => {
-      expect(statusToTone('DRAFT')).toBe('info')
+    it('maps DRAFT to neutral tone', () => {
+      expect(statusToTone('DRAFT')).toBe('neutral')
     })
 
     it('maps SENT to success tone', () => {

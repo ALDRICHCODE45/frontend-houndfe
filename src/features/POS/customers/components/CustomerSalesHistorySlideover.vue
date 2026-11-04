@@ -7,6 +7,8 @@ import type { ConfirmedSaleRow } from '@/features/POS/sales/interfaces/sale.type
 import { useCustomerSalesHistory } from '@/features/POS/sales/composables/useCustomerSalesHistory'
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import AppResponsiveDrawer from '@/core/shared/components/AppResponsiveDrawer.vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
+import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import SalesHistoryList from './SalesHistoryList.vue'
 import SalesHistoryMetrics from './SalesHistoryMetrics.vue'
 
@@ -79,7 +81,7 @@ watch(error, (currentError) => {
 
 const normalizedError = computed(() =>
   isError.value && error.value && httpStatus(error.value) !== 403
-    ? normalizeApiError(error.value, 'No se pudo cargar el historial de ventas. Reintenta.')
+    ? normalizeApiError(error.value, 'No se pudo cargar el historial de ventas.')
     : null,
 )
 
@@ -107,7 +109,6 @@ function selectSale(sale: ConfirmedSaleRow) {
         <EntityAvatar
           v-if="customer"
           :name="customer.fullName"
-          :seed="customer.id"
           size="lg"
           aria-hidden="true"
         />
@@ -170,11 +171,14 @@ function selectSale(sale: ConfirmedSaleRow) {
           </div>
         </div>
 
-        <div v-else-if="normalizedError" role="alert" class="flex flex-col items-center gap-4 px-6 py-16 text-center">
-          <UIcon name="i-lucide-alert-circle" class="size-10 text-error" aria-hidden="true" />
-          <p class="max-w-xs text-sm text-muted">{{ normalizedError.message }}</p>
-          <UButton label="Reintentar" size="sm" @click="refetch()" />
-        </div>
+        <EmptyState
+          v-else-if="normalizedError"
+          kind="error"
+          :title="normalizedError.message"
+          action-label="Reintentar"
+          action-test-id="history-error-retry"
+          @action="refetch()"
+        />
 
         <template v-else-if="response">
           <SalesHistoryMetrics :summary="response.summary" />
@@ -189,17 +193,19 @@ function selectSale(sale: ConfirmedSaleRow) {
               class="w-full"
             />
           </div>
-          <div
-            v-if="response.data.length === 0"
-            role="status"
-            class="flex flex-col items-center gap-3 px-6 py-16 text-center"
-          >
-            <UIcon name="i-lucide-inbox" class="size-10 text-dimmed" aria-hidden="true" />
-            <p class="text-sm text-muted">
-              <template v-if="hasSearchQuery">No se encontraron ventas que coincidan con la búsqueda.</template>
-              <template v-else>Este cliente aún no tiene ventas confirmadas.</template>
-            </p>
-          </div>
+          <EmptyState
+            v-if="response.data.length === 0 && hasSearchQuery"
+            kind="no-match"
+            :title="`Ningún resultado para «${searchQuery.trim()}»`"
+            description="No se encontraron ventas que coincidan con la búsqueda."
+            action-label="Limpiar filtros"
+            @action="searchQuery = ''"
+          />
+          <EmptyState
+            v-else-if="response.data.length === 0"
+            title="Aún no hay ventas"
+            description="Este cliente aún no tiene ventas confirmadas."
+          />
           <div
             v-else
             :aria-busy="isPageTransition || undefined"

@@ -79,9 +79,9 @@ export function validateCatalogSettingsDraft(draft: CatalogSettingsDraft): strin
   }
   if (draft.catalogPublished) {
     if (draft.publicPriceListIds.length === 0) {
+      // No lists is the one cause; a default cannot exist without them, so it is not a second error.
       errors.push('Publicar el catálogo requiere al menos una lista de precios pública')
-    }
-    if (draft.catalogDefaultPriceListId === null) {
+    } else if (draft.catalogDefaultPriceListId === null) {
       errors.push('Publicar el catálogo requiere una lista de precios predeterminada')
     }
   }

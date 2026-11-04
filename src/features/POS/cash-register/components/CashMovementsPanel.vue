@@ -18,10 +18,14 @@
  *      (`COUNTING`+) rejects them server-side (`CASH_SESSION_NOT_WRITABLE`).
  */
 import { computed, ref } from 'vue'
+import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
+import type { TableColumn } from '@/core/shared/types/table.types'
 import { pesosToCents } from '../utils/cash-input'
 import { blindSafeDetail, isCashSessionWritable } from '../composables/cashRules'
 import type { CashMovementKind, CashSessionDetail } from '../interfaces/cash.types'
+
+type CashMovement = CashSessionDetail['movements'][number]
 
 const props = withDefaults(
   defineProps<{
@@ -32,6 +36,9 @@ const props = withDefaults(
     canCashOut?: boolean
     submitting?: boolean
     errorMessage?: string | null
+    /** The session detail is loading or failed: the history shows its skeleton or error. */
+    loading?: boolean
+    error?: boolean
   }>(),
   {
     detail: null,
@@ -40,11 +47,14 @@ const props = withDefaults(
     canCashOut: false,
     submitting: false,
     errorMessage: null,
+    loading: false,
+    error: false,
   },
 )
 
 const emit = defineEmits<{
   submit: [payload: { kind: 'CASH_IN' | 'CASH_OUT'; amountCents: number; reason: string }]
+  refresh: []
 }>()
 
 const MOVEMENT_LABELS: Record<CashMovementKind, string> = {
@@ -55,11 +65,29 @@ const MOVEMENT_LABELS: Record<CashMovementKind, string> = {
   REFUND_SETTLEMENT: 'Liquidación de reembolso',
 }
 
+const right = { class: { th: 'text-right', td: 'text-right' } }
+const columns: TableColumn<CashMovement, unknown>[] = [
+  { id: 'kind', header: 'Tipo', enableSorting: false },
+  { id: 'channel', header: 'Canal', enableSorting: false },
+  { id: 'amount', header: 'Importe', enableSorting: false, meta: right },
+  { id: 'reason', header: 'Motivo', enableSorting: false },
+]
+const emptyState = {
+  title: 'Aún no hay movimientos',
+  description: 'Los ingresos y retiros de esta sesión aparecerán aquí.',
+}
+
+const movementLabel = (movement: CashMovement) => MOVEMENT_LABELS[movement.kind]
+
 const safeDetail = computed(() => blindSafeDetail(props.detail))
 const session = computed(() => safeDetail.value?.session ?? null)
 const blind = computed(() => session.value?.blind === true)
 const writable = computed(() => isCashSessionWritable(session.value))
-const movements = computed(() => safeDetail.value?.movements ?? [])
+const movements = computed(() => [...(safeDetail.value?.movements ?? [])])
+/** The history area is a table state of its own while loading, failing or open. */
+const showHistory = computed(
+  () => props.loading || props.error || (Boolean(safeDetail.value) && !blind.value),
+)
 
 /** Only the session's own cashier may register manual movements. */
 const isOwner = computed(
@@ -109,302 +137,173 @@ function submit(kind: 'CASH_IN' | 'CASH_OUT') {
 </script>
 
 <template>
-  <section class="cash-panel" data-testid="cash-movements">
-    <header class="cash-panel-header">
-      <span class="cash-icon-tile" aria-hidden="true">
-        <UIcon name="i-lucide-banknote" />
-      </span>
-      <div class="cash-panel-header-text">
-        <h2 class="cash-panel-title">Movimientos de efectivo</h2>
-        <p class="cash-panel-subtitle">
-          El cajón físico es solo el canal Efectivo; los demás canales se informan aparte.
-        </p>
-      </div>
+  <section class="cash-list-section" data-testid="cash-movements">
+    <header class="cash-list-header">
+      <h2 class="cash-list-title">Movimientos de efectivo</h2>
     </header>
 
-    <div class="cash-panel-body">
-      <p v-if="!safeDetail" class="text-sm text-muted" data-testid="cash-movements-empty-detail">
-        Selecciona una sesión para ver sus movimientos.
+    <p
+      v-if="!showHistory && !safeDetail"
+      class="text-sm text-muted"
+      data-testid="cash-movements-empty-detail"
+    >
+      Selecciona una sesión para ver sus movimientos.
+    </p>
+
+    <template v-else>
+      <!-- HISTORY: hidden in the blind window, independent of the status. -->
+      <p
+        v-if="!showHistory && blind"
+        class="text-sm text-muted"
+        data-testid="cash-movements-history-hidden"
+      >
+        Conteo ciego: el historial de movimientos no se muestra hasta enviar la declaración.
+      </p>
+      <div
+        v-else-if="showHistory"
+        data-testid="cash-movements-table"
+        role="region"
+        aria-label="Historial de movimientos de efectivo"
+      >
+        <AppDataTable
+          :show-toolbar="false"
+          :columns="columns"
+          :data="movements"
+          :loading="loading"
+          :error="error"
+          error-message="No se pudieron cargar los movimientos"
+          :empty-state="emptyState"
+          display-mode="auto"
+          mobile-render="cards"
+          class="hf-data-table"
+          @refresh="emit('refresh')"
+        >
+          <template #kind-cell="{ row }">
+            <span
+              class="hf-row-primary cash-row-link"
+              :data-testid="`cash-movement-${row.original.id}`"
+              >{{ movementLabel(row.original) }}</span
+            >
+          </template>
+          <template #channel-cell="{ row }">
+            <span class="cash-meta">{{ row.original.channelLabel }}</span>
+          </template>
+          <template #amount-cell="{ row }">
+            <span class="hf-figure">{{ formatCentsMXN(row.original.deltaCents) }}</span>
+          </template>
+          <template #reason-cell="{ row }">
+            <span class="movement-history-reason">{{ row.original.reason ?? '—' }}</span>
+          </template>
+
+          <template #mobile-card="{ row }">
+            <article class="cash-card" :data-testid="`cash-movement-card-${row.id}`">
+              <div class="cash-card-heading">
+                <span class="hf-row-primary cash-row-link">{{ movementLabel(row) }}</span>
+                <span class="hf-figure font-semibold text-highlighted">{{
+                  formatCentsMXN(row.deltaCents)
+                }}</span>
+              </div>
+              <span v-if="row.reason" class="hf-row-secondary movement-history-reason">{{
+                row.reason
+              }}</span>
+              <div class="cash-card-footer">
+                <span>{{ row.channelLabel }}</span>
+              </div>
+            </article>
+          </template>
+        </AppDataTable>
+        <p
+          v-if="!loading && !error && movements.length === 0"
+          class="sr-only"
+          data-testid="cash-movements-empty"
+        >
+          Todavía no hay movimientos en esta sesión.
+        </p>
+      </div>
+
+      <!-- COMMANDS: writable AND owned by the caller. -->
+      <p v-if="!writable" class="cash-note cash-note--warning" data-testid="cash-movements-frozen">
+        La sesión está congelada: no se pueden registrar movimientos.
       </p>
 
-      <template v-else>
-        <!-- HISTORY: hidden in the blind window, independent of the status. -->
-        <p v-if="blind" class="text-sm text-muted" data-testid="cash-movements-history-hidden">
-          Conteo ciego: el historial de movimientos no se muestra hasta enviar la declaración.
+      <p v-else-if="!isOwner" class="cash-note" data-testid="cash-movements-owner-denied">
+        Esta sesión pertenece a otra persona: solo su responsable registra movimientos manuales.
+      </p>
+
+      <form
+        v-else-if="canCashIn || canCashOut"
+        class="flex flex-col gap-4"
+        data-testid="cash-movement-form"
+        @submit.prevent
+      >
+        <div class="cash-form-content grid gap-3 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]">
+          <UFormField label="Importe (pesos)">
+            <UInput
+              v-model="amountInput"
+              inputmode="decimal"
+              class="w-full"
+              placeholder="25.00"
+              data-testid="cash-movement-amount"
+            />
+          </UFormField>
+          <UFormField label="Motivo">
+            <UInput
+              v-model="reasonInput"
+              class="w-full"
+              placeholder="Compra de bolsas"
+              data-testid="cash-movement-reason"
+            />
+          </UFormField>
+        </div>
+
+        <p v-if="localError" class="text-sm text-error" data-testid="cash-movement-local-error">
+          {{ localError }}
         </p>
-        <template v-else>
-          <p
-            v-if="movements.length === 0"
-            class="text-sm text-muted"
-            data-testid="cash-movements-empty"
+        <p v-if="errorMessage" class="text-sm text-error" data-testid="cash-movement-error">
+          {{ errorMessage }}
+        </p>
+
+        <div class="flex flex-wrap gap-2">
+          <UButton
+            v-if="canCashIn"
+            type="button"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-arrow-down-left"
+            class="min-h-11"
+            :disabled="submitting"
+            data-testid="cash-in-submit"
+            @click="submit('CASH_IN')"
           >
-            Todavía no hay movimientos en esta sesión.
-          </p>
-
-          <div
-            v-else
-            class="movement-history"
-            role="region"
-            aria-label="Historial de movimientos de efectivo"
-            tabindex="0"
+            Registrar ingreso
+          </UButton>
+          <UButton
+            v-if="canCashOut"
+            type="button"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-arrow-up-right"
+            class="min-h-11"
+            :disabled="submitting"
+            data-testid="cash-out-submit"
+            @click="submit('CASH_OUT')"
           >
-            <table
-              class="movement-history-table w-full text-left text-sm"
-              data-testid="cash-movements-table"
-            >
-              <colgroup>
-                <col class="movement-history-type" />
-                <col class="movement-history-channel" />
-                <col class="movement-history-amount" />
-                <col />
-              </colgroup>
-              <thead>
-                <tr class="text-xs text-muted">
-                  <th scope="col" class="font-medium">Tipo</th>
-                  <th scope="col" class="font-medium">Canal</th>
-                  <th scope="col" class="text-right font-medium">Importe</th>
-                  <th scope="col" class="font-medium">Motivo</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="movement in movements"
-                  :key="movement.id"
-                  class="border-t border-default"
-                  :data-testid="`cash-movement-${movement.id}`"
-                >
-                  <td class="text-highlighted">{{ MOVEMENT_LABELS[movement.kind] }}</td>
-                  <td>
-                    <UBadge color="neutral" variant="subtle">{{ movement.channelLabel }}</UBadge>
-                  </td>
-                  <td
-                    class="movement-history-money text-right font-semibold"
-                    :class="movement.deltaCents < 0 ? 'text-error' : 'text-success'"
-                  >
-                    {{ formatCentsMXN(movement.deltaCents) }}
-                  </td>
-                  <td class="movement-history-reason text-muted">{{ movement.reason ?? '—' }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </template>
+            Registrar retiro
+          </UButton>
+        </div>
+      </form>
 
-        <!-- COMMANDS: writable AND owned by the caller. -->
-        <p
-          v-if="!writable"
-          class="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs text-warning"
-          data-testid="cash-movements-frozen"
-        >
-          La sesión está congelada: no se pueden registrar movimientos.
-        </p>
-
-        <p
-          v-else-if="!isOwner"
-          class="rounded-lg border border-default p-3 text-sm text-muted"
-          data-testid="cash-movements-owner-denied"
-        >
-          Esta sesión pertenece a otra persona: solo su responsable registra movimientos manuales.
-        </p>
-
-        <form
-          v-else-if="canCashIn || canCashOut"
-          class="flex flex-col gap-4 border-t border-default pt-4"
-          data-testid="cash-movement-form"
-          @submit.prevent
-        >
-          <div class="cash-form-content grid gap-3 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]">
-            <UFormField label="Importe (pesos)">
-              <UInput
-                v-model="amountInput"
-                inputmode="decimal"
-                class="cash-control w-full"
-                placeholder="25.00"
-                data-testid="cash-movement-amount"
-              />
-            </UFormField>
-            <UFormField label="Motivo">
-              <UInput
-                v-model="reasonInput"
-                class="cash-control w-full"
-                placeholder="Compra de bolsas"
-                data-testid="cash-movement-reason"
-              />
-            </UFormField>
-          </div>
-
-          <p v-if="localError" class="text-sm text-error" data-testid="cash-movement-local-error">
-            {{ localError }}
-          </p>
-          <p v-if="errorMessage" class="text-sm text-error" data-testid="cash-movement-error">
-            {{ errorMessage }}
-          </p>
-
-          <!-- Purpose, amount and action stay together; each row shows its direction. -->
-          <div class="grid gap-2 sm:grid-cols-2">
-            <button
-              v-if="canCashIn"
-              type="button"
-              class="movement-action"
-              :disabled="submitting"
-              data-testid="cash-in-submit"
-              @click="submit('CASH_IN')"
-            >
-              <span class="movement-action-tile is-in text-success">
-                <UIcon name="i-lucide-arrow-down-left" aria-hidden="true" class="size-5" />
-              </span>
-              <span class="movement-action-copy">
-                <strong>Registrar ingreso</strong>
-                <small>Dinero que entra al cajón</small>
-              </span>
-              <UIcon
-                name="i-lucide-arrow-right"
-                aria-hidden="true"
-                class="movement-action-arrow size-4"
-              />
-            </button>
-            <button
-              v-if="canCashOut"
-              type="button"
-              class="movement-action"
-              :disabled="submitting"
-              data-testid="cash-out-submit"
-              @click="submit('CASH_OUT')"
-            >
-              <span class="movement-action-tile is-out text-warning">
-                <UIcon name="i-lucide-arrow-up-right" aria-hidden="true" class="size-5" />
-              </span>
-              <span class="movement-action-copy">
-                <strong>Registrar retiro</strong>
-                <small>Dinero que sale del cajón</small>
-              </span>
-              <UIcon
-                name="i-lucide-arrow-right"
-                aria-hidden="true"
-                class="movement-action-arrow size-4"
-              />
-            </button>
-          </div>
-        </form>
-
-        <p v-else class="text-xs text-muted" data-testid="cash-movements-forbidden">
-          No tienes permiso para registrar movimientos manuales.
-        </p>
-      </template>
-    </div>
+      <p v-else class="text-xs text-muted" data-testid="cash-movements-forbidden">
+        No tienes permiso para registrar movimientos manuales.
+      </p>
+    </template>
   </section>
 </template>
 
 <style scoped>
-.movement-history {
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-.movement-history:focus-visible {
-  outline: 2px solid var(--hf-focus);
-  outline-offset: 2px;
-}
-
-.movement-history-table {
-  min-width: 38rem;
-  table-layout: fixed;
-}
-
-.movement-history-type {
-  width: 25%;
-}
-
-.movement-history-channel {
-  width: 17%;
-}
-
-.movement-history-amount {
-  width: 12rem;
-}
-
-.movement-history-table :is(th, td) {
-  padding: 0.75rem 0.625rem;
-  vertical-align: top;
-}
-
-.movement-history-table :is(th, td):first-child {
-  padding-inline-start: 0;
-}
-
-.movement-history-table :is(th, td):last-child {
-  padding-inline-end: 0;
-}
-
-.movement-history-money {
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
 .movement-history-reason {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   line-height: 1.5;
-}
-
-.movement-action {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-  padding: 0.75rem;
-  text-align: left;
-  border: 1px solid var(--cash-border, var(--ui-border));
-  border-radius: var(--cash-radius-control, 0.5rem);
-  background-color: var(--cash-surface, var(--ui-bg));
-  color: var(--cash-ink, var(--ui-text));
-  transition:
-    border-color 150ms ease,
-    background-color 150ms ease;
-}
-
-.movement-action:hover:not(:disabled) {
-  border-color: var(--cash-primary, var(--ui-primary));
-  background-color: var(--cash-surface-muted, var(--ui-bg-elevated));
-}
-
-.movement-action:disabled {
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-.movement-action-tile {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--cash-border, var(--ui-border));
-  background-color: var(--cash-surface-muted, var(--ui-bg-elevated));
-}
-
-.movement-action-copy {
-  flex: 1;
-  min-width: 0;
-}
-
-.movement-action-copy strong {
-  display: block;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--cash-ink, var(--ui-text-highlighted));
-}
-
-.movement-action-copy small {
-  display: block;
-  margin-top: 0.125rem;
-  font-size: 0.6875rem;
-  color: var(--cash-muted, var(--ui-text-muted));
-}
-
-.movement-action-arrow {
-  color: var(--cash-muted, var(--ui-text-muted));
 }
 </style>

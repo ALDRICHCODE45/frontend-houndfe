@@ -23,7 +23,7 @@
 // ─── Enums and unions ────────────────────────────────────────────────────────
 
 /** `method` domain of every channel identity. */
-export type CashMethod = 'CASH' | 'CARD_CREDIT' | 'CARD_DEBIT' | 'TRANSFER'
+type CashMethod = 'CASH' | 'CARD_CREDIT' | 'CARD_DEBIT' | 'TRANSFER'
 
 /** `OPEN → COUNTING → SUBMITTED → CLOSED`; drawer release is a separate event. */
 export type CashSessionStatus = 'OPEN' | 'COUNTING' | 'SUBMITTED' | 'CLOSED'
@@ -37,10 +37,10 @@ export type CashMovementKind =
   | 'REFUND_SETTLEMENT'
 
 /** Origin of a ledger movement. */
-export type CashMovementSourceType = 'MANUAL' | 'PAYMENT' | 'SALE' | 'REFUND'
+type CashMovementSourceType = 'MANUAL' | 'PAYMENT' | 'SALE' | 'REFUND'
 
 /** Count revisions: the cashier declaration and the verifier recount. */
-export type CashCountKind = 'DECLARATION' | 'VERIFICATION'
+type CashCountKind = 'DECLARATION' | 'VERIFICATION'
 
 /** `FLOAT` is retained as the next opening fund; `WITHDRAWAL` leaves the drawer. */
 export type CashHandoverKind = 'WITHDRAWAL' | 'FLOAT'
@@ -48,7 +48,7 @@ export type CashHandoverKind = 'WITHDRAWAL' | 'FLOAT'
 // ─── Registers ───────────────────────────────────────────────────────────────
 
 /** Identity-only register view embedded in session documents. */
-export interface CashRegisterSummary {
+interface CashRegisterSummary {
   id: string
   name: string
   isActive: boolean
@@ -119,16 +119,16 @@ export interface CashChannelIdentity {
 }
 
 /** Frozen expected channel list (`channelSnapshot`), never the closing `channels[]`. */
-export interface CashChannelSnapshotLine extends CashChannelIdentity {
+interface CashChannelSnapshotLine extends CashChannelIdentity {
   expectedCents: number
 }
 
-export interface CashCountLine {
+interface CashCountLine {
   channelKey: string
   amountCents: number
 }
 
-export interface CashDenomination {
+interface CashDenomination {
   denominationCents: number
   quantity: number
 }
@@ -148,11 +148,11 @@ export interface CashDeclaration {
   cashCents: number
 }
 
-export interface CashVerification extends CashDeclaration {
+interface CashVerification extends CashDeclaration {
   actorUserId: string
 }
 
-export interface CashCount {
+interface CashCount {
   id: string
   kind: CashCountKind
   revision: number
@@ -163,7 +163,7 @@ export interface CashCount {
   createdAt: string
 }
 
-export interface CashMovement {
+interface CashMovement {
   id: string
   kind: CashMovementKind
   deltaCents: number
@@ -329,7 +329,7 @@ export interface CashEligibleFloatItem extends CashCustodyItem {
   sourceDrawerReleasedAt: string | null
 }
 
-export interface CashCustodyPage<T> {
+interface CashCustodyPage<T> {
   items: T[]
   page: number
   limit: number
@@ -354,7 +354,7 @@ export interface CashCustodyParams {
  * `snapshot` is intentionally not modeled; never treat this as the full
  * `GET /cash-closings/:id` document.
  */
-export interface CashClosingReference {
+interface CashClosingReference {
   id: string
   sessionId: string
   folio: string

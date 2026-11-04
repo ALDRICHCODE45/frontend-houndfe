@@ -45,6 +45,7 @@ function toolbarStubWithProps() {
         data-testid="toolbar"
         :data-refresh-button-test-id="refreshButtonTestId ?? ''"
         :data-add-button-test-id="addButtonTestId ?? ''"
+        :data-show-refresh="String(showRefresh)"
         :data-active-filter-count="activeFilterCount ?? 0"
       >
         <slot name="filters" />
@@ -197,14 +198,14 @@ describe('AppDataTable error state', () => {
   it('renders the error block (and not the empty text) in table view when error=true', () => {
     const wrapper = mountComponent({
       error: true,
-      errorMessage: 'No se pudieron cargar los datos. Reintenta.',
+      errorMessage: 'No se pudieron cargar los datos.',
       data: [],
       totalCount: 0,
     })
 
     expect(wrapper.find('[data-testid="table-error-state"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="table-error-state"]').text()).toContain(
-      'No se pudieron cargar los datos. Reintenta.',
+      'No se pudieron cargar los datos.',
     )
     // The generic empty text must NOT show when error is true.
     expect(wrapper.text()).not.toContain('No se encontraron resultados')
@@ -215,7 +216,7 @@ describe('AppDataTable error state', () => {
     isBelowBreakpoint.value = true
     const wrapper = mountComponent({
       error: true,
-      errorMessage: 'No se pudieron cargar los datos. Reintenta.',
+      errorMessage: 'No se pudieron cargar los datos.',
       data: [],
       totalCount: 0,
       mobileRender: 'cards',
@@ -223,7 +224,7 @@ describe('AppDataTable error state', () => {
 
     expect(wrapper.find('[data-testid="cards-error-state"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="cards-error-state"]').text()).toContain(
-      'No se pudieron cargar los datos. Reintenta.',
+      'No se pudieron cargar los datos.',
     )
     expect(wrapper.find('[data-testid="mobile-empty-state"]').exists()).toBe(false)
   })
@@ -233,7 +234,7 @@ describe('AppDataTable error state', () => {
       {
         displayMode: 'cards',
         error: true,
-        errorMessage: 'No se pudieron cargar los datos. Reintenta.',
+        errorMessage: 'No se pudieron cargar los datos.',
         data: [],
         totalCount: 0,
       },
@@ -242,7 +243,7 @@ describe('AppDataTable error state', () => {
 
     expect(wrapper.find('[data-testid="cards-error-state"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="cards-error-state"]').text()).toContain(
-      'No se pudieron cargar los datos. Reintenta.',
+      'No se pudieron cargar los datos.',
     )
     // The custom cards slot must NOT render when the request failed — a failed
     // request is never masked as an empty (or stale) card grid.
@@ -298,7 +299,7 @@ describe('AppDataTable error state', () => {
     expect(wrapper.text()).toContain('No se encontraron resultados')
   })
 
-  it('uses the default error message in Spanish when errorMessage prop is not provided', () => {
+  it('uses the fixed human title when errorMessage is not provided', () => {
     const wrapper = mountComponent({
       error: true,
       data: [],
@@ -307,7 +308,7 @@ describe('AppDataTable error state', () => {
 
     const errorBlock = wrapper.find('[data-testid="table-error-state"]')
     expect(errorBlock.exists()).toBe(true)
-    expect(errorBlock.text()).toContain('No se pudieron cargar los datos')
+    expect(errorBlock.get('.hf-empty-state__title').text()).toBe('No se pudo cargar la lista')
   })
 })
 
@@ -337,6 +338,16 @@ describe('AppDataTable toolbar testid pass-through', () => {
     const toolbar = wrapper.get('[data-testid="toolbar"]')
     expect(toolbar.attributes('data-refresh-button-test-id')).toBe('refresh-quotations-button')
     expect(toolbar.attributes('data-add-button-test-id')).toBe('new-quotation-button')
+  })
+
+  it('does not ask the toolbar for a refresh button by default (Reintentar is the retry)', () => {
+    const wrapper = mountComponent({}, { toolbarStub: true })
+    expect(wrapper.get('[data-testid="toolbar"]').attributes('data-show-refresh')).toBe('false')
+  })
+
+  it('still forwards an explicit showRefresh to the toolbar', () => {
+    const wrapper = mountComponent({ showRefresh: true }, { toolbarStub: true })
+    expect(wrapper.get('[data-testid="toolbar"]').attributes('data-show-refresh')).toBe('true')
   })
 
   it('defaults refreshButtonTestId and addButtonTestId to undefined (no testid rendered)', () => {

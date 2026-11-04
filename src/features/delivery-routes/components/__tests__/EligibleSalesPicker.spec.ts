@@ -536,7 +536,7 @@ describe('EligibleSalesPicker — empty / loading / error / required states', ()
     getMock.mockRejectedValue(new Error('Request failed with status code 400'))
     const { wrapper } = mountPicker()
     await settle(() => expect(wrapper.find('[data-testid="eligible-sales-picker-error"]').exists()).toBe(true))
-    expect(wrapper.text()).toContain('No se pudieron cargar las ventas elegibles. Reintenta.')
+    expect(wrapper.text()).toContain('No se pudieron cargar las ventas elegibles.')
     expect(wrapper.text()).not.toContain('Request failed with status code 400')
   })
 
@@ -547,9 +547,11 @@ describe('EligibleSalesPicker — empty / loading / error / required states', ()
     expect(wrapper.text()).toContain('deliveryStatus is invalid')
   })
 
-  it('renders the required marker when :required is true', async () => {
+  it('does not repeat a "Requerido" line: the field label marks it once', async () => {
     const { wrapper } = mountPicker({ required: true })
-    await settle(() => expect(wrapper.find('[data-testid="eligible-sales-picker-required"]').exists()).toBe(true))
+    await settle(() => expect(wrapper.find('[data-testid="eligible-sales-picker"]').exists()).toBe(true))
+    expect(wrapper.find('[data-testid="eligible-sales-picker-required"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Requerido')
   })
 
   it('renders the inline field error when :error is provided', async () => {
@@ -716,6 +718,11 @@ describe('EligibleSalesPicker — failed refresh keeps the conflict blocked (fix
     await wrapper.find('[data-testid="eligible-sales-picker-conflict-refresh"]').trigger('click')
     await vi.waitFor(() => expect(wrapper.find('[data-testid="eligible-sales-picker-error"]').exists()).toBe(true))
     await nextTick()
+
+    // The failure is the shared error state, not a bold red sentence.
+    const state = wrapper.get('[data-testid="eligible-sales-picker-error"]')
+    expect(state.classes()).toContain('hf-empty-state')
+    expect(state.attributes('data-kind')).toBe('error')
 
     // Still blocked, and the retry affordance is present.
     expect(lastValidity(picker).valid).toBe(false)

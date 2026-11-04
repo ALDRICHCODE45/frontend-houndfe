@@ -34,8 +34,8 @@
  * the trigger's accessible label is cockpit.header.actionsLabel.
  *
  * Surface (single source of truth — copy.ts + DELIVERY_ROUTE_STATUS_* maps):
- *   - Back, title "Ruta de entrega", lifecycle StatusDotBadge (label + tone),
- *     compact uppercase 8-char route id (FULL id as native `title`), truthful
+ *   - Back, title "Ruta de entrega", lifecycle StatusBadge (label + tone),
+ *     never the route id, truthful
  *     lifecycle timestamp line.
  *
  * Touch + a11y (REQ-DRC-111): every interactive control is 44×44
@@ -48,7 +48,7 @@
  */
 
 import { computed, useTemplateRef } from 'vue'
-import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { formatTimelineTimestamp } from '../DeliveryRouteTimeline.vue'
 import {
   DELIVERY_ROUTE_STATUS_LABELS,
@@ -95,10 +95,6 @@ const statusLabel = computed<string>(
   () => DELIVERY_ROUTE_STATUS_LABELS[props.route.status],
 )
 const statusTone = computed(() => DELIVERY_ROUTE_STATUS_TONES[props.route.status])
-// Route-page evolution: compact human-readable route identifier (first 8
-// characters, uppercase) keeps the 320px metadata row stable; the FULL id
-// stays available as the native `title` (accessible description).
-const routeIdShort = computed<string>(() => props.route.id.slice(0, 8).toUpperCase())
 const backAriaLabel = computed<string>(
   // S4 review correction: the back control's accessible name is sourced from
   // the canonical copy contract (DELIVERY_ROUTE_COPY.confirm.cancel.cancelLabel
@@ -159,22 +155,17 @@ function onOpenHistory() {
       <UIcon name="i-lucide-arrow-left" class="size-5" />
     </button>
 
-    <!-- Column 2: title + metadata row (status + compact route id) + lifecycle -->
+    <!-- Column 2: title + metadata row (status badge + lifecycle) + lifecycle -->
     <div class="min-w-0 flex-1" data-testid="cockpit-header-summary">
       <span class="block truncate text-base font-semibold text-default" data-testid="cockpit-header-title">
         {{ pageTitle }}
       </span>
       <div class="mt-1 flex min-w-0 flex-wrap items-center gap-2" data-testid="cockpit-header-meta">
-        <StatusDotBadge
+        <StatusBadge
           :tone="statusTone"
           :label="statusLabel"
           :aria-label="`${DELIVERY_ROUTE_COPY.cockpit.header.identityFallback}: ${statusLabel}`"
         />
-        <span
-          class="min-w-0 truncate font-mono text-xs text-muted"
-          data-testid="cockpit-header-route-id"
-          :title="props.route.id"
-        >{{ routeIdShort }}</span>
       </div>
       <p
         v-if="lifecycleLabel"

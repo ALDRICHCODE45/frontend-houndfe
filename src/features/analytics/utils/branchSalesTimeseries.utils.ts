@@ -20,7 +20,7 @@
  */
 
 import { CURRENCY_CONFIG, formatCentsMXN } from '@/core/shared/utils/currency.utils'
-import { isValidCalendarDateString } from '@/core/shared/utils/mexicoCityCalendar'
+import { isValidCalendarDateString, parseMexicoCityCalendarDate } from '@/core/shared/utils/mexicoCityCalendar'
 import type { BranchSalesTimeseriesPoint } from '../interfaces/branch-sales-timeseries.types'
 
 /**
@@ -40,7 +40,7 @@ export const BRANCH_SALES_TIMESERIES_METRIC_KEYS = [
 export type BranchSalesTimeseriesMetricKey = (typeof BRANCH_SALES_TIMESERIES_METRIC_KEYS)[number]
 
 /** How a metric value is rendered: cents as MXN, or a grouped integer count. */
-export type BranchSalesTimeseriesMetricFormat = 'mxn' | 'count'
+type BranchSalesTimeseriesMetricFormat = 'mxn' | 'count'
 
 /** Typed metadata for one selectable metric. */
 export interface BranchSalesTimeseriesMetric {
@@ -163,7 +163,12 @@ export function formatBranchSalesTimeseriesAxisTick(
     return Number.isInteger(tick) ? String(tick) : ''
   }
   if (tick === 0) return '$0'
-  return `$${Math.round(tick / 10_000) / 10}k`
+  if (tick < 0) return ''
+  // Whole pesos below one thousand keep neighbouring ticks distinct ($50, $100, $150);
+  // rounding those to thousands printed "$0.2k" twice on a small branch.
+  const pesos = tick / 100
+  if (pesos < 1000) return Number.isInteger(pesos) ? `$${pesos}` : `$${pesos.toFixed(2)}`
+  return `$${Number((pesos / 1000).toFixed(1))}k`
 }
 
 /** Fixed Spanish month abbreviations, indexed 0-11. No `Intl`, no locale data. */
@@ -211,15 +216,36 @@ export function formatBranchSalesTimeseriesDate(date: string): string {
   return `${day} ${monthLabel} ${year}`
 }
 
+/** Short x tick: `1 nov`. The year is in the window caption, so ticks stay narrow. */
+export function formatBranchSalesTimeseriesAxisDate(date: string): string {
+  return formatBranchSalesTimeseriesDate(date).replace(/^0/, '').replace(/ \d{4}$/, '')
+}
+
 /**
- * Accessible label for the chart region: the selected metric plus the exact
- * half-open window, both as the exact backend strings. Values are deliberately
- * absent — they stay reachable through the semantic table.
+ * Human window for captions: `1 nov al 4 nov 2026`. `to` is the exclusive
+ * boundary, so the last INCLUDED day is shown; no ISO string or boundary
+ * wording reaches the screen. Calendar arithmetic only, no browser zone.
+ */
+export function formatBranchSalesTimeseriesWindow(from: string, to: string): string {
+  const start = parseMexicoCityCalendarDate(from)
+  const end = parseMexicoCityCalendarDate(to)
+  if (!start || !end || start.compare(end) >= 0) return `${from} al ${to}`
+  const last = end.subtract({ days: 1 })
+  const short = (date: typeof start, year: boolean) =>
+    `${date.day} ${MONTH_LABELS[date.month - 1]}${year ? ` ${date.year}` : ''}`
+  if (start.compare(last) === 0) return short(last, true)
+  return `${short(start, start.year !== last.year)} al ${short(last, true)}`
+}
+
+/**
+ * Accessible label for the chart region: the selected metric plus the human
+ * window. Values are deliberately absent; they stay reachable through the
+ * semantic table.
  */
 export function buildBranchSalesTimeseriesChartLabel(
   key: BranchSalesTimeseriesMetricKey,
   from: string,
   to: string,
 ): string {
-  return `${getBranchSalesTimeseriesMetric(key).label} por día del ${from} al ${to} (Hasta excluyente)`
+  return `${getBranchSalesTimeseriesMetric(key).label} por día, del ${formatBranchSalesTimeseriesWindow(from, to)}`
 }

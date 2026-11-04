@@ -156,9 +156,9 @@ describe('PromotionDetailView — Create Mode', () => {
     expect(wrapper.find('[data-testid="promotion-form"]').attributes('data-type')).toBe('ADVANCED')
   })
 
-  it('shows "Crear Promoción" in header for create mode', () => {
+  it('shows "Nueva promoción" in header for create mode', () => {
     const wrapper = mountCreate()
-    expect(wrapper.text()).toContain('Crear Promoción')
+    expect(wrapper.text()).toContain('Nueva promoción')
   })
 
   it('cancel navigates back to promotions list', async () => {
@@ -184,9 +184,9 @@ describe('PromotionDetailView — Edit Mode', () => {
     expect(wrapper.find('[data-testid="promotion-form"]').attributes('data-mode')).toBe('edit')
   })
 
-  it('shows "Editar Promoción" in header for edit mode', () => {
+  it('shows "Editar promoción" in header for edit mode', () => {
     const wrapper = mountEdit()
-    expect(wrapper.text()).toContain('Editar Promoción')
+    expect(wrapper.text()).toContain('Editar promoción')
   })
 
   it('cancel navigates back to promotions list in edit mode', async () => {
@@ -202,18 +202,25 @@ describe('PromotionDetailView — Invalid Type Guard (CRITICAL 4)', () => {
     vi.clearAllMocks()
   })
 
-  it('redirects to /pos/promociones when type param is invalid', async () => {
+  it('shows a not-found state instead of redirecting with a toast when the type is invalid', async () => {
     mockRoute.mockReturnValue({ params: { type: 'INVALID_TYPE' }, query: {} })
-    mount(PromotionDetailView, {
+    const wrapper = mount(PromotionDetailView, {
       global: {
         plugins: [[VueQueryPlugin, { queryClient: makeQueryClient() }]],
-        stubs: STUBS,
+        stubs: { ...STUBS, EmptyState: false },
         mocks: {
           useToast: () => ({ add: mockToastAdd }),
         },
       },
     })
-    await new Promise((r) => setTimeout(r, 0))
+    await flushPromises()
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(mockToastAdd).not.toHaveBeenCalled()
+    const empty = wrapper.get('[data-testid="detail-not-found"] .hf-empty-state')
+    expect(empty.attributes('data-kind')).toBe('empty')
+    expect(empty.get('.hf-empty-state__title').text()).toBe('No encontramos ese tipo de promoción')
+    expect(wrapper.find('[data-testid="promotion-form"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="detail-not-found-back"]').trigger('click')
     expect(mockPush).toHaveBeenCalledWith('/pos/promociones')
   })
 
@@ -356,9 +363,9 @@ describe('PromotionDetailView — S40: Edit mode pre-populates form', () => {
     expect(form.attributes('data-type')).toBe('PRODUCT_DISCOUNT')
   })
 
-  it('S40: edit mode shows "Editar Promoción" header (form pre-populated from fetched data)', () => {
+  it('S40: edit mode shows "Editar promoción" header (form pre-populated from fetched data)', () => {
     const wrapper = mountEdit()
-    expect(wrapper.text()).toContain('Editar Promoción')
+    expect(wrapper.text()).toContain('Editar promoción')
   })
 })
 
@@ -442,5 +449,137 @@ describe('PromotionDetailView — Field-level API errors (FIX 2)', () => {
 
     errors = JSON.parse(form.attributes('data-api-errors') ?? '[]')
     expect(errors).toHaveLength(0)
+  })
+})
+
+// ── S10: the four page states ────────────────────────────────────────────────
+
+describe('PromotionDetailView — page states (S10)', () => {
+  function mountEditUnseeded(id = 'promo-404') {
+    mockRoute.mockReturnValue({ params: { id }, query: {} })
+    return mount(PromotionDetailView, {
+      global: {
+        plugins: [[VueQueryPlugin, { queryClient: makeQueryClient() }]],
+        stubs: { ...STUBS, EmptyState: false },
+        mocks: { useToast: () => ({ add: mockToastAdd }) },
+      },
+    })
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('empty: create mode opens the blank form with a single primary action', () => {
+    const wrapper = mountCreate()
+    expect(wrapper.find('[data-testid="promotion-form"]').attributes('data-mode')).toBe('create')
+    expect(wrapper.text()).toContain('Crear promoción')
+    expect(wrapper.text()).not.toContain('Cancelar')
+    expect(wrapper.find('[aria-label="Volver a promociones"]').exists()).toBe(true)
+  })
+
+  it('loading: shows a page skeleton shaped like the form, not the form', () => {
+    vi.mocked(promotionApi.getById).mockReturnValue(new Promise(() => {}))
+    const wrapper = mountEditUnseeded()
+    const loading = wrapper.get('[data-testid="detail-loading"]')
+    expect(loading.attributes('aria-busy')).toBe('true')
+    expect(loading.findAll('.animate-pulse').length).toBeGreaterThanOrEqual(3)
+    expect(wrapper.find('[data-testid="promotion-form"]').exists()).toBe(false)
+  })
+
+  it('data: edit mode renders the form with "Guardar cambios" as the one primary', () => {
+    const wrapper = mountEdit()
+    expect(wrapper.find('[data-testid="promotion-form"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Guardar cambios')
+    expect(wrapper.find('[data-testid="detail-error"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="detail-loading"]').exists()).toBe(false)
+  })
+
+  it('error: offers Reintentar, which fetches the promotion again', async () => {
+    vi.mocked(promotionApi.getById).mockRejectedValue(new Error('boom'))
+    const wrapper = mountEditUnseeded()
+    await flushPromises()
+    const error = wrapper.get('[data-testid="detail-error"] .hf-empty-state')
+    expect(error.attributes('data-kind')).toBe('error')
+    expect(wrapper.text()).not.toContain('boom')
+
+    const calls = vi.mocked(promotionApi.getById).mock.calls.length
+    await wrapper.get('[data-testid="detail-error-retry"]').trigger('click')
+    await flushPromises()
+    expect(vi.mocked(promotionApi.getById).mock.calls.length).toBeGreaterThan(calls)
+    // A failed request stays on the page: no toast, no redirect.
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(mockToastAdd).not.toHaveBeenCalled()
+  })
+})
+
+describe('PromotionDetailView — review round 1', () => {
+  function mountEditUnseeded(id = 'promo-404') {
+    mockRoute.mockReturnValue({ params: { id }, query: {} })
+    return mount(PromotionDetailView, {
+      global: {
+        plugins: [[VueQueryPlugin, { queryClient: makeQueryClient() }]],
+        stubs: { ...STUBS, EmptyState: false },
+        mocks: { useToast: () => ({ add: mockToastAdd }) },
+      },
+    })
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('not found: an empty state with a way back, no toast and no redirect', async () => {
+    vi.mocked(promotionApi.getById).mockRejectedValue(
+      Object.assign(new Error('Not found'), { response: { status: 404 } }),
+    )
+    const wrapper = mountEditUnseeded()
+    await flushPromises()
+    const empty = wrapper.get('[data-testid="detail-not-found"] .hf-empty-state')
+    expect(empty.attributes('data-kind')).toBe('empty')
+    expect(empty.get('.hf-empty-state__title').text()).toBe('No encontramos la promoción')
+    expect(wrapper.find('[data-testid="detail-error"]').exists()).toBe(false)
+    expect(mockToastAdd).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+
+    await wrapper.get('[data-testid="detail-not-found-back"]').trigger('click')
+    expect(mockPush).toHaveBeenCalledWith('/pos/promociones')
+  })
+
+  it('shows no save action while loading, on error or when not found', async () => {
+    vi.mocked(promotionApi.getById).mockReturnValue(new Promise(() => {}))
+    const loading = mountEditUnseeded()
+    expect(loading.text()).not.toContain('Guardar cambios')
+    expect(loading.find('[data-testid="mobile-action-bar"]').exists()).toBe(false)
+
+    vi.mocked(promotionApi.getById).mockRejectedValue(new Error('boom'))
+    const failed = mountEditUnseeded()
+    await flushPromises()
+    expect(failed.text()).not.toContain('Guardar cambios')
+    expect(failed.find('[data-testid="mobile-action-bar"]').exists()).toBe(false)
+  })
+
+  it('loading: the skeleton is shaped like the form (type badge, name field, sections)', () => {
+    vi.mocked(promotionApi.getById).mockReturnValue(new Promise(() => {}))
+    const wrapper = mountEditUnseeded()
+    const loading = wrapper.get('[data-testid="detail-loading"]')
+    expect(loading.findAll('[data-skeleton="section"]').length).toBeGreaterThanOrEqual(3)
+    expect(loading.find('[data-skeleton="field"]').exists()).toBe(true)
+  })
+
+  it('mobile: the single primary rides in the sticky bottom bar and submits the form', () => {
+    const wrapper = mountCreate()
+    const bar = wrapper.get('[data-testid="mobile-action-bar"]')
+    expect(bar.classes()).toContain('md:hidden')
+    const submit = bar.get('button[type="submit"]')
+    expect(submit.attributes('form')).toBe('promotion-detail-form')
+    expect(submit.text()).toBe('Crear promoción')
+  })
+
+  it('the title never shares a squeezed row with the primary below md', () => {
+    const wrapper = mountCreate()
+    const header = wrapper.get('.promotions-workspace-header')
+    expect(header.get('h1').classes()).toContain('min-w-0')
+    expect(header.get('[data-testid="header-submit"]').classes()).toContain('hidden')
   })
 })

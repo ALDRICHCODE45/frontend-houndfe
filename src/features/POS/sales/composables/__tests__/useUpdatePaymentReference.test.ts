@@ -117,7 +117,7 @@ describe('useUpdatePaymentReference', () => {
     expect(toastAddMock).toHaveBeenCalledWith(
       expect.objectContaining({
         title: 'Sin permisos',
-        description: 'No tenés permisos para editar la referencia',
+        description: 'No tienes permisos para editar la referencia',
         color: 'error',
       }),
     )

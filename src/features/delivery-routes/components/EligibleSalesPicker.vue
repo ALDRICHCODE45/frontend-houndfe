@@ -24,6 +24,7 @@
 
 import { computed, reactive, ref, watch } from 'vue'
 import { refDebounced } from '@vueuse/core'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import { formatAddress } from '@/core/shared/utils/formatAddress'
@@ -187,7 +188,7 @@ interface SelectedChip {
 const selectedChips = computed<SelectedChip[]>(() =>
   props.modelValue.map((id) => {
     const row = snapshots[id]
-    if (!row) return { id, label: id.slice(0, 8), secondary: '' }
+    if (!row) return { id, label: copy.noFolio, secondary: '' }
     return { id, label: row.folio ?? copy.noFolio, secondary: rowCustomerName(row) }
   }),
 )
@@ -281,7 +282,7 @@ const hasConflict = computed(() => {
 const conflictItems = computed(() =>
   props.conflictSaleIds.map((id) => ({
     id,
-    label: snapshots[id]?.folio ?? id.slice(0, 8),
+    label: snapshots[id]?.folio ?? copy.noFolio,
   })),
 )
 
@@ -470,7 +471,7 @@ const errorMessage = computed(() =>
               :data-testid="`eligible-sales-picker-row-primary-${row.id}`"
               class="flex flex-col gap-0.5"
             >
-              <span class="truncate font-medium text-default">{{ rowCustomerName(row) }}</span>
+              <span class="truncate font-semibold text-highlighted">{{ rowCustomerName(row) }}</span>
               <span
                 v-if="rowAddress(row)"
                 :data-testid="`eligible-sales-picker-row-address-${row.id}`"
@@ -596,33 +597,16 @@ const errorMessage = computed(() =>
       {{ copy.loading }}
     </div>
 
-    <div
+    <EmptyState
       v-if="isError"
-      class="flex flex-col gap-2"
+      class="eligible-sales-error"
       data-testid="eligible-sales-picker-error"
-    >
-      <p class="text-xs text-error">{{ errorMessage }}</p>
-      <div>
-        <UButton
-          type="button"
-          color="neutral"
-          variant="outline"
-          size="sm"
-          :label="copy.retry"
-          icon="i-lucide-refresh-cw"
-          data-testid="eligible-sales-picker-error-retry"
-          @click="onRefreshAvailability"
-        />
-      </div>
-    </div>
-
-    <p
-      v-if="required"
-      class="text-xs text-muted"
-      data-testid="eligible-sales-picker-required"
-    >
-      Requerido
-    </p>
+      kind="error"
+      :title="errorMessage"
+      :action-label="copy.retry"
+      action-test-id="eligible-sales-picker-error-retry"
+      @action="onRefreshAvailability"
+    />
 
     <p
       v-if="props.error"

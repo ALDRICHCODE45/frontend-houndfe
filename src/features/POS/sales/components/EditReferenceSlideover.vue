@@ -92,7 +92,7 @@ function handleCancel() {
     <template #body>
       <div class="space-y-4">
         <p class="text-sm text-muted">
-          Modificá la referencia asociada a este pago. Si la vaciás, el backend
+          Modifica la referencia asociada a este pago. Si la vacías, el backend
           la va a borrar al guardar.
         </p>
 

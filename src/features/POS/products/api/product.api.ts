@@ -38,7 +38,7 @@ import type {
 
 // ── List query params ─────────────────────────────────────────────────────────
 
-export interface ProductFilters {
+interface ProductFilters {
   type?: ProductType
 }
 
@@ -49,6 +49,14 @@ interface ProductPaginationMeta {
   limit: number
   total: number
   totalPages: number
+}
+
+// O1 S1: the backend rejects any `quantity` key on an edit PATCH (400
+// STOCK_QUANTITY_READ_ONLY), even 0 or null. Strip it at the transport so no
+// caller can send it by accident; stock only moves through an adjustment.
+function withoutQuantity<T extends object>(payload: T): Omit<T, 'quantity'> {
+  const { quantity: _quantity, ...rest } = payload as T & { quantity?: unknown }
+  return rest as Omit<T, 'quantity'>
 }
 
 function getPriceCents(item: ProductBackendResponse): number {
@@ -223,7 +231,7 @@ function mapVariant(productId: string, item: ProductVariantBackendResponse): Pro
 
 // ── Product / variant advanced catalog mappers (WU4) ──────
 
-export function fromProductRawAdvancedCatalog(raw: ProductBackendResponse): ProductAdvancedCatalogForm {
+function fromProductRawAdvancedCatalog(raw: ProductBackendResponse): ProductAdvancedCatalogForm {
   return {
     hidePriceInOnlineCatalog: raw.hidePriceInOnlineCatalog ?? false,
     supportedCatalogPriceListIds: raw.supportedCatalogPriceListIds ?? [],
@@ -298,33 +306,6 @@ function mapArrayResponse<T>(response: T[] | { data: T[] }): T[] {
   return Array.isArray(response) ? response : response.data
 }
 
-/**
- * Resolve the server-side sort keys for the /products endpoint.
- *
- * NOTE: As of this change, GET /products uses a strict whitelist on the
- * backend that ONLY accepts page / limit / search / q (and rejects sortBy /
- * sortOrder with HTTP 400). This function is kept here so that when the
- * backend adds server-side sort support to its whitelist we can re-enable
- * it by spreading the result into the request params. For now, the
- * composable intentionally does NOT spread `sort` into the request.
- */
-    export function _resolveSort(params: ServerTableParams) {
-  const firstSort = params.sorting?.[0]
-  if (!firstSort) return undefined
-
-  const sortByMap: Record<string, string> = {
-    categoryName: 'categoryId',
-    brandName: 'brandId',
-    priceCents: 'priceCents',
-    quantity: 'quantity',
-  }
-
-  return {
-    sortBy: sortByMap[firstSort.id] ?? firstSort.id,
-    sortOrder: firstSort.desc ? 'desc' : 'asc',
-  }
-}
-
 export const productApi = {
   /**
    * Fetches a page of products from GET /products.
@@ -339,17 +320,14 @@ export const productApi = {
    *        backend to return the FULL list (or, when globalFilter is set,
    *        the FULL filtered list), and we sort + paginate locally so the
    *        sort column in the UI works as users expect.
-   *     2. When the backend does support server-side sort, re-enable it by
-   *        spreading `_resolveSort(params)` into the request params and
-   *        skipping the local sort step below.
+   *     2. When the backend supports server-side sort, send sortBy / sortOrder
+   *        and skip the local sort step below.
    *
    *   search / q are still server-side because they ARE in the whitelist,
    *   and we don't double-filter the result locally when globalFilter is
    *   set (the server already filtered).
    */
   async getPaginated(params: ProductTableParams): Promise<PaginatedResponse<Product>> {
-    // `_resolveSort` is intentionally NOT spread into the request params — see
-    // the architectural note above.
     const { data } = await http.get<ProductBackendListResponse | ProductBackendResponse[]>(
       '/products',
       {
@@ -447,7 +425,10 @@ export const productApi = {
   },
 
   async update(productId: string, payload: UpdateProductPayload): Promise<ProductDetail> {
-    const { data } = await http.patch<ProductBackendResponse>(`/products/${productId}`, payload)
+    const { data } = await http.patch<ProductBackendResponse>(
+      `/products/${productId}`,
+      withoutQuantity(payload),
+    )
     return mapProductDetail(data)
   },
 
@@ -497,7 +478,7 @@ export const productApi = {
   ): Promise<ProductVariant> {
     const { data } = await http.patch<ProductVariantBackendResponse>(
       `/products/${productId}/variants/${variantId}`,
-      payload,
+      withoutQuantity(payload),
     )
     return mapVariant(productId, data)
   },
@@ -528,7 +509,7 @@ export const productApi = {
   ): Promise<ProductLot> {
     const { data } = await http.patch<ProductLotBackendResponse>(
       `/products/${productId}/lots/${lotId}`,
-      payload,
+      withoutQuantity(payload),
     )
     return mapLot(productId, data)
   },

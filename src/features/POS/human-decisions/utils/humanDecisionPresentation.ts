@@ -1,3 +1,4 @@
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { HumanDecision, HumanDecisionResolution } from '../interfaces/human-decision.types'
 import type {
   ExpirationDecisionResolution,
@@ -10,7 +11,7 @@ export const SKU_FALLBACK = 'Sin SKU'
 export const VARIANT_PRESENT_LABEL = 'Con variante'
 export const VARIANT_ABSENT_LABEL = 'Sin variante'
 export const QUANTITY_FALLBACK = 'Cantidad no especificada'
-export const UNIT_FALLBACK = 'Sin unidad'
+const UNIT_FALLBACK = 'Sin unidad'
 export const CREATED_AT_FALLBACK = '—'
 export const EXPIRATION_UNAVAILABLE_LABEL = 'Por ahora no hay información de vencimiento.'
 
@@ -50,11 +51,11 @@ export function variantPresentationLabel(variantId: string | null): string {
   return nonEmpty(variantId) ? VARIANT_PRESENT_LABEL : VARIANT_ABSENT_LABEL
 }
 
-export function unitPresentationLabel(unit: string): string {
+function unitPresentationLabel(unit: string): string {
   return nonEmpty(unit) ?? UNIT_FALLBACK
 }
 
-export function expirationVariantPresentationLabel(snapshot: ExpirationDecisionSnapshot): string {
+function expirationVariantPresentationLabel(snapshot: ExpirationDecisionSnapshot): string {
   if (nonEmpty(snapshot.variantId) === null) return VARIANT_ABSENT_LABEL
   const name = nonEmpty(snapshot.variantName) ?? VARIANT_PRESENT_LABEL
   const descriptor = [nonEmpty(snapshot.variantOption), nonEmpty(snapshot.variantValue)]
@@ -82,6 +83,11 @@ export function createdAtPresentationLabel(createdAt: string): string {
   const date = new Date(createdAt)
   if (Number.isNaN(date.getTime())) return CREATED_AT_FALLBACK
   return createdAtFormatter.format(date)
+}
+
+/** Short date for lists and cards (`3 nov, 20:43`) in the operating time zone; the detail keeps the full date. */
+export function listDatePresentationLabel(value: string): string {
+  return formatShortDateTime(value, { timeZone: MEXICO_CITY_TIME_ZONE })
 }
 
 /** Match the approved detail wording without coupling list presentation to a column factory. */

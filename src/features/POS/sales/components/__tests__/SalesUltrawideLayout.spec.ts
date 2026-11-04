@@ -244,7 +244,7 @@ describe('U1 — the ultrawide workspace is bounded and centered', () => {
   })
 
   it('bounds the accepted heading and places it before the draft strip', () => {
-    // S8: the `PUNTO DE VENTA` / `Nueva venta` heading shares the same bounded,
+    // S8: the `Nueva venta` heading shares the same bounded,
     // centered column and precedes the draft strip in the view markup.
     expect(valueAt('.sales-pos-workspace .sales-pos-workspace-header', 'max-width', 3440)).toBe(
       `${RAIL_WIDTH_PX / 16}rem`,

@@ -24,7 +24,7 @@ import { z } from 'zod'
 const UuidSchema = z.string().uuid()
 
 // ─── Actor (timeline event) ────────────────────────────────────────────────────
-export const DeliveryRouteActorSchema = z.object({
+const DeliveryRouteActorSchema = z.object({
   id: z.string(),
   name: z.string(),
 })
@@ -55,7 +55,7 @@ export const DeliveryRouteShippingAddressSchema = z.object({
 })
 
 // ─── Stop ───────────────────────────────────────────────────────────────────────
-export const DeliveryRouteStopSchema = z.object({
+const DeliveryRouteStopSchema = z.object({
   id: z.string(),
   saleId: z.string(),
   saleFolio: z.string().nullable(),
@@ -115,7 +115,7 @@ export const DeliveryRouteResponseSchema = z.object({
  * Transfer response (T3 S2/S4) — a TUPLE of both affected routes, NOT a single
  * route. The client MUST refresh both detail slots after a successful move.
  */
-export const TransferDeliveryRouteStopResponseSchema = z.object({
+const TransferDeliveryRouteStopResponseSchema = z.object({
   originRoute: DeliveryRouteResponseSchema,
   destinationRoute: DeliveryRouteResponseSchema,
 })
@@ -152,7 +152,7 @@ export const AppendDeliveryRouteStopSchema = z
  * from the URL path; .strict() is the client-side mirror of the backend's
  * forbidNonWhitelisted.
  */
-export const TransferDeliveryRouteStopSchema = z
+const TransferDeliveryRouteStopSchema = z
   .object({
     destinationRouteId: UuidSchema,
   })
@@ -167,7 +167,6 @@ export const ReorderDeliveryRouteStopsSchema = z
 // ─── Inferred TS types ─────────────────────────────────────────────────────────
 export type DeliveryRouteStatus = z.infer<typeof DeliveryRouteStatusSchema>
 export type DeliveryRouteStopStatus = z.infer<typeof DeliveryRouteStopStatusSchema>
-export type DeliveryRouteActor = z.infer<typeof DeliveryRouteActorSchema>
 export type DeliveryRouteShippingAddress = z.infer<typeof DeliveryRouteShippingAddressSchema>
 export type DeliveryRouteStop = z.infer<typeof DeliveryRouteStopSchema>
 export type DeliveryRouteTimelineEvent = z.infer<typeof DeliveryRouteTimelineEventSchema>
@@ -191,14 +190,28 @@ export const DELIVERY_ROUTE_STATUS_LABELS: Record<DeliveryRouteStatus, string> =
   CANCELLED: 'Cancelada',
 }
 
+// Draft and cancelled are neutral; warning is reserved for a pending issue, which
+// the list shows as an inline "aviso" marker beside the badge.
 export const DELIVERY_ROUTE_STATUS_TONES: Record<
   DeliveryRouteStatus,
-  'success' | 'warning' | 'error' | 'neutral'
+  'success' | 'info' | 'neutral'
 > = {
   DRAFT: 'neutral',
-  ACTIVE: 'warning',
+  ACTIVE: 'info',
   COMPLETED: 'success',
-  CANCELLED: 'error',
+  CANCELLED: 'neutral',
+}
+
+// Pending is neutral and the stop in progress is info; a skipped stop went off
+// plan, so it reads as warning (never danger).
+export const DELIVERY_ROUTE_STOP_STATUS_TONES: Record<
+  DeliveryRouteStopStatus,
+  'success' | 'info' | 'warning' | 'neutral'
+> = {
+  PENDING: 'neutral',
+  IN_PROGRESS: 'info',
+  COMPLETED: 'success',
+  SKIPPED: 'warning',
 }
 
 export const DELIVERY_ROUTE_STOP_STATUS_LABELS: Record<DeliveryRouteStopStatus, string> = {

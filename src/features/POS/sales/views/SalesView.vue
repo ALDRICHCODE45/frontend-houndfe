@@ -13,6 +13,7 @@ import PaymentModal from '../components/PaymentModal.vue'
 import PromotionCapacityRequoteModal from '../components/PromotionCapacityRequoteModal.vue'
 import PaymentSuccessModal from '../components/PaymentSuccessModal.vue'
 import AssignCustomerSlideover from '../components/AssignCustomerSlideover.vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import AppResponsiveDrawer from '@/core/shared/components/AppResponsiveDrawer.vue'
 import '../styles/sales-entry-visual.css' // T3: feature-owned Sales-entry presentation boundary.
@@ -76,6 +77,7 @@ const {
   activeDraft,
   activeTabId,
   isLoadingList,
+  isListError,
   isMutating,
   openNewTab,
   closeTab,
@@ -148,9 +150,9 @@ const requoteSnapshot = ref<{
 // Spanish, cashier-facing copy. Kept as constants so tests and the two
 // recovery paths cannot drift apart.
 const REQUOTE_TOTALS_UNAVAILABLE_MESSAGE =
-  'No pudimos actualizar los totales de la venta. Revisá el carrito y volvé a intentar el cobro.'
+  'No pudimos actualizar los totales de la venta. Revisa el carrito y vuelve a intentar el cobro.'
 const CAPACITY_RACE_MESSAGE =
-  'La capacidad de una promoción cambió durante el cobro. Actualizamos la venta; revisá los pagos y confirmá el cobro de nuevo.'
+  'La capacidad de una promoción cambió durante el cobro. Actualizamos la venta; revisa los pagos y confirma el cobro de nuevo.'
 
 // ── Mobile cart drawer (responsive UX, not functionality) ──────────────────
 // Below the lg breakpoint the cart panel moves out of the split layout and
@@ -553,13 +555,18 @@ async function handleChargeDraft(
       // map yields undefined here — surface the generic error toast instead of
       // crashing on action.type.
       if (!action) {
-        const message = err.response?.data?.message ?? 'No se pudo cobrar la venta. Reintenta.'
+        const message = err.response?.data?.message ?? 'No se pudo cobrar la venta.'
         toast.add({ title: 'Error', description: message, color: 'error' })
         return
       }
 
       if (action.type === 'inline') {
         inlineAmountError.value = action.message
+        return
+      }
+
+      if (action.type === 'generic') {
+        toast.add({ title: 'Error', description: action.message, color: 'error' })
         return
       }
 
@@ -593,7 +600,7 @@ async function handleChargeDraft(
       return
     }
 
-    const message = err.response?.data?.message ?? 'No se pudo cobrar la venta. Reintenta.'
+    const message = err.response?.data?.message ?? 'No se pudo cobrar la venta.'
     toast.add({ title: 'Error', description: message, color: 'error' })
   }
 }
@@ -855,6 +862,8 @@ async function handleChangePriceList(globalPriceListId: string | null) {
     <div
       v-if="isLoadingList"
       class="h-full w-full flex flex-col lg:flex-row min-h-0 sales-pos-split"
+      data-testid="sales-loading-skeleton"
+      aria-busy="true"
     >
       <!-- Left skeleton panel: full-width on mobile, 60% lg / 75% xl. -->
       <div
@@ -920,6 +929,22 @@ async function handleChangePriceList(globalPriceListId: string | null) {
       </div>
     </div>
 
+    <!-- Error: the drafts list did not load and there is nothing to show. -->
+    <div
+      v-else-if="isListError && drafts.length === 0"
+      class="h-full w-full flex items-center justify-center px-4 bg-(--hf-page)"
+    >
+      <EmptyState
+        kind="error"
+        title="No se pudo cargar la venta"
+        action-label="Reintentar"
+        action-test-id="sales-error-retry"
+        data-testid="sales-error-state"
+        class="max-w-sm"
+        @action="void refetchDrafts()"
+      />
+    </div>
+
     <!-- Main split view.
          Two-phase responsive split so the cart is usable on medium screens
          (tablets / laptops) without being cramped:
@@ -934,18 +959,16 @@ async function handleChangePriceList(globalPriceListId: string | null) {
          active tab — single source of truth, no desync risk. -->
     <div
       v-else
-      class="h-full w-full flex flex-col bg-(--light-surface-page) dark:bg-coco-neutral-950 sales-entry-page"
+      class="h-full w-full flex flex-col bg-(--hf-page) sales-entry-page"
     >
       <!-- S8 (fidelity): the accepted v0 workspace heading sits on the page
-           canvas BEFORE the draft strip. Static sale-page copy from the
-           authorized v0 source; the draft strip, Caja binding and every
+           canvas BEFORE the draft strip: the title and one short subtitle, no
+           eyebrow (Page header pattern); the draft strip, Caja binding and every
            shortcut/navigation contract below are untouched. -->
       <header class="shrink-0 sales-pos-workspace-header">
         <div class="min-w-0">
-          <p class="sales-pos-workspace-eyebrow">PUNTO DE VENTA</p>
           <h1 class="sales-pos-workspace-title">Nueva venta</h1>
         </div>
-        <span class="sales-pos-workspace-helper">Todo listo para tu próxima venta.</span>
       </header>
 
       <!-- View-level tab strip. The ActiveSalePanel instances below no
@@ -1021,7 +1044,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
         <button
           v-if="isMobileViewport"
           type="button"
-          class="sales-pos-cart-fab fixed z-30 left-3 right-3 bottom-0 flex items-center justify-between gap-3 bg-primary text-white shadow-lg shadow-primary/30 rounded-t-2xl px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] min-h-[48px] font-semibold text-sm active:scale-[0.99] transition-transform"
+          class="sales-pos-cart-fab fixed z-30 left-3 right-3 bottom-0 flex items-center justify-between gap-3 bg-primary text-(--hf-on-action) shadow-lg rounded-t-2xl px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] min-h-[48px] font-semibold text-sm active:scale-[0.99] transition-transform"
           data-testid="mobile-cart-fab"
           aria-label="Abrir carrito de venta"
           @click="openCartDrawer"
@@ -1031,7 +1054,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
             <span class="tabular-nums">{{ formatCents(activeDraftTotalCents) }}</span>
             <span
               v-if="activeDraftItemsCount > 0"
-              class="sales-pos-cart-fab-count inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-white/20 text-white text-xs font-bold tabular-nums"
+              class="sales-pos-cart-fab-count inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-(--hf-on-action)/20 text-(--hf-on-action) text-xs font-semibold tabular-nums"
               data-testid="mobile-cart-fab-count"
             >
               {{ activeDraftItemsCount }}
@@ -1061,7 +1084,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
         >
           <template #title>
             <div class="flex min-w-0 flex-col">
-              <span class="text-base font-bold leading-tight text-highlighted">Carrito</span>
+              <span class="text-base font-semibold leading-tight text-highlighted">Carrito</span>
               <span class="text-xs tabular-nums text-muted">
                 {{ activeDraftItemsCount }}
                 {{ activeDraftItemsCount === 1 ? 'artículo' : 'artículos' }} ·

@@ -5,20 +5,21 @@ import { useRouter } from 'vue-router'
 import { AppDataTable } from '@/core/shared/components/DataTable'
 import { DataTableFilters, useDataTableFilters, useFiltersUrlAdapter } from '@/core/shared/data-table-filters'
 import SortableHeader from '@/core/shared/components/DataTable/SortableHeader.vue'
-import ViewToggle from '@/core/shared/components/ViewToggle.vue'
-import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { useClickableRow } from '@/core/shared/composables/useClickableRow'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { useConfirmedSales } from '../composables/useConfirmedSales'
 import { useSalesColumns } from '../composables/useSalesColumns'
-import { useSalesViewMode } from '../composables/useSalesViewMode'
-import SalesListTabs from '../components/SalesListTabs.vue'
-import SaleCardGrid from '../components/SaleCardGrid.vue'
+import SalesListTabs, { type SalesListTab, type SalesListTabChange } from '../components/SalesListTabs.vue'
 import PaymentMethodPills from '../components/PaymentMethodPills.vue'
 import { createSalesFiltersSchema } from '../config/salesFiltersSchema'
-import { formatSaleDate, formatSaleDueDate } from '../utils/saleDate.utils'
+import { formatSaleDueDate } from '../utils/saleDate.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { extractFolioNumber } from '../utils/saleFolio.utils'
-import { getDeliveryStatusBadge, getPaymentStatusBadge } from '../utils/saleStatus.utils'
+import { getDeliveryStatusBadge, getPaymentStatusBadge, saleBadgeTone } from '../utils/saleStatus.utils'
+import type { ConfirmedSaleRow } from '../interfaces/sale.types'
 import { customerApi } from '@/features/POS/customers/api/customer.api'
 import { usersApi } from '@/features/POS/users/api/user.api'
 import { customerQueryKeys, usersQueryKeys } from '@/core/shared/constants/query-keys'
@@ -91,7 +92,6 @@ const {
   isLoading,
   isFetching,
   isError,
-  error,
   refresh,
   pageSizeOptions,
   showingFrom,
@@ -103,40 +103,28 @@ const {
 
 const { columns } = useSalesColumns()
 
-// View mode (table ↔ cards), persisted to localStorage. `displayMode` bridges
-// our singular 'card' to AppDataTable's plural 'cards'.
-const { viewMode, displayMode } = useSalesViewMode()
-
-/**
- * Prefer the backend's own message so cashiers see the real reason (expired
- * session, invalid filter, etc.) instead of a generic string. Falls back to a
- * sales-specific copy when the failure carries nothing useful — a network
- * error, for instance.
- */
-const salesErrorMessage = computed(() => {
-  const err = error.value as
-    | { response?: { data?: { message?: unknown } }; message?: string }
-    | null
-    | undefined
-  const backendMessage = err?.response?.data?.message
-  if (typeof backendMessage === 'string' && backendMessage.trim()) {
-    return backendMessage
-  }
-  return 'No se pudieron cargar las ventas. Reintenta.'
-})
+// Error title of the sales table: a human sentence, never the server message.
+const salesErrorMessage = 'No se pudieron cargar las ventas'
 
 // sdd customer-sales-history S1: folio/confirmedAt/paymentStatus may be null
 // per handoff §2.5. Helpers keep the template expressions clean.
 function folioDisplay(folio: string | null) {
   return folio != null ? extractFolioNumber(folio) : 'Sin folio'
 }
-function confirmedAtDisplay(confirmedAt: string | null) {
-  return confirmedAt != null ? formatSaleDate(confirmedAt) : 'Fecha no disponible'
+function customerDisplay(sale: ConfirmedSaleRow) {
+  return sale.customer?.name ?? 'Público en general'
 }
-function paymentStatusBadgeCell(paymentStatus: string | null) {
-  if (paymentStatus == null) return { label: 'Sin estado', color: 'neutral' as const }
-  return getPaymentStatusBadge(paymentStatus)
+function paymentBadge(sale: ConfirmedSaleRow) {
+  if (sale.paymentStatus == null) return { label: 'Sin estado', tone: 'neutral' as const }
+  const badge = getPaymentStatusBadge(sale.paymentStatus)
+  return { label: badge.label, tone: saleBadgeTone(badge.color) }
 }
+function deliveryBadge(sale: ConfirmedSaleRow) {
+  const badge = getDeliveryStatusBadge(sale.deliveryStatus)
+  return { label: badge.label, tone: saleBadgeTone(badge.color) }
+}
+const saleWhen = (sale: ConfirmedSaleRow) =>
+  sale.confirmedAt == null ? 'Fecha no disponible' : formatShortDateTime(sale.confirmedAt)
 
 const sortValue = ref<'confirmedAt:desc' | 'totalCents:asc' | 'createdAt:desc'>('confirmedAt:desc')
 
@@ -153,6 +141,52 @@ function goToSaleDetail(id: string) {
   void router.push(`/pos/ventas/${id}`)
 }
 
+// The whole row opens the sale: AppDataTable's `row-open` for table rows,
+// `rowProps` for cards. The folio button is the tab stop, so neither is focusable itself.
+function openSale(sale: ConfirmedSaleRow) {
+  goToSaleDetail(sale.id)
+}
+const { rowProps } = useClickableRow<ConfirmedSaleRow>(openSale, { focusable: false })
+
+// No ⋮ menu: its only item would be "Ver venta", which the row click already does.
+
+// Quick-tab selection lives here so the list can tell "no sales yet" from
+// "no sales for this tab" and offer one way back (Limpiar filtros).
+const activeTab = ref<SalesListTab>('all')
+function onTabChange(payload: SalesListTabChange) {
+  activeTab.value =
+    payload.deliveryStatus !== undefined ? 'pending-delivery'
+      : payload.paymentStatus !== undefined ? 'pending-payments'
+        : 'all'
+  setTabFilter(payload)
+}
+
+const hasSearch = computed(() => globalFilter.value.trim() !== '')
+const hasActiveFilters = computed(
+  () => hasSearch.value || filtersCtl.activeCount.value > 0 || activeTab.value !== 'all',
+)
+// Counts describe the tenant's sales: with none yet, while loading, or after a failed load there is nothing to count.
+const showTabCounts = computed(
+  () => !isLoading.value && !isError.value && (totalCount.value > 0 || hasActiveFilters.value),
+)
+const activeFilterCount = computed(
+  () => filtersCtl.activeCount.value + (activeTab.value !== 'all' ? 1 : 0),
+)
+// With a search term the table names it (`Ningún resultado para «…»`); this covers filters only.
+const noMatchTitle = 'Ninguna venta con estos filtros'
+const emptyState = computed(() => ({
+  title: 'Aún no hay ventas',
+  description: 'Las ventas confirmadas aparecen aquí.',
+  actionLabel: canCreateSale.value ? 'Nueva venta' : undefined,
+  actionIcon: canCreateSale.value ? 'i-lucide-plus' : undefined,
+}))
+
+function clearFilters() {
+  filtersCtl.clearAll()
+  globalFilter.value = ''
+  onTabChange({})
+}
+
 watch(() => filtersCtl.serializedState.value, () => {
   pagination.value = { ...pagination.value, pageIndex: 0 }
 })
@@ -163,7 +197,6 @@ watch(() => filtersCtl.serializedState.value, () => {
     <template v-if="canReadSales">
       <div class="hf-page-header">
         <h1 class="hf-page-title">Ventas</h1>
-        <p class="hf-page-subtitle">Listado de ventas confirmadas</p>
       </div>
     </template>
 
@@ -192,19 +225,26 @@ watch(() => filtersCtl.serializedState.value, () => {
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
           :enable-row-selection="false"
-          :display-mode="displayMode"
           :show-add-button="canCreateSale"
-          add-button-text="Nueva Venta"
+          :row-open="openSale"
+          :filtered="hasActiveFilters"
+          :no-match-title="noMatchTitle"
+          :empty-state="emptyState"
+          :active-filter-count="activeFilterCount"
+          add-button-text="Nueva venta"
           add-button-test-id="toolbar-add-button"
           enable-column-visibility
           search-placeholder="Buscar ventas..."
           empty="No hay ventas todavía"
+          display-mode="auto"
+          mobile-render="cards"
           class="hf-data-table"
           portal-class="hf-theme hf-ui sales-list-portal"
           pagination-portal-class="hf-theme hf-ui sales-list-portal"
           @add="goToNewSale"
+          @empty-action="goToNewSale"
           @refresh="refresh"
-          @clear-filters="filtersCtl.clearAll()"
+          @clear-filters="clearFilters"
         >
           <template #filters>
             <!-- Three regions (filter · segment · sort) separated by vertical
@@ -230,7 +270,7 @@ watch(() => filtersCtl.serializedState.value, () => {
 
               <!-- Region 2 — segment (delivery-status quick tabs). -->
               <div class="overflow-x-auto">
-                <SalesListTabs :counts="counts" @change="setTabFilter" />
+                <SalesListTabs :counts="counts" :active="activeTab" :show-counts="showTabCounts" @change="onTabChange" />
               </div>
 
               <div class="hidden h-5 w-px shrink-0 bg-default md:block" aria-hidden="true" />
@@ -249,23 +289,6 @@ watch(() => filtersCtl.serializedState.value, () => {
             </div>
           </template>
 
-          <template #actions>
-            <ViewToggle
-              v-model="viewMode"
-              class="sales-view-toggle"
-              aria-label="Seleccionar vista de ventas"
-            />
-          </template>
-
-          <template #cards="{ data, loading, empty }">
-            <SaleCardGrid
-              :sales="data"
-              :loading="loading"
-              :empty="empty"
-              @card-click="(sale) => goToSaleDetail(sale.id)"
-            />
-          </template>
-
           <!-- Sortable headers — only the columns the backend accepts as
                sortBy (confirmedAt / totalCents / createdAt) get a live sort
                control; the USelect shortcut above writes into the same
@@ -279,29 +302,29 @@ watch(() => filtersCtl.serializedState.value, () => {
           </template>
 
           <template #venta-cell="{ row }">
-            <UButton
-              variant="link"
-              color="primary"
+            <button
+              type="button"
+              class="hf-row-primary sale-row-link"
               :data-testid="`sale-link-${row.original.id}`"
-              class="text-coco-gold-800 dark:text-coco-gold-400 font-medium hover:underline"
-              @click="goToSaleDetail(row.original.id)"
+              @click="openSale(row.original)"
             >
               {{ folioDisplay(row.original.folio) }}
-            </UButton>
-          </template>
-
-          <template #confirmedAt-cell="{ row }">
-            {{ confirmedAtDisplay(row.original.confirmedAt) }}
+            </button>
           </template>
 
           <template #customer-cell="{ row }">
-            {{ row.original.customer?.name ?? 'Público en General' }}
+            <span class="sale-customer" data-testid="sale-customer">{{ customerDisplay(row.original) }}</span>
+          </template>
+
+          <template #confirmedAt-cell="{ row }">
+            <span class="sale-when">{{ saleWhen(row.original) }}</span>
           </template>
 
           <template #paymentStatus-cell="{ row }">
-            <StatusDotBadge
-              :tone="paymentStatusBadgeCell(row.original.paymentStatus).color"
-              :label="paymentStatusBadgeCell(row.original.paymentStatus).label"
+            <StatusBadge
+              data-testid="sale-payment-status"
+              v-bind="paymentBadge(row.original)"
+              aria-prefix="Pago:"
             />
           </template>
 
@@ -313,21 +336,27 @@ watch(() => filtersCtl.serializedState.value, () => {
           </template>
 
           <template #totalCents-cell="{ row }">
-            <span class="sales-total-value">{{ formatCentsMXN(row.original.totalCents) }}</span>
+            <span class="hf-figure sale-total block text-right">{{ formatCentsMXN(row.original.totalCents) }}</span>
           </template>
 
           <template #debtCents-cell="{ row }">
-            {{ row.original.debtCents > 0 ? formatCentsMXN(row.original.debtCents) : '—' }}
+            <span
+              v-if="row.original.debtCents > 0"
+              class="hf-figure sale-debt block text-right"
+              data-testid="sale-debt"
+            >{{ formatCentsMXN(row.original.debtCents) }}</span>
+            <span v-else class="hf-figure block text-right">—</span>
           </template>
 
           <template #dueDate-cell="{ row }">
-            {{ row.original.dueDate ? formatSaleDueDate(row.original.dueDate) : '—' }}
+            <span class="sale-when">{{ row.original.dueDate ? formatSaleDueDate(row.original.dueDate) : '—' }}</span>
           </template>
 
           <template #deliveryStatus-cell="{ row }">
-            <StatusDotBadge
-              :tone="getDeliveryStatusBadge(row.original.deliveryStatus).color"
-              :label="getDeliveryStatusBadge(row.original.deliveryStatus).label"
+            <StatusBadge
+              data-testid="sale-delivery-status"
+              v-bind="deliveryBadge(row.original)"
+              aria-prefix="Productos:"
             />
           </template>
 
@@ -339,17 +368,71 @@ watch(() => filtersCtl.serializedState.value, () => {
             {{ row.original.seller?.name ?? '' }}
           </template>
 
-          <template #channel-cell>Punto de Venta</template>
+          <template #channel-cell>Punto de venta</template>
           <template #invoice-cell></template>
+
+          <template #mobile-card="{ row }">
+            <article class="sale-card" data-testid="sale-card" v-bind="rowProps(row)">
+              <div class="sale-card-head">
+                <button
+                  type="button"
+                  class="hf-row-primary sale-row-link"
+                  :data-testid="`sale-link-${row.id}`"
+                  @click="openSale(row)"
+                >
+                  {{ folioDisplay(row.folio) }}
+                </button>
+              </div>
+              <span class="hf-row-secondary" data-testid="sale-customer">{{ customerDisplay(row) }}</span>
+              <div class="sale-card-meta">
+                <StatusBadge v-bind="paymentBadge(row)" aria-prefix="Pago:" />
+                <StatusBadge v-bind="deliveryBadge(row)" aria-prefix="Productos:" />
+                <PaymentMethodPills
+                  v-if="row.paymentMethods.length > 0"
+                  :methods="row.paymentMethods"
+                  compact
+                  portal-class="hf-theme hf-ui sales-list-portal"
+                />
+              </div>
+              <p v-if="row.debtCents > 0" class="sale-card-debt" data-testid="sale-card-debt">
+                Deuda <span class="hf-figure">{{ formatCentsMXN(row.debtCents) }}</span>
+                <template v-if="row.dueDate">
+                  · <span data-testid="sale-card-due-date">Vence {{ formatSaleDueDate(row.dueDate) }}</span>
+                </template>
+              </p>
+              <div class="sale-card-footer">
+                <span class="hf-figure sale-total">{{ formatCentsMXN(row.totalCents) }}</span>
+                <span>{{ saleWhen(row) }}</span>
+              </div>
+            </article>
+          </template>
         </AppDataTable>
       </div>
     </UCard>
 
-    <UAlert
+    <EmptyState
       v-else
-      color="error"
-      variant="soft"
-      title="No tienes permisos para ver ventas"
+      kind="forbidden"
+      title="Tu rol no puede ver las ventas"
+      description="Pide acceso a quien administra tu cuenta."
     />
   </div>
 </template>
+
+<style scoped>
+.sale-customer { display: block; max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sale-row-link { padding: 0; border: 0; background: none; text-align: left; font-size: 14px; cursor: pointer; }
+.sale-row-link:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; border-radius: 4px; }
+.sale-when { color: var(--hf-muted); white-space: nowrap; }
+.sale-total { font-weight: 600; color: var(--hf-heading); }
+.sale-debt { color: var(--hf-warning); font-weight: 600; }
+.sale-card { position: relative; min-width: 0; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); padding: 16px; }
+.sale-card-head { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
+.sale-card-head .sale-row-link { flex: 1; min-width: 0; padding-top: 2px; font-size: 15px; line-height: 1.4; }
+.sale-card .hf-row-secondary { padding-right: 8px; }
+.sale-card-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.sale-card-debt { margin-top: 10px; color: var(--hf-warning); font-size: 13px; font-weight: 600; }
+.sale-card-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hf-border); color: var(--hf-muted); font-size: 13px; }
+.sale-card-footer .sale-total { color: var(--hf-heading); font-size: 14px; }
+:deep(td[data-slot='td']) { height: 64px; padding-block: 10px; vertical-align: middle; }
+</style>

@@ -178,6 +178,21 @@ describe('TransferDeliveryRouteStopModal — destination selection', () => {
     expect(wrapper.find('[data-testid="transfer-destination-route-B"]').exists()).toBe(true)
   })
 
+  it('labels each destination by its day and driver, never by its id', async () => {
+    destinationsData.value = [
+      makeRoute({ id: 'route-A' }),
+      makeRoute({
+        id: 'route-B',
+        timeline: [{ type: 'ROUTE_CREATED', at: '2026-10-13T15:00:00', actor: null }],
+      }),
+    ]
+    const wrapper = mountModal()
+    await flushPromises()
+    const label = wrapper.get('[data-testid="transfer-destination-route-B"]').text()
+    expect(label).toContain('Ana · Ruta del 13 oct')
+    expect(label).not.toContain('route-B')
+  })
+
   it('renders the dialog with the Spanish transfer title', async () => {
     const wrapper = mountModal()
     await flushPromises()
@@ -615,6 +630,19 @@ describe('TransferDeliveryRouteStopModal — accessibility (verifier correction 
     const wrapper = mountModal()
     await flushPromises()
     expect(wrapper.find('[data-testid="transfer-destinations-error"]').attributes('role')).toBe('alert')
+  })
+
+  it('shows the destination-list failure through the shared error state with Reintentar', async () => {
+    destinationsIsError.value = true
+    destinationsErrorRef.value = { response: { status: 500, data: { message: 'boom' } } }
+    const wrapper = mountModal()
+    await flushPromises()
+    const state = wrapper.get('[data-testid="transfer-destinations-error"]')
+    expect(state.classes()).toContain('hf-empty-state')
+    expect(state.attributes('data-kind')).toBe('error')
+    expect(wrapper.get('[data-testid="transfer-destinations-retry"]').text()).toBe(
+      DELIVERY_ROUTE_COPY.transfer.retry,
+    )
   })
 })
 

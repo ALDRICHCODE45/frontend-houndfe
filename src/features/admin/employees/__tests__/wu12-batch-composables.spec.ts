@@ -287,6 +287,12 @@ describe('useBatchTerminateEmployee — same dispatch (Task 2.5/2.6)', () => {
     expect(successToast?.title).toContain('dados de baja')
   })
 
+  it('agrees the toast with one collaborator ("1 colaborador dado de baja")', () => {
+    useBatchTerminateEmployee()
+    getLatestMutationConfig()!.onSuccess!({ updated: 1 }, { ids: ['a'], reason: 'Reorg' })
+    expect(toastCalls.find((t) => t.color === 'success')?.title).toBe('1 colaborador dado de baja')
+  })
+
   it('404 BATCH_DELETE_NOT_FOUND → warning toast', () => {
     useBatchTerminateEmployee()
     const config = getLatestMutationConfig()

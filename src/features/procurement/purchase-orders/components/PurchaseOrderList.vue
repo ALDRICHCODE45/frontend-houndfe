@@ -9,11 +9,17 @@ import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { TableColumn } from '@/core/shared/types/table.types'
 import type { PurchaseOrderSummary } from '../interfaces/purchase-order.types'
 import { avisoLabel, orderRowActions, orderRowLabel, orderTotals, statusLabels, statusTones, type OrderRowActionKey } from '../utils/order-presentation'
-const props = defineProps<{ items: readonly PurchaseOrderSummary[]; canEdit: boolean; canDelete: boolean; canConfirm?: boolean; canCancel?: boolean; loading?: boolean; fetching?: boolean; error?: boolean; disabled?: boolean; activeFilterCount?: number }>()
+const props = defineProps<{ items: readonly PurchaseOrderSummary[]; canEdit: boolean; canDelete: boolean; canCreate?: boolean; filtered?: boolean; canConfirm?: boolean; canCancel?: boolean; loading?: boolean; fetching?: boolean; error?: boolean; disabled?: boolean; activeFilterCount?: number }>()
 // `origin` is the row's primary button: the element focus returns to when the order it opened is closed.
-const emit = defineEmits<{ open: [order: PurchaseOrderSummary, origin: HTMLElement | null]; confirm: [order: PurchaseOrderSummary, origin: HTMLElement | null]; cancel: [order: PurchaseOrderSummary, origin: HTMLElement | null]; discard: [order: PurchaseOrderSummary]; refresh: []; 'clear-filters': [] }>()
+const emit = defineEmits<{ open: [order: PurchaseOrderSummary, origin: HTMLElement | null]; confirm: [order: PurchaseOrderSummary, origin: HTMLElement | null]; cancel: [order: PurchaseOrderSummary, origin: HTMLElement | null]; discard: [order: PurchaseOrderSummary]; refresh: []; create: []; 'clear-filters': [] }>()
 const search = defineModel<string>('search', { default: '' })
 const data = computed(() => [...props.items])
+// "Nada todavía" vs "sin resultados": the table picks by `filtered`; the create action only shows with permission.
+const emptyState = computed(() => ({
+  title: 'Aún no hay órdenes de compra',
+  description: 'Las órdenes que registres aparecerán aquí.',
+  ...(props.canCreate ? { actionLabel: 'Nueva orden' } : {}),
+}))
 const right = { class: { th: 'text-right', td: 'text-right' } }
 const columns: TableColumn<PurchaseOrderSummary, unknown>[] = [
   { id: 'supplier', header: 'Proveedor', enableSorting: false },
@@ -52,9 +58,10 @@ const lines = (count: number) => `${count} ${count === 1 ? 'renglón' : 'renglon
     </DataTableToolbar>
     <div class="order-table">
       <AppDataTable :show-toolbar="false" :row-open="open" :columns="columns" :data="data" :loading="loading" :fetching="fetching" :error="error"
-        error-message="No se pudieron cargar las órdenes. Puedes volver a actualizar."
-        empty="No hay órdenes de compra." display-mode="auto" mobile-render="cards"
-        class="hf-data-table" @refresh="emit('refresh')">
+        error-message="No se pudieron cargar las órdenes"
+        :empty-state="emptyState" :filtered="filtered" no-match-title="Ninguna orden con estos filtros" :global-filter="search"
+        display-mode="auto" mobile-render="cards"
+        class="hf-data-table" @refresh="emit('refresh')" @empty-action="emit('create')" @clear-filters="emit('clear-filters')">
         <template #supplier-cell="{ row }">
           <div class="order-supplier">
             <span class="order-supplier-line">
@@ -67,7 +74,7 @@ const lines = (count: number) => `${count} ${count === 1 ? 'renglón' : 'renglon
         <template #status-cell="{ row }">
           <div class="order-status-cell">
             <StatusBadge data-testid="order-status" v-bind="statusOf(row.original)" />
-            <span v-if="row.original.issueCount > 0" data-testid="order-aviso" class="order-aviso"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />{{ avisoLabel(row.original.issueCount) }}</span>
+            <span v-if="row.original.issueCount > 0" data-testid="order-aviso" class="order-aviso"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />{{ avisoLabel }}</span>
           </div>
         </template>
         <template #total-cell="{ row }">
@@ -93,7 +100,7 @@ const lines = (count: number) => `${count} ${count === 1 ? 'renglón' : 'renglon
             <div class="order-card-meta">
               <StatusBadge v-if="row.supplierDisplaySnapshot?.status === 'ARCHIVED'" label="Archivado" tone="neutral" aria-prefix="Proveedor:" />
               <StatusBadge data-testid="order-status" v-bind="statusOf(row)" />
-              <span v-if="row.issueCount > 0" data-testid="order-aviso" class="order-aviso"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />{{ avisoLabel(row.issueCount) }}</span>
+              <span v-if="row.issueCount > 0" data-testid="order-aviso" class="order-aviso"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />{{ avisoLabel }}</span>
             </div>
             <div class="order-card-footer">
               <span class="order-card-summary">{{ lines(row.lineCount) }} ·

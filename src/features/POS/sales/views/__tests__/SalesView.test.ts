@@ -5,8 +5,14 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import type { Sale } from '../../interfaces/sale.types'
 import SalesView from '../SalesView.vue'
 
-const addToast = vi.fn()
+const addToast = vi.hoisted(() => vi.fn())
 vi.stubGlobal('useToast', () => ({ add: addToast }))
+// SalesView resolves useToast from Nuxt UI, so the global stub alone never sees
+// its toasts: route the module through the same spy to assert them.
+vi.mock('@nuxt/ui/composables/useToast', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@nuxt/ui/composables/useToast')>()
+  return { ...actual, useToast: () => ({ ...actual.useToast(), add: addToast }) }
+})
 
 const invalidateQueries = vi.fn()
 vi.mock('@tanstack/vue-query', async () => {
@@ -67,6 +73,8 @@ const removeManualPromotionMock = vi.fn()
 const setPriceListMock = vi.fn()
 const activeTabId = ref<string | null>('sale-1')
 const isMutating = ref(false)
+const isLoadingList = ref(false)
+const isListError = ref(false)
 const drafts = ref<Sale[]>([
   {
     id: 'sale-1',
@@ -94,7 +102,8 @@ vi.mock('../../composables/useSalesDrafts', () => ({
     drafts: computed(() => drafts.value),
     activeDraft: computed(() => drafts.value.find((d) => d.id === activeTabId.value) ?? null),
     activeTabId,
-    isLoadingList: ref(false),
+    isLoadingList,
+    isListError,
     isMutating,
     openNewTab: openNewTabMock,
     closeTab: vi.fn(),
@@ -319,12 +328,25 @@ function mountView() {
   })
 }
 
+const chargeableItem: Sale['items'][number] = {
+  id: 'item-1',
+  productId: 'prod-1',
+  variantId: null,
+  productName: 'A',
+  variantName: null,
+  quantity: 1,
+  unitPriceCents: 10000,
+  unitPriceCurrency: 'MXN',
+}
+
 describe('SalesView charge orchestration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     drafts.value = [{ ...drafts.value[0]!, items: [...drafts.value[0]!.items] }]
     activeTabId.value = 'sale-1'
     isMutating.value = false
+    isLoadingList.value = false
+    isListError.value = false
     unassignCustomerMock.mockReset()
     clearShippingAddressMock.mockReset()
     vetoAutoPromotionMock.mockReset()
@@ -544,6 +566,74 @@ describe('SalesView charge orchestration', () => {
     await vi.waitFor(() => {
       expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sales', 'tenant-1', 'drafts'] })
     })
+  })
+
+  // O1 S7: 409 STOCK_INSUFFICIENT_AT_CONFIRM — "Stock insuficiente" and the
+  // cart availability is reloaded; nothing is retried by itself.
+  it('STOCK_INSUFFICIENT_AT_CONFIRM: error toast by code, closes the payment modal, reloads the drafts once', async () => {
+    chargeDraft.mockRejectedValueOnce({
+      response: {
+        status: 409,
+        data: {
+          statusCode: 409,
+          error: 'STOCK_INSUFFICIENT_AT_CONFIRM',
+          message: 'Insufficient stock for product X. Available: 2, Requested: 3',
+        },
+      },
+    })
+    // Earlier specs leave the shared draft without items, which blocks opening the modal.
+    drafts.value = [{ ...drafts.value[0]!, items: [chargeableItem], totalCents: 10000 }]
+    const wrapper = mountView()
+
+    await wrapper.get('[data-testid="charge-click"]').trigger('click')
+    expect(wrapper.get('[data-testid="payment-modal-open"]').text()).toBe('true')
+    addToast.mockClear()
+    await wrapper.get('[data-testid="submit-charge"]').trigger('click')
+
+    await vi.waitFor(() => expect(addToast).toHaveBeenCalledTimes(1))
+    expect(addToast).toHaveBeenCalledWith({
+      title: 'Error',
+      description: 'No hay stock suficiente para confirmar. Recalculamos la venta.',
+      color: 'error',
+    })
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sales', 'tenant-1', 'drafts'] })
+    expect(wrapper.get('[data-testid="payment-modal-open"]').text()).toBe('false')
+    expect(wrapper.get('[data-testid="external-error"]').text()).toBe('')
+    expect(chargeDraft).toHaveBeenCalledTimes(1)
+  })
+
+  // O1 S7: 422 SALE_STOCK_UNAVAILABLE — an unexpected server fault. Generic
+  // copy (never the server wording), no inline error, no reload, no retry.
+  it('SALE_STOCK_UNAVAILABLE: generic error toast, no retry, no inline error, nothing reloaded', async () => {
+    chargeDraft.mockRejectedValueOnce({
+      response: {
+        status: 422,
+        data: {
+          statusCode: 422,
+          error: 'SALE_STOCK_UNAVAILABLE',
+          message: 'Stock journal is not available',
+        },
+      },
+    })
+    // Earlier specs leave the shared draft without items, which blocks opening the modal.
+    drafts.value = [{ ...drafts.value[0]!, items: [chargeableItem], totalCents: 10000 }]
+    const wrapper = mountView()
+
+    await wrapper.get('[data-testid="charge-click"]').trigger('click')
+    addToast.mockClear()
+    invalidateQueries.mockClear()
+    await wrapper.get('[data-testid="submit-charge"]').trigger('click')
+
+    await vi.waitFor(() => expect(addToast).toHaveBeenCalledTimes(1))
+    expect(addToast).toHaveBeenCalledWith({
+      title: 'Error',
+      description: 'No se pudo cobrar la venta. Avisa a soporte: reintentar no lo resuelve.',
+      color: 'error',
+    })
+    expect(JSON.stringify(addToast.mock.calls)).not.toContain('Stock journal')
+    expect(wrapper.get('[data-testid="external-error"]').text()).toBe('')
+    expect(invalidateQueries).not.toHaveBeenCalled()
+    expect(chargeDraft).toHaveBeenCalledTimes(1)
   })
 
   it('keeps payment flow disabled while mutation is pending (S31)', async () => {
@@ -1398,7 +1488,7 @@ describe('SalesView S5A — catalog charge error dispatch (REQ-CAT-007..011)', (
 
     await vi.waitFor(() => {
       expect(wrapper.get('[data-testid="external-error"]').text()).toContain(
-        'Agregá un pago en efectivo o ajustá los montos para cubrir el total',
+        'Agrega un pago en efectivo o ajusta los montos para cubrir el total',
       )
     })
     expect(legacyErrorDispatch).toHaveBeenCalledWith('PAYMENT_AMOUNT_INSUFFICIENT')
@@ -1415,7 +1505,7 @@ describe('SalesView S5A — catalog charge error dispatch (REQ-CAT-007..011)', (
     await vi.waitFor(() => {
       expect(
         addCalls.some(
-          (c) => c.title === 'Error' && c.description === 'No se pudo cobrar la venta. Reintenta.',
+          (c) => c.title === 'Error' && c.description === 'No se pudo cobrar la venta.',
         ),
       ).toBe(true)
     })
@@ -1571,10 +1661,10 @@ describe('SalesView work units B+C — mobile cart CTA, payment sequencing, shee
 
     const fab = wrapper.get('[data-testid="mobile-cart-fab"]')
     const classes = fab.classes()
-    // Touch target + explicit white-on-primary + near-full-width + safe area.
+    // Touch target + action-foreground-on-primary + near-full-width + safe area.
     expect(classes).toContain('min-h-[48px]')
     expect(classes).toContain('bg-primary')
-    expect(classes).toContain('text-white')
+    expect(classes).toContain('text-(--hf-on-action)')
     expect(classes).not.toContain('text-primary-contrast')
     expect(classes).toContain('left-3')
     expect(classes).toContain('right-3')
@@ -1909,5 +1999,50 @@ describe('SalesView T6 — explicit Caja session binding pass-through', () => {
 
     expect(chargeDraft).toHaveBeenCalledTimes(1)
     expect(chargeDraft.mock.calls[0]?.[1]).toMatchObject({ cashSessionId: BOUND_UUID })
+  })
+})
+
+describe('SalesView four states (S10)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    isLoadingList.value = false
+    isListError.value = false
+    activeTabId.value = 'sale-1'
+  })
+
+  it('loading: shows the page skeleton and neither the workspace nor a state message', () => {
+    isLoadingList.value = true
+    const wrapper = mountView()
+
+    const skeleton = wrapper.get('[data-testid="sales-loading-skeleton"]')
+    expect(skeleton.attributes('aria-busy')).toBe('true')
+    expect(wrapper.find('.sales-entry-page').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="sales-error-state"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('error: shows the error state with Reintentar that rereads the drafts', async () => {
+    isListError.value = true
+    const saved = drafts.value
+    drafts.value = []
+    const wrapper = mountView()
+
+    const state = wrapper.get('[data-testid="sales-error-state"]')
+    expect(state.attributes('role')).toBe('alert')
+    expect(state.text()).toContain('No se pudo cargar la venta')
+    expect(wrapper.find('.sales-entry-page').exists()).toBe(false)
+    await wrapper.get('[data-testid="sales-error-retry"]').trigger('click')
+    expect(refetchDraftsMock).toHaveBeenCalledTimes(1)
+    drafts.value = saved
+    wrapper.unmount()
+  })
+
+  it('data: shows the workspace with no state chrome', () => {
+    const wrapper = mountView()
+
+    expect(wrapper.find('.sales-entry-page').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="sales-loading-skeleton"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="sales-error-state"]').exists()).toBe(false)
+    wrapper.unmount()
   })
 })

@@ -362,7 +362,7 @@ describe('useDebtPayment S5A — catalog charge error dispatch (REQ-CAT-007..011
     })
     vi.mocked(getSalePaymentErrorAction).mockReturnValueOnce({
       type: 'inline',
-      message: 'Agregá un pago en efectivo o ajustá los montos para cubrir el total',
+      message: 'Agrega un pago en efectivo o ajusta los montos para cubrir el total',
     })
 
     const composable = mountComposable()
@@ -374,7 +374,7 @@ describe('useDebtPayment S5A — catalog charge error dispatch (REQ-CAT-007..011
     expect(getSalePaymentErrorAction).toHaveBeenCalledWith('PAYMENT_AMOUNT_INSUFFICIENT')
     expect(addToast).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: 'Agregá un pago en efectivo o ajustá los montos para cubrir el total',
+        title: 'Agrega un pago en efectivo o ajusta los montos para cubrir el total',
         color: 'error',
       }),
     )

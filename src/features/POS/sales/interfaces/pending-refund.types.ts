@@ -29,7 +29,7 @@ import { z } from 'zod'
  */
 
 /** Every tender method the backend can attach to a refund obligation. */
-export const PENDING_REFUND_METHODS = [
+const PENDING_REFUND_METHODS = [
   'cash',
   'card_credit',
   'card_debit',
@@ -41,7 +41,7 @@ export const PENDING_REFUND_METHODS = [
 export type PendingRefundMethod = (typeof PENDING_REFUND_METHODS)[number]
 
 /** Every cancellation reason that can originate a refund obligation. */
-export const PENDING_REFUND_REASONS = [
+const PENDING_REFUND_REASONS = [
   'CUSTOMER_REQUEST',
   'ORDER_ERROR',
   'OUT_OF_STOCK',
@@ -53,10 +53,10 @@ export const PENDING_REFUND_REASONS = [
 export type PendingRefundReason = (typeof PENDING_REFUND_REASONS)[number]
 
 /** The only status this endpoint returns; the backend filters on it. */
-export const PENDING_REFUND_STATUS = 'PENDING' as const
+const PENDING_REFUND_STATUS = 'PENDING' as const
 
 /** Literal type derived from the constant. */
-export type PendingRefundStatus = typeof PENDING_REFUND_STATUS
+type PendingRefundStatus = typeof PENDING_REFUND_STATUS
 
 /**
  * Query contract: exactly the two URI pagination fields. `page` is 1-based and
@@ -93,7 +93,7 @@ export interface PendingRefundRow {
 }
 
 /** Pagination envelope matched one-to-one with the neighboring sales list. */
-export interface PendingRefundsPagination {
+interface PendingRefundsPagination {
   page: number
   limit: number
   total: number

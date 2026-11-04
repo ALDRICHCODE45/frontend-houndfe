@@ -1,34 +1,23 @@
 <script setup lang="ts">
 /**
- * EntityAvatar — Shared avatar with initials, deterministic color hash, and optional status dot.
+ * EntityAvatar — Shared initials avatar for people, with an optional status dot.
  *
- * Extracts the initials + palette-hashing pattern from EmployeesListView and
- * EmployeeCard into a single shared source of truth. The color is derived from
- * the `seed` string (typically an entity ID) so the same entity always gets the
- * same color without storing anything.
+ * Neutral by design (Record avatars rule): `--hf-surface-muted` with
+ * `--hf-heading` initials, never a per-person palette color.
  *
  * Props:
  *   name     — full name; first two words provide the 2-letter initials
- *   seed     — any stable string (e.g. entity ID) used to pick the palette color
- *   showDot  — render a status dot overlay in the bottom-right corner (default: false)
- *   dotClass — Tailwind bg color class for the dot (default: 'bg-emerald-500')
  *   size     — 'sm' (28px) | 'md' (32px, default) | 'lg' (48px)
  */
 
 import { computed } from 'vue'
-import { AVATAR_PALETTE } from '@/app/constants/avatarPalette'
 
 const props = withDefaults(
   defineProps<{
     name: string
-    seed: string
-    showDot?: boolean
-    dotClass?: string
     size?: 'sm' | 'md' | 'lg'
   }>(),
   {
-    showDot: false,
-    dotClass: 'bg-emerald-500',
     size: 'md',
   },
 )
@@ -44,12 +33,6 @@ const initials = computed<string>(() => {
   )
 })
 
-// Deterministic color from seed string — same algorithm as the original helpers.
-const avatarClass = computed<string>(() => {
-  const hash = props.seed.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)
-  return AVATAR_PALETTE[hash % AVATAR_PALETTE.length] ?? AVATAR_PALETTE[0]!
-})
-
 const sizeClass = computed<string>(() => {
   switch (props.size) {
     case 'sm':
@@ -60,25 +43,25 @@ const sizeClass = computed<string>(() => {
       return 'size-8 text-xs'
   }
 })
-
-// Dot size mirrors the original: cards use size-3 (lg avatar), table uses size-2.5 (sm/md).
-const dotSizeClass = computed<string>(() => (props.size === 'lg' ? 'size-3' : 'size-2.5'))
 </script>
 
 <template>
-  <div class="relative shrink-0">
+  <div class="shrink-0">
     <div
-      class="flex items-center justify-center rounded-full font-semibold shadow-sm"
-      :class="[sizeClass, avatarClass]"
+      class="hf-entity-avatar flex items-center justify-center rounded-full font-semibold"
+      :class="sizeClass"
       :aria-label="name"
+      data-testid="entity-avatar"
     >
       {{ initials }}
     </div>
-    <span
-      v-if="showDot"
-      class="absolute -bottom-0.5 -right-0.5 rounded-full border-2 border-default"
-      :class="[dotClass, dotSizeClass]"
-      aria-label="Activo"
-    />
   </div>
 </template>
+
+<style scoped>
+.hf-entity-avatar {
+  background: var(--hf-surface-muted);
+  color: var(--hf-heading);
+  box-shadow: inset 0 0 0 1px var(--hf-border);
+}
+</style>

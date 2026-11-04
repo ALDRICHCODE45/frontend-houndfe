@@ -3,16 +3,19 @@ import { computed, ref } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
-import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
-import ViewToggle from '@/core/shared/components/ViewToggle.vue'
-import { activityToBadgeTone } from '@/core/shared/utils/badge.utils'
+import RowActionsMenu from '@/core/shared/components/RowActionsMenu.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import {
+  PAYMENT_METHOD_CATEGORY_LABELS,
+  type PaymentMethodCategory,
+} from '@/core/shared/constants/payment-method-category'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { paymentMethodsApi } from '../api/payment-methods.api'
 import { adminPaymentMethodQueryKeys } from '@/core/shared/constants/query-keys'
 import { usePaymentMethodsTable } from '../composables/usePaymentMethodsTable'
 import { usePaymentMethodColumns } from '../composables/usePaymentMethodColumns'
-import { usePaymentMethodViewMode, isPaymentMethodViewMode } from '../composables/usePaymentMethodViewMode'
 import {
   extractPaymentMethodErrorCode,
   PAYMENT_METHOD_ERROR_MAP,
@@ -28,7 +31,8 @@ import {
   buildPaymentMethodRowActions,
 } from '../utils/payment-method-actions.utils'
 import PaymentMethodUpsertSlideover from '../components/PaymentMethodUpsertSlideover.vue'
-import PaymentMethodCardGrid from '../components/PaymentMethodCardGrid.vue'
+import AdminMobileCard from '../../shared/components/AdminMobileCard.vue'
+import { noMatchTitleFor } from '../../shared/utils/list-state.utils'
 import '../styles/payment-methods-visual.css'
 
 /**
@@ -57,12 +61,6 @@ const authStore = useAuthStore()
 const tenantId = computed(() => authStore.currentTenantId)
 
 const { columns } = usePaymentMethodColumns()
-const { viewMode, setMode: setViewMode, displayMode } = usePaymentMethodViewMode()
-
-function handleViewModeChange(mode: string) {
-  if (!isPaymentMethodViewMode(mode)) return
-  setViewMode(mode)
-}
 
 // Single-source wrapper. All of these refs auto-unwrap in the template because
 // they are destructured at the top level of <script setup>.
@@ -70,15 +68,12 @@ const {
   pagination,
   sorting,
   globalFilter,
-  columnPinning,
-  columnVisibility,
   data,
   totalCount,
   pageCount,
   isLoading,
   isFetching,
   isError,
-  error,
   refresh,
   pageSizeOptions,
   showingFrom,
@@ -89,14 +84,9 @@ const {
 const canCreatePaymentMethod = computed(() => authStore.userCan('create', 'PaymentMethod'))
 const canUpdatePaymentMethod = computed(() => authStore.userCan('update', 'PaymentMethod'))
 const canDeletePaymentMethod = computed(() => authStore.userCan('delete', 'PaymentMethod'))
-const canManagePaymentMethodActions = computed(
-  () => canUpdatePaymentMethod.value || canDeletePaymentMethod.value,
-)
 
-// ── Human-readable list error (block, not toast) ──────────────────────────────
-const paymentMethodsErrorMessage = computed(() =>
-  normalizeApiError(error.value, 'No se pudieron cargar los métodos de cobro. Reintenta.').message,
-)
+// ── List error title (a human sentence, never the server message) ─────────────
+const paymentMethodsErrorMessage = 'No se pudieron cargar los métodos de cobro'
 
 // ── Toast provider (Nuxt UI auto-imports `useToast`) ───────────────────────────
 declare const useToast: () => {
@@ -192,10 +182,6 @@ function openEdit(row: PaymentMethodTableRow) {
   isEditOpen.value = true
 }
 
-function handleCardClick(row: PaymentMethodTableRow) {
-  openEdit(row)
-}
-
 function handleDelete(row: PaymentMethodTableRow) {
   if (!canDeletePaymentMethod.value) return
   const description = buildPaymentMethodDeactivateDescription(row, [])
@@ -204,32 +190,36 @@ function handleDelete(row: PaymentMethodTableRow) {
   })
 }
 
-const dateFormatter = new Intl.DateTimeFormat('es-AR', {
-  day: '2-digit',
-  month: 'short',
-  year: 'numeric',
-})
-
-function paymentMethodCategoryLabel(category: string): string {
-  // Inline label map mirror — the canonical map lives in
-  // `@/core/shared/constants/payment-method-category` and is also imported
-  // by the slideover. This keeps the view self-contained.
-  const labels: Record<string, string> = {
-    cash: 'Efectivo',
-    card_credit: 'Tarjeta de crédito',
-    card_debit: 'Tarjeta de débito',
-    transfer: 'Transferencia',
-  }
-  return labels[category] ?? category
+function categoryLabel(category: string): string {
+  return PAYMENT_METHOD_CATEGORY_LABELS[category as PaymentMethodCategory] ?? category
 }
 
-function getRowItems(row: PaymentMethodTableRow) {
-  return buildPaymentMethodRowActions(row, {
+const rowActions = computed(() =>
+  buildPaymentMethodRowActions({
     canUpdate: canUpdatePaymentMethod.value,
     canDelete: canDeletePaymentMethod.value,
-    onEdit: openEdit,
-    onDelete: handleDelete,
-  })
+  }),
+)
+
+function handleRowAction(key: string, row: PaymentMethodTableRow) {
+  if (key === 'edit') openEdit(row)
+  else if (key === 'delete') handleDelete(row)
+}
+
+const rowOpen = computed(() => (canUpdatePaymentMethod.value ? openEdit : undefined))
+
+const searchTerm = computed(() => globalFilter.value.trim())
+const noMatchTitle = computed(() => noMatchTitleFor(searchTerm.value))
+const emptyState = computed(() => ({
+  title: 'Aún no hay métodos de cobro',
+  description: 'Aquí aparecerán los métodos que agregues.',
+  ...(canCreatePaymentMethod.value
+    ? { actionLabel: 'Crear método', actionIcon: 'i-lucide-credit-card' }
+    : {}),
+}))
+
+function clearFilters() {
+  globalFilter.value = ''
 }
 
 function handleCreateSubmit(payload: CreatePaymentMethodRequest) {
@@ -271,104 +261,124 @@ function handleEditSubmit(payload: UpdatePaymentMethodRequest) {
       @confirm="handleConfirm"
     />
 
-    <!-- Canonical table workspace (design-system §4): heading outside the surface. -->
-    <div class="hf-page-header">
+    <header class="hf-page-header">
       <h1 class="hf-page-title">Métodos de cobro</h1>
-      <p class="hf-page-subtitle">Catálogo personalizado de métodos para recibir pagos en esta sucursal.</p>
-    </div>
+    </header>
 
-    <UCard :ui="{ body: 'p-0 sm:p-0' }" class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm">
-
+    <UCard
+      :ui="{ body: 'p-0 sm:p-0' }"
+      class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm"
+    >
       <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
           v-model:global-filter="globalFilter"
-          v-model:column-pinning="columnPinning"
-          v-model:column-visibility="columnVisibility"
           :columns="columns"
           :data="data"
           :loading="isLoading"
           :fetching="isFetching"
           :error="isError"
           :error-message="paymentMethodsErrorMessage"
+          :empty-state="emptyState"
+          :filtered="searchTerm !== ''"
+          :no-match-title="noMatchTitle"
           :page-count="pageCount"
           :total-count="totalCount"
           :showing-from="showingFrom"
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
-          :display-mode="displayMode"
+          :row-open="rowOpen"
+          display-mode="auto"
+          mobile-render="cards"
           search-placeholder="Buscar métodos..."
           :show-add-button="canCreatePaymentMethod"
           add-button-text="Crear método"
           add-button-icon="i-lucide-credit-card"
-          enable-column-visibility
           empty="No hay métodos de cobro"
           class="hf-data-table"
           portal-class="hf-theme hf-ui payment-methods-list-portal"
           pagination-portal-class="hf-theme hf-ui payment-methods-list-portal"
           @add="isCreateOpen = true"
+          @empty-action="isCreateOpen = true"
+          @clear-filters="clearFilters"
           @refresh="refresh"
         >
           <template #name-header="{ column }">
-            <SortableHeader :column="column" label="Nombre" />
+            <SortableHeader :column="column" label="Método" />
+          </template>
+
+          <template #category-header="{ column }">
+            <SortableHeader :column="column" label="Categoría" />
           </template>
 
           <template #name-cell="{ row }">
-            <span class="font-medium">{{ row.original.name }}</span>
-          </template>
-
-          <template #category-cell="{ row }">
-            <span class="text-sm text-muted">{{ paymentMethodCategoryLabel(row.original.category) }}</span>
-          </template>
-
-          <template #subtitle-cell="{ row }">
-            <span class="text-sm text-muted">{{ row.original.subtitle ?? '—' }}</span>
+            <button
+              v-if="canUpdatePaymentMethod"
+              type="button"
+              class="hf-row-primary text-left"
+              data-testid="payment-method-name"
+              @click="openEdit(row.original)"
+            >
+              {{ row.original.name }}
+            </button>
+            <span v-else class="hf-row-primary" data-testid="payment-method-name">{{
+              row.original.name
+            }}</span>
+            <span v-if="row.original.subtitle" class="hf-row-secondary">{{
+              row.original.subtitle
+            }}</span>
           </template>
 
           <template #isActive-cell="{ row }">
-            <StatusDotBadge
-              :tone="activityToBadgeTone(row.original.isActive)"
+            <StatusBadge
               :label="paymentMethodStatusLabel(row.original.isActive)"
+              :tone="row.original.isActive ? 'success' : 'neutral'"
             />
+          </template>
+
+          <template #category-cell="{ row }">
+            <span class="text-sm">{{ categoryLabel(row.original.category) }}</span>
           </template>
 
           <template #updatedAt-cell="{ row }">
-            <span class="text-sm text-muted">{{ dateFormatter.format(new Date(row.original.updatedAt)) }}</span>
+            <span class="text-sm text-muted">{{ formatShortDateTime(row.original.updatedAt) }}</span>
           </template>
+
+          <template #actions-header><span class="sr-only">Acciones</span></template>
 
           <template #actions-cell="{ row }">
-            <UDropdownMenu
-              v-if="canManagePaymentMethodActions"
-              :items="getRowItems(row.original)"
-              :content="{ align: 'end' }"
-              :ui="{ content: 'hf-theme hf-ui payment-methods-list-portal' }"
+            <RowActionsMenu
+              :actions="rowActions"
+              :row-label="row.original.name"
+              portal-class="payment-methods-list-portal"
+              @select="handleRowAction($event, row.original)"
+            />
+          </template>
+
+          <template #mobile-card="{ row }">
+            <AdminMobileCard
+              :item="row"
+              :label="row.name"
+              :actions="rowActions"
+              :openable="canUpdatePaymentMethod"
+              portal-class="payment-methods-list-portal"
+              test-id="payment-method-card"
+              @open="openEdit"
+              @action="handleRowAction"
             >
-              <UButton
-                icon="i-lucide-ellipsis-vertical"
-                color="neutral"
-                variant="ghost"
-                class="size-7"
-              />
-            </UDropdownMenu>
-          </template>
-
-          <template #actions>
-            <ViewToggle
-              :model-value="viewMode"
-              class="payment-methods-view-toggle"
-              aria-label="Seleccionar vista de métodos de cobro"
-              @update:model-value="handleViewModeChange"
-            />
-          </template>
-
-          <template #cards>
-            <PaymentMethodCardGrid
-              :payment-methods="data"
-              :loading="isLoading || isFetching"
-              empty="No hay métodos de cobro"
-              @card-click="handleCardClick"
-            />
+              <template v-if="row.subtitle" #secondary>{{ row.subtitle }}</template>
+              <template #badges>
+                <StatusBadge
+                  :label="paymentMethodStatusLabel(row.isActive)"
+                  :tone="row.isActive ? 'success' : 'neutral'"
+                />
+              </template>
+              <template #footer>
+                <span class="min-w-0 truncate">{{ categoryLabel(row.category) }}</span>
+                <span class="shrink-0">{{ formatShortDateTime(row.updatedAt) }}</span>
+              </template>
+            </AdminMobileCard>
           </template>
         </AppDataTable>
       </div>

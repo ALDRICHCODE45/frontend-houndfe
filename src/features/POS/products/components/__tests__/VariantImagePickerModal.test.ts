@@ -158,9 +158,7 @@ describe('VariantImagePickerModal', () => {
     await wrapper.vm.$nextTick()
 
     // The dropzone idle base (border-dashed + border-default + bg-default)
-    // is kept per design — only the drag-over branch migrates to coco-gold.
-    // This pin guards the minimal-scope interpretation so a refactor
-    // doesn't accidentally drift the idle state to a different brand color.
+    // is neutral; only the drag-over branch takes the --hf-active role.
     const localDropzone = wrapper.find('[data-dropzone]')
     const dropzone = (localDropzone.exists()
       ? localDropzone.element

@@ -1,51 +1,19 @@
 @import '../../../../core/shared/design-system/houndfe-ui.css';
 
-/* Promotions listing, the route-switched creation/edit workspace, and their
- * teleported menus, selects, popovers and dialogs. Repeat the approved shell palette on owned portals, which
- * cannot inherit shell variables after teleport. This local bridge does not
- * change the shared shell or other modules' contracts. */
+/* Promotions listing, the route-switched creation/edit workspace and their
+ * teleported menus, selects, popovers and dialogs. Colors come from the shared
+ * `--hf-*` roles through `hf-theme hf-ui`; this file declares no palette. Only
+ * the legacy radius aliases are remapped, inside the owned boundaries. */
 .hf-theme.promotions-visual,
 .hf-theme.promotions-workspace,
 .hf-theme.promotions-list-portal,
 .hf-theme.promotions-form-portal {
-  --hf-page: #f3f6fa;
-  --hf-surface: #ffffff;
-  --hf-surface-muted: #eaf0f8;
-  --hf-field: #f3f6fa;
-  --hf-ink: #1e3555;
-  --hf-heading: #1e3555;
-  --hf-muted: #63748b;
-  --hf-border: #dce3ed;
-  --hf-action: #315ce7;
-  --hf-on-action: #ffffff;
-  --hf-active: #315ce7;
-  --hf-active-soft: #e9effd;
-  --hf-focus: #315ce7;
   --radius-sm: 6px;
   --radius-md: var(--hf-radius-control);
   --radius-lg: var(--hf-radius-card);
   --radius-xl: var(--hf-radius-card);
   --radius-2xl: 16px;
   --radius-3xl: 20px;
-}
-
-.dark .hf-theme.promotions-visual,
-.dark .hf-theme.promotions-workspace,
-.dark .hf-theme.promotions-list-portal,
-.dark .hf-theme.promotions-form-portal {
-  --hf-page: #101720;
-  --hf-surface: #1b2736;
-  --hf-surface-muted: #223044;
-  --hf-field: #101720;
-  --hf-ink: #e4ebf5;
-  --hf-heading: #e4ebf5;
-  --hf-muted: #9aaac0;
-  --hf-border: #2d3b4d;
-  --hf-action: #91b0ff;
-  --hf-on-action: #172b51;
-  --hf-active: #91b0ff;
-  --hf-active-soft: #253b60;
-  --hf-focus: #91b0ff;
 }
 
 .hf-theme.promotions-list-portal,
@@ -87,116 +55,6 @@
   color: var(--hf-action);
 }
 
-/* ── Toolbar and pagination ──────────────────────────────────────────────── */
-
-/* Search and actions share the first desktop row; the three existing filters
- * take their own row. Mobile retains the shared toolbar's stacked sheet. */
-@media (min-width: 768px) {
-  .promotions-visual .hf-toolbar {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 0.5rem 0.75rem;
-  }
-
-  .promotions-visual .hf-toolbar-search-region {
-    display: contents;
-  }
-
-  .promotions-visual .hf-toolbar-search {
-    grid-area: 1 / 1;
-    width: 100%;
-    max-width: 26rem;
-  }
-
-  .promotions-visual .hf-toolbar-actions {
-    grid-area: 1 / 2;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    justify-self: end;
-  }
-
-  .promotions-visual .hf-toolbar-filters {
-    grid-area: 2 / 1 / 3 / -1;
-    flex-wrap: wrap;
-  }
-}
-
-.promotions-visual .hf-toolbar :where(button, input, [data-slot='root']) {
-  min-height: var(--hf-control-height);
-}
-
-.promotions-visual .promotions-view-toggle {
-  width: auto;
-  flex-shrink: 0;
-}
-
-.promotions-visual .promotions-view-toggle :where(button, [role='tab']) {
-  min-width: max-content;
-  white-space: nowrap;
-}
-
-.promotions-visual .hf-pagination-summary {
-  white-space: nowrap;
-}
-
-.promotions-visual .hf-pagination-size {
-  width: auto;
-  min-height: 36px;
-}
-
-.promotions-visual .hf-pagination-navigation {
-  margin-inline-start: auto;
-}
-
-.promotions-visual .hf-pagination-navigation :where(button) {
-  min-height: 36px;
-}
-
-/* ── Cards ───────────────────────────────────────────────────────────────── */
-
-/* Keep spare tracks: a lone promotion must not stretch across the workspace. */
-.promotions-visual .promotions-card-grid {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
-  gap: 0.75rem;
-  align-content: start;
-}
-
-.promotions-visual .promotions-card {
-  background-color: var(--hf-surface);
-  border: 1px solid var(--hf-border);
-  border-radius: var(--hf-radius-card);
-  color: var(--hf-ink);
-  box-shadow: none;
-}
-
-.promotions-visual .promotions-card:hover {
-  transform: none;
-  border-color: var(--hf-action);
-  box-shadow: none;
-}
-
-/* ── Empty state ─────────────────────────────────────────────────────────── */
-
-.promotions-visual .promotions-empty-state {
-  min-height: 20rem;
-  justify-content: center;
-}
-
-.promotions-visual .promotions-empty-icon {
-  width: 3.5rem;
-  height: 3.5rem;
-  border-radius: var(--hf-radius-card);
-  background-color: var(--hf-active-soft);
-  color: var(--hf-heading);
-}
-
-.promotions-visual .promotions-empty-title {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--hf-heading);
-}
-
 /* ── Creation / edit workspace ───────────────────────────────────────────── */
 
 /* `PromotionDetailView` serves both create and edit routes. Its existing
@@ -226,12 +84,28 @@
   color: var(--hf-ink);
 }
 
-/* Gold stays a restrained identity accent on the type badge and summary icon,
- * using the paired soft/ink roles that remain readable in both modes. */
+/* The type badge and the summary icon are neutral: color is reserved for
+ * status, urgency and the single primary action. */
 .promotions-workspace .promotions-type-badge,
 .promotions-workspace .promotions-accent-icon {
-  background-color: var(--hf-gold-soft);
-  color: var(--hf-gold-ink);
+  background-color: var(--hf-surface-muted);
+  color: var(--hf-heading);
+}
+
+/* Selected targets (products, categories, variants): a neutral removable chip. */
+.promotions-workspace .promotions-chip,
+.promotions-form-portal .promotions-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-surface-muted);
+  padding: 2px 8px;
+  color: var(--hf-heading);
+  font-size: 13px;
+  font-weight: 500;
 }
 
 /* Method cards, BUY_X_GET_Y presets and the target-type segments are
@@ -275,6 +149,38 @@
   gap: 1.25rem;
 }
 
+/* A failed availability read: one inline message and its retry, in the danger tokens. */
+.promotions-workspace .promotions-inline-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-top: 0.5rem;
+  border: 1px solid var(--hf-danger-border);
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-danger-soft);
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  color: var(--hf-danger);
+}
+
+.promotions-workspace .promotions-inline-retry {
+  min-height: var(--hf-control-height);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-surface);
+  padding-inline: 12px;
+  color: var(--hf-ink);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.promotions-workspace .promotions-inline-retry:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
 .promotions-workspace .promotions-bot-notice {
   margin-top: 0.5rem;
   font-size: 0.875rem;
@@ -289,4 +195,54 @@
 .promotions-form-portal .promotions-spinner {
   border-color: var(--hf-action);
   border-top-color: transparent;
+}
+
+/* ── Loading skeleton: shaped like the form's section cards ──────────────── */
+
+.promotions-workspace .promotions-skeleton-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-radius: var(--hf-radius-card);
+  background-color: var(--hf-surface);
+  box-shadow: 0 0 0 1px var(--hf-border);
+  padding: 20px;
+}
+
+.promotions-workspace .promotions-skeleton-bar {
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-surface-muted);
+}
+
+/* ── Mobile sticky action bar: the one primary, full width ───────────────── */
+
+.promotions-workspace .promotions-action-bar {
+  border-top: 1px solid var(--hf-border);
+  background-color: var(--hf-surface);
+  padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+}
+
+.promotions-workspace .promotions-bar-primary {
+  display: inline-flex;
+  width: 100%;
+  min-height: var(--hf-control-height);
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-action);
+  color: var(--hf-on-action);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.promotions-workspace .promotions-bar-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ── List toolbar: three named filters beside the search and the primary ─── */
+
+@media (min-width: 768px) {
+  .promotions-visual .hf-toolbar-select.hf-toolbar-select { width: 9.5rem; }
+  .promotions-visual .hf-toolbar-search { max-width: 16rem; }
 }

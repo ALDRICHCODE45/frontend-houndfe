@@ -1,83 +1,54 @@
 import { describe, it, expect } from 'vitest'
 import { usePaymentDetailColumns } from '../usePaymentDetailColumns'
 
+const keyOf = (column: { accessorKey?: unknown; id?: string }) =>
+  (column.accessorKey as string | undefined) ?? column.id
+
 describe('usePaymentDetailColumns (sdd payment-details-admin S3, REQ-PD-001)', () => {
-  it('exposes a columns array', () => {
+  it('orders columns by job: bank, status, CLABE, account, date, then the ⋮ column', () => {
     const { columns } = usePaymentDetailColumns()
-    expect(Array.isArray(columns)).toBe(true)
-    expect(columns.length).toBeGreaterThan(0)
+    expect(columns.map(keyOf)).toEqual([
+      'bankName',
+      'isActive',
+      'clabe',
+      'accountNumber',
+      'updatedAt',
+      'actions',
+    ])
+    expect(columns.length).toBeLessThanOrEqual(8)
   })
 
-  it('contains the four data columns (bankName, beneficiary, clabe, accountNumber)', () => {
+  it('folds the beneficiary under the bank instead of a column of its own', () => {
     const { columns } = usePaymentDetailColumns()
-    const ids = columns
-      .map((c) => (c as { accessorKey?: string; id?: string }).accessorKey ?? (c as { id?: string }).id)
-      .sort()
-    expect(ids).toContain('bankName')
-    expect(ids).toContain('beneficiary')
-    expect(ids).toContain('clabe')
-    expect(ids).toContain('accountNumber')
+    expect(columns.map(keyOf)).not.toContain('beneficiary')
   })
 
-  it('contains the isActive status column', () => {
+  it('contains the isActive status column right after the bank, non-sortable', () => {
     const { columns } = usePaymentDetailColumns()
-    const ids = columns
-      .map((c) => (c as { accessorKey?: string; id?: string }).accessorKey ?? (c as { id?: string }).id)
-    expect(ids).toContain('isActive')
+    const status = columns[1]!
+    expect(keyOf(status)).toBe('isActive')
+    expect(status.header).toBe('Estado')
+    expect(status.enableSorting).toBe(false)
   })
 
-  it('contains the updatedAt timestamp column', () => {
+  it('bankName is the only sortable column (per REQ-PD-001 default, leaves sort space open)', () => {
     const { columns } = usePaymentDetailColumns()
-    const ids = columns
-      .map((c) => (c as { accessorKey?: string; id?: string }).accessorKey ?? (c as { id?: string }).id)
-    expect(ids).toContain('updatedAt')
+    const sortable = columns.filter((column) => column.enableSorting).map(keyOf)
+    expect(sortable).toEqual(['bankName'])
   })
 
-  it('contains the actions column (kebab)', () => {
+  it('makes the actions column last, narrow, non-sortable and non-hideable', () => {
     const { columns } = usePaymentDetailColumns()
-    const ids = columns.map((c) => (c as { id?: string }).id)
-    expect(ids).toContain('actions')
-  })
-
-  it('the actions column is non-hideable (locked: kebab must persist when column visibility toggles)', () => {
-    const { columns } = usePaymentDetailColumns()
-    const actions = columns.find((c) => (c as { id?: string }).id === 'actions') as
-      | { enableHiding?: boolean }
-      | undefined
-    expect(actions).toBeDefined()
-    expect(actions!.enableHiding).toBe(false)
-  })
-
-  it('the actions column is non-sortable', () => {
-    const { columns } = usePaymentDetailColumns()
-    const actions = columns.find((c) => (c as { id?: string }).id === 'actions') as
-      | { enableSorting?: boolean }
-      | undefined
-    expect(actions!.enableSorting).toBe(false)
-  })
-
-  it('data columns are hideable (bankName, beneficiary, clabe, accountNumber, isActive, updatedAt)', () => {
-    const { columns } = usePaymentDetailColumns()
-    for (const id of ['bankName', 'beneficiary', 'clabe', 'accountNumber', 'isActive', 'updatedAt']) {
-      const col = columns.find((c) => (c as { accessorKey?: string; id?: string }).accessorKey === id
-        || (c as { id?: string }).id === id) as { enableHiding?: boolean } | undefined
-      expect(col, `column ${id} must be present`).toBeDefined()
-      expect(col!.enableHiding, `column ${id} must be hideable`).toBe(true)
-    }
-  })
-
-  it('bankName is the only sortable string column (per REQ-PD-001 default, leaves sort space open)', () => {
-    const { columns } = usePaymentDetailColumns()
-    const bankName = columns.find((c) => (c as { accessorKey?: string }).accessorKey === 'bankName') as
-      | { enableSorting?: boolean }
-      | undefined
-    expect(bankName).toBeDefined()
-    expect(bankName!.enableSorting).toBe(true)
+    const actions = columns[columns.length - 1]!
+    expect(keyOf(actions)).toBe('actions')
+    expect(actions.enableSorting).toBe(false)
+    expect(actions.enableHiding).toBe(false)
+    expect(actions.meta?.class).toEqual({ th: 'w-16', td: 'w-16 text-right' })
   })
 
   it('does NOT contain a `manage` or `batch_delete` perm-shaped column (defensive: only data cols)', () => {
     const { columns } = usePaymentDetailColumns()
-    const ids = columns.map((c) => (c as { accessorKey?: string; id?: string }).accessorKey ?? (c as { id?: string }).id)
+    const ids = columns.map(keyOf)
     expect(ids).not.toContain('manage')
     expect(ids).not.toContain('batch_delete')
   })

@@ -88,14 +88,38 @@ describe('useSaleDetail', () => {
     })
   })
 
-  it('exposes error state when backend returns 404', async () => {
+  it('exposes the not-found state (not the error state) when backend returns 404', async () => {
     vi.mocked(saleApi.getById).mockRejectedValueOnce({ response: { status: 404 }, status: 404 })
 
     const result = mountComposable(() => useSaleDetail(computed(() => 'missing-id')))
 
     await vi.waitFor(() => {
       expect(saleApi.getById).toHaveBeenCalledWith('missing-id')
-      expect(result.isError.value).toBe(true)
+      expect(result.isNotFound.value).toBe(true)
+      expect(result.isError.value).toBe(false)
     })
+  })
+
+  it('reports a missing sale as not found, with no toast and no redirect', async () => {
+    vi.mocked(saleApi.getById).mockRejectedValueOnce({ response: { status: 404 }, status: 404 })
+
+    const result = mountComposable(() => useSaleDetail(computed(() => 'missing-id')))
+
+    await vi.waitFor(() => expect(result.isNotFound.value).toBe(true))
+    await Promise.resolve()
+    expect(addToast).not.toHaveBeenCalled()
+    expect(push).not.toHaveBeenCalled()
+  })
+
+  it('keeps a failed request as an error (not "not found") without toast or redirect', async () => {
+    vi.mocked(saleApi.getById).mockRejectedValueOnce({ response: { status: 500 }, status: 500 })
+
+    const result = mountComposable(() => useSaleDetail(computed(() => 'sale-1')))
+
+    await vi.waitFor(() => expect(result.isError.value).toBe(true))
+    await Promise.resolve()
+    expect(result.isNotFound.value).toBe(false)
+    expect(addToast).not.toHaveBeenCalled()
+    expect(push).not.toHaveBeenCalled()
   })
 })

@@ -29,12 +29,25 @@ describe('CatalogPriceContextSelector', () => {
     const label = wrapper.get('[data-testid="catalog-price-context-label"]')
     expect(label.text()).toBe('Lista de precios')
     expect(label.classes()).not.toContain('sr-only')
+    // On a phone the label gives its room to the control (the select keeps its aria-label).
+    expect(label.classes()).toContain('max-sm:sr-only')
     expect(findMenu(wrapper).props('items')).toEqual(options)
     expect(findMenu(wrapper).props('valueKey')).toBe('priceListId')
     expect(findMenu(wrapper).props('labelKey')).toBe('name')
     expect(findMenu(wrapper).props('placeholder')).toBe('Elegir lista de precios')
     expect(wrapper.find('[aria-label="Lista de precios"]').exists()).toBe(true)
     expect(wrapper.get('[aria-label="Lista de precios"]').text()).toContain('Público')
+  })
+
+  it('names the control inside it on a phone, where the visible label is hidden', () => {
+    const wrapper = mountSelector()
+    const prefix = wrapper.get('[data-testid="catalog-price-context-prefix"]')
+    expect(prefix.text()).toBe('Lista ·')
+    expect(prefix.classes()).toContain('sm:hidden')
+    expect(wrapper.get('[aria-label="Lista de precios"]').text()).toContain('Lista · Público')
+    const empty = mountSelector({ modelValue: null })
+    expect(empty.get('[aria-label="Lista de precios"]').text()).toContain('Elegir lista de precios')
+    expect(empty.find('[data-testid="catalog-price-context-prefix"]').exists()).toBe(false)
   })
 
   it('shows the Spanish placeholder when no context is selected', () => {
@@ -84,7 +97,7 @@ describe('CatalogPriceContextSelector', () => {
     ['unavailable', 'La lista de precios no está disponible.'],
     ['rate-limit', 'Demasiadas solicitudes. Intenta de nuevo más tarde.'],
     ['server', 'No pudimos cargar las listas de precios.'],
-    ['network', 'No se pudo conectar. Revisa tu conexión.'],
+    ['network', 'No se pudo conectar. Inténtalo de nuevo en un momento.'],
   ] as const)(
     'surfaces the %s discovery state with a separate discovery retry',
     async (state, copy) => {
@@ -111,5 +124,11 @@ describe('CatalogPriceContextSelector', () => {
     const errorWrapper = mountSelector({ state: 'empty' })
     const retry = errorWrapper.get('button[aria-label="Reintentar listas de precios"]')
     expect(retry.classes()).toEqual(expect.arrayContaining(['min-h-11']))
+  })
+
+  it('keeps the failed-discovery retry quiet (outline), since the page has no primary here', () => {
+    const wrapper = mountSelector({ state: 'server' })
+    const retry = wrapper.get('button[aria-label="Reintentar listas de precios"]')
+    expect(retry.classes().join(' ')).not.toMatch(/bg-primary/)
   })
 })

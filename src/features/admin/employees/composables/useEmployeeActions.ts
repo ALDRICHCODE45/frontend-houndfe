@@ -5,12 +5,10 @@
  *
  * Design decisions:
  * - Status guards (canTerminate, canReactivate) are pure functions exported for unit testing.
- * - getEmployeeRowActions is a pure function that returns a flat array of action items.
- *   It is intentionally NOT reactive — callers should call it inside a computed() or template expression.
- * - Action items follow the UDropdownMenu items shape: { label, color?, onSelect }.
+ * - getEmployeeRowActions is a pure function that returns the RowActionsMenu actions
+ *   ({ key, label, icon?, destructive? }). It is intentionally NOT reactive — callers
+ *   should call it inside a computed() or template expression and handle the selected key.
  * - CASL gate: actions are only returned when canUpdate === true (update:Employee permission).
- * - onSelect callbacks are empty no-ops in this helper; callers inject real handlers via
- *   the composable useEmployeeRowActions() which closes over the correct open-dialog functions.
  *
  * Rules enforced:
  * - Terminate is only available for ACTIVE or ON_LEAVE employees.
@@ -18,6 +16,7 @@
  * - Both require update:Employee CASL permission.
  */
 
+import type { RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import { EMPLOYEE_STATUS } from '../constants/employee.constants'
 import type { Employee, EmployeeStatus } from '../interfaces/employee.types'
 
@@ -45,57 +44,36 @@ export function canReactivate(status: EmployeeStatus): boolean {
   return status === EMPLOYEE_STATUS.TERMINATED
 }
 
-// ─── Action item shape ────────────────────────────────────────────────────────
-
-export interface EmployeeRowAction {
-  label: string
-  color?: 'error'
-  onSelect: () => void
-}
-
 // ─── Action menu builder (PURE) ──────────────────────────────────────────────
 
+/** Keys emitted by the ⋮ menu (`RowActionsMenu` `select`). */
+export type EmployeeRowActionKey = 'edit' | 'terminate' | 'reactivate'
+
 /**
- * Build the flat list of row action items for a given employee.
+ * Build the row actions for a given employee, in menu order: the frequent
+ * ones first, then the destructive one last. Items that open a confirmation
+ * end in `…`.
  *
- * Returns an empty array when canUpdate is false (no update:Employee CASL permission).
- * Callers should wrap in computed() to react to permission changes.
- *
- * onSelect callbacks are no-ops — callers compose real handlers using the
- * useEmployeeRowActions() composable which passes open-dialog functions.
+ * Returns an empty array when canUpdate is false (no update:Employee CASL permission),
+ * so the row shows no ⋮ at all. Callers handle the selected `key` themselves.
  *
  * PURE — no side effects, deterministic output.
  */
-export function getEmployeeRowActions(
-  employee: Employee,
-  canUpdate: boolean,
-  handlers?: {
-    onEdit?: () => void
-    onTerminate?: () => void
-    onReactivate?: () => void
-  },
-): EmployeeRowAction[] {
+export function getEmployeeRowActions(employee: Employee, canUpdate: boolean): RowAction[] {
   if (!canUpdate) return []
 
-  const actions: EmployeeRowAction[] = []
+  const actions: RowAction[] = [{ key: 'edit', label: 'Editar', icon: 'i-lucide-pencil' }]
 
-  actions.push({
-    label: 'Editar',
-    onSelect: handlers?.onEdit ?? (() => undefined),
-  })
+  if (canReactivate(employee.status)) {
+    actions.push({ key: 'reactivate', label: 'Reactivar…', icon: 'i-lucide-user-check' })
+  }
 
   if (canTerminate(employee.status)) {
     actions.push({
-      label: 'Dar de baja',
-      color: 'error',
-      onSelect: handlers?.onTerminate ?? (() => undefined),
-    })
-  }
-
-  if (canReactivate(employee.status)) {
-    actions.push({
-      label: 'Reactivar',
-      onSelect: handlers?.onReactivate ?? (() => undefined),
+      key: 'terminate',
+      label: 'Dar de baja…',
+      icon: 'i-lucide-user-x',
+      destructive: true,
     })
   }
 

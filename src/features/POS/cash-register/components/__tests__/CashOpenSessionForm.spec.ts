@@ -31,9 +31,11 @@ async function mountOpen(props = {}) {
 }
 
 describe('CashOpenSessionForm', () => {
-  it('asks for a register before offering the form', () => {
+  it('renders nothing until a register is chosen, with no help paragraph about it', () => {
     const wrapper = mountWithUApp(CashOpenSessionForm, { props: { canOpen: true } })
-    expect(wrapper.find('[data-testid="cash-open-no-register"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="cash-open-session"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="cash-open-no-register"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Elige una caja activa')
     expect(wrapper.find('[data-testid="cash-open-submit"]').exists()).toBe(false)
   })
 

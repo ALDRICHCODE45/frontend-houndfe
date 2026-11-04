@@ -101,7 +101,7 @@ describe('SatKeySelect', () => {
   it('renders the "type to search" empty state when the dropdown opens with an empty query', async () => {
     const wrapper = mountSelect()
     await openDropdown(wrapper)
-    expect(wrapper.text()).toContain('Escribí al menos 2 caracteres')
+    expect(wrapper.text()).toContain('Escribe al menos 2 caracteres')
   })
 
   it('does not render the "no results" message on the empty state', async () => {

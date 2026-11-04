@@ -81,7 +81,7 @@ export function handleTransferSuccess(
 }
 
 /** Status pinned for the destination picker — only DRAFT routes can receive. */
-export const TRANSFER_DESTINATIONS_STATUS = 'DRAFT' as const
+const TRANSFER_DESTINATIONS_STATUS = 'DRAFT' as const
 
 /**
  * transferDestinationsQueryKey — the DRAFT list slot keyed off the shared
@@ -104,7 +104,7 @@ export function filterTransferDestinations(
 }
 
 /** Pure fetch seam — the only network call for the destination list. */
-export async function fetchDraftTransferDestinations(): Promise<DeliveryRouteResponseDto[]> {
+async function fetchDraftTransferDestinations(): Promise<DeliveryRouteResponseDto[]> {
   return deliveryRoutesApi.list(TRANSFER_DESTINATIONS_STATUS)
 }
 

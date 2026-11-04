@@ -197,34 +197,10 @@ describe('Quotations workspace visual adapter', () => {
     }
   })
 
-  it('aliases the legacy Coco roles to foundation semantics inside the boundary only', () => {
-    const scope = exactRule(css, '.quotations-workspace-visual')!
-    expect(scope).toBeDefined()
-
-    const expected: Record<string, string> = {
-      '--coco-primary': 'var(--hf-action)',
-      '--coco-accent': 'var(--hf-gold)',
-      '--coco-accent-50': 'var(--hf-gold-soft)',
-      '--coco-card': 'var(--hf-surface)',
-      '--coco-border': 'var(--hf-border)',
-      '--coco-text': 'var(--hf-ink)',
-      '--coco-text-tertiary': 'var(--hf-muted)',
-      '--coco-success': 'var(--hf-success)',
-    }
-    for (const [property, value] of Object.entries(expected)) {
-      expect(scope.style.getPropertyValue(property).trim()).toBe(value)
-    }
-
-    // Every legacy alias declared here must resolve through a foundation role;
-    // a raw color value would fork the palette.
-    const customProperties = Array.from({ length: scope.style.length }, (_, index) =>
-      scope.style.item(index),
-    ).filter((property) => property.startsWith('--coco-'))
-    expect(customProperties.length).toBeGreaterThan(0)
-    for (const property of customProperties) {
-      expect(scope.style.getPropertyValue(property).trim()).toMatch(/^var\(--hf-[a-z-]+\)$/)
-    }
-
+  it('declares no Coco aliases: the workspace paints from the foundation roles directly', () => {
+    expect(css).not.toContain('--coco-')
+    expect(css).not.toMatch(/quotations-gold/)
+    expect(view).not.toContain('coco-tokens')
     // Info and destructive roles stay on their existing semantic values.
     expect(css).not.toMatch(/--(?:coco|ui|color)-(?:info|danger|error|warning)\s*:/)
   })
@@ -243,24 +219,10 @@ describe('Quotations workspace visual adapter', () => {
     expect(primary.style.getPropertyValue('color').trim()).toBe('var(--hf-on-action)')
     expect(primary.style.getPropertyValue('min-height').trim()).toBe('var(--hf-control-height)')
 
-    // The two in-scope CTAs opt into the pairing.
-    expect(view).toContain('quotations-primary-action')
+    // The single primary (Enviar cotización) opts into the pairing; the
+    // "Agregar producto" button is an outline action, not a second primary.
+    expect(view).not.toContain('quotations-primary-action')
     expect(totalsFooter).toContain('quotations-primary-action')
-  })
-
-  it('keeps gold-family text readable in both modes through foundation roles', () => {
-    const ink = exactRule(css, '.quotations-workspace-visual .quotations-gold-ink')!
-    expect(ink).toBeDefined()
-    expect(ink.style.getPropertyValue('color').trim()).toBe('var(--hf-gold-ink)')
-
-    const fill = exactRule(css, '.quotations-workspace-visual .quotations-gold-fill')!
-    expect(fill).toBeDefined()
-    const darkFill = exactRule(css, '.dark .quotations-workspace-visual .quotations-gold-fill')!
-    expect(darkFill).toBeDefined()
-    expect([fill, darkFill].map((rule) => rule.style.getPropertyValue('color').trim())).toEqual([
-      'var(--hf-gold-ink)',
-      'var(--hf-gold-soft)',
-    ])
   })
 
   it('paints the feature portal on the foundation surface and rejects unmarked portals', () => {
@@ -316,8 +278,6 @@ describe('Quotations workspace visual adapter', () => {
 describe('Quotations visual wiring', () => {
   it('imports the adapter only from the shared creation/detail view', () => {
     expect(view).toContain("import '../styles/quotations-workspace-visual.css'")
-    // The legacy Coco tokens stay untouched and read-only.
-    expect(view).toContain("import '../styles/coco-tokens.css'")
     expect(css).toContain('.quotations-workspace-visual')
     expect(css).not.toContain('.quotations-list-view')
     expect(css).not.toContain('products-visual')
@@ -332,11 +292,11 @@ describe('Quotations visual wiring', () => {
     expect(view).not.toContain('clients-form-portal')
   })
 
-  it('routes the progress and shortcut renderer hooks through the foundation roles', () => {
-    expect(stepper).toContain('quotations-gold-fill')
-    expect(stepper).toContain('quotations-gold-ink')
-    expect(expiry).toContain('quotations-gold-ink')
-    expect(itemRow).toContain('hf-theme hf-ui quotations-workspace-portal')
+  it('routes the renderer hooks through the foundation roles, with no gold or Coco classes', () => {
+    expect(stepper).not.toContain('quotations-gold')
+    expect(expiry).not.toContain('quotations-gold')
+    expect(stepper).toContain('--hf-action')
+    expect(itemRow).toContain('portal-class="quotations-workspace-portal"')
     expect(totalsFooter).toContain('hf-theme hf-ui quotations-workspace-portal')
   })
 })

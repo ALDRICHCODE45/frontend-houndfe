@@ -24,10 +24,10 @@
  * MXN is intentionally NOT derived from this zone — the product-wide MXN
  * configuration is the external currency authority.
  */
-export const BRANCH_SALES_SUMMARY_TIME_ZONE = 'America/Mexico_City' as const
+const BRANCH_SALES_SUMMARY_TIME_ZONE = 'America/Mexico_City' as const
 
 /** Literal type derived from the constant (constant stays the single source of truth). */
-export type BranchSalesSummaryTimeZone = typeof BRANCH_SALES_SUMMARY_TIME_ZONE
+type BranchSalesSummaryTimeZone = typeof BRANCH_SALES_SUMMARY_TIME_ZONE
 
 /**
  * Query contract. Both boundaries are exact local calendar strings

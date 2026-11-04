@@ -72,9 +72,9 @@ describe('HumanDecisionsOfflineDemoView', () => {
     expect(wrapper.classes()).toContain('md:px-10')
     expect(wrapper.find('h1').exists()).toBe(false)
     expect(wrapper.get('[data-testid="offline-demo-label"]').text()).toBe(
-      'SIMULACIÓN · datos sintéticos · sin HTTP',
+      'Simulación · datos sintéticos · sin HTTP',
     )
-    expect(wrapper.text()).toContain('No contiene una conversación del cliente')
+    expect(wrapper.text()).toContain('No contiene conversaciones del cliente')
     expect(wrapper.text()).toContain('Sucursal Centro Demo')
 
     const decision = wrapper.getComponent(ListPanelStub).props('data')[0]

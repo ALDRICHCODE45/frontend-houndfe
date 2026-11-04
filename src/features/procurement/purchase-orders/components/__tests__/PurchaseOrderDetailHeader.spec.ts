@@ -19,7 +19,7 @@ describe('detail header', () => {
     const wrapper = mountHeader()
     const meta = wrapper.get('.order-header-meta')
     expect(meta.get('[data-testid="order-status"]').text()).toBe('Borrador')
-    expect(meta.get('[data-testid="order-status"]').attributes('data-tone')).toBe('warning')
+    expect(meta.get('[data-testid="order-status"]').attributes('data-tone')).toBe('neutral')
     expect(meta.text()).toContain(`Sucursal Centro · guardada ${formatShortDateTime(order.updatedAt)}`)
     expect(wrapper.get('h2').text()).toBe('Distribuidora del Norte')
     expect(wrapper.html()).not.toContain('order-id-9f2')

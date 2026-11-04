@@ -6,11 +6,15 @@
  * requests across the whole tenant. The manager→subordinates model was removed
  * backend-side; any user with read:EmployeeTimeOff sees the same queue.
  *
- * Layout (WU-A — hybrid):
- *   - Page header: title "Validaciones pendientes", tenant-wide description
- *   - AppDataTable (client-side) with ViewToggle and #cards slot
- *   - Per-card Aprobar / Rechazar (CASL canReview + UModal confirmation)
- *   - Empty state: voseo, no "tu equipo" copy
+ * One layout: an AppDataTable (client-side) on desktop and cards on mobile
+ * (`mobile-render="cards"` + `#mobile-card`). The person first, then the
+ * status badge (every request here is a pending item that needs action, so it
+ * is warning), then dates, type, days, reason and when it was requested. The
+ * ⋮ menu (Aprobar…, Rechazar…) shows only with update:EmployeeTimeOff and
+ * opens the review dialog; a read-only role sees no menu.
+ *
+ * Four states (S10): "Sin solicitudes pendientes" (nothing to review, no
+ * action), no-match for a name search, skeletons, and the shared error.
  *
  * Permission gate: read:EmployeeTimeOff (enforced at route level).
  * Review action gated by update:EmployeeTimeOff.
@@ -27,9 +31,7 @@
  *
  * Name resolution (S5):
  *   One cached `listForPicker('')` (active employees, pageSize 100) feeds
- *   a `buildManagerMap` lookup. ZERO per-row `getById` calls — the prior
- *   per-row `useQueries(getById)` design was replaced because it scaled
- *   with the number of unique employees in the queue.
+ *   a `buildManagerMap` lookup. ZERO per-row `getById` calls.
  *   KNOWN LIMITATION (v1, accepted): picker caps at 100 active employees;
  *   a tenant with >100 active employees may show "—" for some names.
  *   A future `/admin/employees?ids=` batch endpoint would lift this.
@@ -41,17 +43,17 @@
  *   - Client-side full-array pagination via paginateRows / clampPage /
  *     pageAfterQueryChange.
  *   - `pagination.utils.ts` header unchanged.
- *
- * Design: warm orange primary, Nuxt UI 4. Hybrid (table + cards) via
- * AppDataTable + ViewToggle; the card tray remains the DEFAULT view.
  */
 
 import { computed, ref, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import type { ColumnPinningState } from '@tanstack/vue-table'
 import { AppDataTable } from '@/core/shared/components/DataTable'
+import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
+import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import '../styles/employees-visual.css'
-import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { employeeQueryKeys } from '@/core/shared/constants/query-keys'
 import {
@@ -61,11 +63,10 @@ import {
   FIRST_PAGE,
   DEFAULT_TABLE_PAGE_SIZE,
 } from '@/core/shared/utils/pagination.utils'
-import { REVIEW_DECISION } from '../constants/employee.constants'
+import { REVIEW_DECISION, TIME_OFF_STATUS } from '../constants/employee.constants'
 import type { ReviewDecisionValue } from '../constants/employee.constants'
 import { usePendingApprovals } from '../composables/useReviewTimeOff'
 import { useReviewTimeOff } from '../composables/useReviewTimeOff'
-import { usePendingApprovalsViewMode } from '../composables/usePendingApprovalsViewMode'
 import { usePendingApprovalsColumns } from '../composables/usePendingApprovalsColumns'
 import {
   formatTimeOffType,
@@ -75,9 +76,9 @@ import {
   filterPendingBySearch,
 } from '../composables/useAusencias'
 import { buildManagerMap } from '../composables/useManagerResolution'
-import { formatTimeOffDate, formatTimeOffDateRange } from '../composables/useEmployeeColumns'
-import { buildPendingApprovalCardData } from '../composables/usePendingApprovalCard'
-import PendingApprovalCard from '../components/PendingApprovalCard.vue'
+import { formatTimeOffDateRange } from '../composables/useEmployeeColumns'
+import AdminMobileCard from '../../shared/components/AdminMobileCard.vue'
+import { noMatchTitleFor } from '../../shared/utils/list-state.utils'
 import { employeesApi } from '../api/employees.api'
 import type { TimeOffRequest, ReviewTimeOffDto, Employee } from '../interfaces/employee.types'
 
@@ -94,7 +95,6 @@ const {
   data: pendingRequests,
   isLoading,
   isError,
-  error,
   refetch,
 } = usePendingApprovals()
 
@@ -113,26 +113,34 @@ const { data: employeesList } = useQuery<Employee[]>({
 
 const employeeMap = computed(() => buildManagerMap(employeesList.value ?? []))
 
-// ─── View mode + table columns ────────────────────────────────────────────────
+// ─── Table columns ────────────────────────────────────────────────────────────
 
-const { viewMode, setMode: setViewMode, displayMode } = usePendingApprovalsViewMode()
-const { columns } = usePendingApprovalsColumns()
-
-function handleViewModeChange(mode: string): void {
-  setViewMode(mode as 'table' | 'card')
-}
+const { columns: allColumns } = usePendingApprovalsColumns()
 
 // ─── Client-side search by resolved name (S5) ────────────────────────────────
 
 const searchQuery = ref('')
 
 /** Client-side filtered tray rows: search by resolved employee name. */
+// An all-pending queue would repeat "Pendiente" on every row, so the status shows
+// (column and card badge) only when some request is not pending.
+const showStatus = computed(() =>
+  (pendingRequests.value ?? []).some((request) => request.status !== TIME_OFF_STATUS.PENDING),
+)
+const columns = computed(() =>
+  showStatus.value ? allColumns.value : allColumns.value.filter((column) => column.id !== 'estado'),
+)
+
 const filteredRequests = computed(() =>
   filterPendingBySearch(pendingRequests.value ?? [], employeeMap.value, searchQuery.value),
 )
 
-const queueNonEmpty = computed(() => (pendingRequests.value ?? []).length > 0)
 const isSearchActive = computed(() => searchQuery.value.trim().length > 0)
+const noMatchTitle = computed(() => noMatchTitleFor(searchQuery.value))
+
+function clearSearch(): void {
+  searchQuery.value = ''
+}
 
 // ─── Client-side pagination ───────────────────────────────────────────────────
 //
@@ -191,34 +199,9 @@ const pagination = computed({
 const columnPinning = ref<ColumnPinningState>({ left: [], right: ['acciones'] })
 const columnVisibility = ref<Record<string, boolean>>({})
 
-// ─── Error message (REQ-5: backendMessage > error.message > fallback) ─────────
+// ─── Error title (a fixed human sentence, never the server message) ───────────
 
-const FALLBACK_PENDING_ERROR =
-  'No se pudieron cargar las solicitudes pendientes. Intenta de nuevo.'
-
-const pendingErrorMessage = computed<string>(() => {
-  const err = error.value as
-    | {
-        response?: { data?: { message?: string | string[] } }
-        message?: string
-      }
-    | null
-  if (!err) return FALLBACK_PENDING_ERROR
-
-  const backendMsg = err.response?.data?.message
-  if (typeof backendMsg === 'string' && backendMsg.length > 0) {
-    return backendMsg
-  }
-  if (Array.isArray(backendMsg) && typeof backendMsg[0] === 'string' && backendMsg[0].length > 0) {
-    return backendMsg[0]
-  }
-
-  if (typeof err.message === 'string' && err.message.length > 0) {
-    return err.message
-  }
-
-  return FALLBACK_PENDING_ERROR
-})
+const pendingErrorMessage = 'No se pudieron cargar las solicitudes pendientes'
 
 // ─── Review mutation ───────────────────────────────────────────────────────────
 
@@ -280,23 +263,54 @@ function cancelReview(): void {
 
 // ─── Display helpers ───────────────────────────────────────────────────────────
 
-// Type color is owned by `buildPendingApprovalCardData` (WU-B). The card
-// template renders the badge via `data.typeColor`. formatTimeOffDateRange
-// is imported from useEmployeeColumns and shared with AusenciasPanel.
-
-/** Resolve the employee display name for a table row (mirrors the card's "—" sentinel). */
+/** Resolve the employee display name for a row or card ("—" until the picker loads). */
 function resolveEmployeeName(request: TimeOffRequest): string {
   return employeeMap.value.get(request.employeeId)?.fullName ?? '—'
+}
+
+/** Every request in this tray is PENDING: a pending item that needs action is warning. */
+function statusBadgeOf(request: TimeOffRequest) {
+  return {
+    tone: request.status === TIME_OFF_STATUS.PENDING ? ('warning' as const) : ('neutral' as const),
+    label: formatTimeOffStatus(request.status),
+  }
+}
+
+function daysLabel(request: TimeOffRequest): string {
+  const days = computeTimeOffDays(request.startDate, request.endDate)
+  return `${days} ${days === 1 ? 'día' : 'días'}`
+}
+
+// ─── Row menu ─────────────────────────────────────────────────────────────────
+// Both items open the review dialog (confirmation), so both end in "…". A
+// read-only role gets no menu. While THIS request is being reviewed the items
+// are held.
+
+function actionsFor(request: TimeOffRequest): RowAction[] {
+  if (!canReview.value) return []
+  const busy = isReviewing(request.id)
+  return [
+    { key: 'approve', label: 'Aprobar…', icon: 'i-lucide-check', disabled: busy },
+    { key: 'reject', label: 'Rechazar…', icon: 'i-lucide-x', disabled: busy },
+  ]
+}
+
+function handleRowAction(key: string, request: TimeOffRequest): void {
+  if (key === 'approve') openReviewDialog(request, REVIEW_DECISION.APPROVED)
+  else if (key === 'reject') openReviewDialog(request, REVIEW_DECISION.REJECTED)
+}
+
+/** The row's accessible name: whose request it is and when. */
+function rowLabelOf(request: TimeOffRequest): string {
+  return `la solicitud de ${resolveEmployeeName(request)}, ${formatTimeOffDateRange(request.startDate, request.endDate)}`
 }
 </script>
 
 <template>
   <div class="hf-theme hf-ui employees-visual flex w-full min-w-0 flex-col gap-6 md:px-6 lg:px-10">
-    <!-- Canonical table workspace (design-system §4): heading outside the surface. -->
-    <div class="hf-page-header">
+    <header class="hf-page-header">
       <h1 class="hf-page-title">Validaciones pendientes</h1>
-      <p class="hf-page-subtitle">Solicitudes de ausencia de toda la organización que requieren validación.</p>
-    </div>
+    </header>
 
     <UCard :ui="{ body: 'p-0 sm:p-0' }" class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm">
       <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
@@ -310,9 +324,16 @@ function resolveEmployeeName(request: TimeOffRequest): string {
           :loading="isLoading"
           :error="isError"
           :error-message="pendingErrorMessage"
-          :display-mode="displayMode"
+          :empty-state="{
+            title: 'Sin solicitudes pendientes',
+            description: 'Aquí aparecerán las solicitudes de ausencia por validar.',
+          }"
+          :filtered="isSearchActive"
+          :no-match-title="noMatchTitle"
+          display-mode="auto"
+          mobile-render="cards"
           enable-column-visibility
-          :show-toolbar="queueNonEmpty"
+          search-placeholder="Buscar colaborador..."
           :page-count="paged.pageCount"
           :total-count="paged.total"
           :showing-from="showingFrom"
@@ -323,164 +344,82 @@ function resolveEmployeeName(request: TimeOffRequest): string {
           portal-class="hf-theme hf-ui employees-list-portal"
           pagination-portal-class="hf-theme hf-ui employees-list-portal"
           @refresh="() => refetch()"
+          @clear-filters="clearSearch"
         >
-          <!-- WU-B: Tabla / Tarjetas segmented toggle in the toolbar actions slot -->
-          <template #actions>
-            <ViewToggle
-              :model-value="viewMode"
-              class="employees-view-toggle"
-              aria-label="Seleccionar vista de validaciones pendientes"
-              @update:model-value="handleViewModeChange"
-            />
-          </template>
-
-          <!-- WU-B: "N solicitudes pendientes (de M en total)" summary lives
-               ABOVE the table (so it stays visible in BOTH view modes).
-               REQ-4: no search or summary on empty queue. -->
-          <template #above-table>
-            <p
-              v-if="queueNonEmpty && !isSearchActive"
-              class="text-sm text-muted"
-              data-testid="pending-approvals-summary"
-            >
-              {{ filteredRequests.length }}
-              {{
-                filteredRequests.length === 1
-                  ? 'solicitud pendiente'
-                  : 'solicitudes pendientes'
-              }}
-              <template v-if="(pendingRequests?.length ?? 0) !== filteredRequests.length">
-                <span class="text-muted-foreground">
-                  (de {{ pendingRequests?.length ?? 0 }} en total)
-                </span>
-              </template>
-            </p>
-          </template>
-
-          <!-- Fix: per-column cell renderers for the TABLE view. The 7 data
-               columns previously had no cell slot (only #acciones-cell), so
-               every data cell rendered empty while the cards view worked. -->
           <template #colaborador-cell="{ row }">
-            <span class="text-sm font-medium text-default">
-              {{ resolveEmployeeName(row.original) }}
-            </span>
+            <div class="flex min-w-0 items-center gap-3">
+              <EntityAvatar
+                :name="resolveEmployeeName(row.original)"
+                aria-hidden="true"
+              />
+              <span class="hf-row-primary">{{ resolveEmployeeName(row.original) }}</span>
+            </div>
           </template>
 
-          <template #tipo-cell="{ row }">
-            <span class="text-sm text-default">{{ formatTimeOffType(row.original.type) }}</span>
+          <template #estado-cell="{ row }">
+            <StatusBadge v-bind="statusBadgeOf(row.original)" />
           </template>
 
           <template #fechas-cell="{ row }">
-            <span class="text-sm text-default">
+            <span class="text-sm">
               {{ formatTimeOffDateRange(row.original.startDate, row.original.endDate) }}
             </span>
           </template>
 
+          <template #tipo-cell="{ row }">
+            <span class="text-sm">{{ formatTimeOffType(row.original.type) }}</span>
+          </template>
+
           <template #dias-cell="{ row }">
-            <span class="text-sm text-default">
-              {{ computeTimeOffDays(row.original.startDate, row.original.endDate) }}
-              {{
-                computeTimeOffDays(row.original.startDate, row.original.endDate) === 1
-                  ? 'día'
-                  : 'días'
-              }}
-            </span>
+            <span class="hf-figure text-sm">{{ daysLabel(row.original) }}</span>
           </template>
 
           <template #motivo-cell="{ row }">
-            <span class="text-sm text-default">
+            <span class="block max-w-56 truncate text-sm text-muted">
               {{ resolveSickReason(row.original.type, row.original.reason) }}
             </span>
           </template>
 
-          <template #estado-cell="{ row }">
-            <span class="text-sm text-default">{{ formatTimeOffStatus(row.original.status) }}</span>
-          </template>
-
           <template #solicitada-cell="{ row }">
-            <span class="text-sm text-default">{{ formatTimeOffDate(row.original.createdAt) }}</span>
+            <span class="text-sm text-muted">{{ formatShortDateTime(row.original.createdAt) }}</span>
           </template>
 
-          <!-- WU-B: per-row approve / reject in the table view (REQ-3).
-               Gated by canReview (CASL update:EmployeeTimeOff); disabled
-               while THIS row is being reviewed. -->
+          <template #acciones-header><span class="sr-only">Acciones</span></template>
+
           <template #acciones-cell="{ row }">
-            <div v-if="canReview" class="flex items-center justify-end gap-2">
-              <UButton
-                icon="i-lucide-x"
-                color="error"
-                variant="soft"
-                size="xs"
-                :disabled="isReviewing(row.original.id)"
-                data-testid="pending-approvals-row-reject"
-                @click="openReviewDialog(row.original, REVIEW_DECISION.REJECTED)"
-              >
-                Rechazar
-              </UButton>
-              <UButton
-                icon="i-lucide-check"
-                color="success"
-                variant="soft"
-                size="xs"
-                :disabled="isReviewing(row.original.id)"
-                data-testid="pending-approvals-row-approve"
-                @click="openReviewDialog(row.original, REVIEW_DECISION.APPROVED)"
-              >
-                Aprobar
-              </UButton>
-            </div>
+            <RowActionsMenu
+              :actions="actionsFor(row.original)"
+              :row-label="rowLabelOf(row.original)"
+              portal-class="employees-list-portal"
+              @select="handleRowAction($event, row.original)"
+            />
           </template>
 
-          <!-- WU-B: card tray inside the #cards slot (REQ-2, REQ-3, REQ-6).
-               Presentational PendingApprovalCard emits approve / reject
-               with the original request; this view owns the dialog +
-               mutation flow. No-match sub-state renders here when the
-               search empties the result set. -->
-          <template #cards="{ data }">
-            <div class="flex flex-col gap-3">
-              <!-- Summary line (mirrors the table view's #above-table) -->
-              <p v-if="queueNonEmpty" class="text-sm text-muted">
-                {{ filteredRequests.length }}
-                {{
-                  filteredRequests.length === 1
-                    ? 'solicitud pendiente'
-                    : 'solicitudes pendientes'
-                }}
-                <template
-                  v-if="
-                    isSearchActive && (pendingRequests?.length ?? 0) !== filteredRequests.length
-                  "
-                >
-                  <span class="text-muted-foreground">
-                    (de {{ pendingRequests?.length ?? 0 }} en total)
-                  </span>
-                </template>
-              </p>
-
-              <!-- No-match sub-state: search empties the result set.
-                   Distinct from the queue-empty copy (which lives on
-                   AppDataTable's `:empty` prop, NOT here). -->
-              <div
-                v-if="filteredRequests.length === 0 && isSearchActive"
-                class="flex flex-col items-center gap-2 rounded-lg border border-dashed border-default py-10 text-center"
-                data-testid="pending-approvals-no-match"
-              >
-                <UIcon name="i-lucide-search-x" class="size-7 text-muted" />
-                <p class="text-sm text-muted">
-                  No hay coincidencias para «{{ searchQuery.trim() }}».
-                </p>
-              </div>
-
-              <PendingApprovalCard
-                v-for="request in data"
-                :key="request.id"
-                :data="buildPendingApprovalCardData(request, employeeMap)"
-                :can-review="canReview"
-                :is-reviewing="isReviewing(request.id)"
-                @approve="(req) => openReviewDialog(req, REVIEW_DECISION.APPROVED)"
-                @reject="(req) => openReviewDialog(req, REVIEW_DECISION.REJECTED)"
-              />
-            </div>
+          <template #mobile-card="{ row }">
+            <AdminMobileCard
+              :item="row"
+              :label="resolveEmployeeName(row)"
+              :actions="actionsFor(row)"
+              portal-class="employees-list-portal"
+              test-id="pending-approval-card"
+              @action="handleRowAction"
+            >
+              <template #leading>
+                <EntityAvatar :name="resolveEmployeeName(row)" aria-hidden="true" />
+              </template>
+              <template #secondary>
+                {{ formatTimeOffType(row.type) }} · {{ resolveSickReason(row.type, row.reason) }}
+              </template>
+              <template v-if="showStatus" #badges>
+                <StatusBadge v-bind="statusBadgeOf(row)" />
+              </template>
+              <template #footer>
+                <span class="min-w-0 truncate font-medium">
+                  {{ formatTimeOffDateRange(row.startDate, row.endDate) }} · {{ daysLabel(row) }}
+                </span>
+                <span class="shrink-0">Solicitada {{ formatShortDateTime(row.createdAt) }}</span>
+              </template>
+            </AdminMobileCard>
           </template>
         </AppDataTable>
       </div>
@@ -494,24 +433,25 @@ function resolveEmployeeName(request: TimeOffRequest): string {
       <template #content>
         <UCard v-if="reviewingRequest" class="employees-detail-section">
           <template #header>
-            <h3 class="text-base font-semibold">
+            <h2 class="text-base font-semibold text-highlighted">
               {{
                 reviewDecision === REVIEW_DECISION.APPROVED
                   ? 'Aprobar solicitud de ausencia'
                   : 'Rechazar solicitud de ausencia'
               }}
-            </h3>
+            </h2>
           </template>
 
           <div class="flex flex-col gap-4">
             <!-- Summary -->
-            <div class="rounded-md bg-elevated p-3 text-sm">
+            <div class="rounded-md bg-(--hf-surface-muted) p-3 text-sm">
               <p class="font-medium text-highlighted">
+                {{ resolveEmployeeName(reviewingRequest) }}
+              </p>
+              <p class="text-muted">
                 {{ formatTimeOffType(reviewingRequest.type) }} —
                 {{ formatTimeOffDateRange(reviewingRequest.startDate, reviewingRequest.endDate) }}
-              </p>
-              <p class="text-xs text-muted">
-                {{ computeTimeOffDays(reviewingRequest.startDate, reviewingRequest.endDate) }} días
+                · {{ daysLabel(reviewingRequest) }}
               </p>
             </div>
 
@@ -541,7 +481,7 @@ function resolveEmployeeName(request: TimeOffRequest): string {
                 Cancelar
               </UButton>
               <UButton
-                :color="reviewDecision === REVIEW_DECISION.APPROVED ? 'success' : 'error'"
+                :color="reviewDecision === REVIEW_DECISION.APPROVED ? 'primary' : 'error'"
                 :loading="isReviewingMutation"
                 @click="confirmReview"
               >

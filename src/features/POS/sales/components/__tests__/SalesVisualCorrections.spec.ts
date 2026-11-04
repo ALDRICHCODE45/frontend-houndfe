@@ -130,7 +130,6 @@ function addPaint(adapter: string) {
   style.textContent = `
     .bg-default, .bg-white { background-color: rgb(255, 255, 255); }
     .hf-theme .bg-default { background-color: rgb(20, 30, 40); }
-    .dark .dark\\:bg-coco-neutral-900 { background-color: rgb(44, 36, 52); }
     ${adapter.replace(/^@import.*$/gm, '')
       .replace(/var\(--hf-surface-muted\)/g, 'rgb(60, 70, 80)')
       .replace(/var\(--hf-surface\)/g, 'rgb(20, 30, 40)')}
@@ -147,20 +146,20 @@ describe('Sales native card surface — scoped paint, not boundary variables onl
     const fixture = defineComponent({
       components: { SaleDetailItemsList }, setup: () => ({ marker }),
       template: `<section :class="marker"><SaleDetailItemsList :items="[]" />
-        <div class="sales-detail-fact" data-testid="fact">Dato</div>
+        <div style="background-color: rgb(60, 70, 80)" data-testid="fact">Dato</div>
         <div class="bg-success" data-testid="status">Confirmado</div></section>`,
     })
     const wrapper = mountWithUApp(fixture, { attachTo: document.body })
     const card = wrapper.get('div[data-slot="root"]:has(> div[data-slot="body"])').element
-    // Installed outline variant removes the configured light bg-white via
-    // class merging, but retains the literal dark utility: that is the escape.
+    // The installed card default is the semantic bg-default alone: the old
+    // literal dark utility is gone from the global config.
     expect(card.classList.contains('bg-default')).toBe(true)
-    expect(card.classList.contains('dark:bg-coco-neutral-900')).toBe(true)
+    expect(card.getAttribute('class')).not.toContain('coco-neutral')
     expect(getComputedStyle(card).backgroundColor).toBe('rgb(20, 30, 40)')
     expect(getComputedStyle(wrapper.get('[data-testid="fact"]').element).backgroundColor).toBe('rgb(60, 70, 80)')
     expect(getComputedStyle(wrapper.get('[data-testid="status"]').element).backgroundColor).not.toBe('rgb(20, 30, 40)')
     marker.value = 'quotations-visual'
     await flushPromises()
-    expect(getComputedStyle(card).backgroundColor).toBe(dark ? 'rgb(44, 36, 52)' : 'rgb(255, 255, 255)')
+    expect(getComputedStyle(card).backgroundColor).toBe('rgb(255, 255, 255)')
   })
 })

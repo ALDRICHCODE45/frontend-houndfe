@@ -28,6 +28,7 @@
  */
 
 import { ref } from 'vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import type { Employee } from '../interfaces/employee.types'
 import { downloadFile, uploadMultipart } from '@/core/shared/api/multipart'
 import { employeesApi } from '../api/employees.api'
@@ -102,7 +103,7 @@ async function handleFileSelected(event: Event): Promise<void> {
     // Signal parent to refetch employee detail
     emit('cv-updated')
   } catch {
-    uploadError.value = 'No se pudo subir el CV. Verifica el archivo e intentá de nuevo.'
+    uploadError.value = 'No se pudo subir el CV. Verifica el archivo e inténtalo de nuevo.'
   } finally {
     isUploading.value = false
     // Reset input so same file can be re-selected if needed
@@ -115,103 +116,69 @@ async function handleFileSelected(event: Event): Promise<void> {
   <div class="flex flex-col gap-6">
 
     <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
-      <!-- Header -->
-      <div class="flex items-center gap-2 border-b border-default px-5 py-4">
-        <UIcon name="i-lucide-file-text" class="size-4 text-primary" />
-        <h3 class="text-sm font-semibold text-highlighted">Currículum Vitae</h3>
+      <div class="border-b border-default px-5 py-4">
+        <h2 class="text-base font-semibold text-highlighted">Currículum vitae</h2>
       </div>
 
-      <!-- Body -->
-      <div class="px-5 py-6">
+      <div class="p-5">
 
-        <!-- ── CV exists: show download option ──────────────────────────── -->
-        <template v-if="employee.cvFileId">
-          <div class="flex flex-col gap-4">
-            <!-- CV indicator card -->
-            <div class="flex items-center gap-4 rounded-xl border border-default bg-elevated/40 px-4 py-3">
-              <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                <UIcon name="i-lucide-file-text" class="size-5 text-primary" />
-              </div>
-              <div class="min-w-0 flex-1">
-                <p class="text-sm font-medium text-highlighted">
-                  CV de {{ employee.fullName }}
-                </p>
-                <p class="text-xs text-muted">Archivo disponible para descarga</p>
-              </div>
+        <!-- ── CV exists: download, and replace for who can update ──────── -->
+        <div v-if="employee.cvFileId" class="flex flex-col gap-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <p class="min-w-0 text-sm font-medium text-highlighted">
+              CV de {{ employee.fullName }}
+            </p>
+            <div class="flex shrink-0 items-center gap-2">
               <UButton
                 icon="i-lucide-download"
-                color="primary"
-                variant="soft"
-                size="sm"
+                color="neutral"
+                variant="outline"
                 label="Descargar"
                 :loading="isDownloading"
                 @click="handleDownload"
               />
-            </div>
-
-            <!-- Download error -->
-            <div
-              v-if="downloadError"
-              class="flex items-center gap-2 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-xs text-error"
-            >
-              <UIcon name="i-lucide-alert-circle" class="size-3.5 shrink-0" />
-              <span>{{ downloadError }}</span>
-            </div>
-
-            <!-- Replace CV option (only for users who can update) -->
-            <div v-if="canUpdate" class="mt-2">
-              <p class="mb-2 text-xs text-muted">¿Quieres reemplazar el CV actual?</p>
               <UButton
+                v-if="canUpdate"
                 icon="i-lucide-upload"
                 color="neutral"
                 variant="outline"
-                size="xs"
-                label="Subir nuevo CV"
+                label="Reemplazar"
                 :loading="isUploading"
                 @click="triggerFileInput"
               />
             </div>
           </div>
-        </template>
 
-        <!-- ── No CV ────────────────────────────────────────────────────── -->
-        <template v-else>
-
-          <!-- Upload button (only for users with update:Employee) -->
-          <div v-if="canUpdate" class="flex flex-col items-center gap-4 py-6 text-center">
-            <div class="flex size-14 items-center justify-center rounded-full bg-elevated">
-              <UIcon name="i-lucide-upload-cloud" class="size-7 text-muted opacity-60" />
-            </div>
-            <div>
-              <p class="font-semibold text-highlighted">Sin CV registrado</p>
-              <p class="mt-1 text-sm text-muted">
-                Sube el CV del colaborador en formato PDF, DOC, DOCX o imagen.
-              </p>
-            </div>
-            <UButton
-              icon="i-lucide-upload"
-              color="primary"
-              label="Subir CV"
-              :loading="isUploading"
-              @click="triggerFileInput"
-            />
-          </div>
-
-          <!-- Empty state for read-only users -->
-          <div v-else class="flex flex-col items-center gap-3 py-10 text-center">
-            <UIcon name="i-lucide-file-x" class="size-10 text-muted opacity-40" />
-            <p class="text-sm text-muted">No hay CV ni datos de educación registrados.</p>
-          </div>
-
-          <!-- Upload error -->
-          <div
-            v-if="uploadError"
-            class="mt-4 flex items-center gap-2 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-xs text-error"
+          <p
+            v-if="downloadError"
+            class="rounded-lg border border-(--hf-danger-border) bg-(--hf-danger-soft) px-3 py-2 text-[13px] text-(--hf-danger)"
+            role="alert"
           >
-            <UIcon name="i-lucide-alert-circle" class="size-3.5 shrink-0" />
-            <span>{{ uploadError }}</span>
-          </div>
+            {{ downloadError }}
+          </p>
+        </div>
+
+        <!-- ── No CV: the shared empty state, with the upload when allowed ── -->
+        <template v-else>
+          <EmptyState
+            title="Sin CV registrado"
+            :description="canUpdate ? 'Sube un PDF, DOC, DOCX o imagen.' : undefined"
+            icon="i-lucide-file-text"
+            :action-label="canUpdate ? 'Subir CV' : undefined"
+            action-icon="i-lucide-upload"
+            :action-loading="isUploading"
+            action-test-id="cv-upload"
+            @action="triggerFileInput"
+          />
         </template>
+
+        <p
+          v-if="uploadError"
+          class="mt-4 rounded-lg border border-(--hf-danger-border) bg-(--hf-danger-soft) px-3 py-2 text-[13px] text-(--hf-danger)"
+          role="alert"
+        >
+          {{ uploadError }}
+        </p>
 
       </div>
     </UCard>

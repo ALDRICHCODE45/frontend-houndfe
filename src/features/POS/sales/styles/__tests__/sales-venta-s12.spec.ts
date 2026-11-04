@@ -21,6 +21,19 @@ function block(source: string, selector: string): string {
 
 const CARD = '.sales-pos-workspace .sales-pos-product-card-composition'
 
+describe('Venta heading and detail meta line — no uppercase eyebrows', () => {
+  it('drops the workspace eyebrow rule', () => {
+    expect(workspaceCss).not.toContain('sales-pos-workspace-eyebrow')
+  })
+
+  it('sets the detail brand/category line in sentence case, muted', () => {
+    const eyebrow = block(checkoutCss, '.sales-pos-checkout .sales-pos-detail-eyebrow')
+    expect(eyebrow).not.toMatch(/text-transform/)
+    expect(eyebrow).not.toMatch(/letter-spacing/)
+    expect(eyebrow).toMatch(/color:\s*var\(--hf-muted\)/)
+  })
+})
+
 describe('S12 — v0 catalog card presentation', () => {
   it('paints one bordered 12px surface that highlights on hover', () => {
     const card = block(workspaceCss, CARD)
@@ -33,7 +46,8 @@ describe('S12 — v0 catalog card presentation', () => {
     const media = block(workspaceCss, `${CARD} .sales-pos-product-media`)
     expect(media).toMatch(/aspect-ratio:\s*1\.42/)
     expect(media).toMatch(/max-height:\s*none/)
-    expect(media).toMatch(/background-color:\s*var\(--hf-page\)/)
+    // A neutral muted tile: the placeholder is not a bright grey in dark.
+    expect(media).toMatch(/background-color:\s*var\(--hf-surface-muted\)/)
   })
 
   it('keeps a full-width 44px add action and the action color for variants', () => {

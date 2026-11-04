@@ -125,11 +125,6 @@ const title = computed(() =>
   props.mode === 'create' ? 'Agregar miembro' : 'Editar rol del miembro',
 )
 
-const description = computed(() =>
-  props.mode === 'create'
-    ? 'Selecciona el usuario y asignale un rol en esta sucursal'
-    : 'Cambia el rol del miembro en esta sucursal',
-)
 
 const formId = computed(() =>
   props.mode === 'create' ? 'create-membership-form' : 'edit-membership-form',
@@ -182,7 +177,6 @@ function onSubmit(
   <USlideover
     v-model:open="open"
     :title="title"
-    :description="description"
     side="right"
     inset
     :ui="{ content: 'hf-theme hf-ui hf-form-overlay tenants-form-portal' }"
@@ -207,7 +201,7 @@ function onSubmit(
               description-key="email"
               placeholder="Selecciona un usuario"
               v-model:search-term="userSearchTerm"
-              :search-input="{ placeholder: 'Escribí para buscar usuarios' }"
+              :search-input="{ placeholder: 'Escribe para buscar usuarios' }"
               :ignore-filter="true"
               :loading="isLoadingUsers"
               :avatar="selectedUserAvatar"
@@ -215,7 +209,7 @@ function onSubmit(
               size="lg"
             >
               <template #empty>
-                <span v-if="isSingleCharSearch">Escribí al menos 2 caracteres para buscar usuarios</span>
+                <span v-if="isSingleCharSearch">Escribe al menos 2 caracteres para buscar usuarios</span>
                 <span v-else>No hay usuarios activos disponibles para agregar.</span>
               </template>
             </USelectMenu>

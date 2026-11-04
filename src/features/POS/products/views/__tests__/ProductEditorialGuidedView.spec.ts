@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { reactive } from 'vue'
@@ -9,7 +11,10 @@ const http = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn() }))
 vi.mock('@/core/shared/api/http', () => ({ http }))
 const auth = reactive({ isSuperAdmin: false, isAuthenticated: true, authPhase: 'authenticated', user: { id: 'u' }, currentTenant: { id: 't' } as { id: string } | null, permissionsLoaded: true, permissionCodes: [read, update] })
 vi.mock('@/features/auth/stores/useAuthStore', () => ({ useAuthStore: () => auth }))
-vi.mock('vue-router', () => ({ useRoute: () => ({ params: { id: 'p1' } }) }))
+const routerPush = vi.hoisted(() => vi.fn())
+vi.mock('vue-router', () => ({ useRoute: () => ({ params: { id: 'p1' } }), useRouter: () => ({ push: routerPush }) }))
+const productGetById = vi.hoisted(() => vi.fn())
+vi.mock('../../api/product.api', () => ({ productApi: { getById: productGetById } }))
 let wrapper: ReturnType<typeof mount>
 const button = (text: string) => wrapper.findAll('button').find(item => item.text() === text)!
 async function render() {
@@ -18,6 +23,7 @@ async function render() {
 }
 beforeEach(() => {
   vi.resetAllMocks()
+  productGetById.mockResolvedValue({ name: 'Collar ajustable' })
   auth.permissionCodes = [read, update]
   auth.isSuperAdmin = false
   auth.currentTenant = { id: 't' }
@@ -64,7 +70,7 @@ describe('guided standalone editorial workspace', () => {
     expect(summary().text()).toContain('Acuse histórico; no es el estado actual')
     expect(summary().text()).toContain('Revisión consultada 3')
     expect(summary().text()).not.toContain('ACK ONLY')
-    expect(wrapper.text()).toContain('Publicación pendiente de habilitación del backend')
+    expect(wrapper.text()).toContain('La publicación aún no está disponible')
   })
   it('keeps validation visible when saving from review without losing the invalid input', async () => {
     await render()
@@ -112,5 +118,66 @@ describe('guided standalone editorial workspace', () => {
     expect(wrapper.find('[aria-label="Resumen editorial privado"]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain(' exact ')
     expect(http.get).toHaveBeenCalledTimes(3)
+  })
+})
+
+describe('guided editorial view — review round 1', () => {
+  it('names the product and offers a back control instead of a generic page title', async () => {
+    await render()
+    expect(wrapper.get('h1').text()).toBe('Collar ajustable')
+    expect(wrapper.text()).not.toContain('Espacio editorial')
+    await wrapper.get('button[aria-label="Volver al producto"]').trigger('click')
+    expect(routerPush).toHaveBeenCalledWith('/pos/products/p1')
+  })
+
+  it('does not stack a second page title over the workspace heading', async () => {
+    await render()
+    const h2s = wrapper.findAll('h2').map(item => item.text())
+    expect(h2s.filter(text => text === 'Contenido editorial')).toHaveLength(1)
+    expect(wrapper.find('.hf-page-subtitle').exists()).toBe(false)
+  })
+})
+
+describe('guided editorial view — review round 2', () => {
+  const readsFailing = (status: number, error: string) =>
+    http.get.mockImplementation((url: string) => url.includes('vocabulary')
+      ? Promise.resolve({ ...success(), data: vocabularyEnvelope() })
+      : url.endsWith('/context') ? Promise.resolve({ status: 200, data: { variants: [] } }) : Promise.reject(failure(status, error)))
+
+  it('not found: an empty state with one way back, no refresh beside it and no error design', async () => {
+    readsFailing(404, 'NOT_FOUND')
+    await render()
+    const empty = wrapper.get('.hf-empty-state')
+    expect(empty.attributes('data-kind')).toBe('empty')
+    expect(empty.get('.hf-empty-state__title').text()).toBe('No encontramos el contenido editorial')
+    expect(wrapper.find('[data-kind="error"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="refresh-retain"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="empty-state-action"]').trigger('click')
+    expect(routerPush).toHaveBeenCalledWith('/pos/products')
+  })
+
+  it('failed read: Reintentar is the only retry, the header offers no second "Consultar"', async () => {
+    readsFailing(500, 'INTERNAL')
+    await render()
+    const error = wrapper.get('.hf-empty-state[data-kind="error"]')
+    expect(error.get('[data-testid="empty-state-action"]').text()).toContain('Reintentar')
+    expect(wrapper.find('[data-testid="refresh-retain"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Consultar y cargar borrador')
+  })
+
+  it('shows no developer cycle line and keeps the workspace heading out of sight under the product title', async () => {
+    await render()
+    expect(wrapper.text()).not.toContain('Ciclo editorial')
+    const heading = wrapper.get('#editorial-workspace-title')
+    expect(heading.element.tagName).toBe('H2')
+    expect(heading.classes()).toContain('sr-only')
+    expect(wrapper.find('[data-testid="refresh-retain"]').exists()).toBe(true)
+  })
+
+  it('aligns with the page column instead of centering a capped box', () => {
+    const view = readFileSync(resolve(__dirname, '../ProductEditorialView.vue'), 'utf8')
+    const workspace = readFileSync(resolve(__dirname, '../../components/editorial/EditorialWorkspace.vue'), 'utf8')
+    expect(view.match(/\.guided-workspace\s*\{[^}]*\}/)![0]).not.toMatch(/margin:\s*0 auto|max-width/)
+    expect(workspace.match(/\.editorial-workspace\s*\{[^}]*\}/)![0]).not.toMatch(/margin:\s*0 auto|max-width/)
   })
 })

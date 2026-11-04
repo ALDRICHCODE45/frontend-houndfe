@@ -12,21 +12,21 @@ describe('PROMOTION_STATUS_CONFIG — structure', () => {
   it('has ACTIVE config with label, tone, and icon', () => {
     const config = PROMOTION_STATUS_CONFIG['ACTIVE']
     expect(config.label).toBe('Activa')
-    expect(config.tone).toBe('active')
+    expect(config.tone).toBe('success')
     expect(config.icon).toBeDefined()
   })
 
   it('has SCHEDULED config with label, tone, and icon', () => {
     const config = PROMOTION_STATUS_CONFIG['SCHEDULED']
     expect(config.label).toBe('Programada')
-    expect(config.tone).toBe('pending')
+    expect(config.tone).toBe('info')
     expect(config.icon).toBeDefined()
   })
 
   it('has ENDED config with label, tone, and icon', () => {
     const config = PROMOTION_STATUS_CONFIG['ENDED']
     expect(config.label).toBe('Finalizada')
-    expect(config.tone).toBe('inactive')
+    expect(config.tone).toBe('neutral')
     expect(config.icon).toBeDefined()
   })
 })
@@ -35,19 +35,19 @@ describe('getStatusConfig', () => {
   it('returns ACTIVE config for ACTIVE status', () => {
     const config = getStatusConfig('ACTIVE')
     expect(config.label).toBe('Activa')
-    expect(config.tone).toBe('active')
+    expect(config.tone).toBe('success')
   })
 
   it('returns SCHEDULED config for SCHEDULED status', () => {
     const config = getStatusConfig('SCHEDULED')
     expect(config.label).toBe('Programada')
-    expect(config.tone).toBe('pending')
+    expect(config.tone).toBe('info')
   })
 
   it('returns ENDED config for ENDED status', () => {
     const config = getStatusConfig('ENDED')
     expect(config.label).toBe('Finalizada')
-    expect(config.tone).toBe('inactive')
+    expect(config.tone).toBe('neutral')
   })
 })
 

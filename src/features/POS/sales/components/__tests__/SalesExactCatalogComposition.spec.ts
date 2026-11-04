@@ -15,7 +15,7 @@ import ProductSearchPanel from '../ProductSearchPanel.vue'
  * S8 / S10 — the REQUESTED catalog composition (T2, workspace unit A).
  *
  * The user's last fidelity report is specific and public:
- *   1. the v0 workspace heading `PUNTO DE VENTA` / `Nueva venta` is missing and
+ *   1. the workspace heading `Nueva venta` is missing and
  *      must sit on the page canvas BEFORE the draft strip;
  *   2. the catalog controls are one titled SURFACE, not a tall decorative card
  *      that also holds the whole product grid; the title carries the REAL
@@ -200,7 +200,7 @@ function mountView() {
 
 // ── E1 — the requested workspace heading, before the draft strip ────────────
 
-describe('E1 — PUNTO DE VENTA / Nueva venta heading', () => {
+describe('E1 — Nueva venta heading', () => {
   beforeEach(() => {
     mobileViewport.value = false
     listLoading.value = false
@@ -211,7 +211,9 @@ describe('E1 — PUNTO DE VENTA / Nueva venta heading', () => {
     const wrapper = mountView()
 
     const header = wrapper.get('.sales-pos-workspace-header')
-    expect(header.get('.sales-pos-workspace-eyebrow').text()).toBe('PUNTO DE VENTA')
+    // The uppercase eyebrow is retired (Page header pattern).
+    expect(header.find('.sales-pos-workspace-eyebrow').exists()).toBe(false)
+    expect(header.text()).not.toContain('PUNTO DE VENTA')
     expect(header.get('.sales-pos-workspace-title').text()).toBe('Nueva venta')
   })
 
@@ -310,7 +312,7 @@ describe('E2 — titled catalog controls surface', () => {
     resetSearchState()
   })
 
-  it('renders the title, the real catalog count and the search label in the sale opt-in', () => {
+  it('renders the title and the real catalog count in the sale opt-in, with no visible search label', () => {
     mockTotalUnfiltered.value = 6
     mockItems.value = [catalogItem]
     mockCategories.value = [{ id: 'cat-1', name: 'Medicamentos', count: 3 }]
@@ -320,7 +322,8 @@ describe('E2 — titled catalog controls surface', () => {
     const surface = wrapper.get('.sales-pos-catalog-controls-surface')
     expect(surface.get('.sales-pos-catalog-title').text()).toBe('Catálogo de productos')
     expect(surface.get('.sales-pos-catalog-count').text()).toContain('6')
-    expect(surface.text()).toContain('Buscar producto')
+    // The placeholder names the field; a visible label above it only repeated it.
+    expect(surface.text()).not.toContain('Buscar producto')
     // The count is the real exposed computation, not a prototype literal.
     expect(surface.get('.sales-pos-catalog-count').text()).not.toContain('3 productos')
   })
@@ -350,15 +353,13 @@ describe('E2 — titled catalog controls surface', () => {
     expect(wrapper.find('.sales-pos-product-grid').exists()).toBe(true)
   })
 
-  it('labels the search input from the surface label', () => {
+  it('names the search input for assistive tech without a visible label', () => {
     mockItems.value = [catalogItem]
 
     const wrapper = mountPanel(ENTRY_PORTAL)
 
-    const label = wrapper.get('.sales-pos-catalog-search-label')
-    const forId = label.attributes('for')
-    expect(forId).toBeTruthy()
-    expect(wrapper.get(`#${forId}`).element.tagName.toLowerCase()).toBe('input')
+    expect(wrapper.find('.sales-pos-catalog-search-label').exists()).toBe(false)
+    expect(wrapper.get('#sales-pos-product-search').attributes('aria-label')).toBe('Buscar producto')
   })
 
   it('keeps the omitted-opt-in consumer inert (no title, no label, no sale-only id)', () => {

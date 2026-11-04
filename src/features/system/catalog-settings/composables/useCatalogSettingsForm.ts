@@ -21,7 +21,7 @@ import {
   validateCatalogSettingsDraft,
 } from '../utils/catalogSettingsMappers'
 
-export type SaveRoute = 'confirm' | 'save'
+type SaveRoute = 'confirm' | 'save'
 
 export interface CatalogSettingsFormApi {
   accepted: Ref<CatalogSettingsResponseDto | null>

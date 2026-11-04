@@ -13,28 +13,19 @@ body.hf-app {
 }
 
 .hf-ui {
-  /* Rebind the root compatibility vocabulary where HF tokens actually live.
-   * Do not remap shade scales: their foreground/background compositions and
-   * status uses require individual migration. Feature-owned aliases below
+  /* Rebind the root brand compatibility vocabulary where HF tokens actually
+   * live. Do not remap shade scales: their foreground/background compositions
+   * and status uses require individual migration. Feature-owned aliases below
    * this boundary (for example sales detail's blue action pair) still win. */
-  --surface-page: var(--hf-page);
-  --surface-card: var(--hf-surface);
-  --surface-hover: var(--hf-surface-muted);
-  --surface-input: var(--hf-field);
-  --border-subtle: var(--hf-border);
-  --border-card: var(--hf-border);
-  --text-primary: var(--hf-ink);
-  --text-secondary: var(--hf-muted);
-  --text-muted: var(--hf-muted);
   --brand-primary: var(--hf-action);
-  --brand-soft: var(--hf-active-soft);
   --brand-action: var(--hf-gold);
   --brand-accent: var(--hf-active);
-  --brand-warm: var(--hf-gold-ink);
-  --brand-warm-soft: var(--hf-gold-soft);
 
   /* Nuxt UI semantic aliases. */
   --ui-primary: var(--hf-action);
+  /* One red. Nuxt's `error` role (text-error, color="error", bg-error/..,
+   * border-error/..) follows --hf-danger in both themes. */
+  --ui-error: var(--hf-danger);
   --ui-text-highlighted: var(--hf-heading);
   --ui-text: var(--hf-ink);
   --ui-text-toned: var(--hf-muted);
@@ -72,9 +63,10 @@ body.hf-app {
   font-family: var(--hf-font);
 }
 
-/* Error, warning, success and destructive controls keep their existing
- * semantic roles: only the primary action surface adopts the retail blue, so a
- * mixed control row never turns every colored action into the same hue. */
+/* Warning, success and destructive controls keep their existing semantic
+ * roles (error now resolves to --hf-danger above): only the primary action
+ * surface adopts the retail blue, so a mixed control row never turns every
+ * colored action into the same hue. */
 
 /* Primary action pairing. The foreground always comes from `--hf-on-action`,
  * which stays readable on both the light and the dark action value. */
@@ -183,19 +175,92 @@ body.hf-app {
   font-size: 0.875rem;
 }
 
+/* One neutral header for every table: a faint wash of ink over the surface (no
+ * blue role) with muted 13px/600 headings. A feature never repaints it. */
+.hf-ui .hf-data-table {
+  --hf-table-head: color-mix(in srgb, var(--hf-ink) 4%, var(--hf-surface));
+}
+
 .hf-ui .hf-data-table thead[data-slot='thead'] {
-  background-color: var(--hf-surface-muted);
+  background-color: var(--hf-table-head);
 }
 
 .hf-ui .hf-data-table th[data-slot='th'] {
-  color: var(--hf-heading);
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
   font-weight: 600;
   white-space: nowrap;
+}
+
+/* Sort buttons read as the heading they sit in, not as a second control style. */
+.hf-ui .hf-data-table th[data-slot='th'] button {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
 }
 
 .hf-ui .hf-data-table td[data-slot='td'] {
   color: var(--hf-ink);
   vertical-align: middle;
+}
+
+/* Fit. A table of up to 8 columns fits its card at 1440 with the sidebar open,
+ * with no horizontal scroll. Nuxt's `td` is `whitespace-nowrap`, so a long text
+ * cell used to widen the whole table and push the last columns behind the pinned
+ * Acciones cell. Cells now shrink (`max-width: 0` lets the auto layout hand each
+ * column its share of the card) and truncate with an ellipsis; `min-width` keeps
+ * a status badge whole. Full text stays reachable in the detail. */
+.hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']) {
+  min-width: 7rem;
+  max-width: 0;
+  padding-inline: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The name column has priority (`hf-col-primary`, added by AppDataTable to the first data column
+ * or to `meta: { primary: true }`): a 16rem floor and the largest share of the card, so the other
+ * columns shrink first and names are not cut while a neighbour has room. */
+.hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']).hf-col-primary {
+  width: 40%;
+  min-width: 16rem;
+}
+
+/* A status badge is never truncated: its cell sizes to the badge. */
+.hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']):not(.hf-col-primary):has(.hf-status-badge) {
+  width: 1%;
+  max-width: none;
+  overflow: visible;
+  white-space: nowrap;
+}
+
+/* The selection column is only its checkbox. */
+.hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']):has([role='checkbox']) {
+  width: 3rem;
+  min-width: 3rem;
+  max-width: 3rem;
+  padding-inline: 0.75rem 0;
+  overflow: visible;
+}
+
+/* The Acciones column (`w-16`) reserves exactly 64px for the ⋮ menu, whose 44px
+ * target is never clipped or overlapped. */
+.hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']).w-16 {
+  width: 4rem;
+  min-width: 4rem;
+  max-width: 4rem;
+  padding-inline: 0.5rem;
+  overflow: visible;
+}
+
+/* A pinned cell is opaque: Nuxt paints it at 75%, so a neighbour scrolled
+ * under it (narrow screens only) showed through the ⋮ as a fade. */
+.hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th'])[data-pinned] {
+  background-color: var(--hf-surface);
+}
+
+.hf-ui .hf-data-table th[data-slot='th'][data-pinned] {
+  background-color: var(--hf-table-head);
 }
 
 .hf-ui .hf-data-table tr[data-slot='tr']:hover {
@@ -256,9 +321,17 @@ body.hf-app {
   white-space: nowrap;
 }
 
+/* Tabular numerals everywhere; the right alignment is a table-cell rule only, so a figure in a
+ * stat card or a summary panel follows the card's own alignment. */
 .hf-ui .hf-figure {
-  text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+.hf-ui td .hf-figure,
+.hf-ui th .hf-figure,
+.hf-ui td.hf-figure,
+.hf-ui th.hf-figure {
+  text-align: right;
 }
 
 /* ── Status badge: dot + tinted soft background (StatusBadge.vue) ─────────── */
@@ -381,4 +454,68 @@ body.hf-app {
 .hf-ui.hf-form-overlay {
   background-color: var(--hf-surface);
   color: var(--hf-ink);
+}
+
+/* ── Empty, no-match, error and forbidden states ─────────────────────────── */
+
+/* One centered column: 24px icon, title, one line, at most one button. The
+ * error kind alone gets the soft danger surface; the rest stay on the page. */
+.hf-ui .hf-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 8rem;
+  padding: 40px 16px;
+  text-align: center;
+  font-family: var(--hf-font);
+}
+
+.hf-ui .hf-empty-state__icon {
+  width: 24px;
+  height: 24px;
+  color: var(--hf-muted);
+}
+
+.hf-ui .hf-empty-state__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+.hf-ui .hf-empty-state__description {
+  margin: 0;
+  max-width: 28rem;
+  font-size: 13px;
+  color: var(--hf-muted);
+}
+
+.hf-ui .hf-empty-state > button,
+.hf-ui .hf-empty-state > a {
+  margin-top: 8px;
+}
+
+.hf-ui .hf-empty-state[data-kind='error'] {
+  background-color: var(--hf-danger-soft);
+  border: 1px solid var(--hf-danger-border);
+  border-radius: var(--hf-radius-card);
+}
+
+.hf-ui .hf-empty-state[data-kind='error'] .hf-empty-state__icon {
+  color: var(--hf-danger);
+}
+
+.hf-ui .hf-empty-state[data-kind='error'] .hf-empty-state__title {
+  color: var(--hf-danger);
+}
+
+/* ── Skeleton: readable on a white card in both themes ────────────────────── */
+
+/* Nuxt's USkeleton paints `bg-elevated`, which is `--hf-surface` here, so it was invisible on a
+ * card. One wash of ink over the surface (readable in light and dark) for USkeleton and for the
+ * core's own bars (`hf-skeleton`). Features do not paint their own skeleton colour. */
+.hf-ui :is(.hf-skeleton, .animate-pulse.bg-elevated) {
+  background-color: color-mix(in srgb, var(--hf-ink) 16%, var(--hf-surface));
 }

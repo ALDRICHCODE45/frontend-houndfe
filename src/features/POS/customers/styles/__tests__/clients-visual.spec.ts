@@ -6,8 +6,6 @@ const sharedPath = 'src/core/shared/design-system/houndfe-ui.css'
 const css = existsSync(path) ? readFileSync(path, 'utf8') : ''
 const sharedCss = readFileSync(sharedPath, 'utf8')
 const view = readFileSync('src/features/POS/customers/views/CustomersView.vue', 'utf8')
-const card = readFileSync('src/features/POS/customers/components/CustomerCard.vue', 'utf8')
-const grid = readFileSync('src/features/POS/customers/components/CustomerCardGrid.vue', 'utf8')
 
 // Source contracts, not rendered geometry or browser fidelity evidence.
 describe('Clients local presentation adapter', () => {
@@ -20,40 +18,28 @@ describe('Clients local presentation adapter', () => {
     expect(css).not.toContain('!important')
   })
 
-  it('owns light and dark list portal palettes locally with restrained geometry', () => {
-    expect(css).toContain('.hf-theme.clients-list-portal')
-    expect(css).toContain('.dark .hf-theme.clients-list-portal')
-    expect(css).toContain('--hf-surface: #ffffff')
-    expect(css).toContain('--hf-surface: #1b2736')
-    expect(css).not.toContain('--hf-field-border:')
+  it('paints only on --hf roles: no palette literals, no local re-theme', () => {
+    const declarations = css.replace(/\/\*[\s\S]*?\*\//g, '')
+    expect(declarations).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
+    expect(declarations).not.toMatch(/--hf-(?:page|surface|surface-muted|field|ink|heading|muted|border|action|on-action|active|focus):/)
+    expect(declarations).not.toMatch(/coco|--brand|--light/)
     expect(css).toContain('--radius-xl: var(--hf-radius-card)')
   })
 
-  it('keeps cards bounded and badges content sized without changing legacy tracks', () => {
-    expect(css).toContain('repeat(auto-fill, minmax(min(100%, 14rem), 1fr))')
-    expect(css).toContain('.clients-visual .clients-card-grid')
-    expect(css).toContain('.clients-visual .clients-badge')
-    expect(css).toContain('width: fit-content')
-    expect(card).toContain('clients-card')
-    expect(grid).toContain('clients-card-grid')
-    expect(grid).toContain('auto-fit')
+  it('has no rules for the retired card grid, view toggle, badge or custom empty state', () => {
+    for (const retired of ['clients-card', 'clients-view-toggle', 'clients-badge', 'clients-empty', 'auto-fill']) {
+      expect(css).not.toContain(retired)
+    }
   })
 
-  it('shares the empty-state presentation and forwards only owned card menu portals', () => {
-    expect(view).toContain('<template #empty>')
-    expect(view.match(/<CustomersEmptyState/g)?.length).toBe(2)
-    expect(grid).toContain('<slot name="empty">')
-    expect(grid).toContain(':portal-class="portalClass"')
-    expect(card).toContain('portalClass ? { content: portalClass } : undefined')
-  })
-
-  it('wraps toolbar controls, compacts pagination and never selects arbitrary data slots', () => {
-    expect(css).toContain('.clients-visual .hf-toolbar-actions')
-    expect(css).toContain('flex-wrap: wrap')
-    expect(css).toContain('.clients-visual .hf-pagination-size')
-    expect(css).toContain('.clients-visual .clients-view-toggle')
-    expect(css).not.toMatch(/\.clients-visual\s+\[data-slot=/)
-    expect(css).toContain('.clients-visual .clients-empty-state')
+  it('uses the shared table pattern: table on desktop, cards on mobile, no toggle', () => {
+    expect(view).toContain('mobile-render="cards"')
+    expect(view).toContain('#mobile-card')
+    expect(view).toContain(':row-open="rowOpen"')
+    expect(view).not.toContain('ViewToggle')
+    expect(view).not.toContain('CustomerCardGrid')
+    expect(view).not.toContain('AppBadge')
+    expect(view).not.toContain('UDropdownMenu')
   })
 })
 
@@ -114,48 +100,17 @@ function exactRule(source: string, selector: string): CSSStyleRule | undefined {
 }
 
 describe('Clients form overlay adapter (S1-S3)', () => {
-  const palette: Record<string, string> = {
-    '--hf-surface': '#ffffff',
-    '--hf-surface-muted': '#eaf0f8',
-    '--hf-field': '#f3f6fa',
-    '--hf-ink': '#1e3555',
-    '--hf-heading': '#1e3555',
-    '--hf-muted': '#63748b',
-    '--hf-border': '#dce3ed',
-    '--hf-action': '#315ce7',
-    '--hf-on-action': '#ffffff',
-    '--hf-focus': '#315ce7',
-  }
-  const darkPalette: Record<string, string> = {
-    '--hf-surface': '#1b2736',
-    '--hf-surface-muted': '#223044',
-    '--hf-field': '#101720',
-    '--hf-ink': '#e4ebf5',
-    '--hf-heading': '#e4ebf5',
-    '--hf-border': '#2d3b4d',
-    '--hf-action': '#91b0ff',
-    '--hf-on-action': '#172b51',
-    '--hf-focus': '#91b0ff',
-  }
-
-  it('joins the form-portal marker to the existing listing palette groups', () => {
+  it('keeps the overlay marker on the listing and portal groups without a local palette', () => {
     const rules = styleRules(css)
-    for (const [selector, expected] of [
-      ['.hf-theme.clients-form-portal', palette],
-      ['.dark .hf-theme.clients-form-portal', darkPalette],
-    ] as Array<[string, Record<string, string>]>) {
-      const group = rules.find((rule) => splitTopLevel(rule.selectorText).includes(selector))
-      expect(group).toBeDefined()
-      for (const [property, value] of Object.entries(expected)) {
-        expect(group!.style.getPropertyValue(property).trim()).toBe(value)
-      }
-      // The listing portals share the same group, so values are reused rather
-      // than duplicated in a new global override.
-      const groupSelectors = splitTopLevel(group!.selectorText)
-      const darkPrefix = selector.startsWith('.dark') ? '.dark ' : ''
-      expect(groupSelectors).toContain(`${darkPrefix}.hf-theme.clients-visual`)
-      expect(groupSelectors).toContain(`${darkPrefix}.hf-theme.clients-list-portal`)
-    }
+    const group = rules.find((rule) =>
+      splitTopLevel(rule.selectorText).includes('.hf-theme.clients-form-portal'),
+    )
+    expect(group).toBeDefined()
+    const groupSelectors = splitTopLevel(group!.selectorText)
+    expect(groupSelectors).toContain('.hf-theme.clients-visual')
+    expect(groupSelectors).toContain('.hf-theme.clients-list-portal')
+    expect(group!.style.getPropertyValue('--hf-action')).toBe('')
+    expect(group!.style.getPropertyValue('--hf-surface')).toBe('')
   })
 
   it('repeats the controlled radius scale for form panels without flattening circles', () => {
@@ -298,12 +253,10 @@ describe('Clients form overlay adapter (S1-S3)', () => {
     addressContent.remove()
   })
 
-  it('preserves the listing palette and geometry rules next to the overlay adapter', () => {
+  it('keeps the listing and portal boundaries next to the overlay adapter', () => {
     const selectors = selectorsOf(css)
     expect(selectors).toContain('.hf-theme.clients-visual')
     expect(selectors).toContain('.hf-theme.clients-list-portal')
-    expect(selectors).toContain('.clients-visual .clients-card')
-    expect(selectors).toContain('.clients-visual .clients-card-grid')
-    expect(css).toContain('repeat(auto-fill, minmax(min(100%, 14rem), 1fr))')
+    expect(selectors).toContain('.clients-form-portal .clients-form-section')
   })
 })

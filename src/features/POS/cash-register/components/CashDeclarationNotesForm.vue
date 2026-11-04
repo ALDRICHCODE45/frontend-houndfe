@@ -42,26 +42,18 @@ function submit() {
 </script>
 
 <template>
-  <section class="cash-panel" data-testid="cash-declaration-notes">
-    <header class="cash-panel-header">
-      <span class="cash-icon-tile" aria-hidden="true">
-        <UIcon name="i-lucide-message-square-text" />
-      </span>
-      <div class="cash-panel-header-text">
-        <h2 class="cash-panel-title">Notas de la declaración</h2>
-        <p class="cash-panel-subtitle">
-          Solo se agregan notas: el conteo original queda intacto y no se crea un nuevo conteo
-          ciego.
-        </p>
-      </div>
+  <section class="cash-list-section" data-testid="cash-declaration-notes">
+    <header class="cash-list-header">
+      <h2 class="cash-list-title">Notas de la declaración</h2>
+      <p class="cash-list-subtitle">Solo se agregan notas; el conteo original no cambia.</p>
     </header>
 
-    <div class="cash-panel-body">
+    <div class="flex flex-col gap-4">
       <form class="cash-form-content flex flex-col gap-3" @submit.prevent="submit">
         <UFormField label="Nota explicativa">
           <UInput
             v-model="notes"
-            class="cash-control w-full"
+            class="w-full"
             placeholder="Faltante de 500 por cambio entregado sin registrar"
             :disabled="disabled"
             data-testid="cash-declaration-notes-input"
@@ -85,7 +77,7 @@ function submit() {
 
         <UButton
           type="submit"
-          class="cash-control self-start"
+          class="min-h-11 self-start"
           :loading="submitting"
           :disabled="!canSubmit || submitting"
           data-testid="cash-declaration-notes-submit"

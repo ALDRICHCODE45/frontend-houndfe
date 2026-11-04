@@ -35,17 +35,17 @@ const isPending = computed(() => props.isPending ?? false)
 // backend event type would force this Record to be extended.
 
 const EVENT_COLORS: Readonly<Record<SaleTimelineEventType, { text: string; bg: string }>> = {
-  [SALE_TIMELINE_EVENT_TYPE.SALE_REGISTERED]: { text: 'text-coco-gold-700 dark:text-coco-gold-400', bg: 'bg-coco-gold-500/10' },
-  [SALE_TIMELINE_EVENT_TYPE.PAYMENT_RECEIVED]: { text: 'text-success', bg: 'bg-success/10' },
-  [SALE_TIMELINE_EVENT_TYPE.PRODUCTS_DELIVERED]: { text: 'text-info', bg: 'bg-info/10' },
-  [SALE_TIMELINE_EVENT_TYPE.COMMENT]: { text: 'text-muted', bg: 'bg-muted/10' },
+  [SALE_TIMELINE_EVENT_TYPE.SALE_REGISTERED]: { text: 'text-(--hf-action)', bg: 'bg-(--hf-active-soft)' },
+  [SALE_TIMELINE_EVENT_TYPE.PAYMENT_RECEIVED]: { text: 'text-(--hf-success)', bg: 'bg-(--hf-surface-muted)' },
+  [SALE_TIMELINE_EVENT_TYPE.PRODUCTS_DELIVERED]: { text: 'text-(--hf-action)', bg: 'bg-(--hf-active-soft)' },
+  [SALE_TIMELINE_EVENT_TYPE.COMMENT]: { text: 'text-(--hf-muted)', bg: 'bg-(--hf-surface-muted)' },
 }
 
 const orderedTimeline = computed(() => [...props.timeline].sort((a, b) => b.at.localeCompare(a.at)))
 
 function eventLabel(event: SaleTimelineEvent): string {
-  if (event.type === SALE_TIMELINE_EVENT_TYPE.SALE_REGISTERED) return 'Venta Registrada'
-  if (event.type === SALE_TIMELINE_EVENT_TYPE.PRODUCTS_DELIVERED) return 'Entrega de Productos'
+  if (event.type === SALE_TIMELINE_EVENT_TYPE.SALE_REGISTERED) return 'Venta registrada'
+  if (event.type === SALE_TIMELINE_EVENT_TYPE.PRODUCTS_DELIVERED) return 'Entrega de productos'
   if (event.type === SALE_TIMELINE_EVENT_TYPE.COMMENT) return 'Comentario'
 
   // custom-payment-methods S5B (REQ-CAT-005): the PAYMENT_RECEIVED label
@@ -75,7 +75,7 @@ function eventIcon(event: SaleTimelineEvent): string {
 }
 
 function eventIconColor(event: SaleTimelineEvent): string {
-  const colors = EVENT_COLORS[event.type] ?? { text: 'text-muted', bg: 'bg-muted/10' }
+  const colors = EVENT_COLORS[event.type] ?? { text: 'text-(--hf-muted)', bg: 'bg-(--hf-surface-muted)' }
   return `${colors.text} ${colors.bg}`
 }
 
@@ -137,7 +137,7 @@ async function deleteCommentForEvent(event: SaleTimelineEvent) {
       <!-- Vertical connector line (except for last event) -->
       <div
         v-if="index < orderedTimeline.length - 1"
-        class="absolute left-5 top-10 bottom-0 w-px bg-coco-neutral-200 dark:bg-coco-neutral-800"
+        class="absolute left-5 top-10 bottom-0 w-px bg-(--hf-border)"
       />
 
       <!-- Icon container -->

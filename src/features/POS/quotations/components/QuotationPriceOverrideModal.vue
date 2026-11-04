@@ -63,7 +63,7 @@ async function submit(): Promise<void> {
     await props.onSubmit(props.item.id, customPriceCents.value ?? 0)
     emit('update:open', false)
   } catch {
-    apiError.value = 'No se pudo aplicar el cambio de precio. Reintenta.'
+    apiError.value = 'No se pudo aplicar el cambio de precio.'
   } finally {
     isSubmitting.value = false
   }

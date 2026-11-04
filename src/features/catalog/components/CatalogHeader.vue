@@ -35,7 +35,7 @@ const errorCopy: Record<'empty' | 'rate-limit' | 'server' | 'network', string> =
   empty: 'No hay sucursales publicadas',
   'rate-limit': 'Demasiadas solicitudes. Intenta de nuevo más tarde.',
   server: 'No pudimos cargar las sucursales.',
-  network: 'No se pudo conectar. Revisa tu conexión.',
+  network: 'No se pudo conectar. Inténtalo de nuevo en un momento.',
 }
 const retryMessage = computed(() =>
   props.state === 'empty' ||
@@ -86,7 +86,7 @@ function selectBranch(slug: string) {
           <template #leading>
             <UIcon name="i-lucide-map-pin" class="size-3.5 shrink-0 text-primary" />
           </template>
-          <span class="max-w-[6.5rem] truncate sm:max-w-[12rem]">{{
+          <span class="max-w-[9rem] truncate sm:max-w-[12rem]">{{
             selectedBranch?.name ?? 'Elegir sucursal'
           }}</span>
           <template #trailing>
@@ -168,8 +168,8 @@ function selectBranch(slug: string) {
             <template v-else>
               <p role="status" class="text-sm text-toned">{{ retryMessage }}</p>
               <UButton
-                color="primary"
-                variant="solid"
+                color="neutral"
+                variant="outline"
                 size="md"
                 icon="i-lucide-refresh-cw"
                 aria-label="Reintentar sucursales"

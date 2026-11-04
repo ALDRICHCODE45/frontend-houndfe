@@ -7,22 +7,18 @@
  * query, command or business selection — clicking a task only announces the
  * requested task so the view can reveal that task's existing panel.
  *
- * The page heading is the FOCUSED task's heading (a presentation label, never a
- * lifecycle step). When no task is focused the page falls back to the plain
- * workspace title, so the shell stays usable on its own.
+ * The page heading is always the workspace title, so it matches the breadcrumb;
+ * the focused task is shown by the navigation, not by a second title.
  */
-import { computed } from 'vue'
 import type { CashWorkspaceTaskId, CashWorkspaceTaskOption } from '../composables/useCashWorkspace'
 
-const props = withDefaults(
+withDefaults(
   defineProps<{
     title: string
-    subtitle?: string
     tasks?: CashWorkspaceTaskOption[]
     activeTaskId?: CashWorkspaceTaskId | null
   }>(),
   {
-    subtitle: '',
     tasks: () => [],
     activeTaskId: null,
   },
@@ -31,21 +27,12 @@ const props = withDefaults(
 const emit = defineEmits<{
   selectTask: [taskId: CashWorkspaceTaskId]
 }>()
-
-const activeTask = computed(
-  () => props.tasks.find((task) => task.id === props.activeTaskId) ?? null,
-)
-
-const heading = computed(() => activeTask.value?.heading || props.title)
-const description = computed(() => activeTask.value?.description || props.subtitle)
 </script>
 
 <template>
   <section class="cash-workspace cash-visual flex flex-col gap-6" data-testid="cash-workspace">
     <header class="cash-workspace-header">
-      <p class="cash-workspace-eyebrow">{{ title }}</p>
-      <h1 class="cash-page-title" data-testid="cash-workspace-heading">{{ heading }}</h1>
-      <p v-if="description" class="cash-workspace-subtitle">{{ description }}</p>
+      <h1 class="cash-page-title" data-testid="cash-workspace-heading">{{ title }}</h1>
     </header>
 
     <div class="cash-workspace-grid">
@@ -72,8 +59,6 @@ const description = computed(() => activeTask.value?.description || props.subtit
           aria-label="Tareas de Caja"
           data-testid="cash-workspace-nav"
         >
-          <h2 class="cash-task-nav-title">¿Qué necesitas hacer?</h2>
-          <p class="cash-task-nav-subtitle">Cada tarea, cuando la necesites.</p>
           <ul class="cash-task-nav-list">
             <li v-for="task in tasks" :key="task.id">
               <button
@@ -84,17 +69,13 @@ const description = computed(() => activeTask.value?.description || props.subtit
                 :data-testid="`cash-workspace-task-${task.id}`"
                 @click="emit('selectTask', task.id)"
               >
-                <span
-                  class="cash-icon-tile cash-icon-tile-sm"
+                <UIcon
+                  :name="task.icon"
+                  class="cash-task-icon"
                   :data-testid="`cash-task-icon-${task.id}`"
                   aria-hidden="true"
-                >
-                  <UIcon :name="task.icon" />
-                </span>
-                <span class="cash-task-body">
-                  <span class="cash-task-label">{{ task.label }}</span>
-                  <span class="cash-task-hint">{{ task.hint }}</span>
-                </span>
+                />
+                <span class="cash-task-label">{{ task.label }}</span>
               </button>
             </li>
           </ul>

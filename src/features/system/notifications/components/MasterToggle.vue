@@ -3,19 +3,20 @@
  * MasterToggle — USwitch wrapper for the master "Notificaciones" toggle.
  *
  * Thin component: takes a boolean model + optional label/description,
- * renders USwitch + a UBadge with the "Activadas"/"Desactivadas" copy.
+ * renders USwitch + a StatusBadge with the "Activadas"/"Desactivadas" copy.
  *
  * Props ↓ / Events ↑:
  *   - modelValue:   boolean
  *   - disabled?:    boolean — when true the switch is greyed
  *   - label?:       string — switch label text (default "Notificaciones")
- *   - description?: string — sub-text under the label
+ *   - description?: string — optional sub-text under the label (none by default)
  *   - Emits @update:modelValue with the next boolean
  *
  * Badge copy + tone live in `masterToggleState.ts` so the spec strings
  * are testable without mounting the component.
  */
 import { computed } from 'vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { computeMasterBadgeState } from './masterToggleState'
 
 const props = withDefaults(
@@ -28,7 +29,7 @@ const props = withDefaults(
   {
     disabled: false,
     label: 'Notificaciones',
-    description: 'Cuando estén activadas, los usuarios seleccionados recibirán notificaciones del sistema.',
+    description: undefined,
   },
 )
 
@@ -58,13 +59,10 @@ function onUpdate(next: boolean) {
         @update:model-value="onUpdate"
       />
     </div>
-    <UBadge
-      :color="badge.color"
-      variant="subtle"
-      size="md"
+    <StatusBadge
+      :label="badge.label"
+      :tone="badge.tone"
       data-testid="master-toggle-badge"
-    >
-      {{ badge.label }}
-    </UBadge>
+    />
   </div>
 </template>

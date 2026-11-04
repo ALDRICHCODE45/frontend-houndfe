@@ -117,7 +117,7 @@ function handleClose(): void {
           data-testid="no-items-warning"
         >
           <UIcon name="i-lucide-alert-triangle" class="h-4 w-4 mt-0.5 shrink-0" />
-          <span>La cotización no tiene productos. Agregá al menos uno antes de enviar.</span>
+          <span>La cotización no tiene productos. Agrega al menos uno antes de enviar.</span>
         </div>
 
         <!-- Customer-without-email warning -->
@@ -130,7 +130,7 @@ function handleClose(): void {
           <span>
             <template v-if="customerName"> {{ customerName }} no tiene email registrado. </template>
             <template v-else> La cotización no tiene cliente asignado. </template>
-            No se puede enviar por email — usá "Marcar como enviado" si entregás el PDF en persona.
+            No se puede enviar por email — usa "Marcar como enviado" si entregas el PDF en persona.
           </span>
         </div>
 

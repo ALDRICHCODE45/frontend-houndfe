@@ -95,11 +95,10 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
   >
     <template #body>
       <div class="flex flex-col gap-4">
-        <!-- Warning context -->
+        <!-- Consequence, in one line -->
         <p class="text-sm text-muted">
-          Estás a punto de dar de baja a
-          <span class="font-semibold text-highlighted">{{ employee?.fullName ?? 'este colaborador' }}</span>.
-          Esta acción cambiará su estado a <span class="font-medium text-error">Baja</span>.
+          <span class="font-semibold text-highlighted">{{ employee?.fullName ?? 'Este colaborador' }}</span>
+          pasará a estado Baja.
         </p>
 
         <!-- Form with terminationDate + terminationReason -->
@@ -112,6 +111,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
         >
           <UFormField label="Fecha de baja" name="terminationDate" required>
             <DateFieldPopover
+              portal-class="hf-theme hf-ui hf-form-overlay employees-form-portal"
               v-model="state.terminationDate"
               placeholder="Elegir fecha de baja"
               :min-iso="null"

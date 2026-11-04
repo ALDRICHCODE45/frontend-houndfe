@@ -32,7 +32,7 @@ export type CustomerScope = (typeof CUSTOMER_SCOPE)[keyof typeof CUSTOMER_SCOPE]
 
 export type DayOfWeek = (typeof DAY_OF_WEEK)[keyof typeof DAY_OF_WEEK]
 
-export type TargetSide = (typeof TARGET_SIDE)[keyof typeof TARGET_SIDE]
+type TargetSide = (typeof TARGET_SIDE)[keyof typeof TARGET_SIDE]
 
 // ── Promotion capacity tri-state (PCA-1) ───────────────────────────────────────
 //
@@ -76,7 +76,7 @@ export const MAX_PRODUCT_UNITS_LIMIT = 2147483647
  * For `CATEGORIES` / `BRANDS` / `PRODUCTS` entries the enrichment fields
  * are ignored and never read.
  */
-export interface PromotionTargetItem {
+interface PromotionTargetItem {
   id: string
   side: TargetSide
   targetType: PromotionTargetType
@@ -89,19 +89,19 @@ export interface PromotionTargetItem {
   productName?: string
 }
 
-export interface PromotionCustomer {
+interface PromotionCustomer {
   id: string
   customerId: string
   customer?: { id: string; firstName: string; lastName: string | null } | null
 }
 
-export interface PromotionPriceList {
+interface PromotionPriceList {
   id: string
   globalPriceListId: string
   globalPriceList?: { id: string; name: string } | null
 }
 
-export interface PromotionDayOfWeek {
+interface PromotionDayOfWeek {
   id: string
   day: DayOfWeek
 }
@@ -154,12 +154,12 @@ export interface PromotionResponse {
 
 // ── Payload Types ──────────────────────────────────────────────────────────────
 
-export interface PromotionTargetItemPayload {
+interface PromotionTargetItemPayload {
   targetType: PromotionTargetType
   targetId: string
 }
 
-export interface PromotionAdvancedTargetItemPayload {
+interface PromotionAdvancedTargetItemPayload {
   targetId: string
 }
 

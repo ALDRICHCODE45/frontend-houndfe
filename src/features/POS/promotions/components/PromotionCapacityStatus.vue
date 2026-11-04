@@ -9,7 +9,7 @@
  * throwing or showing a wrong number.
  */
 import { computed } from 'vue'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { resolvePromotionCapacityState } from '../utils/promotionSummary.utils'
 
 const props = withDefaults(
@@ -19,8 +19,11 @@ const props = withDefaults(
     remainingProductUnits?: number | null
     /** Reduces surrounding spacing for dense list/table cells. */
     compact?: boolean
+    /** An unlimited cap is the default and says nothing: show a dash (list rows). */
+    hideUnlimited?: boolean
   }>(),
   {
+    hideUnlimited: false,
     // No counter defaults: a missing prop must stay `undefined` so the
     // resolver can treat it as absent (`stale`) instead of faking `null`/`0`.
     compact: false,
@@ -49,7 +52,9 @@ const accessibleLabel = computed(() => {
 </script>
 
 <template>
+  <span v-if="hideUnlimited && descriptor.state === 'unlimited'" class="text-muted" data-testid="promotion-capacity-none">—</span>
   <span
+    v-else
     data-testid="promotion-capacity-status"
     class="inline-flex max-w-full"
     :class="compact ? '' : 'py-0.5'"
@@ -57,6 +62,6 @@ const accessibleLabel = computed(() => {
     :aria-label="accessibleLabel"
     role="status"
   >
-    <AppBadge :label="descriptor.label" :tone="descriptor.tone" :icon="descriptor.icon" />
+    <StatusBadge :label="descriptor.label" :tone="descriptor.tone" :aria-label="descriptor.label" />
   </span>
 </template>

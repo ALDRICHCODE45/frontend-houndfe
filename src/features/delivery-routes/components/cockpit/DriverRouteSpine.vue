@@ -17,6 +17,7 @@
  */
 import DriverStopCard from './DriverStopCard.vue'
 import type { CockpitSpineNode, StopTrigger } from '../../composables/cockpit/useDriverRouteCockpit'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import { DELIVERY_ROUTE_COPY } from '../../copy'
 
 defineProps<{
@@ -42,11 +43,9 @@ function onCheckIn(payload: StopTrigger): void {
 </script>
 
 <template>
-  <p
-    v-if="nodes.length === 0"
-    data-testid="cockpit-spine-empty"
-    class="px-4 py-6 text-center text-sm text-muted"
-  >{{ emptySpineCopy }}</p>
+  <div v-if="nodes.length === 0" data-testid="cockpit-spine-empty">
+    <EmptyState :title="emptySpineCopy" />
+  </div>
   <ol
     v-else
     data-testid="cockpit-spine-root"

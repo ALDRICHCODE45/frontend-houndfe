@@ -54,8 +54,8 @@ describe('CANCEL_REASONS — value-pin contract', () => {
 })
 
 describe('QUOTATION_STATUS_TONE — status to badge tone mapping', () => {
-  it('DRAFT maps to info tone', () => {
-    expect(QUOTATION_STATUS_TONE.DRAFT).toBe('info')
+  it('DRAFT maps to the neutral tone (drafts are neutral everywhere)', () => {
+    expect(QUOTATION_STATUS_TONE.DRAFT).toBe('neutral')
   })
 
   it('SENT maps to success tone', () => {
@@ -74,7 +74,7 @@ describe('QUOTATION_STATUS_TONE — status to badge tone mapping', () => {
     const tones = Object.values(QUOTATION_STATUS_TONE)
     expect(tones).toHaveLength(Object.keys(QUOTATION_STATUS).length)
     for (const tone of tones) {
-      expect(['info', 'success', 'warning', 'error']).toContain(tone)
+      expect(['neutral', 'success', 'warning', 'error']).toContain(tone)
     }
   })
 })

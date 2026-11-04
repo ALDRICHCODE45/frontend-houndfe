@@ -37,4 +37,15 @@ describe('Dashboard trend presentation contract', () => {
     expect(reduced).toContain('transition: none')
     expect(reduced).toContain('clip-path: none')
   })
+
+  it('wraps the metric tabs into a grid on narrow screens instead of clipping them', () => {
+    expect(css).toMatch(/@media \(max-width: 1190px\) \{[^@]*dashboard-trend-tabs \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/)
+    expect(css).toContain('.dashboard-trend-tab[aria-pressed="true"] { background: var(--hf-active-soft); }')
+  })
+
+  it('shapes the loading skeleton like the chart: tabs, grid lines and bars', () => {
+    for (const hook of ['skeleton-shape', 'skeleton-tabs', 'skeleton-chart', 'skeleton-line', 'skeleton-bars']) {
+      expect(css).toContain(`.dashboard-trend-${hook}`)
+    }
+  })
 })

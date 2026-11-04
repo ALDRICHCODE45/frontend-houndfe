@@ -24,10 +24,8 @@ import type { CashCountPayload, CashSession, CashSessionDetail } from '../interf
 import type { CountChannel } from '../utils/cash-input'
 import { integerCents, pesosToCents } from '../utils/cash-input'
 
-export type CashMethod = CountChannel['method']
 export type CashStatus = CashSession['status']
-export type CashHandover = CashSessionDetail['handovers'][number]
-export type CashCountLine = { channelKey: string; amountCents: number }
+type CashCountLine = { channelKey: string; amountCents: number }
 
 export const CASH_CHANNEL_KEY = 'CASH'
 
@@ -393,6 +391,6 @@ export function floatSourceDrawerAdvisory(
   }
   return {
     blocked: false,
-    message: 'La caja de origen sigue sin liberar su cajón: puedes usar el FLOAT en otra caja.',
+    message: 'La caja de origen sigue sin liberar su cajón: puedes usar el fondo en otra caja.',
   }
 }

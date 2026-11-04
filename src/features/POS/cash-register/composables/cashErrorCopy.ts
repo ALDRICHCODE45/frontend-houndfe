@@ -12,7 +12,7 @@
  */
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
 
-export const CASH_GENERIC_ERROR = 'No pudimos completar la operación. Reintenta.'
+export const CASH_GENERIC_ERROR = 'No pudimos completar la operación.'
 
 export type CashIdentityReason = 'inactive' | 'changed'
 
@@ -72,9 +72,9 @@ const CASH_ERROR_COPY: Record<string, string> = {
   CASH_SESSION_NOT_WRITABLE: 'La sesión está congelada: no admite movimientos.',
   CASH_OPENING_NOT_CONFIRMED: 'Confirma explícitamente el fondo inicial para abrir.',
   CASH_OPENING_FUNDS_MISMATCH:
-    'El monto de apertura debe coincidir con el FLOAT recibido por la persona que abre.',
-  CASH_OPENING_FLOAT_REUSE: 'Ese FLOAT ya fue usado para abrir otra sesión.',
-  CASH_OPENING_HANDOVER_NOT_FOUND: 'No encontramos el FLOAT recibido indicado.',
+    'El monto de apertura debe coincidir con el fondo recibido por la persona que abre.',
+  CASH_OPENING_FLOAT_REUSE: 'Ese fondo ya fue usado para abrir otra sesión.',
+  CASH_OPENING_HANDOVER_NOT_FOUND: 'No encontramos el fondo recibido indicado.',
   CASH_OPENING_SOURCE_DRAWER_NOT_RELEASED:
     'La caja de origen todavía no liberó su cajón. Prueba en otra caja o espera la liberación.',
   CASH_DECLARATION_ALREADY_SUBMITTED:

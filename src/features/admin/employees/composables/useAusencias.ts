@@ -57,7 +57,6 @@ import type {
   TimeOffType,
   TimeOffStatus,
   TimeOffRequest,
-  VacationBalance,
   CreateTimeOffDto,
 } from '../interfaces/employee.types'
 import { EMPLOYEE_ERROR_MAP } from '../interfaces/errors'

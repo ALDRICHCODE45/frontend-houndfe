@@ -10,7 +10,7 @@
  *   - Optional mono folio (omitted entirely when null/blank).
  *   - Customer name with the copy.ts fallback for null customers.
  *   - Formatted address via the shared `formatAddress` (hidden when absent).
- *   - Current emphasis (data-current + gold rail — the single signature
+ *   - Current emphasis (data-current + info rail — the single signature
  *     operational anchor) and a "Siguiente" badge on the derived next stop.
  *
  * Separate native controls, never nested buttons:
@@ -27,9 +27,11 @@
  * ≥44px with a visible focus ring. All user-visible literals bind from copy.ts.
  */
 import { computed } from 'vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { formatAddress } from '@/core/shared/utils/formatAddress'
 import {
   DELIVERY_ROUTE_STOP_STATUS_LABELS,
+  DELIVERY_ROUTE_STOP_STATUS_TONES,
   type DeliveryRouteStop,
 } from '../../interfaces/delivery-route.types'
 import type { CockpitNodeState, StopTrigger } from '../../composables/cockpit/useDriverRouteCockpit'
@@ -53,6 +55,7 @@ const positionLabel = computed<string>(() =>
   DELIVERY_ROUTE_COPY.cockpit.operational.positionLabel.replace('{N}', String(props.stop.sortOrder + 1)),
 )
 const statusLabel = computed<string>(() => DELIVERY_ROUTE_STOP_STATUS_LABELS[props.stop.status])
+const statusTone = computed(() => DELIVERY_ROUTE_STOP_STATUS_TONES[props.stop.status])
 const folio = computed<string>(() => props.stop.saleFolio?.trim() ?? '')
 const hasFolio = computed<boolean>(() => folio.value.length > 0)
 const customerName = computed<string>(
@@ -63,7 +66,7 @@ const formattedAddress = computed<string>(
 )
 const hasAddress = computed<boolean>(() => formattedAddress.value.length > 0)
 
-// Current emphasis follows the Coco palette (gold for the actionable anchor);
+// Current emphasis is the info tint (the position, not a pending issue);
 // the semantic status label carries meaning — color is never the only signal.
 const cardClass = computed<string[]>(() => [
   'relative flex w-full min-w-0 flex-col gap-3 rounded-lg border bg-default p-3 max-sm:p-2.5',
@@ -104,7 +107,7 @@ function checkIn(event: MouseEvent): void {
       <div class="flex min-w-0 flex-1 flex-col gap-0.5">
         <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
           <span data-testid="driver-stop-card-position">{{ positionLabel }}</span>
-          <span data-testid="driver-stop-card-status" class="font-medium">{{ statusLabel }}</span>
+          <StatusBadge data-testid="driver-stop-card-status" :tone="statusTone" :label="statusLabel" />
           <span
             v-if="props.isNext"
             data-testid="driver-stop-card-next-badge"
@@ -113,10 +116,10 @@ function checkIn(event: MouseEvent): void {
           <span
             v-if="hasFolio"
             data-testid="driver-stop-card-folio"
-            class="min-w-0 truncate font-mono normal-case"
+            class="hf-figure min-w-0 truncate"
           >· {{ folio }}</span>
         </div>
-        <span data-testid="driver-stop-card-customer" class="min-w-0 truncate text-sm font-medium text-default">
+        <span data-testid="driver-stop-card-customer" class="min-w-0 truncate text-sm font-semibold text-highlighted">
           {{ customerName }}
         </span>
         <span

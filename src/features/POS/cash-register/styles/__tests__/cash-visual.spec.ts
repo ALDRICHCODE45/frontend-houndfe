@@ -36,33 +36,21 @@ afterEach(() => {
 })
 
 describe('Caja presentation boundaries', () => {
-  it('decorates button controls without painting a second box on Nuxt input roots', () => {
-    const wrapper = document.createElement('div')
-    wrapper.className = 'cash-control w-full'
-    wrapper.dataset.slot = 'root'
-    wrapper.append(document.createElement('input'))
-    const button = document.createElement('button')
-    button.className = 'cash-control'
-    const controls = rules(adapter).filter((rule) => rule.selectorText.includes('.cash-control'))
-    const painted = controls.filter((rule) => rule.style.getPropertyValue('border'))
-
+  it('keeps native fields on the shared field and focus tokens, with no second box on Nuxt roots', () => {
+    const fields = rules(adapter).filter((rule) => rule.selectorText.includes('input'))
+    expect(fields.some((rule) => rule.style.getPropertyValue('border'))).toBe(false)
     expect(
-      painted.filter((rule) => wrapper.matches(rule.selectorText)).map((rule) => rule.selectorText),
-    ).toEqual([])
-    expect(painted.some((rule) => button.matches(rule.selectorText))).toBe(true)
-    expect(
-      controls.some(
+      fields.some(
         (rule) =>
           rule.selectorText.includes(':focus-visible') &&
-          rule.style.getPropertyValue('outline').includes('--cash-primary'),
+          rule.style.getPropertyValue('outline').includes('--hf-focus'),
       ),
     ).toBe(true)
     expect(
-      rules(adapter).some(
+      fields.some(
         (rule) =>
-          rule.selectorText.includes('input') &&
-          rule.selectorText.includes(':focus-visible') &&
-          rule.style.getPropertyValue('outline').includes('--hf-focus'),
+          rule.style.getPropertyValue('min-height') === 'var(--hf-control-height)' &&
+          rule.style.getPropertyValue('background-color') === 'var(--hf-field)',
       ),
     ).toBe(true)
   })
@@ -70,10 +58,10 @@ describe('Caja presentation boundaries', () => {
   it('maps warning utilities locally to readable semantic amber in both themes, not decorative gold', () => {
     const scope = rules(adapter).find(
       (rule) =>
-        rule.selectorText.includes('.cash-visual') && rule.style.getPropertyValue('--cash-warning'),
+        rule.selectorText.includes('.cash-visual') && rule.style.getPropertyValue('--ui-warning'),
     )!
-    expect(scope.style.getPropertyValue('--ui-warning').trim()).toBe('var(--cash-warning)')
-    expect(scope.style.getPropertyValue('--color-warning').trim()).toBe('var(--cash-warning)')
+    expect(scope.style.getPropertyValue('--ui-warning').trim()).toBe('var(--hf-warning)')
+    expect(scope.style.getPropertyValue('--color-warning').trim()).toBe('var(--hf-warning)')
     expect(scope.selectorText).not.toContain(':root')
 
     const themes = rules(foundation).filter((rule) => rule.style.getPropertyValue('--hf-warning'))
@@ -87,5 +75,31 @@ describe('Caja presentation boundaries', () => {
         ).toBeGreaterThanOrEqual(4.5)
       }
     }
+  })
+
+  it('speaks only the --hf token vocabulary: no palette, hex, coco, legacy brand or local --cash aliases', () => {
+    const declarations = rules(adapter)
+      .map((rule) => rule.cssText)
+      .join('\n')
+    expect(declarations).not.toMatch(/#[0-9a-f]{3,8}\b/i)
+    expect(declarations).not.toMatch(/coco-|--brand-|--light-|--cash-(?!page-max|rail)/)
+    expect(declarations).not.toMatch(/\b(red|green|amber|blue|emerald|slate|gray)-\d{2,3}\b/)
+  })
+
+  it('keeps the task strip inside 390px: compact tabs and a fade that hints at more to scroll', () => {
+    expect(adapter).toMatch(/\.cash-task-nav-list\s*\{[^}]*mask-image:\s*linear-gradient/)
+    expect(adapter).toMatch(/\.cash-task-nav-list\s*\{[^}]*overflow-x:\s*auto/)
+    // The fade is a mobile affordance: the desktop rail is a column and never masks.
+    expect(adapter).toMatch(/@media \(min-width: 1024px\)\s*\{\s*\.cash-task-nav-list\s*\{[^}]*mask-image:\s*none/)
+  })
+
+  it('puts the task strip above the content below lg and back in the rail from lg', () => {
+    expect(adapter).toMatch(/\.cash-workspace-context\s*\{[^}]*order:\s*-1/)
+    expect(adapter).toMatch(/@media \(min-width: 1024px\)\s*\{[^@]*\.cash-workspace-context\s*\{[^}]*order:\s*0/)
+  })
+
+  it('stacks the reception facts in the rail so a label never wraps to a second line', () => {
+    expect(adapter).toMatch(/\.cash-facts-rail\s*\{[^}]*grid-template-columns:\s*1fr/)
+    expect(adapter).toMatch(/\.cash-facts-rail\s+\.cash-fact dt\s*\{[^}]*white-space:\s*nowrap/)
   })
 })

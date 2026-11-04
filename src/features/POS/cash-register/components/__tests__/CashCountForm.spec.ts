@@ -134,6 +134,13 @@ describe('CashCountForm', () => {
     expect(wrapper.text()).not.toMatch(/centavos/i)
   })
 
+  it('names each channel by its label and never shows the channel key', () => {
+    const wrapper = mountWithUApp(CashCountForm, { props: { channels: CHANNELS } })
+    const labels = wrapper.findAll('label').map((label) => label.text())
+    expect(labels).toContain('Visa Crédito')
+    expect(wrapper.text()).not.toContain('PM:card')
+  })
+
   it('keeps denominations optional', async () => {
     const wrapper = mountWithUApp(CashCountForm, { props: { channels: CHANNELS } })
     await setChannel(wrapper, 'CASH', '50.00')

@@ -263,7 +263,8 @@ describe('CashRegisterView · task-focused composition', () => {
     expect(taskShown(wrapper, 'apertura')).toBe(true)
     expect(taskShown(wrapper, 'historial')).toBe(false)
     expect(wrapper.find('[data-testid="cash-registers-panel"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="cash-open-session"]').exists()).toBe(true)
+    // The opening form appears once a register is chosen, not as a hint before.
+    expect(wrapper.find('[data-testid="cash-open-session"]').exists()).toBe(false)
 
     await navigate(wrapper, 'historial')
     expect(taskShown(wrapper, 'historial')).toBe(true)
@@ -296,15 +297,15 @@ describe('CashRegisterView · task-focused composition', () => {
     expect(nav.text().toLowerCase()).not.toContain('paso ')
   })
 
-  it('presents the heading of the task chosen from the quiet navigation', async () => {
+  it('keeps the page title equal to the breadcrumb when another task is chosen', async () => {
     const { wrapper } = mountView()
     await flush()
 
-    expect(wrapper.get('[data-testid="cash-workspace-heading"]').text()).toBe('Abrir un turno')
+    expect(wrapper.get('[data-testid="cash-workspace-heading"]').text()).toBe('Caja')
 
     await navigate(wrapper, 'historial')
 
-    expect(wrapper.get('[data-testid="cash-workspace-heading"]').text()).toBe('Historial de turnos')
+    expect(wrapper.get('[data-testid="cash-workspace-heading"]').text()).toBe('Caja')
   })
 })
 
@@ -606,7 +607,7 @@ describe('CashRegisterView · sensitive local state is cleared on an identity ch
       false,
     )
     expect(wrapper.find('[data-testid="cash-session-summary"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="cash-open-no-register"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="cash-open-session"]').exists()).toBe(false)
   })
 })
 
@@ -957,5 +958,122 @@ describe('CashRegisterView · contextual feedback after a selection change', () 
     await wrapper.get('[data-testid="cash-register-open-r-2"]').trigger('click')
     await flush()
     expect(wrapper.find('[data-testid="cash-open-error"]').exists()).toBe(false)
+  })
+})
+
+describe('CashRegisterView · four states (S10)', () => {
+  it('empty: registers, sessions and the unselected shift each say "nada todavía"', async () => {
+    api.listRegisters.mockResolvedValue([])
+    api.listSessions.mockResolvedValue({ items: [], page: 1, limit: 25, total: 0 })
+    const { wrapper } = mountView()
+    await flush()
+
+    const registers = wrapper.get('[data-testid="cash-registers-panel"]')
+    expect(registers.get('.hf-empty-state[data-kind="empty"]').text()).toContain('Aún no hay cajas')
+    const sessionsPanel = wrapper.get('[data-testid="cash-sessions-panel"]')
+    expect(sessionsPanel.get('.hf-empty-state[data-kind="empty"]').text()).toContain(
+      'Aún no hay sesiones',
+    )
+    expect(wrapper.get('[data-testid="cash-workspace-no-shift"]').text()).toContain(
+      'Aún no hay un turno en foco',
+    )
+    expect(wrapper.get('[data-testid="cash-workspace-no-shift"]').text()).toContain(
+      'Aún no hay cajas para abrir un turno.',
+    )
+  })
+
+  it('the Tu turno card follows the page states: skeleton, then choose a register, then the float', async () => {
+    api.listRegisters.mockReturnValue(new Promise(() => {}))
+    const loading = mountView()
+    await flush()
+    expect(loading.wrapper.get('[data-testid="cash-shift-context-loading"]').attributes('aria-busy')).toBe('true')
+    expect(loading.wrapper.find('[data-testid="cash-workspace-no-shift"]').exists()).toBe(false)
+
+    api.listRegisters.mockResolvedValue([REGISTER])
+    const ready = mountView()
+    await flush()
+    expect(ready.wrapper.get('[data-testid="cash-workspace-no-shift"]').text()).toContain(
+      'Elige una caja para abrir tu turno.',
+    )
+    // The Apertura task is already open, so the card has no button that leads nowhere.
+    expect(ready.wrapper.find('[data-testid="cash-workspace-shift-open"]').exists()).toBe(false)
+
+    await ready.wrapper.get('[data-testid="cash-register-open-r-1"]').trigger('click')
+    await flush()
+    expect(ready.wrapper.get('[data-testid="cash-workspace-no-shift"]').text()).toContain(
+      'Ingresa el fondo inicial para abrir tu turno.',
+    )
+  })
+
+  it('a failed registers read leaves the card quiet (the panel owns the error) and points at Sesiones', async () => {
+    api.listRegisters.mockRejectedValueOnce(new Error('boom'))
+    const { wrapper } = mountView()
+    await flush()
+
+    const card = wrapper.get('[data-testid="cash-workspace-shift-card"]')
+    expect(card.find('[role="alert"]').exists()).toBe(false)
+    expect(card.text()).toContain('Elige una sesión para operar, contar o verificar.')
+  })
+
+  it('loading: the lists render their table skeletons, never a blank panel', async () => {
+    api.listRegisters.mockReturnValue(new Promise(() => {}))
+    api.listSessions.mockReturnValue(new Promise(() => {}))
+    const { wrapper } = mountView()
+    await flush()
+
+    expect(wrapper.get('[data-testid="cash-registers-panel"] [data-testid="table-skeleton"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="cash-sessions-panel"] [data-testid="table-skeleton"]').exists()).toBe(true)
+  })
+
+  it('data: registers and sessions are table rows with a status badge and the ⋮ menu', async () => {
+    const { wrapper } = mountView()
+    await flush()
+
+    const registers = wrapper.get('[data-testid="cash-registers-panel"]')
+    expect(registers.get('tbody .hf-status-badge').text()).toBe('Activa')
+    expect(registers.find('button[aria-haspopup="menu"]').exists()).toBe(true)
+    const sessionsPanel = wrapper.get('[data-testid="cash-sessions-panel"]')
+    expect(sessionsPanel.get('tbody .hf-status-badge').text()).toBe('Declarada')
+    expect(sessionsPanel.get('tbody td').text()).toBe('Caja principal')
+    expect(sessionsPanel.find('button[aria-haspopup="menu"]').exists()).toBe(true)
+  })
+
+  it('error: a failed read shows the alert with Reintentar that reads again', async () => {
+    api.listRegisters.mockRejectedValueOnce(new Error('boom'))
+    api.listSessions.mockRejectedValueOnce(new Error('boom'))
+    const { wrapper } = mountView()
+    await flush()
+
+    const registers = wrapper.get('[data-testid="cash-registers-panel"]')
+    expect(registers.get('[data-testid="table-error-state"]').attributes('role')).toBe('alert')
+    const sessionsPanel = wrapper.get('[data-testid="cash-sessions-panel"]')
+    expect(sessionsPanel.get('[data-testid="table-error-state"]').attributes('role')).toBe('alert')
+
+    api.listRegisters.mockClear()
+    await registers.get('[data-testid="table-error-retry"]').trigger('click')
+    await flush()
+    expect(api.listRegisters).toHaveBeenCalledTimes(1)
+    expect(wrapper.get('[data-testid="cash-registers-panel"]').find('[data-testid="table-error-state"]').exists()).toBe(false)
+  })
+
+  it('selected shift: loading shows a skeleton and a failed read offers Reintentar', async () => {
+    api.getSession.mockReturnValueOnce(new Promise(() => {}))
+    const loading = mountView()
+    await flush()
+    await selectFirstSession(loading.wrapper)
+    expect(loading.wrapper.get('[data-testid="cash-shift-loading"]').attributes('aria-busy')).toBe('true')
+
+    api.getSession.mockRejectedValueOnce(new Error('boom'))
+    const failed = mountView()
+    await flush()
+    await selectFirstSession(failed.wrapper)
+    expect(failed.wrapper.get('[data-testid="cash-shift-error"]').attributes('role')).toBe('alert')
+
+    api.getSession.mockClear()
+    api.getSession.mockResolvedValue(DETAIL)
+    await failed.wrapper.get('[data-testid="cash-shift-error"] [data-testid="empty-state-action"]').trigger('click')
+    await flush()
+    expect(api.getSession).toHaveBeenCalledTimes(1)
+    expect(failed.wrapper.find('[data-testid="cash-shift-error"]').exists()).toBe(false)
   })
 })

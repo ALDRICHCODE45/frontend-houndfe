@@ -182,12 +182,32 @@ function resetMocks() {
 beforeEach(resetMocks)
 
 describe('TenantCatalogSettingsView — loading state (REQ-12)', () => {
-  it('renders USkeleton placeholders while the query is loading', () => {
+  it('renders placeholders while the query is loading', () => {
     queryMock.isLoading.value = true
     const wrapper = mountWithUApp(TenantCatalogSettingsView)
     expect(wrapper.findAll('.animate-pulse').length).toBeGreaterThan(0)
     // No read surface while loading.
     expect(wrapper.find('[data-testid="catalog-settings-read"]').exists()).toBe(false)
+  })
+
+  it('shapes the skeleton like the form: publication row, two columns of label + control', () => {
+    queryMock.isLoading.value = true
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    const skeleton = wrapper.get('[data-testid="settings-loading"]')
+    expect(skeleton.attributes('aria-busy')).toBe('true')
+    expect(skeleton.findAll('[data-skeleton="publication"]')).toHaveLength(1)
+    expect(skeleton.findAll('[data-skeleton="section"]')).toHaveLength(2)
+    expect(skeleton.findAll('[data-skeleton="control"]').length).toBeGreaterThanOrEqual(3)
+  })
+
+  it.each([
+    ['loading', () => { queryMock.isLoading.value = true }],
+    ['error', () => { queryMock.isLoading.value = false; queryMock.isError.value = true }],
+  ])('draws no empty footer bar while %s', (_name, arrange) => {
+    arrange()
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    expect(wrapper.find('[data-slot="footer"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="settings-footer"]').exists()).toBe(false)
   })
 })
 
@@ -206,12 +226,27 @@ describe('TenantCatalogSettingsView — accepted read-only surface (REQ-5)', () 
   })
 })
 
+describe('TenantCatalogSettingsView — empty state (S10)', () => {
+  it('a catalog with no public lists says so inside the read surface instead of showing blanks', () => {
+    queryMock.settings.value = makeResponse({ catalogPublished: false, effectivePublication: false, priceContexts: [] })
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    expect(wrapper.find('[data-testid="contexts-empty"]').text()).toContain('Sin listas públicas')
+    expect(wrapper.find('[data-testid="publication-badge"]').attributes('data-tone')).toBe('neutral')
+    expect(wrapper.find('[data-testid="settings-error"]').exists()).toBe(false)
+  })
+})
+
 describe('TenantCatalogSettingsView — GET error + retry (REQ-12)', () => {
   it('renders an error state with Reintentar and no synthetic defaults', () => {
     queryMock.isError.value = true
     queryMock.error.value = new Error('404')
     const wrapper = mountWithUApp(TenantCatalogSettingsView)
-    expect(wrapper.find('[data-testid="settings-error"]').exists()).toBe(true)
+    const error = wrapper.find('[data-testid="settings-error"]')
+    expect(error.exists()).toBe(true)
+    expect(error.classes()).toContain('hf-empty-state')
+    expect(error.attributes('data-kind')).toBe('error')
+    expect(error.attributes('role')).toBe('alert')
+    expect(wrapper.text()).toContain('No se pudo cargar la configuración del catálogo')
     expect(wrapper.text()).toContain('Reintentar')
     expect(wrapper.find('[data-testid="catalog-settings-read"]').exists()).toBe(false)
   })
@@ -309,10 +344,10 @@ describe('TenantCatalogSettingsView — card shell (U5)', () => {
 
   // ── Canonical page header sits outside the card ──────────────────────────
 
-  it('renders the title and description in the page header, outside the card', () => {
+  it('renders the title without a subtitle in the page header, outside the card', () => {
     const wrapper = mountWithUApp(TenantCatalogSettingsView)
     expect(wrapper.find('.hf-page-title').text()).toBe('Configuración del catálogo online')
-    expect(wrapper.find('.hf-page-subtitle').text()).toContain('Controla la visibilidad')
+    expect(wrapper.find('.hf-page-subtitle').exists()).toBe(false)
     const card = wrapper.find('[data-testid="settings-card"]')
     expect(card.text()).not.toContain('Configuración del catálogo online')
   })

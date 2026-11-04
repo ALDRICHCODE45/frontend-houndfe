@@ -278,6 +278,12 @@ function onDriverChange(next: string | null) {
   }
 }
 
+const NOTES_MAX = 280
+const NOTES_COUNTER_FROM = Math.ceil(NOTES_MAX * 0.9)
+const notesLength = computed(() => formState.notes.length)
+const showNotesCounter = computed(() => notesLength.value >= NOTES_COUNTER_FROM)
+const notesAtLimit = computed(() => notesLength.value >= NOTES_MAX)
+
 function onNotesChange(next: string | string[]) {
   formState.notes = typeof next === 'string' ? next : next.join('')
   if (notesError.value && formState.notes.trim().length <= 280) {
@@ -334,7 +340,7 @@ defineExpose({
     :description="description"
     side="right"
     inset
-    :ui="{ content: 'hf-theme hf-ui hf-form-overlay delivery-routes-form-portal' }"
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay delivery-routes-form-portal', description: 'sr-only' }"
     @update:open="handleClose"
   >
     <template #body>
@@ -349,7 +355,6 @@ defineExpose({
           label="Ventas"
           name="saleIds"
                 :error="salesError"
-          help="Selecciona una o más ventas pendientes o enviadas."
           required
         >
           <EligibleSalesPicker
@@ -385,7 +390,6 @@ defineExpose({
           label="Notas"
           name="notes"
           :error="notesError"
-          help="Opcional. Máximo 280 caracteres."
         >
           <UTextarea
             :model-value="formState.notes"
@@ -394,13 +398,20 @@ defineExpose({
             placeholder="Ej: Llevar cambio"
             @update:model-value="onNotesChange"
           />
+          <!-- The counter only shows near the limit (from 90%). -->
+          <p
+            v-if="showNotesCounter"
+            data-testid="notes-counter"
+            class="notes-counter"
+            :class="{ 'is-limit': notesAtLimit }"
+            aria-live="polite"
+          >{{ notesLength }} / {{ NOTES_MAX }}</p>
         </UFormField>
       </UForm>
     </template>
 
     <template #footer>
       <div class="flex justify-end gap-3">
-        <UButton label="Cancelar" color="neutral" variant="outline" @click="handleClose" />
         <UButton
           :label="isCreate ? 'Crear ruta' : 'Guardar cambios'"
           :loading="loading"
@@ -412,3 +423,8 @@ defineExpose({
     </template>
   </USlideover>
 </template>
+
+<style scoped>
+.notes-counter { margin-top: 4px; color: var(--hf-warning); font-size: 12px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.notes-counter.is-limit { color: var(--hf-danger); }
+</style>

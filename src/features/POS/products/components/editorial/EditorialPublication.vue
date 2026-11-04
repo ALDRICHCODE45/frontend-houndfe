@@ -106,7 +106,7 @@ function confirmAction() {
 <template>
   <section class="editorial-panel publication" aria-labelledby="publication-title">
     <h2 id="publication-title">Publicación</h2>
-    <p v-if="!publicationAvailable" role="status" class="publication-pending">Publicación pendiente de habilitación del backend</p>
+    <p v-if="!publicationAvailable" role="status" class="publication-pending">La publicación aún no está disponible</p>
     <div class="publication-status">
       <p>{{ state.published ? `Publicado: revisión ${state.published.revision}` : 'Sin versión publicada' }}</p>
       <p>{{ state.draft ? `Borrador guardado: revisión ${state.draft.revision}` : 'Sin borrador guardado' }}</p>

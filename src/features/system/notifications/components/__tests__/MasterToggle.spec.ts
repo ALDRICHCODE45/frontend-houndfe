@@ -19,14 +19,14 @@ describe('computeMasterBadgeState (pure)', () => {
   it('returns "Activadas" with success tone when enabled=true', () => {
     expect(computeMasterBadgeState(true)).toEqual({
       label: 'Activadas',
-      color: 'success',
+      tone: 'success',
     })
   })
 
   it('returns "Desactivadas" with neutral tone when enabled=false', () => {
     expect(computeMasterBadgeState(false)).toEqual({
       label: 'Desactivadas',
-      color: 'neutral',
+      tone: 'neutral',
     })
   })
 })
@@ -46,6 +46,19 @@ describe('MasterToggle — render', () => {
   it('renders the "Desactivadas" badge when modelValue=false', () => {
     const wrapper = mountToggle({ modelValue: false })
     expect(wrapper.text()).toContain('Desactivadas')
+  })
+
+  it('says the state through a StatusBadge with the mapped tone', () => {
+    const on = mountToggle({ modelValue: true }).find('[data-testid="master-toggle-badge"]')
+    const off = mountToggle({ modelValue: false }).find('[data-testid="master-toggle-badge"]')
+    expect(on.classes()).toContain('hf-status-badge')
+    expect(on.attributes('data-tone')).toBe('success')
+    expect(off.attributes('data-tone')).toBe('neutral')
+  })
+
+  it('renders no help paragraph unless one is passed', () => {
+    const wrapper = mountToggle({ modelValue: true })
+    expect(wrapper.text()).not.toContain('recibirán notificaciones')
   })
 
   it('renders the description text from the label/description props', () => {

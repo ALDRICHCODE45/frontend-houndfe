@@ -5,7 +5,7 @@ import type { QuotationStatus } from '../../interfaces/quotation.types'
 
 const STATUSES: QuotationStatus[] = ['DRAFT', 'SENT', 'EXPIRED', 'CANCELLED']
 
-const STEP_LABELS = ['BORRADOR', 'ENVIADA', 'EXPIRADA/CANCELADA']
+const STEP_LABELS = ['Borrador', 'Enviada', 'Expirada o cancelada']
 
 function mountStepper(status: QuotationStatus) {
   return mount(QuotationProgressStepper, {
@@ -40,7 +40,7 @@ describe('QuotationProgressStepper — root contract', () => {
   })
 
   it.each(STATUSES)(
-    'renders the 3 step labels (BORRADOR, ENVIADA, EXPIRADA/CANCELADA) for %s',
+    'renders the 3 step labels (Borrador, Enviada, Expirada o cancelada) for %s',
     (status) => {
       const wrapper = mountStepper(status)
       const text = wrapper.text()
@@ -146,14 +146,12 @@ describe('QuotationProgressStepper — visual states via data attributes', () =>
       'quotations-stepper-connector',
     )
 
-    // Completed nodes/labels use the readable gold-ink role; the filled active
-    // node keeps its own fill pairing.
-    expect(
-      wrapper.get('[data-testid="stepper-step-0"]').find('.quotations-stepper-node').classes(),
-    ).toContain('quotations-gold-ink')
-    expect(
-      wrapper.get('[data-testid="stepper-step-1"]').find('.quotations-stepper-node').classes(),
-    ).toContain('quotations-gold-fill')
+    // Completed steps show a check; no per-feature gold or Coco classes remain.
+    const completed = wrapper.get('[data-testid="stepper-step-0"]')
+    expect(completed.attributes('data-state')).toBe('completed')
+    expect(completed.find('.quotations-stepper-node svg').exists()).toBe(true)
+    expect(wrapper.html()).not.toContain('coco')
+    expect(wrapper.html()).not.toContain('quotations-gold')
   })
 
   it('keeps the stepper reactive — updating the status prop re-evaluates active/completed/future', async () => {

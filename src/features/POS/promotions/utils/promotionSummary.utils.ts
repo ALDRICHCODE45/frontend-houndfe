@@ -20,7 +20,7 @@ import {
 // server numbers and detects internally inconsistent (stale) snapshots so the
 // component can degrade honestly instead of crashing or lying.
 
-export type PromotionCapacityState =
+type PromotionCapacityState =
   | 'unlimited'
   | 'unlimited_consumed'
   | 'available'

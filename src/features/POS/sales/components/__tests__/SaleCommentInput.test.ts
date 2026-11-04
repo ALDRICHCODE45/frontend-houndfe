@@ -41,22 +41,21 @@ describe('SaleCommentInput', () => {
 
     const button = wrapper.get('[data-testid="comment-open"]')
     expect(button.text()).toContain('Agregar comentario')
-    expect(button.attributes('data-variant')).toBe('soft')
-    // HST-REQ-004/007: trigger MUST NOT carry data-color="primary" so the
-    // coco-gold !-class overrides win; the color prop is dropped, leaving
-    // data-color undefined (or empty) — either is NOT "primary".
-    expect(button.attributes('data-color')).not.toBe('primary')
+    // Secondary action: outline and neutral, so it never competes with the
+    // page's single primary.
+    expect(button.attributes('data-variant')).toBe('outline')
+    expect(button.attributes('data-color')).toBe('neutral')
     expect(button.attributes('data-icon')).toContain('message')
   })
 
-  it('pins coco-gold tint classes on the comment trigger (HST-REQ-004)', () => {
+  it('carries no gold tint override on the comment trigger', () => {
     const wrapper = mount(SaleCommentInput, {
       props: { onSubmit: vi.fn().mockResolvedValue(undefined) },
       global: { stubs: globalStubs },
     })
 
     const button = wrapper.get('[data-testid="comment-open"]')
-    expect(button.classes()).toEqual(expect.arrayContaining(['!bg-coco-gold-500/15', '!text-coco-gold-800']))
+    expect(button.classes().join(' ')).not.toContain('coco-gold')
   })
 
   it('opens internal slideover when trigger is clicked', async () => {

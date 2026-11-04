@@ -27,6 +27,7 @@ const queryMockState = {
   isPending: ref(false),
   isError: ref(false),
   error: ref<unknown>(null),
+  refetch: vi.fn(),
 }
 
 const assignableMockState = {
@@ -127,6 +128,7 @@ function resetMocks() {
   queryMockState.isPending.value = false
   queryMockState.isError.value = false
   queryMockState.error.value = null
+  queryMockState.refetch.mockClear()
 
   assignableMockState.users.value = []
   assignableMockState.isLoading.value = false
@@ -160,6 +162,79 @@ describe('NotificationConfigView — loading state (REQ-9)', () => {
     // for any element carrying that class.
     const skeletons = wrapper.findAll('.animate-pulse')
     expect(skeletons.length).toBeGreaterThan(0)
+  })
+})
+
+describe('NotificationConfigView — four states (S10)', () => {
+  it('empty: a never-configured tenant renders the defaults, not an error or empty-state chrome', () => {
+    queryMockState.data.value = undefined
+    const wrapper = mountWithUApp(NotificationConfigView)
+    expect(wrapper.find('[data-testid="master-toggle"]').attributes('data-enabled')).toBe('false')
+    expect(wrapper.text()).toContain('0 seleccionados')
+    expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
+  })
+
+  it('loading: skeleton cards in the shape of the three sections and no footer', () => {
+    queryMockState.isLoading.value = true
+    const wrapper = mountWithUApp(NotificationConfigView)
+    expect(wrapper.findAll('.notifications-section')).toHaveLength(3)
+    expect(wrapper.findAll('.animate-pulse').length).toBeGreaterThan(0)
+    // Shaped like the content: the toggle row, the recipients select, the four module rows.
+    const skeleton = wrapper.get('[data-testid="notifications-loading"]')
+    expect(skeleton.attributes('aria-busy')).toBe('true')
+    expect(skeleton.findAll('[data-skeleton="master"]')).toHaveLength(1)
+    expect(skeleton.findAll('[data-skeleton="recipients"]')).toHaveLength(1)
+    expect(skeleton.findAll('[data-skeleton="module-row"]')).toHaveLength(4)
+    expect(wrapper.find('[data-testid="master-toggle"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="notifications-footer"]').exists()).toBe(false)
+  })
+
+  it('data: master, recipients and actions cards with the single primary Save', () => {
+    queryMockState.data.value = { enabled: true, recipientUserIds: [], enabledActions: [] }
+    const wrapper = mountWithUApp(NotificationConfigView)
+    for (const card of ['master', 'recipients', 'actions']) {
+      expect(wrapper.find(`[data-testid="notifications-card-${card}"]`).exists()).toBe(true)
+    }
+    expect(wrapper.find('[data-testid="master-toggle-badge"]').attributes('data-tone')).toBe('success')
+    expect(wrapper.findAll('[data-testid="save-button"]')).toHaveLength(1)
+  })
+
+  it('error: EmptyState error with Reintentar that refetches, and no form or footer', async () => {
+    queryMockState.isError.value = true
+    queryMockState.error.value = new Error('boom')
+    const wrapper = mountWithUApp(NotificationConfigView)
+    const error = wrapper.find('[data-testid="notifications-error"]')
+    expect(error.attributes('data-kind')).toBe('error')
+    expect(error.attributes('role')).toBe('alert')
+    expect(wrapper.find('[data-testid="master-toggle"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="notifications-footer"]').exists()).toBe(false)
+    await wrapper.find('[data-testid="notifications-retry"]').trigger('click')
+    expect(queryMockState.refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('error with data already on screen keeps the form (a background refetch failure)', () => {
+    queryMockState.isError.value = true
+    queryMockState.data.value = { enabled: true, recipientUserIds: [], enabledActions: [] }
+    const wrapper = mountWithUApp(NotificationConfigView)
+    expect(wrapper.find('[data-testid="notifications-error"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="master-toggle"]').exists()).toBe(true)
+  })
+
+  it('says each thing once: no subtitle, no section descriptions and no repeated master heading', () => {
+    queryMockState.data.value = undefined
+    const wrapper = mountWithUApp(NotificationConfigView)
+    expect(wrapper.find('.hf-page-subtitle').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Estos usuarios recibirán')
+    expect(wrapper.text()).not.toContain('Selecciona las acciones que dispararán')
+    expect(wrapper.find('[data-testid="notifications-card-master"] h2').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="notifications-card-master"]').attributes('aria-label')).toBe('Notificaciones')
+  })
+
+  it('mutes the read-only notice because nothing is pending for the user to fix', () => {
+    currentFormMock.canUpdate.value = false
+    const notice = mountWithUApp(NotificationConfigView).find('[data-testid="no-update-perm-notice"]')
+    expect(notice.classes()).toContain('text-muted')
+    expect(notice.classes()).not.toContain('text-warning')
   })
 })
 

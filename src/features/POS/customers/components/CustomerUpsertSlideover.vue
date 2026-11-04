@@ -18,6 +18,7 @@ import type {
   CustomerDetail,
   UpdateCustomerPayload,
 } from '../interfaces/customer.types'
+import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import AddressModal from './AddressModal.vue'
 import { formatAddress } from '@/core/shared/utils/formatAddress'
 
@@ -86,8 +87,8 @@ const { schema, state, resetForm, setState } = useCustomerForm()
 const activeTab = ref('basic')
 
 const tabs = [
-  { label: 'Datos Básicos', value: 'basic' },
-  { label: 'Datos de Facturación', value: 'billing' },
+  { label: 'Datos básicos', value: 'basic' },
+  { label: 'Datos de facturación', value: 'billing' },
 ]
 
 // ── Address modal ──────────────────────────────────────────
@@ -209,6 +210,16 @@ function editExistingAddress(address: CustomerAddress) {
   isAddressModalOpen.value = true
 }
 
+const ADDRESS_ACTIONS: RowAction[] = [
+  { key: 'edit', label: 'Editar', icon: 'i-lucide-pencil' },
+  { key: 'remove', label: 'Quitar dirección', icon: 'i-lucide-trash-2', destructive: true },
+]
+
+function handleAddressAction(key: string, address: CustomerAddress) {
+  if (key === 'edit') editExistingAddress(address)
+  else if (key === 'remove') removeExistingAddress(address)
+}
+
 function removeExistingAddress(address: CustomerAddress) {
   if (props.customer) {
     emit('remove-address', props.customer.id, address.id)
@@ -248,7 +259,7 @@ function handleCancel() {
     <template #body>
       <UTabs v-model="activeTab" :items="tabs" class="customer-tabs w-full" variant="link">
         <template #content="{ item }">
-          <!-- ── Tab: Datos Básicos ─────────────────────────── -->
+          <!-- ── Tab: Datos básicos ─────────────────────────── -->
           <div v-if="item.value === 'basic'" class="pt-4">
             <UForm
               :id="formId"
@@ -288,7 +299,7 @@ function handleCancel() {
                 </div>
               </div>
 
-              <UFormField label="Email" name="email" :error="errors.email">
+              <UFormField label="Correo electrónico" name="email" :error="errors.email">
                 <UInput
                   v-model="state.email"
                   class="w-full"
@@ -332,7 +343,7 @@ function handleCancel() {
                 <div class="sales-pos-customer-form-address-header mb-3 flex items-center justify-between">
                   <p class="sales-pos-customer-form-section-title font-semibold">Dirección</p>
                   <UButton
-                    label="+ Añadir Dirección"
+                    label="+ Añadir dirección"
                     class="sales-pos-customer-form-action sales-pos-customer-form-add-address"
                     size="sm"
                     color="neutral"
@@ -357,6 +368,7 @@ function handleCancel() {
                       color="error"
                       variant="ghost"
                       type="button"
+                      :aria-label="`Quitar dirección: ${formatAddress(addr)}`"
                       @click="removePendingAddress(idx)"
                     />
                   </div>
@@ -370,31 +382,16 @@ function handleCancel() {
                   <div
                     v-for="addr in customer.addresses"
                     :key="addr.id"
+                    :data-testid="`address-row-${addr.id}`"
                     class="sales-pos-customer-form-address-row flex items-center justify-between rounded-md border border-default bg-background px-3 py-2"
                   >
                     <span class="sales-pos-customer-form-address-text truncate text-sm">{{ formatAddress(addr) }}</span>
-                    <div class="flex gap-1">
-                      <UButton
-                        :data-testid="`edit-address-${addr.id}`"
-                        icon="i-lucide-pencil"
-                        class="sales-pos-customer-form-icon-action"
-                        size="xs"
-                        color="neutral"
-                        variant="ghost"
-                        type="button"
-                        @click="editExistingAddress(addr)"
-                      />
-                      <UButton
-                        :data-testid="`remove-address-${addr.id}`"
-                        icon="i-lucide-trash-2"
-                        class="sales-pos-customer-form-icon-action"
-                        size="xs"
-                        color="error"
-                        variant="ghost"
-                        type="button"
-                        @click="removeExistingAddress(addr)"
-                      />
-                    </div>
+                    <RowActionsMenu
+                      :actions="ADDRESS_ACTIONS"
+                      :row-label="formatAddress(addr)"
+                      portal-class="clients-form-portal"
+                      @select="handleAddressAction($event, addr)"
+                    />
                   </div>
                 </div>
 
@@ -419,10 +416,10 @@ function handleCancel() {
             </UForm>
           </div>
 
-          <!-- ── Tab: Datos de Facturación ────────────────── -->
+          <!-- ── Tab: Datos de facturación ────────────────── -->
           <div v-else-if="item.value === 'billing'" class="pt-4">
             <div class="flex flex-col gap-4">
-              <UFormField label="Razón Social" name="businessName" :error="errors.businessName">
+              <UFormField label="Razón social" name="businessName" :error="errors.businessName">
                 <UInput
                   v-model="state.businessName"
                   class="w-full"
@@ -433,7 +430,7 @@ function handleCancel() {
 
               <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <UFormField
-                  label="Código Postal Fiscal"
+                  label="Código postal fiscal"
                   name="fiscalZipCode"
                   :error="errors.fiscalZipCode"
                 >
@@ -455,7 +452,7 @@ function handleCancel() {
                 </UFormField>
               </div>
 
-              <UFormField label="Régimen Fiscal" name="fiscalRegime" :error="errors.fiscalRegime">
+              <UFormField label="Régimen fiscal" name="fiscalRegime" :error="errors.fiscalRegime">
                 <USelect
                   v-model="state.fiscalRegime"
                   :items="FISCAL_REGIMES"
@@ -470,7 +467,7 @@ function handleCancel() {
               <div>
                 <button
                   type="button"
-                  class="clients-form-link sales-pos-customer-form-link flex items-center gap-1 text-sm font-medium text-coco-gold-800 hover:underline"
+                  class="clients-form-link sales-pos-customer-form-link flex items-center gap-1 text-sm font-medium hover:underline"
                   @click="state.showBillingAddress = !state.showBillingAddress"
                 >
                   <UIcon
@@ -499,7 +496,7 @@ function handleCancel() {
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <UFormField
-                    label="Número Exterior"
+                    label="Número exterior"
                     name="billingExteriorNumber"
                     :error="errors.billingExteriorNumber"
                   >
@@ -512,7 +509,7 @@ function handleCancel() {
                   </UFormField>
 
                   <UFormField
-                    label="Número Interior"
+                    label="Número interior"
                     name="billingInteriorNumber"
                     :error="errors.billingInteriorNumber"
                   >
@@ -527,7 +524,7 @@ function handleCancel() {
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <UFormField
-                    label="Código Postal"
+                    label="Código postal"
                     name="billingZipCode"
                     :error="errors.billingZipCode"
                   >

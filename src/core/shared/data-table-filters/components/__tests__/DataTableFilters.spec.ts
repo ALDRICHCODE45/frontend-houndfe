@@ -119,6 +119,17 @@ describe('DataTableFilters (v2)', () => {
     expect(cobroEnum.attributes('data-is-active')).toBe('true')
   })
 
+  it('writes the section label as a quiet sentence-case heading, never an uppercase eyebrow', () => {
+    const wrapper = mount(DataTableFilters, {
+      props: { schema, state: schema.defaults() },
+      global: { stubs: baseStubs },
+    })
+    const header = wrapper.find('[data-testid^="section-header-"]')
+    expect(header.exists()).toBe(true)
+    expect(header.classes()).not.toContain('uppercase')
+    expect(header.classes().some((name) => name.startsWith('tracking-'))).toBe(false)
+  })
+
   it('renders correct primitive per kind, passes errors, clear all resets defaults', async () => {
     const wrapper = mount(DataTableFilters, {
       props: {

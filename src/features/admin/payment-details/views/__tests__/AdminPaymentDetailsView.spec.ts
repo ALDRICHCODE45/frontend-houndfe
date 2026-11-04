@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import AdminPaymentDetailsView from '../AdminPaymentDetailsView.vue'
 import type { PaymentDetailTableRow } from '../../interfaces/payment-detail.types'
 
@@ -77,15 +77,6 @@ vi.mock('@/features/admin/payment-details/composables/usePaymentDetailColumns', 
   usePaymentDetailColumns: () => ({ columns: [] }),
 }))
 
-vi.mock('@/features/admin/payment-details/composables/usePaymentDetailViewMode', () => ({
-  usePaymentDetailViewMode: () => ({
-    viewMode: ref('table'),
-    setMode: vi.fn(),
-    displayMode: computed(() => 'table'),
-  }),
-  isPaymentDetailViewMode: (value: string) => value === 'table' || value === 'card',
-}))
-
 vi.mock('@/features/admin/payment-details/components/PaymentDetailUpsertSlideover.vue', () => ({
   default: {
     name: 'PaymentDetailUpsertSlideover',
@@ -96,42 +87,12 @@ vi.mock('@/features/admin/payment-details/components/PaymentDetailUpsertSlideove
   },
 }))
 
-vi.mock('@/features/admin/payment-details/components/PaymentDetailCardGrid.vue', () => ({
-  default: {
-    name: 'PaymentDetailCardGrid',
-    template: `
-      <div data-testid="card-grid">
-        <button
-          v-for="row in paymentDetails"
-          :key="row.id"
-          :data-testid="'card-' + row.id"
-          @click="$emit('card-click', row)"
-        >
-          {{ row.bankName }}
-        </button>
-      </div>
-    `,
-    props: ['paymentDetails', 'loading', 'empty'],
-    emits: ['card-click'],
-  },
-}))
-
 vi.mock('@/core/shared/components/DataTable/SortableHeader.vue', () => ({
   default: {
     name: 'SortableHeader',
     template:
       '<button :data-column="column.id" :data-testid="`sortable-${column.id}`">{{ label }}</button>',
     props: ['column', 'label'],
-  },
-}))
-
-vi.mock('@/core/shared/components/ViewToggle.vue', () => ({
-  default: {
-    name: 'ViewToggle',
-    template:
-      '<div data-testid="view-toggle"><button data-testid="view-toggle-table" @click="$emit(\'update:modelValue\', \'table\')">Tabla</button><button data-testid="view-toggle-card" @click="$emit(\'update:modelValue\', \'card\')">Tarjetas</button></div>',
-    props: ['modelValue', 'options', 'ariaLabel'],
-    emits: ['update:modelValue'],
   },
 }))
 
@@ -170,7 +131,7 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
       enableColumnVisibility: { type: Boolean, default: false },
       showAddButton: { type: Boolean, default: false },
       error: { default: false },
-      errorMessage: { default: 'No se pudieron cargar los datos. Reintenta.' },
+      errorMessage: { default: 'No se pudieron cargar los datos.' },
       empty: { default: 'No se encontraron resultados' },
     },
     emits: ['add', 'refresh'],
@@ -249,14 +210,29 @@ beforeEach(() => {
 })
 
 describe('AdminPaymentDetailsView — "Sin cuenta activa" banner (REQ-PD-006)', () => {
-  it('renders the banner when there is no active account', async () => {
+  it('renders the banner inside the table surface, under the title, when accounts exist but none is active', async () => {
+    mockTable.fullList.value = [{ id: 'pd-1', isActive: false }] as never
     mockTable.hasActiveAccount.value = false
     const wrapper = mountView()
     await flushPromises()
-    expect(wrapper.find('[data-testid="no-active-account-banner"]').exists()).toBe(true)
+    const banner = wrapper.get('[data-testid="no-active-account-banner"]')
+    expect(wrapper.get('.hf-table-surface').element.contains(banner.element)).toBe(true)
+    // The title never moves: the banner is not a sibling above the page header.
+    const root = wrapper.element as HTMLElement
+    expect(Array.from(root.children).some((child) => child.contains(banner.element) && child.matches('.hf-page-header'))).toBe(false)
+    expect(wrapper.get('.hf-page-header').element).toBe(root.querySelector('.hf-page-header'))
+  })
+
+  it('does not repeat the empty state: no banner when there are no accounts at all', async () => {
+    mockTable.fullList.value = []
+    mockTable.hasActiveAccount.value = false
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="no-active-account-banner"]').exists()).toBe(false)
   })
 
   it('hides the banner when there is at least one active account', async () => {
+    mockTable.fullList.value = [{ id: 'pd-1', isActive: true }] as never
     mockTable.hasActiveAccount.value = true
     const wrapper = mountView()
     await flushPromises()
@@ -265,6 +241,7 @@ describe('AdminPaymentDetailsView — "Sin cuenta activa" banner (REQ-PD-006)', 
 
   it('suppresses the banner while loading', async () => {
     mockTable.isLoading.value = true
+    mockTable.fullList.value = [{ id: 'pd-1', isActive: false }] as never
     mockTable.hasActiveAccount.value = false
     const wrapper = mountView()
     await flushPromises()
@@ -273,6 +250,7 @@ describe('AdminPaymentDetailsView — "Sin cuenta activa" banner (REQ-PD-006)', 
 
   it('suppresses the banner while erroring', async () => {
     mockTable.isError.value = true
+    mockTable.fullList.value = [{ id: 'pd-1', isActive: false }] as never
     mockTable.hasActiveAccount.value = false
     const wrapper = mountView()
     await flushPromises()
@@ -281,25 +259,26 @@ describe('AdminPaymentDetailsView — "Sin cuenta activa" banner (REQ-PD-006)', 
 })
 
 describe('AdminPaymentDetailsView — list error state', () => {
-  it('renders the error block with the backend-derived message when isError is true', async () => {
+  it('renders the error block with a human title, never the backend message', async () => {
     mockTable.isError.value = true
     mockTable.error.value = { response: { data: { message: 'No se pudo conectar al servidor' } } }
     const wrapper = mountView()
     await flushPromises()
     expect(wrapper.find('[data-testid="table-error-state"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="error-message"]').text()).toBe(
-      'No se pudo conectar al servidor',
+      'No se pudieron cargar las cuentas bancarias',
     )
+    expect(wrapper.text()).not.toContain('No se pudo conectar al servidor')
     expect(wrapper.find('[data-testid="table-empty-state"]').exists()).toBe(false)
   })
 
-  it('falls back to the Spanish message when no backend message is available', async () => {
+  it('keeps the human title when no backend message is available', async () => {
     mockTable.isError.value = true
     mockTable.error.value = {}
     const wrapper = mountView()
     await flushPromises()
     expect(wrapper.find('[data-testid="error-message"]').text()).toBe(
-      'No se pudieron cargar las cuentas bancarias. Reintenta.',
+      'No se pudieron cargar las cuentas bancarias',
     )
   })
 })

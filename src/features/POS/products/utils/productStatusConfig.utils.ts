@@ -1,27 +1,21 @@
-import { toneToDotClass, type AppBadgeTone } from '@/core/shared/utils/badge.utils'
+import type { AppBadgeTone, StatusBadgeTone } from '@/core/shared/utils/badge.utils'
 import type { Product, ProductType as ProductTypeAlias } from '../interfaces/product.types'
 
+/** Product status → StatusBadge tone: archived-like states are neutral, never red. */
 export const productStatusConfig = {
-  active: { tone: 'active' as AppBadgeTone, label: 'Activo' },
-  inactive: { tone: 'inactive' as AppBadgeTone, label: 'Inactivo' },
-  out_of_stock: { tone: 'error' as AppBadgeTone, label: 'Sin Stock' },
+  active: { tone: 'success' as StatusBadgeTone, label: 'Activo' },
+  inactive: { tone: 'neutral' as StatusBadgeTone, label: 'Inactivo' },
+  out_of_stock: { tone: 'danger' as StatusBadgeTone, label: 'Sin stock' },
 } as const
 
-/**
- * Single source of truth for the products list type badge. Mirrors the
- * promotions type-badge convention (`tone: 'type'` violet + icon), so a
- * SERVICE renders as a violet "Servicio" pill with a clock icon and a PRODUCT
- * as a violet "Producto" pill with a package icon — visually consistent with
- * the rest of the system's customized type badges.
- */
+/** Label and icon of the product type; the type is a category, not a status, so it has no tone. */
 export function getProductTypeBadge(type: ProductTypeAlias): {
-  tone: AppBadgeTone
   label: string
   icon: string
 } {
   return type === 'SERVICE'
-    ? { tone: 'type', label: 'Servicio', icon: 'i-lucide-clock' }
-    : { tone: 'type', label: 'Producto', icon: 'i-lucide-package' }
+    ? { label: 'Servicio', icon: 'i-lucide-clock' }
+    : { label: 'Producto', icon: 'i-lucide-package' }
 }
 
 export const getStockTone = (stock: number, minQuantity = 10): AppBadgeTone => {
@@ -30,6 +24,9 @@ export const getStockTone = (stock: number, minQuantity = 10): AppBadgeTone => {
   return 'success'
 }
 
+/** "1 unidad", "24 unidades": the noun agrees in number. */
+const unitsLabel = (count: number): string => `${count} ${count === 1 ? 'unidad' : 'unidades'}`
+
 export interface ProductStockDisplay {
   label: string
   tone: AppBadgeTone
@@ -37,8 +34,8 @@ export interface ProductStockDisplay {
 
 /**
  * Single source of truth for a product's stock TONE (the business rule:
- * out-of-stock / low-stock / healthy). Shared by the products table and the
- * product cards so the stock-level semantics never drift between views.
+ * out-of-stock / low-stock / healthy). Shared by the table and the mobile
+ * cards so the stock-level semantics never drift between layouts.
  */
 export const getProductStockTone = (product: Product): AppBadgeTone => {
   if (product.hasVariants) {
@@ -49,24 +46,15 @@ export const getProductStockTone = (product: Product): AppBadgeTone => {
 }
 
 /**
- * Dot color class for a product's stock level, derived from its tone.
- * Lets the stock badge use the neutral DotBadge (dot-only color) while
- * keeping the out-of-stock/low/healthy rule as the single source of truth.
- */
-export const getProductStockDotClass = (product: Product): string =>
-  toneToDotClass(getProductStockTone(product))
-
-/**
- * Stock display (verbose label + shared tone) used by BOTH the products table
- * and the product cards. Centralizes the label so the two surfaces never drift;
- * the dot color is derived separately via getProductStockDotClass, and the
+ * Stock display (verbose label + shared tone) used by BOTH the table and the
+ * mobile cards. Centralizes the label so the two layouts never drift; the
  * stock-level rule always comes from getProductStockTone.
  */
 export const getProductStockDisplay = (product: Product): ProductStockDisplay => {
   if (product.hasVariants && product.variantStockTotal != null) {
     const variantWord = product.variantCount === 1 ? 'variante' : 'variantes'
     return {
-      label: `${product.variantStockTotal} unidades en ${product.variantCount} ${variantWord}`,
+      label: `${product.variantStockTotal} · ${product.variantCount} ${variantWord}`,
       tone: getProductStockTone(product),
     }
   }
@@ -76,7 +64,24 @@ export const getProductStockDisplay = (product: Product): ProductStockDisplay =>
   }
 
   return {
-    label: `${product.quantity} unidades`,
+    label: unitsLabel(product.quantity),
     tone: getProductStockTone(product),
   }
+}
+
+/**
+ * Short stock label for a mobile card footer: the unit total only, with no
+ * variant count, so "$249.00 · 24 unidades" stays on one line.
+ */
+export const getProductStockCompactLabel = (product: Product): string => {
+  if (product.hasVariants) {
+    return product.variantStockTotal != null ? unitsLabel(product.variantStockTotal) : 'En variantes'
+  }
+  return unitsLabel(product.quantity)
+}
+
+/** Only low or empty stock earns a badge; healthy stock reads as plain text. */
+export const stockNeedsAttention = (product: Product): boolean => {
+  const tone = getProductStockTone(product)
+  return tone === 'warning' || tone === 'error'
 }

@@ -41,7 +41,7 @@ export function createSalesFiltersSchema(sources: SalesFilterSchemaSources) {
         { value: SALE_DELIVERY_STATUS.SHIPPED, label: 'Enviada' },
         { value: SALE_DELIVERY_STATUS.DELIVERED, label: 'Entregada' },
       ] }),
-    filter.multiAsync({ id: 'customerId', section: 'Personas', label: 'Cliente', param: 'customerId', includeNull: { param: 'customerIncludeNull', label: 'Incluir Público en General' }, options: sources.customerOptions, loading: sources.customerLoading, loadingLabel: 'Cargando clientes...', placeholder: 'Buscar cliente' }),
+    filter.multiAsync({ id: 'customerId', section: 'Personas', label: 'Cliente', param: 'customerId', includeNull: { param: 'customerIncludeNull', label: 'Incluir Público en general' }, options: sources.customerOptions, loading: sources.customerLoading, loadingLabel: 'Cargando clientes...', placeholder: 'Buscar cliente' }),
     filter.multiAsync({ id: 'cashierUserId', section: 'Personas', label: 'Cajero', param: 'cashierUserId', options: sources.cashierOptions, loading: sources.cashierLoading, loadingLabel: 'Cargando cajeros...', placeholder: 'Buscar cajero' }),
     filter.numericRange({ id: 'totalCents', section: 'Montos', label: 'Total', minParam: 'totalMin', maxParam: 'totalMax', unit: '$', formatAs: 'currency', step: 100 }),
     filter.numericRange({ id: 'debtCents', section: 'Montos', label: 'Deuda', minParam: 'debtMin', maxParam: 'debtMax', unit: '$', formatAs: 'currency', step: 100 }),

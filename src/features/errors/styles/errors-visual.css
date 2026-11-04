@@ -1,0 +1,51 @@
+/* 403 and 404: one calm card with the brand mark on the page surface, painted
+ * only with --hf-* roles (App installs hf-theme hf-ui on body). */
+
+.hf-error-page {
+  display: flex;
+  min-height: 100dvh;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background-color: var(--hf-page);
+}
+
+.hf-error-card {
+  display: flex;
+  width: 100%;
+  max-width: 28rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background-color: var(--hf-surface);
+}
+
+.hf-error-logo {
+  display: block;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+/* Volver and Ir al inicio share one row and one even gap. */
+.hf-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+/* Both buttons are 44px: the outline Volver would otherwise sit at the small default. */
+.hf-error-actions .hf-error-action {
+  min-height: var(--hf-control-height);
+}
+
+@media (max-width: 480px) {
+  .hf-error-card {
+    padding: 24px 20px;
+  }
+}
