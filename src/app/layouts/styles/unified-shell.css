@@ -1,15 +1,16 @@
 /*
  * Unified shell adapter — scoped palette, chrome geometry and hook ownership.
  *
- * Every selector is bounded to `.hf-shell`, a `.hf-shell-*` hook or the
- * Products-only bridge. Toast roots subscribe only to the shared palette.
- * Nothing here is global: the routed workspace keeps its
- * own controls and the Caja/auth/sales surfaces are untouched.
+ * Every selector is bounded to `.hf-shell` or a `.hf-shell-*` hook. Toast roots
+ * subscribe only to the shared palette. Nothing here is global: the routed
+ * workspace keeps its own controls.
  *
- * Layer model (three planes, one system):
- *   page   -> --shell-page      (workspace backdrop, deep)
- *   chrome -> --shell-chrome    (sidebar + navbar frame)
- *   card   -> --shell-card      (elevated panel/menus)
+ * There is ONE palette, the `--hf-*` foundation (houndfe-theme.css), which flips
+ * with `.dark`. The `--shell-*` names are aliases of it, never hex, so the chrome
+ * and every routed screen can never drift into two blues:
+ *   page   -> --shell-page   = --hf-page          (workspace backdrop)
+ *   chrome -> --shell-chrome = --hf-surface       (sidebar + navbar frame)
+ *   card   -> --shell-card   = --hf-surface       (elevated panel/menus)
  *
  * The `.hf-shell` root declares ONLY `--shell-*` variables. Nuxt UI aliases
  * (`--ui-*`, `--text-color-*`, `--background-color-*`, `--border-color-*`) are
@@ -26,25 +27,21 @@
 
 /* ── Palette (root + teleported portals) ────────────────────────────────── */
 
-/* `.hf-shell-products-portal` is the standalone Products portal marker: a
- * teleported Products surface that carries `hf-theme hf-ui` without any shell
- * ancestor. It repeats the shell palette so the shared `--hf-*` bridge below
- * resolves the same planes the scoped workspace uses. */
+/* Aliases of the foundation roles. `--hf-*` is resolved on the element, so the
+ * light and dark values come from `houndfe-theme.css` and nothing is repeated. */
 .hf-shell,
 .hf-shell-portal,
-.hf-shell-toast,
-.hf-shell-products-portal {
-  --shell-page: #f3f6fa;
-  --shell-chrome: #f9fbfd;
-  --shell-card: #ffffff;
-  --shell-ink: #1e3555;
-  --shell-muted: #63748b;
-  --shell-border: #dce3ed;
-  --shell-muted-surface: #eaf0f8;
-  --shell-action: #315ce7;
-  --shell-on-action: #ffffff;
-  --shell-active: #e9effd;
-  --shell-table-head: #e8eef7;
+.hf-shell-toast {
+  --shell-page: var(--hf-page);
+  --shell-chrome: var(--hf-surface);
+  --shell-card: var(--hf-surface);
+  --shell-ink: var(--hf-ink);
+  --shell-muted: var(--hf-muted);
+  --shell-border: var(--hf-border);
+  --shell-muted-surface: var(--hf-surface-muted);
+  --shell-action: var(--hf-action);
+  --shell-on-action: var(--hf-on-action);
+  --shell-active: var(--hf-active-soft);
   /* Elevation roles reuse the shell menu's existing shadow palette. */
   --shell-shadow: rgb(15 23 42 / 0.28);
   --shell-shadow-soft: rgb(15 23 42 / 0.06);
@@ -58,23 +55,6 @@
 
   /* Identity font, never a global assignment. */
   --shell-font: var(--hf-font, 'Geist', ui-sans-serif, system-ui, sans-serif);
-}
-
-.dark .hf-shell,
-.dark .hf-shell-portal,
-.dark .hf-shell-toast,
-.dark .hf-shell-products-portal {
-  --shell-page: #101720;
-  --shell-chrome: #151e2b;
-  --shell-card: #1b2736;
-  --shell-ink: #e4ebf5;
-  --shell-muted: #9aaac0;
-  --shell-border: #2d3b4d;
-  --shell-muted-surface: #223044;
-  --shell-action: #91b0ff;
-  --shell-on-action: #172b51;
-  --shell-active: #253b60;
-  --shell-table-head: #223044;
 }
 
 /* Teleported shell menus (dropdowns, dialogs, search) escape the shell root,
@@ -107,16 +87,6 @@
   --border-color-default: var(--shell-border);
   --border-color-muted: var(--shell-border);
 
-  background-color: var(--shell-card);
-  border-color: var(--shell-border);
-  color: var(--shell-ink);
-  font-family: var(--shell-font);
-}
-
-/* The standalone Products portal root repeats the shell surfaces without
- * remapping any Nuxt UI alias: the unchanged `hf-ui` adapter still owns the
- * `--ui-*` / generated Tailwind aliases and reads them through `--hf-*`. */
-.hf-theme.hf-shell-products-portal {
   background-color: var(--shell-card);
   border-color: var(--shell-border);
   color: var(--shell-ink);
@@ -836,35 +806,6 @@ button.hf-shell-tenant:focus-visible {
 /* The workspace owns the page plane only; routed controls stay untouched. */
 .hf-shell-workspace {
   background-color: var(--shell-page);
-}
-
-/* ── Products-only palette bridge ───────────────────────────────────────── */
-
-/* Locally remap the shared `--hf-*` foundation roles onto the shell planes only
- * while Products renders inside the shell, and for the standalone Products
- * portal marker that has no shell ancestor. Source data, business logic and
- * layout are unchanged, the Caja `--cash-*` tokens are never referenced, and
- * gold/status semantics stay with the Products pilot. The `.hf-theme` prefix on
- * the standalone branch raises specificity above the foundation dark palette. */
-.hf-shell .products-visual,
-.dark .hf-shell .products-visual,
-.hf-theme.hf-shell-products-portal,
-.dark .hf-theme.hf-shell-products-portal {
-  --hf-page: var(--shell-page);
-  --hf-surface: var(--shell-card);
-  --hf-surface-muted: var(--shell-muted-surface);
-  /* Reference fields sit on the page plane; the foundation `--hf-field-border`
-   * is intentionally left in place so dark inputs keep accessible contrast. */
-  --hf-field: var(--shell-page);
-  --hf-ink: var(--shell-ink);
-  --hf-heading: var(--shell-ink);
-  --hf-muted: var(--shell-muted);
-  --hf-border: var(--shell-border);
-  --hf-action: var(--shell-action);
-  --hf-on-action: var(--shell-on-action);
-  --hf-active: var(--shell-action);
-  --hf-active-soft: var(--shell-active);
-  --hf-focus: var(--shell-action);
 }
 
 /* ── Compact rail (native [data-collapsed="true"]) ──────────────────────── */

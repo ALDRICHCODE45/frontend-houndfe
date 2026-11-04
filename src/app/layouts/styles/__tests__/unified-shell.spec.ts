@@ -118,11 +118,9 @@ function contrast(foreground: string, background: string): number {
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
 }
 
-/** Light/dark palette rule that declares `--shell-page`. */
-function paletteRule(dark: boolean): CSSStyleRule | undefined {
-  return declaring(shell, '--shell-page').find((rule) =>
-    dark ? /\.dark\b/.test(rule.selectorText) : !/\.dark\b/.test(rule.selectorText),
-  )
+/** The single palette rule that declares `--shell-page`. */
+function paletteRule(): CSSStyleRule | undefined {
+  return declaring(shell, '--shell-page')[0]
 }
 
 function token(rule: CSSStyleRule | undefined, name: string): string {
@@ -137,41 +135,42 @@ function matchesAny(rule: CSSStyleRule, element: Element): boolean {
 /** A real `.hf-shell` root class token (never the `.hf-shell-*` hooks). */
 const SHELL_ROOT_ANCESTOR = /(^|[\s>+~])\.hf-shell(?![\w-])/
 
-const LIGHT: Record<string, string> = {
-  '--shell-page': '#f3f6fa',
-  '--shell-chrome': '#f9fbfd',
-  '--shell-card': '#ffffff',
-  '--shell-ink': '#1e3555',
-  '--shell-muted': '#63748b',
-  '--shell-border': '#dce3ed',
-  '--shell-muted-surface': '#eaf0f8',
-  '--shell-action': '#315ce7',
-  '--shell-active': '#e9effd',
-  '--shell-table-head': '#e8eef7',
-  '--shell-on-action': '#ffffff',
+/** The shell names are aliases of the foundation roles: one palette, never hex. */
+const ALIASES: Record<string, string> = {
+  '--shell-page': 'var(--hf-page)',
+  '--shell-chrome': 'var(--hf-surface)',
+  '--shell-card': 'var(--hf-surface)',
+  '--shell-ink': 'var(--hf-ink)',
+  '--shell-muted': 'var(--hf-muted)',
+  '--shell-border': 'var(--hf-border)',
+  '--shell-muted-surface': 'var(--hf-surface-muted)',
+  '--shell-action': 'var(--hf-action)',
+  '--shell-active': 'var(--hf-active-soft)',
+  '--shell-on-action': 'var(--hf-on-action)',
+}
+
+const GEOMETRY: Record<string, string> = {
   '--shell-radius-control': '6px',
   '--shell-radius-panel': '12px',
   '--shell-radius-tenant': '8px',
 }
 
-const DARK: Record<string, string> = {
-  '--shell-page': '#101720',
-  '--shell-chrome': '#151e2b',
-  '--shell-card': '#1b2736',
-  '--shell-ink': '#e4ebf5',
-  '--shell-muted': '#9aaac0',
-  '--shell-border': '#2d3b4d',
-  '--shell-muted-surface': '#223044',
-  '--shell-action': '#91b0ff',
-  '--shell-active': '#253b60',
-  '--shell-table-head': '#223044',
-  '--shell-on-action': '#172b51',
+const FOUNDATION_PATH = 'src/core/shared/design-system/houndfe-theme.css'
+const foundation = readFileSync(FOUNDATION_PATH, 'utf8')
+
+/** `--hf-*` values of the light (`.hf-theme`) or dark (`.dark .hf-theme`) foundation block. */
+function foundationRoles(dark: boolean): Record<string, string> {
+  const marker = dark ? '.dark .hf-theme,' : '.hf-theme,'
+  const start = foundation.indexOf(marker)
+  const body = foundation.slice(foundation.indexOf('{', start) + 1, foundation.indexOf('}', start))
+  const roles: Record<string, string> = {}
+  for (const match of body.matchAll(/(--hf-[\w-]+):\s*([^;]+);/g)) roles[match[1]!] = match[2]!.trim()
+  return roles
 }
 
 const CONTRACT_HOOKS = [
   'hf-shell-sidebar',
   'hf-shell-nav-portal',
-  'hf-shell-products-portal',
   'hf-shell-brand',
   'hf-shell-tenant',
   'hf-shell-search',
@@ -212,27 +211,26 @@ describe('unified shell stylesheet boundaries', () => {
   it('never blanket-leaks a root .hf-shell element or slot selector into routed pages', () => {
     // `.hf-shell button`, `.hf-shell input`, `.hf-shell [data-slot=...]` style
     // selectors would restyle every routed control. Only the bare root, a
-    // `.hf-shell-*` hook or the Products-only bridge may follow `.hf-shell`.
+    // `.hf-shell-*` hook may follow `.hf-shell`.
     for (const selector of selectorsOf(shell)) {
       const bareRoot =
         selector
           .trim()
           .replace(/^\.dark\s+/, '')
           .trim() === '.hf-shell'
-      const allowed =
-        bareRoot || selector.includes('.hf-shell-') || selector.includes('.products-visual')
+      const allowed = bareRoot || selector.includes('.hf-shell-')
       expect(allowed, `unsafe shell selector: ${selector}`).toBe(true)
     }
   })
 
-  it('consumes --shell-* only from shell hooks or the Products bridge', () => {
+  it('consumes --shell-* only from shell hooks', () => {
     for (const rule of styleRules(shell)) {
       const consumes = propertyNames(rule).some((name) =>
         (rule.style.getPropertyValue(name) ?? '').includes('var(--shell-'),
       )
       if (!consumes) continue
       for (const selector of splitTopLevel(rule.selectorText)) {
-        const allowed = selector.includes('.hf-shell-') || selector.includes('.products-visual')
+        const allowed = selector.includes('.hf-shell-')
         expect(allowed, `global --shell-* consumer: ${selector}`).toBe(true)
       }
     }
@@ -269,62 +267,46 @@ describe('unified shell stylesheet boundaries', () => {
 })
 
 describe('unified shell palette', () => {
-  it('ports the exact reference light palette on both root and portal', () => {
-    const rule = paletteRule(false)
-    expect(rule, 'a light palette rule declaring --shell-page must exist').toBeDefined()
-    for (const [name, value] of Object.entries(LIGHT)) {
-      expect(token(rule, name), `${name} light`).toBe(value)
+  it('aliases every shell role to a foundation role, on root, portal and toast, in one rule', () => {
+    const rule = paletteRule()
+    expect(rule, 'a palette rule declaring --shell-page must exist').toBeDefined()
+    for (const [name, value] of Object.entries({ ...ALIASES, ...GEOMETRY })) {
+      expect(token(rule, name), name).toBe(value)
     }
-    // Teleported shell menus must be standalone: the light palette also names
-    // the portal so a menu outside the shell still resolves every token.
-    expect(
-      splitTopLevel(rule!.selectorText).some((selector) => selector.endsWith('.hf-shell-portal')),
-    ).toBe(true)
+    const selectors = splitTopLevel(rule!.selectorText)
+    for (const selector of ['.hf-shell', '.hf-shell-portal', '.hf-shell-toast']) {
+      expect(selectors, selector).toContain(selector)
+    }
   })
 
-  it('ports the exact reference dark palette under .dark', () => {
-    const rule = paletteRule(true)
-    expect(rule, 'a dark palette rule declaring --shell-page must exist').toBeDefined()
-    for (const [name, value] of Object.entries(DARK)) {
-      expect(token(rule, name), `${name} dark`).toBe(value)
-    }
-    expect(
-      splitTopLevel(rule!.selectorText).some((selector) => selector.endsWith('.hf-shell-portal')),
-    ).toBe(true)
+  it('has no second palette: no hex in the shell, no .dark palette branch, no retired table-head token', () => {
+    const code = shell.replace(/\/\*[\s\S]*?\*\//g, '')
+    expect(code).not.toMatch(/#[\da-f]{3,8}\b/i)
+    expect(declaring(shell, '--shell-page')).toHaveLength(1)
+    expect(code).not.toMatch(/--shell-table-head/)
+    expect(code).not.toMatch(/\.dark\b[^{]*\{[^}]*--shell-(page|card|ink)/)
   })
 
-  it('keeps text and state colors at accessible contrast in both themes', () => {
-    const light = paletteRule(false)
-    const dark = paletteRule(true)
-    for (const [label, rule] of [
-      ['light', light],
-      ['dark', dark],
-    ] as const) {
-      const get = (name: string) => token(rule, name)
-      // Primary reading text on every plane.
-      expect(
-        contrast(get('--shell-ink'), get('--shell-page')),
-        `${label} ink/page`,
-      ).toBeGreaterThanOrEqual(7)
-      expect(
-        contrast(get('--shell-ink'), get('--shell-card')),
-        `${label} ink/card`,
-      ).toBeGreaterThanOrEqual(7)
-      // Secondary text on the elevated content surface.
-      expect(
-        contrast(get('--shell-muted'), get('--shell-card')),
-        `${label} muted/card`,
-      ).toBeGreaterThanOrEqual(4.5)
-      // Active navigation label on its active background.
-      expect(
-        contrast(get('--shell-action'), get('--shell-active')),
-        `${label} action/active`,
-      ).toBeGreaterThanOrEqual(4.5)
-      // Primary action foreground pairing.
-      expect(
-        contrast(get('--shell-on-action'), get('--shell-action')),
-        `${label} on-action/action`,
-      ).toBeGreaterThanOrEqual(4.5)
+  it('keeps the alias targets in the foundation, in both themes', () => {
+    for (const dark of [false, true]) {
+      const roles = foundationRoles(dark)
+      for (const value of Object.values(ALIASES)) {
+        const role = value.replace(/^var\((--hf-[\w-]+)\)$/, '$1')
+        expect(roles[role], `${role} (${dark ? 'dark' : 'light'})`).toBeTruthy()
+      }
+    }
+  })
+
+  it('keeps text and state colors at accessible contrast in both themes, through the foundation roles', () => {
+    for (const dark of [false, true]) {
+      const roles = foundationRoles(dark)
+      const label = dark ? 'dark' : 'light'
+      const get = (shellName: string) => roles[ALIASES[shellName]!.replace(/^var\((.+)\)$/, '$1')]!.toLowerCase()
+      expect(contrast(get('--shell-ink'), get('--shell-page')), `${label} ink/page`).toBeGreaterThanOrEqual(7)
+      expect(contrast(get('--shell-ink'), get('--shell-card')), `${label} ink/card`).toBeGreaterThanOrEqual(7)
+      expect(contrast(get('--shell-muted'), get('--shell-card')), `${label} muted/card`).toBeGreaterThanOrEqual(4.5)
+      expect(contrast(get('--shell-action'), get('--shell-active')), `${label} action/active`).toBeGreaterThanOrEqual(4.5)
+      expect(contrast(get('--shell-on-action'), get('--shell-action')), `${label} on-action/action`).toBeGreaterThanOrEqual(4.5)
     }
   })
 })
@@ -423,7 +405,7 @@ describe('unified shell geometry', () => {
   })
 })
 
-describe('unified shell nav states and Products bridge', () => {
+describe('unified shell nav states', () => {
   it('provides a readable active nav state bounded to the nav hook', () => {
     const active = styleRules(shell).find(
       (rule) =>
@@ -445,32 +427,14 @@ describe('unified shell nav states and Products bridge', () => {
     ).toBe(true)
   })
 
-  it('maps the Products pilot variables through the shell palette without Caja tokens', () => {
-    const bridge = styleRules(shell).filter((rule) =>
-      rule.selectorText.includes('.products-visual'),
-    )
-    expect(bridge.length).toBeGreaterThan(0)
-
-    const mapping: Record<string, string> = {}
-    for (const rule of bridge) {
+  it('has no Products-only palette bridge: the --hf-* roles are never remapped onto the shell', () => {
+    expect(shell).not.toMatch(/products-visual|products-portal/)
+    for (const rule of styleRules(shell)) {
       for (const name of propertyNames(rule)) {
-        if (name.startsWith('--hf-')) mapping[name] = rule.style.getPropertyValue(name).trim()
+        expect(name.startsWith('--hf-'), `${rule.selectorText} remaps ${name}`).toBe(false)
       }
     }
-    expect(mapping['--hf-surface']).toBe('var(--shell-card)')
-    expect(mapping['--hf-page']).toBe('var(--shell-page)')
-    expect(mapping['--hf-border']).toBe('var(--shell-border)')
-    expect(mapping['--hf-ink']).toBe('var(--shell-ink)')
-    expect(mapping['--hf-action']).toBe('var(--shell-action)')
-    // Reference fields sit on the page plane, not the elevated card.
-    expect(mapping['--hf-field']).toBe('var(--shell-page)')
-    // The foundation field border stays in place: remapping it to the low
-    // contrast --shell-border would weaken dark inputs below accessible levels.
-    expect(mapping['--hf-field-border']).toBeUndefined()
     expect(shell).not.toMatch(/--coco-/)
-    // The bridge must not drag the gold/status semantics onto the shell hue.
-    expect(mapping['--hf-success']).toBeUndefined()
-    expect(mapping['--hf-gold']).toBeUndefined()
   })
 })
 
@@ -483,18 +447,14 @@ describe('shell selector boundary detector (triangulation)', () => {
         .trim()
         .replace(/^\.dark\s+/, '')
         .trim() === '.hf-shell'
-    return bareRoot || selector.includes('.hf-shell-') || selector.includes('.products-visual')
+    return bareRoot || selector.includes('.hf-shell-')
   }
 
   it('rejects blanket root selectors that would leak into routed pages', () => {
     expect(isSafeShellSelector('.hf-shell')).toBe(true)
     expect(isSafeShellSelector('.dark .hf-shell')).toBe(true)
     expect(isSafeShellSelector('.hf-shell-sidebar [data-slot="body"]')).toBe(true)
-    expect(isSafeShellSelector('.hf-shell .products-visual')).toBe(true)
-    // The standalone Products portal is an explicit shell marker even outside
-    // the shell ancestor; a bare `.hf-ui` root is not.
-    expect(isSafeShellSelector('.hf-shell-products-portal')).toBe(true)
-    expect(isSafeShellSelector('.hf-theme.hf-shell-products-portal')).toBe(true)
+    expect(isSafeShellSelector('.hf-shell .products-visual')).toBe(false)
     expect(isSafeShellSelector(".hf-shell-nav-portal [data-slot='childLink']")).toBe(true)
     expect(isSafeShellSelector('.hf-ui')).toBe(false)
     expect(isSafeShellSelector('.hf-theme.hf-ui')).toBe(false)
@@ -504,11 +464,10 @@ describe('shell selector boundary detector (triangulation)', () => {
     expect(isSafeShellSelector('.hf-shell :where(input, select)')).toBe(false)
   })
 
-  it('rejects global --shell-* consumers outside a hook or the Products bridge', () => {
-    const isAllowedConsumer = (selector: string): boolean =>
-      selector.includes('.hf-shell-') || selector.includes('.products-visual')
+  it('rejects global --shell-* consumers outside a hook', () => {
+    const isAllowedConsumer = (selector: string): boolean => selector.includes('.hf-shell-')
     expect(isAllowedConsumer('.hf-shell-navbar')).toBe(true)
-    expect(isAllowedConsumer('.dark .hf-shell .products-visual')).toBe(true)
+    expect(isAllowedConsumer('.dark .hf-shell .products-visual')).toBe(false)
     expect(isAllowedConsumer('body')).toBe(false)
     expect(isAllowedConsumer(':root')).toBe(false)
     expect(isAllowedConsumer('.hf-shell')).toBe(false)
@@ -702,120 +661,6 @@ describe('compact rail, group hierarchy and shell token scoping', () => {
         rule.style.getPropertyValue('height').trim() === '44px',
     )
     expect(toggle).toBeDefined()
-  })
-})
-
-describe('standalone Products portal palette bridge', () => {
-  /** A light/dark palette rule whose selector list contains `marker`. */
-  function paletteRuleFor(marker: string, dark: boolean): CSSStyleRule | undefined {
-    return declaring(shell, '--shell-page').find((rule) =>
-      splitTopLevel(rule.selectorText).some(
-        (selector) =>
-          selector.includes(marker) &&
-          (dark ? /\.dark\b/.test(selector) : !/\.dark\b/.test(selector)),
-      ),
-    )
-  }
-
-  it('repeats the exact shell light and dark palette on the standalone Products portal', () => {
-    const light = paletteRuleFor('hf-shell-products-portal', false)
-    const dark = paletteRuleFor('hf-shell-products-portal', true)
-    expect(light, 'light palette for hf-shell-products-portal').toBeDefined()
-    expect(dark, 'dark palette for hf-shell-products-portal').toBeDefined()
-
-    for (const [name, value] of Object.entries(LIGHT)) {
-      expect(token(light, name), `${name} standalone light`).toBe(value)
-    }
-    for (const [name, value] of Object.entries(DARK)) {
-      expect(token(dark, name), `${name} standalone dark`).toBe(value)
-    }
-
-    // The standalone portal repeats the palette only. Nuxt UI aliases stay
-    // owned by the real `.hf-shell-portal` boundary and the Products `hf-ui`
-    // adapter, so no root alias branch is added here.
-    const aliasPrefixes = ['--ui-', '--text-color-', '--background-color-', '--border-color-']
-    for (const name of [...propertyNames(light!), ...propertyNames(dark!)]) {
-      expect(
-        aliasPrefixes.some((prefix) => name.startsWith(prefix)),
-        `standalone Products portal must not remap ${name}`,
-      ).toBe(false)
-    }
-  })
-
-  it('bridges the shared hf roles for that marker without a shell ancestor', () => {
-    const bridge = styleRules(shell).find(
-      (rule) =>
-        rule.style.getPropertyValue('--hf-surface').trim() !== '' &&
-        splitTopLevel(rule.selectorText).some((selector) =>
-          selector.includes('hf-shell-products-portal'),
-        ),
-    )
-    expect(bridge, 'a --hf-* bridge for hf-shell-products-portal must exist').toBeDefined()
-
-    const portalSelectors = splitTopLevel(bridge!.selectorText).filter((selector) =>
-      selector.includes('hf-shell-products-portal'),
-    )
-    expect(portalSelectors.length).toBeGreaterThan(0)
-    for (const selector of portalSelectors) {
-      expect(
-        selector,
-        `Products portal bridge must not need a .hf-shell ancestor: ${selector}`,
-      ).not.toMatch(SHELL_ROOT_ANCESTOR)
-    }
-
-    const mapping: Record<string, string> = {}
-    for (const name of propertyNames(bridge!)) {
-      if (name.startsWith('--hf-')) mapping[name] = bridge!.style.getPropertyValue(name).trim()
-    }
-    // Same role-for-role mapping as the scoped `.hf-shell .products-visual`
-    // workspace bridge so the portal matches the workspace plane.
-    expect(mapping['--hf-surface']).toBe('var(--shell-card)')
-    expect(mapping['--hf-page']).toBe('var(--shell-page)')
-    expect(mapping['--hf-border']).toBe('var(--shell-border)')
-    expect(mapping['--hf-ink']).toBe('var(--shell-ink)')
-    expect(mapping['--hf-heading']).toBe('var(--shell-ink)')
-    expect(mapping['--hf-muted']).toBe('var(--shell-muted)')
-    expect(mapping['--hf-action']).toBe('var(--shell-action)')
-    expect(mapping['--hf-active-soft']).toBe('var(--shell-active)')
-    expect(mapping['--hf-field']).toBe('var(--shell-page)')
-    // The foundation field border and the gold/status semantics stay untouched.
-    expect(mapping['--hf-field-border']).toBeUndefined()
-    expect(mapping['--hf-success']).toBeUndefined()
-    expect(mapping['--hf-gold']).toBeUndefined()
-    expect(shell).not.toMatch(/--coco-/)
-
-    // Validated against the real installed Products portal root classes
-    // (`hf-theme hf-ui` are unchanged; the shell marker is added).
-    const portal = document.createElement('div')
-    portal.className = 'hf-theme hf-ui hf-shell-products-portal'
-    document.body.append(portal)
-    expect(matchesAny(bridge!, portal)).toBe(true)
-    portal.remove()
-  })
-
-  it('never leaks the standalone Products bridge onto an unmigrated or Caja root', () => {
-    const bridgeRules = styleRules(shell).filter((rule) =>
-      splitTopLevel(rule.selectorText).some((selector) =>
-        selector.includes('hf-shell-products-portal'),
-      ),
-    )
-    expect(bridgeRules.length).toBeGreaterThan(0)
-
-    const unmigrated = document.createElement('div')
-    unmigrated.className = 'hf-theme hf-ui'
-    const caja = document.createElement('div')
-    caja.className = 'hf-theme cash-visual'
-    document.body.append(unmigrated, caja)
-
-    for (const rule of bridgeRules) {
-      expect(matchesAny(rule, unmigrated), `leaked onto bare hf-ui: ${rule.selectorText}`).toBe(
-        false,
-      )
-      expect(matchesAny(rule, caja), `leaked onto Caja: ${rule.selectorText}`).toBe(false)
-    }
-
-    unmigrated.remove()
-    caja.remove()
   })
 })
 

@@ -44,10 +44,11 @@ describe('toast presentation boundary', () => {
   it('shares paired shell and foundation palettes without local palette literals or priority hacks', () => {
     expect(css).not.toBe('')
     expect(css).not.toMatch(/!important|#[\da-f]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch)\(/i)
-    for (const source of [shell, foundation]) {
-      expect(source).toMatch(/(?:^|,)\s*\.hf-shell-toast\s*[,\{]/m)
-      expect(source).toMatch(/\.dark \.hf-shell-toast\s*[,\{]/)
-    }
+    // The hex lives only in the foundation (light and dark); the shell names alias it.
+    expect(foundation).toMatch(/(?:^|,)\s*\.hf-shell-toast\s*[,\{]/m)
+    expect(foundation).toMatch(/\.dark \.hf-shell-toast\s*[,\{]/)
+    expect(shell).toMatch(/(?:^|,)\s*\.hf-shell-toast\s*[,\{]/m)
+    expect(shell.replace(/\/\*[\s\S]*?\*\//g, '')).not.toMatch(/#[\da-f]{3,8}\b/i)
     expect(paint('.hf-shell-toast')).toMatchObject({
       '--toast-accent': 'var(--shell-action)',
       '--toast-soft': 'var(--shell-active)',

@@ -194,6 +194,10 @@ Geist, through `--hf-font` (`--shell-font` and `--font-sans` follow it; Manrope 
 
 Page background, outside the data surface: the title, and **at most one short subtitle** (`hf-page-header`, `hf-page-title`, `hf-page-subtitle`). If the title says it, there is no subtitle. No eyebrow, no explanation, no design notes. Reference: artboard 02, `houndfe-ui.css`.
 
+### Shell palette
+
+The shell has **no palette of its own**. `unified-shell.css` declares its `--shell-*` names as aliases of the `--hf-*` foundation (`--shell-page` = `--hf-page`, `--shell-card` and `--shell-chrome` = `--hf-surface`, `--shell-ink` = `--hf-ink`, `--shell-muted` = `--hf-muted`, `--shell-border` = `--hf-border`, `--shell-muted-surface` = `--hf-surface-muted`, `--shell-action` = `--hf-action`, `--shell-active` = `--hf-active-soft`, `--shell-on-action` = `--hf-on-action`), in one rule for the root, the teleported portal and the toast. The light and dark values come from `houndfe-theme.css` and flip with `.dark`, so the chrome and every routed screen share the same blues by construction. The Products-only bridge (`.products-visual` and `.hf-shell-products-portal`, which remapped `--hf-*` onto a second set of hex values) is deleted, and so is `--shell-table-head`. New shell code uses `--hf-*` directly; do not add hex to `unified-shell.css`. Pinned by `unified-shell.spec.ts` (aliases, no hex, no `--hf-*` remap) and `toast.rendered.spec.ts`.
+
 ### Navbar breadcrumb
 
 The shell breadcrumb shares one row with the menu and icon buttons, so it never wraps: every crumb is one line and a long name truncates with an ellipsis (full text in `title`). On mobile (< 768px) only the current page shows; ancestors and chevrons hide. Reference: `DashboardLayout.vue`, `unified-shell.css` (`hf-shell-breadcrumb-item`, `hf-shell-breadcrumb-ancestor`); spec `unified-shell.breadcrumb.spec.ts`.

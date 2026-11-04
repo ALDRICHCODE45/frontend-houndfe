@@ -152,7 +152,9 @@ describe('central toast presentation through real UApp and useToast', () => {
       await render('catalog')
       const root = await add({ title: 'Notificación', description: 'Información adicional' })
       const tokens = getComputedStyle(root)
-      expect(tokens.getPropertyValue('--shell-card').trim()).toBe(dark ? '#1b2736' : '#ffffff')
+      // One palette: the shell names alias the foundation roles, which carry the hex.
+      expect(tokens.getPropertyValue('--shell-card').trim()).toBe('var(--hf-surface)')
+      expect(tokens.getPropertyValue('--hf-surface').trim()).toBe(dark ? '#192332' : '#ffffff')
       const luminance = (token: string) => {
         const hex = tokens.getPropertyValue(token).trim().slice(1)
         const channels = [0, 2, 4].map((index) => {
@@ -161,8 +163,8 @@ describe('central toast presentation through real UApp and useToast', () => {
         })
         return channels[0]! * 0.2126 + channels[1]! * 0.7152 + channels[2]! * 0.0722
       }
-      const surface = luminance('--shell-card')
-      for (const role of ['--shell-ink', '--shell-muted']) {
+      const surface = luminance('--hf-surface')
+      for (const role of ['--hf-ink', '--hf-muted']) {
         const text = luminance(role)
         expect(
           (Math.max(surface, text) + 0.05) / (Math.min(surface, text) + 0.05),
