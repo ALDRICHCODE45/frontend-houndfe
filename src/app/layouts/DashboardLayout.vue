@@ -243,11 +243,19 @@ watch(isSearchOpen, async (open) => {
 
             <nav aria-label="breadcrumb" class="hf-shell-breadcrumb">
               <template v-for="(item, index) in breadcrumb" :key="index">
-                <UIcon v-if="index > 0" name="i-lucide-chevron-right" class="size-3.5 shrink-0" />
+                <UIcon
+                  v-if="index > 0"
+                  name="i-lucide-chevron-right"
+                  class="hf-shell-breadcrumb-ancestor size-3.5 shrink-0"
+                />
                 <span
-                  :class="
-                    index === breadcrumb.length - 1 ? 'hf-shell-breadcrumb-current' : undefined
-                  "
+                  :class="[
+                    'hf-shell-breadcrumb-item',
+                    index === breadcrumb.length - 1
+                      ? 'hf-shell-breadcrumb-current'
+                      : 'hf-shell-breadcrumb-ancestor',
+                  ]"
+                  :title="item.label"
                   :aria-current="index === breadcrumb.length - 1 ? 'page' : undefined"
                 >
                   {{ item.label }}

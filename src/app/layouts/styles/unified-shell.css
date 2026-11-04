@@ -567,8 +567,25 @@
   display: flex;
   align-items: center;
   gap: 16px;
+  min-width: 0;
+  overflow: hidden;
   color: var(--shell-muted);
   font-size: 13px;
+}
+
+/* One line always: a long page name truncates instead of stacking word by word. */
+.hf-shell-breadcrumb-item {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Mobile has room only for where you are. */
+@media (max-width: 767px) {
+  .hf-shell-breadcrumb .hf-shell-breadcrumb-ancestor {
+    display: none;
+  }
 }
 
 .hf-shell-breadcrumb [aria-current='page'],
