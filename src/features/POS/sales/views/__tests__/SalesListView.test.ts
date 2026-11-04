@@ -189,7 +189,6 @@ vi.mock('../../composables/useSalesColumns', () => ({
       { id: 'seller', accessorKey: 'seller', header: 'Vendedor', enableSorting: false },
       { id: 'channel', header: 'Canal', enableSorting: false },
       { id: 'invoice', header: 'Factura', enableSorting: false },
-      { id: 'actions', header: 'Acciones', enableSorting: false },
     ],
   }),
   defaultColumnVisibility: {
@@ -312,7 +311,6 @@ const appDataTableStub = {
           <slot name="seller-cell" :row="{ original: row }" />
           <slot name="channel-cell" :row="{ original: row }" />
           <slot name="invoice-cell" :row="{ original: row }" />
-          <slot name="actions-cell" :row="{ original: row }" />
           <div data-testid="cards-host"><slot name="mobile-card" :row="row" /></div>
         </div>
       </template>
@@ -706,12 +704,11 @@ describe('SalesListView — sortable column headers (REQ-13)', () => {
     }
   })
 
-  it('keeps the Acciones header for assistive tech only', () => {
+  it('has no actions column: a ⋮ whose only item opens the sale duplicates the row click', () => {
     const wrapper = mountSalesList()
-    const header = wrapper.get('[data-header-for="actions"]')
 
-    expect(header.get('span').classes()).toContain('sr-only')
-    expect(header.findComponent(SortableHeader).exists()).toBe(false)
+    expect(wrapper.find('[data-header-for="actions"]').exists()).toBe(false)
+    expect(wrapper.find('button[aria-haspopup="menu"]').exists()).toBe(false)
   })
 
   it('updates sorting to totalCents when the Total header is clicked', async () => {
@@ -975,7 +972,7 @@ describe('SalesListView — preserved invariants (REQ-16)', () => {
     expect(card.text()).toContain(formatShortDateTime(initialRow.confirmedAt))
   })
 
-  it('opens the sale detail when the card is clicked, but not from its row menu', async () => {
+  it('opens the sale detail when the card is clicked and the card has no row menu', async () => {
     const wrapper = mountSalesList()
     const card = wrapper.get('[data-testid="cards-host"] [data-testid="sale-card"]')
 
@@ -983,8 +980,7 @@ describe('SalesListView — preserved invariants (REQ-16)', () => {
     expect(push).toHaveBeenCalledTimes(1)
     expect(push).toHaveBeenCalledWith('/pos/ventas/sale-1')
 
-    await card.get('button[aria-haspopup="menu"]').trigger('click')
-    expect(push).toHaveBeenCalledTimes(1)
+    expect(card.find('button[aria-haspopup="menu"]').exists()).toBe(false)
   })
 
   it('keeps SalesListTabs driving the delivery-status quick filter', async () => {

@@ -10,7 +10,7 @@ describe('useSalesColumns', () => {
   it('returns all expected columns in order', () => {
     const { columns } = useSalesColumns()
 
-    expect(columns).toHaveLength(15)
+    expect(columns).toHaveLength(14)
     expect(columns.map((column) => keyOf(column))).toEqual([
       'select',
       'venta',
@@ -26,11 +26,10 @@ describe('useSalesColumns', () => {
       'seller',
       'channel',
       'invoice',
-      'actions',
     ])
   })
 
-  it('shows at most eight columns by default, with the row menu last', () => {
+  it('shows at most eight columns by default, with no row-menu column', () => {
     const { columns } = useSalesColumns()
     const visible = columns
       .map((column) => keyOf(column) as string)
@@ -44,7 +43,6 @@ describe('useSalesColumns', () => {
       'totalCents',
       'debtCents',
       'confirmedAt',
-      'actions',
     ])
     expect(visible.length).toBeLessThanOrEqual(8)
     expect(defaultColumnVisibility.paymentMethods).toBe(false)
@@ -118,7 +116,6 @@ describe('useSalesColumns', () => {
       'seller',
       'channel',
       'invoice',
-      'actions',
     ])
   })
 })

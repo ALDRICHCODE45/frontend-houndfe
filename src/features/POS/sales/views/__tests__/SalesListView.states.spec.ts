@@ -178,7 +178,7 @@ describe('SalesListView states — data', () => {
     state.data.value = [row]
   })
 
-  it('renders the sale row with status badges, right-aligned money and the ⋮ menu', async () => {
+  it('renders the sale row with status badges, right-aligned money and no ⋮ menu', async () => {
     const wrapper = mountList()
     await flushPromises()
 
@@ -188,7 +188,8 @@ describe('SalesListView states — data', () => {
     expect(wrapper.get('[data-testid="sale-delivery-status"]').attributes('data-tone')).toBe('danger')
     expect(wrapper.get('.sale-total').text()).toBe('$1,270.00')
     expect(wrapper.get('tbody tr').classes()).toContain('hf-clickable-row')
-    expect(wrapper.get('button[aria-haspopup="menu"]').attributes('aria-label')).toContain('venta #12 de Ada Lovelace')
+    // The only possible item would be "Ver venta", which the row click already does.
+    expect(wrapper.find('button[aria-haspopup="menu"]').exists()).toBe(false)
     expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
     expect(wrapper.find('[data-testid="table-skeleton"]').exists()).toBe(false)
   })

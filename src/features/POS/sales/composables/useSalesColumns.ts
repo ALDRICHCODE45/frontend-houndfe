@@ -17,7 +17,6 @@ export const defaultColumnVisibility: VisibilityState = {
   seller: false,
   channel: false,
   invoice: false,
-  actions: true,
 }
 
 export function useSalesColumns() {
@@ -44,13 +43,6 @@ export function useSalesColumns() {
     { accessorKey: 'seller', header: createSimpleHeader('Vendedor'), enableSorting: false },
     { id: 'channel', header: createSimpleHeader('Canal'), enableSorting: false },
     { id: 'invoice', header: createSimpleHeader('Factura'), enableSorting: false },
-    {
-      id: 'actions',
-      header: 'Acciones',
-      enableHiding: false,
-      enableSorting: false,
-      meta: { class: { th: 'w-16', td: 'w-16 text-right' } },
-    },
   ]
 
   return { columns }

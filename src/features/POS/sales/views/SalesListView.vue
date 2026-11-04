@@ -6,7 +6,6 @@ import { AppDataTable } from '@/core/shared/components/DataTable'
 import { DataTableFilters, useDataTableFilters, useFiltersUrlAdapter } from '@/core/shared/data-table-filters'
 import SortableHeader from '@/core/shared/components/DataTable/SortableHeader.vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
-import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { useClickableRow } from '@/core/shared/composables/useClickableRow'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
@@ -142,8 +141,6 @@ function deliveryBadge(sale: ConfirmedSaleRow) {
 }
 const saleWhen = (sale: ConfirmedSaleRow) =>
   sale.confirmedAt == null ? 'Fecha no disponible' : formatShortDateTime(sale.confirmedAt)
-const saleRowLabel = (sale: ConfirmedSaleRow) =>
-  `venta ${folioDisplay(sale.folio)} de ${customerDisplay(sale)}, ${paymentBadge(sale).label}`
 
 const sortValue = ref<'confirmedAt:desc' | 'totalCents:asc' | 'createdAt:desc'>('confirmedAt:desc')
 
@@ -167,10 +164,7 @@ function openSale(sale: ConfirmedSaleRow) {
 }
 const { rowProps } = useClickableRow<ConfirmedSaleRow>(openSale, { focusable: false })
 
-const rowActions: RowAction[] = [{ key: 'open', label: 'Ver venta', icon: 'i-lucide-eye' }]
-function runAction(key: string, sale: ConfirmedSaleRow) {
-  if (key === 'open') openSale(sale)
-}
+// No ⋮ menu: its only item would be "Ver venta", which the row click already does.
 
 // Quick-tab selection lives here so the list can tell "no sales yet" from
 // "no sales for this tab" and offer one way back (Limpiar filtros).
@@ -390,16 +384,6 @@ watch(() => filtersCtl.serializedState.value, () => {
           <template #channel-cell>Punto de Venta</template>
           <template #invoice-cell></template>
 
-          <template #actions-header><span class="sr-only">Acciones</span></template>
-          <template #actions-cell="{ row }">
-            <RowActionsMenu
-              :actions="rowActions"
-              :row-label="saleRowLabel(row.original)"
-              portal-class="sales-list-portal"
-              @select="runAction($event, row.original)"
-            />
-          </template>
-
           <template #mobile-card="{ row }">
             <article class="sale-card" data-testid="sale-card" v-bind="rowProps(row)">
               <div class="sale-card-head">
@@ -411,12 +395,6 @@ watch(() => filtersCtl.serializedState.value, () => {
                 >
                   {{ folioDisplay(row.folio) }}
                 </button>
-                <RowActionsMenu
-                  :actions="rowActions"
-                  :row-label="saleRowLabel(row)"
-                  portal-class="sales-list-portal"
-                  @select="runAction($event, row)"
-                />
               </div>
               <span class="hf-row-secondary" data-testid="sale-customer">{{ customerDisplay(row) }}</span>
               <div class="sale-card-meta">
@@ -464,12 +442,10 @@ watch(() => filtersCtl.serializedState.value, () => {
 .sale-card { position: relative; min-width: 0; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); padding: 16px; }
 .sale-card-head { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
 .sale-card-head .sale-row-link { flex: 1; min-width: 0; padding-top: 2px; font-size: 15px; line-height: 1.4; }
-.sale-card-head > :last-child { margin: -8px -8px 0 0; flex: none; }
 .sale-card .hf-row-secondary { padding-right: 8px; }
 .sale-card-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .sale-card-debt { margin-top: 10px; color: var(--hf-warning); font-size: 13px; font-weight: 600; }
 .sale-card-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hf-border); color: var(--hf-muted); font-size: 13px; }
 .sale-card-footer .sale-total { color: var(--hf-heading); font-size: 14px; }
 :deep(td[data-slot='td']) { height: 64px; padding-block: 10px; vertical-align: middle; }
-:deep(td[data-slot='td']:last-child) { padding-inline: 8px; }
 </style>
