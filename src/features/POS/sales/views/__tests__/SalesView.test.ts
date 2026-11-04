@@ -1420,7 +1420,7 @@ describe('SalesView S5A — catalog charge error dispatch (REQ-CAT-007..011)', (
     await vi.waitFor(() => {
       expect(
         addCalls.some(
-          (c) => c.title === 'Error' && c.description === 'No se pudo cobrar la venta. Reintenta.',
+          (c) => c.title === 'Error' && c.description === 'No se pudo cobrar la venta.',
         ),
       ).toBe(true)
     })

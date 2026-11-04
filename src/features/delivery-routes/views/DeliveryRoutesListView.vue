@@ -174,7 +174,7 @@ const driverSummary = computed(() =>
 const driverErrorMessage = computed(() =>
   normalizeApiError(
     driverError.value,
-    'No se pudieron cargar tus rutas activas. Reintenta.',
+    'No se pudieron cargar tus rutas activas.',
   ).message,
 )
 
@@ -420,7 +420,7 @@ function stopsSummary(route: DeliveryRouteResponseDto): string {
 
   <div
     v-else-if="isManager"
-    class="hf-theme hf-ui delivery-routes-visual flex w-full min-w-0 flex-col gap-6"
+    class="hf-theme hf-ui delivery-routes-visual flex w-full min-w-0 flex-col gap-6 md:px-10"
   >
     <DeliveryRouteUpsertSlideover
       v-model:open="isCreateOpen"

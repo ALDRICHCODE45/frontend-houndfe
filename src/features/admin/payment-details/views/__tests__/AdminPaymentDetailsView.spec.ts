@@ -131,7 +131,7 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
       enableColumnVisibility: { type: Boolean, default: false },
       showAddButton: { type: Boolean, default: false },
       error: { default: false },
-      errorMessage: { default: 'No se pudieron cargar los datos. Reintenta.' },
+      errorMessage: { default: 'No se pudieron cargar los datos.' },
       empty: { default: 'No se encontraron resultados' },
     },
     emits: ['add', 'refresh'],

@@ -303,19 +303,19 @@ function selectSession(sessionId: string) {
 }
 
 function handleCreateRegister(name: string) {
-  return withIdentityGuard('registers', 'No se pudo crear la caja. Reintenta.', async () => {
+  return withIdentityGuard('registers', 'No se pudo crear la caja.', async () => {
     await registers.createRegister({ name })
   })
 }
 
 function handleUpdateRegister(id: string, payload: { name?: string; isActive?: boolean }) {
-  return withIdentityGuard('registers', 'No se pudo actualizar la caja. Reintenta.', async () => {
+  return withIdentityGuard('registers', 'No se pudo actualizar la caja.', async () => {
     await registers.updateRegister(id, payload)
   })
 }
 
 function handleOpenSession(payload: { openingCents: number; openingHandoverId?: string }) {
-  return withIdentityGuard('open', 'No se pudo abrir la sesión. Reintenta.', async () => {
+  return withIdentityGuard('open', 'No se pudo abrir la sesión.', async () => {
     // Captured once, before the request: a stale promise must never select an
     // old session for the new user.
     const registerId = selectedRegisterId.value
@@ -333,7 +333,7 @@ function handleMovement(payload: {
 }) {
   return withIdentityGuard(
     'movements',
-    'No se pudo registrar el movimiento. Reintenta.',
+    'No se pudo registrar el movimiento.',
     async () => {
       const sessionId = selectedSessionId.value
       if (!sessionId) return
@@ -348,7 +348,7 @@ function handleMovement(payload: {
 }
 
 function handleFreeze() {
-  return withIdentityGuard('freeze', 'No se pudo iniciar el conteo. Reintenta.', async () => {
+  return withIdentityGuard('freeze', 'No se pudo iniciar el conteo.', async () => {
     const sessionId = selectedSessionId.value
     if (!sessionId) return
     await commands.startCount(sessionId)
@@ -357,7 +357,7 @@ function handleFreeze() {
 }
 
 function handleDeclare(payload: CashCountPayload) {
-  return withIdentityGuard('declare', 'No se pudo enviar la declaración. Reintenta.', async () => {
+  return withIdentityGuard('declare', 'No se pudo enviar la declaración.', async () => {
     const sessionId = selectedSessionId.value
     if (!sessionId) return
     // A comparison belongs to the shift that was selected when it was requested;
@@ -372,7 +372,7 @@ function handleDeclare(payload: CashCountPayload) {
 }
 
 function handleAppendNotes(notes: string) {
-  return withIdentityGuard('notes', 'No se pudo agregar la nota. Reintenta.', async () => {
+  return withIdentityGuard('notes', 'No se pudo agregar la nota.', async () => {
     const sessionId = selectedSessionId.value
     if (!sessionId) return
     await commands.appendNotes(sessionId, notes)
@@ -381,7 +381,7 @@ function handleAppendNotes(notes: string) {
 }
 
 function handleVerify(payload: CashCountPayload) {
-  return withIdentityGuard('verify', 'No se pudo enviar la verificación. Reintenta.', async () => {
+  return withIdentityGuard('verify', 'No se pudo enviar la verificación.', async () => {
     const sessionId = selectedSessionId.value
     if (!sessionId) return
     // Same shift-scoped rule as the declaration: never render B's comparison
@@ -395,7 +395,7 @@ function handleVerify(payload: CashCountPayload) {
 
 function handleReceive(payload: { id: string; receivedCents: number; notes?: string }) {
   receivingId.value = payload.id
-  return withIdentityGuard('custody', 'No se pudo registrar la recepción. Reintenta.', async () => {
+  return withIdentityGuard('custody', 'No se pudo registrar la recepción.', async () => {
     await commands.receiveHandover(payload.id, {
       receivedCents: payload.receivedCents,
       ...(payload.notes ? { notes: payload.notes } : {}),
@@ -412,7 +412,7 @@ function handleDeclareHandover(payload: {
   declaredCents: number
   notes?: string
 }) {
-  return withIdentityGuard('custody', 'No se pudo declarar la entrega. Reintenta.', async () => {
+  return withIdentityGuard('custody', 'No se pudo declarar la entrega.', async () => {
     const sessionId = selectedSessionId.value
     if (!sessionId) return
     await commands.declareHandover(sessionId, payload)
@@ -421,7 +421,7 @@ function handleDeclareHandover(payload: {
 }
 
 function handleReleaseDrawer() {
-  return withIdentityGuard('custody', 'No se pudo liberar el cajón. Reintenta.', async () => {
+  return withIdentityGuard('custody', 'No se pudo liberar el cajón.', async () => {
     const sessionId = selectedSessionId.value
     if (!sessionId) return
     await commands.releaseDrawer(sessionId)

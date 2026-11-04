@@ -241,7 +241,7 @@ const appDataTableStub = {
     columnVisibility: { default: undefined },
     enableColumnVisibility: { default: undefined },
     error: { default: false },
-    errorMessage: { default: 'No se pudieron cargar los datos. Reintenta.' },
+    errorMessage: { default: 'No se pudieron cargar los datos.' },
     empty: { default: 'No se encontraron resultados' },
     showAddButton: { default: false },
     addButtonText: { default: 'Agregar' },

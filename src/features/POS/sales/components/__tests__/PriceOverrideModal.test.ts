@@ -112,7 +112,7 @@ describe('PriceOverrideModal', () => {
     })
 
     await flushPromises()
-    expect(wrapper.text()).toContain('No se pudieron cargar los precios disponibles. Reintenta.')
+    expect(wrapper.text()).toContain('No se pudieron cargar los precios disponibles.')
 
     const retryButton = wrapper.findAll('button').find((button) => button.text() === 'Reintentar')
     expect(retryButton).toBeTruthy()
@@ -121,7 +121,7 @@ describe('PriceOverrideModal', () => {
 
     expect(saleApi.getAvailablePrices).toHaveBeenCalledTimes(2)
     expect(wrapper.text()).toContain('PUBLICO')
-    expect(wrapper.text()).not.toContain('No se pudieron cargar los precios disponibles. Reintenta.')
+    expect(wrapper.text()).not.toContain('No se pudieron cargar los precios disponibles.')
   })
 
   it('validates custom cents and blocks invalid submit', async () => {
@@ -293,12 +293,12 @@ describe('PriceOverrideModal', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('No se pudo aplicar el cambio de precio. Reintenta.')
+    expect(wrapper.text()).toContain('No se pudo aplicar el cambio de precio.')
 
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.text()).not.toContain('No se pudo aplicar el cambio de precio. Reintenta.')
+    expect(wrapper.text()).not.toContain('No se pudo aplicar el cambio de precio.')
     expect(onSubmit).toHaveBeenCalledTimes(2)
   })
 

@@ -555,7 +555,7 @@ async function handleChargeDraft(
       // map yields undefined here — surface the generic error toast instead of
       // crashing on action.type.
       if (!action) {
-        const message = err.response?.data?.message ?? 'No se pudo cobrar la venta. Reintenta.'
+        const message = err.response?.data?.message ?? 'No se pudo cobrar la venta.'
         toast.add({ title: 'Error', description: message, color: 'error' })
         return
       }
@@ -595,7 +595,7 @@ async function handleChargeDraft(
       return
     }
 
-    const message = err.response?.data?.message ?? 'No se pudo cobrar la venta. Reintenta.'
+    const message = err.response?.data?.message ?? 'No se pudo cobrar la venta.'
     toast.add({ title: 'Error', description: message, color: 'error' })
   }
 }

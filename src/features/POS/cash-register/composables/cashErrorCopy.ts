@@ -12,7 +12,7 @@
  */
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
 
-export const CASH_GENERIC_ERROR = 'No pudimos completar la operación. Reintenta.'
+export const CASH_GENERIC_ERROR = 'No pudimos completar la operación.'
 
 export type CashIdentityReason = 'inactive' | 'changed'
 

@@ -60,7 +60,7 @@ async function loadAvailablePrices() {
     const current = response.prices.find((opt) => opt.isCurrent)
     selectedPriceListId.value = current?.priceListId ?? ''
   } catch {
-    apiError.value = 'No se pudieron cargar los precios disponibles. Reintenta.'
+    apiError.value = 'No se pudieron cargar los precios disponibles.'
   } finally {
     isLoading.value = false
   }
@@ -86,7 +86,7 @@ async function submit() {
     }
     emit('update:open', false)
   } catch {
-    apiError.value = 'No se pudo aplicar el cambio de precio. Reintenta.'
+    apiError.value = 'No se pudo aplicar el cambio de precio.'
   } finally {
     isLoading.value = false
   }

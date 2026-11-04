@@ -536,7 +536,7 @@ describe('EligibleSalesPicker — empty / loading / error / required states', ()
     getMock.mockRejectedValue(new Error('Request failed with status code 400'))
     const { wrapper } = mountPicker()
     await settle(() => expect(wrapper.find('[data-testid="eligible-sales-picker-error"]').exists()).toBe(true))
-    expect(wrapper.text()).toContain('No se pudieron cargar las ventas elegibles. Reintenta.')
+    expect(wrapper.text()).toContain('No se pudieron cargar las ventas elegibles.')
     expect(wrapper.text()).not.toContain('Request failed with status code 400')
   })
 

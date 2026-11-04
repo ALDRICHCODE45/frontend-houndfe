@@ -216,10 +216,9 @@ describe('DeliveryRoutesListView states — toolbar and layout (round 2)', () =>
     expect(DELIVERY_ROUTE_COPY.list.searchPlaceholder.length).toBeLessThanOrEqual(24)
   })
 
-  it('adds no horizontal inset of its own on top of the shell gutter', () => {
+  it('uses the shared 40px page gutter on the manager root and no inner inset', () => {
     const source = readFileSync('src/features/delivery-routes/views/DeliveryRoutesListView.vue', 'utf8')
-    expect(source).toMatch(/delivery-routes-visual flex w-full min-w-0 flex-col gap-6"/)
-    expect(source).not.toContain('md:px-10')
+    expect(source).toMatch(/delivery-routes-visual flex w-full min-w-0 flex-col gap-6 md:px-10"/)
   })
 })
 

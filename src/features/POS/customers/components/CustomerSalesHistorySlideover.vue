@@ -81,7 +81,7 @@ watch(error, (currentError) => {
 
 const normalizedError = computed(() =>
   isError.value && error.value && httpStatus(error.value) !== 403
-    ? normalizeApiError(error.value, 'No se pudo cargar el historial de ventas. Reintenta.')
+    ? normalizeApiError(error.value, 'No se pudo cargar el historial de ventas.')
     : null,
 )
 

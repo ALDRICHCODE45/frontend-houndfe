@@ -140,7 +140,7 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
       displayMode: { default: 'auto' },
       rowOpen: { type: Function, default: undefined },
       error: { default: false },
-      errorMessage: { default: 'No se pudieron cargar los datos. Reintenta.' },
+      errorMessage: { default: 'No se pudieron cargar los datos.' },
       empty: { default: 'No se encontraron resultados' },
     },
     emits: ['add', 'refresh'],

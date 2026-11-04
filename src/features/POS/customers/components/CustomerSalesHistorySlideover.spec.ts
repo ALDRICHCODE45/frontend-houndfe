@@ -201,7 +201,7 @@ describe('CustomerSalesHistorySlideover', () => {
 
     const error = element('.hf-empty-state[data-kind="error"]')
     expect(error.getAttribute('role')).toBe('alert')
-    expect(error.textContent).toContain('No se pudo cargar el historial de ventas. Reintenta.')
+    expect(error.textContent).toContain('No se pudo cargar el historial de ventas.')
     buttonWithText('Reintentar').dispatchEvent(new MouseEvent('click', { bubbles: true }))
     expect(history.refetch).toHaveBeenCalledOnce()
   })

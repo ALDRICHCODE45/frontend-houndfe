@@ -57,7 +57,7 @@ async function receive(payload: { id: string; receivedCents: number; notes?: str
     if (error instanceof CashIdentityError && error.reason === 'changed') return
     errorMessage.value = cashErrorInfo(
       error,
-      'No se pudo registrar la recepción. Reintenta.',
+      'No se pudo registrar la recepción.',
     ).message
   } finally {
     // An older actor's completion must not clear a newer actor's pending receipt.

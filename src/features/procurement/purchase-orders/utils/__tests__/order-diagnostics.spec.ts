@@ -31,6 +31,10 @@ describe('order diagnostics', () => {
     for (const operation of ['confirm', 'cancel'] as const) expect(commandMessage(fail('ORDER_VERSION_CONFLICT'), false, operation)).toBe('La orden cambió en otra sesión. Ya se cargó su versión actual; revísala antes de continuar.')
     expect(commandMessage(fail('ORDER_VERSION_CONFLICT'))).toBe('La orden cambió en otra sesión. Tus cambios locales se conservan. Puedes cargar la versión actual.')
     expect(commandMessage(fail('SUPPLIER_ARCHIVED'))).toBe('El proveedor seleccionado está archivado. Elige un proveedor activo para esta sustitución.')
+    // The Reintentar button is the action; the text only says what failed.
+    expect(commandMessage(null, true)).toBe('El resultado no está confirmado.')
+    expect(commandMessage(fail('IDEMPOTENCY_KEY_IN_FLIGHT'))).toBe('El intento sigue en proceso.')
+    expect(generic).toBe('No se pudo completar la operación.')
     for (const code of ['ORDER_NOT_READY', 'ELIGIBILITY_CHANGED', 'SUPPLIER_VERSION_CONFLICT', 'ORDER_STATE_CONFLICT']) expect(commandMessage(fail(code))).not.toBe(generic)
   })
 })

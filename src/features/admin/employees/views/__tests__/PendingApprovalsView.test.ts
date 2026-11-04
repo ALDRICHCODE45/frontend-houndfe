@@ -133,7 +133,7 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
       displayMode: { default: 'auto' },
       enableColumnVisibility: { type: Boolean, default: false },
       error: { default: false },
-      errorMessage: { default: 'No se pudieron cargar los datos. Reintenta.' },
+      errorMessage: { default: 'No se pudieron cargar los datos.' },
       empty: { default: 'No se encontraron resultados' },
       pageSizeOptions: { default: () => [5, 10, 20, 50] },
       showToolbar: { type: Boolean, default: true },

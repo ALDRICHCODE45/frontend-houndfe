@@ -198,14 +198,14 @@ describe('AppDataTable error state', () => {
   it('renders the error block (and not the empty text) in table view when error=true', () => {
     const wrapper = mountComponent({
       error: true,
-      errorMessage: 'No se pudieron cargar los datos. Reintenta.',
+      errorMessage: 'No se pudieron cargar los datos.',
       data: [],
       totalCount: 0,
     })
 
     expect(wrapper.find('[data-testid="table-error-state"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="table-error-state"]').text()).toContain(
-      'No se pudieron cargar los datos. Reintenta.',
+      'No se pudieron cargar los datos.',
     )
     // The generic empty text must NOT show when error is true.
     expect(wrapper.text()).not.toContain('No se encontraron resultados')
@@ -216,7 +216,7 @@ describe('AppDataTable error state', () => {
     isBelowBreakpoint.value = true
     const wrapper = mountComponent({
       error: true,
-      errorMessage: 'No se pudieron cargar los datos. Reintenta.',
+      errorMessage: 'No se pudieron cargar los datos.',
       data: [],
       totalCount: 0,
       mobileRender: 'cards',
@@ -224,7 +224,7 @@ describe('AppDataTable error state', () => {
 
     expect(wrapper.find('[data-testid="cards-error-state"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="cards-error-state"]').text()).toContain(
-      'No se pudieron cargar los datos. Reintenta.',
+      'No se pudieron cargar los datos.',
     )
     expect(wrapper.find('[data-testid="mobile-empty-state"]').exists()).toBe(false)
   })
@@ -234,7 +234,7 @@ describe('AppDataTable error state', () => {
       {
         displayMode: 'cards',
         error: true,
-        errorMessage: 'No se pudieron cargar los datos. Reintenta.',
+        errorMessage: 'No se pudieron cargar los datos.',
         data: [],
         totalCount: 0,
       },
@@ -243,7 +243,7 @@ describe('AppDataTable error state', () => {
 
     expect(wrapper.find('[data-testid="cards-error-state"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="cards-error-state"]').text()).toContain(
-      'No se pudieron cargar los datos. Reintenta.',
+      'No se pudieron cargar los datos.',
     )
     // The custom cards slot must NOT render when the request failed — a failed
     // request is never masked as an empty (or stale) card grid.

@@ -348,7 +348,7 @@ describe('confirm and cancel actions', () => {
     expect(modal.text()).toContain('Cancelar orden')
     expect(modal.text()).toContain('definitiva')
     expect(modal.find('textarea, input').exists()).toBe(false)
-    set('uncertain', true); set('message', 'El resultado no está confirmado. Reintenta el mismo intento antes de continuar.')
+    set('uncertain', true); set('message', 'El resultado no está confirmado.')
     await wrapper.vm.$nextTick()
     expect(wrapper.get('aside').find('[data-testid="confirm-transition"]').exists()).toBe(false)
     await wrapper.get('aside').get('[data-testid="retry-transition"]').trigger('click')

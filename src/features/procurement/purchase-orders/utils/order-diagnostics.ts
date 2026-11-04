@@ -32,7 +32,7 @@ export function diagnosticTarget(path: string, lineCount: number): string {
   return 'summary'
 }
 export function commandMessage(error: unknown, uncertain = false, operation: 'edit' | 'confirm' | 'cancel' = 'edit'): string {
-  if (uncertain) return 'El resultado no está confirmado. Reintenta el mismo intento antes de continuar.'
+  if (uncertain) return 'El resultado no está confirmado.'
   if (!error) return ''
   const code = (error as { response?: { data?: { error?: string } } }).response?.data?.error
   // Transitions re-read the order after a conflict, so there are no local edits to keep.
@@ -50,7 +50,7 @@ export function commandMessage(error: unknown, uncertain = false, operation: 'ed
     ELIGIBILITY_CHANGED: 'Algún producto o variante de la orden cambió. Revisa la orden actualizada antes de confirmar.',
     SUPPLIER_VERSION_CONFLICT: 'Los datos del proveedor cambiaron. Revisa la orden actualizada antes de confirmar.',
     ORDER_STATE_CONFLICT: 'La orden ya no está en un estado que permita esta acción. Revisa su estado actual.',
-    IDEMPOTENCY_KEY_IN_FLIGHT: 'El intento sigue en proceso. Reintenta para recuperar su resultado.',
+    IDEMPOTENCY_KEY_IN_FLIGHT: 'El intento sigue en proceso.',
   }
-  return code && Object.prototype.hasOwnProperty.call(copy, code) ? copy[code]! : 'No se pudo completar la operación. Inténtalo de nuevo.'
+  return code && Object.prototype.hasOwnProperty.call(copy, code) ? copy[code]! : 'No se pudo completar la operación.'
 }

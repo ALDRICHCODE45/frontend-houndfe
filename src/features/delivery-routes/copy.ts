@@ -95,7 +95,7 @@ export const DELIVERY_ROUTE_COPY = {
     empty: 'No hay ventas pendientes o enviadas',
     noResults: 'No hay ventas que coincidan con la búsqueda',
     loading: 'Cargando ventas elegibles…',
-    errorFallback: 'No se pudieron cargar las ventas elegibles. Reintenta.',
+    errorFallback: 'No se pudieron cargar las ventas elegibles.',
     retry: 'Reintentar',
     selectedHeading: 'Ventas seleccionadas',
     remove: 'Quitar {folio}',

@@ -139,7 +139,7 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
       filtered: { default: false },
       noMatchTitle: { default: undefined },
       error: { default: false },
-      errorMessage: { default: 'No se pudieron cargar los datos. Reintenta.' },
+      errorMessage: { default: 'No se pudieron cargar los datos.' },
       empty: { default: 'No se encontraron resultados' },
       portalClass: { default: undefined },
       paginationPortalClass: { default: undefined },
