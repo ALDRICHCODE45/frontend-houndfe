@@ -315,8 +315,8 @@ describe('ProductSearchResultItem.vue', () => {
       expect(addAction.text()).toContain('Agregar')
       expect(addAction.classes()).toContain('w-full')
       expect(addAction.classes()).toContain('sm:hidden')
-      expect(addAction.classes()).toContain('dark:bg-primary')
-      expect(addAction.classes()).toContain('dark:text-white')
+      expect(addAction.classes()).toContain('dark:bg-(--hf-action)')
+      expect(addAction.classes()).toContain('dark:text-(--hf-on-action)')
     })
 
     it('hides the hover-revealed Agregar badge on mobile (sm+ only)', () => {

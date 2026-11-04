@@ -32,7 +32,7 @@ const isSaleWorkspace = computed(
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-const { query, items, isLoading, isEmpty, hasQuery, categoryId, categories, totalUnfiltered } = useProductSearch()
+const { query, items, isLoading, isError, isEmpty, hasQuery, categoryId, categories, totalUnfiltered, refetch } = useProductSearch()
 
 // Real catalog count already exposed by the composable — the title row never
 // invents a prototype literal or a second query.
@@ -150,7 +150,7 @@ function handleAddVariant(productId: string, variantId: string) {
             :class="[
               'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 whitespace-nowrap cursor-pointer border',
               !activeCategory
-                ? 'bg-primary text-white border-primary shadow-sm'
+                ? 'bg-primary text-(--hf-on-action) border-primary'
                 : 'bg-elevated/50 text-muted border-default hover:bg-elevated hover:text-highlighted',
             ]"
             data-testid="category-chip-todo"
@@ -160,7 +160,7 @@ function handleAddVariant(productId: string, variantId: string) {
             <span
               :class="[
                 'inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-md text-[10px] font-semibold tabular-nums',
-                !activeCategory ? 'bg-white/20 text-white' : 'bg-default text-muted',
+                !activeCategory ? 'bg-(--hf-on-action)/20 text-(--hf-on-action)' : 'bg-default text-muted',
               ]"
             >
               {{ totalUnfiltered }}
@@ -173,7 +173,7 @@ function handleAddVariant(productId: string, variantId: string) {
             :class="[
               'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 whitespace-nowrap cursor-pointer border',
               activeCategory === cat.id
-                ? 'bg-primary text-white border-primary shadow-sm'
+                ? 'bg-primary text-(--hf-on-action) border-primary'
                 : 'bg-elevated/50 text-muted border-default hover:bg-elevated hover:text-highlighted',
             ]"
             :data-testid="`category-chip-${cat.id}`"
@@ -183,7 +183,7 @@ function handleAddVariant(productId: string, variantId: string) {
             <span
               :class="[
                 'inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-md text-[10px] font-semibold tabular-nums',
-                activeCategory === cat.id ? 'bg-white/20 text-white' : 'bg-default text-muted',
+                activeCategory === cat.id ? 'bg-(--hf-on-action)/20 text-(--hf-on-action)' : 'bg-default text-muted',
               ]"
             >
               {{ cat.count }}
@@ -199,7 +199,9 @@ function handleAddVariant(productId: string, variantId: string) {
       :is-loading="isLoading"
       :is-empty="isEmpty"
       :has-query="hasQuery"
+      :is-error="isError"
       :composition="isSaleWorkspace"
+      @retry="refetch()"
       @select="handleItemSelect"
       @view-detail="handleViewDetail"
     />

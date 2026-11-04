@@ -222,19 +222,6 @@ describe('Sales entry visual adapter — stylesheet', () => {
     expect(header.style.getPropertyValue('background-color')).toContain('var(--hf-surface)')
     expect(header.style.getPropertyValue('background-color')).not.toContain('--light-surface-page')
 
-    const chip = exactRule(
-      css,
-      ".hf-theme.sales-entry-visual .sales-entry-product-search [data-testid^='category-chip-'].bg-primary",
-    )!
-    const count = exactRule(
-      css,
-      ".hf-theme.sales-entry-visual .sales-entry-product-search [data-testid^='category-chip-'].bg-primary > span",
-    )!
-    expect(chip).toBeDefined()
-    expect(count).toBeDefined()
-    expect(chip.style.getPropertyValue('color').trim()).toBe('var(--hf-on-action)')
-    expect(count.style.getPropertyValue('color').trim()).toBe('var(--hf-on-action)')
-
     const price = exactRule(
       css,
       '.hf-theme.sales-entry-visual .sales-entry-product-search p.tabular-nums',
@@ -245,21 +232,9 @@ describe('Sales entry visual adapter — stylesheet', () => {
     expect(css).not.toContain('--brand-primary')
   })
 
-  it('keeps the mobile add-action soft/solid distinction with the dark foreground pair', () => {
-    const light = exactRule(
-      css,
-      ".hf-theme.sales-entry-visual .sales-entry-product-search [data-testid='add-action']",
-    )!
-    const dark = exactRule(
-      css,
-      ".dark .hf-theme.sales-entry-visual .sales-entry-product-search [data-testid='add-action']",
-    )!
-    expect(light).toBeDefined()
-    expect(dark).toBeDefined()
-    expect(light.style.getPropertyValue('background-color').trim()).toBe('var(--hf-active-soft)')
-    expect(light.style.getPropertyValue('color').trim()).toBe('var(--hf-action)')
-    expect(dark.style.getPropertyValue('background-color').trim()).toBe('var(--hf-action)')
-    expect(dark.style.getPropertyValue('color').trim()).toBe('var(--hf-on-action)')
+  it('leaves chip and add-action paint to the components', () => {
+    expect(css).not.toContain('category-chip-')
+    expect(css).not.toContain('add-action')
   })
 
   it('rejects unowned panels and never recolors stock-danger semantics', () => {
@@ -267,15 +242,12 @@ describe('Sales entry visual adapter — stylesheet', () => {
     host.className = 'dark'
     host.innerHTML = `<div class="hf-theme hf-ui sales-entry-visual">
       <div class="sales-entry-product-search">
-        <button class="bg-primary text-white" data-testid="category-chip-todo"><span>3</span></button>
         <p class="tabular-nums">$10.00</p>
-        <p class="text-(--brand-primary)">2 variantes</p>
-        <button data-testid="add-action">Agregar</button>
-        <span class="text-(--brand-danger)" data-testid="stock-badge">#1</span>
+        <span data-testid="stock-badge">#1</span>
       </div>
     </div>
     <div class="hf-theme hf-ui"><div class="sales-entry-product-search">
-      <button data-testid="add-action">Agregar</button>
+      <p class="tabular-nums">$10.00</p>
     </div></div>`
     document.body.append(host)
     try {
@@ -284,12 +256,8 @@ describe('Sales entry visual adapter — stylesheet', () => {
       )
       expect(selectors.length).toBeGreaterThan(0)
 
-      const optedAction = host.querySelector(
-        '.sales-entry-visual [data-testid="add-action"]',
-      )!
-      const inertAction = host.querySelector(
-        '.hf-ui:not(.sales-entry-visual) [data-testid="add-action"]',
-      )!
+      const optedAction = host.querySelector('.sales-entry-visual p.tabular-nums')!
+      const inertAction = host.querySelector('.hf-ui:not(.sales-entry-visual) p.tabular-nums')!
       const stock = host.querySelector('[data-testid="stock-badge"]')!
       expect(selectors.some((selector) => optedAction.matches(selector))).toBe(true)
       expect(selectors.some((selector) => inertAction.matches(selector))).toBe(false)

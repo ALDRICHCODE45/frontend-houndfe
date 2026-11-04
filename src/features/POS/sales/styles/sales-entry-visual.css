@@ -102,44 +102,7 @@
   border-color: var(--hf-border);
 }
 
-/* Active category chips ship a literal `text-white`; even the shared inverted
- * alias cannot reach it, so pair the chip (and its count badge) with the
- * action foreground role in both modes. */
-.hf-theme.sales-entry-visual
-  .sales-entry-product-search
-  [data-testid^='category-chip-'].bg-primary {
-  background-color: var(--hf-action);
-  color: var(--hf-on-action);
-}
-
-.hf-theme.sales-entry-visual
-  .sales-entry-product-search
-  [data-testid^='category-chip-'].bg-primary
-  > span {
-  background-color: color-mix(in srgb, var(--hf-on-action) 20%, transparent);
-  color: var(--hf-on-action);
-}
-
 /* Prices are operational data. */
 .hf-theme.sales-entry-visual .sales-entry-product-search p.tabular-nums {
   color: var(--hf-ink);
-}
-
-/* The mobile add action keeps its soft/solid distinction with the matching
- * foreground pair. Stock-danger badges are deliberately not selected, so the
- * `#N` warning semantics survive untouched. */
-.hf-theme.sales-entry-visual .sales-entry-product-search [data-testid='add-action'] {
-  background-color: var(--hf-active-soft);
-  color: var(--hf-action);
-}
-
-.hf-theme.sales-entry-visual
-  .sales-entry-product-search
-  [data-testid='add-action']:is(:hover, :active) {
-  background-color: color-mix(in srgb, var(--hf-action) 20%, var(--hf-surface));
-}
-
-.dark .hf-theme.sales-entry-visual .sales-entry-product-search [data-testid='add-action'] {
-  background-color: var(--hf-action);
-  color: var(--hf-on-action);
 }

@@ -432,7 +432,7 @@ describe('D2 — catalog hooks (shared components stay inert by default)', () =>
       }),
     )
     expect(wrapper.find('.sales-pos-catalog-empty').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Sin resultados')
+    expect(wrapper.text()).toContain('Ningún resultado')
   })
 
   it('marks the product card facts and preserves the shared card defaults', () => {

@@ -248,7 +248,7 @@ function isLowStock(item: PosCatalogItem): boolean {
       <button
         type="button"
         data-testid="add-action"
-        class="mt-1 w-full flex items-center justify-center gap-1 rounded-xl bg-primary/10 text-primary text-xs font-semibold py-2 hover:bg-primary/20 active:bg-primary/20 transition-colors duration-150 sm:hidden dark:bg-primary dark:text-white dark:hover:bg-primary/90 dark:active:bg-primary/90 sales-pos-product-add"
+        class="mt-1 w-full flex items-center justify-center gap-1 rounded-xl bg-(--hf-active-soft) text-(--hf-action) text-xs font-semibold py-2 hover:bg-primary/20 active:bg-primary/20 transition-colors duration-150 sm:hidden dark:bg-(--hf-action) dark:text-(--hf-on-action) dark:hover:bg-primary/90 dark:active:bg-primary/90 sales-pos-product-add"
         @click.stop="emit('select', item)"
       >
         <UIcon name="i-lucide-plus" class="h-3.5 w-3.5" />

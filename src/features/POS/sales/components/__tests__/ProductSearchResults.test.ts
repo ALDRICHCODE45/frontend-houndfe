@@ -64,46 +64,56 @@ describe('ProductSearchResults.vue', () => {
     },
   ]
 
-  it('shows empty state when no query and no items (empty catalog)', () => {
+  it('shows the empty state when no query and no items (empty catalog)', () => {
     const wrapper = mount(ProductSearchResults, {
-      props: {
-        items: [],
-        isLoading: false,
-        isEmpty: true,
-        hasQuery: false,
-      },
+      props: { items: [], isLoading: false, isEmpty: true, hasQuery: false },
     })
 
-    expect(wrapper.text()).toContain('Sin resultados')
-    expect(wrapper.text()).toContain('No hay productos disponibles en el catálogo POS')
+    const state = wrapper.get('.hf-empty-state')
+    expect(state.attributes('data-kind')).toBe('empty')
+    expect(state.text()).toContain('Aún no hay productos para vender')
   })
 
-  it('shows loading skeletons when loading with no items', () => {
+  it('shows loading skeletons with no state chrome while loading', () => {
     const wrapper = mount(ProductSearchResults, {
-      props: {
-        items: [],
-        isLoading: true,
-        isEmpty: false,
-        hasQuery: true,
-      },
+      props: { items: [], isLoading: true, isEmpty: false, hasQuery: true },
     })
 
-    // Check for loading state presence (skeleton grid container)
-    const loadingContainer = wrapper.find('[class*="grid"]')
-    expect(loadingContainer.exists()).toBe(true)
+    expect(wrapper.find('.sales-pos-product-grid').exists()).toBe(true)
+    expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
   })
 
-  it('shows empty state when query entered but no results', () => {
+  it('shows the no-match state when a query finds nothing', () => {
     const wrapper = mount(ProductSearchResults, {
-      props: {
-        items: [],
-        isLoading: false,
-        isEmpty: true,
-        hasQuery: true,
-      },
+      props: { items: [], isLoading: false, isEmpty: true, hasQuery: true },
     })
 
-    expect(wrapper.text()).toContain('Sin resultados')
+    const state = wrapper.get('.hf-empty-state')
+    expect(state.attributes('data-kind')).toBe('no-match')
+    expect(state.text()).toContain('Ningún resultado')
+  })
+
+  it('shows the error state with Reintentar instead of the empty design', async () => {
+    const wrapper = mount(ProductSearchResults, {
+      props: { items: [], isLoading: false, isEmpty: true, hasQuery: false, isError: true },
+    })
+
+    const state = wrapper.get('[data-testid="catalog-error-state"]')
+    expect(state.attributes('role')).toBe('alert')
+    expect(state.attributes('data-kind')).toBe('error')
+    expect(state.text()).toContain('No se pudo cargar el catálogo')
+    await wrapper.get('[data-testid="catalog-retry"]').trigger('click')
+    expect(wrapper.emitted('retry')).toHaveLength(1)
+    expect(wrapper.find('.sales-pos-catalog-empty').exists()).toBe(false)
+  })
+
+  it('keeps showing results when a background refetch fails', () => {
+    const wrapper = mount(ProductSearchResults, {
+      props: { items: mockResults, isLoading: false, isEmpty: false, hasQuery: false, isError: true },
+    })
+
+    expect(wrapper.find('[data-testid="catalog-error-state"]').exists()).toBe(false)
+    expect(wrapper.findAll('[data-testid="result-item"]')).toHaveLength(2)
   })
 
   it('renders result items when results exist', () => {
