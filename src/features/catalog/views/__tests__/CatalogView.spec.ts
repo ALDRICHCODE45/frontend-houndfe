@@ -925,11 +925,36 @@ describe('CatalogView public browse', () => {
     const selected = await mountAt('/catalogo/centro')
 
     await flushPromises()
-    expect(selected.wrapper.get('[data-testid="catalog-result-total"]').text()).toBe('0 productos')
     expect(selected.wrapper.get('main').text()).toContain(
       'No hay productos disponibles en este momento',
     )
     expect(selected.wrapper.get('main').text()).not.toMatch(/publicados|excluidos|excludedCount/)
+  })
+
+  it('keeps the search, the count and the category chips off a catalog with no products at all', async () => {
+    vi.stubGlobal(
+      'fetch',
+      createCatalogFetch({ products: () => jsonResponse(productsResponse([])) }),
+    )
+    const { wrapper } = await mountAt('/catalogo/centro')
+    await flushPromises()
+
+    expect(wrapper.get('main').text()).toContain('No hay productos disponibles en este momento')
+    expect(wrapper.find('form[role="search"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="catalog-result-total"]').exists()).toBe(false)
+    expect(wrapper.find('[aria-label="Filtrar por categoría"]').exists()).toBe(false)
+  })
+
+  it('keeps the search and the real zero count when a search matches nothing', async () => {
+    vi.stubGlobal(
+      'fetch',
+      createCatalogFetch({ products: () => jsonResponse(productsResponse([])) }),
+    )
+    const { wrapper } = await mountAt('/catalogo/centro?q=correa')
+    await flushPromises()
+
+    expect(wrapper.find('form[role="search"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="catalog-result-total"]').text()).toBe('0 productos')
   })
 
   it('announces in-progress branch discovery inside the polite chooser region once the selector is open', async () => {

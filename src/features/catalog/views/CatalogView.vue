@@ -206,6 +206,17 @@ const lastAvailablePage = computed(() => Math.max(1, paginationMeta.value?.total
 const isPageOutOfRange = computed(
   () => paginationMeta.value !== null && paginationMeta.value.page > lastAvailablePage.value,
 )
+/** A catalog with no product at all (no search, no category, in range): its filters have nothing to filter. */
+const isCatalogEmpty = computed(
+  () =>
+    readyBranch.value !== null &&
+    productsState.value === 'empty' &&
+    filterError.value === null &&
+    !hasSearch.value &&
+    route.query.categoryId === undefined &&
+    !isPageOutOfRange.value,
+)
+
 const showPager = computed(
   () =>
     paginationMeta.value !== null && paginationMeta.value.totalPages > 0 && !isPageOutOfRange.value,
@@ -409,7 +420,7 @@ async function selectPriceContext(priceListIdToSelect: string) {
       >
         <div class="catalog-container">
           <form
-            v-if="readyBranch !== null"
+            v-if="readyBranch !== null && !isCatalogEmpty"
             class="catalog-search"
             role="search"
             @submit.prevent="commitSearch(searchDraft)"
@@ -443,6 +454,7 @@ async function selectPriceContext(priceListIdToSelect: string) {
             :ready="readyBranch !== null"
             :state="baselineState"
             :combined-error="listingFailed"
+            :catalog-empty="isCatalogEmpty"
             @select="selectCategory"
             @retry="retryBaseline"
           />

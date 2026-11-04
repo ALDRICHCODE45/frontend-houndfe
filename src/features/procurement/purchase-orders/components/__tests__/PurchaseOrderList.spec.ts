@@ -79,7 +79,7 @@ describe('proveedor cell', () => {
 })
 
 describe('estado cell', () => {
-  it.each([['DRAFT', 'Borrador', 'warning'], ['CONFIRMED', 'Confirmada', 'success'], ['CANCELLED', 'Cancelada', 'neutral']] as const)('shows a %s order as a %s status badge with the %s tone, in cells and cards', (status, label, tone) => {
+  it.each([['DRAFT', 'Borrador', 'neutral'], ['CONFIRMED', 'Confirmada', 'success'], ['CANCELLED', 'Cancelada', 'neutral']] as const)('shows a %s order as a %s status badge with the %s tone, in cells and cards', (status, label, tone) => {
     const wrapper = mountList([{ ...row, status }])
     const badges = wrapper.findAll('[data-testid="order-status"]')
     expect(badges.map(badge => badge.text())).toEqual([label, label])
@@ -90,8 +90,9 @@ describe('estado cell', () => {
   })
   it('adds an aviso marker beside the badge only when the draft has avisos', () => {
     const wrapper = mountList([{ ...row, issueCount: 1 }, { ...row, id: 'p', issueCount: 3 }, { ...row, id: 'q', issueCount: 0 }])
-    expect(cell(wrapper, 'status', 0).get('[data-testid="order-aviso"]').text()).toBe('1 aviso')
-    expect(cell(wrapper, 'status', 1).get('[data-testid="order-aviso"]').text()).toBe('3 avisos')
+    expect(cell(wrapper, 'status', 0).get('[data-testid="order-aviso"]').text()).toBe('Con avisos')
+    // 3 raw sub-field issues are not 3 problems: the marker never carries a count.
+    expect(cell(wrapper, 'status', 1).get('[data-testid="order-aviso"]').text()).toBe('Con avisos')
     expect(cell(wrapper, 'status', 2).find('[data-testid="order-aviso"]').exists()).toBe(false)
   })
 })
@@ -219,7 +220,7 @@ describe('mobile card', () => {
     expect(card.get('.hf-row-actions-trigger').attributes('aria-label')).toBe('Acciones de la orden de Proveedor, borrador')
     expect(card.get('.hf-row-secondary').text()).toBe('Nota')
     expect(card.get('[data-testid="order-status"]').text()).toBe('Borrador')
-    expect(card.get('[data-testid="order-aviso"]').text()).toBe('1 aviso')
+    expect(card.get('[data-testid="order-aviso"]').text()).toBe('Con avisos')
     expect(card.get('.order-card-footer').text()).toContain('3 renglones')
     expect(card.get('.order-card-footer').text()).toContain('$12,946.00')
     expect(card.get('.order-card-footer').text()).toContain(formatShortDateTime(row.updatedAt))

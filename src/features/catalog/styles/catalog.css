@@ -83,6 +83,8 @@ body[data-catalog-theme='light'] {
   --catalog-warning: #805511;
   --catalog-warning-soft: #fff5d6;
   --catalog-danger: #b42318;
+  --catalog-danger-soft: #fdecea;
+  --catalog-danger-border: #f2b8b2;
   --catalog-control-radius: 6px;
   --catalog-panel-radius: 12px;
   --catalog-panel-shadow: 0 12px 32px rgb(23 57 104 / 12%), 0 2px 6px rgb(23 57 104 / 6%);
@@ -125,6 +127,8 @@ html body.hf-theme[data-catalog-theme='light'] {
   --hf-warning: var(--catalog-warning);
   --hf-warning-soft: var(--catalog-warning-soft);
   --hf-danger: var(--catalog-danger);
+  --hf-danger-soft: var(--catalog-danger-soft);
+  --hf-danger-border: var(--catalog-danger-border);
 }
 
 body[data-catalog-theme='light'] .catalog-layout {
@@ -409,8 +413,13 @@ body[data-catalog-theme='light'] .catalog-category-toolbar {
   gap: 8px 14px;
 }
 
+body[data-catalog-theme='light'] .catalog-footer .catalog-logo {
+  width: 40px;
+  height: 40px;
+}
+
 body[data-catalog-theme='light'] .catalog-footer p {
-  margin-top: 8px;
+  margin-top: 4px;
   color: var(--catalog-muted);
   font-size: 14px;
   line-height: 1.5;
@@ -418,7 +427,7 @@ body[data-catalog-theme='light'] .catalog-footer p {
 
 body[data-catalog-theme='light'] .catalog-footer {
   margin-top: 24px;
-  padding-block: 24px;
+  padding-block: 20px;
   border-top: 1px solid var(--catalog-border);
   background: var(--catalog-surface);
 }

@@ -74,7 +74,7 @@ const lines = (count: number) => `${count} ${count === 1 ? 'renglón' : 'renglon
         <template #status-cell="{ row }">
           <div class="order-status-cell">
             <StatusBadge data-testid="order-status" v-bind="statusOf(row.original)" />
-            <span v-if="row.original.issueCount > 0" data-testid="order-aviso" class="order-aviso"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />{{ avisoLabel(row.original.issueCount) }}</span>
+            <span v-if="row.original.issueCount > 0" data-testid="order-aviso" class="order-aviso"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />{{ avisoLabel }}</span>
           </div>
         </template>
         <template #total-cell="{ row }">
@@ -100,7 +100,7 @@ const lines = (count: number) => `${count} ${count === 1 ? 'renglón' : 'renglon
             <div class="order-card-meta">
               <StatusBadge v-if="row.supplierDisplaySnapshot?.status === 'ARCHIVED'" label="Archivado" tone="neutral" aria-prefix="Proveedor:" />
               <StatusBadge data-testid="order-status" v-bind="statusOf(row)" />
-              <span v-if="row.issueCount > 0" data-testid="order-aviso" class="order-aviso"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />{{ avisoLabel(row.issueCount) }}</span>
+              <span v-if="row.issueCount > 0" data-testid="order-aviso" class="order-aviso"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />{{ avisoLabel }}</span>
             </div>
             <div class="order-card-footer">
               <span class="order-card-summary">{{ lines(row.lineCount) }} ·

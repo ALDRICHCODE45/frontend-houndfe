@@ -9,13 +9,12 @@ const all = { canEdit: true, canConfirm: true, canCancel: true, canDelete: true 
 const keys = (actions: Array<{ key: string }>) => actions.map(action => action.key)
 
 describe('status presentation', () => {
-  it('maps each status to its label and badge tone (Borrador warning, Confirmada success, Cancelada neutral)', () => {
+  it('maps each status to its label and badge tone (a draft is neutral like every other draft, Confirmada success, Cancelada neutral)', () => {
     expect(statusLabels).toEqual({ DRAFT: 'Borrador', CONFIRMED: 'Confirmada', CANCELLED: 'Cancelada' })
-    expect(statusTones).toEqual({ DRAFT: 'warning', CONFIRMED: 'success', CANCELLED: 'neutral' })
+    expect(statusTones).toEqual({ DRAFT: 'neutral', CONFIRMED: 'success', CANCELLED: 'neutral' })
   })
-  it('counts avisos in Spanish', () => {
-    expect(avisoLabel(1)).toBe('1 aviso')
-    expect(avisoLabel(3)).toBe('3 avisos')
+  it('words the marker without a count: the list only has raw sub-field issues, not the checklist families', () => {
+    expect(avisoLabel).toBe('Con avisos')
   })
   it('names the row for assistive tech without ids', () => {
     expect(orderRowLabel(row())).toBe('la orden de Distribuidora del Norte, borrador')

@@ -102,6 +102,7 @@ const clickable = useClickableRow<Supplier>(open, { focusable: false })
 
 <style scoped>
 .supplier-name { text-align: left; }
+.supplier-card .supplier-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; white-space: normal; }
 .supplier-date { color: var(--hf-muted); font-size: 13px; white-space: nowrap; }
 .supplier-card { min-width: 0; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); padding: 16px; }
 .supplier-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }

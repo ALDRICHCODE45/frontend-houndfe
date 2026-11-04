@@ -39,6 +39,17 @@ describe('CatalogPriceContextSelector', () => {
     expect(wrapper.get('[aria-label="Lista de precios"]').text()).toContain('Público')
   })
 
+  it('names the control inside it on a phone, where the visible label is hidden', () => {
+    const wrapper = mountSelector()
+    const prefix = wrapper.get('[data-testid="catalog-price-context-prefix"]')
+    expect(prefix.text()).toBe('Lista ·')
+    expect(prefix.classes()).toContain('sm:hidden')
+    expect(wrapper.get('[aria-label="Lista de precios"]').text()).toContain('Lista · Público')
+    const empty = mountSelector({ modelValue: null })
+    expect(empty.get('[aria-label="Lista de precios"]').text()).toContain('Elegir lista de precios')
+    expect(empty.find('[data-testid="catalog-price-context-prefix"]').exists()).toBe(false)
+  })
+
   it('shows the Spanish placeholder when no context is selected', () => {
     const wrapper = mountSelector({ modelValue: null })
     expect(findMenu(wrapper).props('placeholder')).toBe('Elegir lista de precios')

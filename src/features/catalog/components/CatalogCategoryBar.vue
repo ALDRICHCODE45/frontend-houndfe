@@ -13,12 +13,14 @@ const props = defineProps<{
   ready: boolean
   state: CatalogProductsState
   contextMismatch: boolean
+  /** No product exists at all: a count of zero and category chips would only decorate the empty state. */
+  catalogEmpty?: boolean
   /** The listing below already shows a failure: say it once, there, not here too. */
   combinedError?: boolean
 }>()
 const emit = defineEmits<{ select: [id: string | null]; retry: [] }>()
 const resultTotalLabel = computed(() =>
-  props.total === null ? null : `${props.total} ${props.total === 1 ? 'producto' : 'productos'}`,
+  props.total === null || props.catalogEmpty ? null : `${props.total} ${props.total === 1 ? 'producto' : 'productos'}`,
 )
 const failed = computed(() =>
   ['unavailable', 'rate-limit', 'server', 'network'].includes(props.state),
@@ -39,7 +41,7 @@ const errorTitle = computed(() =>
         resultTotalLabel
       }}</span>
       <div
-        v-if="ready"
+        v-if="ready && !catalogEmpty"
         class="catalog-category-controls"
         role="group"
         aria-label="Filtrar por categoría"

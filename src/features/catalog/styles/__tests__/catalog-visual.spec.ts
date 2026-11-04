@@ -48,6 +48,23 @@ describe('catalog stylesheet', () => {
     expect(css).toContain('--hf-muted: var(--catalog-muted)')
   })
 
+  it('binds the soft danger surface and border too, so the error state stays readable in a dark OS theme', () => {
+    const bridge = css.slice(css.indexOf("html body.hf-theme[data-catalog-theme='light']"))
+    const block = bridge.slice(0, bridge.indexOf('}'))
+    expect(block).toContain('--hf-danger-soft: var(--catalog-danger-soft)')
+    expect(block).toContain('--hf-danger-border: var(--catalog-danger-border)')
+  })
+
+  it('keeps the phone footer compact (mobile-first base): a 40px logo and tight lines', () => {
+    const base = css.slice(0, css.indexOf('@media (min-width: 601px) {'))
+    expect(base).toMatch(/\.catalog-footer \.catalog-logo \{[^}]*width: 40px/)
+    expect(base).toMatch(/\.catalog-footer \{[^}]*padding-block: 20px/)
+    expect(base).toMatch(/\.catalog-footer p \{[^}]*margin-top: 4px/)
+    // From 601px the roomier footer comes back.
+    const desktop = css.slice(css.indexOf('@media (min-width: 601px) {'))
+    expect(desktop).toMatch(/\.catalog-footer \.catalog-logo \{[^}]*width: 80px/)
+  })
+
   it('pins skeleton cards that respect reduced motion', () => {
     expect(css).toContain('.catalog-skeleton-card')
     expect(css).toMatch(/prefers-reduced-motion[\s\S]*catalog-skeleton/)
