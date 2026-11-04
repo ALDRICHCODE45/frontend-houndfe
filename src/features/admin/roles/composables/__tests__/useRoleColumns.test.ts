@@ -1,22 +1,15 @@
 import { describe, it, expect } from 'vitest'
 import { useRoleColumns } from '../useRoleColumns'
 
-describe('useRoleColumns', () => {
-  it('returns a columns array', () => {
-    const { columns } = useRoleColumns()
-    expect(Array.isArray(columns)).toBe(true)
-    expect(columns.length).toBeGreaterThan(0)
-  })
+const keyOf = (column: { accessorKey?: unknown; id?: string }) =>
+  (column.accessorKey as string | undefined) ?? column.id
 
-  it('orders columns as [name, description, permissionCount, userCount, createdAt, actions]', () => {
+describe('useRoleColumns', () => {
+  it('orders columns by job: name, type, counts, date, then the ⋮ column', () => {
     const { columns } = useRoleColumns()
-    const ids = columns.map((c) => {
-      if ('accessorKey' in c && c.accessorKey) return c.accessorKey as string
-      return (c as { id: string }).id
-    })
-    expect(ids).toEqual([
+    expect(columns.map(keyOf)).toEqual([
       'name',
-      'description',
+      'type',
       'permissionCount',
       'userCount',
       'createdAt',
@@ -24,55 +17,36 @@ describe('useRoleColumns', () => {
     ])
   })
 
-  it('name column uses header "Nombre" and is sortable + hideable', () => {
+  it('keeps at most 8 columns and no description column (it rides under the name)', () => {
     const { columns } = useRoleColumns()
-    const col = columns.find((c) => 'accessorKey' in c && c.accessorKey === 'name')
-    expect(col).toBeDefined()
-    expect(col!.header).toBe('Nombre')
-    expect(col!.enableSorting).toBe(true)
-    expect(col!.enableHiding).toBe(true)
+    expect(columns.length).toBeLessThanOrEqual(8)
+    expect(columns.map(keyOf)).not.toContain('description')
   })
 
-  it('description column is non-sortable but hideable', () => {
+  it('names the first column after the record and keeps sorting where it decides the order', () => {
     const { columns } = useRoleColumns()
-    const col = columns.find((c) => 'accessorKey' in c && c.accessorKey === 'description')
-    expect(col).toBeDefined()
-    expect(col!.header).toBe('Descripción')
-    expect(col!.enableSorting).toBe(false)
-    expect(col!.enableHiding).toBe(true)
+    const byKey = (key: string) => columns.find((column) => keyOf(column) === key)!
+    expect(byKey('name').header).toBe('Rol')
+    for (const key of ['name', 'permissionCount', 'userCount', 'createdAt']) {
+      expect(byKey(key).enableSorting).toBe(true)
+    }
+    expect(byKey('type').enableSorting).toBe(false)
   })
 
-  it('permissionCount column is sortable and hideable', () => {
+  it('right-aligns the counts', () => {
     const { columns } = useRoleColumns()
-    const col = columns.find((c) => 'accessorKey' in c && c.accessorKey === 'permissionCount')
-    expect(col).toBeDefined()
-    expect(col!.enableSorting).toBe(true)
-    expect(col!.enableHiding).toBe(true)
+    for (const key of ['permissionCount', 'userCount']) {
+      const column = columns.find((candidate) => keyOf(candidate) === key)!
+      expect(column.meta?.class).toEqual({ th: 'text-right', td: 'text-right' })
+    }
   })
 
-  it('userCount column is sortable and hideable', () => {
+  it('makes the actions column last, narrow, non-sortable and non-hideable', () => {
     const { columns } = useRoleColumns()
-    const col = columns.find((c) => 'accessorKey' in c && c.accessorKey === 'userCount')
-    expect(col).toBeDefined()
-    expect(col!.enableSorting).toBe(true)
-    expect(col!.enableHiding).toBe(true)
-  })
-
-  it('createdAt column uses header "Creación" and is sortable + hideable', () => {
-    const { columns } = useRoleColumns()
-    const col = columns.find((c) => 'accessorKey' in c && c.accessorKey === 'createdAt')
-    expect(col).toBeDefined()
-    expect(col!.header).toBe('Creación')
-    expect(col!.enableSorting).toBe(true)
-    expect(col!.enableHiding).toBe(true)
-  })
-
-  it('actions column is non-sortable, non-hideable and has text-right cell alignment', () => {
-    const { columns } = useRoleColumns()
-    const col = columns.find((c) => 'id' in c && c.id === 'actions')
-    expect(col).toBeDefined()
-    expect(col!.enableSorting).toBe(false)
-    expect(col!.enableHiding).toBe(false)
-    expect(col!.meta?.class?.td).toBe('text-right')
+    const actions = columns[columns.length - 1]!
+    expect(keyOf(actions)).toBe('actions')
+    expect(actions.enableSorting).toBe(false)
+    expect(actions.enableHiding).toBe(false)
+    expect(actions.meta?.class).toEqual({ th: 'w-16', td: 'w-16 text-right' })
   })
 })

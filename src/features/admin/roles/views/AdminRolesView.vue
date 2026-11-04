@@ -3,44 +3,31 @@ import { computed, ref } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
-import ViewToggle from '@/core/shared/components/ViewToggle.vue'
+import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { adminRoleQueryKeys, usersQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { rolesApi } from '../api/roles.api'
 import { useRoleColumns } from '../composables/useRoleColumns'
-import { useRoleViewMode, isRoleViewMode } from '../composables/useRoleViewMode'
 import type { RoleFormValues } from '../composables/useRoleForm'
 import type { RoleTableRow } from '../interfaces/role.types'
 import RoleUpsertSlideover from '../components/RoleUpsertSlideover.vue'
 import RolePermissionsSlideover from '../components/RolePermissionsSlideover.vue'
-import RoleCardGrid from '../components/RoleCardGrid.vue'
+import AdminMobileCard from '../../shared/components/AdminMobileCard.vue'
+import { noMatchTitleFor, resolveListErrorMessage } from '../../shared/utils/list-state.utils'
 import '../styles/roles-visual.css'
 
 const queryClient = useQueryClient()
 const authStore = useAuthStore()
 const tenantId = computed(() => authStore.currentTenantId)
-const headerDescription = computed(() => {
-  const name = authStore.currentTenant?.name ?? '(Global)'
-  return `Administrá los roles y permisos de ${name}`
-})
 const { columns } = useRoleColumns()
-
-// ── View mode (table ↔ card) ──────────────────────────────────────────────────
-const { viewMode, setMode: setViewMode, displayMode } = useRoleViewMode()
-
-function handleViewModeChange(mode: string) {
-  if (!isRoleViewMode(mode)) return
-  setViewMode(mode)
-}
 
 const {
   pagination,
   sorting,
   globalFilter,
-  columnPinning,
-  columnVisibility,
   data,
   totalCount,
   pageCount,
@@ -58,31 +45,11 @@ const {
   defaultPageSize: 10,
   persistKey: 'admin-roles',
   defaultSorting: [{ id: 'name', desc: false }],
-  defaultPinning: { left: [], right: ['actions'] },
 })
 
-// Human-readable error message for the admin roles table. Mirrors
-// AdminUsersView: prefer backend `response.data.message`, then `error.message`,
-// then the Spanish fallback. The error block in AppDataTable is rendered
-// instead of "No se encontraron roles" whenever `isError` is true.
-const rolesErrorMessage = computed(() => {
-  const err = error.value as
-    | { response?: { data?: { message?: unknown } }; message?: string }
-    | null
-    | undefined
-  const backendMessage = err?.response?.data?.message
-  if (typeof backendMessage === 'string' && backendMessage.trim()) {
-    return backendMessage
-  }
-  if (Array.isArray(backendMessage) && backendMessage.length > 0) {
-    const first = backendMessage[0]
-    if (typeof first === 'string') return first
-  }
-  if (typeof err?.message === 'string' && err.message.trim()) {
-    return err.message
-  }
-  return 'No se pudieron cargar los roles. Reintenta.'
-})
+const rolesErrorMessage = computed(() =>
+  resolveListErrorMessage(error.value, 'No se pudieron cargar los roles. Reintenta.'),
+)
 
 const isCreateOpen = ref(false)
 const isEditOpen = ref(false)
@@ -155,22 +122,10 @@ const isSubmitting = computed(
 const canCreateRole = computed(() => authStore.userCan('create', 'Role'))
 const canUpdateRole = computed(() => authStore.userCan('update', 'Role'))
 const canDeleteRole = computed(() => authStore.userCan('delete', 'Role'))
-const canManageRoleActions = computed(() => canUpdateRole.value || canDeleteRole.value)
-
-const dateFormatter = new Intl.DateTimeFormat('es-AR', {
-  day: '2-digit',
-  month: 'short',
-  year: 'numeric',
-})
-
 function openEdit(role: RoleTableRow) {
   if (!canUpdateRole.value) return
   selectedRole.value = role
   isEditOpen.value = true
-}
-
-function handleCardClick(role: RoleTableRow) {
-  openEdit(role)
 }
 
 function openPermissions(role: RoleTableRow) {
@@ -192,30 +147,41 @@ async function handleDelete(role: RoleTableRow) {
   })
 }
 
-function getRowItems(role: RoleTableRow) {
-  const mainActions = canUpdateRole.value
-    ? [
-        { label: 'Editar', onSelect: () => openEdit(role) },
-        { label: 'Permisos', onSelect: () => openPermissions(role) },
-      ]
-    : []
-
-  // Defensive UX: hide the destructive "Eliminar" entry for system roles.
-  // The runtime window.alert block in handleDelete stays as a defensive
-  // last line of defense, but the menu no longer advertises an action the
-  // user can never perform.
-  const destructiveActions =
-    canDeleteRole.value && !role.isSystem
+// Defensive UX: the destructive entry is hidden for system roles. The
+// window.alert block in handleDelete stays as the last line of defense, but
+// the menu no longer advertises an action the user can never perform.
+function actionsFor(role: RoleTableRow): RowAction[] {
+  return [
+    ...(canUpdateRole.value
       ? [
-          {
-            label: 'Eliminar',
-            color: 'error' as const,
-            onSelect: () => handleDelete(role),
-          },
+          { key: 'edit', label: 'Editar', icon: 'i-lucide-pencil' },
+          { key: 'permissions', label: 'Permisos', icon: 'i-lucide-shield-check' },
         ]
-      : []
+      : []),
+    ...(canDeleteRole.value && !role.isSystem
+      ? [{ key: 'delete', label: 'Eliminar…', icon: 'i-lucide-trash-2', destructive: true }]
+      : []),
+  ]
+}
 
-  return [mainActions, destructiveActions].filter((section) => section.length > 0)
+function handleRowAction(key: string, role: RoleTableRow) {
+  if (key === 'edit') openEdit(role)
+  else if (key === 'permissions') openPermissions(role)
+  else if (key === 'delete') void handleDelete(role)
+}
+
+const rowOpen = computed(() => (canUpdateRole.value ? openEdit : undefined))
+
+const searchTerm = computed(() => globalFilter.value.trim())
+const noMatchTitle = computed(() => noMatchTitleFor(searchTerm.value))
+const emptyState = computed(() => ({
+  title: 'Aún no hay roles',
+  description: 'Aquí aparecerán los roles que crees.',
+  ...(canCreateRole.value ? { actionLabel: 'Crear rol', actionIcon: 'i-lucide-shield-plus' } : {}),
+}))
+
+function clearFilters() {
+  globalFilter.value = ''
 }
 </script>
 
@@ -254,50 +220,51 @@ function getRowItems(role: RoleTableRow) {
       @confirm="handleConfirm"
     />
 
-    <!-- Canonical table workspace (design-system §4): heading outside the surface. -->
-    <div class="hf-page-header">
-      <h1 class="hf-page-title">Gestión de roles</h1>
-      <p class="hf-page-subtitle">{{ headerDescription }}</p>
-    </div>
+    <header class="hf-page-header">
+      <h1 class="hf-page-title">Roles</h1>
+    </header>
 
-    <UCard :ui="{ body: 'p-0 sm:p-0' }" class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm">
+    <UCard
+      :ui="{ body: 'p-0 sm:p-0' }"
+      class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm"
+    >
       <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
           v-model:global-filter="globalFilter"
-          v-model:column-pinning="columnPinning"
-          v-model:column-visibility="columnVisibility"
           :columns="columns"
           :data="data"
           :loading="isLoading"
           :fetching="isFetching"
           :error="isError"
           :error-message="rolesErrorMessage"
+          :empty-state="emptyState"
+          :filtered="searchTerm !== ''"
+          :no-match-title="noMatchTitle"
           :page-count="pageCount"
           :total-count="totalCount"
           :showing-from="showingFrom"
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
-          :display-mode="displayMode"
+          :row-open="rowOpen"
+          display-mode="auto"
+          mobile-render="cards"
           search-placeholder="Buscar rol..."
           :show-add-button="canCreateRole"
-          add-button-text="Crear Rol"
-          add-button-icon="i-lucide-user-plus"
-          enable-column-visibility
+          add-button-text="Crear rol"
+          add-button-icon="i-lucide-shield-plus"
           empty="No se encontraron roles"
           class="hf-data-table"
           portal-class="hf-theme hf-ui roles-list-portal"
           pagination-portal-class="hf-theme hf-ui roles-list-portal"
           @add="isCreateOpen = true"
+          @empty-action="isCreateOpen = true"
+          @clear-filters="clearFilters"
           @refresh="refresh"
         >
           <template #name-header="{ column }">
-            <SortableHeader :column="column" label="Nombre" />
-          </template>
-
-          <template #description-header>
-            <span class="text-xs font-semibold">Descripción</span>
+            <SortableHeader :column="column" label="Rol" />
           </template>
 
           <template #permissionCount-header="{ column }">
@@ -312,54 +279,79 @@ function getRowItems(role: RoleTableRow) {
             <SortableHeader :column="column" label="Creación" />
           </template>
 
-          <template #description-cell="{ row }">
-            <span class="text-sm text-muted">{{ row.original.description ?? '—' }}</span>
+          <template #name-cell="{ row }">
+            <button
+              v-if="canUpdateRole"
+              type="button"
+              class="hf-row-primary text-left"
+              data-testid="role-name"
+              @click="openEdit(row.original)"
+            >
+              {{ row.original.name }}
+            </button>
+            <span v-else class="hf-row-primary" data-testid="role-name">{{
+              row.original.name
+            }}</span>
+            <span v-if="row.original.description" class="hf-row-secondary">{{
+              row.original.description
+            }}</span>
+          </template>
+
+          <template #type-cell="{ row }">
+            <StatusBadge
+              :label="row.original.isSystem ? 'Sistema' : 'Personalizado'"
+              :tone="row.original.isSystem ? 'info' : 'neutral'"
+              aria-prefix="Tipo:"
+            />
           </template>
 
           <template #permissionCount-cell="{ row }">
-            <AppBadge tone="info" :value="row.original.permissionCount" />
+            <span class="hf-figure">{{ row.original.permissionCount }}</span>
           </template>
 
           <template #userCount-cell="{ row }">
-            <AppBadge tone="type" :value="row.original.userCount" variant="outline" />
+            <span class="hf-figure">{{ row.original.userCount }}</span>
           </template>
 
           <template #createdAt-cell="{ row }">
-            <span>{{ dateFormatter.format(new Date(row.original.createdAt)) }}</span>
+            <span class="text-sm text-muted">{{ formatShortDateTime(row.original.createdAt) }}</span>
           </template>
+
+          <template #actions-header><span class="sr-only">Acciones</span></template>
 
           <template #actions-cell="{ row }">
-            <UDropdownMenu
-              v-if="canManageRoleActions"
-              :items="getRowItems(row.original)"
-              :content="{ align: 'end' }"
-              :ui="{ content: 'hf-theme hf-ui roles-list-portal' }"
+            <RowActionsMenu
+              :actions="actionsFor(row.original)"
+              :row-label="row.original.name"
+              portal-class="roles-list-portal"
+              @select="handleRowAction($event, row.original)"
+            />
+          </template>
+
+          <template #mobile-card="{ row }">
+            <AdminMobileCard
+              :item="row"
+              :label="row.name"
+              :actions="actionsFor(row)"
+              :openable="canUpdateRole"
+              portal-class="roles-list-portal"
+              test-id="role-card"
+              @open="openEdit"
+              @action="handleRowAction"
             >
-              <UButton
-                icon="i-lucide-ellipsis-vertical"
-                color="neutral"
-                variant="ghost"
-                class="size-7"
-              />
-            </UDropdownMenu>
-          </template>
-
-          <template #actions>
-            <ViewToggle
-              :model-value="viewMode"
-              class="roles-view-toggle"
-              aria-label="Seleccionar vista de roles"
-              @update:model-value="handleViewModeChange"
-            />
-          </template>
-
-          <template #cards>
-            <RoleCardGrid
-              :roles="data"
-              :loading="isLoading || isFetching"
-              :empty="'No se encontraron roles'"
-              @card-click="handleCardClick"
-            />
+              <template v-if="row.description" #secondary>{{ row.description }}</template>
+              <template #badges>
+                <StatusBadge
+                  :label="row.isSystem ? 'Sistema' : 'Personalizado'"
+                  :tone="row.isSystem ? 'info' : 'neutral'"
+                  aria-prefix="Tipo:"
+                />
+              </template>
+              <template #footer>
+                <span class="hf-figure">{{ row.permissionCount }} permisos · {{ row.userCount }} usuarios</span>
+                <span>{{ formatShortDateTime(row.createdAt) }}</span>
+              </template>
+            </AdminMobileCard>
           </template>
         </AppDataTable>
       </div>
