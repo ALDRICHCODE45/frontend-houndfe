@@ -281,6 +281,16 @@ describe('EditorialWorkspace — the footer', () => {
     expect(http.post.mock.calls[0]![0]).toContain('/draft/discard')
   })
 
+  it('goes back to the empty state once the draft is discarded', async () => {
+    http.post.mockResolvedValue(success({ cycle: 3, draft: null, published: null }))
+    await render()
+    reads({ cycle: 3, draft: null, published: null })
+    await pick(wrapper.get('[data-testid="editorial-footer"] button[aria-haspopup="menu"]'), 'Descartar borrador…')
+    Array.from(document.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Descartar borrador')!.click(); await flushPromises()
+    expect(wrapper.find('[data-testid="initialize"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Aún no hay ficha para el catálogo')
+  })
+
   it('offers to undo unsaved changes while there are some, and asks before replacing them', async () => {
     await render()
     await cell('Material', 0).get('input').setValue('Nylon')

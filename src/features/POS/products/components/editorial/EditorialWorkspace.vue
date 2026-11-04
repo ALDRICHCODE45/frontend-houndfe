@@ -174,7 +174,8 @@ async function start() {
 }
 async function confirmDiscardDraft() {
   discardDraftOpen.value = false
-  await editor.discard()
+  // The discard is acknowledged without installing state: one GET brings back the empty state.
+  if (await editor.discard()) await editor.refresh('discard')
 }
 
 function replace(next: EditorialDocumentEditingState) { editor.replaceDocument(next) }
