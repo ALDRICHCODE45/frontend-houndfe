@@ -1,10 +1,3 @@
-<!--
-THESIS: Own the persistent-header detail; refuse the generic single-column receipt stack AND the tabbed workbench.
-OWN-WORLD: amber/rose/zinc + Outfit + Nuxt UI 4; compact sticky header + flat two-column body.
-STORY: Cashier opens sale, reads identity in the header instantly, scans PRODUCTOS / DATOS / HISTORIAL on the left and TOTALES / PAGOS on the right without tab friction.
-FIRST VIEWPORT: Sticky header above a flat 1fr/360px grid; right column renders first on mobile.
-FORM: Flat two-column structure, position 4 of 7 ordered by resonance, staging assigned, seed key 9feea6bc.
--->
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -17,7 +10,7 @@ import { useUpdatePaymentReference } from '../composables/useUpdatePaymentRefere
 import { saleApi, SalePdfError, type SalePdfFormat } from '../api/sale.api'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { formatSaleDate } from '../utils/saleDate.utils'
-import { getDeliveryStatusBadge, getPaymentStatusBadge } from '../utils/saleStatus.utils'
+import { getDeliveryStatusBadge, getPaymentStatusBadge, saleBadgeTone } from '../utils/saleStatus.utils'
 import { extractFolioNumber } from '../utils/saleFolio.utils'
 import { SALE_PAYMENT_STATUS, SALE_STATUS } from '../constants/sale.constants'
 import SaleDetailItemsList from '../components/SaleDetailItemsList.vue'
@@ -28,6 +21,9 @@ import PaymentsListSection from '../components/PaymentsListSection.vue'
 import DebtPaymentModal from '../components/DebtPaymentModal.vue'
 import AssignSellerSlideover from '../components/AssignSellerSlideover.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
+import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { useSaleCancellation } from '../composables/useSaleCancellation'
 import '../styles/sales-detail-visual.css'
 
@@ -45,7 +41,7 @@ const authStore = useAuthStore()
 
 const saleId = computed(() => String(route.params.id ?? ''))
 const canReadSales = computed(() => authStore.userCan('read', 'Sale'))
-const { sale, isLoading } = useSaleDetail(saleId)
+const { sale, isLoading, isError, refetch } = useSaleDetail(saleId)
 const { addComment, updateComment, deleteComment, isPending: commentsPending, lastError } = useSaleComments(saleId)
 const debtModalOpen = ref(false)
 const sellerSlideoverOpen = ref(false)
@@ -83,12 +79,16 @@ const canRegisterPayment = computed(
     && sale.value?.status === SALE_STATUS.CONFIRMED,
 )
 
-// Header status badges — resolved from the same utils the previous
-// SaleDetailHeader used, now inlined so the sticky bar owns all identity.
-const deliveryBadge = computed(() => getDeliveryStatusBadge(sale.value?.deliveryStatus ?? ''))
-const paymentBadge = computed(() =>
-  sale.value?.paymentStatus ? getPaymentStatusBadge(sale.value.paymentStatus) : null,
-)
+// Header status badges: domain badge mapped to a StatusBadge tone.
+const deliveryBadge = computed(() => {
+  const badge = getDeliveryStatusBadge(sale.value?.deliveryStatus ?? '')
+  return { label: badge.label, tone: saleBadgeTone(badge.color) }
+})
+const paymentBadge = computed(() => {
+  if (!sale.value?.paymentStatus) return null
+  const badge = getPaymentStatusBadge(sale.value.paymentStatus)
+  return { label: badge.label, tone: saleBadgeTone(badge.color) }
+})
 
 // sales-pdf-download: tracks which PDF format is currently being fetched so
 // only that dropdown row shows the loading spinner (R5). null when idle.
@@ -103,44 +103,62 @@ const actionItems = computed(() => {
   // DRAFT keeps them visible-but-disabled so the header can render the
   // "Solo disponible para ventas confirmadas" tooltip (R1).
   const showPdfEntries = status === SALE_STATUS.CONFIRMED || status === SALE_STATUS.DRAFT
+  const generating = generatingPdfFormat.value
 
-  const items: Array<{
-    label: string
-    icon: string
-    disabled: boolean
+  const items: Array<RowAction & {
     loading?: boolean
-    color?: 'error'
     onSelect?: (event: Event) => void
   }> = []
 
+  // The "…" marks the items that open something before acting. While one
+  // receipt is being generated its row says so and the other is held (the
+  // click handler already rejects a concurrent fetch).
   if (showPdfEntries) {
     items.push(
       {
-        label: 'Recibo A4',
+        key: 'receipt-a4',
+        label: generating === 'receipt-a4' ? 'Generando recibo A4…' : 'Recibo A4',
         icon: 'i-lucide-download',
-        disabled: !isConfirmed,
-        loading: generatingPdfFormat.value === 'receipt-a4',
+        disabled: !isConfirmed || generating !== null,
+        loading: generating === 'receipt-a4',
         onSelect: () => void handlePreviewPdf('receipt-a4'),
       },
       {
-        label: 'Recibo Ticket',
+        key: 'receipt-ticket',
+        label: generating === 'receipt-ticket' ? 'Generando recibo ticket…' : 'Recibo Ticket',
         icon: 'i-lucide-download',
-        disabled: !isConfirmed,
-        loading: generatingPdfFormat.value === 'receipt-ticket',
+        disabled: !isConfirmed || generating !== null,
+        loading: generating === 'receipt-ticket',
         onSelect: () => void handlePreviewPdf('receipt-ticket'),
       },
     )
   }
 
-  // PCA-3: full-sale cancellation lives INSIDE this dropdown (not a wide
-  // header button) so the mobile header never overflows. Rendered only for a
+  // The seller assignment has no loose header button anymore: it lives here
+  // (and in the DATOS card, which stays available for every status).
+  if (isConfirmed) {
+    items.push({
+      key: 'assign-seller',
+      label: 'Asignar vendedor',
+      icon: 'i-lucide-user-plus',
+      disabled: false,
+      onSelect: () => {
+        sellerSlideoverOpen.value = true
+      },
+    })
+  }
+
+  // PCA-3: full-sale cancellation lives INSIDE this menu (not a wide header
+  // button) so the mobile header never overflows. Rendered only for a
   // CONFIRMED sale AND the exact `delete:Sale` permission (backend guide §2.1).
+  // Destructive, so last and with a confirmation.
   if (canCancelSale.value) {
     items.push({
-      label: 'Cancelar venta',
+      key: 'cancel-sale',
+      label: 'Cancelar venta…',
       icon: 'i-lucide-x-circle',
       disabled: false,
-      color: 'error',
+      destructive: true,
       onSelect: () => {
         cancelModalOpen.value = true
       },
@@ -149,6 +167,10 @@ const actionItems = computed(() => {
 
   return items
 })
+
+function onSaleAction(key: string) {
+  actionItems.value.find((item) => item.key === key)?.onSelect?.(new Event('select'))
+}
 
 // PCA-3: success closes the modal; failure keeps it open so the user can
 // recover (retry) or dismiss without losing context. The composable owns the
@@ -271,11 +293,11 @@ watch(
          sticky top-0 z-50 retained for HST-REQ-002 semantics. -->
     <header
       v-if="!isLoading && sale"
-      class="sales-detail-sticky-header sticky top-0 z-50 w-full shrink-0 border-b border-default bg-coco-neutral-50/90 backdrop-blur-sm dark:bg-coco-neutral-950/90"
+      class="sales-detail-sticky-header sticky top-0 z-50 w-full shrink-0 border-b backdrop-blur-sm"
       data-testid="sale-detail-header"
     >
       <div class="mx-auto w-full max-w-7xl">
-        <div class="flex items-center justify-between gap-4 px-6 py-3">
+        <div class="flex items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <!-- Identity: back + folio + status badges + date -->
           <div class="flex min-w-0 items-center gap-3">
             <UButton
@@ -288,98 +310,67 @@ watch(
             />
             <div class="min-w-0">
               <div class="flex flex-wrap items-center gap-2">
-                <span
-                  class="font-mono text-lg font-bold tabular-nums text-highlighted"
-                  data-testid="header-folio"
-                >
+                <span class="sale-detail-title" data-testid="header-folio">
                   Venta {{ extractFolioNumber(sale.folio) }}
                 </span>
-                <UBadge
-                  :color="deliveryBadge.color"
-                  size="sm"
-                  variant="soft"
+                <StatusBadge
+                  v-bind="deliveryBadge"
+                  aria-prefix="Productos:"
                   data-testid="badge"
-                >
-                  {{ deliveryBadge.label }}
-                </UBadge>
-                <UBadge
+                />
+                <StatusBadge
                   v-if="paymentBadge"
-                  :color="paymentBadge.color"
-                  size="sm"
-                  variant="soft"
+                  v-bind="paymentBadge"
+                  aria-prefix="Pago:"
                   data-testid="badge"
-                >
-                  {{ paymentBadge.label }}
-                </UBadge>
+                />
               </div>
-              <p
-                class="text-xs tabular-nums text-muted"
-                data-testid="header-date"
-              >
+              <p class="sale-detail-meta" data-testid="header-date">
                 {{ formatSaleDate(sale.confirmedAt) }}
               </p>
             </div>
           </div>
 
-          <!-- Actions: total + PDF dropdown + register payment + assign seller -->
+          <!-- Actions: total, the one primary, and the ⋮ menu for the rest -->
           <div class="flex shrink-0 items-center gap-3">
             <div class="hidden text-right sm:block">
-              <p class="text-xs text-muted">Total</p>
-              <p class="text-xl font-bold tabular-nums">{{ formatCentsMXN(sale.totalCents) }}</p>
+              <p class="text-xs text-(--hf-muted)">Total</p>
+              <p class="hf-figure text-xl font-semibold text-(--hf-heading)">{{ formatCentsMXN(sale.totalCents) }}</p>
             </div>
-
-            <UDropdownMenu
-              v-if="hasAnyAction"
-              :items="actionItems"
-              :ui="{ content: 'hf-theme hf-ui sales-detail-portal' }"
-            >
-              <UTooltip
-                v-if="triggerTooltipText"
-                :text="triggerTooltipText"
-                :ui="{ content: 'hf-theme hf-ui sales-detail-portal' }"
-              >
-                <UButton
-                  icon="i-lucide-ellipsis"
-                  trailing-icon="i-lucide-chevron-down"
-                  variant="outline"
-                  size="sm"
-                  aria-label="Acciones de venta"
-                />
-              </UTooltip>
-              <UButton
-                v-else
-                icon="i-lucide-ellipsis"
-                trailing-icon="i-lucide-chevron-down"
-                variant="outline"
-                size="sm"
-                aria-label="Acciones de venta"
-              >
-                Acciones
-              </UButton>
-            </UDropdownMenu>
 
             <UButton
               v-if="canRegisterPayment"
-              color="primary"
               icon="i-lucide-credit-card"
               size="sm"
               data-testid="register-payment-header"
-              class="sales-detail-primary-action !bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+              class="hf-primary-control sales-detail-primary-action"
               :disabled="isSubmitting"
               @click="debtModalOpen = true"
             >
               Registrar pago
             </UButton>
 
-            <UButton
-              variant="outline"
-              size="sm"
-              icon="i-lucide-user-plus"
-              class="hidden lg:inline-flex"
-              @click="sellerSlideoverOpen = true"
+            <UTooltip
+              v-if="hasAnyAction && triggerTooltipText"
+              :text="triggerTooltipText"
+              :ui="{ content: 'hf-theme hf-ui sales-detail-portal' }"
             >
-              Asignar vendedor
-            </UButton>
+              <RowActionsMenu
+                :actions="actionItems"
+                aria-label="Más acciones de la venta"
+                row-label="la venta"
+                portal-class="sales-detail-portal"
+                @select="onSaleAction"
+              />
+            </UTooltip>
+            <RowActionsMenu
+              v-else-if="hasAnyAction"
+              :actions="actionItems"
+              aria-label="Más acciones de la venta"
+              row-label="la venta"
+              portal-class="sales-detail-portal"
+              @select="onSaleAction"
+            />
           </div>
         </div>
       </div>
@@ -393,15 +384,34 @@ watch(
          clipping here the body's computed overflow-x:auto would expose a
          horizontal scrollbar that slides the whole detail screen left. -->
     <div class="flex-1 overflow-y-auto overflow-x-hidden" data-testid="sale-detail-layout">
-      <!-- Loading skeleton -->
+      <!-- Error state: the request failed and there is nothing to show. -->
       <div
-        v-if="isLoading || !sale"
+        v-if="isError && !sale"
+        class="mx-auto w-full max-w-3xl px-6 pb-6 pt-16"
+        data-testid="sale-detail-error"
+      >
+        <EmptyState
+          kind="error"
+          title="No se pudo cargar la venta"
+          description="Revisa tu conexión e inténtalo de nuevo."
+          action-label="Reintentar"
+          action-test-id="sale-detail-retry"
+          @action="refetch()"
+        />
+      </div>
+
+      <!-- Loading skeleton, shaped like the header and the two columns -->
+      <div
+        v-else-if="isLoading || !sale"
         data-testid="sale-detail-skeleton"
+        aria-busy="true"
         class="mx-auto w-full max-w-7xl space-y-4 px-6 pb-6 pt-16"
       >
         <USkeleton class="h-14 w-full rounded-lg" />
-        <USkeleton class="h-10 w-full max-w-sm" />
-        <USkeleton class="h-64 w-full rounded-lg" />
+        <div class="grid gap-6 lg:grid-cols-[1fr_360px]">
+          <USkeleton class="h-64 w-full rounded-lg" />
+          <USkeleton class="h-64 w-full rounded-lg" />
+        </div>
       </div>
 
       <!-- Flat two-column body — replaces the previous UTabs workbench. -->
@@ -474,4 +484,11 @@ watch(
       </div>
     </div>
   </div>
+
+  <EmptyState
+    v-else
+    kind="forbidden"
+    title="Tu rol no puede ver las ventas"
+    description="Pide acceso a quien administra tu cuenta."
+  />
 </template>

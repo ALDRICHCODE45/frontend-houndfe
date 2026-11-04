@@ -138,7 +138,7 @@ describe('SaleDetailTotalsCard', () => {
     expect(wrapper.text()).toContain('$100.00')
   })
 
-  it('colors Deuda red when there is outstanding debt', () => {
+  it('colors Deuda with the warning role when there is outstanding debt (pending, not wrong)', () => {
     const wrapper = mountCard({
       props: {
         subtotalCents: 100000,
@@ -153,10 +153,10 @@ describe('SaleDetailTotalsCard', () => {
     const debtRow = wrapper.get('[data-testid="totals-debt-row"]')
     const valueSpan = debtRow.findAll('span').find((s) => s.text().includes('$500.00'))
     expect(valueSpan).toBeDefined()
-    expect(valueSpan?.classes()).toContain('text-error-600')
+    expect(valueSpan?.classes()).toContain('text-(--hf-warning)')
   })
 
-  it('colors Deuda green when there is no debt', () => {
+  it('colors Deuda with the success role when there is no debt', () => {
     const wrapper = mountCard({
       props: {
         subtotalCents: 100000,
@@ -171,7 +171,7 @@ describe('SaleDetailTotalsCard', () => {
     const debtRow = wrapper.get('[data-testid="totals-debt-row"]')
     const valueSpan = debtRow.findAll('span').find((s) => s.text().includes('$0.00'))
     expect(valueSpan).toBeDefined()
-    expect(valueSpan?.classes()).toContain('text-success-600')
+    expect(valueSpan?.classes()).toContain('text-(--hf-success)')
   })
 
   it('hides Registrar Pago button when canRegisterPayment is false or unset', () => {
@@ -244,7 +244,7 @@ describe('SaleDetailTotalsCard', () => {
   // (gold action background, !text-black override, rounded-xl, font-semibold,
   // shadow-sm) so both the totals card and the header CTA open the same modal
   // with identical visual prominence.
-  it('pins Cobrar precedent on the Registrar Pago button (HST-REQ-003)', () => {
+  it('uses the shared primary control on the Registrar Pago button (HST-REQ-003)', () => {
     const wrapper = mountCard({
       props: {
         subtotalCents: 100000,
@@ -259,14 +259,9 @@ describe('SaleDetailTotalsCard', () => {
 
     const button = wrapper.get('[data-testid="register-debt-payment"]')
     expect(button.classes()).toEqual(
-      expect.arrayContaining([
-        '!bg-(--brand-action)',
-        '!text-black',
-        'rounded-xl',
-        'font-semibold',
-        'shadow-sm',
-      ]),
+      expect.arrayContaining(['hf-primary-control', 'sales-detail-primary-action']),
     )
+    expect(button.classes().join(' ')).not.toContain('brand-action')
   })
 
   // ── sale-detail-redesign WU-E — wrap totals in UCard with header

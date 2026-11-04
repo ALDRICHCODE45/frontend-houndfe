@@ -51,54 +51,54 @@ function openAssignSeller() {
 <template>
   <UCard data-testid="sidebar-data-reflow">
     <template #header>
-      <h3 class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted">
+      <h3 class="sale-detail-section-title">
         <UIcon name="i-lucide-clipboard-list" class="size-4" />
         Datos de la venta
       </h3>
     </template>
     <div class="grid gap-3 sm:grid-cols-2">
       <div
-        class="sales-detail-fact rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3"
+        class="sales-detail-fact rounded-lg border border-default p-3"
         data-testid="reflow-cajero"
       >
-        <p class="text-xs font-semibold uppercase tracking-wider text-muted">Cajero</p>
-        <p class="font-medium">{{ sale.cashier.name }}</p>
+        <p class="sale-detail-fact-label">Cajero</p>
+        <p class="font-medium text-(--hf-heading)">{{ sale.cashier.name }}</p>
       </div>
       <div
         role="button"
         tabindex="0"
-        class="sales-detail-fact cursor-pointer rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3 transition-colors hover:bg-elevated/50"
+        class="sales-detail-fact cursor-pointer rounded-lg border border-default p-3 transition-colors hover:bg-elevated/50"
         data-testid="reflow-vendedor"
         @click="openAssignSeller"
         @keydown.enter.prevent="openAssignSeller"
         @keydown.space.prevent="openAssignSeller"
       >
-        <p class="text-xs font-semibold uppercase tracking-wider text-muted">Vendedor</p>
-        <p class="font-medium" :class="{ 'text-muted': !sale.seller }">
+        <p class="sale-detail-fact-label">Vendedor</p>
+        <p class="font-medium text-(--hf-heading)" :class="{ 'text-muted': !sale.seller }">
           {{ sale.seller?.name ?? 'Sin asignar — click para asignar' }}
         </p>
       </div>
       <div
-        class="sales-detail-fact rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3"
+        class="sales-detail-fact rounded-lg border border-default p-3"
         data-testid="reflow-cliente"
       >
-        <p class="text-xs font-semibold uppercase tracking-wider text-muted">Cliente</p>
-        <p class="font-medium">{{ sale.customer?.name ?? 'Público en General' }}</p>
+        <p class="sale-detail-fact-label">Cliente</p>
+        <p class="font-medium text-(--hf-heading)">{{ sale.customer?.name ?? 'Público en General' }}</p>
       </div>
       <div
-        class="sales-detail-fact rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3"
+        class="sales-detail-fact rounded-lg border border-default p-3"
         data-testid="reflow-price-list"
       >
-        <p class="text-xs font-semibold uppercase tracking-wider text-muted">Lista de precios</p>
-        <p class="font-medium">{{ priceListName }}</p>
+        <p class="sale-detail-fact-label">Lista de precios</p>
+        <p class="font-medium text-(--hf-heading)">{{ priceListName }}</p>
       </div>
       <div
-        class="sales-detail-fact rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3 sm:col-span-2"
+        class="sales-detail-fact rounded-lg border border-default p-3 sm:col-span-2"
         data-testid="reflow-payment-methods"
       >
-        <p class="text-xs font-semibold uppercase tracking-wider text-muted">Métodos de pago</p>
+        <p class="sale-detail-fact-label">Métodos de pago</p>
         <p v-if="uniquePaymentMethods.length === 0" class="font-medium text-muted">—</p>
-        <p v-else class="font-medium">{{ uniquePaymentMethods.join(' · ') }}</p>
+        <p v-else class="font-medium text-(--hf-heading)">{{ uniquePaymentMethods.join(' · ') }}</p>
       </div>
     </div>
   </UCard>

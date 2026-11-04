@@ -167,7 +167,7 @@ type TestStatus = 'CONFIRMED' | 'DRAFT' | 'CANCELED'
 interface TestActionItem {
   label: string
   disabled?: boolean
-  color?: string
+  destructive?: boolean
   onSelect?: () => void
 }
 
@@ -220,7 +220,7 @@ function findAction(wrapper: ViewWrapper, label: string): TestActionItem | undef
 }
 
 async function openCancelModal(wrapper: ViewWrapper) {
-  const item = findAction(wrapper, 'Cancelar venta')
+  const item = findAction(wrapper, 'Cancelar venta…')
   expect(item?.onSelect).toBeTypeOf('function')
   item?.onSelect?.()
   await nextTick()
@@ -246,20 +246,20 @@ describe('SaleDetailView cancellation (PCA-3)', () => {
   it('shows the cancellation action for a CONFIRMED sale with delete:Sale', () => {
     const wrapper = mountView('CONFIRMED')
 
-    expect(findAction(wrapper, 'Cancelar venta')).toBeDefined()
+    expect(findAction(wrapper, 'Cancelar venta…')).toBeDefined()
     expect(userCanMock).toHaveBeenCalledWith('delete', 'Sale')
   })
 
   it('hides the cancellation action for a DRAFT sale', () => {
     const wrapper = mountView('DRAFT')
 
-    expect(findAction(wrapper, 'Cancelar venta')).toBeUndefined()
+    expect(findAction(wrapper, 'Cancelar venta…')).toBeUndefined()
   })
 
   it('hides the cancellation action for a CANCELED sale', () => {
     const wrapper = mountView('CANCELED')
 
-    expect(findAction(wrapper, 'Cancelar venta')).toBeUndefined()
+    expect(findAction(wrapper, 'Cancelar venta…')).toBeUndefined()
   })
 
   it('hides the cancellation action without the exact delete:Sale permission', () => {
@@ -269,7 +269,7 @@ describe('SaleDetailView cancellation (PCA-3)', () => {
 
     const wrapper = mountView('CONFIRMED')
 
-    expect(findAction(wrapper, 'Cancelar venta')).toBeUndefined()
+    expect(findAction(wrapper, 'Cancelar venta…')).toBeUndefined()
   })
 
   it('keeps the receipt PDF entries alongside the cancel action', () => {
@@ -278,7 +278,7 @@ describe('SaleDetailView cancellation (PCA-3)', () => {
 
     expect(labels).toContain('Recibo A4')
     expect(labels).toContain('Recibo Ticket')
-    expect(labels).toContain('Cancelar venta')
+    expect(labels).toContain('Cancelar venta…')
   })
 
   it('places cancellation in the action dropdown (mobile-safe) with an honest trigger label', () => {
@@ -286,14 +286,15 @@ describe('SaleDetailView cancellation (PCA-3)', () => {
 
     // No new wide header button — the cancel affordance is a dropdown item.
     expect(wrapper.find('[data-testid="cancel-sale-header"]').exists()).toBe(false)
-    const cancelItem = findAction(wrapper, 'Cancelar venta')
+    const cancelItem = findAction(wrapper, 'Cancelar venta…')
     expect(cancelItem).toBeDefined()
-    expect(cancelItem?.color).toBe('error')
+    // Destructive and ending in an ellipsis because it opens a confirmation.
+    expect(cancelItem?.destructive).toBe(true)
 
-    // The trigger copy is honest now that the menu holds non-PDF actions.
-    const trigger = wrapper.find('[aria-label="Acciones de venta"]')
+    // The ⋮ trigger names the record it acts on.
+    const trigger = wrapper.find('[aria-label="Más acciones de la venta"]')
     expect(trigger.exists()).toBe(true)
-    expect(wrapper.text()).toContain('Acciones')
+    expect(trigger.attributes('aria-haspopup')).toBe('menu')
   })
 
   it('opens a destructive confirmation with full-sale Spanish copy and error color', async () => {

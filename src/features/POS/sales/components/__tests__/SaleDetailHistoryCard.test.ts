@@ -33,7 +33,7 @@ describe('SaleDetailHistoryCard', () => {
   // REQ-LAYOUT-002 / REQ-LAYOUT-007: the wrapper composes a single outer UCard
   // titled "HISTORIAL" with Timeline in body and CommentInput in footer.
   // The Timeline's own inner UCard (cosmetic, accepted per design D2) coexists.
-  it('renders the outer HISTORIAL UCard with Timeline body and CommentInput footer', () => {
+  it('renders the outer Historial UCard with Timeline body and CommentInput footer', () => {
     const wrapper = mountWithUApp(SaleDetailHistoryCard, {
       props: {
         timeline: baseTimeline,
@@ -45,10 +45,10 @@ describe('SaleDetailHistoryCard', () => {
       },
     })
 
-    // The outer wrapper card carries the uppercase "HISTORIAL" title
+    // The outer wrapper card carries the "Historial" title
     // (Timeline's inner card uses lowercase "Historial").
     const outerHeaders = wrapper.findAll('[data-slot="header"]')
-    const outerCardTitle = outerHeaders.find((h) => h.text() === 'HISTORIAL')
+    const outerCardTitle = outerHeaders.find((h) => h.text() === 'Historial')
     expect(outerCardTitle).toBeTruthy()
 
     // Timeline events render in the body (real SaleDetailTimeline)
@@ -73,7 +73,7 @@ describe('SaleDetailHistoryCard', () => {
     })
 
     const outerHeaders = wrapper.findAll('[data-slot="header"]')
-    const outerCardTitle = outerHeaders.find((h) => h.text() === 'HISTORIAL')
+    const outerCardTitle = outerHeaders.find((h) => h.text() === 'Historial')
     expect(outerCardTitle).toBeDefined()
     expect(wrapper.findAll('[data-testid="timeline-event"]')).toHaveLength(0)
     expect(wrapper.get('[data-testid="sale-comment-input"]').text()).toContain('')
@@ -119,7 +119,7 @@ describe('SaleDetailHistoryCard', () => {
   // ── sale-detail-redesign WU-E — after dropping the internal UCard on
   // SaleDetailTimeline, the HistoryCard wrapper is the ONLY UCard in the
   // rendered DOM. Timeline body + composer footer both live inside it.
-  it('renders exactly one UCard wrapper with "HISTORIAL" header (no nested timeline card)', () => {
+  it('renders exactly one UCard wrapper with "Historial" header (no nested timeline card)', () => {
     const wrapper = mountWithUApp(SaleDetailHistoryCard, {
       props: {
         timeline: baseTimeline,
@@ -134,10 +134,10 @@ describe('SaleDetailHistoryCard', () => {
     // Exactly one UCard root (the wrapper).
     const roots = wrapper.findAll('[data-slot="root"]')
     expect(roots).toHaveLength(1)
-    // Exactly one header slot, carrying the "HISTORIAL" title.
+    // Exactly one header slot, carrying the "Historial" title.
     const headers = wrapper.findAll('[data-slot="header"]')
     expect(headers).toHaveLength(1)
-    expect(headers[0]?.text()).toBe('HISTORIAL')
+    expect(headers[0]?.text()).toBe('Historial')
 
     // Body still mounts timeline events; footer still mounts the composer.
     expect(wrapper.findAll('[data-testid="timeline-event"]')).toHaveLength(2)

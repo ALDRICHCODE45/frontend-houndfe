@@ -52,5 +52,6 @@ export function useSaleDetail(id: ComputedRef<string>) {
     sale: computed(() => query.data.value),
     isLoading: computed(() => query.isLoading.value),
     isError: computed(() => query.isError.value),
+    refetch: () => query.refetch(),
   }
 }

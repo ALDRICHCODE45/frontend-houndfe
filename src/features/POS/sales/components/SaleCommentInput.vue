@@ -40,11 +40,11 @@ async function handleSubmit(payload: { body: string }) {
 <template>
   <div class="mt-3" data-testid="sale-comment-input">
     <UButton
-      variant="soft"
+      variant="outline"
+      color="neutral"
       size="sm"
       icon="i-lucide-message-circle-plus"
       data-testid="comment-open"
-      class="!bg-coco-gold-500/15 !text-coco-gold-800 dark:!text-coco-gold-300 hover:!bg-coco-gold-500/25"
       @click="openInput"
     >
       Agregar comentario

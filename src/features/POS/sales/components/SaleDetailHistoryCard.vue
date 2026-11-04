@@ -25,9 +25,9 @@ defineProps<{
 <template>
   <UCard>
     <template #header>
-      <h3 class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted">
+      <h3 class="sale-detail-section-title">
         <UIcon name="i-lucide-clock" class="size-4" />
-        HISTORIAL
+        Historial
       </h3>
     </template>
 

@@ -145,40 +145,28 @@ describe('Sales detail visual adapter', () => {
     expect(css).not.toContain('cash-visual')
   })
 
-  it('pairs the legacy forced-paint action utilities with the foundation action roles', () => {
-    // The feature control keeps its `!bg-(--brand-action) !text-black` classes
-    // (they are pinned by existing behavior tests) but re-points the variables
-    // those utilities consume, so the retail action pair wins in both themes
-    // without a blanket `!important` rule.
-    const scope = ruleWith(css, '.sales-detail-visual', '--brand-action')
-    expect(scope).toBeDefined()
-    expect(scope!.style.getPropertyValue('--brand-action').trim()).toBe('var(--hf-action)')
-    expect(scope!.style.getPropertyValue('--color-black').trim()).toBe('var(--hf-on-action)')
+  it('carries no legacy brand, gold or neutral palette alias', () => {
+    // The markup uses the `--hf-*` roles (and the shared `hf-primary-control`
+    // pairing for the primary action), so nothing is remapped here.
+    expect(css).not.toMatch(/--brand-[a-z-]+\s*:/)
+    expect(css).not.toMatch(/--color-(?:black|coco-[a-z0-9-]+)\s*:/)
+    expect(css).not.toContain('coco-')
 
-    const portal = ruleWith(css, '.hf-theme.sales-detail-portal', '--brand-action')
-    expect(portal).toBeDefined()
-    expect(portal!.style.getPropertyValue('--color-black').trim()).toBe('var(--hf-on-action)')
+    // Semantic status roles are not remapped here either.
+    expect(css).not.toMatch(/--(?:coco|ui|color)-(?:info|danger|error|warning|success)\s*:/)
   })
 
-  it('aliases the legacy gold and divider palette to foundation roles only', () => {
-    const expected: Record<string, string> = {
-      '--color-coco-gold-300': 'var(--hf-gold)',
-      '--color-coco-gold-400': 'var(--hf-gold)',
-      '--color-coco-gold-500': 'var(--hf-gold)',
-      '--color-coco-gold-700': 'var(--hf-gold-ink)',
-      '--color-coco-gold-800': 'var(--hf-gold-ink)',
-      '--color-coco-neutral-200': 'var(--hf-border)',
-      '--color-coco-neutral-800': 'var(--hf-border)',
-    }
-    for (const [property, value] of Object.entries(expected)) {
-      const rule = ruleWith(css, '.sales-detail-visual', property)
-      expect(rule, `${property} must stay a foundation alias`).toBeDefined()
-      expect(rule!.style.getPropertyValue(property).trim()).toBe(value)
-    }
+  it('sets the detail title, meta and section title on the typography scale', () => {
+    const title = ruleWith(css, '.sales-detail-visual .sale-detail-title', 'font-weight')
+    expect(title!.style.getPropertyValue('font-weight')).toBe('600')
+    expect(title!.style.getPropertyValue('color')).toBe('var(--hf-heading)')
 
-    // Semantic status roles are not remapped here; they keep their existing
-    // contract until a complete theme mapping is defined.
-    expect(css).not.toMatch(/--(?:coco|ui|color)-(?:info|danger|error|warning|success)\s*:/)
+    const section = ruleWith(css, '.sales-detail-visual .sale-detail-section-title', 'font-size')
+    expect(section!.style.getPropertyValue('font-size')).toBe('16px')
+    expect(section!.style.getPropertyValue('font-weight')).toBe('600')
+
+    expect(view).toContain('sale-detail-title')
+    expect(view).not.toMatch(/font-bold|coco-neutral|--brand-/)
   })
 
   it('repaints the sticky header and the fact cards on foundation surfaces', () => {

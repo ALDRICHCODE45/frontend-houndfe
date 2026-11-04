@@ -56,7 +56,7 @@ describe('SaleDetailSalesDataCard', () => {
   // <section>). The UCard's own surface provides the coco-neutral
   // background — the 5 reflow cards keep their byte-identical HST-REQ-002
   // classes per the spec.
-  it('renders all five reflow cards with HST-REQ-002 coco-neutral classes; sidebar-data-reflow testid is on the UCard wrapper', async () => {
+  it('renders all five reflow cards on the owned fact surface; sidebar-data-reflow testid is on the UCard wrapper', async () => {
     getGlobalPriceListsMock.mockResolvedValue([])
 
     const wrapper = mountWithUApp(SaleDetailSalesDataCard, {
@@ -73,7 +73,8 @@ describe('SaleDetailSalesDataCard', () => {
 
     for (const testid of ['reflow-cajero', 'reflow-vendedor', 'reflow-cliente', 'reflow-price-list', 'reflow-payment-methods']) {
       const card = wrapper.get(`[data-testid="${testid}"]`)
-      expect(card.classes()).toEqual(expect.arrayContaining(['bg-coco-neutral-50', 'dark:bg-coco-neutral-950', 'border', 'border-default', 'p-3']))
+      expect(card.classes()).toEqual(expect.arrayContaining(['sales-detail-fact', 'border', 'border-default', 'p-3']))
+      expect(card.classes().join(' ')).not.toContain('coco-')
       expect(card.classes()).not.toContain('bg-white')
       expect(card.classes()).not.toContain('dark:bg-zinc-900')
     }

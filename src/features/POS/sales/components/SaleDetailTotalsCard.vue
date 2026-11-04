@@ -22,11 +22,10 @@ const emit = defineEmits<{
 // matching the POS draft footer convention ("Descuentos -$140.00").
 const discountLabel = computed(() => `-${formatCentsMXN(props.discountCents)}`)
 
-// Deuda is colored when there is an outstanding balance; otherwise green
-// to mirror the "pagada en su totalidad" success semantic that the
-// financial card used to render.
+// An outstanding balance is pending, not wrong: warning ink. A settled one
+// reads as success.
 const debtClass = computed(() =>
-  props.debtCents > 0 ? 'text-error-600' : 'text-success-600',
+  props.debtCents > 0 ? 'text-(--hf-warning)' : 'text-(--hf-success)',
 )
 
 const showChangeRow = computed(() => props.changeDueCents > 0)
@@ -35,7 +34,7 @@ const showChangeRow = computed(() => props.changeDueCents > 0)
 <template>
   <UCard>
     <template #header>
-      <h3 class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted">
+      <h3 class="sale-detail-section-title">
         <UIcon name="i-lucide-receipt" class="size-4" />
         Totales
       </h3>
@@ -59,7 +58,7 @@ const showChangeRow = computed(() => props.changeDueCents > 0)
 
       <div class="flex items-center justify-between">
         <span class="text-muted">Total</span>
-        <span class="text-2xl font-bold" data-testid="totals-total-value">
+        <span class="hf-figure text-2xl font-semibold text-(--hf-heading)" data-testid="totals-total-value">
           {{ formatCentsMXN(totalCents) }}
         </span>
       </div>
@@ -88,11 +87,10 @@ const showChangeRow = computed(() => props.changeDueCents > 0)
 
     <template v-if="canRegisterPayment" #footer>
       <UButton
-        color="primary"
         block
         icon="i-lucide-credit-card"
         data-testid="register-debt-payment"
-        class="sales-detail-primary-action !bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+        class="hf-primary-control sales-detail-primary-action"
         :disabled="isPaymentSubmitting"
         @click="emit('register-payment')"
       >

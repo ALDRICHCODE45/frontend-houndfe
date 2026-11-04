@@ -96,7 +96,7 @@ function isReferenceTruncated(reference: string | null): boolean {
   <UCard data-testid="payments-list-section">
     <template #header>
       <div class="flex items-center justify-between">
-        <h3 class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted">
+        <h3 class="sale-detail-section-title">
           <UIcon name="i-lucide-credit-card" class="size-4" />
           Pagos registrados
         </h3>

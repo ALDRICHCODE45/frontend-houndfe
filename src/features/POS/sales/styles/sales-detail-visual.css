@@ -18,40 +18,15 @@
  */
 
 /*
- * Legacy compatibility aliases.
+ * Geometry compatibility aliases.
  *
- * The detail still ships Tailwind theme utilities (`bg-coco-gold-*`,
- * `bg-coco-neutral-*`) plus two forced-paint utilities
- * (`!bg-(--brand-action)` / `!text-black`) that are pinned by existing
- * behavior tests. Re-pointing the variables those utilities already consume
- * keeps the classes and the previous markup while the computed paint follows
- * the foundation roles in both themes — no blanket `!important` rule and no
- * markup churn.
+ * Panels land on the foundation card radius and controls on the control
+ * radius. `--radius-full` is deliberately untouched so the timeline icon and
+ * other circles keep their shape. Colors come straight from the `--hf-*`
+ * roles used in the markup; no legacy palette is remapped here.
  */
 .sales-detail-visual,
 .hf-theme.sales-detail-portal {
-  /* Action pair. `--brand-action` backs the solid CTA background and
-   * `--color-black` backs the fixed dark label; both resolve to the retail
-   * action/foreground pair, which stays readable on the light and dark action
-   * values. */
-  --brand-action: var(--hf-action);
-  --color-black: var(--hf-on-action);
-
-  /* Gold accents (timeline register event, comment trigger, debt banner and
-   * method tiles) use the restrained brand gold roles, not a second palette. */
-  --color-coco-gold-300: var(--hf-gold);
-  --color-coco-gold-400: var(--hf-gold);
-  --color-coco-gold-500: var(--hf-gold);
-  --color-coco-gold-700: var(--hf-gold-ink);
-  --color-coco-gold-800: var(--hf-gold-ink);
-
-  /* Quiet dividers (timeline connector) follow the shared border role. */
-  --color-coco-neutral-200: var(--hf-border);
-  --color-coco-neutral-800: var(--hf-border);
-
-  /* Restrained geometry: panels land on the foundation card radius and
-   * controls on the control radius. `--radius-full` is deliberately untouched
-   * so the timeline icon and other circles keep their shape. */
   --radius-md: var(--hf-radius-control);
   --radius-lg: var(--hf-radius-card);
   --radius-xl: var(--hf-radius-card);
@@ -79,11 +54,49 @@
 
 /* ── Sticky identity bar ─────────────────────────────────────────────────── */
 
-/* The persistent header follows the surface role (with the same translucency
- * the legacy sticky blur relied on) instead of the lavender neutral. `--hf-*`
- * resolves per theme, so one rule covers both modes. */
+/* The persistent header follows the surface role (with the translucency the
+ * sticky blur relies on) and the shared border role. `--hf-*` resolves per
+ * theme, so one rule covers both modes. */
 .sales-detail-visual .sales-detail-sticky-header {
   background-color: color-mix(in srgb, var(--hf-surface) 92%, transparent);
+  border-color: var(--hf-border);
+}
+
+/* Detail title (22px/600, 17px on mobile) and its muted meta line. */
+.sales-detail-visual .sale-detail-title {
+  color: var(--hf-heading);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.sales-detail-visual .sale-detail-meta {
+  color: var(--hf-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 640px) {
+  .sales-detail-visual .sale-detail-title {
+    font-size: 22px;
+  }
+}
+
+/* Section titles of the cards (Totales, Datos de la venta, Historial...). */
+.sales-detail-visual .sale-detail-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--hf-heading);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.sales-detail-visual .sale-detail-fact-label {
+  color: var(--hf-muted);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 /* ── Grouped fact cards ──────────────────────────────────────────────────── */
@@ -103,10 +116,9 @@
 
 /* ── Primary action geometry ─────────────────────────────────────────────── */
 
-/* The three "Registrar/Cobrar" CTAs and the debt confirmation all opt into the
- * shared control height and corner. Their color comes from the action-pair
- * aliases above so the fixed legacy utilities keep winning without an
- * `!important` override. */
+/* The "Registrar pago" CTAs and the debt confirmation take the shared
+ * `hf-primary-control` pairing; this only keeps their control height and
+ * corner on the foundation tokens. */
 .sales-detail-visual .sales-detail-primary-action,
 .hf-theme.sales-detail-portal .sales-detail-primary-action {
   min-height: var(--hf-control-height);

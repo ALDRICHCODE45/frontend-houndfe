@@ -36,18 +36,18 @@ const itemsView = computed(() =>
   <UCard>
     <template #header>
       <div class="flex items-center justify-between">
-        <h3 class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted">
+        <h3 class="sale-detail-section-title">
           <UIcon name="i-lucide-package" class="size-4" />
           Productos
         </h3>
-        <UBadge variant="soft" color="neutral" :data-testid="`items-count`">
+        <span class="text-[13px] text-(--hf-muted)" data-testid="items-count">
           {{ items.length }} {{ items.length === 1 ? 'artículo' : 'artículos' }}
-        </UBadge>
+        </span>
       </div>
     </template>
     <table class="w-full text-sm" data-testid="items-table">
       <thead>
-        <tr class="border-b border-default text-xs font-semibold uppercase tracking-wider text-muted">
+        <tr class="border-b border-default text-[13px] font-semibold text-(--hf-muted)">
           <th class="py-2 text-left">Producto</th>
           <th class="py-2 text-right">Cant</th>
           <th class="py-2 text-right">Precio Unit</th>

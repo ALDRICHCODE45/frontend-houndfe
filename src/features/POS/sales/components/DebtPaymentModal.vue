@@ -247,7 +247,7 @@ watch(catalogClearSignal, () => {
         <div class="shrink-0 space-y-4 border-b border-default px-5 py-4">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-lg font-bold text-highlighted">Cobrar deuda</p>
+              <p class="text-lg font-semibold text-(--hf-heading)">Cobrar deuda</p>
               <p class="text-xs text-muted">Selecciona los métodos de pago</p>
             </div>
             <UButton
@@ -261,9 +261,9 @@ watch(catalogClearSignal, () => {
           </div>
 
           <!-- Total banner -->
-          <div class="rounded-2xl border border-coco-gold-500/20 bg-coco-gold-500/5 px-5 py-4 text-center">
-            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-muted">Deuda pendiente</p>
-            <p class="mt-1 text-4xl font-black tabular-nums text-highlighted">{{ formatCentsMXN(debtCents) }}</p>
+          <div class="rounded-xl border border-default bg-(--hf-surface-muted) px-5 py-4 text-center">
+            <p class="text-[13px] font-semibold text-(--hf-muted)">Deuda pendiente</p>
+            <p class="hf-figure mt-1 text-4xl font-semibold text-(--hf-heading)">{{ formatCentsMXN(debtCents) }}</p>
           </div>
         </div>
 
@@ -282,8 +282,8 @@ watch(catalogClearSignal, () => {
                 class="relative rounded-xl border px-3 py-4 text-left transition disabled:cursor-not-allowed disabled:opacity-50"
                 :class="
                   getMethodCount(entries, option) > 0
-                    ? 'border-coco-gold-500/40 bg-coco-gold-500/5'
-                    : 'border-default bg-elevated hover:border-coco-gold-500/40 hover:bg-coco-gold-500/5'
+                    ? 'border-(--hf-action) bg-(--hf-active-soft)'
+                    : 'border-default bg-elevated hover:border-(--hf-action) hover:bg-(--hf-active-soft)'
                 "
                 :disabled="(getMethodCount(entries, option) === 0 && !canAddEntry) || isSubmitting"
                 @click="handleMethodToggle(option)"
@@ -297,7 +297,7 @@ watch(catalogClearSignal, () => {
                 >
                   {{ getMethodCount(entries, option) }}
                 </UBadge>
-                <UIcon :name="option.icon" class="mb-2 size-6 text-coco-gold-700 dark:text-coco-gold-400" />
+                <UIcon :name="option.icon" class="mb-2 size-6 text-(--hf-action)" />
                 <p class="text-sm font-semibold text-highlighted">{{ option.label }}</p>
                 <!-- REQ-PT-007: custom tiles render the subtitle as a grey sub-line (trimmed, when present) -->
                 <p
@@ -400,7 +400,7 @@ watch(catalogClearSignal, () => {
               <p>Recibido: <span class="font-semibold">{{ formatCentsMXN(receivedCents) }}</span></p>
               <p>
                 Restante:
-                <span class="font-semibold" :class="remainingCents > 0 ? 'text-error' : 'text-success'">
+                <span class="font-semibold" :class="remainingCents > 0 ? 'text-(--hf-warning)' : 'text-(--hf-success)'">
                   {{ formatCentsMXN(remainingCents) }}
                 </span>
               </p>
@@ -408,7 +408,7 @@ watch(catalogClearSignal, () => {
           </div>
 
           <!-- Aggregate / inline error -->
-          <p v-if="aggregateError" class="text-sm text-error">{{ aggregateError }}</p>
+          <p v-if="aggregateError" class="text-sm text-(--hf-danger)">{{ aggregateError }}</p>
 
           <!-- Actions -->
           <div class="flex justify-end gap-2">
@@ -417,10 +417,9 @@ watch(catalogClearSignal, () => {
             </UButton>
             <UButton
               data-testid="confirm-debt-payment"
-              color="primary"
               :loading="isSubmitting"
               :disabled="!canSubmit"
-              class="sales-detail-primary-action !bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+              class="hf-primary-control sales-detail-primary-action"
               @click="handleSubmit"
             >
               Confirmar cobro
