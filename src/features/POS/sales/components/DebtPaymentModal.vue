@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { formatCentsMXN } from '../utils/currency.utils'
-import { getPaymentMethodColor } from '../utils/salePaymentMethod.utils'
 import { useDebtPayment } from '../composables/useDebtPayment'
 import { useSalePaymentMethods } from '../composables/useSalePaymentMethods'
 import type { CollectionPaymentMethod, PaymentEntry } from '../interfaces/sale.types'
@@ -113,10 +112,6 @@ const entryForms = computed<EntryForm[]>(() =>
 
 function entryNeedsReference(method: CollectionPaymentMethod): boolean {
   return CARD_METHODS.includes(method)
-}
-
-function getMethodColor(method: CollectionPaymentMethod): string {
-  return getPaymentMethodColor(method.toUpperCase())
 }
 
 function resetState() {
@@ -292,7 +287,7 @@ watch(catalogClearSignal, () => {
                   v-if="getMethodCount(entries, option) > 0"
                   class="absolute right-2 top-2"
                   size="sm"
-                  :color="getMethodColor(option.value)"
+                  color="neutral"
                   variant="soft"
                 >
                   {{ getMethodCount(entries, option) }}
@@ -332,7 +327,7 @@ watch(catalogClearSignal, () => {
               class="space-y-3 rounded-xl border border-default bg-default px-3 py-3"
             >
               <div class="flex items-center gap-3">
-                <UBadge :color="getMethodColor(entry.method)" variant="soft" size="lg" class="shrink-0">
+                <UBadge color="neutral" variant="soft" size="lg" class="shrink-0">
                   <UIcon :name="PAYMENT_METHOD_CATEGORY_ICONS[entry.method]" class="size-4" />
                 </UBadge>
 

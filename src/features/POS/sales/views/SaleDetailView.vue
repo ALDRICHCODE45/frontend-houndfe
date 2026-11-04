@@ -194,6 +194,17 @@ const triggerTooltipText = computed(() =>
   sale.value?.status === SALE_STATUS.DRAFT ? 'Solo disponible para ventas confirmadas' : null,
 )
 
+// The loading skeleton follows the real layout and its mobile order.
+const SKELETON_MAIN = [
+  { section: 'items', rows: 4, order: 'order-1' },
+  { section: 'data', rows: 3, order: 'order-4' },
+  { section: 'history', rows: 3, order: 'order-5' },
+]
+const SKELETON_SIDE = [
+  { section: 'totals', rows: 4, order: 'order-2' },
+  { section: 'payments', rows: 2, order: 'order-3' },
+]
+
 // Loading shows the shaped skeleton; a not-found or failed request shows its own state.
 const showSkeleton = computed(() => !sale.value && !isError.value && !isNotFound.value)
 const showMobileBar = computed(() => mobile.value && Boolean(sale.value) && canRegisterPayment.value)
@@ -393,14 +404,22 @@ watch(
       aria-hidden="true"
     >
       <div class="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <div class="flex items-center gap-3">
-          <USkeleton class="size-8 rounded-md" />
+        <div class="flex min-w-0 items-center gap-3">
+          <USkeleton class="size-8 shrink-0 rounded-md" />
           <div class="space-y-2">
-            <USkeleton class="h-5 w-40" />
-            <USkeleton class="h-3.5 w-24" />
+            <div class="flex items-center gap-2">
+              <USkeleton class="h-5 w-28" />
+              <USkeleton class="h-6 w-24 rounded-md" />
+              <USkeleton class="hidden h-6 w-16 rounded-md sm:block" />
+            </div>
+            <USkeleton class="h-3.5 w-32" />
           </div>
         </div>
-        <USkeleton class="h-9 w-28 rounded-md" />
+        <div class="flex shrink-0 items-center gap-3">
+          <USkeleton class="hidden h-9 w-20 sm:block" />
+          <USkeleton class="hidden h-9 w-28 rounded-md sm:block" />
+          <USkeleton class="size-9 rounded-md" />
+        </div>
       </div>
     </div>
 
@@ -454,26 +473,30 @@ watch(
         class="mx-auto w-full max-w-7xl px-4 pb-6 pt-6 sm:px-6 sm:pt-16"
       >
         <div class="grid gap-6 lg:grid-cols-[1fr_360px]">
-          <div class="order-2 space-y-6 lg:order-1">
+          <div class="contents lg:block lg:space-y-6">
             <div
-              v-for="rows in [3, 4, 3]"
-              :key="rows"
+              v-for="card in SKELETON_MAIN"
+              :key="card.section"
               data-testid="sale-detail-skeleton-card"
-              class="sale-detail-skeleton-card space-y-4 rounded-lg border p-4"
+              :data-section="card.section"
+              :class="card.order"
+              class="sale-detail-skeleton-card space-y-4 rounded-lg border p-4 lg:order-none"
             >
               <USkeleton class="h-5 w-36" />
-              <USkeleton v-for="row in rows" :key="row" class="h-4 w-full" />
+              <USkeleton v-for="row in card.rows" :key="row" class="h-4 w-full" />
             </div>
           </div>
-          <div class="order-1 space-y-6 lg:order-2">
+          <div class="contents lg:block lg:space-y-6">
             <div
-              v-for="rows in [4, 2]"
-              :key="rows"
+              v-for="card in SKELETON_SIDE"
+              :key="card.section"
               data-testid="sale-detail-skeleton-card"
-              class="sale-detail-skeleton-card space-y-4 rounded-lg border p-4"
+              :data-section="card.section"
+              :class="card.order"
+              class="sale-detail-skeleton-card space-y-4 rounded-lg border p-4 lg:order-none"
             >
               <USkeleton class="h-5 w-28" />
-              <USkeleton v-for="row in rows" :key="row" class="h-4 w-full" />
+              <USkeleton v-for="row in card.rows" :key="row" class="h-4 w-full" />
             </div>
           </div>
         </div>
@@ -485,38 +508,51 @@ watch(
           class="grid gap-6 lg:grid-cols-[1fr_360px]"
           data-testid="sale-detail-layout-body"
         >
-          <div class="space-y-6 order-2 lg:order-1">
-            <SaleDetailItemsList
-              :items="sale.items"
-              portal-class="hf-theme hf-ui sales-detail-portal"
-            />
-            <SaleDetailSalesDataCard :sale="sale" @assign-seller="sellerSlideoverOpen = true" />
-            <SaleDetailHistoryCard
-              :timeline="sale.timeline"
-              :current-user-id="authStore.user?.id ?? null"
-              :comments-pending="commentsPending"
-              :on-update-comment="updateComment"
-              :on-delete-comment="deleteComment"
-              :on-submit-comment="addComment"
-              portal-class="hf-theme hf-ui hf-form-overlay sales-detail-portal"
-            />
+          <!-- Below lg the two columns dissolve (`contents`) and each section
+               takes its `order-N`: Productos, Totales, Pagos, Datos, Historial.
+               From lg the columns are back and the order is neutral. -->
+          <div class="contents lg:block lg:space-y-6" data-testid="sale-detail-column-main">
+            <div class="order-1 lg:order-none" data-testid="sale-detail-section-items">
+              <SaleDetailItemsList
+                :items="sale.items"
+                portal-class="hf-theme hf-ui sales-detail-portal"
+              />
+            </div>
+            <div class="order-4 lg:order-none" data-testid="sale-detail-section-data">
+              <SaleDetailSalesDataCard :sale="sale" @assign-seller="sellerSlideoverOpen = true" />
+            </div>
+            <div class="order-5 lg:order-none" data-testid="sale-detail-section-history">
+              <SaleDetailHistoryCard
+                :timeline="sale.timeline"
+                :current-user-id="authStore.user?.id ?? null"
+                :comments-pending="commentsPending"
+                :on-update-comment="updateComment"
+                :on-delete-comment="deleteComment"
+                :on-submit-comment="addComment"
+                portal-class="hf-theme hf-ui hf-form-overlay sales-detail-portal"
+              />
+            </div>
           </div>
-          <div class="space-y-6 order-1 lg:order-2">
-            <SaleDetailTotalsCard
-              :subtotal-cents="sale.subtotalCents"
-              :discount-cents="sale.discountCents"
-              :total-cents="sale.totalCents"
-              :paid-cents="sale.paidCents"
-              :debt-cents="sale.debtCents"
-              :change-due-cents="sale.changeDueCents"
-            />
-            <PaymentsListSection
-              :payments="sale.payments"
-              :loading="referencePending"
-              data-testid="sale-detail-payments-list"
-              portal-class="hf-theme hf-ui hf-form-overlay sales-detail-portal"
-              @submit="handleReferenceSubmit"
-            />
+          <div class="contents lg:block lg:space-y-6" data-testid="sale-detail-column-side">
+            <div class="order-2 lg:order-none" data-testid="sale-detail-section-totals">
+              <SaleDetailTotalsCard
+                :subtotal-cents="sale.subtotalCents"
+                :discount-cents="sale.discountCents"
+                :total-cents="sale.totalCents"
+                :paid-cents="sale.paidCents"
+                :debt-cents="sale.debtCents"
+                :change-due-cents="sale.changeDueCents"
+              />
+            </div>
+            <div class="order-3 lg:order-none" data-testid="sale-detail-section-payments">
+              <PaymentsListSection
+                :payments="sale.payments"
+                :loading="referencePending"
+                data-testid="sale-detail-payments-list"
+                portal-class="hf-theme hf-ui hf-form-overlay sales-detail-portal"
+                @submit="handleReferenceSubmit"
+              />
+            </div>
           </div>
         </div>
 

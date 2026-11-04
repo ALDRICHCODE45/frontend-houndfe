@@ -10,9 +10,8 @@ describe('useSalesColumns', () => {
   it('returns all expected columns in order', () => {
     const { columns } = useSalesColumns()
 
-    expect(columns).toHaveLength(14)
+    expect(columns).toHaveLength(13)
     expect(columns.map((column) => keyOf(column))).toEqual([
-      'select',
       'venta',
       'customer',
       'paymentStatus',
@@ -46,6 +45,12 @@ describe('useSalesColumns', () => {
     ])
     expect(visible.length).toBeLessThanOrEqual(8)
     expect(defaultColumnVisibility.paymentMethods).toBe(false)
+  })
+
+  it('has no select column: the list offers no bulk action, so it would be a blank gutter', () => {
+    const { columns } = useSalesColumns()
+
+    expect(columns.map((column) => keyOf(column))).not.toContain('select')
   })
 
   it('defines Vence column as non-sortable and hidden by default', () => {
@@ -104,7 +109,6 @@ describe('useSalesColumns', () => {
       .map((column) => keyOf(column))
 
     expect(nonSortable).toEqual([
-      'select',
       'venta',
       'customer',
       'paymentStatus',

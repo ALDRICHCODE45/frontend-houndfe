@@ -779,9 +779,8 @@ describe('SaleDetailView', () => {
   })
 
   // sale-detail-redesign: the flat grid root carries
-  // [data-testid="sale-detail-layout-body"]; the right column root renders
-  // first in DOM order (mobile-first stacking) and the left column second,
-  // with order-* utility classes that swap at the lg breakpoint.
+  // [data-testid="sale-detail-layout-body"]; its two columns are dissolved below
+  // lg so the sections interleave by order-* utility classes.
   describe('flat two-column grid layout (sale-detail-redesign)', () => {
     it('renders flat two-column grid with correct column order', () => {
       const wrapper = mountWithUApp(SaleDetailView, {
@@ -802,22 +801,18 @@ describe('SaleDetailView', () => {
       // .get() throws if missing; no .exists() needed.
       void grid.text()
 
-      // Two direct child columns — DOM order: left first, right second.
-      // Mobile-first stacking uses Tailwind order-* utilities so the right
-      // column visually precedes the left column on small viewports even
-      // though it's second in the DOM.
+      // Two direct child columns — DOM order: main first, side second. Below lg the
+      // columns dissolve (`contents`) so each section takes its own mobile `order-N`
+      // (Productos first, then Totales); from lg they are the two real columns.
       expect(grid.element.children).toHaveLength(2)
 
       const leftColEl = grid.element.children[0] as HTMLElement
       const rightColEl = grid.element.children[1] as HTMLElement
 
-      // Left column: order-2 lg:order-1 (DOM-first, pushed below on mobile).
-      expect(leftColEl.className).toContain('order-2')
-      expect(leftColEl.className).toContain('lg:order-1')
-
-      // Right column: order-1 lg:order-2 (DOM-second, surfaces first on mobile).
-      expect(rightColEl.className).toContain('order-1')
-      expect(rightColEl.className).toContain('lg:order-2')
+      expect(leftColEl.className).toContain('contents')
+      expect(leftColEl.className).toContain('lg:block')
+      expect(rightColEl.className).toContain('contents')
+      expect(rightColEl.className).toContain('lg:block')
 
       // Left column owns items + DATOS (reflow cards) + HISTORIAL.
       expect(leftColEl.querySelector('[data-testid="items"]')).toBeTruthy()

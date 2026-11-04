@@ -155,6 +155,22 @@ describe('SalesListView states — tabs', () => {
     expect(showCounts(wrapper)).toBe('true')
   })
 
+  it('hides the counts while the list loads, so no "(0)" shows before the data', async () => {
+    state.isLoading.value = true
+    const wrapper = mountList()
+    await flushPromises()
+
+    expect(showCounts(wrapper)).toBe('false')
+  })
+
+  it('hides the counts when the list failed to load', async () => {
+    state.isError.value = true
+    const wrapper = mountList()
+    await flushPromises()
+
+    expect(showCounts(wrapper)).toBe('false')
+  })
+
   it('keeps the counts when a search matches nothing (the tabs still describe the tenant)', async () => {
     state.globalFilter.value = 'zzz'
     const wrapper = mountList()

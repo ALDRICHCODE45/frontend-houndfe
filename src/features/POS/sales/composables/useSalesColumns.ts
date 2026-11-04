@@ -29,7 +29,6 @@ export function useSalesColumns() {
   // are explicitly false so no dead sort control appears on a column the
   // backend cannot order by (sorting by them returns a 400).
   const columns: TableColumn<ConfirmedSaleRow>[] = [
-    { id: 'select', header: '', enableSorting: false, enableHiding: false },
     { id: 'venta', accessorKey: 'folio', header: 'Venta', enableSorting: false },
     { accessorKey: 'customer', header: createSimpleHeader('Cliente'), enableSorting: false },
     { accessorKey: 'paymentStatus', header: createSimpleHeader('Pago'), enableSorting: false },

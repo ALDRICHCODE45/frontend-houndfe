@@ -159,7 +159,7 @@ describe('SaleDetailSalesDataCard', () => {
   })
 
   // uniquePaymentMethods: dedupes case-sensitively and uses formatPaymentMethod
-  // labels — CASH → "Efectivo", CARD_DEBIT → "Tarjeta de Débito".
+  // labels — CASH → "Efectivo", CARD_DEBIT → "Tarjeta de débito".
   it('renders deduplicated payment methods using localized labels', async () => {
     const saleWithPayments: SaleDetail = {
       ...baseSale,
@@ -178,7 +178,7 @@ describe('SaleDetailSalesDataCard', () => {
 
     const methods = wrapper.get('[data-testid="reflow-payment-methods"]').text()
     expect(methods).toContain('Efectivo')
-    expect(methods).toContain('Tarjeta de Débito')
+    expect(methods).toContain('Tarjeta de débito')
     // CASH appears twice in input but should be deduplicated — count "Efectivo" occurrences.
     expect((methods.match(/Efectivo/g) ?? []).length).toBe(1)
   })

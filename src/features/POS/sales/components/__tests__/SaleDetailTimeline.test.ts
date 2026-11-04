@@ -77,7 +77,7 @@ describe('SaleDetailTimeline', () => {
     const rows = wrapper.findAll('[data-testid="timeline-event"]')
     expect(rows).toHaveLength(4)
     expect(rows[0]!.text()).toContain('Entrega de productos')
-    expect(rows[1]!.text()).toContain('Cobro de $100.00 en Tarjeta de Débito')
+    expect(rows[1]!.text()).toContain('Cobro de $100.00 en Tarjeta de débito')
     expect(rows[2]!.text()).toContain('Cobro de $50.00 en Efectivo')
     expect(rows[3]!.text()).toContain('Venta registrada')
   })
@@ -266,7 +266,7 @@ describe('SaleDetailTimeline', () => {
         props: { timeline: mockTimeline },
       })
 
-      expect(wrapper.text()).toContain('Cobro de $100.00 en Tarjeta de Débito')
+      expect(wrapper.text()).toContain('Cobro de $100.00 en Tarjeta de débito')
       expect(wrapper.find('[data-testid="timeline-payment-subtitle"]').exists()).toBe(false)
     })
 

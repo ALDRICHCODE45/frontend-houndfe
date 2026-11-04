@@ -35,7 +35,7 @@ const overflowLabel = computed(() =>
         v-for="method in visible"
         :key="method"
         variant="subtle"
-        :color="getMethodMeta(method).color"
+        color="neutral"
         size="sm"
         :icon="getMethodMeta(method).icon"
         :aria-label="getMethodMeta(method).label"

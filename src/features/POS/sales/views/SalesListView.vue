@@ -165,8 +165,10 @@ const hasSearch = computed(() => globalFilter.value.trim() !== '')
 const hasActiveFilters = computed(
   () => hasSearch.value || filtersCtl.activeCount.value > 0 || activeTab.value !== 'all',
 )
-// Counts describe the tenant's sales: with none yet there is nothing to count.
-const showTabCounts = computed(() => isLoading.value || isError.value || totalCount.value > 0 || hasActiveFilters.value)
+// Counts describe the tenant's sales: with none yet, while loading, or after a failed load there is nothing to count.
+const showTabCounts = computed(
+  () => !isLoading.value && !isError.value && (totalCount.value > 0 || hasActiveFilters.value),
+)
 const activeFilterCount = computed(
   () => filtersCtl.activeCount.value + (activeTab.value !== 'all' ? 1 : 0),
 )

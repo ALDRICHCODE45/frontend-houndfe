@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import PaymentMethodPills from '../PaymentMethodPills.vue'
+import type { SaleDetailPaymentMethod } from '../../interfaces/sale.types'
 
 const badgeStub = {
   props: ['color', 'variant', 'size', 'icon', 'ariaLabel'],
@@ -85,32 +86,16 @@ describe('PaymentMethodPills', () => {
     expect(overflowBadge.attributes('aria-label')).toContain('Transferencia')
   })
 
-  it('CASH pill uses success color', () => {
-    const wrapper = mount(PaymentMethodPills, {
-      props: { methods: ['CASH'] },
-      global: globalConfig,
-    })
-    const badge = wrapper.find('[data-testid="badge"]')
-    expect(badge.attributes('data-color')).toBe('success')
-  })
-
-  it('CARD_DEBIT pill uses warning color', () => {
-    const wrapper = mount(PaymentMethodPills, {
-      props: { methods: ['CARD_DEBIT'] },
-      global: globalConfig,
-    })
-    const badge = wrapper.find('[data-testid="badge"]')
-    expect(badge.attributes('data-color')).toBe('warning')
-  })
-
-  it('CREDIT pill uses error color', () => {
-    const wrapper = mount(PaymentMethodPills, {
-      props: { methods: ['CREDIT'] },
-      global: globalConfig,
-    })
-    const badge = wrapper.find('[data-testid="badge"]')
-    expect(badge.attributes('data-color')).toBe('error')
-  })
+  it.each(['CASH', 'CARD_DEBIT', 'CARD_CREDIT', 'TRANSFER', 'CREDIT', 'UNKNOWN'])(
+    '%s pill is neutral: a payment method is not a state, so it carries no status color',
+    (method) => {
+      const wrapper = mount(PaymentMethodPills, {
+        props: { methods: [method as SaleDetailPaymentMethod] },
+        global: globalConfig,
+      })
+      expect(wrapper.get('[data-testid="badge"]').attributes('data-color')).toBe('neutral')
+    },
+  )
 
   it('keeps the label visible when compact (an icon alone says nothing on a card)', () => {
     const wrapper = mount(PaymentMethodPills, {

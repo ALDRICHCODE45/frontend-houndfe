@@ -13,7 +13,6 @@ import { PAYMENT_METHOD } from '../constants/sale.constants' // sdd/magic-string
 import DateFieldPopover from './DateFieldPopover.vue'
 import { newIdempotencyKey } from '../utils/idempotency.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
-import { getPaymentMethodColor } from '../utils/salePaymentMethod.utils'
 import { normalizeReferenceInput } from '../utils/paymentEntries.utils'
 import { useSalePaymentMethods } from '../composables/useSalePaymentMethods'
 import { useCashSaleSession } from '@/features/POS/cash-register/composables/useCashSaleSession'
@@ -577,10 +576,6 @@ watch(
   },
 )
 
-function getMethodColor(method: NonCreditPaymentMethod): string {
-  return getPaymentMethodColor(method.toUpperCase())
-}
-
 // T3: the prior content/body geometry is preserved; an opt-in appends the
 // inherited marker plus the owned checkout composition marker to the same
 // native content root. Omission keeps the previous string exactly.
@@ -668,7 +663,7 @@ const confirmButtonClass = computed(() =>
                   v-if="getMethodCount(wireEntries, option) > 0"
                   class="absolute right-2 top-2"
                   size="sm"
-                  :color="getMethodColor(option.value)"
+                  color="neutral"
                   variant="soft"
                 >
                   {{ getMethodCount(wireEntries, option) }}
@@ -711,7 +706,7 @@ const confirmButtonClass = computed(() =>
             >
               <div class="flex items-center gap-3">
                 <UBadge
-                  :color="getMethodColor(entry.method)"
+                  color="neutral"
                   variant="soft"
                   size="lg"
                   class="shrink-0"

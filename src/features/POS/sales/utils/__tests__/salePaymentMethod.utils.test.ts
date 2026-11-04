@@ -7,8 +7,8 @@ describe('salePaymentMethod.utils', () => {
   })
 
   it('formats card methods into spanish labels', () => {
-    expect(formatPaymentMethod('CARD_CREDIT')).toBe('Tarjeta de Crédito')
-    expect(formatPaymentMethod('CARD_DEBIT')).toBe('Tarjeta de Débito')
+    expect(formatPaymentMethod('CARD_CREDIT')).toBe('Tarjeta de crédito')
+    expect(formatPaymentMethod('CARD_DEBIT')).toBe('Tarjeta de débito')
   })
 
   it('formats transfer and credit methods', () => {

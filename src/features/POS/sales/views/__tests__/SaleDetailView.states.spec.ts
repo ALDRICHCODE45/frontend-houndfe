@@ -162,6 +162,64 @@ describe('SaleDetailView states — loading', () => {
   })
 })
 
+describe('SaleDetailView states — section order', () => {
+  // Below lg the two columns flow as one list; `order-N` is the mobile order and
+  // `lg:order-none` hands the order back to the two-column layout.
+  const mobileOrder = (el: { classes: () => string[] }) => {
+    const found = el.classes().find((name) => /^order-\d+$/.test(name))
+    return found ? Number(found.slice('order-'.length)) : Number.NaN
+  }
+
+  it('shows Productos first on mobile, then Totales, Pagos, Datos and Historial', () => {
+    const wrapper = mountDetail()
+
+    const sections = ['items', 'totals', 'payments', 'data', 'history'].map((key) =>
+      wrapper.get(`[data-testid="sale-detail-section-${key}"]`),
+    )
+    expect(sections.map(mobileOrder)).toEqual([1, 2, 3, 4, 5])
+    for (const section of sections) expect(section.classes()).toContain('lg:order-none')
+  })
+
+  it('keeps the two columns on desktop: Productos, Datos and Historial left, Totales and Pagos right', () => {
+    const wrapper = mountDetail()
+
+    const left = wrapper.get('[data-testid="sale-detail-column-main"]')
+    const right = wrapper.get('[data-testid="sale-detail-column-side"]')
+    expect(left.findAll('[data-testid^="sale-detail-section-"]').map((el) => el.attributes('data-testid'))).toEqual([
+      'sale-detail-section-items',
+      'sale-detail-section-data',
+      'sale-detail-section-history',
+    ])
+    expect(right.findAll('[data-testid^="sale-detail-section-"]').map((el) => el.attributes('data-testid'))).toEqual([
+      'sale-detail-section-totals',
+      'sale-detail-section-payments',
+    ])
+    // Below lg the columns dissolve so the sections can interleave by order.
+    expect(left.classes()).toContain('contents')
+    expect(right.classes()).toContain('contents')
+  })
+
+  it('shapes the loading skeleton in the same order, with the products card first', () => {
+    detail.sale = undefined
+    detail.isLoading = true
+    const wrapper = mountDetail()
+
+    const cards = wrapper.findAll('[data-testid="sale-detail-skeleton-card"]')
+    const byOrder = [...cards].sort((a, b) => mobileOrder(a) - mobileOrder(b))
+    expect(byOrder[0]!.attributes('data-section')).toBe('items')
+    expect(byOrder[1]!.attributes('data-section')).toBe('totals')
+  })
+
+  it('shapes the header skeleton like the real header: title, badges and the primary', () => {
+    detail.sale = undefined
+    detail.isLoading = true
+    const wrapper = mountDetail()
+
+    const header = wrapper.get('[data-testid="sale-detail-header-skeleton"]')
+    expect(header.findAll('[data-slot="skeleton"], .animate-pulse').length).toBeGreaterThanOrEqual(5)
+  })
+})
+
 describe('SaleDetailView states — data', () => {
   it('shows the status badges with mapped tones, one primary and the ⋮ menu', () => {
     const wrapper = mountDetail()
