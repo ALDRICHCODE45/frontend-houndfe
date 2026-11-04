@@ -291,7 +291,7 @@ On mobile a list row becomes a card (artboard 05): 12px radius, 16px padding. To
 
 ### Danger color
 
-`--hf-danger` (light `#b42318`, dark `#ffb4ab`, with `--hf-danger-soft` and `--hf-danger-border` for status surfaces) is the one red. Uses: the destructive menu item, the danger status badge, a field in error, a limit reached, a destructive confirm. Never alone (always text and, for actions, an icon), never as a fill for a primary action, and never for "pending". Contrast over every surface it sits on is pinned at AA in both themes (`hf-danger-token.spec.ts`). It replaces the ad hoc reds (`text-red-*`, `--coco-red`) as screens migrate.
+`--hf-danger` (light `#b42318`, dark `#ffb4ab`, with `--hf-danger-soft` and `--hf-danger-border` for status surfaces) is the one red. Uses: the destructive menu item, the danger status badge, a field in error, a limit reached, a destructive confirm. Never alone (always text and, for actions, an icon), never as a fill for a primary action, and never for "pending". Contrast over every surface it sits on is pinned at AA in both themes (`hf-danger-token.spec.ts`). It replaces the ad hoc reds (`text-red-*`, `--coco-red`) as screens migrate. Inside `.hf-ui`, Nuxt's `error` role is bound to it (`--ui-error: var(--hf-danger)`, like `--ui-primary` to `--hf-action`), so `text-error`, `color="error"`, `bg-error/..` and `border-error/..` already paint `--hf-danger` in both themes, and so does the toast error accent; there is no second red. Prefer the `--hf-*` token in new code, and keep Nuxt `color="error"` buttons for destructive confirms.
 
 ### List screens
 
@@ -309,6 +309,35 @@ Each reason a list can be empty has its own words and its own next step, so it n
 | **Sin acceso** | The role cannot see it. | The 403 route (`ForbiddenView`): say that the role limits the view, and give one way back. |
 
 Each state is a title, one line and at most one button. Use a small icon (24px, `--hf-muted`), never an illustration. Loading uses skeletons with the final shape (rows in a table, cards on mobile), never a blank screen; background refetch keeps the data and shows the table's progress bar.
+
+**`EmptyState`** (`core/shared/components/EmptyState.vue`) is the one component for all four. Centered, 24px icon in `--hf-muted` (`--hf-danger` for errors), title 15px/600 `--hf-heading`, description 13px `--hf-muted`, at most one button. The error kind adds the `--hf-danger-soft` surface and `--hf-danger-border` with `role="alert"`; the others use `role="status"`.
+
+| Prop / event | Meaning |
+| ------------ | ------- |
+| `kind` | `'empty'` (default, `i-lucide-inbox`) · `'no-match'` (`i-lucide-search-x`) · `'error'` (`i-lucide-triangle-alert`) · `'forbidden'` (`i-lucide-lock`) |
+| `title` | Required. Names the noun (`Aún no hay proveedores`). |
+| `description` | Optional, one line. |
+| `icon` | Overrides the kind icon. |
+| `actionLabel` | Renders the single button; omit for none. Typical: empty → `Crear proveedor` (only with permission), no-match → `Limpiar filtros`, error → `Reintentar`. |
+| `actionIcon` | Button icon (error defaults to `i-lucide-rotate-cw`). |
+| `actionVariant` | `'outline'` (default) or `'solid'`. Solid only when the button is the page's create action, otherwise it competes with the page's primary. |
+| `actionTestId` | `data-testid` of the button (default `empty-state-action`). |
+| `@action` | The button was clicked. |
+
+**In `AppDataTable`** the states come from props, in this order of precedence for an empty, settled, successful list: `filtered` → no-match; else `emptyState` → empty; else the plain `empty` string, unchanged. A consumer `#empty` slot (or `#cards`) always wins over the shared state.
+
+| Prop / event | Meaning |
+| ------------ | ------- |
+| `error`, `errorMessage`, `showRefresh` | Error state: `EmptyState kind="error"` with `Reintentar`; ids `table-error-state` / `cards-error-state` and `table-error-retry` / `cards-error-retry`. Emits `refresh`. |
+| `emptyState` | `{ title, description?, actionLabel?, actionIcon? }`. The "nada todavía" state. Emits `empty-action` from its button. |
+| `filtered` | `true` when search or filters produced the empty list. Shows no-match with `Limpiar filtros`, which emits `clear-filters`. |
+| `noMatchTitle` | Title of no-match (default `Ningún resultado`); the feature can say `Ningún resultado para «collar»`. |
+
+In cards mode the same state renders under `data-testid="mobile-empty-state"`.
+
+**Skeleton rule.** While `loading` and there are no rows yet, the table renders `table-skeleton` (`aria-busy="true"`): 5 rows of 64px, one `animate-pulse` bar per visible column on `--hf-surface-muted`, never the bare table. Cards mode renders three `mobile-card-skeleton` blocks. A background `fetching` with rows keeps the data and the table's progress bar, with no skeleton.
+
+**How to test (S10).** Every list screen has a spec for the four states, written against the real view with its data source mocked: **empty** → `.hf-empty-state` with `data-kind="empty"` and the screen's own title (and, with permission, its create action); **loading** → `table-skeleton` (or `mobile-card-skeleton` in cards mode) and no rows; **data** → the rows, with no state chrome; **error** → `table-error-state` (`role="alert"`) with `Reintentar` that refetches. Add the no-match case when the screen has search or filters (`data-kind="no-match"`, `Limpiar filtros` clears them). The reference is `AppDataTable.states.spec.ts`; the component contract is `EmptyState.spec.ts`. A browser check of the same four states at 1440 and 390, in light and dark, is the other half of S10.
 
 ### Forms and overlays
 
