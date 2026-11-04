@@ -141,7 +141,9 @@
 }
 
 /* Tabs: an underline strip that scrolls inside its own region on mobile, with
- * a fade at the end while more tabs wait off-screen. */
+ * a fade at the end while more tabs wait off-screen (data-more), a fade at the
+ * start once it has scrolled (data-less), and room after the last tab so it can
+ * be scrolled fully into view. */
 .employees-detail .employees-detail-tabs-scroll {
   overflow-x: auto;
   border-bottom: 1px solid var(--hf-border);
@@ -156,10 +158,19 @@
   mask-image: linear-gradient(to right, black calc(100% - 40px), transparent);
 }
 
+.employees-detail .employees-detail-tabs-scroll[data-less='true'] {
+  mask-image: linear-gradient(to right, transparent, black 40px);
+}
+
+.employees-detail .employees-detail-tabs-scroll[data-less='true'][data-more='true'] {
+  mask-image: linear-gradient(to right, transparent, black 40px, black calc(100% - 40px), transparent);
+}
+
 .employees-detail .employees-detail-tabs {
   display: flex;
   gap: 4px;
   min-width: max-content;
+  padding-inline-end: 24px;
 }
 
 .employees-detail .employees-detail-tab {

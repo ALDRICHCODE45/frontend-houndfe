@@ -48,7 +48,7 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000
  * Format the number of days remaining until expiry into a human-readable label.
  *
  * Rules:
- *   - Negative → "Vencido" (already expired)
+ *   - Negative → "Vencido hace N días" (how long ago it expired; "1 día" in the singular)
  *   - 0 → "Hoy"
  *   - 1 → "1 día"
  *   - N → "N días"
@@ -56,7 +56,10 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000
  * PURE — deterministic.
  */
 export function formatDaysRemaining(days: number): string {
-  if (days < 0) return 'Vencido'
+  if (days < 0) {
+    const ago = -days
+    return `Vencido hace ${ago} ${ago === 1 ? 'día' : 'días'}`
+  }
   if (days === 0) return 'Hoy'
   if (days === 1) return '1 día'
   return `${days} días`

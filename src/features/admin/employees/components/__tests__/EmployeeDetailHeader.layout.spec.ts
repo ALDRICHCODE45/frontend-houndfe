@@ -37,6 +37,14 @@ describe('employee detail header CSS', () => {
     expect(css).toMatch(/employees-detail-tabs-scroll\[data-more='true'\][^{]*\{[^}]*mask-image/)
   })
 
+  it('leaves room after the last tab and fades the start once the strip has scrolled', () => {
+    expect(css).toMatch(/\.employees-detail-tabs\s*\{[^}]*padding-inline-end: 2\dpx/)
+    expect(css).toMatch(/employees-detail-tabs-scroll\[data-less='true'\][^{]*\{[^}]*mask-image/)
+    expect(css).toMatch(
+      /employees-detail-tabs-scroll\[data-less='true'\]\[data-more='true'\][^{]*\{[^}]*mask-image/,
+    )
+  })
+
   it('keeps the sticky action bar above the content with a safe-area inset', () => {
     expect(css).toMatch(/\.employee-detail-action-bar\s*\{[^}]*position: fixed/)
     expect(css).toContain('safe-area-inset-bottom')
@@ -62,10 +70,13 @@ describe('ResumenPanel stat cards', () => {
     })
   }
 
-  it('reads the figures left-aligned, like their labels', () => {
+  it('leaves the figure alignment to the shared rule, which only right-aligns table cells', () => {
     const figures = mountPanel(true).findAll('.hf-figure')
     expect(figures.length).toBe(3)
-    for (const figure of figures) expect(figure.classes()).toContain('text-left')
+    for (const figure of figures) {
+      expect(figure.classes()).not.toContain('text-left')
+      expect(figure.classes()).not.toContain('text-right')
+    }
   })
 
   it('stacks the stats on mobile so no card is left alone in a row', () => {

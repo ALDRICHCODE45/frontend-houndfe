@@ -151,15 +151,12 @@ describe('PendingApprovalsView states — data', () => {
     const wrapper = mountView()
     const row = wrapper.get('tbody tr')
     expect(row.get('.hf-row-primary').text()).toBe('Ana García')
-    const badge = row.get('.hf-status-badge')
-    expect(badge.text()).toBe('Pendiente')
-    expect(badge.attributes('data-tone')).toBe('warning')
+    expect(row.find('.hf-status-badge').exists()).toBe(false)
     expect(row.text()).toContain('Vacaciones')
     expect(row.text()).toContain('10 días')
     expect(row.text()).toContain('Viaje familiar')
     expect(wrapper.findAll('thead th').map((th) => th.text())).toEqual([
       'Colaborador',
-      'Estado',
       'Fechas',
       'Tipo',
       'Días',
@@ -169,6 +166,18 @@ describe('PendingApprovalsView states — data', () => {
     ])
     expect(wrapper.text()).not.toContain('emp-uuid-1')
     expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
+  })
+
+  it('hides the Estado column while every request is pending, and brings it back when one is not', () => {
+    pending.data.value = [makeRequest(), makeRequest({ id: 'to-2' })]
+    expect(mountView().findAll('thead th').map((th) => th.text())).not.toContain('Estado')
+    pending.data.value = [makeRequest(), makeRequest({ id: 'to-2', status: 'APPROVED' })]
+    const wrapper = mountView()
+    expect(wrapper.findAll('thead th').map((th) => th.text())).toContain('Estado')
+    expect(wrapper.findAll('tbody .hf-status-badge').map((badge) => badge.text())).toEqual([
+      'Pendiente',
+      'Aprobada',
+    ])
   })
 
   it('keeps "—" for the name until the picker resolves it and the sick-reason guard for SICK without reason', () => {
@@ -184,9 +193,24 @@ describe('PendingApprovalsView states — data', () => {
     pending.data.value = [makeRequest()]
     const card = mountView().get('[data-testid="pending-approval-card"]')
     expect(card.get('[data-testid="admin-card-name"]').text()).toBe('Ana García')
-    expect(card.get('.hf-status-badge').attributes('data-tone')).toBe('warning')
+    expect(card.find('.hf-status-badge').exists()).toBe(false)
     expect(card.text()).toContain('Vacaciones')
     expect(card.find('[aria-label="Acciones de Ana García"]').exists()).toBe(true)
+  })
+
+  it('labels when the request was made in the mobile footer, so two dates never sit unnamed side by side', () => {
+    isBelowBreakpoint.value = true
+    const year = new Date().getFullYear()
+    pending.data.value = [
+      makeRequest({
+        startDate: `${year}-06-05`,
+        endDate: `${year}-06-05`,
+        createdAt: `${year}-10-09T13:16:00.000Z`,
+      }),
+    ]
+    const footer = mountView().get('[data-testid="pending-approval-card"] .admin-card-footer')
+    expect(footer.text()).toContain('5 jun · 1 día')
+    expect(footer.text()).toMatch(/Solicitada\s+9 oct/)
   })
 
   it('searches by the resolved name and shows no-match with Limpiar filtros', async () => {
@@ -286,7 +310,7 @@ describe('PendingApprovalsView states — toolbar and dates', () => {
   it('sizes the loading skeleton to the visible columns', () => {
     pending.isLoading.value = true
     const firstRow = mountView().get('[data-testid="table-skeleton-row"]')
-    expect(firstRow.element.children).toHaveLength(8)
+    expect(firstRow.element.children).toHaveLength(7)
   })
 
   it('shows a same-day range once, without the current year or a padded day', () => {

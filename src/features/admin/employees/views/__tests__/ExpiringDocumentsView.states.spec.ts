@@ -149,7 +149,7 @@ describe('ExpiringDocumentsView states — data', () => {
     expect(rows[0]!.get('.hf-row-secondary').text()).toBe('Contrato')
     expect(rows[0]!.text()).toContain('Ana García')
     const badges = rows.map((row) => row.get('.hf-status-badge'))
-    expect(badges.map((badge) => badge.text())).toEqual(['5 días', '20 días', '60 días', 'Vencido'])
+    expect(badges.map((badge) => badge.text())).toEqual(['5 días', '20 días', '60 días', 'Vencido hace 3 días'])
     expect(badges.map((badge) => badge.attributes('data-tone'))).toEqual(['warning', 'warning', 'neutral', 'danger'])
     expect(badges.map((badge) => badge.attributes('data-urgent'))).toEqual(['true', undefined, undefined, 'true'])
     expect(wrapper.text()).not.toContain('doc-uuid-1')
@@ -160,7 +160,7 @@ describe('ExpiringDocumentsView states — data', () => {
   it('shows an expired document as danger and urgent, never as warning', () => {
     tableState.data.value = [makeItem({ expiresAt: inDays(-3) })]
     const badge = mountView().get('tbody tr .hf-status-badge')
-    expect(badge.text()).toBe('Vencido')
+    expect(badge.text()).toBe('Vencido hace 3 días')
     expect(badge.attributes('data-tone')).toBe('danger')
     expect(badge.attributes('data-urgent')).toBe('true')
   })
@@ -187,6 +187,13 @@ describe('ExpiringDocumentsView states — data', () => {
     expect(card.text()).toContain('Ana García')
     expect(card.get('.hf-status-badge').text()).toBe('5 días')
     expect(card.find('[aria-label^="Acciones"]').exists()).toBe(false)
+  })
+
+  it('measures an expired document on the mobile card too', () => {
+    isBelowBreakpoint.value = true
+    tableState.data.value = [makeItem({ expiresAt: inDays(-142) })]
+    const card = mountView().get('[data-testid="expiring-document-card"]')
+    expect(card.get('.hf-status-badge').text()).toBe('Vencido hace 142 días')
   })
 
   it('keeps the sortable headers and the document anchor column', () => {

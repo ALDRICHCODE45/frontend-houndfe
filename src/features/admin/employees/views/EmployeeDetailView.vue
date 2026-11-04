@@ -153,10 +153,12 @@ const isMobile = useBreakpoints(breakpointsTailwind).smaller('md')
 // ── Tab strip: a fade at the end while more tabs wait off-screen ───────────────
 const tabsScroll = ref<HTMLElement | null>(null)
 const tabsHaveMore = ref(false)
+const tabsScrolled = ref(false)
 
 function measureTabs(): void {
   const el = tabsScroll.value
   tabsHaveMore.value = !!el && el.scrollWidth - el.clientWidth - el.scrollLeft > 1
+  tabsScrolled.value = !!el && el.scrollLeft > 1
 }
 
 useResizeObserver(tabsScroll, measureTabs)
@@ -261,7 +263,7 @@ function goBack(): void {
       <EmptyState
         kind="error"
         title="No se pudo cargar el colaborador"
-        description="Revisa tu conexión e inténtalo de nuevo."
+        description="No pudimos obtener los datos del colaborador."
         action-label="Reintentar"
         action-test-id="employee-detail-retry"
         @action="() => refetch()"
@@ -281,7 +283,13 @@ function goBack(): void {
       />
 
       <!-- Tab navigation — horizontal scroll on mobile -->
-      <div ref="tabsScroll" class="employees-detail-tabs-scroll" :data-more="tabsHaveMore" @scroll.passive="measureTabs">
+      <div
+        ref="tabsScroll"
+        class="employees-detail-tabs-scroll"
+        :data-more="tabsHaveMore"
+        :data-less="tabsScrolled"
+        @scroll.passive="measureTabs"
+      >
         <div class="employees-detail-tabs" role="tablist" aria-label="Secciones del colaborador">
           <button
             v-for="tab in visibleTabs"

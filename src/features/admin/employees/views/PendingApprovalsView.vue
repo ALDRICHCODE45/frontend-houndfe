@@ -115,13 +115,22 @@ const employeeMap = computed(() => buildManagerMap(employeesList.value ?? []))
 
 // ─── Table columns ────────────────────────────────────────────────────────────
 
-const { columns } = usePendingApprovalsColumns()
+const { columns: allColumns } = usePendingApprovalsColumns()
 
 // ─── Client-side search by resolved name (S5) ────────────────────────────────
 
 const searchQuery = ref('')
 
 /** Client-side filtered tray rows: search by resolved employee name. */
+// An all-pending queue would repeat "Pendiente" on every row, so the status shows
+// (column and card badge) only when some request is not pending.
+const showStatus = computed(() =>
+  (pendingRequests.value ?? []).some((request) => request.status !== TIME_OFF_STATUS.PENDING),
+)
+const columns = computed(() =>
+  showStatus.value ? allColumns.value : allColumns.value.filter((column) => column.id !== 'estado'),
+)
+
 const filteredRequests = computed(() =>
   filterPendingBySearch(pendingRequests.value ?? [], employeeMap.value, searchQuery.value),
 )
@@ -401,14 +410,14 @@ function rowLabelOf(request: TimeOffRequest): string {
               <template #secondary>
                 {{ formatTimeOffType(row.type) }} · {{ resolveSickReason(row.type, row.reason) }}
               </template>
-              <template #badges>
+              <template v-if="showStatus" #badges>
                 <StatusBadge v-bind="statusBadgeOf(row)" />
               </template>
               <template #footer>
                 <span class="min-w-0 truncate font-medium">
                   {{ formatTimeOffDateRange(row.startDate, row.endDate) }} · {{ daysLabel(row) }}
                 </span>
-                <span class="shrink-0">{{ formatShortDateTime(row.createdAt) }}</span>
+                <span class="shrink-0">Solicitada {{ formatShortDateTime(row.createdAt) }}</span>
               </template>
             </AdminMobileCard>
           </template>

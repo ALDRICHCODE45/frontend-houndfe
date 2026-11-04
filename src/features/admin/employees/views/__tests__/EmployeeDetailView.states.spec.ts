@@ -161,6 +161,7 @@ describe('EmployeeDetailView states — error', () => {
     expect(error.attributes('data-kind')).toBe('error')
     expect(error.attributes('role')).toBe('alert')
     expect(error.get('.hf-empty-state__title').text()).toBe('No se pudo cargar el colaborador')
+    expect(error.text()).not.toMatch(/conexi[oó]n/i)
     expect(wrapper.text()).not.toContain('ID')
     await wrapper.get('[data-testid="employee-detail-retry"]').trigger('click')
     expect(state.refetch).toHaveBeenCalledTimes(1)
