@@ -661,8 +661,9 @@ export async function run(browserPage, stage, part = null) {
           return { fits: head.right <= box.right + 1 && head.bottom <= box.bottom + 1, width: box.width, lines: Math.round(box.height / (parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.4)), horizontalClip: el.scrollWidth > el.clientWidth + 1 }
         })
         check(geometry.fits && !geometry.horizontalClip && geometry.width >= 12 * 6 && geometry.lines <= 2, `${label}: the card name "${text.slice(0, 24)}" is not truncated below 12 characters (${Math.round(geometry.width)}px wide, ${geometry.lines} line(s))`)
-        const [nameBox, menuBox, qtyBox, totalBox] = await Promise.all([name.boundingBox(), row.locator('.order-line-menu').boundingBox(), row.locator('.order-line-qty').boundingBox(), row.locator('.order-line-total').boundingBox()])
-        if (menuBox && qtyBox && totalBox && nameBox) check(menuBox.y <= nameBox.y + 12 && qtyBox.y >= nameBox.y + nameBox.height - 2 && Math.abs((totalBox.y + totalBox.height / 2) - (qtyBox.y + qtyBox.height / 2)) <= 14 && totalBox.x > qtyBox.x, `${label}: the ⋮ sits at the top-right and the quantity, cost and subtotal share row 2`)
+        const [nameBox, menuBox, qtyBox, totalBox] = await Promise.all([name.boundingBox(), (await row.locator('.order-line-menu').count()) ? row.locator('.order-line-menu').boundingBox() : null, row.locator('.order-line-qty').boundingBox(), row.locator('.order-line-total').boundingBox()])
+        // Read-only lines have no ⋮; only their figures row is checked.
+        if (qtyBox && totalBox && nameBox) check((!menuBox || menuBox.y <= nameBox.y + 12) && qtyBox.y >= nameBox.y + nameBox.height - 2 && Math.abs((totalBox.y + totalBox.height / 2) - (qtyBox.y + qtyBox.height / 2)) <= 14 && totalBox.x > qtyBox.x, `${label}: the ⋮ sits at the top-right and the quantity, cost and subtotal share row 2`)
       }
     }
     const linesChecks = async (tag, order, { editable }) => {
