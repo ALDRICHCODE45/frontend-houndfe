@@ -293,6 +293,61 @@ On mobile a list row becomes a card (artboard 05): 12px radius, 16px padding. To
 
 `--hf-danger` (light `#b42318`, dark `#ffb4ab`, with `--hf-danger-soft` and `--hf-danger-border` for status surfaces) is the one red. Uses: the destructive menu item, the danger status badge, a field in error, a limit reached, a destructive confirm. Never alone (always text and, for actions, an icon), never as a fill for a primary action, and never for "pending". Contrast over every surface it sits on is pinned at AA in both themes (`hf-danger-token.spec.ts`). It replaces the ad hoc reds (`text-red-*`, `--coco-red`) as screens migrate.
 
+### List screens
+
+Every back-office list (products, customers, sales, quotations, promotions, routes, users, roles, tenants, members, payment methods and details, employees, suppliers, purchase orders) has **one layout**: on desktop a table, through `AppDataTable` and the Table row rules, and on mobile (< 768px) cards, through `mobile-render="cards"` plus `#mobile-card` and the Mobile cards rules. The **card grid with a `ViewToggle`** (and each feature's `use*ViewMode`) is retired. A grid of cards and a table showing the same records is a second layout to learn and maintain, and it gives no task its own job. Columns follow the work: the identifier or name first, then the status, then the fields that decide the next action, then the rest. That is 5–8 columns by default; extra fields go to the detail. Money and quantities are right-aligned and tabular. Whole-row click opens the record (`row-open`), and the ⋮ is last. The only card grid left is the **public catalog**, because its products are browsed by image, which is a different job.
+
+### Empty, no-match and error states
+
+Each reason a list can be empty has its own words and its own next step, so it never reads as broken or as lost data:
+
+| State | When | Content |
+| ----- | ---- | ------- |
+| **Nada todavía** | No records exist yet. | Title naming the noun (`Aún no hay proveedores`), one line saying what will appear, and **one** action that creates one, shown only with permission. The table header stays visible. |
+| **Sin resultados** | Search or filters match nothing. | `Ningún resultado para «collar»` and `Limpiar filtros`. The toolbar and the active filters stay in place. Never show the first-use message here. |
+| **No cargó** | The request failed. | `No se pudo cargar la lista` plus `Reintentar`, in `--hf-danger` text on a `--hf-danger-soft` surface with `role="alert"`. Never reuse the empty design for an error (`AppDataTable` `error`). |
+| **Sin acceso** | The role cannot see it. | The 403 route (`ForbiddenView`): say that the role limits the view, and give one way back. |
+
+Each state is a title, one line and at most one button. Use a small icon (24px, `--hf-muted`), never an illustration. Loading uses skeletons with the final shape (rows in a table, cards on mobile), never a blank screen; background refetch keeps the data and shows the table's progress bar.
+
+### Forms and overlays
+
+Pick the container by the size of the job: a **confirm modal** for a decision (`ConfirmModal`: title as a question, one line of consequence, the action named as a verb, a destructive confirm in `--hf-danger`); a **slideover** (`max-w-md`) for creating or editing a simple record, up to about 10 fields; the **wide record workspace** (`max-w-3xl`) for a record with lines or sections; a **page** for a long or multi-step editor (product detail, quotation, sale). Fields are labeled above the input, one column on mobile, and two columns only for short related pairs (price and currency). A required field is marked once in its label; errors appear under the field in `--hf-danger` and on submit, then live. The footer holds one primary (`Guardar`, `Crear proveedor`); `Cancelar` is unnecessary when X and Escape close the overlay.
+
+### Record avatars and identity
+
+A list row identifies a record by its **name** (and image, for products), never by an id or code shown as the main text (see the never-show-ids rule). Initials avatars (`EntityAvatar`) are for people only (users, employees, customers): 32px in rows, neutral `--hf-surface-muted` with `--hf-heading` initials, and no per-person rainbow colors.
+
+### Legacy to pattern map
+
+When a screen migrates, replace the legacy pieces as follows, then delete what is left unused:
+
+| Legacy | Pattern |
+| ------ | ------- |
+| `StatusDotBadge`, `DotBadge`, `AppBadge` status pills | `StatusBadge` with a mapped tone (Status badge) |
+| Card grid + `ViewToggle` + `use*ViewMode` | Table on desktop and cards on mobile (List screens) |
+| Inline row buttons, older dropdown row menus | `RowActionsMenu` (Row actions menu) |
+| `text-error`, `color="error"`, `border-error`, `text-red-*`, `--ui-error` | `--hf-danger` (Danger color); Nuxt `color="error"` buttons only for destructive confirms |
+| `coco-gold`, `coco-neutral-*`, `coco-*` shade classes, `--brand-*`, `--light-*` | `--hf-action`, `--hf-surface*`, `--hf-border`, `--hf-heading`, `--hf-text`, `--hf-muted` |
+| `font-bold` on names, titles and money | `font-semibold` (600); 700 is not used for names or titles (Typography) |
+| Hard-coded hex or Tailwind palette colors (`bg-green-100`, `text-amber-600`) | Status tones or the `--hf-*` roles |
+| Long dates, raw ISO strings | `formatShortDateTime` in lists, full date in the detail |
+| Raw money strings, `toFixed` | `formatDecimalMoney` (or the feature's cents formatter when the wire is in cents) |
+| Help paragraphs and per-card descriptions | Text diet |
+
+### UX principles (research)
+
+These principles are collected from public guidance and checked against our screens. They inform the patterns above; the patterns win when they are more specific.
+
+- **A table answers a scanning question.** The row is the unit people act on. Order columns by job, identifier first; keep money right-aligned with the same decimals all the way down; status is a word plus color, never color alone (WCAG 1.4.1). Sources: mikeui.co *Data table UX design for B2B* (2026); NN/g data-table research.
+- **Density follows time-in-screen.** All-day operators get compact rows (our 64px two-line rows and 40px headings); targets stay at least 24×24px (WCAG 2.2), and our controls stay at 44px. Source: Carbon row heights; uixdraft *Admin panel UI design* (2026).
+- **Active filters stay visible** with a result count and one way to clear them; a filter hidden in a closed panel makes users believe data is missing. Sources: mikeui.co; Thales Quantum *Data table filtering*.
+- **Every empty reason gets its own design** (nothing yet, no match, did not load, no access); an error never reuses the empty design. Sources: mikeui.co *Empty state UX*; Cloudscape *Empty states*.
+- **One clear priority per view.** On dashboards one number leads (size and position) and secondary metrics are smaller and muted; elsewhere there is one primary action. Source: uixdraft (2026).
+- **Navigation by frequency.** Keep 5–7 top-level groups and at most two levels; collapsed icons need tooltips. Source: uixdraft (2026).
+- **Container by job size.** A modal is for a decision, a side panel for a record and its history, a page for a long editor; an in-progress edit survives sort, filter and refresh. Sources: mikeui.co; uixdraft.
+- **Modern feel comes from restraint:** neutral surfaces, one accent, consistent 8px spacing steps, soft borders over shadows, a single typeface (Geist) with a tight weight scale, tabular figures, and motion only for state changes (150–200ms). These are common traits of current SaaS back offices (Linear, Vercel, Stripe dashboards; Dribbble POS and inventory dashboards reviewed 2026-11).
+
 ## 5. Using v0 without replacing application behavior
 
 v0 is a design collaborator for the shared table reference and specialized screens. Its output is a visual proposal, not authoritative application code.
