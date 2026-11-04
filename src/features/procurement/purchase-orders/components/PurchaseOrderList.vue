@@ -8,7 +8,7 @@ import { useClickableRow } from '@/core/shared/composables/useClickableRow'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { TableColumn } from '@/core/shared/types/table.types'
 import type { PurchaseOrderSummary } from '../interfaces/purchase-order.types'
-import { avisoLabel, orderRowActions, orderRowLabel, orderTotals, statusLabels, statusTones, type OrderRowActionKey } from '../utils/order-presentation'
+import { avisoText, orderRowActions, orderRowLabel, orderTotals, statusLabels, statusTones, type OrderRowActionKey } from '../utils/order-presentation'
 const props = defineProps<{ items: readonly PurchaseOrderSummary[]; canEdit: boolean; canDelete: boolean; canCreate?: boolean; filtered?: boolean; canConfirm?: boolean; canCancel?: boolean; loading?: boolean; fetching?: boolean; error?: boolean; disabled?: boolean; activeFilterCount?: number }>()
 // `origin` is the row's primary button: the element focus returns to when the order it opened is closed.
 const emit = defineEmits<{ open: [order: PurchaseOrderSummary, origin: HTMLElement | null]; confirm: [order: PurchaseOrderSummary, origin: HTMLElement | null]; cancel: [order: PurchaseOrderSummary, origin: HTMLElement | null]; discard: [order: PurchaseOrderSummary]; refresh: []; create: []; 'clear-filters': [] }>()
@@ -74,7 +74,7 @@ const lines = (count: number) => `${count} ${count === 1 ? 'renglón' : 'renglon
         <template #status-cell="{ row }">
           <div class="order-status-cell">
             <StatusBadge data-testid="order-status" v-bind="statusOf(row.original)" />
-            <span v-if="row.original.issueCount > 0" data-testid="order-aviso" class="order-aviso"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />{{ avisoLabel }}</span>
+            <span v-if="avisoText(row.original)" data-testid="order-aviso" class="order-aviso"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />{{ avisoText(row.original) }}</span>
           </div>
         </template>
         <template #total-cell="{ row }">
@@ -100,7 +100,7 @@ const lines = (count: number) => `${count} ${count === 1 ? 'renglón' : 'renglon
             <div class="order-card-meta">
               <StatusBadge v-if="row.supplierDisplaySnapshot?.status === 'ARCHIVED'" label="Archivado" tone="neutral" aria-prefix="Proveedor:" />
               <StatusBadge data-testid="order-status" v-bind="statusOf(row)" />
-              <span v-if="row.issueCount > 0" data-testid="order-aviso" class="order-aviso"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />{{ avisoLabel }}</span>
+              <span v-if="avisoText(row)" data-testid="order-aviso" class="order-aviso"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />{{ avisoText(row) }}</span>
             </div>
             <div class="order-card-footer">
               <span class="order-card-summary">{{ lines(row.lineCount) }} ·

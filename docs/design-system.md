@@ -280,7 +280,7 @@ Urgency is shown where the problem is, in the warm tones, and always with text:
 
 - A row or line with a pending issue gets the **`--hf-warning-soft` row tint** (artboards 04, 05).
 - The missing value is replaced by **one `Falta` marker**: triangle icon plus `--hf-warning` 600 text in the cell that lacks it (`Falta` instead of the cost). The missing part is a description, not a second visible line: `title` plus an assistive-tech-only span (`.order-missing-part`) on desktop, plain text on the mobile card (`Falta el costo`). The subtotal stays `—`.
-- In a list, `1 aviso` beside the status badge; urgent states use `StatusBadge urgent`.
+- In a list, `1 aviso` / `N avisos` beside the status badge, read from the server's checklist item count (never recomputed; `Con avisos` only when a response lacks the count; none at 0 or on a non-draft order); urgent states use `StatusBadge urgent`.
 - `--hf-danger` is for what is wrong or destructive: a field in error, the limit reached, the destructive item. Pending is warning, never danger.
 
 ### Inline line editing

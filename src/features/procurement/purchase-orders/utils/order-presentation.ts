@@ -7,8 +7,14 @@ export const statusLabels: Record<PurchaseOrderStatus, string> = { DRAFT: 'Borra
 export const statusTones = { DRAFT: 'neutral', CONFIRMED: 'success', CANCELLED: 'neutral' } as const
 const basisLabels: Record<OrderTotal['taxBasis'], string> = { EXCLUDES_TAX: 'sin imp.', INCLUDES_TAX: 'con imp.' }
 
-// The list row only carries the server's raw issue count (one per sub-field), not the checklist's issue families, so the marker never shows a number.
-export const avisoLabel = 'Con avisos'
+// The marker count is the server's checklist item count, shown as is. A response without it (older backend) keeps the generic wording while the draft has raw issues.
+export function avisoText(order: Pick<PurchaseOrderSummary, 'status' | 'issueCount' | 'checklistItemCount'>): string | null {
+  if (order.status !== 'DRAFT') return null
+  const count = order.checklistItemCount
+  if (count === undefined) return order.issueCount > 0 ? 'Con avisos' : null
+  if (count <= 0) return null
+  return count === 1 ? '1 aviso' : `${count} avisos`
+}
 export function orderRowLabel(order: Pick<PurchaseOrderSummary, 'status' | 'supplierDisplaySnapshot'>) {
   const supplier = order.supplierDisplaySnapshot?.displayName
   return `${supplier ? `la orden de ${supplier}` : 'la orden sin proveedor'}, ${statusLabels[order.status].toLowerCase()}`

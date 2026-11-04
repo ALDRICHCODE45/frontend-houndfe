@@ -54,6 +54,16 @@ describe('purchase order transport', () => {
     expect(result.items[1]!.totals).toEqual([{ amount: '1000.5000', currency: 'MXN', taxBasis: 'EXCLUDES_TAX' }, { amount: '580.00', currency: 'MXN', taxBasis: 'INCLUDES_TAX' }])
   })
 
+  it('passes the issue summary and checklist count through untouched, and accepts rows without them', async () => {
+    const summary = { version: 1, status: 'DRAFT' as const, supplierDisplaySnapshot: null, lineCount: 2, issueCount: 3, note: null, locationDetail: null, totals: null, createdAt: '2026-11-03T00:00:00.000Z', updatedAt: '2026-11-03T00:00:00.000Z' }
+    const issueSummary = { cost: 2, quantity: 1, reference: 0, order: ['SUPPLIER_ARCHIVED'] }
+    const page: PurchaseOrderPage = { items: [{ ...summary, id: 'with', issueSummary, checklistItemCount: 3 }, { ...summary, id: 'legacy' }], nextCursor: null }
+    vi.mocked(http.get).mockResolvedValue({ data: page })
+    const result = await purchaseOrdersApi.list({})
+    expect(result.items[0]).toMatchObject({ issueSummary, checklistItemCount: 3 })
+    expect(result.items[1]!.checklistItemCount).toBeUndefined()
+  })
+
   it('sends the single status filter and omits it when absent', async () => {
     vi.mocked(http.get).mockResolvedValue({ data: { items: [], nextCursor: null } })
     await purchaseOrdersApi.list({ status: 'CONFIRMED' })

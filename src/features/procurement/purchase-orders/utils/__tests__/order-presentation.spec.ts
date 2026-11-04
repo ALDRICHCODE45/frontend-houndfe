@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { avisoLabel, orderHeaderActions, orderRowActions, orderRowLabel, orderTotals, statusLabels, statusTones } from '../order-presentation'
+import { avisoText, orderHeaderActions, orderRowActions, orderRowLabel, orderTotals, statusLabels, statusTones } from '../order-presentation'
 import type { PurchaseOrderSummary } from '../../interfaces/purchase-order.types'
 const row = (patch: Partial<PurchaseOrderSummary> = {}): PurchaseOrderSummary => ({
   id: 'order-id', version: 1, status: 'DRAFT', supplierDisplaySnapshot: { id: 's', displayName: 'Distribuidora del Norte', status: 'ACTIVE' },
@@ -13,8 +13,20 @@ describe('status presentation', () => {
     expect(statusLabels).toEqual({ DRAFT: 'Borrador', CONFIRMED: 'Confirmada', CANCELLED: 'Cancelada' })
     expect(statusTones).toEqual({ DRAFT: 'neutral', CONFIRMED: 'success', CANCELLED: 'neutral' })
   })
-  it('words the marker without a count: the list only has raw sub-field issues, not the checklist families', () => {
-    expect(avisoLabel).toBe('Con avisos')
+  it('words the marker from the server checklist count: 1 aviso, N avisos', () => {
+    expect(avisoText(row({ issueCount: 4, checklistItemCount: 1 }))).toBe('1 aviso')
+    expect(avisoText(row({ issueCount: 4, checklistItemCount: 3 }))).toBe('3 avisos')
+  })
+  it('falls back to Con avisos only when the count is absent and the draft has raw issues', () => {
+    expect(avisoText(row({ issueCount: 2 }))).toBe('Con avisos')
+    expect(avisoText(row({ issueCount: 0 }))).toBeNull()
+  })
+  it('shows no marker for a zero count, whatever the raw issue count says', () => {
+    expect(avisoText(row({ issueCount: 2, checklistItemCount: 0 }))).toBeNull()
+  })
+  it('shows no marker on a confirmed or cancelled order', () => {
+    expect(avisoText(row({ status: 'CONFIRMED', issueCount: 2, checklistItemCount: 2 }))).toBeNull()
+    expect(avisoText(row({ status: 'CANCELLED', issueCount: 2 }))).toBeNull()
   })
   it('names the row for assistive tech without ids', () => {
     expect(orderRowLabel(row())).toBe('la orden de Distribuidora del Norte, borrador')

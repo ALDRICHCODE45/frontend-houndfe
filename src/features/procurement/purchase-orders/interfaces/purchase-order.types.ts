@@ -25,6 +25,8 @@ export interface ValidationIssue {
   path: string
   code: string
 }
+// Server-computed checklist summary, additive: absent on responses from a backend that predates it. Never recomputed here.
+export interface IssueSummary { cost: number; quantity: number; reference: number; order: string[] }
 export interface PurchaseOrder extends OrderInput {
   id: string
   version: number
@@ -36,6 +38,8 @@ export interface PurchaseOrder extends OrderInput {
   lineSubtotals: Array<{ lineId: string; subtotal: { amount: string; currency: string; taxBasis: TaxBasis } | null }>
   locationSnapshot: { tenantId: string; tenantName: string; detail: string | null }
   validation: { issues: ValidationIssue[] }
+  issueSummary?: IssueSummary
+  checklistItemCount?: number
   // O3c: opaque confirmation expectations, sent back verbatim; never computed here.
   supplierCurrentVersion: number | null
   referenceToken: string | null
@@ -71,6 +75,9 @@ export interface PurchaseOrderSummary {
   supplierDisplaySnapshot: PurchaseOrder['supplierDisplaySnapshot']
   lineCount: number
   issueCount: number
+  issueSummary?: IssueSummary
+  // Items the issue checklist shows; the list marker reads it as «N avisos».
+  checklistItemCount?: number
   note: string | null
   locationDetail: string | null
   // null when any line lacks a subtotal or there are no lines; 2 entries when the tax bases are mixed.
