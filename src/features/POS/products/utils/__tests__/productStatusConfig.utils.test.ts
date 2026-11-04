@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  getProductStockCompactLabel,
   getProductStockDisplay,
   getProductStockTone,
   getStockTone,
@@ -124,6 +125,32 @@ describe('productStatusConfig maps the domain status to a StatusBadge tone', () 
   it('uses success, neutral (never red) and danger', () => {
     expect(productStatusConfig.active).toEqual({ tone: 'success', label: 'Activo' })
     expect(productStatusConfig.inactive).toEqual({ tone: 'neutral', label: 'Inactivo' })
-    expect(productStatusConfig.out_of_stock).toEqual({ tone: 'danger', label: 'Sin Stock' })
+    expect(productStatusConfig.out_of_stock).toEqual({ tone: 'danger', label: 'Sin stock' })
+  })
+})
+
+describe('stock labels agree in number and have a compact form for cards', () => {
+  it('writes 1 unidad, never "1 unidades"', () => {
+    expect(getProductStockDisplay(makeProduct({ quantity: 1, minQuantity: 0 })).label).toBe('1 unidad')
+    expect(getProductStockDisplay(makeProduct({ quantity: 24 })).label).toBe('24 unidades')
+    expect(
+      getProductStockDisplay(
+        makeProduct({ hasVariants: true, variantStockTotal: 1, variantCount: 1 }),
+      ).label,
+    ).toBe('1 unidad en 1 variante')
+  })
+
+  it('shortens variants to the unit total so a card footer fits on one line', () => {
+    expect(
+      getProductStockCompactLabel(
+        makeProduct({ hasVariants: true, variantStockTotal: 24, variantCount: 2 }),
+      ),
+    ).toBe('24 unidades')
+    expect(
+      getProductStockCompactLabel(
+        makeProduct({ hasVariants: true, variantStockTotal: null, variantCount: 2 }),
+      ),
+    ).toBe('En variantes')
+    expect(getProductStockCompactLabel(makeProduct({ quantity: 7 }))).toBe('7 unidades')
   })
 })

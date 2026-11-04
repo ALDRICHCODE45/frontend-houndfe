@@ -5,7 +5,7 @@ import type { Product, ProductType as ProductTypeAlias } from '../interfaces/pro
 export const productStatusConfig = {
   active: { tone: 'success' as StatusBadgeTone, label: 'Activo' },
   inactive: { tone: 'neutral' as StatusBadgeTone, label: 'Inactivo' },
-  out_of_stock: { tone: 'danger' as StatusBadgeTone, label: 'Sin Stock' },
+  out_of_stock: { tone: 'danger' as StatusBadgeTone, label: 'Sin stock' },
 } as const
 
 /** Label and icon of the product type; the type is a category, not a status, so it has no tone. */
@@ -23,6 +23,9 @@ export const getStockTone = (stock: number, minQuantity = 10): AppBadgeTone => {
   if (stock <= minQuantity) return 'warning'
   return 'success'
 }
+
+/** "1 unidad", "24 unidades": the noun agrees in number. */
+const unitsLabel = (count: number): string => `${count} ${count === 1 ? 'unidad' : 'unidades'}`
 
 export interface ProductStockDisplay {
   label: string
@@ -51,7 +54,7 @@ export const getProductStockDisplay = (product: Product): ProductStockDisplay =>
   if (product.hasVariants && product.variantStockTotal != null) {
     const variantWord = product.variantCount === 1 ? 'variante' : 'variantes'
     return {
-      label: `${product.variantStockTotal} unidades en ${product.variantCount} ${variantWord}`,
+      label: `${unitsLabel(product.variantStockTotal)} en ${product.variantCount} ${variantWord}`,
       tone: getProductStockTone(product),
     }
   }
@@ -61,9 +64,20 @@ export const getProductStockDisplay = (product: Product): ProductStockDisplay =>
   }
 
   return {
-    label: `${product.quantity} unidades`,
+    label: unitsLabel(product.quantity),
     tone: getProductStockTone(product),
   }
+}
+
+/**
+ * Short stock label for a mobile card footer: the unit total only, with no
+ * variant count, so "$249.00 · 24 unidades" stays on one line.
+ */
+export const getProductStockCompactLabel = (product: Product): string => {
+  if (product.hasVariants) {
+    return product.variantStockTotal != null ? unitsLabel(product.variantStockTotal) : 'En variantes'
+  }
+  return unitsLabel(product.quantity)
 }
 
 /** Only low or empty stock earns a badge; healthy stock reads as plain text. */

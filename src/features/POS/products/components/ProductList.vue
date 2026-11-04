@@ -15,6 +15,7 @@ import type {
 import { useProductColumns } from '../composables/useProductColumns'
 import type { Product } from '../interfaces/product.types'
 import {
+  getProductStockCompactLabel,
   getProductStockDisplay,
   getProductTypeBadge,
   productStatusConfig,
@@ -245,7 +246,7 @@ const rowOpen = computed(() => (props.canRead ? open : undefined))
           />
           <StatusBadge
             v-if="stockNeedsAttention(row)"
-            :label="getProductStockDisplay(row).label"
+            :label="getProductStockCompactLabel(row)"
             :tone="getProductStockDisplay(row).tone"
             aria-prefix="Stock:"
           />
@@ -254,7 +255,7 @@ const rowOpen = computed(() => (props.canRead ? open : undefined))
           <span class="hf-figure">
             <span class="font-semibold">{{ formatCentsMXN(row.priceCents) }}</span>
             <template v-if="!stockNeedsAttention(row)">
-              · {{ getProductStockDisplay(row).label }}
+              · {{ getProductStockCompactLabel(row) }}
             </template>
           </span>
           <span class="product-card-date">{{ formatShortDateTime(row.updatedAt) }}</span>
@@ -280,6 +281,15 @@ const rowOpen = computed(() => (props.canRead ? open : undefined))
 }
 .product-card-title {
   min-width: 0;
+}
+/* The name wraps to two lines instead of cutting after one. */
+.product-card-title .hf-row-primary {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 .product-card-menu {
   margin: -8px -8px 0 0;

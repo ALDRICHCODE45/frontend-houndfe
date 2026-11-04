@@ -210,7 +210,7 @@ describe('shared HF UI adapter', () => {
         rule.selectorText.includes('.hf-data-table') &&
         /\[data-slot=['"]th['"]\]/.test(rule.selectorText),
     )
-    expect(header!.style.getPropertyValue('color').trim()).toBe('var(--hf-heading)')
+    expect(header!.style.getPropertyValue('color').trim()).toBe('var(--hf-muted)')
 
     const menuItem = rules.find((rule) => /\[role=['"]menuitem['"]\]/.test(rule.selectorText))
     expect(menuItem!.style.getPropertyValue('min-height').trim()).toBe('var(--hf-control-height)')

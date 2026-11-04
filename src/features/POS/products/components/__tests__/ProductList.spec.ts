@@ -2,6 +2,8 @@
  * Product list — S10 four states plus no-match, against the real AppDataTable
  * (toolbar and pagination stubbed): empty, loading, data, error.
  */
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { ref } from 'vue'
@@ -104,7 +106,7 @@ describe('ProductList — data', () => {
   it.each([
     ['active', 'Activo', 'success'],
     ['inactive', 'Inactivo', 'neutral'],
-    ['out_of_stock', 'Sin Stock', 'danger'],
+    ['out_of_stock', 'Sin stock', 'danger'],
   ] as const)('renders %s with the shared status badge', (status, label, tone) => {
     const wrapper = mountList({ items: [{ ...product, status }] })
     const badge = wrapper.get('td[data-column="status"] .hf-status-badge, .hf-status-badge')
@@ -302,6 +304,37 @@ describe('ProductList — error', () => {
     await wrapper.get('[data-testid="table-error-retry"]').trigger('click')
     expect(wrapper.emitted('refresh')).toHaveLength(1)
     expect(wrapper.find('.hf-empty-state[data-kind="empty"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})
+
+describe('ProductList — review round 1', () => {
+  const variantsProduct: Product = {
+    ...product,
+    name: 'Collar ajustable Ruffwear Front Range para perro mediano',
+    hasVariants: true,
+    variantStockTotal: 24,
+    variantCount: 2,
+  }
+
+  it('keeps the mobile footer to one short line: price and units, no variant count', () => {
+    isMobile.value = true
+    const wrapper = mountList({ items: [variantsProduct] })
+    const footer = wrapper.get('.product-card-footer .hf-figure')
+    expect(footer.text()).toBe('$1,299.00 · 24 unidades')
+    expect(footer.text()).not.toContain('variantes')
+    wrapper.unmount()
+  })
+
+  it('clamps the mobile card name to two lines instead of one', () => {
+    const source = readFileSync(resolve(__dirname, '../ProductList.vue'), 'utf8')
+    expect(source).toMatch(/\.product-card-title \.hf-row-primary[^}]*-webkit-line-clamp: 2/s)
+    expect(source).not.toMatch(/\.product-card-title \.hf-row-primary[^}]*white-space: nowrap/s)
+  })
+
+  it('shows the table stock with the full unit and variant count', () => {
+    const wrapper = mountList({ items: [variantsProduct] })
+    expect(wrapper.text()).toContain('24 unidades en 2 variantes')
     wrapper.unmount()
   })
 })
