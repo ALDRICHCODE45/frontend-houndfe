@@ -3,6 +3,9 @@
 const API = '__API_ORIGIN__'
 const CREDENTIALS = '__CREDENTIALS_PATH__'
 const DIR = '__EVIDENCE_DIR__'
+// Git HEAD at generation time, and whether src/docs had uncommitted changes then (traceability, L19).
+const COMMIT = '__COMMIT__'
+const TREE_DIRTY = '__TREE_DIRTY__'
 const ORIGIN = 'http://127.0.0.1:43179'
 const ORDERS = '/procurement/purchase-orders'
 const SUPPLIERS = '/procurement/suppliers'
@@ -14,6 +17,9 @@ const STAGE_ROLES = {
   transitions: ['manager'],
 }
 const LABEL = { DRAFT: 'Borrador', CONFIRMED: 'Confirmada', CANCELLED: 'Cancelada' }
+// Readable options of the Estado filter, in the order the listbox shows them.
+const STATUS_LABEL = { ALL: 'Todas', DRAFT: 'Borradores', CONFIRMED: 'Confirmadas', CANCELLED: 'Canceladas' }
+const MONEY = /\$[\d,]+\.\d{2}/
 const STALE_COPY = {
   ORDER_STATE_CONFLICT: 'La orden ya no está en un estado que permita esta acción. Revisa su estado actual.',
   // After a transition the order is already re-read (bb1ba884), so the copy no longer promises kept local edits.
@@ -35,7 +41,7 @@ const redact = path => path.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 
 export async function run(browserPage, stage) {
   const report = {
-    stage, checks: [], findings: [], requests: [], outsideScope: [], screenshots: [], nativeDialogs: [], observed: {}, showcase: {},
+    stage, commit: COMMIT, workingTreeDirty: TREE_DIRTY, checks: [], findings: [], requests: [], outsideScope: [], screenshots: [], nativeDialogs: [], observed: {}, showcase: {},
     runtimeErrorCount: 0, verdict: 'incomplete',
     coverage: 'real mounted auth/router and UI; direct boundary probes use browser fetch with the same session, not feature adapters',
   }
@@ -47,6 +53,7 @@ export async function run(browserPage, stage) {
   const log = [] // raw response log; summarised into report.requests at the end
   try {
     check(Object.keys(STAGE_ROLES).includes(stage), 'known stage')
+    check(/^[0-9a-f]{40}$/.test(COMMIT) && typeof TREE_DIRTY === 'boolean', 'report carries the git commit the harness was generated from')
     check(/^http:\/\/127\.0\.0\.1:\d+$/.test(API) && !['3000', '43179', '0'].includes(API.split(':').at(-1)) && Number(API.split(':').at(-1)) <= 65535, 'explicit disposable loopback API configured')
     check(CREDENTIALS.startsWith('/') && !CREDENTIALS.includes('__') && DIR.startsWith('/') && !DIR.includes('__'), 'absolute credentials path and evidence directory configured')
     context = await browserPage.context().browser().newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce', serviceWorkers: 'block' })
@@ -208,25 +215,52 @@ export async function run(browserPage, stage) {
       searchNow = term
       return await response
     }
-    // On mobile the Estado select lives in the Filtros bottom sheet.
+    // The Estado filter is a USelect: open its listbox and pick the option by its readable label.
+    // On mobile it lives in the Filtros bottom sheet.
     const withStatusSelect = async fn => {
       const mobile = vw < 768
       if (mobile) await page.getByTestId('toolbar-filtros-button').click()
-      const select = page.getByTestId('order-status-filter')
-      await select.waitFor({ state: 'visible' })
-      try { return await fn(select) } finally {
-        if (mobile) { await page.getByTestId('toolbar-filters-close').click(); await select.waitFor({ state: 'hidden' }) }
+      const trigger = page.getByTestId('order-status-filter')
+      await trigger.waitFor({ state: 'visible' })
+      try { return await fn(trigger) } finally {
+        if (mobile) { await page.getByTestId('toolbar-filters-close').click(); await trigger.waitFor({ state: 'hidden' }) }
       }
     }
-    const statusValue = () => withStatusSelect(select => select.inputValue())
+    const statusValue = () => withStatusSelect(async trigger => {
+      const label = (await trigger.innerText()).trim()
+      return Object.keys(STATUS_LABEL).find(key => STATUS_LABEL[key] === label) ?? null
+    })
     const setStatus = async value => {
       const wanted = value === 'ALL' ? '' : value
       if (wanted === statusNow) return null
-      return await withStatusSelect(async select => {
+      return await withStatusSelect(async trigger => {
         const response = waitRes(r => isList(r, wanted, searchNow))
-        await select.selectOption(value)
+        await trigger.click()
+        await page.getByRole('option', { name: STATUS_LABEL[value], exact: true }).click()
         statusNow = wanted
         return await response
+      })
+    }
+    // Design assertions for the filter (S8/S9 D1). Runs with Todas selected, so choosing it again changes nothing.
+    const filterDesign = async tag => {
+      step = `filter design checks: ${tag}`
+      const mobile = vw < 768
+      await withStatusSelect(async trigger => {
+        check(await trigger.getAttribute('role') === 'combobox' && await trigger.getAttribute('aria-label') === 'Estado', `Estado filter is a labelled combobox: ${tag}`)
+        check(await page.locator('.hf-toolbar select, [data-testid="toolbar-filters-body"] select, select[data-testid="order-status-filter"]').count() === 0, `no native select in the toolbar or the Filtros sheet: ${tag}`)
+        const box = await trigger.boundingBox()
+        check(Boolean(box) && box.height >= 43.5, `Estado trigger keeps the 44px hit area: ${tag}`)
+        if (mobile) {
+          check((await page.getByTestId('toolbar-filters-body').innerText()).includes('Estado'), `Estado is a titled section of the Filtros sheet: ${tag}`)
+        } else {
+          const search = await page.getByPlaceholder('Buscar por proveedor o nota...', { exact: true }).boundingBox()
+          check(Boolean(search) && Math.abs(search.y + search.height / 2 - (box.y + box.height / 2)) <= 6 && box.x >= search.x + search.width - 1, `Estado filter shares the search row at ${vw}: ${tag}`)
+        }
+        await trigger.click()
+        const options = (await page.getByRole('option').allInnerTexts()).map(text => text.trim())
+        check(JSON.stringify(options) === JSON.stringify(Object.values(STATUS_LABEL)), `the listbox offers ${Object.values(STATUS_LABEL).join(', ')} by readable label: ${tag}`)
+        await page.getByRole('option', { name: STATUS_LABEL.ALL, exact: true }).click()
+        await page.getByRole('listbox').waitFor({ state: 'hidden' })
       })
     }
     const badges = async (name, expected) => {
@@ -272,14 +306,41 @@ export async function run(browserPage, stage) {
     const noTransitionUi = async name => {
       check(!(await present('confirm-order')) && !(await present('cancel-order')) && await slide().getByRole('button', { name: /^(Confirmar|Cancelar) orden$/ }).count() === 0, `no Confirmar/Cancelar order UI: ${name}`)
     }
-    const draftFormDisabled = async name => {
-      check(await slide().locator('form.order-form').count() === 1 && await slide().getByRole('button', { name: 'Guardar borrador', exact: true }).isDisabled() && await slide().locator('textarea').isDisabled(), `draft opens with a disabled form: ${name}`)
+    // A draft without update permission renders the read-only block (D3): no form, no disabled edit controls.
+    const readOnlyDraft = async name => {
+      const block = slide().getByTestId('order-readonly')
+      await block.waitFor()
+      check(await slide().locator('form.order-form').count() === 0 && await slide().getByRole('button', { name: /^(Guardar borrador|Agregar renglón|Cambiar producto|Quitar)/ }).count() === 0, `read-only draft has no form or edit controls: ${name}`)
+      check(await block.locator('button:disabled, [disabled], [aria-disabled="true"]').count() === 0, `read-only draft has no disabled buttons: ${name}`)
+      check((await block.locator('dd').first().innerText()).trim() === LABEL.DRAFT, `read-only draft shows the Borrador status: ${name}`)
     }
-    const modalCopy = async (kind, name) => {
+    // Money in read-only views is es-MX currency in tabular right-aligned cells; absent amounts read a dash.
+    const moneyCells = async name => {
+      const cells = slide().locator('[data-testid="line-cost"], [data-testid="line-subtotal"]')
+      const texts = (await cells.allInnerTexts()).map(t => t.trim())
+      check(texts.length > 0 && texts.every(text => text === '—' || MONEY.test(text)), `read-only money matches $1,234.00: ${name}`)
+      check(await cells.evaluateAll(nodes => nodes.every(n => { const s = getComputedStyle(n); return s.fontVariantNumeric.includes('tabular-nums') && ['right', 'end'].includes(s.textAlign) })), `read-only money is right-aligned with tabular numerals: ${name}`)
+    }
+    const disabledPrimaryLegible = async name => {
+      const style = await slide().getByTestId('confirm-order').evaluate(el => { const s = getComputedStyle(el); return { opacity: s.opacity, cursor: s.cursor } })
+      check(style.opacity === '1' && style.cursor === 'not-allowed', `disabled Confirmar orden is not faded: ${name}`)
+    }
+    const modalCopy = async (kind, name, order) => {
       const text = await modal().innerText()
       check(/No se modifican existencias, pagos ni deuda/.test(text), `${kind} dialog says it does not move stock, payments or debt: ${name}`)
       check(kind === 'confirm' ? /Se congelarán/.test(text) : /definitiva/.test(text), `${kind} dialog copy: ${name}`)
       check(await modal().locator('input, textarea, select').count() === 0, `${kind} dialog has no reason field: ${name}`)
+      // D5: a compact summary of what is being confirmed or cancelled, with no client-side totals.
+      const summary = modal().getByTestId('order-summary')
+      await summary.waitFor({ state: 'visible' })
+      const summaryText = await summary.innerText()
+      const shown = Math.min(5, order.lines.length)
+      const items = (await summary.locator('li').allInnerTexts()).map(t => t.trim())
+      check(summaryText.includes(order.supplierName) && summaryText.includes(order.tenantName), `${kind} dialog summary names the supplier and the location: ${name}`)
+      check((await summary.locator('dd').nth(2).innerText()).trim() === String(order.lines.length), `${kind} dialog summary shows the line count: ${name}`)
+      check(items.length === shown && order.lineNames.slice(0, shown).every((product, i) => items[i].includes(product) && items[i].includes(' — ')), `${kind} dialog summary lists up to 5 lines as product — quantity: ${name}`)
+      check(order.lines.length > 5 ? summaryText.includes(`y ${order.lines.length - 5} ${order.lines.length - 5 === 1 ? 'renglón' : 'renglones'} más`) : !summaryText.includes('más'), `${kind} dialog summary counts the remaining lines: ${name}`)
+      check(!/\$|Total/.test(summaryText), `${kind} dialog summary shows no totals: ${name}`)
     }
     const escapeReturnsFocus = async (kind, name) => {
       await openTransition(kind)
@@ -302,19 +363,25 @@ export async function run(browserPage, stage) {
       const s = slide()
       await s.getByTestId('order-readonly').waitFor()
       check(await s.locator('form.order-form, textarea, input, select').count() === 0 && await s.getByRole('button', { name: 'Guardar borrador', exact: true }).count() === 0, `form fields are gone: ${name}`)
-      check((await s.getByTestId('order-readonly').locator('dd').first().innerText()).trim() === LABEL[state], `read-only block status is ${LABEL[state]}: ${name}`)
+      await until(async () => (await s.getByTestId('order-readonly').locator('dd').first().innerText()).trim() === LABEL[state], `read-only block status is ${LABEL[state]}: ${name}`)
       await s.getByText(`${LABEL[state]} por ${actor}`, { exact: false }).first().waitFor()
       report.checks.push(`read-only block shows "${LABEL[state]} por ${actor}": ${name}`)
     }
     const subtotalsMatch = async (order, name) => {
-      const texts = (await slide().locator('.order-subtotal').allInnerTexts()).map(t => t.trim())
-      const expected = order.lines.map(line => { const s = order.subtotals.find(item => item.lineId === line.lineId)?.subtotal; return s ? `Subtotal: ${s.amount} ${s.currency}` : 'Subtotal: —' })
-      check(texts.length > 0 && JSON.stringify(texts) === JSON.stringify(expected), `line subtotals are the server values (dash when none): ${name}`)
+      const texts = (await slide().locator('[data-testid="line-subtotal"]').allInnerTexts()).map(t => t.trim())
+      const costs = (await slide().locator('[data-testid="line-cost"]').allInnerTexts()).map(t => t.trim())
+      // Formatting must neither recalculate nor round: the digits equal the server decimal string.
+      const same = (text, amount) => MONEY.test(text) && Number(text.replace(/[^\d.]/g, '')) === Number(amount)
+      const subtotals = order.lines.map(line => order.subtotals.find(item => item.lineId === line.lineId)?.subtotal ?? null)
+      check(texts.length > 0 && texts.length === subtotals.length && texts.every((text, i) => subtotals[i] ? same(text, subtotals[i].amount) : text === '—'), `line subtotals are the server values formatted as currency (dash when none): ${name}`)
+      check(costs.length === order.lines.length && costs.every((text, i) => order.lines[i].informedUnitCost?.amount ? same(text, order.lines[i].informedUnitCost.amount) : text === '—'), `unit costs are the server values formatted as currency: ${name}`)
+      await moneyCells(name)
     }
 
     // ---- fixtures: read-only classification of the showcase orders by readable attributes ----
     const brief = d => ({
       id: d.id, status: d.status, version: d.version, createdAt: d.createdAt, note: d.note ?? null,
+      tenantName: d.locationSnapshot?.tenantName ?? null, lineNames: d.lines.map(line => d.lineDisplaySnapshots?.find(item => item.lineId === line.lineId)?.productName ?? 'Sin producto'),
       supplierId: d.supplierId ?? null, supplierName: d.supplierDisplaySnapshot?.displayName ?? null, supplierStatus: d.supplierDisplaySnapshot?.status ?? null,
       location: d.location, lines: d.lines, subtotals: d.lineSubtotals, canConfirm: d.canConfirm === true,
       issueCodes: (d.validation?.issues ?? []).map(i => i.code), supplierCurrentVersion: d.supplierCurrentVersion ?? null, referenceToken: d.referenceToken ?? null,
@@ -357,6 +424,10 @@ export async function run(browserPage, stage) {
       found.templates = [...ready, ...confirmed, ...cancelled.filter(d => d.confirmedAt)].filter(d => d.supplierId && d.supplierStatus === 'ACTIVE' && d.lines.length > 0)
       report.showcase = Object.fromEntries(need.map(key => [key, key === 'templates' ? found.templates.length > 0 : Boolean(found[key])]))
       report.showcase.readyDrafts = ready.length; report.showcase.confirmedOrders = confirmed.length
+      // Seeds are recorded by readable name (never ids) so a report says which fixtures it ran on.
+      report.showcaseOrders = Object.fromEntries(need.filter(key => key !== 'templates' && found[key]).map(key => [key, `${found[key].supplierName ?? 'Sin proveedor'} · ${(found[key].note ?? '').split('\n')[0].slice(0, 60)}`]))
+      finding(ready.length >= 3, 'runtime seeds at least three ready drafts (readyToConfirm, 2 and 3)')
+      finding(confirmed.length >= 3, 'runtime seeds at least three confirmed orders (confirmed, 2 and 3)')
       report.missingShowcase = need.filter(key => !report.showcase[key])
       check(report.missingShowcase.length === 0, `showcase orders are present: ${need.join(', ')}`)
       return found
@@ -387,6 +458,7 @@ export async function run(browserPage, stage) {
       const filterChecks = async tag => {
         step = `status filter checks: ${tag}`
         await setStatus('ALL'); await applySearch('')
+        await filterDesign(tag)
         const all = await badges(`Todas ${tag}`)
         finding(new Set(all).size === 3, `Todas first page shows Borrador, Confirmada and Cancelada rows: ${tag}`)
         for (const status of ['DRAFT', 'CONFIRMED', 'CANCELLED']) {
@@ -409,10 +481,12 @@ export async function run(browserPage, stage) {
 
         await openOrder(found.readyToConfirm, `ready draft ${tag}`)
         check(await slide().locator('form.order-form').count() === 1 && await enabled('confirm-order') && await enabled('cancel-order'), `ready draft: Confirmar and Cancelar enabled: ${tag}`)
+        const saved = (await slide().locator('.order-subtotal .order-money').allInnerTexts()).map(t => t.trim())
+        finding(saved.length > 0 && saved.every(text => MONEY.test(text)), `saved line subtotals in the editor are currency formatted: ${tag}`)
         await snap(`draft-ready-${tag}`)
-        await openTransition('confirm'); await modalCopy('confirm', tag); await snap(`confirm-dialog-${tag}`)
+        await openTransition('confirm'); await modalCopy('confirm', tag, found.readyToConfirm); await snap(`confirm-dialog-${tag}`)
         await page.keyboard.press('Escape'); await modal().waitFor({ state: 'hidden' })
-        await openTransition('cancel'); await modalCopy('cancel', tag); await snap(`cancel-dialog-${tag}`)
+        await openTransition('cancel'); await modalCopy('cancel', tag, found.readyToConfirm); await snap(`cancel-dialog-${tag}`)
         await modal().getByTestId('cancel-transition').click(); await modal().waitFor({ state: 'hidden' })
         await escapeReturnsFocus('confirm', tag)
         await escapeReturnsFocus('cancel', tag)
@@ -421,6 +495,7 @@ export async function run(browserPage, stage) {
         await slide().locator('textarea').fill(`${original} edición local`)
         await until(async () => !(await enabled('confirm-order')) && !(await enabled('cancel-order')), `unsaved edit blocks Confirmar and Cancelar: ${tag}`)
         await slide().getByText('Guarda tus cambios antes de confirmar o cancelar.', { exact: true }).waitFor()
+        await disabledPrimaryLegible(`unsaved edit ${tag}`)
         report.checks.push(`unsaved edit shows "Guarda tus cambios antes de confirmar o cancelar.": ${tag}`)
         await snap(`draft-unsaved-${tag}`)
         const dialogsBefore = report.nativeDialogs.length
@@ -431,6 +506,7 @@ export async function run(browserPage, stage) {
         check(!(await enabled('confirm-order')), `incompleteCost: Confirmar disabled: ${tag}`)
         await slide().getByText('Completa los avisos del borrador para poder confirmarla.', { exact: true }).waitFor()
         report.checks.push(`incompleteCost: hint is visible: ${tag}`)
+        await disabledPrimaryLegible(`incompleteCost ${tag}`)
         await snap(`draft-incomplete-${tag}`); await closeEditor()
 
         await openOrder(found.archivedSupplierDraft, `archivedSupplierDraft ${tag}`)
@@ -456,7 +532,7 @@ export async function run(browserPage, stage) {
         await openOrder(found.cancelledFromDraft, `cancelledFromDraft ${tag}`)
         await expectClosed('CANCELLED', found.cancelledFromDraft.cancelledBy, `cancelledFromDraft ${tag}`)
         await subtotalsMatch(found.cancelledFromDraft, `cancelledFromDraft ${tag}`)
-        check((await slide().locator('.order-subtotal').allInnerTexts()).every(t => t.trim() === 'Subtotal: —'), `never-confirmed cancelled order shows the subtotal dash: ${tag}`)
+        check((await slide().locator('[data-testid="line-subtotal"]').allInnerTexts()).every(t => t.trim() === '—'), `never-confirmed cancelled order shows the subtotal dash: ${tag}`)
         await snap(`cancelled-from-draft-${tag}`); await closeEditor()
       }
 
@@ -584,12 +660,12 @@ export async function run(browserPage, stage) {
         } else if (role === 'confirmer') {
           await listChrome(role, false)
           await openOrder(cancelProbe, 'confirmer opens a draft')
-          await draftFormDisabled('confirmer')
+          await readOnlyDraft('confirmer')
           check(await enabled('confirm-order') && !(await present('cancel-order')), 'confirmer: Confirmar available, no Cancelar')
           await snap('confirmer-draft-1440-light'); await closeEditor()
           await forbidden(role, cancelProbe, ['cancel'])
           await openOrder(confirmProbe, 'confirmer confirms a probe draft')
-          await draftFormDisabled('confirmer before confirming')
+          await readOnlyDraft('confirmer before confirming')
           await transition('confirm', 'confirmer')
           await expectClosed('CONFIRMED', NAMES.confirmer, 'confirmer result')
           await noTransitionUi('confirmer after confirming (no Cancelar)')
@@ -598,7 +674,7 @@ export async function run(browserPage, stage) {
         } else if (role === 'canceller') {
           await listChrome(role, false)
           await openOrder(cancelProbe, 'canceller cancels a probe draft')
-          await draftFormDisabled('canceller')
+          await readOnlyDraft('canceller')
           check(await enabled('cancel-order') && !(await present('confirm-order')), 'canceller: Cancelar available, no Confirmar')
           await snap('canceller-draft-1440-light')
           await transition('cancel', 'canceller')
@@ -609,7 +685,10 @@ export async function run(browserPage, stage) {
         } else {
           await listChrome(role, true)
           await openOrder(found.incompleteCost, 'reader opens a draft')
-          await draftFormDisabled('reader'); await noTransitionUi('reader on a draft')
+          await readOnlyDraft('reader'); await noTransitionUi('reader on a draft')
+          await moneyCells('reader draft')
+          const warned = (await slide().locator('.order-warning').allInnerTexts()).join(' ')
+          check(warned.length > 0 && !/[A-Z]{3,}_[A-Z_]{2,}/.test(await slide().getByTestId('order-readonly').innerText()), 'reader draft shows readable warnings and no raw issue codes')
           await snap('reader-draft-1440-light'); await closeEditor()
           await openOrder(found.confirmed, 'reader opens a confirmed order')
           await slide().getByTestId('order-readonly').waitFor(); await noTransitionUi('reader on a confirmed order')
