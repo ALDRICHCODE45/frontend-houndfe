@@ -144,7 +144,7 @@ describe('SalesListView states — no match', () => {
 
     const empty = wrapper.get('.hf-empty-state')
     expect(empty.attributes('data-kind')).toBe('no-match')
-    expect(empty.text()).toContain('Ninguna venta para «ada»')
+    expect(empty.text()).toContain('Ningún resultado para «ada»')
     expect(empty.text()).not.toContain('Aún no hay ventas')
 
     await wrapper.get('[data-testid="empty-state-action"]').trigger('click')

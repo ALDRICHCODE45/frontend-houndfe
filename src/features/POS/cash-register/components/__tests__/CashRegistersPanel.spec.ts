@@ -79,11 +79,11 @@ describe('CashRegistersPanel · four states', () => {
     expect(wrapper.findAll('[data-testid="mobile-card-skeleton"]')).toHaveLength(3)
   })
 
-  it('error: shows the message with Reintentar that asks for a refresh', async () => {
-    const wrapper = mountPanel({ registers: [], error: true, errorMessage: 'Falla de red' })
+  it('error: shows a human title with Reintentar that asks for a refresh', async () => {
+    const wrapper = mountPanel({ registers: [], error: true })
     const state = wrapper.get('[data-testid="table-error-state"]')
     expect(state.attributes('role')).toBe('alert')
-    expect(state.text()).toContain('Falla de red')
+    expect(state.text()).toContain('No se pudieron cargar las cajas')
     await wrapper.get('[data-testid="table-error-retry"]').trigger('click')
     expect(wrapper.emitted('refresh')).toEqual([[]])
   })

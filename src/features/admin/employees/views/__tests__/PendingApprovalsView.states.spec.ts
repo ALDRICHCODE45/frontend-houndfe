@@ -246,27 +246,30 @@ describe('PendingApprovalsView states — row menu and review', () => {
 })
 
 describe('PendingApprovalsView states — error', () => {
-  it('renders the table error state with the backend message and Reintentar that refetches', async () => {
+  it('renders the table error state with a human title, never the backend message, and Reintentar that refetches', async () => {
     pending.isError.value = true
     pending.error.value = { response: { data: { message: 'Falla específica' } }, message: 'Axios' }
     const wrapper = mountView()
     const error = wrapper.get('[data-testid="table-error-state"]')
     expect(error.attributes('role')).toBe('alert')
-    expect(error.text()).toContain('Falla específica')
+    expect(error.text()).toContain('No se pudieron cargar las solicitudes pendientes')
+    expect(error.text()).not.toContain('Falla específica')
     await wrapper.get('[data-testid="table-error-retry"]').trigger('click')
     expect(pending.refetch).toHaveBeenCalledTimes(1)
   })
 
-  it('falls back through the array message, error.message and the Spanish message', () => {
+  it('keeps the same human title whatever the array message or error.message says', () => {
     pending.isError.value = true
-    pending.error.value = { response: { data: { message: ['Primero', 'Segundo'] } } }
-    expect(mountView().get('[data-testid="table-error-state"]').text()).toContain('Primero')
-    pending.error.value = { message: 'Network Error' }
-    expect(mountView().get('[data-testid="table-error-state"]').text()).toContain('Network Error')
-    pending.error.value = null
-    expect(mountView().get('[data-testid="table-error-state"]').text()).toContain(
-      'No se pudieron cargar las solicitudes pendientes. Intenta de nuevo.',
-    )
+    for (const [error, raw] of [
+      [{ response: { data: { message: ['Primero', 'Segundo'] } } }, 'Primero'],
+      [{ message: 'Network Error' }, 'Network Error'],
+      [null, 'sin detalle'],
+    ] as const) {
+      pending.error.value = error
+      const text = mountView().get('[data-testid="table-error-state"]').text()
+      expect(text).toContain('No se pudieron cargar las solicitudes pendientes')
+      expect(text).not.toContain(raw)
+    }
   })
 })
 

@@ -38,7 +38,7 @@ import { useManagerResolution, resolveManagerName } from '../composables/useMana
 import { getEmployeeRowActions, type EmployeeRowActionKey } from '../composables/useEmployeeActions'
 import { employeeStatusConfig } from '../utils/employeeBadgeConfig.utils'
 import AdminMobileCard from '../../shared/components/AdminMobileCard.vue'
-import { noMatchTitleFor, resolveListErrorMessage } from '../../shared/utils/list-state.utils'
+import { noMatchTitleFor } from '../../shared/utils/list-state.utils'
 import CreateEmployeeSlideover from '../components/CreateEmployeeSlideover.vue'
 import EmployeeEditSlideover from '../components/EmployeeEditSlideover.vue'
 import TerminateEmployeeDialog from '../components/TerminateEmployeeDialog.vue'
@@ -160,9 +160,7 @@ const statusItems = [
 ]
 
 // ── Four states (S10) ──────────────────────────────────────────────────────────
-const employeesErrorMessage = computed(() =>
-  resolveListErrorMessage(error.value, 'No se pudieron cargar los colaboradores. Reintenta.'),
-)
+const employeesErrorMessage = 'No se pudieron cargar los colaboradores'
 
 const searchTerm = computed(() => globalFilter.value.trim())
 const isFiltered = computed(

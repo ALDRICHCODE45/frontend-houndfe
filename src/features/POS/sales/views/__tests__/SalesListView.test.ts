@@ -643,20 +643,21 @@ describe('SalesListView — confirmed sales request errors (REQ-12)', () => {
     const wrapper = mountSalesList()
 
     expect(wrapper.get('[data-testid="table-error-state"]').text()).toContain(
-      'Las ventas no se pudieron consultar',
+      'No se pudieron cargar las ventas',
     )
+    expect(wrapper.text()).not.toContain('Las ventas no se pudieron consultar')
     expect(wrapper.text()).not.toContain('Aún no hay ventas')
     expect(wrapper.find('[data-testid="table-empty-state"]').exists()).toBe(false)
   })
 
-  it('falls back to the default table error copy when the failure carries no message', () => {
+  it('keeps the same human title when the failure carries no message', () => {
     mockState.isError.value = true
     mockState.error.value = new Error('Network Error')
 
     const wrapper = mountSalesList()
 
     expect(wrapper.get('[data-testid="table-error-state"]').text()).toContain(
-      'No se pudieron cargar las ventas. Reintenta.',
+      'No se pudieron cargar las ventas',
     )
   })
 

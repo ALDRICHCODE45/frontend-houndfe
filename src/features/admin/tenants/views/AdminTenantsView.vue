@@ -18,7 +18,7 @@ import type { TenantTableRow } from '../interfaces/tenant.types'
 import type { EditTenantFormValues } from '../composables/useTenantForm'
 import TenantUpsertSlideover from '../components/TenantUpsertSlideover.vue'
 import AdminMobileCard from '../../shared/components/AdminMobileCard.vue'
-import { noMatchTitleFor, resolveListErrorMessage } from '../../shared/utils/list-state.utils'
+import { noMatchTitleFor } from '../../shared/utils/list-state.utils'
 import '../styles/tenants-visual.css'
 import { buildTenantRowActions } from '../utils/tenant-actions.utils'
 
@@ -61,9 +61,7 @@ const {
   defaultSorting: [{ id: 'name', desc: false }],
 })
 
-const tenantsErrorMessage = computed(() =>
-  resolveListErrorMessage(error.value, 'No se pudieron cargar las sucursales. Reintenta.'),
-)
+const tenantsErrorMessage = 'No se pudieron cargar las sucursales'
 
 const isCreateOpen = ref(false)
 const isEditOpen = ref(false)

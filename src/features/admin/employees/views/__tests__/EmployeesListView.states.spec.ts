@@ -297,28 +297,31 @@ describe('EmployeesListView states — row menu', () => {
 })
 
 describe('EmployeesListView states — error', () => {
-  it('renders the table error state with the backend message and Reintentar that refetches', async () => {
+  it('renders the table error state with a human title, never the backend message, and Reintentar that refetches', async () => {
     tableState.isError.value = true
     tableState.error.value = { response: { data: { message: 'Falla específica del backend' } }, message: 'Axios' }
     const wrapper = mountView()
     const error = wrapper.get('[data-testid="table-error-state"]')
     expect(error.attributes('role')).toBe('alert')
-    expect(error.text()).toContain('Falla específica del backend')
+    expect(error.text()).toContain('No se pudieron cargar los colaboradores')
+    expect(error.text()).not.toContain('Falla específica del backend')
     expect(wrapper.find('.hf-empty-state[data-kind="empty"]').exists()).toBe(false)
     await wrapper.get('[data-testid="table-error-retry"]').trigger('click')
     expect(tableState.refresh).toHaveBeenCalledTimes(1)
   })
 
-  it('prefers the first backend array message, then error.message, then the Spanish fallback', () => {
+  it('keeps the same human title whatever the backend array message or error.message says', () => {
     tableState.isError.value = true
-    tableState.error.value = { response: { data: { message: ['Mensaje 0', 'Mensaje 1'] } }, message: 'Axios' }
-    expect(mountView().get('[data-testid="table-error-state"]').text()).toContain('Mensaje 0')
-    tableState.error.value = { response: { data: {} }, message: 'Network Error' }
-    expect(mountView().get('[data-testid="table-error-state"]').text()).toContain('Network Error')
-    tableState.error.value = {}
-    expect(mountView().get('[data-testid="table-error-state"]').text()).toContain(
-      'No se pudieron cargar los colaboradores. Reintenta.',
-    )
+    for (const [error, raw] of [
+      [{ response: { data: { message: ['Mensaje 0', 'Mensaje 1'] } }, message: 'Axios' }, 'Mensaje 0'],
+      [{ response: { data: {} }, message: 'Network Error' }, 'Network Error'],
+      [{}, 'sin detalle'],
+    ] as const) {
+      tableState.error.value = error
+      const text = mountView().get('[data-testid="table-error-state"]').text()
+      expect(text).toContain('No se pudieron cargar los colaboradores')
+      expect(text).not.toContain(raw)
+    }
   })
 })
 

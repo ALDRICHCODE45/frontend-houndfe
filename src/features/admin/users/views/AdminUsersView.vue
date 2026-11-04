@@ -17,7 +17,7 @@ import type { UserWithRolesResponse } from '../../shared/interfaces/rbac.types'
 import { editUserSchema, sameRoleIds } from '../composables/useUserForm'
 import UserUpsertSlideover from '../components/UserUpsertSlideover.vue'
 import AdminMobileCard from '../../shared/components/AdminMobileCard.vue'
-import { noMatchTitleFor, resolveListErrorMessage } from '../../shared/utils/list-state.utils'
+import { noMatchTitleFor } from '../../shared/utils/list-state.utils'
 import SellerSalesReportDrawer from '../seller-report/components/SellerSalesReportDrawer.vue'
 import '../styles/users-visual.css'
 
@@ -49,9 +49,7 @@ const {
   defaultSorting: [{ id: 'name', desc: false }],
 })
 
-const usersErrorMessage = computed(() =>
-  resolveListErrorMessage(error.value, 'No se pudieron cargar los usuarios. Reintenta.'),
-)
+const usersErrorMessage = 'No se pudieron cargar los usuarios'
 
 const isCreateOpen = ref(false)
 const isEditOpen = ref(false)

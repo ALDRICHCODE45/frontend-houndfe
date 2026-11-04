@@ -174,7 +174,6 @@ const appDataTableStub = {
     'addButtonText',
     'addButtonIcon',
     'addButtonTestId',
-    'refreshButtonTestId',
     'showRefresh',
     'mobileRender',
     'displayMode',
@@ -210,12 +209,11 @@ const appDataTableStub = {
       :data-empty="empty"
       :data-row-count="(data ?? []).length"
       :data-enable-column-visibility="enableColumnVisibility ? 'true' : 'false'"
-      :data-show-refresh="showRefresh === false ? 'false' : 'true'"
+      :data-show-refresh="showRefresh ? 'true' : 'false'"
       :data-show-add-button="showAddButton ? 'true' : 'false'"
       :data-add-button-text="addButtonText ?? ''"
       :data-add-button-icon="addButtonIcon ?? ''"
       :data-add-button-test-id="addButtonTestId ?? ''"
-      :data-refresh-button-test-id="refreshButtonTestId ?? ''"
       :data-display-mode="displayMode ?? 'auto'"
       :data-filtered="String(!!filtered)"
       :data-empty-title="emptyState?.title ?? ''"
@@ -227,14 +225,6 @@ const appDataTableStub = {
     >
       <slot name="filters" />
         <slot name="actions" />
-        <!-- Render the refresh button (with its testid) so click tests work.
-             showRefresh defaults to true in AppDataTable; only false disables it. -->
-        <button
-          v-if="showRefresh !== false && refreshButtonTestId"
-          :data-testid="refreshButtonTestId"
-          :aria-label="'Actualizar cotizaciones'"
-          @click="$emit('refresh')"
-        />
         <!-- Render the add button (with its testid) so click tests work. -->
         <button
           v-if="showAddButton && addButtonTestId"
@@ -564,15 +554,12 @@ describe('QuotationsListView — AppDataTable wiring (REQ-QAF-011)', () => {
     expect(table.attributes('data-fetching')).toBe('true')
   })
 
-  it('enables the AppDataTable toolbar refresh so it carries refresh-quotations-button (REQ-QAF-016)', () => {
-    // After the toolbar standardization, the refresh icon lives in the
-    // AppDataTable toolbar (default `show-refresh=true`) carrying the
-    // `refresh-quotations-button` testid instead of a standalone UButton.
+  it('leaves the refresh button out of the AppDataTable toolbar (Reintentar is the retry)', () => {
     const wrapper = mountView()
     const table = wrapper.find('[data-testid="app-data-table"]')
 
-    expect(table.attributes('data-show-refresh')).toBe('true')
-    expect(table.attributes('data-refresh-button-test-id')).toBe('refresh-quotations-button')
+    expect(table.attributes('data-show-refresh')).toBe('false')
+    expect(wrapper.find('[data-testid="refresh-quotations-button"]').exists()).toBe(false)
   })
 })
 
@@ -656,24 +643,18 @@ describe('QuotationsListView — mobile cards and row menu', () => {
 // ─── Refresh action (REQ-QAF-014) ─────────────────────────────────────────────
 
 describe('QuotationsListView — refresh action', () => {
-  it('renders the refresh button wired to the composable refresh() inside AppDataTable', async () => {
-    // After the toolbar standardization the refresh button lives inside the
-    // AppDataTable stub (we render it there with the testid so the legacy
-    // selector keeps working). Clicking it still fires refresh().
+  it('wires the table refresh event (its Reintentar) to the composable refresh()', async () => {
     const wrapper = mountView()
-    const button = wrapper.get('[data-testid="refresh-quotations-button"]')
+    wrapper.getComponent(appDataTableStub).vm.$emit('refresh')
 
-    expect(button.attributes('aria-label')).toBe('Actualizar cotizaciones')
-
-    await button.trigger('click')
-    expect(composableState.refresh).toHaveBeenCalled()
+    expect(composableState.refresh).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps the refresh button rendered while fetching (spinner is theme-driven)', () => {
+  it('renders no refresh button of its own, even while fetching', () => {
     composableState.isFetching.value = true
 
     const wrapper = mountView()
-    expect(wrapper.find('[data-testid="refresh-quotations-button"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="refresh-quotations-button"]').exists()).toBe(false)
   })
 })
 
@@ -767,7 +748,6 @@ describe('QuotationsListView — standardized toolbar (standardize-quotations-ta
     // that no extra `<button data-testid="refresh-quotations-button">`
     // exists outside the data-testid="app-data-table" container.
     const table = wrapper.get('[data-testid="app-data-table"]')
-    expect(table.attributes('data-refresh-button-test-id')).toBe('refresh-quotations-button')
     expect(table.attributes('data-add-button-test-id')).toBe('new-quotation-button')
 
     const root = wrapper.element as HTMLElement
@@ -1010,7 +990,7 @@ describe('QuotationsListView — design-system boundary', () => {
     const wrapper = mountView()
     const table = wrapper.find('[data-testid="app-data-table"]')
 
-    expect(table.attributes('data-show-refresh')).toBe('true')
+    expect(table.attributes('data-show-refresh')).toBe('false')
     expect(wrapper.findAll('[data-testid="filters-chips"]')).toHaveLength(1)
   })
 })

@@ -226,24 +226,25 @@ describe('AdminRolesView states — row menu', () => {
 })
 
 describe('AdminRolesView states — error', () => {
-  it('renders the table error state with the backend message and Reintentar that refetches', async () => {
+  it('renders the table error state with a human title, never the backend message, and Reintentar that refetches', async () => {
     tableState.isError.value = true
     tableState.error.value = { response: { data: { message: 'No se pudo conectar al servidor' } } }
     const wrapper = mountView()
     const error = wrapper.get('[data-testid="table-error-state"]')
     expect(error.attributes('role')).toBe('alert')
-    expect(error.text()).toContain('No se pudo conectar al servidor')
+    expect(error.text()).toContain('No se pudieron cargar los roles')
+    expect(error.text()).not.toContain('No se pudo conectar al servidor')
     expect(wrapper.find('.hf-empty-state[data-kind="empty"]').exists()).toBe(false)
     await wrapper.get('[data-testid="table-error-retry"]').trigger('click')
     expect(tableState.refresh).toHaveBeenCalledTimes(1)
   })
 
-  it('falls back to the Spanish message when nothing else is available', () => {
+  it('keeps the human title when nothing else is available', () => {
     tableState.isError.value = true
     tableState.error.value = {}
     const wrapper = mountView()
     expect(wrapper.get('[data-testid="table-error-state"]').text()).toContain(
-      'No se pudieron cargar los roles. Reintenta.',
+      'No se pudieron cargar los roles',
     )
   })
 })

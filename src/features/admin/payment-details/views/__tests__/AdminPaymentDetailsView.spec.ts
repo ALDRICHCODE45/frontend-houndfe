@@ -242,25 +242,26 @@ describe('AdminPaymentDetailsView — "Sin cuenta activa" banner (REQ-PD-006)', 
 })
 
 describe('AdminPaymentDetailsView — list error state', () => {
-  it('renders the error block with the backend-derived message when isError is true', async () => {
+  it('renders the error block with a human title, never the backend message', async () => {
     mockTable.isError.value = true
     mockTable.error.value = { response: { data: { message: 'No se pudo conectar al servidor' } } }
     const wrapper = mountView()
     await flushPromises()
     expect(wrapper.find('[data-testid="table-error-state"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="error-message"]').text()).toBe(
-      'No se pudo conectar al servidor',
+      'No se pudieron cargar las cuentas bancarias',
     )
+    expect(wrapper.text()).not.toContain('No se pudo conectar al servidor')
     expect(wrapper.find('[data-testid="table-empty-state"]').exists()).toBe(false)
   })
 
-  it('falls back to the Spanish message when no backend message is available', async () => {
+  it('keeps the human title when no backend message is available', async () => {
     mockTable.isError.value = true
     mockTable.error.value = {}
     const wrapper = mountView()
     await flushPromises()
     expect(wrapper.find('[data-testid="error-message"]').text()).toBe(
-      'No se pudieron cargar las cuentas bancarias. Reintenta.',
+      'No se pudieron cargar las cuentas bancarias',
     )
   })
 })

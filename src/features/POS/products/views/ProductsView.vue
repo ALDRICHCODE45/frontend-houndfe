@@ -467,32 +467,8 @@ function handleEditSubmit(values: UpdateProductPayload) {
   updateMutation.mutate({ productId: selectedProductId.value, values })
 }
 
-// Human-readable error message for the products table. We pull the
-// backend-provided message when available (e.g. the whitelist-validation 400
-// from /products) and fall back to a generic Spanish message otherwise.
-const productsErrorMessage = computed(() => {
-  const err = error.value as
-    | { response?: { data?: { message?: unknown } }; message?: string }
-    | null
-    | undefined
-  const backendMessage = err?.response?.data?.message
-  if (typeof backendMessage === 'string' && backendMessage.trim()) {
-    return backendMessage
-  }
-  if (Array.isArray(backendMessage) && backendMessage.length > 0) {
-    const first = backendMessage[0]
-    if (first && typeof first === 'object' && 'constraints' in first) {
-      const constraints = (first as { constraints?: Record<string, string> }).constraints
-      const constraintMsg = constraints?.whitelistValidation
-      if (constraintMsg) return constraintMsg
-    }
-    if (typeof first === 'string') return first
-  }
-  if (typeof err?.message === 'string' && err.message.trim()) {
-    return err.message
-  }
-  return 'No se pudieron cargar los productos. Reintenta.'
-})
+// Error title of the products table: a human sentence, never the server message.
+const productsErrorMessage = 'No se pudieron cargar los productos'
 </script>
 
 <template>

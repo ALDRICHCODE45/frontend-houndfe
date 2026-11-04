@@ -16,7 +16,7 @@ import type { RoleTableRow } from '../interfaces/role.types'
 import RoleUpsertSlideover from '../components/RoleUpsertSlideover.vue'
 import RolePermissionsSlideover from '../components/RolePermissionsSlideover.vue'
 import AdminMobileCard from '../../shared/components/AdminMobileCard.vue'
-import { noMatchTitleFor, resolveListErrorMessage } from '../../shared/utils/list-state.utils'
+import { noMatchTitleFor } from '../../shared/utils/list-state.utils'
 import '../styles/roles-visual.css'
 
 const queryClient = useQueryClient()
@@ -47,9 +47,7 @@ const {
   defaultSorting: [{ id: 'name', desc: false }],
 })
 
-const rolesErrorMessage = computed(() =>
-  resolveListErrorMessage(error.value, 'No se pudieron cargar los roles. Reintenta.'),
-)
+const rolesErrorMessage = 'No se pudieron cargar los roles'
 
 const isCreateOpen = ref(false)
 const isEditOpen = ref(false)

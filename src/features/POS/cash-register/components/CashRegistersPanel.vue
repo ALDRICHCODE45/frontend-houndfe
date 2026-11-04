@@ -21,7 +21,6 @@ const props = withDefaults(
     selectedRegisterId?: string | null
     loading?: boolean
     error?: boolean
-    errorMessage?: string
     canCreate?: boolean
     canUpdate?: boolean
     canOpen?: boolean
@@ -32,7 +31,6 @@ const props = withDefaults(
     selectedRegisterId: null,
     loading: false,
     error: false,
-    errorMessage: 'No se pudieron cargar las cajas. Reintenta.',
     canCreate: false,
     canUpdate: false,
     canOpen: false,
@@ -134,7 +132,7 @@ const { rowProps } = useClickableRow<CashRegister>(open, { focusable: false })
       :data="data"
       :loading="loading"
       :error="error"
-      :error-message="errorMessage"
+      error-message="No se pudieron cargar las cajas"
       :empty-state="emptyState"
       :row-open="canOpen ? open : undefined"
       display-mode="auto"

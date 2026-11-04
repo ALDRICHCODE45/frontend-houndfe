@@ -4,9 +4,8 @@
  * RED stubs written before the WU-A production change to PendingApprovalsView.
  *
  * Pinned contracts for WU-A scope only (WU-B/C tests land later):
- *  - pendingErrorMessage precedence: response.data.message (string | array[0])
- *    > error.message > "No se pudieron cargar las solicitudes pendientes.
- *    Intenta de nuevo."
+ *  - error title: always "No se pudieron cargar las solicitudes pendientes",
+ *    never the backend message or error.message
  *  - retry button triggers refetch
  *  - :data receives paged.pageRows (client-side full-array pagination)
  *  - v-model:pagination bridge (0-based AppDataTable ↔ 1-based view)
@@ -207,54 +206,23 @@ beforeEach(() => {
   authMock.userCan.mockReturnValue(false)
 })
 
-// ── REQ-5: pendingErrorMessage precedence ─────────────────────────────────────
+// ── REQ-5: error title (a fixed human sentence) ───────────────────────────────
 
-describe('PendingApprovalsView — pendingErrorMessage precedence (REQ-5)', () => {
-  it('prefers response.data.message (string) over error.message and fallback', async () => {
+describe('PendingApprovalsView — error title (REQ-5)', () => {
+  it.each([
+    ['a backend string', { response: { data: { message: 'Falla específica del backend' } }, message: 'Generic axios error' }, 'Falla específica del backend'],
+    ['a backend array', { response: { data: { message: ['Mensaje array 0', 'Mensaje array 1'] } }, message: 'Generic axios error' }, 'Mensaje array 0'],
+    ['only error.message', { response: { data: {} }, message: 'Network Error' }, 'Network Error'],
+    ['no error details', {}, 'sin detalle'],
+  ])('shows the same human title with %s, never the server message', async (_label, error, raw) => {
     mockPending.isError.value = true
-    mockPending.error.value = {
-      response: { data: { message: 'Falla específica del backend' } },
-      message: 'Generic axios error',
-    }
+    mockPending.error.value = error
     const wrapper = mount(getView().default)
     await flushPromises()
     chaiExpect(wrapper.find('[data-testid="error-message"]').text()).toBe(
-      'Falla específica del backend',
+      'No se pudieron cargar las solicitudes pendientes',
     )
-  })
-
-  it('prefers response.data.message[0] when the backend returns an array', async () => {
-    mockPending.isError.value = true
-    mockPending.error.value = {
-      response: { data: { message: ['Mensaje array 0', 'Mensaje array 1'] } },
-      message: 'Generic axios error',
-    }
-    const wrapper = mount(getView().default)
-    await flushPromises()
-    chaiExpect(wrapper.find('[data-testid="error-message"]').text()).toBe(
-      'Mensaje array 0',
-    )
-  })
-
-  it('falls back to error.message when response.data.message is missing', async () => {
-    mockPending.isError.value = true
-    mockPending.error.value = {
-      response: { data: {} },
-      message: 'Network Error',
-    }
-    const wrapper = mount(getView().default)
-    await flushPromises()
-    chaiExpect(wrapper.find('[data-testid="error-message"]').text()).toBe('Network Error')
-  })
-
-  it('falls back to the Spanish message when no error details are available', async () => {
-    mockPending.isError.value = true
-    mockPending.error.value = {}
-    const wrapper = mount(getView().default)
-    await flushPromises()
-    chaiExpect(wrapper.find('[data-testid="error-message"]').text()).toBe(
-      'No se pudieron cargar las solicitudes pendientes. Intenta de nuevo.',
-    )
+    chaiExpect(wrapper.text()).not.toContain(raw)
   })
 
   it('retry button triggers refetch', async () => {

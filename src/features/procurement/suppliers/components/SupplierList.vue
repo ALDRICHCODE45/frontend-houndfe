@@ -56,10 +56,9 @@ const clickable = useClickableRow<Supplier>(open, { focusable: false })
     <AppDataTable
       v-model:global-filter="search"
       :columns="columns" :data="data" :loading="loading" :fetching="fetching" :error="error"
-      error-message="No se pudieron cargar los proveedores. Puedes volver a actualizar."
+      error-message="No se pudieron cargar los proveedores"
       empty="No hay proveedores para esta búsqueda."
       :row-open="open" display-mode="auto" mobile-render="cards" search-placeholder="Buscar proveedor..."
-      refresh-button-test-id="refresh-suppliers"
       portal-class="hf-theme hf-ui suppliers-list-portal"
       :active-filter-count="activeFilterCount"
       class="hf-data-table" @refresh="emit('refresh')" @clear-filters="emit('clear-filters')"

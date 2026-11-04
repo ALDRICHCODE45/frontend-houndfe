@@ -657,7 +657,7 @@ describe('DeliveryRoutesListView — manager branch (design.md §6.4, §11, REQ-
     await flushPromises()
     const lastProps = dataTableProps[dataTableProps.length - 1]!
     expect(lastProps.error).toBe(true)
-    expect(String(lastProps.errorMessage)).toMatch(/red rota|operación|reintenta/i)
+    expect(lastProps.errorMessage).toBe('No se pudieron cargar las rutas de entrega')
   })
 
   // ─── T3 S2 — create conflict stays open + surfaces the conflict inline ─────

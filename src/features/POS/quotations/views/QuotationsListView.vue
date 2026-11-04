@@ -345,11 +345,7 @@ function clearAllFilters(): void {
   setStatusFilter(undefined)
 }
 
-const errorMessage = computed(() => {
-  const err = error.value as { response?: { data?: { message?: string } }; message?: string } | null
-  if (!err) return 'No se pudieron cargar las cotizaciones. Reintenta.'
-  return err.response?.data?.message ?? err.message ?? 'No se pudieron cargar las cotizaciones. Reintenta.'
-})
+const errorMessage = 'No se pudieron cargar las cotizaciones'
 </script>
 
 <template>
@@ -416,7 +412,6 @@ const errorMessage = computed(() => {
             add-button-text="Nueva cotización"
             add-button-icon="i-lucide-file-plus"
             add-button-test-id="new-quotation-button"
-            refresh-button-test-id="refresh-quotations-button"
             @refresh="refresh"
             @add="goToCreate"
             @empty-action="goToCreate"

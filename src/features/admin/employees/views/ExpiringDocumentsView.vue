@@ -42,7 +42,7 @@ import { useExpiringDocuments } from '../composables/useExpiringDocuments'
 import type { ExpiringDocumentTableRow, ExpiringThreshold } from '../composables/useExpiringDocuments'
 import { DOCUMENT_CATEGORY_LABELS } from '../interfaces/employee.types'
 import AdminMobileCard from '../../shared/components/AdminMobileCard.vue'
-import { noMatchTitleFor, resolveListErrorMessage } from '../../shared/utils/list-state.utils'
+import { noMatchTitleFor } from '../../shared/utils/list-state.utils'
 
 // ─── Expiry-window selector (look-ahead threshold — NOT page size) ─────────────
 
@@ -82,9 +82,7 @@ const thresholdModel = computed({
 
 // ─── Four states (S10) ─────────────────────────────────────────────────────────
 
-const documentsErrorMessage = computed(() =>
-  resolveListErrorMessage(error.value, 'No se pudieron cargar los documentos. Intenta de nuevo.'),
-)
+const documentsErrorMessage = 'No se pudieron cargar los documentos'
 
 const searchTerm = computed(() => globalFilter.value.trim())
 const noMatchTitle = computed(() => noMatchTitleFor(searchTerm.value))

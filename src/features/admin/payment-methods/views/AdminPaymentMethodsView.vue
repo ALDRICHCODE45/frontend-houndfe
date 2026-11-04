@@ -86,10 +86,8 @@ const canCreatePaymentMethod = computed(() => authStore.userCan('create', 'Payme
 const canUpdatePaymentMethod = computed(() => authStore.userCan('update', 'PaymentMethod'))
 const canDeletePaymentMethod = computed(() => authStore.userCan('delete', 'PaymentMethod'))
 
-// ── Human-readable list error (block, not toast) ──────────────────────────────
-const paymentMethodsErrorMessage = computed(() =>
-  normalizeApiError(error.value, 'No se pudieron cargar los métodos de cobro. Reintenta.').message,
-)
+// ── List error title (a human sentence, never the server message) ─────────────
+const paymentMethodsErrorMessage = 'No se pudieron cargar los métodos de cobro'
 
 // ── Toast provider (Nuxt UI auto-imports `useToast`) ───────────────────────────
 declare const useToast: () => {

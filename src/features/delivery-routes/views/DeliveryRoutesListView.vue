@@ -128,10 +128,8 @@ const statusModel = computed<string>({
 const LIST_PORTAL = 'hf-theme hf-ui delivery-routes-list-portal'
 const FORM_PORTAL = 'hf-theme hf-ui hf-form-overlay delivery-routes-form-portal'
 
-// Human-readable list error (block, not toast — design §11, REQ-DRM-014).
-const routesErrorMessage = computed(() =>
-  normalizeApiError(error.value, 'No se pudieron cargar las rutas de entrega. Reintenta.').message,
-)
+// Error title of the list block: a human sentence, never the server message.
+const routesErrorMessage = 'No se pudieron cargar las rutas de entrega'
 
 // ─── Shared list states (S10) ─────────────────────────────────────────────────
 const search = computed(() => globalFilter.value.trim())

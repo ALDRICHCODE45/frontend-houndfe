@@ -37,7 +37,7 @@ const props = withDefaults(
     loading: false,
     fetching: false,
     error: false,
-    errorMessage: 'No se pudieron cargar las solicitudes. Reintenta.',
+    errorMessage: 'No se pudieron cargar las solicitudes',
     pageCount: 0,
     totalCount: 0,
     pageSizeOptions: () => [20, 50],
@@ -132,7 +132,6 @@ function clearFilters() {
           mobile-render="cards"
           mobile-breakpoint="md"
           search-placeholder="Buscar por producto..."
-          refresh-button-test-id="human-decisions-refresh"
           class="hf-data-table"
           portal-class="hf-theme hf-ui human-decisions-list-portal"
           pagination-portal-class="hf-theme hf-ui human-decisions-list-portal"

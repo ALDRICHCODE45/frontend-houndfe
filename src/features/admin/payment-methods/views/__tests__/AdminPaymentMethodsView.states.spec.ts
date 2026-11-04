@@ -225,24 +225,25 @@ describe('AdminPaymentMethodsView states — row menu', () => {
 })
 
 describe('AdminPaymentMethodsView states — error', () => {
-  it('renders the table error state with the backend message and Reintentar that refetches', async () => {
+  it('renders the table error state with a human title, never the backend message, and Reintentar that refetches', async () => {
     tableState.isError.value = true
     tableState.error.value = { response: { data: { message: 'Falla de red' } } }
     const wrapper = mountView()
     const error = wrapper.get('[data-testid="table-error-state"]')
     expect(error.attributes('role')).toBe('alert')
-    expect(error.text()).toContain('Falla de red')
+    expect(error.text()).toContain('No se pudieron cargar los métodos de cobro')
+    expect(error.text()).not.toContain('Falla de red')
     expect(wrapper.find('.hf-empty-state[data-kind="empty"]').exists()).toBe(false)
     await wrapper.get('[data-testid="table-error-retry"]').trigger('click')
     expect(tableState.refresh).toHaveBeenCalledTimes(1)
   })
 
-  it('falls back to the Spanish message when nothing else is available', () => {
+  it('keeps the human title when nothing else is available', () => {
     tableState.isError.value = true
     tableState.error.value = null
     const wrapper = mountView()
     expect(wrapper.get('[data-testid="table-error-state"]').text()).toContain(
-      'No se pudieron cargar los métodos de cobro. Reintenta.',
+      'No se pudieron cargar los métodos de cobro',
     )
   })
 })

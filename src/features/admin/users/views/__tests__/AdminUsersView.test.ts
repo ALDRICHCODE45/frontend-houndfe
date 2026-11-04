@@ -286,7 +286,7 @@ beforeEach(() => {
 })
 
 describe('AdminUsersView — error state', () => {
-  it('renders the error block with the backend-derived message when isError is true', async () => {
+  it('renders the error block with a human title, never the backend message', async () => {
     mockState.isError.value = true
     mockState.error.value = {
       response: { data: { message: 'No se pudo conectar al servidor' } },
@@ -295,28 +295,25 @@ describe('AdminUsersView — error state', () => {
     await flushPromises()
     expect(wrapper.find('[data-testid="table-error-state"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="error-message"]').text()).toBe(
-      'No se pudo conectar al servidor',
+      'No se pudieron cargar los usuarios',
     )
+    expect(wrapper.text()).not.toContain('No se pudo conectar al servidor')
     // The empty placeholder must NOT render when there is an error.
     expect(wrapper.find('[data-testid="table-empty-state"]').exists()).toBe(false)
   })
 
-  it('falls back to error.message when the backend message is missing', async () => {
+  it.each([
+    ['an error message', { message: 'Network Error' }],
+    ['no error detail', {}],
+  ])('keeps the same human title with %s', async (_label, error) => {
     mockState.isError.value = true
-    mockState.error.value = { message: 'Network Error' }
-    const wrapper = mountView()
-    await flushPromises()
-    expect(wrapper.find('[data-testid="error-message"]').text()).toBe('Network Error')
-  })
-
-  it('falls back to the Spanish message when nothing else is available', async () => {
-    mockState.isError.value = true
-    mockState.error.value = {}
+    mockState.error.value = error
     const wrapper = mountView()
     await flushPromises()
     expect(wrapper.find('[data-testid="error-message"]').text()).toBe(
-      'No se pudieron cargar los usuarios. Reintenta.',
+      'No se pudieron cargar los usuarios',
     )
+    expect(wrapper.text()).not.toContain('Network Error')
   })
 
   it('triggers refresh when the retry button is clicked', async () => {

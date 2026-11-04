@@ -171,7 +171,7 @@ function submit(kind: 'CASH_IN' | 'CASH_OUT') {
           :data="movements"
           :loading="loading"
           :error="error"
-          error-message="No se pudieron cargar los movimientos. Reintenta."
+          error-message="No se pudieron cargar los movimientos"
           :empty-state="emptyState"
           display-mode="auto"
           mobile-render="cards"

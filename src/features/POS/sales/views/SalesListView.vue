@@ -104,23 +104,8 @@ const {
 
 const { columns } = useSalesColumns()
 
-/**
- * Prefer the backend's own message so cashiers see the real reason (expired
- * session, invalid filter, etc.) instead of a generic string. Falls back to a
- * sales-specific copy when the failure carries nothing useful — a network
- * error, for instance.
- */
-const salesErrorMessage = computed(() => {
-  const err = error.value as
-    | { response?: { data?: { message?: unknown } }; message?: string }
-    | null
-    | undefined
-  const backendMessage = err?.response?.data?.message
-  if (typeof backendMessage === 'string' && backendMessage.trim()) {
-    return backendMessage
-  }
-  return 'No se pudieron cargar las ventas. Reintenta.'
-})
+// Error title of the sales table: a human sentence, never the server message.
+const salesErrorMessage = 'No se pudieron cargar las ventas'
 
 // sdd customer-sales-history S1: folio/confirmedAt/paymentStatus may be null
 // per handoff §2.5. Helpers keep the template expressions clean.
@@ -184,9 +169,8 @@ const hasActiveFilters = computed(
 const activeFilterCount = computed(
   () => filtersCtl.activeCount.value + (activeTab.value !== 'all' ? 1 : 0),
 )
-const noMatchTitle = computed(() =>
-  hasSearch.value ? `Ninguna venta para «${globalFilter.value.trim()}»` : 'Ninguna venta con estos filtros',
-)
+// With a search term the table names it (`Ningún resultado para «…»`); this covers filters only.
+const noMatchTitle = 'Ninguna venta con estos filtros'
 const emptyState = computed(() => ({
   title: 'Aún no hay ventas',
   description: 'Las ventas confirmadas aparecen aquí.',

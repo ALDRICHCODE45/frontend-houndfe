@@ -69,28 +69,8 @@ const {
   defaultSorting: [{ id: 'fullName', desc: false }],
 })
 
-// Human-readable error message for the customers table. Mirrors
-// ProductsView: prefer backend `response.data.message`, then `error.message`,
-// then the Spanish fallback. The error block in AppDataTable is rendered
-// instead of "No se encontraron clientes" whenever `isError` is true.
-const customersErrorMessage = computed(() => {
-  const err = error.value as
-    | { response?: { data?: { message?: unknown } }; message?: string }
-    | null
-    | undefined
-  const backendMessage = err?.response?.data?.message
-  if (typeof backendMessage === 'string' && backendMessage.trim()) {
-    return backendMessage
-  }
-  if (Array.isArray(backendMessage) && backendMessage.length > 0) {
-    const first = backendMessage[0]
-    if (typeof first === 'string') return first
-  }
-  if (typeof err?.message === 'string' && err.message.trim()) {
-    return err.message
-  }
-  return 'No se pudieron cargar los clientes. Reintenta.'
-})
+// Error title of the customers table: a human sentence, never the server message.
+const customersErrorMessage = 'No se pudieron cargar los clientes'
 
 // Reuse globalPriceLists from products endpoint (same endpoint)
 const { data: globalPriceLists = [] } = useQuery({

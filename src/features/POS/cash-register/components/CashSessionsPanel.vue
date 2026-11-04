@@ -26,7 +26,6 @@ const props = withDefaults(
     loading?: boolean
     fetching?: boolean
     error?: boolean
-    errorMessage?: string
     canFilterByCashier?: boolean
     canOpen?: boolean
     total?: number
@@ -38,7 +37,6 @@ const props = withDefaults(
     loading: false,
     fetching: false,
     error: false,
-    errorMessage: 'No se pudieron cargar las sesiones. Reintenta.',
     canFilterByCashier: false,
     canOpen: false,
     total: 0,
@@ -117,7 +115,7 @@ const { rowProps } = useClickableRow<CashSession>(open, { focusable: false })
       :loading="loading"
       :fetching="fetching"
       :error="error"
-      :error-message="errorMessage"
+      error-message="No se pudieron cargar las sesiones"
       :empty-state="emptyState"
       :row-open="open"
       display-mode="auto"

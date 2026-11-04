@@ -184,24 +184,27 @@ describe('ExpiringDocumentsView states — data', () => {
 })
 
 describe('ExpiringDocumentsView states — error', () => {
-  it('renders the table error state with the backend message and Reintentar that refetches', async () => {
+  it('renders the table error state with a human title, never the backend message, and Reintentar that refetches', async () => {
     tableState.isError.value = true
     tableState.error.value = { response: { data: { message: ['Falla del servidor', 'otra'] } } }
     const wrapper = mountView()
     const error = wrapper.get('[data-testid="table-error-state"]')
     expect(error.attributes('role')).toBe('alert')
-    expect(error.text()).toContain('Falla del servidor')
+    expect(error.text()).toContain('No se pudieron cargar los documentos')
+    expect(error.text()).not.toContain('Falla del servidor')
     await wrapper.get('[data-testid="table-error-retry"]').trigger('click')
     expect(tableState.refresh).toHaveBeenCalledTimes(1)
   })
 
-  it('falls back to error.message and then to the Spanish message', () => {
+  it('keeps the same human title with an error.message or no detail', () => {
     tableState.isError.value = true
     tableState.error.value = { message: 'Network Error' }
-    expect(mountView().get('[data-testid="table-error-state"]').text()).toContain('Network Error')
+    const withMessage = mountView().get('[data-testid="table-error-state"]').text()
+    expect(withMessage).toContain('No se pudieron cargar los documentos')
+    expect(withMessage).not.toContain('Network Error')
     tableState.error.value = {}
     expect(mountView().get('[data-testid="table-error-state"]').text()).toContain(
-      'No se pudieron cargar los documentos. Intenta de nuevo.',
+      'No se pudieron cargar los documentos',
     )
   })
 })

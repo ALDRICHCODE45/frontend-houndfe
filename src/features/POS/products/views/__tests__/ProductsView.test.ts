@@ -311,16 +311,17 @@ describe('ProductsView four states (S10)', () => {
     expect(list(mountView()).props('loading')).toBe(true)
   })
 
-  it('error: forwards the flag with the backend message, or a Spanish fallback', () => {
+  it('error: forwards the flag with a human title, never the backend message', () => {
     tableState.data = []
     tableState.isError = true
     tableState.error = { response: { data: { message: 'Filtro inválido' } } }
-    expect(list(mountView()).props()).toMatchObject({ error: true, errorMessage: 'Filtro inválido' })
+    expect(list(mountView()).props()).toMatchObject({
+      error: true,
+      errorMessage: 'No se pudieron cargar los productos',
+    })
 
     tableState.error = null
-    expect(list(mountView()).props('errorMessage')).toBe(
-      'No se pudieron cargar los productos. Reintenta.',
-    )
+    expect(list(mountView()).props('errorMessage')).toBe('No se pudieron cargar los productos')
   })
 
   it('no-match: a search names itself in the list, and clearing resets it', async () => {

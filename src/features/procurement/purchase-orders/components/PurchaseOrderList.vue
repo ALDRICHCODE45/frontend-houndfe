@@ -52,7 +52,7 @@ const lines = (count: number) => `${count} ${count === 1 ? 'renglón' : 'renglon
     </DataTableToolbar>
     <div class="order-table">
       <AppDataTable :show-toolbar="false" :row-open="open" :columns="columns" :data="data" :loading="loading" :fetching="fetching" :error="error"
-        error-message="No se pudieron cargar las órdenes. Puedes volver a actualizar."
+        error-message="No se pudieron cargar las órdenes"
         empty="No hay órdenes de compra." display-mode="auto" mobile-render="cards"
         class="hf-data-table" @refresh="emit('refresh')">
         <template #supplier-cell="{ row }">

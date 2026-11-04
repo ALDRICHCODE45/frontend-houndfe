@@ -221,13 +221,14 @@ describe('AdminPaymentDetailsView states — row menu', () => {
 })
 
 describe('AdminPaymentDetailsView states — error', () => {
-  it('renders the table error state with the backend message and Reintentar that refetches', async () => {
+  it('renders the table error state with a human title, never the backend message, and Reintentar that refetches', async () => {
     tableState.isError.value = true
     tableState.error.value = { response: { data: { message: 'No se pudo conectar al servidor' } } }
     const wrapper = mountView()
     const error = wrapper.get('[data-testid="table-error-state"]')
     expect(error.attributes('role')).toBe('alert')
-    expect(error.text()).toContain('No se pudo conectar al servidor')
+    expect(error.text()).toContain('No se pudieron cargar las cuentas bancarias')
+    expect(error.text()).not.toContain('No se pudo conectar al servidor')
     expect(wrapper.find('.hf-empty-state[data-kind="empty"]').exists()).toBe(false)
     await wrapper.get('[data-testid="table-error-retry"]').trigger('click')
     expect(tableState.refresh).toHaveBeenCalledTimes(1)

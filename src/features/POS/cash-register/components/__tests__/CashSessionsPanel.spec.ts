@@ -113,10 +113,10 @@ describe('CashSessionsPanel · four states', () => {
   })
 
   it('error: shows the table error with Reintentar that asks for a refresh', async () => {
-    const wrapper = mountPanel({ sessions: [], error: true, errorMessage: 'Falla de red' })
+    const wrapper = mountPanel({ sessions: [], error: true })
     const state = wrapper.get('[data-testid="table-error-state"]')
     expect(state.attributes('role')).toBe('alert')
-    expect(state.text()).toContain('Falla de red')
+    expect(state.text()).toContain('No se pudieron cargar las sesiones')
     await wrapper.get('[data-testid="table-error-retry"]').trigger('click')
     expect(wrapper.emitted('refresh')).toEqual([[]])
   })

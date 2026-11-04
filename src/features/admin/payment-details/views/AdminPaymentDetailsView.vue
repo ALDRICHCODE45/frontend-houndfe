@@ -74,10 +74,8 @@ const canCreatePaymentDetail = computed(() => authStore.userCan('create', 'Payme
 const canUpdatePaymentDetail = computed(() => authStore.userCan('update', 'PaymentDetail'))
 const canDeletePaymentDetail = computed(() => authStore.userCan('delete', 'PaymentDetail'))
 
-// ── Human-readable list error (block, not toast) ──────────────────────────────
-const paymentDetailsErrorMessage = computed(() =>
-  normalizeApiError(error.value, 'No se pudieron cargar las cuentas bancarias. Reintenta.').message,
-)
+// ── List error title (a human sentence, never the server message) ─────────────
+const paymentDetailsErrorMessage = 'No se pudieron cargar las cuentas bancarias'
 
 // ── Toast provider (Nuxt UI auto-imports `useToast`) ───────────────────────────
 declare const useToast: () => {

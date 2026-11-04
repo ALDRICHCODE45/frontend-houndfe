@@ -237,10 +237,11 @@ describe('AdminPaymentMethodsView — list error state (sdd custom-payment-metho
     const wrapper = mountView()
     await flushPromises()
     expect(wrapper.find('[data-testid="table-error-state"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="error-message"]').text()).toContain('Falla de red')
+    expect(wrapper.find('[data-testid="error-message"]').text()).toBe('No se pudieron cargar los métodos de cobro')
+    expect(wrapper.text()).not.toContain('Falla de red')
   })
 
-  it('falls back to Spanish copy when no backend message is available', async () => {
+  it('keeps the human title when no backend message is available', async () => {
     mockTable.isError.value = true
     mockTable.error.value = null
     const wrapper = mountView()

@@ -457,7 +457,6 @@ function handleReleaseDrawer() {
           :can-open="access.canOpenSession.value"
           :creating="registers.creating.value"
           :updating="registers.updating.value"
-          :error-message="errorFor('registers') ?? undefined"
           @select="selectRegister"
           @create="handleCreateRegister"
           @update="handleUpdateRegister"

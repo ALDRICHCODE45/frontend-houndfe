@@ -22,7 +22,7 @@ import type {
 } from '../composables/useMembershipForm'
 import MembershipUpsertSlideover from '../components/MembershipUpsertSlideover.vue'
 import AdminMobileCard from '../../../shared/components/AdminMobileCard.vue'
-import { noMatchTitleFor, resolveListErrorMessage } from '../../../shared/utils/list-state.utils'
+import { noMatchTitleFor } from '../../../shared/utils/list-state.utils'
 import { buildMembershipRowActions } from '../utils/membership-actions.utils'
 import '../../styles/tenants-visual.css'
 import { useTenantSummary } from '@/features/admin/tenants/composables/useTenantSummary'
@@ -70,9 +70,7 @@ const {
   defaultSorting: [{ id: 'userName', desc: false }],
 })
 
-const membershipsErrorMessage = computed(() =>
-  resolveListErrorMessage(error.value, 'No se pudieron cargar los miembros. Reintenta.'),
-)
+const membershipsErrorMessage = 'No se pudieron cargar los miembros'
 
 const isCreateOpen = ref(false)
 const isEditOpen = ref(false)

@@ -77,7 +77,7 @@ import {
 import { buildManagerMap } from '../composables/useManagerResolution'
 import { formatTimeOffDate, formatTimeOffDateRange } from '../composables/useEmployeeColumns'
 import AdminMobileCard from '../../shared/components/AdminMobileCard.vue'
-import { noMatchTitleFor, resolveListErrorMessage } from '../../shared/utils/list-state.utils'
+import { noMatchTitleFor } from '../../shared/utils/list-state.utils'
 import { employeesApi } from '../api/employees.api'
 import type { TimeOffRequest, ReviewTimeOffDto, Employee } from '../interfaces/employee.types'
 
@@ -191,14 +191,9 @@ const pagination = computed({
 const columnPinning = ref<ColumnPinningState>({ left: [], right: ['acciones'] })
 const columnVisibility = ref<Record<string, boolean>>({})
 
-// ─── Error message (REQ-5: backendMessage > error.message > fallback) ─────────
+// ─── Error title (a fixed human sentence, never the server message) ───────────
 
-const FALLBACK_PENDING_ERROR =
-  'No se pudieron cargar las solicitudes pendientes. Intenta de nuevo.'
-
-const pendingErrorMessage = computed<string>(() =>
-  resolveListErrorMessage(error.value, FALLBACK_PENDING_ERROR),
-)
+const pendingErrorMessage = 'No se pudieron cargar las solicitudes pendientes'
 
 // ─── Review mutation ───────────────────────────────────────────────────────────
 

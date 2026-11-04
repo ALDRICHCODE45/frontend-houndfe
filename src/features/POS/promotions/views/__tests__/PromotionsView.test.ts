@@ -1473,7 +1473,7 @@ describe('PromotionsView — standardization (REQ-1..7)', () => {
   })
 
   // ── REQ-1: error state propagation ─────────────────────────────────────────
-  it('REQ-1: renders the error block with backend message when isError=true', async () => {
+  it('REQ-1: renders the error block with a human title, never the backend message, when isError=true', async () => {
     const { useServerTable } = await import('@/core/shared/composables/useServerTable')
     vi.mocked(useServerTable).mockReturnValueOnce({
       pagination: { value: { pageIndex: 0, pageSize: 20 } },
@@ -1501,13 +1501,14 @@ describe('PromotionsView — standardization (REQ-1..7)', () => {
     await wrapper.vm.$nextTick()
     expect(wrapper.find('[data-testid="table-error-state"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="error-message"]').text()).toBe(
-      'No se pudo conectar al servidor',
+      'No se pudieron cargar las promociones',
     )
+    expect(wrapper.text()).not.toContain('No se pudo conectar al servidor')
     // The empty placeholder must NOT render when there is an error.
     expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-error')).toBe('true')
   })
 
-  it('REQ-1: falls back to error.message when backend message is missing', async () => {
+  it('REQ-1: keeps the human title when only error.message exists', async () => {
     const { useServerTable } = await import('@/core/shared/composables/useServerTable')
     vi.mocked(useServerTable).mockReturnValueOnce({
       pagination: { value: { pageIndex: 0, pageSize: 20 } },
@@ -1533,10 +1534,13 @@ describe('PromotionsView — standardization (REQ-1..7)', () => {
 
     const wrapper = mountView()
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('[data-testid="error-message"]').text()).toBe('Network Error')
+    expect(wrapper.find('[data-testid="error-message"]').text()).toBe(
+      'No se pudieron cargar las promociones',
+    )
+    expect(wrapper.text()).not.toContain('Network Error')
   })
 
-  it('REQ-1: falls back to Spanish message when nothing else is available', async () => {
+  it('REQ-1: keeps the human title when nothing else is available', async () => {
     const { useServerTable } = await import('@/core/shared/composables/useServerTable')
     vi.mocked(useServerTable).mockReturnValueOnce({
       pagination: { value: { pageIndex: 0, pageSize: 20 } },
@@ -1563,7 +1567,7 @@ describe('PromotionsView — standardization (REQ-1..7)', () => {
     const wrapper = mountView()
     await wrapper.vm.$nextTick()
     expect(wrapper.find('[data-testid="error-message"]').text()).toBe(
-      'No se pudieron cargar las promociones. Reintenta.',
+      'No se pudieron cargar las promociones',
     )
   })
 
