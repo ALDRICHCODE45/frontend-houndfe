@@ -173,4 +173,11 @@ describe('RowActionsMenu', () => {
     expect(parent.mock.calls.map(call => call[0])).toEqual(['Escape', 'Tab'])
     wrapper.unmount()
   })
+  it('passes class and attributes through to its single root element', () => {
+    const wrapper = mountMenu({ class: 'order-line-menu', 'data-testid': 'line-menu' })
+    expect(wrapper.element.nodeType).toBe(Node.ELEMENT_NODE)
+    expect(wrapper.classes()).toContain('order-line-menu')
+    expect(wrapper.attributes('data-testid')).toBe('line-menu')
+    wrapper.unmount()
+  })
 })
