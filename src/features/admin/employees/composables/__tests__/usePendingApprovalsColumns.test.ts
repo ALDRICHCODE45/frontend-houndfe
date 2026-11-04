@@ -2,7 +2,8 @@
  * WU-A — usePendingApprovalsColumns specs (REQ-3)
  *
  * Pinned:
- *  - Column order: [colaborador, tipo, fechas, dias, motivo, estado, solicitada, acciones]
+ *  - Column order (person, status, dates, then the rest, ⋮ last):
+ *      [colaborador, estado, fechas, tipo, dias, motivo, solicitada, acciones]
  *  - Headers:
  *      colaborador → "Colaborador"
  *      tipo        → "Tipo"
@@ -11,7 +12,7 @@
  *      motivo      → "Motivo"
  *      estado      → "Estado"
  *      solicitada  → "Solicitada"
- *      acciones    → (header hidden — actions column)
+ *      acciones    → "Acciones" (shown to assistive tech only, by the view)
  *  - 7 data columns: `enableHiding: true`
  *  - acciones: `enableHiding: false` + `enableSorting: false` + right-aligned
  *  - All columns: explicit `enableSorting: false` (sorting deferred per design)
@@ -48,16 +49,16 @@ describe('usePendingApprovalsColumns — column order & headers', () => {
     setActivePinia(createPinia())
   })
 
-  it('orders columns as [colaborador, tipo, fechas, dias, motivo, estado, solicitada, acciones]', () => {
+  it('orders columns as [colaborador, estado, fechas, tipo, dias, motivo, solicitada, acciones]', () => {
     const { columns } = usePendingApprovalsColumns()
     const ids = columns.value.map((col) => getId(col as ColumnLike))
     expect(ids).toEqual([
       'colaborador',
-      'tipo',
+      'estado',
       'fechas',
+      'tipo',
       'dias',
       'motivo',
-      'estado',
       'solicitada',
       'acciones',
     ])
@@ -122,11 +123,11 @@ describe('usePendingApprovalsColumns — enableHiding (REQ-3)', () => {
     const { columns } = usePendingApprovalsColumns()
     const dataIds = [
       'colaborador',
-      'tipo',
+      'estado',
       'fechas',
+      'tipo',
       'dias',
       'motivo',
-      'estado',
       'solicitada',
     ]
     for (const id of dataIds) {
@@ -164,12 +165,13 @@ describe('usePendingApprovalsColumns — acciones right-alignment (REQ-3)', () =
     setActivePinia(createPinia())
   })
 
-  it('marks the acciones column with non-hideable + non-sortable + text-right td', () => {
+  it('marks the acciones column with non-hideable + non-sortable + a 64px right-aligned cell', () => {
     const { columns } = usePendingApprovalsColumns()
     const col = columns.value.find((c) => getId(c as ColumnLike) === 'acciones') as ColumnLike
     expect(col).toBeDefined()
     expect(col!.enableSorting).toBe(false)
     expect(col!.enableHiding).toBe(false)
-    expect(col!.meta?.class?.td).toBe('text-right')
+    expect(col!.meta?.class?.td).toBe('w-16 text-right')
+    expect(col!.header).toBe('Acciones')
   })
 })

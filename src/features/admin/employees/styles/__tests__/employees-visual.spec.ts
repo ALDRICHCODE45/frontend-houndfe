@@ -195,3 +195,45 @@ describe('Employee detail panels adapter', () => {
     expect(css).toContain(".employees-detail .employees-threshold[aria-pressed='true']")
   })
 })
+
+// ── Employees trays: expiring documents and pending approvals ────────────────
+const expiring = read('views/ExpiringDocumentsView.vue')
+const pending = read('views/PendingApprovalsView.vue')
+
+describe('Employees trays follow the canonical table workspace', () => {
+  for (const [name, source] of [['expiring', expiring], ['pending', pending]] as const) {
+    it(`${name}: heading outside one table surface inside the employees boundary, no subtitle`, () => {
+      expect(source, name).toContain("import '../styles/employees-visual.css'")
+      expect(source, name).toContain('hf-theme hf-ui employees-visual')
+      expect(source, name).toContain('class="hf-page-header"')
+      expect(source, name).toContain('class="hf-page-title"')
+      expect(source, name).not.toContain('hf-page-subtitle')
+      expect(source, name).toContain('hf-table-surface')
+      expect(source, name).toContain('class="hf-data-table"')
+      expect(source, name).not.toContain('AdminPageHeader')
+      expect(source, name).not.toContain('bg-coco-neutral')
+      expect(source, name).toContain(`portal-class="${listPortal}"`)
+      expect(source, name).toContain(`pagination-portal-class="${listPortal}"`)
+    })
+
+    it(`${name}: is one layout of table plus cards with the shared badge, no legacy pieces`, () => {
+      expect(source, name).toContain('mobile-render="cards"')
+      expect(source, name).toContain('#mobile-card')
+      expect(source, name).toContain('StatusBadge')
+      expect(source, name).not.toMatch(/ViewToggle|UBadge|AppBadge|StatusDotBadge|DotBadge|PendingApprovalCard/)
+      expect(source, name).not.toMatch(LEGACY_LOOK)
+    })
+  }
+
+  it('expiring: themes the expiry-window select', () => {
+    expect(expiring).toContain(`portal-class="${listPortal}"`)
+    expect(expiring).toContain('ToolbarSelectFilter')
+  })
+
+  it('pending: themes the review dialog and its card, and keeps the ⋮ menu', () => {
+    expect(pending).toContain(`:ui="{ content: '${formPortal}' }"`)
+    expect(pending).toMatch(/<UCard\b[^>]*employees-detail-section/)
+    expect(pending).toContain('RowActionsMenu')
+    expect(css).toContain('.employees-form-portal .employees-detail-section')
+  })
+})
