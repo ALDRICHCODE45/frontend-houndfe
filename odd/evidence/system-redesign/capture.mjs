@@ -60,12 +60,13 @@ for (const s of states) if (!ALL_STATES.includes(s)) throw new Error(`unknown st
 // ── Routes ───────────────────────────────────────────────────────────────────
 // gets: the screen's main API calls (matched on method + URL path). `empty` is how
 // the empty state is built: 'list' keeps the real envelope with arrays emptied,
-// 'zero' also zeroes numbers (dashboards), 'zerofill' keeps zero-filled buckets, 404 answers not found (detail records).
+// 'zero' also zeroes numbers (dashboards), 'zerofill' keeps zero-filled buckets, 404 answers not found (detail records),
+// 'real' lets the live response through (responses whose contract headers a mock cannot reproduce).
 // idFrom: the list route whose first item supplies :id. static: no API call.
 const UUID = '[^/]+'
 const g = (re, empty = 'list', method = 'GET') => ({ re, empty, method })
 const ROUTES = [
-  { slug: 'login', path: '/login', anon: true, gets: [g(/^\/auth\/login$/, null, 'POST')], act: 'login', noEmpty: true },
+  { slug: 'login', path: '/login', anon: true, gets: [g(/^\/auth\/login$/, null, 'POST')], act: 'login' },
   { slug: 'select-tenant', path: '/select-tenant', static: true },
   { slug: 'forbidden-403', path: '/403', static: true },
   { slug: 'not-found-404', path: '/this-page-does-not-exist', static: true },
@@ -77,7 +78,7 @@ const ROUTES = [
   { slug: 'pos-products', path: '/pos/products', gets: [g(/^\/products$/)], idSource: true },
   { slug: 'pos-product-create', path: '/pos/products/new', gets: [g(/^\/categories$/), g(/^\/brands$/)] },
   { slug: 'pos-product-detail', path: '/pos/products/:id', idFrom: 'pos-products', gets: [g(new RegExp(`^/products/${UUID}$`), 404)] },
-  { slug: 'pos-product-editorial', path: '/pos/products/:id/editorial', idFrom: 'pos-products', gets: [g(new RegExp(`^/products/${UUID}/editorial$`), 404), g(/^\/catalog-editorial\/vocabulary$/)] },
+  { slug: 'pos-product-editorial', path: '/pos/products/:id/editorial', idFrom: 'pos-products', gets: [g(new RegExp(`^/products/${UUID}/editorial$`), 404), g(/^\/catalog-editorial\/vocabulary$/, 'real')] },
   { slug: 'pos-customers', path: '/pos/customers', gets: [g(/^\/customers$/)], idSource: true },
   { slug: 'pos-cash-register', path: '/pos/caja', gets: [g(/^\/cash-registers$/), g(/^\/cash-sessions$/)] },
   { slug: 'pos-cash-reception', path: '/pos/caja/recepciones', gets: [g(/^\/cash-handovers\/custody$/)] },
@@ -290,7 +291,8 @@ async function intercept(page, route, state) {
     const req = r.request()
     const path = pathOf(req.url())
     const get = gets.find((x) => x.method === req.method() && x.re.test(path))
-    if (!get || state === 'data') return r.continue().catch(() => {})
+    // 'real': the empty state keeps the live response (the editorial vocabulary carries its contract headers, which a fulfilled mock would drop)
+    if (!get || state === 'data' || (state === 'empty' && get.empty === 'real')) return r.continue().catch(() => {})
     cur.intercepted.add(req)
     cur.interceptedUrls.add(req.url())
     cur.hits += 1
@@ -367,7 +369,7 @@ async function go(page, url) {
 }
 
 async function loginAct(page, state) {
-  if (state === 'data') return
+  if (state === 'data' || state === 'empty') return // the login has nothing to empty: its empty shot is the idle form
   await page.fill('#email', 'prueba@ejemplo.com')
   await page.fill('#password', 'Prueba-123!')
   await page.click('button[type=submit]')
@@ -412,7 +414,7 @@ async function learn(route) {
 
 function needsMemory(route, wanted) {
   const idMissing = route.path.includes(':id') && !memory.ids[route.idFrom]
-  const shapeMissing = wanted.some((s) => s !== 'data') && (route.gets ?? []).some((x) => x.method === 'GET' && x.empty !== 404 && !Object.keys(memory.shapes[route.slug] ?? {}).some((p) => x.re.test(p)))
+  const shapeMissing = wanted.some((s) => s !== 'data') && (route.gets ?? []).some((x) => x.method === 'GET' && x.empty !== 404 && x.empty !== 'real' && !Object.keys(memory.shapes[route.slug] ?? {}).some((p) => x.re.test(p)))
   const idSourceMissing = route.idSource === true && !memory.ids[route.slug] && ROUTES.some((r) => r.idFrom === route.slug)
   // --force also relearns the response shapes, so seeded data replaces a shape (and its alreadyEmpty flag) cached while the screen was empty
   const stale = FORCE && wanted.some((s) => s !== 'data') && (route.gets ?? []).length > 0

@@ -29,6 +29,8 @@ It is resumable: a shot whose PNG exists is skipped, so rerun after a failure. D
 - States use `page.route` on the screen's main API call (the `ROUTES` table in the script):
   - data: nothing intercepted.
   - empty: the same response envelope with arrays emptied (`nextCursor` null, counts 0), learned from the real response on a data load and cached in `.auth/memory.json`. Dashboards zero their numbers; detail records answer 404.
+  - the login has nothing to empty: its `empty` shots are the idle form (no submit).
+  - the editorial screen's empty state is a real 404 on the editorial call; the vocabulary call is not mocked in that state (`'real'` in the `ROUTES` table), because a fulfilled mock drops the contract headers (`Editorial-Contract-Version`, `Editorial-Vocabulary-Revision`) and the screen would show a contract failure instead of the not-found state.
   - error: HTTP 500 with a JSON body.
   - loading: the response is held for up to 30 s and the shot is taken 1.5 s after the request starts.
 - Detail routes take the first item of their list (the id is learned from the list response).

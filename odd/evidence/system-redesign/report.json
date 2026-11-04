@@ -3,11 +3,7 @@
     "login": {
       "path": "/login",
       "status": "captured",
-      "user": "manager",
-      "notApplicableStates": [
-        "empty"
-      ],
-      "notApplicableReason": "the screen has no list or record to empty (idle form)"
+      "user": "manager"
     },
     "select-tenant": {
       "path": "/select-tenant",
@@ -144,7 +140,10 @@
       "path": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
       "status": "captured",
       "user": "admin",
-      "managerForbidden": true
+      "managerForbidden": true,
+      "dataAlreadyEmpty": [
+        "/promotions/3a676b28-d547-416e-b7ba-e5eaf9300517"
+      ]
     },
     "pos-quotations-list": {
       "path": "/pos/cotizaciones",
@@ -161,7 +160,10 @@
       "path": "/pos/cotizaciones/853cce87-c401-4aa6-821d-28cdc7c1e240",
       "status": "captured",
       "user": "admin",
-      "managerForbidden": true
+      "managerForbidden": true,
+      "dataAlreadyEmpty": [
+        "/quotations/853cce87-c401-4aa6-821d-28cdc7c1e240"
+      ]
     },
     "admin-employees-list": {
       "path": "/admin/colaboradores",
@@ -373,10 +375,10 @@
       },
       "height": 900,
       "consoleErrors": [],
-      "expectedConsoleErrors": 1,
+      "expectedConsoleErrors": 0,
       "failedRequests": [],
-      "intercepted": 1,
-      "note": "idle form: no empty state applies to the login screen"
+      "intercepted": 0,
+      "unwired": []
     },
     "login__empty__390__light.png": {
       "file": "login__empty__390__light.png",
@@ -396,10 +398,10 @@
       },
       "height": 844,
       "consoleErrors": [],
-      "expectedConsoleErrors": 1,
+      "expectedConsoleErrors": 0,
       "failedRequests": [],
-      "intercepted": 1,
-      "note": "idle form: no empty state applies to the login screen"
+      "intercepted": 0,
+      "unwired": []
     },
     "login__empty__1440__dark.png": {
       "file": "login__empty__1440__dark.png",
@@ -419,10 +421,10 @@
       },
       "height": 900,
       "consoleErrors": [],
-      "expectedConsoleErrors": 1,
+      "expectedConsoleErrors": 0,
       "failedRequests": [],
-      "intercepted": 1,
-      "note": "idle form: no empty state applies to the login screen"
+      "intercepted": 0,
+      "unwired": []
     },
     "login__empty__390__dark.png": {
       "file": "login__empty__390__dark.png",
@@ -442,10 +444,10 @@
       },
       "height": 844,
       "consoleErrors": [],
-      "expectedConsoleErrors": 1,
+      "expectedConsoleErrors": 0,
       "failedRequests": [],
-      "intercepted": 1,
-      "note": "idle form: no empty state applies to the login screen"
+      "intercepted": 0,
+      "unwired": []
     },
     "login__loading__1440__light.png": {
       "file": "login__loading__1440__light.png",
@@ -2070,7 +2072,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1821,
+      "height": 1795,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -2116,7 +2118,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1821,
+      "height": 1795,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -2162,7 +2164,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1821,
+      "height": 1795,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -2208,7 +2210,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1821,
+      "height": 1795,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -2254,7 +2256,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1821,
+      "height": 1795,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -2300,7 +2302,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1821,
+      "height": 1795,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -2346,7 +2348,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1821,
+      "height": 1795,
       "consoleErrors": [],
       "expectedConsoleErrors": 2,
       "failedRequests": [],
@@ -2392,7 +2394,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1821,
+      "height": 1795,
       "consoleErrors": [],
       "expectedConsoleErrors": 2,
       "failedRequests": [],
@@ -2438,7 +2440,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1872,
+      "height": 1849,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -2484,7 +2486,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1872,
+      "height": 1849,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -4094,7 +4096,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1053,
+      "height": 1057,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -4140,7 +4142,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1053,
+      "height": 1057,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -5837,9 +5839,17 @@
         "offenders": []
       },
       "height": 878,
-      "consoleErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ],
       "expectedConsoleErrors": 0,
-      "failedRequests": [],
+      "failedRequests": [
+        {
+          "method": "GET",
+          "path": "/admin/roles",
+          "status": 401
+        }
+      ],
       "intercepted": 0,
       "unwired": []
     },
@@ -6204,7 +6214,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1050,
+      "height": 906,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6250,7 +6260,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1050,
+      "height": 906,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6572,7 +6582,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 3464,
+      "height": 3007,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6618,7 +6628,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 3464,
+      "height": 3007,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6641,7 +6651,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1416,
+      "height": 1352,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6664,7 +6674,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1683,
+      "height": 1862,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6687,7 +6697,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1416,
+      "height": 1352,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6710,7 +6720,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1683,
+      "height": 1862,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6756,7 +6766,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1982,
+      "height": 2293,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6802,7 +6812,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1982,
+      "height": 2293,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6825,7 +6835,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 945,
+      "height": 900,
       "consoleErrors": [],
       "expectedConsoleErrors": 5,
       "failedRequests": [],
@@ -6848,7 +6858,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1380,
+      "height": 844,
       "consoleErrors": [],
       "expectedConsoleErrors": 5,
       "failedRequests": [],
@@ -6871,7 +6881,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 945,
+      "height": 900,
       "consoleErrors": [],
       "expectedConsoleErrors": 5,
       "failedRequests": [],
@@ -6894,7 +6904,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1380,
+      "height": 844,
       "consoleErrors": [],
       "expectedConsoleErrors": 5,
       "failedRequests": [],
@@ -6940,7 +6950,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 883,
+      "height": 844,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6986,7 +6996,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 883,
+      "height": 844,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7011,7 +7021,7 @@
       },
       "height": 900,
       "consoleErrors": [],
-      "expectedConsoleErrors": 0,
+      "expectedConsoleErrors": 1,
       "failedRequests": [],
       "intercepted": 1,
       "unwired": []
@@ -7034,7 +7044,7 @@
       },
       "height": 844,
       "consoleErrors": [],
-      "expectedConsoleErrors": 0,
+      "expectedConsoleErrors": 1,
       "failedRequests": [],
       "intercepted": 1,
       "unwired": []
@@ -7057,7 +7067,7 @@
       },
       "height": 900,
       "consoleErrors": [],
-      "expectedConsoleErrors": 0,
+      "expectedConsoleErrors": 1,
       "failedRequests": [],
       "intercepted": 1,
       "unwired": []
@@ -7080,7 +7090,7 @@
       },
       "height": 844,
       "consoleErrors": [],
-      "expectedConsoleErrors": 0,
+      "expectedConsoleErrors": 1,
       "failedRequests": [],
       "intercepted": 1,
       "unwired": []
@@ -7377,7 +7387,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 911,
+      "height": 900,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7400,7 +7410,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 884,
+      "height": 844,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7423,7 +7433,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 911,
+      "height": 900,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7446,7 +7456,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 884,
+      "height": 844,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7469,7 +7479,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 971,
+      "height": 900,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7492,7 +7502,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1139,
+      "height": 1052,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7515,7 +7525,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 971,
+      "height": 900,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7538,7 +7548,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1139,
+      "height": 1052,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7584,7 +7594,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 859,
+      "height": 844,
       "consoleErrors": [],
       "expectedConsoleErrors": 2,
       "failedRequests": [],
@@ -7630,7 +7640,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 859,
+      "height": 844,
       "consoleErrors": [],
       "expectedConsoleErrors": 2,
       "failedRequests": [],
@@ -8366,7 +8376,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1338,
+      "height": 1294,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8389,7 +8399,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1516,
+      "height": 1472,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8412,7 +8422,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1338,
+      "height": 1294,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8435,7 +8445,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1516,
+      "height": 1472,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8458,7 +8468,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1338,
+      "height": 1294,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8481,7 +8491,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1560,
+      "height": 1516,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8504,7 +8514,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1338,
+      "height": 1294,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8527,7 +8537,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1560,
+      "height": 1516,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8550,7 +8560,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1338,
+      "height": 1294,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8573,7 +8583,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1540,
+      "height": 1496,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8596,7 +8606,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1338,
+      "height": 1294,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8619,7 +8629,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1540,
+      "height": 1496,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8642,7 +8652,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1338,
+      "height": 1364,
       "consoleErrors": [],
       "expectedConsoleErrors": 1,
       "failedRequests": [],
@@ -8665,7 +8675,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1560,
+      "height": 1590,
       "consoleErrors": [],
       "expectedConsoleErrors": 1,
       "failedRequests": [],
@@ -8688,7 +8698,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1338,
+      "height": 1364,
       "consoleErrors": [],
       "expectedConsoleErrors": 1,
       "failedRequests": [],
@@ -8711,7 +8721,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1560,
+      "height": 1590,
       "consoleErrors": [],
       "expectedConsoleErrors": 1,
       "failedRequests": [],
@@ -9102,7 +9112,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1063,
+      "height": 970,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -9148,7 +9158,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1063,
+      "height": 970,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -10206,7 +10216,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 934,
+      "height": 906,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -10252,7 +10262,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 934,
+      "height": 906,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -11310,7 +11320,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 867,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -11356,7 +11366,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 867,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -12024,23 +12034,9 @@
         "offenders": []
       },
       "height": 900,
-      "consoleErrors": [
-        "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
-      ],
+      "consoleErrors": [],
       "expectedConsoleErrors": 0,
-      "failedRequests": [
-        {
-          "method": "GET",
-          "path": "/delivery-routes",
-          "status": 401
-        },
-        {
-          "method": "GET",
-          "path": "/delivery-routes",
-          "status": 401
-        }
-      ],
+      "failedRequests": [],
       "intercepted": 0,
       "unwired": []
     },
@@ -12888,7 +12884,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 983,
+      "height": 937,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -12934,7 +12930,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 983,
+      "height": 937,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -13509,7 +13505,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1268,
+      "height": 1260,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -13532,7 +13528,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1304,
+      "height": 1296,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -13555,7 +13551,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1268,
+      "height": 1260,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -13578,7 +13574,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1304,
+      "height": 1296,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -13862,7 +13858,7 @@
       "unwired": []
     }
   },
-  "generatedAt": "2026-11-04T15:02:46.709Z",
+  "generatedAt": "2026-11-04T16:46:11.121Z",
   "base": "http://127.0.0.1:5173",
   "api": "http://127.0.0.1:3000"
 }
