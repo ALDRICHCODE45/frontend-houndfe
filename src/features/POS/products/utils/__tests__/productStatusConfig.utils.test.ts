@@ -85,13 +85,13 @@ describe('getProductStockDisplay (card label) reuses the shared tone', () => {
       getProductStockDisplay(
         makeProduct({ hasVariants: true, variantStockTotal: 12, variantCount: 1 }),
       ).label,
-    ).toBe('12 unidades en 1 variante')
+    ).toBe('12 · 1 variante')
 
     expect(
       getProductStockDisplay(
         makeProduct({ hasVariants: true, variantStockTotal: 12, variantCount: 4 }),
       ).label,
-    ).toBe('12 unidades en 4 variantes')
+    ).toBe('12 · 4 variantes')
   })
 
   it('labels variants without a total as "En variantes"', () => {
@@ -137,7 +137,7 @@ describe('stock labels agree in number and have a compact form for cards', () =>
       getProductStockDisplay(
         makeProduct({ hasVariants: true, variantStockTotal: 1, variantCount: 1 }),
       ).label,
-    ).toBe('1 unidad en 1 variante')
+    ).toBe('1 · 1 variante')
   })
 
   it('shortens variants to the unit total so a card footer fits on one line', () => {

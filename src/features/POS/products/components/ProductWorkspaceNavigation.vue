@@ -30,14 +30,15 @@ const tasks: { id: ProductWorkspaceTask; label: string }[] = [
 <style scoped>
 .product-task-navigation {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(4, auto);
+  justify-content: space-between;
   gap: 4px;
   margin-bottom: 24px;
   border-bottom: 1px solid var(--hf-border);
 }
 .product-task-button {
   min-height: var(--hf-control-height);
-  padding: 12px 4px;
+  padding: 12px 8px;
   border-radius: var(--hf-radius-control) var(--hf-radius-control) 0 0;
   color: var(--hf-muted);
   background: transparent;

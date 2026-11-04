@@ -2025,16 +2025,17 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
           </div>
         </div>
 
-        <UButton
-          v-if="showWorkspace && !isFormReadonly"
-          :label="isCreateMode ? createModeSubmitLabel : 'Guardar cambios'"
-          type="submit"
-          form="product-detail-form"
-          :loading="updateMutation.isPending.value || createMutation.isPending.value"
-          :disabled="!canSubmitMainForm"
-          color="primary"
-          class="hf-primary-control max-md:hidden"
-        />
+        <div v-if="showWorkspace && !isFormReadonly" class="max-md:hidden">
+          <UButton
+            :label="isCreateMode ? createModeSubmitLabel : 'Guardar cambios'"
+            type="submit"
+            form="product-detail-form"
+            :loading="updateMutation.isPending.value || createMutation.isPending.value"
+            :disabled="!canSubmitMainForm"
+            color="primary"
+            class="hf-primary-control"
+          />
+        </div>
       </div>
     </div>
 

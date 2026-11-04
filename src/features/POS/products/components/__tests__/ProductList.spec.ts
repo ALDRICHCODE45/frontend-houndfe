@@ -276,7 +276,9 @@ describe('ProductList — loading', () => {
   it('shows the table skeleton and no rows', () => {
     const wrapper = mountList({ items: [], totalCount: 0, pageCount: 0, loading: true })
     expect(wrapper.get('[data-testid="table-skeleton"]').attributes('aria-busy')).toBe('true')
-    expect(wrapper.find('tbody').exists()).toBe(false)
+    // The skeleton may keep the real header; it never renders data rows.
+    const dataRows = wrapper.findAll('tbody tr').filter((row) => !row.element.closest('[data-testid="table-skeleton"]'))
+    expect(dataRows).toHaveLength(0)
     expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
     wrapper.unmount()
   })
@@ -332,9 +334,9 @@ describe('ProductList — review round 1', () => {
     expect(source).not.toMatch(/\.product-card-title \.hf-row-primary[^}]*white-space: nowrap/s)
   })
 
-  it('shows the table stock with the full unit and variant count', () => {
+  it('shows the table stock as a short total and variant count that fits the column', () => {
     const wrapper = mountList({ items: [variantsProduct] })
-    expect(wrapper.text()).toContain('24 unidades en 2 variantes')
+    expect(wrapper.text()).toContain('24 · 2 variantes')
     wrapper.unmount()
   })
 })

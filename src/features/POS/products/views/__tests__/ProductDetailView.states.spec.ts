@@ -192,7 +192,11 @@ describe('ProductDetailView — review round 1', () => {
     const submit = bar.get('button[type="submit"]')
     expect(submit.attributes('form')).toBe('product-detail-form')
     expect(submit.text()).toBe('Guardar cambios')
-    expect(wrapper.get('.product-workspace-header button[type="submit"]').classes()).toContain('max-md:hidden')
+    // The wrapper hides it: `.hf-ui .hf-primary-control { display: inline-flex }` beats a
+    // `max-md:hidden` on the button itself, which showed two solid saves at 390.
+    const header = wrapper.get('.product-workspace-header button[type="submit"]')
+    expect(header.classes()).not.toContain('max-md:hidden')
+    expect(header.element.closest('.max-md\\:hidden')).not.toBeNull()
   })
 
   it('shows the status as a badge in a meta line above the title, in sentence case', async () => {

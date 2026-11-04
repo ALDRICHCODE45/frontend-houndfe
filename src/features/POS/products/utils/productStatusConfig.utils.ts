@@ -54,7 +54,7 @@ export const getProductStockDisplay = (product: Product): ProductStockDisplay =>
   if (product.hasVariants && product.variantStockTotal != null) {
     const variantWord = product.variantCount === 1 ? 'variante' : 'variantes'
     return {
-      label: `${unitsLabel(product.variantStockTotal)} en ${product.variantCount} ${variantWord}`,
+      label: `${product.variantStockTotal} · ${product.variantCount} ${variantWord}`,
       tone: getProductStockTone(product),
     }
   }
