@@ -7,8 +7,6 @@ import { join, relative, resolve } from 'node:path'
 const SRC = resolve(process.cwd(), 'src')
 const RETRY_TEXT = /Reintenta\.|Reintenta (?:el|para)\b/
 const SPECS = /(?:\.spec|\.test)\.ts$|\/__tests__\//
-// Owned by the products, promotions and quotations writer.
-const OTHER_WRITER = /^features\/POS\/(?:products|promotions|quotations)\//
 
 function sources(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -21,7 +19,7 @@ function sources(dir: string): string[] {
 it('error messages do not repeat the retry action', () => {
   const offenders = sources(SRC)
     .map((file) => relative(SRC, file))
-    .filter((file) => !SPECS.test(file) && !OTHER_WRITER.test(file))
+    .filter((file) => !SPECS.test(file))
     .filter((file) => RETRY_TEXT.test(readFileSync(join(SRC, file), 'utf8')))
   expect(offenders).toEqual([])
 })
