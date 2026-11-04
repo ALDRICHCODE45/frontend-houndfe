@@ -6,7 +6,6 @@ const cssPath = `${dir}/styles/payment-methods-visual.css`
 const css = existsSync(cssPath) ? readFileSync(cssPath, 'utf8') : ''
 const read = (p: string) => readFileSync(`${dir}/${p}`, 'utf8')
 const view = read('views/AdminPaymentMethodsView.vue')
-const grid = read('components/PaymentMethodCardGrid.vue')
 const slideover = read('components/PaymentMethodUpsertSlideover.vue')
 
 const listPortal = 'hf-theme hf-ui payment-methods-list-portal'
@@ -15,39 +14,56 @@ const count = (source: string, needle: string) => source.split(needle).length - 
 
 // Source contracts, not rendered geometry or browser fidelity evidence.
 describe('AdminPaymentMethodsView.vue presentation adapter', () => {
-  it('loads a scoped adapter with light and dark palettes for every surface', () => {
+  it('loads a scoped adapter without global overrides', () => {
     expect(css).toContain("@import '../../../../core/shared/design-system/houndfe-ui.css'")
+    expect(view).toContain("import '../styles/payment-methods-visual.css'")
     expect(css).not.toContain(':root')
     expect(css).not.toContain('!important')
     for (const marker of ['payment-methods-visual', 'payment-methods-list-portal', 'payment-methods-form-portal']) {
       expect(css).toContain(`.hf-theme.${marker}`)
-      expect(css).toContain(`.dark .hf-theme.${marker}`)
     }
-    expect(css).toContain(":not([role='switch'], [role='checkbox'])")
+    expect(css).toContain('--radius-xl: var(--hf-radius-card)')
   })
 
-  it('follows the canonical table workspace with themed toolbar, pagination, row menu and confirmation', () => {
-    expect(view).toContain("import '../styles/payment-methods-visual.css'")
+  it('paints only on --hf roles: no palette literals, no local re-theme', () => {
+    const declarations = css.replace(/\/\*[\s\S]*?\*\//g, '')
+    expect(declarations).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
+    expect(declarations).not.toMatch(
+      /--hf-(?:page|surface|surface-muted|field|ink|heading|muted|border|action|on-action|active|focus):/,
+    )
+    expect(declarations).not.toMatch(/coco|--brand|--light/)
+    expect(css).not.toContain('.dark ')
+  })
+
+  it('has no rules for the retired card grid or view toggle', () => {
+    for (const retired of ['payment-methods-card', 'payment-methods-view-toggle', 'transform: none', 'hf-pagination']) {
+      expect(css).not.toContain(retired)
+    }
+  })
+
+  it('follows the canonical table workspace on the shared table pattern', () => {
     expect(view).toContain('hf-theme hf-ui payment-methods-visual')
     expect(view).toContain('class="hf-page-header"')
     expect(view).toContain('class="hf-page-title"')
-    expect(view).toContain('class="hf-page-subtitle"')
     expect(view).toContain('hf-table-surface')
     expect(view).toContain('class="hf-data-table"')
+    expect(view).toContain('mobile-render="cards"')
+    expect(view).toContain('#mobile-card')
+    expect(view).toContain(':row-open="rowOpen"')
+    expect(view).toContain('<RowActionsMenu')
+    expect(view).toContain('<StatusBadge')
     expect(view).not.toContain('AdminPageHeader')
     expect(view).not.toContain('bg-coco-neutral')
-    expect(view).toContain(`portal-class="${listPortal}"`)
-    expect(view).toContain(`pagination-portal-class="${listPortal}"`)
-    expect(view).toContain(`:ui="{ content: '${listPortal}' }"`)
-    expect(view).toContain(`:ui="{ content: '${formPortal}' }"`)
-    expect(view).toContain('payment-methods-view-toggle')
+    for (const retired of ['ViewToggle', 'CardGrid', 'AppBadge', 'StatusDotBadge', 'UDropdownMenu']) {
+      expect(view).not.toContain(retired)
+    }
   })
 
-  it('keeps cards restrained through owned hooks', () => {
-    expect(grid).toContain('payment-methods-card-grid')
-    expect(grid).toContain('payment-methods-card ')
-    expect(css).toContain('.payment-methods-visual .payment-methods-card:hover')
-    expect(css).toContain('transform: none')
+  it('themes toolbar, pagination, row menu and the deactivate confirmation', () => {
+    expect(view).toContain(`portal-class="${listPortal}"`)
+    expect(view).toContain(`pagination-portal-class="${listPortal}"`)
+    expect(view).toContain('portal-class="payment-methods-list-portal"')
+    expect(view).toContain(`:ui="{ content: '${formPortal}' }"`)
   })
 
   it('themes the upsert slideover and its menus', () => {

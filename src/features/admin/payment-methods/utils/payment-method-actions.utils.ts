@@ -1,3 +1,4 @@
+import type { RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import type {
   PaymentMethodResponse,
   PaymentMethodTableRow,
@@ -8,7 +9,7 @@ import type {
  *
  * Pure helpers for:
  *   - Building the deactivate confirm description (REQ-PM-004).
- *   - Building the dropdown row actions gated on `*:PaymentMethod` permissions
+ *   - Building the row actions menu gated on `*:PaymentMethod` permissions
  *     (REQ-PM-005 / REQ-PM-006).
  *
  * No coupling to the employees module or other bounded contexts; this file
@@ -32,41 +33,25 @@ export function buildPaymentMethodDeactivateDescription(
 export interface PaymentMethodRowActionContext {
   canUpdate: boolean
   canDelete: boolean
-  onEdit: (row: PaymentMethodTableRow) => void
-  onDelete: (row: PaymentMethodTableRow) => void
-}
-
-export interface PaymentMethodRowActionItem {
-  label: string
-  color?: 'error'
-  onSelect: () => void
 }
 
 /**
- * buildPaymentMethodRowActions — Build the kebab-menu sections per the gate
- * contract:
+ * buildPaymentMethodRowActions — Build the ⋮ menu items per the gate contract:
  *
- *   - `canUpdate` only          → [ [Editar] ]
- *   - `canDelete` only          → [ [Desactivar (error)] ]
- *   - both                      → [ [Editar], [Desactivar (error)] ]
- *   - neither                   → [ ]  (parent hides the kebab)
+ *   - `canUpdate` only          → [ ]  (opening the row already edits; a menu of
+ *                                      only "Editar" would repeat the row click)
+ *   - `canDelete` only          → [ Desactivar… (destructive) ]
+ *   - both                      → [ Editar, Desactivar… (destructive, last) ]
+ *   - neither                   → [ ]  (no ⋮)
  *
- * Per REQ-PM-005: the kebab MUST NOT offer a "Reactivar" entry (reactivation
- * happens via the edit slideover's `isActive` toggle). The kebab MUST NOT
+ * Per REQ-PM-005: the menu MUST NOT offer a "Reactivar" entry (reactivation
+ * happens via the edit slideover's `isActive` toggle). The menu MUST NOT
  * offer "Eliminar definitivamente" — hard delete is not supported (REQ-PM-005).
- *
- * Sections with zero items are filtered out, so the empty-array contract
- * cascades naturally to `UDropdownMenu`'s empty-state behavior.
  */
-export function buildPaymentMethodRowActions(
-  row: PaymentMethodTableRow,
-  ctx: PaymentMethodRowActionContext,
-): PaymentMethodRowActionItem[][] {
-  const main: PaymentMethodRowActionItem[] = ctx.canUpdate
-    ? [{ label: 'Editar', onSelect: () => ctx.onEdit(row) }]
-    : []
-  const destructive: PaymentMethodRowActionItem[] = ctx.canDelete
-    ? [{ label: 'Desactivar', color: 'error', onSelect: () => ctx.onDelete(row) }]
-    : []
-  return [main, destructive].filter((section) => section.length > 0)
+export function buildPaymentMethodRowActions(ctx: PaymentMethodRowActionContext): RowAction[] {
+  if (!ctx.canDelete) return []
+  return [
+    ...(ctx.canUpdate ? [{ key: 'edit', label: 'Editar', icon: 'i-lucide-pencil' }] : []),
+    { key: 'delete', label: 'Desactivar…', icon: 'i-lucide-power', destructive: true },
+  ]
 }

@@ -1,79 +1,49 @@
 import { describe, it, expect } from 'vitest'
 import { usePaymentMethodColumns } from '../usePaymentMethodColumns'
 
+const keyOf = (column: { accessorKey?: unknown; id?: string }) =>
+  (column.accessorKey as string | undefined) ?? column.id
+
 describe('usePaymentMethodColumns (sdd custom-payment-methods S2A, REQ-PM-001)', () => {
-  it('exposes a columns array', () => {
+  it('orders columns by job: name, status, category, date, then the ⋮ column', () => {
     const { columns } = usePaymentMethodColumns()
-    expect(Array.isArray(columns)).toBe(true)
-    expect(columns.length).toBeGreaterThan(0)
+    expect(columns.map(keyOf)).toEqual(['name', 'isActive', 'category', 'updatedAt', 'actions'])
+    expect(columns.length).toBeLessThanOrEqual(8)
   })
 
-  it('contains the four data columns (name, category, subtitle, updatedAt)', () => {
+  it('folds the subtitle under the name instead of a column of its own', () => {
     const { columns } = usePaymentMethodColumns()
-    const ids = columns
-      .map((c) => (c as { accessorKey?: string; id?: string }).accessorKey ?? (c as { id?: string }).id)
-    expect(ids).toContain('name')
-    expect(ids).toContain('category')
-    expect(ids).toContain('subtitle')
-    expect(ids).toContain('updatedAt')
+    expect(columns.map(keyOf)).not.toContain('subtitle')
   })
 
-  it('contains the isActive status column', () => {
+  it('contains the isActive status column right after the name, non-sortable (REQ-PM-001)', () => {
     const { columns } = usePaymentMethodColumns()
-    const ids = columns
-      .map((c) => (c as { accessorKey?: string; id?: string }).accessorKey ?? (c as { id?: string }).id)
-    expect(ids).toContain('isActive')
+    const status = columns[1]!
+    expect(keyOf(status)).toBe('isActive')
+    expect(status.header).toBe('Estado')
+    expect(status.enableSorting).toBe(false)
   })
 
-  it('contains the actions column (kebab)', () => {
+  it('sorts by name and category, and keeps the date quiet', () => {
     const { columns } = usePaymentMethodColumns()
-    const ids = columns.map((c) => (c as { id?: string }).id)
-    expect(ids).toContain('actions')
+    const byKey = (key: string) => columns.find((column) => keyOf(column) === key)!
+    expect(byKey('name').enableSorting).toBe(true)
+    expect(byKey('category').enableSorting).toBe(true)
+    expect(byKey('updatedAt').enableSorting).toBe(false)
   })
 
-  it('the actions column is non-hideable (locked: kebab must persist when column visibility toggles)', () => {
+  it('makes the actions column last, narrow, non-sortable and non-hideable', () => {
     const { columns } = usePaymentMethodColumns()
-    const actions = columns.find((c) => (c as { id?: string }).id === 'actions') as
-      | { enableHiding?: boolean }
-      | undefined
-    expect(actions).toBeDefined()
-    expect(actions!.enableHiding).toBe(false)
-  })
-
-  it('the actions column is non-sortable', () => {
-    const { columns } = usePaymentMethodColumns()
-    const actions = columns.find((c) => (c as { id?: string }).id === 'actions') as
-      | { enableSorting?: boolean }
-      | undefined
-    expect(actions!.enableSorting).toBe(false)
-  })
-
-  it('the isActive column uses createSimpleHeader (non-sortable, per REQ-PM-001)', () => {
-    const { columns } = usePaymentMethodColumns()
-    const isActive = columns.find(
-      (c) => (c as { id?: string }).id === 'isActive',
-    ) as { header?: unknown; enableSorting?: boolean } | undefined
-    expect(isActive).toBeDefined()
-    // createSimpleHeader returns a function with a stable string label.
-    const headerFn = isActive!.header as unknown
-    expect(typeof headerFn).toBe('function')
-    expect((headerFn as () => string)()).toBe('Estado')
-    expect(isActive!.enableSorting).toBe(false)
-  })
-
-  it('data columns are hideable (name, category, subtitle, isActive, updatedAt)', () => {
-    const { columns } = usePaymentMethodColumns()
-    for (const id of ['name', 'category', 'subtitle', 'isActive', 'updatedAt']) {
-      const col = columns.find((c) => (c as { accessorKey?: string; id?: string }).accessorKey === id
-        || (c as { id?: string }).id === id) as { enableHiding?: boolean } | undefined
-      expect(col, `column ${id} must be present`).toBeDefined()
-      expect(col!.enableHiding, `column ${id} must be hideable`).toBe(true)
-    }
+    const actions = columns[columns.length - 1]!
+    expect(keyOf(actions)).toBe('actions')
+    expect(actions.enableSorting).toBe(false)
+    expect(actions.enableHiding).toBe(false)
+    expect(actions.meta?.class).toEqual({ th: 'w-16', td: 'w-16 text-right' })
   })
 
   it('does NOT contain a `manage` or `batch_delete` perm-shaped column (defensive: only data cols)', () => {
     const { columns } = usePaymentMethodColumns()
-    const ids = columns.map((c) => (c as { accessorKey?: string; id?: string }).accessorKey ?? (c as { id?: string }).id)
+    const ids = columns.map(keyOf)
     expect(ids).not.toContain('manage')
     expect(ids).not.toContain('batch_delete')
   })

@@ -40,105 +40,41 @@ describe('buildPaymentMethodDeactivateDescription (sdd custom-payment-methods S3
 })
 
 describe('buildPaymentMethodRowActions (sdd custom-payment-methods S3A, REQ-PM-005/006)', () => {
-  const row = makeRow()
+  const labels = (ctx: Parameters<typeof buildPaymentMethodRowActions>[0]) =>
+    buildPaymentMethodRowActions(ctx).map((action) => action.label)
 
-  it('returns only the edit section when canUpdate=true and canDelete=false', () => {
-    const sections = buildPaymentMethodRowActions(row, {
-      canUpdate: true,
-      canDelete: false,
-      onEdit: () => {},
-      onDelete: () => {},
-    })
-    expect(sections).toHaveLength(1)
-    expect(sections[0]![0]!.label).toBe('Editar')
+  it('returns no actions when canUpdate=true and canDelete=false: "Editar" alone would repeat the row click', () => {
+    expect(buildPaymentMethodRowActions({ canUpdate: true, canDelete: false })).toEqual([])
   })
 
-  it('returns only the destructive section when canUpdate=false and canDelete=true', () => {
-    const sections = buildPaymentMethodRowActions(row, {
-      canUpdate: false,
-      canDelete: true,
-      onEdit: () => {},
-      onDelete: () => {},
-    })
-    expect(sections).toHaveLength(1)
-    expect(sections[0]![0]!.label).toBe('Desactivar')
-    expect(sections[0]![0]!.color).toBe('error')
+  it('returns only the destructive entry when canUpdate=false and canDelete=true', () => {
+    const actions = buildPaymentMethodRowActions({ canUpdate: false, canDelete: true })
+    expect(actions).toHaveLength(1)
+    expect(actions[0]).toMatchObject({ key: 'delete', label: 'Desactivar…', destructive: true })
   })
 
-  it('returns two sections (edit + deactivate) when both permissions are held', () => {
-    const sections = buildPaymentMethodRowActions(row, {
-      canUpdate: true,
-      canDelete: true,
-      onEdit: () => {},
-      onDelete: () => {},
-    })
-    expect(sections).toHaveLength(2)
-    expect(sections[0]![0]!.label).toBe('Editar')
-    expect(sections[1]![0]!.label).toBe('Desactivar')
+  it('returns Editar first and Desactivar… last when both permissions are held', () => {
+    const actions = buildPaymentMethodRowActions({ canUpdate: true, canDelete: true })
+    expect(actions.map((action) => action.label)).toEqual(['Editar', 'Desactivar…'])
+    expect(actions[1]!.destructive).toBe(true)
   })
 
-  it('returns an empty array when neither permission is held (kebab hidden entirely)', () => {
-    const sections = buildPaymentMethodRowActions(row, {
-      canUpdate: false,
-      canDelete: false,
-      onEdit: () => {},
-      onDelete: () => {},
-    })
-    expect(sections).toEqual([])
+  it('returns an empty array when neither permission is held (no ⋮)', () => {
+    expect(buildPaymentMethodRowActions({ canUpdate: false, canDelete: false })).toEqual([])
   })
 
   // REQ-PM-005 — reactivation lives in the edit slideover's isActive toggle,
-  // NOT as a separate kebab entry. The kebab MUST NOT offer "Reactivar".
-  it('does NOT offer a "Reactivar" kebab entry (REQ-PM-005)', () => {
-    const sections = buildPaymentMethodRowActions(row, {
-      canUpdate: true,
-      canDelete: true,
-      onEdit: () => {},
-      onDelete: () => {},
-    })
-    const flatLabels = sections.flat().map((s) => s.label)
-    expect(flatLabels).not.toContain('Reactivar')
-    expect(flatLabels).not.toContain('Activar')
+  // NOT as a separate menu entry. The menu MUST NOT offer "Reactivar".
+  it('does NOT offer a "Reactivar" entry (REQ-PM-005)', () => {
+    const flat = labels({ canUpdate: true, canDelete: true })
+    expect(flat).not.toContain('Reactivar')
+    expect(flat).not.toContain('Activar')
   })
 
-  // REQ-PM-005 — hard delete is not supported, the kebab MUST NOT offer it.
+  // REQ-PM-005 — hard delete is not supported, the menu MUST NOT offer it.
   it('does NOT offer an "Eliminar definitivamente" / hard-delete entry (REQ-PM-005)', () => {
-    const sections = buildPaymentMethodRowActions(row, {
-      canUpdate: true,
-      canDelete: true,
-      onEdit: () => {},
-      onDelete: () => {},
-    })
-    const flatLabels = sections.flat().map((s) => s.label)
-    expect(flatLabels).not.toContain('Eliminar definitivamente')
-    expect(flatLabels).not.toContain('Eliminar')
-  })
-
-  it('invokes the supplied onEdit callback when "Editar" is selected', () => {
-    let captured: PaymentMethodTableRow | null = null
-    const sections = buildPaymentMethodRowActions(row, {
-      canUpdate: true,
-      canDelete: false,
-      onEdit: (r) => {
-        captured = r
-      },
-      onDelete: () => {},
-    })
-    sections[0]![0]!.onSelect()
-    expect(captured).toEqual(row)
-  })
-
-  it('invokes the supplied onDelete callback when "Desactivar" is selected', () => {
-    let captured: PaymentMethodTableRow | null = null
-    const sections = buildPaymentMethodRowActions(row, {
-      canUpdate: false,
-      canDelete: true,
-      onEdit: () => {},
-      onDelete: (r) => {
-        captured = r
-      },
-    })
-    sections[0]![0]!.onSelect()
-    expect(captured).toEqual(row)
+    const flat = labels({ canUpdate: true, canDelete: true })
+    expect(flat).not.toContain('Eliminar definitivamente')
+    expect(flat).not.toContain('Eliminar')
   })
 })
