@@ -173,6 +173,13 @@ describe('CashRegistersPanel · create', () => {
     expect(wrapper.emitted('create')).toEqual([['Caja nueva']])
   })
 
+  it('puts the create form above the table, not hanging under it', () => {
+    const wrapper = mountPanel({ registers: [REGISTERS[0]], canCreate: true })
+    const form = wrapper.get('[data-testid="cash-register-create-form"]').element
+    const table = wrapper.get('table').element
+    expect(form.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('shows no create form, and no explanation, without the create permission', () => {
     const wrapper = mountPanel()
     expect(wrapper.find('[data-testid="cash-register-create-form"]').exists()).toBe(false)

@@ -91,6 +91,19 @@ describe('CashCustodyDiscovery · four states (S10)', () => {
     expect(loading.attributes('aria-busy')).toBe('true')
     expect(wrapper.find('[data-testid="cash-custody-pending"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="cash-custody-empty"]').exists()).toBe(false)
+    // Two card-shaped placeholders (badge, amount, meta line, fields), not plain boxes.
+    const cards = loading.findAll('.cash-card')
+    expect(cards).toHaveLength(2)
+    expect(cards[0]!.findAll('.animate-pulse').length).toBeGreaterThanOrEqual(5)
+  })
+
+  it('error: the default state is a title and Reintentar, with no repeated sentence', () => {
+    const wrapper = mountDiscovery({ error: true })
+    const state = wrapper.get('[data-testid="cash-custody-error"]')
+    expect(state.text()).toContain('No se pudo cargar tu custodia')
+    expect(state.text()).not.toContain('Reintenta.')
+    expect(state.find('p').exists()).toBe(true)
+    expect(state.findAll('p')).toHaveLength(1)
   })
 
   it('error: shows the message with Reintentar that asks for a refresh', async () => {
@@ -165,10 +178,10 @@ describe('CashCustodyDiscovery · receipt is recipient-only', () => {
     expect(card.get('[data-testid="cash-custody-declared-h-1"]').text()).not.toMatch(/recibido/i)
   })
 
-  it('distinguishes FLOAT from WITHDRAWAL', () => {
+  it('distinguishes a fondo from a retiro, in Spanish', () => {
     const wrapper = mountDiscovery({ pendingHandovers: PENDING })
-    expect(wrapper.get('[data-testid="cash-custody-kind-h-1"]').text()).toMatch(/FLOAT/i)
-    expect(wrapper.get('[data-testid="cash-custody-kind-h-2"]').text()).toMatch(/WITHDRAWAL/i)
+    expect(wrapper.get('[data-testid="cash-custody-kind-h-1"]').text()).toBe('Fondo')
+    expect(wrapper.get('[data-testid="cash-custody-kind-h-2"]').text()).toBe('Retiro')
   })
 })
 

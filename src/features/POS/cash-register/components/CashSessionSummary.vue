@@ -30,7 +30,7 @@ const props = withDefaults(
     detail: null,
     loading: false,
     error: false,
-    errorMessage: 'No se pudo cargar la sesión. Reintenta.',
+    errorMessage: undefined,
   },
 )
 

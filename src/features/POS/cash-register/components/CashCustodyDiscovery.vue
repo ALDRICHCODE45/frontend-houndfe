@@ -42,7 +42,7 @@ const props = withDefaults(
     registerId: null,
     loading: false,
     error: false,
-    errorMessage: 'No se pudo cargar tu custodia pendiente. Reintenta.',
+    errorMessage: undefined,
     receivingId: null,
   },
 )
@@ -57,7 +57,7 @@ const notesInputs = ref<Record<string, string>>({})
 const localError = ref<string | null>(null)
 
 function kindLabel(kind: CashCustodyItem['kind']): string {
-  return kind === 'FLOAT' ? 'FLOAT (próximo fondo)' : 'WITHDRAWAL (retiro)'
+  return kind === 'FLOAT' ? 'Fondo' : 'Retiro'
 }
 
 const kindTone = (kind: CashCustodyItem['kind']) => (kind === 'FLOAT' ? 'info' : 'neutral')
@@ -121,12 +121,25 @@ function submitReceive(item: CashCustodyItem) {
         data-testid="cash-custody-loading"
       >
         <span class="sr-only">Cargando</span>
+        <!-- Shaped like a pending-handover card: kind badge and amount, a meta
+             line, then the receipt fields and the Recibir button. -->
         <div
           v-for="index in 2"
           :key="`custody-skeleton-${index}`"
-          class="h-28 animate-pulse rounded-lg border border-[var(--hf-border)] bg-[var(--hf-surface-muted)]"
+          class="cash-card flex flex-col gap-3"
           aria-hidden="true"
-        />
+        >
+          <div class="flex items-center justify-between">
+            <div class="h-6 w-20 animate-pulse rounded-md bg-[var(--hf-surface-muted)]" />
+            <div class="h-5 w-24 animate-pulse rounded bg-[var(--hf-surface-muted)]" />
+          </div>
+          <div class="h-4 w-1/4 animate-pulse rounded bg-[var(--hf-surface-muted)]" />
+          <div class="flex gap-2">
+            <div class="h-11 w-40 animate-pulse rounded-lg bg-[var(--hf-surface-muted)]" />
+            <div class="h-11 w-40 animate-pulse rounded-lg bg-[var(--hf-surface-muted)]" />
+            <div class="h-11 w-24 animate-pulse rounded-lg bg-[var(--hf-surface-muted)]" />
+          </div>
+        </div>
       </div>
 
       <EmptyState
@@ -142,7 +155,7 @@ function submitReceive(item: CashCustodyItem) {
       <EmptyState
         v-else-if="!hasAny"
         title="No hay entregas pendientes"
-        description="Aquí aparecerán las entregas y el FLOAT que recibas."
+        description="Aquí aparecerán las entregas y los fondos que recibas."
         data-testid="cash-custody-empty"
       />
 
@@ -236,12 +249,12 @@ function submitReceive(item: CashCustodyItem) {
         </section>
 
         <section class="flex flex-col gap-3" data-testid="cash-custody-float">
-          <h3 class="text-sm font-semibold text-highlighted">FLOAT disponibles</h3>
+          <h3 class="text-sm font-semibold text-highlighted">Fondos disponibles</h3>
           <p v-if="eligibleFloat.length === 0" class="cash-meta" data-testid="cash-custody-float-empty">
-            No tienes FLOAT sin usar.
+            No tienes fondos sin usar.
           </p>
           <p v-else class="cash-meta">
-            Cada FLOAT es una referencia, no una reserva: el fondo de apertura es el monto recibido.
+            Cada fondo es una referencia, no una reserva: el fondo de apertura es el monto recibido.
           </p>
           <article
             v-for="item in eligibleFloat"

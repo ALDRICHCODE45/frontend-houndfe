@@ -263,7 +263,8 @@ describe('CashRegisterView · task-focused composition', () => {
     expect(taskShown(wrapper, 'apertura')).toBe(true)
     expect(taskShown(wrapper, 'historial')).toBe(false)
     expect(wrapper.find('[data-testid="cash-registers-panel"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="cash-open-session"]').exists()).toBe(true)
+    // The opening form appears once a register is chosen, not as a hint before.
+    expect(wrapper.find('[data-testid="cash-open-session"]').exists()).toBe(false)
 
     await navigate(wrapper, 'historial')
     expect(taskShown(wrapper, 'historial')).toBe(true)
@@ -296,15 +297,15 @@ describe('CashRegisterView · task-focused composition', () => {
     expect(nav.text().toLowerCase()).not.toContain('paso ')
   })
 
-  it('presents the heading of the task chosen from the quiet navigation', async () => {
+  it('keeps the page title equal to the breadcrumb when another task is chosen', async () => {
     const { wrapper } = mountView()
     await flush()
 
-    expect(wrapper.get('[data-testid="cash-workspace-heading"]').text()).toBe('Abrir un turno')
+    expect(wrapper.get('[data-testid="cash-workspace-heading"]').text()).toBe('Caja')
 
     await navigate(wrapper, 'historial')
 
-    expect(wrapper.get('[data-testid="cash-workspace-heading"]').text()).toBe('Historial de turnos')
+    expect(wrapper.get('[data-testid="cash-workspace-heading"]').text()).toBe('Caja')
   })
 })
 
@@ -606,7 +607,7 @@ describe('CashRegisterView · sensitive local state is cleared on an identity ch
       false,
     )
     expect(wrapper.find('[data-testid="cash-session-summary"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="cash-open-no-register"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="cash-open-session"]').exists()).toBe(false)
   })
 })
 

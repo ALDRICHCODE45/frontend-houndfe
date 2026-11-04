@@ -130,6 +130,14 @@ describe('CashWorkspaceShiftCard', () => {
     expect(wrapper.find('[data-testid="cash-session-summary"]').exists()).toBe(false)
   })
 
+  it('does not repeat the failure title in a second sentence', () => {
+    const wrapper = render({ hasSelection: true, detail: OPEN_DETAIL, error: true })
+    const state = wrapper.get('[data-testid="cash-shift-error"]')
+    expect(state.text()).toContain('No se pudo cargar la sesión')
+    expect(state.text()).not.toContain('Reintenta.')
+    expect(state.findAll('p')).toHaveLength(1)
+  })
+
   it('shows the failure state with Reintentar instead of stale turn facts when the read fails', async () => {
     const wrapper = render({ hasSelection: true, detail: OPEN_DETAIL, error: true })
 

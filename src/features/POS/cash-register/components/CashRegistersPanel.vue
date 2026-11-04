@@ -126,6 +126,35 @@ const { rowProps } = useClickableRow<CashRegister>(open, { focusable: false })
       <h2 class="cash-list-title">Cajas</h2>
     </header>
 
+    <form
+      v-if="canCreate"
+      class="flex flex-wrap items-end gap-2"
+      data-testid="cash-register-create-form"
+      @submit.prevent="submitCreate"
+    >
+      <UFormField label="Nombre de la nueva caja" class="min-w-56 flex-1">
+        <UInput
+          v-model="newName"
+          class="w-full"
+          placeholder="Caja principal"
+          data-testid="cash-register-name-input"
+        />
+      </UFormField>
+      <UButton
+        type="submit"
+        color="neutral"
+        variant="outline"
+        class="min-h-11"
+        :loading="creating"
+        data-testid="cash-register-create-submit"
+      >
+        Crear caja
+      </UButton>
+      <p v-if="formError" class="w-full text-xs text-error" data-testid="cash-register-form-error">
+        {{ formError }}
+      </p>
+    </form>
+
     <AppDataTable
       :show-toolbar="false"
       :columns="columns"
@@ -205,34 +234,5 @@ const { rowProps } = useClickableRow<CashRegister>(open, { focusable: false })
         </article>
       </template>
     </AppDataTable>
-
-    <form
-      v-if="canCreate"
-      class="flex flex-wrap items-end gap-2"
-      data-testid="cash-register-create-form"
-      @submit.prevent="submitCreate"
-    >
-      <UFormField label="Nombre de la nueva caja" class="min-w-56 flex-1">
-        <UInput
-          v-model="newName"
-          class="w-full"
-          placeholder="Caja principal"
-          data-testid="cash-register-name-input"
-        />
-      </UFormField>
-      <UButton
-        type="submit"
-        color="neutral"
-        variant="outline"
-        class="min-h-11"
-        :loading="creating"
-        data-testid="cash-register-create-submit"
-      >
-        Crear caja
-      </UButton>
-      <p v-if="formError" class="w-full text-xs text-error" data-testid="cash-register-form-error">
-        {{ formError }}
-      </p>
-    </form>
   </section>
 </template>

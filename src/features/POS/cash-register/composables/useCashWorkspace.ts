@@ -22,8 +22,6 @@ export type CashWorkspaceTaskId =
 export interface CashWorkspaceTask {
   id: CashWorkspaceTaskId
   label: string
-  /** Neutral es-MX page heading shown for the focused task (never a lifecycle step). */
-  heading: string
   icon: string
   /** The task only makes sense with an explicitly selected session. */
   needsSession: boolean
@@ -41,56 +39,48 @@ export const CASH_WORKSPACE_TASKS: readonly CashWorkspaceTask[] = [
   {
     id: 'apertura',
     label: 'Apertura',
-    heading: 'Abrir un turno',
     icon: 'i-lucide-door-open',
     needsSession: false,
   },
   {
     id: 'historial',
     label: 'Sesiones',
-    heading: 'Historial de turnos',
     icon: 'i-lucide-history',
     needsSession: false,
   },
   {
     id: 'movimientos',
     label: 'Movimientos',
-    heading: 'Movimientos de efectivo',
     icon: 'i-lucide-arrow-left-right',
     needsSession: true,
   },
   {
     id: 'conteo',
     label: 'Conteo',
-    heading: 'Cuenta el dinero de tu cajón',
     icon: 'i-lucide-calculator',
     needsSession: true,
   },
   {
     id: 'notas',
     label: 'Notas',
-    heading: 'Notas de la declaración',
     icon: 'i-lucide-notebook-pen',
     needsSession: true,
   },
   {
     id: 'verificacion',
     label: 'Verificación',
-    heading: 'Verifica el conteo',
     icon: 'i-lucide-shield-check',
     needsSession: true,
   },
   {
     id: 'custodia',
     label: 'Custodia',
-    heading: 'Entrega el dinero',
     icon: 'i-lucide-hand-coins',
     needsSession: true,
   },
   {
     id: 'recepcion',
     label: 'Recepciones',
-    heading: 'Recepciones de caja',
     icon: 'i-lucide-inbox',
     needsSession: false,
   },

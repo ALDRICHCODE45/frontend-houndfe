@@ -187,7 +187,7 @@ function submitRelease() {
                   class="sr-only"
                   data-testid="cash-handover-kind-float"
                 />
-                <span class="handover-kind-copy">FLOAT (fondo)</span>
+                <span class="handover-kind-copy">Fondo</span>
               </label>
               <label
                 class="handover-kind"
@@ -200,7 +200,7 @@ function submitRelease() {
                   class="sr-only"
                   data-testid="cash-handover-kind-withdrawal"
                 />
-                <span class="handover-kind-copy">WITHDRAWAL (retiro)</span>
+                <span class="handover-kind-copy">Retiro</span>
               </label>
             </div>
           </fieldset>

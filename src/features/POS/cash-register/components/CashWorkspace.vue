@@ -7,14 +7,12 @@
  * query, command or business selection — clicking a task only announces the
  * requested task so the view can reveal that task's existing panel.
  *
- * The page heading is the FOCUSED task's heading (a presentation label, never a
- * lifecycle step) and the only text of the page header. When no task is focused
- * the page falls back to the plain workspace title.
+ * The page heading is always the workspace title, so it matches the breadcrumb;
+ * the focused task is shown by the navigation, not by a second title.
  */
-import { computed } from 'vue'
 import type { CashWorkspaceTaskId, CashWorkspaceTaskOption } from '../composables/useCashWorkspace'
 
-const props = withDefaults(
+withDefaults(
   defineProps<{
     title: string
     tasks?: CashWorkspaceTaskOption[]
@@ -29,18 +27,12 @@ const props = withDefaults(
 const emit = defineEmits<{
   selectTask: [taskId: CashWorkspaceTaskId]
 }>()
-
-const activeTask = computed(
-  () => props.tasks.find((task) => task.id === props.activeTaskId) ?? null,
-)
-
-const heading = computed(() => activeTask.value?.heading || props.title)
 </script>
 
 <template>
   <section class="cash-workspace cash-visual flex flex-col gap-6" data-testid="cash-workspace">
     <header class="cash-workspace-header">
-      <h1 class="cash-page-title" data-testid="cash-workspace-heading">{{ heading }}</h1>
+      <h1 class="cash-page-title" data-testid="cash-workspace-heading">{{ title }}</h1>
     </header>
 
     <div class="cash-workspace-grid">

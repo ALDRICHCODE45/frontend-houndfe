@@ -95,7 +95,7 @@ describe('recipient-only cash reception', () => {
     await settle()
 
     const heading = wrapper.get('[data-testid="cash-reception-heading"]')
-    expect(heading.get('h1').text()).toBe('Recibe tu custodia')
+    expect(heading.get('h1').text()).toBe('Recepciones de caja')
     expect(heading.get('p').text()).toContain('destinadas a ti')
     // One short subtitle: no eyebrow label above the title.
     expect(heading.findAll('p')).toHaveLength(1)
@@ -254,6 +254,10 @@ describe('cash reception · four states (S10)', () => {
 
     expect(wrapper.get('[data-testid="cash-custody-loading"]').attributes('aria-busy')).toBe('true')
     expect(wrapper.find('[data-testid="cash-custody-pending"]').exists()).toBe(false)
+    // The summary does not claim zero while the custody is still loading.
+    for (const fact of ['pending', 'declared', 'float']) {
+      expect(wrapper.get(`[data-testid="cash-reception-context-${fact}"]`).text()).toBe('—')
+    }
   })
 
   it('data: the handover card with its kind badge and the receipt form', async () => {

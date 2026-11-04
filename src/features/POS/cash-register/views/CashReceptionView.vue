@@ -71,6 +71,8 @@ async function receive(payload: { id: string; receivedCents: number; notes?: str
 // Context summary: presentation derivations over the REAL recipient custody only
 // (never fabricated dates, branches or amounts). The pending declared total is
 // the only money aggregated; FLOAT stays a reference, never a reservation.
+// Nothing is counted until the custody has loaded (and never after a failed read).
+const loadingFacts = computed(() => custody.isLoading.value || custody.isError.value)
 const pendingCount = computed(() => custody.pendingHandovers.value.length)
 const floatCount = computed(() => custody.eligibleFloat.value.length)
 const pendingDeclaredCents = computed(() =>
@@ -84,7 +86,7 @@ const pendingDeclaredCents = computed(() =>
     data-testid="cash-reception-view"
   >
     <header class="flex flex-col gap-1" data-testid="cash-reception-heading">
-      <h1 class="cash-page-title">Recibe tu custodia</h1>
+      <h1 class="cash-page-title">Recepciones de caja</h1>
       <p class="cash-list-subtitle">Entregas de efectivo destinadas a ti.</p>
     </header>
 
@@ -114,23 +116,23 @@ const pendingDeclaredCents = computed(() =>
 
       <!-- Contexto: esta pantalla es solo de recepción. Sin cajas ni auditoría. -->
       <aside class="flex min-w-0 flex-col gap-4" data-testid="cash-reception-context">
-        <dl class="cash-facts-grid cash-facts-panel">
+        <dl class="cash-facts-grid cash-facts-panel cash-facts-rail">
           <div class="cash-fact">
             <dt>Entregas por recibir</dt>
             <dd class="cash-fact-value hf-figure" data-testid="cash-reception-context-pending">
-              {{ pendingCount }}
+              {{ loadingFacts ? '—' : pendingCount }}
             </dd>
           </div>
           <div class="cash-fact">
             <dt>Efectivo declarado por recibir</dt>
             <dd class="cash-fact-value hf-figure" data-testid="cash-reception-context-declared">
-              {{ formatCentsMXN(pendingDeclaredCents) }}
+              {{ loadingFacts ? '—' : formatCentsMXN(pendingDeclaredCents) }}
             </dd>
           </div>
           <div class="cash-fact">
-            <dt>FLOAT disponibles</dt>
+            <dt>Fondos disponibles</dt>
             <dd class="cash-fact-value hf-figure" data-testid="cash-reception-context-float">
-              {{ floatCount }}
+              {{ loadingFacts ? '—' : floatCount }}
             </dd>
           </div>
         </dl>

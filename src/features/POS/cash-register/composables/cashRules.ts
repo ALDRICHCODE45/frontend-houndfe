@@ -391,6 +391,6 @@ export function floatSourceDrawerAdvisory(
   }
   return {
     blocked: false,
-    message: 'La caja de origen sigue sin liberar su cajón: puedes usar el FLOAT en otra caja.',
+    message: 'La caja de origen sigue sin liberar su cajón: puedes usar el fondo en otra caja.',
   }
 }

@@ -12,7 +12,6 @@ const TASKS: CashWorkspaceTaskOption[] = [
   {
     id: 'apertura',
     label: 'Apertura',
-    heading: 'Abrir un turno',
     icon: 'i-lucide-door-open',
     needsSession: false,
     available: true,
@@ -20,7 +19,6 @@ const TASKS: CashWorkspaceTaskOption[] = [
   {
     id: 'historial',
     label: 'Sesiones',
-    heading: 'Historial de turnos',
     icon: 'i-lucide-history',
     needsSession: false,
     available: true,
@@ -46,7 +44,7 @@ describe('CashWorkspace', () => {
   it('renders the header and one quiet task card per offered task', () => {
     const wrapper = render()
 
-    expect(wrapper.get('[data-testid="cash-workspace-heading"]').text()).toBe('Abrir un turno')
+    expect(wrapper.get('[data-testid="cash-workspace-heading"]').text()).toBe('Caja')
     expect(wrapper.get('[data-testid="cash-workspace-nav"]').attributes('aria-label')).toBe(
       'Tareas de Caja',
     )
@@ -58,10 +56,11 @@ describe('CashWorkspace', () => {
     }
   })
 
-  it('shows only the active task heading, with no eyebrow, subtitle or nav copy', () => {
+  it('keeps one page title that matches the breadcrumb, whatever the active task', () => {
     const opening = render()
 
-    expect(opening.get('h1').text()).toBe('Abrir un turno')
+    expect(opening.get('h1').text()).toBe('Caja')
+    expect(opening.findAll('h1')).toHaveLength(1)
     expect(opening.find('.cash-workspace-eyebrow').exists()).toBe(false)
     expect(opening.find('.cash-workspace-subtitle').exists()).toBe(false)
     expect(opening.text()).not.toContain('¿Qué necesitas hacer?')
@@ -69,7 +68,7 @@ describe('CashWorkspace', () => {
 
     const history = render({ activeTaskId: 'historial' })
 
-    expect(history.get('h1').text()).toBe('Historial de turnos')
+    expect(history.get('h1').text()).toBe('Caja')
   })
 
   it('marks the active task as current and keeps the tasks keyboard operable', () => {

@@ -85,4 +85,16 @@ describe('Caja presentation boundaries', () => {
     expect(declarations).not.toMatch(/coco-|--brand-|--light-|--cash-(?!page-max|rail)/)
     expect(declarations).not.toMatch(/\b(red|green|amber|blue|emerald|slate|gray)-\d{2,3}\b/)
   })
+
+  it('keeps the task strip inside 390px: compact tabs and a fade that hints at more to scroll', () => {
+    expect(adapter).toMatch(/\.cash-task-nav-list\s*\{[^}]*mask-image:\s*linear-gradient/)
+    expect(adapter).toMatch(/\.cash-task-nav-list\s*\{[^}]*overflow-x:\s*auto/)
+    // The fade is a mobile affordance: the desktop rail is a column and never masks.
+    expect(adapter).toMatch(/@media \(min-width: 1024px\)\s*\{\s*\.cash-task-nav-list\s*\{[^}]*mask-image:\s*none/)
+  })
+
+  it('stacks the reception facts in the rail so a label never wraps to a second line', () => {
+    expect(adapter).toMatch(/\.cash-facts-rail\s*\{[^}]*grid-template-columns:\s*1fr/)
+    expect(adapter).toMatch(/\.cash-facts-rail\s+\.cash-fact dt\s*\{[^}]*white-space:\s*nowrap/)
+  })
 })

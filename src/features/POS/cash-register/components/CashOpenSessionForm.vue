@@ -104,7 +104,7 @@ function submit() {
     return
   }
   if (floatMismatch.value) {
-    localError.value = 'El monto debe coincidir con el FLOAT recibido (monto recibido).'
+    localError.value = 'El monto debe coincidir con el fondo recibido.'
     return
   }
   if (drawerAdvisory.value?.blocked) {
@@ -120,16 +120,13 @@ function submit() {
 </script>
 
 <template>
-  <section class="cash-list-section" data-testid="cash-open-session">
+  <section v-if="registerId" class="cash-list-section" data-testid="cash-open-session">
     <header class="cash-list-header">
       <h2 class="cash-list-title">Apertura de sesión</h2>
     </header>
 
     <div class="flex flex-col gap-4">
-      <p v-if="!registerId" class="text-sm text-muted" data-testid="cash-open-no-register">
-        Elige una caja activa para abrir su sesión.
-      </p>
-      <template v-else>
+      <template v-if="registerId">
         <div class="cash-note">
           <dl class="flex flex-wrap items-center justify-between gap-2">
             <dt>Caja seleccionada</dt>
@@ -139,11 +136,11 @@ function submit() {
           </dl>
         </div>
 
-        <UFormField v-if="custodyVisible" label="FLOAT recibido (opcional)">
+        <UFormField v-if="custodyVisible" label="Fondo recibido (opcional)">
           <USelect
             v-model="selectedFloatId"
             :items="[
-              { label: 'Sin FLOAT: fondo nuevo', value: null },
+              { label: 'Ninguno: fondo nuevo', value: null },
               ...eligibleFloat.map((item) => ({
                 label: `${formatCentsMXN(item.receivedCents ?? item.declaredCents)} · ${formatShortDateTime(item.receivedAt ?? item.declaredAt)}`,
                 value: item.id,
@@ -154,7 +151,7 @@ function submit() {
           />
         </UFormField>
         <p v-else class="cash-meta" data-testid="cash-open-float-unavailable">
-          Sin permiso de custodia no se listan tus FLOAT; puedes abrir con fondo nuevo.
+          Sin permiso de custodia no se listan tus fondos recibidos; puedes abrir con fondo nuevo.
         </p>
 
         <div
@@ -196,7 +193,7 @@ function submit() {
           v-if="floatMismatch"
           color="error"
           variant="subtle"
-          description="El fondo inicial debe coincidir con el monto recibido del FLOAT."
+          description="El fondo inicial debe coincidir con el monto recibido del fondo."
           data-testid="cash-open-float-mismatch"
         />
 
