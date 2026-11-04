@@ -300,10 +300,13 @@ function handleClearSelection() {
       @refresh="emit('refresh')"
       @clear-filters="emit('clear-filters')"
     >
-      <template #filters>
+      <!-- Forward a slot only when the screen provides it: an always-present wrapper renders an
+           empty fragment, which made the toolbar draw a mobile "Filtros" button (and an empty
+           actions row) on lists that have neither. -->
+      <template v-if="$slots.filters" #filters>
         <slot name="filters" />
       </template>
-      <template #actions>
+      <template v-if="$slots.actions" #actions>
         <slot name="actions" />
       </template>
     </DataTableToolbar>

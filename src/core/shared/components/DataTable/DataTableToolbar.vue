@@ -69,12 +69,10 @@ const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = breakpoints.smaller('md')
 
 // ─── Filters slot detection ────────────────────────────────────────────────
-// Detect whether the `#filters` slot has content. AppDataTable always wraps the
-// toolbar's `<template #filters>` so the wrapper here is non-null in
-// integration; we therefore probe the slot by calling it once and counting
-// the returned vnodes. When the slot vnodes are empty (e.g. Users / Roles /
-// TenantMembers / Products — no `enableColumnVisibility` content) the
-// "Filtros" trigger is hidden on mobile.
+// Detect whether the `#filters` slot has content. AppDataTable forwards the slot
+// only when the screen provides it, and we still probe it once and count the
+// returned vnodes so a slot that renders nothing (a v-if that is false) hides the
+// "Filtros" trigger on mobile too.
 const slots = useSlots()
 const hasFiltersSlot = computed(() => {
   const slotFn = slots.filters
