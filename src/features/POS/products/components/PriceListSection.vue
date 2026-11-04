@@ -5,6 +5,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { z } from 'zod'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import { productApi } from '../api/product.api'
 import { currencyFormatter } from '@/core/shared/utils/currency.utils'
 import { mapDomainError, type DomainApiError } from '@/core/shared/utils/error.utils'
@@ -415,6 +416,25 @@ function marginClass(list: PriceList): string {
   return (list.margin?.amountCents ?? 0) >= 0 ? 'text-success' : 'text-error'
 }
 
+function actionsFor(list: PriceList): RowAction[] {
+  return [
+    {
+      key: 'tiers',
+      label: list.tierPrices.length > 0 ? 'Editar cantidades' : 'Precios por cantidad',
+      icon: 'i-lucide-layers',
+      disabled: !props.canUpdate,
+    },
+    ...(props.canDelete
+      ? [{ key: 'delete', label: 'Eliminar…', icon: 'i-lucide-trash-2', destructive: true }]
+      : []),
+  ]
+}
+
+function onAction(key: string, list: PriceList) {
+  if (key === 'tiers') openTierModal(list)
+  else if (key === 'delete') handleDeletePriceList(list)
+}
+
 function formatMarginPercent(list: PriceList): string {
   if (!shouldShowMargin(list)) return '--'
   return `${list.margin?.percent ?? 0}%`
@@ -430,29 +450,31 @@ function formatMarginAmount(list: PriceList): string {
   <UCard>
     <template #header>
       <div class="flex items-center justify-between">
-        <h2 class="text-lg font-semibold">Precios de Venta</h2>
+        <h2 class="text-base font-semibold">Precios de venta</h2>
       </div>
     </template>
 
-    <div class="rounded-md border border-default">
+    <div class="overflow-x-auto rounded-md border border-default">
       <table class="min-w-full divide-y divide-default text-sm">
         <thead class="bg-elevated/40">
           <tr>
-            <th class="px-4 py-3 text-left font-medium">Lista de Precios</th>
-            <th class="px-4 py-3 text-left font-medium">
-              Precio de Venta
-              <span class="block text-xs font-normal text-muted">(Con Impuestos Incluidos)</span>
+            <th class="px-4 py-3 text-left font-semibold">Lista de precios</th>
+            <th class="px-4 py-3 text-right font-semibold">
+              Precio de venta
+              <span class="block text-xs font-normal text-muted">Con impuestos</span>
             </th>
-            <th class="px-4 py-3 text-center font-medium">+</th>
-            <th class="px-4 py-3 text-left font-medium">Márgen</th>
-            <th class="px-4 py-3 text-left font-medium">Ganancia</th>
+            <th class="px-4 py-3 text-right font-semibold">Margen</th>
+            <th class="px-4 py-3 text-right font-semibold">Ganancia</th>
+            <th class="w-16 px-4 py-3"><span class="sr-only">Acciones</span></th>
           </tr>
         </thead>
 
         <tbody class="divide-y divide-default">
-          <tr v-if="isFetching">
-            <td colspan="5" class="px-4 py-3 text-muted">Cargando listas de precios...</td>
-          </tr>
+          <template v-if="isFetching && lists.length === 0">
+            <tr v-for="n in 3" :key="n" data-testid="price-lists-skeleton" aria-busy="true">
+              <td colspan="5" class="px-4 py-3"><USkeleton class="h-6 w-full" /></td>
+            </tr>
+          </template>
 
           <tr v-else-if="lists.length === 0">
             <td colspan="5" class="px-4 py-3 text-muted">Sin listas de precios registradas.</td>
@@ -462,24 +484,10 @@ function formatMarginAmount(list: PriceList): string {
             <template v-for="list in lists" :key="list.id">
               <!-- Main price row -->
               <tr>
-                <td class="px-4 py-3">
-                  <div class="flex items-center justify-between gap-2">
-                    <span class="font-medium">{{ list.name }}</span>
-                    <UButton
-                      v-if="canDelete"
-                      type="button"
-                      label="Eliminar"
-                      color="error"
-                      variant="ghost"
-                      size="xs"
-                      :loading="deleteMutation.isPending.value"
-                      @click="handleDeletePriceList(list)"
-                    />
-                  </div>
-                </td>
+                <td class="px-4 py-3 font-semibold text-highlighted">{{ list.name }}</td>
 
-                <td class="px-4 py-3">
-                  <div class="relative max-w-xs">
+                <td class="px-4 py-3 text-right">
+                  <div class="relative ml-auto max-w-xs">
                     <span
                       class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
                       >$</span
@@ -489,90 +497,63 @@ function formatMarginAmount(list: PriceList): string {
                       class="w-full"
                       inputmode="decimal"
                       placeholder="0.00"
-                      :ui="{ base: 'pl-7' }"
+                      :ui="{ base: 'hf-figure pl-7 text-right' }"
                       :disabled="!canUpdate"
+                      :aria-label="`Precio de venta de ${list.name}, con impuestos incluidos`"
                       @blur="handleInlinePriceSave(list)"
                       @keyup.enter="handleInlinePriceSave(list)"
                     />
                   </div>
                 </td>
 
-                <td class="px-4 py-3 text-center">
-                  <UButton
-                    type="button"
-                    icon="i-lucide-plus"
-                    color="neutral"
-                    variant="outline"
-                    size="xs"
-                    :disabled="!canUpdate"
-                    @click="openTierModal(list)"
-                  />
-                </td>
-
-                <td class="px-4 py-3" :class="shouldShowMargin(list) ? marginClass(list) : ''">
+                <td
+                  class="hf-figure px-4 py-3 text-right"
+                  :class="shouldShowMargin(list) ? marginClass(list) : 'text-muted'"
+                >
                   {{ formatMarginPercent(list) }}
                 </td>
 
-                <td class="px-4 py-3" :class="shouldShowMargin(list) ? marginClass(list) : ''">
+                <td
+                  class="hf-figure px-4 py-3 text-right"
+                  :class="shouldShowMargin(list) ? marginClass(list) : 'text-muted'"
+                >
                   {{ formatMarginAmount(list) }}
+                </td>
+
+                <td class="px-4 py-3 text-right">
+                  <RowActionsMenu
+                    :actions="actionsFor(list)"
+                    :row-label="`la lista ${list.name}`"
+                    @select="onAction($event, list)"
+                  />
                 </td>
               </tr>
 
               <!-- Tier prices sub-rows -->
-              <template v-if="list.tierPrices.length > 0">
-                <tr v-for="tier in list.tierPrices" :key="tier.id" class="bg-elevated/20">
-                  <td class="py-2 pl-8 pr-4 text-sm text-muted">{{ tier.minQuantity }} o más</td>
-                  <td class="px-4 py-2">
-                    <span class="text-sm">
-                      $ {{ centsToDecimal(tier.priceCents) }}
-                      <span class="text-xs text-muted">por Unidad</span>
-                    </span>
-                  </td>
-                  <td />
-                  <td
-                    class="px-4 py-2 text-sm"
-                    :class="
-                      tier.margin
-                        ? (tier.margin.amountCents ?? 0) >= 0
-                          ? 'text-success'
-                          : 'text-error'
-                        : ''
-                    "
-                  >
-                    {{ tier.margin ? `${tier.margin.percent}%` : '--' }}
-                  </td>
-                  <td
-                    class="px-4 py-2 text-sm"
-                    :class="
-                      tier.margin
-                        ? (tier.margin.amountCents ?? 0) >= 0
-                          ? 'text-success'
-                          : 'text-error'
-                        : ''
-                    "
-                  >
-                    {{
-                      tier.margin
-                        ? `${currencyFormatter.format(tier.margin.amountDecimal ?? 0)} por Unidad`
-                        : '--'
-                    }}
-                  </td>
-                </tr>
-                <tr class="bg-elevated/20">
-                  <td colspan="5" class="px-4 py-2">
-                    <UButton
-                      type="button"
-                      label="Editar Cantidades"
-                      icon="i-lucide-pencil"
-                      color="neutral"
-                      variant="outline"
-                      size="xs"
-                      :disabled="!canUpdate"
-                      @click="openTierModal(list)"
-                    />
-                  </td>
-                </tr>
-              </template>
+              <tr v-for="tier in list.tierPrices" :key="tier.id" class="bg-elevated/20">
+                <td class="py-2 pl-8 pr-4 text-sm text-muted">{{ tier.minQuantity }} o más</td>
+                <td class="hf-figure px-4 py-2 text-right text-sm">
+                  $ {{ centsToDecimal(tier.priceCents) }}
+                  <span class="text-xs text-muted">por unidad</span>
+                </td>
+                <td
+                  class="hf-figure px-4 py-2 text-right text-sm"
+                  :class="tier.margin ? ((tier.margin.amountCents ?? 0) >= 0 ? 'text-success' : 'text-error') : 'text-muted'"
+                >
+                  {{ tier.margin ? `${tier.margin.percent}%` : '--' }}
+                </td>
+                <td
+                  class="hf-figure px-4 py-2 text-right text-sm"
+                  :class="tier.margin ? ((tier.margin.amountCents ?? 0) >= 0 ? 'text-success' : 'text-error') : 'text-muted'"
+                >
+                  {{
+                    tier.margin
+                      ? `${currencyFormatter.format(tier.margin.amountDecimal ?? 0)} por unidad`
+                      : '--'
+                  }}
+                </td>
+                <td />
+              </tr>
             </template>
           </template>
         </tbody>
@@ -596,7 +577,7 @@ function formatMarginAmount(list: PriceList): string {
   <UModal
     v-model:open="isModalOpen"
     :title="isEditing ? `Editar lista: ${editingList?.name}` : 'Nueva lista de precios'"
-    :content="{ class: 'sm:max-w-md' }"
+    :content="{ class: 'hf-theme hf-ui sm:max-w-md' }"
   >
     <template #body>
       <UForm
@@ -671,6 +652,7 @@ function formatMarginAmount(list: PriceList): string {
                   color="error"
                   variant="ghost"
                   size="xs"
+                  aria-label="Quitar esta escala"
                   :disabled="isSaving"
                   class="mb-0.5"
                   @click="removeTierRow(index)"
@@ -708,8 +690,8 @@ function formatMarginAmount(list: PriceList): string {
   <!-- Tier prices modal (from table "+" button) -->
   <UModal
     v-model:open="isTierModalOpen"
-    title="Precios por Cantidad"
-    :content="{ class: 'sm:max-w-3xl' }"
+    title="Precios por cantidad"
+    :content="{ class: 'hf-theme hf-ui sm:max-w-3xl' }"
   >
     <template #body>
       <div class="space-y-4">
@@ -751,6 +733,7 @@ function formatMarginAmount(list: PriceList): string {
                 icon="i-lucide-trash-2"
                 color="error"
                 variant="ghost"
+                aria-label="Quitar este precio por cantidad"
                 :disabled="tierModalRows.length === 1 && index === 0"
                 @click="removeTierModalRow(index)"
               />

@@ -166,10 +166,6 @@ function onSubmit(event: FormSubmitEvent<ProductFormValues>) {
   emit('edit', toUpdatePayload(event.data))
 }
 
-function handleCancel() {
-  resetForm()
-  open.value = false
-}
 </script>
 
 <template>
@@ -295,7 +291,7 @@ function handleCancel() {
 
         <!-- Más Opciones -->
         <div v-if="mode === 'create'" class="rounded-lg border border-default bg-elevated/30 p-4">
-          <p class="font-semibold">Más Opciones</p>
+          <p class="font-semibold">Más opciones</p>
           <p class="text-sm text-muted">
             Para editar Impuestos, Unidades, Lotes, Variantes, etc.,
             <button
@@ -312,7 +308,6 @@ function handleCancel() {
 
     <template #footer>
       <div class="flex justify-end gap-3">
-        <UButton label="Cancelar" color="neutral" variant="outline" @click="handleCancel" />
         <UButton
           :label="mode === 'create' ? 'Crear producto' : 'Guardar cambios'"
           :loading="loading"

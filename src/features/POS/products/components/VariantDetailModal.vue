@@ -310,7 +310,7 @@ function handleCancel() {
 </script>
 
 <template>
-  <UModal v-model:open="modalOpen" :title="modalTitle" :content="{ class: 'sm:max-w-3xl' }">
+  <UModal v-model:open="modalOpen" :title="modalTitle" :content="{ class: 'hf-theme hf-ui sm:max-w-3xl' }">
     <template #body>
       <div v-if="variant" class="space-y-4">
         <UCard>
@@ -449,6 +449,8 @@ function handleCancel() {
         <UButton
           type="button"
           label="Guardar"
+          color="primary"
+          class="hf-primary-control"
           :disabled="!canUpdate"
           :loading="updateVariantMutation.isPending.value"
           @click="persistChanges(saveChangeableKeys, 'Variante actualizada', true, true)"
