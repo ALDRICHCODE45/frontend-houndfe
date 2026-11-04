@@ -10,7 +10,7 @@
  *
  * Visual contract (preserved from the prior inline markup in
  * `PendingApprovalsView`):
- *   - Avatar circle (initials + deterministic palette color)
+ *   - Neutral EntityAvatar (initials)
  *   - Employee name + type badge
  *   - Date range + day count (calendar icon)
  *   - Reason (SICK+null renders italic muted — Tier 3 medical guard)
@@ -23,6 +23,7 @@
  * is fully declarative. The card itself imports zero formatters.
  */
 
+import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import type { TimeOffRequest } from '../interfaces/employee.types'
 import type { PendingApprovalCardData } from '../composables/usePendingApprovalCard'
 
@@ -56,14 +57,12 @@ function onReject(request: TimeOffRequest): void {
       <div class="flex flex-col gap-2">
         <!-- Employee identity + type badge -->
         <div class="flex items-center gap-2">
-          <div
-            class="flex size-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold shadow-sm"
-            :class="data.avatarClass"
-            :aria-label="data.employeeName"
+          <EntityAvatar
+            :name="data.employeeName"
+            :seed="data.request.employeeId"
+            size="sm"
             data-testid="pending-approval-card-avatar"
-          >
-            {{ data.employeeInitials }}
-          </div>
+          />
           <span class="text-sm font-medium text-highlighted">
             {{ data.employeeName }}
           </span>

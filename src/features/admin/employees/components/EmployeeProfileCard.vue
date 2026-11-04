@@ -4,7 +4,7 @@
  *
  * Left sidebar profile card for the Employee Detail View.
  * Displays:
- *   - Large colorful avatar (deterministic palette based on id) with active status dot
+ *   - Neutral EntityAvatar with active status dot
  *   - Full name prominently displayed
  *   - Employee number with copy icon
  *   - Current position title
@@ -21,7 +21,6 @@ import { computed } from 'vue'
 import {
   formatHireDate,
 } from '../composables/useEmployeeColumns'
-import { buildProfileInitials } from '../composables/useEmployeeDetail'
 import { getEmployeeRowActions } from '../composables/useEmployeeActions'
 import { EMPLOYEE_STATUS, WORK_MODALITY } from '../constants/employee.constants'
 import {
@@ -35,7 +34,7 @@ import {
 } from '../utils/employeeBadgeConfig.utils'
 import DotBadge from '@/core/shared/components/DotBadge.vue'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
-import { AVATAR_PALETTE } from '@/app/constants/avatarPalette'
+import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import '../styles/employees-visual.css'
 
 const props = defineProps<{
@@ -48,14 +47,6 @@ const emit = defineEmits<{
   terminate: [employee: Employee]
   reactivate: [employee: Employee]
 }>()
-
-// ── Avatar ─────────────────────────────────────────────────────────────────────
-const initials = computed(() => buildProfileInitials(props.employee.fullName))
-
-function getAvatarClass(seedValue: string): string {
-  const seed = seedValue.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)
-  return AVATAR_PALETTE[seed % AVATAR_PALETTE.length] ?? AVATAR_PALETTE[0]!
-}
 
 // ── Badge config lookups (status + modality) ──────────────────────────────────
 const statusConfig = computed(() => employeeStatusConfig[props.employee.status])
@@ -126,22 +117,13 @@ const rowActions = computed(() =>
 
     <!-- Avatar + identity section -->
     <div class="flex flex-col items-center gap-3 px-6 pb-5 text-center -mt-12">
-      <!-- Colorful avatar with active dot -->
-      <div class="relative">
-        <div
-          class="employees-avatar-ring flex size-24 items-center justify-center rounded-full text-2xl font-bold shadow-lg ring-4"
-          :class="getAvatarClass(employee.id)"
-          :aria-label="employee.fullName"
-        >
-          {{ initials }}
-        </div>
-        <!-- Active status green dot -->
-        <span
-          v-if="employee.status === EMPLOYEE_STATUS.ACTIVE"
-          class="employees-active-dot absolute bottom-1 right-1 size-4 rounded-full border-[3px]"
-          aria-label="Activo"
-        />
-      </div>
+      <EntityAvatar
+        :name="employee.fullName"
+        :seed="employee.id"
+        size="lg"
+        :show-dot="employee.status === EMPLOYEE_STATUS.ACTIVE"
+        dot-class="bg-[var(--hf-success)]"
+      />
 
       <!-- Name -->
       <h2 class="text-lg font-bold text-highlighted leading-tight">

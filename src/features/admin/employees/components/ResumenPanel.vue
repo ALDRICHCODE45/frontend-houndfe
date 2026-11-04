@@ -6,7 +6,7 @@
  *
  * Displays:
  *   - Key stats cards: seniority, current salary (if hasSalary), vacations, department
- *   - "Reporta a" section — manager with colorful avatar, name, position + department subtitle
+ *   - "Reporta a" section — manager with neutral avatar, name, position + department subtitle
  *
  * Design: matches Claude Design reference with dot-badge pattern.
  * Salary display guarded by hasSalary() — never renders undefined as "0".
@@ -19,7 +19,7 @@ import { hasSalary } from '../interfaces/employee.types'
 import { formatHireDate } from '../composables/useEmployeeColumns'
 import type { Employee } from '../interfaces/employee.types'
 import type { ManagerInfo } from '../composables/useManagerResolution'
-import { AVATAR_PALETTE } from '@/app/constants/avatarPalette'
+import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 
 const props = defineProps<{
   employee: Employee
@@ -37,17 +37,6 @@ const salaryDisplay = computed<string>(() => {
   if (!hasSalary(props.employee)) return '—'
   return formatCurrencyMXN(props.employee.currentSalaryCents, props.employee.currentSalaryCurrency)
 })
-
-// ── Manager avatar helpers ─────────────────────────────────────────────────────
-function getAvatarClass(seedValue: string): string {
-  const seed = seedValue.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)
-  return AVATAR_PALETTE[seed % AVATAR_PALETTE.length] ?? AVATAR_PALETTE[0]!
-}
-
-function getInitials(fullName: string): string {
-  const parts = fullName.trim().split(' ').filter(Boolean)
-  return parts.slice(0, 2).map(p => p[0]?.toUpperCase() ?? '').join('') || 'C'
-}
 
 const managerSubtitle = computed(() => {
   const parts: string[] = []
@@ -123,13 +112,7 @@ const managerSubtitle = computed(() => {
 
       <template v-if="managerDisplay !== '—' && managerDisplay">
         <div class="flex items-center gap-4">
-          <!-- Colorful manager avatar -->
-          <div
-            class="flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold shadow-sm"
-            :class="getAvatarClass(managerDisplay)"
-          >
-            {{ getInitials(managerDisplay) }}
-          </div>
+          <EntityAvatar :name="managerDisplay" :seed="managerDisplay" size="lg" />
 
           <!-- Manager info -->
           <div class="min-w-0 flex-1">

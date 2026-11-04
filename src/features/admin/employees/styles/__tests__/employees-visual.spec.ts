@@ -140,8 +140,21 @@ describe('Employee detail shell and profile card adapter', () => {
   it('replaces literal palette chips and rings in the profile card with semantic hooks', () => {
     expect(profile).not.toMatch(/(bg|text|border)-(blue|orange|slate|emerald)-|ring-white|border-white|dark:ring-gray|dark:border-gray/)
     for (const modality of ['remote', 'hybrid', 'onsite']) expect(profile).toContain(`employees-modality--${modality}`)
-    expect(profile).toContain('employees-active-dot')
-    expect(css).toContain('.employees-detail .employees-active-dot')
+  })
+
+  it('renders every employee avatar through the neutral EntityAvatar, never a palette hash', () => {
+    const resumen = read('components/ResumenPanel.vue')
+    const approvalComposable = read('composables/usePendingApprovalCard.ts')
+    for (const source of [profile, resumen, read('components/PendingApprovalCard.vue')]) {
+      expect(source).toContain('EntityAvatar')
+    }
+    for (const source of [profile, resumen, approvalComposable]) {
+      expect(source).not.toContain('AVATAR_PALETTE')
+      expect(source).not.toContain('avatarPalette')
+    }
+    expect(profile).toContain('show-dot')
+    expect(css).not.toContain('employees-avatar-ring')
+    expect(css).not.toContain('employees-active-dot')
   })
 })
 
