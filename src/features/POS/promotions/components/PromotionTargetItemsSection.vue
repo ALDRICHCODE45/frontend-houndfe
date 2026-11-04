@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
 import PromotionTargetSelectionModal from './PromotionTargetSelection/PromotionTargetSelectionModal.vue'
 import type {
   PromotionTargetItemFormEntry,
@@ -180,20 +179,22 @@ defineExpose({ openModal, removeItem, onTargetTypeChange, onModalConfirm })
       data-testid="selected-items"
       class="flex flex-wrap gap-2"
     >
-      <AppBadge
+      <span
         v-for="item in selectedItems"
         :key="item.targetId"
+        class="promotions-chip"
       >
         {{ chipLabel(item, targetType) }}
         <button
           type="button"
           data-testid="remove-chip"
+          :aria-label="`Quitar ${chipLabel(item, targetType)}`"
           class="cursor-pointer ml-1 rounded-full hover:bg-elevated transition-colors"
           @click="removeItem(item.targetId)"
         >
           <UIcon name="i-lucide-x" class="h-3 w-3" />
         </button>
-      </AppBadge>
+      </span>
     </div>
 
     <!-- Empty state -->

@@ -156,9 +156,9 @@ describe('PromotionDetailView — Create Mode', () => {
     expect(wrapper.find('[data-testid="promotion-form"]').attributes('data-type')).toBe('ADVANCED')
   })
 
-  it('shows "Crear Promoción" in header for create mode', () => {
+  it('shows "Nueva promoción" in header for create mode', () => {
     const wrapper = mountCreate()
-    expect(wrapper.text()).toContain('Crear Promoción')
+    expect(wrapper.text()).toContain('Nueva promoción')
   })
 
   it('cancel navigates back to promotions list', async () => {
@@ -184,9 +184,9 @@ describe('PromotionDetailView — Edit Mode', () => {
     expect(wrapper.find('[data-testid="promotion-form"]').attributes('data-mode')).toBe('edit')
   })
 
-  it('shows "Editar Promoción" in header for edit mode', () => {
+  it('shows "Editar promoción" in header for edit mode', () => {
     const wrapper = mountEdit()
-    expect(wrapper.text()).toContain('Editar Promoción')
+    expect(wrapper.text()).toContain('Editar promoción')
   })
 
   it('cancel navigates back to promotions list in edit mode', async () => {
@@ -356,9 +356,9 @@ describe('PromotionDetailView — S40: Edit mode pre-populates form', () => {
     expect(form.attributes('data-type')).toBe('PRODUCT_DISCOUNT')
   })
 
-  it('S40: edit mode shows "Editar Promoción" header (form pre-populated from fetched data)', () => {
+  it('S40: edit mode shows "Editar promoción" header (form pre-populated from fetched data)', () => {
     const wrapper = mountEdit()
-    expect(wrapper.text()).toContain('Editar Promoción')
+    expect(wrapper.text()).toContain('Editar promoción')
   })
 })
 
@@ -442,5 +442,65 @@ describe('PromotionDetailView — Field-level API errors (FIX 2)', () => {
 
     errors = JSON.parse(form.attributes('data-api-errors') ?? '[]')
     expect(errors).toHaveLength(0)
+  })
+})
+
+// ── S10: the four page states ────────────────────────────────────────────────
+
+describe('PromotionDetailView — page states (S10)', () => {
+  function mountEditUnseeded(id = 'promo-404') {
+    mockRoute.mockReturnValue({ params: { id }, query: {} })
+    return mount(PromotionDetailView, {
+      global: {
+        plugins: [[VueQueryPlugin, { queryClient: makeQueryClient() }]],
+        stubs: { ...STUBS, EmptyState: false },
+        mocks: { useToast: () => ({ add: mockToastAdd }) },
+      },
+    })
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('empty: create mode opens the blank form with a single primary action', () => {
+    const wrapper = mountCreate()
+    expect(wrapper.find('[data-testid="promotion-form"]').attributes('data-mode')).toBe('create')
+    expect(wrapper.text()).toContain('Crear promoción')
+    expect(wrapper.text()).not.toContain('Cancelar')
+    expect(wrapper.find('[aria-label="Volver a promociones"]').exists()).toBe(true)
+  })
+
+  it('loading: shows a page skeleton shaped like the form, not the form', () => {
+    vi.mocked(promotionApi.getById).mockReturnValue(new Promise(() => {}))
+    const wrapper = mountEditUnseeded()
+    const loading = wrapper.get('[data-testid="detail-loading"]')
+    expect(loading.attributes('aria-busy')).toBe('true')
+    expect(loading.findAll('.animate-pulse')).toHaveLength(3)
+    expect(wrapper.find('[data-testid="promotion-form"]').exists()).toBe(false)
+  })
+
+  it('data: edit mode renders the form with "Guardar cambios" as the one primary', () => {
+    const wrapper = mountEdit()
+    expect(wrapper.find('[data-testid="promotion-form"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Guardar cambios')
+    expect(wrapper.find('[data-testid="detail-error"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="detail-loading"]').exists()).toBe(false)
+  })
+
+  it('error: offers Reintentar, which fetches the promotion again', async () => {
+    vi.mocked(promotionApi.getById).mockRejectedValue(new Error('boom'))
+    const wrapper = mountEditUnseeded()
+    await flushPromises()
+    const error = wrapper.get('[data-testid="detail-error"] .hf-empty-state')
+    expect(error.attributes('data-kind')).toBe('error')
+    expect(wrapper.text()).not.toContain('boom')
+
+    const calls = vi.mocked(promotionApi.getById).mock.calls.length
+    await wrapper.get('[data-testid="detail-error-retry"]').trigger('click')
+    await flushPromises()
+    expect(vi.mocked(promotionApi.getById).mock.calls.length).toBeGreaterThan(calls)
+    // The existing 404 flow still toasts and returns to the list.
+    expect(mockPush).toHaveBeenCalledWith('/pos/promociones')
   })
 })

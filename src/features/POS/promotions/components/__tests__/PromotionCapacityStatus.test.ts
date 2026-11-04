@@ -2,22 +2,10 @@ import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import PromotionCapacityStatus from '../PromotionCapacityStatus.vue'
 
-// ── Stubs ─────────────────────────────────────────────────────────────────────
-//
-// The status surface is presentational and must reuse `AppBadge`, which itself
-// delegates to Nuxt UI's `UBadge`. Stubbing keeps this suite focused on the
-// server-owned state mapping instead of Nuxt UI rendering internals.
-const STUBS = {
-  AppBadge: {
-    inheritAttrs: false,
-    props: ['label', 'tone', 'icon', 'variant'],
-    template:
-      '<span data-testid="app-badge" :data-tone="tone" :data-icon="icon">{{ label }}</span>',
-  },
-}
-
+// The status surface is presentational and reuses the shared `StatusBadge`
+// (rendered for real: it has no runtime dependencies unless `urgent`).
 function mountStatus(props: Record<string, unknown>) {
-  return mount(PromotionCapacityStatus, { props, global: { stubs: STUBS } })
+  return mount(PromotionCapacityStatus, { props })
 }
 
 describe('PromotionCapacityStatus', () => {
@@ -103,5 +91,15 @@ describe('PromotionCapacityStatus', () => {
       remainingProductUnits: 75,
     })
     expect(wrapper.attributes('aria-label')).toContain('75')
+  })
+
+  it.each([
+    ['unlimited', { maxProductUnits: null, consumedProductUnits: 0, remainingProductUnits: null }, 'neutral'],
+    ['available', { maxProductUnits: 100, consumedProductUnits: 10, remainingProductUnits: 90 }, 'success'],
+    ['near_limit', { maxProductUnits: 100, consumedProductUnits: 80, remainingProductUnits: 20 }, 'warning'],
+    ['exhausted', { maxProductUnits: 10, consumedProductUnits: 10, remainingProductUnits: 0 }, 'danger'],
+  ])('paints the %s state with the %s StatusBadge tone', (_state, props, tone) => {
+    const badge = mountStatus(props).get('.hf-status-badge')
+    expect(badge.attributes('data-tone')).toBe(tone)
   })
 })

@@ -192,7 +192,7 @@ describe('PromotionsView states — data', () => {
     state.data.value = [makePromotion('p1', 'Oferta de verano'), makePromotion('p2', '2x1 en collares')]
     const wrapper = mountView()
     expect(wrapper.findAll('tbody tr')).toHaveLength(2)
-    expect(wrapper.findAll('.hf-status-badge')).toHaveLength(2)
+    expect(wrapper.findAll('[aria-label="Estado: Activa"]')).toHaveLength(2)
     expect(
       wrapper.findAll('[aria-label="Acciones de promoción Oferta de verano"]'),
     ).toHaveLength(1)

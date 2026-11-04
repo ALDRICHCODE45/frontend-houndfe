@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { AxiosError } from 'axios'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import { promotionQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
@@ -90,6 +91,7 @@ const {
   data: promotionData,
   isLoading: isLoadingPromotion,
   isError: isQueryError,
+  refetch: refetchPromotion,
 } = useQuery({
   queryKey: computed(() => promotionQueryKeys.detail(tenantId.value, promotionId.value ?? '')),
   queryFn: () => promotionApi.getById(promotionId.value!),
@@ -223,26 +225,19 @@ const formType = computed<PromotionType>(() => {
             color="neutral"
             variant="ghost"
             class="cursor-pointer"
+            aria-label="Volver a promociones"
             @click="handleCancel"
           />
           <h1 class="promotions-workspace-title text-lg font-semibold">
-            {{ isCreateMode ? 'Crear Promoción' : 'Editar Promoción' }}
+            {{ isCreateMode ? 'Nueva promoción' : 'Editar promoción' }}
           </h1>
         </div>
 
-        <!-- Action buttons -->
+        <!-- The one primary action; the back arrow leaves without saving. -->
         <div class="flex items-center gap-3">
-          <UButton
-            label="Cancelar"
-            color="neutral"
-            variant="outline"
-            class="cursor-pointer"
-            :disabled="isSubmitting"
-            @click="handleCancel"
-          />
           <!-- CRITICAL 3: Header submit button triggers UForm via form ID -->
           <UButton
-            :label="isCreateMode ? 'Crear' : 'Guardar cambios'"
+            :label="isCreateMode ? 'Crear promoción' : 'Guardar cambios'"
             :loading="isSubmitting"
             class="cursor-pointer"
             type="submit"
@@ -255,10 +250,28 @@ const formType = computed<PromotionType>(() => {
     <!-- ── Content area ──────────────────────────────────────────────────────── -->
     <div class="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 overflow-y-auto px-10 pb-6 pt-6">
       <!-- Loading skeleton (edit mode while fetching) -->
-      <div v-if="isLoadingPromotion" class="flex flex-col gap-4">
+      <div
+        v-if="isLoadingPromotion"
+        class="flex flex-col gap-4"
+        aria-busy="true"
+        data-testid="detail-loading"
+      >
         <USkeleton class="h-32 w-full rounded-xl" />
         <USkeleton class="h-48 w-full rounded-xl" />
         <USkeleton class="h-32 w-full rounded-xl" />
+      </div>
+
+      <!-- Error state (edit mode): the 404 flow toasts and returns to the list;
+           until it does, say what happened and offer Reintentar. -->
+      <div v-else-if="isQueryError && !isCreateMode" data-testid="detail-error">
+        <EmptyState
+          kind="error"
+          title="No se pudo cargar la promoción"
+          description="Revisa tu conexión e inténtalo de nuevo."
+          action-label="Reintentar"
+          action-test-id="detail-error-retry"
+          @action="refetchPromotion()"
+        />
       </div>
 
       <!-- Form -->

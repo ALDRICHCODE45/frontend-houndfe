@@ -238,7 +238,7 @@ const overlappingTargets = computed(() =>
 
             <!-- Method selector — read-only in edit mode -->
             <div>
-              <p class="mb-2 text-sm font-medium text-toned">Cómo se Aplica</p>
+              <p class="mb-2 text-sm font-medium text-toned">Cómo se aplica</p>
               <!-- Edit mode: show read-only badge -->
               <div
                 v-if="mode === 'edit'"
@@ -584,7 +584,9 @@ const overlappingTargets = computed(() =>
         />
 
         <!-- ── Action buttons ─────────────────────────────────────────── -->
-        <div class="flex justify-end gap-3">
+        <!-- Hosted by a workspace that supplies `formId`, the header owns the
+             one primary action, so the footer is omitted. -->
+        <div v-if="!formId" class="flex justify-end gap-3">
           <UButton
             type="button"
             color="neutral"
@@ -601,7 +603,7 @@ const overlappingTargets = computed(() =>
             class="hf-primary-control"
             data-testid="submit-btn"
           >
-            {{ mode === 'create' ? 'Crear Promoción' : 'Guardar Cambios' }}
+            {{ mode === 'create' ? 'Crear promoción' : 'Guardar cambios' }}
           </UButton>
         </div>
       </UForm>

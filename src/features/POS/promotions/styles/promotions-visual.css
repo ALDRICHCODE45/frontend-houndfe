@@ -84,12 +84,28 @@
   color: var(--hf-ink);
 }
 
-/* Gold stays a restrained identity accent on the type badge and summary icon,
- * using the paired soft/ink roles that remain readable in both modes. */
+/* The type badge and the summary icon are neutral: color is reserved for
+ * status, urgency and the single primary action. */
 .promotions-workspace .promotions-type-badge,
 .promotions-workspace .promotions-accent-icon {
-  background-color: var(--hf-gold-soft);
-  color: var(--hf-gold-ink);
+  background-color: var(--hf-surface-muted);
+  color: var(--hf-heading);
+}
+
+/* Selected targets (products, categories, variants): a neutral removable chip. */
+.promotions-workspace .promotions-chip,
+.promotions-form-portal .promotions-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-surface-muted);
+  padding: 2px 8px;
+  color: var(--hf-heading);
+  font-size: 13px;
+  font-weight: 500;
 }
 
 /* Method cards, BUY_X_GET_Y presets and the target-type segments are

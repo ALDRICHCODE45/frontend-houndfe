@@ -136,7 +136,7 @@ describe('Promotions creation/edit workspace adapter', () => {
     expect(targetModal).toContain('hf-primary-control')
   })
 
-  it('marks selection with action/active roles and keeps gold as a restrained accent', () => {
+  it('marks selection with action/active roles and keeps the identity accents neutral', () => {
     expect(form).toContain('promotions-choice-selected')
     expect(form).toContain('promotions-choice')
     expect(form).toContain('promotions-preset')
@@ -147,8 +147,9 @@ describe('Promotions creation/edit workspace adapter', () => {
     expect(css).toContain('.promotions-workspace .promotions-choice-selected')
     expect(css).toContain(".promotions-workspace .promotions-segment[aria-checked='true']")
     expect(css).toContain('.promotions-workspace .promotions-segment:focus-visible')
-    expect(css).toContain('var(--hf-gold-soft)')
-    expect(css).toContain('var(--hf-gold-ink)')
+    // Color is reserved for status/urgency/action: the identity accents are neutral.
+    expect(css).not.toContain('var(--hf-gold')
+    expect(css).toContain('.promotions-workspace .promotions-chip')
   })
 
   it('repaints every section card over the global literal UCard theme', () => {

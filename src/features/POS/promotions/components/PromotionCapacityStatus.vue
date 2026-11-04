@@ -9,7 +9,7 @@
  * throwing or showing a wrong number.
  */
 import { computed } from 'vue'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { resolvePromotionCapacityState } from '../utils/promotionSummary.utils'
 
 const props = withDefaults(
@@ -57,6 +57,6 @@ const accessibleLabel = computed(() => {
     :aria-label="accessibleLabel"
     role="status"
   >
-    <AppBadge :label="descriptor.label" :tone="descriptor.tone" :icon="descriptor.icon" />
+    <StatusBadge :label="descriptor.label" :tone="descriptor.tone" :aria-label="descriptor.label" />
   </span>
 </template>

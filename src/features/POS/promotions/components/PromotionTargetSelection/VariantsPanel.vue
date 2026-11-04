@@ -17,7 +17,6 @@
  */
 import { computed, ref, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
 import VariantAccordionRow from './VariantAccordionRow.vue'
 import type { PromotionTargetItemFormEntry } from '../../interfaces/promotion.types'
 
@@ -146,17 +145,18 @@ function chipLabel(item: PromotionTargetItemFormEntry): string {
       data-testid="selected-items"
       class="flex flex-wrap gap-2"
     >
-      <AppBadge v-for="item in staged" :key="item.targetId">
+      <span v-for="item in staged" :key="item.targetId" class="promotions-chip">
         {{ chipLabel(item) }}
         <button
           type="button"
           data-testid="remove-chip"
+          :aria-label="`Quitar ${chipLabel(item)}`"
           class="ml-1 cursor-pointer rounded-full transition-colors hover:bg-elevated"
           @click="removeChip(item.targetId)"
         >
           <UIcon name="i-lucide-x" class="h-3 w-3" />
         </button>
-      </AppBadge>
+      </span>
     </div>
   </div>
 </template>
