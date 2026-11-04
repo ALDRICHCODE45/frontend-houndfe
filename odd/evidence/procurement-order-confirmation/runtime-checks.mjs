@@ -19,7 +19,11 @@ const STAGE_ROLES = {
 const LABEL = { DRAFT: 'Borrador', CONFIRMED: 'Confirmada', CANCELLED: 'Cancelada' }
 // Readable options of the Estado filter, in the order the listbox shows them.
 const STATUS_LABEL = { ALL: 'Todas', DRAFT: 'Borradores', CONFIRMED: 'Confirmadas', CANCELLED: 'Canceladas' }
-const MONEY = /\$[\d,]+\.\d{2}/
+// Money on screen: 2 decimals, es-MX (the exact server value lives in the title where it was rounded).
+const MONEY = /\$[\d,]+\.\d{2}$/
+// Display rounding of a server decimal string to 2 decimals stays within half a cent of it.
+const nearAmount = (shown, amount) => Math.abs(decimalOf(shown) - Number(amount)) <= 0.005 + 1e-9
+const hasExtraDecimals = amount => /\.\d*[1-9]\d*$/.test(amount) && amount.split('.')[1].replace(/0+$/, '').length > 2
 const STALE_COPY = {
   ORDER_STATE_CONFLICT: 'La orden ya no está en un estado que permita esta acción. Revisa su estado actual.',
   // After a transition the order is already re-read (bb1ba884), so the copy no longer promises kept local edits.
@@ -437,7 +441,7 @@ export async function run(browserPage, stage, part = null) {
     const moneyCells = async name => {
       const cells = slide().locator('[data-testid="line-cost"], [data-testid="line-subtotal"]')
       const texts = (await cells.allInnerTexts()).map(t => t.trim())
-      check(texts.length > 0 && texts.every(text => text === '—' || text === 'Falta' || MONEY.test(text)), `read-only money matches $1,234.00 (or a dash, or Falta): ${name}`)
+      check(texts.length > 0 && texts.every(text => text === '—' || /^Falta( el costo| la cantidad)?$/.test(text) || MONEY.test(text)), `read-only money matches $1,234.00 with 2 decimals (or a dash, or Falta): ${name}`)
       check(await cells.evaluateAll(nodes => nodes.every(n => { const s = getComputedStyle(n); return s.fontVariantNumeric.includes('tabular-nums') && ['right', 'end'].includes(s.textAlign) })), `read-only money is right-aligned with tabular numerals: ${name}`)
     }
     const disabledPrimaryLegible = async name => {
@@ -489,8 +493,8 @@ export async function run(browserPage, stage, part = null) {
     const subtotalsMatch = async (order, name) => {
       const texts = (await slide().locator('[data-testid="line-subtotal"]').allInnerTexts()).map(t => t.trim())
       const costs = (await slide().locator('[data-testid="line-cost"]').allInnerTexts()).map(t => t.trim())
-      // Formatting must neither recalculate nor round: the digits equal the server decimal string.
-      const same = (text, amount) => MONEY.test(text) && Number(text.replace(/[^\d.]/g, '')) === Number(amount)
+      // Formatting never recalculates: the digits equal the server decimal string, rounded to 2 decimals for display (the exact value is the title).
+      const same = (text, amount) => MONEY.test(text) && nearAmount(text, amount)
       const subtotals = order.lines.map(line => order.subtotals.find(item => item.lineId === line.lineId)?.subtotal ?? null)
       check(texts.length > 0 && texts.length === subtotals.length && texts.every((text, i) => subtotals[i] ? same(text, subtotals[i].amount) : text === '—'), `line subtotals are the server values formatted as currency (dash when none): ${name}`)
       check(costs.length === order.lines.length && costs.every((text, i) => order.lines[i].informedUnitCost?.amount ? same(text, order.lines[i].informedUnitCost.amount) : text === '—'), `unit costs are the server values formatted as currency: ${name}`)
@@ -506,7 +510,10 @@ export async function run(browserPage, stage, part = null) {
       check(await entries.count() === totals.length, `${label}: ${totals.length} total ${totals.length === 1 ? 'entry' : 'entries'}, as the server sent`)
       for (const [n, total] of totals.entries()) {
         const text = (await entries.nth(n).innerText()).trim()
-        check(MONEY.test(text) && decimalOf(text.replace(/sin imp\.|con imp\./, '')) === Number(total.amount), `${label}: total ${n + 1} is the server amount, formatted and not recalculated`)
+        const shown = text.replace(/\s*(sin|con) imp\.$/, '')
+        check(MONEY.test(shown) && nearAmount(shown, total.amount), `${label}: total ${n + 1} is the server amount, 2 decimals and not recalculated`)
+        const title = await entries.nth(n).getAttribute('title')
+        check(hasExtraDecimals(total.amount) ? title !== null && decimalOf(title) === Number(total.amount) : title === null, `${label}: total ${n + 1} carries the exact value in its title only where it was rounded`)
         if (totals.length === 2) check(text.endsWith(total.taxBasis === 'EXCLUDES_TAX' ? 'sin imp.' : 'con imp.'), `${label}: total ${n + 1} carries its tax basis label`)
       }
       if (totals.length === 1) check(await cell.locator('.order-total-basis').count() === 0, `${label}: a single total has no basis label`)
@@ -544,6 +551,7 @@ export async function run(browserPage, stage, part = null) {
         const triggers = row.locator('button[aria-label^="Acciones de la orden"]')
         check(await triggers.count() === 1 && /, (borrador|confirmada|cancelada)$/.test(await triggers.first().getAttribute('aria-label')), `${label}: a single ⋮ named after the order`)
         if (!mobile) check(await row.locator('td').last().locator('button').count() === 1, `${label}: Acciones holds only the ⋮, no loose buttons`)
+        if (!mobile) { const box = await row.boundingBox(); check(Boolean(box) && box.height <= 72, `${label}: the desktop row is compact, at most 72px (${Math.round(box?.height ?? 0)}px)`) }
       }
     }
     // The seeds that prove the Total contract: null for incompleteCost and cancelledFromDraft, one or two (mixed bases) otherwise.
@@ -600,6 +608,9 @@ export async function run(browserPage, stage, part = null) {
       const badge = header.getByTestId('order-status')
       check((await header.locator('.order-header-title').innerText()).trim() === (order.supplierName ?? 'Sin proveedor'), `the header title is the supplier name: ${tag}`)
       check((await badge.innerText()).trim() === LABEL[status] && await badge.getAttribute('data-tone') === TONE[status] && meta.includes(order.tenantName) && SHORT_DATE.test(meta.split(`${word} `)[1] ?? ''), `header meta line: ${LABEL[status]} badge, location and "${word}" with a short date: ${tag}`)
+      const date = header.locator('.order-header-when')
+      const lineTops = await date.evaluate(el => { const range = document.createRange(); range.selectNodeContents(el); return [...new Set([...range.getClientRects()].map(rect => Math.round(rect.top)))].length })
+      check(await date.count() === 1 && lineTops === 1 && await date.evaluate(el => getComputedStyle(el).whiteSpace === 'nowrap'), `the header date stays on one line, never broken inside: ${tag}`)
       const solid = primary && vw >= 768 ? 1 : 0
       check(await header.locator('.hf-primary-control').count() === solid, `the header holds ${solid ? 'exactly one solid primary' : 'no solid primary'}: ${tag}`)
     }
@@ -618,12 +629,48 @@ export async function run(browserPage, stage, part = null) {
         const names = (await slide().locator('.order-action-bar').getByRole('button').allInnerTexts()).map(text => text.trim())
         check(JSON.stringify(names) === JSON.stringify(['Guardar', 'Confirmar orden']), `sticky bar at ${vw} holds Guardar and Confirmar orden: ${tag}`)
         check(await slide().getByTestId('confirm-order').count() === 1, `a single Confirmar orden on mobile, in the bar: ${tag}`)
+        const bar = await slide().locator('.order-action-bar > *').evaluateAll(nodes => nodes.map(node => {
+          const box = node.getBoundingClientRect(), range = document.createRange()
+          range.selectNodeContents(node)
+          const text = range.getBoundingClientRect()
+          return { width: box.width, offset: (text.left + text.width / 2) - (box.left + box.width / 2) }
+        }))
+        check(bar.length === 2 && Math.abs(bar[0].width - bar[1].width) <= 1, `the sticky bar buttons have equal widths (${bar.map(b => Math.round(b.width)).join(' / ')}): ${tag}`)
+        check(bar.every(b => Math.abs(b.offset) <= 3), `the sticky bar labels are centered (offsets ${bar.map(b => b.offset.toFixed(1)).join(' / ')}): ${tag}`)
+      }
+    }
+    // Line design (artboard 05, P2/P3/P7): "Falta" once per cell, a readable name on the mobile card, 2-decimal money.
+    const lineDesign = async tag => {
+      const rowsLocator = slide().locator('.order-line-row')
+      const count = await rowsLocator.count()
+      for (let i = 0; i < count; i++) {
+        const row = rowsLocator.nth(i), label = `${tag} line ${i + 1}`
+        const cells = (await row.locator(':scope > div').allInnerTexts()).map(text => text.replace(/\s+/g, ' ').trim())
+        check(cells.every(text => (text.match(/Falta/g) ?? []).length <= 1), `${label}: no repeated "Falta" in a cell (${cells.filter(text => /Falta/.test(text)).join(' | ') || 'none'})`)
+        for (const money of await row.locator('[data-testid="line-cost"], [data-testid="line-subtotal"]').all()) {
+          const text = (await money.innerText()).trim()
+          check(text === '—' || /^Falta( el costo)?$/.test(text) || MONEY.test(text), `${label}: money reads 2 decimals, a dash or Falta ("${text}")`)
+        }
+        if (vw >= 640) continue
+        const name = row.locator('.order-line-toggle, .order-line-name').first()
+        const text = (await name.innerText()).trim()
+        const geometry = await name.evaluate(el => {
+          const box = el.getBoundingClientRect(), range = document.createRange(), node = el.firstChild
+          range.setStart(node, 0); range.setEnd(node, Math.min(12, node.textContent.length))
+          const head = range.getBoundingClientRect(), style = getComputedStyle(el)
+          return { fits: head.right <= box.right + 1 && head.bottom <= box.bottom + 1, width: box.width, lines: Math.round(box.height / (parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.4)), horizontalClip: el.scrollWidth > el.clientWidth + 1 }
+        })
+        check(geometry.fits && !geometry.horizontalClip && geometry.width >= 12 * 6 && geometry.lines <= 2, `${label}: the card name "${text.slice(0, 24)}" is not truncated below 12 characters (${Math.round(geometry.width)}px wide, ${geometry.lines} line(s))`)
+        const [nameBox, menuBox, qtyBox, totalBox] = await Promise.all([name.boundingBox(), row.locator('.order-line-menu').boundingBox(), row.locator('.order-line-qty').boundingBox(), row.locator('.order-line-total').boundingBox()])
+        if (menuBox && qtyBox && totalBox && nameBox) check(menuBox.y <= nameBox.y + 12 && qtyBox.y >= nameBox.y + nameBox.height - 2 && Math.abs((totalBox.y + totalBox.height / 2) - (qtyBox.y + qtyBox.height / 2)) <= 14 && totalBox.x > qtyBox.x, `${label}: the ⋮ sits at the top-right and the quantity, cost and subtotal share row 2`)
       }
     }
     const linesChecks = async (tag, order, { editable }) => {
+      await lineDesign(tag)
       const lines = slide().locator('.order-line-row')
       check(await lines.count() === order.lines.length && await lines.locator('[data-testid="line-subtotal"]').count() === order.lines.length, `lines are compact rows with a subtotal each (${order.lines.length}): ${tag}`)
-      check(await lines.first().evaluate(el => getComputedStyle(el).display) === (vw < 640 ? 'flex' : 'grid'), `a line is a table row at 1440 and a two-row card at 390: ${tag}`)
+      const grid = await lines.first().evaluate(el => { const style = getComputedStyle(el); return { display: style.display, tracks: style.gridTemplateColumns.split(' ').length } })
+      check(grid.display === 'grid' && grid.tracks === (vw < 640 ? 3 : editable ? 5 : 4), `a line is a ${vw < 640 ? 'two-row, three-track card' : 'table row'} at ${vw} (${grid.tracks} tracks): ${tag}`)
       if (!editable) { check(await lines.locator('button').count() === 0, `read-only lines have no edit affordance: ${tag}`); return }
       const first = lines.first()
       await first.getByRole('button', { name: 'Más acciones del renglón 1', exact: true }).click()
@@ -664,9 +711,16 @@ export async function run(browserPage, stage, part = null) {
       check((await stepStates())[0] === 'complete:current', `step strip: Completar is current while avisos remain: ${tag}`)
       check(/pendiente|\(\d+\)/.test(await slide().locator('li[data-step="complete"] .order-step-count').innerText()), `the pending count rides on Completar: ${tag}`)
       check(await confirmState() === 'blocked' && await slide().getByTestId('confirm-order').getAttribute('aria-describedby') === 'order-checklist', `Confirmar orden is aria-disabled and points at the checklist: ${tag}`)
-      const items = (await slide().locator('ul[aria-label="Pendientes para confirmar"] li[data-state="pending"] .order-check-message').allInnerTexts()).map(text => text.replace(/\s*\(\d+ renglones\)$/, '').trim())
-      const body = await slide().innerText()
-      check(items.length > 0 && new Set(items).size === items.length && items.every(item => body.split(item).length - 1 === 1), `the checklist lists each pending item once and nothing repeats it under a field or line: ${tag}`)
+      const items = (await slide().locator('ul[aria-label="Pendientes para confirmar"] li[data-state="pending"] .order-check-message').allInnerTexts()).map(text => text.replace(/\s+en \d+ renglones?$/, '').trim())
+      check(items.length > 0 && new Set(items).size === items.length && await slide().locator('.order-line-edit .order-warning').count() === 0, `the checklist lists each pending item once and no field repeats it as a message: ${tag}`)
+      // P1: grouped by line and family. A cost sub-field (amount, currency, unit, taxes) is one "Falta el costo", never several items.
+      const FAMILY = { COST_AMOUNT_REQUIRED: 'cost', COST_CURRENCY_REQUIRED: 'cost', COST_UNIT_REQUIRED: 'cost', COST_TAX_BASIS_REQUIRED: 'cost', QUANTITY_REQUIRED: 'quantity', QUANTITY_FRACTION_NOT_ALLOWED: 'quantity', PRODUCT_REQUIRED: 'reference', VARIANT_REQUIRED: 'reference', REFERENCE_UNAVAILABLE: 'reference', REFERENCE_INCOMPATIBLE: 'reference', UNIT_MISMATCH: 'unit' }
+      const expected = new Set(order.issueCodes.map(code => FAMILY[code] ?? code)).size
+      const pending = slide().locator('ul[aria-label="Pendientes para confirmar"] li[data-state="pending"]')
+      check(await pending.count() === expected, `the checklist has one item per issue family (${expected} for ${order.issueCodes.length} diagnostics): ${tag}`)
+      check((await pending.evaluateAll(nodes => nodes.map(node => node.querySelectorAll('button.order-check-link').length))).every(links => links <= 1), `each checklist item has a single link at most: ${tag}`)
+      if (order.issueCodes.every(code => code.startsWith('COST_'))) check(items.length === 1 && items[0] === 'Falta el costo', `all the cost sub-fields collapse into one "Falta el costo" (${items.join(' | ')}): ${tag}`)
+      await lineDesign(tag)
       const link = slide().locator('button.order-check-link').first()
       check(await link.count() === 1 && (vw < 768 ? (await link.innerText()).trim() === 'Ver renglón' : (await link.innerText()).trim().startsWith('Ir a ')), `the checklist links to the flagged line (${vw < 768 ? 'Ver renglón' : 'Ir a {producto}'}): ${tag}`)
       await link.click()
