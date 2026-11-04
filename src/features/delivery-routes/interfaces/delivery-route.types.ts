@@ -202,6 +202,18 @@ export const DELIVERY_ROUTE_STATUS_TONES: Record<
   CANCELLED: 'neutral',
 }
 
+// Pending is neutral and the stop in progress is info; a skipped stop went off
+// plan, so it reads as warning (never danger).
+export const DELIVERY_ROUTE_STOP_STATUS_TONES: Record<
+  DeliveryRouteStopStatus,
+  'success' | 'info' | 'warning' | 'neutral'
+> = {
+  PENDING: 'neutral',
+  IN_PROGRESS: 'info',
+  COMPLETED: 'success',
+  SKIPPED: 'warning',
+}
+
 export const DELIVERY_ROUTE_STOP_STATUS_LABELS: Record<DeliveryRouteStopStatus, string> = {
   PENDING: 'Pendiente',
   IN_PROGRESS: 'En curso',

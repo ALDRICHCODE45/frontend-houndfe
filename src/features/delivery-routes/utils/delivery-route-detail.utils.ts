@@ -10,6 +10,7 @@ import { DELIVERY_ROUTE_COPY } from '../copy'
 import { deriveDriverRouteCockpit } from '../composables/cockpit/useDriverRouteCockpit'
 import {
   DELIVERY_ROUTE_STOP_STATUS_LABELS,
+  DELIVERY_ROUTE_STOP_STATUS_TONES,
   type DeliveryRouteResponseDto,
   type DeliveryRouteStop,
   type DeliveryRouteStopStatus,
@@ -23,15 +24,6 @@ import {
   minutesBetween,
   type DeliveryRouteProgress,
 } from './delivery-route-list.utils'
-
-// Pending is neutral and the stop in progress is info; a skipped stop went off
-// plan, so it reads as warning (never danger).
-const DELIVERY_ROUTE_STOP_STATUS_TONES: Record<DeliveryRouteStopStatus, StatusBadgeTone> = {
-  PENDING: 'neutral',
-  IN_PROGRESS: 'info',
-  COMPLETED: 'success',
-  SKIPPED: 'warning',
-}
 
 interface ManagerRouteKpi {
   key: 'delivered' | 'pending' | 'skipped' | 'time'

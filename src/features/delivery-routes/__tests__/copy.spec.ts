@@ -252,7 +252,7 @@ describe('copy.ts — single Spanish copy source (design.md §3)', () => {
 
   it('exposes the stop-list heading + supporting line above the ordered rich cards (route-page evolution)', () => {
     expect(DELIVERY_ROUTE_COPY.cockpit.stops.listHeading).toBe('Tus paradas')
-    expect(DELIVERY_ROUTE_COPY.cockpit.stops.listSubheading).toBe('Sigue el orden recomendado')
+    expect('listSubheading' in DELIVERY_ROUTE_COPY.cockpit.stops).toBe(false)
   })
 
   it('exposes the recent-activity heading (compact timeline section)', () => {

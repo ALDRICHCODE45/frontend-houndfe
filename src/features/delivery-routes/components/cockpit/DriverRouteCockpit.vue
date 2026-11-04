@@ -228,14 +228,13 @@ watch(() => props.checkInPending, (next, prev) => { if (prev && !next && state.v
             data-testid="cockpit-route-notes"
             class="flex w-full min-w-0 flex-col gap-1 rounded-lg border border-default bg-default p-3"
           >
-            <h2 class="text-xs font-semibold uppercase tracking-wide text-muted">{{ DELIVERY_ROUTE_COPY.cockpit.operational.notesLabel }}</h2>
+            <h2 class="text-sm font-semibold text-highlighted">{{ DELIVERY_ROUTE_COPY.cockpit.operational.notesLabel }}</h2>
             <p class="min-w-0 whitespace-pre-line text-sm text-default">{{ notes }}</p>
           </section>
           <!-- Visible stop-list heading: the ordered rich cards below remain the
                ONE canonical stop presentation (no duplicate operational section). -->
           <section data-testid="cockpit-stop-list-heading" class="flex w-full min-w-0 flex-col gap-0.5">
-            <h2 class="text-base font-semibold text-default">{{ DELIVERY_ROUTE_COPY.cockpit.stops.listHeading }}</h2>
-            <p class="text-sm text-muted">{{ DELIVERY_ROUTE_COPY.cockpit.stops.listSubheading }}</p>
+            <h2 class="text-base font-semibold text-highlighted">{{ DELIVERY_ROUTE_COPY.cockpit.stops.listHeading }}</h2>
           </section>
           <DriverRouteSpine :nodes="spineNodes" :show-check-in-stop-id="checkInStopId" :check-in-pending="props.checkInPending" @open-details="onOpenStop" @check-in="onCardCheckIn" />
           <!-- Route-page evolution: compact recent activity below the stop list;

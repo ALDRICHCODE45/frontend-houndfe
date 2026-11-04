@@ -99,6 +99,14 @@ describe('DriverRouteSpine — ordered rich stop-card sequence (REQ-DCS-005)', (
     expect(root.attributes('aria-label')).toBe('Recorrido de la ruta')
   })
 
+  it('empty state: the shared EmptyState names "Sin paradas" and offers no action', () => {
+    const w = mountSpine({ nodes: [] })
+    const empty = w.get('[data-testid="cockpit-spine-empty"] .hf-empty-state')
+    expect(empty.attributes('data-kind')).toBe('empty')
+    expect(empty.get('.hf-empty-state__title').text()).toBe('Sin paradas')
+    expect(empty.find('button').exists()).toBe(false)
+  })
+
   it('empty nodes array renders "Sin paradas" central copy and no <ol>', () => {
     const w = mountSpine({ nodes: [] })
     expect(w.text()).toContain('Sin paradas')

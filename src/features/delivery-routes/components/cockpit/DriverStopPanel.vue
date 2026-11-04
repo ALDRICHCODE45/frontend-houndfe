@@ -64,11 +64,11 @@ function runEmail() { settled('email', openEmail(customerEmail.value)) }
 <template>
   <article data-testid="stop-panel-root" class="flex flex-col gap-4 px-4 py-4 min-w-0">
     <div data-testid="stop-panel-meta" class="flex flex-col gap-1 min-w-0">
-      <span class="flex items-center gap-x-2 text-xs uppercase tracking-wide text-muted">
+      <span class="flex items-center gap-x-2 text-xs text-muted">
         <span data-testid="stop-panel-position">{{ positionLabel }}</span>
-        <span v-if="folioLabel" class="font-mono normal-case" data-testid="stop-panel-folio">· {{ folioLabel }}</span>
+        <span v-if="folioLabel" class="hf-figure" data-testid="stop-panel-folio">· {{ folioLabel }}</span>
       </span>
-      <span class="text-base font-medium text-default" data-testid="stop-panel-customer">{{ customerName }}</span>
+      <span class="text-base font-semibold text-highlighted" data-testid="stop-panel-customer">{{ customerName }}</span>
     </div>
 
     <p v-if="hasAddress" class="w-full min-w-0 max-w-full truncate text-sm text-default" data-testid="stop-panel-address">{{ formattedAddress }}</p>

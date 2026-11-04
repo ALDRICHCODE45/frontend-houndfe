@@ -226,7 +226,6 @@ export const DELIVERY_ROUTE_COPY = {
       // Route-page evolution: visible stop-list heading + supporting line
       // above the ordered rich cards (the ONE canonical stop presentation).
       listHeading: 'Tus paradas',
-      listSubheading: 'Sigue el orden recomendado',
     },
     // Route-page evolution: compact recent-activity section heading (the
     // timeline component renders it via its `heading` prop).
