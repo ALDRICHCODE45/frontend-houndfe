@@ -4,22 +4,22 @@ import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { AxiosError } from 'axios'
 import {
   AppDataTable,
-  FilterSectionCard,
   SelectColumn,
   SortableHeader,
 } from '@/core/shared/components/DataTable'
+import ToolbarSelectFilter from '@/core/shared/components/DataTable/ToolbarSelectFilter.vue'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { promotionQueryKeys } from '@/core/shared/constants/query-keys'
 import type { BulkAction } from '@/core/shared/types/table.types'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
-import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
-import ViewToggle from '@/core/shared/components/ViewToggle.vue'
+import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { useClickableRow } from '@/core/shared/composables/useClickableRow'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { promotionApi } from '../api/promotion.api'
 import { usePromotionColumns } from '../composables/usePromotionColumns'
-import { usePromotionViewMode, isPromotionViewMode } from '../composables/usePromotionViewMode'
 import type {
   PromotionMethod,
   PromotionResponse,
@@ -27,7 +27,6 @@ import type {
   PromotionType,
 } from '../interfaces/promotion.types'
 import PromotionTypeSelector from '../components/PromotionTypeSelector.vue'
-import PromotionCardGrid from '../components/PromotionCardGrid.vue'
 import PromotionCapacityStatus from '../components/PromotionCapacityStatus.vue'
 import '../styles/promotions-visual.css'
 import { useRouter } from 'vue-router'
@@ -53,6 +52,7 @@ const authStore = useAuthStore()
 const tenantId = computed(() => authStore.currentTenantId)
 const { columns, getStatusConfig, getTypeConfig, getMethodConfig, formatDate } =
   usePromotionColumns()
+const WHATSAPP_LABEL = 'WhatsApp'
 
 // ── Permission helpers ────────────────────────────────────────────────────────
 //
@@ -66,14 +66,6 @@ const canBatchDelete = computed(() => authStore.userCan('batch_delete', 'Promoti
 const canBatchEnd = computed(() => authStore.userCan('update', 'Promotion'))
 const canBatchActivate = computed(() => authStore.userCan('update', 'Promotion'))
 const canManagePromotionActions = computed(() => canUpdate.value || canDelete.value)
-
-// ── View mode (table ↔ card) ──────────────────────────────────────────────────
-const { viewMode, setMode: setViewMode, displayMode } = usePromotionViewMode()
-
-function handleViewModeChange(mode: string) {
-  if (!isPromotionViewMode(mode)) return
-  setViewMode(mode)
-}
 
 // ── Filter state ─────────────────────────────────────────────────────────────
 
@@ -125,12 +117,13 @@ const METHOD_OPTIONS = [
   { label: 'Manual', value: PROMOTION_METHOD.MANUAL },
 ]
 
-// Reset the three local filter refs (used by the inline "Limpiar filtros"
-// button and the toolbar's "Limpiar todo" clear-filters action).
+// Reset the three local filter refs and the search (the shared no-match
+// state's "Limpiar filtros" and the toolbar's clear-filters action).
 function resetFilters(): void {
   filterType.value = ''
   filterStatus.value = ''
   filterMethod.value = ''
+  globalFilter.value = ''
 }
 
 // ── Server table ──────────────────────────────────────────────────────────────
@@ -474,10 +467,6 @@ function handleEdit(promotion: PromotionResponse) {
   void router.push(`/pos/promociones/${promotion.id}`)
 }
 
-function handleCardClick(promotion: PromotionResponse) {
-  void router.push(`/pos/promociones/${promotion.id}`)
-}
-
 function handleEnd(promotion: PromotionResponse) {
   openConfirm(
     `¿Quieres finalizar la promoción "${promotion.title}"? Esta acción no se puede deshacer.`,
@@ -495,28 +484,30 @@ function handleDelete(promotion: PromotionResponse) {
   })
 }
 
-function getRowItems(promotion: PromotionResponse) {
-  const mainActions = canUpdate.value
-    ? [{ label: 'Editar', onSelect: () => handleEdit(promotion) }]
-    : []
-
-  const extraActions = [
+/** ⋮ menu: Editar first, Finalizar… next, destructive Eliminar… last. */
+function getRowActions(promotion: PromotionResponse): RowAction[] {
+  return [
+    ...(canUpdate.value ? [{ key: 'edit', label: 'Editar', icon: 'i-lucide-pencil' }] : []),
     ...(canUpdate.value && promotion.status !== PROMOTION_STATUS.ENDED
-      ? [{ label: 'Finalizar', onSelect: () => handleEnd(promotion) }]
+      ? [{ key: 'end', label: 'Finalizar…', icon: 'i-lucide-circle-stop' }]
       : []),
     ...(canDelete.value
-      ? [
-          {
-            label: 'Eliminar',
-            color: 'error' as const,
-            onSelect: () => handleDelete(promotion),
-          },
-        ]
+      ? [{ key: 'delete', label: 'Eliminar…', icon: 'i-lucide-trash-2', destructive: true }]
       : []),
   ]
-
-  return [mainActions, extraActions].filter((section) => section.length > 0)
 }
+
+function handleRowAction(key: string, promotion: PromotionResponse): void {
+  if (key === 'edit') handleEdit(promotion)
+  else if (key === 'end') handleEnd(promotion)
+  else if (key === 'delete') handleDelete(promotion)
+}
+
+const rowLabel = (promotion: PromotionResponse) => `promoción ${promotion.title}`
+
+// The whole row opens the promotion: AppDataTable's `row-open` for table rows,
+// `rowProps` for cards. The title button is the tab stop, so neither row is.
+const clickable = useClickableRow<PromotionResponse>(handleEdit, { focusable: false })
 
 // ── Bulk action (BD-REQ-003 / BD-REQ-004) ──────────────────────────────────────
 //
@@ -607,13 +598,32 @@ const bulkActions = computed<BulkAction<PromotionResponse>[]>(() => {
   return actions
 })
 
-const isEmpty = computed(() => !isLoading.value && data.value.length === 0)
+// ── Shared list states (S10) ──────────────────────────────────────────────────
+
+const search = computed(() => globalFilter.value.trim())
+const activeFilterCount = computed(
+  () => (filterType.value ? 1 : 0) + (filterStatus.value ? 1 : 0) + (filterMethod.value ? 1 : 0),
+)
+
+/** The list is empty because a search or a filter matched nothing. */
+const filtered = computed(() => search.value.length > 0 || activeFilterCount.value > 0)
+
+const noMatchTitle = computed(() =>
+  search.value ? `Ningún resultado para «${search.value}»` : 'Ningún resultado',
+)
+
+const emptyState = computed(() => ({
+  title: 'Aún no hay promociones',
+  description: 'Aquí aparecerán las promociones que crees.',
+  ...(canCreate.value ? { actionLabel: 'Nueva promoción', actionIcon: 'i-lucide-percent' } : {}),
+}))
 
 defineExpose({
   filterType,
   filterStatus,
   filterMethod,
-  getRowItems,
+  getRowActions,
+  handleRowAction,
   bulkActions,
   canBatchDelete,
   canBatchEnd,
@@ -655,10 +665,8 @@ defineExpose({
       @confirm="handleConfirm"
     />
 
-    <!-- ── Main card ───────────────────────────────────────────────────────── -->
     <div class="hf-page-header">
       <h1 class="hf-page-title">Promociones</h1>
-      <p class="hf-page-subtitle">Gestión de promociones y descuentos</p>
     </div>
 
     <UCard
@@ -679,7 +687,6 @@ defineExpose({
           :fetching="isFetching"
           :error="isError"
           :error-message="promotionsErrorMessage"
-          :display-mode="displayMode"
           :page-count="pageCount"
           :total-count="totalCount"
           :showing-from="showingFrom"
@@ -688,85 +695,50 @@ defineExpose({
           :bulk-actions="bulkActions"
           :enable-row-selection="canBatchDelete || canBatchEnd"
           :show-add-button="canCreate"
-          :active-filter-count="
-            (filterType ? 1 : 0) + (filterStatus ? 1 : 0) + (filterMethod ? 1 : 0)
-          "
-          search-placeholder="Buscar promociones..."
-          add-button-text="Nueva Promoción"
+          :active-filter-count="activeFilterCount"
+          :row-open="handleEdit"
+          :empty-state="emptyState"
+          :filtered="filtered"
+          :no-match-title="noMatchTitle"
+          mobile-render="cards"
+          display-mode="auto"
+          search-placeholder="Buscar promociones…"
+          add-button-text="Nueva promoción"
           add-button-icon="i-lucide-percent"
           enable-column-visibility
-          empty="No hay promociones todavía"
+          empty="No hay promociones"
           class="hf-data-table"
           portal-class="hf-theme hf-ui promotions-list-portal"
           pagination-portal-class="hf-theme hf-ui promotions-list-portal"
           @add="handleAddPromotion"
+          @empty-action="handleAddPromotion"
           @refresh="refresh"
           @clear-filters="resetFilters"
         >
-          <template #actions>
-            <ViewToggle
-              :model-value="viewMode"
-              class="promotions-view-toggle"
-              aria-label="Seleccionar vista de promociones"
-              @update:model-value="handleViewModeChange"
-            />
-          </template>
-
           <template #filters>
-            <FilterSectionCard title="Filtros">
-              <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
-                <USelect
-                  v-model="filterTypeSelect"
-                  :items="TYPE_OPTIONS"
-                  value-key="value"
-                  label-key="label"
-                  placeholder="Tipo"
-                  class="w-full sm:w-48"
-                  :ui="{ content: 'hf-theme hf-ui promotions-list-portal' }"
-                  data-testid="filter-type"
-                />
-                <USelect
-                  v-model="filterStatusSelect"
-                  :items="STATUS_OPTIONS"
-                  value-key="value"
-                  label-key="label"
-                  placeholder="Estado"
-                  class="w-full sm:w-44"
-                  :ui="{ content: 'hf-theme hf-ui promotions-list-portal' }"
-                  data-testid="filter-status"
-                />
-                <USelect
-                  v-model="filterMethodSelect"
-                  :items="METHOD_OPTIONS"
-                  value-key="value"
-                  label-key="label"
-                  placeholder="Método"
-                  class="w-full sm:w-40"
-                  :ui="{ content: 'hf-theme hf-ui promotions-list-portal' }"
-                  data-testid="filter-method"
-                />
-                <UButton
-                  v-if="filterType || filterStatus || filterMethod"
-                  label="Limpiar filtros"
-                  color="neutral"
-                  variant="ghost"
-                  size="sm"
-                  class="cursor-pointer"
-                  data-testid="clear-filters-btn"
-                  @click="resetFilters"
-                />
-              </div>
-            </FilterSectionCard>
-          </template>
-
-          <template #cards>
-            <PromotionCardGrid
-              :promotions="data"
-              :loading="isLoading || isFetching"
-              :empty="'No se encontraron promociones'"
-              @card-click="handleCardClick"
+            <ToolbarSelectFilter
+              v-model="filterTypeSelect"
+              :items="TYPE_OPTIONS"
+              label="Tipo"
+              portal-class="hf-theme hf-ui promotions-list-portal"
+              test-id="filter-type"
+            />
+            <ToolbarSelectFilter
+              v-model="filterStatusSelect"
+              :items="STATUS_OPTIONS"
+              label="Estado"
+              portal-class="hf-theme hf-ui promotions-list-portal"
+              test-id="filter-status"
+            />
+            <ToolbarSelectFilter
+              v-model="filterMethodSelect"
+              :items="METHOD_OPTIONS"
+              label="Método"
+              portal-class="hf-theme hf-ui promotions-list-portal"
+              test-id="filter-method"
             />
           </template>
+
           <!-- ── Selection checkboxes ───────────────────────────────────── -->
           <template #select-header="{ table }">
             <SelectColumn mode="header" :table="table" />
@@ -778,7 +750,7 @@ defineExpose({
 
           <!-- ── Sortable headers ───────────────────────────────────────── -->
           <template #title-header="{ column }">
-            <SortableHeader :column="column" label="Título" />
+            <SortableHeader :column="column" label="Promoción" />
           </template>
 
           <template #createdAt-header="{ column }">
@@ -789,50 +761,37 @@ defineExpose({
             <SortableHeader :column="column" label="Inicio" />
           </template>
 
-          <template #updatedAt-header="{ column }">
-            <SortableHeader :column="column" label="Actualizada" />
-          </template>
+          <template #actions-header><span class="sr-only">Acciones</span></template>
 
           <!-- ── Cell renderers ────────────────────────────────────────── -->
           <template #title-cell="{ row }">
-            <span
-              class="font-medium"
-              :class="offendingIds.has(row.original.id) ? 'rounded ring-2 ring-error/60 px-1' : ''"
-              :data-offending="offendingIds.has(row.original.id) ? 'true' : undefined"
-            >
-              {{ row.original.title }}
-            </span>
-            <AppBadge
-              v-if="row.original.botEligible === true"
-              tone="success"
-              icon="i-lucide-message-circle"
-              label="WhatsApp"
-              variant="outline"
-              class="ml-2"
-            />
+            <div class="promotion-primary">
+              <span class="promotion-primary-line">
+                <button
+                  type="button"
+                  class="hf-row-primary promotion-row-link"
+                  :class="{ 'is-offending': offendingIds.has(row.original.id) }"
+                  :data-offending="offendingIds.has(row.original.id) ? 'true' : undefined"
+                  :data-testid="`promotion-link-${row.original.id}`"
+                  @click="handleEdit(row.original)"
+                >{{ row.original.title }}</button>
+                <span v-if="row.original.botEligible === true" class="promotion-whatsapp" data-testid="whatsapp-marker">
+                  <UIcon name="i-lucide-message-circle" aria-hidden="true" />{{ WHATSAPP_LABEL }}
+                </span>
+              </span>
+              <span class="hf-row-secondary">{{ getTypeConfig(row.original.type).label }}</span>
+            </div>
           </template>
 
           <template #status-cell="{ row }">
-            <StatusDotBadge
+            <StatusBadge
               :tone="getStatusConfig(row.original.status).tone"
               :label="getStatusConfig(row.original.status).label"
             />
           </template>
 
-          <template #type-cell="{ row }">
-            <AppBadge
-              :tone="getTypeConfig(row.original.type).tone"
-              :icon="getTypeConfig(row.original.type).icon"
-              :label="getTypeConfig(row.original.type).label"
-            />
-          </template>
-
           <template #method-cell="{ row }">
-            <AppBadge
-              :tone="getMethodConfig(row.original.method).tone"
-              :label="getMethodConfig(row.original.method).label"
-              variant="outline"
-            />
+            <span class="promotion-when">{{ getMethodConfig(row.original.method).label }}</span>
           </template>
 
           <!-- Server-owned capacity (PCA-1). Renders backend values verbatim. -->
@@ -845,69 +804,84 @@ defineExpose({
             />
           </template>
 
-          <template #createdAt-cell="{ row }">
-            <span class="text-sm text-muted">
-              {{ formatDate(row.original.createdAt) }}
-            </span>
-          </template>
-
           <template #startDate-cell="{ row }">
-            <span class="text-sm text-muted">
-              {{ formatDate(row.original.startDate) }}
-            </span>
+            <span class="promotion-when">{{ formatDate(row.original.startDate) }}</span>
           </template>
 
-          <template #updatedAt-cell="{ row }">
-            <span class="text-sm text-muted">
-              {{ formatDate(row.original.updatedAt) }}
-            </span>
-          </template>
-
-          <!-- ── Empty state ────────────────────────────────────────────── -->
-          <template #empty-state>
-            <div
-              v-if="isEmpty"
-              class="promotions-empty-state flex flex-col items-center gap-4 py-16 text-center"
-              data-testid="empty-state"
-            >
-              <div class="promotions-empty-icon flex items-center justify-center">
-                <UIcon name="i-lucide-percent" class="size-6" />
-              </div>
-              <div>
-                <p class="promotions-empty-title">No hay promociones todavía</p>
-                <p class="mt-1 text-sm text-muted">
-                  Añade tu primera promoción para empezar a ofrecer descuentos.
-                </p>
-              </div>
-              <UButton
-                v-if="canCreate"
-                icon="i-lucide-plus"
-                class="cursor-pointer"
-                @click="handleAddPromotion"
-              >
-                Crear Promoción
-              </UButton>
-            </div>
+          <template #createdAt-cell="{ row }">
+            <span class="promotion-when">{{ formatShortDateTime(row.original.createdAt) }}</span>
           </template>
 
           <!-- ── Actions cell ───────────────────────────────────────────── -->
           <template #actions-cell="{ row }">
-            <UDropdownMenu
+            <RowActionsMenu
               v-if="canManagePromotionActions"
-              :items="getRowItems(row.original)"
-              :content="{ align: 'end' }"
-              :ui="{ content: 'hf-theme hf-ui promotions-list-portal' }"
-            >
-              <UButton
-                icon="i-lucide-ellipsis-vertical"
-                color="neutral"
-                variant="ghost"
-                class="size-7 cursor-pointer"
-              />
-            </UDropdownMenu>
+              :actions="getRowActions(row.original)"
+              :row-label="rowLabel(row.original)"
+              portal-class="promotions-list-portal"
+              @select="handleRowAction($event, row.original)"
+            />
+          </template>
+
+          <!-- ── Mobile card ────────────────────────────────────────────── -->
+          <template #mobile-card="{ row }">
+            <article v-bind="clickable.rowProps(row)" class="promotion-card" data-testid="promotion-card">
+              <div class="promotion-card-head">
+                <button
+                  type="button"
+                  class="hf-row-primary promotion-row-link"
+                  :class="{ 'is-offending': offendingIds.has(row.id) }"
+                  :data-testid="`promotion-link-${row.id}`"
+                  @click="handleEdit(row)"
+                >{{ row.title }}</button>
+                <RowActionsMenu
+                  v-if="canManagePromotionActions"
+                  :actions="getRowActions(row)"
+                  :row-label="rowLabel(row)"
+                  portal-class="promotions-list-portal"
+                  @select="handleRowAction($event, row)"
+                />
+              </div>
+              <span class="hf-row-secondary">{{ getTypeConfig(row.type).label }}</span>
+              <div class="promotion-card-meta">
+                <StatusBadge
+                  :tone="getStatusConfig(row.status).tone"
+                  :label="getStatusConfig(row.status).label"
+                />
+                <span v-if="row.botEligible === true" class="promotion-whatsapp">
+                  <UIcon name="i-lucide-message-circle" aria-hidden="true" />{{ WHATSAPP_LABEL }}
+                </span>
+                <PromotionCapacityStatus
+                  :max-product-units="row.maxProductUnits"
+                  :consumed-product-units="row.consumedProductUnits"
+                  :remaining-product-units="row.remainingProductUnits"
+                  compact
+                />
+              </div>
+              <div class="promotion-card-footer">
+                <span>{{ getMethodConfig(row.method).label }}</span>
+                <span>{{ formatDate(row.startDate) }}</span>
+              </div>
+            </article>
           </template>
         </AppDataTable>
       </div>
     </UCard>
   </div>
 </template>
+
+<style scoped>
+.promotion-primary { min-width: 0; }
+.promotion-primary-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.promotion-row-link { padding: 0; border: 0; background: none; text-align: left; font-size: 14px; cursor: pointer; }
+.promotion-row-link:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; border-radius: 4px; }
+.promotion-row-link.is-offending { border-radius: 4px; padding-inline: 4px; box-shadow: 0 0 0 2px var(--hf-danger); }
+.promotion-whatsapp { display: inline-flex; align-items: center; gap: 4px; color: var(--hf-muted); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.promotion-when { color: var(--hf-muted); font-size: 13px; white-space: nowrap; }
+.promotion-card { position: relative; min-width: 0; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); padding: 16px; }
+.promotion-card-head { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
+.promotion-card-head .promotion-row-link { flex: 1; min-width: 0; padding-top: 2px; font-size: 15px; line-height: 1.4; white-space: normal; }
+.promotion-card-head > :last-child { margin: -8px -8px 0 0; flex: none; }
+.promotion-card-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.promotion-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hf-border); color: var(--hf-muted); font-size: 13px; }
+</style>

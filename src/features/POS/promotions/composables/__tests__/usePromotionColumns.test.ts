@@ -12,7 +12,7 @@ describe('usePromotionColumns', () => {
     const { columns } = usePromotionColumns()
     const col = columns.find((c) => 'accessorKey' in c && c.accessorKey === 'title')
     expect(col).toBeDefined()
-    expect(col!.header).toBe('Título')
+    expect(col!.header).toBe('Promoción')
   })
 
   it('title column is sortable', () => {
@@ -37,17 +37,9 @@ describe('usePromotionColumns', () => {
     expect(col!.enableSorting).toBe(true)
   })
 
-  it('includes an updatedAt column that is sortable', () => {
+  it('has no updatedAt column: the list is ordered by what decides the next action', () => {
     const { columns } = usePromotionColumns()
-    const col = columns.find((c) => 'accessorKey' in c && c.accessorKey === 'updatedAt')
-    expect(col).toBeDefined()
-    expect(col!.enableSorting).toBe(true)
-  })
-
-  it('updatedAt column has header "Actualizada"', () => {
-    const { columns } = usePromotionColumns()
-    const col = columns.find((c) => 'accessorKey' in c && c.accessorKey === 'updatedAt')
-    expect(col!.header).toBe('Actualizada')
+    expect(columns.find((c) => 'accessorKey' in c && c.accessorKey === 'updatedAt')).toBeUndefined()
   })
 
   it('includes a status column with accessorKey "status"', () => {
@@ -57,11 +49,14 @@ describe('usePromotionColumns', () => {
     expect(col!.header).toBe('Estado')
   })
 
-  it('includes a type column with accessorKey "type"', () => {
+  it('folds the type into the title cell: no separate type column', () => {
     const { columns } = usePromotionColumns()
-    const col = columns.find((c) => 'accessorKey' in c && c.accessorKey === 'type')
-    expect(col).toBeDefined()
-    expect(col!.header).toBe('Tipo')
+    expect(columns.find((c) => 'accessorKey' in c && c.accessorKey === 'type')).toBeUndefined()
+  })
+
+  it('keeps the list within 8 columns', () => {
+    const { columns } = usePromotionColumns()
+    expect(columns.length).toBeLessThanOrEqual(8)
   })
 
   it('includes a method column with accessorKey "method"', () => {
@@ -79,24 +74,26 @@ describe('usePromotionColumns', () => {
     expect(col!.enableHiding).toBe(false)
   })
 
-  it('actions column has text-right cell alignment', () => {
+  it('actions column is the last, narrow, right-aligned column', () => {
     const { columns } = usePromotionColumns()
+    expect(columns[columns.length - 1]).toMatchObject({ id: 'actions' })
     const col = columns.find((c) => 'id' in c && c.id === 'actions')
-    expect(col!.meta?.class?.td).toBe('text-right')
+    expect(col!.meta?.class?.th).toBe('w-16')
+    expect(col!.meta?.class?.td).toContain('text-right')
   })
 
   it('exports statusConfig accessor helper', () => {
     const { getStatusConfig } = usePromotionColumns()
     const config = getStatusConfig('ACTIVE')
     expect(config.label).toBe('Activa')
-    expect(config.tone).toBe('active')
+    expect(config.tone).toBe('success')
   })
 
   it('getStatusConfig returns correct config for SCHEDULED', () => {
     const { getStatusConfig } = usePromotionColumns()
     const config = getStatusConfig('SCHEDULED')
     expect(config.label).toBe('Programada')
-    expect(config.tone).toBe('pending')
+    expect(config.tone).toBe('info')
   })
 
   it('exports getTypeConfig helper', () => {
