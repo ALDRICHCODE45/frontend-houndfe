@@ -95,26 +95,6 @@ vi.mock('../../components/UserUpsertSlideover.vue', () => ({
   },
 }))
 
-vi.mock('../../components/UserCardGrid.vue', () => ({
-  default: {
-    name: 'UserCardGrid',
-    template: `
-      <div data-testid="user-card-grid">
-        <button
-          v-for="user in users"
-          :key="user.id"
-          :data-testid="'card-' + user.id"
-          @click="$emit('card-click', user)"
-        >
-          {{ user.name }}
-        </button>
-      </div>
-    `,
-    props: ['users', 'loading', 'empty'],
-    emits: ['card-click'],
-  },
-}))
-
 vi.mock('../../composables/useUserColumns', () => ({
   useUserColumns: () => ({ columns: [] }),
 }))
@@ -128,16 +108,6 @@ vi.mock('@/core/shared/components/DataTable/SortableHeader.vue', () => ({
   },
 }))
 
-vi.mock('@/core/shared/components/ViewToggle.vue', () => ({
-  default: {
-    name: 'ViewToggle',
-    template:
-      '<div data-testid="view-toggle"><button data-testid="view-toggle-table" @click="$emit(\'update:modelValue\', \'table\')">Tabla</button><button data-testid="view-toggle-card" @click="$emit(\'update:modelValue\', \'card\')">Tarjetas</button></div>',
-    props: ['modelValue', 'options', 'ariaLabel'],
-    emits: ['update:modelValue'],
-  },
-}))
-
 // Stub AppDataTable enough to expose props + slots for assertions.
 vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
   default: {
@@ -145,13 +115,9 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
     template: `
       <div
         data-testid="app-data-table"
-        :data-display-mode="displayMode"
-        :data-column-visibility="String(enableColumnVisibility)"
         :data-error="error ? 'true' : 'false'"
         :data-error-message="errorMessage"
       >
-        <slot name="actions" />
-        <slot name="cards" />
         <div v-if="error" data-testid="table-error-state" role="alert">
           <p data-testid="error-message">{{ errorMessage }}</p>
           <button data-testid="table-error-retry" @click="$emit('refresh')">Reintentar</button>
@@ -163,6 +129,7 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
             <slot name="email-header" :column="{ id: 'email', getIsSorted: () => false, toggleSorting: () => {} }" />
             <slot name="name-cell" :row="{ original: row }" />
             <slot name="actions-cell" :row="{ original: row }" />
+            <button v-if="rowOpen" :data-testid="'open-' + row.id" @click="rowOpen(row)">abrir</button>
           </div>
         </div>
       </div>
@@ -171,20 +138,12 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
       columns: { default: () => [] },
       data: { default: () => [] },
       displayMode: { default: 'auto' },
-      enableColumnVisibility: { type: Boolean, default: false },
+      rowOpen: { type: Function, default: undefined },
       error: { default: false },
       errorMessage: { default: 'No se pudieron cargar los datos. Reintenta.' },
       empty: { default: 'No se encontraron resultados' },
     },
     emits: ['add', 'refresh'],
-  },
-}))
-
-vi.mock('@/core/shared/components/AppBadge.vue', () => ({
-  default: {
-    name: 'AppBadge',
-    template: '<span><slot /></span>',
-    props: ['label', 'value', 'tone', 'icon', 'variant'],
   },
 }))
 
@@ -370,41 +329,8 @@ describe('AdminUsersView — error state', () => {
   })
 })
 
-describe('AdminUsersView — view mode', () => {
-  it('renders ViewToggle in the toolbar actions slot', async () => {
-    const wrapper = mountView()
-    await flushPromises()
-    expect(wrapper.find('[data-testid="view-toggle"]').exists()).toBe(true)
-  })
-
-  it('passes display-mode="table" by default', async () => {
-    const wrapper = mountView()
-    await flushPromises()
-    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe(
-      'table',
-    )
-  })
-
-  it('passes display-mode="cards" after toggling to card mode via localStorage', async () => {
-    localStorage.setItem('admin-users-view-mode', 'card')
-    const wrapper = mountView()
-    await flushPromises()
-    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe(
-      'cards',
-    )
-  })
-
-  it('wires enable-column-visibility on the AppDataTable', async () => {
-    const wrapper = mountView()
-    await flushPromises()
-    expect(
-      wrapper.find('[data-testid="app-data-table"]').attributes('data-column-visibility'),
-    ).toBe('true')
-  })
-})
-
 describe('AdminUsersView — usuario avatar', () => {
-  it('renders EntityAvatar with the user name and id seed and the active dot', async () => {
+  it('renders EntityAvatar with the user name and id seed and no activity dot', async () => {
     mockState.data.value = [makeUser({ id: 'user-7', name: 'Ana Gomez', isActive: true })]
     const wrapper = mountView()
     await flushPromises()
@@ -413,15 +339,8 @@ describe('AdminUsersView — usuario avatar', () => {
     expect(avatar.exists()).toBe(true)
     expect(avatar.attributes('data-name')).toBe('Ana Gomez')
     expect(avatar.attributes('data-seed')).toBe('user-7')
-    expect(avatar.attributes('data-show-dot')).toBe('true')
-  })
-
-  it('omits the active dot for an inactive user', async () => {
-    mockState.data.value = [makeUser({ id: 'user-8', name: 'Beto Ruiz', isActive: false })]
-    const wrapper = mountView()
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="entity-avatar"]').attributes('data-show-dot')).toBe('false')
+    // Activity is said by the StatusBadge column, not by a dot on the avatar.
+    expect(avatar.attributes('data-show-dot')).not.toBe('true')
   })
 
   it('replaces the legacy UAvatar in the name cell', async () => {
@@ -443,8 +362,8 @@ describe('AdminUsersView — permission gating', () => {
     const wrapper = mountView()
     await flushPromises()
     const html = wrapper.html()
-    // When canManageUserActions is false the UDropdownMenu is removed
-    // entirely (v-if in the view); the kebab trigger id is absent.
+    // With no action left the RowActionsMenu renders nothing; the kebab
+    // trigger id is absent.
     expect(html).not.toContain('reka-dropdown-menu-trigger')
   })
 
@@ -471,28 +390,19 @@ describe('AdminUsersView — permission gating', () => {
   })
 })
 
-describe('AdminUsersView — card slot', () => {
-  it('renders UserCardGrid inside the cards slot when in card mode', async () => {
-    mockState.data.value = [makeUser()]
-    localStorage.setItem('admin-users-view-mode', 'card')
-    const wrapper = mountView()
-    await flushPromises()
-    expect(wrapper.find('[data-testid="user-card-grid"]').exists()).toBe(true)
-  })
-
-  it('card click opens the edit slideover with the clicked user and does not push to router', async () => {
+describe('AdminUsersView — row open', () => {
+  it('opens the edit slideover with the clicked user and does not push to router', async () => {
     // No router push should occur — there is no detail route.
     const routerPush = vi.fn()
     vi.stubGlobal('useRouter', () => ({ push: routerPush }))
 
     mockState.data.value = [makeUser({ id: 'user-42', name: 'Maria Lopez' })]
-    localStorage.setItem('admin-users-view-mode', 'card')
     const wrapper = mountView()
     await flushPromises()
 
-    const card = wrapper.find('[data-testid="card-user-42"]')
-    expect(card.exists()).toBe(true)
-    await card.trigger('click')
+    const row = wrapper.find('[data-testid="open-user-42"]')
+    expect(row.exists()).toBe(true)
+    await row.trigger('click')
     await flushPromises()
 
     // The edit slideover must be present and bound to the clicked user.
@@ -501,11 +411,20 @@ describe('AdminUsersView — card slot', () => {
     expect(slideover.attributes('data-user-id')).toBe('user-42')
     expect(slideover.attributes('data-mode')).toBe('edit')
 
-    // No router navigation occurred — card click is slideover-only.
+    // No router navigation occurred — opening a row is slideover-only.
     expect(routerPush).not.toHaveBeenCalled()
 
     // Cleanup the global stub so it does not leak across tests.
     vi.unstubAllGlobals()
+  })
+
+  it('does not offer the row open without update permission', async () => {
+    authMock.userCan.mockImplementation((action: string) => action === 'read')
+    mockState.data.value = [makeUser()]
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="open-user-1"]').exists()).toBe(false)
   })
 })
 
@@ -526,7 +445,7 @@ function editor(wrapper: VueWrapper) {
     .find((child) => child.props('mode') === 'edit')!
 }
 async function openEditor(wrapper: VueWrapper, id = 'user-1') {
-  await wrapper.find(`[data-testid="card-${id}"]`).trigger('click')
+  await wrapper.find(`[data-testid="open-${id}"]`).trigger('click')
   await flushPromises()
   return editor(wrapper)
 }
@@ -758,7 +677,9 @@ describe('AdminUsersView — submission boundaries', () => {
       (action: string, subject: string) => !(action === 'update' && subject === 'User'),
     )
     const wrapper = mountView()
-    await openEditor(wrapper)
+    await flushPromises()
+    // Without update:User the row offers no way to open the editor at all.
+    expect(wrapper.find('[data-testid="open-user-1"]').exists()).toBe(false)
     expect(editor(wrapper).props('open')).toBe(false)
     expect(apiMock.getById).not.toHaveBeenCalled()
     submit(editor(wrapper), { name: 'Edited' })
@@ -822,12 +743,9 @@ describe('AdminUsersView — seller sales report entry', () => {
       labelsByMissingRead[missing] = rowKebabItems(wrapper).map((item) => item.label ?? '')
     }
 
-    // Update-only identities keep 'Editar'; the report disappears entirely.
-    expect(labelsByMissingRead).toEqual({
-      User: ['Editar'],
-      Sale: ['Editar'],
-      Analytics: ['Editar'],
-    })
+    // Update-only identities get no menu at all: 'Editar' alone would repeat the
+    // row click. The report disappears entirely.
+    expect(labelsByMissingRead).toEqual({ User: [], Sale: [], Analytics: [] })
   })
 
   it('hides the kebab when only a partial read set is granted', async () => {
