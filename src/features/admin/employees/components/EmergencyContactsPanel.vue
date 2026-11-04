@@ -6,11 +6,12 @@
  * Can be used inline in a panel or as a standalone section.
  *
  * Layout:
- *   - List of contacts: name, relationship, phone, email
- *   - First by createdAt asc is marked "Contacto principal" (no isPrimary field from backend)
+ *   - List of contacts: name, relationship (first by createdAt asc is the
+ *     principal one — no isPrimary field from backend), phone, email
  *   - "Agregar" button (gated by canCreate)
- *   - Edit / Delete per row (gated by canUpdate / canDelete)
+ *   - ⋮ menu per row: Editar, Eliminar… last (gated by canUpdate / canDelete)
  *   - Create and Edit share the same form modal
+ *   - Four states (S10): skeleton, error with Reintentar, empty, data
  *
  * CASL gates (EmployeeEmergencyContact subject):
  *   - canCreate: can('create', 'EmployeeEmergencyContact')
@@ -25,6 +26,9 @@
  */
 
 import { computed, reactive, ref } from 'vue'
+import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
+import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import type { Employee, EmergencyContact } from '../interfaces/employee.types'
 import { CreateEmergencyContactDtoSchema } from '../interfaces/employee.types'
 import {
@@ -49,7 +53,7 @@ const props = defineProps<{
 
 const employeeId = computed(() => props.employee.id)
 
-const { data: contacts, isLoading } = useEmergencyContacts(employeeId)
+const { data: contacts, isLoading, isError, refetch } = useEmergencyContacts(employeeId)
 const { mutateAsync: createContact, isPending: isCreating } = useCreateEmergencyContact(employeeId)
 const { mutateAsync: updateContact, isPending: isUpdating } = useUpdateEmergencyContact(employeeId)
 const { mutateAsync: deleteContact, isPending: isDeleting } = useDeleteEmergencyContact(employeeId)
@@ -126,6 +130,22 @@ async function submitForm(): Promise<void> {
   }
 }
 
+// ─── Row menu ─────────────────────────────────────────────────────────────────
+
+const rowActions = computed<RowAction[]>(() => [
+  ...(props.canUpdate ? [{ key: 'edit', label: 'Editar', icon: 'i-lucide-pencil' }] : []),
+  ...(props.canDelete
+    ? [{ key: 'delete', label: 'Eliminar…', icon: 'i-lucide-trash-2', destructive: true }]
+    : []),
+])
+
+function onRowAction(key: string, contactId: string): void {
+  const contact = sortedContacts.value.find((c) => c.id === contactId)
+  if (!contact) return
+  if (key === 'edit') openEdit(contact)
+  else if (key === 'delete') openDelete(contact)
+}
+
 // ─── Delete confirm state ─────────────────────────────────────────────────────
 
 const isDeleteOpen = ref(false)
@@ -151,104 +171,91 @@ async function confirmDelete(): Promise<void> {
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
-
-    <!-- Header row -->
-    <div class="flex items-center justify-between">
-      <h3 class="text-sm font-semibold text-highlighted">Contactos de emergencia</h3>
+  <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
+    <div class="flex items-center justify-between gap-3 border-b border-default px-5 py-4">
+      <h2 class="text-base font-semibold text-highlighted">Contactos de emergencia</h2>
       <UButton
         v-if="canCreate"
         icon="i-lucide-user-plus"
-        size="xs"
+        size="sm"
         variant="outline"
+        color="neutral"
         @click="openCreate"
       >
         Agregar
       </UButton>
     </div>
 
-    <!-- Loading state -->
-    <div v-if="isLoading" class="flex flex-col gap-3">
-      <div v-for="n in 2" :key="n" class="h-16 animate-pulse rounded-lg bg-elevated" />
+    <!-- Loading -->
+    <div
+      v-if="isLoading"
+      class="flex flex-col gap-3 p-5"
+      aria-busy="true"
+      data-testid="contacts-skeleton"
+    >
+      <span class="sr-only">Cargando</span>
+      <div v-for="n in 2" :key="n" class="h-14 animate-pulse rounded-lg bg-(--hf-surface-muted)" aria-hidden="true" />
     </div>
 
-    <!-- Empty state -->
-    <div
-      v-else-if="contactEntries.length === 0"
-      class="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-default py-10 text-center"
-    >
-      <UIcon name="i-lucide-users" class="size-8 text-muted opacity-60" />
-      <div>
-        <p class="text-sm font-medium text-highlighted">Sin contactos de emergencia</p>
-        <p class="text-xs text-muted">
-          Agrega al menos un contacto en caso de emergencia.
-        </p>
-      </div>
+    <!-- Error -->
+    <div v-else-if="isError" class="p-5" data-testid="contacts-error">
+      <EmptyState
+        kind="error"
+        title="No se pudieron cargar los contactos"
+        action-label="Reintentar"
+        action-test-id="contacts-retry"
+        @action="() => refetch()"
+      />
+    </div>
+
+    <!-- Empty -->
+    <div v-else-if="contactEntries.length === 0" class="p-5" data-testid="contacts-empty">
+      <EmptyState
+        title="Sin contactos de emergencia"
+        description="Agrega al menos un contacto."
+        icon="i-lucide-users"
+      />
     </div>
 
     <!-- Contact list -->
-    <ul v-else class="flex flex-col gap-3">
+    <ul v-else class="divide-y divide-default">
       <li
         v-for="entry in contactEntries"
         :key="entry.id"
-        class="flex items-start justify-between gap-3 rounded-xl border border-default bg-elevated/30 p-4"
+        class="flex items-center justify-between gap-3 px-5 py-3"
+        data-testid="contact-row"
       >
-        <div class="flex flex-col gap-1 min-w-0">
-          <!-- Name + primary badge -->
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-semibold text-highlighted truncate">{{ entry.name }}</span>
-            <UBadge v-if="entry.isPrimary" color="primary" variant="subtle" size="xs">
-              Principal
-            </UBadge>
-          </div>
-          <!-- Relationship -->
-          <span class="text-xs text-muted">{{ entry.relationship }}</span>
-          <!-- Contact info -->
-          <div class="flex flex-wrap items-center gap-3 mt-1">
+        <div class="min-w-0">
+          <p class="hf-row-primary">{{ entry.name }}</p>
+          <p class="hf-row-secondary">
+            {{ entry.relationship }}<template v-if="entry.isPrimary"> · Principal</template>
+          </p>
+          <div class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
             <a
               :href="`tel:${entry.phone}`"
-              class="flex items-center gap-1 text-xs text-default hover:text-primary"
+              class="text-default underline decoration-(--hf-border) underline-offset-2 hover:text-primary"
             >
-              <UIcon name="i-lucide-phone" class="size-3.5 shrink-0" />
               {{ entry.phone }}
             </a>
             <a
               v-if="entry.email"
               :href="`mailto:${entry.email}`"
-              class="flex items-center gap-1 text-xs text-default hover:text-primary"
+              class="break-all text-default underline decoration-(--hf-border) underline-offset-2 hover:text-primary"
             >
-              <UIcon name="i-lucide-mail" class="size-3.5 shrink-0" />
               {{ entry.email }}
             </a>
           </div>
         </div>
 
-        <!-- Actions -->
-        <div class="flex items-center gap-1 shrink-0">
-          <UButton
-            v-if="canUpdate"
-            icon="i-lucide-pencil"
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            :aria-label="`Editar ${entry.name}`"
-            @click="openEdit(sortedContacts.find(c => c.id === entry.id)!)"
-          />
-          <UButton
-            v-if="canDelete"
-            icon="i-lucide-trash-2"
-            size="xs"
-            color="error"
-            variant="ghost"
-            :loading="isDeleting && deletingContactId === entry.id"
-            :aria-label="`Eliminar ${entry.name}`"
-            @click="openDelete(sortedContacts.find(c => c.id === entry.id)!)"
-          />
-        </div>
+        <RowActionsMenu
+          :actions="rowActions"
+          :row-label="entry.name"
+          portal-class="employees-form-portal"
+          @select="onRowAction($event, entry.id)"
+        />
       </li>
     </ul>
-
-  </div>
+  </UCard>
 
   <!-- Create / Edit form modal -->
   <UModal :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
@@ -290,14 +297,11 @@ async function confirmDelete(): Promise<void> {
             class="w-full"
           />
         </UFormField>
-        <p v-if="formError" class="text-sm text-error">{{ formError }}</p>
+        <p v-if="formError" class="text-sm text-(--hf-danger)" role="alert">{{ formError }}</p>
       </div>
     </template>
     <template #footer>
-      <div class="flex justify-end gap-2">
-        <UButton color="neutral" variant="outline" @click="isFormOpen = false">
-          Cancelar
-        </UButton>
+      <div class="flex w-full justify-end">
         <UButton
           :loading="editingContactId ? isUpdating : isCreating"
           @click="submitForm"
@@ -308,25 +312,15 @@ async function confirmDelete(): Promise<void> {
     </template>
   </UModal>
 
-  <!-- Delete confirm modal -->
-  <UModal :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }" v-model:open="isDeleteOpen" title="Eliminar contacto">
-    <template #body>
-      <p class="text-sm text-muted">
-        ¿Estás seguro de que quieres eliminar a
-        <span class="font-semibold text-highlighted">{{ deletingContactName }}</span>
-        de los contactos de emergencia?
-      </p>
-      <p class="mt-2 text-xs text-muted">Esta acción no se puede deshacer.</p>
-    </template>
-    <template #footer>
-      <div class="flex justify-end gap-2">
-        <UButton color="neutral" variant="outline" @click="isDeleteOpen = false">
-          Cancelar
-        </UButton>
-        <UButton color="error" :loading="isDeleting" @click="confirmDelete">
-          Eliminar
-        </UButton>
-      </div>
-    </template>
-  </UModal>
+  <!-- Delete confirmation -->
+  <ConfirmModal
+    v-model:open="isDeleteOpen"
+    title="Eliminar contacto"
+    :description="`Se eliminará a ${deletingContactName} de los contactos de emergencia. Esta acción no se puede deshacer.`"
+    confirm-label="Eliminar"
+    confirm-color="error"
+    :loading="isDeleting"
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
+    @confirm="confirmDelete"
+  />
 </template>

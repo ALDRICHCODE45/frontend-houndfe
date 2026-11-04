@@ -6,14 +6,13 @@
  *
  * Displays:
  *   - Current position, department
- *   - Employee number
+ *   - Contract type, work modality (plain text: a category, not a status)
+ *   - Hire date, schedule
  *   - Manager (linked — router-link to manager's detail)
- *   - Contract type, work modality
- *   - Hire date
- *   - Schedule
  *   - Responsibilities
  *
- * Design: card-based sections with edit pencil icon per Claude Design.
+ * The employee number lives in the Personal tab, and editing in the detail
+ * header (one primary action per view).
  */
 
 import { computed } from 'vue'
@@ -30,11 +29,6 @@ const props = defineProps<{
   managerDisplay: string
   /** Manager employee ID for navigation (optional) */
   managerId?: string | null
-  canUpdate?: boolean
-}>()
-
-const emit = defineEmits<{
-  edit: [employee: Employee]
 }>()
 
 const hireDateFormatted = computed(() => formatHireDate(props.employee.hireDate))
@@ -44,86 +38,66 @@ const contractLabel = computed(() => CONTRACT_TYPE_LABELS[props.employee.contrac
 
 <template>
   <div class="flex flex-col gap-6">
-    <!-- Position + contract section -->
     <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
-      <div class="flex items-center justify-between border-b border-default px-5 py-4">
-        <h3 class="text-sm font-semibold text-highlighted">Datos de empleo</h3>
-        <UButton
-          v-if="canUpdate"
-          icon="i-lucide-pencil"
-          color="neutral"
-          variant="ghost"
-          size="xs"
-          aria-label="Editar datos de empleo"
-          @click="emit('edit', employee)"
-        />
+      <div class="border-b border-default px-5 py-4">
+        <h2 class="text-base font-semibold text-highlighted">Datos de empleo</h2>
       </div>
 
-      <div class="grid grid-cols-1 gap-0 sm:grid-cols-2">
-        <!-- Puesto actual -->
-        <div class="border-b border-default px-5 py-4 sm:border-r">
-          <p class="text-xs text-muted">Puesto actual</p>
-          <p class="mt-1 font-medium text-highlighted">{{ employee.currentPosition ?? '—' }}</p>
+      <dl class="grid grid-cols-1 gap-x-8 gap-y-5 p-5 sm:grid-cols-2">
+        <div>
+          <dt class="text-[13px] text-muted">Puesto actual</dt>
+          <dd class="mt-1 font-medium text-highlighted">{{ employee.currentPosition ?? '—' }}</dd>
         </div>
 
-        <!-- Departamento -->
-        <div class="border-b border-default px-5 py-4">
-          <p class="text-xs text-muted">Departamento</p>
-          <p class="mt-1 font-medium text-default">{{ employee.currentDepartment ?? '—' }}</p>
+        <div>
+          <dt class="text-[13px] text-muted">Departamento</dt>
+          <dd class="mt-1 font-medium text-default">{{ employee.currentDepartment ?? '—' }}</dd>
         </div>
 
-        <!-- Número de empleado -->
-        <div class="border-b border-default px-5 py-4 sm:border-r">
-          <p class="text-xs text-muted">Número de empleado</p>
-          <p class="mt-1 font-mono font-medium text-default">{{ employee.employeeNumber }}</p>
+        <div>
+          <dt class="text-[13px] text-muted">Tipo de contrato</dt>
+          <dd class="mt-1 font-medium text-default">{{ contractLabel }}</dd>
         </div>
 
-        <!-- Tipo de contrato -->
-        <div class="border-b border-default px-5 py-4">
-          <p class="text-xs text-muted">Tipo de contrato</p>
-          <p class="mt-1 font-medium text-default">{{ contractLabel }}</p>
+        <div>
+          <dt class="text-[13px] text-muted">Modalidad</dt>
+          <dd class="mt-1 font-medium text-default">{{ modalityLabel }}</dd>
         </div>
 
-        <!-- Modalidad de trabajo -->
-        <div class="border-b border-default px-5 py-4 sm:border-r">
-          <p class="text-xs text-muted">Modalidad</p>
-          <p class="mt-1 font-medium text-default">{{ modalityLabel }}</p>
+        <div>
+          <dt class="text-[13px] text-muted">Fecha de ingreso</dt>
+          <dd class="mt-1 font-medium text-default">{{ hireDateFormatted }}</dd>
         </div>
 
-        <!-- Fecha de ingreso -->
-        <div class="border-b border-default px-5 py-4">
-          <p class="text-xs text-muted">Fecha de ingreso</p>
-          <p class="mt-1 font-medium text-default">{{ hireDateFormatted }}</p>
+        <div>
+          <dt class="text-[13px] text-muted">Horario</dt>
+          <dd class="mt-1 font-medium text-default">{{ employee.currentSchedule ?? '—' }}</dd>
         </div>
 
         <!-- Jefe directo — linked if managerId exists -->
-        <div class="border-b border-default px-5 py-4 sm:border-r sm:border-b-0">
-          <p class="text-xs text-muted">Jefe directo</p>
-          <RouterLink
-            v-if="managerId"
-            :to="{ name: 'admin-employee-detail', params: { id: managerId } }"
-            class="mt-1 block font-medium text-primary hover:underline"
-          >
-            {{ managerDisplay }}
-          </RouterLink>
-          <p v-else class="mt-1 text-muted">—</p>
+        <div>
+          <dt class="text-[13px] text-muted">Jefe directo</dt>
+          <dd class="mt-1">
+            <RouterLink
+              v-if="managerId"
+              :to="{ name: 'admin-employee-detail', params: { id: managerId } }"
+              class="font-medium text-default underline decoration-(--hf-border) underline-offset-2 hover:text-primary"
+            >
+              {{ managerDisplay }}
+            </RouterLink>
+            <span v-else class="text-muted">—</span>
+          </dd>
         </div>
-
-        <!-- Horario -->
-        <div class="px-5 py-4">
-          <p class="text-xs text-muted">Horario</p>
-          <p class="mt-1 font-medium text-default">{{ employee.currentSchedule ?? '—' }}</p>
-        </div>
-      </div>
+      </dl>
     </UCard>
 
-    <!-- Responsibilities section -->
-    <UCard class="employees-detail-section"
+    <UCard
       v-if="employee.currentResponsibilities"
+      class="employees-detail-section"
       :ui="{ body: 'p-5 sm:p-5' }"
     >
-      <h3 class="mb-3 text-sm font-semibold text-highlighted">Responsabilidades</h3>
-      <p class="whitespace-pre-wrap text-sm text-default leading-relaxed">
+      <h2 class="mb-3 text-base font-semibold text-highlighted">Responsabilidades</h2>
+      <p class="whitespace-pre-wrap text-sm leading-relaxed text-default">
         {{ employee.currentResponsibilities }}
       </p>
     </UCard>

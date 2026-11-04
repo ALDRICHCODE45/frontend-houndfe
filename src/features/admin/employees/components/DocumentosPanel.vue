@@ -4,17 +4,17 @@
  *
  * Documentos tab panel for the Employee Detail View.
  *
- * Layout (per Claude Design):
+ * Layout:
  *   1. "Documentos adjuntos" section
- *      - Count badge + "Subir" button (gated by can('create', 'EmployeeDocument'))
- *      - Document list: category badge, notes as title, expiresAt if present,
- *        createdAt, delete button (gated by can('delete', 'EmployeeDocument'))
- *      - Click on row → downloadDocumentInfo → downloadFile('/files/' + fileId)
- *      - Empty state: "Sin documentos adjuntos"
+ *      - Count + "Subir" button (gated by can('create', 'EmployeeDocument'))
+ *      - Document list: the title downloads the file; category and upload date
+ *        as one muted line; the expiry date when there is one. The ⋮ menu
+ *        (Descargar, Eliminar…) shows only with can('delete', 'EmployeeDocument'),
+ *        because with no delete permission it would only repeat the title.
+ *      - Four states (S10): skeleton, error with Reintentar, "Aún no hay documentos", data
  *   2. "Vencimientos" section
  *      - Documents with expiration dates within threshold (30 / 60 / 90 days filter)
- *      - Threshold filter is hardcoded to three options
- *      - Empty state: "Ningún documento con vencimiento próximo"
+ *      - Pending items that need action, so each carries a warning badge
  *
  * CASL gates:
  *   - Read/download: can('read', 'EmployeeDocument') — enforced at route level
@@ -31,6 +31,10 @@
 
 import { computed, reactive, ref } from 'vue'
 import DateFieldPopover from '@/features/POS/sales/components/DateFieldPopover.vue'
+import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
+import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { EMPLOYEE_DOCUMENT_CATEGORY } from '../constants/employee.constants'
 import type { Employee, EmployeeDocumentCategory } from '../interfaces/employee.types'
 import { downloadFile } from '@/core/shared/api/multipart'
@@ -43,6 +47,7 @@ import {
   computeExpiringThresholdLabel,
 } from '../composables/useDocumentos'
 import { employeesApi } from '../api/employees.api'
+import { formatTimeOffDate } from '../composables/useEmployeeColumns'
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
 
@@ -56,7 +61,12 @@ const props = defineProps<{
 
 const employeeId = computed(() => props.employee.id)
 
-const { data: documentsResponse, isLoading } = useEmployeeDocuments(employeeId)
+const {
+  data: documentsResponse,
+  isLoading,
+  isError,
+  refetch,
+} = useEmployeeDocuments(employeeId)
 
 const { mutateAsync: uploadDocument, isPending: isUploading } = useUploadDocument(employeeId)
 const { mutateAsync: deleteDocument, isPending: isDeleting } = useDeleteDocument(employeeId)
@@ -194,20 +204,18 @@ async function onUploadSubmit(): Promise<void> {
   }
 }
 
-// ─── Category badge tone ──────────────────────────────────────────────────────
-// Categories share the semantic roles (employees-visual.css); the label carries
-// the category, the tone only groups related kinds.
+// ─── Row menu ─────────────────────────────────────────────────────────────────
+// The title already downloads, so the menu exists only when it adds Eliminar…
+// (destructive, last, confirmed).
 
-const CATEGORY_BADGE_COLORS: Record<EmployeeDocumentCategory, string> = {
-  [EMPLOYEE_DOCUMENT_CATEGORY.CONTRACT]: 'employees-doc-category employees-doc-category--active',
-  [EMPLOYEE_DOCUMENT_CATEGORY.NDA]: 'employees-doc-category employees-doc-category--active',
-  [EMPLOYEE_DOCUMENT_CATEGORY.EVALUATION]: 'employees-doc-category employees-doc-category--success',
-  [EMPLOYEE_DOCUMENT_CATEGORY.CERTIFICATE]: 'employees-doc-category employees-doc-category--success',
-  [EMPLOYEE_DOCUMENT_CATEGORY.WARNING]: 'employees-doc-category employees-doc-category--warning',
-  [EMPLOYEE_DOCUMENT_CATEGORY.ID_DOCUMENT]: 'employees-doc-category employees-doc-category--neutral',
-  [EMPLOYEE_DOCUMENT_CATEGORY.CV]: 'employees-doc-category employees-doc-category--neutral',
-  [EMPLOYEE_DOCUMENT_CATEGORY.MEDICAL]: 'employees-doc-category employees-doc-category--warning',
-  [EMPLOYEE_DOCUMENT_CATEGORY.OTHER]: 'employees-doc-category employees-doc-category--neutral',
+const rowActions: RowAction[] = [
+  { key: 'download', label: 'Descargar', icon: 'i-lucide-download' },
+  { key: 'delete', label: 'Eliminar…', icon: 'i-lucide-trash-2', destructive: true },
+]
+
+function onRowAction(key: string, entry: { id: string; title: string }): void {
+  if (key === 'download') void onDownloadDocument(entry.id)
+  else if (key === 'delete') openDeleteConfirm(entry.id, entry.title)
 }
 </script>
 
@@ -216,144 +224,112 @@ const CATEGORY_BADGE_COLORS: Record<EmployeeDocumentCategory, string> = {
 
     <!-- ── Documentos adjuntos ──────────────────────────────────────────────── -->
     <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
-      <!-- Header -->
-      <div class="flex items-center justify-between border-b border-default px-5 py-4">
-        <div class="flex items-center gap-2">
-          <UIcon name="i-lucide-paperclip" class="size-4 text-primary" />
-          <h3 class="text-sm font-semibold text-highlighted">Documentos adjuntos</h3>
-          <span
-            v-if="documentEntries.length > 0"
-            class="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
-          >
-            {{ documentEntries.length }}
+      <div class="flex items-center justify-between gap-3 border-b border-default px-5 py-4">
+        <h2 class="text-base font-semibold text-highlighted">
+          Documentos adjuntos
+          <span v-if="documentEntries.length > 0" class="font-normal text-muted">
+            · {{ documentEntries.length }}
           </span>
-        </div>
+        </h2>
         <UButton
           v-if="canCreate"
           icon="i-lucide-upload"
-          size="xs"
+          size="sm"
           variant="outline"
-          color="primary"
+          color="neutral"
           label="Subir"
           @click="isUploadOpen = true"
         />
       </div>
 
       <!-- Loading -->
-      <div v-if="isLoading" class="px-5 py-6">
-        <div class="flex flex-col gap-3">
-          <div v-for="i in 3" :key="i" class="h-16 animate-pulse rounded-lg bg-elevated" />
-        </div>
+      <div
+        v-if="isLoading"
+        class="flex flex-col gap-3 px-5 py-6"
+        aria-busy="true"
+        data-testid="documents-skeleton"
+      >
+        <span class="sr-only">Cargando</span>
+        <div v-for="i in 3" :key="i" class="h-16 animate-pulse rounded-lg bg-(--hf-surface-muted)" aria-hidden="true" />
       </div>
 
-      <!-- Empty state -->
-      <div
-        v-else-if="documentEntries.length === 0"
-        class="flex flex-col items-center gap-2 px-5 py-12 text-center"
-      >
-        <UIcon name="i-lucide-file-x" class="size-10 text-muted opacity-40" />
-        <p class="text-sm font-medium text-muted">Sin documentos adjuntos</p>
-        <p v-if="canCreate" class="text-xs text-muted">
-          Usa el botón "Subir" para agregar el primer documento.
-        </p>
+      <!-- Error -->
+      <div v-else-if="isError" class="p-5" data-testid="documents-error">
+        <EmptyState
+          kind="error"
+          title="No se pudieron cargar los documentos"
+          action-label="Reintentar"
+          action-test-id="documents-retry"
+          @action="() => refetch()"
+        />
+      </div>
+
+      <!-- Empty -->
+      <div v-else-if="documentEntries.length === 0" class="p-5" data-testid="documents-empty">
+        <EmptyState
+          title="Aún no hay documentos"
+          description="Aquí aparecerán los archivos del colaborador."
+          icon="i-lucide-file-x"
+        />
       </div>
 
       <!-- Document list -->
-      <div v-else class="divide-y divide-default">
-        <div
+      <ul v-else class="divide-y divide-default">
+        <li
           v-for="entry in documentEntries"
           :key="entry.id"
-          class="group flex items-start gap-3 px-5 py-4 transition-colors hover:bg-elevated/40"
+          class="flex items-center gap-3 px-5 py-3"
+          data-testid="document-row"
         >
-          <!-- File icon (clickable to download) -->
-          <button
-            class="mt-0.5 shrink-0 rounded-lg p-2 transition-colors hover:bg-primary/10"
-            :title="`Descargar ${entry.title}`"
-            :disabled="downloadingDocId === entry.id"
-            @click="onDownloadDocument(entry.id)"
-          >
-            <UIcon
-              v-if="downloadingDocId === entry.id"
-              name="i-lucide-loader-circle"
-              class="size-5 animate-spin text-primary"
-            />
-            <UIcon v-else name="i-lucide-file-down" class="size-5 text-primary" />
-          </button>
-
-          <!-- Content -->
           <div class="min-w-0 flex-1">
-            <div class="flex flex-wrap items-start justify-between gap-2">
-              <!-- Title + category badge -->
-              <div class="flex flex-wrap items-center gap-2">
-                <span
-                  :class="[
-                    'inline-block rounded px-1.5 py-0.5 text-xs font-medium',
-                    CATEGORY_BADGE_COLORS[entry.category],
-                  ]"
-                >
-                  {{ entry.categoryLabel }}
-                </span>
-                <button
-                  class="text-sm font-medium text-highlighted hover:text-primary hover:underline"
-                  :title="`Descargar ${entry.title}`"
-                  @click="onDownloadDocument(entry.id)"
-                >
-                  {{ entry.title }}
-                </button>
-              </div>
-
-              <!-- Actions -->
-              <div class="flex items-center gap-1">
-                <!-- Expiration date badge -->
-                <span
-                  v-if="entry.expiresAt"
-                  class="employees-doc-expiry inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
-                >
-                  <UIcon name="i-lucide-calendar-clock" class="size-3" />
-                  {{ entry.expiresAt }}
-                </span>
-
-                <!-- Delete button -->
-                <UButton
-                  v-if="canDelete"
-                  icon="i-lucide-trash-2"
-                  size="xs"
-                  color="error"
-                  variant="ghost"
-                  :loading="deletingDocId === entry.id"
-                  :title="`Eliminar ${entry.title}`"
-                  class="opacity-0 transition-opacity group-hover:opacity-100"
-                  @click.stop="openDeleteConfirm(entry.id, entry.title)"
-                />
-              </div>
-            </div>
-
-            <!-- Created at -->
-            <p class="mt-0.5 text-xs text-muted">Subido el {{ entry.createdAtFormatted }}</p>
+            <button
+              type="button"
+              class="hf-row-primary flex items-center gap-1.5 text-left"
+              :title="`Descargar ${entry.title}`"
+              :disabled="downloadingDocId === entry.id"
+              @click="onDownloadDocument(entry.id)"
+            >
+              <UIcon
+                v-if="downloadingDocId === entry.id"
+                name="i-lucide-loader-circle"
+                class="size-4 shrink-0 animate-spin"
+                aria-hidden="true"
+              />
+              <span class="truncate">{{ entry.title }}</span>
+            </button>
+            <p class="hf-row-secondary">{{ entry.categoryLabel }} · Subido el {{ entry.createdAtFormatted }}</p>
           </div>
-        </div>
-      </div>
+
+          <span
+            v-if="entry.expiresAt"
+            class="shrink-0 text-[13px] text-muted"
+            data-testid="document-expiry"
+          >
+            Vence el {{ formatTimeOffDate(entry.expiresAt) }}
+          </span>
+
+          <RowActionsMenu
+            v-if="canDelete"
+            :actions="rowActions"
+            :row-label="entry.title"
+            portal-class="employees-form-portal"
+            @select="onRowAction($event, entry)"
+          />
+        </li>
+      </ul>
     </UCard>
 
     <!-- ── Vencimientos ─────────────────────────────────────────────────────── -->
     <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
-      <!-- Header with threshold filter -->
       <div class="flex flex-wrap items-center justify-between gap-3 border-b border-default px-5 py-4">
-        <div class="flex items-center gap-2">
-          <UIcon name="i-lucide-calendar-x" class="size-4 text-warning" />
-          <h3 class="text-sm font-semibold text-highlighted">Vencimientos</h3>
-        </div>
-        <!-- Threshold filter pills -->
-        <div class="flex items-center gap-1">
+        <h2 class="text-base font-semibold text-highlighted">Vencimientos</h2>
+        <div class="employees-threshold-group" role="group" aria-label="Ventana de vencimiento">
           <button
             v-for="days in THRESHOLD_OPTIONS"
             :key="days"
-            :class="[
-              'rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
-              selectedThreshold === days
-                ? 'bg-primary text-white'
-                : 'bg-elevated text-muted hover:text-default',
-            ]"
+            type="button"
+            class="employees-threshold"
+            :aria-pressed="selectedThreshold === days"
             @click="setThreshold(days)"
           >
             {{ computeExpiringThresholdLabel(days) }}
@@ -362,50 +338,55 @@ const CATEGORY_BADGE_COLORS: Record<EmployeeDocumentCategory, string> = {
       </div>
 
       <!-- Loading -->
-      <div v-if="isLoading" class="px-5 py-6">
-        <div class="flex flex-col gap-3">
-          <div v-for="i in 2" :key="i" class="h-14 animate-pulse rounded-lg bg-elevated" />
-        </div>
-      </div>
-
-      <!-- Empty state -->
       <div
-        v-else-if="expiringEntries.length === 0"
-        class="flex flex-col items-center gap-2 px-5 py-10 text-center"
+        v-if="isLoading"
+        class="flex flex-col gap-3 px-5 py-6"
+        aria-busy="true"
+        data-testid="expirations-skeleton"
       >
-        <UIcon name="i-lucide-check-circle" class="size-8 text-success opacity-60" />
-        <p class="text-sm text-muted">Ningún documento con vencimiento próximo</p>
-        <p class="text-xs text-muted">
-          {{ computeExpiringThresholdLabel(selectedThreshold) }}
-        </p>
+        <span class="sr-only">Cargando</span>
+        <div v-for="i in 2" :key="i" class="h-14 animate-pulse rounded-lg bg-(--hf-surface-muted)" aria-hidden="true" />
       </div>
 
-      <!-- Expiring docs list -->
-      <div v-else class="divide-y divide-default">
-        <div
+      <!-- Error -->
+      <div v-else-if="isError" class="p-5" data-testid="expirations-error">
+        <EmptyState
+          kind="error"
+          title="No se pudieron cargar los vencimientos"
+          action-label="Reintentar"
+          action-test-id="expirations-retry"
+          @action="() => refetch()"
+        />
+      </div>
+
+      <!-- Empty -->
+      <div v-else-if="expiringEntries.length === 0" class="p-5" data-testid="expirations-empty">
+        <EmptyState
+          title="Sin vencimientos próximos"
+          :description="computeExpiringThresholdLabel(selectedThreshold)"
+          icon="i-lucide-calendar-check"
+        />
+      </div>
+
+      <!-- Expiring docs: pending items that need action -->
+      <ul v-else class="divide-y divide-default">
+        <li
           v-for="entry in expiringEntries"
           :key="entry.id"
-          class="flex items-start gap-3 px-5 py-4"
+          class="flex flex-wrap items-center justify-between gap-2 px-5 py-3"
+          data-testid="expiring-row"
         >
-          <UIcon name="i-lucide-alert-triangle" class="mt-0.5 size-4 shrink-0 text-warning" />
-          <div class="min-w-0 flex-1">
-            <div class="flex flex-wrap items-center gap-2">
-              <span
-                :class="[
-                  'inline-block rounded px-1.5 py-0.5 text-xs font-medium',
-                  CATEGORY_BADGE_COLORS[entry.category],
-                ]"
-              >
-                {{ entry.categoryLabel }}
-              </span>
-              <span class="text-sm font-medium text-highlighted">{{ entry.title }}</span>
-            </div>
-            <p class="mt-0.5 text-xs text-warning font-medium">
-              Vence el {{ entry.expiresAt }}
-            </p>
+          <div class="min-w-0">
+            <p class="hf-row-primary">{{ entry.title }}</p>
+            <p class="hf-row-secondary">{{ entry.categoryLabel }}</p>
           </div>
-        </div>
-      </div>
+          <StatusBadge
+            tone="warning"
+            :label="`Vence el ${formatTimeOffDate(entry.expiresAt ?? '')}`"
+            aria-prefix="Vencimiento:"
+          />
+        </li>
+      </ul>
     </UCard>
 
   </div>
@@ -417,14 +398,13 @@ const CATEGORY_BADGE_COLORS: Record<EmployeeDocumentCategory, string> = {
         <!-- File picker -->
         <UFormField label="Archivo" required>
           <div
-            class="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-default p-6 transition-colors hover:border-primary/60"
+            class="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-default p-6 transition-colors hover:border-(--hf-muted)"
           >
-            <UIcon name="i-lucide-upload-cloud" class="size-8 text-muted" />
             <p class="text-sm text-muted">
               {{
                 uploadState.file
                   ? uploadState.file.name
-                  : 'Arrastra o seleccioná un archivo (PDF, DOC, DOCX, JPG, PNG, WEBP)'
+                  : 'Elige un archivo (PDF, DOC, DOCX, JPG, PNG, WEBP)'
               }}
             </p>
             <label class="cursor-pointer">
@@ -491,39 +471,15 @@ const CATEGORY_BADGE_COLORS: Record<EmployeeDocumentCategory, string> = {
     </template>
   </UModal>
 
-  <!-- ── Delete confirmation modal ─────────────────────────────────────────── -->
-  <UModal
+  <!-- ── Delete confirmation ───────────────────────────────────────────────── -->
+  <ConfirmModal
     v-model:open="isDeleteConfirmOpen"
     title="Eliminar documento"
-    description="Esta acción no se puede deshacer."
-    :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal', footer: 'justify-end' }"
-  >
-    <template #body>
-      <div class="flex items-start gap-3 rounded-xl border border-error/20 bg-error/5 p-4">
-        <UIcon name="i-lucide-alert-triangle" class="mt-0.5 size-5 shrink-0 text-error" />
-        <div>
-          <p class="text-sm font-medium text-highlighted">
-            ¿Eliminar <span class="text-error">{{ docToDelete?.title }}</span>?
-          </p>
-          <p class="mt-1 text-xs text-muted">
-            El archivo se borrará permanentemente del sistema.
-          </p>
-        </div>
-      </div>
-    </template>
-
-    <template #footer>
-      <UButton color="neutral" variant="ghost" @click="closeDeleteConfirm">
-        Cancelar
-      </UButton>
-      <UButton
-        color="error"
-        icon="i-lucide-trash-2"
-        :loading="isDeleting"
-        @click="onConfirmDelete"
-      >
-        Eliminar
-      </UButton>
-    </template>
-  </UModal>
+    :description="`Se eliminará «${docToDelete?.title ?? ''}» de forma permanente. Esta acción no se puede deshacer.`"
+    confirm-label="Eliminar"
+    confirm-color="error"
+    :loading="isDeleting"
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
+    @confirm="onConfirmDelete"
+  />
 </template>

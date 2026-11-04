@@ -235,11 +235,7 @@ function goBack(): void {
         <!-- Personal + Emergency Contacts — WU-11 -->
         <template v-else-if="activeTab === 'personal'">
           <div class="flex flex-col gap-6">
-            <PersonalPanel
-              :employee="employee"
-              :can-update="canUpdate"
-              @edit="openEdit"
-            />
+            <PersonalPanel :employee="employee" />
             <EmergencyContactsPanel
               :employee="employee"
               :can-create="canCreateEmergencyContact"
@@ -255,8 +251,6 @@ function goBack(): void {
           :employee="employee"
           :manager-display="managerDisplay"
           :manager-id="employee.managerId"
-          :can-update="canUpdate"
-          @edit="openEdit"
         />
 
         <!-- Compensación — WU-07 -->

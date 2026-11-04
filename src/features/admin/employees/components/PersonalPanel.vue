@@ -5,22 +5,17 @@
  * Read-only personal data panel for the Employee Detail View — Personal tab.
  *
  * Displays:
- *   - Personal info section: nombre completo, documento de identidad, fecha de nacimiento, email, phone
+ *   - Personal info section: nombre completo, email, teléfono, nacimiento, documento, número de empleado
  *   - Address section: street, exteriorNumber, interiorNumber, zipCode, neighborhood, municipality, city, state
  *
- * Design: card-based sections with edit pencil icon per Claude Design.
- * Clicking edit emits 'edit' event (reuses WU-05B slideover).
+ * Editing lives in the detail header (one primary action per view), so the
+ * sections carry no edit buttons of their own.
  */
 
 import type { Employee } from '../interfaces/employee.types'
 
 defineProps<{
   employee: Employee
-  canUpdate?: boolean
-}>()
-
-const emit = defineEmits<{
-  edit: [employee: Employee]
 }>()
 
 // ── Identity document type labels ─────────────────────────────────────────────
@@ -56,138 +51,109 @@ function formatDob(dob: string | null | undefined): string {
   <div class="flex flex-col gap-6">
     <!-- Personal info section -->
     <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
-      <!-- Section header -->
-      <div class="flex items-center justify-between border-b border-default px-5 py-4">
-        <h3 class="text-sm font-semibold text-highlighted">Información personal</h3>
-        <UButton
-          v-if="canUpdate"
-          icon="i-lucide-pencil"
-          color="neutral"
-          variant="ghost"
-          size="xs"
-          aria-label="Editar información personal"
-          @click="emit('edit', employee)"
-        />
+      <div class="border-b border-default px-5 py-4">
+        <h2 class="text-base font-semibold text-highlighted">Información personal</h2>
       </div>
 
-      <!-- Fields grid -->
-      <div class="grid grid-cols-1 gap-0 sm:grid-cols-2">
-        <!-- Nombre completo -->
-        <div class="border-b border-default px-5 py-4 sm:border-r">
-          <p class="text-xs text-muted">Nombre completo</p>
-          <p class="mt-1 font-medium text-highlighted">{{ employee.fullName }}</p>
+      <dl class="grid grid-cols-1 gap-x-8 gap-y-5 p-5 sm:grid-cols-2">
+        <div>
+          <dt class="text-[13px] text-muted">Nombre completo</dt>
+          <dd class="mt-1 font-medium text-highlighted">{{ employee.fullName }}</dd>
         </div>
 
-        <!-- Email -->
-        <div class="border-b border-default px-5 py-4">
-          <p class="text-xs text-muted">Email</p>
-          <a
-            v-if="employee.email"
-            :href="`mailto:${employee.email}`"
-            class="mt-1 block break-all font-medium text-default hover:text-primary hover:underline"
-          >
-            {{ employee.email }}
-          </a>
-          <p v-else class="mt-1 text-muted">—</p>
+        <div class="min-w-0">
+          <dt class="text-[13px] text-muted">Email</dt>
+          <dd class="mt-1">
+            <a
+              v-if="employee.email"
+              :href="`mailto:${employee.email}`"
+              class="break-all font-medium text-default underline decoration-(--hf-border) underline-offset-2 hover:text-primary"
+            >
+              {{ employee.email }}
+            </a>
+            <span v-else class="text-muted">—</span>
+          </dd>
         </div>
 
-        <!-- Teléfono -->
-        <div class="border-b border-default px-5 py-4 sm:border-r">
-          <p class="text-xs text-muted">Teléfono</p>
-          <a
-            v-if="employee.phone"
-            :href="`tel:${employee.phone}`"
-            class="mt-1 block font-medium text-default hover:text-primary"
-          >
-            {{ employee.phone }}
-          </a>
-          <p v-else class="mt-1 text-muted">—</p>
+        <div>
+          <dt class="text-[13px] text-muted">Teléfono</dt>
+          <dd class="mt-1">
+            <a
+              v-if="employee.phone"
+              :href="`tel:${employee.phone}`"
+              class="font-medium text-default underline decoration-(--hf-border) underline-offset-2 hover:text-primary"
+            >
+              {{ employee.phone }}
+            </a>
+            <span v-else class="text-muted">—</span>
+          </dd>
         </div>
 
-        <!-- Fecha de nacimiento -->
-        <div class="border-b border-default px-5 py-4">
-          <p class="text-xs text-muted">Fecha de nacimiento</p>
-          <p class="mt-1 font-medium text-default">{{ formatDob(employee.dateOfBirth) }}</p>
+        <div>
+          <dt class="text-[13px] text-muted">Fecha de nacimiento</dt>
+          <dd class="mt-1 font-medium text-default">{{ formatDob(employee.dateOfBirth) }}</dd>
         </div>
 
-        <!-- Documento de identidad -->
-        <div class="px-5 py-4 sm:border-r border-b sm:border-b-0">
-          <p class="text-xs text-muted">Documento de identidad</p>
-          <p v-if="employee.nationalId" class="mt-1 font-medium text-default">
-            <span class="text-xs text-muted">{{ getIdTypeLabel(employee.nationalIdType) }} · </span>
+        <div>
+          <dt class="text-[13px] text-muted">Documento de identidad</dt>
+          <dd v-if="employee.nationalId" class="mt-1 font-medium text-default">
+            <span class="text-[13px] font-normal text-muted">{{ getIdTypeLabel(employee.nationalIdType) }} · </span>
             {{ employee.nationalId }}
-          </p>
-          <p v-else class="mt-1 text-muted">—</p>
+          </dd>
+          <dd v-else class="mt-1 text-muted">—</dd>
         </div>
 
-        <!-- Número de empleado -->
-        <div class="px-5 py-4">
-          <p class="text-xs text-muted">Número de empleado</p>
-          <p class="mt-1 font-mono font-medium text-default">{{ employee.employeeNumber }}</p>
+        <div>
+          <dt class="text-[13px] text-muted">Número de empleado</dt>
+          <dd class="hf-figure mt-1 font-medium text-default">{{ employee.employeeNumber }}</dd>
         </div>
-      </div>
+      </dl>
     </UCard>
 
     <!-- Address section -->
     <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
-      <!-- Section header -->
-      <div class="flex items-center justify-between border-b border-default px-5 py-4">
-        <h3 class="text-sm font-semibold text-highlighted">Domicilio</h3>
-        <UButton
-          v-if="canUpdate"
-          icon="i-lucide-pencil"
-          color="neutral"
-          variant="ghost"
-          size="xs"
-          aria-label="Editar domicilio"
-          @click="emit('edit', employee)"
-        />
+      <div class="border-b border-default px-5 py-4">
+        <h2 class="text-base font-semibold text-highlighted">Domicilio</h2>
       </div>
 
-      <div class="grid grid-cols-1 gap-0 sm:grid-cols-2">
-        <!-- Calle y número -->
-        <div class="border-b border-default px-5 py-4 sm:border-r">
-          <p class="text-xs text-muted">Calle y número</p>
-          <p class="mt-1 font-medium text-default">
+      <dl class="grid grid-cols-1 gap-x-8 gap-y-5 p-5 sm:grid-cols-2">
+        <div>
+          <dt class="text-[13px] text-muted">Calle y número</dt>
+          <dd class="mt-1 font-medium text-default">
             <template v-if="employee.street">
               {{ employee.street }}
               <template v-if="employee.exteriorNumber"> {{ employee.exteriorNumber }}</template>
               <template v-if="employee.interiorNumber"> Int. {{ employee.interiorNumber }}</template>
             </template>
             <template v-else>—</template>
-          </p>
+          </dd>
         </div>
 
-        <!-- Código postal -->
-        <div class="border-b border-default px-5 py-4">
-          <p class="text-xs text-muted">Código postal</p>
-          <p class="mt-1 font-medium text-default">{{ employee.zipCode ?? '—' }}</p>
+        <div>
+          <dt class="text-[13px] text-muted">Código postal</dt>
+          <dd class="mt-1 font-medium text-default">{{ employee.zipCode ?? '—' }}</dd>
         </div>
 
-        <!-- Colonia -->
-        <div class="border-b border-default px-5 py-4 sm:border-r">
-          <p class="text-xs text-muted">Colonia</p>
-          <p class="mt-1 font-medium text-default">{{ employee.neighborhood ?? '—' }}</p>
+        <div>
+          <dt class="text-[13px] text-muted">Colonia</dt>
+          <dd class="mt-1 font-medium text-default">{{ employee.neighborhood ?? '—' }}</dd>
         </div>
 
-        <!-- Municipio / Alcaldía -->
-        <div class="border-b border-default px-5 py-4">
-          <p class="text-xs text-muted">Municipio / Alcaldía</p>
-          <p class="mt-1 font-medium text-default">{{ employee.municipality ?? '—' }}</p>
+        <div>
+          <dt class="text-[13px] text-muted">Municipio / Alcaldía</dt>
+          <dd class="mt-1 font-medium text-default">{{ employee.municipality ?? '—' }}</dd>
         </div>
 
-        <!-- Ciudad -->
-        <div class="px-5 py-4 sm:border-r border-b sm:border-b-0">
-          <p class="text-xs text-muted">Ciudad</p>
-          <p class="mt-1 font-medium text-default">{{ employee.city ?? '—' }}</p>
+        <div>
+          <dt class="text-[13px] text-muted">Ciudad</dt>
+          <dd class="mt-1 font-medium text-default">{{ employee.city ?? '—' }}</dd>
         </div>
 
-        <!-- Estado -->
-        <div class="px-5 py-4">
-          <p class="text-xs text-muted">Estado</p>
-          <p class="mt-1 font-medium text-default">{{ employee.state ?? '—' }}</p>
+        <div>
+          <dt class="text-[13px] text-muted">Estado</dt>
+          <dd class="mt-1 font-medium text-default">{{ employee.state ?? '—' }}</dd>
         </div>
-      </div>
+      </dl>
     </UCard>
   </div>
 </template>

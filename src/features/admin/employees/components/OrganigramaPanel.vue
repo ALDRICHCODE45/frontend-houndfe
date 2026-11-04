@@ -4,13 +4,16 @@
  *
  * Organigrama tab panel for the Employee Detail View.
  *
- * Layout (per design brief):
- *   1. Manager chain — vertical tree nodes from direct manager → root (top of org).
+ * Layout:
+ *   1. Manager chain — vertical tree nodes from root → direct manager.
  *      Current employee is shown at the bottom as the focal node.
  *   2. Subordinates list — direct reports only (not recursive).
  *      Empty state shown when 0 reportes directos (valid case).
- *   3. Truncation affordance when chain.length === 50 (backend max cap).
- *   4. "Árbol completo" button placeholder (v2 — disabled + tooltip).
+ *   3. Truncation notice when chain.length === 50 (backend max cap).
+ *
+ * Four states per section (S10): skeleton while loading, the shared error
+ * EmptyState with Reintentar, the shared empty state, and the data. Neutral
+ * surfaces: color is reserved for status, so the nodes and chips carry none.
  *
  * CASL gates:
  *   - Both endpoints require read:Employee (standard tier — no salary shown).
@@ -18,6 +21,8 @@
  */
 
 import { computed } from 'vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
+import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import type { Employee } from '../interfaces/employee.types'
 import {
   useEmployeeSubordinates,
@@ -40,11 +45,15 @@ const employeeId = computed(() => props.employee.id)
 const {
   data: rawChain,
   isLoading: isChainLoading,
+  isError: isChainError,
+  refetch: refetchChain,
 } = useEmployeeManagerChain(employeeId)
 
 const {
   data: rawSubordinates,
   isLoading: isSubsLoading,
+  isError: isSubsError,
+  refetch: refetchSubs,
 } = useEmployeeSubordinates(employeeId)
 
 // ─── Derived display data ─────────────────────────────────────────────────────
@@ -60,112 +69,93 @@ const subordinateEntries = computed(() =>
 const chainTruncated = computed(() =>
   isChainTruncated(rawChain.value ?? []),
 )
+
+/** One muted line under a name: position · department. */
+function jobLine(position: string | null | undefined, department: string | null | undefined): string {
+  return [position, department].filter((part) => part && part !== '—').join(' · ') || '—'
+}
 </script>
 
 <template>
   <div class="flex flex-col gap-6">
 
-    <!-- ── Cadena de managers ─────────────────────────────────────────────── -->
+    <!-- ── Cadena de mando ────────────────────────────────────────────────── -->
     <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
-      <!-- Header -->
-      <div class="flex items-center justify-between border-b border-default px-5 py-4">
-        <div class="flex items-center gap-2">
-          <UIcon name="i-lucide-git-branch" class="size-4 text-primary" />
-          <h3 class="text-sm font-semibold text-highlighted">Cadena de mando</h3>
-        </div>
-        <!-- "Árbol completo" — v2 placeholder, disabled -->
-        <UTooltip :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }" text="Disponible en una próxima versión">
-          <UButton
-            icon="i-lucide-network"
-            size="xs"
-            variant="outline"
-            color="neutral"
-            label="Árbol completo"
-            disabled
-          />
-        </UTooltip>
+      <div class="border-b border-default px-5 py-4">
+        <h2 class="text-base font-semibold text-highlighted">Cadena de mando</h2>
       </div>
 
-      <!-- Loading state -->
-      <div v-if="isChainLoading" class="px-5 py-6">
-        <div class="flex flex-col gap-3">
-          <div v-for="i in 3" :key="i" class="h-12 animate-pulse rounded-lg bg-elevated" />
-        </div>
+      <!-- Loading -->
+      <div
+        v-if="isChainLoading"
+        class="flex flex-col gap-3 px-5 py-6"
+        aria-busy="true"
+        data-testid="organigrama-chain-skeleton"
+      >
+        <span class="sr-only">Cargando</span>
+        <div v-for="i in 3" :key="i" class="h-12 animate-pulse rounded-lg bg-(--hf-surface-muted)" aria-hidden="true" />
+      </div>
+
+      <!-- Error -->
+      <div v-else-if="isChainError" class="p-5" data-testid="organigrama-chain-error">
+        <EmptyState
+          kind="error"
+          title="No se pudo cargar la cadena de mando"
+          action-label="Reintentar"
+          action-test-id="organigrama-chain-retry"
+          @action="() => refetchChain()"
+        />
       </div>
 
       <!-- Chain content (or empty) -->
       <div v-else class="px-5 py-4">
 
-        <!-- Truncation affordance — shown when backend returned the max 50 levels -->
-        <div
+        <!-- Truncation notice — shown when backend returned the max 50 levels -->
+        <p
           v-if="chainTruncated"
-          class="mb-4 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning"
+          class="mb-4 rounded-lg bg-(--hf-warning-soft) px-3 py-2 text-[13px] font-medium text-(--hf-warning)"
+          role="status"
         >
-          <UIcon name="i-lucide-alert-triangle" class="size-3.5 shrink-0" />
-          <span>
-            La cadena de mando supera los 50 niveles. Se muestran los primeros 50.
-          </span>
-        </div>
+          La cadena de mando supera los 50 niveles. Se muestran los primeros 50.
+        </p>
 
-        <!-- Empty state: no manager chain -->
-        <div
+        <!-- Empty: no manager chain -->
+        <EmptyState
           v-if="chainEntries.length === 0 && !chainTruncated"
-          class="flex flex-col items-center gap-2 py-8 text-center"
-        >
-          <UIcon name="i-lucide-user-check" class="size-8 text-muted opacity-40" />
-          <p class="text-sm text-muted">
-            Este colaborador no tiene managers registrados.
-          </p>
-        </div>
+          title="Sin jefes registrados"
+          icon="i-lucide-user-check"
+        />
 
-        <!-- Vertical chain tree: top-down (chain[0] = direct manager → chain[last] = root) -->
-        <!-- We reverse the display: root at top → direct manager just above current employee -->
+        <!-- Vertical chain: root at top → direct manager just above the current employee -->
         <div v-else class="flex flex-col gap-0">
           <div
             v-for="(entry, index) in [...chainEntries].reverse()"
             :key="entry.id"
             class="flex items-start gap-3"
           >
-            <!-- Connector line + node -->
             <div class="flex flex-col items-center">
-              <!-- Top connector (not on first item) -->
-              <div
-                :class="['w-px bg-border-default', index === 0 ? 'h-0' : 'h-4']"
-              />
-              <!-- Node dot -->
-              <div class="size-3 rounded-full bg-muted ring-2 ring-default" />
-              <!-- Bottom connector (always present — links to next / to employee node) -->
-              <div class="w-px flex-1 bg-border-default" style="min-height: 20px;" />
+              <div :class="['w-px bg-(--hf-border)', index === 0 ? 'h-0' : 'h-4']" />
+              <div class="size-3 rounded-full bg-(--hf-muted)" />
+              <div class="min-h-5 w-px flex-1 bg-(--hf-border)" />
             </div>
 
-            <!-- Entry info -->
             <div class="min-w-0 flex-1 pb-2 pt-3">
               <p class="text-sm font-medium text-highlighted">{{ entry.fullName }}</p>
-              <p class="text-xs text-muted">{{ entry.position }}</p>
-              <span
-                v-if="entry.department"
-                class="mt-1 inline-block rounded-sm bg-primary/10 px-1.5 py-0.5 text-xs text-primary"
-              >
-                {{ entry.department }}
-              </span>
+              <p class="text-[13px] text-muted">{{ jobLine(entry.position, entry.department) }}</p>
             </div>
           </div>
 
           <!-- Current employee — focal node at the bottom of the chain -->
           <div class="flex items-start gap-3">
             <div class="flex flex-col items-center">
-              <div class="w-px bg-border-default" style="min-height: 20px;" />
-              <div class="size-4 rounded-full bg-primary ring-2 ring-primary/30" />
+              <div class="min-h-5 w-px bg-(--hf-border)" />
+              <div class="size-4 rounded-full bg-(--hf-heading)" />
             </div>
             <div class="min-w-0 flex-1 pt-2">
-              <p class="text-sm font-semibold text-primary">{{ employee.fullName }}</p>
-              <p class="text-xs text-muted">{{ employee.currentPosition ?? '—' }}</p>
-              <span
-                v-if="employee.currentDepartment"
-                class="mt-1 inline-block rounded-sm bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary"
-              >
-                {{ employee.currentDepartment }}
-              </span>
+              <p class="text-sm font-semibold text-highlighted">{{ employee.fullName }}</p>
+              <p class="text-[13px] text-muted">
+                {{ jobLine(employee.currentPosition, employee.currentDepartment) }}
+              </p>
             </div>
           </div>
         </div>
@@ -174,69 +164,56 @@ const chainTruncated = computed(() =>
 
     <!-- ── Reportes directos (subordinados) ──────────────────────────────── -->
     <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
-      <!-- Header -->
-      <div class="flex items-center justify-between border-b border-default px-5 py-4">
-        <div class="flex items-center gap-2">
-          <UIcon name="i-lucide-users" class="size-4 text-muted" />
-          <h3 class="text-sm font-semibold text-highlighted">Reportes directos</h3>
-          <!-- Count badge (only when loaded) -->
-          <span
-            v-if="!isSubsLoading && subordinateEntries.length > 0"
-            class="inline-flex size-5 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary"
-          >
-            {{ subordinateEntries.length }}
+      <div class="border-b border-default px-5 py-4">
+        <h2 class="text-base font-semibold text-highlighted">
+          Reportes directos
+          <span v-if="!isSubsLoading && subordinateEntries.length > 0" class="font-normal text-muted">
+            · {{ subordinateEntries.length }}
           </span>
-        </div>
+        </h2>
       </div>
 
       <!-- Loading -->
-      <div v-if="isSubsLoading" class="px-5 py-6">
-        <div class="flex flex-col gap-3">
-          <div v-for="i in 3" :key="i" class="h-12 animate-pulse rounded-lg bg-elevated" />
-        </div>
+      <div
+        v-if="isSubsLoading"
+        class="flex flex-col gap-3 px-5 py-6"
+        aria-busy="true"
+        data-testid="organigrama-subs-skeleton"
+      >
+        <span class="sr-only">Cargando</span>
+        <div v-for="i in 3" :key="i" class="h-12 animate-pulse rounded-lg bg-(--hf-surface-muted)" aria-hidden="true" />
       </div>
 
-      <!-- Empty state (valid: 0 direct reports) -->
-      <div
-        v-else-if="subordinateEntries.length === 0"
-        class="flex flex-col items-center gap-2 px-5 py-10 text-center"
-      >
-        <UIcon name="i-lucide-users" class="size-8 text-muted opacity-40" />
-        <p class="text-sm text-muted">Sin reportes directos.</p>
-        <p class="text-xs text-muted opacity-70">
-          Este colaborador no tiene empleados bajo su supervisión directa.
-        </p>
+      <!-- Error -->
+      <div v-else-if="isSubsError" class="p-5" data-testid="organigrama-subs-error">
+        <EmptyState
+          kind="error"
+          title="No se pudieron cargar los reportes directos"
+          action-label="Reintentar"
+          action-test-id="organigrama-subs-retry"
+          @action="() => refetchSubs()"
+        />
+      </div>
+
+      <!-- Empty (valid: 0 direct reports) -->
+      <div v-else-if="subordinateEntries.length === 0" class="p-5">
+        <EmptyState title="Sin reportes directos" icon="i-lucide-users" />
       </div>
 
       <!-- Subordinates list -->
-      <div v-else class="divide-y divide-default">
-        <div
+      <ul v-else class="divide-y divide-default">
+        <li
           v-for="entry in subordinateEntries"
           :key="entry.id"
           class="flex items-center gap-4 px-5 py-3"
         >
-          <!-- Avatar initials -->
-          <div
-            class="flex size-9 shrink-0 items-center justify-center rounded-full bg-elevated text-sm font-semibold text-muted"
-          >
-            {{ entry.fullName.charAt(0).toUpperCase() }}
-          </div>
-
-          <!-- Info -->
+          <EntityAvatar :name="entry.fullName" :seed="entry.id" aria-hidden="true" />
           <div class="min-w-0 flex-1">
             <p class="text-sm font-medium text-highlighted">{{ entry.fullName }}</p>
-            <p class="text-xs text-muted">{{ entry.position }}</p>
+            <p class="text-[13px] text-muted">{{ jobLine(entry.position, entry.department) }}</p>
           </div>
-
-          <!-- Department badge -->
-          <span
-            v-if="entry.department"
-            class="shrink-0 rounded-sm bg-elevated px-1.5 py-0.5 text-xs text-muted"
-          >
-            {{ entry.department }}
-          </span>
-        </div>
-      </div>
+        </li>
+      </ul>
     </UCard>
 
   </div>

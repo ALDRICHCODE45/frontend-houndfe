@@ -2,13 +2,14 @@
 /**
  * ResumenPanel — WU-06A (redesigned)
  *
- * "Vista rapida" panel for the Employee Detail View — Resumen tab.
+ * "Vista rápida" panel for the Employee Detail View — Resumen tab.
  *
  * Displays:
- *   - Key stats cards: seniority, current salary (if hasSalary), vacations, department
+ *   - Key figures: seniority, current salary (if hasSalary) and vacation days.
+ *     The department is already in the detail header, so it is not repeated.
  *   - "Reporta a" section — manager with neutral avatar, name, position + department subtitle
  *
- * Design: matches Claude Design reference with dot-badge pattern.
+ * Figures are neutral (color is for status): muted label, semibold value.
  * Salary display guarded by hasSalary() — never renders undefined as "0".
  */
 
@@ -47,100 +48,58 @@ const managerSubtitle = computed(() => {
 
 <template>
   <div class="flex flex-col gap-6">
-    <!-- Stats cards row -->
-    <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
-      <!-- Seniority -->
+    <!-- Key figures -->
+    <div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
       <UCard class="employees-detail-section" :ui="{ body: 'p-4 sm:p-4' }">
-        <div class="flex flex-col gap-1">
-          <div class="flex items-center gap-2 text-xs text-muted">
-            <UIcon name="i-lucide-clock" class="size-3.5 text-primary" />
-            Antigüedad
-          </div>
-          <p class="text-2xl font-bold text-highlighted">{{ seniority }}</p>
-          <p class="text-xs text-muted">Desde {{ hireDateFormatted }}</p>
-        </div>
+        <p class="text-sm text-muted">Antigüedad</p>
+        <p class="hf-figure mt-1 text-2xl font-semibold text-highlighted">{{ seniority }}</p>
+        <p class="text-sm text-muted">Desde {{ hireDateFormatted }}</p>
       </UCard>
 
       <!-- Current salary — only when canReadSalary and hasSalary -->
-      <UCard class="employees-detail-section"
+      <UCard
         v-if="canReadSalary && hasSalary(employee)"
+        class="employees-detail-section"
         :ui="{ body: 'p-4 sm:p-4' }"
       >
-        <div class="flex flex-col gap-1">
-          <div class="flex items-center gap-2 text-xs text-muted">
-            <UIcon name="i-lucide-wallet" class="size-3.5 text-primary" />
-            Sueldo actual
-          </div>
-          <p class="text-xl font-bold text-highlighted">{{ salaryDisplay }}</p>
-          <p class="text-xs text-muted">{{ employee.currentSalaryCurrency }}</p>
-        </div>
+        <p class="text-sm text-muted">Sueldo actual</p>
+        <p class="hf-figure mt-1 text-2xl font-semibold text-highlighted">{{ salaryDisplay }}</p>
+        <p class="text-sm text-muted">{{ employee.currentSalaryCurrency }}</p>
       </UCard>
 
-      <!-- Vacations (placeholder) -->
       <UCard class="employees-detail-section" :ui="{ body: 'p-4 sm:p-4' }">
-        <div class="flex flex-col gap-1">
-          <div class="flex items-center gap-2 text-xs text-muted">
-            <UIcon name="i-lucide-palmtree" class="size-3.5 text-primary" />
-            Vacaciones
-          </div>
-          <p class="text-2xl font-bold text-highlighted">
-            {{ employee.annualVacationDays ?? '—' }}
-          </p>
-          <p class="text-xs text-muted">días anuales asignados</p>
-        </div>
-      </UCard>
-
-      <!-- Department -->
-      <UCard class="employees-detail-section" :ui="{ body: 'p-4 sm:p-4' }">
-        <div class="flex flex-col gap-1">
-          <div class="flex items-center gap-2 text-xs text-muted">
-            <UIcon name="i-lucide-building-2" class="size-3.5 text-primary" />
-            Departamento
-          </div>
-          <p class="truncate text-base font-bold text-highlighted">
-            {{ employee.currentDepartment ?? '—' }}
-          </p>
-          <p class="text-xs text-muted">área actual</p>
-        </div>
+        <p class="text-sm text-muted">Vacaciones</p>
+        <p class="hf-figure mt-1 text-2xl font-semibold text-highlighted">
+          {{ employee.annualVacationDays ?? '—' }}
+        </p>
+        <p class="text-sm text-muted">días al año</p>
       </UCard>
     </div>
 
     <!-- Manager section -->
     <UCard class="employees-detail-section" :ui="{ body: 'p-5 sm:p-5' }">
-      <h3 class="mb-4 text-sm font-semibold text-highlighted">Reporta a</h3>
+      <h2 class="mb-4 text-base font-semibold text-highlighted">Reporta a</h2>
 
-      <template v-if="managerDisplay !== '—' && managerDisplay">
-        <div class="flex items-center gap-4">
-          <EntityAvatar :name="managerDisplay" :seed="managerDisplay" size="lg" />
-
-          <!-- Manager info -->
-          <div class="min-w-0 flex-1">
-            <p class="font-semibold text-highlighted">{{ managerDisplay }}</p>
-            <p v-if="managerSubtitle" class="text-sm text-muted">
-              {{ managerSubtitle }}
-            </p>
-            <p v-if="managerInfo?.email" class="text-xs text-muted">
-              {{ managerInfo.email }}
-            </p>
-          </div>
+      <div v-if="managerDisplay !== '—' && managerDisplay" class="flex items-center gap-4">
+        <EntityAvatar :name="managerDisplay" :seed="managerDisplay" size="lg" aria-hidden="true" />
+        <div class="min-w-0 flex-1">
+          <p class="font-semibold text-highlighted">{{ managerDisplay }}</p>
+          <p v-if="managerSubtitle" class="text-sm text-muted">{{ managerSubtitle }}</p>
+          <p v-if="managerInfo?.email" class="text-sm text-muted">{{ managerInfo.email }}</p>
         </div>
-      </template>
+      </div>
 
-      <template v-else>
-        <div class="flex items-center gap-3 text-sm text-muted">
-          <UIcon name="i-lucide-user-x" class="size-4" />
-          <span>Sin jefe directo asignado</span>
-        </div>
-      </template>
+      <p v-else class="text-sm text-muted">Sin jefe directo</p>
     </UCard>
 
     <!-- Responsibilities -->
-    <UCard class="employees-detail-section"
+    <UCard
       v-if="employee.currentResponsibilities"
+      class="employees-detail-section"
       :ui="{ body: 'p-5 sm:p-5' }"
     >
-      <h3 class="mb-3 text-sm font-semibold text-highlighted">Responsabilidades</h3>
-      <p class="whitespace-pre-wrap text-sm text-default leading-relaxed">
+      <h2 class="mb-3 text-base font-semibold text-highlighted">Responsabilidades</h2>
+      <p class="whitespace-pre-wrap text-sm leading-relaxed text-default">
         {{ employee.currentResponsibilities }}
       </p>
     </UCard>

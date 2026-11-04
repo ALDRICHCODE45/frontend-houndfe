@@ -131,3 +131,34 @@
   outline: 2px solid var(--hf-focus);
   outline-offset: -2px;
 }
+
+/* Expiry window of the documents tab: a small pressed-state group. */
+.employees-detail .employees-threshold-group {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.employees-detail .employees-threshold {
+  min-height: 32px;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  padding: 0 12px;
+  color: var(--hf-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.employees-detail .employees-threshold:hover {
+  color: var(--hf-ink);
+}
+
+.employees-detail .employees-threshold[aria-pressed='true'] {
+  background-color: var(--hf-surface-muted);
+  color: var(--hf-heading);
+  font-weight: 600;
+}
+
+.employees-detail .employees-threshold:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}

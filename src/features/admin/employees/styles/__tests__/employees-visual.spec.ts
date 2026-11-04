@@ -142,3 +142,56 @@ describe('Employee detail shell and header', () => {
     expect(detail).not.toContain('EmployeeProfileCard')
   })
 })
+
+// ── Detail panels ────────────────────────────────────────────────────────────
+const panels = Object.fromEntries(
+  ['ResumenPanel', 'PersonalPanel', 'EmergencyContactsPanel', 'LaboralPanel', 'CompensacionPanel', 'OrganigramaPanel', 'CvPanel', 'DocumentosPanel', 'AusenciasPanel']
+    .map((name) => [name, read(`components/${name}.vue`)]),
+)
+
+const LEGACY_LOOK =
+  /\b(bg-primary|text-error|border-error|bg-error|font-bold|uppercase|tracking-wider)\b|(bg|text|border)-(red|blue|green|amber|orange|emerald|violet|pink|cyan|indigo|slate|gray|yellow|teal|purple|neutral)-\d|\bcoco-/
+
+describe('Employee detail panels adapter', () => {
+  it('gives every panel card an owned section hook', () => {
+    for (const [name, source] of Object.entries(panels)) {
+      const cards = source.match(/<UCard\b/g)?.length ?? 0
+      const hooked = source.match(/<UCard\b[^>]*employees-detail-section/g)?.length ?? 0
+      expect(hooked, name).toBe(cards)
+    }
+  })
+
+  it('marks every teleport opened from a panel with an owned portal', () => {
+    for (const [name, source] of Object.entries(panels)) {
+      const teleports = source.match(/<(UModal|USelect|USelectMenu|UTooltip|UDropdownMenu|DateFieldPopover|ConfirmModal|RowActionsMenu)\b/g)?.length ?? 0
+      const marked = source.match(/(hf-theme hf-ui (hf-form-overlay )?)?employees-(form|list)-portal/g)?.length ?? 0
+      expect(marked, name).toBeGreaterThanOrEqual(teleports)
+    }
+  })
+
+  it('keeps the existing upload footer alignment while theming its dialog', () => {
+    expect(panels.DocumentosPanel).toContain(`:ui="{ content: '${formPortal}', footer: 'justify-end' }"`)
+  })
+
+  it('wears no legacy look: no decorative primary, palette, bold names, eyebrows or old badges', () => {
+    for (const [name, source] of Object.entries(panels)) {
+      expect(source, name).not.toMatch(LEGACY_LOOK)
+      expect(source, name).not.toMatch(/<UBadge\b|AppBadge|StatusDotBadge|DotBadge/)
+    }
+  })
+
+  it('uses the shared states and menus instead of hand-rolled ones', () => {
+    for (const name of ['CompensacionPanel', 'OrganigramaPanel', 'DocumentosPanel', 'AusenciasPanel', 'EmergencyContactsPanel', 'CvPanel']) {
+      expect(panels[name], name).toContain('EmptyState')
+    }
+    for (const name of ['DocumentosPanel', 'AusenciasPanel', 'EmergencyContactsPanel']) {
+      expect(panels[name], name).toContain('RowActionsMenu')
+    }
+    expect(panels.AusenciasPanel).toContain('StatusBadge')
+  })
+
+  it('has a pressed-state expiry window instead of per-feature pill colors', () => {
+    expect(panels.DocumentosPanel).toContain('employees-threshold')
+    expect(css).toContain(".employees-detail .employees-threshold[aria-pressed='true']")
+  })
+})
