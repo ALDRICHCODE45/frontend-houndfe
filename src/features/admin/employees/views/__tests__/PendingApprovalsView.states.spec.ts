@@ -273,6 +273,40 @@ describe('PendingApprovalsView states — error', () => {
   })
 })
 
+describe('PendingApprovalsView states — toolbar and dates', () => {
+  it('keeps the toolbar in the empty, loading and error states so the screen does not jump', () => {
+    expect(mountView().find('[data-testid="toolbar"]').exists()).toBe(true)
+    pending.isLoading.value = true
+    expect(mountView().find('[data-testid="toolbar"]').exists()).toBe(true)
+    pending.isLoading.value = false
+    pending.isError.value = true
+    expect(mountView().find('[data-testid="toolbar"]').exists()).toBe(true)
+  })
+
+  it('sizes the loading skeleton to the visible columns', () => {
+    pending.isLoading.value = true
+    const firstRow = mountView().get('[data-testid="table-skeleton-row"]')
+    expect(firstRow.element.children).toHaveLength(8)
+  })
+
+  it('shows a same-day range once, without the current year or a padded day', () => {
+    const year = new Date().getFullYear()
+    pending.data.value = [makeRequest({ startDate: `${year}-06-05`, endDate: `${year}-06-05` })]
+    const text = mountView().get('tbody tr').text()
+    expect(text).toContain('5 jun')
+    expect(text).not.toMatch(/5 jun\s*–\s*5 jun/)
+    expect(text).not.toContain('05 jun')
+    expect(text).not.toContain(String(year))
+  })
+
+  it('shows when it was requested as a short date and time, without the current year', () => {
+    pending.data.value = [makeRequest({ createdAt: new Date().toISOString() })]
+    const cells = mountView().findAll('tbody tr td')
+    const requested = cells[cells.length - 2]!.text()
+    expect(requested).toMatch(/^\d{1,2} [a-zé]{3,4}, \d{2}:\d{2}$/)
+  })
+})
+
 describe('PendingApprovalsView states — chrome', () => {
   it('shows the title outside the table surface and no subtitle, summary or view toggle', () => {
     pending.data.value = [makeRequest()]

@@ -4,10 +4,10 @@
  * Pinned:
  *  - Column order (person, status, then the job fields, then the ⋮ column):
  *                  colaborador, estado, cargo, departamento, jefedirecto,
- *                  modalidad, fechaIngreso, actions
+ *                  fechaIngreso, actions
  *  - Headers (string form): 'Colaborador', 'Cargo', 'Departamento',
  *                            'Jefe directo', 'Fecha de ingreso', 'Modalidad', 'Estado'
- *  - 7 data columns: `enableHiding: true`
+ *  - 6 data columns: `enableHiding: true`
  *  - actions column: `enableHiding: false`, `enableSorting: false`, right-aligned
  *  - All columns: explicit `enableSorting: false` (no SortableHeader)
  *  - NO salary column
@@ -49,7 +49,7 @@ describe('useEmployeeColumns — column order & headers', () => {
     setActivePinia(createPinia())
   })
 
-  it('orders columns as [colaborador, estado, cargo, departamento, jefedirecto, modalidad, fechaIngreso, actions]', () => {
+  it('orders columns as [colaborador, estado, cargo, departamento, jefedirecto, fechaIngreso, actions]', () => {
     const { columns } = useEmployeeColumns()
     const ids = columns.value.map((col) => getId(col as ColumnLike))
     expect(ids).toEqual([
@@ -58,7 +58,6 @@ describe('useEmployeeColumns — column order & headers', () => {
       'cargo',
       'departamento',
       'jefedirecto',
-      'modalidad',
       'fechaIngreso',
       'actions',
     ])
@@ -95,10 +94,11 @@ describe('useEmployeeColumns — column order & headers', () => {
     expect(col!.header).toBe('Fecha de ingreso')
   })
 
-  it('uses header "Modalidad" for the modalidad column', () => {
+  it('keeps Modalidad out of the list (it lives in the Laboral tab) so the table fits 1440', () => {
     const { columns } = useEmployeeColumns()
-    const col = columns.value.find((c) => getId(c as ColumnLike) === 'modalidad') as ColumnLike
-    expect(col!.header).toBe('Modalidad')
+    expect(columns.value.some((c) => getId(c as ColumnLike) === 'modalidad')).toBe(false)
+    // 7 columns here + the optional selection column = at most 8
+    expect(columns.value.length).toBeLessThanOrEqual(7)
   })
 
   it('uses header "Estado" for the estado column', () => {
@@ -113,9 +113,9 @@ describe('useEmployeeColumns — enableHiding (REQ-5)', () => {
     setActivePinia(createPinia())
   })
 
-  it('marks all 7 data columns as hideable (enableHiding: true)', () => {
+  it('marks all 6 data columns as hideable (enableHiding: true)', () => {
     const { columns } = useEmployeeColumns()
-    const dataIds = ['colaborador', 'estado', 'cargo', 'departamento', 'jefedirecto', 'modalidad', 'fechaIngreso']
+    const dataIds = ['colaborador', 'estado', 'cargo', 'departamento', 'jefedirecto', 'fechaIngreso']
     for (const id of dataIds) {
       const col = columns.value.find((c) => getId(c as ColumnLike) === id) as ColumnLike
       expect(col, `missing column ${id}`).toBeDefined()
@@ -138,7 +138,7 @@ describe('useEmployeeColumns — enableSorting (REQ-9)', () => {
 
   it('marks every column with explicit enableSorting: false', () => {
     const { columns } = useEmployeeColumns()
-    expect(columns.value.length).toBe(8)
+    expect(columns.value.length).toBe(7)
     for (const col of columns.value) {
       const c = col as ColumnLike
       expect(c.enableSorting, `${getId(c)} must be non-sortable`).toBe(false)

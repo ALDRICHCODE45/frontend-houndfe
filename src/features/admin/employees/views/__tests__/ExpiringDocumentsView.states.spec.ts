@@ -150,11 +150,26 @@ describe('ExpiringDocumentsView states — data', () => {
     expect(rows[0]!.text()).toContain('Ana García')
     const badges = rows.map((row) => row.get('.hf-status-badge'))
     expect(badges.map((badge) => badge.text())).toEqual(['5 días', '20 días', '60 días', 'Vencido'])
-    expect(badges.map((badge) => badge.attributes('data-tone'))).toEqual(['warning', 'warning', 'neutral', 'warning'])
+    expect(badges.map((badge) => badge.attributes('data-tone'))).toEqual(['warning', 'warning', 'neutral', 'danger'])
     expect(badges.map((badge) => badge.attributes('data-urgent'))).toEqual(['true', undefined, undefined, 'true'])
     expect(wrapper.text()).not.toContain('doc-uuid-1')
     expect(wrapper.text()).not.toContain('emp-uuid-1')
     expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
+  })
+
+  it('shows an expired document as danger and urgent, never as warning', () => {
+    tableState.data.value = [makeItem({ expiresAt: inDays(-3) })]
+    const badge = mountView().get('tbody tr .hf-status-badge')
+    expect(badge.text()).toBe('Vencido')
+    expect(badge.attributes('data-tone')).toBe('danger')
+    expect(badge.attributes('data-urgent')).toBe('true')
+  })
+
+  it('shows the expiry date without the current year', () => {
+    const year = new Date().getFullYear()
+    tableState.data.value = [makeItem({ expiresAt: `${year}-06-05T00:00:00.000Z` })]
+    const expiry = mountView().findAll('tbody tr td')[3]!.text()
+    expect(expiry).toBe('5 jun')
   })
 
   it('has no per-row actions: it only reads, so there is no ⋮ column or clickable row', () => {

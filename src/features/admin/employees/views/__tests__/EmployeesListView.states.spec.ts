@@ -251,7 +251,7 @@ describe('EmployeesListView states — data', () => {
 
   it('adds the selection column only when a batch action is allowed', () => {
     tableState.data.value = [makeEmployee()]
-    expect(mountView().findAll('thead th').length).toBeGreaterThan(8)
+    expect(mountView().findAll('thead th').length).toBe(8)
     allow('create:Employee')
     expect(mountView().find('thead [role="checkbox"], thead input[type="checkbox"]').exists()).toBe(false)
   })
@@ -371,7 +371,7 @@ describe('EmployeesListView states — mobile density containment (S4)', () => {
     const wrapper = mountView()
     const root = wrapper.get('.employees-visual')
     expect(Array.from(root.element.classList)).toEqual(
-      expect.arrayContaining(['w-full', 'min-w-0', 'py-3', 'md:px-6', 'lg:px-8']),
+      expect.arrayContaining(['w-full', 'min-w-0', 'md:px-6', 'lg:px-10']),
     )
     expect(root.classes()).not.toContain('px-4')
     expect(Array.from(wrapper.get('.hf-table-surface').element.classList)).toEqual(

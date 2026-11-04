@@ -2,7 +2,9 @@
  * useEmployeeColumns — WU-02 (warning fixes applied)
  *
  * Column definitions for the EmployeesListView table: the person first, then
- * the status, then the fields that describe the job, then the ⋮ column.
+ * the status, then the fields that describe the job, then the ⋮ column. The
+ * work modality lives in the Laboral tab, so the table fits 1440 (8 columns
+ * with the selection one).
  *
  * Salary is intentionally NOT in the list — it belongs in the Compensación
  * detail tab (WU-06+). The `hasSalary()` guard is preserved in employee.types.
@@ -26,7 +28,8 @@ export { employeeStatusToBadgeTone }
 // ─── Pure helpers (exported for unit testing) ─────────────────────────────────
 
 const HIRE_DATE_FORMATTER = new Intl.DateTimeFormat('es-MX', {
-  day: '2-digit',
+  timeZone: 'UTC',
+  day: 'numeric',
   month: 'short',
   year: 'numeric',
 })
@@ -68,37 +71,53 @@ export function computeSeniority(hireDate: string, referenceDate: Date = new Dat
 
 /**
  * Format a single ISO date or YYYY-MM-DD string as a short localized date
- * (e.g. "27 may 2026").
+ * (e.g. "27 may"; "27 may 2025" when the year is not the current one).
  *
  * Backend returns time-off dates either as full ISO strings (with time and Z
  * suffix) or as date-only `YYYY-MM-DD`. Both produce a valid Date when handed
  * to `new Date(...)`. Using UTC timezone avoids the day-shift that happens
  * when the local timezone is west of UTC.
  *
- * Pure function — no side effects.
+ * Pure function — accepts an optional reference date for deterministic testing.
  */
 const TIME_OFF_DATE_FORMATTER = new Intl.DateTimeFormat('es-MX', {
-  day: '2-digit',
+  day: 'numeric',
+  month: 'short',
+  timeZone: 'UTC',
+})
+
+const TIME_OFF_DATE_WITH_YEAR_FORMATTER = new Intl.DateTimeFormat('es-MX', {
+  day: 'numeric',
   month: 'short',
   year: 'numeric',
   timeZone: 'UTC',
 })
 
-export function formatTimeOffDate(isoDate: string): string {
+export function formatTimeOffDate(isoDate: string, now: Date = new Date()): string {
   if (!isoDate) return '—'
   const d = new Date(isoDate)
   if (Number.isNaN(d.getTime())) return isoDate
-  return TIME_OFF_DATE_FORMATTER.format(d)
+  const formatter =
+    d.getUTCFullYear() === now.getFullYear()
+      ? TIME_OFF_DATE_FORMATTER
+      : TIME_OFF_DATE_WITH_YEAR_FORMATTER
+  return formatter.format(d).replace(/\./g, '')
 }
 
 /**
  * Format a start/end date pair as a human-readable range.
- * Example: "27 may 2026 – 1 jun 2026".
+ * Example: "27 may – 1 jun"; a one-day range reads once ("27 may").
  *
  * Pure function — no side effects.
  */
-export function formatTimeOffDateRange(startIso: string, endIso: string): string {
-  return `${formatTimeOffDate(startIso)} – ${formatTimeOffDate(endIso)}`
+export function formatTimeOffDateRange(
+  startIso: string,
+  endIso: string,
+  now: Date = new Date(),
+): string {
+  const start = formatTimeOffDate(startIso, now)
+  const end = formatTimeOffDate(endIso, now)
+  return start === end ? start : `${start} – ${end}`
 }
 
 // ─── Column definitions ────────────────────────────────────────────────────────
@@ -139,13 +158,6 @@ export function useEmployeeColumns() {
     {
       id: 'jefedirecto',
       header: createSimpleHeader('Jefe directo'),
-      enableSorting: false,
-      enableHiding: true,
-    },
-    {
-      id: 'modalidad',
-      accessorKey: 'workModality',
-      header: 'Modalidad',
       enableSorting: false,
       enableHiding: true,
     },

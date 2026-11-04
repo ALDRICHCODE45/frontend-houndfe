@@ -316,13 +316,13 @@ describe('PendingApprovalsView — client-side pagination + toolbar (REQ-1, REQ-
     ).toBe('true')
   })
 
-  it('hides the toolbar when the queue is empty (REQ-4 scenario "empty queue summary")', async () => {
+  it('keeps the toolbar when the queue is empty so the screen does not jump between states', async () => {
     mockPending.data.value = []
     const wrapper = mount(getView().default)
     await flushPromises()
     chaiExpect(
       wrapper.find('[data-testid="app-data-table"]').attributes('data-show-toolbar'),
-    ).toBe('false')
+    ).not.toBe('false')
   })
 
   it('forwards paged.pageRows to :data on AppDataTable', async () => {

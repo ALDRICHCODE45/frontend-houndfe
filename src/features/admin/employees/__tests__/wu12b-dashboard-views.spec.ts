@@ -184,7 +184,6 @@ describe('computeExpiringDocumentRow', () => {
     // expiresAtLabel is the localized, human-readable date (via the shared
     // formatTimeOffDate formatter) — NOT the raw ISO string.
     expect(row.expiresAtLabel).toBe(formatTimeOffDate('2026-06-30'))
-    expect(row.expiresAtLabel).toContain('2026')
   })
 
   it('falls back to category label when notes is null', () => {

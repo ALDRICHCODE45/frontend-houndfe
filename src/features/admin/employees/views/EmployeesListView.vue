@@ -30,7 +30,6 @@ import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import type { BulkAction } from '@/core/shared/types/table.types'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { EMPLOYEE_STATUS_FILTER } from '../constants/employee.constants'
-import { WORK_MODALITY_LABELS } from '../interfaces/employee.types'
 import type { EmployeeStatusFilter } from '../api/employees.api'
 import { useEmployeesList } from '../composables/useEmployeesList'
 import { useEmployeeColumns, formatHireDate } from '../composables/useEmployeeColumns'
@@ -317,7 +316,7 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
 </script>
 
 <template>
-  <div class="hf-theme hf-ui employees-visual flex w-full min-w-0 flex-col gap-6 py-3 md:px-6 lg:px-8">
+  <div class="hf-theme hf-ui employees-visual flex w-full min-w-0 flex-col gap-6 md:px-6 lg:px-10">
     <header class="hf-page-header">
       <h1 class="hf-page-title">Colaboradores</h1>
     </header>
@@ -417,10 +416,6 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
 
           <template #jefedirecto-cell="{ row }">
             <span class="block max-w-48 truncate text-sm">{{ getManagerDisplay(row.original) }}</span>
-          </template>
-
-          <template #modalidad-cell="{ row }">
-            <span class="text-sm">{{ WORK_MODALITY_LABELS[(row.original as Employee).workModality] }}</span>
           </template>
 
           <template #fechaIngreso-cell="{ row }">

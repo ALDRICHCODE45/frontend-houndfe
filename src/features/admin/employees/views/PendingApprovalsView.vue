@@ -52,6 +52,7 @@ import { AppDataTable } from '@/core/shared/components/DataTable'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import '../styles/employees-visual.css'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { employeeQueryKeys } from '@/core/shared/constants/query-keys'
@@ -75,7 +76,7 @@ import {
   filterPendingBySearch,
 } from '../composables/useAusencias'
 import { buildManagerMap } from '../composables/useManagerResolution'
-import { formatTimeOffDate, formatTimeOffDateRange } from '../composables/useEmployeeColumns'
+import { formatTimeOffDateRange } from '../composables/useEmployeeColumns'
 import AdminMobileCard from '../../shared/components/AdminMobileCard.vue'
 import { noMatchTitleFor } from '../../shared/utils/list-state.utils'
 import { employeesApi } from '../api/employees.api'
@@ -126,7 +127,6 @@ const filteredRequests = computed(() =>
   filterPendingBySearch(pendingRequests.value ?? [], employeeMap.value, searchQuery.value),
 )
 
-const queueNonEmpty = computed(() => (pendingRequests.value ?? []).length > 0)
 const isSearchActive = computed(() => searchQuery.value.trim().length > 0)
 const noMatchTitle = computed(() => noMatchTitleFor(searchQuery.value))
 
@@ -325,7 +325,6 @@ function rowLabelOf(request: TimeOffRequest): string {
           display-mode="auto"
           mobile-render="cards"
           enable-column-visibility
-          :show-toolbar="queueNonEmpty"
           search-placeholder="Buscar colaborador..."
           :page-count="paged.pageCount"
           :total-count="paged.total"
@@ -374,7 +373,7 @@ function rowLabelOf(request: TimeOffRequest): string {
           </template>
 
           <template #solicitada-cell="{ row }">
-            <span class="text-sm text-muted">{{ formatTimeOffDate(row.original.createdAt) }}</span>
+            <span class="text-sm text-muted">{{ formatShortDateTime(row.original.createdAt) }}</span>
           </template>
 
           <template #acciones-header><span class="sr-only">Acciones</span></template>
@@ -410,7 +409,7 @@ function rowLabelOf(request: TimeOffRequest): string {
                 <span class="min-w-0 truncate font-medium">
                   {{ formatTimeOffDateRange(row.startDate, row.endDate) }} · {{ daysLabel(row) }}
                 </span>
-                <span class="shrink-0">{{ formatTimeOffDate(row.createdAt) }}</span>
+                <span class="shrink-0">{{ formatShortDateTime(row.createdAt) }}</span>
               </template>
             </AdminMobileCard>
           </template>

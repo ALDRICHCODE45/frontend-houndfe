@@ -111,11 +111,12 @@ const columns = computed<TableColumn<ExpiringDocumentTableRow>[]>(() => [
 
 /**
  * Time-left badge. Every row here is a pending item that needs action, so it is
- * warning; the ones due within a week (or already past) are urgent, and the
- * far ones stay neutral.
+ * warning; the ones due within a week are urgent, an expired one is danger and
+ * urgent, and the far ones stay neutral.
  */
 function remainingBadge(row: ExpiringDocumentTableRow) {
   const { daysRemaining, daysRemainingLabel } = row
+  if (daysRemaining < 0) return { tone: 'danger' as const, label: daysRemainingLabel, urgent: true }
   if (daysRemaining <= 7) return { tone: 'warning' as const, label: daysRemainingLabel, urgent: true }
   if (daysRemaining <= 30) return { tone: 'warning' as const, label: daysRemainingLabel, urgent: false }
   return { tone: 'neutral' as const, label: daysRemainingLabel, urgent: false }
