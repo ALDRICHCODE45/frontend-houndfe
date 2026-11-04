@@ -418,7 +418,7 @@ The [accepted v0 reference](https://v0.app/bdps-projects/chat/houndfe-pos-design
 
 | Region | Composition contract |
 | ------ | -------------------- |
-| Workspace heading | Place `PUNTO DE VENTA` above `Nueva venta` on the page canvas, before the draft strip. Preserve the existing application navigation; do not replace it with the demo sidebar. |
+| Workspace heading | Place the `Nueva venta` title on the page canvas, before the draft strip, with no uppercase eyebrow (Page header rule; the earlier `PUNTO DE VENTA` eyebrow is retired). Preserve the existing application navigation; do not replace it with the demo sidebar. |
 | Workspace geometry | Keep the catalog and cart in one centered, bounded workspace. The reference bounds the workspace at 1900px and uses a 420px desktop cart above 1500px. Measure the visible cart surface, not a wrapper that includes extra padding. These are Venta-local reference dimensions, not global page limits. |
 | Catalog controls | A separate 12px-radius surface contains `Catálogo de productos`, the real result count, the `Buscar producto` label, search field and category controls. Do not wrap the controls and the entire product grid inside one tall decorative card. |
 | Product grid | Preserve the reference's spacious three-column desktop composition instead of adding more columns just because the viewport is wider. Its narrower desktop variant uses two columns; mobile stays within the accepted responsive workflow. Loading and loaded states share the same geometry. |
@@ -450,7 +450,7 @@ The [accepted v0 reference](https://v0.app/bdps-projects/chat/ps6ftjVkTIL), expo
 
 | Region | Composition contract |
 | ------ | -------------------- |
-| Page frame | The header sits on the page canvas, never inside a card: gold-square eyebrow `CONTROL DE VENTAS`, `Resumen de ventas`, its subtitle, and the period block on the right. Content is a centered 1320px column of independent 12px panels with 24px gaps, closed by the page footer. No single card wraps the whole page. |
+| Page frame | The header sits on the page canvas, never inside a card: the `Resumen de ventas` title and the period block on the right, with no eyebrow and no subtitle (Page header rule; the earlier gold-square `CONTROL DE VENTAS` eyebrow is retired). Content is a centered 1320px column of independent 12px panels with 24px gaps, closed by the page footer. No single card wraps the whole page. |
 | Shell-aware gutters | Same rule as Venta: the shell body pads routed pages (`p-4 sm:p-6`) and paints the page plane. The reference's 52/40/76px gutter is the TOTAL, so the dashboard root is transparent and adds only the remainder (12/0/14px, 28/16/52px from `sm`). Painting a page background on the root draws a seam inside the shell padding. |
 | Period controls | Four presets in a segmented control with a sliding indicator. The indicator moves by `translateX(index * 100%)`, which is only correct over equal-width tracks, so the presets sit in an equal-column grid. The custom range opens a popover holding two calendar fields (see **Date fields**); each field's calendar is a nested popover inside the range popover, and picking a day must not dismiss the outer one. |
 | Metrics | A hero for `Ventas netas`, then five cards, then a separate refunds band (different accounting meaning, no sparkline). `Cantidad de ventas` is a count, never currency. The six sparklines read the already-fetched daily series, one backend field each, in backend order with the array index as X; a missing series renders no sparkline rather than a flat line. |
