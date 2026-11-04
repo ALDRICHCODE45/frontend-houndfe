@@ -127,7 +127,7 @@ const customerFormSchema = z.object({
     .max(150, 'Máximo 150 caracteres')
     .refine(
       (val) => val === '' || z.string().email().safeParse(val).success,
-      'Ingresa un email válido',
+      'Ingresa un correo electrónico válido',
     ),
   comments: z.string().trim().max(2000, 'Máximo 2000 caracteres'),
   assignPriceList: z.boolean(),

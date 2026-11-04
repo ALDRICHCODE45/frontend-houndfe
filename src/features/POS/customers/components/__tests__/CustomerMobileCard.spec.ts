@@ -36,7 +36,7 @@ describe('CustomerMobileCard', () => {
 
   it('shows the phone and the price list in the footer, with an em dash for a missing phone', () => {
     const wrapper = mountCard()
-    expect(wrapper.get('.customer-card-footer').text()).toContain('+52 5512345678')
+    expect(wrapper.get('.customer-card-footer').text()).toContain('+52 55 1234 5678')
     expect(wrapper.get('.customer-card-footer').text()).toContain('Lista General')
     const bare = mountCard({ customer: { ...customer, phone: null, globalPriceListName: null, email: null } })
     expect(bare.get('.customer-card-footer').text()).toBe('—')

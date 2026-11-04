@@ -11,7 +11,7 @@ import { computed } from 'vue'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import { useClickableRow } from '@/core/shared/composables/useClickableRow'
-import { formatPhoneCountryCode } from '@/core/shared/utils/phone.utils'
+import { formatCustomerPhone } from '../utils/customerPhone.utils'
 import type { Customer } from '../interfaces/customer.types'
 
 const props = defineProps<{
@@ -33,11 +33,7 @@ const clickable = useClickableRow<Customer>((customer) => emit('open', customer)
 const rowProps = computed(() => (props.openable ? clickable.rowProps(props.customer) : {}))
 
 const phone = computed(() =>
-  props.customer.phone
-    ? [formatPhoneCountryCode(props.customer.phoneCountryCode), props.customer.phone]
-        .filter(Boolean)
-        .join(' ')
-    : '—',
+  formatCustomerPhone(props.customer.phoneCountryCode, props.customer.phone),
 )
 </script>
 

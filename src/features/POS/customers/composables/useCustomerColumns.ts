@@ -7,7 +7,7 @@ import type { Customer } from '../interfaces/customer.types'
 export function useCustomerColumns() {
   const columns: TableColumn<Customer>[] = [
     { accessorKey: 'fullName', header: 'Nombre' },
-    { accessorKey: 'email', header: 'Email' },
+    { accessorKey: 'email', header: 'Correo electrónico' },
     { accessorKey: 'phone', header: 'Teléfono' },
     { accessorKey: 'globalPriceListName', header: 'Lista de precios' },
     {

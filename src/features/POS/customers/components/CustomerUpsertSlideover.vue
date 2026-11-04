@@ -87,8 +87,8 @@ const { schema, state, resetForm, setState } = useCustomerForm()
 const activeTab = ref('basic')
 
 const tabs = [
-  { label: 'Datos Básicos', value: 'basic' },
-  { label: 'Datos de Facturación', value: 'billing' },
+  { label: 'Datos básicos', value: 'basic' },
+  { label: 'Datos de facturación', value: 'billing' },
 ]
 
 // ── Address modal ──────────────────────────────────────────
@@ -259,7 +259,7 @@ function handleCancel() {
     <template #body>
       <UTabs v-model="activeTab" :items="tabs" class="customer-tabs w-full" variant="link">
         <template #content="{ item }">
-          <!-- ── Tab: Datos Básicos ─────────────────────────── -->
+          <!-- ── Tab: Datos básicos ─────────────────────────── -->
           <div v-if="item.value === 'basic'" class="pt-4">
             <UForm
               :id="formId"
@@ -299,7 +299,7 @@ function handleCancel() {
                 </div>
               </div>
 
-              <UFormField label="Email" name="email" :error="errors.email">
+              <UFormField label="Correo electrónico" name="email" :error="errors.email">
                 <UInput
                   v-model="state.email"
                   class="w-full"
@@ -343,7 +343,7 @@ function handleCancel() {
                 <div class="sales-pos-customer-form-address-header mb-3 flex items-center justify-between">
                   <p class="sales-pos-customer-form-section-title font-semibold">Dirección</p>
                   <UButton
-                    label="+ Añadir Dirección"
+                    label="+ Añadir dirección"
                     class="sales-pos-customer-form-action sales-pos-customer-form-add-address"
                     size="sm"
                     color="neutral"
@@ -416,10 +416,10 @@ function handleCancel() {
             </UForm>
           </div>
 
-          <!-- ── Tab: Datos de Facturación ────────────────── -->
+          <!-- ── Tab: Datos de facturación ────────────────── -->
           <div v-else-if="item.value === 'billing'" class="pt-4">
             <div class="flex flex-col gap-4">
-              <UFormField label="Razón Social" name="businessName" :error="errors.businessName">
+              <UFormField label="Razón social" name="businessName" :error="errors.businessName">
                 <UInput
                   v-model="state.businessName"
                   class="w-full"
@@ -430,7 +430,7 @@ function handleCancel() {
 
               <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <UFormField
-                  label="Código Postal Fiscal"
+                  label="Código postal fiscal"
                   name="fiscalZipCode"
                   :error="errors.fiscalZipCode"
                 >
@@ -452,7 +452,7 @@ function handleCancel() {
                 </UFormField>
               </div>
 
-              <UFormField label="Régimen Fiscal" name="fiscalRegime" :error="errors.fiscalRegime">
+              <UFormField label="Régimen fiscal" name="fiscalRegime" :error="errors.fiscalRegime">
                 <USelect
                   v-model="state.fiscalRegime"
                   :items="FISCAL_REGIMES"
@@ -496,7 +496,7 @@ function handleCancel() {
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <UFormField
-                    label="Número Exterior"
+                    label="Número exterior"
                     name="billingExteriorNumber"
                     :error="errors.billingExteriorNumber"
                   >
@@ -509,7 +509,7 @@ function handleCancel() {
                   </UFormField>
 
                   <UFormField
-                    label="Número Interior"
+                    label="Número interior"
                     name="billingInteriorNumber"
                     :error="errors.billingInteriorNumber"
                   >
@@ -524,7 +524,7 @@ function handleCancel() {
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <UFormField
-                    label="Código Postal"
+                    label="Código postal"
                     name="billingZipCode"
                     :error="errors.billingZipCode"
                   >

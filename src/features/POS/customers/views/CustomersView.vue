@@ -10,13 +10,13 @@ import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
-import { formatPhoneCountryCode } from '@/core/shared/utils/phone.utils'
 import { productApi } from '@/features/POS/products/api/product.api'
 import { customerApi } from '../api/customer.api'
 import CustomerMobileCard from '../components/CustomerMobileCard.vue'
 import CustomerSalesHistorySlideover from '../components/CustomerSalesHistorySlideover.vue'
 import CustomerUpsertSlideover from '../components/CustomerUpsertSlideover.vue'
 import { useCustomerColumns } from '../composables/useCustomerColumns'
+import { formatCustomerPhone } from '../utils/customerPhone.utils'
 import type {
   CreateCustomerAddressPayload,
   CreateCustomerPayload,
@@ -56,7 +56,6 @@ const {
   isLoading,
   isFetching,
   isError,
-  error,
   refresh,
   pageSizeOptions,
   showingFrom,
@@ -125,7 +124,7 @@ function mapDomainError(error: AxiosError<DomainApiError>): {
   const normalized = (message ?? '').toLowerCase()
 
   if (normalized.includes('email')) {
-    fields.email = 'Ya existe un cliente con ese email.'
+    fields.email = 'Ya existe un cliente con ese correo electrónico.'
   }
 
   if (normalized.includes('rfc')) {
@@ -612,7 +611,7 @@ function clearFilters() {
             </template>
 
             <template #email-header="{ column }">
-              <SortableHeader :column="column" label="Email" />
+              <SortableHeader :column="column" label="Correo electrónico" />
             </template>
 
             <template #email-cell="{ row }">
@@ -625,14 +624,7 @@ function clearFilters() {
 
             <template #phone-cell="{ row }">
               <span class="hf-figure text-sm" data-testid="customer-phone">
-                <template v-if="row.original.phone">
-                  {{
-                    [formatPhoneCountryCode(row.original.phoneCountryCode), row.original.phone]
-                      .filter(Boolean)
-                      .join(' ')
-                  }}
-                </template>
-                <template v-else>—</template>
+                {{ formatCustomerPhone(row.original.phoneCountryCode, row.original.phone) }}
               </span>
             </template>
 

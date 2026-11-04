@@ -302,12 +302,12 @@ describe('CustomersView — error state', () => {
 
 describe('CustomersView — customer phone rendering', () => {
   it.each([
-    ['52', '+52 5585876245'],
-    ['+52', '+52 5585876245'],
-    ['++52', '+52 5585876245'],
-    [null, '5585876245'],
-    ['', '5585876245'],
-    ['   ', '5585876245'],
+    ['52', '+52 55 8587 6245'],
+    ['+52', '+52 55 8587 6245'],
+    ['++52', '+52 55 8587 6245'],
+    [null, '55 8587 6245'],
+    ['', '55 8587 6245'],
+    ['   ', '55 8587 6245'],
   ])('renders phone prefix %j as %j in the list row', async (phoneCountryCode, expected) => {
     mockState.data.value = [makeCustomer({ phoneCountryCode, phone: '5585876245' })]
     const wrapper = mount(CustomersView)
