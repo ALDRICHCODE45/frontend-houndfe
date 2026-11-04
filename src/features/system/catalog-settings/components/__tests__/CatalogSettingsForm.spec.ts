@@ -61,7 +61,7 @@ describe('CatalogSettingsForm — composition (REQ-12)', () => {
 
     const publicationCard = wrapper.find('[data-testid="publication-card"]')
     expect(publicationCard.classes()).toContain('border')
-    expect(publicationCard.classes()).toContain('bg-elevated/50')
+    expect(publicationCard.classes()).toContain('bg-muted')
     expect(publicationCard.classes()).toContain('min-w-0')
     expect(publicationCard.find('[data-testid="publish-switch"]').exists()).toBe(true)
   })

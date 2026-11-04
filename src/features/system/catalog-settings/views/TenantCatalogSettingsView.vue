@@ -25,6 +25,7 @@ import { useUpdateCatalogSettingsMutation } from '../composables/useUpdateCatalo
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import CatalogSettingsReadView from '../components/CatalogSettingsReadView.vue'
 import CatalogSettingsForm from '../components/CatalogSettingsForm.vue'
 import { mapCatalogSettingsError } from '../utils/catalogSettingsMappers'
@@ -138,9 +139,6 @@ async function submit() {
     <!-- Canonical page header (design-system §4), outside the settings surface. -->
     <div class="hf-page-header">
       <h1 class="hf-page-title">Configuración del catálogo online</h1>
-      <p class="hf-page-subtitle">
-        Controla la visibilidad, listas de precios y presentación de stock en el catálogo público.
-      </p>
     </div>
 
     <UCard
@@ -164,16 +162,15 @@ async function submit() {
         </template>
 
         <!-- GET error state: explicit retry, never a 404-as-default fallback. -->
-        <div
+        <EmptyState
           v-else-if="query.isError.value"
-          class="flex flex-col gap-3 rounded-lg border border-error/30 bg-error/5 p-6"
           data-testid="settings-error"
-        >
-          <p class="text-sm text-error">No se pudo cargar la configuración del catálogo.</p>
-          <UButton color="primary" data-testid="retry-button" @click="onRetry">
-            Reintentar
-          </UButton>
-        </div>
+          kind="error"
+          title="No se pudo cargar la configuración del catálogo"
+          action-label="Reintentar"
+          action-test-id="retry-button"
+          @action="onRetry"
+        />
 
         <template v-else-if="query.settings.value">
           <!-- Editable surface (REQ-12: only with update:TenantCatalogSettings). -->
@@ -209,7 +206,7 @@ async function submit() {
         >
           <p
             v-if="!canUpdate"
-            class="text-xs text-warning sm:mr-auto"
+            class="text-xs text-muted sm:mr-auto"
             data-testid="readonly-notice"
           >
             No tienes permisos para guardar cambios
@@ -245,7 +242,7 @@ async function submit() {
       confirm-label="Confirmar"
       cancel-label="Cancelar"
       :loading="saving"
-      :ui="{ content: 'hf-theme hf-ui hf-form-overlay catalog-settings-form-portal' }"
+      :ui="{ content: 'hf-theme hf-ui hf-form-overlay' }"
       @confirm="onConfirm"
       @cancel="form.cancelPublish()"
       @update:open="

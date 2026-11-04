@@ -50,7 +50,7 @@ const publishLabel = computed(() => (props.draft.catalogPublished ? 'Publicado' 
          subtle surface so the section does not read as a sparse full-width
          strip on wide screens. -->
     <section
-      class="min-w-0 rounded-lg border border-default bg-elevated/50 px-4 py-3"
+      class="min-w-0 rounded-lg border border-default bg-muted px-4 py-3"
       data-testid="publication-card"
     >
       <USwitch

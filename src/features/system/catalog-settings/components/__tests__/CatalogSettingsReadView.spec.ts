@@ -28,6 +28,28 @@ function makeResponse(
 }
 
 describe('CatalogSettingsReadView — accepted publication rendering (REQ-5, REQ-11)', () => {
+  it.each([
+    [true, true, 'success', 'success'],
+    [false, true, 'neutral', 'success'],
+    [true, false, 'success', 'neutral'],
+  ])('maps publication %s / effective %s to StatusBadge tones %s / %s', (published, effective, publicationTone, effectiveTone) => {
+    const wrapper = mountWithUApp(CatalogSettingsReadView, {
+      props: { settings: makeResponse({ catalogPublished: published, effectivePublication: effective }) },
+    })
+    expect(wrapper.find('[data-testid="publication-badge"]').attributes('data-tone')).toBe(publicationTone)
+    expect(wrapper.find('[data-testid="effective-badge"]').attributes('data-tone')).toBe(effectiveTone)
+    // Nothing here is a pending item the user must act on.
+    expect(wrapper.findAll('.hf-status-badge[data-tone="warning"]')).toHaveLength(0)
+  })
+
+  it('marks the default list with an info StatusBadge', () => {
+    const wrapper = mountWithUApp(CatalogSettingsReadView, { props: { settings: makeResponse() } })
+    const defaults = wrapper.findAll('[data-testid="context-row"] .hf-status-badge')
+    expect(defaults).toHaveLength(1)
+    expect(defaults[0]!.attributes('data-tone')).toBe('info')
+    expect(defaults[0]!.text()).toBe('Predeterminada')
+  })
+
   it('keeps the three semantic sections card-free for the routed outer card', () => {
     const wrapper = mountWithUApp(CatalogSettingsReadView, {
       props: { settings: makeResponse() },
@@ -250,7 +272,7 @@ describe('CatalogSettingsReadView — warnings + timestamp (REQ-11)', () => {
       props: { settings: makeResponse({ updatedAt: '2026-02-14T10:00:00.000Z' }) },
     })
     expect(wrapper.find('[data-testid="updated-at"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="updated-at"]').text()).toContain('2026')
+    expect(wrapper.find('[data-testid="updated-at"]').text()).toMatch(/14 feb/)
   })
 })
 

@@ -124,7 +124,7 @@ describe('CatalogPriceContextsField — Nuxt UI select pattern (U9)', () => {
 
     expect(wrapper.find('[data-testid="contexts-field"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('Listas de precios públicas')
-    expect(wrapper.text()).toContain('Listas de precios visibles para clientes públicos')
+    expect(wrapper.text()).not.toContain('Listas de precios visibles para clientes públicos')
     expect(wrapper.findAllComponents({ name: 'SelectMenu' })).toHaveLength(2)
     expect(wrapper.find(MULTI_SELECT).exists()).toBe(true)
     expect(wrapper.find(DEFAULT_SELECT).exists()).toBe(true)

@@ -115,16 +115,13 @@ function onDefaultChange(next: unknown) {
 <template>
   <fieldset class="contents" data-testid="contexts-field">
     <legend class="sr-only">Listas de precios públicas</legend>
-    <div class="flex flex-col gap-1">
-      <h2 class="text-sm font-semibold text-default">Listas de precios públicas</h2>
-      <p class="text-xs text-muted">Listas de precios visibles para clientes públicos</p>
-    </div>
+    <h2 class="text-sm font-semibold text-default">Listas de precios públicas</h2>
 
     <div class="flex w-full flex-col gap-4">
       <!-- Visible allowlist: one searchable multiple selection. -->
       <UFormField label="Listas visibles" class="w-full">
         <USelectMenu
-          :ui="{ content: 'hf-theme hf-ui hf-form-overlay catalog-settings-form-portal' }"
+          :ui="{ content: 'hf-theme hf-ui hf-form-overlay' }"
           :model-value="selectedIds"
           :items="listOptions"
           value-key="value"
@@ -164,7 +161,7 @@ function onDefaultChange(next: unknown) {
         class="w-full"
       >
         <USelectMenu
-          :ui="{ content: 'hf-theme hf-ui hf-form-overlay catalog-settings-form-portal' }"
+          :ui="{ content: 'hf-theme hf-ui hf-form-overlay' }"
           :model-value="props.draft.catalogDefaultPriceListId"
           :items="defaultOptions"
           value-key="value"

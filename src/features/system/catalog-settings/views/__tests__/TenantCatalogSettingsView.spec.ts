@@ -206,12 +206,27 @@ describe('TenantCatalogSettingsView — accepted read-only surface (REQ-5)', () 
   })
 })
 
+describe('TenantCatalogSettingsView — empty state (S10)', () => {
+  it('a catalog with no public lists says so inside the read surface instead of showing blanks', () => {
+    queryMock.settings.value = makeResponse({ catalogPublished: false, effectivePublication: false, priceContexts: [] })
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    expect(wrapper.find('[data-testid="contexts-empty"]').text()).toContain('Sin listas públicas')
+    expect(wrapper.find('[data-testid="publication-badge"]').attributes('data-tone')).toBe('neutral')
+    expect(wrapper.find('[data-testid="settings-error"]').exists()).toBe(false)
+  })
+})
+
 describe('TenantCatalogSettingsView — GET error + retry (REQ-12)', () => {
   it('renders an error state with Reintentar and no synthetic defaults', () => {
     queryMock.isError.value = true
     queryMock.error.value = new Error('404')
     const wrapper = mountWithUApp(TenantCatalogSettingsView)
-    expect(wrapper.find('[data-testid="settings-error"]').exists()).toBe(true)
+    const error = wrapper.find('[data-testid="settings-error"]')
+    expect(error.exists()).toBe(true)
+    expect(error.classes()).toContain('hf-empty-state')
+    expect(error.attributes('data-kind')).toBe('error')
+    expect(error.attributes('role')).toBe('alert')
+    expect(wrapper.text()).toContain('No se pudo cargar la configuración del catálogo')
     expect(wrapper.text()).toContain('Reintentar')
     expect(wrapper.find('[data-testid="catalog-settings-read"]').exists()).toBe(false)
   })
@@ -309,10 +324,10 @@ describe('TenantCatalogSettingsView — card shell (U5)', () => {
 
   // ── Canonical page header sits outside the card ──────────────────────────
 
-  it('renders the title and description in the page header, outside the card', () => {
+  it('renders the title without a subtitle in the page header, outside the card', () => {
     const wrapper = mountWithUApp(TenantCatalogSettingsView)
     expect(wrapper.find('.hf-page-title').text()).toBe('Configuración del catálogo online')
-    expect(wrapper.find('.hf-page-subtitle').text()).toContain('Controla la visibilidad')
+    expect(wrapper.find('.hf-page-subtitle').exists()).toBe(false)
     const card = wrapper.find('[data-testid="settings-card"]')
     expect(card.text()).not.toContain('Configuración del catálogo online')
   })

@@ -73,7 +73,7 @@ function onQuantityInput(raw: string | number) {
     :disabled="props.disabled"
   >
     <USelectMenu
-      :ui="{ content: 'hf-theme hf-ui hf-form-overlay catalog-settings-form-portal' }"
+      :ui="{ content: 'hf-theme hf-ui hf-form-overlay' }"
       :model-value="props.stockDefault.mode"
       :items="MODE_OPTIONS"
       value-key="value"
@@ -86,7 +86,7 @@ function onQuantityInput(raw: string | number) {
 
     <!-- Selected-mode preview: what the public catalog shows, and why. -->
     <div
-      class="mt-3 rounded-lg border border-default bg-elevated/50 px-3 py-2"
+      class="mt-3 rounded-lg border border-default bg-muted px-3 py-2"
       role="status"
       data-testid="stock-mode-preview"
     >
