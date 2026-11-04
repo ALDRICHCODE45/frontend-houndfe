@@ -3,6 +3,8 @@
  * real composables, kardex table and adjustment dialog; only the API, the context and
  * the overlay primitive are replaced.
  */
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { computed, defineComponent, h, ref } from 'vue'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
@@ -152,6 +154,18 @@ describe('stock panel — data', () => {
     expect(rows(wrapper).map(row => row.get('[data-testid="stock-quantity"]').text())).toEqual(['12', '8', '22', '30'])
     expect(rows(wrapper)[2]!.text()).toContain('15 ene 2027')
     expect(wrapper.html()).not.toMatch(/l-old|l-a|l-b/)
+  })
+
+  // Found in the T10 runtime check: at 390 the four columns were 419px wide in a 356px card, so every
+  // «Ajustar» sat behind a horizontal scroll. Below 480px the Vence column folds under the lot name.
+  it('repeats the expiry under the lot name and folds the Vence column on narrow screens', async () => {
+    const wrapper = setup()
+    await flushPromises()
+    expect(rows(wrapper)[0]!.find('.stock-expires').exists()).toBe(false)
+    expect(rows(wrapper)[2]!.get('.stock-expires').text()).toBe('Vence 15 ene 2027')
+    const source = readFileSync(resolve(__dirname, '../InventoryStockPanel.vue'), 'utf8')
+    expect(source).toMatch(/@media \(max-width: 480px\)\s*\{[^}]*\.stock-when-col\s*\{\s*display:\s*none/)
+    expect(source).toMatch(/\.stock-expires\s*\{\s*display:\s*none/)
   })
 
   it('marks only the expired lot as «Vencido» and says it is not sold', async () => {

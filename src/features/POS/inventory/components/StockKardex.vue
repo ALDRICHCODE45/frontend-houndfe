@@ -31,15 +31,15 @@ const isOpen = (row: KardexRow) => expanded.value.has(row.key)
 
 const emptyState = { title: 'Aún no hay movimientos', description: 'Cada cambio de stock quedará registrado aquí.' }
 const filtered = computed(() => filter.value !== null)
-const right = { class: { th: 'text-right', td: 'text-right' } }
+const right = { class: { th: 'text-right kardex-num', td: 'text-right kardex-num' } }
+const text = { class: { th: 'kardex-text', td: 'kardex-text' } }
 const columns: TableColumn<KardexRow, unknown>[] = [
   { id: 'movement', header: 'Movimiento', enableSorting: false },
-  { id: 'createdAt', header: 'Fecha', enableSorting: false },
-  { id: 'location', header: 'Ubicación', enableSorting: false },
+  { id: 'createdAt', header: 'Fecha', enableSorting: false, meta: text },
+  { id: 'location', header: 'Ubicación', enableSorting: false, meta: text },
   { id: 'delta', header: 'Cambio', enableSorting: false, meta: right },
   { id: 'balance', header: 'Saldo', enableSorting: false, meta: right },
-  { id: 'total', header: 'Total del producto', enableSorting: false, meta: right },
-  { id: 'actor', header: 'Responsable', enableSorting: false },
+  { id: 'total', header: 'Total', enableSorting: false, meta: right },
 ]
 const number = (value: number) => value.toLocaleString('es-MX')
 const signed = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${number(Math.abs(value))}`
@@ -80,14 +80,18 @@ const toggleLabel = (row: KardexRow) => `${isOpen(row) ? 'Ocultar' : 'Ver'} el d
           <span v-if="row.original.detail" class="hf-row-secondary">{{ row.original.detail }}</span>
         </div>
       </template>
-      <template #createdAt-cell="{ row }"><span class="kardex-when">{{ formatShortDateTime(row.original.createdAt) }}</span></template>
+      <template #createdAt-cell="{ row }">
+        <div class="kardex-movement">
+          <span class="kardex-when">{{ formatShortDateTime(row.original.createdAt) }}</span>
+          <span class="hf-row-secondary">{{ row.original.actor }}</span>
+        </div>
+      </template>
       <template #location-cell="{ row }">{{ row.original.location }}</template>
       <template #delta-cell="{ row }"><span class="hf-figure" data-testid="kardex-delta">{{ signed(row.original.delta) }}</span></template>
       <template #balance-cell="{ row }">
         <span class="hf-figure">{{ row.original.balanceAfter === null ? '—' : number(row.original.balanceAfter) }}</span>
       </template>
       <template #total-cell="{ row }"><span class="hf-figure">{{ number(row.original.productBalanceAfter) }}</span></template>
-      <template #actor-cell="{ row }">{{ row.original.actor }}</template>
       <template #mobile-card="{ row }">
         <article data-testid="kardex-card" class="kardex-card" :class="{ 'is-child': row.kind === 'child' }">
           <div class="kardex-card-head">
@@ -127,6 +131,11 @@ const toggleLabel = (row: KardexRow) => `${isOpen(row) ? 'Ocultar' : 'Ver'} el d
 .kardex-chip[aria-pressed='true'] { border-color: var(--hf-action); background: var(--hf-active-soft); color: var(--hf-heading); font-weight: 600; }
 .kardex-chip:focus-visible, .kardex-toggle:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
 .kardex-movement { min-width: 0; }
+/* The global floors (16rem name, 7rem each) make six columns 816px wide, wider than the 760px
+ * column beside the summary panel at 1440: the actor and the total sat behind a scroll. */
+.kardex :deep(.hf-data-table :is(td, th)[data-slot].hf-col-primary) { width: 26%; min-width: 11rem; }
+.kardex :deep(.hf-data-table .kardex-num) { min-width: 5rem; }
+.kardex :deep(.hf-data-table .kardex-text) { min-width: 9rem; }
 .kardex-movement.is-child { padding-left: 24px; }
 .kardex-toggle { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; font-size: 14px; cursor: pointer; }
 .kardex-when { color: var(--hf-muted); white-space: nowrap; }

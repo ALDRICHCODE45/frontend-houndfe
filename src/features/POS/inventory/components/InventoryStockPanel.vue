@@ -87,7 +87,7 @@ function reload() {
             <thead>
               <tr>
                 <th scope="col">Ubicación</th>
-                <th v-if="hasLots" scope="col">Vence</th>
+                <th v-if="hasLots" scope="col" class="stock-when-col">Vence</th>
                 <th scope="col" class="stock-num">Existencias</th>
                 <th scope="col"><span class="sr-only">Acciones</span></th>
               </tr>
@@ -100,8 +100,9 @@ function reload() {
                     <StatusBadge v-if="row.expired" label="Vencido" tone="danger" aria-prefix="Lote:" />
                   </span>
                   <span v-if="row.expired" class="hf-row-secondary">No se vende</span>
+                  <span v-if="row.expiration" class="hf-row-secondary stock-expires">Vence {{ row.expiration }}</span>
                 </td>
-                <td v-if="hasLots" class="stock-when">{{ row.expiration ?? '—' }}</td>
+                <td v-if="hasLots" class="stock-when stock-when-col">{{ row.expiration ?? '—' }}</td>
                 <td class="stock-num"><span data-testid="stock-quantity" class="hf-figure">{{ number(row.quantity) }}</span></td>
                 <td class="stock-action">
                   <UButton
@@ -147,6 +148,13 @@ function reload() {
 .stock-action { width: 1%; text-align: right; white-space: nowrap; }
 .stock-when { color: var(--hf-muted); white-space: nowrap; }
 .stock-label { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+/* Below 480px the four columns do not fit the card, and «Ajustar» ended up behind a scroll:
+ * the expiry moves under the lot name instead of taking a column. */
+.stock-expires { display: none; }
+@media (max-width: 480px) {
+  .stock-when-col { display: none; }
+  .stock-expires { display: block; }
+}
 .stock-skeleton { display: grid; gap: 12px; }
 .stock-skeleton-figures { display: flex; justify-content: flex-end; gap: 24px; }
 .stock-skeleton-figures span { width: 72px; height: 36px; border-radius: 6px; }

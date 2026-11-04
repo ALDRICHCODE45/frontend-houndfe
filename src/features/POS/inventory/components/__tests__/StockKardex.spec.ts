@@ -2,6 +2,8 @@
  * StockKardex — the four S10 states (empty, loading, data, error) plus no-match,
  * against the REAL AppDataTable; only the viewport breakpoint is stubbed.
  */
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { ref } from 'vue'
@@ -86,6 +88,33 @@ describe('kardex — data', () => {
     const cells = body[0]!.findAll('td').map(cell => cell.text())
     expect(cells.some(cell => cell === '14')).toBe(true)
     expect(cells.some(cell => cell === '32')).toBe(true)
+  })
+
+  // Found in the T10 runtime check: seven columns made the table 928px wide inside the 760px
+  // column next to the summary panel at 1440, so "Total del producto" and "Responsable" sat
+  // behind a horizontal scroll. Six columns fit; the actor rides under the date.
+  it('keeps six columns, with the actor under the date, so the table fits its column', () => {
+    const wrapper = mountKardex()
+    expect(wrapper.findAll('thead th').map(th => th.text())).toEqual(
+      ['Movimiento', 'Fecha', 'Ubicación', 'Cambio', 'Saldo', 'Total'],
+    )
+    const [first, second] = wrapper.findAll('tbody tr')
+    expect(first!.findAll('td')[1]!.text()).toContain('María López')
+    expect(second!.findAll('td')[1]!.text()).toContain('Sistema')
+  })
+
+  // The global table floors (16rem name column, 7rem for the rest) still left the six columns at
+  // 816px in the 760px column. The kardex lowers them locally; the browser proves the fit.
+  it('lowers the global column floors so the table fits the 760px column', () => {
+    const source = readFileSync(resolve(__dirname, '../StockKardex.vue'), 'utf8')
+    expect(source).toMatch(/\[data-slot\]\.hf-col-primary\)?\s*\{[^}]*min-width:\s*11rem/)
+    expect(source).toMatch(/\.kardex-num\)?\s*\{[^}]*min-width:\s*5rem/)
+    expect(source).toMatch(/\.kardex-text\)?\s*\{[^}]*min-width:\s*9rem/)
+    const wrapper = mountKardex()
+    expect(wrapper.findAll('thead th')[3]!.classes()).toContain('kardex-num')
+    // Date (with the actor) and location keep room for «Manager Centro» and «Lote L-2027-06».
+    expect(wrapper.findAll('thead th')[1]!.classes()).toContain('kardex-text')
+    expect(wrapper.findAll('thead th')[2]!.classes()).toContain('kardex-text')
   })
 
   it('never prints a movement or sale id', () => {
