@@ -64,4 +64,23 @@ describe('TenantSelectionList', () => {
 
     expect(wrapper.findAll('[data-testid="tenant-row"]')).toHaveLength(2)
   })
+
+  it('selects the only branch up front, so the row shows it chosen and Continuar can be used', async () => {
+    const wrapper = render([tenants[0]!])
+    await wrapper.vm.$nextTick()
+
+    const row = wrapper.get('[data-testid="tenant-row"]')
+    expect(row.attributes('aria-pressed')).toBe('true')
+    expect(row.attributes('data-selected')).toBe('true')
+    expect(wrapper.emitted('select')).toEqual([['t-1']])
+    expect(wrapper.emitted('confirm')).toBeUndefined()
+  })
+
+  it('leaves the choice to the person when there are several branches', async () => {
+    const wrapper = render(tenants)
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.emitted('select')).toBeUndefined()
+    expect(wrapper.findAll('[data-selected="true"]')).toHaveLength(0)
+  })
 })

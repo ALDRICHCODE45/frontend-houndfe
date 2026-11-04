@@ -112,9 +112,39 @@ async function navigateAfterLogin() {
 <template>
   <div class="hf-auth-page">
     <div class="hf-auth-card">
+      <!-- Cancelar lives in the card's corner: it appears while signing in without adding a row. -->
+      <UButton
+        v-if="isLoading && !showingOtp"
+        type="button"
+        color="neutral"
+        variant="ghost"
+        size="xs"
+        class="hf-auth-cancel"
+        data-testid="login-cancel"
+        @click="restart"
+      >
+        Cancelar
+      </UButton>
+
       <img src="/hounfeLogos/primary.png" alt="HounFe" class="hf-auth-logo" />
 
-      <div class="space-y-4">
+      <LoginOtpForm
+        v-if="showingOtp"
+        :key="otpFormVersion"
+        :loading="authStore.loginBusy"
+        :error="authStore.otpError"
+        :restart-required="authStore.otpRestartRequired"
+        :resend-seconds="resendSeconds"
+        :expires-seconds="expiresSeconds"
+        :retry-seconds="retrySeconds"
+        @verify="handleVerify"
+        @resend="handleResend"
+        @restart="restart"
+      />
+      <LoginForm v-else :loading="isLoading" @submit="handleLogin" />
+
+      <!-- The failure notice sits just below the card, out of its flow, so the card never changes height. -->
+      <div data-testid="login-feedback" class="hf-auth-feedback" aria-live="assertive">
         <UAlert
           v-if="loginError"
           color="error"
@@ -122,33 +152,6 @@ async function navigateAfterLogin() {
           icon="i-lucide-triangle-alert"
           :title="loginError"
         />
-
-        <LoginOtpForm
-          v-if="showingOtp"
-          :key="otpFormVersion"
-          :loading="authStore.loginBusy"
-          :error="authStore.otpError"
-          :restart-required="authStore.otpRestartRequired"
-          :resend-seconds="resendSeconds"
-          :expires-seconds="expiresSeconds"
-          :retry-seconds="retrySeconds"
-          @verify="handleVerify"
-          @resend="handleResend"
-          @restart="restart"
-        />
-        <template v-else>
-          <LoginForm :loading="isLoading" @submit="handleLogin" />
-          <UButton
-            v-if="isLoading"
-            type="button"
-            color="neutral"
-            variant="ghost"
-            block
-            @click="restart"
-          >
-            Cancelar
-          </UButton>
-        </template>
       </div>
     </div>
   </div>

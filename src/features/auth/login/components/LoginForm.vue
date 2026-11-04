@@ -20,17 +20,17 @@ function handleSubmit(event: FormSubmitEvent<LoginFormValues>) {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <h2 class="hf-auth-title">Iniciar sesi&oacute;n</h2>
+  <div class="hf-auth-form">
+    <h2 class="hf-auth-title hf-auth-head">Iniciar sesi&oacute;n</h2>
 
     <UForm class="space-y-4" :schema="schema" :state="state" @submit="handleSubmit">
-      <UFormField label="Email" name="email">
+      <UFormField label="Correo electrónico" name="email">
         <UInput
           id="email"
           v-model="state.email"
           type="email"
           autocomplete="username"
-          placeholder="tu@email.com"
+          placeholder="tu@correo.com"
           size="lg"
           class="w-full"
           :disabled="loading"
@@ -61,7 +61,16 @@ function handleSubmit(event: FormSubmitEvent<LoginFormValues>) {
         </UInput>
       </UFormField>
 
-      <UButton type="submit" size="lg" block class="mt-2" :loading="loading">Ingresar</UButton>
+      <UButton
+        type="submit"
+        size="lg"
+        block
+        class="hf-primary-control mt-2"
+        :loading="loading"
+        :aria-busy="loading ? 'true' : undefined"
+      >
+        Ingresar
+      </UButton>
     </UForm>
   </div>
 </template>

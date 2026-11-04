@@ -10,7 +10,9 @@ describe('LoginForm', () => {
     const wrapper = mountWithUApp(LoginForm)
 
     expect(wrapper.get('h2').text()).toBe('Iniciar sesión')
-    expect(wrapper.text()).toContain('Email')
+    // Spanish label, never the English word.
+    expect(wrapper.findAll('label')[0]!.text()).toBe('Correo electrónico')
+    expect(wrapper.text()).not.toMatch(/\bEmail\b/)
     expect(wrapper.text()).toContain('Contraseña')
     expect(wrapper.text()).not.toContain('credenciales')
   })
@@ -38,5 +40,22 @@ describe('LoginForm', () => {
 
     expect(wrapper.get('#password').attributes('type')).toBe('text')
     expect(wrapper.find('button[aria-label="Ocultar contraseña"]').exists()).toBe(true)
+  })
+
+  it('lays its title and form out with a flex gap, not margins a reset can cancel', () => {
+    const wrapper = mountWithUApp(LoginForm)
+
+    expect(wrapper.classes()).toContain('hf-auth-form')
+    expect(wrapper.html()).not.toMatch(/space-y-6/)
+  })
+
+  it('marks the primary busy while signing in and keeps it the action pairing', () => {
+    const idle = mountWithUApp(LoginForm)
+    const busy = mountWithUApp(LoginForm, { props: { loading: true } })
+
+    expect(idle.get('button[type="submit"]').attributes('aria-busy')).toBeUndefined()
+    const submit = busy.get('button[type="submit"]')
+    expect(submit.attributes('aria-busy')).toBe('true')
+    expect(submit.classes()).toContain('hf-primary-control')
   })
 })

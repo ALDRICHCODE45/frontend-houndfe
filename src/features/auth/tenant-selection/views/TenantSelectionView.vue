@@ -39,7 +39,7 @@ function handleSelect(tenantId: string) {
 <template>
   <div class="hf-auth-page">
     <div class="hf-auth-card hf-auth-card--wide">
-      <div class="space-y-1">
+      <div class="hf-auth-head space-y-1">
         <img src="/hounfeLogos/primary.png" alt="HounFe" class="hf-auth-logo mb-4" />
         <h1 class="hf-auth-title">Selecciona tu sucursal</h1>
         <p class="hf-auth-help">Hola, {{ userName }}</p>
@@ -83,6 +83,7 @@ function handleSelect(tenantId: string) {
         <UButton
           color="primary"
           variant="solid"
+          class="hf-primary-control"
           trailing-icon="i-lucide-arrow-right"
           :disabled="!canContinue"
           :loading="isSubmitting"

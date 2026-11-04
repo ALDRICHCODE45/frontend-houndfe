@@ -12,6 +12,7 @@
 }
 
 .hf-auth-card {
+  position: relative;
   display: flex;
   width: 100%;
   max-width: 24rem;
@@ -24,9 +25,48 @@
 }
 
 .hf-auth-logo {
+  display: block;
   width: 48px;
   height: 48px;
+  margin-inline: auto;
   object-fit: contain;
+}
+
+/* Title block: the brand and the title are centered; fields stay left-aligned. */
+.hf-auth-head {
+  text-align: center;
+}
+
+/* Title, then the form: a flex gap, because a margin utility loses to
+ * `.hf-auth-title { margin: 0 }` and left the title touching its label. */
+.hf-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* The card keeps one height in every state: the failure notice hangs below it
+ * and Cancelar sits in its corner, so neither pushes the form. */
+.hf-auth-feedback {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  left: 0;
+}
+
+.hf-auth-cancel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+/* A busy primary stays on the action pairing at full strength; the disabled
+ * (muted) look would wash the spinner and label out in dark. */
+.hf-auth-card .hf-primary-control[aria-busy='true'] {
+  border-color: transparent;
+  background-color: var(--hf-action);
+  color: var(--hf-on-action);
+  opacity: 1;
 }
 
 .hf-auth-title {

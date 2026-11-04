@@ -44,6 +44,16 @@ function handleCardTap(tenant: TenantSummary) {
   emit('select', tenant.id)
 }
 
+// A single branch needs no choosing: it is selected up front so the row shows it
+// and Continuar is ready. Several branches stay unselected until the person picks.
+watch(
+  () => props.tenants,
+  (list) => {
+    if (list.length === 1 && selectedTenantId.value === null) handleCardTap(list[0]!)
+  },
+  { immediate: true },
+)
+
 // Convenience submit hook the parent can call when "Continuar" is clicked.
 function handleConfirm() {
   if (!selectedTenantId.value || props.isSubmitting) return

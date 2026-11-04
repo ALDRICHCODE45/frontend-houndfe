@@ -333,4 +333,42 @@ describe('LoginView layout', () => {
     expect(wrapper.html()).not.toContain('bg-neutral-950')
     wrapper.unmount()
   })
+
+  it('keeps the failure notice out of the card flow, so the card never changes height', async () => {
+    store.authError = 'No se pudo iniciar sesión. Verifica credenciales.'
+    login.mockRejectedValue(new Error('rejected'))
+    const wrapper = mount(LoginView, {
+      global: { stubs: { UAlert: { props: ['title'], template: '<div>{{ title }}</div>' } } },
+    })
+    await wrapper.get('[data-test="password"]').trigger('click')
+    await flushPromises()
+
+    const feedback = wrapper.get('[data-testid="login-feedback"]')
+    expect(feedback.text()).toContain('No se pudo iniciar sesión')
+    expect(feedback.attributes('aria-live')).toBe('assertive')
+    expect(wrapper.get('.hf-auth-card').element.contains(feedback.element)).toBe(true)
+    // The slot is always rendered (empty or not), so the notice only fills it.
+    wrapper.unmount()
+    const quiet = mount(LoginView, {
+      global: { stubs: { UAlert: { props: ['title'], template: '<div>{{ title }}</div>' } } },
+    })
+    expect(quiet.find('[data-testid="login-feedback"]').exists()).toBe(true)
+    expect(quiet.get('[data-testid="login-feedback"]').text()).toBe('')
+    quiet.unmount()
+  })
+
+  it('shows Cancelar only while signing in, in the corner of the card rather than a new row', async () => {
+    login.mockReturnValue(new Promise(() => {}))
+    const wrapper = mount(LoginView, {
+      global: { stubs: { UAlert: { props: ['title'], template: '<div>{{ title }}</div>' } } },
+    })
+    expect(wrapper.find('[data-testid="login-cancel"]').exists()).toBe(false)
+
+    await wrapper.get('[data-test="password"]').trigger('click')
+    await flushPromises()
+    const cancelButton = wrapper.get('[data-testid="login-cancel"]')
+    expect(cancelButton.classes()).toContain('hf-auth-cancel')
+    expect(cancelButton.text()).toBe('Cancelar')
+    wrapper.unmount()
+  })
 })
