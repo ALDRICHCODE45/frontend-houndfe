@@ -31,7 +31,8 @@ export type EditorialAttributeTable = {
   orphanCount: number
 }
 
-const targetKey = (code: string, owner: EditorialOwner, variantId: string | null) => JSON.stringify([code, owner, variantId])
+/** Identity of a cell: the exact (definition, owner, presentation) it stores. */
+export const editorialTargetKey = (target: EditorialAssignmentTarget) => JSON.stringify([target.code, target.owner, target.variantId])
 
 function isEmptyPayload(payload: EditorialPayloadInput, strict: boolean): boolean {
   const blank = (value: string) => (strict ? value === '' : value.trim() === '')
@@ -73,7 +74,7 @@ export function buildEditorialAttributeTable({ family, definitions, values, subj
   ]
   const stored = new Map<string, EditorialAssignmentEditingRow>()
   for (const item of values) {
-    const key = targetKey(item.target.code, item.target.owner, item.target.variantId)
+    const key = editorialTargetKey(item.target)
     if (!stored.has(key)) stored.set(key, item)
   }
   const bound = family.bindings.flatMap(binding => {
@@ -91,7 +92,7 @@ export function buildEditorialAttributeTable({ family, definitions, values, subj
     cells: used.map(column => {
       if (column.owner !== binding.owner) return null
       const target = { code: definition.code, owner: column.owner, variantId: column.variantId }
-      const found = stored.get(targetKey(target.code, target.owner, target.variantId))
+      const found = stored.get(editorialTargetKey(target))
       const input: EditorialAssignmentInput = found?.input ?? { state: 'omitted' }
       const filled = isEditorialInputFilled(input)
       if (found) matched.add(found.id)

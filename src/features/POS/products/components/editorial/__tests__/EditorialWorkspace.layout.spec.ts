@@ -19,13 +19,13 @@ beforeEach(() => {
 afterEach(() => { wrapper?.unmount(); document.body.replaceChildren() })
 
 describe('editorial workspace presentation boundary', () => {
-  it('preserves the standalone main heading and both existing surfaces by default', async () => {
+  it('preserves the standalone main heading, with the form and no second surface for history', async () => {
     wrapper = mount(EditorialWorkspace, { attachTo: document.body, props: { productId: 'p1' } })
     await flushPromises()
     expect(wrapper.element.tagName).toBe('MAIN')
     expect(wrapper.get('h1').text()).toBe('Contenido editorial')
     expect(wrapper.get('#editorial-form').isVisible()).toBe(true)
-    expect(wrapper.get('.editorial-state').isVisible()).toBe(true)
+    expect(wrapper.find('.editorial-state').exists()).toBe(false)
     expect(http.get).toHaveBeenCalledTimes(3)
   })
 
@@ -35,21 +35,27 @@ describe('editorial workspace presentation boundary', () => {
     expect(wrapper.element.tagName).toBe('SECTION')
     expect(wrapper.find('h1').exists()).toBe(false)
     expect(wrapper.get('#editorial-workspace-title').element.tagName).toBe('H2')
+    expect(wrapper.get('#editorial-workspace-title').classes()).toContain('sr-only')
     expect(wrapper.attributes('aria-labelledby')).toBe('editorial-workspace-title')
   })
 
-  it('switches content and review without replacing raw editing controls or sending requests', async () => {
-    wrapper = mount(EditorialWorkspace, { attachTo: document.body, props: { productId: 'p1', embedded: true, activeSection: 'content' } })
+  it('has no Revisar section: one flow, one form', async () => {
+    wrapper = mount(EditorialWorkspace, { attachTo: document.body, props: { productId: 'p1', embedded: true } })
+    await flushPromises()
+    expect(wrapper.findAll('form')).toHaveLength(1)
+    expect(wrapper.text()).not.toContain('Revisar')
+    expect(wrapper.findComponent({ name: 'EditorialPublication' }).exists()).toBe(false)
+  })
+
+  it('opening and closing the history keeps the raw controls and sends no request', async () => {
+    wrapper = mount(EditorialWorkspace, { attachTo: document.body, props: { productId: 'p1', embedded: true } })
     await flushPromises()
     const title = wrapper.get('#editorial-title').element
     await wrapper.get('#editorial-title').setValue('  Mi borrador 😀  ')
-    expect(wrapper.get('#editorial-form').isVisible()).toBe(true)
-    expect(wrapper.get('.editorial-state').isVisible()).toBe(false)
-    await wrapper.setProps({ activeSection: 'review' })
-    expect(wrapper.get('#editorial-form').attributes('style')).toContain('display: none')
-    expect(wrapper.get('#editorial-form').isVisible()).toBe(false)
-    expect(wrapper.get('.editorial-state').isVisible()).toBe(true)
-    await wrapper.setProps({ activeSection: 'content' })
+    await wrapper.get('[data-testid="open-history"]').trigger('click')
+    await new Promise(resolve => setTimeout(resolve, 60))
+    document.querySelector<HTMLButtonElement>('[aria-label="Cerrar historial"]')!.click()
+    await new Promise(resolve => setTimeout(resolve, 60))
     expect(wrapper.get('#editorial-title').element).toBe(title)
     expect((title as HTMLInputElement).value).toBe('  Mi borrador 😀  ')
     expect(http.get).toHaveBeenCalledTimes(3)

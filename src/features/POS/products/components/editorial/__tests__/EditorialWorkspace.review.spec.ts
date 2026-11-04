@@ -85,16 +85,17 @@ describe('EditorialWorkspace — review round 1', () => {
     await render()
     const empty = wrapper.get('.hf-empty-state')
     expect(empty.attributes('data-kind')).toBe('empty')
-    expect(empty.get('.hf-empty-state__title').text()).toBe('Aún no hay contenido editorial')
+    expect(empty.get('.hf-empty-state__title').text()).toBe('Aún no hay ficha para el catálogo')
     const action = wrapper.get('[data-testid="initialize"]')
-    expect(action.text()).toContain('Iniciar borrador')
+    expect(action.text()).toContain('Empezar ficha')
   })
 
-  it('with a published version, the empty draft says it stays intact', async () => {
+  it('with a published version, the empty draft offers to start from it', async () => {
     reads({ cycle: 2, draft: null, published: { revision: 1, document: state().draft!.document } })
     await render()
     const empty = wrapper.get('.hf-empty-state')
-    expect(empty.get('.hf-empty-state__title').text()).toBe('La versión publicada sigue intacta')
-    expect(wrapper.get('[data-testid="initialize"]').text()).toContain('Iniciar borrador desde lo publicado')
+    expect(empty.get('.hf-empty-state__title').text()).toBe('Aún no hay ficha para el catálogo')
+    expect(empty.get('.hf-empty-state__description').text()).toContain('versión publicada')
+    expect(wrapper.get('[data-testid="initialize"]').text()).toContain('Empezar desde lo publicado')
   })
 })

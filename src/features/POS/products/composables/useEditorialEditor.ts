@@ -25,13 +25,13 @@ export function editorialIssueMessage(issue: EditorialRuntimeIssue): string {
 }
 export function editorialErrorMessage(status: number | null): string {
   switch (status) {
-    case 400: return 'El servidor no aceptó el contenido. Conservamos tus cambios locales; revisa los campos y el estado del historial.'
+    case 400: return 'El servidor no aceptó el contenido. Tus cambios siguen aquí; revisa los datos marcados.'
     case 401: return 'Tu sesión ya no permite esta operación. Vuelve a iniciar sesión.'
     case 403: return 'No tienes acceso al contenido editorial de este producto.'
     case 404: return 'No se encontró contenido editorial para este producto.'
-    case 409: return 'No se confirmó el cambio por un conflicto. Consulta el estado actual y decide si conservas o descartas tus cambios.'
-    case 413: return 'La solicitud supera el tamaño permitido. Tus cambios locales se conservan; consulta el estado antes de otra acción.'
-    default: return 'No se pudo confirmar la operación. Tus cambios locales se conservan. Consulta el estado o retransmite la misma solicitud si está disponible.'
+    case 409: return 'Alguien más guardó cambios. Carga la versión más reciente para continuar.'
+    case 413: return 'La ficha es demasiado grande para guardarla. Tus cambios siguen aquí.'
+    default: return 'No pudimos confirmar si se guardó. Tus cambios siguen aquí.'
   }
 }
 

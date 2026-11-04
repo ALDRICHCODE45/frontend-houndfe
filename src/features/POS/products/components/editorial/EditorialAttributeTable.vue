@@ -5,7 +5,7 @@ import type { EditorialDefinition } from '../../interfaces/editorial-contract-de
 import type { EditorialFamily } from '../../interfaces/editorial-contract-vocabulary.types'
 import type { EditorialAssignmentInput } from '../../utils/editorial-contract-assignment-input'
 import type { EditorialAssignmentEditingRow } from '../../utils/editorial-contract-document-editing'
-import { applyEditorialCellInput, buildEditorialAttributeTable, removeEditorialCell,
+import { applyEditorialCellInput, buildEditorialAttributeTable, editorialTargetKey, removeEditorialCell,
   type EditorialTableCell, type EditorialTableSubject } from '../../utils/editorial-attribute-table'
 
 /** The editable table of the family's data: rows are the definitions, columns are Producto and one
@@ -19,7 +19,7 @@ const props = defineProps<{ values: EditorialAssignmentEditingRow[]; family: Edi
   readonly?: boolean; disabled?: boolean
   /** Message per assignment row id, shown next to its cell. */
   issues?: ReadonlyMap<string, string>
-  /** Archived options each stored assignment was saved with, which stay selectable. */
+  /** Archived options the saved draft holds per target (see `editorialTargetKey`), which stay selectable. */
   conserved?: ReadonlyMap<string, readonly string[]> }>()
 const emit = defineEmits<{ 'update:values': [values: EditorialAssignmentEditingRow[]] }>()
 
@@ -73,7 +73,7 @@ function moveDown(source: HTMLElement) {
           <td v-for="(cell, index) in row.cells" :key="table.columns[index]!.key" :class="{ 'hf-attr-table__none': !cell }">
             <EditorialAttributeCell v-if="cell" :id="`attr-${row.code}-${cell.key}`" :label="`${row.label} · ${table.columns[index]!.label}`"
               :definition="row.definition" :target="cell.target" :model-value="cell.input" :readonly="readonly" :disabled="disabled"
-              :issue="cell.rowId ? issues?.get(cell.rowId) : undefined" :conserved-options="cell.rowId ? conserved?.get(cell.rowId) : undefined"
+              :issue="cell.rowId ? issues?.get(cell.rowId) : undefined" :conserved-options="conserved?.get(editorialTargetKey(cell.target))"
               @update:model-value="change(cell, $event)" @clear="clear(cell)" @enter="moveDown" />
             <template v-else>
               <span aria-hidden="true">—</span>

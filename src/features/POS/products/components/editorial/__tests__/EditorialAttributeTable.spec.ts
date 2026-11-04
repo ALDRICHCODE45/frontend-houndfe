@@ -6,6 +6,7 @@ import { mount } from '@vue/test-utils'
 import Table from '../EditorialAttributeTable.vue'
 import type { EditorialDefinition } from '../../../interfaces/editorial-contract-definition.types'
 import type { EditorialBinding, EditorialFamily } from '../../../interfaces/editorial-contract-vocabulary.types'
+import { editorialTargetKey } from '../../../utils/editorial-attribute-table'
 import type { EditorialAssignmentEditingRow } from '../../../utils/editorial-contract-document-editing'
 
 const source = readFileSync(resolve(__dirname, '../EditorialAttributeTable.vue'), 'utf8')
@@ -89,6 +90,17 @@ describe('EditorialAttributeTable structure', () => {
     expect(values.value).toEqual([stray])
   })
 
+  it.each([
+    ['a presentation that no longer exists', rowOf('x', 'measure.net_mass', 'sellable', 'gone', text('1'))],
+    ['an owner the binding no longer allows', rowOf('x', 'material', 'sellable', 'v1', text('1'))],
+    ['a definition outside the family', rowOf('x', 'unbound.definition', 'product', null, text('1'))],
+  ])('keeps %s literally in the document, outside the grid', (_name, stray) => {
+    const { wrapper, values } = render([stray])
+    expect(wrapper.find('[data-testid="attribute-orphans"]').exists()).toBe(true)
+    expect(values.value).toEqual([stray])
+    expect(values.value[0]).toBe(stray)
+  })
+
   it('has no note when every stored datum is shown', () => {
     expect(render([rowOf('a', 'material', 'product', null, text('x'))]).wrapper.find('[data-testid="attribute-orphans"]').exists()).toBe(false)
   })
@@ -163,6 +175,16 @@ describe('EditorialAttributeTable editing', () => {
 })
 
 describe('EditorialAttributeTable read-only and issues', () => {
+  it('a disabled table ignores even the events its cells raise', async () => {
+    const { wrapper, values } = render([rowOf('a', 'material', 'product', null, text('Nylon'))], { disabled: true })
+    const input = cellOf(wrapper, 'Material', 0).get('input')
+    expect(input.attributes('disabled')).toBeDefined()
+    ;(input.element as HTMLInputElement).value = 'Cuero'
+    input.element.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(values.value[0]!.input).toEqual(text('Nylon'))
+    expect(cellOf(wrapper, 'Material', 0).find('button[aria-haspopup="menu"]').exists()).toBe(false)
+  })
+
   it('shows values as words with no controls and no menus', () => {
     const { wrapper } = render([rowOf('a', 'animal.target', 'product', null, { state: 'known', payload: { type: 'single', value: 'dog' }, evidence: null })], { readonly: true })
     expect(wrapper.text()).toContain('Perro')
@@ -178,7 +200,7 @@ describe('EditorialAttributeTable read-only and issues', () => {
   })
 
   it('passes the archived options the stored draft conserved to the cell', () => {
-    const { wrapper } = render([rowOf('a', 'animal.target', 'product', null, { state: 'known', payload: { type: 'single', value: 'dog' }, evidence: null })], { conserved: new Map([['a', ['dog']]]) })
+    const { wrapper } = render([rowOf('a', 'animal.target', 'product', null, { state: 'known', payload: { type: 'single', value: 'dog' }, evidence: null })], { conserved: new Map([[editorialTargetKey({ code: 'animal.target', owner: 'product', variantId: null }), ['dog']]]) })
     expect(cellOf(wrapper, 'Especie', 0).get('option[value="dog"]').attributes('disabled')).toBeUndefined()
   })
 })
