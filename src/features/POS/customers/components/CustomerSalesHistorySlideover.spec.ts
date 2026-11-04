@@ -55,8 +55,7 @@ function response(overrides: Partial<ConfirmedSalesListResponse> = {}): Confirme
 
 const stubs = {
   EntityAvatar: { template: '<span data-testid="customer-avatar" />' },
-  AppBadge: { props: ['label'], template: '<span>{{ label }}</span>' },
-  StatusDotBadge: { props: ['label'], template: '<span>{{ label }}</span>' },
+  StatusBadge: { props: ['label'], template: '<span>{{ label }}</span>' },
   AppResponsiveDrawer: {
     props: ['open', 'closeAriaLabel', 'desktopUi'],
     emits: ['update:open'],
@@ -154,7 +153,10 @@ describe('CustomerSalesHistorySlideover', () => {
 
     expect(element('dl').textContent).toContain('Ventas confirmadas')
     expect(element('dl').textContent).toContain('0')
-    expect(element('[role="status"]').textContent?.trim()).toBe('Este cliente aún no tiene ventas confirmadas.')
+    const empty = element('.hf-empty-state[data-kind="empty"]')
+    expect(empty.getAttribute('role')).toBe('status')
+    expect(empty.querySelector('.hf-empty-state__title')?.textContent).toBe('Aún no hay ventas')
+    expect(empty.textContent).toContain('Este cliente aún no tiene ventas confirmadas.')
     expect(document.body.querySelector('[role="alert"]')).toBeNull()
   })
 
@@ -197,7 +199,9 @@ describe('CustomerSalesHistorySlideover', () => {
     mountSlideover()
     await flushPromises()
 
-    expect(element('[role="alert"]').textContent).toContain('No se pudo cargar el historial de ventas. Reintenta.')
+    const error = element('.hf-empty-state[data-kind="error"]')
+    expect(error.getAttribute('role')).toBe('alert')
+    expect(error.textContent).toContain('No se pudo cargar el historial de ventas. Reintenta.')
     buttonWithText('Reintentar').dispatchEvent(new MouseEvent('click', { bubbles: true }))
     expect(history.refetch).toHaveBeenCalledOnce()
   })
@@ -244,7 +248,10 @@ describe('CustomerSalesHistorySlideover', () => {
     await vi.runAllTimersAsync()
     await flushPromises()
 
-    expect(element('[role="status"]').textContent).toContain('No se encontraron ventas que coincidan')
+    const noMatch = element('.hf-empty-state[data-kind="no-match"]')
+    expect(noMatch.textContent).toContain('Ningún resultado para «nonexistent»')
+    expect(noMatch.textContent).toContain('No se encontraron ventas que coincidan')
+    expect(buttonWithText('Limpiar filtros')).toBeTruthy()
   })
 
   it('forwards the trimmed debounced search to the composable', async () => {

@@ -4,7 +4,7 @@ import type { ConfirmedSaleRow } from '@/features/POS/sales/interfaces/sale.type
 import SalesHistoryList from './SalesHistoryList.vue'
 
 const stubs = {
-  StatusDotBadge: {
+  StatusBadge: {
     props: ['label', 'tone'],
     template: '<span data-testid="status-badge" :data-label="label" :data-tone="tone" />',
   },
@@ -103,7 +103,7 @@ describe('SalesHistoryList', () => {
     expect(labels[0]).toContain('Impaga')
     expect(tones[0]).toBe('warning')
     expect(labels[1]).toContain('Deuda')
-    expect(tones[1]).toBe('error')
+    expect(tones[1]).toBe('danger')
     expect(labels[2]).toContain('Pagada')
     expect(tones[2]).toBe('success')
   })
@@ -115,7 +115,7 @@ describe('SalesHistoryList', () => {
     expect(w.find('[data-testid="sale-history-row-total"]').text()).toContain('$999.99')
   })
 
-  it('preserves StatusDotBadge and conditional debt rendering', () => {
+  it('uses the shared StatusBadge and renders the debt only when there is one', () => {
     const w = mountList([
       makeSale({ id: 'paid', paymentStatus: 'PAID', debtCents: 0 }),
       makeSale({ id: 'partial', paymentStatus: 'PARTIAL', debtCents: 25_000 }),
@@ -125,5 +125,23 @@ describe('SalesHistoryList', () => {
     expect(badges[0]!.attributes('data-label')).toContain('Pagada')
     expect(badges[1]!.attributes('data-label')).toContain('Impaga')
     expect(w.text()).toContain('$250.00')
+  })
+})
+
+describe('SalesHistoryList — pattern', () => {
+  it('shows a short date and the debt as a quiet warning figure, never the legacy red', () => {
+    const w = mountList([makeSale({ debtCents: 25_000, paymentStatus: 'PARTIAL' })])
+    expect(w.text()).not.toContain('30/08/2026')
+    const debt = w.find('.text-\\[var\\(--hf-warning\\)\\]')
+    expect(debt.exists()).toBe(true)
+    expect(debt.text()).toContain('$250.00 pendiente')
+    expect(w.html()).not.toMatch(/text-error|gray-|primary-500/)
+  })
+
+  it('keeps the total right-aligned and tabular', () => {
+    const w = mountList([makeSale()])
+    const total = w.get('[data-testid="sale-history-row-total"]')
+    expect(total.classes()).toContain('hf-figure')
+    expect(total.classes()).toContain('justify-self-end')
   })
 })

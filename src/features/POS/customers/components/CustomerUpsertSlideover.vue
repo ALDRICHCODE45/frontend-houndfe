@@ -18,6 +18,7 @@ import type {
   CustomerDetail,
   UpdateCustomerPayload,
 } from '../interfaces/customer.types'
+import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import AddressModal from './AddressModal.vue'
 import { formatAddress } from '@/core/shared/utils/formatAddress'
 
@@ -209,6 +210,16 @@ function editExistingAddress(address: CustomerAddress) {
   isAddressModalOpen.value = true
 }
 
+const ADDRESS_ACTIONS: RowAction[] = [
+  { key: 'edit', label: 'Editar', icon: 'i-lucide-pencil' },
+  { key: 'remove', label: 'Quitar dirección', icon: 'i-lucide-trash-2', destructive: true },
+]
+
+function handleAddressAction(key: string, address: CustomerAddress) {
+  if (key === 'edit') editExistingAddress(address)
+  else if (key === 'remove') removeExistingAddress(address)
+}
+
 function removeExistingAddress(address: CustomerAddress) {
   if (props.customer) {
     emit('remove-address', props.customer.id, address.id)
@@ -357,6 +368,7 @@ function handleCancel() {
                       color="error"
                       variant="ghost"
                       type="button"
+                      :aria-label="`Quitar dirección: ${formatAddress(addr)}`"
                       @click="removePendingAddress(idx)"
                     />
                   </div>
@@ -370,31 +382,16 @@ function handleCancel() {
                   <div
                     v-for="addr in customer.addresses"
                     :key="addr.id"
+                    :data-testid="`address-row-${addr.id}`"
                     class="sales-pos-customer-form-address-row flex items-center justify-between rounded-md border border-default bg-background px-3 py-2"
                   >
                     <span class="sales-pos-customer-form-address-text truncate text-sm">{{ formatAddress(addr) }}</span>
-                    <div class="flex gap-1">
-                      <UButton
-                        :data-testid="`edit-address-${addr.id}`"
-                        icon="i-lucide-pencil"
-                        class="sales-pos-customer-form-icon-action"
-                        size="xs"
-                        color="neutral"
-                        variant="ghost"
-                        type="button"
-                        @click="editExistingAddress(addr)"
-                      />
-                      <UButton
-                        :data-testid="`remove-address-${addr.id}`"
-                        icon="i-lucide-trash-2"
-                        class="sales-pos-customer-form-icon-action"
-                        size="xs"
-                        color="error"
-                        variant="ghost"
-                        type="button"
-                        @click="removeExistingAddress(addr)"
-                      />
-                    </div>
+                    <RowActionsMenu
+                      :actions="ADDRESS_ACTIONS"
+                      :row-label="formatAddress(addr)"
+                      portal-class="clients-form-portal"
+                      @select="handleAddressAction($event, addr)"
+                    />
                   </div>
                 </div>
 

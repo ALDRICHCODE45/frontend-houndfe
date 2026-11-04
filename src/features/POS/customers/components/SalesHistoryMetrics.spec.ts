@@ -4,7 +4,7 @@ import type { SaleListSummary } from '@/features/POS/sales/interfaces/sale.types
 import SalesHistoryMetrics from './SalesHistoryMetrics.vue'
 
 const stubs = {
-  AppBadge: { props: ['label', 'tone'], template: '<span data-testid="badge" :data-label="label" :data-tone="tone" />' },
+  StatusBadge: { props: ['label', 'tone'], template: '<span data-testid="badge" :data-label="label" :data-tone="tone" />' },
   UIcon: { template: '<span data-testid="icon" />' },
 }
 const makeSummary = (over: Partial<SaleListSummary> = {}): SaleListSummary => ({
@@ -37,7 +37,7 @@ describe('SalesHistoryMetrics', () => {
     const w = mountMetrics(makeSummary({ salesCount: 1, outstandingDebtCents: 1 }))
     const badge = w.find('[data-testid="badge"]')
     expect(badge.attributes('data-label')).toContain('Con saldo pendiente')
-    expect(badge.attributes('data-tone')).toBe('error')
+    expect(badge.attributes('data-tone')).toBe('warning')
     expect(w.find('[aria-live="polite"]').exists()).toBe(true)
   })
 
@@ -90,7 +90,8 @@ describe('SalesHistoryMetrics', () => {
 
     expect(w.findAll('.size-8.lg\\:size-9')).toHaveLength(3)
     for (const label of w.findAll('dt')) {
-      expect(label.classes()).toEqual(expect.arrayContaining(['text-[11px]', 'leading-tight', 'lg:text-xs']))
+      expect(label.classes()).toEqual(expect.arrayContaining(['text-[13px]', 'leading-tight', 'text-muted']))
+      expect(label.classes()).not.toContain('uppercase')
     }
     for (const valueCell of w.findAll('dd')) {
       expect(valueCell.classes()).toEqual(expect.arrayContaining([
@@ -98,6 +99,6 @@ describe('SalesHistoryMetrics', () => {
       ]))
       expect(valueCell.classes()).not.toContain('truncate')
     }
-    expect(w.findAll('.text-lg.leading-tight.lg\\:text-xl.tabular-nums.whitespace-nowrap')).toHaveLength(3)
+    expect(w.findAll('.text-lg.leading-tight.lg\\:text-xl.hf-figure.whitespace-nowrap')).toHaveLength(3)
   })
 })
