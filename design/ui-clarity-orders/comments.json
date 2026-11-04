@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "comments": [
+    {
+      "id": "tzc2z4s4",
+      "file": "02-propuesta-lista.html",
+      "selector": "#app > div > main",
+      "excerpt": "Órdenes de compra Nota de diseño. La columna Total supone que el listado reciba el monto del servidor; hoy solo el detalle trae subtotales. Estado Nueva orden Proveedor Estado Renglones Total Actualizada Acciones Distribuidora Veterinaria del Norte Orden confirmada: granel para el refugio aliado Con",
+      "comment": "Esta propuesta para la lista me gusta demasiado hermano, y de hecho hay algo especifico que quiero mencionar, y algo que noto que aqui esta bien implementado, la columna de estado no tiene badges genericos y tiene un punto al lado izquierdo junto con un color tenue de fondo, los estados urgentes tienen algo mas para llamar la atencion, pero si hay que definir muchas cosas/patrones de ux/ui reproducibles por todo el sistema para agregarlos al system design.",
+      "createdAt": "2026-11-04T04:01:38.549Z",
+      "status": "resolved",
+      "sentAt": "2026-11-04T04:01:38.569Z",
+      "resolvedAt": "2026-11-04T04:01:54.835Z"
+    },
+    {
+      "id": "r7ajtf5i",
+      "file": "04-propuesta-orden.html",
+      "selector": "body > div:nth-of-type(2)",
+      "excerpt": "",
+      "comment": "En este apartado, esta propuesta es la que mas me gusta, el slideover mas grande de lo normal, los colors bien balanceados, colores de urgencia tambien bien definidos, las acciones dentro de dropdownmenus y no en botones sueltos, igualmente hay que ver todos los detalles de esta ui para identifcar buenas practicas/patrones y agregarlas al system design.",
+      "createdAt": "2026-11-04T04:04:10.704Z",
+      "status": "resolved",
+      "sentAt": "2026-11-04T04:04:10.708Z",
+      "resolvedAt": "2026-11-04T04:06:00.867Z"
+    }
+  ]
+}

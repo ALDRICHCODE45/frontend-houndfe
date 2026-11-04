@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
 @import '@nuxt/ui';
 
@@ -107,7 +107,7 @@
   --radius-full: 9999px;
 
   /* ── Typography ── */
-  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-sans: 'Geist', system-ui, sans-serif;
 
   /* ── Light mode variants (inert — defined for future SDDs) ── */
   --light-surface-page:    #f5f4f6;

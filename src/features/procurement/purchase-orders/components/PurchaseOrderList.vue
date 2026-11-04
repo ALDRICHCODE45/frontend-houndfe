@@ -2,80 +2,143 @@
 import { computed } from 'vue'
 import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
 import DataTableToolbar from '@/core/shared/components/DataTable/DataTableToolbar.vue'
+import RowActionsMenu from '@/core/shared/components/RowActionsMenu.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { useClickableRow } from '@/core/shared/composables/useClickableRow'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { TableColumn } from '@/core/shared/types/table.types'
 import type { PurchaseOrderSummary } from '../interfaces/purchase-order.types'
-const props = defineProps<{ items: readonly PurchaseOrderSummary[]; canEdit: boolean; canDelete: boolean; loading?: boolean; fetching?: boolean; error?: boolean; disabled?: boolean; activeFilterCount?: number }>()
-const emit = defineEmits<{ open: [order: PurchaseOrderSummary]; discard: [order: PurchaseOrderSummary]; refresh: []; 'clear-filters': [] }>()
+import { avisoLabel, orderRowActions, orderRowLabel, orderTotals, statusLabels, statusTones, type OrderRowActionKey } from '../utils/order-presentation'
+const props = defineProps<{ items: readonly PurchaseOrderSummary[]; canEdit: boolean; canDelete: boolean; canConfirm?: boolean; canCancel?: boolean; loading?: boolean; fetching?: boolean; error?: boolean; disabled?: boolean; activeFilterCount?: number }>()
+// `origin` is the row's primary button: the element focus returns to when the order it opened is closed.
+const emit = defineEmits<{ open: [order: PurchaseOrderSummary, origin: HTMLElement | null]; confirm: [order: PurchaseOrderSummary, origin: HTMLElement | null]; cancel: [order: PurchaseOrderSummary, origin: HTMLElement | null]; discard: [order: PurchaseOrderSummary]; refresh: []; 'clear-filters': [] }>()
 const search = defineModel<string>('search', { default: '' })
 const data = computed(() => [...props.items])
+const right = { class: { th: 'text-right', td: 'text-right' } }
 const columns: TableColumn<PurchaseOrderSummary, unknown>[] = [
   { id: 'supplier', header: 'Proveedor', enableSorting: false },
   { id: 'status', header: 'Estado', enableSorting: false },
-  { accessorKey: 'lineCount', header: 'Renglones', enableSorting: false },
-  { accessorKey: 'issueCount', header: 'Avisos', enableSorting: false },
-  { accessorKey: 'note', header: 'Nota', enableSorting: false },
-  { accessorKey: 'updatedAt', header: 'Actualizado', enableSorting: false },
+  { accessorKey: 'lineCount', header: 'Renglones', enableSorting: false, meta: right },
+  { id: 'total', header: 'Total', enableSorting: false, meta: right },
+  { accessorKey: 'updatedAt', header: 'Actualizada', enableSorting: false },
   { id: 'actions', header: 'Acciones', enableSorting: false },
 ]
-const statusLabels: Record<string, string> = { DRAFT: 'Borrador', CONFIRMED: 'Confirmada', CANCELLED: 'Cancelada' }
-const editable = (order: PurchaseOrderSummary) => order.status === 'DRAFT' && props.canEdit
-const date = (value: string) => new Date(value).toLocaleString('es-MX')
+const primaries = new Map<string, HTMLElement>()
+function setPrimary(id: string, element: unknown) { if (element instanceof HTMLElement) primaries.set(id, element); else primaries.delete(id) }
+const originOf = (order: PurchaseOrderSummary) => primaries.get(order.id) ?? null
+function open(order: PurchaseOrderSummary) { if (!props.disabled) emit('open', order, originOf(order)) }
+const actionsFor = (order: PurchaseOrderSummary) => orderRowActions(order, { canEdit: props.canEdit, canConfirm: Boolean(props.canConfirm), canCancel: Boolean(props.canCancel), canDelete: props.canDelete, disabled: props.disabled })
+function run(key: string, order: PurchaseOrderSummary) {
+  const action = key as OrderRowActionKey
+  if (props.disabled) return
+  if (action === 'open') open(order)
+  else if (action === 'confirm') emit('confirm', order, originOf(order))
+  else if (action === 'cancel') emit('cancel', order, originOf(order))
+  else if (action === 'discard') emit('discard', order)
+}
+// The whole row opens the order: AppDataTable's `row-open` for table rows, `rowProps` for cards. The primary cell holds a real button (the tab stop), so neither is focusable itself.
+const { rowProps } = useClickableRow<PurchaseOrderSummary>(open, { focusable: false })
+const statusOf = (order: PurchaseOrderSummary) => ({ label: statusLabels[order.status], tone: statusTones[order.status] })
+const lines = (count: number) => `${count} ${count === 1 ? 'renglón' : 'renglones'}`
 </script>
 
 <template>
   <div class="order-list">
     <!-- AppDataTable always wraps #filters, even when absent. Compose its own
          shared toolbar directly so an empty wrapper cannot create Filtros. -->
-    <DataTableToolbar v-model:global-filter="search" search-placeholder="Buscar por proveedor o nota..." :show-refresh="true" :fetching="fetching" refresh-button-test-id="refresh-orders" portal-class="hf-theme hf-ui" :active-filter-count="activeFilterCount" @refresh="emit('refresh')" @clear-filters="emit('clear-filters')">
+    <DataTableToolbar v-model:global-filter="search" search-placeholder="Buscar por proveedor o nota..." portal-class="hf-theme hf-ui" :active-filter-count="activeFilterCount" @clear-filters="emit('clear-filters')">
       <template v-if="$slots.filters" #filters><slot name="filters" /></template>
       <template #actions><slot name="actions" /></template>
     </DataTableToolbar>
-    <AppDataTable :show-toolbar="false" :columns="columns" :data="data" :loading="loading" :fetching="fetching" :error="error"
-      error-message="No se pudieron cargar las órdenes. Puedes volver a actualizar."
-      empty="No hay órdenes de compra." display-mode="auto" mobile-render="cards"
-      class="hf-data-table" @refresh="emit('refresh')">
-    <template #supplier-cell="{ row }"><span class="order-name">{{ row.original.supplierDisplaySnapshot?.displayName || 'Sin proveedor' }}</span><span v-if="row.original.supplierDisplaySnapshot?.status === 'ARCHIVED'" class="order-badge">Archivado</span></template>
-    <template #status-cell="{ row }"><span data-testid="order-status" class="order-badge">{{ statusLabels[row.original.status] }}</span></template>
-    <template #note-cell="{ row }"><p class="order-note">{{ row.original.note || 'Sin nota' }}</p></template>
-    <template #updatedAt-cell="{ row }">{{ date(row.original.updatedAt) }}</template>
-    <template #actions-cell="{ row }">
-      <div class="order-actions">
-        <UButton type="button" color="neutral" variant="outline" :disabled="disabled" @click="emit('open', row.original)">{{ editable(row.original) ? 'Continuar' : 'Ver orden' }}</UButton>
-        <UButton v-if="canDelete && row.original.status === 'DRAFT'" type="button" data-testid="discard-order" color="error" variant="outline" icon="i-lucide-trash-2" :disabled="disabled" @click="emit('discard', row.original)">Descartar</UButton>
-      </div>
-    </template>
-    <template #mobile-card="{ row }">
-      <article class="order-card">
-        <div class="order-card-heading"><span class="order-name">{{ row.supplierDisplaySnapshot?.displayName || 'Sin proveedor' }}</span><span v-if="row.supplierDisplaySnapshot?.status === 'ARCHIVED'" class="order-badge">Archivado</span><span data-testid="order-status" class="order-badge">{{ statusLabels[row.status] }}</span></div>
-        <dl class="order-card-details"><dt>Renglones</dt><dd>{{ row.lineCount }}</dd><dt>Avisos</dt><dd>{{ row.issueCount }}</dd><dt>Nota</dt><dd class="order-note">{{ row.note || 'Sin nota' }}</dd><dt>Actualizado</dt><dd>{{ date(row.updatedAt) }}</dd></dl>
-        <div class="order-actions order-card-actions">
-          <UButton type="button" color="neutral" variant="outline" :disabled="disabled" @click="emit('open', row)">{{ editable(row) ? 'Continuar' : 'Ver orden' }}</UButton>
-          <UButton v-if="canDelete && row.status === 'DRAFT'" type="button" data-testid="discard-order" color="error" variant="outline" icon="i-lucide-trash-2" :disabled="disabled" @click="emit('discard', row)">Descartar</UButton>
-        </div>
-      </article>
-    </template>
-    </AppDataTable>
+    <div class="order-table">
+      <AppDataTable :show-toolbar="false" :row-open="open" :columns="columns" :data="data" :loading="loading" :fetching="fetching" :error="error"
+        error-message="No se pudieron cargar las órdenes. Puedes volver a actualizar."
+        empty="No hay órdenes de compra." display-mode="auto" mobile-render="cards"
+        class="hf-data-table" @refresh="emit('refresh')">
+        <template #supplier-cell="{ row }">
+          <div class="order-supplier">
+            <span class="order-supplier-line">
+              <button :ref="element => setPrimary(row.original.id, element)" type="button" class="hf-row-primary order-row-link" :aria-disabled="disabled ? 'true' : undefined" @click="open(row.original)">{{ row.original.supplierDisplaySnapshot?.displayName || 'Sin proveedor' }}</button>
+              <StatusBadge v-if="row.original.supplierDisplaySnapshot?.status === 'ARCHIVED'" label="Archivado" tone="neutral" aria-prefix="Proveedor:" />
+            </span>
+            <span v-if="row.original.note" class="hf-row-secondary">{{ row.original.note }}</span>
+          </div>
+        </template>
+        <template #status-cell="{ row }">
+          <div class="order-status-cell">
+            <StatusBadge data-testid="order-status" v-bind="statusOf(row.original)" />
+            <span v-if="row.original.issueCount > 0" data-testid="order-aviso" class="order-aviso"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />{{ avisoLabel(row.original.issueCount) }}</span>
+          </div>
+        </template>
+        <template #total-cell="{ row }">
+          <div data-testid="order-total" class="hf-figure order-total">
+            <template v-if="orderTotals(row.original).length">
+              <span v-for="entry in orderTotals(row.original)" :key="entry.key" class="order-total-entry" :title="entry.title">{{ entry.text }} <small v-if="entry.label" class="order-total-basis">{{ entry.label }}</small></span>
+            </template>
+            <span v-else>—</span>
+          </div>
+        </template>
+        <template #updatedAt-cell="{ row }"><span class="order-when">{{ formatShortDateTime(row.original.updatedAt) }}</span></template>
+        <template #actions-header><span class="sr-only">Acciones</span></template>
+        <template #actions-cell="{ row }">
+          <RowActionsMenu :actions="actionsFor(row.original)" :row-label="orderRowLabel(row.original)" portal-class="purchase-orders-portal" @select="run($event, row.original)" />
+        </template>
+        <template #mobile-card="{ row }">
+          <article class="order-card" v-bind="rowProps(row)">
+            <div class="order-card-head">
+              <button :ref="element => setPrimary(row.id, element)" type="button" class="hf-row-primary order-row-link" :aria-disabled="disabled ? 'true' : undefined" @click="open(row)">{{ row.supplierDisplaySnapshot?.displayName || 'Sin proveedor' }}</button>
+              <RowActionsMenu :actions="actionsFor(row)" :row-label="orderRowLabel(row)" portal-class="purchase-orders-portal" @select="run($event, row)" />
+            </div>
+            <span v-if="row.note" class="hf-row-secondary">{{ row.note }}</span>
+            <div class="order-card-meta">
+              <StatusBadge v-if="row.supplierDisplaySnapshot?.status === 'ARCHIVED'" label="Archivado" tone="neutral" aria-prefix="Proveedor:" />
+              <StatusBadge data-testid="order-status" v-bind="statusOf(row)" />
+              <span v-if="row.issueCount > 0" data-testid="order-aviso" class="order-aviso"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />{{ avisoLabel(row.issueCount) }}</span>
+            </div>
+            <div class="order-card-footer">
+              <span class="order-card-summary">{{ lines(row.lineCount) }} ·
+                <span data-testid="order-total" class="hf-figure order-total">
+                  <template v-if="orderTotals(row).length"><span v-for="entry in orderTotals(row)" :key="entry.key" class="order-total-entry" :title="entry.title">{{ entry.text }} <small v-if="entry.label" class="order-total-basis">{{ entry.label }}</small></span></template>
+                  <span v-else>—</span>
+                </span>
+              </span>
+              <span>{{ formatShortDateTime(row.updatedAt) }}</span>
+            </div>
+          </article>
+        </template>
+      </AppDataTable>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .order-list { display: grid; gap: 16px; min-width: 0; }
-.order-name { color: var(--hf-heading); font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
-.order-note { color: var(--hf-muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.order-badge { flex-shrink: 0; border-radius: 6px; background: var(--hf-surface-muted); color: var(--hf-muted); padding: 4px 8px; font-size: 12px; }
-.order-card { min-width: 0; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); padding: 16px; }
-.order-card-heading { display: flex; justify-content: space-between; gap: 12px; }
-.order-card-details { border-top: 1px solid var(--hf-border); margin-top: 12px; padding-top: 12px; font-size: 13px; overflow-wrap: anywhere; }
-.order-card-details dt { color: var(--hf-muted); margin-top: 6px; }
-.order-actions { display: flex; flex-wrap: nowrap; gap: 8px; }
-.order-card-actions { justify-content: flex-end; margin-top: 12px; }
-.order-actions :deep(button) { min-height: var(--hf-control-height); white-space: nowrap; flex-shrink: 0; }
+.order-table { min-width: 0; }
+.order-supplier { min-width: 0; }
+.order-supplier-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.order-row-link { padding: 0; border: 0; background: none; text-align: left; font-size: 14px; cursor: pointer; }
+.order-row-link:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; border-radius: 4px; }
+.order-status-cell { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+.order-aviso { display: inline-flex; align-items: center; gap: 4px; color: var(--hf-warning); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.order-total { display: grid; justify-items: end; gap: 2px; }
+.order-total-entry { display: block; white-space: nowrap; }
+.order-total-basis { color: var(--hf-muted); font-size: 11px; font-weight: 400; }
+.order-when { color: var(--hf-muted); white-space: nowrap; }
+.order-card { position: relative; min-width: 0; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); padding: 16px; }
+.order-card-head { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
+.order-card-head .order-row-link { flex: 1; min-width: 0; padding-top: 2px; font-size: 15px; line-height: 1.4; white-space: normal; }
+.order-card-head > :last-child { margin: -8px -8px 0 0; flex: none; }
+.order-card .hf-row-secondary { padding-right: 8px; }
+.order-card-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.order-card-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hf-border); color: var(--hf-muted); font-size: 13px; }
+.order-card-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 4px; min-width: 0; }
+.order-card-summary .order-total { display: inline-flex; flex-wrap: wrap; gap: 0 8px; justify-items: start; color: var(--hf-ink); font-weight: 600; }
 :deep(table[data-slot='base']) { table-layout: fixed; }
-:deep(th[data-slot='th']:nth-child(1)) { width: 22%; }
-:deep(th[data-slot='th']:nth-child(2)) { width: 120px; }
-:deep(th[data-slot='th']:nth-child(3)) { width: 88px; }
-:deep(th[data-slot='th']:nth-child(4)) { width: 72px; }
-:deep(th[data-slot='th']:nth-child(6)) { width: 180px; }
-:deep(th[data-slot='th']:nth-child(7)) { width: 244px; }
-:deep(td[data-slot='td']) { white-space: normal; overflow-wrap: anywhere; }
+:deep(th[data-slot='th']:nth-child(2)) { width: 200px; }
+:deep(th[data-slot='th']:nth-child(3)) { width: 104px; }
+:deep(th[data-slot='th']:nth-child(4)) { width: 148px; }
+:deep(th[data-slot='th']:nth-child(5)) { width: 136px; }
+:deep(th[data-slot='th']:nth-child(6)) { width: 72px; }
+:deep(td[data-slot='td']) { height: 64px; padding-block: 10px; vertical-align: middle; }
+:deep(td[data-slot='td']:last-child) { padding-inline: 8px; }
 </style>

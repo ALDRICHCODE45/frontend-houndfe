@@ -38,7 +38,19 @@ beforeEach(() => {
   vi.mocked(suppliersApi.list).mockResolvedValue({ items: [supplier], nextCursor: null })
   vi.mocked(suppliersApi.get).mockResolvedValue(supplier)
 })
-afterEach(() => dispose.splice(0).forEach(fn => fn()))
+afterEach(() => {
+  dispose.splice(0).forEach(fn => fn())
+  document.body.innerHTML = ''
+})
+const menuItem = (label: string) => Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).find(item => item.textContent?.trim() === label)
+const menuTrigger = (wrapper: ReturnType<typeof setup>, name = 'Centro') => wrapper.get<HTMLButtonElement>(`button[aria-label="Acciones de ${name}"]`)
+// Row actions live in the ⋮ menu: open it from the real trigger and pick the item.
+async function chooseAction(wrapper: ReturnType<typeof setup>, label: string, name = 'Centro') {
+  await menuTrigger(wrapper, name).trigger('click')
+  await vi.waitFor(() => expect(menuItem(label)).toBeDefined())
+  menuItem(label)!.click()
+  await flushPromises()
+}
 
 describe('supplier screen integration', () => {
   it('keeps Estado in the shared filters, inline beside the search on one row like Products', async () => {
@@ -55,6 +67,53 @@ describe('supplier screen integration', () => {
     // The filter shares the search row: no feature rule may push it onto a second grid row.
     expect(suppliersCss).not.toMatch(/hf-toolbar-filters/)
     expect(suppliersCss).not.toMatch(/grid-area/)
+  })
+  it('keeps the page header to the title alone', async () => {
+    const wrapper = setup()
+    await flushPromises()
+    expect(wrapper.get('h1').text()).toBe('Proveedores')
+    expect(wrapper.find('.hf-page-subtitle').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Contactos comerciales')
+  })
+  it('opens the supplier from Editar in the ⋮ menu and from the whole row, restoring focus to the row control', async () => {
+    const wrapper = setup(undefined, true)
+    await flushPromises()
+    await chooseAction(wrapper, 'Editar')
+    expect(suppliersApi.get).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => expect(document.querySelector('form.supplier-form')).not.toBeNull())
+    document.querySelector('[role="dialog"]')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeNull())
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(document.activeElement).toBe(menuTrigger(wrapper).element)
+    await wrapper.get('td:nth-child(3)').trigger('click')
+    await flushPromises()
+    expect(suppliersApi.get).toHaveBeenCalledTimes(2)
+    await vi.waitFor(() => expect(document.querySelector('form.supplier-form')).not.toBeNull())
+  })
+  it('shows the supplier name and status in the slideover header without a permanent help paragraph', async () => {
+    vi.mocked(suppliersApi.get).mockResolvedValue({ ...supplier, termsText: 'Crédito a 30 días' })
+    const wrapper = setup(undefined, true)
+    await flushPromises()
+    await wrapper.get('[data-testid="supplier-detail"]').trigger('click')
+    await flushPromises()
+    const dialog = document.querySelector('[role="dialog"]')!
+    expect(dialog.querySelector('[data-slot="title"]')?.textContent?.trim()).toBe('Centro')
+    expect(dialog.querySelector('.hf-status-badge')?.textContent?.trim()).toBe('Activo')
+    expect(dialog.textContent).not.toContain('No se modifican existencias')
+    expect(dialog.textContent).not.toContain('Nombre comercial. Hasta')
+    expect(dialog.textContent).not.toContain('No generan pagos ni deuda')
+    expect(dialog.textContent).not.toContain('Estado:')
+    expect(dialog.querySelector('[data-testid="cancel"]')).toBeNull()
+    expect(Array.from(dialog.querySelectorAll('button')).filter(button => button.type === 'submit')).toHaveLength(1)
+  })
+  it('titles the creation slideover and shows no status for a supplier that does not exist yet', async () => {
+    const wrapper = setup(undefined, true)
+    await flushPromises()
+    await wrapper.get('[data-testid="create-supplier"]').trigger('click')
+    await flushPromises()
+    const dialog = document.querySelector('[role="dialog"]')!
+    expect(dialog.querySelector('[data-slot="title"]')?.textContent?.trim()).toBe('Crear proveedor')
+    expect(dialog.querySelector('.hf-status-badge')).toBeNull()
   })
   it('chooses a status by its readable label and clears back to the default', async () => {
     const wrapper = setup(undefined, true)
@@ -75,8 +134,8 @@ describe('supplier screen integration', () => {
   it.each([
     { mobile: false, trigger: 'supplier-detail', overlay: 'detalle' },
     { mobile: true, trigger: 'supplier-detail', overlay: 'detalle' },
-    { mobile: false, trigger: 'supplier-status', overlay: 'confirmación' },
-    { mobile: true, trigger: 'supplier-status', overlay: 'confirmación' },
+    { mobile: false, trigger: 'row-menu', overlay: 'confirmación' },
+    { mobile: true, trigger: 'row-menu', overlay: 'confirmación' },
     { mobile: false, trigger: 'create-supplier', overlay: 'creación' },
   ])('returns focus after Escape from $overlay (mobile=$mobile)', async ({ mobile, trigger }) => {
     isMobile.value = mobile
@@ -86,12 +145,16 @@ describe('supplier screen integration', () => {
     if (trigger === 'supplier-detail') {
       vi.mocked(suppliersApi.get).mockReturnValue(new Promise(resolve => { resolveDetail = resolve }))
     }
-    const button = wrapper.get(`[data-testid="${trigger}"]`)
+    const button = trigger === 'row-menu' ? menuTrigger(wrapper) : wrapper.get(`[data-testid="${trigger}"]`)
     ;(button.element as HTMLButtonElement).focus()
     expect(document.activeElement).toBe(button.element)
     // Native keyboard activation dispatches a click; jsdom does not synthesize it.
-    await button.trigger('keydown', { key: 'Enter' })
+    if (trigger !== 'row-menu') await button.trigger('keydown', { key: 'Enter' })
     await button.trigger('click')
+    if (trigger === 'row-menu') {
+      await vi.waitFor(() => expect(menuItem('Archivar')).toBeDefined())
+      menuItem('Archivar')!.click()
+    }
     if (resolveDetail) {
       expect(button.attributes('disabled')).toBeDefined()
       // Browsers blur a focused native button when loading disables it.
@@ -202,7 +265,7 @@ describe('supplier screen integration', () => {
   it('requires confirmation for archive and sends expected version, not delete', async () => {
     const wrapper = setup()
     await flushPromises()
-    await wrapper.get('[data-testid="supplier-status"]').trigger('click')
+    await chooseAction(wrapper, 'Archivar')
     expect(suppliersApi.update).not.toHaveBeenCalled()
     vi.mocked(suppliersApi.update).mockResolvedValue({ ...supplier, status: 'ARCHIVED', version: 2 })
     await wrapper.get('[data-testid="confirm-status"]').trigger('click')
@@ -213,7 +276,7 @@ describe('supplier screen integration', () => {
     const wrapper = setup(['read'])
     await flushPromises()
     expect(wrapper.find('[data-testid="create-supplier"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="supplier-status"]').exists()).toBe(false)
+    expect(wrapper.find('button[aria-haspopup="menu"]').exists()).toBe(false)
     await wrapper.get('[data-testid="supplier-detail"]').trigger('click')
     await flushPromises()
     expect(wrapper.findComponent(SupplierForm).exists()).toBe(false)
@@ -225,26 +288,32 @@ describe('supplier screen integration', () => {
 
 describe('supplier deletion', () => {
   const rejection = (status: number, error: string) => Object.assign(new Error(error), { response: { status, data: { error } } })
-  it('shows Eliminar only with read and delete, independently of update, on desktop and mobile cards', async () => {
+  it('offers Eliminar in the ⋮ menu only with read and delete, independently of update, on desktop and mobile cards', async () => {
     for (const mobile of [false, true]) {
       isMobile.value = mobile
       let wrapper = setup(['read', 'update'])
       await flushPromises()
-      expect(wrapper.find('[data-testid="supplier-delete"]').exists()).toBe(false)
+      await menuTrigger(wrapper).trigger('click')
+      await vi.waitFor(() => expect(menuItem('Archivar')).toBeDefined())
+      expect(menuItem('Eliminar')).toBeUndefined()
+      dispose.splice(0).forEach(fn => fn())
+      document.body.innerHTML = ''
       wrapper = setup(['read', 'delete'])
       await flushPromises()
-      const action = wrapper.get('[data-testid="supplier-delete"]')
-      expect(action.text()).toBe('Eliminar')
-      expect(action.attributes('aria-label')).toBe('Eliminar Centro')
-      expect(wrapper.find('[data-testid="supplier-status"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="supplier-delete"]').exists()).toBe(false)
+      await menuTrigger(wrapper).trigger('click')
+      await vi.waitFor(() => expect(menuItem('Eliminar')).toBeDefined())
+      expect(menuItem('Archivar')).toBeUndefined()
+      expect(menuItem('Editar')).toBeUndefined()
       dispose.splice(0).forEach(fn => fn())
+      document.body.innerHTML = ''
     }
   })
   it('deletes only after explicit confirmation with the CAS version and an idempotency key, then refreshes', async () => {
     vi.mocked(suppliersApi.delete).mockResolvedValue(undefined)
     const wrapper = setup(['read', 'delete'])
     await flushPromises()
-    await wrapper.get('[data-testid="supplier-delete"]').trigger('click')
+    await chooseAction(wrapper, 'Eliminar')
     expect(suppliersApi.delete).not.toHaveBeenCalled()
     // The overlay stub renders slots only; title/description fall through as attributes.
     const dialog = wrapper.get('section[title="Eliminar proveedor"]')
@@ -263,7 +332,7 @@ describe('supplier deletion', () => {
   it('sends nothing when the deletion is cancelled', async () => {
     const wrapper = setup(['read', 'delete'])
     await flushPromises()
-    await wrapper.get('[data-testid="supplier-delete"]').trigger('click')
+    await chooseAction(wrapper, 'Eliminar')
     await wrapper.get('[data-testid="cancel-delete"]').trigger('click')
     await flushPromises()
     expect(suppliersApi.delete).not.toHaveBeenCalled()
@@ -277,7 +346,7 @@ describe('supplier deletion', () => {
     vi.mocked(suppliersApi.delete).mockRejectedValue(rejection(status, code))
     const wrapper = setup(['read', 'delete'])
     await flushPromises()
-    await wrapper.get('[data-testid="supplier-delete"]').trigger('click')
+    await chooseAction(wrapper, 'Eliminar')
     await wrapper.get('[data-testid="confirm-delete"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain(message)
@@ -288,7 +357,7 @@ describe('supplier deletion', () => {
     vi.mocked(suppliersApi.delete).mockRejectedValueOnce(new Error('lost response')).mockResolvedValueOnce(undefined)
     const wrapper = setup(['read', 'delete'])
     await flushPromises()
-    await wrapper.get('[data-testid="supplier-delete"]').trigger('click')
+    await chooseAction(wrapper, 'Eliminar')
     await wrapper.get('[data-testid="confirm-delete"]').trigger('click')
     await flushPromises()
     expect(suppliersApi.delete).toHaveBeenCalledTimes(1)
@@ -303,10 +372,9 @@ describe('supplier deletion', () => {
     vi.mocked(suppliersApi.delete).mockResolvedValue(undefined)
     const wrapper = setup(['read', 'delete'], true)
     await flushPromises()
-    const trigger = wrapper.get<HTMLButtonElement>('[data-testid="supplier-delete"]')
+    const trigger = menuTrigger(wrapper)
     trigger.element.focus()
-    await trigger.trigger('click')
-    await flushPromises()
+    await chooseAction(wrapper, 'Eliminar')
     vi.mocked(suppliersApi.list).mockResolvedValue({ items: [], nextCursor: null })
     ;(document.querySelector('[data-testid="confirm-delete"]') as HTMLButtonElement).click()
     await flushPromises()

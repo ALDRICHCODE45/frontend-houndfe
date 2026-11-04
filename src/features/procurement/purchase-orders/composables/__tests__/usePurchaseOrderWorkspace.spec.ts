@@ -13,11 +13,11 @@ const ready: PurchaseOrder = { ...order, supplierId: 's', supplierDisplaySnapsho
 const input = { supplierId: null, note: 'local', location: { detail: null }, lines: [] }
 const scopes: ReturnType<typeof effectScope>[] = []
 afterEach(() => { scopes.forEach(scope => scope.stop()); scopes.length = 0; vi.resetAllMocks(); current.value = null })
-function setup(draft: PurchaseOrder = order) {
+function setup(draft: PurchaseOrder = order, transitionFocus?: () => HTMLElement | null) {
   const context = reactive({ userId: 'u', tenantId: 't', ready: true, canRead: true, canCreate: true, canUpdate: true, canDelete: true, canConfirm: true, canCancel: true, canReadProduct: true, canReadSupplier: true })
   const scope = effectScope(); scopes.push(scope)
   mocks.detailRefresh.mockImplementation(async () => { current.value = draft; return { isError: false } })
-  const workspace = scope.run(() => usePurchaseOrderWorkspace(() => context, mocks.refresh))!
+  const workspace = scope.run(() => usePurchaseOrderWorkspace(() => context, mocks.refresh, transitionFocus))!
   return { workspace, context }
 }
 describe('draft workspace command integration', () => {
@@ -119,11 +119,10 @@ describe('order confirmation and cancellation workspace', () => {
     const { workspace: w, context } = setup(ready)
     await w.show({ id: 'o' })
     w.dirty.value = true
-    expect(w.canConfirm.value).toBe(false); expect(w.canCancel.value).toBe(false); expect(w.needsSave.value).toBe(true)
+    expect(w.canConfirm.value).toBe(false); expect(w.canCancel.value).toBe(false); expect('needsSave' in w).toBe(false)
     w.requestTransition('confirm')
     expect(w.transitionOpen.value).toBe(false)
     w.dirty.value = false
-    expect(w.needsSave.value).toBe(false)
     context.canConfirm = false; await w.show({ id: 'o' })
     expect(w.canConfirm.value).toBe(false); expect(w.canCancel.value).toBe(true)
     context.canConfirm = true; context.canCancel = false; await w.show({ id: 'o' })
@@ -213,5 +212,144 @@ describe('order confirmation and cancellation workspace', () => {
     await nextTick()
     expect(document.activeElement).toBe(row)
     row.remove(); action.remove()
+  })
+})
+
+describe('opening an order from a row menu', () => {
+  it('restores focus to the element the row passed, not to whatever the menu left focused', async () => {
+    const { workspace: w } = setup(ready)
+    const rowButton = document.createElement('button'); const stray = document.createElement('button')
+    document.body.append(rowButton, stray)
+    stray.focus()
+    await w.show(ready, false, rowButton)
+    expect(w.open.value).toBe(true)
+    expect(w.close()).toBe(true)
+    w.restoreInvoker(new Event('close'))
+    await nextTick()
+    expect(document.activeElement).toBe(rowButton)
+    rowButton.remove(); stray.remove()
+  })
+  it('opens the order and then the confirmation dialog for Confirmar…', async () => {
+    const { workspace: w } = setup(ready)
+    const origin = document.createElement('button'); document.body.append(origin)
+    await w.showThenTransition(ready, 'confirm', origin)
+    expect(w.open.value).toBe(true)
+    expect(w.selected.value?.id).toBe('o')
+    expect(w.transition.value).toBe('confirm')
+    expect(w.transitionOpen.value).toBe(true)
+    origin.remove()
+  })
+  it('opens the order and then the cancellation dialog for Cancelar…', async () => {
+    const { workspace: w } = setup({ ...ready, status: 'CONFIRMED', canConfirm: false })
+    await w.showThenTransition(ready, 'cancel')
+    expect(w.transition.value).toBe('cancel')
+  })
+  it('opens the order but not the dialog when the server says it cannot be confirmed', async () => {
+    const { workspace: w } = setup({ ...ready, canConfirm: false })
+    await w.showThenTransition(ready, 'confirm')
+    expect(w.open.value).toBe(true)
+    expect(w.transition.value).toBeNull()
+  })
+  it('does not open a dialog when the order could not be read', async () => {
+    const { workspace: w } = setup(ready)
+    mocks.detailRefresh.mockImplementation(async () => ({ isError: true, error: new Error('x') }))
+    await w.showThenTransition(ready, 'confirm')
+    expect(w.open.value).toBe(false)
+    expect(w.transition.value).toBeNull()
+  })
+  it('does not open a dialog for a permission the user lacks', async () => {
+    const { workspace: w, context } = setup(ready)
+    context.canConfirm = false
+    await w.showThenTransition(ready, 'confirm')
+    expect(w.transition.value).toBeNull()
+  })
+})
+
+describe('discarding the open draft from its header', () => {
+  it('closes the editor after the draft is deleted and clears the unsaved state', async () => {
+    const { workspace: w } = setup(ready)
+    await w.show(ready)
+    w.dirty.value = true
+    mocks.delete.mockResolvedValue(undefined)
+    w.requestDelete(w.selected.value!)
+    expect(w.deleteOpen.value).toBe(true)
+    await w.confirmDelete()
+    expect(mocks.delete).toHaveBeenCalledWith('o', { expectedVersion: 3 }, expect.any(String), expect.any(AbortSignal))
+    expect(w.deleteOpen.value).toBe(false)
+    expect(w.open.value).toBe(false)
+    expect(w.selected.value).toBeNull()
+    expect(w.dirty.value).toBe(false)
+    expect(w.notice.value).toBe('Borrador descartado correctamente.')
+    expect(mocks.refresh).toHaveBeenCalledTimes(1)
+  })
+  it('keeps the editor open while the deletion is only requested or rejected', async () => {
+    const { workspace: w } = setup(ready)
+    await w.show(ready)
+    w.requestDelete(w.selected.value!)
+    expect(w.open.value).toBe(true)
+    mocks.delete.mockRejectedValueOnce({ response: { status: 403, data: { error: 'FORBIDDEN' } } })
+    await w.confirmDelete()
+    expect(w.open.value).toBe(true)
+    expect(w.selected.value?.id).toBe('o')
+  })
+  it('leaves an unrelated open editor alone when a different row is discarded from the list', async () => {
+    const { workspace: w } = setup(ready)
+    await w.show(ready)
+    mocks.delete.mockResolvedValue(undefined)
+    w.requestDelete({ ...ready, id: 'other' })
+    await w.confirmDelete()
+    expect(w.open.value).toBe(true)
+    expect(w.selected.value?.id).toBe('o')
+  })
+  it('keeps the row that opened the editor as the focus target instead of the destroyed menu button', async () => {
+    const { workspace: w } = setup(ready)
+    const row = document.createElement('button'); const menu = document.createElement('button')
+    document.body.append(row, menu)
+    await w.show(ready, false, row)
+    menu.focus(); w.requestDelete(w.selected.value!)
+    mocks.delete.mockResolvedValue(undefined)
+    await w.confirmDelete()
+    w.restoreInvoker(new Event('close'))
+    await nextTick()
+    expect(document.activeElement).toBe(row)
+    row.remove(); menu.remove()
+  })
+})
+
+describe('focus after a confirmation dialog opened from a menu', () => {
+  it('returns focus to the element the caller names, since a menu item is gone when the dialog closes', async () => {
+    const { workspace: w } = setup(ready)
+    const trigger = document.createElement('button'); const item = document.createElement('div'); item.tabIndex = 0
+    document.body.append(trigger, item)
+    await w.show(ready)
+    item.focus()
+    w.requestTransition('cancel', trigger)
+    w.transitionOpen.value = false
+    w.restoreTransitionInvoker(new Event('close'))
+    await nextTick()
+    expect(document.activeElement).toBe(trigger)
+    trigger.remove(); item.remove()
+  })
+  it('falls back to the editor focus target when a row menu opened the order and nothing is focused yet', async () => {
+    const target = document.createElement('button'); document.body.append(target)
+    const { workspace: w } = setup(ready, () => target)
+    await w.showThenTransition(ready, 'confirm')
+    expect(w.transition.value).toBe('confirm')
+    w.transitionOpen.value = false
+    w.restoreTransitionInvoker(new Event('close'))
+    await nextTick()
+    expect(document.activeElement).toBe(target)
+    target.remove()
+  })
+  it('prefers a focused button over the fallback', async () => {
+    const target = document.createElement('button'); const focused = document.createElement('button'); document.body.append(target, focused)
+    const { workspace: w } = setup(ready, () => target)
+    await w.show(ready)
+    focused.focus(); w.requestTransition('confirm')
+    w.transitionOpen.value = false
+    w.restoreTransitionInvoker(new Event('close'))
+    await nextTick()
+    expect(document.activeElement).toBe(focused)
+    target.remove(); focused.remove()
   })
 })

@@ -13,6 +13,7 @@ import type { BulkAction } from '../../types/table.types'
 import DataTableToolbar from './DataTableToolbar.vue'
 import DataTablePagination from './DataTablePagination.vue'
 import DataTableBulkActions from './DataTableBulkActions.vue'
+import { useClickableRow } from '../../composables/useClickableRow'
 
 const props = withDefaults(
   defineProps<{
@@ -69,6 +70,15 @@ const props = withDefaults(
     activeFilterCount?: number
     // Bulk actions
     bulkActions?: BulkAction<T>[]
+    /**
+     * Optional whole-row click contract. When set, a click on a body row (outside
+     * interactive children, with no modifier, on the primary button and with no
+     * text selected) calls it with the row's data, and rows get `hf-clickable-row`.
+     * Keyboard access stays on the row's primary button, so rows get no tabindex.
+     * Table view only; cards rendered through slots bind `useClickableRow` themselves.
+     * Default `undefined` → rows and listeners are exactly as before.
+     */
+    rowOpen?: (row: T) => void
     // Mobile rendering
     displayMode?: 'auto' | 'table' | 'cards'
     mobileRender?: 'table' | 'cards'
@@ -169,6 +179,26 @@ function handlePageSizeChange(newSize: number) {
   const currentFirstItem = pagination.value.pageIndex * pagination.value.pageSize
   const newPageIndex = Math.floor(currentFirstItem / newSize)
   pagination.value = { pageIndex: newPageIndex, pageSize: newSize }
+}
+
+// ── Whole-row click (only when `rowOpen` is set) ───────────────────────────
+const { onClick: openRowOnClick } = useClickableRow<T>(row => props.rowOpen?.(row), {
+  focusable: false,
+})
+// Body rows only: UTable renders `#expanded` detail rows as extra `tr`s without `data-selected`.
+const BODY_ROW_SELECTOR = 'tbody > tr[data-slot="tr"][data-selected]'
+const rowMeta = computed(() =>
+  props.rowOpen ? { class: { tr: 'hf-clickable-row' } } : undefined,
+)
+const rowListeners = computed(() => (props.rowOpen ? { click: onTableClick } : {}))
+
+function onTableClick(event: MouseEvent) {
+  const tr = event.target instanceof Element ? event.target.closest(BODY_ROW_SELECTOR) : null
+  const table = event.currentTarget instanceof Element ? event.currentTarget : null
+  if (!tr || !table) return
+  const index = Array.from(table.querySelectorAll(BODY_ROW_SELECTOR)).indexOf(tr)
+  const row = tableApi.value?.getRowModel().rows[index]?.original as T | undefined
+  if (row !== undefined) openRowOnClick(event, row)
 }
 
 function handleClearSelection() {
@@ -320,12 +350,14 @@ function handleClearSelection() {
         loading-color="primary"
         loading-animation="carousel"
         :empty="props.empty"
+        :meta="rowMeta"
         sticky
         :sorting-options="{
           manualSorting: true,
         }"
         class="w-full min-w-0 max-w-full flex-1"
         data-testid="table-view"
+        v-on="rowListeners"
       >
         <template v-for="name in forwardedTableSlots" #[name]="slotProps">
           <slot :name="name" v-bind="slotProps ?? {}" />

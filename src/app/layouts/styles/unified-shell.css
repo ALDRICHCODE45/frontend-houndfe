@@ -17,12 +17,12 @@
  * menu that renders outside the shell still resolves the shell theme without
  * leaking a global alias override into routed pages.
  *
- * Fonts: the shell borrows the already-registered Manrope family through
+ * Fonts: the shell borrows the already-registered Geist family through
  * `--shell-font` (falling back to the existing `--hf-font`) and never assigns
  * a global font-family. The scoped `@import` below is a load fallback for
  * routes that do not already load the foundation stylesheet.
  */
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;650;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap');
 
 /* ── Palette (root + teleported portals) ────────────────────────────────── */
 
@@ -57,7 +57,7 @@
   --shell-radius-tenant: 8px;
 
   /* Identity font, never a global assignment. */
-  --shell-font: var(--hf-font, 'Manrope', ui-sans-serif, system-ui, sans-serif);
+  --shell-font: var(--hf-font, 'Geist', ui-sans-serif, system-ui, sans-serif);
 }
 
 .dark .hf-shell,
@@ -567,8 +567,25 @@
   display: flex;
   align-items: center;
   gap: 16px;
+  min-width: 0;
+  overflow: hidden;
   color: var(--shell-muted);
   font-size: 13px;
+}
+
+/* One line always: a long page name truncates instead of stacking word by word. */
+.hf-shell-breadcrumb-item {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Mobile has room only for where you are. */
+@media (max-width: 767px) {
+  .hf-shell-breadcrumb .hf-shell-breadcrumb-ancestor {
+    display: none;
+  }
 }
 
 .hf-shell-breadcrumb [aria-current='page'],

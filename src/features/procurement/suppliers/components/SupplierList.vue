@@ -1,75 +1,108 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, useTemplateRef } from 'vue'
 import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
+import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { useClickableRow } from '@/core/shared/composables/useClickableRow'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { TableColumn } from '@/core/shared/types/table.types'
 import type { Supplier } from '../interfaces/supplier.types'
 const props = defineProps<{ items: readonly Supplier[]; canEdit: boolean; canDelete?: boolean; loading?: boolean; fetching?: boolean; error?: boolean; disabled?: boolean; activeFilterCount?: number }>()
-const emit = defineEmits<{ open: [supplier: Supplier]; changeStatus: [supplier: Supplier]; delete: [supplier: Supplier]; refresh: []; 'clear-filters': [] }>()
+// `invoker` is the control focus returns to when the overlay it opens closes.
+const emit = defineEmits<{ open: [supplier: Supplier, invoker?: HTMLElement | null]; changeStatus: [supplier: Supplier, invoker?: HTMLElement | null]; delete: [supplier: Supplier, invoker?: HTMLElement | null]; refresh: []; 'clear-filters': [] }>()
 const search = defineModel<string>('search', { default: '' })
+const root = useTemplateRef<HTMLElement>('root')
 const data = computed(() => [...props.items])
+const hasActions = computed(() => props.canEdit || !!props.canDelete)
 const columns = computed<TableColumn<Supplier, unknown>[]>(() => [
   { accessorKey: 'displayName', header: 'Proveedor', enableSorting: false },
-  { accessorKey: 'termsText', header: 'Condiciones', enableSorting: false },
   { accessorKey: 'status', header: 'Estado', enableSorting: false },
-  ...(props.canEdit || props.canDelete ? [{ id: 'actions', header: 'Acciones', enableSorting: false }] : []),
+  { accessorKey: 'updatedAt', header: 'Actualizado', enableSorting: false },
+  ...(hasActions.value ? [{ id: 'actions', header: 'Acciones', enableSorting: false, meta: { class: { th: 'w-16', td: 'w-16 text-right' } } }] : []),
 ])
+// The one useful second line: the first filled line of the terms, if any.
+const terms = (supplier: Supplier) => supplier.termsText?.split(/\r?\n/).map(line => line.trim()).find(Boolean) ?? ''
+const archived = (supplier: Supplier) => supplier.status === 'ARCHIVED'
+function actionsFor(supplier: Supplier): RowAction[] {
+  const disabled = props.disabled
+  return [
+    ...(props.canEdit ? [
+      { key: 'edit', label: 'Editar', icon: 'i-lucide-pencil', disabled },
+      { key: 'status', label: archived(supplier) ? 'Reactivar' : 'Archivar', icon: archived(supplier) ? 'i-lucide-archive-restore' : 'i-lucide-archive', disabled },
+    ] : []),
+    ...(props.canDelete ? [{ key: 'delete', label: 'Eliminar', icon: 'i-lucide-trash-2', destructive: true, disabled }] : []),
+  ]
+}
+const detailButtons = () => Array.from(root.value?.querySelectorAll<HTMLElement>('[data-supplier-id]') ?? [])
+const nameButton = (supplier: Supplier) => detailButtons().find(button => button.dataset.supplierId === supplier.id) ?? null
+// While a row menu is open its trigger is the only expanded menu button; it is
+// where focus belongs once the action's overlay closes.
+const menuTrigger = () => root.value?.querySelector<HTMLElement>('button[aria-haspopup="menu"][aria-expanded="true"]') ?? null
+function onAction(key: string, supplier: Supplier) {
+  const invoker = menuTrigger()
+  if (key === 'edit') emit('open', supplier, invoker)
+  else if (key === 'status') emit('changeStatus', supplier, invoker)
+  else if (key === 'delete') emit('delete', supplier, invoker)
+}
+// The whole row opens the supplier: AppDataTable's `row-open` for table rows, `rowProps` for cards. The name button is the tab stop, so neither is focusable itself.
+function open(supplier: Supplier) {
+  if (!props.disabled) emit('open', supplier, nameButton(supplier))
+}
+const clickable = useClickableRow<Supplier>(open, { focusable: false })
 </script>
 
 <template>
-  <AppDataTable
-    v-model:global-filter="search"
-    :columns="columns" :data="data" :loading="loading" :fetching="fetching" :error="error"
-    error-message="No se pudieron cargar los proveedores. Puedes volver a actualizar."
-    empty="No hay proveedores para esta búsqueda."
-    display-mode="auto" mobile-render="cards" search-placeholder="Buscar proveedor..."
-    refresh-button-test-id="refresh-suppliers"
-    portal-class="hf-theme hf-ui suppliers-list-portal"
-    :active-filter-count="activeFilterCount"
-    class="hf-data-table" @refresh="emit('refresh')" @clear-filters="emit('clear-filters')"
-  >
-    <template #filters><slot name="filters" /></template>
-    <template #actions><slot name="actions" /></template>
-    <template #displayName-cell="{ row }">
-      <button type="button" data-testid="supplier-detail" class="supplier-name" :disabled="disabled" @click="emit('open', row.original)">{{ row.original.displayName }}</button>
-    </template>
-    <template #termsText-cell="{ row }"><p class="supplier-terms">{{ row.original.termsText || 'Sin condiciones registradas' }}</p></template>
-    <template #status-cell="{ row }"><span class="supplier-badge" :class="{ archived: row.original.status === 'ARCHIVED' }">{{ row.original.status === 'ACTIVE' ? 'Activo' : 'Archivado' }}</span></template>
-    <template #actions-cell="{ row }">
-      <div class="supplier-actions">
-        <button v-if="canEdit" type="button" class="supplier-status" data-testid="supplier-status" :disabled="disabled" :aria-label="`${row.original.status === 'ACTIVE' ? 'Archivar' : 'Reactivar'} ${row.original.displayName}`" @click="emit('changeStatus', row.original)">{{ row.original.status === 'ACTIVE' ? 'Archivar' : 'Reactivar' }}</button>
-        <button v-if="canDelete" type="button" class="supplier-status supplier-delete" data-testid="supplier-delete" :disabled="disabled" :aria-label="`Eliminar ${row.original.displayName}`" @click="emit('delete', row.original)"><UIcon name="i-lucide-trash-2" aria-hidden="true" />Eliminar</button>
-      </div>
-    </template>
-    <template #mobile-card="{ row }">
-      <article class="supplier-card">
-        <div class="supplier-card-heading">
-          <button type="button" data-testid="supplier-detail" class="supplier-name" :disabled="disabled" @click="emit('open', row)">{{ row.displayName }}</button>
-          <span class="supplier-badge" :class="{ archived: row.status === 'ARCHIVED' }">{{ row.status === 'ACTIVE' ? 'Activo' : 'Archivado' }}</span>
-        </div>
-        <dl class="supplier-card-details"><dt>Condiciones</dt><dd>{{ row.termsText || 'Sin condiciones registradas' }}</dd></dl>
-        <div v-if="canEdit || canDelete" class="supplier-card-actions">
-          <button v-if="canEdit" type="button" class="supplier-status" data-testid="supplier-status" :disabled="disabled" :aria-label="`${row.status === 'ACTIVE' ? 'Archivar' : 'Reactivar'} ${row.displayName}`" @click="emit('changeStatus', row)">{{ row.status === 'ACTIVE' ? 'Archivar' : 'Reactivar' }}</button>
-          <button v-if="canDelete" type="button" class="supplier-status supplier-delete" data-testid="supplier-delete" :disabled="disabled" :aria-label="`Eliminar ${row.displayName}`" @click="emit('delete', row)"><UIcon name="i-lucide-trash-2" aria-hidden="true" />Eliminar</button>
-        </div>
-      </article>
-    </template>
-  </AppDataTable>
+  <div ref="root" class="supplier-list">
+    <AppDataTable
+      v-model:global-filter="search"
+      :columns="columns" :data="data" :loading="loading" :fetching="fetching" :error="error"
+      error-message="No se pudieron cargar los proveedores. Puedes volver a actualizar."
+      empty="No hay proveedores para esta búsqueda."
+      :row-open="open" display-mode="auto" mobile-render="cards" search-placeholder="Buscar proveedor..."
+      refresh-button-test-id="refresh-suppliers"
+      portal-class="hf-theme hf-ui suppliers-list-portal"
+      :active-filter-count="activeFilterCount"
+      class="hf-data-table" @refresh="emit('refresh')" @clear-filters="emit('clear-filters')"
+    >
+      <template #filters><slot name="filters" /></template>
+      <template #actions><slot name="actions" /></template>
+      <template #displayName-cell="{ row }">
+        <button type="button" data-testid="supplier-detail" class="hf-row-primary supplier-name" :data-supplier-id="row.original.id" :disabled="disabled" @click="emit('open', row.original, $event.currentTarget as HTMLElement)">{{ row.original.displayName }}</button>
+        <span v-if="terms(row.original)" class="hf-row-secondary">{{ terms(row.original) }}</span>
+      </template>
+      <template #status-cell="{ row }"><StatusBadge :label="archived(row.original) ? 'Archivado' : 'Activo'" :tone="archived(row.original) ? 'neutral' : 'success'" /></template>
+      <template #updatedAt-cell="{ row }"><span class="supplier-date">{{ formatShortDateTime(row.original.updatedAt) }}</span></template>
+      <template #actions-header><span class="sr-only">Acciones</span></template>
+      <template #actions-cell="{ row }">
+        <RowActionsMenu :actions="actionsFor(row.original)" :row-label="row.original.displayName" portal-class="suppliers-portal" @select="onAction($event, row.original)" />
+      </template>
+      <template #mobile-card="{ row }">
+        <article v-bind="clickable.rowProps(row)" class="supplier-card">
+          <div class="supplier-card-heading">
+            <div class="supplier-card-title">
+              <button type="button" data-testid="supplier-detail" class="hf-row-primary supplier-name" :data-supplier-id="row.id" :disabled="disabled" @click="emit('open', row, $event.currentTarget as HTMLElement)">{{ row.displayName }}</button>
+              <span v-if="terms(row)" class="hf-row-secondary">{{ terms(row) }}</span>
+            </div>
+            <RowActionsMenu class="supplier-card-menu" :actions="actionsFor(row)" :row-label="row.displayName" portal-class="suppliers-portal" @select="onAction($event, row)" />
+          </div>
+          <div class="supplier-card-footer">
+            <StatusBadge :label="archived(row) ? 'Archivado' : 'Activo'" :tone="archived(row) ? 'neutral' : 'success'" />
+            <span class="supplier-date">{{ formatShortDateTime(row.updatedAt) }}</span>
+          </div>
+        </article>
+      </template>
+    </AppDataTable>
+  </div>
 </template>
 
 <style scoped>
-.supplier-name { color: var(--hf-heading); font-size: 14px; font-weight: 600; min-height: 44px; text-align: left; overflow-wrap: anywhere; white-space: normal; }
-.supplier-terms { color: var(--hf-muted); max-width: 40ch; overflow: hidden; text-overflow: ellipsis; }
-.supplier-badge { flex-shrink: 0; border-radius: 6px; background: var(--hf-active-soft); color: var(--hf-active); padding: 4px 8px; font-size: 12px; font-weight: 600; }
-.supplier-badge.archived { background: var(--hf-surface-muted); color: var(--hf-muted); }
-.supplier-status { min-height: 44px; padding: 8px 12px; color: var(--hf-ink); border: 1px solid var(--hf-field-border); border-radius: 6px; background: var(--hf-surface); }
+.supplier-name { text-align: left; }
+.supplier-date { color: var(--hf-muted); font-size: 13px; white-space: nowrap; }
 .supplier-card { min-width: 0; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); padding: 16px; }
-.supplier-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.supplier-card-details { border-top: 1px solid var(--hf-border); margin-top: 12px; padding-top: 12px; font-size: 13px; overflow-wrap: anywhere; }
-.supplier-card-details dt { color: var(--hf-muted); margin-bottom: 4px; }
-.supplier-card-actions, .supplier-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
-.supplier-card-actions { margin-top: 12px; }
-.supplier-actions { justify-content: flex-start; }
-.supplier-delete { display: inline-flex; align-items: center; gap: 6px; color: var(--ui-error); border-color: currentColor; }
+.supplier-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.supplier-card-menu { margin: -8px -8px 0 0; flex-shrink: 0; }
+.supplier-card-title { min-width: 0; }
+.supplier-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid var(--hf-border); margin-top: 12px; padding-top: 12px; }
 button:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
 button:disabled { opacity: .6; cursor: not-allowed; }
 </style>

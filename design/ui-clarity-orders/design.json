@@ -1,0 +1,42 @@
+{
+  "title": "Órdenes de compra · claridad de la interfaz",
+  "brief": "Antes y después de la lista de órdenes de compra y del borrador abierto, en escritorio (1440) y móvil (390): menos texto, acciones de fila en un menú ⋮, fila clicable, un solo flujo completar → guardar → confirmar. Datos del seed (Mascotas y Alimentos El Roble), sin ids; interacciones simuladas localmente, sin peticiones reales.",
+  "feature": "odd/tasks/ui-clarity-pass.md",
+  "artboards": [
+    {
+      "file": "01-actual-lista.html",
+      "title": "Actual · Lista",
+      "tradeoff": "Línea base fiel de la app hoy, no es propuesta: gana comparabilidad exacta; muestra la fricción (párrafo bajo el título, 7 columnas, dos botones por fila, fecha larga de 24 caracteres).",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "02-propuesta-lista.html",
+      "title": "Propuesta · Lista",
+      "tradeoff": "Gana lectura rápida: sin párrafo, una sola acción visible por fila (⋮ con las demás), fila clicable, estado por color, fecha corta y total a la derecha. Pierde: las acciones ya no se ven de un vistazo (un clic más), sale el botón de actualizar, Avisos y Nota pasan a un chip y a texto secundario, y la columna Total exige que el listado reciba el monto del servidor (hoy solo el detalle trae subtotales).",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "03-actual-orden.html",
+      "title": "Actual · Orden abierta",
+      "tradeoff": "Línea base fiel del borrador abierto, no es propuesta: gana comparabilidad; muestra la carga de texto (subtítulo, barra con ayuda, dos párrafos de ayuda, límites de caracteres, tarjetas de renglón con dos botones y tres campos cada una).",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "04-propuesta-orden.html",
+      "title": "Propuesta · Orden abierta",
+      "tradeoff": "Gana un solo flujo visible (completar → guardar → confirmar), una acción principal en el encabezado, pendientes listados una vez con enlace al renglón, renglones en lista compacta con edición en línea y contador solo cerca del límite. Pierde: editar un renglón requiere abrirlo (un paso más con muchos renglones), el aviso «al confirmar se congelan…» queda solo en el diálogo de confirmación y no hay total de la orden porque el servidor no lo entrega.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "05-propuesta-movil.html",
+      "title": "Propuesta · Móvil",
+      "tradeoff": "Gana tarjetas tocables con ⋮, lista de una columna sin desplazamiento horizontal y barra inferior fija con Guardar y la acción principal siempre al alcance del pulgar. Pierde: nota y ubicación quedan plegadas, la barra fija ocupa unos 80 px de pantalla y el lienzo es más ancho (dos teléfonos de 390 px lado a lado).",
+      "width": 900,
+      "height": 980
+    }
+  ]
+}

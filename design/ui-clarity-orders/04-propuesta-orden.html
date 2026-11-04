@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Propuesta · Borrador abierto</title>
+<style>
+:root{
+  --hf-page:#f5f6f8;--hf-surface:#ffffff;--hf-surface-muted:#e7eef7;--hf-field:#ffffff;--hf-field-border:#8593a3;
+  --hf-ink:#24313d;--hf-heading:#173968;--hf-muted:#576574;--hf-border:#dce2e8;
+  --hf-action:#2442f6;--hf-on-action:#ffffff;--hf-active:#2442f6;--hf-active-soft:#edf0ff;--hf-focus:#2442f6;
+  --hf-gold:#f6bb13;--hf-gold-soft:#fff5d6;--hf-gold-ink:#443218;
+  --hf-warning:#805511;--hf-warning-soft:#fff5d6;--hf-success:#236044;
+  --hf-radius-card:12px;--hf-radius-control:6px;--hf-control-height:44px;
+  /* PROPUESTA, no existe en design/system.md: la app ya usa rojo para destructivo; hace falta rol formal. */
+  --hf-danger:#b42318;
+}
+[data-theme="dark"]{
+  --hf-page:#0e1520;--hf-surface:#192332;--hf-surface-muted:#202e43;--hf-field:#121d2c;--hf-field-border:#64758d;
+  --hf-ink:#edf2fa;--hf-heading:#edf2fa;--hf-muted:#adbcd0;--hf-border:#354459;
+  --hf-action:#91b0ff;--hf-on-action:#132344;--hf-active:#b3caff;--hf-active-soft:#223555;--hf-focus:#a6c1ff;
+  --hf-gold:#f2c456;--hf-gold-soft:#3b311d;--hf-gold-ink:#f2cb71;
+  --hf-warning:#f2cb71;--hf-warning-soft:#3b311d;--hf-success:#a2d9b9;
+  --hf-danger:#ffb4ab;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:ui-sans-serif,system-ui,sans-serif;font-size:14px;line-height:1.5;color:var(--hf-ink);background:var(--hf-page);-webkit-font-smoothing:antialiased}
+h1,h2,h3,p,dl,dd,ul,ol{margin:0;padding:0}
+ul,ol{list-style:none}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--hf-focus);outline-offset:2px}
+[hidden]{display:none!important}
+svg.i{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+svg.i.sm{width:16px;height:16px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.tnum{font-variant-numeric:tabular-nums}
+/* controls */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:var(--hf-control-height);padding:0 16px;border-radius:var(--hf-radius-control);border:1px solid transparent;font-size:14px;font-weight:600;white-space:nowrap;background:transparent}
+.btn-primary{background:var(--hf-action);color:var(--hf-on-action)}
+.btn-outline{background:var(--hf-surface);border-color:var(--hf-field-border);color:var(--hf-ink)}
+.btn-danger{background:var(--hf-surface);border-color:color-mix(in srgb,var(--hf-danger) 55%,var(--hf-surface));color:var(--hf-danger)}
+.btn-ghost{color:var(--hf-ink)}
+.btn-ghost:hover,.btn-outline:hover{background:var(--hf-surface-muted)}
+.btn-danger:hover{background:color-mix(in srgb,var(--hf-danger) 10%,var(--hf-surface))}
+.btn-primary:hover{background:color-mix(in srgb,var(--hf-action) 88%,var(--hf-ink))}
+.btn:disabled,.btn[aria-disabled="true"]{background:var(--hf-surface-muted);color:var(--hf-muted);border-color:var(--hf-border);opacity:1;cursor:not-allowed}
+.btn-icon{width:var(--hf-control-height);padding:0}
+.field{display:block;width:100%;min-height:var(--hf-control-height);padding:0 12px;background:var(--hf-field);border:1px solid var(--hf-field-border);border-radius:var(--hf-radius-control);font-size:14px;color:var(--hf-ink)}
+textarea.field{padding:10px 12px;resize:vertical;line-height:1.5}
+.field::placeholder{color:var(--hf-muted);opacity:1}
+.field[aria-invalid="true"]{border-color:var(--hf-danger);box-shadow:0 0 0 1px var(--hf-danger)}
+.selectwrap{position:relative;display:block}
+.selectwrap select{appearance:none;padding-right:36px}
+.selectwrap .i{position:absolute;right:12px;top:13px;pointer-events:none;color:var(--hf-muted)}
+label.lbl{display:block;font-size:13px;font-weight:600;color:var(--hf-ink);margin-bottom:6px}
+/* badges */
+.badge{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:var(--hf-radius-control);font-size:12px;font-weight:600;white-space:nowrap}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.b-draft{background:var(--hf-warning-soft);color:var(--hf-warning)}
+.b-confirmed{background:color-mix(in srgb,var(--hf-success) 12%,var(--hf-surface));color:var(--hf-success)}
+.b-cancelled{background:var(--hf-surface-muted);color:var(--hf-muted)}
+.badge-plain{background:var(--hf-surface-muted);color:var(--hf-muted);font-weight:500}
+.badge-plain::before{display:none}
+/* menu */
+.menu-wrap{position:relative;display:inline-block}
+.menu-wrap>[aria-haspopup]{position:relative;z-index:1}
+.menu{position:absolute;right:0;top:calc(100% + 4px);z-index:30;min-width:220px;padding:4px;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);box-shadow:0 1px 2px color-mix(in srgb,var(--hf-ink) 5%,transparent),0 0 0 1px var(--hf-border)}
+.menu.up{top:auto;bottom:calc(100% + 4px)}
+.menu button{display:flex;align-items:center;gap:10px;width:100%;min-height:var(--hf-control-height);padding:0 12px;border:0;border-radius:var(--hf-radius-control);background:transparent;text-align:left;font-size:14px;font-weight:500;color:var(--hf-ink)}
+.menu button:hover,.menu button:focus-visible{background:var(--hf-surface-muted)}
+.menu button.danger{color:var(--hf-danger)}
+.menu button.danger:hover{background:color-mix(in srgb,var(--hf-danger) 10%,var(--hf-surface))}
+.menu hr{border:0;border-top:1px solid var(--hf-border);margin:4px 0}
+/* toast (prototype only) */
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:80;background:var(--hf-ink);color:var(--hf-surface);padding:10px 16px;border-radius:var(--hf-radius-control);font-size:13px;max-width:90vw}
+.proto{position:fixed;z-index:70;display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);font-size:12px;color:var(--hf-muted)}
+.proto b{color:var(--hf-ink)}
+.seg{display:inline-flex;border:1px solid var(--hf-field-border);border-radius:var(--hf-radius-control);overflow:hidden}
+.seg button{min-height:32px;padding:0 10px;border:0;background:var(--hf-surface);font-size:12px;font-weight:600;color:var(--hf-ink)}
+.seg button+button{border-left:1px solid var(--hf-field-border)}
+.seg button[aria-pressed="true"]{background:var(--hf-active-soft);color:var(--hf-active)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+
+.app{display:grid;grid-template-columns:256px minmax(0,1fr);height:100vh;min-height:900px;overflow:hidden}
+.side{display:flex;flex-direction:column;background:var(--hf-surface);border-right:1px solid var(--hf-border);padding:16px}
+.side .brand{height:48px;display:flex;align-items:center;margin-bottom:16px}
+.tenant{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);margin-bottom:12px}
+.tenant .av{width:32px;height:32px;border-radius:var(--hf-radius-control);background:var(--hf-active-soft);color:var(--hf-active);display:grid;place-items:center;font-weight:700;flex:none}
+.tenant span.n{font-weight:600;color:var(--hf-heading);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sidesearch{display:flex;align-items:center;gap:8px;height:var(--hf-control-height);padding:0 12px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);color:var(--hf-muted);margin-bottom:16px}
+.sidesearch kbd{margin-left:auto;font:inherit;font-size:11px;border:1px solid var(--hf-border);border-radius:4px;padding:0 4px}
+.navgroup{display:flex;align-items:center;justify-content:space-between;height:32px;padding:0 8px;font-size:12px;font-weight:600;letter-spacing:.06em;color:var(--hf-muted)}
+.sidefoot{margin-top:auto;display:flex;align-items:center;gap:12px;padding-top:16px;border-top:1px solid var(--hf-border);margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px;font-weight:600;color:var(--hf-heading)}
+.mg{width:32px;height:32px;border-radius:50%;background:var(--hf-surface-muted);display:grid;place-items:center;font-size:12px;font-weight:600;color:var(--hf-ink)}
+.mainarea{display:flex;flex-direction:column;min-width:0;height:100%}
+.top{display:flex;align-items:center;gap:12px;height:64px;padding:0 24px;background:var(--hf-surface);border-bottom:1px solid var(--hf-border);flex:none}
+.crumbs{display:flex;align-items:center;gap:12px;color:var(--hf-muted)}
+.crumbs b{color:var(--hf-ink);font-weight:600}
+.top .sp{margin-left:auto;display:flex;align-items:center;gap:8px}
+.page{flex:1;overflow:auto;padding:24px}
+.page h1{font-size:2rem;line-height:1.25;font-weight:600;letter-spacing:-.045em;color:var(--hf-heading)}
+.card{background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);box-shadow:0 1px 2px color-mix(in srgb,var(--hf-ink) 5%,transparent)}
+
+.page h1{margin-bottom:24px}
+.tb{display:flex;align-items:center;gap:8px;padding:16px;border-bottom:1px solid var(--hf-border)}
+.tb .search{position:relative;width:360px}
+.tb .search .i{position:absolute;left:12px;top:13px;color:var(--hf-muted)}
+.tb .search input{padding-left:40px}
+.estado{position:relative;width:200px}
+.estado .pre{position:absolute;left:12px;top:0;height:var(--hf-control-height);display:flex;align-items:center;font-size:14px;color:var(--hf-muted);pointer-events:none}
+.estado select{padding-left:64px}
+.tb .grow{flex:1}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+th{height:40px;text-align:left;padding:0 16px;font-size:13px;font-weight:600;color:var(--hf-muted);border-bottom:1px solid var(--hf-border)}
+th.num,td.num{text-align:right}
+td{padding:0 16px;height:64px;border-bottom:1px solid var(--hf-border);vertical-align:middle}
+tbody tr{cursor:pointer;position:relative}
+.row-link::after{content:"";position:absolute;inset:0}
+tbody tr:hover,tbody tr:focus-within{background:color-mix(in srgb,var(--hf-surface-muted) 45%,var(--hf-surface))}
+tbody tr:last-child td{border-bottom:0}
+.row-link{display:block;max-width:100%;padding:0;border:0;background:none;text-align:left;font-size:14px;font-weight:600;color:var(--hf-heading);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sub{display:block;margin-top:2px;font-size:13px;color:var(--hf-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st{display:flex;align-items:center;gap:8px}
+.aviso{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--hf-warning)}
+td.when{color:var(--hf-muted);white-space:nowrap}
+td.act{padding:0 8px;text-align:center}
+td.act .menu-wrap{text-align:left}
+.foot{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--hf-border);color:var(--hf-muted);font-size:13px}
+.foot .btn{min-height:var(--hf-control-height)}
+.head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:24px}.head h1{margin:0}
+.note-box{max-width:380px;padding:8px 12px;border:1px dashed var(--hf-field-border);border-radius:var(--hf-radius-card);background:var(--hf-surface);font-size:12px;line-height:1.4;color:var(--hf-muted)}
+.note-box b{color:var(--hf-ink)}
+
+.dim{position:absolute;inset:0;background:color-mix(in srgb,var(--hf-surface) 78%,transparent);z-index:40}
+.slide{position:absolute;top:0;right:0;bottom:0;width:768px;max-width:100%;display:flex;flex-direction:column;background:var(--hf-surface);border-left:1px solid var(--hf-border);z-index:50;box-shadow:0 1px 2px color-mix(in srgb,var(--hf-ink) 5%,transparent)}
+body{position:relative}
+
+.slide .hd{padding:20px 24px 16px;border-bottom:1px solid var(--hf-border)}
+.hd .r1{display:flex;align-items:flex-start;gap:8px}
+.hd .ttl{flex:1;min-width:0}
+.hd .meta{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px;color:var(--hf-muted);flex-wrap:wrap}
+.hd h2{font-size:22px;line-height:1.25;font-weight:600;letter-spacing:-.02em;color:var(--hf-heading);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hd .acts{display:flex;align-items:center;gap:4px;flex:none}
+.hd .acts .btn-primary{margin-right:4px}
+.steps{display:flex;align-items:center;gap:8px;margin-top:16px;font-size:13px;font-weight:600;color:var(--hf-muted)}
+.steps li{display:flex;align-items:center;gap:8px}
+.steps li+li::before{content:"";width:24px;height:1px;background:var(--hf-border);margin-right:0}
+.steps .n{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;border:1px solid var(--hf-field-border);color:var(--hf-muted);background:var(--hf-surface)}
+.steps .n .i{width:12px;height:12px;stroke-width:3}
+.steps li[data-s="done"]{color:var(--hf-success)}
+.steps li[data-s="done"] .n{background:var(--hf-success);border-color:var(--hf-success);color:var(--hf-surface)}
+.steps li[data-s="current"]{color:var(--hf-heading)}
+.steps li[data-s="current"] .n{background:var(--hf-action);border-color:var(--hf-action);color:var(--hf-on-action)}
+.steps .cnt{font-weight:500;color:var(--hf-warning)}
+.body{flex:1;overflow:auto;padding:20px 24px}
+.check{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;padding:12px 16px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);background:var(--hf-surface-muted);font-size:13px;margin-bottom:20px}
+.check li{display:flex;align-items:center;gap:6px;font-weight:500}
+.check .ok{color:var(--hf-success)}
+.check .bad{color:var(--hf-warning);font-weight:600}
+.check .pend{color:var(--hf-muted);font-weight:600}
+.check a{color:var(--hf-action);font-weight:600;text-decoration:underline;text-underline-offset:2px}
+.check .okall{color:var(--hf-success);font-weight:600;font-size:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.cnt-note{display:block;text-align:right;margin-top:4px;font-size:12px;font-weight:600;color:var(--hf-warning)}
+.cnt-note.max{color:var(--hf-danger)}
+.lh2{display:flex;align-items:center;justify-content:space-between;margin:24px 0 8px}
+.lh2 h2{font-size:16px;font-weight:600;color:var(--hf-heading)}
+.lines{border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);overflow:visible}
+.lrow{display:grid;grid-template-columns:minmax(0,1fr) 104px 112px 120px 52px;align-items:center;column-gap:8px;padding:0 8px 0 16px}
+.lhead{height:36px;font-size:12px;font-weight:600;color:var(--hf-muted);border-bottom:1px solid var(--hf-border)}
+.lrow.item{position:relative;min-height:60px;border-bottom:1px solid var(--hf-border);cursor:pointer;background:var(--hf-surface)}
+.lrow.item:hover{background:color-mix(in srgb,var(--hf-surface-muted) 45%,var(--hf-surface))}
+.lrow.item[aria-expanded="true"]{background:color-mix(in srgb,var(--hf-surface-muted) 45%,var(--hf-surface))}
+.lrow.item.flag{background:var(--hf-warning-soft)}
+.lrow .pn{font-weight:600;color:var(--hf-heading);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:8px 0}
+.lrow .pbtn::after{content:"";position:absolute;inset:0}
+.lrow .pbtn{display:block;width:100%;padding:0;border:0;background:none;text-align:left;font-weight:600;color:var(--hf-heading);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lrow .pn small{display:block;font-weight:400;font-size:13px;color:var(--hf-muted)}
+.lrow .r{text-align:right}
+.lrow .cost{display:inline-flex;align-items:center;gap:6px;justify-content:flex-end}
+.lrow .cost .i{width:14px;height:14px;color:var(--hf-muted)}
+.miss span[data-show]{display:inline-flex;align-items:center;gap:4px}
+.lrow .miss{color:var(--hf-warning);font-weight:600;display:inline-flex;align-items:center;gap:4px}
+.lrow .sub-v{font-weight:600}
+.lrow .cost-v{color:var(--hf-ink);font-weight:400}
+.edit{padding:16px;border-bottom:1px solid var(--hf-border);background:color-mix(in srgb,var(--hf-surface-muted) 45%,var(--hf-surface))}
+.edit .g3{display:grid;grid-template-columns:1fr 1.2fr 1.4fr auto;gap:12px;align-items:end}
+.lines>:last-child{border-bottom:0}
+.addrow{display:flex;justify-content:flex-start;padding:4px 8px}
+.ft{display:flex;align-items:center;gap:12px;padding:12px 24px;border-top:1px solid var(--hf-border);background:var(--hf-surface)}
+.ft .st{margin-right:auto;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--hf-muted)}
+.ft .st .dot{width:8px;height:8px;border-radius:50%;background:var(--hf-warning)}
+.ft .st .okd{color:var(--hf-success)}
+.slide .menu{z-index:60}
+</style>
+</head>
+<body>
+
+<div class="app" id="app" inert>
+  <aside class="side" aria-label="Navegación principal">
+    <div class="brand"><svg viewBox="0 0 48 48" width="40" height="40" role="img" aria-label="Hound"><rect width="48" height="48" rx="12" fill="var(--hf-heading)"/><g fill="var(--hf-gold)"><ellipse cx="24" cy="31" rx="8" ry="6.5"/><ellipse cx="14" cy="22" rx="3.6" ry="4.6"/><ellipse cx="22" cy="15" rx="3.6" ry="4.6"/><ellipse cx="30" cy="15" rx="3.6" ry="4.6"/><ellipse cx="38" cy="22" rx="3.6" ry="4.6"/></g></svg></div>
+    <div class="tenant"><span class="av" aria-hidden="true">M</span><span class="n">Mascotas y Alimentos El Roble</span></div>
+    <div class="sidesearch"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span>Buscar…</span><kbd>Ctrl K</kbd></div>
+    <nav aria-label="Módulos"><div class="navgroup"><span>POS</span><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 9 6 6 6-6"/></svg></div><div class="navgroup"><span>Compras</span><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 9 6 6 6-6"/></svg></div></nav>
+    <div class="sidefoot"><span class="mg" aria-hidden="true">MG</span>María González</div>
+  </aside>
+  <div class="mainarea">
+    <header class="top">
+      <span aria-hidden="true"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg></span>
+      <nav class="crumbs" aria-label="Ruta"><span>Compras</span><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9 18 6-6-6-6"/></svg><b aria-current="page">Órdenes de compra</b></nav>
+      <div class="sp"><button class="btn btn-ghost btn-icon" id="theme" type="button" aria-label="Cambiar tema claro u oscuro"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></button><span class="mg" aria-label="María González">MG</span></div>
+    </header>
+    <main class="page">
+<div class="head"><h1>Órdenes de compra</h1></div>
+<section class="card" style="overflow:visible" aria-label="Órdenes de compra">
+  <div class="tb" role="search">
+    <div class="search"><span aria-hidden="true"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span><input class="field" type="search" aria-label="Buscar por proveedor o nota" placeholder="Buscar proveedor o nota"></div>
+    <div class="estado selectwrap"><span class="pre" aria-hidden="true">Estado</span><select class="field" aria-label="Estado"><option>Todas</option><option>Borradores</option><option>Confirmadas</option><option>Canceladas</option></select><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 9 6 6 6-6"/></svg></div>
+    <span class="grow"></span>
+    <button class="btn btn-primary" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14"/><path d="M12 5v14"/></svg>Nueva orden</button>
+  </div>
+  <table>
+    <colgroup><col><col style="width:200px"><col style="width:104px"><col style="width:136px"><col style="width:136px"><col style="width:64px"></colgroup>
+    <thead><tr><th scope="col">Proveedor</th><th scope="col">Estado</th><th scope="col" class="num">Renglones</th><th scope="col" class="num">Total</th><th scope="col">Actualizada</th><th scope="col"><span class="sr">Acciones</span></th></tr></thead>
+    <tbody><tr data-order="0"><td><button class="row-link" type="button">Distribuidora Veterinaria del Norte</button><span class="sub">Orden confirmada: granel para el refugio aliado</span></td>
+<td><div class="st"><span class="badge b-confirmed">Confirmada</span></div></td>
+<td class="num tnum">1</td><td class="num tnum">$1,540.00</td><td class="when">3 nov, 20:43</td><td class="act"><div class="menu-wrap"><button class="btn btn-ghost btn-icon" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-0" aria-label="Acciones de la orden de Distribuidora Veterinaria del Norte, confirmada"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button><div class="menu" role="menu" id="menu-0" aria-label="Acciones de la orden" hidden><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/></svg>Ver orden</button><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>Cancelar…</button></div></div></td></tr><tr data-order="1"><td><button class="row-link" type="button">Distribuidora Veterinaria del Norte</button><span class="sub">Reposición mensual de croquetas y collares</span></td>
+<td><div class="st"><span class="badge b-confirmed">Confirmada</span></div></td>
+<td class="num tnum">3</td><td class="num tnum">$12,946.00</td><td class="when">3 nov, 20:43</td><td class="act"><div class="menu-wrap"><button class="btn btn-ghost btn-icon" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-1" aria-label="Acciones de la orden de Distribuidora Veterinaria del Norte, confirmada"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button><div class="menu" role="menu" id="menu-1" aria-label="Acciones de la orden" hidden><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/></svg>Ver orden</button><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>Cancelar…</button></div></div></td></tr><tr data-order="2"><td><button class="row-link" type="button">Distribuidora Veterinaria del Norte</button><span class="sub">Orden confirmada: croquetas para adopciones</span></td>
+<td><div class="st"><span class="badge b-confirmed">Confirmada</span></div></td>
+<td class="num tnum">1</td><td class="num tnum">$3,902.50</td><td class="when">3 nov, 20:43</td><td class="act"><div class="menu-wrap"><button class="btn btn-ghost btn-icon" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-2" aria-label="Acciones de la orden de Distribuidora Veterinaria del Norte, confirmada"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button><div class="menu" role="menu" id="menu-2" aria-label="Acciones de la orden" hidden><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/></svg>Ver orden</button><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>Cancelar…</button></div></div></td></tr><tr data-order="3"><td><button class="row-link" type="button">Distribuidora Veterinaria del Norte</button><span class="sub">Croquetas a granel para el área de adopciones</span></td>
+<td><div class="st"><span class="badge b-draft">Borrador</span></div></td>
+<td class="num tnum">1</td><td class="num tnum">$1,540.00</td><td class="when">3 nov, 20:43</td><td class="act"><div class="menu-wrap"><button class="btn btn-ghost btn-icon" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-3" aria-label="Acciones de la orden de Distribuidora Veterinaria del Norte, borrador"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button><div class="menu" role="menu" id="menu-3" aria-label="Acciones de la orden" hidden><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>Continuar</button><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg>Confirmar…</button><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>Cancelar…</button><hr role="separator"><button role="menuitem" type="button" class="danger"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>Descartar borrador</button></div></div></td></tr><tr data-order="4"><td><button class="row-link" type="button">Distribuidora Veterinaria del Norte</button><span class="sub">Juguetes de hule para el escaparate</span></td>
+<td><div class="st"><span class="badge b-draft">Borrador</span></div></td>
+<td class="num tnum">1</td><td class="num tnum">$960.00</td><td class="when">3 nov, 20:43</td><td class="act"><div class="menu-wrap"><button class="btn btn-ghost btn-icon" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-4" aria-label="Acciones de la orden de Distribuidora Veterinaria del Norte, borrador"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button><div class="menu" role="menu" id="menu-4" aria-label="Acciones de la orden" hidden><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>Continuar</button><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg>Confirmar…</button><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>Cancelar…</button><hr role="separator"><button role="menuitem" type="button" class="danger"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>Descartar borrador</button></div></div></td></tr><tr data-order="5"><td><button class="row-link" type="button">Distribuidora Veterinaria del Norte</button><span class="sub">Reposición quincenal de croquetas y collares</span></td>
+<td><div class="st"><span class="badge b-draft">Borrador</span><span class="aviso"><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>1 aviso</span></div></td>
+<td class="num tnum">3</td><td class="num tnum">—</td><td class="when">3 nov, 20:43</td><td class="act"><div class="menu-wrap"><button class="btn btn-ghost btn-icon" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-5" aria-label="Acciones de la orden de Distribuidora Veterinaria del Norte, borrador"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button><div class="menu" role="menu" id="menu-5" aria-label="Acciones de la orden" hidden><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>Continuar</button><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg>Confirmar…</button><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>Cancelar…</button><hr role="separator"><button role="menuitem" type="button" class="danger"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>Descartar borrador</button></div></div></td></tr><tr data-order="6"><td><button class="row-link" type="button">Distribuidora Veterinaria del Norte</button><span class="sub">Orden cancelada: proveedor sin existencia</span></td>
+<td><div class="st"><span class="badge b-cancelled">Cancelada</span></div></td>
+<td class="num tnum">1</td><td class="num tnum">$1,220.00</td><td class="when">3 nov, 20:08</td><td class="act"><div class="menu-wrap"><button class="btn btn-ghost btn-icon" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-6" aria-label="Acciones de la orden de Distribuidora Veterinaria del Norte, cancelada"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button><div class="menu" role="menu" id="menu-6" aria-label="Acciones de la orden" hidden><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/></svg>Ver orden</button></div></div></td></tr><tr data-order="7"><td><button class="row-link" type="button">Mayorista de Accesorios Pet Center</button><span class="sub">Pedido cancelado por duplicado</span></td>
+<td><div class="st"><span class="badge b-cancelled">Cancelada</span></div></td>
+<td class="num tnum">1</td><td class="num tnum">$640.00</td><td class="when">3 nov, 20:08</td><td class="act"><div class="menu-wrap"><button class="btn btn-ghost btn-icon" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-7" aria-label="Acciones de la orden de Mayorista de Accesorios Pet Center, cancelada"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button><div class="menu" role="menu" id="menu-7" aria-label="Acciones de la orden" hidden><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/></svg>Ver orden</button></div></div></td></tr></tbody>
+  </table>
+  <div class="foot"><span>8 órdenes</span><span style="display:flex;gap:8px"><button class="btn btn-outline" type="button" disabled>Anterior</button><button class="btn btn-outline" type="button" disabled>Siguiente</button></span></div>
+</section>
+</main>
+  </div>
+</div>
+<div class="dim" aria-hidden="true"></div>
+<div class="slide" role="dialog" aria-modal="true" aria-labelledby="t" data-order data-state="incompleta">
+  <div class="hd">
+    <div class="r1">
+      <div class="ttl">
+        <div class="meta"><span class="badge b-draft">Borrador</span><span>Mascotas y Alimentos El Roble · guardada 3 nov, 20:43</span></div>
+        <h2 id="t">Distribuidora Veterinaria del Norte</h2>
+      </div>
+      <div class="acts">
+        <button class="btn btn-primary" type="button" id="confirm" aria-disabled="true" aria-describedby="checklist"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg>Confirmar orden</button>
+        <div class="menu-wrap"><button class="btn btn-ghost btn-icon" type="button" aria-haspopup="menu" aria-expanded="true" aria-controls="order-menu" aria-label="Más acciones de la orden"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button><div class="menu" role="menu" id="order-menu" aria-label="Más acciones de la orden"><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>Cancelar orden…</button><hr role="separator"><button role="menuitem" type="button" class="danger"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>Descartar borrador</button></div></div>
+        <button class="btn btn-ghost btn-icon" type="button" aria-label="Cerrar"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+      </div>
+    </div>
+    <ol class="steps" aria-label="Pasos para confirmar">
+    <li data-step="1"><span class="n">1</span><span>Completar <span class="cnt" data-show="incompleta">· 1 pendiente</span></span></li>
+    <li data-step="2"><span class="n">2</span><span>Guardar</span></li>
+    <li data-step="3"><span class="n">3</span><span>Confirmar</span></li>
+  </ol>
+  </div>
+  <div class="body">
+    <ul class="check" id="checklist" aria-label="Pendientes para confirmar">
+    <li class="bad" data-show="incompleta"><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Falta el costo en 1 renglón<a href="#line-2" data-goto="line-2" style="margin-left:6px">Ir a Collar ajustable</a></li>
+    <li class="pend" data-show="sin-guardar"><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>Guarda el borrador para validar el costo</li>
+    <li class="okall" data-show="lista"><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg>Lista para confirmar</li>
+  </ul>
+    <div class="grid2">
+      <div><label class="lbl" for="p">Proveedor</label><div class="selectwrap"><select class="field" id="p" style="font-weight:600;color:var(--hf-heading)"><option>Distribuidora Veterinaria del Norte</option></select><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 9 6 6 6-6"/></svg></div></div>
+      <div><label class="lbl" for="u">Detalle de ubicación</label><input class="field" id="u" type="text" value="Bodega principal, andén 3" maxlength="500" data-max="500"><span class="cnt-note" data-for="u" hidden></span></div>
+    </div>
+    <div><label class="lbl" for="n">Nota</label><textarea class="field" id="n" rows="2" maxlength="2000" data-max="2000">Reposición quincenal de croquetas y collares</textarea><span class="cnt-note" data-for="n" aria-live="polite" hidden></span></div>
+    <section aria-label="Renglones">
+      <div class="lh2"><h2>Renglones · 3</h2><button class="btn btn-outline" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14"/><path d="M12 5v14"/></svg>Agregar renglón</button></div>
+      <div class="lines">
+        <div class="lrow lhead" aria-hidden="true"><div>Producto</div><div class="r">Cantidad</div><div class="r">Costo unit.</div><div class="r">Subtotal</div><div></div></div>
+        <div class="lrow item" id="line-1" data-line="1">
+    <div class="pn"><button type="button" class="pbtn" aria-expanded="false" aria-controls="edit-1" aria-label="Editar renglón 1: Croquetas Adulto 15 kg">Croquetas Adulto 15 kg</button></div>
+    <div class="r tnum">12 Bolsa</div>
+    <div class="r tnum"><span class="cost"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>$780.50</span></div>
+    <div class="r tnum sub-v">$9,366.00</div>
+    <div class="menu-wrap" style="justify-self:end"><button class="btn btn-ghost btn-icon" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="lm-1" aria-label="Más acciones del renglón 1"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button><div class="menu" role="menu" id="lm-1" aria-label="Acciones del renglón 1" hidden><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>Editar renglón</button><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="M3.3 7 12 12l8.7-5"/></svg>Cambiar producto</button><hr role="separator"><button role="menuitem" type="button" class="danger"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>Quitar renglón</button></div></div>
+  </div>
+        <div class="edit" id="edit-1" hidden>
+    <div class="g3">
+      <div><label class="lbl" for="q1">Cantidad · Bolsa</label><input class="field" id="q1" type="text" inputmode="decimal" value="12"></div>
+      <div><label class="lbl" for="a1">Costo unitario (MXN)</label><input class="field" id="a1" type="text" inputmode="decimal" value="780.50" placeholder="0.00"></div>
+      <div><label class="lbl" for="t1">Impuestos</label><div class="selectwrap"><select class="field" id="t1"><option>Incluye impuestos</option><option selected>No incluye impuestos</option></select><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 9 6 6 6-6"/></svg></div></div>
+      <div class="done"><button class="btn btn-outline" type="button" data-close-edit>Listo</button></div>
+    </div>
+  </div>
+        <div class="lrow item flag" id="line-2" data-line="2">
+    <div class="pn"><button type="button" class="pbtn" aria-expanded="true" aria-controls="edit-2" aria-label="Editar renglón 2: Collar ajustable, Chico · Azul">Collar ajustable<small>Chico · Azul</small></button></div>
+    <div class="r tnum">24 Unidad</div>
+    <div class="r tnum"><span class="miss"><span data-show="incompleta"><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Falta</span><span data-show="sin-guardar lista" class="cost-v" hidden></span></span></div>
+    <div class="r tnum sub-v"><span data-sub>—</span></div>
+    <div class="menu-wrap" style="justify-self:end"><button class="btn btn-ghost btn-icon" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="lm-2" aria-label="Más acciones del renglón 2"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button><div class="menu" role="menu" id="lm-2" aria-label="Acciones del renglón 2" hidden><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>Editar renglón</button><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="M3.3 7 12 12l8.7-5"/></svg>Cambiar producto</button><hr role="separator"><button role="menuitem" type="button" class="danger"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>Quitar renglón</button></div></div>
+  </div>
+        <div class="edit" id="edit-2">
+    <div class="g3">
+      <div><label class="lbl" for="q2">Cantidad · Unidad</label><input class="field" id="q2" type="text" inputmode="decimal" value="24"></div>
+      <div><label class="lbl" for="a2">Costo unitario (MXN)</label><input class="field" id="a2" type="text" inputmode="decimal" value="" placeholder="0.00" data-amount aria-invalid="true" aria-describedby="checklist"></div>
+      <div><label class="lbl" for="t2">Impuestos</label><div class="selectwrap"><select class="field" id="t2"><option selected>Incluye impuestos</option><option>No incluye impuestos</option></select><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 9 6 6 6-6"/></svg></div></div>
+      <div class="done"><button class="btn btn-outline" type="button" data-close-edit>Listo</button></div>
+    </div>
+  </div>
+        <div class="lrow item" id="line-3" data-line="3">
+    <div class="pn"><button type="button" class="pbtn" aria-expanded="false" aria-controls="edit-3" aria-label="Editar renglón 3: Croquetas a granel">Croquetas a granel</button></div>
+    <div class="r tnum">40 Kilogramo</div>
+    <div class="r tnum"><span class="cost"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>$38.50</span></div>
+    <div class="r tnum sub-v">$1,540.00</div>
+    <div class="menu-wrap" style="justify-self:end"><button class="btn btn-ghost btn-icon" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="lm-3" aria-label="Más acciones del renglón 3"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button><div class="menu" role="menu" id="lm-3" aria-label="Acciones del renglón 3" hidden><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>Editar renglón</button><button role="menuitem" type="button"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="M3.3 7 12 12l8.7-5"/></svg>Cambiar producto</button><hr role="separator"><button role="menuitem" type="button" class="danger"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>Quitar renglón</button></div></div>
+  </div>
+        <div class="edit" id="edit-3" hidden>
+    <div class="g3">
+      <div><label class="lbl" for="q3">Cantidad · Kilogramo</label><input class="field" id="q3" type="text" inputmode="decimal" value="40"></div>
+      <div><label class="lbl" for="a3">Costo unitario (MXN)</label><input class="field" id="a3" type="text" inputmode="decimal" value="38.50" placeholder="0.00"></div>
+      <div><label class="lbl" for="t3">Impuestos</label><div class="selectwrap"><select class="field" id="t3"><option>Incluye impuestos</option><option selected>No incluye impuestos</option></select><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 9 6 6 6-6"/></svg></div></div>
+      <div class="done"><button class="btn btn-outline" type="button" data-close-edit>Listo</button></div>
+    </div>
+  </div>
+      </div>
+    </section>
+  </div>
+  <div class="ft">
+    <span class="st" aria-live="polite"><span data-show="incompleta lista"><span class="okd">Guardado</span> · <span data-saved>3 nov, 20:43</span></span><span data-show="sin-guardar"><span class="dot" style="display:inline-block;margin-right:6px"></span>Cambios sin guardar</span></span>
+    <button class="btn btn-outline" type="button" id="save"><svg class="i " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>Guardar borrador</button>
+  </div>
+</div>
+<div class="proto" style="left:16px;bottom:16px" role="group" aria-label="Estado simulado del prototipo"><b>Prototipo</b> estado simulado <span class="seg"><button type="button" data-set="incompleta" aria-pressed="true">Incompleta</button><button type="button" data-set="sin-guardar" aria-pressed="false">Sin guardar</button><button type="button" data-set="lista" aria-pressed="false">Lista</button></span></div>
+<script>
+(function(){
+  var root=document.documentElement;
+  var t=document.getElementById('theme');
+  if(t)t.addEventListener('click',function(){root.dataset.theme=root.dataset.theme==='dark'?'light':'dark'});
+  var toastEl;
+  window.toast=function(msg){
+    if(!toastEl){toastEl=document.createElement('div');toastEl.className='toast';toastEl.setAttribute('role','status');document.body.appendChild(toastEl)}
+    toastEl.textContent='Prototipo: '+msg;toastEl.hidden=false;clearTimeout(toastEl._t);toastEl._t=setTimeout(function(){toastEl.hidden=true},2800);
+  };
+  function closeAll(except){
+    document.querySelectorAll('.menu-wrap').forEach(function(w){
+      var m=w.querySelector('.menu'),b=w.querySelector('[aria-haspopup]');
+      if(m!==except&&!m.hidden){m.hidden=true;b.setAttribute('aria-expanded','false')}
+    });
+  }
+  function openMenu(w){
+    var m=w.querySelector('.menu'),b=w.querySelector('[aria-haspopup]');
+    closeAll(m);m.hidden=false;b.setAttribute('aria-expanded','true');
+    m.classList.remove('up');
+    var r=m.getBoundingClientRect();
+    var ph=m.closest('.phone'),lim=ph?ph.getBoundingClientRect().bottom:window.innerHeight;
+    if(r.bottom>lim-8)m.classList.add('up');
+    var first=m.querySelector('[role=menuitem]');if(first&&b._kb)first.focus();
+  }
+  document.addEventListener('click',function(e){
+    var b=e.target.closest('.menu-wrap > [aria-haspopup]');
+    if(b){e.stopPropagation();var w=b.parentElement,m=w.querySelector('.menu');if(m.hidden)openMenu(w);else closeAll();return}
+    var item=e.target.closest('.menu [role=menuitem]');
+    if(item){toast('«'+item.textContent.trim()+'» no ejecuta acciones reales.');closeAll();return}
+    if(!e.target.closest('.menu'))closeAll();
+  });
+  document.addEventListener('keydown',function(e){
+    var open=document.querySelector('.menu:not([hidden])');
+    if(e.target.matches&&e.target.matches('.menu-wrap > [aria-haspopup]')&&(e.key==='ArrowDown'||e.key==='Enter'||e.key===' ')){
+      e.preventDefault();e.target._kb=true;openMenu(e.target.parentElement);e.target._kb=false;return}
+    if(!open)return;
+    var items=[].slice.call(open.querySelectorAll('[role=menuitem]')),i=items.indexOf(document.activeElement);
+    if(e.key==='Escape'){var b=open.parentElement.querySelector('[aria-haspopup]');closeAll();b.focus()}
+    else if(e.key==='ArrowDown'){e.preventDefault();items[(i+1)%items.length].focus()}
+    else if(e.key==='ArrowUp'){e.preventDefault();items[(i-1+items.length)%items.length].focus()}
+    else if(e.key==='Tab')closeAll();
+  });
+})();
+
+(function(){
+  var roots=[].slice.call(document.querySelectorAll('[data-order]'));
+  var order=['incompleta','sin-guardar','lista'];
+  var times={incompleta:'3 nov, 20:43',lista:'3 nov, 20:44'};
+  function apply(root,s){
+    root.dataset.state=s;
+    root.querySelectorAll('[data-show]').forEach(function(el){el.hidden=el.dataset.show.split(' ').indexOf(s)<0});
+    var cur=s==='incompleta'?1:s==='sin-guardar'?2:3;
+    root.querySelectorAll('[data-step]').forEach(function(li){
+      var n=+li.dataset.step,st=n<cur?'done':n===cur?'current':'todo';
+      li.dataset.s=st;var b=li.querySelector('.n');b.innerHTML=st==='done'?'<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>':n;
+      if(st==='current')li.setAttribute('aria-current','step');else li.removeAttribute('aria-current');
+    });
+    var c=root.querySelector('#confirm,[data-confirm]');
+    if(c){c.setAttribute('aria-disabled',s==='lista'?'false':'true')}
+    var sv=root.querySelector('#save,[data-save]');
+    if(sv){var prim=s==='sin-guardar';sv.classList.toggle('btn-primary',prim);sv.classList.toggle('btn-outline',!prim);sv.setAttribute('aria-disabled',s==='lista'?'true':'false')}
+    var flag=root.querySelector('.lrow.flag,.mline.flag');if(flag)flag.classList.toggle('flag',s==='incompleta');
+    var inp=root.querySelector('[data-amount]');
+    var cv=root.querySelector('.cost-v'),sub=root.querySelector('[data-sub]');
+    if(inp){
+      if(s==='incompleta'){inp.value='';inp.setAttribute('aria-invalid','true')}
+      else{if(!inp.value)inp.value='85.00';inp.removeAttribute('aria-invalid')}
+      if(cv)cv.textContent='$'+(parseFloat(inp.value||'85')||0).toFixed(2);
+      if(sub)sub.textContent=s==='lista'?'$2,040.00':'—';
+    }
+    var sd=root.querySelector('[data-saved]');if(sd)sd.textContent=times[s]||times.lista;
+    document.querySelectorAll('[data-set]').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.set===s))});
+  }
+  function openEdit(root,n,focus){
+    var row=root.querySelector('[data-line="'+n+'"]'),ed=root.querySelector('#edit-'+n);
+    if(!row||!ed)return;
+    var open=ed.hidden;ed.hidden=!open;row.querySelector('.pbtn').setAttribute('aria-expanded',String(open));
+    if(open&&focus){var f=ed.querySelector('[data-amount]')||ed.querySelector('input');f&&f.focus()}
+  }
+  roots.forEach(function(root){
+    apply(root,root.dataset.state);
+    root.addEventListener('click',function(e){
+      var g=e.target.closest('[data-goto]');
+      if(g){e.preventDefault();var ed=root.querySelector('#edit-2');if(ed&&ed.hidden)openEdit(root,2,false);var f=root.querySelector('[data-amount]');f&&f.focus();return}
+      if(e.target.closest('[data-close-edit]')){var r=e.target.closest('.edit');if(r){r.hidden=true;var l=root.querySelector('[data-line="'+r.id.split('-')[1]+'"] .pbtn');l&&l.setAttribute('aria-expanded','false')}return}
+      var row=e.target.closest('.lrow.item,.mline.item');
+      if(row&&!e.target.closest('.menu-wrap')){openEdit(root,row.dataset.line,true);return}
+      var cf=e.target.closest('#confirm,[data-confirm]');
+      if(cf){if(cf.getAttribute('aria-disabled')==='true')toast('Confirmar se habilita cuando no quedan pendientes y todo está guardado.');else toast('abre el diálogo de confirmación (sin cambios reales).');return}
+      var sv=e.target.closest('#save,[data-save]');
+      if(sv){if(sv.getAttribute('aria-disabled')==='true')return;apply(root,root.dataset.state==='sin-guardar'?'lista':root.dataset.state);return}
+    });
+    var amount=root.querySelector('[data-amount]');
+    if(amount)amount.addEventListener('input',function(){
+      var ok=/^\d+(\.\d+)?$/.test(amount.value.trim());
+      apply(root,ok?'sin-guardar':'incompleta');
+    });
+    root.querySelectorAll('[data-max]').forEach(function(el){
+      var note=root.querySelector('[data-for="'+el.id+'"]'),max=+el.dataset.max;
+      function upd(){var n=el.value.length,near=n>=Math.floor(max*0.9);note.hidden=!near;if(near){note.textContent=n.toLocaleString('es-MX')+' / '+max.toLocaleString('es-MX');note.classList.toggle('max',n>=max)}}
+      el.addEventListener('input',upd);upd();
+    });
+  });
+  document.addEventListener('click',function(e){
+    var b=e.target.closest('[data-set]');if(!b)return;
+    roots.forEach(function(r){apply(r,b.dataset.set)});
+  });
+})();
+</script>
+</body>
+</html>

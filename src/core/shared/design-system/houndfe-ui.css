@@ -211,6 +211,140 @@ body.hf-app {
   color: var(--hf-muted);
 }
 
+/* ── List patterns: clickable row, primary/secondary text, figures ───────── */
+
+.hf-ui .hf-clickable-row {
+  cursor: pointer;
+}
+
+.hf-ui .hf-clickable-row:hover {
+  background-color: color-mix(in srgb, var(--hf-surface-muted) 45%, var(--hf-surface));
+}
+
+.hf-ui .hf-clickable-row:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: -2px;
+}
+
+/* Name column: semibold (never 700) plus a quiet second line. It is a text
+ * button, not a 44px control: the hit area is the whole row (useClickableRow). */
+.hf-ui .hf-row-primary {
+  display: block;
+  max-width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  color: var(--hf-heading);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hf-ui .hf-row-primary:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+.hf-ui .hf-row-secondary {
+  display: block;
+  max-width: 100%;
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hf-ui .hf-figure {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Status badge: dot + tinted soft background (StatusBadge.vue) ─────────── */
+
+.hf-ui .hf-status-badge {
+  display: inline-flex;
+  height: 1.5rem;
+  align-items: center;
+  gap: 0.375rem;
+  padding-inline: 0.5rem;
+  border: 1px solid transparent;
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-badge-bg);
+  color: var(--hf-badge-fg);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.hf-ui .hf-status-badge[data-tone='neutral'] {
+  --hf-badge-fg: var(--hf-muted);
+  --hf-badge-bg: var(--hf-surface-muted);
+}
+
+.hf-ui .hf-status-badge[data-tone='info'] {
+  --hf-badge-fg: var(--hf-active);
+  --hf-badge-bg: var(--hf-active-soft);
+}
+
+.hf-ui .hf-status-badge[data-tone='success'] {
+  --hf-badge-fg: var(--hf-success);
+  --hf-badge-bg: color-mix(in srgb, var(--hf-success) 12%, var(--hf-surface));
+}
+
+.hf-ui .hf-status-badge[data-tone='warning'] {
+  --hf-badge-fg: var(--hf-warning);
+  --hf-badge-bg: var(--hf-warning-soft);
+}
+
+.hf-ui .hf-status-badge[data-tone='danger'] {
+  --hf-badge-fg: var(--hf-danger);
+  --hf-badge-bg: var(--hf-danger-soft);
+}
+
+/* Urgent: a deeper tint and a visible border, with an icon in place of the
+ * dot. Calm on purpose: no motion, no solid fill. */
+.hf-ui .hf-status-badge[data-urgent='true'] {
+  background: color-mix(in srgb, var(--hf-badge-fg) 18%, var(--hf-surface));
+  border-color: color-mix(in srgb, var(--hf-badge-fg) 55%, var(--hf-surface));
+}
+
+.hf-ui .hf-status-badge__dot {
+  width: 0.375rem;
+  height: 0.375rem;
+  flex: none;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.hf-ui .hf-status-badge__icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex: none;
+}
+
+/* ── Row actions menu (RowActionsMenu.vue) ───────────────────────────────── */
+
+.hf-ui .hf-row-actions-trigger {
+  width: var(--hf-control-height);
+  min-width: var(--hf-control-height);
+  height: var(--hf-control-height);
+  justify-content: center;
+  padding: 0;
+  color: var(--hf-muted);
+}
+
+.hf-ui .hf-row-action-danger,
+.hf-ui .hf-row-action-danger [data-slot='itemLeadingIcon'] {
+  color: var(--hf-danger);
+}
+
+.hf-ui .hf-row-action-danger[data-highlighted]::before {
+  background-color: color-mix(in srgb, var(--hf-danger) 10%, var(--hf-surface));
+}
+
 /* Operational touch targets, including body portals in App and explicitly
  * marked portals in isolated consumers. */
 .hf-ui [role='menuitem'],

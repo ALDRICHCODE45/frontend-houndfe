@@ -3,7 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { shallowRef } from 'vue'
 import { readFileSync } from 'node:fs'
 import PurchaseOrderView from '../PurchaseOrderView.vue'
+import RowActionsMenu from '@/core/shared/components/RowActionsMenu.vue'
 import type { PurchaseOrder } from '../../interfaces/purchase-order.types'
+const viewport = vi.hoisted(() => ({ mobile: { value: false } }))
+vi.mock('@vueuse/core', async importOriginal => {
+  const { shallowRef } = await import('vue')
+  viewport.mobile = shallowRef(false)
+  return { ...await importOriginal<typeof import('@vueuse/core')>(), useBreakpoints: () => ({ smaller: () => viewport.mobile }) }
+})
 const grants = new Set<string>()
 vi.mock('@/features/auth/stores/useAuthStore', () => ({ useAuthStore: () => ({ user: { id: 'u' }, currentTenantId: 't', authPhase: 'authenticated', permissionsLoaded: true, userCan: (action: string, subject: string) => grants.has(`${action}:${subject}`) }) }))
 const state = vi.hoisted(() => ({ status: { value: undefined as string | undefined } }))
@@ -12,13 +19,13 @@ vi.mock('../../composables/usePurchaseOrders', async () => {
   state.status = shallowRef<string | undefined>(undefined)
   return { usePurchaseOrders: () => ({ status: state.status, items: shallowRef([]), hasNext: shallowRef(false), hasPrevious: shallowRef(false), next: vi.fn(), back: vi.fn(), refresh: vi.fn(), isLoading: shallowRef(false), isFetching: shallowRef(false), error: shallowRef(null) }) }
 })
-const workspace = vi.hoisted(() => ({ selected: null as unknown, open: null as unknown, transition: null as unknown, canConfirm: null as unknown, canCancel: null as unknown, needsSave: null as unknown, message: null as unknown, dirty: null as unknown, requestTransition: null as unknown, confirmTransition: null as unknown, retry: null as unknown, uncertain: null as unknown }))
+const workspace = vi.hoisted(() => ({ selected: null as unknown, open: null as unknown, transition: null as unknown, canConfirm: null as unknown, canCancel: null as unknown, message: null as unknown, dirty: null as unknown, requestTransition: null as unknown, confirmTransition: null as unknown, retry: null as unknown, uncertain: null as unknown, show: null as unknown, showThenTransition: null as unknown, requestDelete: null as unknown, close: null as unknown }))
 vi.mock('../../composables/usePurchaseOrderWorkspace', async () => {
   const { shallowRef, computed } = await import('vue')
   workspace.selected = shallowRef(null); workspace.open = shallowRef(false); workspace.transition = shallowRef(null); workspace.canConfirm = shallowRef(false); workspace.canCancel = shallowRef(false)
-  workspace.needsSave = shallowRef(false); workspace.message = shallowRef(''); workspace.dirty = shallowRef(false); workspace.uncertain = shallowRef(false)
-  workspace.requestTransition = vi.fn(); workspace.confirmTransition = vi.fn(); workspace.retry = vi.fn()
-  return { usePurchaseOrderWorkspace: () => ({ commands: { isPending: shallowRef(false), hasUncertainResult: workspace.uncertain }, selected: workspace.selected, open: workspace.open, editorOpen: workspace.open, deleteOpen: shallowRef(false), dirty: workspace.dirty, formKey: shallowRef(0), detailLoading: shallowRef(false), detailError: shallowRef(''), deleteTarget: shallowRef(null), notice: shallowRef(''), locked: shallowRef(false), message: workspace.message, conflict: shallowRef(false), deleteRejected: shallowRef(false), canSave: shallowRef(true), transition: workspace.transition, transitionOpen: computed(() => workspace.transition !== null && (workspace.transition as { value: unknown }).value !== null), transitionRejected: shallowRef(false), needsSave: workspace.needsSave, canConfirm: workspace.canConfirm, canCancel: workspace.canCancel, requestTransition: workspace.requestTransition, confirmTransition: workspace.confirmTransition, retry: workspace.retry, create: vi.fn(), close: vi.fn(), restoreInvoker: vi.fn(), canLeave: () => true }) }
+  workspace.message = shallowRef(''); workspace.dirty = shallowRef(false); workspace.uncertain = shallowRef(false)
+  workspace.requestTransition = vi.fn(); workspace.confirmTransition = vi.fn(); workspace.retry = vi.fn(); workspace.show = vi.fn(); workspace.showThenTransition = vi.fn(); workspace.requestDelete = vi.fn(); workspace.close = vi.fn()
+  return { usePurchaseOrderWorkspace: () => ({ commands: { isPending: shallowRef(false), hasUncertainResult: workspace.uncertain }, selected: workspace.selected, open: workspace.open, editorOpen: workspace.open, deleteOpen: shallowRef(false), dirty: workspace.dirty, formKey: shallowRef(0), detailLoading: shallowRef(false), detailError: shallowRef(''), deleteTarget: shallowRef(null), notice: shallowRef(''), locked: shallowRef(false), message: workspace.message, conflict: shallowRef(false), deleteRejected: shallowRef(false), canSave: shallowRef(true), transition: workspace.transition, transitionOpen: computed(() => workspace.transition !== null && (workspace.transition as { value: unknown }).value !== null), transitionRejected: shallowRef(false), canConfirm: workspace.canConfirm, canCancel: workspace.canCancel, requestTransition: workspace.requestTransition, confirmTransition: workspace.confirmTransition, retry: workspace.retry, show: workspace.show, showThenTransition: workspace.showThenTransition, requestDelete: workspace.requestDelete, create: vi.fn(), close: workspace.close, restoreInvoker: vi.fn(), restoreTransitionInvoker: vi.fn(), canLeave: () => true }) }
 })
 const set = (name: keyof typeof workspace, value: unknown) => { (workspace[name] as { value: unknown }).value = value }
 const order: PurchaseOrder = {
@@ -29,17 +36,18 @@ const order: PurchaseOrder = {
 }
 const stubs = {
   Card: { template: '<div><slot/></div>' }, Button: { template: '<button><slot/></button>' }, Icon: true,
-  Slideover: { props: ['open', 'title', 'description'], template: '<section v-if="open"><h2>{{ title }}</h2><p>{{ description }}</p><slot name="body"/></section>' },
+  Slideover: { props: ['open', 'title', 'description'], template: '<section v-if="open" role="dialog"><h2 class="sr-title">{{ title }}</h2><p class="sr-description">{{ description }}</p><slot name="content"/></section>' },
   Modal: { props: ['open', 'title', 'description'], template: '<aside v-if="open"><h2>{{ title }}</h2><p>{{ description }}</p><slot name="body"/><slot name="footer"/></aside>' },
   PurchaseOrderForm: { template: '<form data-testid="draft-form"/>' },
-  PurchaseOrderList: { props: ['canEdit', 'canDelete', 'activeFilterCount'], emits: ['clear-filters'], template: '<div><slot name="filters"/><slot name="actions"/><span>{{canEdit}}/{{canDelete}}</span></div>' },
+  PurchaseOrderList: { props: ['canEdit', 'canDelete', 'canConfirm', 'canCancel', 'activeFilterCount'], emits: ['clear-filters', 'open', 'confirm', 'cancel', 'discard'], template: '<div><slot name="filters"/><slot name="actions"/><span>{{canEdit}}/{{canDelete}}</span></div>' },
   ToolbarSelectFilter: { props: ['modelValue', 'items', 'label', 'portalClass', 'testId'], emits: ['update:modelValue'], template: '<div :data-testid="testId" :data-value="modelValue" :data-label="label" />' },
 }
-const mountView = () => mount(PurchaseOrderView, { global: { stubs } })
+const mountView = () => mount(PurchaseOrderView, { global: { stubs }, attachTo: document.body })
 beforeEach(() => {
   grants.clear(); grants.add('read:ProcurementPurchaseOrder')
-  set('selected', null); set('open', false); set('transition', null); set('canConfirm', false); set('canCancel', false); set('needsSave', false); set('message', ''); set('dirty', false); set('uncertain', false)
-  state.status.value = undefined
+  set('selected', null); set('open', false); set('transition', null); set('canConfirm', false); set('canCancel', false); set('message', ''); set('dirty', false); set('uncertain', false)
+  state.status.value = undefined; viewport.mobile.value = false
+  for (const name of ['show', 'showThenTransition', 'requestDelete', 'close'] as const) vi.mocked(workspace[name] as ReturnType<typeof vi.fn>).mockClear()
   vi.mocked(workspace.requestTransition as ReturnType<typeof vi.fn>).mockClear(); vi.mocked(workspace.confirmTransition as ReturnType<typeof vi.fn>).mockClear()
 })
 describe('draft view effective permissions', () => {
@@ -105,55 +113,99 @@ describe('order status filter', () => {
     wrapper.unmount()
   })
 })
+describe('page header and list wiring', () => {
+  it('has only the page title: no subtitle paragraph, no explanation of the screen', () => {
+    const wrapper = mountView()
+    expect(wrapper.get('h1').text()).toBe('Órdenes de compra')
+    expect(wrapper.find('.hf-page-subtitle').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Guarda borradores')
+    expect(wrapper.text()).not.toContain('No se modifican existencias')
+    wrapper.unmount()
+  })
+  it('hands the list the confirm and cancel permissions next to edit and delete', () => {
+    grants.add('create:ProcurementOrderConfirmation')
+    const wrapper = mountView()
+    const list = wrapper.getComponent(stubs.PurchaseOrderList)
+    expect(list.props()).toMatchObject({ canConfirm: true, canCancel: false })
+    wrapper.unmount()
+  })
+  it('opens an order from a row with the invoking element, and routes Confirmar… / Cancelar… to show-then-transition', () => {
+    const wrapper = mountView()
+    const list = wrapper.getComponent(stubs.PurchaseOrderList)
+    const row = { id: 'o' }; const origin = document.createElement('button')
+    list.vm.$emit('open', row, origin)
+    expect(workspace.show).toHaveBeenCalledWith(row, false, origin)
+    list.vm.$emit('confirm', row, origin)
+    expect(workspace.showThenTransition).toHaveBeenCalledWith(row, 'confirm', origin)
+    list.vm.$emit('cancel', row, origin)
+    expect(workspace.showThenTransition).toHaveBeenCalledWith(row, 'cancel', origin)
+    list.vm.$emit('discard', row)
+    expect(workspace.requestDelete).toHaveBeenCalledWith(row)
+    wrapper.unmount()
+  })
+})
 describe('order editor by status', () => {
-  it('shows a closed order read-only, titled by its status, with no form or id', () => {
+  it('shows a closed order read-only, titled by its status, with the supplier as the header title and no form or id', () => {
     set('selected', { ...order, status: 'CONFIRMED', canConfirm: false, confirmedAt: '2026-11-03T10:00:00Z', confirmedBy: { displayName: 'Ana Pérez' } }); set('open', true)
     const wrapper = mountView()
     expect(wrapper.find('[data-testid="draft-form"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="order-readonly"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Orden confirmada')
-    expect(wrapper.text()).toContain('Distribuidora del Norte')
+    expect(wrapper.get('.sr-title').text()).toBe('Orden confirmada')
+    expect(wrapper.get('h2.order-header-title').text()).toBe('Distribuidora del Norte')
+    expect(wrapper.find('[data-testid="order-footer"]').exists()).toBe(false)
     expect(wrapper.html()).not.toContain('order-id-9f2')
     set('selected', { ...order, status: 'CANCELLED', canConfirm: false })
-    return wrapper.vm.$nextTick().then(() => { expect(wrapper.text()).toContain('Orden cancelada'); wrapper.unmount() })
+    return wrapper.vm.$nextTick().then(() => { expect(wrapper.get('.sr-title').text()).toBe('Orden cancelada'); wrapper.unmount() })
   })
-  it('keeps the form for drafts, with the draft title', () => {
+  it('keeps the form for drafts, with the draft title and the save footer', () => {
     grants.add('update:ProcurementPurchaseOrder')
     set('selected', order); set('open', true)
     const wrapper = mountView()
     expect(wrapper.find('[data-testid="draft-form"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="order-readonly"]').exists()).toBe(false)
-    expect(wrapper.text()).toContain('Continuar borrador')
+    expect(wrapper.get('.sr-title').text()).toBe('Continuar borrador')
+    expect(wrapper.get('[data-testid="order-footer"]').text()).toContain('Guardar borrador')
+    wrapper.unmount()
+  })
+  it('titles a new order and offers the footer without a header primary', () => {
+    grants.add('create:ProcurementPurchaseOrder'); grants.add('read:Product'); grants.add('read:ProcurementSupplier')
+    set('open', true)
+    const wrapper = mountView()
+    expect(wrapper.get('h2.order-header-title').text()).toBe('Nueva orden')
+    expect(wrapper.find('[data-testid="confirm-order"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="order-footer"]').text()).toContain('Sin guardar')
     wrapper.unmount()
   })
   it('does not claim a create-only user just saved a draft they only opened', () => {
     grants.add('create:ProcurementPurchaseOrder'); grants.add('read:Product'); grants.add('read:ProcurementSupplier')
     set('selected', order); set('open', true)
     const wrapper = mountView()
-    expect(wrapper.text()).toContain('Solo lectura: no tienes permiso para editar este borrador.')
+    expect(wrapper.get('.sr-description').text()).toContain('Solo lectura: no tienes permiso para editar este borrador.')
     expect(wrapper.text()).not.toContain('Borrador guardado')
     wrapper.unmount()
   })
-  it('titles a draft opened without update permission as read-only, without the catalog-read save hint', () => {
+  it('titles a draft opened without update permission as read-only, marks it in the header and skips the catalog-read save hint', () => {
     grants.add('create:ProcurementOrderConfirmation')
     set('selected', order); set('open', true)
     const wrapper = mountView()
-    expect(wrapper.text()).toContain('Ver borrador')
-    expect(wrapper.text()).toContain('Solo lectura: no tienes permiso para editar este borrador.')
+    expect(wrapper.get('.sr-title').text()).toBe('Ver borrador')
+    expect(wrapper.get('.sr-description').text()).toContain('Solo lectura: no tienes permiso para editar este borrador.')
+    expect(wrapper.get('.order-header-meta').text()).toContain('Solo lectura')
     expect(wrapper.text()).not.toContain('Continuar borrador')
     expect(wrapper.text()).not.toContain('Puedes guardar datos incompletos')
     expect(wrapper.text()).not.toContain('Para guardar cambios necesitas permiso de lectura')
     expect(wrapper.text()).not.toContain('Borrador guardado')
     expect(wrapper.find('[data-testid="draft-form"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="order-footer"]').exists()).toBe(false)
     wrapper.unmount()
   })
-  it('renders a draft opened without update permission as the read-only block with its status, no form and no disabled controls', () => {
+  it('renders a draft opened without update permission as the read-only block with its checklist, no form and no disabled controls in it', () => {
     grants.add('create:ProcurementOrderConfirmation')
     set('selected', { ...order, supplierId: null, supplierDisplaySnapshot: null, canConfirm: false, validation: { issues: [{ path: '/supplierId', code: 'SUPPLIER_REQUIRED' }] } }); set('open', true)
     const wrapper = mountView()
     const readonly = wrapper.get('[data-testid="order-readonly"]')
     expect(wrapper.find('[data-testid="draft-form"]').exists()).toBe(false)
-    expect(readonly.text()).toContain('Borrador')
+    expect(wrapper.get('[data-testid="order-status"]').text()).toBe('Borrador')
     expect(readonly.text()).toContain('Selecciona un proveedor.')
     expect(readonly.findAll('button, input, select, textarea, [disabled]')).toHaveLength(0)
     wrapper.unmount()
@@ -164,6 +216,13 @@ describe('order editor by status', () => {
     const wrapper = mountView()
     expect(wrapper.find('[data-testid="draft-form"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="order-readonly"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+  it('warns that saving needs catalog reads only where it blocks an editable draft', () => {
+    grants.add('update:ProcurementPurchaseOrder')
+    set('selected', order); set('open', true)
+    const wrapper = mountView()
+    expect(wrapper.text()).toContain('Para guardar cambios necesitas permiso de lectura de proveedores y productos.')
     wrapper.unmount()
   })
 })
@@ -185,32 +244,53 @@ describe('transition dialogs show an order summary', () => {
   })
 })
 describe('confirm and cancel actions', () => {
-  it('shows each action only with its permission and enables it from the workspace gate', async () => {
+  const menuOf = (wrapper: ReturnType<typeof mountView>) => wrapper.getComponent(RowActionsMenu)
+  it('shows the Confirmar orden primary only with its permission and enables it from the workspace gate', async () => {
     set('selected', order); set('open', true); set('canConfirm', true); set('canCancel', true)
     const wrapper = mountView()
     expect(wrapper.find('[data-testid="confirm-order"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="cancel-order"]').exists()).toBe(false)
     wrapper.unmount()
-    grants.add('create:ProcurementOrderConfirmation'); grants.add('create:ProcurementOrderCancellation')
+    grants.add('create:ProcurementOrderConfirmation')
     const allowed = mountView()
     await allowed.get('[data-testid="confirm-order"]').trigger('click')
     expect(workspace.requestTransition).toHaveBeenCalledWith('confirm')
-    await allowed.get('[data-testid="cancel-order"]').trigger('click')
-    expect(workspace.requestTransition).toHaveBeenCalledWith('cancel')
     set('canConfirm', false)
     await allowed.vm.$nextTick()
-    expect(allowed.get('[data-testid="confirm-order"]').attributes('disabled')).toBeDefined()
+    const primary = allowed.get('[data-testid="confirm-order"]')
+    expect(primary.attributes('aria-disabled')).toBe('true')
+    vi.mocked(workspace.requestTransition as ReturnType<typeof vi.fn>).mockClear()
+    await primary.trigger('click')
+    expect(workspace.requestTransition).not.toHaveBeenCalled()
     allowed.unmount()
   })
-  it('does not offer confirm on closed orders and explains unsaved changes', async () => {
-    grants.add('create:ProcurementOrderConfirmation'); grants.add('create:ProcurementOrderCancellation')
+  it('keeps Cancelar orden… and Descartar borrador in the header ⋮, never as loose buttons', async () => {
+    grants.add('create:ProcurementOrderCancellation'); grants.add('delete:ProcurementPurchaseOrder')
+    set('selected', order); set('open', true); set('canCancel', true)
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="cancel-order"]').exists()).toBe(false)
+    expect(wrapper.findAll('button').map(button => button.text())).not.toContain('Cancelar orden')
+    const actions = menuOf(wrapper).props('actions') as Array<{ key: string; label: string; destructive?: boolean; disabled?: boolean }>
+    expect(actions.map(action => action.label)).toEqual(['Cancelar orden…', 'Descartar borrador'])
+    expect(actions[0]!.disabled).toBeFalsy()
+    menuOf(wrapper).vm.$emit('select', 'cancel')
+    // The menu item is gone when the dialog closes, so the ⋮ trigger is passed as the focus target.
+    expect(workspace.requestTransition).toHaveBeenCalledWith('cancel', wrapper.get('button[aria-label="Más acciones de la orden"]').element)
+    menuOf(wrapper).vm.$emit('select', 'discard')
+    expect(workspace.requestDelete).toHaveBeenCalledWith(order)
+    set('canCancel', false)
+    await wrapper.vm.$nextTick()
+    expect((menuOf(wrapper).props('actions') as Array<{ key: string; disabled?: boolean }>).find(action => action.key === 'cancel')!.disabled).toBe(true)
+    wrapper.unmount()
+  })
+  it('offers no Confirmar on closed orders, only Cancelar orden… for a canceller, and nothing on a cancelled one', async () => {
+    grants.add('create:ProcurementOrderConfirmation'); grants.add('create:ProcurementOrderCancellation'); grants.add('delete:ProcurementPurchaseOrder')
     set('selected', { ...order, status: 'CONFIRMED', canConfirm: false }); set('open', true); set('canCancel', true)
     const wrapper = mountView()
     expect(wrapper.find('[data-testid="confirm-order"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="cancel-order"]').exists()).toBe(true)
-    set('selected', order); set('needsSave', true)
+    expect((menuOf(wrapper).props('actions') as Array<{ label: string }>).map(action => action.label)).toEqual(['Cancelar orden…'])
+    set('selected', { ...order, status: 'CANCELLED', canConfirm: false })
     await wrapper.vm.$nextTick()
-    expect(wrapper.text()).toContain('Guarda tus cambios antes de confirmar o cancelar.')
+    expect(wrapper.find('button[aria-label="Más acciones de la orden"]').exists()).toBe(false)
     wrapper.unmount()
   })
   it('confirms through a modal that says what freezes and that stock, payments and debt are untouched', async () => {
@@ -243,64 +323,74 @@ describe('confirm and cancel actions', () => {
     wrapper.unmount()
   })
 })
-describe('transition action bar', () => {
-  const bar = (wrapper: ReturnType<typeof mountView>) => wrapper.get('[data-testid="order-transition-bar"]')
-  const before = (first: Element, second: Element) => Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING)
+describe('the transition bar is gone', () => {
   beforeEach(() => { grants.add('create:ProcurementOrderConfirmation'); grants.add('create:ProcurementOrderCancellation'); grants.add('update:ProcurementPurchaseOrder') })
-  it('keeps both actions and the unsaved-changes explanation in one bar that precedes the form', () => {
-    set('selected', order); set('open', true); set('canCancel', true); set('needsSave', true)
-    const wrapper = mountView()
-    const element = bar(wrapper).element
-    expect(bar(wrapper).find('[data-testid="confirm-order"]').exists()).toBe(true)
-    expect(bar(wrapper).find('[data-testid="cancel-order"]').exists()).toBe(true)
-    expect(bar(wrapper).text()).toContain('Guarda tus cambios antes de confirmar o cancelar.')
-    expect(before(element, wrapper.get('[data-testid="draft-form"]').element)).toBe(true)
-    // The explanation follows the buttons inside the bar, never above them or elsewhere.
-    expect(before(bar(wrapper).get('[data-testid="cancel-order"]').element, bar(wrapper).get('[role="status"]').element)).toBe(true)
-    wrapper.unmount()
-  })
-  it('explains what is missing to confirm, inside the bar', () => {
-    set('selected', { ...order, canConfirm: false }); set('open', true)
-    const wrapper = mountView()
-    expect(bar(wrapper).text()).toContain('Completa los avisos del borrador para poder confirmarla.')
-    wrapper.unmount()
-  })
-  it.each([
-    ['a ready draft', { ...order }, 'Al confirmar se congelan el proveedor, los productos y los costos.'],
-    ['a draft for a user who can only cancel', { ...order }, 'La cancelación es definitiva y no se puede deshacer.'],
-    ['a confirmed order', { ...order, status: 'CONFIRMED' as const, canConfirm: false }, 'La cancelación es definitiva y no se puede deshacer.'],
-  ])('says what the actions do for %s', (name, selected, expected) => {
-    if (name.includes('only cancel')) grants.delete('create:ProcurementOrderConfirmation')
-    set('selected', selected); set('open', true); set('canCancel', true)
-    const wrapper = mountView()
-    expect(bar(wrapper).text()).toContain(expected)
-    wrapper.unmount()
-  })
-  it('is the same bar, ahead of the read-only block, for a closed order', () => {
-    set('selected', { ...order, status: 'CONFIRMED', canConfirm: false }); set('open', true); set('canCancel', true)
-    const wrapper = mountView()
-    expect(bar(wrapper).find('[data-testid="confirm-order"]').exists()).toBe(false)
-    expect(bar(wrapper).find('[data-testid="cancel-order"]').exists()).toBe(true)
-    expect(before(bar(wrapper).element, wrapper.get('[data-testid="order-readonly"]').element)).toBe(true)
-    wrapper.unmount()
-  })
-  it('does not render a bar for a cancelled order or without transition permissions', () => {
-    set('selected', { ...order, status: 'CANCELLED', canConfirm: false }); set('open', true)
-    const cancelled = mountView()
-    expect(cancelled.find('[data-testid="order-transition-bar"]').exists()).toBe(false)
-    cancelled.unmount()
-    grants.clear(); grants.add('read:ProcurementPurchaseOrder')
-    set('selected', order)
-    const reader = mountView()
-    expect(reader.find('[data-testid="order-transition-bar"]').exists()).toBe(false)
-    reader.unmount()
-  })
-  it('does not render an empty bar for a confirmer looking at an order that is already confirmed', () => {
-    grants.clear(); grants.add('read:ProcurementPurchaseOrder'); grants.add('create:ProcurementOrderConfirmation')
-    set('selected', { ...order, status: 'CONFIRMED', canConfirm: false }); set('open', true)
+  it('renders no bar and none of its explanatory sentences in the editor', () => {
+    set('selected', { ...order, canConfirm: false }); set('open', true); set('canCancel', true)
     const wrapper = mountView()
     expect(wrapper.find('[data-testid="order-transition-bar"]').exists()).toBe(false)
-    expect(wrapper.text()).not.toContain('La cancelación es definitiva')
+    for (const copy of ['Guarda tus cambios antes de confirmar o cancelar.', 'Completa los avisos del borrador para poder confirmarla.', 'Al confirmar se congelan', 'La cancelación es definitiva']) expect(wrapper.text()).not.toContain(copy)
+    wrapper.unmount()
+  })
+  it('keeps the CSS free of the old bar', () => {
+    const css = readFileSync('src/features/procurement/purchase-orders/styles/purchase-orders-visual.css', 'utf8')
+    expect(css).not.toMatch(/order-transition-bar/)
+    expect(css).not.toMatch(/\.order-help/)
+  })
+})
+describe('step strip, header and footer state', () => {
+  beforeEach(() => { grants.add('create:ProcurementOrderConfirmation'); grants.add('update:ProcurementPurchaseOrder') })
+  const current = (wrapper: ReturnType<typeof mountView>) => wrapper.get('li[aria-current="step"]').attributes('data-step')
+  it('walks Completar → Guardar → Confirmar from the issues and the dirty state', async () => {
+    set('selected', { ...order, canConfirm: false, validation: { issues: [{ path: '/supplierId', code: 'SUPPLIER_REQUIRED' }] } }); set('open', true)
+    const wrapper = mountView()
+    expect(current(wrapper)).toBe('complete')
+    expect(wrapper.get('li[data-step="complete"]').text()).toContain('1 pendiente')
+    set('selected', order)
+    await wrapper.vm.$nextTick()
+    expect(current(wrapper)).toBe('confirm')
+    set('dirty', true)
+    await wrapper.vm.$nextTick()
+    expect(current(wrapper)).toBe('save')
+    expect(wrapper.get('[data-testid="order-footer"]').text()).toContain('Cambios sin guardar')
+    wrapper.unmount()
+  })
+  it('shows no step strip on a closed order', () => {
+    set('selected', { ...order, status: 'CONFIRMED', canConfirm: false }); set('open', true)
+    const wrapper = mountView()
+    expect(wrapper.find('ol[aria-label="Pasos para confirmar"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+  it('keeps the draft primary aria-disabled and pointing at the checklist while the server says it cannot confirm', () => {
+    set('selected', { ...order, canConfirm: false }); set('open', true)
+    const wrapper = mountView()
+    expect(wrapper.get('[data-testid="confirm-order"]').attributes('aria-describedby')).toBe('order-checklist')
+    wrapper.unmount()
+  })
+  it('closes through the workspace so the unsaved-changes guard still runs', async () => {
+    set('selected', order); set('open', true)
+    const wrapper = mountView()
+    await wrapper.get('button[aria-label="Cerrar"]').trigger('click')
+    expect(workspace.close).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+})
+describe('mobile', () => {
+  beforeEach(() => { grants.add('create:ProcurementOrderConfirmation'); grants.add('update:ProcurementPurchaseOrder'); viewport.mobile.value = true })
+  it('moves the primary from the header to a sticky bottom bar with Guardar and Confirmar orden', () => {
+    set('selected', order); set('open', true); set('canConfirm', true)
+    const wrapper = mountView()
+    expect(wrapper.findAll('[data-testid="confirm-order"]')).toHaveLength(1)
+    const bar = wrapper.get('.order-action-bar')
+    expect(bar.findAll('button').map(button => button.text())).toEqual(['Guardar', 'Confirmar orden'])
+    expect(wrapper.get('.order-header').find('[data-testid="confirm-order"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+  it('requests the confirmation from the bar', async () => {
+    set('selected', order); set('open', true); set('canConfirm', true)
+    const wrapper = mountView()
+    await wrapper.get('.order-action-bar [data-testid="confirm-order"]').trigger('click')
+    expect(workspace.requestTransition).toHaveBeenCalledWith('confirm')
     wrapper.unmount()
   })
 })

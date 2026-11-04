@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { badgeToneToColor, toneToDotClass, activityToBadgeTone } from '../badge.utils'
+import { badgeToneToColor, toneToDotClass, activityToBadgeTone, statusBadgeTone } from '../badge.utils'
 
 describe('badgeToneToColor', () => {
   it('passes through base colors', () => {
@@ -41,5 +41,24 @@ describe('activityToBadgeTone', () => {
   it('returns active/inactive by flag', () => {
     expect(activityToBadgeTone(true)).toBe('active')
     expect(activityToBadgeTone(false)).toBe('inactive')
+  })
+})
+
+describe('statusBadgeTone', () => {
+  it.each([
+    ['neutral', 'neutral'],
+    ['info', 'info'],
+    ['success', 'success'],
+    ['warning', 'warning'],
+    ['danger', 'danger'],
+    ['error', 'danger'],
+    ['inactive', 'danger'],
+    ['active', 'success'],
+    ['pending', 'warning'],
+    ['automatic', 'info'],
+    ['manual', 'neutral'],
+    ['type', 'neutral'],
+  ] as const)('resolves %s to the %s status tone', (tone, expected) => {
+    expect(statusBadgeTone(tone)).toBe(expected)
   })
 })
