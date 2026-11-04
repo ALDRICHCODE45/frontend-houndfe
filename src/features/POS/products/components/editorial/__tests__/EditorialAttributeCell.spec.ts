@@ -84,6 +84,24 @@ describe('EditorialAttributeCell controls', () => {
     expect(wrapper.get('summary').text()).toContain('Elegir')
   })
 
+  it('multi: the option list closes with Escape and on a click outside, not on a click inside', async () => {
+    const { wrapper } = render('multi', { state: 'omitted' })
+    const details = wrapper.get('details').element as HTMLDetailsElement
+    details.open = true
+    details.querySelector('input')!.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+    expect(details.open).toBe(true)
+    wrapper.get('summary').element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    expect(details.open).toBe(false)
+    details.open = true
+    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+    expect(details.open).toBe(false)
+  })
+
+  it('marks a cell that has a value with a "Con dato" chip', () => {
+    expect(render('text', known({ type: 'text', value: 'Nylon' })).wrapper.text()).toContain('Con dato')
+    expect(render('text', { state: 'omitted' }).wrapper.text()).not.toContain('Con dato')
+  })
+
   it('multi: summarizes the selection with option labels', () => {
     const { wrapper } = render('multi', known({ type: 'multi', value: ['z', 'lost'] }))
     expect(wrapper.get('summary').text()).toContain('Zeta')
@@ -152,9 +170,9 @@ describe('EditorialAttributeCell states', () => {
     expect(wrapper.get('.hf-status-badge').text()).toBe(label)
   })
 
-  it('shows no chip for a known value', () => {
+  it('shows a Con dato chip for a known value', () => {
     const { wrapper } = render('text', known({ type: 'text', value: 'a' }))
-    expect(wrapper.find('.hf-status-badge').exists()).toBe(false)
+    expect(wrapper.get('.hf-status-badge').text()).toBe('Con dato')
   })
 
   it('replaces the control with the state while it is unknown or not applicable', () => {

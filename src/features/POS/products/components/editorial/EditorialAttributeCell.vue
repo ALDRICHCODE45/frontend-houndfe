@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import type { EditorialDefinition } from '../../interfaces/editorial-contract-definition.types'
@@ -25,7 +25,7 @@ const payload = computed(() => (known.value && known.value.payload.type === type
 const mismatch = computed(() => known.value !== null && payload.value === null)
 const evidence = computed(() => known.value?.evidence ?? null)
 const showControl = computed(() => !props.readonly && (state.value === 'omitted' || (known.value !== null && !mismatch.value)))
-const chip = computed(() => (state.value === 'known' ? null : editorialInputText(props.modelValue, props.definition)))
+const chip = computed(() => (state.value === 'known' ? { label: 'Con dato', tone: 'success' as const } : { label: editorialInputText(props.modelValue, props.definition), tone: 'neutral' as const }))
 
 const choices = computed(() => (props.definition.type === 'single' || props.definition.type === 'multi' ? props.definition.options : []))
 const selected = computed<readonly string[]>(() => payload.value?.type === 'single' ? (payload.value.value === null ? [] : [payload.value.value])
@@ -122,6 +122,18 @@ function removeEvidence() {
 function keepOnFocusMove(event: Event) { event.preventDefault() }
 
 const root = useTemplateRef<HTMLElement>('root')
+// The option list is a plain <details>: Escape or a press outside it closes it, like any menu.
+const multi = useTemplateRef<HTMLDetailsElement>('multi')
+function closeMulti(refocus = false) {
+  if (!multi.value?.open) return
+  multi.value.open = false
+  if (refocus) multi.value.querySelector<HTMLElement>('summary')?.focus()
+}
+function closeOnOutsidePress(event: Event) {
+  if (multi.value?.open && !multi.value.contains(event.target as Node)) closeMulti()
+}
+onMounted(() => document.addEventListener('pointerdown', closeOnOutsidePress))
+onBeforeUnmount(() => document.removeEventListener('pointerdown', closeOnOutsidePress))
 async function focusControl() {
   await nextTick()
   root.value?.querySelector<HTMLElement>('input, select, summary')?.focus()
@@ -163,7 +175,7 @@ function act(key: string) {
           <option value="">Elige</option>
           <option v-for="option in options" :key="option.code" :value="option.code" :disabled="option.locked">{{ option.label }}</option>
         </select>
-        <details v-else-if="type === 'multi'" class="hf-cell__multi">
+        <details v-else-if="type === 'multi'" ref="multi" class="hf-cell__multi" @keydown.esc="closeMulti(true)">
           <summary class="hf-cell__control" :aria-label="label" :aria-invalid="message ? 'true' : undefined">{{ multiText }}</summary>
           <div class="hf-cell__options" role="group" :aria-label="label">
             <label v-for="option in options" :key="option.code" class="hf-cell__option">
@@ -197,7 +209,7 @@ function act(key: string) {
         </template>
       </fieldset>
       <span v-else-if="!readonly && state !== 'known'" class="hf-cell__text" aria-hidden="true">—</span>
-      <StatusBadge v-if="chip" :label="chip" tone="neutral" aria-prefix="Valor:" class="hf-cell__chip" />
+      <StatusBadge :label="chip.label" :tone="chip.tone" :aria-prefix="state === 'known' ? 'Estado:' : 'Valor:'" class="hf-cell__chip" />
       <span v-if="evidence" class="hf-cell__evidence" data-evidence title="Con evidencia">
         <UIcon name="i-lucide-paperclip" class="size-4" aria-hidden="true" /><span class="sr-only">Con evidencia</span>
       </span>
