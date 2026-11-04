@@ -66,34 +66,13 @@
 }
 
 .dashboard-visual .dashboard-title-block { max-width: 650px; }
-.dashboard-visual .dashboard-eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-  color: var(--hf-muted);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-}
-.dashboard-visual .dashboard-brand-marker {
-  width: 7px;
-  height: 7px;
-  border-radius: 2px;
-  background: var(--hf-gold);
-}
 .dashboard-visual .dashboard-title-block h1 {
   color: var(--hf-heading);
   font-size: 30px;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.3;
   letter-spacing: -1.1px;
   text-wrap: balance;
-}
-.dashboard-visual .dashboard-title-block > p:not(.sr-only) {
-  margin-top: 10px;
-  color: var(--hf-muted);
-  font-size: 13px;
 }
 .dashboard-visual .dashboard-header-controls { min-width: 0; }
 .dashboard-visual .dashboard-period-controls {
@@ -111,15 +90,9 @@
   color: var(--hf-muted);
   font-size: 12px;
 }
-.dashboard-visual .dashboard-period-meta > span:first-of-type {
+.dashboard-visual .dashboard-period-meta > span {
   color: var(--hf-ink);
-  font-weight: 550;
-}
-.dashboard-visual .dashboard-period-dot {
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: var(--hf-muted);
+  font-weight: 500;
 }
 .dashboard-visual .dashboard-period-actions {
   display: flex;

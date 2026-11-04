@@ -9,7 +9,7 @@ const panel = readFileSync(`${dir}/components/DashboardOperationalPanel.vue`, 'u
 describe('Dashboard operational and summary state presentation', () => {
   it('owns divided operational rows and paired semantic state surfaces', () => {
     expect(panel).toContain("import '../styles/dashboard-panels.css'")
-    for (const hook of ['operations', 'operation-header', 'operation-row', 'row-amount', 'refund-facts', 'loading-block', 'empty-block', 'error-block', 'stale-alert', 'refresh-note']) {
+    for (const hook of ['operations', 'operation-header', 'operation-row', 'row-amount', 'loading-block', 'stale-alert', 'refresh-note']) {
       expect(css).toContain(`.dashboard-${hook}`)
     }
     expect(css).toContain('border-bottom: 1px solid var(--hf-border)')
@@ -17,6 +17,12 @@ describe('Dashboard operational and summary state presentation', () => {
     expect(css).toContain('min-height: 450px')
     expect(css).toContain('min-height: 444px')
     expect(css).not.toMatch(/#[\da-f]{3,8}\b|:root|!important/i)
+  })
+
+  it('leaves the words and tone of empty and error states to the shared EmptyState', () => {
+    expect(panel).toContain('<EmptyState')
+    expect(css).not.toMatch(/dashboard-(empty|error)-block|dashboard-empty-icon|dashboard-row-status|dashboard-status-warning/)
+    expect(css).toContain(".hf-empty-state[data-kind='error']")
   })
 
   it('animates entry, ordered rows, skeletons and refresh with a reduced-motion escape', () => {
@@ -27,9 +33,9 @@ describe('Dashboard operational and summary state presentation', () => {
     expect(css).toContain('@keyframes dashboard-panel-shimmer')
     // Own the hook rather than depending on v0's component-specific slots.
     expect(panel.match(/<USkeleton class="dashboard-state-skeleton/g)).toHaveLength(3)
-    expect(css).toContain('.dashboard-loading-block .dashboard-state-skeleton')
+    expect(css).toContain('.dashboard-state-skeleton')
     const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'))
-    for (const hook of ['dashboard-panel-grid', 'dashboard-operation-row', 'dashboard-loading-block', 'animate-spin', 'dashboard-state-content']) expect(reduced).toContain(hook)
+    for (const hook of ['dashboard-panel-grid', 'dashboard-operation-row', 'dashboard-state-skeleton', 'animate-spin', 'dashboard-state-content']) expect(reduced).toContain(hook)
     expect(reduced).toContain('animation: none')
     expect(reduced).toContain('transition: none')
   })

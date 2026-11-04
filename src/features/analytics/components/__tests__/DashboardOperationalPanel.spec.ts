@@ -18,7 +18,6 @@ function mountPanel(overrides: PanelOverrides = {}) {
     props: {
       id: 'recent-sales',
       title: 'Ventas recientes',
-      description: 'Últimas ventas confirmadas',
       icon: 'i-lucide-receipt-text',
       hasItems: false,
       isInitialLoading: false,
@@ -39,7 +38,7 @@ function mountPanel(overrides: PanelOverrides = {}) {
 }
 
 describe('DashboardOperationalPanel — structure and independent states', () => {
-  it('labels the panel from its heading and renders the supplied description', () => {
+  it('labels the panel from its heading and carries no help paragraph', () => {
     const w = mountPanel()
     const panel = w.find('[data-testid="dashboard-operational-panel"]')
     const heading = w.find('h2')
@@ -47,7 +46,7 @@ describe('DashboardOperationalPanel — structure and independent states', () =>
     expect(heading.attributes('id')).toBe('recent-sales-heading')
     expect(heading.text()).toBe('Ventas recientes')
     expect(panel.attributes('aria-labelledby')).toBe('recent-sales-heading')
-    expect(w.text()).toContain('Últimas ventas confirmadas')
+    expect(w.find('header p').exists()).toBe(false)
     expect(w.find('svg[aria-hidden="true"]').exists()).toBe(true)
   })
 
@@ -69,6 +68,8 @@ describe('DashboardOperationalPanel — structure and independent states', () =>
     const empty = w.find('[data-testid="dashboard-operational-empty"]')
 
     expect(empty.exists()).toBe(true)
+    expect(empty.classes()).toContain('hf-empty-state')
+    expect(empty.attributes('data-kind')).toBe('empty')
     expect(empty.attributes('role')).toBe('status')
     expect(empty.text()).toContain('No hay ventas confirmadas.')
     expect(w.find('[data-testid="dashboard-operational-list"]').exists()).toBe(false)
@@ -80,11 +81,11 @@ describe('DashboardOperationalPanel — structure and independent states', () =>
     const buttons = w.findAll('button').filter((button) => /reintentar/i.test(button.text()))
 
     expect(alert.exists()).toBe(true)
+    expect(alert.classes()).toContain('hf-empty-state')
+    expect(alert.attributes('data-kind')).toBe('error')
     expect(alert.attributes('role')).toBe('alert')
     expect(alert.text()).toContain('No pudimos cargar las ventas recientes.')
     expect(buttons).toHaveLength(1)
-    expect(buttons[0]!.classes()).toContain('min-h-11')
-    expect(buttons[0]!.classes().some((token) => /focus-visible:ring-/.test(token))).toBe(true)
     expect(w.find('[data-testid="dashboard-operational-empty"]').exists()).toBe(false)
     expect(w.find('[data-testid="dashboard-operational-list"]').exists()).toBe(false)
 
@@ -115,8 +116,14 @@ describe('DashboardOperationalPanel — structure and independent states', () =>
     expect(w.findAll('[data-testid^="row-"]')).toHaveLength(2)
   })
 
-  it.each([false, true])('disables retry and shows its spinner while refetching (retained: %s)', (hasItems) => {
-    const w = mountPanel({ hasItems, isError: true, isRefetching: true })
+  it('swaps the no-data error for the skeleton while a retry is in flight', () => {
+    const w = mountPanel({ isError: true, isRefetching: true })
+    expect(w.find('[data-testid="dashboard-operational-loading"]').exists()).toBe(true)
+    expect(w.find('[data-testid="dashboard-operational-error"]').exists()).toBe(false)
+  })
+
+  it('disables the retained-data retry and shows its spinner while refetching', () => {
+    const w = mountPanel({ hasItems: true, isError: true, isRefetching: true })
     expect(w.find('button').attributes('disabled')).toBeDefined()
     expect(w.find('button .animate-spin').exists()).toBe(true)
   })

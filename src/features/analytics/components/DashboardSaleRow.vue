@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ConfirmedSaleRow } from '@/features/POS/sales/interfaces/sale.types'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
-import { formatDashboardDueDate, formatDashboardInstant } from '../utils/dashboardOperational.utils'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
+import { formatDashboardDueDate, MEXICO_CITY_TIME_ZONE } from '../utils/dashboardOperational.utils'
 
 const props = defineProps<{
   sale: ConfirmedSaleRow
@@ -10,9 +12,11 @@ const props = defineProps<{
 }>()
 
 const customerName = computed(() => props.sale.customer?.name ?? 'Público en General')
-const folio = computed(() => props.sale.folio ?? 'Sin folio')
+const folio = computed(() => (props.sale.folio ? `Folio ${props.sale.folio}` : 'Sin folio'))
 const confirmedAt = computed(() =>
-  props.sale.confirmedAt ? formatDashboardInstant(props.sale.confirmedAt) : 'Fecha no disponible',
+  props.sale.confirmedAt
+    ? formatShortDateTime(props.sale.confirmedAt, { timeZone: MEXICO_CITY_TIME_ZONE })
+    : 'Fecha no disponible',
 )
 const dueDate = computed(() =>
   props.sale.dueDate
@@ -29,8 +33,8 @@ const amount = computed(() =>
   <li class="dashboard-operation-row" data-testid="dashboard-sale-row">
     <div class="dashboard-row-main">
       <div class="dashboard-row-description">
-        <strong>Folio {{ folio }}</strong>
-        <span>{{ customerName }}</span>
+        <strong>{{ customerName }}</strong>
+        <span>{{ folio }}</span>
         <p v-if="isDebt" class="dashboard-row-date">{{ dueDate }}</p>
         <p v-else class="dashboard-row-date">
           <time v-if="sale.confirmedAt" :datetime="sale.confirmedAt">{{ confirmedAt }}</time>
@@ -38,14 +42,11 @@ const amount = computed(() =>
         </p>
       </div>
 
-      <div
-        data-testid="dashboard-sale-row-amount"
-        class="dashboard-row-amount"
-        :class="isDebt ? 'text-warning' : 'text-highlighted'"
-      >
-        <p class="dashboard-row-status" :class="{ 'dashboard-status-warning': isDebt }">
-          {{ isDebt ? 'Deuda pendiente' : 'Venta confirmada' }}
-        </p>
+      <div data-testid="dashboard-sale-row-amount" class="dashboard-row-amount">
+        <StatusBadge
+          :label="isDebt ? 'Deuda pendiente' : 'Venta confirmada'"
+          :tone="isDebt ? 'warning' : 'success'"
+        />
         <strong>{{ amount }}</strong>
       </div>
     </div>

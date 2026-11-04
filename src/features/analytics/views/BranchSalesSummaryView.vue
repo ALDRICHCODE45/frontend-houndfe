@@ -42,6 +42,7 @@ import {
 } from '@/core/shared/utils/mexicoCityCalendar'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import '../styles/dashboard-visual.css'
 import { useBranchSalesSummary } from '../composables/useBranchSalesSummary'
 import { useBranchSalesTimeseries } from '../composables/useBranchSalesTimeseries'
@@ -143,6 +144,16 @@ const metricsSummary = computed(() =>
   hasLoadedSummary.value && !summaryState.isEmpty.value ? summaryState.summary.value : undefined,
 )
 
+/**
+ * A retry from the no-data error shows the skeleton again, so the shared error
+ * state (which has no busy button) never sits there while the request runs.
+ */
+const showSummarySkeleton = computed(
+  () =>
+    summaryState.isInitialLoading.value ||
+    (summaryState.isError.value && summaryState.isRefetching.value && !summaryState.summary.value),
+)
+
 /** HTTP status is the ONLY error signal consumed for presentation copy. */
 function httpStatus(error: unknown): number | undefined {
   const status = (error as { response?: { status?: unknown } } | null | undefined)?.response?.status
@@ -206,11 +217,7 @@ function onPendingRefundsRetry() {
     <div data-testid="branch-summary-card" class="dashboard-inner">
       <header class="dashboard-page-header">
         <div class="dashboard-title-block">
-          <div class="dashboard-eyebrow">
-            <span class="dashboard-brand-marker" aria-hidden="true" /> CONTROL DE VENTAS
-          </div>
           <h1>Resumen de ventas</h1>
-          <p>Ventas, cobros y reembolsos de la sucursal en el periodo seleccionado.</p>
           <p data-testid="branch-summary-range" class="sr-only">{{ from }} → {{ to }}</p>
         </div>
         <div data-testid="branch-summary-controls" class="dashboard-header-controls">
@@ -255,7 +262,7 @@ function onPendingRefundsRetry() {
             class="dashboard-stale-alert"
           >
             <UIcon name="i-lucide-circle-alert" class="size-4 shrink-0" aria-hidden="true" />
-            <p data-testid="branch-summary-refresh-error-message" class="text-sm text-warning">
+            <p data-testid="branch-summary-refresh-error-message" class="text-sm">
               No pudimos actualizar el resumen; se muestran los últimos datos disponibles.
             </p>
             <UButton
@@ -285,18 +292,26 @@ function onPendingRefundsRetry() {
         />
 
         <template v-else>
-          <!-- Initial load: accessible skeleton, never synthetic metric values. -->
+          <!-- Initial load: skeleton in the final geometry (hero, then five cards), never synthetic values. -->
           <div
-            v-if="summaryState.isInitialLoading.value"
+            v-if="showSummarySkeleton"
             data-testid="branch-summary-loading"
             role="status"
             aria-busy="true"
-            class="dashboard-summary-feedback dashboard-loading-block"
+            class="dashboard-metrics dashboard-summary-skeleton"
           >
             <span class="sr-only">Cargando el resumen de ventas…</span>
-            <USkeleton class="dashboard-state-skeleton h-5 w-40" aria-hidden="true" />
-            <USkeleton class="dashboard-state-skeleton h-10 w-56 max-w-full" aria-hidden="true" />
-            <USkeleton class="dashboard-state-skeleton w-full flex-1" aria-hidden="true" />
+            <div class="dashboard-metric-panel dashboard-hero" aria-hidden="true">
+              <USkeleton class="dashboard-state-skeleton h-5 w-32" />
+              <USkeleton class="dashboard-state-skeleton mt-4 h-12 w-64 max-w-full" />
+              <USkeleton class="dashboard-state-skeleton mt-3 h-4 w-40 max-w-full" />
+            </div>
+            <div class="dashboard-metric-grid" aria-hidden="true">
+              <div v-for="n in 5" :key="n" class="dashboard-metric-panel dashboard-metric-card">
+                <USkeleton class="dashboard-state-skeleton h-4 w-24 max-w-full" />
+                <USkeleton class="dashboard-state-skeleton mt-4 h-6 w-28 max-w-full" />
+              </div>
+            </div>
           </div>
 
           <!-- Local invalid range: the filters own the alert; no new-range claim. -->
@@ -310,45 +325,26 @@ function onPendingRefundsRetry() {
           </p>
 
           <!-- Error with no data: status-aware copy and one guarded retry. -->
-          <div
+          <EmptyState
             v-else-if="summaryState.isError.value && !summaryState.summary.value"
             data-testid="branch-summary-error"
-            role="alert"
-            class="dashboard-summary-feedback dashboard-error-block"
-          >
-            <UIcon name="i-lucide-circle-alert" class="size-6 text-error" aria-hidden="true" />
-            <p data-testid="branch-summary-error-message" class="text-sm text-error">
-              {{ errorMessage }}
-            </p>
-            <UButton
-              color="primary"
-              data-testid="branch-summary-retry"
-              class="dashboard-retry min-h-11"
-              icon="i-lucide-refresh-cw"
-              :loading="summaryState.isRefetching.value"
-              :disabled="summaryState.isRefetching.value"
-              @click="onRetry"
-            >
-              Reintentar
-            </UButton>
-          </div>
+            class="dashboard-summary-feedback"
+            kind="error"
+            :title="errorMessage"
+            action-label="Reintentar"
+            action-test-id="branch-summary-retry"
+            @action="onRetry"
+          />
 
           <!-- Global empty keys off the composable `isEmpty` only, so refund-only
                activity (non-zero refunds, zero sales) still reaches metrics. -->
-          <div
+          <EmptyState
             v-else-if="summaryState.summary.value"
             data-testid="branch-summary-empty"
-            role="status"
-            class="dashboard-summary-feedback dashboard-empty-block"
-          >
-            <span class="dashboard-empty-icon" aria-hidden="true">
-              <UIcon name="i-lucide-inbox" class="size-[26px]" />
-            </span>
-            <strong>Sin actividad en el periodo</strong>
-            <p class="mt-1 text-sm text-muted">
-              No se registraron ventas ni reembolsos para el rango seleccionado.
-            </p>
-          </div>
+            class="dashboard-summary-feedback"
+            kind="empty"
+            title="Sin actividad en el periodo"
+          />
 
           <!-- No active query (for example, no tenant context yet). -->
           <p v-else data-testid="branch-summary-idle" role="status" class="text-sm text-muted">
@@ -400,7 +396,6 @@ function onPendingRefundsRetry() {
             v-if="canReadSales"
             id="dashboard-recent-sales"
             title="Ventas recientes"
-            description="Últimas ventas confirmadas de la sucursal."
             icon="i-lucide-receipt-text"
             :has-items="!recentSalesState.isEmpty.value"
             :is-initial-loading="recentSalesState.isInitialLoading.value"
@@ -423,7 +418,6 @@ function onPendingRefundsRetry() {
             v-if="canReadSales"
             id="dashboard-debt-sales"
             title="Ventas con deuda"
-            description="Ventas confirmadas con saldo pendiente."
             icon="i-lucide-hand-coins"
             :has-items="!debtSalesState.isEmpty.value"
             :is-initial-loading="debtSalesState.isInitialLoading.value"
@@ -446,7 +440,6 @@ function onPendingRefundsRetry() {
             v-if="canReadRefunds"
             id="dashboard-pending-refunds"
             title="Reembolsos pendientes"
-            description="Reembolsos pendientes de liquidar."
             icon="i-lucide-rotate-ccw"
             :has-items="!pendingRefundsState.isEmpty.value"
             :is-initial-loading="pendingRefundsState.isInitialLoading.value"

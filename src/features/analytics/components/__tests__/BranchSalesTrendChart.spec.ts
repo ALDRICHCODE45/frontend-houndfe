@@ -147,7 +147,7 @@ function tableRows(wrapper: ReturnType<typeof mountChart>) {
 describe('BranchSalesTrendChart — v0 interaction', () => {
   it('renders the accepted heading, icon and table action', () => {
     const w = mountChart()
-    expect(w.text()).toContain('El comportamiento de tus ventas, día a día.')
+    expect(w.text()).not.toContain('El comportamiento de tus ventas, día a día.')
     expect(w.find('.dashboard-trend-heading [data-slot="icon"]').exists() || w.find('.dashboard-trend-heading .size-5').exists()).toBe(true)
     expect(w.find('summary').text()).toContain('Ver datos en tabla')
   })
@@ -229,10 +229,10 @@ describe('BranchSalesTrendChart — chart-scoped query states', () => {
     const alert = w.find('[data-testid="branch-sales-trend-error"]')
     expect(alert.exists()).toBe(true)
     expect(alert.attributes('role')).toBe('alert')
+    expect(alert.attributes('data-kind')).toBe('error')
 
     const buttons = retryButtons(w)
     expect(buttons).toHaveLength(1)
-    expect(buttons[0]!.classes()).toContain('min-h-11')
   })
 
   it('keeps the loaded chart and exact table values visible during a stale-data error', () => {
@@ -263,8 +263,16 @@ describe('BranchSalesTrendChart — chart-scoped query states', () => {
     const empty = w.find('[data-testid="branch-sales-trend-empty"]')
     expect(empty.exists()).toBe(true)
     expect(empty.attributes('role')).toBe('status')
+    expect(empty.attributes('data-kind')).toBe('empty')
     expect(w.find('[data-testid="branch-sales-trend-chart"]').exists()).toBe(false)
     expect(w.find('[data-testid="branch-sales-trend-table"]').exists()).toBe(false)
+  })
+
+  it('swaps the no-data error for the skeleton while a retry is in flight', () => {
+    const w = mountChart({ points: [], isError: true, isRefetching: true })
+
+    expect(w.find('[data-testid="branch-sales-trend-loading"]').exists()).toBe(true)
+    expect(w.find('[data-testid="branch-sales-trend-error"]').exists()).toBe(false)
   })
 
   it('emits exactly one retry event per click and never calls anything else', async () => {

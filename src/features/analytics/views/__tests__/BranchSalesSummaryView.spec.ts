@@ -581,6 +581,10 @@ describe('BranchSalesSummaryView — render states stay distinct', () => {
     expect(loading.attributes('role')).toBe('status')
     expect(loading.attributes('aria-busy')).toBe('true')
     expect(loading.findAll('.animate-pulse').length).toBeGreaterThan(0)
+    // Final geometry: one hero panel and five metric cards, no numbers.
+    expect(loading.findAll('.dashboard-hero')).toHaveLength(1)
+    expect(loading.findAll('.dashboard-metric-card')).toHaveLength(5)
+    expect(loading.text()).not.toMatch(/\d/)
     for (const testid of [
       'branch-summary-metrics',
       'branch-summary-empty',
@@ -610,6 +614,7 @@ describe('BranchSalesSummaryView — render states stay distinct', () => {
 
     const empty = view.find('[data-testid="branch-summary-empty"]')
     expect(empty.attributes('role')).toBe('status')
+    expect(empty.attributes('data-kind')).toBe('empty')
     expect(empty.text()).toContain('Sin actividad en el periodo')
     expect(view.find('[data-testid="branch-summary-metrics"]').exists()).toBe(false)
   })

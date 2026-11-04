@@ -29,6 +29,7 @@
  */
 import { computed, shallowRef, useId, watch } from 'vue'
 import { VisArea, VisAxis, VisCrosshair, VisLine, VisTooltip, VisXYContainer } from '@unovis/vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import '../styles/dashboard-trend.css'
 import type { BranchSalesTimeseriesPoint } from '../interfaces/branch-sales-timeseries.types'
 import {
@@ -72,8 +73,12 @@ const selectedKey = shallowRef<BranchSalesTimeseriesMetricKey>(
 const selectedMetric = computed(() => getBranchSalesTimeseriesMetric(selectedKey.value))
 
 const hasPoints = computed(() => props.points.length > 0)
-const showLoading = computed(() => props.isInitialLoading && !hasPoints.value)
-const showError = computed(() => props.isError && !hasPoints.value)
+// A retry from the no-data error shows the skeleton again, so the shared error
+// state (which has no busy button) never sits there while the request runs.
+const showLoading = computed(
+  () => !hasPoints.value && (props.isInitialLoading || (props.isError && props.isRefetching)),
+)
+const showError = computed(() => props.isError && !props.isRefetching && !hasPoints.value)
 const showEmpty = computed(() => !hasPoints.value && !props.isInitialLoading && !props.isError)
 
 const chartLabel = computed(() =>
@@ -204,10 +209,7 @@ const areaFill = `url(#${gradientId})`
     :class="{ 'dashboard-trend-refreshing': hasPoints && props.isRefetching }"
   >
     <header class="dashboard-trend-heading">
-      <div>
-        <h2 :id="headingId">Tendencia diaria</h2>
-        <p>El comportamiento de tus ventas, día a día.</p>
-      </div>
+      <h2 :id="headingId">Tendencia diaria</h2>
       <UIcon name="i-lucide-chart-no-axes-combined" class="size-5 shrink-0" aria-hidden="true" />
     </header>
     <div class="dashboard-trend-description">
@@ -248,16 +250,16 @@ const areaFill = `url(#${gradientId})`
       v-if="hasPoints && props.isError && !props.isRefetching"
       data-testid="branch-sales-trend-refresh-error"
       role="alert"
-      class="flex min-w-0 flex-col items-start gap-3 rounded-lg border border-warning/30 bg-warning/5 p-3 sm:flex-row sm:items-center sm:justify-between"
+      class="dashboard-stale-alert"
     >
-      <p class="text-sm text-warning">
+      <p class="min-w-0 flex-1 text-sm">
         No pudimos actualizar la tendencia; se muestran los últimos datos disponibles.
       </p>
       <UButton
-        color="warning"
+        color="neutral"
         variant="outline"
         data-testid="branch-sales-trend-refresh-retry"
-        class="min-h-11 w-full justify-center sm:w-auto"
+        class="dashboard-retry"
         @click="onRetry"
       >
         Reintentar
@@ -277,34 +279,23 @@ const areaFill = `url(#${gradientId})`
     </div>
 
     <!-- Error with no data: chart-scoped copy and one guarded recovery. -->
-    <div
+    <EmptyState
       v-else-if="showError"
       data-testid="branch-sales-trend-error"
-      role="alert"
-      class="flex min-w-0 flex-col items-start gap-3 rounded-lg border border-error/30 bg-error/5 p-3"
-    >
-      <p class="text-sm text-error">
-        No pudimos cargar la tendencia diaria. Reintenta en unos segundos.
-      </p>
-      <UButton
-        color="primary"
-        data-testid="branch-sales-trend-retry"
-        class="min-h-11"
-        @click="onRetry"
-      >
-        Reintentar
-      </UButton>
-    </div>
+      kind="error"
+      title="No pudimos cargar la tendencia diaria"
+      action-label="Reintentar"
+      action-test-id="branch-sales-trend-retry"
+      @action="onRetry"
+    />
 
     <!-- Empty: the backend returned no bucket at all for the window. -->
-    <p
+    <EmptyState
       v-else-if="showEmpty"
       data-testid="branch-sales-trend-empty"
-      role="status"
-      class="rounded-lg border border-default bg-elevated/40 p-4 text-center text-sm text-muted"
-    >
-      Sin datos diarios en el periodo seleccionado.
-    </p>
+      kind="empty"
+      title="Sin datos diarios en el periodo"
+    />
 
     <template v-else-if="hasPoints">
       <!-- One metric at a time: a semantic group of native pressed-state buttons. -->
@@ -423,7 +414,7 @@ const areaFill = `url(#${gradientId})`
       <details data-testid="branch-sales-trend-table-details" class="dashboard-trend-table min-w-0">
         <summary
           data-testid="branch-sales-trend-table-summary"
-          class="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-1 text-sm font-medium text-highlighted focus-visible:ring-2 focus-visible:ring-coco-500/60 focus-visible:outline-none"
+          class="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-1 text-sm font-medium text-highlighted focus-visible:ring-2 focus-visible:ring-[var(--hf-focus)] focus-visible:outline-none"
         >
           <UIcon name="i-lucide-table-2" aria-hidden="true" class="size-4 shrink-0" />
           <span>Ver datos en tabla</span>

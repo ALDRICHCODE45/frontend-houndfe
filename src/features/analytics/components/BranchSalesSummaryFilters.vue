@@ -156,8 +156,6 @@ function isPresetActive(id: MexicoCityRangePresetId): boolean {
     <div class="dashboard-period-meta">
       <UIcon name="i-lucide-calendar-days" class="size-4 shrink-0" aria-hidden="true" />
       <span>{{ periodLabel }}</span>
-      <span class="dashboard-period-dot" aria-hidden="true" />
-      <span>Periodo seleccionado</span>
     </div>
     <div class="dashboard-period-actions">
       <div class="dashboard-preset-scroll">

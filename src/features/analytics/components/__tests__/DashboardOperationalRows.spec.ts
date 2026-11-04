@@ -49,9 +49,18 @@ describe('DashboardSaleRow — recent sale', () => {
     expect(w.text()).toContain('VTA-2025-0042')
     expect(w.text()).toContain('María López')
     expect(w.text()).toContain('$1,234.56')
-    expect(w.text()).toContain('01/03/2025, 06:30')
-    expect(w.text()).toContain('Venta confirmada')
+    expect(w.text()).toContain('1 mar 2025, 06:30')
     expect(w.find('time').attributes('datetime')).toBe('2025-03-01T12:30:00.000Z')
+  })
+
+  it('names the customer first and says the status through a success StatusBadge', () => {
+    const w = mount(DashboardSaleRow, { props: { sale: makeSale(), kind: 'recent' } })
+
+    expect(w.find('.dashboard-row-description > strong').text()).toBe('María López')
+    const badge = w.find('.hf-status-badge')
+    expect(badge.attributes('data-tone')).toBe('success')
+    expect(badge.attributes('aria-label')).toBe('Estado: Venta confirmada')
+    expect(w.find('[data-testid="dashboard-sale-row-amount"]').classes()).not.toContain('text-warning')
   })
 
   it('renders the null wire fallbacks without deriving an identifier or date', () => {
@@ -104,22 +113,33 @@ describe('DashboardSaleRow — debt sale', () => {
 
     const amount = w.find('[data-testid="dashboard-sale-row-amount"]')
     expect(amount.text()).toContain('Deuda pendiente')
-    expect(amount.classes()).toContain('text-warning')
+    const badge = amount.find('.hf-status-badge')
+    expect(badge.attributes('data-tone')).toBe('warning')
+    expect(badge.attributes('aria-label')).toBe('Estado: Deuda pendiente')
     expect(w.text()).toContain('Sin fecha de vencimiento')
   })
 })
 
 describe('DashboardRefundRow — pending refund', () => {
-  it('shows the backend outstanding cents, sale id, method, reason and Mexico City time', () => {
+  it('shows the backend outstanding cents, method, reason and Mexico City time, never an id', () => {
     const w = mount(DashboardRefundRow, { props: { refund: makeRefund() } })
 
-    expect(w.text()).toContain('sale-operational-id-001')
+    expect(w.text()).not.toContain('sale-operational-id-001')
+    // The payload has no customer or seller: the row is named by what it is and when it arose.
+    expect(w.find('.dashboard-row-description > strong').text()).toBe('Reembolso del 1 mar 2025, 19:15')
     expect(w.text()).toContain('$375.00')
     expect(w.text()).toContain('Tarjeta de crédito')
     expect(w.text()).toContain('Solicitud del cliente')
-    expect(w.text()).toContain('01/03/2025, 19:15')
-    expect(w.text()).toContain('Pendiente')
+    expect(w.text()).toContain('1 mar 2025, 19:15')
     expect(w.find('time').attributes('datetime')).toBe('2025-03-02T01:15:00.000Z')
+  })
+
+  it('says it is pending through a warning StatusBadge', () => {
+    const w = mount(DashboardRefundRow, { props: { refund: makeRefund() } })
+
+    const badge = w.find('.hf-status-badge')
+    expect(badge.attributes('data-tone')).toBe('warning')
+    expect(badge.attributes('aria-label')).toBe('Estado: Pendiente')
   })
 
   it.each([
@@ -146,7 +166,7 @@ describe('DashboardRefundRow — pending refund', () => {
     expect(w.text()).toContain(label)
   })
 
-  it('keeps the sale identifier plain text and never invents a combined refund total', () => {
+  it('exposes no navigation and never invents a combined refund total', () => {
     const w = mount(DashboardRefundRow, { props: { refund: makeRefund() } })
 
     expect(w.find('a').exists()).toBe(false)
