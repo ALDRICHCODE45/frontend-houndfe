@@ -5,6 +5,8 @@ import type { AxiosError } from 'axios'
 import { computed, reactive, ref, shallowRef, watch } from 'vue'
 import ProductWorkspaceNavigation, { type ProductWorkspaceTask } from '../components/ProductWorkspaceNavigation.vue'
 import EditorialWorkspace from '../components/editorial/EditorialWorkspace.vue'
+import InventoryStockPanel from '@/features/POS/inventory/components/InventoryStockPanel.vue'
+import { useInventoryAccess } from '@/features/POS/inventory/composables/useInventoryAccess'
 import { canReadEditorial } from '../authorization/editorial-access'
 import { useRoute, useRouter } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
@@ -362,6 +364,15 @@ const editorialUnavailableReason = computed(() => {
 const canAccessEditorial = computed(() => editorialUnavailableReason.value === null)
 watch([isEditorialTask, canAccessEditorial], ([selected, allowed]) => {
   if (selected && allowed) editorialVisited.value = true
+}, { flush: 'sync' })
+
+// The fifth task: a saved product, and only for who can read the journal.
+const { canRead: canReadInventory } = useInventoryAccess()
+const showInventoryTask = computed(() => !isCreateMode.value && canReadInventory.value)
+const inventoryVisited = shallowRef(false)
+watch([activeTask, showInventoryTask], ([task, shown]) => {
+  if (task === 'inventory' && shown) inventoryVisited.value = true
+  else if (task === 'inventory') activeTask.value = 'identity'
 }, { flush: 'sync' })
 
 const {
@@ -2077,7 +2088,11 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
 
       <div v-else class="product-workspace-grid">
         <div class="min-w-0">
-        <ProductWorkspaceNavigation :active-task="activeTask" @select="activeTask = $event" />
+        <ProductWorkspaceNavigation
+          :active-task="activeTask"
+          :show-inventory="showInventoryTask"
+          @select="activeTask = $event"
+        />
         <section
           v-if="isEditorialTask && !canAccessEditorial"
           data-testid="editorial-unavailable"
@@ -2097,6 +2112,11 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
           :product-id="productIdOrEmpty"
           :embedded="true"
           :active-section="activeTask === 'review' ? 'review' : 'content'"
+        />
+        <InventoryStockPanel
+          v-if="inventoryVisited && showInventoryTask"
+          v-show="activeTask === 'inventory'"
+          :product-id="productIdOrEmpty"
         />
         <UForm
           id="product-detail-form"
