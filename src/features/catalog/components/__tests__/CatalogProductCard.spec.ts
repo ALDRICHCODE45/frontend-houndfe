@@ -302,4 +302,28 @@ describe('CatalogProductCard', () => {
     expect(wrapper.text()).toContain('Pocas piezas')
     expect(wrapper.text()).not.toContain('unidades')
   })
+
+  describe('status tones and paint', () => {
+    it.each([
+      ['available', 'Disponible', 'success'],
+      ['low_stock', 'Pocas piezas', 'warning'],
+      ['out_of_stock', 'Agotado', 'neutral'],
+    ] as const)('maps %s to the %s tone, never a palette color', (status, label, tone) => {
+      const wrapper = mountCard({
+        availability: status,
+        stockPresentation: { mode: 'SYSTEM_STATUS', status, customQuantity: null },
+      })
+      const badge = wrapper.get('[data-testid="catalog-product-availability"]')
+
+      expect(badge.attributes('data-tone')).toBe(tone)
+      expect(badge.text()).toBe(label)
+    })
+
+    it('paints with catalog roles only: no palette literals and no bold weights', () => {
+      const html = mountCard({ image: null }).html()
+
+      expect(html).not.toMatch(/emerald|amber|red-\d|coco-|font-bold/)
+      expect(html).toContain('font-semibold')
+    })
+  })
 })

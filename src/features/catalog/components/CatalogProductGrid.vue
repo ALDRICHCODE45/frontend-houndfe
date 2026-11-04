@@ -91,20 +91,24 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
   <div class="catalog-container py-6 lg:py-8">
     <section
       v-if="branchesState !== 'populated'"
-      class="flex flex-col items-center justify-center gap-3 py-16 text-center"
+      class="catalog-state"
+      :data-kind="
+        branchesPending ? 'loading' : branchesState === 'empty' ? 'empty' : 'error'
+      "
+      data-testid="catalog-state"
       role="status"
       aria-live="polite"
       :aria-busy="branchesPending"
     >
-      <h2 class="text-lg font-semibold text-highlighted">{{ branchesCopy }}</h2>
-      <p v-if="branchesState === 'empty'" class="max-w-sm text-sm text-muted">
+      <h2 class="catalog-state-title">{{ branchesCopy }}</h2>
+      <p v-if="branchesState === 'empty'" class="catalog-state-note">
         El catálogo no está disponible en este momento. Vuelve a consultar más tarde.
       </p>
       <button
         v-if="!branchesPending"
         type="button"
         aria-label="Reintentar descubrimiento de sucursales"
-        class="min-h-11 text-sm font-medium text-primary focus-visible:ring-2 focus-visible:ring-primary"
+        class="catalog-state-action"
         @click="emit('retry-branches')"
       >
         Actualizar
@@ -113,41 +117,41 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
 
     <section
       v-else-if="selectionState === 'none'"
-      class="flex flex-col items-center justify-center gap-3 py-16 text-center"
+      class="catalog-state"
+      data-kind="empty"
+      data-testid="catalog-state"
       aria-live="polite"
     >
-      <div
-        class="flex size-14 items-center justify-center rounded-2xl bg-coco-50 ring-1 ring-coco-100 dark:bg-coco-950 dark:ring-coco-900"
-      >
-        <UIcon name="i-lucide-store" class="size-7 text-primary" />
-      </div>
-      <h2 class="text-lg font-semibold text-highlighted">
-        Elige una sucursal para explorar el catálogo
-      </h2>
-      <p class="max-w-sm text-sm text-muted">
-        Selecciona una sucursal publicada para ver sus productos.
-      </p>
+      <UIcon name="i-lucide-store" class="catalog-state-icon" />
+      <h2 class="catalog-state-title">Elige una sucursal para explorar el catálogo</h2>
+      <p class="catalog-state-note">Selecciona una sucursal publicada para ver sus productos.</p>
     </section>
 
     <section
       v-else-if="selectionState === 'invalid'"
-      class="flex flex-col items-center justify-center gap-3 py-16 text-center"
+      class="catalog-state"
+      data-kind="empty"
+      data-testid="catalog-state"
       aria-live="polite"
     >
-      <div
-        class="flex size-14 items-center justify-center rounded-2xl bg-coco-50 ring-1 ring-coco-100 dark:bg-coco-950 dark:ring-coco-900"
-      >
-        <UIcon name="i-lucide-map-pin-off" class="size-7 text-primary" />
-      </div>
-      <h2 class="text-lg font-semibold text-highlighted">Esta sucursal no está disponible</h2>
-      <p class="max-w-sm text-sm text-muted">
+      <UIcon name="i-lucide-map-pin-off" class="catalog-state-icon" />
+      <h2 class="catalog-state-title">Esta sucursal no está disponible</h2>
+      <p class="catalog-state-note">
         Elige una de las sucursales publicadas para explorar el catálogo.
       </p>
     </section>
 
     <section
       v-else-if="contextState !== 'context-ready'"
-      class="flex flex-col items-center justify-center gap-3 py-16 text-center"
+      class="catalog-state"
+      :data-kind="
+        contextState === 'context-loading'
+          ? 'loading'
+          : contextState === 'context-empty' || contextState === 'context-no-default'
+            ? 'empty'
+            : 'error'
+      "
+      data-testid="catalog-state"
       role="status"
       aria-live="polite"
       :aria-busy="contextState === 'context-loading'"
@@ -162,15 +166,15 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
                 ? 'i-lucide-tags'
                 : 'i-lucide-circle-alert'
         "
-        class="size-8 text-primary"
+        class="catalog-state-icon"
         :class="contextState === 'context-loading' ? 'animate-spin' : ''"
       />
-      <h2 class="text-lg font-semibold text-highlighted">
+      <h2 class="catalog-state-title">
         {{ contextState === 'context-loading' ? 'Cargando listas de precios…' : contextCopy }}
       </h2>
       <button
         v-if="contextRetryable"
-        class="text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+        class="catalog-state-action"
         type="button"
         aria-label="Reintentar carga de listas de precios"
         @click="emit('retry-context')"
@@ -181,23 +185,32 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
 
     <section
       v-else-if="state === 'loading' || state === 'retry-pending'"
-      class="flex flex-col items-center justify-center gap-3 py-16 text-center"
+      data-testid="catalog-product-skeleton"
       role="status"
       aria-live="polite"
       :aria-busy="true"
     >
-      <UIcon name="i-lucide-loader-circle" class="size-8 animate-spin text-primary" />
-      <h2 class="text-lg font-semibold text-highlighted">
+      <h2 class="sr-only">
         {{ state === 'retry-pending' ? 'Reintentando productos…' : 'Cargando productos…' }}
       </h2>
+      <div class="grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-5" aria-hidden="true">
+        <div
+          v-for="index in 10"
+          :key="index"
+          class="catalog-skeleton-card"
+          data-testid="catalog-product-skeleton-card"
+        >
+          <span class="catalog-skeleton catalog-skeleton-media" />
+          <span class="catalog-skeleton catalog-skeleton-line" />
+          <span class="catalog-skeleton catalog-skeleton-line catalog-skeleton-line--short" />
+          <span class="catalog-skeleton catalog-skeleton-price" />
+        </div>
+      </div>
     </section>
 
     <section v-else-if="state === 'populated'" aria-live="polite">
       <p class="sr-only" role="status">Productos cargados</p>
-      <div
-        data-testid="catalog-product-grid"
-        class="grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-5"
-      >
+      <div data-testid="catalog-product-grid" class="grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-5">
         <CatalogProductCard
           v-for="product in products"
           :key="product.id"
@@ -209,16 +222,16 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
 
     <section
       v-else-if="state === 'empty'"
-      class="flex flex-col items-center justify-center gap-3 py-16 text-center"
+      class="catalog-state"
+      data-kind="empty"
+      data-testid="catalog-state"
       role="status"
       aria-live="polite"
     >
-      <UIcon name="i-lucide-package-open" class="size-8 text-primary" />
-      <h2 class="text-lg font-semibold text-highlighted">
-        No hay productos disponibles en este momento
-      </h2>
+      <UIcon name="i-lucide-package-open" class="catalog-state-icon" />
+      <h2 class="catalog-state-title">No hay productos disponibles en este momento</h2>
       <button
-        class="text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+        class="catalog-state-action"
         type="button"
         aria-label="Reintentar productos"
         @click="emit('retry')"
@@ -229,25 +242,26 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
 
     <section
       v-else-if="state === 'unavailable'"
-      class="flex flex-col items-center justify-center gap-3 py-16 text-center"
+      class="catalog-state"
+      data-kind="empty"
+      data-testid="catalog-state"
       role="status"
       aria-live="polite"
     >
-      <UIcon name="i-lucide-circle-alert" class="size-8 text-primary" />
-      <h2 class="text-lg font-semibold text-highlighted">
-        La lista de precios seleccionada no está disponible
-      </h2>
-      <p class="max-w-sm text-sm text-muted">Elige otra lista de precios para ver el catálogo.</p>
+      <UIcon name="i-lucide-circle-alert" class="catalog-state-icon" />
+      <h2 class="catalog-state-title">La lista de precios seleccionada no está disponible</h2>
+      <p class="catalog-state-note">Elige otra lista de precios para ver el catálogo.</p>
     </section>
 
     <section
       v-else
-      class="flex flex-col items-center justify-center gap-3 py-16 text-center"
-      role="status"
-      aria-live="polite"
+      class="catalog-state"
+      data-kind="error"
+      data-testid="catalog-state"
+      role="alert"
     >
-      <UIcon name="i-lucide-circle-alert" class="size-8 text-primary" />
-      <h2 class="text-lg font-semibold text-highlighted">
+      <UIcon name="i-lucide-triangle-alert" class="catalog-state-icon" />
+      <h2 class="catalog-state-title">
         {{
           state === 'rate-limit'
             ? 'Demasiadas solicitudes. Intenta de nuevo más tarde.'
@@ -257,7 +271,7 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
         }}
       </h2>
       <button
-        class="text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+        class="catalog-state-action"
         type="button"
         aria-label="Reintentar productos"
         @click="emit('retry')"

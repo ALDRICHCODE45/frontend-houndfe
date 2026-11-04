@@ -424,8 +424,13 @@ async function selectPriceContext(priceListIdToSelect: string) {
             @retry="retryBaseline"
           />
         </div>
-        <div v-if="filterError && readyBranch" class="catalog-container py-6" role="status">
-          <p>
+        <div
+          v-if="filterError && readyBranch"
+          class="catalog-container catalog-state"
+          data-kind="empty"
+          role="status"
+        >
+          <p class="catalog-state-title">
             {{
               filterError === 'search'
                 ? 'Búsqueda no válida.'
@@ -453,10 +458,11 @@ async function selectPriceContext(priceListIdToSelect: string) {
         </div>
         <div
           v-else-if="isPageOutOfRange"
-          class="catalog-container catalog-range-recovery"
+          class="catalog-container catalog-state"
+          data-kind="empty"
           role="status"
         >
-          <h2>Página fuera de rango</h2>
+          <h2 class="catalog-state-title">Página fuera de rango</h2>
           <button
             type="button"
             class="catalog-filter-button"

@@ -76,6 +76,13 @@ body[data-catalog-theme='light'] {
   --catalog-action: #2442f6;
   --catalog-on-action: #ffffff;
   --catalog-border: #dce2e8;
+  --catalog-border-strong: #7b8999;
+  --catalog-active-soft: #edf0ff;
+  --catalog-success: #236044;
+  --catalog-success-soft: #eaf5ef;
+  --catalog-warning: #805511;
+  --catalog-warning-soft: #fff5d6;
+  --catalog-danger: #b42318;
   --catalog-control-radius: 6px;
   --catalog-panel-radius: 12px;
   --catalog-panel-shadow: 0 12px 32px rgb(23 57 104 / 12%), 0 2px 6px rgb(23 57 104 / 6%);
@@ -96,6 +103,28 @@ body[data-catalog-theme='light'] {
   color-scheme: light;
   color: var(--catalog-text);
   font-family: var(--hf-font, 'Geist', ui-sans-serif, system-ui, sans-serif);
+}
+
+/* The catalog is forced light, but body also carries `hf-theme hf-ui`, whose
+ * `.dark` palette would turn the shared pieces dark on this surface. Bind the
+ * hf roles to the catalog palette so shared badges and states stay light. */
+html body.hf-theme[data-catalog-theme='light'] {
+  --hf-page: var(--catalog-page);
+  --hf-surface: var(--catalog-surface);
+  --hf-surface-muted: var(--catalog-soft);
+  --hf-ink: var(--catalog-text);
+  --hf-heading: var(--catalog-title);
+  --hf-muted: var(--catalog-muted);
+  --hf-border: var(--catalog-border);
+  --hf-action: var(--catalog-action);
+  --hf-on-action: var(--catalog-on-action);
+  --hf-active: var(--catalog-action);
+  --hf-active-soft: var(--catalog-active-soft);
+  --hf-focus: var(--catalog-action);
+  --hf-success: var(--catalog-success);
+  --hf-warning: var(--catalog-warning);
+  --hf-warning-soft: var(--catalog-warning-soft);
+  --hf-danger: var(--catalog-danger);
 }
 
 body[data-catalog-theme='light'] .catalog-layout {
@@ -202,7 +231,7 @@ body[data-catalog-theme='light'] .catalog-hero-copy {
 body[data-catalog-theme='light'] .catalog-hero h1 {
   max-width: 72%;
   font-size: 22px;
-  font-weight: 750;
+  font-weight: 600;
   letter-spacing: -1px;
   line-height: 1.16;
   text-wrap: balance;
@@ -213,16 +242,13 @@ body[data-catalog-theme='light'] .catalog-hero p {
   line-height: 1.4;
   color: var(--catalog-muted);
 }
-body[data-catalog-theme='light'] .catalog-hero-eyebrow {
-  display: none;
-}
 body[data-catalog-theme='light'] .catalog-hero-link {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   min-height: 44px;
   font-size: 14px;
-  font-weight: 750;
+  font-weight: 600;
   color: var(--catalog-title);
   text-underline-offset: 5px;
 }
@@ -242,9 +268,6 @@ body[data-catalog-theme='light'] .catalog-hero-image img {
   object-fit: cover;
   object-position: 48% center;
   mix-blend-mode: multiply;
-}
-body[data-catalog-theme='light'] .catalog-hero-caption {
-  display: none;
 }
 body[data-catalog-theme='light'] .catalog-listing {
   scroll-margin-top: 20px;
@@ -307,13 +330,13 @@ body[data-catalog-theme='light'] .catalog-price-search:focus-visible {
   body[data-catalog-theme='light']
     .catalog-price-context
     button[aria-label='Lista de precios']:enabled:hover {
-    border-color: #7b8999;
+    border-color: var(--catalog-border-strong);
   }
 }
 
 body[data-catalog-theme='light'] .catalog-category-toolbar h2 {
   font-size: 23px;
-  font-weight: 750;
+  font-weight: 600;
   letter-spacing: -0.6px;
   color: var(--catalog-title);
 }
@@ -356,7 +379,7 @@ body[data-catalog-theme='light'] .catalog-category-controls .catalog-filter-butt
 }
 .catalog-filter-button[aria-pressed='true'] {
   border-color: var(--catalog-action, #304acb);
-  background: var(--catalog-soft, #edf0ff);
+  background: var(--catalog-soft, var(--catalog-active-soft));
   color: var(--catalog-action, #304acb);
 }
 .catalog-pagination {
@@ -373,14 +396,6 @@ body[data-catalog-theme='light'] .catalog-category-controls .catalog-filter-butt
 .catalog-pagination .catalog-filter-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-.catalog-range-recovery {
-  display: grid;
-  justify-items: center;
-  gap: 12px;
-  padding-block: 48px;
-  text-align: center;
-  color: var(--catalog-title, #242b36);
 }
 .catalog-filter-button:focus-visible {
   outline: 2px solid var(--catalog-action, #304acb);
@@ -422,7 +437,7 @@ body[data-catalog-theme='light'] .catalog-product-card {
 }
 
 body[data-catalog-theme='light'] .catalog-product-card:hover {
-  border-color: #7b8999;
+  border-color: var(--catalog-border-strong);
 }
 
 body[data-catalog-theme='light'] .catalog-product-card:focus-visible {
@@ -461,13 +476,12 @@ body[data-catalog-theme='light'] .catalog-product-body {
 }
 body[data-catalog-theme='light'] .catalog-product-brand {
   font-size: 14px;
-  font-weight: 650;
-  text-transform: uppercase;
+  font-weight: 600;
 }
 body[data-catalog-theme='light'] .catalog-product-name {
   font-size: 14px;
   line-height: 1.4;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.2px;
 }
 body[data-catalog-theme='light'] .catalog-product-price-row {
@@ -475,7 +489,7 @@ body[data-catalog-theme='light'] .catalog-product-price-row {
 }
 body[data-catalog-theme='light'] .catalog-product-price {
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.5;
 }
 body[data-catalog-theme='light'] .catalog-product-price-note {
@@ -495,11 +509,11 @@ body[data-catalog-theme='light'] .catalog-product-action {
   border-radius: 8px;
   color: var(--catalog-title);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
 }
 body[data-catalog-theme='light'] .catalog-product-card:hover .catalog-product-action,
 body[data-catalog-theme='light'] .catalog-product-card:focus-visible .catalog-product-action {
-  background: #edf0ff;
+  background: var(--catalog-active-soft);
   border-color: var(--catalog-action);
   color: var(--catalog-action);
 }
@@ -514,8 +528,7 @@ body[data-catalog-theme='light'] .catalog-product-card:focus-visible .catalog-pr
     gap: 6px;
   }
   body[data-catalog-theme='light'] .catalog-product-brand {
-    font-size: 10px;
-    letter-spacing: 1px;
+    font-size: 13px;
   }
   body[data-catalog-theme='light'] .catalog-product-name {
     font-size: 16px;
@@ -569,7 +582,7 @@ body[data-catalog-theme='light'] .catalog-detail-image-frame > button > img {
 body[data-catalog-theme='light'] .catalog-detail-identity h2 {
   font-size: 26px;
   line-height: 1.25;
-  font-weight: 750;
+  font-weight: 600;
 }
 body[data-catalog-theme='light'] .catalog-detail-variant {
   border-radius: 8px;
@@ -580,7 +593,7 @@ body[data-catalog-theme='light'] .catalog-detail-details {
 }
 body[data-catalog-theme='light'] [data-testid='catalog-detail-price'] {
   font-size: 28px;
-  font-weight: 800;
+  font-weight: 600;
 }
 body[data-catalog-theme='light'] [data-testid='catalog-detail-image-zoom-affordance'] {
   right: 8px;
@@ -679,42 +692,6 @@ body[data-catalog-theme='light'] .catalog-detail-general {
   }
 }
 
-/* Compatibility with existing card/detail dark utilities until their own visual units.
-   Keep their light surfaces readable under a dark host without touching html.dark. */
-body[data-catalog-theme='light'] .bg-coco-50 {
-  background-color: #edf0ff;
-}
-body[data-catalog-theme='light'] .bg-coco-neutral-100 {
-  background-color: var(--catalog-soft);
-}
-body[data-catalog-theme='light'] .bg-white,
-body[data-catalog-theme='light'] .bg-white\/80,
-body[data-catalog-theme='light'] .bg-white\/95 {
-  background-color: var(--catalog-surface);
-}
-body[data-catalog-theme='light'] .text-coco-500,
-body[data-catalog-theme='light'] .text-coco-700 {
-  color: var(--catalog-title);
-}
-body[data-catalog-theme='light'] .text-emerald-700 {
-  color: #236044;
-}
-body[data-catalog-theme='light'] .text-amber-700 {
-  color: #805511;
-}
-body[data-catalog-theme='light'] .text-red-700 {
-  color: #b42318;
-}
-body[data-catalog-theme='light'] .bg-emerald-50 {
-  background-color: #eaf5ef;
-}
-body[data-catalog-theme='light'] .bg-amber-50 {
-  background-color: #fff5d6;
-}
-body[data-catalog-theme='light'] .bg-red-50 {
-  background-color: #fef3f2;
-}
-
 /* Final v0 responsive geometry, after its late corrective overrides. */
 @media (min-width: 601px) {
   body[data-catalog-theme='light'] .catalog-container {
@@ -757,21 +734,6 @@ body[data-catalog-theme='light'] .bg-red-50 {
   body[data-catalog-theme='light'] .catalog-hero-image img {
     object-position: center 40%;
   }
-  body[data-catalog-theme='light'] .catalog-hero-eyebrow {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 11px;
-    font-weight: 750;
-    letter-spacing: 1.3px;
-    text-transform: uppercase;
-  }
-  body[data-catalog-theme='light'] .catalog-hero-eyebrow > span {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #f6bb13;
-  }
   body[data-catalog-theme='light'] .catalog-category-toolbar h2 {
     font-size: 28px;
   }
@@ -795,17 +757,6 @@ body[data-catalog-theme='light'] .bg-red-50 {
   body[data-catalog-theme='light'] .catalog-container {
     padding-inline: 32px;
   }
-  body[data-catalog-theme='light'] .catalog-hero-caption {
-    display: block;
-    position: absolute;
-    bottom: 22px;
-    right: 24px;
-    padding: 10px 14px;
-    border-radius: 8px;
-    background: var(--catalog-surface);
-    color: var(--catalog-title);
-    font-size: 11px;
-  }
 }
 @media (max-width: 359px) {
   /* A slightly wider photo and smaller title keep both faces in the narrowest crop. */
@@ -828,4 +779,135 @@ body[data-catalog-theme='light'] .bg-red-50 {
   body[data-catalog-theme='light'] .catalog-price-context > span {
     padding-left: 12px;
   }
+}
+
+/* Availability: the dot always travels with the written label. Tones are
+ * roles, never palette colors; sold out is neutral because nothing is wrong. */
+.catalog-availability {
+  --tone-fg: var(--catalog-muted);
+  --tone-bg: var(--catalog-soft);
+  color: var(--tone-fg);
+}
+.catalog-availability[data-tone='success'] {
+  --tone-fg: var(--catalog-success);
+  --tone-bg: var(--catalog-success-soft);
+}
+.catalog-availability[data-tone='warning'] {
+  --tone-fg: var(--catalog-warning);
+  --tone-bg: var(--catalog-warning-soft);
+}
+.catalog-availability[data-tone='neutral'] {
+  --tone-fg: var(--catalog-muted);
+  --tone-bg: var(--catalog-soft);
+}
+.catalog-availability-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background-color: var(--tone-fg);
+}
+.catalog-availability--pill {
+  padding: 3px 10px;
+  border-radius: 6px;
+  background-color: var(--tone-bg);
+}
+
+body[data-catalog-theme='light'] .catalog-product-fallback {
+  gap: 6px;
+  background: var(--catalog-page);
+  color: var(--catalog-muted);
+}
+
+/* Skeleton cards share the card's geometry so loading never shifts the grid. */
+.catalog-skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--catalog-border, #dce2e8);
+  border-radius: 12px;
+  background: var(--catalog-surface, #fff);
+}
+.catalog-skeleton {
+  display: block;
+  border-radius: 6px;
+  background: var(--catalog-soft, #e7eef7);
+  animation: catalog-skeleton-pulse 1.4s ease-in-out infinite;
+}
+.catalog-skeleton-media {
+  height: 130px;
+}
+.catalog-skeleton-line {
+  height: 14px;
+}
+.catalog-skeleton-line--short {
+  width: 60%;
+}
+.catalog-skeleton-price {
+  width: 40%;
+  height: 22px;
+}
+@keyframes catalog-skeleton-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+@media (min-width: 601px) {
+  .catalog-skeleton-media {
+    height: 170px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .catalog-skeleton {
+    animation: none;
+  }
+}
+
+/* Listing states: icon, one title, at most one line and one action. */
+.catalog-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 64px 16px;
+  text-align: center;
+}
+.catalog-state-icon {
+  width: 24px;
+  height: 24px;
+  color: var(--catalog-muted, #576574);
+}
+.catalog-state[data-kind='error'] .catalog-state-icon,
+.catalog-state[data-kind='error'] .catalog-state-title {
+  color: var(--catalog-danger, #b42318);
+}
+.catalog-state-title {
+  margin: 0;
+  color: var(--catalog-title, #173968);
+  font-size: 16px;
+  font-weight: 600;
+}
+.catalog-state-note {
+  max-width: 28rem;
+  margin: 0;
+  color: var(--catalog-muted, #576574);
+  font-size: 14px;
+}
+.catalog-state-action {
+  min-height: 44px;
+  margin-top: 4px;
+  padding: 8px 16px;
+  border: 1px solid var(--catalog-border, #dce2e8);
+  border-radius: 6px;
+  background: var(--catalog-surface, #fff);
+  color: var(--catalog-title, #173968);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.catalog-state-action:focus-visible {
+  outline: 2px solid var(--catalog-action, #2442f6);
+  outline-offset: 2px;
 }

@@ -12,7 +12,6 @@ function exploreCatalog(event: MouseEvent) {
 <template>
   <section class="catalog-hero" aria-labelledby="catalog-hero-title">
     <div class="catalog-hero-copy">
-      <span class="catalog-hero-eyebrow"><span /> Para ellos. Para tu negocio.</span>
       <h1 id="catalog-hero-title">Todo para quienes te acompañan.</h1>
       <p>Explora los productos de tu sucursal.</p>
       <a href="#catalogo" class="catalog-hero-link" @click="exploreCatalog">
@@ -27,9 +26,6 @@ function exploreCatalog(event: MouseEvent) {
         height="848"
         fetchpriority="high"
       />
-      <span class="catalog-hero-caption"
-        >Grandes compañeros.<br /><strong>Pequeños cuidados, todos los días.</strong></span
-      >
     </div>
   </section>
 </template>

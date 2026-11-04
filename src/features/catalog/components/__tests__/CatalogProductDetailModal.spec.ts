@@ -263,9 +263,10 @@ describe('CatalogProductDetailModal', () => {
         const content = getRendered('.catalog-detail-dialog')
         expect(content.element.innerHTML).not.toMatch(/coco-/)
         if (state === 'populated') {
-          expect(getRendered('[data-testid="catalog-detail-availability"]').classes()).toContain(
-            'bg-emerald-50',
-          )
+          expect(
+            getRendered('[data-testid="catalog-detail-availability"]').attributes('data-tone'),
+          ).toBe('success')
+          expect(content.element.innerHTML).not.toMatch(/emerald|amber|red-\d|font-bold/)
           expect(getRendered('[data-testid="catalog-detail-variant-availability"]').text()).toContain(
             'Pocas piezas',
           )

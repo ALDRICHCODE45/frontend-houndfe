@@ -25,4 +25,16 @@ describe('CatalogHero', () => {
       target.remove()
     }
   })
+
+  it('keeps the title, one line and one action: no eyebrow and no photo caption', () => {
+    const wrapper = mount(CatalogHero)
+    try {
+      expect(wrapper.find('.catalog-hero-eyebrow').exists()).toBe(false)
+      expect(wrapper.find('.catalog-hero-caption').exists()).toBe(false)
+      expect(wrapper.findAll('p')).toHaveLength(1)
+      expect(wrapper.findAll('a')).toHaveLength(1)
+    } finally {
+      wrapper.unmount()
+    }
+  })
 })

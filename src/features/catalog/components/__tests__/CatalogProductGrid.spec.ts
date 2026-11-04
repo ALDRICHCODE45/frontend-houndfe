@@ -183,4 +183,35 @@ describe('CatalogProductGrid', () => {
     expect(wrapper.text()).not.toContain('No pudimos cargar los productos.')
     expect(wrapper.find('button[aria-label="Reintentar productos"]').exists()).toBe(false)
   })
+
+  it.each(['loading', 'retry-pending'] as const)(
+    'shapes the %s state as a card skeleton instead of a spinner',
+    (state) => {
+      const wrapper = mountGrid({ state, products: [] })
+      const skeleton = wrapper.get('[data-testid="catalog-product-skeleton"]')
+
+      expect(skeleton.attributes('aria-busy')).toBe('true')
+      expect(skeleton.findAll('[data-testid="catalog-product-skeleton-card"]').length).toBeGreaterThanOrEqual(4)
+      expect(wrapper.find('.animate-spin').exists()).toBe(false)
+      expect(wrapper.text()).toContain(
+        state === 'retry-pending' ? 'Reintentando productos…' : 'Cargando productos…',
+      )
+    },
+  )
+
+  it('marks the failed state as an error and keeps one retry action', async () => {
+    const wrapper = mountGrid({ state: 'server', products: [] })
+    const section = wrapper.get('[data-testid="catalog-state"]')
+
+    expect(section.attributes('data-kind')).toBe('error')
+    expect(wrapper.findAll('button')).toHaveLength(1)
+    await wrapper.get('button[aria-label="Reintentar productos"]').trigger('click')
+    expect(wrapper.emitted('retry')).toHaveLength(1)
+  })
+
+  it('marks the empty state as empty and never as an error', () => {
+    const section = mountGrid({ state: 'empty', products: [] }).get('[data-testid="catalog-state"]')
+
+    expect(section.attributes('data-kind')).toBe('empty')
+  })
 })
