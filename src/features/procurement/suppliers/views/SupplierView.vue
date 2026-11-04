@@ -7,6 +7,8 @@ import { useSuppliers } from '../composables/useSuppliers'
 import SupplierForm from '../components/SupplierForm.vue'
 import ToolbarSelectFilter from '@/core/shared/components/DataTable/ToolbarSelectFilter.vue'
 import SupplierList from '../components/SupplierList.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { Supplier, SupplierInput } from '../interfaces/supplier.types'
 import '../styles/suppliers-visual.css'
 
@@ -41,8 +43,11 @@ const canWriteForm = computed(() => selected.value ? context.value.canUpdate : c
 let epoch = 0
 let detailController: AbortController | null = null
 let overlayInvoker: HTMLButtonElement | null = null
-function captureInvoker() {
-  overlayInvoker = document.activeElement instanceof HTMLButtonElement ? document.activeElement : null
+// A row's ⋮ menu hands over its trigger: by the time an item is chosen the menu
+// item has focus, and the menu itself is about to unmount.
+function captureInvoker(preferred?: HTMLElement | null) {
+  const candidate = preferred ?? document.activeElement
+  overlayInvoker = candidate instanceof HTMLButtonElement ? candidate : null
 }
 function restoreInvoker(event: Event) {
   // Controlled Nuxt UI overlays have no DialogTrigger slot to return focus to.
@@ -101,11 +106,11 @@ function create() {
   formKey.value++
   open.value = true
 }
-async function show(supplier: Supplier) {
+async function show(supplier: Supplier, invoker?: HTMLElement | null) {
   if (!context.value.ready || !context.value.canRead || locked.value) return
   // Capture before the async read disables (and browsers blur) the row button.
   // Explicit reload inside the open form must retain the original invoker.
-  if (!open.value) captureInvoker()
+  if (!open.value) captureInvoker(invoker)
   detailController?.abort()
   const controller = new AbortController()
   detailController = controller
@@ -144,9 +149,9 @@ async function save(input: SupplierInput) {
     : await commands.create(input)
   await finish(result, origin)
 }
-function requestStatus(supplier: Supplier) {
+function requestStatus(supplier: Supplier, invoker?: HTMLElement | null) {
   if (context.value.ready && context.value.canUpdate && !locked.value) {
-    captureInvoker()
+    captureInvoker(invoker)
     commands.clearFeedback()
     stateTarget.value = supplier
   }
@@ -157,9 +162,9 @@ async function changeStatus() {
   const origin = epoch
   await finish(await commands.update(target.id, { expectedVersion: target.version, changes: { status: target.status === 'ACTIVE' ? 'ARCHIVED' : 'ACTIVE' } }), origin)
 }
-function requestDelete(supplier: Supplier) {
+function requestDelete(supplier: Supplier, invoker?: HTMLElement | null) {
   if (context.value.ready && context.value.canDelete && !locked.value) {
-    captureInvoker()
+    captureInvoker(invoker)
     commands.clearFeedback()
     deleteTarget.value = supplier
   }
@@ -201,7 +206,7 @@ async function reloadSelected() {
 <template>
   <main ref="page" class="hf-theme hf-ui suppliers-page">
     <header class="hf-page-header suppliers-header">
-      <div><h1 class="hf-page-title">Proveedores</h1><p class="hf-page-subtitle">Contactos comerciales y condiciones para preparar tus compras.</p></div>
+      <h1 class="hf-page-title">Proveedores</h1>
     </header>
     <p v-if="notice" role="status" class="supplier-notice">{{ notice }}</p>
     <p v-if="!context.ready || !context.canRead" role="status">No tienes acceso a los proveedores de esta sucursal.</p>
@@ -224,15 +229,18 @@ async function reloadSelected() {
       </div>
     </UCard>
     <div v-if="commandMessage && !open && !confirmOpen && !deleteOpen" role="alert" class="supplier-warning">{{ commandMessage }}<button v-if="hasUncertainResult" type="button" class="supplier-button" :disabled="isPending" @click="retry">Recuperar resultado</button></div>
-    <USlideover v-model:open="open" :content="{ onCloseAutoFocus: restoreInvoker }" :title="selected ? 'Detalle del proveedor' : 'Crear proveedor'" description="Datos comerciales de esta sucursal. No se modifican existencias, pagos ni deuda." :dismissible="!locked" :close="locked ? false : undefined" :ui="{ content: 'hf-theme hf-ui hf-form-overlay suppliers-portal' }">
+    <USlideover v-model:open="open" :content="{ onCloseAutoFocus: restoreInvoker }" :title="selected ? selected.displayName : 'Crear proveedor'" :dismissible="!locked" :close="locked ? false : undefined" :ui="{ content: 'hf-theme hf-ui hf-form-overlay suppliers-portal' }">
+      <template v-if="selected" #description>
+        <span class="supplier-meta"><StatusBadge :label="selected.status === 'ACTIVE' ? 'Activo' : 'Archivado'" :tone="selected.status === 'ACTIVE' ? 'success' : 'neutral'" />actualizado {{ formatShortDateTime(selected.updatedAt) }}</span>
+      </template>
       <template #body>
         <div v-if="commandMessage" role="alert" class="supplier-warning">
           {{ commandMessage }}
           <button v-if="hasUncertainResult" type="button" class="supplier-button" :disabled="isPending" @click="retry">Recuperar resultado</button>
           <button v-if="conflict && selected" type="button" data-testid="reload-supplier" class="supplier-button" :disabled="detailLoading" @click="reloadSelected">Descartar cambios locales y cargar versión actual</button>
         </div>
-        <SupplierForm v-if="open && canWriteForm" :key="formKey" :initial="initial" :editing="!!selected" :disabled="locked || detailLoading" @save="save" @cancel="open = false" />
-        <dl v-else-if="open && selected" data-testid="supplier-readonly" class="supplier-readonly"><dt>Nombre</dt><dd>{{ selected.displayName }}</dd><dt>Condiciones</dt><dd>{{ selected.termsText || 'Sin condiciones registradas' }}</dd><dt>Estado</dt><dd>{{ selected.status === 'ACTIVE' ? 'Activo' : 'Archivado' }}</dd></dl>
+        <SupplierForm v-if="open && canWriteForm" :key="formKey" :initial="initial" :editing="!!selected" :disabled="locked || detailLoading" @save="save" />
+        <dl v-else-if="open && selected" data-testid="supplier-readonly" class="supplier-readonly"><dt>Condiciones</dt><dd>{{ selected.termsText || 'Sin condiciones registradas' }}</dd></dl>
       </template>
     </USlideover>
     <UModal v-model:open="confirmOpen" :content="{ onCloseAutoFocus: restoreInvoker }" :title="stateTarget?.status === 'ACTIVE' ? 'Archivar proveedor' : 'Reactivar proveedor'" :description="stateTarget?.status === 'ACTIVE' ? 'Se conservarán sus datos e historial. No estará disponible para nuevas compras hasta reactivarlo.' : 'El proveedor volverá a estar disponible para nuevas compras.'" :dismissible="!locked" :close="locked ? false : undefined" :ui="{ content: 'hf-theme hf-ui suppliers-portal' }">
@@ -257,13 +265,13 @@ async function reloadSelected() {
 <style scoped>
 .suppliers-page { display: grid; gap: 24px; color: var(--hf-ink); }
 .suppliers-header { align-items: flex-start; }
-.supplier-button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--hf-field-border); border-radius: 6px; background: var(--hf-field); color: var(--hf-ink); font: inherit; }
-.supplier-button { background: var(--hf-surface); }
+.supplier-button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--hf-field-border); border-radius: 6px; background: var(--hf-surface); color: var(--hf-ink); font: inherit; }
 .hf-primary-control.supplier-confirm-danger:not(:disabled) { display: inline-flex; align-items: center; gap: 6px; background: var(--ui-error); border-color: var(--ui-error); color: var(--ui-bg); }
 .supplier-pagination { display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--hf-border); padding-top: 16px; }
 .supplier-notice { background: var(--hf-active-soft); color: var(--hf-ink); padding: 12px 16px; border-radius: 6px; }
 .supplier-warning { background: var(--hf-warning-soft); color: var(--hf-warning); padding: 12px; margin-bottom: 16px; border-radius: 6px; overflow-wrap: anywhere; }
 .supplier-warning button { display: block; margin-top: 12px; }
+.supplier-meta { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--hf-muted); font-size: 13px; }
 .supplier-readonly { display: grid; gap: 8px; overflow-wrap: anywhere; }
 .supplier-readonly dt { color: var(--hf-muted); font-size: 13px; }
 .supplier-readonly dd { margin-bottom: 16px; white-space: pre-wrap; }
