@@ -65,14 +65,16 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', preventUnload))
       <template #body>
         <div v-if="message" role="alert" class="order-warning">{{ message }}<div class="order-actions"><UButton v-if="hasUncertainResult" type="button" color="neutral" variant="outline" :disabled="isPending" @click="workspace.retry">Reintentar</UButton><UButton v-if="conflict && selected" type="button" color="neutral" variant="outline" :disabled="detailLoading || locked" @click="workspace.reload">Descartar cambios locales y cargar versión actual</UButton></div></div>
         <p v-if="detailError" role="alert">{{ detailError }}</p>
-        <div v-if="selected && selected.status !== 'CANCELLED' && (context.canConfirm || context.canCancel)" class="order-transitions">
+        <section v-if="selected && selected.status !== 'CANCELLED' && (context.canConfirm || context.canCancel)" data-testid="order-transition-bar" class="order-transition-bar" aria-label="Acciones de la orden">
           <div class="order-actions">
             <UButton v-if="selected.status === 'DRAFT' && context.canConfirm" type="button" data-testid="confirm-order" class="hf-primary-control" icon="i-lucide-check" :disabled="!canConfirm" @click="workspace.requestTransition('confirm')">Confirmar orden</UButton>
             <UButton v-if="context.canCancel" type="button" data-testid="cancel-order" color="error" variant="outline" icon="i-lucide-ban" :disabled="!canCancel" @click="workspace.requestTransition('cancel')">Cancelar orden</UButton>
           </div>
           <p v-if="needsSave" role="status" class="order-warning">Guarda tus cambios antes de confirmar o cancelar.</p>
           <p v-else-if="selected.status === 'DRAFT' && context.canConfirm && selected.canConfirm !== true" role="status" class="order-help">Completa los avisos del borrador para poder confirmarla.</p>
-        </div>
+          <p v-else-if="selected.status === 'DRAFT' && context.canConfirm" role="status" class="order-help">Al confirmar se congelan el proveedor, los productos y los costos.</p>
+          <p v-else role="status" class="order-help">La cancelación es definitiva y no se puede deshacer.</p>
+        </section>
         <p v-if="(!selected || (selected.status === 'DRAFT' && !readOnlyDraft)) && (!context.canReadSupplier || !context.canReadProduct)" role="status" class="order-warning">Para guardar cambios necesitas permiso de lectura de proveedores y productos.</p>
         <PurchaseOrderReadonly v-if="open && selected && (selected.status !== 'DRAFT' || readOnlyDraft)" :order="selected" />
         <PurchaseOrderForm v-else-if="open" :key="formKey" :initial="selected" :context="context" :disabled="locked || detailLoading || !canSave" @save="workspace.save" @cancel="workspace.close" @dirty="dirty = $event" />

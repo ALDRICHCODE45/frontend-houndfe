@@ -58,6 +58,14 @@ describe('closed order read-only block', () => {
     expect(css).toMatch(/\.order-money[^{]*\{[^}]*font-variant-numeric: tabular-nums/)
     expect(css).toMatch(/\.order-readonly-figures dd[^{]*\{[^}]*text-align: right/)
   })
+  it('groups every label with its value, so the details can sit in two columns from md', () => {
+    const wrapper = mount(PurchaseOrderReadonly, { props: { order: confirmed } })
+    const groups = wrapper.findAll('dl.order-readonly-details > div.order-detail')
+    expect(groups.map(group => group.get('dt').text())).toEqual(['Estado', 'Proveedor', 'Registro', 'Ubicación', 'Nota'])
+    for (const group of groups) { expect(group.findAll('dt')).toHaveLength(1); expect(group.findAll('dd')).toHaveLength(1) }
+    expect(groups.filter(group => group.classes().includes('order-detail-wide')).map(group => group.get('dt').text())).toEqual(['Registro', 'Ubicación', 'Nota'])
+    expect(wrapper.get('dl.order-readonly-details dd').text()).toBe('Confirmada')
+  })
   it('keeps a missing unit cost as a dash instead of a currency', () => {
     const wrapper = mount(PurchaseOrderReadonly, { props: { order: { ...confirmed, lines: [{ ...confirmed.lines[0]!, informedUnitCost: null }] } } })
     expect(wrapper.get('[data-testid="line-cost"]').text()).toBe('—')

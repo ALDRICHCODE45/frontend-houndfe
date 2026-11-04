@@ -243,3 +243,56 @@ describe('confirm and cancel actions', () => {
     wrapper.unmount()
   })
 })
+describe('transition action bar', () => {
+  const bar = (wrapper: ReturnType<typeof mountView>) => wrapper.get('[data-testid="order-transition-bar"]')
+  const before = (first: Element, second: Element) => Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING)
+  beforeEach(() => { grants.add('create:ProcurementOrderConfirmation'); grants.add('create:ProcurementOrderCancellation'); grants.add('update:ProcurementPurchaseOrder') })
+  it('keeps both actions and the unsaved-changes explanation in one bar that precedes the form', () => {
+    set('selected', order); set('open', true); set('canCancel', true); set('needsSave', true)
+    const wrapper = mountView()
+    const element = bar(wrapper).element
+    expect(bar(wrapper).find('[data-testid="confirm-order"]').exists()).toBe(true)
+    expect(bar(wrapper).find('[data-testid="cancel-order"]').exists()).toBe(true)
+    expect(bar(wrapper).text()).toContain('Guarda tus cambios antes de confirmar o cancelar.')
+    expect(before(element, wrapper.get('[data-testid="draft-form"]').element)).toBe(true)
+    // The explanation follows the buttons inside the bar, never above them or elsewhere.
+    expect(before(bar(wrapper).get('[data-testid="cancel-order"]').element, bar(wrapper).get('[role="status"]').element)).toBe(true)
+    wrapper.unmount()
+  })
+  it('explains what is missing to confirm, inside the bar', () => {
+    set('selected', { ...order, canConfirm: false }); set('open', true)
+    const wrapper = mountView()
+    expect(bar(wrapper).text()).toContain('Completa los avisos del borrador para poder confirmarla.')
+    wrapper.unmount()
+  })
+  it.each([
+    ['a ready draft', { ...order }, 'Al confirmar se congelan el proveedor, los productos y los costos.'],
+    ['a draft for a user who can only cancel', { ...order }, 'La cancelación es definitiva y no se puede deshacer.'],
+    ['a confirmed order', { ...order, status: 'CONFIRMED' as const, canConfirm: false }, 'La cancelación es definitiva y no se puede deshacer.'],
+  ])('says what the actions do for %s', (name, selected, expected) => {
+    if (name.includes('only cancel')) grants.delete('create:ProcurementOrderConfirmation')
+    set('selected', selected); set('open', true); set('canCancel', true)
+    const wrapper = mountView()
+    expect(bar(wrapper).text()).toContain(expected)
+    wrapper.unmount()
+  })
+  it('is the same bar, ahead of the read-only block, for a closed order', () => {
+    set('selected', { ...order, status: 'CONFIRMED', canConfirm: false }); set('open', true); set('canCancel', true)
+    const wrapper = mountView()
+    expect(bar(wrapper).find('[data-testid="confirm-order"]').exists()).toBe(false)
+    expect(bar(wrapper).find('[data-testid="cancel-order"]').exists()).toBe(true)
+    expect(before(bar(wrapper).element, wrapper.get('[data-testid="order-readonly"]').element)).toBe(true)
+    wrapper.unmount()
+  })
+  it('does not render a bar for a cancelled order or without transition permissions', () => {
+    set('selected', { ...order, status: 'CANCELLED', canConfirm: false }); set('open', true)
+    const cancelled = mountView()
+    expect(cancelled.find('[data-testid="order-transition-bar"]').exists()).toBe(false)
+    cancelled.unmount()
+    grants.clear(); grants.add('read:ProcurementPurchaseOrder')
+    set('selected', order)
+    const reader = mountView()
+    expect(reader.find('[data-testid="order-transition-bar"]').exists()).toBe(false)
+    reader.unmount()
+  })
+})

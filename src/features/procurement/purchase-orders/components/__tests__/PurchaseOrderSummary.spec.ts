@@ -23,6 +23,13 @@ describe('order summary for the confirm and cancel dialogs', () => {
     expect(wrapper.element.tagName).toBe('DL')
     expect(text).not.toContain('y 0')
   })
+  it('groups label/value pairs so supplier and location can share a row from md', () => {
+    const wrapper = mount(PurchaseOrderSummary, { props: { order: orderWith(2) } })
+    const groups = wrapper.findAll('dl > div.order-detail')
+    expect(groups.map(group => group.get('dt').text())).toEqual(['Proveedor', 'Ubicación', 'Renglones'])
+    expect(groups[2]!.classes()).toContain('order-detail-wide')
+    expect(groups[2]!.findAll('li')).toHaveLength(2)
+  })
   it('caps the list at five lines and says how many are left, singular and plural', () => {
     const six = mount(PurchaseOrderSummary, { props: { order: orderWith(6) } })
     expect(six.findAll('li')).toHaveLength(5)

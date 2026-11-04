@@ -20,7 +20,7 @@ const model = defineModel<string>({ required: true })
       size="sm"
       :aria-label="label"
       :data-testid="testId"
-      class="hf-toolbar-select w-full md:w-44"
+      class="hf-toolbar-select w-full md:w-44 md:shrink-0"
       :ui="portalClass ? { content: portalClass } : undefined"
     />
   </FilterSectionCard>

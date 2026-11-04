@@ -38,11 +38,11 @@ const warnings = computed(() => {
   <div data-testid="order-readonly" class="order-readonly">
     <div v-if="warnings.summary.length" data-testid="order-readonly-warnings" class="order-warning" role="status" aria-label="Avisos del borrador"><p v-for="message in warnings.summary" :key="message">{{ message }}</p></div>
     <dl class="order-readonly-details">
-      <dt>Estado</dt><dd>{{ statusLabel[order.status] }}</dd>
-      <template v-if="closure"><dt>Registro</dt><dd>{{ closure }}</dd></template>
-      <dt>Proveedor</dt><dd>{{ order.supplierDisplaySnapshot?.displayName || 'Sin proveedor' }}</dd>
-      <dt>Ubicación</dt><dd>{{ locationLabel(order) }}</dd>
-      <dt>Nota</dt><dd class="order-readonly-note">{{ order.note || 'Sin nota' }}</dd>
+      <div class="order-detail"><dt>Estado</dt><dd>{{ statusLabel[order.status] }}</dd></div>
+      <div class="order-detail"><dt>Proveedor</dt><dd>{{ order.supplierDisplaySnapshot?.displayName || 'Sin proveedor' }}</dd></div>
+      <div v-if="closure" class="order-detail order-detail-wide"><dt>Registro</dt><dd>{{ closure }}</dd></div>
+      <div class="order-detail order-detail-wide"><dt>Ubicación</dt><dd>{{ locationLabel(order) }}</dd></div>
+      <div class="order-detail order-detail-wide"><dt>Nota</dt><dd class="order-readonly-note">{{ order.note || 'Sin nota' }}</dd></div>
     </dl>
     <section class="order-section" aria-label="Renglones">
       <h2>Renglones · {{ lines.length }}</h2>

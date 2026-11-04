@@ -30,27 +30,34 @@
 .purchase-orders-portal .order-subtotal { border-top: 1px solid var(--hf-border); padding-top: 12px; font-size: 13px; color: var(--hf-ink); }
 .purchase-orders-portal .order-readonly { display: grid; gap: 24px; min-width: 0; color: var(--hf-ink); }
 .purchase-orders-portal .order-readonly h2 { color: var(--hf-heading); font-weight: 600; }
-.purchase-orders-portal .order-readonly-details { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; font-size: 14px; overflow-wrap: anywhere; }
-.purchase-orders-portal .order-readonly-details dt { color: var(--hf-muted); font-size: 13px; margin-top: 8px; }
-.purchase-orders-portal .order-readonly-details dt:first-child { margin-top: 0; }
+.purchase-orders-portal .order-readonly-details, .purchase-orders-portal .order-summary { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+.purchase-orders-portal .order-detail { display: grid; align-content: start; gap: 2px; min-width: 0; }
+.purchase-orders-portal .order-detail dt { color: var(--hf-muted); font-size: 13px; }
+.purchase-orders-portal .order-detail dd { margin: 0; min-width: 0; }
 .purchase-orders-portal .order-readonly-note { white-space: pre-wrap; }
-.purchase-orders-portal .order-readonly-figures { display: grid; gap: 8px; margin: 0; font-size: 14px; }
-.purchase-orders-portal .order-readonly-figures > div { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.purchase-orders-portal .order-readonly-figures { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 14rem); justify-content: start; align-items: baseline; gap: 8px 24px; margin: 0; font-size: 14px; }
+.purchase-orders-portal .order-readonly-figures > div { display: contents; }
 .purchase-orders-portal .order-readonly-figures dt { color: var(--hf-muted); font-size: 13px; }
-.purchase-orders-portal .order-readonly-figures dd { min-width: 0; text-align: right; overflow-wrap: anywhere; }
+.purchase-orders-portal .order-readonly-figures dd { margin: 0; min-width: 0; text-align: right; overflow-wrap: anywhere; }
+.purchase-orders-portal .order-readonly-figures .order-subtotal-row > * { font-weight: 600; color: var(--hf-ink); }
 .purchase-orders-portal .order-money { font-variant-numeric: tabular-nums; text-align: right; }
-.purchase-orders-portal .order-subtotal-row { border-top: 1px solid var(--hf-border); padding-top: 8px; font-weight: 600; }
-.purchase-orders-portal .order-summary { display: grid; gap: 4px; margin: 0 0 16px; font-size: 14px; overflow-wrap: anywhere; }
-.purchase-orders-portal .order-summary dt { color: var(--hf-muted); font-size: 13px; margin-top: 8px; }
-.purchase-orders-portal .order-summary dt:first-child { margin-top: 0; }
-.purchase-orders-portal .order-summary-lines { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--hf-border); }
+.purchase-orders-portal .order-summary { margin-bottom: 16px; }
+.purchase-orders-portal .order-detail-wide { grid-column: 1 / -1; }
+.purchase-orders-portal .order-summary-lines { padding-top: 12px; border-top: 1px solid var(--hf-border); }
 .purchase-orders-portal .order-summary-lines ul { display: grid; gap: 4px; list-style: none; margin: 0; padding: 0; }
 .purchase-orders-portal .order-summary-lines p { margin-top: 4px; color: var(--hf-muted); font-size: 13px; }
-.purchase-orders-portal .order-transitions { display: grid; gap: 12px; }
+/* One bar for every order the user can transition: buttons first, then what they do or what is missing. */
+.purchase-orders-portal .order-transition-bar { display: grid; gap: 12px; margin-bottom: 24px; padding: 16px; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface-muted); }
+.purchase-orders-portal .order-transition-bar .order-actions { justify-content: flex-start; }
+.purchase-orders-portal .order-transition-bar p { margin: 0; color: var(--hf-ink); font-size: 13px; }
+.purchase-orders-portal .order-transition-bar .order-warning { padding: 8px 12px; }
 .purchase-orders-portal .order-picker { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); }
 .purchase-orders-portal .hf-primary-control.order-confirm-danger:not(:disabled) { display: inline-flex; align-items: center; gap: 6px; background: var(--ui-error); border-color: var(--ui-error); color: var(--ui-bg); }
 :where(.purchase-orders-page, .purchase-orders-portal) :where(button, input, select, textarea):focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
 :where(.purchase-orders-page, .purchase-orders-portal) :where(button, input, select, textarea):disabled { cursor: not-allowed; }
+@media (min-width: 768px) {
+  .purchase-orders-portal .order-readonly-details, .purchase-orders-portal .order-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 32px; }
+}
 @media (max-width: 639px) {
   .purchase-orders-portal .order-line-fields, .purchase-orders-portal .order-cost-fields { grid-template-columns: minmax(0, 1fr); }
 }
