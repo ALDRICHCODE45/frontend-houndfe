@@ -170,3 +170,4 @@ L8. T10 rerun after the BE fix a886791 (`GET /products` and `GET /products/:id` 
   - List: the stock cell reads "72 unidades" in plain text. Healthy stock earns no badge, which is the existing rule (0 is danger, at or below minQuantity is warning). The status badge is not "Sin stock".
   - Inventario panel: total 72, rows add up to 72, and the summary agrees.
 - Still open, not changed: Collar (variants) has `quantity: 0` in the product record while the journal total is 24. It shows its total through `variantStockTotal` and its header was not part of this check. No code change was needed on the FE in this rerun.
+L9. The BE confirmed that a variants product keeps product.quantity = 0 on purpose (stock lives in each variant). GET /products/:id gives the total in variantStockTotal, and the FE already uses variantStockTotal or the variant sum for the summary and badge, so no change. O1 FE is COMPLETE: T1-T10 committed, and the rerun passed 29/29 against the real BE.
