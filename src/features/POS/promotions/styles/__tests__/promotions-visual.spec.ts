@@ -85,7 +85,8 @@ describe('Promotions listing presentation adapter', () => {
     expect(css).not.toContain('promotions-view-toggle')
     expect(css).not.toContain('promotions-empty')
     expect(css).not.toContain('hf-pagination')
-    expect(css).not.toContain('hf-toolbar')
+    // The toolbar container stays shared; only the select and search widths are fitted.
+    expect(css).not.toMatch(/\.hf-toolbar(?![-\w])/)
   })
 
   it('takes the empty, no-match and error states from the shared table', () => {
@@ -132,7 +133,8 @@ describe('Promotions creation/edit workspace adapter', () => {
   it('pairs primary actions with the shared action foreground', () => {
     expect(form).toContain('data-testid="submit-btn"')
     expect(form.match(/hf-primary-control/g)?.length).toBe(1)
-    expect(targets).toContain('hf-primary-control')
+    // "Agregar productos" is outline: the page keeps one solid primary.
+    expect(targets).not.toContain('hf-primary-control')
     expect(targetModal).toContain('hf-primary-control')
   })
 
@@ -174,3 +176,18 @@ describe('Promotions creation/edit workspace adapter', () => {
     expect(targetModal).toContain("width: 'max-w-2xl'")
   })
 })
+
+describe('Promotions toolbar fit (review round 1)', () => {
+  it('narrows the three filters and the search so they never cover the primary at 1440', () => {
+    expect(css).toMatch(
+      /@media \(min-width: 768px\) \{[^}]*\.promotions-visual \.hf-toolbar-select\.hf-toolbar-select \{ width: 9\.5rem; \}/s,
+    )
+    expect(css).toMatch(/\.promotions-visual \.hf-toolbar-search \{ max-width: 16rem; \}/)
+  })
+
+  it('names each filter by its prefix, so the options read just "Todos"', () => {
+    expect(view).not.toMatch(/label: 'Todos los (tipos|estados|métodos)'/)
+    expect(view.match(/label: 'Todos', value: ALL_FILTER_VALUE/g)).toHaveLength(3)
+  })
+})
+

@@ -164,3 +164,53 @@
   border-color: var(--hf-action);
   border-top-color: transparent;
 }
+
+/* ── Loading skeleton: shaped like the form's section cards ──────────────── */
+
+.promotions-workspace .promotions-skeleton-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-radius: var(--hf-radius-card);
+  background-color: var(--hf-surface);
+  box-shadow: 0 0 0 1px var(--hf-border);
+  padding: 20px;
+}
+
+.promotions-workspace .promotions-skeleton-bar {
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-surface-muted);
+}
+
+/* ── Mobile sticky action bar: the one primary, full width ───────────────── */
+
+.promotions-workspace .promotions-action-bar {
+  border-top: 1px solid var(--hf-border);
+  background-color: var(--hf-surface);
+  padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+}
+
+.promotions-workspace .promotions-bar-primary {
+  display: inline-flex;
+  width: 100%;
+  min-height: var(--hf-control-height);
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-action);
+  color: var(--hf-on-action);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.promotions-workspace .promotions-bar-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ── List toolbar: three named filters beside the search and the primary ─── */
+
+@media (min-width: 768px) {
+  .promotions-visual .hf-toolbar-select.hf-toolbar-select { width: 9.5rem; }
+  .promotions-visual .hf-toolbar-search { max-width: 16rem; }
+}

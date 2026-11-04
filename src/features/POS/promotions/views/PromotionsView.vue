@@ -97,7 +97,7 @@ const filterMethodSelect = computed<PromotionMethod | typeof ALL_FILTER_VALUE>({
 })
 
 const TYPE_OPTIONS = [
-  { label: 'Todos los tipos', value: ALL_FILTER_VALUE },
+  { label: 'Todos', value: ALL_FILTER_VALUE },
   { label: 'Descuento en productos', value: PROMOTION_TYPE.PRODUCT_DISCOUNT },
   { label: 'Descuento en pedido', value: PROMOTION_TYPE.ORDER_DISCOUNT },
   { label: '2x1, 3x2 o similares', value: PROMOTION_TYPE.BUY_X_GET_Y },
@@ -105,14 +105,14 @@ const TYPE_OPTIONS = [
 ]
 
 const STATUS_OPTIONS = [
-  { label: 'Todos los estados', value: ALL_FILTER_VALUE },
+  { label: 'Todos', value: ALL_FILTER_VALUE },
   { label: 'Activa', value: PROMOTION_STATUS.ACTIVE },
   { label: 'Programada', value: PROMOTION_STATUS.SCHEDULED },
   { label: 'Finalizada', value: PROMOTION_STATUS.ENDED },
 ]
 
 const METHOD_OPTIONS = [
-  { label: 'Todos los métodos', value: ALL_FILTER_VALUE },
+  { label: 'Todos', value: ALL_FILTER_VALUE },
   { label: 'Automático', value: PROMOTION_METHOD.AUTOMATIC },
   { label: 'Manual', value: PROMOTION_METHOD.MANUAL },
 ]
