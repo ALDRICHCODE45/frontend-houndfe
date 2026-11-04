@@ -279,6 +279,7 @@ describe('ProductList — loading', () => {
     // The skeleton may keep the real header; it never renders data rows.
     const dataRows = wrapper.findAll('tbody tr').filter((row) => !row.element.closest('[data-testid="table-skeleton"]'))
     expect(dataRows).toHaveLength(0)
+    expect(wrapper.find('[aria-label^="Acciones de"]').exists()).toBe(false)
     expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
     wrapper.unmount()
   })

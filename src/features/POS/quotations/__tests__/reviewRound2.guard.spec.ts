@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 // T4 review round 2: the mobile action bar must not paint on desktop. A scoped
@@ -13,5 +13,19 @@ describe('quotation detail action bar is mobile-only', () => {
     expect(base?.[0]).toBeDefined()
     expect(base![0]).not.toMatch(/display\s*:/)
     expect(view).toMatch(/@media\s*\(max-width:\s*1023px\)\s*\{\s*\.quotation-action-bar\s*\{[^}]*display:\s*grid/)
+  })
+})
+
+describe('quotations review round 2 copy', () => {
+  it('does not assume the cause of a failed load', () => {
+    const root = resolve(__dirname, '..')
+    const walk = (dir: string): string[] =>
+      readdirSync(dir).flatMap((name) => {
+        const path = join(dir, name)
+        if (statSync(path).isDirectory()) return name === '__tests__' ? [] : walk(path)
+        return /\.(vue|ts)$/.test(name) && !/\.(spec|test)\./.test(name) ? [path] : []
+      })
+    const hits = walk(root).filter((file) => /Revisa tu conexión/.test(readFileSync(file, 'utf8')))
+    expect(hits).toEqual([])
   })
 })

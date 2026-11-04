@@ -2055,7 +2055,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
         v-else-if="!isCreateMode && isProductError"
         kind="error"
         title="No se pudo cargar el producto"
-        description="Revisa tu conexión e inténtalo de nuevo."
+        description="Inténtalo de nuevo en un momento."
         action-label="Reintentar"
         @action="refetchProduct"
       />

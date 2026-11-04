@@ -128,7 +128,7 @@ async function submit() { await editor.save() }
       v-else-if="errorMessage"
       kind="error"
       title="No se pudo cargar el contenido editorial"
-      description="Revisa tu conexión e inténtalo de nuevo."
+      description="Inténtalo de nuevo en un momento."
       action-label="Reintentar"
       @action="refreshFromHeader"
     />

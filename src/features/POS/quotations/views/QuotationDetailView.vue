@@ -894,7 +894,7 @@ function onHeaderAction(key: string): void {
       <EmptyState
         kind="error"
         title="No se pudo cargar la cotización"
-        description="Revisa tu conexión e inténtalo de nuevo."
+        description="Inténtalo de nuevo en un momento."
         action-label="Reintentar"
         action-test-id="detail-error-retry"
         @action="retryLoad"
