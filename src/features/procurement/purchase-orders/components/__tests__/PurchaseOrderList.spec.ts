@@ -4,7 +4,7 @@ import { defineComponent } from 'vue'
 import PurchaseOrderList from '../PurchaseOrderList.vue'
 const row = { id: 'o', version: 1, status: 'DRAFT' as const, supplierDisplaySnapshot: { id: 's', displayName: 'Proveedor', status: 'ARCHIVED' as const }, lineCount: 2, issueCount: 3, note: 'Nota', locationDetail: null, createdAt: '', updatedAt: '2026-01-01' }
 const table = defineComponent({ props: ['data', 'columns'], template: '<div><slot name="mobile-card" v-for="row in data" :row="row"/><slot name="status-cell" v-for="row in data" :row="{ original: row }"/><slot name="actions-cell" v-for="row in data" :row="{ original: row }"/></div>' })
-const toolbar = defineComponent({ props: ['globalFilter', 'searchPlaceholder', 'showRefresh'], emits: ['refresh'], template: '<div><slot name="actions"/><slot name="filters"/></div>' })
+const toolbar = defineComponent({ props: ['globalFilter', 'searchPlaceholder', 'showRefresh', 'activeFilterCount'], emits: ['refresh', 'clear-filters'], template: '<div><slot name="actions"/><slot name="filters"/></div>' })
 const stubs = { AppDataTable: table, DataTableToolbar: toolbar, UIcon: true }
 describe('draft list canonical mobile cards', () => {
   it('shows summary only and discard independently of update', async () => {
@@ -27,6 +27,12 @@ describe('draft list canonical mobile cards', () => {
     await wrapper.vm.$nextTick()
     expect(wrapper.emitted('update:search')?.[0]).toEqual(['inexistente'])
     expect(wrapper.text()).toContain('Proveedor')
+  })
+  it('forwards the active filter count to the shared toolbar and relays clear-filters', () => {
+    const wrapper = mount(PurchaseOrderList, { props: { items: [], canEdit: false, canDelete: false, activeFilterCount: 1 }, global: { stubs } })
+    expect(wrapper.getComponent(toolbar).props('activeFilterCount')).toBe(1)
+    wrapper.getComponent(toolbar).vm.$emit('clear-filters')
+    expect(wrapper.emitted('clear-filters')).toHaveLength(1)
   })
   it('always keeps the actions column, because any reader can open an order', async () => {
     const wrapper = mount(PurchaseOrderList, { props: { items: [row], canEdit: false, canDelete: false }, global: { stubs } })

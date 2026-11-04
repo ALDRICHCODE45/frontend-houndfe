@@ -31,11 +31,10 @@ describe('draft form', () => {
     expect(wrapper.emitted('save')).toBeUndefined()
     expect(wrapper.text()).toContain('2000 caracteres')
   })
-  it('drops the save hint when the draft is shown read-only', () => {
-    const editable = mount(PurchaseOrderForm, { props: { initial: null, context } })
-    expect(editable.text()).toContain('Puedes guardar el borrador incompleto.')
-    const readOnly = mount(PurchaseOrderForm, { props: { initial: null, context, disabled: true, readOnly: true } })
-    expect(readOnly.text()).not.toContain('Puedes guardar el borrador incompleto.')
-    editable.unmount(); readOnly.unmount()
+  it('has no read-only mode: the save hint always shows and a read-only draft uses the description list instead', () => {
+    const wrapper = mount(PurchaseOrderForm, { props: { initial: null, context } })
+    expect(wrapper.text()).toContain('Puedes guardar el borrador incompleto.')
+    expect(PurchaseOrderForm.props).not.toHaveProperty('readOnly')
+    wrapper.unmount()
   })
 })

@@ -9,7 +9,7 @@ import { bufferErrors, createOrderBuffer, replaceLineProduct, serializeOrderBuff
 import { diagnosticMessage, diagnosticTarget } from '../utils/order-diagnostics'
 import PurchaseOrderLine from './PurchaseOrderLine.vue'
 import OrderReferencePicker, { type OrderReferenceOption } from './OrderReferencePicker.vue'
-const props = defineProps<{ initial: PurchaseOrder | null; context: OrderProductReadContext & { canReadSupplier: boolean }; disabled?: boolean; readOnly?: boolean }>()
+const props = defineProps<{ initial: PurchaseOrder | null; context: OrderProductReadContext & { canReadSupplier: boolean }; disabled?: boolean }>()
 const emit = defineEmits<{ save: [order: OrderInput]; cancel: []; dirty: [value: boolean] }>()
 // The parent keys this component on explicit load/save, never on query refresh.
 const buffer = reactive(createOrderBuffer(props.initial))
@@ -71,7 +71,7 @@ function remove(index: number) { if (!props.disabled) { buffer.lines.splice(inde
 
 <template>
   <form class="order-form" novalidate @submit.prevent="save">
-    <p v-if="!readOnly" class="order-help">Puedes guardar el borrador incompleto. Los avisos del servidor no impiden guardarlo.</p>
+    <p class="order-help">Puedes guardar el borrador incompleto. Los avisos del servidor no impiden guardarlo.</p>
     <div v-if="messages.summary?.length" class="order-warning" role="status"><p v-for="(message, index) in messages.summary" :key="index">{{ message }}</p></div>
     <fieldset :disabled="disabled" class="order-section"><legend>Proveedor y ubicación</legend>
       <UFormField label="Proveedor" class="order-field">

@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { shallowRef } from 'vue'
+import { readFileSync } from 'node:fs'
 import PurchaseOrderView from '../PurchaseOrderView.vue'
 import type { PurchaseOrder } from '../../interfaces/purchase-order.types'
 const grants = new Set<string>()
@@ -31,7 +32,8 @@ const stubs = {
   Slideover: { props: ['open', 'title', 'description'], template: '<section v-if="open"><h2>{{ title }}</h2><p>{{ description }}</p><slot name="body"/></section>' },
   Modal: { props: ['open', 'title', 'description'], template: '<aside v-if="open"><h2>{{ title }}</h2><p>{{ description }}</p><slot name="body"/><slot name="footer"/></aside>' },
   PurchaseOrderForm: { template: '<form data-testid="draft-form"/>' },
-  PurchaseOrderList: { props: ['canEdit', 'canDelete'], template: '<div><slot name="filters"/><slot name="actions"/><span>{{canEdit}}/{{canDelete}}</span></div>' },
+  PurchaseOrderList: { props: ['canEdit', 'canDelete', 'activeFilterCount'], emits: ['clear-filters'], template: '<div><slot name="filters"/><slot name="actions"/><span>{{canEdit}}/{{canDelete}}</span></div>' },
+  ToolbarSelectFilter: { props: ['modelValue', 'items', 'label', 'portalClass', 'testId'], emits: ['update:modelValue'], template: '<div :data-testid="testId" :data-value="modelValue" :data-label="label" />' },
 }
 const mountView = () => mount(PurchaseOrderView, { global: { stubs } })
 beforeEach(() => {
@@ -61,15 +63,45 @@ describe('draft view effective permissions', () => {
   })
 })
 describe('order status filter', () => {
-  it('defaults to every order and maps the choice to the single status value', async () => {
+  const filter = (wrapper: ReturnType<typeof mountView>) => wrapper.getComponent(stubs.ToolbarSelectFilter)
+  it('is the shared toolbar select, defaulting to every order with readable labels', () => {
     const wrapper = mountView()
-    const select = wrapper.get('[data-testid="order-status-filter"]')
-    expect((select.element as HTMLSelectElement).value).toBe('ALL')
-    expect(select.findAll('option').map(option => option.text())).toEqual(['Todas', 'Borradores', 'Confirmadas', 'Canceladas'])
-    await select.setValue('CONFIRMED')
+    const select = filter(wrapper)
+    expect(select.attributes('data-testid')).toBe('order-status-filter')
+    expect(select.props('label')).toBe('Estado')
+    expect(select.props('modelValue')).toBe('ALL')
+    expect(select.props('items')).toEqual([{ label: 'Todas', value: 'ALL' }, { label: 'Borradores', value: 'DRAFT' }, { label: 'Confirmadas', value: 'CONFIRMED' }, { label: 'Canceladas', value: 'CANCELLED' }])
+    expect(select.props('portalClass')).toContain('purchase-orders-portal')
+    expect(wrapper.find('select').exists()).toBe(false)
+    wrapper.unmount()
+  })
+  it('maps the choice to the single status value and Todas back to undefined', async () => {
+    const wrapper = mountView()
+    filter(wrapper).vm.$emit('update:modelValue', 'CONFIRMED')
+    await wrapper.vm.$nextTick()
     expect(state.status.value).toBe('CONFIRMED')
-    await select.setValue('ALL')
+    expect(filter(wrapper).props('modelValue')).toBe('CONFIRMED')
+    filter(wrapper).vm.$emit('update:modelValue', 'ALL')
+    await wrapper.vm.$nextTick()
     expect(state.status.value).toBeUndefined()
+    wrapper.unmount()
+  })
+  it('ships no feature rule that pushes the filter onto a second toolbar row', () => {
+    const css = readFileSync('src/features/procurement/purchase-orders/styles/purchase-orders-visual.css', 'utf8')
+    expect(css).not.toMatch(/hf-toolbar-filters/)
+    expect(css).not.toMatch(/grid-area/)
+  })
+  it('counts one active filter away from Todas and clears back to it', async () => {
+    const wrapper = mountView()
+    const list = () => wrapper.getComponent(stubs.PurchaseOrderList)
+    expect(list().props('activeFilterCount')).toBe(0)
+    state.status.value = 'DRAFT'
+    await wrapper.vm.$nextTick()
+    expect(list().props('activeFilterCount')).toBe(1)
+    list().vm.$emit('clear-filters')
+    await wrapper.vm.$nextTick()
+    expect(state.status.value).toBeUndefined()
+    expect(list().props('activeFilterCount')).toBe(0)
     wrapper.unmount()
   })
 })
@@ -112,7 +144,43 @@ describe('order editor by status', () => {
     expect(wrapper.text()).not.toContain('Puedes guardar datos incompletos')
     expect(wrapper.text()).not.toContain('Para guardar cambios necesitas permiso de lectura')
     expect(wrapper.text()).not.toContain('Borrador guardado')
-    expect(wrapper.find('[data-testid="draft-form"]').attributes('read-only')).toBe('true')
+    expect(wrapper.find('[data-testid="draft-form"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+  it('renders a draft opened without update permission as the read-only block with its status, no form and no disabled controls', () => {
+    grants.add('create:ProcurementOrderConfirmation')
+    set('selected', { ...order, supplierId: null, supplierDisplaySnapshot: null, canConfirm: false, validation: { issues: [{ path: '/supplierId', code: 'SUPPLIER_REQUIRED' }] } }); set('open', true)
+    const wrapper = mountView()
+    const readonly = wrapper.get('[data-testid="order-readonly"]')
+    expect(wrapper.find('[data-testid="draft-form"]').exists()).toBe(false)
+    expect(readonly.text()).toContain('Borrador')
+    expect(readonly.text()).toContain('Selecciona un proveedor.')
+    expect(readonly.findAll('button, input, select, textarea, [disabled]')).toHaveLength(0)
+    wrapper.unmount()
+  })
+  it('keeps the editable form for a draft the user can update', () => {
+    grants.add('update:ProcurementPurchaseOrder')
+    set('selected', order); set('open', true)
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="draft-form"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="order-readonly"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})
+const lineOf = (n: number) => ({ lineId: `line-id-${n}`, productId: `product-id-${n}`, variantId: null, orderedQuantity: `${n}`, informedUnitCost: { amount: '10', currency: 'MXN', unit: 'BOLSA', taxBasis: 'INCLUDES_TAX' as const } })
+const summarized = { ...order, lines: [1, 2, 3, 4, 5, 6, 7].map(lineOf), lineDisplaySnapshots: [1, 2, 3, 4, 5, 6, 7].map(n => ({ lineId: `line-id-${n}`, productName: `Producto ${n}`, variantName: null, unit: 'BOLSA' })) }
+describe('transition dialogs show an order summary', () => {
+  it.each([['confirm', 'DRAFT'], ['cancel', 'CONFIRMED']] as const)('%s lists supplier, location, line count and the first five lines without totals', (kind, status) => {
+    grants.add('create:ProcurementOrderConfirmation'); grants.add('create:ProcurementOrderCancellation')
+    set('selected', { ...summarized, status }); set('open', true); set('transition', kind)
+    const wrapper = mountView()
+    const modal = wrapper.get('aside')
+    const summary = modal.get('[data-testid="order-summary"]')
+    for (const expected of ['Distribuidora del Norte', 'Sucursal Centro', '7', 'Producto 1 — 1 Bolsa', 'Producto 5 — 5 Bolsa', 'y 2 renglones más']) expect(summary.text()).toContain(expected)
+    expect(summary.text()).not.toContain('Producto 6')
+    expect(modal.text()).not.toMatch(/\$|Total/)
+    expect(modal.find('[data-testid="confirm-transition"]').exists()).toBe(true)
+    expect(modal.find('[data-testid="cancel-transition"]').exists()).toBe(true)
     wrapper.unmount()
   })
 })

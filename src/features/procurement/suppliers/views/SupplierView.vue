@@ -5,6 +5,7 @@ import { suppliersApi } from '../api/suppliers.api'
 import { useSupplierCommands } from '../composables/useSupplierCommands'
 import { useSuppliers } from '../composables/useSuppliers'
 import SupplierForm from '../components/SupplierForm.vue'
+import ToolbarSelectFilter from '@/core/shared/components/DataTable/ToolbarSelectFilter.vue'
 import SupplierList from '../components/SupplierList.vue'
 import type { Supplier, SupplierInput } from '../interfaces/supplier.types'
 import '../styles/suppliers-visual.css'
@@ -19,6 +20,8 @@ const context = computed(() => ({
   canDelete: auth.userCan('read', 'ProcurementSupplier') && auth.userCan('delete', 'ProcurementSupplier'),
 }))
 const { search, status, items, hasNext, hasPrevious, next, back, refresh, isLoading, isFetching, error: listError } = useSuppliers(context)
+const statusItems = [{ label: 'Activos', value: 'ACTIVE' }, { label: 'Archivados', value: 'ARCHIVED' }, { label: 'Todos', value: 'ALL' }]
+const statusFilter = computed({ get: () => status.value ?? 'ACTIVE', set: value => { status.value = value as NonNullable<typeof status.value> } })
 const commands = useSupplierCommands(context)
 const { isPending, hasUncertainResult, error: commandError } = commands
 const locked = computed(() => isPending.value || hasUncertainResult.value)
@@ -204,9 +207,9 @@ async function reloadSelected() {
     <p v-if="!context.ready || !context.canRead" role="status">No tienes acceso a los proveedores de esta sucursal.</p>
     <UCard v-else :ui="{ body: 'p-0 sm:p-0' }" class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm" aria-label="Directorio de proveedores">
       <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
-      <SupplierList v-model:search="search" :items="items" :loading="isLoading" :fetching="isFetching" :error="!!listError" :can-edit="context.canUpdate" :can-delete="context.ready && context.canDelete" :disabled="locked || detailLoading" @refresh="refresh" @open="show" @change-status="requestStatus" @delete="requestDelete">
+      <SupplierList v-model:search="search" :items="items" :loading="isLoading" :fetching="isFetching" :error="!!listError" :can-edit="context.canUpdate" :can-delete="context.ready && context.canDelete" :disabled="locked || detailLoading" :active-filter-count="status !== 'ACTIVE' ? 1 : 0" @refresh="refresh" @open="show" @change-status="requestStatus" @delete="requestDelete" @clear-filters="status = 'ACTIVE'">
         <template #filters>
-          <label class="supplier-filter">Estado<select v-model="status"><option value="ACTIVE">Activos</option><option value="ARCHIVED">Archivados</option><option value="ALL">Todos</option></select></label>
+          <ToolbarSelectFilter v-model="statusFilter" :items="statusItems" label="Estado" portal-class="hf-theme hf-ui suppliers-portal" test-id="supplier-status-filter" />
         </template>
         <template #actions>
           <UButton v-if="context.ready && context.canCreate" data-testid="create-supplier" class="hf-primary-control" :disabled="locked" icon="i-lucide-plus" @click="create">Crear proveedor</UButton>
@@ -254,10 +257,9 @@ async function reloadSelected() {
 <style scoped>
 .suppliers-page { display: grid; gap: 24px; color: var(--hf-ink); }
 .suppliers-header { align-items: flex-start; }
-.supplier-filter { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
-.supplier-filter select, .supplier-button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--hf-field-border); border-radius: 6px; background: var(--hf-field); color: var(--hf-ink); font: inherit; }
+.supplier-button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--hf-field-border); border-radius: 6px; background: var(--hf-field); color: var(--hf-ink); font: inherit; }
 .supplier-button { background: var(--hf-surface); }
-.hf-primary-control.supplier-confirm-danger { display: inline-flex; align-items: center; gap: 6px; background: var(--ui-error); border-color: var(--ui-error); color: var(--ui-bg); }
+.hf-primary-control.supplier-confirm-danger:not(:disabled) { display: inline-flex; align-items: center; gap: 6px; background: var(--ui-error); border-color: var(--ui-error); color: var(--ui-bg); }
 .supplier-pagination { display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--hf-border); padding-top: 16px; }
 .supplier-notice { background: var(--hf-active-soft); color: var(--hf-ink); padding: 12px 16px; border-radius: 6px; }
 .supplier-warning { background: var(--hf-warning-soft); color: var(--hf-warning); padding: 12px; margin-bottom: 16px; border-radius: 6px; overflow-wrap: anywhere; }

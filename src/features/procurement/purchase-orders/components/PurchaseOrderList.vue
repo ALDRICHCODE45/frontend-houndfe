@@ -4,8 +4,8 @@ import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
 import DataTableToolbar from '@/core/shared/components/DataTable/DataTableToolbar.vue'
 import type { TableColumn } from '@/core/shared/types/table.types'
 import type { PurchaseOrderSummary } from '../interfaces/purchase-order.types'
-const props = defineProps<{ items: readonly PurchaseOrderSummary[]; canEdit: boolean; canDelete: boolean; loading?: boolean; fetching?: boolean; error?: boolean; disabled?: boolean }>()
-const emit = defineEmits<{ open: [order: PurchaseOrderSummary]; discard: [order: PurchaseOrderSummary]; refresh: [] }>()
+const props = defineProps<{ items: readonly PurchaseOrderSummary[]; canEdit: boolean; canDelete: boolean; loading?: boolean; fetching?: boolean; error?: boolean; disabled?: boolean; activeFilterCount?: number }>()
+const emit = defineEmits<{ open: [order: PurchaseOrderSummary]; discard: [order: PurchaseOrderSummary]; refresh: []; 'clear-filters': [] }>()
 const search = defineModel<string>('search', { default: '' })
 const data = computed(() => [...props.items])
 const columns: TableColumn<PurchaseOrderSummary, unknown>[] = [
@@ -26,7 +26,7 @@ const date = (value: string) => new Date(value).toLocaleString('es-MX')
   <div class="order-list">
     <!-- AppDataTable always wraps #filters, even when absent. Compose its own
          shared toolbar directly so an empty wrapper cannot create Filtros. -->
-    <DataTableToolbar v-model:global-filter="search" search-placeholder="Buscar por proveedor o nota..." :show-refresh="true" :fetching="fetching" refresh-button-test-id="refresh-orders" portal-class="hf-theme hf-ui" @refresh="emit('refresh')">
+    <DataTableToolbar v-model:global-filter="search" search-placeholder="Buscar por proveedor o nota..." :show-refresh="true" :fetching="fetching" refresh-button-test-id="refresh-orders" portal-class="hf-theme hf-ui" :active-filter-count="activeFilterCount" @refresh="emit('refresh')" @clear-filters="emit('clear-filters')">
       <template v-if="$slots.filters" #filters><slot name="filters" /></template>
       <template #actions><slot name="actions" /></template>
     </DataTableToolbar>

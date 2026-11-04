@@ -4,6 +4,7 @@ import type { OrderProductReadContext } from '../composables/usePurchaseOrderPro
 import { usePurchaseOrderVariants } from '../composables/usePurchaseOrderProducts'
 import type { LineBuffer } from '../utils/order-buffer'
 import type { PurchaseOrder } from '../interfaces/purchase-order.types'
+import { formatDecimalMoney } from '@/core/shared/utils/currency.utils'
 import { quantityRule, unitLabel } from '../utils/order-quantities'
 const props = defineProps<{ modelValue: LineBuffer; index: number; context: OrderProductReadContext; disabled?: boolean; messages: Record<string, string[]>; subtotal?: PurchaseOrder['lineSubtotals'][number]['subtotal'] }>()
 const emit = defineEmits<{ 'update:modelValue': [line: LineBuffer]; replace: []; remove: [] }>()
@@ -50,6 +51,6 @@ const messagesFor = (field: string) => props.messages[`/lines/${props.index}${fi
       </fieldset>
     </div>
     <p v-if="error" role="alert">No se pudieron cargar las variantes. <UButton type="button" color="neutral" variant="outline" :disabled="disabled || isFetching" @click="variants.refresh">Reintentar</UButton></p>
-    <p v-if="subtotal" class="order-subtotal">Último subtotal guardado: {{ subtotal.amount }} {{ subtotal.currency }} · {{ subtotal.taxBasis === 'INCLUDES_TAX' ? 'Incluye impuestos' : 'No incluye impuestos' }}</p>
+    <p v-if="subtotal" class="order-subtotal">Último subtotal guardado: <span class="order-money">{{ formatDecimalMoney(subtotal.amount, subtotal.currency) }}</span> · {{ subtotal.taxBasis === 'INCLUDES_TAX' ? 'Incluye impuestos' : 'No incluye impuestos' }}</p>
   </article>
 </template>

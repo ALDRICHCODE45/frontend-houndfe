@@ -1,4 +1,5 @@
 import { mount } from '@vue/test-utils'
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import PurchaseOrderReadonly from '../PurchaseOrderReadonly.vue'
 import type { PurchaseOrder } from '../../interfaces/purchase-order.types'
@@ -17,7 +18,8 @@ describe('closed order read-only block', () => {
   it('shows the frozen order by readable names, quantities, costs and subtotal', () => {
     const wrapper = mount(PurchaseOrderReadonly, { props: { order: confirmed } })
     const text = wrapper.text()
-    for (const expected of ['Distribuidora del Norte', 'Croquetas Premium 10 kg', 'Pollo', '12', '250.00', 'MXN', '3000.00', 'Entrega por la puerta trasera', 'Sucursal Centro', 'Bodega 2', 'Confirmada']) expect(text).toContain(expected)
+    for (const expected of ['Distribuidora del Norte', 'Croquetas Premium 10 kg', 'Pollo', '12', '$250.00', '$3,000.00', 'Entrega por la puerta trasera', 'Sucursal Centro', 'Bodega 2', 'Confirmada']) expect(text).toContain(expected)
+    expect(text).not.toContain('250.00 MXN')
   })
   it('names who closed the order and when, and never renders ids or the opaque token', () => {
     const wrapper = mount(PurchaseOrderReadonly, { props: { order: confirmed } })
@@ -40,7 +42,53 @@ describe('closed order read-only block', () => {
   })
   it('renders a missing subtotal of a never-confirmed cancelled order as a dash', () => {
     const wrapper = mount(PurchaseOrderReadonly, { props: { order: { ...confirmed, status: 'CANCELLED', confirmedAt: null, confirmedBy: null, cancelledAt: '2026-11-04T09:00:00Z', cancelledBy: { displayName: 'Luis Gómez' }, lineSubtotals: [{ lineId: 'line-id-1', subtotal: null }] } } })
-    expect(wrapper.text()).toContain('Subtotal: —')
+    expect(wrapper.get('[data-testid="line-subtotal"]').text()).toBe('—')
     expect(wrapper.text()).not.toContain('null')
+  })
+  it('formats money as es-MX currency in tabular right-aligned cells, keeping server precision', () => {
+    const precise = { ...confirmed, lines: [{ ...confirmed.lines[0]!, informedUnitCost: { amount: '12.125', currency: 'MXN', unit: 'BOLSA', taxBasis: 'EXCLUDES_TAX' as const } }], lineSubtotals: [{ lineId: 'line-id-1', subtotal: { amount: '145.5', currency: 'MXN', taxBasis: 'EXCLUDES_TAX' as const } }] }
+    const wrapper = mount(PurchaseOrderReadonly, { props: { order: precise } })
+    expect(wrapper.get('[data-testid="line-cost"]').text()).toBe('$12.125')
+    expect(wrapper.get('[data-testid="line-subtotal"]').text()).toBe('$145.50')
+    for (const cell of ['line-cost', 'line-subtotal']) {
+      expect(wrapper.get(`[data-testid="${cell}"]`).classes()).toContain('order-money')
+      expect(wrapper.get(`[data-testid="${cell}"]`).text()).toMatch(/\$[\d,]+\.\d{2}/)
+    }
+    const css = readFileSync('src/features/procurement/purchase-orders/styles/purchase-orders-visual.css', 'utf8')
+    expect(css).toMatch(/\.order-money[^{]*\{[^}]*font-variant-numeric: tabular-nums/)
+    expect(css).toMatch(/\.order-readonly-figures dd[^{]*\{[^}]*text-align: right/)
+  })
+  it('keeps a missing unit cost as a dash instead of a currency', () => {
+    const wrapper = mount(PurchaseOrderReadonly, { props: { order: { ...confirmed, lines: [{ ...confirmed.lines[0]!, informedUnitCost: null }] } } })
+    expect(wrapper.get('[data-testid="line-cost"]').text()).toBe('—')
+  })
+})
+describe('draft shown read-only', () => {
+  const draft: PurchaseOrder = { ...confirmed, status: 'DRAFT', supplierId: null, supplierDisplaySnapshot: null, confirmedAt: null, confirmedBy: null, canConfirm: false,
+    lines: [{ ...confirmed.lines[0]!, orderedQuantity: null }], lineSubtotals: [{ lineId: 'line-id-1', subtotal: null }],
+    validation: { issues: [{ path: '/supplierId', code: 'SUPPLIER_REQUIRED' }, { path: '/lines/0/orderedQuantity', code: 'QUANTITY_REQUIRED' }, { path: '/lines/0/orderedQuantity', code: 'QUANTITY_REQUIRED' }, { path: '/lines/9/productId', code: 'PRODUCT_REQUIRED' }, { path: '/lines/0/mystery', code: 'SOMETHING_NEW' }] } }
+  it('shows the Borrador status and the validation issues as readable warnings, never raw codes', () => {
+    const wrapper = mount(PurchaseOrderReadonly, { props: { order: draft } })
+    expect(wrapper.text()).toContain('Borrador')
+    const warnings = wrapper.findAll('p.order-warning, .order-warning p').map(item => item.text())
+    expect(warnings).toContain('Selecciona un proveedor.')
+    expect(warnings).toContain('Selecciona un producto.')
+    expect(warnings).toContain('Revisa este dato del borrador.')
+    for (const code of ['SUPPLIER_REQUIRED', 'QUANTITY_REQUIRED', 'PRODUCT_REQUIRED', 'SOMETHING_NEW']) expect(wrapper.text()).not.toContain(code)
+  })
+  it('places a line issue under its own line, once, and the rest in the order summary', () => {
+    const wrapper = mount(PurchaseOrderReadonly, { props: { order: draft } })
+    const line = wrapper.get('[aria-label="Renglón 1"]')
+    expect(line.findAll('.order-warning').map(item => item.text()).filter(text => text === 'Indica la cantidad del producto.')).toHaveLength(1)
+    expect(wrapper.get('[data-testid="order-readonly-warnings"]').text()).toContain('Selecciona un proveedor.')
+    expect(wrapper.get('[data-testid="order-readonly-warnings"]').text()).not.toContain('Indica la cantidad')
+  })
+  it('has no controls to disable: no buttons, inputs or selects', () => {
+    const wrapper = mount(PurchaseOrderReadonly, { props: { order: draft } })
+    expect(wrapper.findAll('button, input, select, textarea')).toHaveLength(0)
+  })
+  it('renders no warnings block for a draft without issues', () => {
+    const wrapper = mount(PurchaseOrderReadonly, { props: { order: { ...draft, validation: { issues: [] } } } })
+    expect(wrapper.find('[data-testid="order-readonly-warnings"]').exists()).toBe(false)
   })
 })
