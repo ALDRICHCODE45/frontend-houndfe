@@ -51,14 +51,14 @@ const groups: NavGroup[] = [
 const actions: NavAction[] = [
   {
     id: 'new-product',
-    label: 'Nuevo Producto',
+    label: 'Nuevo producto',
     icon: 'i-lucide-plus',
     to: '/pos/products/new',
     permission: ['create', 'Product'],
   },
   {
     id: 'new-employee',
-    label: 'Nuevo Colaborador',
+    label: 'Nuevo colaborador',
     icon: 'i-lucide-user-plus',
     to: '/admin/colaboradores',
     permission: ['create', 'Employee'],

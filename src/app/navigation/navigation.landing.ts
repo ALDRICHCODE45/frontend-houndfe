@@ -19,7 +19,7 @@ export const DASHBOARD_PERMISSION: PermissionTuple = ['read', 'Analytics']
 
 export const DASHBOARD_NAV_ITEM: NavItem = {
   id: 'dashboard',
-  label: 'Dashboard',
+  label: 'Resumen',
   icon: 'i-lucide-layout-dashboard',
   to: DASHBOARD_PATH,
   permission: DASHBOARD_PERMISSION,

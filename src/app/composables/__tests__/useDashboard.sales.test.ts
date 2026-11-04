@@ -19,7 +19,7 @@ describe('useDashboard sales actions', () => {
     const newSale = actions?.items?.find((item) => item.id === 'new-sale')
 
     expect(newSale).toBeDefined()
-    expect(newSale?.label).toBe('Nueva Venta')
+    expect(newSale?.label).toBe('Nueva venta')
     expect(newSale?.to).toBe('/pos/ventas/nueva')
   })
 })

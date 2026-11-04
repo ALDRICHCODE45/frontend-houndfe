@@ -236,7 +236,7 @@ describe('useSidebar — Dashboard extra visibility (ODD dashboard-analytics D1)
     const { useSidebar } = await import('../useSidebar')
     const sidebar = useSidebar()
 
-    const dashboard = sidebar.getNavigationItems(false).find((item) => item.label === 'Dashboard')
+    const dashboard = sidebar.getNavigationItems(false).find((item) => item.label === 'Resumen')
     expect(dashboard).toBeDefined()
     expect(dashboard?.to).toBe(DASHBOARD_PATH)
   })
@@ -258,7 +258,7 @@ describe('useSidebar — Dashboard extra visibility (ODD dashboard-analytics D1)
     expect(
       sidebar
         .getNavigationItems(false)
-        .some((item) => item.label === 'Dashboard' && item.to === DASHBOARD_PATH),
+        .some((item) => item.label === 'Resumen' && item.to === DASHBOARD_PATH),
     ).toBe(false)
   })
 })

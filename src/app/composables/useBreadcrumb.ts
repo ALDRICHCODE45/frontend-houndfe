@@ -22,15 +22,15 @@ export interface BreadcrumbItem {
  * label map.
  *
  * Matching rules:
- * - `/dashboard` (or empty) → single item `Dashboard` targeting `/dashboard`.
+ * - `/dashboard` (or empty) → single item `Resumen` targeting `/dashboard`.
  *   The previous home route "/" was removed (ODD D1) so it is no longer a
  *   breadcrumb target.
  * - A child whose `to` is an exact match or a path-prefix of the current route
  *   (covers sub-routes like `/:id`, `/nueva`, `/crear/:type`). When several
  *   children match, the most specific (longest `to`) wins, so e.g.
- *   `/admin/colaboradores/documentos-vencer` resolves to `RR.HH. / Vencimientos`
+ *   `/admin/colaboradores/documentos-vencer` resolves to `RR.HH. / Documentos por vencer`
  *   and not to the shorter `RR.HH. / Colaboradores`.
- * - No match → fallback to `Dashboard` targeting `/dashboard`.
+ * - No match → fallback to `Resumen` targeting `/dashboard`.
  */
 export const useBreadcrumb = () => {
   const route = useRoute()
@@ -39,7 +39,7 @@ export const useBreadcrumb = () => {
     const path = route.path
 
     if (path === DASHBOARD_PATH || path === '') {
-      return [{ label: 'Dashboard', to: DASHBOARD_PATH }]
+      return [{ label: 'Resumen', to: DASHBOARD_PATH }]
     }
 
     let best: { groupLabel: string; childLabel: string; childTo: string } | null = null
@@ -66,7 +66,7 @@ export const useBreadcrumb = () => {
       return [{ label: best.groupLabel }, { label: best.childLabel, to: best.childTo }]
     }
 
-    return [{ label: 'Dashboard', to: DASHBOARD_PATH }]
+    return [{ label: 'Resumen', to: DASHBOARD_PATH }]
   })
 
   return { breadcrumb }

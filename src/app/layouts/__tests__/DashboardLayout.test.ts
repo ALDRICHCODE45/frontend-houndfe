@@ -59,7 +59,7 @@ vi.mock('@/app/composables/useSidebar', async () => {
         { label: 'Productos', icon: 'i-lucide-package', to: '/pos/products' },
       ],
     },
-    { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/dashboard' },
+    { label: 'Resumen', icon: 'i-lucide-layout-dashboard', to: '/dashboard' },
   ])
 
   return {
@@ -512,7 +512,7 @@ describe('DashboardLayout — preserved shell behavior (S4)', () => {
 
   it('renders the breadcrumb with an accessible nav landmark', () => {
     expect(wrapper.find('nav[aria-label="breadcrumb"]').exists()).toBe(true)
-    expect(wrapper.find('.hf-shell-breadcrumb').text()).toContain('Dashboard')
+    expect(wrapper.find('.hf-shell-breadcrumb').text()).toContain('Resumen')
   })
 
   it('wires the navbar search action to the existing openSearch behavior', async () => {

@@ -162,14 +162,14 @@ export const useSidebar = () => {
     // Consumer-specific top-level extras (not part of the shared module tree).
     // ODD dashboard-analytics D1: Dashboard entry comes from the shared
     // navigation.landing definition so the sidebar and command palette stay
-    // aligned. Nueva Venta keeps its pre-existing create-sale grant.
+    // aligned. Nueva venta keeps its pre-existing create-sale grant.
     const topLevelExtras: GuardedNavigationMenuItem[] = [
       {
         ...DASHBOARD_NAV_ITEM,
         exact: true,
       },
       {
-        label: 'Nueva Venta',
+        label: 'Nueva venta',
         icon: 'i-lucide-plus-circle',
         to: '/pos/ventas/nueva',
         permission: ['update', 'Sale'],

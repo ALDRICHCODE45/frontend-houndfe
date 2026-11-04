@@ -9,7 +9,7 @@ vi.mock('vue-router', () => ({
   useRoute: () => ({ path: routePath.value }),
 }))
 
-const DASHBOARD_TRAIL = [{ label: 'Dashboard', to: '/dashboard' }]
+const DASHBOARD_TRAIL = [{ label: 'Resumen', to: '/dashboard' }]
 
 describe('useBreadcrumb', () => {
   beforeEach(() => {
@@ -69,7 +69,7 @@ describe('useBreadcrumb', () => {
     const { breadcrumb } = useBreadcrumb()
     expect(breadcrumb.value).toEqual([
       { label: 'RR.HH.' },
-      { label: 'Vencimientos', to: '/admin/colaboradores/documentos-vencer' },
+      { label: 'Documentos por vencer', to: '/admin/colaboradores/documentos-vencer' },
     ])
   })
 
