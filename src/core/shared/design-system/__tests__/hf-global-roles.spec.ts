@@ -65,17 +65,12 @@ afterEach(() => {
 })
 
 describe('legacy semantic roles consume the HF foundation', () => {
-  it.each(['light', 'dark'])('resolves the default roles in %s without flattening status or scales', theme => {
+  it.each(['light', 'dark'])('resolves the brand roles in %s without flattening status or scales', theme => {
     document.documentElement.className = theme
     document.body.className = 'hf-theme hf-ui hf-app'
     installFoundation()
     const roles = {
-      '--surface-page': '--hf-page', '--surface-card': '--hf-surface',
-      '--surface-hover': '--hf-surface-muted', '--surface-input': '--hf-field',
-      '--border-subtle': '--hf-border', '--border-card': '--hf-border',
-      '--text-primary': '--hf-ink', '--text-secondary': '--hf-muted', '--text-muted': '--hf-muted',
-      '--brand-primary': '--hf-action', '--brand-soft': '--hf-active-soft',
-      '--brand-accent': '--hf-active', '--brand-warm': '--hf-gold-ink', '--brand-warm-soft': '--hf-gold-soft',
+      '--brand-primary': '--hf-action', '--brand-accent': '--hf-active',
     }
     for (const [legacy, hf] of Object.entries(roles))
       expect(value(document.body, legacy), legacy).toBe(value(document.body, hf))

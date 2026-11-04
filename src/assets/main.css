@@ -61,42 +61,17 @@
   --color-coco-gold-900: #4a3605;
   --color-coco-gold-950: #281d03;
 
-  /* ── Brand palette swatches ── */
-  --coco-black:  #000000;
-  --coco-deep:   #2c2434;
-  --coco-mid:    #493f54;
-  --coco-navy:   #173968;
-  --coco-blue:   #2442f6;
-  --coco-cyan:   #5eeaf1;
-  --coco-brown:  #443218;
-  --coco-peach:  #ebd5d0;
-  --coco-gold:   #f6bb13;
-  --coco-white:  #ffffff;
-  --coco-red:    #ef4444;
-
-  /* Legacy semantic vocabulary now follows HF, not a dark-first palette.
-   * Rebound at .hf-ui as well: root var() values cannot resolve tokens that
-   * only exist on a descendant boundary. Shade scales above remain literal
-   * until their individual consumers migrate. */
-  --surface-page: var(--hf-page);
-  --surface-card: var(--hf-surface);
-  --surface-hover: var(--hf-surface-muted);
-  --surface-input: var(--hf-field);
-  --border-subtle: var(--hf-border);
-  --border-card: var(--hf-border);
-  --text-primary: var(--hf-ink);
-  --text-secondary: var(--hf-muted);
-  --text-muted: var(--hf-muted);
+  /* Legacy brand vocabulary that still has consumers follows HF, not a
+   * dark-first palette. Rebound at .hf-ui as well: root var() values cannot
+   * resolve tokens that only exist on a descendant boundary. Shade scales
+   * above remain literal (Nuxt UI consumes every shade of them). */
   --brand-primary: var(--hf-action);
-  --brand-soft: var(--hf-active-soft);
   /* Existing consumers pair this background with forced black text. Keep
    * the gold pair; blue primary actions use --hf-action/--hf-on-action. The
    * fallback preserves isolated legacy consumers without activating HF. */
   --brand-action: var(--hf-gold, #f6bb13);
   --brand-accent: var(--hf-active);
   --brand-danger: #ef4444;
-  --brand-warm: var(--hf-gold-ink);
-  --brand-warm-soft: var(--hf-gold-soft);
 
   /* ── Radius scale ── */
   --radius-xs:   4px;
@@ -109,16 +84,8 @@
   /* ── Typography ── */
   --font-sans: 'Geist', system-ui, sans-serif;
 
-  /* ── Light mode variants (inert — defined for future SDDs) ── */
+  /* ── Light page surface (still used by the sales entry screen) ── */
   --light-surface-page:    #f5f4f6;
-  --light-surface-card:    #ffffff;
-  --light-surface-hover:   #e8e5eb;
-  --light-surface-input:   #ffffff;
-  --light-border-subtle: rgba(0, 0, 0, 0.08);
-  --light-border-card:   rgba(0, 0, 0, 0.12);
-  --light-text-primary:   #0f172a;
-  --light-text-secondary: rgba(15, 23, 42, 0.60);
-  --light-text-muted:     rgba(15, 23, 42, 0.38);
 }
 
 html,
