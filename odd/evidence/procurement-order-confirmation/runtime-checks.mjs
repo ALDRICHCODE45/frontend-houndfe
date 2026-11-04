@@ -772,7 +772,8 @@ export async function run(browserPage, stage, part = null) {
       // Probe orders created by earlier runs of this harness are never showcase candidates.
       const seeds = all.filter(d => !(d.note ?? '').startsWith('Pedido de prueba de permisos')).sort((a, b) => a.createdAt < b.createdAt ? -1 : 1)
       const drafts = seeds.filter(d => d.status === 'DRAFT'), confirmed = seeds.filter(d => d.status === 'CONFIRMED'), cancelled = seeds.filter(d => d.status === 'CANCELLED')
-      const ready = drafts.filter(d => d.canConfirm && d.supplierStatus === 'ACTIVE')
+      // Mixed-basis drafts are kept for the totals checks, never consumed by a confirm or cancel.
+      const ready = drafts.filter(d => d.canConfirm && d.supplierStatus === 'ACTIVE' && (d.totals?.length ?? 0) !== 2)
       const found = {
         readyToConfirm: ready[0], readyToConfirmSpare: ready[1],
         incompleteCost: drafts.find(d => !d.canConfirm && d.supplierStatus === 'ACTIVE' && d.issueCodes.some(code => code.startsWith('COST_'))),
