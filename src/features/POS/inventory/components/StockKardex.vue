@@ -3,14 +3,9 @@ import { computed, ref } from 'vue'
 import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { TableColumn } from '@/core/shared/types/table.types'
-import type { StockMovement } from '../interfaces/inventory.types'
+import type { KardexFilterOption, StockMovement } from '../interfaces/inventory.types'
 import { buildKardexRows, type KardexRow } from '../utils/kardex'
 
-export interface KardexFilterOption {
-  kind: 'lot' | 'variant'
-  id: string
-  label: string
-}
 const props = defineProps<{
   items: readonly StockMovement[]
   loading?: boolean

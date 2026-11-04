@@ -91,3 +91,9 @@ export interface AdjustmentDialogTarget {
   quantity: number
   version: number
 }
+
+export interface KardexFilterOption {
+  kind: 'lot' | 'variant'
+  id: string
+  label: string
+}
