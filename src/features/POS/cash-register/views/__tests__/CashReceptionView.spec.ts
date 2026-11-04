@@ -83,7 +83,7 @@ describe('recipient-only cash reception', () => {
 
     expect(wrapper.find('[data-testid="cash-reception-context"]').exists()).toBe(true)
     const text = wrapper.text()
-    expect(text).toContain('destinadas a ti')
+    expect(text).not.toContain('destinadas a ti')
     // Neutral Mexican Spanish: no Argentine voseo imperatives.
     expect(text).not.toMatch(/\bvos\b|tenés|consultá|recibí|elegí/i)
     // Reception stays a single surface: no task navigation is fabricated here.
@@ -96,9 +96,8 @@ describe('recipient-only cash reception', () => {
 
     const heading = wrapper.get('[data-testid="cash-reception-heading"]')
     expect(heading.get('h1').text()).toBe('Recepciones de caja')
-    expect(heading.get('p').text()).toContain('destinadas a ti')
-    // One short subtitle: no eyebrow label above the title.
-    expect(heading.findAll('p')).toHaveLength(1)
+    // One text level above the state: the title says it, so no subtitle and no eyebrow.
+    expect(heading.find('p').exists()).toBe(false)
     expect(wrapper.find('[data-testid="cash-reception-task-label"]').exists()).toBe(false)
 
     // The context column summarizes the REAL recipient custody as label/value rows.
@@ -116,6 +115,8 @@ describe('recipient-only cash reception', () => {
     const panel = wrapper.getComponent(CashCustodyDiscovery)
     expect(panel.props('allowed')).toBe(true)
     expect(panel.props('canReceive')).toBe(true)
+    // The page title already names the section, so the panel heading is not repeated visibly.
+    expect(panel.props('showHeading')).toBe(false)
     expect(panel.props('pendingHandovers')).toEqual([item])
     expect(cashApi.getCustody).toHaveBeenCalledWith({ page: 1, limit: 25 })
     panel.vm.$emit('receive', { id: 'handover', receivedCents: 100 })

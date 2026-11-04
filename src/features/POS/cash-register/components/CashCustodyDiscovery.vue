@@ -32,6 +32,8 @@ const props = withDefaults(
     error?: boolean
     errorMessage?: string
     receivingId?: string | null
+    /** Off when the page title already names the section (reception). */
+    showHeading?: boolean
   }>(),
   {
     allowed: false,
@@ -44,6 +46,7 @@ const props = withDefaults(
     error: false,
     errorMessage: undefined,
     receivingId: null,
+    showHeading: true,
   },
 )
 
@@ -102,7 +105,8 @@ function submitReceive(item: CashCustodyItem) {
 <template>
   <section class="cash-list-section" data-testid="cash-custody-discovery">
     <header class="cash-list-header">
-      <h2 class="cash-list-title">Mi custodia pendiente</h2>
+      <!-- A page that already names this section keeps the heading for the outline only. -->
+      <h2 class="cash-list-title" :class="{ 'sr-only': !showHeading }">Mi custodia pendiente</h2>
     </header>
 
     <EmptyState

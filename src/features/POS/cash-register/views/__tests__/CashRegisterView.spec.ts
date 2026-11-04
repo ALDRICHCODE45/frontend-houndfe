@@ -977,6 +977,42 @@ describe('CashRegisterView · four states (S10)', () => {
     expect(wrapper.get('[data-testid="cash-workspace-no-shift"]').text()).toContain(
       'Aún no hay un turno en foco',
     )
+    expect(wrapper.get('[data-testid="cash-workspace-no-shift"]').text()).toContain(
+      'Aún no hay cajas para abrir un turno.',
+    )
+  })
+
+  it('the Tu turno card follows the page states: skeleton, then choose a register, then the float', async () => {
+    api.listRegisters.mockReturnValue(new Promise(() => {}))
+    const loading = mountView()
+    await flush()
+    expect(loading.wrapper.get('[data-testid="cash-shift-context-loading"]').attributes('aria-busy')).toBe('true')
+    expect(loading.wrapper.find('[data-testid="cash-workspace-no-shift"]').exists()).toBe(false)
+
+    api.listRegisters.mockResolvedValue([REGISTER])
+    const ready = mountView()
+    await flush()
+    expect(ready.wrapper.get('[data-testid="cash-workspace-no-shift"]').text()).toContain(
+      'Elige una caja para abrir tu turno.',
+    )
+    // The Apertura task is already open, so the card has no button that leads nowhere.
+    expect(ready.wrapper.find('[data-testid="cash-workspace-shift-open"]').exists()).toBe(false)
+
+    await ready.wrapper.get('[data-testid="cash-register-open-r-1"]').trigger('click')
+    await flush()
+    expect(ready.wrapper.get('[data-testid="cash-workspace-no-shift"]').text()).toContain(
+      'Ingresa el fondo inicial para abrir tu turno.',
+    )
+  })
+
+  it('a failed registers read leaves the card quiet (the panel owns the error) and points at Sesiones', async () => {
+    api.listRegisters.mockRejectedValueOnce(new Error('boom'))
+    const { wrapper } = mountView()
+    await flush()
+
+    const card = wrapper.get('[data-testid="cash-workspace-shift-card"]')
+    expect(card.find('[role="alert"]').exists()).toBe(false)
+    expect(card.text()).toContain('Elige una sesión para operar, contar o verificar.')
   })
 
   it('loading: the lists render their table skeletons, never a blank panel', async () => {

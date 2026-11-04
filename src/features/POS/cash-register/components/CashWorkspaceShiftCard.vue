@@ -10,7 +10,9 @@
  *
  * Without a selection it renders a genuine unselected state with ONE contextual
  * navigation (open a turn), never a command. Loading, failure and no selection
- * each have their own shape.
+ * each have their own shape, and the unselected copy says the next step the page
+ * is actually in (`noShiftContext`): wait, create a register, choose one, enter
+ * the float, or pick a session. The view derives it from the registers read.
  */
 import { computed } from 'vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
@@ -21,6 +23,21 @@ import { blindSafeDetail, cashSessionFacts } from '../composables/cashRules'
 import type { CashSessionDetail } from '../interfaces/cash.types'
 import { CASH_SESSION_STATUS_LABELS, cashSessionStatusTone } from '../utils/cash-status'
 
+/** Where the page is while no shift is selected. */
+export type CashShiftContext =
+  | 'loading'
+  | 'no-registers'
+  | 'choose-register'
+  | 'register-chosen'
+  | 'choose-session'
+
+const NO_SHIFT_DESCRIPTIONS: Record<Exclude<CashShiftContext, 'loading'>, string> = {
+  'no-registers': 'Aún no hay cajas para abrir un turno.',
+  'choose-register': 'Elige una caja para abrir tu turno.',
+  'register-chosen': 'Ingresa el fondo inicial para abrir tu turno.',
+  'choose-session': 'Elige una sesión para operar, contar o verificar.',
+}
+
 const props = withDefaults(
   defineProps<{
     hasSelection?: boolean
@@ -30,6 +47,10 @@ const props = withDefaults(
     errorMessage?: string
     /** `true` when the selected shift belongs to the current actor, `false` when it does not, `null` when unknown. */
     isOwnShift?: boolean | null
+    /** What the unselected card reflects; see `CashShiftContext`. */
+    noShiftContext?: CashShiftContext
+    /** The Apertura task is already showing, so "Abrir un turno" would lead nowhere. */
+    openingActive?: boolean
   }>(),
   {
     hasSelection: false,
@@ -38,6 +59,8 @@ const props = withDefaults(
     error: false,
     errorMessage: undefined,
     isOwnShift: null,
+    noShiftContext: 'choose-register',
+    openingActive: false,
   },
 )
 
@@ -67,6 +90,14 @@ const cashierLabel = computed(() => {
   if (props.isOwnShift === false) return 'Otra persona'
   return 'Cajera/o asignado'
 })
+
+const noShiftDescription = computed(() =>
+  props.noShiftContext === 'loading' ? '' : NO_SHIFT_DESCRIPTIONS[props.noShiftContext],
+)
+// Opening a turn is only offered where it is the next step and not already on screen.
+const canRequestOpening = computed(
+  () => !props.openingActive && props.noShiftContext !== 'choose-session',
+)
 
 const frozenLabel = computed(() =>
   facts.value.frozenAt ? formatShortDateTime(facts.value.frozenAt) : 'Sin iniciar',
@@ -127,11 +158,23 @@ const frozenLabel = computed(() =>
       />
     </template>
 
+    <div
+      v-else-if="noShiftContext === 'loading'"
+      class="flex flex-col items-center gap-3 py-8"
+      aria-busy="true"
+      data-testid="cash-shift-context-loading"
+    >
+      <span class="sr-only">Cargando</span>
+      <div class="size-6 animate-pulse rounded-full bg-[var(--hf-surface-muted)]" aria-hidden="true" />
+      <div class="h-4 w-48 animate-pulse rounded bg-[var(--hf-surface-muted)]" aria-hidden="true" />
+      <div class="h-3.5 w-64 max-w-full animate-pulse rounded bg-[var(--hf-surface-muted)]" aria-hidden="true" />
+    </div>
+
     <EmptyState
       v-else
       title="Aún no hay un turno en foco"
-      description="Abre una caja o elige una sesión para operar, contar o verificar."
-      action-label="Abrir un turno"
+      :description="noShiftDescription"
+      :action-label="canRequestOpening ? 'Abrir un turno' : undefined"
       action-test-id="cash-workspace-shift-open"
       data-testid="cash-workspace-no-shift"
       @action="emit('requestOpening')"

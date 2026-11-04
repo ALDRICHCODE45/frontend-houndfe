@@ -70,7 +70,9 @@ describe('CashRegistersPanel · four states', () => {
   it('loading: renders the table skeleton and no rows', () => {
     const wrapper = mountPanel({ registers: [], loading: true })
     expect(wrapper.find('[data-testid="table-skeleton"]').exists()).toBe(true)
-    expect(wrapper.find('tbody tr').exists()).toBe(false)
+    // No data rows: no row menu and no empty or error state while the skeleton shows.
+    expect(wrapper.find('button[aria-haspopup="menu"]').exists()).toBe(false)
+    expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
   })
 
   it('loading on mobile: renders card skeletons', () => {

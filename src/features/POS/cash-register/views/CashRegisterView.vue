@@ -37,7 +37,9 @@ import {
 } from '../composables/cashRules'
 import type { CashComparison, CashCountPayload } from '../interfaces/cash.types'
 import CashWorkspace from '../components/CashWorkspace.vue'
-import CashWorkspaceShiftCard from '../components/CashWorkspaceShiftCard.vue'
+import CashWorkspaceShiftCard, {
+  type CashShiftContext,
+} from '../components/CashWorkspaceShiftCard.vue'
 import '../styles/cash-visual.css'
 import CashRegistersPanel from '../components/CashRegistersPanel.vue'
 import CashOpenSessionForm from '../components/CashOpenSessionForm.vue'
@@ -266,6 +268,24 @@ const { visibleTasks, activeTaskId, selectTask } = useCashWorkspace({
   defaultTaskId: 'apertura',
 })
 
+/**
+ * What the unselected "Tu turno" card reflects: the registers read decides the
+ * next step. A failed read stays quiet here (the registers panel owns that
+ * error), and without the grants to open a turn the card points at the sessions.
+ */
+const shiftContext = computed<CashShiftContext>(() => {
+  if (registers.isLoading.value) return 'loading'
+  if (
+    registers.isError.value ||
+    !access.canReadRegisters.value ||
+    !access.canOpenSession.value
+  ) {
+    return 'choose-session'
+  }
+  if (registers.registers.value.length === 0) return 'no-registers'
+  return selectedRegisterId.value ? 'register-chosen' : 'choose-register'
+})
+
 function selectRegister(registerId: string) {
   invalidateSessionContext()
   selectedRegisterId.value = registerId
@@ -435,6 +455,8 @@ function handleReleaseDrawer() {
           :loading="detailQuery.isLoading.value"
           :error="detailQuery.isError.value"
           :is-own-shift="isOwnShift"
+          :no-shift-context="shiftContext"
+          :opening-active="activeTaskId === 'apertura'"
           @request-opening="selectTask('apertura')"
           @retry="detailQuery.refetch()"
         />

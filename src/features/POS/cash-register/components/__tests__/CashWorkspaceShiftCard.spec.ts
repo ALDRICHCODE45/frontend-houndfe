@@ -53,6 +53,50 @@ describe('CashWorkspaceShiftCard', () => {
     expect(wrapper.find('[data-testid="cash-workspace-no-shift"]').exists()).toBe(true)
   })
 
+  describe('without a selected turn, the card reflects the context it can act on', () => {
+    const description = (wrapper) => wrapper.get('[data-testid="cash-workspace-no-shift"]').text()
+
+    it('shows a shaped skeleton while the registers load, never the idle copy', () => {
+      const wrapper = render({ noShiftContext: 'loading' })
+
+      expect(wrapper.get('[data-testid="cash-shift-context-loading"]').attributes('aria-busy')).toBe('true')
+      expect(wrapper.find('[data-testid="cash-workspace-no-shift"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="cash-workspace-shift-open"]').exists()).toBe(false)
+    })
+
+    it('asks to choose a register when there are registers and none is chosen', () => {
+      const wrapper = render({ noShiftContext: 'choose-register' })
+
+      expect(description(wrapper)).toContain('Elige una caja para abrir tu turno.')
+    })
+
+    it('asks for the starting float once a register is chosen', () => {
+      const wrapper = render({ noShiftContext: 'register-chosen' })
+
+      expect(description(wrapper)).toContain('Ingresa el fondo inicial para abrir tu turno.')
+    })
+
+    it('says there are no registers yet', () => {
+      const wrapper = render({ noShiftContext: 'no-registers' })
+
+      expect(description(wrapper)).toContain('Aún no hay cajas para abrir un turno.')
+    })
+
+    it('points at the session list when no turn can be opened here', () => {
+      const wrapper = render({ noShiftContext: 'choose-session' })
+
+      expect(description(wrapper)).toContain('Elige una sesión para operar, contar o verificar.')
+      expect(wrapper.find('[data-testid="cash-workspace-shift-open"]').exists()).toBe(false)
+    })
+
+    it('offers no "Abrir un turno" button on the opening task itself, where it would do nothing', () => {
+      const wrapper = render({ noShiftContext: 'choose-register', openingActive: true })
+
+      expect(description(wrapper)).toContain('Elige una caja para abrir tu turno.')
+      expect(wrapper.find('[data-testid="cash-workspace-shift-open"]').exists()).toBe(false)
+    })
+  })
+
   it('presents the selected turn as a hero with the real register and status', () => {
     const wrapper = render({ hasSelection: true, detail: OPEN_DETAIL, isOwnShift: true })
 

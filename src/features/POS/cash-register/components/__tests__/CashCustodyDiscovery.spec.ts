@@ -62,6 +62,17 @@ function mountDiscovery(props = {}) {
 }
 
 describe('CashCustodyDiscovery · access state', () => {
+  it('keeps the section heading visible by default and only for assistive tech when the page names it', () => {
+    const shown = mountDiscovery()
+    expect(shown.get('.cash-list-title').text()).toBe('Mi custodia pendiente')
+    expect(shown.get('.cash-list-title').classes()).not.toContain('sr-only')
+
+    const quiet = mountDiscovery({ showHeading: false })
+    // The heading stays in the outline (h1 → h2) but is not a third visible text level.
+    expect(quiet.get('.cash-list-title').text()).toBe('Mi custodia pendiente')
+    expect(quiet.get('.cash-list-title').classes()).toContain('sr-only')
+  })
+
   it('shows the missing-grant copy instead of an empty page without read:CashHandover', () => {
     const wrapper = mountWithUApp(CashCustodyDiscovery, { props: { allowed: false } })
     expect(wrapper.find('[data-testid="cash-custody-forbidden"]').exists()).toBe(true)

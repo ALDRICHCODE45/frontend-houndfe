@@ -87,7 +87,6 @@ const pendingDeclaredCents = computed(() =>
   >
     <header class="flex flex-col gap-1" data-testid="cash-reception-heading">
       <h1 class="cash-page-title">Recepciones de caja</h1>
-      <p class="cash-list-subtitle">Entregas de efectivo destinadas a ti.</p>
     </header>
 
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-start">
@@ -109,6 +108,7 @@ const pendingDeclaredCents = computed(() =>
           :loading="custody.isLoading.value"
           :error="custody.isError.value"
           :receiving-id="receivingId"
+          :show-heading="false"
           @receive="receive"
           @refresh="refresh"
         />

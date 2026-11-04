@@ -79,10 +79,20 @@
   gap: 1.25rem;
 }
 
+/* Below lg the task strip leads the page (it is how the operator moves around),
+ * above the shift card and the task; from lg it is the right-hand rail again. */
+.cash-workspace-context {
+  order: -1;
+}
+
 @media (min-width: 1024px) {
   .cash-workspace-grid {
     grid-template-columns: minmax(0, 1fr) var(--cash-rail);
     align-items: start;
+  }
+
+  .cash-workspace-context {
+    order: 0;
   }
 }
 
