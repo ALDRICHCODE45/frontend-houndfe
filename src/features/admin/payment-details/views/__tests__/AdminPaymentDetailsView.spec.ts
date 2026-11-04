@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import AdminPaymentDetailsView from '../AdminPaymentDetailsView.vue'
 import type { PaymentDetailTableRow } from '../../interfaces/payment-detail.types'
 
@@ -77,15 +77,6 @@ vi.mock('@/features/admin/payment-details/composables/usePaymentDetailColumns', 
   usePaymentDetailColumns: () => ({ columns: [] }),
 }))
 
-vi.mock('@/features/admin/payment-details/composables/usePaymentDetailViewMode', () => ({
-  usePaymentDetailViewMode: () => ({
-    viewMode: ref('table'),
-    setMode: vi.fn(),
-    displayMode: computed(() => 'table'),
-  }),
-  isPaymentDetailViewMode: (value: string) => value === 'table' || value === 'card',
-}))
-
 vi.mock('@/features/admin/payment-details/components/PaymentDetailUpsertSlideover.vue', () => ({
   default: {
     name: 'PaymentDetailUpsertSlideover',
@@ -96,42 +87,12 @@ vi.mock('@/features/admin/payment-details/components/PaymentDetailUpsertSlideove
   },
 }))
 
-vi.mock('@/features/admin/payment-details/components/PaymentDetailCardGrid.vue', () => ({
-  default: {
-    name: 'PaymentDetailCardGrid',
-    template: `
-      <div data-testid="card-grid">
-        <button
-          v-for="row in paymentDetails"
-          :key="row.id"
-          :data-testid="'card-' + row.id"
-          @click="$emit('card-click', row)"
-        >
-          {{ row.bankName }}
-        </button>
-      </div>
-    `,
-    props: ['paymentDetails', 'loading', 'empty'],
-    emits: ['card-click'],
-  },
-}))
-
 vi.mock('@/core/shared/components/DataTable/SortableHeader.vue', () => ({
   default: {
     name: 'SortableHeader',
     template:
       '<button :data-column="column.id" :data-testid="`sortable-${column.id}`">{{ label }}</button>',
     props: ['column', 'label'],
-  },
-}))
-
-vi.mock('@/core/shared/components/ViewToggle.vue', () => ({
-  default: {
-    name: 'ViewToggle',
-    template:
-      '<div data-testid="view-toggle"><button data-testid="view-toggle-table" @click="$emit(\'update:modelValue\', \'table\')">Tabla</button><button data-testid="view-toggle-card" @click="$emit(\'update:modelValue\', \'card\')">Tarjetas</button></div>',
-    props: ['modelValue', 'options', 'ariaLabel'],
-    emits: ['update:modelValue'],
   },
 }))
 

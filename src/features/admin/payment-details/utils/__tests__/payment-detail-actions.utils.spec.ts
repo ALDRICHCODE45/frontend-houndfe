@@ -104,78 +104,29 @@ describe('buildPaymentDetailDeactivateDescription (sdd payment-details-admin S2,
 })
 
 describe('buildPaymentDetailRowActions (sdd payment-details-admin S2, REQ-PD-007)', () => {
-  const row = makeRow()
-
-  it('returns only the edit section when canUpdate=true and canDelete=false', () => {
-    const sections = buildPaymentDetailRowActions(row, {
-      canUpdate: true,
-      canDelete: false,
-      onEdit: () => {},
-      onDelete: () => {},
-    })
-    expect(sections).toHaveLength(1)
-    expect(sections[0]![0]!.label).toBe('Editar')
+  it('returns no actions when canUpdate=true and canDelete=false: "Editar" alone would repeat the row click', () => {
+    expect(buildPaymentDetailRowActions({ canUpdate: true, canDelete: false })).toEqual([])
   })
 
-  it('returns only the destructive section when canUpdate=false and canDelete=true', () => {
-    const sections = buildPaymentDetailRowActions(row, {
-      canUpdate: false,
-      canDelete: true,
-      onEdit: () => {},
-      onDelete: () => {},
-    })
-    expect(sections).toHaveLength(1)
-    expect(sections[0]![0]!.label).toBe('Desactivar')
-    expect(sections[0]![0]!.color).toBe('error')
+  it('returns only the destructive entry when canUpdate=false and canDelete=true', () => {
+    const actions = buildPaymentDetailRowActions({ canUpdate: false, canDelete: true })
+    expect(actions).toHaveLength(1)
+    expect(actions[0]).toMatchObject({ key: 'delete', label: 'Desactivar…', destructive: true })
   })
 
-  it('returns two sections (edit + deactivate) when both permissions are held', () => {
-    const sections = buildPaymentDetailRowActions(row, {
-      canUpdate: true,
-      canDelete: true,
-      onEdit: () => {},
-      onDelete: () => {},
-    })
-    expect(sections).toHaveLength(2)
-    expect(sections[0]![0]!.label).toBe('Editar')
-    expect(sections[1]![0]!.label).toBe('Desactivar')
+  it('returns Editar first and Desactivar… last when both permissions are held', () => {
+    const actions = buildPaymentDetailRowActions({ canUpdate: true, canDelete: true })
+    expect(actions.map((action) => action.label)).toEqual(['Editar', 'Desactivar…'])
+    expect(actions[1]!.destructive).toBe(true)
   })
 
-  it('returns an empty array when neither permission is held (kebab hidden)', () => {
-    const sections = buildPaymentDetailRowActions(row, {
-      canUpdate: false,
-      canDelete: false,
-      onEdit: () => {},
-      onDelete: () => {},
-    })
-    expect(sections).toEqual([])
+  it('returns an empty array when neither permission is held (no ⋮)', () => {
+    expect(buildPaymentDetailRowActions({ canUpdate: false, canDelete: false })).toEqual([])
   })
 
-  it('invokes the supplied onEdit callback when "Editar" is selected', () => {
-    let captured: PaymentDetailTableRow | null = null
-    const sections = buildPaymentDetailRowActions(row, {
-      canUpdate: true,
-      canDelete: false,
-      onEdit: (r) => {
-        captured = r
-      },
-      onDelete: () => {},
-    })
-    sections[0]![0]!.onSelect()
-    expect(captured).toEqual(row)
-  })
-
-  it('invokes the supplied onDelete callback when "Desactivar" is selected', () => {
-    let captured: PaymentDetailTableRow | null = null
-    const sections = buildPaymentDetailRowActions(row, {
-      canUpdate: false,
-      canDelete: true,
-      onEdit: () => {},
-      onDelete: (r) => {
-        captured = r
-      },
-    })
-    sections[0]![0]!.onSelect()
-    expect(captured).toEqual(row)
+  it('never offers a reactivation entry (isActive is not editable)', () => {
+    const labels = buildPaymentDetailRowActions({ canUpdate: true, canDelete: true }).map((a) => a.label)
+    expect(labels).not.toContain('Reactivar')
+    expect(labels).not.toContain('Activar')
   })
 })

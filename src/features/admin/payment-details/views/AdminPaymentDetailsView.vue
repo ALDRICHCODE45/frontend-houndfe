@@ -3,16 +3,15 @@ import { computed, ref } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
-import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
-import ViewToggle from '@/core/shared/components/ViewToggle.vue'
+import RowActionsMenu from '@/core/shared/components/RowActionsMenu.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { adminPaymentDetailQueryKeys } from '@/core/shared/constants/query-keys'
-import { activityToBadgeTone } from '@/core/shared/utils/badge.utils'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { paymentDetailsApi } from '../api/payment-details.api'
 import { usePaymentDetailsTable } from '../composables/usePaymentDetailsTable'
 import { usePaymentDetailColumns } from '../composables/usePaymentDetailColumns'
-import { usePaymentDetailViewMode, isPaymentDetailViewMode } from '../composables/usePaymentDetailViewMode'
 import { extractPaymentDetailErrorCode, PAYMENT_DETAIL_ERROR_MAP } from '../interfaces/errors'
 import { paymentDetailStatusLabel } from '../interfaces/payment-detail.types'
 import type { PaymentDetailTableRow } from '../interfaces/payment-detail.types'
@@ -21,7 +20,8 @@ import {
   buildPaymentDetailRowActions,
 } from '../utils/payment-detail-actions.utils'
 import PaymentDetailUpsertSlideover from '../components/PaymentDetailUpsertSlideover.vue'
-import PaymentDetailCardGrid from '../components/PaymentDetailCardGrid.vue'
+import AdminMobileCard from '../../shared/components/AdminMobileCard.vue'
+import { noMatchTitleFor } from '../../shared/utils/list-state.utils'
 import '../styles/payment-details-visual.css'
 
 /**
@@ -47,12 +47,6 @@ const authStore = useAuthStore()
 const tenantId = computed(() => authStore.currentTenantId)
 
 const { columns } = usePaymentDetailColumns()
-const { viewMode, setMode: setViewMode, displayMode } = usePaymentDetailViewMode()
-
-function handleViewModeChange(mode: string) {
-  if (!isPaymentDetailViewMode(mode)) return
-  setViewMode(mode)
-}
 
 // Single-source wrapper. All of these refs auto-unwrap in the template because
 // they are destructured at the top level of <script setup>.
@@ -60,8 +54,6 @@ const {
   pagination,
   sorting,
   globalFilter,
-  columnPinning,
-  columnVisibility,
   data,
   totalCount,
   pageCount,
@@ -81,9 +73,6 @@ const {
 const canCreatePaymentDetail = computed(() => authStore.userCan('create', 'PaymentDetail'))
 const canUpdatePaymentDetail = computed(() => authStore.userCan('update', 'PaymentDetail'))
 const canDeletePaymentDetail = computed(() => authStore.userCan('delete', 'PaymentDetail'))
-const canManagePaymentDetailActions = computed(
-  () => canUpdatePaymentDetail.value || canDeletePaymentDetail.value,
-)
 
 // ── Human-readable list error (block, not toast) ──────────────────────────────
 const paymentDetailsErrorMessage = computed(() =>
@@ -183,10 +172,6 @@ function openEdit(row: PaymentDetailTableRow) {
   isEditOpen.value = true
 }
 
-function handleCardClick(row: PaymentDetailTableRow) {
-  openEdit(row)
-}
-
 function handleDelete(row: PaymentDetailTableRow) {
   if (!canDeletePaymentDetail.value) return
   const description = buildPaymentDetailDeactivateDescription(row, fullList.value)
@@ -195,19 +180,32 @@ function handleDelete(row: PaymentDetailTableRow) {
   })
 }
 
-const dateFormatter = new Intl.DateTimeFormat('es-AR', {
-  day: '2-digit',
-  month: 'short',
-  year: 'numeric',
-})
-
-function getRowItems(row: PaymentDetailTableRow) {
-  return buildPaymentDetailRowActions(row, {
+const rowActions = computed(() =>
+  buildPaymentDetailRowActions({
     canUpdate: canUpdatePaymentDetail.value,
     canDelete: canDeletePaymentDetail.value,
-    onEdit: openEdit,
-    onDelete: handleDelete,
-  })
+  }),
+)
+
+function handleRowAction(key: string, row: PaymentDetailTableRow) {
+  if (key === 'edit') openEdit(row)
+  else if (key === 'delete') handleDelete(row)
+}
+
+const rowOpen = computed(() => (canUpdatePaymentDetail.value ? openEdit : undefined))
+
+const searchTerm = computed(() => globalFilter.value.trim())
+const noMatchTitle = computed(() => noMatchTitleFor(searchTerm.value))
+const emptyState = computed(() => ({
+  title: 'Aún no hay cuentas bancarias',
+  description: 'Aquí aparecerán las cuentas que agregues.',
+  ...(canCreatePaymentDetail.value
+    ? { actionLabel: 'Crear cuenta', actionIcon: 'i-lucide-credit-card' }
+    : {}),
+}))
+
+function clearFilters() {
+  globalFilter.value = ''
 }
 </script>
 
@@ -254,43 +252,47 @@ function getRowItems(row: PaymentDetailTableRow) {
       @confirm="handleConfirm"
     />
 
-    <!-- Canonical table workspace (design-system §4): heading outside the surface. -->
-    <div class="hf-page-header">
+    <header class="hf-page-header">
       <h1 class="hf-page-title">Datos bancarios</h1>
-      <p class="hf-page-subtitle">Cuentas bancarias para cobros por transferencia</p>
-    </div>
+    </header>
 
-    <UCard :ui="{ body: 'p-0 sm:p-0' }" class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm">
-
+    <UCard
+      :ui="{ body: 'p-0 sm:p-0' }"
+      class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm"
+    >
       <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
           v-model:global-filter="globalFilter"
-          v-model:column-pinning="columnPinning"
-          v-model:column-visibility="columnVisibility"
           :columns="columns"
           :data="data"
           :loading="isLoading"
           :fetching="isFetching"
           :error="isError"
           :error-message="paymentDetailsErrorMessage"
+          :empty-state="emptyState"
+          :filtered="searchTerm !== ''"
+          :no-match-title="noMatchTitle"
           :page-count="pageCount"
           :total-count="totalCount"
           :showing-from="showingFrom"
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
-          :display-mode="displayMode"
+          :row-open="rowOpen"
+          display-mode="auto"
+          mobile-render="cards"
           search-placeholder="Buscar cuentas..."
           :show-add-button="canCreatePaymentDetail"
           add-button-text="Crear cuenta"
           add-button-icon="i-lucide-credit-card"
-          enable-column-visibility
           empty="No hay cuentas bancarias"
           class="hf-data-table"
           portal-class="hf-theme hf-ui payment-details-list-portal"
           pagination-portal-class="hf-theme hf-ui payment-details-list-portal"
           @add="isCreateOpen = true"
+          @empty-action="isCreateOpen = true"
+          @clear-filters="clearFilters"
           @refresh="refresh"
         >
           <template #bankName-header="{ column }">
@@ -298,64 +300,74 @@ function getRowItems(row: PaymentDetailTableRow) {
           </template>
 
           <template #bankName-cell="{ row }">
-            <span class="font-medium">{{ row.original.bankName }}</span>
-          </template>
-
-          <template #beneficiary-cell="{ row }">
-            <span class="text-sm text-muted">{{ row.original.beneficiary }}</span>
-          </template>
-
-          <template #clabe-cell="{ row }">
-            <span class="font-mono text-sm">{{ row.original.clabe }}</span>
-          </template>
-
-          <template #accountNumber-cell="{ row }">
-            <span class="font-mono text-sm">{{ row.original.accountNumber }}</span>
+            <button
+              v-if="canUpdatePaymentDetail"
+              type="button"
+              class="hf-row-primary text-left"
+              data-testid="payment-detail-name"
+              @click="openEdit(row.original)"
+            >
+              {{ row.original.bankName }}
+            </button>
+            <span v-else class="hf-row-primary" data-testid="payment-detail-name">{{
+              row.original.bankName
+            }}</span>
+            <span class="hf-row-secondary">{{ row.original.beneficiary }}</span>
           </template>
 
           <template #isActive-cell="{ row }">
-            <StatusDotBadge
-              :tone="activityToBadgeTone(row.original.isActive)"
+            <StatusBadge
               :label="paymentDetailStatusLabel(row.original.isActive)"
+              :tone="row.original.isActive ? 'success' : 'neutral'"
             />
+          </template>
+
+          <template #clabe-cell="{ row }">
+            <span class="hf-figure font-mono text-sm">{{ row.original.clabe }}</span>
+          </template>
+
+          <template #accountNumber-cell="{ row }">
+            <span class="hf-figure font-mono text-sm">{{ row.original.accountNumber }}</span>
           </template>
 
           <template #updatedAt-cell="{ row }">
-            <span class="text-sm text-muted">{{ dateFormatter.format(new Date(row.original.updatedAt)) }}</span>
+            <span class="text-sm text-muted">{{ formatShortDateTime(row.original.updatedAt) }}</span>
           </template>
+
+          <template #actions-header><span class="sr-only">Acciones</span></template>
 
           <template #actions-cell="{ row }">
-            <UDropdownMenu
-              v-if="canManagePaymentDetailActions"
-              :items="getRowItems(row.original)"
-              :content="{ align: 'end' }"
-              :ui="{ content: 'hf-theme hf-ui payment-details-list-portal' }"
+            <RowActionsMenu
+              :actions="rowActions"
+              :row-label="row.original.bankName"
+              portal-class="payment-details-list-portal"
+              @select="handleRowAction($event, row.original)"
+            />
+          </template>
+
+          <template #mobile-card="{ row }">
+            <AdminMobileCard
+              :item="row"
+              :label="row.bankName"
+              :actions="rowActions"
+              :openable="canUpdatePaymentDetail"
+              portal-class="payment-details-list-portal"
+              test-id="payment-detail-card"
+              @open="openEdit"
+              @action="handleRowAction"
             >
-              <UButton
-                icon="i-lucide-ellipsis-vertical"
-                color="neutral"
-                variant="ghost"
-                class="size-7"
-              />
-            </UDropdownMenu>
-          </template>
-
-          <template #actions>
-            <ViewToggle
-              :model-value="viewMode"
-              class="payment-details-view-toggle"
-              aria-label="Seleccionar vista de datos bancarios"
-              @update:model-value="handleViewModeChange"
-            />
-          </template>
-
-          <template #cards>
-            <PaymentDetailCardGrid
-              :payment-details="data"
-              :loading="isLoading || isFetching"
-              :empty="'No hay cuentas bancarias'"
-              @card-click="handleCardClick"
-            />
+              <template #secondary>{{ row.beneficiary }}</template>
+              <template #badges>
+                <StatusBadge
+                  :label="paymentDetailStatusLabel(row.isActive)"
+                  :tone="row.isActive ? 'success' : 'neutral'"
+                />
+              </template>
+              <template #footer>
+                <span class="hf-figure min-w-0 truncate font-mono">{{ row.clabe }}</span>
+                <span class="shrink-0">{{ formatShortDateTime(row.updatedAt) }}</span>
+              </template>
+            </AdminMobileCard>
           </template>
         </AppDataTable>
       </div>
