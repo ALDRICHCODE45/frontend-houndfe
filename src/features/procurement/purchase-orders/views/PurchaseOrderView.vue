@@ -65,7 +65,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', preventUnload))
       <template #body>
         <div v-if="message" role="alert" class="order-warning">{{ message }}<div class="order-actions"><UButton v-if="hasUncertainResult" type="button" color="neutral" variant="outline" :disabled="isPending" @click="workspace.retry">Reintentar</UButton><UButton v-if="conflict && selected" type="button" color="neutral" variant="outline" :disabled="detailLoading || locked" @click="workspace.reload">Descartar cambios locales y cargar versión actual</UButton></div></div>
         <p v-if="detailError" role="alert">{{ detailError }}</p>
-        <section v-if="selected && selected.status !== 'CANCELLED' && (context.canConfirm || context.canCancel)" data-testid="order-transition-bar" class="order-transition-bar" aria-label="Acciones de la orden">
+        <section v-if="selected && selected.status !== 'CANCELLED' && ((selected.status === 'DRAFT' && context.canConfirm) || context.canCancel)" data-testid="order-transition-bar" class="order-transition-bar" aria-label="Acciones de la orden">
           <div class="order-actions">
             <UButton v-if="selected.status === 'DRAFT' && context.canConfirm" type="button" data-testid="confirm-order" class="hf-primary-control" icon="i-lucide-check" :disabled="!canConfirm" @click="workspace.requestTransition('confirm')">Confirmar orden</UButton>
             <UButton v-if="context.canCancel" type="button" data-testid="cancel-order" color="error" variant="outline" icon="i-lucide-ban" :disabled="!canCancel" @click="workspace.requestTransition('cancel')">Cancelar orden</UButton>

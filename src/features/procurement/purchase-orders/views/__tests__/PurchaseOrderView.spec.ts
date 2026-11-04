@@ -295,4 +295,12 @@ describe('transition action bar', () => {
     expect(reader.find('[data-testid="order-transition-bar"]').exists()).toBe(false)
     reader.unmount()
   })
+  it('does not render an empty bar for a confirmer looking at an order that is already confirmed', () => {
+    grants.clear(); grants.add('read:ProcurementPurchaseOrder'); grants.add('create:ProcurementOrderConfirmation')
+    set('selected', { ...order, status: 'CONFIRMED', canConfirm: false }); set('open', true)
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="order-transition-bar"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('La cancelación es definitiva')
+    wrapper.unmount()
+  })
 })
