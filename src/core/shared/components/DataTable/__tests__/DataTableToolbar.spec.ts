@@ -163,6 +163,8 @@ describe('DataTableToolbar — mobile two-row layout', () => {
       'toolbar-mobile-controls-row',
       'toolbar-mobile-filters-row',
       'toolbar-mobile-actions-row',
+      // No table api in this unit mount: the control stays, disabled (stable toolbar).
+      'toolbar-mobile-columns-button',
     ])
     const controls = wrapper.get('[data-testid="toolbar-mobile-controls-row"]')
     expect(controls.element.parentElement).toBe(wrapper.element)

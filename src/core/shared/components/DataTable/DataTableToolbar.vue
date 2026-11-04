@@ -169,6 +169,17 @@ function capitalize(str: string): string {
           />
         </UDropdownMenu>
 
+        <!-- No table yet (loading skeleton or error): keep the control in place so the toolbar
+             does not change shape between states. -->
+        <UButton
+          v-else-if="showColumnVisibility"
+          color="neutral"
+          variant="outline"
+          label="Columnas"
+          trailing-icon="i-lucide-chevron-down"
+          disabled
+        />
+
         <!-- Add Button (kept last on desktop per historical layout) -->
         <UButton
           v-if="showAddButton"
@@ -284,6 +295,17 @@ function capitalize(str: string): string {
               data-testid="toolbar-mobile-columns-button"
             />
           </UDropdownMenu>
+          <UButton
+            v-else-if="showColumnVisibility"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-columns-3"
+            aria-label="Columnas"
+            title="Columnas"
+            trailing-icon="i-lucide-chevron-down"
+            data-testid="toolbar-mobile-columns-button"
+            disabled
+          />
 
           <slot name="actions" />
 
