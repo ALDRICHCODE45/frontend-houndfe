@@ -287,9 +287,31 @@ Urgency is shown where the problem is, in the warm tones, and always with text:
 
 Lines are **compact rows** (product with variant under it, quantity with unit, unit cost, subtotal right-aligned and tabular, ⋮), not forms. Activating a row (click or Enter, never from the ⋮) expands an **edit row** under it on a muted tint with labeled fields in one grid (quantity · cost · taxes · `Listo`; two columns with the last field full width on mobile). The product button carries `aria-expanded`, `aria-controls` and an `aria-label` that names the line (`Editar renglón 2: Collar ajustable, Chico · Azul`). `Listo` (outline) collapses it and returns focus to the line. A line with an issue opens straight from the checklist link. Per-line actions (`Quitar renglón`, destructive) live in the line's ⋮, never as a trash button on the row. `Agregar renglón` is an outline button in the section heading (`Renglones · 3`).
 
+### Editable data table
+
+A record whose data is a grid of **definitions by destination** (the product's catalog content: one row per datum of the family, one column for the product and one per presentation) is an editable table, not a list of forms (`EditorialAttributeTable`, artboard `design/product-content-editor/03-attribute-table.html`). Rules:
+
+- **Rows** are the family's definitions by human label, sorted by label; never codes (`animal.target`). Definitions carry no topic metadata (their `groups` are option groups), so there are no group headers until the backend sends one. **Columns** are `Producto` plus one per presentation, and a column exists only where some binding allows its target; a cell with no binding shows a quiet `—` and says, to assistive tech, where the datum is filled.
+- **Each cell edits in place** with the control of its type (`EditorialAttributeCell`): text, sí/no select, single select, a checkbox list for several options, number with unit, range with unit. A unit chosen before the value is cell-local; a single unit is implied and shown as text. Emptying a control removes the assignment instead of leaving a blank that cannot be saved.
+- **State chip** (`StatusBadge`, neutral) only when the cell is not a known value: `Sin dato`, `Desconocido`, `No aplica`. The per-cell `⋯` (`RowActionsMenu`) offers `Desconocido`, `No aplica`, `Agregar evidencia` (a small popover with source and date, secondary, only on a known value) and `Quitar dato` last. In a state cell the first item is `Escribir valor`.
+- **Errors sit next to their cell**: `aria-invalid` on the control, `aria-describedby` to a `--hf-danger` message under it (`role="alert"`). Save problems are mapped to the cell by value index; those that belong to no cell go in one alert above the table.
+- **Keyboard**: Tab and Shift+Tab move through the controls cell by cell, Enter in a text control finishes it and goes down the same column (it never submits), the `⋯` opens with Enter, Space or ArrowDown.
+- **Completeness and filter** live in the toolbar: `N de M datos` (an answer, including `Desconocido` and `No aplica`, counts) and `Solo faltantes`, which keeps the rows that were missing when it was switched on so a row does not vanish under the cursor.
+- **Mobile**: the table scrolls horizontally inside its own container (`overflow-x: auto`, min width 42rem) with the attribute column sticky; the footer is the sticky action bar.
+- **Read-only** users see the same table as words, with no controls and no menus.
+- Stored data the grid cannot show (a presentation that was removed, a definition outside the family) stays in the document untouched, with the note `N datos guardados no aparecen en la tabla. Se conservan.`
+
+### History drawer
+
+History is secondary, so it lives behind a `Historial` button in a right `USlideover` (`w-full max-w-xl`, content `hf-theme hf-ui hf-form-overlay`), never on the page (`EditorialHistoryDrawer`). Plain words only, no cycles, revision numbers, ids or acknowledgements. Two parts: a **timeline** of what exists (`Borrador`, `Versión publicada`, each with a neutral or info `StatusBadge`; `Guardado el 4 nov, 13:40` only when the date is known: the server sends none, so it is the time this session saved), and a **two-column comparison** `Publicado | Borrador` of only the fields that changed (`buildEditorialHistoryChanges`: labels, option and unit labels, presentation names). The draft side carries a 3px `--hf-action` left border, the published side the muted surface; a side with no value reads `—` (`Sin dato` for assistive tech). With nothing published it says there is nothing to compare, with no changes it says the draft equals the published version.
+
+### Quiet refresh after a save
+
+An acknowledged write does not install state, so the screen reads the saved draft once, explicitly, after it (`refresh(choice, { quiet: true })`). If that read fails the write still stands: the footer keeps `Guardado · 4 nov, 13:40` and adds a quiet `No se pudo actualizar la vista · Reintentar`; the page never turns into the error state and nothing suggests the save failed. A refusal (401, 403, 404) is still a refusal.
+
 ### Footer save state
 
-The footer of the workspace (border-top, `--hf-surface`) holds the **save state** on the left and the **secondary save action** on the right: `Guardado · 3 nov, 20:43` (word in `--hf-success`, date muted) or `● Cambios sin guardar` (`--hf-warning` dot), `aria-live="polite"`, and `Guardar borrador` as an outline button. The primary action stays in the header, so saving never competes with confirming. Operational save and publication remain distinct (see Component rules).
+The footer of the workspace (border-top, `--hf-surface`) holds the **save state** on the left and the **secondary save action** on the right: `Guardado · 3 nov, 20:43` (word in `--hf-success`, date muted) or `● Cambios sin guardar` (`--hf-warning` dot), `aria-live="polite"`, and `Guardar borrador` as an outline button. The primary action stays in the header, so saving never competes with confirming. Operational save and publication remain distinct (see Component rules). The product's content editor has no header primary, so its footer carries the single primary `Guardar` beside the state, a `⋯` for the rest (`Descartar borrador…`) and a disabled `Publicación próximamente`; on mobile it is the sticky bar, and the product's own `Guardar cambios` is hidden on that task so the view has one primary.
 
 ### Sticky mobile action bar
 

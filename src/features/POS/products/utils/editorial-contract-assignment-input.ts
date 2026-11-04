@@ -32,7 +32,8 @@ export function toEditorialAssignmentInput(value: EditorialValue | null): Editor
   return { state: 'known', payload: input, evidence: value.evidence === null ? null : { ...value.evidence } }
 }
 
-function decimal(raw: string): number | null {
+/** The only accepted spelling of a finite decimal; the controls reuse it to say "solo números". */
+export function parseEditorialDecimal(raw: string): number | null {
   if (!/^-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(raw)) return null
   const number = Number(raw)
   return Number.isFinite(number) ? number : null
@@ -40,12 +41,12 @@ function decimal(raw: string): number | null {
 function completePayload(input: EditorialPayloadInput): EditorialKnownPayload | null {
   switch (input.type) {
     case 'number': {
-      const value = decimal(input.value)
+      const value = parseEditorialDecimal(input.value)
       return value !== null && input.unit !== undefined ? { type: 'number', value, unit: input.unit } : null
     }
     case 'range': {
-      const min = decimal(input.min)
-      const max = decimal(input.max)
+      const min = parseEditorialDecimal(input.min)
+      const max = parseEditorialDecimal(input.max)
       return min !== null && max !== null && typeof input.unit === 'string'
         ? { type: 'range', min, max, unit: input.unit } : null
     }

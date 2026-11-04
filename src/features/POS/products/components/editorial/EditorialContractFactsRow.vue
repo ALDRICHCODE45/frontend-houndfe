@@ -66,13 +66,13 @@ function remove() { if (!props.disabled) emit('remove', props.modelValue.id) }
     </div>
     <EditorialDeclarationList :id="`${id}-declarations`" :rows="modelValue.declarations" :allowed="allowed" :disabled="disabled"
       @add="addDeclaration" @update="updateDeclaration" @remove="removeDeclaration" />
-    <p v-if="showCare && !careAllowed" class="notice">No disponible para esta familia. La revisión existente se conserva para su corrección explícita.</p>
+    <p v-if="showCare && !careAllowed" class="notice">Esta familia no usa revisión de cuidado. La existente se conserva hasta que la corrijas.</p>
     <EditorialCareReviewField v-if="showCare" :id="`${id}-care`" :model-value="modelValue.careReview"
       :row-ids="modelValue.careRowIds" :disabled="disabled" @update:model-value="updateCare"
       @add-requirement="addCare('requirements')" @add-warning="addCare('warnings')"
       @remove-requirement="removeCare('requirements', $event)" @remove-warning="removeCare('warnings', $event)" />
     <button type="button" class="control remove" data-action="remove-facts" :disabled="disabled"
-      :aria-label="`Eliminar hechos: ${subjectLabel}`" @click="remove">Eliminar hechos</button>
+      :aria-label="`Quitar lo declarado: ${subjectLabel}`" @click="remove">Quitar presentación</button>
   </fieldset>
 </template>
 

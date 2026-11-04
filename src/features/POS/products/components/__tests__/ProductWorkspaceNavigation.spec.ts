@@ -7,15 +7,15 @@ import ProductWorkspaceNavigation from '../ProductWorkspaceNavigation.vue'
 const source = readFileSync(resolve(__dirname, '../ProductWorkspaceNavigation.vue'), 'utf8')
 
 describe('ProductWorkspaceNavigation', () => {
-  it('lists the four tasks and marks the active one', () => {
+  it('lists the three tasks, with no Revisar, and marks the active one', () => {
     const wrapper = mount(ProductWorkspaceNavigation, { props: { activeTask: 'presentations' } })
     expect(wrapper.findAll('button').map((b) => b.text())).toEqual([
       'Identidad',
       'Presentaciones',
       'Contenido',
-      'Revisar',
     ])
     expect(wrapper.get('[data-task="presentations"]').attributes('aria-current')).toBe('page')
+    expect(wrapper.find('[data-task="review"]').exists()).toBe(false)
   })
 
   it('gives every tab its own horizontal padding so long labels never touch at 390', () => {
@@ -30,7 +30,6 @@ describe('ProductWorkspaceNavigation', () => {
       'Identidad',
       'Presentaciones',
       'Contenido',
-      'Revisar',
       'Inventario',
     ])
     expect(wrapper.get('[data-task="inventory"]').attributes('aria-current')).toBe('page')
@@ -41,7 +40,7 @@ describe('ProductWorkspaceNavigation', () => {
     expect(wrapper.find('[data-task="inventory"]').exists()).toBe(false)
   })
 
-  it('is one scrolling strip, not a fixed-column grid, so five tasks fit at 390', () => {
+  it('is one scrolling strip, not a fixed-column grid, so four tasks fit at 390', () => {
     expect(source).not.toMatch(/repeat\(4,/)
     expect(source).toMatch(/grid-auto-flow:\s*column/)
     expect(source).toMatch(/overflow-x:\s*auto/)

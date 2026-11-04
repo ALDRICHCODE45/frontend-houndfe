@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useResizeObserver } from '@vueuse/core'
 
-export type ProductWorkspaceTask = 'identity' | 'presentations' | 'content' | 'review' | 'inventory'
+export type ProductWorkspaceTask = 'identity' | 'presentations' | 'content' | 'inventory'
 
 const props = defineProps<{ activeTask: ProductWorkspaceTask; showInventory?: boolean }>()
 const emit = defineEmits<{ select: [task: ProductWorkspaceTask] }>()
@@ -10,7 +10,6 @@ const tasks = computed<{ id: ProductWorkspaceTask; label: string }[]>(() => [
   { id: 'identity', label: 'Identidad' },
   { id: 'presentations', label: 'Presentaciones' },
   { id: 'content', label: 'Contenido' },
-  { id: 'review', label: 'Revisar' },
   ...(props.showInventory ? [{ id: 'inventory' as const, label: 'Inventario' }] : []),
 ])
 

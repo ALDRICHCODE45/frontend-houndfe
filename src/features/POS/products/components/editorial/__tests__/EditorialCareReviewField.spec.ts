@@ -1,12 +1,14 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { defineComponent, h, nextTick, shallowRef } from 'vue'
 import Field from '../EditorialCareReviewField.vue'
+import { EditorialSelectStub, stubEditorialSelect } from './editorialSelectStub'
 import Requirement from '../EditorialCareRequirementField.vue'
 import Warning from '../EditorialCareWarningField.vue'
 import type { EditorialCareReviewInput } from '../../../utils/editorial-contract-care-input'
 import { removeEditorialCareRequirement, type PreparedEditorialCareInput } from '../../../utils/editorial-contract-care-edits'
 
+beforeAll(stubEditorialSelect)
 const blank = (): PreparedEditorialCareInput => ({ state: 'prepared', jurisdiction: '', intendedUse: '', determination: null,
   basis: '', evidence: [], requirements: [], warnings: [] })
 const populated = (): PreparedEditorialCareInput => ({ ...blank(), requirements: [0, 1].map(() => ({ key: 'same',
@@ -65,12 +67,23 @@ describe('S43 controlled care review composition', () => {
     const { wrapper, prepared } = render(populated())
     for (const part of ['jurisdiction', 'intendedUse', 'basis']) await wrapper.get(`#care-${part}`).setValue('  raw\n prose ')
     expect(prepared()).toMatchObject({ jurisdiction: '  raw\n prose ', intendedUse: '  raw\n prose ', basis: '  raw\n prose ' })
-    for (const determination of ['identified', 'none_applicable', '']) {
+    for (const determination of ['identified', 'none_applicable']) {
       await wrapper.get('#care-determination').setValue(determination)
-      expect(prepared().determination).toBe(determination || null)
+      expect(prepared().determination).toBe(determination)
       expect(prepared().requirements).toEqual(populated().requirements)
       expect(prepared().warnings).toEqual(populated().warnings)
     }
+    // A list has no empty pick: the placeholder only shows when nothing is chosen.
+    await wrapper.get('#care-determination').setValue('')
+    expect(prepared().determination).toBe('none_applicable')
+  })
+  it('chooses the state and the determination in Nuxt UI lists named like their labels, with the "Elige…" placeholder', () => {
+    const selects = render(blank()).wrapper.findAllComponents(EditorialSelectStub)
+    expect(selects.map(select => select.props('label'))).toEqual(['Estado de la revisión', 'Determinación'])
+    expect(selects.map(select => select.props('placeholder'))).toEqual(['Elige…', 'Elige…'])
+    expect(selects[0]!.props('items')).toEqual([{ label: 'Sin revisión', value: 'omitted' }, { label: 'Desconocida', value: 'unknown' }, { label: 'Preparada', value: 'prepared' }])
+    expect(selects[1]!.props('items')).toEqual([{ label: 'Identificada', value: 'identified' }, { label: 'Ninguna aplicable', value: 'none_applicable' }])
+    expect(selects[1]!.props('modelValue')).toBeUndefined()
   })
   it('preserves ordered review evidence and partial dates through remount and explicit removals', async () => {
     const { wrapper, prepared, identity } = render({ ...blank(), evidence: [{ sourceRef: 'first', verifiedOn: 'old' }] })

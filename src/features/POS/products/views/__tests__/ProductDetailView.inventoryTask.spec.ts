@@ -104,22 +104,22 @@ const taskLabels = (view: Awaited<ReturnType<typeof mountView>>) =>
   view.findAll('.product-task-button').map((button) => button.text())
 
 describe('ProductDetailView — Inventario task', () => {
-  it('shows the fifth task for a saved product when the user can read the journal', async () => {
+  it('shows the fourth task for a saved product when the user can read the journal', async () => {
     const view = await mountView()
-    expect(taskLabels(view)).toEqual(['Identidad', 'Presentaciones', 'Contenido', 'Revisar', 'Inventario'])
+    expect(taskLabels(view)).toEqual(['Identidad', 'Presentaciones', 'Contenido', 'Inventario'])
   })
 
   it('shows no task without read:InventoryJournal', async () => {
     grants.read = false
     const view = await mountView()
-    expect(taskLabels(view)).toEqual(['Identidad', 'Presentaciones', 'Contenido', 'Revisar'])
+    expect(taskLabels(view)).toEqual(['Identidad', 'Presentaciones', 'Contenido'])
     expect(view.find('[data-task="inventory"]').exists()).toBe(false)
     expect(view.find('[data-testid="stock-panel-stub"]').exists()).toBe(false)
   })
 
   it('shows no task while creating a product', async () => {
     const view = await mountView({})
-    expect(taskLabels(view)).toEqual(['Identidad', 'Presentaciones', 'Contenido', 'Revisar'])
+    expect(taskLabels(view)).toEqual(['Identidad', 'Presentaciones', 'Contenido'])
     expect(view.find('[data-testid="stock-panel-stub"]').exists()).toBe(false)
   })
 

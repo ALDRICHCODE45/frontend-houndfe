@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import EditorialSelect from './EditorialSelect.vue'
 import type { PreparedEditorialCareInput } from '../../utils/editorial-contract-care-edits'
 import type { EditorialEvidence } from '../../interfaces/editorial-contract-value.types'
 
@@ -11,6 +12,7 @@ const dispositions = [
   { code: 'satisfied', label: 'Satisfecho' }, { code: 'not_applicable', label: 'No aplica' },
   { code: 'unresolved', label: 'Sin resolver' }, { code: 'conflicting', label: 'En conflicto' },
 ] as const
+const dispositionItems = dispositions.map(item => ({ label: item.label, value: item.code }))
 
 // Parent owns stable row identity and raw review state. Apply S38 rename/remove
 // helpers there: warnings and requirementKeys must remain unchanged for correction.
@@ -23,14 +25,10 @@ function update(patch: Partial<Requirement>) {
 function textChanged(part: 'key' | 'description' | 'basis', event: Event) {
   if (!props.disabled) update({ [part]: (event.target as HTMLInputElement | HTMLTextAreaElement).value })
 }
-function dispositionChanged(event: Event) {
-  if (props.disabled) return
-  const raw = (event.target as HTMLSelectElement).value
-  if (raw === '') update({ disposition: null })
-  else {
-    const choice = dispositions.find(item => item.code === raw)
-    if (choice) update({ disposition: choice.code })
-  }
+// A list has no empty pick: the placeholder is the empty state, so only an offered code changes anything.
+function dispositionChanged(raw: string | undefined) {
+  const choice = dispositions.find(item => item.code === raw)
+  if (!props.disabled && choice) update({ disposition: choice.code })
 }
 function evidenceChanged(index: number, part: keyof EditorialEvidence, event: Event) {
   if (props.disabled) return
@@ -56,11 +54,8 @@ function removeRequirement() { if (!props.disabled) emit('remove') }
     <textarea :id="`${id}-description`" :value="modelValue.description" :disabled="disabled" rows="3"
       :aria-invalid="!!issue" :aria-describedby="described" @input="textChanged('description', $event)" />
     <label :for="`${id}-disposition`">Disposición</label>
-    <select :id="`${id}-disposition`" :value="modelValue.disposition ?? ''" :disabled="disabled"
-      :aria-invalid="!!issue" :aria-describedby="described" @change="dispositionChanged">
-      <option value="">Selecciona una disposición</option>
-      <option v-for="item in dispositions" :key="item.code" :value="item.code">{{ item.label }}</option>
-    </select>
+    <EditorialSelect :id="`${id}-disposition`" label="Disposición" :items="dispositionItems" :model-value="modelValue.disposition ?? undefined"
+      :disabled="disabled" :invalid="!!issue" :describedby="described" @update:model-value="dispositionChanged" />
     <label :for="`${id}-basis`">Fundamento</label>
     <textarea :id="`${id}-basis`" :value="modelValue.basis" :disabled="disabled" rows="3"
       :aria-invalid="!!issue" :aria-describedby="described" @input="textChanged('basis', $event)" />
@@ -93,10 +88,10 @@ function removeRequirement() { if (!props.disabled) emit('remove') }
 .requirement-field { min-width: 0; margin: 0; padding: 16px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); background: var(--hf-surface); color: var(--hf-ink); }
 legend { max-width: 100%; padding: 0 6px; font-weight: 650; overflow-wrap: anywhere; color: var(--hf-heading); }
 label { display: block; margin: 12px 0 6px; font-size: .875rem; line-height: 1.5; }
-input, textarea, select, button { box-sizing: border-box; min-height: max(44px, var(--hf-control-height, 44px)); max-width: 100%; border: 1px solid var(--hf-field-border); border-radius: var(--hf-radius-control); background: var(--hf-field); color: var(--hf-ink); font: inherit; padding: 8px 12px; }
-input, textarea, select { width: 100%; }
+input, textarea, button { box-sizing: border-box; min-height: max(44px, var(--hf-control-height, 44px)); max-width: 100%; border: 1px solid var(--hf-field-border); border-radius: var(--hf-radius-control); background: var(--hf-field); color: var(--hf-ink); font: inherit; padding: 8px 12px; }
+input, textarea { width: 100%; }
 textarea { resize: vertical; }
-input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
+input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
 button { margin-top: 12px; cursor: pointer; }
 :disabled { cursor: not-allowed; }
 .requirement-field:disabled { opacity: .65; }

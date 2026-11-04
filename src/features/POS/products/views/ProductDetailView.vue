@@ -349,7 +349,7 @@ const canSubmitMainForm = computed(() =>
   isCreateMode.value ? canCreateProduct.value : canUpdateProduct.value,
 )
 const isFormReadonly = computed(() => !isCreateMode.value && !canUpdateProduct.value)
-const isEditorialTask = computed(() => activeTask.value === 'content' || activeTask.value === 'review')
+const isEditorialTask = computed(() => activeTask.value === 'content')
 const editorialVisited = shallowRef(false)
 const editorialUnavailableReason = computed(() => {
   if (isCreateMode.value) return 'Crea el producto primero para trabajar su contenido editorial.'
@@ -399,6 +399,11 @@ const isProductNotFound = computed(
 /** The form, its save actions and the summary exist only once there is a record (or a new one). */
 const showWorkspace = computed(
   () => isCreateMode.value || (!isProductError.value && !isLoadingProduct.value),
+)
+/** The product's own save saves the operational form, which is not on Contenido: hidden there for every
+ * user. Creating a product keeps it, since the content task only says to create the product first. */
+const showProductSave = computed(
+  () => showWorkspace.value && !isFormReadonly.value && !(isEditorialTask.value && !isCreateMode.value),
 )
 
 const { data: categories } = useQuery<CategoryOption[]>({
@@ -2041,7 +2046,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
           </div>
         </div>
 
-        <div v-if="showWorkspace && !isFormReadonly" class="max-md:hidden">
+        <div v-if="showProductSave" class="max-md:hidden">
           <UButton
             :label="isCreateMode ? createModeSubmitLabel : 'Guardar cambios'"
             type="submit"
@@ -2092,7 +2097,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
           aria-labelledby="editorial-unavailable-title"
         >
           <h2 id="editorial-unavailable-title" class="text-base font-semibold">
-            {{ activeTask === 'content' ? 'Contenido editorial' : 'Revisión editorial' }}
+            Contenido editorial
           </h2>
           <p class="mt-2 text-sm text-muted">
             {{ editorialUnavailableReason }}
@@ -2103,7 +2108,6 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
           v-show="isEditorialTask"
           :product-id="productIdOrEmpty"
           :embedded="true"
-          :active-section="activeTask === 'review' ? 'review' : 'content'"
         />
         <InventoryStockPanel
           v-if="inventoryVisited && showInventoryTask"
@@ -2673,7 +2677,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
 
     <!-- Mobile: the single primary lives in the sticky bottom bar. -->
     <div
-      v-if="showWorkspace && !isFormReadonly"
+      v-if="showProductSave"
       class="product-action-bar shrink-0 md:hidden"
       data-testid="mobile-action-bar"
     >

@@ -380,7 +380,7 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       expect(presentations.isVisible()).toBe(true)
       // Existing variants, prices, inventory and image controls are not replaced.
       expect(wrapper.getComponent(ProductVariantsTable).props('rows')).toHaveLength(2)
-      await wrapper.get('[data-task="review"]').trigger('click')
+      await wrapper.get('[data-task="content"]').trigger('click')
       expect(presentations.isVisible()).toBe(false)
       expect(wrapper.get('[data-testid="editorial-unavailable"]').text()).toContain('No tienes permiso')
       expect(wrapper.find('form form').exists()).toBe(false)
@@ -416,13 +416,30 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       expect(summary.text()).toContain('Imágenes disponibles después de crear')
       expect(summary.text()).toContain('0/3')
       expect(summary.get('[data-summary="price"]').text()).toBe('$0.00')
-      for (const task of ['content', 'review']) {
-        await wrapper.get(`[data-task="${task}"]`).trigger('click')
-        expect(wrapper.get('[data-testid="editorial-unavailable"]').text()).toContain('Crea el producto primero')
-      }
+      await wrapper.get('[data-task="content"]').trigger('click')
+      expect(wrapper.get('[data-testid="editorial-unavailable"]').text()).toContain('Crea el producto primero')
+      expect(wrapper.find('[data-task="review"]').exists()).toBe(false)
       expect(wrapper.find('[data-testid="product-image-gallery"]').exists()).toBe(false)
       expect(editorialReads.getVocabulary).not.toHaveBeenCalled()
       expect(productApiMocks.update).not.toHaveBeenCalled()
+      wrapper.unmount()
+    })
+
+    it.each([
+      ['an editor', ['read:ProductEditorialDraft', 'update:ProductEditorialDraft']],
+      ['a user without editorial permission', []],
+    ])('hides the product header and mobile save on Contenido for %s, and brings them back on the other tasks', async (_who, permissionCodes) => {
+      editorialSession.permissionCodes = permissionCodes
+      const wrapper = await mountTasks()
+      expect(wrapper.find('button[form="product-detail-form"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="mobile-action-bar"]').exists()).toBe(true)
+      await wrapper.get('[data-task="content"]').trigger('click')
+      await flushPromises()
+      expect(wrapper.find('button[form="product-detail-form"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="mobile-action-bar"]').exists()).toBe(false)
+      await wrapper.get('[data-task="presentations"]').trigger('click')
+      expect(wrapper.get('button[form="product-detail-form"]').text()).toBe('Guardar cambios')
+      expect(wrapper.find('[data-testid="mobile-action-bar"]').exists()).toBe(true)
       wrapper.unmount()
     })
 
@@ -435,16 +452,14 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       await flushPromises()
       const workspace = wrapper.getComponent(EditorialWorkspace)
       expect(workspace.props('embedded')).toBe(true)
-      expect(workspace.props('activeSection')).toBe('content')
       expect(workspace.element.closest('#product-detail-form')).toBeNull()
       const input = workspace.get('input')
       await input.setValue('Título pendiente  ')
-      for (const task of ['review', 'identity', 'presentations', 'content']) {
+      for (const task of ['identity', 'presentations', 'content']) {
         await wrapper.get(`[data-task="${task}"]`).trigger('click')
         expect(wrapper.findAllComponents(EditorialWorkspace)).toHaveLength(1)
         expect(wrapper.getComponent(EditorialWorkspace).element === workspace.element).toBe(true)
-        expect(workspace.isVisible()).toBe(task === 'review' || task === 'content')
-        if (task === 'review') expect(workspace.props('activeSection')).toBe('review')
+        expect(workspace.isVisible()).toBe(task === 'content')
       }
       expect(workspace.get('input').element).toBe(input.element)
       expect((input.element as HTMLInputElement).value).toBe('Título pendiente  ')
@@ -467,7 +482,7 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       editorialSession.permissionCodes = ['read:ProductEditorialDraft']
       Object.assign(editorialSession, changes)
       const wrapper = await mountTasks()
-      await wrapper.get('[data-task="review"]').trigger('click')
+      await wrapper.get('[data-task="content"]').trigger('click')
       expect(wrapper.get('[data-testid="editorial-unavailable"]').text()).toContain(reason)
       expect(wrapper.findComponent(EditorialWorkspace).exists()).toBe(false)
       expect(editorialReads.getVocabulary).not.toHaveBeenCalled()

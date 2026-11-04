@@ -1,11 +1,13 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, shallowRef } from 'vue'
 import { mount } from '@vue/test-utils'
 import List from '../EditorialDeclarationList.vue'
 import Field from '../EditorialContractDeclarationField.vue'
+import { EditorialSelectStub, stubEditorialSelect } from './editorialSelectStub'
 import type { EditorialDeclarationValues } from '../../../interfaces/editorial-contract-declaration.types'
 import type { EditorialDeclarationInput } from '../../../utils/editorial-contract-declaration-input'
 
+beforeAll(stubEditorialSelect)
 type Key = keyof EditorialDeclarationValues
 type Row = { id: string; declarationKey: Key; input: EditorialDeclarationInput }
 type Allowed = { key: Key; label: string; choices?: readonly { code: string; label: string }[]; toyTypeChoices?: readonly { code: string; label: string }[] }
@@ -52,11 +54,14 @@ describe('EditorialDeclarationList S44', () => {
     expect(wrapper.get('#list-issue').text()).toBe('<img src=x> Revisar')
     expect(wrapper.find('img').exists()).toBe(false)
     expect(wrapper.get('#list-add').attributes('aria-describedby')).toBe('list-issue')
-    expect(wrapper.get('label[for="list-add"]').text()).toContain('Añadir')
+    expect(wrapper.get('label[for="list-add"]').text()).toContain('Agregar')
   })
   it('adds only the selected allowed key as a parent-created omitted row and resets the native placeholder', async () => {
     const { wrapper, rows, events } = render()
-    expect(wrapper.get('#list-add').findAll('option').map(option => option.text())).toEqual(['Selecciona una declaración', 'Consumible', 'Ajustes', 'Dimensiones'])
+    const select = wrapper.getComponent(EditorialSelectStub)
+    expect(select.props('label')).toBe('Agregar declaración')
+    expect(select.props('placeholder')).toBe('Elige…')
+    expect(select.props('items')).toEqual([{ label: 'Consumible', value: 'consumable' }, { label: 'Ajustes', value: 'relevantFitCodes' }, { label: 'Dimensiones', value: 'relevantDimensionCodes' }])
     await wrapper.get('#list-add').setValue('relevantFitCodes')
     expect(events).toEqual([['add', 'relevantFitCodes']])
     expect(rows.value).toEqual([row('new-0', { state: 'omitted' }, 'relevantFitCodes')])
@@ -75,8 +80,9 @@ describe('EditorialDeclarationList S44', () => {
     const initial = [row('a'), row('b', known(true)), row('c', { key: 'relevantFitCodes', state: 'known', value: ['measure.fit.neck'], evidence: null, basis: '' }, 'relevantFitCodes')]
     const { wrapper, rows, entries, events } = render(initial, false, [allowed[0]!])
     const children = wrapper.findAllComponents(Field)
-    expect(children.map(child => child.props('label'))).toEqual(['Consumible', 'Consumible', 'relevantFitCodes'])
-    expect(wrapper.text()).toContain('No disponible')
+    expect(children.map(child => child.props('label'))).toEqual(['Consumible', 'Consumible', 'Medidas de ajuste relevantes'])
+    expect(wrapper.text()).toContain('ya no está disponible')
+    expect(wrapper.text()).not.toContain('relevantFitCodes')
     expect(children[2]!.props('choices')).toEqual([])
     expect(selected(children[2]!.get('select[multiple]').element)).toEqual(['measure.fit.neck'])
     expect(children[2]!.get('option[value="measure.fit.neck"]').text()).toContain('No disponible')

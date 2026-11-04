@@ -16,7 +16,6 @@ vi.mock('vue-router', () => ({ useRoute: () => ({ params: { id: 'p1' } }), useRo
 const productGetById = vi.hoisted(() => vi.fn())
 vi.mock('../../api/product.api', () => ({ productApi: { getById: productGetById } }))
 let wrapper: ReturnType<typeof mount>
-const button = (text: string) => wrapper.findAll('button').find(item => item.text() === text)!
 async function render() {
   wrapper = mount(ProductEditorialView, { attachTo: window.document.body })
   await flushPromises()
@@ -34,64 +33,50 @@ beforeEach(() => {
 afterEach(() => wrapper?.unmount())
 
 describe('guided standalone editorial workspace', () => {
-  it('navigates freely with one mounted owner and retains raw controls without requests or saves', async () => {
+  it('has one mounted owner and no Contenido/Revisar pair, and edits send no request', async () => {
     await render()
     expect(wrapper.findAll('main')).toHaveLength(1)
     expect(wrapper.findAll('h1')).toHaveLength(1)
     expect(wrapper.findAllComponents(EditorialWorkspace)).toHaveLength(1)
-    expect(button('Contenido').attributes('aria-current')).toBe('page')
-    const input = wrapper.get('#editorial-title').element
+    expect(wrapper.find('nav').exists()).toBe(false)
+    expect(wrapper.findAll('button').some(item => ['Contenido', 'Revisar'].includes(item.text()))).toBe(false)
     await wrapper.get('#editorial-title').setValue('  local 😀  ')
-    await button('Revisar').trigger('click')
-    expect(wrapper.get('form').isVisible()).toBe(false)
-    expect(wrapper.get('[aria-labelledby="publication-title"]').isVisible()).toBe(true)
-    expect(button('Revisar').attributes('aria-current')).toBe('page')
-    await button('Contenido').trigger('click')
-    expect(wrapper.get('#editorial-title').element).toBe(input)
-    expect((input as HTMLInputElement).value).toBe('  local 😀  ')
+    expect((wrapper.get('#editorial-title').element as HTMLInputElement).value).toBe('  local 😀  ')
     expect(wrapper.get('form').isVisible()).toBe(true)
     expect(http.get).toHaveBeenCalledTimes(3)
     expect(http.get.mock.calls.map(call => call[0])).toEqual(expect.arrayContaining(['/products/p1/editorial', '/products/p1/editorial/context', '/catalog-editorial/vocabulary']))
     expect(http.put).not.toHaveBeenCalled()
     expect(http.post).not.toHaveBeenCalled()
   })
-  it('separates local buffer, consulted revisions and historical acknowledgement in the private summary', async () => {
+  it('has no private summary aside: the footer is the only place that says what is saved', async () => {
     http.put.mockResolvedValue(success(state({ ...document(), commercialTitle: 'ACK ONLY' }, 99)))
     await render()
-    const summary = () => wrapper.get('[aria-label="Resumen editorial privado"]')
-    expect(summary().text()).toContain(' exact ')
-    expect(summary().text()).toContain('Borrador guardadoRevisión consultada 3')
-    expect(summary().text()).toContain('Sin versión publicada')
+    expect(wrapper.find('[aria-label="Resumen editorial privado"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toMatch(/Resumen editorial|Acuse histórico|Revisión consultada/)
     await wrapper.get('#editorial-title').setValue('LOCAL ONLY')
-    expect(summary().text()).toContain('Cambios locales sin guardar')
-    expect(summary().text()).not.toContain('LOCAL ONLY')
+    expect(wrapper.get('.editorial-save-state').text()).toBe('Cambios sin guardar')
+    http.get.mockImplementation((url: string) => Promise.resolve(url.includes('vocabulary') ? { ...success(), data: vocabularyEnvelope() }
+      : url.endsWith('/context') ? { status: 200, data: { variants: [] } } : success(state({ ...document(), commercialTitle: 'LOCAL ONLY' }, 4))))
     await wrapper.get('form').trigger('submit'); await flushPromises()
-    await button('Revisar').trigger('click')
-    expect(summary().text()).toContain('Acuse histórico; no es el estado actual')
-    expect(summary().text()).toContain('Revisión consultada 3')
-    expect(summary().text()).not.toContain('ACK ONLY')
-    expect(wrapper.text()).toContain('La publicación aún no está disponible')
+    expect(wrapper.get('.editorial-save-state').text()).toMatch(/^Guardado/)
+    expect(wrapper.text()).not.toContain('ACK ONLY')
   })
-  it('keeps validation visible when saving from review without losing the invalid input', async () => {
+  it('keeps validation next to the title without losing the invalid input', async () => {
     await render()
     await wrapper.get('#editorial-title').setValue('x'.repeat(201))
-    await button('Revisar').trigger('click')
     await wrapper.get('form').trigger('submit'); await flushPromises()
-    const alert = wrapper.findAll('[role="alert"]').find(item => item.text().includes('TITLE_LIMIT'))!
-    expect(alert.isVisible()).toBe(true)
-    await button('Contenido').trigger('click')
+    expect(wrapper.get('#editorial-title-issue').text()).toBe('El título es demasiado largo. El máximo es 200 caracteres.')
+    expect(wrapper.get('#editorial-title').attributes('aria-invalid')).toBe('true')
     expect((wrapper.get('#editorial-title').element as HTMLInputElement).value).toBe('x'.repeat(201))
     expect(http.put).not.toHaveBeenCalled()
   })
-  it('keeps conflict and refresh/discard choices visible across both sections', async () => {
+  it('keeps the conflict and its choices above the form, in plain words', async () => {
     http.put.mockRejectedValue(failure(409, 'CONFLICT'))
     await render()
     await wrapper.get('#editorial-title').setValue('LOCAL')
     await wrapper.get('form').trigger('submit'); await flushPromises()
-    await button('Revisar').trigger('click')
-    expect(wrapper.findAll('p').find(item => item.text().includes('No se reenvía automáticamente'))!.isVisible()).toBe(true)
+    expect(wrapper.get('[data-testid="reconciliation"]').text()).toContain('Alguien más guardó cambios. Carga la versión más reciente para continuar.')
     await wrapper.get('[data-testid="refresh-discard"]').trigger('click')
-    await button('Contenido').trigger('click')
     expect(wrapper.get('[aria-labelledby="discard-title"]').isVisible()).toBe(true)
     await wrapper.get('[data-testid="cancel-discard"]').trigger('click')
     expect((wrapper.get('#editorial-title').element as HTMLInputElement).value).toBe('LOCAL')
@@ -103,20 +88,17 @@ describe('guided standalone editorial workspace', () => {
     auth.permissionCodes = []
     await render()
     expect(wrapper.get('form').isVisible()).toBe(true)
-    await button('Revisar').trigger('click')
-    expect(wrapper.get('[aria-label="Resumen editorial privado"]').isVisible()).toBe(true)
     expect(http.get).toHaveBeenCalledTimes(3)
     expect(http.post).not.toHaveBeenCalled()
   })
-  it('shows read-only history in Content and clears summary content on revoked editorial access', async () => {
+  it('shows the saved content to a read-only user and clears it on revoked editorial access', async () => {
     auth.permissionCodes = [read]
     await render()
-    expect(wrapper.get('#editorial-draft').element.closest('section')!.parentElement!.style.display).not.toBe('none')
+    expect(wrapper.get('[data-field="title"]').text()).toBe('exact')
     expect(wrapper.find('form').exists()).toBe(false)
-    expect(wrapper.get('[aria-label="Resumen editorial privado"]').text()).toContain(' exact ')
     auth.permissionCodes = []; await flushPromises()
-    expect(wrapper.find('[aria-label="Resumen editorial privado"]').exists()).toBe(false)
-    expect(wrapper.text()).not.toContain(' exact ')
+    expect(wrapper.find('[data-field="title"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('exact')
     expect(http.get).toHaveBeenCalledTimes(3)
   })
 })
@@ -171,7 +153,7 @@ describe('guided editorial view — review round 2', () => {
     const heading = wrapper.get('#editorial-workspace-title')
     expect(heading.element.tagName).toBe('H2')
     expect(heading.classes()).toContain('sr-only')
-    expect(wrapper.find('[data-testid="refresh-retain"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="refresh-retain"]').exists()).toBe(false)
   })
 
   it('aligns with the page column instead of centering a capped box', () => {

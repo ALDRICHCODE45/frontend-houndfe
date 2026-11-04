@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "chosen": "03-attribute-table.html",
+  "handoffs": {
+    "03-attribute-table.html": {
+      "status": "implemented",
+      "queued": false,
+      "sentAt": "2026-11-04T21:44:17.896Z",
+      "startedAt": null,
+      "implementedAt": "2026-11-04T23:43:32.877Z",
+      "feature": "odd/tasks/system-redesign.md",
+      "note": "Merged to main locally. Revisar is merged into Contenido; attribute table with human labels, ⋯ per cell, Solo faltantes, completeness count, redesigned Historial drawer, USelect everywhere, ConfirmModal for family change. Suite 13589 green."
+    }
+  }
+}

@@ -21,6 +21,10 @@ const catalog: readonly { key: Key; label: string; families?: readonly string[] 
   { key: 'presentationKind', label: 'Tipo de presentación', families: ['care'] },
   { key: 'optionalNonpertinenceCodes', label: 'Códigos opcionales no pertinentes' },
 ]
+/** The words for a declaration key, so a stored key that is no longer offered still reads as a label. */
+export function editorialDeclarationLabel(key: string): string {
+  return catalog.find(entry => entry.key === key)?.label ?? 'Declaración'
+}
 const dimensions = [
   'measure.dimensions.external_length', 'measure.dimensions.external_width', 'measure.dimensions.external_height',
   'measure.dimensions.external_diameter', 'measure.dimensions.internal_length', 'measure.dimensions.internal_width',

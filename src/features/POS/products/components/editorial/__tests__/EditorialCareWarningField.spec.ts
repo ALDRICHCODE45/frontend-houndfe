@@ -1,13 +1,15 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { defineComponent, h, nextTick, shallowRef } from 'vue'
 import Field from '../EditorialCareWarningField.vue'
+import { EditorialSelectStub, stubEditorialSelect } from './editorialSelectStub'
 import type { PreparedEditorialCareInput } from '../../../utils/editorial-contract-care-edits'
 
 type Warning = PreparedEditorialCareInput['warnings'][number]
 const sample = (): Warning => ({ key: ' warning ', text: 'Texto', disclosure: null, handlingBasis: 'Base',
   requirementKeys: ['missing', 'same', 'same', ''], evidence: [{ sourceRef: 'source', verifiedOn: '2026-01-01' }] })
 const cleanup: (() => void)[] = []
+beforeAll(stubEditorialSelect)
 afterEach(() => cleanup.splice(0).forEach(stop => stop()))
 function render(disabled = false, issue?: string) {
   const initial = sample(), original = structuredClone(initial)
@@ -19,6 +21,13 @@ function render(disabled = false, issue?: string) {
   return { wrapper, raw, generation }
 }
 describe('controlled care warning', () => {
+  it('picks the disclosure in a Nuxt UI list named like its label, with the "Elige…" placeholder', () => {
+    const select = render().wrapper.getComponent(EditorialSelectStub)
+    expect(select.props('label')).toBe('Divulgación')
+    expect(select.props('placeholder')).toBe('Elige…')
+    expect(select.props('items')).toEqual([{ label: 'Solo privada', value: 'private_only' }, { label: 'Pública requerida', value: 'public_required' }, { label: 'Sin resolver', value: 'unresolved' }])
+    expect(select.props('modelValue')).toBeUndefined()
+  })
   it('renders associated labels and literal diagnostics without changing raw history', () => {
     const { wrapper, raw } = render(false, '<b>Revisar referencias</b>')
     expect(wrapper.get('legend').text()).toBe('Advertencia de cuidado')
