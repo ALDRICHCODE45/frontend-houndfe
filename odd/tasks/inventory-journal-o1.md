@@ -83,6 +83,7 @@ Delegated by the user ("esa tarea te la quedas tu"):
 - T5 [S4,S6,S9]: the stock panel and the kardex.
   - Done: aa1c79ba (StockKardex, utils/kardex.ts), c63376a9 (InventoryStockPanel, utils/stock.ts). Components only; T6 mounts `<InventoryStockPanel :product-id>` in the detail.
 - T6 [S8]: the "Inventario" task in the product detail.
+  - Done: 9ba3b837 (fifth task in ProductWorkspaceNavigation and ProductDetailView: only for a saved product with `useInventoryAccess().canRead`; `<InventoryStockPanel :product-id>` mounts the first time the task opens and stays alive, outside the UForm and the fieldset; the strip is now one scrolling strip with the fade). 9a92fa09 (fixes found by T10: kardex fit at 1440 and stock table fit at 390).
 - T7 [S1]: read-only quantity on edit, with quantity stripped from every PATCH. High risk (data integrity).
   - Done: 8c6d07b4 (toUpdatePayload, productApi.update/updateVariant/updateLot strip it, update types exclude it, ReadOnlyStock in the detail, variant table, variant modals and slideover). Own commit, high risk.
 - T8 [S7]: product error-code mapping and the first-variant confirmation.
@@ -90,6 +91,7 @@ Delegated by the user ("esa tarea te la quedas tu"):
 - T9 [S7]: sales pins for STOCK_INSUFFICIENT_AT_CONFIRM and SALE_STOCK_UNAVAILABLE.
   - Done: 7658b937 (salePaymentErrors.utils 'generic' action, SalesView branch, pins).
 - T10 [S8,S9]: runtime check with the README §7 data, as manager and as cashier (403).
+  - Done: 23 checks PASS / 0 FAIL against the real BE (odd/evidence/inventory-journal-o1/verify.mjs, report.json; shots/ is git-ignored). Two defects fixed on the way (9a92fa09); see L7.
 
 ## Log
 
@@ -136,3 +138,26 @@ L6. Stream B done (T7-T9), in src/features/POS/products and src/features/POS/sal
   - SalesView.test.ts now routes `useToast` through `@nuxt/ui/composables/useToast` too, so toasts can be asserted. Earlier specs in that file leave the shared draft with no items; the new tests seed their own.
   - The compact slideover has no "Tipo" field, so PRODUCT_TYPE_CHANGE_BLOCKED there is a toast only.
 - Open: the product list "Existencias" (L3) is untouched. `pnpm exec eslint` reports one old unused `error` in ProductsView.vue:73 (not mine).
+
+L7. T6 and T10 done by a delegated writer (commits 9ba3b837 and 9a92fa09; the harness and report.json are in odd/evidence/inventory-journal-o1/).
+- T6 decisions taken without asking:
+  - The task strip had no scroll or fade of its own (the spec said "existing"). It is now one grid strip (`grid-auto-flow: column`, `overflow-x: auto`) with the employee-tabs fade (`data-more` / `data-less`) and the active task scrolls into view. Five tasks measure 415px in a 358px strip at 390; the Inventario button is fully visible after it opens.
+  - The panel mounts the first time the task opens (no stock request on every detail load) and stays mounted, hidden with `v-show`. Losing the read grant while the task is open falls back to Identidad.
+  - No Inventario task for a user without `read:InventoryJournal` and none in creation mode. The panel itself still shows "Sin acceso" if mounted without it.
+- T10 against the real BE, as manager in Sucursal Centro (real login form) and as cashier. Every adjustment was reverted by an opposite one, so the showcase quantities are the README's again (Croquetas "Sin lote" 12, Collar Chico · Azul 15). The kardex of those two products now has extra ADJUSTMENT rows from the runs.
+  - Croquetas: panel shows Sin lote 12 and three lots, the expired L-2026-08 with "Vencido" and "No se vende"; total 72, sellable 64. Its kardex rows are INITIAL ("Inicial"), not OPENING: the README says OPENING is only for products that existed before the journal. OPENING with "Sistema" as the actor was checked on an older product ("Suéter tejido para perro (variantes ocultas)").
+  - Restar 2 · Merma/daño: 201, stock 12 → 10, total 72 → 70, the new row first (Ajuste, Merma/daño, −2, Manager Centro). Conteo físico with the original count computes "+2", sends PHYSICAL_COUNT and restores 12.
+  - Going negative: refused at the field before sending ("El stock no puede quedar en negativo.", no request). The real 409 INSUFFICIENT_STOCK was provoked by rewriting the outgoing delta, and the dialog shows "No hay suficiente stock para restar esa cantidad." at the field; stock unchanged. "Otro" without a note is blocked at the Nota field, nothing sent.
+  - Collar: both variants listed and adjusting Chico · Azul +1 sends a variant target. Placa: "Este producto no lleva control de stock", no Ajustar.
+  - Editing: Desparasitante shows the read-only figure with "Se ajusta desde Inventario"; Croquetas (lots) and Collar (variants) have no quantity input (the lots table and the variant cells are figures). The PATCH of all three has no `quantity` key.
+  - Cashier: the detail opens with four tasks and makes no inventory request; the three inventory endpoints answer 403.
+  - 390 and 1440, light and dark: panel, kardex, dialog and the task strip, no page overflow.
+- Defects fixed (inside src/features/POS/inventory, test first):
+  - The kardex had seven columns: 928px in a 760px column next to the summary panel at 1440, so "Total del producto" and "Responsable" sat behind a scroll. It has six now (the actor under the date, "Total"), and lowers the global table floors locally (the primary column to 11rem, the numeric ones to 5rem, date and location to 9rem). The date, actor and location are no longer ellipsized.
+  - At 390 the stock table was 419px in a 356px card and every "Ajustar" was behind a horizontal scroll. Below 480px the Vence column folds under the lot name.
+  - Also in the harness: a first version checked the kardex while the page was on another product; the fit checks now reopen Croquetas, and "Cargar más" is clicked until the oldest rows load.
+- Open, outside the O1 surfaces or needing a decision:
+  - The detail header says "Sin stock" and the summary panel says "Stock 60" for Croquetas, while the journal says total 72. The product record has `quantity: 0` for a product with lots (and for Collar, which uses `variantStockTotal`), and FE `mapStatus` and the summary derive from it. The BE gives no lot total in the product record. It is the same question as L3 (what the list and header "Existencias" should say). Not changed.
+  - The pi-lens notes on the new specs and the harness could not be listed (no lens tool here); eslint and `pnpm type-check` are clean.
+  - The "Idempotency-Key" conflict copy from L5 was not provoked: the BE only answers it for a reused key with another body, which the UI never does.
+
