@@ -309,6 +309,11 @@ describe('EditorialWorkspace — the footer', () => {
     expect(source).not.toMatch(/grid-column:\s*1 \/ -1/)
   })
 
+  it('on mobile keeps the band to one row (Historial as an icon) and the toolbar to two', () => {
+    expect(source).toMatch(/@media \(max-width: 767px\)[\s\S]*\.editorial-history-label\s*\{[^}]*(?:clip|sr-only|position:\s*absolute)/)
+    expect(source).toMatch(/@media \(max-width: 767px\)[\s\S]*\.editorial-toolbar :deep\(\.family-field\)\s*\{[^}]*flex:\s*1 1 100%/)
+  })
+
   it('has a header band with the state of the sheet and Historial, apart from the filter toolbar', async () => {
     await render()
     const band = wrapper.get('[data-testid="editorial-band"]')

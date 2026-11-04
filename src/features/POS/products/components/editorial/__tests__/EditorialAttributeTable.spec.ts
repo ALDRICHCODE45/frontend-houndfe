@@ -76,6 +76,8 @@ describe('EditorialAttributeTable structure', () => {
     expect(source).toMatch(/\.hf-attr-table\s*\{[^}]*overflow-x:\s*auto/)
     expect(source).toMatch(/th\[scope='row'\][^{]*\{[^}]*position:\s*sticky[^}]*left:\s*0/)
     expect(source).not.toMatch(/\buppercase\b/)
+    // On a phone the sticky attribute column is narrow, so the controls keep most of the screen.
+    expect(source).toMatch(/@media \(max-width: 767px\)[\s\S]*th\[scope='row'\][^{]*\{[^}]*width:\s*8rem/)
   })
 
   it('shows only the requested rows', () => {

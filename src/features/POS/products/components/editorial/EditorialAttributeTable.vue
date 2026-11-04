@@ -99,4 +99,9 @@ function moveDown(source: HTMLElement) {
 .hf-attr-table__table th[scope='row'] { padding-top: 18px; color: var(--hf-heading); font-weight: 500; }
 .hf-attr-table__none { color: var(--hf-muted); padding-top: 18px; }
 .hf-attr-table__note { margin: 0; padding: 10px 12px; border-top: 1px solid var(--hf-border); color: var(--hf-muted); font-size: 13px; }
+@media (max-width: 767px) {
+  .hf-attr-table__table th[scope='row'], .hf-attr-table__table thead th:first-child { width: 8rem; min-width: 8rem; }
+  .hf-attr-table__table th[scope='row'] { font-size: 13px; }
+  .hf-attr-table__table th, .hf-attr-table__table td { padding-inline: 10px; }
+}
 </style>

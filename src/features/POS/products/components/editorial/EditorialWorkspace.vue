@@ -259,7 +259,7 @@ function factsChanged(facts: EditorialDocumentEditingState['facts']) { if (buffe
             <StatusBadge v-else label="Publicado" tone="info" aria-prefix="Estado de la ficha:" />
             <span class="editorial-spacer" />
             <button type="button" class="editorial-button" data-testid="open-history" @click="historyOpen = true">
-              <UIcon name="i-lucide-history" class="size-4" aria-hidden="true" />Historial
+              <UIcon name="i-lucide-history" class="size-4" aria-hidden="true" /><span class="editorial-history-label">Historial</span>
             </button>
           </div>
           <div class="editorial-toolbar" role="toolbar" aria-label="Resumen y filtros de la ficha">
@@ -391,6 +391,11 @@ function factsChanged(facts: EditorialDocumentEditingState['facts']) { if (buffe
 .editorial-skeleton-bar { height: 14px; border-radius: var(--hf-radius-control); }
 .editorial-skeleton-cell { height: 44px; }
 @media (max-width: 767px) {
+  .editorial-history-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .editorial-toolbar :deep(.family-field) { flex: 1 1 100%; }
+  .editorial-toolbar :deep(.family-field .control) { flex: 1 1 0; }
+  .editorial-toolbar .editorial-spacer { display: none; }
+  .editorial-completeness { flex: 1 1 0; justify-content: flex-end; }
   .editorial-footer { margin-inline: -4px; }
   .editorial-footer__actions { display: grid; grid-template-columns: auto minmax(0, 1fr); width: 100%; }
   .editorial-footer__soon { display: none; }
