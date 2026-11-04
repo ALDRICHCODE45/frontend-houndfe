@@ -57,8 +57,9 @@ const baseStubs = {
 type ToolbarProps = Record<string, unknown>
 
 /** S1 containment class contract shared by root and region wrappers. */
-function expectRegionContainment(classes: string[]) {
-  expect(classes).toContain('w-full')
+function expectRegionContainment(classes: string[], fullWidth = true) {
+  // Full-width rows fill the toolbar; the Filtros and actions regions share the controls row.
+  expect(classes.includes('w-full')).toBe(fullWidth)
   expect(classes).toContain('min-w-0')
   expect(classes).toContain('max-w-full')
 }
@@ -80,6 +81,15 @@ function mountToolbar(
 }
 
 describe('DataTableToolbar — testid pass-through (REQ-QAF-016)', () => {
+  it('has no refresh button by default (Reintentar in the error state is the retry)', () => {
+    for (const mobile of [false, true]) {
+      isBelowBreakpoint.value = mobile
+      const wrapper = mountToolbar({ showAddButton: true, refreshButtonTestId: 'refresh-btn' })
+      expect(wrapper.find('[data-testid="refresh-btn"]').exists()).toBe(false)
+    }
+    isBelowBreakpoint.value = false
+  })
+
   it('does not render a data-testid on the refresh button by default', () => {
     const wrapper = mountToolbar({ showRefresh: true })
 
@@ -122,17 +132,17 @@ describe('DataTableToolbar — testid pass-through (REQ-QAF-016)', () => {
 })
 
 // ─── Mobile three-region layout ───────────────────────────────────────────────
-// Below `md`, the toolbar renders three stacked regions in fixed order:
-// search full-width (row 1), actions cluster (row 2), "Filtros" button
-// (row 3). Requirements live in the proposal and the spec
-// (data-table-toolbar/spec.md → Requirement: Mobile three-region layout).
+// Below `md`, the toolbar renders two rows (Toolbar pattern in
+// docs/design-system.md): the search on its own row, then ONE row with
+// "Filtros" on the left and the actions cluster on the right. The primary
+// action always carries its label; there is no icon-only primary.
 
-describe('DataTableToolbar — mobile three-region layout', () => {
+describe('DataTableToolbar — mobile two-row layout', () => {
   beforeEach(() => {
     isBelowBreakpoint.value = true
   })
 
-  it('renders search → actions → filters row order on a full mobile toolbar', () => {
+  it('renders the search row, then one controls row with Filtros left and actions right', () => {
     const wrapper = mountToolbar(
       {
         showAddButton: true,
@@ -148,21 +158,59 @@ describe('DataTableToolbar — mobile three-region layout', () => {
     )
 
     const regions = wrapper.findAll('[data-testid^="toolbar-mobile-"]')
-    expect(regions.length).toBe(3)
-    expect(regions[0]?.attributes('data-testid')).toBe('toolbar-mobile-search-row')
-    expect(regions[1]?.attributes('data-testid')).toBe('toolbar-mobile-actions-row')
-    expect(regions[2]?.attributes('data-testid')).toBe('toolbar-mobile-filters-row')
+    expect(regions.map(r => r.attributes('data-testid'))).toEqual([
+      'toolbar-mobile-search-row',
+      'toolbar-mobile-controls-row',
+      'toolbar-mobile-filters-row',
+      'toolbar-mobile-actions-row',
+    ])
+    const controls = wrapper.get('[data-testid="toolbar-mobile-controls-row"]')
+    expect(controls.element.parentElement).toBe(wrapper.element)
+    // Filtros and the actions are the two children of ONE row.
+    expect(Array.from(controls.element.children).map(c => c.getAttribute('data-testid'))).toEqual([
+      'toolbar-mobile-filters-row',
+      'toolbar-mobile-actions-row',
+    ])
+    expect(controls.classes()).toEqual(expect.arrayContaining(['flex', 'items-center', 'justify-between']))
+    expect(controls.classes()).not.toContain('flex-wrap')
+    expect(wrapper.get('[data-testid="toolbar-mobile-filters-row"]').find('[data-testid="toolbar-filtros-button"]').exists()).toBe(true)
+  })
+
+  it('shows the primary action WITH its label, never icon-only', () => {
+    const wrapper = mountToolbar({
+      showAddButton: true,
+      addButtonText: 'Nuevo producto',
+      addButtonTestId: 'add-btn',
+    })
+    const add = wrapper.get('[data-testid="add-btn"]')
+    expect(add.text()).toContain('Nuevo producto')
+    expect(add.attributes('aria-label')).toBeUndefined()
+    expect(wrapper.get('[data-testid="toolbar-mobile-actions-row"]').text()).toContain('Nuevo producto')
+  })
+
+  it('keeps the primary on the right when there are no filters, in the same single row', () => {
+    const wrapper = mountToolbar({ showAddButton: true, addButtonText: 'Nueva cotización' })
+    const controls = wrapper.get('[data-testid="toolbar-mobile-controls-row"]')
+    expect(wrapper.find('[data-testid="toolbar-mobile-filters-row"]').exists()).toBe(false)
+    expect(controls.get('[data-testid="toolbar-mobile-actions-row"]').classes()).toContain('ml-auto')
+  })
+
+  it('renders only the Filtros button when there is no primary action', () => {
+    const wrapper = mountToolbar({}, { filters: '<span data-testid="fake-filter" />' })
+    expect(wrapper.find('[data-testid="toolbar-filtros-button"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="toolbar-mobile-actions-row"]').exists()).toBe(false)
   })
 
   it('renders only the search row when there are no actions or filters on mobile', () => {
     const wrapper = mountToolbar({})
 
     expect(wrapper.find('[data-testid="toolbar-mobile-search-row"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="toolbar-mobile-controls-row"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="toolbar-mobile-actions-row"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="toolbar-mobile-filters-row"]').exists()).toBe(false)
   })
 
-  it('uses flex-wrap on the mobile actions cluster so nothing clips at 360px', () => {
+  it('lets the actions cluster shrink so nothing clips at 360px', () => {
     const wrapper = mountToolbar(
       {
         showAddButton: true,
@@ -174,7 +222,7 @@ describe('DataTableToolbar — mobile three-region layout', () => {
 
     const actionsRow = wrapper.get('[data-testid="toolbar-mobile-actions-row"]')
     const classes = (actionsRow.element.getAttribute('class') ?? '').split(/\s+/)
-    expect(classes).toContain('flex-wrap')
+    expect(classes).toContain('min-w-0')
     expect(classes).toContain('gap-2')
   })
 
@@ -186,7 +234,7 @@ describe('DataTableToolbar — mobile three-region layout', () => {
     expect(wrapper.text()).not.toContain('Columnas')
   })
 
-  it('renders add → refresh → actions slot in fixed order on mobile when Columnas is absent', () => {
+  it('renders refresh → actions slot → add (primary last, at the right edge) on mobile when Columnas is absent', () => {
     const wrapper = mountToolbar(
       {
         showAddButton: true,
@@ -205,9 +253,9 @@ describe('DataTableToolbar — mobile three-region layout', () => {
     const refreshIdx = html.indexOf('data-testid="refresh-btn"')
     const slotIdx = html.indexOf('data-testid="fake-action"')
 
-    expect(addIdx).toBeGreaterThan(-1)
-    expect(refreshIdx).toBeGreaterThan(addIdx)
+    expect(refreshIdx).toBeGreaterThan(-1)
     expect(slotIdx).toBeGreaterThan(refreshIdx)
+    expect(addIdx).toBeGreaterThan(slotIdx)
     // Columnas dropdown is gated on `tableApi`; it doesn't render in the unit
     // mount without AppDataTable wiring. The integration test (in the
     // AppDataTable suite) covers the column-visibility presence.
@@ -238,30 +286,34 @@ describe('DataTableToolbar — mobile containment and breakpoint alignment (S1)'
     )
     // The old sm:flex-row row-ified the still-mobile 640–767 px markup.
     expect(classes).not.toContain('sm:flex-row')
-    // Three canonical mobile regions, ordered, wrapped, and contained.
+    // Canonical mobile regions, ordered and contained.
     const regions = wrapper.findAll('[data-testid^="toolbar-mobile-"]')
     expect(regions.map(r => r.attributes('data-testid'))).toEqual([
       'toolbar-mobile-search-row',
-      'toolbar-mobile-actions-row',
+      'toolbar-mobile-controls-row',
       'toolbar-mobile-filters-row',
+      'toolbar-mobile-actions-row',
     ])
     for (const region of regions) {
-      expectRegionContainment(region.classes())
+      expectRegionContainment(region.classes(), !/filters-row|actions-row/.test(region.attributes('data-testid') ?? ''))
     }
-    expect(regions[1]!.classes()).toContain('flex-wrap')
   })
 
-  it('constrains the two regions that exist when filters are absent', () => {
+  it('constrains the regions that exist when filters are absent', () => {
     const regions = mountToolbar({ showAddButton: true, showRefresh: true }).findAll(
       '[data-testid^="toolbar-mobile-"]',
     )
-    expect(regions.length).toBe(2)
+    expect(regions.map(r => r.attributes('data-testid'))).toEqual([
+      'toolbar-mobile-search-row',
+      'toolbar-mobile-controls-row',
+      'toolbar-mobile-actions-row',
+    ])
     for (const region of regions) {
-      expectRegionContainment(region.classes())
+      expectRegionContainment(region.classes(), !/filters-row|actions-row/.test(region.attributes('data-testid') ?? ''))
     }
   })
 
-  it('retains the fixed add → refresh → actions-slot order on the wrapping region', () => {
+  it('retains the fixed refresh → actions-slot → add order on the actions region', () => {
     const wrapper = mountToolbar(
       {
         showAddButton: true,
@@ -277,9 +329,9 @@ describe('DataTableToolbar — mobile containment and breakpoint alignment (S1)'
     const addIdx = html.indexOf('data-testid="add-btn"')
     const refreshIdx = html.indexOf('data-testid="refresh-btn"')
     const slotIdx = html.indexOf('data-testid="fake-action"')
-    expect(addIdx).toBeGreaterThan(-1)
-    expect(refreshIdx).toBeGreaterThan(addIdx)
+    expect(refreshIdx).toBeGreaterThan(-1)
     expect(slotIdx).toBeGreaterThan(refreshIdx)
+    expect(addIdx).toBeGreaterThan(slotIdx)
   })
 
   it('preserves desktop row semantics and the unchanged filter sheet contract', () => {
@@ -614,7 +666,7 @@ describe('DataTableToolbar — products-visual marker hooks (T2 / S2)', () => {
     expect(actionsIdx).toBeGreaterThan(filtersIdx)
   })
 
-  it('marks the three mobile regions with the same hooks and no reordering', () => {
+  it('marks the mobile regions with the same hooks and no reordering', () => {
     isBelowBreakpoint.value = true
     const wrapper = mountToolbar(
       { showAddButton: true, showRefresh: true },
@@ -638,8 +690,9 @@ describe('DataTableToolbar — products-visual marker hooks (T2 / S2)', () => {
     const regions = wrapper.findAll('[data-testid^="toolbar-mobile-"]')
     expect(regions.map(r => r.attributes('data-testid'))).toEqual([
       'toolbar-mobile-search-row',
-      'toolbar-mobile-actions-row',
+      'toolbar-mobile-controls-row',
       'toolbar-mobile-filters-row',
+      'toolbar-mobile-actions-row',
     ])
   })
 

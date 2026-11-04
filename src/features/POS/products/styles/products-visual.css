@@ -26,43 +26,9 @@
 
 /* ── Toolbar ─────────────────────────────────────────────────────────────── */
 
-/* From `md` up the toolbar becomes a two-row grid: search and the action
- * cluster share the first row, and the type filter drops to a second row so
- * the segmented view toggle is never clipped by an inline filter. The search
- * region is dissolved with `display: contents` so its children participate in
- * the grid directly. Mobile keeps the shared three-row stack untouched. */
-@media (min-width: 768px) {
-  .products-visual .hf-toolbar {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 0.5rem 0.75rem;
-  }
-
-  .products-visual .hf-toolbar-search-region {
-    display: contents;
-  }
-
-  .products-visual .hf-toolbar-search {
-    grid-area: 1 / 1;
-    width: 100%;
-    max-width: 26rem;
-  }
-
-  .products-visual .hf-toolbar-actions {
-    grid-area: 1 / 2;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    justify-self: end;
-  }
-
-  .products-visual .hf-toolbar-filters {
-    grid-area: 2 / 1 / 3 / -1;
-  }
-}
-
-/* One control height for the whole toolbar row; wraps instead of clipping when
- * the action cluster runs out of horizontal room. */
+/* Layout (search, filters and actions on one row from md; search, then Filtros
+ * and the primary on mobile) belongs to the shared DataTableToolbar. This scope
+ * only sets one control height for the whole toolbar row. */
 .products-visual .hf-toolbar :where(button, input, [data-slot='root']) {
   min-height: var(--hf-control-height);
 }

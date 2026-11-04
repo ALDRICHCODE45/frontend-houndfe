@@ -64,7 +64,7 @@ const tableApi = defineModel<any>('tableApi')
 // `useBreakpoints(breakpointsTailwind).smaller('md')` evaluates to `true` for
 // viewports strictly below Tailwind's `md` breakpoint (768px). At `md`+ the
 // toolbar keeps the historical horizontal layout (inline filters beside search,
-// actions right) — only mobile gets the three-region treatment.
+// actions right) — only mobile gets the two-row treatment.
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = breakpoints.smaller('md')
 
@@ -185,7 +185,7 @@ function capitalize(str: string): string {
       </div>
     </template>
 
-    <!-- ─── Mobile layout (< md) — three fixed regions ─────────────────── -->
+    <!-- ─── Mobile layout (< md) — two rows: search, then Filtros + actions ── -->
     <template v-else>
       <!-- Row 1 — search full-width -->
       <div
@@ -201,96 +201,102 @@ function capitalize(str: string): string {
         />
       </div>
 
-      <!-- Row 2 — actions cluster (flex-wrap, fixed order) -->
+      <!-- Row 2 — ONE row: Filtros on the left, the actions on the right.
+           The primary keeps its label (no icon-only primary) and sits last,
+           at the right edge. Order of the cluster: refresh → Columnas →
+           actions slot → add. -->
       <div
-        v-if="showAddButton || showRefresh || showColumnVisibility || !!slots.actions"
-        class="hf-toolbar-actions flex w-full min-w-0 max-w-full flex-wrap items-center gap-2"
-        data-testid="toolbar-mobile-actions-row"
+        v-if="hasFiltersSlot || showAddButton || showRefresh || showColumnVisibility || !!slots.actions"
+        class="flex w-full min-w-0 max-w-full items-center justify-between gap-2"
+        data-testid="toolbar-mobile-controls-row"
       >
-        <!-- Mobile order: add → refresh → Columnas → actions slot -->
-        <UButton
-          v-if="showAddButton"
-          :icon="addButtonIcon"
-          :aria-label="addButtonText"
-          :title="addButtonText"
-          :data-testid="addButtonTestId"
-          @click="emit('add')"
-        />
-
-        <UTooltip v-if="showRefresh" text="Refrescar" :ui="{ content: props.portalClass }">
-          <UButton
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-refresh-cw"
-            :loading="fetching"
-            :data-testid="refreshButtonTestId"
-            @click="emit('refresh')"
-          />
-        </UTooltip>
-
-        <UDropdownMenu
-          v-if="showColumnVisibility && tableApi"
-          :items="
-            tableApi
-              .getAllColumns()
-              .filter((col: any) => col.getCanHide())
-              .map((col: any) => ({
-                label:
-                  typeof col.columnDef.header === 'string'
-                    ? col.columnDef.header
-                    : typeof col.columnDef.header === 'function'
-                      ? col.columnDef.header() || capitalize(col.id)
-                      : capitalize(col.id),
-                icon: col.getIsVisible() ? 'i-lucide-circle-check-big' : 'i-lucide-circle',
-                onSelect: (e: Event) => {
-                  e.preventDefault()
-                  col.toggleVisibility(!col.getIsVisible())
-                },
-              }))
-          "
-          :content="{ align: 'end' as const }"
-          :ui="{
-            itemLeadingIcon: 'size-4 text-primary',
-            content: props.portalClass,
-          }"
+        <div
+          v-if="hasFiltersSlot"
+          class="hf-toolbar-filters flex min-w-0 max-w-full shrink-0 items-center gap-2"
+          data-testid="toolbar-mobile-filters-row"
         >
           <UButton
             color="neutral"
             variant="outline"
-            icon="i-lucide-columns-3"
-            :aria-label="'Columnas'"
-            :title="'Columnas'"
-            trailing-icon="i-lucide-chevron-down"
-            data-testid="toolbar-mobile-columns-button"
-          />
-        </UDropdownMenu>
+            data-testid="toolbar-filtros-button"
+            @click="openFilters"
+          >
+            <template #leading>
+              <UIcon name="i-lucide-sliders-horizontal" />
+            </template>
+            Filtros
+            <UBadge
+              v-if="activeFilterCount > 0"
+              :label="String(activeFilterCount)"
+              color="primary"
+              data-testid="toolbar-filtros-badge"
+            />
+          </UButton>
+        </div>
 
-        <slot name="actions" />
-      </div>
-
-      <!-- Row 3 — Filtros button + (optional) active-count badge -->
-      <div
-        v-if="hasFiltersSlot"
-        class="hf-toolbar-filters flex w-full min-w-0 max-w-full items-center gap-2"
-        data-testid="toolbar-mobile-filters-row"
-      >
-        <UButton
-          color="neutral"
-          variant="outline"
-          data-testid="toolbar-filtros-button"
-          @click="openFilters"
+        <div
+          v-if="showAddButton || showRefresh || showColumnVisibility || !!slots.actions"
+          class="hf-toolbar-actions ml-auto flex min-w-0 max-w-full items-center justify-end gap-2"
+          data-testid="toolbar-mobile-actions-row"
         >
-          <template #leading>
-            <UIcon name="i-lucide-sliders-horizontal" />
-          </template>
-          Filtros
-          <UBadge
-            v-if="activeFilterCount > 0"
-            :label="String(activeFilterCount)"
-            color="primary"
-            data-testid="toolbar-filtros-badge"
+          <UTooltip v-if="showRefresh" text="Refrescar" :ui="{ content: props.portalClass }">
+            <UButton
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-refresh-cw"
+              :loading="fetching"
+              :data-testid="refreshButtonTestId"
+              @click="emit('refresh')"
+            />
+          </UTooltip>
+
+          <UDropdownMenu
+            v-if="showColumnVisibility && tableApi"
+            :items="
+              tableApi
+                .getAllColumns()
+                .filter((col: any) => col.getCanHide())
+                .map((col: any) => ({
+                  label:
+                    typeof col.columnDef.header === 'string'
+                      ? col.columnDef.header
+                      : typeof col.columnDef.header === 'function'
+                        ? col.columnDef.header() || capitalize(col.id)
+                        : capitalize(col.id),
+                  icon: col.getIsVisible() ? 'i-lucide-circle-check-big' : 'i-lucide-circle',
+                  onSelect: (e: Event) => {
+                    e.preventDefault()
+                    col.toggleVisibility(!col.getIsVisible())
+                  },
+                }))
+            "
+            :content="{ align: 'end' as const }"
+            :ui="{
+              itemLeadingIcon: 'size-4 text-primary',
+              content: props.portalClass,
+            }"
+          >
+            <UButton
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-columns-3"
+              :aria-label="'Columnas'"
+              :title="'Columnas'"
+              trailing-icon="i-lucide-chevron-down"
+              data-testid="toolbar-mobile-columns-button"
+            />
+          </UDropdownMenu>
+
+          <slot name="actions" />
+
+          <UButton
+            v-if="showAddButton"
+            :label="addButtonText"
+            :icon="addButtonIcon"
+            :data-testid="addButtonTestId"
+            @click="emit('add')"
           />
-        </UButton>
+        </div>
       </div>
 
       <!-- Filters bottom-sheet — three-region layout (REQ-2..4 / WU-2):

@@ -1,7 +1,8 @@
 import { defineComponent, h } from 'vue'
 import { mount } from '@vue/test-utils'
 import UApp from '@nuxt/ui/runtime/components/App.vue'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import DataTableToolbar from '../DataTableToolbar.vue'
 import ToolbarSelectFilter from '../ToolbarSelectFilter.vue'
@@ -61,5 +62,21 @@ describe('evidence server', () => {
     expect(server).toMatch(/@source "\.\.\/"/)
     expect(server).toMatch(/src\/assets\/main\.css/)
     expect(server).toMatch(/enforce: 'pre'/)
+  })
+})
+
+describe('feature CSS never moves the toolbar filters off the search row', () => {
+  const cssFiles = (dir: string): string[] =>
+    readdirSync(dir).flatMap(name => {
+      const path = join(dir, name)
+      if (name === 'node_modules' || name === '__tests__') return []
+      return statSync(path).isDirectory() ? cssFiles(path) : path.endsWith('.css') ? [path] : []
+    })
+
+  it('only the sales list, whose filters are chips plus status tabs, re-grids .hf-toolbar-filters', () => {
+    const offenders = cssFiles('src')
+      .filter(file => /\.hf-toolbar-filters/.test(readFileSync(file, 'utf8')))
+      .map(file => file.replace(/^src\//, ''))
+    expect(offenders).toEqual(['features/POS/sales/styles/sales-list-visual.css'])
   })
 })

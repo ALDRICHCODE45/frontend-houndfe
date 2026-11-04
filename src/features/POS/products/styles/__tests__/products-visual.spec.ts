@@ -74,17 +74,6 @@ function inMedia(source: string, selector: string): CSSStyleRule | undefined {
   return rulesInMedia(source, 'min-width').find((rule) => rule.selectorText.trim() === selector)
 }
 
-/** A rule declared outside every media query. */
-function topLevelRule(source: string, selector: string): CSSStyleRule | undefined {
-  const style = document.createElement('style')
-  style.textContent = source.replace(/^@import.*$/gm, '')
-  document.head.append(style)
-  styles.push(style)
-  return Array.from(style.sheet?.cssRules ?? [])
-    .filter((rule): rule is CSSStyleRule => rule.type === CSSRule.STYLE_RULE)
-    .find((rule) => rule.selectorText.trim() === selector)
-}
-
 function splitTopLevel(selectorText: string): string[] {
   const parts: string[] = []
   let depth = 0
@@ -423,22 +412,14 @@ describe('Products pilot adapter', () => {
     expect(scope.style.getPropertyValue('--radius-full')).toBe('')
   })
 
-  it('balances the desktop toolbar into a search/actions row plus a filters row', () => {
-    const toolbar = inMedia(products, '.products-visual .hf-toolbar')!
-    expect(toolbar.style.getPropertyValue('display').trim()).toBe('grid')
-    expect(toolbar.style.getPropertyValue('grid-template-columns').trim()).toContain(
-      'minmax(0, 1fr)',
-    )
-
-    const searchRegion = inMedia(products, '.products-visual .hf-toolbar-search-region')!
-    expect(searchRegion.style.getPropertyValue('display').trim()).toBe('contents')
-
-    const search = inMedia(products, '.products-visual .hf-toolbar-search')!
-    const actions = inMedia(products, '.products-visual .hf-toolbar-actions')!
-    const filters = inMedia(products, '.products-visual .hf-toolbar-filters')!
-    expect(search.style.getPropertyValue('grid-area').trim()).toMatch(/^1\s*\/\s*1$/)
-    expect(actions.style.getPropertyValue('grid-area').trim()).toMatch(/^1\s*\/\s*2$/)
-    expect(filters.style.getPropertyValue('grid-area').trim()).toMatch(/^2\s*\//)
+  it('leaves the desktop toolbar layout to the shared component: the type filter stays on the search row', () => {
+    // The shared DataTableToolbar already puts the search, the filters and the
+    // actions on one row from md. A feature must not move `.hf-toolbar-filters`
+    // onto a second grid row (docs/design-system.md, Toolbar select filter).
+    expect(inMedia(products, '.products-visual .hf-toolbar')).toBeUndefined()
+    expect(inMedia(products, '.products-visual .hf-toolbar-search-region')).toBeUndefined()
+    expect(inMedia(products, '.products-visual .hf-toolbar-filters')).toBeUndefined()
+    expect(styleRules(products).some(rule => rule.style.getPropertyValue('grid-area'))).toBe(false)
 
     const controls = styleRules(products).find(
       (rule) =>
@@ -448,11 +429,6 @@ describe('Products pilot adapter', () => {
     expect(controls).toBeDefined()
     expect(controls!.selectorText).toContain('button')
 
-    // The grid must stay desktop-only: the shared mobile three-row stack must
-    // not be replaced by an unscoped toolbar rule.
-    expect(exactRule(products, '.products-visual .hf-toolbar')).toBeDefined()
-    expect(topLevelRule(products, '.products-visual .hf-toolbar')).toBeUndefined()
-    expect(inMedia(products, '.products-visual .hf-toolbar')).toBeDefined()
   })
 
   it('compacts the pagination controls and keeps the summary on a single line', () => {
