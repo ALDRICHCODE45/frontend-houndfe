@@ -35,6 +35,7 @@ import ProductVariantsTable, {
   type ProductVariantRow,
 } from '../components/ProductVariantsTable.vue'
 import { productStatusConfig } from '../utils/productStatusConfig.utils'
+import { productStockTotal } from '../utils/productStockTotal'
 import {
   hasStockOnHand,
   productStockError,
@@ -606,31 +607,22 @@ const previewMarginPercent = computed(() => {
     ((previewPublicPriceCents.value - previewCostCents.value) / previewPublicPriceCents.value) * 100,
   )
 })
-const previewStockTotal = computed(() => {
-  if (formState.type === 'SERVICE' || !formState.useStock) return null
-
-  if (formState.hasVariants) {
-    if (isCreateMode.value) {
-      return pendingVariants.value.reduce((total, variant) => total + variant.quantity, 0)
-    }
-
-    if (variantsList.value.length > 0) {
-      return variantsList.value.reduce((total, variant) => total + variant.quantity, 0)
-    }
-
-    return product.value?.variantStockTotal ?? 0
-  }
-
-  if (formState.useLotsAndExpirations) {
-    if (isCreateMode.value) {
-      return pendingLots.value.reduce((total, lot) => total + lot.quantity, 0)
-    }
-
-    return lotsList.value.reduce((total, lot) => total + lot.quantity, 0)
-  }
-
-  return formState.quantity
-})
+const previewStockTotal = computed(() =>
+  productStockTotal({
+    type: formState.type,
+    useStock: formState.useStock,
+    hasVariants: formState.hasVariants,
+    useLotsAndExpirations: formState.useLotsAndExpirations,
+    isCreateMode: isCreateMode.value,
+    formQuantity: formState.quantity,
+    pendingVariants: pendingVariants.value,
+    variants: variantsList.value,
+    variantStockTotal: product.value?.variantStockTotal ?? undefined,
+    pendingLots: pendingLots.value,
+    lots: lotsList.value,
+    savedQuantity: product.value?.quantity ?? undefined,
+  }),
+)
 const previewChecklistItems = computed(() => [
   { label: 'Nombre del producto', done: formState.name.trim().length >= 2, disabled: false },
   { label: 'Precio de venta definido', done: previewPublicPriceCents.value > 0, disabled: false },
