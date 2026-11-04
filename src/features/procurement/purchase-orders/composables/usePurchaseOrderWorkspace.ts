@@ -50,6 +50,8 @@ export function usePurchaseOrderWorkspace(context: MaybeRefOrGetter<OrderWorkspa
   let epoch = 0
   let request = 0
   let invoker: HTMLButtonElement | null = null
+  // The transition dialog opens over the editor, so it keeps its own invoker.
+  let transitionInvoker: HTMLButtonElement | null = null
   function captureInvoker() { invoker = document.activeElement instanceof HTMLButtonElement ? document.activeElement : null }
   function restoreInvoker(event: Event) {
     event.preventDefault()
@@ -57,8 +59,14 @@ export function usePurchaseOrderWorkspace(context: MaybeRefOrGetter<OrderWorkspa
     invoker = null
     void nextTick(() => { if (origin === epoch && !open.value && !deleteTarget.value && !transition.value && button?.isConnected && !button.disabled) button.focus({ preventScroll: true }) })
   }
+  function restoreTransitionInvoker(event: Event) {
+    event.preventDefault()
+    const button = transitionInvoker; const origin = epoch
+    transitionInvoker = null
+    void nextTick(() => { if (origin === epoch && open.value && !transition.value && button?.isConnected && !button.disabled) button.focus({ preventScroll: true }) })
+  }
   function reset() {
-    epoch++; request++; invoker = null; id.value = null; selected.value = null; open.value = false; dirty.value = false
+    epoch++; request++; invoker = null; transitionInvoker = null; id.value = null; selected.value = null; open.value = false; dirty.value = false
     deleteTarget.value = null; transition.value = null; lastKind.value = 'save'; detailLoading.value = false; detailError.value = ''; notice.value = ''
   }
   watch(() => { const c = toValue(context); return [c.userId, c.tenantId, c.ready, c.canRead, c.canCreate, c.canUpdate, c.canDelete, c.canConfirm, c.canCancel, c.canReadProduct, c.canReadSupplier] }, reset, { flush: 'sync' })
@@ -156,7 +164,8 @@ export function usePurchaseOrderWorkspace(context: MaybeRefOrGetter<OrderWorkspa
   }
   function requestTransition(kind: 'confirm' | 'cancel') {
     if (detailLoading.value || locked.value || dirty.value || !transitionAllowed(kind)) return
-    captureInvoker(); commands.clearFeedback(); transition.value = kind
+    transitionInvoker = document.activeElement instanceof HTMLButtonElement ? document.activeElement : null
+    commands.clearFeedback(); transition.value = kind
   }
   async function confirmTransition() {
     const kind = transition.value; const order = selected.value
@@ -171,5 +180,5 @@ export function usePurchaseOrderWorkspace(context: MaybeRefOrGetter<OrderWorkspa
   function reload() { if (selected.value) return show(selected.value, true) }
   return { commands, selected, open, editorOpen, deleteOpen, dirty, formKey, detailLoading, detailError, deleteTarget, notice, locked, message, conflict, deleteRejected, canSave,
     transition, transitionOpen, transitionRejected, needsSave, canConfirm, canCancel,
-    create, show, save, close, canLeave, requestDelete, confirmDelete, requestTransition, confirmTransition, retry, reload, restoreInvoker }
+    create, show, save, close, canLeave, requestDelete, confirmDelete, requestTransition, confirmTransition, retry, reload, restoreInvoker, restoreTransitionInvoker }
 }
