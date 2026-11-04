@@ -280,7 +280,7 @@ describe('SaleDetailView', () => {
     // The folio is the 600-weight detail title, never bold.
     expect(wrapper.get('[data-testid="header-folio"]').classes()).toContain('sale-detail-title')
 
-    // Every Datos-tab reflow card sits on the owned fact surface.
+    // Every Datos fact is a plain definition row, never a tinted box.
     for (const testid of [
       'reflow-cajero',
       'reflow-vendedor',
@@ -288,17 +288,14 @@ describe('SaleDetailView', () => {
       'reflow-price-list',
       'reflow-payment-methods',
     ]) {
-      const card = wrapper.get(`[data-testid="${testid}"]`)
-      expect(card.classes()).toContain('sales-detail-fact')
-      expect(card.classes().join(' ')).not.toContain('coco-')
-      expect(card.classes()).not.toContain('bg-white')
+      const fact = wrapper.get(`[data-testid="${testid}"]`)
+      expect(fact.find('dt').exists()).toBe(true)
+      expect(fact.classes().join(' ')).not.toMatch(/coco-|bg-white|border|rounded/)
     }
   })
 
   // HST-REQ-003: the header "Registrar pago" UButton (when canRegisterPayment
-  // is true) follows the Cobrar precedent — the same class string as the
-  // totals-card "Registrar Pago" so both open DebtPaymentModal with identical
-  // visual prominence.
+  // is true) follows the Cobrar precedent (shared primary control).
   it('uses the shared primary control on the register-payment-header button (HST-REQ-003)', () => {
     mockSaleDetail.value = {
       ...defaultSale,
@@ -354,41 +351,21 @@ describe('SaleDetailView', () => {
     expect(wrapper.find('[data-testid="reflow-payment-methods"]').exists()).toBe(true)
     // Cajero from defaultSale = 'Cajero'; customer falls back to 'Público en General'.
     expect(wrapper.find('[data-testid="reflow-cajero"]').text()).toContain('Cajero')
-    expect(wrapper.find('[data-testid="reflow-cliente"]').text()).toContain('Público en General')
+    expect(wrapper.find('[data-testid="reflow-cliente"]').text()).toContain('Público en general')
     // No seller on defaultSale → fallback "Sin asignar".
     expect(wrapper.find('[data-testid="reflow-vendedor"]').text()).toContain('Sin asignar')
   })
 
-  // sales-detail-redesign Slice 4: debt CTA is now inside SaleDetailTotalsCard.
-  // We render the real TotalsCard (no stub) and verify the CTA appears when
-  // debt > 0 and disappears when PAID.
+  // The one primary ("Registrar pago") lives in the header (desktop) or the
+  // sticky bar (mobile); the totals card has no button of its own.
   describe('debt payment CTA (sales-detail-redesign)', () => {
-    function totalsStubWithDebt() {
-      return {
-        props: [
-          'subtotalCents',
-          'discountCents',
-          'totalCents',
-          'paidCents',
-          'debtCents',
-          'changeDueCents',
-          'canRegisterPayment',
-          'isPaymentSubmitting',
-        ],
-        emits: ['register-payment'],
-        template: `
-          <div data-testid="totals">
-            <button
-              v-if="canRegisterPayment"
-              data-testid="register-debt-payment"
-              :disabled="isPaymentSubmitting"
-              @click="$emit('register-payment')"
-            >
-              Registrar Pago
-            </button>
-          </div>
-        `,
-      }
+    const stubs = {
+      UCard: { template: '<div><slot /></div>' },
+      UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
+      SaleDetailItemsList: { template: '<div data-testid="items" />' },
+      SaleDetailTotalsCard: { template: '<div data-testid="totals" />' },
+      SaleDetailTimeline: { template: '<div data-testid="timeline" />' },
+      SaleCommentInput: { template: '<div data-testid="comment-input" />' },
     }
 
     it('shows debt payment CTA for non-PAID sale and opens modal', async () => {
@@ -402,12 +379,7 @@ describe('SaleDetailView', () => {
       const wrapper = mountWithUApp(SaleDetailView, {
         global: {
           stubs: {
-            UCard: { template: '<div><slot /></div>' },
-            UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
-            SaleDetailItemsList: { template: '<div data-testid="items" />' },
-            SaleDetailTotalsCard: totalsStubWithDebt(),
-            SaleDetailTimeline: { template: '<div data-testid="timeline" />' },
-            SaleCommentInput: { template: '<div data-testid="comment-input" />' },
+            ...stubs,
             DebtPaymentModal: {
               props: ['open', 'saleId', 'debtCents'],
               emits: ['submit', 'update:open'],
@@ -418,7 +390,7 @@ describe('SaleDetailView', () => {
         },
       })
 
-      await wrapper.get('[data-testid="register-debt-payment"]').trigger('click')
+      await wrapper.get('[data-testid="register-payment-header"]').trigger('click')
       expect(wrapper.find('[data-testid="submit-debt-payment"]').exists()).toBe(true)
     })
 
@@ -429,10 +401,8 @@ describe('SaleDetailView', () => {
         debtCents: 50000,
         paidCents: 77000,
       }
-      const partialWrapper = mountWithUApp(SaleDetailView, {
-        global: { stubs: { SaleDetailTotalsCard: totalsStubWithDebt() } },
-      })
-      expect(partialWrapper.find('[data-testid="register-debt-payment"]').exists()).toBe(true)
+      const partialWrapper = mountWithUApp(SaleDetailView, { global: { stubs } })
+      expect(partialWrapper.find('[data-testid="register-payment-header"]').exists()).toBe(true)
 
       mockSaleDetail.value = {
         ...defaultSale,
@@ -440,16 +410,12 @@ describe('SaleDetailView', () => {
         debtCents: 127000,
         paidCents: 0,
       }
-      const creditWrapper = mountWithUApp(SaleDetailView, {
-        global: { stubs: { SaleDetailTotalsCard: totalsStubWithDebt() } },
-      })
-      expect(creditWrapper.find('[data-testid="register-debt-payment"]').exists()).toBe(true)
+      const creditWrapper = mountWithUApp(SaleDetailView, { global: { stubs } })
+      expect(creditWrapper.find('[data-testid="register-payment-header"]').exists()).toBe(true)
 
       mockSaleDetail.value = { ...defaultSale, paymentStatus: 'PAID' }
-      const paidWrapper = mountWithUApp(SaleDetailView, {
-        global: { stubs: { SaleDetailTotalsCard: totalsStubWithDebt() } },
-      })
-      expect(paidWrapper.find('[data-testid="register-debt-payment"]').exists()).toBe(false)
+      const paidWrapper = mountWithUApp(SaleDetailView, { global: { stubs } })
+      expect(paidWrapper.find('[data-testid="register-payment-header"]').exists()).toBe(false)
     })
 
     it('disables register payment button while submitting', () => {
@@ -461,12 +427,10 @@ describe('SaleDetailView', () => {
         paidCents: 77000,
       }
 
-      const wrapper = mountWithUApp(SaleDetailView, {
-        global: { stubs: { SaleDetailTotalsCard: totalsStubWithDebt() } },
-      })
+      const wrapper = mountWithUApp(SaleDetailView, { global: { stubs } })
 
       expect(
-        wrapper.get('[data-testid="register-debt-payment"]').attributes('disabled'),
+        wrapper.get('[data-testid="register-payment-header"]').attributes('disabled'),
       ).toBeDefined()
     })
   })
@@ -564,7 +528,7 @@ describe('SaleDetailView', () => {
   // the sticky header can show the "Solo disponible para ventas
   // confirmadas" tooltip (R1).
   describe('actionItems PDF entries (sales-pdf-download)', () => {
-    it('CONFIRMED sale exposes both Recibo A4 and Recibo Ticket enabled with onSelect handlers', () => {
+    it('CONFIRMED sale exposes both Recibo A4 and Recibo ticket enabled with onSelect handlers', () => {
       const wrapper = mountWithDropdown({ ...defaultSale, status: 'CONFIRMED' })
       const items = wrapper.vm.actionItems as Array<{
         label: string
@@ -573,7 +537,7 @@ describe('SaleDetailView', () => {
       }>
 
       const a4 = findActionItem('Recibo A4')(items)
-      const ticket = findActionItem('Recibo Ticket')(items)
+      const ticket = findActionItem('Recibo ticket')(items)
 
       expect(a4).toBeDefined()
       expect(a4?.disabled).toBe(false)
@@ -590,7 +554,7 @@ describe('SaleDetailView', () => {
       const items = wrapper.vm.actionItems as Array<{ label: string; disabled: boolean }>
 
       const a4 = findActionItem('Recibo A4')(items)
-      const ticket = findActionItem('Recibo Ticket')(items)
+      const ticket = findActionItem('Recibo ticket')(items)
 
       expect(a4).toBeDefined()
       expect(a4?.disabled).toBe(true)
@@ -632,7 +596,7 @@ describe('SaleDetailView', () => {
 
     function triggerPreviewPdf(
       wrapper: ReturnType<typeof mountWithDropdown>,
-      label: 'Recibo A4' | 'Recibo Ticket',
+      label: 'Recibo A4' | 'Recibo ticket',
     ) {
       const items = wrapper.vm.actionItems as Array<{ label: string; onSelect?: () => void }>
       const item = items.find((i) => i.label === label)
@@ -664,13 +628,13 @@ describe('SaleDetailView', () => {
       vi.useRealTimers()
     })
 
-    it('CONFIRMED click on "Recibo Ticket" passes receipt-ticket format', async () => {
+    it('CONFIRMED click on "Recibo ticket" passes receipt-ticket format', async () => {
       vi.mocked(saleApi.getPdfBlob).mockResolvedValue(
         new Blob(['%PDF'], { type: 'application/pdf' }),
       )
 
       const wrapper = mountWithDropdown({ ...defaultSale, status: 'CONFIRMED' as const })
-      triggerPreviewPdf(wrapper, 'Recibo Ticket')
+      triggerPreviewPdf(wrapper, 'Recibo ticket')
       await nextTick()
       await nextTick()
 
@@ -717,7 +681,7 @@ describe('SaleDetailView', () => {
 
     async function clickAndExpectToast(
       sale: typeof defaultSale,
-      label: 'Recibo A4' | 'Recibo Ticket',
+      label: 'Recibo A4' | 'Recibo ticket',
       expectedDescription: string,
       expectedColor: 'error' | 'warning',
     ) {

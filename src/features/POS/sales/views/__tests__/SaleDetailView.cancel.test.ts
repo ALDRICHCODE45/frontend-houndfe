@@ -277,7 +277,7 @@ describe('SaleDetailView cancellation (PCA-3)', () => {
     const labels = actionItems(wrapper).map((item) => item.label)
 
     expect(labels).toContain('Recibo A4')
-    expect(labels).toContain('Recibo Ticket')
+    expect(labels).toContain('Recibo ticket')
     expect(labels).toContain('Cancelar venta…')
   })
 

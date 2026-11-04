@@ -169,19 +169,18 @@ describe('Sales detail visual adapter', () => {
     expect(view).not.toMatch(/font-bold|coco-neutral|--brand-/)
   })
 
-  it('repaints the sticky header and the fact cards on foundation surfaces', () => {
+  it('repaints the sticky header on the foundation surface and keeps the facts neutral', () => {
     const header = ruleWith(css, '.sales-detail-visual .sales-detail-sticky-header', 'background-color')
     expect(header).toBeDefined()
     expect(header!.style.getPropertyValue('background-color')).toContain('var(--hf-surface)')
 
-    const fact = ruleWith(css, '.sales-detail-visual .sales-detail-fact', 'background-color')
-    expect(fact).toBeDefined()
-    expect(fact!.style.getPropertyValue('background-color').trim()).toBe('var(--hf-surface-muted)')
+    // The facts are a read-only `<dl>` on the card surface: no tinted box.
+    expect(css).not.toContain('.sales-detail-fact ')
+    expect(salesDataCard).not.toContain('sales-detail-fact ')
+    expect(salesDataCard).toContain('<dl')
+    expect(salesDataCard.match(/<dt\b/g) ?? []).toHaveLength(5)
 
-    // The consumer opts in: header marker + five grouped fact cards.
     expect(view).toContain('sales-detail-sticky-header')
-    const factMarkers = salesDataCard.match(/sales-detail-fact\b/g) ?? []
-    expect(factMarkers).toHaveLength(5)
   })
 
   it('keeps the fought primary actions on the opted-in control geometry', () => {
@@ -197,7 +196,8 @@ describe('Sales detail visual adapter', () => {
     )
 
     expect(view).toContain('sales-detail-primary-action')
-    expect(totalsCard).toContain('sales-detail-primary-action')
+    // The totals card carries no primary: header / sticky bar own it.
+    expect(totalsCard).not.toContain('UButton')
     expect(debtModal).toContain('sales-detail-primary-action')
   })
 

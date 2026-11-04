@@ -5,9 +5,7 @@
 // is the S1a carrier for the SHIPPED row + the singular-feminine label
 // ('Enviada', to match its siblings 'Pendiente' / 'Entregada').
 //
-// The badge label is plural ('Enviados') but the FILTER option is
-// singular-feminine — distinct surfaces, distinct copy. Pinning both
-// invariants here keeps the contract visible at review time.
+// The badge and the filter option share the same singular-feminine copy.
 
 import { describe, expect, it } from 'vitest'
 import { createSalesFiltersSchema } from '../salesFiltersSchema'

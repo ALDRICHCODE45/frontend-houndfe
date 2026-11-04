@@ -9,12 +9,6 @@ const props = defineProps<{
   paidCents: number
   debtCents: number
   changeDueCents: number
-  canRegisterPayment?: boolean
-  isPaymentSubmitting?: boolean
-}>()
-
-const emit = defineEmits<{
-  'register-payment': []
 }>()
 
 // Discount is a positive number coming from the backend (e.g. 14000 ==
@@ -84,18 +78,5 @@ const showChangeRow = computed(() => props.changeDueCents > 0)
         <span>{{ formatCentsMXN(changeDueCents) }}</span>
       </div>
     </div>
-
-    <template v-if="canRegisterPayment" #footer>
-      <UButton
-        block
-        icon="i-lucide-credit-card"
-        data-testid="register-debt-payment"
-        class="hf-primary-control sales-detail-primary-action"
-        :disabled="isPaymentSubmitting"
-        @click="emit('register-payment')"
-      >
-        Registrar Pago
-      </UButton>
-    </template>
   </UCard>
 </template>

@@ -76,10 +76,10 @@ describe('SaleDetailTimeline', () => {
 
     const rows = wrapper.findAll('[data-testid="timeline-event"]')
     expect(rows).toHaveLength(4)
-    expect(rows[0]!.text()).toContain('Entrega de Productos')
+    expect(rows[0]!.text()).toContain('Entrega de productos')
     expect(rows[1]!.text()).toContain('Cobro de $100.00 en Tarjeta de Débito')
     expect(rows[2]!.text()).toContain('Cobro de $50.00 en Efectivo')
-    expect(rows[3]!.text()).toContain('Venta Registrada')
+    expect(rows[3]!.text()).toContain('Venta registrada')
   })
 
   it('renders actor name only when present for non-comment events', () => {

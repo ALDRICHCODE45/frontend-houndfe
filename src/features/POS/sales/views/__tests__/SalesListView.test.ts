@@ -561,18 +561,18 @@ describe('SalesListView', () => {
     expect(badge.attributes('data-tone')).toBe('danger')
   })
 
-  it('renders DELIVERED status with the shared StatusBadge (Entregados, success)', () => {
+  it('renders DELIVERED status with the shared StatusBadge (Entregada, success)', () => {
     mockState.data.value = [{ ...initialRow, deliveryStatus: 'DELIVERED' }]
     const badge = cellBadge(mountSalesList(), 'sale-delivery-status')
-    expect(badge.text()).toBe('Entregados')
+    expect(badge.text()).toBe('Entregada')
     expect(badge.attributes('data-tone')).toBe('success')
-    expect(badge.attributes('aria-label')).toBe('Productos: Entregados')
+    expect(badge.attributes('aria-label')).toBe('Productos: Entregada')
   })
 
-  it('renders PENDING delivery status with the danger tone (No Entregados)', () => {
+  it('renders PENDING delivery status with the danger tone (No entregada)', () => {
     mockState.data.value = [{ ...initialRow, deliveryStatus: 'PENDING' }]
     const badge = cellBadge(mountSalesList(), 'sale-delivery-status')
-    expect(badge.text()).toBe('No Entregados')
+    expect(badge.text()).toBe('No entregada')
     expect(badge.attributes('data-tone')).toBe('danger')
   })
 
@@ -966,7 +966,7 @@ describe('SalesListView — preserved invariants (REQ-16)', () => {
     const card = wrapper.get('[data-testid="cards-host"] [data-testid="sale-card"]')
     expect(card.get('.hf-row-primary').text()).toBe('#12')
     expect(card.get('[data-testid="sale-customer"]').text()).toBe('Ada Lovelace')
-    expect(card.findAll('.hf-status-badge').map((b) => b.text())).toEqual(['Impaga', 'Entregados'])
+    expect(card.findAll('.hf-status-badge').map((b) => b.text())).toEqual(['Impaga', 'Entregada'])
     expect(card.get('[data-testid="sale-card-debt"]').text()).toContain('$50.00')
     expect(card.text()).toContain('$1,270.00')
     expect(card.text()).toContain(formatShortDateTime(initialRow.confirmedAt))

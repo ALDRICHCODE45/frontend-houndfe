@@ -146,7 +146,7 @@ describe('Sales native card surface — scoped paint, not boundary variables onl
     const fixture = defineComponent({
       components: { SaleDetailItemsList }, setup: () => ({ marker }),
       template: `<section :class="marker"><SaleDetailItemsList :items="[]" />
-        <div class="sales-detail-fact" data-testid="fact">Dato</div>
+        <div style="background-color: rgb(60, 70, 80)" data-testid="fact">Dato</div>
         <div class="bg-success" data-testid="status">Confirmado</div></section>`,
     })
     const wrapper = mountWithUApp(fixture, { attachTo: document.body })

@@ -29,9 +29,9 @@ describe('SaleDetailItemsList', () => {
     expect(headers).toHaveLength(5)
     expect(headers.map(h => h.text().trim())).toEqual([
       'Producto',
-      'Cant',
-      'Precio Unit',
-      'Desc',
+      'Cant.',
+      'Precio unit.',
+      'Desc.',
       'Subtotal',
     ])
   })

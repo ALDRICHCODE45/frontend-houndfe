@@ -44,8 +44,8 @@ const EVENT_COLORS: Readonly<Record<SaleTimelineEventType, { text: string; bg: s
 const orderedTimeline = computed(() => [...props.timeline].sort((a, b) => b.at.localeCompare(a.at)))
 
 function eventLabel(event: SaleTimelineEvent): string {
-  if (event.type === SALE_TIMELINE_EVENT_TYPE.SALE_REGISTERED) return 'Venta Registrada'
-  if (event.type === SALE_TIMELINE_EVENT_TYPE.PRODUCTS_DELIVERED) return 'Entrega de Productos'
+  if (event.type === SALE_TIMELINE_EVENT_TYPE.SALE_REGISTERED) return 'Venta registrada'
+  if (event.type === SALE_TIMELINE_EVENT_TYPE.PRODUCTS_DELIVERED) return 'Entrega de productos'
   if (event.type === SALE_TIMELINE_EVENT_TYPE.COMMENT) return 'Comentario'
 
   // custom-payment-methods S5B (REQ-CAT-005): the PAYMENT_RECEIVED label

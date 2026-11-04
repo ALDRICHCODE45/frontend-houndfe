@@ -174,94 +174,22 @@ describe('SaleDetailTotalsCard', () => {
     expect(valueSpan?.classes()).toContain('text-(--hf-success)')
   })
 
-  it('hides Registrar Pago button when canRegisterPayment is false or unset', () => {
+  // One primary per view: the header (desktop) or the sticky bar (mobile)
+  // owns "Registrar pago", so the totals card never renders a button.
+  it('has no payment button of its own', () => {
     const wrapper = mountCard({
       props: {
         subtotalCents: 100000,
         discountCents: 0,
         totalCents: 100000,
-        paidCents: 100000,
-        debtCents: 0,
+        paidCents: 50000,
+        debtCents: 50000,
         changeDueCents: 0,
       },
     })
 
+    expect(wrapper.find('button').exists()).toBe(false)
     expect(wrapper.find('[data-testid="register-debt-payment"]').exists()).toBe(false)
-  })
-
-  it('shows Registrar Pago button when canRegisterPayment is true', () => {
-    const wrapper = mountCard({
-      props: {
-        subtotalCents: 100000,
-        discountCents: 0,
-        totalCents: 100000,
-        paidCents: 50000,
-        debtCents: 50000,
-        changeDueCents: 0,
-        canRegisterPayment: true,
-      },
-    })
-
-    expect(wrapper.find('[data-testid="register-debt-payment"]').exists()).toBe(true)
-  })
-
-  it('disables Registrar Pago button while isPaymentSubmitting is true', () => {
-    const wrapper = mountCard({
-      props: {
-        subtotalCents: 100000,
-        discountCents: 0,
-        totalCents: 100000,
-        paidCents: 50000,
-        debtCents: 50000,
-        changeDueCents: 0,
-        canRegisterPayment: true,
-        isPaymentSubmitting: true,
-      },
-    })
-
-    const button = wrapper.get('[data-testid="register-debt-payment"]')
-    expect(button.attributes('disabled')).toBeDefined()
-  })
-
-  it('emits register-payment when Registrar Pago button is clicked', async () => {
-    const wrapper = mountCard({
-      props: {
-        subtotalCents: 100000,
-        discountCents: 0,
-        totalCents: 100000,
-        paidCents: 50000,
-        debtCents: 50000,
-        changeDueCents: 0,
-        canRegisterPayment: true,
-      },
-    })
-
-    await wrapper.get('[data-testid="register-debt-payment"]').trigger('click')
-    expect(wrapper.emitted('register-payment')).toBeTruthy()
-  })
-
-  // HST-REQ-003: register-debt-payment UButton follows the Cobrar precedent
-  // (gold action background, !text-black override, rounded-xl, font-semibold,
-  // shadow-sm) so both the totals card and the header CTA open the same modal
-  // with identical visual prominence.
-  it('uses the shared primary control on the Registrar Pago button (HST-REQ-003)', () => {
-    const wrapper = mountCard({
-      props: {
-        subtotalCents: 100000,
-        discountCents: 0,
-        totalCents: 100000,
-        paidCents: 50000,
-        debtCents: 50000,
-        changeDueCents: 0,
-        canRegisterPayment: true,
-      },
-    })
-
-    const button = wrapper.get('[data-testid="register-debt-payment"]')
-    expect(button.classes()).toEqual(
-      expect.arrayContaining(['hf-primary-control', 'sales-detail-primary-action']),
-    )
-    expect(button.classes().join(' ')).not.toContain('brand-action')
   })
 
   // ── sale-detail-redesign WU-E — wrap totals in UCard with header

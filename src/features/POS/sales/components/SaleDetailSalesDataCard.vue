@@ -56,50 +56,41 @@ function openAssignSeller() {
         Datos de la venta
       </h3>
     </template>
-    <div class="grid gap-3 sm:grid-cols-2">
-      <div
-        class="sales-detail-fact rounded-lg border border-default p-3"
-        data-testid="reflow-cajero"
-      >
-        <p class="sale-detail-fact-label">Cajero</p>
-        <p class="font-medium text-(--hf-heading)">{{ sale.cashier.name }}</p>
+    <dl class="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+      <div data-testid="reflow-cajero">
+        <dt class="sale-detail-fact-label">Cajero</dt>
+        <dd class="sale-detail-fact-value">{{ sale.cashier.name }}</dd>
       </div>
-      <div
-        role="button"
-        tabindex="0"
-        class="sales-detail-fact cursor-pointer rounded-lg border border-default p-3 transition-colors hover:bg-elevated/50"
-        data-testid="reflow-vendedor"
-        @click="openAssignSeller"
-        @keydown.enter.prevent="openAssignSeller"
-        @keydown.space.prevent="openAssignSeller"
-      >
-        <p class="sale-detail-fact-label">Vendedor</p>
-        <p class="font-medium text-(--hf-heading)" :class="{ 'text-muted': !sale.seller }">
-          {{ sale.seller?.name ?? 'Sin asignar — click para asignar' }}
-        </p>
+      <div data-testid="reflow-vendedor">
+        <dt class="sale-detail-fact-label">Vendedor</dt>
+        <dd class="sale-detail-fact-value flex flex-wrap items-center gap-x-2">
+          <span v-if="sale.seller">{{ sale.seller.name }}</span>
+          <span v-else class="text-(--hf-muted)">Sin asignar</span>
+          <UButton
+            variant="link"
+            color="neutral"
+            size="sm"
+            class="sale-detail-fact-action p-0"
+            data-testid="assign-seller"
+            @click="openAssignSeller"
+          >
+            {{ sale.seller ? 'Cambiar' : 'Asignar vendedor' }}
+          </UButton>
+        </dd>
       </div>
-      <div
-        class="sales-detail-fact rounded-lg border border-default p-3"
-        data-testid="reflow-cliente"
-      >
-        <p class="sale-detail-fact-label">Cliente</p>
-        <p class="font-medium text-(--hf-heading)">{{ sale.customer?.name ?? 'Público en General' }}</p>
+      <div data-testid="reflow-cliente">
+        <dt class="sale-detail-fact-label">Cliente</dt>
+        <dd class="sale-detail-fact-value">{{ sale.customer?.name ?? 'Público en general' }}</dd>
       </div>
-      <div
-        class="sales-detail-fact rounded-lg border border-default p-3"
-        data-testid="reflow-price-list"
-      >
-        <p class="sale-detail-fact-label">Lista de precios</p>
-        <p class="font-medium text-(--hf-heading)">{{ priceListName }}</p>
+      <div data-testid="reflow-price-list">
+        <dt class="sale-detail-fact-label">Lista de precios</dt>
+        <dd class="sale-detail-fact-value">{{ priceListName }}</dd>
       </div>
-      <div
-        class="sales-detail-fact rounded-lg border border-default p-3 sm:col-span-2"
-        data-testid="reflow-payment-methods"
-      >
-        <p class="sale-detail-fact-label">Métodos de pago</p>
-        <p v-if="uniquePaymentMethods.length === 0" class="font-medium text-muted">—</p>
-        <p v-else class="font-medium text-(--hf-heading)">{{ uniquePaymentMethods.join(' · ') }}</p>
+      <div class="sm:col-span-2" data-testid="reflow-payment-methods">
+        <dt class="sale-detail-fact-label">Métodos de pago</dt>
+        <dd v-if="uniquePaymentMethods.length === 0" class="sale-detail-fact-value text-(--hf-muted)">—</dd>
+        <dd v-else class="sale-detail-fact-value">{{ uniquePaymentMethods.join(' · ') }}</dd>
       </div>
-    </div>
+    </dl>
   </UCard>
 </template>

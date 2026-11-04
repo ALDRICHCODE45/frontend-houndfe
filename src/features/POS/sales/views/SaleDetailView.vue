@@ -2,6 +2,7 @@
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { AxiosError } from 'axios'
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { useSaleDetail } from '../composables/useSaleDetail'
 import { useDebtPayment } from '../composables/useDebtPayment'
@@ -41,7 +42,9 @@ const authStore = useAuthStore()
 
 const saleId = computed(() => String(route.params.id ?? ''))
 const canReadSales = computed(() => authStore.userCan('read', 'Sale'))
-const { sale, isLoading, isError, refetch } = useSaleDetail(saleId)
+const { sale, isLoading, isError, isNotFound, refetch } = useSaleDetail(saleId)
+// Below md the one primary action moves to the sticky bottom bar.
+const mobile = useBreakpoints(breakpointsTailwind).smaller('md')
 const { addComment, updateComment, deleteComment, isPending: commentsPending, lastError } = useSaleComments(saleId)
 const debtModalOpen = ref(false)
 const sellerSlideoverOpen = ref(false)
@@ -125,7 +128,7 @@ const actionItems = computed(() => {
       },
       {
         key: 'receipt-ticket',
-        label: generating === 'receipt-ticket' ? 'Generando recibo ticket…' : 'Recibo Ticket',
+        label: generating === 'receipt-ticket' ? 'Generando recibo ticket…' : 'Recibo ticket',
         icon: 'i-lucide-download',
         disabled: !isConfirmed || generating !== null,
         loading: generating === 'receipt-ticket',
@@ -190,6 +193,10 @@ const hasAnyAction = computed(() => actionItems.value.length > 0)
 const triggerTooltipText = computed(() =>
   sale.value?.status === SALE_STATUS.DRAFT ? 'Solo disponible para ventas confirmadas' : null,
 )
+
+// Loading shows the shaped skeleton; a not-found or failed request shows its own state.
+const showSkeleton = computed(() => !sale.value && !isError.value && !isNotFound.value)
+const showMobileBar = computed(() => mobile.value && Boolean(sale.value) && canRegisterPayment.value)
 
 function goBack() {
   void router.push('/pos/ventas')
@@ -299,7 +306,7 @@ watch(
       <div class="mx-auto w-full max-w-7xl">
         <div class="flex items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <!-- Identity: back + folio + status badges + date -->
-          <div class="flex min-w-0 items-center gap-3">
+          <div class="flex min-w-0 items-start gap-3 sm:items-center">
             <UButton
               icon="i-lucide-arrow-left"
               variant="ghost"
@@ -339,7 +346,7 @@ watch(
             </div>
 
             <UButton
-              v-if="canRegisterPayment"
+              v-if="canRegisterPayment && !mobile"
               icon="i-lucide-credit-card"
               size="sm"
               data-testid="register-payment-header"
@@ -376,6 +383,27 @@ watch(
       </div>
     </header>
 
+    <!-- Loading: a header bar shaped like the real one, so the page does not
+         jump when the sale arrives (also on mobile, where the header is the
+         only identity the page has). -->
+    <div
+      v-else-if="showSkeleton"
+      class="sales-detail-sticky-header w-full shrink-0 border-b"
+      data-testid="sale-detail-header-skeleton"
+      aria-hidden="true"
+    >
+      <div class="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+        <div class="flex items-center gap-3">
+          <USkeleton class="size-8 rounded-md" />
+          <div class="space-y-2">
+            <USkeleton class="h-5 w-40" />
+            <USkeleton class="h-3.5 w-24" />
+          </div>
+        </div>
+        <USkeleton class="h-9 w-28 rounded-md" />
+      </div>
+    </div>
+
     <!-- Full-width scroll container — the scrollbar sits at the edge of the
          panel body (full width, unlike the old promotions workaround that
          constrained scroll to max-w-6xl); the content is centered below.
@@ -400,22 +428,59 @@ watch(
         />
       </div>
 
-      <!-- Loading skeleton, shaped like the header and the two columns -->
+      <!-- Not found: the record does not exist. An empty state with one way
+           back, never an error and never a redirect. -->
       <div
-        v-else-if="isLoading || !sale"
+        v-else-if="isNotFound && !sale"
+        class="mx-auto w-full max-w-3xl px-6 pb-6 pt-16"
+        data-testid="sale-detail-not-found"
+      >
+        <EmptyState
+          kind="empty"
+          title="No encontramos la venta"
+          description="Puede que se haya eliminado o que el enlace no sea correcto."
+          action-label="Volver a ventas"
+          action-icon="i-lucide-arrow-left"
+          action-test-id="sale-detail-back"
+          @action="goBack"
+        />
+      </div>
+
+      <!-- Loading skeleton: the two columns as titled cards with rows -->
+      <div
+        v-else-if="!sale"
         data-testid="sale-detail-skeleton"
         aria-busy="true"
-        class="mx-auto w-full max-w-7xl space-y-4 px-6 pb-6 pt-16"
+        class="mx-auto w-full max-w-7xl px-4 pb-6 pt-6 sm:px-6 sm:pt-16"
       >
-        <USkeleton class="h-14 w-full rounded-lg" />
         <div class="grid gap-6 lg:grid-cols-[1fr_360px]">
-          <USkeleton class="h-64 w-full rounded-lg" />
-          <USkeleton class="h-64 w-full rounded-lg" />
+          <div class="order-2 space-y-6 lg:order-1">
+            <div
+              v-for="rows in [3, 4, 3]"
+              :key="rows"
+              data-testid="sale-detail-skeleton-card"
+              class="sale-detail-skeleton-card space-y-4 rounded-lg border p-4"
+            >
+              <USkeleton class="h-5 w-36" />
+              <USkeleton v-for="row in rows" :key="row" class="h-4 w-full" />
+            </div>
+          </div>
+          <div class="order-1 space-y-6 lg:order-2">
+            <div
+              v-for="rows in [4, 2]"
+              :key="rows"
+              data-testid="sale-detail-skeleton-card"
+              class="sale-detail-skeleton-card space-y-4 rounded-lg border p-4"
+            >
+              <USkeleton class="h-5 w-28" />
+              <USkeleton v-for="row in rows" :key="row" class="h-4 w-full" />
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- Flat two-column body — replaces the previous UTabs workbench. -->
-      <div v-else class="mx-auto w-full max-w-7xl px-6 pb-6 pt-16">
+      <div v-else class="mx-auto w-full max-w-7xl px-4 pb-6 pt-6 sm:px-6 sm:pt-16">
         <div
           class="grid gap-6 lg:grid-cols-[1fr_360px]"
           data-testid="sale-detail-layout-body"
@@ -444,9 +509,6 @@ watch(
               :paid-cents="sale.paidCents"
               :debt-cents="sale.debtCents"
               :change-due-cents="sale.changeDueCents"
-              :can-register-payment="canRegisterPayment"
-              :is-payment-submitting="isSubmitting"
-              @register-payment="debtModalOpen = true"
             />
             <PaymentsListSection
               :payments="sale.payments"
@@ -482,6 +544,24 @@ watch(
           @confirm="handleConfirmCancellation"
         />
       </div>
+    </div>
+
+    <!-- Mobile: the one primary lives in the sticky bottom bar. -->
+    <div
+      v-if="showMobileBar"
+      class="sale-detail-mobile-bar"
+      data-testid="sale-detail-mobile-bar"
+    >
+      <UButton
+        block
+        icon="i-lucide-credit-card"
+        data-testid="register-payment-mobile"
+        class="hf-primary-control sales-detail-primary-action"
+        :disabled="isSubmitting"
+        @click="debtModalOpen = true"
+      >
+        Registrar pago
+      </UButton>
     </div>
   </div>
 

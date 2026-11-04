@@ -62,13 +62,15 @@
   border-color: var(--hf-border);
 }
 
-/* Detail title (22px/600, 17px on mobile) and its muted meta line. */
+/* Detail title (22px/600, 17px on mobile) and its muted meta line. The title
+ * wraps (never truncates to a few letters) beside the status badges. */
 .sales-detail-visual .sale-detail-title {
   color: var(--hf-heading);
   font-size: 17px;
   font-weight: 600;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
 
 .sales-detail-visual .sale-detail-meta {
@@ -99,19 +101,41 @@
   font-weight: 600;
 }
 
-/* ── Grouped fact cards ──────────────────────────────────────────────────── */
+/* ── Read-only facts ─────────────────────────────────────────────────────── */
 
-/* Cajero/Vendedor/Cliente/Lista de precios/Métodos de pago are secondary
- * grouping inside the DATOS card, so they use the muted surface role. */
-.sales-detail-visual .sales-detail-fact {
-  background-color: var(--hf-surface-muted);
+/* Cajero/Vendedor/Cliente/Lista de precios/Métodos de pago are read-only
+ * facts, so they are a plain `<dl>` on the card surface: a muted label over
+ * the value, with no tinted boxes (tint is reserved for status and urgency). */
+.sales-detail-visual .sale-detail-fact-value {
+  margin-top: 2px;
+  color: var(--hf-heading);
+  font-size: 14px;
+  font-weight: 500;
 }
 
-/* The seller card is an interactive `role="button"` node; the shared focus
- * indicator keeps the keyboard path visible. */
-.sales-detail-visual .sales-detail-fact[role='button']:focus-visible {
-  outline: 2px solid var(--hf-focus);
-  outline-offset: 2px;
+.sales-detail-visual .sale-detail-fact-action {
+  color: var(--hf-action);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+/* ── Loading skeleton ────────────────────────────────────────────────────── */
+
+.sales-detail-visual .sale-detail-skeleton-card {
+  background-color: var(--hf-surface);
+  border-color: var(--hf-border);
+}
+
+/* ── Sticky mobile action bar ────────────────────────────────────────────── */
+
+/* Below md the one primary lives in a bar pinned to the bottom of the panel,
+ * a sibling under the scrolling body so it never covers the last card. */
+.sales-detail-visual .sale-detail-mobile-bar {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  background-color: var(--hf-surface);
+  border-top: 1px solid var(--hf-border);
 }
 
 /* ── Primary action geometry ─────────────────────────────────────────────── */
