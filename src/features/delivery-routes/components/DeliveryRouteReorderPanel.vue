@@ -25,6 +25,7 @@
 import { computed, ref, watch } from 'vue'
 import draggable from 'vuedraggable'
 import { useReorderStops } from '../composables/useReorderStops'
+import { DELIVERY_ROUTE_COPY } from '../copy'
 import {
   assertReorderCoversStops,
 } from '../utils/delivery-route-actions.utils'
@@ -144,7 +145,7 @@ defineExpose({
 
 // ─── Template helpers ───────────────────────────────────────────────────────
 function folioFor(stop: DeliveryRouteStop): string {
-  return stop.saleFolio ?? stop.id.slice(0, 8)
+  return stop.saleFolio ?? DELIVERY_ROUTE_COPY.eligibleSales.noFolio
 }
 
 function customerName(stop: DeliveryRouteStop): string {
@@ -170,7 +171,7 @@ function customerName(stop: DeliveryRouteStop): string {
     class="flex flex-col gap-3"
   >
     <header class="flex items-center justify-between">
-      <h3 class="text-sm font-medium">Reordenar paradas</h3>
+      <h3 class="text-base font-semibold text-highlighted">Reordenar paradas</h3>
       <span class="text-xs text-muted">{{ orderedStops.length }} paradas</span>
     </header>
 
@@ -199,7 +200,7 @@ function customerName(stop: DeliveryRouteStop): string {
             ⋮⋮
           </span>
           <span class="flex-1 truncate text-sm">
-            <span class="font-medium">{{ folioFor(stop) }}</span>
+            <span class="font-semibold">{{ folioFor(stop) }}</span>
             <span class="ml-2 text-muted">{{ customerName(stop) }}</span>
           </span>
           <div class="flex items-center gap-1">
@@ -240,7 +241,8 @@ function customerName(stop: DeliveryRouteStop): string {
     <div class="flex justify-end">
       <UButton
         label="Guardar orden"
-        color="primary"
+        color="neutral"
+        variant="outline"
         :loading="isPending"
         data-testid="reorder-save-button"
         @click="onSave"

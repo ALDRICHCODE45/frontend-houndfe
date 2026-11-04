@@ -94,9 +94,9 @@ describe('buildManagerRouteDetail — stop rows', () => {
     )
     expect(detail.stops.map((s) => [s.position, s.statusLabel, s.statusTone, s.isCurrent])).toEqual([
       [1, 'Entregada', 'success', false],
-      [2, 'En curso', 'warning', true],
+      [2, 'En curso', 'info', true],
       [3, 'Pendiente', 'neutral', false],
-      [4, 'Omitida', 'inactive', false],
+      [4, 'Omitida', 'warning', false],
     ])
   })
 
@@ -132,6 +132,6 @@ describe('buildManagerRouteDetail — stop rows', () => {
       timeLabel: 'Entregada 10:05',
     })
     expect(detail.stops[1]?.timeLabel).toBe('Check-in 10:40')
-    expect(detail.stops[2]).toMatchObject({ customer: 'Cliente sin nombre', folio: 'stop-2-0', address: null, timeLabel: null })
+    expect(detail.stops[2]).toMatchObject({ customer: 'Cliente sin nombre', folio: 'Sin folio', address: null, timeLabel: null })
   })
 })

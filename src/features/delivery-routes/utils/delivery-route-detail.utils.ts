@@ -5,7 +5,8 @@
  * manager sees the same stop the driver is working on.
  */
 import { formatAddress } from '@/core/shared/utils/formatAddress'
-import type { AppBadgeTone } from '@/core/shared/utils/badge.utils'
+import type { StatusBadgeTone } from '@/core/shared/utils/badge.utils'
+import { DELIVERY_ROUTE_COPY } from '../copy'
 import { deriveDriverRouteCockpit } from '../composables/cockpit/useDriverRouteCockpit'
 import {
   DELIVERY_ROUTE_STOP_STATUS_LABELS,
@@ -23,11 +24,13 @@ import {
   type DeliveryRouteProgress,
 } from './delivery-route-list.utils'
 
-const DELIVERY_ROUTE_STOP_STATUS_TONES: Record<DeliveryRouteStopStatus, AppBadgeTone> = {
+// Pending is neutral and the stop in progress is info; a skipped stop went off
+// plan, so it reads as warning (never danger).
+const DELIVERY_ROUTE_STOP_STATUS_TONES: Record<DeliveryRouteStopStatus, StatusBadgeTone> = {
   PENDING: 'neutral',
-  IN_PROGRESS: 'warning',
+  IN_PROGRESS: 'info',
   COMPLETED: 'success',
-  SKIPPED: 'inactive',
+  SKIPPED: 'warning',
 }
 
 interface ManagerRouteKpi {
@@ -43,7 +46,7 @@ interface ManagerRouteStopRow {
   customer: string
   folio: string
   statusLabel: string
-  statusTone: AppBadgeTone
+  statusTone: StatusBadgeTone
   address: string | null
   /** "Entregada 10:05" or "Check-in 10:40"; null when nothing happened yet. */
   timeLabel: string | null
@@ -85,7 +88,7 @@ function buildStopRow(stop: DeliveryRouteStop, currentId: string | null, now: Da
     stop,
     position: stop.sortOrder + 1,
     customer: stop.customer?.name ?? 'Cliente sin nombre',
-    folio: stop.saleFolio ?? stop.id.slice(0, 8),
+    folio: stop.saleFolio ?? DELIVERY_ROUTE_COPY.eligibleSales.noFolio,
     statusLabel: DELIVERY_ROUTE_STOP_STATUS_LABELS[stop.status],
     statusTone: DELIVERY_ROUTE_STOP_STATUS_TONES[stop.status],
     address: address.length > 0 ? address : null,

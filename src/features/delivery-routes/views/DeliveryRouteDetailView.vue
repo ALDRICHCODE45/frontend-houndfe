@@ -33,8 +33,10 @@
 import { computed, ref } from 'vue'
 import { useNow } from '@vueuse/core'
 import { useRoute, useRouter } from 'vue-router'
-import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
+import RowActionsMenu from '@/core/shared/components/RowActionsMenu.vue'
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import { useDeliveryRouteRole } from '../composables/useDeliveryRouteRole'
 import { useDeliveryRouteDetail } from '../composables/useDeliveryRouteDetail'
@@ -52,6 +54,8 @@ import EligibleSalesPicker from '../components/EligibleSalesPicker.vue'
 import TransferDeliveryRouteStopModal from '../components/TransferDeliveryRouteStopModal.vue'
 import { extractDeliveryRouteErrorCode } from '../interfaces/errors'
 import { buildManagerRouteDetail } from '../utils/delivery-route-detail.utils'
+import { deliveryRouteRowActions } from '../utils/delivery-route-actions.utils'
+import { getRouteIssues, routeAvisoLabel } from '../utils/delivery-route-list.utils'
 import DeliveryRouteTimeline from '../components/DeliveryRouteTimeline.vue'
 import {
   DELIVERY_ROUTE_STATUS_LABELS,
@@ -229,75 +233,60 @@ function onMoveStop(stop: DeliveryRouteStop): void {
 }
 
 // ─── Per-action gating ───────────────────────────────────────────────────────
-// Delete button is HIDDEN unless ALL three rules pass:
-//   - DRAFT status (per design §6.3 DELETE-only-for-DRAFT contract)
-//   - zero stops (the backend deletes DRAFT routes only when no stops exist)
-//   - canDelete permission (CASL `delete:DeliveryRoute`)
-// The spec asserts the inverse for each broken rule.
-const canShowDelete = computed<boolean>(() => {
+// The header holds ONE primary (Iniciar ruta) and a ⋮ menu for the rest. The
+// gates live in `deliveryRouteRowActions` (the same ones as the list row menu):
+//   - Edit:   DRAFT + canUpdate
+//   - Start:  DRAFT + at least one stop (the backend rejects empty-route starts
+//             with 422 DELIVERY_ROUTE_INVALID_TRANSITION) + canUpdate
+//   - Cancel: DRAFT or ACTIVE + canUpdate (REQ-DRM-011)
+//   - Delete: DRAFT + zero stops + canDelete (REQ-DRM-008/015)
+// Every gate ignores a cached detail that belongs to ANOTHER route id
+// (keepPreviousData stale guard).
+const currentRoute = computed(() => {
   const r = routeData.value
-  if (!r) return false
-  if (r.id !== routeId.value) return false // keepPreviousData stale guard
-  if (r.status !== 'DRAFT') return false
-  if (r.stops.length !== 0) return false
-  return canDelete.value
+  return r && r.id === routeId.value ? r : null
 })
 
+const routeActions = computed(() =>
+  currentRoute.value
+    ? deliveryRouteRowActions(currentRoute.value, {
+        canUpdate: canUpdate.value,
+        canDelete: canDelete.value,
+      })
+    : [],
+)
+const canShowStart = computed<boolean>(() => routeActions.value.some((action) => action.key === 'start'))
+const menuActions = computed(() =>
+  routeActions.value.filter((action) => action.key !== 'view' && action.key !== 'start'),
+)
+
+function runHeaderAction(key: string): void {
+  if (key === 'edit') isEditOpen.value = true
+  else if (key === 'cancel') onCancel()
+  else if (key === 'delete') onDelete()
+}
+
 // Append-stop is manager-only on DRAFT (any non-DRAFT rejects at the backend).
-// Surfaced as an explicit affordance now (S7 verify remediation): the spec
-// mandates a single-sale selector + button (REQ-DRM-008/013).
+// Surfaced as an explicit affordance (REQ-DRM-008/013): a single-sale selector
+// plus the "Agregar parada" button.
 const canShowAppend = computed<boolean>(() => {
-  const r = routeData.value
+  const r = currentRoute.value
   if (!r) return false
-  if (r.id !== routeId.value) return false // keepPreviousData stale guard
   if (r.status !== 'DRAFT') return false
   return canUpdate.value
 })
 
 // Per-stop "Mover" is available only while BOTH routes can be DRAFT: the source
 // must be DRAFT (destination list is DRAFT-only) and the manager needs update.
-// The keepPreviousData stale guard keeps the control off stale rows.
 const canShowMove = computed<boolean>(() => {
-  const r = routeData.value
+  const r = currentRoute.value
   if (!r) return false
-  if (r.id !== routeId.value) return false
   if (r.status !== 'DRAFT') return false
   return canUpdate.value
 })
 
-// Edit button is HIDDEN unless both rules pass (REQ-DRM-013, S7 verify
-// remediation — was previously rendered for any status when update was held).
-const canShowEdit = computed<boolean>(() => {
-  const r = routeData.value
-  if (!r) return false
-  if (r.id !== routeId.value) return false
-  if (r.status !== 'DRAFT') return false
-  return canUpdate.value
-})
-
-// Start button is HIDDEN unless ALL three rules pass (REQ-DRM-013).
-//   - DRAFT status
-//   - at least one stop (the backend rejects empty-route starts with
-//     422 DELIVERY_ROUTE_INVALID_TRANSITION)
-//   - update permission
-const canShowStart = computed<boolean>(() => {
-  const r = routeData.value
-  if (!r) return false
-  if (r.id !== routeId.value) return false
-  if (r.status !== 'DRAFT') return false
-  if (r.stops.length === 0) return false
-  return canUpdate.value
-})
-
-// Cancel button is ENABLED for routes in DRAFT or ACTIVE (REQ-DRM-011, S7
-// verify remediation — was previously ACTIVE-only). HIDDEN otherwise.
-const canShowCancel = computed<boolean>(() => {
-  const r = routeData.value
-  if (!r) return false
-  if (r.id !== routeId.value) return false
-  if (r.status !== 'DRAFT' && r.status !== 'ACTIVE') return false
-  return canUpdate.value
-})
+/** Draft blockers ("Sin paradas", "Sin repartidor") shown as an inline aviso. */
+const routeIssues = computed(() => (currentRoute.value ? getRouteIssues(currentRoute.value) : []))
 
 // ─── Status / progress helpers ────────────────────────────────────────────────
 function statusTone(status: DeliveryRouteStatus) {
@@ -306,6 +295,9 @@ function statusTone(status: DeliveryRouteStatus) {
 function statusLabel(status: DeliveryRouteStatus) {
   return DELIVERY_ROUTE_STATUS_LABELS[status]
 }
+const MOVE_ACTIONS = [
+  { key: 'move', label: `${DELIVERY_ROUTE_COPY.actions.moveStop}…`, icon: 'i-lucide-arrow-right-left' },
+]
 
 // Manager workspace view model (header, KPIs, progress, rich stop rows).
 // The clock ticks once a minute so "En ruta" stays current.
@@ -374,9 +366,8 @@ defineExpose({
 
 <template>
   <!--
-    Driver branch (REQ-DRM-002 driver side, design §6.4): renders the stop list
-    (S6b) + timeline. The S6b implementation supersedes the S6a placeholder
-    marker that lived here.
+    Four states (S10). Not found / forbidden, loading, error and the manager or
+    driver content are mutually exclusive and evaluated in this order.
   -->
   <!-- Full-page "Ruta no encontrada" state — 404 ENTITY_NOT_FOUND AND driver 403.
        Evaluated FIRST: a real driver whose detail fetch returns 403 must land
@@ -384,61 +375,65 @@ defineExpose({
   <div
     v-if="notFoundCode"
     data-testid="detail-not-found"
-    class="flex flex-col items-center justify-center gap-3 px-4 py-16 text-center"
+    class="hf-theme hf-ui delivery-routes-visual px-4 py-16"
   >
-    <h1 class="text-2xl font-semibold">
-      {{ DELIVERY_ROUTE_COPY.toasts.notFound }}
-    </h1>
-    <p class="text-sm text-muted">
-      La ruta solicitada no está disponible o fue eliminada.
-    </p>
-    <button
-      type="button"
-      class="text-sm text-primary underline"
-      @click="router.push('/pos/rutas-de-entrega')"
-    >
-      Volver a la lista
-    </button>
+    <EmptyState
+      kind="no-match"
+      :title="DELIVERY_ROUTE_COPY.toasts.notFound"
+      description="La ruta solicitada no está disponible o fue eliminada."
+      action-label="Volver a la lista"
+      action-test-id="detail-not-found-back"
+      @action="router.push('/pos/rutas-de-entrega')"
+    />
   </div>
 
-  <!-- Loading skeleton (manager branch only — driver branch is null). -->
+  <!-- Loading skeleton shaped like the workspace: header, KPI tiles, panels. -->
   <div
     v-else-if="isLoading && !routeData"
     data-testid="detail-loading-skeleton"
-    class="flex flex-col gap-4 px-4 py-8 sm:px-6 lg:px-10"
+    aria-busy="true"
+    class="hf-theme hf-ui delivery-routes-visual mx-auto flex w-full min-w-0 max-w-[1320px] flex-col gap-6 px-4 py-6 sm:px-6 md:px-10"
   >
-    <div class="h-8 w-1/3 animate-pulse rounded bg-default" />
-    <div class="h-24 w-full animate-pulse rounded bg-default" />
-    <div class="h-64 w-full animate-pulse rounded bg-default" />
+    <div class="route-skeleton animate-pulse h-14 w-1/3" />
+    <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div v-for="i in 4" :key="i" class="route-skeleton animate-pulse h-20" />
+    </div>
+    <div class="route-skeleton animate-pulse h-64 w-full" />
   </div>
 
   <!-- Generic error (non-404, non-403 — surfaced as a block, not a toast). -->
   <div
     v-else-if="isError"
     data-testid="detail-error-block"
-    class="flex flex-col items-center justify-center gap-3 px-4 py-16 text-center"
+    class="hf-theme hf-ui delivery-routes-visual px-4 py-16"
   >
-    <h1 class="text-2xl font-semibold">No se pudo cargar la ruta</h1>
-    <p class="text-sm text-muted">{{ errorMessage }}</p>
+    <EmptyState
+      kind="error"
+      title="No se pudo cargar la ruta"
+      :description="errorMessage"
+      action-label="Reintentar"
+      action-test-id="detail-error-retry"
+      @action="refetch"
+    />
   </div>
 
-      <!-- Driver branch (S11a): DriverRouteCockpit with typed props; the old
-           card stack + inline timeline are gone (drawer-owned now). -->
-      <div
-        v-else-if="isDriver && routeData && routeData.id === routeId"
-        data-testid="detail-driver-branch"
-        class="hf-theme hf-ui delivery-routes-driver flex flex-col gap-6 px-4 py-6 sm:px-6 lg:px-10"
-      >
-        <DriverRouteCockpit
-          :route="routeData"
-          :is-fetching="isFetching"
-          :can-check-in="canUpdate"
-          :check-in-pending="checkInPending"
-          @back="handleBack"
-          @refresh="handleRefresh"
-          @request-check-in="handleCheckIn"
-        />
-      </div>
+  <!-- Driver branch (S11a): DriverRouteCockpit with typed props; the old
+       card stack + inline timeline are gone (drawer-owned now). -->
+  <div
+    v-else-if="isDriver && routeData && routeData.id === routeId"
+    data-testid="detail-driver-branch"
+    class="hf-theme hf-ui delivery-routes-driver flex flex-col gap-6 px-4 py-6 sm:px-6 lg:px-10"
+  >
+    <DriverRouteCockpit
+      :route="routeData"
+      :is-fetching="isFetching"
+      :can-check-in="canUpdate"
+      :check-in-pending="checkInPending"
+      @back="handleBack"
+      @refresh="handleRefresh"
+      @request-check-in="handleCheckIn"
+    />
+  </div>
 
   <!-- Manager branch — route detail workspace with mutation affordances. Only
        when the cached detail belongs to the CURRENT route id (keepPreviousData
@@ -459,9 +454,8 @@ defineExpose({
       @edit="onEdit"
     />
 
-    <!-- Shared ConfirmModal for start/cancel/delete (S7 verify remediation,
-         REQ-DRM-010/011/012). One modal is reused; the confirmKind ref
-         picks the title/body/handler. -->
+    <!-- Shared ConfirmModal for start/cancel/delete (REQ-DRM-010/011/012).
+         One modal is reused; the confirmKind ref picks the title/body/handler. -->
     <ConfirmModal
       :open="isConfirmOpen"
       :title="confirmTitle"
@@ -484,7 +478,7 @@ defineExpose({
       :stop="transferStop"
     />
 
-    <!-- Header / summary (REQ-DRM-014) -->
+    <!-- Detail header (REQ-DRM-014): meta line, title, one primary + the ⋮. -->
     <header
       data-testid="detail-route-summary"
       class="flex flex-col gap-4"
@@ -492,7 +486,7 @@ defineExpose({
       <button
         type="button"
         data-testid="detail-back-link"
-        class="inline-flex w-fit items-center gap-1.5 rounded-md text-sm text-muted transition hover:text-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        class="route-back-link"
         @click="handleBack"
       >
         <UIcon name="i-lucide-arrow-left" class="size-4" aria-hidden="true" />
@@ -501,44 +495,43 @@ defineExpose({
 
       <div class="flex flex-wrap items-start justify-between gap-4">
         <div class="flex min-w-0 flex-col gap-2">
-          <div class="flex flex-wrap items-center gap-3">
-            <h1
-              class="hf-page-title"
-              data-testid="detail-route-title"
-            >{{ managerDetail.title }}</h1>
-            <StatusDotBadge
+          <div
+            data-testid="detail-route-meta"
+            class="route-detail-meta"
+          >
+            <StatusBadge
+              data-testid="detail-route-status"
               :tone="statusTone(routeData.status)"
               :label="statusLabel(routeData.status)"
             />
-          </div>
-          <p
-            data-testid="detail-route-meta"
-            class="hf-page-subtitle flex flex-wrap items-center gap-x-2 gap-y-1"
-          >
-            <template v-for="(moment, index) in managerDetail.moments" :key="moment">
-              <span v-if="index > 0" aria-hidden="true">·</span>
-              <span>{{ moment }}</span>
+            <span
+              v-if="routeIssues.length > 0"
+              data-testid="detail-route-aviso"
+              class="route-aviso"
+              :title="routeIssues.join(' · ')"
+            >
+              <UIcon name="i-lucide-triangle-alert" aria-hidden="true" />{{ routeAvisoLabel(routeIssues.length) }}
+              <span class="sr-only">: {{ routeIssues.join(', ') }}</span>
+            </span>
+            <template v-for="moment in managerDetail.moments" :key="moment">
+              <span aria-hidden="true">·</span>
+              <span class="route-detail-moment">{{ moment }}</span>
             </template>
-          </p>
+          </div>
+          <h1
+            class="route-detail-title"
+            data-testid="detail-route-title"
+          >{{ managerDetail.title }}</h1>
         </div>
 
-        <!-- Manager actions toolbar (S4c + S5a + S5b + S7 verify wiring).
-             Each button click opens the shared ConfirmModal; the mutation only
-             fires after the user confirms. -->
+        <!-- One primary action; Editar, Cancelar and Eliminar live in the ⋮.
+             Each one opens the shared ConfirmModal (or the edit slideover); the
+             mutation only fires after the user confirms. -->
         <div
-          v-if="canUpdate || canShowDelete"
+          v-if="canShowStart || menuActions.length > 0"
           data-testid="detail-actions-toolbar"
           class="flex flex-wrap items-center gap-2"
         >
-          <UButton
-            v-if="canShowEdit"
-            color="neutral"
-            variant="outline"
-            icon="i-lucide-pencil"
-            :label="DELIVERY_ROUTE_COPY.actions.edit"
-            data-testid="detail-edit-button"
-            @click="isEditOpen = true"
-          />
           <UButton
             v-if="canShowStart"
             color="primary"
@@ -550,31 +543,18 @@ defineExpose({
             data-testid="detail-start-button"
             @click="onStart"
           />
-          <UButton
-            v-if="canShowCancel"
-            color="warning"
-            variant="outline"
-            icon="i-lucide-ban"
-            :label="DELIVERY_ROUTE_COPY.actions.cancel"
-            :loading="cancelIsPending"
-            data-testid="detail-cancel-button"
-            @click="onCancel"
-          />
-          <UButton
-            v-if="canShowDelete"
-            color="error"
-            variant="outline"
-            icon="i-lucide-trash-2"
-            :label="DELIVERY_ROUTE_COPY.actions.delete"
-            :loading="deleteIsPending"
-            data-testid="detail-delete-button"
-            @click="onDelete"
+          <RowActionsMenu
+            :actions="menuActions"
+            row-label="la ruta"
+            aria-label="Más acciones de la ruta"
+            portal-class="delivery-routes-list-portal"
+            @select="runHeaderAction"
           />
         </div>
       </div>
     </header>
 
-    <!-- KPI tiles -->
+    <!-- KPI tiles: neutral surfaces, figures in tabular numerals. -->
     <section
       class="grid grid-cols-2 gap-3 lg:grid-cols-4"
       aria-label="Resumen de la ruta"
@@ -583,10 +563,10 @@ defineExpose({
         v-for="kpi in managerDetail.kpis"
         :key="kpi.key"
         :data-testid="`detail-kpi-${kpi.key}`"
-        :class="['delivery-routes-detail-panel delivery-routes-detail-kpi flex flex-col gap-1 rounded-xl p-4', `delivery-routes-detail-kpi--${kpi.key}`]"
+        class="delivery-routes-detail-panel flex flex-col gap-1 rounded-xl p-4"
       >
         <span class="text-xs font-medium text-muted">{{ kpi.label }}</span>
-        <span class="text-2xl font-semibold tabular-nums text-highlighted">{{ kpi.value }}</span>
+        <span class="hf-figure route-kpi-value">{{ kpi.value }}</span>
       </div>
     </section>
 
@@ -596,7 +576,7 @@ defineExpose({
         <span class="font-medium text-default">{{ managerDetail.progressLabel }}</span>
         <span
           v-if="managerDetail.progress.total > 0"
-          class="tabular-nums text-muted"
+          class="hf-figure text-muted"
         >{{ managerDetail.progress.percent }}%</span>
       </div>
       <div
@@ -623,8 +603,8 @@ defineExpose({
           class="delivery-routes-detail-panel flex flex-col gap-3 rounded-xl p-4 sm:p-5"
         >
           <header class="flex items-center justify-between gap-3">
-            <h2 class="text-base font-semibold text-highlighted">Paradas</h2>
-            <span class="text-xs text-muted">{{ routeData.stops.length }} en total</span>
+            <h2 class="route-section-title">Paradas</h2>
+            <span class="hf-figure text-xs text-muted">{{ routeData.stops.length }} en total</span>
           </header>
           <ol
             v-if="managerDetail.stops.length > 0"
@@ -637,13 +617,13 @@ defineExpose({
               :class="['delivery-routes-detail-stop flex flex-col gap-2 rounded-lg p-3 sm:flex-row sm:items-center sm:gap-4', { 'delivery-routes-detail-stop--current': row.isCurrent }]"
             >
               <div class="flex min-w-0 flex-1 items-start gap-3">
-                <span class="delivery-routes-detail-position flex size-8 shrink-0 items-center justify-center rounded-full font-mono text-xs font-semibold">
+                <span class="delivery-routes-detail-position hf-figure flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
                   {{ row.position }}
                 </span>
                 <div class="flex min-w-0 flex-col gap-0.5">
                   <span class="flex min-w-0 flex-wrap items-baseline gap-x-2">
-                    <span class="truncate font-medium text-default">{{ row.customer }}</span>
-                    <span class="font-mono text-xs text-muted">{{ row.folio }}</span>
+                    <span class="truncate font-semibold text-highlighted">{{ row.customer }}</span>
+                    <span class="hf-figure text-xs text-muted">{{ row.folio }}</span>
                   </span>
                   <span
                     v-if="row.address"
@@ -657,39 +637,36 @@ defineExpose({
               <div class="flex shrink-0 flex-wrap items-center gap-3 pl-11 sm:pl-0">
                 <span
                   v-if="row.timeLabel"
-                  class="text-xs tabular-nums text-muted"
+                  class="hf-figure text-xs text-muted"
                 >{{ row.timeLabel }}</span>
-                <StatusDotBadge :tone="row.statusTone" :label="row.statusLabel" />
-                <UButton
+                <StatusBadge :tone="row.statusTone" :label="row.statusLabel" />
+                <RowActionsMenu
                   v-if="canShowMove"
-                  color="neutral"
-                  variant="ghost"
-                  size="xs"
-                  icon="i-lucide-arrow-right-left"
-                  :label="DELIVERY_ROUTE_COPY.actions.moveStop"
-                  :aria-label="DELIVERY_ROUTE_COPY.transfer.moveAriaLabel.replace('{folio}', row.stop.saleFolio ?? row.stop.id.slice(0, 8))"
+                  :actions="MOVE_ACTIONS"
+                  :row-label="`la parada de ${row.customer}`"
+                  portal-class="delivery-routes-list-portal"
                   :data-testid="`detail-stop-move-${row.stop.id}`"
-                  @click="onMoveStop(row.stop)"
+                  @select="onMoveStop(row.stop)"
                 />
               </div>
             </li>
           </ol>
-          <p v-else class="text-sm text-muted">Sin paradas</p>
+          <EmptyState
+            v-else
+            title="Sin paradas"
+            :description="canShowAppend ? 'Agrega una venta para armar la ruta.' : undefined"
+          />
         </section>
 
         <!-- Append-stop affordance — single-sale selector + "Agregar parada" button.
-             DRAFT + canUpdate only (REQ-DRM-008/013). -->
+             DRAFT + canUpdate only (REQ-DRM-008/013). Outline: the one primary
+             of the view is Iniciar ruta. -->
         <section
           v-if="canShowAppend"
           data-testid="detail-append-section"
           class="delivery-routes-detail-panel flex flex-col gap-3 rounded-xl p-4 sm:p-5"
         >
-          <header class="flex flex-col gap-1">
-            <h2 class="text-base font-semibold text-highlighted">{{ DELIVERY_ROUTE_COPY.actions.appendStop }}</h2>
-            <p class="text-sm text-muted">
-              Selecciona una venta pendiente o enviada para agregarla a la ruta.
-            </p>
-          </header>
+          <h2 class="route-section-title">{{ DELIVERY_ROUTE_COPY.actions.appendStop }}</h2>
           <EligibleSalesPicker
             :model-value="appendSelectedSaleIds"
             source="append"
@@ -698,10 +675,9 @@ defineExpose({
           />
           <div class="flex justify-end">
             <UButton
-              color="primary"
-              variant="solid"
+              color="neutral"
+              variant="outline"
               icon="i-lucide-plus"
-              class="hf-primary-control"
               :label="DELIVERY_ROUTE_COPY.actions.appendStop"
               :loading="appendIsPending"
               :disabled="appendSelectedSaleId === null"
@@ -725,26 +701,18 @@ defineExpose({
           data-testid="detail-side-details"
           class="delivery-routes-detail-panel flex flex-col gap-4 rounded-xl p-4 sm:p-5"
         >
-          <h2 class="text-base font-semibold text-highlighted">Detalles</h2>
+          <h2 class="route-section-title">Detalles</h2>
           <dl class="flex flex-col gap-4 text-sm">
             <div class="flex flex-col gap-1">
               <dt class="text-xs font-medium text-muted">Repartidor</dt>
               <dd class="flex flex-col">
-                <span class="font-medium text-default">{{ routeData.driver?.name ?? 'Sin repartidor' }}</span>
+                <span class="font-semibold text-highlighted">{{ routeData.driver?.name ?? 'Sin repartidor' }}</span>
                 <span v-if="routeData.driver?.email" class="text-xs text-muted">{{ routeData.driver.email }}</span>
               </dd>
             </div>
             <div class="flex flex-col gap-1">
               <dt class="text-xs font-medium text-muted">Notas</dt>
               <dd class="whitespace-pre-line text-default">{{ routeData.notes?.trim() || 'Sin notas' }}</dd>
-            </div>
-            <div class="flex flex-col gap-1">
-              <dt class="text-xs font-medium text-muted">Fechas</dt>
-              <dd>
-                <ul class="flex flex-col gap-0.5 text-default">
-                  <li v-for="moment in managerDetail.moments" :key="moment">{{ moment }}</li>
-                </ul>
-              </dd>
             </div>
           </dl>
         </section>
@@ -759,3 +727,17 @@ defineExpose({
     </div>
   </div>
 </template>
+
+<style scoped>
+.route-skeleton { border-radius: 12px; background: var(--hf-surface-muted); }
+.route-back-link { display: inline-flex; width: fit-content; align-items: center; gap: 6px; border-radius: 6px; color: var(--hf-muted); font-size: 14px; }
+.route-back-link:hover { color: var(--hf-heading); }
+.route-back-link:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
+.route-detail-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; color: var(--hf-muted); font-size: 13px; }
+.route-detail-moment { white-space: nowrap; }
+.route-detail-title { min-width: 0; overflow: hidden; color: var(--hf-heading); font-size: 22px; font-weight: 600; letter-spacing: -0.02em; text-overflow: ellipsis; white-space: nowrap; }
+.route-aviso { display: inline-flex; align-items: center; gap: 4px; color: var(--hf-warning); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.route-kpi-value { color: var(--hf-heading); font-size: 24px; font-weight: 600; text-align: left; }
+.route-section-title { color: var(--hf-heading); font-size: 16px; font-weight: 600; }
+@media (max-width: 767px) { .route-detail-title { font-size: 17px; } }
+</style>

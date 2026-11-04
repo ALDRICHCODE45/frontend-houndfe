@@ -119,22 +119,6 @@
   background-color: var(--hf-success);
 }
 
-.delivery-routes-detail .delivery-routes-detail-kpi--delivered {
-  box-shadow: inset 3px 0 0 var(--hf-success);
-}
-
-.delivery-routes-detail .delivery-routes-detail-kpi--pending {
-  box-shadow: inset 3px 0 0 var(--hf-active);
-}
-
-.delivery-routes-detail .delivery-routes-detail-kpi--skipped {
-  box-shadow: inset 3px 0 0 var(--hf-muted);
-}
-
-.delivery-routes-detail .delivery-routes-detail-kpi--time {
-  box-shadow: inset 3px 0 0 var(--hf-warning);
-}
-
 .delivery-routes-detail .delivery-routes-detail-stop {
   border: 1px solid var(--hf-border);
   background-color: var(--hf-surface);

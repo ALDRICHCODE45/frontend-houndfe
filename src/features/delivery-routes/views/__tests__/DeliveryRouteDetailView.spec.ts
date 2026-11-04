@@ -366,15 +366,59 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
 
 import DeliveryRouteDetailView from '../DeliveryRouteDetailView.vue'
 
+// The ⋮ menu (RowActionsMenu → UDropdownMenu): render every item as a plain
+// button that fires the item's `onSelect`, skipping separators.
+const UDropdownMenuStub = defineComponent({
+  name: 'UDropdownMenu',
+  props: ['items', 'content', 'ui'],
+  setup(props) {
+    return () => {
+      const items = ((props.items as unknown[]) ?? [])
+        .flat()
+        .filter((item) => (item as { label?: string }).label) as Array<{ label: string; onSelect: () => void }>
+      return h(
+        'div',
+        { 'data-testid': 'row-actions-menu' },
+        items.map((item) =>
+          h(
+            'button',
+            { type: 'button', 'data-testid': 'row-action-item', key: item.label, onClick: () => item.onSelect() },
+            item.label,
+          ),
+        ),
+      )
+    }
+  },
+})
+
 function mountView() {
   return mount(DeliveryRouteDetailView, {
     global: {
       stubs: {
         // Avoid pulling in the Nuxt UI runtime; the inner components are mocked.
+        UDropdownMenu: UDropdownMenuStub,
+        DropdownMenu: UDropdownMenuStub,
       },
     },
   })
 }
+
+type Wrapper = ReturnType<typeof mountView>
+/** Labels of the header ⋮ menu (the header menu is the first one in the page). */
+const headerMenu = (wrapper: Wrapper) => {
+  const toolbar = wrapper.find('[data-testid="detail-actions-toolbar"]')
+  return toolbar.exists() ? toolbar.findAll('[data-testid="row-action-item"]') : []
+}
+const headerLabels = (wrapper: Wrapper) => headerMenu(wrapper).map((item) => item.text())
+async function selectHeader(wrapper: Wrapper, label: string) {
+  const item = headerMenu(wrapper).find((candidate) => candidate.text() === label)
+  expect(item, `header menu item ${label}`).toBeDefined()
+  await item!.trigger('click')
+  await flushPromises()
+}
+const EDIT = DELIVERY_ROUTE_COPY.actions.edit
+const CANCEL = `${DELIVERY_ROUTE_COPY.actions.cancel}…`
+const DELETE = `${DELIVERY_ROUTE_COPY.actions.delete}…`
 
 type RoleFlagOverrides = Partial<
   Record<'isManager' | 'isDriver' | 'canCreate' | 'canDelete' | 'canUpdate' | 'canRead', { value: boolean }>
@@ -465,22 +509,22 @@ describe('DeliveryRouteDetailView — manager branch wiring (design §4.1, §6.4
     // Manager branch must render the actions toolbar (Edit / Start / Cancel /
     // Delete / Reorder / Append) — we assert via stable testids the view
     // exposes for each affordance.
+    // One primary (Iniciar ruta) and a ⋮ with the rest.
     expect(wrapper.find('[data-testid="detail-actions-toolbar"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="detail-edit-button"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="detail-start-button"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="detail-cancel-button"]').exists()).toBe(true)
-    // Delete button has the additional DRAFT + zero-stops + canDelete gate;
-    // the default makeDraftRoute has 2 stops so delete is hidden here. A
-    // dedicated test below covers the visible-path.
-    expect(wrapper.find('[data-testid="detail-delete-button"]').exists()).toBe(false)
+    // Delete has the additional DRAFT + zero-stops + canDelete gate; the default
+    // makeDraftRoute has 2 stops so delete is hidden here. A dedicated test
+    // below covers the visible-path.
+    expect(headerLabels(wrapper)).toEqual([EDIT, CANCEL])
+    expect(wrapper.find('[data-testid="detail-edit-button"]').exists()).toBe(false)
   })
 
-  it('opens the edit slideover when the edit button is clicked (REQ-DRM-007)', async () => {
+  it('opens the edit slideover when Editar is chosen in the ⋮ menu (REQ-DRM-007)', async () => {
     resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
     resetDetailState({ data: makeDraftRoute() })
     const wrapper = mountView()
     await flushPromises()
-    await wrapper.find('[data-testid="detail-edit-button"]').trigger('click')
+    await selectHeader(wrapper, EDIT)
     await nextTick()
     const slideover = wrapper.find('[data-testid="detail-upsert-slideover-stub"]')
     expect(slideover.exists()).toBe(true)
@@ -493,7 +537,7 @@ describe('DeliveryRouteDetailView — manager branch wiring (design §4.1, §6.4
     resetDetailState({ data: makeDraftRoute() })
     const wrapper = mountView()
     await flushPromises()
-    await wrapper.find('[data-testid="detail-edit-button"]').trigger('click')
+    await selectHeader(wrapper, EDIT)
     await nextTick()
     await wrapper.find('[data-testid="detail-slideover-fire-edit"]').trigger('click')
     await flushPromises()
@@ -521,23 +565,23 @@ describe('DeliveryRouteDetailView — manager branch wiring (design §4.1, §6.4
     expect(wrapper.find('[data-testid="detail-reorder-panel-stub"]').exists()).toBe(false)
   })
 
-  it('hides the delete button unless the route is DRAFT + has zero stops + canDelete=true (REQ-DRM-008, REQ-DRM-015)', async () => {
+  it('offers delete only for DRAFT + zero stops + canDelete=true (REQ-DRM-008, REQ-DRM-015)', async () => {
     resetRoleFlags({
-          isManager: { value: true },
-          canUpdate: { value: true },
-          canDelete: { value: true },
-        })
-    // DRAFT + zero stops + canDelete → delete button VISIBLE.
+      isManager: { value: true },
+      canUpdate: { value: true },
+      canDelete: { value: true },
+    })
+    // DRAFT + zero stops + canDelete → delete VISIBLE, last, after the others.
     resetDetailState({ data: makeDraftRoute({ stopsLength: 0 }) })
     let wrapper = mountView()
     await flushPromises()
-    expect(wrapper.find('[data-testid="detail-delete-button"]').exists()).toBe(true)
+    expect(headerLabels(wrapper)).toEqual([EDIT, CANCEL, DELETE])
 
     // DRAFT + has stops → delete HIDDEN (zero-stop rule).
     resetDetailState({ data: makeDraftRoute({ stopsLength: 2 }) })
     wrapper = mountView()
     await flushPromises()
-    expect(wrapper.find('[data-testid="detail-delete-button"]').exists()).toBe(false)
+    expect(headerLabels(wrapper)).not.toContain(DELETE)
 
     // ACTIVE + zero stops → delete HIDDEN (status rule).
     resetDetailState({
@@ -545,14 +589,14 @@ describe('DeliveryRouteDetailView — manager branch wiring (design §4.1, §6.4
     })
     wrapper = mountView()
     await flushPromises()
-    expect(wrapper.find('[data-testid="detail-delete-button"]').exists()).toBe(false)
+    expect(headerLabels(wrapper)).not.toContain(DELETE)
 
     // DRAFT + zero stops + canDelete=false → delete HIDDEN (permission rule).
-    resetRoleFlags({ isManager: { value: true }, canDelete: { value: false } })
+    resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true }, canDelete: { value: false } })
     resetDetailState({ data: makeDraftRoute({ stopsLength: 0 }) })
     wrapper = mountView()
     await flushPromises()
-    expect(wrapper.find('[data-testid="detail-delete-button"]').exists()).toBe(false)
+    expect(headerLabels(wrapper)).not.toContain(DELETE)
   })
 
   it('hides delete when routeData is stale (keepPreviousData from a different route id)', async () => {
@@ -565,7 +609,7 @@ describe('DeliveryRouteDetailView — manager branch wiring (design §4.1, §6.4
     resetDetailState({ data: makeDraftRoute({ id: 'route-OTHER', stopsLength: 0 }) })
     const wrapper = mountView()
     await flushPromises()
-    expect(wrapper.find('[data-testid="detail-delete-button"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="row-action-item"]').exists()).toBe(false)
   })
 
   it('clicking the start button opens ConfirmModal; mutation fires only after confirm (REQ-DRM-010/013)', async () => {
@@ -593,7 +637,7 @@ describe('DeliveryRouteDetailView — manager branch wiring (design §4.1, §6.4
     })
     const wrapper = mountView()
     await flushPromises()
-    await wrapper.find('[data-testid="detail-cancel-button"]').trigger('click')
+    await selectHeader(wrapper, CANCEL)
     await flushPromises()
     expect(cancelMutateMock).not.toHaveBeenCalled()
     await wrapper.find('[data-testid="detail-confirm-modal-confirm"]').trigger('click')
@@ -613,7 +657,7 @@ describe('DeliveryRouteDetailView — manager branch wiring (design §4.1, §6.4
     resetDetailState({ data: makeDraftRoute({ stopsLength: 0 }) })
     const wrapper = mountView()
     await flushPromises()
-    await wrapper.find('[data-testid="detail-delete-button"]').trigger('click')
+    await selectHeader(wrapper, DELETE)
     await flushPromises()
     expect(deleteMutateMock).not.toHaveBeenCalled()
     await wrapper.find('[data-testid="detail-confirm-modal-confirm"]').trigger('click')
@@ -1047,7 +1091,7 @@ describe('DeliveryRouteDetailView — ConfirmModal for start/cancel/delete (REQ-
       resetDetailState({ data: { ...makeDraftRoute(), status: 'ACTIVE', startedAt: '2025-01-01T00:00:00Z' } })
       const wrapper = mountView()
       await flushPromises()
-      await wrapper.find('[data-testid="detail-cancel-button"]').trigger('click')
+      await selectHeader(wrapper, CANCEL)
       await nextTick()
       expect(confirmModalState.open).toBe(true)
       expect(confirmModalState.title).toMatch(/cancelar.*ruta/i)
@@ -1058,7 +1102,7 @@ describe('DeliveryRouteDetailView — ConfirmModal for start/cancel/delete (REQ-
       resetDetailState({ data: { ...makeDraftRoute(), status: 'ACTIVE', startedAt: '2025-01-01T00:00:00Z' } })
       const wrapper = mountView()
       await flushPromises()
-      await wrapper.find('[data-testid="detail-cancel-button"]').trigger('click')
+      await selectHeader(wrapper, CANCEL)
       await nextTick()
       expect(cancelMutateMock).not.toHaveBeenCalled()
       await wrapper.find('[data-testid="detail-confirm-modal-confirm"]').trigger('click')
@@ -1072,7 +1116,7 @@ describe('DeliveryRouteDetailView — ConfirmModal for start/cancel/delete (REQ-
       resetDetailState({ data: makeDraftRoute({ stopsLength: 0 }) })
       const wrapper = mountView()
       await flushPromises()
-      await wrapper.find('[data-testid="detail-delete-button"]').trigger('click')
+      await selectHeader(wrapper, DELETE)
       await nextTick()
       expect(confirmModalState.open).toBe(true)
       expect(confirmModalState.title).toMatch(/eliminar.*ruta/i)
@@ -1084,7 +1128,7 @@ describe('DeliveryRouteDetailView — ConfirmModal for start/cancel/delete (REQ-
       resetDetailState({ data: makeDraftRoute({ stopsLength: 0 }) })
       const wrapper = mountView()
       await flushPromises()
-      await wrapper.find('[data-testid="detail-delete-button"]').trigger('click')
+      await selectHeader(wrapper, DELETE)
       await nextTick()
       expect(deleteMutateMock).not.toHaveBeenCalled()
       await wrapper.find('[data-testid="detail-confirm-modal-confirm"]').trigger('click')
@@ -1108,46 +1152,32 @@ describe('DeliveryRouteDetailView — ConfirmModal for start/cancel/delete (REQ-
   })
 
   describe('DeliveryRouteDetailView — cancel gating expanded to DRAFT + ACTIVE (REQ-DRM-011, REQ-DRM-013)', () => {
-    it('cancel button is ENABLED on a DRAFT route (was ACTIVE-only before S7 remediation)', async () => {
+    it('Cancelar ruta… is offered on a DRAFT route (was ACTIVE-only before S7 remediation)', async () => {
       resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
       resetDetailState({ data: makeDraftRoute() })
       const wrapper = mountView()
       await flushPromises()
-      const cancelBtn = wrapper.find('[data-testid="detail-cancel-button"]')
-      expect(cancelBtn.exists()).toBe(true)
-      expect((cancelBtn.element as HTMLButtonElement).disabled).toBe(false)
+      expect(headerLabels(wrapper)).toContain(CANCEL)
     })
 
-    it('cancel button is ENABLED on an ACTIVE route (REQ-DRM-011 baseline)', async () => {
+    it('Cancelar ruta… is offered on an ACTIVE route (REQ-DRM-011 baseline), and it is the only item', async () => {
       resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
       resetDetailState({ data: { ...makeDraftRoute(), status: 'ACTIVE', startedAt: '2025-01-01T00:00:00Z' } })
       const wrapper = mountView()
       await flushPromises()
-      const cancelBtn = wrapper.find('[data-testid="detail-cancel-button"]')
-      expect((cancelBtn.element as HTMLButtonElement).disabled).toBe(false)
+      expect(headerLabels(wrapper)).toEqual([CANCEL])
+      expect(wrapper.find('[data-testid="detail-start-button"]').exists()).toBe(false)
     })
 
-    it('cancel button is HIDDEN on COMPLETED / CANCELLED routes (REQ-DRM-011)', async () => {
-      // S7 verify remediation — the cancel button doesn't render at all on
-      // COMPLETED / CANCELLED (the spec restricts it to DRAFT + ACTIVE).
-      resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
-      resetDetailState({
-        data: { ...makeDraftRoute(), status: 'COMPLETED', completedAt: '2025-01-01T00:00:00Z' },
-      })
+    it.each([
+      ['COMPLETED', { completedAt: '2025-01-01T00:00:00Z' }],
+      ['CANCELLED', { cancelledAt: '2025-01-01T00:00:00Z' }],
+    ])('%s routes have no action menu at all (REQ-DRM-011)', async (status, extra) => {
+      resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true }, canDelete: { value: true } })
+      resetDetailState({ data: { ...makeDraftRoute(), status, ...extra } })
       const wrapper = mountView()
       await flushPromises()
-      expect(wrapper.find('[data-testid="detail-cancel-button"]').exists()).toBe(false)
-    })
-
-    it('cancel button is HIDDEN on COMPLETED / CANCELLED routes (driver-bound case)', async () => {
-      // The button also stays hidden on CANCELLED (the route already finished).
-      resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
-      resetDetailState({
-        data: { ...makeDraftRoute(), status: 'CANCELLED', cancelledAt: '2025-01-01T00:00:00Z' },
-      })
-      const wrapper = mountView()
-      await flushPromises()
-      expect(wrapper.find('[data-testid="detail-cancel-button"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="detail-actions-toolbar"]').exists()).toBe(false)
     })
 
     it('clicking the cancel button on a DRAFT route fires the mutation after confirm (REQ-DRM-011)', async () => {
@@ -1155,7 +1185,7 @@ describe('DeliveryRouteDetailView — ConfirmModal for start/cancel/delete (REQ-
       resetDetailState({ data: makeDraftRoute() })
       const wrapper = mountView()
       await flushPromises()
-      await wrapper.find('[data-testid="detail-cancel-button"]').trigger('click')
+      await selectHeader(wrapper, CANCEL)
       await nextTick()
       await wrapper.find('[data-testid="detail-confirm-modal-confirm"]').trigger('click')
       await flushPromises()
@@ -1164,36 +1194,24 @@ describe('DeliveryRouteDetailView — ConfirmModal for start/cancel/delete (REQ-
   })
 
   describe('DeliveryRouteDetailView — edit gated to DRAFT only (REQ-DRM-013)', () => {
-    it('edit button is ENABLED on a DRAFT route', async () => {
+    it('Editar is offered on a DRAFT route', async () => {
       resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
       resetDetailState({ data: makeDraftRoute() })
       const wrapper = mountView()
       await flushPromises()
-      expect(wrapper.find('[data-testid="detail-edit-button"]').exists()).toBe(true)
+      expect(headerLabels(wrapper)).toContain(EDIT)
     })
 
-    it('edit button does NOT render on an ACTIVE route', async () => {
+    it.each([
+      ['ACTIVE', { startedAt: '2025-01-01T00:00:00Z' }],
+      ['COMPLETED', { completedAt: '2025-01-01T00:00:00Z' }],
+      ['CANCELLED', { cancelledAt: '2025-01-01T00:00:00Z' }],
+    ])('Editar is NOT offered on a %s route', async (status, extra) => {
       resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
-      resetDetailState({ data: { ...makeDraftRoute(), status: 'ACTIVE', startedAt: '2025-01-01T00:00:00Z' } })
+      resetDetailState({ data: { ...makeDraftRoute(), status, ...extra } })
       const wrapper = mountView()
       await flushPromises()
-      expect(wrapper.find('[data-testid="detail-edit-button"]').exists()).toBe(false)
-    })
-
-    it('edit button does NOT render on a COMPLETED route', async () => {
-      resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
-      resetDetailState({ data: { ...makeDraftRoute(), status: 'COMPLETED', completedAt: '2025-01-01T00:00:00Z' } })
-      const wrapper = mountView()
-      await flushPromises()
-      expect(wrapper.find('[data-testid="detail-edit-button"]').exists()).toBe(false)
-    })
-
-    it('edit button does NOT render on a CANCELLED route', async () => {
-      resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
-      resetDetailState({ data: { ...makeDraftRoute(), status: 'CANCELLED', cancelledAt: '2025-01-01T00:00:00Z' } })
-      const wrapper = mountView()
-      await flushPromises()
-      expect(wrapper.find('[data-testid="detail-edit-button"]').exists()).toBe(false)
+      expect(headerLabels(wrapper)).not.toContain(EDIT)
     })
   })
 
@@ -1224,13 +1242,15 @@ describe('DeliveryRouteDetailView — per-stop Mover action (T3 S2/S4)', () => {
     transferModalState.stopId = null
   })
 
-  it('renders a Mover control per stop on a DRAFT route with update permission', async () => {
+  it('renders a Mover… menu item per stop on a DRAFT route with update permission', async () => {
     resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
     resetDetailState({ data: makeDraftRoute({ stopsLength: 2 }) })
     const wrapper = mountView()
     await flushPromises()
-    expect(wrapper.find('[data-testid="detail-stop-move-s1"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="detail-stop-move-s2"]').exists()).toBe(true)
+    for (const id of ['s1', 's2']) {
+      const move = wrapper.get(`[data-testid="detail-stop-move-${id}"]`)
+      expect(move.findAll('[data-testid="row-action-item"]').map((item) => item.text())).toEqual(['Mover…'])
+    }
   })
 
   it('hides the Mover control on a non-DRAFT route (both routes must be draft)', async () => {
@@ -1257,7 +1277,7 @@ describe('DeliveryRouteDetailView — per-stop Mover action (T3 S2/S4)', () => {
     const wrapper = mountView()
     await flushPromises()
     expect(transferModalState.open).toBe(false)
-    await wrapper.find('[data-testid="detail-stop-move-s2"]').trigger('click')
+    await wrapper.get('[data-testid="detail-stop-move-s2"] [data-testid="row-action-item"]').trigger('click')
     await nextTick()
     expect(transferModalState.open).toBe(true)
     expect(transferModalState.originRouteId).toBe('route-42')
@@ -1385,5 +1405,92 @@ describe('DeliveryRouteDetailView — manager workspace width (odd delivery-rout
     expect(root.classes()).toContain('max-w-[1320px]')
     expect(root.classes()).toContain('mx-auto')
     expect(root.classes()).toContain('w-full')
+  })
+})
+
+describe('DeliveryRouteDetailView — page states (S10: empty, loading, data, error)', () => {
+  it('loading: a skeleton shaped like the workspace, marked busy, with no state chrome', async () => {
+    resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+    resetDetailState({ isLoading: true })
+    const wrapper = mountView()
+    await flushPromises()
+    const skeleton = wrapper.get('[data-testid="detail-loading-skeleton"]')
+    expect(skeleton.attributes('aria-busy')).toBe('true')
+    expect(skeleton.findAll('.animate-pulse').length).toBeGreaterThanOrEqual(6)
+    expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
+  })
+
+  it('error: the shared error state with Reintentar that refetches the route', async () => {
+    resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+    resetDetailState({ isError: true, error: { response: { status: 500 } } })
+    detailMock.refetch.mockResolvedValue({ isError: false })
+    const wrapper = mountView()
+    await flushPromises()
+    const state = wrapper.get('[data-testid="detail-error-block"] .hf-empty-state')
+    expect(state.attributes('data-kind')).toBe('error')
+    expect(state.attributes('role')).toBe('alert')
+    expect(state.get('.hf-empty-state__title').text()).toBe('No se pudo cargar la ruta')
+    await wrapper.get('[data-testid="detail-error-retry"]').trigger('click')
+    expect(detailMock.refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('not found: says so and offers the way back to the list', async () => {
+    resetRoleFlags({ isManager: { value: true } })
+    resetDetailState({ isError: true, error: { response: { status: 404, data: { error: 'ENTITY_NOT_FOUND', message: 'x' } } } })
+    const wrapper = mountView()
+    await flushPromises()
+    const state = wrapper.get('[data-testid="detail-not-found"] .hf-empty-state')
+    expect(state.get('.hf-empty-state__title').text()).toBe(DELIVERY_ROUTE_COPY.toasts.notFound)
+    await wrapper.get('[data-testid="detail-not-found-back"]').trigger('click')
+    expect(routerPushMock).toHaveBeenCalledWith('/pos/rutas-de-entrega')
+  })
+
+  it('empty: a route without stops shows "Sin paradas" and points at the append picker on a draft', async () => {
+    resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+    resetDetailState({ data: makeDraftRoute({ stopsLength: 0 }) })
+    const wrapper = mountView()
+    await flushPromises()
+    const empty = wrapper.get('[data-testid="detail-stops-section"] .hf-empty-state')
+    expect(empty.get('.hf-empty-state__title').text()).toBe('Sin paradas')
+    expect(empty.text()).toContain('Agrega una venta')
+    expect(wrapper.find('[data-testid="detail-append-section"]').exists()).toBe(true)
+  })
+
+  it('data: neutral status badge for a draft, with the aviso when it cannot start', async () => {
+    resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+    resetDetailState({ data: { ...makeDraftRoute({ stopsLength: 0 }), driver: null } })
+    const wrapper = mountView()
+    await flushPromises()
+    const badge = wrapper.get('[data-testid="detail-route-status"]')
+    expect(badge.attributes('data-tone')).toBe('neutral')
+    expect(badge.text()).toBe('Borrador')
+    const aviso = wrapper.get('[data-testid="detail-route-aviso"]')
+    expect(aviso.text()).toContain('2 avisos')
+    expect(aviso.text()).toContain('Sin paradas, Sin repartidor')
+  })
+
+  it('data: an active route shows an info badge, no aviso, and stop badges use the stop tones', async () => {
+    resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+    const route = makeDraftRoute({ stopsLength: 2 }) as { stops: Array<Record<string, unknown>> }
+    route.stops[0]!.status = 'COMPLETED'
+    route.stops[1]!.status = 'SKIPPED'
+    resetDetailState({ data: { ...route, status: 'ACTIVE', startedAt: '2025-01-01T00:00:00Z' } })
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.get('[data-testid="detail-route-status"]').attributes('data-tone')).toBe('info')
+    expect(wrapper.find('[data-testid="detail-route-aviso"]').exists()).toBe(false)
+    const stopBadges = wrapper.findAll('[data-testid^="detail-stop-"] .hf-status-badge')
+    expect(stopBadges.map((badge) => badge.attributes('data-tone'))).toEqual(['success', 'warning'])
+  })
+
+  it('draws the detail header with one primary and a single ⋮, and never shows the id', async () => {
+    resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true }, canDelete: { value: true } })
+    resetDetailState({ data: makeDraftRoute() })
+    const wrapper = mountView()
+    await flushPromises()
+    const toolbar = wrapper.get('[data-testid="detail-actions-toolbar"]')
+    expect(toolbar.findAll('.hf-primary-control, [class*="hf-primary-control"]')).toHaveLength(1)
+    expect(toolbar.findAll('[data-testid="row-actions-menu"]')).toHaveLength(1)
+    expect(wrapper.get('[data-testid="detail-route-summary"]').text()).not.toContain('route-42')
   })
 })
