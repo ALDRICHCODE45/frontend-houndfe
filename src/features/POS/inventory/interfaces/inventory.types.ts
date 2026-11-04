@@ -79,3 +79,15 @@ export interface AdjustmentResult {
   movement: StockMovement
   stock: StockSnapshot
 }
+
+// The bucket the dialog adjusts, as the panel row knows it. Names only: the
+// ids travel in the request, never on screen.
+export interface AdjustmentDialogTarget {
+  productId: string
+  productName: string
+  lotId?: string
+  variantId?: string
+  bucketLabel: string
+  quantity: number
+  version: number
+}
