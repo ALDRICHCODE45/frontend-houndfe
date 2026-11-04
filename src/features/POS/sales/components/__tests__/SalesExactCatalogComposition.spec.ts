@@ -312,7 +312,7 @@ describe('E2 — titled catalog controls surface', () => {
     resetSearchState()
   })
 
-  it('renders the title, the real catalog count and the search label in the sale opt-in', () => {
+  it('renders the title and the real catalog count in the sale opt-in, with no visible search label', () => {
     mockTotalUnfiltered.value = 6
     mockItems.value = [catalogItem]
     mockCategories.value = [{ id: 'cat-1', name: 'Medicamentos', count: 3 }]
@@ -322,7 +322,8 @@ describe('E2 — titled catalog controls surface', () => {
     const surface = wrapper.get('.sales-pos-catalog-controls-surface')
     expect(surface.get('.sales-pos-catalog-title').text()).toBe('Catálogo de productos')
     expect(surface.get('.sales-pos-catalog-count').text()).toContain('6')
-    expect(surface.text()).toContain('Buscar producto')
+    // The placeholder names the field; a visible label above it only repeated it.
+    expect(surface.text()).not.toContain('Buscar producto')
     // The count is the real exposed computation, not a prototype literal.
     expect(surface.get('.sales-pos-catalog-count').text()).not.toContain('3 productos')
   })
@@ -352,15 +353,13 @@ describe('E2 — titled catalog controls surface', () => {
     expect(wrapper.find('.sales-pos-product-grid').exists()).toBe(true)
   })
 
-  it('labels the search input from the surface label', () => {
+  it('names the search input for assistive tech without a visible label', () => {
     mockItems.value = [catalogItem]
 
     const wrapper = mountPanel(ENTRY_PORTAL)
 
-    const label = wrapper.get('.sales-pos-catalog-search-label')
-    const forId = label.attributes('for')
-    expect(forId).toBeTruthy()
-    expect(wrapper.get(`#${forId}`).element.tagName.toLowerCase()).toBe('input')
+    expect(wrapper.find('.sales-pos-catalog-search-label').exists()).toBe(false)
+    expect(wrapper.get('#sales-pos-product-search').attributes('aria-label')).toBe('Buscar producto')
   })
 
   it('keeps the omitted-opt-in consumer inert (no title, no label, no sale-only id)', () => {

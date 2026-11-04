@@ -402,7 +402,7 @@ describe('SalesListView', () => {
 
     // The add button is AppDataTable's now — asserted via its contract in the
     // consolidated-toolbar suite rather than by scanning rendered text here.
-    expect(wrapper.text()).toContain('Público en General')
+    expect(wrapper.text()).toContain('Público en general')
     expect(wrapper.text()).toContain('—')
   })
 
@@ -576,15 +576,15 @@ describe('SalesListView', () => {
     expect(badge.attributes('data-tone')).toBe('danger')
   })
 
-  // The "Nueva Venta" CTA is AppDataTable's toolbar button; the folio is the
+  // The "Nueva venta" CTA is AppDataTable's toolbar button; the folio is the
   // row's text button on the shared row-primary pattern, with no gold classes.
-  it('drives Nueva Venta from the toolbar and keeps the folio on the row-primary button', () => {
+  it('drives Nueva venta from the toolbar and keeps the folio on the row-primary button', () => {
     mockState.data.value = [{ ...initialRow }]
     const wrapper = mountSalesList()
 
     const table = wrapper.get('[data-testid="app-data-table"]')
-    expect(table.attributes('data-add-button-text')).toBe('Nueva Venta')
-    expect(wrapper.get('[data-testid="toolbar-add-button"]').text()).toBe('Nueva Venta')
+    expect(table.attributes('data-add-button-text')).toBe('Nueva venta')
+    expect(wrapper.get('[data-testid="toolbar-add-button"]').text()).toBe('Nueva venta')
 
     const folioLink = wrapper.get('[data-testid="sale-link-sale-1"]')
     expect(folioLink.element.tagName).toBe('BUTTON')
@@ -753,13 +753,13 @@ describe('SalesListView — sortable column headers (REQ-13)', () => {
 // comes from show-add-button, the ViewToggle sits in #actions, and the
 // slideover filters move into #filters above the tabs.
 describe('SalesListView — consolidated toolbar (REQ-14, REQ-15)', () => {
-  it('drives "Nueva Venta" through AppDataTable instead of a slot button', () => {
+  it('drives "Nueva venta" through AppDataTable instead of a slot button', () => {
     authMock.userCan.mockReturnValue(true)
     const wrapper = mountSalesList()
 
     const table = wrapper.get('[data-testid="app-data-table"]')
     expect(table.attributes('data-show-add-button')).toBe('true')
-    expect(table.attributes('data-add-button-text')).toBe('Nueva Venta')
+    expect(table.attributes('data-add-button-text')).toBe('Nueva venta')
     expect(wrapper.find('[data-testid="toolbar-add-button"]').exists()).toBe(true)
   })
 
@@ -941,7 +941,7 @@ describe('SalesListView — preserved invariants (REQ-16)', () => {
     expect(text).toContain('Ada Lovelace')
     expect(text).toContain('Grace Hopper')
     expect(text).toContain('César')
-    expect(text).toContain('Punto de Venta')
+    expect(text).toContain('Punto de venta')
     expect(text).toContain('$1,270.00')
     expect(text).toContain('$50.00')
     expect(wrapper.find('[data-testid="payment-method-pills"]').exists()).toBe(true)

@@ -96,12 +96,6 @@
   line-height: 1.25;
 }
 
-.sales-pos-workspace .sales-pos-workspace-helper {
-  display: none;
-  color: var(--hf-muted);
-  font-size: 0.8125rem;
-}
-
 /* Legacy responsive width utilities that remain in the markup (catalog
  * `lg:w-[60%]` / `xl:w-[75%]`, cart `lg:w-[40%]` / `xl:w-[25%]`) are inert by
  * construction, not by luck: each pane owns a `width` in EVERY range — this
@@ -128,10 +122,6 @@
    * cart surface equals the pane width instead of a padded wrapper. */
   .sales-pos-workspace .sales-pos-split {
     gap: 1.5rem;
-  }
-
-  .sales-pos-workspace .sales-pos-workspace-helper {
-    display: block;
   }
 
   .sales-pos-workspace .sales-pos-catalog-pane {
@@ -481,13 +471,14 @@
   aspect-ratio: 1.1;
   max-height: none;
   padding: 0;
-  background-color: var(--hf-page);
+  background-color: var(--hf-surface-muted);
   cursor: pointer;
 }
 
 .sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-media img {
-  object-fit: cover;
-  padding: 0;
+  /* Contained below sm so an image with lettering (a brand tile) is not cropped. */
+  object-fit: contain;
+  padding: 0.25rem;
 }
 
 .sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-media:focus-visible,
@@ -517,8 +508,6 @@
   margin-bottom: 0.375rem;
   font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
   color: var(--hf-muted);
 }
 
@@ -602,6 +591,11 @@
   .sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-media {
     width: 100%;
     aspect-ratio: 1.42;
+  }
+
+  .sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-media img {
+    object-fit: cover;
+    padding: 0;
   }
 
   .sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-image-badge {

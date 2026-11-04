@@ -46,7 +46,8 @@ describe('S12 — v0 catalog card presentation', () => {
     const media = block(workspaceCss, `${CARD} .sales-pos-product-media`)
     expect(media).toMatch(/aspect-ratio:\s*1\.42/)
     expect(media).toMatch(/max-height:\s*none/)
-    expect(media).toMatch(/background-color:\s*var\(--hf-page\)/)
+    // A neutral muted tile: the placeholder is not a bright grey in dark.
+    expect(media).toMatch(/background-color:\s*var\(--hf-surface-muted\)/)
   })
 
   it('keeps a full-width 44px add action and the action color for variants', () => {

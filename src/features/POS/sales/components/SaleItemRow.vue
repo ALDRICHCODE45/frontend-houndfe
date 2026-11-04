@@ -306,7 +306,7 @@ function handleQtyCommit() {
 
         <!-- Specs line (prior paint): variant + unit price context. -->
         <p v-if="!composition" class="text-[11px] text-muted truncate">
-          <span v-if="item.variantName" class="uppercase tracking-wide">{{ item.variantName }}</span>
+          <span v-if="item.variantName">{{ item.variantName }}</span>
           <span v-if="item.variantName"> · </span>
           <span
             v-if="showPriceOrigin"

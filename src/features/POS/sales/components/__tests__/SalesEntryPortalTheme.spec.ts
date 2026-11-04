@@ -612,7 +612,7 @@ describe('AssignCustomerSlideover — reached sales flow keeps the opted-in boun
     customerApiMock.getById.mockReset()
   })
 
-  it.each([PORTAL, 'hf-theme hf-ui quotations-portal', undefined])('keeps the step-1 action outline and gives the empty CTA the shared primary control (portal=%s)', async (portalClass) => {
+  it.each([PORTAL, 'hf-theme hf-ui quotations-portal', undefined])('keeps one outline new-customer action in the search step and none in the empty state (portal=%s)', async (portalClass) => {
     customerApiMock.getPaginated.mockResolvedValue(makePaginated([]))
     track(mount(AssignCustomerSlideover, {
       props: { open: true, saleId: 'sale-1', portalClass }, attachTo: document.body,
@@ -623,11 +623,10 @@ describe('AssignCustomerSlideover — reached sales flow keeps the opted-in boun
     }))
     await flushPromises()
     const buttons = Array.from(document.body.querySelectorAll('[data-testid="open-create-customer"]'))
-    expect(buttons).toHaveLength(2)
-    for (const button of buttons) expect(button.getAttribute('class')).not.toContain('brand-action')
-    // The search-step action stays an outline; only the empty-state CTA is the primary.
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0]!.getAttribute('class')).not.toContain('brand-action')
+    // One action, outline: no solid button competes with the sheet.
     expect(buttons[0]!.classList.contains('hf-primary-control')).toBe(false)
-    expect(buttons[1]!.classList.contains('hf-primary-control')).toBe(true)
   })
 
   it('reaches step 2 with a real saleId and keeps the marker on the native root', async () => {
@@ -664,11 +663,10 @@ describe('AssignCustomerSlideover — reached sales flow keeps the opted-in boun
       document.body.querySelector('[data-testid="shipping-address-option-address-1"]'),
     ).not.toBeNull()
 
-    // The reached footer CTA takes the shared primary control, with no forced
-    // legacy utility for the stylesheet to repair.
+    // The address step keeps the new-customer footer as an outline action: no second solid button.
     const footerCta = document.body.querySelector('[data-testid="open-create-customer"]')
     expect(footerCta).not.toBeNull()
-    expect(footerCta!.classList.contains('hf-primary-control')).toBe(true)
+    expect(footerCta!.classList.contains('hf-primary-control')).toBe(false)
     expect(footerCta!.getAttribute('class')).not.toContain('brand-action')
     for (const testId of ['skip-shipping-address', 'shipping-address-option-address-1']) {
       const card = document.body.querySelector(`[data-testid="${testId}"]`)!

@@ -112,14 +112,14 @@ describe('PaymentMethodPills', () => {
     expect(badge.attributes('data-color')).toBe('error')
   })
 
-  it('renders only icon text when compact prop is true', () => {
+  it('keeps the label visible when compact (an icon alone says nothing on a card)', () => {
     const wrapper = mount(PaymentMethodPills, {
       props: { methods: ['CASH'], compact: true },
       global: globalConfig,
     })
-    // Label span should have class that hides it when compact
     const labelSpan = wrapper.find('[data-testid="pill-label"]')
     expect(labelSpan.exists()).toBe(true)
-    expect(labelSpan.classes()).toContain('hidden')
+    expect(labelSpan.classes()).not.toContain('hidden')
+    expect(labelSpan.text()).toBe('Efectivo')
   })
 })

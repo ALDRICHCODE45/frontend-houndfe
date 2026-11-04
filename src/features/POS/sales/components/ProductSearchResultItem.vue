@@ -205,10 +205,10 @@ function isLowStock(item: PosCatalogItem): boolean {
     <!-- Card body: right column on mobile, bottom band from sm. -->
     <div class="flex-1 min-w-0 flex flex-col px-3 py-3 space-y-1.5 sm:border-t sm:border-default/50 sales-pos-product-body">
       <!-- Brand -->
-      <p v-if="item.brand" class="text-[10px] text-dimmed uppercase tracking-wider font-medium truncate sales-pos-product-brand">
+      <p v-if="item.brand" class="text-xs text-dimmed font-medium truncate sales-pos-product-brand">
         {{ item.brand.name }}
       </p>
-      <p v-else-if="item.sku" class="text-[11px] text-muted uppercase tracking-wider font-medium truncate sales-pos-product-brand" data-testid="sku-subtitle">
+      <p v-else-if="item.sku" class="text-xs text-muted font-medium truncate sales-pos-product-brand" data-testid="sku-subtitle">
         {{ item.sku }}
       </p>
 

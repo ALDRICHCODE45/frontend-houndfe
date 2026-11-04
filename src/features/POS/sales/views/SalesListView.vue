@@ -92,7 +92,6 @@ const {
   isLoading,
   isFetching,
   isError,
-  error,
   refresh,
   pageSizeOptions,
   showingFrom,
@@ -113,7 +112,7 @@ function folioDisplay(folio: string | null) {
   return folio != null ? extractFolioNumber(folio) : 'Sin folio'
 }
 function customerDisplay(sale: ConfirmedSaleRow) {
-  return sale.customer?.name ?? 'Público en General'
+  return sale.customer?.name ?? 'Público en general'
 }
 function paymentBadge(sale: ConfirmedSaleRow) {
   if (sale.paymentStatus == null) return { label: 'Sin estado', tone: 'neutral' as const }
@@ -166,6 +165,8 @@ const hasSearch = computed(() => globalFilter.value.trim() !== '')
 const hasActiveFilters = computed(
   () => hasSearch.value || filtersCtl.activeCount.value > 0 || activeTab.value !== 'all',
 )
+// Counts describe the tenant's sales: with none yet there is nothing to count.
+const showTabCounts = computed(() => isLoading.value || isError.value || totalCount.value > 0 || hasActiveFilters.value)
 const activeFilterCount = computed(
   () => filtersCtl.activeCount.value + (activeTab.value !== 'all' ? 1 : 0),
 )
@@ -228,7 +229,7 @@ watch(() => filtersCtl.serializedState.value, () => {
           :no-match-title="noMatchTitle"
           :empty-state="emptyState"
           :active-filter-count="activeFilterCount"
-          add-button-text="Nueva Venta"
+          add-button-text="Nueva venta"
           add-button-test-id="toolbar-add-button"
           enable-column-visibility
           search-placeholder="Buscar ventas..."
@@ -267,7 +268,7 @@ watch(() => filtersCtl.serializedState.value, () => {
 
               <!-- Region 2 — segment (delivery-status quick tabs). -->
               <div class="overflow-x-auto">
-                <SalesListTabs :counts="counts" :active="activeTab" @change="onTabChange" />
+                <SalesListTabs :counts="counts" :active="activeTab" :show-counts="showTabCounts" @change="onTabChange" />
               </div>
 
               <div class="hidden h-5 w-px shrink-0 bg-default md:block" aria-hidden="true" />
@@ -365,7 +366,7 @@ watch(() => filtersCtl.serializedState.value, () => {
             {{ row.original.seller?.name ?? '' }}
           </template>
 
-          <template #channel-cell>Punto de Venta</template>
+          <template #channel-cell>Punto de venta</template>
           <template #invoice-cell></template>
 
           <template #mobile-card="{ row }">

@@ -15,9 +15,41 @@ describe('SalesListTabs', () => {
     })
 
     expect(wrapper.text()).toContain('Todas (12)')
-    expect(wrapper.text()).toContain('Pagos Pendientes')
+    expect(wrapper.text()).toContain('Pagos pendientes')
     expect(wrapper.text()).toContain('(4)')
-    expect(wrapper.text()).toContain('No Entregadas (2)')
+    expect(wrapper.text()).toContain('No entregadas (2)')
+  })
+
+  it('writes every tab label in sentence case', () => {
+    const wrapper = mount(SalesListTabs, {
+      props: { counts: { all: 1, pendingPayments: 1, notDelivered: 1 } },
+    })
+
+    expect(wrapper.text()).not.toMatch(/Pagos Pendientes|No Entregadas/)
+  })
+
+  it('hides every count when showCounts is off (nothing to count yet)', () => {
+    const wrapper = mount(SalesListTabs, {
+      props: { counts: { all: 4, pendingPayments: 2, notDelivered: 1 }, showCounts: false },
+    })
+
+    expect(wrapper.text()).not.toMatch(/\(\d+\)/)
+    expect(wrapper.find('[data-testid="sales-tab-pending-payments-badge"]').exists()).toBe(false)
+  })
+
+  it('gives the active tab a visible selected state, the others none', async () => {
+    const wrapper = mount(SalesListTabs, {
+      props: { counts: { all: 5, pendingPayments: 1, notDelivered: 2 }, active: 'pending-payments' },
+    })
+    const active = () =>
+      wrapper
+        .findAll('button[data-testid^="sales-tab-"]')
+        .filter((btn) => btn.attributes('data-active') === 'true')
+        .map((btn) => btn.attributes('data-testid'))
+
+    expect(active()).toEqual(['sales-tab-pending-payments'])
+    await wrapper.setProps({ active: 'all' })
+    expect(active()).toEqual(['sales-tab-all'])
   })
 
   it('hides the pending-payments badge when count is zero (REQ-NEW-8 explicit)', () => {

@@ -35,7 +35,7 @@ describe('salesFiltersSchema', () => {
 
     expect(customer?.kind).toBe('multi-async')
     if (customer?.kind === 'multi-async') {
-      expect(customer.includeNull).toEqual({ param: 'customerIncludeNull', label: 'Incluir Público en General' })
+      expect(customer.includeNull).toEqual({ param: 'customerIncludeNull', label: 'Incluir Público en general' })
     }
 
     expect(dueDate?.kind).toBe('date-range')

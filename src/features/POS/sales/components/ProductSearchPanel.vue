@@ -116,13 +116,6 @@ function handleAddVariant(productId: string, variantId: string) {
             {{ productCountLabel }}
           </span>
         </div>
-        <label
-          v-if="isSaleWorkspace"
-          for="sales-pos-product-search"
-          class="block text-xs text-muted sales-pos-catalog-search-label"
-        >
-          Buscar producto
-        </label>
         <!-- Search input (full width) -->
         <div class="flex items-center gap-3">
           <UInput
@@ -130,12 +123,14 @@ function handleAddVariant(productId: string, variantId: string) {
             ref="searchInputRef"
             v-model="query"
             icon="i-lucide-search"
-            placeholder="Buscar por nombre, SKU o código de barras..."
+            placeholder="Nombre, SKU o código"
+            aria-label="Buscar producto"
             size="lg"
             class="flex-1 sales-pos-catalog-search"
             :ui="{ base: 'rounded-xl' }"
           />
-          <div class="flex items-center gap-1 text-xs text-muted shrink-0">
+          <!-- The shortcut hint is for keyboards: it only shows from md. -->
+          <div class="hidden md:flex items-center gap-1 text-xs text-muted shrink-0">
             <UKbd>{{ isMac ? '⌘' : 'Ctrl' }}</UKbd>
             <UKbd>K</UKbd>
           </div>

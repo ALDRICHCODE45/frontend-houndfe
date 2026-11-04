@@ -209,7 +209,7 @@ describe('SaleDetailSalesDataCard', () => {
     expect(wrapper.get('[data-testid="assign-seller"]').text()).toBe('Cambiar')
   })
 
-  // Cajero from baseSale = 'Cajero'; customer falls back to 'Público en General';
+  // Cajero from baseSale = 'Cajero'; customer falls back to 'Público en general';
   // seller null → 'Sin asignar'.
   it('renders identity fallback text for null seller/customer', async () => {
     const wrapper = mountWithUApp(SaleDetailSalesDataCard, {

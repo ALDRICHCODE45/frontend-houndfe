@@ -964,7 +964,6 @@ async function handleChangePriceList(globalPriceListId: string | null) {
         <div class="min-w-0">
           <h1 class="sales-pos-workspace-title">Nueva venta</h1>
         </div>
-        <span class="sales-pos-workspace-helper">Todo listo para tu próxima venta.</span>
       </header>
 
       <!-- View-level tab strip. The ActiveSalePanel instances below no

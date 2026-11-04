@@ -629,10 +629,10 @@ const confirmButtonClass = computed(() =>
           <div
             class="rounded-xl border border-default bg-(--hf-surface-muted) px-5 py-4 text-center sales-pos-checkout-total"
           >
-            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+            <p class="text-xs font-semibold text-muted">
               Total a cobrar
             </p>
-            <p class="mt-1 text-4xl font-black tabular-nums text-highlighted">
+            <p class="mt-1 text-4xl font-semibold tabular-nums text-highlighted">
               {{ totalFormatted }}
             </p>
           </div>

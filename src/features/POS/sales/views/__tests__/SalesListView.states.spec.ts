@@ -86,7 +86,7 @@ function mountList() {
     attachTo: document.body,
     global: {
       stubs: {
-        DataTableToolbar: { template: '<div data-testid="toolbar" />' },
+        DataTableToolbar: { template: '<div data-testid="toolbar"><slot name="filters" /></div>' },
         DataTablePagination: { template: '<div data-testid="pagination" />' },
         DataTableFilters: true,
         SalesListTabs: true,
@@ -133,6 +133,34 @@ describe('SalesListView states — empty', () => {
 
     expect(wrapper.get('.hf-empty-state').text()).toContain('Aún no hay ventas')
     expect(wrapper.find('[data-testid="empty-state-action"]').exists()).toBe(false)
+  })
+})
+
+describe('SalesListView states — tabs', () => {
+  // `SalesListTabs` is stubbed in this file: the stub exposes its props as attributes.
+  const showCounts = (wrapper: VueWrapper) => wrapper.get('sales-list-tabs-stub').attributes('showcounts')
+
+  it('hides the tab counts while there is nothing to count (no sales yet)', async () => {
+    const wrapper = mountList()
+    await flushPromises()
+
+    expect(showCounts(wrapper)).toBe('false')
+  })
+
+  it('shows the tab counts once there are sales', async () => {
+    state.data.value = [row]
+    const wrapper = mountList()
+    await flushPromises()
+
+    expect(showCounts(wrapper)).toBe('true')
+  })
+
+  it('keeps the counts when a search matches nothing (the tabs still describe the tenant)', async () => {
+    state.globalFilter.value = 'zzz'
+    const wrapper = mountList()
+    await flushPromises()
+
+    expect(showCounts(wrapper)).toBe('true')
   })
 })
 
@@ -210,6 +238,25 @@ describe('SalesListView states — data', () => {
 
     expect(wrapper.findAll('[data-testid="sale-card"]')).toHaveLength(1)
     expect(wrapper.find('table').exists()).toBe(false)
+  })
+
+  it('labels the payment-method chips on mobile cards instead of icon-only', async () => {
+    isMobile.value = true
+    state.data.value = [{ ...row, paymentMethods: ['CASH'] }]
+    const wrapper = mountList()
+    await flushPromises()
+
+    const label = wrapper.get('[data-testid="sale-card"] [data-testid="pill-label"]')
+    expect(label.text()).toBe('Efectivo')
+    expect(label.classes()).not.toContain('hidden')
+  })
+
+  it('writes the generic customer and channel in sentence case', async () => {
+    state.data.value = [{ ...row, customer: null }]
+    const wrapper = mountList()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="sale-customer"]').text()).toBe('Público en general')
   })
 })
 

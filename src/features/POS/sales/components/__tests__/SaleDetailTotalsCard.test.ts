@@ -12,13 +12,11 @@ const globalStubs = {
 }
 
 // Helper so every `mount(SaleDetailTotalsCard, ...)` call picks up the WU-E
-// stubs without per-test boilerplate. We intentionally relax the options
-// type to `any` here so each call site keeps its precise props payload
-// without dragging the full MountingOptions generic through.
-function mountCard(options: Record<string, any> = {}) {
+// stubs without per-test boilerplate.
+type CardProps = InstanceType<typeof SaleDetailTotalsCard>['$props']
+function mountCard(options: { props: CardProps; global?: { stubs?: Record<string, unknown> } }) {
   const stubs = { ...globalStubs, ...(options.global?.stubs ?? {}) }
-  const global = { ...(options.global ?? {}), stubs }
-  return mount(SaleDetailTotalsCard as any, { ...options, global })
+  return mount(SaleDetailTotalsCard, { ...options, global: { ...options.global, stubs } })
 }
 
 describe('SaleDetailTotalsCard', () => {

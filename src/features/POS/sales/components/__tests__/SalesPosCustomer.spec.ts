@@ -473,11 +473,11 @@ describe('SalesPosCustomer sheet — readable, labelled, real-state presentation
     wrappers.splice(0).forEach((wrapper) => wrapper.unmount())
     document.body.innerHTML = ''
 
-    // Same flow, non-venta portal token: the footer survives with the shared primary control.
+    // Same flow, non-venta portal token: the footer survives as an outline action.
     await openAtAddressStep({ portalClass: ENTRY_PORTAL })
     const footerCta = document.body.querySelector<HTMLElement>('[data-testid="open-create-customer"]')!
     expect(footerCta).not.toBeNull()
-    expect(footerCta.getAttribute('class')).toContain('hf-primary-control')
+    expect(footerCta.getAttribute('class')).not.toContain('hf-primary-control')
     expect(footerCta.getAttribute('class')).not.toContain('brand-action')
   })
 

@@ -349,7 +349,7 @@ describe('SaleDetailView', () => {
     expect(wrapper.find('[data-testid="reflow-cliente"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="reflow-price-list"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="reflow-payment-methods"]').exists()).toBe(true)
-    // Cajero from defaultSale = 'Cajero'; customer falls back to 'Público en General'.
+    // Cajero from defaultSale = 'Cajero'; customer falls back to 'Público en general'.
     expect(wrapper.find('[data-testid="reflow-cajero"]').text()).toContain('Cajero')
     expect(wrapper.find('[data-testid="reflow-cliente"]').text()).toContain('Público en general')
     // No seller on defaultSale → fallback "Sin asignar".

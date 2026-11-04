@@ -72,9 +72,15 @@
 
 /* ── Status tabs ─────────────────────────────────────────────────────────── */
 
-/* The quick tabs keep their existing composition; the adapter only supplies
- * the shared focus indicator the legacy utilities lacked. No active/selected
- * state is added because the tabs have no selection semantics today. */
+/* The active quick tab reads as selected without color alone: a tinted
+ * surface, heading ink, a 600 label and a border. The others stay ghost. */
+.sales-list-visual .sales-status-tab[data-active='true'] {
+  background-color: var(--hf-active-soft);
+  box-shadow: inset 0 0 0 1px var(--hf-border);
+  color: var(--hf-heading);
+  font-weight: 600;
+}
+
 .sales-list-visual .sales-status-tab:focus-visible {
   outline: 2px solid var(--hf-focus);
   outline-offset: 2px;

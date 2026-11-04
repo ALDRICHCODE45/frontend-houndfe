@@ -28,49 +28,52 @@ function isActive(saleId: string): boolean {
 </script>
 
 <template>
-  <div class="flex items-center gap-2 overflow-x-auto px-4 pt-2.5 pb-1.5 sales-pos-draft-strip">
-    <!-- Tab buttons -->
-    <div
-      v-for="(draft, index) in drafts"
-      :key="draft.id"
-      :data-testid="`tab-${draft.id}`"
-      :data-sales-pos-state="isActive(draft.id) ? 'active' : 'idle'"
-      :class="[
-        'sales-pos-draft-tab group flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-150 whitespace-nowrap cursor-pointer border',
-        isActive(draft.id)
-          ? 'bg-elevated text-highlighted font-semibold shadow-sm border-default'
-          : 'bg-default text-muted border-transparent hover:bg-elevated/60 hover:text-highlighted hover:border-default',
-      ]"
-      @click="emit('switch', draft.id)"
-    >
-      <span class="text-sm">{{ getTabLabel(index) }}</span>
-
-      <!-- Item count badge -->
-      <span
-        v-if="draft.items.length > 0"
+  <div class="flex items-center gap-2 px-4 pt-2.5 pb-1.5 sales-pos-draft-strip">
+    <!-- Tabs scroll on their own; the create button stays pinned so the "+" is never clipped. -->
+    <div class="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto" data-testid="draft-tabs-scroll">
+      <!-- Tab buttons -->
+      <div
+        v-for="(draft, index) in drafts"
+        :key="draft.id"
+        :data-testid="`tab-${draft.id}`"
+        :data-sales-pos-state="isActive(draft.id) ? 'active' : 'idle'"
         :class="[
-          'inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-md text-[11px] font-semibold tabular-nums sales-pos-draft-count',
+          'sales-pos-draft-tab group flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-150 whitespace-nowrap cursor-pointer border',
           isActive(draft.id)
-            ? 'bg-primary/15 text-primary'
-            : 'bg-elevated text-muted group-hover:bg-elevated/80',
+            ? 'bg-elevated text-highlighted font-semibold shadow-sm border-default'
+            : 'bg-default text-muted border-transparent hover:bg-elevated/60 hover:text-highlighted hover:border-default',
         ]"
+        @click="emit('switch', draft.id)"
       >
-        {{ draft.items.length }}
-      </span>
+        <span class="text-sm">{{ getTabLabel(index) }}</span>
 
-      <!-- Close button -->
-      <button
-        :data-testid="`close-tab-${draft.id}`"
-        :class="[
-           'transition-colors duration-150 rounded-md p-0.5',
-          isActive(draft.id)
-            ? 'text-dimmed hover:text-highlighted hover:bg-default'
-            : 'text-dimmed/50 hover:text-highlighted hover:bg-elevated/60',
-        ]"
-        @click.stop="emit('close', draft.id)"
-      >
-        <UIcon name="i-lucide-x" class="h-3.5 w-3.5" />
-      </button>
+        <!-- Item count badge -->
+        <span
+          v-if="draft.items.length > 0"
+          :class="[
+            'inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-md text-[11px] font-semibold tabular-nums sales-pos-draft-count',
+            isActive(draft.id)
+              ? 'bg-primary/15 text-primary'
+              : 'bg-elevated text-muted group-hover:bg-elevated/80',
+          ]"
+        >
+          {{ draft.items.length }}
+        </span>
+
+        <!-- Close button -->
+        <button
+          :data-testid="`close-tab-${draft.id}`"
+          :class="[
+             'transition-colors duration-150 rounded-md p-0.5',
+            isActive(draft.id)
+              ? 'text-dimmed hover:text-highlighted hover:bg-default'
+              : 'text-dimmed/50 hover:text-highlighted hover:bg-elevated/60',
+          ]"
+          @click.stop="emit('close', draft.id)"
+        >
+          <UIcon name="i-lucide-x" class="h-3.5 w-3.5" />
+        </button>
+      </div>
     </div>
 
     <!-- Create tab button -->
@@ -80,7 +83,8 @@ function isActive(saleId: string): boolean {
       color="neutral"
       size="sm"
       icon="i-lucide-plus"
-      class="ml-1 rounded-xl"
+      aria-label="Nueva venta"
+      class="shrink-0 rounded-xl"
       @click="emit('create')"
     />
   </div>

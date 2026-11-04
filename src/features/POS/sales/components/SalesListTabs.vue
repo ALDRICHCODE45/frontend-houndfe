@@ -10,10 +10,13 @@ withDefaults(
   defineProps<{
     counts?: SalesListCounts
     active?: SalesListTab
+    /** Off while there is nothing to count (no sales yet), so no stale numbers show. */
+    showCounts?: boolean
   }>(),
   {
     counts: () => ({ all: 0, pendingPayments: 0, notDelivered: 0 }),
     active: 'all',
+    showCounts: true,
   },
 )
 
@@ -21,7 +24,7 @@ withDefaults(
 // tab activates. The consumer merges this with the slideover-driven filter
 // state (see `resolveDeliveryStatus` / `resolvePaymentStatus` in
 // `useConfirmedSales.ts`). Widened in WU-D to admit the third "Pagos
-// Pendientes" tab (REQ-19 MODIFIED + REQ-NEW-8).
+// pendientes" tab (REQ-19 MODIFIED + REQ-NEW-8).
 export type SalesListTabChange = {
   deliveryStatus?: SaleDeliveryStatus
   paymentStatus?: string
@@ -43,10 +46,11 @@ function clearAll(): SalesListTabChange {
       color="neutral"
       class="sales-status-tab whitespace-nowrap"
       data-testid="sales-tab-all"
+      :data-active="active === 'all'"
       :aria-pressed="active === 'all'"
       @click="emit('change', clearAll())"
     >
-      Todas ({{ counts.all }})
+      Todas<template v-if="showCounts"> ({{ counts.all }})</template>
     </UButton>
 
     <UButton
@@ -54,12 +58,13 @@ function clearAll(): SalesListTabChange {
       color="neutral"
       class="sales-status-tab whitespace-nowrap"
       data-testid="sales-tab-pending-payments"
+      :data-active="active === 'pending-payments'"
       :aria-pressed="active === 'pending-payments'"
       @click="emit('change', { paymentStatus: 'PARTIAL,CREDIT' })"
     >
-      <span>Pagos Pendientes</span>
+      <span>Pagos pendientes</span>
       <span
-        v-if="pendingPaymentsBadge(counts.pendingPayments).visible"
+        v-if="showCounts && pendingPaymentsBadge(counts.pendingPayments).visible"
         class="ml-1.5"
         data-testid="sales-tab-pending-payments-badge"
       >
@@ -72,10 +77,11 @@ function clearAll(): SalesListTabChange {
       color="neutral"
       class="sales-status-tab whitespace-nowrap"
       data-testid="sales-tab-pending-delivery"
+      :data-active="active === 'pending-delivery'"
       :aria-pressed="active === 'pending-delivery'"
       @click="emit('change', { deliveryStatus: SALE_DELIVERY_STATUS.PENDING })"
     >
-      No Entregadas ({{ counts.notDelivered }})
+      No entregadas<template v-if="showCounts"> ({{ counts.notDelivered }})</template>
     </UButton>
   </div>
 </template>

@@ -344,7 +344,8 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
                 data-testid="open-create-customer"
                 color="neutral"
                 variant="outline"
-                label="+ Nuevo cliente"
+                label="Nuevo cliente"
+                icon="i-lucide-plus"
                 class="sales-pos-customer-new-customer"
                 @click="isCreateCustomerOpen = true"
               />
@@ -364,15 +365,6 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
                 <p class="text-sm text-muted">
                   {{ debouncedSearch ? 'No se encontraron clientes' : 'Aún no hay clientes registrados' }}
                 </p>
-                <UButton
-                  v-if="canCreateCustomer && !debouncedSearch"
-                  data-testid="open-create-customer"
-                  color="primary"
-                  variant="soft"
-                  label="+ Nuevo cliente"
-                  class="mt-3 hf-primary-control"
-                  @click="isCreateCustomerOpen = true"
-                />
               </div>
             </div>
 
@@ -484,16 +476,18 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
               </div>
             </div>
 
-            <!-- Legacy sticky new-client footer. It is a duplicate of the
-                 search-step action, so only the venta sheet drops it; every
-                 other consumer keeps exactly what it had. -->
+            <!-- The venta sheet already offers "Nuevo cliente" in the search step; the
+                 other consumers keep this one reachable from the address step (outline,
+                 so the sheet has no second solid button). -->
             <div v-if="!isSaleCustomerPortal" class="border-t border-default p-4">
               <UButton
                 v-if="canCreateCustomer"
                 data-testid="open-create-customer"
-                label="+ Nuevo cliente"
-                color="primary"
-                class="w-full hf-primary-control"
+                label="Nuevo cliente"
+                icon="i-lucide-plus"
+                color="neutral"
+                variant="outline"
+                class="w-full"
                 @click="isCreateCustomerOpen = true"
               />
             </div>

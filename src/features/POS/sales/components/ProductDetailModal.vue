@@ -256,7 +256,7 @@ watch(
         <div class="grid grid-cols-3 gap-3">
           <!-- Price -->
           <div class="rounded-lg border border-default p-3 space-y-1">
-            <p class="text-[11px] text-muted uppercase tracking-wider font-medium">Precio</p>
+            <p class="text-xs text-muted font-medium">Precio</p>
             <p v-if="displayPrice" class="text-lg font-semibold text-highlighted tabular-nums">
               {{ formatPrice(displayPrice.priceDecimal) }}
             </p>
@@ -266,7 +266,7 @@ watch(
 
           <!-- Stock -->
           <div class="rounded-lg border border-default p-3 space-y-1">
-            <p class="text-[11px] text-muted uppercase tracking-wider font-medium">Existencias</p>
+            <p class="text-xs text-muted font-medium">Existencias</p>
             <p v-if="displayStock" class="text-lg font-semibold tabular-nums" :class="isLowStock(displayStock.quantity, displayStock.minQuantity) ? 'text-warning' : 'text-highlighted'">
               {{ displayStock.quantity }}
             </p>
@@ -276,7 +276,7 @@ watch(
 
           <!-- Location -->
           <div class="rounded-lg border border-default p-3 space-y-1">
-            <p class="text-[11px] text-muted uppercase tracking-wider font-medium">Ubicación</p>
+            <p class="text-xs text-muted font-medium">Ubicación</p>
             <p v-if="displayStock?.location" class="text-sm font-semibold text-highlighted">
               {{ displayStock.location }}
             </p>

@@ -125,8 +125,8 @@ function handleRemoveOrderPromo() {
     <!-- Total row — Phase 14b: large, bold, adaptive to surface -->
     <div class="flex items-baseline justify-between mb-1">
       <div class="flex flex-col">
-        <p class="text-xs font-semibold text-muted uppercase tracking-wider sales-pos-totals-label">
-          TOTAL A COBRAR
+        <p class="text-xs font-semibold text-muted sales-pos-totals-label">
+          Total a cobrar
         </p>
         <span
           v-if="composition"
@@ -136,7 +136,7 @@ function handleRemoveOrderPromo() {
       </div>
       <span
         data-testid="total-amount"
-        class="text-2xl font-extrabold text-highlighted tabular-nums sales-pos-total-amount"
+        class="text-2xl font-semibold text-highlighted tabular-nums sales-pos-total-amount"
       >{{ totalFormatted }}</span>
     </div>
 

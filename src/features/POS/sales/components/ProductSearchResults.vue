@@ -64,7 +64,7 @@ const emit = defineEmits<{
       v-else-if="isEmpty"
       :kind="hasQuery ? 'no-match' : 'empty'"
       :title="hasQuery ? 'Ningún resultado' : 'Aún no hay productos para vender'"
-      :description="hasQuery ? 'No hay productos habilitados para POS con ese término' : undefined"
+      :description="hasQuery ? 'No hay productos habilitados para POS con ese término' : 'Los productos habilitados para el punto de venta aparecen aquí.'"
       class="py-20 sales-pos-catalog-empty"
     />
 
