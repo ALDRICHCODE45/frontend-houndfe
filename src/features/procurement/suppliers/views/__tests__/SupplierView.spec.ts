@@ -383,3 +383,37 @@ describe('supplier deletion', () => {
     expect((document.activeElement as HTMLInputElement | null)?.placeholder).toBe('Buscar proveedor...')
   })
 })
+describe('supplier view empty, no-match and pager', () => {
+  it('is nada todavía with an empty directory, and its create action opens the form', async () => {
+    vi.mocked(suppliersApi.list).mockResolvedValue({ items: [], nextCursor: null })
+    const wrapper = setup(['read', 'create'], true)
+    await vi.waitFor(() => expect(wrapper.find('.hf-empty-state').exists()).toBe(true))
+    const state = wrapper.get('.hf-empty-state')
+    expect(state.attributes('data-kind')).toBe('empty')
+    expect(state.get('.hf-empty-state__title').text()).toBe('Aún no hay proveedores')
+    await wrapper.get('[data-testid="empty-state-action"]').trigger('click')
+    await flushPromises()
+    expect(document.querySelector('[role="dialog"] [data-slot="title"]')?.textContent?.trim()).toBe('Crear proveedor')
+  })
+
+  it('offers no create action to a read-only role', async () => {
+    vi.mocked(suppliersApi.list).mockResolvedValue({ items: [], nextCursor: null })
+    const wrapper = setup(['read'], true)
+    await vi.waitFor(() => expect(wrapper.find('.hf-empty-state').exists()).toBe(true))
+    expect(wrapper.find('[data-testid="empty-state-action"]').exists()).toBe(false)
+  })
+
+  it('hides the pager when there is nothing to page', async () => {
+    vi.mocked(suppliersApi.list).mockResolvedValue({ items: [], nextCursor: null })
+    const wrapper = setup(['read'], true)
+    await flushPromises()
+    expect(wrapper.find('.supplier-pagination').exists()).toBe(false)
+  })
+
+  it('keeps the pager when another page exists', async () => {
+    vi.mocked(suppliersApi.list).mockResolvedValue({ items: [supplier], nextCursor: 'next' })
+    const wrapper = setup(['read'], true)
+    await flushPromises()
+    expect(wrapper.find('.supplier-pagination').exists()).toBe(true)
+  })
+})

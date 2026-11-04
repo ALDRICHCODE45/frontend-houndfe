@@ -13,11 +13,12 @@ vi.mock('@vueuse/core', async importOriginal => {
 })
 const grants = new Set<string>()
 vi.mock('@/features/auth/stores/useAuthStore', () => ({ useAuthStore: () => ({ user: { id: 'u' }, currentTenantId: 't', authPhase: 'authenticated', permissionsLoaded: true, userCan: (action: string, subject: string) => grants.has(`${action}:${subject}`) }) }))
-const state = vi.hoisted(() => ({ status: { value: undefined as string | undefined } }))
+const state = vi.hoisted(() => ({ status: { value: undefined as string | undefined }, search: { value: '' } }))
 vi.mock('../../composables/usePurchaseOrders', async () => {
   const { shallowRef } = await import('vue')
   state.status = shallowRef<string | undefined>(undefined)
-  return { usePurchaseOrders: () => ({ status: state.status, items: shallowRef([]), hasNext: shallowRef(false), hasPrevious: shallowRef(false), next: vi.fn(), back: vi.fn(), refresh: vi.fn(), isLoading: shallowRef(false), isFetching: shallowRef(false), error: shallowRef(null) }) }
+  state.search = shallowRef('')
+  return { usePurchaseOrders: () => ({ search: state.search, status: state.status, items: shallowRef([]), hasNext: shallowRef(false), hasPrevious: shallowRef(false), next: vi.fn(), back: vi.fn(), refresh: vi.fn(), isLoading: shallowRef(false), isFetching: shallowRef(false), error: shallowRef(null) }) }
 })
 const workspace = vi.hoisted(() => ({ selected: null as unknown, open: null as unknown, transition: null as unknown, canConfirm: null as unknown, canCancel: null as unknown, message: null as unknown, dirty: null as unknown, requestTransition: null as unknown, confirmTransition: null as unknown, retry: null as unknown, uncertain: null as unknown, show: null as unknown, showThenTransition: null as unknown, requestDelete: null as unknown, close: null as unknown }))
 vi.mock('../../composables/usePurchaseOrderWorkspace', async () => {
@@ -39,14 +40,14 @@ const stubs = {
   Slideover: { props: ['open', 'title', 'description'], template: '<section v-if="open" role="dialog"><h2 class="sr-title">{{ title }}</h2><p class="sr-description">{{ description }}</p><slot name="content"/></section>' },
   Modal: { props: ['open', 'title', 'description'], template: '<aside v-if="open"><h2>{{ title }}</h2><p>{{ description }}</p><slot name="body"/><slot name="footer"/></aside>' },
   PurchaseOrderForm: { template: '<form data-testid="draft-form"/>' },
-  PurchaseOrderList: { props: ['canEdit', 'canDelete', 'canConfirm', 'canCancel', 'activeFilterCount'], emits: ['clear-filters', 'open', 'confirm', 'cancel', 'discard'], template: '<div><slot name="filters"/><slot name="actions"/><span>{{canEdit}}/{{canDelete}}</span></div>' },
+  PurchaseOrderList: { props: ['canEdit', 'canDelete', 'canCreate', 'filtered', 'canConfirm', 'canCancel', 'activeFilterCount'], emits: ['clear-filters', 'open', 'confirm', 'cancel', 'discard'], template: '<div><slot name="filters"/><slot name="actions"/><span>{{canEdit}}/{{canDelete}}</span></div>' },
   ToolbarSelectFilter: { props: ['modelValue', 'items', 'label', 'portalClass', 'testId'], emits: ['update:modelValue'], template: '<div :data-testid="testId" :data-value="modelValue" :data-label="label" />' },
 }
 const mountView = () => mount(PurchaseOrderView, { global: { stubs }, attachTo: document.body })
 beforeEach(() => {
   grants.clear(); grants.add('read:ProcurementPurchaseOrder')
   set('selected', null); set('open', false); set('transition', null); set('canConfirm', false); set('canCancel', false); set('message', ''); set('dirty', false); set('uncertain', false)
-  state.status.value = undefined; viewport.mobile.value = false
+  state.status.value = undefined; state.search.value = ''; viewport.mobile.value = false
   for (const name of ['show', 'showThenTransition', 'requestDelete', 'close'] as const) vi.mocked(workspace[name] as ReturnType<typeof vi.fn>).mockClear()
   vi.mocked(workspace.requestTransition as ReturnType<typeof vi.fn>).mockClear(); vi.mocked(workspace.confirmTransition as ReturnType<typeof vi.fn>).mockClear()
 })
@@ -110,6 +111,38 @@ describe('order status filter', () => {
     await wrapper.vm.$nextTick()
     expect(state.status.value).toBeUndefined()
     expect(list().props('activeFilterCount')).toBe(0)
+    wrapper.unmount()
+  })
+})
+describe('empty and no-match wiring', () => {
+  const list = (wrapper: ReturnType<typeof mountView>) => wrapper.getComponent(stubs.PurchaseOrderList)
+  it('is "nada todavía" with no search or status, and "sin resultados" with either', async () => {
+    const wrapper = mountView()
+    expect(list(wrapper).props('filtered')).toBe(false)
+    state.search.value = 'norte'
+    await wrapper.vm.$nextTick()
+    expect(list(wrapper).props('filtered')).toBe(true)
+    state.search.value = ''
+    state.status.value = 'DRAFT'
+    await wrapper.vm.$nextTick()
+    expect(list(wrapper).props('filtered')).toBe(true)
+    wrapper.unmount()
+  })
+  it('clears the search and the status together from the no-match state', async () => {
+    const wrapper = mountView()
+    state.search.value = 'norte'
+    state.status.value = 'CONFIRMED'
+    list(wrapper).vm.$emit('clear-filters')
+    await wrapper.vm.$nextTick()
+    expect(state.search.value).toBe('')
+    expect(state.status.value).toBeUndefined()
+    wrapper.unmount()
+  })
+  it('offers creating only with the create permission, and hides the pager when there is one page', () => {
+    grants.add('create:ProcurementPurchaseOrder'); grants.add('read:Product'); grants.add('read:ProcurementSupplier')
+    const wrapper = mountView()
+    expect(list(wrapper).props('canCreate')).toBe(true)
+    expect(wrapper.find('.order-pagination').exists()).toBe(false)
     wrapper.unmount()
   })
 })
