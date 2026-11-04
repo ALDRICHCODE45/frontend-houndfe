@@ -492,7 +492,7 @@ export async function run(browserPage, stage, part = null) {
     }
     const subtotalsMatch = async (order, name) => {
       const texts = (await slide().locator('[data-testid="line-subtotal"]').allInnerTexts()).map(t => t.trim())
-      const costs = (await slide().locator('[data-testid="line-cost"]').allInnerTexts()).map(t => t.trim())
+      const costs = (await slide().locator('[data-testid="line-cost"]').allInnerTexts()).map(t => t.replace(/\s+/g, " ").trim())
       // Formatting never recalculates: the digits equal the server decimal string, rounded to 2 decimals for display (the exact value is the title).
       const same = (text, amount) => MONEY.test(text) && nearAmount(text, amount)
       const subtotals = order.lines.map(line => order.subtotals.find(item => item.lineId === line.lineId)?.subtotal ?? null)
