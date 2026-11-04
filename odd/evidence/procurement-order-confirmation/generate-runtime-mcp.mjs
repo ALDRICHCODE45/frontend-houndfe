@@ -52,11 +52,13 @@ for (const [name, value] of Object.entries(placeholders)) {
 }
 expanded = expanded.replace(marker, 'async function run(')
 await mkdir(new URL('./generated/', import.meta.url), { recursive: true })
-for (const stage of ['manager', 'permissions', 'transitions']) {
-  const output = `async (page) => {\n// Expanded from runtime-checks.mjs; no VM modules.\n${expanded}\nreturn await run(page, '${stage}')\n}\n`
+// The manager stage also ships in parts, each under the MCP request time limit.
+const parts = [['manager', null], ['permissions', null], ['transitions', null], ...['1440-light', '1440-dark', '390-light', '390-dark'].map(tour => ['manager', `tour:${tour}`]), ['manager', 'mutations']]
+for (const [stage, part] of parts) {
+  const output = `async (page) => {\n// Expanded from runtime-checks.mjs; no VM modules.\n${expanded}\nreturn await run(page, '${stage}', ${JSON.stringify(part)})\n}\n`
   // Parse only. Neither the function nor the VM script is evaluated/invoked.
   new vm.Script(`(${output})`)
-  const filename = `mcp-runtime-${stage}.js`
+  const filename = `mcp-runtime-${stage}${part ? '-' + part.replace(':', '-') : ''}.js`
   await writeFile(new URL(`./generated/${filename}`, import.meta.url), output)
   console.log(`generated/${filename}: expanded and parsed only; not executed (commit ${commit.slice(0, 8)}${workingTreeDirty ? ', working tree dirty' : ''})`)
 }

@@ -44,7 +44,7 @@ const allowed = (method, path) =>
 const safeCode = code => typeof code === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/.test(code) ? code : null
 const redact = path => path.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, ':id')
 
-export async function run(browserPage, stage) {
+export async function run(browserPage, stage, part = null) {
   const report = {
     stage, commit: COMMIT, workingTreeDirty: TREE_DIRTY, checks: [], findings: [], requests: [], outsideScope: [], screenshots: [], nativeDialogs: [], observed: {}, showcase: {},
     runtimeErrorCount: 0, verdict: 'incomplete',
@@ -861,13 +861,17 @@ export async function run(browserPage, stage) {
         await snap(`cancelled-from-draft-${tag}`); await closeEditor()
       }
 
+      // `part` splits the manager stage under the MCP request limit: 'tour:<width>-<theme>' runs one read-only tour, 'mutations' only the confirm and cancel.
+      report.part = part
       for (const [width, theme] of [[1440, 'light'], [1440, 'dark'], [390, 'light'], [390, 'dark']]) {
+        if (part && part !== `tour:${width}-${theme}`) continue
         await setView(width, theme)
         if (theme === 'light') await filterChecks(String(width))
         await readOnlyTour(`${width}-${theme}`)
       }
 
       // Mutations: the confirm is exercised at 1440/light, the cancel at 390/dark (both on the designated spares).
+      if (!part || part === 'mutations') {
       step = 'confirm readyToConfirm through the dialog'
       await setView(1440, 'light')
       await openOrder(found.readyToConfirm, 'confirm flow')
@@ -892,6 +896,7 @@ export async function run(browserPage, stage) {
       check(cancelledRead.status === 200 && cancelledRead.value.status === 'CANCELLED' && cancelledRead.value.confirmedAt === null, 'API agrees: CANCELLED, never confirmed')
       await closeEditor()
       check(await rowStatus(found.readyToConfirmSpare, 'cancelled row', LABEL.CANCELLED) === LABEL.CANCELLED, 'list row now shows Cancelada')
+      }
     } else if (stage === 'transitions') {
       const found = await resolveShowcase(['confirmedSpare'])
       const pool = found.confirmedPool
