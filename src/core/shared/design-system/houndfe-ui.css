@@ -190,6 +190,49 @@ body.hf-app {
   vertical-align: middle;
 }
 
+/* Fit. A table of up to 8 columns fits its card at 1440 with the sidebar open,
+ * with no horizontal scroll. Nuxt's `td` is `whitespace-nowrap`, so a long text
+ * cell used to widen the whole table and push the last columns behind the pinned
+ * Acciones cell. Cells now shrink (`max-width: 0` lets the auto layout hand each
+ * column its share of the card) and truncate with an ellipsis; `min-width` keeps
+ * a status badge whole. Full text stays reachable in the detail. */
+.hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']) {
+  min-width: 7rem;
+  max-width: 0;
+  padding-inline: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The selection column is only its checkbox. */
+.hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']):has([role='checkbox']) {
+  width: 3rem;
+  min-width: 3rem;
+  max-width: 3rem;
+  padding-inline: 0.75rem 0;
+  overflow: visible;
+}
+
+/* The Acciones column (`w-16`) reserves exactly 64px for the ⋮ menu, whose 44px
+ * target is never clipped or overlapped. */
+.hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']).w-16 {
+  width: 4rem;
+  min-width: 4rem;
+  max-width: 4rem;
+  padding-inline: 0.5rem;
+  overflow: visible;
+}
+
+/* A pinned cell is opaque: Nuxt paints it at 75%, so a neighbour scrolled
+ * under it (narrow screens only) showed through the ⋮ as a fade. */
+.hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th'])[data-pinned] {
+  background-color: var(--hf-surface);
+}
+
+.hf-ui .hf-data-table th[data-slot='th'][data-pinned] {
+  background-color: var(--hf-surface-muted);
+}
+
 .hf-ui .hf-data-table tr[data-slot='tr']:hover {
   background-color: color-mix(in srgb, var(--hf-active-soft) 55%, var(--hf-surface));
 }
