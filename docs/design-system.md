@@ -67,8 +67,9 @@ The existing opt-in foundation is [`houndfe-theme.css`](../src/core/shared/desig
 | Gold                | `--hf-gold` / `--hf-gold-soft` / `--hf-gold-ink`       | Theme-specific equivalents | Restrained brand accent, not a default status color          |
 | Warning             | `--hf-warning` / `--hf-warning-soft`                   | Theme-specific equivalents | Semantic warning; do not use decorative gold as warning text |
 | Success             | `--hf-success`                                         | Theme-specific equivalent  | Semantic success accompanied by text                         |
+| Danger              | `--hf-danger`: `#b42318` (+ `-soft`, `-border`)        | `#ffb4ab`                  | Destructive actions, danger status, errors; see Patrones     |
 
-Error, destructive, and informational states retain their existing semantic roles until a complete theme-specific mapping is defined and checked. Do not invent their palette in individual screens.
+Destructive and error states use `--hf-danger`, with `-soft` and `-border` for status surfaces (AA pinned in both themes); informational states keep their existing roles until a complete mapping is defined. Do not invent their palette in individual screens.
 
 Light and dark modes are designed as a pair. Never fix one mode by making the other unreadable. Menus, tooltips, dialogs, sheets, and other teleported content need an explicit theme boundary; ancestor-scoped tokens alone do not prove coverage.
 
@@ -76,7 +77,7 @@ Light and dark modes are designed as a pair. Never fix one mode by making the ot
 
 | Topic            | Rule                                                                                                                                                              |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Typeface         | Manrope with the existing system fallback. Loading failure must leave the interface usable. Global application requires a separate implementation step.           |
+| Typeface         | Geist (Google Fonts, OFL) through `--hf-font`, with the existing system fallback; `--shell-font` and `--font-sans` follow it. Manrope and Inter are retired. Loading failure must leave the interface usable. Weights: 400 body, 500 medium labels, 600 names, titles and badges; 700 is not used for names or titles. |
 | Page title       | Target: 28–32px, weight 600, line-height around 1.25. One dominant heading per workspace.                                                                         |
 | Section title    | Target: 16–18px, weight 600. Do not imitate a second page title.                                                                                                  |
 | Operational text | Target: 14–16px. Table text must remain readable at normal zoom.                                                                                                  |
@@ -95,7 +96,7 @@ Page width follows the task: data-heavy tables may use available width; forms ma
 - **Inputs:** visible label, one field surface, readable helper/error text, and a clear focus indicator. A placeholder is not a label.
 - **Date fields:** use our calendar component (`UInputDate` with a `UCalendar` popover), never the browser's native `<input type="date">`. A field commits only a complete, real calendar date as its exact `YYYY-MM-DD` string through the shared `calendarPartsToDateString` (`src/core/shared/utils/mexicoCityCalendar.ts`); a cleared, partial or impossible value never commits and snaps back to the last committed date. No JS `Date` is constructed, so no time zone can shift the day. References: `SellerReportDateRangeFilter.vue`, `BranchSalesSummaryFilters.vue`.
 - **Cards:** group meaningful content, not every individual label or input. All equivalent surfaces use the same semantic background in both modes.
-- **Badges:** communicate status with text and color. Selection and financial status must not become visually interchangeable.
+- **Badges:** communicate status with text and color. Selection and financial status must not become visually interchangeable. New work uses `StatusBadge` (dot + tinted background, `urgent` variant); see Patrones.
 - **Dialogs and sheets:** keep existing close, submit, keyboard, focus-restoration, and unsaved-change behavior. Visual restyling must not replace accessible primitives with static markup. Apply the feature's theme marker to the actual teleported dialog content, not only its trigger or positioning wrapper. Shared wrappers must use an existing explicit public opt-in; a missing boundary is a migration gap, not permission to change every consumer.
 - **Nested popups:** each select, filter menu, row menu and page-size menu needs its own owned content/listbox boundary. A themed dialog or toolbar does not prove coverage of its nested teleports. Verify the installed primitive's prop/attribute path as well as the public contract; stubs and selector fixtures alone do not establish root ownership.
 - **Shared presentation opt-ins:** when an existing wrapper needs a theme boundary, an optional `portalClass` may forward to its native `ui.content`. Omission must preserve the previous `ui` value and all native defaults; do not substitute a new empty object. Keep existing width, mobile-sheet geometry, loading, focus and event behavior. Intermediate wrappers must forward to the real teleport owner. Test both opt-in and absent-opt-in behavior before adopting the option in a feature.
@@ -105,7 +106,7 @@ Page width follows the task: data-heavy tables may use available width; forms ma
 - **Global card theme:** the app-wide `UCard` theme in `vite.config.ts` paints literal `bg-white dark:bg-coco-neutral-900` roots that no semantic alias reaches. Every card in a migrated form or workspace needs a feature-owned section hook (for example `clients-form-section`, `promotions-form-section`) that paints `--hf-surface` and the border role; table pages escape only because `hf-table-surface` repaints its card. Check dark mode, where the legacy tint is most visible.
 - **Legacy forced paint:** an important legacy utility cannot be repaired with ordinary scoped CSS. When a shared control explicitly opts into the new theme, select its semantic presentation conditionally while omission keeps the old classes. Do not add blanket important overrides or recolor unreachable workflow steps merely because their source appears nearby.
 - **Toolbar select filter:** a single-choice list filter (status, type) is `ToolbarSelectFilter` (`src/core/shared/components/DataTable/ToolbarSelectFilter.vue`), never a native `<select>` or a bare `<label>`. It is a `USelect` (size `sm`, `aria-label` = its title, 44px trigger) inside `FilterSectionCard`, so mobile gets a titled section in the Filtros sheet and desktop (md+) sits inline beside the search on the same row, as in Products. Pass `portal-class` with the feature's HF hook so the listbox is themed, and `test-id` for specs. The view owns the value and the default: wire `active-filter-count` (1 only away from the default) and `@clear-filters` (reset to the default) on the table or toolbar. Do not add feature CSS that moves `.hf-toolbar-filters` onto a second row. The inline layout is a class contract of `DataTableToolbar` and the select: the search (`w-full sm:max-w-sm`) and `.hf-toolbar-filters` (`min-w-0 flex-1`) share one `sm:flex-row` region, the actions are its sibling on the right (`md:flex-row md:justify-between`), the section card is `md:contents`, and the select is `md:w-44 md:shrink-0`, so it can never be squeezed out of the card. Specs pin it (`ToolbarSelectFilter.layout.spec.ts`); the real-browser check is that the filter's box lies inside the table card and refresh and the primary action sit on the search row. References: `PurchaseOrderView.vue`, `SupplierView.vue`; specs `ToolbarSelectFilter.spec.ts`.
-- **Editor overlay width:** a create/edit slideover is a right-side `USlideover` whose `ui.content` carries `hf-theme hf-ui hf-form-overlay <feature>-portal`. Nuxt UI caps it at `max-w-md`; a form that needs line cards or a wide table widens that cap explicitly with one `max-w-*` class on the same `ui.content` (purchase orders: `max-w-3xl`, 48rem), never above `max-w-4xl` (56rem). Content must never stretch to the viewport: line length stays scannable and a label stays near its value. A width class that exists only in a `.vue` file is generated by Tailwind's source scan, so verify the width in a real browser at 1440 (see **Evidence servers**).
+- **Editor overlay width:** a create/edit slideover is a right-side `USlideover` whose `ui.content` carries `hf-theme hf-ui hf-form-overlay <feature>-portal`. Nuxt UI caps it at `max-w-md`; a form that needs line cards or a wide table widens that cap explicitly with one `max-w-*` class on the same `ui.content` (purchase orders: `max-w-3xl`, 48rem), never above `max-w-4xl` (56rem). A record with lines or sections is a *record workspace* and takes the 48rem width as its standard (see Patrones, Wide record-workspace slideover). Content must never stretch to the viewport: line length stays scannable and a label stays near its value. A width class that exists only in a `.vue` file is generated by Tailwind's source scan, so verify the width in a real browser at 1440 (see **Evidence servers**).
 - **Transition action bar:** actions that move a record between states (confirm, cancel) live in one bar at the top of the editor body, before the form or read-only block: a `<section aria-label="Acciones de la orden" class="order-transition-bar">` (12px radius, `--hf-border`, `--hf-surface-muted`) with the buttons first, left-aligned, and the explanation directly under them as a `role="status"` paragraph. The explanation is always present and says the most useful thing: what is missing (`order-help`), unsaved changes (`order-warning`), or what the action does. Drafts (with the form) and read-only orders share the same bar and the same `data-testid`s; it is absent when no transition is available. Reference: `PurchaseOrderView.vue` (`order-transition-bar`).
 - **Evidence servers:** `@tailwindcss/vite` scans for utilities from the Vite root. A throwaway dev server whose root is not the project (`odd/evidence/**/start-runtime-server.mjs`) must add `@source` for `src/` (a pre plugin appends `@source "../";` to `src/assets/main.css`); otherwise every utility that only appears in a `.vue` file (`md:flex-row`, `sm:max-w-sm`, `max-w-3xl`) is missing and the screenshots show a broken layout that production does not have. Before blaming a component, compare the screenshot with the production build.
 - **Read-only description lists:** a record shown without edit rights (closed, frozen or permission-limited) is a `<dl>`, not the form with disabled controls. Group label/value pairs in rows; when a record can be shown read-only in more than one state (draft, confirmed, cancelled), one component renders all of them, status included, and server diagnostics appear as readable warnings routed to the field or line they belong to (never raw codes or ids). A read-only view has no buttons, inputs or selects of its own. Lay the pairs out as groups (`<div class="order-detail"><dt/><dd/></div>`, valid inside a `<dl>`): label above value on mobile, two columns from md, with long values (record, location, note) spanning the row (`order-detail-wide`). Line figures are a compact grid (`max-content` label column plus a value column capped at 14rem, right-aligned), never `justify-content: space-between` across the whole width. References: `PurchaseOrderReadonly.vue`, `SupplierView.vue` (`supplier-readonly`).
@@ -121,7 +122,7 @@ Use one recognizable composition, with capabilities selected by the feature rath
 
 **All table pages follow the Products composition:** put the title and subtitle on the page background, outside and above the separate data-workspace surface. Use the shared `hf-page-header`, `hf-page-title` and `hf-page-subtitle` roles, a consistent left alignment, and the same header-to-surface spacing (`gap-6`). Do not wrap both the page heading and table in one card or add another enclosing card. The `hf-table-surface` contains the existing toolbar, feature context, table/card data and footer; preserve each feature's control order and capabilities. This rule applies to table and alternate card modes, not creation/detail forms. Adopt it as modules are changed; it does not authorize an immediate global repaint.
 
-1. **Page header:** title, short useful context, and existing page-level actions, outside the data surface. Do not duplicate the same primary action in the header and toolbar.
+1. **Page header:** title, at most one short subtitle, and existing page-level actions, outside the data surface. Do not duplicate the same primary action in the header and toolbar.
 2. **Toolbar:** search and existing filters, followed by relevant table controls and actions. Keep active filters understandable and their clearing behavior unchanged.
 3. **Optional context:** existing tabs, summaries, or selection actions only when the workflow has them.
 4. **Data surface:** column header, rows, state feedback, and existing row actions.
@@ -153,7 +154,7 @@ Before implementation, map actual table consumers to this matrix and record exce
 - Use restrained dividers and readable column headings. Make sortable columns identifiable only where sorting already exists.
 - Distinguish hover, keyboard focus, selection, disabled actions, and status. Row hover alone is not selection.
 - Keep identifiers, totals, and essential actions discoverable. Long notes may wrap or have a deliberate full-content path; do not silently truncate information.
-- Keep row-action locations consistent. Do not move an action into an overflow menu if doing so removes required access or changes its meaning.
+- Keep row-action locations consistent: the Acciones column is last and holds only the ⋮ `RowActionsMenu` when a row has more than one action. Moving an action into the menu must not remove required access or change its meaning (see Patrones, Row actions menu).
 - Preserve column visibility and pinning capabilities where present; do not add them to every table.
 - Keep failure distinct from empty results in table and card modes. Background refresh is not an initial empty loading screen.
 - On narrow screens, contain wide-table scrolling inside the data region rather than overflowing the page. Retain the current table/card choice unless a separate interaction change is approved.
@@ -165,6 +166,128 @@ Before implementation, map actual table consumers to this matrix and record exce
 When creation and detail already share a route-switched workspace, treat them as one presentation boundary and verify both routes. Preserve the existing section order, customer/product interactions, fields, validation, action eligibility and totals; do not force that workspace into the table composition or split state merely to restyle it. Keep its existing sticky regions and bounded or full-width layout according to the current task. Child dialogs and sheets remain part of the same migration inventory.
 
 Evidence: `QuotationDetailView.vue` serves both `/pos/cotizaciones/nueva` and quotation detail; `QuotationsListView.vue` provides persisted table/card modes and feature-owned filters. These are existing contracts, not requests to add this architecture to other modules.
+
+## Patrones
+
+Reusable UI patterns approved on the purchase-order artboards: list `02-propuesta-lista`, open order `04-propuesta-orden` and mobile `05-propuesta-movil` (`design/ui-clarity-orders/`). Each pattern says what it is, when to use it and where it lives. The artboards are the visual source of truth; the code references are the foundation delivered with them. Documentation is not evidence that a screen already follows a pattern: screens adopt them as they are changed.
+
+### Text diet
+
+The screen must answer "what do I read, what do I do next?" at a glance. Four rules decide what text earns its place:
+
+1. **No permanent help paragraphs.** A paragraph that explains the screen, a state or a button does not ship. If it is needed, shorten it to a label or move it to the element it explains.
+2. **Help lives next to what it blocks.** A disabled primary action is explained by the checklist right above it (see Issue checklist), a field in error by its own message. Nothing explains a thing that is not in front of the user.
+3. **Counts only near the limit.** A character counter appears from 90% of the maximum (`1,850 / 2,000`, 12px, weight 600, `--hf-warning`, `--hf-danger` at the limit, `aria-live="polite"`) and is absent before that.
+4. **One primary action per view.** One solid `--hf-action` button per page, slideover or card; everything else is outline, ghost or lives in a ⋮ menu. A primary is never repeated in header and toolbar.
+
+Say each thing once: a pending item appears in the checklist, not also in a banner, a tooltip and a paragraph.
+
+### Balanced color
+
+Surfaces are neutral: `--hf-surface`, `--hf-surface-muted` and `--hf-border`. Color is reserved for three jobs: **status** (badge tones), **urgency** (warning/danger tints and markers) and the **single primary action**. A view with more than one solid colored element, or a decorative colored panel, has too much color. Links use `--hf-action` with an underline; gold stays a brand accent.
+
+### Typography
+
+Geist, through `--hf-font` (`--shell-font` and `--font-sans` follow it; Manrope and Inter are retired). Weights scale: **400** body, **500** medium UI labels and menu items, **600** names, titles, column headings, badges and money, **700 is not used for names or titles** (bold names drop one step). Figures use `font-variant-numeric: tabular-nums` (`.hf-figure`). Sizes: page title 28–32px, detail title 22px (17px on mobile), section 16px, body 14px, secondary 13px, badge and meta 12px.
+
+### Page header
+
+Page background, outside the data surface: the title, and **at most one short subtitle** (`hf-page-header`, `hf-page-title`, `hf-page-subtitle`). If the title says it, there is no subtitle. No eyebrow, no explanation, no design notes. Reference: artboard 02, `houndfe-ui.css`.
+
+### Toolbar
+
+One row inside the table surface: search (360px on desktop, full width on mobile), then the filters, then the primary action at the far right. A single-choice filter shows its name inside the control (`Estado` prefix) instead of a separate label. The refresh button leaves the toolbar (artboard 02); background refresh still shows in the table. Mobile: search on its own row, then filter plus primary action. Reference: `DataTableToolbar`, `ToolbarSelectFilter` (see Toolbar select filter above), artboards 02 and 05.
+
+### Table row
+
+| Part | Rule |
+| ---- | ---- |
+| Primary text | The record's name, weight 600, `--hf-heading`, one line with ellipsis (`.hf-row-primary`). Held by a real `<button>` or link so assistive tech has a target. |
+| Secondary line | One line under the primary, 13px `--hf-muted` (`.hf-row-secondary`): the note or description, never a second name. |
+| Clickable row | The whole row opens the primary target on click and Enter (`useClickableRow`, `.hf-clickable-row`); hover is a 45% muted tint and focus a 2px inset ring. |
+| Figures | Right-aligned, tabular (`.hf-figure`); absent amount reads `—`. |
+| Dates | Short and muted (see Money and dates). |
+| Acciones column | Last, 64px, header visible only to assistive tech, **only** the ⋮ menu (`RowActionsMenu`). Never two buttons in this column. |
+| Height | 64px rows with a secondary line; 40px column headings in muted 13px/600. |
+
+The clickable-row contract: a click or Enter from an **interactive child** (the ⋮ menu, a link, a checkbox, an input, anything marked `data-row-ignore`) never opens the row; neither do secondary clicks, modifier clicks or a click that ends a text selection. Enter opens only when the row itself has focus. When the primary cell holds its own button, pass `{ focusable: false }` so the row is not a second tab stop. Wiring: `v-bind="rowProps(item)"` on a `<tr>` or card, or `onClick`/`onKeydown` from the composable inside UTable's `@select`. Reference: `useClickableRow.ts`, artboards 02 and 05.
+
+### Status badge
+
+`StatusBadge`: a dot on the left, a tinted soft background and a 600 label, 24px high, 6px radius (artboard 02). Tones: **neutral** (draft/archived/cancelled), **info**, **success** (confirmed/active), **warning**, **danger**. Colors are token pairs defined once in `houndfe-ui.css` and pinned for AA contrast in both themes. Never invent a per-feature color for a state: map the domain state to a tone in the feature.
+
+`urgent` draws more attention without shouting: a deeper tint, a border and an icon in place of the dot (no motion, no solid fill). It is spoken too (`Estado: Vencida, urgente`). Use it for states that need action now; if everything is urgent, nothing is. Next to the badge, an inline marker (`⚠ 1 aviso`: warning icon plus 12px/600 `--hf-warning` text) says there are pending items without a second badge. Selection and financial status never share a tone vocabulary by accident. Legacy `AppBadge` and `StatusDotBadge` stay for unmigrated screens.
+
+### Row actions menu
+
+`RowActionsMenu`: the ⋮ icon button (44px, ghost) opens a menu; every action is an item with an icon and a label. Rules:
+
+- More than one action on a row, card or line goes in the menu; a single frequent action may also surface, but the menu still exists for the rest.
+- The `aria-label` names the row: `Acciones de la orden de Distribuidora Veterinaria del Norte, borrador`.
+- Order by frequency, then **destructive last, after a separator**, in `--hf-danger` (`Descartar borrador`). Items that need confirmation end in `…` (`Confirmar…`, `Cancelar…`) and open a confirmation; destructive ones keep their confirm dialog.
+- Items vary by state (draft: Continuar, Confirmar…, Cancelar…, Descartar borrador; confirmed: Ver orden, Cancelar…). A state with no action shows no ⋮.
+- Keyboard: Enter/Space/ArrowDown on the button opens, arrows move, Escape closes and returns focus. Clicks and keys stop at the menu so a clickable row never opens from it.
+- The teleported menu carries `hf-theme hf-ui` (plus the feature's `portalClass`).
+
+Reference: `RowActionsMenu.vue`, artboards 02, 04 and 05.
+
+### Money and dates
+
+Money: server decimal strings through `formatDecimalMoney`, right-aligned, tabular, `—` when absent; the FE never sums amounts (totals come from the server). Dates in lists and meta lines are short and display-only: `formatShortDateTime` gives `3 nov, 20:43` in es-MX, and the year only when it differs from the current one (`3 nov 2025, 20:43`). Keep the wire value for requests and the full date for detail views and tooltips. Never render ids. Reference: `dateTime.utils.ts`, `currency.utils.ts`.
+
+### Detail header
+
+Top of the record workspace (artboard 04), in this order:
+
+1. **Meta line** (13px muted, wraps): status badge, then `location · guardada 3 nov, 20:43`.
+2. **Title** (22px/600, `--hf-heading`, tracking -0.02em, one line with ellipsis): the record's name.
+3. **Actions** on the right: **one** primary button (`Confirmar orden`), the ⋮ menu for the rest (`Más acciones de la orden`, destructive last: `Descartar borrador`) and the close button. No loose secondary buttons.
+4. **Step strip** underneath when the record has a flow.
+
+On mobile the header is a bar: close, meta plus title, ⋮; the primary moves to the sticky action bar.
+
+### Step strip
+
+`Completar → Guardar → Confirmar`, an `<ol aria-label="Pasos para confirmar">`. Each step is a 22px circle (20px mobile) plus a 13px/600 label, joined by a 24px hairline. States: **done** (`--hf-success` fill, check), **current** (`--hf-action` fill), **upcoming** (outline, muted). The current step is derived from the record: pending items, then unsaved changes, then ready. A count rides on the step it belongs to (`Completar · 1 pendiente`, `(1)` on mobile, `--hf-warning` weight 500). It shows where you are; it is not navigation and does not block.
+
+### Issue checklist
+
+One panel (`--hf-surface-muted`, 12px radius, `--hf-border`, 13px) titled for assistive tech (`aria-label="Pendientes para confirmar"`) above the form, listing **each pending item once**: an icon, the sentence and a link to its field (`Falta el costo en 1 renglón` + `Ir a Collar ajustable`; `Ver renglón` on mobile). The link expands the line if needed and focuses the field. States, in priority: pending (`--hf-warning` 600), blocked-by-save (`Guarda el borrador para validar el costo`, muted), all clear (`Lista para confirmar`, `--hf-success`). The disabled primary points at it with `aria-disabled="true"` and `aria-describedby`, so the checklist is the only explanation of why the button is off. The field itself shows `aria-invalid` with a `--hf-danger` border and ring; no repeated message.
+
+### Wide record-workspace slideover
+
+A right-side slideover for editing a record that has **lines or sections** (an order, a route, a quotation). Desktop width is **48rem**: one `max-w-3xl` on the same `ui.content` that carries `hf-theme hf-ui hf-form-overlay <feature>-portal`, `max-width: 100%`, over a dimmed scrim (page at 78% surface). Structure: a fixed header (Detail header), a scrolling body (20px/24px padding) and a fixed footer (Footer save state). On mobile it becomes a full screen with its own top bar and a sticky bottom action bar.
+
+This **refines the Editor overlay width rule**, it does not replace it: a plain create/edit form keeps Nuxt UI's `max-w-md`; a record workspace uses `max-w-3xl` (48rem); nothing exceeds `max-w-4xl`. Content never stretches to the viewport. Use it when the user edits a record with lines or sections, not for a four-field form. Reference: artboard 04, `PurchaseOrderView.vue`.
+
+### Urgency tones
+
+Urgency is shown where the problem is, in the warm tones, and always with text:
+
+- A row or line with a pending issue gets the **`--hf-warning-soft` row tint** (artboards 04, 05).
+- The missing value is replaced by a **`Falta` marker**: triangle icon plus `--hf-warning` 600 text in the cell that lacks it (`Falta` instead of the cost). The subtotal stays `—`.
+- In a list, `1 aviso` beside the status badge; urgent states use `StatusBadge urgent`.
+- `--hf-danger` is for what is wrong or destructive: a field in error, the limit reached, the destructive item. Pending is warning, never danger.
+
+### Inline line editing
+
+Lines are **compact rows** (product with variant under it, quantity with unit, unit cost, subtotal right-aligned and tabular, ⋮), not forms. Activating a row (click or Enter, never from the ⋮) expands an **edit row** under it on a muted tint with labeled fields in one grid (quantity · cost · taxes · `Listo`; two columns with the last field full width on mobile). The product button carries `aria-expanded`, `aria-controls` and an `aria-label` that names the line (`Editar renglón 2: Collar ajustable, Chico · Azul`). `Listo` (outline) collapses it and returns focus to the line. A line with an issue opens straight from the checklist link. Per-line actions (`Quitar renglón`, destructive) live in the line's ⋮, never as a trash button on the row. `Agregar renglón` is an outline button in the section heading (`Renglones · 3`).
+
+### Footer save state
+
+The footer of the workspace (border-top, `--hf-surface`) holds the **save state** on the left and the **secondary save action** on the right: `Guardado · 3 nov, 20:43` (word in `--hf-success`, date muted) or `● Cambios sin guardar` (`--hf-warning` dot), `aria-live="polite"`, and `Guardar borrador` as an outline button. The primary action stays in the header, so saving never competes with confirming. Operational save and publication remain distinct (see Component rules).
+
+### Sticky mobile action bar
+
+On mobile the workspace's actions live in a bar pinned to the bottom of the screen (artboard 05): `--hf-surface`, border-top, 12px/16px padding, 8px gap, 44px buttons; the secondary (`Guardar borrador`, outline) and the primary (`Confirmar orden`, flex 1.6). The body scrolls under it. It replaces the footer and the header primary on small screens, and never holds more than one primary.
+
+### Mobile cards
+
+On mobile a list row becomes a card (artboard 05): 12px radius, 16px padding. Top: the primary text as the stretched link (the whole card is the target through a `::after` overlay) and the ⋮ at the top-right (-8px margin so the 44px target stays aligned). Under it the secondary line, then the status badge and `aviso` marker, then a separated footer row with `3 renglones · $12,946.00` on the left and the short date on the right. Same data, same actions and same states as the table; use `useClickableRow` or the stretched link, not both. In the order, a line card is two rows: name plus ⋮, then `12 Bolsa × $780.50` on the left and the bold subtotal on the right. Secondary fields collapse into a `<details>` row with a one-line summary (`Nota y ubicación · Bodega principal, andén 3`).
+
+### Danger color
+
+`--hf-danger` (light `#b42318`, dark `#ffb4ab`, with `--hf-danger-soft` and `--hf-danger-border` for status surfaces) is the one red. Uses: the destructive menu item, the danger status badge, a field in error, a limit reached, a destructive confirm. Never alone (always text and, for actions, an icon), never as a fill for a primary action, and never for "pending". Contrast over every surface it sits on is pinned at AA in both themes (`hf-danger-token.spec.ts`). It replaces the ad hoc reds (`text-red-*`, `--coco-red`) as screens migrate.
 
 ## 5. Using v0 without replacing application behavior
 

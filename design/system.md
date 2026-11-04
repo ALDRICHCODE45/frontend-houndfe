@@ -4,7 +4,7 @@ Snapshot of implemented HF foundations and offline proposal rules. This is not e
 ## Authority
 - src/core/shared/design-system/houndfe-theme.css: authoritative light/dark colors, font stack and geometry.
 - src/core/shared/design-system/houndfe-ui.css: primary pairing, fields, 2px focus, title/subtitle, table surface and shadow.
-- docs/design-system.md: approved HoundFe composition and target spacing/type guidance.
+- docs/design-system.md: approved HoundFe composition and target spacing/type guidance, plus the Patrones catalog.
 - src/assets/main.css: legacy semantic roles now delegate to HF; literal Coco scales remain compatibility surfaces, not proposal defaults.
 - src/core/shared/design-system/useHfAppTheme.ts: App owns the body HF boundary and removes only its own markers.
 - src/features/catalog/styles/catalog.css: public catalog remains deliberately light, including teleported dialogs, under either host theme.
@@ -33,9 +33,13 @@ Historical artifacts/responsive or artifacts/v0-fidelity CSS is not the active a
 | --hf-warning | #805511 | #f2cb71 | warning |
 | --hf-warning-soft | #fff5d6 | #3b311d | warning soft |
 | --hf-success | #236044 | #a2d9b9 | success |
+| --hf-danger | #b42318 | #ffb4ab | destructive action text/icon, danger status, field in error |
+| --hf-danger-soft | #fef3f2 | #3d2220 | danger status background |
+| --hf-danger-border | #f4b8b2 | #7a3f3b | danger status border |
 
 ## Typography
-Source houndfe-theme.css: Manrope, ui-sans-serif, system-ui, sans-serif.
+Source houndfe-theme.css: Geist (Google Fonts, OFL), ui-sans-serif, system-ui, sans-serif. One token: --hf-font; --shell-font and --font-sans (main.css) follow it. Manrope and Inter are retired.
+Weights: 400 body, 500 medium UI labels, 600 names, titles, column headings and badges; 700 is not used for names or titles. Figures use tabular-nums.
 Offline artboards MUST use only the existing fallback: ui-sans-serif, system-ui, sans-serif; no remote fonts or URLs.
 Source houndfe-ui.css: page title clamp(1.75rem,1.55rem + .6vw,2rem), weight600, line-height1.25, letter-spacing-.045em; subtitle .875rem/1.5,max62ch; control .875rem/600.
 Source docs/design-system.md targets: section16–18px/600, body14–16px, support12–14px. These are documented targets, not claims of globally migrated CSS.
@@ -53,7 +57,7 @@ Source houndfe-ui.css focus:2px solid var(--hf-focus),offset2px.
 - 12px meaningful panels;6px controls,44px hitareas. Field boundary uses --hf-field-border; quiet decorative dividers use --hf-border.
 - No nested decorative cards or double input borders. Visible labels, semantic markup, keyboard focus and reduced motion.
 - Inline SVG icons, consistent stroke; no emoji or external assets. Product illustration labeled illustrative, not a real photo.
-- Same themed root for dialogs, sheets, tooltips and overlays. No arbitrary palette additions for error/destructive: clear text+existing warning roles in proposals.
+- Same themed root for dialogs, sheets, tooltips and overlays. Destructive and danger use --hf-danger (+ -soft/-border for status), always with text and an icon; no arbitrary reds. Patterns (badge, row actions menu, clickable row, checklist, step strip) are cataloged in docs/design-system.md, section Patrones.
 - Navigation is a UI proposal, not backend workflow/order; no mandatory sequence invented.
 - Prototype state controls visibly identify simulated local behavior; no real requests, storage, uploads or persistence claims.
 - Operational save and editorial save/publication remain distinct; no universal Save all or autosave. Care/private evidence never appears in public-style preview.
