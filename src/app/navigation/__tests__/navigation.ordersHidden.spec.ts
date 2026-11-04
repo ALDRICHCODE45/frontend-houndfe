@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { navigationGroups, quickActions } from '../navigation.registry'
 
-// Orders is paused: the /pos/orders route stays registered, but no navigation
-// surface (sidebar, command palette, quick actions) links to it.
-describe('orders navigation (paused)', () => {
+// The /pos/orders placeholder was removed: the route no longer exists (see
+// router.spec.ts, where it falls to NotFound) and no navigation surface
+// (sidebar, command palette, quick actions) links to it.
+describe('orders navigation (removed)', () => {
   it('has no sidebar entry pointing at /pos/orders', () => {
     const targets = navigationGroups.flatMap((group) => group.children.map((child) => child.to))
 

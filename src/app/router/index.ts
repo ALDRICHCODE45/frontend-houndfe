@@ -36,7 +36,6 @@ const TenantSelectionView = () =>
   import('@/features/auth/tenant-selection/views/TenantSelectionView.vue')
 const ProductsView = () => import('@/features/POS/products/views/ProductsView.vue')
 const ProductDetailView = () => import('@/features/POS/products/views/ProductDetailView.vue')
-const OrdersView = () => import('@/features/POS/orders/views/OrdersView.vue')
 const CustomersView = () => import('@/features/POS/customers/views/CustomersView.vue')
 // ─── Cash register / Caja (cash-register-ui T2–T4, S1 subset) ────────────────
 // Single "Caja" route guarded by read:CashRegister: registers, session opening,
@@ -174,16 +173,6 @@ const router = createRouter({
       name: 'pos-product-editorial',
       component: () => import('@/features/POS/products/views/ProductEditorialView.vue'),
       meta: { layout: 'dashboard', editorialRead: true },
-    },
-    {
-      path: '/pos/orders',
-      name: 'pos-orders',
-      component: OrdersView,
-      meta: {
-        layout: 'dashboard',
-        rememberAsLanding: true,
-        permission: ['read', 'Order'] as RoutePermission,
-      },
     },
     {
       path: '/pos/customers',
