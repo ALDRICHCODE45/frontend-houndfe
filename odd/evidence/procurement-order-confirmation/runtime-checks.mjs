@@ -176,6 +176,46 @@ export async function run(browserPage, stage) {
       }, UUID_SOURCE)
       check(leaks === 0, `no uuid-like string in visible text or labels: ${name}`)
     }
+    // Editor design (S8/S9 V2, V3). Measures the open order editor, if any: its width against the readable cap,
+    // the transition action bar, and the label-to-value distance of the read-only line figures.
+    const EDITOR_CAP_REM = 56
+    const editorDesign = async name => {
+      const m = await page.evaluate(() => {
+        const dialog = [...document.querySelectorAll('[role="dialog"]')].find(d => d.querySelector('form.order-form, [data-testid="order-readonly"]'))
+        if (!dialog) return null
+        const box = el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, right: r.right, bottom: r.bottom, width: r.width, height: r.height } }
+        const content = box(dialog)
+        const rem = parseFloat(getComputedStyle(document.documentElement).fontSize)
+        const body = dialog.querySelector('[data-slot="body"]')
+        const bar = dialog.querySelector('[data-testid="order-transition-bar"]')
+        const main = dialog.querySelector('form.order-form, [data-testid="order-readonly"]')
+        const figures = [...dialog.querySelectorAll('.order-readonly-figures > div')].map(row => { const dt = row.querySelector('dt'), dd = row.querySelector('dd'); return { gap: box(dd).x - box(dt).right, ddWidth: box(dd).width, ddRight: box(dd).right, dtRight: box(dt).right } })
+        const hint = bar?.querySelector('p')
+        const buttons = bar ? [...bar.querySelectorAll('button')].map(box) : []
+        return { content, rem, bodyWidth: body ? box(body).width : null, innerWidth, figures,
+          bar: bar ? { ...box(bar), buttons, hint: hint ? box(hint) : null, hintText: hint?.textContent?.trim() ?? '', buttonCount: buttons.length } : null,
+          mainTop: box(main).y, formWidth: main.getBoundingClientRect().width }
+      })
+      if (!m) return
+      const cap = EDITOR_CAP_REM * m.rem
+      if (vw >= 768) {
+        check(m.content.width <= cap + 1, `editor slideover is at most ${EDITOR_CAP_REM}rem wide (${Math.round(m.content.width)}px of ${Math.round(cap)}px): ${name}`)
+        check(m.content.width < m.innerWidth - 100, `editor slideover does not stretch to the viewport: ${name}`)
+        check(m.formWidth <= cap + 1, `editor content is at most ${EDITOR_CAP_REM}rem wide: ${name}`)
+      }
+      for (const [i, f] of m.figures.entries()) {
+        check(f.gap >= 0 && f.gap < 600, `read-only line figure ${i + 1}: label-to-value distance is ${Math.round(f.gap)}px, under 600px: ${name}`)
+        check(f.ddWidth <= 14 * m.rem + 1, `read-only line figure ${i + 1}: the value column is bounded (${Math.round(f.ddWidth)}px): ${name}`)
+      }
+      if (m.bar) {
+        const last = m.bar.buttons.at(-1)
+        check(m.bar.buttonCount >= 1 && m.bar.hint && m.bar.hintText.length > 0, `transition bar holds its buttons and an explanation: ${name}`)
+        check(m.bar.hint.y >= Math.min(...m.bar.buttons.map(b => b.bottom)) - 1 || m.bar.hint.x >= last.right - 1, `the explanation sits under or beside the buttons in the same bar: ${name}`)
+        check(m.bar.bottom <= m.mainTop + 1, `transition bar comes before the form or read-only block: ${name}`)
+        check(m.bar.buttons.every(b => b.x >= m.bar.x && b.right <= m.bar.right && b.y >= m.bar.y && b.bottom <= m.bar.bottom) && m.bar.hint.right <= m.bar.right + 1, `transition buttons and hint sit inside the bar: ${name}`)
+        check(m.bar.right - m.bar.x <= m.formWidth + 1, `transition bar is as wide as the editor content, not wider: ${name}`)
+      }
+    }
     const shot = async name => {
       await settled()
       check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `no page overflow: ${name}`)
@@ -196,6 +236,7 @@ export async function run(browserPage, stage) {
       })
       if (offenders.length) (report.overflow ??= {})[name] = offenders
       check(offenders.length === 0, `no horizontal overflow in page, dialogs or their scrolling descendants: ${name}`)
+      await editorDesign(name)
       const path = `${DIR}/runtime-${stage}-${name}.png`
       await page.screenshot({ path, fullPage: true, animations: 'disabled', mask: [page.getByText(/[^\s@]+@[^\s@]+\.[^\s@]+/), page.locator('input[type="password"],input[type="email"]')] })
       report.screenshots.push(path)
@@ -255,6 +296,17 @@ export async function run(browserPage, stage) {
         } else {
           const search = await page.getByPlaceholder('Buscar por proveedor o nota...', { exact: true }).boundingBox()
           check(Boolean(search) && Math.abs(search.y + search.height / 2 - (box.y + box.height / 2)) <= 6 && box.x >= search.x + search.width - 1, `Estado filter shares the search row at ${vw}: ${tag}`)
+          // V1: the filter must be fully visible inside the table card (a clipped or overflowing filter used to pass the row check).
+          const card = await page.locator('.hf-table-surface').first().boundingBox()
+          check(Boolean(card) && box.x >= card.x && box.x + box.width <= card.x + card.width && box.y >= card.y && box.y + box.height <= card.y + card.height, `Estado filter lies fully inside the table card at ${vw}: ${tag}`)
+          // The refresh and create actions share the search row, ordered search, filter, refresh, create, and sit at the card's right edge.
+          const refresh = await page.getByTestId('refresh-orders').boundingBox()
+          const create = await page.getByTestId('create-order').boundingBox()
+          const mid = b => b.y + b.height / 2
+          check(Boolean(refresh) && Boolean(create) && Math.abs(mid(refresh) - mid(search)) <= 6 && Math.abs(mid(create) - mid(search)) <= 6, `refresh and Nueva orden are on the search row at ${vw}: ${tag}`)
+          check(search.x < box.x && box.x + box.width <= refresh.x + 1 && refresh.x + refresh.width <= create.x + 1, `toolbar order is search, Estado, refresh, Nueva orden at ${vw}: ${tag}`)
+          check(card.x + card.width - (create.x + create.width) <= 40 && card.x + card.width - (create.x + create.width) >= 0, `Nueva orden is right-aligned to the table card at ${vw}: ${tag}`)
+          check(search.width <= 24 * 16 + 1 && search.width >= 200, `the search is bounded (${Math.round(search.width)}px) and leaves room for the filter and actions at ${vw}: ${tag}`)
         }
         await trigger.click()
         const options = (await page.getByRole('option').allInnerTexts()).map(text => text.trim())

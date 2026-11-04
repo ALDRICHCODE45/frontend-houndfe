@@ -21,8 +21,15 @@ await new Promise((yes, no) => {
 })
 await mkdir(root, { recursive: true })
 await writeFile(resolve(root, 'index.html'), await readFile(resolve(project, 'index.html')))
+// @tailwindcss/vite scans from the Vite root, which here is the evidence directory, so without this
+// every utility that only appears under src/ (md:flex-row, sm:max-w-sm, max-w-3xl...) is never generated
+// and the screenshots show a layout the production build does not have. Point the scan back at src/.
+const scanSource = { name: 'evidence-tailwind-source', enforce: 'pre', transform(code, id) {
+  if (id.split('?')[0].endsWith('/src/assets/main.css')) return { code: `${code}\n@source "../";\n`, map: null }
+} }
 const server = await createServer({
   ...base,
+  plugins: [scanSource, ...(base.plugins ?? [])],
   configFile: false,
   envDir: false,
   root,
