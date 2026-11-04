@@ -473,12 +473,12 @@ describe('SalesPosCustomer sheet — readable, labelled, real-state presentation
     wrappers.splice(0).forEach((wrapper) => wrapper.unmount())
     document.body.innerHTML = ''
 
-    // Same flow, non-venta portal token: the accepted legacy footer survives.
+    // Same flow, non-venta portal token: the footer survives with the shared primary control.
     await openAtAddressStep({ portalClass: ENTRY_PORTAL })
     const footerCta = document.body.querySelector<HTMLElement>('[data-testid="open-create-customer"]')!
     expect(footerCta).not.toBeNull()
-    expect(footerCta.getAttribute('class')).toContain('!bg-(--brand-action)')
-    expect(footerCta.getAttribute('class')).toContain('!text-black')
+    expect(footerCta.getAttribute('class')).toContain('hf-primary-control')
+    expect(footerCta.getAttribute('class')).not.toContain('brand-action')
   })
 
   it('keeps both nested entry points behind the create permission', async () => {
@@ -515,7 +515,7 @@ describe('SalesPosCustomer sheet — readable, labelled, real-state presentation
     )
   })
 
-  it('clears the legacy forced literals only under the venta token', async () => {
+  it('clears the forced literals under the venta token and keeps the action ink elsewhere', async () => {
     await openAtAddressStep({ portalClass: SALE_PORTAL })
     const forced = Array.from(document.body.querySelectorAll<HTMLElement>('[class]')).filter((el) =>
       /(^|\s)!(?:bg|text|font|border|ring)-/.test(el.className?.toString() ?? ''),
@@ -536,7 +536,7 @@ describe('SalesPosCustomer sheet — readable, labelled, real-state presentation
     await openAtAddressStep({ portalClass: QUOTATION_PORTAL })
     expect(
       document.body.querySelector('[data-testid="change-customer-step"]')!.getAttribute('class'),
-    ).toContain('text-coco-gold-800')
+    ).toContain('text-(--hf-action)')
   })
 
   it('keeps the immediate assign and address-save behaviour', async () => {

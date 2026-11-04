@@ -277,7 +277,7 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
                   </p>
                   <UBadge
                     color="neutral"
-                    class="sales-pos-customer-selected-badge text-coco-gold-800"
+                    class="sales-pos-customer-selected-badge text-(--hf-heading)"
                     label="Seleccionado"
                     size="xs"
                   />
@@ -292,7 +292,7 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
                   type="button"
                   data-testid="change-customer-step"
                   class="sales-pos-customer-change text-xs hover:underline"
-                  :class="isSaleCustomerPortal ? '' : 'text-coco-gold-800'"
+                  :class="isSaleCustomerPortal ? '' : 'text-(--hf-action)'"
                   @click="selectedCustomer = null"
                 >
                   Cambiar cliente
@@ -370,8 +370,7 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
                   color="primary"
                   variant="soft"
                   label="+ Nuevo cliente"
-                  class="mt-3 rounded-xl font-semibold shadow-sm"
-                  :class="portalClass ? 'hf-primary-control' : '!bg-(--brand-action) !text-black hover:!brightness-110'"
+                  class="mt-3 hf-primary-control"
                   @click="isCreateCustomerOpen = true"
                 />
               </div>
@@ -494,7 +493,7 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
                 data-testid="open-create-customer"
                 label="+ Nuevo cliente"
                 color="primary"
-                class="w-full !bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+                class="w-full hf-primary-control"
                 @click="isCreateCustomerOpen = true"
               />
             </div>

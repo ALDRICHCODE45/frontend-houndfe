@@ -534,8 +534,6 @@ describe('AppResponsiveDrawer portalClass seam — installed native roots', () =
 
 describe('AssignCustomerSlideover — reached sales flow keeps the opted-in boundary', () => {
   const adapter = readFileSync('src/features/POS/sales/styles/sales-entry-visual.css', 'utf8')
-  const forcedBlock = adapter.replace(/\/\*[\s\S]*?\*\//g, '').match(/([^{}]+)\{[^{}]*!important[^{}]*\}/)!
-  const forcedSelector = forcedBlock[1]!.trim()
   function cardPaint(card: Element) {
     const style = document.createElement('style')
     style.textContent = adapter.replace(/^@import.*$/gm, '')
@@ -614,7 +612,7 @@ describe('AssignCustomerSlideover — reached sales flow keeps the opted-in boun
     customerApiMock.getById.mockReset()
   })
 
-  it.each([PORTAL, 'hf-theme hf-ui quotations-portal', undefined])('does not force step-1 outline/empty CTAs (portal=%s)', async (portalClass) => {
+  it.each([PORTAL, 'hf-theme hf-ui quotations-portal', undefined])('keeps the step-1 action outline and gives the empty CTA the shared primary control (portal=%s)', async (portalClass) => {
     customerApiMock.getPaginated.mockResolvedValue(makePaginated([]))
     track(mount(AssignCustomerSlideover, {
       props: { open: true, saleId: 'sale-1', portalClass }, attachTo: document.body,
@@ -626,9 +624,10 @@ describe('AssignCustomerSlideover — reached sales flow keeps the opted-in boun
     await flushPromises()
     const buttons = Array.from(document.body.querySelectorAll('[data-testid="open-create-customer"]'))
     expect(buttons).toHaveLength(2)
-    for (const button of buttons) expect(button.matches(forcedSelector)).toBe(false)
+    for (const button of buttons) expect(button.getAttribute('class')).not.toContain('brand-action')
+    // The search-step action stays an outline; only the empty-state CTA is the primary.
     expect(buttons[0]!.classList.contains('hf-primary-control')).toBe(false)
-    expect(buttons[1]!.classList.contains('hf-primary-control')).toBe(Boolean(portalClass))
+    expect(buttons[1]!.classList.contains('hf-primary-control')).toBe(true)
   })
 
   it('reaches step 2 with a real saleId and keeps the marker on the native root', async () => {
@@ -655,8 +654,6 @@ describe('AssignCustomerSlideover — reached sales flow keeps the opted-in boun
     expect(row).not.toBeNull()
     expect(row.getAttribute('data-slot')).toBe('root')
     expect(cardPaint(row)).toBeDefined()
-    const outlineCta = document.body.querySelector('[data-testid="open-create-customer"]')!
-    expect(outlineCta.matches(forcedSelector)).toBe(false)
     ;(row as HTMLElement).click()
     await flushPromises()
 
@@ -667,11 +664,12 @@ describe('AssignCustomerSlideover — reached sales flow keeps the opted-in boun
       document.body.querySelector('[data-testid="shipping-address-option-address-1"]'),
     ).not.toBeNull()
 
-    // Reached footer/labels are exactly what the feature stylesheet corrects:
-    // the forced legacy CTA and the gold-family labels the boundary repaints.
+    // The reached footer CTA takes the shared primary control, with no forced
+    // legacy utility for the stylesheet to repair.
     const footerCta = document.body.querySelector('[data-testid="open-create-customer"]')
     expect(footerCta).not.toBeNull()
-    expect(footerCta!.matches(forcedSelector)).toBe(true)
+    expect(footerCta!.classList.contains('hf-primary-control')).toBe(true)
+    expect(footerCta!.getAttribute('class')).not.toContain('brand-action')
     for (const testId of ['skip-shipping-address', 'shipping-address-option-address-1']) {
       const card = document.body.querySelector(`[data-testid="${testId}"]`)!
       expect(card.getAttribute('data-slot')).toBe('root')
@@ -679,12 +677,9 @@ describe('AssignCustomerSlideover — reached sales flow keeps the opted-in boun
     }
     const root = footerCta!.closest('.sales-entry-portal')!
     root.classList.replace('sales-entry-portal', 'quotations-portal')
-    expect(footerCta!.matches(forcedSelector)).toBe(false)
     expect(cardPaint(document.body.querySelector('[data-testid="skip-shipping-address"]')!)).toBeUndefined()
     root.classList.replace('quotations-portal', 'sales-entry-portal')
-    expect(document.body.querySelectorAll('[class~="text-coco-gold-800"]').length).toBeGreaterThan(
-      0,
-    )
+    expect(document.body.querySelectorAll('[class~="text-coco-gold-800"]')).toHaveLength(0)
     expect(document.body.textContent).toContain('Seleccionado')
     expect(document.body.textContent).toContain('Cambiar cliente')
 

@@ -56,15 +56,6 @@
   background-color: var(--hf-surface);
   border-color: var(--hf-border);
   color: var(--hf-ink);
-
-  /* The legacy gold utilities reached by the payment, success and customer
-   * surfaces resolve through the shared accent roles here instead of a second
-   * palette. Text uses the readable gold ink; the tints and edges stay
-   * alpha-derived from the single gold role, so both themes come from the
-   * foundation and no per-screen literal is introduced. */
-  --color-coco-gold-400: var(--hf-gold-ink);
-  --color-coco-gold-500: var(--hf-gold);
-  --color-coco-gold-700: var(--hf-gold-ink);
 }
 
 /* The installed UCard root owns a direct body slot. Its configured dark
@@ -129,13 +120,9 @@
   color: var(--hf-on-action);
 }
 
-/* Prices are operational data and the variant count is supporting text. */
+/* Prices are operational data. */
 .hf-theme.sales-entry-visual .sales-entry-product-search p.tabular-nums {
   color: var(--hf-ink);
-}
-
-.hf-theme.sales-entry-visual .sales-entry-product-search p[class~='text-(--brand-primary)'] {
-  color: var(--hf-muted);
 }
 
 /* The mobile add action keeps its soft/solid distinction with the matching
@@ -155,22 +142,4 @@
 .dark .hf-theme.sales-entry-visual .sales-entry-product-search [data-testid='add-action'] {
   background-color: var(--hf-action);
   color: var(--hf-on-action);
-}
-
-/* ── Protected shared customer sheet ───────────────────────────────────── */
-
-/* `AssignCustomerSlideover` is shared with the quotation flow and owns its own
- * accepted boundary. The sales caller opts in with the portal marker, so the
- * reached step-2 labels can use the foundation accent without editing that
- * component. Only the gold-family label utility is re-pointed. */
-.hf-theme.sales-entry-portal [class~='text-coco-gold-800'] {
-  color: var(--hf-gold-ink);
-}
-
-/* The step-2 footer primary action ships a forced legacy utility that no
- * ordinary scoped rule can repair. The repair stays narrow: exactly one
- * control, only inside the opted-in sales portal. */
-.hf-theme.sales-entry-portal [data-testid='open-create-customer'][class~='!bg-(--brand-action)'][class~='!text-black'].w-full {
-  background-color: var(--hf-action) !important;
-  color: var(--hf-on-action) !important;
 }

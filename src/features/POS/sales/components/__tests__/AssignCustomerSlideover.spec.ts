@@ -388,7 +388,7 @@ describe('AssignCustomerSlideover', () => {
     expect(pageText()).not.toContain('+ Nuevo cliente')
   })
 
-  it('keeps the empty-customer CTA legacy paint when no portal theme is requested', async () => {
+  it('gives the empty-customer CTA the shared primary control when no portal theme is requested', async () => {
     const wrapper = mountSlideoverWithRealOverlay()
     await wrapper.setProps({ saleId: undefined })
     await flushPromises()
@@ -397,9 +397,8 @@ describe('AssignCustomerSlideover', () => {
       '[data-testid="assign-customer-slideover"] .border-dashed [data-testid="open-create-customer"]',
     )!
     expect(button).not.toBeNull()
-    expect(button.classList.contains('!bg-(--brand-action)')).toBe(true)
-    expect(button.classList.contains('!text-black')).toBe(true)
-    expect(button.classList.contains('hf-primary-control')).toBe(false)
+    expect(button.classList.contains('hf-primary-control')).toBe(true)
+    expect(button.classList.contains('!bg-(--brand-action)')).toBe(false)
     wrapper.unmount()
   })
 

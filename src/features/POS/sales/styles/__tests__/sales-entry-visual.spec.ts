@@ -127,21 +127,11 @@ describe('Sales entry visual adapter — stylesheet', () => {
     }
   })
 
-  it('repairs the forced legacy utilities with one narrow portal-scoped rule', () => {
-    // jsdom's CSSOM does not reliably keep the `!important` priority for
-    // custom-property values, so the raw declarations are inspected here.
-    const withoutComments = cssDeclarations
-    const blocksWithImportant = withoutComments.match(/[^{}]+\{[^{}]*!important[^{}]*\}/g) ?? []
-    expect(blocksWithImportant).toHaveLength(1)
-    expect((css.match(/!important/g) ?? []).length).toBe(2)
-
-    const block = blocksWithImportant[0]!
-    const [selectorText] = block.split('{')
-    expect(normalize(selectorText!)).toBe(
-      normalize(".hf-theme.sales-entry-portal [data-testid='open-create-customer'][class~='!bg-(--brand-action)'][class~='!text-black'].w-full"),
-    )
-    expect(block).toMatch(/background-color:\s*var\(--hf-action\)\s*!important/)
-    expect(block).toMatch(/\bcolor:\s*var\(--hf-on-action\)\s*!important/)
+  it('carries no forced utilities to repair and no !important', () => {
+    // The shared customer sheet and payment surfaces now take --hf roles
+    // directly, so the adapter has nothing legacy left to override.
+    expect(css).not.toContain('!important')
+    expect(css).not.toContain('open-create-customer')
   })
 
   it('paints the in-page workspace boundary on the foundation page canvas', () => {
@@ -218,26 +208,9 @@ describe('Sales entry visual adapter — stylesheet', () => {
     expect(portal.style.getPropertyValue('color').trim()).toBe('var(--hf-on-action)')
   })
 
-  it('routes the reached legacy gold surfaces through the shared accent roles', () => {
-    const portal = exactRule(css, '.hf-theme.sales-entry-portal', '--color-coco-gold-400')!
-    const expected: Record<string, string> = {
-      '--color-coco-gold-400': 'var(--hf-gold-ink)',
-      '--color-coco-gold-500': 'var(--hf-gold)',
-      '--color-coco-gold-700': 'var(--hf-gold-ink)',
-    }
-    for (const [property, value] of Object.entries(expected)) {
-      expect(portal.style.getPropertyValue(property).trim()).toBe(value)
-    }
-
-    // Every legacy alias declared here must resolve through a foundation role;
-    // a raw color value would fork the palette.
-    const customProperties = Array.from({ length: portal.style.length }, (_, index) =>
-      portal.style.item(index),
-    ).filter((property) => property.startsWith('--color-coco-'))
-    expect(customProperties.length).toBeGreaterThan(0)
-    for (const property of customProperties) {
-      expect(portal.style.getPropertyValue(property).trim()).toMatch(/^var\(--hf-[a-z-]+\)$/)
-    }
+  it('declares no legacy coco palette aliases', () => {
+    expect(css).not.toMatch(/--color-coco-/)
+    expect(css).not.toContain('text-coco-gold')
   })
 
   it('themes the protected shared product search through the caller class only', () => {
@@ -266,14 +239,10 @@ describe('Sales entry visual adapter — stylesheet', () => {
       css,
       '.hf-theme.sales-entry-visual .sales-entry-product-search p.tabular-nums',
     )!
-    const variants = exactRule(
-      css,
-      ".hf-theme.sales-entry-visual .sales-entry-product-search p[class~='text-(--brand-primary)']",
-    )!
     expect(price).toBeDefined()
-    expect(variants).toBeDefined()
     expect(price.style.getPropertyValue('color').trim()).toBe('var(--hf-ink)')
-    expect(variants.style.getPropertyValue('color').trim()).toBe('var(--hf-muted)')
+    // The variant count takes --hf-muted in the component itself.
+    expect(css).not.toContain('--brand-primary')
   })
 
   it('keeps the mobile add-action soft/solid distinction with the dark foreground pair', () => {
@@ -291,15 +260,6 @@ describe('Sales entry visual adapter — stylesheet', () => {
     expect(light.style.getPropertyValue('color').trim()).toBe('var(--hf-action)')
     expect(dark.style.getPropertyValue('background-color').trim()).toBe('var(--hf-action)')
     expect(dark.style.getPropertyValue('color').trim()).toBe('var(--hf-on-action)')
-  })
-
-  it('re-points only the reached gold labels in the shared customer sheet', () => {
-    const label = exactRule(
-      css,
-      ".hf-theme.sales-entry-portal [class~='text-coco-gold-800']",
-    )!
-    expect(label).toBeDefined()
-    expect(label.style.getPropertyValue('color').trim()).toBe('var(--hf-gold-ink)')
   })
 
   it('rejects unowned panels and never recolors stock-danger semantics', () => {
