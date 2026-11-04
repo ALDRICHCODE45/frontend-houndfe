@@ -6,6 +6,7 @@ import type {
 import {
   buildRouteDisplayName,
   countRoutesByStatus,
+  formatDurationMinutes,
   getRouteCreatedAt,
   getRouteCustomers,
   getRouteIssues,
@@ -308,5 +309,21 @@ describe('queryDeliveryRoutes', () => {
     })
     expect(result.data).toEqual([])
     expect(result.pagination).toEqual({ pageIndex: 0, pageSize: 10, totalCount: 0, pageCount: 1 })
+  })
+})
+
+describe('formatDurationMinutes', () => {
+  it('reads minutes, then hours and minutes', () => {
+    expect(formatDurationMinutes(0)).toBe('Menos de 1 min')
+    expect(formatDurationMinutes(45)).toBe('45 min')
+    expect(formatDurationMinutes(60)).toBe('1 h')
+    expect(formatDurationMinutes(135)).toBe('2 h 15 min')
+  })
+
+  it('switches to days from 24 hours so a stale route never reads as "496 h 2 min"', () => {
+    expect(formatDurationMinutes(24 * 60 - 1)).toBe('23 h 59 min')
+    expect(formatDurationMinutes(24 * 60)).toBe('1 d')
+    expect(formatDurationMinutes(25 * 60 + 30)).toBe('1 d 1 h')
+    expect(formatDurationMinutes(496 * 60 + 2)).toBe('20 d 16 h')
   })
 })

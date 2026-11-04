@@ -68,6 +68,12 @@ export function formatDurationMinutes(minutes: number): string {
   if (total < 60) return `${total} min`
   const hours = Math.floor(total / 60)
   const rest = total % 60
+  if (hours >= 24) {
+    // A stale route would read "496 h 2 min"; days are what a person counts.
+    const days = Math.floor(hours / 24)
+    const leftover = hours % 24
+    return leftover === 0 ? `${days} d` : `${days} d ${leftover} h`
+  }
   return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`
 }
 

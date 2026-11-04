@@ -34,6 +34,9 @@ export const DELIVERY_ROUTE_COPY = {
   detail: {
     title: 'Detalle de ruta',
     driverTitle: 'Detalle de parada',
+    notFoundTitle: 'No encontramos la ruta',
+    notFoundBack: 'Volver a las rutas',
+    loadError: 'No se pudo cargar la ruta',
   },
   actions: {
     view: 'Ver detalle',

@@ -25,6 +25,7 @@
 // (i.e. which branches render given inputs). Mirrors the
 // `DeliveryRoutesListView.spec.ts` precedent.
 
+import { readFileSync } from 'node:fs'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { nextTick } from 'vue'
 import { mount, flushPromises } from '@vue/test-utils'
@@ -781,7 +782,7 @@ describe('DeliveryRouteDetailView — 404 ENTITY_NOT_FOUND / driver 403 → full
     const wrapper = mountView()
     await flushPromises()
     expect(wrapper.find('[data-testid="detail-not-found"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain(DELIVERY_ROUTE_COPY.toasts.notFound)
+    expect(wrapper.text()).toContain(DELIVERY_ROUTE_COPY.detail.notFoundTitle)
     // The not-found state must NOT render any manager controls (no toolbar).
     expect(wrapper.find('[data-testid="detail-actions-toolbar"]').exists()).toBe(false)
   })
@@ -1409,20 +1410,30 @@ describe('DeliveryRouteDetailView — manager workspace width (odd delivery-rout
 })
 
 describe('DeliveryRouteDetailView — page states (S10: empty, loading, data, error)', () => {
-  it('loading: a skeleton shaped like the workspace, marked busy, with no state chrome', async () => {
+  it('loading: a skeleton shaped like the workspace (header, tiles, progress, panels), marked busy', async () => {
     resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
     resetDetailState({ isLoading: true })
     const wrapper = mountView()
     await flushPromises()
     const skeleton = wrapper.get('[data-testid="detail-loading-skeleton"]')
     expect(skeleton.attributes('aria-busy')).toBe('true')
-    expect(skeleton.findAll('.animate-pulse').length).toBeGreaterThanOrEqual(6)
+    expect(skeleton.findAll('[data-skeleton="badge"]')).toHaveLength(1)
+    expect(skeleton.findAll('[data-skeleton="title"]')).toHaveLength(1)
+    expect(skeleton.findAll('[data-skeleton="action"]')).toHaveLength(1)
+    expect(skeleton.findAll('[data-skeleton="kpi"]')).toHaveLength(4)
+    expect(skeleton.findAll('[data-skeleton="kpi"] [data-skeleton="kpi-value"]')).toHaveLength(4)
+    expect(skeleton.findAll('[data-skeleton="progress"]')).toHaveLength(1)
+    expect(skeleton.findAll('[data-skeleton="stop-row"]').length).toBeGreaterThanOrEqual(3)
+    expect(skeleton.findAll('[data-skeleton="side-panel"]')).toHaveLength(2)
     expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
   })
 
-  it('error: the shared error state with Reintentar that refetches the route', async () => {
+  it('error: the shared error state with Reintentar and a fixed title, never the server text', async () => {
     resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
-    resetDetailState({ isError: true, error: { response: { status: 500 } } })
+    resetDetailState({
+      isError: true,
+      error: { response: { status: 500, data: { message: 'Error interno del servidor' } } },
+    })
     detailMock.refetch.mockResolvedValue({ isError: false })
     const wrapper = mountView()
     await flushPromises()
@@ -1430,19 +1441,34 @@ describe('DeliveryRouteDetailView — page states (S10: empty, loading, data, er
     expect(state.attributes('data-kind')).toBe('error')
     expect(state.attributes('role')).toBe('alert')
     expect(state.get('.hf-empty-state__title').text()).toBe('No se pudo cargar la ruta')
+    expect(state.find('.hf-empty-state__description').exists()).toBe(false)
+    expect(state.text()).not.toContain('Error interno del servidor')
     await wrapper.get('[data-testid="detail-error-retry"]').trigger('click')
     expect(detailMock.refetch).toHaveBeenCalledTimes(1)
   })
 
-  it('not found: says so and offers the way back to the list', async () => {
+  it('not found: an empty state (not an error) that says so and offers the way back to the list', async () => {
     resetRoleFlags({ isManager: { value: true } })
     resetDetailState({ isError: true, error: { response: { status: 404, data: { error: 'ENTITY_NOT_FOUND', message: 'x' } } } })
     const wrapper = mountView()
     await flushPromises()
     const state = wrapper.get('[data-testid="detail-not-found"] .hf-empty-state')
-    expect(state.get('.hf-empty-state__title').text()).toBe(DELIVERY_ROUTE_COPY.toasts.notFound)
+    expect(state.attributes('data-kind')).toBe('empty')
+    expect(state.attributes('role')).toBe('status')
+    expect(state.get('.hf-empty-state__title').text()).toBe('No encontramos la ruta')
+    expect(wrapper.find('[data-testid="detail-error-block"]').exists()).toBe(false)
     await wrapper.get('[data-testid="detail-not-found-back"]').trigger('click')
     expect(routerPushMock).toHaveBeenCalledWith('/pos/rutas-de-entrega')
+  })
+
+  it('not found: a bare HTTP 404 (no domain code in the body) is also not-found, not an error', async () => {
+    resetRoleFlags({ isManager: { value: true } })
+    resetDetailState({ isError: true, error: { response: { status: 404, data: { message: 'No encontrado' } } } })
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="detail-not-found"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="detail-error-block"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('No encontrado')
   })
 
   it('empty: a route without stops shows "Sin paradas" and points at the append picker on a draft', async () => {
@@ -1492,5 +1518,66 @@ describe('DeliveryRouteDetailView — page states (S10: empty, loading, data, er
     expect(toolbar.findAll('.hf-primary-control, [class*="hf-primary-control"]')).toHaveLength(1)
     expect(toolbar.findAll('[data-testid="row-actions-menu"]')).toHaveLength(1)
     expect(wrapper.get('[data-testid="detail-route-summary"]').text()).not.toContain('route-42')
+  })
+})
+
+describe('DeliveryRouteDetailView — mobile detail header and progress (review round 1)', () => {
+  function activeRoute(): Record<string, unknown> {
+    return { ...makeDraftRoute({ stopsLength: 1 }), status: 'ACTIVE', startedAt: '2026-10-14T09:40:00' }
+  }
+
+  it('shows the back link only below md: from md the breadcrumb already says where you are', async () => {
+    resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+    resetDetailState({ data: makeDraftRoute() })
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.get('[data-testid="detail-back-link"]').classes()).toContain('md:hidden')
+  })
+
+  it('moves the one primary to a sticky bottom bar on mobile and keeps the ⋮ in the header', async () => {
+    resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true }, canDelete: { value: true } })
+    resetDetailState({ data: makeDraftRoute() })
+    const wrapper = mountView()
+    await flushPromises()
+    const header = wrapper.get('[data-testid="detail-actions-toolbar"]')
+    // Desktop: the primary sits in the header, hidden below md.
+    const desktop = header.get('[data-testid="detail-start-button"]')
+    expect(desktop.classes()).toContain('max-md:hidden')
+    expect(header.findAll('[data-testid="row-actions-menu"]')).toHaveLength(1)
+    // Mobile: the same primary in the bar, hidden from md.
+    const bar = wrapper.get('[data-testid="mobile-action-bar"]')
+    expect(bar.classes()).toContain('md:hidden')
+    const mobile = bar.get('[data-testid="detail-start-button-mobile"]')
+    await mobile.trigger('click')
+    await nextTick()
+    expect(confirmModalState.open).toBe(true)
+    expect(confirmModalState.title).toMatch(/iniciar.*ruta/i)
+  })
+
+  it('draws no bar when there is no primary action (an active route only has the ⋮)', async () => {
+    resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+    resetDetailState({ data: activeRoute() })
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="mobile-action-bar"]').exists()).toBe(false)
+  })
+
+  it('lets the title wrap to two lines instead of cutting it to a few letters', () => {
+    const source = readFileSync('src/features/delivery-routes/views/DeliveryRouteDetailView.vue', 'utf8')
+    const rule = /\.route-detail-title\s*\{[^}]*\}/.exec(source)![0]
+    expect(rule).not.toContain('white-space: nowrap')
+    expect(rule).toContain('-webkit-line-clamp: 2')
+  })
+
+  it('draws a visible progress track, with the fill at the delivered percentage', async () => {
+    resetRoleFlags({ isManager: { value: true } })
+    resetDetailState({ data: activeRoute() })
+    const wrapper = mountView()
+    await flushPromises()
+    const bar = wrapper.get('[data-testid="detail-progress"]')
+    expect(bar.classes()).toContain('route-progress-track')
+    expect(bar.get('.delivery-routes-progress-fill').attributes('style')).toContain('width: 0%')
+    const source = readFileSync('src/features/delivery-routes/views/DeliveryRouteDetailView.vue', 'utf8')
+    expect(/\.route-progress-track\s*\{[^}]*var\(--hf-border\)/.test(source)).toBe(true)
   })
 })

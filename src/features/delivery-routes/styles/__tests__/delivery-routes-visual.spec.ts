@@ -97,6 +97,10 @@ describe('Delivery routes driver views adapter', () => {
       expect(css, hook).toContain(hook)
     }
     expect(css).not.toContain('delivery-routes-stop-current')
+    // The current stop is a position, not a pending issue: info tint, never warning.
+    const currentCard = /\.delivery-routes-driver \.delivery-routes-stop-card--current\s*\{[^}]*\}/.exec(css)![0]
+    expect(currentCard).toContain('--hf-active-soft')
+    expect(currentCard).not.toContain('--hf-warning')
     expect(css).toMatch(/\.delivery-routes-progress-fill\s*\{[^}]*--hf-success/)
   })
 })

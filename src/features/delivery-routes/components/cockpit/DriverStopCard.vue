@@ -10,7 +10,7 @@
  *   - Optional mono folio (omitted entirely when null/blank).
  *   - Customer name with the copy.ts fallback for null customers.
  *   - Formatted address via the shared `formatAddress` (hidden when absent).
- *   - Current emphasis (data-current + gold rail — the single signature
+ *   - Current emphasis (data-current + info rail — the single signature
  *     operational anchor) and a "Siguiente" badge on the derived next stop.
  *
  * Separate native controls, never nested buttons:
@@ -66,7 +66,7 @@ const formattedAddress = computed<string>(
 )
 const hasAddress = computed<boolean>(() => formattedAddress.value.length > 0)
 
-// Current emphasis follows the Coco palette (gold for the actionable anchor);
+// Current emphasis is the info tint (the position, not a pending issue);
 // the semantic status label carries meaning — color is never the only signal.
 const cardClass = computed<string[]>(() => [
   'relative flex w-full min-w-0 flex-col gap-3 rounded-lg border bg-default p-3 max-sm:p-2.5',

@@ -35,6 +35,7 @@
 
 .delivery-routes-driver .delivery-routes-stop-card--current {
   border-color: var(--hf-active);
+  background-color: var(--hf-active-soft);
 }
 
 .delivery-routes-driver .delivery-routes-stop-sequence--current {

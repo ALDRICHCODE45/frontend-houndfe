@@ -37,7 +37,6 @@ import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import RowActionsMenu from '@/core/shared/components/RowActionsMenu.vue'
-import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import { useDeliveryRouteRole } from '../composables/useDeliveryRouteRole'
 import { useDeliveryRouteDetail } from '../composables/useDeliveryRouteDetail'
 import { useUpdateDeliveryRoute } from '../composables/useUpdateDeliveryRoute'
@@ -119,10 +118,12 @@ const notFoundCode = computed<string | null>(() => {
   if (!isError.value) return null
   const code = extractDeliveryRouteErrorCode(error.value)
   if (code === 'ENTITY_NOT_FOUND') return 'ENTITY_NOT_FOUND'
+  // A bare HTTP 404 (no domain code in the body) is a missing record too, never an error.
+  const status = (error.value as DetailFetchError | null | undefined)?.response?.status
+  if (status === 404) return 'ENTITY_NOT_FOUND'
   // Driver 403 → same full-page not-found state (no presence leak; design §7.2,
   // §11). Any OTHER error (5xx, network, unknown) falls through to the generic
   // error block below — it is NOT a not-found state.
-  const status = (error.value as DetailFetchError | null | undefined)?.response?.status
   if (status === 403 && isDriver.value) return 'ENTITY_NOT_FOUND'
   return null
 })
@@ -346,15 +347,6 @@ const confirmLoading = computed<boolean>(() => {
   return false
 })
 
-// ─── Error fallback copy ──────────────────────────────────────────────────────
-// Used for non-not-found errors that DO bubble (rare; the mutations own most
-// of the error routing via the toast). The full-page error block mirrors the
-// list-view pattern (design §11).
-const errorMessage = computed<string>(() => {
-  const e = error.value as DetailFetchError | null | undefined
-  return normalizeApiError(e, 'No se pudo cargar la ruta de entrega.').message
-})
-
 // ─── Test-only handles ────────────────────────────────────────────────────────
 // Specs drive the actions without going through the Nuxt UI runtime. We expose
 // them behind a `__test` prefix so accidental production consumption is
@@ -378,10 +370,9 @@ defineExpose({
     class="hf-theme hf-ui delivery-routes-visual px-4 py-16"
   >
     <EmptyState
-      kind="no-match"
-      :title="DELIVERY_ROUTE_COPY.toasts.notFound"
-      description="La ruta solicitada no está disponible o fue eliminada."
-      action-label="Volver a la lista"
+      kind="empty"
+      :title="DELIVERY_ROUTE_COPY.detail.notFoundTitle"
+      :action-label="DELIVERY_ROUTE_COPY.detail.notFoundBack"
       action-test-id="detail-not-found-back"
       @action="router.push('/pos/rutas-de-entrega')"
     />
@@ -394,11 +385,39 @@ defineExpose({
     aria-busy="true"
     class="hf-theme hf-ui delivery-routes-visual mx-auto flex w-full min-w-0 max-w-[1320px] flex-col gap-6 px-4 py-6 sm:px-6 md:px-10"
   >
-    <div class="route-skeleton animate-pulse h-14 w-1/3" />
-    <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <div v-for="i in 4" :key="i" class="route-skeleton animate-pulse h-20" />
+    <div class="flex items-start justify-between gap-4">
+      <div class="flex min-w-0 flex-1 flex-col gap-3">
+        <div class="flex items-center gap-2">
+          <div data-skeleton="badge" class="route-skeleton animate-pulse h-6 w-20" />
+          <div class="route-skeleton animate-pulse h-4 w-40" />
+        </div>
+        <div data-skeleton="title" class="route-skeleton animate-pulse h-7 w-2/3 max-w-sm" />
+      </div>
+      <div data-skeleton="action" class="route-skeleton animate-pulse h-11 w-32 max-md:hidden" />
     </div>
-    <div class="route-skeleton animate-pulse h-64 w-full" />
+    <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div v-for="i in 4" :key="i" data-skeleton="kpi" class="route-skeleton route-skeleton-panel animate-pulse flex flex-col gap-3 p-4">
+        <div class="route-skeleton-bar h-3 w-16" />
+        <div data-skeleton="kpi-value" class="route-skeleton-bar h-6 w-20" />
+      </div>
+    </div>
+    <div data-skeleton="progress" class="route-skeleton route-skeleton-panel animate-pulse flex flex-col gap-3 p-4">
+      <div class="route-skeleton-bar h-3 w-32" />
+      <div class="route-skeleton-bar h-2 w-full" />
+    </div>
+    <div class="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <div class="route-skeleton route-skeleton-panel animate-pulse flex flex-col gap-3 p-5">
+        <div class="route-skeleton-bar h-4 w-24" />
+        <div v-for="i in 3" :key="i" data-skeleton="stop-row" class="route-skeleton-bar h-14 w-full" />
+      </div>
+      <div class="flex flex-col gap-6">
+        <div v-for="i in 2" :key="i" data-skeleton="side-panel" class="route-skeleton route-skeleton-panel animate-pulse flex flex-col gap-3 p-5">
+          <div class="route-skeleton-bar h-4 w-20" />
+          <div class="route-skeleton-bar h-3 w-full" />
+          <div class="route-skeleton-bar h-3 w-2/3" />
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Generic error (non-404, non-403 — surfaced as a block, not a toast). -->
@@ -409,8 +428,7 @@ defineExpose({
   >
     <EmptyState
       kind="error"
-      title="No se pudo cargar la ruta"
-      :description="errorMessage"
+      :title="DELIVERY_ROUTE_COPY.detail.loadError"
       action-label="Reintentar"
       action-test-id="detail-error-retry"
       @action="refetch"
@@ -486,15 +504,15 @@ defineExpose({
       <button
         type="button"
         data-testid="detail-back-link"
-        class="route-back-link"
+        class="route-back-link md:hidden"
         @click="handleBack"
       >
         <UIcon name="i-lucide-arrow-left" class="size-4" aria-hidden="true" />
         {{ DELIVERY_ROUTE_COPY.list.title }}
       </button>
 
-      <div class="flex flex-wrap items-start justify-between gap-4">
-        <div class="flex min-w-0 flex-col gap-2">
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex min-w-0 flex-1 flex-col gap-2">
           <div
             data-testid="detail-route-meta"
             class="route-detail-meta"
@@ -530,14 +548,14 @@ defineExpose({
         <div
           v-if="canShowStart || menuActions.length > 0"
           data-testid="detail-actions-toolbar"
-          class="flex flex-wrap items-center gap-2"
+          class="flex shrink-0 items-center gap-2"
         >
           <UButton
             v-if="canShowStart"
             color="primary"
             variant="solid"
             icon="i-lucide-play"
-            class="hf-primary-control"
+            class="hf-primary-control max-md:hidden"
             :label="DELIVERY_ROUTE_COPY.actions.start"
             :loading="startIsPending"
             data-testid="detail-start-button"
@@ -586,7 +604,7 @@ defineExpose({
         aria-valuemin="0"
         :aria-valuemax="managerDetail.progress.total"
         :aria-label="managerDetail.progressLabel"
-        class="h-2 w-full overflow-hidden rounded-full bg-elevated"
+        class="route-progress-track h-2 w-full overflow-hidden rounded-full"
       >
         <div
           class="delivery-routes-progress-fill h-full rounded-full transition-[width] motion-reduce:transition-none"
@@ -725,19 +743,42 @@ defineExpose({
         </section>
       </aside>
     </div>
+
+    <!-- Mobile: the single primary lives in the sticky bottom bar. -->
+    <div
+      v-if="canShowStart"
+      class="route-action-bar md:hidden"
+      data-testid="mobile-action-bar"
+    >
+      <UButton
+        color="primary"
+        variant="solid"
+        icon="i-lucide-play"
+        class="hf-primary-control w-full justify-center"
+        :label="DELIVERY_ROUTE_COPY.actions.start"
+        :loading="startIsPending"
+        data-testid="detail-start-button-mobile"
+        @click="onStart"
+      />
+    </div>
   </div>
 </template>
 
 <style scoped>
 .route-skeleton { border-radius: 12px; background: var(--hf-surface-muted); }
+.route-skeleton-panel { border: 1px solid var(--hf-border); background: var(--hf-surface); }
+.route-skeleton-bar { border-radius: 6px; background: var(--hf-surface-muted); }
+.route-progress-track { background: var(--hf-border); }
 .route-back-link { display: inline-flex; width: fit-content; align-items: center; gap: 6px; border-radius: 6px; color: var(--hf-muted); font-size: 14px; }
 .route-back-link:hover { color: var(--hf-heading); }
 .route-back-link:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
 .route-detail-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; color: var(--hf-muted); font-size: 13px; }
 .route-detail-moment { white-space: nowrap; }
-.route-detail-title { min-width: 0; overflow: hidden; color: var(--hf-heading); font-size: 22px; font-weight: 600; letter-spacing: -0.02em; text-overflow: ellipsis; white-space: nowrap; }
+.route-detail-title { display: -webkit-box; min-width: 0; overflow: hidden; color: var(--hf-heading); font-size: 22px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
 .route-aviso { display: inline-flex; align-items: center; gap: 4px; color: var(--hf-warning); font-size: 12px; font-weight: 600; white-space: nowrap; }
 .route-kpi-value { color: var(--hf-heading); font-size: 24px; font-weight: 600; text-align: left; }
 .route-section-title { color: var(--hf-heading); font-size: 16px; font-weight: 600; }
 @media (max-width: 767px) { .route-detail-title { font-size: 17px; } }
+/* Mobile: the one primary lives in a sticky bar, the body scrolls under it. */
+.route-action-bar { position: sticky; bottom: 0; z-index: 10; margin-inline: -16px; border-top: 1px solid var(--hf-border); background: var(--hf-surface); padding: 12px 16px max(12px, env(safe-area-inset-bottom)); }
 </style>
