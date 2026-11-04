@@ -12,6 +12,7 @@
  * gate — never an automatically-granted ability.
  */
 import { computed } from 'vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import { blindSafeDetail, comparisonView, isSelfVerification } from '../composables/cashRules'
 import type {
@@ -117,28 +118,19 @@ function money(cents: number | null): string {
 </script>
 
 <template>
-  <section class="cash-panel" data-testid="cash-verification">
-    <header class="cash-panel-header">
-      <span class="cash-icon-tile" aria-hidden="true">
-        <UIcon name="i-lucide-shield-check" />
-      </span>
-      <div class="cash-panel-header-text">
-        <h2 class="cash-panel-title">Verificación independiente</h2>
-        <p class="cash-panel-subtitle">
-          Verifica otra persona: la declaración y el recuento se comparan por separado.
-        </p>
-      </div>
+  <section class="cash-list-section" data-testid="cash-verification">
+    <header class="cash-list-header">
+      <h2 class="cash-list-title">Verificación independiente</h2>
     </header>
 
-    <div class="cash-panel-body">
-      <p
+    <div class="flex flex-col gap-4">
+      <EmptyState
         v-if="!canVerify"
-        class="rounded-lg border border-default p-3 text-sm text-muted"
+        kind="forbidden"
+        title="Sin permiso para verificar"
+        description="Necesitas permiso de verificación y acceso de auditoría a la sesión."
         data-testid="cash-verification-forbidden"
-      >
-        Necesitas permiso de verificación y acceso de auditoría a la sesión para verificar. No
-        otorgamos auditoría automáticamente.
-      </p>
+      />
 
       <template v-else-if="!safeDetail">
         <p class="text-sm text-muted" data-testid="cash-verification-no-session">
@@ -149,7 +141,7 @@ function money(cents: number | null): string {
       <template v-else>
         <p
           v-if="selfVerification"
-          class="rounded-lg border border-error/40 bg-error/10 p-3 text-sm text-error"
+          class="cash-note cash-note--danger"
           data-testid="cash-verification-self"
         >
           No puedes verificar tu propia sesión: la verificación la hace otra persona.
@@ -157,7 +149,7 @@ function money(cents: number | null): string {
 
         <p
           v-else-if="!isSubmitted"
-          class="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs text-warning"
+          class="cash-note cash-note--warning"
           data-testid="cash-verification-state"
         >
           Solo se verifica una sesión declarada. Estado actual:
@@ -200,7 +192,7 @@ function money(cents: number | null): string {
 
           <p
             v-if="notesRequired"
-            class="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs text-warning"
+            class="cash-note cash-note--warning"
             data-testid="cash-verification-notes-required"
           >
             La declaración tiene diferencia: el recuento requiere una nota que la explique.
@@ -212,25 +204,18 @@ function money(cents: number | null): string {
             class="cash-note"
             data-testid="cash-verification-original"
           >
-            <header class="flex items-start gap-3">
-              <span class="cash-icon-tile cash-icon-tile-sm" aria-hidden="true">
-                <UIcon name="i-lucide-receipt" />
-              </span>
-              <div class="cash-panel-header-text">
-                <h3 class="cash-panel-title">Declaración original</h3>
-                <p class="cash-panel-subtitle">
-                  Conteo inmutable de quien declaró. Tu propio recuento se registra aparte.
-                </p>
-              </div>
-            </header>
-            <dl class="mt-3 flex flex-col divide-y divide-default border-t border-default">
+            <h3 class="cash-list-title">Declaración original</h3>
+            <dl class="mt-3 flex flex-col divide-y divide-[var(--hf-border)] border-t border-[var(--hf-border)]">
               <div
                 v-for="line in originalLines"
                 :key="line.key"
                 class="flex items-center justify-between gap-3 py-2"
               >
                 <dt>{{ line.label }}</dt>
-                <dd class="cash-fact-value" :data-testid="`cash-verification-original-${line.key}`">
+                <dd
+                  class="cash-fact-value hf-figure"
+                  :data-testid="`cash-verification-original-${line.key}`"
+                >
                   {{ formatCentsMXN(line.cents) }}
                 </dd>
               </div>

@@ -195,21 +195,21 @@ function submitReceive(item: CashCustodyItem) {
                   <UInput
                     v-model="receivedInputs[item.id]"
                     inputmode="decimal"
-                    class="cash-control"
+                    class="min-w-40"
                     :data-testid="`cash-custody-received-input-${item.id}`"
                   />
                 </UFormField>
                 <UFormField label="Notas de recepción">
                   <UInput
                     v-model="notesInputs[item.id]"
-                    class="cash-control"
+                    class="min-w-40"
                     :data-testid="`cash-custody-received-notes-${item.id}`"
                   />
                 </UFormField>
                 <UButton
                   v-if="canReceive"
                   type="button"
-                  class="cash-control min-h-11"
+                  class="min-h-11"
                   :loading="receivingId === item.id"
                   :disabled="receivingId === item.id"
                   :data-testid="`cash-custody-receive-${item.id}`"

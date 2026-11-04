@@ -12,6 +12,7 @@
  */
 import { computed, ref, watch } from 'vue'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { centsToPesosInput, pesosToCents } from '../utils/cash-input'
 import { floatOpeningMismatch, floatSourceDrawerAdvisory } from '../composables/cashRules'
 import type { CashEligibleFloatItem } from '../interfaces/cash.types'
@@ -119,20 +120,12 @@ function submit() {
 </script>
 
 <template>
-  <section class="cash-panel" data-testid="cash-open-session">
-    <header class="cash-panel-header">
-      <span class="cash-icon-tile" aria-hidden="true">
-        <UIcon name="i-lucide-door-open" />
-      </span>
-      <div class="cash-panel-header-text">
-        <h2 class="cash-panel-title">Apertura de sesión</h2>
-        <p class="cash-panel-subtitle">
-          El fondo inicial se cuenta una sola vez y no se descuenta contra retiros.
-        </p>
-      </div>
+  <section class="cash-list-section" data-testid="cash-open-session">
+    <header class="cash-list-header">
+      <h2 class="cash-list-title">Apertura de sesión</h2>
     </header>
 
-    <div class="cash-panel-body">
+    <div class="flex flex-col gap-4">
       <p v-if="!registerId" class="text-sm text-muted" data-testid="cash-open-no-register">
         Elige una caja activa para abrir su sesión.
       </p>
@@ -152,30 +145,28 @@ function submit() {
             :items="[
               { label: 'Sin FLOAT: fondo nuevo', value: null },
               ...eligibleFloat.map((item) => ({
-                label: `${formatCentsMXN(item.receivedCents ?? item.declaredCents)} · ${item.id.slice(0, 8)}`,
+                label: `${formatCentsMXN(item.receivedCents ?? item.declaredCents)} · ${formatShortDateTime(item.receivedAt ?? item.declaredAt)}`,
                 value: item.id,
               })),
             ]"
-            class="cash-control w-full"
+            class="w-full"
             data-testid="cash-open-float-select"
           />
         </UFormField>
-        <p v-else class="text-xs text-muted" data-testid="cash-open-float-unavailable">
-          Sin permiso de custodia no podemos listar tus FLOAT; puedes abrir con fondo nuevo.
+        <p v-else class="cash-meta" data-testid="cash-open-float-unavailable">
+          Sin permiso de custodia no se listan tus FLOAT; puedes abrir con fondo nuevo.
         </p>
 
         <div
           v-if="selectedFloat"
-          class="rounded-lg border border-default p-3 text-xs text-muted"
+          class="cash-note"
           data-testid="cash-open-float-facts"
         >
           <p data-testid="cash-open-float-received">
-            Recibido: {{ formatCentsMXN(selectedFloat.receivedCents ?? 0) }} (el FLOAT vale el monto
-            recibido, no el declarado de {{ formatCentsMXN(selectedFloat.declaredCents) }}).
+            Recibido: {{ formatCentsMXN(selectedFloat.receivedCents ?? 0) }} (declarado
+            {{ formatCentsMXN(selectedFloat.declaredCents) }}).
           </p>
-          <p data-testid="cash-open-float-hint">
-            Es una referencia, no una reserva: los controles definitivos se aplican al abrir.
-          </p>
+          <p data-testid="cash-open-float-hint">Es una referencia, no una reserva.</p>
         </div>
 
         <UAlert
@@ -190,7 +181,7 @@ function submit() {
           <UInput
             v-model="openingCentsInput"
             inputmode="decimal"
-            class="cash-control w-full"
+            class="w-full"
             placeholder="350.00"
             data-testid="cash-opening-cents"
           />
@@ -218,7 +209,7 @@ function submit() {
 
         <UButton
           type="button"
-          class="cash-control self-start"
+          class="min-h-11 self-start"
           :loading="submitting"
           :disabled="blocked || submitting"
           data-testid="cash-open-submit"

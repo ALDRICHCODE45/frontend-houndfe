@@ -23,11 +23,9 @@ import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import type { TableColumn } from '@/core/shared/types/table.types'
 import { pesosToCents } from '../utils/cash-input'
 import { blindSafeDetail, isCashSessionWritable } from '../composables/cashRules'
-import type {
-  CashMovement,
-  CashMovementKind,
-  CashSessionDetail,
-} from '../interfaces/cash.types'
+import type { CashMovementKind, CashSessionDetail } from '../interfaces/cash.types'
+
+type CashMovement = CashSessionDetail['movements'][number]
 
 const props = withDefaults(
   defineProps<{
@@ -78,6 +76,8 @@ const emptyState = {
   title: 'Aún no hay movimientos',
   description: 'Los ingresos y retiros de esta sesión aparecerán aquí.',
 }
+
+const movementLabel = (movement: CashMovement) => MOVEMENT_LABELS[movement.kind]
 
 const safeDetail = computed(() => blindSafeDetail(props.detail))
 const session = computed(() => safeDetail.value?.session ?? null)
@@ -182,7 +182,7 @@ function submit(kind: 'CASH_IN' | 'CASH_OUT') {
             <span
               class="hf-row-primary cash-row-link"
               :data-testid="`cash-movement-${row.original.id}`"
-              >{{ MOVEMENT_LABELS[row.original.kind] }}</span
+              >{{ movementLabel(row.original) }}</span
             >
           </template>
           <template #channel-cell="{ row }">
@@ -198,7 +198,7 @@ function submit(kind: 'CASH_IN' | 'CASH_OUT') {
           <template #mobile-card="{ row }">
             <article class="cash-card" :data-testid="`cash-movement-card-${row.id}`">
               <div class="cash-card-heading">
-                <span class="hf-row-primary cash-row-link">{{ MOVEMENT_LABELS[row.kind] }}</span>
+                <span class="hf-row-primary cash-row-link">{{ movementLabel(row) }}</span>
                 <span class="hf-figure font-semibold text-highlighted">{{
                   formatCentsMXN(row.deltaCents)
                 }}</span>
@@ -241,7 +241,7 @@ function submit(kind: 'CASH_IN' | 'CASH_OUT') {
             <UInput
               v-model="amountInput"
               inputmode="decimal"
-              class="cash-control w-full"
+              class="w-full"
               placeholder="25.00"
               data-testid="cash-movement-amount"
             />
@@ -249,7 +249,7 @@ function submit(kind: 'CASH_IN' | 'CASH_OUT') {
           <UFormField label="Motivo">
             <UInput
               v-model="reasonInput"
-              class="cash-control w-full"
+              class="w-full"
               placeholder="Compra de bolsas"
               data-testid="cash-movement-reason"
             />

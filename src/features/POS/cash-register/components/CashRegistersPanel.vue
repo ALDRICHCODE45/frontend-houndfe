@@ -169,7 +169,6 @@ const { rowProps } = useClickableRow<CashRegister>(open, { focusable: false })
         <RowActionsMenu
           :actions="actionsFor(row.original)"
           :row-label="row.original.name"
-          portal-class="cash-portal"
           @select="onAction($event, row.original)"
         />
       </template>
@@ -196,7 +195,6 @@ const { rowProps } = useClickableRow<CashRegister>(open, { focusable: false })
               class="cash-card-menu"
               :actions="actionsFor(row)"
               :row-label="row.name"
-              portal-class="cash-portal"
               @select="onAction($event, row)"
             />
           </div>
