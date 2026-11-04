@@ -33,14 +33,10 @@ function submit() {
 </script>
 
 <template>
-  <div class="space-y-5">
+  <div class="space-y-6">
     <div class="space-y-2">
-      <h2 class="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
-        Verifica tu correo
-      </h2>
-      <p class="text-sm text-neutral-500 dark:text-neutral-400">
-        Ingresa el código que enviamos a tu correo para continuar.
-      </p>
+      <h2 class="hf-auth-title">Verifica tu correo</h2>
+      <p class="hf-auth-help">Ingresa el código que enviamos a tu correo.</p>
     </div>
     <UAlert v-if="error" color="error" variant="subtle" :title="error" role="alert" />
     <UForm
@@ -61,7 +57,7 @@ function submit() {
           class="w-full"
         />
       </UFormField>
-      <p class="text-sm text-neutral-500">
+      <p class="hf-auth-help">
         {{
           expiresSeconds > 0
             ? `El código vence en ${expiresSeconds} s.`

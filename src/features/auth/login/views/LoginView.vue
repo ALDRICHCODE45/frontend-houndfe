@@ -2,13 +2,13 @@
 import { computed, onBeforeUnmount, shallowRef } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import LoginForm from '@/features/auth/login/components/LoginForm.vue'
-import LoginHero from '@/features/auth/login/components/LoginHero.vue'
 import LoginOtpForm from '@/features/auth/login/components/LoginOtpForm.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { buildCanAccess, canAccessMeta } from '@/app/navigation/navigation.access'
 import { resolveLandingDestinationForAuth } from '@/app/navigation/navigation.landing'
 import type { AccessMeta } from '@/app/navigation/navigation.types'
 import type { LoginFormValues } from '../composables/useLoginForm'
+import '@/features/auth/styles/auth-visual.css'
 
 const isLoading = shallowRef(false)
 const loginError = shallowRef<string | null>(null)
@@ -110,29 +110,17 @@ async function navigateAfterLogin() {
 </script>
 
 <template>
-  <div class="relative h-full w-full flex overflow-hidden bg-white dark:bg-neutral-950">
-    <!-- Left Side: Hero / Brand -->
-    <div class="hidden lg:flex lg:w-1/2 relative overflow-hidden">
-      <LoginHero />
-    </div>
+  <div class="hf-auth-page">
+    <div class="hf-auth-card">
+      <img src="/hounfeLogos/primary.png" alt="HounFe" class="hf-auth-logo" />
 
-    <!-- Right Side: Login Form -->
-    <div
-      class="relative w-full lg:w-1/2 flex items-center justify-center p-8 lg:p-16 overflow-y-auto"
-    >
-      <!-- Mobile logo (visible only on small screens) -->
-      <div class="absolute top-8 left-8 lg:hidden">
-        <img src="/hounfeLogos/primary.png" alt="Coco" class="w-12 h-12 object-contain" />
-      </div>
-
-      <div class="w-full max-w-sm">
+      <div class="space-y-4">
         <UAlert
           v-if="loginError"
           color="error"
           variant="subtle"
           icon="i-lucide-triangle-alert"
           :title="loginError"
-          class="mb-4"
         />
 
         <LoginOtpForm

@@ -51,9 +51,6 @@ vi.mock('@tanstack/vue-query', () => ({
   useMutation: ({ mutationFn }: { mutationFn: unknown }) => ({ mutateAsync: mutationFn }),
 }))
 vi.mock('@/features/auth/stores/useAuthStore', () => ({ useAuthStore: () => store }))
-vi.mock('@/features/auth/login/components/LoginHero.vue', () => ({
-  default: { template: '<div />' },
-}))
 vi.mock('@/features/auth/login/components/LoginForm.vue', () => ({
   default: defineComponent({
     emits: ['submit'],
@@ -322,5 +319,18 @@ describe('LoginView password then OTP', () => {
     expect(resend).toHaveBeenCalledOnce()
     wrapper.unmount()
     expect(vi.getTimerCount()).toBe(0)
+  })
+})
+
+describe('LoginView layout', () => {
+  it('renders one centered card on the page surface, without a brand hero panel', () => {
+    const wrapper = mount(LoginView, {
+      global: { stubs: { UAlert: { props: ['title'], template: '<div>{{ title }}</div>' } } },
+    })
+
+    expect(wrapper.find('.hf-auth-card').exists()).toBe(true)
+    expect(wrapper.html()).not.toContain('lg:w-1/2')
+    expect(wrapper.html()).not.toContain('bg-neutral-950')
+    wrapper.unmount()
   })
 })
