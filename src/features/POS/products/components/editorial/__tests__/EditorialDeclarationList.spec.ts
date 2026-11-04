@@ -1,11 +1,13 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, shallowRef } from 'vue'
 import { mount } from '@vue/test-utils'
 import List from '../EditorialDeclarationList.vue'
 import Field from '../EditorialContractDeclarationField.vue'
+import { EditorialSelectStub, stubEditorialSelect } from './editorialSelectStub'
 import type { EditorialDeclarationValues } from '../../../interfaces/editorial-contract-declaration.types'
 import type { EditorialDeclarationInput } from '../../../utils/editorial-contract-declaration-input'
 
+beforeAll(stubEditorialSelect)
 type Key = keyof EditorialDeclarationValues
 type Row = { id: string; declarationKey: Key; input: EditorialDeclarationInput }
 type Allowed = { key: Key; label: string; choices?: readonly { code: string; label: string }[]; toyTypeChoices?: readonly { code: string; label: string }[] }
@@ -56,7 +58,10 @@ describe('EditorialDeclarationList S44', () => {
   })
   it('adds only the selected allowed key as a parent-created omitted row and resets the native placeholder', async () => {
     const { wrapper, rows, events } = render()
-    expect(wrapper.get('#list-add').findAll('option').map(option => option.text())).toEqual(['Elige una declaración', 'Consumible', 'Ajustes', 'Dimensiones'])
+    const select = wrapper.getComponent(EditorialSelectStub)
+    expect(select.props('label')).toBe('Agregar declaración')
+    expect(select.props('placeholder')).toBe('Elige…')
+    expect(select.props('items')).toEqual([{ label: 'Consumible', value: 'consumable' }, { label: 'Ajustes', value: 'relevantFitCodes' }, { label: 'Dimensiones', value: 'relevantDimensionCodes' }])
     await wrapper.get('#list-add').setValue('relevantFitCodes')
     expect(events).toEqual([['add', 'relevantFitCodes']])
     expect(rows.value).toEqual([row('new-0', { state: 'omitted' }, 'relevantFitCodes')])

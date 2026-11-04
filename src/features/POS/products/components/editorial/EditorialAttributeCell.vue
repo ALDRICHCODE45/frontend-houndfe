@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import EditorialSelect from './EditorialSelect.vue'
 import type { EditorialDefinition } from '../../interfaces/editorial-contract-definition.types'
 import type { EditorialEvidence } from '../../interfaces/editorial-contract-value.types'
 import { parseEditorialDecimal, resolveEditorialAssignmentInput, type EditorialAssignmentInput,
@@ -35,7 +36,9 @@ const options = computed(() => [
     locked: option.archived && !props.conservedOptions?.includes(option.code) })),
   ...selected.value.filter(code => !choices.value.some(option => option.code === code)).map(code => ({ code, label: `${code} (no disponible)`, locked: true })),
 ])
-const multiText = computed(() => (selected.value.length ? selected.value.map(code => options.value.find(option => option.code === code)?.label ?? code).join(', ') : 'Elegir'))
+const booleanItems = [{ label: 'Sí', value: 'true' }, { label: 'No', value: 'false' }]
+const singleItems = computed(() => options.value.map(option => ({ label: option.label, value: option.code, disabled: option.locked })))
+const multiText = computed(() => (selected.value.length ? selected.value.map(code => options.value.find(option => option.code === code)?.label ?? code).join(', ') : 'Elige…'))
 
 // A unit picked before any value is a cell-local choice; the assignment exists once there is a value.
 const units = computed(() => {
@@ -49,6 +52,7 @@ const defaultUnit = computed(() => (units.value.length === 1 ? units.value[0]!.c
 const unit = computed(() => (stored.value ? stored.value.unit : chosenUnit.value !== undefined ? chosenUnit.value : defaultUnit.value))
 const unitChoices = computed(() => (unit.value !== undefined && !units.value.some(item => item.code === unit.value)
   ? [...units.value, { code: unit.value, token: JSON.stringify(unit.value), label: `${unit.value ?? 'Sin unidad'} (no disponible)` }] : units.value))
+const unitItems = computed(() => unitChoices.value.map(item => ({ label: item.label, value: item.token })))
 const impliedUnit = computed(() => (units.value.length === 1 ? units.value[0]!.label : ''))
 
 const message = computed(() => {
@@ -74,13 +78,12 @@ function update(next: EditorialAssignmentInput) {
 }
 function setKnown(next: EditorialPayloadInput) { update({ state: 'known', payload: next, evidence: evidence.value }) }
 function textChanged(event: Event) { setKnown({ type: 'text', value: (event.target as HTMLInputElement).value }) }
-function booleanChanged(event: Event) {
-  const raw = (event.target as HTMLSelectElement).value
-  setKnown({ type: 'boolean', value: raw === '' ? null : raw === 'true' })
+// A list has no empty pick (the placeholder is its empty state), so an undefined pick changes nothing.
+function booleanChanged(raw: string | undefined) {
+  if (raw === 'true' || raw === 'false') setKnown({ type: 'boolean', value: raw === 'true' })
 }
-function singleChanged(event: Event) {
-  const raw = (event.target as HTMLSelectElement).value
-  setKnown({ type: 'single', value: raw === '' ? null : raw })
+function singleChanged(raw: string | undefined) {
+  if (raw !== undefined) setKnown({ type: 'single', value: raw })
 }
 function multiChanged(code: string, event: Event) {
   const checked = (event.target as HTMLInputElement).checked
@@ -92,10 +95,9 @@ function rangeChanged(part: 'min' | 'max', event: Event) {
   const current = payload.value?.type === 'range' ? payload.value : { min: '', max: '' }
   setKnown({ type: 'range', min: current.min, max: current.max, [part]: (event.target as HTMLInputElement).value, unit: unit.value })
 }
-function unitChanged(event: Event) {
-  if (props.disabled) return
-  const raw = (event.target as HTMLSelectElement).value
-  const next = raw === '' ? undefined : (JSON.parse(raw) as string | null)
+function unitChanged(raw: string | undefined) {
+  if (props.disabled || raw === undefined) return
+  const next = JSON.parse(raw) as string | null
   if (stored.value) setKnown({ ...stored.value, unit: next })
   else chosenUnit.value = next
 }
@@ -136,7 +138,7 @@ onMounted(() => document.addEventListener('pointerdown', closeOnOutsidePress))
 onBeforeUnmount(() => document.removeEventListener('pointerdown', closeOnOutsidePress))
 async function focusControl() {
   await nextTick()
-  root.value?.querySelector<HTMLElement>('input, select, summary')?.focus()
+  root.value?.querySelector<HTMLElement>('input, [role="combobox"], summary')?.focus()
 }
 const actions = computed<RowAction[]>(() => {
   const items: RowAction[] = []
@@ -166,15 +168,12 @@ function act(key: string) {
         <input v-if="type === 'text'" :id="`${id}-value`" class="hf-cell__control" type="text" :value="payload?.type === 'text' ? payload.value : ''"
           :disabled="disabled" :aria-label="label" :aria-invalid="message ? 'true' : undefined" :aria-describedby="described"
           @input="textChanged" @keydown.enter.prevent="emit('enter', $event.target as HTMLElement)">
-        <select v-else-if="type === 'boolean'" :id="`${id}-value`" class="hf-cell__control" :value="payload?.type === 'boolean' && payload.value !== null ? String(payload.value) : ''"
-          :disabled="disabled" :aria-label="label" :aria-invalid="message ? 'true' : undefined" :aria-describedby="described" @change="booleanChanged">
-          <option value="">Elige</option><option value="true">Sí</option><option value="false">No</option>
-        </select>
-        <select v-else-if="type === 'single'" :id="`${id}-value`" class="hf-cell__control" :value="payload?.type === 'single' && payload.value !== null ? payload.value : ''"
-          :disabled="disabled" :aria-label="label" :aria-invalid="message ? 'true' : undefined" :aria-describedby="described" @change="singleChanged">
-          <option value="">Elige</option>
-          <option v-for="option in options" :key="option.code" :value="option.code" :disabled="option.locked">{{ option.label }}</option>
-        </select>
+        <EditorialSelect v-else-if="type === 'boolean'" :id="`${id}-value`" class="hf-cell__select" :label="label" :items="booleanItems"
+          :model-value="payload?.type === 'boolean' && payload.value !== null ? String(payload.value) : undefined" :disabled="disabled"
+          :invalid="!!message" :describedby="described" @update:model-value="booleanChanged" />
+        <EditorialSelect v-else-if="type === 'single'" :id="`${id}-value`" class="hf-cell__select" :label="label" :items="singleItems"
+          :model-value="payload?.type === 'single' && payload.value !== null ? payload.value : undefined" :disabled="disabled"
+          :invalid="!!message" :describedby="described" @update:model-value="singleChanged" />
         <details v-else-if="type === 'multi'" ref="multi" class="hf-cell__multi" @keydown.esc="closeMulti(true)">
           <summary class="hf-cell__control" :aria-label="label" :aria-invalid="message ? 'true' : undefined">{{ multiText }}</summary>
           <div class="hf-cell__options" role="group" :aria-label="label">
@@ -199,12 +198,9 @@ function act(key: string) {
             @input="rangeChanged('max', $event)" @keydown.enter.prevent="emit('enter', $event.target as HTMLElement)">
         </div>
         <template v-if="type === 'number' || type === 'range'">
-          <select v-if="unitChoices.length > 1 || (unit !== undefined && !units.some(item => item.code === unit))" :id="`${id}-unit`" class="hf-cell__control hf-cell__unit"
-            :value="unit === undefined ? '' : JSON.stringify(unit)" :disabled="disabled" :aria-label="`${label}, unidad`" :aria-invalid="message ? 'true' : undefined"
-            :aria-describedby="described" @change="unitChanged">
-            <option value="">Unidad</option>
-            <option v-for="item in unitChoices" :key="item.token" :value="item.token">{{ item.label }}</option>
-          </select>
+          <EditorialSelect v-if="unitChoices.length > 1 || (unit !== undefined && !units.some(item => item.code === unit))" :id="`${id}-unit`"
+            class="hf-cell__select hf-cell__unit" :label="`${label}, unidad`" :items="unitItems" :model-value="unit === undefined ? undefined : JSON.stringify(unit)"
+            :disabled="disabled" :invalid="!!message" :describedby="described" @update:model-value="unitChanged" />
           <span v-else-if="impliedUnit" class="hf-cell__suffix">{{ impliedUnit }}</span>
         </template>
       </fieldset>
@@ -245,7 +241,8 @@ function act(key: string) {
 .hf-cell__control:focus-visible, .hf-cell__button:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
 .hf-cell__control[aria-invalid='true'] { border-color: var(--hf-danger); box-shadow: 0 0 0 1px var(--hf-danger); }
 .hf-cell__control:disabled { cursor: not-allowed; opacity: .65; }
-.hf-cell__unit { flex: 0 0 7rem; width: 7rem; }
+.hf-cell__select { flex: 1 1 auto; width: 100%; min-width: 0; min-height: var(--hf-control-height); }
+.hf-cell__unit { flex: 0 0 8.5rem; width: 8.5rem; }
 .hf-cell__suffix { flex: none; color: var(--hf-muted); font-size: 13px; }
 .hf-cell__range { display: flex; flex: 1 1 auto; gap: 6px; min-width: 0; }
 .hf-cell__multi { position: relative; flex: 1 1 auto; min-width: 0; }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import EditorialSelect from './EditorialSelect.vue'
 import RequirementField from './EditorialCareRequirementField.vue'
 import WarningField from './EditorialCareWarningField.vue'
 import type { EditorialCareReviewInput } from '../../utils/editorial-contract-care-input'
@@ -26,11 +27,10 @@ function copy<T>(value: T): T { return snapshotJson(value) as unknown as T }
 function update(patch: Partial<PreparedEditorialCareInput>) {
   if (!props.disabled && prepared.value) emit('update:modelValue', copy({ ...prepared.value, ...patch }))
 }
-function stateChanged(event: Event) {
-  const select = event.target as HTMLSelectElement
-  const state = select.value
-  // Restore synchronously: unchanged props alone do not patch a native selection.
-  select.value = props.modelValue.state
+const stateItems = [{ label: 'Sin revisión', value: 'omitted' }, { label: 'Desconocida', value: 'unknown' }, { label: 'Preparada', value: 'prepared' }]
+const determinationItems = [{ label: 'Identificada', value: 'identified' }, { label: 'Ninguna aplicable', value: 'none_applicable' }]
+// The list is controlled: until the discard is confirmed it keeps showing the current state.
+function stateChanged(state: string | undefined) {
   if (props.disabled || state === props.modelValue.state) return
   if (state !== 'prepared' && state !== 'unknown' && state !== 'omitted') return
   const current = prepared.value
@@ -43,9 +43,9 @@ function stateChanged(event: Event) {
 function textChanged(part: 'jurisdiction' | 'intendedUse' | 'basis', event: Event) {
   update({ [part]: (event.target as HTMLTextAreaElement).value })
 }
-function determinationChanged(event: Event) {
-  const raw = (event.target as HTMLSelectElement).value
-  if (raw === '' || raw === 'identified' || raw === 'none_applicable') update({ determination: raw === '' ? null : raw })
+// A list has no empty pick: the placeholder is the empty state, so only an offered code changes anything.
+function determinationChanged(raw: string | undefined) {
+  if (raw === 'identified' || raw === 'none_applicable') update({ determination: raw })
 }
 function evidenceChanged(index: number, part: keyof EditorialEvidence, event: Event) {
   const raw = (event.target as HTMLInputElement).value
@@ -72,10 +72,8 @@ function removeWarning(index: number) { if (!props.disabled) emit('removeWarning
   <fieldset class="review-field" :disabled="disabled" :aria-describedby="described">
     <legend>Revisión de cuidado</legend>
     <label :for="`${id}-state`">Estado de la revisión</label>
-    <select :id="`${id}-state`" :value="modelValue.state" :disabled="disabled" :aria-describedby="described"
-      :aria-invalid="!!issue" @change="stateChanged">
-      <option value="omitted">Sin revisión</option><option value="unknown">Desconocida</option><option value="prepared">Preparada</option>
-    </select>
+    <EditorialSelect :id="`${id}-state`" label="Estado de la revisión" :items="stateItems" :model-value="modelValue.state" :disabled="disabled"
+      :invalid="!!issue" :describedby="described" @update:model-value="stateChanged" />
     <template v-if="prepared">
       <div v-for="part in prose" :key="part.key">
         <label :for="`${id}-${part.key}`">{{ part.label }}</label>
@@ -83,11 +81,8 @@ function removeWarning(index: number) { if (!props.disabled) emit('removeWarning
           :aria-describedby="described" :aria-invalid="!!issue" @input="textChanged(part.key, $event)" />
       </div>
       <label :for="`${id}-determination`">Determinación</label>
-      <select :id="`${id}-determination`" :value="prepared.determination ?? ''" :disabled="disabled"
-        :aria-describedby="described" :aria-invalid="!!issue" @change="determinationChanged">
-        <option value="">Selecciona una determinación</option><option value="identified">Identificada</option>
-        <option value="none_applicable">Ninguna aplicable</option>
-      </select>
+      <EditorialSelect :id="`${id}-determination`" label="Determinación" :items="determinationItems" :model-value="prepared.determination ?? undefined"
+        :disabled="disabled" :invalid="!!issue" :describedby="described" @update:model-value="determinationChanged" />
       <fieldset class="evidence">
         <legend>Evidencias de la revisión</legend>
         <div v-for="(entry, index) in prepared.evidence" :key="index" class="evidence-entry">
@@ -127,10 +122,10 @@ function removeWarning(index: number) { if (!props.disabled) emit('removeWarning
 .review-field { min-width: 0; margin: 0; padding: 16px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); background: var(--hf-surface); color: var(--hf-ink); }
 legend { max-width: 100%; padding: 0 6px; font-weight: 650; overflow-wrap: anywhere; color: var(--hf-heading); }
 label { display: block; margin: 12px 0 6px; font-size: .875rem; line-height: 1.5; }
-input, textarea, select, button { box-sizing: border-box; min-height: max(44px, var(--hf-control-height, 44px)); max-width: 100%; border: 1px solid var(--hf-field-border); border-radius: var(--hf-radius-control); background: var(--hf-field); color: var(--hf-ink); font: inherit; padding: 8px 12px; }
-input, textarea, select { width: 100%; }
+input, textarea, button { box-sizing: border-box; min-height: max(44px, var(--hf-control-height, 44px)); max-width: 100%; border: 1px solid var(--hf-field-border); border-radius: var(--hf-radius-control); background: var(--hf-field); color: var(--hf-ink); font: inherit; padding: 8px 12px; }
+input, textarea { width: 100%; }
 textarea { resize: vertical; }
-input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
+input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
 button { margin-top: 12px; cursor: pointer; }
 :disabled { cursor: not-allowed; }
 .review-field:disabled { opacity: .65; }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import EditorialSelect from './EditorialSelect.vue'
 import EditorialContractDeclarationField from './EditorialContractDeclarationField.vue'
 import { editorialDeclarationLabel } from '../../utils/editorial-contract-declaration-choices'
 import type { EditorialDeclarationValues } from '../../interfaces/editorial-contract-declaration.types'
@@ -30,11 +31,10 @@ const displayedRows = computed(() => props.rows.map(row => ({
   ...row, metadata: props.allowed.find(entry => entry.key === row.declarationKey),
 })))
 const described = computed(() => props.issue ? `${props.id}-issue` : undefined)
-function add(event: Event) {
-  const control = event.target as HTMLSelectElement
-  const entry = props.allowed.find(item => item.key === control.value)
-  // Reset the actual native selection, including rejected synthetic selections.
-  control.value = ''
+const addItems = computed(() => props.allowed.map(entry => ({ label: entry.label, value: entry.key })))
+// The list has no model: after a pick it shows its placeholder again, including for a rejected pick.
+function add(raw: string | undefined) {
+  const entry = props.allowed.find(item => item.key === raw)
   if (!props.disabled && entry) emit('add', entry.key)
 }
 function update(id: string, input: EditorialDeclarationInput) {
@@ -68,11 +68,8 @@ function remove(id: string) {
     </div>
     <div class="add">
       <label :for="`${id}-add`" class="label">Agregar declaración</label>
-      <select :id="`${id}-add`" class="control add-select" value="" :disabled="disabled"
-        :aria-describedby="described" @change="add">
-        <option value="">Elige una declaración</option>
-        <option v-for="entry in allowed" :key="entry.key" :value="entry.key">{{ entry.label }}</option>
-      </select>
+      <EditorialSelect :id="`${id}-add`" class="add-select" label="Agregar declaración" :items="addItems" :disabled="disabled" :describedby="described"
+        @update:model-value="add" />
     </div>
   </section>
 </template>

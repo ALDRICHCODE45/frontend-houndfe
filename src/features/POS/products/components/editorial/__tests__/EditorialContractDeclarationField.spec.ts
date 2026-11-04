@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, shallowRef } from 'vue'
 import { mount } from '@vue/test-utils'
 import Field from '../EditorialContractDeclarationField.vue'
+import { EditorialSelectMenuStub, EditorialSelectStub, stubEditorialSelect } from './editorialSelectStub'
 import type { EditorialDeclarationValues } from '../../../interfaces/editorial-contract-declaration.types'
 import { resolveEditorialDeclarationInput, type EditorialDeclarationInput } from '../../../utils/editorial-contract-declaration-input'
 type Key = keyof EditorialDeclarationValues
@@ -13,6 +14,7 @@ const defaults: [Key, unknown][] = [
   ['presentationKind', null], ['optionalNonpertinenceCodes', []],
 ]
 const known = (key: Key, value: unknown): EditorialDeclarationInput => ({ key, state: 'known', value, evidence: { ...evidence }, basis: ' base ' }) as EditorialDeclarationInput
+beforeAll(stubEditorialSelect)
 const stops: (() => void)[] = []
 afterEach(() => { stops.splice(0).forEach(stop => stop()) })
 function render(declarationKey: Key, initial: EditorialDeclarationInput = { state: 'omitted' }, disabled = false, issue?: string) {
@@ -39,10 +41,22 @@ describe('controlled declaration field S39', () => {
   it.each(defaults)('initializes %s only on explicit known selection', async (key, value) => {
     const { wrapper, raw } = render(key)
     expect(wrapper.get('legend').text()).toBe('Declaración')
-    expect(wrapper.get('#field-state').findAll('option').map(o => o.text())).toEqual(['Sin asignación', 'Desconocido', 'Valor conocido'])
+    expect(wrapper.getComponent(EditorialSelectStub).props('items')).toEqual([{ label: 'Sin asignación', value: 'omitted' }, { label: 'Desconocido', value: 'unknown' }, { label: 'Valor conocido', value: 'known' }])
     await wrapper.get('#field-state').setValue('known')
     expect(raw.value).toEqual({ key, state: 'known', value, evidence: null, basis: '' })
     expect(wrapper.find('#field-basis').exists()).toBe(true)
+  })
+  it('names every list after its row and uses the "Elige…" placeholder', () => {
+    const scalar = render('consumable', known('consumable', null)).wrapper.findAllComponents(EditorialSelectStub)
+    expect(scalar.map(select => select.props('label'))).toEqual(['Declaración · Estado', 'Declaración · Valor'])
+    expect(scalar.map(select => select.props('placeholder'))).toEqual(['Elige…', 'Elige…'])
+    expect(scalar[1]!.props('items')).toEqual([{ label: 'Sí', value: 'true' }, { label: 'No', value: 'false' }])
+    expect(scalar[1]!.props('modelValue')).toBeUndefined()
+    const dimensions = render('relevantDimensionCodes', known('relevantDimensionCodes', { codes: [], toyTypes: [] })).wrapper
+    expect(dimensions.getComponent(EditorialSelectStub).props('label')).toBe('Declaración · Estado')
+    const menus = dimensions.findAllComponents(EditorialSelectMenuStub)
+    expect(menus.map(select => select.props('label'))).toEqual(['Declaración · Dimensiones pertinentes', 'Declaración · Tipos de juguete'])
+    expect(menus.map(select => select.props('placeholder'))).toEqual(['Elige…', 'Elige…'])
   })
   it('changes omitted/unknown/known explicitly without restoring old content', async () => {
     const { wrapper, raw } = render('consumable', known('consumable', false))
@@ -61,20 +75,25 @@ describe('controlled declaration field S39', () => {
   })
   it('distinguishes boolean null, false and true without mutating frozen props', async () => {
     const { wrapper, raw } = render('consumable', freeze(known('consumable', null)))
-    for (const [token, value] of [['false', false], ['true', true], ['', null]] as const) {
+    for (const [token, value] of [['false', false], ['true', true]] as const) {
       await wrapper.get('#field-value').setValue(token)
       expect(raw.value).toEqual(known('consumable', value))
     }
+    // A list has no empty pick: the placeholder is the empty state.
+    await wrapper.get('#field-value').setValue('')
+    expect(raw.value).toEqual(known('consumable', true))
   })
   it.each([
     ['contentMagnitude', ['Masa', 'Volumen', 'Cantidad', 'Longitud', 'Área'], ['mass', 'volume', 'count', 'length', 'area']],
     ['presentationKind', ['Formulación', 'Dispositivo', 'Envase'], ['formulation', 'device', 'packaging']],
   ] as const)('uses only finite Spanish %s choices', async (key, labels, codes) => {
     const { wrapper, raw } = render(key, known(key, null))
-    expect(wrapper.get('#field-value').findAll('option').map(o => o.text())).toEqual(['Selecciona un valor', ...labels])
-    for (const code of [...codes, '']) {
-      await wrapper.get('#field-value').setValue(code); expect(raw.value).toEqual(known(key, code || null))
+    expect(wrapper.get('#field-value').findAll('option').map(o => o.text())).toEqual(['Elige…', ...labels])
+    for (const code of codes) {
+      await wrapper.get('#field-value').setValue(code); expect(raw.value).toEqual(known(key, code))
     }
+    await wrapper.get('#field-value').setValue('')
+    expect(raw.value).toEqual(known(key, codes[codes.length - 1]))
   })
   it('retains ordered lists and missing selection in actual DOM through rerender/remount; explicitly empties', async () => {
     const initial = freeze(known('relevantFitCodes', ['measure.fit.neck', 'lost', 'measure.fit.chest']))

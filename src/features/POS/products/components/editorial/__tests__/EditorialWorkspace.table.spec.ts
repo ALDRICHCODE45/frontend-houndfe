@@ -4,10 +4,11 @@
  */
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { reactive } from 'vue'
 import EditorialWorkspace from '../EditorialWorkspace.vue'
+import { stubEditorialSelect } from './editorialSelectStub'
 import type { EditorialContractDocument } from '../../../interfaces/editorial-contract-document.types'
 import type { EditorialContractVocabulary } from '../../../interfaces/editorial-contract-vocabulary.types'
 import { document as emptyDocument, read, update, state, success, failure, vocabularyEnvelope, deferred } from '../../../__tests__/editorial-contract-fixtures'
@@ -54,6 +55,7 @@ async function pick(trigger: { trigger(event: string): Promise<void> }, label: s
   menuItems().find(item => (item.textContent ?? '').trim() === label)!.click(); await tick()
 }
 
+beforeAll(stubEditorialSelect)
 beforeEach(() => {
   vi.resetAllMocks()
   Object.assign(auth, { permissionCodes: [read, update], isAuthenticated: true, authPhase: 'authenticated', permissionsLoaded: true })
@@ -428,19 +430,31 @@ describe('EditorialWorkspace — conflicts and reconciliation', () => {
 })
 
 describe('EditorialWorkspace — the family', () => {
-  it('asks before changing the family and clears the data of the table', async () => {
+  const modalButton = (label: string) => Array.from(document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')).find(item => item.textContent?.trim() === label)!
+
+  it('asks in a modal before changing the family, and cancelling keeps the data of the table', async () => {
     reads(state(doc({ values: [material('Nylon')] })))
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const confirm = vi.spyOn(window, 'confirm')
     await render()
-    const select = wrapper.get('#editorial-family')
-    await select.setValue('1')
-    expect(confirm).toHaveBeenCalledWith('¿Cambiar de familia? Se borrarán los datos y las declaraciones de este borrador. Lo publicado no cambia.')
+    await wrapper.get('#editorial-family').setValue('1'); await tick()
+    expect(confirm).not.toHaveBeenCalled()
+    expect(document.body.textContent).toContain('¿Cambiar la familia?')
+    expect(document.body.textContent).toContain('Se borran los datos de la familia actual')
     expect(cell('Material', 0).get('input').element).toHaveProperty('value', 'Nylon')
-    confirm.mockReturnValue(true)
-    await select.setValue('1')
+    modalButton('Cancelar').click(); await tick()
+    expect(document.querySelector('[role="dialog"]')).toBeNull()
+    expect(cell('Material', 0).get('input').element).toHaveProperty('value', 'Nylon')
+    expect(wrapper.get('#editorial-family').element).toHaveProperty('value', '0')
+  })
+
+  it('changes the family and clears the data of the table once the modal is confirmed', async () => {
+    reads(state(doc({ values: [material('Nylon')] })))
+    await render()
+    await wrapper.get('#editorial-family').setValue('1'); await tick()
+    modalButton('Cambiar familia').click(); await tick()
+    expect(document.querySelector('[role="dialog"]')).toBeNull()
     expect(wrapper.findAll('tbody th[scope="row"]').map(th => th.text())).toEqual(['Material'])
     expect(cell('Material', 0).get('input').element).toHaveProperty('value', '')
-    confirm.mockRestore()
   })
 })
 

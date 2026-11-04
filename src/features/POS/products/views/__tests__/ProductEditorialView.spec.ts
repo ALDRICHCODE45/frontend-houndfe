@@ -1,8 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { reactive } from 'vue'
 import ProductEditorialView from '../ProductEditorialView.vue'
 import EditorialWorkspace from '../../components/editorial/EditorialWorkspace.vue'
+import { stubEditorialSelect } from '../../components/editorial/__tests__/editorialSelectStub'
 import { document, state, success, vocabularyEnvelope, read, update, publish, failure, deferred } from '../../__tests__/editorial-contract-fixtures'
 const http = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn() }))
 vi.mock('@/core/shared/api/http', () => ({ http }))
@@ -19,6 +20,7 @@ function reads(snapshot = state()) {
     : url.endsWith('/context') ? { status: 200, data: { variants: [] } } : success(snapshot)))
 }
 const render = async () => { wrapper = mount(ProductEditorialView); await flushPromises() }
+beforeAll(stubEditorialSelect)
 beforeEach(() => { vi.resetAllMocks(); productGetById.mockResolvedValue({ name: 'Collar ajustable' }); Object.assign(auth, { isAuthenticated: true, authPhase: 'authenticated', user: { id: 'u' }, currentTenant: { id: 't' }, permissionsLoaded: true, permissionCodes: [read, update] }); route.params.id = 'p1'; reads() })
 afterEach(() => { wrapper?.unmount(); window.document.body.innerHTML = '' })
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import FactsRow from './EditorialContractFactsRow.vue'
+import EditorialSelect from './EditorialSelect.vue'
 import type { EditorialFactsEditingRow, EditorialFactsEditingState } from '../../utils/editorial-contract-facts-editing'
 import type { EditorialDeclarationChoice } from '../../utils/editorial-contract-declaration-choices'
 import { requestEditorialFactsRowRemoval } from '../../utils/editorial-contract-facts-removal'
@@ -20,10 +21,10 @@ const displayed = computed(() => props.modelValue.map(row => ({ row,
 })))
 const available = computed(() => props.subjects.map((subject, index) => ({ subject, value: String(index) }))
   .filter(({ subject }) => !props.modelValue.some(row => row.variantId === subject.variantId)))
-function add(event: Event) {
-  const select = event.target as HTMLSelectElement
-  const entry = available.value.find(entry => entry.value === select.value)
-  select.value = ''
+const addItems = computed(() => available.value.map(({ subject, value }) => ({ label: subject.label, value })))
+// The list has no model: after a pick it shows its placeholder again, including for a rejected pick.
+function add(raw: string | undefined) {
+  const entry = available.value.find(entry => entry.value === raw)
   if (props.disabled || !entry) return
   emit('update:modelValue', [...props.modelValue, { id: props.nextId(), variantId: entry.subject.variantId,
     presentation: '', declarations: [], careReview: { state: 'omitted' }, careRowIds: { requirements: [], warnings: [] } }])
@@ -58,10 +59,7 @@ function remove(id: string, requestedId: string) {
     </div>
     <div class="add">
       <label :for="`${id}-add`" class="label">Agregar una presentación</label>
-      <select :id="`${id}-add`" class="control" value="" :disabled="disabled" :aria-describedby="described" @change="add">
-        <option value="">Elige una presentación</option>
-        <option v-for="entry in available" :key="entry.value" :value="entry.value">{{ entry.subject.label }}</option>
-      </select>
+      <EditorialSelect :id="`${id}-add`" label="Agregar una presentación" :items="addItems" :disabled="disabled" :describedby="described" @update:model-value="add" />
     </div>
   </section>
 </template>
@@ -71,8 +69,5 @@ function remove(id: string, requestedId: string) {
 .heading { margin: 0 0 16px; color: var(--hf-heading); font-size: 1rem; }
 .entry { min-width: 0; margin-bottom: 20px; }
 .label { display: block; margin-bottom: 6px; line-height: 1.5; }
-.control { box-sizing: border-box; width: 100%; min-height: max(44px, var(--hf-control-height, 44px)); padding: 8px 12px; border: 1px solid var(--hf-field-border); border-radius: var(--hf-radius-control); background: var(--hf-field); color: var(--hf-ink); font: inherit; }
-.control:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
-.control:disabled { cursor: not-allowed; opacity: .65; }
 .notice { margin: 0 0 12px; overflow-wrap: anywhere; line-height: 1.5; color: var(--hf-warning); }
 </style>

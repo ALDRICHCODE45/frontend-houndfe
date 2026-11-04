@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import EditorialSelect from './EditorialSelect.vue'
 import type { PreparedEditorialCareInput } from '../../utils/editorial-contract-care-edits'
 import type { EditorialEvidence } from '../../interfaces/editorial-contract-value.types'
 
@@ -11,6 +12,7 @@ const disclosures = [
   { code: 'private_only', label: 'Solo privada' }, { code: 'public_required', label: 'Pública requerida' },
   { code: 'unresolved', label: 'Sin resolver' },
 ] as const
+const disclosureItems = disclosures.map(item => ({ label: item.label, value: item.code }))
 
 // Parent owns stable row identity, review state and removal. Only explicit edits
 // change reference entries: retain exact order, duplicates, blanks and dangling keys.
@@ -23,14 +25,10 @@ function update(patch: Partial<Warning>) {
 function textChanged(part: 'key' | 'text' | 'handlingBasis', event: Event) {
   if (!props.disabled) update({ [part]: (event.target as HTMLInputElement | HTMLTextAreaElement).value })
 }
-function disclosureChanged(event: Event) {
-  if (props.disabled) return
-  const raw = (event.target as HTMLSelectElement).value
-  if (raw === '') update({ disclosure: null })
-  else {
-    const choice = disclosures.find(item => item.code === raw)
-    if (choice) update({ disclosure: choice.code })
-  }
+// A list has no empty pick: the placeholder is the empty state, so only an offered code changes anything.
+function disclosureChanged(raw: string | undefined) {
+  const choice = disclosures.find(item => item.code === raw)
+  if (!props.disabled && choice) update({ disclosure: choice.code })
 }
 function evidenceChanged(index: number, part: keyof EditorialEvidence, event: Event) {
   if (props.disabled) return
@@ -67,11 +65,8 @@ function removeWarning() { if (!props.disabled) emit('remove') }
     <textarea :id="`${id}-text`" :value="modelValue.text" :disabled="disabled" rows="3"
       :aria-invalid="!!issue" :aria-describedby="described" @input="textChanged('text', $event)" />
     <label :for="`${id}-disclosure`">Divulgación</label>
-    <select :id="`${id}-disclosure`" :value="modelValue.disclosure ?? ''" :disabled="disabled"
-      :aria-invalid="!!issue" :aria-describedby="described" @change="disclosureChanged">
-      <option value="">Selecciona una divulgación</option>
-      <option v-for="item in disclosures" :key="item.code" :value="item.code">{{ item.label }}</option>
-    </select>
+    <EditorialSelect :id="`${id}-disclosure`" label="Divulgación" :items="disclosureItems" :model-value="modelValue.disclosure ?? undefined"
+      :disabled="disabled" :invalid="!!issue" :describedby="described" @update:model-value="disclosureChanged" />
     <label :for="`${id}-handlingBasis`">Fundamento</label>
     <textarea :id="`${id}-handlingBasis`" :value="modelValue.handlingBasis" :disabled="disabled" rows="3"
       :aria-invalid="!!issue" :aria-describedby="described" @input="textChanged('handlingBasis', $event)" />
@@ -115,10 +110,10 @@ function removeWarning() { if (!props.disabled) emit('remove') }
 .warning-field { min-width: 0; margin: 0; padding: 16px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); background: var(--hf-surface); color: var(--hf-ink); }
 legend { max-width: 100%; padding: 0 6px; font-weight: 650; overflow-wrap: anywhere; color: var(--hf-heading); }
 label { display: block; margin: 12px 0 6px; font-size: .875rem; line-height: 1.5; }
-input, textarea, select, button { box-sizing: border-box; min-height: max(44px, var(--hf-control-height, 44px)); max-width: 100%; border: 1px solid var(--hf-field-border); border-radius: var(--hf-radius-control); background: var(--hf-field); color: var(--hf-ink); font: inherit; padding: 8px 12px; }
-input, textarea, select { width: 100%; }
+input, textarea, button { box-sizing: border-box; min-height: max(44px, var(--hf-control-height, 44px)); max-width: 100%; border: 1px solid var(--hf-field-border); border-radius: var(--hf-radius-control); background: var(--hf-field); color: var(--hf-ink); font: inherit; padding: 8px 12px; }
+input, textarea { width: 100%; }
 textarea { resize: vertical; }
-input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
+input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
 button { margin-top: 12px; cursor: pointer; }
 :disabled { cursor: not-allowed; }
 .warning-field:disabled { opacity: .65; }

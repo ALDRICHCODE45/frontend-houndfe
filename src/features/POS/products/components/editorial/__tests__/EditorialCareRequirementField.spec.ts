@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { defineComponent, h, nextTick, shallowRef } from 'vue'
 import Field from '../EditorialCareRequirementField.vue'
+import { EditorialSelectStub, stubEditorialSelect } from './editorialSelectStub'
 import { renameEditorialCareRequirement, removeEditorialCareRequirement, type PreparedEditorialCareInput } from '../../../utils/editorial-contract-care-edits'
 import { resolveEditorialCareReviewInput } from '../../../utils/editorial-contract-care-input'
 
@@ -12,6 +13,7 @@ const review = (row: Requirement): PreparedEditorialCareInput => ({ state: 'prep
   warnings: [{ key: 'warning', requirementKeys: [' original ', 'second', ' original ', 'dangling'], text: 'Advertencia',
     disclosure: 'unresolved', evidence: [], handlingBasis: 'Pendiente' }] })
 const cleanup: (() => void)[] = []
+beforeAll(stubEditorialSelect)
 afterEach(() => cleanup.splice(0).forEach(stop => stop()))
 function render(initial = requirement(), disabled = false, issue?: string) {
   const original = JSON.stringify(initial)
@@ -34,12 +36,17 @@ function render(initial = requirement(), disabled = false, issue?: string) {
 const selected = (element: HTMLSelectElement) => Array.from(element.selectedOptions, option => option.value)
 
 describe('controlled single care requirement', () => {
+  it('picks the disposition in a Nuxt UI list named like its label, with the "Elige…" placeholder', () => {
+    const select = render().wrapper.getComponent(EditorialSelectStub)
+    expect(select.props('label')).toBe('Disposición')
+    expect(select.props('placeholder')).toBe('Elige…')
+    expect(select.props('items')).toEqual([{ label: 'Satisfecho', value: 'satisfied' }, { label: 'No aplica', value: 'not_applicable' },
+      { label: 'Sin resolver', value: 'unresolved' }, { label: 'En conflicto', value: 'conflicting' }])
+    expect(select.props('modelValue')).toBeUndefined()
+  })
   it('renders visible labels and unselected disposition without inventing satisfaction', () => {
     const { wrapper, input } = render()
     expect(wrapper.get('legend').text()).toBe('Requisito de cuidado')
-    expect(wrapper.get('#care-disposition').findAll('option').map(option => option.text())).toEqual([
-      'Selecciona una disposición', 'Satisfecho', 'No aplica', 'Sin resolver', 'En conflicto',
-    ])
     expect(selected(wrapper.get<HTMLSelectElement>('#care-disposition').element)).toEqual([''])
     for (const label of wrapper.findAll('label')) expect(wrapper.find(`#${label.attributes('for')}`).exists()).toBe(true)
     expect(input.value.requirements[0]?.disposition).toBeNull()

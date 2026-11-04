@@ -1,12 +1,14 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, shallowRef } from 'vue'
 import { mount } from '@vue/test-utils'
 import FactsRow from '../EditorialContractFactsRow.vue'
 import List from '../EditorialDeclarationList.vue'
 import Field from '../EditorialContractDeclarationField.vue'
 import Care from '../EditorialCareReviewField.vue'
+import { EditorialSelectStub, stubEditorialSelect } from './editorialSelectStub'
 import type { EditorialFactsEditingRow as Row } from '../../../utils/editorial-contract-facts-editing'
 import type { EditorialDeclarationChoice } from '../../../utils/editorial-contract-declaration-choices'
+beforeAll(stubEditorialSelect)
 const allowed: EditorialDeclarationChoice[] = [{ key: 'consumable', label: 'Consumible', choices: [], toyTypeChoices: [] }]
 function initial(): Row { return { id: 'facts', variantId: null, presentation: '', declarations: [
   { id: 'd1', declarationKey: 'consumable', input: { key: 'consumable', state: 'known', value: false, evidence: { sourceRef: '', verifiedOn: '2026-' }, basis: '' } },

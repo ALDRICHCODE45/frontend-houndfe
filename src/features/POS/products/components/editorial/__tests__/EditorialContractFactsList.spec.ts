@@ -1,9 +1,11 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, shallowRef } from 'vue'
 import { mount } from '@vue/test-utils'
 import List from '../EditorialContractFactsList.vue'
 import Row from '../EditorialContractFactsRow.vue'
+import { EditorialSelectStub, stubEditorialSelect } from './editorialSelectStub'
 import type { EditorialFactsEditingRow, EditorialFactsEditingState } from '../../../utils/editorial-contract-facts-editing'
+beforeAll(stubEditorialSelect)
 const empty = (id = 'a', variantId: string | null = null): EditorialFactsEditingRow => ({ id, variantId, presentation: '', declarations: [], careReview: { state: 'omitted' }, careRowIds: { requirements: [], warnings: [] } })
 const subjects = [{ variantId: null, label: 'Producto simple' }, { variantId: 'v', label: '<img src=x> Variante' }]
 const stops: (() => void)[] = []
@@ -27,12 +29,19 @@ describe('controlled facts collection', () => {
     await wrapper.get('#facts-add').setValue('0')
     expect(state.value).toEqual([empty('new-1')]); expect(nextId).toHaveBeenCalledOnce()
     expect(wrapper.get('#facts-add').element).toHaveProperty('value', '')
+    expect(wrapper.findAllComponents(EditorialSelectStub).find(select => select.props('label') === 'Agregar una presentación')!.props('items')).toEqual([{ label: '<img src=x> Variante', value: '1' }])
     expect(wrapper.find('#facts-add option[value="0"]').exists()).toBe(false)
     await wrapper.get('#facts-add').setValue('1')
     expect(state.value).toEqual([empty('new-1'), empty('new-2', 'v')]); expect(nextId).toHaveBeenCalledTimes(2)
     expect(wrapper.get('#facts-add').element).toHaveProperty('value', '')
     expect(wrapper.findAll('#facts-add option')).toHaveLength(1)
     await remount(); expect(events).toHaveLength(2); expect(nextId).toHaveBeenCalledTimes(2)
+  })
+  it('adds a presentation from a Nuxt UI list named after its action, with the "Elige…" placeholder', () => {
+    const select = render().wrapper.getComponent(EditorialSelectStub)
+    expect(select.props('label')).toBe('Agregar una presentación')
+    expect(select.props('placeholder')).toBe('Elige…')
+    expect(select.props('items')).toEqual([{ label: 'Producto simple', value: '0' }, { label: '<img src=x> Variante', value: '1' }])
   })
   it('retains exact raw child updates and survivor objects across remount without subject substitution', async () => {
     const survivor = empty('b', 'v'), { wrapper, state, events, remount } = render([empty(), survivor])

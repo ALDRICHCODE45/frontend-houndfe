@@ -1,14 +1,16 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { defineComponent, h, shallowRef } from 'vue'
 import { mount } from '@vue/test-utils'
 import Table from '../EditorialAttributeTable.vue'
+import { stubEditorialSelect } from './editorialSelectStub'
 import type { EditorialDefinition } from '../../../interfaces/editorial-contract-definition.types'
 import type { EditorialBinding, EditorialFamily } from '../../../interfaces/editorial-contract-vocabulary.types'
 import { editorialTargetKey } from '../../../utils/editorial-attribute-table'
 import type { EditorialAssignmentEditingRow } from '../../../utils/editorial-contract-document-editing'
 
+beforeAll(stubEditorialSelect)
 const source = readFileSync(resolve(__dirname, '../EditorialAttributeTable.vue'), 'utf8')
 const binding = (code: string, owner: 'product' | 'sellable'): EditorialBinding => ({
   definitionId: code, definitionCode: code, owner, sortOrder: 0, exposure: 'DETAIL', searchable: false, publicationCheck: 'when_asserted', policy: { route: 'pending' },

@@ -51,7 +51,7 @@ function moveDown(source: HTMLElement) {
   if (!from || !start) return
   const column = Array.from(start.children).indexOf(from)
   for (let next = start.nextElementSibling; next; next = next.nextElementSibling) {
-    const control = next.children[column]?.querySelector<HTMLElement>('input[type="text"], select, summary')
+    const control = next.children[column]?.querySelector<HTMLElement>('input[type="text"], [role="combobox"], summary')
     if (control) { control.focus(); return }
   }
 }

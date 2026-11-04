@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { defineComponent, h, shallowRef } from 'vue'
 import { mount } from '@vue/test-utils'
 import Cell from '../EditorialAttributeCell.vue'
+import { EditorialSelectStub, stubEditorialSelect } from './editorialSelectStub'
 import type { EditorialDefinition } from '../../../interfaces/editorial-contract-definition.types'
 import type { EditorialAssignmentInput, EditorialPayloadInput } from '../../../utils/editorial-contract-assignment-input'
 
@@ -18,6 +19,7 @@ function definition(type: EditorialDefinition['type'], units = 2): EditorialDefi
 const known = (payload: EditorialPayloadInput, evidence: { sourceRef: string; verifiedOn: string } | null = null): EditorialAssignmentInput => ({ state: 'known', payload, evidence })
 const tick = () => new Promise(resolve => setTimeout(resolve, 50))
 const cleanup: (() => void)[] = []
+beforeAll(stubEditorialSelect)
 afterEach(() => { cleanup.splice(0).forEach(stop => stop()); document.body.innerHTML = '' })
 
 function render(type: EditorialDefinition['type'], initial: EditorialAssignmentInput = { state: 'omitted' }, extra: Record<string, unknown> = {}, units = 2) {
@@ -49,17 +51,32 @@ describe('EditorialAttributeCell controls', () => {
     expect(input.value).toEqual(known(expected))
   })
 
-  it('offers sí/no and distinguishes no from empty', async () => {
+  it('offers sí/no in a Nuxt UI list named after the row, with the "Elige…" placeholder', async () => {
     const { wrapper, input } = render('boolean')
+    const select = wrapper.getComponent(EditorialSelectStub)
+    expect(select.props('label')).toBe('Medida · Producto')
+    expect(select.props('placeholder')).toBe('Elige…')
+    expect(select.props('items')).toEqual([{ label: 'Sí', value: 'true' }, { label: 'No', value: 'false' }])
     await wrapper.get('select').setValue('false')
     expect(input.value).toEqual(known({ type: 'boolean', value: false }))
-    await wrapper.get('select').setValue('')
-    expect(input.value).toEqual({ state: 'omitted' })
+    await wrapper.get('select').setValue('true')
+    expect(input.value).toEqual(known({ type: 'boolean', value: true }))
+  })
+
+  it('a list cannot go back to empty: an empty pick changes nothing, and Quitar dato is how a value goes away', async () => {
+    const { wrapper, input, events } = render('boolean', known({ type: 'boolean', value: false }))
+    wrapper.getComponent(EditorialSelectStub).vm.$emit('update:modelValue', undefined)
+    expect(events).toEqual([])
+    expect(input.value).toEqual(known({ type: 'boolean', value: false }))
+    expect(wrapper.getComponent(EditorialSelectStub).props('modelValue')).toBe('false')
   })
 
   it('single: keeps option order, labels archived ones and disables an archived option that is not conserved', async () => {
     const { wrapper, input } = render('single')
-    expect(wrapper.get('select').findAll('option').map(option => option.text())).toEqual(['Elige', 'Zeta', 'Alfa (archivada)'])
+    const select = wrapper.getComponent(EditorialSelectStub)
+    expect(select.props('label')).toBe('Medida · Producto')
+    expect(select.props('placeholder')).toBe('Elige…')
+    expect(select.props('items')).toEqual([{ label: 'Zeta', value: 'z', disabled: false }, { label: 'Alfa (archivada)', value: 'a', disabled: true }])
     expect(wrapper.get('option[value="a"]').attributes('disabled')).toBeDefined()
     await wrapper.get('select').setValue('z')
     expect(input.value).toEqual(known({ type: 'single', value: 'z' }))
@@ -81,7 +98,7 @@ describe('EditorialAttributeCell controls', () => {
     await wrapper.get('input[type="checkbox"][value="z"]').setValue(false)
     await wrapper.get('input[type="checkbox"][value="a"]').setValue(false)
     expect(events[events.length - 1]).toBe('clear')
-    expect(wrapper.get('summary').text()).toContain('Elegir')
+    expect(wrapper.get('summary').text()).toContain('Elige…')
   })
 
   it('multi: the option list closes with Escape and on a click outside, not on a click inside', async () => {
@@ -115,6 +132,9 @@ describe('EditorialAttributeCell controls', () => {
     expect(single.input.value).toEqual(known({ type: 'number', value: '3', unit: 'cm' }))
     expect(single.wrapper.text()).toContain('Centímetros')
     const many = render('number')
+    const unitSelect = many.wrapper.getComponent(EditorialSelectStub)
+    expect(unitSelect.props('label')).toBe('Medida · Producto, unidad')
+    expect(unitSelect.props('placeholder')).toBe('Elige…')
     await many.wrapper.get('input[type="text"]').setValue('3')
     expect(many.wrapper.get('[role="alert"]').text()).toBe('Elige la unidad')
     expect(many.wrapper.get('input[type="text"]').attributes('aria-invalid')).toBe('true')
