@@ -311,6 +311,7 @@ describe('EditorialWorkspace — the footer', () => {
 
   it('on mobile keeps the band to one row (Historial as an icon) and the toolbar to two', () => {
     expect(source).toMatch(/@media \(max-width: 767px\)[\s\S]*\.editorial-history-label\s*\{[^}]*(?:clip|sr-only|position:\s*absolute)/)
+    expect(source).toMatch(/\.editorial-completeness\s*\{[^}]*white-space:\s*nowrap/)
     expect(source).toMatch(/@media \(max-width: 767px\)[\s\S]*\.editorial-toolbar :deep\(\.family-field\)\s*\{[^}]*flex:\s*1 1 100%/)
   })
 

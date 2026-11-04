@@ -352,8 +352,8 @@ function factsChanged(facts: EditorialDocumentEditingState['facts']) { if (buffe
 .editorial-band { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; }
 .editorial-band__title { margin: 0; color: var(--hf-heading); font-size: 18px; font-weight: 600; line-height: 1.3; }
 .editorial-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-width: 0; }
-.editorial-completeness { display: flex; align-items: center; gap: 10px; font-size: 14px; }
-.editorial-bar { width: 6rem; height: 6px; border-radius: 3px; background: var(--hf-surface-muted); overflow: hidden; }
+.editorial-completeness { display: flex; align-items: center; gap: 10px; font-size: 14px; white-space: nowrap; }
+.editorial-bar { flex: 1 1 3rem; width: 6rem; height: 6px; border-radius: 3px; background: var(--hf-surface-muted); overflow: hidden; }
 .editorial-bar > i { display: block; height: 100%; background: var(--hf-success); }
 .editorial-count { margin-left: 4px; padding: 0 6px; border-radius: 10px; background: var(--hf-active-soft); color: var(--hf-active); font-size: 12px; font-weight: 600; }
 .editorial-family-name { margin: 0; color: var(--hf-muted); font-size: 14px; }
