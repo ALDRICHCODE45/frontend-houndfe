@@ -547,9 +547,11 @@ describe('EligibleSalesPicker — empty / loading / error / required states', ()
     expect(wrapper.text()).toContain('deliveryStatus is invalid')
   })
 
-  it('renders the required marker when :required is true', async () => {
+  it('does not repeat a "Requerido" line: the field label marks it once', async () => {
     const { wrapper } = mountPicker({ required: true })
-    await settle(() => expect(wrapper.find('[data-testid="eligible-sales-picker-required"]').exists()).toBe(true))
+    await settle(() => expect(wrapper.find('[data-testid="eligible-sales-picker"]').exists()).toBe(true))
+    expect(wrapper.find('[data-testid="eligible-sales-picker-required"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Requerido')
   })
 
   it('renders the inline field error when :error is provided', async () => {

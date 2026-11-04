@@ -31,7 +31,7 @@ import DeliveryRouteUpsertSlideover from '../DeliveryRouteUpsertSlideover.vue'
 // ─── @nuxt/ui stubs ──────────────────────────────────────────────────────────
 const slideoverStub = {
   template:
-    '<div data-testid="uslideover-stub" :data-ui-content="ui?.content"><slot /><slot name="body" /><slot name="footer" /></div>',
+    '<div data-testid="uslideover-stub" :data-ui-content="ui?.content" :data-ui-description="ui?.description"><slot /><slot name="body" /><slot name="footer" /></div>',
   props: ['open', 'title', 'description', 'side', 'inset', 'ui'],
   emits: ['update:open', 'after-leave'],
 }
@@ -558,5 +558,35 @@ describe('DeliveryRouteUpsertSlideover — design-system portal (visual adaptati
     await flushPromises()
     const submit = wrapper.findAll('button').find((b) => b.text() === 'Crear ruta')
     expect(submit?.classes()).toContain('hf-primary-control')
+  })
+})
+
+describe('DeliveryRouteUpsertSlideover — text diet', () => {
+  it('shows no permanent help text under the fields', async () => {
+    const wrapper = mountSlideover({ mode: 'create' })
+    await flushPromises()
+    expect(wrapper.find('[data-testid="uform-field-help"]').exists()).toBe(false)
+  })
+
+  it('keeps the description for assistive tech only and drops the redundant Cancelar button', async () => {
+    const wrapper = mountSlideover({ mode: 'create' })
+    await flushPromises()
+    expect(wrapper.get('[data-testid="uslideover-stub"]').attributes('data-ui-description')).toBe('sr-only')
+    expect(wrapper.findAll('button').map((b) => b.text())).toEqual(['Crear ruta'])
+  })
+
+  it('shows the notes counter only from 90% of the limit, warning first and danger at the limit', async () => {
+    const wrapper = mountSlideover({ mode: 'create' })
+    await flushPromises()
+    const textarea = wrapper.get('[data-testid="notes-textarea"]')
+    await textarea.setValue('a'.repeat(251))
+    expect(wrapper.find('[data-testid="notes-counter"]').exists()).toBe(false)
+    await textarea.setValue('a'.repeat(252))
+    const counter = wrapper.get('[data-testid="notes-counter"]')
+    expect(counter.text()).toBe('252 / 280')
+    expect(counter.attributes('aria-live')).toBe('polite')
+    expect(counter.classes()).not.toContain('is-limit')
+    await textarea.setValue('a'.repeat(280))
+    expect(wrapper.get('[data-testid="notes-counter"]').classes()).toContain('is-limit')
   })
 })

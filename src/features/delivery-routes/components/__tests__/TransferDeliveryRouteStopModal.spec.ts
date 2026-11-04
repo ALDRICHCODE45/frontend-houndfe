@@ -178,6 +178,21 @@ describe('TransferDeliveryRouteStopModal — destination selection', () => {
     expect(wrapper.find('[data-testid="transfer-destination-route-B"]').exists()).toBe(true)
   })
 
+  it('labels each destination by its day and driver, never by its id', async () => {
+    destinationsData.value = [
+      makeRoute({ id: 'route-A' }),
+      makeRoute({
+        id: 'route-B',
+        timeline: [{ type: 'ROUTE_CREATED', at: '2026-10-13T15:00:00', actor: null }],
+      }),
+    ]
+    const wrapper = mountModal()
+    await flushPromises()
+    const label = wrapper.get('[data-testid="transfer-destination-route-B"]').text()
+    expect(label).toContain('Ana · Ruta del 13 oct')
+    expect(label).not.toContain('route-B')
+  })
+
   it('renders the dialog with the Spanish transfer title', async () => {
     const wrapper = mountModal()
     await flushPromises()

@@ -187,7 +187,7 @@ interface SelectedChip {
 const selectedChips = computed<SelectedChip[]>(() =>
   props.modelValue.map((id) => {
     const row = snapshots[id]
-    if (!row) return { id, label: id.slice(0, 8), secondary: '' }
+    if (!row) return { id, label: copy.noFolio, secondary: '' }
     return { id, label: row.folio ?? copy.noFolio, secondary: rowCustomerName(row) }
   }),
 )
@@ -281,7 +281,7 @@ const hasConflict = computed(() => {
 const conflictItems = computed(() =>
   props.conflictSaleIds.map((id) => ({
     id,
-    label: snapshots[id]?.folio ?? id.slice(0, 8),
+    label: snapshots[id]?.folio ?? copy.noFolio,
   })),
 )
 
@@ -470,7 +470,7 @@ const errorMessage = computed(() =>
               :data-testid="`eligible-sales-picker-row-primary-${row.id}`"
               class="flex flex-col gap-0.5"
             >
-              <span class="truncate font-medium text-default">{{ rowCustomerName(row) }}</span>
+              <span class="truncate font-semibold text-highlighted">{{ rowCustomerName(row) }}</span>
               <span
                 v-if="rowAddress(row)"
                 :data-testid="`eligible-sales-picker-row-address-${row.id}`"
@@ -615,14 +615,6 @@ const errorMessage = computed(() =>
         />
       </div>
     </div>
-
-    <p
-      v-if="required"
-      class="text-xs text-muted"
-      data-testid="eligible-sales-picker-required"
-    >
-      Requerido
-    </p>
 
     <p
       v-if="props.error"

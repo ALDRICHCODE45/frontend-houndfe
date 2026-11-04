@@ -55,7 +55,7 @@ function sortedStops(stops: readonly DeliveryRouteStop[]): DeliveryRouteStop[] {
 
 watch(
   () => [props.route.id, props.route.stops] as const,
-  ([_id, stops]) => {
+  ([, stops]) => {
     orderedStops.value = sortedStops(stops)
     reorderError.value = ''
   },
@@ -115,7 +115,7 @@ function moveDown(index: number) {
 // we don't need a separate handler. The "save" path is the only one that fires
 // the mutation — drag-end NEVER autosaves (REQ-DRM-009).
 
-function onDragChange(_evt: unknown) {
+function onDragChange() {
   // Intentional no-op: the v-model mutation already happened in-place.
   // We deliberately do NOT call the mutation here — the save button owns it.
 }

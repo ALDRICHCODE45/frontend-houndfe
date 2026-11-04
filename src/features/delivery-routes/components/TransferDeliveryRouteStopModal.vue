@@ -35,6 +35,7 @@
  */
 import { computed, ref, watch } from 'vue'
 import { DELIVERY_ROUTE_COPY } from '../copy'
+import { buildRouteTitle } from '../utils/delivery-route-list.utils'
 import {
   useDraftTransferDestinations,
   useTransferDeliveryRouteStop,
@@ -150,12 +151,12 @@ watch(selectedDestination, (destination) => {
 
 // ─── Copy interpolation ────────────────────────────────────────────────────────
 const stopFolio = computed<string>(
-  () => props.stop?.saleFolio ?? props.stop?.id?.slice(0, 8) ?? '—',
+  () => props.stop?.saleFolio ?? DELIVERY_ROUTE_COPY.eligibleSales.noFolio,
 )
 
 function destinationLabel(route: DeliveryRouteResponseDto): string {
   const driver = route.driver?.name ?? DELIVERY_ROUTE_COPY.transfer.driverFallback
-  return `${driver} · ${route.id.slice(0, 8)}`
+  return `${driver} · ${buildRouteTitle(route)}`
 }
 
 const confirmBody = computed<string>(() =>
@@ -382,7 +383,7 @@ async function confirmMove(): Promise<void> {
             @click="selectDestination(route.id)"
             @keydown="onOptionKeydown($event, index)"
           >
-            <span class="font-medium">{{ destinationLabel(route) }}</span>
+            <span class="font-semibold text-highlighted">{{ destinationLabel(route) }}</span>
             <span class="text-xs text-muted">
               {{ DELIVERY_ROUTE_COPY.cockpit.summary.totalLabel }}: {{ route.stops.length }}
             </span>
