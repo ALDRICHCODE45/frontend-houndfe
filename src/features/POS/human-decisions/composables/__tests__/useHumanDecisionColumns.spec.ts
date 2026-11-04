@@ -16,7 +16,7 @@ import {
 const base = { resolvedAt: '2026-05-01T16:00:00Z', resolvedBy: { id: 'u1', displayName: 'Ana' } }
 
 describe('unified columns', () => {
-  it('keeps one compact response column, a status column and no client sorting', () => {
+  it('keeps one compact response column, a status column, no ⋮ column and no client sorting', () => {
     const { columns } = useHumanDecisionColumns()
     expect(columns.map((column) => column.id)).toEqual([
       'product',
@@ -25,7 +25,6 @@ describe('unified columns', () => {
       'branch',
       'createdAt',
       'response',
-      'actions',
     ])
     expect(columns.every((column) => column.enableSorting === false)).toBe(true)
     expect(columns.some((column) => column.id === 'reviewer' || column.id === 'resolvedAt')).toBe(

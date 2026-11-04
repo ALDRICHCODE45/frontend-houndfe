@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 import { AppDataTable } from '@/core/shared/components/DataTable'
 import ToolbarSelectFilter from '@/core/shared/components/DataTable/ToolbarSelectFilter.vue'
-import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import type { PaginationState, SortingState } from '@/core/shared/types/table.types'
 import { useHumanDecisionColumns } from '../composables/useHumanDecisionColumns'
@@ -55,10 +54,6 @@ const emit = defineEmits<{
 function selectDecision(row: HumanDecision) {
   emit('openDetail', { id: row.id, status: row.status })
 }
-
-// One action today, but the menu keeps the Acciones column uniform and names
-// the row for assistive tech; the whole row and the title open the same detail.
-const rowActions: RowAction[] = [{ key: 'open', label: 'Ver detalle', icon: 'i-lucide-eye' }]
 
 const statusItems: { label: string; value: HumanDecisionListFilter }[] = [
   { label: 'Todas', value: 'ALL' },
@@ -208,17 +203,6 @@ function clearFilters() {
               </template>
               <span v-else aria-label="Sin respuesta">—</span>
             </div>
-          </template>
-
-          <template #actions-header><span class="sr-only">Acciones</span></template>
-
-          <template #actions-cell="{ row }">
-            <RowActionsMenu
-              :actions="rowActions"
-              :row-label="`${row.original.title}, ${row.original.status === 'PENDING' ? 'pendiente' : 'respondida'}`"
-              portal-class="human-decisions-list-portal"
-              @select="selectDecision(row.original)"
-            />
           </template>
 
           <template #mobile-card="{ row }">

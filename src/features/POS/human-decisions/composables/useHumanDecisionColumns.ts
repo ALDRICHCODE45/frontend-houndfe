@@ -7,7 +7,7 @@ import {
 } from '../utils/humanDecisionPresentation'
 
 // The request first, then its status, then what decides the next action
-// (how many, where, when), the response, and the ⋮ column last. Header text is
+// (how many, where, when) and the response. There is no ⋮ column: its only item would repeat the row click. Header text is
 // plain: the server owns ordering, so no column is sortable.
 export function useHumanDecisionColumns() {
   const columns: TableColumn<HumanDecision>[] = [
@@ -51,13 +51,6 @@ export function useHumanDecisionColumns() {
         row.status === 'RESOLVED' ? resolvedResponseLabel(row.resolution) : '—',
       header: 'Respuesta',
       enableSorting: false,
-    },
-    {
-      id: 'actions',
-      header: 'Acciones',
-      enableSorting: false,
-      enableHiding: false,
-      meta: { class: { th: 'w-16', td: 'w-16 text-right' } },
     },
   ]
 

@@ -163,7 +163,9 @@ describe('HumanDecisionDetailSlideover', () => {
 
     const failed = mountDetail(null, { error: true })
     expect(failed.get('.hf-empty-state').attributes('data-kind')).toBe('error')
-    expect(failed.get('[role="alert"]').text()).toContain('No se pudo cargar el detalle.')
+    expect(failed.get('[role="alert"]').text()).toContain('No se pudo cargar el detalle')
+    // The retry is the button: the title never carries a second "Reintenta." sentence.
+    expect(failed.get('[role="alert"]').text()).not.toContain('Reintenta.')
     await failed.get('[data-testid="human-decision-detail-retry"]').trigger('click')
     expect(failed.emitted('retry')).toHaveLength(1)
 

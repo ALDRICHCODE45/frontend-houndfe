@@ -1,12 +1,10 @@
 <script setup lang="ts">
 /**
  * HumanDecisionCard — the mobile form of a pending request (Mobile cards
- * rules): title as the primary text with the ⋮ at the top-right, the product
- * as the secondary line, the status badge, and a separated footer with the
+ * rules): title as the primary text, the product as the secondary line, the status badge, and a separated footer with the
  * quantity and the short date. The whole card opens the detail.
  */
 import { computed } from 'vue'
-import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { useClickableRow } from '@/core/shared/composables/useClickableRow'
 import type { HumanDecision } from '../interfaces/human-decision.types'
@@ -19,7 +17,6 @@ const props = defineProps<{ decision: Extract<HumanDecision, { status: 'PENDING'
 const emit = defineEmits<{ openDetail: [decisionId: string] }>()
 const presentation = computed(() => presentPendingHumanDecision(props.decision))
 
-const actions: RowAction[] = [{ key: 'open', label: 'Ver detalle', icon: 'i-lucide-eye' }]
 const { rowProps } = useClickableRow<string>((id) => emit('openDetail', id), { focusable: false })
 </script>
 
@@ -43,13 +40,6 @@ const { rowProps } = useClickableRow<string>((id) => emit('openDetail', id), { f
           {{ presentation.productLabel }} · {{ presentation.productMetaLabel }}
         </span>
       </div>
-      <RowActionsMenu
-        class="human-decisions-card-menu"
-        :actions="actions"
-        :row-label="`${decision.title}, pendiente`"
-        portal-class="human-decisions-list-portal"
-        @select="emit('openDetail', decision.id)"
-      />
     </header>
     <StatusBadge label="Pendiente" tone="warning" data-testid="human-decision-status" />
     <footer class="human-decisions-card-footer">

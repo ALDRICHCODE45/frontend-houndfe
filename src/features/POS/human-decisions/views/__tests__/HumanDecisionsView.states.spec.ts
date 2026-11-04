@@ -165,7 +165,7 @@ describe('HumanDecisionsView states — loading', () => {
 })
 
 describe('HumanDecisionsView states — data', () => {
-  it('renders rows with a StatusBadge and the ⋮ menu, with no state chrome', () => {
+  it('renders rows with a StatusBadge and no ⋮ menu, with no state chrome', () => {
     state.data.value = [pending, resolvedExpiration(provideExpiration)]
     const wrapper = mountView()
     expect(wrapper.findAll('tbody tr')).toHaveLength(2)
@@ -173,7 +173,7 @@ describe('HumanDecisionsView states — data', () => {
       'warning',
       'success',
     ])
-    expect(wrapper.findAll('button[aria-haspopup="menu"]')).toHaveLength(2)
+    expect(wrapper.findAll('button[aria-haspopup="menu"]')).toHaveLength(0)
     expect(wrapper.get('tbody tr').classes()).toContain('hf-clickable-row')
     expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
     expect(wrapper.find('[data-testid="table-skeleton"]').exists()).toBe(false)

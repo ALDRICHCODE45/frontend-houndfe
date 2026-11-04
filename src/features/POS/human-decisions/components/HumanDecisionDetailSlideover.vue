@@ -32,7 +32,7 @@ const props = withDefaults(
   {
     loading: false,
     error: false,
-    errorMessage: 'No se pudo cargar el detalle. Reintenta.',
+    errorMessage: 'No se pudo cargar el detalle',
     canUpdate: false,
     resolving: false,
     conflict: false,

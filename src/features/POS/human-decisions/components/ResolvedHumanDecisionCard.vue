@@ -5,7 +5,6 @@
  * in place of the quantity. The whole card opens the detail.
  */
 import { computed } from 'vue'
-import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { useClickableRow } from '@/core/shared/composables/useClickableRow'
 import type { HumanDecision } from '../interfaces/human-decision.types'
@@ -20,7 +19,6 @@ const props = defineProps<{ decision: Extract<HumanDecision, { status: 'RESOLVED
 const emit = defineEmits<{ openDetail: [decisionId: string] }>()
 const productMetaLabel = computed(() => productMetaPresentationLabel(props.decision))
 
-const actions: RowAction[] = [{ key: 'open', label: 'Ver respuesta', icon: 'i-lucide-eye' }]
 const { rowProps } = useClickableRow<string>((id) => emit('openDetail', id), { focusable: false })
 </script>
 
@@ -44,13 +42,6 @@ const { rowProps } = useClickableRow<string>((id) => emit('openDetail', id), { f
           {{ decision.snapshot.productName }} · {{ productMetaLabel }}
         </span>
       </div>
-      <RowActionsMenu
-        class="human-decisions-card-menu"
-        :actions="actions"
-        :row-label="`${decision.title}, respondida`"
-        portal-class="human-decisions-list-portal"
-        @select="emit('openDetail', decision.id)"
-      />
     </header>
     <StatusBadge label="Respondida" tone="success" data-testid="human-decision-status" />
     <p class="text-sm text-highlighted">{{ resolvedResponseLabel(decision.resolution) }}</p>

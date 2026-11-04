@@ -61,17 +61,14 @@ describe('ResolvedHumanDecisionCard', () => {
       expect(wrapper.text()).not.toContain('r1')
       expect(wrapper.get('time').attributes('datetime')).toBe(row.resolution.resolvedAt)
       expect(wrapper.get('time').text()).toBe(listDatePresentationLabel(row.resolution.resolvedAt))
-      expect(wrapper.findAll('button')).toHaveLength(2)
+      // The name button is the only control: a ⋮ holding just "Ver respuesta" would repeat the card click.
+      expect(wrapper.findAll('button')).toHaveLength(1)
       const open = wrapper.get('[data-testid="resolved-human-decision-open-detail"]')
       expect(open.classes()).toContain('hf-row-primary')
-      expect(wrapper.get('button[aria-haspopup="menu"]').attributes('aria-label')).toBe(
-        'Acciones de Reposición solicitada, respondida',
-      )
+      expect(wrapper.find('button[aria-haspopup="menu"]').exists()).toBe(false)
       expect(wrapper.find('input').exists()).toBe(false)
       await open.trigger('click')
       expect(wrapper.emitted('openDetail')).toEqual([['r1']])
-      await wrapper.get('button[aria-haspopup="menu"]').trigger('click')
-      expect(wrapper.emitted('openDetail')).toHaveLength(1)
       expect(wrapper.emitted('resolve')).toBeUndefined()
       if (!positive) expect(wrapper.text()).not.toContain('días naturales')
     },

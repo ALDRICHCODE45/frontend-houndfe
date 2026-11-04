@@ -147,7 +147,7 @@ function resolveInMemory(input: HumanDecisionResolutionInput): void {
       <StatusBadge
         data-testid="offline-demo-label"
         tone="warning"
-        label="SIMULACIÓN · datos sintéticos · sin HTTP"
+        label="Simulación · datos sintéticos · sin HTTP"
         aria-prefix=""
       />
       <p class="text-sm text-muted">

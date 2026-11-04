@@ -56,7 +56,6 @@ const AppDataTableStub = {
       <slot name="branch-cell" :row="{ original: data[0] }" />
       <slot name="requestedQuantity-cell" :row="{ original: data[0] }" />
       <slot name="createdAt-cell" :row="{ original: data[0] }" />
-      <slot name="actions-cell" :row="{ original: data[0] }" />
       <slot name="mobile-card" :row="data[0]" />
     </div>
   `,
@@ -273,15 +272,11 @@ describe('HumanDecisionsListPanel', () => {
     expect(wrapper.emitted('openDetail')).toContainEqual([{ id: 'decision-1', status: 'PENDING' }])
   })
 
-  it('uses the shared StatusBadge tone per status and one ⋮ menu that names the row', async () => {
+  it('uses the shared StatusBadge tone per status and has no ⋮ that only repeats the row click', async () => {
     const wrapper = mountPanel()
     const badges = wrapper.findAll('.hf-status-badge')
     expect(badges[0]!.attributes('data-tone')).toBe('warning')
-    const menu = wrapper.getComponent({ name: 'RowActionsMenu' })
-    expect(menu.props('rowLabel')).toBe('<b>Reposición</b>, pendiente')
-    expect((menu.props('actions') as Array<{ label: string }>).map((a) => a.label)).toEqual(['Ver detalle'])
-    menu.vm.$emit('select', 'open')
-    expect(wrapper.emitted('openDetail')).toContainEqual([{ id: 'decision-1', status: 'PENDING' }])
+    expect(wrapper.findComponent({ name: 'RowActionsMenu' }).exists()).toBe(false)
     expect(wrapper.get('[data-testid="human-decision-quantity"]').classes()).toContain('hf-figure')
   })
 
