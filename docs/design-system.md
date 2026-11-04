@@ -322,6 +322,7 @@ Each state is a title, one line and at most one button. Use a small icon (24px, 
 | `actionIcon` | Button icon (error defaults to `i-lucide-rotate-cw`). |
 | `actionVariant` | `'outline'` (default) or `'solid'`. Solid only when the button is the page's create action, otherwise it competes with the page's primary. |
 | `actionTestId` | `data-testid` of the button (default `empty-state-action`). |
+| `actionLoading` | The action is running (for example a retry): the button shows a spinner and is disabled, and the state stays in place instead of switching to a skeleton. |
 | `@action` | The button was clicked. |
 
 **In `AppDataTable`** the states come from props, in this order of precedence for an empty, settled, successful list: `filtered` → no-match; else `emptyState` → empty; else the plain `empty` string, unchanged. A consumer `#empty` slot (or `#cards`) always wins over the shared state.

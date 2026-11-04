@@ -112,4 +112,18 @@ describe('EmptyState tokens', () => {
       /color:\s*var\(--hf-danger\)/,
     )
   })
+
+  it('shows the action as busy and inert while actionLoading is set', () => {
+    const wrapper = mountState({ kind: 'error', actionLabel: 'Reintentar', actionLoading: true })
+    const button = wrapper.findComponent({ name: 'Button' })
+    expect(button.props('loading')).toBe(true)
+    expect(button.props('disabled')).toBe(true)
+  })
+
+  it('keeps the action idle without actionLoading', () => {
+    const wrapper = mountState({ kind: 'error', actionLabel: 'Reintentar' })
+    const button = wrapper.findComponent({ name: 'Button' })
+    expect(button.props('loading')).toBe(false)
+    expect(button.props('disabled')).toBe(false)
+  })
 })

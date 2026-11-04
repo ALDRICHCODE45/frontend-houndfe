@@ -14,6 +14,7 @@
  *   actionIcon    — icon of the button (error defaults to the retry glyph)
  *   actionVariant — outline (default) | solid; solid only for the page's create action
  *   actionTestId  — data-testid of the button (default "empty-state-action")
+ *   actionLoading — the action is running: the button shows a spinner and is disabled
  *
  * Events:
  *   action        — the button was clicked
@@ -39,6 +40,7 @@ const props = withDefaults(
     actionIcon?: string
     actionVariant?: 'solid' | 'outline'
     actionTestId?: string
+    actionLoading?: boolean
   }>(),
   {
     kind: 'empty',
@@ -48,6 +50,7 @@ const props = withDefaults(
     actionIcon: undefined,
     actionVariant: 'outline',
     actionTestId: 'empty-state-action',
+    actionLoading: false,
   },
 )
 
@@ -81,6 +84,8 @@ const isSolid = computed(() => props.actionVariant === 'solid')
       :color="isSolid ? 'primary' : 'neutral'"
       :variant="isSolid ? 'solid' : 'outline'"
       :data-testid="actionTestId"
+      :loading="actionLoading"
+      :disabled="actionLoading"
       @click="emit('action')"
     />
   </div>
