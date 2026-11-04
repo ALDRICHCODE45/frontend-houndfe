@@ -74,6 +74,17 @@ const showNoActiveNotice = computed(
   () => !isLoading.value && !isError.value && fullList.value.length > 0 && !hasActiveAccount.value,
 )
 
+// The legal name is a secondary line only when it tells accounts apart: with two
+// or more accounts under the same holder it would repeat on every row and card.
+const beneficiaryDiffers = computed(
+  () => new Set(data.value.map((row) => row.beneficiary)).size !== 1 || data.value.length === 1,
+)
+
+/** `···· 7890`: the last four digits are enough to recognise an account. */
+function maskClabe(clabe: string): string {
+  return `···· ${clabe.slice(-4)}`
+}
+
 // ── View gating (CASL) ─────────────────────────────────────────────────────────
 const canCreatePaymentDetail = computed(() => authStore.userCan('create', 'PaymentDetail'))
 const canUpdatePaymentDetail = computed(() => authStore.userCan('update', 'PaymentDetail'))
@@ -317,7 +328,7 @@ function clearFilters() {
             <span v-else class="hf-row-primary" data-testid="payment-detail-name">{{
               row.original.bankName
             }}</span>
-            <span class="hf-row-secondary">{{ row.original.beneficiary }}</span>
+            <span v-if="beneficiaryDiffers" class="hf-row-secondary">{{ row.original.beneficiary }}</span>
           </template>
 
           <template #isActive-cell="{ row }">
@@ -361,7 +372,7 @@ function clearFilters() {
               @open="openEdit"
               @action="handleRowAction"
             >
-              <template #secondary>{{ row.beneficiary }}</template>
+              <template v-if="beneficiaryDiffers" #secondary>{{ row.beneficiary }}</template>
               <template #badges>
                 <StatusBadge
                   :label="paymentDetailStatusLabel(row.isActive)"
@@ -369,7 +380,9 @@ function clearFilters() {
                 />
               </template>
               <template #footer>
-                <span class="hf-figure min-w-0 truncate font-mono">{{ row.clabe }}</span>
+                <span class="hf-figure min-w-0 truncate font-mono" :title="row.clabe"
+                  >CLABE {{ maskClabe(row.clabe) }}</span
+                >
                 <span class="shrink-0">{{ formatShortDateTime(row.updatedAt) }}</span>
               </template>
             </AdminMobileCard>

@@ -87,7 +87,13 @@ const rowProps = computed(() => (props.openable ? clickable.rowProps(props.item)
   min-width: 0;
 }
 .admin-card-name {
+  display: -webkit-box;
+  overflow: hidden;
   text-align: left;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 .admin-card-menu {
   flex-shrink: 0;

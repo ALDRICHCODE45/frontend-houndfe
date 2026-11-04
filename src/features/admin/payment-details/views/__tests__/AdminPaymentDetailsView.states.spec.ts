@@ -145,7 +145,7 @@ describe('AdminPaymentDetailsView states — data', () => {
     const rows = wrapper.findAll('tbody tr')
     expect(rows).toHaveLength(2)
     expect(rows[0]!.get('.hf-row-primary').text()).toBe('AFIRME')
-    expect(rows[0]!.get('.hf-row-secondary').text()).toBe('Comercializadora Acme SA')
+    expect(rows[0]!.find('.hf-row-secondary').exists()).toBe(false)
     const badges = rows.map((row) => row.get('.hf-status-badge'))
     expect(badges.map((badge) => badge.text())).toEqual(['Activa', 'Inactiva'])
     expect(badges.map((badge) => badge.attributes('data-tone'))).toEqual(['success', 'neutral'])
@@ -166,7 +166,27 @@ describe('AdminPaymentDetailsView states — data', () => {
     const card = wrapper.get('[data-testid="payment-detail-card"]')
     expect(card.find('[aria-label="Acciones de AFIRME"]').exists()).toBe(true)
     expect(card.get('.hf-status-badge').text()).toBe('Activa')
-    expect(card.text()).toContain('012180001234567890')
+  })
+
+  it('labels the CLABE on the mobile card and masks all but its last four digits', () => {
+    isBelowBreakpoint.value = true
+    tableState.data.value = [makeRow()]
+    const footer = mountView().get('[data-testid="payment-detail-card"] .admin-card-footer')
+    expect(footer.text()).toContain('CLABE ···· 7890')
+    expect(footer.text()).not.toContain('012180001234567890')
+  })
+
+  it('shows the legal name once when every account shares it, and per account when they differ', () => {
+    isBelowBreakpoint.value = true
+    tableState.data.value = [makeRow(), makeRow({ id: 'pd-2', bankName: 'BBVA' })]
+    const same = mountView()
+    expect(same.findAll('[data-testid="payment-detail-card"] .hf-row-secondary')).toHaveLength(0)
+    expect(same.text()).not.toContain('Comercializadora Acme SA')
+    tableState.data.value = [makeRow(), makeRow({ id: 'pd-2', bankName: 'BBVA', beneficiary: 'Otra Razón SA' })]
+    const differ = mountView()
+    expect(
+      differ.findAll('[data-testid="payment-detail-card"] .hf-row-secondary').map((el) => el.text()),
+    ).toEqual(['Comercializadora Acme SA', 'Otra Razón SA'])
   })
 
   it('opens the edit slideover on a row click and not from the ⋮ menu', async () => {

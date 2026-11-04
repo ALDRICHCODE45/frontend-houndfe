@@ -34,7 +34,7 @@ const router = useRouter()
 const queryClient = useQueryClient()
 const authStore = useAuthStore()
 const toast = useToast()
-const { columns } = useTenantColumns()
+const { columns: allColumns } = useTenantColumns()
 
 const includeInactive = ref(false)
 
@@ -58,6 +58,18 @@ const {
   defaultPageSize: 10,
   persistKey: 'admin-tenants',
   defaultSorting: [{ id: 'name', desc: false }],
+})
+
+// A column that is "—" on every row of the page carries nothing, so it hides;
+// with no rows (loading, empty) the full set stays so the skeleton keeps its shape.
+const columns = computed(() => {
+  if (data.value.length === 0) return allColumns
+  const empty = new Set<string>(
+    (['address', 'phone'] as const).filter((key) => data.value.every((row) => !row[key])),
+  )
+  return allColumns.filter(
+    (column) => !('accessorKey' in column) || !empty.has(String(column.accessorKey)),
+  )
 })
 
 const tenantsErrorMessage = 'No se pudieron cargar las sucursales'
@@ -361,7 +373,7 @@ function clearFilters() {
               </template>
               <template #footer>
                 <span v-if="row.phone" class="hf-figure min-w-0 truncate">{{ row.phone }}</span>
-                <span class="ml-auto shrink-0">{{ formatShortDateTime(row.createdAt) }}</span>
+                <span :class="{ 'ml-auto shrink-0': row.phone }">Creada {{ formatShortDateTime(row.createdAt) }}</span>
               </template>
             </AdminMobileCard>
           </template>

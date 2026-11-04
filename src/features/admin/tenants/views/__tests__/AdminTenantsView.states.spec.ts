@@ -173,6 +173,37 @@ describe('AdminTenantsView states — data', () => {
     expect(card.text()).not.toContain('centro')
   })
 
+  it('hides the Dirección and Teléfono columns when no row on the page has them', () => {
+    tableState.data.value = [
+      makeTenant({ address: undefined, phone: undefined }),
+      makeTenant({ id: 'tenant-2', name: 'Sucursal Norte', address: '', phone: '' }),
+    ]
+    const headers = mountView().findAll('thead th').map((th) => th.text())
+    expect(headers).not.toContain('Dirección')
+    expect(headers).not.toContain('Teléfono')
+    expect(headers).toContain('Sucursal')
+  })
+
+  it('keeps a column as soon as one row has a value, and the full set while loading', () => {
+    tableState.data.value = [makeTenant({ address: undefined }), makeTenant({ id: 'tenant-2', phone: undefined })]
+    const headers = mountView().findAll('thead th').map((th) => th.text())
+    expect(headers).toContain('Dirección')
+    expect(headers).toContain('Teléfono')
+    tableState.data.value = []
+    tableState.isLoading.value = true
+    expect(
+      mountView().get('[data-testid="table-skeleton-row"]').element.children.length,
+    ).toBeGreaterThanOrEqual(6)
+  })
+
+  it('names the date in the mobile footer so a lone date is never unlabeled', () => {
+    isBelowBreakpoint.value = true
+    tableState.data.value = [makeTenant({ address: undefined, phone: undefined })]
+    const footer = mountView().get('[data-testid="tenant-card"] .admin-card-footer')
+    expect(footer.text()).toMatch(/^Creada\s+\d/)
+    expect(footer.findAll('span')).toHaveLength(1)
+  })
+
   it('does not start the card footer with a lone dash when the branch has no address or phone', () => {
     isBelowBreakpoint.value = true
     tableState.data.value = [makeTenant({ address: undefined, phone: undefined })]

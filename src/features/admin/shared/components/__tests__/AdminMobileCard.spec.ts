@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import AdminMobileCard from '../AdminMobileCard.vue'
@@ -21,6 +23,15 @@ afterEach(() => {
 })
 
 describe('AdminMobileCard', () => {
+  it('lets a long name wrap to two lines instead of cutting it to one', () => {
+    const css = readFileSync(resolve(__dirname, '../AdminMobileCard.vue'), 'utf8')
+    const rule = css.slice(css.indexOf('.admin-card-name {'))
+    const block = rule.slice(0, rule.indexOf('}'))
+    expect(block).toContain('white-space: normal')
+    expect(block).toContain('-webkit-line-clamp: 2')
+    expect(block).toContain('line-clamp: 2')
+  })
+
   it('shows the label as the primary button and never the id', () => {
     const wrapper = mountCard()
     const name = wrapper.get('[data-testid="admin-card-name"]')
