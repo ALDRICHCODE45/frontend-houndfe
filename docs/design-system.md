@@ -194,6 +194,10 @@ Geist, through `--hf-font` (`--shell-font` and `--font-sans` follow it; Manrope 
 
 Page background, outside the data surface: the title, and **at most one short subtitle** (`hf-page-header`, `hf-page-title`, `hf-page-subtitle`). If the title says it, there is no subtitle. No eyebrow, no explanation, no design notes. Reference: artboard 02, `houndfe-ui.css`.
 
+### Navbar breadcrumb
+
+The shell breadcrumb shares one row with the menu and icon buttons, so it never wraps: every crumb is one line and a long name truncates with an ellipsis (full text in `title`). On mobile (< 768px) only the current page shows; ancestors and chevrons hide. Reference: `DashboardLayout.vue`, `unified-shell.css` (`hf-shell-breadcrumb-item`, `hf-shell-breadcrumb-ancestor`); spec `unified-shell.breadcrumb.spec.ts`.
+
 ### Toolbar
 
 One row inside the table surface: search (360px on desktop, full width on mobile), then the filters, then the primary action at the far right. A single-choice filter shows its name inside the control (`Estado` prefix) instead of a separate label. The refresh button leaves the toolbar (artboard 02); background refresh still shows in the table. Mobile: search on its own row, then filter plus primary action. Reference: `DataTableToolbar`, `ToolbarSelectFilter` (see Toolbar select filter above), artboards 02 and 05.
@@ -204,7 +208,7 @@ One row inside the table surface: search (360px on desktop, full width on mobile
 | ---- | ---- |
 | Primary text | The record's name, weight 600, `--hf-heading`, one line with ellipsis (`.hf-row-primary`). Held by a real `<button>` or link so assistive tech has a target. It is a **text button, not a 44px control**: `.hf-row-primary` sets `min-height: 0` and no box or padding, because the hit area is the whole row (clickable row), and it keeps a 2px `--hf-focus` ring since it is the row's tab stop. A feature must not give it the 44px control height. |
 | Secondary line | One line under the primary, 13px `--hf-muted` (`.hf-row-secondary`): the note or description, never a second name. |
-| Clickable row | The whole row opens the primary target on click and Enter (`useClickableRow`, `.hf-clickable-row`); hover is a 45% muted tint and focus a 2px inset ring. |
+| Clickable row | The whole row opens the primary target. In a table, pass `:row-open="open"` to `AppDataTable`: it adds `.hf-clickable-row` (pointer, 45% muted hover tint) to body rows and calls `open(row)` on a plain primary click, ignoring interactive children (`isInteractiveTarget`), modified or secondary clicks and text selection. Rows get no `tabindex`; keyboard access stays on the primary button. Unset, the table is unchanged. Cards (`#mobile-card`) bind `useClickableRow().rowProps(item)` themselves. The per-feature delegation (a wrapper `@click` that finds the row by index or id, plus local `tbody tr` hover CSS) is **no longer the pattern**; do not copy it. Focus is a 2px inset ring (`.hf-clickable-row:focus-visible`). Reference: `AppDataTable.rowOpen.spec.ts`, `PurchaseOrderList`, `SupplierList`. |
 | Figures | Right-aligned, tabular (`.hf-figure`); absent amount reads `—`. |
 | Dates | Short and muted (see Money and dates). |
 | Acciones column | Last, 64px, header visible only to assistive tech, **only** the ⋮ menu (`RowActionsMenu`). Never two buttons in this column. |

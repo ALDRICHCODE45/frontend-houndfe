@@ -44,26 +44,21 @@ function onAction(key: string, supplier: Supplier) {
   else if (key === 'status') emit('changeStatus', supplier, invoker)
   else if (key === 'delete') emit('delete', supplier, invoker)
 }
-const clickable = useClickableRow<Supplier>(supplier => {
+// The whole row opens the supplier: AppDataTable's `row-open` for table rows, `rowProps` for cards. The name button is the tab stop, so neither is focusable itself.
+function open(supplier: Supplier) {
   if (!props.disabled) emit('open', supplier, nameButton(supplier))
-}, { focusable: false })
-// AppDataTable does not expose its rows, so the table opens a row by delegation.
-function onTableClick(event: MouseEvent) {
-  const row = event.target instanceof Element ? event.target.closest('tbody tr') : null
-  const id = row?.querySelector<HTMLElement>('[data-supplier-id]')?.dataset.supplierId
-  const supplier = props.items.find(item => item.id === id)
-  if (supplier) clickable.onClick(event, supplier)
 }
+const clickable = useClickableRow<Supplier>(open, { focusable: false })
 </script>
 
 <template>
-  <div ref="root" class="supplier-list" @click="onTableClick">
+  <div ref="root" class="supplier-list">
     <AppDataTable
       v-model:global-filter="search"
       :columns="columns" :data="data" :loading="loading" :fetching="fetching" :error="error"
       error-message="No se pudieron cargar los proveedores. Puedes volver a actualizar."
       empty="No hay proveedores para esta búsqueda."
-      display-mode="auto" mobile-render="cards" search-placeholder="Buscar proveedor..."
+      :row-open="open" display-mode="auto" mobile-render="cards" search-placeholder="Buscar proveedor..."
       refresh-button-test-id="refresh-suppliers"
       portal-class="hf-theme hf-ui suppliers-list-portal"
       :active-filter-count="activeFilterCount"
@@ -108,9 +103,6 @@ function onTableClick(event: MouseEvent) {
 .supplier-card-menu { margin: -8px -8px 0 0; flex-shrink: 0; }
 .supplier-card-title { min-width: 0; }
 .supplier-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid var(--hf-border); margin-top: 12px; padding-top: 12px; }
-/* Table rows are rendered by AppDataTable, so they get the shared .hf-clickable-row look here. */
-.supplier-list :deep(tbody tr) { cursor: pointer; }
-.supplier-list :deep(tbody tr:hover) { background-color: color-mix(in srgb, var(--hf-surface-muted) 45%, var(--hf-surface)); }
 button:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
 button:disabled { opacity: .6; cursor: not-allowed; }
 </style>

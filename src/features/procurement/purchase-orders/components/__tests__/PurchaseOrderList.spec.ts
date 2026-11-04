@@ -4,14 +4,18 @@ import { describe, it, expect } from 'vitest'
 import { defineComponent } from 'vue'
 import PurchaseOrderList from '../PurchaseOrderList.vue'
 import RowActionsMenu from '@/core/shared/components/RowActionsMenu.vue'
+import { isInteractiveTarget } from '@/core/shared/composables/useClickableRow'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { PurchaseOrderSummary } from '../../interfaces/purchase-order.types'
 const row: PurchaseOrderSummary = { id: 'o', version: 1, status: 'DRAFT', supplierDisplaySnapshot: { id: 's', displayName: 'Proveedor', status: 'ACTIVE' }, lineCount: 2, issueCount: 0, note: 'Nota', locationDetail: null, totals: null, createdAt: '2026-01-01T10:00:00Z', updatedAt: '2026-01-01T10:20:00Z' }
-// A real <table> so row clicks bubble the way UTable's do; both layouts render so cells and cards can be read together.
+// A real <table>; both layouts render so cells and cards can be read together. The real AppDataTable owns the row-click contract (its own spec covers it); the stub honors `rowOpen` the same way.
 const table = defineComponent({
-  props: ['data', 'columns'],
+  props: ['data', 'columns', 'rowOpen'],
+  methods: {
+    clickRow(event: MouseEvent, row: unknown) { if (this.rowOpen && !isInteractiveTarget(event.target, event.currentTarget as Element)) this.rowOpen(row) },
+  },
   template: `<div>
-    <table><tbody><tr v-for="row in data" :key="row.id" data-slot="tr">
+    <table><tbody><tr v-for="row in data" :key="row.id" data-slot="tr" :class="{ 'hf-clickable-row': rowOpen }" @click="clickRow($event, row)">
       <td data-cell="supplier"><slot name="supplier-cell" :row="{ original: row }"/></td>
       <td data-cell="status"><slot name="status-cell" :row="{ original: row }"/></td>
       <td data-cell="total"><slot name="total-cell" :row="{ original: row }"/></td>
@@ -171,6 +175,11 @@ describe('acciones column', () => {
 })
 
 describe('clickable rows', () => {
+  it('hands the whole-row click to the shared table instead of delegating it', () => {
+    const wrapper = mountList([row])
+    expect(typeof wrapper.getComponent(table).props('rowOpen')).toBe('function')
+    expect(wrapper.get('tbody tr').classes()).toContain('hf-clickable-row')
+  })
   it('opens the order when the whole row is clicked', async () => {
     const wrapper = mountList([row])
     await wrapper.get('tbody tr').trigger('click')

@@ -1,10 +1,11 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
+import { isInteractiveTarget } from '@/core/shared/composables/useClickableRow'
 const holder = vi.hoisted(() => ({ mobile: false }))
 vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', async () => {
   const { defineComponent, h } = await import('vue')
-  return { default: defineComponent({ name: 'AppDataTable', props: ['data', 'columns', 'loading', 'mobileRender', 'displayMode', 'totalCount'], setup(props, { slots }) {
+  return { default: defineComponent({ name: 'AppDataTable', props: ['data', 'columns', 'loading', 'mobileRender', 'displayMode', 'totalCount', 'rowOpen'], setup(props, { slots }) {
     const cells = (row: Record<string, unknown>) => props.columns.map((column: { id?: string; accessorKey?: string }) => {
       const name = column.id ?? column.accessorKey
       return h('td', { 'data-column': name }, slots[`${name}-cell`]?.({ row: { original: row } }))
@@ -14,7 +15,8 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', async () => {
       if (holder.mobile) return h('div', props.data.map((row: Record<string, unknown>) => slots['mobile-card']?.({ row })))
       return h('table', [
         h('thead', [h('tr', props.columns.map((column: { id?: string; accessorKey?: string }) => h('th', { 'data-column': column.id ?? column.accessorKey }, slots[`${column.id ?? column.accessorKey}-header`]?.() ?? '')))]),
-        h('tbody', props.data.map((row: Record<string, unknown>) => h('tr', cells(row)))),
+        // The real AppDataTable owns the click contract (its own spec covers it); the stub honors `rowOpen` the same way.
+        h('tbody', props.data.map((row: Record<string, unknown>) => h('tr', { class: props.rowOpen ? 'hf-clickable-row' : undefined, onClick: (event: MouseEvent) => { if (props.rowOpen && !isInteractiveTarget(event.target, event.currentTarget as Element)) props.rowOpen(row) } }, cells(row)))),
       ])
     }
   } }) }
@@ -89,6 +91,11 @@ describe('supplier list', () => {
     await wrapper.get('[data-testid="supplier-detail"]').trigger('click')
     expect(wrapper.emitted('open')).toHaveLength(1)
     expect(wrapper.emitted('open')![0]![0]).toEqual(supplier)
+    wrapper.unmount()
+  })
+  it('hands the whole-row click to the shared table instead of delegating it', () => {
+    const wrapper = mountList()
+    expect(wrapper.get('tbody tr').classes()).toContain('hf-clickable-row')
     wrapper.unmount()
   })
   it('opens the supplier from the whole row, once, but not from the menu or the name button twice', async () => {

@@ -36,14 +36,8 @@ function run(key: string, order: PurchaseOrderSummary) {
   else if (action === 'cancel') emit('cancel', order, originOf(order))
   else if (action === 'discard') emit('discard', order)
 }
-// The whole row opens the order. The primary cell holds a real button (the tab stop), so rows are not focusable themselves.
-const { rowProps, onClick } = useClickableRow<PurchaseOrderSummary>(open, { focusable: false })
-// AppDataTable does not forward row attributes or UTable's select, so table rows are resolved from one delegated click.
-function onTableClick(event: MouseEvent) {
-  const row = (event.target as Element | null)?.closest('tbody tr')
-  const order = row && props.items[Array.prototype.indexOf.call(row.parentElement?.children ?? [], row)]
-  if (order) onClick(event, order)
-}
+// The whole row opens the order: AppDataTable's `row-open` for table rows, `rowProps` for cards. The primary cell holds a real button (the tab stop), so neither is focusable itself.
+const { rowProps } = useClickableRow<PurchaseOrderSummary>(open, { focusable: false })
 const statusOf = (order: PurchaseOrderSummary) => ({ label: statusLabels[order.status], tone: statusTones[order.status] })
 const lines = (count: number) => `${count} ${count === 1 ? 'renglón' : 'renglones'}`
 </script>
@@ -56,8 +50,8 @@ const lines = (count: number) => `${count} ${count === 1 ? 'renglón' : 'renglon
       <template v-if="$slots.filters" #filters><slot name="filters" /></template>
       <template #actions><slot name="actions" /></template>
     </DataTableToolbar>
-    <div class="order-table" @click="onTableClick">
-      <AppDataTable :show-toolbar="false" :columns="columns" :data="data" :loading="loading" :fetching="fetching" :error="error"
+    <div class="order-table">
+      <AppDataTable :show-toolbar="false" :row-open="open" :columns="columns" :data="data" :loading="loading" :fetching="fetching" :error="error"
         error-message="No se pudieron cargar las órdenes. Puedes volver a actualizar."
         empty="No hay órdenes de compra." display-mode="auto" mobile-render="cards"
         class="hf-data-table" @refresh="emit('refresh')">
@@ -130,9 +124,6 @@ const lines = (count: number) => `${count} ${count === 1 ? 'renglón' : 'renglon
 .order-total-entry { display: block; white-space: nowrap; }
 .order-total-basis { color: var(--hf-muted); font-size: 11px; font-weight: 400; }
 .order-when { color: var(--hf-muted); white-space: nowrap; }
-/* Rows open on click (delegated above), so they look and hover like the shared clickable row. */
-:deep(tbody tr[data-slot='tr']) { cursor: pointer; }
-:deep(tbody tr[data-slot='tr']:hover), :deep(tbody tr[data-slot='tr']:focus-within) { background-color: color-mix(in srgb, var(--hf-surface-muted) 45%, var(--hf-surface)); }
 .order-card { position: relative; min-width: 0; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); padding: 16px; }
 .order-card-head { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
 .order-card-head .order-row-link { flex: 1; min-width: 0; padding-top: 2px; font-size: 15px; line-height: 1.4; white-space: normal; }
