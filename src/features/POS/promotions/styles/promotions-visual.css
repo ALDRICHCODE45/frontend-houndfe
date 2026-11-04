@@ -149,6 +149,38 @@
   gap: 1.25rem;
 }
 
+/* A failed availability read: one inline message and its retry, in the danger tokens. */
+.promotions-workspace .promotions-inline-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-top: 0.5rem;
+  border: 1px solid var(--hf-danger-border);
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-danger-soft);
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  color: var(--hf-danger);
+}
+
+.promotions-workspace .promotions-inline-retry {
+  min-height: var(--hf-control-height);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-surface);
+  padding-inline: 12px;
+  color: var(--hf-ink);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.promotions-workspace .promotions-inline-retry:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
 .promotions-workspace .promotions-bot-notice {
   margin-top: 0.5rem;
   font-size: 0.875rem;

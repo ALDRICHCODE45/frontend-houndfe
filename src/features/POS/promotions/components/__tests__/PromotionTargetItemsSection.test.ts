@@ -105,9 +105,10 @@ describe('PromotionTargetItemsSection', () => {
     expect(wrapper.find('[data-testid="target-search-input"]').exists()).toBe(false)
   })
 
-  it('renders empty state when no items selected', () => {
+  it('has no permanent help line when nothing is selected (Agregar says it; submit validates)', () => {
     const wrapper = mountSection({ targetType: 'PRODUCTS', selectedItems: [] })
-    expect(wrapper.find('[data-testid="empty-state"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="empty-state"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Elige los')
   })
 
   it('shows selected items list when items are provided', () => {

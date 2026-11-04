@@ -93,7 +93,6 @@ function onNumberChange(value: number | null | undefined) {
       <div class="flex min-h-11 items-center justify-between gap-4">
         <div class="min-w-0">
           <p class="text-sm font-medium text-toned">Limitar la cantidad de unidades</p>
-          <p class="text-xs text-muted">La promoción deja de aplicarse cuando se agota el cupo.</p>
         </div>
         <USwitch
           data-testid="capacity-switch"

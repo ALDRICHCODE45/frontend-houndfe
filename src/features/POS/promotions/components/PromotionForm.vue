@@ -62,7 +62,15 @@ const emit = defineEmits<{
 const formState = reactive<PromotionFormState>(
   props.initialData ? promotionToFormState(props.initialData) : getInitialState(props.type),
 )
-const { evaluation: botEligibility, notice: botEligibilityNotice } = usePromotionBotEligibility(formState)
+const {
+  evaluation: botEligibility,
+  notice: botEligibilityNotice,
+  loadFailed: botEligibilityFailed,
+  retry: retryBotEligibility,
+} = usePromotionBotEligibility(formState)
+function onRetryBotEligibility(): void {
+  void retryBotEligibility()
+}
 
 // ── Edit-mode name resolution ─────────────────────────────────────────────────
 //
@@ -311,12 +319,28 @@ const overlapTitle = computed(() =>
                 :editing="mode === 'edit'"
                 @update:max-product-units="formState.maxProductUnits = $event"
               />
-              <UFormField name="botEligible" :description="botEligibility.reason">
+              <UFormField name="botEligible" :description="botEligibilityFailed ? undefined : botEligibility.reason">
                 <USwitch
                   v-model="formState.botEligible"
                   label="Disponible para el chatbot (WhatsApp)"
                   :disabled="!botEligibility.supported"
                 />
+                <div
+                  v-if="botEligibilityFailed"
+                  role="alert"
+                  class="promotions-inline-error"
+                  data-testid="bot-eligibility-error"
+                >
+                  <span>{{ botEligibility.reason }}</span>
+                  <button
+                    type="button"
+                    class="promotions-inline-retry"
+                    data-testid="bot-eligibility-retry"
+                    @click="onRetryBotEligibility"
+                  >
+                    Reintentar
+                  </button>
+                </div>
                 <p v-if="botEligibilityNotice" role="status" class="promotions-bot-notice">
                   {{ botEligibilityNotice }}
                 </p>

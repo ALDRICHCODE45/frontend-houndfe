@@ -105,11 +105,6 @@ function removeItem(id: string) {
 
 // ── Empty state text ─────────────────────────────────────────────────────────
 
-const emptyStateLabel = computed(() => {
-  const noun = TARGET_TYPE_CARDS[props.targetType]?.noun ?? 'elementos'
-  return `Elige los ${noun} a los que aplicará la promoción`
-})
-
 defineExpose({ openModal, removeItem, onTargetTypeChange, onModalConfirm })
 </script>
 
@@ -195,15 +190,6 @@ defineExpose({ openModal, removeItem, onTargetTypeChange, onModalConfirm })
         </button>
       </span>
     </div>
-
-    <!-- Empty state -->
-    <p
-      v-if="selectedItems.length === 0"
-      data-testid="empty-state"
-      class="text-sm text-muted italic"
-    >
-      {{ emptyStateLabel }}
-    </p>
 
     <!-- Transactional selection modal — handles ALL four target types via
          FlatChecklistPanel (CATEGORIES|BRANDS|PRODUCTS) + VariantsPanel

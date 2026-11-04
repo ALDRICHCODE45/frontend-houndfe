@@ -201,6 +201,30 @@ describe('PromotionsView states — data', () => {
     expect(wrapper.find('[data-testid="table-skeleton"]').exists()).toBe(false)
   })
 
+  it('shows the capacity only when there is a limit, never "Sin límite" on every row', () => {
+    state.data.value = [
+      makePromotion('p1', 'Oferta de verano'),
+      { ...makePromotion('p2', '2x1 en collares'), maxProductUnits: 100, consumedProductUnits: 20, remainingProductUnits: 80 },
+    ]
+    const wrapper = mountView()
+    expect(wrapper.text()).not.toContain('Sin límite')
+    expect(wrapper.text()).toContain('Quedan 80 unidades')
+    expect(wrapper.findAll('[data-testid="promotion-capacity-status"]')).toHaveLength(1)
+  })
+
+  it('renders start dates short, with the year only when it is not the current one', () => {
+    const year = new Date().getFullYear()
+    state.data.value = [
+      { ...makePromotion('p1', 'Oferta de verano'), startDate: `${year}-09-01T00:00:00.000Z` },
+      { ...makePromotion('p2', '2x1 en collares'), startDate: `${year - 1}-03-05T00:00:00.000Z` },
+    ]
+    const text = mountView().text()
+    expect(text).toContain('1 sep')
+    expect(text).not.toContain(`1 sep ${year}`)
+    expect(text).not.toContain(' de sep')
+    expect(text).toContain(`5 mar ${year - 1}`)
+  })
+
   it('renders one card per row on mobile', () => {
     isBelowBreakpoint.value = true
     state.data.value = [makePromotion('p1', 'Oferta de verano')]

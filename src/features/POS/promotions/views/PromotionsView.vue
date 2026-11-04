@@ -780,6 +780,7 @@ defineExpose({
               :consumed-product-units="row.original.consumedProductUnits"
               :remaining-product-units="row.original.remainingProductUnits"
               compact
+              hide-unlimited
             />
           </template>
 
