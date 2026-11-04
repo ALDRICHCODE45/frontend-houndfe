@@ -7,7 +7,8 @@ import { productApi } from '../api/product.api'
 import { mapDomainError, type DomainApiError } from '@/core/shared/utils/error.utils'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import type { ProductImage, ProductVariant } from '../interfaces/product.types'
 import { useImageUpload } from '../composables/useImageUpload'
 
@@ -207,12 +208,7 @@ function isImageBroken(imageId: string): boolean {
   <UCard>
     <template #header>
       <div class="flex flex-col gap-3">
-        <div>
-          <h3 class="text-xl font-semibold">Imágenes</h3>
-          <p class="text-sm text-muted">
-            Sube y gestioná las imágenes del producto y sus variantes mediante arrastrar y soltar.
-          </p>
-        </div>
+        <h3 class="text-base font-semibold text-highlighted">Imágenes</h3>
 
         <!-- Scope filter tabs -->
         <div v-if="variants.length > 0" class="flex flex-wrap gap-2">
@@ -221,9 +217,9 @@ function isImageBroken(imageId: string): boolean {
             :key="opt.value"
             :label="opt.label"
             size="sm"
-            :variant="activeScope === opt.value ? 'solid' : 'ghost'"
+            :variant="activeScope === opt.value ? 'soft' : 'ghost'"
             :color="activeScope === opt.value ? 'primary' : 'neutral'"
-            :class="activeScope===opt.value ? '!bg-coco-gold-500/15 !text-coco-gold-800 dark:!text-coco-gold-300' : ''"
+            :aria-pressed="activeScope === opt.value"
             class="transition-colors duration-200"
             @click="activeScope = opt.value"
           />
@@ -242,8 +238,8 @@ function isImageBroken(imageId: string): boolean {
         class="relative rounded-lg border-2 transition-all duration-200 cursor-pointer"
         :class="[
           isOverDropZone
-            ? 'border-solid border-coco-gold-500 bg-coco-gold-500/10'
-            : 'border-dashed border-default bg-default hover:border-coco-gold-500/20 hover:bg-coco-gold-500/5',
+            ? 'border-solid border-(--hf-active) bg-(--hf-active-soft)'
+            : 'border-dashed border-default bg-default hover:border-(--hf-active) hover:bg-(--hf-active-soft)',
           isUploading ? 'pointer-events-none' : '',
         ]"
         @click="handleDropzoneClick"
@@ -253,17 +249,15 @@ function isImageBroken(imageId: string): boolean {
           <UIcon
             :name="isOverDropZone ? 'i-lucide-upload-cloud' : 'i-lucide-image-plus'"
             class="text-5xl mb-3 transition-colors duration-200"
-            :class="isOverDropZone ? 'text-coco-gold-700 dark:text-coco-gold-400' : 'text-muted'"
+            :class="isOverDropZone ? 'text-(--hf-active)' : 'text-muted'"
           />
           <p class="text-base font-medium mb-1">
             Arrastra tus imágenes aquí o hacé click para elegir
           </p>
           <p class="text-sm text-muted mb-2">JPG, PNG, WEBP o GIF — máx 10 MB</p>
-          <div class="flex items-center gap-2 mt-2 px-3 py-1.5 rounded-full bg-coco-gold-500/10">
-            <UIcon name="i-lucide-folder-input" class="text-sm text-coco-gold-700 dark:text-coco-gold-400" />
-            <span class="text-xs font-medium text-coco-gold-800 dark:text-coco-gold-400">
-              Subiendo a: {{ uploadTargetLabel }}
-            </span>
+          <div class="mt-2 flex items-center gap-2 text-xs font-medium text-muted">
+            <UIcon name="i-lucide-folder-input" class="text-sm" aria-hidden="true" />
+            <span>Subiendo a: {{ uploadTargetLabel }}</span>
           </div>
         </div>
 
@@ -272,53 +266,41 @@ function isImageBroken(imageId: string): boolean {
           v-if="isUploading"
           class="absolute inset-0 bg-elevated/90 backdrop-blur-sm flex flex-col items-center justify-center gap-3 rounded-lg"
         >
-          <UIcon name="i-lucide-loader-2" class="text-4xl text-coco-gold-700 dark:text-coco-gold-400 animate-spin" />
+          <UIcon name="i-lucide-loader-2" class="text-4xl text-(--hf-active) animate-spin" />
           <p class="text-sm font-medium">Subiendo imágenes...</p>
           <UProgress :value="100" animation="carousel" class="w-48" />
         </div>
       </div>
 
       <!-- Loading -->
-      <div v-if="isFetching" class="flex items-center justify-center py-8">
-        <UIcon name="i-lucide-loader-2" class="text-3xl text-coco-gold-700 dark:text-coco-gold-400 animate-spin" />
-        <span class="ml-3 text-sm text-muted">Cargando imágenes...</span>
+      <div
+        v-if="isFetching"
+        class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4"
+        data-testid="gallery-skeleton"
+        aria-busy="true"
+      >
+        <USkeleton v-for="n in 4" :key="n" class="aspect-square w-full rounded-lg" />
       </div>
 
       <!-- Empty state -->
-      <div
+      <EmptyState
         v-else-if="filteredImages.length === 0"
-        class="flex flex-col items-center justify-center py-12 text-center"
-      >
-        <div class="w-16 h-16 rounded-full bg-elevated flex items-center justify-center mb-4">
-          <UIcon name="i-lucide-image-off" class="text-3xl text-muted" />
-        </div>
-        <p class="text-base font-medium mb-1">
-          {{ activeScope === 'all' ? 'Sin imágenes' : 'Sin imágenes en esta categoría' }}
-        </p>
-        <p class="text-sm text-muted max-w-sm">
-          {{
-            canUpdate
-              ? 'Sube tus primeras imágenes usando el área de arrastrar y soltar de arriba.'
-              : 'No hay imágenes disponibles en esta sección.'
-          }}
-        </p>
-      </div>
+        icon="i-lucide-image-off"
+        :title="activeScope === 'all' ? 'Sin imágenes' : 'Sin imágenes en esta categoría'"
+        :description="canUpdate ? 'Sube las primeras con el área de arriba.' : undefined"
+      />
 
       <!-- Image gallery grid -->
       <div v-else class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         <div
           v-for="image in filteredImages"
           :key="image.id"
-          class="group relative rounded-lg border border-default overflow-hidden transition-all duration-200 hover:shadow-lg hover:border-coco-gold-500/30 cursor-pointer"
-          :class="{ 'ring-2 ring-coco-gold-500 ring-offset-2': image.isMain }"
+          class="group relative rounded-lg border border-default overflow-hidden transition-all duration-200 hover:shadow-lg cursor-pointer"
+          :class="{ 'ring-2 ring-(--hf-active) ring-offset-2': image.isMain }"
         >
           <!-- Main badge - prominent when active -->
-          <div
-            v-if="image.isMain"
-            class="absolute top-2 right-2 z-10 flex items-center gap-1 px-2 py-1 rounded-md bg-coco-gold-500 shadow-sm"
-          >
-            <UIcon name="i-lucide-star" class="text-xs text-black" />
-            <span class="text-xs font-semibold text-black">Principal</span>
+          <div v-if="image.isMain" class="absolute top-2 right-2 z-10">
+            <StatusBadge label="Principal" tone="info" aria-prefix="Imagen:" />
           </div>
 
           <!-- Scope label (only in "Todas" view) -->
@@ -359,8 +341,9 @@ function isImageBroken(imageId: string): boolean {
                 color="primary"
                 variant="solid"
                 size="sm"
+                aria-label="Marcar como imagen principal"
                 :loading="setMainMutation.isPending.value"
-                class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-lg"
+                class="shadow-lg"
                 @click.stop="handleSetMain(image)"
               />
             </UTooltip>
@@ -372,6 +355,7 @@ function isImageBroken(imageId: string): boolean {
                 variant="solid"
                 size="sm"
                 disabled
+                aria-label="Esta es la imagen principal"
                 class="opacity-50"
               />
             </UTooltip>
@@ -382,6 +366,7 @@ function isImageBroken(imageId: string): boolean {
                 color="error"
                 variant="solid"
                 size="sm"
+                aria-label="Eliminar imagen"
                 :loading="deleteMutation.isPending.value"
                 class="shadow-lg"
                 @click.stop="handleDelete(image)"
@@ -407,6 +392,7 @@ function isImageBroken(imageId: string): boolean {
   <!-- Image preview modal (lightbox) -->
   <UModal
     :open="previewImage !== null"
+    :ui="{ content: 'hf-theme hf-ui' }"
     @update:open="(val: boolean) => { if (!val) closePreview() }"
   >
     <template #content>
@@ -417,6 +403,7 @@ function isImageBroken(imageId: string): boolean {
           color="neutral"
           variant="ghost"
           size="lg"
+          aria-label="Cerrar vista previa"
           class="absolute top-3 right-3 z-10"
           @click="closePreview"
         />
@@ -432,12 +419,8 @@ function isImageBroken(imageId: string): boolean {
         <!-- Footer info -->
         <div v-if="previewImage" class="flex items-center justify-between w-full px-4 py-3">
           <div class="flex items-center gap-2">
-            <AppBadge v-if="previewImage.isMain" tone="info" variant="solid" icon="i-lucide-star">
-              Principal
-            </AppBadge>
-            <AppBadge tone="neutral">
-              {{ getVariantName(previewImage.variantId) }}
-            </AppBadge>
+            <StatusBadge v-if="previewImage.isMain" label="Principal" tone="info" aria-prefix="Imagen:" />
+            <span class="text-sm text-muted">{{ getVariantName(previewImage.variantId) }}</span>
           </div>
 
           <div class="flex items-center gap-2">
@@ -445,10 +428,10 @@ function isImageBroken(imageId: string): boolean {
               <UButton
                 icon="i-lucide-star"
                 color="primary"
-                variant="ghost"
+                variant="soft"
                 size="sm"
+                aria-label="Marcar como imagen principal"
                 :loading="setMainMutation.isPending.value"
-                class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
                 @click="handleSetMain(previewImage!)"
               />
             </UTooltip>
@@ -458,6 +441,7 @@ function isImageBroken(imageId: string): boolean {
                 color="error"
                 variant="ghost"
                 size="sm"
+                aria-label="Eliminar imagen"
                 :loading="deleteMutation.isPending.value"
                 @click="handleDelete(previewImage!)"
               />

@@ -54,7 +54,7 @@ describe('ProductImageGallery - Dropzone-first refactor', () => {
     })
   }
 
-  describe('Dropzone coco gold affordance', () => {
+  describe('Dropzone affordance', () => {
     it('should render dropzone with idle state (dashed border, bg-default)', () => {
       const wrapper = createWrapper()
       
@@ -98,17 +98,14 @@ describe('ProductImageGallery - Dropzone-first refactor', () => {
   })
 
   describe('Drag-over visual feedback', () => {
-    it('should apply border-solid and border-coco-gold-500 on drag-over state', async () => {
+    it('should carry the --hf-active hover tokens on the idle dropzone', async () => {
       const wrapper = createWrapper()
 
       // Simulate isOverDropZone = true from useImageUpload
       const dropzone = wrapper.find('[data-dropzone]')
 
-      // Verify the dropzone base class list contains the coco-gold-500
-      // hover token (idle base is kept per design — see ProductImageGallery
-      // substitution table).
       expect(dropzone.classes()).toEqual(
-        expect.arrayContaining(['hover:border-coco-gold-500/20', 'hover:bg-coco-gold-500/5']),
+        expect.arrayContaining(['hover:border-(--hf-active)', 'hover:bg-(--hf-active-soft)']),
       )
     })
 
@@ -120,17 +117,12 @@ describe('ProductImageGallery - Dropzone-first refactor', () => {
     })
   })
 
-  describe('Coco gold class pins (SDD-7)', () => {
-  it('dropzone carries the coco-gold hover token in its class list', () => {
-    const wrapper = createWrapper()
-    const dropzone = wrapper.find('[data-dropzone]')
-
-    // Hover affordance for the dropzone (PRD-REQ-004).
-    expect(dropzone.classes()).toEqual(
-      expect.arrayContaining(['hover:border-coco-gold-500/20', 'hover:bg-coco-gold-500/5']),
-    )
+  describe('Design tokens', () => {
+    it('uses --hf roles only: no coco-* classes, brand tokens or AppBadge', () => {
+      const sfc = readFileSync(join(__dirname, '..', 'ProductImageGallery.vue'), 'utf-8')
+      expect(sfc).not.toMatch(/coco-|--brand-|AppBadge/)
+    })
   })
-})
 
   describe('URL input removed', () => {
     it('should NOT render URL input (completely removed)', () => {
