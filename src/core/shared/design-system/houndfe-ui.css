@@ -23,6 +23,9 @@ body.hf-app {
 
   /* Nuxt UI semantic aliases. */
   --ui-primary: var(--hf-action);
+  /* One red. Nuxt's `error` role (text-error, color="error", bg-error/..,
+   * border-error/..) follows --hf-danger in both themes. */
+  --ui-error: var(--hf-danger);
   --ui-text-highlighted: var(--hf-heading);
   --ui-text: var(--hf-ink);
   --ui-text-toned: var(--hf-muted);
@@ -60,9 +63,10 @@ body.hf-app {
   font-family: var(--hf-font);
 }
 
-/* Error, warning, success and destructive controls keep their existing
- * semantic roles: only the primary action surface adopts the retail blue, so a
- * mixed control row never turns every colored action into the same hue. */
+/* Warning, success and destructive controls keep their existing semantic
+ * roles (error now resolves to --hf-danger above): only the primary action
+ * surface adopts the retail blue, so a mixed control row never turns every
+ * colored action into the same hue. */
 
 /* Primary action pairing. The foreground always comes from `--hf-on-action`,
  * which stays readable on both the light and the dark action value. */
@@ -369,4 +373,59 @@ body.hf-app {
 .hf-ui.hf-form-overlay {
   background-color: var(--hf-surface);
   color: var(--hf-ink);
+}
+
+/* ── Empty, no-match, error and forbidden states ─────────────────────────── */
+
+/* One centered column: 24px icon, title, one line, at most one button. The
+ * error kind alone gets the soft danger surface; the rest stay on the page. */
+.hf-ui .hf-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 8rem;
+  padding: 40px 16px;
+  text-align: center;
+  font-family: var(--hf-font);
+}
+
+.hf-ui .hf-empty-state__icon {
+  width: 24px;
+  height: 24px;
+  color: var(--hf-muted);
+}
+
+.hf-ui .hf-empty-state__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+.hf-ui .hf-empty-state__description {
+  margin: 0;
+  max-width: 28rem;
+  font-size: 13px;
+  color: var(--hf-muted);
+}
+
+.hf-ui .hf-empty-state > button,
+.hf-ui .hf-empty-state > a {
+  margin-top: 8px;
+}
+
+.hf-ui .hf-empty-state[data-kind='error'] {
+  background-color: var(--hf-danger-soft);
+  border: 1px solid var(--hf-danger-border);
+  border-radius: var(--hf-radius-card);
+}
+
+.hf-ui .hf-empty-state[data-kind='error'] .hf-empty-state__icon {
+  color: var(--hf-danger);
+}
+
+.hf-ui .hf-empty-state[data-kind='error'] .hf-empty-state__title {
+  color: var(--hf-danger);
 }
