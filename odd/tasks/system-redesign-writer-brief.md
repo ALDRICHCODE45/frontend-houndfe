@@ -75,6 +75,13 @@ Migrate EVERY screen, list, detail, form, modal and card in your surfaces.
   - error: `table-error-state` with Reintentar, or the page error state.
 - Update the specs that pinned legacy visuals to the new pattern. Do not delete their coverage.
 
+## Machine limits (an OOM killed a writer)
+
+Several writers share one 31 GB machine:
+
+- Run vitest ONLY with `--maxWorkers=2`, and only on the spec files or directories you touched.
+- Run `pnpm type-check` only right before a commit, never in parallel with vitest.
+
 ## Checks before reporting
 
 - `pnpm type-check` returns 0. If it fails ONLY in files outside your surfaces because another writer is mid-change, rerun once later and say so.
