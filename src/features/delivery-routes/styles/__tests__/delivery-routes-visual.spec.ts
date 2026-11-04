@@ -5,16 +5,18 @@ const css = readFileSync('src/features/delivery-routes/styles/delivery-routes-vi
 
 // Source contracts, not rendered fidelity.
 describe('Delivery routes presentation adapter', () => {
-  it('maps the dark palette onto the listing and every owned portal', () => {
+  it('declares no palette: colors come from the shared --hf roles on every owned marker', () => {
     for (const marker of [
       'delivery-routes-visual',
       'delivery-routes-driver',
       'delivery-routes-list-portal',
       'delivery-routes-form-portal',
     ]) {
-      expect(css).toMatch(new RegExp(`(^|,\\s*)\\.dark \\.hf-theme\\.${marker}[,\\s{]`, 'm'))
+      expect(css).toContain(`.hf-theme.${marker}`)
     }
-    expect(css).not.toContain('.dark .dark')
+    expect(css).not.toMatch(/#[0-9a-f]{3,8}\b/i)
+    expect(css).not.toMatch(/--hf-[a-z-]+\s*:/)
+    expect(css).not.toContain('.dark ')
   })
 
   it('stays scoped: no global root, important overrides or other module markers', () => {
