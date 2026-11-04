@@ -186,8 +186,10 @@ describe('shared HF UI adapter', () => {
     expect(control!.style.getPropertyValue('color').trim()).toBe('var(--hf-on-action)')
 
     // Destructive/status roles keep their existing semantic colors; the adapter
-    // must never remap every colored control onto the primary hue.
-    for (const source of [shared, products]) {
+    // must never remap every colored control onto the primary hue. The one
+    // allowed binding is Nuxt's error role onto the shared danger token.
+    expect(shared).toMatch(/--ui-error:\s*var\(--hf-danger\)/)
+    for (const source of [shared.replace(/--ui-error:\s*var\(--hf-danger\)/g, ''), products]) {
       expect(source).not.toMatch(
         /--(?:ui|color|text-color|background-color|border-color)[-a-z]*-(?:error|danger|destructive)\s*:/,
       )
