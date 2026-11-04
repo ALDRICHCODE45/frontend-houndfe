@@ -121,4 +121,43 @@ describe('ProductVariantsTable', () => {
     expect(loading.text()).toContain('Actualizando variantes...')
     loading.unmount()
   })
+
+  // O1 S1: a saved variant's stock is read-only; it moves through an adjustment.
+  describe('quantity is read-only for saved variants', () => {
+    it('shows the stock as a figure with the hint, not as an input', () => {
+      const wrapper = mountTable()
+      const stock = wrapper.get('[data-testid="variant-stock-readonly"]')
+      expect(stock.text()).toContain('10')
+      expect(stock.text()).toContain('Se ajusta desde Inventario')
+      expect(wrapper.find('input[aria-label="Existencias de Tamaño: Grande"]').exists()).toBe(false)
+      expect(wrapper.findAll('input')).toHaveLength(1)
+      wrapper.unmount()
+    })
+
+    it('emits no quantity events for a saved row', async () => {
+      const wrapper = mountTable()
+      await wrapper.get('[data-testid="variant-stock-readonly"]').trigger('blur')
+      await wrapper.get('[data-testid="variant-stock-readonly"]').trigger('keyup.enter')
+      expect(wrapper.emitted('update-quantity')).toBeUndefined()
+      expect(wrapper.emitted('commit-quantity')).toBeUndefined()
+      wrapper.unmount()
+    })
+
+    it('stays read-only for a role that cannot update', () => {
+      const wrapper = mountTable({ canUpdate: false })
+      expect(wrapper.find('[data-testid="variant-stock-readonly"]').exists()).toBe(true)
+      wrapper.unmount()
+    })
+
+    it('keeps the editable input while the variant is still pending (creation)', async () => {
+      const wrapper = mountTable({ pending: true })
+      expect(wrapper.find('[data-testid="variant-stock-readonly"]').exists()).toBe(false)
+      const input = wrapper.get('input[aria-label="Existencias de Tamaño: Grande"]')
+      await input.setValue('12')
+      await input.trigger('blur')
+      expect(wrapper.emitted('update-quantity')).toEqual([['variant-1', 12]])
+      expect(wrapper.emitted('commit-quantity')).toEqual([['variant-1']])
+      wrapper.unmount()
+    })
+  })
 })

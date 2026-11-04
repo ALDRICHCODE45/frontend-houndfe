@@ -26,6 +26,7 @@ import ProductLotsTable, { type ProductLotRow } from '../components/ProductLotsT
 import ProductPriceMarginTable, {
   type ProductPriceRow,
 } from '../components/ProductPriceMarginTable.vue'
+import ReadOnlyStock from '../components/ReadOnlyStock.vue'
 import ProductQuickCreateModal from '../components/ProductQuickCreateModal.vue'
 import ProductSummaryPanel from '../components/ProductSummaryPanel.vue'
 import ProductVariantsTable, {
@@ -416,7 +417,6 @@ const availablePriceListOptions = computed(() => {
   const usedIds = new Set(pendingPriceLists.value.map((pl) => pl.priceListId))
   return globalPriceListOptions.value.filter((gpl) => !usedIds.has(gpl.id))
 })
-const inlineVariantQuantityInputs = reactive<Record<string, number>>({})
 const inlineVariantPublicPriceInputs = reactive<Record<string, string>>({})
 
 const variantGroups = computed(() => {
@@ -448,20 +448,6 @@ const variantGroups = computed(() => {
 
   return Array.from(grouped.values())
 })
-
-function syncInlineVariantQuantityInputs(nextVariants: ProductVariant[]) {
-  const currentIds = new Set(nextVariants.map((variant) => variant.id))
-
-  for (const variantId of Object.keys(inlineVariantQuantityInputs)) {
-    if (!currentIds.has(variantId)) {
-      delete inlineVariantQuantityInputs[variantId]
-    }
-  }
-
-  for (const variant of nextVariants) {
-    inlineVariantQuantityInputs[variant.id] = variant.quantity
-  }
-}
 
 function getPublicPrice(variant: ProductVariant) {
   return variant.variantPrices.find((p) => p.priceListName === 'PUBLICO')
@@ -631,7 +617,6 @@ watch(
 watch(
   () => variantsList.value,
   (nextVariants) => {
-    syncInlineVariantQuantityInputs(nextVariants)
     syncInlineVariantPublicPriceInputs(nextVariants)
 
     if (!variantDetailModalVariant.value) return
@@ -1085,7 +1070,7 @@ const createVariantMutation = useMutation({
 })
 
 const updateVariantMutation = useMutation({
-  mutationFn: (payload: { variantId: string; values: CreateVariantPayload }) =>
+  mutationFn: (payload: { variantId: string; values: UpdateVariantPayload }) =>
     productApi.updateVariant(productIdOrEmpty.value, payload.variantId, payload.values),
   onSuccess: async () => {
     resetVariantForm()
@@ -1107,20 +1092,6 @@ const updateVariantMutation = useMutation({
   onError: (error) => {
     const message = mapDomainError(error as AxiosError<DomainApiError>)
     toast.add({ title: 'Error al actualizar variante', description: message, color: 'error' })
-  },
-})
-
-const updateVariantInlineStockMutation = useMutation({
-  mutationFn: (payload: { variantId: string; values: UpdateVariantPayload }) =>
-    productApi.updateVariant(productIdOrEmpty.value, payload.variantId, payload.values),
-  onSuccess: async () => {
-    await queryClient.invalidateQueries({
-      queryKey: productQueryKeys.variants(tenantId.value, productIdOrEmpty.value),
-    })
-  },
-  onError: (error) => {
-    const message = mapDomainError(error as AxiosError<DomainApiError>)
-    toast.add({ title: 'Error al actualizar existencias', description: message, color: 'error' })
   },
 })
 
@@ -1721,27 +1692,27 @@ function handleSubmitVariant(event: FormSubmitEvent<VariantFormState>) {
     ? decimalInputToCents(event.data.purchaseCost)
     : undefined
 
-  const payload: CreateVariantPayload = {
+  const payload: UpdateVariantPayload = {
     option,
     value: event.data.value,
     ...(showInventory && event.data.sku ? { sku: event.data.sku } : {}),
     ...(showInventory && event.data.barcode ? { barcode: event.data.barcode } : {}),
-    quantity: showInventory ? event.data.quantity : 0,
     ...(showInventory ? { minQuantity: event.data.minQuantity } : {}),
     ...(costCentsEdit != null ? { purchaseNetCostCents: costCentsEdit } : {}),
   }
 
+  // O1 S1: a saved variant is edited without quantity (read-only, adjusted from
+  // Inventario); only a new variant is created with its initial stock.
   if (editingVariantId.value) {
     updateVariantMutation.mutate({ variantId: editingVariantId.value, values: payload })
     return
   }
 
-  createVariantMutation.mutate(payload)
-}
-
-function normalizeQuantity(value: number | null | undefined): number {
-  if (typeof value !== 'number' || Number.isNaN(value)) return 0
-  return Math.max(0, Math.trunc(value))
+  const createPayload: CreateVariantPayload = {
+    ...payload,
+    quantity: showInventory ? event.data.quantity : 0,
+  }
+  createVariantMutation.mutate(createPayload)
 }
 
 function handleOpenVariantDetailModal(variant: ProductVariant) {
@@ -1760,20 +1731,6 @@ function handleOpenVariantImageModal(variant: ProductVariant) {
 
 function handleVariantImageModalOpenChange(isOpen: boolean) {
   isVariantImageModalOpen.value = isOpen
-}
-
-function handleInlineVariantQuantityBlur(variant: ProductVariant) {
-  if (!canUpdateProduct.value) return
-
-  const nextQuantity = normalizeQuantity(inlineVariantQuantityInputs[variant.id])
-  inlineVariantQuantityInputs[variant.id] = nextQuantity
-
-  if (nextQuantity === variant.quantity) return
-
-  updateVariantInlineStockMutation.mutate({
-    variantId: variant.id,
-    values: { quantity: nextQuantity },
-  })
 }
 
 function handleInlineVariantPublicPriceBlur(variant: ProductVariant) {
@@ -1888,7 +1845,7 @@ const variantTableRows = computed<ProductVariantRow[]>(() =>
         label: getVariantLabel(variant),
         sku: variant.sku ?? '',
         barcode: variant.barcode ?? '',
-        quantity: inlineVariantQuantityInputs[variant.id],
+        quantity: variant.quantity,
         price: inlineVariantPublicPriceInputs[variant.id] ?? '',
         deleteName: variant.name,
       })),
@@ -1898,18 +1855,12 @@ function findSavedVariant(variantId: string): ProductVariant | undefined {
   return variantsList.value.find((variant) => variant.id === variantId)
 }
 
+// O1 S1: only a pending variant (create mode) has an editable stock; a saved
+// variant's stock is read-only and moves through an adjustment.
 function handleVariantQuantityUpdate(id: string, value: number | undefined) {
-  if (isCreateMode.value) {
-    const pending = pendingVariants.value.find((pv) => pv._localId === id)
-    if (pending) pending.quantity = value ?? 0
-    return
-  }
-  inlineVariantQuantityInputs[id] = value as number
-}
-
-function handleVariantQuantityCommit(id: string) {
-  const variant = findSavedVariant(id)
-  if (!isCreateMode.value && variant) handleInlineVariantQuantityBlur(variant)
+  if (!isCreateMode.value) return
+  const pending = pendingVariants.value.find((pv) => pv._localId === id)
+  if (pending) pending.quantity = value ?? 0
 }
 
 function handleVariantPriceUpdate(id: string, value: string) {
@@ -2353,8 +2304,16 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
 
               <div v-if="showManualStockFields" class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <UFormField label="Existencias" name="quantity">
-                  <UInputNumber v-model="formState.quantity" :min="0" class="w-full" />
-                  <p class="mt-1 text-xs text-muted">Unidades</p>
+                  <ReadOnlyStock
+                    v-if="!isCreateMode"
+                    :value="formState.quantity"
+                    label="Existencias"
+                    data-testid="product-detail-stock-readonly"
+                  />
+                  <template v-else>
+                    <UInputNumber v-model="formState.quantity" :min="0" class="w-full" />
+                    <p class="mt-1 text-xs text-muted">Unidades</p>
+                  </template>
                 </UFormField>
 
                 <UFormField label="Existencias mínimas" name="minQuantity">
@@ -2462,7 +2421,6 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
               :can-update="canUpdateProduct"
               :can-delete="canDeleteProduct"
               @update-quantity="handleVariantQuantityUpdate"
-              @commit-quantity="handleVariantQuantityCommit"
               @update-price="handleVariantPriceUpdate"
               @commit-price="handleVariantPriceCommit"
               @action="handleVariantAction"
@@ -2992,7 +2950,13 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
           </UFormField>
 
           <UFormField v-if="inventoryFieldsVisible(formState.type)" label="Existencias" name="quantity">
-            <UInputNumber v-model="variantState.quantity" :min="0" class="w-full" />
+            <ReadOnlyStock
+              v-if="!isCreateMode && editingVariantId"
+              :value="variantState.quantity"
+              label="Existencias"
+              data-testid="variant-edit-stock-readonly"
+            />
+            <UInputNumber v-else v-model="variantState.quantity" :min="0" class="w-full" />
           </UFormField>
 
           <UFormField v-if="inventoryFieldsVisible(formState.type)" label="Existencias mínimas" name="minQuantity">

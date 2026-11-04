@@ -19,6 +19,7 @@ import type {
   UpdateProductPayload,
 } from '../interfaces/product.types'
 import CategorySelect, { type CategorySelectItem } from './CategorySelect.vue'
+import ReadOnlyStock from './ReadOnlyStock.vue'
 import SatKeySelect from './SatKeySelect.vue'
 
 const props = withDefaults(
@@ -239,7 +240,14 @@ function onSubmit(event: FormSubmitEvent<ProductFormValues>) {
             name="quantity"
             :error="errors.quantity"
           >
+            <ReadOnlyStock
+              v-if="mode === 'edit'"
+              :value="state.quantity"
+              label="Stock"
+              data-testid="product-stock-readonly"
+            />
             <UInputNumber
+              v-else
               v-model="state.quantity"
               class="w-full"
               :min="0"

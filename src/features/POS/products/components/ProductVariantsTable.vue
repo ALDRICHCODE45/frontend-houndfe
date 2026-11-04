@@ -7,12 +7,14 @@ import '../styles/products-plain-table.css'
  * values and runs every action.
  *
  * Events:
- *   update-quantity(id, value) / commit-quantity(id) — inline stock edit
+ *   update-quantity(id, value) / commit-quantity(id) — pending rows only: a
+ *   saved variant's stock is read-only (O1 S1) and changes by adjustment
  *   update-price(id, text) / commit-price(id, text)  — inline public price edit
  *   action(key, id) — photos | details | edit | delete (delete is confirmed by the owner)
  */
 import { computed } from 'vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
+import ReadOnlyStock from './ReadOnlyStock.vue'
 
 export interface ProductVariantRow {
   id: string
@@ -100,7 +102,15 @@ function priceFromEvent(event: Event): string {
             </div>
           </td>
           <td v-if="showStock" class="px-4 py-3 text-right">
+            <ReadOnlyStock
+              v-if="!pending"
+              :value="row.quantity ?? 0"
+              :label="`Existencias de ${row.label}`"
+              compact
+              data-testid="variant-stock-readonly"
+            />
             <UInputNumber
+              v-else
               :model-value="row.quantity"
               :min="0"
               class="ml-auto w-28"

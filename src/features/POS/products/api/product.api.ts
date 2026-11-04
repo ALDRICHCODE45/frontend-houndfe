@@ -51,6 +51,14 @@ interface ProductPaginationMeta {
   totalPages: number
 }
 
+// O1 S1: the backend rejects any `quantity` key on an edit PATCH (400
+// STOCK_QUANTITY_READ_ONLY), even 0 or null. Strip it at the transport so no
+// caller can send it by accident; stock only moves through an adjustment.
+function withoutQuantity<T extends object>(payload: T): Omit<T, 'quantity'> {
+  const { quantity: _quantity, ...rest } = payload as T & { quantity?: unknown }
+  return rest as Omit<T, 'quantity'>
+}
+
 function getPriceCents(item: ProductBackendResponse): number {
   return item.priceCents ?? item.price?.priceCents ?? 0
 }
@@ -417,7 +425,10 @@ export const productApi = {
   },
 
   async update(productId: string, payload: UpdateProductPayload): Promise<ProductDetail> {
-    const { data } = await http.patch<ProductBackendResponse>(`/products/${productId}`, payload)
+    const { data } = await http.patch<ProductBackendResponse>(
+      `/products/${productId}`,
+      withoutQuantity(payload),
+    )
     return mapProductDetail(data)
   },
 
@@ -467,7 +478,7 @@ export const productApi = {
   ): Promise<ProductVariant> {
     const { data } = await http.patch<ProductVariantBackendResponse>(
       `/products/${productId}/variants/${variantId}`,
-      payload,
+      withoutQuantity(payload),
     )
     return mapVariant(productId, data)
   },
@@ -498,7 +509,7 @@ export const productApi = {
   ): Promise<ProductLot> {
     const { data } = await http.patch<ProductLotBackendResponse>(
       `/products/${productId}/lots/${lotId}`,
-      payload,
+      withoutQuantity(payload),
     )
     return mapLot(productId, data)
   },

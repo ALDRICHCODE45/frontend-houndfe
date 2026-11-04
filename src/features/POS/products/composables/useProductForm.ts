@@ -350,7 +350,9 @@ function buildServicePayload(values: ProductFormValues): CreateProductPayload {
         // update emits only changed fields. toProductPatchAdvancedCatalogPayload
         // applies changed-only diff when pristineAdvanced snapshot exists; without
         // one (compact slideover) no advanced key is emitted.
-        const basePayload = isService(values.type)
+        // O1 S1: quantity is read-only on edit; stock changes only through an
+        // adjustment, so the PATCH never carries the key.
+        const { quantity: _readOnlyQuantity, ...basePayload } = isService(values.type)
           ? buildServicePayload(values)
           : buildBasePayload(values)
 

@@ -373,7 +373,8 @@ export interface CreateVariantPayload {
   purchaseNetCostCents?: number
 }
 
-export type UpdateVariantPayload = Partial<CreateVariantPayload>
+// O1 S1: quantity is create-only; a PATCH that carries it answers 400.
+export type UpdateVariantPayload = Partial<Omit<CreateVariantPayload, 'quantity'>>
 
 // ── Variant Pricing ──────────────────────────────────────────
 
@@ -404,9 +405,10 @@ export interface CreateLotPayload {
   manufactureDate?: string
 }
 
-export type UpdateLotPayload = Partial<CreateLotPayload>
+export type UpdateLotPayload = Partial<Omit<CreateLotPayload, 'quantity'>>
 
-export type UpdateProductPayload = Partial<CreateProductPayload> & ProductPatchAdvancedCatalogPayload
+export type UpdateProductPayload = Partial<Omit<CreateProductPayload, 'quantity'>> &
+  ProductPatchAdvancedCatalogPayload
 
 // ── Online catalog advanced flat fields (WU4) ────────────────
 // supportsAllCatalogPriceLists is backend-derived: response-only, never sent.
