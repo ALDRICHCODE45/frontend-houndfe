@@ -86,7 +86,7 @@ function selectBranch(slug: string) {
           <template #leading>
             <UIcon name="i-lucide-map-pin" class="size-3.5 shrink-0 text-primary" />
           </template>
-          <span class="max-w-[6.5rem] truncate sm:max-w-[12rem]">{{
+          <span class="max-w-[9rem] truncate sm:max-w-[12rem]">{{
             selectedBranch?.name ?? 'Elegir sucursal'
           }}</span>
           <template #trailing>
@@ -168,8 +168,8 @@ function selectBranch(slug: string) {
             <template v-else>
               <p role="status" class="text-sm text-toned">{{ retryMessage }}</p>
               <UButton
-                color="primary"
-                variant="solid"
+                color="neutral"
+                variant="outline"
                 size="md"
                 icon="i-lucide-refresh-cw"
                 aria-label="Reintentar sucursales"

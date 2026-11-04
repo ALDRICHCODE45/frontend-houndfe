@@ -52,4 +52,26 @@ describe('catalog stylesheet', () => {
     expect(css).toContain('.catalog-skeleton-card')
     expect(css).toMatch(/prefers-reduced-motion[\s\S]*catalog-skeleton/)
   })
+
+  it('retires its own state box: loading and failures use the shared EmptyState and card skeletons', () => {
+    expect(css).not.toMatch(/\.catalog-state\b/)
+    expect(css).toContain('.catalog-skeleton-pill')
+    expect(css).toContain('.catalog-category-error')
+  })
+
+  it('keeps the phone header to one compact row: small logo, branch and price list side by side', () => {
+    const base = css.slice(css.indexOf('.catalog-header-inner {'), css.indexOf('.catalog-branch-trigger {'))
+    expect(base).toContain('grid-template-columns: 48px minmax(0, 1fr) auto')
+    expect(base).toMatch(/\.catalog-logo \{[^}]*width: 48px/)
+    expect(base).toMatch(/\.catalog-header-controls \{[^}]*grid-column: 3[^}]*max-width: 8\.5rem/)
+    // From 601px the desktop logo and spacing come back.
+    const desktop = css.slice(css.indexOf('@media (min-width: 601px) {'))
+    expect(desktop).toMatch(/\.catalog-header \.catalog-logo \{[^}]*width: 80px/)
+  })
+
+  it('keeps the footer lines close on a phone and spaced on desktop', () => {
+    expect(css).toMatch(/\.catalog-footer-inner \{[^}]*gap: 8px 32px/)
+    const desktop = css.slice(css.indexOf('@media (min-width: 601px) {'))
+    expect(desktop).toMatch(/\.catalog-footer-inner \{[^}]*gap: 28px 32px/)
+  })
 })

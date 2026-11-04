@@ -360,7 +360,7 @@ describe('CatalogView public browse', () => {
     const { wrapper } = await mountAt(path)
 
     await flushPromises()
-    expect(wrapper.get('#catalogo .catalog-container > section h2').text()).toBe(expectedHeading)
+    expect(wrapper.get('#catalogo .catalog-container .hf-empty-state__title').text()).toBe(expectedHeading)
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:3000/public/catalog/branches')
   })
@@ -404,7 +404,7 @@ describe('CatalogView public browse', () => {
 
       await flushPromises()
       expect(wrapper.text()).toContain(expectedCopy)
-      await wrapper.get('button[aria-label="Reintentar productos"]').trigger('click')
+      await wrapper.get('[data-testid="catalog-retry-products"]').trigger('click')
       await flushPromises()
       expect(wrapper.text()).toContain('No hay productos disponibles en este momento')
       expect(fetchMock).toHaveBeenCalledTimes(4)
@@ -437,10 +437,10 @@ describe('CatalogView public browse', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('No hay productos disponibles en este momento')
 
-    void wrapper.get('button[aria-label="Reintentar productos"]').trigger('click')
+    void wrapper.get('[data-testid="catalog-retry-products"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Reintentando productos…')
-    expect(wrapper.find('button[aria-label="Reintentar productos"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="catalog-retry-products"]').exists()).toBe(false)
     resolveRetry(jsonResponse(productsResponse()))
     await flushPromises()
     expect(wrapper.get('.catalog-product-card h2').text()).toBe('Café molido')
@@ -716,7 +716,7 @@ describe('CatalogView public browse', () => {
       expect(wrapper.text()).toContain(copy)
       expect(productRequestUrls(fetchMock)).toEqual([])
 
-      const retry = wrapper.get('button[aria-label="Reintentar carga de listas de precios"]')
+      const retry = wrapper.get('[data-testid="catalog-retry-context"]')
       await retry.trigger('click')
       await flushPromises()
 
@@ -738,7 +738,7 @@ describe('CatalogView public browse', () => {
     expect(wrapper.text()).toContain('La lista de precios seleccionada no está disponible')
     expect(wrapper.text()).toContain('Elige otra lista de precios para ver el catálogo.')
     expect(wrapper.text()).not.toContain('No pudimos cargar los productos.')
-    expect(wrapper.find('button[aria-label="Reintentar productos"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="catalog-retry-products"]').exists()).toBe(false)
   })
 
   it('prefers the authoritative list response context and keeps a stale one selectable', async () => {
@@ -1103,7 +1103,7 @@ describe('CatalogView public browse', () => {
     )
   })
 
-  it('retries failed baseline without substituting its cards for a failed filtered listing', async () => {
+  it('shows ONE error when the baseline and the filtered listing both fail, and its Reintentar recovers both', async () => {
     let failBaseline = true
     const fetchMock = createCatalogFetch({
       products: (_slug, _price, url) =>
@@ -1114,19 +1114,45 @@ describe('CatalogView public browse', () => {
     vi.stubGlobal('fetch', fetchMock)
     const { wrapper } = await mountAt(`/catalogo/centro?categoryId=${categoryId}`)
     await flushPromises()
-    expect(wrapper.text()).toContain('No pudimos cargar las categorías.')
+    const main = wrapper.get('main')
+    // One combined failure: the grid's, never a second one for the categories.
+    expect(main.findAll('[data-kind="error"]')).toHaveLength(1)
+    expect(main.text()).toContain('No pudimos cargar los productos.')
+    expect(main.text()).not.toContain('No pudimos cargar las categorías')
     expect(wrapper.find('button[aria-label="Todas las categorías"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('Limpiar categoría')
     failBaseline = false
-    await wrapper
-      .findAll('button')
-      .find((b) => b.text() === 'Reintentar categorías')!
-      .trigger('click')
+    await wrapper.get('[data-testid="catalog-retry-products"]').trigger('click')
     await flushPromises()
     expect(wrapper.get('button[aria-label="Todas las categorías"]').text()).toContain('4')
     expect(wrapper.get('button[aria-label="Categoría Café"]').text()).toContain('3')
     expect(wrapper.find('[data-testid="catalog-product-grid"]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('Café molido')
+  })
+
+  it('shows a compact categories error with its own Reintentar when only the baseline fails', async () => {
+    let failBaseline = true
+    const fetchMock = createCatalogFetch({
+      products: (_slug, _price, url) =>
+        url.searchParams.has('categoryId')
+          ? jsonResponse(categoryPage(true))
+          : failBaseline
+            ? jsonResponse({}, 500)
+            : jsonResponse(categoryPage(false)),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const { wrapper } = await mountAt(`/catalogo/centro?categoryId=${categoryId}`)
+    await flushPromises()
+    const error = wrapper.get('[data-testid="catalog-category-error"]')
+    expect(error.classes()).toContain('hf-empty-state')
+    expect(error.attributes('data-kind')).toBe('error')
+    expect(error.get('.hf-empty-state__title').text()).toBe('No pudimos cargar las categorías')
+    expect(wrapper.get('main').findAll('[data-kind="error"]')).toHaveLength(1)
+    failBaseline = false
+    await wrapper.get('[data-testid="catalog-retry-categories"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="catalog-category-error"]').exists()).toBe(false)
+    expect(wrapper.get('button[aria-label="Todas las categorías"]').text()).toContain('4')
   })
 
   it('keeps route selection on rejected navigation and restores it with back/forward history', async () => {
@@ -1213,7 +1239,7 @@ describe('CatalogView public browse', () => {
     expect(wrapper.text()).toContain('Limpiar categoría')
     expect(wrapper.text()).toContain('Las categorías no coinciden con la lista de precios actual.')
     expect(wrapper.get('[data-testid="catalog-result-total"]').text()).toBe('1 producto')
-    const retry = wrapper.findAll('button').find((b) => b.text() === 'Reintentar categorías')!
+    const retry = wrapper.get('[data-testid="catalog-retry-categories"]')
     expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/products'))).toHaveLength(
       2,
     )
@@ -1278,6 +1304,25 @@ describe('CatalogView public browse', () => {
       vi.stubGlobal('fetch', fetchMock)
       return fetchMock
     }
+
+    it('offers Limpiar búsqueda only while there is a search, committed or typed', async () => {
+      installSearch()
+      const { wrapper } = await mountAt('/catalogo/centro')
+      await flushPromises()
+      const clearOrNone = () =>
+        wrapper.findAll('button').find((b) => b.text() === 'Limpiar búsqueda')
+      expect(clearOrNone()).toBeUndefined()
+      await input(wrapper).setValue('café')
+      expect(clearOrNone()).toBeDefined()
+      await input(wrapper).setValue('')
+      expect(clearOrNone()).toBeUndefined()
+
+      const withQuery = await mountAt('/catalogo/centro?q=correa')
+      await flushPromises()
+      expect(
+        withQuery.wrapper.findAll('button').find((b) => b.text() === 'Limpiar búsqueda'),
+      ).toBeDefined()
+    })
 
     it('submits and clears exact drafts only on commitment, preserving filters, hash and baseline', async () => {
       const fetchMock = installSearch()
@@ -1407,7 +1452,7 @@ describe('CatalogView public browse', () => {
       await flushPromises()
       expect(fetchMock).toHaveBeenCalledTimes(before)
       failing = false
-      await wrapper.get('button[aria-label="Reintentar productos"]').trigger('click')
+      await wrapper.get('[data-testid="catalog-retry-products"]').trigger('click')
       await flushPromises()
       expect(wrapper.text()).toContain('Café filtrado')
       expect(String(fetchMock.mock.calls[fetchMock.mock.calls.length - 1]![0])).toContain(
@@ -1538,7 +1583,7 @@ describe('CatalogView public browse', () => {
       await flushPromises()
       expect(wrapper.find('nav[aria-label="Paginación del catálogo"]').exists()).toBe(false)
       retry = true
-      await wrapper.get('button[aria-label="Reintentar productos"]').trigger('click')
+      await wrapper.get('[data-testid="catalog-retry-products"]').trigger('click')
       await flushPromises()
       expect(pager(wrapper).text()).toContain('Página 2 de 3')
     })

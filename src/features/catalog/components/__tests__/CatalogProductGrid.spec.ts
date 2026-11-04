@@ -41,14 +41,14 @@ describe('CatalogProductGrid', () => {
     const wrapper = mountGrid({ state: 'empty', products: [] })
     expect(wrapper.text()).toContain('No hay productos disponibles en este momento')
     expect(wrapper.text()).not.toMatch(/publicados|excluidos|excludedCount/)
-    await wrapper.get('button[aria-label="Reintentar productos"]').trigger('click')
+    await wrapper.get('[data-testid="catalog-retry-products"]').trigger('click')
     expect(wrapper.emitted('retry')).toHaveLength(1)
   })
 
   it('retries authoritative empty branch discovery without requesting products', async () => {
     const wrapper = mountGrid({ branchesState: 'empty', selectionState: 'none' })
     await wrapper
-      .get('button[aria-label="Reintentar descubrimiento de sucursales"]')
+      .get('[data-testid="catalog-retry-branches"]')
       .trigger('click')
     expect(wrapper.emitted('retry-branches')).toEqual([[]])
     expect(wrapper.emitted('retry')).toBeUndefined()
@@ -97,7 +97,8 @@ describe('CatalogProductGrid', () => {
   ])('keeps state headings below the shell hero h1 (%j)', (props) => {
     const wrapper = mountGrid(props)
     expect(wrapper.find('h1').exists()).toBe(false)
-    expect(wrapper.findAll('h2')).toHaveLength(1)
+    // Each state has exactly one title: the shared EmptyState's, or the sr-only skeleton heading.
+    expect(wrapper.findAll('h2').length + wrapper.findAll('.hf-empty-state__title').length).toBe(1)
   })
 
   it.each([
@@ -149,7 +150,7 @@ describe('CatalogProductGrid', () => {
     async (contextState) => {
       const wrapper = mountGrid({ contextState })
 
-      const retry = wrapper.get('button[aria-label="Reintentar carga de listas de precios"]')
+      const retry = wrapper.get('[data-testid="catalog-retry-context"]')
       await retry.trigger('click')
 
       expect(wrapper.emitted('retry-context')).toHaveLength(1)
@@ -163,7 +164,7 @@ describe('CatalogProductGrid', () => {
       const wrapper = mountGrid({ contextState })
 
       expect(
-        wrapper.find('button[aria-label="Reintentar carga de listas de precios"]').exists(),
+        wrapper.find('[data-testid="catalog-retry-context"]').exists(),
       ).toBe(false)
     },
   )
@@ -181,7 +182,7 @@ describe('CatalogProductGrid', () => {
     expect(wrapper.text()).toContain('La lista de precios seleccionada no está disponible')
     expect(wrapper.text()).toContain('Elige otra lista de precios para ver el catálogo.')
     expect(wrapper.text()).not.toContain('No pudimos cargar los productos.')
-    expect(wrapper.find('button[aria-label="Reintentar productos"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="catalog-retry-products"]').exists()).toBe(false)
   })
 
   it.each(['loading', 'retry-pending'] as const)(
@@ -205,7 +206,7 @@ describe('CatalogProductGrid', () => {
 
     expect(section.attributes('data-kind')).toBe('error')
     expect(wrapper.findAll('button')).toHaveLength(1)
-    await wrapper.get('button[aria-label="Reintentar productos"]').trigger('click')
+    await wrapper.get('[data-testid="catalog-retry-products"]').trigger('click')
     expect(wrapper.emitted('retry')).toHaveLength(1)
   })
 
@@ -213,5 +214,45 @@ describe('CatalogProductGrid', () => {
     const section = mountGrid({ state: 'empty', products: [] }).get('[data-testid="catalog-state"]')
 
     expect(section.attributes('data-kind')).toBe('empty')
+  })
+
+  it.each([
+    ['branches', { branchesState: 'loading' as const, selectionState: 'none' as const }, 'Cargando sucursales…'],
+    ['branches retry', { branchesState: 'retry-pending' as const, selectionState: 'none' as const }, 'Cargando sucursales…'],
+    ['price lists', { contextState: 'context-loading' as const }, 'Cargando listas de precios…'],
+    ['products', { state: 'loading' as const, products: [] }, 'Cargando productos…'],
+  ])('shapes the %s loading state as card skeletons, never bare text', (_label, props, label) => {
+    const wrapper = mountGrid(props)
+    const skeleton = wrapper.get('[data-testid="catalog-product-skeleton"]')
+
+    expect(skeleton.attributes('aria-busy')).toBe('true')
+    expect(skeleton.get('.sr-only').text()).toBe(label)
+    expect(skeleton.findAll('[data-testid="catalog-product-skeleton-card"]').length).toBeGreaterThanOrEqual(4)
+    expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
+  })
+
+  it.each([
+    ['branches', { branchesState: 'server' as const, selectionState: 'none' as const }, 'No pudimos cargar las sucursales.', 'catalog-retry-branches'],
+    ['price lists', { contextState: 'context-network' as const }, 'No se pudo conectar. Revisa tu conexión.', 'catalog-retry-context'],
+    ['products', { state: 'rate-limit' as const, products: [] }, 'Demasiadas solicitudes. Intenta de nuevo más tarde.', 'catalog-retry-products'],
+  ])('shows the %s failure through the shared error state with Reintentar', async (_label, props, title, retryId) => {
+    const wrapper = mountGrid(props)
+    const state = wrapper.get('[data-testid="catalog-state"]')
+
+    expect(state.classes()).toContain('hf-empty-state')
+    expect(state.attributes('data-kind')).toBe('error')
+    expect(state.attributes('role')).toBe('alert')
+    expect(state.get('.hf-empty-state__title').text()).toBe(title)
+    expect(wrapper.find('.catalog-state-title').exists()).toBe(false)
+    expect(wrapper.get(`[data-testid="${retryId}"]`).text()).toBe('Reintentar')
+  })
+
+  it('keeps an empty branch list as an empty state with its own Actualizar action', async () => {
+    const wrapper = mountGrid({ branchesState: 'empty', selectionState: 'none' })
+    const state = wrapper.get('[data-testid="catalog-state"]')
+
+    expect(state.attributes('data-kind')).toBe('empty')
+    expect(state.get('.hf-empty-state__description').text()).toContain('Vuelve a consultar más tarde')
+    expect(wrapper.get('[data-testid="catalog-retry-branches"]').text()).toBe('Actualizar')
   })
 })

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import type { CatalogProductsState } from '../composables/useCatalogProducts'
 import type { PublicCatalogProductsCategoryFacetDto } from '../interfaces/public-catalog-products.types'
 
@@ -12,6 +13,8 @@ const props = defineProps<{
   ready: boolean
   state: CatalogProductsState
   contextMismatch: boolean
+  /** The listing below already shows a failure: say it once, there, not here too. */
+  combinedError?: boolean
 }>()
 const emit = defineEmits<{ select: [id: string | null]; retry: [] }>()
 const resultTotalLabel = computed(() =>
@@ -19,6 +22,12 @@ const resultTotalLabel = computed(() =>
 )
 const failed = computed(() =>
   ['unavailable', 'rate-limit', 'server', 'network'].includes(props.state),
+)
+const showError = computed(() => (failed.value || props.contextMismatch) && !props.combinedError)
+const errorTitle = computed(() =>
+  failed.value
+    ? 'No pudimos cargar las categorías'
+    : 'Las categorías no coinciden con la lista de precios actual.',
 )
 </script>
 
@@ -66,21 +75,25 @@ const failed = computed(() =>
         >
           Limpiar categoría
         </button>
-        <p v-if="failed" role="status">No pudimos cargar las categorías.</p>
-        <p v-else-if="contextMismatch" role="status">
-          Las categorías no coinciden con la lista de precios actual.
-        </p>
-        <button
-          v-if="failed || contextMismatch"
-          type="button"
-          class="catalog-filter-button"
-          @click="emit('retry')"
+        <EmptyState
+          v-if="showError"
+          data-testid="catalog-category-error"
+          class="catalog-category-error"
+          kind="error"
+          :title="errorTitle"
+          action-label="Reintentar"
+          action-test-id="catalog-retry-categories"
+          @action="emit('retry')"
+        />
+        <div
+          v-else-if="state === 'loading' || state === 'retry-pending'"
+          role="status"
+          aria-busy="true"
+          class="catalog-category-skeleton"
         >
-          Reintentar categorías
-        </button>
-        <p v-else-if="state === 'loading' || state === 'retry-pending'" role="status">
-          Cargando categorías…
-        </p>
+          <span class="sr-only">Cargando categorías…</span>
+          <span v-for="n in 4" :key="n" class="catalog-skeleton catalog-skeleton-pill" aria-hidden="true" />
+        </div>
       </div>
     </div>
   </div>

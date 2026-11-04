@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import CatalogHeader from '../components/CatalogHeader.vue'
 import CatalogHero from '../components/CatalogHero.vue'
 import CatalogCategoryBar from '../components/CatalogCategoryBar.vue'
@@ -178,6 +179,22 @@ const {
 
 // Only the current successful listing can authorize navigation; baseline facets
 // and card count never determine pagination boundaries.
+/**
+ * The categories come from the same listing as the products: when the listing
+ * already shows its failure, the categories do not say it a second time, and the
+ * one Reintentar recovers both.
+ */
+const FAILED_STATES = ['unavailable', 'rate-limit', 'server', 'network']
+const listingFailed = computed(
+  () => readyBranch.value !== null && FAILED_STATES.includes(productsState.value),
+)
+function retryListing() {
+  retryProducts()
+  if (FAILED_STATES.includes(baselineState.value)) retryBaseline()
+}
+// A malformed `q` (null) still counts: it must stay clearable.
+const hasSearch = computed(() => searchDraft.value !== '' || route.query.q !== undefined)
+
 const paginationMeta = computed(() =>
   readyBranch.value !== null &&
   filterError.value === null &&
@@ -406,7 +423,12 @@ async function selectPriceContext(priceListIdToSelect: string) {
                 placeholder="¿Qué necesita tu compañero?"
               />
               <button type="submit" class="catalog-filter-button">Buscar</button>
-              <button type="button" class="catalog-filter-button" @click="commitSearch('')">
+              <button
+                v-if="hasSearch"
+                type="button"
+                class="catalog-filter-button"
+                @click="commitSearch('')"
+              >
                 Limpiar búsqueda
               </button>
             </div>
@@ -420,56 +442,42 @@ async function selectPriceContext(priceListIdToSelect: string) {
             :has-category="route.query.categoryId !== undefined"
             :ready="readyBranch !== null"
             :state="baselineState"
+            :combined-error="listingFailed"
             @select="selectCategory"
             @retry="retryBaseline"
           />
         </div>
-        <div
-          v-if="filterError && readyBranch"
-          class="catalog-container catalog-state"
-          data-kind="empty"
-          role="status"
-        >
-          <p class="catalog-state-title">
-            {{
+        <div v-if="filterError && readyBranch" class="catalog-container">
+          <EmptyState
+            kind="empty"
+            :title="
               filterError === 'search'
                 ? 'Búsqueda no válida.'
                 : filterError === 'category'
                   ? 'Categoría no válida.'
                   : 'Página no válida.'
-            }}
-          </p>
-          <button
-            v-if="filterError === 'category'"
-            type="button"
-            class="catalog-filter-button"
-            @click="selectCategory(null)"
-          >
-            Limpiar categoría
-          </button>
-          <button
-            v-else-if="filterError === 'page'"
-            type="button"
-            class="catalog-filter-button"
-            @click="recoverPage"
-          >
-            Restablecer página
-          </button>
+            "
+            :action-label="
+              filterError === 'category'
+                ? 'Limpiar categoría'
+                : filterError === 'page'
+                  ? 'Restablecer página'
+                  : undefined
+            "
+            action-icon="i-lucide-rotate-ccw"
+            action-test-id="catalog-filter-recover"
+            @action="filterError === 'category' ? selectCategory(null) : recoverPage()"
+          />
         </div>
-        <div
-          v-else-if="isPageOutOfRange"
-          class="catalog-container catalog-state"
-          data-kind="empty"
-          role="status"
-        >
-          <h2 class="catalog-state-title">Página fuera de rango</h2>
-          <button
-            type="button"
-            class="catalog-filter-button"
-            @click="navigatePage(lastAvailablePage)"
-          >
-            Ir a la última página disponible
-          </button>
+        <div v-else-if="isPageOutOfRange" class="catalog-container">
+          <EmptyState
+            kind="empty"
+            title="Página fuera de rango"
+            action-label="Ir a la última página disponible"
+            action-icon="i-lucide-chevrons-right"
+            action-test-id="catalog-filter-recover"
+            @action="navigatePage(lastAvailablePage)"
+          />
         </div>
         <CatalogProductGrid
           v-else
@@ -478,7 +486,7 @@ async function selectPriceContext(priceListIdToSelect: string) {
           :products="products"
           :state="productsState"
           :context-state="contextState"
-          @retry="retryProducts"
+          @retry="retryListing"
           @retry-branches="retryBranches"
           @retry-context="retryPriceContexts"
           @open-detail="openDetail"

@@ -49,7 +49,7 @@ function onSelect(value: string | null) {
     data-testid="catalog-price-context-selector"
     class="catalog-price-context w-full min-w-0"
   >
-    <span data-testid="catalog-price-context-label" class="text-xs font-medium text-muted">
+    <span data-testid="catalog-price-context-label" class="text-xs font-medium text-muted max-sm:sr-only">
       Lista de precios
     </span>
     <USelectMenu
@@ -92,8 +92,8 @@ function onSelect(value: string | null) {
         {{ message }}
       </p>
       <UButton
-        color="primary"
-        variant="solid"
+        color="neutral"
+        variant="outline"
         size="sm"
         icon="i-lucide-refresh-cw"
         aria-label="Reintentar listas de precios"

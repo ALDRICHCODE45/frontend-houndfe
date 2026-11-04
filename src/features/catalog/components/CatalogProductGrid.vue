@@ -17,6 +17,7 @@ export type CatalogProductContextState =
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import CatalogProductCard from './CatalogProductCard.vue'
 import type { CatalogBranchesState } from '../composables/useCatalogBranches'
 import type { CatalogProductsState } from '../composables/useCatalogProducts'
@@ -44,9 +45,6 @@ const branchesPending = computed(
 )
 const branchesCopy = computed(() => {
   switch (props.branchesState) {
-    case 'loading':
-    case 'retry-pending':
-      return 'Cargando sucursales…'
     case 'empty':
       return 'No hay sucursales publicadas'
     case 'rate-limit':
@@ -82,6 +80,31 @@ const contextRetryable = computed(
     props.contextState === 'context-server',
 )
 
+/**
+ * The one loading shape: the listing's own cards. Which request is pending only
+ * changes the announced label; the order mirrors the state chain below.
+ */
+const skeletonLabel = computed<string | null>(() => {
+  if (props.branchesState !== 'populated') {
+    return branchesPending.value ? 'Cargando sucursales…' : null
+  }
+  if (props.selectionState !== 'selected') return null
+  if (props.contextState !== 'context-ready') {
+    return props.contextState === 'context-loading' ? 'Cargando listas de precios…' : null
+  }
+  if (props.state === 'loading' || props.state === 'retry-pending') {
+    return props.state === 'retry-pending' ? 'Reintentando productos…' : 'Cargando productos…'
+  }
+  return null
+})
+const productsErrorTitle = computed(() =>
+  props.state === 'rate-limit'
+    ? 'Demasiadas solicitudes. Intenta de nuevo más tarde.'
+    : props.state === 'network'
+      ? 'No se pudo conectar. Revisa tu conexión.'
+      : 'No pudimos cargar los productos.',
+)
+
 function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
   emit('open-detail', productId, invoker)
 }
@@ -90,109 +113,13 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
 <template>
   <div class="catalog-container py-6 lg:py-8">
     <section
-      v-if="branchesState !== 'populated'"
-      class="catalog-state"
-      :data-kind="
-        branchesPending ? 'loading' : branchesState === 'empty' ? 'empty' : 'error'
-      "
-      data-testid="catalog-state"
-      role="status"
-      aria-live="polite"
-      :aria-busy="branchesPending"
-    >
-      <h2 class="catalog-state-title">{{ branchesCopy }}</h2>
-      <p v-if="branchesState === 'empty'" class="catalog-state-note">
-        El catálogo no está disponible en este momento. Vuelve a consultar más tarde.
-      </p>
-      <button
-        v-if="!branchesPending"
-        type="button"
-        aria-label="Reintentar descubrimiento de sucursales"
-        class="catalog-state-action"
-        @click="emit('retry-branches')"
-      >
-        Actualizar
-      </button>
-    </section>
-
-    <section
-      v-else-if="selectionState === 'none'"
-      class="catalog-state"
-      data-kind="empty"
-      data-testid="catalog-state"
-      aria-live="polite"
-    >
-      <UIcon name="i-lucide-store" class="catalog-state-icon" />
-      <h2 class="catalog-state-title">Elige una sucursal para explorar el catálogo</h2>
-      <p class="catalog-state-note">Selecciona una sucursal publicada para ver sus productos.</p>
-    </section>
-
-    <section
-      v-else-if="selectionState === 'invalid'"
-      class="catalog-state"
-      data-kind="empty"
-      data-testid="catalog-state"
-      aria-live="polite"
-    >
-      <UIcon name="i-lucide-map-pin-off" class="catalog-state-icon" />
-      <h2 class="catalog-state-title">Esta sucursal no está disponible</h2>
-      <p class="catalog-state-note">
-        Elige una de las sucursales publicadas para explorar el catálogo.
-      </p>
-    </section>
-
-    <section
-      v-else-if="contextState !== 'context-ready'"
-      class="catalog-state"
-      :data-kind="
-        contextState === 'context-loading'
-          ? 'loading'
-          : contextState === 'context-empty' || contextState === 'context-no-default'
-            ? 'empty'
-            : 'error'
-      "
-      data-testid="catalog-state"
-      role="status"
-      aria-live="polite"
-      :aria-busy="contextState === 'context-loading'"
-    >
-      <UIcon
-        :name="
-          contextState === 'context-loading'
-            ? 'i-lucide-loader-circle'
-            : contextState === 'context-empty'
-              ? 'i-lucide-tag'
-              : contextState === 'context-no-default'
-                ? 'i-lucide-tags'
-                : 'i-lucide-circle-alert'
-        "
-        class="catalog-state-icon"
-        :class="contextState === 'context-loading' ? 'animate-spin' : ''"
-      />
-      <h2 class="catalog-state-title">
-        {{ contextState === 'context-loading' ? 'Cargando listas de precios…' : contextCopy }}
-      </h2>
-      <button
-        v-if="contextRetryable"
-        class="catalog-state-action"
-        type="button"
-        aria-label="Reintentar carga de listas de precios"
-        @click="emit('retry-context')"
-      >
-        Reintentar
-      </button>
-    </section>
-
-    <section
-      v-else-if="state === 'loading' || state === 'retry-pending'"
+      v-if="skeletonLabel"
       data-testid="catalog-product-skeleton"
       role="status"
       aria-live="polite"
       :aria-busy="true"
     >
-      <h2 class="sr-only">
-        {{ state === 'retry-pending' ? 'Reintentando productos…' : 'Cargando productos…' }}
-      </h2>
+      <h2 class="sr-only">{{ skeletonLabel }}</h2>
       <div class="grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-5" aria-hidden="true">
         <div
           v-for="index in 10"
@@ -208,6 +135,67 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
       </div>
     </section>
 
+    <template v-else-if="branchesState !== 'populated'">
+      <EmptyState
+        v-if="branchesState === 'empty'"
+        data-testid="catalog-state"
+        kind="empty"
+        title="No hay sucursales publicadas"
+        description="El catálogo no está disponible en este momento. Vuelve a consultar más tarde."
+        action-label="Actualizar"
+        action-test-id="catalog-retry-branches"
+        @action="emit('retry-branches')"
+      />
+      <EmptyState
+        v-else
+        data-testid="catalog-state"
+        kind="error"
+        :title="branchesCopy"
+        action-label="Reintentar"
+        action-test-id="catalog-retry-branches"
+        @action="emit('retry-branches')"
+      />
+    </template>
+
+    <EmptyState
+      v-else-if="selectionState === 'none'"
+      data-testid="catalog-state"
+      kind="empty"
+      icon="i-lucide-store"
+      title="Elige una sucursal para explorar el catálogo"
+      description="Selecciona una sucursal publicada para ver sus productos."
+    />
+
+    <EmptyState
+      v-else-if="selectionState === 'invalid'"
+      data-testid="catalog-state"
+      kind="empty"
+      icon="i-lucide-map-pin-off"
+      title="Esta sucursal no está disponible"
+      description="Elige una de las sucursales publicadas para explorar el catálogo."
+    />
+
+    <EmptyState
+      v-else-if="contextState !== 'context-ready'"
+      data-testid="catalog-state"
+      :kind="
+        contextState === 'context-empty' || contextState === 'context-no-default'
+          ? 'empty'
+          : 'error'
+      "
+      :icon="
+        contextState === 'context-empty'
+          ? 'i-lucide-tag'
+          : contextState === 'context-no-default'
+            ? 'i-lucide-tags'
+            : undefined
+      "
+      :title="contextCopy"
+      :action-label="contextRetryable ? 'Reintentar' : undefined"
+      action-test-id="catalog-retry-context"
+      @action="emit('retry-context')"
+    />
+
     <section v-else-if="state === 'populated'" aria-live="polite">
       <p class="sr-only" role="status">Productos cargados</p>
       <div data-testid="catalog-product-grid" class="grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-5">
@@ -220,64 +208,35 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
       </div>
     </section>
 
-    <section
+    <EmptyState
       v-else-if="state === 'empty'"
-      class="catalog-state"
-      data-kind="empty"
       data-testid="catalog-state"
-      role="status"
-      aria-live="polite"
-    >
-      <UIcon name="i-lucide-package-open" class="catalog-state-icon" />
-      <h2 class="catalog-state-title">No hay productos disponibles en este momento</h2>
-      <button
-        class="catalog-state-action"
-        type="button"
-        aria-label="Reintentar productos"
-        @click="emit('retry')"
-      >
-        Actualizar
-      </button>
-    </section>
+      kind="empty"
+      icon="i-lucide-package-open"
+      title="No hay productos disponibles en este momento"
+      action-label="Actualizar"
+      action-icon="i-lucide-rotate-cw"
+      action-test-id="catalog-retry-products"
+      @action="emit('retry')"
+    />
 
-    <section
+    <EmptyState
       v-else-if="state === 'unavailable'"
-      class="catalog-state"
-      data-kind="empty"
       data-testid="catalog-state"
-      role="status"
-      aria-live="polite"
-    >
-      <UIcon name="i-lucide-circle-alert" class="catalog-state-icon" />
-      <h2 class="catalog-state-title">La lista de precios seleccionada no está disponible</h2>
-      <p class="catalog-state-note">Elige otra lista de precios para ver el catálogo.</p>
-    </section>
+      kind="empty"
+      icon="i-lucide-circle-alert"
+      title="La lista de precios seleccionada no está disponible"
+      description="Elige otra lista de precios para ver el catálogo."
+    />
 
-    <section
+    <EmptyState
       v-else
-      class="catalog-state"
-      data-kind="error"
       data-testid="catalog-state"
-      role="alert"
-    >
-      <UIcon name="i-lucide-triangle-alert" class="catalog-state-icon" />
-      <h2 class="catalog-state-title">
-        {{
-          state === 'rate-limit'
-            ? 'Demasiadas solicitudes. Intenta de nuevo más tarde.'
-            : state === 'network'
-              ? 'No se pudo conectar. Revisa tu conexión.'
-              : 'No pudimos cargar los productos.'
-        }}
-      </h2>
-      <button
-        class="catalog-state-action"
-        type="button"
-        aria-label="Reintentar productos"
-        @click="emit('retry')"
-      >
-        Reintentar
-      </button>
-    </section>
+      kind="error"
+      :title="productsErrorTitle"
+      action-label="Reintentar"
+      action-test-id="catalog-retry-products"
+      @action="emit('retry')"
+    />
   </div>
 </template>
