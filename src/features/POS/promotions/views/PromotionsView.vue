@@ -359,7 +359,7 @@ const batchDeleteMutation = useMutation({
         break
       case 'INSUFFICIENT_PERMISSIONS':
         toast.add({
-          title: 'No tenés permisos para eliminar promociones en lote.',
+          title: 'No tienes permisos para eliminar promociones en lote.',
           color: 'error',
         })
         break
@@ -404,7 +404,7 @@ const batchEndMutation = useMutation({
         break
       case 'INSUFFICIENT_PERMISSIONS':
         toast.add({
-          title: 'No tenés permisos para finalizar promociones en lote.',
+          title: 'No tienes permisos para finalizar promociones en lote.',
           color: 'error',
         })
         break
@@ -451,7 +451,7 @@ const batchActivateMutation = useMutation({
         break
       case 'INSUFFICIENT_PERMISSIONS':
         toast.add({
-          title: 'No tenés permisos para reactivar promociones en lote.',
+          title: 'No tienes permisos para reactivar promociones en lote.',
           color: 'error',
         })
         break

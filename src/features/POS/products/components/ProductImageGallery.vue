@@ -252,7 +252,7 @@ function isImageBroken(imageId: string): boolean {
             :class="isOverDropZone ? 'text-(--hf-active)' : 'text-muted'"
           />
           <p class="text-base font-medium mb-1">
-            Arrastra tus imágenes aquí o hacé click para elegir
+            Arrastra tus imágenes aquí o haz clic para elegir
           </p>
           <p class="text-sm text-muted mb-2">JPG, PNG, WEBP o GIF — máx 10 MB</p>
           <div class="mt-2 flex items-center gap-2 text-xs font-medium text-muted">

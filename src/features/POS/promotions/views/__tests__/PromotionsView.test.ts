@@ -944,7 +944,7 @@ describe('PromotionsView — batch delete (sdd-10)', () => {
 
     const errorToast = toastCalls.find((t) => t.color === 'error')
     expect(errorToast).toBeDefined()
-    expect(errorToast?.title).toContain('No tenés permisos')
+    expect(errorToast?.title).toContain('No tienes permisos')
 
     const vm = wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }
     expect(vm.rowSelection.value).toEqual({ 0: true })
@@ -1192,7 +1192,7 @@ describe('PromotionsView — batch end', () => {
     await flushPromises()
 
     expect(toastCalls.find((toast) => toast.color === 'error')?.title).toContain(
-      'No tenés permisos',
+      'No tienes permisos',
     )
     expect(
       (wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }).rowSelection
@@ -1411,7 +1411,7 @@ describe('PromotionsView — batch activate (sdd-13)', () => {
     await flushPromises()
 
     expect(toastCalls.find((toast) => toast.color === 'error')?.title).toContain(
-      'No tenés permisos',
+      'No tienes permisos',
     )
     expect(
       (wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }).rowSelection

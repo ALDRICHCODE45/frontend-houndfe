@@ -150,9 +150,9 @@ const requoteSnapshot = ref<{
 // Spanish, cashier-facing copy. Kept as constants so tests and the two
 // recovery paths cannot drift apart.
 const REQUOTE_TOTALS_UNAVAILABLE_MESSAGE =
-  'No pudimos actualizar los totales de la venta. Revisá el carrito y volvé a intentar el cobro.'
+  'No pudimos actualizar los totales de la venta. Revisa el carrito y vuelve a intentar el cobro.'
 const CAPACITY_RACE_MESSAGE =
-  'La capacidad de una promoción cambió durante el cobro. Actualizamos la venta; revisá los pagos y confirmá el cobro de nuevo.'
+  'La capacidad de una promoción cambió durante el cobro. Actualizamos la venta; revisa los pagos y confirma el cobro de nuevo.'
 
 // ── Mobile cart drawer (responsive UX, not functionality) ──────────────────
 // Below the lg breakpoint the cart panel moves out of the split layout and

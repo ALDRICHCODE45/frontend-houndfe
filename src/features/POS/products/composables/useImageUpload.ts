@@ -34,7 +34,7 @@ export function validateImageFiles(files: File[] | FileList): ValidationResult {
     if (!ALLOWED_IMAGE_MIME_TYPES.includes(file.type as any)) {
       invalid.push({
         file,
-        reason: 'Formato no soportado (usá JPG, PNG, WEBP o GIF)',
+        reason: 'Formato no soportado (usa JPG, PNG, WEBP o GIF)',
       })
       continue
     }

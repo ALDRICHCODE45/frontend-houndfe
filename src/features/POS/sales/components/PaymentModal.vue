@@ -432,14 +432,14 @@ function handleSubmit() {
       cashSaleSession.clearSelection()
       needsBindingDecision.value = true
       bindingError.value =
-        'La sesión de caja elegida ya no está disponible. Elegí otra o cobrá sin vincular.'
+        'La sesión de caja elegida ya no está disponible. Elige otra o cobra sin vincular.'
       return
     }
     // The scope is current but the chosen row is not on the current page
     // (ordinary paging/refetch): keep the explicit selection and block.
     if (!cashSaleSession.revalidateSelection()) {
       bindingError.value =
-        'La sesión de caja elegida ya no está disponible. Elegí otra o cobrá sin vincular.'
+        'La sesión de caja elegida ya no está disponible. Elige otra o cobra sin vincular.'
       return
     }
   }
@@ -449,7 +449,7 @@ function handleSubmit() {
   // legacy unbound charges (no prior selection) are unaffected.
   if (needsBindingDecision.value) {
     bindingError.value =
-      'La sesión de caja elegida ya no está disponible. Elegí otra o cobrá sin vincular.'
+      'La sesión de caja elegida ya no está disponible. Elige otra o cobra sin vincular.'
     return
   }
 
@@ -792,7 +792,7 @@ const confirmButtonClass = computed(() =>
               @update:page="cashSaleSession.setPage($event)"
             />
             <p class="text-xs text-muted">
-              Vinculá el cobro a una sesión de caja abierta propia. Si no elegís ninguna, el cobro
+              Vincula el cobro a una sesión de caja abierta propia. Si no eliges ninguna, el cobro
               queda sin vincular.
             </p>
           </section>
@@ -807,7 +807,7 @@ const confirmButtonClass = computed(() =>
             class="space-y-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-3 sales-pos-checkout-binding-lost"
           >
             <p class="text-xs text-warning">
-              La sesión de caja vinculada ya no está disponible. Elegí otra sesión o cobrá sin
+              La sesión de caja vinculada ya no está disponible. Elige otra sesión o cobra sin
               vincular.
             </p>
             <UButton
@@ -851,7 +851,7 @@ const confirmButtonClass = computed(() =>
                 </button>
               </div>
               <p class="text-xs text-muted">
-                Fecha en que vence la deuda generada. Si no la indicás, el sistema aplica el plazo
+                Fecha en que vence la deuda generada. Si no la indicas, el sistema aplica el plazo
                 por defecto.
               </p>
               <DateFieldPopover
@@ -883,7 +883,7 @@ const confirmButtonClass = computed(() =>
             />
 
             <p v-if="!hasShippingAddress" data-testid="delivery-hint" class="text-xs text-warning">
-              asigná cliente y dirección primero
+              asigna cliente y dirección primero
             </p>
 
             <div v-if="!hasShippingAddress">

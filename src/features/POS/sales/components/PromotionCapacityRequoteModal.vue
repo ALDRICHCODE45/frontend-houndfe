@@ -73,7 +73,7 @@ function handleAccept() {
     :dismissible="false"
     :close="false"
     title="Actualizamos los totales de tu venta"
-    description="El cupo de una promoción cambió al confirmar el cobro. Revisá los nuevos importes antes de volver a cobrar."
+    description="El cupo de una promoción cambió al confirmar el cobro. Revisa los nuevos importes antes de volver a cobrar."
     :ui="modalUi"
   >
     <template #body>
@@ -126,7 +126,7 @@ function handleAccept() {
           </ul>
         </div>
 
-        <p class="text-xs text-muted">Revisá los pagos y confirmá el cobro nuevamente.</p>
+        <p class="text-xs text-muted">Revisa los pagos y confirma el cobro nuevamente.</p>
       </div>
     </template>
 

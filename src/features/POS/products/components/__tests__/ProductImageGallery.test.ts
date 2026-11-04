@@ -65,12 +65,12 @@ describe('ProductImageGallery - Dropzone-first refactor', () => {
       expect(dropzone.classes()).toContain('bg-default')
     })
 
-    it('should show idle copy "Arrastra tus imágenes aquí o hacé click para elegir"', () => {
+    it('should show idle copy "Arrastra tus imágenes aquí o haz clic para elegir"', () => {
       const wrapper = createWrapper()
       
       const dropzone = wrapper.find('[role="button"]')
       expect(dropzone.text()).toContain('Arrastra tus imágenes aquí')
-      expect(dropzone.text()).toContain('hacé click para elegir')
+      expect(dropzone.text()).toContain('haz clic para elegir')
     })
 
     it('should show allowed formats copy "JPG, PNG, WEBP o GIF — máx 10 MB"', () => {

@@ -1653,7 +1653,7 @@ function handleSubmitVariant(event: FormSubmitEvent<VariantFormState>) {
   if (!option) {
     toast.add({
       title: 'Opción requerida',
-      description: 'Ingresá una opción personalizada.',
+      description: 'Ingresa una opción personalizada.',
       color: 'error',
     })
     return
@@ -2929,7 +2929,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
               <UInput
                 v-if="variantState.option === CUSTOM_VARIANT_OPTION_VALUE"
                 v-model="variantState.customOption"
-                placeholder="Escribí la opción"
+                placeholder="Escribe la opción"
                 class="w-full"
               />
             </div>

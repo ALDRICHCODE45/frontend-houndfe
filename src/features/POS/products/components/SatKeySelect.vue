@@ -280,7 +280,7 @@ watch(
             v-else-if="state === 'idle'"
             class="p-2.5 text-center text-sm text-muted"
           >
-            Escribí al menos 2 caracteres para buscar
+            Escribe al menos 2 caracteres para buscar
           </p>
 
           <!-- No matches -->

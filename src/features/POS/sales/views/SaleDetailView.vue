@@ -213,7 +213,7 @@ function mapPdfError(err: unknown): { description: string; color: 'error' } {
       return { description: 'Error al generar el PDF. Intenta nuevamente', color: 'error' }
   }
   const status = (err as AxiosError)?.response?.status
-  if (status === 401) return { description: 'Sesión expirada. Iniciá sesión nuevamente', color: 'error' }
+  if (status === 401) return { description: 'Sesión expirada. Inicia sesión nuevamente', color: 'error' }
   if (status === 403) return { description: 'No tienes permiso para descargar este recibo', color: 'error' }
   if (status === 404) return { description: 'Venta no encontrada', color: 'error' }
   // Network failure (no HTTP response at all).
@@ -246,7 +246,7 @@ async function handlePreviewPdf(format: SalePdfFormat) {
       link.click()
       useToast().add({
         title: 'Recibo descargado',
-        description: 'Se descargó el recibo. Permití ventanas emergentes para previsualizar.',
+        description: 'Se descargó el recibo. Permite ventanas emergentes para previsualizar.',
         color: 'primary',
       })
     }

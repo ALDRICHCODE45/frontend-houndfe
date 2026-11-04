@@ -104,7 +104,7 @@ export const promotionFormSchema = baseSchema.superRefine((data, ctx) => {
     if (data.maxProductUnits == null) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Indicá una cantidad límite de unidades',
+        message: 'Indica una cantidad límite de unidades',
         path: ['maxProductUnits'],
       })
     } else if (

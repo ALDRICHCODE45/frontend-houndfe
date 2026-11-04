@@ -461,7 +461,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
                 class="w-full"
                 :rows="4"
                 size="lg"
-                placeholder="Describí las responsabilidades principales"
+                placeholder="Describe las responsabilidades principales"
                 :disabled="isPending"
               />
             </UFormField>

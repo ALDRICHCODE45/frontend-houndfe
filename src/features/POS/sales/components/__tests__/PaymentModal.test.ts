@@ -1036,7 +1036,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
 
     const toggle = wrapper.get('[data-testid="delivery-toggle"]')
     expect(toggle.attributes('disabled')).toBeDefined()
-    expect(wrapper.html()).toContain('asigná cliente y dirección primero')
+    expect(wrapper.html()).toContain('asigna cliente y dirección primero')
   })
 
   it('toggle is enabled and hint absent when shippingAddress is present', () => {
@@ -1052,7 +1052,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
 
     const toggle = wrapper.get('[data-testid="delivery-toggle"]')
     expect(toggle.attributes('disabled')).toBeUndefined()
-    expect(wrapper.html()).not.toContain('asigná cliente y dirección primero')
+    expect(wrapper.html()).not.toContain('asigna cliente y dirección primero')
   })
 
   // Backend sale shipping snapshot: a customer who deletes the address after
@@ -1071,7 +1071,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
 
     const toggle = wrapper.get('[data-testid="delivery-toggle"]')
     expect(toggle.attributes('disabled')).toBeUndefined()
-    expect(wrapper.html()).not.toContain('asigná cliente y dirección primero')
+    expect(wrapper.html()).not.toContain('asigna cliente y dirección primero')
   })
 
   it('CTA emits request-assign-customer when toggle is gated (shippingAddress null)', async () => {
@@ -1324,7 +1324,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
     // cannot leak into a subsequent buildPayload().
     expect((toggle.element as HTMLInputElement).checked).toBe(false)
     expect(toggle.attributes('disabled')).toBeDefined()
-    expect(wrapper.html()).toContain('asigná cliente y dirección primero')
+    expect(wrapper.html()).toContain('asigna cliente y dirección primero')
 
     // Regression: a submit AFTER the address clears MUST omit the delivery key,
     // even if the cashier never flipped the toggle back manually.
@@ -1352,7 +1352,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
     const toggle = wrapper.get('[data-testid="delivery-toggle"]')
     expect(toggle.attributes('disabled')).toBeDefined()
     // No hint when an address IS present (gate is open); only isSubmitting.
-    expect(wrapper.html()).not.toContain('asigná cliente y dirección primero')
+    expect(wrapper.html()).not.toContain('asigna cliente y dirección primero')
   })
 
   // TRIANGULATE: when hasShippingAddress is true, the CTA MUST NOT render

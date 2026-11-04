@@ -45,7 +45,7 @@ export function mapMembershipError(codeOrMessage: string): string {
 }
 
 const ELIGIBLE_USERS_ERROR_MAP: Record<string, string> = {
-  SEARCH_QUERY_TOO_SHORT: 'Escribí al menos 2 caracteres para buscar.',
+  SEARCH_QUERY_TOO_SHORT: 'Escribe al menos 2 caracteres para buscar.',
 }
 
 export function mapEligibleUsersError(codeOrMessage: string): string {

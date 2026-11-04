@@ -503,7 +503,7 @@ describe('R6 — the footer carries debt, error and processing states', () => {
     expect(footer.text()).toContain('Deuda a generar')
     expect(footer.get('[data-testid="confirm-charge"]').text()).toContain('Deuda')
 
-    await wrapper.setProps({ externalError: 'No se pudo cobrar. Reintentá.' })
+    await wrapper.setProps({ externalError: 'No se pudo cobrar. Reintenta.' })
     expect(bodyEl('.sales-pos-checkout-footer').text()).toContain('No se pudo cobrar')
 
     await wrapper.setProps({ externalError: null, isSubmitting: true })

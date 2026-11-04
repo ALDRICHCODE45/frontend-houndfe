@@ -201,7 +201,7 @@ function onSubmit(
               description-key="email"
               placeholder="Selecciona un usuario"
               v-model:search-term="userSearchTerm"
-              :search-input="{ placeholder: 'Escribí para buscar usuarios' }"
+              :search-input="{ placeholder: 'Escribe para buscar usuarios' }"
               :ignore-filter="true"
               :loading="isLoadingUsers"
               :avatar="selectedUserAvatar"
@@ -209,7 +209,7 @@ function onSubmit(
               size="lg"
             >
               <template #empty>
-                <span v-if="isSingleCharSearch">Escribí al menos 2 caracteres para buscar usuarios</span>
+                <span v-if="isSingleCharSearch">Escribe al menos 2 caracteres para buscar usuarios</span>
                 <span v-else>No hay usuarios activos disponibles para agregar.</span>
               </template>
             </USelectMenu>

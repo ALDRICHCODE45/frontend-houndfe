@@ -491,13 +491,13 @@ describe('membershipsApi.getEligibleUsers', () => {
 describe('mapEligibleUsersError', () => {
   it('maps SEARCH_QUERY_TOO_SHORT to user-facing message', () => {
     expect(mapEligibleUsersError('SEARCH_QUERY_TOO_SHORT')).toBe(
-      'Escribí al menos 2 caracteres para buscar.',
+      'Escribe al menos 2 caracteres para buscar.',
     )
   })
 
   it('handles mixed-case codes', () => {
     expect(mapEligibleUsersError('search_query_too_short')).toBe(
-      'Escribí al menos 2 caracteres para buscar.',
+      'Escribe al menos 2 caracteres para buscar.',
     )
   })
 

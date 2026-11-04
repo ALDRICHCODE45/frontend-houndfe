@@ -36,7 +36,7 @@ describe('getSalePaymentErrorAction', () => {
 
     expect(amount.type).toBe('inline')
     expect(insufficient.type).toBe('inline')
-    expect(insufficient.message).toBe('Agregá un pago en efectivo o ajustá los montos para cubrir el total')
+    expect(insufficient.message).toBe('Agrega un pago en efectivo o ajusta los montos para cubrir el total')
   })
 
   it('maps idempotency errors to retry/new-key actions', () => {

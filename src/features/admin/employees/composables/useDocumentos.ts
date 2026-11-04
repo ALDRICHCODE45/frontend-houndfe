@@ -193,7 +193,7 @@ export function useUploadDocument(employeeId: MaybeRef<string>) {
     onError: () => {
       toast.add({
         title: 'No se pudo subir el documento',
-        description: 'Verifica que el archivo sea válido (PDF, DOC, DOCX, JPG, PNG o WEBP) e intentá de nuevo.',
+        description: 'Verifica que el archivo sea válido (PDF, DOC, DOCX, JPG, PNG o WEBP) e intenta de nuevo.',
         color: 'error',
       })
     },

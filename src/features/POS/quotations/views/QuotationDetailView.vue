@@ -585,7 +585,7 @@ async function handlePreviewPdf(): Promise<void> {
       link.click()
       useToast().add({
         title: 'Cotización descargada',
-        description: 'Permití ventanas emergentes para previsualizar en el navegador.',
+        description: 'Permite ventanas emergentes para previsualizar en el navegador.',
         color: 'primary',
       })
     }
@@ -611,7 +611,7 @@ async function handlePreviewPdf(): Promise<void> {
     }
     const status = (error as { response?: { status?: number } })?.response?.status
     if (status === 401) {
-      useToast().add({ title: 'Sesión expirada. Iniciá sesión nuevamente', color: 'error' })
+      useToast().add({ title: 'Sesión expirada. Inicia sesión nuevamente', color: 'error' })
       return
     }
     if (status === 403) {
@@ -1122,7 +1122,7 @@ function onHeaderAction(key: string): void {
                 value-key="value"
                 :items="allPromoItems"
                 :loading="isLoadingAllPromos"
-                placeholder="Seleccioná una promoción…"
+                placeholder="Selecciona una promoción…"
                 :search-input="{ icon: 'i-lucide-search' }"
                 class="w-full"
                 :ui="{ content: 'hf-theme hf-ui quotations-workspace-portal' }"

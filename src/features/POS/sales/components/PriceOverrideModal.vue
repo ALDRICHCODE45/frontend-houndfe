@@ -112,7 +112,7 @@ watch(
       <form id="price-override-form" class="space-y-4 sales-pos-checkout-window" @submit.prevent="submit">
         <section class="rounded-lg border border-default p-3 space-y-2 bg-elevated/30">
           <p class="text-sm font-medium">Contexto del precio</p>
-          <p class="text-xs text-muted">Elige una lista vigente o definí un valor manual para este ítem.</p>
+          <p class="text-xs text-muted">Elige una lista vigente o define un valor manual para este ítem.</p>
         </section>
 
         <div v-if="isLoading" class="text-sm text-muted">Cargando precios...</div>

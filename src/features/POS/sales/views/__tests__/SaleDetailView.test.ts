@@ -757,13 +757,13 @@ describe('SaleDetailView', () => {
       )
     })
 
-    it('401 → "Sesión expirada. Iniciá sesión nuevamente"', async () => {
+    it('401 → "Sesión expirada. Inicia sesión nuevamente"', async () => {
       vi.mocked(saleApi.getPdfBlob).mockRejectedValue({ response: { status: 401 } })
 
       await clickAndExpectToast(
         { ...defaultSale, status: 'CONFIRMED' as const },
         'Recibo A4',
-        'Sesión expirada. Iniciá sesión nuevamente',
+        'Sesión expirada. Inicia sesión nuevamente',
         'error',
       )
     })

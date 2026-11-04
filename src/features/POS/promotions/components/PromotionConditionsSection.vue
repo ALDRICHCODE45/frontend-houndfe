@@ -234,7 +234,7 @@ defineExpose({ updateField })
                 value-key="value"
                 placeholder="Buscar clientes..."
                 searchable
-                searchable-placeholder="Escribí para buscar..."
+                searchable-placeholder="Escribe para buscar..."
                 :ui="{ content: 'hf-theme hf-ui hf-form-overlay promotions-form-portal' }"
               />
             </div>

@@ -201,7 +201,7 @@ const modalTitle = computed(() => {
             :class="isOverDropZone ? 'text-(--hf-active)' : 'text-muted'"
           />
           <p class="text-base font-medium mb-1">
-            Arrastra tus imágenes aquí o hacé click para elegir
+            Arrastra tus imágenes aquí o haz clic para elegir
           </p>
           <p class="text-sm text-muted">JPG, PNG, WEBP o GIF — máx 10 MB</p>
         </div>

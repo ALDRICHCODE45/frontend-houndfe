@@ -82,7 +82,7 @@ function clear() {
           Cargando sesiones de caja…
         </p>
         <p v-else-if="isError" class="text-xs text-error" data-testid="cash-session-error">
-          No se pudieron cargar las sesiones de caja. Reintentá o cobrá sin vincular.
+          No se pudieron cargar las sesiones de caja. Reintenta o cobra sin vincular.
         </p>
         <p
           v-else-if="sessions.length === 0"
@@ -93,7 +93,7 @@ function clear() {
         </p>
 
         <p v-if="isStaleSelection" class="text-xs text-warning" data-testid="cash-session-stale">
-          La sesión elegida ({{ selectedLabel }}) ya no está disponible. Elegí otra o cobrá sin
+          La sesión elegida ({{ selectedLabel }}) ya no está disponible. Elige otra o cobra sin
           vincular.
         </p>
 

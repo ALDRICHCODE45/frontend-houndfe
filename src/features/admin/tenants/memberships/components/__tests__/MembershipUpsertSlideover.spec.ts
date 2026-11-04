@@ -43,7 +43,7 @@ vi.mock('../../api/memberships.api', async (importOriginal) => {
     ...actual,
     mapEligibleUsersError: vi.fn((code: string) =>
       code === 'SEARCH_QUERY_TOO_SHORT'
-        ? 'Escribí al menos 2 caracteres para buscar.'
+        ? 'Escribe al menos 2 caracteres para buscar.'
         : 'Ocurrió un error inesperado',
     ),
   }

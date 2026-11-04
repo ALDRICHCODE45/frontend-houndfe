@@ -1403,7 +1403,7 @@ describe('SalesView S5A — catalog charge error dispatch (REQ-CAT-007..011)', (
 
     await vi.waitFor(() => {
       expect(wrapper.get('[data-testid="external-error"]').text()).toContain(
-        'Agregá un pago en efectivo o ajustá los montos para cubrir el total',
+        'Agrega un pago en efectivo o ajusta los montos para cubrir el total',
       )
     })
     expect(legacyErrorDispatch).toHaveBeenCalledWith('PAYMENT_AMOUNT_INSUFFICIENT')
