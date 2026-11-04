@@ -88,12 +88,26 @@ describe('estado cell', () => {
       expect(badge.attributes('data-tone')).toBe(tone)
     }
   })
-  it('adds an aviso marker beside the badge only when the draft has avisos', () => {
-    const wrapper = mountList([{ ...row, issueCount: 1 }, { ...row, id: 'p', issueCount: 3 }, { ...row, id: 'q', issueCount: 0 }])
-    expect(cell(wrapper, 'status', 0).get('[data-testid="order-aviso"]').text()).toBe('Con avisos')
-    // 3 raw sub-field issues are not 3 problems: the marker never carries a count.
-    expect(cell(wrapper, 'status', 1).get('[data-testid="order-aviso"]').text()).toBe('Con avisos')
-    expect(cell(wrapper, 'status', 2).find('[data-testid="order-aviso"]').exists()).toBe(false)
+  it('adds an aviso marker beside the badge with the server checklist count', () => {
+    const wrapper = mountList([
+      { ...row, issueCount: 1, checklistItemCount: 1 },
+      // 3 raw sub-field issues are not 3 problems: the count is the checklist's, never the raw one.
+      { ...row, id: 'p', issueCount: 3, checklistItemCount: 2 },
+      { ...row, id: 'q', issueCount: 0, checklistItemCount: 0 },
+      { ...row, id: 'r', issueCount: 2, checklistItemCount: 0 },
+      { ...row, id: 's', issueCount: 2 },
+      { ...row, id: 't', issueCount: 0 },
+      { ...row, id: 'u', status: 'CONFIRMED', issueCount: 0, checklistItemCount: 0 },
+    ])
+    const marker = (index: number) => cell(wrapper, 'status', index).find('[data-testid="order-aviso"]')
+    expect(marker(0).text()).toBe('1 aviso')
+    expect(marker(1).text()).toBe('2 avisos')
+    expect(marker(2).exists()).toBe(false)
+    expect(marker(3).exists()).toBe(false)
+    // Older responses without the field keep the generic wording.
+    expect(marker(4).text()).toBe('Con avisos')
+    expect(marker(5).exists()).toBe(false)
+    expect(marker(6).exists()).toBe(false)
   })
 })
 
@@ -214,13 +228,13 @@ describe('clickable rows', () => {
 
 describe('mobile card', () => {
   it('shows name, ⋮, note, badge, aviso and a footer with the line count, total and short date', () => {
-    const wrapper = mountList([{ ...row, issueCount: 1, lineCount: 3, totals: [{ amount: '12946.00', currency: 'MXN', taxBasis: 'EXCLUDES_TAX' }] }])
+    const wrapper = mountList([{ ...row, issueCount: 1, checklistItemCount: 2, lineCount: 3, totals: [{ amount: '12946.00', currency: 'MXN', taxBasis: 'EXCLUDES_TAX' }] }])
     const card = wrapper.get('article.order-card')
     expect(card.get('button.hf-row-primary').text()).toBe('Proveedor')
     expect(card.get('.hf-row-actions-trigger').attributes('aria-label')).toBe('Acciones de la orden de Proveedor, borrador')
     expect(card.get('.hf-row-secondary').text()).toBe('Nota')
     expect(card.get('[data-testid="order-status"]').text()).toBe('Borrador')
-    expect(card.get('[data-testid="order-aviso"]').text()).toBe('Con avisos')
+    expect(card.get('[data-testid="order-aviso"]').text()).toBe('2 avisos')
     expect(card.get('.order-card-footer').text()).toContain('3 renglones')
     expect(card.get('.order-card-footer').text()).toContain('$12,946.00')
     expect(card.get('.order-card-footer').text()).toContain(formatShortDateTime(row.updatedAt))
