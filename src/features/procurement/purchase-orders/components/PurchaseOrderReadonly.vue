@@ -2,11 +2,11 @@
 import { computed } from 'vue'
 import { formatDecimalMoney } from '@/core/shared/utils/currency.utils'
 import type { PurchaseOrder } from '../interfaces/purchase-order.types'
-import { diagnosticMessage, diagnosticTarget } from '../utils/order-diagnostics'
+import { buildChecklist, lineFlags } from '../utils/order-checklist'
 import { describeLines, locationLabel } from '../utils/order-lines'
+import OrderIssueChecklist from './OrderIssueChecklist.vue'
 const props = defineProps<{ order: PurchaseOrder }>()
 const date = (value: string) => new Date(value).toLocaleString('es-MX')
-const statusLabel = { DRAFT: 'Borrador', CONFIRMED: 'Confirmada', CANCELLED: 'Cancelada' }
 const closure = computed(() => {
   const { confirmedBy, confirmedAt, cancelledBy, cancelledAt } = props.order
   // A cancelled order that was confirmed first keeps both records.
@@ -17,45 +17,45 @@ const closure = computed(() => {
 })
 // Display-only: the server decimals and currency go through the shared formatter untouched.
 const money = (amount: string | null | undefined, currency: string | null | undefined) => amount ? formatDecimalMoney(amount, currency ?? undefined) : '—'
-const lines = computed(() => describeLines(props.order).map(line => ({ ...line,
-  tax: line.cost?.taxBasis === 'INCLUDES_TAX' ? 'Incluye impuestos' : line.cost?.taxBasis === 'EXCLUDES_TAX' ? 'No incluye impuestos' : '',
-  unitCost: money(line.cost?.amount, line.cost?.currency), total: money(line.subtotal?.amount, line.subtotal?.currency) })))
-// Same routing as the editable form: line issues sit under their line, the rest on top.
-const warnings = computed(() => {
-  const summary: string[] = []
-  const byLine: string[][] = props.order.lines.map(() => [])
-  for (const issue of props.order.validation.issues) {
-    const target = diagnosticTarget(issue.path, props.order.lines.length)
-    const message = diagnosticMessage(issue.code)
-    const bucket = target.startsWith('/lines/') ? byLine[Number(target.split('/')[2])]! : summary
-    if (!bucket.includes(message)) bucket.push(message)
-  }
-  return { summary, byLine }
-})
+const checklist = computed(() => props.order.status === 'DRAFT' ? buildChecklist(props.order) : [])
+// Only drafts carry diagnostics: the flagged line is tinted and the missing cell says Falta, without repeating the checklist message.
+const lines = computed(() => describeLines(props.order).map(line => {
+  const flags = props.order.status === 'DRAFT' ? lineFlags(props.order, line.lineId) : null
+  const missing = { quantity: Boolean(flags?.quantity) && line.quantity === '—', cost: Boolean(flags?.cost) && !line.cost?.amount, product: Boolean(flags?.product) && line.product === 'Sin producto' }
+  return { ...line, missing, flagged: Boolean(flags?.any),
+    tax: line.cost?.taxBasis === 'INCLUDES_TAX' ? 'con imp.' : line.cost?.taxBasis === 'EXCLUDES_TAX' ? 'sin imp.' : '',
+    unitCost: money(line.cost?.amount, line.cost?.currency), total: money(line.subtotal?.amount, line.subtotal?.currency) }
+}))
 </script>
 
 <template>
   <div data-testid="order-readonly" class="order-readonly">
-    <div v-if="warnings.summary.length" data-testid="order-readonly-warnings" class="order-warning" role="status" aria-label="Avisos del borrador"><p v-for="message in warnings.summary" :key="message">{{ message }}</p></div>
+    <OrderIssueChecklist v-if="checklist.length" data-testid="order-readonly-warnings" :items="checklist" :dirty="false" :ready="order.canConfirm === true" :linkable="() => false" />
     <dl class="order-readonly-details">
-      <div class="order-detail"><dt>Estado</dt><dd>{{ statusLabel[order.status] }}</dd></div>
-      <div class="order-detail"><dt>Proveedor</dt><dd>{{ order.supplierDisplaySnapshot?.displayName || 'Sin proveedor' }}</dd></div>
-      <div v-if="closure" class="order-detail order-detail-wide"><dt>Registro</dt><dd>{{ closure }}</dd></div>
-      <div class="order-detail order-detail-wide"><dt>Ubicación</dt><dd>{{ locationLabel(order) }}</dd></div>
-      <div class="order-detail order-detail-wide"><dt>Nota</dt><dd class="order-readonly-note">{{ order.note || 'Sin nota' }}</dd></div>
+      <div v-if="closure" class="order-detail"><dt>Registro</dt><dd>{{ closure }}</dd></div>
+      <div class="order-detail"><dt>Ubicación</dt><dd>{{ locationLabel(order) }}</dd></div>
+      <div class="order-detail"><dt>Nota</dt><dd class="order-readonly-note">{{ order.note || 'Sin nota' }}</dd></div>
     </dl>
     <section class="order-section" aria-label="Renglones">
       <h2>Renglones · {{ lines.length }}</h2>
-      <article v-for="(line, index) in lines" :key="line.lineId" class="order-line" :aria-label="`Renglón ${index + 1}`">
-        <div class="order-line-title"><h3>{{ line.product }}</h3><p v-if="line.variant">{{ line.variant }}</p></div>
-        <p v-for="message in warnings.byLine[index]" :key="message" class="order-warning" role="status">{{ message }}</p>
-        <dl class="order-readonly-figures">
-          <div><dt>Cantidad</dt><dd class="order-money">{{ line.quantity }} {{ line.unit }}</dd></div>
-          <div><dt>Costo unitario</dt><dd class="order-money" data-testid="line-cost">{{ line.unitCost }}</dd></div>
-          <div v-if="line.tax"><dt>Impuestos</dt><dd>{{ line.tax }}</dd></div>
-          <div class="order-subtotal-row"><dt>Subtotal</dt><dd class="order-money" data-testid="line-subtotal">{{ line.total }}</dd></div>
-        </dl>
-      </article>
+      <div class="order-lines is-readonly">
+        <div class="order-lines-head" aria-hidden="true"><span>Producto</span><span>Cantidad</span><span>Costo unit.</span><span>Subtotal</span></div>
+        <div v-for="(line, index) in lines" :key="line.lineId" class="order-line-group" role="group" :aria-label="`Renglón ${index + 1}`">
+          <div class="order-line-row" :data-flagged="line.flagged ? 'true' : undefined">
+            <div class="order-line-product">
+              <span class="order-line-name">{{ line.product }}</span>
+              <span v-if="line.missing.product" class="order-line-variant order-missing"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />Falta el producto</span>
+              <span v-else-if="line.variant" class="order-line-variant">{{ line.variant }}</span>
+            </div>
+            <div class="order-line-qty order-money"><span v-if="line.missing.quantity" class="order-missing"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />Falta</span><template v-else>{{ line.quantity }}{{ line.unit ? ` ${line.unit}` : '' }}</template></div>
+            <div class="order-line-cost">
+              <span data-testid="line-cost" class="order-money" :class="{ 'order-missing': line.missing.cost }"><template v-if="line.missing.cost"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />Falta</template><template v-else>{{ line.unitCost }}</template></span>
+              <small v-if="line.tax" class="order-line-tax">{{ line.tax }}</small>
+            </div>
+            <div class="order-line-total"><span data-testid="line-subtotal" class="order-money order-line-subtotal">{{ line.total }}</span></div>
+          </div>
+        </div>
+      </div>
     </section>
   </div>
 </template>

@@ -3,8 +3,11 @@ import { usePurchaseOrderCommands, type PurchaseOrderCommandContext } from './us
 import { usePurchaseOrder, type PurchaseOrderReadContext } from './usePurchaseOrders'
 import type { OrderInput, PurchaseOrder, PurchaseOrderSummary } from '../interfaces/purchase-order.types'
 import { commandMessage } from '../utils/order-diagnostics'
+// What a discard needs from an order: the list rows and the open order both fit.
+export type DiscardTarget = Pick<PurchaseOrderSummary, 'id' | 'version' | 'supplierDisplaySnapshot'>
 export interface OrderWorkspaceContext extends PurchaseOrderCommandContext, PurchaseOrderReadContext { canReadProduct: boolean; canReadSupplier: boolean }
-export function usePurchaseOrderWorkspace(context: MaybeRefOrGetter<OrderWorkspaceContext>, refresh: () => Promise<unknown>) {
+// `transitionFocus` names where focus goes back to when a confirmation dialog closes and no button was focused when it opened (menu items disappear).
+export function usePurchaseOrderWorkspace(context: MaybeRefOrGetter<OrderWorkspaceContext>, refresh: () => Promise<unknown>, transitionFocus?: () => HTMLElement | null) {
   const commands = usePurchaseOrderCommands(() => {
     const c = toValue(context)
     return { ...c, canCreate: c.canRead && c.canCreate && c.canReadProduct && c.canReadSupplier,
@@ -19,7 +22,7 @@ export function usePurchaseOrderWorkspace(context: MaybeRefOrGetter<OrderWorkspa
   const formKey = shallowRef(0)
   const detailLoading = shallowRef(false)
   const detailError = shallowRef('')
-  const deleteTarget = shallowRef<PurchaseOrderSummary | null>(null)
+  const deleteTarget = shallowRef<DiscardTarget | null>(null)
   const transition = shallowRef<'confirm' | 'cancel' | null>(null)
   // The intent of the last command owns how its error reads and what its success says.
   const lastKind = shallowRef<'save' | 'delete' | 'confirm' | 'cancel'>('save')
@@ -37,7 +40,6 @@ export function usePurchaseOrderWorkspace(context: MaybeRefOrGetter<OrderWorkspa
     if (!order || !c.ready || !c.canRead) return false
     return kind === 'confirm' ? c.canConfirm && order.status === 'DRAFT' && order.canConfirm === true : c.canCancel && order.status !== 'CANCELLED'
   }
-  const needsSave = computed(() => dirty.value && (transitionAllowed('confirm') || transitionAllowed('cancel')))
   const canConfirm = computed(() => !dirty.value && !locked.value && transitionAllowed('confirm'))
   const canCancel = computed(() => !dirty.value && !locked.value && transitionAllowed('cancel'))
   // A created draft becomes an update target: create-only users must not keep
@@ -49,21 +51,21 @@ export function usePurchaseOrderWorkspace(context: MaybeRefOrGetter<OrderWorkspa
   })
   let epoch = 0
   let request = 0
-  let invoker: HTMLButtonElement | null = null
+  let invoker: HTMLElement | null = null
   // The transition dialog opens over the editor, so it keeps its own invoker.
-  let transitionInvoker: HTMLButtonElement | null = null
+  let transitionInvoker: HTMLElement | null = null
   function captureInvoker() { invoker = document.activeElement instanceof HTMLButtonElement ? document.activeElement : null }
   function restoreInvoker(event: Event) {
     event.preventDefault()
     const button = invoker; const origin = epoch
     invoker = null
-    void nextTick(() => { if (origin === epoch && !open.value && !deleteTarget.value && !transition.value && button?.isConnected && !button.disabled) button.focus({ preventScroll: true }) })
+    void nextTick(() => { if (origin === epoch && !open.value && !deleteTarget.value && !transition.value && button?.isConnected && !(button as HTMLButtonElement).disabled) button.focus({ preventScroll: true }) })
   }
   function restoreTransitionInvoker(event: Event) {
     event.preventDefault()
     const button = transitionInvoker; const origin = epoch
     transitionInvoker = null
-    void nextTick(() => { if (origin === epoch && open.value && !transition.value && button?.isConnected && !button.disabled) button.focus({ preventScroll: true }) })
+    void nextTick(() => { if (origin === epoch && open.value && !transition.value && button?.isConnected && !(button as HTMLButtonElement).disabled) button.focus({ preventScroll: true }) })
   }
   function reset() {
     epoch++; request++; invoker = null; transitionInvoker = null; id.value = null; selected.value = null; open.value = false; dirty.value = false
@@ -88,11 +90,12 @@ export function usePurchaseOrderWorkspace(context: MaybeRefOrGetter<OrderWorkspa
     if (!c.ready || !c.canCreate || locked.value || detailLoading.value) return
     captureInvoker(); commands.clearFeedback(); selected.value = null; id.value = null; dirty.value = false; formKey.value++; open.value = true
   }
-  async function show(row: Pick<PurchaseOrderSummary, 'id'>, reload = false) {
+  // `from` is the element focus returns to on close; a row menu passes its row button because the menu item is gone by then.
+  async function show(row: Pick<PurchaseOrderSummary, 'id'>, reload = false, from?: HTMLElement | null) {
     const c = toValue(context)
     if (!c.ready || !c.canRead || locked.value || detailLoading.value) return
     if (reload && dirty.value && !window.confirm('Se reemplazarán tus cambios locales por la versión actual. ¿Continuar?')) return
-    if (!open.value) captureInvoker()
+    if (!open.value) { if (from) invoker = from; else captureInvoker() }
     const origin = epoch; const token = ++request
     id.value = row.id; detailLoading.value = true; detailError.value = ''
     await nextTick()
@@ -136,7 +139,9 @@ export function usePurchaseOrderWorkspace(context: MaybeRefOrGetter<OrderWorkspa
       selected.value = outcome.order; id.value = outcome.order.id; dirty.value = false; formKey.value++; transition.value = null
       notice.value = { save: 'Borrador guardado correctamente.', confirm: 'Orden confirmada correctamente.', cancel: 'Orden cancelada correctamente.', delete: '' }[lastKind.value]
     } else if (outcome.status === 'deleted') {
-      invoker = null; deleteTarget.value = null; notice.value = 'Borrador descartado correctamente.'
+      // Discarding the open draft from its header closes the editor with it; a list row has no editor to close.
+      if (selected.value?.id === outcome.id) { open.value = false; selected.value = null; id.value = null; dirty.value = false; formKey.value++; request++; detailLoading.value = false } else invoker = null
+      deleteTarget.value = null; notice.value = 'Borrador descartado correctamente.'
     }
     try { const result = await refresh() as { isError?: boolean } | undefined
       if (origin === epoch && result?.isError) notice.value += ' No se pudo actualizar la lista. Actualízala sin repetir la operación.'
@@ -150,10 +155,12 @@ export function usePurchaseOrderWorkspace(context: MaybeRefOrGetter<OrderWorkspa
     const outcome = selected.value ? await commands.save(selected.value.id, { expectedVersion: selected.value.version, order: input }) : await commands.create(input)
     await finish(outcome, origin)
   }
-  function requestDelete(row: PurchaseOrderSummary) {
+  function requestDelete(row: DiscardTarget) {
     const c = toValue(context)
     if (!c.ready || !c.canRead || !c.canDelete || locked.value || detailLoading.value) return
-    captureInvoker(); commands.clearFeedback(); deleteTarget.value = row
+    // With the editor open the row that opened it stays the focus target; a menu button would be gone.
+    if (!open.value) captureInvoker()
+    commands.clearFeedback(); deleteTarget.value = row
   }
   async function confirmDelete() {
     const c = toValue(context); const target = deleteTarget.value
@@ -162,10 +169,17 @@ export function usePurchaseOrderWorkspace(context: MaybeRefOrGetter<OrderWorkspa
     lastKind.value = 'delete'
     await finish(await commands.delete(target.id, { expectedVersion: target.version }), origin)
   }
-  function requestTransition(kind: 'confirm' | 'cancel') {
+  function requestTransition(kind: 'confirm' | 'cancel', from?: HTMLElement | null) {
     if (detailLoading.value || locked.value || dirty.value || !transitionAllowed(kind)) return
-    transitionInvoker = document.activeElement instanceof HTMLButtonElement ? document.activeElement : null
+    transitionInvoker = from ?? (document.activeElement instanceof HTMLButtonElement ? document.activeElement : null) ?? transitionFocus?.() ?? null
     commands.clearFeedback(); transition.value = kind
+  }
+  // Row menu Confirmar… / Cancelar…: open the order first so the dialog summarizes the freshly read version.
+  async function showThenTransition(row: Pick<PurchaseOrderSummary, 'id'>, kind: 'confirm' | 'cancel', from?: HTMLElement | null) {
+    await show(row, false, from)
+    // Let the editor render so its focus target exists when the invoker is chosen.
+    await nextTick()
+    if (open.value && selected.value?.id === row.id) requestTransition(kind)
   }
   async function confirmTransition() {
     const kind = transition.value; const order = selected.value
@@ -179,6 +193,6 @@ export function usePurchaseOrderWorkspace(context: MaybeRefOrGetter<OrderWorkspa
   async function retry() { const origin = epoch; await finish(await commands.retry(), origin) }
   function reload() { if (selected.value) return show(selected.value, true) }
   return { commands, selected, open, editorOpen, deleteOpen, dirty, formKey, detailLoading, detailError, deleteTarget, notice, locked, message, conflict, deleteRejected, canSave,
-    transition, transitionOpen, transitionRejected, needsSave, canConfirm, canCancel,
-    create, show, save, close, canLeave, requestDelete, confirmDelete, requestTransition, confirmTransition, retry, reload, restoreInvoker, restoreTransitionInvoker }
+    transition, transitionOpen, transitionRejected, canConfirm, canCancel,
+    create, show, showThenTransition, save, close, canLeave, requestDelete, confirmDelete, requestTransition, confirmTransition, retry, reload, restoreInvoker, restoreTransitionInvoker }
 }

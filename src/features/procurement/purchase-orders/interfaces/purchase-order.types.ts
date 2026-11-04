@@ -61,6 +61,8 @@ export interface PurchaseOrderListInput {
   cursor?: string
   limit?: number
 }
+// One server-computed total per tax basis (EXCLUDES_TAX first); the client never sums or converts them.
+export interface OrderTotal { amount: string; currency: 'MXN'; taxBasis: TaxBasis }
 // Lightweight list row; the full document is read only through GET /:id.
 export interface PurchaseOrderSummary {
   id: string
@@ -71,6 +73,8 @@ export interface PurchaseOrderSummary {
   issueCount: number
   note: string | null
   locationDetail: string | null
+  // null when any line lacks a subtotal or there are no lines; 2 entries when the tax bases are mixed.
+  totals: OrderTotal[] | null
   createdAt: string
   updatedAt: string
 }

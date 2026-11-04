@@ -1,56 +1,104 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, useTemplateRef } from 'vue'
+import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
+import { useClickableRow } from '@/core/shared/composables/useClickableRow'
+import { formatDecimalMoney } from '@/core/shared/utils/currency.utils'
 import type { OrderProductReadContext } from '../composables/usePurchaseOrderProducts'
 import { usePurchaseOrderVariants } from '../composables/usePurchaseOrderProducts'
 import type { LineBuffer } from '../utils/order-buffer'
 import type { PurchaseOrder } from '../interfaces/purchase-order.types'
-import { formatDecimalMoney } from '@/core/shared/utils/currency.utils'
+import type { LineFlags } from '../utils/order-checklist'
 import { quantityRule, unitLabel } from '../utils/order-quantities'
-const props = defineProps<{ modelValue: LineBuffer; index: number; context: OrderProductReadContext; disabled?: boolean; messages: Record<string, string[]>; subtotal?: PurchaseOrder['lineSubtotals'][number]['subtotal'] }>()
-const emit = defineEmits<{ 'update:modelValue': [line: LineBuffer]; replace: []; remove: [] }>()
+const props = defineProps<{ modelValue: LineBuffer; index: number; context: OrderProductReadContext; disabled?: boolean; messages: Record<string, string[]>; subtotal?: PurchaseOrder['lineSubtotals'][number]['subtotal']; flags: LineFlags; open: boolean; describedby?: string }>()
+const emit = defineEmits<{ 'update:modelValue': [line: LineBuffer]; 'update:open': [open: boolean]; replace: []; remove: [] }>()
 const variants = usePurchaseOrderVariants(() => props.modelValue.productId, () => props.context)
 const { items, error, isFetching } = variants
 const showVariants = computed(() => props.modelValue.hasVariants === true || props.modelValue.variantId !== null || items.value.length > 0)
 function update<K extends keyof LineBuffer>(key: K, value: LineBuffer[K]) { emit('update:modelValue', { ...props.modelValue, [key]: value }) }
-const messagesFor = (field: string) => props.messages[`/lines/${props.index}${field ? '/' + field : ''}`] ?? []
+function selectVariant(id: string) { emit('update:modelValue', { ...props.modelValue, variantId: id || null, variantName: items.value.find(item => item.id === id)?.name ?? (id ? props.modelValue.variantName : null) }) }
+const messagesFor = (field: string) => props.messages[`/lines/${props.index}/${field}`] ?? []
+
+// A marker shows only while the value the server asked for is still empty here; typing it clears it before the next save.
+const missing = computed(() => ({
+  product: props.flags.product && !props.modelValue.productId, variant: props.flags.variant && !props.modelValue.variantId,
+  quantity: props.flags.quantity && !props.modelValue.quantity, cost: props.flags.cost && !props.modelValue.amount, tax: props.flags.tax && !props.modelValue.taxBasis,
+}))
+const otherIssue = computed(() => props.flags.any && !(props.flags.product || props.flags.variant || props.flags.quantity || props.flags.cost || props.flags.tax))
+const flagged = computed(() => otherIssue.value || Object.values(missing.value).some(Boolean))
+const unit = computed(() => unitLabel(props.modelValue.unit))
+const quantityText = computed(() => props.modelValue.quantity ? `${props.modelValue.quantity}${unit.value ? ` ${unit.value}` : ''}` : '—')
+const costText = computed(() => props.modelValue.amount ? formatDecimalMoney(props.modelValue.amount, 'MXN') : '—')
+const taxText = computed(() => ({ INCLUDES_TAX: 'con imp.', EXCLUDES_TAX: 'sin imp.', '': '' })[props.modelValue.taxBasis])
+const subtotalText = computed(() => props.subtotal ? formatDecimalMoney(props.subtotal.amount, props.subtotal.currency) : '—')
+const label = computed(() => `Editar renglón ${props.index + 1}: ${props.modelValue.name || 'Sin producto'}${props.modelValue.variantName ? `, ${props.modelValue.variantName}` : ''}`)
+const editId = computed(() => `order-line-edit-${props.index}`)
+const actions = computed<RowAction[]>(() => [
+  { key: 'edit', label: 'Editar renglón', icon: 'i-lucide-pencil', disabled: props.disabled },
+  { key: 'replace', label: 'Cambiar producto', icon: 'i-lucide-replace', disabled: props.disabled },
+  { key: 'remove', label: 'Quitar renglón', icon: 'i-lucide-trash-2', destructive: true, disabled: props.disabled },
+])
+function choose(key: string) {
+  if (key === 'edit') emit('update:open', true)
+  else if (key === 'replace') emit('replace')
+  else if (key === 'remove') emit('remove')
+}
+const toggleButton = useTemplateRef<HTMLButtonElement>('toggle')
+const editRow = useTemplateRef<HTMLElement>('edit')
+// The product button is the tab stop, so the row itself is not focusable.
+const { rowProps } = useClickableRow<void>(() => emit('update:open', !props.open), { focusable: false })
+function done() { emit('update:open', false); void nextTick(() => toggleButton.value?.focus()) }
+// Called by the checklist link after the row opened: land on the first missing field.
+function focusIssue() {
+  const target = editRow.value?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? editRow.value?.querySelector<HTMLElement>('input, select')
+  target?.focus()
+}
+defineExpose({ focusIssue })
 </script>
 
 <template>
-  <article class="order-line" :aria-label="`Renglón ${index + 1}`">
-    <div class="order-line-heading">
-      <div class="order-product-icon"><UIcon name="i-lucide-package" aria-hidden="true" /></div>
-      <div class="order-line-title"><h3>{{ modelValue.name || 'Sin producto' }}</h3><p>Renglón {{ index + 1 }}</p></div>
-      <UButton type="button" color="neutral" variant="outline" :disabled="disabled" @click="emit('replace')">Cambiar producto</UButton>
-      <UButton type="button" color="error" variant="outline" icon="i-lucide-trash-2" :disabled="disabled" :aria-label="`Quitar renglón ${index + 1}`" @click="emit('remove')">Quitar</UButton>
+  <div class="order-line-group" role="group" :aria-label="`Renglón ${index + 1}`">
+    <div class="order-line-row" v-bind="rowProps()" :data-flagged="flagged ? 'true' : undefined">
+      <div class="order-line-product">
+        <button ref="toggle" type="button" class="order-line-toggle" :aria-expanded="open" :aria-controls="open ? editId : undefined" :aria-label="label" @click="emit('update:open', !open)">{{ modelValue.name || 'Sin producto' }}</button>
+        <span v-if="missing.product" class="order-line-variant order-missing"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />Falta el producto</span>
+        <span v-else-if="missing.variant" class="order-line-variant order-missing"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />Falta la variante</span>
+        <span v-else-if="modelValue.variantName" class="order-line-variant">{{ modelValue.variantName }}</span>
+      </div>
+      <div class="order-line-qty order-money">
+        <span v-if="missing.quantity" class="order-missing"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />Falta</span>
+        <template v-else>{{ quantityText }}</template>
+      </div>
+      <div class="order-line-cost">
+        <span data-testid="line-cost" class="order-money" :class="{ 'order-missing': missing.cost }"><template v-if="missing.cost"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />Falta</template><template v-else>{{ costText }}</template></span>
+        <small v-if="missing.tax" class="order-line-tax order-missing">Falta impuestos</small>
+        <small v-else-if="taxText" class="order-line-tax">{{ taxText }}</small>
+      </div>
+      <div class="order-line-total"><span data-testid="line-subtotal" class="order-money order-line-subtotal">{{ subtotalText }}</span></div>
+      <RowActionsMenu class="order-line-menu" :actions="actions" :row-label="`renglón ${index + 1}`" :aria-label="`Más acciones del renglón ${index + 1}`" portal-class="purchase-orders-portal" @select="choose" />
     </div>
-    <p v-for="(message, n) in [...messagesFor(''), ...messagesFor('productId')]" :key="n" class="order-warning">{{ message }}</p>
-    <div class="order-line-fields" :class="{ 'order-line-with-variant': showVariants }">
-      <label v-if="showVariants" class="order-field">Variante
-        <select :value="modelValue.variantId || ''" :disabled="disabled || isFetching" @change="update('variantId', ($event.target as HTMLSelectElement).value || null)">
-          <option value="">Pendiente de selección</option>
-          <option v-if="modelValue.variantId && !items.some(item => item.id === modelValue.variantId)" :value="modelValue.variantId">{{ modelValue.variantName || 'Variante guardada' }}</option>
-          <option v-for="variant in items" :key="variant.id" :value="variant.id">{{ variant.name }}</option>
-        </select>
-        <span v-for="(message, n) in messagesFor('variantId')" :key="n" class="order-warning">{{ message }}</span>
-      </label>
-      <template v-else><p v-for="(message, n) in messagesFor('variantId')" :key="n" class="order-warning">{{ message }}</p></template>
-      <label class="order-field">Cantidad · {{ unitLabel(modelValue.unit) || 'Unidad pendiente' }}
-        <input data-testid="line-quantity" type="text" inputmode="decimal" :step="quantityRule(modelValue.unit) === 'fractional' ? '0.001' : '1'" :value="modelValue.quantity" :disabled="disabled" @input="update('quantity', ($event.target as HTMLInputElement).value)" />
-        <span v-for="(message, n) in messagesFor('orderedQuantity')" :key="n" class="order-warning">{{ message }}</span>
-      </label>
-      <fieldset class="order-cost"><legend>Costo unitario · Solo MXN · {{ unitLabel(modelValue.unit) || 'Unidad pendiente' }}</legend>
-        <div class="order-cost-fields">
-          <label class="order-field">Importe<input data-testid="line-amount" type="text" inputmode="decimal" :value="modelValue.amount" :disabled="disabled" @input="update('amount', ($event.target as HTMLInputElement).value)" />
-            <span v-for="(message, n) in messagesFor('informedUnitCost/amount')" :key="n" class="order-warning">{{ message }}</span>
-          </label>
-          <label class="order-field">Impuestos<select data-testid="line-tax" :value="modelValue.taxBasis" :disabled="disabled" @change="update('taxBasis', ($event.target as HTMLSelectElement).value as LineBuffer['taxBasis'])"><option value="">Pendiente de selección</option><option value="INCLUDES_TAX">Incluye impuestos</option><option value="EXCLUDES_TAX">No incluye impuestos</option></select>
-            <span v-for="(message, n) in messagesFor('informedUnitCost/taxBasis')" :key="n" class="order-warning">{{ message }}</span>
-          </label>
-        </div>
-        <p v-for="(message, n) in [...messagesFor('informedUnitCost'), ...messagesFor('informedUnitCost/currency'), ...messagesFor('informedUnitCost/unit')]" :key="n" class="order-warning">{{ message }}</p>
-      </fieldset>
+    <div v-if="open" :id="editId" ref="edit" class="order-line-edit" role="group" :aria-label="`Edición del renglón ${index + 1}`">
+      <div class="order-edit-grid">
+        <label v-if="showVariants" class="order-field order-edit-wide">Variante
+          <select data-testid="line-variant" :value="modelValue.variantId || ''" :disabled="disabled || isFetching" :aria-invalid="missing.variant ? 'true' : undefined" :aria-describedby="missing.variant ? describedby : undefined" @change="selectVariant(($event.target as HTMLSelectElement).value)">
+            <option value="">Pendiente de selección</option>
+            <option v-if="modelValue.variantId && !items.some(item => item.id === modelValue.variantId)" :value="modelValue.variantId">{{ modelValue.variantName || 'Variante guardada' }}</option>
+            <option v-for="variant in items" :key="variant.id" :value="variant.id">{{ variant.name }}</option>
+          </select>
+        </label>
+        <label class="order-field">Cantidad · {{ unit || 'Unidad pendiente' }}
+          <input data-testid="line-quantity" type="text" inputmode="decimal" :step="quantityRule(modelValue.unit) === 'fractional' ? '0.001' : '1'" :value="modelValue.quantity" :disabled="disabled" :aria-invalid="missing.quantity ? 'true' : undefined" :aria-describedby="missing.quantity ? describedby : undefined" @input="update('quantity', ($event.target as HTMLInputElement).value)" />
+          <span v-for="(message, n) in messagesFor('orderedQuantity')" :key="n" class="order-warning">{{ message }}</span>
+        </label>
+        <label class="order-field">Costo unitario (MXN)
+          <input data-testid="line-amount" type="text" inputmode="decimal" placeholder="0.00" :value="modelValue.amount" :disabled="disabled" :aria-invalid="missing.cost ? 'true' : undefined" :aria-describedby="missing.cost ? describedby : undefined" @input="update('amount', ($event.target as HTMLInputElement).value)" />
+          <span v-for="(message, n) in messagesFor('informedUnitCost/amount')" :key="n" class="order-warning">{{ message }}</span>
+        </label>
+        <label class="order-field">Impuestos
+          <select data-testid="line-tax" :value="modelValue.taxBasis" :disabled="disabled" :aria-invalid="missing.tax ? 'true' : undefined" :aria-describedby="missing.tax ? describedby : undefined" @change="update('taxBasis', ($event.target as HTMLSelectElement).value as LineBuffer['taxBasis'])"><option value="">Pendiente de selección</option><option value="INCLUDES_TAX">Incluye impuestos</option><option value="EXCLUDES_TAX">No incluye impuestos</option></select>
+        </label>
+        <div class="order-edit-done"><UButton type="button" color="neutral" variant="outline" class="order-line-done" @click="done">Listo</UButton></div>
+      </div>
+      <p v-if="error" role="alert" class="order-warning">No se pudieron cargar las variantes. <UButton type="button" color="neutral" variant="outline" class="order-line-retry" :disabled="disabled || isFetching" @click="variants.refresh">Reintentar</UButton></p>
     </div>
-    <p v-if="error" role="alert">No se pudieron cargar las variantes. <UButton type="button" color="neutral" variant="outline" :disabled="disabled || isFetching" @click="variants.refresh">Reintentar</UButton></p>
-    <p v-if="subtotal" class="order-subtotal">Último subtotal guardado: <span class="order-money">{{ formatDecimalMoney(subtotal.amount, subtotal.currency) }}</span> · {{ subtotal.taxBasis === 'INCLUDES_TAX' ? 'Incluye impuestos' : 'No incluye impuestos' }}</p>
-  </article>
+  </div>
 </template>

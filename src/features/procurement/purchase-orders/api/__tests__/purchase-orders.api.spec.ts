@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { http } from '@/core/shared/api/http'
 import { purchaseOrdersApi } from '../purchase-orders.api'
-import type { OrderInput, PurchaseOrder } from '../../interfaces/purchase-order.types'
+import type { OrderInput, PurchaseOrder, PurchaseOrderPage } from '../../interfaces/purchase-order.types'
 
 vi.mock('@/core/shared/api/http', () => ({
   http: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
@@ -36,6 +36,22 @@ describe('purchase order transport', () => {
     expect(http.get).toHaveBeenCalledExactlyOnceWith('/procurement/purchase-orders', {
       params: { supplierId: input.supplierId, search: '  nota  ', cursor: 'c', limit: 25 }, signal,
     })
+  })
+
+  it('passes the server list totals through untouched: one entry, two bases (never summed) or null', async () => {
+    const summary = { version: 1, status: 'DRAFT' as const, supplierDisplaySnapshot: null, lineCount: 2, issueCount: 0, note: null, locationDetail: null, createdAt: '2026-11-03T00:00:00.000Z', updatedAt: '2026-11-03T00:00:00.000Z' }
+    const page: PurchaseOrderPage = {
+      items: [
+        { ...summary, id: 'one', totals: [{ amount: '1540.00', currency: 'MXN', taxBasis: 'EXCLUDES_TAX' }] },
+        { ...summary, id: 'mixed', totals: [{ amount: '1000.5000', currency: 'MXN', taxBasis: 'EXCLUDES_TAX' }, { amount: '580.00', currency: 'MXN', taxBasis: 'INCLUDES_TAX' }] },
+        { ...summary, id: 'none', totals: null },
+      ],
+      nextCursor: null,
+    }
+    vi.mocked(http.get).mockResolvedValue({ data: page })
+    const result = await purchaseOrdersApi.list({})
+    expect(result.items.map(item => item.totals?.length ?? null)).toEqual([1, 2, null])
+    expect(result.items[1]!.totals).toEqual([{ amount: '1000.5000', currency: 'MXN', taxBasis: 'EXCLUDES_TAX' }, { amount: '580.00', currency: 'MXN', taxBasis: 'INCLUDES_TAX' }])
   })
 
   it('sends the single status filter and omits it when absent', async () => {

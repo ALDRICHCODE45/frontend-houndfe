@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import PurchaseOrderReadonly from '../PurchaseOrderReadonly.vue'
+import OrderIssueChecklist from '../OrderIssueChecklist.vue'
 import type { PurchaseOrder } from '../../interfaces/purchase-order.types'
 const confirmed: PurchaseOrder = {
   id: 'order-id-9f2', version: 4, status: 'CONFIRMED', supplierId: 'supplier-id-77', note: 'Entrega por la puerta trasera', location: { detail: 'Bodega 2' },
@@ -15,11 +16,12 @@ const confirmed: PurchaseOrder = {
   confirmedAt: '2026-11-03T10:00:00Z', confirmedBy: { displayName: 'Ana Pérez' }, cancelledAt: null, cancelledBy: null,
 }
 describe('closed order read-only block', () => {
-  it('shows the frozen order by readable names, quantities, costs and subtotal', () => {
+  it('shows the frozen lines by readable names, quantities, costs and subtotal; supplier and status now live in the header', () => {
     const wrapper = mount(PurchaseOrderReadonly, { props: { order: confirmed } })
     const text = wrapper.text()
-    for (const expected of ['Distribuidora del Norte', 'Croquetas Premium 10 kg', 'Pollo', '12', '$250.00', '$3,000.00', 'Entrega por la puerta trasera', 'Sucursal Centro', 'Bodega 2', 'Confirmada']) expect(text).toContain(expected)
+    for (const expected of ['Croquetas Premium 10 kg', 'Pollo', '12 Bolsa', '$250.00', 'con imp.', '$3,000.00', 'Entrega por la puerta trasera', 'Sucursal Centro', 'Bodega 2']) expect(text).toContain(expected)
     expect(text).not.toContain('250.00 MXN')
+    expect(wrapper.find('dl.order-readonly-details').text()).not.toContain('Estado')
   })
   it('names who closed the order and when, and never renders ids or the opaque token', () => {
     const wrapper = mount(PurchaseOrderReadonly, { props: { order: confirmed } })
@@ -36,7 +38,6 @@ describe('closed order read-only block', () => {
   })
   it('keeps readable fallbacks for missing optional data', () => {
     const wrapper = mount(PurchaseOrderReadonly, { props: { order: { ...confirmed, note: null, location: { detail: null }, locationSnapshot: { tenantId: 't', tenantName: 'Sucursal Centro', detail: null }, supplierDisplaySnapshot: null, lineDisplaySnapshots: [], lineSubtotals: [] } } })
-    expect(wrapper.text()).toContain('Sin proveedor')
     expect(wrapper.text()).toContain('Sin nota')
     expect(wrapper.text()).toContain('Sin producto')
   })
@@ -56,46 +57,54 @@ describe('closed order read-only block', () => {
     }
     const css = readFileSync('src/features/procurement/purchase-orders/styles/purchase-orders-visual.css', 'utf8')
     expect(css).toMatch(/\.order-money[^{]*\{[^}]*font-variant-numeric: tabular-nums/)
-    expect(css).toMatch(/\.order-readonly-figures dd[^{]*\{[^}]*text-align: right/)
+    expect(css).toMatch(/\.order-money[^{]*\{[^}]*text-align: right/)
   })
-  it('groups every label with its value, so the details can sit in two columns from md', () => {
+  it('keeps the closure record, the location and the note as label/value pairs', () => {
     const wrapper = mount(PurchaseOrderReadonly, { props: { order: confirmed } })
     const groups = wrapper.findAll('dl.order-readonly-details > div.order-detail')
-    expect(groups.map(group => group.get('dt').text())).toEqual(['Estado', 'Proveedor', 'Registro', 'Ubicación', 'Nota'])
+    expect(groups.map(group => group.get('dt').text())).toEqual(['Registro', 'Ubicación', 'Nota'])
     for (const group of groups) { expect(group.findAll('dt')).toHaveLength(1); expect(group.findAll('dd')).toHaveLength(1) }
-    expect(groups.filter(group => group.classes().includes('order-detail-wide')).map(group => group.get('dt').text())).toEqual(['Registro', 'Ubicación', 'Nota'])
-    expect(wrapper.get('dl.order-readonly-details dd').text()).toBe('Confirmada')
   })
   it('keeps a missing unit cost as a dash instead of a currency', () => {
     const wrapper = mount(PurchaseOrderReadonly, { props: { order: { ...confirmed, lines: [{ ...confirmed.lines[0]!, informedUnitCost: null }] } } })
     expect(wrapper.get('[data-testid="line-cost"]').text()).toBe('—')
+  })
+  it('lays the lines out like the editor but with no control to edit them', () => {
+    const wrapper = mount(PurchaseOrderReadonly, { props: { order: confirmed } })
+    expect(wrapper.get('.order-lines-head').text()).toContain('Subtotal')
+    expect(wrapper.findAll('.order-line-row')).toHaveLength(1)
+    expect(wrapper.get('h2').text()).toBe('Renglones · 1')
+    expect(wrapper.findAll('button, input, select, textarea, a')).toHaveLength(0)
   })
 })
 describe('draft shown read-only', () => {
   const draft: PurchaseOrder = { ...confirmed, status: 'DRAFT', supplierId: null, supplierDisplaySnapshot: null, confirmedAt: null, confirmedBy: null, canConfirm: false,
     lines: [{ ...confirmed.lines[0]!, orderedQuantity: null }], lineSubtotals: [{ lineId: 'line-id-1', subtotal: null }],
     validation: { issues: [{ path: '/supplierId', code: 'SUPPLIER_REQUIRED' }, { path: '/lines/0/orderedQuantity', code: 'QUANTITY_REQUIRED' }, { path: '/lines/0/orderedQuantity', code: 'QUANTITY_REQUIRED' }, { path: '/lines/9/productId', code: 'PRODUCT_REQUIRED' }, { path: '/lines/0/mystery', code: 'SOMETHING_NEW' }] } }
-  it('shows the Borrador status and the validation issues as readable warnings, never raw codes', () => {
+  it('lists the validation issues once in the checklist as readable text, never raw codes, without links', () => {
     const wrapper = mount(PurchaseOrderReadonly, { props: { order: draft } })
-    expect(wrapper.text()).toContain('Borrador')
-    const warnings = wrapper.findAll('p.order-warning, .order-warning p').map(item => item.text())
-    expect(warnings).toContain('Selecciona un proveedor.')
-    expect(warnings).toContain('Selecciona un producto.')
-    expect(warnings).toContain('Revisa este dato del borrador.')
+    const block = wrapper.get('[data-testid="order-readonly-warnings"]')
+    expect(block.text()).toContain('Selecciona un proveedor.')
+    expect(block.text()).toContain('Indica la cantidad del producto.')
+    expect(block.text()).toContain('Selecciona un producto.')
+    expect(block.text()).toContain('Revisa este dato del borrador.')
+    expect(block.text().split('Indica la cantidad del producto.').length - 1).toBe(1)
     for (const code of ['SUPPLIER_REQUIRED', 'QUANTITY_REQUIRED', 'PRODUCT_REQUIRED', 'SOMETHING_NEW']) expect(wrapper.text()).not.toContain(code)
+    expect(block.find('button').exists()).toBe(false)
+    expect(wrapper.getComponent(OrderIssueChecklist).props('linkable')?.('line-id-1')).toBe(false)
   })
-  it('places a line issue under its own line, once, and the rest in the order summary', () => {
+  it('tints the flagged line and marks what is missing instead of repeating the message under it', () => {
     const wrapper = mount(PurchaseOrderReadonly, { props: { order: draft } })
-    const line = wrapper.get('[aria-label="Renglón 1"]')
-    expect(line.findAll('.order-warning').map(item => item.text()).filter(text => text === 'Indica la cantidad del producto.')).toHaveLength(1)
-    expect(wrapper.get('[data-testid="order-readonly-warnings"]').text()).toContain('Selecciona un proveedor.')
-    expect(wrapper.get('[data-testid="order-readonly-warnings"]').text()).not.toContain('Indica la cantidad')
+    const row = wrapper.get('.order-line-row')
+    expect(row.attributes('data-flagged')).toBe('true')
+    expect(row.get('.order-line-qty').text()).toContain('Falta')
+    expect(wrapper.get('[aria-label="Renglón 1"]').text().split('Indica la cantidad del producto.').length - 1).toBe(0)
   })
   it('has no controls to disable: no buttons, inputs or selects', () => {
     const wrapper = mount(PurchaseOrderReadonly, { props: { order: draft } })
     expect(wrapper.findAll('button, input, select, textarea')).toHaveLength(0)
   })
-  it('renders no warnings block for a draft without issues', () => {
+  it('renders no checklist for a draft without issues', () => {
     const wrapper = mount(PurchaseOrderReadonly, { props: { order: { ...draft, validation: { issues: [] } } } })
     expect(wrapper.find('[data-testid="order-readonly-warnings"]').exists()).toBe(false)
   })
