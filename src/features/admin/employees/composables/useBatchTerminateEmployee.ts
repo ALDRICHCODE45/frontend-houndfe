@@ -58,7 +58,7 @@ export function useBatchTerminateEmployee() {
 
     onSuccess: (result) => {
       toast.add({
-        title: `${result.updated} empleados dados de baja`,
+        title: result.updated === 1 ? '1 colaborador dado de baja' : `${result.updated} colaboradores dados de baja`,
         color: 'success',
       })
       void queryClient.invalidateQueries({
@@ -89,7 +89,7 @@ export function useBatchTerminateEmployee() {
           break
         }
         default: {
-          const normalized = normalizeApiError(error, 'No se pudieron dar de baja los empleados.')
+          const normalized = normalizeApiError(error, 'No se pudieron dar de baja los colaboradores.')
           toast.add({
             title: 'Error',
             description: normalized.message,

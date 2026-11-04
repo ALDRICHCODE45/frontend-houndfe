@@ -487,7 +487,7 @@ function closePositionModal(): void {
             v-model="positionState.position"
             class="w-full"
             size="lg"
-            placeholder="Ej: Gerente de Finanzas"
+            placeholder="Ej: Gerente de finanzas"
             :disabled="isAddingPosition"
           />
         </UFormField>

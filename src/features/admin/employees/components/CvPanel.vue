@@ -117,7 +117,7 @@ async function handleFileSelected(event: Event): Promise<void> {
 
     <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
       <div class="border-b border-default px-5 py-4">
-        <h2 class="text-base font-semibold text-highlighted">Currículum Vitae</h2>
+        <h2 class="text-base font-semibold text-highlighted">Currículum vitae</h2>
       </div>
 
       <div class="p-5">

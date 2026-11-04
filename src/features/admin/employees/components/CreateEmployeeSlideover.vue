@@ -165,7 +165,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
         <div class="rounded-lg border border-default bg-elevated/30 px-4 py-4">
           <p class="mb-4 text-sm font-semibold text-highlighted">Contacto</p>
           <div class="flex flex-col gap-4">
-            <UFormField label="Email" name="email">
+            <UFormField label="Correo electrónico" name="email">
               <UInput
                 v-model="state.email"
                 class="w-full"
@@ -248,7 +248,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
                 v-model="state.currentDepartment"
                 class="w-full"
                 size="lg"
-                placeholder="Ej: Recursos Humanos"
+                placeholder="Ej: Recursos humanos"
                 :disabled="isPending"
               />
             </UFormField>

@@ -219,7 +219,7 @@ function onSubmit(event: FormSubmitEvent<CreateUserFormValues | EditUserFormValu
         </UFormField>
 
         <template v-if="mode === 'edit'">
-          <UFormField label="Email" name="email">
+          <UFormField label="Correo electrónico" name="email">
             <UInput v-model="editState.email" type="email" class="w-full" size="lg" />
           </UFormField>
           <UFormField
@@ -253,7 +253,7 @@ function onSubmit(event: FormSubmitEvent<CreateUserFormValues | EditUserFormValu
         </template>
 
         <template v-if="mode === 'create'">
-          <UFormField label="Email" name="email">
+          <UFormField label="Correo electrónico" name="email">
             <UInput
               v-model="createState.email"
               class="w-full"

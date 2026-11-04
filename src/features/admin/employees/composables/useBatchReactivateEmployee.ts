@@ -43,7 +43,7 @@ export function useBatchReactivateEmployee() {
 
     onSuccess: (result) => {
       toast.add({
-        title: `${result.updated} empleados reactivados`,
+        title: result.updated === 1 ? '1 colaborador reactivado' : `${result.updated} colaboradores reactivados`,
         color: 'success',
       })
       void queryClient.invalidateQueries({
@@ -74,7 +74,7 @@ export function useBatchReactivateEmployee() {
           break
         }
         default: {
-          const normalized = normalizeApiError(error, 'No se pudieron reactivar los empleados.')
+          const normalized = normalizeApiError(error, 'No se pudieron reactivar los colaboradores.')
           toast.add({
             title: 'Error',
             description: normalized.message,

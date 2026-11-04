@@ -12,7 +12,7 @@ import {
 describe('permissions i18n', () => {
   describe('catalog authorization copy', () => {
     it('exposes TenantCatalogSettings with exactly read and update copy', () => {
-      expect(getSubjectLabel('TenantCatalogSettings')).toBe('Catálogo online del tenant')
+      expect(getSubjectLabel('TenantCatalogSettings')).toBe('Catálogo en línea de la sucursal')
       expect(isSubjectHidden('TenantCatalogSettings')).toBe(false)
       for (const action of ['read', 'update'] as const) {
         expect(getPermissionLabel('TenantCatalogSettings', action)).not.toContain(
@@ -21,7 +21,7 @@ describe('permissions i18n', () => {
         expect(getPermissionDescription('TenantCatalogSettings', action).length).toBeGreaterThan(20)
       }
       expect(getPermissionLabel('TenantCatalogSettings', 'create')).toContain(
-        'Catálogo online del tenant',
+        'Catálogo en línea de la sucursal',
       )
     })
 

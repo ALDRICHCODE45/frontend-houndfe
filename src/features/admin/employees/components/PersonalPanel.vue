@@ -62,7 +62,7 @@ function formatDob(dob: string | null | undefined): string {
         </div>
 
         <div class="min-w-0">
-          <dt class="text-[13px] text-muted">Email</dt>
+          <dt class="text-[13px] text-muted">Correo electrónico</dt>
           <dd class="mt-1">
             <a
               v-if="employee.email"

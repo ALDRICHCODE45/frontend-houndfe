@@ -130,7 +130,6 @@ const {
   isLoading,
   isFetching,
   isError,
-  error,
   refresh,
   selectedEmployees,
   clearSelection,

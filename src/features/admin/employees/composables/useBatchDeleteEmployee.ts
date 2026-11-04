@@ -51,7 +51,7 @@ export function useBatchDeleteEmployee() {
 
     onSuccess: (result) => {
       toast.add({
-        title: `${result.deleted} empleados eliminados`,
+        title: result.deleted === 1 ? '1 colaborador eliminado' : `${result.deleted} colaboradores eliminados`,
         color: 'success',
       })
       void queryClient.invalidateQueries({
@@ -86,7 +86,7 @@ export function useBatchDeleteEmployee() {
           break
         }
         default: {
-          const normalized = normalizeApiError(error, 'No se pudieron eliminar los empleados.')
+          const normalized = normalizeApiError(error, 'No se pudieron eliminar los colaboradores.')
           toast.add({
             title: 'Error',
             description: normalized.message,

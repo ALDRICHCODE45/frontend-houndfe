@@ -95,7 +95,6 @@ const {
   data: pendingRequests,
   isLoading,
   isError,
-  error,
   refetch,
 } = usePendingApprovals()
 

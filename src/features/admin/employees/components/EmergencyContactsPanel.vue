@@ -289,7 +289,7 @@ async function confirmDelete(): Promise<void> {
             class="w-full"
           />
         </UFormField>
-        <UFormField label="Email (opcional)">
+        <UFormField label="Correo electrónico (opcional)">
           <UInput
             v-model="form.email"
             type="email"

@@ -36,7 +36,6 @@ const {
   isLoading,
   isFetching,
   isError,
-  error,
   refresh,
   pageSizeOptions,
   showingFrom,
@@ -79,7 +78,7 @@ function editErrorMessage(error: unknown) {
     const messages = message.filter((item): item is string => typeof item === 'string')
     if (messages.length) return messages.join('. ')
   }
-  return err?.message || 'No se pudo guardar el usuario. Reintenta.'
+  return err?.message || 'No se pudo guardar el usuario.'
 }
 
 function isCurrentEdit(session: number) {
@@ -96,7 +95,7 @@ async function loadEditDetail() {
   try {
     const detail = await usersApi.getById(userId)
     if (!isCurrentEdit(session)) return
-    if (detail.user.id !== userId) throw new Error('El usuario recibido no coincide. Reintenta.')
+    if (detail.user.id !== userId) throw new Error('El usuario recibido no coincide.')
     editDetail.value = detail
     queryClient.setQueryData(adminUserQueryKeys.detail(tenant, userId), detail)
   } catch (error) {
