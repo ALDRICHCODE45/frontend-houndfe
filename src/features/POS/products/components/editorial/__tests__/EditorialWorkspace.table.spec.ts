@@ -302,9 +302,23 @@ describe('EditorialWorkspace — the footer', () => {
     expect(cell('Material', 0).get('input').element).toHaveProperty('value', '')
   })
 
-  it('is sticky, and holds Guardar on mobile in a full-width row', () => {
+  it('is sticky, and on mobile keeps Guardar beside the ⋯ menu without the disabled publication button', () => {
     expect(source).toMatch(/\.editorial-footer\s*\{[^}]*position:\s*sticky[^}]*bottom:\s*0/)
-    expect(source).toMatch(/@media \(max-width: 767px\)[\s\S]*\.editorial-footer__actions[\s\S]*\.hf-primary-control\s*\{[^}]*grid-column:\s*1 \/ -1/)
+    expect(source).toMatch(/@media \(max-width: 767px\)[\s\S]*\.editorial-footer__soon\s*\{[^}]*display:\s*none/)
+    expect(source).toMatch(/@media \(max-width: 767px\)[\s\S]*\.editorial-footer__actions\s*\{[^}]*grid-template-columns:\s*auto minmax\(0, 1fr\)/)
+    expect(source).not.toMatch(/grid-column:\s*1 \/ -1/)
+  })
+
+  it('has a header band with the state of the sheet and Historial, apart from the filter toolbar', async () => {
+    await render()
+    const band = wrapper.get('[data-testid="editorial-band"]')
+    expect(band.text()).toContain('Ficha para el catálogo')
+    expect(band.text()).toContain('Borrador')
+    expect(band.find('[data-testid="open-history"]').exists()).toBe(true)
+    const toolbar = wrapper.get('[role="toolbar"]')
+    expect(toolbar.find('[data-testid="only-missing"]').exists()).toBe(true)
+    expect(toolbar.find('[data-testid="open-history"]').exists()).toBe(false)
+    expect(toolbar.text()).toContain('de 4 datos')
   })
 })
 

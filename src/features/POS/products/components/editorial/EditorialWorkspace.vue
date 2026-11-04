@@ -253,23 +253,27 @@ function factsChanged(facts: EditorialDocumentEditingState['facts']) { if (buffe
         <EmptyState v-else-if="!hasContent && !canWrite" title="Aún no hay ficha para el catálogo" />
 
         <template v-else-if="hasContent && shown && vocabulary && qualification">
+          <div class="editorial-band" data-testid="editorial-band">
+            <h3 class="editorial-band__title">Ficha para el catálogo</h3>
+            <StatusBadge v-if="authoritative.draft" label="Borrador" tone="neutral" aria-prefix="Estado de la ficha:" />
+            <StatusBadge v-else label="Publicado" tone="info" aria-prefix="Estado de la ficha:" />
+            <span class="editorial-spacer" />
+            <button type="button" class="editorial-button" data-testid="open-history" @click="historyOpen = true">
+              <UIcon name="i-lucide-history" class="size-4" aria-hidden="true" />Historial
+            </button>
+          </div>
           <div class="editorial-toolbar" role="toolbar" aria-label="Resumen y filtros de la ficha">
-            <div v-if="table.total" class="editorial-completeness">
-              <span class="hf-figure"><strong>{{ table.answered }}</strong> de {{ table.total }} datos</span>
-              <div class="editorial-bar" aria-hidden="true"><i :style="{ width: `${completeness}%` }" /></div>
-            </div>
+            <EditorialContractFamilyField v-if="canWrite" id="editorial-family" :model-value="shown" :families="vocabulary.families" :disabled="!editable" @update:model-value="replace" />
+            <p v-else-if="family" class="editorial-family-name">Familia · {{ family.label }}</p>
             <button v-if="table.total" type="button" class="editorial-button" data-testid="only-missing" :aria-pressed="onlyMissing" @click="toggleMissing">
               <UIcon name="i-lucide-list-filter" class="size-4" aria-hidden="true" />Solo faltantes
               <span v-if="rowsMissing" class="hf-figure editorial-count">{{ rowsMissing }}</span>
             </button>
-            <EditorialContractFamilyField v-if="canWrite" id="editorial-family" :model-value="shown" :families="vocabulary.families" :disabled="!editable" @update:model-value="replace" />
-            <p v-else-if="family" class="editorial-family-name">Familia · {{ family.label }}</p>
             <span class="editorial-spacer" />
-            <StatusBadge v-if="authoritative.draft" label="Borrador" tone="neutral" aria-prefix="Estado de la ficha:" />
-            <StatusBadge v-else label="Publicado" tone="info" aria-prefix="Estado de la ficha:" />
-            <button type="button" class="editorial-button" data-testid="open-history" @click="historyOpen = true">
-              <UIcon name="i-lucide-history" class="size-4" aria-hidden="true" />Historial
-            </button>
+            <div v-if="table.total" class="editorial-completeness">
+              <span class="hf-figure"><strong>{{ table.answered }}</strong> de {{ table.total }} datos</span>
+              <div class="editorial-bar" aria-hidden="true"><i :style="{ width: `${completeness}%` }" /></div>
+            </div>
           </div>
 
           <div v-if="needsReconciliation && canWrite" role="alert" class="editorial-alert" data-tone="warning" data-testid="reconciliation">
@@ -325,7 +329,7 @@ function factsChanged(facts: EditorialDocumentEditingState['facts']) { if (buffe
             </div>
             <div class="editorial-footer__actions">
               <RowActionsMenu :actions="footerActions" row-label="la ficha" aria-label="Más acciones de la ficha" portal-class="editorial-portal" @select="footerAction" />
-              <button type="button" class="editorial-button" disabled aria-disabled="true">Publicación próximamente</button>
+              <button type="button" class="editorial-button editorial-footer__soon" disabled aria-disabled="true">Publicación próximamente</button>
               <button class="hf-primary-control" type="submit" form="editorial-form" :disabled="!canSave">{{ isPending ? 'Guardando…' : 'Guardar' }}</button>
             </div>
           </footer>
@@ -345,6 +349,8 @@ function factsChanged(facts: EditorialDocumentEditingState['facts']) { if (buffe
 .editorial-header { display: flex; flex-direction: row; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .editorial-refresh { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .editorial-quiet { margin: 0; color: var(--hf-muted); font-size: 14px; }
+.editorial-band { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; }
+.editorial-band__title { margin: 0; color: var(--hf-heading); font-size: 18px; font-weight: 600; line-height: 1.3; }
 .editorial-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-width: 0; }
 .editorial-completeness { display: flex; align-items: center; gap: 10px; font-size: 14px; }
 .editorial-bar { width: 6rem; height: 6px; border-radius: 3px; background: var(--hf-surface-muted); overflow: hidden; }
@@ -387,8 +393,7 @@ function factsChanged(facts: EditorialDocumentEditingState['facts']) { if (buffe
 @media (max-width: 767px) {
   .editorial-footer { margin-inline: -4px; }
   .editorial-footer__actions { display: grid; grid-template-columns: auto minmax(0, 1fr); width: 100%; }
-  .editorial-footer__actions > .hf-primary-control { grid-column: 1 / -1; }
-  .editorial-footer__actions > .editorial-button { justify-content: center; }
+  .editorial-footer__soon { display: none; }
   .editorial-skeleton-row { grid-template-columns: 8rem 1fr; }
   .editorial-skeleton-row > :nth-child(3) { display: none; }
 }
