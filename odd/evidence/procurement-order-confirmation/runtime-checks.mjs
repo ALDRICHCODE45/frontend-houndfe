@@ -648,7 +648,7 @@ export async function run(browserPage, stage, part = null) {
         const cells = (await row.locator(':scope > div').allInnerTexts()).map(text => text.replace(/\s+/g, ' ').trim())
         check(cells.every(text => (text.match(/Falta/g) ?? []).length <= 1), `${label}: no repeated "Falta" in a cell (${cells.filter(text => /Falta/.test(text)).join(' | ') || 'none'})`)
         for (const money of await row.locator('[data-testid="line-cost"], [data-testid="line-subtotal"]').all()) {
-          const text = (await money.innerText()).trim()
+          const text = (await money.innerText()).replace(/\s+/g, " ").trim()
           check(text === '—' || /^Falta( el costo)?$/.test(text) || MONEY.test(text), `${label}: money reads 2 decimals, a dash or Falta ("${text}")`)
         }
         if (vw >= 640) continue
