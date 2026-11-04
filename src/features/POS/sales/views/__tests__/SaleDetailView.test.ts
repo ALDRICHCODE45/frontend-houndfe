@@ -243,7 +243,6 @@ describe('SaleDetailView', () => {
     const wrapper = mountWithUApp(SaleDetailView, {
       global: {
         stubs: {
-          AppBadge: { template: '<span><slot /></span>' },
           UCard: { template: '<div><slot /></div>' },
           UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
           UDropdownMenu: { template: '<div data-testid="dropdown"><slot /></div>' },
@@ -335,7 +334,6 @@ describe('SaleDetailView', () => {
     const wrapper = mountWithUApp(SaleDetailView, {
       global: {
         stubs: {
-          AppBadge: { template: '<span><slot /></span>' },
           UCard: { template: '<div><slot /></div>' },
           UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
           UDropdownMenu: { template: '<div data-testid="dropdown"><slot /></div>' },
@@ -404,7 +402,6 @@ describe('SaleDetailView', () => {
       const wrapper = mountWithUApp(SaleDetailView, {
         global: {
           stubs: {
-            AppBadge: { template: '<span><slot /></span>' },
             UCard: { template: '<div><slot /></div>' },
             UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
             SaleDetailItemsList: { template: '<div data-testid="items" />' },
@@ -478,7 +475,6 @@ describe('SaleDetailView', () => {
     const wrapper = mountWithUApp(SaleDetailView, {
       global: {
         stubs: {
-          AppBadge: { template: '<span data-testid="badge"><slot /></span>' },
           UCard: { template: '<div><slot /></div>' },
           UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
           UDropdownMenu: { template: '<div><slot /></div>' },
@@ -502,7 +498,6 @@ describe('SaleDetailView', () => {
     const wrapper = mountWithUApp(SaleDetailView, {
       global: {
         stubs: {
-          AppBadge: { template: '<span data-testid="badge"><slot /></span>' },
           UCard: { template: '<div><slot /></div>' },
           UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
           UDropdownMenu: { template: '<div><slot /></div>' },
@@ -525,7 +520,6 @@ describe('SaleDetailView', () => {
     const wrapper = mountWithUApp(SaleDetailView, {
       global: {
         stubs: {
-          AppBadge: { template: '<span data-testid="badge"><slot /></span>' },
           UCard: { template: '<div><slot /></div>' },
           UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
           UDropdownMenu: { template: '<div><slot /></div>' },
@@ -548,7 +542,6 @@ describe('SaleDetailView', () => {
     const wrapper = mountWithUApp(SaleDetailView, {
       global: {
         stubs: {
-          AppBadge: { template: '<span data-testid="badge"><slot /></span>' },
           UCard: { template: '<div><slot /></div>' },
           UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
           UDropdownMenu: { template: '<div><slot /></div>' },
@@ -830,7 +823,6 @@ describe('SaleDetailView', () => {
       const wrapper = mountWithUApp(SaleDetailView, {
         global: {
           stubs: {
-            AppBadge: { template: '<span><slot /></span>' },
             UCard: { template: '<div><slot /></div>' },
             UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
             UDropdownMenu: { template: '<div data-testid="dropdown"><slot /></div>' },

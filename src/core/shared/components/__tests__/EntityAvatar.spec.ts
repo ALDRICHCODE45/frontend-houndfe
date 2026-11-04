@@ -3,9 +3,9 @@ import { mount } from '@vue/test-utils'
 import EntityAvatar from '../EntityAvatar.vue'
 
 describe('EntityAvatar', () => {
-  it('renders neutral initials whatever the seed, never a per-person palette color', () => {
-    const first = mount(EntityAvatar, { props: { name: 'Ana López', seed: 'a' } })
-    const second = mount(EntityAvatar, { props: { name: 'Bruno Díaz', seed: 'zzzz' } })
+  it('renders neutral initials, never a per-person palette color', () => {
+    const first = mount(EntityAvatar, { props: { name: 'Ana López' } })
+    const second = mount(EntityAvatar, { props: { name: 'Bruno Díaz' } })
 
     for (const wrapper of [first, second]) {
       const avatar = wrapper.get('[data-testid="entity-avatar"]')
@@ -17,7 +17,7 @@ describe('EntityAvatar', () => {
   })
 
   it('keeps the name as the accessible label and the 32px default size', () => {
-    const wrapper = mount(EntityAvatar, { props: { name: 'Ana López', seed: 'a' } })
+    const wrapper = mount(EntityAvatar, { props: { name: 'Ana López' } })
     const avatar = wrapper.get('[data-testid="entity-avatar"]')
     expect(avatar.attributes('aria-label')).toBe('Ana López')
     expect(avatar.classes()).toContain('size-8')

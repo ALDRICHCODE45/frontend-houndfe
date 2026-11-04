@@ -490,7 +490,6 @@ const rowStubs = {
   PriceOverrideModal: true,
   ItemDiscountModal: true,
   ProductDetailModal: true,
-  AppBadge: { props: ['label'], template: '<span>{{ label }}</span>' },
   USeparator: true,
 }
 

@@ -328,7 +328,6 @@ const appDataTableStub = {
 
 const stubs = {
   UCard: { template: '<div><slot name="header" /><slot /></div>' },
-  AppBadge: { template: '<span><slot /></span>' },
   SalesListTabs: {
     template: `<button data-testid="tab-pending" @click="$emit('change', { deliveryStatus: 'PENDING' })">tab</button>`,
     props: ['counts'],

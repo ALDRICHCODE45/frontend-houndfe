@@ -207,7 +207,7 @@ function jobLine(position: string | null | undefined, department: string | null 
           :key="entry.id"
           class="flex items-center gap-4 px-5 py-3"
         >
-          <EntityAvatar :name="entry.fullName" :seed="entry.id" aria-hidden="true" />
+          <EntityAvatar :name="entry.fullName" aria-hidden="true" />
           <div class="min-w-0 flex-1">
             <p class="text-sm font-medium text-highlighted">{{ entry.fullName }}</p>
             <p class="text-[13px] text-muted">{{ jobLine(entry.position, entry.department) }}</p>

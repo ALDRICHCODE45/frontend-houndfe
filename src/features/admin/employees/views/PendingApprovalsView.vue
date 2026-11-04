@@ -48,7 +48,6 @@
 import { computed, ref, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import type { ColumnPinningState } from '@tanstack/vue-table'
-import type { TableColumn } from '@nuxt/ui'
 import { AppDataTable } from '@/core/shared/components/DataTable'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
@@ -349,7 +348,6 @@ function rowLabelOf(request: TimeOffRequest): string {
             <div class="flex min-w-0 items-center gap-3">
               <EntityAvatar
                 :name="resolveEmployeeName(row.original)"
-                :seed="row.original.employeeId"
                 aria-hidden="true"
               />
               <span class="hf-row-primary">{{ resolveEmployeeName(row.original) }}</span>
@@ -405,7 +403,7 @@ function rowLabelOf(request: TimeOffRequest): string {
               @action="handleRowAction"
             >
               <template #leading>
-                <EntityAvatar :name="resolveEmployeeName(row)" :seed="row.employeeId" aria-hidden="true" />
+                <EntityAvatar :name="resolveEmployeeName(row)" aria-hidden="true" />
               </template>
               <template #secondary>
                 {{ formatTimeOffType(row.type) }} · {{ resolveSickReason(row.type, row.reason) }}

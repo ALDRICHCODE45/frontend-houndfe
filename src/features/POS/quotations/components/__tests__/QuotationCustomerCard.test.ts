@@ -10,8 +10,8 @@ import type { QuotationCustomer } from '../../interfaces/quotation.types'
 // - how it gracefully handles missing phone/email/null customer
 const EntityAvatarStub = {
   name: 'EntityAvatar',
-  props: ['name', 'seed', 'size', 'showDot', 'dotClass'],
-  template: '<span data-testid="customer-avatar-stub" :data-name="name" :data-seed="seed" :data-size="size" />',
+  props: ['name', 'size'],
+  template: '<span data-testid="customer-avatar-stub" :data-name="name" :data-size="size" />',
 }
 
 function makeCustomer(overrides: Partial<QuotationCustomer> = {}): QuotationCustomer {
@@ -56,12 +56,11 @@ describe('QuotationCustomerCard — root contract', () => {
     expect(wrapper.find('[data-testid="quotation-customer-card"]').exists()).toBe(true)
   })
 
-  it('renders EntityAvatar with name and id (seed) when customer is set', () => {
+  it('renders EntityAvatar with the name when customer is set', () => {
     const wrapper = mountCard({ customer: makeCustomer({ id: 'cust-42', firstName: 'María', lastName: 'García' }) })
     const avatar = wrapper.find('[data-testid="customer-avatar-stub"]')
     expect(avatar.exists()).toBe(true)
     expect(avatar.attributes('data-name')).toBe('María García')
-    expect(avatar.attributes('data-seed')).toBe('cust-42')
     expect(avatar.attributes('data-size')).toBe('lg')
   })
 

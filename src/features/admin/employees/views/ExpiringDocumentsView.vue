@@ -213,7 +213,6 @@ function getCategoryLabel(category: string): string {
             <div class="flex min-w-0 items-center gap-2">
               <EntityAvatar
                 :name="row.original.fullName"
-                :seed="row.original.employeeId"
                 size="sm"
                 aria-hidden="true"
               />

@@ -283,7 +283,6 @@ function clearFilters() {
             <div class="flex min-w-0 items-center gap-3">
               <EntityAvatar
                 :name="row.original.userName"
-                :seed="row.original.userId || row.original.id"
                 aria-hidden="true"
               />
               <div class="min-w-0">
@@ -346,7 +345,6 @@ function clearFilters() {
               <template #leading>
                 <EntityAvatar
                   :name="row.userName"
-                  :seed="row.userId || row.id"
                   aria-hidden="true"
                 />
               </template>

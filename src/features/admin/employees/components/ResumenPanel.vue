@@ -81,7 +81,7 @@ const managerSubtitle = computed(() => {
       <h2 class="mb-4 text-base font-semibold text-highlighted">Reporta a</h2>
 
       <div v-if="managerDisplay !== '—' && managerDisplay" class="flex items-center gap-4">
-        <EntityAvatar :name="managerDisplay" :seed="managerDisplay" size="lg" aria-hidden="true" />
+        <EntityAvatar :name="managerDisplay" size="lg" aria-hidden="true" />
         <div class="min-w-0 flex-1">
           <p class="font-semibold text-highlighted">{{ managerDisplay }}</p>
           <p v-if="managerSubtitle" class="text-sm text-muted">{{ managerSubtitle }}</p>

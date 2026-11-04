@@ -386,7 +386,7 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
 
           <template #colaborador-cell="{ row }">
             <div class="flex min-w-0 items-center gap-3">
-              <EntityAvatar :name="row.original.fullName" :seed="row.original.id" aria-hidden="true" />
+              <EntityAvatar :name="row.original.fullName" aria-hidden="true" />
               <div class="min-w-0">
                 <button
                   type="button"
@@ -452,7 +452,7 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
               @action="handleRowAction"
             >
               <template #leading>
-                <EntityAvatar :name="row.fullName" :seed="row.id" aria-hidden="true" />
+                <EntityAvatar :name="row.fullName" aria-hidden="true" />
               </template>
               <template #secondary>{{ row.email ?? row.employeeNumber }}</template>
               <template #badges>

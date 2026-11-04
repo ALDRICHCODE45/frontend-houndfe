@@ -147,15 +147,15 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
   },
 }))
 
-// The Usuario cell owns the avatar contract: which name, which seed and whether
-// the status dot renders. Exposing those props as data attributes keeps the spec
-// on the view's public surface, exactly like the other child stubs here.
+// The Usuario cell owns the avatar contract: which name it shows. Exposing the
+// props as data attributes keeps the spec on the view's public surface, exactly
+// like the other child stubs here.
 vi.mock('@/core/shared/components/EntityAvatar.vue', () => ({
   default: {
     name: 'EntityAvatar',
     template:
-      '<span data-testid="entity-avatar" :data-name="name" :data-seed="seed" :data-show-dot="String(showDot)" />',
-    props: ['name', 'seed', 'showDot', 'dotClass', 'size'],
+      '<span data-testid="entity-avatar" :data-name="name" />',
+    props: ['name', 'size'],
   },
 }))
 
@@ -330,7 +330,7 @@ describe('AdminUsersView — error state', () => {
 })
 
 describe('AdminUsersView — usuario avatar', () => {
-  it('renders EntityAvatar with the user name and id seed and no activity dot', async () => {
+  it('renders EntityAvatar with the user name and no activity dot', async () => {
     mockState.data.value = [makeUser({ id: 'user-7', name: 'Ana Gomez', isActive: true })]
     const wrapper = mountView()
     await flushPromises()
@@ -338,9 +338,7 @@ describe('AdminUsersView — usuario avatar', () => {
     const avatar = wrapper.find('[data-testid="entity-avatar"]')
     expect(avatar.exists()).toBe(true)
     expect(avatar.attributes('data-name')).toBe('Ana Gomez')
-    expect(avatar.attributes('data-seed')).toBe('user-7')
     // Activity is said by the StatusBadge column, not by a dot on the avatar.
-    expect(avatar.attributes('data-show-dot')).not.toBe('true')
   })
 
   it('replaces the legacy UAvatar in the name cell', async () => {

@@ -220,7 +220,7 @@ The clickable-row contract: a click or Enter from an **interactive child** (the 
 
 `StatusBadge`: a dot on the left, a tinted soft background and a 600 label, 24px high, 6px radius (artboard 02). Tones: **neutral** (draft/archived/cancelled), **info**, **success** (confirmed/active), **warning**, **danger**. Colors are token pairs defined once in `houndfe-ui.css` and pinned for AA contrast in both themes. Never invent a per-feature color for a state: map the domain state to a tone in the feature.
 
-`urgent` draws more attention without shouting: a deeper tint, a border and an icon in place of the dot (no motion, no solid fill). It is spoken too (`Estado: Vencida, urgente`). Use it for states that need action now; if everything is urgent, nothing is. Next to the badge, an inline marker (`⚠ 1 aviso`: warning icon plus 12px/600 `--hf-warning` text) says there are pending items without a second badge. Selection and financial status never share a tone vocabulary by accident. Legacy `AppBadge` and `StatusDotBadge` stay for unmigrated screens.
+`urgent` draws more attention without shouting: a deeper tint, a border and an icon in place of the dot (no motion, no solid fill). It is spoken too (`Estado: Vencida, urgente`). Use it for states that need action now; if everything is urgent, nothing is. Next to the badge, an inline marker (`⚠ 1 aviso`: warning icon plus 12px/600 `--hf-warning` text) says there are pending items without a second badge. Selection and financial status never share a tone vocabulary by accident. The legacy `AppBadge`, `StatusDotBadge` and `DotBadge` were deleted; a neutral count (no status) is plain text on `--hf-active-soft`, like the bulk-selection count.
 
 ### Row actions menu
 
@@ -295,7 +295,7 @@ On mobile a list row becomes a card (artboard 05): 12px radius, 16px padding. To
 
 ### List screens
 
-Every back-office list (products, customers, sales, quotations, promotions, routes, users, roles, tenants, members, payment methods and details, employees, suppliers, purchase orders) has **one layout**: on desktop a table, through `AppDataTable` and the Table row rules, and on mobile (< 768px) cards, through `mobile-render="cards"` plus `#mobile-card` and the Mobile cards rules. The **card grid with a `ViewToggle`** (and each feature's `use*ViewMode`) is retired. A grid of cards and a table showing the same records is a second layout to learn and maintain, and it gives no task its own job. Columns follow the work: the identifier or name first, then the status, then the fields that decide the next action, then the rest. That is 5–8 columns by default; extra fields go to the detail. Money and quantities are right-aligned and tabular. Whole-row click opens the record (`row-open`), and the ⋮ is last. The only card grid left is the **public catalog**, because its products are browsed by image, which is a different job.
+Every back-office list (products, customers, sales, quotations, promotions, routes, users, roles, tenants, members, payment methods and details, employees, suppliers, purchase orders) has **one layout**: on desktop a table, through `AppDataTable` and the Table row rules, and on mobile (< 768px) cards, through `mobile-render="cards"` plus `#mobile-card` and the Mobile cards rules. The **card grid with a `ViewToggle`** (and each feature's `use*ViewMode`) is retired and its code is deleted. A grid of cards and a table showing the same records is a second layout to learn and maintain, and it gives no task its own job. Columns follow the work: the identifier or name first, then the status, then the fields that decide the next action, then the rest. That is 5–8 columns by default; extra fields go to the detail. Money and quantities are right-aligned and tabular. Whole-row click opens the record (`row-open`), and the ⋮ is last. The only card grid left is the **public catalog**, because its products are browsed by image, which is a different job.
 
 ### Empty, no-match and error states
 
@@ -350,7 +350,7 @@ A list row identifies a record by its **name** (and image, for products), never 
 
 ### Legacy to pattern map
 
-When a screen migrates, replace the legacy pieces as follows, then delete what is left unused:
+When a screen migrates, replace the legacy pieces as follows, then delete what is left unused. The shared legacy components named below (`StatusDotBadge`, `DotBadge`, `AppBadge`, `ViewToggle`, `useViewMode`) no longer exist, so a new screen cannot reintroduce them:
 
 | Legacy | Pattern |
 | ------ | ------- |

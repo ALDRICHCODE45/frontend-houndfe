@@ -10,7 +10,7 @@
  *
  * Props:
  *   label        — text content of the badge
- *   tone         — neutral | info | success | warning | danger (legacy AppBadge tones are mapped)
+ *   tone         — neutral | info | success | warning | danger (legacy tone aliases are mapped)
  *   urgent       — stronger tint + border + icon
  *   icon         — icon used when urgent (default triangle-alert)
  *   ariaLabel    — full aria-label override

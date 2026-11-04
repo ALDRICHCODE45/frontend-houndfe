@@ -44,7 +44,7 @@ const phone = computed(() =>
 <template>
   <article v-bind="rowProps" class="customer-card" data-testid="customer-card">
     <div class="customer-card-heading">
-      <EntityAvatar :name="customer.fullName" :seed="customer.id" aria-hidden="true" />
+      <EntityAvatar :name="customer.fullName" aria-hidden="true" />
       <div class="customer-card-title">
         <button
           v-if="openable"

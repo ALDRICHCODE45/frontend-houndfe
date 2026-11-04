@@ -109,7 +109,6 @@ function selectSale(sale: ConfirmedSaleRow) {
         <EntityAvatar
           v-if="customer"
           :name="customer.fullName"
-          :seed="customer.id"
           size="lg"
           aria-hidden="true"
         />
