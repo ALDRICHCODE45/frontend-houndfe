@@ -1,11 +1,22 @@
 import type { TableColumn } from '@nuxt/ui'
 import type {
+  RowData,
   ColumnPinningState,
   VisibilityState,
   SortingState,
   PaginationState,
   RowSelectionState,
 } from '@tanstack/vue-table'
+
+declare module '@tanstack/vue-table' {
+  interface ColumnMeta<TData extends RowData, TValue> {
+    /**
+     * Marks the column that gets priority width in `AppDataTable` (the record's name). Default: the
+     * first data column after the selection column.
+     */
+    primary?: boolean
+  }
+}
 
 // Server response shape for paginated endpoints
 export interface PaginatedResponse<T> {

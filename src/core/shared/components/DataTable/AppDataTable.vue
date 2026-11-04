@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
-import { useTemplateRef, computed, useSlots } from 'vue'
+import { useTemplateRef, computed, useSlots, defineComponent, type PropType, type VNode } from 'vue'
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import type {
   TableColumn,
@@ -15,6 +15,15 @@ import DataTablePagination from './DataTablePagination.vue'
 import DataTableBulkActions from './DataTableBulkActions.vue'
 import { useClickableRow } from '../../composables/useClickableRow'
 import EmptyState from '../EmptyState.vue'
+import {
+  declaredCellClasses,
+  findPrimaryColumnKey,
+  isUtilityColumn,
+  PRIMARY_COLUMN_CLASS,
+  columnKey,
+  resolveSkeletonHeader,
+  withPrimaryColumn,
+} from './primaryColumn.utils'
 
 /** Copy for the shared "nothing yet" state (`emptyState` prop). */
 interface TableEmptyState {
@@ -220,18 +229,44 @@ const noMatchTitleText = computed(() => {
   return term ? `Ningún resultado para «${term}»` : props.noMatchTitle
 })
 const showTableSkeleton = computed(() => props.loading && props.data.length === 0)
-const skeletonColumnCount = computed(() => {
-  const hidden = columnVisibility.value
-  const visible = props.columns.filter((column) => {
-    const { id, accessorKey } = column as { id?: string; accessorKey?: unknown }
-    const key = id ?? (accessorKey === undefined ? undefined : String(accessorKey))
-    return key === undefined || hidden[key] !== false
-  })
-  return Math.max(visible.length, 1)
+
+// C1: the name column has priority width. `meta.primary` picks it; the default is the first data
+// column after the selection column.
+const primaryKey = computed(() => findPrimaryColumnKey(props.columns, columnVisibility.value))
+const displayColumns = computed(() => withPrimaryColumn(props.columns, primaryKey.value))
+
+// C2: the loading skeleton keeps the real header row and `min(pageSize, 5)` rows, so the surface
+// does not change height when the data arrives.
+const SkeletonHeaderNode = defineComponent({
+  props: { node: { type: Object as PropType<VNode>, required: true } },
+  setup: props => () => props.node,
 })
-const skeletonGridStyle = computed(() => ({
-  gridTemplateColumns: `repeat(${skeletonColumnCount.value}, minmax(0, 1fr))`,
-}))
+const skeletonRowCount = computed(() =>
+  Math.max(1, Math.min(pagination.value.pageSize, SKELETON_ROW_COUNT)),
+)
+const skeletonColumns = computed(() => {
+  const hidden = columnVisibility.value
+  return props.columns
+    .filter(column => {
+      const key = columnKey(column)
+      return key === undefined || hidden[key] !== false
+    })
+    .map((column, index) => {
+      const key = columnKey(column)
+      const classes = declaredCellClasses(column)
+      const primary = key !== undefined && key === primaryKey.value
+      const utility = isUtilityColumn(column)
+      return {
+        key: key ?? `column-${index}`,
+        select: key === 'select',
+        actions: utility && key !== 'select',
+        header: resolveSkeletonHeader(column),
+        thClass: [classes.th, primary ? PRIMARY_COLUMN_CLASS : ''],
+        tdClass: [classes.td, primary ? PRIMARY_COLUMN_CLASS : ''],
+        barClass: index === 0 || primary ? 'w-2/3' : 'w-1/2',
+      }
+    })
+})
 
 const forwardedTableSlots = computed(() =>
   Object.keys(slots).filter((name) => !SLOTS_NOT_FORWARDED_TO_TABLE.has(name)),
@@ -359,23 +394,23 @@ function handleClearSelection() {
             data-testid="mobile-card-skeleton"
           >
             <span
-              class="h-4 w-3/5 rounded bg-[var(--hf-border)]"
+              class="hf-skeleton h-4 w-3/5 rounded"
               data-testid="mobile-card-skeleton-title"
             />
             <span
-              class="h-3 w-2/5 rounded bg-[var(--hf-border)]"
+              class="hf-skeleton h-3 w-2/5 rounded"
               data-testid="mobile-card-skeleton-secondary"
             />
             <span
-              class="h-6 w-20 rounded-full bg-[var(--hf-border)]"
+              class="hf-skeleton h-6 w-20 rounded-full"
               data-testid="mobile-card-skeleton-badge"
             />
             <div
               class="flex items-center justify-between border-t border-[var(--hf-border)] pt-3"
               data-testid="mobile-card-skeleton-footer"
             >
-              <span class="h-3 w-28 rounded bg-[var(--hf-border)]" />
-              <span class="h-3 w-12 rounded bg-[var(--hf-border)]" />
+              <span class="hf-skeleton h-3 w-28 rounded" />
+              <span class="hf-skeleton h-3 w-12 rounded" />
             </div>
           </div>
         </div>
@@ -437,41 +472,68 @@ function handleClearSelection() {
         @action="emit('refresh')"
       />
 
-      <!-- First load with no rows yet: skeleton rows with the table's final
-           shape. A background refetch with rows keeps UTable's progress bar. -->
+      <!-- First load with no rows yet: the table's own geometry (real header, same cell classes, the
+           primary column floor) with placeholder bars, and no border of its own, so nothing jumps
+           when the rows arrive. A background refetch with rows keeps UTable's progress bar. -->
       <div
         v-else-if="showTableSkeleton"
-        class="w-full min-w-0 max-w-full flex-1 overflow-hidden rounded-lg border border-[var(--hf-border)]"
+        class="relative w-full min-w-0 max-w-full flex-1 overflow-auto"
         aria-busy="true"
         data-testid="table-skeleton"
       >
         <span class="sr-only">Cargando</span>
-        <div
-          class="grid h-10 items-center gap-4 border-b border-[var(--hf-border)] px-4"
-          :style="skeletonGridStyle"
-          aria-hidden="true"
-        >
-          <span
-            v-for="column in skeletonColumnCount"
-            :key="`skeleton-heading-${column}`"
-            class="h-2.5 w-14 rounded bg-[var(--hf-surface-muted)]"
-          />
-        </div>
-        <div
-          v-for="row in SKELETON_ROW_COUNT"
-          :key="`skeleton-row-${row}`"
-          class="grid h-16 items-center gap-4 border-b border-[var(--hf-border)] px-4 last:border-b-0"
-          :style="skeletonGridStyle"
-          aria-hidden="true"
-          data-testid="table-skeleton-row"
-        >
-          <span
-            v-for="column in skeletonColumnCount"
-            :key="`skeleton-cell-${row}-${column}`"
-            class="h-3 animate-pulse rounded bg-[var(--hf-surface-muted)]"
-            :class="column === 1 ? 'w-2/3' : 'w-1/2'"
-          />
-        </div>
+        <table data-slot="base" class="min-w-full overflow-clip" aria-hidden="true">
+          <thead data-slot="thead" class="relative" inert data-testid="table-skeleton-header">
+            <tr data-slot="tr">
+              <th
+                v-for="column in skeletonColumns"
+                :key="`skeleton-heading-${column.key}`"
+                data-slot="th"
+                class="border-b border-[var(--hf-border)] px-4 py-3.5 text-left text-sm font-semibold"
+                :class="column.thClass"
+                :style="column.select ? 'width:3rem;min-width:3rem;max-width:3rem;padding-inline:0.75rem 0' : undefined"
+              >
+                <span v-if="column.header.kind === 'text'" :class="column.actions ? 'sr-only' : undefined">
+                  {{ column.header.text }}
+                </span>
+                <SkeletonHeaderNode v-else-if="column.header.kind === 'node'" :node="column.header.node" />
+                <span
+                  v-else-if="!column.select && !column.actions"
+                  class="hf-skeleton block h-2.5 w-14 rounded"
+                />
+              </th>
+            </tr>
+          </thead>
+          <!-- Rows sit straight under the table (the DOM builds them without a tbody): the loading
+               state has no body section, which is what "no rows yet" means to the screens' specs. -->
+          <tr
+            v-for="row in skeletonRowCount"
+            :key="`skeleton-row-${row}`"
+            data-slot="tr"
+            class="h-16"
+            data-testid="table-skeleton-row"
+          >
+            <td
+              v-for="column in skeletonColumns"
+              :key="`skeleton-cell-${row}-${column.key}`"
+              data-slot="td"
+              class="border-b border-[var(--hf-border)] p-4 text-sm"
+              :class="column.tdClass"
+              :style="column.select ? 'width:3rem;min-width:3rem;max-width:3rem;padding-inline:0.75rem 0;overflow:visible' : undefined"
+            >
+              <span
+                class="hf-skeleton block animate-pulse"
+                :class="
+                  column.select
+                    ? 'size-4 rounded'
+                    : column.actions
+                      ? 'ml-auto size-6 rounded-md'
+                      : ['h-3 rounded', column.barClass]
+                "
+              />
+            </td>
+          </tr>
+        </table>
       </div>
 
       <UTable
@@ -483,7 +545,7 @@ function handleClearSelection() {
         v-model:row-selection="rowSelection"
         :row-selection-options="{ enableRowSelection: props.enableRowSelection }"
         :data="props.data"
-        :columns="props.columns"
+        :columns="displayColumns"
         :loading="isLoading"
         loading-color="primary"
         loading-animation="carousel"

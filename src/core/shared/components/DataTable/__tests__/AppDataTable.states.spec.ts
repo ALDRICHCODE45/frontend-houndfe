@@ -179,6 +179,36 @@ describe('AppDataTable states — loading', () => {
     expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
   })
 
+  it('keeps the real header row, so the surface does not change height when the rows arrive', () => {
+    const wrapper = mountTable({ ...emptyList, loading: true })
+    const skeleton = wrapper.get('[data-testid="table-skeleton"]')
+    expect(skeleton.findAll('thead th').map(th => th.text())).toEqual(['Nombre', 'Estado', 'Total', 'Acciones'])
+    expect(skeleton.find('[data-testid="table-skeleton-header"]').exists()).toBe(true)
+  })
+
+  it('has no inner bordered box: the surface around the table is the only border', () => {
+    const classes = mountTable({ ...emptyList, loading: true }).get('[data-testid="table-skeleton"]').classes()
+    expect(classes).not.toContain('border')
+    expect(classes).not.toContain('rounded-lg')
+  })
+
+  it('shows min(pageSize, 5) rows', () => {
+    const rowsFor = (pageSize: number) =>
+      mountTable({ ...emptyList, loading: true, pagination: { pageIndex: 0, pageSize } })
+        .findAll('[data-testid="table-skeleton-row"]').length
+    expect(rowsFor(3)).toBe(3)
+    expect(rowsFor(5)).toBe(5)
+    expect(rowsFor(50)).toBe(5)
+  })
+
+  it('paints the bars with the readable skeleton wash, not the faint muted surface', () => {
+    const wrapper = mountTable({ ...emptyList, loading: true })
+    for (const bar of wrapper.findAll('[data-testid="table-skeleton-row"] .animate-pulse')) {
+      expect(bar.classes()).toContain('hf-skeleton')
+      expect(bar.classes().join(' ')).not.toContain('surface-muted')
+    }
+  })
+
   it('draws one bar per visible column', () => {
     const wrapper = mountTable({
       ...emptyList,
@@ -213,6 +243,7 @@ describe('AppDataTable states — loading', () => {
     for (const card of cards) {
       expect(card.classes()).toEqual(expect.arrayContaining(['rounded-[var(--hf-radius-card)]', 'p-4', 'animate-pulse']))
       expect(card.classes().join(' ')).toContain('bg-[var(--hf-surface-muted)]')
+      expect(card.findAll('.hf-skeleton').length).toBeGreaterThanOrEqual(5)
       expect(card.get('[data-testid="mobile-card-skeleton-title"]').classes()).toContain('w-3/5')
       expect(card.get('[data-testid="mobile-card-skeleton-secondary"]').classes()).toContain('w-2/5')
       expect(card.get('[data-testid="mobile-card-skeleton-badge"]').classes()).toContain('rounded-full')

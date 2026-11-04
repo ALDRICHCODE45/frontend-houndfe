@@ -218,6 +218,22 @@ body.hf-app {
   text-overflow: ellipsis;
 }
 
+/* The name column has priority (`hf-col-primary`, added by AppDataTable to the first data column
+ * or to `meta: { primary: true }`): a 16rem floor and the largest share of the card, so the other
+ * columns shrink first and names are not cut while a neighbour has room. */
+.hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']).hf-col-primary {
+  width: 40%;
+  min-width: 16rem;
+}
+
+/* A status badge is never truncated: its cell sizes to the badge. */
+.hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']):not(.hf-col-primary):has(.hf-status-badge) {
+  width: 1%;
+  max-width: none;
+  overflow: visible;
+  white-space: nowrap;
+}
+
 /* The selection column is only its checkbox. */
 .hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']):has([role='checkbox']) {
   width: 3rem;
@@ -305,9 +321,17 @@ body.hf-app {
   white-space: nowrap;
 }
 
+/* Tabular numerals everywhere; the right alignment is a table-cell rule only, so a figure in a
+ * stat card or a summary panel follows the card's own alignment. */
 .hf-ui .hf-figure {
-  text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+.hf-ui td .hf-figure,
+.hf-ui th .hf-figure,
+.hf-ui td.hf-figure,
+.hf-ui th.hf-figure {
+  text-align: right;
 }
 
 /* ── Status badge: dot + tinted soft background (StatusBadge.vue) ─────────── */
@@ -485,4 +509,13 @@ body.hf-app {
 
 .hf-ui .hf-empty-state[data-kind='error'] .hf-empty-state__title {
   color: var(--hf-danger);
+}
+
+/* ── Skeleton: readable on a white card in both themes ────────────────────── */
+
+/* Nuxt's USkeleton paints `bg-elevated`, which is `--hf-surface` here, so it was invisible on a
+ * card. One wash of ink over the surface (readable in light and dark) for USkeleton and for the
+ * core's own bars (`hf-skeleton`). Features do not paint their own skeleton colour. */
+.hf-ui :is(.hf-skeleton, .animate-pulse.bg-elevated) {
+  background-color: color-mix(in srgb, var(--hf-ink) 16%, var(--hf-surface));
 }

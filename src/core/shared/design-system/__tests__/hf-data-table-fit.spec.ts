@@ -53,3 +53,27 @@ describe('data table fits its card (no horizontal scroll up to 8 columns)', () =
     expect(pinned).not.toMatch(/\/75|opacity/)
   })
 })
+
+const PRIMARY_CELLS = ".hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']).hf-col-primary"
+const BADGE_CELLS =
+  ".hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']):not(.hf-col-primary):has(.hf-status-badge)"
+
+describe('the name column has priority (C1)', () => {
+  it('gives the primary column a 16rem floor and the largest share, so the others shrink first', () => {
+    const primary = block(PRIMARY_CELLS)
+    expect(primary).toMatch(/min-width: 16rem/)
+    expect(primary).toMatch(/width: (3|4|5)\d%/)
+  })
+
+  it('still fits 8 columns at 1440: primary floor + 5 text columns + Acciones + selection', () => {
+    const floor = Number(block(CELLS).match(/min-width: ([\d.]+)rem/)![1])
+    expect(16 * 16 + 5 * floor * 16 + 64 + 48).toBeLessThanOrEqual(1020)
+  })
+
+  it('never truncates a status badge: its cell sizes to the badge and does not clip it', () => {
+    const badge = block(BADGE_CELLS)
+    expect(badge).toMatch(/max-width: none/)
+    expect(badge).toMatch(/overflow: visible/)
+    expect(badge).toMatch(/white-space: nowrap/)
+  })
+})
