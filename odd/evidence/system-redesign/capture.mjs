@@ -414,7 +414,9 @@ function needsMemory(route, wanted) {
   const idMissing = route.path.includes(':id') && !memory.ids[route.idFrom]
   const shapeMissing = wanted.some((s) => s !== 'data') && (route.gets ?? []).some((x) => x.method === 'GET' && x.empty !== 404 && !Object.keys(memory.shapes[route.slug] ?? {}).some((p) => x.re.test(p)))
   const idSourceMissing = route.idSource === true && !memory.ids[route.slug] && ROUTES.some((r) => r.idFrom === route.slug)
-  return idMissing || shapeMissing || idSourceMissing
+  // --force also relearns the response shapes, so seeded data replaces a shape (and its alreadyEmpty flag) cached while the screen was empty
+  const stale = FORCE && wanted.some((s) => s !== 'data') && (route.gets ?? []).length > 0
+  return idMissing || shapeMissing || idSourceMissing || stale
 }
 
 async function capture(route, state, vp, theme) {

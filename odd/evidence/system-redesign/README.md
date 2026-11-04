@@ -1,6 +1,6 @@
 # System redesign runtime screenshots (S4, S10)
 
-`capture.mjs` shoots every routed screen in four states (data, empty, loading, error), at 1440x900 and 390x844, in light and dark. The PNGs go to `shots/` and the findings to `report.json`. Both `shots/` and `.auth/` are git-ignored (`.git/info/exclude`), so only `capture.mjs`, this file and `report.json` are committed.
+`capture.mjs` shoots every routed screen in four states (data, empty, loading, error), at 1440x900 and 390x844, in light and dark. The PNGs go to `shots/` and the findings to `report.json`. Both `shots/` and `.auth/` are git-ignored (`.git/info/exclude`), so only `capture.mjs`, this file, `report.json` and `seed-round2.md` (the data the recapture relies on) are committed.
 
 ## Run
 
@@ -18,7 +18,7 @@
    node odd/evidence/system-redesign/capture.mjs --user admin     # only the routes the manager is forbidden to open
    ```
 
-Flags: `--only slug[,slug]`, `--states data,empty,loading,error`, `--themes light,dark`, `--viewports 1440,390`, `--force` (retake existing shots), `--inventory` (list the GET calls each screen makes, no shots), `--user manager|admin`.
+Flags: `--only slug[,slug]`, `--states data,empty,loading,error`, `--themes light,dark`, `--viewports 1440,390`, `--force` (retake existing shots and relearn the cached response shapes, so seeded data replaces a shape cached while a screen was empty), `--inventory` (list the GET calls each screen makes, no shots), `--user manager|admin`.
 
 It is resumable: a shot whose PNG exists is skipped, so rerun after a failure. Delete a PNG (or pass `--force`) to retake it.
 

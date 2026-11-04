@@ -3,7 +3,11 @@
     "login": {
       "path": "/login",
       "status": "captured",
-      "user": "manager"
+      "user": "manager",
+      "notApplicableStates": [
+        "empty"
+      ],
+      "notApplicableReason": "the screen has no list or record to empty (idle form)"
     },
     "select-tenant": {
       "path": "/select-tenant",
@@ -128,10 +132,7 @@
       "path": "/pos/promociones",
       "status": "captured",
       "user": "admin",
-      "managerForbidden": true,
-      "dataAlreadyEmpty": [
-        "/promotions"
-      ]
+      "managerForbidden": true
     },
     "pos-promotion-create": {
       "path": "/pos/promociones/crear/PRODUCT_DISCOUNT",
@@ -140,11 +141,10 @@
       "managerForbidden": true
     },
     "pos-promotion-detail": {
-      "path": "/pos/promociones/:id",
-      "status": "skipped",
+      "path": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "status": "captured",
       "user": "admin",
-      "managerForbidden": true,
-      "reason": "no pos-promotions item available to open (the list is empty or admin@houndfe.com cannot open it)"
+      "managerForbidden": true
     },
     "pos-quotations-list": {
       "path": "/pos/cotizaciones",
@@ -209,37 +209,25 @@
       "path": "/admin/payment-details",
       "status": "captured",
       "user": "admin",
-      "managerForbidden": true,
-      "dataAlreadyEmpty": [
-        "/admin/payment-details"
-      ]
+      "managerForbidden": true
     },
     "admin-payment-methods": {
       "path": "/admin/payment-methods",
       "status": "captured",
       "user": "admin",
-      "managerForbidden": true,
-      "dataAlreadyEmpty": [
-        "/admin/payment-methods"
-      ]
+      "managerForbidden": true
     },
     "procurement-purchase-orders": {
       "path": "/procurement/purchase-orders",
       "status": "captured",
       "user": "admin",
-      "managerForbidden": true,
-      "dataAlreadyEmpty": [
-        "/procurement/purchase-orders"
-      ]
+      "managerForbidden": true
     },
     "procurement-suppliers": {
       "path": "/procurement/suppliers",
       "status": "captured",
       "user": "admin",
-      "managerForbidden": true,
-      "dataAlreadyEmpty": [
-        "/procurement/suppliers"
-      ]
+      "managerForbidden": true
     },
     "pos-delivery-routes-list": {
       "path": "/pos/rutas-de-entrega",
@@ -1691,7 +1679,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1212,
+      "height": 1159,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -1714,7 +1702,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 2226,
+      "height": 2318,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -1737,7 +1725,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1212,
+      "height": 1159,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -1760,7 +1748,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 2226,
+      "height": 2318,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -2082,7 +2070,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 2110,
+      "height": 1821,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -2128,7 +2116,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 2110,
+      "height": 1821,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -2174,7 +2162,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 2110,
+      "height": 1821,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -2220,7 +2208,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 2110,
+      "height": 1821,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -2266,7 +2254,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 2110,
+      "height": 1821,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -2312,7 +2300,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 2110,
+      "height": 1821,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -2358,7 +2346,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 2110,
+      "height": 1821,
       "consoleErrors": [],
       "expectedConsoleErrors": 2,
       "failedRequests": [],
@@ -2404,7 +2392,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 2110,
+      "height": 1821,
       "consoleErrors": [],
       "expectedConsoleErrors": 2,
       "failedRequests": [],
@@ -2427,7 +2415,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1272,
+      "height": 1270,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -2450,7 +2438,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 2131,
+      "height": 1872,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -2473,7 +2461,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1272,
+      "height": 1270,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -2496,7 +2484,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 2131,
+      "height": 1872,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -3186,7 +3174,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1168,
+      "height": 1140,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -3232,7 +3220,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1168,
+      "height": 1140,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -3531,7 +3519,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 5535,
+      "height": 5505,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -3577,7 +3565,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 5535,
+      "height": 5505,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -3715,7 +3703,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1162,
+      "height": 1132,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -3738,7 +3726,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1561,
+      "height": 1531,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -3761,7 +3749,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1162,
+      "height": 1132,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -3784,7 +3772,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1561,
+      "height": 1531,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -3899,7 +3887,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1136,
+      "height": 1063,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -3922,18 +3910,10 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1669,
-      "consoleErrors": [
-        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
-      ],
+      "height": 1482,
+      "consoleErrors": [],
       "expectedConsoleErrors": 0,
-      "failedRequests": [
-        {
-          "method": "GET",
-          "path": "/sales/c03d92cf-d51b-4cba-83e8-7626aad2327c",
-          "status": 401
-        }
-      ],
+      "failedRequests": [],
       "intercepted": 0,
       "unwired": []
     },
@@ -3953,7 +3933,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1136,
+      "height": 1063,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -3976,7 +3956,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1669,
+      "height": 1482,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -3991,7 +3971,7 @@
       "state": "empty",
       "viewport": "1440",
       "theme": "light",
-      "finalPath": "/pos/ventas",
+      "finalPath": "/pos/ventas/c03d92cf-d51b-4cba-83e8-7626aad2327c",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 1440,
@@ -4014,7 +3994,7 @@
       "state": "empty",
       "viewport": "390",
       "theme": "light",
-      "finalPath": "/pos/ventas",
+      "finalPath": "/pos/ventas/c03d92cf-d51b-4cba-83e8-7626aad2327c",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 390,
@@ -4022,7 +4002,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1168,
+      "height": 844,
       "consoleErrors": [],
       "expectedConsoleErrors": 1,
       "failedRequests": [],
@@ -4037,7 +4017,7 @@
       "state": "empty",
       "viewport": "1440",
       "theme": "dark",
-      "finalPath": "/pos/ventas",
+      "finalPath": "/pos/ventas/c03d92cf-d51b-4cba-83e8-7626aad2327c",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 1440,
@@ -4060,7 +4040,7 @@
       "state": "empty",
       "viewport": "390",
       "theme": "dark",
-      "finalPath": "/pos/ventas",
+      "finalPath": "/pos/ventas/c03d92cf-d51b-4cba-83e8-7626aad2327c",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 390,
@@ -4068,7 +4048,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1168,
+      "height": 844,
       "consoleErrors": [],
       "expectedConsoleErrors": 1,
       "failedRequests": [],
@@ -4114,7 +4094,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 1053,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -4160,7 +4140,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 1053,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -4175,7 +4155,7 @@
       "state": "error",
       "viewport": "1440",
       "theme": "light",
-      "finalPath": "/pos/ventas",
+      "finalPath": "/pos/ventas/c03d92cf-d51b-4cba-83e8-7626aad2327c",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 1440,
@@ -4198,7 +4178,7 @@
       "state": "error",
       "viewport": "390",
       "theme": "light",
-      "finalPath": "/pos/ventas",
+      "finalPath": "/pos/ventas/c03d92cf-d51b-4cba-83e8-7626aad2327c",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 390,
@@ -4206,7 +4186,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1168,
+      "height": 844,
       "consoleErrors": [],
       "expectedConsoleErrors": 1,
       "failedRequests": [],
@@ -4221,7 +4201,7 @@
       "state": "error",
       "viewport": "1440",
       "theme": "dark",
-      "finalPath": "/pos/ventas",
+      "finalPath": "/pos/ventas/c03d92cf-d51b-4cba-83e8-7626aad2327c",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 1440,
@@ -4244,7 +4224,7 @@
       "state": "error",
       "viewport": "390",
       "theme": "dark",
-      "finalPath": "/pos/ventas",
+      "finalPath": "/pos/ventas/c03d92cf-d51b-4cba-83e8-7626aad2327c",
       "themeApplied": true,
       "overflow": {
         "scrollWidth": 390,
@@ -4252,7 +4232,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1168,
+      "height": 844,
       "consoleErrors": [],
       "expectedConsoleErrors": 1,
       "failedRequests": [],
@@ -4686,7 +4666,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1176,
+      "height": 1144,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -4709,7 +4689,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 2218,
+      "height": 2138,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -4732,7 +4712,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1176,
+      "height": 1144,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -4755,7 +4735,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 2218,
+      "height": 2138,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -5077,7 +5057,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 1030,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -5123,7 +5103,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 1030,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -5856,7 +5836,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 990,
+      "height": 878,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -5902,7 +5882,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 990,
+      "height": 878,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6224,7 +6204,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1162,
+      "height": 1050,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6270,7 +6250,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1162,
+      "height": 1050,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6569,7 +6549,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1828,
+      "height": 1798,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6592,7 +6572,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 3561,
+      "height": 3464,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6615,7 +6595,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1828,
+      "height": 1798,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6638,7 +6618,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 3561,
+      "height": 3464,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6661,7 +6641,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1766,
+      "height": 1416,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6684,7 +6664,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1957,
+      "height": 1683,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6707,7 +6687,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1766,
+      "height": 1416,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6730,7 +6710,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1957,
+      "height": 1683,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6753,7 +6733,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1528,
+      "height": 1586,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6776,7 +6756,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1924,
+      "height": 1982,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6799,7 +6779,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1528,
+      "height": 1586,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6822,7 +6802,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1924,
+      "height": 1982,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -6845,7 +6825,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1572,
+      "height": 945,
       "consoleErrors": [],
       "expectedConsoleErrors": 5,
       "failedRequests": [],
@@ -6868,7 +6848,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1784,
+      "height": 1380,
       "consoleErrors": [],
       "expectedConsoleErrors": 5,
       "failedRequests": [],
@@ -6891,7 +6871,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1572,
+      "height": 945,
       "consoleErrors": [],
       "expectedConsoleErrors": 5,
       "failedRequests": [],
@@ -6914,7 +6894,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1784,
+      "height": 1380,
       "consoleErrors": [],
       "expectedConsoleErrors": 5,
       "failedRequests": [],
@@ -6960,7 +6940,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 874,
+      "height": 883,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7006,7 +6986,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 874,
+      "height": 883,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7328,7 +7308,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 860,
+      "height": 844,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7374,7 +7354,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 860,
+      "height": 844,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7397,7 +7377,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 996,
+      "height": 911,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7420,7 +7400,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 968,
+      "height": 884,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7443,7 +7423,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 996,
+      "height": 911,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7466,7 +7446,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 968,
+      "height": 884,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7489,7 +7469,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1055,
+      "height": 971,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7512,7 +7492,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1118,
+      "height": 1139,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7535,7 +7515,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1055,
+      "height": 971,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7558,7 +7538,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1118,
+      "height": 1139,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -7604,7 +7584,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 943,
+      "height": 859,
       "consoleErrors": [],
       "expectedConsoleErrors": 2,
       "failedRequests": [],
@@ -7650,7 +7630,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 943,
+      "height": 859,
       "consoleErrors": [],
       "expectedConsoleErrors": 2,
       "failedRequests": [],
@@ -8041,7 +8021,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 1158,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8087,7 +8067,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 1158,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8386,7 +8366,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1346,
+      "height": 1338,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8409,7 +8389,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1433,
+      "height": 1516,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8432,7 +8412,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1346,
+      "height": 1338,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8455,7 +8435,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1433,
+      "height": 1516,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8478,7 +8458,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1346,
+      "height": 1338,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8501,7 +8481,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1477,
+      "height": 1560,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8524,7 +8504,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1346,
+      "height": 1338,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8547,7 +8527,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1477,
+      "height": 1560,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8570,7 +8550,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1346,
+      "height": 1338,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8593,7 +8573,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1477,
+      "height": 1540,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8616,7 +8596,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1346,
+      "height": 1338,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8639,7 +8619,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1477,
+      "height": 1540,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -8662,7 +8642,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1346,
+      "height": 1338,
       "consoleErrors": [],
       "expectedConsoleErrors": 1,
       "failedRequests": [],
@@ -8685,7 +8665,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1477,
+      "height": 1560,
       "consoleErrors": [],
       "expectedConsoleErrors": 1,
       "failedRequests": [],
@@ -8708,7 +8688,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1346,
+      "height": 1338,
       "consoleErrors": [],
       "expectedConsoleErrors": 1,
       "failedRequests": [],
@@ -8731,7 +8711,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1477,
+      "height": 1560,
       "consoleErrors": [],
       "expectedConsoleErrors": 1,
       "failedRequests": [],
@@ -9122,7 +9102,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 990,
+      "height": 1063,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -9145,7 +9125,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1827,
+      "height": 1810,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -9168,7 +9148,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 990,
+      "height": 1063,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -9191,7 +9171,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1827,
+      "height": 1810,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -9329,7 +9309,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 1172,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -9375,7 +9355,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 1172,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -9490,7 +9470,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1162,
+      "height": 1106,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -9536,7 +9516,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1162,
+      "height": 1106,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -9858,7 +9838,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1162,
+      "height": 1068,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -9904,7 +9884,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1162,
+      "height": 1068,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -10226,7 +10206,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 934,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -10272,7 +10252,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 934,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -10594,7 +10574,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 1106,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -10640,7 +10620,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 1106,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -10962,7 +10942,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 1199,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -11008,7 +10988,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 1199,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -12044,9 +12024,23 @@
         "offenders": []
       },
       "height": 900,
-      "consoleErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ],
       "expectedConsoleErrors": 0,
-      "failedRequests": [],
+      "failedRequests": [
+        {
+          "method": "GET",
+          "path": "/delivery-routes",
+          "status": 401
+        },
+        {
+          "method": "GET",
+          "path": "/delivery-routes",
+          "status": 401
+        }
+      ],
       "intercepted": 0,
       "unwired": []
     },
@@ -12066,7 +12060,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1254,
+      "height": 1154,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -12112,18 +12106,10 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1254,
-      "consoleErrors": [
-        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
-      ],
+      "height": 1154,
+      "consoleErrors": [],
       "expectedConsoleErrors": 0,
-      "failedRequests": [
-        {
-          "method": "GET",
-          "path": "/delivery-routes/9ea3c7b1-3c0d-4d89-b030-f78d0cac2312",
-          "status": 401
-        }
-      ],
+      "failedRequests": [],
       "intercepted": 0,
       "unwired": []
     },
@@ -12258,7 +12244,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 1040,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -12304,7 +12290,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 844,
+      "height": 1040,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -12810,7 +12796,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 885,
+      "height": 861,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -12856,7 +12842,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 885,
+      "height": 861,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -12902,7 +12888,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1051,
+      "height": 983,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -12948,7 +12934,7 @@
         "overflows": false,
         "offenders": []
       },
-      "height": 1051,
+      "height": 983,
       "consoleErrors": [],
       "expectedConsoleErrors": 0,
       "failedRequests": [],
@@ -13506,9 +13492,377 @@
       "failedRequests": [],
       "intercepted": 1,
       "unwired": []
+    },
+    "pos-promotion-detail__data__1440__light.png": {
+      "file": "pos-promotion-detail__data__1440__light.png",
+      "route": "pos-promotion-detail",
+      "user": "admin",
+      "path": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "state": "data",
+      "viewport": "1440",
+      "theme": "light",
+      "finalPath": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "themeApplied": true,
+      "overflow": {
+        "scrollWidth": 1440,
+        "innerWidth": 1440,
+        "overflows": false,
+        "offenders": []
+      },
+      "height": 1268,
+      "consoleErrors": [],
+      "expectedConsoleErrors": 0,
+      "failedRequests": [],
+      "intercepted": 0,
+      "unwired": []
+    },
+    "pos-promotion-detail__data__390__light.png": {
+      "file": "pos-promotion-detail__data__390__light.png",
+      "route": "pos-promotion-detail",
+      "user": "admin",
+      "path": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "state": "data",
+      "viewport": "390",
+      "theme": "light",
+      "finalPath": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "themeApplied": true,
+      "overflow": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "overflows": false,
+        "offenders": []
+      },
+      "height": 1304,
+      "consoleErrors": [],
+      "expectedConsoleErrors": 0,
+      "failedRequests": [],
+      "intercepted": 0,
+      "unwired": []
+    },
+    "pos-promotion-detail__data__1440__dark.png": {
+      "file": "pos-promotion-detail__data__1440__dark.png",
+      "route": "pos-promotion-detail",
+      "user": "admin",
+      "path": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "state": "data",
+      "viewport": "1440",
+      "theme": "dark",
+      "finalPath": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "themeApplied": true,
+      "overflow": {
+        "scrollWidth": 1440,
+        "innerWidth": 1440,
+        "overflows": false,
+        "offenders": []
+      },
+      "height": 1268,
+      "consoleErrors": [],
+      "expectedConsoleErrors": 0,
+      "failedRequests": [],
+      "intercepted": 0,
+      "unwired": []
+    },
+    "pos-promotion-detail__data__390__dark.png": {
+      "file": "pos-promotion-detail__data__390__dark.png",
+      "route": "pos-promotion-detail",
+      "user": "admin",
+      "path": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "state": "data",
+      "viewport": "390",
+      "theme": "dark",
+      "finalPath": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "themeApplied": true,
+      "overflow": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "overflows": false,
+        "offenders": []
+      },
+      "height": 1304,
+      "consoleErrors": [],
+      "expectedConsoleErrors": 0,
+      "failedRequests": [],
+      "intercepted": 0,
+      "unwired": []
+    },
+    "pos-promotion-detail__empty__1440__light.png": {
+      "file": "pos-promotion-detail__empty__1440__light.png",
+      "route": "pos-promotion-detail",
+      "user": "admin",
+      "path": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "state": "empty",
+      "viewport": "1440",
+      "theme": "light",
+      "finalPath": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "themeApplied": true,
+      "overflow": {
+        "scrollWidth": 1440,
+        "innerWidth": 1440,
+        "overflows": false,
+        "offenders": []
+      },
+      "height": 900,
+      "consoleErrors": [],
+      "expectedConsoleErrors": 1,
+      "failedRequests": [],
+      "intercepted": 1,
+      "unwired": []
+    },
+    "pos-promotion-detail__empty__390__light.png": {
+      "file": "pos-promotion-detail__empty__390__light.png",
+      "route": "pos-promotion-detail",
+      "user": "admin",
+      "path": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "state": "empty",
+      "viewport": "390",
+      "theme": "light",
+      "finalPath": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "themeApplied": true,
+      "overflow": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "overflows": false,
+        "offenders": []
+      },
+      "height": 844,
+      "consoleErrors": [],
+      "expectedConsoleErrors": 1,
+      "failedRequests": [],
+      "intercepted": 1,
+      "unwired": []
+    },
+    "pos-promotion-detail__empty__1440__dark.png": {
+      "file": "pos-promotion-detail__empty__1440__dark.png",
+      "route": "pos-promotion-detail",
+      "user": "admin",
+      "path": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "state": "empty",
+      "viewport": "1440",
+      "theme": "dark",
+      "finalPath": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "themeApplied": true,
+      "overflow": {
+        "scrollWidth": 1440,
+        "innerWidth": 1440,
+        "overflows": false,
+        "offenders": []
+      },
+      "height": 900,
+      "consoleErrors": [],
+      "expectedConsoleErrors": 1,
+      "failedRequests": [],
+      "intercepted": 1,
+      "unwired": []
+    },
+    "pos-promotion-detail__empty__390__dark.png": {
+      "file": "pos-promotion-detail__empty__390__dark.png",
+      "route": "pos-promotion-detail",
+      "user": "admin",
+      "path": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "state": "empty",
+      "viewport": "390",
+      "theme": "dark",
+      "finalPath": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "themeApplied": true,
+      "overflow": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "overflows": false,
+        "offenders": []
+      },
+      "height": 844,
+      "consoleErrors": [],
+      "expectedConsoleErrors": 1,
+      "failedRequests": [],
+      "intercepted": 1,
+      "unwired": []
+    },
+    "pos-promotion-detail__loading__1440__light.png": {
+      "file": "pos-promotion-detail__loading__1440__light.png",
+      "route": "pos-promotion-detail",
+      "user": "admin",
+      "path": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "state": "loading",
+      "viewport": "1440",
+      "theme": "light",
+      "finalPath": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "themeApplied": true,
+      "overflow": {
+        "scrollWidth": 1440,
+        "innerWidth": 1440,
+        "overflows": false,
+        "offenders": []
+      },
+      "height": 900,
+      "consoleErrors": [],
+      "expectedConsoleErrors": 0,
+      "failedRequests": [],
+      "intercepted": 1,
+      "unwired": []
+    },
+    "pos-promotion-detail__loading__390__light.png": {
+      "file": "pos-promotion-detail__loading__390__light.png",
+      "route": "pos-promotion-detail",
+      "user": "admin",
+      "path": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "state": "loading",
+      "viewport": "390",
+      "theme": "light",
+      "finalPath": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "themeApplied": true,
+      "overflow": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "overflows": false,
+        "offenders": []
+      },
+      "height": 895,
+      "consoleErrors": [],
+      "expectedConsoleErrors": 0,
+      "failedRequests": [],
+      "intercepted": 1,
+      "unwired": []
+    },
+    "pos-promotion-detail__loading__1440__dark.png": {
+      "file": "pos-promotion-detail__loading__1440__dark.png",
+      "route": "pos-promotion-detail",
+      "user": "admin",
+      "path": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "state": "loading",
+      "viewport": "1440",
+      "theme": "dark",
+      "finalPath": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "themeApplied": true,
+      "overflow": {
+        "scrollWidth": 1440,
+        "innerWidth": 1440,
+        "overflows": false,
+        "offenders": []
+      },
+      "height": 900,
+      "consoleErrors": [],
+      "expectedConsoleErrors": 0,
+      "failedRequests": [],
+      "intercepted": 1,
+      "unwired": []
+    },
+    "pos-promotion-detail__loading__390__dark.png": {
+      "file": "pos-promotion-detail__loading__390__dark.png",
+      "route": "pos-promotion-detail",
+      "user": "admin",
+      "path": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "state": "loading",
+      "viewport": "390",
+      "theme": "dark",
+      "finalPath": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "themeApplied": true,
+      "overflow": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "overflows": false,
+        "offenders": []
+      },
+      "height": 895,
+      "consoleErrors": [],
+      "expectedConsoleErrors": 0,
+      "failedRequests": [],
+      "intercepted": 1,
+      "unwired": []
+    },
+    "pos-promotion-detail__error__1440__light.png": {
+      "file": "pos-promotion-detail__error__1440__light.png",
+      "route": "pos-promotion-detail",
+      "user": "admin",
+      "path": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "state": "error",
+      "viewport": "1440",
+      "theme": "light",
+      "finalPath": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "themeApplied": true,
+      "overflow": {
+        "scrollWidth": 1440,
+        "innerWidth": 1440,
+        "overflows": false,
+        "offenders": []
+      },
+      "height": 900,
+      "consoleErrors": [],
+      "expectedConsoleErrors": 1,
+      "failedRequests": [],
+      "intercepted": 1,
+      "unwired": []
+    },
+    "pos-promotion-detail__error__390__light.png": {
+      "file": "pos-promotion-detail__error__390__light.png",
+      "route": "pos-promotion-detail",
+      "user": "admin",
+      "path": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "state": "error",
+      "viewport": "390",
+      "theme": "light",
+      "finalPath": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "themeApplied": true,
+      "overflow": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "overflows": false,
+        "offenders": []
+      },
+      "height": 844,
+      "consoleErrors": [],
+      "expectedConsoleErrors": 1,
+      "failedRequests": [],
+      "intercepted": 1,
+      "unwired": []
+    },
+    "pos-promotion-detail__error__1440__dark.png": {
+      "file": "pos-promotion-detail__error__1440__dark.png",
+      "route": "pos-promotion-detail",
+      "user": "admin",
+      "path": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "state": "error",
+      "viewport": "1440",
+      "theme": "dark",
+      "finalPath": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "themeApplied": true,
+      "overflow": {
+        "scrollWidth": 1440,
+        "innerWidth": 1440,
+        "overflows": false,
+        "offenders": []
+      },
+      "height": 900,
+      "consoleErrors": [],
+      "expectedConsoleErrors": 1,
+      "failedRequests": [],
+      "intercepted": 1,
+      "unwired": []
+    },
+    "pos-promotion-detail__error__390__dark.png": {
+      "file": "pos-promotion-detail__error__390__dark.png",
+      "route": "pos-promotion-detail",
+      "user": "admin",
+      "path": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "state": "error",
+      "viewport": "390",
+      "theme": "dark",
+      "finalPath": "/pos/promociones/3a676b28-d547-416e-b7ba-e5eaf9300517",
+      "themeApplied": true,
+      "overflow": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "overflows": false,
+        "offenders": []
+      },
+      "height": 844,
+      "consoleErrors": [],
+      "expectedConsoleErrors": 1,
+      "failedRequests": [],
+      "intercepted": 1,
+      "unwired": []
     }
   },
-  "generatedAt": "2026-11-04T12:01:58.453Z",
+  "generatedAt": "2026-11-04T15:02:46.709Z",
   "base": "http://127.0.0.1:5173",
   "api": "http://127.0.0.1:3000"
 }
