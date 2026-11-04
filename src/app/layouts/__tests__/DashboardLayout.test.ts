@@ -377,6 +377,16 @@ describe('DashboardLayout — collapsed rail reachability (S2/S4)', () => {
     expect(navTag).toMatch(/:items="navigationFor\(collapsed\)"/)
   })
 
+  it('names every collapsed icon with a right-side tooltip', () => {
+    const sfc = readSfc()
+    // Top-level links, the search trigger and the branch and account triggers
+    // are icon-only on the compact rail, so each one explains itself on hover.
+    expect(sfc.match(/<UNavigationMenu\b[\s\S]*?\/?>/)![0]).toMatch(/\btooltip\b/)
+    expect(sfc.match(/<UDashboardSearchButton\b[\s\S]*?\/?>/)![0]).toMatch(/\btooltip\b/)
+    const wrapped = sfc.match(/<UTooltip\b[^>]*:disabled="!collapsed"/g) ?? []
+    expect(wrapped.length).toBeGreaterThanOrEqual(2)
+  })
+
   it('forwards the shell portal markers into the real installed compact popover content', async () => {
     localStorage.setItem(
       SIDEBAR_STORAGE_KEY,

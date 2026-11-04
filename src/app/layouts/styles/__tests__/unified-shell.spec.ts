@@ -173,8 +173,6 @@ const CONTRACT_HOOKS = [
   'hf-shell-nav-portal',
   'hf-shell-products-portal',
   'hf-shell-brand',
-  'hf-shell-brand-mark',
-  'hf-shell-brand-name',
   'hf-shell-tenant',
   'hf-shell-search',
   'hf-shell-nav',
@@ -615,12 +613,13 @@ describe('compact rail, group hierarchy and shell token scoping', () => {
       (rule) =>
         rule.selectorText.includes('.hf-shell-nav') &&
         rule.selectorText.includes('[aria-expanded') &&
-        rule.style.getPropertyValue('font-size').trim() === '11px',
+        rule.style.getPropertyValue('font-size').trim() === '12px',
     )
     expect(heading).toBeDefined()
     expect(heading!.style.getPropertyValue('color').trim()).toBe('var(--shell-muted)')
     expect(heading!.style.getPropertyValue('font-weight').trim()).toBe('600')
-    expect(heading!.style.getPropertyValue('letter-spacing').trim()).toBe('0.07em')
+    expect(heading!.style.getPropertyValue('letter-spacing').trim()).toBe('')
+    expect(heading!.style.getPropertyValue('text-transform').trim()).toBe('')
     // The reference group label is shorter than a destination row.
     expect(['0', '0px']).toContain(heading!.style.getPropertyValue('min-height').trim())
 

@@ -150,11 +150,12 @@ describe('shell chrome — dropdown menus', () => {
     })
   })
 
-  it('heads the branch menu with a quiet uppercase label', () => {
-    expect(paint('.hf-shell-tenant-menu [data-slot="label"]')).toMatchObject({
-      'text-transform': 'uppercase',
-      color: 'var(--shell-muted)',
-    })
+  it('heads the branch menu with a quiet sentence-case label, no eyebrow', () => {
+    const label = paint('.hf-shell-tenant-menu [data-slot="label"]')
+
+    expect(label).toMatchObject({ color: 'var(--shell-muted)' })
+    expect(label['text-transform']).toBeUndefined()
+    expect(label['letter-spacing']).toBeUndefined()
   })
 })
 

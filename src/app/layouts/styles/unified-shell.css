@@ -155,28 +155,6 @@
   gap: 10px;
 }
 
-.hf-shell-brand-mark {
-  width: 27px;
-  font-size: 27px;
-  font-weight: 800;
-  line-height: 1;
-  letter-spacing: -5px;
-  color: var(--shell-action);
-}
-
-/* The lowercase "f" sits on the baseline of the registered "h". */
-.hf-shell-brand-mark > span {
-  display: inline-block;
-  transform: translateY(3px);
-}
-
-.hf-shell-brand-name {
-  font-size: 23px;
-  font-weight: 700;
-  letter-spacing: -1px;
-  color: var(--shell-ink);
-}
-
 /* Additive image hook for the real login brand asset. No recolor filter: the
  * installed asset is a full-colour PNG, so it keeps its own artwork. */
 .hf-shell-brand-logo {
@@ -186,17 +164,6 @@
   height: 40px;
   object-fit: contain;
   object-position: left center;
-}
-
-/* Registered mark reads as a small superscript, not part of the wordmark. */
-.hf-shell-brand-name > span {
-  display: inline-block;
-  margin: 5px 0 0 3px;
-  font-size: 10px;
-  font-weight: inherit;
-  letter-spacing: 0;
-  vertical-align: top;
-  color: var(--shell-muted);
 }
 
 .hf-shell-tenant {
@@ -335,9 +302,8 @@
   gap: 10px;
   padding: 6px 11px;
   color: var(--shell-muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.07em;
 }
 
 .hf-shell-nav [data-slot='link'][aria-expanded]:hover,
@@ -387,9 +353,8 @@
 .hf-shell-nav [data-slot='label'] {
   padding: 6px 11px;
   color: var(--shell-muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.07em;
 }
 
 .hf-shell-nav [data-slot='childLink'] {
@@ -706,7 +671,7 @@
   background-color: var(--shell-active);
   color: var(--shell-action);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 button.hf-shell-tenant:hover {
@@ -773,7 +738,7 @@ button.hf-shell-tenant:focus-visible {
   color: var(--shell-ink);
 }
 
-/* Branch menu: quiet uppercase heading, 44px rows with an initial tile, the
+/* Branch menu: quiet sentence-case heading, 44px rows with an initial tile, the
  * slug as supporting text, and the current branch in the selection tokens. */
 .hf-shell-tenant-menu {
   min-width: max(var(--reka-dropdown-menu-trigger-width, 0px), 248px);
@@ -782,10 +747,8 @@ button.hf-shell-tenant:focus-visible {
 .hf-shell-tenant-menu [data-slot='label'] {
   padding: 8px 10px 6px;
   color: var(--shell-muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
 }
 
 .hf-shell-tenant-menu [data-slot='item'] {
@@ -799,7 +762,7 @@ button.hf-shell-tenant:focus-visible {
   background-color: var(--shell-muted-surface);
   color: var(--shell-ink);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   transition:
     background-color 120ms ease,
     color 120ms ease;
