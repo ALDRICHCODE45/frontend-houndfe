@@ -1,0 +1,584 @@
+{
+  "generatedAt": "2026-11-04T18:06:42.348Z",
+  "base": "http://127.0.0.1:5173",
+  "api": "http://127.0.0.1:3000",
+  "tenant": "Sucursal Centro",
+  "summary": {
+    "pass": 23,
+    "fail": 0
+  },
+  "checks": [
+    {
+      "id": "T6-visible-manager",
+      "name": "manager sees the fifth task \"Inventario\" on a saved product",
+      "result": "PASS",
+      "evidence": {
+        "tasks": [
+          "Identidad",
+          "Presentaciones",
+          "Contenido",
+          "Revisar",
+          "Inventario"
+        ]
+      }
+    },
+    {
+      "id": "croquetas-stock",
+      "name": "Croquetas stock panel: untracked units, 3 lots, expired lot with \"Vencido\"",
+      "result": "PASS",
+      "evidence": {
+        "rows": [
+          {
+            "label": "Sin lote",
+            "qty": "12",
+            "vencido": false
+          },
+          {
+            "label": "Lote L-2026-08",
+            "qty": "8",
+            "vencido": true
+          },
+          {
+            "label": "Lote L-2027-01",
+            "qty": "22",
+            "vencido": false
+          },
+          {
+            "label": "Lote L-2027-06",
+            "qty": "30",
+            "vencido": false
+          }
+        ],
+        "totals": {
+          "total": 72,
+          "sellable": 64
+        }
+      }
+    },
+    {
+      "id": "croquetas-sellable",
+      "name": "Croquetas: sellable excludes the expired lot (total - expired)",
+      "result": "PASS",
+      "evidence": {
+        "total": 72,
+        "sellable": 64
+      }
+    },
+    {
+      "id": "croquetas-kardex-initial",
+      "name": "Croquetas kardex starts with INITIAL rows (\"Inicial\")",
+      "result": "PASS",
+      "evidence": {
+        "pagesLoaded": 2,
+        "rows": 32,
+        "oldestRows": [
+          "AjusteConteo físico · Conteo inicial de unidades sueltas4 nov, 02:23Manager CentroSin lote+121272",
+          "Inicial4 nov, 02:23Manager CentroLote L-2027-06+303060",
+          "Inicial4 nov, 02:23Manager CentroLote L-2027-01+222230",
+          "Inicial4 nov, 02:23Manager CentroLote L-2026-08+888"
+        ]
+      }
+    },
+    {
+      "id": "opening-sistema",
+      "name": "OPENING kardex rows show \"Apertura\" with \"Sistema\" as the actor",
+      "result": "PASS",
+      "evidence": {
+        "product": "Suéter tejido para perro (variantes ocultas)",
+        "rows": [
+          "Apertura4 nov, 00:42SistemaM+5510",
+          "Apertura4 nov, 00:42SistemaS+555"
+        ]
+      }
+    },
+    {
+      "id": "kardex-fit-1440",
+      "name": "kardex at 1440: every column (incl. \"Responsable\") is visible with no horizontal scroll",
+      "result": "PASS",
+      "evidence": {
+        "cardWidth": 760,
+        "tableWidth": 760,
+        "scrollers": [],
+        "heads": [
+          {
+            "t": "Movimiento",
+            "right": 494
+          },
+          {
+            "t": "Fecha",
+            "right": 647
+          },
+          {
+            "t": "Ubicación",
+            "right": 800
+          },
+          {
+            "t": "Cambio",
+            "right": 886
+          },
+          {
+            "t": "Saldo",
+            "right": 971
+          },
+          {
+            "t": "Total",
+            "right": 1056
+          }
+        ],
+        "kardexRight": 1056
+      }
+    },
+    {
+      "id": "kardex-no-ellipsis-1440",
+      "name": "kardex at 1440: date, actor and location are not cut off with an ellipsis",
+      "result": "PASS",
+      "evidence": {
+        "clipped": []
+      }
+    },
+    {
+      "id": "adjust-restar-2",
+      "name": "Restar 2 · Merma/daño: 201, stock -2, kardex gets the new row first",
+      "result": "PASS",
+      "evidence": {
+        "request": {
+          "delta": -2,
+          "reason": "DAMAGE",
+          "expectedVersion": 29,
+          "idempotencyKey": true,
+          "status": 201
+        },
+        "before": 12,
+        "after": 10,
+        "totalBefore": 72,
+        "totalAfter": 70,
+        "previewText": "Quedará en10",
+        "firstKardexRow": "AjusteMerma/daño4 nov, 12:04Manager CentroSin lote−21070"
+      }
+    },
+    {
+      "id": "adjust-negative-local",
+      "name": "a subtraction below zero is refused next to the field with readable copy; nothing sent; stock unchanged",
+      "result": "PASS",
+      "evidence": {
+        "copy": "El stock no puede quedar en negativo.",
+        "postsSent": 0,
+        "stock": 10
+      }
+    },
+    {
+      "id": "adjust-insufficient-409",
+      "name": "real BE answers 409 INSUFFICIENT_STOCK and the dialog shows readable copy at the field; stock unchanged",
+      "result": "PASS",
+      "evidence": {
+        "status": 409,
+        "error": "INSUFFICIENT_STOCK",
+        "copy": "No hay suficiente stock para restar esa cantidad.",
+        "stock": 10
+      }
+    },
+    {
+      "id": "adjust-otro-no-note",
+      "name": "\"Otro\" with no note is blocked: copy at the Nota field, nothing sent",
+      "result": "PASS",
+      "evidence": {
+        "copy": "Escribe una nota para el motivo «Otro».",
+        "postsSent": 0
+      }
+    },
+    {
+      "id": "adjust-conteo-fisico",
+      "name": "Conteo físico computes the delta from the shown stock (+2), sends PHYSICAL_COUNT and restores the stock",
+      "result": "PASS",
+      "evidence": {
+        "deltaText": "Diferencia: +2",
+        "reasonPreselected": "Conteo físicoMerma/dañoCaducadoRobo/pérdidaCorrección de capturaOtro",
+        "body": {
+          "delta": 2,
+          "reason": "PHYSICAL_COUNT"
+        },
+        "stockBefore": 12,
+        "stockAfter": 12,
+        "firstKardexRow": "AjusteConteo físico4 nov, 12:04Manager CentroSin lote+21272"
+      }
+    },
+    {
+      "id": "stock-table-fit-390",
+      "name": "stock table at 390: no horizontal scroll, every \"Ajustar\" button fully visible",
+      "result": "PASS",
+      "evidence": {
+        "scrollWidth": 356,
+        "clientWidth": 356,
+        "buttonsRight": [
+          361,
+          361,
+          361,
+          361
+        ],
+        "scrollRight": 374
+      }
+    },
+    {
+      "id": "collar-variants",
+      "name": "Collar: both variants listed; adjusting one variant works (+1, variant target, kardex row first)",
+      "result": "PASS",
+      "evidence": {
+        "variants": [
+          {
+            "label": "Chico · Azul",
+            "qty": "15"
+          },
+          {
+            "label": "Mediano · Rojo",
+            "qty": "9"
+          }
+        ],
+        "target": {
+          "productId": "511634d0-5b59-4dfc-86f2-a43c3a59baf7",
+          "variantId": "bf93e080-17ab-426f-8b7c-84b89f8a1bf5"
+        },
+        "before": 15,
+        "after": 16,
+        "firstKardexRow": "AjusteCorrección de captura4 nov, 12:05Manager CentroChico · Azul+11625"
+      }
+    },
+    {
+      "id": "placa-not-tracked",
+      "name": "Placa (useStock false): not-tracked state, no \"Ajustar\" action",
+      "result": "PASS",
+      "evidence": {
+        "panelText": "Este producto no lleva control de stockActiva «Usar stock» en el producto para llevar sus existencias."
+      }
+    },
+    {
+      "id": "edit-readonly-croquetas",
+      "name": "Croquetas: quantity read-only and the PATCH body has no quantity",
+      "result": "PASS",
+      "evidence": {
+        "hint": null,
+        "quantityInputs": 0,
+        "lotRows": 3,
+        "lotInputs": 0,
+        "patch": {
+          "status": 200,
+          "keys": [
+            "name",
+            "type",
+            "sku",
+            "brandId",
+            "unit",
+            "useStock",
+            "useLotsAndExpirations",
+            "hasVariants",
+            "minQuantity",
+            "sellInPos",
+            "includeInOnlineCatalog",
+            "requiresPrescription",
+            "chargeProductTaxes",
+            "ivaRate",
+            "iepsRate"
+          ],
+          "hasQuantity": false
+        }
+      }
+    },
+    {
+      "id": "edit-readonly-desparasitante",
+      "name": "Desparasitante: quantity read-only (\"Se ajusta desde Inventario\") and the PATCH body has no quantity",
+      "result": "PASS",
+      "evidence": {
+        "hint": "40Se ajusta desde Inventario",
+        "quantityInputs": 0,
+        "patch": {
+          "status": 200,
+          "keys": [
+            "name",
+            "type",
+            "sku",
+            "brandId",
+            "unit",
+            "useStock",
+            "useLotsAndExpirations",
+            "hasVariants",
+            "minQuantity",
+            "sellInPos",
+            "includeInOnlineCatalog",
+            "requiresPrescription",
+            "chargeProductTaxes",
+            "ivaRate",
+            "iepsRate"
+          ],
+          "hasQuantity": false
+        }
+      }
+    },
+    {
+      "id": "edit-readonly-collar",
+      "name": "Collar: quantity read-only and the PATCH body has no quantity",
+      "result": "PASS",
+      "evidence": {
+        "hint": null,
+        "quantityInputs": 0,
+        "patch": {
+          "status": 200,
+          "keys": [
+            "name",
+            "type",
+            "sku",
+            "brandId",
+            "unit",
+            "useStock",
+            "useLotsAndExpirations",
+            "hasVariants",
+            "minQuantity",
+            "sellInPos",
+            "includeInOnlineCatalog",
+            "requiresPrescription",
+            "chargeProductTaxes",
+            "ivaRate",
+            "iepsRate"
+          ],
+          "hasQuantity": false
+        }
+      }
+    },
+    {
+      "id": "edit-readonly-collar-variants",
+      "name": "Collar variants: stock shown read-only, no inline stock input",
+      "result": "PASS",
+      "evidence": {
+        "readonlyCells": 2,
+        "stockInputs": 0
+      }
+    },
+    {
+      "id": "strip-390",
+      "name": "task strip at 390: five tasks in one scrolling strip with the fade; the active Inventario scrolls into view; no page overflow",
+      "result": "PASS",
+      "evidence": {
+        "before": {
+          "scrollWidth": 415,
+          "clientWidth": 358,
+          "dataMore": "true",
+          "dataLess": "false",
+          "mask": "linear-gradient(to right, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0))",
+          "overflowX": "auto",
+          "buttons": [
+            {
+              "t": "Identidad",
+              "w": 78,
+              "h": 44
+            },
+            {
+              "t": "Presentaciones",
+              "w": 107,
+              "h": 44
+            },
+            {
+              "t": "Contenido",
+              "w": 77,
+              "h": 44
+            },
+            {
+              "t": "Revisar",
+              "w": 61,
+              "h": 44
+            },
+            {
+              "t": "Inventario",
+              "w": 76,
+              "h": 44
+            }
+          ],
+          "pageOverflow": false
+        },
+        "after": {
+          "inventoryFullyVisible": true,
+          "scrollLeft": 59,
+          "dataMore": "false",
+          "dataLess": "true",
+          "pageOverflow": false
+        }
+      }
+    },
+    {
+      "id": "console-errors",
+      "name": "no console errors or page errors during the manager run (apart from the one deliberate 409)",
+      "result": "PASS",
+      "evidence": {
+        "consoleErrors": [
+          "Failed to load resource: the server responded with a status of 409 (Conflict)"
+        ],
+        "unexpectedErrors": []
+      }
+    },
+    {
+      "id": "cashier-no-task",
+      "name": "cashier: no Inventario task (and no inventory request is made)",
+      "result": "PASS",
+      "evidence": {
+        "landedPath": "/pos/products/c89a04e8-c39f-430b-b570-e8556a2993d2",
+        "taskStripShown": true,
+        "tasks": [
+          "Identidad",
+          "Presentaciones",
+          "Contenido",
+          "Revisar"
+        ],
+        "inventoryRequests": 0
+      }
+    },
+    {
+      "id": "cashier-403",
+      "name": "cashier: the three inventory endpoints answer 403 from the real BE",
+      "result": "PASS",
+      "evidence": {
+        "forbidden": {
+          "stock": {
+            "status": 403,
+            "error": "FORBIDDEN"
+          },
+          "movements": {
+            "status": 403,
+            "error": "FORBIDDEN"
+          },
+          "adjustments": {
+            "status": 403,
+            "error": "FORBIDDEN"
+          }
+        },
+        "hadToken": true
+      }
+    }
+  ],
+  "notes": [
+    {
+      "landed": {
+        "manager": "/pos/ventas",
+        "cashier": "/pos/ventas"
+      }
+    },
+    {
+      "productRecordVsJournal": {
+        "croquetas": {
+          "productQuantity": 0,
+          "useStock": true,
+          "useLots": true,
+          "journalTotal": 72,
+          "journalSellable": 64
+        },
+        "desparasitante": {
+          "productQuantity": 40,
+          "useStock": true,
+          "useLots": false,
+          "journalTotal": 40,
+          "journalSellable": 40
+        },
+        "collar": {
+          "productQuantity": 0,
+          "useStock": true,
+          "useLots": false,
+          "journalTotal": 24,
+          "journalSellable": 24
+        },
+        "placa": {
+          "productQuantity": 0,
+          "useStock": false,
+          "useLots": false,
+          "journalTotal": 0,
+          "journalSellable": null
+        }
+      }
+    },
+    {
+      "shots": [
+        {
+          "file": "panel__1440__light.png",
+          "viewport": "1440",
+          "theme": "light",
+          "darkClassMatches": true
+        },
+        {
+          "file": "kardex__1440__light.png",
+          "viewport": "1440",
+          "theme": "light",
+          "darkClassMatches": true
+        },
+        {
+          "file": "dialog__1440__light.png",
+          "viewport": "1440",
+          "theme": "light",
+          "darkClassMatches": true,
+          "pageOverflow": false
+        },
+        {
+          "file": "panel__1440__dark.png",
+          "viewport": "1440",
+          "theme": "dark",
+          "darkClassMatches": true
+        },
+        {
+          "file": "kardex__1440__dark.png",
+          "viewport": "1440",
+          "theme": "dark",
+          "darkClassMatches": true
+        },
+        {
+          "file": "dialog__1440__dark.png",
+          "viewport": "1440",
+          "theme": "dark",
+          "darkClassMatches": true,
+          "pageOverflow": false
+        },
+        {
+          "file": "panel__390__light.png",
+          "viewport": "390",
+          "theme": "light",
+          "darkClassMatches": true
+        },
+        {
+          "file": "kardex__390__light.png",
+          "viewport": "390",
+          "theme": "light",
+          "darkClassMatches": true
+        },
+        {
+          "file": "dialog__390__light.png",
+          "viewport": "390",
+          "theme": "light",
+          "darkClassMatches": true,
+          "pageOverflow": false
+        },
+        {
+          "file": "strip__390__light.png",
+          "viewport": "390",
+          "theme": "light"
+        },
+        {
+          "file": "panel__390__dark.png",
+          "viewport": "390",
+          "theme": "dark",
+          "darkClassMatches": true
+        },
+        {
+          "file": "kardex__390__dark.png",
+          "viewport": "390",
+          "theme": "dark",
+          "darkClassMatches": true
+        },
+        {
+          "file": "dialog__390__dark.png",
+          "viewport": "390",
+          "theme": "dark",
+          "darkClassMatches": true,
+          "pageOverflow": false
+        },
+        {
+          "file": "strip__390__dark.png",
+          "viewport": "390",
+          "theme": "dark"
+        }
+      ]
+    }
+  ]
+}
