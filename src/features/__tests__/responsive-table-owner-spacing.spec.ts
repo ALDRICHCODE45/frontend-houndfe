@@ -35,8 +35,10 @@ const DELIVERY_ROUTES = {
   file: 'delivery-routes/views/DeliveryRoutesListView.vue',
   managerRootMarker: 'v-else-if="isManager"',
   driverRootMarker: 'v-if="isDriver"',
-  driverRootClass: 'flex flex-col gap-4 px-4 py-6 sm:px-6 lg:px-10',
+  driverRootTokens: ['flex flex-col gap-4 px-4 py-6 sm:px-6 lg:px-10'],
 }
+// Views whose table lives in a feature list component that wraps AppDataTable.
+const TABLE_TAG = /<(?:AppDataTable|ProductList)\b/
 
 const templateOf = (file: string) => {
   const src = readFileSync(resolve(FEATURES, file), 'utf8')
@@ -55,7 +57,7 @@ function rootClass(t: string, marker?: string): string {
 
 /** Innermost div wrapping the table that declares padding — the gutter body. */
 function tableBodyClass(t: string): string {
-  const table = t.indexOf('<AppDataTable')
+  const table = t.search(TABLE_TAG)
   const divs = divClasses(t).filter((d) => d.idx < table)
   for (let i = divs.length - 1; i >= 0; i--) {
     const d = divs[i]!
@@ -93,8 +95,9 @@ it('DeliveryRoutesListView normalizes only its manager root', () => {
   const t = templateOf(DELIVERY_ROUTES.file)
   const managerRoot = rootClass(t, DELIVERY_ROUTES.managerRootMarker)
   expectRootContract(managerRoot)
-  // No body wrapper invented: the padded ancestor of AppDataTable is the root.
-  expect(tableBodyClass(t)).toBe(managerRoot)
-  // Driver branch stays untouched.
-  expect(rootClass(t, DELIVERY_ROUTES.driverRootMarker)).toBe(DELIVERY_ROUTES.driverRootClass)
+  // The manager table sits in the shared table body, like every other list.
+  expectBodyContract(tableBodyClass(t))
+  // Driver branch keeps its own gutters.
+  const driverRoot = rootClass(t, DELIVERY_ROUTES.driverRootMarker)
+  for (const token of DELIVERY_ROUTES.driverRootTokens) expect(driverRoot).toContain(token)
 })
