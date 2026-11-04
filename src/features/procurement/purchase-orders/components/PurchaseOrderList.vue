@@ -8,14 +8,17 @@ const props = defineProps<{ items: readonly PurchaseOrderSummary[]; canEdit: boo
 const emit = defineEmits<{ open: [order: PurchaseOrderSummary]; discard: [order: PurchaseOrderSummary]; refresh: [] }>()
 const search = defineModel<string>('search', { default: '' })
 const data = computed(() => [...props.items])
-const columns = computed<TableColumn<PurchaseOrderSummary, unknown>[]>(() => [
+const columns: TableColumn<PurchaseOrderSummary, unknown>[] = [
   { id: 'supplier', header: 'Proveedor', enableSorting: false },
+  { id: 'status', header: 'Estado', enableSorting: false },
   { accessorKey: 'lineCount', header: 'Renglones', enableSorting: false },
   { accessorKey: 'issueCount', header: 'Avisos', enableSorting: false },
   { accessorKey: 'note', header: 'Nota', enableSorting: false },
   { accessorKey: 'updatedAt', header: 'Actualizado', enableSorting: false },
-  ...(props.canEdit || props.canDelete ? [{ id: 'actions', header: 'Acciones', enableSorting: false }] : []),
-])
+  { id: 'actions', header: 'Acciones', enableSorting: false },
+]
+const statusLabels: Record<string, string> = { DRAFT: 'Borrador', CONFIRMED: 'Confirmada', CANCELLED: 'Cancelada' }
+const editable = (order: PurchaseOrderSummary) => order.status === 'DRAFT' && props.canEdit
 const date = (value: string) => new Date(value).toLocaleString('es-MX')
 </script>
 
@@ -28,25 +31,26 @@ const date = (value: string) => new Date(value).toLocaleString('es-MX')
       <template #actions><slot name="actions" /></template>
     </DataTableToolbar>
     <AppDataTable :show-toolbar="false" :columns="columns" :data="data" :loading="loading" :fetching="fetching" :error="error"
-      error-message="No se pudieron cargar los borradores. Puedes volver a actualizar."
-      empty="No hay borradores de órdenes de compra." display-mode="auto" mobile-render="cards"
+      error-message="No se pudieron cargar las órdenes. Puedes volver a actualizar."
+      empty="No hay órdenes de compra." display-mode="auto" mobile-render="cards"
       class="hf-data-table" @refresh="emit('refresh')">
     <template #supplier-cell="{ row }"><span class="order-name">{{ row.original.supplierDisplaySnapshot?.displayName || 'Sin proveedor' }}</span><span v-if="row.original.supplierDisplaySnapshot?.status === 'ARCHIVED'" class="order-badge">Archivado</span></template>
+    <template #status-cell="{ row }"><span data-testid="order-status" class="order-badge">{{ statusLabels[row.original.status] }}</span></template>
     <template #note-cell="{ row }"><p class="order-note">{{ row.original.note || 'Sin nota' }}</p></template>
     <template #updatedAt-cell="{ row }">{{ date(row.original.updatedAt) }}</template>
     <template #actions-cell="{ row }">
       <div class="order-actions">
-        <UButton v-if="canEdit" type="button" color="neutral" variant="outline" :disabled="disabled" @click="emit('open', row.original)">Continuar</UButton>
-        <UButton v-if="canDelete" type="button" data-testid="discard-order" color="error" variant="outline" icon="i-lucide-trash-2" :disabled="disabled" @click="emit('discard', row.original)">Descartar</UButton>
+        <UButton type="button" color="neutral" variant="outline" :disabled="disabled" @click="emit('open', row.original)">{{ editable(row.original) ? 'Continuar' : 'Ver orden' }}</UButton>
+        <UButton v-if="canDelete && row.original.status === 'DRAFT'" type="button" data-testid="discard-order" color="error" variant="outline" icon="i-lucide-trash-2" :disabled="disabled" @click="emit('discard', row.original)">Descartar</UButton>
       </div>
     </template>
     <template #mobile-card="{ row }">
       <article class="order-card">
-        <div class="order-card-heading"><span class="order-name">{{ row.supplierDisplaySnapshot?.displayName || 'Sin proveedor' }}</span><span v-if="row.supplierDisplaySnapshot?.status === 'ARCHIVED'" class="order-badge">Archivado</span></div>
+        <div class="order-card-heading"><span class="order-name">{{ row.supplierDisplaySnapshot?.displayName || 'Sin proveedor' }}</span><span v-if="row.supplierDisplaySnapshot?.status === 'ARCHIVED'" class="order-badge">Archivado</span><span data-testid="order-status" class="order-badge">{{ statusLabels[row.status] }}</span></div>
         <dl class="order-card-details"><dt>Renglones</dt><dd>{{ row.lineCount }}</dd><dt>Avisos</dt><dd>{{ row.issueCount }}</dd><dt>Nota</dt><dd class="order-note">{{ row.note || 'Sin nota' }}</dd><dt>Actualizado</dt><dd>{{ date(row.updatedAt) }}</dd></dl>
         <div class="order-actions order-card-actions">
-          <UButton v-if="canEdit" type="button" color="neutral" variant="outline" :disabled="disabled" @click="emit('open', row)">Continuar</UButton>
-          <UButton v-if="canDelete" type="button" data-testid="discard-order" color="error" variant="outline" icon="i-lucide-trash-2" :disabled="disabled" @click="emit('discard', row)">Descartar</UButton>
+          <UButton type="button" color="neutral" variant="outline" :disabled="disabled" @click="emit('open', row)">{{ editable(row) ? 'Continuar' : 'Ver orden' }}</UButton>
+          <UButton v-if="canDelete && row.status === 'DRAFT'" type="button" data-testid="discard-order" color="error" variant="outline" icon="i-lucide-trash-2" :disabled="disabled" @click="emit('discard', row)">Descartar</UButton>
         </div>
       </article>
     </template>
@@ -68,9 +72,10 @@ const date = (value: string) => new Date(value).toLocaleString('es-MX')
 .order-actions :deep(button) { min-height: var(--hf-control-height); white-space: nowrap; flex-shrink: 0; }
 :deep(table[data-slot='base']) { table-layout: fixed; }
 :deep(th[data-slot='th']:nth-child(1)) { width: 22%; }
-:deep(th[data-slot='th']:nth-child(2)) { width: 88px; }
-:deep(th[data-slot='th']:nth-child(3)) { width: 72px; }
-:deep(th[data-slot='th']:nth-child(5)) { width: 180px; }
-:deep(th[data-slot='th']:nth-child(6)) { width: 244px; }
+:deep(th[data-slot='th']:nth-child(2)) { width: 120px; }
+:deep(th[data-slot='th']:nth-child(3)) { width: 88px; }
+:deep(th[data-slot='th']:nth-child(4)) { width: 72px; }
+:deep(th[data-slot='th']:nth-child(6)) { width: 180px; }
+:deep(th[data-slot='th']:nth-child(7)) { width: 244px; }
 :deep(td[data-slot='td']) { white-space: normal; overflow-wrap: anywhere; }
 </style>

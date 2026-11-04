@@ -28,6 +28,15 @@
 .purchase-orders-portal .order-cost { grid-column: 1 / -1; min-width: 0; border: 0; padding: 0; }
 .purchase-orders-portal .order-cost legend { margin-bottom: 8px; color: var(--hf-muted); font-size: 13px; }
 .purchase-orders-portal .order-subtotal { border-top: 1px solid var(--hf-border); padding-top: 12px; font-size: 13px; color: var(--hf-ink); }
+.purchase-orders-page .order-filter { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+.purchase-orders-page .order-filter select { min-height: var(--hf-control-height); padding: 8px 12px; border: 1px solid var(--hf-field-border); border-radius: 6px; background: var(--hf-field); color: var(--hf-ink); font: inherit; font-weight: 400; }
+.purchase-orders-portal .order-readonly { display: grid; gap: 24px; min-width: 0; color: var(--hf-ink); }
+.purchase-orders-portal .order-readonly h2 { color: var(--hf-heading); font-weight: 600; }
+.purchase-orders-portal .order-readonly-details { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; font-size: 14px; overflow-wrap: anywhere; }
+.purchase-orders-portal .order-readonly-details dt { color: var(--hf-muted); font-size: 13px; margin-top: 8px; }
+.purchase-orders-portal .order-readonly-details dt:first-child { margin-top: 0; }
+.purchase-orders-portal .order-readonly-note { white-space: pre-wrap; }
+.purchase-orders-portal .order-transitions { display: grid; gap: 12px; }
 .purchase-orders-portal .order-picker { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); }
 .purchase-orders-portal .hf-primary-control.order-confirm-danger { display: inline-flex; align-items: center; gap: 6px; background: var(--ui-error); border-color: var(--ui-error); color: var(--ui-bg); }
 :where(.purchase-orders-page, .purchase-orders-portal) :where(button, input, select, textarea):focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
