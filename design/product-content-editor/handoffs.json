@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "chosen": "03-attribute-table.html",
+  "handoffs": {
+    "03-attribute-table.html": {
+      "status": "sent",
+      "queued": false,
+      "sentAt": "2026-11-04T21:44:17.896Z",
+      "startedAt": null,
+      "implementedAt": null,
+      "feature": "odd/tasks/system-redesign.md"
+    }
+  }
+}
