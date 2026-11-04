@@ -74,7 +74,7 @@ const resolvedDesktopUi = computed(() =>
         <div class="flex shrink-0 items-center justify-between border-b border-default px-4 py-2.5">
           <div class="min-w-0 flex-1">
             <slot name="title">
-              <span class="text-base font-bold leading-tight text-highlighted">{{ title }}</span>
+              <span class="text-base font-semibold leading-tight text-highlighted">{{ title }}</span>
             </slot>
             <!-- Nuxt UI also receives these props to create the dialog's semantic title. -->
             <span v-if="description" class="sr-only">{{ description }}</span>

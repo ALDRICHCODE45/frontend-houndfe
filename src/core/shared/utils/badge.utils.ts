@@ -56,3 +56,24 @@ const DOT_CLASS_BY_COLOR: Record<AppBadgeColor, string> = {
 export function toneToDotClass(tone: AppBadgeTone): string {
   return DOT_CLASS_BY_COLOR[badgeToneToColor(tone)]
 }
+
+/** Tones of the shared StatusBadge (dot + tinted soft background). */
+export type StatusBadgeTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger'
+
+const STATUS_TONE_BY_COLOR: Record<AppBadgeColor, StatusBadgeTone> = {
+  success: 'success',
+  warning: 'warning',
+  error: 'danger',
+  info: 'info',
+  secondary: 'neutral',
+  neutral: 'neutral',
+}
+
+/**
+ * Resolve any badge tone (including the legacy aliases and `danger`) to one of
+ * the five StatusBadge tones, so StatusBadge and AppBadge callers share one
+ * vocabulary.
+ */
+export function statusBadgeTone(tone: AppBadgeTone | 'danger'): StatusBadgeTone {
+  return tone === 'danger' ? 'danger' : STATUS_TONE_BY_COLOR[badgeToneToColor(tone)]
+}
