@@ -30,30 +30,49 @@ export const currencyFormatter = new Intl.NumberFormat(LOCALE, {
 const DECIMAL_STRING = /^-?\d+(\.\d+)?$/
 const decimalFormatters = new Map<string, Intl.NumberFormat>()
 
-/**
- * Display-only formatting of a canonical decimal string from the server
- * ("780.5" -> "$780.50"). The string goes to Intl untouched, so it is never
- * recalculated or rounded: at least 2 and up to 4 fraction digits, more only
- * when the server sent more significant ones. Anything that is not a plain
- * decimal, or a currency Intl rejects, is returned unchanged.
- */
-export function formatDecimalMoney(amount: string, currency: string = CURRENCY): string {
-  if (!DECIMAL_STRING.test(amount)) return amount
-  const significant = (amount.match(/\.(\d+)/)?.[1] ?? '').replace(/0+$/, '').length
-  const digits = Math.min(Math.max(4, significant), 20)
-  const key = `${currency}:${digits}`
+function formatDecimal(amount: string, currency: string, minimum: number, maximum: number): string {
+  const key = `${currency}:${minimum}:${maximum}`
   try {
     let formatter = decimalFormatters.get(key)
     if (!formatter) {
-      formatter = new Intl.NumberFormat(LOCALE, { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: digits })
+      formatter = new Intl.NumberFormat(LOCALE, { style: 'currency', currency, minimumFractionDigits: minimum, maximumFractionDigits: maximum })
       decimalFormatters.set(key, formatter)
     }
-    // SAFETY: the regex above admits only plain decimals, which Intl (ES2023) formats
-    // exactly from the string; the lib typings of this tsconfig predate that overload.
+    // SAFETY: callers admit only plain decimals, which Intl (ES2023) formats exactly from
+    // the string; the lib typings of this tsconfig predate that overload.
     return (formatter as unknown as { format(value: string): string }).format(amount)
   } catch {
     return amount
   }
+}
+
+/**
+ * Display-only formatting of a canonical decimal string from the server
+ * ("780.5" -> "$780.50"): exactly 2 fraction digits, extra precision rounded
+ * half-up for the screen ("128.125" -> "$128.13"). The wire string is never
+ * changed; `formatDecimalMoneyExact` and `decimalMoneyTitle` give the exact value
+ * for hover text. Anything that is not a plain decimal, or a currency Intl
+ * rejects, is returned unchanged.
+ */
+export function formatDecimalMoney(amount: string, currency: string = CURRENCY): string {
+  return DECIMAL_STRING.test(amount) ? formatDecimal(amount, currency, 2, 2) : amount
+}
+
+/**
+ * The exact value of a server decimal string: at least 2 and up to 4 fraction
+ * digits, more only when the server sent more significant ones ("128.125" ->
+ * "$128.125"). Use it for tooltips and data, not for the visible amount.
+ */
+export function formatDecimalMoneyExact(amount: string, currency: string = CURRENCY): string {
+  if (!DECIMAL_STRING.test(amount)) return amount
+  const significant = (amount.match(/\.(\d+)/)?.[1] ?? '').replace(/0+$/, '').length
+  return formatDecimal(amount, currency, 2, Math.min(Math.max(4, significant), 20))
+}
+
+/** The exact amount for a `title` attribute, only where the displayed amount was rounded; otherwise undefined. */
+export function decimalMoneyTitle(amount: string, currency: string = CURRENCY): string | undefined {
+  const exact = formatDecimalMoneyExact(amount, currency)
+  return exact === formatDecimalMoney(amount, currency) ? undefined : exact
 }
 
 /** Format integer cents as MXN string. 4998 -> "$49.98". */

@@ -226,15 +226,23 @@ body.hf-app {
   outline-offset: -2px;
 }
 
-/* Name column: semibold (never 700) plus a quiet second line. */
+/* Name column: semibold (never 700) plus a quiet second line. It is a text
+ * button, not a 44px control: the hit area is the whole row (useClickableRow). */
 .hf-ui .hf-row-primary {
   display: block;
   max-width: 100%;
+  min-height: 0;
   overflow: hidden;
   color: var(--hf-heading);
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.hf-ui .hf-row-primary:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
 }
 
 .hf-ui .hf-row-secondary {

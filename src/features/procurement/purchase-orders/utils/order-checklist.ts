@@ -8,20 +8,45 @@ export const ORDER_FORM_ID = 'purchase-order-form'
 type Checked = Pick<PurchaseOrder, 'lines' | 'lineDisplaySnapshots' | 'validation'>
 export interface ChecklistItem { key: string; message: string; lineId: string | null; productName: string | null; count: number }
 
-// One item per readable message. An issue repeated over several lines is a single item that counts them
-// and links to the first; line-less issues (supplier, note, unknown paths) carry no link.
+// Line diagnostics are grouped by issue family, not by field: every cost sub-field of a line (amount,
+// currency, unit, tax basis) is the same "Falta el costo". The exact field is marked in the open line editor.
+const families = [
+  { key: 'cost', missing: 'Falta el costo', review: 'Revisa el costo', codes: ['COST_AMOUNT_REQUIRED', 'COST_CURRENCY_REQUIRED', 'COST_UNIT_REQUIRED', 'COST_TAX_BASIS_REQUIRED'], required: ['COST_AMOUNT_REQUIRED', 'COST_CURRENCY_REQUIRED', 'COST_UNIT_REQUIRED', 'COST_TAX_BASIS_REQUIRED'] },
+  { key: 'quantity', missing: 'Falta la cantidad', review: 'Revisa la cantidad', codes: ['QUANTITY_REQUIRED', 'QUANTITY_FRACTION_NOT_ALLOWED'], required: ['QUANTITY_REQUIRED'] },
+  { key: 'reference', missing: 'Falta el producto o la variante', review: 'Revisa el producto o la variante', codes: ['PRODUCT_REQUIRED', 'VARIANT_REQUIRED', 'REFERENCE_UNAVAILABLE', 'REFERENCE_INCOMPATIBLE'], required: ['PRODUCT_REQUIRED', 'VARIANT_REQUIRED'] },
+  { key: 'unit', missing: 'La unidad no coincide con la del producto', review: 'La unidad no coincide con la del producto', codes: ['UNIT_MISMATCH'], required: [] as string[] },
+]
+type Family = typeof families[number]
+const familyOf = (code: string) => families.find(family => family.codes.includes(code))
+
+// One item per family across the lines (counted, linking to the first line in order) and one per readable
+// message for everything else; order-level issues (supplier, lines, note, unknown paths) carry no link.
 export function buildChecklist(order: Checked): ChecklistItem[] {
-  const items = new Map<string, ChecklistItem & { lines: Set<string> }>()
+  const items = new Map<string, ChecklistItem>()
+  const grouped = new Map<string, { family: Family; lines: Set<number>; codes: Set<string> }>()
   for (const issue of order.validation.issues) {
-    const message = diagnosticMessage(issue.code)
     const target = diagnosticTarget(issue.path, order.lines.length)
-    const lineId = target.startsWith('/lines/') ? order.lines[Number(target.split('/')[2])]?.lineId ?? null : null
-    const found = items.get(message) ?? { key: message, message, lineId, productName: lineId ? order.lineDisplaySnapshots.find(item => item.lineId === lineId)?.productName ?? null : null, count: 1, lines: new Set<string>() }
-    if (lineId && !found.lines.has(lineId)) { found.lines.add(lineId); found.count = found.lines.size }
-    items.set(message, found)
+    const index = target.startsWith('/lines/') ? Number(target.split('/')[2]) : -1
+    const family = index >= 0 ? familyOf(issue.code) : undefined
+    if (family) {
+      const found = grouped.get(family.key) ?? { family, lines: new Set<number>(), codes: new Set<string>() }
+      found.lines.add(index)
+      found.codes.add(issue.code)
+      grouped.set(family.key, found)
+      continue
+    }
+    const message = diagnosticMessage(issue.code)
+    const lineId = index >= 0 ? order.lines[index]?.lineId ?? null : null
+    if (!items.has(message)) items.set(message, { key: message, message, lineId, productName: nameOf(order, lineId), count: 1 })
   }
-  return [...items.values()].map(({ lines: _lines, ...item }) => item)
+  const familyItems = [...grouped.values()].map(({ family, lines, codes }): ChecklistItem => {
+    const first = Math.min(...lines)
+    const lineId = order.lines[first]?.lineId ?? null
+    return { key: family.key, message: [...codes].every(code => family.required.includes(code)) ? family.missing : family.review, lineId, productName: nameOf(order, lineId), count: lines.size }
+  })
+  return [...items.values(), ...familyItems]
 }
+const nameOf = (order: Checked, lineId: string | null) => lineId ? order.lineDisplaySnapshots.find(item => item.lineId === lineId)?.productName ?? null : null
 
 export interface LineFlags { product: boolean; variant: boolean; quantity: boolean; cost: boolean; tax: boolean; any: boolean }
 export const noFlags: LineFlags = { product: false, variant: false, quantity: false, cost: false, tax: false, any: false }

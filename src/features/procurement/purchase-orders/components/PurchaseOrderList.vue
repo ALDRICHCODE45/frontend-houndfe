@@ -79,7 +79,7 @@ const lines = (count: number) => `${count} ${count === 1 ? 'renglón' : 'renglon
         <template #total-cell="{ row }">
           <div data-testid="order-total" class="hf-figure order-total">
             <template v-if="orderTotals(row.original).length">
-              <span v-for="entry in orderTotals(row.original)" :key="entry.key" class="order-total-entry">{{ entry.text }} <small v-if="entry.label" class="order-total-basis">{{ entry.label }}</small></span>
+              <span v-for="entry in orderTotals(row.original)" :key="entry.key" class="order-total-entry" :title="entry.title">{{ entry.text }} <small v-if="entry.label" class="order-total-basis">{{ entry.label }}</small></span>
             </template>
             <span v-else>—</span>
           </div>
@@ -104,7 +104,7 @@ const lines = (count: number) => `${count} ${count === 1 ? 'renglón' : 'renglon
             <div class="order-card-footer">
               <span class="order-card-summary">{{ lines(row.lineCount) }} ·
                 <span data-testid="order-total" class="hf-figure order-total">
-                  <template v-if="orderTotals(row).length"><span v-for="entry in orderTotals(row)" :key="entry.key" class="order-total-entry">{{ entry.text }} <small v-if="entry.label" class="order-total-basis">{{ entry.label }}</small></span></template>
+                  <template v-if="orderTotals(row).length"><span v-for="entry in orderTotals(row)" :key="entry.key" class="order-total-entry" :title="entry.title">{{ entry.text }} <small v-if="entry.label" class="order-total-basis">{{ entry.label }}</small></span></template>
                   <span v-else>—</span>
                 </span>
               </span>
@@ -148,6 +148,6 @@ const lines = (count: number) => `${count} ${count === 1 ? 'renglón' : 'renglon
 :deep(th[data-slot='th']:nth-child(4)) { width: 148px; }
 :deep(th[data-slot='th']:nth-child(5)) { width: 136px; }
 :deep(th[data-slot='th']:nth-child(6)) { width: 72px; }
-:deep(td[data-slot='td']) { height: 64px; vertical-align: middle; }
+:deep(td[data-slot='td']) { height: 64px; padding-block: 10px; vertical-align: middle; }
 :deep(td[data-slot='td']:last-child) { padding-inline: 8px; }
 </style>

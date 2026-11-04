@@ -1,4 +1,4 @@
-import { formatDecimalMoney } from '@/core/shared/utils/currency.utils'
+import { decimalMoneyTitle, formatDecimalMoney } from '@/core/shared/utils/currency.utils'
 import type { RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import type { OrderTotal, PurchaseOrderStatus, PurchaseOrderSummary } from '../interfaces/purchase-order.types'
 
@@ -16,7 +16,7 @@ export function orderRowLabel(order: Pick<PurchaseOrderSummary, 'status' | 'supp
 // Server totals, one per tax basis. They are shown side by side and never summed: only a mixed order carries a basis label.
 export function orderTotals(order: Pick<PurchaseOrderSummary, 'totals'>) {
   const totals = order.totals ?? []
-  return totals.map(total => ({ key: total.taxBasis, text: formatDecimalMoney(total.amount, total.currency), label: totals.length > 1 ? basisLabels[total.taxBasis] : null }))
+  return totals.map(total => ({ key: total.taxBasis, text: formatDecimalMoney(total.amount, total.currency), title: decimalMoneyTitle(total.amount, total.currency), label: totals.length > 1 ? basisLabels[total.taxBasis] : null }))
 }
 
 export interface RowActionGates { canEdit: boolean; canConfirm: boolean; canCancel: boolean; canDelete: boolean; disabled?: boolean }

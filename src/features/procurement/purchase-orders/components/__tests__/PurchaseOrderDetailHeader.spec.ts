@@ -25,6 +25,11 @@ describe('detail header', () => {
     expect(wrapper.html()).not.toContain('order-id-9f2')
     wrapper.unmount()
   })
+  it('keeps the date together in its own element and lets only the location shrink', () => {
+    const meta = mountHeader({ mobile: true }).get('.order-header-meta')
+    expect(meta.get('.order-header-when').text()).toBe(`· guardada ${formatShortDateTime(order.updatedAt)}`)
+    expect(meta.get('.order-header-where').text()).toBe('Sucursal Centro')
+  })
   it('words the meta date after what closed the order', () => {
     const confirmed = mountHeader({ order: { ...order, status: 'CONFIRMED', confirmedAt: '2026-11-04T09:00:00Z' } })
     expect(confirmed.get('.order-header-meta').text()).toContain(`confirmada ${formatShortDateTime('2026-11-04T09:00:00Z')}`)

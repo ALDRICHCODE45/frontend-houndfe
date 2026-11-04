@@ -116,8 +116,10 @@ describe('issue checklist', () => {
   it('lists the server pending items once, above the fields, and never repeats them per field', () => {
     const wrapper = mountForm(saved)
     const checklist = wrapper.getComponent(OrderIssueChecklist)
-    expect(checklist.props('items').map((item: { message: string }) => item.message)).toEqual(['Indica el importe del costo unitario.', 'Indica si el costo incluye impuestos.'])
-    expect(wrapper.text().split('Indica el importe del costo unitario.').length - 1).toBe(1)
+    expect(checklist.props('items').map((item: { message: string }) => item.message)).toEqual(['Falta el costo'])
+    expect(wrapper.findAll('.order-check-message')).toHaveLength(1)
+    expect(wrapper.find('.order-line-edit').exists()).toBe(false)
+    expect(wrapper.findAll('.order-checklist button.order-check-link')).toHaveLength(1)
     expect(wrapper.get('form').element.firstElementChild).toBe(checklist.element)
     wrapper.unmount()
   })

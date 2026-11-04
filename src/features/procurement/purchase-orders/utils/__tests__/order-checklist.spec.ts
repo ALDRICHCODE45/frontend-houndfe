@@ -14,18 +14,42 @@ describe('issue checklist', () => {
     expect(items.map(item => item.message)).toEqual(['Selecciona un proveedor.', 'Revisa este dato del borrador.'])
     expect(items[0]).toMatchObject({ lineId: null, productName: null, count: 1 })
   })
-  it('anchors a line issue to its line and product name so the checklist can link to it', () => {
-    const [item] = buildChecklist(order([{ path: '/lines/1/informedUnitCost/amount', code: 'COST_AMOUNT_REQUIRED' }]))
-    expect(item).toMatchObject({ message: 'Indica el importe del costo unitario.', lineId: 'line-2', productName: 'Producto 2', count: 1 })
+  it('keeps order-level issues as single items without a link', () => {
+    const items = buildChecklist(order([{ path: '/supplierId', code: 'SUPPLIER_REQUIRED' }, { path: '/lines', code: 'LINES_REQUIRED' }], 0))
+    expect(items.map(item => [item.message, item.lineId])).toEqual([['Selecciona un proveedor.', null], ['Agrega al menos un renglón para completar la orden.', null]])
   })
-  it('groups the same issue across lines into one item that links to the first line', () => {
+  it('groups every cost sub-field of one line (amount, currency, unit, tax basis) into one "Falta el costo" item with the product and one line to link', () => {
     const items = buildChecklist(order([
-      { path: '/lines/0/informedUnitCost/amount', code: 'COST_AMOUNT_REQUIRED' }, { path: '/lines/1/informedUnitCost/amount', code: 'COST_AMOUNT_REQUIRED' },
-      { path: '/lines/1/orderedQuantity', code: 'QUANTITY_REQUIRED' },
+      { path: '/lines/1/informedUnitCost/amount', code: 'COST_AMOUNT_REQUIRED' }, { path: '/lines/1/informedUnitCost/currency', code: 'COST_CURRENCY_REQUIRED' },
+      { path: '/lines/1/informedUnitCost/taxBasis', code: 'COST_TAX_BASIS_REQUIRED' }, { path: '/lines/1/informedUnitCost/unit', code: 'COST_UNIT_REQUIRED' },
+    ]))
+    expect(items).toEqual([{ key: 'cost', message: 'Falta el costo', lineId: 'line-2', productName: 'Producto 2', count: 1 }])
+  })
+  it('aggregates a family across lines into one item that counts them and links to the first', () => {
+    const items = buildChecklist(order([
+      { path: '/lines/1/informedUnitCost/amount', code: 'COST_AMOUNT_REQUIRED' }, { path: '/lines/0/informedUnitCost/taxBasis', code: 'COST_TAX_BASIS_REQUIRED' },
+      { path: '/lines/0/informedUnitCost/amount', code: 'COST_AMOUNT_REQUIRED' }, { path: '/lines/1/orderedQuantity', code: 'QUANTITY_REQUIRED' },
     ]))
     expect(items).toHaveLength(2)
-    expect(items[0]).toMatchObject({ lineId: 'line-1', count: 2 })
-    expect(items[1]).toMatchObject({ lineId: 'line-2', count: 1 })
+    expect(items[0]).toMatchObject({ message: 'Falta el costo', lineId: 'line-1', productName: 'Producto 1', count: 2 })
+    expect(items[1]).toMatchObject({ message: 'Falta la cantidad', lineId: 'line-2', count: 1 })
+  })
+  it('links an aggregated family to the first line in order, whatever the order of the diagnostics', () => {
+    const [item] = buildChecklist(order([{ path: '/lines/1/informedUnitCost/amount', code: 'COST_AMOUNT_REQUIRED' }, { path: '/lines/0/informedUnitCost/amount', code: 'COST_AMOUNT_REQUIRED' }]))
+    expect(item).toMatchObject({ lineId: 'line-1', productName: 'Producto 1', count: 2 })
+  })
+  it('groups quantity, product or variant reference and unit issues per family too', () => {
+    const items = buildChecklist(order([
+      { path: '/lines/0/productId', code: 'PRODUCT_REQUIRED' }, { path: '/lines/0/variantId', code: 'VARIANT_REQUIRED' }, { path: '/lines/1/variantId', code: 'REFERENCE_UNAVAILABLE' },
+      { path: '/lines/0/orderedQuantity', code: 'QUANTITY_REQUIRED' }, { path: '/lines/0/orderedQuantity', code: 'QUANTITY_FRACTION_NOT_ALLOWED' },
+      { path: '/lines/1/informedUnitCost/unit', code: 'UNIT_MISMATCH' },
+    ]))
+    expect(items.map(item => [item.key, item.message, item.lineId, item.count])).toEqual([
+      ['reference', 'Revisa el producto o la variante', 'line-1', 2], ['quantity', 'Revisa la cantidad', 'line-1', 1], ['unit', 'La unidad no coincide con la del producto', 'line-2', 1],
+    ])
+  })
+  it('says Falta only when every code of the family is a missing value', () => {
+    expect(buildChecklist(order([{ path: '/lines/0/productId', code: 'PRODUCT_REQUIRED' }, { path: '/lines/1/variantId', code: 'VARIANT_REQUIRED' }]))[0]).toMatchObject({ message: 'Falta el producto o la variante', count: 2 })
   })
   it('sends an issue that points past the lines to the summary instead of a missing line', () => {
     const [item] = buildChecklist(order([{ path: '/lines/9/productId', code: 'PRODUCT_REQUIRED' }]))

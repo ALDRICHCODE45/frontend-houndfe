@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import OrderIssueChecklist from '../OrderIssueChecklist.vue'
 import type { ChecklistItem } from '../../utils/order-checklist'
-const cost: ChecklistItem = { key: 'cost', message: 'Indica el importe del costo unitario.', lineId: 'line-2', productName: 'Collar ajustable', count: 1 }
+const cost: ChecklistItem = { key: 'cost', message: 'Falta el costo', lineId: 'line-2', productName: 'Collar ajustable', count: 1 }
 const supplier: ChecklistItem = { key: 'supplier', message: 'Selecciona un proveedor.', lineId: null, productName: null, count: 1 }
 const base = { items: [], dirty: false, ready: false }
 describe('issue checklist', () => {
@@ -12,7 +12,7 @@ describe('issue checklist', () => {
     expect(wrapper.get('ul').attributes('id')).toBe('order-checklist')
     const pending = wrapper.findAll('li[data-state="pending"]')
     expect(pending).toHaveLength(2)
-    expect(pending[0]!.get('.order-check-message').text()).toBe('Indica el importe del costo unitario.')
+    expect(pending[0]!.get('.order-check-message').text()).toBe('Falta el costo')
     expect(pending[0]!.get('button').text()).toBe('Ir a Collar ajustable')
     expect(pending[1]!.text()).toBe('Selecciona un proveedor.')
   })
@@ -22,14 +22,20 @@ describe('issue checklist', () => {
     await wrapper.get('button.order-check-link').trigger('click')
     expect(wrapper.emitted('goto')).toEqual([['line-2']])
   })
-  it('counts the lines when one issue spans several', () => {
+  it('counts the lines when one family spans several, with one link to the first', () => {
     const wrapper = mount(OrderIssueChecklist, { props: { ...base, items: [{ ...cost, count: 3 }] } })
-    expect(wrapper.get('li').text()).toContain('Indica el importe del costo unitario. (3 renglones)')
+    expect(wrapper.get('.order-check-message').text()).toBe('Falta el costo en 3 renglones')
+    expect(wrapper.findAll('button.order-check-link')).toHaveLength(1)
+  })
+  it('names the line only through the link, never repeating the family in the item', () => {
+    const wrapper = mount(OrderIssueChecklist, { props: { ...base, items: [cost] } })
+    expect(wrapper.get('li').text()).toBe('Falta el costoIr a Collar ajustable')
+    expect(wrapper.get('.order-check-message').text()).not.toContain('renglones')
   })
   it('does not offer a link to a line that is no longer there, nor in a read-only view', () => {
     const gone = mount(OrderIssueChecklist, { props: { ...base, items: [cost], linkable: () => false } })
     expect(gone.find('button.order-check-link').exists()).toBe(false)
-    expect(gone.text()).toContain('Indica el importe del costo unitario.')
+    expect(gone.text()).toContain('Falta el costo')
   })
   it('shortens the link on mobile but keeps the product in its accessible name', () => {
     const wrapper = mount(OrderIssueChecklist, { props: { ...base, items: [cost], compact: true } })

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { mount } from '@vue/test-utils'
 import { describe, it, expect } from 'vitest'
 import { defineComponent } from 'vue'
@@ -103,6 +104,13 @@ describe('total cell', () => {
     expect(total(wrapper).text()).toBe('$1,540.00')
     expect(total(wrapper).findAll('.order-total-entry')).toHaveLength(1)
     expect(total(wrapper).find('.order-total-basis').exists()).toBe(false)
+  })
+  it('shows two decimals and the exact server amount in the title only where it was rounded', () => {
+    const wrapper = mountList([{ ...row, totals: [{ amount: '128.125', currency: 'MXN', taxBasis: 'EXCLUDES_TAX' }] }])
+    expect(total(wrapper).text()).toBe('$128.13')
+    expect(total(wrapper).get('.order-total-entry').attributes('title')).toBe('$128.125')
+    const exact = mountList([{ ...row, totals: [{ amount: '1540.00', currency: 'MXN', taxBasis: 'EXCLUDES_TAX' }] }])
+    expect(total(exact).get('.order-total-entry').attributes('title')).toBeUndefined()
   })
   it('stacks two totals, each with its small basis label, never summed', () => {
     const wrapper = mountList([{ ...row, totals: [{ amount: '1000.50', currency: 'MXN', taxBasis: 'EXCLUDES_TAX' }, { amount: '580.00', currency: 'MXN', taxBasis: 'INCLUDES_TAX' }] }])
@@ -212,5 +220,17 @@ describe('mobile card', () => {
     expect(card.get('.order-card-footer').text()).toContain('1 renglón')
     expect(card.get('.order-card-footer').text()).not.toContain('1 renglones')
     expect(card.get('[data-testid="order-total"]').text()).toBe('—')
+  })
+})
+
+describe('compact desktop rows', () => {
+  const sfc = readFileSync('src/features/procurement/purchase-orders/components/PurchaseOrderList.vue', 'utf8')
+  it('uses a 64px cell with tight vertical padding, so a two-line cell is about 64px and not the 44px button plus 32px of padding', () => {
+    expect(sfc).toMatch(/td\[data-slot='td'\]\) \{[^}]*height: 64px/)
+    expect(sfc).toMatch(/td\[data-slot='td'\]\) \{[^}]*padding-block: 10px/)
+  })
+  it('does not give the primary button its own box (no min-height or padding): the shared class owns that', () => {
+    expect(sfc).not.toMatch(/\.order-row-link \{[^}]*min-height: var/)
+    expect(sfc).toMatch(/\.order-row-link \{[^}]*padding: 0/)
   })
 })

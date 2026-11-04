@@ -2,7 +2,7 @@
 import { computed, nextTick, useTemplateRef } from 'vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import { useClickableRow } from '@/core/shared/composables/useClickableRow'
-import { formatDecimalMoney } from '@/core/shared/utils/currency.utils'
+import { decimalMoneyTitle, formatDecimalMoney } from '@/core/shared/utils/currency.utils'
 import type { OrderProductReadContext } from '../composables/usePurchaseOrderProducts'
 import { usePurchaseOrderVariants } from '../composables/usePurchaseOrderProducts'
 import type { LineBuffer } from '../utils/order-buffer'
@@ -19,6 +19,7 @@ function selectVariant(id: string) { emit('update:modelValue', { ...props.modelV
 const messagesFor = (field: string) => props.messages[`/lines/${props.index}/${field}`] ?? []
 
 // A marker shows only while the value the server asked for is still empty here; typing it clears it before the next save.
+// One marker says Falta once; the missing part is a description, and the open editor outlines the exact field.
 const missing = computed(() => ({
   product: props.flags.product && !props.modelValue.productId, variant: props.flags.variant && !props.modelValue.variantId,
   quantity: props.flags.quantity && !props.modelValue.quantity, cost: props.flags.cost && !props.modelValue.amount, tax: props.flags.tax && !props.modelValue.taxBasis,
@@ -28,6 +29,8 @@ const flagged = computed(() => otherIssue.value || Object.values(missing.value).
 const unit = computed(() => unitLabel(props.modelValue.unit))
 const quantityText = computed(() => props.modelValue.quantity ? `${props.modelValue.quantity}${unit.value ? ` ${unit.value}` : ''}` : '—')
 const costText = computed(() => props.modelValue.amount ? formatDecimalMoney(props.modelValue.amount, 'MXN') : '—')
+const costTitle = computed(() => props.modelValue.amount ? decimalMoneyTitle(props.modelValue.amount, 'MXN') : undefined)
+const subtotalTitle = computed(() => props.subtotal ? decimalMoneyTitle(props.subtotal.amount, props.subtotal.currency) : undefined)
 const taxText = computed(() => ({ INCLUDES_TAX: 'con imp.', EXCLUDES_TAX: 'sin imp.', '': '' })[props.modelValue.taxBasis])
 const subtotalText = computed(() => props.subtotal ? formatDecimalMoney(props.subtotal.amount, props.subtotal.currency) : '—')
 const label = computed(() => `Editar renglón ${props.index + 1}: ${props.modelValue.name || 'Sin producto'}${props.modelValue.variantName ? `, ${props.modelValue.variantName}` : ''}`)
@@ -65,15 +68,15 @@ defineExpose({ focusIssue })
         <span v-else-if="modelValue.variantName" class="order-line-variant">{{ modelValue.variantName }}</span>
       </div>
       <div class="order-line-qty order-money">
-        <span v-if="missing.quantity" class="order-missing"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />Falta</span>
+        <span v-if="missing.quantity" class="order-missing" title="Falta la cantidad"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />Falta <span class="order-missing-part">la cantidad</span></span>
         <template v-else>{{ quantityText }}</template>
       </div>
       <div class="order-line-cost">
-        <span data-testid="line-cost" class="order-money" :class="{ 'order-missing': missing.cost }"><template v-if="missing.cost"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />Falta</template><template v-else>{{ costText }}</template></span>
-        <small v-if="missing.tax" class="order-line-tax order-missing">Falta impuestos</small>
-        <small v-else-if="taxText" class="order-line-tax">{{ taxText }}</small>
+        <span data-testid="line-cost" class="order-money" :class="{ 'order-missing': missing.cost }" :title="missing.cost ? 'Falta el costo' : costTitle"><template v-if="missing.cost"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />Falta <span class="order-missing-part">el costo</span></template><template v-else>{{ costText }}</template></span>
+        <small v-if="missing.tax && !missing.cost" class="order-line-tax order-missing" title="Falta indicar los impuestos">Falta <span class="order-missing-part">impuestos</span></small>
+        <small v-else-if="taxText && !missing.cost" class="order-line-tax">{{ taxText }}</small>
       </div>
-      <div class="order-line-total"><span data-testid="line-subtotal" class="order-money order-line-subtotal">{{ subtotalText }}</span></div>
+      <div class="order-line-total"><span data-testid="line-subtotal" class="order-money order-line-subtotal" :title="subtotalTitle">{{ subtotalText }}</span></div>
       <RowActionsMenu class="order-line-menu" :actions="actions" :row-label="`renglón ${index + 1}`" :aria-label="`Más acciones del renglón ${index + 1}`" portal-class="purchase-orders-portal" @select="choose" />
     </div>
     <div v-if="open" :id="editId" ref="edit" class="order-line-edit" role="group" :aria-label="`Edición del renglón ${index + 1}`">

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { formatDecimalMoney } from '@/core/shared/utils/currency.utils'
+import { decimalMoneyTitle, formatDecimalMoney } from '@/core/shared/utils/currency.utils'
 import type { PurchaseOrder } from '../interfaces/purchase-order.types'
 import { buildChecklist, lineFlags } from '../utils/order-checklist'
 import { describeLines, locationLabel } from '../utils/order-lines'
@@ -17,14 +17,16 @@ const closure = computed(() => {
 })
 // Display-only: the server decimals and currency go through the shared formatter untouched.
 const money = (amount: string | null | undefined, currency: string | null | undefined) => amount ? formatDecimalMoney(amount, currency ?? undefined) : '—'
+const moneyTitle = (amount: string | null | undefined, currency: string | null | undefined) => amount ? decimalMoneyTitle(amount, currency ?? undefined) : undefined
 const checklist = computed(() => props.order.status === 'DRAFT' ? buildChecklist(props.order) : [])
-// Only drafts carry diagnostics: the flagged line is tinted and the missing cell says Falta, without repeating the checklist message.
+// Only drafts carry diagnostics: the flagged line is tinted and the missing cell says Falta once, without repeating the checklist message.
 const lines = computed(() => describeLines(props.order).map(line => {
   const flags = props.order.status === 'DRAFT' ? lineFlags(props.order, line.lineId) : null
   const missing = { quantity: Boolean(flags?.quantity) && line.quantity === '—', cost: Boolean(flags?.cost) && !line.cost?.amount, product: Boolean(flags?.product) && line.product === 'Sin producto' }
   return { ...line, missing, flagged: Boolean(flags?.any),
     tax: line.cost?.taxBasis === 'INCLUDES_TAX' ? 'con imp.' : line.cost?.taxBasis === 'EXCLUDES_TAX' ? 'sin imp.' : '',
-    unitCost: money(line.cost?.amount, line.cost?.currency), total: money(line.subtotal?.amount, line.subtotal?.currency) }
+    unitCost: money(line.cost?.amount, line.cost?.currency), unitCostTitle: moneyTitle(line.cost?.amount, line.cost?.currency),
+    total: money(line.subtotal?.amount, line.subtotal?.currency), totalTitle: moneyTitle(line.subtotal?.amount, line.subtotal?.currency) }
 }))
 </script>
 
@@ -47,12 +49,12 @@ const lines = computed(() => describeLines(props.order).map(line => {
               <span v-if="line.missing.product" class="order-line-variant order-missing"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />Falta el producto</span>
               <span v-else-if="line.variant" class="order-line-variant">{{ line.variant }}</span>
             </div>
-            <div class="order-line-qty order-money"><span v-if="line.missing.quantity" class="order-missing"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />Falta</span><template v-else>{{ line.quantity }}{{ line.unit ? ` ${line.unit}` : '' }}</template></div>
+            <div class="order-line-qty order-money"><span v-if="line.missing.quantity" class="order-missing" title="Falta la cantidad"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />Falta <span class="order-missing-part">la cantidad</span></span><template v-else>{{ line.quantity }}{{ line.unit ? ` ${line.unit}` : '' }}</template></div>
             <div class="order-line-cost">
-              <span data-testid="line-cost" class="order-money" :class="{ 'order-missing': line.missing.cost }"><template v-if="line.missing.cost"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />Falta</template><template v-else>{{ line.unitCost }}</template></span>
+              <span data-testid="line-cost" class="order-money" :class="{ 'order-missing': line.missing.cost }" :title="line.missing.cost ? 'Falta el costo' : line.unitCostTitle"><template v-if="line.missing.cost"><UIcon name="i-lucide-triangle-alert" aria-hidden="true" />Falta <span class="order-missing-part">el costo</span></template><template v-else>{{ line.unitCost }}</template></span>
               <small v-if="line.tax" class="order-line-tax">{{ line.tax }}</small>
             </div>
-            <div class="order-line-total"><span data-testid="line-subtotal" class="order-money order-line-subtotal">{{ line.total }}</span></div>
+            <div class="order-line-total"><span data-testid="line-subtotal" class="order-money order-line-subtotal" :title="line.totalTitle">{{ line.total }}</span></div>
           </div>
         </div>
       </div>

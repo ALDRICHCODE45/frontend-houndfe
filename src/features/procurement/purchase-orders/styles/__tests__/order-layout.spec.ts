@@ -42,8 +42,31 @@ describe('compact lines table', () => {
   it('turns a line into a two-row card below 640px, without a table header', () => {
     const media = inMedia('max-width: 639px')
     expect(media).toMatch(/\.order-lines-head[^{]*\{[^}]*display: none/)
-    expect(media).toMatch(/\.order-line-row[^{]*\{[^}]*display: flex/)
+    expect(media).toMatch(/\.order-line-row[^{]*\{[^}]*display: grid/)
     expect(media).toMatch(/\.order-line-cost::before \{ content: '×'/)
+  })
+  it('puts the name and the ⋮ on row 1 and "8 Bolsa × cost" with the subtotal on row 2, as in artboard 05', () => {
+    const media = inMedia('max-width: 639px')
+    expect(media).toMatch(/\.order-line-row[^{]*\{[^}]*grid-template-columns: auto minmax\(0, 1fr\) auto/)
+    const place = (part: string) => {
+      const at = media.indexOf(`portal .order-line-${part} {`)
+      return at < 0 ? '' : media.slice(at, media.indexOf('}', at))
+    }
+    expect(place('product')).toMatch(/grid-column: 1 \/ 3; grid-row: 1/)
+    expect(place('menu')).toMatch(/grid-column: 3; grid-row: 1/)
+    expect(place('menu')).toMatch(/align-self: start/)
+    expect(place('qty')).toMatch(/grid-column: 1; grid-row: 2/)
+    expect(place('cost')).toMatch(/grid-column: 2; grid-row: 2/)
+    expect(place('total')).toMatch(/grid-column: 3; grid-row: 2/)
+  })
+  it('wraps the product name to two lines on the card instead of cutting it to a few letters', () => {
+    const media = inMedia('max-width: 639px')
+    expect(media).toMatch(/\.order-line-toggle[^{]*\{[^}]*white-space: normal/)
+    expect(media).toMatch(/\.order-line-toggle[^{]*\{[^}]*-webkit-line-clamp: 2/)
+  })
+  it('shows the missing part of a marker only to assistive tech on desktop and in plain text on the card', () => {
+    expect(rule('.purchase-orders-portal .order-missing-part')).toMatch(/position: absolute[^}]*clip: rect\(0, 0, 0, 0\)/)
+    expect(inMedia('max-width: 639px')).toMatch(/\.order-missing-part[^{]*\{[^}]*position: static/)
   })
   it('keeps money tabular and right-aligned', () => {
     expect(rule('.purchase-orders-portal .order-money')).toMatch(/font-variant-numeric: tabular-nums; text-align: right/)
@@ -57,9 +80,18 @@ describe('open order shell', () => {
     expect(rule('.purchase-orders-portal .order-header')).toMatch(/flex: none/)
     expect(rule('.purchase-orders-portal .order-footer')).toMatch(/flex: none/)
   })
-  it('pins the mobile action bar to the bottom with the primary wider than the secondary', () => {
+  it('pins the mobile action bar to the bottom with equal-width buttons and centered labels', () => {
     expect(rule('.purchase-orders-portal .order-action-bar')).toMatch(/position: sticky; bottom: 0/)
-    expect(rule('.purchase-orders-portal .order-action-bar > .hf-primary-control')).toMatch(/flex: 1.6/)
+    const buttons = rule('.purchase-orders-portal .order-action-bar > *')!
+    expect(buttons).toMatch(/flex: 1 1 0/)
+    expect(buttons).toMatch(/justify-content: center/)
+    expect(buttons).toMatch(/text-align: center/)
+    expect(rule('.purchase-orders-portal .order-action-bar > .hf-primary-control')).toBeNull()
+  })
+  it('keeps the header date on one line and lets the location truncate first', () => {
+    expect(rule('.purchase-orders-portal .order-header-when')).toMatch(/white-space: nowrap/)
+    expect(rule('.purchase-orders-portal .order-header-where')).toMatch(/min-width: 0[^}]*overflow: hidden[^}]*text-overflow: ellipsis/)
+    expect(rule('.purchase-orders-portal .order-header-text')).toMatch(/display: flex[^}]*min-width: 0/)
   })
   it('titles in 22px semibold on desktop and 17px on mobile', () => {
     expect(rule('.purchase-orders-portal .order-header-title')).toMatch(/font-size: 22px; font-weight: 600/)

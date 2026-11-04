@@ -46,14 +46,16 @@ describe('closed order read-only block', () => {
     expect(wrapper.get('[data-testid="line-subtotal"]').text()).toBe('—')
     expect(wrapper.text()).not.toContain('null')
   })
-  it('formats money as es-MX currency in tabular right-aligned cells, keeping server precision', () => {
+  it('formats money as es-MX currency with two decimals in tabular right-aligned cells, the exact server value on hover', () => {
     const precise = { ...confirmed, lines: [{ ...confirmed.lines[0]!, informedUnitCost: { amount: '12.125', currency: 'MXN', unit: 'BOLSA', taxBasis: 'EXCLUDES_TAX' as const } }], lineSubtotals: [{ lineId: 'line-id-1', subtotal: { amount: '145.5', currency: 'MXN', taxBasis: 'EXCLUDES_TAX' as const } }] }
     const wrapper = mount(PurchaseOrderReadonly, { props: { order: precise } })
-    expect(wrapper.get('[data-testid="line-cost"]').text()).toBe('$12.125')
+    expect(wrapper.get('[data-testid="line-cost"]').text()).toBe('$12.13')
+    expect(wrapper.get('[data-testid="line-cost"]').attributes('title')).toBe('$12.125')
     expect(wrapper.get('[data-testid="line-subtotal"]').text()).toBe('$145.50')
+    expect(wrapper.get('[data-testid="line-subtotal"]').attributes('title')).toBeUndefined()
     for (const cell of ['line-cost', 'line-subtotal']) {
       expect(wrapper.get(`[data-testid="${cell}"]`).classes()).toContain('order-money')
-      expect(wrapper.get(`[data-testid="${cell}"]`).text()).toMatch(/\$[\d,]+\.\d{2}/)
+      expect(wrapper.get(`[data-testid="${cell}"]`).text()).toMatch(/^\$[\d,]+\.\d{2}$/)
     }
     const css = readFileSync('src/features/procurement/purchase-orders/styles/purchase-orders-visual.css', 'utf8')
     expect(css).toMatch(/\.order-money[^{]*\{[^}]*font-variant-numeric: tabular-nums/)
@@ -85,10 +87,10 @@ describe('draft shown read-only', () => {
     const wrapper = mount(PurchaseOrderReadonly, { props: { order: draft } })
     const block = wrapper.get('[data-testid="order-readonly-warnings"]')
     expect(block.text()).toContain('Selecciona un proveedor.')
-    expect(block.text()).toContain('Indica la cantidad del producto.')
+    expect(block.text()).toContain('Falta la cantidad')
     expect(block.text()).toContain('Selecciona un producto.')
     expect(block.text()).toContain('Revisa este dato del borrador.')
-    expect(block.text().split('Indica la cantidad del producto.').length - 1).toBe(1)
+    expect(block.text().split('Falta la cantidad').length - 1).toBe(1)
     for (const code of ['SUPPLIER_REQUIRED', 'QUANTITY_REQUIRED', 'PRODUCT_REQUIRED', 'SOMETHING_NEW']) expect(wrapper.text()).not.toContain(code)
     expect(block.find('button').exists()).toBe(false)
     expect(wrapper.getComponent(OrderIssueChecklist).props('linkable')?.('line-id-1')).toBe(false)
@@ -97,8 +99,9 @@ describe('draft shown read-only', () => {
     const wrapper = mount(PurchaseOrderReadonly, { props: { order: draft } })
     const row = wrapper.get('.order-line-row')
     expect(row.attributes('data-flagged')).toBe('true')
-    expect(row.get('.order-line-qty').text()).toContain('Falta')
-    expect(wrapper.get('[aria-label="Renglón 1"]').text().split('Indica la cantidad del producto.').length - 1).toBe(0)
+    expect(row.get('.order-line-qty').text()).toBe('Falta la cantidad')
+    expect(wrapper.get('[aria-label="Renglón 1"]').find('.order-check-message').exists()).toBe(false)
+    expect(wrapper.get('[aria-label="Renglón 1"]').text()).not.toContain('Indica la cantidad del producto.')
   })
   it('has no controls to disable: no buttons, inputs or selects', () => {
     const wrapper = mount(PurchaseOrderReadonly, { props: { order: draft } })

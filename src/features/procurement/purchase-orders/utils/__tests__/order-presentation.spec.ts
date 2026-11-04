@@ -29,11 +29,14 @@ describe('list total', () => {
     expect(orderTotals({ ...row(), totals: undefined } as never)).toEqual([])
   })
   it('shows one total as one unlabelled amount, formatted from the server decimal', () => {
-    expect(orderTotals(row({ totals: [{ amount: '1540.00', currency: 'MXN', taxBasis: 'EXCLUDES_TAX' }] }))).toEqual([{ key: 'EXCLUDES_TAX', text: '$1,540.00', label: null }])
+    expect(orderTotals(row({ totals: [{ amount: '1540.00', currency: 'MXN', taxBasis: 'EXCLUDES_TAX' }] }))).toEqual([{ key: 'EXCLUDES_TAX', text: '$1,540.00', title: undefined, label: null }])
+  })
+  it('shows two decimals and keeps the exact server amount for the title where it was rounded', () => {
+    expect(orderTotals(row({ totals: [{ amount: '128.125', currency: 'MXN', taxBasis: 'EXCLUDES_TAX' }] }))).toEqual([{ key: 'EXCLUDES_TAX', text: '$128.13', title: '$128.125', label: null }])
   })
   it('keeps two bases apart, in server order, each labelled and never summed', () => {
     const entries = orderTotals(row({ totals: [{ amount: '1000.50', currency: 'MXN', taxBasis: 'EXCLUDES_TAX' }, { amount: '580.00', currency: 'MXN', taxBasis: 'INCLUDES_TAX' }] }))
-    expect(entries).toEqual([{ key: 'EXCLUDES_TAX', text: '$1,000.50', label: 'sin imp.' }, { key: 'INCLUDES_TAX', text: '$580.00', label: 'con imp.' }])
+    expect(entries).toEqual([{ key: 'EXCLUDES_TAX', text: '$1,000.50', title: undefined, label: 'sin imp.' }, { key: 'INCLUDES_TAX', text: '$580.00', title: undefined, label: 'con imp.' }])
   })
 })
 

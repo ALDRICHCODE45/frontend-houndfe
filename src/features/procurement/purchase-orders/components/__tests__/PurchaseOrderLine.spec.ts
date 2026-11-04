@@ -52,6 +52,18 @@ describe('compact line row', () => {
   })
 })
 
+describe('money precision', () => {
+  it('shows two decimals and puts the exact server value in the title only where it was rounded', () => {
+    const wrapper = mountLine({ modelValue: line({ amount: '128.125' }), subtotal: { amount: '23.100', currency: 'MXN', taxBasis: 'INCLUDES_TAX' } })
+    expect(wrapper.get('[data-testid="line-cost"]').text()).toBe('$128.13')
+    expect(wrapper.get('[data-testid="line-cost"]').attributes('title')).toBe('$128.125')
+    expect(wrapper.get('[data-testid="line-subtotal"]').text()).toBe('$23.10')
+    expect(wrapper.get('[data-testid="line-subtotal"]').attributes('title')).toBeUndefined()
+    expect(wrapper.text()).not.toMatch(/\$\d[\d,]*\.\d{3,}/)
+    wrapper.unmount()
+  })
+})
+
 describe('inline edit row', () => {
   it('opens when the whole row or its product button is activated, never from the ⋮', async () => {
     const wrapper = mountLine()
@@ -105,14 +117,32 @@ describe('line with pending issues', () => {
   it('gets the warning tint and a Falta marker in the missing cost, with the subtotal still a dash', () => {
     const wrapper = mountLine({ modelValue: line({ amount: '', taxBasis: '', hasCost: false }), flags: { ...clean, cost: true, tax: true, any: true }, subtotal: null })
     expect(wrapper.get('.order-line-row').attributes('data-flagged')).toBe('true')
-    expect(wrapper.get('[data-testid="line-cost"]').text()).toBe('Falta')
+    expect(wrapper.get('[data-testid="line-cost"]').text()).toBe('Falta el costo')
     expect(wrapper.get('[data-testid="line-cost"]').classes()).toContain('order-missing')
     expect(wrapper.get('[data-testid="line-subtotal"]').text()).toBe('—')
     wrapper.unmount()
   })
+  it('says Falta once in the cost cell even when the cost and the taxes are both missing, naming the part in a hidden-on-desktop description', () => {
+    const wrapper = mountLine({ modelValue: line({ amount: '', taxBasis: '', hasCost: false }), flags: { ...clean, cost: true, tax: true, any: true }, subtotal: null })
+    const cell = wrapper.get('.order-line-cost')
+    expect(cell.text().match(/Falta/g)).toHaveLength(1)
+    expect(cell.find('.order-line-tax').exists()).toBe(false)
+    expect(cell.get('.order-missing-part').text()).toBe('el costo')
+    expect(wrapper.get('[data-testid="line-cost"]').attributes('title')).toBe('Falta el costo')
+    wrapper.unmount()
+  })
+  it('marks only the taxes when the cost is there: the amount stays and the second line says Falta once', () => {
+    const wrapper = mountLine({ modelValue: line({ taxBasis: '' }), flags: { ...clean, tax: true, any: true } })
+    expect(wrapper.get('[data-testid="line-cost"]').text()).toBe('$12.00')
+    expect(wrapper.get('.order-line-cost').text().match(/Falta/g)).toHaveLength(1)
+    expect(wrapper.get('.order-line-tax').text()).toBe('Falta impuestos')
+    expect(wrapper.get('.order-line-tax .order-missing-part').text()).toBe('impuestos')
+    wrapper.unmount()
+  })
   it('marks a missing quantity the same way', () => {
     const wrapper = mountLine({ modelValue: line({ quantity: '' }), flags: { ...clean, quantity: true, any: true } })
-    expect(wrapper.get('.order-line-qty').text()).toContain('Falta')
+    expect(wrapper.get('.order-line-qty').text()).toBe('Falta la cantidad')
+    expect(wrapper.get('.order-line-qty').text().match(/Falta/g)).toHaveLength(1)
     wrapper.unmount()
   })
   it('lets the cost invalid state point at the checklist: aria-invalid on the empty field, no repeated message', () => {

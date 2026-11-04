@@ -17,11 +17,12 @@ const focusTarget = () => primary.value ?? menuTrigger()
 defineExpose({ menuTrigger, focusTarget })
 const title = computed(() => props.order ? props.order.supplierDisplaySnapshot?.displayName || 'Sin proveedor' : 'Nueva orden')
 // The date words follow what the status last did to the order; full dates stay in the read-only record.
+// The date never breaks across lines: only the location gives way.
 const meta = computed(() => {
   const order = props.order
-  if (!order) return ''
+  if (!order) return null
   const [word, at] = order.status === 'CONFIRMED' ? ['confirmada', order.confirmedAt] : order.status === 'CANCELLED' ? ['cancelada', order.cancelledAt] : ['guardada', order.updatedAt]
-  return `${order.locationSnapshot.tenantName} · ${word} ${formatShortDateTime(at ?? order.updatedAt)}`
+  return { where: order.locationSnapshot.tenantName, when: `· ${word} ${formatShortDateTime(at ?? order.updatedAt)}` }
 })
 </script>
 
@@ -33,7 +34,7 @@ const meta = computed(() => {
         <div v-if="order" class="order-header-meta">
           <StatusBadge data-testid="order-status" :label="statusLabels[order.status]" :tone="statusTones[order.status]" />
           <span v-if="readOnly" class="order-readonly-chip">Solo lectura</span>
-          <span>{{ meta }}</span>
+          <span v-if="meta" class="order-header-text"><span class="order-header-where">{{ meta.where }}</span> <span class="order-header-when">{{ meta.when }}</span></span>
         </div>
         <h2 class="order-header-title">{{ title }}</h2>
       </div>
