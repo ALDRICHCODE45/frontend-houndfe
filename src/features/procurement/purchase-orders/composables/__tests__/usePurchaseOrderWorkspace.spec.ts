@@ -13,7 +13,7 @@ const input = { supplierId: null, note: 'local', location: { detail: null }, lin
 const scopes: ReturnType<typeof effectScope>[] = []
 afterEach(() => { scopes.forEach(scope => scope.stop()); scopes.length = 0; vi.resetAllMocks(); current.value = null })
 function setup() {
-  const context = reactive({ userId: 'u', tenantId: 't', ready: true, canRead: true, canCreate: true, canUpdate: true, canDelete: true, canReadProduct: true, canReadSupplier: true })
+  const context = reactive({ userId: 'u', tenantId: 't', ready: true, canRead: true, canCreate: true, canUpdate: true, canDelete: true, canConfirm: true, canCancel: true, canReadProduct: true, canReadSupplier: true })
   const scope = effectScope(); scopes.push(scope)
   mocks.detailRefresh.mockImplementation(async () => { current.value = order; return { isError: false } })
   const workspace = scope.run(() => usePurchaseOrderWorkspace(() => context, mocks.refresh))!

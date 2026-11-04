@@ -9,7 +9,7 @@ export function usePurchaseOrderWorkspace(context: MaybeRefOrGetter<OrderWorkspa
     const c = toValue(context)
     return { ...c, canCreate: c.canRead && c.canCreate && c.canReadProduct && c.canReadSupplier,
       canUpdate: c.canRead && c.canUpdate && c.canReadProduct && c.canReadSupplier,
-      canDelete: c.canRead && c.canDelete }
+      canDelete: c.canRead && c.canDelete, canConfirm: c.canRead && c.canConfirm, canCancel: c.canRead && c.canCancel }
   })
   const id = shallowRef<string | null>(null)
   const detail = usePurchaseOrder(id, context)
@@ -47,7 +47,7 @@ export function usePurchaseOrderWorkspace(context: MaybeRefOrGetter<OrderWorkspa
     epoch++; request++; invoker = null; id.value = null; selected.value = null; open.value = false; dirty.value = false
     deleteTarget.value = null; detailLoading.value = false; detailError.value = ''; notice.value = ''
   }
-  watch(() => { const c = toValue(context); return [c.userId, c.tenantId, c.ready, c.canRead, c.canCreate, c.canUpdate, c.canDelete, c.canReadProduct, c.canReadSupplier] }, reset, { flush: 'sync' })
+  watch(() => { const c = toValue(context); return [c.userId, c.tenantId, c.ready, c.canRead, c.canCreate, c.canUpdate, c.canDelete, c.canConfirm, c.canCancel, c.canReadProduct, c.canReadSupplier] }, reset, { flush: 'sync' })
   onScopeDispose(reset)
   function canLeave() {
     if (locked.value) return false

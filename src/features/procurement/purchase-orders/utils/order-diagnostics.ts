@@ -31,10 +31,11 @@ export function diagnosticTarget(path: string, lineCount: number): string {
   if (parts.length >= 4 && parts[2] === 'informedUnitCost' && ['amount', 'currency', 'unit', 'taxBasis'].includes(parts[3]!)) return `${base}/informedUnitCost/${parts[3]}`
   return 'summary'
 }
-export function commandMessage(error: unknown, uncertain = false): string {
+export function commandMessage(error: unknown, uncertain = false, operation: 'edit' | 'confirm' | 'cancel' = 'edit'): string {
   if (uncertain) return 'El resultado no está confirmado. Reintenta el mismo intento antes de continuar.'
   if (!error) return ''
   const code = (error as { response?: { data?: { error?: string } } }).response?.data?.error
+  if (code === 'SUPPLIER_ARCHIVED' && operation === 'confirm') return 'El proveedor de esta orden está archivado. Elige un proveedor activo y guarda el borrador antes de confirmar.'
   const copy: Record<string, string> = {
     ORDER_VERSION_CONFLICT: 'La orden cambió en otra sesión. Tus cambios locales se conservan. Puedes cargar la versión actual.',
     SUPPLIER_ARCHIVED: 'El proveedor seleccionado está archivado. Elige un proveedor activo para esta sustitución.',
@@ -43,6 +44,10 @@ export function commandMessage(error: unknown, uncertain = false): string {
     FORBIDDEN: 'No tienes permiso para realizar esta operación.',
     UNAUTHORIZED: 'La sesión dejó de estar disponible. Vuelve a iniciar sesión.',
     IDEMPOTENCY_KEY_CONFLICT: 'El intento no coincide con el registrado. Consulta la orden antes de continuar.',
+    ORDER_NOT_READY: 'La orden todavía no se puede confirmar. Revisa los avisos del borrador.',
+    ELIGIBILITY_CHANGED: 'Algún producto o variante de la orden cambió. Revisa la orden actualizada antes de confirmar.',
+    SUPPLIER_VERSION_CONFLICT: 'Los datos del proveedor cambiaron. Revisa la orden actualizada antes de confirmar.',
+    ORDER_STATE_CONFLICT: 'La orden ya no está en un estado que permita esta acción. Revisa su estado actual.',
     IDEMPOTENCY_KEY_IN_FLIGHT: 'El intento sigue en proceso. Reintenta para recuperar su resultado.',
   }
   return code && Object.prototype.hasOwnProperty.call(copy, code) ? copy[code]! : 'No se pudo completar la operación. Inténtalo de nuevo.'

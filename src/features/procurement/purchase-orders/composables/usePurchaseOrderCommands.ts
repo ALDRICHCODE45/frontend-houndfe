@@ -1,6 +1,6 @@
 import { onScopeDispose, readonly, shallowRef, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import { purchaseOrdersApi } from '../api/purchase-orders.api'
-import type { OrderInput, PurchaseOrder, SaveDraftInput } from '../interfaces/purchase-order.types'
+import type { ConfirmOrderInput, OrderInput, PurchaseOrder, SaveDraftInput } from '../interfaces/purchase-order.types'
 
 export interface PurchaseOrderCommandContext {
   userId: string
@@ -9,11 +9,15 @@ export interface PurchaseOrderCommandContext {
   canCreate: boolean
   canUpdate: boolean
   canDelete: boolean
+  canConfirm: boolean
+  canCancel: boolean
 }
 type Attempt = { key: string } & (
   | { kind: 'create'; input: OrderInput }
   | { kind: 'update'; id: string; input: SaveDraftInput }
   | { kind: 'delete'; id: string; input: { expectedVersion: number } }
+  | { kind: 'confirm'; id: string; input: ConfirmOrderInput }
+  | { kind: 'cancel'; id: string; input: { expectedVersion: number } }
 )
 type Outcome = { status: 'applied'; order: PurchaseOrder } | { status: 'deleted'; id: string } | {
   status: 'blocked' | 'discarded' | 'uncertain' | 'rejected'
@@ -56,14 +60,27 @@ export function usePurchaseOrderCommands(context: MaybeRefOrGetter<PurchaseOrder
   }
   watch(() => {
     const scope = toValue(context)
-    return [scope.userId, scope.tenantId, scope.ready, scope.canCreate, scope.canUpdate, scope.canDelete]
+    return [scope.userId, scope.tenantId, scope.ready, scope.canCreate, scope.canUpdate, scope.canDelete,
+      scope.canConfirm, scope.canCancel]
   }, retire, { flush: 'sync' })
   onScopeDispose(() => { disposed = true; retire() })
 
   function allowed(kind: Attempt['kind']) {
     const scope = toValue(context)
     return !disposed && scope.ready && Boolean(scope.userId && scope.tenantId)
-      && { create: scope.canCreate, update: scope.canUpdate, delete: scope.canDelete }[kind]
+      && {
+        create: scope.canCreate, update: scope.canUpdate, delete: scope.canDelete,
+        confirm: scope.canConfirm, cancel: scope.canCancel,
+      }[kind]
+  }
+
+  function send(current: Exclude<Attempt, { kind: 'delete' }>, signal: AbortSignal): Promise<PurchaseOrder> {
+    switch (current.kind) {
+      case 'create': return purchaseOrdersApi.create(current.input, current.key, signal)
+      case 'update': return purchaseOrdersApi.saveDraft(current.id, current.input, current.key, signal)
+      case 'confirm': return purchaseOrdersApi.confirm(current.id, current.input, current.key, signal)
+      case 'cancel': return purchaseOrdersApi.cancel(current.id, current.input, current.key, signal)
+    }
   }
 
   async function run(current: Attempt): Promise<Outcome> {
@@ -87,9 +104,7 @@ export function usePurchaseOrderCommands(context: MaybeRefOrGetter<PurchaseOrder
         hasUncertainResult.value = false
         outcome = { status: 'deleted', id: current.id }
       } else {
-        const order = current.kind === 'create'
-          ? await purchaseOrdersApi.create(current.input, current.key, dispatch.signal)
-          : await purchaseOrdersApi.saveDraft(current.id, current.input, current.key, dispatch.signal)
+        const order = await send(current, dispatch.signal)
         if (!owns()) return { status: 'discarded' }
         attempt = null
         hasUncertainResult.value = false
@@ -130,12 +145,24 @@ export function usePurchaseOrderCommands(context: MaybeRefOrGetter<PurchaseOrder
     if (attempt || request || !allowed('delete')) return Promise.resolve({ status: 'blocked' })
     return run({ kind: 'delete', id, key: crypto.randomUUID(), input: Object.freeze({ expectedVersion: input.expectedVersion }) })
   }
+  // Transitions send back the server-issued expectations from the last read verbatim.
+  function confirm(id: string, input: ConfirmOrderInput): Promise<Outcome> {
+    if (attempt || request || !allowed('confirm')) return Promise.resolve({ status: 'blocked' })
+    return run({ kind: 'confirm', id, key: crypto.randomUUID(), input: Object.freeze({
+      expectedVersion: input.expectedVersion, expectedSupplierVersion: input.expectedSupplierVersion,
+      expectedReferenceToken: input.expectedReferenceToken,
+    }) })
+  }
+  function cancel(id: string, input: { expectedVersion: number }): Promise<Outcome> {
+    if (attempt || request || !allowed('cancel')) return Promise.resolve({ status: 'blocked' })
+    return run({ kind: 'cancel', id, key: crypto.randomUUID(), input: Object.freeze({ expectedVersion: input.expectedVersion }) })
+  }
   function retry(): Promise<Outcome> {
     return attempt && hasUncertainResult.value ? run(attempt) : Promise.resolve({ status: 'blocked' })
   }
   function clearFeedback() {
     if (!isPending.value && !hasUncertainResult.value) error.value = null
   }
-  return { create, save, delete: remove, retry, clearFeedback, isPending: readonly(isPending),
+  return { create, save, delete: remove, confirm, cancel, retry, clearFeedback, isPending: readonly(isPending),
     hasUncertainResult: readonly(hasUncertainResult), acknowledged: readonly(acknowledged), error: readonly(error) }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { diagnosticMessage, diagnosticTarget, diagnosticCodes } from '../order-diagnostics'
+import { commandMessage, diagnosticMessage, diagnosticTarget, diagnosticCodes } from '../order-diagnostics'
 
 describe('order diagnostics', () => {
   it('translates all fourteen codes and unknown future codes without hiding them', () => {
@@ -19,5 +19,16 @@ describe('order diagnostics', () => {
     for (const path of ['/lines/1/productId', '/lines/-1', '/lines/00', '/lines/0/unknown', '/lines/0/informedUnitCost/unknown', '/supplierId/x', '/note~1other', '/note~0other', 'note', '/note~2']) {
       expect(diagnosticTarget(path, 1)).toBe('summary')
     }
+  })
+  it('explains every confirmation and cancellation conflict, and archived suppliers per operation', () => {
+    const fail = (error: string) => ({ response: { status: 409, data: { statusCode: 409, error } } })
+    const generic = commandMessage(fail('FUTURE'))
+    expect(commandMessage(fail('ORDER_NOT_READY'))).toBe('La orden todavía no se puede confirmar. Revisa los avisos del borrador.')
+    expect(commandMessage(fail('ELIGIBILITY_CHANGED'))).toBe('Algún producto o variante de la orden cambió. Revisa la orden actualizada antes de confirmar.')
+    expect(commandMessage(fail('SUPPLIER_VERSION_CONFLICT'))).toBe('Los datos del proveedor cambiaron. Revisa la orden actualizada antes de confirmar.')
+    expect(commandMessage(fail('ORDER_STATE_CONFLICT'))).toBe('La orden ya no está en un estado que permita esta acción. Revisa su estado actual.')
+    expect(commandMessage(fail('SUPPLIER_ARCHIVED'), false, 'confirm')).toBe('El proveedor de esta orden está archivado. Elige un proveedor activo y guarda el borrador antes de confirmar.')
+    expect(commandMessage(fail('SUPPLIER_ARCHIVED'))).toBe('El proveedor seleccionado está archivado. Elige un proveedor activo para esta sustitución.')
+    for (const code of ['ORDER_NOT_READY', 'ELIGIBILITY_CHANGED', 'SUPPLIER_VERSION_CONFLICT', 'ORDER_STATE_CONFLICT']) expect(commandMessage(fail(code))).not.toBe(generic)
   })
 })

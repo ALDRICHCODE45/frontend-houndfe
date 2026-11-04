@@ -16,7 +16,9 @@ const context = computed(() => {
     canRead, canReadSupplier, canReadProduct,
     canCreate: canRead && auth.userCan('create', 'ProcurementPurchaseOrder') && canReadSupplier && canReadProduct,
     canUpdate: canRead && auth.userCan('update', 'ProcurementPurchaseOrder'),
-    canDelete: canRead && auth.userCan('delete', 'ProcurementPurchaseOrder') }
+    canDelete: canRead && auth.userCan('delete', 'ProcurementPurchaseOrder'),
+    canConfirm: canRead && auth.userCan('create', 'ProcurementOrderConfirmation'),
+    canCancel: canRead && auth.userCan('create', 'ProcurementOrderCancellation') }
 })
 const list = usePurchaseOrders(context)
 const { search, items, hasNext, hasPrevious, isLoading, isFetching, error } = list
