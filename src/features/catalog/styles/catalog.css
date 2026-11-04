@@ -65,7 +65,7 @@ body[data-catalog-theme='light'] .catalog-search input:focus-visible {
   outline-offset: 2px;
 }
 
-/* Reuse the project's web-loaded Manrope family; the boundary includes UI portals. */
+/* Reuse the project's web-loaded Geist family through its token; the boundary includes UI portals. */
 body[data-catalog-theme='light'] {
   --catalog-page: #f5f6f8;
   --catalog-surface: #ffffff;
@@ -95,7 +95,7 @@ body[data-catalog-theme='light'] {
   --ui-primary: var(--catalog-action);
   color-scheme: light;
   color: var(--catalog-text);
-  font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--hf-font, 'Geist', ui-sans-serif, system-ui, sans-serif);
 }
 
 body[data-catalog-theme='light'] .catalog-layout {
