@@ -140,7 +140,7 @@ function handleChipClick(chip: ShortcutChip): void {
 
 <template>
   <div class="flex flex-col gap-3" data-testid="quotation-expiry-picker">
-    <p class="text-xs font-semibold uppercase tracking-wide text-muted">Expira</p>
+    <p class="text-sm font-medium text-muted">Expira</p>
 
     <p v-if="readonly" class="text-sm font-medium text-highlighted" data-testid="expiry-display">
       {{ displayLabel }}
@@ -156,7 +156,7 @@ function handleChipClick(chip: ShortcutChip): void {
           :portal-class="portalClass"
           @update:model-value="handleDateUpdate"
         />
-        <span class="text-sm text-muted">{{ displayLabel }}</span>
+        <span v-if="props.expiresAt" class="text-sm text-muted">{{ displayLabel }}</span>
         <button
           v-if="props.expiresAt"
           type="button"

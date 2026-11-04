@@ -2107,7 +2107,7 @@ describe('QuotationDetailView — read-only enforcement (REQ-QTN-012 / S8)', () 
     expect(state.cancelQuotation).not.toHaveBeenCalled()
   })
 
-  it('renders a NOT FOUND error surface when the detail query reports 404', async () => {
+  it('renders the not-found empty state (not the error) when the detail query reports 404', async () => {
     state.quotation.value = undefined
     state.isError.value = true
     state.error.value = { response: { status: 404 } }
@@ -2116,10 +2116,9 @@ describe('QuotationDetailView — read-only enforcement (REQ-QTN-012 / S8)', () 
     const wrapper = mountView()
     await flushPromises()
 
-    // The view shows the standard "no se pudo cargar" surface. Future polish
-    // could differentiate 404 from generic error; the contract is that the
-    // user sees an actionable error, not a stack trace.
-    expect(wrapper.find('[data-testid="detail-error"]').exists()).toBe(true)
+    // A missing record is an empty state with a way back, never the error design.
+    expect(wrapper.find('[data-testid="detail-not-found"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="detail-error"]').exists()).toBe(false)
   })
 })
 
@@ -2448,5 +2447,91 @@ describe('QuotationDetailView — page states (S10)', () => {
     const items = wrapper.findAll('[data-testid="header-actions-menu"] button')
     expect(items.map((item) => item.attributes('data-action'))).toEqual(['cancel', 'delete'])
     expect(items[1]!.attributes('data-destructive')).toBe('true')
+  })
+})
+
+// ─── T4 review round 1 ───────────────────────────────────────────────────────
+
+describe('QuotationDetailView — review round 1', () => {
+  function notFoundError() {
+    return Object.assign(new Error('Request failed'), { response: { status: 404 } })
+  }
+
+  it('error: the header names the record, with no "Nueva cotización" and no PDF action', () => {
+    state.quotation.value = undefined
+    state.isError.value = true
+    state.error.value = new Error('boom')
+    const wrapper = mountView()
+    expect(wrapper.get('h1').text()).toBe('Cotización')
+    expect(wrapper.find('[data-testid="preview-pdf-button"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="header-actions-menu"]').exists()).toBe(false)
+  })
+
+  it('create route: the header says "Nueva cotización" while the draft is created', () => {
+    route.path = '/pos/cotizaciones/nueva'
+    route.params = {}
+    state.quotation.value = undefined
+    const wrapper = mountView()
+    expect(wrapper.get('h1').text()).toBe('Nueva cotización')
+    expect(wrapper.find('[data-testid="preview-pdf-button"]').exists()).toBe(false)
+  })
+
+  it('not found: an empty state with a way back, never the error design', async () => {
+    state.quotation.value = undefined
+    state.isError.value = true
+    state.error.value = notFoundError()
+    const wrapper = mountView()
+    const empty = wrapper.get('[data-testid="detail-not-found"] .hf-empty-state')
+    expect(empty.attributes('data-kind')).toBe('empty')
+    expect(empty.get('.hf-empty-state__title').text()).toBe('No encontramos la cotización')
+    expect(wrapper.find('[data-testid="detail-error"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="detail-error-retry"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="detail-not-found-back"]').trigger('click')
+    expect(routerPush).toHaveBeenCalledWith('/pos/cotizaciones')
+  })
+
+  it('loading: the skeleton has a meta bar, three setting cards, the items and the summary', () => {
+    state.quotation.value = undefined
+    state.isLoading.value = true
+    const wrapper = mountView()
+    const skeleton = wrapper.get('[data-testid="detail-loading"]')
+    expect(skeleton.findAll('[data-skeleton="setting"]')).toHaveLength(3)
+    expect(skeleton.find('[data-skeleton="items"]').exists()).toBe(true)
+    expect(skeleton.find('[data-skeleton="summary"]').exists()).toBe(true)
+    expect(wrapper.find('[data-skeleton="meta"]').exists()).toBe(true)
+  })
+
+  it('labels are sentence case with no uppercase eyebrows', () => {
+    const wrapper = mountView()
+    expect(wrapper.html()).not.toMatch(/uppercase|tracking-wide/)
+    const labels = wrapper.findAll('[data-testid="quotation-detail-layout"] p, label').map((n) => n.text())
+    expect(labels).toContain('Cliente')
+    expect(labels).toContain('Lista de precios')
+    expect(labels).toContain('Vendedor')
+    expect(labels).toContain('Notas')
+  })
+
+  it('draft on mobile: the single primary lives in a sticky bottom bar with equal columns', async () => {
+    const wrapper = mountView()
+    const bar = wrapper.get('[data-testid="mobile-action-bar"]')
+    expect(bar.classes()).toContain('lg:hidden')
+    expect(bar.get('[data-testid="mobile-send-btn"]').text()).toContain('Enviar cotización')
+    expect(bar.get('[data-testid="mobile-save-draft-btn"]').text()).toContain('Guardar borrador')
+
+    await bar.get('[data-testid="mobile-send-btn"]').trigger('click')
+    expect(wrapper.find('[data-testid="quotation-send-dialog"]').exists()).toBe(true)
+  })
+
+  it('a sent quotation has no sticky bar', () => {
+    state.quotation.value = makeQuotation({ status: 'SENT', effectiveStatus: 'SENT' })
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="mobile-action-bar"]').exists()).toBe(false)
+  })
+
+  it('the vetoed promotion row has no stray ">" character', () => {
+    state.quotation.value = makeQuotation({ vetoedPromotionIds: ['promo-9'] })
+    const wrapper = mountView()
+    expect(wrapper.get('[data-testid="vetoed-promo-promo-9"]').text()).not.toContain('>')
   })
 })

@@ -71,6 +71,7 @@ const {
   quotation,
   isLoading,
   isError,
+  error,
   refetch,
   createDraft,
   assignCustomer,
@@ -84,6 +85,12 @@ const draft = useQuotationDraft(quotationId)
 
 const isDraft = computed(() => quotation.value?.status === 'DRAFT')
 
+/** A 404 on the detail route is an empty state with a way back, not an error. */
+const isNotFound = computed(() => {
+  if (isCreateRoute.value || !isError.value) return false
+  return (error.value as { response?: { status?: number } } | null)?.response?.status === 404
+})
+
 // The notes counter shows from 90% of the limit (text diet).
 const NOTES_MAX = 280
 const NOTES_COUNTER_FROM = 252
@@ -91,7 +98,7 @@ const NOTES_COUNTER_FROM = 252
 /** The record's name: the customer, never the id. */
 const title = computed(() => {
   const q = quotation.value
-  if (!q) return 'Nueva cotización'
+  if (!q) return isCreateRoute.value ? 'Nueva cotización' : 'Cotización'
   const customer = q.customer
   const name = customer ? `${customer.firstName} ${customer.lastName ?? ''}`.trim() : ''
   return name ? `Cotización de ${name}` : 'Cotización sin cliente'
@@ -786,7 +793,12 @@ function onHeaderAction(key: string): void {
 
       <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div class="min-w-0">
-          <div v-if="quotation" class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">
+          <div
+            v-if="isLoading || isCreating"
+            class="quotation-skeleton-bar animate-pulse h-3.5 w-48"
+            data-skeleton="meta"
+          />
+          <div v-else-if="quotation" class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">
             <StatusBadge
               v-if="headerStatus"
               :label="headerStatus.label"
@@ -797,12 +809,18 @@ function onHeaderAction(key: string): void {
             <span v-else>Sin fecha de expiración</span>
             <span>Creada {{ formatDate(quotation.createdAt) }}</span>
           </div>
-          <h1 class="quotation-detail-title" :class="{ 'mt-2': quotation }">{{ title }}</h1>
+          <h1 class="quotation-detail-title" :class="{ 'mt-2': quotation || isLoading || isCreating }">
+            {{ title }}
+          </h1>
         </div>
 
         <!-- One outline action (PDF) and the ⋮ menu for the rest; the single
-             primary, "Enviar cotización", lives in the RESUMEN sidebar. -->
-        <div class="flex flex-wrap items-center gap-2" data-testid="detail-header-actions">
+             primary, "Enviar cotización", lives in the summary (sticky bar on mobile). -->
+        <div
+          v-if="quotation"
+          class="flex flex-wrap items-center gap-2"
+          data-testid="detail-header-actions"
+        >
           <button
             type="button"
             class="quotation-outline-action"
@@ -830,31 +848,46 @@ function onHeaderAction(key: string): void {
     </header>
 
     <div
-      v-if="isCreating"
+      v-if="isCreating || isLoading"
       class="quotation-skeleton"
       aria-busy="true"
-      data-testid="create-loading"
+      :data-testid="isCreating ? 'create-loading' : 'detail-loading'"
     >
-      <span class="sr-only">Creando cotización…</span>
+      <span class="sr-only">{{ isCreating ? 'Creando cotización…' : 'Cargando cotización…' }}</span>
       <div class="quotation-skeleton-main">
-        <div class="quotation-skeleton-block animate-pulse h-24" />
-        <div class="quotation-skeleton-block animate-pulse h-48" />
+        <div class="quotation-skeleton-settings">
+          <div v-for="n in 3" :key="n" class="quotation-skeleton-card" data-skeleton="setting">
+            <div class="quotation-skeleton-bar animate-pulse h-3.5 w-1/3" />
+            <div class="quotation-skeleton-bar animate-pulse h-9 w-full" />
+          </div>
+        </div>
+        <div class="quotation-skeleton-card" data-skeleton="expiry">
+          <div class="quotation-skeleton-bar animate-pulse h-3.5 w-1/4" />
+          <div class="quotation-skeleton-bar animate-pulse h-9 w-1/2" />
+        </div>
+        <div class="quotation-skeleton-card" data-skeleton="items">
+          <div class="quotation-skeleton-bar animate-pulse h-3.5 w-1/4" />
+          <div v-for="n in 3" :key="n" class="quotation-skeleton-bar animate-pulse h-14 w-full" />
+        </div>
       </div>
-      <div class="quotation-skeleton-block animate-pulse h-64" />
+      <div class="quotation-skeleton-card" data-skeleton="summary">
+        <div class="quotation-skeleton-bar animate-pulse h-3.5 w-1/3" />
+        <div class="quotation-skeleton-bar animate-pulse h-3.5 w-full" />
+        <div class="quotation-skeleton-bar animate-pulse h-3.5 w-full" />
+        <div class="quotation-skeleton-bar animate-pulse h-8 w-1/2" />
+        <div class="quotation-skeleton-bar animate-pulse h-11 w-full" />
+      </div>
     </div>
 
-    <div
-      v-else-if="isLoading"
-      class="quotation-skeleton"
-      aria-busy="true"
-      data-testid="detail-loading"
-    >
-      <span class="sr-only">Cargando cotización…</span>
-      <div class="quotation-skeleton-main">
-        <div class="quotation-skeleton-block animate-pulse h-24" />
-        <div class="quotation-skeleton-block animate-pulse h-48" />
-      </div>
-      <div class="quotation-skeleton-block animate-pulse h-64" />
+    <div v-else-if="isNotFound" data-testid="detail-not-found">
+      <EmptyState
+        title="No encontramos la cotización"
+        description="Pudo haberse eliminado o el enlace no es correcto."
+        action-label="Volver a cotizaciones"
+        action-icon="i-lucide-arrow-left"
+        action-test-id="detail-not-found-back"
+        @action="goBack"
+      />
     </div>
 
     <div v-else-if="isError || createError" data-testid="detail-error">
@@ -871,7 +904,7 @@ function onHeaderAction(key: string): void {
     <template v-else-if="quotation">
       <!-- T-UI-03 — REQ-UI-002: 2-column Coco layout. The grid splits at the
            lg breakpoint into a left col-span-2 (main sections) and a right
-           col-span-1 sticky sidebar (RESUMEN). Below lg, everything stacks
+           col-span-1 sticky sidebar (summary). Below lg, everything stacks
            into a single column and the sticky behavior is dropped. -->
       <div class="grid gap-4 lg:grid-cols-3" data-testid="quotation-detail-layout">
         <div class="flex flex-col gap-4 lg:col-span-2" data-testid="quotation-detail-main">
@@ -883,7 +916,7 @@ function onHeaderAction(key: string): void {
                  change-customer event opens the same AssignCustomerSlideover
                  that handled the old "Asignar cliente" button. -->
             <section class="rounded-xl border border-default bg-default p-5">
-              <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">Cliente</p>
+              <p class="mb-3 text-sm font-medium text-muted">Cliente</p>
               <QuotationCustomerCard
                 v-if="quotation.customer"
                 :customer="quotation.customer"
@@ -909,9 +942,7 @@ function onHeaderAction(key: string): void {
               class="rounded-xl border border-default bg-default p-5"
               data-testid="price-list-section"
             >
-              <p class="text-xs font-semibold uppercase tracking-wide text-muted">
-                Lista de precios
-              </p>
+              <p class="text-sm font-medium text-muted">Lista de precios</p>
               <PriceListSelector
                 v-if="isDraft"
                 class="mt-3"
@@ -941,7 +972,7 @@ function onHeaderAction(key: string): void {
               class="rounded-xl border border-default bg-default p-5"
               data-testid="seller-section"
             >
-              <p class="text-xs font-semibold uppercase tracking-wide text-muted">Vendedor</p>
+              <p class="text-sm font-medium text-muted">Vendedor</p>
               <div v-if="isDraft" class="mt-3">
                 <div
                   v-if="assignableUsersQuery.isLoading.value && !assignableUsersQuery.data.value"
@@ -1062,7 +1093,7 @@ function onHeaderAction(key: string): void {
               class="flex flex-col gap-2"
               data-testid="applied-promotions-list"
             >
-              <p class="text-xs font-semibold uppercase tracking-wide text-muted">Aplicadas</p>
+              <p class="text-sm font-medium text-muted">Aplicadas</p>
               <ul class="flex flex-col gap-2">
                 <!-- T-UI-20 — REQ-UI-008 promotion cards. Extracted to
                      QuotationPromotionCard so the border-l-4 accent
@@ -1087,7 +1118,7 @@ function onHeaderAction(key: string): void {
               class="flex flex-col gap-2"
               data-testid="vetoed-promotions-list"
             >
-              <p class="text-xs font-semibold uppercase tracking-wide text-muted">Vetadas</p>
+              <p class="text-sm font-medium text-muted">Vetadas</p>
               <ul class="flex flex-col gap-2">
                 <li
                   v-for="promo in vetoedPromotions"
@@ -1098,7 +1129,6 @@ function onHeaderAction(key: string): void {
                   <div class="flex-1 min-w-0">
                     <p class="text-sm font-medium text-highlighted truncate">{{ promo.title }}</p>
                     <StatusBadge class="mt-1" label="Automática" tone="info" aria-label="Promoción automática" />
-                    >
                   </div>
                   <button
                     type="button"
@@ -1114,9 +1144,7 @@ function onHeaderAction(key: string): void {
             </div>
 
             <div class="flex flex-col gap-2" data-testid="apply-manual-promo-select">
-              <label class="text-xs font-semibold uppercase tracking-wide text-muted">
-                Agregar promoción
-              </label>
+              <p class="text-sm font-medium text-muted">Agregar promoción</p>
               <USelectMenu
                 v-model="selectedPromotion"
                 value-key="value"
@@ -1184,7 +1212,7 @@ function onHeaderAction(key: string): void {
           class="flex flex-col gap-4 lg:col-span-1 lg:sticky lg:top-4 lg:self-start"
           data-testid="quotation-detail-sidebar"
         >
-          <!-- T-UI-22/23 — REQ-UI-009 RESUMEN sidebar. Pass
+          <!-- T-UI-22/23 — REQ-UI-009 summary sidebar. Pass
                `editable=isDraft` so the CTAs only render in DRAFT,
                `expiresAt` for the validity notice, and wire `send`
                / `save-draft` to the existing dialog + composable
@@ -1212,10 +1240,7 @@ function onHeaderAction(key: string): void {
             data-testid="customer-notes-section"
           >
             <div class="flex items-center justify-between">
-              <label
-                for="customer-notes"
-                class="text-xs font-semibold uppercase tracking-wide text-muted"
-              >
+              <label for="customer-notes" class="text-sm font-medium text-muted">
                 Notas
               </label>
               <span
@@ -1244,6 +1269,32 @@ function onHeaderAction(key: string): void {
             />
           </section>
         </div>
+      </div>
+
+      <!-- Mobile: the single primary lives in the sticky bottom bar; the
+           summary hides its own actions below lg. -->
+      <div
+        v-if="isDraft && canUpdateQuotation"
+        class="quotation-action-bar lg:hidden"
+        data-testid="mobile-action-bar"
+      >
+        <button
+          type="button"
+          class="quotation-outline-action justify-center"
+          data-testid="mobile-save-draft-btn"
+          @click="handleSaveDraftFromSidebar"
+        >
+          Guardar borrador
+        </button>
+        <button
+          type="button"
+          class="quotation-bar-primary"
+          data-testid="mobile-send-btn"
+          @click="openSendDialog"
+        >
+          <UIcon name="i-lucide-send" class="h-4 w-4" />
+          Enviar cotización
+        </button>
       </div>
 
       <AssignCustomerSlideover
@@ -1361,14 +1412,16 @@ function onHeaderAction(key: string): void {
 
 .quotation-detail-title {
   margin: 0;
+  display: -webkit-box;
   overflow: hidden;
   color: var(--hf-heading);
   font-size: 22px;
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.25;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 @media (max-width: 767px) {
@@ -1394,10 +1447,51 @@ function onHeaderAction(key: string): void {
 .quotation-skeleton { display: grid; gap: 16px; }
 @media (min-width: 1024px) { .quotation-skeleton { grid-template-columns: 2fr 1fr; } }
 .quotation-skeleton-main { display: grid; gap: 16px; }
-.quotation-skeleton-block {
+.quotation-skeleton-settings { display: grid; gap: 16px; }
+@media (min-width: 1024px) { .quotation-skeleton-settings { grid-template-columns: repeat(3, 1fr); } }
+.quotation-skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--hf-border);
   border-radius: var(--hf-radius-card);
+  background: var(--hf-surface);
+  padding: 20px;
+}
+.quotation-skeleton-bar {
+  border-radius: var(--hf-radius-control);
   background: var(--hf-surface-muted);
 }
+
+/* Mobile detail: the primary rides in a sticky bottom bar (design system:
+ * Sticky mobile action bar), two equal columns with centered labels. */
+.quotation-action-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 8px;
+  margin: 0 -16px;
+  border-top: 1px solid var(--hf-border);
+  background: var(--hf-surface);
+  padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+}
+.quotation-action-bar > button { min-height: var(--hf-control-height); }
+.quotation-bar-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--hf-radius-control);
+  background: var(--hf-action);
+  padding: 0 16px;
+  color: var(--hf-on-action);
+  font-size: 14px;
+  font-weight: 600;
+}
+.quotation-bar-primary:hover { filter: brightness(1.1); }
 
 .quotation-banner {
   border: 1px solid var(--hf-border);

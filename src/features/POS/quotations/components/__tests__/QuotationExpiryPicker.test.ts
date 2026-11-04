@@ -49,6 +49,16 @@ describe('QuotationExpiryPicker — display', () => {
     expect(wrapper.text()).toMatch(/sin expiraci[oó]n/i)
   })
 
+  it('says "Sin expiración" once in the editable picker besides its chip', () => {
+    const wrapper = mountPicker({ expiresAt: null, readonly: false })
+    const outside = wrapper
+      .findAll('span, p')
+      .filter((node) => node.text() === 'Sin expiración' && !node.element.closest('[data-testid="expiry-chips"]'))
+    expect(outside).toHaveLength(0)
+    expect(wrapper.html()).not.toMatch(/uppercase|tracking-wide/)
+    expect(wrapper.get('[data-testid="quotation-expiry-picker"] p').text()).toBe('Expira')
+  })
+
   it('renders the formatted current expiry date when expiresAt is set', () => {
     const wrapper = mountPicker({
       expiresAt: '2026-09-15T12:00:00.000Z',

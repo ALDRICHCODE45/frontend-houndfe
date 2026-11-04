@@ -2,9 +2,9 @@
 /**
  * `QuotationTotalsFooter.vue` — T-UI-22/23 / REQ-UI-009.
  *
- * Sticky right-sidebar RESUMEN card for the quotation detail view. Mirrors
+ * Sticky right-sidebar Resumen card for the quotation detail view. Mirrors
  * the Coco reference layout (`docs/redesign/quotations-detail-comparison.md`):
- *   - Title "RESUMEN" + context subtitle (N productos · M unidades · lista X)
+ *   - Title "Resumen" + context subtitle (N productos · M unidades · lista X)
  *   - Subtotal (muted), Descuentos (heading ink, with a minus), IVA 16% (gray, computed),
  *     separator, TOTAL (large, bold, black).
  *   - Full-width primary CTA "Enviar cotización" in --hf-action.
@@ -120,11 +120,12 @@ const validityLabel = computed<string | null>(() => {
 
 const hasValidityNotice = computed<boolean>(() => validityLabel.value !== null)
 
-/** The legacy `items-count` row used the same plural-only wording so
- *  the original tests continue to anchor on "1 productos" / "1 unidades". */
-const legacyItemsCount = computed<string>(
-  () => `${itemCount.value} productos · ${totalUnits.value} unidades`,
-)
+/** Counts agree in number: "1 producto · 1 unidad", "2 productos · 3 unidades". */
+const legacyItemsCount = computed<string>(() => {
+  const products = itemCount.value === 1 ? 'producto' : 'productos'
+  const units = totalUnits.value === 1 ? 'unidad' : 'unidades'
+  return `${itemCount.value} ${products} · ${totalUnits.value} ${units}`
+})
 
 function handleSend(): void {
   emit('send')
@@ -180,18 +181,13 @@ function handleTaxRateChange(value: number | null | undefined): void {
     class="flex flex-col gap-4 rounded-xl border border-default bg-default p-5"
     data-testid="quotation-totals-footer"
   >
-    <!-- Header: RESUMEN title + context subtitle. The `items-count`
+    <!-- Header: Resumen title + context subtitle. The `items-count`
          testid stays attached to the context line so the original test
          ("renders N productos · M unidades") continues to anchor on a
          stable point — the new `summary-context` testid is the
          augmented one that includes the price-list segment. -->
     <div class="flex flex-col gap-1">
-      <p
-        class="text-xs font-semibold uppercase tracking-wide text-muted"
-        data-testid="summary-title"
-      >
-        RESUMEN
-      </p>
+      <p class="text-sm font-semibold text-highlighted" data-testid="summary-title">Resumen</p>
       <p class="text-xs text-muted" data-testid="summary-context">
         <span data-testid="items-count">{{ legacyItemsCount }}</span>
         <template v-if="props.priceListName"> · lista {{ props.priceListName }}</template>
@@ -254,7 +250,7 @@ function handleTaxRateChange(value: number | null | undefined): void {
 
       <!-- TOTAL — large, bold, prominent -->
       <div class="flex items-baseline justify-between">
-        <p class="text-xs font-semibold text-muted uppercase tracking-wider">Total</p>
+        <p class="text-sm font-semibold text-muted">Total</p>
         <span data-testid="total-amount" class="text-3xl font-semibold text-highlighted tabular-nums">{{
           totalFormatted
         }}</span>
@@ -267,7 +263,7 @@ function handleTaxRateChange(value: number | null | undefined): void {
          migration: `summary-actions` → `detail-sidebar-actions` per
          design.md migration table (the header action wrapper is
          `detail-header-actions`). -->
-    <div v-if="editable" class="flex flex-col gap-2" data-testid="detail-sidebar-actions">
+    <div v-if="editable" class="hidden flex-col gap-2 lg:flex" data-testid="detail-sidebar-actions">
       <button
         type="button"
         class="quotations-primary-action inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--hf-action)] px-4 py-3 text-sm font-semibold text-[var(--hf-on-action)] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"

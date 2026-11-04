@@ -78,7 +78,7 @@ describe('QuotationTotalsFooter — items count', () => {
       },
     })
 
-    expect(wrapper.find('[data-testid="items-count"]').text()).toMatch(/1\s*productos/i)
+    expect(wrapper.find('[data-testid="items-count"]').text()).toMatch(/1\s*producto(?!s)/i)
   })
 
   it('renders the total quantity across multiple items', () => {
@@ -205,7 +205,7 @@ describe('QuotationTotalsFooter — RESUMEN sidebar (T-UI-22/23 / REQ-UI-009)', 
     const wrapper = mount(QuotationTotalsFooter, {
       props: { quotation: makeQuotation() },
     })
-    expect(wrapper.find('[data-testid="summary-title"]').text()).toBe('RESUMEN')
+    expect(wrapper.find('[data-testid="summary-title"]').text()).toBe('Resumen')
   })
 
   it('renders the context subtitle (N productos · M unidades · lista [name])', () => {
@@ -591,5 +591,28 @@ describe('QuotationTotalsFooter — workspace visual boundary (S3/S4)', () => {
     expect(wrapper.find('[data-testid="discount-amount"]').classes().join(' ')).toMatch(
       /text-\[var\(--hf-heading\)\]/,
     )
+  })
+})
+
+describe('QuotationTotalsFooter — review round 1', () => {
+  it('has no uppercase eyebrows', () => {
+    const wrapper = mount(QuotationTotalsFooter, { props: { quotation: makeQuotation() } })
+    expect(wrapper.html()).not.toMatch(/uppercase|tracking-wide/)
+  })
+
+  it('agrees singular and plural in the context line', () => {
+    const one = makeQuotation()
+    one.items = [{ ...(makeQuotation().items[0] ?? {}), quantity: 1 }] as never
+    const wrapper = mount(QuotationTotalsFooter, { props: { quotation: one } })
+    expect(wrapper.get('[data-testid="items-count"]').text()).toBe('1 producto · 1 unidad')
+  })
+
+  it('hides its actions below lg (the sticky bar carries them on mobile)', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: { quotation: makeQuotation(), editable: true },
+    })
+    const actions = wrapper.get('[data-testid="detail-sidebar-actions"]')
+    expect(actions.classes()).toContain('hidden')
+    expect(actions.classes()).toContain('lg:flex')
   })
 })

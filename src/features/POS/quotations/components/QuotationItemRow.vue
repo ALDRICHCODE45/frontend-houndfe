@@ -205,7 +205,7 @@ function onItemAction(key: string): void {
 
       <!-- Variant + unit price meta -->
       <p class="text-xs text-muted truncate" data-testid="product-meta">
-        <span v-if="variantName" class="uppercase tracking-wide" data-testid="variant-badge"
+        <span v-if="variantName" data-testid="variant-badge"
           >{{ variantName }} ·
         </span>
         <span v-if="props.item.product?.sku" class="font-mono"
