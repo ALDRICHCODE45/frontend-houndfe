@@ -14,13 +14,11 @@ const cssPath = 'src/features/POS/quotations/styles/quotations-list-visual.css'
 const sharedPath = 'src/core/shared/design-system/houndfe-ui.css'
 const cocoPath = 'src/features/POS/quotations/styles/coco-tokens.css'
 const viewPath = 'src/features/POS/quotations/views/QuotationsListView.vue'
-const cardPath = 'src/features/POS/quotations/components/QuotationCard.vue'
 
 const css = existsSync(cssPath) ? readFileSync(cssPath, 'utf8') : ''
 const sharedCss = readFileSync(sharedPath, 'utf8')
 const coco = readFileSync(cocoPath, 'utf8')
 const view = readFileSync(viewPath, 'utf8')
-const card = readFileSync(cardPath, 'utf8')
 
 const PORTAL_MARKER = 'hf-theme hf-ui quotations-list-portal'
 const OVERLAY_MARKER = 'hf-theme hf-ui hf-form-overlay quotations-list-portal'
@@ -74,11 +72,11 @@ function selectorsOf(source: string): string[] {
 }
 
 describe('Quotations listing adapter — scope and tokens (S1/S3/S4)', () => {
-  it('loads a scoped adapter next to the read-only Coco tokens', () => {
+  it('loads a scoped adapter and no longer pulls the Coco tokens', () => {
     expect(css).toContain("@import '../../../../core/shared/design-system/houndfe-ui.css'")
-    expect(view).toContain("import '../styles/coco-tokens.css'")
+    expect(view).not.toContain('coco-tokens')
     expect(view).toContain("import '../styles/quotations-list-visual.css'")
-    // The legacy Coco stylesheet stays untouched and layered where it was.
+    // The legacy Coco stylesheet stays for the detail view only.
     expect(coco).toContain('@layer coco-quotations')
     expect(coco).not.toContain('quotations-list-visual')
     expect(css).not.toContain(':root')
@@ -96,11 +94,7 @@ describe('Quotations listing adapter — scope and tokens (S1/S3/S4)', () => {
       /--hf-(page|surface|surface-muted|field|ink|heading|muted|border|action|on-action|active|active-soft|focus)\s*:/,
     )
     expect(css).not.toMatch(/--ui-[a-z-]+\s*:/)
-    // Only the geometry compatibility aliases are remapped, and circles are
-    // deliberately left alone.
-    expect(css).toContain('--radius-xl: var(--hf-radius-card)')
-    expect(css).toContain('--radius-2xl: var(--hf-radius-card)')
-    expect(css).not.toContain('--radius-full')
+    expect(css).not.toMatch(/--radius-[a-z0-9]+\s*:/)
   })
 
   it('themes the real routed root and owns the listing/portal markers', () => {
@@ -116,30 +110,23 @@ describe('Quotations listing adapter — scope and tokens (S1/S3/S4)', () => {
     expect(view).toMatch(/hf-table-content/)
     expect(view).toMatch(/hf-data-table/)
     expect(view).not.toMatch(/bg-coco-neutral-/)
-    // The Coco token scope class the existing contract pins stays in place.
-    expect(view).toContain('quotations-list-view')
+    expect(view).not.toMatch(/--coco-|coco-/)
   })
 
-  it('compacts toolbar, pagination and numeric cells inside the listing only', () => {
-    expect(css).toContain('.quotations-list-visual .hf-toolbar-actions')
-    expect(css).toContain('flex-wrap: wrap')
-    expect(css).toContain('.quotations-list-visual .hf-toolbar-filters')
-    expect(css).toContain('.quotations-list-visual .quotations-view-toggle')
-    expect(css).toContain('.quotations-list-visual .hf-pagination-size')
-    expect(css).toContain('.quotations-list-visual .hf-pagination-navigation')
+  it('retires the card grid and the view toggle in favour of table + cards', () => {
+    expect(view).not.toContain('ViewToggle')
+    expect(view).not.toContain('useQuotationViewMode')
+    expect(view).toContain('mobile-render="cards"')
+    expect(view).toContain('#mobile-card')
+    expect(view).toContain(':row-open="goToDetail"')
+  })
+
+  it('styles money as tabular figures and keeps keyboard focus on semantic roles', () => {
     expect(css).toContain('.quotations-list-visual .quotations-total-value')
     expect(css).toContain('font-variant-numeric: tabular-nums')
-  })
-
-  it('styles the card surface and keyboard focus from semantic roles', () => {
-    expect(css).toContain('.quotations-list-visual .quotations-card')
-    expect(card).toContain('quotations-card')
-    expect(css).toContain('.quotations-list-visual .quotations-card:focus-within')
     expect(css).toContain('.quotations-list-visual .quotations-status-tab:focus-visible')
-    // The card row menu teleports: it repeats the owned portal boundary.
-    expect(card).toContain(PORTAL_MARKER)
-    // Cards keep the destructive status semantics untouched.
-    expect(card).toContain("color: 'error' as const")
+    expect(css).toContain('.quotations-list-visual .quotation-row-link:focus-visible')
+    expect(css).toContain('var(--hf-focus)')
   })
 
   it('never selects shared data slots or global elements from the listing scope', () => {
