@@ -6,7 +6,9 @@
  * and the actions on the right: ONE primary (Editar perfil, needs
  * update:Employee), the ⋮ menu for the rest (Reactivar… / Dar de baja…, the
  * destructive one last) and the back button. Contact, contract and hire date
- * live in their tabs, so they are not repeated here.
+ * live in their tabs, so they are not repeated here. On mobile the primary
+ * moves to the sticky bottom bar (the view renders it), so the header keeps
+ * only the back button, the text and the ⋮ menu.
  */
 import { computed } from 'vue'
 import RowActionsMenu from '@/core/shared/components/RowActionsMenu.vue'
@@ -18,6 +20,8 @@ import type { Employee } from '../interfaces/employee.types'
 const props = defineProps<{
   employee: Employee
   canUpdate?: boolean
+  /** Small screen: the primary lives in the sticky bottom bar instead. */
+  mobile?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -68,7 +72,7 @@ function handleAction(key: string): void {
 
     <div class="employee-detail-actions">
       <UButton
-        v-if="canUpdate"
+        v-if="canUpdate && !mobile"
         icon="i-lucide-pencil"
         class="hf-primary-control"
         data-testid="employee-detail-edit"

@@ -8,13 +8,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { computed, ref } from 'vue'
 import EmployeeDetailView from '../EmployeeDetailView.vue'
+import { isBelowBreakpoint } from '../../__tests__/helpers/employeesServerTable'
 import { EMPLOYEE_DETAIL_TABS } from '../../composables/useEmployeeDetail'
 import type { Employee } from '../../interfaces/employee.types'
+
+vi.mock('@vueuse/core', async (importOriginal) =>
+  (await import('../../__tests__/helpers/employeesServerTable')).withBreakpointMock(
+    await importOriginal<object>(),
+  ),
+)
 
 const state = {
   employee: ref<Employee | undefined>(undefined),
   isLoading: ref(false),
   isError: ref(false),
+  isNotFound: ref(false),
   refetch: vi.fn(),
   setTab: vi.fn(),
   rawTab: ref('resumen'),
@@ -28,6 +36,7 @@ vi.mock('../../composables/useEmployeeDetail', async (importOriginal) => {
       employee: state.employee,
       isLoading: state.isLoading,
       isError: state.isError,
+      isNotFound: computed(() => state.isNotFound.value),
       refetch: state.refetch,
       activeTab: computed(() => state.rawTab.value),
       setTab: state.setTab,
@@ -117,6 +126,8 @@ beforeEach(() => {
   state.employee.value = undefined
   state.isLoading.value = false
   state.isError.value = false
+  state.isNotFound.value = false
+  isBelowBreakpoint.value = false
   state.rawTab.value = 'resumen'
   state.refetch.mockReset()
   state.setTab.mockReset()
@@ -135,6 +146,8 @@ describe('EmployeeDetailView states — loading', () => {
     const skeleton = wrapper.get('[data-testid="employee-detail-skeleton"]')
     expect(skeleton.attributes('aria-busy')).toBe('true')
     expect(skeleton.text()).toContain('Cargando')
+    expect(skeleton.findAll('[data-testid="employee-detail-skeleton-tab"]').length).toBeGreaterThanOrEqual(4)
+    expect(skeleton.findAll('[data-testid="employee-detail-skeleton-card"]')).toHaveLength(3)
     expect(wrapper.find('[data-testid="employee-detail-header"]').exists()).toBe(false)
     expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
   })
@@ -153,6 +166,58 @@ describe('EmployeeDetailView states — error', () => {
     expect(state.refetch).toHaveBeenCalledTimes(1)
     await wrapper.get('[data-testid="employee-detail-error-back"]').trigger('click')
     expect(routerPush).toHaveBeenCalledWith({ name: 'admin-employees-list' })
+  })
+})
+
+describe('EmployeeDetailView states — not found', () => {
+  it('shows an empty state with a way back, never the connection error or a retry', async () => {
+    state.isError.value = true
+    state.isNotFound.value = true
+    const wrapper = mountView()
+    const empty = wrapper.get('.hf-empty-state')
+    expect(empty.attributes('data-kind')).toBe('empty')
+    expect(empty.attributes('role')).toBe('status')
+    expect(empty.get('.hf-empty-state__title').text()).toBe('No encontramos al colaborador')
+    expect(wrapper.text()).not.toContain('conexión')
+    expect(wrapper.text()).not.toContain('Reintentar')
+    await wrapper.get('[data-testid="employee-detail-not-found-back"]').trigger('click')
+    expect(routerPush).toHaveBeenCalledWith({ name: 'admin-employees-list' })
+  })
+})
+
+describe('EmployeeDetailView states — mobile', () => {
+  it('moves the one primary into the sticky bottom bar and keeps it out of the header', () => {
+    isBelowBreakpoint.value = true
+    state.employee.value = makeEmployee()
+    const wrapper = mountView()
+    const bar = wrapper.get('[data-testid="employee-detail-action-bar"]')
+    expect(bar.find('[data-testid="employee-detail-edit"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="employee-detail-header"]').find('[data-testid="employee-detail-edit"]').exists()).toBe(false)
+    expect(wrapper.findAll('[data-testid="employee-detail-edit"]')).toHaveLength(1)
+  })
+
+  it('opens the edit slideover from the bar', async () => {
+    isBelowBreakpoint.value = true
+    state.employee.value = makeEmployee()
+    const wrapper = mountView()
+    await wrapper.get('[data-testid="employee-detail-action-bar"] [data-testid="employee-detail-edit"]').trigger('click')
+    expect(wrapper.findComponent({ name: 'EmployeeEditSlideover' }).props('open')).toBe(true)
+  })
+
+  it('shows no bar without update permission and none on desktop', () => {
+    grants.delete('update:Employee')
+    isBelowBreakpoint.value = true
+    state.employee.value = makeEmployee()
+    expect(mountView().find('[data-testid="employee-detail-action-bar"]').exists()).toBe(false)
+    grants.add('update:Employee')
+    isBelowBreakpoint.value = false
+    expect(mountView().find('[data-testid="employee-detail-action-bar"]').exists()).toBe(false)
+  })
+
+  it('keeps the ⋮ menu in the header', () => {
+    isBelowBreakpoint.value = true
+    state.employee.value = makeEmployee()
+    expect(mountView().get('[data-testid="employee-detail-header"]').find('[aria-label="Más acciones del colaborador"]').exists()).toBe(true)
   })
 })
 

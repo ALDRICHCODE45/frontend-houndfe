@@ -49,10 +49,10 @@ const managerSubtitle = computed(() => {
 <template>
   <div class="flex flex-col gap-6">
     <!-- Key figures -->
-    <div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3" data-testid="employee-stat-grid">
       <UCard class="employees-detail-section" :ui="{ body: 'p-4 sm:p-4' }">
         <p class="text-sm text-muted">Antigüedad</p>
-        <p class="hf-figure mt-1 text-2xl font-semibold text-highlighted">{{ seniority }}</p>
+        <p class="hf-figure mt-1 text-left text-2xl font-semibold text-highlighted">{{ seniority }}</p>
         <p class="text-sm text-muted">Desde {{ hireDateFormatted }}</p>
       </UCard>
 
@@ -63,13 +63,13 @@ const managerSubtitle = computed(() => {
         :ui="{ body: 'p-4 sm:p-4' }"
       >
         <p class="text-sm text-muted">Sueldo actual</p>
-        <p class="hf-figure mt-1 text-2xl font-semibold text-highlighted">{{ salaryDisplay }}</p>
+        <p class="hf-figure mt-1 text-left text-2xl font-semibold text-highlighted">{{ salaryDisplay }}</p>
         <p class="text-sm text-muted">{{ employee.currentSalaryCurrency }}</p>
       </UCard>
 
       <UCard class="employees-detail-section" :ui="{ body: 'p-4 sm:p-4' }">
         <p class="text-sm text-muted">Vacaciones</p>
-        <p class="hf-figure mt-1 text-2xl font-semibold text-highlighted">
+        <p class="hf-figure mt-1 text-left text-2xl font-semibold text-highlighted">
           {{ employee.annualVacationDays ?? '—' }}
         </p>
         <p class="text-sm text-muted">días al año</p>

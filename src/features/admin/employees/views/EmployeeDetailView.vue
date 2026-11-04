@@ -7,7 +7,9 @@
  * instead of a second sidebar that repeated them.
  *
  * Four states (S10): a skeleton shaped like the page while loading, the shared
- * EmptyState error with Reintentar, and the data.
+ * EmptyState (empty with a way back when the record does not exist, error with
+ * Reintentar when the request failed), and the data. On mobile the primary
+ * (Editar perfil) lives in the sticky bottom bar.
  *
  * Tab state is driven by ?tab= query param for deep linking; only the tabs the
  * role can read are shown. Permission gate: read:Employee (route-level
@@ -19,8 +21,9 @@
  *   single employee in an array (same pattern as the list — no N+1).
  */
 
-import { computed, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { breakpointsTailwind, useBreakpoints, useResizeObserver } from '@vueuse/core'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import {
   useEmployeeDetail,
@@ -56,6 +59,7 @@ const {
   employee,
   isLoading,
   isError,
+  isNotFound,
   activeTab: rawActiveTab,
   setTab,
   tabs,
@@ -143,6 +147,37 @@ const activeTabLabel = computed(
   () => visibleTabs.value.find((tab) => tab.key === activeTab.value)?.label ?? '',
 )
 
+// ── Mobile: the primary moves to the sticky bottom bar ────────────────────────
+const isMobile = useBreakpoints(breakpointsTailwind).smaller('md')
+
+// ── Tab strip: a fade at the end while more tabs wait off-screen ───────────────
+const tabsScroll = ref<HTMLElement | null>(null)
+const tabsHaveMore = ref(false)
+
+function measureTabs(): void {
+  const el = tabsScroll.value
+  tabsHaveMore.value = !!el && el.scrollWidth - el.clientWidth - el.scrollLeft > 1
+}
+
+useResizeObserver(tabsScroll, measureTabs)
+onMounted(measureTabs)
+watch(visibleTabs, () => void nextTick(measureTabs))
+
+// A deep link to a tab that sits off-screen scrolls it into view.
+watch(
+  [tabsScroll, activeTab],
+  async ([el]) => {
+    if (!el) return
+    await nextTick()
+    el.querySelector<HTMLElement>('[aria-selected="true"]')?.scrollIntoView?.({
+      inline: 'center',
+      block: 'nearest',
+    })
+    measureTabs()
+  },
+  { flush: 'post' },
+)
+
 // ── Back navigation ───────────────────────────────────────────────────────────
 function goBack(): void {
   void router.push({ name: 'admin-employees-list' })
@@ -150,7 +185,10 @@ function goBack(): void {
 </script>
 
 <template>
-  <div class="hf-theme hf-ui employees-visual employees-detail mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-6 px-4 sm:px-6 lg:px-10">
+  <div
+    class="hf-theme hf-ui employees-visual employees-detail mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-6 px-4 sm:px-6 lg:px-10"
+    :class="{ 'pb-24': isMobile && canUpdate && employee }"
+  >
     <!-- Loading state: the final shape of the page, never a blank screen -->
     <div
       v-if="isLoading"
@@ -160,14 +198,51 @@ function goBack(): void {
     >
       <span class="sr-only">Cargando</span>
       <div class="flex items-center gap-3" aria-hidden="true">
-        <div class="size-11 animate-pulse rounded-lg bg-(--hf-surface-muted)" />
+        <div class="size-11 shrink-0 animate-pulse rounded-lg bg-(--hf-surface-muted)" />
         <div class="flex flex-1 flex-col gap-2">
           <div class="h-5 w-40 animate-pulse rounded bg-(--hf-surface-muted)" />
           <div class="h-6 w-64 max-w-full animate-pulse rounded bg-(--hf-surface-muted)" />
         </div>
       </div>
-      <div class="h-10 w-full animate-pulse rounded-lg bg-(--hf-surface-muted)" aria-hidden="true" />
-      <div class="h-64 w-full animate-pulse rounded-xl bg-(--hf-surface-muted)" aria-hidden="true" />
+      <div class="flex gap-4 border-b border-(--hf-border) pb-3" aria-hidden="true">
+        <div
+          v-for="tab in 4"
+          :key="tab"
+          class="h-5 w-20 animate-pulse rounded bg-(--hf-surface-muted)"
+          data-testid="employee-detail-skeleton-tab"
+        />
+      </div>
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-3" aria-hidden="true">
+        <div
+          v-for="card in 3"
+          :key="card"
+          class="flex h-28 flex-col gap-3 rounded-xl border border-(--hf-border) p-4"
+          data-testid="employee-detail-skeleton-card"
+        >
+          <div class="h-4 w-24 animate-pulse rounded bg-(--hf-surface-muted)" />
+          <div class="h-7 w-32 animate-pulse rounded bg-(--hf-surface-muted)" />
+          <div class="h-4 w-20 animate-pulse rounded bg-(--hf-surface-muted)" />
+        </div>
+      </div>
+      <div
+        class="flex h-32 flex-col gap-3 rounded-xl border border-(--hf-border) p-5"
+        aria-hidden="true"
+      >
+        <div class="h-5 w-28 animate-pulse rounded bg-(--hf-surface-muted)" />
+        <div class="h-4 w-56 max-w-full animate-pulse rounded bg-(--hf-surface-muted)" />
+      </div>
+    </div>
+
+    <!-- Not found: an empty state with a way back, never a connection error -->
+    <div v-else-if="isNotFound" class="pt-4">
+      <EmptyState
+        title="No encontramos al colaborador"
+        description="Puede que se haya eliminado o que el enlace ya no sirva."
+        action-label="Volver a colaboradores"
+        action-icon="i-lucide-arrow-left"
+        action-test-id="employee-detail-not-found-back"
+        @action="goBack"
+      />
     </div>
 
     <!-- Error state -->
@@ -198,6 +273,7 @@ function goBack(): void {
       <EmployeeDetailHeader
         :employee="employee"
         :can-update="canUpdate"
+        :mobile="isMobile"
         @back="goBack"
         @edit="openEdit"
         @terminate="openTerminate"
@@ -205,7 +281,7 @@ function goBack(): void {
       />
 
       <!-- Tab navigation — horizontal scroll on mobile -->
-      <div class="employees-detail-tabs-scroll">
+      <div ref="tabsScroll" class="employees-detail-tabs-scroll" :data-more="tabsHaveMore" @scroll.passive="measureTabs">
         <div class="employees-detail-tabs" role="tablist" aria-label="Secciones del colaborador">
           <button
             v-for="tab in visibleTabs"
@@ -291,6 +367,22 @@ function goBack(): void {
           :can-create="canCreateTimeOff"
           :can-update="canUpdateTimeOff"
         />
+      </div>
+
+      <!-- Mobile: the one primary lives in the sticky bottom bar -->
+      <div
+        v-if="isMobile && canUpdate"
+        class="employee-detail-action-bar"
+        data-testid="employee-detail-action-bar"
+      >
+        <UButton
+          icon="i-lucide-pencil"
+          class="hf-primary-control"
+          data-testid="employee-detail-edit"
+          @click="openEdit"
+        >
+          Editar perfil
+        </UButton>
       </div>
     </template>
   </div>

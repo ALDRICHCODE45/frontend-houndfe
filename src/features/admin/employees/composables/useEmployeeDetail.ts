@@ -225,6 +225,14 @@ export function useEmployeeDetail() {
     refetchOnWindowFocus: false,
   })
 
+  // A record that does not exist is an empty state with a way back, not a
+  // connection error: only a 404 answer counts.
+  const isNotFound = computed(
+    () =>
+      isError.value &&
+      (error.value as { response?: { status?: number } } | null)?.response?.status === 404,
+  )
+
   // ── Tab state — driven by ?tab= query param ────────────────────────────────
   const activeTab = computed<EmployeeDetailTabKey>(() =>
     computeTabFromQuery(route.query.tab as string | undefined),
@@ -250,6 +258,7 @@ export function useEmployeeDetail() {
     employee,
     isLoading,
     isError,
+    isNotFound,
     error,
     refetch,
     // Tab state
