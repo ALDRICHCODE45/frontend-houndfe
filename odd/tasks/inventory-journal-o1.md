@@ -99,3 +99,7 @@ L2. Explorer mw2912o1 mapped the handoff to the FE.
 - Transport reference: purchase-orders.api.ts:20-60 and usePurchaseOrderCommands.ts:6-140.
 
 L3. User question for the morning (not decided): the kardex today shows stock movements. Should the product list "Existencias" also say how much is sellable, given that it excludes expired lots?
+L4. Implementation started after system-redesign T4 closed (c613573a). Two parallel writers on disjoint surfaces:
+- Stream A builds the inventory module (O1 T1-T5) in src/features/POS/inventory and src/features/auth.
+- Stream B covers products and sales (O1 T7-T9).
+The parent wires the "Inventario" task in the product detail (T6) and runs T10 after both finish. The BE API runs from the O1 worktree on :3000.
