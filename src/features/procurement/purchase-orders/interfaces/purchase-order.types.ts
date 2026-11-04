@@ -1,7 +1,7 @@
 // Wire contract agreed with backend for O3b draft orders. Quantities and
 // amounts are canonical decimal strings owned by the server; never reformat.
 export type TaxBasis = 'INCLUDES_TAX' | 'EXCLUDES_TAX'
-export type PurchaseOrderStatus = 'DRAFT'
+export type PurchaseOrderStatus = 'DRAFT' | 'CONFIRMED' | 'CANCELLED'
 export interface InformedUnitCost {
   amount: string | null
   currency: string | null
@@ -36,6 +36,19 @@ export interface PurchaseOrder extends OrderInput {
   lineSubtotals: Array<{ lineId: string; subtotal: { amount: string; currency: string; taxBasis: TaxBasis } | null }>
   locationSnapshot: { tenantId: string; tenantName: string; detail: string | null }
   validation: { issues: ValidationIssue[] }
+  // O3c: opaque confirmation expectations, sent back verbatim; never computed here.
+  supplierCurrentVersion: number | null
+  referenceToken: string | null
+  canConfirm: boolean
+  confirmedAt: string | null
+  confirmedBy: { displayName: string } | null
+  cancelledAt: string | null
+  cancelledBy: { displayName: string } | null
+}
+export interface ConfirmOrderInput {
+  expectedVersion: number
+  expectedSupplierVersion: number | null
+  expectedReferenceToken: string | null
 }
 export interface SaveDraftInput {
   expectedVersion: number
@@ -44,6 +57,7 @@ export interface SaveDraftInput {
 export interface PurchaseOrderListInput {
   search?: string
   supplierId?: string
+  status?: PurchaseOrderStatus
   cursor?: string
   limit?: number
 }

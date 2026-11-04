@@ -8,7 +8,7 @@ import { usePurchaseOrder, usePurchaseOrders } from '../usePurchaseOrders'
 
 vi.mock('../../api/purchase-orders.api', () => ({ purchaseOrdersApi: { list: vi.fn(), get: vi.fn() } }))
 const row: PurchaseOrderSummary = { id: 'one', version: 1, status: 'DRAFT', supplierDisplaySnapshot: null, lineCount: 0, issueCount: 0, note: null, locationDetail: null, createdAt: '', updatedAt: '' }
-const order: PurchaseOrder = { ...row, supplierId: null, location: { detail: null }, lines: [], lineDisplaySnapshots: [], lineSubtotals: [], locationSnapshot: { tenantId: 'tenant', tenantName: '', detail: null }, validation: { issues: [] } }
+const order: PurchaseOrder = { ...row, supplierId: null, location: { detail: null }, lines: [], lineDisplaySnapshots: [], lineSubtotals: [], locationSnapshot: { tenantId: 'tenant', tenantName: '', detail: null }, validation: { issues: [] }, supplierCurrentVersion: null, referenceToken: null, canConfirm: false, confirmedAt: null, confirmedBy: null, cancelledAt: null, cancelledBy: null }
 const cleanups: Array<() => void> = []
 function setup(patch = {}) {
   const context = shallowRef({ userId: 'user', tenantId: 'tenant', ready: true, canRead: true, ...patch })

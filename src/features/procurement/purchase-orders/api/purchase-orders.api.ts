@@ -1,6 +1,6 @@
 import { http } from '@/core/shared/api/http'
 import type {
-  OrderInput, OrderLine, PurchaseOrder, PurchaseOrderListInput, PurchaseOrderPage, SaveDraftInput,
+  ConfirmOrderInput, OrderInput, OrderLine, PurchaseOrder, PurchaseOrderListInput, PurchaseOrderPage, SaveDraftInput,
 } from '../interfaces/purchase-order.types'
 
 const base = '/procurement/purchase-orders'
@@ -25,8 +25,8 @@ export function closedOrderInput(input: OrderInput): OrderInput {
 // Commands receive the immutable attempt's key and signal from their owner.
 export const purchaseOrdersApi = {
   async list(input: PurchaseOrderListInput, signal?: AbortSignal): Promise<PurchaseOrderPage> {
-    const { supplierId, search, cursor, limit } = input
-    const response = await http.get<PurchaseOrderPage>(base, { params: { supplierId, search, cursor, limit }, signal })
+    const { supplierId, search, cursor, limit, status } = input
+    const response = await http.get<PurchaseOrderPage>(base, { params: { supplierId, search, cursor, limit, status }, signal })
     return response.data
   },
   async get(id: string, signal?: AbortSignal): Promise<PurchaseOrder> {
@@ -49,5 +49,17 @@ export const purchaseOrdersApi = {
     await http.delete(path(id), {
       data: { expectedVersion: input.expectedVersion }, headers: { 'Idempotency-Key': key }, signal,
     })
+  },
+  async confirm(id: string, input: ConfirmOrderInput, key: string, signal?: AbortSignal): Promise<PurchaseOrder> {
+    const response = await http.post<PurchaseOrder>(path(id) + '/confirm', {
+      expectedVersion: input.expectedVersion, expectedSupplierVersion: input.expectedSupplierVersion,
+      expectedReferenceToken: input.expectedReferenceToken,
+    }, { headers: { 'Idempotency-Key': key }, signal })
+    return response.data
+  },
+  async cancel(id: string, input: { expectedVersion: number }, key: string, signal?: AbortSignal): Promise<PurchaseOrder> {
+    const response = await http.post<PurchaseOrder>(path(id) + '/cancel',
+      { expectedVersion: input.expectedVersion }, { headers: { 'Idempotency-Key': key }, signal })
+    return response.data
   },
 }

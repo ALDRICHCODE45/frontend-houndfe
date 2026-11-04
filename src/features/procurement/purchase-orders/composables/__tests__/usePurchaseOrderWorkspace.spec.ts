@@ -8,7 +8,7 @@ const current = shallowRef<PurchaseOrder | null>(null)
 vi.mock('../usePurchaseOrders', () => ({
   usePurchaseOrder: () => ({ order: current, refresh: mocks.detailRefresh }),
 }))
-const order: PurchaseOrder = { id: 'o', version: 3, status: 'DRAFT', supplierId: null, note: null, location: { detail: null }, lines: [], createdAt: '', updatedAt: '', supplierDisplaySnapshot: null, lineDisplaySnapshots: [], lineSubtotals: [], locationSnapshot: { tenantId: 't', tenantName: 'Centro', detail: null }, validation: { issues: [] } }
+const order: PurchaseOrder = { id: 'o', version: 3, status: 'DRAFT', supplierId: null, note: null, location: { detail: null }, lines: [], createdAt: '', updatedAt: '', supplierDisplaySnapshot: null, lineDisplaySnapshots: [], lineSubtotals: [], locationSnapshot: { tenantId: 't', tenantName: 'Centro', detail: null }, validation: { issues: [] }, supplierCurrentVersion: null, referenceToken: null, canConfirm: false, confirmedAt: null, confirmedBy: null, cancelledAt: null, cancelledBy: null }
 const input = { supplierId: null, note: 'local', location: { detail: null }, lines: [] }
 const scopes: ReturnType<typeof effectScope>[] = []
 afterEach(() => { scopes.forEach(scope => scope.stop()); scopes.length = 0; vi.resetAllMocks(); current.value = null })
