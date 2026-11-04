@@ -1,24 +1,25 @@
 <script setup lang="ts">
 /**
- * ExpiringDocumentsView — WU-A (REQ-1..REQ-9 migration to useServerTable)
+ * ExpiringDocumentsView — tenant-wide dashboard of EmployeeDocument records
+ * expiring soon.
  *
- * Tenant-wide dashboard showing all EmployeeDocument records expiring soon.
+ * One layout: an AppDataTable on desktop and cards on mobile. The document
+ * comes first, then the time left as a StatusBadge (expiring documents are
+ * pending items that need action, so they are warning; the nearest or already
+ * expired ones are urgent), then who owns it and when it expires. The
+ * expiry-window select (30 / 60 / 90 days) sits in the toolbar as a named
+ * control. The screen only reads, so there is no ⋮ column and rows are not
+ * clickable.
  *
- * Layout:
- *   - Canonical page header (hf-page-header) with the expiry-window selector moved to
- *     the table's `#filters` slot (REQ-7).
- *   - Shared AppDataTable: document, category badge, server-resolved employee
- *     (avatar + fullName), localized expiry date, days-remaining badge — with
- *     toolbar search (≥2 chars), server-side sorting via SortableHeader,
- *     column visibility (4 hideable, `documento` anchor), loading / error /
- *     empty states, and server-side pagination.
+ * Four states (S10): "Sin documentos por vencer" naming the window (good news,
+ * no create action), no-match for a search, skeletons and the shared error.
  *
  * Data notes:
  *   - The endpoint is SERVER-paginated/searchable/sortable. `useExpiringDocuments`
  *     composes the shared useServerTable (untouched); this view is a thin
  *     composition surface over its returned state.
  *   - The backend resolves fullName/employeeNumber per row — no secondary
- *     listForPicker name-resolution query (drops the >100-cap limitation).
+ *     listForPicker name-resolution query.
  *   - Error precedence: response.data.message (string|array[0]) → error.message
  *     → "No se pudieron cargar los documentos. Intenta de nuevo."
  *
@@ -28,26 +29,27 @@
  *   GET /admin/employees-documents/expiring?daysUntilExpiry=N (server-paginated)
  *   Route uses HYPHEN — NOT under /:employeeId.
  *   NEVER send tenantId.
- *
- * Design: warm orange primary, Nuxt UI 4 components + shared AppDataTable.
  */
 
 import { computed } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import { AppDataTable, FilterSectionCard, SortableHeader, createSimpleHeader } from '@/core/shared/components/DataTable'
+import { AppDataTable, SortableHeader, createSimpleHeader } from '@/core/shared/components/DataTable'
+import ToolbarSelectFilter from '@/core/shared/components/DataTable/ToolbarSelectFilter.vue'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import '../styles/employees-visual.css'
 import { useExpiringDocuments } from '../composables/useExpiringDocuments'
-import type { ExpiringDocumentTableRow } from '../composables/useExpiringDocuments'
-import { EMPLOYEE_DOCUMENT_CATEGORY } from '../constants/employee.constants'
+import type { ExpiringDocumentTableRow, ExpiringThreshold } from '../composables/useExpiringDocuments'
 import { DOCUMENT_CATEGORY_LABELS } from '../interfaces/employee.types'
+import AdminMobileCard from '../../shared/components/AdminMobileCard.vue'
+import { noMatchTitleFor, resolveListErrorMessage } from '../../shared/utils/list-state.utils'
 
 // ─── Expiry-window selector (look-ahead threshold — NOT page size) ─────────────
 
-const thresholdOptions: { label: string; value: 30 | 60 | 90 }[] = [
-  { label: '30 días', value: 30 },
-  { label: '60 días', value: 60 },
-  { label: '90 días', value: 90 },
+const thresholdItems = [
+  { label: '30 días', value: '30' },
+  { label: '60 días', value: '60' },
+  { label: '90 días', value: '90' },
 ]
 
 // ─── Table state (composable = useServerTable closure composition) ─────────────
@@ -71,70 +73,55 @@ const {
   showingTo,
 } = useExpiringDocuments()
 
-const emptyMessage = computed(
-  () => `No hay documentos que venzan en los próximos ${selectedThreshold.value} días`,
-)
-
-// ─── Error message — backendMessage > error.message > Spanish fallback (REQ-5)
-
-const documentsErrorMessage = computed(() => {
-  const err = error.value as
-    | { response?: { data?: { message?: unknown } }; message?: string }
-    | null
-    | undefined
-  const backendMessage = err?.response?.data?.message
-  if (typeof backendMessage === 'string' && backendMessage.trim()) {
-    return backendMessage
-  }
-  if (Array.isArray(backendMessage) && backendMessage.length > 0) {
-    const first = backendMessage[0]
-    if (typeof first === 'string') return first
-  }
-  if (typeof err?.message === 'string' && err.message.trim()) {
-    return err.message
-  }
-  return 'No se pudieron cargar los documentos. Intenta de nuevo.'
+const thresholdModel = computed({
+  get: () => String(selectedThreshold.value),
+  set: (value: string) => {
+    selectedThreshold.value = Number(value) as ExpiringThreshold
+  },
 })
 
-// ─── Columns (REQ-2/REQ-4) ─────────────────────────────────────────────────────
+// ─── Four states (S10) ─────────────────────────────────────────────────────────
+
+const documentsErrorMessage = computed(() =>
+  resolveListErrorMessage(error.value, 'No se pudieron cargar los documentos. Intenta de nuevo.'),
+)
+
+const searchTerm = computed(() => globalFilter.value.trim())
+const noMatchTitle = computed(() => noMatchTitleFor(searchTerm.value))
+// Nothing about to expire is good news, not a first-use state: it names the
+// window and offers no create action (documents are uploaded per collaborator).
+const emptyState = computed(() => ({
+  title: 'Sin documentos por vencer',
+  description: `Ninguno vence en los próximos ${selectedThreshold.value} días.`,
+}))
+
+function clearFilters(): void {
+  globalFilter.value = ''
+}
+
+// ─── Columns ───────────────────────────────────────────────────────────────────
 
 const columns = computed<TableColumn<ExpiringDocumentTableRow>[]>(() => [
   { id: 'documento', header: createSimpleHeader('Documento'), enableSorting: false, enableHiding: false },
-  { id: 'categoria', header: createSimpleHeader('Categoría'), enableSorting: true, enableHiding: true },
+  { id: 'restante', header: createSimpleHeader('Tiempo restante'), enableSorting: true, enableHiding: true },
   { id: 'colaborador', header: createSimpleHeader('Colaborador'), enableSorting: true, enableHiding: true },
   { id: 'vencimiento', header: createSimpleHeader('Fecha de vencimiento'), enableSorting: true, enableHiding: true },
-  { id: 'restante', header: createSimpleHeader('Tiempo restante'), enableSorting: true, enableHiding: true },
+  { id: 'categoria', header: createSimpleHeader('Categoría'), enableSorting: true, enableHiding: true },
 ])
 
-// ─── Category badge color ──────────────────────────────────────────────────────
+// ─── Display helpers ───────────────────────────────────────────────────────────
 
-function getCategoryColor(
-  category: string,
-): 'primary' | 'warning' | 'error' | 'neutral' | 'success' {
-  switch (category) {
-    case EMPLOYEE_DOCUMENT_CATEGORY.CONTRACT:
-    case EMPLOYEE_DOCUMENT_CATEGORY.NDA:
-      return 'primary'
-    case EMPLOYEE_DOCUMENT_CATEGORY.MEDICAL:
-    case EMPLOYEE_DOCUMENT_CATEGORY.WARNING:
-      return 'error'
-    case EMPLOYEE_DOCUMENT_CATEGORY.EVALUATION:
-    case EMPLOYEE_DOCUMENT_CATEGORY.CERTIFICATE:
-      return 'success'
-    default:
-      return 'neutral'
-  }
+/**
+ * Time-left badge. Every row here is a pending item that needs action, so it is
+ * warning; the ones due within a week (or already past) are urgent, and the
+ * far ones stay neutral.
+ */
+function remainingBadge(row: ExpiringDocumentTableRow) {
+  const { daysRemaining, daysRemainingLabel } = row
+  if (daysRemaining <= 7) return { tone: 'warning' as const, label: daysRemainingLabel, urgent: true }
+  if (daysRemaining <= 30) return { tone: 'warning' as const, label: daysRemainingLabel, urgent: false }
+  return { tone: 'neutral' as const, label: daysRemainingLabel, urgent: false }
 }
-
-// ─── Days-remaining badge color ────────────────────────────────────────────────
-
-function getDaysRemainingColor(days: number): 'error' | 'warning' | 'neutral' {
-  if (days <= 7) return 'error'
-  if (days <= 30) return 'warning'
-  return 'neutral'
-}
-
-// ─── Category label ────────────────────────────────────────────────────────────
 
 function getCategoryLabel(category: string): string {
   return DOCUMENT_CATEGORY_LABELS[category as keyof typeof DOCUMENT_CATEGORY_LABELS] ?? category
@@ -143,11 +130,9 @@ function getCategoryLabel(category: string): string {
 
 <template>
   <div class="hf-theme hf-ui employees-visual flex w-full min-w-0 flex-col gap-6 md:px-6 lg:px-10">
-    <!-- Canonical table workspace (design-system §4): heading outside the surface. -->
-    <div class="hf-page-header">
+    <header class="hf-page-header">
       <h1 class="hf-page-title">Documentos por vencer</h1>
-      <p class="hf-page-subtitle">Documentos del personal próximos a su fecha de vencimiento</p>
-    </div>
+    </header>
 
     <UCard :ui="{ body: 'p-0 sm:p-0' }" class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm">
       <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
@@ -162,6 +147,9 @@ function getCategoryLabel(category: string): string {
           :fetching="isFetching"
           :error="isError"
           :error-message="documentsErrorMessage"
+          :empty-state="emptyState"
+          :filtered="searchTerm !== ''"
+          :no-match-title="noMatchTitle"
           :page-count="pageCount"
           :total-count="totalCount"
           :showing-from="showingFrom"
@@ -169,86 +157,96 @@ function getCategoryLabel(category: string): string {
           :page-size-options="pageSizeOptions"
           :show-toolbar="true"
           :active-filter-count="selectedThreshold !== 30 ? 1 : 0"
+          display-mode="auto"
+          mobile-render="cards"
+          search-placeholder="Buscar documento o colaborador..."
           enable-column-visibility
-          :empty="emptyMessage"
+          empty="No hay documentos por vencer"
           class="hf-data-table"
           portal-class="hf-theme hf-ui employees-list-portal"
           pagination-portal-class="hf-theme hf-ui employees-list-portal"
           @refresh="refresh"
-          @clear-filters="selectedThreshold = 30"
+          @clear-filters="clearFilters"
         >
-          <!-- Expiry-window selector (REQ-7 — lives in #filters, not the header).
-               polish-filters-bottom-sheet: FilterSectionCard owns the card
-               chrome + "Vencimiento" title so the mobile sheet renders the
-               slot directly (no vnode capture). -->
           <template #filters>
-            <FilterSectionCard title="Vencimiento">
-              <div class="flex shrink-0 items-center gap-2" data-testid="expiring-threshold-filters">
-                <span class="text-sm text-muted">Vencen en los próximos:</span>
-                <USelect
-                  v-model="selectedThreshold"
-                  :items="thresholdOptions"
-                  value-key="value"
-                  label-key="label"
-                  size="sm"
-                  class="w-32"
-                  aria-label="Ventana de vencimiento"
-                  :ui="{ content: 'hf-theme hf-ui employees-list-portal' }"
-                />
-              </div>
-            </FilterSectionCard>
+            <ToolbarSelectFilter
+              v-model="thresholdModel"
+              :items="thresholdItems"
+              label="Vencimiento"
+              portal-class="hf-theme hf-ui employees-list-portal"
+              test-id="expiring-threshold-filter"
+            />
           </template>
 
-          <!-- Sortable headers (REQ-2) -->
-          <template #vencimiento-header="{ column }">
-            <SortableHeader :column="column" label="Fecha de vencimiento" />
-          </template>
+          <!-- Sortable headers -->
           <template #restante-header="{ column }">
             <SortableHeader :column="column" label="Tiempo restante" />
-          </template>
-          <template #categoria-header="{ column }">
-            <SortableHeader :column="column" label="Categoría" />
           </template>
           <template #colaborador-header="{ column }">
             <SortableHeader :column="column" label="Colaborador" />
           </template>
+          <template #vencimiento-header="{ column }">
+            <SortableHeader :column="column" label="Fecha de vencimiento" />
+          </template>
+          <template #categoria-header="{ column }">
+            <SortableHeader :column="column" label="Categoría" />
+          </template>
 
           <!-- Document title (notes or category fallback) -->
           <template #documento-cell="{ row }">
-            <p class="font-medium text-highlighted">{{ row.original.title }}</p>
+            <div class="min-w-0">
+              <span class="hf-row-primary">{{ row.original.title }}</span>
+              <span class="hf-row-secondary">{{ getCategoryLabel(row.original.category) }}</span>
+            </div>
           </template>
 
-          <!-- Category badge -->
-          <template #categoria-cell="{ row }">
-            <UBadge :color="getCategoryColor(row.original.category)" variant="subtle" size="sm">
-              {{ getCategoryLabel(row.original.category) }}
-            </UBadge>
+          <!-- Time left -->
+          <template #restante-cell="{ row }">
+            <StatusBadge
+              v-bind="remainingBadge(row.original)"
+              aria-prefix="Vencimiento:"
+            />
           </template>
 
-          <!-- Employee — server-resolved fullName + avatar (REQ-8) -->
+          <!-- Employee — server-resolved fullName + neutral avatar -->
           <template #colaborador-cell="{ row }">
-            <div class="flex items-center gap-2">
+            <div class="flex min-w-0 items-center gap-2">
               <EntityAvatar
                 :name="row.original.fullName"
                 :seed="row.original.employeeId"
                 size="sm"
+                aria-hidden="true"
               />
-              <span class="truncate text-sm font-medium text-default">
-                {{ row.original.fullName }}
-              </span>
+              <span class="truncate text-sm">{{ row.original.fullName }}</span>
             </div>
           </template>
 
-          <!-- Expiry date — localized label -->
+          <!-- Expiry date — localized, short -->
           <template #vencimiento-cell="{ row }">
-            <span class="text-highlighted">{{ row.original.expiresAtLabel }}</span>
+            <span class="text-sm text-muted">{{ row.original.expiresAtLabel }}</span>
           </template>
 
-          <!-- Days remaining badge -->
-          <template #restante-cell="{ row }">
-            <UBadge :color="getDaysRemainingColor(row.original.daysRemaining)" variant="soft" size="sm">
-              {{ row.original.daysRemainingLabel }}
-            </UBadge>
+          <!-- Category — plain text: a category, not a status -->
+          <template #categoria-cell="{ row }">
+            <span class="text-sm">{{ getCategoryLabel(row.original.category) }}</span>
+          </template>
+
+          <template #mobile-card="{ row }">
+            <AdminMobileCard
+              :item="row"
+              :label="row.title"
+              :actions="[]"
+              test-id="expiring-document-card"
+            >
+              <template #secondary>{{ row.fullName }}</template>
+              <template #badges>
+                <StatusBadge v-bind="remainingBadge(row)" aria-prefix="Vencimiento:" />
+              </template>
+              <template #footer>
+                <span class="min-w-0 truncate font-medium">{{ getCategoryLabel(row.category) }}</span>
+                <span class="shrink-0">{{ row.expiresAtLabel }}</span>
+              </template>
+            </AdminMobileCard>
           </template>
         </AppDataTable>
       </div>
