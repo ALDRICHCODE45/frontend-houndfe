@@ -20,8 +20,6 @@ import type { DomainApiError } from '@/core/shared/utils/error.utils'
 const push = vi.fn()
 const invalidateQueries = vi.fn()
 const refetchQueries = vi.fn()
-const setMode = vi.fn()
-const viewMode = ref<'table' | 'card'>('table')
 
 const serverData = [] as Product[]
 
@@ -70,23 +68,6 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
   }),
 }))
 
-const productApiMock = {
-  create: vi.fn(),
-  createBrand: vi.fn(),
-  createCategory: vi.fn(),
-  update: vi.fn(),
-  remove: vi.fn(),
-  getById: vi.fn(),
-  getCategories: vi.fn(),
-  getBrands: vi.fn(),
-  getPaginated: vi.fn(),
-}
-// NOTE: vi.mock factories are hoisted, so we cannot reference
-// `productApiMock` directly inside the factory. We use a module-level
-// vi.hoisted() to bind the mock BEFORE the import graph runs.
-vi.hoisted(() => {
-  // no-op; the mock object is mutated post-mount from the test.
-})
 vi.mock('../../api/product.api', () => ({
   productApi: {
     create: vi.fn(),
@@ -99,24 +80,6 @@ vi.mock('../../api/product.api', () => ({
     getBrands: vi.fn(),
     getPaginated: vi.fn(),
   },
-}))
-
-vi.mock('../../composables/useProductColumns', () => ({
-  useProductColumns: () => ({
-    columns: [{ id: 'select' }, { accessorKey: 'name' }, { id: 'actions' }],
-    currencyFormatter: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }),
-  }),
-}))
-
-vi.mock('../../composables/useProductViewMode', () => ({
-  useProductViewMode: () => ({
-    viewMode,
-    setMode: setMode.mockImplementation((mode: 'table' | 'card') => {
-      viewMode.value = mode
-    }),
-    toggleViewMode: vi.fn(),
-  }),
-  isProductViewMode: (value: string) => value === 'table' || value === 'card',
 }))
 
 vi.stubGlobal('useToast', () => ({ add: vi.fn() }))
@@ -140,9 +103,7 @@ function mountView() {
   return shallowMount(ProductsView, {
     global: {
       stubs: {
-        AppDataTable: { template: '<div><slot /></div>' },
-        ViewToggle: { template: '<div />' },
-        ProductCardGrid: { template: '<div />' },
+        ProductList: { template: '<div><slot /></div>' },
         UCard: { template: '<div><slot name="header" /><slot /></div>' },
         UModal: { template: '<div />' },
         UForm: { template: '<form><slot /></form>' },
@@ -151,10 +112,6 @@ function mountView() {
         UButton: { template: '<button><slot /></button>' },
         ConfirmModal: { template: '<div />' },
         ProductUpsertSlideover: ProductUpsertSlideoverStub,
-        SortableHeader: true,
-        SelectColumn: true,
-        StatusDotBadge: { template: '<span><slot /></span>' },
-        DotBadge: { template: '<span><slot /></span>' },
       },
     },
   })

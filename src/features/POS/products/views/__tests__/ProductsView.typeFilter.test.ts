@@ -1,12 +1,11 @@
 /**
- * WU-F RED tests — ProductsView toolbar PRODUCT/SERVICE/TODOS toggle drives
- * the query key + query fn, resets pagination, clears selection, and
- * renders a #type-cell badge. Runs against the same mock surface as
- * ProductsView.test.ts so the contract is pinned without spinning up the
- * real useServerTable.
+ * ProductsView type filter (PRODUCT / SERVICE / todos): it drives the query
+ * key and query fn, resets pagination and clears the selection. Runs against
+ * the same mock surface as ProductsView.test.ts, without the real
+ * useServerTable.
  */
 
-import { defineComponent, h, ref } from 'vue'
+import { ref } from 'vue'
 import { shallowMount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ProductsView from '../ProductsView.vue'
@@ -15,8 +14,6 @@ import type { Product } from '../../interfaces/product.types'
 const push = vi.fn()
 const invalidateQueries = vi.fn()
 const refetchQueries = vi.fn()
-const setMode = vi.fn()
-const viewMode = ref<'table' | 'card'>('table')
 
 const serverData: Product[] = [
   {
@@ -144,81 +141,10 @@ vi.mock('../../api/product.api', () => ({
   },
 }))
 
-vi.mock('../../composables/useProductColumns', () => ({
-  useProductColumns: () => ({
-    columns: [
-      { id: 'select' },
-      { id: 'type' },
-      { accessorKey: 'name' },
-      { accessorKey: 'sku' },
-      { accessorKey: 'categoryName' },
-      { accessorKey: 'brandName' },
-      { accessorKey: 'priceCents' },
-      { accessorKey: 'quantity' },
-      { accessorKey: 'status' },
-      { id: 'actions' },
-    ],
-    currencyFormatter: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }),
-  }),
-}))
-
-vi.mock('../../composables/useProductViewMode', () => ({
-  useProductViewMode: () => ({
-    viewMode,
-    setMode: setMode.mockImplementation((mode) => {
-      viewMode.value = mode
-    }),
-    toggleViewMode: vi.fn(),
-  }),
-  isProductViewMode: (value: string) => value === 'table' || value === 'card',
-}))
-
-const AppDataTableStub = defineComponent({
-  name: 'AppDataTable',
-  props: ['columns', 'data', 'displayMode'],
-  setup(props, { slots }) {
-    return () =>
-      h(
-        'div',
-        {
-          'data-testid': 'app-data-table',
-          'data-display-mode': props.displayMode,
-          'data-column-count': String((props.columns as unknown[]).length),
-        },
-        [slots.actions?.(), props.displayMode === 'cards' ? slots.cards?.() : null],
-      )
-  },
-})
-
-const ViewToggleStub = defineComponent({
-  name: 'ViewToggle',
-  emits: ['update:model-value'],
-  template: `
-    <div>
-      <button data-testid="toggle-card" @click="$emit('update:model-value', 'card')" />
-      <button data-testid="toggle-table" @click="$emit('update:model-value', 'table')" />
-    </div>
-  `,
-})
-
-const ProductCardGridStub = defineComponent({
-  name: 'ProductCardGrid',
-  props: ['products'],
-  emits: ['card-click'],
-  template: `
-    <div data-testid="product-card-grid">
-      <span data-testid="product-card-name">{{ products[0]?.name }}</span>
-      <button data-testid="emit-card-click" @click="$emit('card-click', products[0])" />
-    </div>
-  `,
-})
-
 vi.stubGlobal('useToast', () => ({ add: vi.fn() }))
 
 const baseStubs = {
-  AppDataTable: AppDataTableStub,
-  ViewToggle: ViewToggleStub,
-  ProductCardGrid: ProductCardGridStub,
+  ProductList: { template: '<div />' },
   UCard: { template: '<div><slot name="header" /><slot /></div>' },
   Card: { template: '<div><slot name="header" /><slot /></div>' },
   UModal: { template: '<div />' },
@@ -230,11 +156,6 @@ const baseStubs = {
   Button: { template: '<button><slot /></button>' },
   ConfirmModal: { template: '<div />' },
   ProductUpsertSlideover: { template: '<div />' },
-  SortableHeader: true,
-  SelectColumn: true,
-  StatusDotBadge: { template: '<span><slot /></span>' },
-  DotBadge: { template: '<span><slot /></span>' },
-  AppBadge: { name: 'AppBadge', template: '<span data-testid="app-badge"><slot /></span>' },
   USelect: { name: 'USelect', template: '<select><slot /></select>' },
 }
 
@@ -244,13 +165,11 @@ function mountView() {
   })
 }
 
-describe('ProductsView - WU-F toolbar PRODUCT/SERVICE/TODOS + #type-cell', () => {
+describe('ProductsView - type filter PRODUCT/SERVICE/todos', () => {
   beforeEach(() => {
     push.mockReset()
     invalidateQueries.mockReset()
     refetchQueries.mockReset()
-    setMode.mockClear()
-    viewMode.value = 'table'
     mocks.getPaginated.mockClear()
     mocks.setLastFilterType(null)
   })
@@ -277,12 +196,10 @@ describe('ProductsView - WU-F toolbar PRODUCT/SERVICE/TODOS + #type-cell', () =>
   it('shared getProductTypeBadge returns Servicio/Producto type badges with icons', async () => {
     const utils = await import('../../utils/productStatusConfig.utils')
     expect(utils.getProductTypeBadge('SERVICE')).toEqual({
-      tone: 'type',
       label: 'Servicio',
       icon: 'i-lucide-clock',
     })
     expect(utils.getProductTypeBadge('PRODUCT')).toEqual({
-      tone: 'type',
       label: 'Producto',
       icon: 'i-lucide-package',
     })

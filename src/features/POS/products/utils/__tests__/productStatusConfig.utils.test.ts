@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   getProductStockDisplay,
-  getProductStockDotClass,
   getProductStockTone,
   getStockTone,
+  productStatusConfig,
+  stockNeedsAttention,
 } from '../productStatusConfig.utils'
 import type { Product } from '../../interfaces/product.types'
 
@@ -100,28 +101,29 @@ describe('getProductStockDisplay (card label) reuses the shared tone', () => {
   })
 })
 
-describe('getProductStockDotClass derives the dot color from the stock tone', () => {
-  it('healthy stock -> emerald dot', () => {
-    expect(getProductStockDotClass(makeProduct({ quantity: 50, minQuantity: 5 }))).toBe(
-      'bg-emerald-500',
-    )
+describe('stockNeedsAttention flags only low or empty stock', () => {
+  it('healthy stock reads as plain text', () => {
+    expect(stockNeedsAttention(makeProduct({ quantity: 50, minQuantity: 5 }))).toBe(false)
   })
 
-  it('low stock -> amber dot', () => {
-    expect(getProductStockDotClass(makeProduct({ quantity: 3, minQuantity: 5 }))).toBe(
-      'bg-amber-500',
-    )
+  it('low stock and out of stock earn a badge', () => {
+    expect(stockNeedsAttention(makeProduct({ quantity: 3, minQuantity: 5 }))).toBe(true)
+    expect(stockNeedsAttention(makeProduct({ quantity: 0, minQuantity: 5 }))).toBe(true)
   })
 
-  it('out of stock -> red dot', () => {
-    expect(getProductStockDotClass(makeProduct({ quantity: 0, minQuantity: 5 }))).toBe('bg-red-500')
-  })
-
-  it('variants without a total -> blue (info) dot', () => {
+  it('variants without a known total stay quiet', () => {
     expect(
-      getProductStockDotClass(
+      stockNeedsAttention(
         makeProduct({ hasVariants: true, variantStockTotal: null, variantCount: 3 }),
       ),
-    ).toBe('bg-blue-500')
+    ).toBe(false)
+  })
+})
+
+describe('productStatusConfig maps the domain status to a StatusBadge tone', () => {
+  it('uses success, neutral (never red) and danger', () => {
+    expect(productStatusConfig.active).toEqual({ tone: 'success', label: 'Activo' })
+    expect(productStatusConfig.inactive).toEqual({ tone: 'neutral', label: 'Inactivo' })
+    expect(productStatusConfig.out_of_stock).toEqual({ tone: 'danger', label: 'Sin Stock' })
   })
 })

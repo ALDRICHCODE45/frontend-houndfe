@@ -67,18 +67,6 @@
   min-height: var(--hf-control-height);
 }
 
-/* The segmented toggle sizes to its own content and never shrinks, so its
- * labels stay on one line and the toggle is not squeezed by the filter. */
-.products-visual .products-view-toggle {
-  width: auto;
-  flex-shrink: 0;
-}
-
-.products-visual .products-view-toggle :where(button, [role='tab']) {
-  min-width: max-content;
-  white-space: nowrap;
-}
-
 /* ── Pagination ──────────────────────────────────────────────────────────── */
 
 /* Compact footer: the summary never wraps and the page-size trigger sizes to

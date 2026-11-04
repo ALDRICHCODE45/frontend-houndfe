@@ -5,24 +5,16 @@ import { useRouter } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { AxiosError } from 'axios'
 import { z } from 'zod'
-import { AppDataTable, SortableHeader, SelectColumn } from '@/core/shared/components/DataTable'
+import ToolbarSelectFilter from '@/core/shared/components/DataTable/ToolbarSelectFilter.vue'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
-import type { BulkAction } from '@/core/shared/types/table.types'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
-import DotBadge from '@/core/shared/components/DotBadge.vue'
-import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
-import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { productApi } from '../api/product.api'
-import ProductCardGrid from '../components/ProductCardGrid.vue'
-import ProductsEmptyState from '../components/ProductsEmptyState.vue'
+import ProductList from '../components/ProductList.vue'
 import ProductUpsertSlideover from '../components/ProductUpsertSlideover.vue'
 import '../styles/products-visual.css'
-import { useProductColumns } from '../composables/useProductColumns'
-import { useProductViewMode, isProductViewMode } from '../composables/useProductViewMode'
 import type {
   BrandOption,
   CategoryOption,
@@ -33,12 +25,6 @@ import type {
   ProductDetail,
   UpdateProductPayload,
 } from '../interfaces/product.types'
-import {
-  getProductStockDisplay,
-  getProductStockDotClass,
-  getProductTypeBadge,
-  productStatusConfig,
-} from '../utils/productStatusConfig.utils'
 
 type ProductFormErrors = Partial<
   Record<'name' | 'sku' | 'barcode' | 'price' | 'quantity' | 'minQuantity' | 'satKey', string>
@@ -55,7 +41,6 @@ declare const useToast: () => {
 const router = useRouter()
 const queryClient = useQueryClient()
 const toast = useToast()
-const { columns, currencyFormatter } = useProductColumns()
 const authStore = useAuthStore()
 const tenantId = computed(() => authStore.currentTenantId)
 
@@ -168,10 +153,6 @@ const canReadProduct = computed(() => authStore.userCan('read', 'Product'))
 const canCreateProduct = computed(() => authStore.userCan('create', 'Product'))
 const canUpdateProduct = computed(() => authStore.userCan('update', 'Product'))
 const canDeleteProduct = computed(() => authStore.userCan('delete', 'Product'))
-const canManageProductActions = computed(
-  () => canReadProduct.value || canUpdateProduct.value || canDeleteProduct.value,
-)
-const { viewMode, setMode: setViewMode } = useProductViewMode()
 
 // ── Reset pagination + clear selection when filterType changes ────────
 //
@@ -183,8 +164,19 @@ watch(filterType, () => {
   rowSelection.value = {}
 })
 
-// Bridge the products domain vocabulary ('card') to AppDataTable's ('cards').
-const tableDisplayMode = computed(() => (viewMode.value === 'card' ? 'cards' : 'table'))
+const typeFilterItems = [
+  { label: 'Todos', value: 'ALL' },
+  { label: 'Producto', value: 'PRODUCT' },
+  { label: 'Servicio', value: 'SERVICE' },
+]
+
+const isFiltered = computed(() => globalFilter.value.trim() !== '' || filterType.value !== ALL_FILTER_VALUE)
+const activeFilterCount = computed(() => (filterType.value === ALL_FILTER_VALUE ? 0 : 1))
+
+function clearFilters() {
+  globalFilter.value = ''
+  filterType.value = ALL_FILTER_VALUE
+}
 
 function clearFormContext() {
   selectedProduct.value = null
@@ -470,38 +462,10 @@ function openDetails(product: Product) {
   void router.push(`/pos/products/${product.id}`)
 }
 
-function handleViewModeChange(mode: string) {
-  if (!isProductViewMode(mode)) return
-  setViewMode(mode)
-}
-
 function handleEditSubmit(values: UpdateProductPayload) {
   if (!selectedProductId.value) return
   updateMutation.mutate({ productId: selectedProductId.value, values })
 }
-
-function getRowItems(product: Product) {
-  const mainActions = [
-    ...(canReadProduct.value ? [{ label: 'Detalles', onSelect: () => openDetails(product) }] : []),
-    ...(canUpdateProduct.value
-      ? [{ label: 'Editar', onSelect: () => handleOpenEdit(product) }]
-      : []),
-  ]
-
-  const destructiveActions = canDeleteProduct.value
-    ? [
-        {
-          label: 'Eliminar',
-          color: 'error' as const,
-          onSelect: () => handleDelete(product),
-        },
-      ]
-    : []
-
-  return [mainActions, destructiveActions].filter((section) => section.length > 0)
-}
-
-const bulkActions = computed<BulkAction<Product>[]>(() => [])
 
 // Human-readable error message for the products table. We pull the
 // backend-provided message when available (e.g. the whitelist-validation 400
@@ -583,7 +547,7 @@ const productsErrorMessage = computed(() => {
             />
           </UFormField>
 
-          <p v-if="categoryCreateError" class="text-sm text-error">{{ categoryCreateError }}</p>
+          <p v-if="categoryCreateError" class="text-sm text-[var(--hf-danger)]" role="alert">{{ categoryCreateError }}</p>
         </UForm>
       </template>
 
@@ -631,7 +595,7 @@ const productsErrorMessage = computed(() => {
             />
           </UFormField>
 
-          <p v-if="brandCreateError" class="text-sm text-error">{{ brandCreateError }}</p>
+          <p v-if="brandCreateError" class="text-sm text-[var(--hf-danger)]" role="alert">{{ brandCreateError }}</p>
         </UForm>
       </template>
 
@@ -667,183 +631,54 @@ const productsErrorMessage = computed(() => {
       @confirm="handleConfirm"
     />
 
-    <div class="hf-page-header">
-      <h1 class="hf-page-title">Productos</h1>
-      <p class="hf-page-subtitle">Gestión de inventario y catálogo de productos</p>
-    </div>
+    <header class="hf-page-header"><h1 class="hf-page-title">Productos</h1></header>
 
     <UCard
       :ui="{ body: 'p-0 sm:p-0' }"
       class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm"
+      aria-label="Productos"
     >
       <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
-        <AppDataTable
+        <ProductList
           v-model:sorting="sorting"
           v-model:pagination="pagination"
           v-model:global-filter="globalFilter"
           v-model:column-pinning="columnPinning"
           v-model:column-visibility="columnVisibility"
-          v-model:row-selection="rowSelection"
-          :columns="columns"
-          :data="data"
+          :items="data"
+          :can-read="canReadProduct"
+          :can-update="canUpdateProduct"
+          :can-delete="canDeleteProduct"
+          :can-create="canCreateProduct"
           :loading="isLoading"
           :fetching="isFetching"
           :error="isError"
           :error-message="productsErrorMessage"
-          :page-count="pageCount"
+          :filtered="isFiltered"
+          :search-term="globalFilter"
+          :active-filter-count="activeFilterCount"
           :total-count="totalCount"
+          :page-count="pageCount"
           :showing-from="showingFrom"
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
-          :display-mode="tableDisplayMode"
-          :bulk-actions="bulkActions"
-          :show-add-button="canCreateProduct"
-          search-placeholder="Buscar productos..."
-          add-button-text="Nuevo Producto"
-          add-button-icon="i-lucide-package-plus"
-          enable-column-visibility
-          :enable-row-selection="false"
-          empty="No se encontraron productos"
-          class="hf-data-table"
-          :portal-class="'hf-theme hf-ui hf-shell-products-portal'"
+          @open="openDetails"
+          @edit="handleOpenEdit"
+          @delete="handleDelete"
           @add="handleAdd"
           @refresh="refresh"
+          @clear-filters="clearFilters"
         >
           <template #filters>
-            <USelect
+            <ToolbarSelectFilter
               v-model="filterType"
-              :items="[
-                { label: 'Todos', value: 'ALL' },
-                { label: 'Producto', value: 'PRODUCT' },
-                { label: 'Servicio', value: 'SERVICE' },
-              ]"
-              size="sm"
-              aria-label="Filtrar por tipo"
-              class="w-36"
-              :ui="{ content: 'hf-theme hf-ui hf-shell-products-portal' }"
+              :items="typeFilterItems"
+              label="Tipo"
+              portal-class="hf-theme hf-ui hf-shell-products-portal"
+              test-id="product-type-filter"
             />
           </template>
-
-          <template #actions>
-            <ViewToggle
-              :model-value="viewMode"
-              class="products-view-toggle"
-              aria-label="Seleccionar vista de productos"
-              @update:model-value="handleViewModeChange"
-            />
-          </template>
-
-          <template #cards>
-            <ProductCardGrid
-              :products="data"
-              :loading="isLoading || isFetching"
-              :empty="'No se encontraron productos'"
-              :currency-formatter="currencyFormatter"
-              :can-read="canReadProduct"
-              :can-update="canUpdateProduct"
-              :can-delete="canDeleteProduct"
-              @details="openDetails"
-              @edit="handleOpenEdit"
-              @delete="handleDelete"
-              @card-click="openDetails"
-            />
-          </template>
-
-          <template #empty>
-            <ProductsEmptyState message="No se encontraron productos" />
-          </template>
-
-          <template #select-header="{ table }">
-            <SelectColumn mode="header" :table="table" />
-          </template>
-
-          <template #select-cell="{ row }">
-            <SelectColumn mode="cell" :row="row" />
-          </template>
-
-          <template #type-cell="{ row }">
-            <AppBadge
-              class="products-badge"
-              :tone="getProductTypeBadge((row.original as Product).type).tone"
-              :icon="getProductTypeBadge((row.original as Product).type).icon"
-              :label="getProductTypeBadge((row.original as Product).type).label"
-            />
-          </template>
-
-          <template #name-header="{ column }">
-            <SortableHeader :column="column" label="Nombre" />
-          </template>
-
-          <template #categoryName-header="{ column }">
-            <SortableHeader :column="column" label="Categoría" />
-          </template>
-
-          <template #priceCents-header="{ column }">
-            <SortableHeader :column="column" label="Precio" />
-          </template>
-
-          <template #quantity-header="{ column }">
-            <SortableHeader :column="column" label="Stock" />
-          </template>
-
-          <template #name-cell="{ row }">
-            <span>{{ row.original.name }}</span>
-          </template>
-
-          <template #sku-cell="{ row }">
-            <span class="font-mono text-xs text-muted">{{ row.original.sku ?? '—' }}</span>
-          </template>
-
-          <template #categoryName-cell="{ row }">
-            <span>{{ row.original.categoryName }}</span>
-          </template>
-
-          <template #brandName-header="{ column }">
-            <SortableHeader :column="column" label="Marca" />
-          </template>
-
-          <template #brandName-cell="{ row }">
-            <span>{{ row.original.brandName }}</span>
-          </template>
-
-          <template #priceCents-cell="{ row }">
-            <span class="font-medium tabular-nums">
-              {{ currencyFormatter.format(row.original.priceCents / 100) }}
-            </span>
-          </template>
-
-          <template #quantity-cell="{ row }">
-            <DotBadge
-              class="products-badge"
-              :label="getProductStockDisplay(row.original as Product).label"
-              :dot-class="getProductStockDotClass(row.original as Product)"
-            />
-          </template>
-
-          <template #status-cell="{ row }">
-            <StatusDotBadge
-              class="products-badge"
-              :tone="productStatusConfig[(row.original as Product).status].tone"
-              :label="productStatusConfig[(row.original as Product).status].label"
-            />
-          </template>
-
-          <template #actions-cell="{ row }">
-            <UDropdownMenu
-              v-if="canManageProductActions"
-              :items="getRowItems(row.original)"
-              :content="{ align: 'end' }"
-              :ui="{ content: 'hf-theme hf-ui hf-shell-products-portal' }"
-            >
-              <UButton
-                icon="i-lucide-ellipsis-vertical"
-                color="neutral"
-                variant="ghost"
-                class="size-7"
-              />
-            </UDropdownMenu>
-          </template>
-        </AppDataTable>
+        </ProductList>
       </div>
     </UCard>
   </div>

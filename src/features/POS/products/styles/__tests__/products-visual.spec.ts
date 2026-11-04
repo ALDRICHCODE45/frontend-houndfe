@@ -458,42 +458,6 @@ describe('Products pilot adapter', () => {
     expect(inMedia(products, '.products-visual .hf-toolbar')).toBeDefined()
   })
 
-  it('keeps the segmented view toggle intact so its labels never truncate', () => {
-    const toggle = exactRule(products, '.products-visual .products-view-toggle')!
-    expect(toggle.style.getPropertyValue('flex-shrink').trim()).toBe('0')
-    expect(toggle.style.getPropertyValue('width').trim()).toBe('auto')
-
-    // The shared ViewToggle renders real `<button role="tab">` segments. Target
-    // them with a fixture element so the selector is proven to reach the DOM.
-    const scope = document.createElement('div')
-    scope.className = 'products-visual'
-    const tablist = document.createElement('div')
-    tablist.className = 'products-view-toggle'
-    tablist.setAttribute('role', 'tablist')
-    const segment = document.createElement('button')
-    segment.setAttribute('role', 'tab')
-    segment.type = 'button'
-    segment.textContent = 'Tarjetas'
-    tablist.append(segment)
-    scope.append(tablist)
-    document.body.append(scope)
-
-    const segmentRules = styleRules(products).filter(
-      (rule) =>
-        rule.selectorText.includes('.products-view-toggle') && segment.matches(rule.selectorText),
-    )
-    expect(segmentRules.length).toBeGreaterThan(0)
-    expect(
-      segmentRules.some((rule) => rule.style.getPropertyValue('white-space').trim() === 'nowrap'),
-    ).toBe(true)
-    expect(
-      segmentRules.some(
-        (rule) => rule.style.getPropertyValue('min-width').trim() === 'max-content',
-      ),
-    ).toBe(true)
-    scope.remove()
-  })
-
   it('compacts the pagination controls and keeps the summary on a single line', () => {
     const summary = exactRule(products, '.products-visual .hf-pagination-summary')!
     expect(summary.style.getPropertyValue('white-space').trim()).toBe('nowrap')
