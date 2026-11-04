@@ -168,12 +168,12 @@ describe('AdminPaymentDetailsView states — data', () => {
     expect(card.get('.hf-status-badge').text()).toBe('Activa')
   })
 
-  it('labels the CLABE on the mobile card and masks all but its last four digits', () => {
+  it('labels the CLABE on the mobile card and shows it in full, so any role can read it', () => {
     isBelowBreakpoint.value = true
     tableState.data.value = [makeRow()]
     const footer = mountView().get('[data-testid="payment-detail-card"] .admin-card-footer')
-    expect(footer.text()).toContain('CLABE ···· 7890')
-    expect(footer.text()).not.toContain('012180001234567890')
+    expect(footer.text()).toContain('CLABE 012180001234567890')
+    expect(footer.text()).not.toContain('····')
   })
 
   it('shows the legal name once when every account shares it, and per account when they differ', () => {

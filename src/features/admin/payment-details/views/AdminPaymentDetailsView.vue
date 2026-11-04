@@ -80,11 +80,6 @@ const beneficiaryDiffers = computed(
   () => new Set(data.value.map((row) => row.beneficiary)).size !== 1 || data.value.length === 1,
 )
 
-/** `···· 7890`: the last four digits are enough to recognise an account. */
-function maskClabe(clabe: string): string {
-  return `···· ${clabe.slice(-4)}`
-}
-
 // ── View gating (CASL) ─────────────────────────────────────────────────────────
 const canCreatePaymentDetail = computed(() => authStore.userCan('create', 'PaymentDetail'))
 const canUpdatePaymentDetail = computed(() => authStore.userCan('update', 'PaymentDetail'))
@@ -381,7 +376,7 @@ function clearFilters() {
               </template>
               <template #footer>
                 <span class="hf-figure min-w-0 truncate font-mono" :title="row.clabe"
-                  >CLABE {{ maskClabe(row.clabe) }}</span
+                  >CLABE {{ row.clabe }}</span
                 >
                 <span class="shrink-0">{{ formatShortDateTime(row.updatedAt) }}</span>
               </template>
