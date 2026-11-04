@@ -190,4 +190,3 @@ describe('Promotions toolbar fit (review round 1)', () => {
     expect(view.match(/label: 'Todos', value: ALL_FILTER_VALUE/g)).toHaveLength(3)
   })
 })
-
