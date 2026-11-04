@@ -145,3 +145,20 @@ describe('DataTablePagination — products-visual marker hooks (T2 / S2)', () =>
     expect(wrapper.emitted('update:pageIndex')).toEqual([[5]])
   })
 })
+
+describe('DataTablePagination — summary stays on one line', () => {
+  it('never wraps or shrinks "Mostrando 1-4 de 4" while the controls take the rest of the row', () => {
+    const wrapper = mountPagination({ totalCount: 4, showingFrom: 1, showingTo: 4 })
+    const summary = wrapper.get('.hf-pagination-summary')
+    expect(summary.text()).toBe('Mostrando 1-4 de 4')
+    expect(summary.classes()).toEqual(expect.arrayContaining(['whitespace-nowrap', 'shrink-0']))
+    const controls = wrapper.get('[data-testid="pagination-controls"]').classes()
+    expect(controls).toEqual(expect.arrayContaining(['sm:flex-1', 'sm:w-auto']))
+    expect(controls).not.toContain('sm:w-full')
+  })
+
+  it('keeps the empty summary on one line too', () => {
+    const wrapper = mountPagination({ totalCount: 0, showingFrom: 0, showingTo: 0 })
+    expect(wrapper.get('.hf-pagination-summary').classes()).toContain('whitespace-nowrap')
+  })
+})

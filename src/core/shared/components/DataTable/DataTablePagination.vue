@@ -47,7 +47,7 @@ const pageSizeItems = computed(() =>
     class="hf-pagination flex w-full min-w-0 max-w-full flex-col gap-3 border-default pt-4 sm:flex-row sm:items-center sm:justify-between border-t"
   >
     <!-- Showing info -->
-    <div class="hf-pagination-summary text-sm text-muted">
+    <div class="hf-pagination-summary shrink-0 whitespace-nowrap text-sm text-muted">
       <template v-if="totalCount > 0">
         Mostrando {{ showingFrom }}-{{ showingTo }} de {{ totalCount }}
       </template>
@@ -55,7 +55,7 @@ const pageSizeItems = computed(() =>
     </div>
 
     <div
-      class="flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+      class="flex w-full min-w-0 flex-col gap-3 sm:w-auto sm:flex-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
       data-testid="pagination-controls"
     >
       <!-- Page Size Selector -->

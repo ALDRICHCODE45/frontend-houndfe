@@ -175,14 +175,28 @@ body.hf-app {
   font-size: 0.875rem;
 }
 
+/* One neutral header for every table: a faint wash of ink over the surface (no
+ * blue role) with muted 13px/600 headings. A feature never repaints it. */
+.hf-ui .hf-data-table {
+  --hf-table-head: color-mix(in srgb, var(--hf-ink) 4%, var(--hf-surface));
+}
+
 .hf-ui .hf-data-table thead[data-slot='thead'] {
-  background-color: var(--hf-surface-muted);
+  background-color: var(--hf-table-head);
 }
 
 .hf-ui .hf-data-table th[data-slot='th'] {
-  color: var(--hf-heading);
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
   font-weight: 600;
   white-space: nowrap;
+}
+
+/* Sort buttons read as the heading they sit in, not as a second control style. */
+.hf-ui .hf-data-table th[data-slot='th'] button {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
 }
 
 .hf-ui .hf-data-table td[data-slot='td'] {
@@ -230,7 +244,7 @@ body.hf-app {
 }
 
 .hf-ui .hf-data-table th[data-slot='th'][data-pinned] {
-  background-color: var(--hf-surface-muted);
+  background-color: var(--hf-table-head);
 }
 
 .hf-ui .hf-data-table tr[data-slot='tr']:hover {

@@ -55,4 +55,26 @@ describe('ToolbarSelectFilter', () => {
     await open()
     expect(document.querySelector('[role="listbox"]')!.closest('.test-portal')).toBeNull()
   })
+  it('shows its name inside the control, as "Estado · Todas", and follows the selection', async () => {
+    const { value } = setup()
+    await flushPromises()
+    const shown = () => trigger().textContent?.replace(/\s+/g, ' ').trim()
+    expect(shown()).toBe('Estado · Todas')
+    expect(trigger().querySelector('.hf-toolbar-select-name')?.textContent?.trim()).toBe('Estado ·')
+    value.value = 'DRAFT'
+    await flushPromises()
+    expect(shown()).toBe('Estado · Borradores')
+  })
+  it('keeps the name once per control for any consumer label, with no change at the call site', async () => {
+    setup({ label: 'Vencimiento' })
+    await flushPromises()
+    expect(trigger().textContent?.replace(/\s+/g, ' ').trim()).toBe('Vencimiento · Todas')
+    expect(trigger().getAttribute('aria-label')).toBe('Vencimiento')
+  })
+  it('falls back to the bare label when nothing matches the model, never "undefined"', async () => {
+    setup({ modelValue: 'MISSING', items: [{ label: 'Todas', value: 'ALL' }] })
+    await flushPromises()
+    expect(trigger().textContent).not.toContain('undefined')
+    expect(trigger().textContent?.replace(/\s+/g, ' ').trim()).toContain('Estado')
+  })
 })

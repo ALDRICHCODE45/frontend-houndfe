@@ -47,7 +47,7 @@ describe('inline toolbar filter layout (md+)', () => {
   it('dissolves the mobile section card on md+ and keeps the select at a fixed width that never shrinks away', () => {
     mountToolbar()
     const select = document.querySelector('[data-testid="status-filter"]')!
-    expect(classes(select)).toEqual(expect.arrayContaining(['hf-toolbar-select', 'w-full', 'md:w-44', 'md:shrink-0']))
+    expect(classes(select)).toEqual(expect.arrayContaining(['hf-toolbar-select', 'w-full', 'md:w-52', 'md:shrink-0']))
     const card = select.parentElement!
     expect(classes(card)).toContain('md:contents')
     expect(classes(card.querySelector('p'))).toContain('md:hidden')
