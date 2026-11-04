@@ -251,6 +251,60 @@ if (openingProduct) {
   check('opening-sistema', 'OPENING kardex rows show "Apertura" with "Sistema" as the actor', false, { reason: 'no product with OPENING rows found', hadToken: Boolean(token) })
 }
 
+// C2b The saved total (fix a886791 BE, d67d2ef9 FE): Croquetas has lots plus an untracked portion, and the
+// product record, the detail header and summary, the list and the Inventario panel must all say the journal total.
+const croqRecord = token ? await (await mgrCtx.request.get(`${API}/products/${P.croquetas}`, { headers: { authorization: token } })).json().catch(() => ({})) : {}
+const croqJournal = token ? await (await mgrCtx.request.get(`${API}/inventory/products/${P.croquetas}/stock`, { headers: { authorization: token } })).json().catch(() => ({})) : {}
+const journalTotal = croqJournal.product?.quantity ?? null
+check('croquetas-record-total', 'API: GET /products/:id quantity equals the /inventory total for Croquetas',
+  journalTotal !== null && croqRecord.quantity === journalTotal, { recordQuantity: croqRecord.quantity, recordStatus: croqRecord.status, journalTotal })
+
+// Detail: no "Sin stock" badge in the header, and the summary stock is the journal total.
+await openProduct(page, P.croquetas)
+await page.waitForSelector('.product-header-meta [data-tone]', { timeout: 15000 }).catch(() => {})
+await page.waitForSelector('[data-summary="stock"]', { timeout: 15000 }).catch(() => {})
+await waitIdle(page); await sleep(500)
+const detail = await page.evaluate(() => ({
+  headerBadges: [...document.querySelectorAll('.product-header-meta [data-tone]')].map((b) => ({ label: b.textContent.trim(), tone: b.dataset.tone })),
+  summaryStock: document.querySelector('[data-summary="stock"]')?.textContent?.trim() ?? null,
+}))
+check('croquetas-detail-no-sin-stock', 'Croquetas detail: the header shows no "Sin stock" badge',
+  detail.headerBadges.length > 0 && !detail.headerBadges.some((b) => /Sin stock/i.test(b.label)), detail)
+check('croquetas-detail-summary-total', 'Croquetas detail: the summary stock equals the /inventory total',
+  journalTotal !== null && num(detail.summaryStock) === journalTotal, { summaryStock: detail.summaryStock, journalTotal })
+
+// List: the stock column reads the total and the badge tone follows the stock rule (0 danger, <= min warning, healthy plain text).
+await page.goto(`${BASE}/pos/products`, { waitUntil: 'domcontentloaded' })
+const search = page.getByPlaceholder('Buscar productos...').first()
+await search.waitFor({ timeout: 30000 })
+await search.fill(croqRecord.name ?? 'Croquetas')
+await waitIdle(page); await sleep(800)
+const list = await page.evaluate((name) => {
+  const heads = [...document.querySelectorAll('table thead th')].map((th) => th.textContent.trim())
+  const col = heads.findIndex((h) => /^Stock/.test(h))
+  const rows = [...document.querySelectorAll('table tbody tr')].filter((tr) => tr.textContent.includes(name))
+  const cell = rows[0]?.children[col]
+  const badge = cell?.querySelector('[data-tone]')
+  return { heads, col, matchingRows: rows.length, cellText: cell?.textContent?.replace(/\s+/g, ' ').trim() ?? null,
+    badgeTone: badge?.dataset.tone ?? null, rowBadges: [...(rows[0]?.querySelectorAll('[data-tone]') ?? [])].map((b) => ({ label: b.textContent.trim(), tone: b.dataset.tone })) }
+}, croqRecord.name ?? 'Croquetas')
+const expectedTone = journalTotal === null ? null : journalTotal === 0 ? 'danger' : journalTotal <= (croqRecord.minQuantity ?? 10) ? 'warning' : null
+check('croquetas-list-stock', 'Croquetas list: the stock reads the /inventory total',
+  journalTotal !== null && list.matchingRows === 1 && num(list.cellText) === journalTotal, { cellText: list.cellText, journalTotal, matchingRows: list.matchingRows, col: list.col })
+check('croquetas-list-tone', 'Croquetas list: the stock badge tone is correct for the total (healthy stock reads as plain text; the status badge is not "Sin stock")',
+  list.badgeTone === expectedTone || (expectedTone === null && !list.rowBadges.some((b) => /Sin stock/i.test(b.label)) && list.badgeTone === null),
+  { total: journalTotal, minQuantity: croqRecord.minQuantity, expectedTone, stockCellBadgeTone: list.badgeTone, rowBadges: list.rowBadges })
+
+// Inventario panel: the same total, and the rows add up to it.
+await openProduct(page, P.croquetas)
+await openInventory(page)
+const panelRows = await stockRows(page)
+const panelTotals = await totals(page)
+const rowSum = panelRows.reduce((s, r) => s + num(r.qty), 0)
+check('croquetas-panel-matches', 'Croquetas Inventario panel: total equals the /inventory total, the summary and the sum of its rows',
+  panelTotals.total === journalTotal && rowSum === journalTotal && num(await page.textContent('[data-summary="stock"]').catch(() => 'NaN')) === journalTotal,
+  { panelTotals, rowSum, journalTotal, summaryStock: await page.textContent('[data-summary="stock"]').catch(() => null) })
+
 await openProduct(page, P.croquetas)
 await openInventory(page)
 // Kardex fit at 1440 (design system, Table row/Fit: up to 8 columns, no horizontal scroll inside the card).

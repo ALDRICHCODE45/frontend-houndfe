@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-11-04T18:06:42.348Z",
+  "generatedAt": "2026-11-04T18:24:02.642Z",
   "base": "http://127.0.0.1:5173",
   "api": "http://127.0.0.1:3000",
   "tenant": "Sucursal Centro",
   "summary": {
-    "pass": 23,
+    "pass": 29,
     "fail": 0
   },
   "checks": [
@@ -70,7 +70,7 @@
       "result": "PASS",
       "evidence": {
         "pagesLoaded": 2,
-        "rows": 32,
+        "rows": 34,
         "oldestRows": [
           "AjusteConteo físico · Conteo inicial de unidades sueltas4 nov, 02:23Manager CentroSin lote+121272",
           "Inicial4 nov, 02:23Manager CentroLote L-2027-06+303060",
@@ -89,6 +89,80 @@
           "Apertura4 nov, 00:42SistemaM+5510",
           "Apertura4 nov, 00:42SistemaS+555"
         ]
+      }
+    },
+    {
+      "id": "croquetas-record-total",
+      "name": "API: GET /products/:id quantity equals the /inventory total for Croquetas",
+      "result": "PASS",
+      "evidence": {
+        "recordQuantity": 72,
+        "journalTotal": 72
+      }
+    },
+    {
+      "id": "croquetas-detail-no-sin-stock",
+      "name": "Croquetas detail: the header shows no \"Sin stock\" badge",
+      "result": "PASS",
+      "evidence": {
+        "headerBadges": [
+          {
+            "label": "Activo",
+            "tone": "success"
+          }
+        ],
+        "summaryStock": "72"
+      }
+    },
+    {
+      "id": "croquetas-detail-summary-total",
+      "name": "Croquetas detail: the summary stock equals the /inventory total",
+      "result": "PASS",
+      "evidence": {
+        "summaryStock": "72",
+        "journalTotal": 72
+      }
+    },
+    {
+      "id": "croquetas-list-stock",
+      "name": "Croquetas list: the stock reads the /inventory total",
+      "result": "PASS",
+      "evidence": {
+        "cellText": "72 unidades",
+        "journalTotal": 72,
+        "matchingRows": 1,
+        "col": 6
+      }
+    },
+    {
+      "id": "croquetas-list-tone",
+      "name": "Croquetas list: the stock badge tone is correct for the total (healthy stock reads as plain text; the status badge is not \"Sin stock\")",
+      "result": "PASS",
+      "evidence": {
+        "total": 72,
+        "minQuantity": 10,
+        "expectedTone": null,
+        "stockCellBadgeTone": null,
+        "rowBadges": [
+          {
+            "label": "Activo",
+            "tone": "success"
+          }
+        ]
+      }
+    },
+    {
+      "id": "croquetas-panel-matches",
+      "name": "Croquetas Inventario panel: total equals the /inventory total, the summary and the sum of its rows",
+      "result": "PASS",
+      "evidence": {
+        "panelTotals": {
+          "total": 72,
+          "sellable": 64
+        },
+        "rowSum": 72,
+        "journalTotal": 72,
+        "summaryStock": "72"
       }
     },
     {
@@ -144,7 +218,7 @@
         "request": {
           "delta": -2,
           "reason": "DAMAGE",
-          "expectedVersion": 29,
+          "expectedVersion": 31,
           "idempotencyKey": true,
           "status": 201
         },
@@ -153,7 +227,7 @@
         "totalBefore": 72,
         "totalAfter": 70,
         "previewText": "Quedará en10",
-        "firstKardexRow": "AjusteMerma/daño4 nov, 12:04Manager CentroSin lote−21070"
+        "firstKardexRow": "AjusteMerma/daño4 nov, 12:22Manager CentroSin lote−21070"
       }
     },
     {
@@ -199,7 +273,7 @@
         },
         "stockBefore": 12,
         "stockAfter": 12,
-        "firstKardexRow": "AjusteConteo físico4 nov, 12:04Manager CentroSin lote+21272"
+        "firstKardexRow": "AjusteConteo físico4 nov, 12:22Manager CentroSin lote+21272"
       }
     },
     {
@@ -239,7 +313,7 @@
         },
         "before": 15,
         "after": 16,
-        "firstKardexRow": "AjusteCorrección de captura4 nov, 12:05Manager CentroChico · Azul+11625"
+        "firstKardexRow": "AjusteCorrección de captura4 nov, 12:22Manager CentroChico · Azul+11625"
       }
     },
     {
@@ -461,7 +535,7 @@
     {
       "productRecordVsJournal": {
         "croquetas": {
-          "productQuantity": 0,
+          "productQuantity": 72,
           "useStock": true,
           "useLots": true,
           "journalTotal": 72,
