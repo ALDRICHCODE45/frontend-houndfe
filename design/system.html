@@ -1,56 +1,430 @@
-<!doctype html><html lang="es-MX"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sistema visual HoundFe</title><style>:root{
---hf-page:#f5f6f8;
---hf-surface:#ffffff;
---hf-surface-muted:#e7eef7;
---hf-field:#ffffff;
---hf-field-border:#8593a3;
---hf-ink:#24313d;
---hf-heading:#173968;
---hf-muted:#576574;
---hf-border:#dce2e8;
---hf-action:#2442f6;
---hf-on-action:#ffffff;
---hf-active:#2442f6;
---hf-active-soft:#edf0ff;
---hf-focus:#2442f6;
---hf-gold:#f6bb13;
---hf-gold-soft:#fff5d6;
---hf-gold-ink:#443218;
---hf-warning:#805511;
---hf-warning-soft:#fff5d6;
---hf-success:#236044;
---hf-danger:#b42318;
---hf-danger-soft:#fef3f2;
---hf-danger-border:#f4b8b2;
---hf-font:ui-sans-serif, system-ui, sans-serif;
---hf-radius-card:12px;
---hf-radius-control:6px;
---hf-control-height:44px;
-}
-html.dark{
---hf-page:#0e1520;
---hf-surface:#192332;
---hf-surface-muted:#202e43;
---hf-field:#121d2c;
---hf-field-border:#64758d;
---hf-ink:#edf2fa;
---hf-heading:#edf2fa;
---hf-muted:#adbcd0;
---hf-border:#354459;
---hf-action:#91b0ff;
---hf-on-action:#132344;
---hf-active:#b3caff;
---hf-active-soft:#223555;
---hf-focus:#a6c1ff;
---hf-gold:#f2c456;
---hf-gold-soft:#3b311d;
---hf-gold-ink:#f2cb71;
---hf-warning:#f2cb71;
---hf-warning-soft:#3b311d;
---hf-success:#a2d9b9;
---hf-danger:#ffb4ab;
---hf-danger-soft:#3d2220;
---hf-danger-border:#7a3f3b;
-}
-*{box-sizing:border-box}body{margin:0;background:var(--hf-page);color:var(--hf-ink);font-family:var(--hf-font);font-size:16px;line-height:1.5}main{max-width:1440px;margin:auto;padding:32px}header{display:flex;justify-content:space-between;gap:24px;align-items:start}h1{font-size:32px;line-height:1.25;color:var(--hf-heading);font-weight:600}h2{font-size:18px;color:var(--hf-heading)}p{max-width:62ch;color:var(--hf-muted)}button,input{font:inherit;min-height:44px;border-radius:6px;border:1px solid var(--hf-field-border);padding:8px 16px;background:var(--hf-field);color:var(--hf-ink)}button{cursor:pointer}button:focus-visible,input:focus-visible{outline:2px solid var(--hf-focus);outline-offset:2px}.primary{background:var(--hf-action);color:var(--hf-on-action);border-color:var(--hf-action)}section{margin-top:24px;padding:24px;border:1px solid var(--hf-border);border-radius:12px;background:var(--hf-surface)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px}.swatch{height:64px;border:1px solid var(--hf-field-border);border-radius:6px}.name{font-size:14px;overflow-wrap:anywhere}.sample{display:flex;gap:12px;align-items:center;flex-wrap:wrap}label{display:grid;gap:8px}.tag{color:var(--hf-success)}@media(max-width:600px){main{padding:16px}header{flex-direction:column}section{padding:16px}}
-</style><main><header><div><h1>Una sola identidad para HoundFe</h1><p>Base visual existente para las propuestas de producto y contenido editorial. Tipografía Geist con la pila de sistema como alternativa sin conexión.</p></div><button type="button" id="theme" aria-pressed="false">Cambiar tema</button></header><section><h2>Colores semánticos</h2><div class="grid"><div><div class="swatch" style="background:var(--hf-page)"></div><p class="name">--hf-page</p></div><div><div class="swatch" style="background:var(--hf-surface)"></div><p class="name">--hf-surface</p></div><div><div class="swatch" style="background:var(--hf-surface-muted)"></div><p class="name">--hf-surface-muted</p></div><div><div class="swatch" style="background:var(--hf-field)"></div><p class="name">--hf-field</p></div><div><div class="swatch" style="background:var(--hf-field-border)"></div><p class="name">--hf-field-border</p></div><div><div class="swatch" style="background:var(--hf-ink)"></div><p class="name">--hf-ink</p></div><div><div class="swatch" style="background:var(--hf-heading)"></div><p class="name">--hf-heading</p></div><div><div class="swatch" style="background:var(--hf-muted)"></div><p class="name">--hf-muted</p></div><div><div class="swatch" style="background:var(--hf-border)"></div><p class="name">--hf-border</p></div><div><div class="swatch" style="background:var(--hf-action)"></div><p class="name">--hf-action</p></div><div><div class="swatch" style="background:var(--hf-on-action)"></div><p class="name">--hf-on-action</p></div><div><div class="swatch" style="background:var(--hf-active)"></div><p class="name">--hf-active</p></div><div><div class="swatch" style="background:var(--hf-active-soft)"></div><p class="name">--hf-active-soft</p></div><div><div class="swatch" style="background:var(--hf-focus)"></div><p class="name">--hf-focus</p></div><div><div class="swatch" style="background:var(--hf-gold)"></div><p class="name">--hf-gold</p></div><div><div class="swatch" style="background:var(--hf-gold-soft)"></div><p class="name">--hf-gold-soft</p></div><div><div class="swatch" style="background:var(--hf-gold-ink)"></div><p class="name">--hf-gold-ink</p></div><div><div class="swatch" style="background:var(--hf-warning)"></div><p class="name">--hf-warning</p></div><div><div class="swatch" style="background:var(--hf-warning-soft)"></div><p class="name">--hf-warning-soft</p></div><div><div class="swatch" style="background:var(--hf-success)"></div><p class="name">--hf-success</p></div><div><div class="swatch" style="background:var(--hf-danger)"></div><p class="name">--hf-danger</p></div><div><div class="swatch" style="background:var(--hf-danger-soft)"></div><p class="name">--hf-danger-soft</p></div><div><div class="swatch" style="background:var(--hf-danger-border)"></div><p class="name">--hf-danger-border</p></div></div></section><section><h2>Controles y jerarquía</h2><div class="sample"><label>Nombre del producto<input value="Arnés ajustable Terra"></label><button class="primary" type="button" id="save">Guardar ejemplo</button><span class="tag" id="feedback" role="status">Demostración visual</span></div><p>Controles de 44px · radio 6px · paneles de 12px · foco visible de 2px.</p></section><section><h2>Separar tareas, no mezclar estados</h2><p>Datos operativos: identidad, variantes, precios e inventario. Contenido editorial: borrador privado, revisión y publicación. Guardar contenido no publica ni cambia precios o existencias.</p></section><section><h2>Contratos implementados, cobertura explícita</h2><p>La aplicación posee el límite HF del documento; los portales conservan sus roles de tema. Los aliases heredados se resuelven dentro de ese límite. Los pares dorado/negro de compatibilidad se migran juntos, no por separado.</p><p>Filtros y selectores conservan sus eventos y errores. Escape cierra el menú anidado sin cerrar el formulario; el selector SAT usa una fila completa. La confirmación mantiene su color destructivo y una descripción accesible sin duplicarla visualmente.</p><p>El catálogo público sigue siendo claro, incluso si la aplicación privada usa tema oscuro. Sus diálogos y vistas de imagen tienen estilos propios.</p><p>Este tablero documenta las bases actuales: no declara terminada la auditoría de todas las rutas, estados, contrastes o tecnologías de asistencia.</p></section></main><script>document.querySelector('#theme').onclick=e=>{const dark=document.documentElement.classList.toggle('dark');e.currentTarget.setAttribute('aria-pressed',String(dark))};document.querySelector('#save').onclick=()=>document.querySelector('#feedback').textContent='Ejemplo simulado; no se guardaron datos';</script></html>
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>HoundFe · Sistema de diseño</title>
+<style>
+  /* Tokens: src/core/shared/design-system/houndfe-theme.css */
+  .hf-theme.light {
+    --hf-page: #f5f6f8; --hf-surface: #ffffff; --hf-surface-muted: #e7eef7;
+    --hf-field: #ffffff; --hf-field-border: #8593a3; --hf-ink: #24313d;
+    --hf-heading: #173968; --hf-muted: #576574; --hf-border: #dce2e8;
+    --hf-action: #2442f6; --hf-on-action: #ffffff; --hf-active: #2442f6;
+    --hf-active-soft: #edf0ff; --hf-focus: #2442f6; --hf-gold: #f6bb13;
+    --hf-gold-soft: #fff5d6; --hf-gold-ink: #443218; --hf-warning: #805511;
+    --hf-warning-soft: #fff5d6; --hf-success: #236044; --hf-danger: #b42318;
+    --hf-danger-soft: #fef3f2; --hf-danger-border: #f4b8b2;
+  }
+  .hf-theme.dark {
+    --hf-page: #0e1520; --hf-surface: #192332; --hf-surface-muted: #202e43;
+    --hf-field: #121d2c; --hf-field-border: #64758d; --hf-ink: #edf2fa;
+    --hf-heading: #edf2fa; --hf-muted: #adbcd0; --hf-border: #354459;
+    --hf-action: #91b0ff; --hf-on-action: #132344; --hf-active: #b3caff;
+    --hf-active-soft: #223555; --hf-focus: #a6c1ff; --hf-gold: #f2c456;
+    --hf-gold-soft: #3b311d; --hf-gold-ink: #f2cb71; --hf-warning: #f2cb71;
+    --hf-warning-soft: #3b311d; --hf-success: #a2d9b9; --hf-danger: #ffb4ab;
+    --hf-danger-soft: #3d2220; --hf-danger-border: #7a3f3b;
+  }
+  .hf-theme {
+    --hf-font: 'Geist', ui-sans-serif, system-ui, sans-serif;
+    --hf-radius-card: 12px; --hf-radius-control: 6px; --hf-control-height: 44px;
+    --hf-table-head: color-mix(in srgb, var(--hf-ink) 4%, var(--hf-surface));
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { width: 1440px; }
+  .board { display: grid; grid-template-columns: 720px 720px; width: 1440px; }
+  .hf-theme {
+    width: 720px; padding: 32px 24px 32px; background: var(--hf-page); color: var(--hf-ink);
+    font-family: var(--hf-font); font-size: 14px; line-height: 1.5;
+    font-feature-settings: "cv11", "ss01", "tnum";
+  }
+  .hf-theme h1, .hf-theme h2, .hf-theme h3, .hf-theme p { margin: 0; }
+  .sys-title { color: var(--hf-heading); font-size: 32px; font-weight: 600; line-height: 1.25; letter-spacing: -0.045em; }
+  .sys-sub { max-width: 62ch; color: var(--hf-muted); font-size: 14px; line-height: 1.5; margin-top: 4px; }
+  section { margin-top: 32px; }
+  .sec-h { color: var(--hf-heading); font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+  .meta { color: var(--hf-muted); font-size: 13px; }
+  .card { background: var(--hf-surface); border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); padding: 16px; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+  /* Color swatches */
+  .swatches { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .sw { display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--hf-surface); border: 1px solid var(--hf-border); border-radius: var(--hf-radius-control); min-width: 0; }
+  .sw i { flex: none; width: 28px; height: 28px; border-radius: 4px; border: 1px solid var(--hf-border); }
+  .sw b { display: block; font-size: 12px; font-weight: 600; color: var(--hf-heading); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sw span { display: block; font-size: 12px; color: var(--hf-muted); }
+
+  /* Type scale */
+  .type { display: grid; grid-template-columns: 112px 1fr; align-items: baseline; gap: 4px 16px; }
+  .type dt { color: var(--hf-muted); font-size: 12px; }
+  .type dd { margin: 0; color: var(--hf-heading); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Spacing, radius, shadow */
+  .scale { display: flex; align-items: flex-end; gap: 12px; }
+  .scale div { text-align: center; font-size: 12px; color: var(--hf-muted); }
+  .scale i { display: block; background: var(--hf-action); margin: 0 auto 4px; height: 12px; border-radius: 2px; }
+  .radii { display: flex; flex-wrap: wrap; gap: 12px; }
+  .radii div { text-align: center; font-size: 12px; color: var(--hf-muted); }
+  .radii i { display: block; width: 44px; height: 44px; margin-bottom: 4px; background: var(--hf-surface-muted); border: 1px solid var(--hf-field-border); }
+  .shadow-box { width: 160px; height: 56px; display: grid; place-items: center; background: var(--hf-surface); border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); box-shadow: 0 1px 2px color-mix(in srgb, var(--hf-ink) 5%, transparent); font-size: 12px; color: var(--hf-muted); }
+
+  /* Status badge: houndfe-ui.css .hf-status-badge */
+  .hf-status-badge { display: inline-flex; height: 24px; align-items: center; gap: 6px; padding-inline: 8px; border: 1px solid transparent; border-radius: var(--hf-radius-control); background-color: var(--hf-badge-bg); color: var(--hf-badge-fg); font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap; }
+  .hf-status-badge[data-tone='neutral'] { --hf-badge-fg: var(--hf-muted); --hf-badge-bg: var(--hf-surface-muted); }
+  .hf-status-badge[data-tone='info'] { --hf-badge-fg: var(--hf-active); --hf-badge-bg: var(--hf-active-soft); }
+  .hf-status-badge[data-tone='success'] { --hf-badge-fg: var(--hf-success); --hf-badge-bg: color-mix(in srgb, var(--hf-success) 12%, var(--hf-surface)); }
+  .hf-status-badge[data-tone='warning'] { --hf-badge-fg: var(--hf-warning); --hf-badge-bg: var(--hf-warning-soft); }
+  .hf-status-badge[data-tone='danger'] { --hf-badge-fg: var(--hf-danger); --hf-badge-bg: var(--hf-danger-soft); }
+  .hf-status-badge[data-urgent='true'] { background: color-mix(in srgb, var(--hf-badge-fg) 18%, var(--hf-surface)); border-color: color-mix(in srgb, var(--hf-badge-fg) 55%, var(--hf-surface)); }
+  .dot { width: 6px; height: 6px; flex: none; border-radius: 50%; background-color: currentColor; }
+  .ico { width: 14px; height: 14px; flex: none; }
+  .ico-24 { width: 24px; height: 24px; flex: none; }
+  .ico-16 { width: 16px; height: 16px; flex: none; }
+  svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .aviso { display: inline-flex; align-items: center; gap: 4px; color: var(--hf-warning); font-size: 12px; font-weight: 600; }
+
+  /* Buttons: houndfe-ui.css .hf-primary-control */
+  .btn { display: inline-flex; min-height: var(--hf-control-height); align-items: center; justify-content: center; gap: 6px; padding-inline: 16px; border: 1px solid transparent; border-radius: var(--hf-radius-control); font-family: var(--hf-font); font-size: 14px; font-weight: 600; cursor: pointer; }
+  .btn-primary { background-color: var(--hf-action); color: var(--hf-on-action); }
+  .btn-outline { background-color: var(--hf-surface); color: var(--hf-ink); border-color: var(--hf-field-border); }
+  .btn-ghost { background: transparent; color: var(--hf-muted); }
+  .btn-disabled { border-color: var(--hf-border); background-color: var(--hf-surface-muted); color: var(--hf-muted); cursor: not-allowed; }
+  .btn-icon { width: var(--hf-control-height); min-width: var(--hf-control-height); padding: 0; }
+  .btn:focus-visible, .field:focus-visible, .link:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
+  .btn.is-focus { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
+  .link { color: var(--hf-action); text-decoration: underline; }
+
+  /* Inputs */
+  .fields { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  label.lbl { display: block; margin-bottom: 4px; color: var(--hf-ink); font-size: 14px; font-weight: 500; }
+  .field { width: 100%; min-height: var(--hf-control-height); padding: 0 12px; border: 1px solid var(--hf-field-border); border-radius: var(--hf-radius-control); background-color: var(--hf-field); color: var(--hf-ink); font-family: var(--hf-font); font-size: 14px; }
+  .field::placeholder { color: var(--hf-muted); }
+  .field.is-focus { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
+  .field.is-error { border-color: var(--hf-danger); outline: 2px solid var(--hf-danger); outline-offset: 0; }
+  .err { margin-top: 4px; color: var(--hf-danger); font-size: 13px; }
+
+  /* Table: houndfe-ui.css .hf-table-surface / .hf-data-table */
+  .surface { background-color: var(--hf-surface); border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); box-shadow: 0 1px 2px color-mix(in srgb, var(--hf-ink) 5%, transparent); overflow: hidden; }
+  table.dt { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 14px; }
+  .dt thead { background-color: var(--hf-table-head); }
+  .dt th { height: 40px; padding-inline: 12px; color: var(--hf-muted); font-size: 13px; font-weight: 600; text-align: left; white-space: nowrap; }
+  .dt td { height: 64px; padding: 10px 12px; vertical-align: middle; border-top: 1px solid var(--hf-border); overflow: hidden; text-overflow: ellipsis; }
+  .dt .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .dt .col-act { width: 64px; padding-inline: 8px; text-align: right; overflow: visible; }
+  .dt .col-stat { width: 128px; white-space: nowrap; overflow: visible; }
+  .dt .col-num { width: 112px; }
+  .dt tr.pending td { background-color: var(--hf-warning-soft); }
+  .dt tr.hover td { background-color: color-mix(in srgb, var(--hf-surface-muted) 45%, var(--hf-surface)); }
+  .row-primary { display: block; overflow: hidden; color: var(--hf-heading); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+  .row-secondary { display: block; margin-top: 2px; overflow: hidden; color: var(--hf-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+  .missing { display: inline-flex; align-items: center; gap: 4px; color: var(--hf-warning); font-weight: 600; }
+  .menu { width: 288px; margin-top: 8px; margin-left: auto; padding: 4px; background: var(--hf-surface); border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); box-shadow: 0 1px 2px color-mix(in srgb, var(--hf-ink) 5%, transparent); }
+  .menu .item { display: flex; align-items: center; gap: 8px; min-height: var(--hf-control-height); padding: 0 12px; border-radius: var(--hf-radius-control); color: var(--hf-ink); font-weight: 500; }
+  .menu .item.hl { background-color: var(--hf-surface-muted); }
+  .menu .item.danger { color: var(--hf-danger); }
+  .menu hr { margin: 4px 0; border: 0; border-top: 1px solid var(--hf-border); }
+  .tb { display: flex; align-items: center; gap: 8px; padding: 12px; }
+  .tb .field { max-width: 360px; }
+  .tb .spacer { flex: 1; }
+
+  /* Empty state: houndfe-ui.css .hf-empty-state */
+  .empties { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .hf-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 8rem; padding: 40px 16px; text-align: center; background: var(--hf-surface); border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); }
+  .hf-empty-state svg { color: var(--hf-muted); }
+  .hf-empty-state h3 { font-size: 15px; font-weight: 600; color: var(--hf-heading); }
+  .hf-empty-state p { max-width: 28rem; font-size: 13px; color: var(--hf-muted); }
+  .hf-empty-state .btn { margin-top: 8px; }
+  .hf-empty-state[data-kind='error'] { background-color: var(--hf-danger-soft); border-color: var(--hf-danger-border); }
+  .hf-empty-state[data-kind='error'] svg, .hf-empty-state[data-kind='error'] h3 { color: var(--hf-danger); }
+
+  /* Cards */
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+  .mcard { position: relative; }
+  .mcard .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .mcard .top .btn-icon { margin: -8px -8px 0 0; }
+  .mcard .badges { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .mcard .foot { display: flex; justify-content: space-between; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hf-border); font-size: 13px; color: var(--hf-muted); font-variant-numeric: tabular-nums; }
+  .stat .lbl2 { color: var(--hf-muted); font-size: 13px; }
+  .stat .big { margin-top: 4px; color: var(--hf-heading); font-size: 22px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .check { margin-top: 12px; padding: 12px; background-color: var(--hf-surface-muted); border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); font-size: 13px; }
+  .check .it { display: flex; align-items: center; gap: 8px; color: var(--hf-warning); font-weight: 600; }
+  .check .it a { margin-left: auto; font-weight: 400; }
+
+  /* Detail header */
+  .dh-meta { display: flex; align-items: center; gap: 8px; color: var(--hf-muted); font-size: 13px; }
+  .dh-title { margin-top: 4px; overflow: hidden; color: var(--hf-heading); font-size: 22px; font-weight: 600; letter-spacing: -0.02em; white-space: nowrap; text-overflow: ellipsis; }
+  .dh { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  .dh-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+  .steps { display: flex; align-items: center; margin: 16px 0 0; padding: 0; list-style: none; font-size: 13px; font-weight: 600; }
+  .steps li { display: flex; align-items: center; gap: 8px; color: var(--hf-muted); }
+  .steps li + li::before { content: ''; width: 24px; height: 1px; margin-inline: 8px; background-color: var(--hf-border); }
+  .steps .c { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--hf-field-border); font-size: 12px; }
+  .steps .done .c { background-color: var(--hf-success); border-color: var(--hf-success); color: var(--hf-surface); }
+  .steps .done { color: var(--hf-ink); }
+  .steps .current .c { background-color: var(--hf-action); border-color: var(--hf-action); color: var(--hf-on-action); }
+  .steps .current { color: var(--hf-heading); }
+  .steps .count { color: var(--hf-warning); font-weight: 500; }
+  .foot-save { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--hf-border); font-size: 13px; }
+  .foot-save .ok { color: var(--hf-success); font-weight: 600; }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="m13.73 4 8.13 14a2 2 0 0 1-1.73 3H3.87a2 2 0 0 1-1.73-3l8.13-14a2 2 0 0 1 3.46 0M12 9v4m0 4h.01"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11"/></symbol>
+  <symbol id="i-search-x" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3m-7.4-5.4 3.4 3.4m0-3.4-3.4 3.4"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M21.17 6.81a2.83 2.83 0 0 0-4-4L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5Z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+</svg>
+
+<main class="board">
+
+<template id="panel">
+  <header>
+    <h1 class="sys-title" data-label></h1>
+    <p class="sys-sub">Tokens --hf-* y componentes base de HoundFe. Fuente de cada valor en design/system.md.</p>
+  </header>
+
+  <section aria-label="Colores">
+    <h2 class="sec-h">Colores · --hf-*</h2>
+    <div class="swatches" data-swatches></div>
+  </section>
+
+  <section aria-label="Tipografía">
+    <h2 class="sec-h">Tipografía · Geist</h2>
+    <div class="card">
+      <dl class="type">
+        <dt>Título 32 / 600</dt><dd style="font-size:32px;font-weight:600;line-height:1.25;letter-spacing:-0.045em">Órdenes de compra</dd>
+        <dt>Detalle 22 / 600</dt><dd style="font-size:22px;font-weight:600;letter-spacing:-0.02em">Distribuidora Veterinaria del Norte</dd>
+        <dt>Sección 16 / 600</dt><dd style="font-size:16px;font-weight:600">Renglones · 3</dd>
+        <dt>Estado vacío 15 / 600</dt><dd style="font-size:15px;font-weight:600">Aún no hay proveedores</dd>
+        <dt>Cuerpo 14 / 400</dt><dd style="font-size:14px;font-weight:400;color:var(--hf-ink)">Collar ajustable, Chico · Azul</dd>
+        <dt>Etiqueta 14 / 500</dt><dd style="font-size:14px;font-weight:500;color:var(--hf-ink)">Cantidad y unidad</dd>
+        <dt>Secundario 13 / 400</dt><dd style="font-size:13px;color:var(--hf-muted)">Bodega principal, andén 3</dd>
+        <dt>Insignia 12 / 600</dt><dd style="font-size:12px;font-weight:600;color:var(--hf-muted)">Confirmada</dd>
+        <dt>Cifras tabulares</dt><dd style="font-variant-numeric:tabular-nums;font-weight:600">$12,946.00 · $780.50 · $0.00</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section aria-label="Espaciado, radio y sombra">
+    <h2 class="sec-h">Espaciado · radio · sombra</h2>
+    <div class="card" style="display:grid;gap:16px">
+      <div class="scale" aria-label="Escala de espaciado">
+        <div><i style="width:4px"></i>4</div>
+        <div><i style="width:8px"></i>8</div>
+        <div><i style="width:12px"></i>12</div>
+        <div><i style="width:16px"></i>16</div>
+        <div><i style="width:24px"></i>24</div>
+        <div><i style="width:32px"></i>32</div>
+      </div>
+      <div class="radii" aria-label="Escala de radio">
+        <div><i style="border-radius:4px"></i>xs 4</div>
+        <div><i style="border-radius:6px"></i>control 6</div>
+        <div><i style="border-radius:8px"></i>sm 8</div>
+        <div><i style="border-radius:12px"></i>card 12</div>
+        <div><i style="border-radius:18px"></i>lg 18</div>
+        <div><i style="border-radius:28px"></i>xl 28</div>
+        <div><i style="border-radius:9999px"></i>full</div>
+      </div>
+      <div class="row" style="gap:16px">
+        <div class="shadow-box">Superficie de tabla</div>
+        <span class="meta">0 1px 2px, tinta al 5%. Foco: 2px --hf-focus, offset 2px.</span>
+      </div>
+    </div>
+  </section>
+
+  <section aria-label="Insignias de estado">
+    <h2 class="sec-h">StatusBadge</h2>
+    <div class="card">
+      <div class="row">
+        <span class="hf-status-badge" data-tone="neutral"><span class="dot"></span>Borrador</span>
+        <span class="hf-status-badge" data-tone="info"><span class="dot"></span>En revisión</span>
+        <span class="hf-status-badge" data-tone="success"><span class="dot"></span>Confirmada</span>
+        <span class="hf-status-badge" data-tone="warning"><span class="dot"></span>Por vencer</span>
+        <span class="hf-status-badge" data-tone="danger"><span class="dot"></span>Cancelada</span>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <span class="hf-status-badge" data-tone="danger" data-urgent="true"><svg class="ico" aria-hidden="true"><use href="#i-warn"/></svg>Vencida</span>
+        <span class="hf-status-badge" data-tone="warning" data-urgent="true"><svg class="ico" aria-hidden="true"><use href="#i-warn"/></svg>Vence hoy</span>
+        <span class="aviso"><svg class="ico" aria-hidden="true"><use href="#i-warn"/></svg>1 aviso</span>
+        <span class="hf-status-badge" data-tone="neutral">Efectivo</span>
+      </div>
+    </div>
+  </section>
+
+  <section aria-label="Botones y campos">
+    <h2 class="sec-h">Botones y campos</h2>
+    <div class="card">
+      <div class="row">
+        <button class="btn btn-primary" type="button"><svg class="ico-16" aria-hidden="true"><use href="#i-plus"/></svg>Nueva orden</button>
+        <button class="btn btn-outline" type="button">Guardar borrador</button>
+        <button class="btn btn-ghost" type="button">Cancelar</button>
+        <button class="btn btn-disabled" type="button" aria-disabled="true">Confirmar orden</button>
+        <button class="btn btn-primary is-focus" type="button">Con foco</button>
+        <button class="btn btn-ghost btn-icon" type="button" aria-label="Acciones de la orden de Distribuidora Veterinaria del Norte, borrador"><svg class="ico-16" aria-hidden="true"><use href="#i-dots"/></svg></button>
+      </div>
+      <p class="meta" style="margin-top:8px">Un solo primario por vista. <a class="link" href="#">Los enlaces usan --hf-action con subrayado.</a></p>
+      <div class="fields" style="margin-top:16px">
+        <div><label class="lbl">Proveedor</label><input class="field" type="text" placeholder="Buscar proveedor" aria-label="Proveedor"></div>
+        <div><label class="lbl">Cantidad</label><input class="field is-focus" type="text" value="12" aria-label="Cantidad (con foco)"></div>
+        <div><label class="lbl">Costo unitario</label><input class="field is-error" type="text" value="" aria-invalid="true" aria-label="Costo unitario (con error)"><p class="err">Falta el costo</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-label="Fila de tabla">
+    <h2 class="sec-h">AppDataTable · fila con ⋮</h2>
+    <div class="surface">
+      <div class="tb">
+        <input class="field" type="text" placeholder="Buscar orden o proveedor" aria-label="Buscar orden o proveedor">
+        <span class="spacer"></span>
+        <button class="btn btn-primary" type="button"><svg class="ico-16" aria-hidden="true"><use href="#i-plus"/></svg>Nueva orden</button>
+      </div>
+      <table class="dt">
+        <thead><tr>
+          <th scope="col">Orden</th><th scope="col" class="col-stat">Estado</th><th scope="col" class="col-num num">Total</th><th scope="col" class="col-act"><span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Acciones</span></th>
+        </tr></thead>
+        <tbody>
+          <tr class="hover">
+            <td><span class="row-primary">Distribuidora Veterinaria del Norte</span><span class="row-secondary">Bodega principal · 3 renglones</span></td>
+            <td class="col-stat"><span class="hf-status-badge" data-tone="success"><span class="dot"></span>Confirmada</span></td>
+            <td class="num">$12,946.00</td>
+            <td class="col-act"><button class="btn btn-ghost btn-icon" type="button" aria-label="Acciones de la orden de Distribuidora Veterinaria del Norte, confirmada"><svg class="ico-16" aria-hidden="true"><use href="#i-dots"/></svg></button></td>
+          </tr>
+          <tr class="pending">
+            <td><span class="row-primary">Mascotas y Más del Bajío</span><span class="row-secondary">Andén 3 · 2 renglones</span></td>
+            <td class="col-stat"><span class="hf-status-badge" data-tone="neutral"><span class="dot"></span>Borrador</span> </td>
+            <td class="num"><span class="missing"><svg class="ico" aria-hidden="true"><use href="#i-warn"/></svg>Falta</span></td>
+            <td class="col-act"><button class="btn btn-ghost btn-icon" type="button" aria-label="Acciones de la orden de Mascotas y Más del Bajío, borrador"><svg class="ico-16" aria-hidden="true"><use href="#i-dots"/></svg></button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="menu" role="menu" aria-label="Acciones de la orden, ejemplo abierto">
+      <div class="item hl" role="menuitem"><svg class="ico-16" aria-hidden="true"><use href="#i-pencil"/></svg>Continuar</div>
+      <div class="item" role="menuitem"><svg class="ico-16" aria-hidden="true"><use href="#i-check"/></svg>Confirmar…</div>
+      <hr>
+      <div class="item danger" role="menuitem"><svg class="ico-16" aria-hidden="true"><use href="#i-trash"/></svg>Descartar borrador</div>
+    </div>
+  </section>
+
+  <section aria-label="Estados vacíos">
+    <h2 class="sec-h">EmptyState · kinds</h2>
+    <div class="empties">
+      <div class="hf-empty-state" data-kind="empty" role="status">
+        <svg class="ico-24" aria-hidden="true"><use href="#i-inbox"/></svg>
+        <h3>Aún no hay proveedores</h3><p>Aquí aparecerán los proveedores que registres.</p>
+        <button class="btn btn-outline" type="button">Crear proveedor</button>
+      </div>
+      <div class="hf-empty-state" data-kind="no-match" role="status">
+        <svg class="ico-24" aria-hidden="true"><use href="#i-search-x"/></svg>
+        <h3>Ningún resultado para «collar»</h3><p>Prueba con otra búsqueda o quita filtros.</p>
+        <button class="btn btn-outline" type="button">Limpiar filtros</button>
+      </div>
+      <div class="hf-empty-state" data-kind="error" role="alert">
+        <svg class="ico-24" aria-hidden="true"><use href="#i-warn"/></svg>
+        <h3>No se pudo cargar la lista</h3><p>Revisa tu conexión e inténtalo de nuevo.</p>
+        <button class="btn btn-outline" type="button"><svg class="ico-16" aria-hidden="true"><use href="#i-rotate"/></svg>Reintentar</button>
+      </div>
+      <div class="hf-empty-state" data-kind="forbidden" role="status">
+        <svg class="ico-24" aria-hidden="true"><use href="#i-lock"/></svg>
+        <h3>Tu rol no puede ver esta sección</h3><p>Pide acceso a un administrador.</p>
+        <button class="btn btn-outline" type="button">Volver al inicio</button>
+      </div>
+    </div>
+  </section>
+
+  <section aria-label="Tarjetas">
+    <h2 class="sec-h">Tarjetas</h2>
+    <div class="cards">
+      <article class="card mcard" aria-label="Tarjeta móvil de ejemplo">
+        <div class="top">
+          <div style="min-width:0"><span class="row-primary">Distribuidora Veterinaria del Norte</span><span class="row-secondary">Bodega principal</span></div>
+          <button class="btn btn-ghost btn-icon" type="button" aria-label="Acciones de la orden"><svg class="ico-16" aria-hidden="true"><use href="#i-dots"/></svg></button>
+        </div>
+        <div class="badges"><span class="hf-status-badge" data-tone="neutral"><span class="dot"></span>Borrador</span><span class="aviso"><svg class="ico" aria-hidden="true"><use href="#i-warn"/></svg>1 aviso</span></div>
+        <div class="foot"><span>3 renglones · $12,946.00</span><span>3 nov, 20:43</span></div>
+      </article>
+      <article class="card stat" aria-label="Tarjeta de resumen">
+        <p class="lbl2">Ventas de hoy</p>
+        <p class="big">$48,210.50</p>
+        <p class="meta" style="margin-top:4px">32 ventas · actualizado 20:43</p>
+        <div class="check" role="group" aria-label="Pendientes para confirmar">
+          <div class="it"><svg class="ico" aria-hidden="true"><use href="#i-warn"/></svg>Falta el costo <a class="link" href="#">Ir a Collar ajustable</a></div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section aria-label="Encabezado de detalle">
+    <h2 class="sec-h">Encabezado de detalle · pasos</h2>
+    <div class="card">
+      <div class="dh">
+        <div style="min-width:0">
+          <div class="dh-meta"><span class="hf-status-badge" data-tone="neutral"><span class="dot"></span>Borrador</span><span>Bodega principal · guardada 3 nov, 20:43</span></div>
+          <h3 class="dh-title">Distribuidora Veterinaria del Norte</h3>
+        </div>
+        <div class="dh-actions">
+          <button class="btn btn-primary" type="button">Confirmar orden</button>
+          <button class="btn btn-ghost btn-icon" type="button" aria-label="Más acciones de la orden"><svg class="ico-16" aria-hidden="true"><use href="#i-dots"/></svg></button>
+          <button class="btn btn-ghost btn-icon" type="button" aria-label="Cerrar"><svg class="ico-16" aria-hidden="true"><use href="#i-x"/></svg></button>
+        </div>
+      </div>
+      <ol class="steps" aria-label="Pasos para confirmar">
+        <li class="done"><span class="c"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg></span>Completar</li>
+        <li class="current" aria-current="step"><span class="c">2</span>Guardar<span class="count">· 1 pendiente</span></li>
+        <li><span class="c">3</span>Confirmar</li>
+      </ol>
+      <div class="foot-save"><span><span class="ok">Guardado</span> · <span class="meta">3 nov, 20:43</span></span><button class="btn btn-outline" type="button">Guardar borrador</button></div>
+    </div>
+  </section>
+</template>
+
+</main>
+
+<script>
+  /* Builds the same panel twice (light, dark) and fills each swatch with its resolved token value. */
+  var tokens = ['page','surface','surface-muted','field','field-border','ink','heading','muted','border','action','on-action','active','active-soft','focus','gold','gold-soft','gold-ink','warning','warning-soft','success','danger','danger-soft','danger-border'];
+  var board = document.querySelector('.board');
+  var tpl = document.getElementById('panel');
+  ['light', 'dark'].forEach(function (mode) {
+    var panel = document.createElement('div');
+    panel.className = 'hf-theme ' + mode;
+    panel.appendChild(tpl.content.cloneNode(true));
+    panel.querySelector('[data-label]').textContent = mode === 'light' ? 'HoundFe · Claro' : 'HoundFe · Oscuro';
+    board.appendChild(panel);
+    var cs = getComputedStyle(panel);
+    var wrap = panel.querySelector('[data-swatches]');
+    tokens.forEach(function (t) {
+      var d = document.createElement('div');
+      d.className = 'sw';
+      var chip = document.createElement('i');
+      chip.style.background = 'var(--hf-' + t + ')';
+      var box = document.createElement('div');
+      box.style.minWidth = '0';
+      var b = document.createElement('b');
+      b.textContent = '--hf-' + t;
+      var v = document.createElement('span');
+      v.textContent = cs.getPropertyValue('--hf-' + t).trim();
+      box.appendChild(b); box.appendChild(v);
+      d.appendChild(chip); d.appendChild(box);
+      wrap.appendChild(d);
+    });
+  });
+</script>
+<noscript><p style="font-family:ui-sans-serif,system-ui,sans-serif;padding:24px">Este tablero necesita JavaScript para repetir el panel en claro y oscuro.</p></noscript>
+</body>
+</html>
