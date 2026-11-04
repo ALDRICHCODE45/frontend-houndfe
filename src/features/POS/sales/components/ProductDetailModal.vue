@@ -3,7 +3,6 @@ import { hasSalesEntryToken } from '../utils/salesEntryPortal'
 import { ref, watch, computed } from 'vue'
 import { saleApi } from '../api/sale.api'
 import type { PosProductDetail } from '../interfaces/sale.types'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
 
 const props = defineProps<{
   open: boolean
@@ -220,7 +219,11 @@ watch(
           <div class="flex-1 min-w-0 space-y-2">
             <!-- Category + Brand -->
             <div class="flex items-center gap-2">
-              <AppBadge v-if="detail.category" tone="neutral" :label="detail.category.name" />
+              <span
+                v-if="detail.category"
+                class="rounded-md bg-(--hf-surface-muted) px-2 py-0.5 text-xs font-semibold text-(--hf-heading)"
+                data-testid="detail-category"
+              >{{ detail.category.name }}</span>
               <span v-if="detail.brand" class="text-xs text-muted">{{ detail.brand.name }}</span>
             </div>
 
@@ -254,7 +257,7 @@ watch(
           <!-- Price -->
           <div class="rounded-lg border border-default p-3 space-y-1">
             <p class="text-[11px] text-muted uppercase tracking-wider font-medium">Precio</p>
-            <p v-if="displayPrice" class="text-lg font-bold text-highlighted tabular-nums">
+            <p v-if="displayPrice" class="text-lg font-semibold text-highlighted tabular-nums">
               {{ formatPrice(displayPrice.priceDecimal) }}
             </p>
             <p v-else class="text-sm text-muted">Sin precio</p>
@@ -264,7 +267,7 @@ watch(
           <!-- Stock -->
           <div class="rounded-lg border border-default p-3 space-y-1">
             <p class="text-[11px] text-muted uppercase tracking-wider font-medium">Existencias</p>
-            <p v-if="displayStock" class="text-lg font-bold tabular-nums" :class="isLowStock(displayStock.quantity, displayStock.minQuantity) ? 'text-warning' : 'text-highlighted'">
+            <p v-if="displayStock" class="text-lg font-semibold tabular-nums" :class="isLowStock(displayStock.quantity, displayStock.minQuantity) ? 'text-warning' : 'text-highlighted'">
               {{ displayStock.quantity }}
             </p>
             <p v-else class="text-sm text-muted">N/A</p>

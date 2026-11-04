@@ -61,7 +61,7 @@ const chargeTooltip = computed(() => {
 const chargeButtonClass = computed(() =>
   props.themed
     ? 'relative sales-entry-primary-action sales-pos-charge-button rounded-xl font-semibold shadow-sm w-full'
-    : 'relative !bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm w-full',
+    : 'relative hf-primary-control w-full',
 )
 
 const subtotalFormatted = computed(() => formatCentsMXN(subtotalCents.value))

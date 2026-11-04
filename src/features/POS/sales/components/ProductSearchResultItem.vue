@@ -193,7 +193,7 @@ function isLowStock(item: PosCatalogItem): boolean {
         :class="[
           'absolute top-2 right-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-md sales-pos-product-stock',
           isLowStock(item)
-            ? 'bg-(--brand-danger)/15 text-(--brand-danger)'
+            ? 'bg-(--hf-warning-soft) text-(--hf-warning)'
             : 'bg-default/80 text-muted',
         ]"
         data-testid="stock-badge"
@@ -220,7 +220,7 @@ function isLowStock(item: PosCatalogItem): boolean {
       <!-- Price row + action -->
       <div class="flex items-center justify-between pt-1">
         <div>
-          <p v-if="item.price" class="text-sm font-bold text-primary dark:text-(--brand-accent) tabular-nums sales-pos-product-price">
+          <p v-if="item.price" class="text-sm font-semibold text-(--hf-heading) tabular-nums sales-pos-product-price">
             {{ formatPrice(item.price.priceDecimal) }}
           </p>
           <p v-else class="text-xs text-toned flex items-center gap-0.5">
@@ -241,7 +241,7 @@ function isLowStock(item: PosCatalogItem): boolean {
       </div>
 
       <!-- Variant count badge -->
-      <p v-if="item.hasVariants && item.variants.length > 0" class="text-[11px] text-(--brand-primary) dark:text-(--brand-accent) font-medium">
+      <p v-if="item.hasVariants && item.variants.length > 0" class="text-[11px] text-(--hf-muted) font-medium">
         {{ item.variants.length }} variantes
       </p>
 

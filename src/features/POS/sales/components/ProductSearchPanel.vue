@@ -104,7 +104,7 @@ function handleAddVariant(productId: string, variantId: string) {
   <div class="h-full flex flex-col">
     <!-- Header section (sticky) -->
     <div
-      class="sticky top-0 z-10 bg-(--light-surface-page)/80 dark:bg-coco-neutral-950/80 backdrop-blur supports-[backdrop-filter]:bg-(--light-surface-page)/70 dark:supports-[backdrop-filter]:bg-coco-neutral-950/70 border-b border-default sales-pos-catalog-controls-surface"
+      class="sticky top-0 z-10 bg-(--hf-page)/80 backdrop-blur supports-[backdrop-filter]:bg-(--hf-page)/70 border-b border-default sales-pos-catalog-controls-surface"
     >
       <div class="px-5 py-4 space-y-3.5 sales-pos-catalog-controls">
         <!-- S8 (fidelity): the accepted v0 controls title row. Sale opt-in only. -->

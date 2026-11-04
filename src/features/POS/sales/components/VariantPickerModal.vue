@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { PosCatalogVariant } from '../interfaces/sale.types'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { hasSalesEntryToken } from '../utils/salesEntryPortal'
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -132,9 +132,10 @@ function isLowStock(variant: PosCatalogVariant): boolean {
 
           <!-- Stock badge -->
           <div v-if="variant.stock != null" class="shrink-0">
-            <AppBadge
+            <StatusBadge
               :tone="isLowStock(variant) ? 'warning' : 'success'"
               :label="`${variant.stock.quantity} unidades`"
+              aria-prefix="Existencias:"
             />
           </div>
         </div>
