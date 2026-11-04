@@ -24,11 +24,22 @@ describe('ForbiddenView', () => {
     expect(wrapper.text()).not.toContain('403')
   })
 
-  it('keeps one solid primary action', () => {
+  it('keeps one solid primary action, with Volver beside it as a quiet outline', () => {
+    const wrapper = mountWithUApp(ForbiddenView, { global: { plugins: [router] } })
+    const actions = wrapper.get('.hf-error-actions')
+
+    expect(actions.findAll('button')).toHaveLength(2)
+    expect(actions.get('[data-testid="error-home"]').text()).toBe('Ir al inicio')
+    expect(actions.get('[data-testid="error-home"]').classes()).toContain('hf-primary-control')
+    expect(actions.get('[data-testid="error-back"]').text()).toBe('Volver')
+    expect(actions.get('[data-testid="error-back"]').classes()).not.toContain('hf-primary-control')
+  })
+
+  it('wears the brand mark on a card, not floating on a blank canvas', () => {
     const wrapper = mountWithUApp(ForbiddenView, { global: { plugins: [router] } })
 
-    expect(wrapper.get('[data-testid="empty-state-action"]').text()).toBe('Ir al inicio')
-    expect(wrapper.findAll('button')).toHaveLength(2)
+    expect(wrapper.get('.hf-error-card img.hf-error-logo').attributes('alt')).toBe('HounFe')
+    expect(wrapper.find('.hf-error-card .hf-empty-state').exists()).toBe(true)
   })
 })
 
@@ -40,5 +51,14 @@ describe('NotFoundView', () => {
     expect(state.attributes('data-kind')).toBe('empty')
     expect(state.text()).toContain('No encontramos esta página')
     expect(wrapper.text()).not.toContain('404')
+  })
+
+  it('has the brand mark, one primary and a quiet Volver in one even row', () => {
+    const wrapper = mountWithUApp(NotFoundView, { global: { plugins: [router] } })
+    const actions = wrapper.get('.hf-error-actions')
+
+    expect(wrapper.find('.hf-error-card img.hf-error-logo').exists()).toBe(true)
+    expect(actions.findAll('button')).toHaveLength(2)
+    expect(actions.get('[data-testid="error-home"]').text()).toBe('Ir al inicio')
   })
 })
