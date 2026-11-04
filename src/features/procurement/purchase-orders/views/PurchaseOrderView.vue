@@ -71,7 +71,6 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', preventUnload))
           <p v-else-if="selected.status === 'DRAFT' && context.canConfirm && selected.canConfirm !== true" role="status" class="order-help">Completa los avisos del borrador para poder confirmarla.</p>
         </div>
         <p v-if="(!selected || (selected.status === 'DRAFT' && !readOnlyDraft)) && (!context.canReadSupplier || !context.canReadProduct)" role="status" class="order-warning">Para guardar cambios necesitas permiso de lectura de proveedores y productos.</p>
-        <p v-else-if="selected?.status === 'DRAFT' && !context.canUpdate && context.canCreate" role="status" class="order-warning">Borrador guardado. Para seguir editándolo necesitas permiso para editar órdenes de compra.</p>
         <PurchaseOrderReadonly v-if="open && selected && selected.status !== 'DRAFT'" :order="selected" />
         <PurchaseOrderForm v-else-if="open" :key="formKey" :initial="selected" :context="context" :disabled="locked || detailLoading || !canSave" :read-only="readOnlyDraft" @save="workspace.save" @cancel="workspace.close" @dirty="dirty = $event" />
       </template>

@@ -94,6 +94,14 @@ describe('order editor by status', () => {
     expect(wrapper.text()).toContain('Continuar borrador')
     wrapper.unmount()
   })
+  it('does not claim a create-only user just saved a draft they only opened', () => {
+    grants.add('create:ProcurementPurchaseOrder'); grants.add('read:Product'); grants.add('read:ProcurementSupplier')
+    set('selected', order); set('open', true)
+    const wrapper = mountView()
+    expect(wrapper.text()).toContain('Solo lectura: no tienes permiso para editar este borrador.')
+    expect(wrapper.text()).not.toContain('Borrador guardado')
+    wrapper.unmount()
+  })
   it('titles a draft opened without update permission as read-only, without the catalog-read save hint', () => {
     grants.add('create:ProcurementOrderConfirmation')
     set('selected', order); set('open', true)
