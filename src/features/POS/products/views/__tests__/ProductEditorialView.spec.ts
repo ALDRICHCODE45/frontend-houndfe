@@ -9,14 +9,17 @@ vi.mock('@/core/shared/api/http', () => ({ http }))
 const auth = reactive({ isAuthenticated: true, authPhase: 'authenticated', user: { id: 'u' }, currentTenant: { id: 't' }, permissionsLoaded: true, permissionCodes: [read, update] })
 const route = reactive({ params: { id: 'p1' } })
 vi.mock('@/features/auth/stores/useAuthStore', () => ({ useAuthStore: () => auth }))
-vi.mock('vue-router', () => ({ useRoute: () => route }))
+const routerPush = vi.hoisted(() => vi.fn())
+vi.mock('vue-router', () => ({ useRoute: () => route, useRouter: () => ({ push: routerPush }) }))
+const productGetById = vi.hoisted(() => vi.fn())
+vi.mock('../../api/product.api', () => ({ productApi: { getById: productGetById } }))
 let wrapper: ReturnType<typeof mount>
 function reads(snapshot = state()) {
   http.get.mockImplementation((url: string) => Promise.resolve(url.includes('vocabulary') ? { ...success(), data: vocabularyEnvelope() }
     : url.endsWith('/context') ? { status: 200, data: { variants: [] } } : success(snapshot)))
 }
 const render = async () => { wrapper = mount(ProductEditorialView); await flushPromises() }
-beforeEach(() => { vi.resetAllMocks(); Object.assign(auth, { isAuthenticated: true, authPhase: 'authenticated', user: { id: 'u' }, currentTenant: { id: 't' }, permissionsLoaded: true, permissionCodes: [read, update] }); route.params.id = 'p1'; reads() })
+beforeEach(() => { vi.resetAllMocks(); productGetById.mockResolvedValue({ name: 'Collar ajustable' }); Object.assign(auth, { isAuthenticated: true, authPhase: 'authenticated', user: { id: 'u' }, currentTenant: { id: 't' }, permissionsLoaded: true, permissionCodes: [read, update] }); route.params.id = 'p1'; reads() })
 afterEach(() => wrapper?.unmount())
 
 describe('integrated target workspace', () => {
@@ -24,7 +27,7 @@ describe('integrated target workspace', () => {
     auth.permissionCodes = ['manage:all']
     wrapper = mount(EditorialWorkspace, { props: { productId: 'p1', embedded } })
     await flushPromises()
-    expect(wrapper.text()).toContain('Publicación pendiente de habilitación del backend')
+    expect(wrapper.text()).toContain('La publicación aún no está disponible')
     expect(wrapper.text()).not.toContain('Puedes publicar')
     expect(wrapper.findAll('button').some(item => item.text().includes('Publicar'))).toBe(false)
     wrapper.findComponent({ name: 'EditorialPublication' }).vm.$emit('publish', null)
@@ -37,7 +40,7 @@ describe('integrated target workspace', () => {
   it('does not promise publication to a read-and-publish user without update access', async () => {
     auth.permissionCodes = [read, publish]
     await render()
-    expect(wrapper.text()).toContain('Publicación pendiente de habilitación del backend')
+    expect(wrapper.text()).toContain('La publicación aún no está disponible')
     expect(wrapper.text()).not.toContain('Puedes publicar')
     expect(wrapper.find('form').exists()).toBe(false)
     expect(wrapper.findAll('button').some(item => item.text().includes('Publicar'))).toBe(false)
@@ -100,7 +103,7 @@ describe('integrated target workspace', () => {
     http.get.mockImplementation((url: string) => Promise.resolve(url.includes('vocabulary') ? { ...success(), data: vocabularyEnvelope() }
       : url.endsWith('/context') ? { status: 200, data: { variants: [] } } : { ...success(), data: { ...success().data, state: { ...state(), draft: { revision: 1, basePublishedRevision: null, document: { secret: 'DO NOT DISPLAY' } } } } }))
     await render()
-    expect(wrapper.text()).toContain('No se pudo consultar')
+    expect(wrapper.text()).toContain('No se pudo cargar el contenido editorial')
     expect(wrapper.get('.hf-empty-state[data-kind="error"]').attributes('role')).toBe('alert')
     expect(wrapper.get('[data-testid="empty-state-action"]').text()).toContain('Reintentar')
     expect(wrapper.text()).not.toContain('DO NOT DISPLAY')

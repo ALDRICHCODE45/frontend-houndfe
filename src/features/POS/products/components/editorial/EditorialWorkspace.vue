@@ -13,7 +13,10 @@ const props = defineProps<{
   productId: string
   embedded?: boolean
   activeSection?: 'content' | 'review'
+  /** Label of the way back shown when the content is not found; omit for none. */
+  backLabel?: string
 }>()
+const emit = defineEmits<{ back: [] }>()
 defineSlots<{
   summary?(props: {
     title: string | null | undefined; draftRevision: number | null; publishedRevision: number | null
@@ -21,7 +24,7 @@ defineSlots<{
   }): unknown
 }>()
 const editor = useEditorialEditor(() => props.productId)
-const { lifecycle, vocabulary, qualification, loading, errorMessage, metadataMessage, sections, issues, editable, canSave, canInitialize } = editor
+const { lifecycle, vocabulary, qualification, loading, errorMessage, readStatus, metadataMessage, sections, issues, editable, canSave, canInitialize } = editor
 const { authoritative, buffer, canRead, canWrite, isPending, receipt, outcome, error, pendingIntent } = lifecycle
 const { canPublish, canDiscard, publishIssues, hasUnsavedChanges } = editor
 const publishPermission = lifecycle.canPublish
@@ -69,8 +72,10 @@ const warnings = computed(() => (receipt.value?.state.warnings ?? []).map(warnin
   const bounded = (text: string) => text.slice(0, 80)
   return `${family?.label ?? 'Familia no disponible'} · ${definition?.label ?? 'Atributo no disponible'} · ${option?.label ?? bounded(warning.optionCode)} · ${warning.owner === 'product' ? 'Producto' : variant ? `${variant.name} · ${variant.id.slice(0, 8)}` : warning.variantId ? `Presentación ${bounded(warning.variantId)}` : 'Sin presentación'}`
 }))
+// Not found, refused and failed reads are three different states (S10).
+const notFound = computed(() => Boolean(errorMessage.value) && readStatus.value === 404)
+const forbidden = computed(() => !canRead.value || readStatus.value === 401 || readStatus.value === 403)
 const refreshLabel = computed(() => {
-  if (loading.value) return 'Actualizando…'
   if (!canWrite.value) return 'Actualizar contenido'
   return buffer.value ? 'Consultar y conservar cambios' : 'Consultar y cargar borrador'
 })
@@ -89,7 +94,6 @@ async function submit() { await editor.save() }
     <header class="hf-page-header editorial-header">
       <div class="editorial-heading">
         <component :is="embedded ? 'h2' : 'h1'" id="editorial-workspace-title" class="hf-page-title">Contenido editorial</component>
-        <p class="hf-page-subtitle">Guardar no publica el contenido.</p>
       </div>
       <div class="editorial-actions">
         <button class="editorial-button" type="button" data-testid="refresh-retain" :disabled="!canRead || loading || isPending" @click="refreshFromHeader">{{ refreshLabel }}</button>
@@ -98,24 +102,45 @@ async function submit() { await editor.save() }
       </div>
     </header>
     <p v-if="!canWrite" class="editorial-notice">Solo consulta. Para editar necesitas acceso de administrador en el tenant seleccionado o permisos editoriales de lectura y actualización.</p>
-    <p v-if="activeSection === 'content' || (!canWrite && !publishPermission)" role="status" class="editorial-notice">Publicación pendiente de habilitación del backend</p>
     <div v-if="discardPending && canRead" role="group" aria-labelledby="discard-title" class="editorial-panel confirmation">
       <h2 id="discard-title">Descartar cambios locales y consultar</h2><p>El borrador local se reemplazará con el resultado de una nueva consulta. Esta acción no envía cambios al servidor.</p>
       <div class="editorial-actions"><button type="button" class="editorial-button" data-testid="cancel-discard" @click="discardPending = false">Cancelar</button><button type="button" class="editorial-button" data-testid="confirm-discard" :disabled="loading || isPending" @click="discard">Descartar cambios y consultar</button></div>
     </div>
     <EmptyState
-      v-if="errorMessage"
-      :kind="canRead ? 'error' : 'forbidden'"
+      v-if="notFound"
+      title="No encontramos el contenido editorial"
+      description="El producto no existe o ya no tienes acceso a él."
+      :action-label="backLabel"
+      action-icon="i-lucide-arrow-left"
+      @action="emit('back')"
+    />
+    <EmptyState
+      v-else-if="errorMessage && forbidden"
+      kind="forbidden"
       :title="errorMessage"
-      :action-label="canRead ? 'Reintentar' : undefined"
+    />
+    <EmptyState
+      v-else-if="errorMessage"
+      kind="error"
+      title="No se pudo cargar el contenido editorial"
+      description="Revisa tu conexión e inténtalo de nuevo."
+      action-label="Reintentar"
       @action="refreshFromHeader"
     />
     <template v-else>
       <div v-if="loading" role="status" class="editorial-loading" data-testid="editorial-skeleton" aria-busy="true">
         <span class="sr-only">{{ authoritative ? 'Actualizando contenido editorial…' : 'Cargando contenido editorial…' }}</span>
         <template v-if="!authoritative">
-          <USkeleton class="h-24 w-full rounded-xl" />
-          <USkeleton class="h-48 w-full rounded-xl" />
+          <div class="editorial-skeleton-panel" data-skeleton="section">
+            <div class="editorial-skeleton-bar animate-pulse h-4 w-40" />
+            <div class="editorial-skeleton-bar animate-pulse h-11 w-full" data-skeleton="field" />
+            <div class="editorial-skeleton-bar animate-pulse h-28 w-full" data-skeleton="field" />
+          </div>
+          <div class="editorial-skeleton-panel" data-skeleton="section">
+            <div class="editorial-skeleton-bar animate-pulse h-4 w-32" />
+            <div class="editorial-skeleton-bar animate-pulse h-11 w-full" />
+            <div class="editorial-skeleton-bar animate-pulse h-11 w-full" />
+          </div>
         </template>
       </div>
       <p v-if="metadataMessage" role="alert" class="editorial-panel warning">{{ metadataMessage }}</p>
@@ -139,16 +164,22 @@ async function submit() { await editor.save() }
           :publication-available="false" :can-write="canWrite" :publish-permission="publishPermission" :can-publish="canPublish" :can-discard="canDiscard"
           :has-unsaved-changes="hasUnsavedChanges" :publish-issues="publishIssues" :busy="loading || isPending"
           :needs-reconciliation="Boolean(pendingIntent)" :vocabulary="vocabulary" :context="qualification" @discard="editor.discard()" />
-        <div v-if="!authoritative.draft" class="editorial-panel">
-          <p v-if="!authoritative.published">Todavía no hay contenido editorial. No existe un borrador ni una versión publicada.</p>
-          <p v-else>La versión publicada permanece intacta. Puedes iniciar un borrador a partir de ella.</p>
-          <button v-if="canWrite" type="button" class="editorial-button" data-testid="initialize" :disabled="!canInitialize" @click="editor.initialize()">{{ authoritative.published ? 'Iniciar borrador desde Publicado' : 'Iniciar borrador vacío' }}</button>
-        </div>
+        <EmptyState
+          v-if="!authoritative.draft"
+          :title="authoritative.published ? 'La versión publicada sigue intacta' : 'Aún no hay contenido editorial'"
+          :description="authoritative.published ? 'Inicia un borrador a partir de ella para editarla.' : 'Crea un borrador para empezar a escribirlo.'"
+          :action-label="canWrite ? (authoritative.published ? 'Iniciar borrador desde lo publicado' : 'Iniciar borrador') : undefined"
+          action-icon="i-lucide-file-plus"
+          action-variant="solid"
+          action-test-id="initialize"
+          :action-loading="isPending"
+          @action="canInitialize && editor.initialize()"
+        />
         <p v-if="invalidHistoryContext" role="status" class="editorial-panel warning">Historial con atributos o contexto no disponibles. Se conserva intacto. Quita o corrige esos atributos en el borrador para poder guardarlo.</p>
         <div v-if="canWrite && buffer && issues.length" role="alert" class="editorial-panel warning"><p>Revisa el contenido antes de guardar. Puedes corregirlo en Contenido.</p><ul><li v-for="(issue, index) in issues" :key="index">{{ issue.valueIndex === undefined ? '' : `Atributo ${issue.valueIndex + 1}: ` }}{{ editorialIssueMessage(issue) }}</li></ul></div>
         <form v-if="canWrite && buffer && vocabulary && qualification" v-show="activeSection !== 'review'" id="editorial-form" class="editorial-form" aria-label="Editar borrador editorial" novalidate @submit.prevent="submit">
           <EditorialContractDocumentFields id="editorial" :model-value="buffer" :vocabulary="vocabulary" :subjects="subjects" :next-id="lifecycle.nextId" :assignment-feedback="assignmentFeedback" :disabled="!editable" @update:model-value="editor.replaceDocument" />
-          <p class="editorial-context">Sin guardado automático. El servidor valida el contenido y el contexto final.</p>
+          <p class="editorial-context">Sin guardado automático. Guardar no publica el contenido. El servidor valida el contenido y el contexto final.</p>
         </form>
         <div v-show="activeSection !== 'content' || !canWrite" class="editorial-state" :aria-busy="loading">
           <section v-for="section in sections" :key="section.key" class="editorial-panel" :aria-labelledby="`editorial-${section.key}`">
@@ -176,6 +207,8 @@ async function submit() { await editor.save() }
 .editorial-actions > button { flex: 1 1 auto; white-space: normal; }
 .editorial-context, .editorial-notice, dt { color: var(--hf-muted); font-size: 14px; line-height: 1.5; }
 .editorial-loading { display: grid; gap: 16px; min-width: 0; }
+.editorial-skeleton-panel { display: grid; gap: 16px; padding: 24px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); background: var(--hf-surface); min-width: 0; }
+.editorial-skeleton-bar { border-radius: var(--hf-radius-control); background: var(--hf-surface-muted); }
 .editorial-notice { padding: 16px; border-left: 3px solid var(--hf-border); }
 .editorial-panel { display: grid; gap: 12px; padding: 24px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); background: var(--hf-surface); overflow-wrap: anywhere; min-width: 0; }
 .editorial-state, .editorial-form { display: grid; gap: 24px; min-width: 0; }

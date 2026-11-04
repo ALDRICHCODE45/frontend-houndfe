@@ -1,21 +1,43 @@
 <script setup lang="ts">
-import { shallowRef } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted, shallowRef } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import EditorialWorkspace from '../components/editorial/EditorialWorkspace.vue'
+import { productApi } from '../api/product.api'
 const route = useRoute()
+const router = useRouter()
 const activeSection = shallowRef<'content' | 'review'>('content')
+const productId = computed(() => (typeof route.params.id === 'string' ? route.params.id : ''))
+const productName = shallowRef('')
+function goBack() {
+  void router.push(productId.value ? `/pos/products/${productId.value}` : '/pos/products')
+}
+function goToProducts() {
+  void router.push('/pos/products')
+}
+// The name is context only: a failed lookup leaves the generic title.
+onMounted(async () => {
+  if (!productId.value) return
+  try {
+    productName.value = (await productApi.getById(productId.value)).name ?? ''
+  } catch {
+    productName.value = ''
+  }
+})
 </script>
 
 <template>
   <main class="hf-theme hf-ui guided-workspace" aria-labelledby="guided-editorial-title">
-    <header>
-      <h1 id="guided-editorial-title" class="hf-page-title">Espacio editorial</h1>
+    <header class="guided-header">
+      <button type="button" class="guided-back" aria-label="Volver al producto" @click="goBack">
+        <UIcon name="i-lucide-arrow-left" class="size-5" aria-hidden="true" />
+      </button>
+      <h1 id="guided-editorial-title" class="hf-page-title line-clamp-2 break-words">{{ productName || 'Producto' }}</h1>
     </header>
     <nav class="editorial-guide" aria-label="Tareas editoriales, sin orden obligatorio">
       <button type="button" :aria-current="activeSection === 'content' ? 'page' : undefined" @click="activeSection = 'content'">Contenido</button>
       <button type="button" :aria-current="activeSection === 'review' ? 'page' : undefined" @click="activeSection = 'review'">Revisar</button>
     </nav>
-    <EditorialWorkspace class="guided-editor" embedded :active-section="activeSection" :product-id="typeof route.params.id === 'string' ? route.params.id : ''">
+    <EditorialWorkspace class="guided-editor" embedded :active-section="activeSection" :product-id="productId" back-label="Volver a productos" @back="goToProducts">
       <template #summary="{ title, draftRevision, publishedRevision, dirty, acknowledged }">
         <aside class="editorial-summary" aria-label="Resumen editorial privado">
           <h2>Resumen editorial</h2>
@@ -34,6 +56,10 @@ const activeSection = shallowRef<'content' | 'review'>('content')
 
 <style scoped>
 .guided-workspace { max-width: 1240px; margin: 0 auto; display: grid; gap: 24px; color: var(--hf-ink); font-family: var(--hf-font); }
+.guided-header { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.guided-back { display: inline-grid; flex: none; place-items: center; width: 44px; height: 44px; border-radius: var(--hf-radius-control); color: var(--hf-muted); }
+.guided-back:hover { background: var(--hf-surface-muted); color: var(--hf-heading); }
+.guided-back:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
 .editorial-guide { display: flex; gap: 4px; border-bottom: 1px solid var(--hf-border); }
 .editorial-guide button { flex: 1; min-height: 44px; padding: 12px 16px; border-radius: var(--hf-radius-control) var(--hf-radius-control) 0 0; color: var(--hf-muted); background: transparent; }
 .editorial-guide button[aria-current="page"] { color: var(--hf-active); background: var(--hf-active-soft); box-shadow: inset 0 -2px var(--hf-active); font-weight: 600; }
