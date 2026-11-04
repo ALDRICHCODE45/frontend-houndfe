@@ -440,7 +440,7 @@ watch(
         <EmptyState
           kind="error"
           title="No se pudo cargar la venta"
-          description="Revisa tu conexión e inténtalo de nuevo."
+          description="Inténtalo de nuevo en un momento."
           action-label="Reintentar"
           action-test-id="sale-detail-retry"
           @action="refetch()"
