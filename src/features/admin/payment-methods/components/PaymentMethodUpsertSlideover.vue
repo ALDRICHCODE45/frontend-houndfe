@@ -50,11 +50,6 @@ const { schema, createState, editState, resetForm, setValues, setCreateField, se
   usePaymentMethodForm(props.mode)
 
 const title = computed(() => (props.mode === 'create' ? 'Crear método de cobro' : 'Editar método de cobro'))
-const description = computed(() =>
-  props.mode === 'create'
-    ? 'Define el nombre, categoría y subtítulo del método. Se crea como activo.'
-    : 'Actualiza el nombre, categoría, subtítulo o estado activo/inactivo.',
-)
 
 const formId = computed(() =>
   props.mode === 'create' ? 'create-payment-method-form' : 'edit-payment-method-form',
@@ -151,7 +146,6 @@ function onSubmit(event: FormSubmitEvent<CreatePaymentMethodFormValues | UpdateP
   <USlideover
     v-model:open="open"
     :title="title"
-    :description="description"
     side="right"
     inset
     :ui="{ content: 'hf-theme hf-ui hf-form-overlay payment-methods-form-portal' }"
@@ -186,7 +180,7 @@ function onSubmit(event: FormSubmitEvent<CreatePaymentMethodFormValues | UpdateP
           />
         </UFormField>
 
-        <UFormField label="Subtítulo (opcional)" name="subtitle" help="Hasta 120 caracteres. Aparece debajo del nombre en la pantalla de cobro.">
+        <UFormField label="Subtítulo (opcional)" name="subtitle" help="Aparece bajo el nombre al cobrar.">
           <UInput
             :model-value="activeState.subtitle ?? ''"
             class="w-full"
@@ -200,7 +194,7 @@ function onSubmit(event: FormSubmitEvent<CreatePaymentMethodFormValues | UpdateP
           v-if="props.mode === 'edit'"
           label="Estado"
           name="isActive"
-          help="Desactivar oculta el método al cobrar. Reactivar lo vuelve a mostrar."
+          help="Un método inactivo no aparece al cobrar."
         >
           <div class="flex items-center gap-3">
             <USwitch

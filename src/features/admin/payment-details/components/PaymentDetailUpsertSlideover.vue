@@ -42,11 +42,6 @@ const { schema, createState, editState, resetForm, setValues, setCreateField, se
   usePaymentDetailForm(props.mode)
 
 const title = computed(() => (props.mode === 'create' ? 'Crear cuenta bancaria' : 'Editar cuenta bancaria'))
-const description = computed(() =>
-  props.mode === 'create'
-    ? 'Completa los datos bancarios. La cuenta se crea como activa.'
-    : 'Actualiza los datos bancarios de la cuenta.',
-)
 
 const formId = computed(() =>
   props.mode === 'create' ? 'create-payment-detail-form' : 'edit-payment-detail-form',
@@ -109,7 +104,6 @@ function onSubmit(event: FormSubmitEvent<CreatePaymentDetailFormValues | UpdateP
   <USlideover
     v-model:open="open"
     :title="title"
-    :description="description"
     side="right"
     inset
     :ui="{ content: 'hf-theme hf-ui hf-form-overlay payment-details-form-portal' }"

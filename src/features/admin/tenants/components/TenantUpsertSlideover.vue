@@ -33,11 +33,6 @@ const { schema, createState, editState, resetForm, setValues, updateName, update
 
 const title = computed(() => (props.mode === 'create' ? 'Crear sucursal' : 'Editar sucursal'))
 
-const description = computed(() =>
-  props.mode === 'create'
-    ? 'Completa los datos para crear una nueva sucursal'
-    : 'Actualiza los datos de la sucursal',
-)
 
 const formId = computed(() =>
   props.mode === 'create' ? 'create-tenant-form' : 'edit-tenant-form',
@@ -87,7 +82,6 @@ function handleSlugInput(value: string) {
   <USlideover
     v-model:open="open"
     :title="title"
-    :description="description"
     side="right"
     inset
     :ui="{ content: 'hf-theme hf-ui hf-form-overlay tenants-form-portal' }"

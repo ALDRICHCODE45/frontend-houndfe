@@ -21,16 +21,6 @@ function computeSlideoverTitle(mode: 'create' | 'edit'): string {
 }
 
 /**
- * Runtime computed logic for slideover description based on mode.
- * Mirrors the component's `description` computed property.
- */
-function computeSlideoverDescription(mode: 'create' | 'edit'): string {
-  return mode === 'create'
-    ? 'Completa los datos para crear una nueva sucursal'
-    : 'Actualiza los datos de la sucursal'
-}
-
-/**
  * Runtime computed logic for form ID based on mode.
  * Mirrors the component's `formId` computed property.
  */
@@ -72,20 +62,6 @@ describe('TenantUpsertSlideover - Mode-specific title runtime behavior', () => {
     expect(createTitle).not.toBe(editTitle)
     expect(createTitle).toContain('Crear')
     expect(editTitle).toContain('Editar')
-  })
-})
-
-describe('TenantUpsertSlideover - Mode-specific description runtime behavior', () => {
-  it('should compute create instruction description for create mode', () => {
-    const result = computeSlideoverDescription('create')
-    expect(result).toBe('Completa los datos para crear una nueva sucursal')
-    expect(result).toContain('crear')
-  })
-
-  it('should compute update instruction description for edit mode', () => {
-    const result = computeSlideoverDescription('edit')
-    expect(result).toBe('Actualiza los datos de la sucursal')
-    expect(result).toContain('Actualiza')
   })
 })
 
