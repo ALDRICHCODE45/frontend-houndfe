@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, getCurrentInstance, onBeforeUnmount, shallowRef, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import EditorialPublication from './EditorialPublication.vue'
 import { useEditorialEditor, editorialErrorMessage, editorialIssueMessage } from '../../composables/useEditorialEditor'
 import EditorialContractDocumentFields from './EditorialContractDocumentFields.vue'
@@ -87,9 +88,8 @@ async function submit() { await editor.save() }
     <div class="editorial-content">
     <header class="hf-page-header editorial-header">
       <div class="editorial-heading">
-        <p class="editorial-eyebrow">PRODUCTO · CONTENIDO EDITORIAL</p>
         <component :is="embedded ? 'h2' : 'h1'" id="editorial-workspace-title" class="hf-page-title">Contenido editorial</component>
-        <p class="hf-page-subtitle">Edita el borrador por separado de los datos operativos. Guardar no publica el contenido.</p>
+        <p class="hf-page-subtitle">Guardar no publica el contenido.</p>
       </div>
       <div class="editorial-actions">
         <button class="editorial-button" type="button" data-testid="refresh-retain" :disabled="!canRead || loading || isPending" @click="refreshFromHeader">{{ refreshLabel }}</button>
@@ -103,9 +103,21 @@ async function submit() { await editor.save() }
       <h2 id="discard-title">Descartar cambios locales y consultar</h2><p>El borrador local se reemplazará con el resultado de una nueva consulta. Esta acción no envía cambios al servidor.</p>
       <div class="editorial-actions"><button type="button" class="editorial-button" data-testid="cancel-discard" @click="discardPending = false">Cancelar</button><button type="button" class="editorial-button" data-testid="confirm-discard" :disabled="loading || isPending" @click="discard">Descartar cambios y consultar</button></div>
     </div>
-    <p v-if="errorMessage" role="alert" class="editorial-panel">{{ errorMessage }}</p>
+    <EmptyState
+      v-if="errorMessage"
+      :kind="canRead ? 'error' : 'forbidden'"
+      :title="errorMessage"
+      :action-label="canRead ? 'Reintentar' : undefined"
+      @action="refreshFromHeader"
+    />
     <template v-else>
-      <p v-if="loading" role="status">{{ authoritative ? 'Actualizando contenido editorial…' : 'Cargando contenido editorial…' }}</p>
+      <div v-if="loading" role="status" class="editorial-loading" data-testid="editorial-skeleton" aria-busy="true">
+        <span class="sr-only">{{ authoritative ? 'Actualizando contenido editorial…' : 'Cargando contenido editorial…' }}</span>
+        <template v-if="!authoritative">
+          <USkeleton class="h-24 w-full rounded-xl" />
+          <USkeleton class="h-48 w-full rounded-xl" />
+        </template>
+      </div>
       <p v-if="metadataMessage" role="alert" class="editorial-panel warning">{{ metadataMessage }}</p>
       <div v-if="outcome || receipt" class="editorial-panel" aria-live="polite">
         <template v-if="outcome === 'acknowledged' || receipt">
@@ -162,12 +174,12 @@ async function submit() { await editor.save() }
 .editorial-heading { flex: 1 1 320px; min-width: 0; }
 .editorial-actions { display: flex; flex-wrap: wrap; gap: 12px; min-width: 0; }
 .editorial-actions > button { flex: 1 1 auto; white-space: normal; }
-.editorial-eyebrow, .editorial-context, .editorial-notice, dt { color: var(--hf-muted); font-size: 14px; line-height: 1.5; }
-.editorial-eyebrow { margin-bottom: 8px; }
+.editorial-context, .editorial-notice, dt { color: var(--hf-muted); font-size: 14px; line-height: 1.5; }
+.editorial-loading { display: grid; gap: 16px; min-width: 0; }
 .editorial-notice { padding: 16px; border-left: 3px solid var(--hf-border); }
 .editorial-panel { display: grid; gap: 12px; padding: 24px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); background: var(--hf-surface); overflow-wrap: anywhere; min-width: 0; }
 .editorial-state, .editorial-form { display: grid; gap: 24px; min-width: 0; }
-.editorial-panel h2 { font-size: 18px; font-weight: 600; color: var(--hf-heading); }
+.editorial-panel h2 { font-size: 16px; font-weight: 600; color: var(--hf-heading); }
 .editorial-facts { display: grid; gap: 16px; margin: 16px 0; }
 .editorial-facts dd { margin: 4px 0 0; white-space: pre-wrap; }
 .editorial-details { margin-top: 16px; border-top: 1px solid var(--hf-border); }

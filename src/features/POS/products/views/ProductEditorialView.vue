@@ -10,7 +10,6 @@ const activeSection = shallowRef<'content' | 'review'>('content')
   <main class="hf-theme hf-ui guided-workspace" aria-labelledby="guided-editorial-title">
     <header>
       <h1 id="guided-editorial-title" class="hf-page-title">Espacio editorial</h1>
-      <p class="hf-page-subtitle">Trabaja el contenido y revisa lo guardado, sin un orden obligatorio.</p>
     </header>
     <nav class="editorial-guide" aria-label="Tareas editoriales, sin orden obligatorio">
       <button type="button" :aria-current="activeSection === 'content' ? 'page' : undefined" @click="activeSection = 'content'">Contenido</button>
@@ -27,7 +26,6 @@ const activeSection = shallowRef<'content' | 'review'>('content')
             <div><dt>Publicado</dt><dd>{{ publishedRevision === null ? 'Sin versión publicada' : `Revisión consultada ${publishedRevision}` }}</dd></div>
             <div><dt>Última solicitud</dt><dd>{{ acknowledged ? 'Acuse histórico; no es el estado actual' : 'Sin acuse histórico' }}</dd></div>
           </dl>
-          <p class="summary-help">Guardar no publica. Sin guardado automático. Los datos operativos se administran por separado.</p>
         </aside>
       </template>
     </EditorialWorkspace>
@@ -44,12 +42,11 @@ const activeSection = shallowRef<'content' | 'review'>('content')
 .guided-editor :deep(.editorial-content) { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
 .guided-editor > .editorial-summary { grid-column: 2; position: sticky; top: 24px; }
 .editorial-summary { min-width: 0; padding: 24px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); background: var(--hf-surface); overflow-wrap: anywhere; }
-.editorial-summary h2 { color: var(--hf-heading); font-size: 18px; font-weight: 600; }
+.editorial-summary h2 { color: var(--hf-heading); font-size: 16px; font-weight: 600; }
 .summary-title { margin-top: 12px; white-space: pre-wrap; }
 .summary-states { display: grid; gap: 16px; margin-top: 24px; font-size: 14px; }
-.summary-states dt, .summary-help { color: var(--hf-muted); }
+.summary-states dt { color: var(--hf-muted); }
 .summary-states dd { margin-top: 4px; }
-.summary-help { margin-top: 24px; font-size: 13px; line-height: 1.5; }
 @media (max-width: 800px) {
   .guided-editor { grid-template-columns: minmax(0, 1fr); }
   .guided-editor > .editorial-summary { grid-column: 1; position: static; padding: 16px; }
