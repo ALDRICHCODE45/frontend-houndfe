@@ -56,8 +56,9 @@ const menuItems = computed(() => {
 </script>
 
 <template>
-  <!-- Stop clicks and keys here so a clickable parent row never opens from the menu. -->
-  <span v-if="actions.length > 0" class="inline-flex" @click.stop @keydown.stop>
+  <!-- Stop clicks and the keys that activate a row, so a clickable parent row never opens from the menu;
+       Escape and Tab still reach an enclosing dialog. -->
+  <span v-if="actions.length > 0" class="inline-flex" @click.stop @keydown.enter.stop @keydown.space.stop>
     <UDropdownMenu
       :items="menuItems"
       :content="{ align: 'end' }"
