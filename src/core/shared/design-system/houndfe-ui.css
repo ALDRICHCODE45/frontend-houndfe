@@ -106,6 +106,20 @@ body.hf-app {
   outline-offset: 2px;
 }
 
+/* Disabled primary: the blue pairing is replaced by muted tokens instead of
+ * fading it. Opacity drags the light dark-mode action toward the dark surface
+ * and its label with it (washed out, ~3.6:1); Nuxt UI adds its own
+ * `disabled:opacity-75`, so the opacity is pinned to 1 here and the contrast
+ * comes from tokens that are legible in both themes. */
+.hf-ui .hf-primary-control:disabled,
+.hf-ui .hf-primary-control[aria-disabled='true'] {
+  border-color: var(--hf-border);
+  background-color: var(--hf-surface-muted);
+  color: var(--hf-muted);
+  opacity: 1;
+  cursor: not-allowed;
+}
+
 /* ── Page header (kept outside the data surface) ─────────────────────────── */
 
 .hf-ui .hf-page-header {
