@@ -61,6 +61,23 @@ describe('EditorialHistoryDrawer', () => {
     expect(items[0]!.textContent).toContain('Versión publicada')
   })
 
+  it('names each version once, with a plain line of what it is, instead of repeating the name in a badge', async () => {
+    await open({ savedAt: new Date() })
+    const items = Array.from(dialog().querySelectorAll('[data-testid="history-timeline"] > li')).map(item => item.textContent ?? '')
+    expect(items[0]!.match(/Borrador/g)).toHaveLength(1)
+    expect(items[1]!.match(/Versión publicada/g)).toHaveLength(1)
+    expect(items[0]).toContain('Lo que guardas con «Guardar»')
+    expect(items[1]).toContain('Lo que verá el catálogo')
+    expect(dialog().querySelector('.hf-status-badge')).toBeNull()
+  })
+
+  it('explains, in a note of its own, why there is nothing to compare yet', async () => {
+    await open({ hasPublished: false })
+    const note = dialog().querySelector('[data-testid="history-empty"]')!
+    expect(note.textContent).toContain('Aún no hay una versión publicada con la que comparar.')
+    expect(note.textContent).toContain('Cuando la haya, aquí verás en qué cambia tu borrador.')
+  })
+
   it('compares in two columns, Publicado and Borrador, and only the changed fields', async () => {
     await open({ changes: [
       { key: 'title', label: 'Título comercial', before: 'Pro Plan Adulto 15 kg', after: 'Alimento Premium 15 kg' },
