@@ -182,12 +182,32 @@ function resetMocks() {
 beforeEach(resetMocks)
 
 describe('TenantCatalogSettingsView — loading state (REQ-12)', () => {
-  it('renders USkeleton placeholders while the query is loading', () => {
+  it('renders placeholders while the query is loading', () => {
     queryMock.isLoading.value = true
     const wrapper = mountWithUApp(TenantCatalogSettingsView)
     expect(wrapper.findAll('.animate-pulse').length).toBeGreaterThan(0)
     // No read surface while loading.
     expect(wrapper.find('[data-testid="catalog-settings-read"]').exists()).toBe(false)
+  })
+
+  it('shapes the skeleton like the form: publication row, two columns of label + control', () => {
+    queryMock.isLoading.value = true
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    const skeleton = wrapper.get('[data-testid="settings-loading"]')
+    expect(skeleton.attributes('aria-busy')).toBe('true')
+    expect(skeleton.findAll('[data-skeleton="publication"]')).toHaveLength(1)
+    expect(skeleton.findAll('[data-skeleton="section"]')).toHaveLength(2)
+    expect(skeleton.findAll('[data-skeleton="control"]').length).toBeGreaterThanOrEqual(3)
+  })
+
+  it.each([
+    ['loading', () => { queryMock.isLoading.value = true }],
+    ['error', () => { queryMock.isLoading.value = false; queryMock.isError.value = true }],
+  ])('draws no empty footer bar while %s', (_name, arrange) => {
+    arrange()
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    expect(wrapper.find('[data-slot="footer"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="settings-footer"]').exists()).toBe(false)
   })
 })
 

@@ -17,6 +17,12 @@
   color: var(--hf-ink);
 }
 
+/* Loading shapes: neutral bars on the muted surface, never blank boxes. */
+.notifications-visual .notifications-skeleton-bar {
+  background-color: var(--hf-surface-muted);
+  border-radius: 6px;
+}
+
 /* ── Recipient chips ─────────────────────────────────────────────────────── */
 
 /* A selected recipient is neutral; one that is no longer assignable is the

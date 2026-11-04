@@ -145,18 +145,26 @@ describe('CatalogPriceContextsField — Nuxt UI select pattern (U9)', () => {
     expect(wrapper.find(DEFAULT_SELECT).classes()).toContain('w-full')
   })
 
-  it('wires each visible label to its rendered select trigger', () => {
+  it('names the first select with the section heading, not a second label saying the same', () => {
+    const wrapper = mountField()
+    const heading = wrapper.get('h2')
+
+    expect(heading.text()).toBe('Listas de precios públicas')
+    // One visible name per control: the heading for the allowlist, a label for the default.
+    expect(wrapper.findAll('label').map((label) => label.text())).toEqual(['Lista predeterminada'])
+    expect(wrapper.find(MULTI_SELECT).attributes('aria-labelledby')).toBe(heading.attributes('id'))
+    expect(wrapper.text()).not.toContain('Listas visibles')
+  })
+
+  it('wires the visible label to its rendered select trigger', () => {
     const wrapper = mountField()
     const labels = wrapper.findAll('label')
 
-    expect(labels.map((label) => label.text())).toEqual(['Listas visibles', 'Lista predeterminada'])
     const targets = labels.map((label) => label.attributes('for'))
     expect(targets.every((target) => Boolean(target))).toBe(true)
-    expect(wrapper.find(MULTI_SELECT).attributes('id')).toBe(targets[0])
-    expect(wrapper.find(DEFAULT_SELECT).attributes('id')).toBe(targets[1])
+    expect(wrapper.find(DEFAULT_SELECT).attributes('id')).toBe(targets[0])
     // reka-ui hardcodes an English "Show popup" name on the trigger, so the
     // Spanish accessible names must be pinned explicitly on the controls.
-    expect(wrapper.find(MULTI_SELECT).attributes('aria-label')).toBe('Listas visibles')
     expect(wrapper.find(DEFAULT_SELECT).attributes('aria-label')).toBe('Lista predeterminada')
     expect(wrapper.find(DEFAULT_SELECT).attributes('aria-haspopup')).toBe('listbox')
   })

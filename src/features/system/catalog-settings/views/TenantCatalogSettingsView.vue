@@ -148,18 +148,44 @@ async function submit() {
       <!-- Card body: loading skeleton, error state, editable form, or read-only view.
          Inner responsive padding matches the Products list pattern. -->
       <div class="px-3 py-3 sm:px-4 sm:py-4">
-        <!-- Loading state: skeleton cards matching the three logical sections;
-           no enabled controls, no synthetic values. -->
-        <template v-if="query.isLoading.value">
+        <!-- Loading state: the form's own shape (publication row, two columns of
+           label + control); no enabled controls, no synthetic values. -->
+        <div
+          v-if="query.isLoading.value"
+          data-testid="settings-loading"
+          role="status"
+          aria-busy="true"
+          class="flex flex-col gap-6 sm:gap-8"
+        >
+          <span class="sr-only">Cargando la configuración del catálogo…</span>
           <div
-            v-for="i in 3"
-            :key="i"
-            class="mb-4 rounded-lg border border-default bg-default p-6 last:mb-0"
+            data-skeleton="publication"
+            class="settings-skeleton-block flex animate-pulse items-center gap-3 rounded-lg px-4 py-3"
+            aria-hidden="true"
           >
-            <USkeleton class="mb-3 h-5 w-1/3" />
-            <USkeleton class="h-4 w-2/3" />
+            <span class="settings-skeleton-bar h-5 w-9 rounded-full" />
+            <span class="flex flex-col gap-2">
+              <span class="settings-skeleton-bar h-4 w-24" />
+              <span class="settings-skeleton-bar h-3 w-56 max-w-full" />
+            </span>
           </div>
-        </template>
+          <div
+            class="grid grid-cols-1 gap-6 border-t border-default pt-6 sm:gap-8 sm:pt-8 lg:grid-cols-2"
+            aria-hidden="true"
+          >
+            <div
+              v-for="n in 2"
+              :key="n"
+              data-skeleton="section"
+              class="flex animate-pulse flex-col gap-3"
+            >
+              <span class="settings-skeleton-bar h-4 w-40" />
+              <span data-skeleton="control" class="settings-skeleton-bar h-11 w-full" />
+              <span class="settings-skeleton-bar h-3 w-48 max-w-full" />
+              <span data-skeleton="control" class="settings-skeleton-bar h-11 w-full" />
+            </div>
+          </div>
+        </div>
 
         <!-- GET error state: explicit retry, never a 404-as-default fallback. -->
         <EmptyState
@@ -193,14 +219,13 @@ async function submit() {
         </template>
       </div>
 
-      <template #footer>
+      <template v-if="showFooter" #footer>
         <!-- Save/read-only action surface — non-sticky, inside the card.
            Renders only when content is loaded; connects to dirty/loading state
            through the form composable refs. The no-update-permission notice
            appears here so the read-only surface stays focused on its data.
            Responsive: mobile-stacked with full-width button, sm horizontal with auto-width button. -->
         <div
-          v-if="showFooter"
           class="flex w-full flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end"
           data-testid="settings-footer"
         >

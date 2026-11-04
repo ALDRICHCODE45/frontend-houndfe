@@ -15,3 +15,16 @@
   background-color: var(--hf-surface);
   color: var(--hf-ink);
 }
+
+/* Loading shapes: neutral bars on the muted surface, never blank boxes. */
+.catalog-settings-visual .settings-skeleton-block {
+  background-color: var(--hf-surface-muted);
+}
+.catalog-settings-visual .settings-skeleton-bar {
+  display: block;
+  border-radius: 6px;
+  background-color: var(--hf-surface-muted);
+}
+.catalog-settings-visual .settings-skeleton-block .settings-skeleton-bar {
+  background-color: var(--hf-border);
+}

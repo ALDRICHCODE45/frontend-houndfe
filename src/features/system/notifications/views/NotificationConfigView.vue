@@ -97,17 +97,38 @@ function onSave() {
       @action="onRetry"
     />
 
-    <!-- Loading state — placeholders for the three cards (REQ-9). -->
-    <template v-else-if="isLoading">
-      <div
-        v-for="i in 3"
-        :key="i"
-        class="notifications-section rounded-lg p-6"
-      >
-        <USkeleton class="mb-3 h-5 w-1/3" />
-        <USkeleton class="h-4 w-2/3" />
-      </div>
-    </template>
+    <!-- Loading state — the same three cards, with the shapes of their content (REQ-9). -->
+    <div
+      v-else-if="isLoading"
+      data-testid="notifications-loading"
+      role="status"
+      aria-busy="true"
+      class="flex flex-col gap-6"
+    >
+      <span class="sr-only">Cargando la configuración de notificaciones…</span>
+      <section class="notifications-section animate-pulse rounded-lg p-6" aria-hidden="true">
+        <div data-skeleton="master" class="flex items-center gap-3">
+          <span class="notifications-skeleton-bar h-5 w-9 rounded-full" />
+          <span class="notifications-skeleton-bar h-4 w-32" />
+        </div>
+      </section>
+      <section class="notifications-section animate-pulse rounded-lg p-6" aria-hidden="true">
+        <span class="notifications-skeleton-bar mb-4 block h-5 w-40" />
+        <span data-skeleton="recipients" class="notifications-skeleton-bar block h-11 w-full" />
+        <span class="notifications-skeleton-bar mt-2 block h-3 w-24" />
+      </section>
+      <section class="notifications-section animate-pulse rounded-lg p-6" aria-hidden="true">
+        <span class="notifications-skeleton-bar mb-4 block h-5 w-44" />
+        <div class="flex flex-col gap-2">
+          <span
+            v-for="n in 4"
+            :key="n"
+            data-skeleton="module-row"
+            class="notifications-skeleton-bar block h-11 w-full"
+          />
+        </div>
+      </section>
+    </div>
 
     <template v-else>
       <!-- Card 1 — Master toggle. -->

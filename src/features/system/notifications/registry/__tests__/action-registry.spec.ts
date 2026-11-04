@@ -140,11 +140,11 @@ describe('EXTENSION GUARANTEE — adding a module is registry-only', () => {
 })
 
 describe('HR module entry (S2 — hr-validation-notifications)', () => {
-  it('contains the "hr" module with the exact backend-specified moduleLabel', () => {
-    // backend-specified string — keep EXACTLY
+  it('contains the "hr" module, labelled in sentence case', () => {
+    // Display copy only (the module key is the contract): no Title Case.
     const hr = ACTION_REGISTRY.find((m) => m.moduleKey === 'hr')
     expect(hr).toBeDefined()
-    expect(hr!.moduleLabel).toBe('Recursos Humanos')
+    expect(hr!.moduleLabel).toBe('Recursos humanos')
   })
 
   it('contains the TIME_OFF_REQUESTED action with the exact backend-specified label', () => {

@@ -16,7 +16,7 @@
  * follow draft order, additions follow selection order. Props are never
  * mutated.
  */
-import { computed } from 'vue'
+import { computed, useId } from 'vue'
 import type {
   CatalogSettingsDraft,
   CatalogPriceContextDto,
@@ -54,6 +54,7 @@ function resolveName(priceListId: string): string {
   )
 }
 
+const headingId = useId()
 const selectedIds = computed(() => [...props.draft.publicPriceListIds])
 
 /** Selectable allowlist: every visible candidate plus any accepted/stale draft
@@ -115,11 +116,11 @@ function onDefaultChange(next: unknown) {
 <template>
   <fieldset class="contents" data-testid="contexts-field">
     <legend class="sr-only">Listas de precios públicas</legend>
-    <h2 class="text-sm font-semibold text-default">Listas de precios públicas</h2>
+    <h2 :id="headingId" class="text-sm font-semibold text-default">Listas de precios públicas</h2>
 
     <div class="flex w-full flex-col gap-4">
-      <!-- Visible allowlist: one searchable multiple selection. -->
-      <UFormField label="Listas visibles" class="w-full">
+      <!-- Visible allowlist: one searchable multiple selection, named by the heading above. -->
+      <UFormField class="w-full">
         <USelectMenu
           :ui="{ content: 'hf-theme hf-ui hf-form-overlay' }"
           :model-value="selectedIds"
@@ -129,7 +130,7 @@ function onDefaultChange(next: unknown) {
           multiple
           :search-input="{ placeholder: 'Buscar lista de precios...' }"
           placeholder="Buscar lista de precios..."
-          aria-label="Listas visibles"
+          :aria-labelledby="headingId"
           class="w-full"
           :disabled="props.disabled"
           data-testid="public-lists-select"

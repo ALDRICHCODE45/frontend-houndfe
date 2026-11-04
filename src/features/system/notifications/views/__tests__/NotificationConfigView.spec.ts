@@ -179,6 +179,12 @@ describe('NotificationConfigView — four states (S10)', () => {
     const wrapper = mountWithUApp(NotificationConfigView)
     expect(wrapper.findAll('.notifications-section')).toHaveLength(3)
     expect(wrapper.findAll('.animate-pulse').length).toBeGreaterThan(0)
+    // Shaped like the content: the toggle row, the recipients select, the four module rows.
+    const skeleton = wrapper.get('[data-testid="notifications-loading"]')
+    expect(skeleton.attributes('aria-busy')).toBe('true')
+    expect(skeleton.findAll('[data-skeleton="master"]')).toHaveLength(1)
+    expect(skeleton.findAll('[data-skeleton="recipients"]')).toHaveLength(1)
+    expect(skeleton.findAll('[data-skeleton="module-row"]')).toHaveLength(4)
     expect(wrapper.find('[data-testid="master-toggle"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="notifications-footer"]').exists()).toBe(false)
   })

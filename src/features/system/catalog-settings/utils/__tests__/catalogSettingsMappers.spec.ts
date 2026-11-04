@@ -129,6 +129,22 @@ describe('validateCatalogSettingsDraft', () => {
   })
 })
 
+describe('validateCatalogSettingsDraft — one cause, one message', () => {
+  it('says only that a list is missing when publishing with no lists (the default follows from it)', () => {
+    const errors = validateCatalogSettingsDraft(
+      D({ publicPriceListIds: [], catalogDefaultPriceListId: null }),
+    )
+    expect(errors).toEqual(['Publicar el catálogo requiere al menos una lista de precios pública'])
+  })
+
+  it('asks for the default only once there are lists to choose from', () => {
+    const errors = validateCatalogSettingsDraft(
+      D({ publicPriceListIds: ['pl_a'], catalogDefaultPriceListId: null }),
+    )
+    expect(errors).toEqual(['Publicar el catálogo requiere una lista de precios predeterminada'])
+  })
+})
+
 describe('isCatalogSettingsDirty', () => {
   it.each([
     ['identical ⇒ not dirty', D(), D(), false],
