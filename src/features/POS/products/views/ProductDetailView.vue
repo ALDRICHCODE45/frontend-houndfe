@@ -33,6 +33,11 @@ import ProductVariantsTable, {
   type ProductVariantRow,
 } from '../components/ProductVariantsTable.vue'
 import { productStatusConfig } from '../utils/productStatusConfig.utils'
+import {
+  hasStockOnHand,
+  productStockError,
+  type ProductStockErrorField,
+} from '../utils/productStockErrors'
 import ProductImageGallery from '../components/ProductImageGallery.vue'
 import CategorySelect from '../components/CategorySelect.vue'
 import SatKeySelect from '../components/SatKeySelect.vue'
@@ -233,6 +238,43 @@ function openConfirm(description: string, onConfirm: () => void) {
 function handleConfirm() {
   confirmState.value.onConfirm()
   confirmState.value.open = false
+}
+
+// O1 S7: first variant of a product with stock — the backend zeroes the
+// product stock, so ask before creating it.
+const firstVariantConfirm = ref<{ open: boolean; payload: CreateVariantPayload | null }>({
+  open: false,
+  payload: null,
+})
+
+function confirmFirstVariant() {
+  const { payload } = firstVariantConfirm.value
+  firstVariantConfirm.value = { open: false, payload: null }
+  if (payload) createVariantMutation.mutate(payload)
+}
+
+// O1 S7: stock error copy, shown next to the field or action it blocks.
+const stockErrors = reactive<Record<ProductStockErrorField, string>>({
+  quantity: '',
+  useStock: '',
+  lots: '',
+  type: '',
+})
+
+function clearStockErrors() {
+  stockErrors.quantity = ''
+  stockErrors.useStock = ''
+  stockErrors.lots = ''
+  stockErrors.type = ''
+}
+
+/** Puts the copy at its field, opens the task that holds it, and returns the copy. */
+function showStockError(error: unknown): string | null {
+  const mapped = productStockError(error)
+  if (!mapped) return null
+  stockErrors[mapped.field] = mapped.message
+  activeTask.value = mapped.field === 'type' ? 'identity' : 'presentations'
+  return mapped.message
 }
 
 const variantState = reactive<VariantFormState>({
@@ -494,6 +536,20 @@ const showLotsCheckbox = computed(() => formState.useStock && !formState.hasVari
 const showStockByVariantMessage = computed(() => formState.hasVariants)
 const showInventoryCard = computed(() => formState.type === 'PRODUCT')
 const showInventoryFields = computed(() => inventoryFieldsVisible(formState.type))
+// Stock moves only by adjustment, so tracking cannot be switched off while units remain.
+const stockOnHand = computed(() => {
+  if (isCreateMode.value || !product.value) return false
+  const variantStock = variantsList.value.reduce((total, variant) => total + variant.quantity, 0)
+  return hasStockOnHand({
+    quantity: product.value.quantity,
+    variantStockTotal: Math.max(product.value.variantStockTotal ?? 0, variantStock),
+  })
+})
+const useStockLocked = computed(() => stockOnHand.value && formState.useStock)
+// Creating the first variant zeroes the product stock (REMOVAL FIRST_VARIANT_ZEROING).
+const firstVariantZeroesStock = computed(
+  () => !isCreateMode.value && variantsList.value.length === 0 && (product.value?.quantity ?? 0) > 0,
+)
 const locationFieldLabel = computed(() => locationLabelFor(formState.type))
 const showServiceDetailCard = computed(() => isService(formState.type))
 const productStatus = computed(() =>
@@ -745,12 +801,8 @@ function mapDomainError(error: AxiosError<DomainApiError>): string {
   } else {
     satKeyError.value = ''
   }
-  if (response.error === 'PRODUCT_TYPE_CHANGE_BLOCKED') {
-    return (
-      response.message ??
-      'No se puede cambiar el tipo de producto porque tiene ventas o movimientos asociados.'
-    )
-  }
+  const stockMessage = productStockError(error)?.message
+  if (stockMessage) return stockMessage
   return response.message ?? 'No pudimos completar la operación. Reintenta en unos segundos.'
 }
 
@@ -962,6 +1014,7 @@ const updateMutation = useMutation({
     if (!productId.value) throw new Error('Missing product id')
     return productApi.update(productId.value, payload)
   },
+  onMutate: clearStockErrors,
   onSuccess: async () => {
     satKeyError.value = ''
     toast.add({
@@ -986,9 +1039,11 @@ const updateMutation = useMutation({
   },
   onError: (error) => {
     const code = (error as AxiosError<DomainApiError>)?.response?.data?.error
-    const message = code === 'PRODUCT_HAS_VARIANTS'
-      ? 'No puedes desactivar las variantes mientras el producto tenga variantes. Elimínalas primero.'
-      : mapDomainError(error as AxiosError<DomainApiError>)
+    const message =
+      showStockError(error) ??
+      (code === 'PRODUCT_HAS_VARIANTS'
+        ? 'No puedes desactivar las variantes mientras el producto tenga variantes. Elimínalas primero.'
+        : mapDomainError(error as AxiosError<DomainApiError>))
     toast.add({ title: 'Error al actualizar producto', description: message, color: 'error' })
   },
 })
@@ -1141,6 +1196,9 @@ const createLotMutation = useMutation({
 
 const deleteLotMutation = useMutation({
   mutationFn: (lotId: string) => productApi.removeLot(productIdOrEmpty.value, lotId),
+  onMutate: () => {
+    stockErrors.lots = ''
+  },
   onSuccess: async () => {
     toast.add({
       title: 'Lote eliminado',
@@ -1154,7 +1212,7 @@ const deleteLotMutation = useMutation({
     ])
   },
   onError: (error) => {
-    const message = mapDomainError(error as AxiosError<DomainApiError>)
+    const message = showStockError(error) ?? mapDomainError(error as AxiosError<DomainApiError>)
     toast.add({ title: 'Error al eliminar lote', description: message, color: 'error' })
   },
 })
@@ -1712,6 +1770,10 @@ function handleSubmitVariant(event: FormSubmitEvent<VariantFormState>) {
     ...payload,
     quantity: showInventory ? event.data.quantity : 0,
   }
+  if (firstVariantZeroesStock.value) {
+    firstVariantConfirm.value = { open: true, payload: createPayload }
+    return
+  }
   createVariantMutation.mutate(createPayload)
 }
 
@@ -1815,7 +1877,7 @@ async function handleDeleteLot(lotId: string, lotNumber: string) {
   if (!canDeleteProduct.value) return
 
   openConfirm(`¿Quieres eliminar el lote ${lotNumber}?`, () => {
-    void deleteLotMutation.mutateAsync(lotId)
+    deleteLotMutation.mutate(lotId)
   })
 }
 
@@ -2070,6 +2132,14 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                     },
                   ]"
                 />
+                <p
+                  v-if="stockErrors.type"
+                  class="mt-1 text-xs text-[var(--hf-danger)]"
+                  role="alert"
+                  data-testid="type-error"
+                >
+                  {{ stockErrors.type }}
+                </p>
               </UFormField>
 
               <USeparator class="my-4" />
@@ -2296,11 +2366,29 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
             </template>
 
             <div class="space-y-4">
-              <USwitch
-                v-model="formState.useStock"
-                label="Controlar inventario"
-                description="Activar seguimiento de existencias y cantidad mínima"
-              />
+              <div class="space-y-1">
+                <USwitch
+                  v-model="formState.useStock"
+                  :disabled="useStockLocked"
+                  label="Controlar inventario"
+                  description="Activar seguimiento de existencias y cantidad mínima"
+                />
+                <p
+                  v-if="useStockLocked"
+                  class="text-xs text-muted"
+                  data-testid="use-stock-locked-reason"
+                >
+                  Hay existencias: ajusta el stock a 0 para desactivarlo.
+                </p>
+                <p
+                  v-if="stockErrors.useStock"
+                  class="text-xs text-[var(--hf-danger)]"
+                  role="alert"
+                  data-testid="use-stock-error"
+                >
+                  {{ stockErrors.useStock }}
+                </p>
+              </div>
 
               <div v-if="showManualStockFields" class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <UFormField label="Existencias" name="quantity">
@@ -2314,6 +2402,14 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                     <UInputNumber v-model="formState.quantity" :min="0" class="w-full" />
                     <p class="mt-1 text-xs text-muted">Unidades</p>
                   </template>
+                  <p
+                    v-if="stockErrors.quantity"
+                    class="mt-1 text-xs text-[var(--hf-danger)]"
+                    role="alert"
+                    data-testid="quantity-error"
+                  >
+                    {{ stockErrors.quantity }}
+                  </p>
                 </UFormField>
 
                 <UFormField label="Existencias mínimas" name="minQuantity">
@@ -2443,6 +2539,14 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
             </template>
 
             <div class="space-y-3">
+              <p
+                v-if="stockErrors.lots"
+                class="text-sm text-[var(--hf-danger)]"
+                role="alert"
+                data-testid="lot-error"
+              >
+                {{ stockErrors.lots }}
+              </p>
               <ProductLotsTable
                 :lots="lotTableRows"
                 :pending="isCreateMode"
@@ -2821,6 +2925,17 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
       :loading="deleteVariantMutation.isPending.value || deleteLotMutation.isPending.value"
       @update:open="confirmState.open = $event"
       @confirm="handleConfirm"
+    />
+
+    <ConfirmModal
+      :open="firstVariantConfirm.open"
+      title="¿Crear la primera variante?"
+      description="El stock actual pasa a 0."
+      confirm-label="Crear variante"
+      confirm-color="error"
+      :loading="createVariantMutation.isPending.value"
+      @update:open="firstVariantConfirm.open = $event"
+      @confirm="confirmFirstVariant"
     />
 
     <ProductQuickCreateModal

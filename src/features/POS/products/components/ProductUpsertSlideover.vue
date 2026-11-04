@@ -19,6 +19,7 @@ import type {
   UpdateProductPayload,
 } from '../interfaces/product.types'
 import CategorySelect, { type CategorySelectItem } from './CategorySelect.vue'
+import { hasStockOnHand } from '../utils/productStockErrors'
 import ReadOnlyStock from './ReadOnlyStock.vue'
 import SatKeySelect from './SatKeySelect.vue'
 
@@ -112,6 +113,10 @@ const showInventoryFields = computed(() => {
   if (props.mode !== 'edit') return true
   return inventoryFieldsVisible(props.product?.type ?? 'PRODUCT')
 })
+// Stock moves only by adjustment, so tracking stays on while units remain.
+const useStockLocked = computed(
+  () => props.mode === 'edit' && state.useStock && hasStockOnHand(props.product),
+)
 const locationLabel = computed(() => locationLabelFor(props.product?.type ?? 'PRODUCT'))
 
 watch(
@@ -285,7 +290,20 @@ function onSubmit(event: FormSubmitEvent<ProductFormValues>) {
         </div>
 
         <div class="grid grid-cols-2 gap-4">
-          <UCheckbox v-if="showInventoryFields" v-model="state.useStock" label="Usar stock" />
+          <div v-if="showInventoryFields" class="space-y-1">
+            <UCheckbox v-model="state.useStock" :disabled="useStockLocked" label="Usar stock" />
+            <p v-if="useStockLocked" class="text-xs text-muted" data-testid="use-stock-locked-reason">
+              Hay existencias: ajusta el stock a 0 para desactivarlo.
+            </p>
+            <p
+              v-if="errors.useStock"
+              class="text-xs text-[var(--hf-danger)]"
+              role="alert"
+              data-testid="use-stock-error"
+            >
+              {{ errors.useStock }}
+            </p>
+          </div>
           <UCheckbox v-model="state.sellInPos" label="Vender en POS" />
           <!-- U9: the catalog opt-in is a switch; every other option stays a checkbox. -->
           <USwitch

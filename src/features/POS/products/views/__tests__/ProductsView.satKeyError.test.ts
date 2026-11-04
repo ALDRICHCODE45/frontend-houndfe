@@ -82,7 +82,12 @@ vi.mock('../../api/product.api', () => ({
   },
 }))
 
-vi.stubGlobal('useToast', () => ({ add: vi.fn() }))
+const toastAdd = vi.hoisted(() => vi.fn())
+vi.stubGlobal('useToast', () => ({ add: toastAdd }))
+vi.mock('@nuxt/ui/composables/useToast', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@nuxt/ui/composables/useToast')>()
+  return { ...actual, useToast: () => ({ ...actual.useToast(), add: toastAdd }) }
+})
 
 // A slideover stub that exposes the current `errors` prop via a ref,
 // so the test can assert what the parent passed down.
@@ -168,5 +173,43 @@ describe('ProductsView — SAT_KEY_NOT_FOUND field error mapping', () => {
 
     expect(slideoverErrors.value?.satKey ?? '').toBe('')
     expect(slideoverErrors.value?.price).toBe('price must be positive')
+  })
+})
+
+// O1 S7: the stock codes map by `error`, never by `message`, to the field they block.
+describe('ProductsView — product stock error codes', () => {
+  beforeEach(() => {
+    capturedHandlers.length = 0
+    slideoverErrors.value = undefined
+    toastAdd.mockClear()
+  })
+
+  const fire = async (status: number, data: DomainApiError) => {
+    mountView()
+    capturedHandlers.find((h) => h.onError)!.onError!(makeAxiosError(status, data))
+    await nextTick()
+  }
+
+  it('STOCK_TRACKING_HAS_STOCK → the "Usar stock" field and the toast', async () => {
+    await fire(409, { error: 'STOCK_TRACKING_HAS_STOCK', message: 'raw server wording' })
+    const copy = 'Hay existencias. Ajusta el stock a 0 antes de desactivar «Usar stock».'
+    expect(slideoverErrors.value?.useStock).toBe(copy)
+    expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ description: copy, color: 'error' }))
+  })
+
+  it('STOCK_QUANTITY_READ_ONLY → the Stock field', async () => {
+    await fire(400, { error: 'STOCK_QUANTITY_READ_ONLY', message: 'raw server wording' })
+    expect(slideoverErrors.value?.quantity).toBe('El stock no se edita aquí. Ajústalo desde Inventario.')
+  })
+
+  it('PRODUCT_TYPE_CHANGE_BLOCKED → human toast, no field in the compact form', async () => {
+    await fire(422, { error: 'PRODUCT_TYPE_CHANGE_BLOCKED', message: 'raw server wording' })
+    expect(slideoverErrors.value?.type).toBeUndefined()
+    expect(toastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description:
+          'El producto tiene existencias o lotes. Ajusta el stock a 0 antes de cambiar el tipo.',
+      }),
+    )
   })
 })

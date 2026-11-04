@@ -14,6 +14,7 @@ import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { productApi } from '../api/product.api'
 import ProductList from '../components/ProductList.vue'
 import ProductUpsertSlideover from '../components/ProductUpsertSlideover.vue'
+import { productStockError } from '../utils/productStockErrors'
 import '../styles/products-visual.css'
 import type {
   BrandOption,
@@ -27,7 +28,10 @@ import type {
 } from '../interfaces/product.types'
 
 type ProductFormErrors = Partial<
-  Record<'name' | 'sku' | 'barcode' | 'price' | 'quantity' | 'minQuantity' | 'satKey', string>
+  Record<
+    'name' | 'sku' | 'barcode' | 'price' | 'quantity' | 'minQuantity' | 'satKey' | 'useStock',
+    string
+  >
 >
 
 declare const useToast: () => {
@@ -230,9 +234,19 @@ function mapDomainError(error: AxiosError<DomainApiError>): {
     return { message: fallback, fields: {} }
   }
 
-  const message = response.message ?? fallback
   const code = response.error
   const fields: ProductFormErrors = {}
+
+  // O1 S7: the stock codes are switched on `error`, never on `message`.
+  const stockError = productStockError(error)
+  if (stockError) {
+    if (stockError.field === 'quantity' || stockError.field === 'useStock') {
+      fields[stockError.field] = stockError.message
+    }
+    return { message: stockError.message, fields }
+  }
+
+  const message = response.message ?? fallback
   const normalized = message.toLowerCase()
 
   if (code === 'ENTITY_ALREADY_EXISTS') {
