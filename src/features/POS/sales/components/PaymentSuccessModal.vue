@@ -59,7 +59,7 @@ const modalUi = computed(() => {
 const closeButtonClass = computed(() =>
   props.portalClass
     ? 'sales-entry-primary-action rounded-xl font-semibold shadow-sm'
-    : '!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm',
+    : 'hf-primary-control',
 )
 </script>
 
@@ -79,7 +79,7 @@ const closeButtonClass = computed(() =>
           </span>
           <div>
             <p class="text-sm text-muted">Folio</p>
-            <p class="text-lg font-bold text-highlighted">{{ folio }}</p>
+            <p class="text-lg font-semibold text-highlighted">{{ folio }}</p>
           </div>
         </div>
 
@@ -94,7 +94,7 @@ const closeButtonClass = computed(() =>
           </div>
           <div v-if="(changeDueCents ?? 0) > 0" class="flex justify-between gap-4">
             <dt class="text-muted">Cambio</dt>
-            <dd class="font-semibold tabular-nums text-coco-gold-700 dark:text-coco-gold-400">{{ formatCentsMXN(changeDueCents ?? 0) }}</dd>
+            <dd class="font-semibold tabular-nums text-(--hf-heading)">{{ formatCentsMXN(changeDueCents ?? 0) }}</dd>
           </div>
           <div v-if="debtCents > 0" class="flex items-center justify-between gap-4">
             <dt class="text-muted">Deuda generada: {{ formatCentsMXN(debtCents) }}</dt>

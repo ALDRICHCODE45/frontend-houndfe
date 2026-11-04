@@ -59,7 +59,7 @@ const modalUi = computed(() => {
 const acceptButtonClass = computed(() =>
   props.portalClass
     ? 'w-full justify-center sales-entry-primary-action rounded-xl font-semibold shadow-sm sm:w-auto'
-    : 'w-full justify-center rounded-xl font-semibold shadow-sm sm:w-auto !bg-(--brand-action) !text-black hover:!brightness-110',
+    : 'w-full justify-center sm:w-auto hf-primary-control',
 )
 
 function handleAccept() {
@@ -101,7 +101,7 @@ function handleAccept() {
           </div>
           <div class="flex items-center justify-between gap-4 border-t border-default pt-2">
             <dt class="font-semibold text-highlighted">Total</dt>
-            <dd data-testid="requote-total" class="text-lg font-bold tabular-nums text-highlighted">
+            <dd data-testid="requote-total" class="text-lg font-semibold tabular-nums text-highlighted">
               {{ totalFormatted }}
             </dd>
           </div>

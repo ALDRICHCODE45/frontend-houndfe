@@ -717,7 +717,7 @@ describe('PaymentModal', () => {
     expect(submitted?.payload).not.toHaveProperty('dueDate')
   })
 
-  it('confirm-charge button uses the Cobrar precedent coco-gold class [PMT-REQ-004]', () => {
+  it('confirm-charge button takes the shared primary control [PMT-REQ-004]', () => {
     const wrapper = mount(PaymentModal, {
       props: {
         open: true,
@@ -728,11 +728,11 @@ describe('PaymentModal', () => {
     })
 
     const confirmButton = wrapper.get('[data-testid="confirm-charge"]')
-    expect(confirmButton.classes()).toContain('!bg-(--brand-action)')
-    expect(confirmButton.classes()).toContain('!text-black')
+    expect(confirmButton.classes()).toContain('hf-primary-control')
+    expect(confirmButton.classes()).not.toContain('!bg-(--brand-action)')
   })
 
-  it('selected method tile renders coco-gold tint when toggled on [PMT-REQ-002]', async () => {
+  it('selected method tile renders the action tint when toggled on [PMT-REQ-002]', async () => {
     const wrapper = mount(PaymentModal, {
       props: {
         open: true,
@@ -745,8 +745,8 @@ describe('PaymentModal', () => {
     const cashTile = wrapper.get('[data-testid="add-payment-entry"]')
     await cashTile.trigger('click')
 
-    expect(cashTile.classes()).toContain('border-coco-gold-500/40')
-    expect(cashTile.classes()).toContain('bg-coco-gold-500/5')
+    expect(cashTile.classes()).toContain('border-(--hf-action)')
+    expect(cashTile.classes()).toContain('bg-(--hf-active-soft)')
   })
 })
 

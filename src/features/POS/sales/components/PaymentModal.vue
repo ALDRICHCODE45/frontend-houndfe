@@ -591,13 +591,13 @@ const slideoverUi = computed(() => ({
   body: 'p-0 flex flex-col h-full',
 }))
 
-// The forced legacy gold utility is replaced only on the caller's opt-in;
-// omission keeps the previous class string exactly. The existing Caja binding
+// The Venta opt-in pairs the action colors through its owned class; any other
+// caller takes the shared primary control. The existing Caja binding
 // logic and payload shape below are untouched.
 const confirmButtonClass = computed(() =>
   props.portalClass
     ? 'w-full justify-center sales-entry-primary-action rounded-xl font-semibold shadow-sm sm:w-auto'
-    : 'w-full justify-center sm:w-auto !bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm',
+    : 'w-full justify-center sm:w-auto hf-primary-control',
 )
 </script>
 
@@ -614,7 +614,7 @@ const confirmButtonClass = computed(() =>
         <div class="shrink-0 space-y-4 border-b border-default px-5 py-4 sales-pos-checkout-header">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-lg font-bold text-highlighted">Cobrar venta</p>
+              <p class="text-lg font-semibold text-highlighted">Cobrar venta</p>
               <p class="text-xs text-muted">Selecciona los métodos de pago</p>
             </div>
             <UButton
@@ -627,7 +627,7 @@ const confirmButtonClass = computed(() =>
           </div>
 
           <div
-            class="rounded-2xl border border-coco-gold-500/20 bg-coco-gold-500/5 px-5 py-4 text-center sales-pos-checkout-total"
+            class="rounded-xl border border-default bg-(--hf-surface-muted) px-5 py-4 text-center sales-pos-checkout-total"
           >
             <p class="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
               Total a cobrar
@@ -656,8 +656,8 @@ const confirmButtonClass = computed(() =>
                 class="relative rounded-xl border px-3 py-4 text-left transition disabled:cursor-not-allowed disabled:opacity-50 sales-pos-checkout-method-tile"
                 :class="
                   getMethodCount(wireEntries, option) > 0
-                    ? 'border-coco-gold-500/40 bg-coco-gold-500/5'
-                    : 'border-default bg-elevated hover:border-coco-gold-500/40 hover:bg-coco-gold-500/5'
+                    ? 'border-(--hf-action) bg-(--hf-active-soft)'
+                    : 'border-default bg-elevated hover:border-(--hf-action) hover:bg-(--hf-active-soft)'
                 "
                 :disabled="
                   (getMethodCount(wireEntries, option) === 0 && !canAddEntry) || isSubmitting
@@ -675,7 +675,7 @@ const confirmButtonClass = computed(() =>
                 </UBadge>
                 <UIcon
                   :name="option.icon"
-                  class="mb-2 size-6 text-coco-gold-700 dark:text-coco-gold-400"
+                  class="mb-2 size-6 text-(--hf-action)"
                 />
                 <p class="text-sm font-semibold text-highlighted">{{ option.label }}</p>
                 <!-- REQ-PT-007: custom tiles render the subtitle as a grey sub-line (trimmed, when present) -->
@@ -829,7 +829,7 @@ const confirmButtonClass = computed(() =>
               v-if="!isDueDateExpanded && !dueDateInput"
               type="button"
               data-testid="expand-due-date"
-              class="flex items-center gap-1.5 text-xs text-coco-gold-700 dark:text-coco-gold-400 hover:underline disabled:opacity-50"
+              class="flex items-center gap-1.5 text-xs text-(--hf-action) underline-offset-2 hover:underline disabled:opacity-50"
               :disabled="isSubmitting"
               @click="isDueDateExpanded = true"
             >
