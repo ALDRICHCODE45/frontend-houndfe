@@ -147,11 +147,6 @@ const hireDateDisplay = computed(() =>
 
 // ─── Handlers ─────────────────────────────────────────────────────────────────
 
-function handleClose(): void {
-  resetForm()
-  open.value = false
-}
-
 async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
   if (!props.employee) return
 
@@ -173,7 +168,6 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
   <USlideover
     v-model:open="open"
     title="Editar colaborador"
-    description="Actualiza la información personal, domicilio y datos laborales visibles en el perfil."
     side="right"
     inset
     :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
@@ -516,14 +510,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
     </template>
 
     <template #footer>
-      <div class="flex justify-end gap-3">
-        <UButton
-          label="Cancelar"
-          color="neutral"
-          variant="outline"
-          :disabled="isPending"
-          @click="handleClose"
-        />
+      <div class="flex w-full justify-end">
         <UButton
           label="Guardar cambios"
           type="submit"

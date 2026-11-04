@@ -9,6 +9,9 @@ const view = read('views/EmployeesListView.vue')
 
 const listPortal = 'hf-theme hf-ui employees-list-portal'
 
+const LEGACY_LOOK =
+  /\b(bg-primary|text-error|border-error|bg-error|font-bold|uppercase|tracking-wider)\b|(bg|text|border)-(red|blue|green|amber|orange|emerald|violet|pink|cyan|indigo|slate|gray|yellow|teal|purple|neutral)-\d|\bcoco-/
+
 // Source contracts, not rendered geometry or browser fidelity evidence.
 describe('Employees adapter', () => {
   it('loads a scoped adapter without borrowing other modules or global overrides', () => {
@@ -105,6 +108,23 @@ describe('Employees dialogs and slideovers presentation adapter', () => {
     }
   })
 
+  it('applies the text diet to the create and edit slideovers: no help paragraph, one primary, no Cancelar', () => {
+    for (const [name, source] of [['create', formOwners.create], ['edit', formOwners.edit]] as const) {
+      expect(source, name).not.toMatch(/\sdescription="/)
+      expect(source.match(/type="submit"/g), name).toHaveLength(1)
+      expect(source, name).not.toContain('label="Cancelar"')
+    }
+  })
+
+  it('keeps the consequence of a decision dialog to one plain line, with no colored state words', () => {
+    for (const [name, source] of Object.entries(formOwners)) {
+      expect(source, name).not.toMatch(LEGACY_LOOK)
+    }
+    expect(formOwners.terminate).toContain('color="error"')
+    expect(formOwners.batchTerminate).toContain('color="error"')
+    expect(formOwners.reactivate).not.toMatch(/Confirmás/)
+  })
+
   it('themes the bulk confirmation dialogs of the listing', () => {
     expect(view.match(new RegExp(`:ui="\\{ content: '${formPortal}' \\}"`, 'g'))?.length).toBe(2)
   })
@@ -148,9 +168,6 @@ const panels = Object.fromEntries(
   ['ResumenPanel', 'PersonalPanel', 'EmergencyContactsPanel', 'LaboralPanel', 'CompensacionPanel', 'OrganigramaPanel', 'CvPanel', 'DocumentosPanel', 'AusenciasPanel']
     .map((name) => [name, read(`components/${name}.vue`)]),
 )
-
-const LEGACY_LOOK =
-  /\b(bg-primary|text-error|border-error|bg-error|font-bold|uppercase|tracking-wider)\b|(bg|text|border)-(red|blue|green|amber|orange|emerald|violet|pink|cyan|indigo|slate|gray|yellow|teal|purple|neutral)-\d|\bcoco-/
 
 describe('Employee detail panels adapter', () => {
   it('gives every panel card an owned section hook', () => {

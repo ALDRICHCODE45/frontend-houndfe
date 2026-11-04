@@ -72,14 +72,6 @@ export function resolveManagerName(
   return managerMap.get(managerId)?.fullName ?? '—'
 }
 
-export function resolveManagerEmail(
-  managerId: string | null | undefined,
-  managerMap: Map<string, ManagerInfo>,
-): string | null {
-  if (!managerId) return null
-  return managerMap.get(managerId)?.email ?? null
-}
-
 // ─── Reactive composable ──────────────────────────────────────────────────────
 
 /**

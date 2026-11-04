@@ -7,8 +7,8 @@
  * Salary is intentionally NOT in the list — it belongs in the Compensación
  * detail tab (WU-06+). The `hasSalary()` guard is preserved in employee.types.
  *
- * Pure helpers (employeeStatusToBadgeTone, formatHireDate, computeSeniority,
- * getManagerDisplay) are exported for unit testing without component mounting.
+ * Pure helpers (employeeStatusToBadgeTone, formatHireDate, computeSeniority)
+ * are exported for unit testing without component mounting.
  */
 
 import type { TableColumn } from '@nuxt/ui'
@@ -99,24 +99,6 @@ export function formatTimeOffDate(isoDate: string): string {
  */
 export function formatTimeOffDateRange(startIso: string, endIso: string): string {
   return `${formatTimeOffDate(startIso)} – ${formatTimeOffDate(endIso)}`
-}
-
-/**
- * Resolve the manager display string for a given employee.
- *
- * Pure function — returns "—" in all WU-02 scenarios:
- * - managerId is null → "—"
- * - managerId is a UUID → "—" (manager name resolution deferred to WU-03+)
- *
- * Design rationale: the list API returns only `managerId`, not the manager's
- * fullName. Rendering a truncated UUID exposes implementation detail to end
- * users. The correct UX is "—" until WU-03 adds a name lookup / join.
- */
-export function getManagerDisplay(employee: Employee): string {
-  if (!employee.managerId) return '—'
-  // WU-02: no name resolution available on the list endpoint.
-  // Return "—" until WU-03 provides manager name lookup.
-  return '—'
 }
 
 // ─── Column definitions ────────────────────────────────────────────────────────
