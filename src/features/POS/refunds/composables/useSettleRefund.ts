@@ -62,7 +62,8 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
  *   - `IDEMPOTENCY_KEY_CONFLICT` and a success close the attempt; other failures keep it, since
  *     the backend released the key and retrying the same body is safe.
  *   - After a success (new or replayed, whose balances are a snapshot) and after the balance
- *     errors, every pending-refund slot is invalidated: this page, the dashboard and the nav badge.
+ *     errors, every pending-refund slot is invalidated: this page, the dashboard and the nav badge,
+ *     plus the detail of the cancelled sale.
  */
 export function useSettleRefund(options: UseSettleRefundOptions = {}) {
   const { retryDelayMs = 800, maxInFlightRetries = 5, now = () => new Date() } = options
@@ -71,10 +72,14 @@ export function useSettleRefund(options: UseSettleRefundOptions = {}) {
   const isSubmitting = ref(false)
   let attempt: Attempt | null = null
 
-  function refreshPending() {
+  function refreshPending(saleId?: string) {
     void queryClient.invalidateQueries({
       queryKey: saleQueryKeys.pendingRefundsPrefix(tenantId.value),
     })
+    // The cancelled sale's detail lists its refunds too.
+    if (saleId) {
+      void queryClient.invalidateQueries({ queryKey: saleQueryKeys.detail(tenantId.value, saleId) })
+    }
   }
 
   async function send(refundId: string, current: Attempt): Promise<RefundSettlementResponse> {
@@ -92,7 +97,7 @@ export function useSettleRefund(options: UseSettleRefundOptions = {}) {
   async function submit(
     refundId: string,
     values: SettlementFormValues,
-    context: { cashSessionId: string | null },
+    context: { cashSessionId: string | null; saleId?: string },
   ): Promise<SettleOutcome> {
     if (isSubmitting.value) return { status: 'ignored' }
 
@@ -110,12 +115,12 @@ export function useSettleRefund(options: UseSettleRefundOptions = {}) {
     try {
       const response = await send(refundId, current)
       attempt = null
-      refreshPending()
+      refreshPending(response.saleId)
       return { status: 'settled', response, request: current.request }
     } catch (caught) {
       const error = mapSettlementError(caught)
       if (error.code === 'IDEMPOTENCY_KEY_CONFLICT') attempt = null
-      if (REFETCH_CODES.has(error.code)) refreshPending()
+      if (REFETCH_CODES.has(error.code)) refreshPending(context.saleId)
       return { status: 'failed', error }
     } finally {
       isSubmitting.value = false

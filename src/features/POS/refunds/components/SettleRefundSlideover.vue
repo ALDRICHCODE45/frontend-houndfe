@@ -201,7 +201,10 @@ async function submit() {
   if (local.amount || local.settledAt) return
 
   alert.value = null
-  const outcome = await settleRefund.submit(refund.id, { ...form }, { cashSessionId: cashSessionId.value })
+  const outcome = await settleRefund.submit(refund.id, { ...form }, {
+    cashSessionId: cashSessionId.value,
+    saleId: refund.saleId,
+  })
   if (outcome.status === 'ignored') return
 
   if (outcome.status === 'settled') {

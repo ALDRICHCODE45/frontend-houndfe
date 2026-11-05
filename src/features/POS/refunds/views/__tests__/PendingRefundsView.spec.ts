@@ -39,6 +39,9 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
   }),
 }))
 
+const routerPush = vi.hoisted(() => vi.fn())
+vi.mock('vue-router', () => ({ useRouter: () => ({ push: routerPush }) }))
+
 const toastAdd = vi.hoisted(() => vi.fn())
 vi.mock('@nuxt/ui/runtime/composables/useToast', () => ({ useToast: () => ({ add: toastAdd }) }))
 
@@ -57,12 +60,14 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
     emits: ['refresh', 'clear-filters'],
     template: `
       <div data-testid="table">
+        <span v-for="c in columns" :key="c.id" data-testid="column-header" :data-column="c.id">{{ c.header }}</span>
         <slot name="actions" />
         <div v-if="loading" data-testid="table-skeleton" />
         <div v-else-if="error" data-testid="table-error-state" role="alert">{{ errorMessage }}<button data-testid="retry" @click="$emit('refresh')">Reintentar</button></div>
         <div v-else-if="data.length === 0" data-testid="table-empty">{{ emptyState && emptyState.title }}</div>
         <div v-for="row in data" v-else :key="row.id" data-testid="row">
           <slot name="sale-cell" :row="{ original: row }" />
+          <slot name="reason-cell" :row="{ original: row }" />
           <slot name="outstandingCents-cell" :row="{ original: row }" />
           <slot name="actions-cell" :row="{ original: row }" />
         </div>
@@ -110,6 +115,7 @@ describe('PendingRefundsView', () => {
     list.error = ref(false)
     list.refetch.mockReset()
     toastAdd.mockReset()
+    routerPush.mockReset()
     auth.grants = new Set(['read:SaleRefund', 'update:SaleRefund'])
   })
 
@@ -170,6 +176,30 @@ describe('PendingRefundsView', () => {
     expect(wrapper.find('[data-action="settle"]').exists()).toBe(false)
     expect(wrapper.find('[data-action="sale"]').exists()).toBe(true)
     expect(wrapper.findComponent({ name: 'AppDataTable' }).props('rowOpen')).toBeUndefined()
+  })
+
+  it('«Ver venta» opens the detail of the cancelled sale, with no toast', async () => {
+    const wrapper = mountView()
+    await wrapper.findAll('[data-action="sale"]')[0]!.trigger('click')
+    expect(routerPush).toHaveBeenCalledWith('/pos/ventas/s-1')
+    expect(toastAdd).not.toHaveBeenCalled()
+  })
+
+  it('shows the whole reason (it wraps, never truncates) and the cancellation day under it', () => {
+    list.rows.value = [row('1', { reason: 'ORDER_ERROR', createdAt: '2026-10-25T20:42:00.000Z' })]
+    const wrapper = mountView()
+    const reason = wrapper.get('.refund-reason')
+    expect(reason.text()).toBe('Error en el pedido')
+    expect(reason.classes()).not.toContain('truncate')
+    expect(wrapper.get('.refund-reason-when').text()).toBe('Cancelada el 25 oct')
+  })
+
+  it('heads the amount column «Total», next to Devuelto and Pendiente', () => {
+    const headers = mountView().findAll('[data-testid="column-header"]')
+    const byId = Object.fromEntries(headers.map((h) => [h.attributes('data-column'), h.text()]))
+    expect(byId.amountCents).toBe('Total')
+    expect(byId.settledCents).toBe('Devuelto')
+    expect(byId.outstandingCents).toBe('Pendiente')
   })
 
   it('searches over the loaded page through the list composable', async () => {

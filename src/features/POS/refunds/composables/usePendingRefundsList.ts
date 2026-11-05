@@ -42,8 +42,7 @@ const normalize = (text: string) =>
 
 /**
  * Folio and customer of the given sales, read from `GET /sales?status=CANCELED` (newest first)
- * because the pending list carries neither and `GET /sales/:id` answers 404 for a cancelled sale
- * (handoff 06 §9). Pages are scanned until every sale is found or the cap is reached.
+ * because the pending list carries neither (handoff 06 §3). Pages are scanned until every sale is found or the cap is reached.
  */
 async function loadCanceledSales(
   saleIds: readonly string[],

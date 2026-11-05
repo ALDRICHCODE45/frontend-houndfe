@@ -78,6 +78,8 @@ function resolveErrorMessage(error: unknown): string {
       return 'La venta ya no existe.'
     case 'SALE_UPDATE_FORBIDDEN':
       return 'No tienes permisos para modificar esta venta.'
+    case 'SALE_CANCELED':
+      return 'La venta está cancelada.'
     default:
       return 'No se pudo asignar el vendedor.'
   }

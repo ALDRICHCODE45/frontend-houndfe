@@ -144,7 +144,7 @@ describe('SettleRefundSlideover', () => {
     expect(settle.submit).toHaveBeenCalledWith(
       'cmw2iwsa00000r965efhf292s',
       expect.objectContaining({ amount: '20', method: 'cash', settledAt: null }),
-      { cashSessionId: null },
+      { cashSessionId: null, saleId: '291e8f35-0c17-46df-8c87-6ad6cbfdcd46' },
     )
     expect(toastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Devolución parcial registrada. Quedan $25.55 por devolver.' }),
@@ -215,7 +215,7 @@ describe('SettleRefundSlideover', () => {
     expect(settle.submit).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({ useCashSession: true }),
-      { cashSessionId: SESSION },
+      expect.objectContaining({ cashSessionId: SESSION }),
     )
   })
 

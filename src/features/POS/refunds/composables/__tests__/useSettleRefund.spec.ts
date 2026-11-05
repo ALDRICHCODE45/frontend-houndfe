@@ -142,6 +142,26 @@ describe('useSettleRefund', () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: saleQueryKeys.pendingRefundsPrefix('tenant-1') })
   })
 
+  it('refreshes the detail of the refund\'s sale after a settlement', async () => {
+    const { result, invalidate } = setup()
+    settle.mockResolvedValueOnce(response(2555))
+
+    await result.submit(REFUND_ID, values(), { cashSessionId: null })
+
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: saleQueryKeys.detail('tenant-1', '291e8f35-0c17-46df-8c87-6ad6cbfdcd46'),
+    })
+  })
+
+  it('refreshes the sale detail after a balance error when the caller names the sale', async () => {
+    const { result, invalidate } = setup()
+    settle.mockRejectedValueOnce(domainError(422, 'SETTLEMENT_EXCEEDS_REFUND'))
+
+    await result.submit(REFUND_ID, values(), { cashSessionId: null, saleId: 'sale-9' })
+
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: saleQueryKeys.detail('tenant-1', 'sale-9') })
+  })
+
   it.each(['SETTLEMENT_EXCEEDS_REFUND', 'REFUND_ALREADY_SETTLED', 'REFUND_NOT_FOUND'])(
     'refreshes the balance after %s',
     async (code) => {

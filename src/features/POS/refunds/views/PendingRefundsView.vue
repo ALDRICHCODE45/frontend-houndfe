@@ -7,6 +7,7 @@
  * SaleRefund update. Folio and customer come from the cancelled sales (handoff 06 §9).
  */
 import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import type { TableColumn } from '@nuxt/ui'
 import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
@@ -27,12 +28,8 @@ import {
 } from '../utils/refundLabels'
 import '../styles/refunds-visual.css'
 
-declare const useToast: () => {
-  add: (options: { title: string; description?: string; color?: 'neutral' }) => void
-}
-
 const authStore = useAuthStore()
-const toast = useToast()
+const router = useRouter()
 
 const canRead = computed(() => authStore.userCan('read', 'SaleRefund'))
 const canSettle = computed(() => authStore.userCan('update', 'SaleRefund'))
@@ -72,7 +69,7 @@ const columns: TableColumn<PendingRefundListRow>[] = [
   { id: 'sale', header: 'Venta' },
   { id: 'reason', header: 'Motivo' },
   { id: 'method', header: 'Método original' },
-  { id: 'amountCents', header: 'Total a devolver', meta: { class: { th: 'text-right', td: 'text-right' } } },
+  { id: 'amountCents', header: 'Total', meta: { class: { th: 'text-right', td: 'text-right' } } },
   { id: 'settledCents', header: 'Devuelto', meta: { class: { th: 'text-right', td: 'text-right' } } },
   { id: 'outstandingCents', header: 'Pendiente', meta: { class: { th: 'text-right', td: 'text-right' } } },
   { id: 'age', header: 'Antigüedad' },
@@ -99,13 +96,9 @@ function openSettle(row: PendingRefundListRow) {
   panelOpen.value = true
 }
 
+// The detail opens cancelled sales too, with their refunds (BE ae0e951).
 function showSale(row: PendingRefundListRow) {
-  // `GET /sales/:id` answers 404 for a cancelled sale (handoff 06 §9), so there is no detail yet.
-  toast.add({
-    title: 'El detalle de esta venta aún no está disponible',
-    description: `Las ventas canceladas todavía no se pueden abrir. ${row.folioLabel} sigue en esta lista.`,
-    color: 'neutral',
-  })
+  void router.push(`/pos/ventas/${row.saleId}`)
 }
 
 function onAction(key: string, row: PendingRefundListRow) {
@@ -203,10 +196,8 @@ const rowLabel = (row: PendingRefundListRow) => `${row.folioLabel}, ${row.custom
           </template>
 
           <template #reason-cell="{ row }">
-            <span class="block truncate text-sm">{{ refundReasonLabel(row.original.reason) }}</span>
-            <span class="hf-row-secondary">
-              Cancelada el {{ refundCanceledDay(row.original.createdAt) }}
-            </span>
+            <span class="refund-reason">{{ refundReasonLabel(row.original.reason) }}</span>
+            <span class="hf-row-secondary refund-reason-when">Cancelada el {{ refundCanceledDay(row.original.createdAt) }}</span>
           </template>
 
           <template #method-cell="{ row }">

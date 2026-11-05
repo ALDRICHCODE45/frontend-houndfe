@@ -30,9 +30,12 @@ const props = withDefaults(
      * slideover. Absent by default, which preserves the previous `ui` value.
      */
     portalClass?: string
+    /** A cancelled sale: the payments show without «Editar referencia» (the backend answers 404). */
+    readonly?: boolean
   }>(),
   {
     loading: false,
+    readonly: false,
   },
 )
 
@@ -173,7 +176,7 @@ function isReferenceTruncated(reference: string | null): boolean {
             {{ formatCentsMXN(payment.amountCents) }}
           </span>
           <UButton
-            v-if="shouldShowEditReference(payment)"
+            v-if="!readonly && shouldShowEditReference(payment)"
             size="xs"
             variant="ghost"
             color="neutral"

@@ -113,6 +113,19 @@ describe('useSellerAssignment', () => {
     }
   })
 
+  it('maps SALE_CANCELED (the sale was cancelled meanwhile) and refreshes the detail', async () => {
+    const { composable, invalidateQueries } = mountComposable('sale-1')
+    vi.mocked(saleApi.unassignSeller).mockRejectedValueOnce({
+      response: { status: 422, data: { error: 'SALE_CANCELED' } },
+    })
+
+    await expect(composable.unassignSeller()).rejects.toMatchObject({ code: 'SALE_CANCELED' })
+    expect(composable.lastError.value?.code).toBe('SALE_CANCELED')
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: saleQueryKeys.detail('tenant-1', 'sale-1'),
+    })
+  })
+
   it('isPending toggles while request is in flight', async () => {
     const { composable } = mountComposable('sale-1')
     let resolvePromise: ((value: SaleDetail) => void) | null = null

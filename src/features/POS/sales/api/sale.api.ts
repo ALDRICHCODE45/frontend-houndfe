@@ -33,6 +33,7 @@ import type {
   ActivePaymentMethodProjection,
 } from '../interfaces/sale.types'
 import { SaleCommentError } from '../interfaces/sale.types'
+import { parseSaleDetail } from '../interfaces/sale-detail.schema'
 import {
   parsePendingRefundsResponse,
   type PendingRefundsQuery,
@@ -340,8 +341,8 @@ export const saleApi = {
   },
 
   async getById(id: string): Promise<SaleDetail> {
-    const { data } = await http.get<SaleDetail>(`/sales/${id}`)
-    return data
+    const { data } = await http.get<unknown>(`/sales/${id}`)
+    return parseSaleDetail(data)
   },
 
   async addComment(saleId: string, payload: { body: string }): Promise<SaleComment> {

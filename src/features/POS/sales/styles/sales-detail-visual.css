@@ -148,3 +148,72 @@
   min-height: var(--hf-control-height);
   border-radius: var(--hf-radius-control);
 }
+
+/* ── Cancelled sale (T20) ────────────────────────────────────────────────── */
+
+/* Calm, not alarming: the cancellation is a fact of the record (neutral), so
+ * it uses the muted text roles and no tint. */
+.sales-detail-visual .sale-detail-cancel-by {
+  margin-top: 1rem;
+  color: var(--hf-muted);
+  font-size: 13px;
+}
+
+.sales-detail-visual .sale-detail-refunds {
+  display: grid;
+  gap: 1rem;
+}
+
+.sales-detail-visual .sale-detail-refund {
+  display: grid;
+  gap: 0.625rem;
+}
+
+.sales-detail-visual .sale-detail-refund + .sale-detail-refund {
+  padding-top: 1rem;
+  border-top: 1px solid var(--hf-border);
+}
+
+.sales-detail-visual .sale-detail-refund__top {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.sales-detail-visual .sale-detail-refund__method {
+  min-width: 0;
+  color: var(--hf-heading);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Three short figures side by side, even at 390px. */
+.sales-detail-visual .sale-detail-refund__figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.sales-detail-visual .sale-detail-refund__figures dt {
+  color: var(--hf-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sales-detail-visual .sale-detail-refund__figures dd {
+  margin-top: 2px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* What is still owed keeps the warning role of the refunds page (`refund-owe`). */
+.sales-detail-visual .sale-detail-refund__figures dd:not(.refund-owe) {
+  color: var(--hf-heading);
+}
+
+.sales-detail-visual .sale-detail-fact-note {
+  color: var(--hf-muted);
+  font-size: 13px;
+}

@@ -21,6 +21,10 @@ import SaleDetailHistoryCard from '../components/SaleDetailHistoryCard.vue'
 import PaymentsListSection from '../components/PaymentsListSection.vue'
 import DebtPaymentModal from '../components/DebtPaymentModal.vue'
 import AssignSellerSlideover from '../components/AssignSellerSlideover.vue'
+import SaleDetailCancellationCard from '../components/SaleDetailCancellationCard.vue'
+import SaleDetailRefundsCard from '../components/SaleDetailRefundsCard.vue'
+import SettleRefundSlideover from '@/features/POS/refunds/components/SettleRefundSlideover.vue'
+import type { PendingRefundListRow } from '@/features/POS/refunds/composables/usePendingRefundsList'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
@@ -80,6 +84,41 @@ const canRegisterPayment = computed(
   () =>
     sale.value?.paymentStatus !== SALE_PAYMENT_STATUS.PAID
     && sale.value?.status === SALE_STATUS.CONFIRMED,
+)
+
+// T20: a cancelled sale opens read-only, with its cancellation and refunds.
+const isCanceled = computed(() => sale.value?.status === SALE_STATUS.CANCELED)
+const canSettleRefunds = computed(() => authStore.userCan('update', 'SaleRefund'))
+
+// «Liquidar» reuses the refunds settle slideover. The row is rebuilt from the detail on every
+// refetch (useSettleRefund invalidates it), so a partial return shows the new balance.
+const settleOpen = ref(false)
+const settleRefundId = ref<string | null>(null)
+const settleRow = computed<PendingRefundListRow | null>(() => {
+  const current = sale.value
+  const refund = current?.refunds?.find((item) => item.id === settleRefundId.value)
+  if (!current || !refund) return null
+  return {
+    ...refund,
+    saleId: current.id,
+    folioLabel: current.folio,
+    customerLabel: current.customer?.name ?? 'Público general',
+    saleFound: true,
+  }
+})
+
+function openSettle(refundId: string) {
+  if (!canSettleRefunds.value) return
+  settleRefundId.value = refundId
+  settleOpen.value = true
+}
+
+// Below lg the columns dissolve and each section takes its order; a cancelled sale leads
+// with the cancellation and its refunds.
+const sectionOrder = computed(() =>
+  isCanceled.value
+    ? { cancellation: 'order-1', refunds: 'order-2', items: 'order-3', totals: 'order-4', payments: 'order-5', data: 'order-6', history: 'order-7' }
+    : { cancellation: '', refunds: '', items: 'order-1', totals: 'order-2', payments: 'order-3', data: 'order-4', history: 'order-5' },
 )
 
 // Header status badges: domain badge mapped to a StatusBadge tone.
@@ -331,13 +370,22 @@ watch(
                 <span class="sale-detail-title" data-testid="header-folio">
                   Venta {{ extractFolioNumber(sale.folio) }}
                 </span>
+                <!-- A cancellation is neutral (design-system.md, Status badge). -->
                 <StatusBadge
+                  v-if="isCanceled"
+                  label="Cancelada"
+                  tone="neutral"
+                  aria-prefix="Venta:"
+                  data-testid="badge"
+                />
+                <StatusBadge
+                  v-if="!isCanceled"
                   v-bind="deliveryBadge"
                   aria-prefix="Productos:"
                   data-testid="badge"
                 />
                 <StatusBadge
-                  v-if="paymentBadge"
+                  v-if="paymentBadge && !isCanceled"
                   v-bind="paymentBadge"
                   aria-prefix="Pago:"
                   data-testid="badge"
@@ -512,16 +560,28 @@ watch(
                takes its `order-N`: Productos, Totales, Pagos, Datos, Historial.
                From lg the columns are back and the order is neutral. -->
           <div class="contents lg:block lg:space-y-6" data-testid="sale-detail-column-main">
-            <div class="order-1 lg:order-none" data-testid="sale-detail-section-items">
+            <div
+              v-if="isCanceled"
+              :class="sectionOrder.cancellation"
+              class="lg:order-none"
+              data-testid="sale-detail-section-cancellation"
+            >
+              <SaleDetailCancellationCard :sale="sale" />
+            </div>
+            <div :class="sectionOrder.items" class="lg:order-none" data-testid="sale-detail-section-items">
               <SaleDetailItemsList
                 :items="sale.items"
                 portal-class="hf-theme hf-ui sales-detail-portal"
               />
             </div>
-            <div class="order-4 lg:order-none" data-testid="sale-detail-section-data">
-              <SaleDetailSalesDataCard :sale="sale" @assign-seller="sellerSlideoverOpen = true" />
+            <div :class="sectionOrder.data" class="lg:order-none" data-testid="sale-detail-section-data">
+              <SaleDetailSalesDataCard
+                :sale="sale"
+                :locked="isCanceled"
+                @assign-seller="sellerSlideoverOpen = true"
+              />
             </div>
-            <div class="order-5 lg:order-none" data-testid="sale-detail-section-history">
+            <div :class="sectionOrder.history" class="lg:order-none" data-testid="sale-detail-section-history">
               <SaleDetailHistoryCard
                 :timeline="sale.timeline"
                 :current-user-id="authStore.user?.id ?? null"
@@ -534,7 +594,19 @@ watch(
             </div>
           </div>
           <div class="contents lg:block lg:space-y-6" data-testid="sale-detail-column-side">
-            <div class="order-2 lg:order-none" data-testid="sale-detail-section-totals">
+            <div
+              v-if="isCanceled"
+              :class="sectionOrder.refunds"
+              class="lg:order-none"
+              data-testid="sale-detail-section-refunds"
+            >
+              <SaleDetailRefundsCard
+                :refunds="sale.refunds ?? []"
+                :can-settle="canSettleRefunds"
+                @settle="openSettle"
+              />
+            </div>
+            <div :class="sectionOrder.totals" class="lg:order-none" data-testid="sale-detail-section-totals">
               <SaleDetailTotalsCard
                 :subtotal-cents="sale.subtotalCents"
                 :discount-cents="sale.discountCents"
@@ -544,10 +616,11 @@ watch(
                 :change-due-cents="sale.changeDueCents"
               />
             </div>
-            <div class="order-3 lg:order-none" data-testid="sale-detail-section-payments">
+            <div :class="sectionOrder.payments" class="lg:order-none" data-testid="sale-detail-section-payments">
               <PaymentsListSection
                 :payments="sale.payments"
                 :loading="referencePending"
+                :readonly="isCanceled"
                 data-testid="sale-detail-payments-list"
                 portal-class="hf-theme hf-ui hf-form-overlay sales-detail-portal"
                 @submit="handleReferenceSubmit"
@@ -578,6 +651,12 @@ watch(
           :ui="{ content: 'hf-theme hf-ui hf-form-overlay sales-detail-portal' }"
           @update:open="cancelModalOpen = $event"
           @confirm="handleConfirmCancellation"
+        />
+        <!-- Mounted on the first «Liquidar», so reading a sale never loads cash sessions. -->
+        <SettleRefundSlideover
+          v-if="isCanceled && canSettleRefunds && settleRefundId"
+          v-model:open="settleOpen"
+          :refund="settleRow"
         />
       </div>
     </div>
