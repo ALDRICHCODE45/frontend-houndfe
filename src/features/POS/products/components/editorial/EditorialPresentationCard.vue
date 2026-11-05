@@ -245,7 +245,8 @@ fieldset:disabled .pcard__chip, .pcard__chip:has(input:disabled) { cursor: not-a
 .pcard__button:disabled, .pcard__ghost:disabled { cursor: not-allowed; opacity: .65; }
 .pcard__modal-actions { display: flex; justify-content: flex-end; gap: 8px; width: 100%; }
 @container (min-width: 40rem) {
-  .pcard__question { grid-template-columns: 15rem minmax(0, 1fr); align-items: center; }
+  .pcard__question { grid-template-columns: 15rem minmax(0, 1fr); align-items: start; }
+  .pcard__question > .pcard__label { padding-top: 10px; }
   .pcard__sub { grid-column: 2; }
 }
 @container (max-width: 30rem) {
