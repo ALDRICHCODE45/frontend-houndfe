@@ -55,7 +55,8 @@ function render(props: Record<string, unknown> = {}) {
 const cellOf = (wrapper: ReturnType<typeof render>, rowLabel: string, column: number) =>
   wrapper.findAll('tbody tr').find(row => row.get('th').text().startsWith(rowLabel))!.findAll('td')[column]!
 const labels = () => Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).map(item => (item.textContent ?? '').trim())
-const disabledLabels = () => Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).filter(item => item.hasAttribute('data-disabled') || item.getAttribute('aria-disabled') === 'true').map(item => (item.textContent ?? '').trim())
+// Where "No aplica" is not admitted the menu has no item for it at all: no disabled stand-in, no hint.
+const naItems = () => labels().filter(label => label.startsWith('No aplica') || label.startsWith('Déjalo'))
 async function openMenu(cell: ReturnType<typeof cellOf>) {
   document.body.click()
   await cell.get('button[aria-haspopup="menu"]').trigger('click'); await tick()
@@ -63,43 +64,39 @@ async function openMenu(cell: ReturnType<typeof cellOf>) {
 async function closeMenu() { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await tick() }
 
 describe('EditorialAttributeTable — "No aplica" only where the policy admits it', () => {
-  it('offers it where an option case admits it, and explains its absence where none does', async () => {
+  it('offers it where an option case admits it, and has no item for it where none does', async () => {
     const wrapper = render()
     await openMenu(cellOf(wrapper, 'Material', 0))
-    expect(labels()).toContain('No aplica')
-    expect(labels()).not.toContain('No aplica no disponible')
+    expect(naItems()).toEqual(['No aplica'])
     await closeMenu()
     await openMenu(cellOf(wrapper, 'Origen', 0))
-    expect(labels()).not.toContain('No aplica')
-    expect(labels()).toContain('No aplica no disponible')
-    expect(labels()).toContain('Déjalo vacío si no corresponde.')
-    expect(disabledLabels()).toEqual(expect.arrayContaining(['No aplica no disponible']))
+    expect(labels()).toContain('Desconocido')
+    expect(naItems()).toEqual([])
   })
 
   it('follows the declaration of the presentation it is asked about, live', async () => {
     const wrapper = render()
     await openMenu(cellOf(wrapper, 'Volumen neto', 1))
-    expect(labels()).toContain('No aplica no disponible')
+    expect(naItems()).toEqual([])
     await closeMenu()
     await wrapper.setProps({ facts: volumeIsNotRelevant })
     await openMenu(cellOf(wrapper, 'Volumen neto', 1))
-    expect(labels()).toContain('No aplica')
-    expect(labels()).not.toContain('No aplica no disponible')
+    expect(naItems()).toEqual(['No aplica'])
     await closeMenu()
     // The other presentation did not declare it.
     await openMenu(cellOf(wrapper, 'Volumen neto', 2))
-    expect(labels()).toContain('No aplica no disponible')
+    expect(naItems()).toEqual([])
     await closeMenu()
     await wrapper.setProps({ facts: [] })
     await openMenu(cellOf(wrapper, 'Volumen neto', 1))
-    expect(labels()).toContain('No aplica no disponible')
+    expect(naItems()).toEqual([])
   })
 
   it('never admits it for the weight and volume of a food, whatever is declared', async () => {
     const wrapper = render({ facts: mass })
     await openMenu(cellOf(wrapper, 'Peso neto', 1))
-    expect(labels()).not.toContain('No aplica')
-    expect(labels()).toContain('No aplica no disponible')
+    expect(labels()).toContain('Desconocido')
+    expect(naItems()).toEqual([])
   })
 
   it('keeps the error of a cell that is "No aplica" but is no longer admitted, and offers Quitar dato', async () => {
@@ -109,8 +106,7 @@ describe('EditorialAttributeTable — "No aplica" only where the policy admits i
     expect(cell.get('[role="alert"]').text()).toBe('Este dato no admite «No aplica».')
     await openMenu(cell)
     expect(labels()).toContain('Quitar dato')
-    expect(labels()).not.toContain('No aplica')
-    expect(labels()).not.toContain('No aplica no disponible')
+    expect(naItems()).toEqual([])
   })
 })
 

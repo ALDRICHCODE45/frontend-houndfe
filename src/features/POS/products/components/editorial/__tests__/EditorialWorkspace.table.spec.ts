@@ -118,13 +118,12 @@ describe('EditorialWorkspace — the table', () => {
     expect(http.put.mock.calls[0]![1].document.values).toEqual([{ code: 'animal.target', owner: 'product', variantId: null, state: 'unknown', evidence: null }])
   })
 
-  it('offers "No aplica" only where the policy admits it, and says how to leave the cell otherwise', async () => {
+  it('offers "No aplica" only where the policy admits it, with no stand-in item otherwise', async () => {
     await render()
     await wrapper.get('button[aria-label="Acciones de Especie · Producto"]').trigger('click'); await tick()
     const labels = menuItems().map(item => (item.textContent ?? '').trim())
-    expect(labels).toContain('No aplica no disponible')
-    expect(labels).toContain('Déjalo vacío si no corresponde.')
-    expect(labels).not.toContain('No aplica')
+    expect(labels).toContain('Desconocido')
+    expect(labels.filter(label => label.startsWith('No aplica') || label.startsWith('Déjalo'))).toEqual([])
   })
 
   it('a stored "No aplica" the policy does not admit is refused on save, next to its cell, and can be removed', async () => {

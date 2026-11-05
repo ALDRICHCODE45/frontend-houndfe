@@ -149,13 +149,8 @@ const actions = computed<RowAction[]>(() => {
   const items: RowAction[] = []
   if (state.value === 'unknown' || state.value === 'not_applicable') items.push({ key: 'value', label: 'Escribir valor', icon: 'i-lucide-pencil' })
   if (state.value !== 'unknown') items.push({ key: 'unknown', label: 'Desconocido', icon: 'i-lucide-circle-help' })
-  if (state.value !== 'not_applicable') {
-    if (props.naAdmitted) items.push({ key: 'na', label: 'No aplica', icon: 'i-lucide-ban' })
-    else {
-      items.push({ key: 'na-unavailable', label: 'No aplica no disponible', icon: 'i-lucide-ban', disabled: true })
-      items.push({ key: 'na-hint', label: 'Déjalo vacío si no corresponde.', disabled: true })
-    }
-  }
+  // Where the policy does not admit it, the menu has no item for it: a disabled stand-in reads as one more option.
+  if (state.value !== 'not_applicable' && props.naAdmitted) items.push({ key: 'na', label: 'No aplica', icon: 'i-lucide-ban' })
   items.push({ key: 'evidence', label: evidence.value ? 'Editar evidencia' : 'Agregar evidencia', icon: 'i-lucide-paperclip', disabled: !evidenceFilled.value })
   items.push({ key: 'clear', label: 'Quitar dato', icon: 'i-lucide-eraser', destructive: true, disabled: state.value === 'omitted' })
   return items
