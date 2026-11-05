@@ -21,7 +21,9 @@ const definitions: EditorialDefinition[] = [
   { id: 'origin', code: 'origin', label: 'Origen', type: 'text' },
   { id: 'measure.net_mass', code: 'measure.net_mass', label: 'Peso neto', type: 'text' },
 ]
-const family: EditorialFamily = { id: 'food', code: 'food', label: 'Alimento', bindings: [binding('animal.target', 'product'), binding('material', 'product'), binding('origin', 'product'), binding('measure.net_mass', 'sellable')] }
+// An option case with no condition that admits "No aplica": the policy the ⋯ menu follows.
+const admitsNotApplicable: EditorialBinding['policy'] = { route: 'option_cases', cases: [{ code: 'open', when: [], applicability: 'not_applicable', required: false, allowNA: true, evidenceRequired: true, documentary: 'resolved' }] }
+const family: EditorialFamily = { id: 'food', code: 'food', label: 'Alimento', bindings: [{ ...binding('animal.target', 'product'), policy: admitsNotApplicable }, binding('material', 'product'), binding('origin', 'product'), binding('measure.net_mass', 'sellable')] }
 const subjects = [{ variantId: 'v1', label: '15 kg' }, { variantId: 'v2', label: '7.5 kg' }]
 const text = (value: string) => ({ state: 'known' as const, payload: { type: 'text' as const, value }, evidence: null })
 const rowOf = (id: string, code: string, owner: 'product' | 'sellable', variantId: string | null, input: EditorialAssignmentEditingRow['input']): EditorialAssignmentEditingRow => ({ id, target: { code, owner, variantId }, input })

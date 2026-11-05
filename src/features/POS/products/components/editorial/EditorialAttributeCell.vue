@@ -15,8 +15,12 @@ import { editorialInputText } from '../../utils/editorial-value-text'
  * known value, and a ⋯ menu for the states and the evidence. It holds no document state: the table
  * owns the assignments and creates or removes them from `update:modelValue` and `clear`.
  */
-const props = defineProps<{ id: string; label: string; definition: EditorialDefinition; target: EditorialAssignmentTarget;
-  modelValue: EditorialAssignmentInput; readonly?: boolean; disabled?: boolean; issue?: string; conservedOptions?: readonly string[] }>()
+const props = withDefaults(defineProps<{ id: string; label: string; definition: EditorialDefinition; target: EditorialAssignmentTarget;
+  modelValue: EditorialAssignmentInput; readonly?: boolean; disabled?: boolean; issue?: string; conservedOptions?: readonly string[];
+  /** The policy admits "No aplica" for this cell; a cell shown on its own offers it. */
+  naAdmitted?: boolean
+  /** The policy makes the datum required to publish: a quiet marker, never an error. */
+  required?: boolean }>(), { naAdmitted: true })
 const emit = defineEmits<{ 'update:modelValue': [input: EditorialAssignmentInput]; clear: []; enter: [source: HTMLElement] }>()
 
 const type = computed(() => props.definition.type)
@@ -68,6 +72,7 @@ const message = computed(() => {
   }
   return resolveEditorialAssignmentInput(props.target, props.modelValue).status === 'incomplete' ? 'Completa este dato' : ''
 })
+const requiredMarker = computed(() => Boolean(props.required) && !props.readonly && state.value !== 'known')
 const described = computed(() => (message.value ? `${props.id}-issue` : undefined))
 
 function update(next: EditorialAssignmentInput) {
@@ -144,7 +149,13 @@ const actions = computed<RowAction[]>(() => {
   const items: RowAction[] = []
   if (state.value === 'unknown' || state.value === 'not_applicable') items.push({ key: 'value', label: 'Escribir valor', icon: 'i-lucide-pencil' })
   if (state.value !== 'unknown') items.push({ key: 'unknown', label: 'Desconocido', icon: 'i-lucide-circle-help' })
-  if (state.value !== 'not_applicable') items.push({ key: 'na', label: 'No aplica', icon: 'i-lucide-ban' })
+  if (state.value !== 'not_applicable') {
+    if (props.naAdmitted) items.push({ key: 'na', label: 'No aplica', icon: 'i-lucide-ban' })
+    else {
+      items.push({ key: 'na-unavailable', label: 'No aplica no disponible', icon: 'i-lucide-ban', disabled: true })
+      items.push({ key: 'na-hint', label: 'Déjalo vacío si no corresponde.', disabled: true })
+    }
+  }
   items.push({ key: 'evidence', label: evidence.value ? 'Editar evidencia' : 'Agregar evidencia', icon: 'i-lucide-paperclip', disabled: !evidenceFilled.value })
   items.push({ key: 'clear', label: 'Quitar dato', icon: 'i-lucide-eraser', destructive: true, disabled: state.value === 'omitted' })
   return items
@@ -229,6 +240,9 @@ function act(key: string) {
       </UPopover>
     </div>
     <p v-if="message" :id="`${id}-issue`" class="hf-cell__error" role="alert">{{ message }}</p>
+    <p v-if="requiredMarker" class="hf-cell__required" data-testid="required-marker">
+      <UIcon name="i-lucide-asterisk" class="size-3" aria-hidden="true" />Requerido para publicar
+    </p>
   </div>
 </template>
 
@@ -253,6 +267,7 @@ function act(key: string) {
 .hf-cell__option:hover { background: var(--hf-surface-muted); }
 .hf-cell__chip { flex: none; }
 .hf-cell__evidence { display: inline-flex; flex: none; color: var(--hf-muted); }
+.hf-cell__required { display: flex; align-items: center; gap: 4px; margin: 0; color: var(--hf-muted); font-size: 12px; line-height: 1.4; }
 .hf-cell__anchor { position: absolute; right: 0; bottom: 0; width: 1px; height: 1px; pointer-events: none; }
 .hf-cell__error { margin: 0; color: var(--hf-danger); font-size: 13px; line-height: 1.4; }
 .hf-cell__evidence-form { display: grid; gap: 6px; width: min(20rem, 86vw); padding: 12px; color: var(--hf-ink); }

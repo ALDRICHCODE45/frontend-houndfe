@@ -218,3 +218,22 @@ describe('decodeEditorialContractVocabulary primitive contract', () => {
     expect(decode(duplicate)).toEqual(duplicate)
   })
 })
+
+describe('definition description (optional help text)', () => {
+  const withDescription = (description: unknown) => ({ ...vocabulary, definitions: [{ ...definition, description }] })
+  it('keeps a description string', () => {
+    const raw = withDescription('Texto interno del equipo.')
+    expect(decode(raw)).toEqual(raw)
+  })
+  it('accepts a null description', () => {
+    const raw = withDescription(null)
+    expect(decode(raw)).toEqual(raw)
+  })
+  it('accepts a definition without the field', () => {
+    expect(decode(vocabulary)).toEqual(vocabulary)
+    expect(decode(vocabulary)!.definitions[0]).not.toHaveProperty('description')
+  })
+  it.each([42, true, {}, []])('rejects a description that is not text (%j)', (description) => {
+    expect(decode(withDescription(description))).toBeNull()
+  })
+})

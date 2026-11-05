@@ -307,7 +307,7 @@ function factsChanged(facts: EditorialDocumentEditingState['facts']) { if (buffe
             <EmptyState v-else-if="!family" title="Esta ficha aún no tiene familia" />
             <EmptyState v-else-if="onlyMissing && !missingCodes.size" kind="no-match" title="No falta ningún dato" action-label="Ver todos los datos" action-test-id="clear-missing" @action="onlyMissing = false" />
             <EditorialAttributeTable v-else :values="shown.values" :family="family" :definitions="vocabulary.definitions" :subjects="subjects"
-              :next-id="lifecycle.nextId" :visible-codes="visibleCodes" :readonly="!canWrite" :disabled="!editable" :issues="cellIssues" :conserved="conserved"
+              :facts="shown.facts" :next-id="lifecycle.nextId" :visible-codes="visibleCodes" :readonly="!canWrite" :disabled="!editable" :issues="cellIssues" :conserved="conserved"
               @update:values="valuesChanged" />
 
             <details v-if="family && (canWrite || shown.facts.length)" class="editorial-fold" data-testid="complete-to-publish">

@@ -18,7 +18,8 @@ export type EditorialNumericPolicy =
       upper: number | null;
       upperInclusive: boolean;
     }
-export type EditorialDefinition = { id: string; code: string; label: string } & (
+/** `description` is optional help text owned by the backend vocabulary; absent or null means none. */
+export type EditorialDefinition = { id: string; code: string; label: string; description?: string | null } & (
   | { type: 'text' | 'boolean' }
   | { type: 'number' | 'range'; units: EditorialUnit[]; numericPolicy: EditorialNumericPolicy }
   | {

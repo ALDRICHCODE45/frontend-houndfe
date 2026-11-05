@@ -118,13 +118,37 @@ describe('EditorialWorkspace — the table', () => {
     expect(http.put.mock.calls[0]![1].document.values).toEqual([{ code: 'animal.target', owner: 'product', variantId: null, state: 'unknown', evidence: null }])
   })
 
-  it('"No aplica" is only saved where the family allows it: otherwise the cell says so and nothing is sent', async () => {
+  it('offers "No aplica" only where the policy admits it, and says how to leave the cell otherwise', async () => {
     await render()
-    await pick(cell('Especie', 0).get('button[aria-haspopup="menu"]'), 'No aplica')
-    expect(cell('Especie', 0).get('.hf-status-badge').text()).toBe('No aplica')
+    await wrapper.get('button[aria-label="Acciones de Especie · Producto"]').trigger('click'); await tick()
+    const labels = menuItems().map(item => (item.textContent ?? '').trim())
+    expect(labels).toContain('No aplica no disponible')
+    expect(labels).toContain('Déjalo vacío si no corresponde.')
+    expect(labels).not.toContain('No aplica')
+  })
+
+  it('a stored "No aplica" the policy does not admit is refused on save, next to its cell, and can be removed', async () => {
+    reads(state(doc({ values: [{ code: 'animal.target', owner: 'product', variantId: null, state: 'not_applicable', evidence: null }] })))
+    await render()
     await wrapper.get('form').trigger('submit'); await flushPromises()
     expect(http.put).not.toHaveBeenCalled()
     expect(cell('Especie', 0).get('[role="alert"]').text()).toBe('Este dato no admite «No aplica».')
+    await pick(cell('Especie', 0).get('button[aria-haspopup="menu"]'), 'Quitar dato')
+    expect(cell('Especie', 0).get('.hf-status-badge').text()).toBe('Sin dato')
+  })
+
+  it('marks "Requerido para publicar" from the saved declarations, without blocking the save', async () => {
+    const policy = { route: 'fact_rule' as const, rule: { family: 'food' as const, ruleId: 'content' as const, parameter: 'measure.net_mass' as const } }
+    const guided: EditorialContractVocabulary = { ...vocabulary, families: [{ ...vocabulary.families[0]!,
+      bindings: vocabulary.families[0]!.bindings.map(item => (item.definitionCode === 'measure.net_mass' ? { ...item, policy } : item)) }, vocabulary.families[1]!] }
+    const facts = [{ variantId: 'v1', presentation: '15 kg', careReview: null,
+      declarations: [{ key: 'contentMagnitude' as const, state: 'known' as const, value: 'mass' as const, evidence: { sourceRef: 'Etiqueta', verifiedOn: '2026-01-01' }, basis: 'Etiqueta' }] }]
+    http.get.mockImplementation((url: string) => Promise.resolve(url.includes('vocabulary') ? { ...success(), data: vocabularyEnvelope(guided) }
+      : url.endsWith('/context') ? { status: 200, data: { variants } } : success(state(doc({ facts })))))
+    await render()
+    expect(cell('Peso neto', 1).text()).toContain('Requerido para publicar')
+    expect(cell('Peso neto', 2).text()).not.toContain('Requerido para publicar')
+    expect(wrapper.find('[data-testid="attribute-table"] [role="alert"]').exists()).toBe(false)
   })
 
   it('Quitar dato removes the assignment from the saved document', async () => {
