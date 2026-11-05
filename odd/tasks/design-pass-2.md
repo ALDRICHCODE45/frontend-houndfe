@@ -12,7 +12,7 @@ Branch feat/design-pass-2 from main e1cea788. Backend and chatbot agent requests
 - [x] T1 S1,S3,S4 Reembolsos /pos/reembolsos — worker; table fits at 1440 (7 cols), age said once, «Pagó con», card foot; 103 tests — cb603375
 - [x] T2 S1,S3,S4 Decisiones pendientes with real rows (list and drawer) — worker; product name leads rows and drawer, one-line answers, branch column gone; 269 tests, vue-tsc 0 — 30fcf7bb
 - [x] T3 S1,S3,S4 Recepciones de caja with data — worker; summary first on mobile, hidden when it repeats the state; 143 tests — 247738bd
-- [ ] T4 S1,S3,S4 Caja with sessions (sessions list lacks time/cashier: BE API debt) plus the shared handover cards CashCustodyDiscovery.vue (T3 CR1–CR6) — pending
+- [x] T4 S1,S3,S4 Caja with sessions plus the shared handover cards (T3 CR1–CR6) — worker; 396 tests — cae59917
 - [ ] T5 S1,S3,S4 Product detail: Presentaciones, Inventario, Historial slideover — pending
 - [ ] T6 S1,S3 Editorial route /pos/products/:id/editorial: keeps its own screen (it is the entry for editorial-only and global users, router meta editorialRead) and renders the same EditorialWorkspace as Contenido; check it with data after T5 — pending
 - [ ] T7 S1,S3 Notificaciones with data (dark switch contrast) — pending
@@ -29,3 +29,5 @@ L5. T3 done (247738bd). The handover card defects live in CashCustodyDiscovery.v
 L6. Slices: one commit per screen task (each about one reviewable slice); the branch merges to main after the pass, with docs/odd commits apart.
 L7. T2 done (30fcf7bb), docs fit rule in 8d82c4d2 (the T1 commit had missed it). Left for the user: the product name repeats in the drawer (title and Producto row); the chatbot's one-line summary paragraph comes from the server. Shared requests moved to T10.
 L8. T6 needs no user decision: ProductEditorialView.vue (46 lines) wraps the same EditorialWorkspace as the Contenido tab, and the route is how users with only editorial read, or global context without a tenant, reach it (src/app/router/index.ts:175, 617–667). Folding it would remove that access. T6 is a data check of its header and shell after T5.
+L9. T4 done (cae59917): CR1–CR6 on CashCustodyDiscovery checked on /pos/caja and /pos/caja/recepciones; Caja fixes (doubled badge and name, real status note, movement dates, count form waits for counting, table surfaces, skeletons, mobile session subject). Left: the 5-row «—» verification grid before a recount (T10); two errors with Reintentar on one failed detail read and the «Aún no hay un turno en foco» card above mobile lists (composition, user decision). Not shot: an OPEN/COUNTING session seen by its own cashier.
+BE field requests (batched): GET /cash-sessions items openedAt, closedAt, cashierDisplayName; GET /cash-sessions/:id cashier display name; GET /cash-handovers/custody items senderDisplayName, sourceRegisterName and the sender's notes.
