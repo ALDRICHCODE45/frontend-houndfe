@@ -88,8 +88,10 @@ const filteredTenants = computed(() => {
 
 // ── Visual helpers ───────────────────────────────────────────────────────────
 
+// Every branch is called «Sucursal …», so its first letter tells none apart.
 function getTenantInitial(name: string): string {
-  return name.trim().charAt(0).toUpperCase() || 'S'
+  const distinct = name.trim().replace(/^sucursal\s+/i, '')
+  return distinct.charAt(0).toUpperCase() || 'S'
 }
 
 function statusTone(status: string | null | undefined): 'success' | 'neutral' {

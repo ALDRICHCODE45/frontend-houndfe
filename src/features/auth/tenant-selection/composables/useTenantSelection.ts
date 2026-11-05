@@ -4,6 +4,8 @@ import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { resolveLandingDestinationForAuth } from '@/app/navigation/navigation.landing'
 
 const INVALID_AUTH_STATE_MESSAGE = 'Estado de autenticación inválido para seleccionar sucursal'
+// A server failure or a lost connection: its own text is technical and often English.
+const SELECTION_FAILED_MESSAGE = 'No pudimos abrir la sucursal.'
 
 type TenantSelectionAction = 'select-tenant' | 'switch-tenant' | 'invalid'
 
@@ -71,11 +73,9 @@ export function useTenantSelection() {
       if (isHttpErrorPayload(e) && e.response?.status === 401) {
         await router.push({ path: '/login', query: { expired: 'tenant' } })
       } else {
-        if (isHttpErrorPayload(e) && e.response?.data?.message) {
-          error.value = e.response.data.message
-        } else {
-          error.value = 'Error al seleccionar sucursal'
-        }
+        const status = isHttpErrorPayload(e) ? e.response?.status : undefined
+        const message = isHttpErrorPayload(e) ? e.response?.data?.message : undefined
+        error.value = status && status < 500 && message ? message : SELECTION_FAILED_MESSAGE
       }
     } finally {
       isSubmitting.value = false

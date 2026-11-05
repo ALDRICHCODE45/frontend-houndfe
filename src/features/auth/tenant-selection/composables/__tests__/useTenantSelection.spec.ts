@@ -111,6 +111,19 @@ describe('useTenantSelection', () => {
     expect(pushMock).not.toHaveBeenCalledWith('/')
   })
 
+  it.each([
+    { label: 'a server failure', reason: { response: { status: 500, data: { message: 'Internal server error' } } } },
+    { label: 'no response', reason: new Error('Network Error') },
+  ])('says it in Spanish for $label, never the raw server text', async ({ reason }) => {
+    mockAuthStore.isSuperAdmin = true
+    mockAuthStore.switchTenant.mockRejectedValue(reason)
+
+    const tenantSelection = useTenantSelection()
+    await tenantSelection.submit('tenant-1')
+
+    expect(tenantSelection.error.value).toBe('No pudimos abrir la sucursal.')
+  })
+
   it('cancel clears temp state and redirects to login', () => {
     const tenantSelection = useTenantSelection()
 
