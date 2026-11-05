@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
-  decodeEditorialReadiness, editorialPublicationStatus, isEditorialNoDraftReadiness, isEditorialReadinessCurrent,
+  countEditorialReadinessFields, decodeEditorialReadiness, editorialPublicationStatus, editorialReadinessSectionCounts, isEditorialNoDraftReadiness, isEditorialReadinessCurrent,
 } from '../editorial-contract-readiness'
 import { document, R, state } from '../../__tests__/editorial-contract-fixtures'
+import type { EditorialReadinessItem } from '../../interfaces/editorial-contract-readiness.types'
 
 const item = (patch: Record<string, unknown> = {}) => ({ scope: 'definition', definitionCode: 'measure.net_mass', variantId: null,
   sectionCode: 'contenido-empaque', problem: 'REQUIRED_MISSING', message: 'Falta el peso neto.', ...patch })
@@ -71,5 +72,18 @@ describe('editorialPublicationStatus', () => {
   it('is «Cambios sin publicar» when the draft differs', () => {
     expect(editorialPublicationStatus({ ...state({ ...document(), commercialTitle: 'Otro' }), published: published() }, null))
       .toEqual({ kind: 'changes', label: 'Cambios sin publicar' })
+  })
+})
+
+describe('readiness field counts', () => {
+  const items = (): EditorialReadinessItem[] => [item(), item({ problem: 'EVIDENCE_REQUIRED', message: 'Agrega de dónde sale este dato.' }), item({ variantId: 'v2' }),
+    item({ definitionCode: 'food.ingredients', sectionCode: 'nutricion' }),
+    item({ scope: 'care', definitionCode: null, sectionCode: null }), item({ scope: 'product', definitionCode: null, sectionCode: null })] as EditorialReadinessItem[]
+  it('counts one field per (scope, definitionCode, variantId); items with no datum count once each', () => {
+    expect(countEditorialReadinessFields(items())).toBe(5)
+    expect(countEditorialReadinessFields([])).toBe(0)
+  })
+  it('per section counts distinct fields, not items', () => {
+    expect(editorialReadinessSectionCounts(items())).toEqual({ 'contenido-empaque': 2, nutricion: 1 })
   })
 })

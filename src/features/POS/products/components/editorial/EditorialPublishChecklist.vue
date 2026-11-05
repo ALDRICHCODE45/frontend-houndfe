@@ -1,5 +1,6 @@
 <script lang="ts">
 import type { EditorialReadinessItem } from '../../interfaces/editorial-contract-readiness.types'
+import { editorialReadinessFieldKey } from '../../utils/editorial-contract-readiness'
 
 export const EDITORIAL_PUBLISH_CHECKLIST_ID = 'editorial-publish-checklist'
 export type EditorialChecklistEntry = { key: string; item: EditorialReadinessItem
@@ -28,7 +29,7 @@ function groupChecklistEntries(entries: readonly EditorialChecklistEntry[]): Edi
 
 /** A field is a datum of one presentation; items without a datum (product, care) count once each. */
 function countChecklistFields(entries: readonly EditorialChecklistEntry[]): number {
-  return new Set(entries.map(({ key, item }) => (item.definitionCode === null ? `#${key}` : `${item.definitionCode}\u0000${item.variantId ?? ''}`))).size
+  return new Set(entries.map(({ key, item }) => editorialReadinessFieldKey(item, key))).size
 }
 </script>
 

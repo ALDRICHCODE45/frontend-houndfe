@@ -100,8 +100,8 @@ const orphans = computed(() => {
 const PRESENTATION_ID = 'editorial-section-presentation'
 const DOCUMENT_ID = 'editorial-section-document'
 // One count for one thing: while there are unsaved edits, «falta N» is the live local count of fields to
-// answer; once everything is saved it is the backend's readiness of that saved draft (bySection), and
-// the header's «Faltan N» is then every readiness item, the ones above the cards included.
+// answer; once everything is saved it is the backend's readiness of that saved draft, counted in distinct
+// fields per section, and the header's «Faltan N» is then every readiness field, the ones above the cards included.
 const savedCounts = computed(() => (hasUnsavedChanges.value ? null : publication.sectionCounts.value))
 const sectionMissing = computed(() => {
   const counts = savedCounts.value
@@ -114,7 +114,7 @@ const sectionMissing = computed(() => {
   }
   return missing
 })
-const missingTotal = computed(() => (savedCounts.value ? publication.checklist.value.length : content.value.missing))
+const missingTotal = computed(() => (savedCounts.value ? publication.missingFields.value : content.value.missing))
 const navSections = computed<HfSection[]>(() => [
   { id: PRESENTATION_ID, label: 'Presentación', missing: 0 },
   { id: DOCUMENT_ID, label: 'Título y descripción', missing: 0 },

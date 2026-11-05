@@ -54,9 +54,9 @@ const readiness = (items: unknown[] = [], bySection: Record<string, number> = {}
   ({ ready: items.length === 0, cycle: 2, draftRevision, vocabularyRevision: R, items, bySection })
 const ok = (data: unknown) => ({ status: 200, data, headers: { 'Editorial-Contract-Version': '2', 'Editorial-Vocabulary-Revision': R } })
 
-let current: { snapshot: EditorialContractState; readiness: unknown; variants?: { id: string; name: string }[] }
+let current: { snapshot: EditorialContractState; readiness: unknown; variants?: { id: string; name: string }[]; vocabulary?: EditorialContractVocabulary }
 function serve() {
-  http.get.mockImplementation((url: string) => Promise.resolve(url.includes('vocabulary') ? { ...success(), data: vocabularyEnvelope(vocabulary()) }
+  http.get.mockImplementation((url: string) => Promise.resolve(url.includes('vocabulary') ? { ...success(), data: vocabularyEnvelope(current.vocabulary ?? vocabulary()) }
     : url.endsWith('/context') ? { status: 200, data: { variants: current.variants ?? [] } }
       : url.endsWith('/draft/readiness') ? ok(current.readiness) : success(current.snapshot)))
 }
@@ -150,6 +150,33 @@ describe('EditorialWorkspace — section counts', () => {
     await wrapper.get('#editorial-title').setValue('Otra croqueta')
     expect(navCounts()).toMatchObject({ 'Para quién': 1, 'Contenido y empaque': 1 })
     expect(wrapper.get('[data-testid="editorial-progress"]').text()).toContain('Faltan 2')
+  })
+  it('counts distinct fields, not items: the real 18-item shape where «Tipo de contenido» has 2 items reads 17 everywhere', async () => {
+    // «Alimento para Cachorro Raza Mediana 3 kg» on BE :3003: bySection counts items (4+5+3+5+1 = 18).
+    const fields: Record<string, string[]> = {
+      'que-es': ['food.content_type', 'food.format', 'food.line'], 'para-quien': ['animal.target', 'animal.life_stage', 'animal.breed_size', 'animal.activity', 'animal.condition'],
+      nutricion: ['food.protein_source', 'food.ingredients', 'food.flavor'], uso: ['food.feeding_guide', 'food.storage', 'food.serving', 'food.transition', 'food.warnings'],
+      empaque: ['measure.net_mass'],
+    }
+    const labels: Record<string, string> = { 'que-es': 'Qué es', 'para-quien': 'Para quién', nutricion: 'Nutrición', uso: 'Uso', empaque: 'Empaque' }
+    const base = vocabulary()
+    current.vocabulary = { ...base,
+      families: [{ id: 'food', code: 'food', label: 'Alimento', sections: Object.keys(fields).map((code, index) => ({ code, label: labels[code]!, sortOrder: index })),
+        bindings: Object.entries(fields).flatMap(([section, codes]) => codes.map(code => binding(code, 'product', section))) }, base.families[1]!],
+      definitions: Object.values(fields).flat().map(code => ({ id: code, code, label: code, type: 'text' as const })) }
+    const evidence = { problem: 'EVIDENCE_REQUIRED', message: 'Agrega de dónde sale este dato.' }
+    const items = [
+      ...Object.entries(fields).flatMap(([sectionCode, codes]) => codes.map(definitionCode => item({ definitionCode, sectionCode, ...evidence }))),
+      item({ definitionCode: 'food.content_type', sectionCode: 'que-es', problem: 'CONTENT_TYPE_MISMATCH', message: 'El tipo de contenido no coincide con la familia.' }),
+    ]
+    expect(items).toHaveLength(18)
+    current.readiness = readiness(items, { 'que-es': 4, 'para-quien': 5, nutricion: 3, uso: 5, empaque: 1 })
+    await render()
+    expect(wrapper.get('[data-testid="editorial-progress"]').text()).toContain('Faltan 17')
+    expect(wrapper.get('[data-testid="publish-checklist-head"]').text()).toBe('Para publicar, resuelve: 17 campos')
+    const counts = navCounts()
+    expect(counts).toMatchObject({ 'Qué es': 3, 'Para quién': 5, Nutrición: 3, Uso: 5, Empaque: 1 })
+    expect(Object.values(counts).reduce((sum, count) => sum + count, 0)).toBe(17)
   })
   it('reads readiness again after a save', async () => {
     await render()

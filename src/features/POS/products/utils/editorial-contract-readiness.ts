@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { EditorialContractDocument } from '../interfaces/editorial-contract-document.types'
-import type { EditorialReadiness, EditorialReadinessIssues } from '../interfaces/editorial-contract-readiness.types'
+import type { EditorialReadiness, EditorialReadinessIssues, EditorialReadinessItem } from '../interfaces/editorial-contract-readiness.types'
 import type { EditorialContractState } from '../interfaces/editorial-contract-response.types'
 import { isEditorialVocabularyRevision } from './editorial-contract-response'
 import { scalarString, snapshotJson } from './editorial-contract-value'
@@ -40,6 +40,29 @@ export function decodeEditorialReadiness(raw: unknown): EditorialReadiness | nul
 /** «No saved draft» (readiness only): after a publish the draft is cleared, so this reads as published, not as a problem. */
 export function isEditorialNoDraftReadiness(readiness: EditorialReadinessIssues): boolean {
   return readiness.items.length === 1 && readiness.items[0]!.scope === 'product' && readiness.items[0]!.problem === 'NO_DRAFT'
+}
+
+/**
+ * The field an item is about: a datum of one presentation, keyed by (scope, definitionCode, variantId). A field may
+ * have several items (evidence and a mismatch); an item with no datum (product, care) is a field of its own.
+ */
+export function editorialReadinessFieldKey(item: EditorialReadinessItem, fallback: string): string {
+  return item.definitionCode === null ? `#${fallback}` : `${item.scope}\u0000${item.definitionCode}\u0000${item.variantId ?? ''}`
+}
+/** «Faltan N»: distinct fields, never items, so the header, the checklist and the section index agree. */
+export function countEditorialReadinessFields(items: readonly EditorialReadinessItem[]): number {
+  return new Set(items.map((item, index) => editorialReadinessFieldKey(item, `${index}`))).size
+}
+/** Distinct fields per section, from the items (the backend's `bySection` counts items). */
+export function editorialReadinessSectionCounts(items: readonly EditorialReadinessItem[]): Record<string, number> {
+  const fields = new Map<string, Set<string>>()
+  items.forEach((item, index) => {
+    if (item.sectionCode === null) return
+    const set = fields.get(item.sectionCode) ?? new Set<string>()
+    set.add(editorialReadinessFieldKey(item, `${index}`))
+    fields.set(item.sectionCode, set)
+  })
+  return Object.fromEntries([...fields].map(([code, set]) => [code, set.size]))
 }
 
 /** Readiness evaluates one saved draft; it only speaks for the installed state it was read for. */

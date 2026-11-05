@@ -2,7 +2,7 @@ import { computed, onScopeDispose, shallowRef, toValue, watch, type MaybeRefOrGe
 import { editorialContractApi, EditorialContractApiError } from '../api/editorial-contract.api'
 import type { EditorialReadiness, EditorialReadinessItem } from '../interfaces/editorial-contract-readiness.types'
 import {
-  editorialPublicationStatus, isEditorialNoDraftReadiness, isEditorialReadinessCurrent,
+  countEditorialReadinessFields, editorialPublicationStatus, editorialReadinessSectionCounts, isEditorialNoDraftReadiness, isEditorialReadinessCurrent,
 } from '../utils/editorial-contract-readiness'
 import type { EditorialContractSnapshot } from '../utils/editorial-contract-snapshot'
 import { editorialErrorMessage, type useEditorialEditor } from './useEditorialEditor'
@@ -54,7 +54,9 @@ export function useEditorialPublish(editor: ReturnType<typeof useEditorialEditor
   /** «No saved draft» is what a publish leaves behind: the published state, not a pending item. */
   const noDraft = computed(() => Boolean(readiness.value && isEditorialNoDraftReadiness(readiness.value)))
   const checklist = computed<readonly EditorialReadinessItem[]>(() => (readiness.value && !noDraft.value ? readiness.value.items : []))
-  const sectionCounts = computed(() => (readiness.value && !noDraft.value ? readiness.value.bySection : null))
+  // Distinct fields, not items: `bySection` counts items, and one field may have several.
+  const sectionCounts = computed(() => (readiness.value && !noDraft.value ? editorialReadinessSectionCounts(checklist.value) : null))
+  const missingFields = computed(() => countEditorialReadinessFields(checklist.value))
   const status = computed(() => {
     const state = lifecycle.authoritative.value
     return state ? editorialPublicationStatus(state, publishedAt.value) : null
@@ -165,6 +167,6 @@ export function useEditorialPublish(editor: ReturnType<typeof useEditorialEditor
     await loadReadiness()
   }
 
-  return { readiness, readinessFailed, noDraft, checklist, sectionCounts, status, visible, canPublish, publishing, retryable,
+  return { readiness, readinessFailed, noDraft, checklist, sectionCounts, missingFields, status, visible, canPublish, publishing, retryable,
     message, publishedAt, publish, retry, reload, reloadReadiness: () => loadReadiness(true) }
 }
