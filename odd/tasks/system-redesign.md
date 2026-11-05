@@ -174,3 +174,8 @@ L79. Refund settlements: the user chose direction 01, verbatim: "Si hermano, est
 L80. T19 browser check against BE main :3002 (admin): the page lists 4 real pending refunds. Partial $10 on A-202611-000050: a double click sent ONE POST with an Idempotency-Key and got 200; toast «Devolución parcial registrada. Quedan $70.55 por devolver.»; the summary refreshed. Full $70.55: 200; the row left; the badge went 4→3; Por devolver $17,805.90→$17,725.35; toast «Devolución completada.» Mobile dark: cards, no overflow. Found: the mobile sheet amount field overflows; Motivo and «Total a devol…» truncate at 1440. Both were sent to the T20 worker.
 L81. Independent verify (gentle-ai-verify) of the refund settlement money flow: FAIL on item 1. A comma decimal «70,55» was read as $7,055.00, a 100× over-settlement passing whenever it is below the outstanding balance. Fixed test-first (RED 5 → GREEN 99/99): a comma is accepted only as thousands groups, else «Usa punto para los centavos, por ejemplo 70.55.» Items 2–6 PASS (idempotency, fields, errors, success refetch, permissions).
 L82. Independent re-verify of item 1 (amount) after 52c81060: PASS (no bypass: Devolver todo, blur, reset, submit re-check, builder re-parse). The small gap «0,100» it noted was closed test-first in the next commit.
+L83. Delivered:
+- T17 Identidad, T19 Reembolsos, T20 the canceled sale detail;
+- the run-tests queue;
+- the refund amount fix, verified by the independent verify.
+Final suite 772/13867, tc/build/dc 0. Merged to main.
