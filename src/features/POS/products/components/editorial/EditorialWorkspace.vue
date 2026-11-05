@@ -17,6 +17,7 @@ import type { EditorialReadinessItem } from '../../interfaces/editorial-contract
 import EditorialPublishBar from './EditorialPublishBar.vue'
 import EditorialPublishChecklist, { type EditorialChecklistEntry } from './EditorialPublishChecklist.vue'
 import EditorialAttributeField from './EditorialAttributeField.vue'
+import EditorialBulkEvidencePanel from './EditorialBulkEvidencePanel.vue'
 import EditorialContractDocumentFields from './EditorialContractDocumentFields.vue'
 import EditorialContractFamilyField from './EditorialContractFamilyField.vue'
 import EditorialHistoryDrawer from './EditorialHistoryDrawer.vue'
@@ -28,7 +29,9 @@ import { qualifyEditorialConservationBaseline } from '../../utils/editorial-cont
 import { projectEditorialDeclarationChoices } from '../../utils/editorial-contract-declaration-choices'
 import { applyEditorialCellInput, editorialTargetKey, isEditorialOptionalBinding, removeEditorialCell, type EditorialTableCell } from '../../utils/editorial-attribute-table'
 import { buildEditorialContentSections, editorialRowCell } from '../../utils/editorial-content-sections'
-import { editorialEffectiveSource, editorialSourceKey, ensureEditorialFactsRow, setEditorialOptionalNonpertinence, type EditorialCardSource } from '../../utils/editorial-presentation-card'
+import { editorialEffectiveSource, editorialShortDate, editorialSourceKey, ensureEditorialFactsRow, setEditorialOptionalNonpertinence, type EditorialCardSource } from '../../utils/editorial-presentation-card'
+import { applyEditorialBulkEvidence, editorialBulkEvidenceTargets } from '../../utils/editorial-bulk-evidence'
+import type { EditorialEvidence } from '../../interfaces/editorial-contract-value.types'
 import type { EditorialAssignmentInput } from '../../utils/editorial-contract-assignment-input'
 import type { EditorialAssignmentTarget } from '../../utils/editorial-contract-assignment-input'
 import { buildEditorialHistoryChanges } from '../../utils/editorial-history-diff'
@@ -176,6 +179,56 @@ watch(() => [props.productId, authoritative.value], () => { cardSources.value = 
 // A card whose answers lack their source says so on its source row, so the general notice would only repeat it.
 const sourceMissing = computed(() => (shown.value?.facts ?? []).some(row => (row.declarations.some(item => item.input.state === 'known') || row.careReview.state === 'prepared')
   && !editorialEffectiveSource(cardSources.value, row, row.variantId).sourceRef.trim()))
+// «Usar una fuente para todos» (S19): the known data still without a source, named for people.
+const bulkTargets = computed(() => (canWrite.value && buffer.value ? editorialBulkEvidenceTargets(buffer.value.values) : []))
+const bulkAvailable = computed(() => editable.value && bulkTargets.value.length > 0)
+const bulkFields = computed(() => bulkTargets.value.map(({ target }) => {
+  const name = rowOf(target.code)?.label ?? vocabulary.value?.definitions.find(item => item.code === target.code)?.label ?? 'Dato sin nombre'
+  const subject = target.variantId === null || subjects.value.length < 2 ? null : subjects.value.find(item => item.variantId === target.variantId)
+  return subject ? `${name} · ${subject.label}` : name
+}))
+// The contract has no presentation-level source: a presentation's source only prefills the panel.
+const bulkPresentations = computed(() => subjects.value.map(subject => ({ key: editorialSourceKey(subject.variantId), title: subject.variantId === null ? 'Producto' : subject.label,
+  source: editorialEffectiveSource(cardSources.value, shown.value?.facts.find(row => row.variantId === subject.variantId) ?? null, subject.variantId) })))
+const bulkInitial = computed(() => {
+  const list = bulkPresentations.value
+  const chosen = list.find(item => item.key === selected.value)
+  return (chosen?.source.sourceRef.trim() ? chosen : list.find(item => item.source.sourceRef.trim()) ?? chosen ?? list[0])?.key ?? selected.value
+})
+const bulkOpen = shallowRef(false)
+const bulkSaving = shallowRef(false)
+const bulkError = shallowRef<string | null>(null)
+watch(bulkOpen, open => { if (open) bulkError.value = null })
+watch(() => props.productId, () => { bulkOpen.value = false })
+function openBulk() { if (bulkAvailable.value) bulkOpen.value = true }
+// Confirmed first (a provenance decision), then ONE normal save. A refused save leaves the editor as it
+// was; a conflict or an unconfirmed save keeps the edits for the usual reconciliation.
+async function applyBulk(evidence: EditorialEvidence) {
+  const count = bulkTargets.value.length
+  if (!count || bulkSaving.value) return
+  const confirmed = await confirm({ title: `¿Todos estos datos salen de ${evidence.sourceRef}?`,
+    description: `Quedará registrado que ${count === 1 ? 'este dato sale' : `estos ${count} datos salen`} de ${evidence.sourceRef}, revisada el ${editorialShortDate(evidence.verifiedOn)}. Si alguno sale de otro lado, cárgalo campo por campo.`,
+    confirmLabel: 'Sí, usar esta fuente' })
+  const previous = buffer.value
+  if (!confirmed || !previous || !editable.value) return
+  bulkSaving.value = true; bulkError.value = null
+  try {
+    replace({ ...previous, values: applyEditorialBulkEvidence(previous.values, evidence) })
+    if (await editor.save()) {
+      bulkOpen.value = false
+      savedAt.value = new Date()
+      await editor.refresh('retain', { quiet: true })
+      return
+    }
+    if (outcome.value === 'conflict' || outcome.value === 'ambiguous') { bulkOpen.value = false; return }
+    // A local refusal or a rejected request: put the editor back exactly as it was.
+    const rejected = outcome.value === 'rejected'
+    buffer.value = previous
+    if (rejected) lifecycle.dismissRejection()
+    bulkError.value = rejected ? 'No se guardó la fuente. No cambió nada; revisa la fuente y la fecha.'
+      : 'No se guardó la fuente. Primero corrige los datos marcados y vuelve a intentarlo.'
+  } finally { bulkSaving.value = false }
+}
 const generalIssues = computed(() => issues.value.filter(issue => issue.valueIndex === undefined && issue.code !== 'TITLE_LIMIT' && issue.code !== 'DESCRIPTION_LIMIT'
   && !(issue.code === 'FACTS_CAPTURE' && sourceMissing.value)))
 const declarationChoices = computed(() => projectEditorialDeclarationChoices({ family: family.value, definitions: vocabulary.value?.definitions ?? [] }))
@@ -383,14 +436,16 @@ function valuesChanged(values: EditorialDocumentEditingState['values']) {
             <ul><li v-for="(issue, index) in generalIssues" :key="index">{{ editorialIssueMessage(issue) }}</li></ul>
           </div>
 
-          <EditorialPublishChecklist v-if="checklistEntries.length" :entries="checklistEntries" :stale="hasUnsavedChanges" @goto="gotoItem" />
+          <EditorialPublishChecklist v-if="checklistEntries.length" :entries="checklistEntries" :stale="hasUnsavedChanges" :bulk-evidence="bulkAvailable"
+            @goto="gotoItem" @bulk-evidence="openBulk" />
 
           <div class="editorial-layout" :data-wide="wide || undefined">
             <HfSectionNav class="editorial-nav" :sections="navSections" label="Secciones del contenido" :chips="!wide" @navigate="focusSection" />
             <component :is="canWrite ? 'form' : 'div'" id="editorial-form" class="editorial-cards" :aria-label="canWrite ? 'Editar ficha del catálogo' : undefined" novalidate @submit.prevent="submit">
               <EditorialPresentationSection :id="PRESENTATION_ID" v-model:selected="selected" :facts="shown.facts" :subjects="subjects" :choices="declarationChoices"
                 :care-allowed="family?.code === 'care'" :next-id="lifecycle.nextId" :sources="cardSources" :product-name="shown.commercialTitle ?? ''"
-                :show-errors="issues.length > 0" :readonly="!canWrite" :disabled="!editable" @update:facts="factsChanged" @update:sources="cardSources = $event">
+                :show-errors="issues.length > 0" :readonly="!canWrite" :disabled="!editable" :bulk-evidence="bulkAvailable"
+                @update:facts="factsChanged" @update:sources="cardSources = $event" @bulk-evidence="openBulk">
                 <template #family>
                   <EditorialContractFamilyField v-if="canWrite" id="editorial-family" :model-value="shown" :families="vocabulary.families" :disabled="!editable" @update:model-value="replace" />
                   <HfFormField v-else label="Familia" label-id="editorial-family-label">
@@ -428,6 +483,8 @@ function valuesChanged(values: EditorialDocumentEditingState['values']) {
           </div>
         </template>
 
+        <EditorialBulkEvidencePanel v-if="canWrite" v-model:open="bulkOpen" :presentations="bulkPresentations" :initial="bulkInitial" :fields="bulkFields"
+          :saving="bulkSaving" :disabled="!editable && !bulkSaving" :error="bulkError" :unsaved="hasUnsavedChanges" @apply="applyBulk" />
         <EditorialHistoryDrawer v-model:open="historyOpen" :has-draft="Boolean(authoritative.draft)" :has-published="Boolean(authoritative.published)"
           :saved-at="savedAt" :changes="historyChanges" :warnings="warnings" />
         <ConfirmModal v-model:open="discardDraftOpen" title="¿Descartar el borrador?" confirm-label="Descartar borrador" confirm-color="error"

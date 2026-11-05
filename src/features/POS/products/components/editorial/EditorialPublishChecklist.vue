@@ -40,8 +40,10 @@ import { computed, ref } from 'vue'
  * Each issue family once: a family of one item links to its field, a larger one reads «{message} · N campos»
  * and discloses the links. With unsaved edits it says the list is from the last save, since readiness never sees the buffer.
  */
-const props = defineProps<{ entries: readonly EditorialChecklistEntry[]; stale: boolean }>()
-const emit = defineEmits<{ goto: [item: EditorialReadinessItem] }>()
+const props = defineProps<{ entries: readonly EditorialChecklistEntry[]; stale: boolean
+  /** The editor has known data without a source: the evidence family offers one source for all of them. */
+  bulkEvidence?: boolean }>()
+const emit = defineEmits<{ goto: [item: EditorialReadinessItem]; 'bulk-evidence': [] }>()
 
 const groups = computed(() => groupChecklistEntries(props.entries))
 const fieldCount = computed(() => countChecklistFields(props.entries))
@@ -82,6 +84,8 @@ const fieldsId = (index: number) => `${EDITORIAL_PUBLISH_CHECKLIST_ID}-fields-${
             </li>
           </ul>
         </template>
+        <button v-if="bulkEvidence && group.problem === 'EVIDENCE_REQUIRED'" type="button" class="publish-checklist__bulk" data-testid="publish-checklist-bulk"
+          @click="emit('bulk-evidence')">Usar una fuente para todos</button>
       </li>
     </ul>
   </div>
@@ -100,7 +104,10 @@ const fieldsId = (index: number) => `${EDITORIAL_PUBLISH_CHECKLIST_ID}-fields-${
 .publish-checklist__toggle { min-height: 0; padding: 0; border: 0; background: none; color: var(--hf-action); font: inherit; font-weight: 600; cursor: pointer; }
 .publish-checklist__link { margin-left: 4px; text-decoration: underline; text-underline-offset: 2px; }
 .publish-checklist__toggle { display: inline-flex; align-items: center; gap: 2px; margin-left: 4px; }
+.publish-checklist__bulk { min-height: 0; margin-left: auto; padding: 2px 8px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-control);
+  background: var(--hf-surface); color: var(--hf-action); font: inherit; font-weight: 600; cursor: pointer; }
 .publish-checklist__link:focus-visible,
+.publish-checklist__bulk:focus-visible,
 .publish-checklist__toggle:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; border-radius: 2px; }
 .publish-checklist ul.publish-checklist__fields { display: flex; flex-wrap: wrap; gap: 4px 12px; flex-basis: 100%; padding-left: 22px; }
 .publish-checklist__fields .publish-checklist__link { margin-left: 0; }
