@@ -124,4 +124,32 @@ describe('HfUnitField special answers', () => {
     await tick()
     expect(wrapper.emitted('update:special')).toEqual([[null]])
   })
+
+  it('shows the special label once, in the number area; the unit trigger keeps only its chevron', () => {
+    const specials = [{ value: 'unknown', label: 'No lo sé' }]
+    const wrapper = mountField({ id: 'volumen', specialAnswers: specials, special: 'unknown' })
+    expect(wrapper.text()).toBe('No lo sé')
+    expect(wrapper.findAll('.hf-unit-field__special')).toHaveLength(1)
+    const trigger = wrapper.get('[data-slot="base"]')
+    expect(trigger.find('.hf-combobox__special-text').exists()).toBe(false)
+    expect(trigger.classes()).toContain('hf-combobox__trigger--bare')
+    // The trigger still opens the list and is described by the special label.
+    expect(trigger.attributes('aria-describedby')).toContain('volumen-special')
+    expect(wrapper.get('#volumen-special').text()).toBe('No lo sé')
+  })
+
+  it('shows a range with a special answer as one label, without its Mín. – Máx. parts', () => {
+    const specials = [{ value: 'na', label: 'No aplica' }]
+    const wrapper = mountField({ range: true, modelValue: { min: 1, max: 2, unit: 'kg' }, specialAnswers: specials, special: 'na' })
+    expect(wrapper.text()).toBe('No aplica')
+    expect(wrapper.find('.hf-unit-field__dash').exists()).toBe(false)
+    expect(wrapper.findAll('input')).toHaveLength(0)
+  })
+
+  it('keeps the unit text in the trigger without a special answer', () => {
+    const wrapper = mountField({ specialAnswers: [{ value: 'na', label: 'No aplica' }] })
+    const trigger = wrapper.get('[data-slot="base"]')
+    expect(trigger.get('.hf-combobox__text').text()).toBe('kg')
+    expect(trigger.classes()).not.toContain('hf-combobox__trigger--bare')
+  })
 })

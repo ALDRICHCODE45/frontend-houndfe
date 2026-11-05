@@ -12,7 +12,9 @@
  *   id              — id of the (first) number input, for the visible label
  *   invalid, disabled, describedby, placeholder
  *   specialAnswers  — footer answers of the unit list; while `special` is set
- *   special           its label replaces the number in muted italic
+ *   special           its label replaces the number (or the range) once, in muted
+ *                     italic, and the unit trigger keeps only its chevron so the
+ *                     list (and its footer) still opens to change it
  *
  * Events:
  *   update:modelValue — the whole object; a number cleared or not a number yet is `undefined`
@@ -20,7 +22,7 @@
  *   update:text       — (part, text) the raw text of an input as typed, for owners that
  *                       validate it themselves (`5x` is `undefined` in the model)
  */
-import { computed, ref, watch } from 'vue'
+import { computed, ref, useId, watch } from 'vue'
 import HfCombobox, { type HfComboboxItem, type HfSpecialAnswer } from './HfCombobox.vue'
 import './hf-form.css'
 
@@ -60,6 +62,9 @@ const emit = defineEmits<{
 
 const parts = computed<NumberPart[]>(() => props.range ? ['min', 'max'] : ['value'])
 const activeSpecial = computed(() => props.specialAnswers.find(answer => answer.value === props.special) ?? null)
+const fallbackId = useId()
+const specialId = computed(() => `${props.id ?? fallbackId}-special`)
+const unitDescribedby = computed(() => [props.describedby, activeSpecial.value && specialId.value].filter(Boolean).join(' ') || undefined)
 
 // Each input keeps its own text so a half-typed number ("3.", "2,") survives
 // the round trip through the parent; it resyncs when the model really changes.
@@ -104,7 +109,7 @@ function inputLabel(part: NumberPart) {
     role="group"
     :aria-label="label"
   >
-    <span v-if="activeSpecial" :id="id ? `${id}-special` : undefined" class="hf-unit-field__special">{{ activeSpecial.label }}</span>
+    <span v-if="activeSpecial" :id="specialId" class="hf-unit-field__special">{{ activeSpecial.label }}</span>
     <template v-for="(part, index) in parts" v-else :key="part">
       <span v-if="index > 0" class="hf-unit-field__dash" aria-hidden="true">–</span>
       <input
@@ -131,6 +136,8 @@ function inputLabel(part: NumberPart) {
         :label="`${label}, unidad`"
         placeholder="Unidad"
         :disabled="disabled"
+        :describedby="unitDescribedby"
+        :bare="Boolean(activeSpecial)"
         :special-answers="specialAnswers"
         :special="special"
         :search-threshold="Number.POSITIVE_INFINITY"

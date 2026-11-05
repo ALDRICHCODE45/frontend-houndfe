@@ -27,6 +27,7 @@
  *   special         — the chosen special answer value, or null
  *   searchThreshold — options shown without search (default 7)
  *   embedded        — borderless trigger for a compound control (HfUnitField)
+ *   bare            — the trigger shows only its chevron; the owner shows the value
  */
 import { computed, ref } from 'vue'
 import './hf-form.css'
@@ -57,6 +58,7 @@ const props = withDefaults(defineProps<{
   special?: string | null
   searchThreshold?: number
   embedded?: boolean
+  bare?: boolean
 }>(), {
   modelValue: undefined,
   placeholder: 'Elige una opción',
@@ -128,7 +130,7 @@ const menuItems = computed(() => {
 const noMatch = computed(() => `Sin resultados para «${searchTerm.value.trim()}»`)
 
 const ui = computed(() => ({
-  base: ['hf-combobox__trigger', props.embedded && 'hf-combobox__trigger--embedded', props.invalid && 'hf-combobox__trigger--invalid'],
+  base: ['hf-combobox__trigger', props.embedded && 'hf-combobox__trigger--embedded', props.bare && 'hf-combobox__trigger--bare', props.invalid && 'hf-combobox__trigger--invalid'],
   content: ['hf-theme hf-ui hf-combobox__content', props.specialAnswers.length > 0 && 'hf-combobox__content--footer'],
   input: 'hf-combobox__search',
   viewport: 'hf-combobox__viewport',
@@ -182,7 +184,9 @@ function onUpdate(next: unknown) {
     :ui="ui"
     @update:model-value="onUpdate"
   >
-    <span class="hf-combobox__value">
+    <!-- Bare: an empty value slot, so the menu does not print its own label. -->
+    <span v-if="bare" class="hf-combobox__value" />
+    <span v-else class="hf-combobox__value">
       <span v-if="activeSpecial" class="hf-combobox__special-text">{{ activeSpecial.label }}</span>
       <template v-else-if="multiple && selectedItems.length > 0">
         <span v-for="item in visibleChips" :key="item.value" class="hf-combobox__chip">{{ item.label }}</span>

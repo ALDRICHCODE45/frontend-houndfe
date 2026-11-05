@@ -151,6 +151,11 @@
   background-color: transparent;
 }
 
+.hf-ui .hf-combobox__trigger--embedded.hf-combobox__trigger--bare {
+  min-width: 0;
+  padding: 0 12px;
+}
+
 .hf-ui .hf-combobox__trigger--embedded:hover:not(:disabled) {
   background-color: var(--hf-surface-muted);
 }
@@ -644,13 +649,34 @@
 
 .hf-ui .hf-form-field__row {
   display: flex;
+  flex-wrap: wrap;
   min-width: 0;
   min-height: 24px;
   align-items: center;
+  gap: 2px 8px;
+}
+
+/* The label, its markers and the info button: together on the left, first to
+ * take the free width. The right group (hint, ghosts, actions) never shrinks
+ * it; with no room for both on one line the group wraps under the label. */
+.hf-ui .hf-form-field__title {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.hf-ui .hf-form-field__end {
+  display: flex;
+  flex: none;
+  align-items: center;
   gap: 8px;
+  margin-left: auto;
 }
 
 .hf-ui .hf-form-field__label {
+  min-width: 0;
   color: var(--hf-ink);
   font-size: 0.8125rem;
   font-weight: 500;
@@ -670,6 +696,7 @@
 
 .hf-ui .hf-form-field__internal {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 4px;
   color: var(--hf-muted);
@@ -682,7 +709,6 @@
 }
 
 .hf-ui .hf-form-field__hint {
-  margin-left: auto;
   color: var(--hf-muted);
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
@@ -697,7 +723,7 @@
   height: 28px;
   align-items: center;
   justify-content: center;
-  margin: -2px 0 -2px -4px;
+  margin: -2px 0;
   padding: 0;
   border: 0;
   border-radius: 4px;
@@ -731,7 +757,6 @@
 .hf-ui .hf-form-field__ghosts {
   display: flex;
   gap: 2px;
-  margin-left: auto;
 }
 
 /* Fine pointer: ghosts and icon actions rest hidden and show on hover or focus
@@ -787,11 +812,6 @@
   flex-shrink: 0;
   align-items: center;
   gap: 2px;
-  margin-left: auto;
-}
-
-.hf-ui :is(.hf-form-field__hint, .hf-form-field__ghosts) + .hf-form-field__actions {
-  margin-left: 0;
 }
 
 .hf-ui .hf-form-field__message {

@@ -14,6 +14,10 @@
  * `specialAnswers` adds ghost actions (`No lo sé`, `No aplica`) on the right
  * that emit `special`; meant for text-like fields. Choice fields offer the same
  * answers inside HfCombobox instead. The hint wins the right side over the ghosts.
+ * Label row: the label, its markers and the info button sit together on the
+ * left and take the free width first; the hint, ghosts and actions group on
+ * the right never shrinks the label: it wraps under it only when both do not
+ * fit on one line.
  * The `actions` slot holds small icon actions at the end of the label row
  * (for example `Agregar evidencia`). With a fine pointer the ghosts and the
  * actions show on hover or focus within the field (opacity only: they stay in
@@ -71,41 +75,45 @@ const helpOpen = ref(false)
     :data-help="helpOnly ? (helpOpen ? 'open' : 'collapsed') : undefined"
   >
     <div class="hf-form-field__row">
-      <label v-if="props.for" :id="labelId" class="hf-form-field__label" :for="props.for">{{ label }}</label>
-      <span v-else :id="labelId" class="hf-form-field__label">{{ label }}</span>
-      <span v-if="required" class="hf-form-field__required">
-        <span class="hf-form-field__dot" aria-hidden="true" />
-        <span class="sr-only">Requerido para publicar</span>
-      </span>
-      <span v-if="internal" class="hf-form-field__internal">
-        <UIcon name="i-lucide-lock" class="hf-form-field__internal-icon" aria-hidden="true" />Interno
-      </span>
-      <button
-        v-if="helpOnly"
-        type="button"
-        class="hf-form-field__info"
-        :aria-label="`Ayuda de ${label}`"
-        :aria-expanded="helpOpen ? 'true' : 'false'"
-        :aria-controls="messageId"
-        @click="helpOpen = !helpOpen"
-      >
-        <UIcon name="i-lucide-info" class="hf-form-field__info-icon" aria-hidden="true" />
-      </button>
-      <span v-if="hint" class="hf-form-field__hint">{{ hint }}</span>
-      <span v-else-if="specialAnswers.length > 0" class="hf-form-field__ghosts">
+      <span class="hf-form-field__title">
+        <label v-if="props.for" :id="labelId" class="hf-form-field__label" :for="props.for">{{ label }}</label>
+        <span v-else :id="labelId" class="hf-form-field__label">{{ label }}</span>
+        <span v-if="required" class="hf-form-field__required">
+          <span class="hf-form-field__dot" aria-hidden="true" />
+          <span class="sr-only">Requerido para publicar</span>
+        </span>
+        <span v-if="internal" class="hf-form-field__internal">
+          <UIcon name="i-lucide-lock" class="hf-form-field__internal-icon" aria-hidden="true" />Interno
+        </span>
         <button
-          v-for="answer in specialAnswers"
-          :key="answer.value"
+          v-if="helpOnly"
           type="button"
-          class="hf-form-field__ghost"
-          :aria-label="`${label}: marcar como ${answer.label}`"
-          @click="emit('special', answer.value)"
+          class="hf-form-field__info"
+          :aria-label="`Ayuda de ${label}`"
+          :aria-expanded="helpOpen ? 'true' : 'false'"
+          :aria-controls="messageId"
+          @click="helpOpen = !helpOpen"
         >
-          {{ answer.label }}
+          <UIcon name="i-lucide-info" class="hf-form-field__info-icon" aria-hidden="true" />
         </button>
       </span>
-      <span v-if="$slots.actions" class="hf-form-field__actions">
-        <slot name="actions" />
+      <span v-if="hint || specialAnswers.length > 0 || $slots.actions" class="hf-form-field__end">
+        <span v-if="hint" class="hf-form-field__hint">{{ hint }}</span>
+        <span v-else-if="specialAnswers.length > 0" class="hf-form-field__ghosts">
+          <button
+            v-for="answer in specialAnswers"
+            :key="answer.value"
+            type="button"
+            class="hf-form-field__ghost"
+            :aria-label="`${label}: marcar como ${answer.label}`"
+            @click="emit('special', answer.value)"
+          >
+            {{ answer.label }}
+          </button>
+        </span>
+        <span v-if="$slots.actions" class="hf-form-field__actions">
+          <slot name="actions" />
+        </span>
       </span>
     </div>
     <slot />

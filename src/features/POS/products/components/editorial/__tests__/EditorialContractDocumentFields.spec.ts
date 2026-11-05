@@ -86,7 +86,7 @@ describe('document fields', () => {
 })
 
 describe('document field limits', () => {
-  const hint = (wrapper: ReturnType<typeof render>['wrapper'], id: string) => wrapper.get(`label[for="${id}"]`).element.parentElement!.querySelector('.hf-form-field__hint')!.textContent
+  const hint = (wrapper: ReturnType<typeof render>['wrapper'], id: string) => wrapper.get(`label[for="${id}"]`).element.closest('.hf-form-field__row')!.querySelector('.hf-form-field__hint')!.textContent
   it('counts the title and the description against their real limits: «N de 200», «N de 20,000»', () => {
     const { wrapper } = render(initial({ commercialTitle: 'x'.repeat(42), description: 'y'.repeat(100) }))
     expect(hint(wrapper, 'document-title')).toBe('42 de 200')

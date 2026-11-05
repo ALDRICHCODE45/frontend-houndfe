@@ -90,6 +90,36 @@ describe('HfFormField action reveal', () => {
   })
 })
 
+describe('HfFormField label row', () => {
+  it('gives the label the free width first and never reserves a fixed slot for the actions', () => {
+    const row = rule('.hf-form-field__row')
+    expect(row).toMatch(/flex-wrap: wrap/)
+    const title = rule('.hf-form-field__title')
+    expect(title).toMatch(/flex: 1 1 auto/)
+    expect(title).toMatch(/min-width: 0/)
+    expect(title).toMatch(/gap: 4px/)
+    const label = rule('.hf-form-field__label')
+    expect(label).toMatch(/min-width: 0/)
+    expect(label).not.toMatch(/flex: 1/)
+    const end = rule('.hf-form-field__end')
+    expect(end).toMatch(/flex: none/)
+    expect(end).toMatch(/margin-left: auto/)
+    // No fixed reserved width anywhere in the row.
+    for (const selector of ['.hf-form-field__row', '.hf-form-field__end', '.hf-form-field__actions', '.hf-form-field__ghosts']) {
+      expect(rule(selector)).not.toMatch(/\bwidth: [1-9]|flex-basis: [1-9]/)
+    }
+    // The info button sits right after the text: no negative inline margin pulling it in or out.
+    expect(rule('.hf-form-field__info')).toMatch(/margin: -2px 0;/)
+  })
+})
+
+describe('HfUnitField special answer', () => {
+  it('lets a bare unit trigger shrink to its chevron', () => {
+    const bare = rule('.hf-combobox__trigger--embedded.hf-combobox__trigger--bare')
+    expect(bare).toMatch(/min-width: 0/)
+  })
+})
+
 describe('HfSectionNav chip row', () => {
   it('scrolls inside its own row and never widens the page', () => {
     const nav = rule('.hf-ui .hf-section-nav')

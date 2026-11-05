@@ -109,9 +109,28 @@ describe('HfFormField', () => {
       slots: { default: () => h('input'), actions: () => h('button', { type: 'button', 'aria-label': 'Agregar evidencia' }) },
     })
     const row = wrapper.get('.hf-form-field__row')
-    const actions = row.get('.hf-form-field__actions')
+    const end = row.get('.hf-form-field__end')
+    const actions = end.get('.hf-form-field__actions')
     expect(actions.get('button').attributes('aria-label')).toBe('Agregar evidencia')
-    expect(row.element.lastElementChild).toBe(actions.element)
+    expect(row.element.lastElementChild).toBe(end.element)
+    expect(end.element.lastElementChild).toBe(actions.element)
+  })
+
+  it('keeps the label, its markers and the info button together, apart from the right-side group', () => {
+    const wrapper = mount(HfFormField, {
+      props: { label: 'Origen de la proteína', for: 'origen', help: 'De dónde viene', required: true, specialAnswers: specials },
+      slots: { default: () => h('input', { id: 'origen' }), actions: () => h('button', { type: 'button', 'aria-label': 'Agregar evidencia' }) },
+    })
+    const row = wrapper.get('.hf-form-field__row')
+    const title = row.get('.hf-form-field__title')
+    expect(Array.from(row.element.children)).toEqual([title.element, row.get('.hf-form-field__end').element])
+    expect(Array.from(title.element.children).map(child => child.className)).toEqual([
+      'hf-form-field__label',
+      'hf-form-field__required',
+      'hf-form-field__info',
+    ])
+    expect(title.get('.hf-form-field__info').attributes('aria-expanded')).toBe('false')
+    expect(row.get('.hf-form-field__end').findAll('.hf-form-field__ghost')).toHaveLength(2)
   })
 
   it('renders no actions container without the slot', () => {
