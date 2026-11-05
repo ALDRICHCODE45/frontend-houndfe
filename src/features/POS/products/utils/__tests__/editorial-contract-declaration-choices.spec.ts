@@ -122,6 +122,18 @@ describe('declaration display choices', () => {
     const unbound = fixture('custom'); unbound.definitions.push(kind('loose'))
     expect(choices(freeze(unbound), 'contentMagnitude').choices).toEqual(expected)
   })
+  it('maps the real vocabulary option codes (content.kind.mass) to the declaration codes (mass)', () => {
+    // The live BE vocabulary prefixes option codes with the definition code; the declaration enum is
+    // the bare magnitude. Matching full codes left every label on the FE fallback («Peso») in the browser.
+    const real = [['content.kind.mass', 'Masa'], ['content.kind.volume', 'Volumen'], ['content.kind.count', 'Conteo'], ['content.kind.length', 'Longitud'], ['content.kind.area', 'Superficie']]
+      .map(([code, label], i) => ({ code: code!, label: label!, sortOrder: i, archived: false }))
+    const input = fixture('food', ['content.kind'])
+    input.definitions[0] = { id: 'id-0', code: 'content.kind', label: 'Magnitud del contenido', type: 'single', options: real, groups: [], aliases: [] }
+    expect(choices(freeze(input), 'contentMagnitude').choices).toEqual([
+      { code: 'mass', label: 'Masa' }, { code: 'volume', label: 'Volumen' }, { code: 'count', label: 'Conteo' },
+      { code: 'length', label: 'Longitud' }, { code: 'area', label: 'Superficie' },
+    ])
+  })
   it('detaches labels/choices and uses only selected family bindings', () => {
     const input = fixture('accessory', ['measure.fit.neck'])
     input.definitions.push({ id: 'unbound', code: 'measure.fit.chest', label: 'Other', type: 'text' })
