@@ -120,7 +120,7 @@ const { rowProps } = useClickableRow<CashSession>(open, { focusable: false })
       :row-open="open"
       display-mode="auto"
       mobile-render="cards"
-      class="hf-data-table"
+      class="hf-data-table cash-table-surface"
       @refresh="emit('refresh')"
       @empty-action="emit('request-opening')"
     >
@@ -191,7 +191,7 @@ const { rowProps } = useClickableRow<CashSession>(open, { focusable: false })
               :tone="cashSessionStatusTone(row.status)"
               :data-testid="`cash-session-status-${row.id}`"
             />
-            <span class="cash-meta">{{ countLabel(row) }} · {{ drawerLabel(row) }}</span>
+            <span class="cash-meta">Conteo {{ countLabel(row).toLowerCase() }} · Cajón {{ drawerLabel(row).toLowerCase() }}</span>
           </div>
           <div class="cash-card-footer">
             <span>Fondo inicial</span>

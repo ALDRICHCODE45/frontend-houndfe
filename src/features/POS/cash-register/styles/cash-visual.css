@@ -259,6 +259,12 @@
   }
 }
 
+@media (min-width: 640px) {
+  .cash-facts-grid--3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 /* In the reception rail (16rem) one column keeps each label on one line. */
 @media (min-width: 1024px) {
   .cash-facts-rail {
@@ -404,5 +410,53 @@
 
 .cash-card-footer .hf-figure {
   color: var(--hf-heading);
+  font-weight: 600;
+}
+
+/* A short label that may need two lines in a narrow column (a channel such as
+ * «Tarjeta de débito») wraps instead of being cut with an ellipsis. */
+.cash-cell-wrap {
+  white-space: normal;
+}
+
+/* A table gets the data surface only where it is a table (md+); on mobile the
+ * rows are cards already, so a surface around them would nest cards. */
+@media (min-width: 768px) {
+  .cash-table-surface {
+    border: 1px solid var(--hf-border);
+    border-radius: var(--hf-radius-card);
+    background: var(--hf-surface);
+    overflow: hidden;
+  }
+}
+
+/* From sm the Recibir button shares a row with two labelled fields: it starts
+ * one label line (20px) plus the field gap (4px) lower, level with the inputs. */
+@media (min-width: 640px) {
+  .cash-custody-receive {
+    padding-top: 1.5rem;
+  }
+}
+
+/* Custody card amount: the label sits right above its figure, right-aligned. */
+.cash-custody-amount {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.125rem;
+  margin: 0;
+  text-align: right;
+}
+
+.cash-custody-amount dt,
+.cash-custody-amount-note {
+  color: var(--hf-muted);
+  font-size: 0.75rem;
+}
+
+.cash-custody-amount dd:first-of-type {
+  color: var(--hf-heading);
+  font-size: 0.9375rem;
   font-weight: 600;
 }

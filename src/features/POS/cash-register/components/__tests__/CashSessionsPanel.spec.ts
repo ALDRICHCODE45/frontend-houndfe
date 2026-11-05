@@ -160,3 +160,18 @@ describe('CashSessionsPanel · selection and scope', () => {
     )
   })
 })
+
+describe('CashSessionsPanel · design pass (T4)', () => {
+  it('sits on the data surface like every other table', () => {
+    const wrapper = mountPanel()
+    expect(wrapper.find('.cash-table-surface').exists()).toBe(true)
+  })
+
+  it('names what each mobile meta word refers to', () => {
+    isMobile.value = true
+    const wrapper = mountPanel()
+    const text = wrapper.text()
+    expect(text).toContain('Conteo visible')
+    expect(text).toMatch(/Cajón (sin liberar|liberado)/)
+  })
+})

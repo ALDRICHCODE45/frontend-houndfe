@@ -123,8 +123,8 @@ const frozenLabel = computed(() =>
       data-testid="cash-shift-loading"
     >
       <span class="sr-only">Cargando</span>
-      <div class="h-6 w-1/3 animate-pulse rounded bg-[var(--hf-surface-muted)]" aria-hidden="true" />
-      <div class="h-16 w-full animate-pulse rounded bg-[var(--hf-surface-muted)]" aria-hidden="true" />
+      <div class="hf-skeleton h-6 w-1/3 animate-pulse rounded" aria-hidden="true" />
+      <div class="hf-skeleton h-16 w-full animate-pulse rounded" aria-hidden="true" />
     </div>
 
     <EmptyState
@@ -150,6 +150,7 @@ const frozenLabel = computed(() =>
         </div>
       </dl>
       <CashSessionSummary
+        embedded
         :detail="detail"
         :loading="loading"
         :error="error"
@@ -165,9 +166,9 @@ const frozenLabel = computed(() =>
       data-testid="cash-shift-context-loading"
     >
       <span class="sr-only">Cargando</span>
-      <div class="size-6 animate-pulse rounded-full bg-[var(--hf-surface-muted)]" aria-hidden="true" />
-      <div class="h-4 w-48 animate-pulse rounded bg-[var(--hf-surface-muted)]" aria-hidden="true" />
-      <div class="h-3.5 w-64 max-w-full animate-pulse rounded bg-[var(--hf-surface-muted)]" aria-hidden="true" />
+      <div class="hf-skeleton size-6 animate-pulse rounded-full" aria-hidden="true" />
+      <div class="hf-skeleton h-4 w-48 animate-pulse rounded" aria-hidden="true" />
+      <div class="hf-skeleton h-3.5 w-64 max-w-full animate-pulse rounded" aria-hidden="true" />
     </div>
 
     <EmptyState

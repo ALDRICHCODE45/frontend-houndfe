@@ -213,11 +213,103 @@ describe('CashCustodyDiscovery · eligible FLOAT is a hint', () => {
     expect(advisory.text()).toMatch(/misma caja/i)
   })
 
-  it('never marks anything as reserved and states the hint explicitly', () => {
+  it('never marks anything as reserved and ships no help paragraph (CR6)', () => {
     const wrapper = mountDiscovery({ eligibleFloat: ELIGIBLE })
     const text = wrapper.text().toLowerCase()
-    expect(text).toContain('no una reserva')
     expect(text).not.toContain('reservado')
+    expect(text).not.toContain('no una reserva')
+  })
+
+  it('says «Declarado» only when it differs from the received amount (CR6)', () => {
+    const differs = mountDiscovery({ eligibleFloat: ELIGIBLE })
+    expect(differs.find('[data-testid="cash-custody-float-declared-f-1"]').exists()).toBe(true)
+
+    const same = mountDiscovery({ eligibleFloat: [{ ...ELIGIBLE[0], receivedCents: 30000 }] })
+    expect(same.find('[data-testid="cash-custody-float-declared-f-1"]').exists()).toBe(false)
+    expect(same.get('[data-testid="cash-custody-float-f-1"]').text()).not.toMatch(/declarado/i)
+  })
+
+  it('shows when the fondo was received as a short date (CR6)', () => {
+    const wrapper = mountDiscovery({ eligibleFloat: ELIGIBLE })
+    const meta = wrapper.get('[data-testid="cash-custody-float-received-at-f-1"]')
+    expect(meta.text()).toMatch(/^Recibido el \d{1,2} \w+/)
+    expect(meta.text()).not.toContain('2026-10-07T')
+    expect(meta.get('time').attributes('datetime')).toBe('2026-10-07T19:10:00.000Z')
+  })
+})
+
+describe('CashCustodyDiscovery · pending card presentation (T3 CR1–CR5)', () => {
+  it('CR1: labels the declared amount right next to it', () => {
+    const wrapper = mountDiscovery({ pendingHandovers: PENDING })
+    const amount = wrapper.get('[data-testid="cash-custody-amount-h-1"]')
+    expect(amount.get('dt').text()).toBe('Declarado')
+    expect(amount.get('dt').classes()).not.toContain('sr-only')
+    expect(amount.get('dd').text()).toMatch(/300[.,]00/)
+  })
+
+  it('CR2: a meta line says when it was handed over, as a short date', () => {
+    const wrapper = mountDiscovery({ pendingHandovers: PENDING })
+    const meta = wrapper.get('[data-testid="cash-custody-declared-at-h-1"]')
+    expect(meta.text()).toMatch(/^Entregado el \d{1,2} \w+/)
+    expect(meta.get('time').attributes('datetime')).toBe('2026-10-07T20:05:00.000Z')
+  })
+
+  it('CR3: the note hint appears only once the received amount differs', async () => {
+    const wrapper = mountDiscovery({ pendingHandovers: PENDING })
+    const hint = '[data-testid="cash-custody-received-note-hint-h-1"]'
+    expect(wrapper.find(hint).exists()).toBe(false)
+
+    await wrapper.get('[data-testid="cash-custody-received-input-h-1"]').setValue('300.00')
+    expect(wrapper.find(hint).exists()).toBe(false)
+
+    await wrapper.get('[data-testid="cash-custody-received-input-h-1"]').setValue('290.00')
+    expect(wrapper.get(hint).text()).toMatch(/nota/i)
+  })
+
+  it('CR4: a missing note is reported on its own card and marks the note field invalid', async () => {
+    const wrapper = mountDiscovery({
+      pendingHandovers: [PENDING[0], { ...PENDING[1], receiverUserId: 'me' }],
+    })
+    await wrapper.get('[data-testid="cash-custody-received-input-h-1"]').setValue('290.00')
+    await wrapper.get('[data-testid="cash-custody-receive-h-1"]').trigger('click')
+
+    const card = wrapper.get('[data-testid="cash-custody-pending-h-1"]')
+    const error = card.get('[data-testid="cash-custody-local-error"]')
+    expect(error.attributes('role')).toBe('alert')
+    const notes = card.get('[data-testid="cash-custody-received-notes-h-1"]')
+    expect(notes.attributes('aria-invalid')).toBe('true')
+    // The message is the note field's own error, linked to the field.
+    const described = card.get(`#${notes.attributes('aria-describedby')}`)
+    expect(described.text()).toBe(error.text())
+    expect(error.text()).toMatch(/nota/i)
+    // The other card stays clean.
+    const other = wrapper.get('[data-testid="cash-custody-pending-h-2"]')
+    expect(other.find('[data-testid="cash-custody-local-error"]').exists()).toBe(false)
+    expect(
+      other.get('[data-testid="cash-custody-received-notes-h-2"]').attributes('aria-invalid'),
+    ).not.toBe('true')
+  })
+
+  it('CR4: an unreadable amount marks the amount field invalid, not the note', async () => {
+    const wrapper = mountDiscovery({ pendingHandovers: PENDING })
+    await wrapper.get('[data-testid="cash-custody-received-input-h-1"]').setValue('abc')
+    await wrapper.get('[data-testid="cash-custody-receive-h-1"]').trigger('click')
+    const card = wrapper.get('[data-testid="cash-custody-pending-h-1"]')
+    expect(
+      card.get('[data-testid="cash-custody-received-input-h-1"]').attributes('aria-invalid'),
+    ).toBe('true')
+    expect(
+      card.get('[data-testid="cash-custody-received-notes-h-1"]').attributes('aria-invalid'),
+    ).not.toBe('true')
+  })
+
+  it('CR5: the receipt fields stack full width below sm and sit on one row from sm', () => {
+    const wrapper = mountDiscovery({ pendingHandovers: PENDING })
+    const fields = wrapper.get('[data-testid="cash-custody-fields-h-1"]')
+    expect(fields.classes()).toContain('grid')
+    expect(fields.classes().some((c) => c.startsWith('sm:grid-cols-'))).toBe(true)
+    expect(fields.classes()).not.toContain('flex-wrap')
+    expect(wrapper.get('[data-testid="cash-custody-receive-h-1"]').classes()).toContain('w-full')
   })
 })
 

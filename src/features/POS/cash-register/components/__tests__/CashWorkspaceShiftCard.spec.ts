@@ -192,3 +192,15 @@ describe('CashWorkspaceShiftCard', () => {
     expect(wrapper.find('[data-testid="cash-session-summary"]').exists()).toBe(false)
   })
 })
+
+describe('CashWorkspaceShiftCard · says each fact once', () => {
+  it('shows the status badge and the register name once in a selected turn', () => {
+    const wrapper = render({ hasSelection: true, detail: OPEN_DETAIL, isOwnShift: true })
+
+    expect(wrapper.findAll('.hf-status-badge').filter((b) => b.text() === 'Abierta')).toHaveLength(1)
+    expect(wrapper.text().split('Caja principal')).toHaveLength(2)
+    // The drawer stays its own fact next to the summary.
+    expect(wrapper.get('[data-testid="cash-session-drawer-state"]').text()).toContain('Cajón sin liberar')
+    expect(wrapper.get('[data-testid="cash-session-opening"]').text()).toMatch(/500[.,]00/)
+  })
+})

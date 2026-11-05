@@ -4,7 +4,9 @@
  * facts, and a blind window never renders expected/difference values or
  * movements — even when a malformed or stale payload still carries them.
  *
- * It sits flat inside the shared shift card, which owns the surface.
+ * It sits flat inside the shared shift card, which owns the surface. There
+ * (`embedded`) the card already names the register and shows the status, so
+ * the summary keeps only the drawer badge and the money facts.
  */
 import { computed } from 'vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
@@ -25,12 +27,15 @@ const props = withDefaults(
     loading?: boolean
     error?: boolean
     errorMessage?: string
+    /** Inside the shift card: no second status badge and no register fact. */
+    embedded?: boolean
   }>(),
   {
     detail: null,
     loading: false,
     error: false,
     errorMessage: undefined,
+    embedded: false,
   },
 )
 
@@ -56,6 +61,7 @@ function money(cents: number | null): string {
       <h3 class="cash-list-title">Detalle del turno</h3>
       <div v-if="status" class="cash-session-summary-badges">
         <StatusBadge
+          v-if="!embedded"
           :label="CASH_SESSION_STATUS_LABELS[status]"
           :tone="cashSessionStatusTone(status)"
           data-testid="cash-session-status"
@@ -71,7 +77,7 @@ function money(cents: number | null): string {
 
     <div
       v-if="loading"
-      class="h-16 w-full animate-pulse rounded-lg bg-[var(--hf-surface-muted)]"
+      class="hf-skeleton h-16 w-full animate-pulse rounded-lg"
       aria-busy="true"
       data-testid="cash-session-loading"
     />
@@ -87,19 +93,34 @@ function money(cents: number | null): string {
     />
 
     <template v-else-if="safeDetail">
-      <dl class="cash-facts-grid">
+      <!-- One grid: embedded it reads Fondo · Esperado · Diferencia on one row. -->
+      <dl class="cash-facts-grid" :class="{ 'cash-facts-grid--3': embedded && !facts.blind }">
         <div class="cash-fact">
           <dt>Fondo inicial</dt>
           <dd class="cash-fact-value hf-figure" data-testid="cash-session-opening">
             {{ money(facts.openingCents) }}
           </dd>
         </div>
-        <div class="cash-fact">
+        <div v-if="!embedded" class="cash-fact">
           <dt>Caja</dt>
           <dd class="cash-fact-value" data-testid="cash-session-register">
             {{ safeDetail.register?.name ?? '—' }}
           </dd>
         </div>
+        <template v-if="!facts.blind">
+          <div class="cash-fact">
+            <dt>Esperado en efectivo</dt>
+            <dd class="cash-fact-value hf-figure" data-testid="cash-session-expected">
+              {{ money(facts.expectedCashCents) }}
+            </dd>
+          </div>
+          <div class="cash-fact">
+            <dt>Diferencia (declarado − esperado)</dt>
+            <dd class="cash-fact-value hf-figure" data-testid="cash-session-declaration-difference">
+              {{ money(facts.differenceCents) }}
+            </dd>
+          </div>
+        </template>
       </dl>
 
       <p v-if="facts.blind" class="cash-note cash-note--warning" data-testid="cash-session-blind">
@@ -107,21 +128,6 @@ function money(cents: number | null): string {
         declaración.
         <span v-if="channels.length"> Canales congelados a declarar: {{ channels.length }}. </span>
       </p>
-
-      <dl v-else class="cash-facts-grid">
-        <div class="cash-fact">
-          <dt>Esperado en efectivo</dt>
-          <dd class="cash-fact-value hf-figure" data-testid="cash-session-expected">
-            {{ money(facts.expectedCashCents) }}
-          </dd>
-        </div>
-        <div class="cash-fact">
-          <dt>Diferencia (declarado − esperado)</dt>
-          <dd class="cash-fact-value hf-figure" data-testid="cash-session-declaration-difference">
-            {{ money(facts.differenceCents) }}
-          </dd>
-        </div>
-      </dl>
 
       <p
         v-if="facts.drawerReleasedAt"

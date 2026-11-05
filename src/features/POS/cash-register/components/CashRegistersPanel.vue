@@ -166,7 +166,7 @@ const { rowProps } = useClickableRow<CashRegister>(open, { focusable: false })
       :row-open="canOpen ? open : undefined"
       display-mode="auto"
       mobile-render="cards"
-      class="hf-data-table"
+      class="hf-data-table cash-table-surface"
       @refresh="emit('refresh')"
       @empty-action="focusCreate"
     >

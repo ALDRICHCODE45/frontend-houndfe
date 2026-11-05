@@ -20,10 +20,12 @@
 import { computed, ref } from 'vue'
 import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { TableColumn } from '@/core/shared/types/table.types'
 import { pesosToCents } from '../utils/cash-input'
 import { blindSafeDetail, isCashSessionWritable } from '../composables/cashRules'
 import type { CashMovementKind, CashSessionDetail } from '../interfaces/cash.types'
+import { CASH_SESSION_STATUS_LABELS } from '../utils/cash-status'
 
 type CashMovement = CashSessionDetail['movements'][number]
 
@@ -68,6 +70,7 @@ const MOVEMENT_LABELS: Record<CashMovementKind, string> = {
 const right = { class: { th: 'text-right', td: 'text-right' } }
 const columns: TableColumn<CashMovement, unknown>[] = [
   { id: 'kind', header: 'Tipo', enableSorting: false },
+  { id: 'time', header: 'Fecha', enableSorting: false },
   { id: 'channel', header: 'Canal', enableSorting: false },
   { id: 'amount', header: 'Importe', enableSorting: false, meta: right },
   { id: 'reason', header: 'Motivo', enableSorting: false },
@@ -88,6 +91,19 @@ const movements = computed(() => [...(safeDetail.value?.movements ?? [])])
 const showHistory = computed(
   () => props.loading || props.error || (Boolean(safeDetail.value) && !blind.value),
 )
+
+/**
+ * Why a session no longer takes movements, in its own words: a frozen count is
+ * a warning (it is in progress); a declared or closed session is settled.
+ */
+const closedNote = computed(() => {
+  const status = session.value?.status
+  if (!status || writable.value) return null
+  return {
+    text: `La sesión está ${CASH_SESSION_STATUS_LABELS[status].toLowerCase()}: no se pueden registrar movimientos.`,
+    warning: status === 'COUNTING',
+  }
+})
 
 /** Only the session's own cashier may register manual movements. */
 const isOwner = computed(
@@ -175,7 +191,7 @@ function submit(kind: 'CASH_IN' | 'CASH_OUT') {
           :empty-state="emptyState"
           display-mode="auto"
           mobile-render="cards"
-          class="hf-data-table"
+          class="hf-data-table cash-table-surface"
           @refresh="emit('refresh')"
         >
           <template #kind-cell="{ row }">
@@ -185,8 +201,16 @@ function submit(kind: 'CASH_IN' | 'CASH_OUT') {
               >{{ movementLabel(row.original) }}</span
             >
           </template>
+          <template #time-cell="{ row }">
+            <time
+              class="cash-meta"
+              :datetime="row.original.occurredAt"
+              :data-testid="`cash-movement-time-${row.original.id}`"
+              >{{ formatShortDateTime(row.original.occurredAt) }}</time
+            >
+          </template>
           <template #channel-cell="{ row }">
-            <span class="cash-meta">{{ row.original.channelLabel }}</span>
+            <span class="cash-meta cash-cell-wrap">{{ row.original.channelLabel }}</span>
           </template>
           <template #amount-cell="{ row }">
             <span class="hf-figure">{{ formatCentsMXN(row.original.deltaCents) }}</span>
@@ -208,6 +232,7 @@ function submit(kind: 'CASH_IN' | 'CASH_OUT') {
               }}</span>
               <div class="cash-card-footer">
                 <span>{{ row.channelLabel }}</span>
+                <time :datetime="row.occurredAt">{{ formatShortDateTime(row.occurredAt) }}</time>
               </div>
             </article>
           </template>
@@ -221,17 +246,22 @@ function submit(kind: 'CASH_IN' | 'CASH_OUT') {
         </p>
       </div>
 
-      <!-- COMMANDS: writable AND owned by the caller. -->
-      <p v-if="!writable" class="cash-note cash-note--warning" data-testid="cash-movements-frozen">
-        La sesión está congelada: no se pueden registrar movimientos.
+      <!-- COMMANDS: writable AND owned by the caller; nothing while the detail is unknown. -->
+      <p
+        v-if="closedNote"
+        class="cash-note"
+        :class="{ 'cash-note--warning': closedNote.warning }"
+        data-testid="cash-movements-frozen"
+      >
+        {{ closedNote.text }}
       </p>
 
-      <p v-else-if="!isOwner" class="cash-note" data-testid="cash-movements-owner-denied">
+      <p v-else-if="session && !isOwner" class="cash-note" data-testid="cash-movements-owner-denied">
         Esta sesión pertenece a otra persona: solo su responsable registra movimientos manuales.
       </p>
 
       <form
-        v-else-if="canCashIn || canCashOut"
+        v-else-if="session && (canCashIn || canCashOut)"
         class="flex flex-col gap-4"
         data-testid="cash-movement-form"
         @submit.prevent
@@ -293,7 +323,7 @@ function submit(kind: 'CASH_IN' | 'CASH_OUT') {
         </div>
       </form>
 
-      <p v-else class="text-xs text-muted" data-testid="cash-movements-forbidden">
+      <p v-else-if="session" class="text-xs text-muted" data-testid="cash-movements-forbidden">
         No tienes permiso para registrar movimientos manuales.
       </p>
     </template>

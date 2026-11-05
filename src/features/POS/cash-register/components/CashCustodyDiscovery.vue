@@ -11,11 +11,15 @@
  *   (it is the opening fund, even when it differs from the declared amount), an
  *   unreleased source drawer is displayed, and the panel never marks anything
  *   as reserved.
+ * - Each card says each fact once: the declared amount carries its own label,
+ *   the note hint appears only when the received amount differs, and a receipt
+ *   error lands on the card (and the field) it belongs to.
  */
 import { computed, ref } from 'vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { pesosToCents } from '../utils/cash-input'
 import { canReceiveHandover, floatSourceDrawerAdvisory } from '../composables/cashRules'
 import type { CashCustodyItem, CashEligibleFloatItem } from '../interfaces/cash.types'
@@ -57,7 +61,13 @@ const emit = defineEmits<{
 
 const receivedInputs = ref<Record<string, string>>({})
 const notesInputs = ref<Record<string, string>>({})
-const localError = ref<string | null>(null)
+
+/** A receipt problem belongs to one card and to one of its two fields. */
+interface ReceiptError {
+  field: 'amount' | 'notes'
+  message: string
+}
+const receiptErrors = ref<Record<string, ReceiptError>>({})
 
 function kindLabel(kind: CashCustodyItem['kind']): string {
   return kind === 'FLOAT' ? 'Fondo' : 'Retiro'
@@ -78,22 +88,65 @@ function advisoryFor(item: CashEligibleFloatItem): string | null {
 
 const hasAny = computed(() => props.pendingHandovers.length > 0 || props.eligibleFloat.length > 0)
 
+/**
+ * The message for one field of the card, or `false`. It goes to that field's
+ * `UFormField`, which marks the input `aria-invalid` and links the message.
+ */
+function fieldError(item: CashCustodyItem, field: ReceiptError['field']): string | false {
+  const error = receiptErrors.value[item.id]
+  return error?.field === field ? error.message : false
+}
+
+/** The typed amount in cents, or `null` while it is blank or unreadable. */
+function typedCents(item: CashCustodyItem): number | null {
+  const raw = (receivedInputs.value[item.id] ?? '').trim()
+  if (raw === '') return null
+  try {
+    return pesosToCents(raw)
+  } catch {
+    return null
+  }
+}
+
+/** The note becomes required (and its hint appears) only once the amounts differ. */
+function differs(item: CashCustodyItem): boolean {
+  const cents = typedCents(item)
+  return cents !== null && cents !== item.declaredCents
+}
+
+/** A fondo repeats its declared amount only when the received one differs. */
+const floatDiffers = (item: CashEligibleFloatItem) =>
+  item.receivedCents !== null && item.receivedCents !== item.declaredCents
+
+function setReceiptError(item: CashCustodyItem, error: ReceiptError | null) {
+  const next = { ...receiptErrors.value }
+  if (error) next[item.id] = error
+  else delete next[item.id]
+  receiptErrors.value = next
+}
+
 function submitReceive(item: CashCustodyItem) {
   const raw = (receivedInputs.value[item.id] ?? '').trim()
   let receivedCents: number
   try {
     receivedCents = pesosToCents(raw)
   } catch {
-    localError.value = 'Ingresa el monto recibido en pesos (con hasta dos decimales).'
+    setReceiptError(item, {
+      field: 'amount',
+      message: 'Ingresa el monto recibido en pesos (con hasta dos decimales).',
+    })
     return
   }
   const notes = (notesInputs.value[item.id] ?? '').trim()
   if (receivedCents !== item.declaredCents && notes === '') {
-    localError.value =
-      'El monto recibido difiere del declarado: agrega una nota que explique la diferencia.'
+    setReceiptError(item, {
+      field: 'notes',
+      message:
+        'El monto recibido difiere del declarado: agrega una nota que explique la diferencia.',
+    })
     return
   }
-  localError.value = null
+  setReceiptError(item, null)
   emit('receive', {
     id: item.id,
     receivedCents,
@@ -125,8 +178,8 @@ function submitReceive(item: CashCustodyItem) {
         data-testid="cash-custody-loading"
       >
         <span class="sr-only">Cargando</span>
-        <!-- Shaped like a pending-handover card: kind badge and amount, a meta
-             line, then the receipt fields and the Recibir button. -->
+        <!-- Shaped like a pending-handover card: kind badge and labelled amount,
+             the date line, then the receipt fields and the Recibir button. -->
         <div
           v-for="index in 2"
           :key="`custody-skeleton-${index}`"
@@ -134,14 +187,14 @@ function submitReceive(item: CashCustodyItem) {
           aria-hidden="true"
         >
           <div class="flex items-center justify-between">
-            <div class="h-6 w-20 animate-pulse rounded-md bg-[var(--hf-surface-muted)]" />
-            <div class="h-5 w-24 animate-pulse rounded bg-[var(--hf-surface-muted)]" />
+            <div class="hf-skeleton h-6 w-20 animate-pulse rounded-md" />
+            <div class="hf-skeleton h-5 w-28 animate-pulse rounded" />
           </div>
-          <div class="h-4 w-1/4 animate-pulse rounded bg-[var(--hf-surface-muted)]" />
-          <div class="flex gap-2">
-            <div class="h-11 w-40 animate-pulse rounded-lg bg-[var(--hf-surface-muted)]" />
-            <div class="h-11 w-40 animate-pulse rounded-lg bg-[var(--hf-surface-muted)]" />
-            <div class="h-11 w-24 animate-pulse rounded-lg bg-[var(--hf-surface-muted)]" />
+          <div class="hf-skeleton h-4 w-40 animate-pulse rounded" />
+          <div class="grid gap-3 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_auto]">
+            <div class="hf-skeleton h-11 animate-pulse rounded-lg" />
+            <div class="hf-skeleton h-11 animate-pulse rounded-lg" />
+            <div class="hf-skeleton h-11 animate-pulse rounded-lg sm:w-24" />
           </div>
         </div>
       </div>
@@ -180,23 +233,27 @@ function submitReceive(item: CashCustodyItem) {
             :data-testid="`cash-custody-pending-${item.id}`"
           >
             <div class="cash-card-heading">
-              <StatusBadge
-                :label="kindLabel(item.kind)"
-                :tone="kindTone(item.kind)"
-                aria-prefix="Tipo:"
-                :data-testid="`cash-custody-kind-${item.id}`"
-              />
-              <dl>
-                <dt class="sr-only">Declarado</dt>
-                <dd
-                  class="hf-figure text-sm font-semibold text-highlighted"
-                  :data-testid="`cash-custody-declared-${item.id}`"
-                >
+              <div class="flex min-w-0 flex-col items-start gap-1">
+                <StatusBadge
+                  :label="kindLabel(item.kind)"
+                  :tone="kindTone(item.kind)"
+                  aria-prefix="Tipo:"
+                  :data-testid="`cash-custody-kind-${item.id}`"
+                />
+                <p class="cash-meta" :data-testid="`cash-custody-declared-at-${item.id}`">
+                  Entregado el
+                  <time :datetime="item.declaredAt">{{
+                    formatShortDateTime(item.declaredAt)
+                  }}</time>
+                </p>
+              </div>
+              <dl class="cash-custody-amount" :data-testid="`cash-custody-amount-${item.id}`">
+                <dt>Declarado</dt>
+                <dd class="hf-figure" :data-testid="`cash-custody-declared-${item.id}`">
                   {{ formatCentsMXN(item.declaredCents) }}
                 </dd>
               </dl>
             </div>
-            <p class="cash-meta mt-1">Declarado</p>
 
             <p
               v-if="!isMine(item)"
@@ -207,39 +264,57 @@ function submitReceive(item: CashCustodyItem) {
             </p>
 
             <template v-else>
-              <div class="cash-form-content mt-3 flex flex-wrap items-end gap-2">
-                <UFormField label="Monto recibido (pesos)">
+              <!-- Stacked full width on a phone; one row from sm, top-aligned so a
+                   field's own error can grow below it without moving the others. -->
+              <div
+                class="cash-form-content mt-3 grid gap-3 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_auto] sm:items-start"
+                :data-testid="`cash-custody-fields-${item.id}`"
+              >
+                <UFormField label="Monto recibido (pesos)" :error="fieldError(item, 'amount')">
                   <UInput
                     v-model="receivedInputs[item.id]"
                     inputmode="decimal"
-                    class="min-w-40"
+                    class="w-full"
                     :data-testid="`cash-custody-received-input-${item.id}`"
                   />
+                  <template #error="{ error }">
+                    <span role="alert" data-testid="cash-custody-local-error">{{ error }}</span>
+                  </template>
                 </UFormField>
-                <UFormField label="Notas de recepción">
+                <UFormField
+                  label="Notas de recepción"
+                  :required="differs(item)"
+                  :error="fieldError(item, 'notes')"
+                >
                   <UInput
                     v-model="notesInputs[item.id]"
-                    class="min-w-40"
+                    class="w-full"
                     :data-testid="`cash-custody-received-notes-${item.id}`"
                   />
+                  <template #error="{ error }">
+                    <span role="alert" data-testid="cash-custody-local-error">{{ error }}</span>
+                  </template>
                 </UFormField>
-                <UButton
-                  v-if="canReceive"
-                  type="button"
-                  class="min-h-11"
-                  :loading="receivingId === item.id"
-                  :disabled="receivingId === item.id"
-                  :data-testid="`cash-custody-receive-${item.id}`"
-                  @click="submitReceive(item)"
-                >
-                  Recibir
-                </UButton>
+                <!-- The spacer matches a field label, so the button lines up with the inputs. -->
+                <div v-if="canReceive" class="cash-custody-receive">
+                  <UButton
+                    type="button"
+                    class="min-h-11 w-full justify-center sm:w-auto"
+                    :loading="receivingId === item.id"
+                    :disabled="receivingId === item.id"
+                    :data-testid="`cash-custody-receive-${item.id}`"
+                    @click="submitReceive(item)"
+                  >
+                    Recibir
+                  </UButton>
+                </div>
               </div>
               <p
+                v-if="!receiptErrors[item.id] && differs(item)"
                 class="cash-meta mt-2"
                 :data-testid="`cash-custody-received-note-hint-${item.id}`"
               >
-                La nota es obligatoria si el monto difiere del declarado.
+                El monto difiere del declarado: la nota es obligatoria.
               </p>
               <p
                 v-if="!canReceive"
@@ -254,11 +329,12 @@ function submitReceive(item: CashCustodyItem) {
 
         <section class="flex flex-col gap-3" data-testid="cash-custody-float">
           <h3 class="text-sm font-semibold text-highlighted">Fondos disponibles</h3>
-          <p v-if="eligibleFloat.length === 0" class="cash-meta" data-testid="cash-custody-float-empty">
+          <p
+            v-if="eligibleFloat.length === 0"
+            class="cash-meta"
+            data-testid="cash-custody-float-empty"
+          >
             No tienes fondos sin usar.
-          </p>
-          <p v-else class="cash-meta">
-            Cada fondo es una referencia, no una reserva: el fondo de apertura es el monto recibido.
           </p>
           <article
             v-for="item in eligibleFloat"
@@ -267,13 +343,36 @@ function submitReceive(item: CashCustodyItem) {
             :data-testid="`cash-custody-float-${item.id}`"
           >
             <div class="cash-card-heading">
-              <span
-                class="hf-figure text-sm font-semibold text-highlighted"
-                :data-testid="`cash-custody-float-received-${item.id}`"
-              >
-                Recibido {{ formatCentsMXN(item.receivedCents ?? 0) }}
-              </span>
-              <span class="cash-meta">Declarado {{ formatCentsMXN(item.declaredCents) }}</span>
+              <div class="flex min-w-0 flex-col items-start gap-1">
+                <StatusBadge
+                  :label="kindLabel(item.kind)"
+                  :tone="kindTone(item.kind)"
+                  aria-prefix="Tipo:"
+                />
+                <p
+                  v-if="item.receivedAt"
+                  class="cash-meta"
+                  :data-testid="`cash-custody-float-received-at-${item.id}`"
+                >
+                  Recibido el
+                  <time :datetime="item.receivedAt">{{
+                    formatShortDateTime(item.receivedAt)
+                  }}</time>
+                </p>
+              </div>
+              <dl class="cash-custody-amount">
+                <dt class="sr-only">Recibido</dt>
+                <dd class="hf-figure" :data-testid="`cash-custody-float-received-${item.id}`">
+                  {{ formatCentsMXN(item.receivedCents ?? 0) }}
+                </dd>
+                <dd
+                  v-if="floatDiffers(item)"
+                  class="cash-custody-amount-note hf-figure"
+                  :data-testid="`cash-custody-float-declared-${item.id}`"
+                >
+                  Declarado {{ formatCentsMXN(item.declaredCents) }}
+                </dd>
+              </dl>
             </div>
             <p
               v-if="advisoryFor(item)"
@@ -285,10 +384,6 @@ function submitReceive(item: CashCustodyItem) {
           </article>
         </section>
       </template>
-
-      <p v-if="localError" class="text-sm text-error" data-testid="cash-custody-local-error">
-        {{ localError }}
-      </p>
     </template>
   </section>
 </template>
