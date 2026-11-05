@@ -78,11 +78,11 @@ describe('EditorialHistoryDrawer', () => {
     expect(note.textContent).toContain('Cuando la haya, aquí verás en qué cambia tu borrador.')
   })
 
-  it('paints the empty-comparison block neutral: muted surface, solid --hf-border, no tint and no dashes', () => {
+  it('paints the empty-comparison block neutral: the table header wash, solid --hf-border, no tint and no dashes', () => {
     const rule = source.match(/\.history__empty\s*\{([^}]*)\}/)![1]!
-    expect(rule).toMatch(/background:\s*var\(--hf-surface-muted\)/)
+    expect(rule).toMatch(/background:\s*color-mix\(in srgb, var\(--hf-ink\) 4%, var\(--hf-surface\)\)/)
     expect(rule).toMatch(/border:\s*1px solid var\(--hf-border\)/)
-    expect(rule).not.toMatch(/dashed|dotted|color-mix|rgb|#[0-9a-f]{3,8}\b|--hf-(?:action|active|info)/i)
+    expect(rule).not.toMatch(/dashed|dotted|--hf-surface-muted|\brgb|#[0-9a-f]{3,8}\b|--hf-(?:action|active|info)/i)
   })
 
   it('compares in two columns, Publicado and Borrador, and only the changed fields', async () => {

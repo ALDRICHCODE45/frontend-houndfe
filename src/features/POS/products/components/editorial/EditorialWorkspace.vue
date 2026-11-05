@@ -15,7 +15,7 @@ import { toEditorialDocumentEditingState, type EditorialDocumentEditingState } f
 import { inspectEditorialDocumentReferences } from '../../utils/editorial-contract-document-references'
 import { qualifyEditorialConservationBaseline } from '../../utils/editorial-contract-conservation'
 import { projectEditorialDeclarationChoices } from '../../utils/editorial-contract-declaration-choices'
-import { buildEditorialAttributeTable, editorialTargetKey, isEditorialOptionalBinding } from '../../utils/editorial-attribute-table'
+import { buildEditorialAttributeTable, editorialTargetKey, isEditorialOptionalBinding, isEditorialRowComplete } from '../../utils/editorial-attribute-table'
 import { editorialEffectiveSource, ensureEditorialFactsRow, setEditorialOptionalNonpertinence, type EditorialCardSource } from '../../utils/editorial-presentation-card'
 import type { EditorialAssignmentTarget } from '../../utils/editorial-contract-assignment-input'
 import { buildEditorialHistoryChanges } from '../../utils/editorial-history-diff'
@@ -73,13 +73,13 @@ const shown = computed<EditorialDocumentEditingState | null>(() => {
 })
 const family = computed(() => vocabulary.value?.families.find(entry => entry.code === shown.value?.familyCode) ?? null)
 const table = computed(() => buildEditorialAttributeTable({ family: family.value, definitions: vocabulary.value?.definitions ?? [], values: shown.value?.values ?? [], subjects: subjects.value }))
-const rowsMissing = computed(() => table.value.rows.filter(row => row.cells.some(cell => cell && !cell.filled)).length)
-const completeness = computed(() => (table.value.total ? Math.round((table.value.answered / table.value.total) * 100) : 0))
+// Both the counter and the "Solo faltantes" badge count rows: a row is complete when all its cells are answered.
+const completeness = computed(() => (table.value.rowsTotal ? Math.round((table.value.rowsComplete / table.value.rowsTotal) * 100) : 0))
 const visibleCodes = computed(() => (onlyMissing.value ? missingCodes.value : null))
 // The filter keeps the rows that were missing when it was switched on, so a row does not vanish under the cursor as it is filled.
 function toggleMissing() {
   onlyMissing.value = !onlyMissing.value
-  if (onlyMissing.value) missingCodes.value = new Set(table.value.rows.filter(row => row.cells.some(cell => cell && !cell.filled)).map(row => row.code))
+  if (onlyMissing.value) missingCodes.value = new Set(table.value.rows.filter(row => !isEditorialRowComplete(row)).map(row => row.code))
 }
 watch(() => shown.value?.familyCode, () => { onlyMissing.value = false })
 
@@ -300,13 +300,13 @@ function valuesChanged(values: EditorialDocumentEditingState['values']) {
           <div class="editorial-toolbar" role="toolbar" aria-label="Resumen y filtros de la ficha">
             <EditorialContractFamilyField v-if="canWrite" id="editorial-family" :model-value="shown" :families="vocabulary.families" :disabled="!editable" @update:model-value="replace" />
             <p v-else-if="family" class="editorial-family-name">Familia · {{ family.label }}</p>
-            <button v-if="table.total" type="button" class="editorial-button" data-testid="only-missing" :aria-pressed="onlyMissing" @click="toggleMissing">
+            <button v-if="table.rowsTotal" type="button" class="editorial-button" data-testid="only-missing" :aria-pressed="onlyMissing" @click="toggleMissing">
               <UIcon name="i-lucide-list-filter" class="size-4" aria-hidden="true" />Solo faltantes
-              <span v-if="rowsMissing" class="hf-figure editorial-count">{{ rowsMissing }}</span>
+              <span v-if="table.rowsMissing" class="hf-figure editorial-count">{{ table.rowsMissing }}</span>
             </button>
             <span class="editorial-spacer" />
-            <div v-if="table.total" class="editorial-completeness">
-              <span class="hf-figure"><strong>{{ table.answered }}</strong> de {{ table.total }} datos</span>
+            <div v-if="table.rowsTotal" class="editorial-completeness">
+              <span class="hf-figure"><strong>{{ table.rowsComplete }}</strong> de {{ table.rowsTotal }} datos</span>
               <div class="editorial-bar" aria-hidden="true"><i :style="{ width: `${completeness}%` }" /></div>
             </div>
           </div>
@@ -362,7 +362,7 @@ function valuesChanged(values: EditorialDocumentEditingState['values']) {
             <div class="editorial-footer__actions">
               <RowActionsMenu :actions="footerActions" row-label="la ficha" aria-label="Más acciones de la ficha" portal-class="editorial-portal" @select="footerAction" />
               <button type="button" class="editorial-button editorial-footer__soon" disabled aria-disabled="true">Publicación próximamente</button>
-              <button class="hf-primary-control" type="submit" form="editorial-form" :disabled="!canSave">{{ isPending ? 'Guardando…' : 'Guardar' }}</button>
+              <button class="hf-primary-control" type="submit" form="editorial-form" :disabled="!canSave || !hasUnsavedChanges">{{ isPending ? 'Guardando…' : 'Guardar' }}</button>
             </div>
           </footer>
         </template>
@@ -393,16 +393,17 @@ function valuesChanged(values: EditorialDocumentEditingState['values']) {
 .editorial-button { display: inline-flex; align-items: center; gap: 6px; min-height: var(--hf-control-height); padding: 8px 14px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-control); background: var(--hf-surface); color: var(--hf-ink); font-family: var(--hf-font); font-size: 14px; cursor: pointer; }
 .editorial-button:hover:not(:disabled) { background: var(--hf-surface-muted); }
 .editorial-button[aria-pressed='true'] { border-color: var(--hf-active); background: var(--hf-active-soft); color: var(--hf-active); }
-.editorial-button:disabled, .hf-primary-control:disabled { cursor: default; opacity: .65; }
+.editorial-button:disabled { cursor: default; opacity: .65; }
 .editorial-button:focus-visible, .editorial-link:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
 .editorial-alert { display: grid; gap: 10px; margin: 0; padding: 14px 16px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); background: var(--hf-surface); font-size: 14px; }
 .editorial-alert[data-tone='warning'] { border-color: color-mix(in srgb, var(--hf-warning) 40%, var(--hf-border)); background: var(--hf-warning-soft); }
 .editorial-alert p { margin: 0; }
 .editorial-alert ul { margin: 0; padding-left: 20px; list-style: disc; }
 .editorial-actions { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
-.editorial-form { display: grid; gap: 16px; min-width: 0; }
+.editorial-form { display: grid; gap: 16px; min-width: 0; padding-bottom: 16px; }
 .editorial-surface { padding: 16px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); background: var(--hf-surface); min-width: 0; }
-.editorial-footer { position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 12px 16px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); background: var(--hf-surface); }
+/* A bar flush to the bottom of the content column, in the flow after the form, so at the end of the scroll it never covers the last row. */
+.editorial-footer { position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 12px 16px; border-top: 1px solid var(--hf-border); background: var(--hf-surface); }
 .editorial-save-state { min-width: 0; color: var(--hf-muted); font-size: 14px; }
 .editorial-save-state b { color: var(--hf-ink); font-weight: 600; }
 .editorial-save-state .editorial-ok { color: var(--hf-success); }
@@ -424,10 +425,13 @@ function valuesChanged(values: EditorialDocumentEditingState['values']) {
   .editorial-toolbar :deep(.family-field .control) { flex: 1 1 0; }
   .editorial-toolbar .editorial-spacer { display: none; }
   .editorial-completeness { flex: 1 1 0; justify-content: flex-end; }
-  .editorial-footer { margin-inline: -4px; }
-  .editorial-footer__actions { display: grid; grid-template-columns: auto minmax(0, 1fr); width: 100%; }
+  /* The sticky mobile action bar: full bleed over the 16px page gutter, equal-width columns, centered labels. */
+  .editorial-footer { margin-inline: -16px; padding: 12px 16px; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+  .editorial-footer__actions { display: grid; grid-template-columns: auto; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; width: 100%; }
+  .editorial-footer__actions > * { justify-content: center; }
   .editorial-footer__soon { display: none; }
   .editorial-skeleton-row { grid-template-columns: 8rem 1fr; }
   .editorial-skeleton-row > :nth-child(3) { display: none; }
 }
+@media (min-width: 640px) and (max-width: 767px) { .editorial-footer { margin-inline: -24px; padding-inline: 24px; } }
 </style>

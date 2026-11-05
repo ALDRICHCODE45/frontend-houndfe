@@ -192,3 +192,23 @@ describe('buildEditorialAttributeTable — guidance', () => {
     expect(table.rows.flatMap(item => item.cells).filter(Boolean).every(cell => !cell!.naAdmitted && !cell!.required)).toBe(true)
   })
 })
+
+// T10 review: "N de M datos" counted cells (the collar read "0 de 117") while "Solo faltantes" counted rows (39).
+// Both count rows now: a row is complete when every applicable cell has a value or an explicit state.
+describe('buildEditorialAttributeTable row counts', () => {
+  it('a single-column food: one cell per row, so complete rows follow the filled cells', () => {
+    const food = { ...family, bindings: [binding('animal.target', 'product'), binding('material', 'product')] }
+    const table = build([row('a', 'material', 'product', null, known('Nylon'))], { family: food, subjects: [{ variantId: null, label: 'Sin presentación' }] })
+    expect(table).toMatchObject({ rowsComplete: 1, rowsTotal: 2, rowsMissing: 1 })
+  })
+
+  it('a 3-presentation accessory: a row is complete only when all three presentations are answered', () => {
+    const accessory = { ...family, bindings: [binding('material', 'sellable'), binding('measure.net_mass', 'sellable'), binding('animal.target', 'product')] }
+    const three = [{ variantId: 'v1', label: 'Chico' }, { variantId: 'v2', label: 'Mediano' }, { variantId: 'v3', label: 'Grande' }]
+    const table = build([
+      row('a', 'material', 'sellable', 'v1', known('Nylon')), row('b', 'material', 'sellable', 'v2', { state: 'unknown' }), row('c', 'material', 'sellable', 'v3', { state: 'not_applicable' }),
+      row('d', 'measure.net_mass', 'sellable', 'v1', { state: 'unknown' }), row('e', 'measure.net_mass', 'sellable', 'v2', { state: 'unknown' }),
+    ], { family: accessory, subjects: three })
+    expect(table).toMatchObject({ rowsComplete: 1, rowsTotal: 3, rowsMissing: 2, answered: 5, total: 7 })
+  })
+})

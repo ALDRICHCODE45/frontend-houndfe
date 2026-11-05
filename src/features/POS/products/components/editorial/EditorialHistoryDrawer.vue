@@ -88,7 +88,7 @@ const savedText = computed(() => (props.savedAt ? `Guardado el ${formatShortDate
 <style scoped>
 .history { display: grid; gap: 32px; color: var(--hf-ink); font-family: var(--hf-font); }
 .history__title { margin: 0 0 12px; color: var(--hf-heading); font-size: 14px; font-weight: 600; }
-.history__empty { display: grid; justify-items: start; gap: 4px; margin: 0; padding: 16px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); background: var(--hf-surface-muted); color: var(--hf-ink); font-size: 14px; }
+.history__empty { display: grid; justify-items: start; gap: 4px; margin: 0; padding: 16px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); background: color-mix(in srgb, var(--hf-ink) 4%, var(--hf-surface)); color: var(--hf-ink); font-size: 14px; }
 .history__empty p { margin: 0; }
 .history__empty-icon { width: 20px; height: 20px; margin-bottom: 4px; color: var(--hf-muted); }
 .history__empty-hint { color: var(--hf-muted); font-size: 13px; }

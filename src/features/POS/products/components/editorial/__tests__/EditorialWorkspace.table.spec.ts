@@ -181,17 +181,19 @@ describe('EditorialWorkspace — the table', () => {
 })
 
 describe('EditorialWorkspace — completeness and Solo faltantes', () => {
-  it('counts the data that have an answer over all of them', async () => {
+  it('counts the rows whose every cell has an answer over all the rows', async () => {
     reads(state(doc({ values: [material('Nylon'), { code: 'animal.target', owner: 'product', variantId: null, state: 'unknown', evidence: null }] })))
     await render()
-    expect(wrapper.get('.editorial-completeness').text()).toBe('2 de 4 datos')
+    expect(wrapper.get('.editorial-completeness').text()).toBe('2 de 3 datos')
+    // The badge counts the same rows: the one incomplete row (Peso neto, empty in both presentations).
+    expect(wrapper.get('[data-testid="only-missing"] .editorial-count').text()).toBe('1')
   })
 
   it('the count follows an edit as it happens', async () => {
     await render()
-    expect(wrapper.get('.editorial-completeness').text()).toBe('0 de 4 datos')
+    expect(wrapper.get('.editorial-completeness').text()).toBe('0 de 3 datos')
     await cell('Material', 0).get('input').setValue('Nylon')
-    expect(wrapper.get('.editorial-completeness').text()).toBe('1 de 4 datos')
+    expect(wrapper.get('.editorial-completeness').text()).toBe('1 de 3 datos')
   })
 
   it('Solo faltantes shows only the rows with something missing, and keeps a row while it is filled', async () => {
@@ -332,7 +334,7 @@ describe('EditorialWorkspace — the footer', () => {
   it('is sticky, and on mobile keeps Guardar beside the ⋯ menu without the disabled publication button', () => {
     expect(source).toMatch(/\.editorial-footer\s*\{[^}]*position:\s*sticky[^}]*bottom:\s*0/)
     expect(source).toMatch(/@media \(max-width: 767px\)[\s\S]*\.editorial-footer__soon\s*\{[^}]*display:\s*none/)
-    expect(source).toMatch(/@media \(max-width: 767px\)[\s\S]*\.editorial-footer__actions\s*\{[^}]*grid-template-columns:\s*auto minmax\(0, 1fr\)/)
+    expect(source).toMatch(/@media \(max-width: 767px\)[\s\S]*\.editorial-footer__actions\s*\{[^}]*grid-template-columns:\s*auto; grid-auto-flow: column; grid-auto-columns: minmax\(0, 1fr\)/)
     expect(source).not.toMatch(/grid-column:\s*1 \/ -1/)
   })
 
@@ -351,7 +353,7 @@ describe('EditorialWorkspace — the footer', () => {
     const toolbar = wrapper.get('[role="toolbar"]')
     expect(toolbar.find('[data-testid="only-missing"]').exists()).toBe(true)
     expect(toolbar.find('[data-testid="open-history"]').exists()).toBe(false)
-    expect(toolbar.text()).toContain('de 4 datos')
+    expect(toolbar.text()).toContain('de 3 datos')
   })
 })
 
@@ -368,7 +370,8 @@ describe('EditorialWorkspace — after a save', () => {
     expect(http.get).toHaveBeenCalledTimes(6)
     expect(cell('Material', 0).get('input').element).toHaveProperty('value', 'Nylon')
     expect(wrapper.find('[data-testid="retry-view"]').exists()).toBe(false)
-    expect(button('Guardar').attributes('disabled')).toBeUndefined()
+    // Saved with no new change: nothing to save, so Guardar is the shared disabled primary.
+    expect(button('Guardar').attributes('disabled')).toBeDefined()
   })
 
   it('a failed refresh still says Guardado, adds a quiet retry and never an error that suggests the save failed', async () => {

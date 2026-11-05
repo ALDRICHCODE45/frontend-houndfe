@@ -41,6 +41,10 @@ export type EditorialAttributeTable = {
   answered: number
   total: number
   missing: number
+  /** Rows whose every applicable cell has a value or an explicit state; "N de M datos" and "Solo faltantes" count these. */
+  rowsComplete: number
+  rowsTotal: number
+  rowsMissing: number
   /** Stored assignments with content that no cell shows (kept untouched in the document). */
   orphanCount: number
 }
@@ -101,7 +105,7 @@ export function buildEditorialAttributeTable({ family, definitions, values, subj
   /** The declarations being edited; the policy of a cell reads the ones of its own presentation. */
   facts?: EditorialFactsEditingState
 }): EditorialAttributeTable {
-  const empty: EditorialAttributeTable = { columns: [], rows: [], answered: 0, total: 0, missing: 0, orphanCount: 0 }
+  const empty: EditorialAttributeTable = { columns: [], rows: [], answered: 0, total: 0, missing: 0, rowsComplete: 0, rowsTotal: 0, rowsMissing: 0, orphanCount: 0 }
   if (!family) return empty
   const candidates: EditorialTableColumn[] = [
     { key: 'product', label: 'Producto', owner: 'product', variantId: null },
@@ -148,7 +152,14 @@ export function buildEditorialAttributeTable({ family, definitions, values, subj
     }),
   })).sort((left, right) => left.label.localeCompare(right.label, 'es'))
   const orphanCount = values.filter(item => item.input.state !== 'omitted' && !matched.has(item.id)).length
-  return { columns: used, rows, answered, total, missing: total - answered, orphanCount }
+  const counted = rows.filter(item => item.cells.some(Boolean))
+  const rowsComplete = counted.filter(isEditorialRowComplete).length
+  return { columns: used, rows, answered, total, missing: total - answered, rowsComplete, rowsTotal: counted.length, rowsMissing: counted.length - rowsComplete, orphanCount }
+}
+
+/** A row is complete when every cell it has is answered (a value, "Desconocido" or "No aplica"). */
+export function isEditorialRowComplete(row: Pick<EditorialTableRow, 'cells'>): boolean {
+  return row.cells.every(cell => !cell || cell.filled)
 }
 
 /** The binding's rule is "optional": "No aplica" on it is declared in the presentation's `optionalNonpertinenceCodes`. */

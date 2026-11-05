@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, useTemplateRef } from 'vue'
-import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import EditorialAttributeCell from './EditorialAttributeCell.vue'
+import EditorialAttributeRowName from './EditorialAttributeRowName.vue'
 import type { EditorialDefinition } from '../../interfaces/editorial-contract-definition.types'
 import type { EditorialFamily } from '../../interfaces/editorial-contract-vocabulary.types'
 import type { EditorialAssignmentInput } from '../../utils/editorial-contract-assignment-input'
@@ -47,6 +48,10 @@ function whereItIsFilled(row: { cells: (EditorialTableCell | null)[] }) {
   return row.cells.find(Boolean)?.target.owner === 'product' ? 'Este dato se llena en Producto' : 'Este dato se llena en cada presentación'
 }
 
+// Below md each row is a stacked card (Mobile cards): no sideways scroll, the chip and ⋯ always in sight.
+const mobile = useBreakpoints(breakpointsTailwind).smaller('md')
+const presentCells = (row: { cells: (EditorialTableCell | null)[] }) => row.cells.flatMap((cell, index) => (cell ? [{ cell, column: table.value.columns[index]! }] : []))
+
 // Enter finishes a cell and goes down the same column, to the next row that has a control there.
 const root = useTemplateRef<HTMLElement>('root')
 function moveDown(source: HTMLElement) {
@@ -62,7 +67,33 @@ function moveDown(source: HTMLElement) {
 </script>
 
 <template>
-  <div ref="root" class="hf-attr-table" data-testid="attribute-table">
+  <div v-if="mobile" ref="root" class="hf-attr-cards" data-testid="attribute-table">
+    <ul class="hf-attr-cards__list" aria-label="Datos de la ficha por producto y presentación">
+      <li v-for="row in rows" :key="row.code" class="hf-attr-card" :data-row="row.code" data-testid="attribute-card">
+        <template v-if="presentCells(row).length === 1">
+          <EditorialAttributeCell v-for="{ cell, column } in presentCells(row)" :id="`attr-${row.code}-${cell.key}`" :key="cell.key" stacked
+            :label="`${row.label} · ${column.label}`" :definition="row.definition" :target="cell.target" :model-value="cell.input" :readonly="readonly" :disabled="disabled"
+            :na-admitted="cell.naAdmitted" :required="cell.required"
+            :issue="cell.rowId ? issues?.get(cell.rowId) : undefined" :conserved-options="conserved?.get(editorialTargetKey(cell.target))"
+            @update:model-value="change(cell, $event)" @clear="clear(cell)">
+            <template #label><EditorialAttributeRowName :row="row" class="hf-attr-card__title" /></template>
+          </EditorialAttributeCell>
+        </template>
+        <template v-else>
+          <EditorialAttributeRowName :row="row" class="hf-attr-card__title" />
+          <EditorialAttributeCell v-for="{ cell, column } in presentCells(row)" :id="`attr-${row.code}-${cell.key}`" :key="cell.key" stacked
+            :label="`${row.label} · ${column.label}`" :definition="row.definition" :target="cell.target" :model-value="cell.input" :readonly="readonly" :disabled="disabled"
+            :na-admitted="cell.naAdmitted" :required="cell.required"
+            :issue="cell.rowId ? issues?.get(cell.rowId) : undefined" :conserved-options="conserved?.get(editorialTargetKey(cell.target))"
+            @update:model-value="change(cell, $event)" @clear="clear(cell)">
+            <template #label><span class="hf-attr-card__subject">{{ column.label }}</span></template>
+          </EditorialAttributeCell>
+        </template>
+      </li>
+    </ul>
+    <p v-if="orphans" class="hf-attr-table__note" data-testid="attribute-orphans">{{ orphans }}</p>
+  </div>
+  <div v-else ref="root" class="hf-attr-table" data-testid="attribute-table">
     <table class="hf-attr-table__table">
       <caption class="sr-only">Datos de la ficha por producto y presentación</caption>
       <thead>
@@ -73,23 +104,7 @@ function moveDown(source: HTMLElement) {
       </thead>
       <tbody>
         <tr v-for="row in rows" :key="row.code" :data-row="row.code">
-          <th scope="row" class="hf-attr-table__label">
-            <span class="hf-attr-table__name">
-              {{ row.label }}
-              <StatusBadge v-if="row.internal" label="Interno" tone="neutral" aria-label="Interno, no se muestra al público" title="No se muestra al público" data-testid="internal-chip" />
-              <template v-if="row.description">
-                <UPopover :content="{ side: 'bottom', align: 'start' }" :ui="{ content: 'hf-theme hf-ui hf-attr-table__help-popover' }">
-                  <button type="button" class="hf-attr-table__help" data-testid="row-help" :aria-label="`Qué es ${row.label}`" :aria-describedby="`attr-${row.code}-help`">
-                    <UIcon name="i-lucide-info" class="size-4" aria-hidden="true" />
-                  </button>
-                  <template #content>
-                    <p class="hf-attr-table__help-text" data-testid="row-help-content">{{ row.description }}</p>
-                  </template>
-                </UPopover>
-                <span :id="`attr-${row.code}-help`" hidden>{{ row.description }}</span>
-              </template>
-            </span>
-          </th>
+          <th scope="row" class="hf-attr-table__label"><EditorialAttributeRowName :row="row" /></th>
           <td v-for="(cell, index) in row.cells" :key="table.columns[index]!.key" :class="{ 'hf-attr-table__none': !cell }">
             <EditorialAttributeCell v-if="cell" :id="`attr-${row.code}-${cell.key}`" :label="`${row.label} · ${table.columns[index]!.label}`"
               :definition="row.definition" :target="cell.target" :model-value="cell.input" :readonly="readonly" :disabled="disabled"
@@ -118,16 +133,13 @@ function moveDown(source: HTMLElement) {
 .hf-attr-table__table th[scope='row'], .hf-attr-table__table thead th:first-child { position: sticky; left: 0; z-index: 1; width: 14rem; min-width: 11rem; background: var(--hf-surface); }
 .hf-attr-table__table thead th:first-child { background: color-mix(in srgb, var(--hf-ink) 4%, var(--hf-surface)); }
 .hf-attr-table__table th[scope='row'] { padding-top: 18px; color: var(--hf-heading); font-weight: 500; }
-.hf-attr-table__name { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.hf-attr-table__help { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--hf-muted); cursor: pointer; }
-.hf-attr-table__help:hover { background: var(--hf-surface-muted); color: var(--hf-ink); }
-.hf-attr-table__help:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
-.hf-attr-table__help-text { max-width: min(20rem, 86vw); margin: 0; padding: 12px; color: var(--hf-ink); font-size: 14px; line-height: 1.45; }
 .hf-attr-table__none { color: var(--hf-muted); padding-top: 18px; }
+/* Mobile cards: 12px radius, 16px padding, one per row; nothing scrolls sideways. */
+.hf-attr-cards { min-width: 0; }
+.hf-attr-cards__list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.hf-attr-card { display: grid; gap: 12px; min-width: 0; padding: 16px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); background: var(--hf-surface); font-size: 14px; color: var(--hf-ink); }
+.hf-attr-card__title { color: var(--hf-heading); font-weight: 500; }
+.hf-attr-card__subject { color: var(--hf-ink); font-weight: 500; }
+.hf-attr-cards .hf-attr-table__note { border-top: 0; padding-inline: 0; }
 .hf-attr-table__note { margin: 0; padding: 10px 12px; border-top: 1px solid var(--hf-border); color: var(--hf-muted); font-size: 13px; }
-@media (max-width: 767px) {
-  .hf-attr-table__table th[scope='row'], .hf-attr-table__table thead th:first-child { width: 8rem; min-width: 8rem; }
-  .hf-attr-table__table th[scope='row'] { font-size: 13px; }
-  .hf-attr-table__table th, .hf-attr-table__table td { padding-inline: 10px; }
-}
 </style>

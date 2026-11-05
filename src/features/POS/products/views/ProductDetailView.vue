@@ -2060,8 +2060,10 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
       </div>
     </div>
 
+    <!-- On Contenido the save bar is the last thing in the scroll, flush to its bottom edge: no padding under it. -->
     <div
-      class="mx-auto flex w-full max-w-[1480px] flex-1 flex-col gap-6 overflow-y-auto px-4 pb-6 pt-6 sm:px-6 lg:px-10"
+      class="mx-auto flex w-full max-w-[1480px] flex-1 flex-col gap-6 overflow-y-auto px-4 pt-6 sm:px-6 lg:px-10"
+      :class="isEditorialTask ? 'pb-0' : 'pb-6'"
     >
       <EmptyState
         v-if="isProductNotFound"

@@ -236,8 +236,13 @@ function phrase(question: EditorialCardQuestion): string {
 }
 /** The one line of a collapsed card: "Se mide en peso · Etiqueta del empaque · 4 nov". */
 export function editorialCardSummary(questions: readonly EditorialCardQuestion[], source: EditorialCardSource, now = new Date()): string {
-  const parts = questions.filter(question => question.answer !== undefined).map(phrase)
-  if (source.sourceRef.trim()) parts.push(source.sourceRef.trim(), editorialShortDate(source.verifiedOn, now))
-  const text = parts.join(' · ')
-  return text ? text.charAt(0).toUpperCase() + text.slice(1) : 'Sin responder'
+  const { answers, source: where } = editorialCardSummaryParts(questions, source, now)
+  return [answers, where].filter(Boolean).join(' · ') || 'Sin responder'
+}
+/** The summary in its two parts: the answers (which may truncate) and the source with its date (which never does). */
+export function editorialCardSummaryParts(questions: readonly EditorialCardQuestion[], source: EditorialCardSource, now = new Date()): { answers: string; source: string } {
+  const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
+  const answers = questions.filter(question => question.answer !== undefined).map(phrase).join(' · ')
+  const where = source.sourceRef.trim() ? [source.sourceRef.trim(), editorialShortDate(source.verifiedOn, now)].filter(Boolean).join(' · ') : ''
+  return { answers: answers ? capital(answers) : where ? '' : 'Sin responder', source: answers ? where : capital(where) }
 }

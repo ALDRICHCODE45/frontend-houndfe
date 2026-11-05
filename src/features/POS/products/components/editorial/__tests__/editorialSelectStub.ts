@@ -11,13 +11,13 @@ function stubOf(name: string, multiple: boolean) {
   return defineComponent({
     name,
     props: { id: String, label: { type: String, required: true }, items: { type: Array as PropType<readonly EditorialSelectItem[]>, required: true },
-      placeholder: { type: String, default: 'Elige…' }, disabled: Boolean, invalid: Boolean, describedby: String,
+      placeholder: { type: String, default: 'Elige…' }, disabled: Boolean, invalid: Boolean, describedby: String, fieldClass: String,
       modelValue: { type: [String, Array] as PropType<string | readonly string[] | undefined>, default: undefined } },
     emits: ['update:modelValue'],
     setup(props, { emit }) {
       const selected = (code: string) => multiple ? Array.isArray(props.modelValue) && props.modelValue.includes(code) : props.modelValue === code
       return () => h('select', { id: props.id, 'aria-label': props.label, 'aria-invalid': props.invalid || undefined, 'aria-describedby': props.describedby,
-        'data-placeholder': props.placeholder, disabled: props.disabled, multiple,
+        'data-placeholder': props.placeholder, 'data-field-class': props.fieldClass, disabled: props.disabled, multiple,
         onChange: (event: Event) => {
           const select = event.target as HTMLSelectElement
           emit('update:modelValue', multiple ? Array.from(select.selectedOptions, option => option.value) : select.value === '' ? undefined : select.value)

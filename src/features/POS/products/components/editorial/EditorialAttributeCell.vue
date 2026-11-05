@@ -20,7 +20,9 @@ const props = withDefaults(defineProps<{ id: string; label: string; definition: 
   /** The policy admits "No aplica" for this cell; a cell shown on its own offers it. */
   naAdmitted?: boolean
   /** The policy makes the datum required to publish: a quiet marker, never an error. */
-  required?: boolean }>(), { naAdmitted: true })
+  required?: boolean
+  /** Mobile card: the `label` slot, the markers, the chip and the ⋯ on the first line, the control under them. */
+  stacked?: boolean }>(), { naAdmitted: true })
 const emit = defineEmits<{ 'update:modelValue': [input: EditorialAssignmentInput]; clear: []; enter: [source: HTMLElement] }>()
 
 const type = computed(() => props.definition.type)
@@ -167,21 +169,30 @@ function act(key: string) {
 </script>
 
 <template>
-  <div ref="root" class="hf-cell" :data-state="state">
+  <div ref="root" class="hf-cell" :data-state="state" :data-layout="stacked ? 'stacked' : undefined">
     <div class="hf-cell__line">
+      <span v-if="stacked" class="hf-cell__label">
+        <slot name="label" />
+        <span v-if="requiredMarker" class="hf-cell__required" data-testid="required-marker">
+          <UIcon name="i-lucide-asterisk" class="size-3" aria-hidden="true" />Requerido
+        </span>
+      </span>
       <span v-if="readonly" class="hf-cell__text">{{ state === 'known' ? editorialInputText(modelValue, definition) : '' }}</span>
       <fieldset v-else-if="showControl" class="hf-cell__fields" :disabled="disabled">
         <input v-if="type === 'text'" :id="`${id}-value`" class="hf-cell__control" type="text" :value="payload?.type === 'text' ? payload.value : ''"
           :disabled="disabled" :aria-label="label" :aria-invalid="message ? 'true' : undefined" :aria-describedby="described"
           @input="textChanged" @keydown.enter.prevent="emit('enter', $event.target as HTMLElement)">
-        <EditorialSelect v-else-if="type === 'boolean'" :id="`${id}-value`" class="hf-cell__select" :label="label" :items="booleanItems"
+        <EditorialSelect v-else-if="type === 'boolean'" :id="`${id}-value`" class="hf-cell__select" field-class="hf-cell__control" :label="label" :items="booleanItems"
           :model-value="payload?.type === 'boolean' && payload.value !== null ? String(payload.value) : undefined" :disabled="disabled"
           :invalid="!!message" :describedby="described" @update:model-value="booleanChanged" />
-        <EditorialSelect v-else-if="type === 'single'" :id="`${id}-value`" class="hf-cell__select" :label="label" :items="singleItems"
+        <EditorialSelect v-else-if="type === 'single'" :id="`${id}-value`" class="hf-cell__select" field-class="hf-cell__control" :label="label" :items="singleItems"
           :model-value="payload?.type === 'single' && payload.value !== null ? payload.value : undefined" :disabled="disabled"
           :invalid="!!message" :describedby="described" @update:model-value="singleChanged" />
         <details v-else-if="type === 'multi'" ref="multi" class="hf-cell__multi" @keydown.esc="closeMulti(true)">
-          <summary class="hf-cell__control" :aria-label="label" :aria-invalid="message ? 'true' : undefined">{{ multiText }}</summary>
+          <summary class="hf-cell__control" :aria-label="label" :aria-invalid="message ? 'true' : undefined">
+            <span :class="selected.length ? 'hf-cell__value' : 'hf-cell__placeholder'">{{ multiText }}</span>
+            <UIcon name="i-lucide-chevron-down" class="hf-cell__chevron size-4" data-testid="cell-chevron" aria-hidden="true" />
+          </summary>
           <div class="hf-cell__options" role="group" :aria-label="label">
             <label v-for="option in options" :key="option.code" class="hf-cell__option">
               <input type="checkbox" :value="option.code" :checked="selected.includes(option.code)" :disabled="disabled || (option.locked && !selected.includes(option.code))"
@@ -205,12 +216,12 @@ function act(key: string) {
         </div>
         <template v-if="type === 'number' || type === 'range'">
           <EditorialSelect v-if="unitChoices.length > 1 || (unit !== undefined && !units.some(item => item.code === unit))" :id="`${id}-unit`"
-            class="hf-cell__select hf-cell__unit" :label="`${label}, unidad`" :items="unitItems" :model-value="unit === undefined ? undefined : JSON.stringify(unit)"
+            class="hf-cell__select hf-cell__unit" field-class="hf-cell__control" :label="`${label}, unidad`" :items="unitItems" :model-value="unit === undefined ? undefined : JSON.stringify(unit)"
             :disabled="disabled" :invalid="!!message" :describedby="described" @update:model-value="unitChanged" />
           <span v-else-if="impliedUnit" class="hf-cell__suffix">{{ impliedUnit }}</span>
         </template>
       </fieldset>
-      <span v-else-if="!readonly && state !== 'known'" class="hf-cell__text" aria-hidden="true">—</span>
+      <span v-else-if="!readonly && state !== 'known' && !stacked" class="hf-cell__text" aria-hidden="true">—</span>
       <StatusBadge :label="chip.label" :tone="chip.tone" :aria-prefix="state === 'known' ? 'Estado:' : 'Valor:'" class="hf-cell__chip" />
       <span v-if="evidence" class="hf-cell__evidence" data-evidence title="Con evidencia">
         <UIcon name="i-lucide-paperclip" class="size-4" aria-hidden="true" /><span class="sr-only">Con evidencia</span>
@@ -235,7 +246,7 @@ function act(key: string) {
       </UPopover>
     </div>
     <p v-if="message" :id="`${id}-issue`" class="hf-cell__error" role="alert">{{ message }}</p>
-    <p v-if="requiredMarker" class="hf-cell__required" data-testid="required-marker">
+    <p v-if="requiredMarker && !stacked" class="hf-cell__required" data-testid="required-marker">
       <UIcon name="i-lucide-asterisk" class="size-3" aria-hidden="true" />Requerido para publicar
     </p>
   </div>
@@ -246,16 +257,23 @@ function act(key: string) {
 .hf-cell__line { display: flex; align-items: center; gap: 6px; min-width: 0; position: relative; }
 .hf-cell__fields { display: flex; flex: 1 1 auto; align-items: center; gap: 6px; min-width: 0; margin: 0; padding: 0; border: 0; }
 .hf-cell__text { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; color: var(--hf-ink); }
-.hf-cell__control { box-sizing: border-box; flex: 1 1 auto; width: 100%; min-width: 0; min-height: var(--hf-control-height); padding: 8px 10px; border: 1px solid var(--hf-field-border); border-radius: var(--hf-radius-control); background: var(--hf-field); color: var(--hf-ink); font: inherit; font-size: 14px; }
-.hf-cell__control:focus-visible, .hf-cell__button:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
-.hf-cell__control[aria-invalid='true'] { border-color: var(--hf-danger); box-shadow: 0 0 0 1px var(--hf-danger); }
-.hf-cell__control:disabled { cursor: not-allowed; opacity: .65; }
+/* One field style for every control of the cell (inputs, the several-choice trigger and the Nuxt UI lists, which get
+ * this class through `field-class`): the app's UInput/USelect look, an accented 1px ring on the field surface. */
+.hf-cell :deep(.hf-cell__control), .hf-cell__control { box-sizing: border-box; flex: 1 1 auto; width: 100%; min-width: 0; min-height: var(--hf-control-height); padding: 8px 10px; border: 0; border-radius: var(--hf-radius-control); background: var(--hf-field); box-shadow: inset 0 0 0 1px var(--ui-border-accented); color: var(--ui-text-highlighted); font: inherit; font-size: 14px; line-height: 20px; }
+/* The Nuxt UI list keeps its chevron at the end: leave room for it. */
+.hf-cell :deep(button.hf-cell__control) { padding-right: 32px; }
+.hf-cell__control::placeholder, .hf-cell__placeholder { color: var(--ui-text-dimmed); }
+.hf-cell__chevron { flex: none; margin-left: auto; color: var(--ui-text-dimmed); }
+.hf-cell__value, .hf-cell__placeholder { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hf-cell :deep(.hf-cell__control:focus-visible), .hf-cell__control:focus-visible, .hf-cell__button:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
+.hf-cell :deep(.hf-cell__control[aria-invalid='true']), .hf-cell__control[aria-invalid='true'] { box-shadow: inset 0 0 0 1px var(--hf-danger), 0 0 0 1px var(--hf-danger); }
+.hf-cell :deep(.hf-cell__control:disabled), .hf-cell__control:disabled { cursor: not-allowed; opacity: .65; }
 .hf-cell__select { flex: 1 1 auto; width: 100%; min-width: 0; min-height: var(--hf-control-height); }
 .hf-cell__unit { flex: 0 0 8.5rem; width: 8.5rem; }
 .hf-cell__suffix { flex: none; color: var(--hf-muted); font-size: 13px; }
 .hf-cell__range { display: flex; flex: 1 1 auto; gap: 6px; min-width: 0; }
 .hf-cell__multi { position: relative; flex: 1 1 auto; min-width: 0; }
-.hf-cell__multi > summary { display: flex; align-items: center; cursor: pointer; list-style: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hf-cell__multi > summary { display: flex; align-items: center; gap: 6px; cursor: pointer; list-style: none; }
 .hf-cell__multi > summary::-webkit-details-marker { display: none; }
 .hf-cell__options { position: absolute; z-index: 10; inset-inline: 0; top: calc(100% + 4px); display: grid; gap: 2px; max-height: 14rem; overflow-y: auto; padding: 6px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-control); background: var(--hf-surface); box-shadow: 0 8px 24px color-mix(in srgb, var(--hf-ink) 14%, transparent); }
 .hf-cell__option { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 6px; border-radius: 6px; font-size: 14px; cursor: pointer; }
@@ -264,6 +282,12 @@ function act(key: string) {
 .hf-cell__evidence { display: inline-flex; flex: none; color: var(--hf-muted); }
 .hf-cell__required { display: flex; align-items: center; gap: 4px; margin: 0; color: var(--hf-muted); font-size: 12px; line-height: 1.4; }
 .hf-cell__anchor { position: absolute; right: 0; bottom: 0; width: 1px; height: 1px; pointer-events: none; }
+/* Stacked (mobile card): the label grows on the first line with the chip and the ⋯; the control wraps under them, full width. */
+.hf-cell[data-layout='stacked'] .hf-cell__line { flex-wrap: wrap; gap: 8px; }
+.hf-cell[data-layout='stacked'] .hf-cell__label { display: inline-flex; flex: 1 1 0; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; color: var(--hf-heading); font-weight: 500; }
+.hf-cell[data-layout='stacked'] .hf-cell__fields { order: 2; flex-basis: 100%; }
+.hf-cell[data-layout='stacked'] .hf-cell__text { order: 2; flex-basis: 100%; }
+.hf-cell[data-layout='stacked'] .hf-cell__required { font-weight: 400; }
 .hf-cell__error { margin: 0; color: var(--hf-danger); font-size: 13px; line-height: 1.4; }
 .hf-cell__evidence-form { display: grid; gap: 6px; width: min(20rem, 86vw); padding: 12px; color: var(--hf-ink); }
 .hf-cell__evidence-form label { font-size: 13px; font-weight: 500; }

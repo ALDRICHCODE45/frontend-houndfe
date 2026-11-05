@@ -5,7 +5,7 @@ import { calendarPartsToDateString, parseMexicoCityCalendarDate } from '@/core/s
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
-import { EDITORIAL_SOURCES, editorialCardSummary, isEditorialCardComplete, type EditorialCardAnswer, type EditorialCardQuestion,
+import { EDITORIAL_SOURCES, editorialCardSummaryParts, isEditorialCardComplete, type EditorialCardAnswer, type EditorialCardQuestion,
   type EditorialCardSource } from '../../utils/editorial-presentation-card'
 
 /** One presentation: a few plain questions as chips and one source for all of them; once answered it
@@ -48,7 +48,7 @@ const named = computed(() => EDITORIAL_SOURCES.find(entry => entry.label === sou
 const sourceKind = computed(() => named.value?.code ?? (sourceText.value || otherPicked.value ? 'other' : null))
 const sourceError = computed(() => props.needsSource && !sourceText.value && (props.showErrors || doneTried.value))
 watch(sourceError, shown => { if (shown) open.value = true })
-const summary = computed(() => editorialCardSummary(props.questions, props.source))
+const summary = computed(() => editorialCardSummaryParts(props.questions, props.source))
 const careBadge = computed(() => props.care === 'prepared' ? { label: 'Lista', tone: 'success' as const }
   : props.care === 'unknown' ? { label: 'No se sabe', tone: 'neutral' as const } : { label: 'Sin revisar', tone: 'neutral' as const })
 
@@ -149,7 +149,11 @@ function rename() {
       <div class="pcard__line">
         <UIcon v-if="complete" name="i-lucide-circle-check" class="pcard__done-icon size-5" aria-hidden="true" />
         <h4 :id="`${id}-title`" class="pcard__title">{{ title }}</h4>
-        <p class="pcard__summary" data-testid="card-summary">{{ summary }}</p>
+        <p class="pcard__summary" data-testid="card-summary">
+          <span v-if="summary.answers" class="pcard__answers" data-testid="card-summary-answers" :title="summary.answers">{{ summary.answers }}</span>
+          <template v-if="summary.answers && summary.source"> · </template>
+          <span v-if="summary.source" class="pcard__when" data-testid="card-summary-source">{{ summary.source }}</span>
+        </p>
         <StatusBadge v-if="care" :label="careBadge.label" :tone="careBadge.tone" aria-prefix="Revisión de cuidado:" />
         <template v-if="!readonly">
           <button type="button" class="pcard__ghost" data-testid="card-edit" :disabled="disabled"
@@ -173,6 +177,7 @@ function rename() {
         <UIcon name="i-lucide-copy" class="size-4" aria-hidden="true" />Copiar respuestas de {{ copyFrom }}
       </button>
 
+      <div class="pcard__questions">
       <fieldset v-for="question in questions" :key="question.key" class="pcard__question" data-testid="card-question" :disabled="disabled">
         <legend class="sr-only">{{ question.text }}</legend>
         <span class="pcard__label" aria-hidden="true">{{ question.text }}</span>
@@ -209,6 +214,7 @@ function rename() {
           </div>
         </div>
       </fieldset>
+      </div>
 
       <div class="pcard__source" data-testid="card-source">
         <span :id="`${id}-source-label`" class="pcard__label">¿De dónde sale esta información?</span>
@@ -277,9 +283,13 @@ function rename() {
 .pcard__line { display: flex; align-items: center; gap: 12px; min-width: 0; min-height: 44px; }
 .pcard__line .pcard__title { flex: 0 1 auto; max-width: 40%; }
 .pcard__done-icon { flex-shrink: 0; color: var(--hf-success); }
-.pcard__summary { flex: 1 1 0; min-width: 0; margin: 0; overflow: hidden; color: var(--hf-muted); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
-.pcard__question { display: grid; gap: 10px; min-width: 0; margin: 0; padding: 0; border: 0; }
-.pcard__question > .pcard__label { padding-top: 0; }
+.pcard__summary { display: flex; flex: 1 1 0; gap: 0.3em; min-width: 0; margin: 0; color: var(--hf-muted); font-size: 14px; white-space: nowrap; }
+/* The answers give way first; the source and its date always stay whole. */
+.pcard__answers { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pcard__when { flex: none; white-space: nowrap; }
+/* Each label sits above its chips at every width, so the chips use the whole card. */
+.pcard__questions { display: grid; gap: 16px; min-width: 0; }
+.pcard__question { display: grid; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
 .pcard__label { color: var(--hf-ink); font-size: 14px; font-weight: 500; }
 .pcard__chips { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
 /* "No sé" and the chip before it wrap as one, so "No sé" is never alone on a row. */
@@ -316,15 +326,10 @@ fieldset:disabled .pcard__chip, .pcard__chip:has(input:disabled) { cursor: not-a
 .pcard__button:focus-visible, .pcard__ghost:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
 .pcard__button:disabled, .pcard__ghost:disabled { cursor: not-allowed; opacity: .65; }
 .pcard__modal-actions { display: flex; justify-content: flex-end; gap: 8px; width: 100%; }
-@container (min-width: 40rem) {
-  .pcard__question { grid-template-columns: 15rem minmax(0, 1fr); align-items: start; }
-  .pcard__question > .pcard__label { padding-top: 10px; }
-  .pcard__sub { grid-column: 2; }
-}
 @container (max-width: 30rem) {
   .pcard__line { flex-wrap: wrap; gap: 4px 12px; }
   .pcard__line .pcard__title { flex: 1 1 0; max-width: none; }
-  .pcard__summary { order: 3; flex-basis: 100%; padding-bottom: 6px; white-space: normal; }
+  .pcard__summary { order: 3; flex-basis: 100%; padding-bottom: 6px; }
 }
 @media (max-width: 767px) { .pcard { padding: 16px; } .pcard[data-open='false'] { padding: 8px 8px 8px 16px; } }
 @media (prefers-reduced-motion: reduce) { .pcard__chip { transition: none; } }

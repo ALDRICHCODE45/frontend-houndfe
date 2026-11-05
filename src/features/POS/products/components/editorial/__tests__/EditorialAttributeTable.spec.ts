@@ -76,12 +76,13 @@ describe('EditorialAttributeTable structure', () => {
     expect(cellOf(wrapper, 'Material', 0).get('input').attributes('aria-label')).toBe('Material · Producto')
   })
 
-  it('scrolls horizontally inside its own container, with the attribute column sticky', () => {
+  it('scrolls horizontally inside its own container on desktop, with the attribute column sticky', () => {
     expect(source).toMatch(/\.hf-attr-table\s*\{[^}]*overflow-x:\s*auto/)
     expect(source).toMatch(/th\[scope='row'\][^{]*\{[^}]*position:\s*sticky[^}]*left:\s*0/)
     expect(source).not.toMatch(/\buppercase\b/)
-    // On a phone the sticky attribute column is narrow, so the controls keep most of the screen.
-    expect(source).toMatch(/@media \(max-width: 767px\)[\s\S]*th\[scope='row'\][^{]*\{[^}]*width:\s*8rem/)
+    // Below md the rows are stacked cards instead (Mobile cards), so nothing scrolls sideways on a phone.
+    expect(source).toMatch(/useBreakpoints\(breakpointsTailwind\)\.smaller\('md'\)/)
+    expect(source).toMatch(/<div v-if="mobile" ref="root" class="hf-attr-cards"/)
   })
 
   it('shows only the requested rows', () => {
