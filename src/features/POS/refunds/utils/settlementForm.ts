@@ -23,7 +23,7 @@ export interface SettlementFormErrors {
 
 const AMOUNT_PATTERN = /^\d+(\.\d{1,2})?$/
 /** A comma is accepted only as a thousands separator in groups of three (`1,234.50`). */
-const THOUSANDS_PATTERN = /^\d{1,3}(,\d{3})+(\.\d*)?$/
+const THOUSANDS_PATTERN = /^[1-9]\d{0,2}(,\d{3})+(\.\d*)?$/
 
 /** Read a typed MXN amount (`$1,234.50`, `20`) as integer cents. A comma decimal (`70,55`) is
  * rejected, never read as thousands: that would settle 100× the amount, and money is irreversible. */

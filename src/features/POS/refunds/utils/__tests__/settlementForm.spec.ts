@@ -47,6 +47,7 @@ describe('parseAmountInput', () => {
     ['1,2', 'Usa punto para los centavos, por ejemplo 70.55.'],
     ['1,23,4', 'Usa punto para los centavos, por ejemplo 70.55.'],
     ['1234,50', 'Usa punto para los centavos, por ejemplo 70.55.'],
+    ['0,100', 'Usa punto para los centavos, por ejemplo 70.55.'],
   ])('rejects %j', (text, error) => {
     expect(parseAmountInput(text)).toEqual({ error })
   })
