@@ -2,9 +2,9 @@
  * Integration tests for ProductDetailView variant image modal trigger
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-import { flushPromises, mount } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { h, reactive } from 'vue'
 import EditorialWorkspace from '../../components/editorial/EditorialWorkspace.vue'
 import { envelope, vocabularyEnvelope } from '../../__tests__/editorial-contract-fixtures'
@@ -160,9 +160,23 @@ vi.mock('../../api/product.api', async (importOriginal) => {
   }
 })
 
+let queryClient: QueryClient
+
+// Every test starts clean whatever ran before it. Hooks run in reverse: the auto-unmount registered
+// below runs first, then this resets the DOM, the cache, one-shot mock values (mockReset restores
+// each vi.fn's own default) and spies.
+afterEach(async () => {
+  const { productApi } = await import('../../api/product.api')
+  vi.mocked(productApi.getVariants).mockReset()
+  settingsApi.get.mockReset()
+  queryClient.clear()
+  vi.restoreAllMocks()
+  document.body.innerHTML = ''
+})
+enableAutoUnmount(afterEach)
+
 // NOTE: UTooltip provider context is now provided via mountWithUApp helper
 describe('ProductDetailView - Variant Image Modal Integration', () => {
-  let queryClient: QueryClient
 
   beforeEach(() => {
     queryClient = new QueryClient({
@@ -185,6 +199,7 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
     productApiMocks.upsertVariantPrice.mockReset().mockResolvedValue({})
   })
 
+
   // The ⋮ menu itself is covered with real components in ProductVariantsTable.spec.ts;
   // here the view's wiring is what matters, so the table emits the chosen action.
   async function chooseFirstVariantPhotos(wrapper: ReturnType<typeof mountWithUApp>) {
@@ -199,9 +214,10 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     plugins: [[VueQueryPlugin, { queryClient }]] as any,
     stubs: {
+      // Renders `label` like the real UButton, so a query reads the same whichever one resolves.
       UButton: {
         template:
-          '<button @click="$emit(\'click\')" :data-testid="$attrs[\'data-testid\']"><slot /></button>',
+          '<button @click="$emit(\'click\')" :data-testid="$attrs[\'data-testid\']">{{ $attrs.label }}<slot /></button>',
       },
       UCard: { template: '<div><slot name="header" /><slot /></div>' },
       UForm: { template: '<form><slot /></form>' },
@@ -362,7 +378,6 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       expect(summary.get('[data-summary="price"]').text()).toBe('$0.00')
       expect(summary.get('[data-summary="stock"]').text()).toBe('30')
       expect(productApiMocks.update).not.toHaveBeenCalled()
-      wrapper.unmount()
     })
 
     it('shows service identity without inventing inventory in the summary', async () => {
@@ -374,7 +389,6 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       expect(summary.get('[data-summary="stock"]').text()).toBe('—')
       expect(summary.get('[data-summary="price"]').text()).toBe('$0.00')
       expect(productApiMocks.update).not.toHaveBeenCalled()
-      wrapper.unmount()
     })
 
     it('keeps raw operational controls mounted across freely selected tasks', async () => {
@@ -399,7 +413,6 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       expect(identity.get('input').element).toBe(input)
       expect(input.value).toBe('Nombre pendiente sin normalizar  ')
       expect(productApiMocks.update).not.toHaveBeenCalled()
-      wrapper.unmount()
     })
 
     it.each([
@@ -416,7 +429,6 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       expect(wrapper.get(`[data-product-task="${task}"]`).isVisible()).toBe(true)
       expect(wrapper.get(`[data-task="${task}"]`).attributes('aria-current')).toBe('page')
       expect(wrapper.get('[data-product-task="identity"] input').element).toBe(input)
-      wrapper.unmount()
     })
 
     it('explains that new products need creation before editorial work', async () => {
@@ -432,7 +444,6 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       expect(wrapper.find('[data-testid="product-image-gallery"]').exists()).toBe(false)
       expect(editorialReads.getVocabulary).not.toHaveBeenCalled()
       expect(productApiMocks.update).not.toHaveBeenCalled()
-      wrapper.unmount()
     })
 
     it.each([
@@ -453,7 +464,6 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       await wrapper.get('[data-task="presentations"]').trigger('click')
       expect(wrapper.get('button[form="product-detail-form"]').text()).toBe('Guardar cambios')
       expect(wrapper.find('[data-testid="mobile-action-bar"]').exists()).toBe(true)
-      wrapper.unmount()
     })
 
     it('lazily mounts one real editor outside UForm and retains its pending input', async () => {
@@ -479,7 +489,6 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       expect(editorialReads.getVocabulary).toHaveBeenCalledTimes(1)
       expect(editorialReads.getState).toHaveBeenCalledTimes(1)
       expect(productApiMocks.update).not.toHaveBeenCalled()
-      wrapper.unmount()
     })
 
     it.each([
@@ -499,7 +508,6 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       expect(wrapper.get('[data-testid="editorial-unavailable"]').text()).toContain(reason)
       expect(wrapper.findComponent(EditorialWorkspace).exists()).toBe(false)
       expect(editorialReads.getVocabulary).not.toHaveBeenCalled()
-      wrapper.unmount()
     })
 
     it.each([
@@ -515,7 +523,6 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       expect(editorialReads.getState).toHaveBeenCalledTimes(1)
       expect(wrapper.get('#product-detail-form fieldset').attributes('disabled')).toBeDefined()
       expect(productApiMocks.update).not.toHaveBeenCalled()
-      wrapper.unmount()
     })
 
     it.each([{ userId: 'user-2' }, { tenantId: 'tenant-2' }, { permissionCodes: [] }])(
@@ -528,7 +535,6 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
         Object.assign(editorialSession, changes)
         await flushPromises()
         expect(wrapper.findAll('input').some(input => input.element === oldInput)).toBe(false)
-        wrapper.unmount()
       },
     )
 
@@ -540,7 +546,6 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       expect(wrapper.get('fieldset').attributes('disabled')).toBeDefined()
       expect(wrapper.find('[data-task="presentations"]').element.closest('fieldset')).toBeNull()
       expect(productApiMocks.update).not.toHaveBeenCalled()
-      wrapper.unmount()
     })
   })
 
@@ -754,6 +759,5 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
     expect(productApiMocks.upsertVariantPrice).toHaveBeenCalledWith(
       'test-product-id', 'variant-1', 'pl-publico', { priceCents: 123450 },
     )
-    wrapper.unmount()
   })
 })
