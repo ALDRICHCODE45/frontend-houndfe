@@ -28,6 +28,8 @@ S17. Next work, verbatim: "Si hermano, por favor, una detas de la otra." Both pr
 
 S18. Follow-ups, verbatim: "Si, adelante por favor." (1) The Ventas list must mark canceled sales as «Cancelada» instead of showing them as Pagada/No entregada. (2) Audit every money input (payments, caja, compras, products, promotions…) for comma-decimal and float parsing, the way the refund amount was read 100× («70,55» → $7,055.00), and fix them test-first.
 
+S19. Bulk evidence, verbatim: "Si hermano, adelante con su recomendacion." A shortcut in Contenido: «Usar una fuente para los N datos sin fuente» (source + date prefilled from the presentation declaration, editable; with several presentations the user chooses which), then an explicit confirmation «¿Todos estos datos salen de {fuente}?», then ONE save. Only known values without evidence. Not CARE_REVIEW_INCOMPLETE, invalid saved evidence, REQUIRED_MISSING, UNRESOLVED or NA_NOT_ALLOWED (L87).
+
 ## Tasks
 
 T1 [S2,S3] Inventory screens and dead code (explorer), research principles, and extend docs/design-system.md. Route: explore, then inline.
@@ -66,6 +68,8 @@ T21 [S18] The Ventas list marks canceled sales («Cancelada», neutral) and hide
 T22 [S18] Money input audit: a read-only explorer maps every money input and parser; then fixes go test-first with a shared parser. Route: explore, then writer.
 
 T23 [S15] Editorial «Publicar»: readiness (GET …/draft/readiness) feeds the section nav counts and an Issue checklist; HfSaveBar gets «Publicar» as the primary when clean and ready; publish V2 (POST) with Idempotency-Key, Editorial-Vocabulary-Revision, and Editorial-Care-Confirmation: review-v1 only for the Cuidado family after an explicit confirmation; NO_DRAFT after publishing means «Publicado». Contract: odd/handoff/05-editorial-publish-readiness.md (BE branch feat/editorial-publish-v2 on :3003, not on main yet). Route: writer.
+
+T24 [S19] Bulk evidence shortcut in Contenido (from the checklist group «Agrega de dónde sale este dato · N campos» and/or the Presentación card). Route: writer, then a browser check against BE :3003 (publish after it).
 
 ## Log
 
