@@ -133,10 +133,11 @@ describe('EditorialWorkspace — the save bar', () => {
     expect(wrapper.findAll('.hf-primary-control').map(item => item.text())).toEqual(['Guardar'])
   })
 
-  it('never offers to publish, and the publication placeholder is gone', async () => {
+  it('the publication placeholder is gone; «Publicar» (T23) stays off until readiness says ready, and loading sends no write', async () => {
     auth.permissionCodes = ['manage:all']
     await render()
-    expect(wrapper.findAll('button').some(item => /^Publicar|Publicación próximamente/.test(item.text()))).toBe(false)
+    expect(wrapper.findAll('button').some(item => /Publicación próximamente/.test(item.text()))).toBe(false)
+    expect(wrapper.get('[data-testid="publish"]').attributes('disabled')).toBeDefined()
     expect(http.post).not.toHaveBeenCalled()
     expect(source).not.toMatch(/Publicación próximamente/)
   })
@@ -187,7 +188,7 @@ describe('EditorialWorkspace — after a save', () => {
     reads(state(doc({ values: [material('Nylon')] }), 4))
     await submit()
     expect(bar().text()).toContain('Guardado justo ahora')
-    expect(http.get).toHaveBeenCalledTimes(6)
+    expect(http.get).toHaveBeenCalledTimes(8) // two coherent reads, each followed by its readiness (T23)
     expect(materialText().element).toHaveProperty('value', 'Nylon')
     expect(wrapper.find('[data-testid="retry-view"]').exists()).toBe(false)
     expect(button('Guardar').attributes('disabled')).toBeDefined()
@@ -242,7 +243,7 @@ describe('EditorialWorkspace — conflicts and reconciliation', () => {
     expect(wrapper.get('[aria-labelledby="discard-title"]').text()).toContain('¿Reemplazar tus cambios sin guardar')
     await wrapper.get('[data-testid="cancel-discard"]').trigger('click')
     expect(materialText().element).toHaveProperty('value', 'LOCAL')
-    expect(http.get).toHaveBeenCalledTimes(3)
+    expect(http.get).toHaveBeenCalledTimes(4) // the coherent read and its readiness (T23)
     reads(state(doc({ values: [material('REMOTE')] }), 5))
     await wrapper.get('[data-testid="refresh-discard"]').trigger('click')
     await wrapper.get('[data-testid="confirm-discard"]').trigger('click'); await flushPromises()

@@ -47,7 +47,7 @@ describe('1. the save bar', () => {
 
   it('keeps the last content clear of it: the bar comes after the cards, which reserve their bottom space', () => {
     expect(rule(css, '.editorial-cards')).toMatch(/padding-bottom: 16px/)
-    expect(file('EditorialWorkspace.vue')).toMatch(/<\/div>\s*\n\s*<div v-if="canWrite && buffer" class="editorial-save"/)
+    expect(file('EditorialWorkspace.vue')).toMatch(/<\/div>\s*\n\s*<div v-if="bar" class="editorial-save"/)
   })
 
   it('on mobile bleeds over the 16px page gutter (the shared bar sets the equal-width columns)', () => {

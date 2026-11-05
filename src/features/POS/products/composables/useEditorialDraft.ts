@@ -2,6 +2,7 @@ import { computed, onScopeDispose, ref, shallowRef, toValue, watch, type MaybeRe
 import { editorialContractApi, EditorialContractApiError } from '../api/editorial-contract.api'
 import { canPublishEditorial, canReadEditorial, canWriteEditorial } from '../authorization/editorial-access'
 import type { EditorialContractInitializeRequest, EditorialContractSaveRequest, EditorialContractTransitionRequest } from '../interfaces/editorial-contract-request.types'
+import type { EditorialReadinessIssues } from '../interfaces/editorial-contract-readiness.types'
 import type { EditorialStateResponse } from '../interfaces/editorial-contract-response.types'
 import { decodeEditorialStateResponse, decodeEditorialVocabularyResponse } from '../utils/editorial-contract-response'
 import type { EditorialContractSnapshot } from '../utils/editorial-contract-snapshot'
@@ -41,7 +42,7 @@ export function useEditorialDraft(context: MaybeRefOrGetter<EditorialDraftContex
   const pendingIntent = shallowRef<EditorialIntent | null>(null)
   const receipt = shallowRef<EditorialStateResponse | null>(null)
   const outcome = shallowRef<'acknowledged' | 'ambiguous' | 'conflict' | 'rejected' | null>(null)
-  const error = shallowRef<{ status: number | null; code: EditorialContractApiError['code'] } | null>(null)
+  const error = shallowRef<{ status: number | null; code: EditorialContractApiError['code']; readiness?: EditorialReadinessIssues } | null>(null)
   const issues = shallowRef<EditorialRuntimeIssue[]>([])
   const isPending = shallowRef(false)
   const activeTicket = shallowRef<EditorialSnapshotTicket | null>(null)
@@ -121,7 +122,7 @@ export function useEditorialDraft(context: MaybeRefOrGetter<EditorialDraftContex
     } catch (failure) {
       if (!current()) return false
       const safe = failure instanceof EditorialContractApiError ? failure : new EditorialContractApiError(null, null)
-      error.value = Object.freeze({ status: safe.status, code: safe.code })
+      error.value = Object.freeze({ status: safe.status, code: safe.code, ...(safe.readiness ? { readiness: freeze(copy(safe.readiness)) } : {}) })
       outcome.value = safe.status === 409 ? 'conflict' : safe.status !== null && [400, 401, 403, 404].includes(safe.status) ? 'rejected' : 'ambiguous'
       return false
     } finally { if (current()) { isPending.value = false; writeController = null } }
@@ -152,6 +153,13 @@ export function useEditorialDraft(context: MaybeRefOrGetter<EditorialDraftContex
     const intent = captureIntent({ kind, body: { expectedCycle: saved.cycle!, expectedRevision: saved.draft!.revision }, confirmation: kind === 'publish' ? confirmation : null })
     pendingIntent.value = intent; return transmit(intent)
   }
+  /** A definitive refusal (400, 401, 403, 404, 409) leaves nothing to retransmit: the owner has read the
+   * error and drops the intent. A later attempt captures a fresh key. Ambiguous intents stay for retransmit. */
+  function dismissRejection() {
+    if (isPending.value || !pendingIntent.value || (outcome.value !== 'rejected' && outcome.value !== 'conflict')) return false
+    pendingIntent.value = null; outcome.value = null; error.value = null
+    return true
+  }
   async function retransmit() {
     const intent = pendingIntent.value
     if (!intent || !intentAllowed(intent.kind) || isPending.value || activeTicket.value !== null || outcome.value !== 'ambiguous') return false
@@ -160,6 +168,6 @@ export function useEditorialDraft(context: MaybeRefOrGetter<EditorialDraftContex
   return { snapshot: computed(() => snapshot.value), authoritative, buffer, nextId, issues,
     pendingIntent: computed(() => pendingIntent.value), receipt: computed(() => receipt.value), outcome: computed(() => outcome.value), error: computed(() => error.value),
     isPending: computed(() => isPending.value), canRead, canWrite, canPublish, canPublishDraft, canDiscard, hasUnsavedChanges, publishIssues,
-    beginSnapshotRead, cancelSnapshotRead, reconcileSnapshot, initialize, save, retransmit,
+    beginSnapshotRead, cancelSnapshotRead, reconcileSnapshot, initialize, save, retransmit, dismissRejection,
     publish: (confirmation: 'review-v1' | null = null) => transition('publish', confirmation), discard: () => transition('discard') }
 }

@@ -32,25 +32,26 @@ const colorVocabulary = () => {
 }
 
 describe('integrated target workspace', () => {
-  it.each([false, true])('keeps production publication unavailable (embedded=%s) with the history and the discard in reach', async embedded => {
+  it.each([false, true])('offers «Publicar» only as readiness allows (embedded=%s), with the history and the discard in reach', async embedded => {
     auth.permissionCodes = ['manage:all']
     wrapper = mount(EditorialWorkspace, { attachTo: window.document.body, props: { productId: 'p1', embedded } })
     await flushPromises()
     expect(wrapper.text()).not.toContain('Publicación próximamente')
     expect(wrapper.text()).not.toContain('Puedes publicar')
-    expect(wrapper.findAll('button').some(item => item.text().startsWith('Publicar'))).toBe(false)
+    // T23: this mock answers readiness with no readable snapshot, so «Publicar» is there but disabled.
+    expect(wrapper.get('[data-testid="publish"]').attributes('disabled')).toBeDefined()
     expect(wrapper.find('[data-testid="open-history"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="discard-draft"]').text()).toBe('Descartar borrador')
-    expect(http.get).toHaveBeenCalledTimes(3)
+    expect(http.get).toHaveBeenCalledTimes(4) // the coherent read and its readiness (T23)
     expect(http.post).not.toHaveBeenCalled()
   })
-  it('does not promise publication to a read-and-publish user without update access', async () => {
+  it('a read-and-publish user without update access cannot edit, but gets «Publicar» (handoff 05: update is not needed)', async () => {
     auth.permissionCodes = [read, publish]
     await render()
     expect(wrapper.text()).not.toContain('Puedes publicar')
     expect(wrapper.find('form').exists()).toBe(false)
-    expect(wrapper.find('.hf-save-bar').exists()).toBe(false)
-    expect(wrapper.findAll('button').some(item => item.text().includes('Publicar'))).toBe(false)
+    expect(wrapper.find('[data-testid="publish"]').exists()).toBe(true)
+    expect(wrapper.findAll('button').some(item => ['Guardar', 'Descartar'].includes(item.text()))).toBe(false)
     expect(http.post).not.toHaveBeenCalled()
   })
   it('uses the real controlled document form, sends exact raw text, and only says Guardado afterwards', async () => {
@@ -76,7 +77,7 @@ describe('integrated target workspace', () => {
     expect(http.post).toHaveBeenCalledTimes(1)
     expect((wrapper.get('#editorial-title').element as HTMLInputElement).value).toBe('FROM GET')
     expect(wrapper.text()).not.toContain('ACK ONLY')
-    expect(http.get).toHaveBeenCalledTimes(6)
+    expect(http.get).toHaveBeenCalledTimes(8) // two coherent reads, each with its readiness (T23)
   })
   it('a failed read after initializing is the read error with Reintentar, never a hidden draft', async () => {
     reads({ cycle: null, draft: null, published: null })
@@ -95,7 +96,7 @@ describe('integrated target workspace', () => {
     await wrapper.get('form').trigger('submit'); await flushPromises()
     await wrapper.get('[data-testid="refresh-discard"]').trigger('click')
     await wrapper.get('[data-testid="cancel-discard"]').trigger('click')
-    expect(http.get).toHaveBeenCalledTimes(3)
+    expect(http.get).toHaveBeenCalledTimes(4) // the coherent read and its readiness (T23)
     reads(state({ ...document(), commercialTitle: 'REMOTE' }))
     await wrapper.get('[data-testid="refresh-retain"]').trigger('click'); await flushPromises()
     expect((wrapper.get('#editorial-title').element as HTMLInputElement).value).toBe('LOCAL')
@@ -120,7 +121,7 @@ describe('integrated target workspace', () => {
     expect(wrapper.text()).toContain('x'.repeat(201)); expect(wrapper.text()).toContain('y'.repeat(20001)); expect(wrapper.text()).toContain('private-ref')
     expect(wrapper.findAll('input,textarea,form,img')).toHaveLength(0)
     expect(wrapper.text()).toContain('Solo consulta')
-    expect(http.get).toHaveBeenCalledTimes(3)
+    expect(http.get).toHaveBeenCalledTimes(4) // the coherent read and its readiness (T23)
   })
   it('rejects old/unreadable envelope atomically instead of displaying private payload or falling back', async () => {
     http.get.mockImplementation((url: string) => Promise.resolve(url.includes('vocabulary') ? { ...success(), data: vocabularyEnvelope() }
@@ -131,7 +132,7 @@ describe('integrated target workspace', () => {
     expect(wrapper.get('[data-testid="empty-state-action"]').text()).toContain('Reintentar')
     expect(wrapper.text()).not.toContain('DO NOT DISPLAY')
     expect(wrapper.find('form').exists()).toBe(false)
-    expect(http.get).toHaveBeenCalledTimes(3)
+    expect(http.get).toHaveBeenCalledTimes(3) // no coherent read installed, so no readiness
   })
   it('does not render unsafe failures, retry automatically, or retain identity-private UI on revocation', async () => {
     await render(); expect((wrapper.get('#editorial-title').element as HTMLInputElement).value).toBe(' exact ')
@@ -139,7 +140,7 @@ describe('integrated target workspace', () => {
     expect(wrapper.find('#editorial-title').exists()).toBe(false)
     expect(wrapper.text()).not.toContain(' exact ')
     expect(wrapper.find('form').exists()).toBe(false)
-    expect(http.get).toHaveBeenCalledTimes(3)
+    expect(http.get).toHaveBeenCalledTimes(4) // the coherent read and its readiness (T23)
     auth.permissionCodes = [read]
     http.get.mockRejectedValue(new Error('<script>PRIVATE</script>')); await flushPromises()
     expect(wrapper.text()).not.toContain('PRIVATE')

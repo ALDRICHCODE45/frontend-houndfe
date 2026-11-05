@@ -315,7 +315,7 @@ An acknowledged write does not install state, so the screen reads the saved draf
 
 ### Footer save state
 
-The footer of the workspace (border-top, `--hf-surface`) holds the **save state** on the left and the **secondary save action** on the right: `Guardado · 3 nov, 20:43` (word in `--hf-success`, date muted) or `● Cambios sin guardar` (`--hf-warning` dot), `aria-live="polite"`, and `Guardar borrador` as an outline button. The primary action stays in the header, so saving never competes with confirming. Operational save and publication remain distinct (see Component rules). The product's content editor has no header primary, so its footer carries the single primary `Guardar` beside the state, a `⋯` for the rest (`Descartar borrador…`) and a disabled `Publicación próximamente`; on mobile it is the sticky bar, and the product's own `Guardar cambios` is hidden on that task so the view has one primary.
+The footer of the workspace (border-top, `--hf-surface`) holds the **save state** on the left and the **secondary save action** on the right: `Guardado · 3 nov, 20:43` (word in `--hf-success`, date muted) or `● Cambios sin guardar` (`--hf-warning` dot), `aria-live="polite"`, and `Guardar borrador` as an outline button. The primary action stays in the header, so saving never competes with confirming. Operational save and publication remain distinct (see Component rules). The product's content editor has no header primary, so its footer carries the single primary beside the state (`Guardar` with changes, `Publicar` once all is saved, see Publicar en Contenido); on mobile it is the sticky bar, and the product's own `Guardar cambios` is hidden on that task so the view has one primary.
 
 ### Sticky mobile action bar
 
@@ -472,6 +472,17 @@ The chosen direction for long forms is `design/content-editor-v3/02-section-card
   - Error: the message in `--hf-danger` with an alert icon; `Guardar` stays available to retry.
 - **Actions:** `Descartar` (ghost) appears only with changes. `Guardar` is the single primary (`hf-primary-control`), disabled with the shared disabled primary while there is nothing to save.
 - **Mobile:** the state on one row, then the actions in equal-width columns with centered labels and 44px height (Sticky mobile action bar). `Descartar` gets a `--hf-border` outline there. Reserve space under the content so the last field is never hidden.
+
+### Publicar en Contenido
+
+The backend owns publishability (handoff 05, D2): the FE shows what `GET …/editorial/draft/readiness` returns and sends publish V2; it never recomputes the rules.
+- **When:** readiness is read after every coherent read of the editor (load, after a save, a publish, a discard), so it always describes the **saved** draft. A readiness whose cycle, draft revision or vocabulary is not the installed one is ignored.
+- **Bar:** with unsaved changes `HfSaveBar` keeps `Guardar` as the primary. Once everything is saved, a publisher sees the same bar anatomy (`EditorialPublishBar`) with `Publicar` as the single primary, enabled only with `ready: true` (`Listo para publicar`). Not ready, it is disabled and `aria-describedby` points at the checklist; no tooltip. An ambiguous failure turns it into `Reintentar publicación` (the same Idempotency-Key). Without `publish:ProductEditorialDraft`, or after a 403, there is no `Publicar`.
+- **Checklist:** an Issue checklist above the cards (`Pendientes para publicar`) lists every item with the backend's `message`: product, presentation and care items first, then the data, each with `Ir a {dato}` (it switches to the item's presentation and focuses the field). With unsaved edits it says `Según lo último que guardaste`.
+- **One count:** `falta N` in the section index and the header's `Faltan N` are the live local count while there are unsaved edits, and the readiness count once everything is saved (`bySection` per section; the header counts every item, those above the cards included). A section code the page does not show counts in `Otros datos`.
+- **Header state:** a `StatusBadge` beside the title: `Borrador` (nothing published), `Publicado` (no draft, or a draft equal to it; `Publicado · 4 nov` when this session published it, since the read carries no date) or `Cambios sin publicar`. Readiness `NO_DRAFT` after a publish means published, never a pending item.
+- **Cuidado:** before publishing, `useConfirm` asks «Confirmo que revisé la información de cuidado.» (confirm `Publicar`); only then is `Editorial-Care-Confirmation: review-v1` sent. Never for another family.
+- **Refusals:** 400 with items shows the same checklist; 400 without items is the missing care confirmation (or a request error); 409 `CONFLICT` reloads and says so; 409 `VOCABULARY_CHANGED` reloads the vocabulary and retries once with a new key. Success says `Publicado.` (toast) and reads the state and readiness again.
 
 ### Product Identidad
 

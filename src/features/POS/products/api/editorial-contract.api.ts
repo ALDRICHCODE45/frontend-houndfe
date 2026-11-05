@@ -5,7 +5,9 @@ import type {
   EditorialContractCareConfirmation, EditorialContractContext, EditorialContractErrorEnvelope,
   EditorialContractInitializeRequest, EditorialContractSaveRequest, EditorialContractTransitionRequest,
 } from '../interfaces/editorial-contract-request.types'
+import type { EditorialReadiness, EditorialReadinessIssues } from '../interfaces/editorial-contract-readiness.types'
 import type { EditorialStateResponse, EditorialVocabularyResponse } from '../interfaces/editorial-contract-response.types'
+import { decodeEditorialReadiness, editorialReadinessIssuesShape } from '../utils/editorial-contract-readiness'
 import {
   decodeEditorialStateResponse, decodeEditorialVocabularyResponse, isEditorialVocabularyRevision,
 } from '../utils/editorial-contract-response'
@@ -13,6 +15,8 @@ import { scalarString, snapshotJson } from '../utils/editorial-contract-value'
 
 const errorSchema: z.ZodType<EditorialContractErrorEnvelope> = z.union([
   z.object({ statusCode: z.literal(400), error: z.literal('MALFORMED') }).strict(),
+  // A publish of a saved draft that is not ready: the same items and bySection as readiness.
+  z.object({ statusCode: z.literal(400), error: z.literal('MALFORMED'), ...editorialReadinessIssuesShape }).strict(),
   z.object({ statusCode: z.literal(401), error: z.literal('UNAUTHORIZED') }).strict(),
   z.object({ statusCode: z.literal(403), error: z.literal('FORBIDDEN') }).strict(),
   z.object({ statusCode: z.literal(404), error: z.literal('NOT_FOUND') }).strict(),
@@ -27,11 +31,14 @@ const contextSchema: z.ZodType<EditorialContractContext> = z.object({
 
 export class EditorialContractApiError extends Error {
   readonly code: EditorialContractErrorEnvelope['error'] | 'UNKNOWN'
+  /** What is missing to publish, only on a 400 for a saved draft that is not ready. */
+  readonly readiness: EditorialReadinessIssues | null
 
   constructor(readonly status: number | null, readonly envelope: EditorialContractErrorEnvelope | null) {
     super('Editorial request failed')
     this.name = 'EditorialContractApiError'
     this.code = envelope?.error ?? 'UNKNOWN'
+    this.readiness = envelope && 'items' in envelope ? { items: envelope.items, bySection: envelope.bySection } : null
   }
 }
 
@@ -102,6 +109,11 @@ export const editorialContractApi = {
   getState: (productId: string, revision: string, signal?: AbortSignal): Promise<EditorialStateResponse> => unwrap(
     http.get(editorialPath(productId), { signal, headers: { 'Editorial-Vocabulary-Revision': revision } }),
     200, envelopeReader(decodeEditorialStateResponse, revision),
+  ),
+  /** What is missing to publish the SAVED draft; read-only, the same R header as the read. */
+  getReadiness: (productId: string, revision: string, signal?: AbortSignal): Promise<EditorialReadiness> => unwrap(
+    http.get(`${editorialPath(productId)}/draft/readiness`, { signal, headers: { 'Editorial-Vocabulary-Revision': revision } }),
+    200, envelopeReader(decodeEditorialReadiness, revision),
   ),
   getContext: (productId: string, signal?: AbortSignal): Promise<EditorialContractContext> => unwrap(
     http.get(`${editorialPath(productId)}/context`, { signal }), 200, response => {

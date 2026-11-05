@@ -26,7 +26,7 @@ describe('editorial workspace presentation boundary', () => {
     expect(wrapper.get('h1').text()).toBe('Contenido')
     expect(wrapper.get('#editorial-form').isVisible()).toBe(true)
     expect(wrapper.find('.editorial-state').exists()).toBe(false)
-    expect(http.get).toHaveBeenCalledTimes(3)
+    expect(http.get).toHaveBeenCalledTimes(4) // the coherent read and its readiness (T23)
   })
 
   it('embeds as a labelled section rather than adding a nested main landmark', async () => {
@@ -58,7 +58,7 @@ describe('editorial workspace presentation boundary', () => {
     await new Promise(resolve => setTimeout(resolve, 60))
     expect(wrapper.get('#editorial-title').element).toBe(title)
     expect((title as HTMLInputElement).value).toBe('  Mi borrador 😀  ')
-    expect(http.get).toHaveBeenCalledTimes(3)
+    expect(http.get).toHaveBeenCalledTimes(4) // the coherent read and its readiness (T23)
     expect(http.put).not.toHaveBeenCalled()
     expect(http.post).not.toHaveBeenCalled()
   })

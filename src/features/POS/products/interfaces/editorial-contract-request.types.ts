@@ -1,4 +1,5 @@
 import type { EditorialContractDocument } from './editorial-contract-document.types'
+import type { EditorialReadinessIssues } from './editorial-contract-readiness.types'
 
 export type EditorialContractInitializeRequest = { expectedCycle: number | null }
 export type EditorialContractTransitionRequest = { expectedCycle: number; expectedRevision: number }
@@ -8,6 +9,7 @@ export type EditorialContractSaveRequest = EditorialContractTransitionRequest & 
 export type EditorialContractContext = { variants: { id: string; name: string }[] }
 export type EditorialContractErrorEnvelope =
   | { statusCode: 400; error: 'MALFORMED' }
+  | ({ statusCode: 400; error: 'MALFORMED' } & EditorialReadinessIssues)
   | { statusCode: 401; error: 'UNAUTHORIZED' }
   | { statusCode: 403; error: 'FORBIDDEN' }
   | { statusCode: 404; error: 'NOT_FOUND' }
