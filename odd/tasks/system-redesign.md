@@ -171,3 +171,4 @@ L79. Refund settlements: the user chose direction 01, verbatim: "Si hermano, est
 - Copy: «Reembolsos» for the debt, «devolución» for each payment.
 - 02 and 03 are alternatives.
 - T19 starts.
+L80. T19 browser check against BE main :3002 (admin): the page lists 4 real pending refunds. Partial $10 on A-202611-000050: a double click sent ONE POST with an Idempotency-Key and got 200; toast «Devolución parcial registrada. Quedan $70.55 por devolver.»; the summary refreshed. Full $70.55: 200; the row left; the badge went 4→3; Por devolver $17,805.90→$17,725.35; toast «Devolución completada.» Mobile dark: cards, no overflow. Found: the mobile sheet amount field overflows; Motivo and «Total a devol…» truncate at 1440. Both were sent to the T20 worker.
