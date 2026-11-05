@@ -71,6 +71,39 @@ export default defineConfig({
         toaster: {
           slots: { viewport: 'hf-toast-viewport' },
         },
+        // Text-field hook: the element that owns Nuxt's `ring-accented` field
+        // boundary. houndfe-ui.css rests it on --hf-border (Soft rest borders);
+        // checkbox, radio and switch stay on the stronger accented boundary.
+        input: {
+          slots: { base: 'hf-field-control' },
+        },
+        textarea: {
+          slots: { base: 'hf-field-control' },
+        },
+        select: {
+          slots: { base: 'hf-field-control' },
+        },
+        selectMenu: {
+          slots: { base: 'hf-field-control' },
+        },
+        inputMenu: {
+          slots: { base: 'hf-field-control' },
+        },
+        inputNumber: {
+          slots: { base: 'hf-field-control' },
+        },
+        inputDate: {
+          slots: { base: 'hf-field-control' },
+        },
+        inputTime: {
+          slots: { base: 'hf-field-control' },
+        },
+        inputTags: {
+          slots: { base: 'hf-field-control' },
+        },
+        pinInput: {
+          slots: { base: 'hf-field-control' },
+        },
         card: {
           slots: {
             root: 'rounded-lg overflow-hidden shadow-sm bg-default',

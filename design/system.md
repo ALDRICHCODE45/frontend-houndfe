@@ -21,7 +21,7 @@ Source: `src/core/shared/design-system/houndfe-theme.css` (23 tokens; light on `
 | --hf-surface | #ffffff | #192332 | panels, cards, tables |
 | --hf-surface-muted | #e7eef7 | #202e43 | secondary grouping, neutral badge, checklist panel |
 | --hf-field | #ffffff | #121d2c | input background |
-| --hf-field-border | #8593a3 | #64758d | the one visible control boundary |
+| --hf-field-border | #8593a3 | #64758d | field hover and emphasis boundary; also checkbox/indicator outlines (rest is `--hf-border`) |
 | --hf-ink | #24313d | #edf2fa | body and operational data |
 | --hf-heading | #173968 | #edf2fa | titles, record names |
 | --hf-muted | #576574 | #adbcd0 | metadata, column headings, supporting text |
@@ -89,7 +89,7 @@ Derived (all in `houndfe-ui.css`):
 Source for all: `docs/design-system.md` Patrones, plus the CSS file named.
 
 - **Buttons** (`houndfe-ui.css` `.hf-primary-control`): 44px min height, 6px radius, 600 0.875rem, `--hf-action` with `--hf-on-action`. One solid primary per page, slideover or card; the rest are outline, ghost or in the menu. Disabled: `--hf-surface-muted` background, `--hf-muted` text, `--hf-border` border, opacity 1, `not-allowed`. Gold is not the default submit color.
-- **Inputs** (`houndfe-ui.css`): 44px, 6px radius, `--hf-field` background, `--hf-field-border`, visible label above, one field surface, 2px `--hf-focus` ring. Error: `--hf-danger` border and ring, message under the field.
+- **Inputs** (`houndfe-ui.css` `.hf-field-control`, hooked on every Nuxt field in `vite.config.ts`): 44px, 6px radius, `--hf-field` background, visible label above, one field surface. Soft rest borders in light and dark: 1px `--hf-border` at rest, `--hf-field-border` on hover, 2px `--hf-focus` ring on focus (wins over hover), `--hf-danger` when invalid, at rest too; disabled does not react to hover. Error message under the field. Checkbox, radio and switch outlines keep the stronger accented boundary (WCAG 1.4.11, 3:1 for non-text controls); text fields are identified by label, placeholder and background.
 - **StatusBadge** (`houndfe-ui.css` `.hf-status-badge`): 24px high, 6px radius, 12px/600, dot plus tinted background. Tones: neutral (muted on surface-muted), info (active on active-soft), success (success on 12% mix), warning (warning on warning-soft), danger (danger on danger-soft). Draft and payment method are always neutral. `urgent`: deeper tint, border, icon instead of dot, no motion. Marker `⚠ 1 aviso`: warning icon plus 12px/600 `--hf-warning`.
 - **RowActionsMenu** (`houndfe-ui.css` `.hf-row-actions-trigger`): ⋮ ghost button 44px; more than one action goes in the menu; items have icon and label; destructive last after a separator in `--hf-danger`; confirm items end in `…`; menu items min 44px; `aria-label` names the row.
 - **EmptyState** (`houndfe-ui.css` `.hf-empty-state`): one centered column, gap 8px, padding 40px 16px, min-height 8rem; 24px icon in `--hf-muted`, title 15px/600 `--hf-heading`, description 13px `--hf-muted` (max 28rem), at most one button. Kinds: `empty` (inbox), `no-match` (search-x), `error` (triangle-alert; `--hf-danger-soft` surface, `--hf-danger-border`, danger icon and title, `role="alert"`), `forbidden` (lock). Never an illustration; no server message as title.

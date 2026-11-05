@@ -61,14 +61,19 @@
 /* ── Native select controls ──────────────────────────────────────────────── */
 
 /* The native trigger owns the single visible field boundary and the shared
- * focus ring. Option buttons inside its dropdown keep their own look. */
+ * focus ring. Option buttons inside its dropdown keep their own look. Soft
+ * rest border; --hf-field-border only on hover. */
 .products-visual .products-select-trigger {
   min-height: var(--hf-control-height);
-  border: 1px solid var(--hf-field-border);
+  border: 1px solid var(--hf-border);
   border-radius: var(--hf-radius-control);
   background-color: var(--hf-field);
   color: var(--hf-ink);
   font-family: var(--hf-font);
+}
+
+.products-visual .products-select-trigger:hover:not(:disabled, .border-error, [aria-invalid='true']) {
+  border-color: var(--hf-field-border);
 }
 
 .products-visual .products-select-trigger:focus-visible {

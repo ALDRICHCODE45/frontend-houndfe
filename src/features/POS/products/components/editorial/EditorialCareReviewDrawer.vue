@@ -278,8 +278,9 @@ const requirementLabel = (key: string) => prepared.value?.requirements.find(entr
 .care__chip[data-checked='true'] { border-color: var(--hf-active); background: var(--hf-active-soft); color: var(--hf-active); font-weight: 600; }
 .care__pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .care__field { display: grid; gap: 8px; min-width: 0; }
-.care__input { box-sizing: border-box; width: 100%; min-height: var(--hf-control-height); padding: 8px 12px; border: 1px solid var(--hf-field-border); border-radius: var(--hf-radius-control); background: var(--hf-field); color: var(--hf-ink); font: inherit; font-size: 14px; }
+.care__input { box-sizing: border-box; width: 100%; min-height: var(--hf-control-height); padding: 8px 12px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-control); background: var(--hf-field); color: var(--hf-ink); font: inherit; font-size: 14px; }
 textarea.care__input { resize: vertical; }
+.care__input:hover:not(:disabled) { border-color: var(--hf-field-border); }
 .care__input:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 1px; }
 .care__hint { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--hf-warning); font-size: 13px; }
 .care__section { display: grid; gap: 4px; padding-top: 20px; border-top: 1px solid var(--hf-border); }

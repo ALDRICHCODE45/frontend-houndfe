@@ -367,8 +367,18 @@ describe('Products pilot adapter', () => {
         rule.selectorText.includes('.products-select-trigger') &&
         !rule.selectorText.includes(':focus-visible'),
     )!
-    expect(trigger.style.getPropertyValue('border')).toContain('--hf-field-border')
+    // Soft rest border; the stronger --hf-field-border is the hover boundary.
+    expect(trigger.style.getPropertyValue('border')).toContain('--hf-border')
+    expect(trigger.style.getPropertyValue('border')).not.toContain('--hf-field-border')
     expect(trigger.style.getPropertyValue('min-height').trim()).toBe('var(--hf-control-height)')
+
+    const hover = rules.find(
+      (rule) =>
+        rule.selectorText.includes('.products-select-trigger') &&
+        rule.selectorText.includes(':hover'),
+    )!
+    expect(hover.selectorText).toContain('.border-error')
+    expect(hover.style.getPropertyValue('border-color').trim()).toBe('var(--hf-field-border)')
 
     const focus = rules.find(
       (rule) =>

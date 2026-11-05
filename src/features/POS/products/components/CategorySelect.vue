@@ -243,7 +243,8 @@ watch(search, () => {
 
 <style scoped>
 .hf-select-field, .hf-select-option { min-height: var(--hf-control-height); }
-.hf-select-field { background: var(--hf-field); border-color: var(--hf-field-border); color: var(--hf-ink); }
+.hf-select-field { background: var(--hf-field); border-color: var(--hf-border); color: var(--hf-ink); }
+.hf-select-field:hover:not(:disabled, [aria-invalid='true']) { border-color: var(--hf-field-border); }
 .hf-select-field:focus-visible, .hf-select-option:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: -2px; }
 .hf-select-menu { background: var(--hf-surface); border: 1px solid var(--hf-border); }
 .hf-select-option { color: var(--hf-ink); overflow-wrap: anywhere; }

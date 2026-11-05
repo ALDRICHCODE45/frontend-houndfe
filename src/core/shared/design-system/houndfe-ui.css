@@ -460,6 +460,28 @@ body.hf-app {
   outline-offset: 2px;
 }
 
+/* ── Soft rest borders (docs/design-system.md, Inputs) ───────────────────── */
+
+/* Nuxt fields (UInput, UTextarea, USelect, USelectMenu, UInputMenu,
+ * UInputNumber, UInputDate, UInputTime, UInputTags, UPinInput) carry
+ * `hf-field-control` on the element with the `ring ring-inset ring-accented`
+ * boundary (vite.config.ts slot defaults). Only the ring color changes: rest
+ * on --hf-border, hover on --hf-field-border, --hf-danger when invalid at rest.
+ * No rule here applies while focused, so Nuxt's 2px focus ring and the HF
+ * outline above win over hover. --ui-border-accented keeps its stronger value
+ * for checkbox, radio, switch and outline buttons (WCAG 1.4.11, 3:1). */
+.hf-ui .hf-field-control:not(:focus-visible, :has(:focus-visible)) {
+  --tw-ring-color: var(--hf-border);
+}
+
+.hf-ui .hf-field-control:hover:not(:focus-visible, :has(:focus-visible), :disabled, [data-disabled], [aria-disabled='true'], :has(:disabled), [aria-invalid='true'], :has([aria-invalid='true']), [class*='ring-error']) {
+  --tw-ring-color: var(--hf-field-border);
+}
+
+.hf-ui .hf-field-control:is([aria-invalid='true'], :has([aria-invalid='true']), [class*='ring-error']):not(:focus-visible, :has(:focus-visible)) {
+  --tw-ring-color: var(--hf-danger);
+}
+
 /* ── Slideover / dialog surface ──────────────────────────────────────────── */
 
 /* The portal root carries `hf-theme hf-ui hf-form-overlay` on one element, so

@@ -187,11 +187,14 @@
   padding: 20px;
 }
 .dashboard-range-portal input {
-  border: 1px solid var(--hf-field-border);
+  border: 1px solid var(--hf-border);
   border-radius: var(--hf-radius-control);
   background: var(--hf-field);
   color: var(--hf-ink);
   min-width: 0;
+}
+.dashboard-range-portal input:hover:not(:disabled, :focus-visible, [aria-invalid='true']) {
+  border-color: var(--hf-field-border);
 }
 .dashboard-visual .dashboard-page-footer {
   display: flex;
