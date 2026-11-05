@@ -30,6 +30,13 @@ describe('parseAmountInput', () => {
     ['0.01', 1],
     ['12,345', 1234500],
     ['$1,234,567.89', 123456789],
+    // T22/S18: the one app-wide money rule. A single comma with one or two
+    // digits is a decimal comma; it can never be a thousands group.
+    ['70,55', 7055],
+    ['70,5', 7050],
+    ['1,2', 120],
+    ['1234,50', 123450],
+    ['1,234.50', 123450],
   ])('reads %s as %i cents', (text, cents) => {
     expect(parseAmountInput(text)).toEqual({ cents })
   })
@@ -40,14 +47,11 @@ describe('parseAmountInput', () => {
     ['10.555', 'Escribe un monto válido, por ejemplo 250.00.'],
     ['-5', 'Escribe un monto válido, por ejemplo 250.00.'],
     ['0', 'El monto debe ser mayor que $0.00.'],
-    // A comma is only a thousands separator. A comma decimal must never be read as thousands:
-    // `70,55` used to become $7,055.00, a 100× over-settlement of irreversible money.
-    ['70,55', 'Usa punto para los centavos, por ejemplo 70.55.'],
-    ['70,5', 'Usa punto para los centavos, por ejemplo 70.55.'],
-    ['1,2', 'Usa punto para los centavos, por ejemplo 70.55.'],
-    ['1,23,4', 'Usa punto para los centavos, por ejemplo 70.55.'],
-    ['1234,50', 'Usa punto para los centavos, por ejemplo 70.55.'],
-    ['0,100', 'Usa punto para los centavos, por ejemplo 70.55.'],
+    // An ambiguous comma is never guessed: `70,55` once became $7,055.00, a 100×
+    // over-settlement of irreversible money.
+    ['1,23,4', 'Escribe el monto con punto para los centavos, por ejemplo 70.55.'],
+    ['0,100', 'Escribe el monto con punto para los centavos, por ejemplo 70.55.'],
+    ['1.000,50', 'Escribe el monto con punto para los centavos, por ejemplo 70.55.'],
   ])('rejects %j', (text, error) => {
     expect(parseAmountInput(text)).toEqual({ error })
   })

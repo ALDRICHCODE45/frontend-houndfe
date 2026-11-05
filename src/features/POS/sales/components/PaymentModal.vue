@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { es } from '@nuxt/ui/locale'
 import type {
   ChargeSalePayload,
   LegacyChargePayload,
@@ -17,6 +16,7 @@ import { normalizeReferenceInput } from '../utils/paymentEntries.utils'
 import { useSalePaymentMethods } from '../composables/useSalePaymentMethods'
 import { useCashSaleSession } from '@/features/POS/cash-register/composables/useCashSaleSession'
 import CashSaleSessionPicker from './CashSaleSessionPicker.vue'
+import HfMoneyInput from '@/core/shared/components/form/HfMoneyInput.vue'
 import {
   buildMergedMethodOptions,
   findEntryIndex,
@@ -80,7 +80,10 @@ const emit = defineEmits<{
 
 type PaymentEntryForm = {
   method: NonCreditPaymentMethod
-  amountPesos: number
+  // Cents typed in HfMoneyInput; `null` while the field is empty (counts as 0).
+  amountCents: number | null
+  // The parser error of the typed text; it blocks the charge while present.
+  amountError?: string | null
   reference: string
   // sdd custom-payment-methods S4B (REQ-CAT-001 / design §1.3): present ONLY
   // for custom tiles; absent for fixed tiles (legacy byte-identical).
@@ -93,8 +96,6 @@ const CARD_METHODS: NonCreditPaymentMethod[] = [
   PAYMENT_METHOD.TRANSFER,
 ]
 const MAX_ENTRIES = 5
-// InputNumber reads Reka's provider locale, not an input-level locale attribute.
-const paymentAmountLocale = { ...es, code: 'es-MX' }
 
 const entries = ref<PaymentEntryForm[]>([])
 const inlineError = ref<string | null>(null)
@@ -156,7 +157,7 @@ const totalFormatted = computed(() => formatCentsMXN(props.totalCents))
 const cashSaleSession = useCashSaleSession()
 const paidSumCents = computed(() => {
   return entries.value.reduce(
-    (sum, entry) => sum + Math.max(0, Math.round(entry.amountPesos * 100)),
+    (sum, entry) => sum + Math.max(0, entry.amountCents ?? 0),
     0,
   )
 })
@@ -183,7 +184,8 @@ const canSubmit = computed(
     !props.isSubmitting &&
     (entries.value.length === 0 ? hasCustomer.value : !isPartial.value || canSubmitPartial.value) &&
     !inlineError.value &&
-    !bindingError.value,
+    !bindingError.value &&
+    !entries.value.some((entry) => entry.amountError),
 )
 const confirmButtonLabel = computed(() => {
   if (entries.value.length === 0 && hasCustomer.value) {
@@ -208,7 +210,7 @@ function entryNeedsReference(method: NonCreditPaymentMethod): boolean {
 function toWireEntry(entry: PaymentEntryForm): PaymentEntry {
   const payment: PaymentEntry = {
     method: entry.method,
-    amountCents: Math.max(0, Math.round(entry.amountPesos * 100)),
+    amountCents: Math.max(0, entry.amountCents ?? 0),
   }
 
   if (entry.paymentMethodId !== undefined) {
@@ -231,7 +233,7 @@ const entryDisplays = computed<EntryDisplay[]>(() =>
 function createDefaultEntry(tile: PaymentMethodTile): PaymentEntryForm {
   const entry: PaymentEntryForm = {
     method: tile.value,
-    amountPesos: props.totalCents / 100,
+    amountCents: props.totalCents,
     reference: '',
   }
 
@@ -465,7 +467,7 @@ watch(
   () => {
     if (!props.open || entries.value.length !== 1) return
     if (entries.value[0]) {
-      entries.value[0].amountPesos = props.totalCents / 100
+      entries.value[0].amountCents = props.totalCents
     }
   },
 )
@@ -736,25 +738,14 @@ const confirmButtonClass = computed(() =>
               </div>
 
               <UFormField label="Monto recibido">
-                <UApp :locale="paymentAmountLocale" :toaster="null">
-                  <UInputNumber
-                    :data-testid="`payment-amount-${index}`"
-                    v-model="entry.amountPesos"
-                    :min="0"
-                    :step="0.01"
-                    :disabled="isSubmitting"
-                    :format-options="{
-                      style: 'currency',
-                      currency: 'MXN',
-                      currencyDisplay: 'narrowSymbol',
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    }"
-                    color="warning"
-                    variant="outline"
-                    class="w-full"
-                  />
-                </UApp>
+                <HfMoneyInput
+                  :id="`payment-amount-${index}`"
+                  v-model="entry.amountCents"
+                  :data-testid="`payment-amount-${index}`"
+                  :disabled="isSubmitting"
+                  class="w-full"
+                  @validation="entry.amountError = $event"
+                />
               </UFormField>
 
               <UFormField v-if="entryNeedsReference(entry.method)" label="Referencia (opcional)">

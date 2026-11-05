@@ -97,12 +97,16 @@ const stubDefs = {
   },
 } as const
 
-const stubs = Object.fromEntries(
-  Object.entries(stubDefs).flatMap(([name, def]) => [
-    [name, def],
-    [`U${name}`, def],
-  ]),
-)
+const stubs = {
+  ...Object.fromEntries(
+    Object.entries(stubDefs).flatMap(([name, def]) => [
+      [name, def],
+      [`U${name}`, def],
+    ]),
+  ),
+  // The real money field (over the Input stub), so the typed text is parsed.
+  HfMoneyInput: false,
+}
 
 function mountModal(debtCents = 80000) {
   return mount(DebtPaymentModal, {
@@ -262,6 +266,68 @@ describe('DebtPaymentModal', () => {
     const entry = call.payload.payments[0]
     expect(entry).toMatchObject({ method: 'card_credit', amountCents: 10000 })
     expect(entry).not.toHaveProperty('reference')
+  })
+
+  // T22/S18: the typed amount is read with the one money rule, never 100×.
+  it.each([
+    ['70.55', 7055],
+    ['70,55', 7055],
+    ['1,234.50', 123450],
+  ])('submits %j typed as the amount as %i cents', async (text, cents) => {
+    submitSafeMock.mockResolvedValue({ paymentStatus: 'PAID' })
+    const wrapper = mountModal(200000)
+
+    await wrapper.get('[data-testid="payment-method-tile-card_credit"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue(text)
+    await flushPromises()
+    expect(wrapper.text()).toContain(`Recibido: $${(cents / 100).toFixed(2)}`)
+
+    await wrapper.get('[data-testid="confirm-debt-payment"]').trigger('click')
+    await flushPromises()
+
+    const call = submitSafeMock.mock.calls[0]?.[0] as { payload: { payments: PaymentEntry[] } }
+    expect(call.payload.payments).toEqual([{ method: 'card_credit', amountCents: cents }])
+  })
+
+  it('blocks the payment while the typed amount does not parse', async () => {
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="payment-method-tile-card_credit"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('1,23,4')
+    await wrapper.get('[data-testid="payment-amount-0"]').trigger('blur')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Escribe el monto con punto para los centavos, por ejemplo 70.55.')
+    await wrapper.get('[data-testid="confirm-debt-payment"]').trigger('click')
+    await flushPromises()
+    expect(submitSafeMock).not.toHaveBeenCalled()
+  })
+
+  // A removed entry's field unmounts; its last parse error must go with it.
+  it('drops the amount error when the entry is removed and added again', async () => {
+    submitSafeMock.mockResolvedValue({ paymentStatus: 'PAID' })
+    const wrapper = mountModal()
+    const tile = () => wrapper.get('[data-testid="payment-method-tile-card_credit"]')
+
+    await tile().trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('1,23,4')
+    await wrapper.get('[data-testid="payment-amount-0"]').trigger('blur')
+    await tile().trigger('click')
+    await flushPromises()
+    await tile().trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Escribe el monto con punto para los centavos')
+    await wrapper.get('[data-testid="confirm-debt-payment"]').trigger('click')
+    await flushPromises()
+    expect(submitSafeMock).toHaveBeenCalledTimes(1)
   })
 
   // Note: the "include a non-empty reference in the payload" scenario is

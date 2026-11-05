@@ -4,7 +4,7 @@ import '@/core/shared/design-system/houndfe-ui.css'
 import { useHfAppTheme } from '@/core/shared/design-system/useHfAppTheme'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { es } from '@nuxt/ui/locale'
+import { appLocale } from '@/core/shared/utils/app-locale'
 import DashboardLayout from '@/app/layouts/DashboardLayout.vue'
 import AuthLayout from '@/app/layouts/AuthLayout.vue'
 import CatalogLayout from '@/app/layouts/CatalogLayout.vue'
@@ -22,7 +22,7 @@ const currentLayout = computed(() => {
 </script>
 
 <template>
-  <UApp :locale="es" class="h-full">
+  <UApp :locale="appLocale" class="h-full">
     <DashboardLayout v-if="currentLayout === 'dashboard'" class="h-full">
       <RouterView />
     </DashboardLayout>

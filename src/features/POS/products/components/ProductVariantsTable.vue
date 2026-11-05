@@ -9,11 +9,13 @@ import '../styles/products-plain-table.css'
  * Events:
  *   update-quantity(id, value) / commit-quantity(id) — pending rows only: a
  *   saved variant's stock is read-only (O1 S1) and changes by adjustment
- *   update-price(id, text) / commit-price(id, text)  — inline public price edit
+ *   commit-price(id, cents) — the public price was left with a new valid
+ *                             amount (InlinePriceInput)
  *   action(key, id) — photos | details | edit | delete (delete is confirmed by the owner)
  */
 import { computed } from 'vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
+import InlinePriceInput from './InlinePriceInput.vue'
 import ReadOnlyStock from './ReadOnlyStock.vue'
 
 export interface ProductVariantRow {
@@ -22,7 +24,7 @@ export interface ProductVariantRow {
   sku: string
   barcode: string
   quantity: number | undefined
-  price: string
+  priceCents: number
   /** Name used in the owner's delete confirmation. */
   deleteName: string
 }
@@ -40,8 +42,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update-quantity': [id: string, value: number | undefined]
   'commit-quantity': [id: string]
-  'update-price': [id: string, value: string]
-  'commit-price': [id: string, value: string]
+  'commit-price': [id: string, cents: number]
   action: [key: string, id: string]
 }>()
 
@@ -69,10 +70,6 @@ function actionsFor(): RowAction[] {
       disabled: !props.pending && !props.canDelete,
     },
   ]
-}
-
-function priceFromEvent(event: Event): string {
-  return (event.target as HTMLInputElement).value
 }
 </script>
 
@@ -122,24 +119,13 @@ function priceFromEvent(event: Event): string {
             />
           </td>
           <td class="px-4 py-3 text-right">
-            <div class="relative ml-auto max-w-[8rem]">
-              <span
-                class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
-                >$</span
-              >
-              <UInput
-                :model-value="row.price"
-                class="w-full"
-                inputmode="decimal"
-                placeholder="0.00"
-                :ui="{ base: 'hf-figure pl-7 text-right' }"
-                :disabled="locked"
-                :aria-label="`Precio público de ${row.label}`"
-                @update:model-value="emit('update-price', row.id, String($event))"
-                @blur="emit('commit-price', row.id, priceFromEvent($event))"
-                @keyup.enter="emit('commit-price', row.id, priceFromEvent($event))"
-              />
-            </div>
+            <InlinePriceInput
+              class="ml-auto max-w-[8rem]"
+              :price-cents="row.priceCents"
+              :disabled="locked"
+              :label="`Precio público de ${row.label}`"
+              @commit="emit('commit-price', row.id, $event)"
+            />
           </td>
           <td class="px-4 py-3 text-right">
             <RowActionsMenu

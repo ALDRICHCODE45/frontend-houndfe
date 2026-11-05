@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import type { ConfirmedSaleRow } from '@/features/POS/sales/interfaces/sale.types'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
-import type { StatusBadgeTone } from '@/core/shared/utils/badge.utils'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { formatCentsMXN } from '@/features/POS/sales/utils/currency.utils'
-import { getPaymentStatusBadge, saleBadgeTone } from '@/features/POS/sales/utils/saleStatus.utils'
+import { isCanceledSale, saleOpenDebtCents, salePaymentBadge } from '@/features/POS/sales/utils/saleStatus.utils'
 
 defineProps<{ sales: readonly ConfirmedSaleRow[] }>()
 
@@ -14,18 +13,11 @@ function dateLabel(iso: string | null): string {
   return iso ? formatShortDateTime(iso) : 'Fecha no disponible'
 }
 
-function statusBadge(sale: ConfirmedSaleRow): { label: string; tone: StatusBadgeTone } {
-  if (sale.paymentStatus == null) {
-    return { label: 'Sin estado', tone: 'neutral' }
-  }
-  const badge = getPaymentStatusBadge(sale.paymentStatus)
-  return { label: badge.label, tone: saleBadgeTone(badge.color) }
-}
-
 function accessibleName(sale: ConfirmedSaleRow): string {
   const folio = sale.folio ?? 'sin folio'
   const date = dateLabel(sale.confirmedAt).toLowerCase()
   const total = formatCentsMXN(sale.totalCents)
+  if (isCanceledSale(sale)) return `Venta folio ${folio} del ${date} por ${total}, cancelada`
   const debt = formatCentsMXN(sale.debtCents)
   return `Venta folio ${folio} del ${date} por ${total} con saldo de ${debt}`
 }
@@ -64,8 +56,8 @@ function accessibleName(sale: ConfirmedSaleRow): string {
             <UIcon name="i-lucide-clock-3" class="size-3 shrink-0" aria-hidden="true" />
             <span class="truncate">{{ dateLabel(sale.confirmedAt) }}</span>
           </span>
-          <StatusBadge :label="statusBadge(sale).label" :tone="statusBadge(sale).tone" />
-          <span v-if="sale.debtCents > 0" class="hf-figure font-medium text-[var(--hf-warning)]">
+          <StatusBadge :label="salePaymentBadge(sale).label" :tone="salePaymentBadge(sale).tone" />
+          <span v-if="saleOpenDebtCents(sale) > 0" class="hf-figure font-medium text-[var(--hf-warning)]">
             {{ formatCentsMXN(sale.debtCents) }} pendiente
           </span>
         </span>

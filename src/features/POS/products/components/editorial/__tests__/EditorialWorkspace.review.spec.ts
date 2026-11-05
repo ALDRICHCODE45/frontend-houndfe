@@ -94,7 +94,7 @@ describe('EditorialWorkspace — review round 1', () => {
     reads({ cycle: 2, draft: null, published: { revision: 1, document: state().draft!.document } })
     await render()
     const empty = wrapper.get('.hf-empty-state')
-    expect(empty.get('.hf-empty-state__title').text()).toBe('Aún no hay ficha para el catálogo')
+    expect(empty.get('.hf-empty-state__title').text()).toBe('La ficha está publicada')
     expect(empty.get('.hf-empty-state__description').text()).toContain('versión publicada')
     expect(wrapper.get('[data-testid="initialize"]').text()).toContain('Empezar desde lo publicado')
   })

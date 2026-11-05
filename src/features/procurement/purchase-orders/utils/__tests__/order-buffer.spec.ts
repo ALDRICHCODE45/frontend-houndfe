@@ -39,7 +39,7 @@ describe('draft editor buffer', () => {
     buffer.note = 'Otro cambio'
     expect(bufferErrors(buffer)).toEqual([])
     buffer.lines[0]!.quantity = '2.5'
-    expect(bufferErrors(buffer)).toEqual([{ path: '/lines/0/orderedQuantity', message: 'Escribe una cantidad positiva con el formato de esta unidad.' }])
+    expect(bufferErrors(buffer)).toEqual([{ path: '/lines/0/orderedQuantity', message: 'Escribe una cantidad positiva con el formato de esta unidad; usa punto para los decimales.' }])
     buffer.lines[0]!.quantity = '1e3'
     expect(bufferErrors(buffer)).toHaveLength(1)
     buffer.lines[0]!.quantity = '1.5'
@@ -50,9 +50,16 @@ describe('draft editor buffer', () => {
     buffer.lines.push(replaceLineProduct(null))
     for (const quantity of ['1e3', '-1', '0', '1.2345']) {
       buffer.lines[0]!.quantity = quantity
-      expect(bufferErrors(buffer)).toEqual([{ path: '/lines/0/orderedQuantity', message: 'Escribe una cantidad positiva con el formato de esta unidad.' }])
+      expect(bufferErrors(buffer)).toEqual([{ path: '/lines/0/orderedQuantity', message: 'Escribe una cantidad positiva con el formato de esta unidad; usa punto para los decimales.' }])
     }
     buffer.lines[0]!.quantity = '2.5'
     expect(bufferErrors(buffer)).toEqual([])
+  })
+  // T22/S18: amounts travel as strings; a comma is never guessed, so the message says to use a dot.
+  it('asks for a dot when a cost is written with a comma', () => {
+    const buffer = createOrderBuffer(null)
+    buffer.lines.push(replaceLineProduct(product))
+    buffer.lines[0]!.amount = '70,55'
+    expect(bufferErrors(buffer)).toEqual([{ path: '/lines/0/informedUnitCost/amount', message: 'Escribe el importe sin comas; usa punto para los decimales (hasta cuatro).' }])
   })
 })

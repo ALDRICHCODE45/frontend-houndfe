@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import type {
   PromotionFormState,
   PromotionMethod,
@@ -31,6 +31,8 @@ import PromotionConditionsSection from './PromotionConditionsSection.vue'
 import PromotionTargetItemsSection from './PromotionTargetItemsSection.vue'
 import PromotionSummaryCard from './PromotionSummaryCard.vue'
 import PromotionCapacityField from './PromotionCapacityField.vue'
+import HfMoneyInput from '@/core/shared/components/form/HfMoneyInput.vue'
+import { parseDecimalInput } from '@/core/shared/utils/money-input.utils'
 
 // ── Props & emits ─────────────────────────────────────────────────────────────
 
@@ -173,7 +175,90 @@ function onConditionsUpdate(updated: PromotionFormState) {
 
 // ── Submit ────────────────────────────────────────────────────────────────────
 
+// ── Typed amounts (T22/S18) ──────────────────────────────────────────────────
+//
+// Money is typed in HfMoneyInput (exact cents, one app-wide rule: `70,55` is
+// 70.55). The form state keeps its pesos contract (`toCreatePayload` scales it
+// back), and pesos made from integer cents always scale back to the same cents.
+// A percent is typed as text and read with the same comma rule.
+
+const isFixedDiscount = computed(() => formState.discountType === DISCOUNT_TYPE.FIXED)
+
+function pesosToCentsModel(pesos: number): number | null {
+  return pesos ? Math.round(pesos * 100) : null
+}
+
+const discountValueCents = computed<number | null>({
+  get: () => pesosToCentsModel(formState.discountValue),
+  set: (cents) => {
+    formState.discountValue = cents == null ? 0 : cents / 100
+  },
+})
+
+const minPurchaseCents = computed<number | null>({
+  get: () => pesosToCentsModel(formState.minPurchaseAmountCents),
+  set: (cents) => {
+    formState.minPurchaseAmountCents = cents == null ? 0 : cents / 100
+  },
+})
+
+const amountErrors = reactive({
+  discountMoney: null as string | null,
+  discountPercent: null as string | null,
+  minPurchase: null as string | null,
+})
+
+// A hidden money field remounts clean (from the model), so its last parse
+// error must not outlive it and block the submit with no message.
+watch(isFixedDiscount, () => {
+  amountErrors.discountMoney = null
+})
+watch(
+  () => formState.hasMinPurchase,
+  () => {
+    amountErrors.minPurchase = null
+  },
+)
+
+const percentText = ref('')
+watch(
+  () => formState.discountValue,
+  (value) => {
+    const typed = parseDecimalInput(percentText.value, { maxFractionDigits: 2 })
+    if ('text' in typed ? Number(typed.text) === value : !value && percentText.value.trim() === '') return
+    percentText.value = value ? String(value) : ''
+    amountErrors.discountPercent = null
+  },
+  { immediate: true },
+)
+
+function onPercentText(value: string | number | null | undefined) {
+  const text = value == null ? '' : String(value)
+  percentText.value = text
+  if (text.trim() === '') {
+    amountErrors.discountPercent = null
+    formState.discountValue = 0
+    return
+  }
+  const parsed = parseDecimalInput(text, { maxFractionDigits: 2 })
+  if ('text' in parsed) {
+    amountErrors.discountPercent = null
+    formState.discountValue = Number(parsed.text)
+  } else {
+    amountErrors.discountPercent = parsed.error
+  }
+}
+
+const hasAmountErrors = computed(() => {
+  const discountTyped =
+    formState.type === PROMOTION_TYPE.PRODUCT_DISCOUNT || formState.type === PROMOTION_TYPE.ORDER_DISCOUNT
+  if (!discountTyped) return false
+  if (isFixedDiscount.value ? amountErrors.discountMoney : amountErrors.discountPercent) return true
+  return formState.type === PROMOTION_TYPE.ORDER_DISCOUNT && formState.hasMinPurchase && Boolean(amountErrors.minPurchase)
+})
+
 function onSubmit() {
+  if (hasAmountErrors.value) return
   emit('submit', { ...formState })
 }
 
@@ -372,22 +457,37 @@ const overlapTitle = computed(() =>
                   :ui="{ content: 'hf-theme hf-ui hf-form-overlay promotions-form-portal' }"
                 />
               </UFormField>
-              <UFormField label="Valor" name="discountValue" class="flex-1">
-                <UInputNumber
-                  v-model="formState.discountValue"
-                  :min="formState.discountType === DISCOUNT_TYPE.PERCENTAGE ? 1 : 1"
-                  :max="formState.discountType === DISCOUNT_TYPE.PERCENTAGE ? 100 : undefined"
-                  :placeholder="
-                    formState.discountType === DISCOUNT_TYPE.PERCENTAGE ? '1-100' : 'Ej.: 150'
-                  "
+              <UFormField
+                label="Valor"
+                name="discountValue"
+                class="flex-1"
+                :error="(!isFixedDiscount && amountErrors.discountPercent) || undefined"
+              >
+                <HfMoneyInput
+                  v-if="isFixedDiscount"
+                  id="promotion-discount-value"
+                  v-model="discountValueCents"
+                  data-testid="promotion-discount-value"
+                  :min-cents="1"
+                  placeholder="Ej.: 150"
                   size="lg"
+                  @validation="amountErrors.discountMoney = $event"
+                />
+                <UInput
+                  v-else
+                  :model-value="percentText"
+                  data-testid="promotion-discount-value"
+                  type="text"
+                  inputmode="decimal"
+                  autocomplete="off"
+                  placeholder="1-100"
+                  size="lg"
+                  @update:model-value="onPercentText"
                 >
                   <template #trailing>
-                    <span class="text-dimmed text-sm">
-                      {{ formState.discountType === DISCOUNT_TYPE.PERCENTAGE ? '%' : '$' }}
-                    </span>
+                    <span class="text-dimmed text-sm">%</span>
                   </template>
-                </UInputNumber>
+                </UInput>
               </UFormField>
             </div>
 
@@ -429,16 +529,37 @@ const overlapTitle = computed(() =>
                   :ui="{ content: 'hf-theme hf-ui hf-form-overlay promotions-form-portal' }"
                 />
               </UFormField>
-              <UFormField label="Valor" name="discountValue" class="flex-1">
-                <UInputNumber
-                  v-model="formState.discountValue"
-                  :min="formState.discountType === DISCOUNT_TYPE.PERCENTAGE ? 1 : 1"
-                  :max="formState.discountType === DISCOUNT_TYPE.PERCENTAGE ? 100 : undefined"
-                  :placeholder="
-                    formState.discountType === DISCOUNT_TYPE.PERCENTAGE ? '1-100' : 'Ej.: 150'
-                  "
+              <UFormField
+                label="Valor"
+                name="discountValue"
+                class="flex-1"
+                :error="(!isFixedDiscount && amountErrors.discountPercent) || undefined"
+              >
+                <HfMoneyInput
+                  v-if="isFixedDiscount"
+                  id="promotion-discount-value"
+                  v-model="discountValueCents"
+                  data-testid="promotion-discount-value"
+                  :min-cents="1"
+                  placeholder="Ej.: 150"
                   size="lg"
+                  @validation="amountErrors.discountMoney = $event"
                 />
+                <UInput
+                  v-else
+                  :model-value="percentText"
+                  data-testid="promotion-discount-value"
+                  type="text"
+                  inputmode="decimal"
+                  autocomplete="off"
+                  placeholder="1-100"
+                  size="lg"
+                  @update:model-value="onPercentText"
+                >
+                  <template #trailing>
+                    <span class="text-dimmed text-sm">%</span>
+                  </template>
+                </UInput>
               </UFormField>
             </div>
 
@@ -447,11 +568,13 @@ const overlapTitle = computed(() =>
               <UCheckbox v-model="formState.hasMinPurchase" label="Añadir monto mínimo de compra" />
               <div v-if="formState.hasMinPurchase" class="mt-3 pl-6">
                 <UFormField label="Monto mínimo ($)" name="minPurchaseAmountCents">
-                  <UInputNumber
-                    v-model="formState.minPurchaseAmountCents"
-                    :min="0"
+                  <HfMoneyInput
+                    id="promotion-min-purchase"
+                    v-model="minPurchaseCents"
+                    data-testid="promotion-min-purchase"
                     placeholder="Ej.: 1000"
                     size="lg"
+                    @validation="amountErrors.minPurchase = $event"
                   />
                 </UFormField>
               </div>

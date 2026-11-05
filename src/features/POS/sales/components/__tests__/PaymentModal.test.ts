@@ -230,7 +230,7 @@ describe('PaymentModal received amounts', () => {
         await wrapper.get(selector).trigger('click')
         expect(
           (wrapper.get('[data-testid="payment-amount-0"]').element as HTMLInputElement).value,
-        ).toBe('450.5')
+        ).toBe('450.50')
         await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
         const event = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent
         expect(event.payload).toEqual({
@@ -244,39 +244,57 @@ describe('PaymentModal received amounts', () => {
     },
   )
 
-  it.each(['cash', 'card_credit', 'card_debit', 'transfer'])(
-    'parses a typed decimal with the real %s number input under Spanish app locale',
-    async (method) => {
-      const Host = defineComponent({
-        setup: () => () =>
-          h(
-            UApp,
-            { locale: es },
-            {
-              default: () => h(PaymentModal, { open: true, totalCents: 4550, saleId: 'sale-1' }),
-            },
-          ),
-      })
-      const host = mount(Host, {
-        attachTo: document.body,
-        global: { ...mountGlobal, stubs: { ...stubs, UInputNumber: false, InputNumber: false } },
-      })
-      try {
-        const wrapper = host.findComponent(PaymentModal)
-        await wrapper.get(`[data-method="${method}"]`).trigger('click')
-        const input = wrapper.get('input[role="spinbutton"]')
-        await input.setValue('45.5')
-        await input.trigger('blur')
-        expect((input.element as HTMLInputElement).value).toContain('45.50')
-        expect(wrapper.text()).toContain('Recibido: $45.50')
-        await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
-        const event = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent
-        expect(event.payload).toEqual({ method, amountCents: 4550 })
-      } finally {
-        host.unmount()
-      }
-    },
-  )
+  // T22/S18: the amount is text read with the one money rule; a comma decimal
+  // must never become 100× the amount, under the real app locale.
+  it.each([
+    ['70.55', 7055],
+    ['70,55', 7055],
+    ['1,234.50', 123450],
+  ])('submits %j typed in the real amount field as %i cents', async (text, cents) => {
+    const Host = defineComponent({
+      setup: () => () =>
+        h(
+          UApp,
+          { locale: { ...es, code: 'es-MX' } },
+          {
+            default: () => h(PaymentModal, { open: true, totalCents: cents, saleId: 'sale-1' }),
+          },
+        ),
+    })
+    const host = mount(Host, {
+      attachTo: document.body,
+      global: { ...mountGlobal, stubs: { ...stubs, UInput: false, Input: false } },
+    })
+    try {
+      const wrapper = host.findComponent(PaymentModal)
+      await wrapper.get('[data-method="card_debit"]').trigger('click')
+      const input = wrapper.get('input[data-testid="payment-amount-0"]')
+      // Start from a different amount so the typed text is what gets charged.
+      await input.setValue('1')
+      await input.setValue(text)
+      await input.trigger('blur')
+      expect(wrapper.text()).toContain(`Recibido: $${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}`)
+      await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+      const event = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent
+      expect(event.payload).toMatchObject({ method: 'card_debit', amountCents: cents })
+    } finally {
+      host.unmount()
+    }
+  })
+
+  it('blocks the charge while the typed amount does not parse', async () => {
+    const wrapper = mount(PaymentModal, {
+      props: { open: true, totalCents: 15000, saleId: 'sale-1' },
+      global: mountGlobal,
+    })
+    await wrapper.get('[data-method="card_debit"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('0,100')
+    await wrapper.get('[data-testid="payment-amount-0"]').trigger('blur')
+    expect(wrapper.text()).toContain('Escribe el monto con punto para los centavos, por ejemplo 70.55.')
+    expect(wrapper.get('[data-testid="confirm-charge"]').attributes('disabled')).toBeDefined()
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    expect(wrapper.emitted('submit')).toBeUndefined()
+  })
 })
 
 describe('PaymentModal', () => {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import HfMoneyInput from '@/core/shared/components/form/HfMoneyInput.vue'
 import { saleApi } from '../api/sale.api'
 import type { OverrideItemPricePayload } from '../interfaces/sale.types'
 import { formatCentsMXN } from '../utils/currency.utils'
@@ -21,24 +22,24 @@ const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
 const mode = ref<'price_list' | 'custom'>('price_list')
 const selectedPriceListId = ref('')
-const customPriceInput = ref('')
+// Typed in HfMoneyInput with the one app-wide money rule (T22/S18): cents,
+// never `Number(text) * 100`. The parse error blocks Aplicar.
+const customPriceCents = ref<number | null>(null)
+const customPriceError = ref<string | null>(null)
 const validationError = ref<string | null>(null)
 const apiError = ref<string | null>(null)
 const isLoading = ref(false)
 const options = ref<Array<{ priceListId: string; priceListName: string; priceCents: number; isCurrent: boolean }>>([])
 
-const customPriceCents = computed<number | null>(() => {
-  const normalized = String(customPriceInput.value ?? '').replace(',', '.').trim()
-  if (!normalized) return null
-  const value = Number(normalized)
-  if (!Number.isFinite(value) || value <= 0) return null
-
-  return Math.round(value * 100)
-})
-
 const canSubmit = computed(() => {
   if (mode.value === 'price_list') return selectedPriceListId.value.length > 0
-  return Number.isInteger(customPriceCents.value) && (customPriceCents.value ?? 0) >= 1
+  return !customPriceError.value && Number.isInteger(customPriceCents.value) && (customPriceCents.value ?? 0) >= 1
+})
+
+// The money field remounts with each mode switch and starts clean, so its
+// last parse error must not outlive it.
+watch(mode, () => {
+  customPriceError.value = null
 })
 
 // T3: optional, inert unless the caller supplies the marker. The owned
@@ -97,7 +98,8 @@ watch(
   (isOpen) => {
     if (isOpen) {
       mode.value = 'price_list'
-      customPriceInput.value = ''
+      customPriceCents.value = null
+      customPriceError.value = null
       validationError.value = null
       void loadAvailablePrices()
     }
@@ -146,12 +148,13 @@ watch(
             />
 
             <UFormField v-else label="Precio manual (MXN)" description="Ingresa un valor mayor a 0.">
-              <UInput
-                v-model="customPriceInput"
-                type="number"
-                min="0.01"
-                step="0.01"
+              <HfMoneyInput
+                id="price-override-custom"
+                v-model="customPriceCents"
+                data-testid="price-override-input"
+                :min-cents="1"
                 placeholder="Ej: 500"
+                @validation="customPriceError = $event"
                 @keydown.enter.prevent="submit"
               />
             </UFormField>

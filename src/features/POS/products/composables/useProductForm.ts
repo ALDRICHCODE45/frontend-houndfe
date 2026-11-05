@@ -11,8 +11,22 @@ import type {
   UpdateProductPayload,
 } from '../interfaces/product.types'
 import { toProductPatchAdvancedCatalogPayload } from '../api/product.api'
+import { parseMoneyInput } from '@/core/shared/utils/money-input.utils'
 
-const priceRegex = /^\d+(?:[.,]\d{1,2})?$/
+/**
+ * An optional money field: blank, or text that reads with the one money rule
+ * (parseMoneyInput: `70.55`, `70,55`, `1,234.50`), else its parser message.
+ */
+export function optionalMoneyText() {
+  return z
+    .string()
+    .trim()
+    .superRefine((text, ctx) => {
+      if (text === '') return
+      const result = parseMoneyInput(text)
+      if ('error' in result) ctx.addIssue({ code: z.ZodIssueCode.custom, message: result.error })
+    })
+}
 
 // ── Enums for selects ──────────────────────────────────────
 
@@ -116,12 +130,7 @@ export const productFormSchema = z.object({
   location: z.string().trim().max(120, 'Máximo 120 caracteres'),
   satKey: z.string().trim().max(100, 'Máximo 100 caracteres'),
   unit: z.string().trim(),
-  price: z
-    .string()
-    .trim()
-    .regex(priceRegex, 'Ingresa un valor decimal válido (ej: 199.90)')
-    .or(z.literal(''))
-    .default('0.00'),
+  price: optionalMoneyText().default('0.00'),
   quantity: z
     .number({ invalid_type_error: 'Ingresa un número válido' })
     .int('Debbe')
@@ -145,11 +154,7 @@ export const productFormSchema = z.object({
       ivaRate: z.string().trim(),
   iepsRate: z.string().trim(),
   purchaseCostMode: z.enum(['NET', 'GROSS']),
-  purchaseCost: z
-    .string()
-    .trim()
-    .regex(priceRegex, 'Ingresa un valor decimal válido')
-    .or(z.literal('')),
+  purchaseCost: optionalMoneyText(),
   serviceDetail: z.object({
     capacity: z.number().int().min(1).nullable(),
     notes: z.string().trim().max(500, 'Máximo 500 caracteres'),
@@ -196,11 +201,46 @@ export function centsToDecimalInput(cents: number): string {
   return (Math.max(cents, 0) / 100).toFixed(2)
 }
 
-export function decimalInputToCents(value: string): number {
-  const normalized = value.replace(',', '.').trim()
-  const parsed = Number.parseFloat(normalized)
-  if (!Number.isFinite(parsed)) return 0
-  return Math.round(parsed * 100)
+/**
+ * Cents of a money text, or null when it is blank or does not read: never a
+ * guessed 0. Schemas reject unreadable text before any save.
+ */
+export function moneyTextToCents(value: string): number | null {
+  const result = parseMoneyInput(value)
+  return 'cents' in result ? result.cents : null
+}
+
+export interface TierRowInput {
+  key: number
+  minQuantity: number | string
+  price: string
+}
+
+/**
+ * The quantity-price rows of a tiers modal. A row without quantity or price
+ * is skipped; a price that does not read returns its parser message by row
+ * key instead of any tier, so nothing is saved.
+ */
+export function readTierRows(
+  rows: TierRowInput[],
+): { tiers: { minQuantity: number; priceCents: number }[] } | { errors: Record<number, string> } {
+  const tiers: { minQuantity: number; priceCents: number }[] = []
+  const errors: Record<number, string> = {}
+  for (const row of rows) {
+    if (String(row.minQuantity).trim() === '' || row.price.trim() === '') continue
+    const result = parseMoneyInput(row.price)
+    if ('error' in result) {
+      errors[row.key] = result.error
+      continue
+    }
+    tiers.push({
+      minQuantity:
+        typeof row.minQuantity === 'string' ? Number.parseInt(row.minQuantity, 10) : row.minQuantity,
+      priceCents: result.cents,
+    })
+  }
+  if (Object.keys(errors).length > 0) return { errors }
+  return { tiers: tiers.sort((a, b) => a.minQuantity - b.minQuantity) }
 }
 
 export function productToFormInput(product: Product | ProductDetail): ProductFormInput {
@@ -271,7 +311,7 @@ export function toCreatePayload(values: ProductFormValues): CreateProductPayload
 }
 
 function buildBasePayload(values: ProductFormValues): CreateProductPayload {
-  const costCents = values.purchaseCost ? decimalInputToCents(values.purchaseCost) : 0
+  const costCents = moneyTextToCents(values.purchaseCost) ?? 0
 
   return {
     name: values.name,
@@ -298,7 +338,7 @@ function buildBasePayload(values: ProductFormValues): CreateProductPayload {
     ...(costCents > 0
       ? { purchaseCost: { mode: values.purchaseCostMode, valueCents: costCents } }
       : {}),
-    priceCents: decimalInputToCents(values.price),
+    priceCents: moneyTextToCents(values.price) ?? 0,
   }
 }
 
@@ -330,7 +370,7 @@ function buildServicePayload(values: ProductFormValues): CreateProductPayload {
     requiresPrescription: values.requiresPrescription,
     chargeProductTaxes: values.chargeProductTaxes,
     ...(values.chargeProductTaxes ? { ivaRate: values.ivaRate, iepsRate: values.iepsRate } : {}),
-    priceCents: decimalInputToCents(values.price),
+    priceCents: moneyTextToCents(values.price) ?? 0,
     ...(serviceDetailPopulated(values.serviceDetail)
       ? {
           serviceDetail: {

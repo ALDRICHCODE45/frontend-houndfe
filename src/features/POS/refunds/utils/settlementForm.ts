@@ -1,4 +1,5 @@
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
+import { parseMoneyInput } from '@/core/shared/utils/money-input.utils'
 import type {
   RefundSettlementMethod,
   RefundSettlementRequest,
@@ -21,23 +22,18 @@ export interface SettlementFormErrors {
   settledAt?: string
 }
 
-const AMOUNT_PATTERN = /^\d+(\.\d{1,2})?$/
-/** A comma is accepted only as a thousands separator in groups of three (`1,234.50`). */
-const THOUSANDS_PATTERN = /^[1-9]\d{0,2}(,\d{3})+(\.\d*)?$/
-
-/** Read a typed MXN amount (`$1,234.50`, `20`) as integer cents. A comma decimal (`70,55`) is
- * rejected, never read as thousands: that would settle 100× the amount, and money is irreversible. */
+/** Read a typed MXN amount (`$1,234.50`, `20`, `70,55`) as integer cents, with the app-wide money
+ * rule (`parseMoneyInput`). An ambiguous comma is rejected, never guessed: reading `70,55` as
+ * thousands once settled 100× the amount, and money is irreversible. */
 export function parseAmountInput(text: string): { cents: number } | { error: string } {
-  const compact = text.replace(/[\s$]/g, '')
-  if (compact.includes(',') && !THOUSANDS_PATTERN.test(compact))
-    return { error: 'Usa punto para los centavos, por ejemplo 70.55.' }
-  const plain = compact.replace(/,/g, '')
-  if (!plain) return { error: 'Escribe el monto que devolviste.' }
-  if (!AMOUNT_PATTERN.test(plain)) return { error: 'Escribe un monto válido, por ejemplo 250.00.' }
-  const [whole = '0', fraction = ''] = plain.split('.')
-  const cents = Number(whole) * 100 + Number(fraction.padEnd(2, '0'))
-  if (cents < 1) return { error: 'El monto debe ser mayor que $0.00.' }
-  return { cents }
+  const parsed = parseMoneyInput(text)
+  if ('error' in parsed) {
+    if (parsed.code === 'empty') return { error: 'Escribe el monto que devolviste.' }
+    if (parsed.code === 'comma') return { error: parsed.error }
+    return { error: 'Escribe un monto válido, por ejemplo 250.00.' }
+  }
+  if (parsed.cents < 1) return { error: 'El monto debe ser mayor que $0.00.' }
+  return { cents: parsed.cents }
 }
 
 /** Cents as the plain decimal the amount input shows (`4555` → `45.55`). */

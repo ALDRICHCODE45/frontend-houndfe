@@ -18,7 +18,7 @@ import { createSalesFiltersSchema } from '../config/salesFiltersSchema'
 import { formatSaleDueDate } from '../utils/saleDate.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { extractFolioNumber } from '../utils/saleFolio.utils'
-import { getDeliveryStatusBadge, getPaymentStatusBadge, saleBadgeTone } from '../utils/saleStatus.utils'
+import { isCanceledSale, saleDeliveryBadge, saleOpenDebtCents, salePaymentBadge } from '../utils/saleStatus.utils'
 import type { ConfirmedSaleRow } from '../interfaces/sale.types'
 import { customerApi } from '@/features/POS/customers/api/customer.api'
 import { usersApi } from '@/features/POS/users/api/user.api'
@@ -113,15 +113,6 @@ function folioDisplay(folio: string | null) {
 }
 function customerDisplay(sale: ConfirmedSaleRow) {
   return sale.customer?.name ?? 'Público en general'
-}
-function paymentBadge(sale: ConfirmedSaleRow) {
-  if (sale.paymentStatus == null) return { label: 'Sin estado', tone: 'neutral' as const }
-  const badge = getPaymentStatusBadge(sale.paymentStatus)
-  return { label: badge.label, tone: saleBadgeTone(badge.color) }
-}
-function deliveryBadge(sale: ConfirmedSaleRow) {
-  const badge = getDeliveryStatusBadge(sale.deliveryStatus)
-  return { label: badge.label, tone: saleBadgeTone(badge.color) }
 }
 const saleWhen = (sale: ConfirmedSaleRow) =>
   sale.confirmedAt == null ? 'Fecha no disponible' : formatShortDateTime(sale.confirmedAt)
@@ -322,9 +313,8 @@ watch(() => filtersCtl.serializedState.value, () => {
 
           <template #paymentStatus-cell="{ row }">
             <StatusBadge
-              data-testid="sale-payment-status"
-              v-bind="paymentBadge(row.original)"
-              aria-prefix="Pago:"
+              :data-testid="isCanceledSale(row.original) ? 'sale-canceled-status' : 'sale-payment-status'"
+              v-bind="salePaymentBadge(row.original)"
             />
           </template>
 
@@ -341,7 +331,7 @@ watch(() => filtersCtl.serializedState.value, () => {
 
           <template #debtCents-cell="{ row }">
             <span
-              v-if="row.original.debtCents > 0"
+              v-if="saleOpenDebtCents(row.original) > 0"
               class="hf-figure sale-debt block text-right"
               data-testid="sale-debt"
             >{{ formatCentsMXN(row.original.debtCents) }}</span>
@@ -354,10 +344,12 @@ watch(() => filtersCtl.serializedState.value, () => {
 
           <template #deliveryStatus-cell="{ row }">
             <StatusBadge
+              v-if="saleDeliveryBadge(row.original)"
               data-testid="sale-delivery-status"
-              v-bind="deliveryBadge(row.original)"
-              aria-prefix="Productos:"
+              v-bind="saleDeliveryBadge(row.original)!"
             />
+            <!-- An empty slot lets the table render the raw accessor value («PENDING»). -->
+            <span v-else data-testid="sale-delivery-none" class="text-muted">—</span>
           </template>
 
           <template #cashier-cell="{ row }">
@@ -385,8 +377,8 @@ watch(() => filtersCtl.serializedState.value, () => {
               </div>
               <span class="hf-row-secondary" data-testid="sale-customer">{{ customerDisplay(row) }}</span>
               <div class="sale-card-meta">
-                <StatusBadge v-bind="paymentBadge(row)" aria-prefix="Pago:" />
-                <StatusBadge v-bind="deliveryBadge(row)" aria-prefix="Productos:" />
+                <StatusBadge v-bind="salePaymentBadge(row)" />
+                <StatusBadge v-if="saleDeliveryBadge(row)" v-bind="saleDeliveryBadge(row)!" />
                 <PaymentMethodPills
                   v-if="row.paymentMethods.length > 0"
                   :methods="row.paymentMethods"
@@ -394,7 +386,7 @@ watch(() => filtersCtl.serializedState.value, () => {
                   portal-class="hf-theme hf-ui sales-list-portal"
                 />
               </div>
-              <p v-if="row.debtCents > 0" class="sale-card-debt" data-testid="sale-card-debt">
+              <p v-if="saleOpenDebtCents(row) > 0" class="sale-card-debt" data-testid="sale-card-debt">
                 Deuda <span class="hf-figure">{{ formatCentsMXN(row.debtCents) }}</span>
                 <template v-if="row.dueDate">
                   · <span data-testid="sale-card-due-date">Vence {{ formatSaleDueDate(row.dueDate) }}</span>

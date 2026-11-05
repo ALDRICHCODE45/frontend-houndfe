@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import '../styles/products-plain-table.css'
+import '@/core/shared/components/form/hf-form.css'
 import type { AxiosError } from 'axios'
 import { computed, reactive, ref, watch } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
@@ -9,7 +10,8 @@ import { mapDomainError, type DomainApiError } from '@/core/shared/utils/error.u
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
-import { centsToDecimalInput, decimalInputToCents } from '../composables/useProductForm'
+import { centsToDecimalInput, readTierRows, type TierRowInput } from '../composables/useProductForm'
+import InlinePriceInput from './InlinePriceInput.vue'
 import type {
   ProductVariant,
   UpsertVariantPricePayload,
@@ -24,12 +26,6 @@ declare const useToast: () => {
   }) => void
 }
 
-interface TierRow {
-  key: number
-  minQuantity: number | string
-  price: string
-}
-
 const props = defineProps<{
   productId: string
   variant: ProductVariant
@@ -40,15 +36,17 @@ const toast = useToast()
 const queryClient = useQueryClient()
 const tenantId = useSafeTenantId()
 
-const salePriceInputs = reactive<Record<string, string>>({})
+// The last valid price committed inline per list, so a tiers save that
+// follows an inline edit carries it.
+const salePriceCents = reactive<Record<string, number>>({})
 
 function syncSalePriceInputs(prices: VariantPrice[]) {
-  for (const key of Object.keys(salePriceInputs)) {
-    delete salePriceInputs[key]
+  for (const key of Object.keys(salePriceCents)) {
+    delete salePriceCents[key]
   }
 
   for (const variantPrice of prices) {
-    salePriceInputs[variantPrice.priceListId] = centsToDecimalInput(variantPrice.priceCents)
+    salePriceCents[variantPrice.priceListId] = variantPrice.priceCents
   }
 }
 
@@ -98,13 +96,10 @@ function getTierPricesPayload(variantPrice: VariantPrice) {
   }))
 }
 
-function handleInlinePriceSave(variantPrice: VariantPrice) {
+function handleInlinePriceSave(variantPrice: VariantPrice, nextPriceCents: number) {
   if (!props.canUpdate) return
 
-  const rawInput =
-    salePriceInputs[variantPrice.priceListId] ?? centsToDecimalInput(variantPrice.priceCents)
-  const nextPriceCents = decimalInputToCents(rawInput)
-
+  salePriceCents[variantPrice.priceListId] = nextPriceCents
   if (nextPriceCents === variantPrice.priceCents) return
 
   upsertVariantPriceMutation.mutate({
@@ -149,13 +144,15 @@ function formatMarginAmount(variantPrice: VariantPrice): string {
 
 const isTierModalOpen = ref(false)
 const selectedVariantPrice = ref<VariantPrice | null>(null)
-const tierRows = ref<TierRow[]>([])
+const tierRows = ref<TierRowInput[]>([])
+const tierErrors = ref<Record<number, string>>({})
 let tierRowKeyCounter = 0
 
 const selectedPriceListName = computed(() => selectedVariantPrice.value?.priceListName ?? '')
 
 function openTierPricesModal(variantPrice: VariantPrice) {
   selectedVariantPrice.value = variantPrice
+  tierErrors.value = {}
   tierRowKeyCounter = 0
   tierRows.value = variantPrice.tierPrices.map((tier) => ({
     key: tierRowKeyCounter++,
@@ -195,16 +192,13 @@ function removeTierRow(index: number) {
 function handleSaveTierPrices() {
   if (!props.canUpdate || !selectedVariantPrice.value) return
 
-  const filledRows = tierRows.value
-    .filter((row) => String(row.minQuantity).trim() !== '' && row.price.trim() !== '')
-    .map((row) => ({
-      minQuantity:
-        typeof row.minQuantity === 'string'
-          ? Number.parseInt(row.minQuantity, 10)
-          : row.minQuantity,
-      priceCents: decimalInputToCents(row.price),
-    }))
-    .sort((a, b) => a.minQuantity - b.minQuantity)
+  const read = readTierRows(tierRows.value)
+  if ('errors' in read) {
+    tierErrors.value = read.errors
+    return
+  }
+  tierErrors.value = {}
+  const filledRows = read.tiers
 
   const hasInvalidQty = filledRows.some(
     (row) => !Number.isInteger(row.minQuantity) || row.minQuantity < 0,
@@ -230,14 +224,12 @@ function handleSaveTierPrices() {
   }
 
   const currentPrice = selectedVariantPrice.value
-  const currentPriceInput =
-    salePriceInputs[currentPrice.priceListId] ?? centsToDecimalInput(currentPrice.priceCents)
 
   upsertVariantPriceMutation.mutate(
     {
       priceListId: currentPrice.priceListId,
       payload: {
-        priceCents: decimalInputToCents(currentPriceInput),
+        priceCents: salePriceCents[currentPrice.priceListId] ?? currentPrice.priceCents,
         tierPrices: filledRows,
       },
     },
@@ -281,23 +273,13 @@ function handleSaveTierPrices() {
             </td>
 
             <td class="px-4 py-3 text-right">
-              <div class="relative ml-auto max-w-xs">
-                <span
-                  class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
-                  >$</span
-                >
-                <UInput
-                  v-model="salePriceInputs[variantPrice.priceListId]"
-                  class="w-full"
-                  inputmode="decimal"
-                  placeholder="0.00"
-                  :ui="{ base: 'hf-figure pl-7 text-right' }"
-                  :disabled="!canUpdate"
-                  :aria-label="`Precio de venta de ${variantPrice.priceListName}, con impuestos incluidos`"
-                  @blur="handleInlinePriceSave(variantPrice)"
-                  @keyup.enter="handleInlinePriceSave(variantPrice)"
-                />
-              </div>
+              <InlinePriceInput
+                class="ml-auto max-w-xs"
+                :price-cents="variantPrice.priceCents"
+                :disabled="!canUpdate"
+                :label="`Precio de venta de ${variantPrice.priceListName}, con impuestos incluidos`"
+                @commit="handleInlinePriceSave(variantPrice, $event)"
+              />
             </td>
 
             <td
@@ -376,21 +358,34 @@ function handleSaveTierPrices() {
               <span class="shrink-0 text-xs text-muted">o más</span>
             </div>
 
-            <div class="relative">
-              <span
-                class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
-                >$</span
+            <div>
+              <div class="relative">
+                <span
+                  class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
+                  >$</span
+                >
+                <UInput
+                  v-model="row.price"
+                  inputmode="decimal"
+                  class="w-full"
+                  :ui="{ base: 'pl-7 pr-24' }"
+                  :aria-label="`Precio por unidad, fila ${index + 1}`"
+                  :aria-invalid="tierErrors[row.key] ? 'true' : undefined"
+                  :aria-describedby="tierErrors[row.key] ? `variant-tier-${row.key}-message` : undefined"
+                />
+                <span
+                  class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted"
+                  >por Unidad</span
+                >
+              </div>
+              <p
+                v-if="tierErrors[row.key]"
+                :id="`variant-tier-${row.key}-message`"
+                class="hf-form-field__message"
+                data-tone="error"
               >
-              <UInput
-                v-model="row.price"
-                inputmode="decimal"
-                class="w-full"
-                :ui="{ base: 'pl-7 pr-24' }"
-              />
-              <span
-                class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted"
-                >por Unidad</span
-              >
+                {{ tierErrors[row.key] }}
+              </p>
             </div>
 
             <div class="flex justify-end md:justify-center">

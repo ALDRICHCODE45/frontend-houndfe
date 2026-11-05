@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest'
+import { defineComponent, h, ref } from 'vue'
 import { mount } from '@vue/test-utils'
+import UApp from '@nuxt/ui/runtime/components/App.vue'
+import UInputNumber from '@nuxt/ui/runtime/components/InputNumber.vue'
+import { appLocale } from '@/core/shared/utils/app-locale'
 import SaleItemRow from '../SaleItemRow.vue'
 import SaleItemBadges from '../SaleItemBadges.vue'
 import type { SaleItem } from '../../interfaces/sale.types'
@@ -8,7 +12,7 @@ describe('SaleItemRow', () => {
   const stubs = {
     UInputNumber: {
       name: 'UInputNumber',
-      props: ['modelValue', 'min', 'disabled', 'size'],
+      props: ['modelValue', 'min', 'disabled', 'size', 'formatOptions'],
       emits: ['blur', 'change'],
       template: '<input :disabled="disabled" />',
     },
@@ -889,6 +893,85 @@ describe('SaleItemRow', () => {
       expect(wrapper.get('[data-testid="sale-item-thumbnail"]').classes()).toContain('h-12')
       expect(wrapper.get('[data-testid="sale-item-name"]').classes()).toContain('text-sm')
       expect(wrapper.html()).not.toContain('min-h-[44px]')
+    })
+  })
+
+  // T22/S18: quantities are whole units. Under es-MX a grouping comma made
+  // «1,5» read as 15; without grouping or fraction digits it reads as nothing.
+  describe('whole-unit quantity', () => {
+    it('reads the quantity as a whole number with no grouping', () => {
+      const wrapper = mount(SaleItemRow, {
+        props: { item: mockItem, saleId: 'sale-1', isDraft: true, onSubmitPriceOverride, onApplyDiscount, onRemoveDiscount },
+        global: { stubs },
+      })
+
+      expect(wrapper.findComponent({ name: 'InputNumber' }).props('formatOptions')).toEqual({
+        maximumFractionDigits: 0,
+        useGrouping: false,
+      })
+    })
+
+    it.each([
+      ['cleared or unreadable', undefined],
+      ['a fraction', 1.5],
+    ])('keeps the previous quantity when the field is %s', (_label, value) => {
+      const wrapper = mount(SaleItemRow, {
+        props: { item: mockItem, saleId: 'sale-1', onSubmitPriceOverride, onApplyDiscount, onRemoveDiscount },
+        global: { stubs },
+      })
+      const vm = wrapper.vm as unknown as { localQty: number | undefined; handleQtyCommit: () => void }
+
+      vm.localQty = value
+      vm.handleQtyCommit()
+
+      expect(wrapper.emitted('update-qty')).toBeFalsy()
+      expect(vm.localQty).toBe(2)
+    })
+
+    // The real UInputNumber (Reka's NumberField), with the row's options and the app locale.
+    function mountQuantityField() {
+      const model = ref<number | null | undefined>(2)
+      const wrapper = mount(
+        defineComponent({
+          setup: () => () =>
+            h(UApp, { locale: appLocale }, () =>
+              h(UInputNumber, {
+                min: 1,
+                formatOptions: { maximumFractionDigits: 0, useGrouping: false },
+                modelValue: model.value,
+                'onUpdate:modelValue': (value: number | null | undefined) => {
+                  model.value = value
+                },
+              }),
+            ),
+        }),
+        { attachTo: document.body },
+      )
+      return { input: wrapper.get('input'), model, wrapper }
+    }
+
+    it('refuses a typed comma or dot under es-MX', async () => {
+      const { input, wrapper } = mountQuantityField()
+      for (const data of [',', '.']) {
+        const event = new InputEvent('beforeinput', { data, cancelable: true })
+        input.element.dispatchEvent(event)
+        expect(event.defaultPrevented).toBe(true)
+      }
+      wrapper.unmount()
+    })
+
+    it.each([
+      ['1,5', undefined],
+      ['1,500', undefined],
+      ['15', 15],
+    ])('reads a pasted %j as %s, never as fifteen', async (text, expected) => {
+      const { input, model, wrapper } = mountQuantityField()
+
+      await input.setValue(text)
+      await input.trigger('blur')
+
+      expect(model.value).toBe(expected)
+      wrapper.unmount()
     })
   })
 })

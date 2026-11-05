@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import type { AxiosError } from 'axios'
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { productApi, fromVariantRawCatalog, toVariantPatchCatalogPayload } from '../api/product.api'
 import { mapDomainError, type DomainApiError } from '@/core/shared/utils/error.utils'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
-import { centsToDecimalInput, decimalInputToCents } from '../composables/useProductForm'
+import { parseMoneyInput } from '@/core/shared/utils/money-input.utils'
+import '@/core/shared/components/form/hf-form.css'
+import { centsToDecimalInput } from '../composables/useProductForm'
 import VariantPricingTable from './VariantPricingTable.vue'
 import type {
   ProductType,
@@ -51,6 +53,9 @@ const formState = reactive({
   minQuantity: 0,
   purchaseCost: '',
 })
+
+/** The parser message of a cost that does not read; it blocks the save. */
+const costError = ref<string | null>(null)
 
 const initialState = reactive({
   sku: '',
@@ -163,6 +168,7 @@ function syncFormFromVariant(variant: ProductVariant | null) {
   formState.barcode = initialState.barcode
   formState.minQuantity = initialState.minQuantity
   formState.purchaseCost = initialState.purchaseCost
+  costError.value = null
 
   const persisted = persistedCatalog.value
   const nextCatalog = persisted ?? {
@@ -193,6 +199,13 @@ const updateVariantMutation = useMutation({
 // O1 S1: quantity is not a changeable field; stock moves through an adjustment.
 type ChangeableField = 'sku' | 'barcode' | 'minQuantity' | 'purchaseCost'
 
+/** Cents of a cost text: blank is 0 (no own cost amount), unreadable is null. */
+function costCentsOf(text: string): number | null {
+  if (text.trim() === '') return 0
+  const result = parseMoneyInput(text)
+  return 'cents' in result ? result.cents : null
+}
+
 function getChanges(keys: ChangeableField[]): UpdateVariantPayload {
   const changes: UpdateVariantPayload = {}
 
@@ -219,9 +232,9 @@ function getChanges(keys: ChangeableField[]): UpdateVariantPayload {
   }
 
   if (keys.includes('purchaseCost')) {
-    const nextCostCents = decimalInputToCents(formState.purchaseCost)
-    const currentCostCents = decimalInputToCents(initialState.purchaseCost)
-    if (nextCostCents !== currentCostCents) {
+    const nextCostCents = costCentsOf(formState.purchaseCost)
+    const currentCostCents = costCentsOf(initialState.purchaseCost)
+    if (nextCostCents != null && nextCostCents !== currentCostCents) {
       changes.purchaseNetCostCents = nextCostCents
     }
   }
@@ -239,6 +252,13 @@ async function persistChanges(
   if (!props.canUpdate || !props.variant) {
     if (closeAfterSave) modalOpen.value = false
     return
+  }
+
+  // A cost that does not read blocks the whole save, with the parser message.
+  if (keys.includes('purchaseCost')) {
+    const result = formState.purchaseCost.trim() === '' ? null : parseMoneyInput(formState.purchaseCost)
+    costError.value = result && 'error' in result ? result.error : null
+    if (costError.value) return
   }
 
   const changes: UpdateVariantPayload & VariantPatchCatalogPayload = getChanges(keys)
@@ -340,6 +360,9 @@ function handleCancel() {
                   class="w-full"
                   :ui="{ base: 'pl-7 pr-24' }"
                   :disabled="!canUpdate"
+                  :aria-label="costLabel"
+                  :aria-invalid="costError ? 'true' : undefined"
+                  :aria-describedby="costError ? 'variant-cost-message' : undefined"
                   @blur="persistChanges(['purchaseCost'], 'Costo actualizado')"
                   @keyup.enter="persistChanges(['purchaseCost'], 'Costo actualizado')"
                 />
@@ -348,6 +371,9 @@ function handleCancel() {
                   >por Unidad</span
                 >
               </div>
+              <p v-if="costError" id="variant-cost-message" class="hf-form-field__message" data-tone="error">
+                {{ costError }}
+              </p>
               <p class="mt-1 text-xs text-muted">{{ productCostHint }}</p>
             </UFormField>
           </div>

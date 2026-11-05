@@ -66,4 +66,46 @@ describe('ItemDiscountModal', () => {
     await wrapper.find('form').trigger('submit')
     expect(onApplyDiscount).toHaveBeenCalledWith('item-1', { type: 'amount', amountCents: 2000, title: 'Promo especial' })
   })
+
+  // T22/S18: one money rule; `70,55` is 70.55, never 7055.
+  it.each([
+    ['70.55', 7055],
+    ['70,55', 7055],
+    ['1,234.50', 123450],
+  ])('submits an amount typed as %j as %i cents', async (text, cents) => {
+    const wrapper = mount(ItemDiscountModal, {
+      props: { open: true, item: { ...item, unitPriceCents: 200000 }, onApplyDiscount },
+      global: { stubs },
+    })
+    await wrapper.findAll('input')[0]!.setValue(text)
+    await wrapper.find('form').trigger('submit')
+    expect(onApplyDiscount).toHaveBeenCalledWith('item-1', { type: 'amount', amountCents: cents })
+  })
+
+  it.each([
+    ['12.5', 12.5],
+    ['12,5', 12.5],
+  ])('submits a percent typed as %j as %d', async (text, percent) => {
+    const wrapper = mount(ItemDiscountModal, { props: { open: true, item, onApplyDiscount }, global: { stubs } })
+    await wrapper.findAll('button').find((button) => button.text() === 'Porcentaje')?.trigger('click')
+    await wrapper.findAll('input')[0]!.setValue(text)
+    await wrapper.find('form').trigger('submit')
+    expect(onApplyDiscount).toHaveBeenCalledWith('item-1', { type: 'percentage', percent })
+  })
+
+  it.each(['1,234', '0,100', '1.005'])('blocks an amount typed as %j that does not fit the price or the rule', async (text) => {
+    const wrapper = mount(ItemDiscountModal, { props: { open: true, item, onApplyDiscount }, global: { stubs } })
+    await wrapper.findAll('input')[0]!.setValue(text)
+    await wrapper.find('form').trigger('submit')
+    expect(onApplyDiscount).not.toHaveBeenCalled()
+  })
+
+  it('explains an ambiguous comma under the amount', async () => {
+    const wrapper = mount(ItemDiscountModal, {
+      props: { open: true, item, onApplyDiscount },
+      global: { stubs: { ...stubs, UFormField: { props: ['error'], template: '<div><slot /><p v-if="error">{{ error }}</p></div>' }, FormField: { props: ['error'], template: '<div><slot /><p v-if="error">{{ error }}</p></div>' } } },
+    })
+    await wrapper.findAll('input')[0]!.setValue('0,100')
+    expect(wrapper.text()).toContain('Escribe el monto con punto para los centavos, por ejemplo 70.55.')
+  })
 })

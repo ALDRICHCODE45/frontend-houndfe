@@ -215,7 +215,9 @@ function handleQtyCommit() {
     return
   }
 
-  if (newQty < 1) {
+  // Whole units only: a cleared or unreadable field (Reka gives undefined) or
+  // a fraction keeps the previous quantity.
+  if (!Number.isInteger(newQty) || newQty < 1) {
     localQty.value = previousQty.value
     return
   }
@@ -347,6 +349,7 @@ function handleQtyCommit() {
             v-model="localQty"
             :size="mobileSheet ? 'sm' : 'xs'"
             :min="1"
+            :format-options="{ maximumFractionDigits: 0, useGrouping: false }"
             :disabled="isUpdating"
             :class="mobileSheet ? 'w-24 shrink-0' : undefined"
             @blur="handleQtyCommit"

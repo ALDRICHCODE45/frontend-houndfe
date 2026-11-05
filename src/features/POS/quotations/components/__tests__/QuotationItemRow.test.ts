@@ -37,7 +37,7 @@ function makeItem(overrides: Partial<QuotationItemResponseDto> = {}): QuotationI
 const UInputNumberStub = {
   name: 'UInputNumber',
   inheritAttrs: false,
-  props: ['modelValue', 'min', 'max', 'step', 'size', 'disabled', 'dataTestid'],
+  props: ['modelValue', 'min', 'max', 'step', 'size', 'disabled', 'dataTestid', 'formatOptions'],
   emits: ['update:modelValue', 'blur', 'change'],
   template: `
     <div class="u-input-number">
@@ -258,6 +258,26 @@ describe('QuotationItemRow quantity controls', () => {
     await input.trigger('blur')
 
     expect(wrapper.emitted('update-quantity')).toEqual([['item-1', 5]])
+  })
+
+  // T22/S18: quantities are whole units; under es-MX a grouping comma made «1,5» read as 15.
+  it('reads the quantity as a whole number with no grouping', () => {
+    const wrapper = mountRow(makeItem({ quantity: 2 }), false)
+
+    expect(wrapper.findComponent({ name: 'UInputNumber' }).props('formatOptions')).toEqual({
+      maximumFractionDigits: 0,
+      useGrouping: false,
+    })
+  })
+
+  it('does not emit update-quantity for a fractional quantity', async () => {
+    const wrapper = mountRow(makeItem({ quantity: 2 }), false)
+    const input = wrapper.find('[data-testid="quantity-input"]')
+
+    await input.setValue('1.5')
+    await input.trigger('blur')
+
+    expect(wrapper.emitted('update-quantity')).toBeUndefined()
   })
 
   it('does not emit update-quantity when value did not change', async () => {

@@ -20,6 +20,7 @@ import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
+import { parseMoneyInput } from '@/core/shared/utils/money-input.utils'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import PriceListSection from '../components/PriceListSection.vue'
@@ -56,7 +57,10 @@ import VariantImagePickerModal from '../components/VariantImagePickerModal.vue'
 import {
   productFormSchema,
   centsToDecimalInput,
-  decimalInputToCents,
+  moneyTextToCents,
+  optionalMoneyText,
+  readTierRows,
+  type TierRowInput,
   productToFormInput,
   toCreatePayload,
   toUpdatePayload,
@@ -204,11 +208,7 @@ const variantSchema = z.object({
   barcode: z.string().trim().max(100),
   quantity: z.number().int().min(0),
   minQuantity: z.number().int().min(0),
-  purchaseCost: z
-    .string()
-    .trim()
-    .regex(/^\d+(?:[.,]\d{1,2})?$/, 'Valor decimal válido')
-    .or(z.literal('')),
+  purchaseCost: optionalMoneyText(),
 })
 
 type VariantFormState = z.infer<typeof variantSchema>
@@ -319,7 +319,8 @@ const pendingPriceListSelection = ref('')
 
 const isTierPricesModalOpen = ref(false)
 const tierModalPriceListId = ref<string | null>(null)
-const tierRows = ref<Array<{ key: number; minQuantity: number | string; price: string }>>([])
+const tierRows = ref<TierRowInput[]>([])
+const tierRowErrors = ref<Record<number, string>>({})
 let tierRowKeyCounter = 0
 
 const isPendingVariantDetailModalOpen = ref(false)
@@ -340,7 +341,9 @@ const pendingVariantDetailState = reactive({
 
 const isPendingVariantTierModalOpen = ref(false)
 const pendingVariantTierPriceListId = ref<string | null>(null)
-const pendingVariantTierRows = ref<Array<{ key: number; minQuantity: number | string; price: string }>>([])
+const pendingVariantTierRows = ref<TierRowInput[]>([])
+const pendingVariantTierRowErrors = ref<Record<number, string>>({})
+const pendingVariantCostError = ref<string | null>(null)
 
 const canCreateProduct = computed(() => authStore.userCan('create', 'Product'))
 const canUpdateProduct = computed(() => authStore.userCan('update', 'Product'))
@@ -489,7 +492,6 @@ const availablePriceListOptions = computed(() => {
   const usedIds = new Set(pendingPriceLists.value.map((pl) => pl.priceListId))
   return globalPriceListOptions.value.filter((gpl) => !usedIds.has(gpl.id))
 })
-const inlineVariantPublicPriceInputs = reactive<Record<string, string>>({})
 
 const variantGroups = computed(() => {
   const grouped = new Map<string, { option: string; values: string[] }>()
@@ -523,21 +525,6 @@ const variantGroups = computed(() => {
 
 function getPublicPrice(variant: ProductVariant) {
   return variant.variantPrices.find((p) => p.priceListName === 'PUBLICO')
-}
-
-function syncInlineVariantPublicPriceInputs(nextVariants: ProductVariant[]) {
-  const currentIds = new Set(nextVariants.map((v) => v.id))
-
-  for (const variantId of Object.keys(inlineVariantPublicPriceInputs)) {
-    if (!currentIds.has(variantId)) {
-      delete inlineVariantPublicPriceInputs[variantId]
-    }
-  }
-
-  for (const variant of nextVariants) {
-    const publicPrice = getPublicPrice(variant)
-    inlineVariantPublicPriceInputs[variant.id] = centsToDecimalInput(publicPrice?.priceCents ?? 0)
-  }
 }
 
 // «Sin …» clears the choice; HfCombobox needs a non-empty value for it.
@@ -621,9 +608,9 @@ const previewPublicPriceCents = computed(() => {
     return defaultPriceList?.priceCents ?? 0
   }
 
-  return previewEditPublicPriceList.value?.priceCents ?? product.value?.priceCents ?? decimalInputToCents(formState.price)
+  return previewEditPublicPriceList.value?.priceCents ?? product.value?.priceCents ?? moneyTextToCents(formState.price) ?? 0
 })
-const previewCostCents = computed(() => decimalInputToCents(formState.purchaseCost))
+const previewCostCents = computed(() => moneyTextToCents(formState.purchaseCost) ?? 0)
 const previewMarginPercent = computed(() => {
   if (previewPublicPriceCents.value <= 0 || previewCostCents.value <= 0) return null
 
@@ -737,8 +724,6 @@ useLeaveGuard(() => dirtyCount.value > 0 && !leaveAllowed.value, {
 watch(
   () => variantsList.value,
   (nextVariants) => {
-    syncInlineVariantPublicPriceInputs(nextVariants)
-
     if (!variantDetailModalVariant.value) return
 
     const nextVariant = nextVariants.find((item) => item.id === variantDetailModalVariant.value?.id)
@@ -1405,6 +1390,7 @@ function closePendingVariantDetailModal() {
   pendingVariantDetailState.minQuantity = 0
   pendingVariantDetailState.purchaseCost = ''
   pendingVariantDetailState.prices = []
+  pendingVariantCostError.value = null
 }
 
 function savePendingVariantDetailModal() {
@@ -1419,9 +1405,12 @@ function savePendingVariantDetailModal() {
   updated.barcode = pendingVariantDetailState.barcode
   updated.quantity = Math.max(0, Math.trunc(pendingVariantDetailState.quantity))
   updated.minQuantity = Math.max(0, Math.trunc(pendingVariantDetailState.minQuantity))
-  updated.purchaseNetCostCents = pendingVariantDetailState.purchaseCost
-    ? decimalInputToCents(pendingVariantDetailState.purchaseCost)
-    : null
+  // A blank cost keeps no own cost; one that does not read blocks the save.
+  const cost = pendingVariantDetailState.purchaseCost.trim()
+  const costResult = cost ? parseMoneyInput(cost) : null
+  pendingVariantCostError.value = costResult && 'error' in costResult ? costResult.error : null
+  if (pendingVariantCostError.value) return
+  updated.purchaseNetCostCents = costResult && 'cents' in costResult ? costResult.cents : null
   updated.variantPrices = pendingVariantDetailState.prices.map((vp) => ({
     priceListId: vp.priceListId,
     priceListName: vp.priceListName,
@@ -1457,6 +1446,7 @@ function openPendingVariantTierPricesModal(priceListId: string) {
   if (!target) return
 
   pendingVariantTierPriceListId.value = priceListId
+  pendingVariantTierRowErrors.value = {}
   pendingVariantTierRows.value = target.tierPrices.map((tier) => ({
     key: tierRowKeyCounter++,
     minQuantity: tier.minQuantity,
@@ -1478,17 +1468,14 @@ function savePendingVariantTierPricesModal() {
   const target = pendingVariantDetailState.prices.find((p) => p.priceListId === targetId)
   if (!target) return
 
-  target.tierPrices = pendingVariantTierRows.value
-    .filter((row) => String(row.minQuantity).trim() !== '' && row.price.trim() !== '')
-    .map((row) => ({
-      minQuantity:
-        typeof row.minQuantity === 'string'
-          ? Number.parseInt(row.minQuantity, 10)
-          : row.minQuantity,
-      priceCents: decimalInputToCents(row.price),
-    }))
-    .filter((row) => Number.isFinite(row.minQuantity) && row.minQuantity >= 0)
-    .sort((a, b) => a.minQuantity - b.minQuantity)
+  const read = readTierRows(pendingVariantTierRows.value)
+  if ('errors' in read) {
+    pendingVariantTierRowErrors.value = read.errors
+    return
+  }
+  target.tierPrices = read.tiers.filter(
+    (row) => Number.isInteger(row.minQuantity) && row.minQuantity >= 0,
+  )
 
   closePendingVariantTierPricesModal()
 }
@@ -1559,8 +1546,7 @@ function updatePendingPriceListPrice(localId: string, priceCents: number) {
 }
 
 function getPendingCostCents(): number {
-  const costInput = formState.purchaseCost
-  return costInput ? decimalInputToCents(costInput) : 0
+  return moneyTextToCents(formState.purchaseCost) ?? 0
 }
 
 function isDefaultPriceList(priceListId: string): boolean {
@@ -1593,6 +1579,7 @@ function openTierPricesModal(priceListLocalId: string) {
   if (!list) return
 
   tierModalPriceListId.value = priceListLocalId
+  tierRowErrors.value = {}
   tierRows.value = list.tierPrices.map((tier) => ({
     key: tierRowKeyCounter++,
     minQuantity: tier.minQuantity,
@@ -1622,19 +1609,14 @@ function saveTierRows() {
   const list = pendingPriceLists.value.find((pl) => pl._localId === targetId)
   if (!list) return
 
-  const mapped = tierRows.value
-    .filter((row) => String(row.minQuantity).trim() !== '' && row.price.trim() !== '')
-    .map((row) => ({
-      minQuantity:
-        typeof row.minQuantity === 'string'
-          ? Number.parseInt(row.minQuantity, 10)
-          : row.minQuantity,
-      priceCents: decimalInputToCents(row.price),
-    }))
-    .filter((row) => Number.isFinite(row.minQuantity) && row.minQuantity >= 0)
-    .sort((a, b) => a.minQuantity - b.minQuantity)
-
-  list.tierPrices = mapped
+  const read = readTierRows(tierRows.value)
+  if ('errors' in read) {
+    tierRowErrors.value = read.errors
+    return
+  }
+  list.tierPrices = read.tiers.filter(
+    (row) => Number.isInteger(row.minQuantity) && row.minQuantity >= 0,
+  )
   closeTierPricesModal()
 }
 
@@ -1777,9 +1759,7 @@ function handleSubmitVariant(event: FormSubmitEvent<VariantFormState>) {
   }
 
   if (isCreateMode.value) {
-    const costCents = event.data.purchaseCost
-      ? decimalInputToCents(event.data.purchaseCost)
-      : null
+    const costCents = moneyTextToCents(event.data.purchaseCost)
 
     // Local CRUD for create mode
     if (editingVariantId.value) {
@@ -1820,9 +1800,7 @@ function handleSubmitVariant(event: FormSubmitEvent<VariantFormState>) {
     return
   }
 
-  const costCentsEdit = event.data.purchaseCost
-    ? decimalInputToCents(event.data.purchaseCost)
-    : undefined
+  const costCentsEdit = moneyTextToCents(event.data.purchaseCost) ?? undefined
 
   const payload: UpdateVariantPayload = {
     option,
@@ -1869,14 +1847,11 @@ function handleVariantImageModalOpenChange(isOpen: boolean) {
   isVariantImageModalOpen.value = isOpen
 }
 
-function handleInlineVariantPublicPriceBlur(variant: ProductVariant) {
+function handleInlineVariantPublicPriceBlur(variant: ProductVariant, nextPriceCents: number) {
   if (!canUpdateProduct.value) return
 
   const publicPrice = getPublicPrice(variant)
   if (!publicPrice) return
-
-  const rawInput = inlineVariantPublicPriceInputs[variant.id] ?? '0'
-  const nextPriceCents = decimalInputToCents(rawInput)
 
   if (nextPriceCents === publicPrice.priceCents) return
 
@@ -1973,7 +1948,7 @@ const variantTableRows = computed<ProductVariantRow[]>(() =>
         sku: pv.sku,
         barcode: pv.barcode,
         quantity: pv.quantity,
-        price: centsToDecimalInput(pv.publicPriceCents),
+        priceCents: pv.publicPriceCents,
         deleteName: pv.value || pv.option,
       }))
     : variantsList.value.map((variant) => ({
@@ -1982,7 +1957,7 @@ const variantTableRows = computed<ProductVariantRow[]>(() =>
         sku: variant.sku ?? '',
         barcode: variant.barcode ?? '',
         quantity: variant.quantity,
-        price: inlineVariantPublicPriceInputs[variant.id] ?? '',
+        priceCents: getPublicPrice(variant)?.priceCents ?? 0,
         deleteName: variant.name,
       })),
 )
@@ -1999,17 +1974,13 @@ function handleVariantQuantityUpdate(id: string, value: number | undefined) {
   if (pending) pending.quantity = value ?? 0
 }
 
-function handleVariantPriceUpdate(id: string, value: string) {
-  if (!isCreateMode.value) inlineVariantPublicPriceInputs[id] = value
-}
-
-function handleVariantPriceCommit(id: string, value: string) {
+function handleVariantPriceCommit(id: string, cents: number) {
   if (isCreateMode.value) {
-    setPendingVariantPublicPrice(id, decimalInputToCents(value))
+    setPendingVariantPublicPrice(id, cents)
     return
   }
   const variant = findSavedVariant(id)
-  if (variant) handleInlineVariantPublicPriceBlur(variant)
+  if (variant) handleInlineVariantPublicPriceBlur(variant, cents)
 }
 
 function handleVariantAction(key: string, id: string) {
@@ -2060,11 +2031,7 @@ function handlePendingPriceListAction(key: string, id: string) {
   else if (key === 'remove') removePendingPriceList(id)
 }
 
-const pendingVariantCostCents = computed(() =>
-  pendingVariantDetailState.purchaseCost
-    ? decimalInputToCents(pendingVariantDetailState.purchaseCost)
-    : 0,
-)
+const pendingVariantCostCents = computed(() => moneyTextToCents(pendingVariantDetailState.purchaseCost) ?? 0)
 
 const pendingVariantPriceRows = computed<ProductPriceRow[]>(() =>
   pendingVariantDetailState.prices.map((price) => ({
@@ -2622,7 +2589,6 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
               :can-update="canUpdateProduct"
               :can-delete="canDeleteProduct"
               @update-quantity="handleVariantQuantityUpdate"
-              @update-price="handleVariantPriceUpdate"
               @commit-price="handleVariantPriceCommit"
               @action="handleVariantAction"
             />
@@ -2799,12 +2765,25 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
             >
               <UInputNumber v-model="row.minQuantity" :min="0" class="w-full" />
               <span class="text-sm text-muted">o más</span>
-              <UInput
-                v-model="row.price"
-                inputmode="decimal"
-                placeholder="0.00"
-                class="w-full"
-              />
+              <div>
+                <UInput
+                  v-model="row.price"
+                  inputmode="decimal"
+                  placeholder="0.00"
+                  class="w-full"
+                  aria-label="Precio por unidad"
+                  :aria-invalid="tierRowErrors[row.key] ? 'true' : undefined"
+                  :aria-describedby="tierRowErrors[row.key] ? `tier-${row.key}-message` : undefined"
+                />
+                <p
+                  v-if="tierRowErrors[row.key]"
+                  :id="`tier-${row.key}-message`"
+                  class="hf-form-field__message"
+                  data-tone="error"
+                >
+                  {{ tierRowErrors[row.key] }}
+                </p>
+              </div>
               <UButton
                 type="button"
                 icon="i-lucide-trash"
@@ -2875,11 +2854,22 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                     inputmode="decimal"
                     class="w-full"
                     :ui="{ base: 'pl-7 pr-24' }"
+                    aria-label="Costo (del producto)"
+                    :aria-invalid="pendingVariantCostError ? 'true' : undefined"
+                    :aria-describedby="pendingVariantCostError ? 'pending-variant-cost-message' : undefined"
                   />
                   <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted"
                     >por Unidad</span
                   >
                 </div>
+                <p
+                  v-if="pendingVariantCostError"
+                  id="pending-variant-cost-message"
+                  class="hf-form-field__message"
+                  data-tone="error"
+                >
+                  {{ pendingVariantCostError }}
+                </p>
                 <p class="mt-1 text-xs text-muted">Ingresa un valor para definir costo propio de esta variante</p>
               </UFormField>
             </div>
@@ -2944,21 +2934,34 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                 <span class="shrink-0 text-xs text-muted">o más</span>
               </div>
 
-              <div class="relative">
-                <span
-                  class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
-                  >$</span
+              <div>
+                <div class="relative">
+                  <span
+                    class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
+                    >$</span
+                  >
+                  <UInput
+                    v-model="row.price"
+                    inputmode="decimal"
+                    class="w-full"
+                    :ui="{ base: 'pl-7 pr-24' }"
+                    aria-label="Precio por unidad"
+                    :aria-invalid="pendingVariantTierRowErrors[row.key] ? 'true' : undefined"
+                    :aria-describedby="pendingVariantTierRowErrors[row.key] ? `pending-tier-${row.key}-message` : undefined"
+                  />
+                  <span
+                    class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted"
+                    >por Unidad</span
+                  >
+                </div>
+                <p
+                  v-if="pendingVariantTierRowErrors[row.key]"
+                  :id="`pending-tier-${row.key}-message`"
+                  class="hf-form-field__message"
+                  data-tone="error"
                 >
-                <UInput
-                  v-model="row.price"
-                  inputmode="decimal"
-                  class="w-full"
-                  :ui="{ base: 'pl-7 pr-24' }"
-                />
-                <span
-                  class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted"
-                  >por Unidad</span
-                >
+                  {{ pendingVariantTierRowErrors[row.key] }}
+                </p>
               </div>
 
               <div class="flex justify-end md:justify-center">

@@ -26,6 +26,8 @@ S16. System-wide soft field borders, verbatim: "algo que tambien me molestaba de
 
 S17. Next work, verbatim: "Si hermano, por favor, una detas de la otra." Both proposals, in order: (1) migrate the product Identidad tab to the Hf* form patterns (consistent with Contenido); (2) a new refund settlement screen, designed on the canvas first.
 
+S18. Follow-ups, verbatim: "Si, adelante por favor." (1) The Ventas list must mark canceled sales as «Cancelada» instead of showing them as Pagada/No entregada. (2) Audit every money input (payments, caja, compras, products, promotions…) for comma-decimal and float parsing, the way the refund amount was read 100× («70,55» → $7,055.00), and fix them test-first.
+
 ## Tasks
 
 T1 [S2,S3] Inventory screens and dead code (explorer), research principles, and extend docs/design-system.md. Route: explore, then inline.
@@ -59,6 +61,11 @@ T20 [S17] Canceled sale detail (BE ae0e951):
 - Disable «Vendedor» and «Vencimiento», which now return 422 SALE_CANCELED.
 - The PDF returns 400 SALE_NOT_CONFIRMED, so hide it.
 Route: writer after T19.
+
+T21 [S18] The Ventas list marks canceled sales («Cancelada», neutral) and hides the payment and delivery badges that no longer apply. Route: writer.
+T22 [S18] Money input audit: a read-only explorer maps every money input and parser; then fixes go test-first with a shared parser. Route: explore, then writer.
+
+T23 [S15] Editorial «Publicar»: readiness (GET …/draft/readiness) feeds the section nav counts and an Issue checklist; HfSaveBar gets «Publicar» as the primary when clean and ready; publish V2 (POST) with Idempotency-Key, Editorial-Vocabulary-Revision, and Editorial-Care-Confirmation: review-v1 only for the Cuidado family after an explicit confirmation; NO_DRAFT after publishing means «Publicado». Contract: odd/handoff/05-editorial-publish-readiness.md (BE branch feat/editorial-publish-v2 on :3003, not on main yet). Route: writer.
 
 ## Log
 
@@ -179,3 +186,49 @@ L83. Delivered:
 - the run-tests queue;
 - the refund amount fix, verified by the independent verify.
 Final suite 772/13867, tc/build/dc 0. Merged to main.
+L84. T21 done (695cd645). T22a audit: 4 HIGH money paths, confirmed with @internationalized/number:
+- the app-wide `es` locale reads «70.55»→7055 and «1,234.50»→1.2345;
+- PaymentModal `es-MX` reads «70,55»→7055.
+
+Decision (parent, technical safety, one rule app-wide):
+- dot = decimal;
+- comma + exactly-3-digit groups = thousands;
+- a single comma + 1–2 trailing digits = decimal;
+- anything else is rejected;
+- exact integer math, no rounding of a 3rd decimal.
+
+Money UInputNumbers move to a shared HfMoneyInput; the app UApp locale becomes es-MX so quantities read «1.5» as 1.5.
+
+T22b split: part 1 = core parser + HfMoneyInput + locale + the sales/caja/admin/promotions/refunds sites; part 2 = the products price editors after T23 frees src/features/POS/products/**.
+L85. Rule clarified (the worker caught the contradiction): a single comma + 1–2 trailing digits is ALWAYS a decimal (`1,2`→1.20, `1234,50`→1234.50), refunds included. Rejected: several commas outside 3-digit groups, a leading-zero group (`0,100`), mixed forms. Accepting 1–2 digits after one comma is safe: it can never be a thousands group.
+L86. T23 browser check vs BE :3003 (after the BE build fix f5522a7):
+- the published croqueta shows «Publicado» plus «Empezar desde lo publicado»;
+- the cachorro draft: readiness 200, «Borrador · Faltan 18», a checklist with «Ir a…» links, Publicar disabled with «Completa lo pendiente para publicar».
+
+UX finding: 16 of 18 items are the same EVIDENCE_REQUIRED (D9 strict), a wall of repeated lines. Plan:
+- group the checklist by problem (always);
+- propose to the user a bulk «use the presentation source for all fields without a source» with a ConfirmModal (a provenance decision, so it needs the user's OK).
+
+PaymentModal tender verified: «70,55»→$70.55, «1,234.50»→$1,234.50, «0,100» and «12abc» give an error with Confirmar disabled.
+L87. BE (seq 47) on bulk evidence:
+- one PUT /products/:id/editorial/draft {expectedCycle, expectedRevision, document} replaces the whole document;
+- evidence {sourceRef 1–1000 chars, verifiedOn YYYY-MM-DD} only on known values;
+- the same evidence may repeat;
+- one malformed evidence fails the whole save (400);
+- the bulk action clears EVIDENCE_REQUIRED on known values without evidence, not invalid saved evidence, CARE_REVIEW_INCOMPLETE, REQUIRED_MISSING, UNRESOLVED or NA_NOT_ALLOWED;
+- fact evidence never substitutes value evidence;
+- there is no presentation-level source field: with several presentations the FE must let the user choose;
+- the BE recommends an explicit confirmation.
+Waiting for the user's OK.
+L88. Independent verify (money app-wide): FAIL on bypasses.
+- HIGH: PriceOverrideModal and QuotationPriceOverrideModal still use replace(',','.')+Number+Math.round.
+- PASS: the parser (all edge cases), same cents for valid inputs, invalid input never sends (PaymentModal canSubmit blocks on amountError).
+- LOW: a stale error after a remount in DebtPaymentModal and PromotionForm.
+- LOW: es-MX reads «1,5» in a quantity field as 15.
+The fix worker (T22c) is launched.
+L89. Re-verify of money fixes (81074b1d): PASS on all 4 (override modals via HfMoneyInput minCents 1 with Enter guarded; stale errors cleared; integer quantities refuse comma/dot; re-grep clean). Sales/quotations/promotions: 170 files, 3224 tests.
+L90. Delivered:
+- T21 «Cancelada» in the Ventas list, with «—» for delivery and debt;
+- T22 money parsing app-wide: a shared parser, HfMoneyInput, es-MX, every site, the override modals; the independent verify went FAIL→PASS;
+- T23 Publicar: readiness, the grouped checklist, one field count, published state, care confirmation.
+Clean suite 786/14138; tc, build and dc 0; assess high (money escalation), reviewDue false, independent verifier PASS. Merged to main. The bulk evidence shortcut waits on the user.

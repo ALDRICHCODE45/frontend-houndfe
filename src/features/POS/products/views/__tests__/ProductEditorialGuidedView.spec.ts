@@ -44,7 +44,7 @@ describe('guided standalone editorial workspace', () => {
     await wrapper.get('#editorial-title').setValue('  local 😀  ')
     expect((wrapper.get('#editorial-title').element as HTMLInputElement).value).toBe('  local 😀  ')
     expect(wrapper.get('form').isVisible()).toBe(true)
-    expect(http.get).toHaveBeenCalledTimes(3)
+    expect(http.get).toHaveBeenCalledTimes(4) // the coherent read and its readiness (T23)
     expect(http.get.mock.calls.map(call => call[0])).toEqual(expect.arrayContaining(['/products/p1/editorial', '/products/p1/editorial/context', '/catalog-editorial/vocabulary']))
     expect(http.put).not.toHaveBeenCalled()
     expect(http.post).not.toHaveBeenCalled()
@@ -81,7 +81,7 @@ describe('guided standalone editorial workspace', () => {
     expect(wrapper.get('[aria-labelledby="discard-title"]').isVisible()).toBe(true)
     await wrapper.get('[data-testid="cancel-discard"]').trigger('click')
     expect((wrapper.get('#editorial-title').element as HTMLInputElement).value).toBe('LOCAL')
-    expect(http.get).toHaveBeenCalledTimes(3)
+    expect(http.get).toHaveBeenCalledTimes(4) // the coherent read and its readiness (T23)
   })
   it('keeps global admin access without a tenant or operational Product permissions', async () => {
     auth.isSuperAdmin = true
@@ -89,7 +89,7 @@ describe('guided standalone editorial workspace', () => {
     auth.permissionCodes = []
     await render()
     expect(wrapper.get('form').isVisible()).toBe(true)
-    expect(http.get).toHaveBeenCalledTimes(3)
+    expect(http.get).toHaveBeenCalledTimes(4) // the coherent read and its readiness (T23)
     expect(http.post).not.toHaveBeenCalled()
   })
   it('shows the saved content to a read-only user and clears it on revoked editorial access', async () => {
@@ -100,7 +100,7 @@ describe('guided standalone editorial workspace', () => {
     auth.permissionCodes = []; await flushPromises()
     expect(wrapper.find('[data-field="title"]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('exact')
-    expect(http.get).toHaveBeenCalledTimes(3)
+    expect(http.get).toHaveBeenCalledTimes(4) // the coherent read and its readiness (T23)
   })
 })
 

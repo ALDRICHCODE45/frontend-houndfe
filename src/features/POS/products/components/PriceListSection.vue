@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import '../styles/products-plain-table.css'
+import '@/core/shared/components/form/hf-form.css'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { AxiosError } from 'axios'
 import { computed, reactive, ref, watch } from 'vue'
@@ -12,6 +13,14 @@ import { currencyFormatter } from '@/core/shared/utils/currency.utils'
 import { mapDomainError, type DomainApiError } from '@/core/shared/utils/error.utils'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
+import {
+  centsToDecimalInput,
+  moneyTextToCents,
+  optionalMoneyText,
+  readTierRows,
+  type TierRowInput,
+} from '../composables/useProductForm'
+import InlinePriceInput from './InlinePriceInput.vue'
 import type { PriceList, TierPriceInput, UpdatePriceListPayload } from '../interfaces/product.types'
 
 declare const useToast: () => {
@@ -45,30 +54,21 @@ const lists = computed(() => priceLists.value ?? [])
 
 // ── Inline price editing ──────────────────────────────────
 
-const inlinePriceInputs = reactive<Record<string, string>>({})
+// The last valid price committed inline per list, so a tiers save that
+// follows an inline edit carries it.
+const inlinePriceCents = reactive<Record<string, number>>({})
 
 function syncInlinePriceInputs(nextLists: PriceList[]) {
   const currentIds = new Set(nextLists.map((l) => l.id))
-  for (const id of Object.keys(inlinePriceInputs)) {
-    if (!currentIds.has(id)) delete inlinePriceInputs[id]
+  for (const id of Object.keys(inlinePriceCents)) {
+    if (!currentIds.has(id)) delete inlinePriceCents[id]
   }
   for (const list of nextLists) {
-    inlinePriceInputs[list.id] = centsToDecimal(list.priceCents)
+    inlinePriceCents[list.id] = list.priceCents
   }
 }
 
 watch(() => lists.value, syncInlinePriceInputs, { immediate: true })
-
-function centsToDecimal(cents: number): string {
-  return (Math.max(cents, 0) / 100).toFixed(2)
-}
-
-function decimalToCents(value: string): number {
-  const normalized = value.replace(',', '.').trim()
-  const parsed = Number.parseFloat(normalized)
-  if (!Number.isFinite(parsed)) return 0
-  return Math.round(parsed * 100)
-}
 
 // ── Modal state ────────────────────────────────────────────
 
@@ -90,15 +90,13 @@ function handleConfirm() {
   confirmState.value.open = false
 }
 
-const priceRegex = /^\d+(?:[.,]\d{1,2})?$/
-
 const formSchema = z.object({
   name: z
     .string({ required_error: 'El nombre es obligatorio' })
     .trim()
     .min(1, 'El nombre es obligatorio')
     .max(50, 'Máximo 50 caracteres'),
-  price: z.string().trim().default(''),
+  price: optionalMoneyText().default(''),
 })
 
 type FormState = z.infer<typeof formSchema>
@@ -110,13 +108,7 @@ const formState = reactive<FormState>({
 
 // ── Tier prices dynamic rows ───────────────────────────────
 
-interface TierRow {
-  key: number
-  minQuantity: number | string
-  price: string
-}
-
-const tierRows = ref<TierRow[]>([])
+const tierRows = ref<TierRowInput[]>([])
 let tierKeyCounter = 0
 
 function addTierRow() {
@@ -128,20 +120,14 @@ function removeTierRow(index: number) {
 }
 
 function buildTierPrices(): TierPriceInput[] {
-  return tierRows.value
-    .filter((row) => String(row.minQuantity).trim() !== '' && row.price.trim() !== '')
-    .map((row) => ({
-      minQuantity:
-        typeof row.minQuantity === 'string'
-          ? Number.parseInt(row.minQuantity, 10)
-          : row.minQuantity,
-      priceCents: decimalToCents(row.price),
-    }))
-    .sort((a, b) => a.minQuantity - b.minQuantity)
+  const read = readTierRows(tierRows.value)
+  return 'tiers' in read ? read.tiers : []
 }
 
 function tierRowsAreValid(): { valid: boolean; message?: string } {
-  const built = buildTierPrices()
+  const read = readTierRows(tierRows.value)
+  if ('errors' in read) return { valid: false, message: Object.values(read.errors)[0] }
+  const built = read.tiers
   const quantities = built.map((t) => t.minQuantity)
   const uniqueSet = new Set(quantities)
 
@@ -162,9 +148,6 @@ function tierRowsAreValid(): { valid: boolean; message?: string } {
     const qty = String(row.minQuantity).trim()
     if (qty !== '' && (Number.isNaN(Number(qty)) || Number(qty) < 0)) {
       return { valid: false, message: 'Las cantidades mínimas deben ser enteros >= 0.' }
-    }
-    if (row.price.trim() !== '' && !priceRegex.test(row.price.trim())) {
-      return { valid: false, message: 'Los precios de escala deben ser decimales válidos.' }
     }
   }
 
@@ -275,7 +258,7 @@ function handleSubmit(event: FormSubmitEvent<FormState>) {
   tierError.value = ''
 
   const tiers = buildTierPrices()
-  const priceCents = decimalToCents(event.data.price)
+  const priceCents = moneyTextToCents(event.data.price) ?? 0
 
   if (isEditing.value && editingList.value) {
     updateMutation.mutate({
@@ -290,10 +273,9 @@ function handleSubmit(event: FormSubmitEvent<FormState>) {
   }
 }
 
-function handleInlinePriceSave(list: PriceList) {
+function handleInlinePriceSave(list: PriceList, nextPriceCents: number) {
   if (!props.canUpdate) return
-  const rawInput = inlinePriceInputs[list.id] ?? centsToDecimal(list.priceCents)
-  const nextPriceCents = decimalToCents(rawInput)
+  inlinePriceCents[list.id] = nextPriceCents
   if (nextPriceCents === list.priceCents) return
 
   const tierPricesPayload =
@@ -322,22 +304,24 @@ function handleDeletePriceList(list: PriceList) {
 
 const isTierModalOpen = ref(false)
 const selectedList = ref<PriceList | null>(null)
-const tierModalRows = ref<TierRow[]>([])
+const tierModalRows = ref<TierRowInput[]>([])
+const tierModalErrors = ref<Record<number, string>>({})
 let tierModalKeyCounter = 0
 
 function openTierModal(list: PriceList) {
   selectedList.value = list
+  tierModalErrors.value = {}
   tierModalKeyCounter = 0
   tierModalRows.value = list.tierPrices.map((tier) => ({
     key: tierModalKeyCounter++,
     minQuantity: tier.minQuantity,
-    price: centsToDecimal(tier.priceCents),
+    price: centsToDecimalInput(tier.priceCents),
   }))
   if (tierModalRows.value.length === 0) {
     tierModalRows.value.push({
       key: tierModalKeyCounter++,
       minQuantity: 0,
-      price: centsToDecimal(list.priceCents),
+      price: centsToDecimalInput(list.priceCents),
     })
   }
   isTierModalOpen.value = true
@@ -361,16 +345,13 @@ function removeTierModalRow(index: number) {
 function handleSaveTierModal() {
   if (!props.canUpdate || !selectedList.value) return
 
-  const filledRows = tierModalRows.value
-    .filter((row) => String(row.minQuantity).trim() !== '' && row.price.trim() !== '')
-    .map((row) => ({
-      minQuantity:
-        typeof row.minQuantity === 'string'
-          ? Number.parseInt(row.minQuantity, 10)
-          : row.minQuantity,
-      priceCents: decimalToCents(row.price),
-    }))
-    .sort((a, b) => a.minQuantity - b.minQuantity)
+  const read = readTierRows(tierModalRows.value)
+  if ('errors' in read) {
+    tierModalErrors.value = read.errors
+    return
+  }
+  tierModalErrors.value = {}
+  const filledRows = read.tiers
 
   const hasInvalidQty = filledRows.some(
     (row) => !Number.isInteger(row.minQuantity) || row.minQuantity < 0,
@@ -394,14 +375,11 @@ function handleSaveTierModal() {
     return
   }
 
-  const currentPriceInput =
-    inlinePriceInputs[selectedList.value.id] ?? centsToDecimal(selectedList.value.priceCents)
-
   updateMutation.mutate(
     {
       priceListId: selectedList.value.id,
       payload: {
-        priceCents: decimalToCents(currentPriceInput),
+        priceCents: inlinePriceCents[selectedList.value.id] ?? selectedList.value.priceCents,
         tierPrices: filledRows,
       },
     },
@@ -488,23 +466,13 @@ function formatMarginAmount(list: PriceList): string {
                 <td class="px-4 py-3 font-semibold text-highlighted">{{ list.name }}</td>
 
                 <td class="px-4 py-3 text-right">
-                  <div class="relative ml-auto max-w-xs">
-                    <span
-                      class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
-                      >$</span
-                    >
-                    <UInput
-                      v-model="inlinePriceInputs[list.id]"
-                      class="w-full"
-                      inputmode="decimal"
-                      placeholder="0.00"
-                      :ui="{ base: 'hf-figure pl-7 text-right' }"
-                      :disabled="!canUpdate"
-                      :aria-label="`Precio de venta de ${list.name}, con impuestos incluidos`"
-                      @blur="handleInlinePriceSave(list)"
-                      @keyup.enter="handleInlinePriceSave(list)"
-                    />
-                  </div>
+                  <InlinePriceInput
+                    class="ml-auto max-w-xs"
+                    :price-cents="list.priceCents"
+                    :disabled="!canUpdate"
+                    :label="`Precio de venta de ${list.name}, con impuestos incluidos`"
+                    @commit="handleInlinePriceSave(list, $event)"
+                  />
                 </td>
 
                 <td
@@ -534,7 +502,7 @@ function formatMarginAmount(list: PriceList): string {
               <tr v-for="tier in list.tierPrices" :key="tier.id" class="bg-elevated/20">
                 <td class="py-2 pl-8 pr-4 text-sm text-muted">{{ tier.minQuantity }} o más</td>
                 <td class="hf-figure px-4 py-2 text-right text-sm">
-                  $ {{ centsToDecimal(tier.priceCents) }}
+                  $ {{ centsToDecimalInput(tier.priceCents) }}
                   <span class="text-xs text-muted">por unidad</span>
                 </td>
                 <td
@@ -711,21 +679,34 @@ function formatMarginAmount(list: PriceList): string {
               <span class="shrink-0 text-xs text-muted">o más</span>
             </div>
 
-            <div class="relative">
-              <span
-                class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
-                >$</span
+            <div>
+              <div class="relative">
+                <span
+                  class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
+                  >$</span
+                >
+                <UInput
+                  v-model="row.price"
+                  inputmode="decimal"
+                  class="w-full"
+                  :ui="{ base: 'pl-7 pr-24' }"
+                  :aria-label="`Precio por unidad, fila ${index + 1}`"
+                  :aria-invalid="tierModalErrors[row.key] ? 'true' : undefined"
+                  :aria-describedby="tierModalErrors[row.key] ? `list-tier-${row.key}-message` : undefined"
+                />
+                <span
+                  class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted"
+                  >por Unidad</span
+                >
+              </div>
+              <p
+                v-if="tierModalErrors[row.key]"
+                :id="`list-tier-${row.key}-message`"
+                class="hf-form-field__message"
+                data-tone="error"
               >
-              <UInput
-                v-model="row.price"
-                inputmode="decimal"
-                class="w-full"
-                :ui="{ base: 'pl-7 pr-24' }"
-              />
-              <span
-                class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted"
-                >por Unidad</span
-              >
+                {{ tierModalErrors[row.key] }}
+              </p>
             </div>
 
             <div class="flex justify-end md:justify-center">

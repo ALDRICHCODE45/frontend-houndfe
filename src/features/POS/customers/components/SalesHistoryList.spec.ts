@@ -144,4 +144,13 @@ describe('SalesHistoryList — pattern', () => {
     expect(total.classes()).toContain('hf-figure')
     expect(total.classes()).toContain('justify-self-end')
   })
+
+  // T21 [S18]: the same shared rule as the Ventas list.
+  it('shows a canceled sale as one neutral «Cancelada» with no pending debt', () => {
+    const w = mountList([makeSale({ status: 'CANCELED', paymentStatus: 'PARTIAL', debtCents: 25_000 })])
+    const badges = w.findAll('[data-testid="status-badge"]')
+    expect(badges.map(b => b.attributes('data-label'))).toEqual(['Cancelada'])
+    expect(badges[0]!.attributes('data-tone')).toBe('neutral')
+    expect(w.text()).not.toContain('pendiente')
+  })
 })

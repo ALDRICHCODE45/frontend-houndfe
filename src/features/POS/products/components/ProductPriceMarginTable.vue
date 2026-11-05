@@ -7,10 +7,11 @@ import '../styles/products-plain-table.css'
  * the owner stores the price and opens the tier-prices modal.
  *
  * Events:
- *   update-price(id, cents) — the price input lost focus with a value
+ *   update-price(id, cents) — the price input was left with a new valid
+ *                             amount (InlinePriceInput)
  *   action(key, id)         — tiers (Precios por cantidad) | remove (Quitar)
  */
-import { centsToDecimalInput, decimalInputToCents } from '../composables/useProductForm'
+import InlinePriceInput from './InlinePriceInput.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import ProductMarginFigure from './ProductMarginFigure.vue'
 
@@ -41,10 +42,6 @@ function actionsFor(row: ProductPriceRow): RowAction[] {
       : []),
   ]
 }
-
-function centsFromEvent(event: Event): number {
-  return decimalInputToCents((event.target as HTMLInputElement).value)
-}
 </script>
 
 <template>
@@ -66,21 +63,12 @@ function centsFromEvent(event: Event): number {
         <tr v-for="row in rows" :key="row.id">
           <td class="px-4 py-3 font-semibold text-highlighted">{{ row.name }}</td>
           <td class="px-4 py-3 text-right">
-            <div class="relative ml-auto max-w-[10rem]">
-              <span
-                class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
-                >$</span
-              >
-              <UInput
-                :model-value="centsToDecimalInput(row.priceCents)"
-                class="w-full"
-                inputmode="decimal"
-                placeholder="0.00"
-                :ui="{ base: 'hf-figure pl-7 text-right' }"
-                :aria-label="`Precio de venta de ${row.name}, con impuestos incluidos`"
-                @blur="emit('update-price', row.id, centsFromEvent($event))"
-              />
-            </div>
+            <InlinePriceInput
+              class="ml-auto max-w-[10rem]"
+              :price-cents="row.priceCents"
+              :label="`Precio de venta de ${row.name}, con impuestos incluidos`"
+              @commit="emit('update-price', row.id, $event)"
+            />
           </td>
           <td class="px-4 py-3 text-right">
             <ProductMarginFigure :price-cents="row.priceCents" :cost-cents="costCents" kind="percent" />
