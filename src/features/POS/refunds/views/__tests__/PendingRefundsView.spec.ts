@@ -209,4 +209,3 @@ describe('PendingRefundsView', () => {
     expect(list.lastOptions!.search.value).toBe('')
   })
 })
-

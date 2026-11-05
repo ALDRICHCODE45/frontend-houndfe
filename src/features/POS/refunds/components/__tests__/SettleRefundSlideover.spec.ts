@@ -229,4 +229,3 @@ describe('SettleRefundSlideover', () => {
     expect(open.value).toBe(true)
   })
 })
-
