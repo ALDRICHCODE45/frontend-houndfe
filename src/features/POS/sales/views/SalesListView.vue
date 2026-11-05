@@ -348,6 +348,8 @@ watch(() => filtersCtl.serializedState.value, () => {
               data-testid="sale-delivery-status"
               v-bind="saleDeliveryBadge(row.original)!"
             />
+            <!-- An empty slot lets the table render the raw accessor value («PENDING»). -->
+            <span v-else data-testid="sale-delivery-none" class="text-muted">—</span>
           </template>
 
           <template #cashier-cell="{ row }">

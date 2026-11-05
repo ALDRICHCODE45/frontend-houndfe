@@ -604,6 +604,13 @@ describe('SalesListView', () => {
       expect(badge.attributes('aria-label')).toBe('Estado: Cancelada')
     })
 
+    it('fills the empty delivery cell with «—» so the table never falls back to the raw status', () => {
+      // An empty slot let Nuxt UTable render the accessor value: «PENDING» showed in the browser.
+      mockState.data.value = [canceledRow]
+      const cell = mountSalesList().get('[data-testid="sale-delivery-none"]')
+      expect(cell.text()).toBe('—')
+    })
+
     it('shows one neutral «Cancelada» and no payment, delivery or debt in the mobile card', () => {
       mockState.data.value = [canceledRow]
       const card = mountSalesList().get('[data-testid="sale-card"]')
