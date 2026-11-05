@@ -201,3 +201,12 @@ Money UInputNumbers move to a shared HfMoneyInput; the app UApp locale becomes e
 
 T22b split: part 1 = core parser + HfMoneyInput + locale + the sales/caja/admin/promotions/refunds sites; part 2 = the products price editors after T23 frees src/features/POS/products/**.
 L85. Rule clarified (the worker caught the contradiction): a single comma + 1–2 trailing digits is ALWAYS a decimal (`1,2`→1.20, `1234,50`→1234.50), refunds included. Rejected: several commas outside 3-digit groups, a leading-zero group (`0,100`), mixed forms. Accepting 1–2 digits after one comma is safe: it can never be a thousands group.
+L86. T23 browser check vs BE :3003 (after the BE build fix f5522a7):
+- the published croqueta shows «Publicado» plus «Empezar desde lo publicado»;
+- the cachorro draft: readiness 200, «Borrador · Faltan 18», a checklist with «Ir a…» links, Publicar disabled with «Completa lo pendiente para publicar».
+
+UX finding: 16 of 18 items are the same EVIDENCE_REQUIRED (D9 strict), a wall of repeated lines. Plan:
+- group the checklist by problem (always);
+- propose to the user a bulk «use the presentation source for all fields without a source» with a ConfirmModal (a provenance decision, so it needs the user's OK).
+
+PaymentModal tender verified: «70,55»→$70.55, «1,234.50»→$1,234.50, «0,100» and «12abc» give an error with Confirmar disabled.
