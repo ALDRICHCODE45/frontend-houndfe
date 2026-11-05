@@ -220,3 +220,9 @@ L87. BE (seq 47) on bulk evidence:
 - there is no presentation-level source field: with several presentations the FE must let the user choose;
 - the BE recommends an explicit confirmation.
 Waiting for the user's OK.
+L88. Independent verify (money app-wide): FAIL on bypasses.
+- HIGH: PriceOverrideModal and QuotationPriceOverrideModal still use replace(',','.')+Number+Math.round.
+- PASS: the parser (all edge cases), same cents for valid inputs, invalid input never sends (PaymentModal canSubmit blocks on amountError).
+- LOW: a stale error after a remount in DebtPaymentModal and PromotionForm.
+- LOW: es-MX reads «1,5» in a quantity field as 15.
+The fix worker (T22c) is launched.
