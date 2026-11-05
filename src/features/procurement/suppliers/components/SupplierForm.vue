@@ -52,8 +52,9 @@ function submit() {
 .supplier-form { display: grid; gap: 24px; color: var(--hf-ink); }
 .supplier-field { display: grid; gap: 8px; min-width: 0; }
 .supplier-field label { font-weight: 600; font-size: 14px; }
-.supplier-field input, .supplier-field textarea { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--hf-field-border); border-radius: var(--hf-radius-control); background: var(--hf-field); color: var(--hf-ink); font: inherit; }
+.supplier-field input, .supplier-field textarea { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-control); background: var(--hf-field); color: var(--hf-ink); font: inherit; }
 .supplier-field textarea { resize: vertical; }
+.supplier-field input:hover:not(:disabled), .supplier-field textarea:hover:not(:disabled) { border-color: var(--hf-field-border); }
 .optional { color: var(--hf-muted); font-size: 13px; }
 .supplier-count { font-size: 12px; font-weight: 600; color: var(--hf-warning); text-align: right; }
 .supplier-count.at-limit { color: var(--hf-danger); }

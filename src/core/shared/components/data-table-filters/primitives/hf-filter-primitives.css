@@ -9,9 +9,16 @@
   font-family: var(--hf-font);
 }
 
-/* Form errors keep Nuxt's semantic error ring instead of the neutral field. */
-.hf-ui .hf-filter-control:is(button, input):not([aria-invalid='true']),
-.hf-ui .hf-filter-control input:not([aria-invalid='true']) {
+/* Soft rest borders, like every field: --hf-border at rest, --hf-field-border
+ * on hover. Form errors keep Nuxt's semantic error ring and focus keeps
+ * Nuxt's focus ring, so neither state is repainted here. */
+.hf-ui .hf-filter-control:is(button, input):not([aria-invalid='true']):not(:focus-visible, .hf-filter-active),
+.hf-ui .hf-filter-control input:not([aria-invalid='true']):not(:focus-visible) {
+  --tw-ring-color: var(--hf-border);
+}
+
+.hf-ui .hf-filter-control:is(button, input):hover:not([aria-invalid='true']):not(:focus-visible, :disabled, .hf-filter-active),
+.hf-ui .hf-filter-control input:hover:not([aria-invalid='true']):not(:focus-visible, :disabled) {
   --tw-ring-color: var(--hf-field-border);
 }
 

@@ -68,7 +68,8 @@
 /* A truncated picker value has a min-content width of its full text; keep the
    field track and its wrappers from growing to it. */
 .purchase-orders-portal .order-field > * { min-width: 0; }
-.purchase-orders-portal .order-field :where(input, textarea, select) { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--hf-field-border); border-radius: 6px; padding: 8px 12px; background: var(--hf-field); color: var(--hf-ink); font: inherit; font-weight: 400; }
+.purchase-orders-portal .order-field :where(input, textarea, select) { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--hf-border); border-radius: 6px; padding: 8px 12px; background: var(--hf-field); color: var(--hf-ink); font: inherit; font-weight: 400; }
+.purchase-orders-portal .order-field :where(input, textarea, select):hover:not(:disabled, :focus-visible, [aria-invalid='true']) { border-color: var(--hf-field-border); }
 .purchase-orders-portal .order-counter { justify-self: end; color: var(--hf-warning); font-size: 12px; font-weight: 600; }
 .purchase-orders-portal .order-counter.is-limit { color: var(--hf-danger); }
 .purchase-orders-portal .order-empty { color: var(--hf-muted); font-size: 13px; }
