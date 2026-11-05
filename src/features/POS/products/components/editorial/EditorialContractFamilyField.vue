@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
-import EditorialSelect from './EditorialSelect.vue'
+import HfCombobox from '@/core/shared/components/form/HfCombobox.vue'
+import HfFormField from '@/core/shared/components/form/HfFormField.vue'
 import { requestEditorialFamilyChange, type EditorialDocumentEditingState } from '../../utils/editorial-contract-document-editing'
 
 /** Controlled family choice only. Caller owns raw document and qualified families.
@@ -17,12 +18,13 @@ const selection = computed(() => props.modelValue.familyCode === null ? 'none'
 const items = computed(() => [{ label: 'Sin familia', value: 'none' },
   ...(selection.value === 'unavailable' ? [{ label: `${props.modelValue.familyCode} (No disponible)`, value: 'unavailable', disabled: true }] : []),
   ...choices.value.map(choice => ({ label: choice.label, value: choice.value }))])
-const described = computed(() => [props.issue ? `${props.id}-issue` : '', selection.value === 'unavailable' ? `${props.id}-unavailable` : ''].filter(Boolean).join(' ') || undefined)
+const notice = computed(() => (selection.value === 'unavailable' ? 'No disponible en las familias actuales. La selección existente se conserva.' : ''))
+const described = computed(() => (props.issue || notice.value ? `${props.id}-label-message` : undefined))
 // The family waiting for the modal's answer: null (no family) is a real target, so "none pending" is undefined.
 const pending = shallowRef<{ familyCode: string | null } | undefined>(undefined)
 const asking = computed({ get: () => pending.value !== undefined, set: open => { if (!open) pending.value = undefined } })
-function changed(raw: string | undefined) {
-  if (props.disabled || raw === undefined) return
+function changed(raw: string | string[] | null | undefined) {
+  if (props.disabled || typeof raw !== 'string') return
   const choice = choices.value.find(choice => choice.value === raw)
   if (raw !== 'none' && !choice) return
   const familyCode = raw === 'none' ? null : choice!.code
@@ -41,19 +43,18 @@ function confirmed() {
 
 <template>
   <div class="family-field">
-    <label :for="id" class="label">Familia</label>
-    <EditorialSelect :id="id" class="control" label="Familia" :items="items" :model-value="selection" :disabled="disabled"
-      :describedby="described" :invalid="!!issue" @update:model-value="changed" />
-    <p v-if="selection === 'unavailable'" :id="`${id}-unavailable`" class="notice">No disponible en las familias actuales. La selección existente se conserva.</p>
-    <p v-if="issue" :id="`${id}-issue`" class="notice" role="status">{{ issue }}</p>
+    <HfFormField label="Familia" :label-id="`${id}-label`" :help="notice || undefined" :error="issue">
+      <HfCombobox :id="id" label="Familia" :items="items" :model-value="selection" :disabled="disabled"
+        :describedby="described" :invalid="!!issue" @update:model-value="changed" />
+    </HfFormField>
+    <!-- The error takes the field's message line; the note on an unavailable family stays visible under it. -->
+    <p v-if="issue && notice" class="notice">{{ notice }}</p>
     <ConfirmModal v-model:open="asking" title="¿Cambiar la familia?" description="Se borran los datos de la familia actual en este borrador."
       confirm-label="Cambiar familia" confirm-color="error" :ui="{ content: 'hf-theme hf-ui' }" @confirm="confirmed" />
   </div>
 </template>
 
 <style scoped>
-.family-field { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; color: var(--hf-ink); }
-.label { margin: 0; color: var(--hf-muted); font-size: 13px; font-weight: 500; white-space: nowrap; }
-.control { width: auto; min-width: 11rem; max-width: 100%; }
-.notice { flex-basis: 100%; margin: 0; overflow-wrap: anywhere; font-size: 13px; line-height: 1.4; color: var(--hf-warning); }
+.family-field { display: grid; gap: 4px; min-width: 0; max-width: 24rem; color: var(--hf-ink); }
+.notice { margin: 0; overflow-wrap: anywhere; color: var(--hf-muted); font-size: 12px; }
 </style>

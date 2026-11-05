@@ -1,9 +1,9 @@
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, shallowRef } from 'vue'
 import { mount } from '@vue/test-utils'
 import UApp from '@nuxt/ui/runtime/components/App.vue'
 import Field from '../EditorialContractFamilyField.vue'
-import { EditorialSelectStub, stubEditorialSelect } from './editorialSelectStub'
+import HfCombobox from '@/core/shared/components/form/HfCombobox.vue'
 import type { EditorialDocumentEditingState as State } from '../../../utils/editorial-contract-document-editing'
 
 const fixture = (): State => ({ schemaVersion: 2, commercialTitle: ' Título ', description: null, mediaRefs: ['m'], familyCode: 'care',
@@ -12,7 +12,6 @@ const fixture = (): State => ({ schemaVersion: 2, commercialTitle: ' Título ', 
 const families = [{ code: 'care', label: 'Cuidado' }, { code: 'hygiene', label: 'Higiene' }, { code: 'none', label: '<img src=x>' }]
 const tick = () => new Promise(resolve => setTimeout(resolve, 60))
 const stops: (() => void)[] = []
-beforeAll(stubEditorialSelect)
 afterEach(() => { stops.splice(0).forEach(stop => stop()); vi.restoreAllMocks(); document.body.innerHTML = '' })
 function freeze<T>(value: T): T { if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value) }; return value }
 function render(initial = fixture(), disabled = false) {
@@ -24,19 +23,21 @@ function render(initial = fixture(), disabled = false) {
 }
 const dialog = () => document.querySelector<HTMLElement>('[role="dialog"]')
 const button = (label: string) => Array.from(document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')).find(item => item.textContent?.trim() === label)
-const value = (wrapper: ReturnType<typeof render>['wrapper']) => (wrapper.get('#family').element as HTMLSelectElement).value
-async function choose(wrapper: ReturnType<typeof render>['wrapper'], selected: string) { await wrapper.get('#family').setValue(selected); await tick() }
+const value = (wrapper: ReturnType<typeof render>['wrapper']) => wrapper.getComponent(HfCombobox).props('modelValue')
+async function choose(wrapper: ReturnType<typeof render>['wrapper'], selected: string) { wrapper.getComponent(HfCombobox).vm.$emit('update:modelValue', selected); await tick() }
 
 describe('controlled family selector', () => {
-  it('is a Nuxt UI list named "Familia" with the families, and "Sin familia" for none', () => {
+  it('is the shared combobox named "Familia" with the families, and "Sin familia" for none', () => {
     const { wrapper } = render()
-    const select = wrapper.getComponent(EditorialSelectStub)
+    const select = wrapper.getComponent(HfCombobox)
     expect(select.props('label')).toBe('Familia')
     expect(select.props('items')).toEqual([{ label: 'Sin familia', value: 'none' }, { label: 'Cuidado', value: '0' }, { label: 'Higiene', value: '1' }, { label: '<img src=x>', value: '2' }])
     expect(select.props('modelValue')).toBe('0')
     expect(select.props('invalid')).toBe(true)
-    expect(select.props('describedby')).toBe('family-issue')
-    expect(wrapper.get('label').attributes('for')).toBe('family')
+    expect(select.props('describedby')).toBe('family-label-message')
+    expect(select.props('id')).toBe('family')
+    expect(wrapper.get('#family-label').text()).toBe('Familia')
+    expect(wrapper.get('#family-label-message').text()).toBe('<img src=x> Revisar')
   })
 
   it.each(['1', 'none'])('asks in a modal and never with window.confirm; cancelling %s keeps the family, the raw document and the selection', async selected => {
@@ -106,7 +107,7 @@ describe('controlled family selector', () => {
   it('keeps an unavailable historical family as a disabled, selected item with its note', async () => {
     const initial = fixture(), { wrapper, state, choices, events, remount } = render(initial)
     choices.value = []; await nextTick(); await remount()
-    const select = wrapper.getComponent(EditorialSelectStub)
+    const select = wrapper.getComponent(HfCombobox)
     expect(select.props('modelValue')).toBe('unavailable')
     expect(select.props('items')).toContainEqual({ label: 'care (No disponible)', value: 'unavailable', disabled: true })
     expect(wrapper.text()).toContain('No disponible en las familias actuales')
@@ -115,14 +116,14 @@ describe('controlled family selector', () => {
 
   it('ignores a token that is not an offered family and keeps the current selection', async () => {
     const initial = fixture(), { wrapper, state, events } = render(initial)
-    for (const token of ['unavailable', '999', '0.5', undefined]) { wrapper.getComponent(EditorialSelectStub).vm.$emit('update:modelValue', token); await tick() }
+    for (const token of ['unavailable', '999', '0.5', undefined, null, ['1']]) { wrapper.getComponent(HfCombobox).vm.$emit('update:modelValue', token); await tick() }
     expect(state.value).toBe(initial); expect(events).toEqual([]); expect(dialog()).toBeNull()
   })
 
   it('blocks a disabled field even for a synthetic pick', async () => {
     const initial = fixture(), { wrapper, state, events } = render(initial, true)
-    expect(wrapper.getComponent(EditorialSelectStub).props('disabled')).toBe(true)
-    wrapper.getComponent(EditorialSelectStub).vm.$emit('update:modelValue', '1'); await tick()
+    expect(wrapper.getComponent(HfCombobox).props('disabled')).toBe(true)
+    wrapper.getComponent(HfCombobox).vm.$emit('update:modelValue', '1'); await tick()
     expect(state.value).toBe(initial); expect(events).toEqual([]); expect(dialog()).toBeNull()
   })
 })

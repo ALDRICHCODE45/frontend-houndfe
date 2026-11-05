@@ -38,7 +38,8 @@ describe('guided standalone editorial workspace', () => {
     expect(wrapper.findAll('main')).toHaveLength(1)
     expect(wrapper.findAll('h1')).toHaveLength(1)
     expect(wrapper.findAllComponents(EditorialWorkspace)).toHaveLength(1)
-    expect(wrapper.find('nav').exists()).toBe(false)
+    // The only navigation is the index of the section cards.
+    expect(wrapper.findAll('nav').map(item => item.attributes('aria-label'))).toEqual(['Secciones del contenido'])
     expect(wrapper.findAll('button').some(item => ['Contenido', 'Revisar'].includes(item.text()))).toBe(false)
     await wrapper.get('#editorial-title').setValue('  local 😀  ')
     expect((wrapper.get('#editorial-title').element as HTMLInputElement).value).toBe('  local 😀  ')
@@ -48,24 +49,24 @@ describe('guided standalone editorial workspace', () => {
     expect(http.put).not.toHaveBeenCalled()
     expect(http.post).not.toHaveBeenCalled()
   })
-  it('has no private summary aside: the footer is the only place that says what is saved', async () => {
+  it('has no private summary aside: the save bar is the only place that says what is saved', async () => {
     http.put.mockResolvedValue(success(state({ ...document(), commercialTitle: 'ACK ONLY' }, 99)))
     await render()
     expect(wrapper.find('[aria-label="Resumen editorial privado"]').exists()).toBe(false)
     expect(wrapper.text()).not.toMatch(/Resumen editorial|Acuse histórico|Revisión consultada/)
     await wrapper.get('#editorial-title').setValue('LOCAL ONLY')
-    expect(wrapper.get('.editorial-save-state').text()).toBe('Cambios sin guardar')
+    expect(wrapper.get('.hf-save-bar__status').text()).toBe('1 cambio sin guardar')
     http.get.mockImplementation((url: string) => Promise.resolve(url.includes('vocabulary') ? { ...success(), data: vocabularyEnvelope() }
       : url.endsWith('/context') ? { status: 200, data: { variants: [] } } : success(state({ ...document(), commercialTitle: 'LOCAL ONLY' }, 4))))
     await wrapper.get('form').trigger('submit'); await flushPromises()
-    expect(wrapper.get('.editorial-save-state').text()).toMatch(/^Guardado/)
+    expect(wrapper.get('.hf-save-bar__status').text()).toMatch(/^Guardado/)
     expect(wrapper.text()).not.toContain('ACK ONLY')
   })
   it('keeps validation next to the title without losing the invalid input', async () => {
     await render()
     await wrapper.get('#editorial-title').setValue('x'.repeat(201))
     await wrapper.get('form').trigger('submit'); await flushPromises()
-    expect(wrapper.get('#editorial-title-issue').text()).toBe('El título es demasiado largo. El máximo es 200 caracteres.')
+    expect(wrapper.get('#editorial-title-message').text()).toBe('El título es demasiado largo. El máximo es 200 caracteres.')
     expect(wrapper.get('#editorial-title').attributes('aria-invalid')).toBe('true')
     expect((wrapper.get('#editorial-title').element as HTMLInputElement).value).toBe('x'.repeat(201))
     expect(http.put).not.toHaveBeenCalled()
@@ -115,7 +116,7 @@ describe('guided editorial view — review round 1', () => {
   it('does not stack a second page title over the workspace heading', async () => {
     await render()
     const h2s = wrapper.findAll('h2').map(item => item.text())
-    expect(h2s.filter(text => text === 'Contenido editorial')).toHaveLength(1)
+    expect(h2s.filter(text => text === 'Contenido')).toHaveLength(1)
     expect(wrapper.find('.hf-page-subtitle').exists()).toBe(false)
   })
 })
@@ -147,12 +148,12 @@ describe('guided editorial view — review round 2', () => {
     expect(wrapper.text()).not.toContain('Consultar y cargar borrador')
   })
 
-  it('shows no developer cycle line and keeps the workspace heading out of sight under the product title', async () => {
+  it('shows no developer cycle line, and the workspace heading is the calm «Contenido» under the product title', async () => {
     await render()
     expect(wrapper.text()).not.toContain('Ciclo editorial')
     const heading = wrapper.get('#editorial-workspace-title')
     expect(heading.element.tagName).toBe('H2')
-    expect(heading.classes()).toContain('sr-only')
+    expect(heading.text()).toBe('Contenido')
     expect(wrapper.find('[data-testid="refresh-retain"]').exists()).toBe(false)
   })
 

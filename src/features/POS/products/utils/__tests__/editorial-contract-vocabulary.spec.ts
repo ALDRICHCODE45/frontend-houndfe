@@ -237,3 +237,41 @@ describe('definition description (optional help text)', () => {
     expect(decode(withDescription(description))).toBeNull()
   })
 })
+
+describe('decodeEditorialContractVocabulary attribute sections (L75)', () => {
+  const sections = [{ code: 'who', label: ' Para quién ', sortOrder: 10 }, { code: 'what', label: 'Qué es', sortOrder: 30 }]
+  const sectioned = (familyPatch: Record<string, unknown> = {}, bindingPatch: Record<string, unknown> = {}) => ({
+    ...vocabulary, families: [{ ...family, sections, ...familyPatch, bindings: [{ ...binding, sectionCode: 'who', sectionSortOrder: 2, ...bindingPatch }] }],
+  })
+
+  it('keeps the family sections and the binding section keys, gaps in sortOrder included', () => {
+    const raw = sectioned()
+    expect(decode(raw)).toEqual(raw)
+  })
+
+  it('accepts the starter family with every section key omitted', () => {
+    const decoded = decode(vocabulary)
+    expect(decoded?.families[0]).not.toHaveProperty('sections')
+    expect(decoded?.families[0]!.bindings[0]).not.toHaveProperty('sectionCode')
+  })
+
+  it('accepts a binding with no section inside a sectioned family', () => {
+    const raw = { ...vocabulary, families: [{ ...family, sections }] }
+    expect(decode(raw)).toEqual(raw)
+  })
+
+  it.each([
+    ['null sections', { sections: null }, {}],
+    ['a section with extras', { sections: [{ ...sections[0], extra: 1 }] }, {}],
+    ['a blank section code', { sections: [{ ...sections[0], code: ' ' }] }, {}],
+    ['a blank section label', { sections: [{ ...sections[0], label: '' }] }, {}],
+    ['a fractional section sortOrder', { sections: [{ ...sections[0], sortOrder: 1.5 }] }, {}],
+    ['a section with no sortOrder', { sections: [{ code: 'who', label: 'Para quién' }] }, {}],
+    ['a null sectionCode', {}, { sectionCode: null }],
+    ['a blank sectionCode', {}, { sectionCode: '' }],
+    ['a null sectionSortOrder', {}, { sectionSortOrder: null }],
+    ['a string sectionSortOrder', {}, { sectionSortOrder: '2' }],
+  ])('rejects %s', (_name, familyPatch, bindingPatch) => {
+    expect(decode(sectioned(familyPatch, bindingPatch))).toBeNull()
+  })
+})

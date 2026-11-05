@@ -1,0 +1,10 @@
+{
+  "title": "Contenido del producto · v3",
+  "brief": "Rediseño completo de la pestaña Contenido: sin chips de estado, controles modernos (combobox con búsqueda), grupos con sentido y barra de guardado limpia. Ver BRIEF.md.",
+  "feature": "odd/tasks/system-redesign.md",
+  "artboards": [
+    { "file": "01-property-list.html", "title": "Lista de propiedades", "tradeoff": "La más limpia y moderna (estilo Linear/Notion): los valores se leen como texto y se editan en el lugar; menos obvio que cada fila es editable", "width": 1440, "height": 900 },
+    { "file": "02-section-cards.html", "title": "Secciones en dos columnas", "tradeoff": "Formulario familiar y ordenado (estilo Shopify) con índice lateral; ocupa más alto de página", "width": 1440, "height": 900 },
+    { "file": "03-focus-queue.html", "title": "Primero lo que falta", "tradeoff": "Te lleva directo a lo pendiente y resume lo completo; menos cómodo para revisar todo de un vistazo", "width": 1440, "height": 900 }
+  ]
+}

@@ -23,7 +23,7 @@ describe('editorial workspace presentation boundary', () => {
     wrapper = mount(EditorialWorkspace, { attachTo: document.body, props: { productId: 'p1' } })
     await flushPromises()
     expect(wrapper.element.tagName).toBe('MAIN')
-    expect(wrapper.get('h1').text()).toBe('Contenido editorial')
+    expect(wrapper.get('h1').text()).toBe('Contenido')
     expect(wrapper.get('#editorial-form').isVisible()).toBe(true)
     expect(wrapper.find('.editorial-state').exists()).toBe(false)
     expect(http.get).toHaveBeenCalledTimes(3)
@@ -35,7 +35,7 @@ describe('editorial workspace presentation boundary', () => {
     expect(wrapper.element.tagName).toBe('SECTION')
     expect(wrapper.find('h1').exists()).toBe(false)
     expect(wrapper.get('#editorial-workspace-title').element.tagName).toBe('H2')
-    expect(wrapper.get('#editorial-workspace-title').classes()).toContain('sr-only')
+    expect(wrapper.get('#editorial-workspace-title').text()).toBe('Contenido')
     expect(wrapper.attributes('aria-labelledby')).toBe('editorial-workspace-title')
   })
 

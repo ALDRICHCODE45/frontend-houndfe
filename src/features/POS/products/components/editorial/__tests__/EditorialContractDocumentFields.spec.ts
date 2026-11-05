@@ -86,38 +86,39 @@ describe('document fields', () => {
 })
 
 describe('document field limits', () => {
-  it('shows no counter far from the limit', () => {
-    expect(render(initial({ commercialTitle: 'x'.repeat(179), description: 'y'.repeat(100) })).wrapper.find('.counter').exists()).toBe(false)
+  const hint = (wrapper: ReturnType<typeof render>['wrapper'], id: string) => wrapper.get(`label[for="${id}"]`).element.closest('.hf-form-field__row')!.querySelector('.hf-form-field__hint')!.textContent
+  it('counts the title and the description against their real limits: «N de 200», «N de 20,000»', () => {
+    const { wrapper } = render(initial({ commercialTitle: 'x'.repeat(42), description: 'y'.repeat(100) }))
+    expect(hint(wrapper, 'document-title')).toBe('42 de 200')
+    expect(hint(wrapper, 'document-description')).toBe('100 de 20,000')
   })
 
-  it('shows the counter from 90% of the title limit and marks the limit', async () => {
-    const { wrapper } = render(initial({ commercialTitle: 'x'.repeat(180) }))
-    expect(wrapper.get('.counter').text()).toBe('180 / 200')
-    expect(wrapper.get('.counter').attributes('aria-live')).toBe('polite')
-    expect(wrapper.get('.counter').attributes('data-over')).toBe('false')
-    expect(render(initial({ commercialTitle: 'x'.repeat(200) })).wrapper.get('.counter').attributes('data-over')).toBe('true')
+  it('counts an empty title as zero, never as "null"', () => {
+    expect(hint(render().wrapper, 'document-title')).toBe('0 de 200')
   })
 
   it('counts characters, not UTF-16 units', () => {
-    expect(render(initial({ commercialTitle: '😀'.repeat(180) })).wrapper.get('.counter').text()).toBe('180 / 200')
+    expect(hint(render(initial({ commercialTitle: '😀'.repeat(180) })).wrapper, 'document-title')).toBe('180 de 200')
   })
 
-  it('shows the description counter from 18,000 of 20,000', () => {
-    expect(render(initial({ description: 'y'.repeat(18000) })).wrapper.get('.counter').text()).toBe('18,000 / 20,000')
+  it('marks a title over the limit as invalid without cutting it', () => {
+    const { wrapper } = render(initial({ commercialTitle: 'x'.repeat(201) }))
+    expect(wrapper.get('#document-title').attributes('aria-invalid')).toBe('true')
+    expect(wrapper.get('#document-title').element).toHaveProperty('value', 'x'.repeat(201))
   })
 
   it('puts a title issue next to the title with aria-invalid, linked by aria-describedby', () => {
     const { wrapper } = render(initial({ commercialTitle: 'x'.repeat(201) }), { titleIssue: 'El título es demasiado largo. El máximo es 200 caracteres.' })
     const title = wrapper.get('#document-title')
     expect(title.attributes('aria-invalid')).toBe('true')
-    expect(title.attributes('aria-describedby')).toBe('document-title-issue')
-    expect(wrapper.get('#document-title-issue').text()).toContain('máximo es 200')
+    expect(title.attributes('aria-describedby')).toBe('document-title-message')
+    expect(wrapper.get('#document-title-message').text()).toContain('máximo es 200')
     expect(wrapper.get('#document-description').attributes('aria-invalid')).toBeUndefined()
   })
 
   it('puts a description issue next to the description', () => {
     const { wrapper } = render(initial(), { descriptionIssue: 'La descripción es demasiado larga.' })
     expect(wrapper.get('#document-description').attributes('aria-invalid')).toBe('true')
-    expect(wrapper.get('#document-description-issue').text()).toContain('demasiado larga')
+    expect(wrapper.get('#document-description-message').text()).toContain('demasiado larga')
   })
 })

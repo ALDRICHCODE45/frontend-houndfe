@@ -32,21 +32,31 @@ const bindingPolicySchema = z.discriminatedUnion('route', [
   z.object({ route: z.literal('option_cases'), cases: z.array(policyCaseSchema) }).strict(),
   z.object({ route: z.literal('fact_rule'), rule: factRuleSchema }).strict(),
 ])
+const safeInteger = z.number().finite().refine(Number.isSafeInteger)
 const bindingSchema = z.object({
   definitionId: nonblankString,
   definitionCode: nonblankString,
   owner: z.enum(['product', 'sellable']),
-  sortOrder: z.number().finite().refine(Number.isSafeInteger),
+  sortOrder: safeInteger,
   exposure: z.enum(['INTERNAL', 'DETAIL', 'FACET']),
   searchable: z.boolean(),
   publicationCheck: z.enum(['always', 'when_asserted']),
   policy: bindingPolicySchema,
+  // L75: section keys are omitted, never null, on the starter family.
+  sectionCode: nonblankString.optional(),
+  sectionSortOrder: safeInteger.optional(),
+}).strict()
+const sectionSchema = z.object({
+  code: nonblankString,
+  label: nonblankString,
+  sortOrder: safeInteger,
 }).strict()
 const familySchema = z.object({
   id: nonblankString,
   code: nonblankString,
   label: nonblankString,
   bindings: z.array(bindingSchema),
+  sections: z.array(sectionSchema).optional(),
 }).strict()
 // Compose the existing reader rather than duplicating its six metadata branches.
 const definitionSchema = z.unknown().transform((raw, context) => {

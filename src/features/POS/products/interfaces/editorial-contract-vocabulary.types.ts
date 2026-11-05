@@ -40,8 +40,14 @@ export type EditorialBinding = {
   searchable: boolean
   publicationCheck: 'always' | 'when_asserted'
   policy: EditorialBindingPolicy
+  /** The attribute section the datum is shown in (L75); omitted on the starter family. */
+  sectionCode?: string
+  /** Its place inside that section; omitted when the section has no order for it. */
+  sectionSortOrder?: number
 }
-export type EditorialFamily = { id: string; code: string; label: string; bindings: EditorialBinding[] }
+/** An attribute section of a family: a meaningful group of data, ordered by `sortOrder` (which may have gaps). */
+export type EditorialSection = { code: string; label: string; sortOrder: number }
+export type EditorialFamily = { id: string; code: string; label: string; bindings: EditorialBinding[]; sections?: EditorialSection[] }
 export type EditorialContractVocabulary = {
   semanticsVersion: 'editorial-production-1'
   families: EditorialFamily[]
