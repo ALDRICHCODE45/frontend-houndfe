@@ -17,4 +17,16 @@ describe('EditorialPresentationCard two-column layout', () => {
     expect(rule('.pcard__question')).not.toMatch(/align-items: center/)
     expect(rule('.pcard__question > .pcard__label')).toMatch(/padding-top: 10px/)
   })
+  it('wraps "No sé" together with the chip before it, never alone', () => {
+    const tail = /\.pcard__tail \{([^}]*)\}/.exec(source)?.[1] ?? ''
+    expect(tail).toMatch(/flex-wrap: nowrap/)
+    expect(tail).toMatch(/white-space: nowrap/)
+  })
+
+  it('has no native date input: "Revisada el" is the calendar field', () => {
+    expect(source).not.toMatch(/type="date"/)
+    expect(source).toMatch(/<UInputDate/)
+    expect(source).toMatch(/<UCalendar/)
+    expect(source).toMatch(/calendarPartsToDateString/)
+  })
 })

@@ -34,8 +34,15 @@ export async function open(report) {
   // Any native dialog is a defect for this screen (S13: no native alerts); it is recorded and dismissed.
   page.on('dialog', async (d) => { report.nativeDialogs.push(`${d.type()}: ${d.message()}`); await d.dismiss() })
   let token = ''
-  page.on('request', (r) => { const a = r.headers()['authorization']; if (a && r.url().startsWith(API)) token = a })
+  // The app may call the API as localhost or 127.0.0.1: match it by port.
+  const portOf = (url) => { try { return new URL(url).port } catch { return null } }
+  const apiPort = portOf(API)
+  page.on('request', (r) => { const a = r.headers()['authorization']; if (a && portOf(r.url()) === apiPort) token = a })
   async function login() {
+    // A stale stored session redirects /login away before the form shows: start from a clean session.
+    await ctx.clearCookies()
+    await page.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded' })
+    await page.evaluate(() => { localStorage.clear(); sessionStorage.clear() })
     await page.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded' })
     await page.fill('#email', EMAIL)
     await page.fill('#password', devPassword())

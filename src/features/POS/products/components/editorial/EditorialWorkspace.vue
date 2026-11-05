@@ -114,6 +114,8 @@ const titleIssue = computed(() => (issueFor('TITLE_LIMIT') ? editorialIssueMessa
 const descriptionIssue = computed(() => (issueFor('DESCRIPTION_LIMIT') ? editorialIssueMessage({ code: 'DESCRIPTION_LIMIT' }) : undefined))
 // Sources picked on a card before any answer, per presentation; the stored evidence covers the rest.
 const cardSources = shallowRef<ReadonlyMap<string, EditorialCardSource>>(new Map())
+// Bumped after each successful save, so every complete card folds to its summary.
+const cardFold = shallowRef(0)
 watch(() => [props.productId, authoritative.value], () => { cardSources.value = new Map() })
 // A card whose answers lack their source says so on its source row, so the general notice would only repeat it.
 const sourceMissing = computed(() => (shown.value?.facts ?? []).some(row => (row.declarations.some(item => item.input.state === 'known') || row.careReview.state === 'prepared')
@@ -176,6 +178,7 @@ async function submit() {
   if (!(await editor.save())) return
   savedAt.value = new Date()
   await editor.refresh('retain', { quiet: true })
+  cardFold.value++
 }
 async function start() {
   if (canInitialize.value && (await editor.initialize())) { savedAt.value = new Date(); await editor.refresh('discard') }
@@ -337,7 +340,7 @@ function valuesChanged(values: EditorialDocumentEditingState['values']) {
 
             <EditorialPresentationCards v-if="family && (canWrite || shown.facts.length)" :facts="shown.facts" :subjects="subjects" :choices="declarationChoices"
               :care-allowed="family.code === 'care'" :next-id="lifecycle.nextId" :sources="cardSources" :product-name="shown.commercialTitle ?? ''"
-              :show-errors="issues.length > 0" :readonly="!canWrite" :disabled="!editable" @update:facts="factsChanged" @update:sources="cardSources = $event" />
+              :show-errors="issues.length > 0" :fold-signal="cardFold" :readonly="!canWrite" :disabled="!editable" @update:facts="factsChanged" @update:sources="cardSources = $event" />
 
             <EmptyState v-if="!family && canWrite" title="Elige una familia" description="La familia decide qué datos aplican a este producto." />
             <EmptyState v-else-if="!family" title="Esta ficha aún no tiene familia" />

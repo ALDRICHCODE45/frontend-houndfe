@@ -172,6 +172,19 @@ export function setEditorialCardAnswer(row: EditorialFactsEditingRow, key: Key, 
   return next
 }
 
+/** "Copiar respuestas de …": the other presentation's answers, each written as this card writes it, with
+ * the given source. This row keeps its own "No aplica" list; the care review is not copied. */
+export function copyEditorialCardAnswers(from: EditorialFactsEditingRow, to: EditorialFactsEditingRow, source: EditorialCardSource, nextId: () => string): EditorialFactsEditingRow {
+  let next = to
+  for (const entry of from.declarations) {
+    if (entry.declarationKey === 'optionalNonpertinenceCodes' || entry.input.state === 'omitted') continue
+    next = write(next, entry.declarationKey, copy(entry.input), nextId)
+  }
+  const evidence = evidenceOf(source), basis = evidence ? editorialSourceBasis(evidence.sourceRef) : ''
+  return { ...next, declarations: next.declarations.map(entry => (entry.declarationKey === 'optionalNonpertinenceCodes' || entry.input.state !== 'known' ? entry
+    : { ...entry, input: { ...entry.input, evidence: evidence && { ...evidence }, basis } })) }
+}
+
 /** "No aplica" on an optional datum of the table: its code joins or leaves the hidden list. */
 export function setEditorialOptionalNonpertinence(row: EditorialFactsEditingRow, code: string, include: boolean, source: EditorialCardSource, nextId: () => string): EditorialFactsEditingRow {
   type Codes = EditorialDeclarationValues['optionalNonpertinenceCodes']

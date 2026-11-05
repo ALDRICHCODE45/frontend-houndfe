@@ -4,7 +4,7 @@ import type { EditorialFactsEditingRow } from '../editorial-contract-facts-editi
 import { resolveEditorialFactsInput } from '../editorial-contract-facts-input'
 import { projectEditorialFactsEditingState } from '../editorial-contract-facts-editing'
 import {
-  applyEditorialCardSource, clearEditorialCardAnswers, editorialCardQuestions, editorialCardSourceOf, editorialCardSummary,
+  applyEditorialCardSource, clearEditorialCardAnswers, copyEditorialCardAnswers, editorialCardQuestions, editorialCardSourceOf, editorialCardSummary,
   editorialSourceBasis, ensureEditorialFactsRow, isEditorialCardComplete, setEditorialCardAnswer, setEditorialOptionalNonpertinence,
   editorialShortDate,
 } from '../editorial-presentation-card'
@@ -144,5 +144,29 @@ describe('the collapsed card', () => {
   it('writes a short date, with the year only when it is not the current one', () => {
     expect(editorialShortDate('2026-11-04', new Date(2026, 0, 1))).toBe('4 nov')
     expect(editorialShortDate('2025-03-12', new Date(2026, 0, 1))).toBe('12 mar 2025')
+  })
+})
+
+describe('copying the answers of another presentation', () => {
+  it('writes the same declarations with the source as evidence and Fundamento, keeping this row\'s "No aplica" list', () => {
+    const maker = { sourceRef: 'Ficha del fabricante', verifiedOn: '2026-10-01' }
+    let from = setEditorialCardAnswer(empty(), 'contentMagnitude', { state: 'known', value: 'mass' }, maker, nextId)
+    from = setEditorialCardAnswer(from, 'fitDeterminesChoice', { state: 'known', value: true }, maker, nextId)
+    from = setEditorialCardAnswer(from, 'relevantFitCodes', { state: 'known', value: ['measure.fit.neck'] }, maker, nextId)
+    from = setEditorialCardAnswer(from, 'electricalApplies', { state: 'unknown' }, maker, nextId)
+    from = setEditorialOptionalNonpertinence(from, 'measure.pack_count', true, maker, nextId)
+    const target = setEditorialOptionalNonpertinence({ ...empty(), id: 't', variantId: 'v2', presentation: 'Grande · Negro' }, 'measure.net_mass', true, label, nextId)
+    const copied = copyEditorialCardAnswers(from, target, maker, nextId)
+    expect(copied).toMatchObject({ id: 't', variantId: 'v2', presentation: 'Grande · Negro', careReview: { state: 'omitted' } })
+    const known = (key: string, value: unknown) => ({ key, state: 'known', value, evidence: maker, basis: 'Según la ficha del fabricante.' })
+    expect(copied.declarations.map(d => d.input)).toEqual([
+      { key: 'optionalNonpertinenceCodes', state: 'known', value: ['measure.net_mass'], evidence: label, basis: 'Según la etiqueta del empaque.' },
+      known('contentMagnitude', 'mass'), known('fitDeterminesChoice', true), known('relevantFitCodes', ['measure.fit.neck']),
+      { key: 'electricalApplies', state: 'unknown' }])
+    expect(new Set(copied.declarations.map(d => d.id)).size).toBe(5)
+    expect(copied.declarations.some(d => from.declarations.some(f => f.id === d.id))).toBe(false)
+    expect(encode(copied).status).toBe('complete')
+    // The source row is untouched.
+    expect(from.declarations.map(d => d.declarationKey)).toContain('optionalNonpertinenceCodes')
   })
 })

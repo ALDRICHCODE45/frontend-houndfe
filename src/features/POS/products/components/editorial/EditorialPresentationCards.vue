@@ -5,8 +5,8 @@ import EditorialCareReviewDrawer from './EditorialCareReviewDrawer.vue'
 import type { EditorialDimensionCode } from '../../interfaces/editorial-contract-declaration.types'
 import type { EditorialDeclarationChoice } from '../../utils/editorial-contract-declaration-choices'
 import type { EditorialFactsEditingRow, EditorialFactsEditingState } from '../../utils/editorial-contract-facts-editing'
-import { applyEditorialCardSource, clearEditorialCardAnswers, editorialCardQuestions, editorialEffectiveSource, editorialSourceBasis,
-  editorialSourceKey, ensureEditorialFactsRow, setEditorialCardAnswer, withCareSource, type EditorialCardAnswer, type EditorialCardSource,
+import { applyEditorialCardSource, clearEditorialCardAnswers, copyEditorialCardAnswers, editorialCardQuestions, editorialEffectiveSource, editorialSourceBasis,
+  editorialSourceKey, editorialToday, ensureEditorialFactsRow, isEditorialCardComplete, setEditorialCardAnswer, withCareSource, type EditorialCardAnswer, type EditorialCardSource,
 } from '../../utils/editorial-presentation-card'
 
 /** The cards above the table, one per presentation (a single "Producto" without variants), plus the
@@ -21,6 +21,8 @@ const props = defineProps<{ facts: EditorialFactsEditingState; subjects: readonl
   productName: string
   /** A save was tried: missing sources show their error. */
   showErrors?: boolean
+  /** Bumped after a successful save: complete cards fold to their summary. */
+  foldSignal?: number
   readonly?: boolean; disabled?: boolean }>()
 const emit = defineEmits<{ 'update:facts': [facts: EditorialFactsEditingState]; 'update:sources': [sources: ReadonlyMap<string, EditorialCardSource>] }>()
 
@@ -41,6 +43,19 @@ const sourceOf = (card: Card) => editorialEffectiveSource(props.sources, card.ro
 const questionsOf = (card: Card) => editorialCardQuestions(props.choices, card.row)
 const needsSource = (row: EditorialFactsEditingRow | null) => Boolean(row && (row.declarations.some(item => item.input.state === 'known') || row.careReview.state === 'prepared'))
 const hasAnswers = (row: EditorialFactsEditingRow | null) => Boolean(row && (row.declarations.some(item => item.declarationKey !== 'optionalNonpertinenceCodes') || row.careReview.state !== 'omitted'))
+// With several presentations only the first unfinished card starts open; the others are one line each.
+const firstOpen = computed(() => cards.value.find(card => !card.orphan && !isEditorialCardComplete(questionsOf(card), sourceOf(card)))?.key ?? null)
+const startsOpen = (card: Card) => cards.value.length < 2 || card.key === firstOpen.value
+// A later card with no answers can copy the first presentation that has some.
+const copySource = computed(() => cards.value.find(card => !card.orphan && hasAnswers(card.row)) ?? null)
+const copyFromOf = (card: Card) => (card === cards.value[0] || card.orphan || hasAnswers(card.row) || !copySource.value || copySource.value.key === card.key ? null : copySource.value.title)
+function copy(card: Card) {
+  const from = copySource.value
+  if (props.disabled || props.readonly || !from?.row || from.key === card.key) return
+  const source = sourceOf(from)
+  emit('update:sources', new Map(props.sources).set(card.key, { ...source }))
+  commit(card, row => copyEditorialCardAnswers(from.row!, row, source, props.nextId))
+}
 const careOf = (card: Card) => (props.careAllowed || (card.row && card.row.careReview.state !== 'omitted') ? card.row?.careReview.state ?? 'omitted' : null)
 
 /** Write a changed row back, creating it the first time a card needs one. */
@@ -75,7 +90,12 @@ function sourceChanged(card: Card, source: EditorialCardSource) {
   if (card.row) commit(card, row => applyEditorialCardSource(row, source))
 }
 function rename(card: Card, name: string) { commit(card, row => ({ ...row, presentation: name.slice(0, 300) })) }
-function clear(card: Card) { if (card.row) commit(card, row => clearEditorialCardAnswers(row)) }
+// The answers go with their source: the card starts again with no source and today's date.
+function clear(card: Card) {
+  if (!card.row || props.disabled || props.readonly) return
+  emit('update:sources', new Map(props.sources).set(card.key, { sourceRef: '', verifiedOn: editorialToday() }))
+  commit(card, row => clearEditorialCardAnswers(row))
+}
 function remove(card: Card) {
   if (!props.disabled && !props.readonly && card.row) emit('update:facts', props.facts.filter(row => row.id !== card.row!.id))
 }
@@ -100,8 +120,8 @@ function careChanged(next: EditorialFactsEditingRow) {
     <div class="pcards__grid" :data-many="shownCards.length > 1">
       <EditorialPresentationCard v-for="card in shownCards" :id="`pcard-${card.key}`" :key="card.key" :title="card.title" :questions="questionsOf(card)"
         :source="sourceOf(card)" :needs-source="needsSource(card.row)" :has-answers="hasAnswers(card.row)" :show-errors="showErrors" :care="careOf(card)"
-        :orphan="card.orphan" :readonly="readonly" :disabled="disabled"
-        @answer="(key, value) => answer(card, key, value)" @toy-types="toyTypes(card, $event)" @update:source="sourceChanged(card, $event)"
+        :orphan="card.orphan" :start-open="startsOpen(card)" :fold-signal="foldSignal" :copy-from="copyFromOf(card)" :readonly="readonly" :disabled="disabled"
+        @copy="copy(card)" @answer="(key, value) => answer(card, key, value)" @toy-types="toyTypes(card, $event)" @update:source="sourceChanged(card, $event)"
         @rename="rename(card, $event)" @clear="clear(card)" @remove="remove(card)" @open-care="careKey = card.key" />
     </div>
     <EditorialCareReviewDrawer v-if="!readonly" v-model:open="careOpen" :title="careCard ? careCard.row?.presentation || careCard.presentation : ''"

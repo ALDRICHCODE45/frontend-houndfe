@@ -8,11 +8,19 @@
       "pass": true,
       "evidence": "Peso · Etiqueta del empaque"
     },
+    "date-calendar-field": {
+      "pass": true,
+      "evidence": "0 native; field «4/11/2026»"
+    },
+    "date-calendar-popover": {
+      "pass": true,
+      "evidence": "calendar heading «noviembre de 2026»"
+    },
     "food-save": {
       "pass": true,
-      "evidence": "Guardado · 4 nov, 21:39"
+      "evidence": "Guardado · 4 nov, 22:04"
     },
-    "food-collapsed-summary": {
+    "food-folds-on-save": {
       "pass": true,
       "evidence": "Se mide en peso · Etiqueta del empaque · 4 nov"
     },
@@ -26,7 +34,7 @@
     },
     "food-na-saves": {
       "pass": true,
-      "evidence": "text.clinical_analysis: Guardado · 4 nov, 21:40; cell not_applicable; 0 cell errors"
+      "evidence": "text.clinical_analysis: Guardado · 4 nov, 22:04; cell not_applicable; 0 cell errors"
     },
     "food-na-persisted": {
       "pass": true,
@@ -38,7 +46,15 @@
     },
     "missing-source-recovers": {
       "pass": true,
-      "evidence": "Guardado · 4 nov, 21:40"
+      "evidence": "Guardado · 4 nov, 22:04"
+    },
+    "accessory-only-first-open": {
+      "pass": true,
+      "evidence": "1 open; Grande · Negro Sin responder Responder | Mediano · Rojo Sin responder Responder"
+    },
+    "accessory-dimensions-ver-todas": {
+      "pass": true,
+      "evidence": "Ver todas (8)"
     },
     "accessory-cards-per-presentation": {
       "pass": true,
@@ -46,7 +62,23 @@
     },
     "accessory-save": {
       "pass": true,
-      "evidence": "Guardado · 4 nov, 21:40"
+      "evidence": "Guardado · 4 nov, 22:05"
+    },
+    "accessory-folds-on-save": {
+      "pass": true,
+      "evidence": "Se mide en peso · la talla define la compra · la capacidad define la compra · usa electricidad · medidas: largo exterior · medidas de talla: contorno de cuello · capacidades: capacidad del recipiente · especificaciones: potencia · Ficha del fabricante · 4 nov"
+    },
+    "accessory-copy-offered": {
+      "pass": true,
+      "evidence": "Copiar respuestas de Chico · Azul"
+    },
+    "accessory-copy-folds-with-summary": {
+      "pass": true,
+      "evidence": "Se mide en peso · la talla define la compra · la capacidad define la compra · usa electricidad · medidas: largo exterior · medidas de talla: contorno de cuello · capacidades: capacidad del recipiente · especificaciones: potencia · Ficha del fabricante · 4 nov vs Se mide en peso · la talla define la compra · la capacidad define la compra · usa electricidad · medidas: largo exterior · medidas de talla: contorno de cuello · capacidades: capacidad del recipiente · especificaciones: potencia · Ficha del fabricante · 4 nov"
+    },
+    "accessory-copy-save": {
+      "pass": true,
+      "evidence": "Guardado · 4 nov, 22:05"
     },
     "care-drawer-opens": {
       "pass": true,
@@ -74,6 +106,7 @@
     "02-food-answered__1440__dark__crop.png",
     "02-food-answered__390__light.png",
     "02-food-answered__390__dark.png",
+    "15-food-date-calendar__1440__light.png",
     "03-food-collapsed__1440__light.png",
     "03-food-collapsed__1440__light__crop.png",
     "03-food-collapsed__1440__dark.png",
@@ -94,6 +127,7 @@
     "08-accessory-cards__1440__dark.png",
     "08-accessory-cards__1440__dark__crop.png",
     "08-accessory-cards__390__light.png",
+    "08-accessory-cards__390__dark.png",
     "09-accessory-first-answered__1440__light.png",
     "09-accessory-first-answered__1440__light__crop.png",
     "09-accessory-first-answered__390__light.png",
@@ -101,6 +135,11 @@
     "10-accessory-saved__1440__light__crop.png",
     "10-accessory-saved__1440__dark.png",
     "10-accessory-saved__1440__dark__crop.png",
+    "14-accessory-copied__1440__light.png",
+    "14-accessory-copied__1440__light__crop.png",
+    "14-accessory-copied__1440__dark.png",
+    "14-accessory-copied__1440__dark__crop.png",
+    "14-accessory-copied__390__light.png",
     "11-care-cards__1440__light.png",
     "11-care-cards__1440__light__crop.png",
     "12-care-drawer__1440__light.png",
@@ -115,7 +154,8 @@
   "overflow": [],
   "notes": [
     "reset earlier No aplica: text.clinical_analysis",
-    "food card was answered before the run: cleared through \"Borrar respuestas…\" and saved"
+    "food card was answered before the run: cleared through \"Borrar respuestas…\" and saved",
+    "accessory: cleared 2 answered card(s) from an earlier run"
   ],
   "products": {
     "food": {
@@ -137,7 +177,7 @@
       "¿Cómo se mide el contenido?",
       "¿De dónde sale esta información?"
     ],
-    "collapsedRightAfterSave": false,
+    "collapsedRightAfterSave": true,
     "requiredRows": [
       "food.format",
       "measure.net_mass"
@@ -156,9 +196,6 @@
       "¿La capacidad define la compra?",
       "¿Usa electricidad?",
       "¿Qué medidas aplican?",
-      "¿Qué medidas de talla cuentan?",
-      "¿Qué capacidades cuentan?",
-      "¿Qué especificaciones cuentan?",
       "¿De dónde sale esta información?"
     ],
     "questionsAfterYes": [
@@ -181,32 +218,5 @@
     ],
     "drawer": "Revisión de cuidado 10 a 20 kg ¿Cómo va la revisión? Sin revisar No se sabe Lista Listo",
     "drawerLista": "Revisión de cuidado 10 a 20 kg ¿Cómo va la revisión? Sin revisar No se sabe Lista Indica en la tarjeta de dónde sale la información. ¿Dónde se vende? ¿Para qué se usa? ¿La etiqueta exige algo? Sí, hay requisitos No exige nada Listo"
-  },
-  "review": {
-    "fixed": [
-      {
-        "defect": "In the two-column card layout a question label was vertically centered against wrapped chip rows, floating away from its first chip (food answered, accessory \"¿Qué medidas aplican?\").",
-        "fix": "EditorialPresentationCard.vue: .pcard__question align-items start, label padding-top 10px",
-        "test": "EditorialPresentationCard.layout.spec.ts (RED then GREEN)"
-      }
-    ],
-    "issues": [
-      "Accessory with 3 presentations: 8-9 questions per card, repeated for each presentation (~2400px of cards at 1440); there is no \"same answers as the first\" shortcut. This is the main source of length.",
-      "The accessory family asks every collar \"¿La capacidad define la compra?\" and \"¿Usa electricidad?\": the questions come from the family declarations (BE policy), not the product.",
-      "After Guardar the answered card stays open; it folds only on Listo or on the next load.",
-      "Borrar respuestas keeps the hidden No aplica declaration and its evidence, so the source chip stays selected on an otherwise empty card.",
-      "At 1440 picking Peso widens the chip (check + bold) and \"No sé\" wraps alone to a second row on the food card.",
-      "\"Revisada el\" is a native date input (mm/dd/yyyy in this Chromium) boxed inside the card.",
-      "Care drawer in \"Sin revisar\" is mostly empty space; \"¿Dónde se vende?\" shows México prefilled."
-    ],
-    "best": [
-      "01-food-unanswered__1440__light__crop.png",
-      "02-food-answered__1440__light__crop.png",
-      "03-food-collapsed__1440__light.png",
-      "07-food-missing-source__1440__light__crop.png",
-      "08-accessory-cards__1440__light__crop.png",
-      "13-care-drawer-lista__1440__light.png",
-      "02-food-answered__390__dark.png"
-    ]
   }
 }

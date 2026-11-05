@@ -141,19 +141,27 @@ try {
     const checked = (await card().locator('label.pcard__chip[data-checked="true"]').allInnerTexts()).map((t) => t.trim())
     check('food-answer-peso-etiqueta', checked.includes('Peso') && checked.includes('Etiqueta del empaque'), checked.join(' · '))
     await shoot('02-food-answered', { views: [['1440', 'light'], ['1440', 'dark'], ['390', 'light'], ['390', 'dark']] })
+    // "Revisada el" is the app's calendar field (no visible native date input), shown in es-MX.
+    const nativeDates = await card().locator('input[type="date"]:not([aria-hidden="true"])').count()
+    const dateText = (await card().getByTestId('card-source-date').innerText()).replace(/\s+/g, '')
+    check('date-calendar-field', nativeDates === 0 && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateText), `${nativeDates} native; field «${dateText}»`)
+    await card().getByTestId('card-source-date').click()
+    await page.waitForTimeout(500)
+    const heading = await page.getByText(/^[a-záéíóú]+ de \d{4}$/).first().innerText().catch(() => null)
+    check('date-calendar-popover', Boolean(heading), `calendar heading «${heading}»`)
+    await scrollInPage(page, '[data-testid="card-source"]', 200)
+    await page.waitForTimeout(200)
+    await page.screenshot({ path: join(SHOTS, '15-food-date-calendar__1440__light.png') }); report.shots.push('15-food-date-calendar__1440__light.png')
+    await page.keyboard.press('Escape')
   })
 
   await step('food-save', 'food', async () => {
     const saved = await save()
     check('food-save', /Guardado/.test(saved ?? ''), saved)
-    let summary = await card().getByTestId('card-summary').innerText().catch(() => null)
+    // A complete card folds as soon as the save succeeds.
+    const summary = await card().getByTestId('card-summary').innerText().catch(() => null)
     report.food.collapsedRightAfterSave = Boolean(summary)
-    if (!summary) {
-      // The card folds on "Listo" (or on the next load); saving alone keeps it open while you work.
-      await card().getByTestId('card-done').click()
-      summary = await card().getByTestId('card-summary').innerText().catch(() => null)
-    }
-    check('food-collapsed-summary', Boolean(summary), summary)
+    check('food-folds-on-save', Boolean(summary), summary)
     await shoot('03-food-collapsed', { views: [['1440', 'light'], ['1440', 'dark'], ['390', 'light'], ['390', 'dark']] })
     await openContent(page, foodId)
     const reloaded = await card().getByTestId('card-summary').innerText().catch(() => null)
@@ -229,23 +237,57 @@ try {
     await ensureDraft()
     await family('Accesorios')
     await page.getByTestId('presentation-card').first().waitFor({ timeout: 10000 })
+    // Answers from an earlier run are cleared through each card's ⋯ menu and saved, so the unanswered state shows.
+    let cleared = 0
+    for (let i = 0; i < await page.getByTestId('presentation-card').count(); i++) {
+      await card(i).getByRole('button', { name: /^Acciones de/ }).first().click()
+      const item = page.getByRole('menuitem', { name: /Borrar respuestas/ })
+      if (await item.isDisabled().catch(() => true) || (await item.getAttribute('data-disabled')) !== null) { await page.keyboard.press('Escape'); continue }
+      await item.click()
+      await page.getByRole('button', { name: 'Borrar respuestas', exact: true }).click()
+      await page.waitForTimeout(300)
+      cleared++
+    }
+    if (cleared) { report.notes.push(`accessory: cleared ${cleared} answered card(s) from an earlier run`); await save(); await openContent(page, product.id) }
+    const open = await page.locator('[data-testid="presentation-card"][data-open="true"]').count()
+    const compact = (await page.locator('[data-testid="presentation-card"][data-open="false"]').allInnerTexts()).map((t) => t.replace(/\s+/g, ' ').trim())
+    check('accessory-only-first-open', open === 1 && compact.every((t) => /Sin responder/.test(t) && /Responder/.test(t)), `${open} open; ${compact.join(' | ')}`)
+    const dims = await card().getByTestId('card-show-all').innerText().catch(() => null)
+    check('accessory-dimensions-ver-todas', /^Ver todas \(\d+\)$/.test(dims ?? ''), dims)
     const titles = (await page.locator('[data-testid="presentation-card"] .pcard__title').allInnerTexts()).map((t) => t.trim())
     const questions = (await card().locator('.pcard__label').allInnerTexts()).map((t) => t.trim())
     report.accessory = { titles, questions }
     check('accessory-cards-per-presentation', titles.length >= 2, titles.join(' · '))
-    await shoot('08-accessory-cards', { views: [['1440', 'light'], ['1440', 'dark'], ['390', 'light']], offset: 24 })
-    // Answer the first card's yes/no questions with Sí, to show the follow-up questions.
-    const yn = card().getByTestId('card-question')
-    for (let i = 0; i < await yn.count(); i++) {
-      const yes = chip(yn.nth(i), 'Sí')
+    await shoot('08-accessory-cards', { views: [['1440', 'light'], ['1440', 'dark'], ['390', 'light'], ['390', 'dark']], offset: 24 })
+    // Answer every question of the first card: Sí where asked (the follow-up lists appear), else the first option.
+    const questions1 = card().getByTestId('card-question')
+    for (let i = 0; i < await questions1.count(); i++) {
+      const q = questions1.nth(i)
+      if (await q.locator('label.pcard__chip[data-checked="true"]').count()) continue
+      const yes = chip(q, 'Sí')
       if (await yes.count()) await yes.click()
+      else await q.locator('label.pcard__chip').first().click()
+      await page.waitForTimeout(150)
     }
     await chip(card().getByTestId('card-source'), 'Ficha del fabricante').click()
     report.accessory.questionsAfterYes = (await card().locator('.pcard__label').allInnerTexts()).map((t) => t.trim())
     await shoot('09-accessory-first-answered', { views: [['1440', 'light'], ['390', 'light']], offset: 24 })
     const saved = await save()
     check('accessory-save', /Guardado/.test(saved ?? ''), saved)
+    const folded = await card().getByTestId('card-summary').innerText().catch(() => null)
+    check('accessory-folds-on-save', Boolean(folded), folded)
     await shoot('10-accessory-saved', { views: [['1440', 'light'], ['1440', 'dark']], offset: 24 })
+    // "Copiar respuestas de …" on the second card copies the first one's answers and source.
+    const copy = card(1).getByTestId('card-copy')
+    const copyText = (await copy.innerText().catch(() => '')).trim()
+    check('accessory-copy-offered', copyText === `Copiar respuestas de ${titles[0]}`, copyText)
+    await copy.click()
+    await page.waitForTimeout(400)
+    const copied = await card(1).getByTestId('card-summary').innerText().catch(() => null)
+    check('accessory-copy-folds-with-summary', Boolean(copied) && copied === folded, `${copied} vs ${folded}`)
+    await shoot('14-accessory-copied', { views: [['1440', 'light'], ['1440', 'dark'], ['390', 'light']], offset: 24 })
+    const savedCopy = await save()
+    check('accessory-copy-save', /Guardado/.test(savedCopy ?? ''), savedCopy)
   })
 
   // ---- Care: the "Revisión de cuidado" drawer ----
@@ -259,6 +301,7 @@ try {
     await card().waitFor({ timeout: 10000 })
     report.care = { titles: (await page.locator('[data-testid="presentation-card"] .pcard__title').allInnerTexts()).map((t) => t.trim()) }
     await shoot('11-care-cards', { views: [['1440', 'light']], offset: 24 })
+    if (!(await card().getByTestId('card-open-care').count())) await card().getByTestId('card-edit').click()
     await card().getByTestId('card-open-care').click()
     await page.waitForTimeout(700)
     const drawer = page.getByRole('dialog').last()

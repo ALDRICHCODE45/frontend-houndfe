@@ -590,6 +590,20 @@ describe('EditorialWorkspace — the presentation cards', () => {
       { key: 'contentMagnitude', state: 'known', value: 'mass', evidence: { sourceRef: 'Etiqueta del empaque', verifiedOn: today }, basis: 'Según la etiqueta del empaque.' }] }])
   })
 
+  it('after a successful save, a card with its answers and source folds to its summary', async () => {
+    const facts = [{ variantId: 'v1', presentation: '15 kg', careReview: null, declarations: [
+      { key: 'contentMagnitude' as const, state: 'known' as const, value: 'mass' as const, evidence: { sourceRef: 'Etiqueta del empaque', verifiedOn: today }, basis: 'Según la etiqueta del empaque.' }] }]
+    http.put.mockResolvedValue(success(state(doc({ facts }), 99)))
+    await render()
+    await chipOf('15 kg', 'Peso').setValue(true)
+    await chipOf('15 kg', 'Etiqueta del empaque').setValue(true)
+    expect(card('15 kg').find('[data-testid="card-summary"]').exists()).toBe(false)
+    reads(state(doc({ facts }), 4))
+    await wrapper.get('form').trigger('submit'); await flushPromises(); await tick()
+    expect(card('15 kg').get('[data-testid="card-summary"]').text()).toMatch(/^Se mide en peso · Etiqueta del empaque/)
+    expect(card('7.5 kg').get('[data-testid="card-summary"]').text()).toBe('Sin responder')
+  })
+
   it('an answer with no source is not saved and says so on the source row', async () => {
     await render()
     await chipOf('15 kg', 'Peso').setValue(true)
