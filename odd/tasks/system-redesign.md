@@ -186,3 +186,17 @@ L83. Delivered:
 - the run-tests queue;
 - the refund amount fix, verified by the independent verify.
 Final suite 772/13867, tc/build/dc 0. Merged to main.
+L84. T21 done (695cd645). T22a audit: 4 HIGH money paths, confirmed with @internationalized/number:
+- the app-wide `es` locale reads «70.55»→7055 and «1,234.50»→1.2345;
+- PaymentModal `es-MX` reads «70,55»→7055.
+
+Decision (parent, technical safety, one rule app-wide):
+- dot = decimal;
+- comma + exactly-3-digit groups = thousands;
+- a single comma + 1–2 trailing digits = decimal;
+- anything else is rejected;
+- exact integer math, no rounding of a 3rd decimal.
+
+Money UInputNumbers move to a shared HfMoneyInput; the app UApp locale becomes es-MX so quantities read «1.5» as 1.5.
+
+T22b split: part 1 = core parser + HfMoneyInput + locale + the sales/caja/admin/promotions/refunds sites; part 2 = the products price editors after T23 frees src/features/POS/products/**.
