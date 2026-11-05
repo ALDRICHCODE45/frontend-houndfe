@@ -159,3 +159,8 @@ L76. T12–T14 DONE.
 - Merged to main locally; the user pushes.
 L77. T15 DONE (5c76ebb8): useConfirm/useLeaveGuard on one ConfirmDialogHost; no native confirm left (AST guard spec). Browser check: the modal shows; Seguir editando and Esc stay; Salir sin guardar leaves; 0 native dialogs. Suite 753/13678, tc/build/dc 0; assess medium, reviewDue false. Merged to main.
 L78. T16 DONE (893a770a): soft rest borders app-wide at the source (vite base slot adds hf-field-control; houndfe-ui.css: rest --hf-border, hover --hf-field-border, invalid --hf-danger, focus wins); 8 feature overrides softened; deliberate exceptions allowlisted in hf-field-border-guard (checkbox, step marks, picker buttons). Browser: rest #dce2e8 → hover #8593a3 measured on UInput and the toolbar search; invalid red; dark admin slideover; ventas 390. Suite 755/13699, tc/build/dc 0; assess medium, reviewDue false. Merged to main. The refund settlement UI is missing in the FE (BE handoff docs/frontend-handoff/06-refund-settlements.md is ready); proposed to the user.
+L79. Refund settlements: the user chose direction 01, verbatim: "Si hermano, estoy de acuerdo, vamos con la opcion 1. y si, que diga Reembolsos, por favor. (:"
+- Approved add-on: «Registrar como salida de mi caja» (cashSessionId) from 03.
+- Copy: «Reembolsos» for the debt, «devolución» for each payment.
+- 02 and 03 are alternatives.
+- T19 starts.
