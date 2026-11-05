@@ -267,7 +267,9 @@ describe('HumanDecisionsListPanel', () => {
     const buttons = wrapper.findAll('[data-testid="human-decision-table-open"]')
     expect(buttons).toHaveLength(1)
     expect(buttons[0]!.classes()).toContain('hf-row-primary')
-    expect(wrapper.get('.hf-row-secondary').text()).toContain('Alimento 15 kg')
+    // People find a request by its product, so the product is the row's name.
+    expect(buttons[0]!.text()).toBe('Alimento 15 kg')
+    expect(wrapper.get('.hf-row-secondary').text()).toContain('<b>Reposición</b>')
     await buttons[0]!.trigger('click')
     expect(wrapper.emitted('openDetail')).toContainEqual([{ id: 'decision-1', status: 'PENDING' }])
   })
@@ -315,6 +317,12 @@ describe('HumanDecisionsListPanel', () => {
       expect(wrapper.get('[data-testid="human-decision-quantity"]').text()).toBe('—')
       const responseCell = wrapper.get('[data-testid="human-decision-response"]').text()
       for (const part of responseParts) expect(responseCell).toContain(part)
+      // A long answer stays on one line (64px rows); the full text is in its title.
+      if (row.status === 'RESOLVED') {
+        const answer = wrapper.get('[data-testid="human-decision-response-text"]')
+        expect(answer.classes()).toContain('truncate')
+        expect(answer.attributes('title')).toBe(responseParts[0])
+      }
       const openTestId =
         row.status === 'PENDING'
           ? 'human-decision-open-detail'

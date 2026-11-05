@@ -87,15 +87,16 @@ describe('HD3B1 · presentation labels', () => {
 })
 
 describe('HD3B1 · HumanDecisionCard', () => {
-  it('renders title, product, branch, quantity and a short created date', () => {
+  it('names the product first, the request type under it, then quantity and a short date', () => {
     const wrapper = mountCard(makePending())
     expect(wrapper.find('[data-testid="human-decision-card"]').exists()).toBe(true)
     const text = wrapper.text()
     expect(wrapper.get('[data-testid="human-decision-status"]').text()).toBe('Pendiente')
     expect(wrapper.get('[data-testid="human-decision-status"]').attributes('data-tone')).toBe('warning')
-    expect(wrapper.get('.hf-row-primary').text()).toBe('Reposición solicitada')
-    expect(wrapper.get('.hf-row-secondary').text()).toContain('Kibble 15kg')
-    expect(text).toContain('Sucursal Centro')
+    expect(wrapper.get('.hf-row-primary').text()).toBe('Kibble 15kg')
+    expect(wrapper.get('.hf-row-secondary').text()).toContain('Reposición solicitada')
+    // Every row belongs to the current branch, so the list does not repeat it.
+    expect(text).not.toContain('Sucursal Centro')
     expect(text).toContain('2 unidades')
     expect(text).toContain(listDatePresentationLabel('2026-01-01T00:00:00.000Z'))
     expect(text).not.toContain('31/12/2025')
@@ -122,20 +123,26 @@ describe('HD3B1 · HumanDecisionCard', () => {
     expect(wrapper.find('button[aria-haspopup="menu"]').exists()).toBe(false)
     expect(wrapper.findAll('button')).toHaveLength(1)
   })
-  it('shows only the branch when the quantity does not apply (EXPIRATION)', () => {
+  it('shows only the date when the quantity does not apply (EXPIRATION)', () => {
     const wrapper = mountCard({ ...makePending(), type: 'EXPIRATION' } as unknown as PendingHumanDecision)
-    expect(wrapper.get('.human-decisions-card-footer').text()).toContain('Sucursal Centro')
+    const footer = wrapper.get('.human-decisions-card-footer').text()
+    expect(footer).not.toContain('unidades')
+    expect(footer).toContain(listDatePresentationLabel('2026-01-01T00:00:00.000Z'))
+  })
+  it('keeps the status badge at its own width instead of stretching across the card', () => {
+    const wrapper = mountCard(makePending())
+    expect(wrapper.get('[data-testid="human-decision-status"]').classes()).toContain('self-start')
   })
 })
 
 describe('HD3B1 · useHumanDecisionColumns', () => {
-  it('exposes product, branch, requestedQuantity and createdAt ids, with no actions column', () => {
+  it('exposes product, status, requestedQuantity, createdAt and response, with no branch or actions column', () => {
     const { columns } = useHumanDecisionColumns()
+    // The inbox is scoped to the current branch: a branch column repeats it on every row.
     expect(columns.map((c) => c.id)).toEqual([
       'product',
       'status',
       'requestedQuantity',
-      'branch',
       'createdAt',
       'response',
     ])
@@ -154,7 +161,6 @@ describe('HD3B1 · useHumanDecisionColumns', () => {
     const { columns } = useHumanDecisionColumns()
     const row = makePending()
     expect(cell(columns, 'product', row)).toBe('Kibble 15kg')
-    expect(cell(columns, 'branch', row)).toBe('Sucursal Centro')
     expect(cell(columns, 'requestedQuantity', row)).toBe('2 unidades')
     expect(cell(columns, 'createdAt', row)).toBe('2026-01-01T00:00:00.000Z')
   })

@@ -9,7 +9,6 @@ import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { useClickableRow } from '@/core/shared/composables/useClickableRow'
 import type { HumanDecision } from '../interfaces/human-decision.types'
 import {
-  branchPresentationLabel,
   listDatePresentationLabel,
   productMetaPresentationLabel,
   resolvedResponseLabel,
@@ -36,20 +35,20 @@ const { rowProps } = useClickableRow<string>((id) => emit('openDetail', id), { f
           data-testid="resolved-human-decision-open-detail"
           @click="emit('openDetail', decision.id)"
         >
-          {{ decision.title }}
+          {{ decision.snapshot.productName }}
         </button>
-        <span class="hf-row-secondary">
-          {{ decision.snapshot.productName }} · {{ productMetaLabel }}
-        </span>
+        <span class="hf-row-secondary"> {{ decision.title }} · {{ productMetaLabel }} </span>
       </div>
     </header>
-    <StatusBadge label="Respondida" tone="success" data-testid="human-decision-status" />
+    <StatusBadge
+      label="Respondida"
+      tone="success"
+      class="self-start"
+      data-testid="human-decision-status"
+    />
     <p class="text-sm text-highlighted">{{ resolvedResponseLabel(decision.resolution) }}</p>
     <footer class="human-decisions-card-footer">
-      <span class="min-w-0 truncate">
-        {{ decision.resolution.resolvedBy.displayName }} ·
-        {{ branchPresentationLabel(decision.snapshot.branchName) }}
-      </span>
+      <span class="min-w-0 truncate">{{ decision.resolution.resolvedBy.displayName }}</span>
       <time :datetime="decision.resolution.resolvedAt">{{
         listDatePresentationLabel(decision.resolution.resolvedAt)
       }}</time>

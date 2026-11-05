@@ -1,13 +1,14 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { HumanDecision } from '../interfaces/human-decision.types'
 import {
-  branchPresentationLabel,
   requestedQuantityPresentationLabel,
   resolvedResponseLabel,
 } from '../utils/humanDecisionPresentation'
 
 // The request first, then its status, then what decides the next action
-// (how many, where, when) and the response. There is no ⋮ column: its only item would repeat the row click. Header text is
+// (how many, when) and the response. No branch column: the inbox is scoped to
+// the current branch, so it would repeat the same name on every row. There is
+// no ⋮ column: its only item would repeat the row click. Header text is
 // plain: the server owns ordering, so no column is sortable.
 export function useHumanDecisionColumns() {
   const columns: TableColumn<HumanDecision>[] = [
@@ -32,12 +33,6 @@ export function useHumanDecisionColumns() {
       header: 'Solicitado',
       enableSorting: false,
       meta: { class: { th: 'text-right', td: 'text-right' } },
-    },
-    {
-      id: 'branch',
-      accessorFn: (row) => branchPresentationLabel(row.snapshot.branchName),
-      header: 'Sucursal',
-      enableSorting: false,
     },
     {
       id: 'createdAt',

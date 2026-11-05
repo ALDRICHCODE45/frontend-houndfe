@@ -17,7 +17,7 @@ import {
 
 const AppResponsiveDrawerStub = {
   name: 'AppResponsiveDrawer',
-  props: ['open', 'title', 'description', 'closeAriaLabel'],
+  props: ['open', 'title', 'description', 'closeAriaLabel', 'desktopUi'],
   emits: ['update:open'],
   template: `
     <section data-testid="drawer-stub">
@@ -134,12 +134,15 @@ describe('HumanDecisionDetailSlideover', () => {
     const onOpen = vi.fn<(value: boolean) => void>()
     const wrapper = mountDetail(pending(), { onOpen })
     const drawer = wrapper.getComponent(AppResponsiveDrawerStub)
+    // The product names the drawer; the request type is its one-line description.
     expect(drawer.props()).toMatchObject({
       open: true,
-      title: '<b>Solicitud</b>',
-      description: 'Detalle de la solicitud de reposición.',
+      title: 'Alimento 15 kg',
+      description: '<b>Solicitud</b>',
       closeAriaLabel: 'Cerrar detalle de decisión',
     })
+    // The article owns the padding, so the desktop body adds none of its own.
+    expect(drawer.props('desktopUi')).toMatchObject({ body: 'p-0 sm:p-0' })
     await wrapper.get('[data-testid="drawer-close"]').trigger('click')
     expect(onOpen).toHaveBeenCalledWith(false)
   })
@@ -153,6 +156,12 @@ describe('HumanDecisionDetailSlideover', () => {
       expectedVersion: 1,
     })
     expect(mountDetail(pending()).find('[data-testid="stub-resolution"]').exists()).toBe(false)
+  })
+
+  it('does not guess the request type before the detail arrives', () => {
+    const drawer = mountDetail(null, { loading: true }).getComponent(AppResponsiveDrawerStub)
+    expect(drawer.props('title')).toBe('Detalle de la solicitud')
+    expect(drawer.props('description')).toBeUndefined()
   })
 
   it('renders distinct loading, error/retry, and no-selection states', async () => {
@@ -250,7 +259,7 @@ describe('HumanDecisionDetailSlideover', () => {
       const wrapper = mountDetail(pendingExpiration, options)
       expect(wrapper.props('conflict')).toBe('conflict' in options)
       expect(wrapper.find('[data-testid="stub-resolution"]').exists()).toBe(false)
-      expect(wrapper.text()).toContain('vencimiento')
+      expect(wrapper.text()).toMatch(/vencimiento/i)
       expect(wrapper.text()).not.toMatch(/Stock observado|Cantidad solicitada/)
       expect(wrapper.emitted('resolve')).toBeUndefined()
     },

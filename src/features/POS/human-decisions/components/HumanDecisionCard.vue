@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
  * HumanDecisionCard — the mobile form of a pending request (Mobile cards
- * rules): title as the primary text, the product as the secondary line, the status badge, and a separated footer with the
- * quantity and the short date. The whole card opens the detail.
+ * rules): the product as the primary text, the request type and product
+ * metadata as the secondary line, the status badge, and a separated footer
+ * with the quantity and the short date. The whole card opens the detail.
  */
 import { computed } from 'vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
@@ -34,21 +35,21 @@ const { rowProps } = useClickableRow<string>((id) => emit('openDetail', id), { f
           data-testid="human-decision-open-detail"
           @click="emit('openDetail', decision.id)"
         >
-          {{ decision.title }}
+          {{ presentation.productLabel }}
         </button>
         <span class="hf-row-secondary">
-          {{ presentation.productLabel }} · {{ presentation.productMetaLabel }}
+          {{ decision.title }} · {{ presentation.productMetaLabel }}
         </span>
       </div>
     </header>
-    <StatusBadge label="Pendiente" tone="warning" data-testid="human-decision-status" />
+    <StatusBadge
+      label="Pendiente"
+      tone="warning"
+      class="self-start"
+      data-testid="human-decision-status"
+    />
     <footer class="human-decisions-card-footer">
-      <span class="min-w-0 truncate">
-        <template v-if="presentation.requestedQuantityLabel">
-          <span class="hf-figure">{{ presentation.requestedQuantityLabel }}</span> ·
-        </template>
-        {{ presentation.branchLabel }}
-      </span>
+      <span class="hf-figure min-w-0 truncate">{{ presentation.requestedQuantityLabel }}</span>
       <span>{{ listDatePresentationLabel(decision.createdAt) }}</span>
     </footer>
   </article>

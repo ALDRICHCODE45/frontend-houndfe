@@ -1,4 +1,5 @@
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
+import { SERVICE_UNIT_OPTIONS, UNIT_OPTIONS } from '@/features/POS/products/composables/useProductForm'
 import type { HumanDecision, HumanDecisionResolution } from '../interfaces/human-decision.types'
 import type {
   ExpirationDecisionResolution,
@@ -12,6 +13,9 @@ export const VARIANT_PRESENT_LABEL = 'Con variante'
 export const VARIANT_ABSENT_LABEL = 'Sin variante'
 export const QUANTITY_FALLBACK = 'Cantidad no especificada'
 const UNIT_FALLBACK = 'Sin unidad'
+const UNIT_LABELS = new Map<string, string>(
+  [...UNIT_OPTIONS, ...SERVICE_UNIT_OPTIONS].map((option) => [option.value, option.label]),
+)
 export const CREATED_AT_FALLBACK = '—'
 export const EXPIRATION_UNAVAILABLE_LABEL = 'Por ahora no hay información de vencimiento.'
 
@@ -51,12 +55,16 @@ export function variantPresentationLabel(variantId: string | null): string {
   return nonEmpty(variantId) ? VARIANT_PRESENT_LABEL : VARIANT_ABSENT_LABEL
 }
 
+/** The catalog's readable unit name (`UNIDAD` → `Unidad`); an unknown unit stays as sent. */
 function unitPresentationLabel(unit: string): string {
-  return nonEmpty(unit) ?? UNIT_FALLBACK
+  const code = nonEmpty(unit)
+  if (code === null) return UNIT_FALLBACK
+  return UNIT_LABELS.get(code) ?? code
 }
 
-function expirationVariantPresentationLabel(snapshot: ExpirationDecisionSnapshot): string {
-  if (nonEmpty(snapshot.variantId) === null) return VARIANT_ABSENT_LABEL
+/** `null` when the request has no variant: an absent variant is not worth a word. */
+function expirationVariantPresentationLabel(snapshot: ExpirationDecisionSnapshot): string | null {
+  if (nonEmpty(snapshot.variantId) === null) return null
   const name = nonEmpty(snapshot.variantName) ?? VARIANT_PRESENT_LABEL
   const descriptor = [nonEmpty(snapshot.variantOption), nonEmpty(snapshot.variantValue)]
     .filter((value): value is string => value !== null)
@@ -64,14 +72,24 @@ function expirationVariantPresentationLabel(snapshot: ExpirationDecisionSnapshot
   return descriptor ? `${name} (${descriptor})` : name
 }
 
-/** Type-aware product metadata: EXPIRATION shows `unit`, RESTOCK keeps SKU/variant. */
+/**
+ * Type-aware product metadata: EXPIRATION shows the unit, RESTOCK the SKU, each
+ * followed by the variant only when the request has one.
+ */
 export function productMetaPresentationLabel(decision: HumanDecision): string {
-  if (decision.type === 'EXPIRATION') {
-    const { snapshot } = decision
-    return `${unitPresentationLabel(snapshot.unit)} · ${expirationVariantPresentationLabel(snapshot)}`
-  }
-  const { snapshot } = decision
-  return `${skuPresentationLabel(snapshot.sku)} · ${variantPresentationLabel(snapshot.variantId)}`
+  const parts =
+    decision.type === 'EXPIRATION'
+      ? [
+          unitPresentationLabel(decision.snapshot.unit),
+          expirationVariantPresentationLabel(decision.snapshot),
+        ]
+      : [
+          skuPresentationLabel(decision.snapshot.sku),
+          nonEmpty(decision.snapshot.variantId) === null
+            ? null
+            : variantPresentationLabel(decision.snapshot.variantId),
+        ]
+  return parts.filter((part): part is string => part !== null).join(' · ')
 }
 
 export function requestedQuantityPresentationLabel(requestedQuantity: number | null): string {
