@@ -454,14 +454,19 @@ const { data: brands } = useQuery<BrandOption[]>({
   refetchOnWindowFocus: false,
 })
 
-const { data: variants, isFetching: isFetchingVariants } = useQuery({
+const {
+  data: variants,
+  isFetching: isFetchingVariants,
+  isError: isVariantsError,
+  refetch: refetchVariants,
+} = useQuery({
   queryKey: computed(() => productQueryKeys.variants(tenantId.value, productIdOrEmpty.value)),
   queryFn: () => productApi.getVariants(productIdOrEmpty.value),
   enabled: computed(() => !isCreateMode.value),
   refetchOnWindowFocus: false,
 })
 
-const { data: lots, isFetching: isFetchingLots } = useQuery({
+const { data: lots, isFetching: isFetchingLots, isError: isLotsError, refetch: refetchLots } = useQuery({
   queryKey: computed(() => productQueryKeys.lots(tenantId.value, productIdOrEmpty.value)),
   queryFn: () => productApi.getLots(productIdOrEmpty.value),
   enabled: computed(() => !isCreateMode.value),
@@ -499,15 +504,17 @@ const variantGroups = computed(() => {
   // Use pending variants in create mode, backend variants in edit mode
   const items = isCreateMode.value
     ? pendingVariants.value.map((pv) => ({
-        option: pv.option || 'Sin opción',
+        option: pv.option?.trim() ?? '',
         value: pv.value || pv.option,
       }))
     : variantsList.value.map((v) => ({
-        option: v.option?.trim() || 'Sin opción',
+        option: v.option?.trim() ?? '',
         value: v.value?.trim() || v.name,
       }))
 
   for (const item of items) {
+    // A variant without an option (Talla, Color) only repeats its own table row: no group card.
+    if (!item.option) continue
     const existing = grouped.get(item.option)
 
     if (!existing) {
@@ -2339,7 +2346,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
               <UFormField label="" name="purchaseCost">
                 <div class="relative w-full md:max-w-md">
                   <span
-                    class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
+                    class="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-muted"
                     >$</span
                   >
                   <UInput
@@ -2350,7 +2357,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                     :ui="{ base: 'pl-7 pr-24' }"
                   />
                   <span
-                    class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted"
+                    class="pointer-events-none absolute right-3 top-1/2 z-10 -translate-y-1/2 text-xs text-muted"
                     >por Unidad</span
                   >
                 </div>
@@ -2499,7 +2506,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                 description="Agrupar unidades por lote y fecha de expiración"
               />
 
-              <p v-if="showStockByVariantMessage" class="text-sm text-warning">
+              <p v-if="showStockByVariantMessage" class="text-sm text-muted">
                 El stock se gestiona por variante
               </p>
 
@@ -2586,11 +2593,13 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
               :pending="isCreateMode"
               :show-stock="formState.useStock"
               :loading="!isCreateMode && isFetchingVariants"
+              :error="!isCreateMode && isVariantsError"
               :can-update="canUpdateProduct"
               :can-delete="canDeleteProduct"
               @update-quantity="handleVariantQuantityUpdate"
               @commit-price="handleVariantPriceCommit"
               @action="handleVariantAction"
+              @retry="refetchVariants()"
             />
           </UCard>
 
@@ -2622,9 +2631,11 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                 :lots="lotTableRows"
                 :pending="isCreateMode"
                 :loading="!isCreateMode && isFetchingLots"
+                :error="!isCreateMode && isLotsError"
                 :can-delete="canDeleteProduct"
                 @edit="handleEditLotPlaceholder"
                 @delete="handleLotTableDelete"
+                @retry="refetchLots()"
               />
 
               <USeparator class="my-4" />
@@ -2846,7 +2857,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
               </UFormField>
               <UFormField label="Costo (del producto)" class="md:col-span-2">
                 <div class="relative">
-                  <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
+                  <span class="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-muted"
                     >$</span
                   >
                   <UInput
@@ -2858,7 +2869,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                     :aria-invalid="pendingVariantCostError ? 'true' : undefined"
                     :aria-describedby="pendingVariantCostError ? 'pending-variant-cost-message' : undefined"
                   />
-                  <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted"
+                  <span class="pointer-events-none absolute right-3 top-1/2 z-10 -translate-y-1/2 text-xs text-muted"
                     >por Unidad</span
                   >
                 </div>
@@ -2937,7 +2948,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
               <div>
                 <div class="relative">
                   <span
-                    class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
+                    class="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-muted"
                     >$</span
                   >
                   <UInput
@@ -2950,7 +2961,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                     :aria-describedby="pendingVariantTierRowErrors[row.key] ? `pending-tier-${row.key}-message` : undefined"
                   />
                   <span
-                    class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted"
+                    class="pointer-events-none absolute right-3 top-1/2 z-10 -translate-y-1/2 text-xs text-muted"
                     >por Unidad</span
                   >
                 </div>
@@ -3189,7 +3200,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
           <UFormField label="Costo de compra (neto)" name="purchaseCost" class="md:col-span-2">
             <div class="relative w-full">
               <span
-                class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
+                class="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-muted"
                 >$</span
               >
               <UInput

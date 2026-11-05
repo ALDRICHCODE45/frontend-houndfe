@@ -133,12 +133,12 @@ function actionsFor(variantPrice: VariantPrice): RowAction[] {
 }
 
 function formatMarginPercent(variantPrice: VariantPrice): string {
-  if (!shouldShowMargin(variantPrice)) return '--'
+  if (!shouldShowMargin(variantPrice)) return '—'
   return `${variantPrice.margin?.percent ?? 0}%`
 }
 
 function formatMarginAmount(variantPrice: VariantPrice): string {
-  if (!shouldShowMargin(variantPrice)) return '--'
+  if (!shouldShowMargin(variantPrice)) return '—'
   return `${currencyFormatter.format(variantPrice.margin?.amountDecimal ?? 0)} por Unidad`
 }
 
@@ -316,7 +316,7 @@ function handleSaveTierPrices() {
               class="hf-figure px-4 py-2 text-right text-sm"
               :class="tier.margin ? (tier.margin.amountCents >= 0 ? 'text-success' : 'text-error') : 'text-muted'"
             >
-              {{ tier.margin ? `${tier.margin.percent}%` : '--' }}
+              {{ tier.margin ? `${tier.margin.percent}%` : '—' }}
             </td>
             <td
               class="hf-figure px-4 py-2 text-right text-sm"
@@ -325,7 +325,7 @@ function handleSaveTierPrices() {
               {{
                 tier.margin
                   ? `${currencyFormatter.format(tier.margin.amountDecimal)} por unidad`
-                  : '--'
+                  : '—'
               }}
             </td>
             <td />

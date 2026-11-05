@@ -42,11 +42,44 @@ afterEach(() => {
 })
 
 describe('ProductVariantsTable', () => {
-  it('shows the name with SKU and barcode under it, and a dash for a missing barcode', () => {
+  it('shows the name with only the codes it has under it', () => {
     const wrapper = mountTable()
     const text = wrapper.text()
     expect(text).toContain('Tamaño: Grande')
-    expect(text).toContain('SKU: VAR-1 · Código: —')
+    expect(wrapper.get('[data-testid="variant-codes"]').text()).toBe('SKU: VAR-1')
+    expect(text).not.toContain('Código')
+    wrapper.unmount()
+  })
+
+  it('shows no codes line when the variant has neither SKU nor barcode', () => {
+    const wrapper = mountTable({ rows: [{ ...row, sku: '', barcode: '' }] })
+    expect(wrapper.find('[data-testid="variant-codes"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('—')
+    wrapper.unmount()
+  })
+
+  it('says once, in the heading, that saved stock is adjusted from Inventario', () => {
+    const wrapper = mountTable({ rows: [row, { ...row, id: 'variant-2', label: 'Tamaño: Chico' }] })
+    expect(wrapper.get('thead').text()).toContain('Se ajusta desde Inventario')
+    expect(wrapper.get('tbody').text()).not.toContain('Se ajusta desde Inventario')
+    wrapper.unmount()
+  })
+
+  it('says the variants did not load, with a retry, instead of an empty list', async () => {
+    const wrapper = mountTable({ rows: [], error: true })
+    const state = wrapper.get('.hf-empty-state[data-kind="error"]')
+    expect(state.text()).toContain('No se pudieron cargar las variantes')
+    expect(wrapper.text()).not.toContain('Sin variantes registradas.')
+    await state.get('button').trigger('click')
+    expect(wrapper.emitted('retry')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('labels each figure cell so the row can stack as a card on a phone', () => {
+    const wrapper = mountTable()
+    expect(wrapper.get('table').attributes('data-stack')).toBeDefined()
+    const labels = wrapper.findAll('tbody td[data-label]').map((cell) => cell.attributes('data-label'))
+    expect(labels).toEqual(['Existencias', 'Precio público'])
     wrapper.unmount()
   })
 
@@ -142,11 +175,10 @@ describe('ProductVariantsTable', () => {
 
   // O1 S1: a saved variant's stock is read-only; it moves through an adjustment.
   describe('quantity is read-only for saved variants', () => {
-    it('shows the stock as a figure with the hint, not as an input', () => {
+    it('shows the stock as a figure, not as an input', () => {
       const wrapper = mountTable()
       const stock = wrapper.get('[data-testid="variant-stock-readonly"]')
-      expect(stock.text()).toContain('10')
-      expect(stock.text()).toContain('Se ajusta desde Inventario')
+      expect(stock.text()).toBe('10')
       expect(wrapper.find('input[aria-label="Existencias de Tamaño: Grande"]').exists()).toBe(false)
       expect(wrapper.findAll('input')).toHaveLength(1)
       wrapper.unmount()

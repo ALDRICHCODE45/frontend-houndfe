@@ -46,6 +46,30 @@ beforeEach(() => {
 })
 
 describe('ProductImageGallery states (S10)', () => {
+  it('error: says the images did not load, with a retry, never «Sin imágenes»', async () => {
+    api.getImages.mockRejectedValueOnce(new Error('boom')).mockResolvedValue([image('a', true)])
+    const wrapper = mountGallery()
+    await flushPromises()
+
+    const state = wrapper.get('.hf-empty-state[data-kind="error"]')
+    expect(state.text()).toContain('No se pudieron cargar las imágenes')
+    expect(wrapper.text()).not.toContain('Sin imágenes')
+    await state.get('button').trigger('click')
+    await flushPromises()
+    expect(api.getImages).toHaveBeenCalledTimes(2)
+    expect(wrapper.findAll('img')).toHaveLength(1)
+  })
+
+  it('data: the scope label and the Principal badge share one wrapping row, so they never overlap', async () => {
+    api.getImages.mockResolvedValue([image('a', true)])
+    const wrapper = mountGallery()
+    await flushPromises()
+
+    const row = wrapper.get('[data-testid="gallery-card-labels"]')
+    expect(row.text()).toContain('Producto')
+    expect(row.text()).toContain('Principal')
+  })
+
   it('loading: shows skeleton squares and no thumbnails', async () => {
     api.getImages.mockReturnValue(new Promise(() => {}))
     const wrapper = mountGallery()

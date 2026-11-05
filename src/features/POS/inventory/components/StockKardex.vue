@@ -15,6 +15,8 @@ const props = defineProps<{
   loadingMore?: boolean
   loadMoreError?: boolean
   filters?: readonly KardexFilterOption[]
+  /** What the buckets are, for the column and the filter: lots or presentations; a place by default. */
+  bucket?: 'lot' | 'variant'
 }>()
 const emit = defineEmits<{ 'load-more': []; refresh: [] }>()
 const filter = defineModel<{ kind: 'lot' | 'variant'; id: string } | null>('filter', { default: null })
@@ -29,18 +31,25 @@ function toggle(row: KardexRow) {
 }
 const isOpen = (row: KardexRow) => expanded.value.has(row.key)
 
+const BUCKET_COPY = {
+  lot: { heading: 'Lote', filter: 'Filtrar por lote', noMatch: 'Ningún movimiento en este lote' },
+  variant: { heading: 'Presentación', filter: 'Filtrar por presentación', noMatch: 'Ningún movimiento en esta presentación' },
+  place: { heading: 'Ubicación', filter: 'Filtrar por ubicación', noMatch: 'Ningún movimiento en esta ubicación' },
+} as const
+const copy = computed(() => BUCKET_COPY[props.bucket ?? 'place'])
+
 const emptyState = { title: 'Aún no hay movimientos', description: 'Cada cambio de stock quedará registrado aquí.' }
 const filtered = computed(() => filter.value !== null)
 const right = { class: { th: 'text-right kardex-num', td: 'text-right kardex-num' } }
 const text = { class: { th: 'kardex-text', td: 'kardex-text' } }
-const columns: TableColumn<KardexRow, unknown>[] = [
+const columns = computed<TableColumn<KardexRow, unknown>[]>(() => [
   { id: 'movement', header: 'Movimiento', enableSorting: false },
   { id: 'createdAt', header: 'Fecha', enableSorting: false, meta: text },
-  { id: 'location', header: 'Ubicación', enableSorting: false, meta: text },
+  { id: 'location', header: copy.value.heading, enableSorting: false, meta: text },
   { id: 'delta', header: 'Cambio', enableSorting: false, meta: right },
   { id: 'balance', header: 'Saldo', enableSorting: false, meta: right },
   { id: 'total', header: 'Total', enableSorting: false, meta: right },
-]
+])
 const number = (value: number) => value.toLocaleString('es-MX')
 const signed = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${number(Math.abs(value))}`
 const isActive = (option: KardexFilterOption | null) =>
@@ -53,17 +62,18 @@ const toggleLabel = (row: KardexRow) => `${isOpen(row) ? 'Ocultar' : 'Ver'} el d
 
 <template>
   <div class="kardex">
-    <div v-if="filters?.length" data-testid="kardex-filters" role="group" aria-label="Filtrar por ubicación" class="kardex-filters">
+    <div v-if="filters?.length" data-testid="kardex-filters" :aria-label="copy.filter" role="group" class="kardex-filters">
       <button type="button" class="kardex-chip" :aria-pressed="isActive(null)" @click="choose(null)">Todos</button>
       <button
         v-for="option in filters" :key="option.kind + option.id" type="button" class="kardex-chip"
         :aria-pressed="isActive(option)" @click="choose(option)"
       >{{ option.label }}</button>
     </div>
+    <div class="kardex-surface">
     <AppDataTable
       :show-toolbar="false" :columns="columns" :data="rows" :loading="loading" :fetching="fetching" :error="error"
       error-message="No se pudieron cargar los movimientos" :empty-state="emptyState" :filtered="filtered"
-      no-match-title="Ningún movimiento en esta ubicación" display-mode="auto" mobile-render="cards"
+      :no-match-title="copy.noMatch" display-mode="auto" mobile-render="cards"
       class="hf-data-table" @refresh="emit('refresh')" @clear-filters="choose(null)"
     >
       <template #movement-cell="{ row }">
@@ -114,6 +124,7 @@ const toggleLabel = (row: KardexRow) => `${isOpen(row) ? 'Ocultar' : 'Ver'} el d
         </article>
       </template>
     </AppDataTable>
+    </div>
     <div v-if="hasMore" class="kardex-more">
       <p v-if="loadMoreError" data-testid="kardex-load-more-error" role="alert" class="kardex-more-error">No se pudieron cargar más movimientos.</p>
       <UButton
@@ -127,10 +138,14 @@ const toggleLabel = (row: KardexRow) => `${isOpen(row) ? 'Ocultar' : 'Ver'} el d
 <style scoped>
 .kardex { display: grid; gap: 12px; min-width: 0; }
 .kardex-filters { display: flex; flex-wrap: wrap; gap: 8px; }
-.kardex-chip { min-height: 32px; padding: 0 12px; border: 1px solid var(--hf-border); border-radius: 999px; background: var(--hf-surface); color: var(--hf-text); font-size: 13px; font-weight: 500; cursor: pointer; }
+.kardex-chip { min-height: 32px; padding: 0 12px; border: 1px solid var(--hf-border); border-radius: 999px; background: var(--hf-surface); color: var(--hf-ink); font-size: 13px; font-weight: 500; cursor: pointer; }
 .kardex-chip[aria-pressed='true'] { border-color: var(--hf-action); background: var(--hf-active-soft); color: var(--hf-heading); font-weight: 600; }
 .kardex-chip:focus-visible, .kardex-toggle:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
 .kardex-movement { min-width: 0; }
+/* From md the table sits in the same bordered card as the stock table; phone cards keep their own. */
+@media (min-width: 768px) {
+  .kardex-surface { overflow: hidden; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); }
+}
 /* The global floors (16rem name, 7rem each) make six columns 816px wide, wider than the 760px
  * column beside the summary panel at 1440: the actor and the total sat behind a scroll. */
 .kardex :deep(.hf-data-table :is(td, th)[data-slot].hf-col-primary) { width: 26%; min-width: 11rem; }

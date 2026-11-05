@@ -582,7 +582,7 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       expect(selector.exists()).toBe(true)
       expect(selector.attributes('disabled')).toBeDefined()
       expect(section.find('[data-testid="contexts-gated-note"]').text()).toContain(
-        'Configura los contextos públicos del tenant en Sistema > Catálogo online para habilitar esta selección',
+        'Configura los contextos públicos de la sucursal en Sistema > Catálogo online para habilitar esta selección',
       )
       expect(
         section.find('[data-testid="hide-price-switch"]').attributes('disabled'),
@@ -604,7 +604,7 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       const section = wrapper.findComponent(ProductCatalogSettingsSection)
       expect(section.props('settingsLoading')).toBe(true)
       expect(section.find('[data-testid="settings-loading-note"]').text()).toContain(
-        'Cargando contextos públicos del tenant',
+        'Cargando contextos públicos de la sucursal',
       )
       expect(section.find('[data-testid="context-toggle"]').exists()).toBe(false)
       expect(section.find('[data-testid="contexts-select"]').attributes('disabled')).toBeDefined()
@@ -618,7 +618,7 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       const wrapper = await mountLoadedView()
       const section = wrapper.findComponent(ProductCatalogSettingsSection)
       expect(section.find('[data-testid="settings-error-note"]').text()).toContain(
-        'No se pudieron cargar los contextos públicos del tenant',
+        'No se pudieron cargar los contextos públicos de la sucursal',
       )
       expect(section.find('[data-testid="context-toggle"]').exists()).toBe(false)
       expect(section.find('[data-testid="contexts-select"]').attributes('disabled')).toBeDefined()
@@ -631,7 +631,7 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       const wrapper = await mountLoadedView()
       const section = wrapper.findComponent(ProductCatalogSettingsSection)
       expect(section.find('[data-testid="contexts-empty-note"]').text()).toContain(
-        'El tenant no tiene contextos públicos configurados',
+        'La sucursal no tiene contextos públicos configurados',
       )
       expect(section.find('[data-testid="context-toggle"]').exists()).toBe(false)
       expect(section.find('[data-testid="contexts-select"]').attributes('disabled')).toBeDefined()

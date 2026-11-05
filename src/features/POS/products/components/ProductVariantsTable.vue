@@ -12,11 +12,13 @@ import '../styles/products-plain-table.css'
  *   commit-price(id, cents) — the public price was left with a new valid
  *                             amount (InlinePriceInput)
  *   action(key, id) — photos | details | edit | delete (delete is confirmed by the owner)
+ *   retry() — the error state's Reintentar
  */
 import { computed } from 'vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import InlinePriceInput from './InlinePriceInput.vue'
-import ReadOnlyStock from './ReadOnlyStock.vue'
+import ReadOnlyStock, { STOCK_ADJUST_HINT } from './ReadOnlyStock.vue'
 
 export interface ProductVariantRow {
   id: string
@@ -35,6 +37,8 @@ const props = defineProps<{
   pending: boolean
   showStock: boolean
   loading?: boolean
+  /** The saved variants did not load: say so, with a retry, instead of an empty list. */
+  error?: boolean
   canUpdate: boolean
   canDelete: boolean
 }>()
@@ -44,6 +48,7 @@ const emit = defineEmits<{
   'commit-quantity': [id: string]
   'commit-price': [id: string, cents: number]
   action: [key: string, id: string]
+  retry: []
 }>()
 
 const columnCount = computed(() => (props.showStock ? 4 : 3))
@@ -52,6 +57,11 @@ const emptyText = computed(() =>
     ? 'Sin variantes agregadas. Usa «Agregar variante».'
     : 'Sin variantes registradas.',
 )
+// Only the codes a variant has, so a row never reads «SKU: — · Código: —».
+function codesOf(row: ProductVariantRow): string {
+  return [row.sku && `SKU: ${row.sku}`, row.barcode && `Código: ${row.barcode}`].filter(Boolean).join(' · ')
+}
+
 // Pending rows are local, so their inputs and actions are always editable.
 const locked = computed(() => !props.pending && !props.canUpdate)
 
@@ -75,35 +85,48 @@ function actionsFor(): RowAction[] {
 
 <template>
   <div class="overflow-x-auto rounded-md border border-default" data-testid="product-variants-table">
-    <table class="products-plain-table min-w-full divide-y divide-default text-sm">
+    <table class="products-plain-table products-variants-table min-w-full divide-y divide-default text-sm" data-stack>
       <thead>
         <tr>
           <th class="px-4 py-3 text-left font-semibold">Variante</th>
-          <th v-if="showStock" class="px-4 py-3 text-right font-semibold">Existencias</th>
+          <th v-if="showStock" class="px-4 py-3 text-right font-semibold">
+            Existencias
+            <span v-if="!pending" class="block text-xs font-normal text-muted">{{ STOCK_ADJUST_HINT }}</span>
+          </th>
           <th class="px-4 py-3 text-right font-semibold">Precio público</th>
           <th class="w-16 px-4 py-3"><span class="sr-only">Acciones</span></th>
         </tr>
       </thead>
       <tbody class="divide-y divide-default">
-        <tr v-if="loading">
+        <tr v-if="error && rows.length === 0">
+          <td :colspan="columnCount" class="p-4">
+            <EmptyState
+              kind="error"
+              title="No se pudieron cargar las variantes"
+              action-label="Reintentar"
+              :action-loading="loading"
+              @action="emit('retry')"
+            />
+          </td>
+        </tr>
+        <tr v-else-if="loading">
           <td :colspan="columnCount" class="px-4 py-3 text-muted">Actualizando variantes...</td>
         </tr>
         <tr v-else-if="rows.length === 0">
           <td :colspan="columnCount" class="px-4 py-3 text-muted">{{ emptyText }}</td>
         </tr>
         <tr v-for="row in rows" :key="row.id">
-          <td class="px-4 py-3">
+          <td class="px-4 py-3" data-area="name">
             <div class="font-semibold text-highlighted">{{ row.label }}</div>
-            <div class="text-xs text-muted">
-              SKU: {{ row.sku || '—' }} · Código: {{ row.barcode || '—' }}
-            </div>
+            <div v-if="codesOf(row)" class="text-xs text-muted" data-testid="variant-codes">{{ codesOf(row) }}</div>
           </td>
-          <td v-if="showStock" class="px-4 py-3 text-right">
+          <td v-if="showStock" class="px-4 py-3 text-right" data-area="stock" data-label="Existencias">
             <ReadOnlyStock
               v-if="!pending"
               :value="row.quantity ?? 0"
               :label="`Existencias de ${row.label}`"
               compact
+              hide-hint
               data-testid="variant-stock-readonly"
             />
             <UInputNumber
@@ -118,7 +141,7 @@ function actionsFor(): RowAction[] {
               @keyup.enter="emit('commit-quantity', row.id)"
             />
           </td>
-          <td class="px-4 py-3 text-right">
+          <td class="px-4 py-3 text-right" data-area="price" data-label="Precio público">
             <InlinePriceInput
               class="ml-auto max-w-[8rem]"
               :price-cents="row.priceCents"
@@ -127,7 +150,7 @@ function actionsFor(): RowAction[] {
               @commit="emit('commit-price', row.id, $event)"
             />
           </td>
-          <td class="px-4 py-3 text-right">
+          <td class="px-4 py-3 text-right" data-area="actions">
             <RowActionsMenu
               :actions="actionsFor()"
               :row-label="`la variante ${row.label}`"

@@ -26,6 +26,9 @@ const rows = computed(() => stock.value ? bucketRows(stock.value) : [])
 const hasLots = computed(() => Boolean(stock.value?.lots.length))
 const filters = computed(() => stock.value ? kardexFilters(stock.value) : [])
 const tracksStock = computed(() => stock.value?.product.useStock ?? false)
+// A lot or a presentation is not a place: the buckets are named for what they are.
+const bucket = computed<'lot' | 'variant'>(() => (stock.value?.variants.length ? 'variant' : 'lot'))
+const bucketHeading = computed(() => (bucket.value === 'variant' ? 'Presentación' : 'Lote'))
 const kardexError = computed(() => Boolean(movements.error.value) && movements.items.value.length === 0)
 const number = (value: number) => value.toLocaleString('es-MX')
 
@@ -68,7 +71,7 @@ function reload() {
     <div v-else-if="!tracksStock" data-testid="stock-state">
       <EmptyState
         title="Este producto no lleva control de stock"
-        description="Activa «Usar stock» en el producto para llevar sus existencias."
+        description="Activa «Controlar inventario» en Presentaciones para llevar sus existencias."
       />
     </div>
     <template v-else>
@@ -83,10 +86,10 @@ function reload() {
           </dl>
         </div>
         <div class="stock-scroll">
-          <table class="stock-table" aria-label="Existencias por ubicación">
+          <table class="stock-table" :aria-label="`Existencias por ${bucketHeading.toLowerCase()}`">
             <thead>
               <tr>
-                <th scope="col">Ubicación</th>
+                <th scope="col">{{ bucketHeading }}</th>
                 <th v-if="hasLots" scope="col" class="stock-when-col">Vence</th>
                 <th scope="col" class="stock-num">Existencias</th>
                 <th scope="col"><span class="sr-only">Acciones</span></th>
@@ -100,7 +103,7 @@ function reload() {
                     <StatusBadge v-if="row.expired" label="Vencido" tone="danger" aria-prefix="Lote:" />
                   </span>
                   <span v-if="row.expired" class="hf-row-secondary">No se vende</span>
-                  <span v-if="row.expiration" class="hf-row-secondary stock-expires">Vence {{ row.expiration }}</span>
+                  <span v-if="row.expiration" class="hf-row-secondary stock-expires">{{ row.expired ? 'Venció' : 'Vence' }} {{ row.expiration }}</span>
                 </td>
                 <td v-if="hasLots" class="stock-when stock-when-col">{{ row.expiration ?? '—' }}</td>
                 <td class="stock-num"><span data-testid="stock-quantity" class="hf-figure">{{ number(row.quantity) }}</span></td>
@@ -118,7 +121,7 @@ function reload() {
       <div class="stock-block">
         <h3 class="stock-title">Movimientos</h3>
         <StockKardex
-          v-model:filter="kardexFilter" :items="movements.items.value" :loading="movements.isLoading.value"
+          v-model:filter="kardexFilter" :bucket="bucket" :items="movements.items.value" :loading="movements.isLoading.value"
           :fetching="movements.isFetching.value" :error="kardexError" :has-more="movements.hasMore.value"
           :loading-more="movements.isFetchingMore.value" :load-more-error="movements.loadMoreError.value" :filters="filters"
           @load-more="movements.loadMore" @refresh="movements.refresh"
@@ -144,7 +147,7 @@ function reload() {
 .stock-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .stock-table th { height: 40px; padding: 0 12px; text-align: left; font-size: 13px; font-weight: 600; color: var(--hf-muted); background: color-mix(in srgb, var(--hf-ink) 4%, var(--hf-surface)); }
 .stock-table td { padding: 10px 12px; border-top: 1px solid var(--hf-border); vertical-align: middle; }
-.stock-num { text-align: right; }
+.stock-num, .stock-table th.stock-num { text-align: right; }
 .stock-action { width: 1%; text-align: right; white-space: nowrap; }
 .stock-when { color: var(--hf-muted); white-space: nowrap; }
 .stock-label { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }

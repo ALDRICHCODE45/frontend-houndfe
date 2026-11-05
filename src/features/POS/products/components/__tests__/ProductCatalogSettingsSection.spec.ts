@@ -47,7 +47,7 @@ describe('ProductCatalogSettingsSection — advanced Catálogo online (REQ-14/RE
     expect(mountSection().find('[data-testid="supports-all-note"]').exists()).toBe(false)
     const all = mountSection({ supportsAllCatalogPriceLists: true })
     expect(all.find('[data-testid="supports-all-note"]').text()).toContain(
-      'Soporta todos los contextos públicos del tenant',
+      'Soporta todos los contextos públicos de la sucursal',
     )
   })
 
@@ -99,7 +99,7 @@ describe('ProductCatalogSettingsSection — advanced Catálogo online (REQ-14/RE
     expect(selector.attributes('disabled')).toBeDefined()
     expect(selector.attributes('aria-label')).toBe('Contextos públicos no disponibles')
     expect(wrapper.find('[data-testid="contexts-gated-note"]').text()).toContain(
-      'Configura los contextos públicos del tenant en Sistema > Catálogo online para habilitar esta selección',
+      'Configura los contextos públicos de la sucursal en Sistema > Catálogo online para habilitar esta selección',
     )
     expect(wrapper.find('[data-testid="hide-price-switch"]').attributes('disabled')).toBeUndefined()
     expect(
@@ -112,13 +112,13 @@ describe('ProductCatalogSettingsSection — advanced Catálogo online (REQ-14/RE
       name: 'pending',
       state: { settingsLoading: true },
       note: 'settings-loading-note',
-      copy: 'Cargando contextos públicos del tenant',
+      copy: 'Cargando contextos públicos de la sucursal',
     },
     {
       name: 'failed',
       state: { settingsError: true },
       note: 'settings-error-note',
-      copy: 'No se pudieron cargar los contextos públicos del tenant',
+      copy: 'No se pudieron cargar los contextos públicos de la sucursal',
     },
   ] as const)(
     '$name settings query hides cached rows and renders a disabled labeled contexts control',
@@ -143,7 +143,7 @@ describe('ProductCatalogSettingsSection — advanced Catálogo online (REQ-14/RE
     const wrapper = mountSection({ contexts: [] })
 
     expect(wrapper.find('[data-testid="contexts-empty-note"]').text()).toContain(
-      'El tenant no tiene contextos públicos configurados',
+      'La sucursal no tiene contextos públicos configurados',
     )
     expect(wrapper.find('[data-testid="context-toggle"]').exists()).toBe(false)
     const selector = wrapper.find('[data-testid="contexts-select"]')

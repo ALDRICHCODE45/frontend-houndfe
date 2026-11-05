@@ -7,6 +7,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { z } from 'zod'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import { productApi } from '../api/product.api'
 import { currencyFormatter } from '@/core/shared/utils/currency.utils'
@@ -43,7 +44,7 @@ const tenantId = useSafeTenantId()
 
 // ── Queries ────────────────────────────────────────────────
 
-const { data: priceLists, isFetching } = useQuery({
+const { data: priceLists, isFetching, isError, refetch } = useQuery({
   queryKey: computed(() => productQueryKeys.priceLists(tenantId.value, props.productId)),
   queryFn: () => productApi.getPriceLists(props.productId),
   enabled: computed(() => props.productId.length > 0),
@@ -415,12 +416,12 @@ function onAction(key: string, list: PriceList) {
 }
 
 function formatMarginPercent(list: PriceList): string {
-  if (!shouldShowMargin(list)) return '--'
+  if (!shouldShowMargin(list)) return '—'
   return `${list.margin?.percent ?? 0}%`
 }
 
 function formatMarginAmount(list: PriceList): string {
-  if (!shouldShowMargin(list)) return '--'
+  if (!shouldShowMargin(list)) return '—'
   return `${currencyFormatter.format(list.margin?.amountDecimal ?? 0)} por Unidad`
 }
 </script>
@@ -434,7 +435,7 @@ function formatMarginAmount(list: PriceList): string {
     </template>
 
     <div class="overflow-x-auto rounded-md border border-default">
-      <table class="products-plain-table min-w-full divide-y divide-default text-sm">
+      <table class="products-plain-table products-price-table min-w-full divide-y divide-default text-sm" data-stack>
         <thead>
           <tr>
             <th class="px-4 py-3 text-left font-semibold">Lista de precios</th>
@@ -449,7 +450,19 @@ function formatMarginAmount(list: PriceList): string {
         </thead>
 
         <tbody class="divide-y divide-default">
-          <template v-if="isFetching && lists.length === 0">
+          <tr v-if="isError && lists.length === 0">
+            <td colspan="5" class="p-4">
+              <EmptyState
+                kind="error"
+                title="No se pudieron cargar los precios"
+                action-label="Reintentar"
+                :action-loading="isFetching"
+                @action="refetch()"
+              />
+            </td>
+          </tr>
+
+          <template v-else-if="isFetching && lists.length === 0">
             <tr v-for="n in 3" :key="n" data-testid="price-lists-skeleton" aria-busy="true">
               <td colspan="5" class="px-4 py-3"><USkeleton class="h-6 w-full" /></td>
             </tr>
@@ -463,9 +476,9 @@ function formatMarginAmount(list: PriceList): string {
             <template v-for="list in lists" :key="list.id">
               <!-- Main price row -->
               <tr>
-                <td class="px-4 py-3 font-semibold text-highlighted">{{ list.name }}</td>
+                <td class="px-4 py-3 font-semibold text-highlighted" data-area="name">{{ list.name }}</td>
 
-                <td class="px-4 py-3 text-right">
+                <td class="px-4 py-3 text-right" data-area="price" data-label="Precio de venta con impuestos">
                   <InlinePriceInput
                     class="ml-auto max-w-xs"
                     :price-cents="list.priceCents"
@@ -478,6 +491,8 @@ function formatMarginAmount(list: PriceList): string {
                 <td
                   class="hf-figure px-4 py-3 text-right"
                   :class="shouldShowMargin(list) ? marginClass(list) : 'text-muted'"
+                  data-area="margin"
+                  data-label="Margen"
                 >
                   {{ formatMarginPercent(list) }}
                 </td>
@@ -485,11 +500,13 @@ function formatMarginAmount(list: PriceList): string {
                 <td
                   class="hf-figure px-4 py-3 text-right"
                   :class="shouldShowMargin(list) ? marginClass(list) : 'text-muted'"
+                  data-area="gain"
+                  data-label="Ganancia"
                 >
                   {{ formatMarginAmount(list) }}
                 </td>
 
-                <td class="px-4 py-3 text-right">
+                <td class="px-4 py-3 text-right" data-area="actions">
                   <RowActionsMenu
                     :actions="actionsFor(list)"
                     :row-label="`la lista ${list.name}`"
@@ -500,25 +517,29 @@ function formatMarginAmount(list: PriceList): string {
 
               <!-- Tier prices sub-rows -->
               <tr v-for="tier in list.tierPrices" :key="tier.id" class="bg-elevated/20">
-                <td class="py-2 pl-8 pr-4 text-sm text-muted">{{ tier.minQuantity }} o más</td>
-                <td class="hf-figure px-4 py-2 text-right text-sm">
+                <td class="py-2 pl-8 pr-4 text-sm text-muted" data-area="name">{{ tier.minQuantity }} o más</td>
+                <td class="hf-figure px-4 py-2 text-right text-sm" data-area="price">
                   $ {{ centsToDecimalInput(tier.priceCents) }}
                   <span class="text-xs text-muted">por unidad</span>
                 </td>
                 <td
                   class="hf-figure px-4 py-2 text-right text-sm"
                   :class="tier.margin ? ((tier.margin.amountCents ?? 0) >= 0 ? 'text-success' : 'text-error') : 'text-muted'"
+                  data-area="margin"
+                  data-label="Margen"
                 >
-                  {{ tier.margin ? `${tier.margin.percent}%` : '--' }}
+                  {{ tier.margin ? `${tier.margin.percent}%` : '—' }}
                 </td>
                 <td
                   class="hf-figure px-4 py-2 text-right text-sm"
                   :class="tier.margin ? ((tier.margin.amountCents ?? 0) >= 0 ? 'text-success' : 'text-error') : 'text-muted'"
+                  data-area="gain"
+                  data-label="Ganancia"
                 >
                   {{
                     tier.margin
                       ? `${currencyFormatter.format(tier.margin.amountDecimal ?? 0)} por unidad`
-                      : '--'
+                      : '—'
                   }}
                 </td>
                 <td />

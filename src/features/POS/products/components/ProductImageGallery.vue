@@ -33,7 +33,7 @@ const tenantId = useSafeTenantId()
 
 // ── Queries ────────────────────────────────────────────────
 
-const { data: images, isFetching } = useQuery({
+const { data: images, isFetching, isError, refetch } = useQuery({
   queryKey: computed(() => productQueryKeys.images(tenantId.value, props.productId)),
   queryFn: () => productApi.getImages(props.productId),
   enabled: computed(() => props.productId.length > 0),
@@ -272,9 +272,19 @@ function isImageBroken(imageId: string): boolean {
         </div>
       </div>
 
+      <!-- Failed read: never shown as an empty gallery -->
+      <EmptyState
+        v-if="isError && allImages.length === 0"
+        kind="error"
+        title="No se pudieron cargar las imágenes"
+        action-label="Reintentar"
+        :action-loading="isFetching"
+        @action="refetch()"
+      />
+
       <!-- Loading -->
       <div
-        v-if="isFetching"
+        v-else-if="isFetching"
         class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4"
         data-testid="gallery-skeleton"
         aria-busy="true"
@@ -298,19 +308,19 @@ function isImageBroken(imageId: string): boolean {
           class="group relative rounded-lg border border-default overflow-hidden transition-all duration-200 hover:shadow-lg cursor-pointer"
           :class="{ 'ring-2 ring-(--hf-active) ring-offset-2': image.isMain }"
         >
-          <!-- Main badge - prominent when active -->
-          <div v-if="image.isMain" class="absolute top-2 right-2 z-10">
-            <StatusBadge label="Principal" tone="info" aria-prefix="Imagen:" />
-          </div>
-
-          <!-- Scope label (only in "Todas" view) -->
+          <!-- Scope label (only in "Todas") and the Principal badge share one row that wraps, so they never overlap -->
           <div
-            v-if="activeScope === 'all'"
-            class="absolute top-2 left-2 z-10 px-2 py-1 rounded-md bg-black/70 backdrop-blur-sm"
+            v-if="image.isMain || activeScope === 'all'"
+            class="pointer-events-none absolute inset-x-2 top-2 z-10 flex flex-wrap items-start justify-between gap-1"
+            data-testid="gallery-card-labels"
           >
-            <span class="text-xs font-medium text-white">
+            <span
+              v-if="activeScope === 'all'"
+              class="min-w-0 truncate rounded-md bg-black/70 px-2 py-1 text-xs font-medium text-white backdrop-blur-sm"
+            >
               {{ getVariantName(image.variantId) }}
             </span>
+            <StatusBadge v-if="image.isMain" class="ml-auto" label="Principal" tone="info" aria-prefix="Imagen:" />
           </div>
 
           <!-- Image or broken fallback -->

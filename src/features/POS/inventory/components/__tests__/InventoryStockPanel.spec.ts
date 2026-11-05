@@ -127,6 +127,8 @@ describe('stock panel — empty', () => {
     const state = wrapper.get('[data-testid="stock-state"] .hf-empty-state')
     expect(state.attributes('data-kind')).toBe('empty')
     expect(state.get('.hf-empty-state__title').text()).toBe('Este producto no lleva control de stock')
+    // The switch is «Controlar inventario» in Presentaciones; «Usar stock» named nothing on screen.
+    expect(state.text()).toContain('Activa «Controlar inventario» en Presentaciones para llevar sus existencias.')
     expect(wrapper.find('[data-testid="stock-adjust"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="stock-total"]').exists()).toBe(false)
   })
@@ -154,6 +156,22 @@ describe('stock panel — data', () => {
     expect(rows(wrapper).map(row => row.get('[data-testid="stock-quantity"]').text())).toEqual(['12', '8', '22', '30'])
     expect(rows(wrapper)[2]!.text()).toContain('15 ene 2027')
     expect(wrapper.html()).not.toMatch(/l-old|l-a|l-b/)
+  })
+
+  // A lot or a presentation is not a place: «Ubicación» read like the shelf of the product.
+  it('heads the stock and the kardex with «Lote» for a product with lots', async () => {
+    const wrapper = setup()
+    await flushPromises()
+    const table = wrapper.get('table[aria-label="Existencias por lote"]')
+    expect(table.findAll('thead th')[0]!.text()).toBe('Lote')
+    expect(wrapper.get('[data-testid="kardex-filters"]').attributes('aria-label')).toBe('Filtrar por lote')
+    expect(wrapper.text()).not.toContain('Ubicación')
+  })
+
+  it('says «Venció» for the expired lot under its name', async () => {
+    const wrapper = setup()
+    await flushPromises()
+    expect(rows(wrapper)[1]!.get('.stock-expires').text()).toBe('Venció 15 oct 2026')
   })
 
   // Found in the T10 runtime check: at 390 the four columns were 419px wide in a 356px card, so every
@@ -189,7 +207,10 @@ describe('stock panel — data', () => {
     const wrapper = setup({}, 'p2')
     await flushPromises()
     expect(rows(wrapper).map(row => row.get('[data-testid="stock-label"]').text())).toEqual(['Chico · Azul', 'Mediano · Rojo'])
-    expect(wrapper.get('table[aria-label="Existencias por ubicación"]').text()).not.toContain('Sin lote')
+    const table = wrapper.get('table[aria-label="Existencias por presentación"]')
+    expect(table.text()).not.toContain('Sin lote')
+    expect(table.findAll('thead th')[0]!.text()).toBe('Presentación')
+    expect(wrapper.get('[data-testid="kardex-filters"]').attributes('aria-label')).toBe('Filtrar por presentación')
     expect(total(wrapper)).toBe('24')
   })
 
