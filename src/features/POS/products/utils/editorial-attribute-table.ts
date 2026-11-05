@@ -28,6 +28,11 @@ export type EditorialTableRow = {
   code: string
   label: string
   definition: EditorialDefinition
+  /** Where the datum lives: the product, or each presentation. */
+  owner: EditorialOwner
+  /** The binding's attribute section and its place in it (L75); null when the vocabulary gives none. */
+  sectionCode: string | null
+  sectionSortOrder: number | null
   /** The binding is INTERNAL: the datum is never shown to the public. */
   internal: boolean
   /** Help text from the vocabulary, null when the definition has none. */
@@ -131,6 +136,9 @@ export function buildEditorialAttributeTable({ family, definitions, values, subj
     code: definition.code,
     label: definition.label,
     definition,
+    owner: binding.owner,
+    sectionCode: binding.sectionCode ?? null,
+    sectionSortOrder: binding.sectionSortOrder ?? null,
     internal: binding.exposure === 'INTERNAL',
     description: definition.description?.trim() ? definition.description : null,
     cells: used.map(column => {

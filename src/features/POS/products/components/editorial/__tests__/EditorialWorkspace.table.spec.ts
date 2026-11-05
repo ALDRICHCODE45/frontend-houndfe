@@ -1,19 +1,22 @@
 /**
- * EditorialWorkspace — T8: Merge Revisar into Contenido. The table of the family's data is the way to
- * edit attributes; save, conflicts and the discard confirmation behave as before.
+ * EditorialWorkspace — the draft lifecycle around the section cards (ported from the T8 table spec in T13):
+ * the four states, the save bar, saving and refreshing, conflicts, the family, the history drawer and
+ * read-only users behave as before. The section cards themselves are in EditorialWorkspace.cards.spec.ts.
  */
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { reactive } from 'vue'
 import EditorialWorkspace from '../EditorialWorkspace.vue'
-import { stubEditorialSelect } from './editorialSelectStub'
+import HfCombobox from '@/core/shared/components/form/HfCombobox.vue'
+import HfSaveBar from '@/core/shared/components/form/HfSaveBar.vue'
 import type { EditorialContractDocument } from '../../../interfaces/editorial-contract-document.types'
 import type { EditorialContractVocabulary } from '../../../interfaces/editorial-contract-vocabulary.types'
 import { editorialToday } from '../../../utils/editorial-presentation-card'
 import { document as emptyDocument, read, update, state, success, failure, vocabularyEnvelope, deferred } from '../../../__tests__/editorial-contract-fixtures'
 
+if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => {}
 const http = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn() }))
 vi.mock('@/core/shared/api/http', () => ({ http }))
 const auth = reactive({ isAuthenticated: true, authPhase: 'authenticated', user: { id: 'u' }, currentTenant: { id: 't' }, permissionsLoaded: true, permissionCodes: [read, update] })
@@ -36,7 +39,7 @@ const vocabulary: EditorialContractVocabulary = {
 const variants = [{ id: 'v1', name: '15 kg' }, { id: 'v2', name: '7.5 kg' }]
 const material = (value: string) => ({ code: 'material', owner: 'product' as const, variantId: null, state: 'known' as const, payload: { type: 'text' as const, value }, evidence: null })
 const doc = (patch: Partial<EditorialContractDocument> = {}): EditorialContractDocument => ({ ...emptyDocument(), commercialTitle: 'Croqueta', familyCode: 'food', ...patch })
-let wrapper: ReturnType<typeof mount>
+let wrapper: VueWrapper
 
 function reads(snapshot = state(doc()), context: { variants: { id: string; name: string }[] } = { variants }) {
   http.get.mockImplementation((url: string) => Promise.resolve(url.includes('vocabulary') ? { ...success(), data: vocabularyEnvelope(vocabulary) }
@@ -47,179 +50,20 @@ const render = async (props: Record<string, unknown> = {}) => {
   await flushPromises()
 }
 const tick = () => new Promise(resolve => setTimeout(resolve, 60))
-const row = (label: string) => wrapper.findAll('tbody tr').find(item => item.get('th').text() === label)!
-const cell = (label: string, column: number) => row(label).findAll('td')[column]!
+const field = (label: string) => wrapper.findAll('[data-testid="attribute-field"]').find(item => item.get('.hf-form-field__label').text() === label)
+const materialText = () => field('Material')!.get('textarea')
+const combo = (label: string) => wrapper.findAllComponents(HfCombobox).find(item => item.props('label') === label)!
+const bar = () => wrapper.findComponent(HfSaveBar)
 const button = (text: string) => wrapper.findAll('button').find(item => item.text().includes(text))!
-const menuItems = () => Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]'))
-async function pick(trigger: { trigger(event: string): Promise<void> }, label: string) {
-  await trigger.trigger('click'); await tick()
-  menuItems().find(item => (item.textContent ?? '').trim() === label)!.click(); await tick()
-}
+const domButton = (text: string) => Array.from(document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')).find(item => item.textContent?.trim() === text)!
+const submit = async () => { await wrapper.get('form').trigger('submit'); await flushPromises() }
 
-beforeAll(stubEditorialSelect)
 beforeEach(() => {
   vi.resetAllMocks()
   Object.assign(auth, { permissionCodes: [read, update], isAuthenticated: true, authPhase: 'authenticated', permissionsLoaded: true })
   reads()
 })
 afterEach(() => { wrapper?.unmount(); document.body.innerHTML = '' })
-
-describe('EditorialWorkspace — the table', () => {
-  it('lists the family data by human label, with Producto and one column per presentation', async () => {
-    await render()
-    expect(wrapper.findAll('thead th').map(th => th.text())).toEqual(['Dato', 'Producto', '15 kg', '7.5 kg'])
-    expect(wrapper.findAll('tbody th[scope="row"]').map(th => th.text())).toEqual(['Especie', 'Material', 'Peso neto'])
-    expect(wrapper.text()).not.toContain('animal.target')
-  })
-
-  it('offers a control only where a binding allows the target', async () => {
-    await render()
-    expect(cell('Especie', 0).find('select').exists()).toBe(true)
-    expect(cell('Especie', 1).find('select, input').exists()).toBe(false)
-    expect(cell('Peso neto', 1).find('input').exists()).toBe(true)
-    expect(cell('Peso neto', 0).find('input').exists()).toBe(false)
-  })
-
-  it('shows one presentation column when the product has no variants, never "Sin presentación"', async () => {
-    reads(state(doc()), { variants: [] })
-    await render()
-    expect(wrapper.findAll('thead th').map(th => th.text())).toEqual(['Dato', 'Producto', 'Presentación'])
-    expect(wrapper.text()).not.toContain('Sin presentación')
-  })
-
-  it('has no table, but a prompt, while there is no family', async () => {
-    reads(state(doc({ familyCode: null })))
-    await render()
-    expect(wrapper.find('table').exists()).toBe(false)
-    expect(wrapper.text()).toContain('Elige una familia')
-  })
-
-  it('editing a cell creates the assignment, and Guardar sends the same document shape', async () => {
-    http.put.mockResolvedValue(success(state(doc({ values: [material('Nylon')] }), 4)))
-    await render()
-    await cell('Material', 0).get('input').setValue('Nylon')
-    await wrapper.get('form').trigger('submit'); await flushPromises()
-    expect(http.put.mock.calls[0]![1]).toEqual({ expectedCycle: 2, expectedRevision: 3, document: doc({ values: [material('Nylon')] }) })
-  })
-
-  it('editing again updates the same assignment instead of adding another', async () => {
-    http.put.mockResolvedValue(success())
-    reads(state(doc({ values: [material('Ny')] })))
-    await render()
-    await cell('Material', 0).get('input').setValue('Nylon')
-    await wrapper.get('form').trigger('submit'); await flushPromises()
-    expect(http.put.mock.calls[0]![1].document.values).toEqual([material('Nylon')])
-  })
-
-  it('the ⋯ menu sets a state, which is saved as that state', async () => {
-    http.put.mockResolvedValue(success())
-    await render()
-    await pick(cell('Especie', 0).get('button[aria-haspopup="menu"]'), 'Desconocido')
-    expect(cell('Especie', 0).get('.hf-status-badge').text()).toBe('Desconocido')
-    await wrapper.get('form').trigger('submit'); await flushPromises()
-    expect(http.put.mock.calls[0]![1].document.values).toEqual([{ code: 'animal.target', owner: 'product', variantId: null, state: 'unknown', evidence: null }])
-  })
-
-  it('offers "No aplica" only where the policy admits it, with no stand-in item otherwise', async () => {
-    await render()
-    await wrapper.get('button[aria-label="Acciones de Especie · Producto"]').trigger('click'); await tick()
-    const labels = menuItems().map(item => (item.textContent ?? '').trim())
-    expect(labels).toContain('Desconocido')
-    expect(labels.filter(label => label.startsWith('No aplica') || label.startsWith('Déjalo'))).toEqual([])
-  })
-
-  it('a stored "No aplica" the policy does not admit is refused on save, next to its cell, and can be removed', async () => {
-    reads(state(doc({ values: [{ code: 'animal.target', owner: 'product', variantId: null, state: 'not_applicable', evidence: null }] })))
-    await render()
-    await wrapper.get('form').trigger('submit'); await flushPromises()
-    expect(http.put).not.toHaveBeenCalled()
-    expect(cell('Especie', 0).get('[role="alert"]').text()).toBe('Este dato no admite «No aplica».')
-    await pick(cell('Especie', 0).get('button[aria-haspopup="menu"]'), 'Quitar dato')
-    expect(cell('Especie', 0).get('.hf-status-badge').text()).toBe('Sin dato')
-  })
-
-  it('marks "Requerido para publicar" from the saved declarations, without blocking the save', async () => {
-    const policy = { route: 'fact_rule' as const, rule: { family: 'food' as const, ruleId: 'content' as const, parameter: 'measure.net_mass' as const } }
-    const guided: EditorialContractVocabulary = { ...vocabulary, families: [{ ...vocabulary.families[0]!,
-      bindings: vocabulary.families[0]!.bindings.map(item => (item.definitionCode === 'measure.net_mass' ? { ...item, policy } : item)) }, vocabulary.families[1]!] }
-    const facts = [{ variantId: 'v1', presentation: '15 kg', careReview: null,
-      declarations: [{ key: 'contentMagnitude' as const, state: 'known' as const, value: 'mass' as const, evidence: { sourceRef: 'Etiqueta', verifiedOn: '2026-01-01' }, basis: 'Etiqueta' }] }]
-    http.get.mockImplementation((url: string) => Promise.resolve(url.includes('vocabulary') ? { ...success(), data: vocabularyEnvelope(guided) }
-      : url.endsWith('/context') ? { status: 200, data: { variants } } : success(state(doc({ facts })))))
-    await render()
-    expect(cell('Peso neto', 1).text()).toContain('Requerido para publicar')
-    expect(cell('Peso neto', 2).text()).not.toContain('Requerido para publicar')
-    expect(wrapper.find('[data-testid="attribute-table"] [role="alert"]').exists()).toBe(false)
-  })
-
-  it('Quitar dato removes the assignment from the saved document', async () => {
-    http.put.mockResolvedValue(success())
-    reads(state(doc({ values: [material('Nylon')] })))
-    await render()
-    await pick(cell('Material', 0).get('button[aria-haspopup="menu"]'), 'Quitar dato')
-    await wrapper.get('form').trigger('submit'); await flushPromises()
-    expect(http.put.mock.calls[0]![1].document.values).toEqual([])
-  })
-
-  it('shows a save problem next to its cell with aria-invalid', async () => {
-    reads(state(doc({ values: [{ code: 'measure.net_mass', owner: 'sellable', variantId: 'v1', state: 'known', payload: { type: 'number', value: 5, unit: 'kg' }, evidence: null }] })))
-    await render()
-    await cell('Peso neto', 1).get('input').setValue('5x')
-    await wrapper.get('form').trigger('submit'); await flushPromises()
-    expect(http.put).not.toHaveBeenCalled()
-    expect(cell('Peso neto', 1).get('input').attributes('aria-invalid')).toBe('true')
-    expect(cell('Peso neto', 1).get('[role="alert"]').text()).toBe('Escribe solo números')
-    expect(wrapper.get('[data-testid="editorial-footer"]').text()).toContain('No se guardó')
-  })
-
-  it('keeps stored data that the table cannot show, and says so', async () => {
-    reads(state(doc({ values: [material('Nylon'), { code: 'gone.code', owner: 'product', variantId: null, state: 'unknown', evidence: null }] })))
-    http.put.mockResolvedValue(success())
-    await render()
-    expect(wrapper.get('[data-testid="attribute-orphans"]').text()).toContain('1 dato guardado')
-  })
-})
-
-describe('EditorialWorkspace — completeness and Solo faltantes', () => {
-  it('counts the rows whose every cell has an answer over all the rows', async () => {
-    reads(state(doc({ values: [material('Nylon'), { code: 'animal.target', owner: 'product', variantId: null, state: 'unknown', evidence: null }] })))
-    await render()
-    expect(wrapper.get('.editorial-completeness').text()).toBe('2 de 3 datos')
-    // The badge counts the same rows: the one incomplete row (Peso neto, empty in both presentations).
-    expect(wrapper.get('[data-testid="only-missing"] .editorial-count').text()).toBe('1')
-  })
-
-  it('the count follows an edit as it happens', async () => {
-    await render()
-    expect(wrapper.get('.editorial-completeness').text()).toBe('0 de 3 datos')
-    await cell('Material', 0).get('input').setValue('Nylon')
-    expect(wrapper.get('.editorial-completeness').text()).toBe('1 de 3 datos')
-  })
-
-  it('Solo faltantes shows only the rows with something missing, and keeps a row while it is filled', async () => {
-    reads(state(doc({ values: [material('Nylon')] })))
-    await render()
-    expect(wrapper.get('[data-testid="only-missing"]').text()).toContain('2')
-    await wrapper.get('[data-testid="only-missing"]').trigger('click')
-    expect(wrapper.get('[data-testid="only-missing"]').attributes('aria-pressed')).toBe('true')
-    expect(wrapper.findAll('tbody th[scope="row"]').map(th => th.text())).toEqual(['Especie', 'Peso neto'])
-    await cell('Especie', 0).get('select').setValue('dog')
-    expect(wrapper.findAll('tbody th[scope="row"]').map(th => th.text())).toEqual(['Especie', 'Peso neto'])
-    await wrapper.get('[data-testid="only-missing"]').trigger('click')
-    expect(wrapper.findAll('tbody th[scope="row"]')).toHaveLength(3)
-  })
-
-  it('says nothing is missing when every datum has an answer', async () => {
-    const answered = (code: string, owner: 'product' | 'sellable', variantId: string | null) => ({ code, owner, variantId, state: 'unknown' as const, evidence: null })
-    reads(state(doc({ values: [answered('animal.target', 'product', null), answered('material', 'product', null), answered('measure.net_mass', 'sellable', 'v1'), answered('measure.net_mass', 'sellable', 'v2')] })))
-    await render()
-    await wrapper.get('[data-testid="only-missing"]').trigger('click')
-    expect(wrapper.get('.hf-empty-state').attributes('data-kind')).toBe('no-match')
-    expect(wrapper.get('.hf-empty-state__title').text()).toBe('No falta ningún dato')
-    await wrapper.get('[data-testid="clear-missing"]').trigger('click')
-    expect(wrapper.findAll('tbody th[scope="row"]')).toHaveLength(3)
-  })
-})
 
 describe('EditorialWorkspace — the four states', () => {
   it('empty: no draft is one empty state with the single action to start', async () => {
@@ -229,8 +73,8 @@ describe('EditorialWorkspace — the four states', () => {
     expect(empty.attributes('data-kind')).toBe('empty')
     expect(empty.get('.hf-empty-state__title').text()).toBe('Aún no hay ficha para el catálogo')
     expect(wrapper.get('[data-testid="initialize"]').text()).toContain('Empezar ficha')
-    expect(wrapper.find('table').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="editorial-footer"]').exists()).toBe(false)
+    expect(wrapper.find('.hf-section-card').exists()).toBe(false)
+    expect(wrapper.findComponent(HfSaveBar).exists()).toBe(false)
   })
 
   it('empty with a published version: the one action starts from it', async () => {
@@ -240,25 +84,24 @@ describe('EditorialWorkspace — the four states', () => {
     expect(wrapper.get('.hf-empty-state__description').text()).toContain('versión publicada')
   })
 
-  it('loading: a skeleton shaped like the toolbar and the table, with a spoken status', async () => {
+  it('loading: a skeleton of the index and the cards, with a spoken status', async () => {
     const pending = deferred<unknown>()
     http.get.mockReturnValue(pending.promise)
     await render()
     const skeleton = wrapper.get('[data-testid="editorial-skeleton"]')
     expect(skeleton.attributes('aria-busy')).toBe('true')
     expect(skeleton.text()).toContain('Cargando contenido editorial')
-    expect(skeleton.findAll('[data-skeleton="section"]')).toHaveLength(2)
-    expect(skeleton.findAll('.editorial-skeleton-row').length).toBeGreaterThanOrEqual(5)
-    expect(skeleton.findAll('.hf-skeleton').length).toBeGreaterThan(5)
-    expect(wrapper.find('table').exists()).toBe(false)
+    expect(skeleton.findAll('.editorial-skeleton-card')).toHaveLength(3)
+    expect(skeleton.findAll('[data-skeleton="field"]').length).toBeGreaterThanOrEqual(6)
+    expect(wrapper.find('.hf-section-card').exists()).toBe(false)
   })
 
-  it('data: the toolbar, the document fields, the table and the footer', async () => {
+  it('data: the header, the cards and the save bar', async () => {
     await render()
-    expect(wrapper.find('[role="toolbar"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="editorial-head"]').text()).toContain('Contenido')
     expect(wrapper.get('#editorial-title').element).toHaveProperty('value', 'Croqueta')
-    expect(wrapper.find('table').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="editorial-footer"]').exists()).toBe(true)
+    expect(wrapper.findAll('.hf-section-card').length).toBeGreaterThanOrEqual(3)
+    expect(bar().exists()).toBe(true)
     expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
   })
 
@@ -268,45 +111,46 @@ describe('EditorialWorkspace — the four states', () => {
     const error = wrapper.get('.hf-empty-state[data-kind="error"]')
     expect(error.attributes('role')).toBe('alert')
     expect(error.get('[data-testid="empty-state-action"]').text()).toContain('Reintentar')
-    expect(wrapper.find('table').exists()).toBe(false)
+    expect(wrapper.find('.hf-section-card').exists()).toBe(false)
     reads()
     await error.get('[data-testid="empty-state-action"]').trigger('click'); await flushPromises()
-    expect(wrapper.find('table').exists()).toBe(true)
+    expect(wrapper.find('.hf-section-card').exists()).toBe(true)
+  })
+
+  it('forbidden: a refused read is the forbidden state, never a retryable error', async () => {
+    http.get.mockRejectedValue(failure(403, 'FORBIDDEN'))
+    await render()
+    expect(wrapper.get('.hf-empty-state').attributes('data-kind')).toBe('forbidden')
   })
 })
 
-describe('EditorialWorkspace — the footer', () => {
-  it('shows the unsaved state as soon as something changes, with Guardar as its only primary', async () => {
+describe('EditorialWorkspace — the save bar', () => {
+  it('says what changed as soon as something changes, with Guardar as its only primary', async () => {
     await render()
-    expect(wrapper.get('[data-testid="editorial-footer"] .editorial-save-state').text()).toBe('Guardado')
-    await cell('Material', 0).get('input').setValue('Nylon')
-    expect(wrapper.get('[data-testid="editorial-footer"] .editorial-save-state').text()).toBe('Cambios sin guardar')
+    expect(bar().text()).not.toContain('sin guardar')
+    await materialText().setValue('Nylon')
+    expect(bar().text()).toContain('1 cambio sin guardar')
     expect(wrapper.findAll('.hf-primary-control').map(item => item.text())).toEqual(['Guardar'])
   })
 
-  it('says publication is coming, as a disabled button, and never offers to publish', async () => {
+  it('never offers to publish, and the publication placeholder is gone', async () => {
     auth.permissionCodes = ['manage:all']
     await render()
-    const soon = button('Publicación próximamente')
-    expect(soon.attributes('disabled')).toBeDefined()
-    expect(wrapper.findAll('button').some(item => /^Publicar/.test(item.text()))).toBe(false)
+    expect(wrapper.findAll('button').some(item => /^Publicar|Publicación próximamente/.test(item.text()))).toBe(false)
     expect(http.post).not.toHaveBeenCalled()
-    expect(source).toMatch(/Publicación próximamente/)
+    expect(source).not.toMatch(/Publicación próximamente/)
   })
 
-  it('keeps Descartar borrador… in the ⋯ menu and asks before discarding the saved draft', async () => {
+  it('keeps «Descartar borrador» in the header and asks before discarding the saved draft', async () => {
     http.post.mockResolvedValue(success({ cycle: 2, draft: null, published: null }))
     await render()
-    await wrapper.get('[data-testid="editorial-footer"] button[aria-haspopup="menu"]').trigger('click'); await tick()
-    expect(menuItems().map(item => (item.textContent ?? '').trim())).toEqual(['Descartar borrador…'])
-    menuItems()[0]!.click(); await tick()
+    await wrapper.get('[data-testid="discard-draft"]').trigger('click'); await tick()
     expect(document.body.textContent).toContain('¿Descartar el borrador?')
     expect(document.body.textContent).toContain('Lo publicado no cambia.')
+    domButton('Cancelar').click(); await tick()
     expect(http.post).not.toHaveBeenCalled()
-    Array.from(document.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Cancelar')!.click(); await tick()
-    expect(http.post).not.toHaveBeenCalled()
-    await pick(wrapper.get('[data-testid="editorial-footer"] button[aria-haspopup="menu"]'), 'Descartar borrador…')
-    Array.from(document.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Descartar borrador')!.click(); await flushPromises()
+    await wrapper.get('[data-testid="discard-draft"]').trigger('click'); await tick()
+    domButton('Descartar borrador').click(); await flushPromises()
     expect(http.post.mock.calls[0]![0]).toContain('/draft/discard')
   })
 
@@ -314,141 +158,114 @@ describe('EditorialWorkspace — the footer', () => {
     http.post.mockResolvedValue(success({ cycle: 3, draft: null, published: null }))
     await render()
     reads({ cycle: 3, draft: null, published: null })
-    await pick(wrapper.get('[data-testid="editorial-footer"] button[aria-haspopup="menu"]'), 'Descartar borrador…')
-    Array.from(document.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Descartar borrador')!.click(); await flushPromises()
+    await wrapper.get('[data-testid="discard-draft"]').trigger('click'); await tick()
+    domButton('Descartar borrador').click(); await flushPromises()
     expect(wrapper.find('[data-testid="initialize"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('Aún no hay ficha para el catálogo')
   })
 
-  it('offers to undo unsaved changes while there are some, and asks before replacing them', async () => {
+  it('Descartar asks before replacing the unsaved changes with the saved version', async () => {
     await render()
-    await cell('Material', 0).get('input').setValue('Nylon')
-    await wrapper.get('[data-testid="editorial-footer"] button[aria-haspopup="menu"]').trigger('click'); await tick()
-    expect(menuItems().map(item => (item.textContent ?? '').trim())).toEqual(['Deshacer cambios sin guardar…', 'Descartar borrador…'])
-    menuItems()[0]!.click(); await tick()
+    await materialText().setValue('Nylon')
+    bar().vm.$emit('discard'); await tick()
     expect(wrapper.find('[aria-labelledby="discard-title"]').exists()).toBe(true)
     await wrapper.get('[data-testid="confirm-discard"]').trigger('click'); await flushPromises()
-    expect(cell('Material', 0).get('input').element).toHaveProperty('value', '')
+    expect(materialText().element).toHaveProperty('value', '')
   })
 
-  it('is sticky, and on mobile keeps Guardar beside the ⋯ menu without the disabled publication button', () => {
-    expect(source).toMatch(/\.editorial-footer\s*\{[^}]*position:\s*sticky[^}]*bottom:\s*0/)
-    expect(source).toMatch(/@media \(max-width: 767px\)[\s\S]*\.editorial-footer__soon\s*\{[^}]*display:\s*none/)
-    expect(source).toMatch(/@media \(max-width: 767px\)[\s\S]*\.editorial-footer__actions\s*\{[^}]*grid-template-columns:\s*auto; grid-auto-flow: column; grid-auto-columns: minmax\(0, 1fr\)/)
-    expect(source).not.toMatch(/grid-column:\s*1 \/ -1/)
-  })
-
-  it('on mobile keeps the band to one row (Historial as an icon) and the toolbar to two', () => {
-    expect(source).toMatch(/@media \(max-width: 767px\)[\s\S]*\.editorial-history-label\s*\{[^}]*(?:clip|sr-only|position:\s*absolute)/)
-    expect(source).toMatch(/\.editorial-completeness\s*\{[^}]*white-space:\s*nowrap/)
-    expect(source).toMatch(/@media \(max-width: 767px\)[\s\S]*\.editorial-toolbar :deep\(\.family-field\)\s*\{[^}]*flex:\s*1 1 100%/)
-  })
-
-  it('has a header band with the state of the sheet and Historial, apart from the filter toolbar', async () => {
-    await render()
-    const band = wrapper.get('[data-testid="editorial-band"]')
-    expect(band.text()).toContain('Ficha para el catálogo')
-    expect(band.text()).toContain('Borrador')
-    expect(band.find('[data-testid="open-history"]').exists()).toBe(true)
-    const toolbar = wrapper.get('[role="toolbar"]')
-    expect(toolbar.find('[data-testid="only-missing"]').exists()).toBe(true)
-    expect(toolbar.find('[data-testid="open-history"]').exists()).toBe(false)
-    expect(toolbar.text()).toContain('de 3 datos')
+  it('is the last thing of the scroll, sticky at the bottom, full bleed on mobile', () => {
+    expect(source).toMatch(/\.editorial-save\s*\{[^}]*position:\s*sticky[^}]*bottom:\s*0/)
+    expect(source).toMatch(/\.editorial-save\s*\{[^}]*margin-inline:\s*-16px/)
   })
 })
 
 describe('EditorialWorkspace — after a save', () => {
-  it('shows Guardado with the time and refreshes the saved draft with one GET', async () => {
+  it('says it was saved and refreshes the saved draft with one GET', async () => {
     http.put.mockResolvedValue(success(state(doc({ values: [material('Nylon')] }), 99)))
     await render()
-    await cell('Material', 0).get('input').setValue('Nylon')
+    await materialText().setValue('Nylon')
     reads(state(doc({ values: [material('Nylon')] }), 4))
-    await wrapper.get('form').trigger('submit'); await flushPromises()
-    const status = wrapper.get('[data-testid="editorial-footer"] .editorial-save-state')
-    expect(status.text()).toMatch(/^Guardado · \d{1,2} [a-záéíóú]+\.?(?: \d{4})?, \d{2}:\d{2}$/)
-    expect(status.text()).not.toMatch(/sin guardar|No se/i)
+    await submit()
+    expect(bar().text()).toContain('Guardado justo ahora')
     expect(http.get).toHaveBeenCalledTimes(6)
-    expect(cell('Material', 0).get('input').element).toHaveProperty('value', 'Nylon')
+    expect(materialText().element).toHaveProperty('value', 'Nylon')
     expect(wrapper.find('[data-testid="retry-view"]').exists()).toBe(false)
-    // Saved with no new change: nothing to save, so Guardar is the shared disabled primary.
     expect(button('Guardar').attributes('disabled')).toBeDefined()
   })
 
-  it('a failed refresh still says Guardado, adds a quiet retry and never an error that suggests the save failed', async () => {
+  it('a failed refresh still says it was saved, adds a quiet retry and never an error that suggests the save failed', async () => {
     http.put.mockResolvedValue(success(state(doc({ values: [material('Nylon')] }), 99)))
     await render()
-    await cell('Material', 0).get('input').setValue('Nylon')
+    await materialText().setValue('Nylon')
     http.get.mockRejectedValue(failure(500, 'INTERNAL_ERROR'))
-    await wrapper.get('form').trigger('submit'); await flushPromises()
-    const status = wrapper.get('[data-testid="editorial-footer"] .editorial-save-state')
-    expect(status.text()).toMatch(/^Guardado · .+ · No se pudo actualizar la vista · Reintentar$/)
+    await submit()
+    expect(wrapper.get('[data-testid="stale-view"]').text()).toContain('no se pudo actualizar la vista')
     expect(wrapper.find('.hf-empty-state[data-kind="error"]').exists()).toBe(false)
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
-    expect(status.text()).not.toMatch(/No se guardó/)
-    expect(wrapper.find('table').exists()).toBe(true)
-    expect(cell('Material', 0).get('input').element).toHaveProperty('value', 'Nylon')
+    expect(bar().text()).not.toMatch(/No se guardó/)
+    expect(materialText().element).toHaveProperty('value', 'Nylon')
     expect(http.put).toHaveBeenCalledTimes(1)
   })
 
   it('Reintentar loads the saved draft and the stale note goes away', async () => {
     http.put.mockResolvedValue(success())
     await render()
-    await cell('Material', 0).get('input').setValue('Nylon')
+    await materialText().setValue('Nylon')
     http.get.mockRejectedValue(failure(500, 'INTERNAL_ERROR'))
-    await wrapper.get('form').trigger('submit'); await flushPromises()
+    await submit()
     reads(state(doc({ values: [material('Nylon')] }), 4))
     await wrapper.get('[data-testid="retry-view"]').trigger('click'); await flushPromises()
     expect(wrapper.find('[data-testid="retry-view"]').exists()).toBe(false)
-    expect(wrapper.get('.editorial-save-state').text()).toMatch(/^Guardado/)
+    expect(bar().text()).toMatch(/Guardado/)
   })
 })
 
 describe('EditorialWorkspace — conflicts and reconciliation', () => {
-  it('a conflict says so in plain words above the table and keeps the local edits', async () => {
+  it('a conflict says so in plain words above the cards and keeps the local edits', async () => {
     http.put.mockRejectedValue(failure(409, 'CONFLICT'))
     await render()
-    await cell('Material', 0).get('input').setValue('LOCAL')
-    await wrapper.get('form').trigger('submit'); await flushPromises()
+    await materialText().setValue('LOCAL')
+    await submit()
     const alert = wrapper.get('[data-testid="reconciliation"]')
     expect(alert.text()).toContain('Alguien más guardó cambios. Carga la versión más reciente para continuar.')
     expect(alert.text()).not.toMatch(/acuse|ciclo|revisión/i)
-    expect(cell('Material', 0).get('input').element).toHaveProperty('value', 'LOCAL')
+    expect(materialText().element).toHaveProperty('value', 'LOCAL')
     expect(http.put).toHaveBeenCalledTimes(1)
   })
 
   it('Cargar la versión más reciente asks first, and cancelling keeps the edits', async () => {
     http.put.mockRejectedValue(failure(409, 'CONFLICT'))
     await render()
-    await cell('Material', 0).get('input').setValue('LOCAL')
-    await wrapper.get('form').trigger('submit'); await flushPromises()
+    await materialText().setValue('LOCAL')
+    await submit()
     await wrapper.get('[data-testid="refresh-discard"]').trigger('click')
     expect(wrapper.get('[aria-labelledby="discard-title"]').text()).toContain('¿Reemplazar tus cambios sin guardar')
     await wrapper.get('[data-testid="cancel-discard"]').trigger('click')
-    expect(cell('Material', 0).get('input').element).toHaveProperty('value', 'LOCAL')
+    expect(materialText().element).toHaveProperty('value', 'LOCAL')
     expect(http.get).toHaveBeenCalledTimes(3)
     reads(state(doc({ values: [material('REMOTE')] }), 5))
     await wrapper.get('[data-testid="refresh-discard"]').trigger('click')
     await wrapper.get('[data-testid="confirm-discard"]').trigger('click'); await flushPromises()
-    expect(cell('Material', 0).get('input').element).toHaveProperty('value', 'REMOTE')
+    expect(materialText().element).toHaveProperty('value', 'REMOTE')
     expect(wrapper.find('[data-testid="reconciliation"]').exists()).toBe(false)
   })
 
   it('Conservar mis cambios y actualizar re-reads and keeps the local edits', async () => {
     http.put.mockRejectedValue(failure(409, 'CONFLICT'))
     await render()
-    await cell('Material', 0).get('input').setValue('LOCAL')
-    await wrapper.get('form').trigger('submit'); await flushPromises()
+    await materialText().setValue('LOCAL')
+    await submit()
     reads(state(doc({ values: [material('REMOTE')] }), 5))
-    await wrapper.get('[data-testid="refresh-retain"]').trigger('click'); await flushPromises()
-    expect(cell('Material', 0).get('input').element).toHaveProperty('value', 'LOCAL')
+    await wrapper.get('[data-testid="reconciliation"] [data-testid="refresh-retain"]').trigger('click'); await flushPromises()
+    expect(materialText().element).toHaveProperty('value', 'LOCAL')
     expect(wrapper.find('[data-testid="reconciliation"]').exists()).toBe(false)
   })
 
   it('an ambiguous result says it could not confirm, and retries the same request', async () => {
     http.put.mockRejectedValueOnce(new Error('network')).mockResolvedValue(success())
     await render()
-    await cell('Material', 0).get('input').setValue('LOCAL')
-    await wrapper.get('form').trigger('submit'); await flushPromises()
+    await materialText().setValue('LOCAL')
+    await submit()
     expect(wrapper.get('[data-testid="reconciliation"]').text()).toContain('No pudimos confirmar si se guardó')
     await button('Reintentar guardado').trigger('click'); await flushPromises()
     expect(http.put).toHaveBeenCalledTimes(2)
@@ -460,29 +277,36 @@ describe('EditorialWorkspace — conflicts and reconciliation', () => {
 describe('EditorialWorkspace — the family', () => {
   const modalButton = (label: string) => Array.from(document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')).find(item => item.textContent?.trim() === label)!
 
-  it('asks in a modal before changing the family, and cancelling keeps the data of the table', async () => {
+  it('lives in the Presentación card and asks in a modal before changing; cancelling keeps the data', async () => {
     reads(state(doc({ values: [material('Nylon')] })))
     const confirm = vi.spyOn(window, 'confirm')
     await render()
-    await wrapper.get('#editorial-family').setValue('1'); await tick()
+    expect(wrapper.get('[data-testid="presentation-section"]').findComponent(HfCombobox).props('label')).toBe('Familia')
+    combo('Familia').vm.$emit('update:modelValue', '1'); await tick()
     expect(confirm).not.toHaveBeenCalled()
     expect(document.body.textContent).toContain('¿Cambiar la familia?')
     expect(document.body.textContent).toContain('Se borran los datos de la familia actual')
-    expect(cell('Material', 0).get('input').element).toHaveProperty('value', 'Nylon')
     modalButton('Cancelar').click(); await tick()
     expect(document.querySelector('[role="dialog"]')).toBeNull()
-    expect(cell('Material', 0).get('input').element).toHaveProperty('value', 'Nylon')
-    expect(wrapper.get('#editorial-family').element).toHaveProperty('value', '0')
+    expect(materialText().element).toHaveProperty('value', 'Nylon')
+    expect(combo('Familia').props('modelValue')).toBe('0')
   })
 
-  it('changes the family and clears the data of the table once the modal is confirmed', async () => {
+  it('changes the family and clears its data once the modal is confirmed', async () => {
     reads(state(doc({ values: [material('Nylon')] })))
     await render()
-    await wrapper.get('#editorial-family').setValue('1'); await tick()
+    combo('Familia').vm.$emit('update:modelValue', '1'); await tick()
     modalButton('Cambiar familia').click(); await tick()
     expect(document.querySelector('[role="dialog"]')).toBeNull()
-    expect(wrapper.findAll('tbody th[scope="row"]').map(th => th.text())).toEqual(['Material'])
-    expect(cell('Material', 0).get('input').element).toHaveProperty('value', '')
+    expect(wrapper.findAll('[data-testid="attribute-field"]').map(item => item.get('.hf-form-field__label').text())).toEqual(['Material'])
+    expect(materialText().element).toHaveProperty('value', '')
+  })
+
+  it('without a family there are no attribute cards, but a prompt', async () => {
+    reads(state(doc({ familyCode: null })))
+    await render()
+    expect(wrapper.find('[data-testid="attribute-section"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Elige una familia')
   })
 })
 
@@ -507,8 +331,8 @@ describe('EditorialWorkspace — the history drawer', () => {
   it('says when the draft was saved after saving it in this session', async () => {
     http.put.mockResolvedValue(success())
     await render()
-    await cell('Material', 0).get('input').setValue('Nylon')
-    await wrapper.get('form').trigger('submit'); await flushPromises()
+    await materialText().setValue('Nylon')
+    await submit()
     await wrapper.get('[data-testid="open-history"]').trigger('click'); await tick()
     expect(document.querySelector('[role="dialog"]')!.textContent).toMatch(/Guardado el \d{1,2} [a-záéíóú]+\.?(?: \d{4})?, \d{2}:\d{2}/)
   })
@@ -516,24 +340,25 @@ describe('EditorialWorkspace — the history drawer', () => {
   it('keeps the page free of history text: no cycle, revision or acknowledgement anywhere in the view', async () => {
     http.put.mockResolvedValue(success(state(doc(), 99)))
     await render()
-    await cell('Material', 0).get('input').setValue('Nylon')
-    await wrapper.get('form').trigger('submit'); await flushPromises()
+    await materialText().setValue('Nylon')
+    await submit()
     expect(wrapper.text()).not.toMatch(/acuse|ciclo|revisión|Consultar y/i)
   })
 })
 
 describe('EditorialWorkspace — read-only users', () => {
-  it('see the table as words, with no controls, footer or draft actions', async () => {
+  it('see the cards as words, with no controls, save bar or draft actions', async () => {
     auth.permissionCodes = [read]
     reads(state(doc({ values: [material('Nylon'), { code: 'animal.target', owner: 'product', variantId: null, state: 'known', payload: { type: 'single', value: 'dog' }, evidence: null }] })))
     await render()
     expect(wrapper.text()).toContain('Solo consulta')
-    expect(wrapper.get('table').text()).toContain('Nylon')
-    expect(wrapper.get('table').text()).toContain('Perro')
+    expect(field('Material')!.text()).toContain('Nylon')
+    expect(field('Especie')!.text()).toContain('Perro')
     expect(wrapper.find('form').exists()).toBe(false)
     expect(wrapper.find('input, textarea, select').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="editorial-footer"]').exists()).toBe(false)
-    expect(wrapper.find('table button').exists()).toBe(false)
+    expect(bar().exists()).toBe(false)
+    expect(wrapper.find('[data-testid="attribute-field"] button').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="discard-draft"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="open-history"]').exists()).toBe(true)
   })
 
@@ -561,85 +386,42 @@ describe('EditorialWorkspace — copy', () => {
   })
 })
 
-describe('EditorialWorkspace — the presentation cards', () => {
-  const simple = { variants: [] }
+describe('EditorialWorkspace — the Presentación card', () => {
   const today = editorialToday()
-  const optional = { route: 'fact_rule' as const, rule: { family: 'food' as const, ruleId: 'optional' as const, parameter: 'measure.net_mass' as const } }
-  const guided: EditorialContractVocabulary = { ...vocabulary, families: [{ ...vocabulary.families[0]!,
-    bindings: vocabulary.families[0]!.bindings.map(item => (item.definitionCode === 'measure.net_mass' ? { ...item, policy: optional } : item)) }, vocabulary.families[1]!] }
-  const readGuided = (snapshot = state(doc()), context: { variants: { id: string; name: string }[] } = { variants }) =>
-    http.get.mockImplementation((url: string) => Promise.resolve(url.includes('vocabulary') ? { ...success(), data: vocabularyEnvelope(guided) }
-      : url.endsWith('/context') ? { status: 200, data: context } : success(snapshot)))
-  const card = (title: string) => wrapper.findAll('[data-testid="presentation-card"]').find(item => item.get('h4').text() === title)!
-  const chipOf = (title: string, text: string) => card(title).findAll('label').find(item => item.text() === text)!.get('input')
+  const segmented = (key: string) => wrapper.get(`[data-question="${key}"]`).findComponent({ name: 'HfSegmented' })
 
-  it('sit above the table, and the folded section and its badge are gone', async () => {
+  it('comes first, before Título y descripción, with «¿Cómo se mide el contenido?» as segments ending in «No sé»', async () => {
     await render()
-    const html = wrapper.html()
-    expect(html.indexOf('data-testid="presentation-cards"')).toBeGreaterThan(-1)
-    expect(html.indexOf('data-testid="presentation-cards"')).toBeLessThan(html.indexOf('data-testid="attribute-table"'))
-    expect(wrapper.find('[data-testid="complete-to-publish"]').exists()).toBe(false)
-    expect(wrapper.text()).not.toMatch(/Completar para publicar|Opcional por ahora|Agregar una presentación/)
-    expect(wrapper.findAll('[data-testid="presentation-card"] h4').map(item => item.text())).toEqual(['15 kg', '7.5 kg'])
+    expect(wrapper.findAll('.hf-section-card__title').map(item => item.text()).slice(0, 2)).toEqual(['Presentación', 'Título y descripción'])
+    expect(segmented('contentMagnitude').props('items').map((item: { label: string }) => item.label)).toEqual(['Peso', 'Volumen', 'Piezas', 'Largo', 'Área', 'No sé'])
   })
 
-  it('an answer and its source save as a facts row with the evidence and the generated Fundamento', async () => {
-    http.put.mockResolvedValue(success())
+  it('an answer with no source is not saved and says so on the source field', async () => {
     await render()
-    await chipOf('15 kg', 'Peso').setValue(true)
-    await chipOf('15 kg', 'Etiqueta del empaque').setValue(true)
-    await wrapper.get('form').trigger('submit'); await flushPromises()
-    expect(http.put.mock.calls[0]![1].document.facts).toEqual([{ variantId: 'v1', presentation: '15 kg', careReview: null, declarations: [
-      { key: 'contentMagnitude', state: 'known', value: 'mass', evidence: { sourceRef: 'Etiqueta del empaque', verifiedOn: today }, basis: 'Según la etiqueta del empaque.' }] }])
-  })
-
-  it('after a successful save, a card with its answers and source folds to its summary', async () => {
-    const facts = [{ variantId: 'v1', presentation: '15 kg', careReview: null, declarations: [
-      { key: 'contentMagnitude' as const, state: 'known' as const, value: 'mass' as const, evidence: { sourceRef: 'Etiqueta del empaque', verifiedOn: today }, basis: 'Según la etiqueta del empaque.' }] }]
-    http.put.mockResolvedValue(success(state(doc({ facts }), 99)))
-    await render()
-    await chipOf('15 kg', 'Peso').setValue(true)
-    await chipOf('15 kg', 'Etiqueta del empaque').setValue(true)
-    expect(card('15 kg').find('[data-testid="card-summary"]').exists()).toBe(false)
-    reads(state(doc({ facts }), 4))
-    await wrapper.get('form').trigger('submit'); await flushPromises(); await tick()
-    expect(card('15 kg').get('[data-testid="card-summary"]').text()).toMatch(/^Se mide en peso · Etiqueta del empaque/)
-    expect(card('7.5 kg').get('[data-testid="card-summary"]').text()).toBe('Sin responder')
-  })
-
-  it('an answer with no source is not saved and says so on the source row', async () => {
-    await render()
-    await chipOf('15 kg', 'Peso').setValue(true)
-    await wrapper.get('form').trigger('submit'); await flushPromises()
+    segmented('contentMagnitude').vm.$emit('update:modelValue', 'mass'); await tick()
+    await submit()
     expect(http.put).not.toHaveBeenCalled()
-    expect(card('15 kg').get('[data-testid="card-source-error"]').text()).toBe('Indica de dónde sale la información')
+    expect(wrapper.get('[data-testid="card-source"] .hf-form-field__message').text()).toBe('Indica de dónde sale la información')
     expect(wrapper.text()).not.toContain('Revisa la captura de hechos')
   })
 
-  it('"No aplica" on an optional datum declares its code for that presentation, and removing it takes the code out', async () => {
+  it('«No sé» saves the unknown state with no evidence', async () => {
     http.put.mockResolvedValue(success())
-    readGuided()
     await render()
-    await chipOf('15 kg', 'Etiqueta del empaque').setValue(true)
-    await pick(cell('Peso neto', 1).get('button[aria-haspopup="menu"]'), 'No aplica')
-    await wrapper.get('form').trigger('submit'); await flushPromises()
-    const sent = http.put.mock.calls[0]![1].document
-    expect(sent.values).toEqual([{ code: 'measure.net_mass', owner: 'sellable', variantId: 'v1', state: 'not_applicable', evidence: null }])
-    expect(sent.facts).toEqual([{ variantId: 'v1', presentation: '15 kg', careReview: null, declarations: [
-      { key: 'optionalNonpertinenceCodes', state: 'known', value: ['measure.net_mass'], evidence: { sourceRef: 'Etiqueta del empaque', verifiedOn: today }, basis: 'Según la etiqueta del empaque.' }] }])
-    expect(card('15 kg').text()).not.toContain('optionalNonpertinenceCodes')
-
-    await pick(cell('Peso neto', 1).get('button[aria-haspopup="menu"]'), 'Quitar dato')
-    await wrapper.get('form').trigger('submit'); await flushPromises()
-    expect(http.put.mock.calls[1]![1].document.facts).toEqual([{ variantId: 'v1', presentation: '15 kg', careReview: null, declarations: [] }])
+    segmented('contentMagnitude').vm.$emit('update:modelValue', 'unknown'); await tick()
+    await submit()
+    expect(http.put.mock.calls[0]![1].document.facts).toEqual([{ variantId: 'v1', presentation: '15 kg', careReview: null,
+      declarations: [{ key: 'contentMagnitude', state: 'unknown', evidence: null }] }])
   })
 
-  it('a saved "Producto" card reads back after a reload as one collapsed line', async () => {
+  it('a saved «Producto» presentation reads back with its answer and source', async () => {
     const saved = doc({ facts: [{ variantId: null, presentation: 'Croqueta', careReview: null, declarations: [
       { key: 'contentMagnitude', state: 'known', value: 'mass', evidence: { sourceRef: 'Ficha del fabricante', verifiedOn: '2026-11-04' }, basis: 'Según la ficha del fabricante.' }] }] })
-    reads(state(saved, 4), simple)
+    reads(state(saved, 4), { variants: [] })
     await render()
-    expect(card('Producto').get('[data-testid="card-summary"]').text()).toMatch(/^Se mide en peso · Ficha del fabricante · 4 nov/)
+    expect(segmented('contentMagnitude').props('modelValue')).toBe('mass')
+    expect(combo('Fuente').props('modelValue')).toBe('maker')
     expect(wrapper.text()).not.toContain('Sin presentación')
+    expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/)
   })
 })

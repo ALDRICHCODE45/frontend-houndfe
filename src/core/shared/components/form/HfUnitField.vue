@@ -17,6 +17,8 @@
  * Events:
  *   update:modelValue — the whole object; a number cleared or not a number yet is `undefined`
  *   update:special    — a special answer was picked, or `null` when a unit is picked again
+ *   update:text       — (part, text) the raw text of an input as typed, for owners that
+ *                       validate it themselves (`5x` is `undefined` in the model)
  */
 import { computed, ref, watch } from 'vue'
 import HfCombobox, { type HfComboboxItem, type HfSpecialAnswer } from './HfCombobox.vue'
@@ -53,6 +55,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [value: HfUnitValue]
   'update:special': [value: string | null]
+  'update:text': [part: NumberPart, text: string]
 }>()
 
 const parts = computed<NumberPart[]>(() => props.range ? ['min', 'max'] : ['value'])
@@ -79,6 +82,7 @@ watch(() => props.modelValue, (model) => {
 function onInput(part: NumberPart, event: Event) {
   const text = (event.target as HTMLInputElement).value
   drafts.value[part] = text
+  emit('update:text', part, text)
   emit('update:modelValue', { ...props.modelValue, [part]: parse(text) })
 }
 

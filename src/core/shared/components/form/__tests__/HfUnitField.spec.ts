@@ -52,6 +52,15 @@ describe('HfUnitField single value', () => {
     expect(lastEmit(wrapper)).toEqual([{ value: 2.5, unit: 'kg' }])
   })
 
+  it('also emits the raw text of the input, for owners that validate what was typed', async () => {
+    const wrapper = mountField({ range: true, modelValue: { min: 1, max: 2, unit: 'kg' } })
+    const [min, max] = wrapper.findAll('input')
+    await min!.setValue('5x')
+    await max!.setValue('2,5')
+    expect(wrapper.emitted('update:text')).toEqual([['min', '5x'], ['max', '2,5']])
+    expect((min!.element as HTMLInputElement).value).toBe('5x')
+  })
+
   it('emits no value when the number is cleared', async () => {
     const wrapper = mountField()
     await wrapper.get('input').setValue('')

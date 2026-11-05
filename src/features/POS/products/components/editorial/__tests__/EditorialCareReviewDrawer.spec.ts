@@ -1,12 +1,13 @@
 /**
  * T10 (S13): the care review of a Cuidado presentation lives in a right drawer, flat and sectioned.
  * Requirements and warnings are list rows with a ⋯ menu that edit in a small dialog; their evidence
- * and Fundamento are the card's source.
+ * and Fundamento are the card's source. Opened from the «Presentación» card (T13).
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, shallowRef } from 'vue'
 import { mount } from '@vue/test-utils'
-import Cards from '../EditorialPresentationCards.vue'
+import Section from '../EditorialPresentationSection.vue'
+import HfCombobox from '@/core/shared/components/form/HfCombobox.vue'
 import type { EditorialFactsEditingState } from '../../../utils/editorial-contract-facts-editing'
 import { editorialToday, type EditorialCardSource } from '../../../utils/editorial-presentation-card'
 
@@ -18,7 +19,7 @@ const basis = 'Según la etiqueta del empaque.'
 function render() {
   const state = shallowRef<EditorialFactsEditingState>([]), sources = shallowRef<ReadonlyMap<string, EditorialCardSource>>(new Map())
   let counter = 0
-  const wrapper = mount(defineComponent({ setup: () => () => h(Cards, { facts: state.value, subjects: [{ variantId: null, label: 'Producto' }],
+  const wrapper = mount(defineComponent({ setup: () => () => h(Section, { id: 'p', selected: 'product', facts: state.value, subjects: [{ variantId: null, label: 'Producto' }],
     choices: [{ key: 'presentationKind', label: '', choices: [], toyTypeChoices: [] }], careAllowed: true, nextId: () => `n${++counter}`,
     sources: sources.value, productName: 'Shampoo de avena',
     'onUpdate:facts': (value: EditorialFactsEditingState) => { state.value = value },
@@ -37,8 +38,7 @@ const care = (state: { value: EditorialFactsEditingState }) => state.value[0]!.c
 
 async function openPrepared() {
   const rendered = render()
-  const source = rendered.wrapper.get('[data-testid="card-source"]').findAll('label').find(item => item.text() === 'Etiqueta del empaque')!.get('input')
-  await source.setValue(true)
+  rendered.wrapper.get('[data-testid="card-source"]').getComponent(HfCombobox).vm.$emit('update:modelValue', 'label'); await tick()
   await rendered.wrapper.get('[data-testid="card-open-care"]').trigger('click'); await tick()
   await pickInput(chipIn(drawer(), '¿Cómo va la revisión?', 'Lista'))
   return rendered
@@ -47,7 +47,7 @@ async function openPrepared() {
 describe('the care review drawer', () => {
   it('opens from the card as a right drawer titled Revisión de cuidado', async () => {
     const { wrapper } = render()
-    const entry = wrapper.get('.pcard__care')
+    const entry = wrapper.get('.psection__care')
     expect(entry.text()).toContain('Revisión de cuidado')
     expect(entry.text()).toContain('Sin revisar')
     await wrapper.get('[data-testid="card-open-care"]').trigger('click'); await tick()

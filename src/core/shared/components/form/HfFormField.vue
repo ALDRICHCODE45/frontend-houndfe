@@ -10,6 +10,8 @@
  * that appear on hover or focus within the field (always on touch) and emit
  * `special`; meant for text-like fields. Choice fields offer the same answers
  * inside HfCombobox instead. The hint wins the right side over the ghosts.
+ * The `actions` slot holds small icon actions at the end of the label row
+ * (for example `Agregar evidencia`); they are always visible.
  *
  * Props:
  *   label         — visible label
@@ -77,6 +79,9 @@ const messageId = computed(() => {
         >
           {{ answer.label }}
         </button>
+      </span>
+      <span v-if="$slots.actions" class="hf-form-field__actions">
+        <slot name="actions" />
       </span>
     </div>
     <slot />

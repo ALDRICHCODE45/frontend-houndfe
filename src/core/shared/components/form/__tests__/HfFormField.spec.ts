@@ -75,4 +75,19 @@ describe('HfFormField', () => {
     const wrapper = mountField({ specialAnswers: specials, hint: '40 de 80' })
     expect(wrapper.findAll('.hf-form-field__ghost')).toHaveLength(0)
   })
+
+  it('puts small actions from the actions slot at the right of the label row', () => {
+    const wrapper = mount(HfFormField, {
+      props: { label: 'Peso neto', labelId: 'l-peso', hint: '3 de 80' },
+      slots: { default: () => h('input'), actions: () => h('button', { type: 'button', 'aria-label': 'Agregar evidencia' }) },
+    })
+    const row = wrapper.get('.hf-form-field__row')
+    const actions = row.get('.hf-form-field__actions')
+    expect(actions.get('button').attributes('aria-label')).toBe('Agregar evidencia')
+    expect(row.element.lastElementChild).toBe(actions.element)
+  })
+
+  it('renders no actions container without the slot', () => {
+    expect(mountField().find('.hf-form-field__actions').exists()).toBe(false)
+  })
 })

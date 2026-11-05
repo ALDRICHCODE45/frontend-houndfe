@@ -1,9 +1,9 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { reactive } from 'vue'
 import ProductEditorialView from '../ProductEditorialView.vue'
 import EditorialWorkspace from '../../components/editorial/EditorialWorkspace.vue'
-import { stubEditorialSelect } from '../../components/editorial/__tests__/editorialSelectStub'
+import HfCombobox from '@/core/shared/components/form/HfCombobox.vue'
 import { document, state, success, vocabularyEnvelope, read, update, publish, failure, deferred } from '../../__tests__/editorial-contract-fixtures'
 const http = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn() }))
 vi.mock('@/core/shared/api/http', () => ({ http }))
@@ -20,12 +20,10 @@ function reads(snapshot = state()) {
     : url.endsWith('/context') ? { status: 200, data: { variants: [] } } : success(snapshot)))
 }
 const render = async () => { wrapper = mount(ProductEditorialView); await flushPromises() }
-beforeAll(stubEditorialSelect)
 beforeEach(() => { vi.resetAllMocks(); productGetById.mockResolvedValue({ name: 'Collar ajustable' }); Object.assign(auth, { isAuthenticated: true, authPhase: 'authenticated', user: { id: 'u' }, currentTenant: { id: 't' }, permissionsLoaded: true, permissionCodes: [read, update] }); route.params.id = 'p1'; reads() })
 afterEach(() => { wrapper?.unmount(); window.document.body.innerHTML = '' })
 
 const tick = () => new Promise(resolve => setTimeout(resolve, 60))
-const menuItems = () => Array.from(window.document.querySelectorAll<HTMLElement>('[role="menuitem"]'))
 const colorVocabulary = () => {
   const vocab = vocabularyEnvelope().vocabulary
   vocab.families = [{ id: 'f', code: 'f', label: 'Familia', bindings: [{ definitionId: 'c', definitionCode: 'color', owner: 'product', sortOrder: 0, exposure: 'DETAIL', searchable: false, publicationCheck: 'always', policy: { route: 'pending' } }] }]
@@ -38,12 +36,11 @@ describe('integrated target workspace', () => {
     auth.permissionCodes = ['manage:all']
     wrapper = mount(EditorialWorkspace, { attachTo: window.document.body, props: { productId: 'p1', embedded } })
     await flushPromises()
-    expect(wrapper.text()).toContain('Publicación próximamente')
+    expect(wrapper.text()).not.toContain('Publicación próximamente')
     expect(wrapper.text()).not.toContain('Puedes publicar')
     expect(wrapper.findAll('button').some(item => item.text().startsWith('Publicar'))).toBe(false)
     expect(wrapper.find('[data-testid="open-history"]').exists()).toBe(true)
-    await wrapper.get('[data-testid="editorial-footer"] button[aria-haspopup="menu"]').trigger('click'); await tick()
-    expect(menuItems().map(item => (item.textContent ?? '').trim())).toContain('Descartar borrador…')
+    expect(wrapper.get('[data-testid="discard-draft"]').text()).toBe('Descartar borrador')
     expect(http.get).toHaveBeenCalledTimes(3)
     expect(http.post).not.toHaveBeenCalled()
   })
@@ -52,7 +49,7 @@ describe('integrated target workspace', () => {
     await render()
     expect(wrapper.text()).not.toContain('Puedes publicar')
     expect(wrapper.find('form').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="editorial-footer"]').exists()).toBe(false)
+    expect(wrapper.find('.hf-save-bar').exists()).toBe(false)
     expect(wrapper.findAll('button').some(item => item.text().includes('Publicar'))).toBe(false)
     expect(http.post).not.toHaveBeenCalled()
   })
@@ -60,11 +57,12 @@ describe('integrated target workspace', () => {
     http.put.mockResolvedValue(success(state({ ...document(), commercialTitle: 'RECEIPT ONLY' }, 99)))
     await render()
     await wrapper.get('#editorial-title').setValue('  😀 exact  ')
+    reads(state({ ...document(), commercialTitle: '  😀 exact  ' }, 4))
     await wrapper.get('form').trigger('submit'); await flushPromises()
     expect(http.put.mock.calls[0]![1]).toEqual({ expectedCycle: 2, expectedRevision: 3, document: { ...document(), commercialTitle: '  😀 exact  ' } })
     expect(wrapper.text()).not.toMatch(/Acuse histórico|Revisión consultada/)
     expect(wrapper.text()).not.toContain('RECEIPT ONLY')
-    expect(wrapper.find('.editorial-save-state').exists()).toBe(true)
+    expect(wrapper.get('.hf-save-bar__status').text()).toMatch(/^Guardado/)
     expect(wrapper.findAll('img')).toHaveLength(0)
   })
   it.each(['empty', 'Published'])('initializes %s explicitly, then loads only from a new coherent GET', async source => {
@@ -111,7 +109,7 @@ describe('integrated target workspace', () => {
     reads(state({ ...document(), commercialTitle: '😀'.repeat(201) }))
     await render(); expect((wrapper.get('#editorial-title').element as HTMLInputElement).value).toBe('😀'.repeat(201))
     await wrapper.get('form').trigger('submit'); await flushPromises()
-    expect(wrapper.get('#editorial-title-issue').text()).toContain('máximo es 200 caracteres')
+    expect(wrapper.get('#editorial-title-message').text()).toContain('máximo es 200 caracteres')
     expect(wrapper.text()).not.toContain('TITLE_LIMIT')
     expect(http.put).not.toHaveBeenCalled()
   })
@@ -172,18 +170,18 @@ describe('integrated target workspace', () => {
       : url.endsWith('/context') ? { status: 200, data: { variants: [] } } : success(state(draft))))
     withDraft(saved)
     await render()
-    const option = () => wrapper.get('tbody select option[value="old"]')
-    expect(option().attributes('disabled')).toBeUndefined()
-    // Clear the datum and write it again: the stored draft still conserves the archived option for this target.
-    await wrapper.get('tbody button[aria-haspopup="menu"]').trigger('click'); await tick()
-    menuItems().find(item => item.textContent?.trim() === 'Quitar dato')!.click(); await tick()
-    expect(option().attributes('disabled')).toBeUndefined()
+    const option = () => (wrapper.findAllComponents(HfCombobox).find(item => item.props('label') === 'Color')!.props('items') as readonly { value: string; disabled?: boolean }[])
+      .find(item => item.value === 'old')!
+    expect(option().disabled).toBe(false)
+    // Clear the datum: the stored draft still conserves the archived option for this target.
+    await wrapper.get('[data-field="color"] [data-action="clear"]').trigger('click'); await tick()
+    expect(option().disabled).toBe(false)
     // A new coherent GET whose saved draft no longer holds the option stops offering it.
     http.put.mockRejectedValue(failure(409, 'CONFLICT'))
     await wrapper.get('form').trigger('submit'); await flushPromises()
     withDraft({ ...saved, values: [] })
     await wrapper.get('[data-testid="refresh-retain"]').trigger('click'); await flushPromises()
-    expect(option().attributes('disabled')).toBeDefined()
+    expect(option().disabled).toBe(true)
   })
   it('does not fetch while permissions hydrate', async () => {
     auth.permissionsLoaded = false; await render()

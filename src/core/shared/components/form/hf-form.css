@@ -461,21 +461,21 @@
   white-space: nowrap;
 }
 
-/* From md: a vertical index beside the cards, sticky under the page top. */
+/* From md: a vertical index beside the cards, sticky under the page top (unless it keeps its chips). */
 @media (min-width: 768px) {
-  .hf-ui .hf-section-nav {
+  .hf-ui .hf-section-nav:not(.hf-section-nav--chips) {
     top: 24px;
     padding-block: 0;
     background-color: transparent;
   }
 
-  .hf-ui .hf-section-nav__list {
+  .hf-ui .hf-section-nav:not(.hf-section-nav--chips) .hf-section-nav__list {
     display: grid;
     gap: 2px;
     overflow: visible;
   }
 
-  .hf-ui .hf-section-nav__link {
+  .hf-ui .hf-section-nav:not(.hf-section-nav--chips) .hf-section-nav__link {
     min-height: 36px;
     padding: 0 10px;
     border: 0;
@@ -652,6 +652,19 @@
 .hf-ui .hf-form-field__ghost:focus-visible {
   outline: 2px solid var(--hf-focus);
   outline-offset: 2px;
+}
+
+/* Small icon actions at the end of the label row (Agregar evidencia), always visible. */
+.hf-ui .hf-form-field__actions {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.hf-ui :is(.hf-form-field__hint, .hf-form-field__ghosts) + .hf-form-field__actions {
+  margin-left: 0;
 }
 
 .hf-ui .hf-form-field__message {

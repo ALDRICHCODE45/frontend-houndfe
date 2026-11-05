@@ -96,4 +96,13 @@ describe('HfSectionNav', () => {
     expect(wrapper.findAll('a')[0]!.attributes('aria-current')).toBeUndefined()
     wrapper.unmount()
   })
+
+  it('keeps the chip row at every width with `chips`, and the vertical index without it', () => {
+    const wrapper = mountNav()
+    expect(wrapper.get('nav').classes()).not.toContain('hf-section-nav--chips')
+    wrapper.unmount()
+    const chips = mount(HfSectionNav, { attachTo: document.body, props: { sections, chips: true } })
+    expect(chips.get('nav').classes()).toContain('hf-section-nav--chips')
+    chips.unmount()
+  })
 })

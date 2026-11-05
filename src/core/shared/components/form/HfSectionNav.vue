@@ -14,6 +14,7 @@
  *   sections  — { id, label, missing }[] in page order (`id` is the section element id)
  *   label     — aria-label of the nav (default `Secciones`)
  *   root      — scroll container for the observer (default: the viewport)
+ *   chips     — keep the chip row at every width (for a narrow column beside another panel)
  *
  * Events:
  *   navigate(id) — an entry was clicked; the owner may move focus to the section heading
@@ -31,6 +32,7 @@ const props = withDefaults(defineProps<{
   sections: readonly HfSection[]
   label?: string
   root?: HTMLElement | null
+  chips?: boolean
 }>(), { label: 'Secciones', root: null })
 
 const emit = defineEmits<{ navigate: [id: string] }>()
@@ -84,7 +86,7 @@ onBeforeUnmount(() => observer?.disconnect())
 </script>
 
 <template>
-  <nav class="hf-section-nav" :aria-label="label">
+  <nav class="hf-section-nav" :class="{ 'hf-section-nav--chips': chips }" :aria-label="label">
     <ol class="hf-section-nav__list">
       <li v-for="section in sections" :key="section.id">
         <a
