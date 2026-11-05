@@ -26,7 +26,7 @@ The rules live in the backend (decision D2). The FE never recomputes publishabil
 | Permission | `ProductEditorialDraft:read` (same as the editorial read) |
 | Request headers | `Authorization`, plus exactly one `Editorial-Vocabulary-Revision: <R>` (the `vocabularyRevision` of the vocabulary you installed). No `Idempotency-Key`, `Editorial-Care-Confirmation`, `Editorial-Contract-Version` or `Editorial-Adoption`. |
 | Query / body | none |
-| Response headers | `Cache-Control: no-store`, `Editorial-Contract-Version: 2`, `Editorial-Vocabulary-Revision: <R>` |
+| Response headers | `Cache-Control: no-store`, `Editorial-Contract-Version: 2`, `Editorial-Vocabulary-Revision: <R>` (both exposed to the browser by CORS, like the other editorial routes) |
 | Writes | none (read-only snapshot) |
 
 Response `200`:
@@ -258,9 +258,10 @@ An accessory that says «la talla no decide la compra» but lists neck size retu
 
 ## 6. Business rules to know
 
-- Every known value needs its source and date to publish (D9). Product title needs no evidence.
+- Every known value the publish check evaluates needs its source and date (D9): product-level values and the values of each offered presentation. A value saved only on a presentation that is not offered is not checked for missing evidence; if it does carry evidence, that evidence must still be valid. Product title needs no evidence.
 - A product that is not offered on any online price list cannot publish (D10, `NO_OFFERED_PRESENTATION`). Offer comes from the tenant catalog price lists, not stock.
 - Each offered presentation is checked on its own: no values are borrowed from a sibling or aggregated (S89).
 - A draft without a product type (`familyCode: null`) cannot publish.
 - Media must be empty to publish, for now.
 - Pending, out of scope: S88 «Es solo equipamiento» for habitat, and D8 per-type defaults for accessories («collar, arnés, correa → No»).
+- Habitat can publish today without S88: declare which dimensions and capacities matter, and whether it is electrical with which equipment measures. Each declared measure then needs its value. Leaving those declarations unanswered gives `UNRESOLVED` items in «Medidas».
