@@ -44,8 +44,13 @@ pnpm build
 ### Run Unit Tests with [Vitest](https://vitest.dev/)
 
 ```sh
-pnpm test:unit
+pnpm test                          # the whole suite, once
+pnpm test src/features/POS/sales    # one folder or file (no `--`: pnpm would pass it to Vitest, which then runs everything)
+pnpm test:related src/path/File.vue # the tests related to changed files
+pnpm test:unit                     # watch mode while you work
 ```
+
+`pnpm test` and `pnpm test:related` go through the machine-wide `run-tests` queue when `RUN_TESTS` is set (see `AGENTS.md`); without it they run as plain Vitest.
 
 ### Lint with [ESLint](https://eslint.org/)
 
