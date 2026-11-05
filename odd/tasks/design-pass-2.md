@@ -14,10 +14,10 @@ Branch feat/design-pass-2 from main e1cea788. Backend and chatbot agent requests
 - [x] T3 S1,S3,S4 Recepciones de caja with data — worker; summary first on mobile, hidden when it repeats the state; 143 tests — 247738bd
 - [x] T4 S1,S3,S4 Caja with sessions plus the shared handover cards (T3 CR1–CR6) — worker; 396 tests — cae59917
 - [x] T5 S1,S3,S4 Product detail: Presentaciones, Inventario, Historial — worker; phone cards, error vs empty, Inventario copy; 437 related tests — ffa17478
-- [ ] T6 S1,S3 Editorial route /pos/products/:id/editorial: keeps its own screen (it is the entry for editorial-only and global users, router meta editorialRead) and renders the same EditorialWorkspace as Contenido; check it with data after T5 — pending
+- [x] T6 S1,S3 Editorial route /pos/products/:id/editorial — kept (L8); not-found and title skeleton — 137c36c8
 - [x] T7 S1,S3 Notificaciones with data — worker; S4 id leak, search, names once; 265 tests, type-check 0
 - [ ] T8 S1,S3 Delivery route detail, driver view — pending
-- [ ] T9 S1,S3 Tenant selection empty/loading/error — pending
+- [x] T9 S1,S3 Tenant selection empty/loading/error — failed open says one Spanish message and «Iniciar sesión de nuevo»; 23 tests, type-check 0 — 137c36c8
 - [ ] T10 S1,S3 Re-check round-2 low findings (review-findings-r2.md) one by one, plus shared requests: ConfirmModal mobile stacked buttons centre their labels; unit labels to core/shared; refunds settle amount via HfMoneyInput — pending
 
 ## Log
@@ -33,3 +33,4 @@ L9. T4 done (cae59917): CR1–CR6 on CashCustodyDiscovery checked on /pos/caja a
 BE field requests (batched): GET /cash-sessions items openedAt, closedAt, cashierDisplayName; GET /cash-sessions/:id cashier display name; GET /cash-handovers/custody items senderDisplayName, sourceRegisterName and the sender's notes.
 L10. T5 done (ffa17478; type-check clean, 437 related tests). The design system now says Historial names each version once with no badge. Left: the variants' public price «$0.00» while the product sells at $149 (data or meaning, user decision); «Sin lote» row for a product without lots or variants should read «Existencias» (inventory utils, T10); the price-list heading and the stock hint are hidden on phones (T10). BE: GET /products/:id/editorial answers 500 for Ruffwear Front Range, Kong 1.8 m, Flexi New Classic and Diamond Naturals 13.6 kg. Data: a draft on «Alimento para Cachorro Raza Mediana 3 kg» (commercial title «…, pollo y arroz»), made as admin because manager gets 403 on editorial.
 L11. T7 reviewed: S4 id leak fixed (recipients show no raw id when users fail to load; Reintentar), search filters, selected names said once, field width, 24px chip remove. The dark switch was already fixed in notifications-visual.css. Shared requests for T10: move the off-switch outline into houndfe-ui.css for every .hf-ui switch and record it in the design system (T5 saw the same invisible off switches in products); disabled primary looks enabled in light mode. Left for the user: action switches still look on while «Notificaciones» is off; HfSaveBar would add Descartar.
+L12. T6+T9 done (137c36c8). Left for the user: the branch search shows with 1–3 branches (the dropdown rule adds search above 7). Requests: EditorialWorkspace should say not found on a 404 instead of «No tienes acceso»; BE: GET /products/:id/editorial called directly answers 400 MALFORMED (an undocumented query or header). Light-mode disabled primary looks clickable (T10).
