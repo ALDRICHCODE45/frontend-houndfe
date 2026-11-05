@@ -555,3 +555,28 @@ describe('EditorialWorkspace — copy', () => {
     expect(source).not.toMatch(/Acuse histórico|Consultar y cargar borrador|Ciclo |Revisión \{\{/)
   })
 })
+
+describe('EditorialWorkspace — "Sin presentación" survives a reload', () => {
+  const simple = { variants: [] }
+  const facts = (row: HTMLElement | undefined) => row?.querySelector('[data-action="remove-facts"]')
+
+  it('a saved product-level row keeps its form after the document is read again', async () => {
+    reads(state(doc()), simple)
+    await render()
+    await wrapper.get('#editorial-facts-add').setValue('0'); await flushPromises()
+    await wrapper.get('[id^="editorial-facts-row-"][id$="-presentation"]').setValue('Bolsa')
+    const saved = doc({ facts: [{ variantId: null, presentation: 'Bolsa', declarations: [], careReview: null }] })
+    http.put.mockResolvedValue(success(state(saved, 4)))
+    await wrapper.get('form').trigger('submit'); await flushPromises()
+    expect(http.put.mock.calls[0]![1].document.facts).toEqual(saved.facts)
+
+    // The reload: a fresh mount that decodes the saved document.
+    wrapper.unmount(); document.body.innerHTML = ''
+    reads(state(saved, 4), simple)
+    await render()
+    const fold = wrapper.get('[data-testid="complete-to-publish"]').element as HTMLElement
+    expect(fold.querySelector('legend')?.textContent).toBe('Sin presentación')
+    expect(facts(fold)).toBeTruthy()
+    expect(wrapper.get<HTMLTextAreaElement>('[id^="editorial-facts-row-"][id$="-presentation"]').element.value).toBe('Bolsa')
+  })
+})
