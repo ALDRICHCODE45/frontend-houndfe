@@ -306,6 +306,30 @@ describe('DebtPaymentModal', () => {
     expect(submitSafeMock).not.toHaveBeenCalled()
   })
 
+  // A removed entry's field unmounts; its last parse error must go with it.
+  it('drops the amount error when the entry is removed and added again', async () => {
+    submitSafeMock.mockResolvedValue({ paymentStatus: 'PAID' })
+    const wrapper = mountModal()
+    const tile = () => wrapper.get('[data-testid="payment-method-tile-card_credit"]')
+
+    await tile().trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('1,23,4')
+    await wrapper.get('[data-testid="payment-amount-0"]').trigger('blur')
+    await tile().trigger('click')
+    await flushPromises()
+    await tile().trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Escribe el monto con punto para los centavos')
+    await wrapper.get('[data-testid="confirm-debt-payment"]').trigger('click')
+    await flushPromises()
+    expect(submitSafeMock).toHaveBeenCalledTimes(1)
+  })
+
   // Note: the "include a non-empty reference in the payload" scenario is
   // covered at the pure-function level by paymentEntries.utils.spec.ts:178-196
   // (normalizeReferenceInput cases). A component-level scenario was removed

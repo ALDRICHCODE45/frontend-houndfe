@@ -15,6 +15,7 @@
  *   - Emits: `update:open` (false on cancel / dismiss / successful submit).
  */
 import { computed, ref, watch } from 'vue'
+import HfMoneyInput from '@/core/shared/components/form/HfMoneyInput.vue'
 import type { QuotationItemResponseDto } from '../interfaces/quotation.types'
 import { formatCentsMXN } from '../utils/currency.utils'
 
@@ -30,24 +31,21 @@ const props = withDefaults(
 )
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
-const customPriceInput = ref('')
+// Typed in HfMoneyInput with the one app-wide money rule (T22/S18): cents,
+// never `Number(text) * 100`. The parse error blocks Aplicar.
+const customPriceCents = ref<number | null>(null)
+const customPriceError = ref<string | null>(null)
+// Remounts the field on each open, so a rejected draft never survives.
+const fieldKey = ref(0)
 const validationError = ref<string | null>(null)
 const apiError = ref<string | null>(null)
 const isSubmitting = ref(false)
 
-const customPriceCents = computed<number | null>(() => {
-  const normalized = String(customPriceInput.value ?? '')
-    .replace(',', '.')
-    .trim()
-  if (!normalized) return null
-  const value = Number(normalized)
-  if (!Number.isFinite(value) || value <= 0) return null
-
-  return Math.round(value * 100)
-})
-
 const canSubmit = computed(
-  () => Number.isInteger(customPriceCents.value) && (customPriceCents.value ?? 0) >= 1,
+  () =>
+    !customPriceError.value &&
+    Number.isInteger(customPriceCents.value) &&
+    (customPriceCents.value ?? 0) >= 1,
 )
 
 async function submit(): Promise<void> {
@@ -75,7 +73,9 @@ watch(
   () => props.open,
   (isOpen) => {
     if (isOpen) {
-      customPriceInput.value = ''
+      customPriceCents.value = null
+      customPriceError.value = null
+      fieldKey.value += 1
       validationError.value = null
       apiError.value = null
     }
@@ -103,14 +103,15 @@ watch(
         </section>
 
         <UFormField label="Precio manual (MXN)" description="Ingresa un valor mayor a 0.">
-          <UInput
-            v-model="customPriceInput"
-            type="number"
-            min="0.01"
-            step="0.01"
+          <HfMoneyInput
+            id="quotation-price-override-custom"
+            :key="fieldKey"
+            v-model="customPriceCents"
+            :min-cents="1"
             placeholder="Ej: 500"
             class="w-full"
             data-testid="price-override-input"
+            @validation="customPriceError = $event"
             @keydown.enter.prevent="submit"
           />
         </UFormField>

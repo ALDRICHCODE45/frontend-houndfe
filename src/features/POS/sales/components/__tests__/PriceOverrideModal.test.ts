@@ -42,12 +42,12 @@ describe('PriceOverrideModal', () => {
     UInput: {
       props: ['modelValue'],
       emits: ['update:modelValue'],
-      template: '<input type="number" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+      template: '<input type="text" v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
     },
     Input: {
       props: ['modelValue'],
       emits: ['update:modelValue'],
-      template: '<input type="number" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+      template: '<input type="text" v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
     },
   }
 
@@ -146,10 +146,10 @@ describe('PriceOverrideModal', () => {
     })
     await flushPromises()
 
-    const vm = wrapper.vm as unknown as { mode: 'price_list' | 'custom'; customPriceInput: string }
+    const vm = wrapper.vm as unknown as { mode: 'price_list' | 'custom' }
     vm.mode = 'custom'
-    vm.customPriceInput = '0'
     await wrapper.vm.$nextTick()
+    await wrapper.get('[data-testid="price-override-input"]').setValue('0')
 
     await wrapper.find('form').trigger('submit')
 
@@ -178,12 +178,11 @@ describe('PriceOverrideModal', () => {
     })
     await flushPromises()
 
-    const vm = wrapper.vm as unknown as { mode: 'price_list' | 'custom'; customPriceInput: string }
+    const vm = wrapper.vm as unknown as { mode: 'price_list' | 'custom' }
     vm.mode = 'custom'
-    vm.customPriceInput = '500'
     await wrapper.vm.$nextTick()
+    await wrapper.get('[data-testid="price-override-input"]').setValue('500')
 
-    const applyButton = wrapper.findAll('button').find((button) => button.text() === 'Aplicar')
     await wrapper.find('form').trigger('submit')
 
     expect(onSubmit).toHaveBeenCalledWith('item-1', { customPriceCents: 50000 })
@@ -231,7 +230,7 @@ describe('PriceOverrideModal', () => {
     vm.mode = 'custom'
     await wrapper.vm.$nextTick()
 
-    const input = wrapper.find('input[type="number"]')
+    const input = wrapper.get('[data-testid="price-override-input"]')
     await input.setValue('500')
 
     const applyButton = wrapper.findAll('button').find((button) => button.text() === 'Aplicar')
@@ -259,7 +258,7 @@ describe('PriceOverrideModal', () => {
     const vm = wrapper.vm as unknown as { mode: 'price_list' | 'custom' }
     vm.mode = 'custom'
     await wrapper.vm.$nextTick()
-    const input = wrapper.find('input[type="number"]')
+    const input = wrapper.get('[data-testid="price-override-input"]')
     await input.setValue('500')
     await input.trigger('keydown.enter')
 
@@ -300,6 +299,73 @@ describe('PriceOverrideModal', () => {
 
     expect(wrapper.text()).not.toContain('No se pudo aplicar el cambio de precio.')
     expect(onSubmit).toHaveBeenCalledTimes(2)
+  })
+
+  // T22/S18: the custom price is read with the one money rule, never 100×.
+  async function openCustom() {
+    vi.mocked(saleApi.getAvailablePrices).mockResolvedValue({
+      saleId: 'sale-1',
+      itemId: 'item-1',
+      prices: [{ priceListId: 'l1', priceListName: 'PUBLICO', priceCents: 100, priceDecimal: 1, currency: 'MXN', isCurrent: true }],
+    })
+    const wrapper = mount(PriceOverrideModal, {
+      props: { open: true, saleId: 'sale-1', itemId: 'item-1', onSubmit },
+      global: { stubs },
+    })
+    await flushPromises()
+    await wrapper.findAll('button').find((button) => button.text() === 'Personalizado')!.trigger('click')
+    return wrapper
+  }
+
+  it.each([
+    ['70.55', 7055],
+    ['70,55', 7055],
+    ['1,234.50', 123450],
+  ])('sends %j typed as the custom price as %i cents', async (text, cents) => {
+    const wrapper = await openCustom()
+
+    await wrapper.get('[data-testid="price-override-input"]').setValue(text)
+    await wrapper.find('form').trigger('submit')
+
+    expect(onSubmit).toHaveBeenCalledWith('item-1', { customPriceCents: cents })
+  })
+
+  it.each([
+    ['1.005', 'Usa como máximo dos decimales, por ejemplo 70.55.'],
+    ['0,100', 'Escribe el monto con punto para los centavos, por ejemplo 70.55.'],
+    ['12abc', 'Escribe solo el monto en números, por ejemplo 70.55.'],
+  ])('shows the money error for %j and sends nothing', async (text, error) => {
+    const wrapper = await openCustom()
+    const input = wrapper.get('[data-testid="price-override-input"]')
+
+    await input.setValue('500')
+    await input.setValue(text)
+    await input.trigger('blur')
+
+    expect(wrapper.text()).toContain(error)
+    const applyButton = wrapper.findAll('button').find((button) => button.text() === 'Aplicar')
+    expect(applyButton?.attributes('disabled')).toBeDefined()
+    await wrapper.find('form').trigger('submit')
+    await input.trigger('keydown.enter')
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('drops the custom field error when the field is hidden and shown again', async () => {
+    const wrapper = await openCustom()
+    const button = (label: string) => wrapper.findAll('button').find((b) => b.text() === label)!
+
+    await wrapper.get('[data-testid="price-override-input"]').setValue('500')
+    await wrapper.get('[data-testid="price-override-input"]').setValue('12abc')
+    await wrapper.get('[data-testid="price-override-input"]').trigger('blur')
+    expect(button('Aplicar').attributes('disabled')).toBeDefined()
+
+    await button('Desde lista').trigger('click')
+    await button('Personalizado').trigger('click')
+
+    expect((wrapper.get('[data-testid="price-override-input"]').element as HTMLInputElement).value).toBe('500.00')
+    expect(button('Aplicar').attributes('disabled')).toBeUndefined()
+    await wrapper.find('form').trigger('submit')
+    expect(onSubmit).toHaveBeenCalledWith('item-1', { customPriceCents: 50000 })
   })
 
   it('renders dropdown actions trigger instead of plain apply flow controls', async () => {

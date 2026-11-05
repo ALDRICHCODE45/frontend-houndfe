@@ -111,7 +111,7 @@ function emitQuantity(next: number): void {
   // Local guard so the input doesn't reset to NaN — the view's mutation
   // is still subject to its own client validation, this is purely about
   // keeping the input control sane.
-  if (!Number.isFinite(next) || next < 1) {
+  if (!Number.isInteger(next) || next < 1) {
     return
   }
   if (next === previousQty.value) return
@@ -227,6 +227,7 @@ function onItemAction(key: string): void {
           v-model="localQty"
           size="sm"
           :min="1"
+          :format-options="{ maximumFractionDigits: 0, useGrouping: false }"
           data-testid="quantity-input"
           @blur="handleQtyCommit"
           @change="handleQtyCommit"

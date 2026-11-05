@@ -208,6 +208,18 @@ const amountErrors = reactive({
   minPurchase: null as string | null,
 })
 
+// A hidden money field remounts clean (from the model), so its last parse
+// error must not outlive it and block the submit with no message.
+watch(isFixedDiscount, () => {
+  amountErrors.discountMoney = null
+})
+watch(
+  () => formState.hasMinPurchase,
+  () => {
+    amountErrors.minPurchase = null
+  },
+)
+
 const percentText = ref('')
 watch(
   () => formState.discountValue,

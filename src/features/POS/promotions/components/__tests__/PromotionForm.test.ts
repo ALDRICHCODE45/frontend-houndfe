@@ -552,6 +552,40 @@ describe('PromotionForm — typed amounts', () => {
     expect(wrapper.emitted('submit')).toBeUndefined()
   })
 
+  // A hidden money field remounts clean, so its last parse error must go with it.
+  it('drops the fixed value error when the field is hidden and shown again', async () => {
+    const wrapper = mountWithDiscountType('PRODUCT_DISCOUNT', 'FIXED')
+    await wrapper.get('[data-testid="promotion-discount-value"]').setValue('150')
+    await wrapper.get('[data-testid="promotion-discount-value"]').setValue('1,23,4')
+    await wrapper.get('[data-testid="promotion-discount-value"]').trigger('blur')
+
+    const vm = wrapper.vm as unknown as { formState: { discountType: string } }
+    vm.formState.discountType = 'PERCENTAGE'
+    await flushPromises()
+    vm.formState.discountType = 'FIXED'
+    await flushPromises()
+
+    expect((wrapper.get('[data-testid="promotion-discount-value"]').element as HTMLInputElement).value).toBe('150.00')
+    expect((await submitted(wrapper)).discountValue).toBe(15000)
+  })
+
+  it('drops the minimum purchase error when the field is hidden and shown again', async () => {
+    const wrapper = mountWithDiscountType('ORDER_DISCOUNT', 'FIXED')
+    await wrapper.get('[data-testid="promotion-discount-value"]').setValue('150')
+    await wrapper.get('[role="checkbox"]').trigger('click')
+    await wrapper.get('[data-testid="promotion-min-purchase"]').setValue('1000')
+    await wrapper.get('[data-testid="promotion-min-purchase"]').setValue('1,23,4')
+    await wrapper.get('[data-testid="promotion-min-purchase"]').trigger('blur')
+
+    await wrapper.get('[role="checkbox"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[role="checkbox"]').trigger('click')
+    await flushPromises()
+
+    expect((wrapper.get('[data-testid="promotion-min-purchase"]').element as HTMLInputElement).value).toBe('1000.00')
+    expect((await submitted(wrapper)).minPurchaseAmountCents).toBe(100000)
+  })
+
   it('does not submit while a typed percent does not parse', async () => {
     const wrapper = mountWithDiscountType('PRODUCT_DISCOUNT', 'PERCENTAGE')
     await wrapper.get('[data-testid="promotion-discount-value"]').setValue('0,100')

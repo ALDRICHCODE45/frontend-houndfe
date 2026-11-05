@@ -93,6 +93,13 @@ const hasEntryErrors = computed(() => entryErrors.value.some((errors) => Object.
 // The parser error of each typed amount, by entry key; it blocks the payment while present.
 const amountTextErrors = ref<Record<string, string>>({})
 const hasAmountTextErrors = computed(() => entries.value.some((entry) => amountTextErrors.value[paymentEntryKey(entry)]))
+// A removed entry's money field unmounts, and a re-added one remounts clean,
+// so the parse error of an entry that is gone must go with it.
+watch(entries, (current) => {
+  const live = new Set(current.map(paymentEntryKey))
+  const kept = Object.fromEntries(Object.entries(amountTextErrors.value).filter(([key]) => live.has(key)))
+  if (Object.keys(kept).length !== Object.keys(amountTextErrors.value).length) amountTextErrors.value = kept
+})
 const canSubmit = computed(
   () => entries.value.length > 0 && !aggregateError.value && !hasEntryErrors.value && !hasAmountTextErrors.value && !isSubmitting.value,
 )

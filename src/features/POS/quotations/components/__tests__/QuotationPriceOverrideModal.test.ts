@@ -29,13 +29,13 @@ const stubs = {
     props: ['modelValue'],
     emits: ['update:modelValue'],
     template:
-      '<input type="number" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+      '<input type="text" v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
   },
   Input: {
     props: ['modelValue'],
     emits: ['update:modelValue'],
     template:
-      '<input type="number" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+      '<input type="text" v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
   },
   UAlert: { props: ['description'], template: '<p>{{ description }}</p>' },
   Alert: { props: ['description'], template: '<p>{{ description }}</p>' },
@@ -172,6 +172,45 @@ describe('QuotationPriceOverrideModal — submit', () => {
 
     expect(wrapper.emitted('update:open')).toBeUndefined()
     expect(wrapper.text()).toContain('No se pudo aplicar el cambio de precio.')
+  })
+})
+
+// T22/S18: the price is read with the one money rule, never 100×.
+describe('QuotationPriceOverrideModal — money rule', () => {
+  it.each([
+    ['70.55', 7055],
+    ['70,55', 7055],
+    ['1,234.50', 123450],
+  ])('sends %j as %i cents', async (text, cents) => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    const wrapper = mountModal({ onSubmit })
+
+    await wrapper.get('[data-testid="price-override-input"]').setValue(text)
+    await wrapper.get('form#quotation-price-override-form').trigger('submit')
+    await flushPromises()
+
+    expect(onSubmit).toHaveBeenCalledWith('item-1', cents)
+  })
+
+  it.each([
+    ['1.005', 'Usa como máximo dos decimales, por ejemplo 70.55.'],
+    ['0,100', 'Escribe el monto con punto para los centavos, por ejemplo 70.55.'],
+    ['12abc', 'Escribe solo el monto en números, por ejemplo 70.55.'],
+  ])('shows the money error for %j and sends nothing', async (text, error) => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    const wrapper = mountModal({ onSubmit })
+    const input = wrapper.get('[data-testid="price-override-input"]')
+
+    await input.setValue('500')
+    await input.setValue(text)
+    await input.trigger('blur')
+
+    expect(wrapper.text()).toContain(error)
+    expect((wrapper.get('[data-testid="price-override-submit"]').element as HTMLButtonElement).disabled).toBe(true)
+    await wrapper.get('form#quotation-price-override-form').trigger('submit')
+    await input.trigger('keydown.enter')
+    await flushPromises()
+    expect(onSubmit).not.toHaveBeenCalled()
   })
 })
 
