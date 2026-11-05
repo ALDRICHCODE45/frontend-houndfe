@@ -147,3 +147,4 @@ L76. T12–T14 DONE.
 - Full suite: 750 files and 13663 tests; tc 0, build 0, dc 0.
 - assess (base main): medium, reviewDue false.
 - Merged to main locally; the user pushes.
+L77. T15 DONE (5c76ebb8): useConfirm/useLeaveGuard on one ConfirmDialogHost; no native confirm left (AST guard spec). Browser check: the modal shows; Seguir editando and Esc stay; Salir sin guardar leaves; 0 native dialogs. Suite 753/13678, tc/build/dc 0; assess medium, reviewDue false. Merged to main.
