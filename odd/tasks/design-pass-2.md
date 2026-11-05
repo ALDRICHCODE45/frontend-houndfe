@@ -14,7 +14,7 @@ Branch feat/design-pass-2 from main e1cea788. Backend and chatbot agent requests
 - [x] T3 S1,S3,S4 Recepciones de caja with data — worker; summary first on mobile, hidden when it repeats the state; 143 tests — 247738bd
 - [ ] T4 S1,S3,S4 Caja with sessions (sessions list lacks time/cashier: BE API debt) plus the shared handover cards CashCustodyDiscovery.vue (T3 CR1–CR6) — pending
 - [ ] T5 S1,S3,S4 Product detail: Presentaciones, Inventario, Historial slideover — pending
-- [ ] T6 S1,S3 Editorial route /pos/products/:id/editorial: does it still earn a separate screen next to Contenido? (user decision) — pending
+- [ ] T6 S1,S3 Editorial route /pos/products/:id/editorial: keeps its own screen (it is the entry for editorial-only and global users, router meta editorialRead) and renders the same EditorialWorkspace as Contenido; check it with data after T5 — pending
 - [ ] T7 S1,S3 Notificaciones with data (dark switch contrast) — pending
 - [ ] T8 S1,S3 Delivery route detail, driver view — pending
 - [ ] T9 S1,S3 Tenant selection empty/loading/error — pending
@@ -28,3 +28,4 @@ L4. T1 done (cb603375): high fix, 7-column fit at 1440 with the sidebar open, pl
 L5. T3 done (247738bd). The handover card defects live in CashCustodyDiscovery.vue, which Caja shares, so they move to T4: CR1 «Declarado» next to its amount; CR2 declaredAt meta line; CR3 note hint only when the amount differs; CR4 mismatch error on its own card with aria-invalid; CR5 stacked full-width fields below sm; CR6 floats without the help paragraph, «Declarado» only when it differs, receivedAt. BE request to batch: GET /cash-handovers/custody should send the sender's display name and the source register name. Dev data: the T3 seed left extra open cashier sessions on other registers (a reseed clears them).
 L6. Slices: one commit per screen task (each about one reviewable slice); the branch merges to main after the pass, with docs/odd commits apart.
 L7. T2 done (30fcf7bb), docs fit rule in 8d82c4d2 (the T1 commit had missed it). Left for the user: the product name repeats in the drawer (title and Producto row); the chatbot's one-line summary paragraph comes from the server. Shared requests moved to T10.
+L8. T6 needs no user decision: ProductEditorialView.vue (46 lines) wraps the same EditorialWorkspace as the Contenido tab, and the route is how users with only editorial read, or global context without a tenant, reach it (src/app/router/index.ts:175, 617–667). Folding it would remove that access. T6 is a data check of its header and shell after T5.
