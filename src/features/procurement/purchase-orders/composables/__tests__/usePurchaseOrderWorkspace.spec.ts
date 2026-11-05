@@ -2,8 +2,9 @@ import { effectScope, nextTick, reactive, shallowRef } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { usePurchaseOrderWorkspace } from '../usePurchaseOrderWorkspace'
 import type { PurchaseOrder } from '../../interfaces/purchase-order.types'
-const mocks = vi.hoisted(() => ({ create: vi.fn(), saveDraft: vi.fn(), delete: vi.fn(), confirm: vi.fn(), cancel: vi.fn(), refresh: vi.fn(), detailRefresh: vi.fn() }))
+const mocks = vi.hoisted(() => ({ create: vi.fn(), saveDraft: vi.fn(), delete: vi.fn(), confirm: vi.fn(), cancel: vi.fn(), refresh: vi.fn(), detailRefresh: vi.fn(), ask: vi.fn() }))
 vi.mock('../../api/purchase-orders.api', () => ({ purchaseOrdersApi: mocks }))
+vi.mock('@/core/shared/composables/useConfirm', () => ({ useConfirm: () => ({ confirm: mocks.ask }) }))
 const current = shallowRef<PurchaseOrder | null>(null)
 vi.mock('../usePurchaseOrders', () => ({
   usePurchaseOrder: () => ({ order: current, refresh: mocks.detailRefresh }),
@@ -63,11 +64,27 @@ describe('draft workspace command integration', () => {
     mocks.saveDraft.mockRejectedValueOnce(new Error('network'))
     await w.save(input)
     expect(w.locked.value).toBe(true)
-    expect(w.close()).toBe(false)
+    expect(await w.close()).toBe(false)
+    expect(mocks.ask).not.toHaveBeenCalled()
     mocks.saveDraft.mockResolvedValue(order)
     await w.retry()
     expect(w.locked.value).toBe(false)
     expect(mocks.saveDraft.mock.calls[1]?.[2]).toBe(mocks.saveDraft.mock.calls[2]?.[2])
+  })
+  it('asks in the app dialog before a reload replaces local changes, and keeps them on cancel', async () => {
+    const { workspace: w } = setup()
+    await w.show({ id: order.id })
+    w.dirty.value = true
+    mocks.detailRefresh.mockClear()
+    mocks.ask.mockResolvedValueOnce(false)
+    await w.reload()
+    expect(mocks.ask).toHaveBeenCalledWith({ title: '¿Reemplazar tus cambios?', description: 'Se cargará la versión más reciente y se perderán tus cambios locales.', confirmLabel: 'Reemplazar', tone: 'danger' })
+    expect(mocks.detailRefresh).not.toHaveBeenCalled()
+    expect(w.dirty.value).toBe(true)
+    mocks.ask.mockResolvedValueOnce(true)
+    await w.reload()
+    expect(mocks.detailRefresh).toHaveBeenCalledTimes(1)
+    expect(w.dirty.value).toBe(false)
   })
   it('deletes with read+delete independently of update; context changes fence local state', async () => {
     const { workspace: w, context } = setup()
@@ -78,12 +95,18 @@ describe('draft workspace command integration', () => {
     expect(mocks.delete).toHaveBeenCalledWith('o', { expectedVersion: 3 }, expect.any(String), expect.any(AbortSignal))
     context.canUpdate = true
     w.create(); w.dirty.value = true
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
-    expect(w.close()).toBe(false)
+    const native = vi.spyOn(window, 'confirm')
+    mocks.ask.mockResolvedValue(false)
+    expect(await w.close()).toBe(false)
+    expect(mocks.ask).toHaveBeenCalledWith(expect.objectContaining({ title: '¿Salir sin guardar?', description: 'Tienes cambios sin guardar en el borrador de la orden.', confirmLabel: 'Salir sin guardar', tone: 'danger' }))
     expect(w.open.value).toBe(true)
+    mocks.ask.mockResolvedValue(true)
+    expect(await w.close()).toBe(true)
+    expect(w.open.value).toBe(false)
+    w.create(); w.dirty.value = true
     context.tenantId = 'other'; await nextTick()
     expect(w.open.value).toBe(false)
-    confirm.mockRestore()
+    expect(native).not.toHaveBeenCalled()
   })
 })
 
@@ -207,7 +230,7 @@ describe('order confirmation and cancellation workspace', () => {
     await nextTick()
     expect(document.activeElement).toBe(action)
     expect(w.open.value).toBe(true)
-    expect(w.close()).toBe(true)
+    expect(await w.close()).toBe(true)
     w.restoreInvoker(new Event('close'))
     await nextTick()
     expect(document.activeElement).toBe(row)
@@ -223,7 +246,7 @@ describe('opening an order from a row menu', () => {
     stray.focus()
     await w.show(ready, false, rowButton)
     expect(w.open.value).toBe(true)
-    expect(w.close()).toBe(true)
+    expect(await w.close()).toBe(true)
     w.restoreInvoker(new Event('close'))
     await nextTick()
     expect(document.activeElement).toBe(rowButton)

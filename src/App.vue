@@ -8,6 +8,7 @@ import { es } from '@nuxt/ui/locale'
 import DashboardLayout from '@/app/layouts/DashboardLayout.vue'
 import AuthLayout from '@/app/layouts/AuthLayout.vue'
 import CatalogLayout from '@/app/layouts/CatalogLayout.vue'
+import ConfirmDialogHost from '@/core/shared/components/ConfirmDialogHost.vue'
 
 useHfAppTheme()
 const route = useRoute()
@@ -33,5 +34,8 @@ const currentLayout = computed(() => {
     <CatalogLayout v-else-if="currentLayout === 'catalog'" class="h-full">
       <RouterView />
     </CatalogLayout>
+
+    <!-- The one dialog behind useConfirm() and useLeaveGuard(). -->
+    <ConfirmDialogHost />
   </UApp>
 </template>

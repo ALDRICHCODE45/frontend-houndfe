@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, getCurrentInstance, onBeforeUnmount, useTemplateRef, watch } from 'vue'
+import { computed, getCurrentInstance, useTemplateRef } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { usePurchaseOrders } from '../composables/usePurchaseOrders'
-import { usePurchaseOrderWorkspace } from '../composables/usePurchaseOrderWorkspace'
+import { ORDER_LEAVE_COPY, usePurchaseOrderWorkspace } from '../composables/usePurchaseOrderWorkspace'
+import { useLeaveGuard } from '@/core/shared/composables/useLeaveGuard'
 import ToolbarSelectFilter from '@/core/shared/components/DataTable/ToolbarSelectFilter.vue'
 import PurchaseOrderList from '../components/PurchaseOrderList.vue'
 import PurchaseOrderDetailHeader from '../components/PurchaseOrderDetailHeader.vue'
@@ -57,13 +58,9 @@ function onHeaderAction(key: string) {
   if (key === 'cancel') workspace.requestTransition('cancel', header.value?.menuTrigger())
   else if (key === 'discard' && selected.value) workspace.requestDelete(selected.value)
 }
-if (getCurrentInstance()?.appContext.config.globalProperties.$router) onBeforeRouteLeave(workspace.canLeave)
-function preventUnload(event: BeforeUnloadEvent) { event.preventDefault(); event.returnValue = '' }
-watch(() => dirty.value || locked.value, value => {
-  if (value) window.addEventListener('beforeunload', preventUnload)
-  else window.removeEventListener('beforeunload', preventUnload)
-}, { immediate: true, flush: 'sync' })
-onBeforeUnmount(() => window.removeEventListener('beforeunload', preventUnload))
+// A command in flight cannot be left mid-way; unsaved changes ask first and hold the tab close.
+if (getCurrentInstance()?.appContext.config.globalProperties.$router) onBeforeRouteLeave(() => !locked.value)
+useLeaveGuard(() => dirty.value || locked.value, ORDER_LEAVE_COPY)
 </script>
 
 <template>

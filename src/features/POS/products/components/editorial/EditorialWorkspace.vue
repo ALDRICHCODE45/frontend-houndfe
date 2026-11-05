@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, getCurrentInstance, onBeforeUnmount, shallowRef, watch } from 'vue'
-import { onBeforeRouteLeave } from 'vue-router'
+import { computed, shallowRef, watch } from 'vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import { useLeaveGuard } from '@/core/shared/composables/useLeaveGuard'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import HfFieldGrid from '@/core/shared/components/form/HfFieldGrid.vue'
@@ -46,16 +46,7 @@ const editor = useEditorialEditor(() => props.productId)
 const { lifecycle, vocabulary, qualification, loading, errorMessage, readStatus, staleView, metadataMessage, issues, editable, canInitialize, canDiscard, hasUnsavedChanges } = editor
 const { authoritative, buffer, canRead, canWrite, isPending, receipt, outcome, error, pendingIntent } = lifecycle
 const publishPermission = lifecycle.canPublish
-// Standalone workspace mounts have no router; routed views register the leave guard.
-if (getCurrentInstance()?.appContext.config.globalProperties.$router) {
-  onBeforeRouteLeave(() => !hasUnsavedChanges.value || window.confirm('Tienes cambios sin guardar en el borrador editorial. ¿Salir sin guardarlos?'))
-}
-function preventUnload(event: BeforeUnloadEvent) { event.preventDefault() }
-watch(hasUnsavedChanges, dirty => {
-  if (dirty) window.addEventListener('beforeunload', preventUnload)
-  else window.removeEventListener('beforeunload', preventUnload)
-}, { immediate: true, flush: 'sync' })
-onBeforeUnmount(() => window.removeEventListener('beforeunload', preventUnload))
+useLeaveGuard(hasUnsavedChanges, { description: 'Tienes cambios sin guardar en el contenido.' })
 
 const retransmitAllowed = computed(() => pendingIntent.value?.kind === 'publish'
   ? publishPermission.value : canWrite.value && (pendingIntent.value?.kind === 'discard' || Boolean(vocabulary.value && qualification.value)))
