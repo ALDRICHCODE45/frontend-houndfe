@@ -74,22 +74,19 @@ describe('EditorialAttributeTable — "No aplica" only where the policy admits i
     expect(naItems()).toEqual([])
   })
 
-  it('follows the declaration of the presentation it is asked about, live', async () => {
+  // Picking "No aplica" on an optional datum declares its code non-pertinent for that presentation (T10),
+  // so the rule admits it whether or not the code is already declared.
+  it('offers it on an optional datum in every presentation, declared or not, live', async () => {
     const wrapper = render()
     await openMenu(cellOf(wrapper, 'Volumen neto', 1))
-    expect(naItems()).toEqual([])
+    expect(naItems()).toEqual(['No aplica'])
     await closeMenu()
     await wrapper.setProps({ facts: volumeIsNotRelevant })
     await openMenu(cellOf(wrapper, 'Volumen neto', 1))
     expect(naItems()).toEqual(['No aplica'])
     await closeMenu()
-    // The other presentation did not declare it.
     await openMenu(cellOf(wrapper, 'Volumen neto', 2))
-    expect(naItems()).toEqual([])
-    await closeMenu()
-    await wrapper.setProps({ facts: [] })
-    await openMenu(cellOf(wrapper, 'Volumen neto', 1))
-    expect(naItems()).toEqual([])
+    expect(naItems()).toEqual(['No aplica'])
   })
 
   it('never admits it for the weight and volume of a food, whatever is declared', async () => {

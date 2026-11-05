@@ -1,3 +1,4 @@
+import type { EditorialDeclarationValues } from '../interfaces/editorial-contract-declaration.types'
 import type { EditorialDefinition } from '../interfaces/editorial-contract-definition.types'
 import type { EditorialSellableFacts } from '../interfaces/editorial-contract-document.types'
 import type { EditorialOwner, EditorialValue } from '../interfaces/editorial-contract-value.types'
@@ -138,12 +139,31 @@ export function buildEditorialAttributeTable({ family, definitions, values, subj
       total++
       if (filled) answered++
       const rule = policyRule(family, binding, definitions, policyDocument, column.variantId)
+      // Picking "No aplica" on an optional datum also declares its code non-pertinent for the presentation,
+      // so it is admitted when the rule admits it on the document as it will be after that declaration.
+      const naAdmitted = allowsEditorialNotApplicable(rule) || (column.owner === 'sellable' && isEditorialOptionalBinding(binding)
+        && allowsEditorialNotApplicable(policyRule(family, binding, definitions, declareNonpertinent(policyDocument, column.variantId, definition.code), column.variantId)))
       return { key: column.key, target, rowId: found?.id ?? null, input, filled,
-        naAdmitted: allowsEditorialNotApplicable(rule), required: rule?.applicability === 'applicable' && rule.required }
+        naAdmitted, required: rule?.applicability === 'applicable' && rule.required }
     }),
   })).sort((left, right) => left.label.localeCompare(right.label, 'es'))
   const orphanCount = values.filter(item => item.input.state !== 'omitted' && !matched.has(item.id)).length
   return { columns: used, rows, answered, total, missing: total - answered, orphanCount }
+}
+
+/** The binding's rule is "optional": "No aplica" on it is declared in the presentation's `optionalNonpertinenceCodes`. */
+export function isEditorialOptionalBinding(binding: EditorialFamily['bindings'][number]): boolean {
+  return binding.policy.route === 'fact_rule' && binding.policy.rule.ruleId === 'optional' && binding.policy.rule.parameter === binding.definitionCode
+}
+
+// The facts as they will be once the subject's row lists the code as non-pertinent (the evidence is the card's).
+function declareNonpertinent(document: ReturnType<typeof readPolicyDocument>, variantId: string | null, code: string): ReturnType<typeof readPolicyDocument> {
+  const current = document.facts.find(row => row.variantId === variantId) ?? { variantId, presentation: '', declarations: [], careReview: null }
+  const listed = current.declarations.find(item => item.key === 'optionalNonpertinenceCodes')
+  const codes = [...(listed?.state === 'known' ? listed.value : []), code] as EditorialDeclarationValues['optionalNonpertinenceCodes']
+  const declaration = { key: 'optionalNonpertinenceCodes' as const, state: 'known' as const, value: codes, evidence: { sourceRef: '-', verifiedOn: '2000-01-01' }, basis: '-' }
+  const row = { ...current, declarations: [...current.declarations.filter(item => item.key !== 'optionalNonpertinenceCodes'), declaration] }
+  return { ...document, facts: [...document.facts.filter(item => item.variantId !== variantId), row] }
 }
 
 // The policy functions throw on a document that breaks their invariants (a half-edited choice, say);

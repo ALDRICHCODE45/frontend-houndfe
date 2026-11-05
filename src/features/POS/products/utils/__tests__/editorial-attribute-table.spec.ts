@@ -179,6 +179,14 @@ describe('buildEditorialAttributeTable — guidance', () => {
     expect(table.rows.find(item => item.label === 'Peso neto')).toMatchObject({ internal: false, description: null })
   })
 
+  it('admits "No aplica" on an optional datum, as the rule reads once its code is declared non-pertinent', () => {
+    const optional: EditorialFamily = { ...guided, bindings: [{ ...binding('measure.net_volume', 'sellable'), policy: rule('optional', 'measure.net_volume') }] }
+    const withVolume = [...definitions, { id: 'measure.net_volume', code: 'measure.net_volume', label: 'Volumen neto', type: 'text' } as EditorialDefinition]
+    const volume = build([], { family: optional, definitions: withVolume }).rows.find(item => item.label === 'Volumen neto')!
+    expect(volume.cells.map(cell => cell?.naAdmitted ?? null)).toEqual([true, true])
+    expect(volume.cells.map(cell => cell?.required ?? null)).toEqual([false, false])
+  })
+
   it('treats an unresolved policy as not admitting "No aplica" and not required', () => {
     const table = build()
     expect(table.rows.flatMap(item => item.cells).filter(Boolean).every(cell => !cell!.naAdmitted && !cell!.required)).toBe(true)
