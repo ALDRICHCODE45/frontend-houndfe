@@ -136,3 +136,12 @@ L75. BE sections contract (feat/editorial-vocabulary-sections 2060403, 67a2d3f):
 - keys omitted, never null, on the starter family;
 - vocabularyRevision is unchanged.
 BE will serve the branch on :3001 (the :3000 pid is not ours). Readiness contract P2 agreed: items[{scope, definitionCode?, variantId?, sectionCode?, problem, message}], cycle/draftRevision, bySection, and the same items on the publish 400. It waits on the user's D1–D3.
+L76. T12–T14 DONE.
+- Commits:
+  - 39eb1f99: the shared form patterns, plus the fix for centered and highlighted Nuxt menu items app-wide;
+  - f0f92d49: Contenido as section cards on the BE sections, with the old table cluster deleted;
+  - 2245d9b4, 0dfb3ff4, b9cb62f0 and dc31344b: the browser-review fixes (pinned special answers, unit width, help on focus with ⓘ, quiet field actions, short-text inputs, the chip-row sr-only overflow, a single special label, label wrap, actions overlay).
+- Parent Playwright-MCP review covered food, collar and pipeta, at 1440 and 390, in light and dark, plus Historial. The Historial slideover is unchanged.
+- Full suite: 750 files and 13663 tests; tc 0, build 0, dc 0.
+- assess (base main): medium, reviewDue false.
+- Merged to main locally; the user pushes.
