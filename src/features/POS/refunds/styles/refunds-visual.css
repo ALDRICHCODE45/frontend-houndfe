@@ -37,10 +37,11 @@
   gap: 0.5rem;
 }
 
-/* «Motivo»: the reason wraps (two lines at most for the longest label), the day stays whole. The cell
- * itself must give it room: the table's cells are nowrap with max-width 0, which clipped the label. */
+/* «Motivo»: the reason wraps (two lines at most for the longest label), the age under it stays
+ * whole. The cell itself must give it room: the table's cells are nowrap with max-width 0, which
+ * clipped the label. 11rem keeps the 7 columns inside the card at 1440 with the sidebar open. */
 .hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']).refund-col-reason {
-  width: 13rem;
+  width: 11rem;
   min-width: 11rem;
   max-width: none;
   white-space: normal;
@@ -48,7 +49,7 @@
 
 .hf-ui .refund-reason {
   display: block;
-  min-width: 11rem;
+  min-width: 0;
   font-size: 0.875rem;
   white-space: normal;
   overflow-wrap: anywhere;

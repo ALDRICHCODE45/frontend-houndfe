@@ -31,9 +31,12 @@ describe('refunds presentation', () => {
     expect(rule('.hf-ui .refund-amount__all')).toContain('flex-shrink: 0')
   })
 
-  it('lets «Motivo» wrap to two lines with a minimum width, the cancellation day on one line', () => {
+  it('lets «Motivo» wrap to two lines in an 11rem column, the cancellation age on one line', () => {
+    // 7 columns at 1440 with the sidebar open: 16rem name + 11rem + badge + 3 x 7rem + 4rem fit the 1022px card.
+    const column = rule(".hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']).refund-col-reason")
+    expect(column).toContain('width: 11rem')
+    expect(column).toContain('min-width: 11rem')
     const reason = rule('.hf-ui .refund-reason')
-    expect(reason).toContain('min-width: 11rem')
     expect(reason).toContain('white-space: normal')
     expect(reason).not.toContain('text-overflow: ellipsis')
     expect(rule('.hf-ui .refund-reason-when')).toContain('white-space: nowrap')

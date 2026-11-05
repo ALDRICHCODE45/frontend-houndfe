@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { refundAgeLabel, refundMethodLabel, refundReasonLabel, SETTLEMENT_METHOD_ITEMS } from '../refundLabels'
+import { refundAgeLabel, refundCanceledAgo, refundMethodLabel, refundReasonLabel, SETTLEMENT_METHOD_ITEMS } from '../refundLabels'
 
 describe('refund labels (contract copy hints, es-MX)', () => {
   it.each([
@@ -37,5 +37,12 @@ describe('refund labels (contract copy hints, es-MX)', () => {
     expect(refundAgeLabel('2026-11-05T10:00:00.000Z', now)).toBe('Hoy')
     expect(refundAgeLabel('2026-11-04T10:00:00.000Z', now)).toBe('1 día')
     expect(refundAgeLabel('2026-10-21T20:42:00.000Z', now)).toBe('14 días')
+  })
+
+  it('says when the sale was cancelled, as an age (one fact, no separate age column)', () => {
+    const now = new Date('2026-11-05T17:05:00.000Z')
+    expect(refundCanceledAgo('2026-11-05T10:00:00.000Z', now)).toBe('Cancelada hoy')
+    expect(refundCanceledAgo('2026-11-04T10:00:00.000Z', now)).toBe('Cancelada hace 1 día')
+    expect(refundCanceledAgo('2026-10-25T20:42:00.000Z', now)).toBe('Cancelada hace 10 días')
   })
 })

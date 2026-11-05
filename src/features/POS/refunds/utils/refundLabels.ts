@@ -43,6 +43,12 @@ export function refundAgeLabel(createdAt: string, now: Date = new Date()): strin
   return days === 1 ? '1 día' : `${days} días`
 }
 
+/** When the sale was cancelled, as an age (`Cancelada hoy`, `Cancelada hace 14 días`). */
+export function refundCanceledAgo(createdAt: string, now: Date = new Date()): string {
+  const age = refundAgeLabel(createdAt, now)
+  return age === 'Hoy' ? 'Cancelada hoy' : `Cancelada hace ${age}`
+}
+
 /** Short day of the cancellation (`21 oct`; the year only when it is not this year). */
 export function refundCanceledDay(createdAt: string, now: Date = new Date()): string {
   const date = new Date(createdAt)
