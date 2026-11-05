@@ -19,8 +19,10 @@ if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => 
 const tick = () => new Promise(resolve => setTimeout(resolve, 60))
 afterEach(() => { document.body.innerHTML = ''; vi.restoreAllMocks() })
 const choice = (key: EditorialDeclarationChoice['key'], choices: { code: string; label: string }[] = []): EditorialDeclarationChoice => ({ key, label: key, choices, toyTypeChoices: [] })
+// The content.kind options in the real vocabulary shape: the measure segments read their labels.
+const contentKinds = [{ code: 'mass', label: 'Masa' }, { code: 'volume', label: 'Volumen' }, { code: 'count', label: 'Conteo' }, { code: 'length', label: 'Longitud' }, { code: 'area', label: 'Superficie' }]
 const families: Record<string, EditorialDeclarationChoice[]> = {
-  food: [choice('contentMagnitude'), choice('optionalNonpertinenceCodes', [{ code: 'measure.pack_count', label: 'Piezas por paquete' }])],
+  food: [choice('contentMagnitude', contentKinds), choice('optionalNonpertinenceCodes', [{ code: 'measure.pack_count', label: 'Piezas por paquete' }])],
   hygiene: [choice('contentMagnitude'), choice('consumable'), choice('animalApplied'), choice('relevantDimensionCodes', [{ code: 'measure.dimensions.external_length', label: 'Largo' }])],
   accessory: [choice('contentMagnitude'), choice('fitDeterminesChoice'), choice('electricalApplies'),
     choice('relevantFitCodes', [{ code: 'measure.fit.neck', label: 'Cuello' }, { code: 'measure.fit.chest', label: 'Pecho' }]),
@@ -65,7 +67,7 @@ describe('the questions per family', () => {
     const { wrapper } = render()
     expect(wrapper.find('[data-testid="presentation-switcher"]').exists()).toBe(false)
     expect(questions(wrapper)).toEqual(['¿Cómo se mide el contenido?'])
-    expect(segments(wrapper, '¿Cómo se mide el contenido?').props('items').map((item: { label: string }) => item.label)).toEqual(['Peso', 'Volumen', 'Piezas', 'Largo', 'Área', 'No sé'])
+    expect(segments(wrapper, '¿Cómo se mide el contenido?').props('items').map((item: { label: string }) => item.label)).toEqual(['Masa', 'Volumen', 'Conteo', 'Longitud', 'Superficie', 'No sé'])
     expect(wrapper.text()).not.toContain('Sin presentación')
   })
 
@@ -228,7 +230,7 @@ describe('the presentation actions', () => {
 
   it('a read-only user sees the answers as words, with no controls', () => {
     const { wrapper } = render({ facts: answered(), readonly: true })
-    expect(wrapper.get('[data-testid="presentation-summary"]').text()).toContain('Se mide en peso')
+    expect(wrapper.get('[data-testid="presentation-summary"]').text()).toContain('Se mide en masa')
     expect(wrapper.find('button, input').exists()).toBe(false)
   })
 

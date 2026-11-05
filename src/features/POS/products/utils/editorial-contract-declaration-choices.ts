@@ -68,6 +68,16 @@ export function projectEditorialDeclarationChoices({ family, definitions }: {
       const definition = definitions.find(d => d.id === binding.definitionId && d.code === binding.definitionCode)
       if (definition) choices.push({ code: definition.code, label: definition.label })
     }
+    // The measure question reads the content.kind options and the vocabulary's labels. The live
+    // vocabulary prefixes option codes with the definition code (`content.kind.mass`); the
+    // declaration answers the bare magnitude (`mass`), so the prefix is dropped.
+    if (key === 'contentMagnitude') {
+      const binding = family.bindings.find(b => b.definitionCode === 'content.kind')
+      const definition = binding ? definitions.find(d => d.id === binding.definitionId && d.code === binding.definitionCode)
+        : definitions.find(d => d.code === 'content.kind')
+      if (definition && (definition.type === 'single' || definition.type === 'multi'))
+        choices.push(...definition.options.map(option => ({ code: option.code.replace(/^content\.kind\./, ''), label: option.label })))
+    }
     let toyTypeChoices: EditorialDeclarationChoice['toyTypeChoices'] = []
     if (key === 'relevantDimensionCodes' && family.code === 'toy') {
       const binding = family.bindings.find(b => b.definitionCode === 'toy.type')
