@@ -210,3 +210,13 @@ UX finding: 16 of 18 items are the same EVIDENCE_REQUIRED (D9 strict), a wall of
 - propose to the user a bulk «use the presentation source for all fields without a source» with a ConfirmModal (a provenance decision, so it needs the user's OK).
 
 PaymentModal tender verified: «70,55»→$70.55, «1,234.50»→$1,234.50, «0,100» and «12abc» give an error with Confirmar disabled.
+L87. BE (seq 47) on bulk evidence:
+- one PUT /products/:id/editorial/draft {expectedCycle, expectedRevision, document} replaces the whole document;
+- evidence {sourceRef 1–1000 chars, verifiedOn YYYY-MM-DD} only on known values;
+- the same evidence may repeat;
+- one malformed evidence fails the whole save (400);
+- the bulk action clears EVIDENCE_REQUIRED on known values without evidence, not invalid saved evidence, CARE_REVIEW_INCOMPLETE, REQUIRED_MISSING, UNRESOLVED or NA_NOT_ALLOWED;
+- fact evidence never substitutes value evidence;
+- there is no presentation-level source field: with several presentations the FE must let the user choose;
+- the BE recommends an explicit confirmation.
+Waiting for the user's OK.
