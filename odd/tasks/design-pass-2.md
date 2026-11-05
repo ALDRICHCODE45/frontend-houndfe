@@ -11,8 +11,8 @@ Branch feat/design-pass-2 from main e1cea788. Backend and chatbot agent requests
 ## Tasks
 - [x] T1 S1,S3,S4 Reembolsos /pos/reembolsos — worker; table fits at 1440 (7 cols), age said once, «Pagó con», card foot; 103 tests — cb603375
 - [ ] T2 S1,S3,S4 Decisiones pendientes with real rows (list and drawer) — worker
-- [ ] T3 S1,S3,S4 Recepciones de caja with data — worker
-- [ ] T4 S1,S3,S4 Caja with sessions (sessions list lacks time/cashier: BE API debt) — pending
+- [x] T3 S1,S3,S4 Recepciones de caja with data — worker; summary first on mobile, hidden when it repeats the state; 143 tests — 247738bd
+- [ ] T4 S1,S3,S4 Caja with sessions (sessions list lacks time/cashier: BE API debt) plus the shared handover cards CashCustodyDiscovery.vue (T3 CR1–CR6) — pending
 - [ ] T5 S1,S3,S4 Product detail: Presentaciones, Inventario, Historial slideover — pending
 - [ ] T6 S1,S3 Editorial route /pos/products/:id/editorial: does it still earn a separate screen next to Contenido? (user decision) — pending
 - [ ] T7 S1,S3 Notificaciones with data (dark switch contrast) — pending
@@ -25,3 +25,5 @@ L1. User (2026-11-05): «Bien, si hermano, vamos con 1. pasada de diseno. pero t
 L2. Coverage map (explorer): every screen but Reembolsos went through the system-redesign harness; the gaps are screens shot without data or added later. Ranked list → T1–T8; T9–T10 from the open debts. Session published as «FE design pass (houndfe frontend)» so backend and chatbot agents can reach it.
 L3. Runtime: BE answers on :3003; FE dev server on :5173 against it (README in odd/evidence/system-redesign). T1–T3 run as parallel workers (disjoint feature folders); shared design-system components are changed by the parent only.
 L4. T1 done (cb603375): high fix, 7-column fit at 1440 with the sidebar open, plus med/low copy fixes. The amount overflow was already fixed (0ce57ed7). The design system now records that fit is guaranteed at 1440 (1280 may scroll inside the card) and the one-fact rule. Open: the settle amount field lacks thousands separators (hand-built, not HfMoneyInput); follow-up for T10.
+L5. T3 done (247738bd). The handover card defects live in CashCustodyDiscovery.vue, which Caja shares, so they move to T4: CR1 «Declarado» next to its amount; CR2 declaredAt meta line; CR3 note hint only when the amount differs; CR4 mismatch error on its own card with aria-invalid; CR5 stacked full-width fields below sm; CR6 floats without the help paragraph, «Declarado» only when it differs, receivedAt. BE request to batch: GET /cash-handovers/custody should send the sender's display name and the source register name. Dev data: the T3 seed left extra open cashier sessions on other registers (a reseed clears them).
+L6. Slices: one commit per screen task (each about one reviewable slice); the branch merges to main after the pass, with docs/odd commits apart.
