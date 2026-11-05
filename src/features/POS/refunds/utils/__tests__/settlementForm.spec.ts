@@ -28,6 +28,8 @@ describe('parseAmountInput', () => {
     ['$1,234.5', 123450],
     [' 20 ', 2000],
     ['0.01', 1],
+    ['12,345', 1234500],
+    ['$1,234,567.89', 123456789],
   ])('reads %s as %i cents', (text, cents) => {
     expect(parseAmountInput(text)).toEqual({ cents })
   })
@@ -38,6 +40,13 @@ describe('parseAmountInput', () => {
     ['10.555', 'Escribe un monto válido, por ejemplo 250.00.'],
     ['-5', 'Escribe un monto válido, por ejemplo 250.00.'],
     ['0', 'El monto debe ser mayor que $0.00.'],
+    // A comma is only a thousands separator. A comma decimal must never be read as thousands:
+    // `70,55` used to become $7,055.00, a 100× over-settlement of irreversible money.
+    ['70,55', 'Usa punto para los centavos, por ejemplo 70.55.'],
+    ['70,5', 'Usa punto para los centavos, por ejemplo 70.55.'],
+    ['1,2', 'Usa punto para los centavos, por ejemplo 70.55.'],
+    ['1,23,4', 'Usa punto para los centavos, por ejemplo 70.55.'],
+    ['1234,50', 'Usa punto para los centavos, por ejemplo 70.55.'],
   ])('rejects %j', (text, error) => {
     expect(parseAmountInput(text)).toEqual({ error })
   })
