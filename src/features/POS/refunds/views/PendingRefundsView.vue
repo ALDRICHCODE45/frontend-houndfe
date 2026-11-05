@@ -67,7 +67,7 @@ const showingTo = computed(() =>
 
 const columns: TableColumn<PendingRefundListRow>[] = [
   { id: 'sale', header: 'Venta' },
-  { id: 'reason', header: 'Motivo' },
+  { id: 'reason', header: 'Motivo', meta: { class: { th: 'refund-col-reason', td: 'refund-col-reason' } } },
   { id: 'method', header: 'Método original' },
   { id: 'amountCents', header: 'Total', meta: { class: { th: 'text-right', td: 'text-right' } } },
   { id: 'settledCents', header: 'Devuelto', meta: { class: { th: 'text-right', td: 'text-right' } } },
