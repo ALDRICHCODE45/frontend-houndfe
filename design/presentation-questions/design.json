@@ -1,0 +1,28 @@
+{
+  "title": "Preguntas sobre la presentación",
+  "brief": "Rediseño de «Completar para publicar» dentro de la pestaña Contenido del producto (base: design/product-content-editor/03-attribute-table.html). En lugar de cajas anidadas con estado, valor, Fundamento y evidencia por declaración, 2 a 4 preguntas en lenguaje claro por presentación, la fuente se pide una sola vez y alimenta el Fundamento y la evidencia de cada respuesta, el No aplica de la tabla maneja solo los códigos no pertinentes, y la revisión de cuidado queda aparte para la familia Cuidado. Sin aviso del navegador (solo ConfirmModal), sin insignia «Opcional por ahora». Guarda los mismos datos: filas de datos de venta, declaraciones y careReview.",
+  "feature": "odd/tasks/system-redesign.md",
+  "artboards": [
+    {
+      "file": "01-questions-in-table.html",
+      "title": "Preguntas en la tabla",
+      "tradeoff": "Todo vive en la misma tabla y se compara presentación contra presentación de un vistazo; las respuestas en chips hacen los renglones altos y en móvil hay que desplazarse de lado, y la revisión de cuidado queda en un cajón aparte.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "02-presentation-card.html",
+      "title": "Tarjeta por presentación",
+      "tradeoff": "Cada presentación se lee como un bloque propio y, ya respondida, se reduce a una línea («Se mide en peso · Etiqueta del empaque · 4 nov»); con varias presentaciones abiertas, las tarjetas empujan la tabla hacia abajo y comparar entre ellas cuesta más.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "03-quick-setup.html",
+      "title": "Configuración rápida",
+      "tradeoff": "La página queda casi intacta: se pregunta una vez al elegir la familia, se copia con «Igual que…» y solo queda una línea de resumen con Editar; corregir algo obliga a reabrir el diálogo y las respuestas no se ven junto a los datos que provocan.",
+      "width": 1440,
+      "height": 900
+    }
+  ]
+}

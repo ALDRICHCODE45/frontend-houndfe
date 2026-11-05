@@ -118,13 +118,12 @@ describe('EditorialWorkspace — the table', () => {
     expect(http.put.mock.calls[0]![1].document.values).toEqual([{ code: 'animal.target', owner: 'product', variantId: null, state: 'unknown', evidence: null }])
   })
 
-  it('offers "No aplica" only where the policy admits it, and says how to leave the cell otherwise', async () => {
+  it('offers "No aplica" only where the policy admits it, with no stand-in item otherwise', async () => {
     await render()
     await wrapper.get('button[aria-label="Acciones de Especie · Producto"]').trigger('click'); await tick()
     const labels = menuItems().map(item => (item.textContent ?? '').trim())
-    expect(labels).toContain('No aplica no disponible')
-    expect(labels).toContain('Déjalo vacío si no corresponde.')
-    expect(labels).not.toContain('No aplica')
+    expect(labels).toContain('Desconocido')
+    expect(labels.filter(label => label.startsWith('No aplica') || label.startsWith('Déjalo'))).toEqual([])
   })
 
   it('a stored "No aplica" the policy does not admit is refused on save, next to its cell, and can be removed', async () => {
@@ -554,5 +553,30 @@ describe('EditorialWorkspace — copy', () => {
   it('has no uppercase labels, tracking or developer wording in the source', () => {
     expect(source).not.toMatch(/\buppercase\b|tracking-/)
     expect(source).not.toMatch(/Acuse histórico|Consultar y cargar borrador|Ciclo |Revisión \{\{/)
+  })
+})
+
+describe('EditorialWorkspace — "Sin presentación" survives a reload', () => {
+  const simple = { variants: [] }
+  const facts = (row: HTMLElement | undefined) => row?.querySelector('[data-action="remove-facts"]')
+
+  it('a saved product-level row keeps its form after the document is read again', async () => {
+    reads(state(doc()), simple)
+    await render()
+    await wrapper.get('#editorial-facts-add').setValue('0'); await flushPromises()
+    await wrapper.get('[id^="editorial-facts-row-"][id$="-presentation"]').setValue('Bolsa')
+    const saved = doc({ facts: [{ variantId: null, presentation: 'Bolsa', declarations: [], careReview: null }] })
+    http.put.mockResolvedValue(success(state(saved, 4)))
+    await wrapper.get('form').trigger('submit'); await flushPromises()
+    expect(http.put.mock.calls[0]![1].document.facts).toEqual(saved.facts)
+
+    // The reload: a fresh mount that decodes the saved document.
+    wrapper.unmount(); document.body.innerHTML = ''
+    reads(state(saved, 4), simple)
+    await render()
+    const fold = wrapper.get('[data-testid="complete-to-publish"]').element as HTMLElement
+    expect(fold.querySelector('legend')?.textContent).toBe('Sin presentación')
+    expect(facts(fold)).toBeTruthy()
+    expect(wrapper.get<HTMLTextAreaElement>('[id^="editorial-facts-row-"][id$="-presentation"]').element.value).toBe('Bolsa')
   })
 })
