@@ -236,3 +236,4 @@ L90. Delivered:
 - T22 money parsing app-wide: a shared parser, HfMoneyInput, es-MX, every site, the override modals; the independent verify went FAIL→PASS;
 - T23 Publicar: readiness, the grouped checklist, one field count, published state, care confirmation.
 Clean suite 786/14138; tc, build and dc 0; assess high (money escalation), reviewDue false, independent verifier PASS. Merged to main. The bulk evidence shortcut waits on the user.
+L91. T24 bulk evidence DONE (42f206e1) plus the shared-confirmation layering fix (992d505a). Real flow vs BE :3003: Faltan 17 → bulk source → Faltan 1 → fixed content.kind → ready → POST publish 200 → «Publicado · 5 nov». Suite 790/14174; tc, build and dc 0; assess medium, reviewDue false. Merged to main. The user chose «Masa» everywhere: the presentation measure labels come from content.kind.options (T25 next).
