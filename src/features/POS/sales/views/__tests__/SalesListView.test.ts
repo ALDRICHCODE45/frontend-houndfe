@@ -576,6 +576,65 @@ describe('SalesListView', () => {
     expect(badge.attributes('data-tone')).toBe('danger')
   })
 
+  // T21 [S18]: a canceled sale shows one neutral «Cancelada» in place of the payment and delivery
+  // badges, and no debt, in the desktop cells and in the mobile card.
+  describe('canceled sale row', () => {
+    const canceledRow: ConfirmedSaleRow = {
+      ...initialRow,
+      status: 'CANCELED',
+      paymentStatus: 'PAID',
+      deliveryStatus: 'PENDING',
+      debtCents: 5000,
+    }
+    const desktopCells = (wrapper: VueWrapper) => {
+      const html = wrapper.get('[data-testid="app-data-table"]')
+      return html.findAll('[data-testid^="sale-"]').filter(el => !el.element.closest('[data-testid="cards-host"]'))
+    }
+
+    it('shows one neutral «Cancelada» and no payment, delivery or debt in the desktop cells', () => {
+      mockState.data.value = [canceledRow]
+      const wrapper = mountSalesList()
+      const ids = desktopCells(wrapper).map(el => el.attributes('data-testid'))
+      expect(ids).not.toContain('sale-payment-status')
+      expect(ids).not.toContain('sale-delivery-status')
+      expect(ids).not.toContain('sale-debt')
+      const badge = wrapper.get('[data-testid="sale-canceled-status"]')
+      expect(badge.text()).toBe('Cancelada')
+      expect(badge.attributes('data-tone')).toBe('neutral')
+      expect(badge.attributes('aria-label')).toBe('Estado: Cancelada')
+    })
+
+    it('shows one neutral «Cancelada» and no payment, delivery or debt in the mobile card', () => {
+      mockState.data.value = [canceledRow]
+      const card = mountSalesList().get('[data-testid="sale-card"]')
+      const badges = card.findAll('.hf-status-badge')
+      expect(badges.map(b => b.text())).toEqual(['Cancelada'])
+      expect(badges[0]!.attributes('data-tone')).toBe('neutral')
+      expect(card.text()).not.toContain('Pagada')
+      expect(card.text()).not.toContain('No entregada')
+      expect(card.find('[data-testid="sale-card-debt"]').exists()).toBe(false)
+    })
+
+    it('still opens the detail when the canceled folio is clicked', async () => {
+      mockState.data.value = [canceledRow]
+      const wrapper = mountSalesList()
+      await wrapper.get('[data-testid="sale-link-sale-1"]').trigger('click')
+      expect(push).toHaveBeenCalledWith('/pos/ventas/sale-1')
+    })
+
+    it('keeps the payment and delivery badges and the debt of a confirmed row', () => {
+      mockState.data.value = [{ ...canceledRow, status: 'CONFIRMED' }]
+      const wrapper = mountSalesList()
+      expect(wrapper.find('[data-testid="sale-canceled-status"]').exists()).toBe(false)
+      expect(wrapper.get('[data-testid="sale-payment-status"]').text()).toBe('Pagada')
+      expect(wrapper.get('[data-testid="sale-delivery-status"]').text()).toBe('No entregada')
+      expect(wrapper.find('[data-testid="sale-debt"]').exists()).toBe(true)
+      const card = wrapper.get('[data-testid="sale-card"]')
+      expect(card.findAll('.hf-status-badge').map(b => b.text())).toEqual(['Pagada', 'No entregada'])
+      expect(card.find('[data-testid="sale-card-debt"]').exists()).toBe(true)
+    })
+  })
+
   // The "Nueva venta" CTA is AppDataTable's toolbar button; the folio is the
   // row's text button on the shared row-primary pattern, with no gold classes.
   it('drives Nueva venta from the toolbar and keeps the folio on the row-primary button', () => {

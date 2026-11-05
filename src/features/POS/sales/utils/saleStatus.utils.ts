@@ -1,4 +1,6 @@
 import { statusBadgeTone, type StatusBadgeTone } from '@/core/shared/utils/badge.utils'
+import { SALE_STATUS } from '../constants/sale.constants'
+import type { ConfirmedSaleRow } from '../interfaces/sale.types'
 
 export type SaleBadgeConfig = {
   label: string
@@ -48,4 +50,35 @@ export function getDeliveryStatusBadge(status: string): SaleBadgeConfig {
 /** Domain badge color → StatusBadge tone (`error` becomes `danger`). */
 export function saleBadgeTone(color: SaleBadgeConfig['color']): StatusBadgeTone {
   return statusBadgeTone(color)
+}
+
+/** A row badge ready for `StatusBadge`: label, tone and the aria prefix that names what it says. */
+export type SaleRowBadge = { label: string; tone: StatusBadgeTone; ariaPrefix: string }
+
+// A canceled sale is neither paid nor pending delivery any more, so it shows one neutral state
+// (design-system.md, Status badge: cancelled is neutral) in place of both badges, and no debt.
+const canceledSaleBadge: SaleRowBadge = { label: 'Cancelada', tone: 'neutral', ariaPrefix: 'Estado:' }
+
+export function isCanceledSale(sale: Pick<ConfirmedSaleRow, 'status'>): boolean {
+  return sale.status === SALE_STATUS.CANCELED
+}
+
+/** Payment badge of a sale row; «Cancelada» for a canceled sale. */
+export function salePaymentBadge(sale: Pick<ConfirmedSaleRow, 'status' | 'paymentStatus'>): SaleRowBadge {
+  if (isCanceledSale(sale)) return canceledSaleBadge
+  if (sale.paymentStatus == null) return { label: 'Sin estado', tone: 'neutral', ariaPrefix: 'Pago:' }
+  const badge = getPaymentStatusBadge(sale.paymentStatus)
+  return { label: badge.label, tone: saleBadgeTone(badge.color), ariaPrefix: 'Pago:' }
+}
+
+/** Delivery badge of a sale row; none for a canceled sale. */
+export function saleDeliveryBadge(sale: Pick<ConfirmedSaleRow, 'status' | 'deliveryStatus'>): SaleRowBadge | null {
+  if (isCanceledSale(sale)) return null
+  const badge = getDeliveryStatusBadge(sale.deliveryStatus)
+  return { label: badge.label, tone: saleBadgeTone(badge.color), ariaPrefix: 'Productos:' }
+}
+
+/** Debt a sale row shows; a canceled sale owes nothing. */
+export function saleOpenDebtCents(sale: Pick<ConfirmedSaleRow, 'status' | 'debtCents'>): number {
+  return isCanceledSale(sale) ? 0 : sale.debtCents
 }

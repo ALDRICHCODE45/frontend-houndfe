@@ -20,6 +20,10 @@ import {
   getPaymentStatusBadge,
   getDeliveryStatusBadge,
   saleBadgeTone,
+  isCanceledSale,
+  salePaymentBadge,
+  saleDeliveryBadge,
+  saleOpenDebtCents,
 } from '../saleStatus.utils'
 import { SALE_DELIVERY_STATUS } from '../../constants/sale.constants'
 
@@ -124,5 +128,40 @@ describe('saleStatus.utils — saleBadgeTone', () => {
     for (const badge of [...Object.values(paymentStatusBadgeMap), ...Object.values(deliveryStatusBadgeMap)]) {
       expect(tones).toContain(saleBadgeTone(badge.color))
     }
+  })
+})
+
+// T21 [S18]: a canceled sale is neither paid nor pending delivery any more. Every list that shows
+// a sale row reads its badges from these helpers, so the rule lives in one place.
+describe('saleStatus.utils — canceled sale row badges', () => {
+  const confirmed = { status: 'CONFIRMED', paymentStatus: 'PAID', deliveryStatus: 'PENDING', debtCents: 5000 } as const
+  const canceled = { ...confirmed, status: 'CANCELED' } as const
+
+  it('recognises only CANCELED as canceled', () => {
+    expect(isCanceledSale(canceled)).toBe(true)
+    expect(isCanceledSale(confirmed)).toBe(false)
+  })
+
+  it('replaces the payment badge with one neutral «Cancelada»', () => {
+    expect(salePaymentBadge(canceled)).toEqual({ label: 'Cancelada', tone: 'neutral', ariaPrefix: 'Estado:' })
+  })
+
+  it('drops the delivery badge and the debt of a canceled sale', () => {
+    expect(saleDeliveryBadge(canceled)).toBeNull()
+    expect(saleOpenDebtCents(canceled)).toBe(0)
+  })
+
+  it('keeps the payment and delivery badges and the debt of a confirmed sale', () => {
+    expect(salePaymentBadge(confirmed)).toEqual({ label: 'Pagada', tone: 'success', ariaPrefix: 'Pago:' })
+    expect(saleDeliveryBadge(confirmed)).toEqual({ label: 'No entregada', tone: 'danger', ariaPrefix: 'Productos:' })
+    expect(saleOpenDebtCents(confirmed)).toBe(5000)
+  })
+
+  it('keeps the «Sin estado» fallback for a confirmed sale without a payment status', () => {
+    expect(salePaymentBadge({ status: 'CONFIRMED', paymentStatus: null })).toEqual({
+      label: 'Sin estado',
+      tone: 'neutral',
+      ariaPrefix: 'Pago:',
+    })
   })
 })
