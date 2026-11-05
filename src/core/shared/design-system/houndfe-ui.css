@@ -425,6 +425,21 @@ body.hf-app {
   min-height: var(--hf-control-height);
 }
 
+/* Select, select-menu and dropdown items. Nuxt lays them out as `flex
+ * items-start`, so the 44px minimum above left the label at the top with a
+ * gap under it; centered, the extra height is shared above and below. Nuxt's
+ * highlight is `before:bg-elevated/50`, and `--ui-bg-elevated` is the surface
+ * here, so hover and keyboard focus were invisible on the menu: the highlight
+ * is the selection wash. `:where()` keeps it below the danger item's own wash
+ * and any feature menu that paints its items. */
+.hf-ui :where([role='menuitem'], [role='option'])[data-slot='item'] {
+  align-items: center;
+}
+
+.hf-ui :where([data-slot='item'])[data-highlighted]:not([data-disabled])::before {
+  background-color: var(--hf-active-soft);
+}
+
 /* ── Native field boundary ───────────────────────────────────────────────── */
 
 .hf-ui

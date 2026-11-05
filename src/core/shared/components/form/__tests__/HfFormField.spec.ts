@@ -1,0 +1,78 @@
+import { mount } from '@vue/test-utils'
+import { describe, expect, it } from 'vitest'
+import { h } from 'vue'
+import HfFormField from '../HfFormField.vue'
+
+const specials = [
+  { value: 'unknown', label: 'No lo sé' },
+  { value: 'na', label: 'No aplica' },
+]
+
+function mountField(props: Record<string, unknown> = {}) {
+  return mount(HfFormField, {
+    props: { label: 'Ingredientes', for: 'f-ingredientes', ...props },
+    slots: { default: () => h('textarea', { id: 'f-ingredientes' }) },
+  })
+}
+
+describe('HfFormField', () => {
+  it('puts a 13px label above the control, bound to it', () => {
+    const wrapper = mountField()
+    const label = wrapper.get('label.hf-form-field__label')
+    expect(label.text()).toBe('Ingredientes')
+    expect(label.attributes('for')).toBe('f-ingredientes')
+    expect(wrapper.find('textarea').exists()).toBe(true)
+  })
+
+  it('uses a plain labelled span when the control is not a native field', () => {
+    const wrapper = mountField({ for: undefined, labelId: 'l-especie' })
+    expect(wrapper.find('label').exists()).toBe(false)
+    expect(wrapper.get('#l-especie').text()).toBe('Ingredientes')
+  })
+
+  it('shows the hint on the right', () => {
+    const wrapper = mountField({ hint: '40 de 80' })
+    expect(wrapper.get('.hf-form-field__hint').text()).toBe('40 de 80')
+  })
+
+  it('marks a required field with an amber dot and the words for assistive tech', () => {
+    const wrapper = mountField({ required: true })
+    const marker = wrapper.get('.hf-form-field__required')
+    expect(marker.find('.hf-form-field__dot').exists()).toBe(true)
+    expect(marker.text()).toBe('Requerido para publicar')
+  })
+
+  it('marks an internal field with a lock and "Interno"', () => {
+    const wrapper = mountField({ internal: true })
+    const marker = wrapper.get('.hf-form-field__internal')
+    expect(marker.text()).toBe('Interno')
+    expect(marker.find('svg, .iconify, [class*="i-lucide-lock"]').exists()).toBe(true)
+  })
+
+  it('shows the error under the control instead of the help', () => {
+    const wrapper = mountField({ help: 'Escríbelos como aparecen en el empaque', error: 'Escribe al menos un ingrediente' })
+    const line = wrapper.get('.hf-form-field__message')
+    expect(line.text()).toBe('Escribe al menos un ingrediente')
+    expect(line.attributes('data-tone')).toBe('error')
+    expect(line.attributes('id')).toBe('f-ingredientes-message')
+  })
+
+  it('shows the help when there is no error', () => {
+    const wrapper = mountField({ help: 'Solo lo ve tu equipo; no se publica en la tienda.' })
+    expect(wrapper.get('.hf-form-field__message').attributes('data-tone')).toBe('help')
+  })
+
+  it('offers the special answers as ghost actions that emit special', async () => {
+    const wrapper = mountField({ specialAnswers: specials })
+    const actions = wrapper.findAll('.hf-form-field__ghost')
+    expect(actions.map(action => action.text())).toEqual(['No lo sé', 'No aplica'])
+    expect(actions[1]!.attributes('aria-label')).toBe('Ingredientes: marcar como No aplica')
+    await actions[1]!.trigger('click')
+    expect(wrapper.emitted('special')).toEqual([['na']])
+  })
+
+  it('hides the ghost actions while a hint occupies the right side', () => {
+    const wrapper = mountField({ specialAnswers: specials, hint: '40 de 80' })
+    expect(wrapper.findAll('.hf-form-field__ghost')).toHaveLength(0)
+  })
+})
