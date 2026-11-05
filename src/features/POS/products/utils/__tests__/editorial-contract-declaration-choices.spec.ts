@@ -113,6 +113,15 @@ describe('declaration display choices', () => {
     expect(choices(input, 'contentMagnitude').choices).toEqual([])
     expect(choices(input, 'relevantDimensionCodes').toyTypeChoices).toEqual([])
   })
+  it('offers the content.kind options as the measure choices, from the binding or else the definitions', () => {
+    const options = [['mass', 'Masa'], ['volume', 'Volumen'], ['count', 'Conteo'], ['length', 'Longitud'], ['area', 'Superficie']].map(([code, label], i) => ({ code: code!, label: label!, sortOrder: i, archived: false }))
+    const kind = (id: string): EditorialDefinition => ({ id, code: 'content.kind', label: 'Magnitud del contenido', type: 'single', options, groups: [], aliases: [] })
+    const bound = fixture('food', ['content.kind']); bound.definitions[0] = kind('id-0')
+    const expected = options.map(({ code, label }) => ({ code, label }))
+    expect(choices(freeze(bound), 'contentMagnitude').choices).toEqual(expected)
+    const unbound = fixture('custom'); unbound.definitions.push(kind('loose'))
+    expect(choices(freeze(unbound), 'contentMagnitude').choices).toEqual(expected)
+  })
   it('detaches labels/choices and uses only selected family bindings', () => {
     const input = fixture('accessory', ['measure.fit.neck'])
     input.definitions.push({ id: 'unbound', code: 'measure.fit.chest', label: 'Other', type: 'text' })

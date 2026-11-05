@@ -11,7 +11,9 @@ import {
 
 const choice = (key: EditorialDeclarationChoice['key'], choices: { code: string; label: string }[] = [], toyTypeChoices: { code: string; label: string }[] = []): EditorialDeclarationChoice =>
   ({ key, label: key, choices, toyTypeChoices })
-const food = [choice('contentMagnitude'), choice('optionalNonpertinenceCodes', [{ code: 'measure.pack_count', label: 'Piezas por paquete' }])]
+// The content.kind options as the vocabulary delivers them: the measure question reads these labels.
+const contentKinds = [{ code: 'mass', label: 'Masa' }, { code: 'volume', label: 'Volumen' }, { code: 'count', label: 'Conteo' }, { code: 'length', label: 'Longitud' }, { code: 'area', label: 'Superficie' }]
+const food = [choice('contentMagnitude', contentKinds), choice('optionalNonpertinenceCodes', [{ code: 'measure.pack_count', label: 'Piezas por paquete' }])]
 const accessory = [choice('contentMagnitude'), choice('fitDeterminesChoice'), choice('capacityDeterminesChoice'), choice('electricalApplies'),
   choice('relevantDimensionCodes', [{ code: 'measure.dimensions.external_length', label: 'Largo' }]),
   choice('relevantFitCodes', [{ code: 'measure.fit.neck', label: 'Cuello' }, { code: 'measure.fit.chest', label: 'Pecho' }]),
@@ -26,10 +28,27 @@ const encode = (row: EditorialFactsEditingRow) => resolveEditorialFactsInput(pro
 describe('the questions of a card', () => {
   it('asks only what the family offers, in plain words, and never the hidden non-pertinence list', () => {
     expect(editorialCardQuestions(food, null).map(q => q.text)).toEqual(['¿Cómo se mide el contenido?'])
-    expect(editorialCardQuestions(food, null)[0]!.options.map(o => o.label)).toEqual(['Peso', 'Volumen', 'Piezas', 'Largo', 'Área'])
+    expect(editorialCardQuestions(food, null)[0]!.options.map(o => o.label)).toEqual(['Masa', 'Volumen', 'Conteo', 'Longitud', 'Superficie'])
     const hygiene = [choice('contentMagnitude'), choice('consumable'), choice('animalApplied')]
     expect(editorialCardQuestions(hygiene, null).map(q => q.text)).toEqual(['¿Cómo se mide el contenido?', '¿Se consume?', '¿Se aplica sobre la mascota?'])
     expect(editorialCardQuestions([choice('presentationKind')], null)[0]!.options.map(o => o.label)).toEqual(['Fórmula', 'Dispositivo', 'Envase'])
+  })
+
+  it('reads the measure labels from the content.kind vocabulary, in the declaration order', () => {
+    const renamed = [choice('contentMagnitude', [...contentKinds].reverse().map(kind => (kind.code === 'mass' ? { ...kind, label: 'Peso neto' } : kind)))]
+    const options = editorialCardQuestions(renamed, null)[0]!.options
+    expect(options).toEqual([{ value: 'mass', label: 'Peso neto' }, { value: 'volume', label: 'Volumen' }, { value: 'count', label: 'Conteo' },
+      { value: 'length', label: 'Longitud' }, { value: 'area', label: 'Superficie' }])
+    const row = setEditorialCardAnswer(empty(), 'contentMagnitude', { state: 'known', value: 'mass' }, label, nextId)
+    expect(editorialCardSummary(editorialCardQuestions(renamed, row), label, new Date(2026, 10, 4))).toBe('Se mide en peso neto · Etiqueta del empaque · 4 nov')
+  })
+
+  it('falls back to its own label for a magnitude the vocabulary does not offer', () => {
+    const partial = [choice('contentMagnitude', contentKinds.filter(kind => kind.code !== 'area'))]
+    expect(editorialCardQuestions(partial, null)[0]!.options.map(o => o.label)).toEqual(['Masa', 'Volumen', 'Conteo', 'Longitud', 'Área'])
+    expect(editorialCardQuestions([choice('contentMagnitude')], null)[0]!.options.map(o => o.label)).toEqual(['Peso', 'Volumen', 'Piezas', 'Largo', 'Área'])
+    const row = setEditorialCardAnswer(empty(), 'contentMagnitude', { state: 'known', value: 'area' }, label, nextId)
+    expect(editorialCardSummary(editorialCardQuestions(partial, row), label, new Date(2026, 10, 4))).toBe('Se mide en área · Etiqueta del empaque · 4 nov')
   })
 
   it('shows a follow-up list only once its question is answered Sí', () => {
@@ -134,7 +153,7 @@ describe('the collapsed card', () => {
     let row = setEditorialCardAnswer(empty(), 'contentMagnitude', { state: 'known', value: 'mass' }, label, nextId)
     const questions = editorialCardQuestions(food, row)
     expect(isEditorialCardComplete(questions, label)).toBe(true)
-    expect(editorialCardSummary(questions, label, new Date(2026, 10, 4))).toBe('Se mide en peso · Etiqueta del empaque · 4 nov')
+    expect(editorialCardSummary(questions, label, new Date(2026, 10, 4))).toBe('Se mide en masa · Etiqueta del empaque · 4 nov')
     row = setEditorialCardAnswer(row, 'contentMagnitude', { state: 'unknown' }, label, nextId)
     expect(editorialCardSummary(editorialCardQuestions(food, row), label, new Date(2026, 10, 4))).toBe('Medida: no se sabe · Etiqueta del empaque · 4 nov')
     expect(isEditorialCardComplete(editorialCardQuestions(food, null), label)).toBe(false)

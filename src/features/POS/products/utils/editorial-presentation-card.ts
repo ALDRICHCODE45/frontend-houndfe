@@ -37,7 +37,8 @@ export const EDITORIAL_SOURCES = [
 ] as const
 
 const yesNo: EditorialCardOption[] = [{ value: 'true', label: 'Sí' }, { value: 'false', label: 'No' }]
-const magnitudes = [['mass', 'Peso', 'peso'], ['volume', 'Volumen', 'volumen'], ['count', 'Piezas', 'piezas'], ['length', 'Largo', 'largo'], ['area', 'Área', 'área']] as const
+// The declaration's magnitude codes, with the label used only when the content.kind vocabulary lacks the code.
+const magnitudes = [['mass', 'Peso'], ['volume', 'Volumen'], ['count', 'Piezas'], ['length', 'Largo'], ['area', 'Área']] as const
 const kinds = [['formulation', 'Fórmula'], ['device', 'Dispositivo'], ['packaging', 'Envase']] as const
 type Wording = { text: string; noun: string; yes?: string; no?: string; parent?: Key }
 const wording: Partial<Record<Key, Wording>> = {
@@ -86,7 +87,8 @@ export function editorialCardQuestions(choices: readonly EditorialDeclarationCho
     const answer = answerOf(stored(row, entry.key))
     const many = entry.key.startsWith('relevant')
     if (many && entry.choices.length === 0) continue
-    const options = entry.key === 'contentMagnitude' ? magnitudes.map(([value, label]) => ({ value, label }))
+    const options = entry.key === 'contentMagnitude'
+      ? magnitudes.map(([value, label]) => ({ value, label: entry.choices.find(item => item.code === value)?.label ?? label }))
       : entry.key === 'presentationKind' ? kinds.map(([value, label]) => ({ value, label }))
         : many ? entry.choices.map(item => ({ value: item.code, label: item.label })) : yesNo
     const question: EditorialCardQuestion = { key: entry.key, text: words.text, kind: many ? 'many' : words.yes ? 'yn' : 'one', options, answer }
@@ -226,7 +228,7 @@ function phrase(question: EditorialCardQuestion): string {
   const words = wording[question.key]!
   const answer = question.answer
   if (answer === 'unknown') return `${words.noun}: no se sabe`
-  if (question.key === 'contentMagnitude') return `se mide en ${magnitudes.find(entry => entry[0] === answer)?.[2] ?? answer}`
+  if (question.key === 'contentMagnitude') return `se mide en ${question.options.find(option => option.value === answer)?.label.toLowerCase() ?? answer}`
   if (question.kind === 'yn') return (answer === true ? words.yes : words.no)!
   if (question.kind === 'many') {
     const picked = (answer as string[]).map(code => question.options.find(option => option.value === code)?.label.toLowerCase() ?? code)
@@ -234,7 +236,7 @@ function phrase(question: EditorialCardQuestion): string {
   }
   return (kinds.find(entry => entry[0] === answer)?.[1] ?? String(answer)).toLowerCase()
 }
-/** The one line of a collapsed card: "Se mide en peso · Etiqueta del empaque · 4 nov". */
+/** The one line of a collapsed card: "Se mide en masa · Etiqueta del empaque · 4 nov". */
 export function editorialCardSummary(questions: readonly EditorialCardQuestion[], source: EditorialCardSource, now = new Date()): string {
   const { answers, source: where } = editorialCardSummaryParts(questions, source, now)
   return [answers, where].filter(Boolean).join(' · ') || 'Sin responder'
