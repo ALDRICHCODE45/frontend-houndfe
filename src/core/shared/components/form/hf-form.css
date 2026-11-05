@@ -772,6 +772,27 @@
   .hf-ui .hf-form-field:is(:hover, :focus-within) :is(.hf-form-field__ghosts, .hf-form-field__actions > *) {
     opacity: 1;
   }
+
+  /* Hidden actions must not take layout room: the right group overlays the end of
+   * the label row instead of wrapping onto an invisible second line, which pushed
+   * the control below its neighbor's. */
+  .hf-ui .hf-form-field__row {
+    position: relative;
+    flex-wrap: nowrap;
+  }
+
+  .hf-ui .hf-form-field__end {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    padding-left: 8px;
+    background-color: var(--hf-surface);
+    transform: translateY(-50%);
+  }
+
+  .hf-ui .hf-form-field:not(:hover, :focus-within) .hf-form-field__ghosts {
+    pointer-events: none;
+  }
 }
 
 .hf-ui .hf-form-field__ghost {

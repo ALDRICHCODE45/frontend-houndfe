@@ -88,6 +88,11 @@ describe('HfFormField action reveal', () => {
     expect(outside).not.toMatch(/\.hf-form-field__(ghosts|actions)[^{]*\{[^}]*opacity: 0/)
     expect(css).not.toMatch(/\.hf-form-field__(ghosts|actions)[^{]*\{[^}]*(display: none|visibility: hidden)/)
   })
+
+  it('never lets hidden actions push the control down: the right group overlays the label row', () => {
+    expect(finePointer).toMatch(/\.hf-form-field__row\s*\{[^}]*flex-wrap: nowrap/)
+    expect(finePointer).toMatch(/\.hf-form-field__end\s*\{[^}]*position: absolute/)
+  })
 })
 
 describe('HfFormField label row', () => {
