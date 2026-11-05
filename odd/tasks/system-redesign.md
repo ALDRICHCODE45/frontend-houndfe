@@ -20,6 +20,8 @@ S9. Morning: read the backend handoff docs and implement them (O1 inventory jour
 
 S14. Contenido v3 redesign. The user's words are quoted verbatim in L72. Three design directions go in design/content-editor-v3/, following the principles in BRIEF.md (no state chip column, modern combobox with search and hover, meaningful groups, a clean save bar). The user picks one before any code.
 
+S15. The user chose direction 02, verbatim: "todas las opciones me gustan mucho, por favor, todo lo que mejoraste, usalo para ampliar el system design que tenemos, con patrones reutilizables en todo el sistema ... la segunda opcion sera mi eleccion. De las pocas cosas que me gustan del diseno actual es el slideover del historial eso no lo cambiaria, pero si notas algo para cambiar, adelante ... despues de que termines de hacer esto, por favor, commit, merge y yo hago push de main ... lo tendras que revisar DETALLADAMENTE TU desde el mcp de playwhrite". Build design/content-editor-v3/02-section-cards.html in the app. Shared reusable components plus docs/design-system.md patterns. Keep the Historial slideover. Merge to main after a detailed Playwright-MCP review by the parent.
+
 ## Tasks
 
 T1 [S2,S3] Inventory screens and dead code (explorer), research principles, and extend docs/design-system.md. Route: explore, then inline.
@@ -34,6 +36,10 @@ T9 [S12] Content table guidance: offer "No aplica" only where the policy admits 
 T8 [S11] Product content editor redesign: implement design/product-content-editor/03-attribute-table.html (the chosen artboard; 01 and 02 are alternatives). Branch feat/product-content-table. Route: writer.
 
 T11 [S14] Design directions for Contenido v3: 01-property-list, 02-section-cards, 03-focus-queue under design/content-editor-v3/. Route: three background writers, one artboard each. Then the user picks one; T12 implements it.
+
+T12 [S15] Shared patterns in src/core/shared: HfCombobox (single and multi, search over 7 options, 36px options, highlight, check, chips +N, No lo sé/No aplica footer), HfUnitField (number plus unit, range), HfSectionNav (sticky index with check/falta N and scroll-spy), HfSaveBar (state plus Descartar/Guardar), HfSegmented; docs/design-system.md patterns; vitest specs. Route: writer 1.
+T13 [S15] Rebuild the Contenido workspace as 02-section-cards on top of T12. Sections come from BE contract.sections when present, else one section "Datos". Several presentations: a switcher above the fields. The Historial slideover stays. Payload unchanged. Route: writer 2, after T12.
+T14 [S15] Detailed Playwright-MCP review by the parent (food, collar, pipeta; 1440 and 390; light and dark), fixes, full suite, tc, build, then merge to main and tell the user to push.
 
 ## Log
 
@@ -123,3 +129,4 @@ L71. Parent Playwright-MCP review of Contenido (1440/390, light/dark; food, coll
 (8) the history empty block is a bluish tint, so it moves to the neutral table-header wash.
 L72. Usuario (verbatim): "estoy viendo la ui de TODA esta seccion de "Contenido" y no me gusta para nada ... mucha de mi inconformidad viene de los inputs, viene de los selects y tambien mucho del acomodo, ese badge de "Con dato", "Desconocido", etc.. al lado derecho del input ... siento que esta de mas ... los dropdownmenus, en todas las opciones hay como un padding buttom debajo del texto ... en los selects, no hay ningun efecto hover dentro de las opciones, en los multi selects largos, no hay una barra de busqueda ... como una ui muy antigua ... nada parece tener orden". T10 merge on hold. Evidence: EditorialSelectMenu passes `:search-input="false"`. Next: three design directions in design/content-editor-v3/ (01-property-list, 02-section-cards, 03-focus-queue; brief in BRIEF.md) before any code.
 L73. T11 done: the three artboards were checked in the browser by the parent: the combobox has search, hover, checks and No lo sé/No aplica at the foot; dark mode; the 390 bar uses equal columns. Canvas opened; waiting for the user to pick one.
+L74. The user chose 02 (S15). BE asked over intercom for attribute sections (contract.sections + definitions[].sectionCode) and for the next joint front (proposed: editorial publication). The existing contract `groups` are OPTION groups, not attribute sections.
