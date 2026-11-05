@@ -9,7 +9,7 @@ Branch feat/design-pass-2 from main e1cea788. Backend and chatbot agent requests
 - S4. Standing rule (user): «ninguna persona va a buscar algo o va a reconocer o seleccionar algo por su id ... debe de ser por el nombre del elemento o cualquier otro atributo reconocible fácilmente por un humano». No ids on screen; test data stays readable.
 
 ## Tasks
-- [ ] T1 S1,S3,S4 Reembolsos /pos/reembolsos (never in the harness; truncation, overflowing amount field) — worker
+- [x] T1 S1,S3,S4 Reembolsos /pos/reembolsos — worker; table fits at 1440 (7 cols), age said once, «Pagó con», card foot; 103 tests — cb603375
 - [ ] T2 S1,S3,S4 Decisiones pendientes with real rows (list and drawer) — worker
 - [ ] T3 S1,S3,S4 Recepciones de caja with data — worker
 - [ ] T4 S1,S3,S4 Caja with sessions (sessions list lacks time/cashier: BE API debt) — pending
@@ -24,3 +24,4 @@ Branch feat/design-pass-2 from main e1cea788. Backend and chatbot agent requests
 L1. User (2026-11-05): «Bien, si hermano, vamos con 1. pasada de diseno. pero tambien hay otra cosa, se estan cocinando algunas cosas en el chatbot, principalmente tiene que intervenir el backend, pero en algun momento tambien tendras que intervenir tu, asi que si, hazlo, pero en el momento en el que te contacte algun agente del backend o del chatbot sobre alguna funcionalidad que te toque, dale prioridad a eso por favor y despues sigues con la pasada de diseno. alguna duda?»
 L2. Coverage map (explorer): every screen but Reembolsos went through the system-redesign harness; the gaps are screens shot without data or added later. Ranked list → T1–T8; T9–T10 from the open debts. Session published as «FE design pass (houndfe frontend)» so backend and chatbot agents can reach it.
 L3. Runtime: BE answers on :3003; FE dev server on :5173 against it (README in odd/evidence/system-redesign). T1–T3 run as parallel workers (disjoint feature folders); shared design-system components are changed by the parent only.
+L4. T1 done (cb603375): high fix, 7-column fit at 1440 with the sidebar open, plus med/low copy fixes. The amount overflow was already fixed (0ce57ed7). The design system now records that fit is guaranteed at 1440 (1280 may scroll inside the card) and the one-fact rule. Open: the settle amount field lacks thousands separators (hand-built, not HfMoneyInput); follow-up for T10.
