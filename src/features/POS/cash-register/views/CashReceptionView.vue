@@ -73,6 +73,14 @@ async function receive(payload: { id: string; receivedCents: number; notes?: str
 // the only money aggregated; FLOAT stays a reference, never a reservation.
 // Nothing is counted until the custody has loaded (and never after a failed read).
 const loadingFacts = computed(() => custody.isLoading.value || custody.isError.value)
+// Say each thing once: forbidden, failed and empty states already speak for the
+// page, so the summary only accompanies a loading or non-empty custody.
+const showContext = computed(
+  () =>
+    custody.allowed.value &&
+    !custody.isError.value &&
+    (custody.isLoading.value || pendingCount.value + floatCount.value > 0),
+)
 const pendingCount = computed(() => custody.pendingHandovers.value.length)
 const floatCount = computed(() => custody.eligibleFloat.value.length)
 const pendingDeclaredCents = computed(() =>
@@ -89,8 +97,41 @@ const pendingDeclaredCents = computed(() =>
       <h1 class="cash-page-title">Recepciones de caja</h1>
     </header>
 
+    <!-- The summary comes first in the DOM so a phone shows the total to receive
+         before the list; from lg it sits in the right rail. -->
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-start">
-      <div class="flex min-w-0 flex-col gap-6" data-testid="cash-reception-operation">
+      <!-- Contexto: esta pantalla es solo de recepción. Sin cajas ni auditoría. -->
+      <aside
+        v-if="showContext"
+        class="flex min-w-0 flex-col gap-4 lg:col-start-2 lg:row-start-1"
+        data-testid="cash-reception-context"
+      >
+        <dl class="cash-facts-grid cash-facts-panel cash-facts-rail">
+          <div class="cash-fact">
+            <dt>Entregas por recibir</dt>
+            <dd class="cash-fact-value hf-figure" data-testid="cash-reception-context-pending">
+              {{ loadingFacts ? '—' : pendingCount }}
+            </dd>
+          </div>
+          <div class="cash-fact">
+            <dt>Efectivo declarado por recibir</dt>
+            <dd class="cash-fact-value hf-figure" data-testid="cash-reception-context-declared">
+              {{ loadingFacts ? '—' : formatCentsMXN(pendingDeclaredCents) }}
+            </dd>
+          </div>
+          <div class="cash-fact">
+            <dt>Fondos disponibles</dt>
+            <dd class="cash-fact-value hf-figure" data-testid="cash-reception-context-float">
+              {{ loadingFacts ? '—' : floatCount }}
+            </dd>
+          </div>
+        </dl>
+      </aside>
+
+      <div
+        class="flex min-w-0 flex-col gap-6 lg:col-start-1 lg:row-start-1"
+        data-testid="cash-reception-operation"
+      >
         <UAlert
           v-if="errorMessage"
           color="error"
@@ -113,30 +154,6 @@ const pendingDeclaredCents = computed(() =>
           @refresh="refresh"
         />
       </div>
-
-      <!-- Contexto: esta pantalla es solo de recepción. Sin cajas ni auditoría. -->
-      <aside class="flex min-w-0 flex-col gap-4" data-testid="cash-reception-context">
-        <dl class="cash-facts-grid cash-facts-panel cash-facts-rail">
-          <div class="cash-fact">
-            <dt>Entregas por recibir</dt>
-            <dd class="cash-fact-value hf-figure" data-testid="cash-reception-context-pending">
-              {{ loadingFacts ? '—' : pendingCount }}
-            </dd>
-          </div>
-          <div class="cash-fact">
-            <dt>Efectivo declarado por recibir</dt>
-            <dd class="cash-fact-value hf-figure" data-testid="cash-reception-context-declared">
-              {{ loadingFacts ? '—' : formatCentsMXN(pendingDeclaredCents) }}
-            </dd>
-          </div>
-          <div class="cash-fact">
-            <dt>Fondos disponibles</dt>
-            <dd class="cash-fact-value hf-figure" data-testid="cash-reception-context-float">
-              {{ loadingFacts ? '—' : floatCount }}
-            </dd>
-          </div>
-        </dl>
-      </aside>
     </div>
   </section>
 </template>
