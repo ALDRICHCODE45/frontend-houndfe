@@ -55,6 +55,7 @@ import BranchSalesTrendChart from '../components/BranchSalesTrendChart.vue'
 import DashboardOperationalPanel from '../components/DashboardOperationalPanel.vue'
 import DashboardSaleRow from '../components/DashboardSaleRow.vue'
 import DashboardRefundRow from '../components/DashboardRefundRow.vue'
+import { PENDING_REFUNDS_PATH } from '@/app/navigation/navigation.registry'
 
 const RANGE_VALIDATION_MESSAGE =
   'El rango no es válido: la fecha inicial debe ser anterior a la final y el periodo no puede superar 366 días.'
@@ -103,6 +104,11 @@ const operationalPanelCount = computed(() => (canReadSales.value ? 2 : 0) + (can
 const recentSalesState = useRecentConfirmedSales({ tenantId, enabled: canReadSales })
 const debtSalesState = useDebtConfirmedSales({ tenantId, enabled: canReadSales })
 const pendingRefundsState = usePendingRefunds({ tenantId, enabled: canReadRefunds })
+// T19: the module and its rows open «Reembolsos pendientes»; the link carries the full count.
+const pendingRefundsLinkLabel = computed(() => {
+  const total = pendingRefundsState.data.value?.pagination.total ?? 0
+  return total > 0 ? `Ver los ${total}` : 'Ver todos'
+})
 
 const hasLocalRangeError = computed(() => !isValidMexicoCityDateRange(from.value, to.value))
 const validationMessage = computed(() =>
@@ -466,6 +472,8 @@ function onPendingRefundsRetry() {
             loading-message="Cargando los reembolsos pendientes…"
             empty-message="No hay reembolsos pendientes."
             error-message="No pudimos cargar los reembolsos pendientes."
+            :link-to="PENDING_REFUNDS_PATH"
+            :link-label="pendingRefundsLinkLabel"
             @retry="onPendingRefundsRetry"
           >
             <DashboardRefundRow

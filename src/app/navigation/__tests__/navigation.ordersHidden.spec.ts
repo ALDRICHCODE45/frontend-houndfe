@@ -18,8 +18,9 @@ describe('orders navigation (removed)', () => {
   it('keeps the neighbouring POS entries in order', () => {
     const pos = navigationGroups.find((group) => group.id === 'pos')
 
-    expect(pos?.children.slice(0, 3).map((child) => child.id)).toEqual([
+    expect(pos?.children.slice(0, 4).map((child) => child.id)).toEqual([
       'pos-sales',
+      'pos-refunds',
       'pos-products',
       'pos-customers',
     ])

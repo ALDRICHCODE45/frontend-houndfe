@@ -47,6 +47,9 @@ const CashReceptionView = () => import('@/features/POS/cash-register/views/CashR
 const SalesView = () => import('@/features/POS/sales/views/SalesView.vue')
 const SalesListView = () => import('@/features/POS/sales/views/SalesListView.vue')
 const SaleDetailView = () => import('@/features/POS/sales/views/SaleDetailView.vue')
+// T19: pending refunds and their devoluciones (handoff 06). Its own path, so the Ventas
+// item does not light up and `/pos/ventas/:id` never captures it.
+const PendingRefundsView = () => import('@/features/POS/refunds/views/PendingRefundsView.vue')
 // ODD human-decisions-restock-inbox: production shell plus explicitly gated offline demo.
 const HumanDecisionsView = () =>
   import.meta.env.DEV && import.meta.env.VITE_HUMAN_DECISIONS_OFFLINE_DEMO === 'true'
@@ -232,6 +235,16 @@ const router = createRouter({
       meta: {
         layout: 'dashboard',
         permission: ['read', 'Sale'] as RoutePermission,
+      },
+    },
+    {
+      path: '/pos/reembolsos',
+      name: 'pos-refunds',
+      component: PendingRefundsView,
+      meta: {
+        layout: 'dashboard',
+        rememberAsLanding: true,
+        permission: ['read', 'SaleRefund'] as RoutePermission,
       },
     },
     // ─── Pending human decisions (ODD human-decisions-restock-inbox HD3A) ────

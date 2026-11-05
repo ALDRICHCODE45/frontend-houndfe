@@ -9,6 +9,9 @@ import { useSidebar } from '@/app/composables/useSidebar'
 import { useDashboard } from '@/app/composables/useDashboard'
 import { useBreadcrumb } from '@/app/composables/useBreadcrumb'
 import { defineShortcuts } from '@nuxt/ui/runtime/composables/defineShortcuts.js'
+import { PENDING_REFUNDS_PATH } from '@/app/navigation/navigation.registry'
+import { usePendingRefundsCount } from '@/features/POS/refunds/composables/usePendingRefundsCount'
+import { withNavBadges } from './navBadges'
 
 const {
   currentTenantLabel,
@@ -27,6 +30,9 @@ const { isSidebarOpen, isSidebarCollapsed, isSearchOpen, searchGroups, openSearc
 const { breadcrumb } = useBreadcrumb()
 
 const route = useRoute()
+
+// Pending refunds count on its nav entry; no request without SaleRefund read.
+const { count: pendingRefundsCount } = usePendingRefundsCount()
 
 // First LETTER of the label: the super-admin scope is "(Global)", whose first
 // character is a parenthesis.
@@ -59,7 +65,11 @@ function isActivePath(to: unknown, path: string): boolean {
 function navigationFor(collapsed: boolean): NavigationMenuItem[] {
   const path = route.path
 
-  return getNavigationItems(collapsed).map((item) => {
+  const items = withNavBadges(getNavigationItems(collapsed), {
+    [PENDING_REFUNDS_PATH]: pendingRefundsCount.value,
+  })
+
+  return items.map((item) => {
     const children = item.children ?? []
     const childActive = children.some((child) => isActivePath(child.to, path))
     const selfActive = isActivePath(item.to, path)

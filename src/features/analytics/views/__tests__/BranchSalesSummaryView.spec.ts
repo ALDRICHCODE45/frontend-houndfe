@@ -290,6 +290,7 @@ vi.mock('../../composables/useDebtConfirmedSales', () => ({
 
 const pendingRefundsItems = ref<PendingRefundRow[]>([])
 const pendingRefundsState = {
+  data: ref<{ pagination: { total: number } } | undefined>(undefined),
   items: pendingRefundsItems,
   isEmpty: computed(() => pendingRefundsItems.value.length === 0),
   isInitialLoading: ref(false),
@@ -955,6 +956,18 @@ describe('BranchSalesSummaryView — operational panel composition', () => {
     expect(toValue(recentSalesCalls[0]!.enabled)).toBe(false)
     expect(toValue(debtSalesCalls[0]!.enabled)).toBe(false)
     expect(toValue(pendingRefundsCalls[0]!.enabled)).toBe(true)
+  })
+
+  it('links the refund panel to «Reembolsos pendientes» with the full count (T19)', async () => {
+    grantPermissions('read:SaleRefund')
+    const view = mountView()
+    const link = () => view.find('[data-testid="dashboard-operational-link"]')
+    expect(link().text()).toBe('Ver todos')
+
+    pendingRefundsState.data.value = { pagination: { total: 7 } }
+    await nextTick()
+    expect(link().text()).toBe('Ver los 7')
+    pendingRefundsState.data.value = undefined
   })
 
   it('flips every enabled computed when the live permission set changes', async () => {

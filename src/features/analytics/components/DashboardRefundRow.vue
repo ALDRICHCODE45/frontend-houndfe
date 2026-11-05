@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { PendingRefundRow } from '@/features/POS/sales/interfaces/pending-refund.types'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { PENDING_REFUNDS_PATH } from '@/app/navigation/navigation.registry'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import {
@@ -22,8 +23,8 @@ const createdAt = computed(() =>
 </script>
 
 <template>
-  <li class="dashboard-operation-row" data-testid="dashboard-refund-row">
-    <div class="dashboard-row-main">
+  <li class="dashboard-operation-row dashboard-operation-row--link" data-testid="dashboard-refund-row">
+    <RouterLink :to="PENDING_REFUNDS_PATH" class="dashboard-row-main dashboard-row-link">
       <div class="dashboard-row-description">
         <!-- The payload carries no customer or seller, so the row is named by when it arose. -->
         <strong>
@@ -36,6 +37,6 @@ const createdAt = computed(() =>
         <StatusBadge label="Pendiente" tone="warning" />
         <strong>{{ formatCentsMXN(refund.outstandingCents) }}</strong>
       </div>
-    </div>
+    </RouterLink>
   </li>
 </template>

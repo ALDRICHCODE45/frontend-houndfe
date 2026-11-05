@@ -3,6 +3,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { h } from 'vue'
+import { RouterLinkStub } from '@vue/test-utils'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import DashboardOperationalPanel from '../DashboardOperationalPanel.vue'
 
@@ -169,5 +170,34 @@ describe('DashboardOperationalPanel — layout and claim discipline', () => {
     expect(w.find('a').exists()).toBe(false)
     expect(w.find('[role="progressbar"]').exists()).toBe(false)
     expect(w.find('canvas').exists()).toBe(false)
+  })
+})
+
+describe('DashboardOperationalPanel — optional «Ver todos» link (T19)', () => {
+  it('links the header to the full list when asked', () => {
+    const w = mountWithUApp(DashboardOperationalPanel, {
+      props: {
+        id: 'dashboard-pending-refunds',
+        title: 'Reembolsos pendientes',
+        icon: 'i-lucide-rotate-ccw',
+        hasItems: true,
+        isInitialLoading: false,
+        isRefetching: false,
+        isError: false,
+        loadingMessage: 'Cargando',
+        emptyMessage: 'No hay reembolsos pendientes.',
+        errorMessage: 'No pudimos cargar los reembolsos pendientes.',
+        linkTo: '/pos/reembolsos',
+        linkLabel: 'Ver los 4',
+      },
+      global: { stubs: { RouterLink: RouterLinkStub } },
+    })
+    const link = w.getComponent(RouterLinkStub)
+    expect(link.props('to')).toBe('/pos/reembolsos')
+    expect(link.text()).toBe('Ver los 4')
+  })
+
+  it('has no link by default', () => {
+    expect(mountPanel().findComponent(RouterLinkStub).exists()).toBe(false)
   })
 })

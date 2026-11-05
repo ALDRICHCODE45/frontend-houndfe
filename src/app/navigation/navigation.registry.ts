@@ -8,6 +8,9 @@ import type { NavAction, NavGroup } from './navigation.types'
  * appear in both places automatically. Keep this file PURE data — no Vue, no
  * store imports.
  */
+/** «Reembolsos pendientes»; the shell decorates this entry with the pending count. */
+export const PENDING_REFUNDS_PATH = '/pos/reembolsos'
+
 export const navigationGroups: NavGroup[] = [
   {
     id: 'pos',
@@ -21,6 +24,14 @@ export const navigationGroups: NavGroup[] = [
         icon: 'i-lucide-shopping-cart',
         to: '/pos/ventas',
         permission: ['read', 'Sale'],
+      },
+      // T19: money still owed for cancelled sales, gated by read:SaleRefund.
+      {
+        id: 'pos-refunds',
+        label: 'Reembolsos pendientes',
+        icon: 'i-lucide-rotate-ccw',
+        to: PENDING_REFUNDS_PATH,
+        permission: ['read', 'SaleRefund'],
       },
       {
         id: 'pos-products',
