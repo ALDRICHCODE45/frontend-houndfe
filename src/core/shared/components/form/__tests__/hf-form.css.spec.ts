@@ -100,6 +100,9 @@ describe('HfSectionNav chip row', () => {
     expect(list).toMatch(/overflow-x: auto/)
     expect(list).toMatch(/scroll-snap-type: x proximity/)
     expect(list).toMatch(/scrollbar-width: none/)
+    // The chips' sr-only text is absolutely positioned: the list must be its containing block, or it
+    // escapes the list's clip and widens the page scroller (seen at 390px: 883px of scroll width).
+    expect(list).toMatch(/position: relative/)
     expect(css).toMatch(/\.hf-section-nav__list::-webkit-scrollbar\s*\{[^}]*display: none/)
     expect(rule('.hf-section-nav__list > li')).toMatch(/scroll-snap-align: start/)
   })

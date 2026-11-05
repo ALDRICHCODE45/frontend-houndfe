@@ -452,6 +452,8 @@
 }
 
 .hf-ui .hf-section-nav__list {
+  /* Containing block for the chips' absolutely positioned sr-only text, so it stays clipped. */
+  position: relative;
   display: flex;
   min-width: 0;
   gap: 6px;
