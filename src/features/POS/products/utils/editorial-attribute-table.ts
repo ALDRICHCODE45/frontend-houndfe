@@ -1,8 +1,13 @@
 import type { EditorialDefinition } from '../interfaces/editorial-contract-definition.types'
-import type { EditorialOwner } from '../interfaces/editorial-contract-value.types'
+import type { EditorialSellableFacts } from '../interfaces/editorial-contract-document.types'
+import type { EditorialOwner, EditorialValue } from '../interfaces/editorial-contract-value.types'
 import type { EditorialFamily } from '../interfaces/editorial-contract-vocabulary.types'
-import type { EditorialAssignmentInput, EditorialAssignmentTarget, EditorialPayloadInput } from './editorial-contract-assignment-input'
+import { resolveEditorialAssignmentInput, type EditorialAssignmentInput, type EditorialAssignmentTarget, type EditorialPayloadInput } from './editorial-contract-assignment-input'
 import type { EditorialAssignmentEditingRow } from './editorial-contract-document-editing'
+import { projectEditorialFactsEditingState, type EditorialFactsEditingState } from './editorial-contract-facts-editing'
+import { resolveEditorialFactsInput } from './editorial-contract-facts-input'
+import { resolveEditorialBindingRule } from './editorial-contract-na-admission'
+import { allowsEditorialNotApplicable } from './editorial-contract-option-policy'
 
 export type EditorialTableSubject = { variantId: string | null; label: string }
 export type EditorialTableColumn = { key: string; label: string; owner: EditorialOwner; variantId: string | null }
@@ -13,11 +18,19 @@ export type EditorialTableCell = {
   rowId: string | null
   input: EditorialAssignmentInput
   filled: boolean
+  /** The editorial policy admits "No aplica" here (the save check's own evaluation). False while the policy does not resolve. */
+  naAdmitted: boolean
+  /** The policy makes this datum required to publish. Guidance only: saving never depends on it. */
+  required: boolean
 }
 export type EditorialTableRow = {
   code: string
   label: string
   definition: EditorialDefinition
+  /** The binding is INTERNAL: the datum is never shown to the public. */
+  internal: boolean
+  /** Help text from the vocabulary, null when the definition has none. */
+  description: string | null
   /** One cell per table column; null where no binding allows that target. */
   cells: (EditorialTableCell | null)[]
 }
@@ -56,16 +69,36 @@ export function isEditorialInputBlank(input: EditorialAssignmentInput): boolean 
 }
 
 /**
+ * What the policy evaluation can read from the document being edited: the complete assignments and
+ * the complete facts rows. An incomplete one is skipped, which leaves its policy unresolved.
+ */
+function readPolicyDocument(values: readonly EditorialAssignmentEditingRow[], facts: EditorialFactsEditingState) {
+  const assignments: EditorialValue[] = []
+  for (const item of values) {
+    const result = resolveEditorialAssignmentInput(item.target, item.input)
+    if (result.status === 'complete' && result.assignment) assignments.push(result.assignment)
+  }
+  const rows: EditorialSellableFacts[] = []
+  for (const row of projectEditorialFactsEditingState(facts)) {
+    const result = resolveEditorialFactsInput([row])
+    if (result.status === 'complete') rows.push(...result.facts)
+  }
+  return { assignments, facts: rows }
+}
+
+/**
  * Rows are the definitions bound to the family, by human label. Columns are Producto plus one per
  * presentation, and a column exists only where some binding allows its target. Definitions carry no
  * topic metadata (their `groups` are option groups), so every row is one group. A product without
  * variants whose data is all per sellable has a single column, named Producto.
  */
-export function buildEditorialAttributeTable({ family, definitions, values, subjects }: {
+export function buildEditorialAttributeTable({ family, definitions, values, subjects, facts = [] }: {
   family: EditorialFamily | null
   definitions: readonly EditorialDefinition[]
   values: readonly EditorialAssignmentEditingRow[]
   subjects: readonly EditorialTableSubject[]
+  /** The declarations being edited; the policy of a cell reads the ones of its own presentation. */
+  facts?: EditorialFactsEditingState
 }): EditorialAttributeTable {
   const empty: EditorialAttributeTable = { columns: [], rows: [], answered: 0, total: 0, missing: 0, orphanCount: 0 }
   if (!family) return empty
@@ -85,6 +118,7 @@ export function buildEditorialAttributeTable({ family, definitions, values, subj
   const used = candidates.filter(column => bound.some(({ binding }) => binding.owner === column.owner))
   // With no Producto column and no variants, the one sellable column is the product itself.
   if (!used.some(column => column.owner === 'product') && used.length === 1 && used[0]!.variantId === null) used[0] = { ...used[0]!, label: 'Producto' }
+  const policyDocument = readPolicyDocument(values, facts)
   const matched = new Set<string>()
   let answered = 0
   let total = 0
@@ -92,6 +126,8 @@ export function buildEditorialAttributeTable({ family, definitions, values, subj
     code: definition.code,
     label: definition.label,
     definition,
+    internal: binding.exposure === 'INTERNAL',
+    description: definition.description?.trim() ? definition.description : null,
     cells: used.map(column => {
       if (column.owner !== binding.owner) return null
       const target = { code: definition.code, owner: column.owner, variantId: column.variantId }
@@ -101,11 +137,24 @@ export function buildEditorialAttributeTable({ family, definitions, values, subj
       if (found) matched.add(found.id)
       total++
       if (filled) answered++
-      return { key: column.key, target, rowId: found?.id ?? null, input, filled }
+      const rule = policyRule(family, binding, definitions, policyDocument, column.variantId)
+      return { key: column.key, target, rowId: found?.id ?? null, input, filled,
+        naAdmitted: allowsEditorialNotApplicable(rule), required: rule?.applicability === 'applicable' && rule.required }
     }),
   })).sort((left, right) => left.label.localeCompare(right.label, 'es'))
   const orphanCount = values.filter(item => item.input.state !== 'omitted' && !matched.has(item.id)).length
   return { columns: used, rows, answered, total, missing: total - answered, orphanCount }
+}
+
+// The policy functions throw on a document that breaks their invariants (a half-edited choice, say);
+// while editing, that is just a policy that does not resolve yet.
+function policyRule(family: EditorialFamily, binding: EditorialFamily['bindings'][number], definitions: readonly EditorialDefinition[],
+  document: ReturnType<typeof readPolicyDocument>, variantId: string | null) {
+  try {
+    return resolveEditorialBindingRule({ family, binding, definitions, values: document.assignments, facts: document.facts, variantId })
+  } catch {
+    return null
+  }
 }
 
 /** Create the assignment when a cell gets a value or a state; drop it when nothing is left to store. */

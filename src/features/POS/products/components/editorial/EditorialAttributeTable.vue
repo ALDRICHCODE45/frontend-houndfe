@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, useTemplateRef } from 'vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import EditorialAttributeCell from './EditorialAttributeCell.vue'
 import type { EditorialDefinition } from '../../interfaces/editorial-contract-definition.types'
 import type { EditorialFamily } from '../../interfaces/editorial-contract-vocabulary.types'
 import type { EditorialAssignmentInput } from '../../utils/editorial-contract-assignment-input'
 import type { EditorialAssignmentEditingRow } from '../../utils/editorial-contract-document-editing'
+import type { EditorialFactsEditingState } from '../../utils/editorial-contract-facts-editing'
 import { applyEditorialCellInput, buildEditorialAttributeTable, editorialTargetKey, removeEditorialCell,
   type EditorialTableCell, type EditorialTableSubject } from '../../utils/editorial-attribute-table'
 
@@ -14,6 +16,8 @@ import { applyEditorialCellInput, buildEditorialAttributeTable, editorialTargetK
  */
 const props = defineProps<{ values: EditorialAssignmentEditingRow[]; family: EditorialFamily | null;
   definitions: readonly EditorialDefinition[]; subjects: readonly EditorialTableSubject[]; nextId: () => string;
+  /** The declarations being edited: with the values they decide where "No aplica" is admitted and what is required. */
+  facts?: EditorialFactsEditingState
   /** Only these row codes are shown; omit for all (the "Solo faltantes" filter). */
   visibleCodes?: ReadonlySet<string> | null
   readonly?: boolean; disabled?: boolean
@@ -23,7 +27,7 @@ const props = defineProps<{ values: EditorialAssignmentEditingRow[]; family: Edi
   conserved?: ReadonlyMap<string, readonly string[]> }>()
 const emit = defineEmits<{ 'update:values': [values: EditorialAssignmentEditingRow[]] }>()
 
-const table = computed(() => buildEditorialAttributeTable({ family: props.family, definitions: props.definitions, values: props.values, subjects: props.subjects }))
+const table = computed(() => buildEditorialAttributeTable({ family: props.family, definitions: props.definitions, values: props.values, subjects: props.subjects, facts: props.facts }))
 const rows = computed(() => (props.visibleCodes ? table.value.rows.filter(row => props.visibleCodes!.has(row.code)) : table.value.rows))
 const orphans = computed(() => {
   const count = table.value.orphanCount
@@ -69,10 +73,27 @@ function moveDown(source: HTMLElement) {
       </thead>
       <tbody>
         <tr v-for="row in rows" :key="row.code" :data-row="row.code">
-          <th scope="row" class="hf-attr-table__label">{{ row.label }}</th>
+          <th scope="row" class="hf-attr-table__label">
+            <span class="hf-attr-table__name">
+              {{ row.label }}
+              <StatusBadge v-if="row.internal" label="Interno" tone="neutral" aria-label="Interno, no se muestra al público" title="No se muestra al público" data-testid="internal-chip" />
+              <template v-if="row.description">
+                <UPopover :content="{ side: 'bottom', align: 'start' }" :ui="{ content: 'hf-theme hf-ui hf-attr-table__help-popover' }">
+                  <button type="button" class="hf-attr-table__help" data-testid="row-help" :aria-label="`Qué es ${row.label}`" :aria-describedby="`attr-${row.code}-help`">
+                    <UIcon name="i-lucide-info" class="size-4" aria-hidden="true" />
+                  </button>
+                  <template #content>
+                    <p class="hf-attr-table__help-text" data-testid="row-help-content">{{ row.description }}</p>
+                  </template>
+                </UPopover>
+                <span :id="`attr-${row.code}-help`" hidden>{{ row.description }}</span>
+              </template>
+            </span>
+          </th>
           <td v-for="(cell, index) in row.cells" :key="table.columns[index]!.key" :class="{ 'hf-attr-table__none': !cell }">
             <EditorialAttributeCell v-if="cell" :id="`attr-${row.code}-${cell.key}`" :label="`${row.label} · ${table.columns[index]!.label}`"
               :definition="row.definition" :target="cell.target" :model-value="cell.input" :readonly="readonly" :disabled="disabled"
+              :na-admitted="cell.naAdmitted" :required="cell.required"
               :issue="cell.rowId ? issues?.get(cell.rowId) : undefined" :conserved-options="conserved?.get(editorialTargetKey(cell.target))"
               @update:model-value="change(cell, $event)" @clear="clear(cell)" @enter="moveDown" />
             <template v-else>
@@ -97,6 +118,11 @@ function moveDown(source: HTMLElement) {
 .hf-attr-table__table th[scope='row'], .hf-attr-table__table thead th:first-child { position: sticky; left: 0; z-index: 1; width: 14rem; min-width: 11rem; background: var(--hf-surface); }
 .hf-attr-table__table thead th:first-child { background: color-mix(in srgb, var(--hf-ink) 4%, var(--hf-surface)); }
 .hf-attr-table__table th[scope='row'] { padding-top: 18px; color: var(--hf-heading); font-weight: 500; }
+.hf-attr-table__name { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.hf-attr-table__help { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--hf-muted); cursor: pointer; }
+.hf-attr-table__help:hover { background: var(--hf-surface-muted); color: var(--hf-ink); }
+.hf-attr-table__help:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
+.hf-attr-table__help-text { max-width: min(20rem, 86vw); margin: 0; padding: 12px; color: var(--hf-ink); font-size: 14px; line-height: 1.45; }
 .hf-attr-table__none { color: var(--hf-muted); padding-top: 18px; }
 .hf-attr-table__note { margin: 0; padding: 10px 12px; border-top: 1px solid var(--hf-border); color: var(--hf-muted); font-size: 13px; }
 @media (max-width: 767px) {

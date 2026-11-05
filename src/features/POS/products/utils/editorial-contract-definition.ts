@@ -38,7 +38,7 @@ const numericPolicySchema = z.discriminatedUnion('status', [
     upperInclusive: z.boolean(),
   }).strict(),
 ])
-const identity = { id: nonblankString, code: nonblankString, label: nonblankString }
+const identity = { id: nonblankString, code: nonblankString, label: nonblankString, description: scalarString.nullable().optional() }
 const numericMetadata = { units: z.array(unitSchema), numericPolicy: numericPolicySchema }
 const choiceMetadata = {
   options: z.array(optionSchema),

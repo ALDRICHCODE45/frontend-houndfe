@@ -3,6 +3,7 @@ import type { EditorialDefinition } from '../../interfaces/editorial-contract-de
 import type { EditorialBinding, EditorialFamily } from '../../interfaces/editorial-contract-vocabulary.types'
 import type { EditorialAssignmentInput } from '../editorial-contract-assignment-input'
 import type { EditorialAssignmentEditingRow } from '../editorial-contract-document-editing'
+import { toEditorialFactsEditingState } from '../editorial-contract-facts-editing'
 import {
   applyEditorialCellInput, buildEditorialAttributeTable, isEditorialInputFilled, removeEditorialCell,
 } from '../editorial-attribute-table'
@@ -151,5 +152,35 @@ describe('removeEditorialCell', () => {
     const current = [row('a', 'material', 'product', null, known('1')), row('b', 'material', 'product', null, known('2'))]
     expect(removeEditorialCell(current, 'a').map(item => item.id)).toEqual(['b'])
     expect(removeEditorialCell(current, 'missing')).toEqual(current)
+  })
+})
+
+describe('buildEditorialAttributeTable — guidance', () => {
+  const rule = (ruleId: 'content' | 'optional', parameter: 'measure.net_mass' | 'measure.net_volume'): EditorialBinding['policy'] => ({ route: 'fact_rule', rule: { family: 'food', ruleId, parameter } })
+  const guided: EditorialFamily = { id: 'food', code: 'food', label: 'Alimento', bindings: [
+    { ...binding('measure.net_mass', 'sellable'), policy: rule('content', 'measure.net_mass') },
+    { ...binding('animal.target', 'product'), exposure: 'INTERNAL' },
+  ] }
+  const described: EditorialDefinition[] = definitions.map(item => (item.code === 'animal.target' ? { ...item, description: 'Para qué especie es.' } : item))
+  const evidence = { sourceRef: 'Etiqueta', verifiedOn: '2026-01-01' }
+  const facts = toEditorialFactsEditingState([{ variantId: 'v1', presentation: '15 kg', careReview: null,
+    declarations: [{ key: 'contentMagnitude', state: 'known', value: 'mass', evidence, basis: 'Etiqueta' }] }], () => 'f')
+
+  it('flags a required cell from the rule result of its own presentation', () => {
+    const table = build([], { family: guided, facts })
+    const mass = table.rows.find(item => item.label === 'Peso neto')!
+    expect(mass.cells.map(cell => cell?.required ?? null)).toEqual([null, true, false])
+    expect(mass.cells.map(cell => cell?.naAdmitted ?? null)).toEqual([null, false, false])
+  })
+
+  it('carries the exposure and the optional description on the row', () => {
+    const table = build([], { family: guided, definitions: described, facts })
+    expect(table.rows.find(item => item.label === 'Especie')).toMatchObject({ internal: true, description: 'Para qué especie es.' })
+    expect(table.rows.find(item => item.label === 'Peso neto')).toMatchObject({ internal: false, description: null })
+  })
+
+  it('treats an unresolved policy as not admitting "No aplica" and not required', () => {
+    const table = build()
+    expect(table.rows.flatMap(item => item.cells).filter(Boolean).every(cell => !cell!.naAdmitted && !cell!.required)).toBe(true)
   })
 })
