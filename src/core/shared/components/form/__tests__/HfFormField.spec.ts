@@ -57,9 +57,36 @@ describe('HfFormField', () => {
     expect(line.attributes('id')).toBe('f-ingredientes-message')
   })
 
-  it('shows the help when there is no error', () => {
+  it('keeps the help in the DOM, collapsed, under the message id the control points to', () => {
     const wrapper = mountField({ help: 'Solo lo ve tu equipo; no se publica en la tienda.' })
-    expect(wrapper.get('.hf-form-field__message').attributes('data-tone')).toBe('help')
+    const help = wrapper.get('.hf-form-field__message')
+    expect(help.attributes('data-tone')).toBe('help')
+    expect(help.attributes('id')).toBe('f-ingredientes-message')
+    expect(help.text()).toBe('Solo lo ve tu equipo; no se publica en la tienda.')
+    expect(wrapper.get('.hf-form-field').attributes('data-help')).toBe('collapsed')
+  })
+
+  it('toggles the help from a small info button next to the label', async () => {
+    const wrapper = mountField({ help: 'Escríbelos como aparecen en el empaque' })
+    const info = wrapper.get('.hf-form-field__row button.hf-form-field__info')
+    expect(info.attributes('type')).toBe('button')
+    expect(info.attributes('aria-label')).toBe('Ayuda de Ingredientes')
+    expect(info.attributes('aria-expanded')).toBe('false')
+    expect(info.attributes('aria-controls')).toBe('f-ingredientes-message')
+    expect(info.find('[class*="i-lucide-info"], svg, .iconify').exists()).toBe(true)
+    await info.trigger('click')
+    expect(info.attributes('aria-expanded')).toBe('true')
+    expect(wrapper.get('.hf-form-field').attributes('data-help')).toBe('open')
+    await info.trigger('click')
+    expect(info.attributes('aria-expanded')).toBe('false')
+    expect(wrapper.get('.hf-form-field').attributes('data-help')).toBe('collapsed')
+  })
+
+  it('offers no info button without help, or while an error takes the line', () => {
+    expect(mountField().find('.hf-form-field__info').exists()).toBe(false)
+    const invalid = mountField({ help: 'Escríbelos como aparecen en el empaque', error: 'Completa este dato' })
+    expect(invalid.find('.hf-form-field__info').exists()).toBe(false)
+    expect(invalid.get('.hf-form-field').attributes('data-help')).toBeUndefined()
   })
 
   it('offers the special answers as ghost actions that emit special', async () => {

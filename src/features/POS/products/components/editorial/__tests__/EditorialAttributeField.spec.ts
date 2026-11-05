@@ -15,8 +15,8 @@ import type { EditorialTableCell, EditorialTableRow } from '../../../utils/edito
 
 if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => {}
 const target = { code: 'measure', owner: 'product' as const, variantId: null }
-function definition(type: EditorialDefinition['type'], units = 2): EditorialDefinition {
-  const base = { id: 'id', code: 'measure', label: 'Medida' }
+function definition(type: EditorialDefinition['type'], units = 2, code = 'measure'): EditorialDefinition {
+  const base = { id: 'id', code, label: 'Medida' }
   if (type === 'number' || type === 'range') return { ...base, type, numericPolicy: { status: 'pending' }, units: units === 1
     ? [{ code: 'cm', label: 'Centímetros', sortOrder: 0 }]
     : units === 0 ? [{ code: null, label: null, sortOrder: 0 }]
@@ -31,16 +31,16 @@ const cleanup: (() => void)[] = []
 afterEach(() => { cleanup.splice(0).forEach(stop => stop()); document.body.innerHTML = '' })
 
 type Options = { naAdmitted?: boolean; required?: boolean; internal?: boolean; description?: string | null; readonly?: boolean; disabled?: boolean; issue?: string
-  conservedOptions?: string[]; units?: number }
+  conservedOptions?: string[]; units?: number; code?: string }
 function render(type: EditorialDefinition['type'], initial: EditorialAssignmentInput = { state: 'omitted' }, options: Options = {}) {
   const input = shallowRef<EditorialAssignmentInput>(structuredClone(initial))
   const rowId = shallowRef<string | null>(initial.state === 'omitted' ? null : 'r1')
   const events: string[] = []
-  const def = definition(type, options.units ?? 2)
+  const def = definition(type, options.units ?? 2, options.code)
   const wrapper = mount(defineComponent({ setup: () => () => {
     const cell: EditorialTableCell = { key: 'product', target, rowId: rowId.value, input: input.value, filled: input.value.state !== 'omitted',
       naAdmitted: options.naAdmitted ?? false, required: options.required ?? false }
-    const row: EditorialTableRow = { code: 'measure', label: 'Medida', definition: def, owner: 'product', sectionCode: null, sectionSortOrder: null,
+    const row: EditorialTableRow = { code: def.code, label: 'Medida', definition: def, owner: 'product', sectionCode: null, sectionSortOrder: null,
       internal: options.internal ?? false, description: options.description ?? null, cells: [cell] }
     return h(Field, { id: 'f', row, cell, readonly: options.readonly, disabled: options.disabled, issue: options.issue, conservedOptions: options.conservedOptions,
       onUpdate: (next: EditorialAssignmentInput) => { events.push('update'); input.value = next; rowId.value = 'r1' },
@@ -54,14 +54,26 @@ const specials = (component: { props: (key: string) => unknown }) => (component.
 const message = (wrapper: Wrapper) => wrapper.find('.hf-form-field__message')
 
 describe('EditorialAttributeField — one control per type', () => {
-  it('text: a textarea across both columns that creates the value from the first keystroke', async () => {
-    const { wrapper, input } = render('text')
-    expect(wrapper.get('[data-testid="attribute-field"]').attributes('span')).toBe('full')
-    await wrapper.get('textarea').setValue('a')
+  it('short text: a single-line input in one column that creates the value from the first keystroke', async () => {
+    const { wrapper, input } = render('text', known({ type: 'text', value: 'Animal' }), { code: 'text.protein_origin' })
+    expect(wrapper.get('[data-testid="attribute-field"]').attributes('span')).toBeUndefined()
+    expect(wrapper.find('textarea').exists()).toBe(false)
+    const control = wrapper.get('input#f-value')
+    expect(control.attributes('type')).toBe('text')
+    expect((control.element as HTMLInputElement).value).toBe('Animal')
+    await control.setValue('a')
     expect(input.value).toEqual(known({ type: 'text', value: 'a' }))
-    await wrapper.get('textarea').setValue('')
+    await control.setValue('')
     expect(input.value).toEqual({ state: 'omitted' })
   })
+
+  it.each(['text.ingredients', 'text.composition', 'text.instructions', 'text.clinical_analysis'])(
+    'long text (%s): a textarea across both columns', async (code) => {
+      const { wrapper, input } = render('text', { state: 'omitted' }, { code })
+      expect(wrapper.get('[data-testid="attribute-field"]').attributes('span')).toBe('full')
+      await wrapper.get('textarea#f-value').setValue('a')
+      expect(input.value).toEqual(known({ type: 'text', value: 'a' }))
+    })
 
   it('single: the shared combobox in option order, archived options marked and locked unless the stored draft conserves them', () => {
     const { wrapper } = render('single')
@@ -188,10 +200,10 @@ describe('EditorialAttributeField — special answers inside the control', () =>
     const write = wrapper.get('[data-action="write"]')
     expect(write.text()).toContain('No lo sé')
     expect(write.text()).toContain('Escribir')
-    expect(wrapper.find('textarea').exists()).toBe(false)
+    expect(wrapper.find('#f-value').exists()).toBe(false)
     await write.trigger('click'); await tick()
     expect(input.value).toEqual({ state: 'omitted' })
-    expect(document.activeElement).toBe(wrapper.get('textarea').element)
+    expect(document.activeElement).toBe(wrapper.get('#f-value').element)
   })
 
   it('moving to a special answer drops the value and its evidence', async () => {
@@ -202,6 +214,22 @@ describe('EditorialAttributeField — special answers inside the control', () =>
 })
 
 describe('EditorialAttributeField — the label row', () => {
+  it('always points the control at the description, which HfFormField shows on focus or from the info button', () => {
+    const { wrapper } = render('text', { state: 'omitted' }, { description: 'Escríbelos como aparecen en el empaque.' })
+    expect(wrapper.get('#f-value').attributes('aria-describedby')).toBe('f-value-message')
+    expect(wrapper.get('#f-value-message').attributes('data-tone')).toBe('help')
+    expect(wrapper.get('.hf-form-field__info').attributes('aria-controls')).toBe('f-value-message')
+  })
+
+  it('keeps the evidence paperclip of a field that has evidence as an active indicator', () => {
+    const evidence = { sourceRef: 'Fuente', verifiedOn: '2026-01-01' }
+    expect(render('text', known({ type: 'text', value: 'a' }, evidence)).wrapper.get('[data-action="evidence"]').attributes('data-active')).toBe('true')
+    cleanup.splice(0).forEach(stop => stop())
+    expect(render('text', known({ type: 'text', value: 'a' }, evidence), { readonly: true }).wrapper.get('[data-evidence]').attributes('data-active')).toBe('true')
+    cleanup.splice(0).forEach(stop => stop())
+    expect(render('text', known({ type: 'text', value: 'a' })).wrapper.get('[data-action="evidence"]').attributes('data-active')).toBeUndefined()
+  })
+
   it('marks «Requerido para publicar» while the datum has no value, «Interno», and the description as help', () => {
     const { wrapper } = render('single', { state: 'omitted' }, { required: true, internal: true, description: 'Qué dice el empaque.' })
     expect(wrapper.get('.hf-form-field__required').text()).toBe('Requerido para publicar')
@@ -256,7 +284,7 @@ describe('EditorialAttributeField — the label row', () => {
 describe('EditorialAttributeField — issues, read-only and disabled', () => {
   it('shows an issue under the control with aria-invalid and a described-by link', () => {
     const { wrapper } = render('text', known({ type: 'text', value: 'a' }), { issue: 'Este dato no se puede guardar.' })
-    const control = wrapper.get('textarea')
+    const control = wrapper.get('#f-value')
     expect(control.attributes('aria-invalid')).toBe('true')
     expect(control.attributes('aria-describedby')).toBe('f-value-message')
     expect(wrapper.get('#f-value-message').text()).toBe('Este dato no se puede guardar.')
@@ -273,7 +301,7 @@ describe('EditorialAttributeField — issues, read-only and disabled', () => {
 
   it('a disabled field ignores even synthetic events', async () => {
     const { wrapper, events } = render('text', known({ type: 'text', value: 'a' }), { disabled: true })
-    const control = wrapper.get('textarea')
+    const control = wrapper.get('#f-value')
     expect(control.attributes('disabled')).toBeDefined()
     ;(control.element as HTMLTextAreaElement).value = 'b'
     control.element.dispatchEvent(new Event('input', { bubbles: true }))

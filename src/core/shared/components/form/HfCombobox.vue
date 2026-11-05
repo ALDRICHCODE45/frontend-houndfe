@@ -9,8 +9,10 @@
  *   `--hf-active-soft`; the chosen one carries a trailing check, and in
  *   multiple mode every option has a checkbox and the trigger shows at most two
  *   chips, then `+N`.
- * - `specialAnswers` (No lo sé, No aplica) sit in a separated footer group.
- *   Picking one emits `update:special` and never touches the value; with
+ * - `specialAnswers` (No lo sé, No aplica) are pinned in a footer under the
+ *   scrolling list, always visible (also when a search matches nothing); the
+ *   arrow keys run from the list into it. Picking one emits `update:special`
+ *   and never touches the value; with
  *   `special` set the trigger shows its label in muted italic. Picking a
  *   regular option clears it (`update:special` with `null`).
  *
@@ -111,6 +113,8 @@ const menuItems = computed(() => {
   else if (term && props.specialAnswers.length > 0)
     // With the footer answers still listed, Nuxt's empty slot never shows: say it in the list.
     groups.push([{ type: 'label', label: noMatch.value, class: 'hf-combobox__empty' }])
+  // The last group is the footer: the viewport does not scroll, the options group does
+  // (hf-form.css), so the answers stay in view and the arrow keys still reach them.
   if (props.specialAnswers.length > 0) {
     groups.push(props.specialAnswers.map(answer => ({
       label: answer.label,
@@ -125,7 +129,7 @@ const noMatch = computed(() => `Sin resultados para «${searchTerm.value.trim()}
 
 const ui = computed(() => ({
   base: ['hf-combobox__trigger', props.embedded && 'hf-combobox__trigger--embedded', props.invalid && 'hf-combobox__trigger--invalid'],
-  content: 'hf-theme hf-ui hf-combobox__content',
+  content: ['hf-theme hf-ui hf-combobox__content', props.specialAnswers.length > 0 && 'hf-combobox__content--footer'],
   input: 'hf-combobox__search',
   viewport: 'hf-combobox__viewport',
   trailingIcon: 'hf-combobox__chevron',

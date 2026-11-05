@@ -8,7 +8,10 @@
  * section in view current (scroll-spy).
  *
  * From md it is a vertical list beside the cards (sticky); below md it becomes
- * a horizontal, scrollable row of chips stuck to the top of the scroller.
+ * a horizontal row of chips stuck to the top of the scroller, on the page color
+ * with a hairline once stuck (`data-stuck`, from an observer on the row). The
+ * chips scroll (with snap) inside the row, never the page. The owner may set
+ * `--hf-section-nav-bleed` to its gutter so the row's background runs edge to edge.
  *
  * Props:
  *   sections  — { id, label, missing }[] in page order (`id` is the section element id)
@@ -19,7 +22,7 @@
  * Events:
  *   navigate(id) — an entry was clicked; the owner may move focus to the section heading
  */
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import './hf-form.css'
 
 export interface HfSection {
@@ -42,6 +45,9 @@ const current = ref(props.sections[0]?.id ?? '')
 let lockedUntil = 0
 let observer: IntersectionObserver | null = null
 const visible = new Set<string>()
+const nav = useTemplateRef<HTMLElement>('nav')
+const stuck = ref(false)
+let stuckObserver: IntersectionObserver | null = null
 
 const prefersReducedMotion = () =>
   typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -80,13 +86,37 @@ function observe() {
   }
 }
 
-onMounted(observe)
+// The row sits at `top: -1px`: stuck, its top pixel is clipped by the scroller's edge.
+function observeStuck() {
+  stuckObserver?.disconnect()
+  if (typeof IntersectionObserver === 'undefined' || !nav.value) return
+  stuckObserver = new IntersectionObserver(([entry]) => {
+    stuck.value = Boolean(entry?.isIntersecting && entry.intersectionRatio < 1
+      && entry.boundingClientRect.top < entry.intersectionRect.top)
+  }, { root: props.root, threshold: [1] })
+  stuckObserver.observe(nav.value)
+}
+
+onMounted(() => {
+  observe()
+  observeStuck()
+})
 watch(() => [props.sections.map(section => section.id).join('|'), props.root], observe, { flush: 'post' })
-onBeforeUnmount(() => observer?.disconnect())
+watch(() => props.root, observeStuck, { flush: 'post' })
+onBeforeUnmount(() => {
+  observer?.disconnect()
+  stuckObserver?.disconnect()
+})
 </script>
 
 <template>
-  <nav class="hf-section-nav" :class="{ 'hf-section-nav--chips': chips }" :aria-label="label">
+  <nav
+    ref="nav"
+    class="hf-section-nav"
+    :class="{ 'hf-section-nav--chips': chips }"
+    :aria-label="label"
+    :data-stuck="stuck ? 'true' : undefined"
+  >
     <ol class="hf-section-nav__list">
       <li v-for="section in sections" :key="section.id">
         <a

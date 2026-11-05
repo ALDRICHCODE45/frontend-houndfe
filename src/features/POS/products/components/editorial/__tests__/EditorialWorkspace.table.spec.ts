@@ -51,7 +51,7 @@ const render = async (props: Record<string, unknown> = {}) => {
 }
 const tick = () => new Promise(resolve => setTimeout(resolve, 60))
 const field = (label: string) => wrapper.findAll('[data-testid="attribute-field"]').find(item => item.get('.hf-form-field__label').text() === label)
-const materialText = () => field('Material')!.get('textarea')
+const materialText = () => field('Material')!.get('input[type="text"]')
 const combo = (label: string) => wrapper.findAllComponents(HfCombobox).find(item => item.props('label') === label)!
 const bar = () => wrapper.findComponent(HfSaveBar)
 const button = (text: string) => wrapper.findAll('button').find(item => item.text().includes(text))!

@@ -8,6 +8,7 @@ import { parseEditorialDecimal, resolveEditorialAssignmentInput, type EditorialA
   type EditorialPayloadInput } from '../../utils/editorial-contract-assignment-input'
 import { isEditorialInputBlank, type EditorialTableCell, type EditorialTableRow } from '../../utils/editorial-attribute-table'
 import { isFreshEditorialEvidence } from '../../utils/editorial-contract-evidence-validation'
+import { isEditorialLongText } from '../../utils/editorial-long-text'
 import { editorialInputText } from '../../utils/editorial-value-text'
 
 /** One datum of a section card: the label row (markers, evidence), one control for the definition's
@@ -64,6 +65,8 @@ watch(stored, current => { if (current) chosenUnit.value = current.unit })
 const unitControl = computed(() => type.value === 'range' || (type.value === 'number' && units.value.some(item => item.code !== null)))
 const plainNumber = computed(() => type.value === 'number' && !unitControl.value)
 const textual = computed(() => type.value === 'text' || plainNumber.value)
+// Paragraph texts get a textarea across both columns; short text is a one-line input.
+const longText = computed(() => isEditorialLongText(definition.value))
 
 const message = computed(() => {
   if (props.issue) return props.issue
@@ -82,7 +85,8 @@ const required = computed(() => props.cell.required && !props.readonly && state.
 const controlId = computed(() => `${props.id}-value`)
 const labelId = computed(() => `${props.id}-label`)
 const nativeLabel = computed(() => !props.readonly && !mismatch.value && special.value === null && (textual.value || (unitControl.value && !special.value)))
-const described = computed(() => (message.value ? `${nativeLabel.value ? controlId.value : labelId.value}-message` : undefined))
+// The help stays in the DOM (HfFormField shows it on focus or from its info button), so it is always referenced.
+const described = computed(() => (message.value || props.row.description ? `${nativeLabel.value ? controlId.value : labelId.value}-message` : undefined))
 const readText = computed(() => (special.value ? SPECIAL_LABELS[special.value] : state.value === 'omitted' ? 'Sin dato' : editorialInputText(input.value, definition.value)))
 
 function update(next: EditorialAssignmentInput) {
@@ -165,12 +169,12 @@ function removeEvidence() {
 </script>
 
 <template>
-  <div ref="root" class="attr-field" :span="type === 'text' ? 'full' : undefined" :data-field="row.code" :data-state="state" data-testid="attribute-field">
+  <div ref="root" class="attr-field" :span="longText ? 'full' : undefined" :data-field="row.code" :data-state="state" data-testid="attribute-field">
     <HfFormField :label="row.label" :for="nativeLabel ? controlId : undefined" :label-id="nativeLabel ? undefined : labelId" :help="row.description ?? undefined"
       :error="message || undefined" :required="required" :internal="row.internal"
       :special-answers="!readonly && !disabled && textual && special === null && !mismatch ? specialAnswers : []" @special="setSpecial">
       <template v-if="evidence || (!readonly && (known || removable))" #actions>
-        <span v-if="readonly && evidence" class="attr-field__evidence" data-evidence title="Con evidencia">
+        <span v-if="readonly && evidence" class="attr-field__evidence" data-evidence data-active="true" title="Con evidencia">
           <UIcon name="i-lucide-paperclip" class="size-4" aria-hidden="true" /><span class="sr-only">Con evidencia</span>
         </span>
         <UPopover v-if="!readonly && known && !mismatch" v-model:open="evidenceOpen" :content="{ side: 'bottom', align: 'end' }" :ui="{ content: 'hf-theme hf-ui attr-field-popover' }">
@@ -207,9 +211,12 @@ function removeEvidence() {
         <span class="attr-field__special-text">{{ SPECIAL_LABELS[special] }}</span>
         <span class="attr-field__special-hint" aria-hidden="true"><UIcon name="i-lucide-pencil" class="size-3.5" />Escribir</span>
       </button>
-      <textarea v-else-if="type === 'text'" :id="controlId" class="attr-field__control attr-field__textarea" rows="2"
+      <textarea v-else-if="type === 'text' && longText" :id="controlId" class="attr-field__control attr-field__textarea" rows="2"
         :value="payload?.type === 'text' ? payload.value : ''" :disabled="disabled" :aria-invalid="message ? 'true' : undefined"
         :aria-describedby="described" @input="textChanged" />
+      <input v-else-if="type === 'text'" :id="controlId" class="attr-field__control" type="text" autocomplete="off"
+        :value="payload?.type === 'text' ? payload.value : ''" :disabled="disabled" :aria-invalid="message ? 'true' : undefined"
+        :aria-describedby="described" @input="textChanged">
       <input v-else-if="plainNumber" :id="controlId" class="attr-field__control" type="text" inputmode="decimal" autocomplete="off" placeholder="Escribe un número"
         :value="payload?.type === 'number' ? payload.value : ''" :disabled="disabled" :aria-invalid="message ? 'true' : undefined"
         :aria-describedby="described" @input="textChanged">

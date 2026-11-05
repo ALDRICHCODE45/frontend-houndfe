@@ -119,6 +119,8 @@ describe('HfCombobox search threshold', () => {
     await tick()
     expect(document.querySelector('.hf-combobox__content')!.textContent).toContain('Sin resultados para «dragón»')
     expect(optionLabels()).toEqual(['No lo sé', 'No aplica'])
+    const groups = document.querySelectorAll('.hf-combobox__viewport > [data-slot="group"]')
+    expect(groups[groups.length - 1]!.querySelectorAll('.hf-combobox__special')).toHaveLength(2)
     wrapper.unmount()
   })
 })
@@ -148,13 +150,41 @@ describe('HfCombobox options', () => {
 })
 
 describe('HfCombobox special answers', () => {
-  it('renders them as a separated footer group after the options', async () => {
-    const wrapper = mountCombobox({ specialAnswers: specials })
+  it('pins them in a footer group after the scrolling options group, with their icons', async () => {
+    const wrapper = mountCombobox({ items: species, label: 'Especie', specialAnswers: specials })
     await open(wrapper)
-    expect(optionLabels()).toEqual(['Cachorro', 'Junior', 'Adulto', 'Senior', 'Todas las etapas', 'No lo sé', 'No aplica'])
-    const groups = document.querySelectorAll('.hf-combobox__content [data-slot="group"]')
+    expect(optionLabels()).toEqual([...species.map(item => item.label), 'No lo sé', 'No aplica'])
+    // hf-form.css scrolls the options group, not the viewport, under `--footer`; the last group stays put.
+    expect(document.querySelector('.hf-combobox__content')!.classList.contains('hf-combobox__content--footer')).toBe(true)
+    const groups = Array.from(document.querySelectorAll('.hf-combobox__viewport > [data-slot="group"]'))
     expect(groups).toHaveLength(2)
-    expect(groups[1]!.querySelectorAll('.hf-combobox__special')).toHaveLength(2)
+    expect(groups[0]!.querySelector('.hf-combobox__special')).toBeNull()
+    const answers = Array.from(groups[1]!.querySelectorAll<HTMLElement>('[role="option"]'))
+    expect(answers.map(answer => answer.textContent?.trim())).toEqual(['No lo sé', 'No aplica'])
+    expect(answers.every(answer => answer.classList.contains('hf-combobox__option') && answer.classList.contains('hf-combobox__special'))).toBe(true)
+    expect(answers.every(answer => answer.querySelector('[data-slot="itemLeadingIcon"]'))).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('continues the arrow keys from the list into the footer', async () => {
+    // Opening highlights the chosen option, the last one of the list.
+    const wrapper = mountCombobox({ modelValue: 'todas las etapas', specialAnswers: specials })
+    await open(wrapper)
+    const last = options().find(option => option.textContent?.includes('Todas las etapas'))!
+    expect(last.hasAttribute('data-highlighted')).toBe(true)
+    const content = document.querySelector<HTMLElement>('.hf-combobox__content')!
+    content.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+    await tick()
+    const highlighted = document.querySelector('[role="option"][data-highlighted]')!
+    expect(highlighted.textContent?.trim()).toBe('No lo sé')
+    expect(highlighted.classList.contains('hf-combobox__special')).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('has no footer without special answers', async () => {
+    const wrapper = mountCombobox()
+    await open(wrapper)
+    expect(document.querySelector('.hf-combobox__content--footer')).toBeNull()
     wrapper.unmount()
   })
 

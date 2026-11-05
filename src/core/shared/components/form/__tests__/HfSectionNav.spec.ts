@@ -11,6 +11,7 @@ const sections = [
 
 type ObserverCallback = (entries: Partial<IntersectionObserverEntry>[]) => void
 let observerCallback: ObserverCallback | null = null
+let stuckCallback: ObserverCallback | null = null
 const observed: Element[] = []
 let reducedMotion = false
 
@@ -18,8 +19,13 @@ beforeEach(() => {
   observed.length = 0
   reducedMotion = false
   vi.stubGlobal('IntersectionObserver', class {
-    constructor(callback: ObserverCallback) { observerCallback = callback }
-    observe(element: Element) { observed.push(element) }
+    constructor(private callback: ObserverCallback) {}
+    // The nav watches itself for the stuck hairline; the sections drive the scroll-spy.
+    observe(element: Element) {
+      if (element.tagName === 'NAV') { stuckCallback = this.callback; return }
+      observerCallback = this.callback
+      observed.push(element)
+    }
     unobserve() {}
     disconnect() {}
   })
@@ -41,6 +47,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
   document.body.innerHTML = ''
   observerCallback = null
+  stuckCallback = null
 })
 
 function mountNav() {
@@ -94,6 +101,21 @@ describe('HfSectionNav', () => {
     await nextTick()
     expect(wrapper.findAll('a')[2]!.attributes('aria-current')).toBe('true')
     expect(wrapper.findAll('a')[0]!.attributes('aria-current')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('marks the row stuck while it is clipped by the top edge, for the hairline', async () => {
+    const wrapper = mountNav()
+    const nav = wrapper.get('nav')
+    expect(nav.attributes('data-stuck')).toBeUndefined()
+    const entry = (ratio: number, top: number) => ({ target: nav.element, isIntersecting: true, intersectionRatio: ratio,
+      boundingClientRect: { top } as DOMRectReadOnly, intersectionRect: { top: 0 } as DOMRectReadOnly })
+    stuckCallback!([entry(0.98, -1)])
+    await nextTick()
+    expect(nav.attributes('data-stuck')).toBe('true')
+    stuckCallback!([entry(1, 0)])
+    await nextTick()
+    expect(nav.attributes('data-stuck')).toBeUndefined()
     wrapper.unmount()
   })
 

@@ -388,19 +388,22 @@ The chosen direction for long forms is `design/content-editor-v3/02-section-card
 - **No state chip column.** The value carries its own state: a value means it has data, a muted placeholder means it is empty, and `No lo sé` / `No aplica` show in muted italic inside the same control. `Requerido para publicar` is an amber dot by the label, never red.
 - **Soft rest borders.** A control rests on `--hf-border`, shows `--hf-field-border` on hover and the 2px `--hf-focus` ring on focus. `--hf-danger` is reserved for an invalid control. Controls are 40px from md and 44px below, with a 6px radius.
 - **Grouping by meaning.** Fields live in section cards named for what they answer (`Para quién`, `Qué es`, `Fórmula`, `Contenido y empaque`, `Uso`), never in alphabetical order. A sticky index says what is left in each section.
-- **Special answers inside the control.** Unknown and not applicable are offered at the foot of the choice list, or as ghost actions on text fields. They never sit in a separate ⋮ or replace the field with `—`.
+- **Special answers inside the control.** Unknown and not applicable are offered in a footer pinned under the choice list, or as ghost actions on text fields. They never sit in a separate ⋮ or replace the field with `—`.
+- **Text diet in the field.** A field at rest shows its label, its markers and its control, nothing more. The help appears on focus or from a small info button. Field actions (evidence, `Quitar dato`, the ghosts) appear on hover or focus with a fine pointer. Errors and `Requerido para publicar` always show.
+- **Short text is one line.** A short text value (`Origen de la proteína: Animal`) is a single-line input in one column. Only paragraph texts take a textarea across both columns. The owner decides this from the contract: by maxLength or text kind when the vocabulary carries them, and otherwise by definition code, never by label. Contenido keeps that list in `utils/editorial-long-text.ts` (ingredients, composition, usage instructions, clinical analysis).
 - **One calm save bar** at the bottom: the state on the left, `Descartar` and one primary `Guardar` on the right.
 
 ### Combobox
 
 `HfCombobox` (Nuxt UI `USelectMenu` underneath) is the single choice control of forms, single or multiple. Use it for any list of options. For two to six short options that should all show at once, use `HfSegmented`.
-- **Anatomy:** a trigger (value, chips or placeholder, plus a chevron that is always shown), then a popover (8px radius, soft shadow) with a search input on top once there are more than 7 options (`searchThreshold`), the options, and an optional footer group of `specialAnswers` separated by a hairline.
+- **Anatomy:** a trigger (value, chips or placeholder, plus a chevron that is always shown and laid out in the flow, never over the text), then a popover (8px radius, soft shadow) with a search input on top once there are more than 7 options (`searchThreshold`), the options, and an optional footer of `specialAnswers`.
+- **Footer:** the `specialAnswers` are pinned under the options, below a 1px `--hf-border` hairline. They are always in view, because the options group scrolls and the footer does not (`hf-combobox__content--footer`). They keep their icons in muted italic and the same 36px rows and highlight. They are still options of the same list, so the arrow keys run from the last option into the footer.
 - **API:** `items {label, value, disabled?}[]`, `modelValue` (string or string[]), `multiple`, `label` (aria), `placeholder` (`Elige una opción`), `invalid`, `disabled`, `id`, `describedby`, `specialAnswers {value, label, icon}[]`, `special` with `update:special`, `searchThreshold` (7), and `embedded` for a compound control.
 - **Tokens:** trigger `--hf-field` with a `--hf-border` rest, `--hf-field-border` hover, `--hf-focus` ring and `--hf-danger` when invalid; options in `--hf-ink`, highlight `--hf-active-soft`, check `--hf-active`; chips `--hf-surface-muted`; the special label in `--hf-muted` italic.
 - **States:**
   - Options are 36px with the label centered and no gap under it. Hover and keyboard highlight use `--hf-active-soft`. The chosen option carries a trailing check.
   - Multiple: every option gets a checkbox, and the trigger shows at most 2 chips, then `+N` (read as `y N más`).
-  - Search is accent-insensitive. When it filters out every option it shows `Sin resultados para «…»`, and the special answers stay listed.
+  - Search is accent-insensitive. When it filters out every option it shows `Sin resultados para «…»`, and the footer stays.
   - Picking a special answer emits `update:special` and leaves the value alone. Picking a regular option afterwards clears the special answer (`null`).
 - **Mobile:** 44px trigger and 44px options.
 - **A11y:** the trigger is named by `label` and carries `aria-invalid` and `aria-describedby`. Arrows, Enter, Esc and type-ahead come from Reka. The content is themed `hf-theme hf-ui`, so dark mode reaches the portal.
@@ -410,7 +413,7 @@ The chosen direction for long forms is `design/content-editor-v3/02-section-card
 `HfUnitField` is one control for a number and its unit: `[ 10 | kg ▾ ]`, or with `range`, `[ 10 – 40 | kg ▾ ]`.
 - **Anatomy:** one field border, then the number input (`inputmode="decimal"`, tabular figures), an inner 1px `--hf-border` divider, and an embedded `HfCombobox` holding the units.
 - **API:** `modelValue {value?, min?, max?, unit?}`, `units`, `range`, `label`, `id` (on the first input), `invalid`, `disabled`, `describedby`, `placeholder`, plus `specialAnswers` and `special` on the unit list.
-- **Tokens and states:** the combobox field tokens apply. The whole control takes the focus ring (`:focus-within`). The unit trigger hovers on `--hf-surface-muted` and shows keyboard focus on `--hf-active-soft`. A decimal comma is accepted. A half-typed number stays as typed, and an empty or non-number entry emits `undefined`. With a special answer, its muted italic label replaces the number.
+- **Tokens and states:** the combobox field tokens apply. The whole control takes the focus ring (`:focus-within`). The unit area is at least 96px wide, enough for the `Unidad` placeholder, 8px and the chevron; the numbers take the rest. The unit trigger hovers on `--hf-surface-muted` and shows keyboard focus on `--hf-active-soft`. A decimal comma is accepted. A half-typed number stays as typed, and an empty or non-number entry emits `undefined`. With a special answer, its muted italic label replaces the number.
 - **Mobile:** 44px high.
 - **A11y:** a `role="group"` named by `label`. The range inputs are named `…, mínimo` and `…, máximo`, and the unit trigger `…, unidad`.
 
@@ -429,7 +432,11 @@ The chosen direction for long forms is `design/content-editor-v3/02-section-card
 - **Behavior:**
   - A click scrolls to `#id`, smoothly, or instantly under reduced motion. It marks the entry current and emits `navigate`, so the owner can focus the card heading.
   - Scroll-spy runs on an IntersectionObserver (`root` for an inner scroller): the first section in the upper band is current.
-- **Mobile:** from md it is a 200px column of 36px rows, sticky at 24px. Below md it is a horizontal, scrollable row of 44px chips stuck to the top, so the index stays reachable. The artboard wraps the chips; the shared component scrolls them so they cost one row.
+- **Mobile:** from md it is a 200px column of 36px rows, sticky at 24px. Below md (or with `chips`) it is a row of 44px chips stuck to the top, so the index stays reachable. The artboard wraps the chips; the shared component scrolls them so they cost one row.
+- **Sticky chip row:**
+  - The chips scroll inside the row (`overflow-x: auto`, scroll-snap, hidden scrollbar). `contain: inline-size` plus `min-width: 0` up the grid and flex chain mean the row never widens the page.
+  - Stuck, the row paints `--hf-page` with 8px vertical padding, full bleed to the scroller gutters (the owner sets `--hf-section-nav-bleed`, for example 16px and 24px from sm). It draws a bottom hairline once stuck (`data-stuck`, from an observer; the row sits at `top: -1px`).
+  - Section cards carry `scroll-margin-top`: 80px under a chip row, 24px beside the column, so a jump lands the title below the sticky row.
 - **A11y:** a named `nav` (`label`), an ordered list, and `aria-current="true"` on the current entry.
 
 ### Section card and field grid
@@ -443,11 +450,13 @@ The chosen direction for long forms is `design/content-editor-v3/02-section-card
 `HfFormField` is the frame of one field.
 - **Anatomy:**
   - The row above the control holds the label (13px/500 `--hf-ink`, a `<label for>` with `for`, or an id'd span with `labelId` for a combobox), the markers, and an optional right-aligned hint (`40 de 80`, 12px muted, tabular).
-  - Below the control is one message line, 12px: the help in `--hf-muted`, replaced by the error in `--hf-danger`. Its id is `${for ?? labelId}-message`, to pass as the control's `describedby`.
+  - Below the control is one message line, 12px: the help in `--hf-muted`, replaced by the error in `--hf-danger`. Its id is `${for ?? labelId}-message`. Pass it as the control's `describedby` whenever there is help or an error.
+- **Help disclosure:** the help is not a permanent paragraph. It stays in the DOM, visually hidden (clipped, never `display: none`) and still referenced by `describedby`. It shows while the field has focus (`:focus-within`, not counting the info button's own focus) or after the info button opens it. The info button is a ghost `info` icon next to the label, 28px with a 44px hit area, named `Ayuda de Etiqueta`, with `aria-expanded` and `aria-controls`. It exists only while there is help and no error. An error is never hidden.
 - **Markers:**
   - `required`: a 6px `--hf-warning` dot, with `Requerido para publicar` for screen readers.
   - `internal`: a lock and `Interno` (12px muted).
-- **Special answers:** text-like fields take `specialAnswers`. They show ghost buttons on the right (24px, with a 44px hit area) that appear on hover or focus-within, always on touch devices, and emit `special`. The hint takes the right side when both are present. Choice fields offer the same answers inside `HfCombobox`.
+- **Special answers:** text-like fields take `specialAnswers`. They show ghost buttons on the right (24px, with a 44px hit area) that emit `special`. The hint takes the right side when both are present. Choice fields offer the same answers inside `HfCombobox`.
+- **Action reveal:** with a fine pointer (`(hover: hover) and (pointer: fine)`), the ghosts and the `actions` slot (evidence, `Quitar dato`) rest at opacity 0 and show on field hover or `:focus-within`. Only opacity changes, so they stay in the tab order and appear when reached by keyboard. On touch they are always visible. An action marked `data-active="true"` stays visible as an indicator, for example the paperclip of a field that has evidence, in `--hf-active`.
 - **A11y:** each ghost is named `Etiqueta: marcar como No aplica`.
 
 ### Save bar

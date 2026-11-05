@@ -116,6 +116,15 @@
   font-weight: 600;
 }
 
+/* Nuxt places the trailing slot `absolute end-0` and pads the base for it; the
+ * HF padding replaces that pad, so the chevron joins the flow instead of
+ * sitting over the text (`Unidad˅`). */
+.hf-ui .hf-combobox__trigger [data-slot='trailing'] {
+  position: static;
+  flex-shrink: 0;
+  padding: 0;
+}
+
 .hf-ui .hf-combobox__chevron {
   flex-shrink: 0;
   width: 16px;
@@ -128,13 +137,15 @@
   transform: rotate(180deg);
 }
 
-/* Embedded in a compound control: the outer field owns border and focus. */
+/* Embedded in a compound control: the outer field owns border and focus.
+ * 96px fits the longest unit text (the `Unidad` placeholder, ~46px at 14px)
+ * plus 8px and the 16px chevron inside its 12/10 padding. */
 .hf-ui .hf-combobox__trigger.hf-combobox__trigger--embedded {
   height: 100%;
   min-height: 0;
-  min-width: 76px;
+  min-width: 96px;
   padding: 0 10px 0 12px;
-  gap: 4px;
+  gap: 8px;
   border: 0;
   border-radius: 0 5px 5px 0;
   background-color: transparent;
@@ -182,6 +193,35 @@
   max-height: 264px;
 }
 
+/* With special answers the content may grow past Nuxt's 240px for the footer. */
+.hf-ui.hf-combobox__content--footer {
+  max-height: min(400px, var(--reka-combobox-content-available-height, 400px));
+}
+
+/* The viewport stops scrolling; the options group scrolls and the last group,
+ * the special answers, stays pinned under a hairline (always in view). */
+.hf-ui .hf-combobox__content--footer .hf-combobox__viewport {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: none;
+  overflow: hidden;
+}
+
+.hf-ui .hf-combobox__content--footer .hf-combobox__viewport > [data-slot='group'] {
+  min-height: 0;
+  max-height: 264px;
+  overflow-y: auto;
+  scroll-padding-block: 4px;
+}
+
+.hf-ui .hf-combobox__content--footer .hf-combobox__viewport > [data-slot='group']:last-child {
+  flex-shrink: 0;
+  max-height: none;
+  overflow: visible;
+  border-top: 1px solid var(--hf-border);
+}
+
 /* 36px options (44px on touch), the label centered with no gap under it. */
 .hf-ui [data-slot='item'].hf-combobox__option {
   min-height: var(--hf-form-option);
@@ -218,6 +258,7 @@
 .hf-ui .hf-combobox__special [data-slot='itemLabel'],
 .hf-ui .hf-combobox__special [data-slot='itemLeadingIcon'] {
   color: var(--hf-muted);
+  font-style: italic;
 }
 
 .hf-ui .hf-combobox__special [data-slot='itemLeadingIcon'],
@@ -387,22 +428,50 @@
 
 /* ── HfSectionNav ────────────────────────────────────────────────────────── */
 
+/* The chip row: sticky on the page color, full bleed to the scroller's
+ * gutters (the owner sets `--hf-section-nav-bleed`), a hairline once stuck
+ * (`data-stuck`). `contain: inline-size` keeps the chips' width out of every
+ * ancestor's sizing: the row scrolls inside itself, never the page. */
 .hf-ui .hf-section-nav {
   position: sticky;
-  top: 0;
+  /* One pixel above the edge: once stuck, the row is clipped by 1px and
+   * HfSectionNav's observer sets `data-stuck`; the extra pixel is padding. */
+  top: -1px;
   z-index: 2;
-  padding-block: 8px;
+  min-width: 0;
+  contain: inline-size;
+  margin-inline: calc(-1 * var(--hf-section-nav-bleed, 0px));
+  padding-block: 9px 8px;
+  padding-inline: var(--hf-section-nav-bleed, 0px);
   background-color: var(--hf-page);
+  transition: box-shadow 120ms ease;
+}
+
+.hf-ui .hf-section-nav[data-stuck] {
+  box-shadow: inset 0 -1px 0 var(--hf-border);
 }
 
 .hf-ui .hf-section-nav__list {
   display: flex;
+  min-width: 0;
   gap: 6px;
   margin: 0;
   padding: 0;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: var(--hf-section-nav-bleed, 0px);
   list-style: none;
   scrollbar-width: none;
+}
+
+.hf-ui .hf-section-nav__list::-webkit-scrollbar {
+  display: none;
+}
+
+.hf-ui .hf-section-nav__list > li {
+  flex-shrink: 0;
+  scroll-snap-align: start;
 }
 
 .hf-ui .hf-section-nav__link {
@@ -465,8 +534,10 @@
 @media (min-width: 768px) {
   .hf-ui .hf-section-nav:not(.hf-section-nav--chips) {
     top: 24px;
-    padding-block: 0;
+    margin-inline: 0;
+    padding: 0;
     background-color: transparent;
+    box-shadow: none;
   }
 
   .hf-ui .hf-section-nav:not(.hf-section-nav--chips) .hf-section-nav__list {
@@ -492,6 +563,17 @@
   border-radius: var(--hf-radius-card);
   background-color: var(--hf-surface);
   scroll-margin-top: 24px;
+}
+
+/* Below a sticky chip row (8 + 44 + 8 + hairline) a jump lands the title under it. */
+.hf-ui:has(.hf-section-nav--chips) .hf-section-card {
+  scroll-margin-top: 80px;
+}
+
+@media (max-width: 767px) {
+  .hf-ui .hf-section-card {
+    scroll-margin-top: 80px;
+  }
 }
 
 .hf-ui .hf-section-card__head {
@@ -551,6 +633,7 @@
 /* ── HfFormField ─────────────────────────────────────────────────────────── */
 
 .hf-ui .hf-form-field {
+  position: relative;
   display: grid;
   min-width: 0;
   align-content: start;
@@ -603,21 +686,63 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The ghost answers appear on hover or focus within the field; always on touch. */
+/* The info toggle: a 28px ghost next to the label, 44px to the finger. */
+.hf-ui .hf-form-field__info {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  margin: -2px 0 -2px -4px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background-color: transparent;
+  color: var(--hf-muted);
+  cursor: pointer;
+}
+
+.hf-ui .hf-form-field__info::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+
+.hf-ui .hf-form-field__info:hover,
+.hf-ui .hf-form-field__info[aria-expanded='true'] {
+  background-color: var(--hf-surface-muted);
+  color: var(--hf-ink);
+}
+
+.hf-ui .hf-form-field__info:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+.hf-ui .hf-form-field__info-icon {
+  width: 16px;
+  height: 16px;
+}
+
 .hf-ui .hf-form-field__ghosts {
   display: flex;
   gap: 2px;
   margin-left: auto;
-  opacity: 0;
-  transition: opacity 120ms ease;
 }
 
-.hf-ui .hf-form-field:is(:hover, :focus-within) .hf-form-field__ghosts {
-  opacity: 1;
-}
+/* Fine pointer: ghosts and icon actions rest hidden and show on hover or focus
+ * within the field. Opacity only, so they stay focusable (focus reveals them);
+ * on touch nothing hides them. An active action (evidence) stays as an indicator. */
+@media (hover: hover) and (pointer: fine) {
+  .hf-ui .hf-form-field__ghosts,
+  .hf-ui .hf-form-field__actions > :not([data-active='true']) {
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
 
-@media (hover: none) {
-  .hf-ui .hf-form-field__ghosts {
+  .hf-ui .hf-form-field:is(:hover, :focus-within) :is(.hf-form-field__ghosts, .hf-form-field__actions > *) {
     opacity: 1;
   }
 }
@@ -654,7 +779,7 @@
   outline-offset: 2px;
 }
 
-/* Small icon actions at the end of the label row (Agregar evidencia), always visible. */
+/* Small icon actions at the end of the label row (Agregar evidencia). */
 .hf-ui .hf-form-field__actions {
   display: inline-flex;
   flex-shrink: 0;
@@ -671,6 +796,27 @@
   margin: 0;
   color: var(--hf-muted);
   font-size: 0.75rem;
+}
+
+/* Help diet: collapsed help is visually hidden but read (sr-only clip), and
+ * shows while the field has focus (not the info button's own focus) or is open. */
+.hf-ui .hf-form-field__message[data-tone='help'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.hf-ui .hf-form-field[data-help='open'] .hf-form-field__message[data-tone='help'],
+.hf-ui .hf-form-field:focus-within:not(:has(.hf-form-field__info:focus)) .hf-form-field__message[data-tone='help'] {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
 }
 
 .hf-ui .hf-form-field__message[data-tone='error'] {
@@ -765,7 +911,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hf-ui :is(.hf-combobox__trigger, .hf-combobox__chevron, .hf-unit-field, .hf-form-field__ghosts) {
+  .hf-ui :is(.hf-combobox__trigger, .hf-combobox__chevron, .hf-unit-field, .hf-form-field__ghosts, .hf-form-field__actions > *, .hf-section-nav) {
     transition: none;
   }
 }

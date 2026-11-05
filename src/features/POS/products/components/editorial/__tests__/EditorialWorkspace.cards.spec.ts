@@ -129,7 +129,7 @@ describe('EditorialWorkspace — the presentation switcher', () => {
     switcher().vm.$emit('update:modelValue', 'variant:v2'); await tick()
     expect(unit('Peso neto').props('modelValue')).toMatchObject({ value: 2 })
     expect(packCard().get('.hf-section-card__meta').text()).toBe('Para: Mediano · Rojo')
-    expect((field('Material').get('textarea').element as HTMLTextAreaElement).value).toBe('Nylon')
+    expect((field('Material').get('input[type="text"]').element as HTMLInputElement).value).toBe('Nylon')
     const forWho = wrapper.findAll('.hf-section-card').find(item => item.get('.hf-section-card__title').text() === 'Para quién')!
     expect(forWho.find('.hf-section-card__meta').exists()).toBe(false)
   })
@@ -214,7 +214,7 @@ describe('EditorialWorkspace — payload and save bar', () => {
   it('a text edit creates the same assignment the table sent', async () => {
     http.put.mockResolvedValue(success(state(doc({ values: [material('Nylon')] }), 4)))
     await render()
-    await field('Material').get('textarea').setValue('Nylon')
+    await field('Material').get('input[type="text"]').setValue('Nylon')
     await submit()
     expect(sent()).toEqual({ expectedCycle: 2, expectedRevision: 3, document: doc({ values: [material('Nylon')] }) })
   })
@@ -245,7 +245,7 @@ describe('EditorialWorkspace — payload and save bar', () => {
     await render()
     const bar = () => wrapper.findComponent(HfSaveBar)
     expect(bar().props('dirtyCount')).toBe(0)
-    await field('Material').get('textarea').setValue('Nylon')
+    await field('Material').get('input[type="text"]').setValue('Nylon')
     combo('Especie').vm.$emit('update:modelValue', 'dog'); await tick()
     expect(bar().props('dirtyCount')).toBe(2)
     expect(bar().text()).toContain('2 cambios sin guardar')

@@ -2062,7 +2062,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
 
     <!-- On Contenido the save bar is the last thing in the scroll, flush to its bottom edge: no padding under it. -->
     <div
-      class="mx-auto flex w-full max-w-[1480px] flex-1 flex-col gap-6 overflow-y-auto px-4 pt-6 sm:px-6 lg:px-10"
+      class="mx-auto flex w-full min-w-0 max-w-[1480px] flex-1 flex-col gap-6 overflow-y-auto px-4 pt-6 sm:px-6 lg:px-10"
       :class="isEditorialTask ? 'pb-0' : 'pb-6'"
     >
       <EmptyState
@@ -3152,6 +3152,8 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
   gap: 24px;
   min-width: 0;
 }
+/* No column grows to its content's width (the Contenido chip row scrolls inside itself). */
+.product-workspace-grid > * { min-width: 0; }
 #product-detail-form :deep([data-slot='root'].divide-y) {
   background: var(--hf-surface);
   border-radius: var(--hf-radius-card);

@@ -399,7 +399,9 @@ function valuesChanged(values: EditorialDocumentEditingState['values']) {
 /* The index beside the cards from lg (the product summary takes the right column); a chip row above them below. */
 .editorial-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; min-width: 0; }
 .editorial-layout[data-wide] { grid-template-columns: 200px minmax(0, 1fr); align-items: start; gap: 24px; }
-.editorial-nav { min-width: 0; }
+.editorial-layout > * { min-width: 0; }
+/* The sticky chip row paints the page color out to the scroller's gutters (px-4, sm:px-6). */
+.editorial-nav { min-width: 0; --hf-section-nav-bleed: 16px; }
 .editorial-cards { display: grid; gap: 16px; min-width: 0; padding-bottom: 16px; }
 /* The save bar is the last thing in the scroll, flush to its bottom edge, so it never covers the last field. */
 .editorial-save { position: sticky; bottom: 0; z-index: 5; margin-inline: -16px; }
@@ -413,7 +415,10 @@ function valuesChanged(values: EditorialDocumentEditingState['values']) {
 .editorial-skeleton-control { height: 44px; }
 .editorial-loading .editorial-layout { grid-template-columns: minmax(0, 1fr); }
 .editorial-skeleton-nav { grid-auto-flow: column; grid-auto-columns: 6rem; overflow: hidden; }
-@media (min-width: 640px) { .editorial-save { margin-inline: -24px; } }
+@media (min-width: 640px) {
+  .editorial-nav { --hf-section-nav-bleed: 24px; }
+  .editorial-save { margin-inline: -24px; }
+}
 @media (min-width: 768px) {
   .editorial-skeleton-card { padding: 24px; }
   .editorial-skeleton-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px 16px; }
