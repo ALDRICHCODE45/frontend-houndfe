@@ -1,10 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, it, expect } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
 import PromotionForm from '../PromotionForm.vue'
-import type { PromotionType } from '../../interfaces/promotion.types'
+import type { PromotionFormState, PromotionType } from '../../interfaces/promotion.types'
+import { toCreatePayload } from '../../composables/usePromotionForm'
 
 // ── Stubs ─────────────────────────────────────────────────────────────────────
 
@@ -454,5 +455,109 @@ describe('PromotionForm — review round 1', () => {
     const wrapper = mountForm('BUY_X_GET_Y')
     expect(wrapper.text()).toContain('Combinaciones rápidas')
     expect(wrapper.text()).not.toContain('Presets')
+  })
+})
+
+// T22/S18: the value and the minimum purchase are typed as text and read with
+// the one money rule (`70,55` is 70.55, never 7055); a percent reads the same way.
+describe('PromotionForm — typed amounts', () => {
+  // The real UForm validates the schema before emitting; give it the other required answers.
+  async function submitted(wrapper: ReturnType<typeof mountForm>) {
+    await wrapper.get('form').trigger('submit')
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    await flushPromises()
+    const state = wrapper.emitted<[PromotionFormState]>('submit')?.[0]?.[0]
+    if (!state) throw new Error('submit not emitted')
+    return toCreatePayload(state) as unknown as Record<string, unknown>
+  }
+
+  // The discount type comes hydrated (a saved promotion), because the real
+  // USelect listbox cannot be driven from jsdom.
+  function mountWithDiscountType(type: 'PRODUCT_DISCOUNT' | 'ORDER_DISCOUNT', discountType: 'FIXED' | 'PERCENTAGE') {
+    return mountForm(type, {
+      mode: 'edit' as const,
+      initialData: {
+        id: 'promo-1',
+        title: 'Promo de prueba',
+        type,
+        method: 'AUTOMATIC' as const,
+        status: 'ACTIVE' as const,
+        startDate: null,
+        endDate: null,
+        customerScope: 'ALL' as const,
+        discountType,
+        discountValue: null,
+        minPurchaseAmountCents: null,
+        appliesTo: type === 'PRODUCT_DISCOUNT' ? ('CATEGORIES' as const) : null,
+        buyQuantity: null,
+        getQuantity: null,
+        getDiscountPercent: null,
+        buyTargetType: null,
+        getTargetType: null,
+        targetItems:
+          type === 'PRODUCT_DISCOUNT'
+            ? [{ id: 'ti-1', side: 'DEFAULT' as const, targetType: 'CATEGORIES' as const, targetId: 'cat-A' }]
+            : [],
+        customers: [],
+        priceLists: [],
+        daysOfWeek: [],
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    })
+  }
+
+  it.each([
+    ['70.55', 7055],
+    ['70,55', 7055],
+    ['1,234.50', 123450],
+  ])('PRODUCT_DISCOUNT sends a fixed value typed as %j as %i cents', async (text, cents) => {
+    const wrapper = mountWithDiscountType('PRODUCT_DISCOUNT', 'FIXED')
+    await wrapper.get('[data-testid="promotion-discount-value"]').setValue(text)
+    expect((await submitted(wrapper)).discountValue).toBe(cents)
+  })
+
+  it.each([
+    ['70.55', 7055],
+    ['70,55', 7055],
+    ['1,234.50', 123450],
+  ])('ORDER_DISCOUNT sends a fixed value and a minimum typed as %j as %i cents', async (text, cents) => {
+    const wrapper = mountWithDiscountType('ORDER_DISCOUNT', 'FIXED')
+    await wrapper.get('[data-testid="promotion-discount-value"]').setValue(text)
+    await wrapper.get('[role="checkbox"]').trigger('click')
+    await wrapper.get('[data-testid="promotion-min-purchase"]').setValue(text)
+    const payload = await submitted(wrapper)
+    expect(payload.discountValue).toBe(cents)
+    expect(payload.minPurchaseAmountCents).toBe(cents)
+  })
+
+  it.each([
+    ['12.5', 12.5],
+    ['12,5', 12.5],
+    ['15', 15],
+  ])('sends a percent typed as %j as %d', async (text, percent) => {
+    const wrapper = mountWithDiscountType('PRODUCT_DISCOUNT', 'PERCENTAGE')
+    await wrapper.get('[data-testid="promotion-discount-value"]').setValue(text)
+    expect((await submitted(wrapper)).discountValue).toBe(percent)
+  })
+
+  it('does not submit while a typed amount does not parse', async () => {
+    const wrapper = mountWithDiscountType('PRODUCT_DISCOUNT', 'FIXED')
+    await wrapper.get('[data-testid="promotion-discount-value"]').setValue('1,23,4')
+    await wrapper.get('[data-testid="promotion-discount-value"]').trigger('blur')
+    expect(wrapper.text()).toContain('Escribe el monto con punto para los centavos, por ejemplo 70.55.')
+    await wrapper.get('form').trigger('submit')
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    await flushPromises()
+    expect(wrapper.emitted('submit')).toBeUndefined()
+  })
+
+  it('does not submit while a typed percent does not parse', async () => {
+    const wrapper = mountWithDiscountType('PRODUCT_DISCOUNT', 'PERCENTAGE')
+    await wrapper.get('[data-testid="promotion-discount-value"]').setValue('0,100')
+    await wrapper.get('form').trigger('submit')
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    await flushPromises()
+    expect(wrapper.emitted('submit')).toBeUndefined()
   })
 })

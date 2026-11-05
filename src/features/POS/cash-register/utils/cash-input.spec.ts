@@ -89,11 +89,23 @@ describe('cash money in pesos — exact decimal to integer cents', () => {
     expect(() => pesosToCents('99999999999999999999')).toThrow(/fuera de rango/i)
   })
 
-  it('accepts a comma decimal separator only with at most two decimals', () => {
+  // T22/S18: the one app-wide money rule (core parseMoneyInput).
+  it('reads a decimal comma with one or two digits and a comma in thousands groups', () => {
     expect(pesosToCents('350,50')).toBe(35050)
     expect(pesosToCents('0,01')).toBe(1)
-    expect(() => pesosToCents('1,000')).toThrow(/inválido/i)
-    expect(() => pesosToCents('1.000,50')).toThrow(/inválido/i)
+    expect(pesosToCents('70,55')).toBe(7055)
+    expect(pesosToCents('70,5')).toBe(7050)
+    expect(pesosToCents('1,000')).toBe(100000)
+    expect(pesosToCents('1,234.50')).toBe(123450)
+    expect(pesosToCents('$1 234.50')).toBe(123450)
+  })
+
+  it('rejects an ambiguous comma, asking for a dot', () => {
+    for (const value of ['1.000,50', '0,100', '1,23,4']) {
+      expect(() => pesosToCents(value)).toThrow(
+        'Escribe el monto con punto para los centavos, por ejemplo 70.55.',
+      )
+    }
   })
 })
 

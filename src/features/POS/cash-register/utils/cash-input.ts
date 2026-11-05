@@ -1,3 +1,5 @@
+import { parseMoneyInput } from '@/core/shared/utils/money-input.utils'
+
 export interface CountChannel {
   channelKey: string
   channelLabel: string
@@ -53,35 +55,24 @@ const QUANTITY_RANGE = 'Cantidad fuera de rango.'
 const FORMAT_CENTS = 'Valor de centavos inválido.'
 
 /**
- * A single comma is accepted as the decimal separator (the app's existing
- * input convention). Two separators are never guessed: they fall through to
- * the format error.
- */
-function normalizePesos(value: string): string {
-  const raw = String(value ?? '').trim()
-  if (!raw.includes(',') || raw.includes('.')) return raw
-  return raw.replace(',', '.')
-}
-
-/**
  * Exact pesos → integer cents. `'350' → 35000`, `'0.01' → 1`, `'0' → 0`.
- * Throws on blank, on a fraction beyond two decimals (never silently rounds),
- * on signs/exponents/non-finite text and on a value outside `bounds`.
+ * A thin wrapper over the app-wide money rule (`parseMoneyInput`): `70,55` and
+ * `1,234.50` are read, an ambiguous comma is rejected. Throws on blank, on a
+ * fraction beyond two decimals (never silently rounds), on signs/exponents/
+ * non-finite text and on a value outside `bounds`.
  */
 export function pesosToCents(value: string, bounds: CentsBounds = {}): number {
-  const raw = normalizePesos(value)
-  if (raw === '') throw new Error(PESOS_BLANK)
-  const match = /^(0|[1-9]\d*)(?:\.(\d{1,2}))?$/.exec(raw)
-  if (!match) throw new Error(PESOS_FORMAT)
-  const whole = Number(match[1])
-  const fraction = (match[2] ?? '').padEnd(2, '0')
-  const cents = whole * 100 + Number(fraction)
+  const parsed = parseMoneyInput(String(value ?? ''))
+  if ('error' in parsed) {
+    if (parsed.code === 'empty') throw new Error(PESOS_BLANK)
+    if (parsed.code === 'comma') throw new Error(parsed.error)
+    if (parsed.code === 'range') throw new Error(MONEY_RANGE)
+    throw new Error(PESOS_FORMAT)
+  }
   const minCents = bounds.minCents ?? 0
   const maxCents = bounds.maxCents ?? MAX_CASH_MONEY_CENTS
-  if (!Number.isSafeInteger(cents) || cents < minCents || cents > maxCents) {
-    throw new Error(MONEY_RANGE)
-  }
-  return cents
+  if (parsed.cents < minCents || parsed.cents > maxCents) throw new Error(MONEY_RANGE)
+  return parsed.cents
 }
 
 /** Denomination money in pesos; keeps the unchanged minimum of one cent. */

@@ -107,7 +107,7 @@ describe('inline edit row', () => {
     wrapper.unmount()
   })
   it('shows local validation messages under their field, nothing from the server', () => {
-    const wrapper = mountLine({ open: true, messages: { '/lines/0/orderedQuantity': ['Escribe una cantidad positiva con el formato de esta unidad.'] } })
+    const wrapper = mountLine({ open: true, messages: { '/lines/0/orderedQuantity': ['Escribe una cantidad positiva con el formato de esta unidad; usa punto para los decimales.'] } })
     expect(wrapper.get('.order-line-edit').text()).toContain('Escribe una cantidad positiva')
     wrapper.unmount()
   })

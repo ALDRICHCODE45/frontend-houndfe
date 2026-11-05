@@ -27,6 +27,7 @@ import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import DateFieldPopover from '@/features/POS/sales/components/DateFieldPopover.vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
+import HfMoneyInput from '@/core/shared/components/form/HfMoneyInput.vue'
 import { hasSalary } from '../interfaces/employee.types'
 import {
   AddPositionChangeDtoSchema,
@@ -34,11 +35,10 @@ import {
 
 /**
  * Form-level schema for the salary modal.
- * User enters amount in whole currency units (pesos), NOT centavos.
- * Conversion to centavos (×100) happens in onSalarySubmit before API call.
+ * The user types pesos in HfMoneyInput, which already yields exact centavos.
  */
 const SalaryFormSchema = z.object({
-  amount: z.number().min(1, 'El monto debe ser al menos 1'),
+  amountCents: z.number({ message: 'Escribe el monto.' }).int().min(100, 'El monto debe ser al menos 1'),
   currency: z.string().min(1).max(3),
   effectiveFrom: z.string().min(1),
   reason: z.string().min(1),
@@ -104,17 +104,20 @@ const currentSalaryDisplay = computed<string>(() => {
 const isSalaryModalOpen = ref(false)
 const salaryFormId = 'add-salary-change-form'
 
-/** User enters amount in whole currency units (e.g. 45000 = $45,000 MXN).
- *  Backend expects centavos, so we multiply × 100 in onSalarySubmit. */
+/** The amount in centavos, as HfMoneyInput reads it (45000 typed = 4500000). */
 const salaryState = reactive({
-  amount: undefined as number | undefined,
+  amountCents: null as number | null,
   currency: 'MXN',
   effectiveFrom: '',
   reason: '',
 })
 
+// The parser error of the typed amount; while present nothing is sent.
+const salaryAmountError = ref<string | null>(null)
+
 function resetSalaryForm(): void {
-  salaryState.amount = undefined
+  salaryState.amountCents = null
+  salaryAmountError.value = null
   salaryState.currency = 'MXN'
   salaryState.effectiveFrom = ''
   salaryState.reason = ''
@@ -124,12 +127,12 @@ const { mutateAsync: addSalaryChange, isPending: isAddingSalary } =
   useAddSalaryChange(employeeId)
 
 async function onSalarySubmit(
-  event: FormSubmitEvent<{ amount: number; currency: string; effectiveFrom: string; reason: string }>,
+  event: FormSubmitEvent<{ amountCents: number; currency: string; effectiveFrom: string; reason: string }>,
 ): Promise<void> {
+  if (salaryAmountError.value) return
   try {
-    // Convert user-entered whole currency units to centavos for the backend
     await addSalaryChange({
-      amountCents: Math.round(event.data.amount * 100),
+      amountCents: event.data.amountCents,
       currency: event.data.currency,
       effectiveFrom: event.data.effectiveFrom,
       reason: event.data.reason,
@@ -402,14 +405,15 @@ function closePositionModal(): void {
         class="flex flex-col gap-4"
         @submit="onSalarySubmit"
       >
-        <UFormField label="Monto" name="amount" required
+        <UFormField label="Monto" name="amountCents" required
           hint="Ingresa el monto en pesos (ej: 45000)">
-          <UInputNumber
-            v-model="salaryState.amount"
-            :min="1"
+          <HfMoneyInput
+            id="salary-amount"
+            v-model="salaryState.amountCents"
             placeholder="45000"
             class="w-full"
             :disabled="isAddingSalary"
+            @validation="salaryAmountError = $event"
           />
         </UFormField>
 

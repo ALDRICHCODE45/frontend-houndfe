@@ -39,8 +39,8 @@ export function bufferErrors(buffer: OrderBuffer): Array<{ path: string; message
     // An unchanged saved quantity keeps only the canonical syntax check: if the
     // catalog unit changed since, the server preserves it with a diagnostic.
     const unchanged = line.persistedQuantity !== null && line.quantity === line.persistedQuantity
-    if (line.quantity && validateOrderQuantity(line.quantity, unchanged ? null : line.unit) === 'invalid') errors.push({ path: `/lines/${index}/orderedQuantity`, message: 'Escribe una cantidad positiva con el formato de esta unidad.' })
-    if (line.amount && !isValidOrderAmount(line.amount)) errors.push({ path: `/lines/${index}/informedUnitCost/amount`, message: 'Escribe un importe sin separadores, con hasta cuatro decimales.' })
+    if (line.quantity && validateOrderQuantity(line.quantity, unchanged ? null : line.unit) === 'invalid') errors.push({ path: `/lines/${index}/orderedQuantity`, message: 'Escribe una cantidad positiva con el formato de esta unidad; usa punto para los decimales.' })
+    if (line.amount && !isValidOrderAmount(line.amount)) errors.push({ path: `/lines/${index}/informedUnitCost/amount`, message: 'Escribe el importe sin comas; usa punto para los decimales (hasta cuatro).' })
   })
   return errors
 }

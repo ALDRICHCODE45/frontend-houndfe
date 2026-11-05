@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { ApplyItemDiscountPayload, SaleItem } from '../interfaces/sale.types'
-import { currencyToCents, formatCentsMXN, normalizeDecimalInput } from '../utils/currency.utils'
+import { formatCentsMXN } from '../utils/currency.utils'
+import { parseDecimalInput, parseMoneyInput } from '@/core/shared/utils/money-input.utils'
 import { hasSalesEntryToken } from '../utils/salesEntryPortal'
 
 const props = defineProps<{
@@ -23,19 +24,17 @@ const percentInput = ref('')
 const titleInput = ref('')
 const error = ref<string | null>(null)
 
-const amountCents = computed(() => {
-  const normalized = normalizeDecimalInput(amountInput.value)
-  const value = Number(normalized)
-  if (!normalized || !Number.isFinite(value)) return null
-  return currencyToCents(value)
-})
+// T22/S18: the one money rule (`70,55` is 70.55; an ambiguous comma or a third
+// decimal is an error, never a guess). Blank text is no value and no error.
+const amountParse = computed(() => (amountInput.value.trim() ? parseMoneyInput(amountInput.value) : null))
+const amountCents = computed(() => (amountParse.value && 'cents' in amountParse.value ? amountParse.value.cents : null))
+const amountError = computed(() => (amountParse.value && 'error' in amountParse.value ? amountParse.value.error : undefined))
 
-const percentValue = computed(() => {
-  const normalized = normalizeDecimalInput(percentInput.value)
-  const value = Number(normalized)
-  if (!normalized || !Number.isFinite(value)) return null
-  return value
-})
+const percentParse = computed(() =>
+  percentInput.value.trim() ? parseDecimalInput(percentInput.value, { maxFractionDigits: 2 }) : null,
+)
+const percentValue = computed(() => (percentParse.value && 'text' in percentParse.value ? Number(percentParse.value.text) : null))
+const percentError = computed(() => (percentParse.value && 'error' in percentParse.value ? percentParse.value.error : undefined))
 
 const previewDiscountCents = computed(() => {
   if (mode.value === 'amount') return amountCents.value ?? 0
@@ -111,7 +110,7 @@ watch(
           <p v-else class="text-xs text-muted">Aplica un porcentaje del 0 al 100 sobre el precio unitario.</p>
         </section>
 
-        <UFormField v-if="mode === 'amount'" label="Descuento en pesos (MXN)" description="Debe ser mayor a 0 y menor que el precio actual.">
+        <UFormField v-if="mode === 'amount'" label="Descuento en pesos (MXN)" description="Debe ser mayor a 0 y menor que el precio actual." :error="amountError">
           <UInput
             v-model="amountInput"
             class="w-full"
@@ -121,7 +120,7 @@ watch(
           />
         </UFormField>
 
-        <UFormField v-else label="Porcentaje de descuento (%)" description="Rango válido: mayor a 0 y hasta 100.">
+        <UFormField v-else label="Porcentaje de descuento (%)" description="Rango válido: mayor a 0 y hasta 100." :error="percentError">
           <UInput
             v-model="percentInput"
             class="w-full"

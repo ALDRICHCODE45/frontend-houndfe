@@ -2,8 +2,9 @@
 //
 // This module is the single source of truth for currency formatting and
 // for cents <-> major-unit conversions. All features (POS sales, POS
-// products, data-table filters, etc.) import from here. Module-specific
-// re-exports (e.g. `features/POS/sales/utils/currency.utils.ts`) exist
+// products, data-table filters, etc.) import from here. Typed amounts are
+// read with `parseMoneyInput` (money-input.utils.ts), the one input rule.
+// Module-specific re-exports (e.g. `features/POS/sales/utils/currency.utils.ts`) exist
 // only for ergonomic short paths and MUST NOT redefine these helpers.
 //
 // Locale and currency are fixed to Mexico (es-MX / MXN). If the product
@@ -90,16 +91,6 @@ export function sumLineCents(
   items: ReadonlyArray<{ unitPriceCents: number; quantity: number }>,
 ): number {
   return items.reduce((acc, it) => acc + it.unitPriceCents * it.quantity, 0)
-}
-
-/** Normalizes decimal input to dot notation. "50,5" -> "50.5". */
-export function normalizeDecimalInput(value: string): string {
-  return String(value ?? '').replace(',', '.').trim()
-}
-
-/** Converts major currency units to integer cents. */
-export function currencyToCents(amount: number): number {
-  return Math.round(amount * 100)
 }
 
 /**

@@ -26,6 +26,7 @@ import {
   type PaymentMethodTile,
 } from '../utils/paymentMethodTile.utils'
 import { PAYMENT_METHOD_CATEGORY_ICONS } from '@/core/shared/constants/payment-method-category'
+import HfMoneyInput from '@/core/shared/components/form/HfMoneyInput.vue'
 
 const props = defineProps<{
   open: boolean
@@ -89,7 +90,12 @@ const remainingCents = computed(() => Math.max(0, props.debtCents - receivedCent
 const aggregateError = computed(() => inlineAggregateError.value ?? validateAggregate(entries.value, props.debtCents) ?? null)
 const entryErrors = computed(() => entries.value.map((entry) => validateEntry(entry)))
 const hasEntryErrors = computed(() => entryErrors.value.some((errors) => Object.keys(errors).length > 0))
-const canSubmit = computed(() => entries.value.length > 0 && !aggregateError.value && !hasEntryErrors.value && !isSubmitting.value)
+// The parser error of each typed amount, by entry key; it blocks the payment while present.
+const amountTextErrors = ref<Record<string, string>>({})
+const hasAmountTextErrors = computed(() => entries.value.some((entry) => amountTextErrors.value[paymentEntryKey(entry)]))
+const canSubmit = computed(
+  () => entries.value.length > 0 && !aggregateError.value && !hasEntryErrors.value && !hasAmountTextErrors.value && !isSubmitting.value,
+)
 const canAddEntry = computed(() => entries.value.length < MAX_PAYMENT_ENTRIES)
 
 // Presentation-only merge: keep the modal's existing width/body overrides and
@@ -100,22 +106,13 @@ const slideoverUi = computed(() => ({
   body: 'p-0 flex flex-col h-full',
 }))
 
-// --- Entry form state (pesos for UInputNumber) ---
-type EntryForm = { method: CollectionPaymentMethod; amountPesos: number; reference: string }
-const entryForms = computed<EntryForm[]>(() =>
-  entries.value.map((e) => ({
-    method: e.method,
-    amountPesos: e.amountCents / 100,
-    reference: e.reference ?? '',
-  })),
-)
-
 function entryNeedsReference(method: CollectionPaymentMethod): boolean {
   return CARD_METHODS.includes(method)
 }
 
 function resetState() {
   entries.value = []
+  amountTextErrors.value = {}
   idempotencyKey.value = newIdempotencyKey()
   inlineAggregateError.value = null
   resetError()
@@ -139,8 +136,14 @@ function handleMethodToggle(tile: PaymentMethodTile): void {
   }
 }
 
-function handleAmountChange(index: number, amountPesos: number): void {
-  entries.value = updateEntry(entries.value, index, { amountCents: Math.max(0, Math.round(amountPesos * 100)) })
+function handleAmountChange(index: number, amountCents: number | null): void {
+  entries.value = updateEntry(entries.value, index, { amountCents: Math.max(0, amountCents ?? 0) })
+}
+
+function handleAmountValidation(entry: PaymentEntry, error: string | null): void {
+  const { [paymentEntryKey(entry)]: _previous, ...rest } = amountTextErrors.value
+  void _previous
+  amountTextErrors.value = error ? { ...rest, [paymentEntryKey(entry)]: error } : rest
 }
 
 function handleReferenceChange(index: number, reference: string): void {
@@ -350,23 +353,14 @@ watch(catalogClearSignal, () => {
               </div>
 
               <UFormField label="Monto" :error="entryErrors[index]?.amountCents">
-                <UInputNumber
+                <HfMoneyInput
+                  :id="`debt-payment-amount-${index}`"
                   :data-testid="`payment-amount-${index}`"
-                  :model-value="entryForms[index]?.amountPesos ?? 0"
-                  :min="0"
-                  :step="1"
+                  :model-value="entry.amountCents"
                   :disabled="isSubmitting"
-                  :format-options="{
-                    style: 'currency',
-                    currency: 'MXN',
-                    currencyDisplay: 'narrowSymbol',
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  }"
-                  color="warning"
-                  variant="outline"
                   class="w-full"
-                  @update:model-value="handleAmountChange(index, $event ?? 0)"
+                  @update:model-value="handleAmountChange(index, $event)"
+                  @validation="handleAmountValidation(entry, $event)"
                 />
               </UFormField>
 
