@@ -200,3 +200,4 @@ Decision (parent, technical safety, one rule app-wide):
 Money UInputNumbers move to a shared HfMoneyInput; the app UApp locale becomes es-MX so quantities read «1.5» as 1.5.
 
 T22b split: part 1 = core parser + HfMoneyInput + locale + the sales/caja/admin/promotions/refunds sites; part 2 = the products price editors after T23 frees src/features/POS/products/**.
+L85. Rule clarified (the worker caught the contradiction): a single comma + 1–2 trailing digits is ALWAYS a decimal (`1,2`→1.20, `1234,50`→1234.50), refunds included. Rejected: several commas outside 3-digit groups, a leading-zero group (`0,100`), mixed forms. Accepting 1–2 digits after one comma is safe: it can never be a thousands group.
