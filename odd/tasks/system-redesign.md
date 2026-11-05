@@ -226,3 +226,4 @@ L88. Independent verify (money app-wide): FAIL on bypasses.
 - LOW: a stale error after a remount in DebtPaymentModal and PromotionForm.
 - LOW: es-MX reads «1,5» in a quantity field as 15.
 The fix worker (T22c) is launched.
+L89. Re-verify of money fixes (81074b1d): PASS on all 4 (override modals via HfMoneyInput minCents 1 with Enter guarded; stale errors cleared; integer quantities refuse comma/dot; re-grep clean). Sales/quotations/promotions: 170 files, 3224 tests.
