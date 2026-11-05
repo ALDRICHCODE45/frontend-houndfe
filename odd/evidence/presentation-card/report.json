@@ -1,0 +1,212 @@
+{
+  "checks": {
+    "food-single-producto-card": {
+      "pass": true,
+      "evidence": "1 card(s), title «Producto»"
+    },
+    "food-answer-peso-etiqueta": {
+      "pass": true,
+      "evidence": "Peso · Etiqueta del empaque"
+    },
+    "food-save": {
+      "pass": true,
+      "evidence": "Guardado · 4 nov, 21:39"
+    },
+    "food-collapsed-summary": {
+      "pass": true,
+      "evidence": "Se mide en peso · Etiqueta del empaque · 4 nov"
+    },
+    "food-collapsed-after-reload": {
+      "pass": true,
+      "evidence": "Se mide en peso · Etiqueta del empaque · 4 nov"
+    },
+    "peso-neto-required-to-publish": {
+      "pass": true,
+      "evidence": "Peso neto Elige… mg g kg Sin dato Requerido para publicar"
+    },
+    "food-na-saves": {
+      "pass": true,
+      "evidence": "text.clinical_analysis: Guardado · 4 nov, 21:40; cell not_applicable; 0 cell errors"
+    },
+    "food-na-persisted": {
+      "pass": true,
+      "evidence": "text.clinical_analysis after reload: not_applicable"
+    },
+    "missing-source-error": {
+      "pass": true,
+      "evidence": "No se guardó · corrige 1 dato | Indica de dónde sale la información"
+    },
+    "missing-source-recovers": {
+      "pass": true,
+      "evidence": "Guardado · 4 nov, 21:40"
+    },
+    "accessory-cards-per-presentation": {
+      "pass": true,
+      "evidence": "Chico · Azul · Grande · Negro · Mediano · Rojo"
+    },
+    "accessory-save": {
+      "pass": true,
+      "evidence": "Guardado · 4 nov, 21:40"
+    },
+    "care-drawer-opens": {
+      "pass": true,
+      "evidence": "Revisión de cuidado 10 a 20 kg ¿Cómo va la revisión? Sin revisar No se sabe Lista Listo"
+    },
+    "no-native-dialogs": {
+      "pass": true,
+      "evidence": "none"
+    },
+    "no-console-errors": {
+      "pass": true,
+      "evidence": "none"
+    }
+  },
+  "shots": [
+    "01-food-unanswered__1440__light.png",
+    "01-food-unanswered__1440__light__crop.png",
+    "01-food-unanswered__1440__dark.png",
+    "01-food-unanswered__1440__dark__crop.png",
+    "01-food-unanswered__390__light.png",
+    "01-food-unanswered__390__dark.png",
+    "02-food-answered__1440__light.png",
+    "02-food-answered__1440__light__crop.png",
+    "02-food-answered__1440__dark.png",
+    "02-food-answered__1440__dark__crop.png",
+    "02-food-answered__390__light.png",
+    "02-food-answered__390__dark.png",
+    "03-food-collapsed__1440__light.png",
+    "03-food-collapsed__1440__light__crop.png",
+    "03-food-collapsed__1440__dark.png",
+    "03-food-collapsed__1440__dark__crop.png",
+    "03-food-collapsed__390__light.png",
+    "03-food-collapsed__390__dark.png",
+    "04-food-table-required__1440__light.png",
+    "04-food-table-required__1440__light__crop.png",
+    "05-food-na-menu__1440__light.png",
+    "06-food-na-saved__1440__light.png",
+    "07-food-missing-source__1440__light.png",
+    "07-food-missing-source__1440__light__crop.png",
+    "07-food-missing-source__1440__dark.png",
+    "07-food-missing-source__1440__dark__crop.png",
+    "07-food-missing-source__390__light.png",
+    "08-accessory-cards__1440__light.png",
+    "08-accessory-cards__1440__light__crop.png",
+    "08-accessory-cards__1440__dark.png",
+    "08-accessory-cards__1440__dark__crop.png",
+    "08-accessory-cards__390__light.png",
+    "09-accessory-first-answered__1440__light.png",
+    "09-accessory-first-answered__1440__light__crop.png",
+    "09-accessory-first-answered__390__light.png",
+    "10-accessory-saved__1440__light.png",
+    "10-accessory-saved__1440__light__crop.png",
+    "10-accessory-saved__1440__dark.png",
+    "10-accessory-saved__1440__dark__crop.png",
+    "11-care-cards__1440__light.png",
+    "11-care-cards__1440__light__crop.png",
+    "12-care-drawer__1440__light.png",
+    "12-care-drawer__1440__dark.png",
+    "12-care-drawer__390__light.png",
+    "13-care-drawer-lista__1440__light.png",
+    "13-care-drawer-lista__1440__dark.png",
+    "13-care-drawer-lista__390__light.png"
+  ],
+  "consoleErrors": [],
+  "nativeDialogs": [],
+  "overflow": [],
+  "notes": [
+    "reset earlier No aplica: text.clinical_analysis",
+    "food card was answered before the run: cleared through \"Borrar respuestas…\" and saved"
+  ],
+  "products": {
+    "food": {
+      "name": "Alimento Premium para Perro Adulto 15 kg",
+      "id": "fb23a977-6cc4-40da-8aca-94561d0206b6"
+    },
+    "accessory": {
+      "name": "Collar Ajustable de Nailon",
+      "id": "29b49639-10f6-4291-9415-15386ccdbd43"
+    },
+    "care": {
+      "name": "Pipeta antipulgas Frontline Plus para perro",
+      "id": "e2b28fc6-84f3-4e4f-a8d6-f0ae38c8f44c"
+    }
+  },
+  "food": {
+    "sourcePickedWhileUnanswered": 0,
+    "questions": [
+      "¿Cómo se mide el contenido?",
+      "¿De dónde sale esta información?"
+    ],
+    "collapsedRightAfterSave": false,
+    "requiredRows": [
+      "food.format",
+      "measure.net_mass"
+    ],
+    "naRow": "text.clinical_analysis"
+  },
+  "accessory": {
+    "titles": [
+      "Chico · Azul",
+      "Grande · Negro",
+      "Mediano · Rojo"
+    ],
+    "questions": [
+      "¿Cómo se mide el contenido?",
+      "¿La talla define la compra?",
+      "¿La capacidad define la compra?",
+      "¿Usa electricidad?",
+      "¿Qué medidas aplican?",
+      "¿Qué medidas de talla cuentan?",
+      "¿Qué capacidades cuentan?",
+      "¿Qué especificaciones cuentan?",
+      "¿De dónde sale esta información?"
+    ],
+    "questionsAfterYes": [
+      "¿Cómo se mide el contenido?",
+      "¿La talla define la compra?",
+      "¿La capacidad define la compra?",
+      "¿Usa electricidad?",
+      "¿Qué medidas aplican?",
+      "¿Qué medidas de talla cuentan?",
+      "¿Qué capacidades cuentan?",
+      "¿Qué especificaciones cuentan?",
+      "¿De dónde sale esta información?"
+    ]
+  },
+  "care": {
+    "titles": [
+      "10 a 20 kg",
+      "20 a 40 kg",
+      "2 a 10 kg"
+    ],
+    "drawer": "Revisión de cuidado 10 a 20 kg ¿Cómo va la revisión? Sin revisar No se sabe Lista Listo",
+    "drawerLista": "Revisión de cuidado 10 a 20 kg ¿Cómo va la revisión? Sin revisar No se sabe Lista Indica en la tarjeta de dónde sale la información. ¿Dónde se vende? ¿Para qué se usa? ¿La etiqueta exige algo? Sí, hay requisitos No exige nada Listo"
+  },
+  "review": {
+    "fixed": [
+      {
+        "defect": "In the two-column card layout a question label was vertically centered against wrapped chip rows, floating away from its first chip (food answered, accessory \"¿Qué medidas aplican?\").",
+        "fix": "EditorialPresentationCard.vue: .pcard__question align-items start, label padding-top 10px",
+        "test": "EditorialPresentationCard.layout.spec.ts (RED then GREEN)"
+      }
+    ],
+    "issues": [
+      "Accessory with 3 presentations: 8-9 questions per card, repeated for each presentation (~2400px of cards at 1440); there is no \"same answers as the first\" shortcut. This is the main source of length.",
+      "The accessory family asks every collar \"¿La capacidad define la compra?\" and \"¿Usa electricidad?\": the questions come from the family declarations (BE policy), not the product.",
+      "After Guardar the answered card stays open; it folds only on Listo or on the next load.",
+      "Borrar respuestas keeps the hidden No aplica declaration and its evidence, so the source chip stays selected on an otherwise empty card.",
+      "At 1440 picking Peso widens the chip (check + bold) and \"No sé\" wraps alone to a second row on the food card.",
+      "\"Revisada el\" is a native date input (mm/dd/yyyy in this Chromium) boxed inside the card.",
+      "Care drawer in \"Sin revisar\" is mostly empty space; \"¿Dónde se vende?\" shows México prefilled."
+    ],
+    "best": [
+      "01-food-unanswered__1440__light__crop.png",
+      "02-food-answered__1440__light__crop.png",
+      "03-food-collapsed__1440__light.png",
+      "07-food-missing-source__1440__light__crop.png",
+      "08-accessory-cards__1440__light__crop.png",
+      "13-care-drawer-lista__1440__light.png",
+      "02-food-answered__390__dark.png"
+    ]
+  }
+}
