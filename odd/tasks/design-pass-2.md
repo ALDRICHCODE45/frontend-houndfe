@@ -10,7 +10,7 @@ Branch feat/design-pass-2 from main e1cea788. Backend and chatbot agent requests
 
 ## Tasks
 - [x] T1 S1,S3,S4 Reembolsos /pos/reembolsos — worker; table fits at 1440 (7 cols), age said once, «Pagó con», card foot; 103 tests — cb603375
-- [ ] T2 S1,S3,S4 Decisiones pendientes with real rows (list and drawer) — worker
+- [x] T2 S1,S3,S4 Decisiones pendientes with real rows (list and drawer) — worker; product name leads rows and drawer, one-line answers, branch column gone; 269 tests, vue-tsc 0 — 30fcf7bb
 - [x] T3 S1,S3,S4 Recepciones de caja with data — worker; summary first on mobile, hidden when it repeats the state; 143 tests — 247738bd
 - [ ] T4 S1,S3,S4 Caja with sessions (sessions list lacks time/cashier: BE API debt) plus the shared handover cards CashCustodyDiscovery.vue (T3 CR1–CR6) — pending
 - [ ] T5 S1,S3,S4 Product detail: Presentaciones, Inventario, Historial slideover — pending
@@ -18,7 +18,7 @@ Branch feat/design-pass-2 from main e1cea788. Backend and chatbot agent requests
 - [ ] T7 S1,S3 Notificaciones with data (dark switch contrast) — pending
 - [ ] T8 S1,S3 Delivery route detail, driver view — pending
 - [ ] T9 S1,S3 Tenant selection empty/loading/error — pending
-- [ ] T10 S1,S3 Re-check round-2 low findings (review-findings-r2.md) one by one — pending
+- [ ] T10 S1,S3 Re-check round-2 low findings (review-findings-r2.md) one by one, plus shared requests: ConfirmModal mobile stacked buttons centre their labels; unit labels to core/shared; refunds settle amount via HfMoneyInput — pending
 
 ## Log
 L1. User (2026-11-05): «Bien, si hermano, vamos con 1. pasada de diseno. pero tambien hay otra cosa, se estan cocinando algunas cosas en el chatbot, principalmente tiene que intervenir el backend, pero en algun momento tambien tendras que intervenir tu, asi que si, hazlo, pero en el momento en el que te contacte algun agente del backend o del chatbot sobre alguna funcionalidad que te toque, dale prioridad a eso por favor y despues sigues con la pasada de diseno. alguna duda?»
@@ -27,3 +27,4 @@ L3. Runtime: BE answers on :3003; FE dev server on :5173 against it (README in o
 L4. T1 done (cb603375): high fix, 7-column fit at 1440 with the sidebar open, plus med/low copy fixes. The amount overflow was already fixed (0ce57ed7). The design system now records that fit is guaranteed at 1440 (1280 may scroll inside the card) and the one-fact rule. Open: the settle amount field lacks thousands separators (hand-built, not HfMoneyInput); follow-up for T10.
 L5. T3 done (247738bd). The handover card defects live in CashCustodyDiscovery.vue, which Caja shares, so they move to T4: CR1 «Declarado» next to its amount; CR2 declaredAt meta line; CR3 note hint only when the amount differs; CR4 mismatch error on its own card with aria-invalid; CR5 stacked full-width fields below sm; CR6 floats without the help paragraph, «Declarado» only when it differs, receivedAt. BE request to batch: GET /cash-handovers/custody should send the sender's display name and the source register name. Dev data: the T3 seed left extra open cashier sessions on other registers (a reseed clears them).
 L6. Slices: one commit per screen task (each about one reviewable slice); the branch merges to main after the pass, with docs/odd commits apart.
+L7. T2 done (30fcf7bb), docs fit rule in 8d82c4d2 (the T1 commit had missed it). Left for the user: the product name repeats in the drawer (title and Producto row); the chatbot's one-line summary paragraph comes from the server. Shared requests moved to T10.
