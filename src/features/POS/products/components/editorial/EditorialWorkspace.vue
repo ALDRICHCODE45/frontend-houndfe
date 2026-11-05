@@ -8,22 +8,23 @@ import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { useEditorialEditor, editorialErrorMessage, editorialIssueMessage } from '../../composables/useEditorialEditor'
 import EditorialAttributeTable from './EditorialAttributeTable.vue'
 import EditorialContractDocumentFields from './EditorialContractDocumentFields.vue'
-import EditorialContractFactsList from './EditorialContractFactsList.vue'
 import EditorialContractFamilyField from './EditorialContractFamilyField.vue'
 import EditorialHistoryDrawer from './EditorialHistoryDrawer.vue'
+import EditorialPresentationCards from './EditorialPresentationCards.vue'
 import { toEditorialDocumentEditingState, type EditorialDocumentEditingState } from '../../utils/editorial-contract-document-editing'
 import { inspectEditorialDocumentReferences } from '../../utils/editorial-contract-document-references'
 import { qualifyEditorialConservationBaseline } from '../../utils/editorial-contract-conservation'
 import { projectEditorialDeclarationChoices } from '../../utils/editorial-contract-declaration-choices'
-import { buildEditorialAttributeTable, editorialTargetKey } from '../../utils/editorial-attribute-table'
+import { buildEditorialAttributeTable, editorialTargetKey, isEditorialOptionalBinding } from '../../utils/editorial-attribute-table'
+import { editorialEffectiveSource, ensureEditorialFactsRow, setEditorialOptionalNonpertinence, type EditorialCardSource } from '../../utils/editorial-presentation-card'
+import type { EditorialAssignmentTarget } from '../../utils/editorial-contract-assignment-input'
 import { buildEditorialHistoryChanges } from '../../utils/editorial-history-diff'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import '@/core/shared/design-system/houndfe-ui.css'
 
-/** The product's catalog content: a compact header, the document text, the table of the family's
- * data (rows) by product and presentation (columns), and the declarations folded under "Completar
- * para publicar". Same draft lifecycle, payload, conflicts and permissions as before; publication
- * stays unavailable.
+/** The product's catalog content: a compact header, the document text, one card of plain questions
+ * per presentation, and the table of the family's data (rows) by product and presentation (columns).
+ * Same draft lifecycle, payload, conflicts and permissions as before; publication stays unavailable.
  */
 const props = defineProps<{
   productId: string
@@ -61,7 +62,7 @@ watch(canRead, () => { discardPending.value = false; discardDraftOpen.value = fa
 
 const subjects = computed(() => qualification.value?.variants.length
   ? qualification.value.variants.map(variant => ({ variantId: variant.id, label: variant.name }))
-  : [{ variantId: null, label: 'Sin presentación' }])
+  : [{ variantId: null, label: 'Presentación' }])
 // A writer edits the local buffer; a read-only user sees the saved draft, or else the published version.
 const shown = computed<EditorialDocumentEditingState | null>(() => {
   if (canWrite.value) return buffer.value
@@ -111,7 +112,14 @@ const cellIssues = computed(() => {
 const issueFor = (code: string) => issues.value.find(issue => issue.code === code && issue.valueIndex === undefined)
 const titleIssue = computed(() => (issueFor('TITLE_LIMIT') ? editorialIssueMessage({ code: 'TITLE_LIMIT' }) : undefined))
 const descriptionIssue = computed(() => (issueFor('DESCRIPTION_LIMIT') ? editorialIssueMessage({ code: 'DESCRIPTION_LIMIT' }) : undefined))
-const generalIssues = computed(() => issues.value.filter(issue => issue.valueIndex === undefined && issue.code !== 'TITLE_LIMIT' && issue.code !== 'DESCRIPTION_LIMIT'))
+// Sources picked on a card before any answer, per presentation; the stored evidence covers the rest.
+const cardSources = shallowRef<ReadonlyMap<string, EditorialCardSource>>(new Map())
+watch(() => [props.productId, authoritative.value], () => { cardSources.value = new Map() })
+// A card whose answers lack their source says so on its source row, so the general notice would only repeat it.
+const sourceMissing = computed(() => (shown.value?.facts ?? []).some(row => (row.declarations.some(item => item.input.state === 'known') || row.careReview.state === 'prepared')
+  && !editorialEffectiveSource(cardSources.value, row, row.variantId).sourceRef.trim()))
+const generalIssues = computed(() => issues.value.filter(issue => issue.valueIndex === undefined && issue.code !== 'TITLE_LIMIT' && issue.code !== 'DESCRIPTION_LIMIT'
+  && !(issue.code === 'FACTS_CAPTURE' && sourceMissing.value)))
 const declarationChoices = computed(() => projectEditorialDeclarationChoices({ family: family.value, definitions: vocabulary.value?.definitions ?? [] }))
 
 const warnings = computed(() => (receipt.value?.state.warnings ?? []).map(warning => {
@@ -179,8 +187,32 @@ async function confirmDiscardDraft() {
 }
 
 function replace(next: EditorialDocumentEditingState) { editor.replaceDocument(next) }
-function valuesChanged(values: EditorialDocumentEditingState['values']) { if (buffer.value) replace({ ...buffer.value, values }) }
 function factsChanged(facts: EditorialDocumentEditingState['facts']) { if (buffer.value) replace({ ...buffer.value, facts }) }
+// "No aplica" on an optional datum of a presentation is declared in that presentation's hidden
+// `optionalNonpertinenceCodes`, with the card's source; taking the "No aplica" away takes the code out.
+function optionalNotApplicable(values: EditorialDocumentEditingState['values']) {
+  const codes = new Set(family.value?.bindings.filter(binding => binding.owner === 'sellable' && isEditorialOptionalBinding(binding)).map(binding => binding.definitionCode))
+  const targets = new Map<string, EditorialAssignmentTarget>()
+  for (const item of values) if (item.input.state === 'not_applicable' && item.target.owner === 'sellable' && codes.has(item.target.code)) targets.set(editorialTargetKey(item.target), item.target)
+  return targets
+}
+function valuesChanged(values: EditorialDocumentEditingState['values']) {
+  if (!buffer.value) return
+  const before = optionalNotApplicable(buffer.value.values), after = optionalNotApplicable(values)
+  let facts = buffer.value.facts
+  const toggle = (target: EditorialAssignmentTarget, include: boolean) => {
+    if (!include && !facts.some(row => row.variantId === target.variantId)) return
+    const subject = subjects.value.find(item => item.variantId === target.variantId)
+    const presentation = target.variantId === null ? buffer.value!.commercialTitle?.trim() || 'Producto' : subject?.label ?? 'Presentación'
+    const ensured = ensureEditorialFactsRow(facts, { variantId: target.variantId, presentation }, lifecycle.nextId)
+    const source = editorialEffectiveSource(cardSources.value, ensured.row, target.variantId)
+    const row = setEditorialOptionalNonpertinence(ensured.row, target.code, include, source, lifecycle.nextId)
+    facts = ensured.state.map(item => (item.id === ensured.row.id ? row : item))
+  }
+  for (const [key, target] of after) if (!before.has(key)) toggle(target, true)
+  for (const [key, target] of before) if (!after.has(key)) toggle(target, false)
+  replace({ ...buffer.value, values, facts })
+}
 </script>
 
 <template>
@@ -303,6 +335,10 @@ function factsChanged(facts: EditorialDocumentEditingState['facts']) { if (buffe
                 :title-issue="titleIssue" :description-issue="descriptionIssue" @update:model-value="replace" />
             </div>
 
+            <EditorialPresentationCards v-if="family && (canWrite || shown.facts.length)" :facts="shown.facts" :subjects="subjects" :choices="declarationChoices"
+              :care-allowed="family.code === 'care'" :next-id="lifecycle.nextId" :sources="cardSources" :product-name="shown.commercialTitle ?? ''"
+              :show-errors="issues.length > 0" :readonly="!canWrite" :disabled="!editable" @update:facts="factsChanged" @update:sources="cardSources = $event" />
+
             <EmptyState v-if="!family && canWrite" title="Elige una familia" description="La familia decide qué datos aplican a este producto." />
             <EmptyState v-else-if="!family" title="Esta ficha aún no tiene familia" />
             <EmptyState v-else-if="onlyMissing && !missingCodes.size" kind="no-match" title="No falta ningún dato" action-label="Ver todos los datos" action-test-id="clear-missing" @action="onlyMissing = false" />
@@ -310,13 +346,6 @@ function factsChanged(facts: EditorialDocumentEditingState['facts']) { if (buffe
               :facts="shown.facts" :next-id="lifecycle.nextId" :visible-codes="visibleCodes" :readonly="!canWrite" :disabled="!editable" :issues="cellIssues" :conserved="conserved"
               @update:values="valuesChanged" />
 
-            <details v-if="family && (canWrite || shown.facts.length)" class="editorial-fold" data-testid="complete-to-publish">
-              <summary>Completar para publicar <StatusBadge label="Opcional por ahora" tone="neutral" aria-prefix="" /></summary>
-              <div class="editorial-fold__body">
-                <EditorialContractFactsList id="editorial-facts" :model-value="shown.facts" :subjects="subjects" :allowed="declarationChoices"
-                  :care-allowed="family.code === 'care'" :next-id="lifecycle.nextId" :disabled="!editable" @update:model-value="factsChanged" />
-              </div>
-            </details>
           </component>
 
           <footer v-if="canWrite && buffer" class="editorial-footer" data-testid="editorial-footer">
@@ -370,10 +399,6 @@ function factsChanged(facts: EditorialDocumentEditingState['facts']) { if (buffe
 .editorial-actions { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
 .editorial-form { display: grid; gap: 16px; min-width: 0; }
 .editorial-surface { padding: 16px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); background: var(--hf-surface); min-width: 0; }
-.editorial-fold { border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); background: var(--hf-surface); min-width: 0; }
-.editorial-fold > summary { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 16px; color: var(--hf-heading); font-weight: 600; cursor: pointer; }
-.editorial-fold > summary:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: -2px; border-radius: var(--hf-radius-card); }
-.editorial-fold__body { padding: 0 16px 16px; min-width: 0; }
 .editorial-footer { position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 12px 16px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); background: var(--hf-surface); }
 .editorial-save-state { min-width: 0; color: var(--hf-muted); font-size: 14px; }
 .editorial-save-state b { color: var(--hf-ink); font-weight: 600; }

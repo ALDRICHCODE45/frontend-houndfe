@@ -11,6 +11,7 @@ import EditorialWorkspace from '../EditorialWorkspace.vue'
 import { stubEditorialSelect } from './editorialSelectStub'
 import type { EditorialContractDocument } from '../../../interfaces/editorial-contract-document.types'
 import type { EditorialContractVocabulary } from '../../../interfaces/editorial-contract-vocabulary.types'
+import { editorialToday } from '../../../utils/editorial-presentation-card'
 import { document as emptyDocument, read, update, state, success, failure, vocabularyEnvelope, deferred } from '../../../__tests__/editorial-contract-fixtures'
 
 const http = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn() }))
@@ -79,10 +80,11 @@ describe('EditorialWorkspace — the table', () => {
     expect(cell('Peso neto', 0).find('input').exists()).toBe(false)
   })
 
-  it('shows one presentation column when the product has no variants', async () => {
+  it('shows one presentation column when the product has no variants, never "Sin presentación"', async () => {
     reads(state(doc()), { variants: [] })
     await render()
-    expect(wrapper.findAll('thead th').map(th => th.text())).toEqual(['Dato', 'Producto', 'Sin presentación'])
+    expect(wrapper.findAll('thead th').map(th => th.text())).toEqual(['Dato', 'Producto', 'Presentación'])
+    expect(wrapper.text()).not.toContain('Sin presentación')
   })
 
   it('has no table, but a prompt, while there is no family', async () => {
@@ -556,27 +558,71 @@ describe('EditorialWorkspace — copy', () => {
   })
 })
 
-describe('EditorialWorkspace — "Sin presentación" survives a reload', () => {
+describe('EditorialWorkspace — the presentation cards', () => {
   const simple = { variants: [] }
-  const facts = (row: HTMLElement | undefined) => row?.querySelector('[data-action="remove-facts"]')
+  const today = editorialToday()
+  const optional = { route: 'fact_rule' as const, rule: { family: 'food' as const, ruleId: 'optional' as const, parameter: 'measure.net_mass' as const } }
+  const guided: EditorialContractVocabulary = { ...vocabulary, families: [{ ...vocabulary.families[0]!,
+    bindings: vocabulary.families[0]!.bindings.map(item => (item.definitionCode === 'measure.net_mass' ? { ...item, policy: optional } : item)) }, vocabulary.families[1]!] }
+  const readGuided = (snapshot = state(doc()), context: { variants: { id: string; name: string }[] } = { variants }) =>
+    http.get.mockImplementation((url: string) => Promise.resolve(url.includes('vocabulary') ? { ...success(), data: vocabularyEnvelope(guided) }
+      : url.endsWith('/context') ? { status: 200, data: context } : success(snapshot)))
+  const card = (title: string) => wrapper.findAll('[data-testid="presentation-card"]').find(item => item.get('h4').text() === title)!
+  const chipOf = (title: string, text: string) => card(title).findAll('label').find(item => item.text() === text)!.get('input')
 
-  it('a saved product-level row keeps its form after the document is read again', async () => {
-    reads(state(doc()), simple)
+  it('sit above the table, and the folded section and its badge are gone', async () => {
     await render()
-    await wrapper.get('#editorial-facts-add').setValue('0'); await flushPromises()
-    await wrapper.get('[id^="editorial-facts-row-"][id$="-presentation"]').setValue('Bolsa')
-    const saved = doc({ facts: [{ variantId: null, presentation: 'Bolsa', declarations: [], careReview: null }] })
-    http.put.mockResolvedValue(success(state(saved, 4)))
-    await wrapper.get('form').trigger('submit'); await flushPromises()
-    expect(http.put.mock.calls[0]![1].document.facts).toEqual(saved.facts)
+    const html = wrapper.html()
+    expect(html.indexOf('data-testid="presentation-cards"')).toBeGreaterThan(-1)
+    expect(html.indexOf('data-testid="presentation-cards"')).toBeLessThan(html.indexOf('data-testid="attribute-table"'))
+    expect(wrapper.find('[data-testid="complete-to-publish"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toMatch(/Completar para publicar|Opcional por ahora|Agregar una presentación/)
+    expect(wrapper.findAll('[data-testid="presentation-card"] h4').map(item => item.text())).toEqual(['15 kg', '7.5 kg'])
+  })
 
-    // The reload: a fresh mount that decodes the saved document.
-    wrapper.unmount(); document.body.innerHTML = ''
+  it('an answer and its source save as a facts row with the evidence and the generated Fundamento', async () => {
+    http.put.mockResolvedValue(success())
+    await render()
+    await chipOf('15 kg', 'Peso').setValue(true)
+    await chipOf('15 kg', 'Etiqueta del empaque').setValue(true)
+    await wrapper.get('form').trigger('submit'); await flushPromises()
+    expect(http.put.mock.calls[0]![1].document.facts).toEqual([{ variantId: 'v1', presentation: '15 kg', careReview: null, declarations: [
+      { key: 'contentMagnitude', state: 'known', value: 'mass', evidence: { sourceRef: 'Etiqueta del empaque', verifiedOn: today }, basis: 'Según la etiqueta del empaque.' }] }])
+  })
+
+  it('an answer with no source is not saved and says so on the source row', async () => {
+    await render()
+    await chipOf('15 kg', 'Peso').setValue(true)
+    await wrapper.get('form').trigger('submit'); await flushPromises()
+    expect(http.put).not.toHaveBeenCalled()
+    expect(card('15 kg').get('[data-testid="card-source-error"]').text()).toBe('Indica de dónde sale la información')
+    expect(wrapper.text()).not.toContain('Revisa la captura de hechos')
+  })
+
+  it('"No aplica" on an optional datum declares its code for that presentation, and removing it takes the code out', async () => {
+    http.put.mockResolvedValue(success())
+    readGuided()
+    await render()
+    await chipOf('15 kg', 'Etiqueta del empaque').setValue(true)
+    await pick(cell('Peso neto', 1).get('button[aria-haspopup="menu"]'), 'No aplica')
+    await wrapper.get('form').trigger('submit'); await flushPromises()
+    const sent = http.put.mock.calls[0]![1].document
+    expect(sent.values).toEqual([{ code: 'measure.net_mass', owner: 'sellable', variantId: 'v1', state: 'not_applicable', evidence: null }])
+    expect(sent.facts).toEqual([{ variantId: 'v1', presentation: '15 kg', careReview: null, declarations: [
+      { key: 'optionalNonpertinenceCodes', state: 'known', value: ['measure.net_mass'], evidence: { sourceRef: 'Etiqueta del empaque', verifiedOn: today }, basis: 'Según la etiqueta del empaque.' }] }])
+    expect(card('15 kg').text()).not.toContain('optionalNonpertinenceCodes')
+
+    await pick(cell('Peso neto', 1).get('button[aria-haspopup="menu"]'), 'Quitar dato')
+    await wrapper.get('form').trigger('submit'); await flushPromises()
+    expect(http.put.mock.calls[1]![1].document.facts).toEqual([{ variantId: 'v1', presentation: '15 kg', careReview: null, declarations: [] }])
+  })
+
+  it('a saved "Producto" card reads back after a reload as one collapsed line', async () => {
+    const saved = doc({ facts: [{ variantId: null, presentation: 'Croqueta', careReview: null, declarations: [
+      { key: 'contentMagnitude', state: 'known', value: 'mass', evidence: { sourceRef: 'Ficha del fabricante', verifiedOn: '2026-11-04' }, basis: 'Según la ficha del fabricante.' }] }] })
     reads(state(saved, 4), simple)
     await render()
-    const fold = wrapper.get('[data-testid="complete-to-publish"]').element as HTMLElement
-    expect(fold.querySelector('legend')?.textContent).toBe('Sin presentación')
-    expect(facts(fold)).toBeTruthy()
-    expect(wrapper.get<HTMLTextAreaElement>('[id^="editorial-facts-row-"][id$="-presentation"]').element.value).toBe('Bolsa')
+    expect(card('Producto').get('[data-testid="card-summary"]').text()).toMatch(/^Se mide en peso · Ficha del fabricante · 4 nov/)
+    expect(wrapper.text()).not.toContain('Sin presentación')
   })
 })
