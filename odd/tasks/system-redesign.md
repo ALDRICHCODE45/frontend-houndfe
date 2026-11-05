@@ -24,6 +24,8 @@ S15. The user chose direction 02, verbatim: "todas las opciones me gustan mucho,
 
 S16. System-wide soft field borders, verbatim: "algo que tambien me molestaba demasiado era el borde los inputs, era muy fuerte, y ahora es mas tenue, todo tiene armonia" / "Si hermano, sinceramente creo que le da completamente otro feeling al sistema, por favor, hay que avanzar con eso." Every field in the app (inputs, textareas, selects, select menus, date inputs, search boxes, native-styled controls) rests on --hf-border, shows --hf-field-border on hover and the 2px --hf-focus ring on focus, with --hf-danger only when invalid, in light and dark. Afterwards, migrate the big forms to the Hf* patterns one module at a time.
 
+S17. Next work, verbatim: "Si hermano, por favor, una detas de la otra." Both proposals, in order: (1) migrate the product Identidad tab to the Hf* form patterns (consistent with Contenido); (2) a new refund settlement screen, designed on the canvas first.
+
 ## Tasks
 
 T1 [S2,S3] Inventory screens and dead code (explorer), research principles, and extend docs/design-system.md. Route: explore, then inline.
@@ -46,6 +48,10 @@ T14 [S15] Detailed Playwright-MCP review by the parent (food, collar, pipeta; 14
 T15 [S2] Replace the native window.confirm "leave without saving" guard (product detail / editorial) with the shared ConfirmModal (route leave). Keep the native beforeunload for tab close (browsers allow no custom UI there). Route: writer. Branch feat/leave-guard-modal.
 
 T16 [S16] Soft rest borders for every field app-wide via the .hf-ui adapter, plus feature-level overrides. Route: writer, then a parent Playwright review across modules. Branch feat/soft-field-borders.
+
+T17 [S17] Product Identidad tab on the Hf* patterns (section cards, HfFormField, HfCombobox, HfSaveBar where it fits), in the same product page as Contenido. Route: writer. Branch feat/identity-patterns.
+T18 [S17] Refund settlement screen: three design directions in design/refund-settlements/ from odd/handoff/06-refund-settlements.md (the BE contract with real HTTP examples). The user picks one. Route: design writers.
+T19 [S17] Implement the chosen refund settlement direction. Route: writer, after T18.
 
 ## Log
 
