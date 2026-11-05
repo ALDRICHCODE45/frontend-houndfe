@@ -5,7 +5,11 @@ import type { GlobalPriceList } from '@/features/POS/products/interfaces/product
 import { formatPaymentMethod } from '../utils/salePaymentMethod.utils'
 import type { SaleDetail } from '../interfaces/sale.types'
 
-const props = defineProps<{ sale: SaleDetail }>()
+const props = defineProps<{
+  sale: SaleDetail
+  /** A cancelled sale is read-only: the seller cannot change (422 SALE_CANCELED). */
+  locked?: boolean
+}>()
 const emit = defineEmits<{ 'assign-seller': [] }>()
 
 // pos-price-list-tiers: resolve the active price list name. Mirrors the
@@ -66,7 +70,9 @@ function openAssignSeller() {
         <dd class="sale-detail-fact-value flex flex-wrap items-center gap-x-2">
           <span v-if="sale.seller">{{ sale.seller.name }}</span>
           <span v-else class="text-(--hf-muted)">Sin asignar</span>
+          <span v-if="locked" class="sale-detail-fact-note" data-testid="seller-locked">La venta está cancelada.</span>
           <UButton
+            v-else
             variant="link"
             color="neutral"
             size="sm"

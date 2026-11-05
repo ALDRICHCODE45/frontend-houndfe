@@ -1,0 +1,10 @@
+{
+  "title": "Liquidar reembolsos pendientes",
+  "brief": "Pantalla para liquidar reembolsos pendientes (parcial o total) según el contrato del BE en odd/handoff/06-refund-settlements.md. Ver BRIEF.md.",
+  "feature": "odd/tasks/system-redesign.md",
+  "artboards": [
+    { "file": "01-pending-inbox.html", "title": "Bandeja de pendientes", "tradeoff": "Una pantalla dedicada con la lista y un panel lateral para liquidar; clara para quien liquida muchos; es una página más en el menú", "width": 1440, "height": 900 },
+    { "file": "02-from-the-sale.html", "title": "Desde la venta", "tradeoff": "Se liquida donde nació el reembolso (detalle de la venta) y el dashboard enlaza ahí; cero páginas nuevas; lento para liquidar varios seguidos", "width": 1440, "height": 900 },
+    { "file": "03-quick-queue.html", "title": "Cola rápida", "tradeoff": "Liquidación en línea dentro de la fila, sin abrir paneles, pensado para caja; muy rápido; menos espacio para explicar errores", "width": 1440, "height": 900 }
+  ]
+}

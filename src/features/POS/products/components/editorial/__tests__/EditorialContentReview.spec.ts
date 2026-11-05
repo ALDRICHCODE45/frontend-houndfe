@@ -39,9 +39,9 @@ describe('1. the save bar', () => {
     expect(bar).not.toMatch(/border-radius|border: 1px/)
   })
 
-  it('leaves no gap under it: the product scroll area drops its bottom padding on the Contenido task', () => {
+  it('leaves no gap under it: the product scroll area drops its bottom padding on the Contenido task (and Identidad, with its own bar)', () => {
     const view = readFileSync(resolve(__dirname, '../../../views/ProductDetailView.vue'), 'utf8')
-    expect(view).toMatch(/isEditorialTask \? 'pb-0' : 'pb-6'/)
+    expect(view).toMatch(/isEditorialTask \|\| showIdentitySaveBar \? 'pb-0' : 'pb-6'/)
     expect(view).not.toMatch(/overflow-y-auto px-4 pb-6 pt-6/)
   })
 

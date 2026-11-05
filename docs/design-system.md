@@ -399,7 +399,8 @@ The chosen direction for long forms is `design/content-editor-v3/02-section-card
 `HfCombobox` (Nuxt UI `USelectMenu` underneath) is the single choice control of forms, single or multiple. Use it for any list of options. For two to six short options that should all show at once, use `HfSegmented`.
 - **Anatomy:** a trigger (value, chips or placeholder, plus a chevron that is always shown and laid out in the flow, never over the text), then a popover (8px radius, soft shadow) with a search input on top once there are more than 7 options (`searchThreshold`), the options, and an optional footer of `specialAnswers`.
 - **Footer:** the `specialAnswers` are pinned under the options, below a 1px `--hf-border` hairline. They are always in view, because the options group scrolls and the footer does not (`hf-combobox__content--footer`). They keep their icons in muted italic and the same 36px rows and highlight. They are still options of the same list, so the arrow keys run from the last option into the footer.
-- **API:** `items {label, value, disabled?}[]`, `modelValue` (string or string[]), `multiple`, `label` (aria), `placeholder` (`Elige una opción`), `invalid`, `disabled`, `id`, `describedby`, `specialAnswers {value, label, icon}[]`, `special` with `update:special`, `searchThreshold` (7), and `embedded` for a compound control.
+- **API:** `items {label, value, disabled?}[]`, `modelValue` (string or string[]), `multiple`, `label` (aria), `placeholder` (`Elige una opción`), `invalid`, `disabled`, `id`, `describedby`, `specialAnswers {value, label, icon}[]`, `special` with `update:special`, `actions {value, label, icon}[]` with `action`, `searchThreshold` (7), and `embedded` for a compound control.
+- **Footer actions:** a command that belongs to the list (`Crear categoría`, `Crear marca`) goes in `actions`: it sits in the same pinned footer, after any special answers, in `--hf-action`, and stays reachable when a search matches nothing. Picking it emits `action` and changes neither the value nor the special answer; the owner opens its own dialog. A way to clear an optional choice is a regular first option (`Sin categoría`).
 - **Tokens:** trigger `--hf-field` with a `--hf-border` rest, `--hf-field-border` hover, `--hf-focus` ring and `--hf-danger` when invalid; options in `--hf-ink`, highlight `--hf-active-soft`, check `--hf-active`; chips `--hf-surface-muted`; the special label in `--hf-muted` italic.
 - **States:**
   - Options are 36px with the label centered and no gap under it. Hover and keyboard highlight use `--hf-active-soft`. The chosen option carries a trailing check.
@@ -454,7 +455,7 @@ The chosen direction for long forms is `design/content-editor-v3/02-section-card
   - Below the control is one message line, 12px: the help in `--hf-muted`, replaced by the error in `--hf-danger`. Its id is `${for ?? labelId}-message`. Pass it as the control's `describedby` whenever there is help or an error.
 - **Help disclosure:** the help is not a permanent paragraph. It stays in the DOM, visually hidden (clipped, never `display: none`) and still referenced by `describedby`. It shows while the field has focus (`:focus-within`, not counting the info button's own focus) or after the info button opens it. The info button is a ghost `info` icon next to the label, 28px with a 44px hit area, named `Ayuda de Etiqueta`, with `aria-expanded` and `aria-controls`. It exists only while there is help and no error. An error is never hidden.
 - **Markers:**
-  - `required`: a 6px `--hf-warning` dot, with `Requerido para publicar` for screen readers.
+  - `required`: a 6px `--hf-warning` dot, with `Requerido para publicar` for screen readers. `requiredLabel` changes those words where the field is needed to save rather than to publish (`Obligatorio`, the product name). Never a red `*`.
   - `internal`: a lock and `Interno` (12px muted).
 - **Special answers:** text-like fields take `specialAnswers`. They show ghost buttons on the right (24px, with a 44px hit area) that emit `special`. The hint takes the right side when both are present. Choice fields offer the same answers inside `HfCombobox`.
 - **Action reveal:** with a fine pointer (`(hover: hover) and (pointer: fine)`), the ghosts and the `actions` slot (evidence, `Quitar dato`) rest at opacity 0 and show on field hover or `:focus-within`. Only opacity changes, so they stay in the tab order and appear when reached by keyboard. On touch they are always visible. An action marked `data-active="true"` stays visible as an indicator, for example the paperclip of a field that has evidence, in `--hf-active`.
@@ -462,7 +463,7 @@ The chosen direction for long forms is `design/content-editor-v3/02-section-card
 
 ### Save bar
 
-`HfSaveBar` is the sticky bottom bar of an editable form (props `dirtyCount`, `saving`, `savedAt`, `error`; events `save` and `discard`).
+`HfSaveBar` is the sticky bottom bar of an editable form (props `dirtyCount`, `saving`, `savedAt`, `error`, `saveLabel`; events `save` and `discard`). `saveLabel` names the primary when the form says what it does: a create form reads `Crear producto` (`Crear servicio`), with the same rules (disabled while there is nothing to save).
 - **Anatomy:** `--hf-surface`, border-top, `bottom: 0`. The state is on the left (`aria-live="polite"`) and the actions on the right.
 - **States:**
   - Clean: a check and `Guardado hace N min`, muted (`justo ahora`, `hace N h`, `el 4 nov`; it refreshes every 30s).
@@ -471,6 +472,16 @@ The chosen direction for long forms is `design/content-editor-v3/02-section-card
   - Error: the message in `--hf-danger` with an alert icon; `Guardar` stays available to retry.
 - **Actions:** `Descartar` (ghost) appears only with changes. `Guardar` is the single primary (`hf-primary-control`), disabled with the shared disabled primary while there is nothing to save.
 - **Mobile:** the state on one row, then the actions in equal-width columns with centered labels and 44px height (Sticky mobile action bar). `Descartar` gets a `--hf-border` outline there. Reserve space under the content so the last field is never hidden.
+
+### Product Identidad
+
+The product page's Identidad task follows Formularios modernos (`ProductDetailView`).
+- **Sections:** three section cards, no index (fewer than 4): `Qué es` (Tipo as `HfSegmented` across both columns, Nombre across both, Unidad, Categoría, Marca, the location, Descripción with its `N de 2000` counter across both), `Códigos` (Código de barras, SKU, Clave SAT across both) and `Dónde se vende` (the three channel switches). Images and prices stay in Presentaciones.
+- **Tipo:** `HfSegmented` (`Producto` / `Servicio`); the old card descriptions became one help line behind ⓘ (`Un servicio no lleva inventario.`), since the form itself shows what changes.
+- **Choices:** Unidad, Categoría and Marca are `HfCombobox`; Categoría and Marca end in a `Crear …` footer action and start with `Sin …`. Clave SAT keeps `SatKeySelect` (an async server search, already on the soft field style).
+- **Validation:** each field keeps its `UFormField name` (the `UForm` schema, its live validation and the task reveal on error), rendered with `:error="false"` so the error shows once, under the field, through `HfFormField`.
+- **Switches:** a calm list in one card: label (14px/500) and a one-line description (13px muted) on the left, the switch on the right, `--hf-border` hairlines between rows.
+- **Save:** Identidad saves from its own `HfSaveBar` at the bottom of the scroll (state, `Descartar` with a confirm, `Guardar`, or `Crear producto` in create mode). It counts changed fields of the whole product form against a snapshot taken after the load, plus the pending variants, lots and priced lists when creating, since the bar saves that same form. The header `Guardar cambios` and its mobile bar stay for Presentaciones and Inventario and hide on Identidad and Contenido, so every task has one primary. `useLeaveGuard` covers the unsaved product form.
 
 ### Confirmación y salir sin guardar
 

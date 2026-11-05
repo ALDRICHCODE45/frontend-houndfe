@@ -312,6 +312,9 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
 
     expect(wrapper.find('.product-workspace.hf-theme.hf-ui').exists()).toBe(true)
     expect(wrapper.get('h1').classes()).toContain('hf-page-title')
+    // Identidad saves from its bar; the header primary serves the other tasks.
+    expect(wrapper.findAll('[data-testid="identity-save-bar"] .hf-primary-control')).toHaveLength(1)
+    await wrapper.get('[data-task="presentations"]').trigger('click')
     const submit = wrapper.get('button[form="product-detail-form"]')
     expect(submit.classes()).toContain('hf-primary-control')
     expect(submit.attributes('type')).toBe('submit')
@@ -358,7 +361,8 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
 
     it('shows service identity without inventing inventory in the summary', async () => {
       const wrapper = await mountTasks()
-      await wrapper.get('[role="radio"][value="SERVICE"]').trigger('click')
+      const service = wrapper.findAll('.hf-segmented [role="radio"]').find((segment) => segment.text() === 'Servicio')!
+      await service.trigger('click')
       const summary = wrapper.get('aside[aria-label="Resumen operativo del producto"]')
       expect(summary.text()).toContain('Servicio')
       expect(summary.get('[data-summary="stock"]').text()).toBe('—')
@@ -431,10 +435,13 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
     ])('hides the product header and mobile save on Contenido for %s, and brings them back on the other tasks', async (_who, permissionCodes) => {
       editorialSession.permissionCodes = permissionCodes
       const wrapper = await mountTasks()
-      expect(wrapper.find('button[form="product-detail-form"]').exists()).toBe(true)
-      expect(wrapper.find('[data-testid="mobile-action-bar"]').exists()).toBe(true)
+      // Identidad saves from its own bar, not from the header.
+      expect(wrapper.find('[data-testid="identity-save-bar"]').exists()).toBe(true)
+      expect(wrapper.find('button[form="product-detail-form"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="mobile-action-bar"]').exists()).toBe(false)
       await wrapper.get('[data-task="content"]').trigger('click')
       await flushPromises()
+      expect(wrapper.find('[data-testid="identity-save-bar"]').exists()).toBe(false)
       expect(wrapper.find('button[form="product-detail-form"]').exists()).toBe(false)
       expect(wrapper.find('[data-testid="mobile-action-bar"]').exists()).toBe(false)
       await wrapper.get('[data-task="presentations"]').trigger('click')

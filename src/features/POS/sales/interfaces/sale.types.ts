@@ -10,6 +10,7 @@ import type {
   SALE_TIMELINE_EVENT_TYPE,
 } from '../constants/sale.constants'
 import type { PaymentMethodCategory } from '@/core/shared/constants/payment-method-category'
+import type { PendingRefundRow } from './pending-refund.types'
 import { z } from 'zod'
 
 // Union types below are derived from the matching `as const` object in
@@ -266,7 +267,18 @@ export interface SaleDetail {
   // confirmed. Null means PUBLICO (the system default). Optional so
   // pre-existing fixtures that omit the field still type-check.
   globalPriceListId?: string | null
+  // T20 (handoff 06, «Cancelled sale detail»): null / [] on a confirmed sale.
+  // `parseSaleDetail` always fills them; optional so older fixtures type-check.
+  canceledAt?: string | null
+  cancelReason?: SaleCancellationReason | null
+  /** Null when the user who cancelled no longer exists. */
+  canceledBy?: SaleActorRef | null
+  /** Oldest first, fully returned ones (`outstandingCents: 0`) included. */
+  refunds?: SaleDetailRefund[]
 }
+
+/** One refund obligation of a cancelled sale: the pending-list row without `saleId`. */
+export type SaleDetailRefund = Omit<PendingRefundRow, 'saleId'>
 
 // ─── PCA-3 (promotion-capacity-alerts): full sale cancellation ───────────────
 //
@@ -534,6 +546,8 @@ export type SellerAssignmentErrorCode =
   | 'SELLER_NOT_FOUND'
   | 'SALE_NOT_FOUND'
   | 'SALE_UPDATE_FORBIDDEN'
+  // 422: the sale was cancelled meanwhile; nothing was written.
+  | 'SALE_CANCELED'
 
 export class SellerAssignmentError extends Error {
   constructor(

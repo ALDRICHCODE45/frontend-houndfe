@@ -266,7 +266,14 @@
   font-style: italic;
 }
 
+/* A footer command (`Crear categoría`) reads as an action, not an answer. */
+.hf-ui .hf-combobox__action [data-slot='itemLabel'],
+.hf-ui .hf-combobox__action [data-slot='itemLeadingIcon'] {
+  color: var(--hf-action);
+}
+
 .hf-ui .hf-combobox__special [data-slot='itemLeadingIcon'],
+.hf-ui .hf-combobox__action [data-slot='itemLeadingIcon'],
 .hf-ui .hf-combobox__icon {
   width: 16px;
   height: 16px;

@@ -85,3 +85,13 @@ describe('HfSaveBar actions', () => {
     expect(button(wrapper, 'Descartar')!.attributes('disabled')).toBeDefined()
   })
 })
+
+describe('HfSaveBar primary label', () => {
+  it('names the primary from saveLabel (a create form says what it creates), with the same rules', () => {
+    const clean = mountBar({ saveLabel: 'Crear producto' })
+    expect(button(clean, 'Guardar')).toBeUndefined()
+    expect(button(clean, 'Crear producto')!.attributes('disabled')).toBeDefined()
+    const dirty = mountBar({ dirtyCount: 1, saveLabel: 'Crear producto' })
+    expect(button(dirty, 'Crear producto')!.attributes('disabled')).toBeUndefined()
+  })
+})

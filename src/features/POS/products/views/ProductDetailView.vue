@@ -2,7 +2,7 @@
 import '@/core/shared/design-system/houndfe-ui.css'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { AxiosError } from 'axios'
-import { computed, reactive, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, reactive, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import ProductWorkspaceNavigation, { type ProductWorkspaceTask } from '../components/ProductWorkspaceNavigation.vue'
 import EditorialWorkspace from '../components/editorial/EditorialWorkspace.vue'
 import InventoryStockPanel from '@/features/POS/inventory/components/InventoryStockPanel.vue'
@@ -42,7 +42,14 @@ import {
   type ProductStockErrorField,
 } from '../utils/productStockErrors'
 import ProductImageGallery from '../components/ProductImageGallery.vue'
-import CategorySelect from '../components/CategorySelect.vue'
+import HfCombobox, { type HfComboboxItem } from '@/core/shared/components/form/HfCombobox.vue'
+import HfFieldGrid from '@/core/shared/components/form/HfFieldGrid.vue'
+import HfFormField from '@/core/shared/components/form/HfFormField.vue'
+import HfSaveBar from '@/core/shared/components/form/HfSaveBar.vue'
+import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
+import HfSegmented from '@/core/shared/components/form/HfSegmented.vue'
+import { useConfirm } from '@/core/shared/composables/useConfirm'
+import { useLeaveGuard } from '@/core/shared/composables/useLeaveGuard'
 import SatKeySelect from '../components/SatKeySelect.vue'
 import VariantDetailModal from '../components/VariantDetailModal.vue'
 import VariantImagePickerModal from '../components/VariantImagePickerModal.vue'
@@ -405,6 +412,12 @@ const showWorkspace = computed(
 const showProductSave = computed(
   () => showWorkspace.value && !isFormReadonly.value && !(isEditorialTask.value && !isCreateMode.value),
 )
+/** Identidad saves from its own bar at the bottom (like Contenido); the header and mobile save stay
+ * for the other operational tasks, which keep sharing the same form. */
+const showIdentitySaveBar = computed(
+  () => showWorkspace.value && !isFormReadonly.value && activeTask.value === 'identity',
+)
+const showHeaderSave = computed(() => showProductSave.value && activeTask.value !== 'identity')
 
 const { data: categories } = useQuery<CategoryOption[]>({
   queryKey: computed(() => productQueryKeys.categories(tenantId.value)),
@@ -527,27 +540,33 @@ function syncInlineVariantPublicPriceInputs(nextVariants: ProductVariant[]) {
   }
 }
 
-const categoryItems = computed(() => [
-  { label: 'Crear categoría', value: '__create__', icon: 'i-lucide-plus', type: 'action' as const },
-  { label: '', value: '__sep__', type: 'separator' as const },
-  { label: 'Sin categoría', value: '', icon: 'i-lucide-minus' },
-  ...categoriesList.value.map((category) => ({
-    label: category.name,
-    value: category.id,
-    icon: 'i-lucide-package',
-  })),
+// «Sin …» clears the choice; HfCombobox needs a non-empty value for it.
+const NO_CHOICE = '__none__'
+const categoryActions = [{ value: 'create', label: 'Crear categoría', icon: 'i-lucide-plus' }]
+const brandActions = [{ value: 'create', label: 'Crear marca', icon: 'i-lucide-plus' }]
+const categoryItems = computed<HfComboboxItem[]>(() => [
+  { label: 'Sin categoría', value: NO_CHOICE },
+  ...categoriesList.value.map((category) => ({ label: category.name, value: category.id })),
 ])
-
-const brandItems = computed(() => [
-  { label: 'Crear marca', value: '__create__', icon: 'i-lucide-plus', type: 'action' as const },
-  { label: '', value: '__sep__', type: 'separator' as const },
-  { label: 'Sin marca', value: '', icon: 'i-lucide-minus' },
-  ...brandsList.value.map((brand) => ({
-    label: brand.name,
-    value: brand.id,
-    icon: 'i-lucide-tag',
-  })),
+const brandItems = computed<HfComboboxItem[]>(() => [
+  { label: 'Sin marca', value: NO_CHOICE },
+  ...brandsList.value.map((brand) => ({ label: brand.name, value: brand.id })),
 ])
+const unitItems = computed<HfComboboxItem[]>(() =>
+  unitOptionsFor(formState.type).map((unit) => ({ label: unit.label, value: unit.value })),
+)
+const TYPE_ITEMS: HfComboboxItem[] = [
+  { label: 'Producto', value: 'PRODUCT' },
+  { label: 'Servicio', value: 'SERVICE' },
+]
+const channelToggles = [
+  { key: 'sellInPos', label: 'Vender en punto de venta', description: 'Aparece en la pantalla de venta' },
+  { key: 'includeInOnlineCatalog', label: 'Incluir en catálogo en línea', description: 'Visible en la tienda en línea' },
+  { key: 'requiresPrescription', label: 'Requerir receta médica', description: 'Se pide la receta al venderlo' },
+] as const
+const fromChoice = (value: string | string[] | null) => (typeof value === 'string' && value !== NO_CHOICE ? value : '')
+/** A UFormField slot error is a string, or `false`/`undefined` with nothing to say. */
+const fieldError = (error: unknown) => (typeof error === 'string' && error ? error : undefined)
 
 const showLotsCheckbox = computed(() => formState.useStock && !formState.hasVariants)
 const showStockByVariantMessage = computed(() => formState.hasVariants)
@@ -654,16 +673,32 @@ const variantSubmitLabel = computed(() =>
   editingVariantId.value ? 'Guardar variante' : 'Agregar variante',
 )
 
+// ── Unsaved changes: the form against a snapshot taken once the load (and its watchers) settled ──
+const pristineForm = shallowRef<string | null>(null)
+const restoringForm = shallowRef(false)
+const savedAt = ref<Date | string | null>(null)
+const saveError = ref<string | null>(null)
+const leaveAllowed = shallowRef(false)
+
+function snapshotForm() {
+  void nextTick(() => { pristineForm.value = JSON.stringify(formState) })
+}
+
+function resetCreateState() {
+  Object.assign(formState, getDefaultFormState())
+  pendingVariants.value = []
+  pendingLots.value = []
+  pendingPriceLists.value = []
+  isAddPriceListPickerOpen.value = false
+  pendingPriceListSelection.value = ''
+}
+
 watch(
   () => isCreateMode.value,
   (createMode) => {
     if (createMode) {
-      Object.assign(formState, getDefaultFormState())
-      pendingVariants.value = []
-      pendingLots.value = []
-      pendingPriceLists.value = []
-      isAddPriceListPickerOpen.value = false
-      pendingPriceListSelection.value = ''
+      resetCreateState()
+      snapshotForm()
     }
   },
   { immediate: true },
@@ -674,9 +709,30 @@ watch(
   (productValue) => {
     if (!productValue || isCreateMode.value) return
     Object.assign(formState, productToFormInput(productValue))
+    savedAt.value = productValue.updatedAt ?? null
+    snapshotForm()
   },
   { immediate: true },
 )
+
+const dirtyCount = computed(() => {
+  if (pristineForm.value === null) return 0
+  const pristine = JSON.parse(pristineForm.value) as Record<string, unknown>
+  const current = formState as unknown as Record<string, unknown>
+  const keys = new Set([...Object.keys(pristine), ...Object.keys(current)])
+  let changed = [...keys].filter((key) => JSON.stringify(current[key]) !== JSON.stringify(pristine[key])).length
+  if (isCreateMode.value) {
+    changed += pendingVariants.value.length + pendingLots.value.length
+    // Only priced lists reach the payload (buildFullCreatePayload); the auto-attached zero lists are no change.
+    changed += pendingPriceLists.value.filter((pl) => pl.priceCents > 0 || (pl.tierPrices?.length ?? 0) > 0).length
+  }
+  return changed
+})
+const isSaving = computed(() => updateMutation.isPending.value || createMutation.isPending.value)
+
+useLeaveGuard(() => dirtyCount.value > 0 && !leaveAllowed.value, {
+  description: 'Tienes cambios sin guardar en el producto.',
+})
 
 watch(
   () => variantsList.value,
@@ -723,6 +779,8 @@ watch(
 watch(
   () => formState.type,
   (type, previousType) => {
+    // Descartar puts back a consistent snapshot: no defaults to force, nothing to warn about.
+    if (restoringForm.value) return
     // SERVICE: force inventory defaults (stock/lots off, qty 0) and clear
     // pendingLots only. NEVER force hasVariants=false and NEVER clear
     // pendingVariants / pendingPriceLists — services support variants
@@ -996,8 +1054,12 @@ const createMutation = useMutation({
 
     return createdProduct
   },
+  onMutate: () => {
+    saveError.value = null
+  },
   onSuccess: async (createdProduct) => {
     satKeyError.value = ''
+    leaveAllowed.value = true
     pendingVariants.value = []
     pendingLots.value = []
     pendingPriceLists.value = []
@@ -1013,6 +1075,7 @@ const createMutation = useMutation({
   },
   onError: (error) => {
     const message = mapDomainError(error as AxiosError<DomainApiError>)
+    saveError.value = message
     toast.add({ title: 'Error al crear producto', description: message, color: 'error' })
   },
 })
@@ -1022,9 +1085,13 @@ const updateMutation = useMutation({
     if (!productId.value) throw new Error('Missing product id')
     return productApi.update(productId.value, payload)
   },
-  onMutate: clearStockErrors,
+  onMutate: () => {
+    clearStockErrors()
+    saveError.value = null
+  },
   onSuccess: async () => {
     satKeyError.value = ''
+    savedAt.value = new Date()
     toast.add({
       title: 'Producto actualizado',
       description: 'Los cambios se guardaron correctamente.',
@@ -1052,6 +1119,7 @@ const updateMutation = useMutation({
       (code === 'PRODUCT_HAS_VARIANTS'
         ? 'No puedes desactivar las variantes mientras el producto tenga variantes. Elimínalas primero.'
         : mapDomainError(error as AxiosError<DomainApiError>))
+    saveError.value = message
     toast.add({ title: 'Error al actualizar producto', description: message, color: 'error' })
   },
 })
@@ -1447,38 +1515,6 @@ function closeLotModal() {
   resetLotForm()
 }
 
-function handleCategorySelectChange(value: string) {
-  if (value === '__create__') {
-    formState.categoryId = ''
-    openCreateCategoryModal()
-    return
-  }
-
-  formState.categoryId = value
-}
-
-function handleCategoryAction(value: string) {
-  if (value === '__create__') {
-    openCreateCategoryModal()
-  }
-}
-
-function handleBrandSelectChange(value: string) {
-  if (value === '__create__') {
-    formState.brandId = ''
-    openCreateBrandModal()
-    return
-  }
-
-  formState.brandId = value
-}
-
-function handleBrandAction(value: string) {
-  if (value === '__create__') {
-    openCreateBrandModal()
-  }
-}
-
 // ── Local price list management (create mode) ──────────────
 function addPendingPriceList(priceListId: string, priceCents: number) {
   if (!priceListId) return
@@ -1600,6 +1636,36 @@ function saveTierRows() {
 
   list.tierPrices = mapped
   closeTierPricesModal()
+}
+
+const mainForm = useTemplateRef('mainForm')
+
+function saveFromIdentityBar() {
+  void mainForm.value?.submit()
+}
+
+async function discardFormChanges() {
+  const discard = await useConfirm().confirm({
+    title: '¿Descartar los cambios?',
+    description: 'Se pierden los cambios sin guardar del producto.',
+    confirmLabel: 'Descartar',
+    cancelLabel: 'Seguir editando',
+    tone: 'danger',
+  })
+  if (!discard) return
+  restoringForm.value = true
+  if (isCreateMode.value) {
+    resetCreateState()
+    for (const gpl of globalPriceListOptions.value) addPendingPriceList(gpl.id, 0)
+  } else if (pristineForm.value !== null) {
+    Object.assign(formState, JSON.parse(pristineForm.value))
+  }
+  clearStockErrors()
+  satKeyError.value = ''
+  saveError.value = null
+  mainForm.value?.clear()
+  await nextTick()
+  restoringForm.value = false
 }
 
 function handleSubmitMainForm(event: FormSubmitEvent<MainFormValues>) {
@@ -2046,7 +2112,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
           </div>
         </div>
 
-        <div v-if="showProductSave" class="max-md:hidden">
+        <div v-if="showHeaderSave" class="max-md:hidden">
           <UButton
             :label="isCreateMode ? createModeSubmitLabel : 'Guardar cambios'"
             type="submit"
@@ -2060,10 +2126,10 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
       </div>
     </div>
 
-    <!-- On Contenido the save bar is the last thing in the scroll, flush to its bottom edge: no padding under it. -->
+    <!-- On Contenido and Identidad the save bar is the last thing in the scroll, flush to its bottom edge: no padding under it. -->
     <div
       class="mx-auto flex w-full min-w-0 max-w-[1480px] flex-1 flex-col gap-6 overflow-y-auto px-4 pt-6 sm:px-6 lg:px-10"
-      :class="isEditorialTask ? 'pb-0' : 'pb-6'"
+      :class="isEditorialTask || showIdentitySaveBar ? 'pb-0' : 'pb-6'"
     >
       <EmptyState
         v-if="isProductNotFound"
@@ -2118,6 +2184,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
         />
         <UForm
           id="product-detail-form"
+          ref="mainForm"
           class="min-w-0"
           :schema="productFormSchema"
           :state="formState"
@@ -2125,144 +2192,164 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
           @error="revealInvalidTask"
         >
         <fieldset :disabled="isFormReadonly" class="min-w-0 space-y-6">
-          <div v-show="activeTask === 'identity'" data-product-task="identity">
-          <UCard :ui="{ root: 'overflow-visible' }">
-            <template #header>
-              <h2 class="text-base font-semibold">Datos del producto</h2>
-            </template>
-
-            <div class="space-y-4">
-              <UFormField label="Tipo de producto" name="type" class="md:col-span-2">
-                <URadioGroup
-                  v-model="formState.type"
-                  orientation="horizontal"
-                  variant="card"
-                  :items="[
-                    {
-                      label: 'Producto',
-                      description: 'Artículo físico con inventario',
-                      value: 'PRODUCT',
-                    },
-                    {
-                      label: 'Servicio',
-                      description: 'Sin control de inventario',
-                      value: 'SERVICE',
-                    },
-                  ]"
-                />
-                <p
-                  v-if="stockErrors.type"
-                  class="mt-1 text-xs text-[var(--hf-danger)]"
-                  role="alert"
-                  data-testid="type-error"
-                >
-                  {{ stockErrors.type }}
-                </p>
-              </UFormField>
-
-              <USeparator class="my-4" />
-
-              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <UFormField label="Nombre" name="name" required class="md:col-span-2">
-                  <UInput v-model="formState.name" class="w-full" placeholder="Ej: Jabón de mano" />
+          <div v-show="activeTask === 'identity'" data-product-task="identity" class="product-identity">
+            <HfSectionCard id="product-identity-what" title="Qué es" :heading-level="2">
+              <HfFieldGrid>
+                <UFormField v-slot="{ error }" name="type" :error="false" span="full">
+                  <HfFormField
+                    label="Tipo"
+                    label-id="product-type-label"
+                    help="Un servicio no lleva inventario."
+                    :error="fieldError(error)"
+                  >
+                    <HfSegmented
+                      :items="TYPE_ITEMS"
+                      :model-value="formState.type"
+                      labelledby="product-type-label"
+                      :disabled="isFormReadonly"
+                      @update:model-value="formState.type = $event as ProductFormInput['type']"
+                    />
+                    <p
+                      v-if="stockErrors.type"
+                      class="hf-form-field__message"
+                      data-tone="error"
+                      role="alert"
+                      data-testid="type-error"
+                    >
+                      {{ stockErrors.type }}
+                    </p>
+                  </HfFormField>
                 </UFormField>
 
-                <UFormField v-if="showInventoryFields" label="Código de barras" name="barcode">
-                  <UInput v-model="formState.barcode" class="w-full" placeholder="Opcional" />
+                <UFormField v-slot="{ error }" name="name" :error="false" span="full">
+                  <HfFormField label="Nombre" for="product-name" required required-label="Obligatorio" :error="fieldError(error)">
+                    <UInput v-model="formState.name" class="w-full" id="product-name" placeholder="Ej: Jabón de mano" />
+                  </HfFormField>
                 </UFormField>
 
-                <UFormField v-if="showInventoryFields" label="SKU" name="sku">
-                  <UInput v-model="formState.sku" class="w-full" placeholder="Opcional" />
-                </UFormField>
-              </div>
-
-              <USeparator class="my-4" />
-
-              <div class="space-y-3">
-                <USwitch
-                  v-model="formState.sellInPos"
-                  label="Vender en punto de venta"
-                  description="Este producto aparecerá en la pantalla del POS"
-                />
-                <USwitch
-                  v-model="formState.includeInOnlineCatalog"
-                  label="Incluir en catálogo en línea"
-                  description="Visible en la tienda online"
-                />
-                <USwitch
-                  v-model="formState.requiresPrescription"
-                  label="Requerir receta médica"
-                  description="Exigir receta médica para su venta"
-                />
-              </div>
-
-              <USeparator class="my-4" />
-
-              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <UFormField label="Unidad" name="unit">
-                  <USelect
-                    v-model="formState.unit"
-                    :items="
-                      unitOptionsFor(formState.type).map((unit) => ({
-                        label: unit.label.toUpperCase(),
-                        value: unit.value,
-                      }))
-                    "
-                    size="lg"
-                    class="w-full"
-                  />
+                <UFormField v-slot="{ error }" name="unit" :error="false">
+                  <HfFormField label="Unidad" label-id="product-unit-label" :error="fieldError(error)">
+                    <HfCombobox
+                      id="product-unit"
+                      label="Unidad"
+                      :items="unitItems"
+                      :model-value="formState.unit"
+                      :invalid="Boolean(fieldError(error))"
+                      :disabled="isFormReadonly"
+                      @update:model-value="formState.unit = fromChoice($event) || formState.unit"
+                    />
+                  </HfFormField>
                 </UFormField>
 
-                <UFormField label="Categoría" name="categoryId">
-                  <CategorySelect
-                    :model-value="formState.categoryId"
-                    :items="categoryItems"
-                    placeholder="Seleccionar categoría"
-                    size="lg"
-                    @update:model-value="handleCategorySelectChange"
-                    @action="handleCategoryAction"
-                  />
+                <UFormField v-slot="{ error }" name="categoryId" :error="false">
+                  <HfFormField label="Categoría" label-id="product-category-label" :error="fieldError(error)">
+                    <HfCombobox
+                      id="product-category"
+                      label="Categoría"
+                      placeholder="Sin categoría"
+                      :items="categoryItems"
+                      :model-value="formState.categoryId || null"
+                      :actions="categoryActions"
+                      :invalid="Boolean(fieldError(error))"
+                      :disabled="isFormReadonly"
+                      @update:model-value="formState.categoryId = fromChoice($event)"
+                      @action="openCreateCategoryModal"
+                    />
+                  </HfFormField>
                 </UFormField>
 
-                <UFormField v-if="showInventoryFields" label="Marca" name="brandId">
-                  <CategorySelect
-                    :model-value="formState.brandId"
-                    :items="brandItems"
-                    placeholder="Seleccionar marca"
-                    size="lg"
-                    @update:model-value="handleBrandSelectChange"
-                    @action="handleBrandAction"
-                  />
+                <UFormField v-if="showInventoryFields" v-slot="{ error }" name="brandId" :error="false">
+                  <HfFormField label="Marca" label-id="product-brand-label" :error="fieldError(error)">
+                    <HfCombobox
+                      id="product-brand"
+                      label="Marca"
+                      placeholder="Sin marca"
+                      :items="brandItems"
+                      :model-value="formState.brandId || null"
+                      :actions="brandActions"
+                      :invalid="Boolean(fieldError(error))"
+                      :disabled="isFormReadonly"
+                      @update:model-value="formState.brandId = fromChoice($event)"
+                      @action="openCreateBrandModal"
+                    />
+                  </HfFormField>
                 </UFormField>
 
-                <UFormField :label="locationFieldLabel" name="location">
-                  <UInput
-                    v-model="formState.location"
-                    class="w-full"
-                    :placeholder="
-                      formState.type === 'SERVICE'
-                        ? 'Ej: Zona de guardería'
-                        : 'Ej: Estante 3B'
-                    "
-                  />
+                <UFormField v-slot="{ error }" name="location" :error="false">
+                  <HfFormField :label="locationFieldLabel" for="product-location" :error="fieldError(error)">
+                    <UInput
+                      v-model="formState.location"
+                      class="w-full"
+                      id="product-location"
+                      :placeholder="formState.type === 'SERVICE' ? 'Ej: Zona de guardería' : 'Ej: Estante 3B'"
+                    />
+                  </HfFormField>
                 </UFormField>
 
-                <UFormField label="SAT Key" name="satKey">
-                  <SatKeySelect v-model="formState.satKey" :error="satKeyError" />
+                <UFormField v-slot="{ error }" name="description" :error="false" span="full">
+                  <HfFormField
+                    label="Descripción"
+                    for="product-description"
+                    :hint="`${formState.description.length} de 2000`"
+                    :error="fieldError(error)"
+                  >
+                    <UTextarea
+                      v-model="formState.description"
+                      id="product-description"
+                      :rows="4"
+                      class="w-full"
+                      placeholder="Agregar una descripción..."
+                    />
+                  </HfFormField>
+                </UFormField>
+              </HfFieldGrid>
+            </HfSectionCard>
+
+            <HfSectionCard id="product-identity-codes" title="Códigos" :heading-level="2">
+              <HfFieldGrid>
+                <UFormField v-if="showInventoryFields" v-slot="{ error }" name="barcode" :error="false">
+                  <HfFormField label="Código de barras" for="product-barcode" :error="fieldError(error)">
+                    <UInput v-model="formState.barcode" class="w-full" id="product-barcode" placeholder="Opcional" />
+                  </HfFormField>
                 </UFormField>
 
-                <UFormField label="Descripción" name="description" class="md:col-span-2">
-                  <UTextarea
-                    v-model="formState.description"
-                    :rows="4"
-                    class="w-full"
-                    placeholder="Agregar una descripción..."
-                  />
+                <UFormField v-if="showInventoryFields" v-slot="{ error }" name="sku" :error="false">
+                  <HfFormField label="SKU" for="product-sku" :error="fieldError(error)">
+                    <UInput v-model="formState.sku" class="w-full" id="product-sku" placeholder="Opcional" />
+                  </HfFormField>
                 </UFormField>
-              </div>
+
+                <UFormField name="satKey" :error="false" span="full">
+                  <HfFormField label="Clave SAT" for="product-sat-key">
+                    <SatKeySelect id="product-sat-key" v-model="formState.satKey" :error="satKeyError" />
+                  </HfFormField>
+                </UFormField>
+              </HfFieldGrid>
+            </HfSectionCard>
+
+            <HfSectionCard id="product-identity-channels" title="Dónde se vende" :heading-level="2">
+              <ul class="product-toggle-list">
+                <li v-for="toggle in channelToggles" :key="toggle.key" class="product-toggle-row">
+                  <span class="product-toggle-row__text">
+                    <label :for="`product-${toggle.key}`" class="product-toggle-row__label">{{ toggle.label }}</label>
+                    <span class="product-toggle-row__description">{{ toggle.description }}</span>
+                  </span>
+                  <USwitch :id="`product-${toggle.key}`" v-model="formState[toggle.key]" />
+                </li>
+              </ul>
+            </HfSectionCard>
+
+            <div v-if="showIdentitySaveBar" class="product-identity-save" data-testid="identity-save-bar">
+              <HfSaveBar
+                :dirty-count="dirtyCount"
+                :saving="isSaving"
+                :saved-at="isCreateMode ? null : savedAt"
+                :error="saveError"
+                :save-label="isCreateMode ? createModeSubmitLabel : 'Guardar'"
+                @save="saveFromIdentityBar"
+                @discard="discardFormChanges"
+              />
             </div>
-          </UCard>
-
           </div>
           <div v-show="activeTask === 'presentations'" data-product-task="presentations" class="space-y-6">
           <UCard v-if="showInventoryFields">
@@ -2679,7 +2766,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
 
     <!-- Mobile: the single primary lives in the sticky bottom bar. -->
     <div
-      v-if="showProductSave"
+      v-if="showHeaderSave"
       class="product-action-bar shrink-0 md:hidden"
       data-testid="mobile-action-bar"
     >
@@ -3173,6 +3260,25 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
   .product-workspace-grid { grid-template-columns: minmax(0, 1fr); }
   /* The summary leads on mobile, collapsed behind its toggle. */
   .product-workspace-grid > :last-child { order: -1; }
+}
+/* Identidad: section cards 16px apart, then its save bar flush to the scroller's bottom edge (as on Contenido). */
+.product-identity { display: grid; gap: 16px; min-width: 0; }
+.product-identity-save { position: sticky; bottom: 0; z-index: 5; margin-inline: -16px; }
+.product-identity-save :deep(.hf-save-bar) { position: static; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+/* A calm list of switches: label and description on the left, the switch on the right, hairlines between. */
+.product-toggle-list { margin: 0; padding: 0; list-style: none; }
+.product-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 56px; padding: 10px 0; }
+.product-toggle-row + .product-toggle-row { border-top: 1px solid var(--hf-border); }
+.product-toggle-row:first-child { padding-top: 0; }
+.product-toggle-row:last-child { padding-bottom: 0; }
+.product-toggle-row__text { display: grid; gap: 2px; min-width: 0; }
+.product-toggle-row__label { color: var(--hf-ink); font-size: 14px; font-weight: 500; cursor: pointer; }
+.product-toggle-row__description { color: var(--hf-muted); font-size: 13px; }
+@media (min-width: 640px) {
+  .product-identity-save { margin-inline: -24px; }
+}
+@media (min-width: 1024px) {
+  .product-identity-save { margin-inline: 0; }
 }
 .product-action-bar {
   border-top: 1px solid var(--hf-border);

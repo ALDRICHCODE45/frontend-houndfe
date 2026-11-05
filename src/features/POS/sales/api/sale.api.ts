@@ -33,11 +33,18 @@ import type {
   ActivePaymentMethodProjection,
 } from '../interfaces/sale.types'
 import { SaleCommentError } from '../interfaces/sale.types'
+import { parseSaleDetail } from '../interfaces/sale-detail.schema'
 import {
   parsePendingRefundsResponse,
   type PendingRefundsQuery,
   type PendingRefundsResponse,
 } from '../interfaces/pending-refund.types'
+import {
+  parseRefundSettlementResponse,
+  toRefundSettlementBody,
+  type RefundSettlementRequest,
+  type RefundSettlementResponse,
+} from '../interfaces/refund-settlement.types'
 
 interface DomainErrorResponse {
   error?: string
@@ -316,9 +323,26 @@ export const saleApi = {
     return parsePendingRefundsResponse(data, { page: params.page, limit: params.limit })
   },
 
+  // odd/handoff/06-refund-settlements.md §4: records one return of money against a refund.
+  // The body is rebuilt (closed contract) and the caller owns the `Idempotency-Key`: one key
+  // per attempt, reused only to retry that same body.
+  async settleRefund(
+    refundId: string,
+    request: RefundSettlementRequest,
+    idempotencyKey: string,
+  ): Promise<RefundSettlementResponse> {
+    const { data } = await http.post<unknown>(
+      `/sales/refunds/${encodeURIComponent(refundId)}/settlements`,
+      toRefundSettlementBody(request),
+      { headers: { 'Idempotency-Key': idempotencyKey } },
+    )
+
+    return parseRefundSettlementResponse(data, { refundId })
+  },
+
   async getById(id: string): Promise<SaleDetail> {
-    const { data } = await http.get<SaleDetail>(`/sales/${id}`)
-    return data
+    const { data } = await http.get<unknown>(`/sales/${id}`)
+    return parseSaleDetail(data)
   },
 
   async addComment(saleId: string, payload: { body: string }): Promise<SaleComment> {

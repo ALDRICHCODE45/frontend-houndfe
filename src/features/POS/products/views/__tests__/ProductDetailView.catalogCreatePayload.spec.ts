@@ -283,8 +283,10 @@ describe('ProductDetailView · REQ-17 inline variant create (create mode)', () =
     await nameInput.setValue('Test Product for REQ17')
     await nextTick()
 
-    // 12. Submit main product form by clicking the submit button
-    const submitProductBtn = wrapper.find('button[type="submit"][form="product-detail-form"]') as ReturnType<typeof mount>['find'] extends (selector: string) => infer R ? R : never
+    // 12. Submit main product form from Identidad's save bar (its single primary in create mode)
+    const submitProductBtn = wrapper
+      .findAll('[data-testid="identity-save-bar"] button')
+      .find((button) => button.text() === 'Crear producto')!
     expect(submitProductBtn.exists()).toBe(true)
     await submitProductBtn.trigger('click')
     await nextTick()

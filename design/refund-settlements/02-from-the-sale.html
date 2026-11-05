@@ -1,0 +1,1008 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HoundFe · Desde la venta</title>
+<style>
+:root{
+--hf-page:#f5f6f8;--hf-surface:#ffffff;--hf-surface-muted:#e7eef7;--hf-field:#ffffff;--hf-field-border:#8593a3;
+--hf-ink:#24313d;--hf-heading:#173968;--hf-muted:#576574;--hf-border:#dce2e8;
+--hf-action:#2442f6;--hf-on-action:#ffffff;--hf-active:#2442f6;--hf-active-soft:#edf0ff;--hf-focus:#2442f6;
+--hf-gold:#f6bb13;--hf-gold-soft:#fff5d6;--hf-gold-ink:#443218;
+--hf-warning:#805511;--hf-warning-soft:#fff5d6;--hf-success:#236044;
+--hf-danger:#b42318;--hf-danger-soft:#fef3f2;--hf-danger-border:#f4b8b2;
+--hf-font:'Geist', ui-sans-serif, system-ui, sans-serif;
+--hf-radius-card:12px;--hf-radius-control:6px;--hf-control-height:44px;
+--shadow-soft:0 1px 2px color-mix(in srgb,var(--hf-ink) 5%,transparent);
+--shadow-pop:0 12px 32px -12px color-mix(in srgb,var(--hf-ink) 24%,transparent),0 2px 6px color-mix(in srgb,var(--hf-ink) 8%,transparent);
+--scrim:color-mix(in srgb,var(--hf-ink) 40%,transparent);
+color-scheme:light;
+}
+html.dark{
+--hf-page:#0e1520;--hf-surface:#192332;--hf-surface-muted:#202e43;--hf-field:#121d2c;--hf-field-border:#64758d;
+--hf-ink:#edf2fa;--hf-heading:#edf2fa;--hf-muted:#adbcd0;--hf-border:#354459;
+--hf-action:#91b0ff;--hf-on-action:#132344;--hf-active:#b3caff;--hf-active-soft:#223555;--hf-focus:#a6c1ff;
+--hf-gold:#f2c456;--hf-gold-soft:#3b311d;--hf-gold-ink:#f2cb71;
+--hf-warning:#f2cb71;--hf-warning-soft:#3b311d;--hf-success:#a2d9b9;
+--hf-danger:#ffb4ab;--hf-danger-soft:#3d2220;--hf-danger-border:#7a3f3b;
+--shadow-soft:0 1px 2px color-mix(in srgb,var(--hf-page) 40%,transparent);
+--shadow-pop:0 12px 32px -12px color-mix(in srgb,var(--hf-page) 90%,transparent),0 2px 6px color-mix(in srgb,var(--hf-page) 60%,transparent);
+--scrim:color-mix(in srgb,var(--hf-page) 70%,transparent);
+color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:color-mix(in srgb,var(--hf-surface-muted) 45%,var(--hf-page));color:var(--hf-ink);font:400 14px/1.5 var(--hf-font);font-feature-settings:"cv11","ss01"}
+button,input,textarea{font:inherit;color:inherit}
+h1,h2,h3,p,ul,ol,dl,dd{margin:0}
+ul,ol{padding:0;list-style:none}
+h1,h2,h3{color:var(--hf-heading);font-weight:600}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--hf-focus);outline-offset:2px}
+.icon{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.icon.sm{width:16px;height:16px}
+.icon.xs{width:14px;height:14px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.fig{font-variant-numeric:tabular-nums}
+
+/* artboard tools, outside the mock */
+.tools{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:100;display:flex;flex-wrap:wrap;justify-content:center;gap:4px;padding:4px;max-width:calc(100vw - 24px);background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:12px;box-shadow:var(--shadow-pop)}
+.tools button{height:36px;padding:0 12px;border:0;border-radius:8px;background:transparent;color:var(--hf-ink);font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:8px;cursor:pointer;white-space:nowrap}
+.tools button:hover{background:var(--hf-surface-muted)}
+.tools .sep{width:1px;margin:6px 2px;background:var(--hf-border)}
+
+/* stage and frame */
+.stage{padding:64px 16px 16px;display:flex;justify-content:center}
+.app{position:relative;width:min(1440px,100%);height:calc(100vh - 80px);min-height:600px;display:flex;background:var(--hf-page);border:1px solid var(--hf-border);border-radius:12px;overflow:hidden;container:app / inline-size}
+.stage.mobile .app{width:390px;height:min(844px,calc(100vh - 80px))}
+
+/* sidebar */
+.sidebar{width:240px;flex-shrink:0;display:flex;flex-direction:column;gap:4px;padding:16px 12px;background:var(--hf-surface);border-right:1px solid var(--hf-border);overflow-y:auto}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 12px}
+.brand-mark{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;background:var(--hf-action);color:var(--hf-on-action)}
+.brand-name{font-weight:600;color:var(--hf-heading);font-size:15px;letter-spacing:-0.01em}
+.tenant{display:flex;align-items:center;gap:8px;height:40px;padding:0 10px;margin-bottom:8px;border:1px solid var(--hf-border);border-radius:8px;background:transparent;font-size:13px;font-weight:500;cursor:pointer;width:100%;text-align:left}
+.tenant:hover{border-color:var(--hf-field-border)}
+.tenant .dot{width:8px;height:8px;border-radius:50%;background:var(--hf-success)}
+.tenant span:nth-child(2){flex:1}
+.nav-group{padding:12px 10px 4px;font-size:12px;font-weight:600;color:var(--hf-muted)}
+.nav a{display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;border-radius:6px;font-size:14px;font-weight:500;color:var(--hf-ink);text-decoration:none}
+.nav a .icon{color:var(--hf-muted)}
+.nav a:hover{background:var(--hf-surface-muted)}
+.nav a[aria-current="page"]{background:var(--hf-active-soft);color:var(--hf-active)}
+.nav a[aria-current="page"] .icon{color:var(--hf-active)}
+.nav .count{margin-left:auto;font-size:12px;font-weight:600;color:var(--hf-warning)}
+
+/* main column and header */
+.col{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{display:flex;align-items:center;gap:12px;height:56px;padding:0 24px;background:var(--hf-surface);border-bottom:1px solid var(--hf-border);flex-shrink:0}
+.icon-btn{width:44px;height:44px;display:inline-grid;place-items:center;border:0;border-radius:8px;background:transparent;color:var(--hf-muted);cursor:pointer;flex-shrink:0}
+.icon-btn:hover{background:var(--hf-surface-muted);color:var(--hf-ink)}
+.menu-btn{display:none;margin-left:-10px}
+.crumbs{display:flex;align-items:center;gap:6px;min-width:0;font-size:13px;color:var(--hf-muted)}
+.crumbs ol{display:flex;align-items:center;gap:6px;min-width:0}
+.crumbs li{display:flex;align-items:center;gap:6px;min-width:0;white-space:nowrap}
+.crumbs li + li::before{content:"/";color:var(--hf-border)}
+.crumbs a{text-decoration:none;border-radius:4px}
+.crumbs a:hover{color:var(--hf-ink)}
+.crumbs [aria-current]{color:var(--hf-ink);font-weight:500;overflow:hidden;text-overflow:ellipsis}
+.search{margin-left:auto;display:flex;align-items:center;gap:8px;width:240px;height:36px;padding:0 10px;border:1px solid var(--hf-border);border-radius:8px;background:var(--hf-field);color:var(--hf-muted);font-size:13px;cursor:pointer}
+.search:hover{border-color:var(--hf-field-border)}
+.search kbd{margin-left:auto;font:inherit;font-size:12px;padding:0 6px;border:1px solid var(--hf-border);border-radius:4px}
+.user{display:flex;align-items:center;gap:8px;height:44px;padding:0 6px;border:0;border-radius:8px;background:transparent;cursor:pointer;text-align:left}
+.user:hover{background:var(--hf-surface-muted)}
+.avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--hf-gold-soft);color:var(--hf-gold-ink);font-size:12px;font-weight:600;flex-shrink:0}
+.user-txt{display:grid;line-height:1.25}
+.user-txt b{font-size:13px;font-weight:600;color:var(--hf-ink)}
+.user-txt small{font-size:12px;color:var(--hf-muted)}
+.search-m{display:none}
+
+.scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden}
+.page{max-width:1160px;margin:0 auto;padding:24px 32px 48px}
+
+/* page header */
+.ph{display:grid;gap:6px;margin-bottom:24px}
+.ph h1{font-size:clamp(1.75rem,1.55rem + 0.6vw,2rem);line-height:1.25;letter-spacing:-0.045em}
+.ph h1:focus{outline:none}
+.ph p{font-size:14px;color:var(--hf-muted);max-width:62ch}
+
+/* badges */
+.badge{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.badge.neutral{background:var(--hf-surface-muted);color:var(--hf-muted)}
+.badge.info{background:var(--hf-active-soft);color:var(--hf-active)}
+.badge.success{background:color-mix(in srgb,var(--hf-success) 12%,var(--hf-surface));color:var(--hf-success)}
+.badge.warning{background:var(--hf-warning-soft);color:var(--hf-warning)}
+.badge.plain::before{display:none}
+
+/* buttons */
+.btn{height:44px;padding:0 16px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-surface);color:var(--hf-ink);font-size:14px;font-weight:600;line-height:1;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;cursor:pointer;text-decoration:none}
+.btn:hover:not(:disabled){border-color:var(--hf-field-border)}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn.ghost:hover:not(:disabled){background:var(--hf-surface-muted)}
+.btn.primary{background:var(--hf-action);border-color:var(--hf-action);color:var(--hf-on-action)}
+.btn.primary:hover:not(:disabled){background:color-mix(in srgb,var(--hf-action) 88%,var(--hf-ink));border-color:transparent}
+.btn:disabled{cursor:not-allowed;background:var(--hf-surface-muted);border-color:var(--hf-border);color:var(--hf-muted)}
+.btn.busy:disabled{cursor:progress}
+.mini{position:relative;height:24px;padding:0 8px;border:0;border-radius:4px;background:transparent;color:var(--hf-action);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+.mini::after{content:"";position:absolute;inset:-10px -2px}
+.mini:hover{background:var(--hf-active-soft)}
+.spin{animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* cards */
+.card{background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card)}
+.card-pad{padding:24px}
+.card-h{font-size:13px;font-weight:600;color:var(--hf-muted);margin-bottom:12px}
+
+/* dashboard */
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:16px}
+.kpi{padding:20px}
+.kpi dt{font-size:13px;color:var(--hf-muted)}
+.kpi dd{margin-top:4px;font-size:24px;font-weight:600;color:var(--hf-heading);letter-spacing:-0.02em}
+.kpi small{display:block;margin-top:2px;font-size:12px;color:var(--hf-muted)}
+.panels{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+.panel{overflow:hidden}
+.panel-head{display:flex;align-items:center;gap:10px;min-height:56px;padding:12px 16px 12px 20px;border-bottom:1px solid var(--hf-border)}
+.panel-head .ph-icon{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;background:var(--hf-surface-muted);color:var(--hf-muted);flex-shrink:0}
+.panel-head h2{font-size:16px}
+.panel-head .sum{margin-left:auto;font-size:13px;color:var(--hf-muted);white-space:nowrap}
+.panel-head .sum b{color:var(--hf-ink);font-weight:600}
+.rows li{border-top:1px solid var(--hf-border);overflow:hidden}
+.rows li:first-child{border-top:0}
+.row{position:relative;display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 12px 10px 20px;text-decoration:none;color:inherit}
+a.row:hover{background:color-mix(in srgb,var(--hf-surface-muted) 45%,var(--hf-surface))}
+a.row:focus-visible{outline-offset:-2px}
+.row-main{flex:1;min-width:0;display:grid;gap:2px}
+.row-main b{font-weight:600;color:var(--hf-heading);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row-main span{font-size:13px;color:var(--hf-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row-amt{display:grid;justify-items:end;gap:2px;text-align:right}
+.row-amt b{font-weight:600;color:var(--hf-ink)}
+.row-amt span{font-size:12px;color:var(--hf-muted)}
+.row-badges{display:flex;gap:6px}
+.row .chev{color:var(--hf-muted)}
+.rows li.leaving{animation:leave .45s ease-in forwards}
+@keyframes leave{0%{opacity:1;max-height:72px}40%{opacity:0;max-height:72px}100%{opacity:0;max-height:0}}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:8rem;padding:40px 16px;text-align:center}
+.empty .icon{width:24px;height:24px;color:var(--hf-muted)}
+.empty h3{font-size:15px}
+.empty p{font-size:13px;color:var(--hf-muted);max-width:28rem}
+
+/* sale detail */
+.back{display:inline-flex;align-items:center;gap:4px;height:28px;font-size:13px;font-weight:500;color:var(--hf-muted);text-decoration:none;border-radius:4px}
+.back:hover{color:var(--hf-ink)}
+.dh{display:grid;gap:4px;margin:8px 0 24px}
+.dh-meta{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-size:13px;color:var(--hf-muted)}
+.dh h1{font-size:22px;line-height:1.3;letter-spacing:-0.02em}
+.dh h1:focus{outline:none}
+.detail{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start}
+.detail-main{display:grid;gap:16px;min-width:0}
+
+/* refund block */
+.rf{overflow:hidden}
+.rf + .rf{margin-top:0}
+.rf-top{display:flex;align-items:flex-start;gap:16px;padding:20px 24px}
+.rf-title{flex:1;min-width:0;display:grid;gap:4px}
+.rf-title-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.rf-title h2{font-size:16px}
+.rf-title p{font-size:13px;color:var(--hf-muted)}
+.rf-figs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--hf-border)}
+.rf-figs > div{padding:16px 24px;display:grid;gap:2px;border-left:1px solid var(--hf-border);transition:background-color .6s}
+.rf-figs > div:first-child{border-left:0}
+.rf-figs dt{font-size:13px;color:var(--hf-muted)}
+.rf-figs dd{font-size:18px;font-weight:600;color:var(--hf-ink);letter-spacing:-0.01em}
+.rf-figs .due{background:var(--hf-warning-soft)}
+.rf-figs .due dt{color:var(--hf-warning);font-weight:600}
+.rf-figs .due dd{font-size:22px;color:var(--hf-heading)}
+.rf-figs .due.flash{background:color-mix(in srgb,var(--hf-success) 18%,var(--hf-surface))}
+.rf-figs .done{background:color-mix(in srgb,var(--hf-success) 12%,var(--hf-surface))}
+.rf-figs .done dt{color:var(--hf-success);font-weight:600}
+.rf-meter{display:flex;align-items:center;gap:12px;padding:12px 24px 16px;border-top:1px solid var(--hf-border);font-size:12px;color:var(--hf-muted)}
+.bar{flex:1;height:6px;border-radius:999px;background:var(--hf-surface-muted);overflow:hidden}
+.bar span{display:block;height:100%;border-radius:inherit;background:var(--hf-success);transition:width .6s ease}
+.locked{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--hf-muted)}
+.sold dl{display:grid;gap:12px}
+.sold dl > div{display:grid;gap:2px}
+.sold dt{font-size:13px;color:var(--hf-muted)}
+.sold dd{font-weight:500;color:var(--hf-ink)}
+.sold dd.big{font-size:18px;font-weight:600;color:var(--hf-heading)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:6px;background:var(--hf-surface-muted);color:var(--hf-ink);font-size:12px;font-weight:500}
+.quiet{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--hf-muted)}
+.quiet .icon{margin-top:1px}
+
+/* mobile sticky bar */
+.mbar{display:none;padding:12px 16px;background:var(--hf-surface);border-top:1px solid var(--hf-border)}
+.mbar .btn{width:100%}
+
+/* notes (artboard annotation, not product UI) */
+.note{display:flex;gap:10px;align-items:flex-start;margin-top:12px;padding:10px 12px;border:1px dashed var(--hf-active);border-radius:8px;background:color-mix(in srgb,var(--hf-active-soft) 60%,transparent);color:var(--hf-ink);font-size:12px;line-height:1.5}
+.note .icon{color:var(--hf-active);margin-top:1px}
+.note b{font-weight:600;color:var(--hf-active)}
+.note code{font:500 12px/1.5 var(--hf-font);font-variant-numeric:tabular-nums;color:var(--hf-heading);overflow-wrap:anywhere}
+.note pre{margin:6px 0 0;padding:8px 10px;border-radius:6px;background:var(--hf-surface);white-space:pre-wrap;overflow-wrap:anywhere;font:400 12px/1.5 var(--hf-font);font-variant-numeric:tabular-nums}
+body.no-notes .note{display:none}
+
+/* dialog */
+.layer{position:absolute;inset:0;z-index:50;display:grid;place-items:center;padding:24px;background:var(--scrim);animation:fade .15s ease-out}
+@keyframes fade{from{opacity:0}}
+.dlg{width:min(480px,100%);max-height:100%;display:flex;flex-direction:column;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);box-shadow:var(--shadow-pop);animation:rise .18s ease-out}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}}
+.dlg-head{display:flex;align-items:flex-start;gap:12px;padding:20px 20px 12px 24px}
+.dlg-head > div{flex:1;min-width:0;display:grid;gap:2px}
+.dlg-head h2{font-size:17px;letter-spacing:-0.01em}
+.dlg-head h2:focus{outline:none}
+.dlg-head p{font-size:13px;color:var(--hf-muted)}
+.dlg-head .icon-btn{margin:-8px -8px 0 0}
+.dlg-body{flex:1;min-height:0;overflow-y:auto;padding:4px 24px 20px;display:grid;gap:16px;align-content:start}
+.dlg-foot{display:flex;justify-content:flex-end;gap:8px;padding:12px 24px;border-top:1px solid var(--hf-border)}
+.due-strip{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:12px 16px;border-radius:8px;background:var(--hf-warning-soft)}
+.due-strip span{font-size:13px;font-weight:600;color:var(--hf-warning)}
+.due-strip b{font-size:20px;font-weight:600;color:var(--hf-heading);letter-spacing:-0.01em}
+.due-strip small{font-size:12px;color:var(--hf-muted);font-weight:400}
+.due-strip.flash{background:color-mix(in srgb,var(--hf-warning) 22%,var(--hf-surface))}
+.alert{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border:1px solid var(--hf-danger-border);border-radius:8px;background:var(--hf-danger-soft);color:var(--hf-ink);font-size:13px}
+.alert .icon{color:var(--hf-danger);margin-top:1px}
+.alert b{display:block;font-weight:600;color:var(--hf-danger)}
+
+/* fields */
+.field{display:grid;gap:6px;min-width:0;position:relative}
+.lrow{display:flex;align-items:center;gap:8px;min-height:24px}
+.lbl{font-size:13px;font-weight:500;color:var(--hf-ink)}
+.lrow .mini{margin-left:auto}
+.help{font-size:12px;color:var(--hf-muted)}
+.err{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--hf-danger)}
+.ctl{width:100%;min-width:0;height:var(--hf-control-height);padding:0 12px;background:var(--hf-field);border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);font-size:14px;color:var(--hf-ink);transition:border-color .12s}
+.ctl:hover{border-color:var(--hf-field-border)}
+input.ctl:focus{outline:2px solid var(--hf-focus);outline-offset:2px}
+.ctl[aria-invalid="true"],.money[data-invalid="true"]{border-color:var(--hf-danger)}
+.ctl::placeholder,.money input::placeholder{color:var(--hf-muted);opacity:1}
+input[type="datetime-local"].ctl{font-variant-numeric:tabular-nums}
+.money{display:flex;align-items:center;padding:0}
+.money:focus-within{outline:2px solid var(--hf-focus);outline-offset:2px}
+.money .pre,.money .suf{padding:0 12px;color:var(--hf-muted);font-size:14px}
+.money .pre{padding-right:2px}
+.money .suf{font-size:12px;font-weight:600}
+.money input{flex:1;min-width:0;height:100%;border:0;background:transparent;outline:none;font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--hf-ink);padding:0 4px}
+
+/* combobox */
+.cb-trigger{display:flex;align-items:center;gap:8px;cursor:pointer;text-align:left;user-select:none}
+.cb-trigger .txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cb-trigger > .icon{color:var(--hf-muted);transition:transform .15s}
+.cb-trigger[aria-expanded="true"]{border-color:var(--hf-field-border)}
+.cb-trigger[aria-expanded="true"] > .icon{transform:rotate(180deg)}
+.pop{position:absolute;z-index:5;left:0;right:0;top:calc(100% + 4px);padding:4px;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:8px;box-shadow:var(--shadow-pop);animation:pop .12s ease-out}
+@keyframes pop{from{opacity:0;transform:translateY(-4px)}}
+.opt{display:flex;align-items:center;gap:8px;height:36px;padding:0 8px;border-radius:4px;cursor:pointer}
+.opt .ol{flex:1;min-width:0}
+.opt .meta{font-size:12px;color:var(--hf-muted)}
+.opt.active{background:var(--hf-active-soft)}
+.opt[aria-selected="true"]{font-weight:500}
+.tick{display:inline-flex;color:var(--hf-active);visibility:hidden}
+.opt[aria-selected="true"] .tick{visibility:visible}
+
+/* review */
+.review{display:grid;gap:0;border:1px solid var(--hf-border);border-radius:8px;overflow:hidden}
+.review > div{display:flex;justify-content:space-between;gap:16px;padding:12px 16px;border-top:1px solid var(--hf-border)}
+.review > div:first-child{border-top:0}
+.review dt{font-size:13px;color:var(--hf-muted)}
+.review dd{font-weight:500;text-align:right;min-width:0;overflow-wrap:anywhere}
+.review dd.big{font-size:18px;font-weight:600;color:var(--hf-heading)}
+.outcome{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:8px;background:var(--hf-surface-muted);font-size:13px}
+.outcome .icon{color:var(--hf-muted);margin-top:1px}
+.outcome.full{background:color-mix(in srgb,var(--hf-success) 12%,var(--hf-surface))}
+.outcome.full .icon{color:var(--hf-success)}
+
+/* toast */
+.toasts{position:absolute;right:16px;bottom:16px;z-index:60;display:grid;gap:8px;width:min(360px,calc(100% - 32px))}
+.toast{display:flex;gap:12px;align-items:flex-start;padding:16px;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:12px;box-shadow:var(--shadow-pop);animation:rise .2s ease-out}
+.toast .tile{width:36px;height:36px;border-radius:8px;display:grid;place-items:center;flex-shrink:0;background:color-mix(in srgb,var(--hf-success) 12%,var(--hf-surface));color:var(--hf-success)}
+.toast b{display:block;font-size:14px;font-weight:600;color:var(--hf-heading)}
+.toast p{font-size:13px;color:var(--hf-muted)}
+.toast .icon-btn{width:32px;height:32px;margin:-6px -6px 0 auto}
+
+/* drawer for mobile nav */
+.nav-scrim{display:none}
+
+/* mobile 390 */
+@container app (max-width:720px){
+  .sidebar{position:absolute;inset:0 auto 0 0;z-index:70;width:280px;box-shadow:var(--shadow-pop);transform:translateX(-100%);visibility:hidden;transition:transform .2s,visibility .2s}
+  .app.nav-open .sidebar{transform:none;visibility:visible}
+  .app.nav-open .nav-scrim{display:block;position:absolute;inset:0;z-index:65;background:var(--scrim)}
+  .topbar{height:56px;padding:0 8px 0 16px;gap:4px}
+  .menu-btn{display:inline-grid}
+  .search,.user-txt{display:none}
+  .search-m{display:inline-grid;margin-left:auto}
+  .crumbs li:not(:last-child){display:none}
+  .crumbs [aria-current]{font-size:14px;font-weight:600;color:var(--hf-heading)}
+  .page{padding:16px 16px 32px}
+  .ph{margin-bottom:16px}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .kpis .kpi:first-child{grid-column:1 / -1}
+  .kpi{padding:14px 16px}
+  .kpi dd{font-size:20px}
+  .panels{grid-template-columns:minmax(0,1fr)}
+  .panels .panel-refunds{order:-1}
+  .panel-head{padding:12px 12px 12px 16px;flex-wrap:wrap}
+  .row{padding:10px 8px 10px 16px;gap:8px}
+  .row .chev{display:none}
+  .dh{margin:4px 0 16px}
+  .dh h1{font-size:17px}
+  .detail{grid-template-columns:minmax(0,1fr);gap:16px}
+  .rf-top{padding:16px}
+  .rf.single .rf-act{display:none}
+  .rf-figs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .rf-figs > div{padding:12px 16px}
+  .rf-figs > div:nth-child(3){grid-column:1 / -1;border-left:0;border-top:1px solid var(--hf-border)}
+  .rf-figs dd{font-size:16px}
+  .rf-meter{padding:12px 16px}
+  .card-pad{padding:16px}
+  .mbar.on{display:block}
+  .layer{place-items:end stretch;padding:0;padding-top:24px}
+  .dlg{width:100%;border-radius:16px 16px 0 0;border-bottom:0;max-height:100%}
+  .dlg-head{padding:16px 12px 8px 16px}
+  .dlg-body{padding:4px 16px 16px}
+  .dlg-foot{display:grid;grid-template-columns:1fr 1fr;padding:12px 16px}
+  .dlg-foot.single{grid-template-columns:1fr}
+  .opt{height:44px}
+  .toasts{left:16px;right:16px;width:auto;bottom:16px}
+  .app.has-mbar .toasts{bottom:84px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+}
+</style>
+</head>
+<body>
+<div class="tools" role="group" aria-label="Opciones del artboard">
+  <button type="button" id="t-theme"></button>
+  <button type="button" id="t-view"></button>
+  <span class="sep" aria-hidden="true"></span>
+  <button type="button" id="t-server"></button>
+  <button type="button" id="t-perm"></button>
+  <button type="button" id="t-notes"></button>
+  <button type="button" id="t-reset"></button>
+</div>
+
+<div class="stage" id="stage">
+  <div class="app" id="app">
+    <aside class="sidebar" id="sidebar" aria-label="Navegación principal">
+      <div class="brand"><span class="brand-mark" id="brand-mark"></span><span class="brand-name">HoundFe</span></div>
+      <button type="button" class="tenant" data-noop><span class="dot" aria-hidden="true"></span><span>Sucursal Centro</span><span id="tenant-chev"></span></button>
+      <nav class="nav" aria-label="Secciones">
+        <ul id="nav"></ul>
+      </nav>
+    </aside>
+    <div class="nav-scrim" id="nav-scrim"></div>
+
+    <div class="col">
+      <header class="topbar">
+        <button type="button" class="icon-btn menu-btn" id="menu-btn" aria-label="Abrir navegación" aria-expanded="false" aria-controls="sidebar"></button>
+        <nav class="crumbs" aria-label="Ruta"><ol id="crumbs"></ol></nav>
+        <button type="button" class="search" data-noop><span id="search-ic"></span>Buscar…<kbd>Ctrl K</kbd></button>
+        <button type="button" class="icon-btn search-m" aria-label="Buscar" data-noop id="search-m"></button>
+        <button type="button" class="user" aria-label="Abrir menú de usuario" data-noop><span class="avatar" aria-hidden="true">LM</span><span class="user-txt"><b>Laura Méndez</b><small>Gerente</small></span></button>
+      </header>
+      <main class="scroll" id="scroll"><div class="page" id="view"></div></main>
+      <div class="mbar" id="mbar"></div>
+    </div>
+
+    <div id="layer-root"></div>
+    <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const clone = o => JSON.parse(JSON.stringify(o));
+
+const ICONS = {
+  paw: '<circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"/>',
+  dashboard: '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
+  receipt: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8M12 17.5v-11"/>',
+  package: '<path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  wallet: '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+  tag: '<path d="M12.59 2.59A2 2 0 0 0 11.17 2H4a2 2 0 0 0-2 2v7.17a2 2 0 0 0 .59 1.42l8.7 8.7a2.43 2.43 0 0 0 3.42 0l6.58-6.58a2.43 2.43 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5"/>',
+  file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M16 13H8M16 17H8M10 9H8"/>',
+  truck: '<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2M15 18H9M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  idcard: '<rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="12" r="2"/><path d="M14 10h4M14 14h4M5 16.5a3.5 3.5 0 0 1 6 0"/>',
+  settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  chevron: '<path d="m6 9 6 6 6-6"/>',
+  updown: '<path d="m7 15 5 5 5-5M7 9l5-5 5 5"/>',
+  right: '<path d="m9 18 6-6-6-6"/>',
+  back: '<path d="m12 19-7-7 7-7M19 12H5"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  checkCircle: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  refund: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+  coins: '<path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17"/><path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9M2 16l6 6"/><circle cx="16" cy="9" r="2.9"/><circle cx="6" cy="5" r="3"/>',
+  chart: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/>',
+  lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/>',
+  alertCircle: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+  inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11"/>',
+  loader: '<path d="M21 12a9 9 0 1 1-6.22-8.56"/>',
+  menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+  note: '<path d="M16 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8Z"/><path d="M15 3v4a2 2 0 0 0 2 2h4"/>',
+  server: '<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01M6 18h.01"/>',
+  shield: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
+  rotate: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  monitor: '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
+  phone: '<rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/>'
+};
+const ic = (n, cls = '') => `<svg class="icon ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]}</svg>`;
+
+/* ---------- formatting ---------- */
+const mxn = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 });
+const money = c => mxn.format(c / 100);
+const plain = c => (c / 100).toFixed(2);
+const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const pad = n => String(n).padStart(2, '0');
+// Mexico City is UTC-6 all year since 2022.
+function cdmx(iso) { const d = new Date(new Date(iso).getTime() - 6 * 3600e3); return { y: d.getUTCFullYear(), m: d.getUTCMonth(), d: d.getUTCDate(), h: d.getUTCHours(), mi: d.getUTCMinutes() }; }
+const shortDate = iso => { const t = cdmx(iso); return `${t.d} ${MONTHS[t.m]}`; };
+const shortDateTime = iso => { const t = cdmx(iso); return `${t.d} ${MONTHS[t.m]}, ${pad(t.h)}:${pad(t.mi)}`; };
+function localLabel(v) { const [d, tm] = v.split('T'); const [y, m, dd] = d.split('-').map(Number); return `${dd} ${MONTHS[m - 1]} ${y}, ${tm}`; }
+
+const METHOD = { cash: 'Efectivo', card_credit: 'Tarjeta de crédito', card_debit: 'Tarjeta de débito', transfer: 'Transferencia', credit: 'Saldo a favor / crédito' };
+const REASON = { CUSTOMER_REQUEST: 'Solicitud del cliente', ORDER_ERROR: 'Error en el pedido', OUT_OF_STOCK: 'Sin existencias', DUPLICATE_SALE: 'Venta duplicada', OTHER: 'Otro' };
+const NOW_LOCAL = '2026-11-05T10:30';
+
+/* ---------- data: GET /sales/refunds/pending (oldest first) + GET /sales?status=CANCELED ---------- */
+const SEED_REFUNDS = [
+  { id: 'cmw2iwsdh0001r965z1rmw0n0', saleId: '9bfea032-7364-461f-a8ca-446ddaf857e6', method: 'transfer', amountCents: 92910, settledCents: 46500, reason: 'ORDER_ERROR', status: 'PENDING', createdAt: '2026-10-25T20:42:00.000Z' },
+  { id: 'cmw2j0iy00003r9659scsjac7', saleId: 'b41c07d2-58e3-4a0f-9d6c-2f1e8a7c3b90', method: 'card_credit', amountCents: 74955, settledCents: 10000, reason: 'CUSTOMER_REQUEST', status: 'PENDING', createdAt: '2026-10-30T18:15:00.000Z' },
+  { id: 'cmw2iu8ls0000r9mijx25om85', saleId: '6e2d9f14-0a7b-4c3e-b815-7d4a2c9e1f06', method: 'cash', amountCents: 1661170, settledCents: 0, reason: 'DUPLICATE_SALE', status: 'PENDING', createdAt: '2026-11-01T16:05:00.000Z' },
+  { id: 'cmw2izrjw0002r965eh02ytw3', saleId: 'd9a3b6e1-2c4f-4e8a-a017-5b6c8d9e0f12', method: 'cash', amountCents: 16055, settledCents: 8000, reason: 'OUT_OF_STOCK', status: 'PENDING', createdAt: '2026-11-03T22:30:00.000Z' }
+];
+const SALES = {
+  '9bfea032-7364-461f-a8ca-446ddaf857e6': { folio: 'A-202611-000023', customer: { name: 'María Fernanda Ortiz' }, totalCents: 92910, paymentMethods: ['transfer'], seller: 'Diego Salazar' },
+  'b41c07d2-58e3-4a0f-9d6c-2f1e8a7c3b90': { folio: 'A-202611-000067', customer: { name: 'Jorge Ramírez Vega' }, totalCents: 74955, paymentMethods: ['card_credit'], seller: 'Laura Méndez' },
+  '6e2d9f14-0a7b-4c3e-b815-7d4a2c9e1f06': { folio: 'A-202611-000006', customer: { name: 'Clínica Veterinaria San Ángel' }, totalCents: 1661170, paymentMethods: ['cash'], seller: 'Diego Salazar' },
+  'd9a3b6e1-2c4f-4e8a-a017-5b6c8d9e0f12': { folio: 'A-202611-000050', customer: { name: 'Ana Sofía Hernández' }, totalCents: 16055, paymentMethods: ['cash'], seller: 'Rocío Pérez' }
+};
+const outstanding = r => r.amountCents - r.settledCents;
+
+let refunds = clone(SEED_REFUNDS);
+let closedHere = {};          // saleId -> { kind: 'done' | 'gone', amountCents }
+let leaving = null;           // refund that just left the list, animated once on the dashboard
+let route = { name: 'dashboard' };
+let canUpdate = true;
+let serverMode = 'ok';        // 'ok' | '422' | '409'
+let notes = true;
+
+/* ---------- chrome ---------- */
+$('#brand-mark').innerHTML = ic('paw', 'sm');
+$('#tenant-chev').innerHTML = ic('updown', 'xs');
+$('#search-ic').innerHTML = ic('search', 'sm');
+$('#search-m').innerHTML = ic('search');
+$('#menu-btn').innerHTML = ic('menu');
+
+function renderNav() {
+  const pend = refunds.length;
+  const item = (id, label, icon, extra = '') => {
+    const cur = (id === 'dashboard' && route.name === 'dashboard') || (id === 'ventas' && route.name === 'sale');
+    return `<li><a href="#" data-go="${id}" ${cur ? 'aria-current="page"' : ''}>${ic(icon, 'sm')}<span>${label}</span>${extra}</a></li>`;
+  };
+  $('#nav').innerHTML = [
+    item('dashboard', 'Resumen', 'dashboard', pend ? `<span class="count fig" aria-label="${pend} reembolsos pendientes">${pend}</span>` : ''),
+    '<li class="nav-group">POS</li>',
+    item('ventas', 'Ventas', 'receipt'), item('x1', 'Productos', 'package'), item('x2', 'Clientes', 'users'),
+    item('x3', 'Caja', 'wallet'), item('x4', 'Promociones', 'tag'), item('x5', 'Cotizaciones', 'file'),
+    '<li class="nav-group">Compras</li>', item('x6', 'Órdenes de compra', 'truck'),
+    '<li class="nav-group">Admin</li>', item('x7', 'Colaboradores', 'idcard'), item('x8', 'Sistema', 'settings')
+  ].join('');
+  $$('#nav a').forEach(a => a.addEventListener('click', e => {
+    e.preventDefault();
+    closeNav();
+    if (a.dataset.go === 'dashboard') go({ name: 'dashboard' });
+  }));
+}
+
+function renderCrumbs() {
+  const items = route.name === 'dashboard'
+    ? [['Resumen', null]]
+    : [['POS', null], ['Ventas', 'ventas'], [`Venta ${SALES[route.saleId].folio}`, null]];
+  $('#crumbs').innerHTML = items.map(([l, to], i) => {
+    const last = i === items.length - 1;
+    if (last) return `<li><span aria-current="page">${esc(l)}</span></li>`;
+    return `<li>${to ? `<a href="#" data-noop>${esc(l)}</a>` : `<span>${esc(l)}</span>`}</li>`;
+  }).join('');
+  bindNoop($('#crumbs'));
+}
+
+const app = $('#app');
+function openNav() { app.classList.add('nav-open'); $('#menu-btn').setAttribute('aria-expanded', 'true'); $('#nav a').focus(); }
+function closeNav() { if (!app.classList.contains('nav-open')) return; app.classList.remove('nav-open'); $('#menu-btn').setAttribute('aria-expanded', 'false'); }
+$('#menu-btn').addEventListener('click', openNav);
+$('#nav-scrim').addEventListener('click', () => { closeNav(); $('#menu-btn').focus(); });
+
+function bindNoop(root = document) { $$('[data-noop]', root).forEach(a => a.addEventListener('click', e => e.preventDefault())); }
+
+/* ---------- routing ---------- */
+function go(r, focus = true) {
+  route = r;
+  closeLayer(false);
+  renderAll();
+  $('#scroll').scrollTop = 0;
+  if (focus) { const h = $('#view h1'); if (h) h.focus(); }
+}
+function renderAll() {
+  renderNav();
+  renderCrumbs();
+  if (route.name === 'dashboard') renderDashboard(); else renderSale();
+}
+
+/* ---------- dashboard ---------- */
+function refundRow(r, extraClass = '') {
+  const s = SALES[r.saleId];
+  const partial = r.settledCents > 0;
+  return `<li class="${extraClass}"><a class="row" href="#" data-sale="${r.saleId}">
+      <span class="row-main"><b>${esc(s.customer.name)}</b><span>Venta ${esc(s.folio)} · ${METHOD[r.method]} · ${shortDate(r.createdAt)}</span></span>
+      <span class="row-amt"><b class="fig">${money(outstanding(r))}</b>${partial ? `<span class="fig">de ${money(r.amountCents)}</span>` : '<span>Pendiente</span>'}</span>
+      ${partial ? '<span class="badge info">Parcial</span>' : ''}
+      <span class="chev">${ic('right', 'sm')}</span>
+    </a></li>`;
+}
+
+function renderDashboard() {
+  const total = refunds.reduce((a, r) => a + outstanding(r), 0);
+  const list = refunds.map(r => refundRow(r)).join('');
+  const leavingRow = leaving ? refundRow(leaving, 'leaving') : '';
+  const isEmpty = !refunds.length;
+  $('#view').innerHTML = `
+    <header class="ph"><h1 tabindex="-1">Resumen de ventas</h1><p>Sucursal Centro · jueves 5 nov</p></header>
+    <dl class="kpis">
+      <div class="card kpi"><dt>Ventas de hoy</dt><dd class="fig">$12,480.50</dd><small>37 tickets</small></div>
+      <div class="card kpi"><dt>Ticket promedio</dt><dd class="fig">$337.31</dd></div>
+      <div class="card kpi"><dt>Ventas canceladas</dt><dd class="fig">2</dd><small>esta semana</small></div>
+    </dl>
+    <div class="panels">
+      <section class="card panel" aria-labelledby="p-debt">
+        <div class="panel-head"><span class="ph-icon">${ic('coins', 'sm')}</span><h2 id="p-debt">Ventas con deuda</h2><span class="sum"><b class="fig">$2,316.00</b> por cobrar</span></div>
+        <ul class="rows">
+          <li><a class="row" href="#" data-noop><span class="row-main"><b>Rancho Las Golondrinas</b><span>Venta A-202611-000071 · 4 nov</span></span><span class="row-amt"><b class="fig">$1,890.00</b><span class="fig">de $3,450.00</span></span><span class="chev">${ic('right', 'sm')}</span></a></li>
+          <li><a class="row" href="#" data-noop><span class="row-main"><b>Luis Alberto Cruz</b><span>Venta A-202611-000058 · 2 nov</span></span><span class="row-amt"><b class="fig">$426.00</b><span class="fig">de $426.00</span></span><span class="chev">${ic('right', 'sm')}</span></a></li>
+        </ul>
+      </section>
+      <section class="card panel panel-refunds" aria-labelledby="p-ref">
+        <div class="panel-head">
+          <span class="ph-icon">${ic('refund', 'sm')}</span><h2 id="p-ref">Reembolsos pendientes</h2>
+          ${isEmpty ? '' : `<span class="badge warning plain fig" aria-label="${refunds.length} pendientes">${refunds.length}</span><span class="sum"><b class="fig">${money(total)}</b> por devolver</span>`}
+        </div>
+        <div id="ref-body">${isEmpty && !leaving ? emptyHTML() : `<ul class="rows" id="ref-rows">${list}${leavingRow}</ul>`}</div>
+      </section>
+    </div>
+    <div class="note">${ic('note', 'sm')}<div><b>Nota del artboard.</b> El widget lee <code>GET /sales/refunds/pending</code> (el más antiguo arriba) y une con <code>GET /sales?status=CANCELED</code> por <code>saleId</code> para el folio y el cliente. Cada fila abre la venta. «Parcial» sale de <code>settledCents &gt; 0</code>; la cifra es <code>outstandingCents</code>. Un reembolso se va cuando llega a 0; no hay estado «liquidado».</div></div>`;
+  $$('#view a.row[data-sale]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); go({ name: 'sale', saleId: a.dataset.sale, from: 'dashboard' }); }));
+  bindNoop($('#view'));
+  $('#mbar').classList.remove('on'); app.classList.remove('has-mbar');
+  if (leaving) {
+    const done = () => { leaving = null; if (!refunds.length) $('#ref-body').innerHTML = emptyHTML(); else { const li = $('#ref-rows li.leaving'); if (li) li.remove(); } };
+    if (reduceMotion()) done(); else setTimeout(done, 480);
+  }
+}
+const emptyHTML = () => `<div class="empty">${ic('inbox')}<h3>No hay reembolsos pendientes.</h3><p>Cuando canceles una venta pagada, aquí verás el dinero que falta devolver.</p></div>`;
+
+/* ---------- sale detail ---------- */
+function renderSale() {
+  const saleId = route.saleId, s = SALES[saleId];
+  const open = refunds.filter(r => r.saleId === saleId);
+  const firstRefund = open[0] || SEED_REFUNDS.find(r => r.saleId === saleId);
+  const closed = closedHere[saleId];
+  const blocks = open.map((r, i) => refundBlock(r, open.length === 1)).join('') || (closed ? closedBlock(closed) : '');
+  $('#view').innerHTML = `
+    <a href="#" class="back" id="back">${ic('back', 'sm')}${route.from === 'dashboard' ? 'Resumen' : 'Ventas'}</a>
+    <header class="dh">
+      <p class="dh-meta"><span class="badge neutral">Cancelada</span><span>Sucursal Centro · cancelada ${shortDateTime(firstRefund.createdAt)}</span></p>
+      <h1 tabindex="-1">Venta ${esc(s.folio)}</h1>
+    </header>
+    <div class="detail">
+      <div class="detail-main">
+        ${blocks}
+        <section class="card card-pad" aria-labelledby="h-items">
+          <h2 class="card-h" id="h-items">Productos</h2>
+          <p class="quiet">${ic('info', 'sm')}<span>Los productos de una venta cancelada todavía no se pueden consultar aquí.</span></p>
+          <div class="note">${ic('note', 'sm')}<div><b>Venta cancelada y §9.</b> <code>GET /sales/:id</code> responde <code>404 "Sale not found"</code> para ventas canceladas, así que esta pantalla no lo llama: se arma con la fila de <code>GET /sales?status=CANCELED</code> (<code>folio</code>, <code>customer.name</code>, <code>totalCents</code>, <code>paymentMethods</code>) más el reembolso de la lista. <b>Dependencia opcional del BE:</b> permitir <code>GET /sales/:id</code> para canceladas, para mostrar productos e historial. Sin eso, esta tarjeta queda en este estado.</div></div>
+        </section>
+      </div>
+      <aside class="card card-pad sold" aria-labelledby="h-sale">
+        <h2 class="card-h" id="h-sale">Datos de la venta</h2>
+        <dl>
+          <div><dt>Cliente</dt><dd>${esc(s.customer.name)}</dd></div>
+          <div><dt>Total de la venta</dt><dd class="big fig">${money(s.totalCents)}</dd></div>
+          <div><dt>Formas de pago</dt><dd class="chips">${s.paymentMethods.map(m => `<span class="chip">${METHOD[m]}</span>`).join('')}</dd></div>
+          <div><dt>Motivo de cancelación</dt><dd>${REASON[firstRefund.reason]}</dd></div>
+        </dl>
+      </aside>
+    </div>`;
+  $('#back').addEventListener('click', e => { e.preventDefault(); go({ name: 'dashboard' }); });
+  $$('[data-settle]').forEach(b => b.addEventListener('click', () => openSettle(b.dataset.settle, b)));
+  // the sticky mobile bar carries the single primary
+  const mbar = $('#mbar');
+  const showBar = open.length === 1 && canUpdate;
+  mbar.classList.toggle('on', showBar);
+  app.classList.toggle('has-mbar', showBar);
+  mbar.innerHTML = showBar ? `<button type="button" class="btn primary" data-settle-m="${open[0].id}">${ic('coins', 'sm')}Liquidar ${money(outstanding(open[0]))}</button>` : '';
+  const mb = $('[data-settle-m]', mbar);
+  if (mb) mb.addEventListener('click', () => openSettle(mb.dataset.settleM, mb));
+}
+
+function refundBlock(r, single) {
+  const due = outstanding(r);
+  const pct = Math.round((r.settledCents / r.amountCents) * 100);
+  const partial = r.settledCents > 0;
+  const action = canUpdate
+    ? `<button type="button" class="btn ${single ? 'primary' : ''}" data-settle="${r.id}">${ic('coins', 'sm')}Liquidar</button>`
+    : `<span class="locked">${ic('lock', 'xs')}No tienes permiso para registrar devoluciones.</span>`;
+  return `<section class="card rf${single ? ' single' : ''}" aria-labelledby="rf-${r.id}" id="block-${r.id}">
+    <div class="rf-top">
+      <div class="rf-title">
+        <div class="rf-title-row"><h2 id="rf-${r.id}">Reembolso pendiente</h2><span class="badge warning">Pendiente</span>${partial ? '<span class="badge info">Parcial</span>' : ''}</div>
+        <p>Pago original: ${METHOD[r.method]} · se debe al cliente desde el ${shortDate(r.createdAt)}</p>
+        ${canUpdate ? '' : `<p class="rf-perm">${action}</p>`}
+      </div>
+      ${canUpdate ? `<div class="rf-act">${action}</div>` : ''}
+    </div>
+    <dl class="rf-figs">
+      <div><dt>Total a devolver</dt><dd class="fig">${money(r.amountCents)}</dd></div>
+      <div><dt>Devuelto</dt><dd class="fig">${money(r.settledCents)}</dd></div>
+      <div class="due" id="due-${r.id}"><dt>Pendiente</dt><dd class="fig">${money(due)}</dd></div>
+    </dl>
+    <div class="rf-meter"><span class="bar" role="img" aria-label="Devuelto ${pct}% del total"><span style="width:${pct}%"></span></span><span class="fig">${pct}% devuelto</span></div>
+  </section>`;
+}
+
+function closedBlock(c) {
+  if (c.kind === 'done') {
+    return `<section class="card rf" aria-labelledby="rf-done">
+      <div class="rf-top"><div class="rf-title">
+        <div class="rf-title-row"><h2 id="rf-done">Reembolso liquidado</h2><span class="badge success">Completado</span></div>
+        <p>Ya no hay dinero por devolver en esta venta. El aviso desaparece del resumen.</p>
+      </div></div>
+      <dl class="rf-figs">
+        <div><dt>Total a devolver</dt><dd class="fig">${money(c.amountCents)}</dd></div>
+        <div><dt>Devuelto</dt><dd class="fig">${money(c.amountCents)}</dd></div>
+        <div class="done"><dt>Pendiente</dt><dd class="fig">${money(0)}</dd></div>
+      </dl>
+      <div class="note">${ic('note', 'sm')}<div><b>Solo en esta visita.</b> Se ve porque la respuesta trajo <code>outstandingCents: 0</code>. No hay endpoint de reembolsos completados ni de historial (§9): al volver a abrir la venta, esta tarjeta ya no aparece.</div></div>
+    </section>`;
+  }
+  return `<section class="card card-pad" aria-labelledby="rf-gone">
+    <h2 class="card-h" id="rf-gone">Reembolso</h2>
+    <p class="quiet">${ic('checkCircle', 'sm')}<span>Esta devolución ya se completó. No queda nada pendiente en esta venta.</span></p>
+  </section>`;
+}
+
+/* ---------- settle dialog ---------- */
+let dlg = null;   // { refundId, step, amount, method, reference, date, errors, alert, key, busy, trigger, flash }
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : 'k-' + Math.random().toString(36).slice(2));
+
+function openSettle(refundId, trigger) {
+  const r = refunds.find(x => x.id === refundId);
+  dlg = { refundId, step: 'form', amount: '', method: r.method, reference: '', date: NOW_LOCAL, errors: {}, alert: null, key: null, busy: false, trigger, flash: false };
+  renderLayer('#d-amount');
+}
+
+function parseAmount(s) {
+  const t = s.trim().replace(/[$,\s]/g, '');
+  if (!t) return { empty: true };
+  if (!/^\d+(\.\d{1,2})?$/.test(t)) return { bad: true };
+  const [i, d = ''] = t.split('.');
+  return { cents: Number(i) * 100 + Number((d + '00').slice(0, 2)) };
+}
+
+function validate() {
+  const r = refunds.find(x => x.id === dlg.refundId), due = outstanding(r);
+  const e = {}, a = parseAmount(dlg.amount);
+  if (a.empty) e.amount = 'Escribe el monto que devolviste.';
+  else if (a.bad) e.amount = 'Escribe un monto válido, por ejemplo 250.00.';
+  else if (a.cents < 1) e.amount = 'El monto debe ser mayor que $0.00.';
+  else if (a.cents > due) e.amount = `No puede ser mayor que lo pendiente: ${money(due)}.`;
+  if (!dlg.date) e.date = 'Elige la fecha y hora en que devolviste el dinero.';
+  return e;
+}
+
+function bodyFor() {
+  const b = { amountCents: parseAmount(dlg.amount).cents, method: dlg.method };
+  const ref = dlg.reference.trim();
+  if (ref) b.reference = ref;
+  b.settledAt = `${dlg.date}:00-06:00`;
+  return b;
+}
+
+function renderLayer(focusSel) {
+  const root = $('#layer-root');
+  if (!dlg) { root.innerHTML = ''; return; }
+  const r = refunds.find(x => x.id === dlg.refundId) || dlg.snapshot;
+  const s = SALES[r.saleId], due = outstanding(r);
+  let body = '', foot = '', title = 'Liquidar reembolso';
+  const alert = dlg.alert ? `<div class="alert" role="alert">${ic('alertCircle', 'sm')}<div><b>${dlg.alert.title}</b>${dlg.alert.text ? `<span>${dlg.alert.text}</span>` : ''}</div></div>` : '';
+  const strip = `<div class="due-strip${dlg.flash ? ' flash' : ''}" id="d-strip"><span>Pendiente</span><b class="fig">${money(due)} <small>de ${money(r.amountCents)}</small></b></div>`;
+
+  if (dlg.step === 'form') {
+    const er = dlg.errors;
+    const errHTML = (k) => er[k] ? `<p class="err" id="d-${k}-err">${ic('alertCircle', 'xs')}${er[k]}</p>` : '';
+    body = `${strip}${alert}
+      <div class="field">
+        <div class="lrow"><label class="lbl" for="d-amount">Monto a devolver</label><button type="button" class="mini" id="d-all">Devolver todo</button></div>
+        <div class="ctl money" data-invalid="${!!er.amount}"><span class="pre" aria-hidden="true">$</span><input id="d-amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" value="${esc(dlg.amount)}" aria-invalid="${!!er.amount}" aria-describedby="${er.amount ? 'd-amount-err ' : ''}d-amount-help"><span class="suf" aria-hidden="true">MXN</span></div>
+        ${errHTML('amount')}
+        <p class="help" id="d-amount-help">Puedes devolver una parte; lo demás sigue pendiente.</p>
+      </div>
+      <div class="field" id="f-method">
+        <span class="lbl" id="d-method-l">Método de devolución</span>
+        <button type="button" class="ctl cb-trigger" id="d-method" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="d-method-lb" aria-labelledby="d-method-l d-method" aria-describedby="d-method-help"><span class="txt">${METHOD[dlg.method]}</span>${ic('chevron', 'sm')}</button>
+        <p class="help" id="d-method-help">El cliente pagó con ${METHOD[r.method].toLowerCase()}. Puedes devolver con otro método.</p>
+      </div>
+      <div class="field">
+        <label class="lbl" for="d-ref">Referencia (opcional)</label>
+        <input class="ctl" id="d-ref" type="text" autocomplete="off" value="${esc(dlg.reference)}" aria-describedby="d-ref-help">
+        <p class="help" id="d-ref-help">Ej. folio de transferencia o de la terminal</p>
+      </div>
+      <div class="field">
+        <label class="lbl" for="d-date">Fecha y hora en que se devolvió el dinero</label>
+        <input class="ctl" id="d-date" type="datetime-local" value="${esc(dlg.date)}" max="${NOW_LOCAL}" aria-invalid="${!!er.date}" ${er.date ? 'aria-describedby="d-date-err"' : ''}>
+        ${errHTML('date')}
+      </div>`;
+    foot = `<button type="button" class="btn ghost" id="d-cancel">Cancelar</button><button type="button" class="btn primary" id="d-next">Revisar</button>`;
+  } else if (dlg.step === 'review') {
+    const b = bodyFor();
+    const after = due - b.amountCents;
+    title = 'Revisa la devolución';
+    body = `${alert}
+      <dl class="review">
+        <div><dt>Monto</dt><dd class="big fig">${money(b.amountCents)}</dd></div>
+        <div><dt>Método</dt><dd>${METHOD[b.method]}</dd></div>
+        <div><dt>Referencia</dt><dd>${b.reference ? esc(b.reference) : '—'}</dd></div>
+        <div><dt>Fecha y hora</dt><dd class="fig">${localLabel(dlg.date)}</dd></div>
+      </dl>
+      ${after > 0
+        ? `<p class="outcome">${ic('info', 'sm')}<span>Después de esto quedarán <b class="fig">${money(after)}</b> por devolver.</span></p>`
+        : `<p class="outcome full">${ic('checkCircle', 'sm')}<span>Con esto se completa el reembolso.</span></p>`}
+      <p class="help">Una devolución registrada no se puede editar ni deshacer.</p>
+      <div class="note">${ic('note', 'sm')}<div><b>Al confirmar.</b> <code>POST /sales/refunds/:refundId/settlements</code> con <code>Idempotency-Key</code> creada al abrir este paso (se reusa solo para reintentar este mismo envío). Sin <code>cashSessionId</code>: fuera del POS se omite.<pre>${esc(JSON.stringify(b, null, 2))}</pre></div></div>`;
+    foot = `<button type="button" class="btn ghost" id="d-back" ${dlg.busy ? 'disabled' : ''}>Volver</button>
+      <button type="button" class="btn primary${dlg.busy ? ' busy' : ''}" id="d-confirm" ${dlg.busy ? 'disabled aria-disabled="true"' : ''}>${dlg.busy ? `${ic('loader', 'sm spin')}Registrando…` : 'Registrar devolución'}</button>`;
+  } else if (dlg.step === 'settled409') {
+    body = `${alert}<p class="help">Otra persona ya terminó de devolver este dinero. Cerramos el aviso de esta venta.</p>`;
+    foot = `<button type="button" class="btn primary" id="d-close-ok">Entendido</button>`;
+  }
+
+  root.innerHTML = `<div class="layer" id="layer">
+    <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="d-title" aria-describedby="d-sub">
+      <div class="dlg-head"><div><h2 id="d-title" tabindex="-1">${title}</h2><p id="d-sub">Venta ${esc(s.folio)} · ${esc(s.customer.name)}</p></div>
+        <button type="button" class="icon-btn" id="d-x" aria-label="Cerrar" ${dlg.busy ? 'disabled' : ''}>${ic('x')}</button></div>
+      <div class="dlg-body">${body}</div>
+      <div class="dlg-foot${dlg.step === 'settled409' ? ' single' : ''}">${foot}</div>
+    </div></div>`;
+  bindLayer();
+  const f = focusSel && $(focusSel, root);
+  (f || $('#d-title')).focus();
+  if (dlg.flash) setTimeout(() => { dlg && (dlg.flash = false); const st = $('#d-strip'); if (st) st.classList.remove('flash'); }, 1600);
+}
+
+function bindLayer() {
+  const layer = $('#layer');
+  layer.addEventListener('pointerdown', e => { if (e.target === layer && !dlg.busy) closeLayer(true); });
+  layer.addEventListener('keydown', onLayerKey);
+  $('#d-x').addEventListener('click', () => closeLayer(true));
+  const on = (id, ev, fn) => { const el = $(id); if (el) el.addEventListener(ev, fn); };
+  on('#d-amount', 'input', e => { dlg.amount = e.target.value; dlg.key = null; });
+  on('#d-ref', 'input', e => { dlg.reference = e.target.value; dlg.key = null; });
+  on('#d-date', 'input', e => { dlg.date = e.target.value; dlg.key = null; });
+  on('#d-all', 'click', () => {
+    const r = refunds.find(x => x.id === dlg.refundId);
+    dlg.amount = plain(outstanding(r)); dlg.key = null;
+    delete dlg.errors.amount;
+    renderLayer('#d-amount');
+  });
+  on('#d-cancel', 'click', () => closeLayer(true));
+  on('#d-next', 'click', () => {
+    dlg.errors = validate();
+    const first = ['amount', 'date'].find(k => dlg.errors[k]);
+    if (first) { renderLayer(first === 'amount' ? '#d-amount' : '#d-date'); return; }
+    dlg.alert = null;
+    dlg.step = 'review';
+    if (!dlg.key) dlg.key = uuid();   // created when the confirm step opens
+    renderLayer('#d-confirm');
+  });
+  on('#d-back', 'click', () => { dlg.step = 'form'; renderLayer('#d-amount'); });
+  on('#d-confirm', 'click', submit);
+  on('#d-close-ok', 'click', () => closeLayer(true));
+  on('#d-method', 'click', () => toggleMethod());
+  on('#d-method', 'keydown', onMethodKey);
+}
+
+/* method combobox */
+let mcb = null;
+function toggleMethod(force) {
+  const tr = $('#d-method');
+  if (mcb && force !== true) { closeMethod(true); return; }
+  const keys = Object.keys(METHOD);
+  const r = refunds.find(x => x.id === dlg.refundId);
+  const pop = document.createElement('div');
+  pop.className = 'pop';
+  pop.innerHTML = `<ul role="listbox" id="d-method-lb" aria-labelledby="d-method-l">${keys.map((k, i) => `<li role="option" id="d-m-o${i}" data-k="${k}" class="opt" aria-selected="${k === dlg.method}"><span class="ol">${METHOD[k]}</span>${k === r.method ? '<span class="meta">Pago original</span>' : ''}<span class="tick">${ic('check', 'sm')}</span></li>`).join('')}</ul>`;
+  $('#f-method').appendChild(pop);
+  tr.setAttribute('aria-expanded', 'true');
+  mcb = { pop, keys, active: keys.indexOf(dlg.method) };
+  setMActive(mcb.active);
+  pop.addEventListener('pointerdown', e => e.preventDefault());
+  pop.addEventListener('click', e => { const li = e.target.closest('[role="option"]'); if (li) pickMethod(li.dataset.k); });
+  pop.addEventListener('mousemove', e => { const li = e.target.closest('[role="option"]'); if (li) setMActive(mcb.keys.indexOf(li.dataset.k)); });
+}
+function setMActive(i) {
+  mcb.active = i;
+  $$('.opt', mcb.pop).forEach((li, j) => li.classList.toggle('active', j === i));
+  $('#d-method').setAttribute('aria-activedescendant', `d-m-o${i}`);
+}
+function closeMethod(focus) {
+  if (!mcb) return;
+  mcb.pop.remove(); mcb = null;
+  const tr = $('#d-method');
+  if (tr) { tr.setAttribute('aria-expanded', 'false'); tr.removeAttribute('aria-activedescendant'); if (focus) tr.focus(); }
+}
+function pickMethod(k) {
+  if (dlg.method !== k) dlg.key = null;
+  dlg.method = k;
+  closeMethod(false);
+  $('#d-method .txt').textContent = METHOD[k];
+  $('#d-method').focus();
+}
+function onMethodKey(e) {
+  if (!mcb) {
+    if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(e.key)) { e.preventDefault(); toggleMethod(true); }
+    return;
+  }
+  const n = mcb.keys.length;
+  if (e.key === 'ArrowDown') { e.preventDefault(); setMActive(Math.min(n - 1, mcb.active + 1)); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); setMActive(Math.max(0, mcb.active - 1)); }
+  else if (e.key === 'Home') { e.preventDefault(); setMActive(0); }
+  else if (e.key === 'End') { e.preventDefault(); setMActive(n - 1); }
+  else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickMethod(mcb.keys[mcb.active]); }
+  else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeMethod(true); }
+  else if (e.key === 'Tab') closeMethod(false);
+}
+document.addEventListener('pointerdown', e => { if (mcb && !$('#f-method').contains(e.target)) closeMethod(false); });
+
+function onLayerKey(e) {
+  if (e.key === 'Escape' && !mcb) { e.preventDefault(); if (!dlg.busy) closeLayer(true); return; }
+  if (e.key !== 'Tab') return;
+  const f = $$('#layer button:not(:disabled), #layer input, #layer [tabindex="0"]').filter(el => el.offsetParent !== null);
+  if (!f.length) return;
+  const first = f[0], last = f[f.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+}
+
+function closeLayer(restore) {
+  if (!dlg) return;
+  closeMethod(false);
+  const { trigger, step, refundId } = dlg;
+  const wasGone = step === 'settled409';
+  dlg = null;
+  $('#layer-root').innerHTML = '';
+  if (wasGone) { applyGone(refundId); return; }
+  if (restore && trigger && document.body.contains(trigger)) trigger.focus();
+}
+
+/* ---------- simulated server (contract responses) ---------- */
+function submit() {
+  if (dlg.busy) return;   // the button is disabled while in flight, so no IDEMPOTENCY_KEY_IN_FLIGHT from double clicks
+  dlg.busy = true;
+  renderLayer('#d-confirm');
+  const body = bodyFor(), refundId = dlg.refundId;
+  setTimeout(() => {
+    if (!dlg) return;
+    dlg.busy = false;
+    const r = refunds.find(x => x.id === refundId);
+    const mode = serverMode;
+    if (mode !== 'ok') { serverMode = 'ok'; paintTools(); }
+
+    // 422 needs room for a smaller balance; a 1-cent attempt can only lose as 409.
+    const newDue = body.amountCents >= 200 ? Math.floor(body.amountCents / 200) * 100 : Math.floor(body.amountCents / 2);
+    if (mode === '409' || (mode === '422' && newDue < 1)) {
+      // 409 REFUND_ALREADY_SETTLED: another user completed it in the meantime.
+      dlg.snapshot = clone(r);
+      dlg.step = 'settled409';
+      dlg.alert = { title: 'Esta devolución ya se completó.' };
+      renderLayer('#d-close-ok');
+      return;
+    }
+    if (mode === '422') {
+      // 422 SETTLEMENT_EXCEEDS_REFUND: someone returned part of it first; nothing was written.
+      r.settledCents = r.amountCents - Math.min(newDue, outstanding(r));
+      dlg.step = 'form';
+      dlg.key = null;
+      dlg.flash = true;
+      dlg.errors = { amount: `No puede ser mayor que lo pendiente: ${money(outstanding(r))}.` };
+      dlg.alert = { title: 'El monto es mayor que lo pendiente.', text: ' Actualizamos el saldo; revisa el monto.' };
+      renderSaleQuiet();
+      renderLayer('#d-amount');
+      return;
+    }
+    // 200: { settlementId, refundId, saleId, amountCents, method, reference, settledAt, settledCents, outstandingCents }
+    const res = { refundId, saleId: r.saleId, amountCents: body.amountCents, settledCents: r.settledCents + body.amountCents };
+    res.outstandingCents = r.amountCents - res.settledCents;
+    r.settledCents = res.settledCents;
+    const trigger = dlg.trigger;
+    dlg = null;
+    $('#layer-root').innerHTML = '';
+    if (res.outstandingCents > 0) {
+      renderAll();
+      toast('Devolución parcial registrada.', `Quedan ${money(res.outstandingCents)} por devolver.`);
+      const due = $(`#due-${refundId}`);
+      if (due && !reduceMotion()) { due.classList.add('flash'); setTimeout(() => due.classList.remove('flash'), 1400); }
+      const t = $(`[data-settle="${refundId}"]`) || $('[data-settle-m]') || trigger;
+      if (t && t.offsetParent !== null) t.focus(); else $('#view h1').focus();
+    } else {
+      // outstanding reached 0: the refund leaves the pending list after the refresh
+      refunds = refunds.filter(x => x.id !== refundId);
+      leaving = clone(r);
+      closedHere[r.saleId] = { kind: 'done', amountCents: r.amountCents };
+      renderAll();
+      toast('Devolución completada.', `Se devolvieron ${money(r.amountCents)} en total.`);
+      $('#view h1').focus();
+    }
+  }, 750);
+}
+
+function renderSaleQuiet() { const top = $('#scroll').scrollTop; renderAll(); $('#scroll').scrollTop = top; }
+
+function applyGone(refundId) {
+  const r = refunds.find(x => x.id === refundId);
+  if (r) { refunds = refunds.filter(x => x.id !== refundId); leaving = clone(r); closedHere[r.saleId] = { kind: 'gone' }; }
+  renderAll();
+  $('#view h1').focus();
+}
+
+/* ---------- toast ---------- */
+function toast(title, text) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = `<span class="tile">${ic('checkCircle', 'sm')}</span><div><b>${title}</b><p>${text}</p></div><button type="button" class="icon-btn" aria-label="Cerrar aviso">${ic('x', 'sm')}</button>`;
+  $('#toasts').replaceChildren(el);
+  $('button', el).addEventListener('click', () => el.remove());
+  setTimeout(() => el.remove(), 6000);
+}
+
+/* ---------- artboard tools ---------- */
+const SERVER_LABEL = { ok: 'éxito (200)', '422': 'excede lo pendiente (422)', '409': 'ya completado (409)' };
+function paintTools() {
+  const dark = document.documentElement.classList.contains('dark');
+  const mobile = $('#stage').classList.contains('mobile');
+  $('#t-theme').innerHTML = `${ic(dark ? 'moon' : 'sun', 'sm')}Tema: ${dark ? 'oscuro' : 'claro'}`;
+  $('#t-view').innerHTML = `${ic(mobile ? 'phone' : 'monitor', 'sm')}Vista: ${mobile ? 'móvil (390)' : 'escritorio'}`;
+  $('#t-server').innerHTML = `${ic('server', 'sm')}Próxima respuesta: ${SERVER_LABEL[serverMode]}`;
+  $('#t-perm').innerHTML = `${ic('shield', 'sm')}Permiso: ${canUpdate ? 'ver y liquidar' : 'solo ver'}`;
+  $('#t-notes').innerHTML = `${ic('note', 'sm')}Notas: ${notes ? 'visibles' : 'ocultas'}`;
+  $('#t-reset').innerHTML = `${ic('rotate', 'sm')}Reiniciar datos`;
+  document.body.classList.toggle('no-notes', !notes);
+}
+$('#t-theme').addEventListener('click', () => { document.documentElement.classList.toggle('dark'); paintTools(); });
+$('#t-view').addEventListener('click', () => { closeNav(); $('#stage').classList.toggle('mobile'); paintTools(); });
+$('#t-server').addEventListener('click', () => { const o = ['ok', '422', '409']; serverMode = o[(o.indexOf(serverMode) + 1) % o.length]; paintTools(); });
+$('#t-perm').addEventListener('click', () => { canUpdate = !canUpdate; closeLayer(false); paintTools(); renderSaleQuiet(); });
+$('#t-notes').addEventListener('click', () => { notes = !notes; paintTools(); });
+$('#t-reset').addEventListener('click', () => { refunds = clone(SEED_REFUNDS); closedHere = {}; leaving = null; serverMode = 'ok'; paintTools(); go({ name: 'dashboard' }, false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && app.classList.contains('nav-open')) { closeNav(); $('#menu-btn').focus(); } });
+
+bindNoop();
+paintTools();
+renderAll();
+})();
+</script>
+</body>
+</html>

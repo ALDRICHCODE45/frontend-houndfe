@@ -140,7 +140,7 @@ describe('ProductDetailView four states (S10)', () => {
     expect(wrapper.find('.hf-empty-state[data-kind="error"]').exists()).toBe(false)
   })
 
-  it('data: header shows the status badge and the title, with one primary and no help text', async () => {
+  it('data: header shows the status badge and the title, with one primary (Identidad\'s save bar) and no help text', async () => {
     api.getById.mockResolvedValue(product)
     const wrapper = mountView()
     await flushPromises()
@@ -149,7 +149,9 @@ describe('ProductDetailView four states (S10)', () => {
     expect(header.get('h1').text()).toBe('Collar ajustable')
     expect(header.text()).toContain('Activo')
     expect(header.text()).not.toContain('Cancelar')
-    expect(header.findAll('button[type="submit"]')).toHaveLength(1)
+    // On Identidad the single primary is the save bar's; the header carries none.
+    expect(header.findAll('button[type="submit"]')).toHaveLength(0)
+    expect(wrapper.findAll('[data-testid="identity-save-bar"] .hf-primary-control')).toHaveLength(1)
     expect(wrapper.find('button[aria-label="Volver a productos"]').exists()).toBe(true)
     expect(wrapper.text()).not.toContain('Datos operativos y contenido editorial')
     expect(wrapper.text()).not.toContain('Precios, impuestos y existencias son datos operativos')
@@ -182,9 +184,12 @@ describe('ProductDetailView — review round 1', () => {
     expect(wrapper.get('h1').text()).toBe('Producto')
   })
 
-  it('mobile: the single primary rides in the sticky bottom bar', async () => {
+  it('mobile: the single primary rides in the sticky bottom bar (Presentaciones; Identidad has its save bar)', async () => {
     api.getById.mockResolvedValue(product)
     const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="mobile-action-bar"]').exists()).toBe(false)
+    await wrapper.get('[data-task="presentations"]').trigger('click')
     await flushPromises()
 
     const bar = wrapper.get('[data-testid="mobile-action-bar"]')
@@ -222,7 +227,7 @@ describe('ProductDetailView — review round 1', () => {
 
   it('uses sentence case labels and full-width barcode and SKU inputs', () => {
     const source = readFileSync(resolve(__dirname, '../ProductDetailView.vue'), 'utf8')
-    expect(source).toContain('label="Vender en punto de venta"')
+    expect(source).toContain("label: 'Vender en punto de venta'")
     expect(source).not.toMatch(/Vender en Punto de Venta|Precio de Compra|Listas de Precios|Precios por Cantidad|Agregar Lista de Precios/)
     expect(source).not.toContain('Código de barras / Barcode')
     expect(source).toMatch(/<UInput v-model="formState\.barcode" class="w-full"/)

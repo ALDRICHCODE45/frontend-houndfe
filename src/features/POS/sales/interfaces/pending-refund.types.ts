@@ -28,8 +28,8 @@ import { z } from 'zod'
  *     normalizing, deriving, sorting, truncating or repairing a payload.
  */
 
-/** Every tender method the backend can attach to a refund obligation. */
-const PENDING_REFUND_METHODS = [
+/** Every tender method the backend can attach to a refund obligation (also the settlement methods). */
+export const PENDING_REFUND_METHODS = [
   'cash',
   'card_credit',
   'card_debit',
@@ -41,7 +41,7 @@ const PENDING_REFUND_METHODS = [
 export type PendingRefundMethod = (typeof PENDING_REFUND_METHODS)[number]
 
 /** Every cancellation reason that can originate a refund obligation. */
-const PENDING_REFUND_REASONS = [
+export const PENDING_REFUND_REASONS = [
   'CUSTOMER_REQUEST',
   'ORDER_ERROR',
   'OUT_OF_STOCK',

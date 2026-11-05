@@ -838,6 +838,62 @@ describe('saleApi', () => {
       expect(result.items).toHaveLength(1)
       expect(result.payments[0]?.method).toBe('CASH')
     })
+
+    it('decodes the cancellation fields of a cancelled sale and fills them on an older payload', async () => {
+      const confirmed = {
+        id: 'sale-1',
+        folio: 'A-202605-000012',
+        status: 'CONFIRMED',
+        channel: 'POS',
+        register: 'Principal',
+        confirmedAt: '2026-05-06T14:43:00.000Z',
+        dueDate: null,
+        subtotalCents: 6555,
+        discountCents: 0,
+        totalCents: 6555,
+        paidCents: 6555,
+        debtCents: 0,
+        changeDueCents: 0,
+        paymentStatus: 'PAID',
+        deliveryStatus: 'DELIVERED',
+        customer: null,
+        cashier: { id: 'cashier-1', name: 'cesar flores' },
+        seller: null,
+        items: [],
+        payments: [],
+        timeline: [],
+      }
+      vi.mocked(http.get).mockResolvedValueOnce({
+        data: {
+          ...confirmed,
+          status: 'CANCELED',
+          canceledAt: '2026-10-21T20:42:00.000Z',
+          cancelReason: 'ORDER_ERROR',
+          canceledBy: { id: 'u-9', name: 'Ana Ruiz' },
+          refunds: [
+            {
+              id: 'cmw2iwsa00000r965efhf292s',
+              method: 'cash',
+              amountCents: 6555,
+              settledCents: 2000,
+              outstandingCents: 4555,
+              reason: 'ORDER_ERROR',
+              status: 'PENDING',
+              createdAt: '2026-10-21T20:42:00.000Z',
+            },
+          ],
+        },
+      })
+      vi.mocked(http.get).mockResolvedValueOnce({ data: confirmed })
+
+      const canceled = await saleApi.getById('sale-1')
+      const legacy = await saleApi.getById('sale-1')
+
+      expect(canceled.cancelReason).toBe('ORDER_ERROR')
+      expect(canceled.refunds?.[0]?.outstandingCents).toBe(4555)
+      expect(legacy.refunds).toEqual([])
+      expect(legacy.canceledBy).toBeNull()
+    })
   })
 
   describe('getAvailablePrices', () => {

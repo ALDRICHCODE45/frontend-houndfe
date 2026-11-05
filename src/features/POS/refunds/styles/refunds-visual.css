@@ -1,0 +1,404 @@
+/*
+ * Reembolsos pendientes (design/refund-settlements/01-pending-inbox.html).
+ * Colors come only from --hf-* tokens, so light and dark follow the theme.
+ */
+
+/* ── Page ─────────────────────────────────────────────────────────────── */
+.hf-ui .refunds-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.hf-ui .refunds-owed {
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+  white-space: nowrap;
+}
+
+.hf-ui .refunds-owed strong,
+.hf-ui .refund-owe {
+  color: var(--hf-warning);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.hf-ui .refund-cell-figure {
+  display: block;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.hf-ui .refund-primary-line {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* «Motivo»: the reason wraps (two lines at most for the longest label), the day stays whole. The cell
+ * itself must give it room: the table's cells are nowrap with max-width 0, which clipped the label. */
+.hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']).refund-col-reason {
+  width: 13rem;
+  min-width: 11rem;
+  max-width: none;
+  white-space: normal;
+}
+
+.hf-ui .refund-reason {
+  display: block;
+  min-width: 11rem;
+  font-size: 0.875rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.hf-ui .refund-reason-when {
+  white-space: nowrap;
+}
+
+.hf-ui .refund-dash {
+  color: var(--hf-muted);
+}
+
+/* ── Mobile card ─────────────────────────────────────────────────────── */
+.hf-ui .refund-card {
+  position: relative;
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background: var(--hf-surface);
+}
+
+.hf-ui .refund-card__top {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+  padding-right: 2.75rem;
+}
+
+.hf-ui .refund-card__link {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--hf-heading);
+  text-align: left;
+}
+
+.hf-ui .refund-card__link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.hf-ui .refund-card__link:focus-visible {
+  outline: none;
+}
+
+.hf-ui .refund-card:has(.refund-card__link:focus-visible) {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+.hf-ui .refund-card__menu {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 1;
+}
+
+.hf-ui .refund-card__secondary {
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+}
+
+.hf-ui .refund-card__foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--hf-border);
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+}
+
+.hf-ui .refund-card__owed {
+  display: grid;
+  gap: 0.125rem;
+}
+
+.hf-ui .refund-card__owed .refund-owe {
+  font-size: 1rem;
+}
+
+/* ── Settle panel (full screen below sm, 28rem beside the list from sm) ── */
+.hf-ui .refund-settle {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  background: var(--hf-surface);
+  color: var(--hf-ink);
+}
+
+.hf-ui .refund-settle__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1rem 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--hf-border);
+}
+
+.hf-ui .refund-settle__meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+}
+
+.hf-ui .refund-settle__title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--hf-heading);
+}
+
+.hf-ui .refund-settle__close {
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+}
+
+.hf-ui .refund-settle__body {
+  display: grid;
+  /* minmax(0, …): a field's intrinsic width never pushes the sheet past its gutter. */
+  grid-template-columns: minmax(0, 1fr);
+  flex: 1;
+  align-content: start;
+  gap: 1.25rem;
+  overflow-y: auto;
+  padding: 1.25rem 1rem 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .hf-ui .refund-settle__body {
+    padding: 1.25rem 1.5rem 1.5rem;
+  }
+}
+
+.hf-ui .refund-settle__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+}
+
+.hf-ui .refund-settle__facts span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.hf-ui .refund-settle__summary {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background: var(--hf-surface-muted);
+}
+
+.hf-ui .refund-settle__summary dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.hf-ui .refund-settle__summary dt {
+  font-size: 0.75rem;
+  color: var(--hf-muted);
+}
+
+.hf-ui .refund-settle__summary dd {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+.hf-ui .refund-settle__summary dd.refund-owe {
+  color: var(--hf-warning);
+}
+
+.hf-ui .refund-settle__bar {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--hf-ink) 12%, var(--hf-surface));
+}
+
+.hf-ui .refund-settle__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--hf-success);
+  transition: width 240ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hf-ui .refund-settle__bar span {
+    transition: none;
+  }
+}
+
+.hf-ui .refund-settle__bar-caption {
+  font-size: 0.75rem;
+  color: var(--hf-muted);
+}
+
+.hf-ui .refund-settle__alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--hf-danger-border);
+  border-radius: var(--hf-radius-control);
+  background: var(--hf-danger-soft);
+  color: var(--hf-danger);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.hf-ui .refund-settle__form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+}
+
+.hf-ui .refund-settle__section {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+/* Amount: one field surface with the $ prefix and «Devolver todo» inside. */
+.hf-ui .refund-amount {
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.25rem 0 0.75rem;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  background: var(--hf-field);
+}
+
+.hf-ui .refund-amount:hover {
+  border-color: var(--hf-field-border);
+}
+
+.hf-ui .refund-amount:focus-within {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--hf-focus);
+}
+
+.hf-ui .refund-amount[data-invalid='true'] {
+  border-color: var(--hf-danger);
+}
+
+.hf-ui .refund-amount__prefix {
+  color: var(--hf-muted);
+}
+
+.hf-ui .refund-amount__input {
+  /* Width 0 plus flex-basis 0: the input takes what is left after «Devolver todo». */
+  width: 0;
+  min-width: 0;
+  flex: 1 1 0;
+  border: 0;
+  background: transparent;
+  color: var(--hf-ink);
+  font-size: 1rem;
+  outline: none;
+}
+
+.hf-ui .refund-amount__all {
+  flex-shrink: 0;
+}
+
+.hf-ui .refund-amount__all,
+.hf-ui .refund-link {
+  min-height: 36px;
+  padding: 0 0.625rem;
+  border-radius: var(--hf-radius-control);
+  color: var(--hf-action);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.hf-ui .refund-amount__all:hover:not(:disabled),
+.hf-ui .refund-link:hover {
+  background: var(--hf-active-soft);
+}
+
+.hf-ui .refund-amount__all:disabled {
+  color: var(--hf-muted);
+  cursor: default;
+}
+
+.hf-ui .refund-amount__all:focus-visible,
+.hf-ui .refund-link:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 1px;
+}
+
+.hf-ui .refund-date-now,
+.hf-ui .refund-date-custom {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hf-ui .refund-date-now {
+  color: var(--hf-ink);
+  font-size: 0.875rem;
+}
+
+/* Footer: equal columns, sticky under the scrolling body (also the mobile bar). */
+.hf-ui .refund-settle__foot {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--hf-border);
+  background: var(--hf-surface);
+}
+
+@media (min-width: 640px) {
+  .hf-ui .refund-settle__foot {
+    display: flex;
+    justify-content: flex-end;
+    padding: 1rem 1.5rem;
+  }
+}
+
+.hf-ui .refund-settle__btn {
+  min-height: 44px;
+  justify-content: center;
+}

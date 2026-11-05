@@ -2,25 +2,10 @@ import type {
   PendingRefundMethod,
   PendingRefundReason,
 } from '@/features/POS/sales/interfaces/pending-refund.types'
+import { refundMethodLabel, refundReasonLabel } from '@/features/POS/refunds/utils/refundLabels'
 
 /** Contractual zone of every dashboard event instant. */
 export const MEXICO_CITY_TIME_ZONE = 'America/Mexico_City'
-
-const REFUND_METHOD_LABELS: Record<PendingRefundMethod, string> = {
-  cash: 'Efectivo',
-  card_credit: 'Tarjeta de crédito',
-  card_debit: 'Tarjeta de débito',
-  transfer: 'Transferencia',
-  credit: 'Crédito',
-}
-
-const REFUND_REASON_LABELS: Record<PendingRefundReason, string> = {
-  CUSTOMER_REQUEST: 'Solicitud del cliente',
-  ORDER_ERROR: 'Error en la venta',
-  OUT_OF_STOCK: 'Sin existencias',
-  DUPLICATE_SALE: 'Venta duplicada',
-  OTHER: 'Otro',
-}
 
 /**
  * Preserve a backend logical calendar date without shifting it through the
@@ -33,10 +18,11 @@ export function formatDashboardDueDate(iso: string): string {
   return `${day}/${month}/${date.getUTCFullYear()}`
 }
 
+// One vocabulary with «Reembolsos pendientes» (contract copy hints, handoff 06 §7).
 export function pendingRefundMethodLabel(method: PendingRefundMethod): string {
-  return REFUND_METHOD_LABELS[method]
+  return refundMethodLabel(method)
 }
 
 export function pendingRefundReasonLabel(reason: PendingRefundReason): string {
-  return REFUND_REASON_LABELS[reason]
+  return refundReasonLabel(reason)
 }

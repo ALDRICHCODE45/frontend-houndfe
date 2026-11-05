@@ -24,6 +24,8 @@ S15. The user chose direction 02, verbatim: "todas las opciones me gustan mucho,
 
 S16. System-wide soft field borders, verbatim: "algo que tambien me molestaba demasiado era el borde los inputs, era muy fuerte, y ahora es mas tenue, todo tiene armonia" / "Si hermano, sinceramente creo que le da completamente otro feeling al sistema, por favor, hay que avanzar con eso." Every field in the app (inputs, textareas, selects, select menus, date inputs, search boxes, native-styled controls) rests on --hf-border, shows --hf-field-border on hover and the 2px --hf-focus ring on focus, with --hf-danger only when invalid, in light and dark. Afterwards, migrate the big forms to the Hf* patterns one module at a time.
 
+S17. Next work, verbatim: "Si hermano, por favor, una detas de la otra." Both proposals, in order: (1) migrate the product Identidad tab to the Hf* form patterns (consistent with Contenido); (2) a new refund settlement screen, designed on the canvas first.
+
 ## Tasks
 
 T1 [S2,S3] Inventory screens and dead code (explorer), research principles, and extend docs/design-system.md. Route: explore, then inline.
@@ -46,6 +48,17 @@ T14 [S15] Detailed Playwright-MCP review by the parent (food, collar, pipeta; 14
 T15 [S2] Replace the native window.confirm "leave without saving" guard (product detail / editorial) with the shared ConfirmModal (route leave). Keep the native beforeunload for tab close (browsers allow no custom UI there). Route: writer. Branch feat/leave-guard-modal.
 
 T16 [S16] Soft rest borders for every field app-wide via the .hf-ui adapter, plus feature-level overrides. Route: writer, then a parent Playwright review across modules. Branch feat/soft-field-borders.
+
+T17 [S17] Product Identidad tab on the Hf* patterns (section cards, HfFormField, HfCombobox, HfSaveBar where it fits), in the same product page as Contenido. Route: writer. Branch feat/identity-patterns.
+T18 [S17] Refund settlement screen: three design directions in design/refund-settlements/ from odd/handoff/06-refund-settlements.md (the BE contract with real HTTP examples). The user picks one. Route: design writers.
+T19 [S17] Implement the chosen refund settlement direction. Route: writer, after T18.
+
+T20 [S17] Canceled sale detail (BE ae0e951):
+- GET /sales/:id now returns canceled sales with canceledAt/cancelReason/canceledBy/refunds[].
+- Show the cancellation and its refunds; link «Liquidar» to the Reembolsos page.
+- Disable «Vendedor» and «Vencimiento», which now return 422 SALE_CANCELED.
+- The PDF returns 400 SALE_NOT_CONFIRMED, so hide it.
+Route: writer after T19.
 
 ## Log
 
@@ -153,3 +166,16 @@ L76. T12–T14 DONE.
 - Merged to main locally; the user pushes.
 L77. T15 DONE (5c76ebb8): useConfirm/useLeaveGuard on one ConfirmDialogHost; no native confirm left (AST guard spec). Browser check: the modal shows; Seguir editando and Esc stay; Salir sin guardar leaves; 0 native dialogs. Suite 753/13678, tc/build/dc 0; assess medium, reviewDue false. Merged to main.
 L78. T16 DONE (893a770a): soft rest borders app-wide at the source (vite base slot adds hf-field-control; houndfe-ui.css: rest --hf-border, hover --hf-field-border, invalid --hf-danger, focus wins); 8 feature overrides softened; deliberate exceptions allowlisted in hf-field-border-guard (checkbox, step marks, picker buttons). Browser: rest #dce2e8 → hover #8593a3 measured on UInput and the toolbar search; invalid red; dark admin slideover; ventas 390. Suite 755/13699, tc/build/dc 0; assess medium, reviewDue false. Merged to main. The refund settlement UI is missing in the FE (BE handoff docs/frontend-handoff/06-refund-settlements.md is ready); proposed to the user.
+L79. Refund settlements: the user chose direction 01, verbatim: "Si hermano, estoy de acuerdo, vamos con la opcion 1. y si, que diga Reembolsos, por favor. (:"
+- Approved add-on: «Registrar como salida de mi caja» (cashSessionId) from 03.
+- Copy: «Reembolsos» for the debt, «devolución» for each payment.
+- 02 and 03 are alternatives.
+- T19 starts.
+L80. T19 browser check against BE main :3002 (admin): the page lists 4 real pending refunds. Partial $10 on A-202611-000050: a double click sent ONE POST with an Idempotency-Key and got 200; toast «Devolución parcial registrada. Quedan $70.55 por devolver.»; the summary refreshed. Full $70.55: 200; the row left; the badge went 4→3; Por devolver $17,805.90→$17,725.35; toast «Devolución completada.» Mobile dark: cards, no overflow. Found: the mobile sheet amount field overflows; Motivo and «Total a devol…» truncate at 1440. Both were sent to the T20 worker.
+L81. Independent verify (gentle-ai-verify) of the refund settlement money flow: FAIL on item 1. A comma decimal «70,55» was read as $7,055.00, a 100× over-settlement passing whenever it is below the outstanding balance. Fixed test-first (RED 5 → GREEN 99/99): a comma is accepted only as thousands groups, else «Usa punto para los centavos, por ejemplo 70.55.» Items 2–6 PASS (idempotency, fields, errors, success refetch, permissions).
+L82. Independent re-verify of item 1 (amount) after 52c81060: PASS (no bypass: Devolver todo, blur, reset, submit re-check, builder re-parse). The small gap «0,100» it noted was closed test-first in the next commit.
+L83. Delivered:
+- T17 Identidad, T19 Reembolsos, T20 the canceled sale detail;
+- the run-tests queue;
+- the refund amount fix, verified by the independent verify.
+Final suite 772/13867, tc/build/dc 0. Merged to main.

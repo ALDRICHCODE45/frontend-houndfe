@@ -107,6 +107,11 @@ export const saleQueryKeys = {
   // refund). Kept SEPARATE from `pendingRefunds(tenantId, {...})` because that
   // key's trailing page/limit would not prefix-match a different page slot.
   pendingRefundsPrefix: (tenantId: string) => ['sales', tenantId, 'pending-refunds'] as const,
+  // T19: folio and customer of the cancelled sales behind one page of pending refunds
+  // (joined by saleId from `GET /sales?status=CANCELED`, handoff 06 §9). Under the
+  // pending-refunds prefix so a settlement or a cancellation refreshes it with the list.
+  pendingRefundSales: (tenantId: string, saleIds: readonly string[]) =>
+    ['sales', tenantId, 'pending-refunds', 'sales', ...saleIds] as const,
   // ODD dashboard-operational-insights OI-5B2 S1: the two fixed-slot dashboard
   // sales queries. 'dashboard-recent' and 'dashboard-debt' are their OWN cache
   // namespaces, disjoint from 'confirmed' (the caller-driven list) and from

@@ -14,6 +14,9 @@ const props = defineProps<{
   loadingMessage: string
   emptyMessage: string
   errorMessage: string
+  /** Optional «Ver todos» link to the module's full list. */
+  linkTo?: string
+  linkLabel?: string
 }>()
 
 const emit = defineEmits<{
@@ -54,6 +57,15 @@ const isBusy = computed(() => props.isInitialLoading || props.isRefetching)
       <h2 :id="headingId">
         {{ title }}
       </h2>
+      <RouterLink
+        v-if="linkTo && linkLabel"
+        :to="linkTo"
+        class="dashboard-operation-link"
+        data-testid="dashboard-operational-link"
+      >
+        {{ linkLabel }}
+        <UIcon name="i-lucide-chevron-right" class="size-4" aria-hidden="true" />
+      </RouterLink>
     </header>
 
     <div class="min-w-0">

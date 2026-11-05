@@ -129,3 +129,25 @@
   .dashboard-visual .dashboard-state-content,
   .dashboard-visual .dashboard-operation-row { transition: none; }
 }
+
+/* T19: the pending-refunds module opens «Reembolsos pendientes». */
+.dashboard-visual .dashboard-operation-link {
+  display: inline-flex;
+  min-height: 44px;
+  margin-left: auto;
+  align-items: center;
+  gap: 2px;
+  color: var(--hf-action);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.dashboard-visual .dashboard-operation-link:hover { text-decoration: underline; }
+.dashboard-visual .dashboard-operation-row--link { padding: 0; }
+.dashboard-visual .dashboard-row-link { padding: 16px 20px; color: inherit; }
+.dashboard-visual .dashboard-operation-link:focus-visible,
+.dashboard-visual .dashboard-row-link:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: -2px;
+  border-radius: 6px;
+}

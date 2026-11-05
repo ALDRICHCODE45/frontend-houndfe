@@ -27,8 +27,9 @@ vi.mock('@/features/POS/sales/composables/useSellerAssignment', () => ({
   }),
 }))
 
-const toastAddMock = vi.fn()
+const toastAddMock = vi.hoisted(() => vi.fn())
 vi.stubGlobal('useToast', () => ({ add: toastAddMock }))
+vi.mock('@nuxt/ui/runtime/composables/useToast', () => ({ useToast: () => ({ add: toastAddMock }) }))
 
 function makeUsers(): AssignableUser[] {
   return [
@@ -155,5 +156,19 @@ describe('AssignSellerSlideover', () => {
 
     expect(assignSellerMock).toHaveBeenCalledWith('u-1')
     expect(wrapper.emitted('update:open')).toBeFalsy()
+  })
+
+  it('says the sale is cancelled when the backend answers SALE_CANCELED (cancelled meanwhile)', async () => {
+    assignSellerMock.mockRejectedValueOnce(new SellerAssignmentError('SALE_CANCELED'))
+
+    mountSlideover()
+    await flushPromises()
+
+    $('[data-testid="seller-row-u-1"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    expect(toastAddMock).toHaveBeenCalledWith(
+      expect.objectContaining({ description: 'La venta está cancelada.' }),
+    )
   })
 })

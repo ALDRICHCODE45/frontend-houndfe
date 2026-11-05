@@ -214,6 +214,7 @@ vi.mock('../../composables/useDebtConfirmedSales', () => ({
 
 const pendingRefundsItems = ref<PendingRefundRow[]>([])
 const pendingRefundsState = {
+  data: ref<{ pagination: { total: number } } | undefined>(undefined),
   items: pendingRefundsItems,
   isEmpty: computed(() => pendingRefundsItems.value.length === 0),
   isInitialLoading: ref(false),

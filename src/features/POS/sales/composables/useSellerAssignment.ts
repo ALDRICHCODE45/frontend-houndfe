@@ -16,6 +16,7 @@ const KNOWN_CODES: SellerAssignmentErrorCode[] = [
   'SELLER_NOT_FOUND',
   'SALE_NOT_FOUND',
   'SALE_UPDATE_FORBIDDEN',
+  'SALE_CANCELED',
 ]
 
 function parseSellerError(error: unknown): SellerAssignmentError | null {
@@ -40,6 +41,11 @@ export function useSellerAssignment(saleId: MaybeRefOrGetter<string>) {
     })
   }
 
+  // The sale was cancelled meanwhile: reload it so the detail shows it read-only.
+  const refreshIfCanceled = async () => {
+    if (lastError.value?.code === 'SALE_CANCELED') await invalidateDetail()
+  }
+
   const assignSellerMutation = useMutation({
     mutationFn: async (sellerUserId: string) => {
       try {
@@ -52,8 +58,9 @@ export function useSellerAssignment(saleId: MaybeRefOrGetter<string>) {
       lastError.value = null
       await invalidateDetail()
     },
-    onError: (error) => {
+    onError: async (error) => {
       lastError.value = parseSellerError(error)
+      await refreshIfCanceled()
     },
   })
 
@@ -69,8 +76,9 @@ export function useSellerAssignment(saleId: MaybeRefOrGetter<string>) {
       lastError.value = null
       await invalidateDetail()
     },
-    onError: (error) => {
+    onError: async (error) => {
       lastError.value = parseSellerError(error)
+      await refreshIfCanceled()
     },
   })
 

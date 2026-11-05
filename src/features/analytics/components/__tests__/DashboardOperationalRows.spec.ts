@@ -1,12 +1,16 @@
 // DashboardOperationalRows.spec.ts — exact real-field presentation for the
-// three operational lists. No row is a navigation surface (OI-5B2 S2).
+// three operational lists. Sale rows are not navigation surfaces (OI-5B2 S2); a refund row
+// opens «Reembolsos pendientes» (T19).
 
 import { describe, expect, it } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount as baseMount, RouterLinkStub } from '@vue/test-utils'
 import type { ConfirmedSaleRow } from '@/features/POS/sales/interfaces/sale.types'
 import type { PendingRefundRow } from '@/features/POS/sales/interfaces/pending-refund.types'
 import DashboardSaleRow from '../DashboardSaleRow.vue'
 import DashboardRefundRow from '../DashboardRefundRow.vue'
+
+const mount: typeof baseMount = ((component: never, options: Record<string, unknown> = {}) =>
+  baseMount(component, { ...options, global: { stubs: { RouterLink: RouterLinkStub } } })) as never
 
 function makeSale(over: Partial<ConfirmedSaleRow> = {}): ConfirmedSaleRow {
   return {
@@ -147,7 +151,7 @@ describe('DashboardRefundRow — pending refund', () => {
     ['card_credit', 'Tarjeta de crédito'],
     ['card_debit', 'Tarjeta de débito'],
     ['transfer', 'Transferencia'],
-    ['credit', 'Crédito'],
+    ['credit', 'Saldo a favor / crédito'],
   ] as const)('labels method %s without exposing a raw enum', (method, label) => {
     const w = mount(DashboardRefundRow, { props: { refund: makeRefund({ method }) } })
 
@@ -156,7 +160,7 @@ describe('DashboardRefundRow — pending refund', () => {
 
   it.each([
     ['CUSTOMER_REQUEST', 'Solicitud del cliente'],
-    ['ORDER_ERROR', 'Error en la venta'],
+    ['ORDER_ERROR', 'Error en el pedido'],
     ['OUT_OF_STOCK', 'Sin existencias'],
     ['DUPLICATE_SALE', 'Venta duplicada'],
     ['OTHER', 'Otro'],
@@ -166,10 +170,10 @@ describe('DashboardRefundRow — pending refund', () => {
     expect(w.text()).toContain(label)
   })
 
-  it('exposes no navigation and never invents a combined refund total', () => {
+  it('opens «Reembolsos pendientes» and never invents a combined refund total', () => {
     const w = mount(DashboardRefundRow, { props: { refund: makeRefund() } })
 
-    expect(w.find('a').exists()).toBe(false)
+    expect(w.getComponent(RouterLinkStub).props('to')).toBe('/pos/reembolsos')
     expect(w.find('button').exists()).toBe(false)
     expect(w.text()).not.toContain('$500.00')
     expect(w.text()).not.toContain('$125.00')

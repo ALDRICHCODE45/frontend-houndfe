@@ -56,6 +56,7 @@ vi.mock('@/app/composables/useSidebar', async () => {
       defaultOpen: false,
       children: [
         { label: 'Ventas', icon: 'i-lucide-shopping-cart', to: '/pos/ventas' },
+        { label: 'Reembolsos pendientes', icon: 'i-lucide-rotate-ccw', to: '/pos/reembolsos' },
         { label: 'Productos', icon: 'i-lucide-package', to: '/pos/products' },
       ],
     },
@@ -77,6 +78,13 @@ vi.mock('@/app/composables/useSidebar', async () => {
       changeColorMode: vi.fn(),
     }),
   }
+})
+
+const pendingRefunds = vi.hoisted(() => ({ count: null as unknown as Ref<number> }))
+vi.mock('@/features/POS/refunds/composables/usePendingRefundsCount', async () => {
+  const { ref } = await vi.importActual<typeof import('vue')>('vue')
+  pendingRefunds.count = ref(0)
+  return { usePendingRefundsCount: () => ({ count: pendingRefunds.count }) }
 })
 
 vi.mock('@/app/composables/useDashboard', async () => {
@@ -723,5 +731,24 @@ describe('DashboardLayout — chrome control hooks', () => {
     const sfc = readSfc()
     expect(sfc).toContain("content: 'hf-shell-portal hf-shell-menu hf-shell-tenant-menu'")
     expect(sfc.match(/content: 'min-w-48 hf-shell-portal hf-shell-menu'/g)).toHaveLength(2)
+  })
+})
+
+describe('DashboardLayout — pending refunds badge (T19)', () => {
+  afterEach(() => {
+    pendingRefunds.count.value = 0
+  })
+
+  it('shows the pending count on «Reembolsos pendientes» and hides it at 0', async () => {
+    pendingRefunds.count.value = 4
+    const wrapper = await mountLayoutAt('/pos/reembolsos')
+    await openNavGroup(wrapper, 'POS')
+    const entry = () =>
+      wrapper.findAll('.hf-shell-nav [data-slot="link"]').find((link) => link.text().includes('Reembolsos pendientes'))
+    expect(entry()?.find('.hf-shell-nav-count').text()).toBe('4')
+
+    pendingRefunds.count.value = 0
+    await nextTick()
+    expect(entry()?.find('.hf-shell-nav-count').exists()).toBe(false)
   })
 })
