@@ -22,6 +22,8 @@ S14. Contenido v3 redesign. The user's words are quoted verbatim in L72. Three d
 
 S15. The user chose direction 02, verbatim: "todas las opciones me gustan mucho, por favor, todo lo que mejoraste, usalo para ampliar el system design que tenemos, con patrones reutilizables en todo el sistema ... la segunda opcion sera mi eleccion. De las pocas cosas que me gustan del diseno actual es el slideover del historial eso no lo cambiaria, pero si notas algo para cambiar, adelante ... despues de que termines de hacer esto, por favor, commit, merge y yo hago push de main ... lo tendras que revisar DETALLADAMENTE TU desde el mcp de playwhrite". Build design/content-editor-v3/02-section-cards.html in the app. Shared reusable components plus docs/design-system.md patterns. Keep the Historial slideover. Merge to main after a detailed Playwright-MCP review by the parent.
 
+S16. System-wide soft field borders, verbatim: "algo que tambien me molestaba demasiado era el borde los inputs, era muy fuerte, y ahora es mas tenue, todo tiene armonia" / "Si hermano, sinceramente creo que le da completamente otro feeling al sistema, por favor, hay que avanzar con eso." Every field in the app (inputs, textareas, selects, select menus, date inputs, search boxes, native-styled controls) rests on --hf-border, shows --hf-field-border on hover and the 2px --hf-focus ring on focus, with --hf-danger only when invalid, in light and dark. Afterwards, migrate the big forms to the Hf* patterns one module at a time.
+
 ## Tasks
 
 T1 [S2,S3] Inventory screens and dead code (explorer), research principles, and extend docs/design-system.md. Route: explore, then inline.
@@ -42,6 +44,8 @@ T13 [S15] Rebuild the Contenido workspace as 02-section-cards on top of T12. Sec
 T14 [S15] Detailed Playwright-MCP review by the parent (food, collar, pipeta; 1440 and 390; light and dark), fixes, full suite, tc, build, then merge to main and tell the user to push.
 
 T15 [S2] Replace the native window.confirm "leave without saving" guard (product detail / editorial) with the shared ConfirmModal (route leave). Keep the native beforeunload for tab close (browsers allow no custom UI there). Route: writer. Branch feat/leave-guard-modal.
+
+T16 [S16] Soft rest borders for every field app-wide via the .hf-ui adapter, plus feature-level overrides. Route: writer, then a parent Playwright review across modules. Branch feat/soft-field-borders.
 
 ## Log
 
