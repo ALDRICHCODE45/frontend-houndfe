@@ -145,11 +145,11 @@ const rows = computed<TimelineRowViewModel[]>(() =>
     class="flex flex-col gap-2"
     aria-label="Historial de la ruta"
   >
-    <h3 class="text-base font-semibold text-highlighted">{{ heading }}</h3>
+    <h3 v-if="heading" class="text-base font-semibold text-highlighted">{{ heading }}</h3>
 
     <ol
       v-if="rows.length > 0"
-      class="flex flex-col gap-3 border-l border-default pl-4"
+      class="ml-1 flex flex-col gap-3 border-l border-default pl-4"
       data-testid="delivery-route-timeline-list"
     >
       <li
@@ -158,7 +158,7 @@ const rows = computed<TimelineRowViewModel[]>(() =>
         :data-testid="row.testId"
         class="relative flex flex-col gap-0.5"
       >
-        <span class="absolute -left-[1.4rem] top-1 h-2 w-2 rounded-full bg-[var(--hf-muted)]" aria-hidden="true" />
+        <span class="absolute -left-[calc(1rem+4.5px)] top-1.5 h-2 w-2 rounded-full bg-[var(--hf-muted)]" aria-hidden="true" />
             <span class="text-sm font-medium">{{ row.label }}</span>
             <time
               data-testid="timeline-row-timestamp"

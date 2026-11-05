@@ -153,14 +153,15 @@ function onOverlayFooterAction(event: MouseEvent) { if (props.checkInPending || 
 
 // Typed mode → content mapping (REQ-DRC-105): one `<component :is>` render, no wrapper SFC.
 interface StopModeContentProps { stop: DeliveryRouteStop; mapReady: boolean }
-interface HistoryModeContentProps { route: DeliveryRouteResponseDto }
+interface HistoryModeContentProps { route: DeliveryRouteResponseDto; heading: string }
 type ModeContent =
   | { component: typeof DriverStopPanel; props: StopModeContentProps }
   | { component: typeof DeliveryRouteTimeline; props: HistoryModeContentProps }
   | null
 
 const modeContent = computed<ModeContent>(() => {
-  if (props.mode === 'history') return { component: DeliveryRouteTimeline, props: { route: props.route } }
+  // The drawer title already names the history: no second heading inside.
+  if (props.mode === 'history') return { component: DeliveryRouteTimeline, props: { route: props.route, heading: '' } }
   if (props.mode === 'stop' && props.stop) return {
     component: DriverStopPanel,
     props: { stop: props.stop, mapReady: mapReady.value },

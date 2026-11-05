@@ -745,6 +745,19 @@ describe('DeliveryRouteDetailView — manager branch wiring (design §4.1, §6.4
     expect(wrapper.find('[data-testid="detail-loading-skeleton"]').exists()).toBe(true)
   })
 
+  it('a driver waits on a cockpit-shaped skeleton (header, summary, stop cards), not the manager workspace', async () => {
+    resetRoleFlags({ isManager: { value: false }, isDriver: { value: true } })
+    resetDetailState({ isLoading: true, data: undefined })
+    const wrapper = mountView()
+    await flushPromises()
+    const sk = wrapper.find('[data-testid="detail-driver-loading-skeleton"]')
+    expect(sk.exists()).toBe(true)
+    expect(sk.attributes('aria-busy')).toBe('true')
+    expect(sk.findAll('[data-skeleton="stop-card"]').length).toBe(3)
+    expect(sk.find('[data-skeleton="kpi"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="detail-loading-skeleton"]').exists()).toBe(false)
+  })
+
   it('renders the route summary (status badge + driver + x/y progress) when data is loaded', async () => {
     resetRoleFlags({ isManager: { value: true } })
     resetDetailState({ data: makeDraftRoute({ stopsLength: 3 }) })
@@ -936,7 +949,7 @@ describe('DeliveryRouteDetailView — 404 ENTITY_NOT_FOUND / driver 403 → full
 
       it('does NOT mount the cockpit while isLoading=true (REQ-DRC-112)', async () => {
         const wrapper = await mountDriver({ isLoading: true, data: undefined })
-        expect(wrapper.find('[data-testid="detail-loading-skeleton"]').exists()).toBe(true)
+        expect(wrapper.find('[data-testid="detail-driver-loading-skeleton"]').exists()).toBe(true)
         expect(wrapper.find('[data-testid="driver-route-cockpit-stub"]').exists()).toBe(false)
       })
 

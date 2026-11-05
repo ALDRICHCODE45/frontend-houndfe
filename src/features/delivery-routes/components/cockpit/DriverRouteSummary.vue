@@ -55,7 +55,7 @@ const showSkipped = computed<boolean>(() => props.counts.skipped > 0)
         aria-valuemin="0"
         :aria-valuemax="props.counts.total"
         :aria-label="progressAriaLabel"
-        class="h-2 w-full overflow-hidden rounded-full bg-elevated"
+        class="delivery-routes-progress-track h-2 w-full overflow-hidden rounded-full"
       >
         <div
           data-testid="driver-route-summary-progress-fill"

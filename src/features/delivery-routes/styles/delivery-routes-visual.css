@@ -47,6 +47,11 @@
   border-color: var(--hf-active);
 }
 
+/* The track reads at 0% on the card surface (bg-elevated vanished there). */
+.delivery-routes-driver .delivery-routes-progress-track {
+  background-color: var(--hf-border);
+}
+
 .delivery-routes-driver .delivery-routes-progress-fill {
   background-color: var(--hf-success);
 }

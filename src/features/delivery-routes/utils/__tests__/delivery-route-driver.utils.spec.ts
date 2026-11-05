@@ -90,7 +90,8 @@ describe('buildDriverRouteMission — progress', () => {
 })
 
 describe('buildDriverRouteMission — target stop and call to action', () => {
-  it('targets the first pending stop as "Siguiente parada" with position, customer, folio and address', () => {
+  // "Parada actual": the cockpit keeps "Siguiente" for the stop after this one.
+  it('targets the first pending stop as "Parada actual" with position, customer, folio and address', () => {
     const stops = [
       stop(0, 'COMPLETED'),
       stop(1, 'PENDING', {
@@ -105,7 +106,7 @@ describe('buildDriverRouteMission — target stop and call to action', () => {
     ]
     const mission = buildDriverRouteMission(route({ stops }), NOW)
     expect(mission.target).toEqual({
-      heading: 'Siguiente parada',
+      heading: 'Parada actual',
       position: 2,
       customer: 'María López',
       folio: 'V-1023',

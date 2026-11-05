@@ -34,7 +34,7 @@
  * the trigger's accessible label is cockpit.header.actionsLabel.
  *
  * Surface (single source of truth — copy.ts + DELIVERY_ROUTE_STATUS_* maps):
- *   - Back, title "Ruta de entrega", lifecycle StatusBadge (label + tone),
+ *   - Back, title "Ruta del 5 nov" (the list's name), lifecycle StatusBadge (label + tone),
  *     never the route id, truthful
  *     lifecycle timestamp line.
  *
@@ -56,6 +56,7 @@ import {
   type DeliveryRouteResponseDto,
 } from '../../interfaces/delivery-route.types'
 import { DELIVERY_ROUTE_COPY } from '../../copy'
+import { buildRouteTitle } from '../../utils/delivery-route-list.utils'
 
 const props = defineProps<{
   route: DeliveryRouteResponseDto
@@ -68,8 +69,8 @@ const emit = defineEmits<{
   'open-history': [payload: { trigger: HTMLElement | null }]
 }>()
 
-// Route-page evolution: page identity + truthful route id.
-const pageTitle = computed<string>(() => DELIVERY_ROUTE_COPY.cockpit.header.title)
+// The route's list name ("Ruta del 5 nov"), so the card and the cockpit agree.
+const pageTitle = computed<string>(() => buildRouteTitle(props.route))
 // Route-page evolution: ONE lifecycle line derived ONLY from existing route
 // timestamps (startedAt / completedAt / cancelledAt). Precedence: terminal
 // state beats start; a missing/unparseable timestamp degrades to the copy.ts

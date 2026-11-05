@@ -69,7 +69,7 @@ const hasAddress = computed<boolean>(() => formattedAddress.value.length > 0)
 // Current emphasis is the info tint (the position, not a pending issue);
 // the semantic status label carries meaning — color is never the only signal.
 const cardClass = computed<string[]>(() => [
-  'relative flex w-full min-w-0 flex-col gap-3 rounded-lg border bg-default p-3 max-sm:p-2.5',
+  'relative flex w-full min-w-0 flex-col gap-3 rounded-lg border bg-default p-3 max-sm:p-2.5 md:flex-row md:items-center',
   'focus-visible:outline-none',
   props.isCurrent ? 'delivery-routes-stop-card--current border-l-4' : 'border-default',
 ])
@@ -100,7 +100,7 @@ function checkIn(event: MouseEvent): void {
     :data-current="String(props.isCurrent)"
     :class="cardClass"
   >
-    <div class="flex w-full min-w-0 items-center gap-3 max-sm:gap-2">
+    <div class="flex w-full min-w-0 items-center gap-3 max-sm:gap-2 md:flex-1">
       <span :class="sequenceClass" aria-hidden="true" data-testid="driver-stop-card-sequence">
         {{ props.stop.sortOrder + 1 }}
       </span>
@@ -117,7 +117,7 @@ function checkIn(event: MouseEvent): void {
             v-if="hasFolio"
             data-testid="driver-stop-card-folio"
             class="hf-figure min-w-0 truncate"
-          >· {{ folio }}</span>
+          >{{ folio }}</span>
         </div>
         <span data-testid="driver-stop-card-customer" class="min-w-0 truncate text-sm font-semibold text-highlighted">
           {{ customerName }}
@@ -132,7 +132,7 @@ function checkIn(event: MouseEvent): void {
 
     <div
       data-testid="driver-stop-card-actions"
-      class="flex flex-wrap items-center justify-end gap-2 max-sm:flex-col max-sm:items-stretch"
+      class="flex flex-wrap items-center justify-end gap-2 max-sm:flex-col max-sm:items-stretch md:flex-none"
     >
       <button
         type="button"

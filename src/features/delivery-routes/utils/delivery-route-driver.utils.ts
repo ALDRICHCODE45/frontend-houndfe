@@ -18,7 +18,7 @@ import {
 } from './delivery-route-list.utils'
 
 interface DriverRouteMissionTarget {
-  heading: 'Parada en curso' | 'Siguiente parada'
+  heading: 'Parada en curso' | 'Parada actual'
   /** 1-based position of the stop in the route. */
   position: number
   customer: string
@@ -59,7 +59,7 @@ export function buildDriverRouteMission(route: DeliveryRouteResponseDto, now: Da
 
   const target: DriverRouteMissionTarget | null = currentStop
     ? {
-        heading: currentStop.status === 'IN_PROGRESS' ? 'Parada en curso' : 'Siguiente parada',
+        heading: currentStop.status === 'IN_PROGRESS' ? 'Parada en curso' : 'Parada actual',
         position: currentStop.sortOrder + 1,
         customer: currentStop.customer?.name ?? 'Cliente sin nombre',
         folio: currentStop.saleFolio,
