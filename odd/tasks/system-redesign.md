@@ -26,6 +26,8 @@ S16. System-wide soft field borders, verbatim: "algo que tambien me molestaba de
 
 S17. Next work, verbatim: "Si hermano, por favor, una detas de la otra." Both proposals, in order: (1) migrate the product Identidad tab to the Hf* form patterns (consistent with Contenido); (2) a new refund settlement screen, designed on the canvas first.
 
+S18. Follow-ups, verbatim: "Si, adelante por favor." (1) The Ventas list must mark canceled sales as «Cancelada» instead of showing them as Pagada/No entregada. (2) Audit every money input (payments, caja, compras, products, promotions…) for comma-decimal and float parsing, the way the refund amount was read 100× («70,55» → $7,055.00), and fix them test-first.
+
 ## Tasks
 
 T1 [S2,S3] Inventory screens and dead code (explorer), research principles, and extend docs/design-system.md. Route: explore, then inline.
@@ -59,6 +61,9 @@ T20 [S17] Canceled sale detail (BE ae0e951):
 - Disable «Vendedor» and «Vencimiento», which now return 422 SALE_CANCELED.
 - The PDF returns 400 SALE_NOT_CONFIRMED, so hide it.
 Route: writer after T19.
+
+T21 [S18] The Ventas list marks canceled sales («Cancelada», neutral) and hides the payment and delivery badges that no longer apply. Route: writer.
+T22 [S18] Money input audit: a read-only explorer maps every money input and parser; then fixes go test-first with a shared parser. Route: explore, then writer.
 
 ## Log
 
