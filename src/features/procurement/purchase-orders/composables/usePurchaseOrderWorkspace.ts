@@ -1,10 +1,14 @@
 import { computed, nextTick, onScopeDispose, shallowRef, toValue, watch, type MaybeRefOrGetter } from 'vue'
+import { useConfirm } from '@/core/shared/composables/useConfirm'
+import { confirmLeave } from '@/core/shared/composables/useLeaveGuard'
 import { usePurchaseOrderCommands, type PurchaseOrderCommandContext } from './usePurchaseOrderCommands'
 import { usePurchaseOrder, type PurchaseOrderReadContext } from './usePurchaseOrders'
 import type { OrderInput, PurchaseOrder, PurchaseOrderSummary } from '../interfaces/purchase-order.types'
 import { commandMessage } from '../utils/order-diagnostics'
 // What a discard needs from an order: the list rows and the open order both fit.
 export type DiscardTarget = Pick<PurchaseOrderSummary, 'id' | 'version' | 'supplierDisplaySnapshot'>
+/** What «salir sin guardar» says for an order, both closing the editor and leaving the page. */
+export const ORDER_LEAVE_COPY = { description: 'Tienes cambios sin guardar en el borrador de la orden.' }
 export interface OrderWorkspaceContext extends PurchaseOrderCommandContext, PurchaseOrderReadContext { canReadProduct: boolean; canReadSupplier: boolean }
 // `transitionFocus` names where focus goes back to when a confirmation dialog closes and no button was focused when it opened (menu items disappear).
 export function usePurchaseOrderWorkspace(context: MaybeRefOrGetter<OrderWorkspaceContext>, refresh: () => Promise<unknown>, transitionFocus?: () => HTMLElement | null) {
@@ -73,16 +77,18 @@ export function usePurchaseOrderWorkspace(context: MaybeRefOrGetter<OrderWorkspa
   }
   watch(() => { const c = toValue(context); return [c.userId, c.tenantId, c.ready, c.canRead, c.canCreate, c.canUpdate, c.canDelete, c.canConfirm, c.canCancel, c.canReadProduct, c.canReadSupplier] }, reset, { flush: 'sync' })
   onScopeDispose(reset)
-  function canLeave() {
+  // Synchronous when nothing is unsaved, so a clean close takes effect at once.
+  function canLeave(): boolean | Promise<boolean> {
     if (locked.value) return false
-    return !dirty.value || window.confirm('Tienes cambios sin guardar en el borrador. ¿Salir sin guardarlos?')
+    return !dirty.value || confirmLeave(ORDER_LEAVE_COPY)
   }
-  function close() {
-    if (!canLeave()) return false
+  async function close() {
+    const allowed = canLeave()
+    if (allowed instanceof Promise ? !(await allowed) : !allowed) return false
     open.value = false; dirty.value = false; request++; detailLoading.value = false
     return true
   }
-  const editorOpen = computed({ get: () => open.value, set: value => { if (!value) close() } })
+  const editorOpen = computed({ get: () => open.value, set: value => { if (!value) void close() } })
   const deleteOpen = computed({ get: () => deleteTarget.value !== null, set: value => { if (!value && !locked.value) deleteTarget.value = null } })
   const transitionOpen = computed({ get: () => transition.value !== null, set: value => { if (!value && !locked.value) transition.value = null } })
   function create() {
@@ -94,7 +100,10 @@ export function usePurchaseOrderWorkspace(context: MaybeRefOrGetter<OrderWorkspa
   async function show(row: Pick<PurchaseOrderSummary, 'id'>, reload = false, from?: HTMLElement | null) {
     const c = toValue(context)
     if (!c.ready || !c.canRead || locked.value || detailLoading.value) return
-    if (reload && dirty.value && !window.confirm('Se reemplazarán tus cambios locales por la versión actual. ¿Continuar?')) return
+    if (reload && dirty.value) {
+      const replace = await useConfirm().confirm({ title: '¿Reemplazar tus cambios?', description: 'Se cargará la versión más reciente y se perderán tus cambios locales.', confirmLabel: 'Reemplazar', tone: 'danger' })
+      if (!replace || locked.value || detailLoading.value) return
+    }
     if (!open.value) { if (from) invoker = from; else captureInvoker() }
     const origin = epoch; const token = ++request
     id.value = row.id; detailLoading.value = true; detailError.value = ''
@@ -194,5 +203,5 @@ export function usePurchaseOrderWorkspace(context: MaybeRefOrGetter<OrderWorkspa
   function reload() { if (selected.value) return show(selected.value, true) }
   return { commands, selected, open, editorOpen, deleteOpen, dirty, formKey, detailLoading, detailError, deleteTarget, notice, locked, message, conflict, deleteRejected, canSave,
     transition, transitionOpen, transitionRejected, canConfirm, canCancel,
-    create, show, showThenTransition, save, close, canLeave, requestDelete, confirmDelete, requestTransition, confirmTransition, retry, reload, restoreInvoker, restoreTransitionInvoker }
+    create, show, showThenTransition, save, close, requestDelete, confirmDelete, requestTransition, confirmTransition, retry, reload, restoreInvoker, restoreTransitionInvoker }
 }

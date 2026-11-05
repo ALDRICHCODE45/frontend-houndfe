@@ -1,7 +1,8 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { shallowRef } from 'vue'
 import { readFileSync } from 'node:fs'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import PurchaseOrderView from '../PurchaseOrderView.vue'
 import RowActionsMenu from '@/core/shared/components/RowActionsMenu.vue'
 import type { PurchaseOrder } from '../../interfaces/purchase-order.types'
@@ -11,6 +12,8 @@ vi.mock('@vueuse/core', async importOriginal => {
   viewport.mobile = shallowRef(false)
   return { ...await importOriginal<typeof import('@vueuse/core')>(), useBreakpoints: () => ({ smaller: () => viewport.mobile }) }
 })
+const ask = vi.hoisted(() => vi.fn<(options: unknown) => Promise<boolean>>())
+vi.mock('@/core/shared/composables/useConfirm', () => ({ useConfirm: () => ({ confirm: ask }) }))
 const grants = new Set<string>()
 vi.mock('@/features/auth/stores/useAuthStore', () => ({ useAuthStore: () => ({ user: { id: 'u' }, currentTenantId: 't', authPhase: 'authenticated', permissionsLoaded: true, userCan: (action: string, subject: string) => grants.has(`${action}:${subject}`) }) }))
 const state = vi.hoisted(() => ({ status: { value: undefined as string | undefined }, search: { value: '' } }))
@@ -26,7 +29,7 @@ vi.mock('../../composables/usePurchaseOrderWorkspace', async () => {
   workspace.selected = shallowRef(null); workspace.open = shallowRef(false); workspace.transition = shallowRef(null); workspace.canConfirm = shallowRef(false); workspace.canCancel = shallowRef(false)
   workspace.message = shallowRef(''); workspace.dirty = shallowRef(false); workspace.uncertain = shallowRef(false)
   workspace.requestTransition = vi.fn(); workspace.confirmTransition = vi.fn(); workspace.retry = vi.fn(); workspace.show = vi.fn(); workspace.showThenTransition = vi.fn(); workspace.requestDelete = vi.fn(); workspace.close = vi.fn()
-  return { usePurchaseOrderWorkspace: () => ({ commands: { isPending: shallowRef(false), hasUncertainResult: workspace.uncertain }, selected: workspace.selected, open: workspace.open, editorOpen: workspace.open, deleteOpen: shallowRef(false), dirty: workspace.dirty, formKey: shallowRef(0), detailLoading: shallowRef(false), detailError: shallowRef(''), deleteTarget: shallowRef(null), notice: shallowRef(''), locked: shallowRef(false), message: workspace.message, conflict: shallowRef(false), deleteRejected: shallowRef(false), canSave: shallowRef(true), transition: workspace.transition, transitionOpen: computed(() => workspace.transition !== null && (workspace.transition as { value: unknown }).value !== null), transitionRejected: shallowRef(false), canConfirm: workspace.canConfirm, canCancel: workspace.canCancel, requestTransition: workspace.requestTransition, confirmTransition: workspace.confirmTransition, retry: workspace.retry, show: workspace.show, showThenTransition: workspace.showThenTransition, requestDelete: workspace.requestDelete, create: vi.fn(), close: workspace.close, restoreInvoker: vi.fn(), restoreTransitionInvoker: vi.fn(), canLeave: () => true }) }
+  return { usePurchaseOrderWorkspace: () => ({ commands: { isPending: shallowRef(false), hasUncertainResult: workspace.uncertain }, selected: workspace.selected, open: workspace.open, editorOpen: workspace.open, deleteOpen: shallowRef(false), dirty: workspace.dirty, formKey: shallowRef(0), detailLoading: shallowRef(false), detailError: shallowRef(''), deleteTarget: shallowRef(null), notice: shallowRef(''), locked: shallowRef(false), message: workspace.message, conflict: shallowRef(false), deleteRejected: shallowRef(false), canSave: shallowRef(true), transition: workspace.transition, transitionOpen: computed(() => workspace.transition !== null && (workspace.transition as { value: unknown }).value !== null), transitionRejected: shallowRef(false), canConfirm: workspace.canConfirm, canCancel: workspace.canCancel, requestTransition: workspace.requestTransition, confirmTransition: workspace.confirmTransition, retry: workspace.retry, show: workspace.show, showThenTransition: workspace.showThenTransition, requestDelete: workspace.requestDelete, create: vi.fn(), close: workspace.close, restoreInvoker: vi.fn(), restoreTransitionInvoker: vi.fn() }), ORDER_LEAVE_COPY: { description: 'Tienes cambios sin guardar en el borrador de la orden.' } }
 })
 const set = (name: keyof typeof workspace, value: unknown) => { (workspace[name] as { value: unknown }).value = value }
 const order: PurchaseOrder = {
@@ -424,6 +427,37 @@ describe('mobile', () => {
     const wrapper = mountView()
     await wrapper.get('.order-action-bar [data-testid="confirm-order"]').trigger('click')
     expect(workspace.requestTransition).toHaveBeenCalledWith('confirm')
+    wrapper.unmount()
+  })
+})
+
+describe('leaving with unsaved changes', () => {
+  async function routed() {
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/orders', component: PurchaseOrderView }, { path: '/away', component: { template: '<p>Away</p>' } }] })
+    await router.push('/orders'); await router.isReady()
+    const wrapper = mount({ template: '<router-view />' }, { global: { plugins: [router], stubs }, attachTo: document.body }); await flushPromises()
+    return { router, wrapper }
+  }
+  it('asks in the app dialog, never window.confirm, and stays or leaves with the answer', async () => {
+    const native = vi.spyOn(window, 'confirm')
+    const { router, wrapper } = await routed()
+    set('dirty', true)
+    ask.mockResolvedValueOnce(false)
+    await router.push('/away')
+    expect(router.currentRoute.value.path).toBe('/orders')
+    expect(ask).toHaveBeenCalledWith(expect.objectContaining({ title: '¿Salir sin guardar?', description: 'Tienes cambios sin guardar en el borrador de la orden.', confirmLabel: 'Salir sin guardar', cancelLabel: 'Seguir editando', tone: 'danger' }))
+    const unload = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(unload); expect(unload.defaultPrevented).toBe(true)
+    ask.mockResolvedValueOnce(true)
+    await router.push('/away')
+    expect(router.currentRoute.value.path).toBe('/away')
+    expect(native).not.toHaveBeenCalled()
+    wrapper.unmount(); native.mockRestore(); ask.mockReset()
+  })
+  it('leaves a clean page without asking', async () => {
+    const { router, wrapper } = await routed()
+    await router.push('/away')
+    expect(router.currentRoute.value.path).toBe('/away')
+    expect(ask).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 })

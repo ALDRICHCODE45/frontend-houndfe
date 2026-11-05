@@ -471,6 +471,14 @@ The chosen direction for long forms is `design/content-editor-v3/02-section-card
 - **Actions:** `Descartar` (ghost) appears only with changes. `Guardar` is the single primary (`hf-primary-control`), disabled with the shared disabled primary while there is nothing to save.
 - **Mobile:** the state on one row, then the actions in equal-width columns with centered labels and 44px height (Sticky mobile action bar). `Descartar` gets a `--hf-border` outline there. Reserve space under the content so the last field is never hidden.
 
+### Confirmación y salir sin guardar
+
+Never use the browser's `window.confirm`: it is unthemed and blocks the page. A guard spec (`nativeConfirm.guard.spec.ts`) fails on any native confirm in `src`.
+- **One dialog for the app:** `ConfirmDialogHost` is mounted once in `App.vue` and renders `ConfirmModal` themed (`hf-theme hf-ui`), with the focus trap and Escape of the modal. Escape, X and the cancel button all answer «no».
+- **Asking from code:** `const { confirm } = useConfirm()`, then `await confirm({ title, description, confirmLabel, cancelLabel, tone })` gives `true` or `false`. `tone: 'danger'` paints the confirm in `--hf-danger` (losing work, replacing, deleting). Asking again while a question is open answers the first one `false`. A screen that already owns its dialog markup (delete, confirm an order) keeps `ConfirmModal` inline; `useConfirm` is for a question asked in the middle of a flow.
+- **Leaving with unsaved changes:** `useLeaveGuard(isDirty, { description? })` asks before a route change while dirty and holds the tab close with the browser's own prompt (the only one a page may show there); it removes the listener on unmount. In-page exits, such as closing an editor slideover, use `confirmLeave(copy)` with the same copy.
+- **Copy:** title «¿Salir sin guardar?», description «Tienes cambios sin guardar. Si sales ahora, se pierden.», confirm «Salir sin guardar» (danger), cancel «Seguir editando». A feature may name what is unsaved in the description only («Tienes cambios sin guardar en el contenido.», «…en el borrador de la orden.»). Replacing local work with the server version asks «¿Reemplazar tus cambios?» with the confirm «Reemplazar».
+
 ### Select and menu items (adapter)
 
 Every Nuxt `USelect`, `USelectMenu` and `UDropdownMenu` item inside `.hf-ui` centers its label (`align-items: center`). Nuxt lays items out as `flex items-start`, so the 44px minimum used to leave a gap under the text. The highlight (hover and keyboard) is `--hf-active-soft`: Nuxt paints `before:bg-elevated/50`, and `--ui-bg-elevated` is the surface, which made the highlight invisible. The rule is wrapped in `:where()`, so the danger row action and feature menus keep their own wash (`houndfe-ui.css`, `hf-ui-menu-items.spec.ts`).

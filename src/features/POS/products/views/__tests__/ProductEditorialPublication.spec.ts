@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
-import { defineComponent, reactive } from 'vue'
+import { defineComponent, h, reactive } from 'vue'
+import UApp from '@nuxt/ui/runtime/components/App.vue'
+import ConfirmDialogHost from '@/core/shared/components/ConfirmDialogHost.vue'
 import EditorialPublication from '../../components/editorial/EditorialPublication.vue'
 import { useEditorialEditor } from '../../composables/useEditorialEditor'
-import { createMemoryHistory, createRouter } from 'vue-router'
+import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
 import ProductEditorialView from '../ProductEditorialView.vue'
 import { document, state, success, vocabularyEnvelope, careDocument, careVocabulary, read, update, publish, failure } from '../../__tests__/editorial-contract-fixtures'
 const http = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn() }))
@@ -45,8 +47,11 @@ const PublicationContractHost = defineComponent({
 async function render(production = false) {
   router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/editor/:id', component: production ? ProductEditorialView : PublicationContractHost }, { path: '/away', component: { template: '<p>Away</p>' } }] })
   await router.push('/editor/p1'); await router.isReady()
-  wrapper = mount({ template: '<router-view />' }, { global: { plugins: [router] } }); await flushPromises()
+  wrapper = mount(defineComponent({ setup: () => () => h(UApp, null, { default: () => [h(RouterView), h(ConfirmDialogHost)] }) }), { global: { plugins: [router] }, attachTo: window.document.body }); await flushPromises()
 }
+const tick = () => new Promise(resolve => setTimeout(resolve, 60))
+const dialog = () => window.document.querySelector<HTMLElement>('[role="dialog"]')
+const dialogButton = (label: string) => Array.from(window.document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')).find(item => item.textContent?.trim() === label)
 function button(text: string) { return wrapper.findAll('button').find(item => item.text() === text)! }
 const panel = () => wrapper.get('[aria-labelledby="publication-title"]')
 beforeEach(() => { vi.resetAllMocks(); auth.isSuperAdmin = false; auth.permissionCodes = [read, update, publish]; reads(); http.post.mockResolvedValue(success({ cycle: 2, draft: null, published: { revision: 2, document: document() } })) })
@@ -146,15 +151,21 @@ describe('generic publication and real lifecycle integration', () => {
     expect(http.post.mock.calls[1]![1]).toBe(http.post.mock.calls[0]![1])
     expect(http.post.mock.calls[1]![2].headers).toEqual(http.post.mock.calls[0]![2].headers)
   })
-  it('guards route leave and beforeunload only while raw dirty, removing listeners on unmount', async () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+  it('guards route leave with the app dialog and beforeunload only while raw dirty, removing listeners on unmount', async () => {
+    const native = vi.spyOn(window, 'confirm')
     await render(true)
     const clean = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(clean); expect(clean.defaultPrevented).toBe(false)
     await wrapper.get('#editorial-title').setValue('local')
     const dirty = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(dirty); expect(dirty.defaultPrevented).toBe(true)
-    await router.push('/away'); expect(router.currentRoute.value.path).toBe('/editor/p1')
-    expect(confirm).toHaveBeenCalledWith('Tienes cambios sin guardar en el borrador editorial. ¿Salir sin guardarlos?')
-    confirm.mockReturnValue(true); await router.push('/away'); await flushPromises()
+    const stay = router.push('/away'); await tick()
+    expect(dialog()?.textContent).toContain('¿Salir sin guardar?')
+    expect(dialog()?.textContent).toContain('Tienes cambios sin guardar en el contenido.')
+    dialogButton('Seguir editando')!.click(); await stay; await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/editor/p1')
+    const leave = router.push('/away'); await tick()
+    dialogButton('Salir sin guardar')!.click(); await leave; await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/away')
+    expect(native).not.toHaveBeenCalled()
     const after = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(after); expect(after.defaultPrevented).toBe(false)
   })
 })
