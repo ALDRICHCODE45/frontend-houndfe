@@ -10,7 +10,8 @@
  * error is never hidden, and with an error there is no info button.
  *
  * Markers: `required` is an amber dot with `Requerido para publicar` for
- * assistive tech (never red); `internal` is a lock plus `Interno`.
+ * assistive tech (never red; `requiredLabel` says it otherwise, for example
+ * `Obligatorio` on a field needed to save); `internal` is a lock plus `Interno`.
  * `specialAnswers` adds ghost actions (`No lo sé`, `No aplica`) on the right
  * that emit `special`; meant for text-like fields. Choice fields offer the same
  * answers inside HfCombobox instead. The hint wins the right side over the ghosts.
@@ -29,7 +30,7 @@
  *   for           — id of a native control: renders a `<label for>`
  *   labelId       — id of the label element, for a control named with aria-labelledby
  *   hint, help, error
- *   required, internal
+ *   required, requiredLabel, internal
  *   specialAnswers — { value, label }[]
  *
  * The message id is `${for ?? labelId}-message`, to pass as the control's describedby.
@@ -46,6 +47,7 @@ const props = withDefaults(defineProps<{
   help?: string
   error?: string
   required?: boolean
+  requiredLabel?: string
   internal?: boolean
   specialAnswers?: readonly Pick<HfSpecialAnswer, 'value' | 'label'>[]
 }>(), {
@@ -54,6 +56,7 @@ const props = withDefaults(defineProps<{
   hint: undefined,
   help: undefined,
   error: undefined,
+  requiredLabel: 'Requerido para publicar',
   specialAnswers: () => [],
 })
 
@@ -80,7 +83,7 @@ const helpOpen = ref(false)
         <span v-else :id="labelId" class="hf-form-field__label">{{ label }}</span>
         <span v-if="required" class="hf-form-field__required">
           <span class="hf-form-field__dot" aria-hidden="true" />
-          <span class="sr-only">Requerido para publicar</span>
+          <span class="sr-only">{{ requiredLabel }}</span>
         </span>
         <span v-if="internal" class="hf-form-field__internal">
           <UIcon name="i-lucide-lock" class="hf-form-field__internal-icon" aria-hidden="true" />Interno

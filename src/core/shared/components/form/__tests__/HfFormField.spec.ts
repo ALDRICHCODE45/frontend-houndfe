@@ -42,6 +42,13 @@ describe('HfFormField', () => {
     expect(marker.text()).toBe('Requerido para publicar')
   })
 
+  it('says what the required dot means through requiredLabel (a field required to save)', () => {
+    const wrapper = mountField({ required: true, requiredLabel: 'Obligatorio' })
+    const marker = wrapper.get('.hf-form-field__required')
+    expect(marker.find('.hf-form-field__dot').exists()).toBe(true)
+    expect(marker.text()).toBe('Obligatorio')
+  })
+
   it('marks an internal field with a lock and "Interno"', () => {
     const wrapper = mountField({ internal: true })
     const marker = wrapper.get('.hf-form-field__internal')

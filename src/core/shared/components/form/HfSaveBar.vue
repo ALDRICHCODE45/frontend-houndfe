@@ -9,8 +9,9 @@
  * `Descartar` (ghost) shows only with changes; `Guardar` is the single primary,
  * disabled with the shared disabled primary while there is nothing to save.
  * Below md the actions are equal-width columns (Sticky mobile bar).
+ * `saveLabel` names the primary when a form says what it does (`Crear producto`).
  *
- * Props: dirtyCount, saving, savedAt (Date | ISO string | epoch ms), error
+ * Props: dirtyCount, saving, savedAt (Date | ISO string | epoch ms), error, saveLabel
  * Events: save, discard
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
@@ -21,7 +22,8 @@ const props = withDefaults(defineProps<{
   saving?: boolean
   savedAt?: Date | string | number | null
   error?: string | null
-}>(), { dirtyCount: 0, savedAt: null, error: null })
+  saveLabel?: string
+}>(), { dirtyCount: 0, savedAt: null, error: null, saveLabel: 'Guardar' })
 
 const emit = defineEmits<{ save: []; discard: [] }>()
 
@@ -81,7 +83,7 @@ const text = computed(() => {
         class="hf-primary-control"
         :disabled="!dirty || saving"
         :aria-busy="saving || undefined"
-        label="Guardar"
+        :label="saveLabel"
         @click="emit('save')"
       />
     </div>

@@ -259,3 +259,32 @@ describe('HfCombobox multiple', () => {
     wrapper.unmount()
   })
 })
+
+describe('HfCombobox footer actions', () => {
+  const create = [{ value: 'create', label: 'Crear categoría', icon: 'i-lucide-plus' }]
+
+  it('pins the actions in the footer, also when a search matches nothing', async () => {
+    const wrapper = mountCombobox({ items: species, label: 'Categoría', actions: create })
+    await open(wrapper)
+    expect(document.querySelector('.hf-combobox__content--footer')).not.toBeNull()
+    const input = searchInput()!
+    input.value = 'zzz'
+    input.dispatchEvent(new Event('input'))
+    await tick()
+    const action = options().find(option => option.textContent?.includes('Crear categoría'))!
+    expect(action.classList.contains('hf-combobox__action')).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('emits action, never a value or a special answer, when one is picked', async () => {
+    const wrapper = mountCombobox({ modelValue: 'adulto', actions: create })
+    await open(wrapper)
+    options().find(option => option.textContent?.includes('Crear categoría'))!.click()
+    await tick()
+    expect(wrapper.emitted('action')).toEqual([['create']])
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+    expect(wrapper.emitted('update:special')).toBeUndefined()
+    expect(wrapper.get('.hf-combobox__text').text()).toBe('Adulto')
+    wrapper.unmount()
+  })
+})

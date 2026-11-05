@@ -25,6 +25,8 @@
  *   invalid, disabled, id, describedby
  *   specialAnswers  — { value, label, icon? }[] footer answers
  *   special         — the chosen special answer value, or null
+ *   actions         — { value, label, icon? }[] footer commands (`Crear categoría`): picking one
+ *                     emits `action` and leaves the value and the special answer alone
  *   searchThreshold — options shown without search (default 7)
  *   embedded        — borderless trigger for a compound control (HfUnitField)
  *   bare            — the trigger shows only its chevron; the owner shows the value
@@ -56,6 +58,7 @@ const props = withDefaults(defineProps<{
   describedby?: string
   specialAnswers?: readonly HfSpecialAnswer[]
   special?: string | null
+  actions?: readonly HfSpecialAnswer[]
   searchThreshold?: number
   embedded?: boolean
   bare?: boolean
@@ -64,12 +67,14 @@ const props = withDefaults(defineProps<{
   placeholder: 'Elige una opción',
   specialAnswers: () => [],
   special: null,
+  actions: () => [],
   searchThreshold: 7,
 })
 
 const emit = defineEmits<{
   'update:modelValue': [value: string | string[] | null]
   'update:special': [value: string | null]
+  action: [value: string]
 }>()
 
 const MAX_CHIPS = 2
@@ -79,6 +84,10 @@ const SPECIAL_PREFIX = '\u0000hf-special:'
 const toSpecialKey = (value: string) => `${SPECIAL_PREFIX}${value}`
 const isSpecialKey = (value: string) => value.startsWith(SPECIAL_PREFIX)
 const fromSpecialKey = (value: string) => value.slice(SPECIAL_PREFIX.length)
+const ACTION_PREFIX = '\u0000hf-action:'
+const toActionKey = (value: string) => `${ACTION_PREFIX}${value}`
+const isActionKey = (value: string) => value.startsWith(ACTION_PREFIX)
+const hasFooter = computed(() => props.specialAnswers.length > 0 || props.actions.length > 0)
 const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
 const searchTerm = ref('')
@@ -112,18 +121,26 @@ const menuItems = computed(() => {
     .map(item => ({ ...item, class: optionClass.value }))
   const groups: Record<string, unknown>[][] = []
   if (regular.length > 0) groups.push(regular)
-  else if (term && props.specialAnswers.length > 0)
+  else if (term && hasFooter.value)
     // With the footer answers still listed, Nuxt's empty slot never shows: say it in the list.
     groups.push([{ type: 'label', label: noMatch.value, class: 'hf-combobox__empty' }])
   // The last group is the footer: the viewport does not scroll, the options group does
   // (hf-form.css), so the answers stay in view and the arrow keys still reach them.
-  if (props.specialAnswers.length > 0) {
-    groups.push(props.specialAnswers.map(answer => ({
-      label: answer.label,
-      value: toSpecialKey(answer.value),
-      icon: answer.icon,
-      class: 'hf-combobox__option hf-combobox__special',
-    })))
+  if (hasFooter.value) {
+    groups.push([
+      ...props.specialAnswers.map(answer => ({
+        label: answer.label,
+        value: toSpecialKey(answer.value),
+        icon: answer.icon,
+        class: 'hf-combobox__option hf-combobox__special',
+      })),
+      ...props.actions.map(action => ({
+        label: action.label,
+        value: toActionKey(action.value),
+        icon: action.icon,
+        class: 'hf-combobox__option hf-combobox__action',
+      })),
+    ])
   }
   return groups
 })
@@ -131,7 +148,7 @@ const noMatch = computed(() => `Sin resultados para «${searchTerm.value.trim()}
 
 const ui = computed(() => ({
   base: ['hf-combobox__trigger', props.embedded && 'hf-combobox__trigger--embedded', props.bare && 'hf-combobox__trigger--bare', props.invalid && 'hf-combobox__trigger--invalid'],
-  content: ['hf-theme hf-ui hf-combobox__content', props.specialAnswers.length > 0 && 'hf-combobox__content--footer'],
+  content: ['hf-theme hf-ui hf-combobox__content', hasFooter.value && 'hf-combobox__content--footer'],
   input: 'hf-combobox__search',
   viewport: 'hf-combobox__viewport',
   trailingIcon: 'hf-combobox__chevron',
@@ -142,7 +159,18 @@ function isChecked(value: unknown) {
   return Array.isArray(model) ? model.includes(String(value)) : model === value
 }
 
+function pickedAction(next: unknown): string | null {
+  const picked = Array.isArray(next) ? next.map(String) : next == null ? [] : [String(next)]
+  const action = picked.find(isActionKey)
+  return action ? action.slice(ACTION_PREFIX.length) : null
+}
+
 function onUpdate(next: unknown) {
+  const action = pickedAction(next)
+  if (action !== null) {
+    emit('action', action)
+    return
+  }
   const currentSpecial = activeSpecial.value ? toSpecialKey(activeSpecial.value.value) : null
   if (props.multiple) {
     const picked = Array.isArray(next) ? next.map(String) : []
@@ -207,7 +235,7 @@ function onUpdate(next: unknown) {
         class="hf-combobox__icon"
       />
       <span
-        v-else-if="typeof item === 'object' && item !== null && 'value' in item && !isSpecialKey(String(item.value))"
+        v-else-if="typeof item === 'object' && item !== null && 'value' in item && !isSpecialKey(String(item.value)) && !isActionKey(String(item.value))"
         class="hf-combobox__box"
         :data-checked="isChecked(item.value) || undefined"
         aria-hidden="true"
