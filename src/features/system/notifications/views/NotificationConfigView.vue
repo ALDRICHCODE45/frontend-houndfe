@@ -158,6 +158,9 @@ function onSave() {
           :model-value="form.form.recipientUserIds"
           :assignable="assignable.users.value"
           :error="form.fieldErrors.recipients ?? ''"
+          :loading="assignable.isLoading.value"
+          :load-error="assignable.isError.value"
+          @retry="assignable.refetch()"
           @update:model-value="
             (ids: string[]) => (form.form.recipientUserIds = ids)
           "

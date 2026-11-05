@@ -17,6 +17,12 @@ export const NOTIFICATION_CONFIG_COPY = {
   success: 'Configuración de notificaciones guardada',
 
   // ── Field errors ──
+  addRecipients: 'Agregar usuarios',
+  searchRecipients: 'Buscar usuarios…',
+  noAssignableUsers: 'No hay usuarios para asignar',
+  usersLoadError: 'No se pudieron cargar los usuarios',
+  retry: 'Reintentar',
+
   zeroRecipient: 'Selecciona al menos un usuario a notificar',
   noUpdatePerm: 'No tienes permisos para guardar cambios',
   recipientFieldInvalid: 'Uno de los usuarios seleccionados no pertenece a esta cuenta',

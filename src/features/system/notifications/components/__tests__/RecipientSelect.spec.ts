@@ -64,23 +64,48 @@ describe('RecipientSelect — selected chip rendering', () => {
   })
 })
 
-describe('RecipientSelect — selection summary', () => {
-  it('renders the "N seleccionados" summary when selection is non-empty', () => {
+describe('RecipientSelect — says each name once (T7)', () => {
+  it('has no "N seleccionados" summary: the chips are the selection', () => {
     const wrapper = mountSelect({ modelValue: ['u1', 'u2'] })
-    expect(wrapper.text()).toMatch(/2 seleccionados/)
+    expect(wrapper.find('[data-testid="recipient-summary"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toMatch(/seleccionados/)
   })
 
-  it('renders the zero-summary when selection is empty', () => {
-    const wrapper = mountSelect({ modelValue: [] })
-    expect(wrapper.text()).toMatch(/0 seleccionados/)
+  it('the trigger invites to add and never repeats names or shows ids', () => {
+    const wrapper = mountSelect({ modelValue: ['u1', 'ghost-id-123'] })
+    const trigger = wrapper.get('[data-testid="recipient-select-trigger"]')
+    expect(trigger.text()).toContain('Agregar usuarios')
+    expect(trigger.text()).not.toContain('Ana')
+    expect(trigger.text()).not.toContain('ghost-id-123')
   })
 
-  it('updates the summary count when modelValue changes', () => {
+  it('bounds the trigger to a readable column on wide screens', () => {
     const wrapper = mountSelect({ modelValue: [] })
-    expect(wrapper.text()).toMatch(/0 seleccionados/)
+    expect(wrapper.get('[data-testid="recipient-select-trigger"]').classes()).toContain('sm:max-w-md')
+  })
 
-    const updated = mountSelect({ modelValue: ['u1', 'u2', 'u3'] })
-    expect(updated.text()).toMatch(/3 seleccionados/)
+  it('lets the search filter the users (no ignore-filter without a search handler)', () => {
+    const wrapper = mountSelect({ modelValue: [] })
+    const menu = wrapper.findComponent({ name: 'SelectMenu' })
+    expect(menu.props('ignoreFilter')).toBeFalsy()
+  })
+})
+
+describe('RecipientSelect — users list not available (T7)', () => {
+  it('while the users load, no chip claims a user is unavailable', () => {
+    const wrapper = mountSelect({ modelValue: ['u9'], assignable: [], loading: true })
+    expect(wrapper.text()).not.toContain('Usuario no disponible')
+    expect(wrapper.find('[data-testid="recipient-chips"]').exists()).toBe(false)
+  })
+
+  it('when the users fail to load, says so with Reintentar and shows no stale chips', async () => {
+    const wrapper = mountSelect({ modelValue: ['u9'], assignable: [], loadError: true })
+    const alert = wrapper.get('[data-testid="recipient-load-error"]')
+    expect(alert.attributes('role')).toBe('alert')
+    expect(alert.text()).toContain('No se pudieron cargar los usuarios')
+    expect(wrapper.find('[data-testid="recipient-chips"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="recipient-retry"]').trigger('click')
+    expect(wrapper.emitted('retry')).toHaveLength(1)
   })
 })
 
