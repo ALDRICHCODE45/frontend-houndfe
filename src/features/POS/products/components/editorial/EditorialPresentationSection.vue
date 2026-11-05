@@ -34,9 +34,11 @@ const props = defineProps<{ id: string; facts: EditorialFactsEditingState; subje
   selected: string
   /** A save was tried: a missing source shows its error. */
   showErrors?: boolean
+  /** Known data without a source exist: the ⋯ menu offers one source for all of them. */
+  bulkEvidence?: boolean
   readonly?: boolean; disabled?: boolean }>()
 const emit = defineEmits<{ 'update:facts': [facts: EditorialFactsEditingState]; 'update:sources': [sources: ReadonlyMap<string, EditorialCardSource>]
-  'update:selected': [key: string] }>()
+  'update:selected': [key: string]; 'bulk-evidence': [] }>()
 
 type Card = { key: string; variantId: string | null; title: string; presentation: string; row: EditorialFactsEditingRow | null }
 const listed = computed<Card[]>(() => props.subjects.map(subject => ({ key: editorialSourceKey(subject.variantId), variantId: subject.variantId,
@@ -173,11 +175,13 @@ const renaming = shallowRef(false)
 const nameDraft = shallowRef('')
 const actions = computed<RowAction[]>(() => [
   { key: 'rename', label: 'Cambiar nombre en la ficha…', icon: 'i-lucide-pencil' },
+  ...(props.bulkEvidence ? [{ key: 'bulk-evidence', label: 'Usar una fuente para todos…', icon: 'i-lucide-file-check' }] : []),
   { key: 'clear', label: 'Borrar respuestas…', icon: 'i-lucide-trash-2', destructive: true, disabled: !hasAnswers(card.value?.row ?? null) },
 ])
 function act(key: string) {
   if (props.disabled || !card.value) return
   if (key === 'clear') confirmClear.value = true
+  else if (key === 'bulk-evidence') emit('bulk-evidence')
   else if (key === 'rename') { nameDraft.value = card.value.row?.presentation || card.value.presentation; renaming.value = true }
 }
 function rename() {

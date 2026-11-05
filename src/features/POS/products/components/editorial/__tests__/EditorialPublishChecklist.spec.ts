@@ -84,3 +84,23 @@ describe('EditorialPublishChecklist — grouped by issue family', () => {
     expect(render().text()).not.toContain('Según lo último que guardaste')
   })
 })
+
+describe('EditorialPublishChecklist — one source for all (S19)', () => {
+  const bulk = (entries = realShaped(), bulkEvidence = true) => mount(EditorialPublishChecklist, { props: { entries, stale: false, bulkEvidence }, global: { stubs: { UIcon: true } } })
+  const action = (wrapper: ReturnType<typeof bulk>) => wrapper.findAll('button').find(item => item.text() === 'Usar una fuente para todos')
+  it('the evidence group offers «Usar una fuente para todos», and only that group', () => {
+    const wrapper = bulk()
+    const button = action(wrapper)!
+    expect(button.element.closest('li')!.getAttribute('data-problem')).toBe('EVIDENCE_REQUIRED')
+    expect(wrapper.findAll('button').filter(item => item.text() === 'Usar una fuente para todos')).toHaveLength(1)
+  })
+  it('asks the owner to open the panel', async () => {
+    const wrapper = bulk()
+    await action(wrapper)!.trigger('click')
+    expect(wrapper.emitted('bulk-evidence')).toEqual([[]])
+    expect(wrapper.emitted('goto')).toBeUndefined()
+  })
+  it('is not offered when the owner has nothing to apply it to', () => {
+    expect(action(bulk(realShaped(), false))).toBeUndefined()
+  })
+})

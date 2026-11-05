@@ -282,3 +282,24 @@ describe('the date of the source', () => {
     expect(saved(state.value[0]!)[0]).toMatchObject({ evidence: { sourceRef: 'Etiqueta del empaque', verifiedOn: '2026-09-15' } })
   })
 })
+
+describe('one source for all (S19)', () => {
+  const withBulk = (bulkEvidence: boolean) => {
+    const emitted: unknown[] = []
+    const wrapper = mount(defineComponent({ setup: () => () => h(Section, { id: 'p', facts: [], subjects: single, choices: families.food!, careAllowed: false,
+      nextId: () => 'n', sources: new Map(), productName: 'Croqueta', selected: editorialSourceKey(null), bulkEvidence,
+      'onBulk-evidence': () => emitted.push(true) }) }), { attachTo: document.body })
+    return { wrapper, emitted }
+  }
+  it('the ⋯ menu offers «Usar una fuente para todos…» when there are known data without a source', async () => {
+    const { wrapper, emitted } = withBulk(true)
+    await wrapper.get('.hf-section-card__meta button[aria-haspopup="menu"]').trigger('click'); await tick()
+    menuItem('Usar una fuente para todos').click(); await tick()
+    expect(emitted).toHaveLength(1)
+  })
+  it('without such data the menu does not offer it', async () => {
+    const { wrapper } = withBulk(false)
+    await wrapper.get('.hf-section-card__meta button[aria-haspopup="menu"]').trigger('click'); await tick()
+    expect(Array.from(document.querySelectorAll('[role="menuitem"]')).some(item => item.textContent?.includes('Usar una fuente para todos'))).toBe(false)
+  })
+})
