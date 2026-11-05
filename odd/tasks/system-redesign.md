@@ -18,6 +18,8 @@ S12. User report, verbatim: "muchos campos no admiten \"no aplica\" ... cuando y
 S13. The user's choice, verbatim: "Sincermante no me gusta ninguna hermano, si tuviera que elegir una eligiria la segunda, pero muy a la fuerza, es que el diseno en el canvas no me gusta, pero tal vez el diseno implementado ya me guste.." Build direction 02 in the real stack, polished with the real components, and get the user's verdict from screenshots before merging.
 S9. Morning: read the backend handoff docs and implement them (O1 inventory journal). This depends on the backend.
 
+S14. Contenido v3 redesign. The user's words are quoted verbatim in L72. Three design directions go in design/content-editor-v3/, following the principles in BRIEF.md (no state chip column, modern combobox with search and hover, meaningful groups, a clean save bar). The user picks one before any code.
+
 ## Tasks
 
 T1 [S2,S3] Inventory screens and dead code (explorer), research principles, and extend docs/design-system.md. Route: explore, then inline.
@@ -30,6 +32,8 @@ T7 [S9] Implement the O1 handoff (separate feature document when it starts).
 T10 [S13] Presentation card: implement design/presentation-questions/02-presentation-card.html (the chosen artboard; 01 and 03 are alternatives) on branch feat/presentation-card. Show screenshots to the user before any merge. Route: writer.
 T9 [S12] Content table guidance: offer "No aplica" only where the policy admits it; mark "Requerido para publicar" from the policy; mark "Interno" (exposure INTERNAL); show the definition description from the vocabulary as per-row help. Branch feat/content-table-guidance. Route: writer.
 T8 [S11] Product content editor redesign: implement design/product-content-editor/03-attribute-table.html (the chosen artboard; 01 and 02 are alternatives). Branch feat/product-content-table. Route: writer.
+
+T11 [S14] Design directions for Contenido v3: 01-property-list, 02-section-cards, 03-focus-queue under design/content-editor-v3/. Route: three background writers, one artboard each. Then the user picks one; T12 implements it.
 
 ## Log
 
