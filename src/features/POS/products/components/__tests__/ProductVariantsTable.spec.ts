@@ -12,7 +12,7 @@ const row: ProductVariantRow = {
   sku: 'VAR-1',
   barcode: '',
   quantity: 10,
-  price: '129.90',
+  priceCents: 12990,
   deleteName: 'Grande',
 }
 
@@ -101,12 +101,30 @@ describe('ProductVariantsTable', () => {
     wrapper.unmount()
   })
 
-  it('commits the public price from the typed text on blur', async () => {
+  it.each([
+    ['150.5', 15050],
+    ['70.55', 7055],
+    ['70,55', 7055],
+    ['1,234.50', 123450],
+  ])('commits the public price %j as %i cents on blur', async (text, cents) => {
     const wrapper = mountTable()
     const price = wrapper.get('input[placeholder="0.00"]')
-    ;(price.element as HTMLInputElement).value = '150.5'
+    await price.setValue(text)
     await price.trigger('blur')
-    expect(wrapper.emitted('commit-price')).toEqual([['variant-1', '150.5']])
+    expect(wrapper.emitted('commit-price')).toEqual([['variant-1', cents]])
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['12abc', 'Escribe solo el monto en números, por ejemplo 70.55.'],
+    ['', 'Escribe el monto.'],
+  ])('does not commit %j and shows the error', async (text, message) => {
+    const wrapper = mountTable()
+    const price = wrapper.get('input[placeholder="0.00"]')
+    await price.setValue(text)
+    await price.trigger('blur')
+    expect(wrapper.emitted('commit-price')).toBeUndefined()
+    expect(wrapper.text()).toContain(message)
     wrapper.unmount()
   })
 

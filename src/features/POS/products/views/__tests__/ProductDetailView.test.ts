@@ -41,7 +41,11 @@ const editorialSession = reactive({
 const editorialReads = vi.hoisted(() => ({
   getVocabulary: vi.fn(), getState: vi.fn(), getContext: vi.fn(),
 }))
-vi.mock('../../api/editorial-contract.api', () => ({ editorialContractApi: editorialReads }))
+// Keep the real module (EditorialContractApiError included) and stub the reads.
+vi.mock('../../api/editorial-contract.api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../api/editorial-contract.api')>()),
+  editorialContractApi: editorialReads,
+}))
 
 // Mock auth store — controllable grants + tenant id (WU5 gate matrix).
 const authState = vi.hoisted(() => ({
@@ -72,7 +76,7 @@ const settingsApi = vi.hoisted(() => ({
     }>
   >(() => Promise.resolve({ priceContexts: [] })),
 }))
-const productApiMocks = vi.hoisted(() => ({ update: vi.fn() }))
+const productApiMocks = vi.hoisted(() => ({ update: vi.fn(), upsertVariantPrice: vi.fn() }))
 
 vi.mock('@/features/system/catalog-settings/api/catalogSettings.api', () => ({
   catalogSettingsApi: settingsApi,
@@ -151,6 +155,7 @@ vi.mock('../../api/product.api', async (importOriginal) => {
       ),
       getLots: vi.fn(() => Promise.resolve([])),
       update: productApiMocks.update,
+      upsertVariantPrice: productApiMocks.upsertVariantPrice,
     },
   }
 })
@@ -177,6 +182,7 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
     authState.userCan.mockImplementation((_action: string, _resource: string) => true)
     productApiMocks.update.mockReset()
     productApiMocks.update.mockResolvedValue({ id: 'test-product-id' })
+    productApiMocks.upsertVariantPrice.mockReset().mockResolvedValue({})
   })
 
   // The ⋮ menu itself is covered with real components in ProductVariantsTable.spec.ts;
@@ -720,5 +726,34 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
         ['products', 'tenant-1', 'variants', 'test-product-id'],
       ])
     })
+  })
+
+  // T22: the table commits only parsed cents (InlinePriceInput); the view sends them as-is.
+  it('saves the committed variant public price with the exact cents', async () => {
+    const { productApi } = await import('../../api/product.api')
+    vi.mocked(productApi.getVariants).mockResolvedValueOnce([
+      {
+        id: 'variant-1', productId: 'test-product-id', name: 'Grande', option: 'Tamaño',
+        value: 'Grande', sku: 'VAR-1', barcode: '', priceCents: 10000, quantity: 10,
+        minQuantity: 5, purchaseNetCostCents: null, purchaseNetCostDecimal: null,
+        variantPrices: [{ id: 'vp1', variantId: 'variant-1', priceListId: 'pl-publico',
+          priceListName: 'PUBLICO', priceCents: 10000, tierPrices: [] }],
+        createdAt: '2026-04-23T00:00:00.000Z', updatedAt: '2026-04-23T00:00:00.000Z',
+      },
+    ])
+    const wrapper = mount(UApp, {
+      slots: { default: () => h(ProductDetailView) },
+      global: getGlobalConfig(),
+      attachTo: document.body,
+    })
+    await flushPromises()
+    const table = wrapper.getComponent(ProductVariantsTable)
+    expect((table.props('rows') as { priceCents: number }[])[0]!.priceCents).toBe(10000)
+    table.vm.$emit('commit-price', 'variant-1', 123450)
+    await flushPromises()
+    expect(productApiMocks.upsertVariantPrice).toHaveBeenCalledWith(
+      'test-product-id', 'variant-1', 'pl-publico', { priceCents: 123450 },
+    )
+    wrapper.unmount()
   })
 })

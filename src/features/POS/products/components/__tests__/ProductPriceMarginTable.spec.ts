@@ -67,12 +67,32 @@ describe('ProductPriceMarginTable', () => {
     wrapper.unmount()
   })
 
-  it('emits the price in cents when the input loses focus', async () => {
+  it.each([
+    ['99.5', 9950],
+    ['70.55', 7055],
+    ['70,55', 7055],
+    ['1,234.50', 123450],
+  ])('emits %j as %i cents when the input loses focus', async (text, cents) => {
     const wrapper = mountTable()
     const input = wrapper.get('input[inputmode="decimal"]')
-    ;(input.element as HTMLInputElement).value = '99.5'
+    await input.setValue(text)
     await input.trigger('blur')
-    expect(wrapper.emitted('update-price')).toEqual([['a', 9950]])
+    expect(wrapper.emitted('update-price')).toEqual([['a', cents]])
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['12abc', 'Escribe solo el monto en números, por ejemplo 70.55.'],
+    ['1,23,4', 'Escribe el monto con punto para los centavos, por ejemplo 70.55.'],
+    ['', 'Escribe el monto.'],
+  ])('keeps %j unsaved and shows the error under the field', async (text, message) => {
+    const wrapper = mountTable()
+    const input = wrapper.get('input[inputmode="decimal"]')
+    await input.setValue(text)
+    await input.trigger('blur')
+    expect(wrapper.emitted('update-price')).toBeUndefined()
+    expect(wrapper.findAll('tbody tr')[0]!.text()).toContain(message)
+    expect(input.attributes('aria-invalid')).toBe('true')
     wrapper.unmount()
   })
 })
