@@ -24,20 +24,12 @@
  *   Backend order: confirmedAt DESC NULLS LAST, id DESC.
  */
 
-// ─── Shipping address projection (eligible-sales shape) ────────────────────────
-interface EligibleSaleAddress {
-  /** Snapshot reference; `null` when the customer deleted the address after the sale. */
-  id: string | null
-  label: string | null
-  street: string
-  exteriorNumber: string | null
-  interiorNumber: string | null
-  neighborhood: string | null
-  municipality: string | null
-  city: string | null
-  state: string | null
-  zipCode: string | null
-}
+import type { SaleShippingAddressSnapshot } from '@/features/POS/sales/interfaces/sale-shipping-address.schema'
+
+// ─── Shipping address projection ──────────────────────────────────────────────
+// The sale-time snapshot shared by every sale read (coordinates, visual references, carrier
+// phone and the source status included); `id` is `null` once the customer deleted the address.
+type EligibleSaleAddress = SaleShippingAddressSnapshot
 
 // ─── Availability discriminant ─────────────────────────────────────────────────
 interface EligibleSaleAvailabilityAvailable {

@@ -110,6 +110,41 @@ describe('parseSaleDetail', () => {
     expect(() => parseSaleDetail({ ...canceled, refunds: [refund] })).toThrow()
   })
 
+  const shippingAddress = {
+    id: null,
+    street: 'Calle Prueba 1',
+    exteriorNumber: '1',
+    interiorNumber: null,
+    zipCode: '06000',
+    neighborhood: 'Centro',
+    municipality: null,
+    city: 'CDMX',
+    state: null,
+    visualReferences: null,
+    carrierPhone: null,
+    label: 'Casa',
+    latitude: 19.4,
+    longitude: -99.1,
+    sourceStatus: 'DELETED',
+    changedFields: [],
+  }
+
+  it('reads the sale shipping snapshot with its source status (odd sale-address-change-notice S4)', () => {
+    const sale = parseSaleDetail({ ...base, shippingAddress })
+    expect(sale.shippingAddress).toEqual(shippingAddress)
+  })
+
+  it('reads a missing or null shipping address as null (older payload, sale without address)', () => {
+    expect(parseSaleDetail(base).shippingAddress).toBeNull()
+    expect(parseSaleDetail({ ...base, shippingAddress: null }).shippingAddress).toBeNull()
+  })
+
+  it('rejects an unknown shipping address status', () => {
+    expect(() =>
+      parseSaleDetail({ ...base, shippingAddress: { ...shippingAddress, sourceStatus: 'MOVED' } }),
+    ).toThrow()
+  })
+
   it('rejects an unknown cancel reason', () => {
     expect(() => parseSaleDetail({ ...canceled, cancelReason: 'BECAUSE' })).toThrow()
   })

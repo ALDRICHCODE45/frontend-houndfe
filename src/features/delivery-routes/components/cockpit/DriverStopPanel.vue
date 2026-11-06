@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import AddressMapPicker, { pinToGeoPoint } from '@/core/shared/components/AddressMapPicker.vue'
+import SaleAddressSourceNotice from '@/core/shared/components/SaleAddressSourceNotice.vue'
 import { formatAddress } from '@/core/shared/utils/formatAddress'
 import {
   canOpenExternalMap, canCopyAddress, canOpenEmail,
@@ -69,6 +70,8 @@ function runEmail() { settled('email', openEmail(customerEmail.value)) }
     <span v-if="folioLabel" class="hf-figure text-xs text-muted" data-testid="stop-panel-folio">{{ folioLabel }}</span>
 
     <p v-if="hasAddress" class="w-full min-w-0 max-w-full whitespace-normal break-words text-sm text-default" data-testid="stop-panel-address">{{ formattedAddress }}</p>
+    <!-- The address above stays the sale's snapshot; this only says the customer's copy moved on. -->
+    <SaleAddressSourceNotice v-if="hasAddress" :address="stop.shippingAddress" />
 
     <AddressMapPicker v-if="showMap" mode="read" :model-value="mapPin" :popup-text="formattedAddress" />
     <p v-if="showNoLocation" class="flex items-center gap-1.5 text-xs text-muted" data-testid="stop-panel-no-location">

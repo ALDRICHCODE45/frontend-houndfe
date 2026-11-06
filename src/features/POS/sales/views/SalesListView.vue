@@ -7,6 +7,7 @@ import { DataTableFilters, useDataTableFilters, useFiltersUrlAdapter } from '@/c
 import SortableHeader from '@/core/shared/components/DataTable/SortableHeader.vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import SaleAddressSourceNotice from '@/core/shared/components/SaleAddressSourceNotice.vue'
 import { useClickableRow } from '@/core/shared/composables/useClickableRow'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
@@ -305,6 +306,7 @@ watch(() => filtersCtl.serializedState.value, () => {
 
           <template #customer-cell="{ row }">
             <span class="sale-customer" data-testid="sale-customer">{{ customerDisplay(row.original) }}</span>
+            <SaleAddressSourceNotice compact :address="row.original.shippingAddress" />
           </template>
 
           <template #confirmedAt-cell="{ row }">
@@ -376,6 +378,7 @@ watch(() => filtersCtl.serializedState.value, () => {
                 </button>
               </div>
               <span class="hf-row-secondary" data-testid="sale-customer">{{ customerDisplay(row) }}</span>
+              <SaleAddressSourceNotice compact class="sale-card-notice" :address="row.shippingAddress" />
               <div class="sale-card-meta">
                 <StatusBadge v-bind="salePaymentBadge(row)" />
                 <StatusBadge v-if="saleDeliveryBadge(row)" v-bind="saleDeliveryBadge(row)!" />
@@ -422,6 +425,7 @@ watch(() => filtersCtl.serializedState.value, () => {
 .sale-card-head { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
 .sale-card-head .sale-row-link { flex: 1; min-width: 0; padding-top: 2px; font-size: 15px; line-height: 1.4; }
 .sale-card .hf-row-secondary { padding-right: 8px; }
+.sale-card-notice { display: flex; width: fit-content; margin-top: 4px; }
 .sale-card-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .sale-card-debt { margin-top: 10px; color: var(--hf-warning); font-size: 13px; font-weight: 600; }
 .sale-card-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hf-border); color: var(--hf-muted); font-size: 13px; }

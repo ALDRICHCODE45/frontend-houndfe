@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { SaleShippingAddressSnapshotSchema } from '@/features/POS/sales/interfaces/sale-shipping-address.schema'
 
 /**
  * delivery-route.types.ts — Zod schemas + inferred DTOs + label/tone maps.
@@ -34,25 +35,9 @@ export const DeliveryRouteStatusSchema = z.enum(['DRAFT', 'ACTIVE', 'COMPLETED',
 export const DeliveryRouteStopStatusSchema = z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'SKIPPED'])
 
 // ─── Shipping address (stop projection) ────────────────────────────────────────
-// label is present in the delivery-route stop projection (backend §2). latitude/
-// longitude come from the sale-time snapshot (null when the address had no pin);
-// .nullish() tolerates both omission and null.
-export const DeliveryRouteShippingAddressSchema = z.object({
-  // Snapshot of the address at sale time. `null` when the customer deleted the
-  // address afterwards: an optional reference, never a missing-address signal.
-  id: z.string().nullable(),
-  street: z.string().nullable(),
-  exteriorNumber: z.string().nullable(),
-  interiorNumber: z.string().nullable(),
-  zipCode: z.string().nullable(),
-  neighborhood: z.string().nullable(),
-  municipality: z.string().nullable(),
-  city: z.string().nullable(),
-  state: z.string().nullable(),
-  label: z.string().nullable(),
-  latitude: z.number().nullish(),
-  longitude: z.number().nullish(),
-})
+// The sale-time snapshot, in the one shape every sale read shares (label, coordinates,
+// visualReferences/carrierPhone and the source status; see sale-shipping-address.schema).
+export const DeliveryRouteShippingAddressSchema = SaleShippingAddressSnapshotSchema
 
 // ─── Stop ───────────────────────────────────────────────────────────────────────
 const DeliveryRouteStopSchema = z.object({
