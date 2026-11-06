@@ -6,10 +6,10 @@ A sale keeps the shipping address it was sold with (sale-time snapshot). When th
 - S1 The sale's shipping address stays the one captured at sale time; editing or deleting the customer's address never rewrites it (user: «debe ser la direccion de ESA VENTA»).
 - S2 When the customer's address changed after the sale, show a notice next to the sale's address: «El cliente cambió esta dirección después de la venta.» When it was deleted: «El cliente eliminó esta dirección después de la venta.» No notice when it is unchanged or the sale had no address.
 - S3 The notice appears in the driver stop panel, in the eligible sales list used to build a route, and in the POS sales screens (which today do not show the shipping address, so they gain it).
-- S4 The backend computes the status (the frontend only has the snapshot); contract to be agreed with the backend.
+- S4 The backend computes the status: every `shippingAddress` snapshot gains `sourceStatus` (`UNCHANGED` | `CHANGED` | `DELETED`) and `changedFields` (sorted keys that differ from the live address; `[]` for UNCHANGED and DELETED); `shippingAddress` stays null without a snapshot. The frontend treats a change of only `label` as unchanged (a nickname, irrelevant to delivery).
 
 ## Tasks
-- [ ] T1 S4 Agree the backend contract (field, values, which endpoints) — parent via intercom
+- [x] T1 S4 Agree the backend contract (field, values, which endpoints) — parent via intercom — L4-L5
 - [ ] T2 S2,S3 Driver stop panel and eligible sales notice — after T1
 - [ ] T3 S2,S3 POS sales: show the sale's shipping address with the notice — after T1
 
@@ -17,3 +17,5 @@ A sale keeps the shipping address it was sold with (sale-time snapshot). When th
 - L1 User (2026-11-06): «Mm creo no lo se hermano.. creo que por motivos de la venta para que todo quede "real" o fiel, debe ser la direccion de ESA VENTA, y seria bueno que haya algun aviso/badge o algo que diga que la direccion de ese cliente se actualizo, me sigues?»
 - L2 User chose all three places: «Panel del repartidor (Recomendado), Al armar la ruta (ventas por entregar), Ventas en el POS».
 - L3 Context: route stops and eligible sales read sale snapshot columns including coordinates; GET /sales and /sales/:id do not expose a shipping address (BE docs/sale-shipping-snapshot-reads.md:3,15,23,32). The snapshot keeps the source address id, null once the customer deleted it.
+- L4 BE proposal (intercom seq 10): additive, read-only. DELETED = snapshot exists but its source id is null (FK ON DELETE SET NULL; every snapshot writer sets the id) or the live address belongs to another tenant; CHANGED = any of 13 fields (street, exteriorNumber, interiorNumber, zipCode, neighborhood, municipality, city, state, visualReferences, carrierPhone, label, latitude, longitude) differs by strict equality (a bot checkout address change clears lat/lng → CHANGED on latitude/longitude); updatedAt alone does not count. Endpoints: GET /delivery-routes and /:id (stops[].shippingAddress), GET /delivery-routes/eligible-sales, GET /sales/:id (new shippingAddress, also in the PATCH due-date/seller responses), GET /sales list (new shippingAddress). One batched include per page, no N+1.
+- L5 FE answer (parent): all 13 fields with changedFields, FE ignores a label-only change; /sales list carries the full snapshot (one schema everywhere); keep the nullable snapshot id; asked for SHA, :3003 and a way to reproduce CHANGED and DELETED in dev.
