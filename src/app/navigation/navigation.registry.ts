@@ -10,6 +10,9 @@ import type { NavAction, NavGroup } from './navigation.types'
  */
 /** «Reembolsos pendientes»; the shell decorates this entry with the pending count. */
 export const PENDING_REFUNDS_PATH = '/pos/reembolsos'
+// ODD shipping-settings T1 (S2): Envíos tabs and the zone validations queue.
+export const SHIPPING_SETTINGS_PATH = '/sistema/envios'
+export const ZONE_VALIDATIONS_PATH = '/sistema/envios/validaciones'
 
 export const navigationGroups: NavGroup[] = [
   {
@@ -234,6 +237,22 @@ export const navigationGroups: NavGroup[] = [
         icon: 'i-lucide-globe',
         to: '/system/catalog-settings',
         permission: ['read', 'TenantCatalogSettings'],
+      },
+      // ODD shipping-settings T1 (S2 «Envíos + Validaciones aparte»): the route
+      // guards repeat both checks; the Zonas tab also needs read:DeliveryZone.
+      {
+        id: 'sistema-shipping',
+        label: 'Envíos',
+        icon: 'i-lucide-truck',
+        to: SHIPPING_SETTINGS_PATH,
+        permission: ['read', 'ShippingSettings'],
+      },
+      {
+        id: 'sistema-zone-validations',
+        label: 'Validaciones de zona',
+        icon: 'i-lucide-map-pin-check',
+        to: ZONE_VALIDATIONS_PATH,
+        permission: ['validate', 'DeliveryZone'],
       },
     ],
   },
