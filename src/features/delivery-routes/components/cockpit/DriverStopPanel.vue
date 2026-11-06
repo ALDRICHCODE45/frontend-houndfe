@@ -74,8 +74,9 @@ function runEmail() { settled('email', openEmail(customerEmail.value)) }
     <SaleAddressSourceNotice v-if="hasAddress" :address="stop.shippingAddress" />
 
     <AddressMapPicker v-if="showMap" mode="read" :model-value="mapPin" :popup-text="formattedAddress" />
-    <p v-if="showNoLocation" class="flex items-center gap-1.5 text-xs text-muted" data-testid="stop-panel-no-location">
-      <UIcon name="i-lucide-map-pin-off" class="size-3.5 shrink-0" aria-hidden="true" />Sin ubicación guardada: la navegación busca la dirección escrita.
+    <!-- items-start: when the line wraps on mobile the icon stays on the first line, like the notice above. -->
+    <p v-if="showNoLocation" class="flex items-start gap-1.5 text-xs text-muted" data-testid="stop-panel-no-location">
+      <UIcon name="i-lucide-map-pin-off" class="mt-px size-3.5 shrink-0" aria-hidden="true" />Sin ubicación guardada: la navegación busca la dirección escrita.
     </p>
 
     <div v-if="anyQuickActionVisible" data-testid="stop-panel-quick-actions" class="flex flex-wrap items-center gap-2">

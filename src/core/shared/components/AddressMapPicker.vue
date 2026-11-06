@@ -293,11 +293,12 @@ onBeforeUnmount(() => {
       <p v-else-if="showPinHint" data-testid="address-map-hint" class="text-sm text-muted">Toca el mapa para poner el pin.</p>
     </template>
 
+    <!-- The important background beats Leaflet's fixed #ddd, which stayed light in dark mode when tiles failed. -->
     <div
       v-if="showCanvas"
       ref="canvas"
       data-testid="address-map-canvas"
-      class="h-56 w-full overflow-hidden rounded-lg border border-default"
+      class="h-56 w-full overflow-hidden rounded-lg border border-default bg-(--hf-surface-muted)!"
       role="application"
       aria-label="Mapa de la dirección"
     />
