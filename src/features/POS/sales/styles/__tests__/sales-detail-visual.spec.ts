@@ -178,7 +178,8 @@ describe('Sales detail visual adapter', () => {
     expect(css).not.toContain('.sales-detail-fact ')
     expect(salesDataCard).not.toContain('sales-detail-fact ')
     expect(salesDataCard).toContain('<dl')
-    expect(salesDataCard.match(/<dt\b/g) ?? []).toHaveLength(5)
+    // Cajero, Vendedor, Cliente, Dirección de envío, Lista de precios, Métodos de pago.
+    expect(salesDataCard.match(/<dt\b/g) ?? []).toHaveLength(6)
 
     expect(view).toContain('sales-detail-sticky-header')
   })
