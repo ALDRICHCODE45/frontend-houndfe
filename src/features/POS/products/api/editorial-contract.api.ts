@@ -20,7 +20,8 @@ const errorSchema: z.ZodType<EditorialContractErrorEnvelope> = z.union([
   z.object({ statusCode: z.literal(401), error: z.literal('UNAUTHORIZED') }).strict(),
   z.object({ statusCode: z.literal(403), error: z.literal('FORBIDDEN') }).strict(),
   z.object({ statusCode: z.literal(404), error: z.literal('NOT_FOUND') }).strict(),
-  z.object({ statusCode: z.literal(409), error: z.enum(['CONFLICT', 'VOCABULARY_CHANGED']) }).strict(),
+  // EDITORIAL_STATE_UNREADABLE: the stored state is not V2 (read, initialize, save, discard); only a backend repair helps.
+  z.object({ statusCode: z.literal(409), error: z.enum(['CONFLICT', 'VOCABULARY_CHANGED', 'EDITORIAL_STATE_UNREADABLE']) }).strict(),
   z.object({ statusCode: z.literal(500), error: z.enum([
     'EDITORIAL_VOCABULARY_UNREPRESENTABLE', 'INTERNAL_ERROR',
   ]) }).strict(),

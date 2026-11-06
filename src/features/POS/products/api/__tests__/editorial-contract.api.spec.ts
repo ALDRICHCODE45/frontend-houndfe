@@ -112,7 +112,7 @@ it.each([
 })
 it.each([
   [400, 'MALFORMED'], [401, 'UNAUTHORIZED'], [403, 'FORBIDDEN'], [404, 'NOT_FOUND'],
-  [409, 'CONFLICT'], [409, 'VOCABULARY_CHANGED'],
+  [409, 'CONFLICT'], [409, 'VOCABULARY_CHANGED'], [409, 'EDITORIAL_STATE_UNREADABLE'],
   [500, 'EDITORIAL_VOCABULARY_UNREPRESENTABLE'], [500, 'INTERNAL_ERROR'],
 ] as const)('recognizes only exact %i/%s, without semantic error headers', async (statusCode, error) => {
   reject(statusCode, { statusCode, error })

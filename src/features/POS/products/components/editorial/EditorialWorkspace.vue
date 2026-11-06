@@ -11,7 +11,10 @@ import HfSaveBar from '@/core/shared/components/form/HfSaveBar.vue'
 import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 import HfSectionNav, { type HfSection } from '@/core/shared/components/form/HfSectionNav.vue'
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
-import { useEditorialEditor, editorialErrorMessage, editorialIssueMessage } from '../../composables/useEditorialEditor'
+import {
+  useEditorialEditor, editorialErrorMessage, editorialIssueMessage,
+  EDITORIAL_STATE_UNREADABLE_ACTION, EDITORIAL_STATE_UNREADABLE_MESSAGE, EDITORIAL_STATE_UNREADABLE_TITLE,
+} from '../../composables/useEditorialEditor'
 import { useEditorialPublish } from '../../composables/useEditorialPublish'
 import type { EditorialReadinessItem } from '../../interfaces/editorial-contract-readiness.types'
 import EditorialPublishBar from './EditorialPublishBar.vue'
@@ -53,7 +56,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ back: [] }>()
 const editor = useEditorialEditor(() => props.productId)
-const { lifecycle, vocabulary, qualification, loading, errorMessage, readStatus, staleView, metadataMessage, issues, editable, canInitialize, canDiscard, hasUnsavedChanges } = editor
+const { lifecycle, vocabulary, qualification, loading, errorMessage, readStatus, readUnreadable, staleView, metadataMessage, issues, editable, canInitialize, canDiscard, hasUnsavedChanges } = editor
 const { authoritative, buffer, canRead, canWrite, isPending, receipt, outcome, error, pendingIntent } = lifecycle
 const publishPermission = lifecycle.canPublish
 useLeaveGuard(hasUnsavedChanges, { description: 'Tienes cambios sin guardar en el contenido.' })
@@ -254,7 +257,10 @@ const noDraft = computed(() => Boolean(authoritative.value) && !authoritative.va
 const hasContent = computed(() => Boolean(shown.value && vocabulary.value && qualification.value))
 // A publish attempt reports in its own bar (useEditorialPublish); this alert is for saves and discards.
 const needsReconciliation = computed(() => Boolean(pendingIntent.value) && pendingIntent.value?.kind !== 'publish' && outcome.value !== 'acknowledged')
+// The stored state is not V2: reloading or retrying reads the same slot, so the alert offers neither.
+const writeUnreadable = computed(() => needsReconciliation.value && error.value?.code === 'EDITORIAL_STATE_UNREADABLE')
 const reconciliationText = computed(() => {
+  if (writeUnreadable.value) return EDITORIAL_STATE_UNREADABLE_MESSAGE
   if (outcome.value === 'conflict') return editorialErrorMessage(409)
   if (outcome.value === 'ambiguous') return 'No pudimos confirmar si se guardó. Puedes reintentar con el mismo contenido o comprobar el estado.'
   return editorialErrorMessage(error.value?.status ?? null)
@@ -338,7 +344,7 @@ function valuesChanged(values: EditorialDocumentEditingState['values']) {
       <component :is="embedded ? 'h2' : 'h1'" id="editorial-workspace-title" class="editorial-head__title">Contenido</component>
       <StatusBadge v-if="authoritative && publication.status.value && !errorMessage" data-testid="publication-status" :label="publication.status.value.label"
         :tone="statusTone" aria-prefix="Estado:" />
-      <template v-if="hasContent && authoritative && !noDraft">
+      <template v-if="hasContent && authoritative && !noDraft && !errorMessage">
         <StatusBadge v-if="family" data-testid="editorial-progress" :label="missingTotal ? `Faltan ${missingTotal}` : 'Completo'"
           :tone="missingTotal ? 'warning' : 'success'" aria-prefix="Avance:" />
         <span class="editorial-spacer" />
@@ -346,7 +352,7 @@ function valuesChanged(values: EditorialDocumentEditingState['values']) {
           label="Descartar borrador" :disabled="!canDiscard" @click="discardDraftOpen = true" />
         <UButton color="neutral" variant="ghost" icon="i-lucide-history" class="editorial-head__action" data-testid="open-history" label="Historial" @click="historyOpen = true" />
       </template>
-      <template v-else-if="authoritative?.published && noDraft">
+      <template v-else-if="authoritative?.published && noDraft && !errorMessage">
         <span class="editorial-spacer" />
         <UButton color="neutral" variant="ghost" icon="i-lucide-history" class="editorial-head__action" data-testid="open-history" label="Historial" @click="historyOpen = true" />
       </template>
@@ -366,6 +372,12 @@ function valuesChanged(values: EditorialDocumentEditingState['values']) {
       @action="emit('back')"
     />
     <EmptyState v-else-if="errorMessage && forbidden" kind="forbidden" :title="errorMessage" />
+    <EmptyState
+      v-else-if="errorMessage && readUnreadable"
+      kind="error"
+      :title="EDITORIAL_STATE_UNREADABLE_TITLE"
+      :description="EDITORIAL_STATE_UNREADABLE_ACTION"
+    />
     <EmptyState
       v-else-if="errorMessage"
       kind="error"
@@ -397,11 +409,14 @@ function valuesChanged(values: EditorialDocumentEditingState['values']) {
       <p v-if="metadataMessage" role="alert" class="editorial-alert" data-tone="warning">{{ metadataMessage }}</p>
 
       <template v-if="authoritative">
+        <p v-if="noDraft && writeUnreadable && canWrite" role="alert" class="editorial-alert" data-tone="warning" data-testid="reconciliation">
+          {{ reconciliationText }}
+        </p>
         <EmptyState
           v-if="noDraft"
           :title="authoritative.published ? 'La ficha está publicada' : 'Aún no hay ficha para el catálogo'"
           :description="authoritative.published ? 'Hay una versión publicada. Para cambiarla, empieza un borrador desde ella.' : 'Aquí vas a escribir cómo se presenta este producto en el catálogo.'"
-          :action-label="authoritative.published ? 'Empezar desde lo publicado' : 'Empezar ficha'"
+          :action-label="writeUnreadable ? undefined : authoritative.published ? 'Empezar desde lo publicado' : 'Empezar ficha'"
           action-icon="i-lucide-file-plus"
           action-variant="solid"
           action-test-id="initialize"
@@ -413,7 +428,7 @@ function valuesChanged(values: EditorialDocumentEditingState['values']) {
         <template v-else-if="hasContent && shown && vocabulary && qualification">
           <div v-if="needsReconciliation && canWrite" role="alert" class="editorial-alert" data-tone="warning" data-testid="reconciliation">
             <p>{{ reconciliationText }}</p>
-            <div class="editorial-actions">
+            <div v-if="!writeUnreadable" class="editorial-actions">
               <UButton color="neutral" variant="outline" label="Cargar la versión más reciente" data-testid="refresh-discard" :disabled="loading || isPending" @click="discardPending = true" />
               <UButton color="neutral" variant="outline" label="Conservar mis cambios y actualizar" data-testid="refresh-retain" :disabled="loading || isPending" @click="refreshView()" />
               <UButton v-if="outcome === 'ambiguous'" color="neutral" variant="outline" label="Reintentar guardado" :disabled="!retransmitAllowed || isPending || loading" @click="editor.retransmit()" />
