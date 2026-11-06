@@ -20,6 +20,7 @@ import type {
 } from '../interfaces/customer.types'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import AddressModal from './AddressModal.vue'
+import AddressLocationStatus from '@/core/shared/components/AddressLocationStatus.vue'
 import { formatAddress } from '@/core/shared/utils/formatAddress'
 
 const props = withDefaults(
@@ -360,7 +361,10 @@ function handleCancel() {
                     :key="idx"
                     class="sales-pos-customer-form-address-row flex items-center justify-between rounded-md border border-default bg-background px-3 py-2"
                   >
-                    <span class="sales-pos-customer-form-address-text truncate text-sm">{{ formatAddress(addr) }}</span>
+                    <div class="flex min-w-0 flex-col gap-0.5">
+                      <span class="sales-pos-customer-form-address-text truncate text-sm">{{ formatAddress(addr) }}</span>
+                      <AddressLocationStatus :address="addr" />
+                    </div>
                     <UButton
                       icon="i-lucide-trash-2"
                       class="sales-pos-customer-form-icon-action"
@@ -385,7 +389,10 @@ function handleCancel() {
                     :data-testid="`address-row-${addr.id}`"
                     class="sales-pos-customer-form-address-row flex items-center justify-between rounded-md border border-default bg-background px-3 py-2"
                   >
-                    <span class="sales-pos-customer-form-address-text truncate text-sm">{{ formatAddress(addr) }}</span>
+                    <div class="flex min-w-0 flex-col gap-0.5">
+                      <span class="sales-pos-customer-form-address-text truncate text-sm">{{ formatAddress(addr) }}</span>
+                      <AddressLocationStatus :address="addr" />
+                    </div>
                     <RowActionsMenu
                       :actions="ADDRESS_ACTIONS"
                       :row-label="formatAddress(addr)"

@@ -9,6 +9,7 @@ import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { customerQueryKeys } from '@/core/shared/constants/query-keys'
 import { useDraftCustomerAssignment, DraftCustomerAssignmentError } from '../composables/useDraftCustomerAssignment'
+import AddressLocationStatus from '@/core/shared/components/AddressLocationStatus.vue'
 import { formatAddress } from '@/core/shared/utils/formatAddress'
 import { formatPhoneCountryCode } from '@/core/shared/utils/phone.utils'
 import type {
@@ -443,8 +444,9 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
                           <p class="sales-pos-customer-card-name font-medium truncate">
                             {{ formatAddress(address) }}
                           </p>
-                          <p class="sales-pos-customer-card-meta text-xs text-muted">
-                            {{ address.neighborhood ?? 'Sin colonia' }}
+                          <p class="sales-pos-customer-card-meta flex flex-wrap items-center gap-x-3 text-xs text-muted">
+                            <span>{{ address.neighborhood ?? 'Sin colonia' }}</span>
+                            <AddressLocationStatus :address="address" />
                           </p>
                         </div>
                       </div>

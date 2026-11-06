@@ -26,6 +26,10 @@ const formattedAddress = computed(() => props.stop.shippingAddress ? formatAddre
 const hasAddress = computed(() => formattedAddress.value.trim().length > 0)
 const mapPin = computed(() => props.mapReady ? pinToGeoPoint(coords.value) : null)
 const showMap = computed(() => mapPin.value !== null)
+// Only once the map would be shown: before mapReady the panel is still opening.
+const showNoLocation = computed(
+  () => props.mapReady && hasAddress.value && pinToGeoPoint(coords.value) === null,
+)
 
 const customerEmail = computed(() => props.stop.customer?.email?.trim() ?? '')
 const folioLabel = computed<string | null>(() => { const f = props.stop.saleFolio?.trim() ?? '' ; return f.length > 0 ? f : null })
@@ -67,6 +71,9 @@ function runEmail() { settled('email', openEmail(customerEmail.value)) }
     <p v-if="hasAddress" class="w-full min-w-0 max-w-full whitespace-normal break-words text-sm text-default" data-testid="stop-panel-address">{{ formattedAddress }}</p>
 
     <AddressMapPicker v-if="showMap" mode="read" :model-value="mapPin" :popup-text="formattedAddress" />
+    <p v-if="showNoLocation" class="flex items-center gap-1.5 text-xs text-muted" data-testid="stop-panel-no-location">
+      <UIcon name="i-lucide-map-pin-off" class="size-3.5 shrink-0" aria-hidden="true" />Sin ubicación guardada: la navegación busca la dirección escrita.
+    </p>
 
     <div v-if="anyQuickActionVisible" data-testid="stop-panel-quick-actions" class="flex flex-wrap items-center gap-2">
       <button v-for="action in visibleQuickActions" :key="action.id" type="button" :data-testid="action.testId" :aria-label="action.label" :class="QUICK_BTN_CLASS"

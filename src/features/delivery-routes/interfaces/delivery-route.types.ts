@@ -35,8 +35,8 @@ export const DeliveryRouteStopStatusSchema = z.enum(['PENDING', 'IN_PROGRESS', '
 
 // ─── Shipping address (stop projection) ────────────────────────────────────────
 // label is present in the delivery-route stop projection (backend §2). latitude/
-// longitude are OPTIONAL-nullish until the backend ships the Float? + DTO
-// projection for the S3 map; .nullish() tolerates both omission and null.
+// longitude come from the sale-time snapshot (null when the address had no pin);
+// .nullish() tolerates both omission and null.
 export const DeliveryRouteShippingAddressSchema = z.object({
   // Snapshot of the address at sale time. `null` when the customer deleted the
   // address afterwards: an optional reference, never a missing-address signal.

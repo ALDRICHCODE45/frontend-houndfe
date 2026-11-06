@@ -253,10 +253,11 @@ describe('CustomerUpsertSlideover', () => {
         getPopupText: () => null,
         isMarkerDraggable: () => false,
         simulateMarkerDrag: vi.fn(),
+        simulateMapClick: vi.fn(),
         simulateTileError: vi.fn(),
         destroy: vi.fn(),
       }),
-      geocode: async () => null,
+      searchPlaces: async () => ({ status: 'ok', results: [] }),
     })
     const addressA = {
       ...mockCustomer.addresses[0]!,
@@ -444,6 +445,26 @@ describe('CustomerUpsertSlideover', () => {
       // Should emit remove-address with customer ID and address ID
       expect(wrapper.emitted('remove-address')).toBeTruthy()
       expect(wrapper.emitted('remove-address')?.[0]).toEqual(['customer-1', 'addr-1'])
+    })
+
+    it('tells on each saved address whether it has a saved location (S7)', () => {
+      const withPin = { ...mockCustomer.addresses[0]!, latitude: 0, longitude: 0 }
+      const withoutPin = {
+        ...mockCustomer.addresses[0]!,
+        id: 'addr-2',
+        street: 'Second Street',
+        latitude: null,
+        longitude: null,
+      }
+      const wrapper = mount(CustomerUpsertSlideover, {
+        props: { mode: 'edit', customer: { ...mockCustomer, addresses: [withPin, withoutPin] }, open: true },
+        global: { stubs: editorStubs },
+      })
+
+      const pinned = wrapper.get('[data-testid="address-row-addr-1"]')
+      const unpinned = wrapper.get('[data-testid="address-row-addr-2"]')
+      expect(pinned.get('[data-testid="address-location-status"]').text()).toBe('Con ubicación')
+      expect(unpinned.get('[data-testid="address-location-status"]').text()).toBe('Sin ubicación')
     })
 
     it('keeps an existing address row to one ⋮ menu: edit first, destructive removal last', () => {

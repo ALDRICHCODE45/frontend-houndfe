@@ -17,9 +17,10 @@ vi.mock('@nuxt/ui/composables/useToast', () => ({
 
 const AddressMapPickerStub = defineComponent({ name: 'AddressMapPicker', props: ['mode', 'modelValue'],
   data: () => ({ tileFailed: false }),
-  computed: { showCanvas() { return !this.tileFailed && (this.mode === 'write' || this.modelValue !== null) } },
+  computed: { showCanvas() { return this.mode === 'write' || this.modelValue !== null } },
   methods: { simulateTileFailure() { this.tileFailed = true } },
-  template: `<div v-if="showCanvas" data-testid="address-map-picker-stub" data-mode="read" />`,
+  // Mirrors the real picker: a tile failure keeps the map and adds a notice.
+  template: `<div v-if="showCanvas" data-testid="address-map-picker-stub" data-mode="read"><p v-if="tileFailed" data-testid="address-map-tile-notice">Parte del mapa no cargó.</p></div>`,
 })
 
 const ADDR: DeliveryRouteShippingAddress = {
@@ -105,17 +106,37 @@ describe('DriverStopPanel — address above map, map gate (REQ-DRC-106)', () => 
     if ((ov as { stop?: DeliveryRouteStop }).stop?.shippingAddress !== null) expect(w.text()).toContain('Av. Reforma')
   })
 
+  it.each([
+    ['NaN coords', makeAddress({ latitude: NaN, longitude: NaN })],
+    ['only one coord finite', makeAddress({ latitude: 19.4326, longitude: null })],
+    ['both coords null', makeAddress({ latitude: null, longitude: null })],
+  ] as const)('%s with an address → says there is no saved location (S7)', async (_l, address) => {
+    const w = mountPanel({ stop: makeStop({ address }) })
+    await flushPromises()
+    expect(w.get('[data-testid="stop-panel-no-location"]').text()).toBe(
+      'Sin ubicación guardada: la navegación busca la dirección escrita.',
+    )
+  })
+
+  it('no no-location notice when the pin is valid, while the map is not ready yet, or with no address (S7)', async () => {
+    const notice = '[data-testid="stop-panel-no-location"]'
+    expect(mountPanel().find(notice).exists()).toBe(false)
+    expect(mountPanel({ mapReady: false }).find(notice).exists()).toBe(false)
+    expect(mountPanel({ stop: makeStop({ address: null }) }).find(notice).exists()).toBe(false)
+  })
+
   it('(0, 0) coords are a legal pin → map renders', async () => {
     expect(mountPanel({ stop: makeStop({ address: makeAddress({ latitude: 0, longitude: 0 }) }) })
       .find('[data-testid="address-map-picker-stub"]').exists()).toBe(true)
   })
 
-  it('tile failure hides map, address remains, no toast', async () => {
+  it('tile failure keeps the map with its notice, address remains, no toast', async () => {
     const w = mountPanel()
     await flushPromises()
     w.findComponent(AddressMapPickerStub).vm.simulateTileFailure()
     await flushPromises()
-    expect(w.find('[data-testid="address-map-picker-stub"]').exists()).toBe(false)
+    expect(w.find('[data-testid="address-map-picker-stub"]').exists()).toBe(true)
+    expect(w.find('[data-testid="address-map-tile-notice"]').exists()).toBe(true)
     expect(w.text()).toContain('Av. Reforma')
     expect(toastCalls).toHaveLength(0)
   })

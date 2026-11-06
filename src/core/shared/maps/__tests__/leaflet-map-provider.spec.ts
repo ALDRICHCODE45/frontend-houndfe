@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getMapProvider, resetMapProvider, setMapProvider } from '@/core/shared/maps/map-provider'
 import type { GeoPoint, MapProvider } from '@/core/shared/maps/map-provider'
-import { createLeafletMapProvider } from '@/core/shared/maps/leaflet-map-provider'
+import {
+  createLeafletMapProvider,
+  resetPlaceSearchBudget,
+} from '@/core/shared/maps/leaflet-map-provider'
 
 /**
  * Port-contract spec. This asserts the SHAPE and BEHAVIOR of the MapProvider
- * seam (kind, createMap handle, geocode + AbortController, failure swallow) —
+ * seam (kind, createMap handle, searchPlaces + AbortController, request budget, failure swallow) —
  * NOT that Leaflet paints tiles in jsdom. Tile rendering is a vendor concern
  * behind the port and is deliberately out of scope (design §4.3).
  */
@@ -30,7 +33,7 @@ describe('map-provider port', () => {
     const provider = getMapProvider()
     expect(provider.kind).toBe('leaflet')
     expect(typeof provider.createMap).toBe('function')
-    expect(typeof provider.geocode).toBe('function')
+    expect(typeof provider.searchPlaces).toBe('function')
   })
 
   it('returns the same lazily-created provider instance across calls', () => {
@@ -41,7 +44,7 @@ describe('map-provider port', () => {
     const fake = {
       kind: 'leaflet',
       createMap: vi.fn(),
-      geocode: vi.fn(),
+      searchPlaces: vi.fn(),
     } as unknown as MapProvider
     setMapProvider(fake)
     expect(getMapProvider()).toBe(fake)
@@ -156,6 +159,36 @@ describe('leaflet map provider — createMap handle', () => {
     handle.destroy()
   })
 
+  it('notifies onMapClick with the tapped GeoPoint so a first pin can be placed (S5)', () => {
+    const onMapClick = vi.fn()
+    const handle = createLeafletMapProvider().createMap(createContainer(), {
+      center: CDMX,
+      zoom: 15,
+      onMapClick,
+    })
+
+    handle.simulateMapClick({ lat: 19.5, lng: -99.2 })
+
+    expect(onMapClick).toHaveBeenCalledWith({ lat: 19.5, lng: -99.2 })
+    handle.destroy()
+  })
+
+  it('wraps a tapped longitude back into ±180 (S5)', () => {
+    const onMapClick = vi.fn()
+    const handle = createLeafletMapProvider().createMap(createContainer(), {
+      center: CDMX,
+      zoom: 15,
+      onMapClick,
+    })
+
+    handle.simulateMapClick({ lat: 19.5, lng: -99.2 + 360 })
+
+    const [point] = onMapClick.mock.calls[0] ?? []
+    expect(point.lat).toBe(19.5)
+    expect(point.lng).toBeCloseTo(-99.2, 9)
+    handle.destroy()
+  })
+
   it('is idempotent on destroy', () => {
     const handle = createLeafletMapProvider().createMap(createContainer(), {
       center: CDMX,
@@ -166,9 +199,11 @@ describe('leaflet map provider — createMap handle', () => {
   })
 })
 
-describe('leaflet map provider — Nominatim geocode', () => {
+describe('leaflet map provider — Nominatim place search', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    vi.useRealTimers()
+    resetPlaceSearchBudget()
   })
 
   function mockFetch(impl: (url: string, init?: RequestInit) => unknown) {
@@ -177,58 +212,113 @@ describe('leaflet map provider — Nominatim geocode', () => {
     return fetchMock
   }
 
-  it('queries Nominatim with format=json and returns the first result', async () => {
-    const fetchMock = mockFetch(() => ({
-      ok: true,
-      json: async () => [
-        { lat: '19.4326', lon: '-99.1332' },
-        { lat: '20.0', lon: '-100.0' },
+  const okJson = (payload: unknown) => () => ({ ok: true, json: async () => payload })
+
+  it('asks Nominatim for up to 5 Mexican results in Spanish and returns them by name (S2, S3)', async () => {
+    const fetchMock = mockFetch(
+      okJson([
+        { lat: '19.37', lon: '-99.17', display_name: 'Insurgentes Sur 1458, Actipan, CDMX' },
+        { lat: '19.38', lon: '-99.18', display_name: 'Avenida Insurgentes Sur, Del Valle, CDMX' },
+      ]),
+    )
+
+    const outcome = await createLeafletMapProvider().searchPlaces('Insurgentes Sur 1458')
+
+    expect(outcome).toEqual({
+      status: 'ok',
+      results: [
+        { point: { lat: 19.37, lng: -99.17 }, label: 'Insurgentes Sur 1458, Actipan, CDMX' },
+        { point: { lat: 19.38, lng: -99.18 }, label: 'Avenida Insurgentes Sur, Del Valle, CDMX' },
       ],
+    })
+    const url = new URL(String(fetchMock.mock.calls[0]?.[0]))
+    expect(url.origin + url.pathname).toBe('https://nominatim.openstreetmap.org/search')
+    expect(url.searchParams.get('q')).toBe('Insurgentes Sur 1458')
+    expect(url.searchParams.get('format')).toBe('json')
+    expect(url.searchParams.get('limit')).toBe('5')
+    expect(url.searchParams.get('countrycodes')).toBe('mx')
+    expect(url.searchParams.get('accept-language')).toBe('es')
+  })
+
+  it('keeps at most 5 results even if the service sends more (S2)', async () => {
+    const many = Array.from({ length: 7 }, (_, i) => ({
+      lat: String(19 + i / 100),
+      lon: '-99.1',
+      display_name: `Lugar ${i}`,
     }))
+    mockFetch(okJson(many))
 
-    const point = await createLeafletMapProvider().geocode('Av. Reforma 123')
+    const outcome = await createLeafletMapProvider().searchPlaces('Lugar')
 
-    expect(point).toEqual({ lat: 19.4326, lng: -99.1332 })
-    const requestedUrl = String(fetchMock.mock.calls[0]?.[0])
-    expect(requestedUrl).toContain('https://nominatim.openstreetmap.org/search')
-    expect(requestedUrl).toContain('format=json')
-    expect(requestedUrl).toContain(encodeURIComponent('Av. Reforma 123'))
+    expect(outcome.status === 'ok' && outcome.results.map((r) => r.label)).toEqual([
+      'Lugar 0',
+      'Lugar 1',
+      'Lugar 2',
+      'Lugar 3',
+      'Lugar 4',
+    ])
   })
 
-  it('returns null on zero results without throwing (REQ-AMP-004)', async () => {
-    mockFetch(() => ({ ok: true, json: async () => [] }))
-    await expect(createLeafletMapProvider().geocode('asdfqwerty')).resolves.toBeNull()
+  it('drops results without a name or with non-finite or out-of-range coordinates (S5)', async () => {
+    mockFetch(
+      okJson([
+        { lat: 'abc', lon: '-99.1', display_name: 'Bad lat' },
+        { lat: '91', lon: '-99.1', display_name: 'Lat out of range' },
+        { lat: '19', lon: '-181', display_name: 'Lng out of range' },
+        { lat: '19', lon: '-99', display_name: '   ' },
+        { lat: '0', lon: '0', display_name: 'Null Island' },
+      ]),
+    )
+
+    const outcome = await createLeafletMapProvider().searchPlaces('x')
+
+    expect(outcome).toEqual({
+      status: 'ok',
+      results: [{ point: { lat: 0, lng: 0 }, label: 'Null Island' }],
+    })
   })
 
-  it('returns null on a network failure without throwing (REQ-AMP-004)', async () => {
+  it('returns ok with no results on zero matches (S4)', async () => {
+    mockFetch(okJson([]))
+    await expect(createLeafletMapProvider().searchPlaces('asdfqwerty')).resolves.toEqual({
+      status: 'ok',
+      results: [],
+    })
+  })
+
+  it('reports unavailable on a network failure without throwing (S4)', async () => {
     mockFetch(() => {
       throw new Error('network down')
     })
-    await expect(createLeafletMapProvider().geocode('Av. Reforma')).resolves.toBeNull()
+    await expect(createLeafletMapProvider().searchPlaces('Av. Reforma')).resolves.toEqual({
+      status: 'unavailable',
+    })
   })
 
-  it('returns null on a non-ok HTTP response (rate limit)', async () => {
+  it('reports unavailable on a non-ok HTTP response such as a rate limit (S4)', async () => {
     mockFetch(() => ({ ok: false, status: 429, json: async () => [] }))
-    await expect(createLeafletMapProvider().geocode('Av. Reforma')).resolves.toBeNull()
+    await expect(createLeafletMapProvider().searchPlaces('Av. Reforma')).resolves.toEqual({
+      status: 'unavailable',
+    })
   })
 
-  it('returns null on a malformed payload', async () => {
-    mockFetch(() => ({ ok: true, json: async () => ({ not: 'an array' }) }))
-    await expect(createLeafletMapProvider().geocode('Av. Reforma')).resolves.toBeNull()
+  it('reports unavailable on a malformed payload (S4)', async () => {
+    mockFetch(okJson({ not: 'an array' }))
+    await expect(createLeafletMapProvider().searchPlaces('Av. Reforma')).resolves.toEqual({
+      status: 'unavailable',
+    })
   })
 
-  it('returns null when the first result has non-numeric coordinates', async () => {
-    mockFetch(() => ({ ok: true, json: async () => [{ lat: 'abc', lon: 'def' }] }))
-    await expect(createLeafletMapProvider().geocode('Av. Reforma')).resolves.toBeNull()
-  })
-
-  it('skips the request and returns null for a blank query', async () => {
-    const fetchMock = mockFetch(() => ({ ok: true, json: async () => [] }))
-    await expect(createLeafletMapProvider().geocode('   ')).resolves.toBeNull()
+  it('skips the request for a blank query', async () => {
+    const fetchMock = mockFetch(okJson([]))
+    await expect(createLeafletMapProvider().searchPlaces('   ')).resolves.toEqual({
+      status: 'ok',
+      results: [],
+    })
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('forwards the AbortController signal to fetch and resolves null when aborted', async () => {
+  it('forwards the abort signal and reports aborted when cancelled (S5)', async () => {
     const controller = new AbortController()
     const fetchMock = mockFetch((_url, init) => {
       expect(init?.signal).toBe(controller.signal)
@@ -237,9 +327,82 @@ describe('leaflet map provider — Nominatim geocode', () => {
       throw error
     })
 
-    const point = await createLeafletMapProvider().geocode('Av. Reforma', controller.signal)
+    const outcome = await createLeafletMapProvider().searchPlaces('Av. Reforma', controller.signal)
 
-    expect(point).toBeNull()
+    expect(outcome).toEqual({ status: 'aborted' })
     expect(fetchMock.mock.calls[0]?.[1]?.signal).toBe(controller.signal)
+  })
+
+  it('reuses the cached answer for the same query, ignoring case and spacing (S3)', async () => {
+    const fetchMock = mockFetch(okJson([{ lat: '19', lon: '-99', display_name: 'Centro' }]))
+    const provider = createLeafletMapProvider()
+
+    const first = await provider.searchPlaces('Centro CDMX')
+    const second = await provider.searchPlaces('  centro   cdmx ')
+
+    expect(second).toEqual(first)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not cache an unavailable answer (S3, S4)', async () => {
+    let calls = 0
+    const fetchMock = mockFetch(() => {
+      calls += 1
+      if (calls === 1) return { ok: false, status: 503, json: async () => [] }
+      return { ok: true, json: async () => [{ lat: '19', lon: '-99', display_name: 'Centro' }] }
+    })
+    const provider = createLeafletMapProvider()
+
+    await provider.searchPlaces('Centro')
+    vi.useFakeTimers()
+    const retry = provider.searchPlaces('Centro')
+    await vi.advanceTimersByTimeAsync(1000)
+
+    await expect(retry).resolves.toMatchObject({ status: 'ok' })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('waits until one second has passed since the previous request (S3)', async () => {
+    vi.useFakeTimers()
+    const fetchMock = mockFetch(okJson([]))
+    const provider = createLeafletMapProvider()
+
+    await provider.searchPlaces('Uno')
+    const second = provider.searchPlaces('Dos')
+    await vi.advanceTimersByTimeAsync(999)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(1)
+    await second
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('shares the one-request-per-second budget across providers (app-wide) (S3)', async () => {
+    vi.useFakeTimers()
+    const fetchMock = mockFetch(okJson([]))
+
+    await createLeafletMapProvider().searchPlaces('Uno')
+    const other = createLeafletMapProvider().searchPlaces('Dos')
+    await vi.advanceTimersByTimeAsync(500)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(500)
+    await other
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('gives up waiting without a request when aborted during the wait (S5)', async () => {
+    vi.useFakeTimers()
+    const fetchMock = mockFetch(okJson([]))
+    const provider = createLeafletMapProvider()
+    await provider.searchPlaces('Uno')
+
+    const controller = new AbortController()
+    const waiting = provider.searchPlaces('Dos', controller.signal)
+    controller.abort()
+    await vi.advanceTimersByTimeAsync(1000)
+
+    await expect(waiting).resolves.toEqual({ status: 'aborted' })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
