@@ -84,3 +84,20 @@ Owner-only manual UI verification is the acceptance gate. No agent may run brows
 - `muibw44r-18-hsnz`: scoped **PASS**, no blocking finding. Independently reran 176 customer tests, app/responsive typechecks, exact five-file lint, formatting and diff checks. Validation precedes emission; intent resets correctly; Sales default protection and the rendered-busy cancellation test remain intact. API production source is unchanged.
 - The 285-line isolated delta is writer-reported; the verifier did not retain that baseline. Accumulated tracked customer diff measured +862/-242, excluding untracked test/task. No new project type failure; known LSP discrepancy remains unsuppressed.
 - This closes source/unit preparation, not the original screenshot symptom, SQL write/reopen, MAIN integration or hosted deployment. No browser, runtime, new bundle, native receipt or commit evidence is implied. Further map/UI work is paused; publication preparation is tracked in `restock-main-publication.md`.
+
+## 2026-11-06 resume (branch feat/address-map-search from main d55beeca)
+
+The RESTOCK worktree is gone (its branch is in main); work continues on `feat/address-map-search`. The old "no agent browser" rule is superseded by the owner's later standing rule that Playwright MCP checks verify UI design as well as function.
+
+### Specs
+- S1 Search runs only on an explicit action: the «Buscar» button or Enter in the search box (Enter must not submit the address form). Typing alone sends no request.
+- S2 A search shows up to 5 results by their human-readable name; picking one places the pin there and says the location is approximate and can be adjusted by dragging the pin or tapping the map. No result is adopted automatically.
+- S3 Nominatim policy: at most one request per second across the app, identical queries reuse a cached answer, results limited to Mexico, Spanish names.
+- S4 Zero results and an unavailable search each show their own non-blocking message and suggest placing the pin on the map; the map stays usable.
+- S5 Tapping the map places (or moves) the pin; dragging moves it; a newer search, a manual pin or «Quitar pin» discards the answer of a search still in flight. Only finite coordinates within latitude ±90 / longitude ±180 are ever emitted.
+- S6 A tile failure no longer hides the map: the map stays and a short non-blocking notice says part of it did not load (write and read mode).
+- S7 (AD-05) Saved location is visible to users and route data refreshes when an address changes — scoped after AD-04.
+
+### Log
+- L1 User (2026-11-06): «Si hermano, correcto, adelante con todo lo que recomiendes.» — to continuing with AD-04/05 after the plan audit.
+- L2 User decision on search: «Buscar con botón y elegir resultado (Recomendado)» — type, press «Buscar» or Enter, up to 5 named results, pick one, pin lands there with an approximate-location notice; no backend proxy, no autocomplete.
