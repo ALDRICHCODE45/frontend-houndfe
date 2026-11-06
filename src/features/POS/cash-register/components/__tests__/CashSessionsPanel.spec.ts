@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { enableAutoUnmount } from '@vue/test-utils'
 import { ref } from 'vue'
 import { mountWithUApp } from '@/test/mountWithUApp'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import CashSessionsPanel from '../CashSessionsPanel.vue'
 
 const isMobile = ref(false)
@@ -173,5 +174,89 @@ describe('CashSessionsPanel · design pass (T4)', () => {
     const text = wrapper.text()
     expect(text).toContain('Conteo visible')
     expect(text).toMatch(/Cajón (sin liberar|liberado)/)
+  })
+})
+
+describe('CashSessionsPanel · display fields (T12)', () => {
+  const OPENED = '2026-11-05T15:02:11.000Z'
+  const CLOSED = '2026-11-05T22:45:30.000Z'
+  const LATER = '2026-11-05T23:10:00.000Z'
+  // Two closed sessions on the same register with the same fund: only the
+  // cashier and the period tell them apart.
+  const TWINS = [
+    {
+      ...SESSIONS[1],
+      id: 'a',
+      registerId: 'r-2',
+      openedAt: OPENED,
+      closedAt: CLOSED,
+      cashierDisplayName: 'Ana Cajera',
+    },
+    {
+      ...SESSIONS[1],
+      id: 'b',
+      registerId: 'r-2',
+      openedAt: CLOSED,
+      closedAt: LATER,
+      cashierDisplayName: 'Luis Cajero',
+    },
+  ]
+  const period = (from: string, to: string) =>
+    `${formatShortDateTime(from)} – ${formatShortDateTime(to).split(', ')[1]}`
+
+  it('gives each row its cashier and its period under the register name on desktop', () => {
+    const wrapper = mountPanel({ sessions: TWINS })
+    expect(wrapper.get('[data-testid="cash-session-cashier-a"]').text()).toBe('Ana Cajera')
+    expect(wrapper.get('[data-testid="cash-session-period-a"]').text()).toBe(period(OPENED, CLOSED))
+    expect(wrapper.get('[data-testid="cash-session-cashier-b"]').text()).toBe('Luis Cajero')
+    expect(wrapper.get('[data-testid="cash-session-period-b"]').text()).toBe(period(CLOSED, LATER))
+    // One line under the name in the primary column, which has the room for it
+    // (a column of its own truncated the period at 1440).
+    const firstCell = wrapper.findAll('tbody tr')[0].get('td')
+    expect(firstCell.text()).toContain('Caja secundaria')
+    expect(firstCell.get('[data-testid="cash-session-shift-a"]').text()).toBe(
+      `Ana Cajera · ${period(OPENED, CLOSED)}`,
+    )
+    expect(wrapper.findAll('thead th').map((th) => th.text())).not.toContain('Turno')
+  })
+
+  it('gives each mobile card its cashier and its period', () => {
+    isMobile.value = true
+    const wrapper = mountPanel({ sessions: TWINS })
+    expect(wrapper.get('[data-testid="cash-session-cashier-a"]').text()).toBe('Ana Cajera')
+    expect(wrapper.get('[data-testid="cash-session-period-b"]').text()).toBe(period(CLOSED, LATER))
+  })
+
+  it('says since when an open session runs, never a closing time', () => {
+    const wrapper = mountPanel({
+      sessions: [{ ...SESSIONS[0], openedAt: OPENED, closedAt: null, cashierDisplayName: 'Ana' }],
+    })
+    expect(wrapper.get('[data-testid="cash-session-period-s-1"]').text()).toBe(
+      `Desde ${formatShortDateTime(OPENED)}`,
+    )
+  })
+
+  it('names the cashier in the ⋮ label so the twin menus differ', () => {
+    const wrapper = mountPanel({ sessions: TWINS })
+    const labels = wrapper
+      .findAll('[aria-label]')
+      .map((node) => node.attributes('aria-label'))
+      .filter((label) => label.includes('Caja secundaria'))
+    expect(labels.some((label) => label.includes('Ana Cajera'))).toBe(true)
+    expect(labels.some((label) => label.includes('Luis Cajero'))).toBe(true)
+  })
+
+  it.each([
+    ['desktop', false],
+    ['mobile', true],
+  ])('shows nothing for missing names or times on %s: no placeholder, no id', (_, mobile) => {
+    isMobile.value = mobile
+    const wrapper = mountPanel({
+      sessions: [{ ...SESSIONS[0], cashierDisplayName: null, closedAt: null }],
+    })
+    expect(wrapper.find('[data-testid="cash-session-cashier-s-1"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="cash-session-period-s-1"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('u-1')
+    expect(wrapper.text()).not.toContain('Sin nombre')
   })
 })

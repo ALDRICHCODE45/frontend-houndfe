@@ -869,6 +869,57 @@ describe('cashApi.getCustody', () => {
 
     expect(result.pendingHandovers.items[0]?.sourceDrawerReleasedAt).toBeNull()
   })
+
+  it('keeps the display fields (handoff 09) as sent, nulls included', async () => {
+    const pending = CUSTODY.pendingHandovers.items[0]!
+    const named = {
+      ...CUSTODY,
+      pendingHandovers: {
+        ...CUSTODY.pendingHandovers,
+        items: [
+          {
+            ...pending,
+            senderDisplayName: 'Ana Cajera',
+            sourceRegisterName: 'Caja Mostrador 2',
+            notes: null,
+          },
+        ],
+      },
+    }
+    vi.mocked(http.get).mockResolvedValue({ data: named })
+
+    const result = await cashApi.getCustody({})
+
+    expect(result.pendingHandovers.items[0]).toMatchObject({
+      senderDisplayName: 'Ana Cajera',
+      sourceRegisterName: 'Caja Mostrador 2',
+      notes: null,
+    })
+  })
+})
+
+describe('cashApi session display fields (handoff 09)', () => {
+  const named = {
+    ...SESSION,
+    openedAt: '2026-11-05T15:02:11.000Z',
+    closedAt: null,
+    cashierDisplayName: 'Ana Cajera',
+  }
+
+  it('keeps them on list items and on the detail session, also when blind', async () => {
+    vi.mocked(http.get).mockResolvedValueOnce({
+      data: { items: [named], page: 1, limit: 25, total: 1 },
+    })
+    const list = await cashApi.listSessions({})
+    expect(list.items[0]).toMatchObject({ cashierDisplayName: 'Ana Cajera', closedAt: null })
+
+    vi.mocked(http.get).mockResolvedValueOnce({
+      data: { ...DETAIL_OPEN_BLIND, session: named },
+    })
+    const detail = await cashApi.getSession(SESSION.id)
+    expect(detail.session.blind).toBe(true)
+    expect(detail.session.openedAt).toBe('2026-11-05T15:02:11.000Z')
+  })
 })
 
 describe('cashApi.releaseDrawer', () => {

@@ -11,6 +11,7 @@ import {
   isCashComparisonFallback,
   type CashComparisonFallback,
   type CashComparisonNormal,
+  type CashCustodyItem,
   type CashSession,
   type CashSessionDetail,
   type CashSessionStatus,
@@ -103,6 +104,29 @@ describe('cash contract types (S1)', () => {
     expect(NORMAL.declarationDifferenceCents).toBe(500)
     expect(NORMAL.verificationDifferenceCents).toBeNull()
     expect('differenceCents' in NORMAL).toBe(false)
+  })
+
+  it('carries the display fields (handoff 09) as nullable, tolerating an older payload', () => {
+    expectTypeOf<CashSession['openedAt']>().toEqualTypeOf<string | undefined>()
+    expectTypeOf<CashSession['closedAt']>().toEqualTypeOf<string | null | undefined>()
+    expectTypeOf<CashSession['cashierDisplayName']>().toEqualTypeOf<string | null | undefined>()
+    expectTypeOf<CashCustodyItem['senderDisplayName']>().toEqualTypeOf<
+      string | null | undefined
+    >()
+    expectTypeOf<CashCustodyItem['sourceRegisterName']>().toEqualTypeOf<
+      string | null | undefined
+    >()
+    expectTypeOf<CashCustodyItem['notes']>().toEqualTypeOf<string | null | undefined>()
+
+    const named: CashSession = {
+      ...BLIND_SESSION,
+      openedAt: '2026-11-05T15:02:11.000Z',
+      closedAt: null,
+      cashierDisplayName: 'Ana Cajera',
+    }
+    // A blind projection carries them too: they hold no amounts.
+    expect(named.blind).toBe(true)
+    expect(named.cashierDisplayName).toBe('Ana Cajera')
   })
 
   it('allows a null differenceCents fallback for an unrepresentable subtraction', () => {

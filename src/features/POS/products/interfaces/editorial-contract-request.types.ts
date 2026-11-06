@@ -13,6 +13,6 @@ export type EditorialContractErrorEnvelope =
   | { statusCode: 401; error: 'UNAUTHORIZED' }
   | { statusCode: 403; error: 'FORBIDDEN' }
   | { statusCode: 404; error: 'NOT_FOUND' }
-  | { statusCode: 409; error: 'CONFLICT' | 'VOCABULARY_CHANGED' }
+  | { statusCode: 409; error: 'CONFLICT' | 'VOCABULARY_CHANGED' | 'EDITORIAL_STATE_UNREADABLE' }
   | { statusCode: 500; error: 'EDITORIAL_VOCABULARY_UNREPRESENTABLE' | 'INTERNAL_ERROR' }
 export type EditorialContractCareConfirmation = 'review-v1' | null
