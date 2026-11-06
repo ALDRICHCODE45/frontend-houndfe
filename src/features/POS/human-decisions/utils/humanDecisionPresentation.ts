@@ -1,5 +1,5 @@
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
-import { SERVICE_UNIT_OPTIONS, UNIT_OPTIONS } from '@/features/POS/products/composables/useProductForm'
+import { SERVICE_UNIT_OPTIONS, UNIT_OPTIONS } from '@/core/shared/constants/product-units'
 import type { HumanDecision, HumanDecisionResolution } from '../interfaces/human-decision.types'
 import type {
   ExpirationDecisionResolution,
