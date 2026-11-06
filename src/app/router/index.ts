@@ -109,6 +109,13 @@ const NotificationConfigView = () =>
 // layers the editable form + confirmation modal on the same route.
 const TenantCatalogSettingsView = () =>
   import('@/features/system/catalog-settings/views/TenantCatalogSettingsView.vue')
+// ─── Shipping settings (ODD shipping-settings T1, S2) ─────────────────────
+// Envíos keeps its tab in the query (?tab=zonas|cajas|origen|horario); the
+// zone validations queue has its own entry, guarded by validate:DeliveryZone.
+const ShippingSettingsView = () =>
+  import('@/features/shipping/shipping-settings/views/ShippingSettingsView.vue')
+const ZoneValidationsView = () =>
+  import('@/features/shipping/delivery-zones/views/ZoneValidationsView.vue')
 // ─── Branch sales summary (ODD branch-sales-summary A3d) ─────────────────
 // Analytics route guarded by read:Analytics; no skipTenantCheck /
 // requiresSuperAdmin. The view is lazy-loaded on navigation.
@@ -488,6 +495,27 @@ const router = createRouter({
         layout: 'dashboard',
         rememberAsLanding: true,
         permission: ['read', 'TenantCatalogSettings'] as RoutePermission,
+      },
+    },
+    // ─── Shipping settings (ODD shipping-settings T1, S2) ────────────────────
+    {
+      path: '/sistema/envios',
+      name: 'sistema-shipping',
+      component: ShippingSettingsView,
+      meta: {
+        layout: 'dashboard',
+        rememberAsLanding: true,
+        permission: ['read', 'ShippingSettings'] as RoutePermission,
+      },
+    },
+    {
+      path: '/sistema/envios/validaciones',
+      name: 'sistema-zone-validations',
+      component: ZoneValidationsView,
+      meta: {
+        layout: 'dashboard',
+        rememberAsLanding: true,
+        permission: ['validate', 'DeliveryZone'] as RoutePermission,
       },
     },
     // ─── Dashboard (ODD dashboard-analytics D1) ─────────────────────────────

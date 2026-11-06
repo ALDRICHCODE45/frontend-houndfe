@@ -3,7 +3,7 @@ import type { AppAction, AppSubject } from '../interfaces/auth.types'
 
 export type AppAbility = MongoAbility<[AppAction, AppSubject]>
 
-const APP_ACTIONS: AppAction[] = ['create', 'read', 'update', 'delete', 'batch_delete', 'manage']
+const APP_ACTIONS: AppAction[] = ['create', 'read', 'update', 'delete', 'batch_delete', 'validate', 'manage']
 const APP_SUBJECTS: AppSubject[] = [
   'Product',
   'ProcurementSupplier',
@@ -79,6 +79,10 @@ const APP_SUBJECTS: AppSubject[] = [
   'CashOut',
   'CashVerification',
   'CashHandover',
+  // ODD shipping-settings T1: without these entries parsePermissionCode returns
+  // null and the zone, validation and shipping settings grants drop silently.
+  'DeliveryZone',
+  'ShippingSettings',
   'all',
 ]
 

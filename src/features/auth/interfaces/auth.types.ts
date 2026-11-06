@@ -45,7 +45,16 @@ export type AuthPhase =
   | 'selecting-tenant'
   | 'authenticated'
 
-export type AppAction = 'create' | 'read' | 'update' | 'delete' | 'batch_delete' | 'manage'
+// ODD shipping-settings T1: 'validate' resolves pending delivery-zone
+// validations (`validate:DeliveryZone`); `manage` implies it per CASL.
+export type AppAction =
+  | 'create'
+  | 'read'
+  | 'update'
+  | 'delete'
+  | 'batch_delete'
+  | 'validate'
+  | 'manage'
 export type AppSubject =
   | 'Product'
   | 'ProcurementSupplier'
@@ -131,6 +140,11 @@ export type AppSubject =
   | 'CashOut'
   | 'CashVerification'
   | 'CashHandover'
+  // ODD shipping-settings T1: delivery zones (plus `validate` for the chatbot
+  // zone validations) and the shipping settings (boxes, origin, opening hours).
+  // The runtime half is APP_SUBJECTS in authorization/ability.ts.
+  | 'DeliveryZone'
+  | 'ShippingSettings'
   | 'all'
 
 interface EffectivePermission {

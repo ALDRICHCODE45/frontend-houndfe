@@ -125,6 +125,31 @@ describe('ProductVariantsTable', () => {
     wrapper.unmount()
   })
 
+  it('offers «Empaque» for a saved variant of a product, readable without update rights (S3)', async () => {
+    const wrapper = mountTable({ packaging: true, canUpdate: false })
+    await openMenu(wrapper)
+    expect(labels()).toEqual(['Elegir fotos', 'Más datos', 'Empaque', 'Editar', 'Eliminar…'])
+    const item = menuItems().find((entry) => entry.textContent?.trim() === 'Empaque')!
+    expect(item.getAttribute('data-disabled')).toBeNull()
+    item.click()
+    await tick()
+    expect(wrapper.emitted('action')).toEqual([['packaging', 'variant-1']])
+    wrapper.unmount()
+  })
+
+  it('has no «Empaque» while pending or when packaging does not apply (services)', async () => {
+    const pending = mountTable({ packaging: true, pending: true })
+    await openMenu(pending)
+    expect(labels()).not.toContain('Empaque')
+    pending.unmount()
+    document.body.innerHTML = ''
+
+    const service = mountTable({ packaging: false })
+    await openMenu(service)
+    expect(labels()).not.toContain('Empaque')
+    service.unmount()
+  })
+
   it('has no photos item while the variant is still pending', async () => {
     const wrapper = mountTable({ pending: true })
     await openMenu(wrapper)

@@ -1,0 +1,3 @@
+[41m[1m FAIL [22m[49m src/features/shipping/shipping-settings/components/__tests__/ShippingOriginPanel.spec.ts[2m [ src/features/shipping/shipping-settings/components/__tests__/ShippingOriginPanel.spec.ts ][22m
+[31m[1mError[22m: Failed to resolve import "../ShippingOriginPanel.vue" from "src/features/shipping/shipping-settings/components/__tests__/ShippingOriginPanel.spec.ts". Does the file exist?[39m
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
