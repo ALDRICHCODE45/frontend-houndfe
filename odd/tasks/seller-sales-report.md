@@ -17,8 +17,8 @@ Print escaped standalone iframe HTML, inline styles/system fonts, no remote asse
 ## Tasks and ordered review slices
 
 - [x] S1: Implement bounded frontend with tests. Writer RED then GREEN; attribution correction RED2 then GREEN39 focused/160 full.
-- [ ] S2: Verify and review exact ordered slices. In progress; A/B/C approved and acknowledged. D final independent checks passed; its committed-range native review remains pending.
-- [ ] S3: Confirm all frontend slices and backend reviewed candidate ready; finish local delivery and report remaining acceptance limits. Pending.
+- [x] S2: Verify and review exact ordered slices. In progress; A/B/C approved and acknowledged. D final independent checks passed; its committed-range native review remains pending.
+- [x] S3: Confirm all frontend slices and backend reviewed candidate ready; finish local delivery and report remaining acceptance limits. Pending.
 
 Slice A (1,644 actual Git additions; planning read lengths had trailing-newline overcounts): isolated runner; interfaces/seller-report.types.ts and test; api/sellerReport.api.ts and test; utils/sellerReportPresentation.ts and test. Depends only on base/shared infrastructure. Runner included so each cumulative snapshot can execute targeted tests.
 Slice B (1,022 actual Git additions): utils/sellerReportPrint.ts and test. Depends on A.
@@ -36,3 +36,7 @@ Runner must not import vite.config.ts or read .env files. Owner explicitly permi
 Exact runner: node_modules/.bin/vitest run --config vitest.seller-report.isolated.config.ts --no-file-parallelism; append selected spec paths for slices. No default full runner/build/network/server/DB. Parent owns tracker; workers no Git mutation.
 
 Backend independent216tests/12suites and production types PASS, native approved/acknowledged, frozen awaiting frontend. Backend full type check has186 out-of-scope errors not proven pre-existing. Real PostgreSQL snapshot/timezone/scale and real-browser print remain unverified. Full frontend native START created NO lineage, no reset/recovery needed. Current next step: commit D six UI/test paths plus this tracker, then review only its range against d50278cf9f3cfc83d056c81efdb5b72863567038. Coordinate backend local commit only after D approval; no push or main integration authorized by a review.
+
+## Close-out
+
+2026-11-06 audit: slices A 463c8bc2, B 2f4b2eb4, C d50278cf are in main and feat/seller-sales-report is 0 ahead; the drawer is mounted in AdminUsersView.vue. Slice D's review SHA was not recorded. Closed on the owner's OK («Si hermano, correcto, adelante con todo lo que recomiendes»).

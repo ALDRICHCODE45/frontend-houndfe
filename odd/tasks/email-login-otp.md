@@ -54,7 +54,7 @@ Conditional regression-test changes only: `src/features/auth/__tests__/hydration
 - [x] OTP-F01: read-only map, confirm required second step and released API contract.
 - [x] OTP-F02: behavior-first API/store/HTTP transitions, cancellation and stale-result guards; preserve existing verified selection/session completion. Independent scoped checks passed after correcting malformed-success handling.
 - [x] OTP-F03: minimal OTP form and login composition; generic failure/restart/resend UX with focused tests. Independent scoped checks passed.
-- [ ] OTP-F04: independent verification, ordinary review and coherent local commits; owner handoff, no push.
+- [x] OTP-F04: independent verification, ordinary review and coherent local commits; owner handoff, no push.
 
 Tests must cover no tokens/storage/permissions/navigation before verification, rejection of legacy direct-session password responses, six-digit string handling, verification and resend error/recovery states, timers, duplicates and ABA/late responses (including permission awaits), auth-free normal/special 401 behavior, legacy pending selection rejection, and verified single/multiple-tenant/superadmin continuations. Existing final-session hydration must remain valid. Record actual RED/GREEN and commands, not proposed tests as evidence.
 
@@ -67,3 +67,7 @@ Tests must cover no tokens/storage/permissions/navigation before verification, r
 - Backend adds an OTP migration; its Docker entrypoint automatically applies migrations before startup. Owner must account for this before pushing to an auto-deployed branch. No migration, email/provider or real authentication request has been authorized as frontend verification.
 
 Forecast: this coherent auth boundary and its regression coverage will likely exceed the 400-line advisory. Keep tests with behavior, do not minify or reconstruct unverified intermediate snapshots. Report actual size and review feasibility before local commit preparation. Conditional frontend estimate is 2–3 hours after contract agreement, not a delivery guarantee.
+
+## Close-out
+
+2026-11-06 audit: base 98790b6e and branch feat/auth-email-otp are in main (0 commits ahead); LoginOtpForm in LoginView.vue and /auth/login/otp/verify in auth.api.ts ship it. Closed on the owner's OK («Si hermano, correcto, adelante con todo lo que recomiendes»).

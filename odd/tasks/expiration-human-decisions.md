@@ -5,10 +5,14 @@ Authorization: local frontend work; no further commits, push, deploy, environmen
 - [x] WU1: DTOs and text validator; reviewed and committed as 81e693a.
 - [x] WU2: whitelisted attempts and canonical retry identity; reviewed and committed as 6e9ac57.
 - [x] WU3: read union and safe inbox presentation; reviewed and committed as c28c304. Feature tests: 147 passed; conflict harness correction: 11 passed. Historical RED 148 versus final 147 remains unreconciled; visual acceptance pending.
-- [ ] WU4a (in progress): isolated EXPIRATION controls and tests; no production wiring.
-- [ ] WU4b: tagged internal transport/mutation context and originating-tenant refresh.
-- [ ] WU4c: guarded EXPIRATION preparation, retries and duplicate-submit protection.
-- [ ] WU4d: EXPIRATION context invalidation and obsolete-settlement protection.
-- [ ] WU4e: activate detail/view controls only after WU4b–d verification.
+- [x] WU4a (in progress): isolated EXPIRATION controls and tests; no production wiring.
+- [x] WU4b: tagged internal transport/mutation context and originating-tenant refresh.
+- [x] WU4c: guarded EXPIRATION preparation, retries and duplicate-submit protection.
+- [x] WU4d: EXPIRATION context invalidation and obsolete-settlement protection.
+- [x] WU4e: activate detail/view controls only after WU4b–d verification.
 
 Baseline tenant capture and late-settlement risks are pre-existing; scope new protections to EXPIRATION, not a blanket RESTOCK refactor. WU4a emits validated inputs only; UUID/HTTP/context ownership remains outside controls. Preserve the production read-only notice until activation is safe.
+
+## Close-out
+
+2026-11-06 audit: superseded: WU4a-e were delivered under expiration-safe-401-transport, expiration-ui-activation and expiration-main-integration (d72778a9 and 06388328 in main; feat/expiration-human-decisions 0 ahead). Closed on the owner's OK («Si hermano, correcto, adelante con todo lo que recomiendes»).

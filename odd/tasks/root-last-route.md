@@ -8,9 +8,9 @@ Base feat/seller-sales-report HEAD9e23901484c9fdf254cb9ccf5c8c0040fa4abb65. Pres
 
 ## Work units
 
-- [ ] R1: Implement root resolver/persistence and error-home navigation with regression tests. In progress; delegate multi-file writer after readonly map.
-- [ ] R2: Verify focused tests, types, quality and native review for this unit. Pending.
-- [ ] R3: Report outcome and browser acceptance needed. Pending.
+- [x] R1: Implement root resolver/persistence and error-home navigation with regression tests. In progress; delegate multi-file writer after readonly map.
+- [x] R2: Verify focused tests, types, quality and native review for this unit. Pending.
+- [x] R3: Report outcome and browser acceptance needed. Pending.
 
 One coherent behavior with tests. Forecast300–450 authored lines advisory, not a hard ceiling; do not remove coverage/minify. Parent owns tracker. Exact review scope must exclude pre-existing UI-polish changes rather than treating them as this work.
 
@@ -35,3 +35,7 @@ Test-first observed behavioral RED then GREEN, alternate auth/tenant/access/stor
 Use local node_modules/.bin/vitest run --config vitest.navigation.isolated.config.ts --no-file-parallelism. Config standalone Vue/NuxtUI dts:false,envDir:false,test.cache:false, mocked HTTP/auth and exact test includes. Permitted future outputs ONLY node_modules/.nuxt-ui/ and node_modules/.vite-temp/ (not root .vite-temp). Do not use proposed .vite-temp/navigation cacheDir or tsBuildInfoFile. Use noEmit --incremental false type checks app/vitest/node. No .env reads, declarations/results cache/other output expansion; stop for any unavoidable output scope. No default Vite config import. Existing seller-report runner/config unchanged.
 
 Scoped lint/format, diffcheck and hashes of all preserved changes before/after. Native review cannot silently include old UI-polish unit. Browser reopening root/history behavior remains unverified until actually exercised. Current next step: bounded writer.
+
+## Close-out
+
+2026-11-06 audit: base 9e239014 is in main; navigation.memory.ts and the root redirect in router/index.ts ship it. Browser acceptance of reopening / was never recorded. Closed on the owner's OK («Si hermano, correcto, adelante con todo lo que recomiendes»).

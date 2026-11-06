@@ -20,9 +20,9 @@ Backend contract v1 was released by coordinator message `1672d1b0-055f-48ed-a7c4
 ## Work plan and review forecast
 
 - [x] Read-only mapping and explicit policy/contract agreement.
-- [ ] One writer: RED then GREEN for detail hydration, profile fields and authorized multi-role editing; creation regressions unchanged.
-- [ ] Relevant regression suite, three TypeScript projects and exact lint/format checks; independent verification.
-- [ ] Coordinated native review and local delivery under the existing feature-branch-chain strategy.
+- [x] One writer: RED then GREEN for detail hydration, profile fields and authorized multi-role editing; creation regressions unchanged.
+- [x] Relevant regression suite, three TypeScript projects and exact lint/format checks; independent verification.
+- [x] Coordinated native review and local delivery under the existing feature-branch-chain strategy.
 
 Forecast: approximately 500–900 authored changed lines including regression coverage; likely above the 400-line advisory. Proposed coherent work units are detail-backed profile editing with tests, then permission-gated multi-role editing with tests, where independently buildable. Do not shrink coverage or split code from tests to meet an arbitrary count. Actual delivery remains held until both repositories are coordinated.
 
@@ -40,3 +40,7 @@ Writer allowlist (eight paths):
 This task document is parent-owned. API production forwarding already preserves its typed payload; request an explicit scope amendment if another production path proves necessary.
 
 All tests and static validation commands must run under `unshare --user --map-root-user --net`, failing closed if isolation fails. No browser, live requests, services, DB, environment/secrets inspection, installs, remote operations or runtime acceptance. Local source checks do not establish deployed email delivery or backend authorization enforcement.
+
+## Close-out
+
+2026-11-06 audit: base ba36d698 and branch feat/admin-user-email-roles are in main (0 ahead); detail hydration in AdminUsersView.vue and multi-role editing in UserUpsertSlideover.vue ship it. Closed on the owner's OK («Si hermano, correcto, adelante con todo lo que recomiendes»).

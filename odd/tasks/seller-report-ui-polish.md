@@ -9,8 +9,8 @@ Base: feat/seller-sales-report at 9e23901484c9fdf254cb9ccf5c8c0040fa4abb65. Trac
 ## Plan and scope
 
 - [x] U1: Add local Nuxt UI date filter and report-only desktop width. Writer reports 182 tests and quality/type checks passing; date-filter initial RED was missing-import only, drawer width had behavioral RED. Do not claim full behavioral test-first evidence for the filter.
-- [ ] U2: Verify types, scoped quality, regression tests and review outcome. In progress; independent verification after generated-file scope decision.
-- [ ] U3: Present changes and remaining browser acceptance. Pending.
+- [x] U2: Verify types, scoped quality, regression tests and review outcome. In progress; independent verification after generated-file scope decision.
+- [x] U3: Present changes and remaining browser acceptance. Pending.
 
 Exact source surfaces: components/SellerReportDateRangeFilter.vue and its __tests__/SellerReportDateRangeFilter.spec.ts (new), components/SellerSalesReportDrawer.vue and its __tests__/SellerSalesReportDrawer.spec.ts, all under src/features/admin/users/seller-report/.
 
@@ -27,3 +27,7 @@ Test-first RED then GREEN for Nuxt controls/calendar emissions, disabled/preset/
 Command: node_modules/.bin/vitest run --config vitest.seller-report.isolated.config.ts --no-file-parallelism (optionally select focused spec paths for RED). Three local vue-tsc --noEmit --incremental false configurations app/vitest/node, scoped ESLint/Oxlint/Prettier checks and git diff --check. Shared analytics/drawer regression only if runner can include them without changing config; do not import default Vite config. Record actual tests or exclusion, no invented browser proof.
 
 Browser acceptance remains necessary for45vw visual sizing, popover interaction and mobile layout. Screenshot inspected by parent; mapping confirms shared drawer already supports desktopUi and Nuxt UI4.6 provides InputDate/Calendar. Current next step: independent verification then native review. Shared analytics/drawer tests were excluded by isolated runner; no shared sources changed. No backend contact, PDF edits or commits.
+
+## Close-out
+
+2026-11-06 audit: base 9e239014 is in main; SellerReportDateRangeFilter.vue and the 45vw drawer ship it. Browser acceptance was never recorded. Closed on the owner's OK («Si hermano, correcto, adelante con todo lo que recomiendes»).

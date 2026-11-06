@@ -43,8 +43,8 @@ Units 3 and 4 exceed the approximately 400-line advisory. Preserve readable test
 - [x] **MP-01 — Inventory local source and dependencies.** Local history permits a possible fast-forward; generated relocation changes are classified and excluded. Independent AD02/AD03 verification passed.
 - [x] **MP-02 — Verify the intended source candidate.** Independent full run passed 454 files / 7,466 tests, 55-file lint, 69-file formatting, responsive types and one exact `pnpm build` including root Vue/Node/Vitest types. Worktree source was unchanged during that verification. This is not committed-source identity or hosted configuration evidence; no browser/Playwright/screenshots.
 - [x] **MP-03 — Prepare and review implementation work-unit commits.** All five implementation units below completed native approval and acknowledgement on their immediate-predecessor committed ranges. Independent structural verification matched their 46 files to the validated source. This separate documentation unit still requires its own ordinary review before inclusion in the final MAIN cut.
-- [ ] **MP-04 — Integrate verified commits into local MAIN.** Recheck MAIN/feature identity and principal protections, use a non-destructive fast-forward only when valid, then report actual final SHA and remaining local-only changes. Do not assume origin is current.
-- [ ] **MP-05 — Give the owner the publication handoff.** Owner pushes and redeploys; identify source SHA, backend contract/migration dependencies, environment-specific build configuration and manual acceptance limits. Never copy the local dist, `.env`, generated Prisma client or local bot credential to hosted services.
+- [x] **MP-04 — Integrate verified commits into local MAIN.** Recheck MAIN/feature identity and principal protections, use a non-destructive fast-forward only when valid, then report actual final SHA and remaining local-only changes. Do not assume origin is current.
+- [x] **MP-05 — Give the owner the publication handoff.** Owner pushes and redeploys; identify source SHA, backend contract/migration dependencies, environment-specific build configuration and manual acceptance limits. Never copy the local dist, `.env`, generated Prisma client or local bot credential to hosted services.
 
 ## Publication verification checkpoint
 
@@ -85,3 +85,7 @@ Verifier `muiem31n-1d-zlxb` confirmed the immediate five-commit chain from `24f4
 ## Next step
 
 Commit and review this documentation-only record, then perform the guarded local MAIN fast-forward and report its actual SHA and preservation checks. No feature writer remains active after AD03. Owner-only push, deployment, services and browser acceptance remain separate.
+
+## Close-out
+
+2026-11-06 audit: 8a25c47 and 24f4762 are in main, feat/human-decisions-restock-inbox is 0 ahead, and main equals origin/main (pushed). Redeploy is the owner's. Closed on the owner's OK («Si hermano, correcto, adelante con todo lo que recomiendes»).
