@@ -291,8 +291,9 @@ describe('EligibleSalesPicker — rich row labels (S3)', () => {
     expect(secondary.text()).toContain('$1,270.00')
     expect(secondary.text()).toContain('Cemento 50kg')
     expect(secondary.text()).toContain('Varilla 3/8')
-    // A date string in dd/mm/yyyy form (es-MX).
-    expect(secondary.text()).toMatch(/\d{2}\/\d{2}\/\d{4}/)
+    // The app's short date-time, like the sales list («7 oct, 09:37»), never dd/mm/yyyy.
+    expect(secondary.text()).toMatch(/7 oct( 2026)?, \d{2}:\d{2}/)
+    expect(secondary.text()).not.toMatch(/\d{2}\/\d{2}\/\d{4}/)
   })
 
   it('falls back to "Cliente sin nombre" / "Sin dirección registrada" when absent', async () => {

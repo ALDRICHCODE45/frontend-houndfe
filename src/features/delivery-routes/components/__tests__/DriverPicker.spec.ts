@@ -85,9 +85,18 @@ describe('DriverPicker — assignable user source', () => {
     vi.spyOn(usersApi, 'listAssignableDrivers').mockResolvedValue(ASSIGNABLE)
     const wrapper = mountPicker({ modelValue: 'u2' })
     await vi.waitFor(() => {
-      expect(wrapper.find('[data-testid="driver-picker-chip-u2"]').exists()).toBe(true)
+      expect(wrapper.text()).toContain('Bruno Repartidor')
     })
-    expect(wrapper.text()).toContain('Bruno Repartidor')
+  })
+
+  it('shows the selected driver once, in the field itself (no duplicate chip under it)', async () => {
+    vi.spyOn(usersApi, 'listAssignableDrivers').mockResolvedValue(ASSIGNABLE)
+    const wrapper = mountPicker({ modelValue: 'u2' })
+    await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="driver-picker-trigger"]').text()).toContain('Bruno Repartidor')
+    })
+    expect(wrapper.text().split('Bruno Repartidor')).toHaveLength(2)
+    expect(wrapper.find('[data-testid^="driver-picker-chip"]').exists()).toBe(false)
   })
 
   it('exposes a "No hay repartidores disponibles" empty state when the list is empty', async () => {
@@ -127,18 +136,6 @@ describe('DriverPicker — v-model / emit contract', () => {
     const modelEvents = wrapper.emitted('update:modelValue')
     expect(modelEvents).toBeTruthy()
     expect(modelEvents![modelEvents!.length - 1]).toEqual(['u1'])
-  })
-
-  it('emits update:driverUserId(null) when the selected chip is cleared', async () => {
-    const wrapper = mountPicker({ modelValue: 'u1' })
-    await vi.waitFor(() => {
-      expect(wrapper.find('[data-testid="driver-picker-chip-clear"]').exists()).toBe(true)
-    })
-    await wrapper.find('[data-testid="driver-picker-chip-clear"]').trigger('click')
-    await nextTick()
-    const events = wrapper.emitted('update:driverUserId')
-    expect(events).toBeTruthy()
-    expect(events![events!.length - 1]).toEqual([null])
   })
 })
 
