@@ -10,6 +10,7 @@ import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { customerQueryKeys } from '@/core/shared/constants/query-keys'
 import { useDraftCustomerAssignment, DraftCustomerAssignmentError } from '../composables/useDraftCustomerAssignment'
 import AddressLocationStatus from '@/core/shared/components/AddressLocationStatus.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { formatAddress } from '@/core/shared/utils/formatAddress'
 import { formatPhoneCountryCode } from '@/core/shared/utils/phone.utils'
 import type {
@@ -276,11 +277,11 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
                   <p class="sales-pos-customer-title text-lg font-semibold truncate">
                     {{ selectedCustomer.fullName }}
                   </p>
-                  <UBadge
-                    color="neutral"
-                    class="sales-pos-customer-selected-badge text-(--hf-heading)"
+                  <StatusBadge
+                    class="sales-pos-customer-selected-badge"
+                    tone="info"
                     label="Seleccionado"
-                    size="xs"
+                    aria-label="Cliente seleccionado"
                   />
                 </div>
                 <p

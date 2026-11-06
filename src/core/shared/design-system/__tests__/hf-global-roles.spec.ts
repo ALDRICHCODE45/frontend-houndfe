@@ -131,6 +131,6 @@ describe('legacy semantic roles consume the HF foundation', () => {
     expect(value(document.body, '--hf-page')).toBeUndefined()
     expect(value(document.body, 'background-color')).toBeUndefined()
     expect(value(document.body, '--brand-action')).toBe('#f6bb13')
-    expect(adapter).not.toMatch(/--ui-(warning|success):/)
+    expect(adapter).not.toMatch(/--ui-success:/)
   })
 })

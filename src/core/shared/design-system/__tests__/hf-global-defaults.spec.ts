@@ -114,7 +114,7 @@ describe('application HF default boundary', () => {
     expect(vite).not.toMatch(/bg-white dark:bg-coco-neutral-900|bg-coco-neutral-50 dark:bg-coco-neutral-950/)
     expect(vite).toContain('bg-default')
     expect(vite).toContain('bg-[var(--hf-page)]')
-    for (const semantic of ['warning', 'success'])
+    for (const semantic of ['success'])
       expect(adapter).not.toContain(`--ui-${semantic}:`)
     expect(adapter).not.toContain('!important')
   })

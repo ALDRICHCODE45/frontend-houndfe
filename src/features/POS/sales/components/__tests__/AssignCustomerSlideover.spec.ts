@@ -345,6 +345,11 @@ describe('AssignCustomerSlideover', () => {
     // Address picker step should be visible (refactored design with badge)
     expect(pageText()).toContain('Ada Lovelace')
     expect(pageText()).toContain('Seleccionado')
+    // The design-system status badge (24px, 12px/600), not Nuxt's tiny xs badge.
+    const badge = document.body.querySelector('.sales-pos-customer-selected-badge')
+    expect(badge?.classList.contains('hf-status-badge')).toBe(true)
+    expect(badge?.getAttribute('data-tone')).toBe('info')
+    expect(badge?.textContent?.trim()).toBe('Seleccionado')
   })
 
 

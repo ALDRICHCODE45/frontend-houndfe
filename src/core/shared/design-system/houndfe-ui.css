@@ -26,6 +26,10 @@ body.hf-app {
   /* One red. Nuxt's `error` role (text-error, color="error", bg-error/..,
    * border-error/..) follows --hf-danger in both themes. */
   --ui-error: var(--hf-danger);
+  /* Warning ink. `text-warning`, `color="warning"` and `bg-warning/..` read
+   * --ui-warning inline; unbound it is the library's yellow-500 (~1.9:1 on
+   * white). It follows --hf-warning in both themes, as --ui-error does. */
+  --ui-warning: var(--hf-warning);
   --ui-text-highlighted: var(--hf-heading);
   --ui-text: var(--hf-ink);
   --ui-text-toned: var(--hf-muted);
@@ -115,6 +119,18 @@ body.hf-app {
   color: var(--hf-muted);
   opacity: 1;
   cursor: not-allowed;
+}
+
+/* Dark: on the page-tone well the bright muted label (~9.6:1) read exactly like
+ * the enabled outline button beside it, so a disabled primary looked clickable.
+ * The label is dimmed toward the page (~4:1, still legible); light mode keeps
+ * the muted label above. */
+.dark .hf-ui .hf-primary-control:disabled,
+.dark .hf-ui .hf-primary-control[aria-disabled='true'],
+.dark .hf-ui button.bg-primary:disabled,
+.dark .hf-ui button.bg-primary[aria-disabled='true'],
+.dark .hf-ui a.bg-primary[aria-disabled='true'] {
+  color: color-mix(in srgb, var(--hf-muted) 60%, var(--hf-page));
 }
 
 /* A Nuxt button has no border of its own; the hairline is drawn inside it so

@@ -238,13 +238,12 @@ describe('CSS-R2 — colour resolves through the foundation roles', () => {
     expect(change, 'venta change-customer link must resolve to the action role').toBeDefined()
     expect(change.style.getPropertyValue('color').trim()).toBe('var(--hf-action)')
 
-    const badge = exactRule(
-      css,
-      '.sales-pos-customer .sales-pos-customer-selected-badge',
-      'color',
-    )!
-    expect(badge.style.getPropertyValue('color').trim()).toBe('var(--hf-action)')
-    expect(badge.style.getPropertyValue('background-color').trim()).toBe('var(--hf-active-soft)')
+    // The «Seleccionado» badge is the shared StatusBadge (info tone), painted by
+    // houndfe-ui.css; the sheet must not repaint it.
+    expect(
+      exactRule(css, '.sales-pos-customer .sales-pos-customer-selected-badge', 'color'),
+      'selected badge has no feature override',
+    ).toBeUndefined()
   })
 })
 

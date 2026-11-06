@@ -22,11 +22,8 @@
  * broader ['users', 'assignable'] slot via `usersApi.listAssignable()` — that
  * slot carries managers and must never leak into the driver dropdown).
  *
- * Selected driver is also surfaced as an explicit chip below the trigger
- * (with a clear button) so the slideover's create/edit mode can render a
- * stable "Driver: X" summary without depending on the dropdown's internal
- * display value, AND so tests can assert the selected label without
- * navigating USelectMenu internals.
+ * The trigger is the only place the selected driver's name shows: a chip
+ * under it repeated the name (and a required driver has nothing to clear).
  */
 import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
@@ -94,17 +91,6 @@ const errorMessage = computed(() =>
   normalizeApiError(assignableQuery.error.value, 'No se pudieron cargar los repartidores.').message,
 )
 
-/**
- * Resolve the selected option by id against the latest assignable list. This
- * feeds ONLY the chip display below the trigger — USelectMenu itself is
- * bound to the primitive id via value-key="id" (see template), never to the
- * row object.
- */
-const selectedOption = computed<AssignableUser | null>(() => {
-  if (!props.modelValue) return null
-  return assignable.value.find((u) => u.id === props.modelValue) ?? null
-})
-
   function onUpdate(next: string | null) {
     // With value-key="id" the USelectMenu binds AND emits the primitive
     // driver id (string | null) — never the AssignableUser row object. Emit
@@ -114,11 +100,6 @@ const selectedOption = computed<AssignableUser | null>(() => {
     const id = next ?? null
     emit('update:driverUserId', id)
     emit('update:modelValue', id)
-  }
-
-  function clearSelection() {
-    emit('update:driverUserId', null)
-    emit('update:modelValue', null)
   }
 </script>
 
@@ -158,26 +139,6 @@ const selectedOption = computed<AssignableUser | null>(() => {
     >
       No hay repartidores disponibles
     </p>
-
-    <!-- Selected driver chip with explicit clear affordance — keeps the
-         selection state visible below the trigger so the slideover can
-         render "Driver: X" without depending on USelectMenu internals. -->
-    <div
-      v-if="selectedOption"
-      class="inline-flex items-center gap-2 self-start rounded-full border border-default bg-elevated/50 px-3 py-1 text-sm"
-      :data-testid="`driver-picker-chip-${selectedOption.id}`"
-    >
-      <span data-testid="driver-picker-chip-label">{{ selectedOption.name }}</span>
-      <button
-        type="button"
-        :aria-label="`Quitar ${selectedOption.name}`"
-        class="inline-flex size-4 items-center justify-center rounded-full hover:bg-elevated"
-        data-testid="driver-picker-chip-clear"
-        @click="clearSelection"
-      >
-        <UIcon name="i-lucide-x" class="size-3" />
-      </button>
-    </div>
 
     <div
       v-if="isLoading"

@@ -29,6 +29,7 @@ import SaleAddressSourceNotice from '@/core/shared/components/SaleAddressSourceN
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import { formatAddress } from '@/core/shared/utils/formatAddress'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { formatSaleDueDate } from '@/features/POS/sales/utils/saleDate.utils'
 import { DELIVERY_ROUTE_COPY } from '../copy'
 import {
@@ -207,8 +208,10 @@ function rowAddress(row: EligibleSaleRow): string | null {
 
 function rowSecondaryParts(row: EligibleSaleRow): string[] {
   const parts: string[] = [row.folio ?? copy.noFolio]
-  const dateIso = row.confirmedAt ?? row.dueDate
-  if (dateIso) parts.push(formatSaleDueDate(dateIso))
+  // The confirmation moment in the sales list's short style («6 nov, 12:30»);
+  // a due date is a calendar day, so it keeps its UTC day formatter.
+  if (row.confirmedAt) parts.push(formatShortDateTime(row.confirmedAt))
+  else if (row.dueDate) parts.push(formatSaleDueDate(row.dueDate))
   parts.push(formatCentsMXN(row.totalCents))
   if (row.productSummary.length > 0) parts.push(row.productSummary.join(' · '))
   return parts

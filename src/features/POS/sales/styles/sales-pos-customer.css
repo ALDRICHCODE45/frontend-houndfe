@@ -155,13 +155,6 @@
   color: var(--hf-muted);
 }
 
-.sales-pos-customer .sales-pos-customer-selected-badge {
-  background-color: var(--hf-active-soft);
-  border-color: var(--hf-action);
-  color: var(--hf-action);
-  font-weight: 600;
-}
-
 .sales-pos-customer .sales-pos-customer-change {
   min-height: var(--hf-control-height);
   display: inline-flex;
