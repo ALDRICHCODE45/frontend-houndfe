@@ -115,6 +115,18 @@ describe('SettleRefundSlideover', () => {
     expect(wrapper.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('31')
   })
 
+  it('shows a large amount with thousands separators and still reads it as the same cents', async () => {
+    const { wrapper } = mountPanel(refund({ amountCents: 1780590, settledCents: 0, outstandingCents: 1780590 }))
+    expect(amountInput(wrapper).element.value).toBe('17,805.90')
+    expect(primary(wrapper).text()).toBe('Liquidar $17,805.90')
+    expect(wrapper.get('[data-testid="settle-all"]').attributes('disabled')).toBeDefined()
+
+    await amountInput(wrapper).setValue('1234.5')
+    await amountInput(wrapper).trigger('blur')
+    expect(amountInput(wrapper).element.value).toBe('1,234.50')
+    expect(primary(wrapper).text()).toBe('Liquidar $1,234.50')
+  })
+
   it('«Devolver todo» puts the outstanding amount back', async () => {
     const { wrapper } = mountPanel()
     await amountInput(wrapper).setValue('10')

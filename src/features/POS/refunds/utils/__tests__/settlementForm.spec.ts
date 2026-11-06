@@ -58,10 +58,25 @@ describe('parseAmountInput', () => {
 })
 
 describe('centsToAmountInput', () => {
-  it('prints cents as a plain decimal', () => {
+  it('prints cents as a decimal with thousands separators', () => {
     expect(centsToAmountInput(4555)).toBe('45.55')
-    expect(centsToAmountInput(1661170)).toBe('16611.70')
+    expect(centsToAmountInput(5)).toBe('0.05')
+    expect(centsToAmountInput(99999)).toBe('999.99')
+    expect(centsToAmountInput(100000)).toBe('1,000.00')
+    expect(centsToAmountInput(1661170)).toBe('16,611.70')
+    expect(centsToAmountInput(123456789)).toBe('1,234,567.89')
   })
+
+  // The separators are presentation only: what the field shows reads back to the same cents,
+  // so the amount sent never changes.
+  it.each([1, 5, 99, 100, 4555, 99999, 100000, 100001, 1661170, 1780590, 10000000, 123456789])(
+    'reads %i back to the same cents and request',
+    cents => {
+      const text = centsToAmountInput(cents)
+      expect(parseAmountInput(text)).toEqual({ cents })
+      expect(buildSettlementRequest(values({ amount: text }), { now: NOW, cashSessionId: null }).amountCents).toBe(cents)
+    },
+  )
 })
 
 describe('validateSettlementForm', () => {
