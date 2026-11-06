@@ -253,10 +253,11 @@ describe('CustomerUpsertSlideover', () => {
         getPopupText: () => null,
         isMarkerDraggable: () => false,
         simulateMarkerDrag: vi.fn(),
+        simulateMapClick: vi.fn(),
         simulateTileError: vi.fn(),
         destroy: vi.fn(),
       }),
-      geocode: async () => null,
+      searchPlaces: async () => ({ status: 'ok', results: [] }),
     })
     const addressA = {
       ...mockCustomer.addresses[0]!,

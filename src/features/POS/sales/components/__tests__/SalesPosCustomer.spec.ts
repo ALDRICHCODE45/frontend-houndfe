@@ -101,7 +101,7 @@ vi.mock('@/features/POS/sales/composables/useDraftCustomerAssignment', () => ({
 
 vi.stubGlobal('useToast', () => ({ add: vi.fn() }))
 
-// The real AddressMapPicker stays real; only the tile/geocode boundary is
+// The real AddressMapPicker stays real; only the tile/search boundary is
 // replaced, exactly like the accepted AddressModal spec does.
 const MOCK_MAP_PROVIDER: MapProvider = {
   kind: 'leaflet',
@@ -113,11 +113,12 @@ const MOCK_MAP_PROVIDER: MapProvider = {
       getPopupText: () => null,
       isMarkerDraggable: () => false,
       simulateMarkerDrag: () => undefined,
+      simulateMapClick: () => undefined,
       simulateTileError: () => undefined,
       destroy: () => undefined,
     }
   },
-  geocode: async () => null,
+  searchPlaces: async () => ({ status: 'ok', results: [] }),
 }
 
 beforeAll(() => {

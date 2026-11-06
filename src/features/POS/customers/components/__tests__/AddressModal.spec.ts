@@ -133,11 +133,12 @@ const MOCK_PROVIDER: MapProvider = {
       getPopupText: () => null,
       isMarkerDraggable: () => false,
       simulateMarkerDrag: () => undefined,
+      simulateMapClick: () => undefined,
       simulateTileError: () => undefined,
       destroy: () => undefined,
     }
   },
-  geocode: async () => null,
+  searchPlaces: async () => ({ status: 'ok', results: [] }),
 }
 
 setMapProvider(MOCK_PROVIDER)

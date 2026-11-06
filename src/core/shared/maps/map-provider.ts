@@ -18,6 +18,32 @@ export interface GeoPoint {
   lng: number
 }
 
+/** Latitude ±90 and longitude ±180, both finite. The only points the map emits. */
+export function isValidGeoPoint(point: GeoPoint): boolean {
+  return (
+    Number.isFinite(point.lat) &&
+    Number.isFinite(point.lng) &&
+    Math.abs(point.lat) <= 90 &&
+    Math.abs(point.lng) <= 180
+  )
+}
+
+/** One place found by a search, named for a human to pick. */
+export interface PlaceResult {
+  point: GeoPoint
+  label: string
+}
+
+/**
+ * Answer of `MapProvider.searchPlaces`. `ok` with no results means the place
+ * was not found; `unavailable` means the search itself failed (network, rate
+ * limit, malformed answer); `aborted` means the caller cancelled it.
+ */
+export type PlaceSearchOutcome =
+  | { status: 'ok'; results: PlaceResult[] }
+  | { status: 'unavailable' }
+  | { status: 'aborted' }
+
 /** Options accepted by `MapProvider.createMap`. */
 export interface CreateMapOptions {
   /** Initial map center. Also used as the fallback view when no marker is set. */
@@ -28,10 +54,12 @@ export interface CreateMapOptions {
   draggableMarker?: boolean
   /** Called with the new position after the user finishes dragging the marker. */
   onMarkerDrag?: (point: GeoPoint) => void
+  /** Called with the tapped position when the user clicks or taps the map. */
+  onMapClick?: (point: GeoPoint) => void
   /**
    * Called when a tile request fails. The provider ALWAYS swallows the error
-   * itself; this hook only lets the consumer degrade gracefully (hide the map
-   * and keep the formatted address text — spec REQ-AMP-007).
+   * itself; this hook only lets the consumer tell the user that part of the
+   * map did not load. The map stays mounted.
    */
   onTileError?: (error: unknown) => void
 }
@@ -46,8 +74,8 @@ export interface SetMarkerOptions {
  * Imperative handle over a mounted map instance. Deliberately tiny: only the
  * operations `AddressMapPicker` needs, so alternate providers stay cheap.
  *
- * `simulateMarkerDrag` / `simulateTileError` are part of the port on purpose:
- * both events originate inside the vendor SDK and are unreachable in jsdom, so
+ * `simulateMarkerDrag` / `simulateMapClick` / `simulateTileError` are part of
+ * the port on purpose: these events originate inside the vendor SDK and are unreachable in jsdom, so
  * the port owns a deterministic way to raise them. Tests use them to exercise
  * the CONSUMER contract without asserting anything about tile rendering.
  */
@@ -64,6 +92,8 @@ export interface MapHandle {
   isMarkerDraggable: () => boolean
   /** Raise the vendor's marker-dragend event with the given position. */
   simulateMarkerDrag: (point: GeoPoint) => void
+  /** Raise the vendor's map-click event at the given position. */
+  simulateMapClick: (point: GeoPoint) => void
   /** Raise the vendor's tile-error event. Never throws. */
   simulateTileError: (error?: unknown) => void
   /** Tear the map down. Idempotent. */
@@ -77,12 +107,11 @@ export interface MapProvider {
   /** Mount a map into `container` and return an imperative handle. */
   createMap: (container: HTMLElement, options: CreateMapOptions) => MapHandle
   /**
-   * Forward-geocode a free-text query. Resolves the first result, or `null`
-   * for zero results / errors / abort — geocoding NEVER throws at the port
-   * boundary so the caller can always fall back to manual pin placement
-   * (spec REQ-AMP-004).
+   * Search places for an explicit free-text query (never per keystroke).
+   * Resolves up to 5 named results; NEVER throws at the port boundary so the
+   * caller can always fall back to placing the pin on the map.
    */
-  geocode: (query: string, signal?: AbortSignal) => Promise<GeoPoint | null>
+  searchPlaces: (query: string, signal?: AbortSignal) => Promise<PlaceSearchOutcome>
 }
 
 let activeProvider: MapProvider | null = null
