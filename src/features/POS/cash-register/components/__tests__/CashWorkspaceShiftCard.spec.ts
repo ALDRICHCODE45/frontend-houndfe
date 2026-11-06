@@ -3,6 +3,7 @@
 // through the Vue plugin while the plain TS server cannot).
 import { describe, expect, it } from 'vitest'
 import { mountWithUApp } from '@/test/mountWithUApp'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import CashWorkspaceShiftCard from '../CashWorkspaceShiftCard.vue'
 
 const OPEN_DETAIL = {
@@ -202,5 +203,64 @@ describe('CashWorkspaceShiftCard · says each fact once', () => {
     // The drawer stays its own fact next to the summary.
     expect(wrapper.get('[data-testid="cash-session-drawer-state"]').text()).toContain('Cajón sin liberar')
     expect(wrapper.get('[data-testid="cash-session-opening"]').text()).toMatch(/500[.,]00/)
+  })
+})
+
+describe('CashWorkspaceShiftCard · display fields (T12)', () => {
+  const OPENED = '2026-11-05T15:02:11.000Z'
+  const CLOSED = '2026-11-05T22:45:30.000Z'
+  const named = (session: Record<string, unknown>) => ({
+    ...OPEN_DETAIL,
+    session: { ...OPEN_DETAIL.session, ...session },
+  })
+
+  it("names another person's cashier instead of «Otra persona»", () => {
+    const wrapper = render({
+      hasSelection: true,
+      detail: named({ cashierDisplayName: 'Ana Cajera' }),
+      isOwnShift: false,
+    })
+    expect(wrapper.get('[data-testid="cash-shift-cashier"]').text()).toBe('Ana Cajera')
+    expect(wrapper.text()).not.toContain('Otra persona')
+  })
+
+  it('names the cashier when ownership is unknown, and keeps «Tú» for the own turn', () => {
+    const unknown = render({ hasSelection: true, detail: named({ cashierDisplayName: 'Ana Cajera' }) })
+    expect(unknown.get('[data-testid="cash-shift-cashier"]').text()).toBe('Ana Cajera')
+
+    const own = render({
+      hasSelection: true,
+      detail: named({ cashierDisplayName: 'Ana Cajera' }),
+      isOwnShift: true,
+    })
+    expect(own.get('[data-testid="cash-shift-cashier"]').text()).toBe('Tú')
+  })
+
+  it('keeps «Otra persona» only when the name is missing', () => {
+    const wrapper = render({
+      hasSelection: true,
+      detail: named({ cashierDisplayName: null }),
+      isOwnShift: false,
+    })
+    expect(wrapper.get('[data-testid="cash-shift-cashier"]').text()).toBe('Otra persona')
+    expect(wrapper.text()).not.toContain('user-1')
+  })
+
+  it('says when the turn opened, and when it closed only once it did', () => {
+    const open = render({ hasSelection: true, detail: named({ openedAt: OPENED, closedAt: null }) })
+    expect(open.get('[data-testid="cash-shift-opened"]').text()).toBe(formatShortDateTime(OPENED))
+    expect(open.find('[data-testid="cash-shift-closed"]').exists()).toBe(false)
+
+    const closed = render({
+      hasSelection: true,
+      detail: named({ status: 'CLOSED', openedAt: OPENED, closedAt: CLOSED }),
+    })
+    expect(closed.get('[data-testid="cash-shift-closed"]').text()).toBe(formatShortDateTime(CLOSED))
+  })
+
+  it('omits the opening time when an older payload lacks it', () => {
+    const wrapper = render({ hasSelection: true, detail: OPEN_DETAIL })
+    expect(wrapper.find('[data-testid="cash-shift-opened"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="cash-shift-closed"]').exists()).toBe(false)
   })
 })

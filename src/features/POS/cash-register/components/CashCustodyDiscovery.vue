@@ -14,6 +14,8 @@
  * - Each card says each fact once: the declared amount carries its own label,
  *   the note hint appears only when the received amount differs, and a receipt
  *   error lands on the card (and the field) it belongs to.
+ * - The date line says who handed the cash over and from which register, and
+ *   the sender's notes follow; a missing name or note shows nothing.
  */
 import { computed, ref } from 'vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
@@ -21,6 +23,7 @@ import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { pesosToCents } from '../utils/cash-input'
+import { custodyOrigin } from '../utils/cash-display'
 import { canReceiveHandover, floatSourceDrawerAdvisory } from '../composables/cashRules'
 import type { CashCustodyItem, CashEligibleFloatItem } from '../interfaces/cash.types'
 
@@ -74,6 +77,8 @@ function kindLabel(kind: CashCustodyItem['kind']): string {
 }
 
 const kindTone = (kind: CashCustodyItem['kind']) => (kind === 'FLOAT' ? 'info' : 'neutral')
+
+const senderNotes = (item: CashCustodyItem) => item.notes?.trim() ?? ''
 
 /** Only the designated, still-unreceived recipient may act on the item. */
 function isMine(item: CashCustodyItem): boolean {
@@ -240,11 +245,12 @@ function submitReceive(item: CashCustodyItem) {
                   aria-prefix="Tipo:"
                   :data-testid="`cash-custody-kind-${item.id}`"
                 />
-                <p class="cash-meta" :data-testid="`cash-custody-declared-at-${item.id}`">
+                <p class="cash-meta cash-custody-dateline" :data-testid="`cash-custody-declared-at-${item.id}`">
                   Entregado el
                   <time :datetime="item.declaredAt">{{
                     formatShortDateTime(item.declaredAt)
                   }}</time>
+                  <template v-if="custodyOrigin(item)"> · {{ custodyOrigin(item) }}</template>
                 </p>
               </div>
               <dl class="cash-custody-amount" :data-testid="`cash-custody-amount-${item.id}`">
@@ -254,6 +260,14 @@ function submitReceive(item: CashCustodyItem) {
                 </dd>
               </dl>
             </div>
+
+            <p
+              v-if="senderNotes(item)"
+              class="cash-meta cash-custody-notes"
+              :data-testid="`cash-custody-notes-${item.id}`"
+            >
+              Nota: {{ senderNotes(item) }}
+            </p>
 
             <p
               v-if="!isMine(item)"
@@ -351,13 +365,14 @@ function submitReceive(item: CashCustodyItem) {
                 />
                 <p
                   v-if="item.receivedAt"
-                  class="cash-meta"
+                  class="cash-meta cash-custody-dateline"
                   :data-testid="`cash-custody-float-received-at-${item.id}`"
                 >
                   Recibido el
                   <time :datetime="item.receivedAt">{{
                     formatShortDateTime(item.receivedAt)
                   }}</time>
+                  <template v-if="custodyOrigin(item)"> · {{ custodyOrigin(item) }}</template>
                 </p>
               </div>
               <dl class="cash-custody-amount">
@@ -374,6 +389,13 @@ function submitReceive(item: CashCustodyItem) {
                 </dd>
               </dl>
             </div>
+            <p
+              v-if="senderNotes(item)"
+              class="cash-meta cash-custody-notes"
+              :data-testid="`cash-custody-float-notes-${item.id}`"
+            >
+              Nota: {{ senderNotes(item) }}
+            </p>
             <p
               v-if="advisoryFor(item)"
               class="mt-2 text-xs text-warning"

@@ -388,6 +388,12 @@
   margin: -0.5rem -0.5rem 0 0;
 }
 
+/* Cashier · period under the card title; a long name wraps instead of overflowing. */
+.cash-card-shift {
+  margin-top: 0.25rem;
+  white-space: normal;
+}
+
 .cash-card-meta {
   display: flex;
   flex-wrap: wrap;
@@ -436,6 +442,18 @@
   .cash-custody-receive {
     padding-top: 1.5rem;
   }
+}
+
+/* Custody date line (date · sender · register) and the sender's note wrap on a
+ * phone instead of running under the amount. */
+.cash-custody-dateline,
+.cash-custody-notes {
+  white-space: normal;
+}
+
+.cash-custody-notes {
+  margin-top: 0.5rem;
+  overflow-wrap: anywhere;
 }
 
 /* Custody card amount: the label sits right above its figure, right-aligned. */

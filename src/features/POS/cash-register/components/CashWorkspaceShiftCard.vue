@@ -4,9 +4,9 @@
  *
  * It frames the explicitly selected session: a status badge, the real register
  * name and a small meta row built only from values the session projection
- * actually carries. It never selects a register/session on its own, never
- * discovers a cashier name and never claims a session-opening time the contract
- * does not expose.
+ * actually carries. It never selects a register/session on its own. The cashier
+ * is «Tú» on the own turn, otherwise the projection's `cashierDisplayName`;
+ * opening and closing times show only when the projection carries them.
  *
  * Without a selection it renders a genuine unselected state with ONE contextual
  * navigation (open a turn), never a command. Loading, failure and no selection
@@ -87,6 +87,8 @@ const heroTitle = computed(() => {
 
 const cashierLabel = computed(() => {
   if (props.isOwnShift === true) return 'Tú'
+  const name = safeDetail.value?.session.cashierDisplayName?.trim()
+  if (name) return name
   if (props.isOwnShift === false) return 'Otra persona'
   return 'Cajera/o asignado'
 })
@@ -98,6 +100,9 @@ const noShiftDescription = computed(() =>
 const canRequestOpening = computed(
   () => !props.openingActive && props.noShiftContext !== 'choose-session',
 )
+
+const openedAt = computed(() => safeDetail.value?.session.openedAt ?? null)
+const closedAt = computed(() => safeDetail.value?.session.closedAt ?? null)
 
 const frozenLabel = computed(() =>
   facts.value.frozenAt ? formatShortDateTime(facts.value.frozenAt) : 'Sin iniciar',
@@ -143,6 +148,18 @@ const frozenLabel = computed(() =>
         <div class="cash-shift-meta-item">
           <dt>Cajera/o</dt>
           <dd data-testid="cash-shift-cashier">{{ cashierLabel }}</dd>
+        </div>
+        <div v-if="openedAt" class="cash-shift-meta-item">
+          <dt>Apertura</dt>
+          <dd data-testid="cash-shift-opened">
+            <time :datetime="openedAt">{{ formatShortDateTime(openedAt) }}</time>
+          </dd>
+        </div>
+        <div v-if="closedAt" class="cash-shift-meta-item">
+          <dt>Cierre</dt>
+          <dd data-testid="cash-shift-closed">
+            <time :datetime="closedAt">{{ formatShortDateTime(closedAt) }}</time>
+          </dd>
         </div>
         <div class="cash-shift-meta-item">
           <dt>Conteo</dt>

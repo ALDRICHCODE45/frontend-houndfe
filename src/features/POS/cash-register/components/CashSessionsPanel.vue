@@ -6,6 +6,9 @@
  *
  * One layout: a table on desktop and cards on mobile. The whole row (and the
  * register name) selects the session; the ⋮ menu repeats that action.
+ * Under the register name, «cashier · period» tells apart two closed sessions
+ * of the same register and fund; a missing value shows nothing. It rides in the
+ * name column, which has the room: a column of its own cut the period at 1440.
  */
 import { computed } from 'vue'
 import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
@@ -16,6 +19,7 @@ import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import type { TableColumn } from '@/core/shared/types/table.types'
 import type { CashSession } from '../interfaces/cash.types'
 import { CASH_SESSION_STATUS_LABELS, cashSessionStatusTone } from '../utils/cash-status'
+import { cashSessionPeriod } from '../utils/cash-display'
 
 const props = withDefaults(
   defineProps<{
@@ -78,8 +82,18 @@ const isSelected = (session: CashSession) => props.selectedSessionId === session
 const countLabel = (session: CashSession) => (session.blind ? 'Ciego' : 'Visible')
 const drawerLabel = (session: CashSession) =>
   session.drawerReleasedAt ? 'Liberado' : 'Sin liberar'
+const cashierName = (session: CashSession) => session.cashierDisplayName?.trim() ?? ''
+const hasShift = (session: CashSession) =>
+  Boolean(cashierName(session) || cashSessionPeriod(session))
 const rowLabel = (session: CashSession) =>
-  `la sesión de ${registerName(session)}, ${statusLabel(session).toLowerCase()}`
+  [
+    `la sesión de ${registerName(session)}`,
+    cashierName(session),
+    cashSessionPeriod(session),
+    statusLabel(session).toLowerCase(),
+  ]
+    .filter(Boolean)
+    .join(', ')
 
 function actionsFor(session: CashSession): RowAction[] {
   return [
@@ -133,6 +147,23 @@ const { rowProps } = useClickableRow<CashSession>(open, { focusable: false })
         >
           {{ registerName(row.original) }}
         </button>
+        <span
+          v-if="hasShift(row.original)"
+          class="hf-row-secondary"
+          :data-testid="`cash-session-shift-${row.original.id}`"
+        >
+          <span
+            v-if="cashierName(row.original)"
+            :data-testid="`cash-session-cashier-${row.original.id}`"
+            >{{ cashierName(row.original) }}</span
+          >
+          <span v-if="cashierName(row.original) && cashSessionPeriod(row.original)"> · </span>
+          <span
+            v-if="cashSessionPeriod(row.original)"
+            :data-testid="`cash-session-period-${row.original.id}`"
+            >{{ cashSessionPeriod(row.original) }}</span
+          >
+        </span>
         <span v-if="isSelected(row.original)" class="hf-row-secondary">Seleccionada</span>
       </template>
       <template #status-cell="{ row }">
@@ -185,6 +216,21 @@ const { rowProps } = useClickableRow<CashSession>(open, { focusable: false })
               @select="open(row)"
             />
           </div>
+          <p
+            v-if="hasShift(row)"
+            class="cash-meta cash-card-shift"
+            :data-testid="`cash-session-shift-${row.id}`"
+          >
+            <span v-if="cashierName(row)" :data-testid="`cash-session-cashier-${row.id}`">{{
+              cashierName(row)
+            }}</span>
+            <span v-if="cashierName(row) && cashSessionPeriod(row)"> · </span>
+            <span
+              v-if="cashSessionPeriod(row)"
+              :data-testid="`cash-session-period-${row.id}`"
+              >{{ cashSessionPeriod(row) }}</span
+            >
+          </p>
           <div class="cash-card-meta">
             <StatusBadge
               :label="statusLabel(row)"

@@ -388,3 +388,51 @@ describe('CashCustodyDiscovery · received money is entered in pesos', () => {
     ).toBe('decimal')
   })
 })
+
+describe('CashCustodyDiscovery · display fields (T12)', () => {
+  const NAMED = {
+    senderDisplayName: 'Ana Cajera',
+    sourceRegisterName: 'Caja Mostrador 2',
+    notes: 'Entrego todo el efectivo',
+  }
+
+  it('says who handed the cash over and from which register on the date line', () => {
+    const wrapper = mountDiscovery({ pendingHandovers: [{ ...PENDING[1], ...NAMED }] })
+    const line = wrapper.get('[data-testid="cash-custody-declared-at-h-2"]').text()
+    expect(line).toContain('Entregado el')
+    expect(line).toContain('de Ana Cajera · Caja Mostrador 2')
+  })
+
+  it("shows the sender's notes on a pending card", () => {
+    const wrapper = mountDiscovery({ pendingHandovers: [{ ...PENDING[1], ...NAMED }] })
+    expect(wrapper.get('[data-testid="cash-custody-notes-h-2"]').text()).toContain(
+      'Entrego todo el efectivo',
+    )
+  })
+
+  it('gives a fondo the same origin and notes', () => {
+    const wrapper = mountDiscovery({ eligibleFloat: [{ ...ELIGIBLE[0], ...NAMED }] })
+    expect(wrapper.get('[data-testid="cash-custody-float-received-at-f-1"]').text()).toContain(
+      'de Ana Cajera · Caja Mostrador 2',
+    )
+    expect(wrapper.get('[data-testid="cash-custody-float-notes-f-1"]').text()).toContain(
+      'Entrego todo el efectivo',
+    )
+  })
+
+  it('shows nothing for missing names or notes: no placeholder, no id', () => {
+    const wrapper = mountDiscovery({
+      pendingHandovers: [
+        { ...PENDING[1], senderDisplayName: null, sourceRegisterName: null, notes: null },
+      ],
+      eligibleFloat: [ELIGIBLE[0]],
+    })
+    const line = wrapper.get('[data-testid="cash-custody-declared-at-h-2"]').text()
+    expect(line).not.toContain('·')
+    expect(line).not.toMatch(/\bde\s*$/)
+    expect(wrapper.find('[data-testid="cash-custody-notes-h-2"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="cash-custody-float-notes-f-1"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('sender-1')
+    expect(wrapper.text()).not.toContain('r-other')
+  })
+})

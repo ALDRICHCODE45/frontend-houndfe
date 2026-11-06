@@ -78,6 +78,10 @@ export interface CashRegisterUpdatePayload {
 /**
  * `CashSessionProjection`. `expectedCashCents` and `differenceCents` exist only
  * when visible; in the blind window they are absent (not `null`, not `0`).
+ *
+ * Display fields (handoff 09-cash-display-fields.md) hold no amounts, so a blind
+ * projection carries them too. They are optional only so an older payload still
+ * reads; `null` (or absent) shows nothing, never an id.
  */
 export interface CashSession {
   id: string
@@ -91,6 +95,10 @@ export interface CashSession {
   blind: boolean
   expectedCashCents?: number
   differenceCents?: number
+  openedAt?: string
+  /** `null` until the session is `CLOSED`. */
+  closedAt?: string | null
+  cashierDisplayName?: string | null
 }
 
 /** 1-based `page` / `limit`, optional register, ISO-8601 timezone, cashier, pending-only. */
@@ -308,7 +316,11 @@ export interface CashHandoverReceivePayload {
   notes?: string
 }
 
-/** Narrow custody item; `FLOAT` items add the source register and drawer state. */
+/**
+ * Narrow custody item; `FLOAT` items add the source register and drawer state.
+ * Every kind carries the sender's name, the source register's name and the
+ * sender's notes (handoff 09), each `null` when missing.
+ */
 export interface CashCustodyItem {
   id: string
   sessionId: string
@@ -321,6 +333,10 @@ export interface CashCustodyItem {
   receivedAt: string | null
   sourceRegisterId?: string
   sourceDrawerReleasedAt?: string | null
+  senderDisplayName?: string | null
+  sourceRegisterName?: string | null
+  /** Notes the sender wrote when declaring; the receiver's receipt notes are not included. */
+  notes?: string | null
 }
 
 /** Eligible FLOAT always reports its source register and drawer state. */
