@@ -20,6 +20,11 @@ export function pinToGeoPoint(source: AddressPinSource): GeoPoint | null {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
   return { lat, lng }
 }
+
+/** Whether an address carries a usable saved location (a finite lat/lng pair). */
+export function hasSavedLocation(source: AddressPinSource): boolean {
+  return pinToGeoPoint(source) !== null
+}
 </script>
 
 <script setup lang="ts">

@@ -106,6 +106,25 @@ describe('DriverStopPanel — address above map, map gate (REQ-DRC-106)', () => 
     if ((ov as { stop?: DeliveryRouteStop }).stop?.shippingAddress !== null) expect(w.text()).toContain('Av. Reforma')
   })
 
+  it.each([
+    ['NaN coords', makeAddress({ latitude: NaN, longitude: NaN })],
+    ['only one coord finite', makeAddress({ latitude: 19.4326, longitude: null })],
+    ['both coords null', makeAddress({ latitude: null, longitude: null })],
+  ] as const)('%s with an address → says there is no saved location (S7)', async (_l, address) => {
+    const w = mountPanel({ stop: makeStop({ address }) })
+    await flushPromises()
+    expect(w.get('[data-testid="stop-panel-no-location"]').text()).toBe(
+      'Sin ubicación guardada: la navegación busca la dirección escrita.',
+    )
+  })
+
+  it('no no-location notice when the pin is valid, while the map is not ready yet, or with no address (S7)', async () => {
+    const notice = '[data-testid="stop-panel-no-location"]'
+    expect(mountPanel().find(notice).exists()).toBe(false)
+    expect(mountPanel({ mapReady: false }).find(notice).exists()).toBe(false)
+    expect(mountPanel({ stop: makeStop({ address: null }) }).find(notice).exists()).toBe(false)
+  })
+
   it('(0, 0) coords are a legal pin → map renders', async () => {
     expect(mountPanel({ stop: makeStop({ address: makeAddress({ latitude: 0, longitude: 0 }) }) })
       .find('[data-testid="address-map-picker-stub"]').exists()).toBe(true)

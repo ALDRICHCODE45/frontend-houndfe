@@ -480,6 +480,31 @@ describe('AssignCustomerSlideover', () => {
     expect(addressModal.props('open')).toBe(true)
   })
 
+  it('says on each shipping-address card whether it has a saved location (S7)', async () => {
+    const ada = makeCustomer()
+    customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([ada]))
+    customerApiMock.getById.mockResolvedValueOnce(
+      makeCustomerDetail(ada, [
+        { ...makeAddress('address-1'), latitude: 25.67, longitude: -100.31 },
+        { ...makeAddress('address-2'), street: 'Second St', latitude: null, longitude: null },
+      ]),
+    )
+
+    mountSlideover()
+    await flushPromises()
+    getByTestId('customer-row-customer-1').click()
+    await flushPromises()
+
+    const status = (id: string) =>
+      getByTestId(`shipping-address-option-${id}`)
+        .querySelector('[data-testid="address-location-status"]')
+        ?.textContent?.trim()
+    expect(status('address-1')).toBe('Con ubicación')
+    expect(status('address-2')).toBe('Sin ubicación')
+    // The card still names the neighborhood next to the status.
+    expect(getByTestId('shipping-address-option-address-1').textContent).toContain('Centro')
+  })
+
   it('address pick after customer pick closes the slideover', async () => {
     const ada = makeCustomer()
     customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([ada]))
