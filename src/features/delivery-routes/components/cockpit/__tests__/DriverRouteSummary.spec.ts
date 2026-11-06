@@ -39,6 +39,9 @@ describe('DriverRouteSummary — accessible delivered progress', () => {
     const bar = w.find('[data-testid="driver-route-summary-progress"]')
     expect(bar.exists()).toBe(true)
     expect(bar.attributes('role')).toBe('progressbar')
+    // The track is visible at 0%: bg-elevated vanished on the card surface.
+    expect(bar.classes()).toContain('delivery-routes-progress-track')
+    expect(bar.classes()).not.toContain('bg-elevated')
     expect(bar.attributes('aria-valuenow')).toBe('3')
     expect(bar.attributes('aria-valuemin')).toBe('0')
     expect(bar.attributes('aria-valuemax')).toBe('5')

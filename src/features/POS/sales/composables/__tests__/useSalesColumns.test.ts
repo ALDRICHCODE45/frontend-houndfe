@@ -47,6 +47,15 @@ describe('useSalesColumns', () => {
     expect(defaultColumnVisibility.paymentMethods).toBe(false)
   })
 
+  it('gives Cliente the primary width so client names do not clip (C1), and only Cliente', () => {
+    const { columns } = useSalesColumns()
+    const primary = columns.filter(
+      (column) => (column.meta as { primary?: boolean } | undefined)?.primary === true,
+    )
+
+    expect(primary.map((column) => keyOf(column))).toEqual(['customer'])
+  })
+
   it('has no select column: the list offers no bulk action, so it would be a blank gutter', () => {
     const { columns } = useSalesColumns()
 

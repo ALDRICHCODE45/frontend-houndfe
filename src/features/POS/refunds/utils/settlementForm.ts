@@ -36,9 +36,11 @@ export function parseAmountInput(text: string): { cents: number } | { error: str
   return { cents: parsed.cents }
 }
 
-/** Cents as the plain decimal the amount input shows (`4555` → `45.55`). */
+/** Cents as the decimal the amount input shows, with thousands separators (`4555` → `45.55`,
+ * `1661170` → `16,611.70`). `parseAmountInput` reads it back to the same cents. */
 export function centsToAmountInput(cents: number): string {
-  return `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, '0')}`
+  const pesos = String(Math.floor(cents / 100)).replace(/\B(?=(\d{3})+$)/g, ',')
+  return `${pesos}.${String(cents % 100).padStart(2, '0')}`
 }
 
 const pad = (value: number) => String(Math.abs(value)).padStart(2, '0')

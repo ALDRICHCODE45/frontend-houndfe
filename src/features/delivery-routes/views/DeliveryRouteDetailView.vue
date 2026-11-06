@@ -378,6 +378,35 @@ defineExpose({
     />
   </div>
 
+  <!-- Driver loading skeleton shaped like the cockpit: header card, summary, stop cards. -->
+  <div
+    v-else-if="isLoading && !routeData && isDriver"
+    data-testid="detail-driver-loading-skeleton"
+    aria-busy="true"
+    class="hf-theme hf-ui delivery-routes-visual flex flex-col gap-4 px-4 py-6 sm:px-6 lg:px-10"
+  >
+    <div data-skeleton="header" class="route-skeleton route-skeleton-panel animate-pulse flex items-center gap-3 p-4">
+      <div class="route-skeleton-bar h-11 w-11" />
+      <div class="flex min-w-0 flex-1 flex-col gap-2">
+        <div class="route-skeleton-bar h-5 w-40" />
+        <div class="route-skeleton-bar h-3 w-28" />
+      </div>
+    </div>
+    <div data-skeleton="summary" class="route-skeleton route-skeleton-panel animate-pulse flex flex-col gap-3 p-3">
+      <div class="route-skeleton-bar h-2 w-full" />
+      <div class="route-skeleton-bar h-3 w-48" />
+    </div>
+    <div class="route-skeleton-bar h-4 w-24" />
+    <div v-for="i in 3" :key="i" data-skeleton="stop-card" class="route-skeleton route-skeleton-panel animate-pulse flex items-center gap-3 p-3">
+      <div class="route-skeleton-bar h-8 w-8 flex-none rounded-full" />
+      <div class="flex min-w-0 flex-1 flex-col gap-2">
+        <div class="route-skeleton-bar h-3 w-32" />
+        <div class="route-skeleton-bar h-4 w-48" />
+        <div class="route-skeleton-bar h-3 w-full" />
+      </div>
+    </div>
+  </div>
+
   <!-- Loading skeleton shaped like the workspace: header, KPI tiles, panels. -->
   <div
     v-else-if="isLoading && !routeData"

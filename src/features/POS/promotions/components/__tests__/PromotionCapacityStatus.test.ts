@@ -19,6 +19,36 @@ describe('PromotionCapacityStatus', () => {
     expect(wrapper.text()).toContain('Sin límite')
   })
 
+  it('in list rows (hide-unlimited) an unlimited cap with consumption says only the consumption, short', () => {
+    const many = mountStatus({
+      maxProductUnits: null,
+      consumedProductUnits: 113,
+      remainingProductUnits: null,
+      hideUnlimited: true,
+    })
+    expect(many.attributes('data-state')).toBe('unlimited_consumed')
+    expect(many.text()).toBe('113 consumidas')
+    // The full reading stays on the accessible label.
+    expect(many.attributes('aria-label')).toContain('ilimitado')
+
+    const one = mountStatus({
+      maxProductUnits: null,
+      consumedProductUnits: 1,
+      remainingProductUnits: null,
+      hideUnlimited: true,
+    })
+    expect(one.text()).toBe('1 consumida')
+  })
+
+  it('outside list rows an unlimited cap with consumption keeps «Sin límite»', () => {
+    const wrapper = mountStatus({
+      maxProductUnits: null,
+      consumedProductUnits: 113,
+      remainingProductUnits: null,
+    })
+    expect(wrapper.text()).toBe('Sin límite · 113 unidades consumidas')
+  })
+
   it('renders stale when the required counters are absent (never unlimited)', () => {
     const wrapper = mountStatus({})
     expect(wrapper.attributes('data-state')).toBe('stale')

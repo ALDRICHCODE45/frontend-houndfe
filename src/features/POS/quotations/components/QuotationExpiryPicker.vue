@@ -156,7 +156,6 @@ function handleChipClick(chip: ShortcutChip): void {
           :portal-class="portalClass"
           @update:model-value="handleDateUpdate"
         />
-        <span v-if="props.expiresAt" class="text-sm text-muted">{{ displayLabel }}</span>
         <button
           v-if="props.expiresAt"
           type="button"

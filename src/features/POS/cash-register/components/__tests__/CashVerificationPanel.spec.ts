@@ -107,6 +107,34 @@ describe('CashVerificationPanel', () => {
     )
   })
 
+  it('says in one line that there is nothing to compare before any recount, instead of a grid of dashes', () => {
+    const wrapper = mountWithUApp(CashVerificationPanel, {
+      props: { detail: makeDetail(), canVerify: true, currentUserId: 'verifier-2', comparison: null },
+    })
+    expect(wrapper.find('.cash-facts-grid').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="cash-verification-declared"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="cash-verification-no-comparison"]').text()).toBe(
+      'Las diferencias aparecen cuando envías tu recuento.',
+    )
+    expect(wrapper.text()).not.toContain('—')
+    // The recount form is still there: this is the step that produces the comparison.
+    expect(wrapper.find('[data-testid="cash-count-form"]').exists()).toBe(true)
+  })
+
+  it('keeps the grid as soon as any comparison figure is known', () => {
+    const wrapper = mountWithUApp(CashVerificationPanel, {
+      props: {
+        detail: makeDetail(),
+        canVerify: true,
+        currentUserId: 'verifier-2',
+        comparison: { expectedCents: 157500 },
+      },
+    })
+    expect(wrapper.find('[data-testid="cash-verification-no-comparison"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="cash-verification-expected"]').text()).toMatch(/1,575[.,]00/)
+    expect(wrapper.get('[data-testid="cash-verification-declared"]').text()).toBe('—')
+  })
+
   it('shows the immutable original declaration beside the verifier recount', () => {
     const wrapper = mountWithUApp(CashVerificationPanel, {
       props: {

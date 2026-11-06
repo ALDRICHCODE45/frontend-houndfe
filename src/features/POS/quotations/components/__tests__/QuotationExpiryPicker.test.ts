@@ -61,13 +61,13 @@ describe('QuotationExpiryPicker — display', () => {
     expect(wrapper.get('[data-testid="quotation-expiry-picker"] p').text()).toBe('Expira')
   })
 
-  it('renders the formatted current expiry date when expiresAt is set', () => {
+  it('lets the date field alone show the date while editing (no echo beside «Quitar expiración»)', () => {
     const wrapper = mountPicker({
       expiresAt: '2026-09-15T12:00:00.000Z',
       readonly: false,
     })
-    expect(wrapper.text()).toContain('2026')
-    expect(wrapper.text()).toMatch(/15/)
+    expect(wrapper.text()).not.toMatch(/septiembre/i)
+    expect(wrapper.find('[data-testid="expiry-clear-button"]').exists()).toBe(true)
   })
 
   it('forwards the date-only slice to DateFieldPopover', () => {

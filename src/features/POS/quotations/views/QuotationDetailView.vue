@@ -798,15 +798,23 @@ function onHeaderAction(key: string): void {
             class="quotation-skeleton-bar animate-pulse h-3.5 w-48"
             data-skeleton="meta"
           />
-          <div v-else-if="quotation" class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">
+          <div
+            v-else-if="quotation"
+            class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted"
+            data-testid="quotation-header-meta"
+          >
             <StatusBadge
               v-if="headerStatus"
               :label="headerStatus.label"
               :tone="headerStatus.tone"
               data-testid="status-badge"
             />
-            <span v-if="quotation.expiresAt">Expira {{ formatDate(quotation.expiresAt) }}</span>
-            <span v-else>Sin fecha de expiración</span>
+            <!-- The expiry is said once: a draft sets it in the Expira field below; once sent,
+                 this line is where it is read. -->
+            <template v-if="!isDraft">
+              <span v-if="quotation.expiresAt">Expira {{ formatDate(quotation.expiresAt) }}</span>
+              <span v-else>Sin fecha de expiración</span>
+            </template>
             <span>Creada {{ formatDate(quotation.createdAt) }}</span>
           </div>
           <h1 class="quotation-detail-title" :class="{ 'mt-2': quotation || isLoading || isCreating }">
@@ -1018,12 +1026,13 @@ function onHeaderAction(key: string): void {
                button; the view just plumbs the value through setExpiry /
                clearExpiry on the composable. -->
           <section
+            v-if="isDraft"
             class="rounded-xl border border-default bg-default p-5"
             data-testid="expiry-section"
           >
             <QuotationExpiryPicker
               :expires-at="quotation.expiresAt"
-              :readonly="!isDraft"
+              :readonly="false"
               portal-class="hf-theme hf-ui quotations-workspace-portal"
               @update:expires-at="handleExpiryUpdate"
             />
@@ -1214,7 +1223,7 @@ function onHeaderAction(key: string): void {
         >
           <!-- T-UI-22/23 — REQ-UI-009 summary sidebar. Pass
                `editable=isDraft` so the CTAs only render in DRAFT,
-               `expiresAt` for the validity notice, and wire `send`
+               and wire `send`
                / `save-draft` to the existing dialog + composable
                actions. `priceListName` is optional and not yet
                exposed by the backend, so we leave it null.
@@ -1225,7 +1234,6 @@ function onHeaderAction(key: string): void {
           <QuotationTotalsFooter
             :quotation="quotation"
             :editable="isDraft && canUpdateQuotation"
-            :expires-at="quotation.expiresAt"
             @send="openSendDialog"
             @save-draft="handleSaveDraftFromSidebar"
             @update:tax-rate="handleTaxRateChange"

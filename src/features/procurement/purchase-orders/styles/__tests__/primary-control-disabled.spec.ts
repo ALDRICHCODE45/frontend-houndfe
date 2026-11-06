@@ -30,7 +30,7 @@ describe('shared disabled primary control', () => {
   const rule = declarations(ui, '.hf-ui .hf-primary-control:disabled')
   it('ships one token-based disabled treatment that never fades the control', () => {
     expect(rule, 'houndfe-ui.css must define .hf-ui .hf-primary-control:disabled').not.toBeNull()
-    expect(rule).toMatchObject({ opacity: '1', cursor: 'not-allowed', 'background-color': 'var(--hf-surface-muted)', color: 'var(--hf-muted)', 'border-color': 'var(--hf-border)' })
+    expect(rule).toMatchObject({ opacity: '1', cursor: 'not-allowed', 'background-color': 'var(--hf-page)', color: 'var(--hf-muted)', 'border-color': 'var(--hf-border)' })
     expect(Object.values(rule!).join(' ')).not.toMatch(/#[0-9a-f]{3,8}\b|rgb\(/i)
   })
   it('covers aria-disabled, the other way Nuxt UI marks a disabled button', () => {
@@ -38,7 +38,7 @@ describe('shared disabled primary control', () => {
   })
   it.each(['light', 'dark'] as const)('keeps the disabled label legible in %s mode (>= 4.5:1)', mode => {
     const palette = tokens(mode)
-    expect(contrast(palette['hf-muted']!, palette['hf-surface-muted']!)).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(palette['hf-muted']!, palette['hf-page']!)).toBeGreaterThanOrEqual(4.5)
   })
   it('replaces the purchase-orders local disabled opacity instead of stacking on it', () => {
     expect(feature).not.toMatch(/:disabled[^{]*\{[^}]*opacity/)

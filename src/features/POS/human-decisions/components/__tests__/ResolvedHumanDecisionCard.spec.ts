@@ -56,8 +56,12 @@ describe('ResolvedHumanDecisionCard', () => {
       expect(badge.text()).toBe('Respondida')
       expect(badge.attributes('data-tone')).toBe('success')
       expect(wrapper.text()).toContain('Ana')
-      expect(wrapper.text()).toContain('Centro')
+      // Every row belongs to the current branch, so the card does not repeat it.
+      expect(wrapper.text()).not.toContain('Centro')
       expect(wrapper.text()).toContain('SKU-1')
+      expect(wrapper.get('.hf-row-primary').text()).toBe('Alimento')
+      expect(wrapper.get('.hf-row-secondary').text()).toContain('Reposición solicitada')
+      expect(badge.classes()).toContain('self-start')
       expect(wrapper.text()).not.toContain('r1')
       expect(wrapper.get('time').attributes('datetime')).toBe(row.resolution.resolvedAt)
       expect(wrapper.get('time').text()).toBe(listDatePresentationLabel(row.resolution.resolvedAt))

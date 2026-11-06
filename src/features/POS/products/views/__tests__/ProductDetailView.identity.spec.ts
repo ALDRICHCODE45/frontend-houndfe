@@ -229,6 +229,17 @@ describe('Identidad — save bar and the header save per task', () => {
     expect(saveBar()).not.toBeNull()
   })
 
+  it('keeps the header and mobile «Guardar cambios» disabled while the product has no edits', async () => {
+    await mountView()
+    await selectTask('presentations')
+    const mobileSubmit = () => mobileBar()!.querySelector<HTMLButtonElement>('button[type="submit"]')!
+    expect((headerSave() as HTMLButtonElement).disabled).toBe(true)
+    expect(mobileSubmit().disabled).toBe(true)
+    await type('name', 'Croquetas premium')
+    expect((headerSave() as HTMLButtonElement).disabled).toBe(false)
+    expect(mobileSubmit().disabled).toBe(false)
+  })
+
   it('counts unsaved changes, keeps Guardar disabled while clean, and saves once dirty', async () => {
     await mountView()
     expect(barStatus()).not.toContain('sin guardar')

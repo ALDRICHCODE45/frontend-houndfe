@@ -12,8 +12,10 @@ const error = ref<string | null>(null)
 const tenants = ref([{ id: 't-1', slug: 'centro', name: 'Sucursal Centro', status: 'open' }])
 const route = reactive({ query: {} as Record<string, string> })
 const store = reactive({
-  user: { name: 'Ana Pérez', email: 'ana@houndfe.test' },
+  user: { name: 'Ana Pérez', email: 'ana@houndfe.test' } as { name: string; email: string } | null,
   isSuperAdmin: false,
+  isAuthenticated: true,
+  tempToken: null as string | null,
 })
 
 vi.mock('vue-router', () => ({ useRoute: () => route }))
@@ -75,6 +77,37 @@ describe('TenantSelectionView', () => {
     const wrapper = mountWithUApp(TenantSelectionView)
 
     expect(wrapper.text()).toContain('Error al seleccionar sucursal')
+    error.value = null
+  })
+
+  it('after a failed selection that ended the session it only explains it and offers to sign in again', async () => {
+    cancel.mockClear()
+    tenants.value = [
+      { id: 't-1', slug: 'centro', name: 'Sucursal Centro', status: 'open' },
+      { id: 't-2', slug: 'norte', name: 'Sucursal Norte', status: 'open' },
+    ]
+    const wrapper = mountWithUApp(TenantSelectionView)
+    await wrapper.findAll('[data-testid="tenant-row"]')[0]!.trigger('click')
+
+    // The store clears the session on a 5xx or network failure.
+    store.isAuthenticated = false
+    store.user = null
+    tenants.value = []
+    error.value = 'No pudimos abrir la sucursal.'
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.text()).toContain('No pudimos abrir la sucursal.')
+    expect(wrapper.text()).toContain('Tu sesión se cerró. Inicia sesión de nuevo para continuar.')
+    expect(wrapper.text()).toContain('Hola, Ana Pérez')
+    expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="tenant-continue"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Cerrar sesión')
+    await wrapper.findAll('button').find((b) => b.text().includes('Iniciar sesión de nuevo'))!.trigger('click')
+    expect(cancel).toHaveBeenCalledTimes(1)
+
+    store.isAuthenticated = true
+    store.user = { name: 'Ana Pérez', email: 'ana@houndfe.test' }
+    tenants.value = [{ id: 't-1', slug: 'centro', name: 'Sucursal Centro', status: 'open' }]
     error.value = null
   })
 

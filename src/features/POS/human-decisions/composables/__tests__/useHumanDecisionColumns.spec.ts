@@ -22,7 +22,6 @@ describe('unified columns', () => {
       'product',
       'status',
       'requestedQuantity',
-      'branch',
       'createdAt',
       'response',
     ])

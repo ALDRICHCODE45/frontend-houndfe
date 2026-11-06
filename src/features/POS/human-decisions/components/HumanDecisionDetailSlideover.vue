@@ -46,12 +46,12 @@ const emit = defineEmits<{
   resolveExpiration: [detailId: string, input: ExpirationDecisionResolutionInput]
 }>()
 const open = defineModel<boolean>('open', { default: false })
-const drawerTitle = computed(() => props.decision?.title ?? 'Detalle de decisión')
-const drawerDescription = computed(() =>
-  props.decision?.type === 'EXPIRATION'
-    ? 'Detalle de la solicitud de vencimiento.'
-    : 'Detalle de la solicitud de reposición.',
+// The product names the request; the server's title says what kind it is.
+// Nothing is guessed while the detail is still loading.
+const drawerTitle = computed(
+  () => props.decision?.snapshot.productName ?? 'Detalle de la solicitud',
 )
+const drawerDescription = computed(() => props.decision?.title)
 
 function unitsLabel(value: number | null): string {
   if (value === null) return 'No observado'
@@ -65,7 +65,7 @@ function unitsLabel(value: number | null): string {
     :title="drawerTitle"
     :description="drawerDescription"
     close-aria-label="Cerrar detalle de decisión"
-    :desktop-ui="{ content: 'sm:max-w-xl motion-reduce:transition-none' }"
+    :desktop-ui="{ content: 'sm:max-w-xl motion-reduce:transition-none', body: 'p-0 sm:p-0' }"
     portal-class="hf-theme hf-ui hf-form-overlay human-decisions-form-portal"
   >
     <template #body>
@@ -89,19 +89,19 @@ function unitsLabel(value: number | null): string {
         <USkeleton class="h-11 w-full !rounded-lg" aria-hidden="true" />
       </div>
 
-      <EmptyState
-        v-else-if="error"
-        kind="error"
-        :title="errorMessage"
-        action-label="Reintentar"
-        action-test-id="human-decision-detail-retry"
-        @action="emit('retry')"
-      />
+      <div v-else-if="error" class="p-4 sm:p-6">
+        <EmptyState
+          kind="error"
+          :title="errorMessage"
+          action-label="Reintentar"
+          action-test-id="human-decision-detail-retry"
+          @action="emit('retry')"
+        />
+      </div>
 
-      <EmptyState
-        v-else-if="!decision"
-        title="Selecciona una decisión para ver su detalle."
-      />
+      <div v-else-if="!decision" class="p-4 sm:p-6">
+        <EmptyState title="Selecciona una decisión para ver su detalle." />
+      </div>
 
       <article v-else class="space-y-6 p-4 sm:p-6" data-testid="human-decision-detail">
         <div class="space-y-2">
@@ -128,25 +128,25 @@ function unitsLabel(value: number | null): string {
             </div>
             <div>
               <dt class="text-xs text-muted">Sucursal</dt>
-              <dd class="text-sm text-highlighted">
+              <dd class="text-sm text-[var(--hf-ink)]">
                 {{ branchPresentationLabel(decision.snapshot.branchName) }}
               </dd>
             </div>
             <div v-if="decision.type === 'RESTOCK'">
               <dt class="text-xs text-muted">Cantidad solicitada</dt>
-              <dd class="text-sm text-highlighted">
+              <dd class="text-sm text-[var(--hf-ink)]">
                 {{ requestedQuantityPresentationLabel(decision.snapshot.requestedQuantity) }}
               </dd>
             </div>
             <div v-if="decision.type === 'RESTOCK'">
               <dt class="text-xs text-muted">Stock observado</dt>
-              <dd class="text-sm text-highlighted">
+              <dd class="text-sm text-[var(--hf-ink)]">
                 {{ unitsLabel(decision.snapshot.observedStockAtRequest) }}
               </dd>
             </div>
             <div v-if="decision.type === 'RESTOCK'">
               <dt class="text-xs text-muted">Observado el</dt>
-              <dd class="text-sm text-highlighted">
+              <dd class="text-sm text-[var(--hf-ink)]">
                 {{
                   decision.snapshot.stockObservedAt
                     ? createdAtPresentationLabel(decision.snapshot.stockObservedAt)
@@ -156,7 +156,7 @@ function unitsLabel(value: number | null): string {
             </div>
             <div class="sm:col-span-2">
               <dt class="text-xs text-muted">Solicitada el</dt>
-              <dd class="text-sm text-highlighted">
+              <dd class="text-sm text-[var(--hf-ink)]">
                 {{ createdAtPresentationLabel(decision.createdAt) }}
               </dd>
             </div>
@@ -171,7 +171,7 @@ function unitsLabel(value: number | null): string {
           <h2 id="human-decision-resolution-heading" class="text-sm font-semibold text-highlighted">
             Respuesta registrada
           </h2>
-          <p class="text-sm text-highlighted">{{ resolvedResponseLabel(decision.resolution) }}</p>
+          <p class="text-sm text-[var(--hf-ink)]">{{ resolvedResponseLabel(decision.resolution) }}</p>
           <p class="text-xs text-muted">
             {{ decision.resolution.resolvedBy.displayName }} ·
             {{ createdAtPresentationLabel(decision.resolution.resolvedAt) }}

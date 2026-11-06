@@ -27,9 +27,7 @@ const hasAddress = computed(() => formattedAddress.value.trim().length > 0)
 const mapPin = computed(() => props.mapReady ? pinToGeoPoint(coords.value) : null)
 const showMap = computed(() => mapPin.value !== null)
 
-const customerName = computed(() => props.stop.customer?.name ?? DELIVERY_ROUTE_COPY.cockpit.operational.customerFallback)
 const customerEmail = computed(() => props.stop.customer?.email?.trim() ?? '')
-const positionLabel = computed(() => DELIVERY_ROUTE_COPY.cockpit.operational.positionLabel.replace('{N}', String(props.stop.sortOrder + 1)))
 const folioLabel = computed<string | null>(() => { const f = props.stop.saleFolio?.trim() ?? '' ; return f.length > 0 ? f : null })
 
 const canMap = computed(() => canOpenExternalMap({ address: formattedAddress.value, ...coords.value }))
@@ -63,15 +61,10 @@ function runEmail() { settled('email', openEmail(customerEmail.value)) }
 
 <template>
   <article data-testid="stop-panel-root" class="flex flex-col gap-4 px-4 py-4 min-w-0">
-    <div data-testid="stop-panel-meta" class="flex flex-col gap-1 min-w-0">
-      <span class="flex items-center gap-x-2 text-xs text-muted">
-        <span data-testid="stop-panel-position">{{ positionLabel }}</span>
-        <span v-if="folioLabel" class="hf-figure" data-testid="stop-panel-folio">· {{ folioLabel }}</span>
-      </span>
-      <span class="text-base font-semibold text-highlighted" data-testid="stop-panel-customer">{{ customerName }}</span>
-    </div>
+    <!-- The drawer title already says "Parada N — customer"; the body adds the folio only. -->
+    <span v-if="folioLabel" class="hf-figure text-xs text-muted" data-testid="stop-panel-folio">{{ folioLabel }}</span>
 
-    <p v-if="hasAddress" class="w-full min-w-0 max-w-full truncate text-sm text-default" data-testid="stop-panel-address">{{ formattedAddress }}</p>
+    <p v-if="hasAddress" class="w-full min-w-0 max-w-full whitespace-normal break-words text-sm text-default" data-testid="stop-panel-address">{{ formattedAddress }}</p>
 
     <AddressMapPicker v-if="showMap" mode="read" :model-value="mapPin" :popup-text="formattedAddress" />
 

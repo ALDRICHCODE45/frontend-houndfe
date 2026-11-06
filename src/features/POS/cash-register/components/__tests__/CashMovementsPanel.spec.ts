@@ -261,15 +261,16 @@ describe('CashMovementsPanel · readable history', () => {
     const table = wrapper.get('[data-testid="cash-movements-table"]')
     expect(table.findAll('th').map((header) => header.text())).toEqual([
       'Tipo',
+      'Fecha',
       'Canal',
       'Importe',
       'Motivo',
     ])
     const cells = table.get('tbody tr').findAll('td')
     expect(cells[0].text()).toBe('Ingreso manual')
-    expect(cells[2].text()).toBe('$200.00')
-    expect(cells[2].find('.hf-figure').exists()).toBe(true)
-    expect(cells[3].get('.movement-history-reason').element.textContent).toBe(reason)
+    expect(cells[3].text()).toBe('$200.00')
+    expect(cells[3].find('.hf-figure').exists()).toBe(true)
+    expect(cells[4].get('.movement-history-reason').element.textContent).toBe(reason)
     expect(wrapper.emitted('submit')).toBeUndefined()
   })
 
@@ -409,5 +410,41 @@ describe('CashMovementsPanel · PESOS money entry', () => {
     expect(wrapper.get('[data-testid="cash-movement-amount"]').attributes('inputmode')).toBe(
       'decimal',
     )
+  })
+})
+
+describe('CashMovementsPanel · design pass (T4)', () => {
+  it('names the real state of a session that no longer takes movements', () => {
+    const closed = mountWithUApp(CashMovementsPanel, {
+      props: { detail: makeDetail({ session: makeSession({ blind: false, status: 'CLOSED' }) }) },
+    })
+    const note = closed.get('[data-testid="cash-movements-frozen"]')
+    expect(note.text()).toContain('cerrada')
+    expect(note.text()).not.toContain('congelada')
+    // A closed session is a settled state, not a warning.
+    expect(note.classes()).not.toContain('cash-note--warning')
+
+    const declared = mountWithUApp(CashMovementsPanel, {
+      props: { detail: makeDetail({ session: makeSession({ blind: false, status: 'SUBMITTED' }) }) },
+    })
+    expect(declared.get('[data-testid="cash-movements-frozen"]').text()).toContain('declarada')
+  })
+
+  it('says nothing about the session state while its detail is loading or failed', () => {
+    for (const state of [{ loading: true }, { error: true }]) {
+      const wrapper = mountWithUApp(CashMovementsPanel, { props: { detail: null, ...state } })
+      expect(wrapper.find('[data-testid="cash-movements-frozen"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="cash-movements-owner-denied"]').exists()).toBe(false)
+    }
+  })
+
+  it('shows when each movement happened, as a short date', () => {
+    const wrapper = mountWithUApp(CashMovementsPanel, {
+      props: { detail: makeDetail({ movements: [ONE_MOVEMENT] }) },
+    })
+    const when = wrapper.get(`[data-testid="cash-movement-time-${ONE_MOVEMENT.id}"]`)
+    expect(when.text()).toMatch(/\d{1,2} \w+/)
+    expect(when.text()).not.toContain('T')
+    expect(when.attributes('datetime')).toBe(ONE_MOVEMENT.occurredAt)
   })
 })

@@ -97,6 +97,8 @@ describe('DriverStopCard — rich content (sequence, status, folio, customer, ad
   it('renders the optional folio in mono when present; omits it entirely when null/blank', async () => {
     const withFolio = mountCard({ stop: mkStop('s0', 0, 'PENDING', { saleFolio: 'FOLIO-77' }) })
     expect(withFolio.find('[data-testid="driver-stop-card-folio"]').text()).toContain('FOLIO-77')
+    // No leading "·": on a phone the folio wraps to its own line and the dot was left orphaned.
+    expect(withFolio.find('[data-testid="driver-stop-card-folio"]').text()).toBe('FOLIO-77')
 
     for (const folio of [null, '', '   ']) {
       const w = mountCard({ stop: mkStop('s0', 0, 'PENDING', { saleFolio: folio }) })
@@ -175,6 +177,12 @@ describe('DriverStopCard — separate native controls, never nested buttons', ()
     const cls = row.classes().join(' ')
     expect(cls).toMatch(/flex/)
     expect(cls).toMatch(/max-sm:flex-col|flex-col/)
+  })
+
+  it('from md up the actions sit beside the stop text instead of on their own row', async () => {
+    const w = mountCard({ showCheckIn: true })
+    expect(w.find('article').classes()).toContain('md:flex-row')
+    expect(w.find('[data-testid="driver-stop-card-actions"]').classes()).toContain('md:flex-none')
   })
 })
 

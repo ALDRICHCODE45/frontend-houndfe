@@ -577,6 +577,11 @@ const bulkActions = computed<BulkAction<PromotionResponse>[]>(() => {
   return actions
 })
 
+// L42: the selection column backs the bulk actions only; without one it would be an empty gutter.
+const tableColumns = computed(() =>
+  bulkActions.value.length > 0 ? columns : columns.filter((column) => column.id !== 'select'),
+)
+
 // ── Shared list states (S10) ──────────────────────────────────────────────────
 
 const search = computed(() => globalFilter.value.trim())
@@ -660,7 +665,7 @@ defineExpose({
           v-model:column-pinning="columnPinning"
           v-model:column-visibility="columnVisibility"
           v-model:row-selection="rowSelection"
-          :columns="columns"
+          :columns="tableColumns"
           :data="data"
           :loading="isLoading"
           :fetching="isFetching"

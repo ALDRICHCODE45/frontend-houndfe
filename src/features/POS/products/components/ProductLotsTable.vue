@@ -7,9 +7,12 @@ import '../styles/products-plain-table.css'
  * Events:
  *   edit(lot)   — saved lots only (the owner decides what editing means)
  *   delete(lot) — opens the owner's confirmation
+ *   retry()     — the error state's Reintentar
  */
 import { computed } from 'vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
+import { formatExpirationDate } from '@/features/POS/inventory/utils/stock'
 
 export interface ProductLotRow {
   id: string
@@ -23,13 +26,21 @@ const props = defineProps<{
   /** Create mode: lots are still local, so they cannot be edited yet. */
   pending: boolean
   loading?: boolean
+  /** The saved lots did not load: say so, with a retry, instead of an empty list. */
+  error?: boolean
   canDelete: boolean
 }>()
 
 const emit = defineEmits<{
   edit: [lot: ProductLotRow]
   delete: [lot: ProductLotRow]
+  retry: []
 }>()
+
+// The same short calendar date as Inventario (`31 dic 2026`); a server timestamp keeps only its day.
+function expiryText(value: string | null | undefined): string {
+  return value ? formatExpirationDate(value.slice(0, 10)) : 'Sin fecha'
+}
 
 const emptyText = computed(() =>
   props.pending ? 'Sin lotes agregados. Usa «Agregar lote».' : 'Sin lotes registrados.',
@@ -66,7 +77,18 @@ function onAction(key: string, lot: ProductLotRow) {
         </tr>
       </thead>
       <tbody class="divide-y divide-default">
-        <tr v-if="loading">
+        <tr v-if="error && lots.length === 0">
+          <td colspan="4" class="p-4">
+            <EmptyState
+              kind="error"
+              title="No se pudieron cargar los lotes"
+              action-label="Reintentar"
+              :action-loading="loading"
+              @action="emit('retry')"
+            />
+          </td>
+        </tr>
+        <tr v-else-if="loading">
           <td colspan="4" class="px-4 py-3 text-muted">Actualizando lotes...</td>
         </tr>
         <tr v-else-if="lots.length === 0">
@@ -74,7 +96,7 @@ function onAction(key: string, lot: ProductLotRow) {
         </tr>
         <tr v-for="lot in lots" :key="lot.id">
           <td class="px-4 py-3 font-semibold">{{ lot.lotNumber }}</td>
-          <td class="px-4 py-3 text-muted">{{ lot.expirationDate || 'Sin fecha' }}</td>
+          <td class="px-4 py-3 text-muted">{{ expiryText(lot.expirationDate) }}</td>
           <td class="hf-figure px-4 py-3 text-right">{{ lot.quantity }}</td>
           <td class="px-4 py-3 text-right">
             <RowActionsMenu

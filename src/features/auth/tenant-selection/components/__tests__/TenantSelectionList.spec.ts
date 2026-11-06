@@ -33,6 +33,13 @@ describe('TenantSelectionList', () => {
     expect(wrapper.text()).not.toMatch(/ABIERTA|CERRADA/)
   })
 
+  it('takes the initial from the word that tells branches apart, not the shared «Sucursal»', () => {
+    const wrapper = render([...tenants, { id: 't-3', slug: 'sur', name: 'Sucursal Sur' }, { id: 't-4', slug: 'p', name: 'Polanco' }])
+    const initials = wrapper.findAll('.hf-tenant-initial').map((n) => n.text())
+
+    expect(initials).toEqual(['C', 'N', 'S', 'P'])
+  })
+
   it('highlights a row and emits select without confirming', async () => {
     const wrapper = render(tenants)
 

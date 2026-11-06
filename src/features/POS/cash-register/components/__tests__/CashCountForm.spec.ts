@@ -240,3 +240,16 @@ describe('CashCountForm', () => {
     }
   })
 })
+
+describe('CashCountForm · no error before the person types (T4)', () => {
+  it('shows no channel error at rest, and the missing ones once counting has started', async () => {
+    const wrapper = mountWithUApp(CashCountForm, { props: { channels: CHANNELS } })
+    expect(wrapper.find('[data-testid^="cash-count-error-"]').exists()).toBe(false)
+    expect(wrapper.find('.text-error').exists()).toBe(false)
+    // The submit stays unavailable while channels are missing.
+    expect(wrapper.get('[data-testid="cash-count-submit"]').attributes('disabled')).toBeDefined()
+
+    await setChannel(wrapper, 'CASH', '10.00')
+    expect(wrapper.find('[data-testid="cash-count-error-PM:card"]').exists()).toBe(true)
+  })
+})

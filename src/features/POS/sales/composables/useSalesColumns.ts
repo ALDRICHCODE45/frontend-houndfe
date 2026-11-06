@@ -30,7 +30,8 @@ export function useSalesColumns() {
   // backend cannot order by (sorting by them returns a 400).
   const columns: TableColumn<ConfirmedSaleRow>[] = [
     { id: 'venta', accessorKey: 'folio', header: 'Venta', enableSorting: false },
-    { accessorKey: 'customer', header: createSimpleHeader('Cliente'), enableSorting: false },
+    // C1: the client name, not the folio, is what people scan for, so it gets the primary width.
+    { accessorKey: 'customer', header: createSimpleHeader('Cliente'), enableSorting: false, meta: { primary: true } },
     { accessorKey: 'paymentStatus', header: createSimpleHeader('Pago'), enableSorting: false },
     { accessorKey: 'deliveryStatus', header: createSimpleHeader('Productos'), enableSorting: false },
     { id: 'paymentMethods', accessorKey: 'paymentMethods', header: createSimpleHeader('Método'), enableSorting: false },

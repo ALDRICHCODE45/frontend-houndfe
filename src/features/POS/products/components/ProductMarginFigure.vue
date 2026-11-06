@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * ProductMarginFigure — Margin (percent) or gain (money) of a sale price over
- * the purchase cost. Shows `--` until both are known, and reads in
+ * the purchase cost. Shows `—` until both are known, and reads in
  * `--hf-danger` text when the price is below the cost. Presentational only.
  */
 import { computed } from 'vue'
@@ -30,5 +30,5 @@ const text = computed(() =>
   >
     {{ text }}
   </span>
-  <span v-else class="text-muted">--</span>
+  <span v-else class="text-muted">—</span>
 </template>

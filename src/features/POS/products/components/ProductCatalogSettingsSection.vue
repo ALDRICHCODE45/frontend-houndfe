@@ -113,7 +113,7 @@ const contextRows = computed(() =>
           data-testid="supports-all-note"
           class="text-xs text-muted"
         >
-          Soporta todos los contextos públicos del tenant
+          Soporta todos los contextos públicos de la sucursal
         </p>
 
         <!-- Context toggle list: one column on mobile, two columns when space permits. -->
@@ -152,7 +152,7 @@ const contextRows = computed(() =>
           data-testid="contexts-gated-note"
           class="text-sm text-muted"
         >
-          Configura los contextos públicos del tenant en Sistema &gt; Catálogo online para habilitar
+          Configura los contextos públicos de la sucursal en Sistema &gt; Catálogo online para habilitar
           esta selección
         </p>
         <p
@@ -160,21 +160,21 @@ const contextRows = computed(() =>
           data-testid="settings-loading-note"
           class="text-sm text-muted"
         >
-          Cargando contextos públicos del tenant…
+          Cargando contextos públicos de la sucursal…
         </p>
         <p
           v-else-if="props.settingsError"
           data-testid="settings-error-note"
           class="text-sm text-muted"
         >
-          No se pudieron cargar los contextos públicos del tenant
+          No se pudieron cargar los contextos públicos de la sucursal
         </p>
         <p
           v-else-if="contextRows.length === 0"
           data-testid="contexts-empty-note"
           class="text-xs text-muted"
         >
-          El tenant no tiene contextos públicos configurados
+          La sucursal no tiene contextos públicos configurados
         </p>
       </div>
     </div>

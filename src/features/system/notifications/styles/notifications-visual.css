@@ -38,14 +38,3 @@
   background-color: var(--hf-warning-soft);
   color: var(--hf-warning);
 }
-
-/* Off switches: the default accented track nearly matches the card in the dark
- * theme and fails non-text contrast, so the unchecked track gets a muted outline
- * and a muted thumb (an on switch keeps the action fill). */
-.notifications-visual [role='switch'][data-state='unchecked'] {
-  background-color: var(--hf-surface-muted);
-  box-shadow: inset 0 0 0 1px var(--hf-muted);
-}
-.notifications-visual [role='switch'][data-state='unchecked'] [data-slot='thumb'] {
-  background-color: var(--hf-muted);
-}

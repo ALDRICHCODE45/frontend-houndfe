@@ -11,8 +11,14 @@ const authStore = useAuthStore()
 const { tenants, isSubmitting, error, submit, cancel } = useTenantSelection()
 
 const isExpiredFlow = computed(() => route.query.expired === 'tenant')
-const userName = computed(() => authStore.user?.name ?? 'equipo')
+// Kept from the first render: a failed selection clears the session, and the
+// greeting should still name the person instead of falling back to «equipo».
+const greetedUser = authStore.user
+const userName = computed(() => authStore.user?.name ?? greetedUser?.name ?? 'equipo')
 const userEmail = computed(() => authStore.user?.email ?? '')
+// The store ends the session when a selection fails on the server or the
+// network; nothing here can be chosen any more, only signing in again.
+const sessionEnded = computed(() => !authStore.isAuthenticated && !authStore.tempToken)
 
 // Two-stage selection: TenantSelectionList exposes the currently selected
 // tenant id via defineExpose. The list fires `select` (highlight) and
@@ -59,9 +65,11 @@ function handleSelect(tenantId: string) {
         variant="soft"
         icon="i-lucide-triangle-alert"
         :title="error"
+        :description="sessionEnded ? 'Tu sesión se cerró. Inicia sesión de nuevo para continuar.' : undefined"
       />
 
       <TenantSelectionList
+        v-if="!sessionEnded"
         ref="listRef"
         :tenants="tenants"
         :is-submitting="isSubmitting"
@@ -69,7 +77,19 @@ function handleSelect(tenantId: string) {
         @confirm="submit"
       />
 
-      <div class="flex items-center justify-between gap-3">
+      <div v-if="sessionEnded" class="flex justify-end">
+        <UButton
+          color="primary"
+          variant="solid"
+          class="hf-primary-control"
+          icon="i-lucide-log-in"
+          @click="cancel"
+        >
+          Iniciar sesión de nuevo
+        </UButton>
+      </div>
+
+      <div v-else class="flex items-center justify-between gap-3">
         <UButton
           color="neutral"
           variant="ghost"

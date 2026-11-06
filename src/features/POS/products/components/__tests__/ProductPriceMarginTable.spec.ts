@@ -38,9 +38,19 @@ describe('ProductPriceMarginTable', () => {
     wrapper.unmount()
   })
 
-  it('shows "--" until the cost is known', () => {
+  it('shows «—» until the cost is known', () => {
     const wrapper = mountTable({ costCents: 0 })
-    expect(wrapper.findAll('tbody tr')[0]!.text()).toContain('--')
+    const text = wrapper.findAll('tbody tr')[0]!.text()
+    expect(text).toContain('—')
+    expect(text).not.toContain('--')
+    wrapper.unmount()
+  })
+
+  it('labels each figure cell so a row can stack as a card on a phone', () => {
+    const wrapper = mountTable()
+    expect(wrapper.get('table').attributes('data-stack')).toBeDefined()
+    const labels = wrapper.findAll('tbody tr')[0]!.findAll('td[data-label]').map((td) => td.attributes('data-label'))
+    expect(labels).toEqual(['Precio de venta con impuestos', 'Margen', 'Ganancia'])
     wrapper.unmount()
   })
 

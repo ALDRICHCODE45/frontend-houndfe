@@ -31,11 +31,28 @@ describe('ProductLotsTable', () => {
   it('shows the lot, its expiry and stock, with the ⋮ named after the lot', () => {
     const wrapper = mountTable()
     expect(wrapper.text()).toContain('LOTE-2026-04')
-    expect(wrapper.text()).toContain('2026-12-31')
+    expect(wrapper.text()).toContain('31 dic 2026')
+    expect(wrapper.text()).not.toContain('2026-12-31')
     expect(wrapper.get('td.hf-figure').text()).toBe('12')
     expect(wrapper.get('button[aria-haspopup="menu"]').attributes('aria-label')).toBe(
       'Acciones de lote LOTE-2026-04',
     )
+    wrapper.unmount()
+  })
+
+  it('reads a full server timestamp as the same short date', () => {
+    const wrapper = mountTable({ lots: [{ ...lot, expirationDate: '2026-12-31T00:00:00.000Z' }] })
+    expect(wrapper.text()).toContain('31 dic 2026')
+    wrapper.unmount()
+  })
+
+  it('says the lots did not load, with a retry, instead of an empty list', async () => {
+    const wrapper = mountTable({ lots: [], error: true })
+    const state = wrapper.get('.hf-empty-state[data-kind="error"]')
+    expect(state.text()).toContain('No se pudieron cargar los lotes')
+    expect(wrapper.text()).not.toContain('Sin lotes registrados.')
+    await state.get('button').trigger('click')
+    expect(wrapper.emitted('retry')).toHaveLength(1)
     wrapper.unmount()
   })
 

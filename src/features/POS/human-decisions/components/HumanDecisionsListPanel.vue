@@ -7,7 +7,6 @@ import type { PaginationState, SortingState } from '@/core/shared/types/table.ty
 import { useHumanDecisionColumns } from '../composables/useHumanDecisionColumns'
 import type { HumanDecision, HumanDecisionListFilter } from '../interfaces/human-decision.types'
 import {
-  branchPresentationLabel,
   listDatePresentationLabel,
   productMetaPresentationLabel,
   requestedQuantityPresentationLabel,
@@ -152,11 +151,10 @@ function clearFilters() {
                 data-testid="human-decision-table-open"
                 @click="selectDecision(row.original)"
               >
-                {{ row.original.title }}
+                {{ row.original.snapshot.productName }}
               </button>
               <span class="hf-row-secondary">
-                {{ row.original.snapshot.productName }} ·
-                {{ productMetaPresentationLabel(row.original) }}
+                {{ row.original.title }} · {{ productMetaPresentationLabel(row.original) }}
               </span>
             </div>
           </template>
@@ -178,12 +176,6 @@ function clearFilters() {
             </span>
           </template>
 
-          <template #branch-cell="{ row }">
-            <span class="text-sm">{{
-              branchPresentationLabel(row.original.snapshot.branchName)
-            }}</span>
-          </template>
-
           <template #createdAt-cell="{ row }">
             <time :datetime="row.original.createdAt" class="text-sm text-muted">
               {{ listDatePresentationLabel(row.original.createdAt) }}
@@ -191,10 +183,16 @@ function clearFilters() {
           </template>
 
           <template #response-cell="{ row }">
-            <div data-testid="human-decision-response" class="max-w-72 whitespace-normal text-sm">
+            <div data-testid="human-decision-response" class="min-w-0 text-sm">
               <template v-if="row.original.status === 'RESOLVED'">
-                <p>{{ resolvedResponseLabel(row.original.resolution) }}</p>
-                <p class="mt-1 text-[13px] text-muted">
+                <p
+                  class="truncate"
+                  data-testid="human-decision-response-text"
+                  :title="resolvedResponseLabel(row.original.resolution)"
+                >
+                  {{ resolvedResponseLabel(row.original.resolution) }}
+                </p>
+                <p class="truncate text-[13px] text-muted">
                   {{ row.original.resolution.resolvedBy.displayName }} ·
                   <time :datetime="row.original.resolution.resolvedAt">{{
                     listDatePresentationLabel(row.original.resolution.resolvedAt)

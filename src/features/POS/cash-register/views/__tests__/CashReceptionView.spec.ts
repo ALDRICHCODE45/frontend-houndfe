@@ -166,6 +166,8 @@ describe('recipient-only cash reception', () => {
     await settle()
     const panel = wrapper.getComponent(CashCustodyDiscovery)
     expect(panel.props('allowed')).toBe(false)
+    // The forbidden state speaks for the page: no summary of custody it cannot read.
+    expect(wrapper.find('[data-testid="cash-reception-context"]').exists()).toBe(false)
     panel.vm.$emit('refresh')
     panel.vm.$emit('receive', { id: 'handover', receivedCents: 100 })
     await settle()
@@ -246,6 +248,8 @@ describe('cash reception · four states (S10)', () => {
     expect(wrapper.get('.hf-empty-state[data-kind="empty"]').text()).toContain(
       'No hay entregas pendientes',
     )
+    // Say it once: the empty state already says there is nothing, so no 0 / $0.00 / 0 summary.
+    expect(wrapper.find('[data-testid="cash-reception-context"]').exists()).toBe(false)
   })
 
   it('loading: shows the skeleton cards while the custody is in flight', async () => {
@@ -271,6 +275,15 @@ describe('cash reception · four states (S10)', () => {
     expect(wrapper.find('[data-testid="cash-custody-receive-handover"]').exists()).toBe(true)
   })
 
+  it('data: the summary comes before the list, so a phone shows the total to receive first', async () => {
+    const wrapper = renderIntegrated()
+    await settle()
+
+    const context = wrapper.get('[data-testid="cash-reception-context"]').element
+    const operation = wrapper.get('[data-testid="cash-reception-operation"]').element
+    expect(context.compareDocumentPosition(operation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('error: shows the alert with Reintentar that reads the custody again', async () => {
     vi.mocked(cashApi.getCustody).mockRejectedValue(new Error('boom'))
     const wrapper = renderIntegrated()
@@ -278,6 +291,8 @@ describe('cash reception · four states (S10)', () => {
 
     const state = wrapper.get('[data-testid="cash-custody-error"]')
     expect(state.attributes('role')).toBe('alert')
+    // The facts are unknown after a failed read: no column of dashes under the alert.
+    expect(wrapper.find('[data-testid="cash-reception-context"]').exists()).toBe(false)
     vi.mocked(cashApi.getCustody).mockClear()
     vi.mocked(cashApi.getCustody).mockResolvedValue(custody as never)
     await wrapper.get('[data-testid="empty-state-action"]').trigger('click')

@@ -154,7 +154,7 @@ describe('DriverRouteCard — rendering (design §4.2, REQ-DRC-001)', () => {
     expect(wrapper.text()).toContain('1 de 3 entregadas')
     expect(wrapper.text()).toContain('1 omitida')
     const target = wrapper.find('[data-testid="driver-route-card-target"]')
-    expect(target.text()).toContain('Siguiente parada')
+    expect(target.text()).toContain('Parada actual')
     expect(target.text()).toContain('#3')
     expect(target.text()).toContain('Cliente 3')
     expect(target.text()).toContain('F-3')

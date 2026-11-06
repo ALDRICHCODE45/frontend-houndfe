@@ -35,6 +35,7 @@ const assignableMockState = {
   isLoading: ref(false),
   isError: ref(false),
   error: ref<unknown>(null),
+  refetch: vi.fn(),
 }
 
 // Form composable state — mirrors the real composable's return shape.
@@ -132,6 +133,8 @@ function resetMocks() {
 
   assignableMockState.users.value = []
   assignableMockState.isLoading.value = false
+  assignableMockState.isError.value = false
+  assignableMockState.refetch.mockClear()
 
   currentFormMock = makeFormMockState()
   Object.assign(currentFormMock.form, {
@@ -170,7 +173,7 @@ describe('NotificationConfigView — four states (S10)', () => {
     queryMockState.data.value = undefined
     const wrapper = mountWithUApp(NotificationConfigView)
     expect(wrapper.find('[data-testid="master-toggle"]').attributes('data-enabled')).toBe('false')
-    expect(wrapper.text()).toContain('0 seleccionados')
+    expect(wrapper.find('[data-testid="recipient-chips"]').exists()).toBe(false)
     expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
   })
 
@@ -248,10 +251,21 @@ describe('NotificationConfigView — default render (REQ-3)', () => {
     expect(wrapper.text()).toContain('Desactivadas')
   })
 
-  it('renders the recipients card with "0 seleccionados" by default', () => {
+  it('renders the recipients card with no chips and the add prompt by default', () => {
     queryMockState.data.value = undefined
     const wrapper = mountWithUApp(NotificationConfigView)
-    expect(wrapper.text()).toContain('0 seleccionados')
+    expect(wrapper.find('[data-testid="recipient-chips"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="recipient-select-trigger"]').text()).toContain('Agregar usuarios')
+  })
+
+  it('a failed users read shows its own error with Reintentar that refetches the users (T7)', async () => {
+    queryMockState.data.value = { enabled: true, recipientUserIds: ['u1'], enabledActions: [] }
+    assignableMockState.isError.value = true
+    const wrapper = mountWithUApp(NotificationConfigView)
+    await nextTick()
+    expect(wrapper.text()).not.toContain('Usuario no disponible')
+    await wrapper.get('[data-testid="recipient-retry"]').trigger('click')
+    expect(assignableMockState.refetch).toHaveBeenCalledTimes(1)
   })
 
   it('renders the actions accordion with the modules from the registry', () => {

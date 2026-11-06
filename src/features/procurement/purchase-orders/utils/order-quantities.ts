@@ -1,4 +1,4 @@
-import { SERVICE_UNIT_OPTIONS, UNIT_OPTIONS } from '@/features/POS/products/composables/useProductForm'
+import { SERVICE_UNIT_OPTIONS, UNIT_OPTIONS } from '@/core/shared/constants/product-units'
 
 export const FRACTIONAL_UNITS: ReadonlySet<string> = new Set(['KILOGRAMO', 'GRAMO', 'LITRO', 'METRO', 'CENTIMETRO'])
 const INTEGER_UNITS: ReadonlySet<string> = new Set(['UNIDAD', 'CAJA', 'BOLSA', 'PAQUETE', 'HORA', 'SESION', 'DIA', 'CONSULTA', 'CURSO'])

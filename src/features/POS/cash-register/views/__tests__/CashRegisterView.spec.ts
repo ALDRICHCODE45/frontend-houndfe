@@ -810,7 +810,8 @@ describe('CashRegisterView · late comparisons after a shift switch', () => {
 
     await navigate(wrapper, 'verificacion')
     await flush()
-    expect(wrapper.get('[data-testid="cash-verification-declared"]').text()).toBe('—')
+    expect(wrapper.find('[data-testid="cash-verification-declared"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="cash-verification-no-comparison"]').exists()).toBe(true)
   })
 
   it('never renders a verification comparison from a shift that is no longer selected', async () => {
@@ -835,7 +836,8 @@ describe('CashRegisterView · late comparisons after a shift switch', () => {
 
     await navigate(wrapper, 'verificacion')
     await flush()
-    expect(wrapper.get('[data-testid="cash-verification-declared"]').text()).toBe('—')
+    expect(wrapper.find('[data-testid="cash-verification-declared"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="cash-verification-no-comparison"]').exists()).toBe(true)
   })
 
   it('does not reuse a comparison when the same shift is reselected while pending', async () => {
@@ -860,7 +862,8 @@ describe('CashRegisterView · late comparisons after a shift switch', () => {
 
     await navigate(wrapper, 'verificacion')
     await flush()
-    expect(wrapper.get('[data-testid="cash-verification-declared"]').text()).toBe('—')
+    expect(wrapper.find('[data-testid="cash-verification-declared"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="cash-verification-no-comparison"]').exists()).toBe(true)
   })
 
   it('drops a stale declaration failure instead of showing it on another shift', async () => {

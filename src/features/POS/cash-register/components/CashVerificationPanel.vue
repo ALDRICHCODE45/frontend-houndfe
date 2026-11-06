@@ -105,6 +105,19 @@ const originalLines = computed(() =>
 
 const diff = computed(() => comparisonView(props.comparison ?? null))
 
+/** Before any recount every figure is unknown: one line says so instead of five dashes. */
+const hasComparison = computed(() => {
+  const view = diff.value
+  if (!view) return false
+  return [
+    view.expectedCents,
+    view.declaredCents,
+    view.declarationDifferenceCents,
+    view.verifiedCents,
+    view.verificationDifferenceCents,
+  ].some((cents) => cents !== null)
+})
+
 /** Only the DECLARATION difference can require the verifier's note. */
 const notesRequired = computed(() => {
   if (!isSubmitted.value) return false
@@ -157,7 +170,10 @@ function money(cents: number | null): string {
         </p>
 
         <template v-else>
-          <dl class="cash-facts-grid">
+          <p v-if="!hasComparison" class="text-sm text-muted" data-testid="cash-verification-no-comparison">
+            Las diferencias aparecen cuando envías tu recuento.
+          </p>
+          <dl v-else class="cash-facts-grid">
             <div class="cash-fact">
               <dt>Esperado</dt>
               <dd class="cash-fact-value" data-testid="cash-verification-expected">

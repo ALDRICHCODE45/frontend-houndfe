@@ -143,7 +143,7 @@ describe('PendingRefundsView', () => {
   it('empty says there is nothing pending', () => {
     list.rows.value = []
     const wrapper = mountView()
-    expect(wrapper.get('[data-testid="table-empty"]').text()).toBe('No hay reembolsos pendientes.')
+    expect(wrapper.get('[data-testid="table-empty"]').text()).toBe('No hay reembolsos pendientes')
     expect(wrapper.find('[data-testid="refunds-count"]').exists()).toBe(false)
   })
 
@@ -185,18 +185,32 @@ describe('PendingRefundsView', () => {
     expect(toastAdd).not.toHaveBeenCalled()
   })
 
-  it('shows the whole reason (it wraps, never truncates) and the cancellation day under it', () => {
+  it('shows the whole reason (it wraps, never truncates) and how long ago the sale was cancelled', () => {
+    vi.useFakeTimers({ now: new Date('2026-11-05T17:05:00.000Z'), toFake: ['Date'] })
     list.rows.value = [row('1', { reason: 'ORDER_ERROR', createdAt: '2026-10-25T20:42:00.000Z' })]
     const wrapper = mountView()
+    vi.useRealTimers()
     const reason = wrapper.get('.refund-reason')
     expect(reason.text()).toBe('Error en el pedido')
     expect(reason.classes()).not.toContain('truncate')
-    expect(wrapper.get('.refund-reason-when').text()).toBe('Cancelada el 25 oct')
+    const when = wrapper.get('.refund-reason-when')
+    expect(when.text()).toBe('Cancelada hace 10 días')
+    expect(when.attributes('title')).toBe('Cancelada el 25 oct')
   })
 
-  it('heads the amount column «Total», next to Devuelto and Pendiente', () => {
+  it('fits seven columns at 1440: the age rides under Motivo, the method header is short', () => {
     const headers = mountView().findAll('[data-testid="column-header"]')
     const byId = Object.fromEntries(headers.map((h) => [h.attributes('data-column'), h.text()]))
+    expect(Object.keys(byId)).toEqual([
+      'sale',
+      'reason',
+      'method',
+      'amountCents',
+      'settledCents',
+      'outstandingCents',
+      'actions',
+    ])
+    expect(byId.method).toBe('Pagó con')
     expect(byId.amountCents).toBe('Total')
     expect(byId.settledCents).toBe('Devuelto')
     expect(byId.outstandingCents).toBe('Pendiente')

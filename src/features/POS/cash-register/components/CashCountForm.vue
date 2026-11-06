@@ -66,6 +66,21 @@ const localError = ref<string | null>(null)
 // bounds (0..MAX_CASH_MONEY_CENTS); a quantity is a count of pieces, not money.
 const entryErrors = computed(() => countEntryErrorsPesos(props.channels, values.value))
 
+/** Counting has started once any channel, note or denomination holds something. */
+const started = computed(
+  () =>
+    Object.values(values.value).some((value) => String(value ?? '').trim() !== '') ||
+    notes.value.trim() !== '' ||
+    denominationRows.value.length > 0,
+)
+
+/**
+ * What the form says per channel. A blank channel is still missing (and still
+ * blocks the submit), but it is not called an error before the person starts
+ * counting: an untouched form shows no red.
+ */
+const shownEntryErrors = computed(() => (started.value ? entryErrors.value : {}))
+
 const cashCents = computed<number | null>(() => {
   const raw = values.value.CASH
   if (raw === undefined || String(raw).trim() === '') return null
@@ -200,11 +215,11 @@ function submit() {
             />
           </UFormField>
           <p
-            v-if="entryErrors[channel.channelKey]"
+            v-if="shownEntryErrors[channel.channelKey]"
             class="text-xs text-error"
             :data-testid="`cash-count-error-${channel.channelKey}`"
           >
-            {{ entryErrors[channel.channelKey] }}
+            {{ shownEntryErrors[channel.channelKey] }}
           </p>
         </div>
 
@@ -294,7 +309,7 @@ function submit() {
 
         <UButton
           type="submit"
-          class="min-h-11 self-start"
+          class="hf-primary-control min-h-11 self-start"
           :loading="submitting"
           :disabled="!canSubmit || submitting"
           data-testid="cash-count-submit"

@@ -46,7 +46,7 @@ function actionsFor(row: ProductPriceRow): RowAction[] {
 
 <template>
   <div class="overflow-x-auto rounded-md border border-default" data-testid="product-price-margin-table">
-    <table class="products-plain-table min-w-full divide-y divide-default text-sm">
+    <table class="products-plain-table products-price-table min-w-full divide-y divide-default text-sm" data-stack>
       <thead>
         <tr>
           <th class="px-4 py-3 text-left font-semibold">Lista de precios</th>
@@ -61,8 +61,8 @@ function actionsFor(row: ProductPriceRow): RowAction[] {
       </thead>
       <tbody class="divide-y divide-default">
         <tr v-for="row in rows" :key="row.id">
-          <td class="px-4 py-3 font-semibold text-highlighted">{{ row.name }}</td>
-          <td class="px-4 py-3 text-right">
+          <td class="px-4 py-3 font-semibold text-highlighted" data-area="name">{{ row.name }}</td>
+          <td class="px-4 py-3 text-right" data-area="price" data-label="Precio de venta con impuestos">
             <InlinePriceInput
               class="ml-auto max-w-[10rem]"
               :price-cents="row.priceCents"
@@ -70,13 +70,13 @@ function actionsFor(row: ProductPriceRow): RowAction[] {
               @commit="emit('update-price', row.id, $event)"
             />
           </td>
-          <td class="px-4 py-3 text-right">
+          <td class="px-4 py-3 text-right" data-area="margin" data-label="Margen">
             <ProductMarginFigure :price-cents="row.priceCents" :cost-cents="costCents" kind="percent" />
           </td>
-          <td class="px-4 py-3 text-right">
+          <td class="px-4 py-3 text-right" data-area="gain" data-label="Ganancia">
             <ProductMarginFigure :price-cents="row.priceCents" :cost-cents="costCents" kind="gain" />
           </td>
-          <td class="px-4 py-3 text-right">
+          <td class="px-4 py-3 text-right" data-area="actions">
             <RowActionsMenu
               :actions="actionsFor(row)"
               :row-label="`la lista ${row.name}`"

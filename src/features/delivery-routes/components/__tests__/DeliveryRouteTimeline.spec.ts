@@ -363,4 +363,10 @@ describe('DeliveryRouteTimeline — heading prop (compact recent section vs full
     expect(w.text()).toContain(DELIVERY_ROUTE_COPY.cockpit.recent.heading)
     expect(w.text()).not.toContain(DELIVERY_ROUTE_COPY.timeline.historyHeading)
   })
+
+  it('an empty heading renders no heading (the drawer title already names the history)', async () => {
+    const w = mountTimeline({ route: makeRoute([]), heading: '' })
+    expect(w.find('h3').exists()).toBe(false)
+    expect(w.find('[data-testid="delivery-route-timeline"]').attributes('aria-label')).toBe('Historial de la ruta')
+  })
 })

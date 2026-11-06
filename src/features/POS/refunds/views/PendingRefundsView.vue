@@ -22,6 +22,7 @@ import {
 } from '../composables/usePendingRefundsList'
 import {
   refundAgeLabel,
+  refundCanceledAgo,
   refundCanceledDay,
   refundMethodLabel,
   refundReasonLabel,
@@ -68,11 +69,10 @@ const showingTo = computed(() =>
 const columns: TableColumn<PendingRefundListRow>[] = [
   { id: 'sale', header: 'Venta' },
   { id: 'reason', header: 'Motivo', meta: { class: { th: 'refund-col-reason', td: 'refund-col-reason' } } },
-  { id: 'method', header: 'Método original' },
+  { id: 'method', header: 'Pagó con' },
   { id: 'amountCents', header: 'Total', meta: { class: { th: 'text-right', td: 'text-right' } } },
   { id: 'settledCents', header: 'Devuelto', meta: { class: { th: 'text-right', td: 'text-right' } } },
   { id: 'outstandingCents', header: 'Pendiente', meta: { class: { th: 'text-right', td: 'text-right' } } },
-  { id: 'age', header: 'Antigüedad' },
   { id: 'actions', header: 'Acciones', meta: { class: { th: 'w-16', td: 'w-16 text-right' } } },
 ]
 
@@ -124,7 +124,7 @@ const rowLabel = (row: PendingRefundListRow) => `${row.folioLabel}, ${row.custom
         />
       </div>
       <p class="hf-page-subtitle">
-        Dinero que la sucursal aún debe a clientes por ventas canceladas. Los más antiguos van primero.
+        Dinero por devolver de ventas canceladas, los más antiguos primero.
       </p>
     </header>
 
@@ -153,7 +153,7 @@ const rowLabel = (row: PendingRefundListRow) => `${row.folioLabel}, ${row.custom
           :error="list.isError.value"
           error-message="No se pudieron cargar los reembolsos"
           :empty-state="{
-            title: 'No hay reembolsos pendientes.',
+            title: 'No hay reembolsos pendientes',
             description: 'Cuando canceles una venta pagada, aquí verás el dinero que falta devolver.',
           }"
           :filtered="search.trim() !== ''"
@@ -197,7 +197,10 @@ const rowLabel = (row: PendingRefundListRow) => `${row.folioLabel}, ${row.custom
 
           <template #reason-cell="{ row }">
             <span class="refund-reason">{{ refundReasonLabel(row.original.reason) }}</span>
-            <span class="hf-row-secondary refund-reason-when">Cancelada el {{ refundCanceledDay(row.original.createdAt) }}</span>
+            <span
+              class="hf-row-secondary refund-reason-when"
+              :title="`Cancelada el ${refundCanceledDay(row.original.createdAt)}`"
+            >{{ refundCanceledAgo(row.original.createdAt) }}</span>
           </template>
 
           <template #method-cell="{ row }">
@@ -217,10 +220,6 @@ const rowLabel = (row: PendingRefundListRow) => `${row.folioLabel}, ${row.custom
 
           <template #outstandingCents-cell="{ row }">
             <span class="refund-cell-figure refund-owe">{{ formatCentsMXN(row.original.outstandingCents) }}</span>
-          </template>
-
-          <template #age-cell="{ row }">
-            <span class="text-sm text-muted">{{ refundAgeLabel(row.original.createdAt) }}</span>
           </template>
 
           <template #actions-header><span class="sr-only">Acciones</span></template>
@@ -259,8 +258,11 @@ const rowLabel = (row: PendingRefundListRow) => `${row.folioLabel}, ${row.custom
               </p>
               <div class="refund-card__foot">
                 <span class="refund-card__owed">
-                  <span>Pendiente de {{ formatCentsMXN(row.amountCents) }}</span>
-                  <span class="refund-owe">{{ formatCentsMXN(row.outstandingCents) }}</span>
+                  <span>Pendiente</span>
+                  <span>
+                    <span class="refund-owe">{{ formatCentsMXN(row.outstandingCents) }}</span>
+                    de {{ formatCentsMXN(row.amountCents) }}
+                  </span>
                 </span>
                 <span>{{ refundAgeLabel(row.createdAt) }}</span>
               </div>

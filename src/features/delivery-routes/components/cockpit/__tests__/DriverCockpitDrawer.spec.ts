@@ -99,6 +99,8 @@ describe('DriverCockpitDrawer — RED: one portal, native-event synthesis (REQ-D
     mountDrawer({ open: true, mode: 'history' })
     await flushPromises()
     expect(document.querySelector('[data-testid="delivery-route-timeline"]')).not.toBeNull()
+    // The drawer title names the history once; the timeline adds no second heading.
+    expect(document.querySelector('[data-testid="delivery-route-timeline"] h3')).toBeNull()
   })
 
   it('native close alone does NOT emit custom closed; animationEnd(false) emits closed once; animationEnd(true) does not', async () => {

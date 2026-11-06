@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SERVICE_UNIT_OPTIONS, UNIT_OPTIONS } from '@/features/POS/products/composables/useProductForm'
+import { SERVICE_UNIT_OPTIONS, UNIT_OPTIONS } from '@/core/shared/constants/product-units'
 import { FRACTIONAL_UNITS, quantityRule, unitLabel, validateOrderQuantity, isValidOrderAmount } from '../order-quantities'
 
 const fractional = ['KILOGRAMO', 'GRAMO', 'LITRO', 'METRO', 'CENTIMETRO']

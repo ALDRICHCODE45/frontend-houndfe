@@ -6,7 +6,8 @@
 // (semantic bg-default / border-default / rounded-xl / restrained shadow /
 // p-3 mobile + p-4 desktop / intentional sticky offset), three columns
 // [back | flexible route content | ONE ghost overflow trigger].
-//   - "Ruta de entrega" is the primary title; NO driver identity line (the
+//   - The route's list name ("Ruta del 5 nov") is the primary title, so the
+//     driver meets the same name on the card and here; NO driver identity line (the
 //     header is driver-only and the line collided with the title).
 //   - NO completed/total progress fraction (the summary card owns progress).
 //   - Status badge and the truthful lifecycle timestamp are KEPT; the route id
@@ -98,11 +99,14 @@ function getMenuItems(w: ReturnType<typeof mount>): HeaderMenuItem[] {
 }
 
 describe('DriverCockpitHeader — refinement: identity + progress removed, title kept (REQ-DCS-002)', () => {
-  it('renders "Ruta de entrega" from copy.ts as the primary title', () => {
-    const title = mountHeader().find('[data-testid="cockpit-header-title"]')
+  it('titles the route the way the driver list names it ("Ruta del 5 nov"), never the id', () => {
+    const route = makeRoute()
+    route.timeline = [{ type: 'ROUTE_CREATED', at: '2026-11-05T17:23:00', actor: null } as DeliveryRouteResponseDto['timeline'][number]]
+    const title = mountHeader({ route }).find('[data-testid="cockpit-header-title"]')
     expect(title.exists()).toBe(true)
-    expect(title.text()).toBe(DELIVERY_ROUTE_COPY.cockpit.header.title)
-    expect(title.text()).toBe('Ruta de entrega')
+    expect(title.text()).toBe('Ruta del 5 nov')
+    // Without a creation event the list's own fallback applies.
+    expect(mountHeader().find('[data-testid="cockpit-header-title"]').text()).toBe('Ruta sin fecha')
   })
   it('renders NO driver identity line (driver-only header; no cockpit-header-identity)', () => {
     const w = mountHeader()

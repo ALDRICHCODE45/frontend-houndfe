@@ -17,10 +17,11 @@ const REMOVAL_LABELS: Record<RemovalCause, string> = {
 const reasonLabel = (reason: AdjustmentReason) => ADJUSTMENT_REASONS.find(item => item.value === reason)?.label ?? ''
 
 export const movementTypeLabel = (type: MovementType) => TYPE_LABELS[type]
-export function movementLocation(movement: StockMovement) {
+// `untracked` names the product-level bucket: «Sin lote» next to lots, «Existencias» for a plain product.
+export function movementLocation(movement: StockMovement, untracked = 'Sin lote') {
   if (movement.bucket === 'LOT') return movement.labels.lot ? `Lote ${movement.labels.lot}` : 'Lote'
   if (movement.bucket === 'VARIANT') return movement.labels.variant ?? 'Variante'
-  return 'Sin lote'
+  return untracked
 }
 export function movementDetail(movement: StockMovement) {
   if (movement.removalCause) return REMOVAL_LABELS[movement.removalCause]
@@ -45,10 +46,10 @@ export interface KardexRow {
   parts: number
 }
 
-function rowOf(movement: StockMovement, kind: KardexRow['kind'], key: string): KardexRow {
+function rowOf(movement: StockMovement, kind: KardexRow['kind'], key: string, untracked?: string): KardexRow {
   return {
     key, kind, typeLabel: movementTypeLabel(movement.type), createdAt: movement.createdAt,
-    location: movementLocation(movement), detail: movementDetail(movement), delta: movement.delta,
+    location: movementLocation(movement, untracked), detail: movementDetail(movement), delta: movement.delta,
     balanceAfter: movement.balanceAfter, productBalanceAfter: movement.productBalanceAfter,
     actor: actorOf(movement), parts: 1,
   }
@@ -58,7 +59,11 @@ const sameOperation = (a: StockMovement, b: StockMovement) =>
 
 // One sale writes a row per bucket it consumed (FEFO), all under one group id:
 // consecutive rows of the same operation fold into a single expandable row.
-export function buildKardexRows(movements: readonly StockMovement[], expanded: ReadonlySet<string>): KardexRow[] {
+export function buildKardexRows(
+  movements: readonly StockMovement[],
+  expanded: ReadonlySet<string>,
+  untracked?: string,
+): KardexRow[] {
   const rows: KardexRow[] = []
   for (let index = 0; index < movements.length;) {
     let end = index + 1
@@ -66,14 +71,14 @@ export function buildKardexRows(movements: readonly StockMovement[], expanded: R
     const parts = movements.slice(index, end)
     const first = parts[0]!
     if (parts.length === 1) {
-      rows.push(rowOf(first, 'single', first.id))
+      rows.push(rowOf(first, 'single', first.id, untracked))
     } else {
       const key = `group:${first.id}`
       rows.push({
-        ...rowOf(first, 'group', key), delta: parts.reduce((sum, part) => sum + part.delta, 0),
+        ...rowOf(first, 'group', key, untracked), delta: parts.reduce((sum, part) => sum + part.delta, 0),
         balanceAfter: null, location: `${parts.length} ubicaciones`, parts: parts.length,
       })
-      if (expanded.has(key)) parts.forEach(part => rows.push(rowOf(part, 'child', `child:${part.id}`)))
+      if (expanded.has(key)) parts.forEach(part => rows.push(rowOf(part, 'child', `child:${part.id}`, untracked)))
     }
     index = end
   }

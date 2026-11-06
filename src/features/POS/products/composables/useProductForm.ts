@@ -12,6 +12,7 @@ import type {
 } from '../interfaces/product.types'
 import { toProductPatchAdvancedCatalogPayload } from '../api/product.api'
 import { parseMoneyInput } from '@/core/shared/utils/money-input.utils'
+import { SERVICE_UNIT_OPTIONS, UNIT_OPTIONS } from '@/core/shared/constants/product-units'
 
 /**
  * An optional money field: blank, or text that reads with the one money rule
@@ -30,30 +31,8 @@ export function optionalMoneyText() {
 
 // ── Enums for selects ──────────────────────────────────────
 
-export const UNIT_OPTIONS = [
-  { label: 'Unidad', value: 'UNIDAD' },
-  { label: 'Caja', value: 'CAJA' },
-  { label: 'Bolsa', value: 'BOLSA' },
-  { label: 'Metro', value: 'METRO' },
-  { label: 'Centímetro', value: 'CENTIMETRO' },
-  { label: 'Kilogramo', value: 'KILOGRAMO' },
-  { label: 'Gramo', value: 'GRAMO' },
-  { label: 'Litro', value: 'LITRO' },
-] as const
-
-// ── Service units (subset of service-capable units) ─────────
-//
-// 6 of the 8 product units (the physical-measurement ones) are NOT valid
-// for services. Services accept: HORA, SESION, DIA, CONSULTA, CURSO, PAQUETE.
-// Source of truth for the matrix; consumed by `unitOptionsFor`.
-export const SERVICE_UNIT_OPTIONS = [
-  { label: 'Hora', value: 'HORA' },
-  { label: 'Sesión', value: 'SESION' },
-  { label: 'Día', value: 'DIA' },
-  { label: 'Consulta', value: 'CONSULTA' },
-  { label: 'Curso', value: 'CURSO' },
-  { label: 'Paquete', value: 'PAQUETE' },
-] as const
+// Unit labels live in core (human decisions and purchase orders name units too).
+export { SERVICE_UNIT_OPTIONS, UNIT_OPTIONS }
 
 export const IVA_OPTIONS = [
   { label: '16%', value: 'IVA_16' },

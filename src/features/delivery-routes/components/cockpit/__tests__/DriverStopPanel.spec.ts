@@ -57,12 +57,13 @@ beforeEach(() => { toastCalls.length = 0 })
 afterEach(() => { vi.restoreAllMocks() ; vi.unstubAllGlobals() })
 
 describe('DriverStopPanel — minimal body-only contract (REQ-DCK-002/003)', () => {
-  it('body renders position + folio + customer fallback + null folio; NO header / close / secondary action across stop statuses; no emits', async () => {
+  it('body renders the folio but not the position or customer the drawer title already says; NO header / close / secondary action across stop statuses; no emits', async () => {
     const w = mountPanel({ stop: makeStop({ sortOrder: 4, saleFolio: 'F-099' }) })
     await flushPromises()
-    expect(w.text()).toContain('Parada 5') ; expect(w.text()).toContain('F-099')
-    expect(mountPanel({ stop: makeStop({ customer: null }) }).text()).toContain('Cliente sin nombre')
-    expect(mountPanel({ stop: makeStop({ saleFolio: null }) }).text()).not.toMatch(/·\s/)
+    expect(w.text()).toContain('F-099')
+    expect(w.text()).not.toContain('Parada 5') ; expect(w.text()).not.toContain('Ana')
+    expect(w.text()).not.toMatch(/·\s/)
+    expect(mountPanel({ stop: makeStop({ saleFolio: null }) }).find('[data-testid="stop-panel-folio"]').exists()).toBe(false)
     expect(w.find('[data-testid="stop-panel-header"]').exists()).toBe(false)
     expect(w.find('[data-testid="stop-panel-close"]').exists()).toBe(false)
     expect(Object.keys(w.emitted())).toEqual([])
@@ -73,6 +74,14 @@ describe('DriverStopPanel — minimal body-only contract (REQ-DCK-002/003)', () 
 })
 
 describe('DriverStopPanel — address above map, map gate (REQ-DRC-106)', () => {
+  it('wraps the full address instead of cutting it to one line (the driver reads it at the door)', async () => {
+    const w = mountPanel({ stop: makeStop() })
+    await flushPromises()
+    const cls = w.find('[data-testid="stop-panel-address"]').classes()
+    expect(cls).not.toContain('truncate')
+    expect(cls).toContain('break-words')
+  })
+
   it('address DOM-precedes the map when mapReady + finite coords', async () => {
     const w = mountPanel({ stop: makeStop({ address: makeAddress({ street: 'Av. Insurgentes' }) }) })
     await flushPromises()

@@ -38,6 +38,16 @@ const descriptor = computed(() =>
   }),
 )
 
+// In list rows the dash already means "no limit", so an unlimited cap with consumption says only
+// the consumption, short enough that the Cupo column does not push the table past its card.
+const label = computed(() => {
+  const { state, consumed } = descriptor.value
+  if (props.hideUnlimited && state === 'unlimited_consumed' && consumed != null) {
+    return `${consumed} ${consumed === 1 ? 'consumida' : 'consumidas'}`
+  }
+  return descriptor.value.label
+})
+
 const accessibleLabel = computed(() => {
   const { state, max, consumed, remaining } = descriptor.value
   if (state === 'stale') {
@@ -62,6 +72,6 @@ const accessibleLabel = computed(() => {
     :aria-label="accessibleLabel"
     role="status"
   >
-    <StatusBadge :label="descriptor.label" :tone="descriptor.tone" :aria-label="descriptor.label" />
+    <StatusBadge :label="label" :tone="descriptor.tone" :aria-label="label" />
   </span>
 </template>
