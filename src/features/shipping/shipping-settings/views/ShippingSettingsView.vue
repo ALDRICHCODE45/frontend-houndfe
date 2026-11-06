@@ -42,7 +42,6 @@ async function setTab(key: ShippingTabKey) {
   <div class="hf-theme hf-ui flex w-full min-w-0 flex-col gap-6 md:px-6 lg:px-10">
     <header class="hf-page-header">
       <h1 class="hf-page-title">Envíos</h1>
-      <p class="hf-page-subtitle">Zonas de entrega, cajas, origen y horario de la sucursal.</p>
     </header>
 
     <div class="shipping-tabs" role="tablist" aria-label="Secciones de envíos">
