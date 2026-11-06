@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { StockSnapshot } from '../../interfaces/inventory.types'
-import { adjustmentTargetFor, bucketRows, formatExpirationDate, kardexFilters } from '../stock'
+import { adjustmentTargetFor, bucketKind, bucketRows, formatExpirationDate, kardexFilters, untrackedLabel } from '../stock'
 
 const withLots: StockSnapshot = {
   product: { id: 'p1', name: 'Croquetas Adulto 15 kg', useStock: true, quantity: 72, untracked: { quantity: 12, version: 1 }, sellable: 64 },
@@ -41,6 +41,18 @@ describe('bucketRows', () => {
     expect(bucketRows(withVariants).map(row => [row.kind, row.label, row.quantity])).toEqual([
       ['variant', 'Chico · Azul', 15], ['variant', 'Mediano · Rojo', 9],
     ])
+  })
+  // A product with neither lots nor variants has one bucket, its whole stock: «Sin lote» only
+  // means something next to lots.
+  it('names the one bucket of a plain product «Existencias»', () => {
+    const plain = { ...withLots, lots: [] }
+    expect(bucketRows(plain).map(row => [row.kind, row.label, row.quantity])).toEqual([['untracked', 'Existencias', 12]])
+    expect(adjustmentTargetFor(plain, bucketRows(plain)[0]!)).toMatchObject({ bucketLabel: 'Existencias' })
+  })
+  it('tells what the buckets are and how the untracked one is named', () => {
+    expect([bucketKind(withLots), untrackedLabel(withLots)]).toEqual(['lot', 'Sin lote'])
+    expect(bucketKind(withVariants)).toBe('variant')
+    expect([bucketKind({ ...withLots, lots: [] }), untrackedLabel({ ...withLots, lots: [] })]).toEqual(['product', 'Existencias'])
   })
   it('lists nothing for a product that does not track stock', () => {
     expect(bucketRows({ ...withLots, product: { ...withLots.product, useStock: false, sellable: null } })).toEqual([])

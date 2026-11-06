@@ -6,7 +6,7 @@ import type { AdjustmentResult } from '../interfaces/inventory.types'
 import { useInventoryContext } from '../composables/useInventoryAccess'
 import { useProductStock } from '../composables/useProductStock'
 import { useStockMovements } from '../composables/useStockMovements'
-import { adjustmentTargetFor, bucketRows, kardexFilters, type BucketRow } from '../utils/stock'
+import { adjustmentTargetFor, bucketKind, bucketRows, kardexFilters, untrackedLabel, type BucketRow } from '../utils/stock'
 import StockAdjustmentDialog from './StockAdjustmentDialog.vue'
 import StockKardex from './StockKardex.vue'
 
@@ -26,9 +26,14 @@ const rows = computed(() => stock.value ? bucketRows(stock.value) : [])
 const hasLots = computed(() => Boolean(stock.value?.lots.length))
 const filters = computed(() => stock.value ? kardexFilters(stock.value) : [])
 const tracksStock = computed(() => stock.value?.product.useStock ?? false)
-// A lot or a presentation is not a place: the buckets are named for what they are.
-const bucket = computed<'lot' | 'variant'>(() => (stock.value?.variants.length ? 'variant' : 'lot'))
-const bucketHeading = computed(() => (bucket.value === 'variant' ? 'Presentación' : 'Lote'))
+// A lot or a presentation is not a place: the buckets are named for what they are. A product
+// with neither has one bucket, its own stock («Existencias»).
+const bucket = computed(() => (stock.value ? bucketKind(stock.value) : 'lot'))
+const bucketHeading = computed(() => ({ variant: 'Presentación', lot: 'Lote', product: 'Producto' })[bucket.value])
+const tableLabel = computed(() =>
+  bucket.value === 'product' ? 'Existencias del producto' : `Existencias por ${bucketHeading.value.toLowerCase()}`,
+)
+const untracked = computed(() => (stock.value ? untrackedLabel(stock.value) : undefined))
 const kardexError = computed(() => Boolean(movements.error.value) && movements.items.value.length === 0)
 const number = (value: number) => value.toLocaleString('es-MX')
 
@@ -86,7 +91,7 @@ function reload() {
           </dl>
         </div>
         <div class="stock-scroll">
-          <table class="stock-table" :aria-label="`Existencias por ${bucketHeading.toLowerCase()}`">
+          <table class="stock-table" :aria-label="tableLabel">
             <thead>
               <tr>
                 <th scope="col">{{ bucketHeading }}</th>
@@ -121,7 +126,7 @@ function reload() {
       <div class="stock-block">
         <h3 class="stock-title">Movimientos</h3>
         <StockKardex
-          v-model:filter="kardexFilter" :bucket="bucket" :items="movements.items.value" :loading="movements.isLoading.value"
+          v-model:filter="kardexFilter" :bucket="bucket" :untracked="untracked" :items="movements.items.value" :loading="movements.isLoading.value"
           :fetching="movements.isFetching.value" :error="kardexError" :has-more="movements.hasMore.value"
           :loading-more="movements.isFetchingMore.value" :load-more-error="movements.loadMoreError.value" :filters="filters"
           @load-more="movements.loadMore" @refresh="movements.refresh"

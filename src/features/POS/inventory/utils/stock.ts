@@ -23,6 +23,17 @@ export function formatExpirationDate(value: string | null | undefined) {
   return text.replace(/\./g, '').replace(/ de /g, ' ')
 }
 
+/** What the buckets of a product are: its presentations, its lots, or (neither) the product itself. */
+export function bucketKind(stock: StockSnapshot): 'variant' | 'lot' | 'product' {
+  if (stock.variants.length) return 'variant'
+  return stock.lots.length ? 'lot' : 'product'
+}
+
+/** «Sin lote» only means something next to lots; a plain product's one bucket is its stock. */
+export function untrackedLabel(stock: StockSnapshot) {
+  return bucketKind(stock) === 'product' ? 'Existencias' : 'Sin lote'
+}
+
 // The server sends lots in FEFO order (expiration, then id): keep it.
 export function bucketRows(stock: StockSnapshot): BucketRow[] {
   if (!stock.product.useStock) return []
@@ -34,7 +45,7 @@ export function bucketRows(stock: StockSnapshot): BucketRow[] {
   }
   return [
     {
-      kind: 'untracked', label: 'Sin lote', quantity: stock.product.untracked.quantity,
+      kind: 'untracked', label: untrackedLabel(stock), quantity: stock.product.untracked.quantity,
       version: stock.product.untracked.version, expired: false, expiration: null,
     },
     ...stock.lots.map((lot): BucketRow => ({

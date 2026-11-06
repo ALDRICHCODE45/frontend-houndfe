@@ -202,6 +202,17 @@ describe('stock panel — data', () => {
     expect(wrapper.find('[data-testid="stock-sellable"]').exists()).toBe(false)
   })
 
+  it('names the one row of a plain product «Existencias» under «Producto», in the kardex too', async () => {
+    vi.mocked(inventoryApi.getStock).mockResolvedValue(snapshot({ lots: [] }))
+    const wrapper = setup()
+    await flushPromises()
+    expect(rows(wrapper).map(row => row.get('[data-testid="stock-label"]').text())).toEqual(['Existencias'])
+    const table = wrapper.get('table[aria-label="Existencias del producto"]')
+    expect(table.findAll('thead th')[0]!.text()).toBe('Producto')
+    expect(wrapper.text()).not.toContain('Sin lote')
+    expect(wrapper.find('[data-testid="stock-adjust"][aria-label="Ajustar stock de Existencias"]').exists()).toBe(true)
+  })
+
   it('lists the variants of a product with variants and no untracked row', async () => {
     vi.mocked(inventoryApi.getStock).mockResolvedValue(variantStock)
     const wrapper = setup({}, 'p2')

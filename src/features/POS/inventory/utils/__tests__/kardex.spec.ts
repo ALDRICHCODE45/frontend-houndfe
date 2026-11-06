@@ -29,6 +29,13 @@ describe('kardex labels', () => {
     expect(movementLocation(movement({ id: 'c', bucket: 'PRODUCT_UNTRACKED', lotId: null, labels: { product: 'Croquetas', variant: null, lot: null } }))).toBe('Sin lote')
   })
 
+  it('names the untracked bucket of a plain product «Existencias»', () => {
+    const untracked = movement({ id: 'c', bucket: 'PRODUCT_UNTRACKED', lotId: null, labels: { product: 'Croquetas', variant: null, lot: null } })
+    expect(movementLocation(untracked, 'Existencias')).toBe('Existencias')
+    expect(buildKardexRows([untracked], new Set(), 'Existencias')[0]!.location).toBe('Existencias')
+    expect(movementLocation(movement({ id: 'a' }), 'Existencias')).toBe('Lote L-A')
+  })
+
   it('details an adjustment with its reason label and note, a removal with its cause', () => {
     expect(movementDetail(movement({ id: 'a', type: 'ADJUSTMENT', reason: 'EXPIRED', note: 'Lote vencido retirado', group: { type: 'ADJUSTMENT', id: 'x' } })))
       .toBe('Caducado · Lote vencido retirado')

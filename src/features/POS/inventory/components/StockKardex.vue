@@ -15,14 +15,16 @@ const props = defineProps<{
   loadingMore?: boolean
   loadMoreError?: boolean
   filters?: readonly KardexFilterOption[]
-  /** What the buckets are, for the column and the filter: lots or presentations; a place by default. */
-  bucket?: 'lot' | 'variant'
+  /** What the buckets are, for the column and the filter: lots, presentations or the product; a place by default. */
+  bucket?: 'lot' | 'variant' | 'product'
+  /** The name of the product-level bucket (`Sin lote` next to lots, `Existencias` for a plain product). */
+  untracked?: string
 }>()
 const emit = defineEmits<{ 'load-more': []; refresh: [] }>()
 const filter = defineModel<{ kind: 'lot' | 'variant'; id: string } | null>('filter', { default: null })
 
 const expanded = ref<ReadonlySet<string>>(new Set())
-const rows = computed(() => buildKardexRows(props.items, expanded.value))
+const rows = computed(() => buildKardexRows(props.items, expanded.value, props.untracked))
 function toggle(row: KardexRow) {
   if (row.kind !== 'group') return
   const next = new Set(expanded.value)
@@ -34,6 +36,7 @@ const isOpen = (row: KardexRow) => expanded.value.has(row.key)
 const BUCKET_COPY = {
   lot: { heading: 'Lote', filter: 'Filtrar por lote', noMatch: 'Ningún movimiento en este lote' },
   variant: { heading: 'Presentación', filter: 'Filtrar por presentación', noMatch: 'Ningún movimiento en esta presentación' },
+  product: { heading: 'Producto', filter: 'Filtrar por lote', noMatch: 'Ningún movimiento en este lote' },
   place: { heading: 'Ubicación', filter: 'Filtrar por ubicación', noMatch: 'Ningún movimiento en esta ubicación' },
 } as const
 const copy = computed(() => BUCKET_COPY[props.bucket ?? 'place'])
