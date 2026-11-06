@@ -11,7 +11,7 @@ import '../styles/products-plain-table.css'
  *   saved variant's stock is read-only (O1 S1) and changes by adjustment
  *   commit-price(id, cents) — the public price was left with a new valid
  *                             amount (InlinePriceInput)
- *   action(key, id) — photos | details | edit | delete (delete is confirmed by the owner)
+ *   action(key, id) — photos | details | packaging | edit | delete (delete is confirmed by the owner)
  *   retry() — the error state's Reintentar
  */
 import { computed } from 'vue'
@@ -41,6 +41,8 @@ const props = defineProps<{
   error?: boolean
   canUpdate: boolean
   canDelete: boolean
+  /** The product ships (not a service): saved rows offer «Empaque», readable without update rights. */
+  packaging?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -74,6 +76,9 @@ function actionsFor(): RowAction[] {
       ? []
       : [{ key: 'photos', label: 'Elegir fotos', icon: 'i-lucide-image', disabled: !props.canUpdate }]),
     { key: 'details', label: 'Más datos', icon: 'i-lucide-list-plus' },
+    ...(props.packaging && !props.pending
+      ? [{ key: 'packaging', label: 'Empaque', icon: 'i-lucide-package' }]
+      : []),
     { key: 'edit', label: 'Editar', icon: 'i-lucide-pencil', disabled: locked.value },
     {
       key: 'delete',

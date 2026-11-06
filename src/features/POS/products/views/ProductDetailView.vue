@@ -13,6 +13,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { z } from 'zod'
 import { productApi } from '../api/product.api'
 import ProductCatalogSettingsSection from '../components/ProductCatalogSettingsSection.vue'
+import ProductPackagingSection from '../components/ProductPackagingSection.vue'
+import VariantPackagingModal from '../components/VariantPackagingModal.vue'
 import { useCatalogSettingsQuery } from '@/features/system/catalog-settings/composables/useCatalogSettingsQuery'
 import type { OnlineStockPresentationMode } from '@/features/system/catalog-settings/interfaces/catalog-settings.types'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
@@ -596,6 +598,17 @@ const showLotsSection = computed(
   () => formState.useStock && formState.useLotsAndExpirations && !formState.hasVariants,
 )
 const showVariantsSection = computed(() => !formState.useLotsAndExpirations)
+// Shipping S3: packaging is a sub-resource of the saved product, and services do not ship.
+const showPackaging = computed(
+  () => !isCreateMode.value && !!product.value && !isService(product.value.type),
+)
+const packagingVariant = shallowRef<{ id: string; label: string } | null>(null)
+const isVariantPackagingOpen = shallowRef(false)
+
+function openVariantPackaging(variant: ProductVariant) {
+  packagingVariant.value = { id: variant.id, label: getVariantLabel(variant) }
+  isVariantPackagingOpen.value = true
+}
 const previewEditPublicPriceList = computed(() =>
   productPriceListsList.value.find((priceList) => priceList.name.toUpperCase() === 'PUBLICO'),
 )
@@ -1999,6 +2012,7 @@ function handleVariantAction(key: string, id: string) {
   const variant = findSavedVariant(id)
   const pending = pendingVariants.value.find((pv) => pv._localId === id)
   if (key === 'photos' && variant) handleOpenVariantImageModal(variant)
+  else if (key === 'packaging' && variant) openVariantPackaging(variant)
   else if (key === 'details') {
     if (isCreateMode.value) openPendingVariantDetailModal(id)
     else if (variant) handleOpenVariantDetailModal(variant)
@@ -2601,12 +2615,19 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
               :error="!isCreateMode && isVariantsError"
               :can-update="canUpdateProduct"
               :can-delete="canDeleteProduct"
+              :packaging="showPackaging"
               @update-quantity="handleVariantQuantityUpdate"
               @commit-price="handleVariantPriceCommit"
               @action="handleVariantAction"
               @retry="refetchVariants()"
             />
           </UCard>
+
+          <ProductPackagingSection
+            v-if="showPackaging"
+            :product-id="productIdOrEmpty"
+            :can-update="canUpdateProduct"
+          />
 
           <UCard v-if="showLotsSection">
             <template #header>
@@ -3016,6 +3037,15 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
         </div>
       </template>
     </UModal>
+
+    <VariantPackagingModal
+      v-if="showPackaging && packagingVariant"
+      v-model:open="isVariantPackagingOpen"
+      :product-id="productIdOrEmpty"
+      :variant-id="packagingVariant.id"
+      :variant-label="packagingVariant.label"
+      :can-update="canUpdateProduct"
+    />
 
     <VariantDetailModal
       v-if="!isCreateMode"
