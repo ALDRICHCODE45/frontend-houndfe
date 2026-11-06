@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { defineComponent, h, reactive } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import UApp from '@nuxt/ui/runtime/components/App.vue'
@@ -146,6 +147,35 @@ describe('ZoneValidationsView resolve', () => {
       resolutionRequestId: expect.stringMatching(/^[0-9a-f-]{36}$/),
     }))
     expect(wrapper.get('[data-overlay]').text()).toContain('Decisión guardada.')
+  })
+
+  it('once resolved, tells the requesters in the past and keeps the last message it saw', async () => {
+    vi.mocked(zoneValidationsApi.resolve).mockResolvedValue({ validation: resolved, zone: {} } as never)
+    const { wrapper } = await setup({ validation: 'val-06600' })
+    expect(wrapper.get('[data-overlay]').text()).toContain('Último mensaje')
+    await decide(wrapper, 'No entregar')
+    await wrapper.get('form[data-testid="resolve-form"]').trigger('submit')
+    await flushPromises()
+    const drawer = wrapper.get('[data-overlay]').text()
+    expect(drawer).toContain('2 clientes preguntaron')
+    expect(drawer).not.toContain('esperan respuesta')
+    expect(drawer).toContain('Último mensaje')
+  })
+
+  it('a resolved validation opened by link says «1 cliente preguntó»', async () => {
+    vi.mocked(zoneValidationsApi.get).mockResolvedValue({ ...resolved, requesterCount: 1 } as never)
+    const { wrapper } = await setup({ validation: 'val-06600' })
+    const drawer = wrapper.get('[data-overlay]').text()
+    expect(drawer).toContain('1 cliente preguntó')
+    expect(drawer).not.toContain('espera respuesta')
+  })
+
+  it('paints «Decisión guardada.» with the success tone, not the info blue', () => {
+    const sfc = readFileSync('src/features/shipping/delivery-zones/components/ZoneValidationDrawer.vue', 'utf8')
+    const rule = sfc.match(/\.validation-banner\[data-tone='success'\] \{([^}]*)\}/)?.[1] ?? ''
+    expect(rule).toContain('color: var(--hf-success)')
+    expect(rule).toContain('color-mix(in srgb, var(--hf-success) 12%, var(--hf-surface))')
+    expect(rule).not.toContain('--hf-active-soft')
   })
 
   it('rejects with no zone fields (saved as «Sin entrega»)', async () => {

@@ -34,9 +34,12 @@ const resolvedNow = shallowRef<ZoneValidation | null>(null)
 const banner = shallowRef<{ tone: 'success' | 'warning'; text: string } | null>(null)
 const formMessage = shallowRef('')
 const formKey = shallowRef(0)
+// A resolved validation comes back with lastCustomerMessageAt null (handoff §3); keep the one seen while pending.
+const seenLastMessageAt = shallowRef<string | null>(null)
 
 watch(() => props.validationId, () => {
   resolvedNow.value = null
+  seenLastMessageAt.value = null
   banner.value = null
   formMessage.value = ''
   resolver.reset()
@@ -46,6 +49,8 @@ watch(() => props.validationId, () => {
 const validation = computed(() =>
   resolvedNow.value && resolvedNow.value.id === props.validationId ? resolvedNow.value : (detail.validation.value ?? null),
 )
+watch(() => validation.value?.lastCustomerMessageAt, (at) => { if (at) seenLastMessageAt.value = at }, { immediate: true })
+const lastMessageAt = computed(() => validation.value?.lastCustomerMessageAt ?? seenLastMessageAt.value)
 const loadStatus = computed(() => (detail.error.value ? readApiErrorEnvelope(detail.error.value).status : null))
 watch(loadStatus, (status) => {
   if (status === 404) emit('gone', 'Esta validación ya no existe en esta sucursal.')
@@ -63,6 +68,7 @@ const countdown = computed(() =>
 )
 const waiting = computed(() => {
   const count = validation.value?.requesterCount ?? 0
+  if (validation.value?.status === 'RESOLVED') return count === 1 ? '1 cliente preguntó' : `${count} clientes preguntaron`
   return count === 1 ? '1 cliente espera respuesta' : `${count} clientes esperan respuesta`
 })
 
@@ -168,9 +174,9 @@ function onDraftChange() {
             <dt>Clientes</dt>
             <dd>{{ waiting }}</dd>
           </div>
-          <div v-if="validation.lastCustomerMessageAt" class="validation-fact">
+          <div v-if="lastMessageAt" class="validation-fact">
             <dt>Último mensaje</dt>
-            <dd>{{ formatShortDateTime(validation.lastCustomerMessageAt) }}</dd>
+            <dd>{{ formatShortDateTime(lastMessageAt) }}</dd>
           </div>
           <template v-if="validation.resolution">
             <div class="validation-fact">
@@ -209,7 +215,7 @@ function onDraftChange() {
 .validation-skeleton { display: grid; gap: 12px; }
 .validation-body { display: grid; gap: 24px; color: var(--hf-ink); }
 .validation-banner { border-radius: 6px; padding: 12px; font-size: 14px; }
-.validation-banner[data-tone='success'] { background: var(--hf-active-soft); color: var(--hf-ink); }
+.validation-banner[data-tone='success'] { background: color-mix(in srgb, var(--hf-success) 12%, var(--hf-surface)); color: var(--hf-success); }
 .validation-banner[data-tone='warning'] { background: var(--hf-warning-soft); color: var(--hf-warning); }
 .validation-facts { display: grid; gap: 16px; }
 .validation-fact { display: grid; gap: 2px; }

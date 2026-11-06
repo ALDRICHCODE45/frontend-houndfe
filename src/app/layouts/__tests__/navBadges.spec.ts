@@ -21,6 +21,15 @@ describe('withNavBadges', () => {
   it('hides the badge at 0', () => {
     const [pos] = withNavBadges(items, { '/pos/reembolsos': 0 })
     expect(pos!.children![1]!.badge).toBeUndefined()
+    expect(pos!.badge).toBeUndefined()
+  })
+
+  it('puts the sum of its children counts on the group, so a closed group still shows it', () => {
+    const group = [{ label: 'Sistema', children: [{ label: 'Envíos', to: '/a' }, { label: 'Validaciones', to: '/b' }, { label: 'Otra', to: '/c' }] }]
+    const [sistema] = withNavBadges(group, { '/a': 2, '/b': 1 })
+    expect(sistema!.badge).toEqual(navCountBadge(3))
+    expect(sistema!.children![0]!.badge).toEqual(navCountBadge(2))
+    expect(sistema!.children![1]!.badge).toEqual(navCountBadge(1))
   })
 
   it('caps a long count at 99+', () => {
