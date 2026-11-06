@@ -1,24 +1,39 @@
 <script setup lang="ts">
 /**
- * ShippingSettingsView — «Envíos» (ODD shipping-settings T1, S2): tabs Zonas /
- * Cajas / Origen / Horario, the active one in `?tab=`. Placeholder panels until
- * T2 (Zonas, guarded by read:DeliveryZone) and T3 (Cajas, Origen, Horario).
+ * ShippingSettingsView — «Envíos» (ODD shipping-settings S2): tabs Zonas /
+ * Cajas / Origen / Horario, the active one in `?tab=`. Zonas needs
+ * read:DeliveryZone; edits in Cajas, Origen and Horario need
+ * update:ShippingSettings. Leaving a tab with unsaved changes asks first.
  */
-import { computed } from 'vue'
+import { computed, shallowRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import EmptyState from '@/core/shared/components/EmptyState.vue'
-import { SHIPPING_TABS, resolveShippingTab, type ShippingTabKey } from '../utils/shippingTabs'
+import { confirmLeave, useLeaveGuard } from '@/core/shared/composables/useLeaveGuard'
+import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
+import DeliveryZonesPanel from '@/features/shipping/delivery-zones/components/DeliveryZonesPanel.vue'
+import OpeningHoursPanel from '../components/OpeningHoursPanel.vue'
+import ShippingBoxesPanel from '../components/ShippingBoxesPanel.vue'
+import ShippingOriginPanel from '../components/ShippingOriginPanel.vue'
+import { resolveShippingTab, visibleShippingTabs, type ShippingTabKey } from '../utils/shippingTabs'
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
+const tenantId = useSafeTenantId()
 
-const activeTab = computed(() => resolveShippingTab(route.query.tab))
-const activeTabLabel = computed(
-  () => SHIPPING_TABS.find((tab) => tab.key === activeTab.value)!.label,
-)
+const canUpdate = computed(() => auth.userCan('update', 'ShippingSettings'))
+const tabs = computed(() => visibleShippingTabs({ canReadZones: auth.userCan('read', 'DeliveryZone') }))
+const activeTab = computed(() => resolveShippingTab(route.query.tab, tabs.value))
+const activeTabLabel = computed(() => tabs.value.find((tab) => tab.key === activeTab.value)?.label ?? '')
 
-function setTab(key: ShippingTabKey) {
+// The active panel reports unsaved edits; a tab switch is not a route leave.
+const dirty = shallowRef(false)
+useLeaveGuard(dirty)
+
+async function setTab(key: ShippingTabKey) {
   if (key === activeTab.value) return
+  if (dirty.value && !(await confirmLeave())) return
+  dirty.value = false
   void router.replace({ query: { ...route.query, tab: key } })
 }
 </script>
@@ -32,7 +47,7 @@ function setTab(key: ShippingTabKey) {
 
     <div class="shipping-tabs" role="tablist" aria-label="Secciones de envíos">
       <button
-        v-for="tab in SHIPPING_TABS"
+        v-for="tab in tabs"
         :key="tab.key"
         type="button"
         role="tab"
@@ -46,7 +61,10 @@ function setTab(key: ShippingTabKey) {
     </div>
 
     <div class="min-w-0" role="tabpanel" :aria-label="activeTabLabel">
-      <EmptyState :title="`${activeTabLabel}: todavía no disponible`" />
+      <DeliveryZonesPanel v-if="activeTab === 'zonas'" />
+      <ShippingBoxesPanel v-else-if="activeTab === 'cajas'" :tenant-id="tenantId" :can-update="canUpdate" @dirty="dirty = $event" />
+      <ShippingOriginPanel v-else-if="activeTab === 'origen'" :tenant-id="tenantId" :can-update="canUpdate" @dirty="dirty = $event" />
+      <OpeningHoursPanel v-else :tenant-id="tenantId" :can-update="canUpdate" @dirty="dirty = $event" />
     </div>
   </div>
 </template>

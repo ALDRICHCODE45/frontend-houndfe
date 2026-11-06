@@ -1,0 +1,7 @@
+[31m     [31m×[31m Zonas renders the delivery zones panel with read:DeliveryZone[39m[32m 60[2mms[22m[39m
+[31m     [31m×[31m without read:DeliveryZone there is no Zonas tab and ?tab=zonas opens Cajas[39m[32m 15[2mms[22m[39m
+[31m     [31m×[31m each tab renders its panel for the tenant; edits need update:ShippingSettings[39m[32m 39[2mms[22m[39m
+[31m     [31m×[31m switching tabs with unsaved changes asks first and stays when the user keeps editing[39m[32m 11[2mms[22m[39m
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 4 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m4 failed[39m[22m[90m (4)[39m

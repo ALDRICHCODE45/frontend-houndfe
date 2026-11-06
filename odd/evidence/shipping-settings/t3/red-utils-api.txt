@@ -1,0 +1,40 @@
+  Plugin: [35mvite:import-analysis[39m
+  File: [36m/home/aldrich_coder45/Desktop/workspace/houndfe/frontend-houndfe/src/features/shipping/shipping-settings/utils/__tests__/shippingUnits.spec.ts[39m:2:64
+[33m  1  |  import { describe, expect, it } from "vitest";
+  2  |  import { cmFromText, formatCm, formatKg, gramsFromKgText } from "../shippingUnits";
+     |                                                                   ^
+  3  |  describe("shippingUnits — sizes in cm with one decimal (S4)", () => {
+  4  |    it("reads 0.1..300 with at most one decimal, accepting a decimal comma", () => {[39m
+[90m [2m❯[22m TransformPluginContext._formatLog node_modules/.pnpm/vite@7.3.1_@types+node@24.12.0_jiti@2.6.1_lightningcss@1.32.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:[2m28999:43[22m[39m
+[90m [2m❯[22m TransformPluginContext.error node_modules/.pnpm/vite@7.3.1_@types+node@24.12.0_jiti@2.6.1_lightningcss@1.32.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:[2m28996:14[22m[39m
+[90m [2m❯[22m normalizeUrl node_modules/.pnpm/vite@7.3.1_@types+node@24.12.0_jiti@2.6.1_lightningcss@1.32.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:[2m27119:18[22m[39m
+[90m [2m❯[22m node_modules/.pnpm/vite@7.3.1_@types+node@24.12.0_jiti@2.6.1_lightningcss@1.32.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:[2m27177:32[22m[39m
+[90m [2m❯[22m TransformPluginContext.transform node_modules/.pnpm/vite@7.3.1_@types+node@24.12.0_jiti@2.6.1_lightningcss@1.32.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:[2m27145:4[22m[39m
+[90m [2m❯[22m node_modules/.pnpm/vite-plugin-inspect@11.3.3_@nuxt+kit@4.4.2_vite@7.3.1_@types+node@24.12.0_jiti@2.6.1_lightningcss@1.32.0_yaml@2.8.2_/node_modules/vite-plugin-inspect/dist/shared/vite-plugin-inspect.BzUKaD4x.mjs:[2m403:17[22m[39m
+[90m [2m❯[22m EnvironmentPluginContainer.transform node_modules/.pnpm/vite@7.3.1_@types+node@24.12.0_jiti@2.6.1_lightningcss@1.32.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:[2m28797:14[22m[39m
+[90m [2m❯[22m loadAndTransform node_modules/.pnpm/vite@7.3.1_@types+node@24.12.0_jiti@2.6.1_lightningcss@1.32.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:[2m22670:26[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯[22m[39m
+
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/features/shipping/shipping-settings/utils/__tests__/shippingTabs.spec.ts[2m > [22mshippingTabs[2m > [22mwithout read:DeliveryZone, Zonas is not offered and the first visible tab opens
+[31m[1mTypeError[22m: visibleShippingTabs is not a function[39m
+[36m [2m❯[22m src/features/shipping/shipping-settings/utils/__tests__/shippingTabs.spec.ts:[2m23:12[22m[39m
+    [90m 21|[39m
+    [90m 22|[39m   it('without read:DeliveryZone, Zonas is not offered and the first vi…
+    [90m 23|[39m     expect(visibleShippingTabs({ canReadZones: false }).map((tab) => t…
+    [90m   |[39m            [31m^[39m
+    [90m 24|[39m     [34mexpect[39m([34mvisibleShippingTabs[39m({ canReadZones[33m:[39m [35mtrue[39m }))[33m.[39m[34mtoHaveLength[39m([34m4[39m)
+    [90m 25|[39m     [35mconst[39m visible [33m=[39m [34mvisibleShippingTabs[39m({ canReadZones[33m:[39m [35mfalse[39m })
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m6 failed[39m[22m[90m (6)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m2 passed[39m[22m[90m (3)[39m
+[2m   Start at [22m 23:06:45
+[2m   Duration [22m 1.34s[2m (transform 57ms, setup 94ms, import 16ms, tests 6ms, environment 2.83s)[22m
+
+[ELIFECYCLE] Test failed. See above for more details.

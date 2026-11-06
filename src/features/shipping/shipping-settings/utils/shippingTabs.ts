@@ -1,17 +1,28 @@
 /** Envíos tabs (S2). The active tab lives in the `?tab=` query of /sistema/envios. */
 export type ShippingTabKey = 'zonas' | 'cajas' | 'origen' | 'horario'
 
-export const SHIPPING_TABS: ReadonlyArray<{ key: ShippingTabKey; label: string }> = [
+export interface ShippingTab {
+  key: ShippingTabKey
+  label: string
+}
+
+export const SHIPPING_TABS: ReadonlyArray<ShippingTab> = [
   { key: 'zonas', label: 'Zonas' },
   { key: 'cajas', label: 'Cajas' },
   { key: 'origen', label: 'Origen' },
   { key: 'horario', label: 'Horario' },
 ]
 
-const DEFAULT_TAB: ShippingTabKey = 'zonas'
+/** Zonas needs read:DeliveryZone; the other tabs come with the route's read:ShippingSettings. */
+export function visibleShippingTabs(access: { canReadZones: boolean }): ReadonlyArray<ShippingTab> {
+  return access.canReadZones ? SHIPPING_TABS : SHIPPING_TABS.filter((tab) => tab.key !== 'zonas')
+}
 
-/** Reads a route query value (string, repeated or absent); unknown values open Zonas. */
-export function resolveShippingTab(value: unknown): ShippingTabKey {
+/** Reads a route query value (string, repeated or absent); unknown or hidden values open the first visible tab. */
+export function resolveShippingTab(
+  value: unknown,
+  visible: ReadonlyArray<ShippingTab> = SHIPPING_TABS,
+): ShippingTabKey {
   const raw = Array.isArray(value) ? value[0] : value
-  return SHIPPING_TABS.find((tab) => tab.key === raw)?.key ?? DEFAULT_TAB
+  return visible.find((tab) => tab.key === raw)?.key ?? visible[0]?.key ?? 'cajas'
 }

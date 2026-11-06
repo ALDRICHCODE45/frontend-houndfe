@@ -1,0 +1,6 @@
+created row visible: true
+duplicate message: Ya existe una caja con ese nombre.
+retired badge: true
+deleted: true
+requests: POST {"name":"Caja prueba T3","innerLengthCm":25.5,"innerWidthCm":20,"innerHeightCm":10,"weightG":150,"maxContentWeightG":3500} | POST {"name":"Caja chica","innerLengthCm":25.5,"innerWidthCm":20,"innerHeightCm":10,"weightG":150,"maxContentWeightG":3500} | PATCH {"isActive":false} | PATCH {"isActive":true} | DELETE 
+statuses: 201,409,200,200,204

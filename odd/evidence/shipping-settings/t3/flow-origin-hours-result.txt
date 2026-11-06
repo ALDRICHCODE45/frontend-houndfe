@@ -1,0 +1,5 @@
+origin saved: Local 3, planta baja (prueba T3)
+origin restored: Local 3, planta baja
+summary after: Lun–Vie 09:00–14:00 y 16:00–19:30 · Sáb 09:00–14:30 · Dom cerrado
+summary restored: Lun–Vie 09:00–14:00 y 16:00–19:30 · Sáb 09:00–14:00 · Dom cerrado
+PUT shipping-origin 200 | PUT shipping-origin 200 | PUT opening-hours 200 | PUT opening-hours 200
