@@ -346,23 +346,15 @@ describe('QuotationTotalsFooter — RESUMEN sidebar (T-UI-22/23 / REQ-UI-009)', 
     expect(wrapper.find('[data-testid="summary-save-draft-btn"]').exists()).toBe(false)
   })
 
-  it('renders the validity notice when expiresAt is set', () => {
+  it('says nothing about the expiry: the date lives in the expiry field or the header', () => {
     const wrapper = mount(QuotationTotalsFooter, {
       props: {
         quotation: makeQuotation({ expiresAt: '2026-09-15T00:00:00.000Z' }),
         editable: true,
       },
     })
-    const validity = wrapper.find('[data-testid="summary-validity-notice"]')
-    expect(validity.exists()).toBe(true)
-    expect(validity.text()).toContain('Válida hasta')
-  })
-
-  it('omits the validity notice when expiresAt is null', () => {
-    const wrapper = mount(QuotationTotalsFooter, {
-      props: { quotation: makeQuotation({ expiresAt: null }), editable: true },
-    })
     expect(wrapper.find('[data-testid="summary-validity-notice"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Válida hasta')
   })
 
   it('renders the discount row in the heading ink with a minus (no accent color)', () => {

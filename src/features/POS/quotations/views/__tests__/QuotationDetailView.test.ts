@@ -530,8 +530,23 @@ describe('QuotationDetailView header', () => {
     expect(wrapper.text()).not.toContain('quotatio')
     expect(wrapper.get('[data-testid="status-badge"]').text()).toBe('Borrador')
     expect(wrapper.get('[data-testid="status-badge"]').attributes('data-tone')).toBe('neutral')
-    expect(wrapper.text()).toContain('Expira')
     expect(wrapper.text()).toContain('Creada')
+  })
+
+  it('says the expiry once: the field in a draft, the header line once it is sent', () => {
+    const draft = mountView()
+    const draftMeta = draft.get('[data-testid="quotation-header-meta"]').text()
+    expect(draftMeta).not.toContain('Expira')
+    expect(draftMeta).not.toMatch(/expiraci[oó]n/i)
+    expect(draft.find('[data-testid="expiry-section"]').exists()).toBe(true)
+
+    state.quotation.value = makeQuotation({ status: 'SENT' })
+    const sent = mountView()
+    expect(sent.get('[data-testid="quotation-header-meta"]').text()).toContain('Expira')
+    expect(sent.find('[data-testid="expiry-section"]').exists()).toBe(false)
+
+    state.quotation.value = makeQuotation({ status: 'SENT', expiresAt: null })
+    expect(mountView().get('[data-testid="quotation-header-meta"]').text()).toContain('Sin fecha de expiración')
   })
 
   it('navigates back to the quotation list', async () => {
@@ -1029,12 +1044,10 @@ describe('QuotationDetailView expiry picker (S6)', () => {
     expect(picker.attributes('data-readonly')).toBe('false')
   })
 
-  it('renders the expiry picker in readonly mode for non-DRAFT statuses', () => {
+  it('renders no expiry card for non-DRAFT statuses: the header line already says it', () => {
     state.quotation.value = makeQuotation({ status: 'SENT' })
     const wrapper = mountView()
-    const picker = wrapper.find('[data-testid="quotation-expiry-picker"]')
-    expect(picker.exists()).toBe(true)
-    expect(picker.attributes('data-readonly')).toBe('true')
+    expect(wrapper.find('[data-testid="quotation-expiry-picker"]').exists()).toBe(false)
   })
 
   it('forwards the picker emit through setExpiry on the draft composable', async () => {

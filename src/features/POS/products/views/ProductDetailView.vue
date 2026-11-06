@@ -723,6 +723,11 @@ const dirtyCount = computed(() => {
   return changed
 })
 const isSaving = computed(() => updateMutation.isPending.value || createMutation.isPending.value)
+/** A saved product with no edits has nothing to save, so the header and mobile save wait for a change
+ * (as Identidad's save bar does). Creating keeps it enabled: the form validates on submit. */
+const headerSaveDisabled = computed(
+  () => !canSubmitMainForm.value || (!isCreateMode.value && dirtyCount.value === 0),
+)
 
 useLeaveGuard(() => dirtyCount.value > 0 && !leaveAllowed.value, {
   description: 'Tienes cambios sin guardar en el producto.',
@@ -2092,7 +2097,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
             type="submit"
             form="product-detail-form"
             :loading="updateMutation.isPending.value || createMutation.isPending.value"
-            :disabled="!canSubmitMainForm"
+            :disabled="headerSaveDisabled"
             color="primary"
             class="hf-primary-control"
           />
@@ -2751,7 +2756,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
         type="submit"
         form="product-detail-form"
         class="product-bar-primary"
-        :disabled="!canSubmitMainForm || updateMutation.isPending.value || createMutation.isPending.value"
+        :disabled="headerSaveDisabled || isSaving"
       >
         {{ isCreateMode ? createModeSubmitLabel : 'Guardar cambios' }}
       </button>

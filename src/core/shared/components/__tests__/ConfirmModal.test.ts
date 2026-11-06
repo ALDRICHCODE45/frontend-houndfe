@@ -162,4 +162,13 @@ describe('ConfirmModal footer on mobile', () => {
       expect(button.classes()).toEqual(expect.arrayContaining(['w-full', 'justify-center']))
     }
   })
+
+  it('gives each stacked button a 44px touch target on phones and the default height from sm up', async () => {
+    const wrapper = mountModal({ confirmLabel: 'Eliminar', cancelLabel: 'Cancelar' })
+    await flushPromises()
+
+    for (const button of wrapper.findAll('button')) {
+      expect(button.classes()).toEqual(expect.arrayContaining(['min-h-11', 'sm:min-h-0']))
+    }
+  })
 })

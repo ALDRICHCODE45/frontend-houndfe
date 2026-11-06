@@ -65,6 +65,26 @@ describe('ProductVariantsTable', () => {
     wrapper.unmount()
   })
 
+  it('repeats the stock hint once above the cards on phones, where the heading is hidden', () => {
+    const wrapper = mountTable({ rows: [row, { ...row, id: 'variant-2', label: 'Tamaño: Chico' }] })
+    const phoneHint = wrapper.get('[data-testid="variants-stock-hint-phone"]')
+    expect(phoneHint.text()).toBe('Existencias · Se ajusta desde Inventario')
+    // Phones only: the stacked layout (below 640px) hides the heading that says it on wider screens.
+    expect(phoneHint.classes()).toContain('sm:hidden')
+    // Screen readers still read the visually hidden heading, so they do not hear it twice.
+    expect(phoneHint.attributes('aria-hidden')).toBe('true')
+    expect(phoneHint.element.closest('table')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('has no phone stock hint for pending rows, untracked stock or an empty list', () => {
+    for (const props of [{ pending: true }, { showStock: false }, { rows: [] }]) {
+      const wrapper = mountTable(props)
+      expect(wrapper.find('[data-testid="variants-stock-hint-phone"]').exists()).toBe(false)
+      wrapper.unmount()
+    }
+  })
+
   it('says the variants did not load, with a retry, instead of an empty list', async () => {
     const wrapper = mountTable({ rows: [], error: true })
     const state = wrapper.get('.hf-empty-state[data-kind="error"]')

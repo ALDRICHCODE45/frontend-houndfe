@@ -9,7 +9,7 @@
  *     separator, TOTAL (large, bold, black).
  *   - Full-width primary CTA "Enviar cotización" in --hf-action.
  *   - Secondary "Guardar borrador" outlined.
- *   - Validity notice "Válida hasta …".
+ *   - No expiry line: the date is said once, in the Expira field (draft) or the header.
  *
  * The component is purely presentational — it never calls the API. The
  * parent (`QuotationDetailView`) wires the CTA buttons to
@@ -19,8 +19,6 @@
  *   Props ↓
  *     quotation:     QuotationResponseDto
  *     priceListName?: string            — render "lista X" in the context
- *     expiresAt?:    string | null      — explicit override for the validity
- *                                          notice (defaults to quotation.expiresAt)
  *     editable?:     boolean            — show CTA + draft button (DRAFT only)
  *
  *   Events ↑
@@ -39,7 +37,6 @@
  *   total:            total-amount
  *   send button:      summary-send-btn
  *   draft button:     summary-save-draft-btn
- *   validity notice:  summary-validity-notice
  */
 import { computed, ref, watch } from 'vue'
 import type { QuotationResponseDto } from '../interfaces/quotation.types'
@@ -49,12 +46,10 @@ const props = withDefaults(
   defineProps<{
     quotation: QuotationResponseDto
     priceListName?: string | null
-    expiresAt?: string | null
     editable?: boolean
   }>(),
   {
     priceListName: null,
-    expiresAt: undefined,
     editable: false,
   },
 )
@@ -98,27 +93,6 @@ const hasIva = computed<boolean>(
   () => props.quotation.taxCents !== null && props.quotation.taxRate !== null,
 )
 
-/** Effective expiresAt — explicit prop takes precedence over the
- *  embedded quotation value so the parent can decouple the validity
- *  notice from the data the totals card needs. */
-const effectiveExpiresAt = computed<string | null>(() => {
-  if (props.expiresAt !== undefined) return props.expiresAt
-  return props.quotation.expiresAt
-})
-
-const validityLabel = computed<string | null>(() => {
-  const value = effectiveExpiresAt.value
-  if (!value) return null
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return null
-  return new Intl.DateTimeFormat('es-MX', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(parsed)
-})
-
-const hasValidityNotice = computed<boolean>(() => validityLabel.value !== null)
 
 /** Counts agree in number: "1 producto · 1 unidad", "2 productos · 3 unidades". */
 const legacyItemsCount = computed<string>(() => {
@@ -284,14 +258,5 @@ function handleTaxRateChange(value: number | null | undefined): void {
       </button>
     </div>
 
-    <!-- Validity notice: only when the quotation has a real expiry. -->
-    <p
-      v-if="hasValidityNotice"
-      class="flex items-center gap-2 text-xs text-muted"
-      data-testid="summary-validity-notice"
-    >
-      <UIcon name="i-lucide-shield-check" class="h-4 w-4 text-[var(--hf-success)]" />
-      Válida hasta el {{ validityLabel }}.
-    </p>
   </div>
 </template>

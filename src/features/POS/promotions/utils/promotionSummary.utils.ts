@@ -108,7 +108,7 @@ export function resolvePromotionCapacityState(input: {
     if (consumed != null && consumed > 0) {
       return {
         state: 'unlimited_consumed',
-        label: `${LABEL_UNLIMITED} · ${consumed} unidades consumidas`,
+        label: `${LABEL_UNLIMITED} · ${consumed} ${consumed === 1 ? 'unidad consumida' : 'unidades consumidas'}`,
         tone: 'info',
         icon: 'i-lucide-history',
         max,
@@ -155,7 +155,7 @@ export function resolvePromotionCapacityState(input: {
 
   return {
     state: nearLimit ? 'near_limit' : 'available',
-    label: `Quedan ${remaining} unidades`,
+    label: remaining === 1 ? 'Queda 1 unidad' : `Quedan ${remaining} unidades`,
     tone: nearLimit ? 'warning' : 'success',
     icon: nearLimit ? 'i-lucide-triangle-alert' : 'i-lucide-gauge',
     max,

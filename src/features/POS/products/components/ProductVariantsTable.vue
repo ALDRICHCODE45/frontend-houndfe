@@ -52,6 +52,9 @@ const emit = defineEmits<{
 }>()
 
 const columnCount = computed(() => (props.showStock ? 4 : 3))
+/** Below 640px the rows stack as cards and the heading (with the stock hint) is visually hidden: say it once
+ * above them (aria-hidden, since screen readers still read the heading). */
+const showPhoneStockHint = computed(() => props.showStock && !props.pending && props.rows.length > 0)
 const emptyText = computed(() =>
   props.pending
     ? 'Sin variantes agregadas. Usa «Agregar variante».'
@@ -85,6 +88,14 @@ function actionsFor(): RowAction[] {
 
 <template>
   <div class="overflow-x-auto rounded-md border border-default" data-testid="product-variants-table">
+    <p
+      v-if="showPhoneStockHint"
+      class="px-4 pt-3 text-xs text-muted sm:hidden"
+      aria-hidden="true"
+      data-testid="variants-stock-hint-phone"
+    >
+      <span class="font-medium text-toned">Existencias</span> · {{ STOCK_ADJUST_HINT }}
+    </p>
     <table class="products-plain-table products-variants-table min-w-full divide-y divide-default text-sm" data-stack>
       <thead>
         <tr>

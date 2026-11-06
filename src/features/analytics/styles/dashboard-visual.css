@@ -111,6 +111,8 @@
 .dashboard-visual .dashboard-presets {
   display: grid;
   grid-template-columns: repeat(4, 104px);
+  /* The pill is a quarter of this box: the box must match its tracks (the scroller scrolls it). */
+  width: max-content;
   position: relative;
   isolation: isolate;
   padding: 4px;

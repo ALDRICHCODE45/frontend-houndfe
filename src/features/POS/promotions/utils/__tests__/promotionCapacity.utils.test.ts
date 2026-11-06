@@ -242,3 +242,32 @@ describe('buildPromotionSummaryBullets — capacity copy', () => {
     expect(bullets.some((b) => b.toLowerCase().includes('conserva'))).toBe(false)
   })
 })
+
+describe('resolvePromotionCapacityState — unit wording agrees with the count', () => {
+  it('says «Queda 1 unidad» for one unit left and «Quedan 2 unidades» for two', () => {
+    expect(
+      resolvePromotionCapacityState({
+        maxProductUnits: 10,
+        consumedProductUnits: 9,
+        remainingProductUnits: 1,
+      }).label,
+    ).toBe('Queda 1 unidad')
+    expect(
+      resolvePromotionCapacityState({
+        maxProductUnits: 10,
+        consumedProductUnits: 8,
+        remainingProductUnits: 2,
+      }).label,
+    ).toBe('Quedan 2 unidades')
+  })
+
+  it('says «1 unidad consumida» under an unlimited cap', () => {
+    expect(
+      resolvePromotionCapacityState({
+        maxProductUnits: null,
+        consumedProductUnits: 1,
+        remainingProductUnits: null,
+      }).label,
+    ).toMatch(/· 1 unidad consumida$/)
+  })
+})

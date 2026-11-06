@@ -94,20 +94,21 @@ function handleCancel() {
     </template>
 
     <template #footer>
+      <!-- Stacked full-width on phones with 44px targets; side by side at the default height from sm up. -->
       <div class="flex w-full flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
         <UButton
           :label="props.cancelLabel"
           color="neutral"
           variant="outline"
           :disabled="props.loading"
-          class="w-full justify-center sm:w-auto"
+          class="min-h-11 w-full justify-center sm:min-h-0 sm:w-auto"
           @click="handleCancel"
         />
         <UButton
           :label="props.confirmLabel"
           :color="props.confirmColor"
           :loading="props.loading"
-          class="w-full justify-center sm:w-auto"
+          class="min-h-11 w-full justify-center sm:min-h-0 sm:w-auto"
           @click="handleConfirm"
         />
       </div>

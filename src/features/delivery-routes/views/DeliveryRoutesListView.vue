@@ -329,7 +329,14 @@ const columns: TableColumn<DeliveryRouteResponseDto>[] = [
   { id: 'customers', header: 'Clientes', enableSorting: false, enableHiding: true },
   { id: 'createdAt', header: 'Creada', enableSorting: true, enableHiding: true },
   { id: 'startedAt', header: 'Inicio', enableSorting: true, enableHiding: true },
-  { id: 'actions', header: 'Acciones', enableSorting: false, enableHiding: false },
+  // A 4rem menu column, as in the other lists, so the dates keep their width at 1440.
+  {
+    id: 'actions',
+    header: 'Acciones',
+    enableSorting: false,
+    enableHiding: false,
+    meta: { class: { th: 'w-16', td: 'w-16 text-right' } },
+  },
 ]
 
 // Typed status accessors keep the template free of `any`-indexed Record
@@ -663,7 +670,8 @@ function stopsSummary(route: DeliveryRouteResponseDto): string {
 .route-text { font-size: 14px; }
 .route-customers { display: block; max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .route-when { color: var(--hf-muted); font-size: 13px; white-space: nowrap; }
-.route-progress-cell { display: grid; min-width: 7rem; gap: 4px; }
+/* The cell keeps the table's 7rem floor; a floor here too would overflow it by the padding. */
+.route-progress-cell { display: grid; min-width: 0; gap: 4px; }
 .route-progress-count { text-align: left; font-size: 14px; }
 .route-progress { height: 6px; overflow: hidden; border-radius: 999px; background: var(--hf-surface-muted); }
 .route-progress > span { display: block; height: 100%; border-radius: inherit; background: var(--hf-success); }

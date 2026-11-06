@@ -56,6 +56,13 @@ describe('Dashboard shell presentation boundary', () => {
     expect(css).toContain('overflow-x: auto')
   })
 
+  it('sizes the preset strip to its four tracks so the pill stays under the active preset at 390', () => {
+    // The pill is a quarter of the strip; a strip squeezed narrower than its 4×104px tracks put it
+    // under «Últimos 7 días» while «Este mes» was active. The scroller around it scrolls instead.
+    const presets = css.match(/\.dashboard-visual \.dashboard-presets \{[^}]*\}/)?.[0] ?? ''
+    expect(presets).toContain('width: max-content')
+  })
+
   it('removes header entry and indicator motion for reduced motion', () => {
     expect(css).toContain('@keyframes dashboard-header-enter')
     expect(css).toContain('translateY(8px)')

@@ -72,7 +72,7 @@ vi.mock('../../api/promotion.api', () => ({
 
 vi.mock('../../composables/usePromotionColumns', () => ({
   usePromotionColumns: () => ({
-    columns: [],
+    columns: [{ id: 'select' }, { accessorKey: 'title' }],
     formatDate: (value: string | null) => value ?? '—',
     getStatusConfig: (status: string) => {
       const map: Record<string, { label: string; tone: string; icon: string }> = {
@@ -178,6 +178,7 @@ const STUBS = {
         data-testid="app-data-table"
         :data-bulk-count="String((bulkActions?.length) ?? 0)"
         :data-enable-row-selection="String(enableRowSelection)"
+        :data-columns="(columns ?? []).map((c) => c.id ?? c.accessorKey).join(',')"
         :data-display-mode="displayMode"
         :data-mobile-render="mobileRender"
         :data-filtered="String(!!filtered)"
@@ -746,6 +747,27 @@ describe('PromotionsView — batch delete (sdd-10)', () => {
     expect(vm.canBatchDelete).toBe(true)
     expect(vm.bulkActions.length).toBeGreaterThan(0)
     expect(vm.bulkActions[0]?.id).toBe('batch-delete')
+  })
+
+  // ── L42: the selection column only shows when a bulk action exists ────────
+  const tableColumnKeys = (wrapper: ReturnType<typeof mountView>) =>
+    wrapper.get('[data-testid="app-data-table"]').attributes('data-columns')?.split(',')
+
+  it('L42: hides the selection column when the user has no bulk action', () => {
+    userCanMock.mockImplementation(
+      (action: string, subject: string) =>
+        !(subject === 'Promotion' && (action === 'batch_delete' || action === 'update')),
+    )
+
+    expect(tableColumnKeys(mountView())).toEqual(['title'])
+  })
+
+  it('L42: keeps the selection column when a bulk action is allowed', () => {
+    userCanMock.mockImplementation(
+      (action: string, subject: string) => action === 'batch_delete' && subject === 'Promotion',
+    )
+
+    expect(tableColumnKeys(mountView())).toEqual(['select', 'title'])
   })
 
   // ── BD-REQ-003: bulk action states ────────────────────────────────────────
