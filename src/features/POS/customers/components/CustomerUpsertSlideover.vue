@@ -2,6 +2,7 @@
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { computed, ref, watch } from 'vue'
 import {
+  customerFormSnapshot,
   customerToFormInput,
   toCreatePayload,
   toUpdatePayload,
@@ -124,6 +125,17 @@ const description = computed(() =>
   props.mode === 'create' ? 'Completa los datos del cliente.' : 'Actualiza los datos del cliente.',
 )
 
+// Edit saves only enable once the form differs from the loaded customer. The
+// baseline follows the latest customer prop, so a same-customer refresh keeps
+// the draft dirty against the refreshed values.
+const isDirty = computed(
+  () =>
+    !!props.customer &&
+    customerFormSnapshot(state) !== customerFormSnapshot(customerToFormInput(props.customer)),
+)
+
+const submitDisabled = computed(() => props.mode === 'edit' && !isDirty.value)
+
 const priceListItems = computed(() =>
   props.globalPriceLists.map((pl) => ({ label: pl.name, value: pl.id })),
 )
@@ -233,6 +245,7 @@ function onSubmit(event: FormSubmitEvent<CustomerFormValues>) {
     return
   }
 
+  if (submitDisabled.value) return
   emit('edit', toUpdatePayload(event.data))
 }
 
@@ -610,6 +623,7 @@ function handleCancel() {
         <UButton
           :label="mode === 'create' ? 'Crear cliente' : 'Guardar cambios'"
           :loading="loading"
+          :disabled="submitDisabled"
           type="submit"
           :form="formId"
           color="primary"

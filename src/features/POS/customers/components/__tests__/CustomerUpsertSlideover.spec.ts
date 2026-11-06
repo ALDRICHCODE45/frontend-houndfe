@@ -49,7 +49,7 @@ const editorStubs = {
   UButton: {
     props: ['label', 'type', 'form', 'loading', 'disabled'],
     template:
-      '<button :type="type || \'button\'" :form="form" :disabled="loading || disabled" v-bind="$attrs" @click="$emit(\'click\')">{{ label }}<slot /></button>',
+      '<button :type="type || \'button\'" :form="form" :disabled="loading || disabled" :data-loading="loading ? \'true\' : undefined" v-bind="$attrs" @click="$emit(\'click\')">{{ label }}<slot /></button>',
   },
   UIcon: { template: '<span />' },
 }
@@ -345,6 +345,193 @@ describe('CustomerUpsertSlideover', () => {
       create.unmount()
       resetMapProvider()
     }
+  })
+
+  describe('«Guardar cambios» only enables for a changed edit form', () => {
+    function submitButton(wrapper: ReturnType<typeof mount>) {
+      return wrapper.get('button.sales-pos-customer-form-submit')
+    }
+
+    function mountEdit(props: Record<string, unknown> = {}) {
+      return mount(CustomerUpsertSlideover, {
+        props: { mode: 'edit', customer: mockCustomer, open: true, ...props },
+        global: { stubs: editorStubs },
+      })
+    }
+
+    it('opens disabled for the loaded customer', async () => {
+      const wrapper = mountEdit()
+      try {
+        await nextTick()
+        expect(submitButton(wrapper).text()).toBe('Guardar cambios')
+        expect(submitButton(wrapper).attributes('disabled')).toBeDefined()
+      } finally {
+        wrapper.unmount()
+      }
+    })
+
+    it('enables after editing a field and disables again once the edit is undone', async () => {
+      const wrapper = mountEdit()
+      try {
+        const lastName = wrapper.get('input[placeholder="Ej: Pérez"]')
+        await lastName.setValue('Pérez López')
+        expect(submitButton(wrapper).attributes('disabled')).toBeUndefined()
+        await lastName.setValue('Pérez')
+        expect(submitButton(wrapper).attributes('disabled')).toBeDefined()
+        // Surrounding whitespace is trimmed on save, so it is not a change.
+        await lastName.setValue('  Pérez ')
+        expect(submitButton(wrapper).attributes('disabled')).toBeDefined()
+      } finally {
+        wrapper.unmount()
+      }
+    })
+
+    it('compares normalized phone code, price list and billing data', async () => {
+      const wrapper = mountEdit({
+        customer: { ...mockCustomer, phoneCountryCode: '52', globalPriceListId: 'pl-1' },
+      })
+      const vm = wrapper.vm as unknown as {
+        state: {
+          phoneCountryCode: string
+          assignPriceList: boolean
+          globalPriceListId: string
+          rfc: string
+          showBillingAddress: boolean
+        }
+      }
+      try {
+        await nextTick()
+        expect(submitButton(wrapper).attributes('disabled')).toBeDefined()
+        vm.state.phoneCountryCode = '+1'
+        await nextTick()
+        expect(submitButton(wrapper).attributes('disabled')).toBeUndefined()
+        vm.state.phoneCountryCode = '+52'
+        vm.state.assignPriceList = false
+        await nextTick()
+        expect(submitButton(wrapper).attributes('disabled')).toBeUndefined()
+        vm.state.assignPriceList = true
+        await nextTick()
+        expect(submitButton(wrapper).attributes('disabled')).toBeDefined()
+        vm.state.rfc = 'XAXX010101000'
+        await nextTick()
+        expect(submitButton(wrapper).attributes('disabled')).toBeUndefined()
+        vm.state.rfc = ''
+        // Only revealing the empty billing address section changes nothing saved.
+        vm.state.showBillingAddress = true
+        await nextTick()
+        expect(submitButton(wrapper).attributes('disabled')).toBeDefined()
+      } finally {
+        wrapper.unmount()
+      }
+    })
+
+    it('does not enable after adding, editing or removing an address', async () => {
+      const wrapper = mountEdit()
+      const vm = wrapper.vm as unknown as {
+        openAddressModal: () => void
+        handleAddressSave: (payload: CreateCustomerAddressPayload) => void
+      }
+      try {
+        vm.openAddressModal()
+        vm.handleAddressSave(mockAddressPayload)
+        ;(wrapper.emitted('create-address')![0]![2] as (saved: boolean) => void)(true)
+        const added = { ...mockCustomer.addresses[0]!, id: 'addr-2', street: 'Nueva Calle' }
+        await wrapper.setProps({
+          customer: { ...mockCustomer, addresses: [...mockCustomer.addresses, added] },
+        })
+        expect(submitButton(wrapper).attributes('disabled')).toBeDefined()
+
+        selectAddressAction(wrapper, 'addr-1', 'edit')
+        vm.handleAddressSave(mockAddressPayload)
+        ;(wrapper.emitted('update-address')![0]![3] as (saved: boolean) => void)(true)
+        await wrapper.setProps({
+          customer: {
+            ...mockCustomer,
+            addresses: [{ ...mockCustomer.addresses[0]!, street: 'Nueva Calle' }, added],
+          },
+        })
+        expect(submitButton(wrapper).attributes('disabled')).toBeDefined()
+
+        selectAddressAction(wrapper, 'addr-2', 'remove')
+        await wrapper.setProps({ customer: { ...mockCustomer, addresses: [] } })
+        expect(wrapper.emitted('remove-address')?.[0]).toEqual(['customer-1', 'addr-2'])
+        expect(submitButton(wrapper).attributes('disabled')).toBeDefined()
+      } finally {
+        wrapper.unmount()
+      }
+    })
+
+    it('keeps «Crear cliente» enabled in create mode, even untouched', async () => {
+      const wrapper = mount(CustomerUpsertSlideover, {
+        props: { mode: 'create', open: true },
+        global: { stubs: editorStubs },
+      })
+      try {
+        await nextTick()
+        expect(submitButton(wrapper).text()).toBe('Crear cliente')
+        expect(submitButton(wrapper).attributes('disabled')).toBeUndefined()
+      } finally {
+        wrapper.unmount()
+      }
+    })
+
+    it('keeps the loading state while a changed form is saving', async () => {
+      const wrapper = mountEdit()
+      try {
+        await wrapper.get('input[placeholder="Ej: Pérez"]').setValue('Pérez López')
+        await wrapper.setProps({ loading: true })
+        expect(submitButton(wrapper).attributes('data-loading')).toBe('true')
+        expect(submitButton(wrapper).attributes('disabled')).toBeDefined()
+        await wrapper.setProps({ loading: false })
+        expect(submitButton(wrapper).attributes('data-loading')).toBeUndefined()
+        expect(submitButton(wrapper).attributes('disabled')).toBeUndefined()
+      } finally {
+        wrapper.unmount()
+      }
+    })
+
+    it('ignores a submit of the untouched edit form', async () => {
+      // Declares `emits` so the submit listener does not also fall through to the native form.
+      const formStub = {
+        props: ['state'],
+        emits: ['submit'],
+        template: '<form @submit.prevent="$emit(\'submit\', { data: state })"><slot /></form>',
+      }
+      const wrapper = mount(CustomerUpsertSlideover, {
+        props: { mode: 'edit', customer: mockCustomer, open: true },
+        global: { stubs: { ...editorStubs, UForm: formStub, Form: formStub } },
+      })
+      try {
+        await wrapper.get('form').trigger('submit')
+        expect(wrapper.emitted('edit')).toBeFalsy()
+        await wrapper.get('input[placeholder="Ej: Pérez"]').setValue('López')
+        await wrapper.get('form').trigger('submit')
+        expect(wrapper.emitted('edit')).toHaveLength(1)
+      } finally {
+        wrapper.unmount()
+      }
+    })
+
+    it('resets the baseline on a customer switch and keeps a same-customer draft dirty', async () => {
+      const wrapper = mountEdit()
+      try {
+        await wrapper.get('input[placeholder="Ej: Pérez"]').setValue('Unsaved')
+        await wrapper.setProps({
+          customer: { ...mockCustomer, addresses: [...mockCustomer.addresses] },
+        })
+        expect(submitButton(wrapper).attributes('disabled')).toBeUndefined()
+        await wrapper.setProps({
+          customer: { ...mockCustomer, id: 'customer-2', lastName: 'Gómez', addresses: [] },
+        })
+        expect(submitButton(wrapper).attributes('disabled')).toBeDefined()
+        await wrapper.get('input[placeholder="Ej: Pérez"]').setValue('Pérez')
+        expect(submitButton(wrapper).attributes('disabled')).toBeUndefined()
+        await wrapper.get('input[placeholder="Ej: Pérez"]').setValue('Gómez')
+        expect(submitButton(wrapper).attributes('disabled')).toBeDefined()
+      } finally {
+        wrapper.unmount()
+      }
+    })
   })
 
   describe('edit mode address management', () => {

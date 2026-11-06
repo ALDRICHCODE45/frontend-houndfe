@@ -300,6 +300,23 @@ export function toUpdatePayload(values: CustomerFormValues): UpdateCustomerPaylo
   }
 }
 
+/**
+ * What an edit save would send, as a comparable string: strings are trimmed
+ * like the schema does and the phone code is normalized, so whitespace,
+ * a hidden empty billing section or an unchecked-but-empty price list are
+ * not changes. Addresses are not part of the form; they save on their own.
+ */
+export function customerFormSnapshot(values: CustomerFormInput): string {
+  const trimmed = Object.fromEntries(
+    Object.entries(values).map(([key, value]) => [
+      key,
+      typeof value === 'string' ? value.trim() : value,
+    ]),
+  ) as CustomerFormValues
+  trimmed.phoneCountryCode = formatPhoneCountryCode(trimmed.phoneCountryCode) || '+52'
+  return JSON.stringify(toUpdatePayload(trimmed))
+}
+
 export function useCustomerForm() {
   const state = reactive<CustomerFormInput>(getInitialState())
 
