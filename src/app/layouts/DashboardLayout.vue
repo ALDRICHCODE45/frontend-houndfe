@@ -9,8 +9,9 @@ import { useSidebar } from '@/app/composables/useSidebar'
 import { useDashboard } from '@/app/composables/useDashboard'
 import { useBreadcrumb } from '@/app/composables/useBreadcrumb'
 import { defineShortcuts } from '@nuxt/ui/runtime/composables/defineShortcuts.js'
-import { PENDING_REFUNDS_PATH } from '@/app/navigation/navigation.registry'
+import { PENDING_REFUNDS_PATH, ZONE_VALIDATIONS_PATH } from '@/app/navigation/navigation.registry'
 import { usePendingRefundsCount } from '@/features/POS/refunds/composables/usePendingRefundsCount'
+import { usePendingZoneValidationsCount } from '@/features/shipping/delivery-zones/composables/usePendingZoneValidationsCount'
 import { withNavBadges } from './navBadges'
 
 const {
@@ -33,6 +34,8 @@ const route = useRoute()
 
 // Pending refunds count on its nav entry; no request without SaleRefund read.
 const { count: pendingRefundsCount } = usePendingRefundsCount()
+// Pending chatbot zone validations; no request without validate:DeliveryZone.
+const { count: pendingZoneValidationsCount } = usePendingZoneValidationsCount()
 
 // First LETTER of the label: the super-admin scope is "(Global)", whose first
 // character is a parenthesis.
@@ -67,11 +70,17 @@ function navigationFor(collapsed: boolean): NavigationMenuItem[] {
 
   const items = withNavBadges(getNavigationItems(collapsed), {
     [PENDING_REFUNDS_PATH]: pendingRefundsCount.value,
+    [ZONE_VALIDATIONS_PATH]: pendingZoneValidationsCount.value,
   })
 
   return items.map((item) => {
     const children = item.children ?? []
-    const childActive = children.some((child) => isActivePath(child.to, path))
+    // Only the most specific match is active: /sistema/envios/validaciones is not also «Envíos».
+    const activeChildTo = children
+      .map((child) => child.to)
+      .filter((to): to is string => isActivePath(to, path))
+      .sort((a, b) => b.length - a.length)[0]
+    const childActive = activeChildTo !== undefined
     const selfActive = isActivePath(item.to, path)
 
     return {
@@ -79,7 +88,7 @@ function navigationFor(collapsed: boolean): NavigationMenuItem[] {
       class: childActive || selfActive ? 'hf-shell-nav-active' : item.class,
       children: children.map((child) => ({
         ...child,
-        class: isActivePath(child.to, path) ? 'hf-shell-nav-active' : child.class,
+        class: child.to === activeChildTo ? 'hf-shell-nav-active' : child.class,
       })),
     }
   })

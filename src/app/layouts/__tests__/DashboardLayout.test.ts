@@ -87,6 +87,13 @@ vi.mock('@/features/POS/refunds/composables/usePendingRefundsCount', async () =>
   return { usePendingRefundsCount: () => ({ count: pendingRefunds.count }) }
 })
 
+const pendingZoneValidations = vi.hoisted(() => ({ count: null as unknown as Ref<number> }))
+vi.mock('@/features/shipping/delivery-zones/composables/usePendingZoneValidationsCount', async () => {
+  const { ref } = await vi.importActual<typeof import('vue')>('vue')
+  pendingZoneValidations.count = ref(0)
+  return { usePendingZoneValidationsCount: () => ({ count: pendingZoneValidations.count }) }
+})
+
 vi.mock('@/app/composables/useDashboard', async () => {
   const { ref } = await vi.importActual<typeof import('vue')>('vue')
 
@@ -750,5 +757,45 @@ describe('DashboardLayout — pending refunds badge (T19)', () => {
     pendingRefunds.count.value = 0
     await nextTick()
     expect(entry()?.find('.hf-shell-nav-count').exists()).toBe(false)
+  })
+})
+
+describe('DashboardLayout — zone validations badge (ODD shipping-settings T2, S2)', () => {
+  const sistema = {
+    label: 'Sistema',
+    icon: 'i-lucide-settings',
+    defaultOpen: false,
+    children: [
+      { label: 'Envíos', icon: 'i-lucide-truck', to: '/sistema/envios' },
+      { label: 'Validaciones de zona', icon: 'i-lucide-map-pin-check', to: '/sistema/envios/validaciones' },
+    ],
+  }
+  const navLink = (wrapper: ReturnType<typeof mountWithUApp>, label: string) =>
+    wrapper.findAll('.hf-shell-nav [data-slot="link"]').find((link) => link.text().includes(label))
+
+  beforeEach(() => {
+    vi.mocked(useSidebar().getNavigationItems).mockImplementation(() => [sistema] as never)
+  })
+  afterEach(() => {
+    pendingZoneValidations.count.value = 0
+    vi.mocked(useSidebar().getNavigationItems).mockReset()
+  })
+
+  it('shows the pending count on «Validaciones de zona» and hides it at 0', async () => {
+    pendingZoneValidations.count.value = 3
+    const wrapper = await mountLayoutAt('/sistema/envios/validaciones')
+    await openNavGroup(wrapper, 'Sistema')
+    expect(navLink(wrapper, 'Validaciones de zona')?.find('.hf-shell-nav-count').text()).toBe('3')
+
+    pendingZoneValidations.count.value = 0
+    await nextTick()
+    expect(navLink(wrapper, 'Validaciones de zona')?.find('.hf-shell-nav-count').exists()).toBe(false)
+  })
+
+  it('marks only the most specific entry active: Validaciones de zona, not also Envíos', async () => {
+    const wrapper = await mountLayoutAt('/sistema/envios/validaciones')
+    await openNavGroup(wrapper, 'Sistema')
+    expect(navLink(wrapper, 'Validaciones de zona')?.classes()).toContain('hf-shell-nav-active')
+    expect(navLink(wrapper, 'Envíos')?.classes()).not.toContain('hf-shell-nav-active')
   })
 })
