@@ -792,6 +792,13 @@ describe('DashboardLayout — zone validations badge (ODD shipping-settings T2, 
     expect(navLink(wrapper, 'Validaciones de zona')?.find('.hf-shell-nav-count').exists()).toBe(false)
   })
 
+  it('shows the pending count on the closed «Sistema» group', async () => {
+    pendingZoneValidations.count.value = 1
+    const wrapper = await mountLayoutAt('/')
+    expect(navLink(wrapper, 'Validaciones de zona')).toBeUndefined()
+    expect(navLink(wrapper, 'Sistema')?.find('.hf-shell-nav-count').text()).toBe('1')
+  })
+
   it('marks only the most specific entry active: Validaciones de zona, not also Envíos', async () => {
     const wrapper = await mountLayoutAt('/sistema/envios/validaciones')
     await openNavGroup(wrapper, 'Sistema')
