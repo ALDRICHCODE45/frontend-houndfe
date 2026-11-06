@@ -237,6 +237,55 @@ describe('DeliveryRouteShippingAddressSchema (sdd delivery-routes S1b, design §
   })
 })
 
+describe('DeliveryRouteShippingAddressSchema — source status (odd sale-address-change-notice S4)', () => {
+  const snapshot = {
+    id: null,
+    street: 'Calle Prueba 1',
+    exteriorNumber: '1',
+    interiorNumber: null,
+    zipCode: '06000',
+    neighborhood: null,
+    municipality: null,
+    city: null,
+    state: null,
+    visualReferences: 'Portón verde',
+    carrierPhone: '5512345678',
+    label: 'Casa',
+    latitude: null,
+    longitude: null,
+    sourceStatus: 'CHANGED',
+    changedFields: ['street'],
+  }
+
+  it('parses the 16-key snapshot with sourceStatus and changedFields', () => {
+    const r = DeliveryRouteShippingAddressSchema.parse(snapshot)
+    expect(r.sourceStatus).toBe('CHANGED')
+    expect(r.changedFields).toEqual(['street'])
+    expect(r.visualReferences).toBe('Portón verde')
+    expect(r.carrierPhone).toBe('5512345678')
+    expect(r.street).toBe('Calle Prueba 1')
+  })
+
+  it('parses a stop address from before the status (older payload)', () => {
+    const r = DeliveryRouteShippingAddressSchema.parse(makeBackendSample().stops[0]!.shippingAddress)
+    expect(r.sourceStatus).toBeUndefined()
+    expect(r.changedFields).toBeUndefined()
+  })
+
+  it('rejects an unknown sourceStatus', () => {
+    expect(DeliveryRouteShippingAddressSchema.safeParse({ ...snapshot, sourceStatus: 'MOVED' }).success).toBe(false)
+  })
+
+  it('carries the status through the route response', () => {
+    const sample = makeBackendSample()
+    const route = DeliveryRouteResponseSchema.parse({
+      ...sample,
+      stops: [{ ...sample.stops[0]!, shippingAddress: { ...snapshot, sourceStatus: 'DELETED', changedFields: [] } }],
+    })
+    expect(route.stops[0]!.shippingAddress?.sourceStatus).toBe('DELETED')
+  })
+})
+
 describe('CreateDeliveryRouteSchema (sdd delivery-routes S1b, design §5.1)', () => {
   const valid = {
     saleIds: [validUuid],

@@ -25,6 +25,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { refDebounced } from '@vueuse/core'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
+import SaleAddressSourceNotice from '@/core/shared/components/SaleAddressSourceNotice.vue'
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import { formatAddress } from '@/core/shared/utils/formatAddress'
@@ -479,6 +480,7 @@ const errorMessage = computed(() =>
               >
                 {{ rowAddress(row) }}
               </span>
+              <SaleAddressSourceNotice v-if="isAuthoritative" :address="row.shippingAddress" />
             </span>
             <span
               :data-testid="`eligible-sales-picker-row-secondary-${row.id}`"

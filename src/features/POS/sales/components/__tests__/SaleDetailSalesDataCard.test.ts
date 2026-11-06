@@ -223,3 +223,61 @@ describe('SaleDetailSalesDataCard', () => {
     expect(wrapper.get('[data-testid="reflow-vendedor"]').text()).toContain('Sin asignar')
   })
 })
+
+describe('SaleDetailSalesDataCard — shipping address (odd sale-address-change-notice S1-S3)', () => {
+  const snapshot = {
+    id: null,
+    street: 'Calle Prueba 1',
+    exteriorNumber: '1',
+    interiorNumber: null,
+    zipCode: '06000',
+    neighborhood: 'Centro',
+    municipality: null,
+    city: 'CDMX',
+    state: null,
+    visualReferences: null,
+    carrierPhone: null,
+    label: null,
+    latitude: null,
+    longitude: null,
+  }
+
+  async function mountCard(shippingAddress: SaleDetail['shippingAddress'] | undefined) {
+    const wrapper = mountWithUApp(SaleDetailSalesDataCard, {
+      props: { sale: { ...baseSale, ...(shippingAddress !== undefined ? { shippingAddress } : {}) } },
+      global: { stubs: globalStubs },
+    })
+    await nextTick()
+    return wrapper
+  }
+
+  it.each([
+    ['CHANGED', ['street'], 'El cliente cambió esta dirección después de la venta.'],
+    ['DELETED', [], 'El cliente eliminó esta dirección después de la venta.'],
+  ] as const)('%s: shows the sale snapshot under «Dirección de envío» with the notice', async (sourceStatus, changedFields, message) => {
+    const wrapper = await mountCard({ ...snapshot, sourceStatus, changedFields: [...changedFields] })
+    const block = wrapper.get('[data-testid="reflow-shipping-address"]')
+    expect(block.get('dt').text()).toBe('Dirección de envío')
+    expect(block.get('[data-testid="sale-shipping-address"]').text()).toBe('Calle Prueba 1 #1, Centro, CDMX, CP 06000')
+    expect(block.get('[data-testid="sale-address-source-notice"]').text()).toBe(message)
+  })
+
+  it('UNCHANGED and label-only show the address without a notice', async () => {
+    for (const status of [
+      { sourceStatus: 'UNCHANGED' as const, changedFields: [] },
+      { sourceStatus: 'CHANGED' as const, changedFields: ['label'] },
+    ]) {
+      const wrapper = await mountCard({ ...snapshot, ...status })
+      expect(wrapper.get('[data-testid="sale-shipping-address"]').text()).toContain('Calle Prueba 1')
+      expect(wrapper.find('[data-testid="sale-address-source-notice"]').exists()).toBe(false)
+    }
+  })
+
+  it('a sale without shipping address shows nothing new', async () => {
+    for (const shippingAddress of [null, undefined]) {
+      const wrapper = await mountCard(shippingAddress)
+      expect(wrapper.find('[data-testid="reflow-shipping-address"]').exists()).toBe(false)
+      expect(wrapper.text()).not.toContain('Dirección de envío')
+    }
+  })
+})

@@ -1150,3 +1150,50 @@ describe('SalesListView — lifecycle cleanup (T9 regression)', () => {
     expect(wrapper.exists()).toBe(false)
   })
 })
+
+describe('SalesListView — sale address source notice (odd sale-address-change-notice S2/S3)', () => {
+  const snapshot = {
+    id: 'addr-1',
+    street: 'Calle Prueba 1',
+    exteriorNumber: '1',
+    interiorNumber: null,
+    zipCode: '06000',
+    neighborhood: null,
+    municipality: null,
+    city: null,
+    state: null,
+    visualReferences: null,
+    carrierPhone: null,
+    label: 'Casa',
+    latitude: null,
+    longitude: null,
+  }
+  const notices = (wrapper: VueWrapper) => wrapper.findAll('[data-testid="sale-address-source-notice"]')
+
+  it.each([
+    ['CHANGED', ['street'], 'Dirección cambiada', 'El cliente cambió esta dirección después de la venta.'],
+    ['DELETED', [], 'Dirección eliminada', 'El cliente eliminó esta dirección después de la venta.'],
+  ] as const)('%s marks the customer cell and the mobile card', (sourceStatus, changedFields, short, full) => {
+    mockState.data.value = [{ ...initialRow, shippingAddress: { ...snapshot, sourceStatus, changedFields: [...changedFields] } }]
+    const wrapper = mountSalesList()
+    const found = notices(wrapper)
+    // One in the desktop customer cell, one in the mobile card.
+    expect(found).toHaveLength(2)
+    for (const notice of found) {
+      expect(notice.text()).toContain(short)
+      expect(notice.attributes('title')).toBe(full)
+    }
+    expect(wrapper.get('[data-testid="sale-card"]').find('[data-testid="sale-address-source-notice"]').exists()).toBe(true)
+    expect(wrapper.html()).not.toContain('addr-1')
+  })
+
+  it('shows nothing new for UNCHANGED, label-only, a sale without address or an older row', () => {
+    mockState.data.value = [
+      { ...initialRow, id: 'u', shippingAddress: { ...snapshot, sourceStatus: 'UNCHANGED', changedFields: [] } },
+      { ...initialRow, id: 'l', shippingAddress: { ...snapshot, sourceStatus: 'CHANGED', changedFields: ['label'] } },
+      { ...initialRow, id: 'n', shippingAddress: null },
+      { ...initialRow, id: 'o' },
+    ]
+    expect(notices(mountSalesList())).toHaveLength(0)
+  })
+})

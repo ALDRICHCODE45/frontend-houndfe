@@ -307,6 +307,29 @@ describe('EligibleSalesPicker — rich row labels (S3)', () => {
   })
 })
 
+describe('EligibleSalesPicker — sale address source notice (odd sale-address-change-notice S1-S3)', () => {
+  const noticeIn = (wrapper: VueWrapper, id: string) =>
+    wrapper.find(`[data-testid="eligible-sales-picker-row-${id}"] [data-testid="sale-address-source-notice"]`)
+
+  it('shows the changed / deleted notice on its row, keeping the sale address', async () => {
+    getMock.mockResolvedValue({
+      data: makeResponse([
+        makeRow({ id: 'sale-c', shippingAddress: makeAddress({ street: 'Calle Prueba 1', sourceStatus: 'CHANGED', changedFields: ['street'] }) }),
+        makeRow({ id: 'sale-d', shippingAddress: makeAddress({ id: null, sourceStatus: 'DELETED', changedFields: [] }) }),
+        makeRow({ id: 'sale-u', shippingAddress: makeAddress({ sourceStatus: 'UNCHANGED', changedFields: [] }) }),
+        makeRow({ id: 'sale-l', shippingAddress: makeAddress({ sourceStatus: 'CHANGED', changedFields: ['label'] }) }),
+        makeRow({ id: 'sale-n', shippingAddress: null }),
+      ]),
+    })
+    const { wrapper } = mountPicker()
+    await settle(() => expect(wrapper.find('[data-testid="eligible-sales-picker-row-sale-c"]').exists()).toBe(true))
+    expect(wrapper.get('[data-testid="eligible-sales-picker-row-address-sale-c"]').text()).toContain('Calle Prueba 1')
+    expect(noticeIn(wrapper, 'sale-c').text()).toBe('El cliente cambió esta dirección después de la venta.')
+    expect(noticeIn(wrapper, 'sale-d').text()).toBe('El cliente eliminó esta dirección después de la venta.')
+    for (const id of ['sale-u', 'sale-l', 'sale-n']) expect(noticeIn(wrapper, id).exists()).toBe(false)
+  })
+})
+
 describe('EligibleSalesPicker — unavailable rows are disabled with a reason', () => {
   it('disables an OCCUPIED row and shows the route-occupancy reason', async () => {
     getMock.mockResolvedValue({

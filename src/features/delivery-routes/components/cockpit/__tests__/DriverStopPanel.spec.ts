@@ -284,3 +284,35 @@ describe('DriverStopPanel — central copy + source invariants', () => {
     /["']No se pudo abrir el mapa["']/, /["']No se pudo abrir el correo["']/,
   ])('SFC never hardcodes the literal %s', (re) => { expect(sfcBody()).not.toMatch(re) })
 })
+
+describe('DriverStopPanel — sale address source notice (odd sale-address-change-notice S1-S3)', () => {
+  const notice = (w: ReturnType<typeof mountPanel>) => w.find('[data-testid="sale-address-source-notice"]')
+
+  it('CHANGED: warns under the address and keeps showing the sale snapshot', async () => {
+    const w = mountPanel({ stop: makeStop({ address: makeAddress({ street: 'Calle Prueba 1', sourceStatus: 'CHANGED', changedFields: ['street'] }) }) })
+    await flushPromises()
+    expect(w.get('[data-testid="stop-panel-address"]').text()).toContain('Calle Prueba 1')
+    expect(notice(w).text()).toBe('El cliente cambió esta dirección después de la venta.')
+    const html = w.html()
+    expect(html.indexOf('stop-panel-address')).toBeLessThan(html.indexOf('sale-address-source-notice'))
+  })
+
+  it('DELETED: warns that the customer deleted it', async () => {
+    const w = mountPanel({ stop: makeStop({ address: makeAddress({ id: null, sourceStatus: 'DELETED', changedFields: [] }) }) })
+    await flushPromises()
+    expect(w.get('[data-testid="stop-panel-address"]').text()).toContain('Av. Reforma')
+    expect(notice(w).text()).toBe('El cliente eliminó esta dirección después de la venta.')
+  })
+
+  it('UNCHANGED, label-only and no address show no notice', async () => {
+    for (const address of [
+      makeAddress({ sourceStatus: 'UNCHANGED', changedFields: [] }),
+      makeAddress({ sourceStatus: 'CHANGED', changedFields: ['label'] }),
+      null,
+    ]) {
+      const w = mountPanel({ stop: makeStop({ address }) })
+      await flushPromises()
+      expect(notice(w).exists()).toBe(false)
+    }
+  })
+})

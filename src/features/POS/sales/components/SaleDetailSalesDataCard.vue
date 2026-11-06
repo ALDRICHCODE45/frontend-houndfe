@@ -4,6 +4,8 @@ import { productApi } from '@/features/POS/products/api/product.api'
 import type { GlobalPriceList } from '@/features/POS/products/interfaces/product.types'
 import { formatPaymentMethod } from '../utils/salePaymentMethod.utils'
 import type { SaleDetail } from '../interfaces/sale.types'
+import { formatAddress } from '@/core/shared/utils/formatAddress'
+import SaleAddressSourceNotice from '@/core/shared/components/SaleAddressSourceNotice.vue'
 
 const props = defineProps<{
   sale: SaleDetail
@@ -47,6 +49,11 @@ const uniquePaymentMethods = computed<string[]>(() => {
   return ordered
 })
 
+// The sale's own address (sale-time snapshot), never the customer's live one.
+const shippingAddressText = computed(() =>
+  props.sale.shippingAddress ? formatAddress(props.sale.shippingAddress) : '',
+)
+
 function openAssignSeller() {
   emit('assign-seller')
 }
@@ -87,6 +94,13 @@ function openAssignSeller() {
       <div data-testid="reflow-cliente">
         <dt class="sale-detail-fact-label">Cliente</dt>
         <dd class="sale-detail-fact-value">{{ sale.customer?.name ?? 'Público en general' }}</dd>
+      </div>
+      <div v-if="shippingAddressText" class="sm:col-span-2" data-testid="reflow-shipping-address">
+        <dt class="sale-detail-fact-label">Dirección de envío</dt>
+        <dd class="sale-detail-fact-value flex flex-col gap-1">
+          <span class="break-words" data-testid="sale-shipping-address">{{ shippingAddressText }}</span>
+          <SaleAddressSourceNotice :address="sale.shippingAddress" />
+        </dd>
       </div>
       <div data-testid="reflow-price-list">
         <dt class="sale-detail-fact-label">Lista de precios</dt>

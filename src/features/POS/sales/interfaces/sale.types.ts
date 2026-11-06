@@ -11,6 +11,7 @@ import type {
 } from '../constants/sale.constants'
 import type { PaymentMethodCategory } from '@/core/shared/constants/payment-method-category'
 import type { PendingRefundRow } from './pending-refund.types'
+import type { SaleShippingAddressSnapshot } from './sale-shipping-address.schema'
 import { z } from 'zod'
 
 // Union types below are derived from the matching `as const` object in
@@ -88,6 +89,9 @@ export interface ConfirmedSaleRow {
   cashier: SaleActorRef
   seller: SaleActorRef | null
   paymentMethods: SaleDetailPaymentMethod[]
+  // odd sale-address-change-notice: sale-time snapshot with its source status; null without
+  // one. Optional so rows from before the field still type-check.
+  shippingAddress?: SaleShippingAddressSnapshot | null
 }
 
 // sdd customer-sales-history S1 (handoff §2.5): folio/paymentStatus/confirmedAt
@@ -275,6 +279,9 @@ export interface SaleDetail {
   canceledBy?: SaleActorRef | null
   /** Oldest first, fully returned ones (`outstandingCents: 0`) included. */
   refunds?: SaleDetailRefund[]
+  // odd sale-address-change-notice: sale-time snapshot with its source status. `parseSaleDetail`
+  // fills null when absent; optional so older fixtures type-check.
+  shippingAddress?: SaleShippingAddressSnapshot | null
 }
 
 /** One refund obligation of a cancelled sale: the pending-list row without `saleId`. */
