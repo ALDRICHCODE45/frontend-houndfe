@@ -102,14 +102,25 @@ body.hf-app {
  * fading it. Opacity drags the light dark-mode action toward the dark surface
  * and its label with it (washed out, ~3.6:1); Nuxt UI adds its own
  * `disabled:opacity-75`, so the opacity is pinned to 1 here and the contrast
- * comes from tokens that are legible in both themes. */
+ * comes from tokens that are legible in both themes. The fill is the neutral
+ * page tone: the blue --hf-surface-muted wash made it read as an enabled soft
+ * button in light mode. A solid Nuxt primary without the hook gets the same. */
 .hf-ui .hf-primary-control:disabled,
-.hf-ui .hf-primary-control[aria-disabled='true'] {
+.hf-ui .hf-primary-control[aria-disabled='true'],
+.hf-ui button.bg-primary:disabled,
+.hf-ui button.bg-primary[aria-disabled='true'],
+.hf-ui a.bg-primary[aria-disabled='true'] {
   border-color: var(--hf-border);
-  background-color: var(--hf-surface-muted);
+  background-color: var(--hf-page);
   color: var(--hf-muted);
   opacity: 1;
   cursor: not-allowed;
+}
+
+/* A Nuxt button has no border of its own; the hairline is drawn inside it so
+ * the size does not change. */
+.hf-ui :is(a, button).bg-primary:not(.hf-primary-control):is(:disabled, [aria-disabled='true']) {
+  box-shadow: inset 0 0 0 1px var(--hf-border);
 }
 
 /* ── Page header (kept outside the data surface) ─────────────────────────── */
@@ -480,6 +491,21 @@ body.hf-app {
 
 .hf-ui .hf-field-control:is([aria-invalid='true'], :has([aria-invalid='true']), [class*='ring-error']):not(:focus-visible, :has(:focus-visible)) {
   --tw-ring-color: var(--hf-danger);
+}
+
+/* ── Off switch (docs/design-system.md, Shared component rules) ─────────── */
+
+/* The default accented track nearly matches the card in the dark theme and
+ * fails non-text contrast, so an unchecked switch gets a muted track with a
+ * --hf-muted inset outline and a muted thumb. An on switch keeps the action
+ * fill. */
+.hf-ui [role='switch'][data-state='unchecked'] {
+  background-color: var(--hf-surface-muted);
+  box-shadow: inset 0 0 0 1px var(--hf-muted);
+}
+
+.hf-ui [role='switch'][data-state='unchecked'] [data-slot='thumb'] {
+  background-color: var(--hf-muted);
 }
 
 /* ── Slideover / dialog surface ──────────────────────────────────────────── */

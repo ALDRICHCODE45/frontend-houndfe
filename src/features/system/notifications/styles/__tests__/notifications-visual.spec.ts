@@ -15,9 +15,10 @@ const formPortal = 'hf-theme hf-ui hf-form-overlay'
 describe('Notification switches (non-text contrast)', () => {
   const css = readFileSync('src/features/system/notifications/styles/notifications-visual.css', 'utf8')
 
-  it('paints an unchecked switch with a visible track outline and thumb in both themes', () => {
-    expect(css).toMatch(/\[role='switch'\]\[data-state='unchecked'\] \{[^}]*box-shadow: inset 0 0 0 1px var\(--hf-muted\)/)
-    expect(css).toMatch(/\[role='switch'\]\[data-state='unchecked'\] \[data-slot='thumb'\] \{[^}]*background-color: var\(--hf-muted\)/)
+  // The off-switch outline is shared by every .hf-ui switch (houndfe-ui.css, hf-switch-off.spec);
+  // this adapter must not keep a second copy of it.
+  it('takes the unchecked switch outline from core instead of redefining it', () => {
+    expect(css).not.toMatch(/\[role='switch'\]/)
   })
 })
 

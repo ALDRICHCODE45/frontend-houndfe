@@ -100,14 +100,14 @@ function handleCancel() {
           color="neutral"
           variant="outline"
           :disabled="props.loading"
-          class="w-full sm:w-auto"
+          class="w-full justify-center sm:w-auto"
           @click="handleCancel"
         />
         <UButton
           :label="props.confirmLabel"
           :color="props.confirmColor"
           :loading="props.loading"
-          class="w-full sm:w-auto"
+          class="w-full justify-center sm:w-auto"
           @click="handleConfirm"
         />
       </div>

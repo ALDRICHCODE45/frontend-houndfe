@@ -149,3 +149,17 @@ describe('ConfirmModal (sdd-10 promotions-batch-delete — items prop)', () => {
     expect(wrapper.text()).toContain('Cancelar')
   })
 })
+describe('ConfirmModal footer on mobile', () => {
+  // Below sm the buttons stack full width; a full-width Nuxt button keeps its label at the start
+  // unless it is centred, so the stacked labels sat flush left.
+  it('centres the label of each stacked full-width button', async () => {
+    const wrapper = mountModal({ confirmLabel: 'Eliminar', cancelLabel: 'Cancelar' })
+    await flushPromises()
+
+    const buttons = wrapper.findAll('button')
+    expect(buttons).toHaveLength(2)
+    for (const button of buttons) {
+      expect(button.classes()).toEqual(expect.arrayContaining(['w-full', 'justify-center']))
+    }
+  })
+})
