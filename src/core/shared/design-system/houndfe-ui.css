@@ -459,8 +459,9 @@ body.hf-app {
   color: var(--hf-muted);
 }
 
-body.hf-table-dragging,
-body.hf-table-dragging * {
+/* The drag adds hf-table-dragging to <body>; the rule stays scoped to the themed app root. */
+.hf-table-dragging .hf-ui,
+.hf-table-dragging .hf-ui * {
   cursor: grabbing;
   user-select: none;
 }
