@@ -33,7 +33,8 @@ export function useSalesColumns() {
     // C1: the client name, not the folio, is what people scan for, so it gets the primary width.
     { accessorKey: 'customer', header: createSimpleHeader('Cliente'), enableSorting: false, meta: { primary: true } },
     { accessorKey: 'paymentStatus', header: createSimpleHeader('Pago'), enableSorting: false },
-    { accessorKey: 'deliveryStatus', header: createSimpleHeader('Productos'), enableSorting: false },
+    // 152px: the longest delivery badge («No entregada») would otherwise end in an ellipsis.
+    { accessorKey: 'deliveryStatus', header: createSimpleHeader('Productos'), enableSorting: false, size: 152 },
     { id: 'paymentMethods', accessorKey: 'paymentMethods', header: createSimpleHeader('Método'), enableSorting: false },
     { accessorKey: 'totalCents', header: 'Total', enableSorting: true, meta: { class: { th: 'text-right', td: 'text-right' } } },
     { accessorKey: 'debtCents', header: createSimpleHeader('Deuda'), enableSorting: false, meta: { class: { th: 'text-right', td: 'text-right' } } },

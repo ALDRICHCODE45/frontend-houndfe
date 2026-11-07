@@ -2,6 +2,12 @@ import { describe, it, expect } from 'vitest'
 import { defaultColumnVisibility, useSalesColumns } from '../useSalesColumns'
 
 describe('useSalesColumns', () => {
+  it('gives the delivery status room for its longest badge («No entregada») at the default width', () => {
+    const { columns } = useSalesColumns()
+    const delivery = columns.find((column) => 'accessorKey' in column && column.accessorKey === 'deliveryStatus')
+    expect(delivery?.size).toBeGreaterThanOrEqual(152)
+  })
+
   const keyOf = (column: unknown) => {
     const typed = column as { id?: string; accessorKey?: string }
     return typed.id ?? typed.accessorKey
