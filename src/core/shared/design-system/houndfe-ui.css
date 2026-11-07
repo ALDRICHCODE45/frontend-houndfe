@@ -190,13 +190,20 @@ body.hf-app {
  * restyle every control nested inside the data table. Each rule below anchors
  * on the box type that actually owns the slot, which keeps table geometry on
  * the `<table>` and its rows/cells only. */
+/* The surface scrolls horizontally when the user's column widths exceed it. */
 .hf-ui .hf-data-table [data-slot='root']:has(table[data-slot='base']) {
   max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
 }
 
+/* Widths are the columns' (AppDataTable sets `--hf-col-w-<id>` on every cell and their sum as
+ * `--hf-table-w`), never the content's: a fixed layout keeps a user width exactly. */
 .hf-ui .hf-data-table table[data-slot='base'] {
-  width: 100%;
-  max-width: 100%;
+  table-layout: fixed;
+  width: var(--hf-table-w, 100%);
+  min-width: 100%;
+  max-width: none;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 0.875rem;
@@ -231,34 +238,20 @@ body.hf-app {
   vertical-align: middle;
 }
 
-/* Fit. A table of up to 8 columns fits its card at 1440 with the sidebar open,
- * with no horizontal scroll. Nuxt's `td` is `whitespace-nowrap`, so a long text
- * cell used to widen the whole table and push the last columns behind the pinned
- * Acciones cell. Cells now shrink (`max-width: 0` lets the auto layout hand each
- * column its share of the card) and truncate with an ellipsis; `min-width` keeps
- * a status badge whole. Full text stays reachable in the detail. */
+/* A cell truncates inside its column width with an ellipsis (Nuxt's `td` is `whitespace-nowrap`);
+ * the full text stays reachable in the detail, or the user widens the column. */
 .hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']) {
-  min-width: 7rem;
-  max-width: 0;
   padding-inline: 0.75rem;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* The name column has priority (`hf-col-primary`, added by AppDataTable to the first data column
- * or to `meta: { primary: true }`): a 16rem floor and the largest share of the card, so the other
- * columns shrink first and names are not cut while a neighbour has room. */
-.hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']).hf-col-primary {
-  width: 40%;
-  min-width: 16rem;
-}
-
-/* A status badge is never truncated: its cell sizes to the badge. */
-.hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']):not(.hf-col-primary):has(.hf-status-badge) {
-  width: 1%;
-  max-width: none;
+/* A status badge is never cut by an ellipsis. (The name column's priority is now its width: 16rem
+ * by default plus the free space of the surface, set by AppDataTable.) */
+.hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']):has(.hf-status-badge) {
   overflow: visible;
   white-space: nowrap;
+  text-overflow: clip;
 }
 
 /* The selection column is only its checkbox. */
@@ -288,6 +281,63 @@ body.hf-app {
 
 .hf-ui .hf-data-table th[data-slot='th'][data-pinned] {
   background-color: var(--hf-table-head);
+}
+
+/* Pinned edge: the last left-pinned and the first right-pinned column get a divider and a soft
+ * shadow only while content is scrolled under them (AppDataTable tracks the scroll). */
+.hf-ui :is(td[data-slot='td'], th[data-slot='th']):is(.hf-pin-edge-left, .hf-pin-edge-right) {
+  transition: box-shadow 150ms ease;
+}
+
+.hf-ui .hf-table-scrolled-left :is(td[data-slot='td'], th[data-slot='th']).hf-pin-edge-left {
+  box-shadow: inset -1px 0 0 var(--hf-border), 8px 0 8px -6px color-mix(in srgb, var(--hf-ink) 14%, transparent);
+}
+
+.hf-ui .hf-table-scrolled-right :is(td[data-slot='td'], th[data-slot='th']).hf-pin-edge-right {
+  box-shadow: inset 1px 0 0 var(--hf-border), -8px 0 8px -6px color-mix(in srgb, var(--hf-ink) 14%, transparent);
+}
+
+/* Resize handle: an 8px hit area on the header's right edge with a faint line on hover and the
+ * action colour while dragging or focused (keyboard: Alt+←/→). */
+.hf-ui [data-resize-handle] {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.hf-ui [data-resize-handle]::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 0;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 2px;
+  background-color: transparent;
+  transition: background-color 120ms ease;
+}
+
+.hf-ui [data-resize-handle]:focus-visible {
+  outline: none;
+}
+
+.hf-ui th[data-slot='th']:hover [data-resize-handle]::after {
+  background-color: var(--hf-border);
+}
+
+.hf-ui :is([data-resize-handle]:hover, [data-resize-handle]:focus-visible, [data-resize-handle][data-resizing])::after {
+  background-color: var(--hf-action);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hf-ui :is(td[data-slot='td'], th[data-slot='th']):is(.hf-pin-edge-left, .hf-pin-edge-right),
+  .hf-ui [data-resize-handle]::after {
+    transition: none;
+  }
 }
 
 .hf-ui .hf-data-table tr[data-slot='tr']:hover {

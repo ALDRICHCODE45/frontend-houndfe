@@ -1,6 +1,29 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
-import { useTemplateRef, computed, useSlots, defineComponent, type PropType, type VNode } from 'vue'
-import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
+import {
+  useTemplateRef,
+  computed,
+  useSlots,
+  defineComponent,
+  nextTick,
+  onMounted,
+  ref,
+  watch,
+  type PropType,
+  type VNode,
+} from 'vue'
+import {
+  breakpointsTailwind,
+  useBreakpoints,
+  useEventListener,
+  useResizeObserver,
+} from '@vueuse/core'
+import {
+  FlexRender,
+  type ColumnOrderState,
+  type ColumnSizingInfoState,
+  type ColumnSizingState,
+  type Header,
+} from '@tanstack/vue-table'
 import type {
   TableColumn,
   SortingState,
@@ -24,6 +47,25 @@ import {
   resolveSkeletonHeader,
   withPrimaryColumn,
 } from './primaryColumn.utils'
+import {
+  columnCellClass,
+  columnLabel,
+  columnSizeBounds,
+  columnWidthVar,
+  defaultColumnSize,
+  leafColumns,
+  RESIZE_STEP,
+  withColumnLayout,
+} from './columnLayout.utils'
+import {
+  DEFAULT_TABLE_DENSITY,
+  isLockedColumn,
+  sanitizeOrder,
+  sanitizePinning,
+  sanitizeSizing,
+  type ColumnSizeBounds,
+  type TableDensity,
+} from './tableLayout'
 
 /** Copy for the shared "nothing yet" state (`emptyState` prop). */
 interface TableEmptyState {
@@ -187,6 +229,20 @@ const columnVisibility = defineModel<VisibilityState>('columnVisibility', {
 const rowSelection = defineModel<RowSelectionState>('rowSelection', {
   default: () => ({}),
 })
+// Column layout (premium tables). Every write goes through the setters below, which keep the
+// selection column pinned first on the left and Acciones last on the right, unresizable.
+const columnOrder = defineModel<ColumnOrderState>('columnOrder', { default: () => [] })
+const columnSizing = defineModel<ColumnSizingState>('columnSizing', { default: () => ({}) })
+/** Row density; `comfortable` is today's 64px row. The control arrives with the density menu. */
+const density = defineModel<TableDensity>('density', { default: DEFAULT_TABLE_DENSITY })
+const columnSizingInfo = ref<ColumnSizingInfoState>({
+  startOffset: null,
+  startSize: null,
+  deltaOffset: null,
+  deltaPercentage: null,
+  isResizingColumn: false,
+  columnSizingStart: [],
+})
 
 // Table ref for accessing tableApi
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -233,7 +289,186 @@ const showTableSkeleton = computed(() => props.loading && props.data.length === 
 // C1: the name column has priority width. `meta.primary` picks it; the default is the first data
 // column after the selection column.
 const primaryKey = computed(() => findPrimaryColumnKey(props.columns, columnVisibility.value))
-const displayColumns = computed(() => withPrimaryColumn(props.columns, primaryKey.value))
+const displayColumns = computed(() =>
+  withColumnLayout(withPrimaryColumn(props.columns, primaryKey.value), primaryKey.value),
+)
+
+// ── Column layout: order, pinning and widths ───────────────────────────────
+const leaves = computed(() => leafColumns(props.columns))
+const leafIds = computed(() => leaves.value.map(column => columnKey(column)!))
+const columnInfo = computed(() => {
+  const info = new Map<string, { label: string; size: number; bounds: ColumnSizeBounds }>()
+  for (const column of leaves.value) {
+    const id = columnKey(column)!
+    const primary = id === primaryKey.value
+    info.set(id, {
+      label: columnLabel(column),
+      size: defaultColumnSize(column, primary),
+      bounds: columnSizeBounds(column, primary),
+    })
+  }
+  return info
+})
+const boundsOf = (id: string) => columnInfo.value.get(id)?.bounds
+const labelOf = (id: string) => columnInfo.value.get(id)?.label ?? id
+
+const effectiveOrder = computed(() => sanitizeOrder(columnOrder.value, leafIds.value))
+const effectivePinning = computed(() => sanitizePinning(columnPinning.value, leafIds.value))
+const storedSizing = computed(() => sanitizeSizing(columnSizing.value, leafIds.value, boundsOf))
+const visibleIds = computed(() => leafIds.value.filter(id => columnVisibility.value[id] !== false))
+
+// The surface's inner width. When the columns are narrower, the free space goes to one column
+// (the name column until the user sizes it, then the last centre column the user has not sized),
+// so the table always fills the surface and user widths hold exactly.
+const containerWidth = ref(0)
+const flexColumnId = computed(() => {
+  const visible = new Set(visibleIds.value)
+  const pinned = new Set([...effectivePinning.value.left!, ...effectivePinning.value.right!])
+  const centre = effectiveOrder.value.filter(id => visible.has(id) && !pinned.has(id) && !isLockedColumn(id))
+  const primary = primaryKey.value !== undefined && visible.has(primaryKey.value) ? primaryKey.value : undefined
+  const unsized = (id: string | undefined) => id !== undefined && storedSizing.value[id] === undefined
+  if (unsized(primary)) return primary
+  return [...centre].reverse().find(unsized) ?? primary ?? centre[centre.length - 1]
+})
+const columnWidths = computed<Record<string, number>>(() => {
+  const widths: Record<string, number> = {}
+  for (const id of visibleIds.value) {
+    widths[id] = storedSizing.value[id] ?? columnInfo.value.get(id)?.size ?? 0
+  }
+  const total = Object.values(widths).reduce((sum, width) => sum + width, 0)
+  const free = Math.floor(containerWidth.value) - total
+  const flex = flexColumnId.value
+  if (free > 0 && flex !== undefined) widths[flex]! += free
+  return widths
+})
+const tableWidth = computed(() => Object.values(columnWidths.value).reduce((sum, width) => sum + width, 0))
+// What TanStack reads as `column.getSize()` (pinned offsets, the resize handler's start width).
+const effectiveSizing = computed<ColumnSizingState>(() => {
+  const sizing: ColumnSizingState = {}
+  for (const [id, info] of columnInfo.value) sizing[id] = storedSizing.value[id] ?? info.size
+  return { ...sizing, ...columnWidths.value }
+})
+const widthVars = computed(() => {
+  const vars: Record<string, string> = { '--hf-table-w': `${tableWidth.value}px` }
+  for (const [id, width] of Object.entries(columnWidths.value)) vars[columnWidthVar(id)] = `${width}px`
+  return vars
+})
+
+function setColumnOrder(next: ColumnOrderState) {
+  columnOrder.value = sanitizeOrder(next, leafIds.value)
+}
+function setColumnPinning(next: ColumnPinningState) {
+  columnPinning.value = sanitizePinning(next, leafIds.value)
+}
+// TanStack hands over the whole sizing state: a width that differs from the rendered one is the
+// user's, an unchanged one keeps what was stored, and a missing one goes back to its default.
+function setColumnSizing(next: ColumnSizingState) {
+  const result: ColumnSizingState = {}
+  for (const [id, width] of Object.entries(next)) {
+    if (width !== effectiveSizing.value[id]) result[id] = width
+    else if (storedSizing.value[id] !== undefined) result[id] = storedSizing.value[id]!
+  }
+  columnSizing.value = sanitizeSizing(result, leafIds.value, boundsOf)
+}
+/** Sets one column's width, clamped to its bounds. */
+function setColumnWidth(id: string, width: number) {
+  columnSizing.value = sanitizeSizing({ ...storedSizing.value, [id]: width }, leafIds.value, boundsOf)
+}
+function resizeColumnBy(id: string, delta: number) {
+  setColumnWidth(id, (columnWidths.value[id] ?? effectiveSizing.value[id] ?? 0) + delta)
+}
+
+// ── Resize handle: pointer, keyboard and autofit ───────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function onResizeStart(event: MouseEvent, header: Header<any, unknown>) {
+  if (event.button !== 0) return
+  header.getResizeHandler()(event)
+}
+
+// Alt+←/→ resizes the column whose header holds the focus (the handle itself also takes plain
+// arrows). Alt+Shift+←/→ is left for moving the column.
+function onTableKeydown(event: KeyboardEvent) {
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+  if (event.shiftKey || event.ctrlKey || event.metaKey) return
+  const target = event.target instanceof Element ? event.target : null
+  const onHandle = target?.matches('[data-resize-handle]') ?? false
+  if (!event.altKey && !onHandle) return
+  const handle = target?.closest('th[data-slot="th"]')?.querySelector<HTMLElement>('[data-resize-handle]')
+  const id = handle?.dataset.columnId
+  if (!id) return
+  event.preventDefault()
+  resizeColumnBy(id, event.key === 'ArrowLeft' ? -RESIZE_STEP : RESIZE_STEP)
+}
+
+/** Fits a column to its widest rendered cell (header included), within its bounds. */
+function autofitColumn(id: string) {
+  const surface = surfaceEl.value
+  if (!surface) return
+  const cells = surface.querySelectorAll<HTMLElement>(`.${columnCellClass(id)}`)
+  const probe = document.createElement('div')
+  probe.setAttribute('data-hf-measure', '')
+  probe.setAttribute('aria-hidden', 'true')
+  probe.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:max-content;white-space:nowrap'
+  surface.appendChild(probe)
+  let widest = 0
+  for (const cell of cells) {
+    const style = getComputedStyle(cell)
+    probe.style.font = style.font
+    probe.replaceChildren(...Array.from(cell.childNodes, node => node.cloneNode(true)))
+    probe.querySelectorAll('[data-resize-handle]').forEach(node => node.remove())
+    const padding = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0)
+    widest = Math.max(widest, probe.getBoundingClientRect().width + padding)
+  }
+  probe.remove()
+  if (widest > 0) setColumnWidth(id, Math.ceil(widest))
+}
+
+// Width tooltip while dragging: «Estado · 152 px».
+const resizingColumnId = computed(() => columnSizingInfo.value.isResizingColumn || undefined)
+const resizeTip = ref<{ text: string; left: number; top: number }>()
+watch(
+  [resizingColumnId, columnWidths],
+  ([id]) => {
+    const handle = id
+      ? Array.from(surfaceEl.value?.querySelectorAll<HTMLElement>('[data-resize-handle]') ?? []).find(
+          el => el.dataset.columnId === id,
+        )
+      : undefined
+    if (!id || !handle) {
+      resizeTip.value = undefined
+      return
+    }
+    const rect = handle.getBoundingClientRect()
+    resizeTip.value = { text: `${labelOf(id)} · ${columnWidths.value[id]} px`, left: rect.right, top: rect.top }
+  },
+  { flush: 'post' },
+)
+
+// ── Pinned edge: shown only while content is scrolled under it ─────────────
+const skeletonRef = useTemplateRef<HTMLElement>('skeleton')
+const surfaceEl = computed<HTMLElement | undefined>(
+  () => (tableRef.value?.$el as HTMLElement | undefined) ?? skeletonRef.value ?? undefined,
+)
+const scrolledLeft = ref(false)
+const scrolledRight = ref(false)
+function measureSurface() {
+  const el = surfaceEl.value
+  if (!el) return
+  containerWidth.value = el.clientWidth
+  const max = el.scrollWidth - el.clientWidth
+  scrolledLeft.value = el.scrollLeft > 0
+  scrolledRight.value = max > 1 && el.scrollLeft < max - 1
+}
+useEventListener(surfaceEl, 'scroll', measureSurface, { passive: true })
+useResizeObserver(surfaceEl, measureSurface)
+onMounted(measureSurface)
+watch(tableWidth, () => nextTick(measureSurface))
+// A string: UTable merges `class` through tailwind-variants, which drops object syntax.
+const surfaceClasses = computed(() =>
+  [scrolledLeft.value ? 'hf-table-scrolled-left' : '', scrolledRight.value ? 'hf-table-scrolled-right' : '']
+    .filter(Boolean)
+    .join(' '),
+)
 
 // C2: the loading skeleton keeps the real header row and `min(pageSize, 5)` rows, so the surface
 // does not change height when the data arrives.
@@ -263,13 +498,19 @@ const skeletonColumns = computed(() => {
         header: resolveSkeletonHeader(column),
         thClass: [classes.th, primary ? PRIMARY_COLUMN_CLASS : ''],
         tdClass: [classes.td, primary ? PRIMARY_COLUMN_CLASS : ''],
+        width: key === undefined ? undefined : `var(${columnWidthVar(key)})`,
         barClass: index === 0 || primary ? 'w-2/3' : 'w-1/2',
       }
     })
 })
 
+// Every leaf header is rendered here (the consumer's `#<id>-header` slot or the column's header,
+// plus the resize handle), so those slots are not forwarded as is.
+const headerSlotNames = computed(() => new Set(leafIds.value.map(id => `${id}-header`)))
 const forwardedTableSlots = computed(() =>
-  Object.keys(slots).filter((name) => !SLOTS_NOT_FORWARDED_TO_TABLE.has(name)),
+  Object.keys(slots).filter(
+    (name) => !SLOTS_NOT_FORWARDED_TO_TABLE.has(name) && !headerSlotNames.value.has(name),
+  ),
 )
 
 // Selected count for bulk actions
@@ -296,7 +537,10 @@ const BODY_ROW_SELECTOR = 'tbody > tr[data-slot="tr"][data-selected]'
 const rowMeta = computed(() =>
   props.rowOpen ? { class: { tr: 'hf-clickable-row' } } : undefined,
 )
-const rowListeners = computed(() => (props.rowOpen ? { click: onTableClick } : {}))
+const tableListeners = computed(() => ({
+  keydown: onTableKeydown,
+  ...(props.rowOpen ? { click: onTableClick } : {}),
+}))
 
 function onTableClick(event: MouseEvent) {
   const tr = event.target instanceof Element ? event.target.closest(BODY_ROW_SELECTOR) : null
@@ -310,6 +554,20 @@ function onTableClick(event: MouseEvent) {
 function handleClearSelection() {
   rowSelection.value = {}
 }
+
+defineExpose({
+  /** The TanStack table (undefined until the table renders). */
+  get tableApi() {
+    return tableApi.value
+  },
+  /** Rendered width per visible column, in px. */
+  columnWidths,
+  /** Default width and bounds per column. */
+  columnInfo,
+  setColumnWidth,
+  resizeColumnBy,
+  autofitColumn,
+})
 </script>
 
 <template>
@@ -477,12 +735,14 @@ function handleClearSelection() {
            when the rows arrive. A background refetch with rows keeps UTable's progress bar. -->
       <div
         v-else-if="showTableSkeleton"
+        ref="skeleton"
         class="relative w-full min-w-0 max-w-full flex-1 overflow-auto"
+        :style="widthVars"
         aria-busy="true"
         data-testid="table-skeleton"
       >
         <span class="sr-only">Cargando</span>
-        <table data-slot="base" class="min-w-full overflow-clip" aria-hidden="true">
+        <table data-slot="base" class="w-(--hf-table-w) min-w-full table-fixed overflow-clip" aria-hidden="true">
           <thead data-slot="thead" class="relative" inert data-testid="table-skeleton-header">
             <tr data-slot="tr">
               <th
@@ -491,7 +751,10 @@ function handleClearSelection() {
                 data-slot="th"
                 class="border-b border-[var(--hf-border)] px-4 py-3.5 text-left text-sm font-semibold"
                 :class="column.thClass"
-                :style="column.select ? 'width:3rem;min-width:3rem;max-width:3rem;padding-inline:0.75rem 0' : undefined"
+                :style="[
+                  column.width ? { width: column.width, minWidth: column.width, maxWidth: column.width } : {},
+                  column.select ? 'padding-inline:0.75rem 0' : '',
+                ]"
               >
                 <span v-if="column.header.kind === 'text'" :class="column.actions ? 'sr-only' : undefined">
                   {{ column.header.text }}
@@ -519,7 +782,10 @@ function handleClearSelection() {
               data-slot="td"
               class="border-b border-[var(--hf-border)] p-4 text-sm"
               :class="column.tdClass"
-              :style="column.select ? 'width:3rem;min-width:3rem;max-width:3rem;padding-inline:0.75rem 0;overflow:visible' : undefined"
+              :style="[
+                column.width ? { width: column.width, minWidth: column.width, maxWidth: column.width } : {},
+                column.select ? 'padding-inline:0.75rem 0;overflow:visible' : '',
+              ]"
             >
               <span
                 class="hf-skeleton block animate-pulse"
@@ -540,9 +806,14 @@ function handleClearSelection() {
         v-else
         ref="table"
         v-model:sorting="sorting"
-        v-model:column-pinning="columnPinning"
         v-model:column-visibility="columnVisibility"
         v-model:row-selection="rowSelection"
+        v-model:column-sizing-info="columnSizingInfo"
+        :column-order="effectiveOrder"
+        :column-pinning="effectivePinning"
+        :column-sizing="effectiveSizing"
+        :column-pinning-options="{ enableColumnPinning: true }"
+        :column-sizing-options="{ enableColumnResizing: true, columnResizeMode: 'onChange' }"
         :row-selection-options="{ enableRowSelection: props.enableRowSelection }"
         :data="props.data"
         :columns="displayColumns"
@@ -555,12 +826,46 @@ function handleClearSelection() {
         :sorting-options="{
           manualSorting: true,
         }"
-        class="w-full min-w-0 max-w-full flex-1"
+        :ui="{ base: 'w-(--hf-table-w) min-w-full table-fixed' }"
+        :class="['w-full min-w-0 max-w-full flex-1', surfaceClasses]"
+        :style="widthVars"
+        :data-density="density"
         data-testid="table-view"
-        v-on="rowListeners"
+        @update:column-order="setColumnOrder"
+        @update:column-pinning="setColumnPinning"
+        @update:column-sizing="setColumnSizing"
+        v-on="tableListeners"
       >
         <template v-for="name in forwardedTableSlots" #[name]="slotProps">
           <slot :name="name" v-bind="slotProps ?? {}" />
+        </template>
+        <template v-for="id in leafIds" #[`${id}-header`]="headerProps">
+          <slot v-if="slots[`${id}-header`]" :name="`${id}-header`" v-bind="headerProps" />
+          <FlexRender
+            v-else-if="!headerProps.header.isPlaceholder"
+            :key="`header-${id}`"
+            :render="headerProps.column.columnDef.header"
+            :props="headerProps"
+          />
+          <span
+            v-if="headerProps.column.getCanResize()"
+            :key="`resize-${id}`"
+            role="separator"
+            aria-orientation="vertical"
+            :aria-label="`Cambiar ancho de ${labelOf(id)}`"
+            :aria-valuenow="columnWidths[id]"
+            :aria-valuemin="columnInfo.get(id)?.bounds.min"
+            :aria-valuemax="columnInfo.get(id)?.bounds.max"
+            tabindex="0"
+            title="Arrastra para cambiar el ancho; doble clic para ajustarlo al contenido"
+            data-resize-handle
+            :data-column-id="id"
+            :data-resizing="resizingColumnId === id || undefined"
+            class="absolute inset-y-0 right-0 z-[2] w-2 cursor-col-resize touch-none"
+            @mousedown.stop="onResizeStart($event, headerProps.header)"
+            @click.stop
+            @dblclick.stop.prevent="autofitColumn(id)"
+          />
         </template>
         <template v-if="sharedEmptyKind && !slots.empty" #empty>
           <EmptyState
@@ -582,6 +887,18 @@ function handleClearSelection() {
         </template>
       </UTable>
     </template>
+
+    <!-- Width while dragging a column edge -->
+    <div
+      v-if="resizeTip"
+      class="pointer-events-none fixed z-50 -translate-y-full rounded px-2 py-1 text-xs font-semibold tabular-nums"
+      style="background-color: var(--hf-ink); color: var(--hf-surface)"
+      :style="{ left: `${resizeTip.left + 8}px`, top: `${resizeTip.top - 4}px` }"
+      aria-hidden="true"
+      data-testid="table-resize-tip"
+    >
+      {{ resizeTip.text }}
+    </div>
 
     <!-- Pagination -->
     <DataTablePagination
