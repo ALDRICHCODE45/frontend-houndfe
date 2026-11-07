@@ -217,3 +217,53 @@
   color: var(--hf-muted);
   font-size: 13px;
 }
+
+/*
+ * Items of the sale (premium tables S7): a small plain table inside the detail
+ * card that wears the AppDataTable look — the `--hf-table-head` wash, muted
+ * 13px/600 headings, hairline rows on --hf-border, tabular figures and the
+ * list hover. Rows are not clickable, so the hover is a wash, never a cursor.
+ */
+.sales-detail-visual .sale-detail-items-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.sales-detail-visual .sale-detail-items-table thead {
+  background-color: color-mix(in srgb, var(--hf-ink) 4%, var(--hf-surface));
+}
+
+.sales-detail-visual .sale-detail-items-table th {
+  height: 40px;
+  padding: 0 12px;
+  color: var(--hf-muted);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sales-detail-visual .sale-detail-items-table th:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+.sales-detail-visual .sale-detail-items-table th:last-child {
+  border-radius: 0 8px 8px 0;
+}
+
+.sales-detail-visual .sale-detail-items-table tr {
+  border-color: var(--hf-border);
+}
+
+.sales-detail-visual .sale-detail-items-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--hf-border);
+  font-variant-numeric: tabular-nums;
+}
+
+.sales-detail-visual .sale-detail-items-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.sales-detail-visual .sale-detail-items-table tbody tr:hover {
+  background-color: color-mix(in srgb, var(--hf-active-soft) 55%, var(--hf-surface));
+}

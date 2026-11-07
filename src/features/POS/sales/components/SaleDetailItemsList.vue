@@ -81,7 +81,7 @@ const itemsView = computed(() =>
         />
       </li>
     </ul>
-    <table v-else class="w-full text-sm" data-testid="items-table">
+    <table v-else class="sale-detail-items-table w-full text-sm" data-testid="items-table">
       <thead>
         <tr class="border-b border-default text-[13px] font-semibold text-(--hf-muted)">
           <th class="py-2 text-left">Producto</th>

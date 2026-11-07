@@ -5,8 +5,10 @@
 // zone label, keeping a stale row while a failure is reported, or dropping the
 // retry action fails at least one of these tests.
 
-import { describe, expect, it } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { mount, type VueWrapper } from '@vue/test-utils'
+import { nextTick } from 'vue'
+import { columnLabel } from '@/core/shared/components/DataTable/columnLayout.utils'
 import SellerSalesReportContent from '@/features/admin/users/seller-report/components/SellerSalesReportContent.vue'
 import type { SellerSalesReport } from '../../interfaces/seller-report.types'
 
@@ -87,6 +89,19 @@ function mountContent(props: Record<string, unknown> = {}) {
   })
 }
 
+// Both lists are AppDataTables (premium tables T9): their body rows, without the empty row.
+function tableRows(wrapper: VueWrapper, name: 'confirmed' | 'canceled') {
+  const table = wrapper.find(`[data-testid="seller-report-${name}-table"]`)
+  if (!table.exists()) return []
+  return table
+    .findAll('tbody tr')
+    .filter((row) => row.find('td[data-slot="td"]').exists())
+}
+const confirmedRows = (wrapper: VueWrapper) => tableRows(wrapper, 'confirmed')
+const canceledRows = (wrapper: VueWrapper) => tableRows(wrapper, 'canceled')
+const tableOf = (wrapper: VueWrapper, name: 'confirmed' | 'canceled') =>
+  wrapper.findAllComponents({ name: 'AppDataTable' })[name === 'confirmed' ? 0 : 1]!
+
 function metric(wrapper: ReturnType<typeof mountContent>, name: string) {
   return wrapper.find(`[data-testid="seller-report-metric-${name}"]`).text()
 }
@@ -139,10 +154,10 @@ describe('SellerSalesReportContent — loaded report', () => {
 
   it('renders every confirmed row with its authoritative status and amounts', () => {
     const wrapper = mountContent()
-    const rows = wrapper.findAll('[data-testid="seller-report-confirmed-row"]')
+    const rows = confirmedRows(wrapper)
 
     expect(rows).toHaveLength(2)
-    expect(rows[0]?.attributes('data-row-id')).toBe('a1111111-1111-4111-8111-111111111111')
+    expect(rows[0]?.get('[data-row-id]').attributes('data-row-id')).toBe('a1111111-1111-4111-8111-111111111111')
     expect(rows[0]?.text()).toContain('F-0001')
     expect(rows[0]?.text()).toContain('Parcial')
     expect(rows[0]?.text()).toContain('$1,160.00')
@@ -157,7 +172,7 @@ describe('SellerSalesReportContent — loaded report', () => {
 
   it('keeps canceled rows separate and never aggregates them into the metrics', () => {
     const wrapper = mountContent()
-    const canceled = wrapper.findAll('[data-testid="seller-report-canceled-row"]')
+    const canceled = canceledRows(wrapper)
 
     expect(canceled).toHaveLength(1)
     expect(canceled[0]?.text()).toContain('F-0003')
@@ -202,22 +217,22 @@ describe('SellerSalesReportContent — loaded report', () => {
     expect(wrapper.find('[data-testid="seller-report-canceled-empty"]').text()).toContain(
       'Sin ventas canceladas',
     )
-    expect(wrapper.findAll('[data-testid="seller-report-confirmed-row"]')).toHaveLength(0)
+    expect(confirmedRows(wrapper)).toHaveLength(0)
   })
 
   it('flags an inactive seller without hiding the report', () => {
     const wrapper = mountContent({ sellerIsActive: false })
 
     expect(wrapper.find('[data-testid="seller-report-inactive-note"]').exists()).toBe(true)
-    expect(wrapper.findAll('[data-testid="seller-report-confirmed-row"]')).toHaveLength(2)
+    expect(confirmedRows(wrapper)).toHaveLength(2)
   })
 })
 
 describe('SellerSalesReportContent — design system', () => {
   it('renders each payment state as a shared StatusBadge with the mapped tone', () => {
     const wrapper = mountContent()
-    const badges = wrapper
-      .findAll('[data-testid="seller-report-confirmed-row"] .hf-status-badge')
+    const badges = confirmedRows(wrapper)
+      .flatMap((row) => row.findAll('.hf-status-badge'))
       .map((badge) => [badge.text(), badge.attributes('data-tone')])
 
     expect(badges).toEqual([
@@ -232,7 +247,7 @@ describe('SellerSalesReportContent — design system', () => {
     expect(wrapper.get('[data-testid="seller-report-seller-name"]').classes()).toContain(
       'font-semibold',
     )
-    const money = wrapper.findAll('[data-testid="seller-report-confirmed-row"] td.hf-figure')
+    const money = confirmedRows(wrapper).flatMap((row) => row.findAll('td.hf-figure'))
     expect(money).toHaveLength(6)
     expect(money.every((cell) => cell.classes().includes('text-right'))).toBe(true)
   })
@@ -264,7 +279,7 @@ describe('SellerSalesReportContent — states', () => {
     expect(failure.get('.hf-empty-state__description').text()).toBe(
       'El reporte supera el límite de 1,000 filas: el periodo tiene 1,500 ventas.',
     )
-    expect(wrapper.findAll('[data-testid="seller-report-confirmed-row"]')).toHaveLength(0)
+    expect(confirmedRows(wrapper)).toHaveLength(0)
     expect(wrapper.find('[data-testid="seller-report-summary"]').exists()).toBe(false)
 
     const retry = wrapper.findAll('[data-testid="seller-report-retry"]')
@@ -292,12 +307,58 @@ describe('SellerSalesReportContent — states', () => {
 
     expect(wrapper.find('[data-testid="seller-report-refreshing"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="seller-report-summary"]').exists()).toBe(true)
-    expect(wrapper.findAll('[data-testid="seller-report-confirmed-row"]')).toHaveLength(2)
+    expect(confirmedRows(wrapper)).toHaveLength(2)
   })
 
   it('never shows the refreshing indicator when nothing is loaded', () => {
     const wrapper = mountContent({ report: null, isFetching: true, isInitialLoading: true })
 
     expect(wrapper.find('[data-testid="seller-report-refreshing"]').exists()).toBe(false)
+  })
+})
+
+describe('SellerSalesReportContent — column layout (premium tables T9)', () => {
+  beforeEach(() => localStorage.clear())
+  afterEach(() => localStorage.clear())
+
+  it.each([
+    ['confirmed', 'admin-seller-report-confirmed', ['paymentStatus', 'sale', 'totalCents', 'paidCents', 'debtCents'], 'paidCents'],
+    ['canceled', 'admin-seller-report-canceled', ['canceledAt', 'sale', 'totalCents'], 'canceledAt'],
+  ] as const)('persists the %s layout under %s, for every seller', async (name, key, order, hidden) => {
+    const wrapper = mountContent()
+    const table = tableOf(wrapper, name)
+    expect(table.props('persistLayout')).toBe(true)
+
+    table.vm.$emit('update:columnOrder', order)
+    table.vm.$emit('update:columnPinning', { left: ['sale'], right: [] })
+    table.vm.$emit('update:columnSizing', { totalCents: 140 })
+    table.vm.$emit('update:columnVisibility', { [hidden]: false })
+    table.vm.$emit('update:density', 'compact')
+    await nextTick()
+    expect(JSON.parse(localStorage.getItem(`table-preferences-${key}`) ?? '{}')).toMatchObject({
+      order,
+      pinning: { left: ['sale'] },
+      sizing: { totalCents: 140 },
+      visibility: { [hidden]: false },
+      density: 'compact',
+    })
+
+    table.vm.$emit('reset-columns')
+    await nextTick()
+    expect(localStorage.getItem(`table-preferences-${key}`)).toBeNull()
+    expect(table.props('columnSizing')).toEqual({})
+  })
+
+  it('names every column for the column menus, never with its id', () => {
+    const wrapper = mountContent()
+    const labels = (name: 'confirmed' | 'canceled') =>
+      (tableOf(wrapper, name).props('columns') as Parameters<typeof columnLabel>[0][]).map(columnLabel)
+    expect(labels('confirmed')).toEqual(['Venta', 'Estado', 'Total', 'Pagado', 'Saldo'])
+    expect(labels('canceled')).toEqual(['Venta', 'Fecha de cancelación', 'Total'])
+  })
+
+  it('never sums the rows: no totals row on either list', () => {
+    const wrapper = mountContent()
+    expect(wrapper.find('tfoot').exists()).toBe(false)
   })
 })

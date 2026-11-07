@@ -15,6 +15,22 @@
 }
 
 /*
+ * Rows as in AppDataTable: hairlines on --hf-border (Tailwind's `divide-default`
+ * is zero-specificity, so this wins), the list hover wash and tabular figures.
+ */
+.products-plain-table :is(thead, tbody, tr) {
+  border-color: var(--hf-border);
+}
+
+.products-plain-table td {
+  font-variant-numeric: tabular-nums;
+}
+
+.products-plain-table tbody tr:hover {
+  background-color: color-mix(in srgb, var(--hf-active-soft) 55%, var(--hf-surface));
+}
+
+/*
  * Below 640px a table marked `data-stack` turns each row into a small card, so
  * no price input is cut to «$ 0.» behind a sideways scroll: the name and its ⋮
  * on top, then the figures with their own labels (`data-label`). The table

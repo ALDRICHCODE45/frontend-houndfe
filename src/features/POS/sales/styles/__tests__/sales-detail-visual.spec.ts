@@ -284,4 +284,20 @@ describe('Sales detail visual wiring', () => {
     expect(paymentsList).toContain('portalClass?: string')
     expect(paymentsList).toContain(':portal-class="portalClass"')
   })
+
+  // Premium tables S7: the items of a sale stay a small plain table with the AppDataTable look.
+  it('dresses the items table like AppDataTable: header wash, muted 13px/600 headings, hairlines, hover', () => {
+    const wash = shared.match(/--hf-table-head: (color-mix\([^;]+\));/)![1]!
+    const items = '.sales-detail-visual .sale-detail-items-table'
+    expect(ruleWith(css, `${items} thead`, 'background-color')!.style.getPropertyValue('background-color')).toBe(wash)
+    const heading = ruleWith(css, `${items} th`, 'color')!
+    expect(heading.style.getPropertyValue('color')).toBe('var(--hf-muted)')
+    expect(heading.style.getPropertyValue('font-size')).toBe('13px')
+    expect(heading.style.getPropertyValue('font-weight')).toBe('600')
+    expect(ruleWith(css, `${items} tr`, 'border-color')!.style.getPropertyValue('border-color')).toBe('var(--hf-border)')
+    expect(ruleWith(css, `${items} td`, 'font-variant-numeric')!.style.getPropertyValue('font-variant-numeric')).toBe('tabular-nums')
+    expect(ruleWith(css, `${items} tbody tr:hover`, 'background-color')).toBeDefined()
+    const list = readFileSync('src/features/POS/sales/components/SaleDetailItemsList.vue', 'utf8')
+    expect(list).toMatch(/<table[^>]*sale-detail-items-table/)
+  })
 })

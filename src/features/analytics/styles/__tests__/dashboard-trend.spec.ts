@@ -48,4 +48,16 @@ describe('Dashboard trend presentation contract', () => {
       expect(css).toContain(`.dashboard-trend-${hook}`)
     }
   })
+
+  // Premium tables S7: the chart's accessible data table stays plain, with the AppDataTable look.
+  it('dresses the data table like AppDataTable: header wash, muted 13px/600 headings, hairlines, hover', () => {
+    const shared = readFileSync('src/core/shared/design-system/houndfe-ui.css', 'utf8')
+    const wash = shared.match(/--hf-table-head: (color-mix\([^;]+\));/)![1]!
+    const table = '.dashboard-visual .dashboard-trend-data'
+    expect(component).toMatch(/<table[^>]*class="dashboard-trend-data/)
+    expect(css).toMatch(new RegExp(`${table.replace(/\./g, '\\.')} thead \\{[^}]*background-color: ${wash.replace(/[()%]/g, '\\$&')}`))
+    expect(css).toMatch(/\.dashboard-trend-data th \{[^}]*color: var\(--hf-muted\);[^}]*font-size: 13px;[^}]*font-weight: 600/s)
+    expect(css).toMatch(/\.dashboard-trend-data :is\(th, td\) \{[^}]*border-bottom: 1px solid var\(--hf-border\)/s)
+    expect(css).toMatch(/\.dashboard-trend-data tbody tr:hover \{[^}]*var\(--hf-active-soft\)/s)
+  })
 })

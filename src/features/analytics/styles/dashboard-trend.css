@@ -136,6 +136,18 @@ html.dark .dashboard-visual .branch-sales-trend-chart {
   font-size: 12px;
 }
 .dashboard-visual .dashboard-trend-table { padding: 0 24px 8px; }
+/* The chart's data table (premium tables S7): a small plain table with the AppDataTable look —
+ * the `--hf-table-head` wash, muted 13px/600 headings, hairlines on --hf-border, tabular figures
+ * and the list hover. */
+.dashboard-visual .dashboard-trend-data { border-collapse: separate; border-spacing: 0; font-size: 14px; }
+.dashboard-visual .dashboard-trend-data thead { background-color: color-mix(in srgb, var(--hf-ink) 4%, var(--hf-surface)); }
+.dashboard-visual .dashboard-trend-data th { color: var(--hf-muted); font-size: 13px; font-weight: 600; }
+.dashboard-visual .dashboard-trend-data thead th { height: 40px; padding: 0 12px; white-space: nowrap; }
+.dashboard-visual .dashboard-trend-data :is(th, td) { border-bottom: 1px solid var(--hf-border); }
+.dashboard-visual .dashboard-trend-data tbody :is(th, td) { height: 40px; padding: 0 12px; font-size: 14px; font-variant-numeric: tabular-nums; }
+.dashboard-visual .dashboard-trend-data tbody th { color: var(--hf-ink); font-weight: 400; }
+.dashboard-visual .dashboard-trend-data tbody tr:last-child :is(th, td) { border-bottom: 0; }
+.dashboard-visual .dashboard-trend-data tbody tr:hover { background-color: color-mix(in srgb, var(--hf-active-soft) 55%, var(--hf-surface)); }
 .dashboard-visual .dashboard-trend-table summary {
   position: absolute;
   top: 6px;
