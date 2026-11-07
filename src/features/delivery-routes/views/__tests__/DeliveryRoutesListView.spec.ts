@@ -44,6 +44,10 @@ const tableMock = {
   globalFilter: ref(''),
   columnPinning: ref({ left: [], right: ['actions'] }),
   columnVisibility: ref<Record<string, boolean>>({}),
+  columnOrder: ref<string[]>([]),
+  columnSizing: ref<Record<string, number>>({}),
+  density: ref<'compact' | 'normal' | 'comfortable'>('comfortable'),
+  resetLayout: vi.fn(),
   data: ref<unknown[]>([]),
   totalCount: ref(0),
   pageCount: ref(0),
@@ -258,8 +262,14 @@ vi.mock('@/core/shared/components/DataTable', () => ({
       'mobileRender',
       'portalClass',
       'paginationPortalClass',
+      'columnPinning',
+      'columnVisibility',
+      'columnOrder',
+      'columnSizing',
+      'density',
+      'persistLayout',
     ],
-    emits: ['add', 'refresh', 'empty-action', 'clear-filters'],
+    emits: ['add', 'refresh', 'empty-action', 'clear-filters', 'reset-columns'],
     setup(props, { emit, slots }) {
       dataTableProps.push({ ...props })
       function fireAdd() {
@@ -539,6 +549,35 @@ beforeEach(() => {
 })
 
 describe('DeliveryRoutesListView — manager branch (design.md §6.4, §11, REQ-DRM-014)', () => {
+  it('binds the persisted column layout (premium tables T9) and resets it from «Restablecer columnas»', async () => {
+    tableMock.columnOrder.value = ['driver', 'name']
+    tableMock.columnSizing.value = { driver: 200 }
+    tableMock.density.value = 'compact'
+    const wrapper = mountView()
+    await flushPromises()
+    const lastProps = dataTableProps[dataTableProps.length - 1]!
+    expect(lastProps.persistLayout).toBe(true)
+    expect(lastProps.columnOrder).toEqual(['driver', 'name'])
+    expect(lastProps.columnSizing).toEqual({ driver: 200 })
+    expect(lastProps.density).toBe('compact')
+    expect(lastProps.columnPinning).toEqual({ left: [], right: ['actions'] })
+    expect(lastProps.columnVisibility).toEqual({})
+    wrapper.findComponent({ name: 'AppDataTable' }).vm.$emit('reset-columns')
+    expect(tableMock.resetLayout).toHaveBeenCalledTimes(1)
+    tableMock.columnOrder.value = []
+    tableMock.columnSizing.value = {}
+    tableMock.density.value = 'comfortable'
+  })
+
+  it('gives every column a human label for the «Columnas» panel', () => {
+    mountView()
+    const columns = dataTableProps[dataTableProps.length - 1]!.columns as Array<{ id: string; header: unknown }>
+    expect(columns.map((column) => column.header)).toEqual([
+      'Ruta', 'Estado', 'Repartidor', 'Progreso', 'Clientes', 'Creada', 'Inicio', 'Acciones',
+    ])
+    expect(columns[columns.length - 1]!.id).toBe('actions')
+  })
+
   it('renders the AppDataTable with the manager columns + empty copy', async () => {
     resetRoleFlags({ isManager: { value: true }, canCreate: { value: true } })
     resetTableState({ data: [], totalCount: 0 })

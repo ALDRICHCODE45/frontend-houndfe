@@ -4,6 +4,7 @@ import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { useClickableRow } from '@/core/shared/composables/useClickableRow'
+import { useTablePreferences } from '@/core/shared/composables/useTablePreferences'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { TableColumn } from '@/core/shared/types/table.types'
 import type { Supplier } from '../interfaces/supplier.types'
@@ -26,6 +27,11 @@ const columns = computed<TableColumn<Supplier, unknown>[]>(() => [
   { accessorKey: 'updatedAt', header: 'Actualizado', enableSorting: false },
   ...(hasActions.value ? [{ id: 'actions', header: 'Acciones', enableSorting: false, meta: { class: { th: 'w-16', td: 'w-16 text-right' } } }] : []),
 ])
+// Premium tables T9: the user's column layout (order, pinning, widths, visibility, density) is kept per table.
+const { columnOrder, columnPinning, columnSizing, columnVisibility, density, reset: resetLayout } = useTablePreferences({
+  persistKey: 'procurement-suppliers',
+  columnIds: () => columns.value.map(column => column.id ?? ('accessorKey' in column ? String(column.accessorKey) : '')),
+})
 // The one useful second line: the first filled line of the terms, if any.
 const terms = (supplier: Supplier) => supplier.termsText?.split(/\r?\n/).map(line => line.trim()).find(Boolean) ?? ''
 const archived = (supplier: Supplier) => supplier.status === 'ARCHIVED'
@@ -61,6 +67,12 @@ const clickable = useClickableRow<Supplier>(open, { focusable: false })
   <div ref="root" class="supplier-list">
     <AppDataTable
       v-model:global-filter="search"
+      v-model:column-order="columnOrder"
+      v-model:column-pinning="columnPinning"
+      v-model:column-sizing="columnSizing"
+      v-model:column-visibility="columnVisibility"
+      v-model:density="density"
+      :persist-layout="true"
       :columns="columns" :data="data" :loading="loading" :fetching="fetching" :error="error"
       error-message="No se pudieron cargar los proveedores"
       :empty-state="emptyState" :filtered="filtered" no-match-title="Ningún proveedor con estos filtros"
@@ -68,6 +80,7 @@ const clickable = useClickableRow<Supplier>(open, { focusable: false })
       portal-class="hf-theme hf-ui suppliers-list-portal"
       :active-filter-count="activeFilterCount"
       class="hf-data-table" @refresh="emit('refresh')" @empty-action="emit('create')" @clear-filters="emit('clear-filters')"
+      @reset-columns="resetLayout"
     >
       <template #filters><slot name="filters" /></template>
       <template #actions><slot name="actions" /></template>

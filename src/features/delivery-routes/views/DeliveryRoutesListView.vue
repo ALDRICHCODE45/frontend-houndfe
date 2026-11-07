@@ -92,6 +92,10 @@ const {
   globalFilter,
   columnPinning,
   columnVisibility,
+  columnOrder,
+  columnSizing,
+  density,
+  resetLayout,
   data,
   totalCount,
   pageCount,
@@ -480,6 +484,10 @@ function stopsSummary(route: DeliveryRouteResponseDto): string {
           v-model:global-filter="globalFilter"
           v-model:column-pinning="columnPinning"
           v-model:column-visibility="columnVisibility"
+          v-model:column-order="columnOrder"
+          v-model:column-sizing="columnSizing"
+          v-model:density="density"
+          :persist-layout="true"
           :columns="columns"
           :data="data"
           :loading="isLoading"
@@ -511,6 +519,7 @@ function stopsSummary(route: DeliveryRouteResponseDto): string {
           @empty-action="openCreate"
           @refresh="refresh"
           @clear-filters="resetFilters"
+          @reset-columns="resetLayout"
         >
           <template #filters>
             <ToolbarSelectFilter

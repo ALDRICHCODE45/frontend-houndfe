@@ -8,6 +8,7 @@ import { computed } from 'vue'
 import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { useClickableRow } from '@/core/shared/composables/useClickableRow'
+import { useTablePreferences } from '@/core/shared/composables/useTablePreferences'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { TableColumn } from '@/core/shared/types/table.types'
 import type { ZoneValidation } from '../interfaces/delivery-zone.types'
@@ -40,6 +41,12 @@ const columns: TableColumn<ZoneValidation, unknown>[] = [
   { accessorKey: 'lastCustomerMessageAt', header: 'Último mensaje', enableSorting: false },
 ]
 
+// Premium tables T9: the user's column layout (order, pinning, widths, visibility, density) is kept per table.
+const { columnOrder, columnPinning, columnSizing, columnVisibility, density, reset: resetLayout } = useTablePreferences({
+  persistKey: 'shipping-zone-validations',
+  columnIds: columns.map(column => column.id ?? ('accessorKey' in column ? String(column.accessorKey) : '')),
+})
+
 const place = (validation: ZoneValidation) =>
   [validation.neighborhood, validation.municipality].filter(Boolean).join(', ')
 const requesters = (count: number) => (count === 1 ? '1 cliente' : `${count} clientes`)
@@ -57,6 +64,12 @@ const clickable = useClickableRow<ZoneValidation>((validation) => emit('open', v
 
 <template>
   <AppDataTable
+    v-model:column-order="columnOrder"
+    v-model:column-pinning="columnPinning"
+    v-model:column-sizing="columnSizing"
+    v-model:column-visibility="columnVisibility"
+    v-model:density="density"
+    :persist-layout="true"
     v-model:pagination="pagination"
     :columns="columns"
     :data="data"
@@ -77,6 +90,7 @@ const clickable = useClickableRow<ZoneValidation>((validation) => emit('open', v
     pagination-portal-class="hf-theme hf-ui zone-validations-portal"
     class="hf-data-table"
     @refresh="emit('refresh')"
+    @reset-columns="resetLayout"
   >
     <template #zipCode-cell="{ row }">
       <button type="button" class="hf-row-primary validation-zip" @click="emit('open', row.original)">

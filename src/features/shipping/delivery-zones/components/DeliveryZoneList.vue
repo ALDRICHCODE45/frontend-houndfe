@@ -9,6 +9,7 @@ import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { useClickableRow } from '@/core/shared/composables/useClickableRow'
+import { useTablePreferences } from '@/core/shared/composables/useTablePreferences'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { TableColumn } from '@/core/shared/types/table.types'
@@ -56,6 +57,12 @@ const columns = computed<TableColumn<DeliveryZone, unknown>[]>(() => [
     : []),
 ])
 
+// Premium tables T9: the user's column layout (order, pinning, widths, visibility, density) is kept per table.
+const { columnOrder, columnPinning, columnSizing, columnVisibility, density, reset: resetLayout } = useTablePreferences({
+  persistKey: 'shipping-delivery-zones',
+  columnIds: () => columns.value.map(column => column.id ?? ('accessorKey' in column ? String(column.accessorKey) : '')),
+})
+
 const TYPE_TONES: Record<DeliveryZoneType, 'success' | 'info' | 'neutral'> = {
   FREE: 'success',
   SURCHARGE: 'info',
@@ -90,6 +97,12 @@ const clickable = useClickableRow<DeliveryZone>(open, { focusable: false })
 
 <template>
   <AppDataTable
+    v-model:column-order="columnOrder"
+    v-model:column-pinning="columnPinning"
+    v-model:column-sizing="columnSizing"
+    v-model:column-visibility="columnVisibility"
+    v-model:density="density"
+    :persist-layout="true"
     v-model:global-filter="search"
     v-model:pagination="pagination"
     :columns="columns"
@@ -117,6 +130,7 @@ const clickable = useClickableRow<DeliveryZone>(open, { focusable: false })
     @refresh="emit('refresh')"
     @empty-action="emit('create')"
     @clear-filters="emit('clear-filters')"
+    @reset-columns="resetLayout"
   >
     <template #filters><slot name="filters" /></template>
     <template v-if="$slots.actions" #actions><slot name="actions" /></template>
