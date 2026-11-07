@@ -71,7 +71,8 @@ export function defaultColumnSize(column: AnyColumn, primary: boolean): number {
   const id = columnKey(column)
   const declared = shape(column).size
   if (id === SELECT_COLUMN_ID) return SELECT_COLUMN_SIZE
-  if (id !== undefined && isLockedColumn(id)) return ACTIONS_COLUMN_SIZE
+  // A locked Acciones column may declare its `size` (several buttons); it stays unresizable.
+  if (id !== undefined && isLockedColumn(id)) return declared ?? ACTIONS_COLUMN_SIZE
   if (declared !== undefined) return declared
   return declaredUtilityWidth(column) ?? (primary ? PRIMARY_COLUMN_SIZE : COLUMN_SIZE)
 }

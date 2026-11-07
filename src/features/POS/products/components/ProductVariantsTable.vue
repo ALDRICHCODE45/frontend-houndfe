@@ -101,7 +101,7 @@ function actionsFor(): RowAction[] {
     >
       <span class="font-medium text-toned">Existencias</span> · {{ STOCK_ADJUST_HINT }}
     </p>
-    <table class="products-plain-table products-variants-table min-w-full divide-y divide-default text-sm" data-stack>
+    <table class="hf-plain-table hf-plain-table--hover products-plain-table products-variants-table min-w-full divide-y divide-default text-sm" data-stack>
       <thead>
         <tr>
           <th class="px-4 py-3 text-left font-semibold">Variante</th>

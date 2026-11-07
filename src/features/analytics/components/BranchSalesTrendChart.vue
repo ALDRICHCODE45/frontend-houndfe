@@ -464,7 +464,7 @@ const areaFill = `url(#${gradientId})`
         <div class="mt-2 min-w-0 overflow-x-auto">
           <table
             data-testid="branch-sales-trend-table"
-            class="dashboard-trend-data w-full min-w-0 text-left"
+            class="hf-plain-table dashboard-trend-data w-full min-w-0 text-left"
           >
             <caption class="px-1 py-2 text-left text-xs text-muted">
               {{

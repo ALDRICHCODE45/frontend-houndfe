@@ -49,15 +49,13 @@ describe('Dashboard trend presentation contract', () => {
     }
   })
 
-  // Premium tables S7: the chart's accessible data table stays plain, with the AppDataTable look.
-  it('dresses the data table like AppDataTable: header wash, muted 13px/600 headings, hairlines, hover', () => {
-    const shared = readFileSync('src/core/shared/design-system/houndfe-ui.css', 'utf8')
-    const wash = shared.match(/--hf-table-head: (color-mix\([^;]+\));/)![1]!
-    const table = '.dashboard-visual .dashboard-trend-data'
-    expect(component).toMatch(/<table[^>]*class="dashboard-trend-data/)
-    expect(css).toMatch(new RegExp(`${table.replace(/\./g, '\\.')} thead \\{[^}]*background-color: ${wash.replace(/[()%]/g, '\\$&')}`))
-    expect(css).toMatch(/\.dashboard-trend-data th \{[^}]*color: var\(--hf-muted\);[^}]*font-size: 13px;[^}]*font-weight: 600/s)
-    expect(css).toMatch(/\.dashboard-trend-data :is\(th, td\) \{[^}]*border-bottom: 1px solid var\(--hf-border\)/s)
-    expect(css).toMatch(/\.dashboard-trend-data tbody tr:hover \{[^}]*var\(--hf-active-soft\)/s)
+  // Premium tables S7: the chart's accessible data table stays plain with the shared `.hf-plain-table`
+  // look without row hover: its rows are not clickable (same rule as the sale items); this file keeps only its geometry.
+  it('dresses the data table with the shared plain-table look', () => {
+    expect(component).toMatch(/<table[^>]*class="hf-plain-table dashboard-trend-data/)
+    expect(component).not.toContain('hf-plain-table--hover')
+    expect(css).toMatch(/\.dashboard-trend-data thead th \{[^}]*height: 40px;[^}]*padding: 0 12px/s)
+    expect(css).not.toMatch(/\.dashboard-trend-data thead \{/)
+    expect(css).not.toMatch(/\.dashboard-trend-data tbody tr:hover/)
   })
 })

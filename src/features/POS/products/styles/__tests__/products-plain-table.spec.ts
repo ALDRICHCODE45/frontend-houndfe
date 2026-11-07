@@ -1,10 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-// The detail's plain <table>s share the AppDataTable header: the same neutral wash
-// (houndfe-ui.css `--hf-table-head`) and muted 13px/600 headings. Source contracts.
+// The detail's plain <table>s wear the shared `.hf-plain-table` look (houndfe-ui.css, guarded by
+// hf-plain-table.spec.ts) with row hover, as they did before. This file keeps only their phone stack.
 const css = readFileSync('src/features/POS/products/styles/products-plain-table.css', 'utf8')
-const shared = readFileSync('src/core/shared/design-system/houndfe-ui.css', 'utf8')
 
 const tables = [
   'ProductVariantsTable',
@@ -14,25 +13,18 @@ const tables = [
 ]
 
 describe('plain tables in the product detail', () => {
-  it('paint the same header wash and muted headings as AppDataTable', () => {
-    const wash = shared.match(/--hf-table-head: (color-mix\([^;]+\));/)![1]!
-    expect(css).toContain(wash)
-    expect(css).toMatch(/\.products-plain-table th\s*\{[^}]*color: var\(--hf-muted\)/s)
-    expect(css).toMatch(/\.products-plain-table th\s*\{[^}]*font-size: 0\.8125rem/s)
-    expect(css).toMatch(/\.products-plain-table th\s*\{[^}]*font-weight: 600/s)
+  it('leave the shared look to .hf-plain-table and keep only the stacked phone layout', () => {
+    expect(css).not.toMatch(/--hf-ink\) 4%/)
+    expect(css).not.toMatch(/tr:hover/)
+    expect(css).toMatch(/@media \(max-width: 639px\)/)
+    expect(css).toMatch(/\.products-plain-table\[data-stack\] tbody td\s*\{[^}]*border-bottom: 0/s)
     expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
-  })
-
-  it('draw hairline rows on --hf-border with the list hover and tabular figures', () => {
-    expect(css).toMatch(/\.products-plain-table :is\(thead, tbody, tr\)\s*\{[^}]*border-color: var\(--hf-border\)/s)
-    expect(css).toMatch(/\.products-plain-table tbody tr:hover\s*\{[^}]*var\(--hf-active-soft\)/s)
-    expect(css).toMatch(/\.products-plain-table td\s*\{[^}]*font-variant-numeric: tabular-nums/s)
   })
 
   it.each(tables)('%s opts in and drops the old tinted thead', (name) => {
     const source = readFileSync(`src/features/POS/products/components/${name}.vue`, 'utf8')
     expect(source).toContain("import '../styles/products-plain-table.css'")
-    expect(source).toMatch(/<table[^>]*products-plain-table/)
+    expect(source).toMatch(/<table[^>]*hf-plain-table hf-plain-table--hover products-plain-table/)
     expect(source).not.toContain('bg-elevated/40')
   })
 

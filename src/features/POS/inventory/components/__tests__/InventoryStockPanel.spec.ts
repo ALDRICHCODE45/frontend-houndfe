@@ -405,16 +405,16 @@ describe('stock panel — column layout (premium tables T9)', () => {
     const table = stockTableComponent(wrapper)
     expect(table.props('persistLayout')).toBe(true)
 
-    expect(table.props('columnPinning')).toEqual({ left: [], right: ['adjust'] })
-    table.vm.$emit('update:columnOrder', ['expiration', 'bucket', 'quantity', 'adjust'])
+    expect(table.props('columnPinning')).toEqual({ left: [], right: ['actions'] })
+    table.vm.$emit('update:columnOrder', ['expiration', 'bucket', 'quantity', 'actions'])
     table.vm.$emit('update:columnPinning', { left: ['bucket'], right: [] })
     table.vm.$emit('update:columnSizing', { quantity: 160 })
     table.vm.$emit('update:columnVisibility', { expiration: false })
     table.vm.$emit('update:density', 'normal')
     await nextTick()
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
-      order: ['expiration', 'bucket', 'quantity', 'adjust'],
-      pinning: { left: ['bucket'], right: [] },
+      order: ['expiration', 'bucket', 'quantity', 'actions'],
+      pinning: { left: ['bucket'], right: ['actions'] },
       sizing: { quantity: 160 },
       visibility: { expiration: false },
       density: 'normal',
@@ -424,7 +424,26 @@ describe('stock panel — column layout (premium tables T9)', () => {
     await nextTick()
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull()
     expect(table.props('columnSizing')).toEqual({})
-    expect(table.props('columnPinning')).toEqual({ left: [], right: ['adjust'] })
+    expect(table.props('columnPinning')).toEqual({ left: [], right: ['actions'] })
+  })
+
+  // The «Ajustar» button lives in the shared locked Acciones column, sized to fit it: held at the
+  // right edge, never moved, resized or hidden, and its header shows only the hidden label.
+  it('puts «Ajustar» in the locked Acciones column at 112px with a hidden header', async () => {
+    const wrapper = setup()
+    await flushPromises()
+    const table = stockTableComponent(wrapper)
+    const columns = table.props('columns') as Array<{ id?: string; size?: number }>
+    const actions = columns[columns.length - 1]!
+    expect(actions).toMatchObject({ id: 'actions', size: 112 })
+    const view = stockTable(wrapper).get('[data-testid="table-view"]').element as HTMLElement
+    expect(view.style.getPropertyValue('--hf-col-w-actions')).toBe('112px')
+    const headers = stockTable(wrapper).findAll('thead th')
+    const header = headers[headers.length - 1]!
+    expect(header.attributes('data-pinned')).toBe('right')
+    expect(header.get('.sr-only').text()).toBe('Acciones')
+    expect(header.find('.hf-th-pin').exists()).toBe(false)
+    expect(header.find('[data-resize-handle]').exists()).toBe(false)
   })
 
   it('names every column for the column menus, never with its id', async () => {

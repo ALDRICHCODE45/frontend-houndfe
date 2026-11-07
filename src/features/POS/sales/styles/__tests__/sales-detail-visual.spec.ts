@@ -285,19 +285,17 @@ describe('Sales detail visual wiring', () => {
     expect(paymentsList).toContain(':portal-class="portalClass"')
   })
 
-  // Premium tables S7: the items of a sale stay a small plain table with the AppDataTable look.
-  it('dresses the items table like AppDataTable: header wash, muted 13px/600 headings, hairlines, hover', () => {
-    const wash = shared.match(/--hf-table-head: (color-mix\([^;]+\));/)![1]!
+  // Premium tables S7: the items of a sale stay a small plain table with the shared `.hf-plain-table`
+  // look (guarded in hf-plain-table.spec.ts). Rows are not clickable: no hover modifier, no hover rule.
+  it('dresses the items table with the shared plain-table look and no row hover', () => {
     const items = '.sales-detail-visual .sale-detail-items-table'
-    expect(ruleWith(css, `${items} thead`, 'background-color')!.style.getPropertyValue('background-color')).toBe(wash)
-    const heading = ruleWith(css, `${items} th`, 'color')!
-    expect(heading.style.getPropertyValue('color')).toBe('var(--hf-muted)')
-    expect(heading.style.getPropertyValue('font-size')).toBe('13px')
-    expect(heading.style.getPropertyValue('font-weight')).toBe('600')
-    expect(ruleWith(css, `${items} tr`, 'border-color')!.style.getPropertyValue('border-color')).toBe('var(--hf-border)')
-    expect(ruleWith(css, `${items} td`, 'font-variant-numeric')!.style.getPropertyValue('font-variant-numeric')).toBe('tabular-nums')
-    expect(ruleWith(css, `${items} tbody tr:hover`, 'background-color')).toBeDefined()
     const list = readFileSync('src/features/POS/sales/components/SaleDetailItemsList.vue', 'utf8')
-    expect(list).toMatch(/<table[^>]*sale-detail-items-table/)
+    expect(list).toMatch(/<table[^>]*class="hf-plain-table sale-detail-items-table/)
+    expect(list).not.toContain('hf-plain-table--hover')
+    expect(shared).toMatch(/\.hf-ui \.hf-plain-table thead \{[^}]*background-color: var\(--hf-table-head\)/)
+    expect(ruleWith(css, `${items} th`, 'height')!.style.getPropertyValue('height')).toBe('40px')
+    expect(ruleWith(css, `${items} td`, 'padding')!.style.getPropertyValue('padding')).toBe('12px')
+    expect(ruleWith(css, `${items} tbody tr:hover`, 'background-color')).toBeUndefined()
+    expect(ruleWith(css, `${items} thead`, 'background-color')).toBeUndefined()
   })
 })

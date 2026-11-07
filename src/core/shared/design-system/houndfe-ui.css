@@ -1299,6 +1299,46 @@ body.hf-app {
   text-align: right;
 }
 
+/* Plain tables (premium tables S7): the small <table>s inside forms and details wear the
+ * AppDataTable look without its machinery — the same header wash and muted 13px/600 headings,
+ * hairline rows on --hf-border and tabular figures. Spacing and the table model stay the
+ * feature's. Rows hover only with `.hf-plain-table--hover`, for rows that do something. */
+.hf-ui .hf-plain-table {
+  --hf-table-head: color-mix(in srgb, var(--hf-ink) 4%, var(--hf-surface));
+}
+
+.hf-ui .hf-plain-table thead {
+  background-color: var(--hf-table-head);
+}
+
+.hf-ui .hf-plain-table thead th {
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Cells draw the hairline (any table model); Tailwind `divide-*` borders take the same colour. */
+.hf-ui .hf-plain-table :is(th, td) {
+  border-bottom: 1px solid var(--hf-border);
+}
+
+.hf-ui .hf-plain-table :is(thead, tbody, tr) {
+  border-color: var(--hf-border);
+}
+
+.hf-ui .hf-plain-table tbody tr:last-child > :is(th, td) {
+  border-bottom: 0;
+}
+
+.hf-ui .hf-plain-table :is(td, .hf-figure) {
+  font-variant-numeric: tabular-nums;
+}
+
+.hf-ui .hf-plain-table--hover tbody tr:hover {
+  background-color: color-mix(in srgb, var(--hf-active-soft) 55%, var(--hf-surface));
+}
+
 /* ── Status badge: dot + tinted soft background (StatusBadge.vue) ─────────── */
 
 .hf-ui .hf-status-badge {

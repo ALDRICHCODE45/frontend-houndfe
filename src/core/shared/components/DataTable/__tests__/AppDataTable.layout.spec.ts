@@ -260,6 +260,27 @@ describe('AppDataTable locked columns', () => {
     wrapper.unmount()
   })
 
+  it('honours a declared size on the Acciones column and keeps it locked', async () => {
+    const wrapper = mountTable({
+      columns: [
+        { accessorKey: 'name', header: 'Nombre' },
+        { accessorKey: 'status', header: 'Estado' },
+        { id: 'actions', header: 'Acciones', size: 112 },
+      ],
+    })
+    expect(rootVar(wrapper, '--hf-col-w-actions')).toBe('112px')
+    expect(th(wrapper, 'Acciones').attributes('data-pinned')).toBe('right')
+    expect(th(wrapper, 'Acciones').find('[data-resize-handle]').exists()).toBe(false)
+
+    api(wrapper).setColumnOrder(['actions', 'name', 'status'])
+    await nextTick()
+    expect(lastEmit(wrapper, 'update:columnOrder')).toEqual(['name', 'status', 'actions'])
+    api(wrapper).setColumnSizing({ actions: 200 })
+    await nextTick()
+    expect(lastEmit(wrapper, 'update:columnSizing')).toEqual({})
+    wrapper.unmount()
+  })
+
   it('keeps a user pin next to the locked one', () => {
     const wrapper = mountTable({ columnPinning: { left: ['name'], right: [] } })
     const headers = wrapper.findAll('thead th').map(cell => [cell.text(), cell.attributes('data-pinned')])

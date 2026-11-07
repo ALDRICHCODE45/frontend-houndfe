@@ -81,9 +81,9 @@ const itemsView = computed(() =>
         />
       </li>
     </ul>
-    <table v-else class="sale-detail-items-table w-full text-sm" data-testid="items-table">
+    <table v-else class="hf-plain-table sale-detail-items-table w-full text-sm" data-testid="items-table">
       <thead>
-        <tr class="border-b border-default text-[13px] font-semibold text-(--hf-muted)">
+        <tr>
           <th class="py-2 text-left">Producto</th>
           <th class="py-2 text-right">Cant.</th>
           <th class="py-2 text-right">Precio unit.</th>
@@ -96,7 +96,7 @@ const itemsView = computed(() =>
           v-for="(item, index) in itemsView"
           :key="`${item.productName}-${index}`"
           :data-testid="`item-row-${index}`"
-          class="border-b border-default/50 align-top"
+          class="align-top"
         >
           <td class="py-2">
             <p

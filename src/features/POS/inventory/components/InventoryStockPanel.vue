@@ -41,24 +41,19 @@ const kardexError = computed(() => Boolean(movements.error.value) && movements.i
 const number = (value: number) => value.toLocaleString('es-MX')
 
 // The buckets on the shared AppDataTable (premium tables S7). «Vence» exists only next to lots and
-// Acciones only for a role that adjusts; the layout is one for every product. Acciones holds the
-// labelled «Ajustar» button, wider than the locked 64px `actions` column (sized for a ⋮), so it is
-// its own column pinned to the right edge by default.
-const COLUMN_IDS = ['bucket', 'expiration', 'quantity', 'adjust'] as const
+// Acciones only for a role that adjusts; the layout is one for every product. Acciones is the
+// shared locked column (right edge, not movable or resizable), sized for the labelled «Ajustar».
+const COLUMN_IDS = ['bucket', 'expiration', 'quantity', 'actions'] as const
 const right = { class: { th: 'text-right', td: 'text-right' } }
 const columns = computed<TableColumn<BucketRow, unknown>[]>(() => [
   { id: 'bucket', header: bucketHeading.value, enableSorting: false },
   ...(hasLots.value ? [{ id: 'expiration', header: 'Vence', size: 144, enableSorting: false }] : []),
   { id: 'quantity', header: 'Existencias', size: 128, enableSorting: false, meta: right },
   ...(context.value.canAdjust
-    ? [{ id: 'adjust', header: 'Acciones', size: 112, minSize: 104, enableSorting: false, meta: { class: { th: 'stock-action', td: 'stock-action' } } }]
+    ? [{ id: 'actions', header: 'Acciones', size: 112, enableSorting: false, meta: right }]
     : []),
 ])
-const layout = useTablePreferences({
-  persistKey: 'pos-inventory-stock',
-  columnIds: COLUMN_IDS,
-  defaultPinning: { left: [], right: ['adjust'] },
-})
+const layout = useTablePreferences({ persistKey: 'pos-inventory-stock', columnIds: COLUMN_IDS })
 const { columnOrder, columnPinning, columnSizing, columnVisibility, density } = layout
 
 // The dialog always reads its bucket from the current snapshot: after a reload it
@@ -144,8 +139,8 @@ function reload() {
             <template #quantity-cell="{ row }">
               <span data-testid="stock-quantity" class="hf-figure">{{ number(row.original.quantity) }}</span>
             </template>
-            <template #adjust-header><span class="sr-only">Acciones</span></template>
-            <template #adjust-cell="{ row }">
+            <template #actions-header><span class="sr-only">Acciones</span></template>
+            <template #actions-cell="{ row }">
               <UButton
                 data-testid="stock-adjust" size="sm" color="neutral" variant="outline"
                 label="Ajustar" :aria-label="`Ajustar stock de ${row.original.label}`" @click="selected = row.original"
@@ -200,7 +195,6 @@ function reload() {
 @media (min-width: 768px) {
   .stock-surface { overflow: hidden; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); }
 }
-.stock-surface :deep(.stock-action) { text-align: right; }
 .stock-when { color: var(--hf-muted); white-space: nowrap; }
 .stock-label { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
 .stock-card { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 12px 16px; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); }
