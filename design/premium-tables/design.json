@@ -1,0 +1,10 @@
+{
+  "title": "Tablas premium",
+  "brief": "Todas las tablas del sistema: reordenar columnas arrastrando, fijar cualquier columna a la izquierda o a la derecha, cambiar el ancho, y que se sientan mucho más premium. Ejemplo: listado de Ventas.",
+  "feature": "odd/tasks/premium-tables.md",
+  "artboards": [
+    { "file": "01-menus-refinados.html", "title": "Refinada con menús de columna", "tradeoff": "Todo se descubre y se puede hacer con teclado (menú ⋯ por columna y panel «Columnas»); arrastrar es un atajo, no el único camino. Un poco más de interfaz visible.", "width": 1440, "height": 900 },
+    { "file": "02-grid-de-poder.html", "title": "Grid de poder con vistas", "tradeoff": "Máxima potencia para gerentes: vistas guardadas, fila de totales, autoajuste y atajos. Más densa; puede intimidar a cajeros.", "width": 1440, "height": 900 },
+    { "file": "03-manipulacion-directa.html", "title": "Manipulación directa, mínima", "tradeoff": "La más limpia y rápida: se arrastra el encabezado y las barras de fijado. Menos descubrible y menos accesible sin menú.", "width": 1440, "height": 900 }
+  ]
+}
