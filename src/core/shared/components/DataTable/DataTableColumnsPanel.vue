@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onBeforeUpdate, onUpdated, ref, useId, useTemplateRef } from 'vue'
 import type { ColumnGroup, ColumnsPanelColumn, ColumnsPanelGroups } from './columnArrange.utils'
+import DataTableDensityControl from './DataTableDensityControl.vue'
+import type { TableDensity } from './tableLayout'
 
 /**
  * The «Columnas» panel of artboard 01: three sections, rows that drag (pointer) or step (↑/↓ on the
  * grip) within and across sections, pin buttons and visibility switches. AppDataTable owns the
- * layout and the announcements; this lays the rows out and reports what the user asked for.
+ * layout and the announcements; this lays the rows out and reports what the user asked for. With a
+ * `density`, a «Densidad» section on top sets the row height (Compacta / Normal / Cómoda).
  */
 const props = defineProps<{
   groups: ColumnsPanelGroups
+  density?: TableDensity
+  densityDisabled?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -20,6 +25,7 @@ const emit = defineEmits<{
   visibility: [id: string, visible: boolean]
   reset: []
   close: []
+  density: [density: TableDensity]
 }>()
 
 const GROUPS: readonly ColumnGroup[] = ['left', 'center', 'right']
@@ -172,6 +178,15 @@ onBeforeUnmount(finish)
       />
     </div>
     <p class="hf-columns-panel__sub">Arrastra para ordenar, fija a un lado o elige cuáles ver.</p>
+
+    <section v-if="props.density" class="hf-columns-density" :aria-labelledby="`${uid}-density`" data-panel-density>
+      <h3 :id="`${uid}-density`" class="hf-columns-section__title"><span>Densidad</span></h3>
+      <DataTableDensityControl
+        :density="props.density"
+        :disabled="props.densityDisabled"
+        @update:density="emit('density', $event)"
+      />
+    </section>
 
     <div ref="body" class="hf-columns-panel__body" data-panel-body>
       <section

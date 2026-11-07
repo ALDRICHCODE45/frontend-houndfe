@@ -3,6 +3,7 @@ import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import { computed, ref, useSlots } from 'vue'
 import DataTableColumnsPanel from './DataTableColumnsPanel.vue'
 import type { ColumnGroup, ColumnsPanelGroups } from './columnArrange.utils'
+import { DEFAULT_TABLE_DENSITY, type TableDensity } from './tableLayout'
 
 const props = withDefaults(
   defineProps<{
@@ -46,6 +47,15 @@ const props = withDefaults(
     columnsDisabled?: boolean
     /** «Columnas» opens the visibility-only sheet even at md+ (card mode). */
     columnsSheet?: boolean
+    /**
+     * The «Densidad» section at the top of the «Columnas» panel. The panel only opens at md+ outside
+     * card mode, so the visibility sheet never shows it.
+     */
+    showDensity?: boolean
+    density?: TableDensity
+    densityDisabled?: boolean
+    /** Shows «Guardado en tu vista» for a moment (AppDataTable owns the timing and the live region). */
+    saved?: boolean
   }>(),
   {
     searchPlaceholder: 'Buscar...',
@@ -60,6 +70,10 @@ const props = withDefaults(
     columns: undefined,
     columnsDisabled: false,
     columnsSheet: false,
+    showDensity: false,
+    density: DEFAULT_TABLE_DENSITY,
+    densityDisabled: false,
+    saved: false,
   },
 )
 
@@ -73,6 +87,7 @@ const emit = defineEmits<{
   'column-pin': [id: string, side: 'left' | 'right' | false]
   'column-visibility': [id: string, visible: boolean]
   'reset-columns': []
+  'update:density': [density: TableDensity]
 }>()
 
 // ─── Mobile / desktop detection ──────────────────────────────────────────────
@@ -153,6 +168,13 @@ function openColumnsSheet() {
       </div>
 
       <div class="hf-toolbar-actions flex items-center gap-2">
+        <!-- «Guardado en tu vista»: a quiet visual echo; the words are read from AppDataTable's status -->
+        <Transition name="hf-table-saved">
+          <span v-if="props.saved" class="hf-table-saved" aria-hidden="true" data-testid="table-saved">
+            <UIcon name="i-lucide-check" class="hf-table-saved__icon" />Guardado en tu vista
+          </span>
+        </Transition>
+
         <!-- Refresh Button -->
         <UTooltip v-if="showRefresh" text="Refrescar" :ui="{ content: props.portalClass }">
           <UButton
@@ -194,12 +216,15 @@ function openColumnsSheet() {
             <template #content>
               <DataTableColumnsPanel
                 :groups="props.columns!"
+                :density="props.showDensity ? props.density : undefined"
+                :density-disabled="props.densityDisabled"
                 @place="(id, group, index) => emit('column-place', id, group, index)"
                 @step="(id, delta) => emit('column-step', id, delta)"
                 @pin="(id, side) => emit('column-pin', id, side)"
                 @visibility="(id, visible) => emit('column-visibility', id, visible)"
                 @reset="emit('reset-columns')"
                 @close="isColumnsOpen = false"
+                @density="emit('update:density', $event)"
               />
             </template>
           </UPopover>

@@ -5,6 +5,7 @@ import {
   useSlots,
   defineComponent,
   nextTick,
+  onBeforeUnmount,
   onMounted,
   provide,
   reactive,
@@ -144,6 +145,18 @@ const props = withDefaults(
      * default whenever the table has columns besides the locked selection / Acciones ones.
      */
     enableColumnVisibility?: boolean
+    /**
+     * The row density control (Compacta / Normal / Cómoda) beside «Columnas». Shown by default on the
+     * desktop table; never in card mode or below the mobile breakpoint. Drives `v-model:density`.
+     */
+    enableDensity?: boolean
+    /**
+     * The bound layout v-models are persisted (`useTablePreferences` / `useServerTable` with a
+     * `persistKey`). A layout change made by the user (order, pin, width, visibility, density) then
+     * confirms «Guardado en tu vista» for a moment; loading, resetting or a layout set by the screen
+     * never does.
+     */
+    persistLayout?: boolean
     enableRowSelection?: boolean
     // Toolbar
     showToolbar?: boolean
@@ -184,6 +197,8 @@ const props = withDefaults(
     activeFilterCount?: number
     // Bulk actions
     bulkActions?: BulkAction<T>[]
+    /** Noun after the bulk bar count, e.g. `{ one: 'seleccionada', other: 'seleccionadas' }`. */
+    selectedLabel?: { one: string; other: string }
     /**
      * Optional whole-row click contract. When set, a click on a body row (outside
      * interactive children, with no modifier, on the primary button and with no
@@ -219,6 +234,8 @@ const props = withDefaults(
     showingFrom: 0,
     showingTo: 0,
     enableColumnVisibility: true,
+    enableDensity: true,
+    persistLayout: false,
     enableRowSelection: false,
     showToolbar: true,
     searchPlaceholder: 'Buscar...',
@@ -230,6 +247,7 @@ const props = withDefaults(
     addButtonTestId: undefined,
     activeFilterCount: 0,
     bulkActions: () => [],
+    selectedLabel: undefined,
     displayMode: 'auto',
     mobileRender: 'table',
     mobileBreakpoint: 'md',
@@ -264,7 +282,7 @@ const rowSelection = defineModel<RowSelectionState>('rowSelection', {
 // selection column pinned first on the left and Acciones last on the right, unresizable.
 const columnOrder = defineModel<ColumnOrderState>('columnOrder', { default: () => [] })
 const columnSizing = defineModel<ColumnSizingState>('columnSizing', { default: () => ({}) })
-/** Row density; `comfortable` is today's 64px row. The control arrives with the density menu. */
+/** Row density; `comfortable` is today's 64px row. Set by the toolbar's density control. */
 const density = defineModel<TableDensity>('density', { default: DEFAULT_TABLE_DENSITY })
 const columnSizingInfo = ref<ColumnSizingInfoState>({
   startOffset: null,
@@ -292,6 +310,7 @@ const SLOTS_NOT_FORWARDED_TO_TABLE = new Set([
   'above-table',
   'cards',
   'mobile-card',
+  'bulk-summary',
 ])
 
 const breakpoints = useBreakpoints(breakpointsTailwind)
@@ -487,6 +506,7 @@ function onTableKeydown(event: KeyboardEvent) {
   event.preventDefault()
   const width = resizeColumnBy(id, delta * RESIZE_STEP)
   announce(`Ancho de ${labelOf(id)}: ${width} px`)
+  layoutChanged()
 }
 
 /** Fits a column to its widest rendered cell (header included), within its bounds. */
@@ -570,6 +590,9 @@ const SkeletonHeaderNode = defineComponent({
   props: { node: { type: Object as PropType<VNode>, required: true } },
   setup: props => () => props.node,
 })
+const SKELETON_ROW_HEIGHT: Record<TableDensity, string> = { compact: 'h-10', normal: 'h-12', comfortable: 'h-16' }
+const skeletonRowClass = computed(() => SKELETON_ROW_HEIGHT[density.value] ?? 'h-16')
+const skeletonCellPadding = computed(() => (density.value === 'comfortable' ? 'p-4' : 'px-4 py-0.5'))
 const skeletonRowCount = computed(() =>
   Math.max(1, Math.min(pagination.value.pageSize, SKELETON_ROW_COUNT)),
 )
@@ -630,6 +653,37 @@ function announce(text: string) {
   announcementKey.value += 1
 }
 
+// «Guardado en tu vista»: only after a change the user makes on a persisted layout. Every user path
+// calls `layoutChanged`; the screen's own writes (load, reset, defaults) never go through it.
+const SAVED_MS = 2000
+const savedVisible = ref(false)
+let savedTimer: ReturnType<typeof setTimeout> | undefined
+function layoutChanged() {
+  if (!props.persistLayout) return
+  savedVisible.value = true
+  clearTimeout(savedTimer)
+  savedTimer = setTimeout(() => (savedVisible.value = false), SAVED_MS)
+}
+function hideSaved() {
+  clearTimeout(savedTimer)
+  savedVisible.value = false
+}
+onBeforeUnmount(() => clearTimeout(savedTimer))
+
+// ── Density: Compacta 40 / Normal 48 / Cómoda 64 ───────────────────────────
+const DENSITY_TEXT: Record<TableDensity, string> = {
+  compact: 'Compacta, filas de 40 px',
+  normal: 'Normal, filas de 48 px',
+  comfortable: 'Cómoda, filas de 64 px',
+}
+const showDensity = computed(() => props.enableDensity && !isCardsMode.value && !isMobileViewport.value)
+function setDensity(next: TableDensity) {
+  if (next === density.value) return
+  density.value = next
+  announce(`Densidad ${DENSITY_TEXT[next]}`)
+  layoutChanged()
+}
+
 const SIDE_TEXT = { left: 'a la izquierda', right: 'a la derecha' } as const
 const arrangement = computed<ColumnArrangement>(() => ({
   order: effectiveOrder.value,
@@ -681,6 +735,7 @@ function arrangeColumn(id: string, next: ColumnArrangement) {
   } else if (moved) {
     announce(`Columna ${label} movida a la ${positionText(id, next, counted)}`)
   }
+  if (after !== before || moved) layoutChanged()
 }
 const canShift = (id: string, delta: number) => movedArrangement(arrangement.value, id, delta, isVisible) !== undefined
 function shiftColumn(id: string, delta: number) {
@@ -718,10 +773,13 @@ function resetColumnWidth(id: string) {
   delete rest[id]
   columnSizing.value = rest
   announce(`Ancho de ${labelOf(id)} restablecido`)
+  layoutChanged()
 }
 function fitColumn(id: string) {
   const width = autofitColumn(id)
-  if (width !== undefined) announce(`Ancho de ${labelOf(id)}: ${width} px`)
+  if (width === undefined) return
+  announce(`Ancho de ${labelOf(id)}: ${width} px`)
+  layoutChanged()
 }
 function hideColumn(id: string) {
   // The focus goes to the neighbour once the header is gone.
@@ -730,6 +788,7 @@ function hideColumn(id: string) {
   refocusId.value = order[index + 1] ?? order[index - 1]
   columnVisibility.value = { ...columnVisibility.value, [id]: false }
   announce(`Columna ${labelOf(id)} oculta`)
+  layoutChanged()
 }
 
 // ── «Columnas» panel: every arrangeable column, hidden ones included ───────────
@@ -759,6 +818,7 @@ function setColumnVisible(id: string, visible: boolean) {
   }
   columnVisibility.value = { ...columnVisibility.value, [id]: visible }
   announce(`Columna ${labelOf(id)} ${visible ? 'visible' : 'oculta'}`)
+  layoutChanged()
 }
 function resetColumns() {
   if (props.onResetColumns) {
@@ -769,6 +829,7 @@ function resetColumns() {
     columnVisibility.value = {}
     columnSizing.value = {}
   }
+  hideSaved()
   announce('Columnas restablecidas')
 }
 
@@ -897,11 +958,35 @@ const dropLine = columnDrag.line
 
 // Width announced once a pointer resize ends.
 watch(resizingColumnId, (now, before) => {
-  if (before && !now) announce(`Ancho de ${labelOf(before)}: ${columnWidths.value[before]} px`)
+  if (!before || now) return
+  announce(`Ancho de ${labelOf(before)}: ${columnWidths.value[before]} px`)
+  layoutChanged()
 })
 
-// Selected count for bulk actions
+// Selected count and rows for the bulk bar
 const selectedCount = computed(() => Object.keys(rowSelection.value).length)
+const selectedRows = computed<T[]>(() => {
+  if (selectedCount.value === 0) return []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (tableApi.value?.getSelectedRowModel().rows ?? []).map((row: any) => row.original as T)
+})
+const showBulkBar = computed(
+  () => props.enableRowSelection && (props.bulkActions.length > 0 || !!slots['bulk-summary']),
+)
+// The bar is fixed to the viewport; it centres over this table's box, measured while rows are selected.
+const rootEl = useTemplateRef<HTMLElement>('root')
+const bulkAnchor = ref<{ left: number; width: number }>()
+function measureBulkAnchor() {
+  if (!showBulkBar.value || selectedCount.value === 0 || !rootEl.value) return
+  const box = rootEl.value.getBoundingClientRect()
+  if (bulkAnchor.value?.left !== box.left || bulkAnchor.value?.width !== box.width) {
+    bulkAnchor.value = { left: box.left, width: box.width }
+  }
+}
+watch(selectedCount, () => nextTick(measureBulkAnchor), { immediate: true })
+useResizeObserver(rootEl, measureBulkAnchor)
+useEventListener(window, 'resize', measureBulkAnchor, { passive: true })
+useEventListener(window, 'scroll', measureBulkAnchor, { passive: true, capture: true })
 
 // Handle page index change from pagination component
 function handlePageIndexChange(newIndex: number) {
@@ -958,7 +1043,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="flex w-full min-w-0 max-w-full flex-col gap-4">
+  <div ref="root" class="flex w-full min-w-0 max-w-full flex-col gap-4">
     <!-- Toolbar -->
     <DataTableToolbar
       v-if="props.showToolbar"
@@ -971,6 +1056,10 @@ defineExpose({
       :columns="columnsPanel"
       :columns-disabled="!isCardsMode && (props.error || showTableSkeleton)"
       :columns-sheet="isCardsMode"
+      :show-density="showDensity"
+      :density="density"
+      :density-disabled="props.error"
+      :saved="savedVisible"
       :show-refresh="props.showRefresh"
       :fetching="props.fetching"
       :portal-class="props.portalClass"
@@ -986,6 +1075,7 @@ defineExpose({
       @column-pin="pinColumn"
       @column-visibility="setColumnVisible"
       @reset-columns="resetColumns"
+      @update:density="setDensity"
     >
       <!-- Forward a slot only when the screen provides it: an always-present wrapper renders an
            empty fragment, which made the toolbar draw a mobile "Filtros" button (and an empty
@@ -1136,6 +1226,7 @@ defineExpose({
         ref="skeleton"
         class="relative w-full min-w-0 max-w-full flex-1 overflow-auto"
         :style="widthVars"
+        :data-density="density"
         aria-busy="true"
         data-testid="table-skeleton"
       >
@@ -1171,15 +1262,15 @@ defineExpose({
             v-for="row in skeletonRowCount"
             :key="`skeleton-row-${row}`"
             data-slot="tr"
-            class="h-16"
+            :class="skeletonRowClass"
             data-testid="table-skeleton-row"
           >
             <td
               v-for="column in skeletonColumns"
               :key="`skeleton-cell-${row}-${column.key}`"
               data-slot="td"
-              class="border-b border-[var(--hf-border)] p-4 text-sm"
-              :class="column.tdClass"
+              class="border-b border-[var(--hf-border)] text-sm"
+              :class="[skeletonCellPadding, column.tdClass]"
               :style="[
                 column.width ? { width: column.width, minWidth: column.width, maxWidth: column.width } : {},
                 column.select ? 'padding-inline:0.75rem 0;overflow:visible' : '',
@@ -1286,7 +1377,7 @@ defineExpose({
             class="absolute inset-y-0 right-0 z-[2] w-2 cursor-col-resize touch-none"
             @mousedown.stop="onResizeStart($event, headerProps.header)"
             @click.stop
-            @dblclick.stop.prevent="autofitColumn(id)"
+            @dblclick.stop.prevent="fitColumn(id)"
           />
         </template>
         <template v-if="sharedEmptyKind && !slots.empty" #empty>
@@ -1332,6 +1423,10 @@ defineExpose({
     <div class="sr-only" aria-live="polite" aria-atomic="true" data-testid="table-announcer">
       <span :key="announcementKey">{{ announcement }}</span>
     </div>
+    <!-- «Guardado en tu vista», read once per user layout change (the toolbar shows it quietly) -->
+    <div class="sr-only" role="status" aria-live="polite" data-testid="table-saved-status">
+      <template v-if="savedVisible">Guardado en tu vista</template>
+    </div>
 
     <!-- Width while dragging a column edge -->
     <div
@@ -1363,11 +1458,18 @@ defineExpose({
 
     <!-- Bulk Actions -->
     <DataTableBulkActions
-      v-if="props.bulkActions.length > 0 && props.enableRowSelection"
+      v-if="showBulkBar"
       :selected-count="selectedCount"
       :total-count="props.totalCount"
       :actions="props.bulkActions"
+      :selected-rows="selectedRows"
+      :selected-label="props.selectedLabel"
+      :anchor="bulkAnchor"
       @clear-selection="handleClearSelection"
-    />
+    >
+      <template v-if="slots['bulk-summary']" #summary>
+        <slot name="bulk-summary" :count="selectedCount" :rows="selectedRows" />
+      </template>
+    </DataTableBulkActions>
   </div>
 </template>

@@ -513,6 +513,185 @@ body.hf-app {
   bottom: -4px;
 }
 
+/* Row density (artboard 01): AppDataTable sets `data-density` on the table root. Cómoda (64px) is
+ * today's row and keeps Nuxt's cell padding; Compacta (40px) and Normal (48px) set the row height
+ * (a cell height is its minimum), a thin vertical padding and only the primary line. The header
+ * keeps its own height in every density. */
+.hf-ui [data-density='compact'] td[data-slot='td'] {
+  height: 2.5rem;
+  padding-block: 0.125rem;
+}
+
+.hf-ui [data-density='normal'] td[data-slot='td'] {
+  height: 3rem;
+  padding-block: 0.125rem;
+}
+
+.hf-ui :is([data-density='compact'], [data-density='normal']) .hf-row-secondary {
+  display: none;
+}
+
+.hf-ui [data-density='compact'] .hf-row-actions-trigger {
+  width: 2.25rem;
+  min-width: 2.25rem;
+  height: 2.25rem;
+}
+
+/* Density control: a segmented radio group as tall as a control (top of the «Columnas» panel). */
+.hf-ui .hf-density {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: var(--hf-control-height);
+  padding: 3px;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-surface);
+}
+
+.hf-ui .hf-density__option {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  min-height: 0;
+  padding: 0 0.625rem;
+  border: 0;
+  border-radius: 4px;
+  background-color: transparent;
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.hf-ui .hf-density__option:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--hf-surface-muted) 50%, var(--hf-surface));
+  color: var(--hf-ink);
+}
+
+.hf-ui .hf-density__option[aria-checked='true'] {
+  background-color: var(--hf-active-soft);
+  color: var(--hf-active);
+  font-weight: 600;
+}
+
+.hf-ui .hf-density__option:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 0;
+}
+
+.hf-ui .hf-density__option:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* «Guardado en tu vista»: a quiet success pill that fades in and out beside the controls. */
+/* Anchored under the toolbar's right edge, out of the flow: it never pushes or covers a control. */
+.hf-ui .hf-toolbar-actions {
+  position: relative;
+}
+
+.hf-ui .hf-table-saved {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 1.75rem;
+  padding: 0 0.625rem;
+  border-radius: 999px;
+  background-color: color-mix(in srgb, var(--hf-success) 12%, var(--hf-surface));
+  color: var(--hf-success);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.hf-ui .hf-table-saved__icon {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.hf-ui :is(.hf-table-saved-enter-active, .hf-table-saved-leave-active) {
+  transition: opacity 200ms ease;
+}
+
+.hf-ui :is(.hf-table-saved-enter-from, .hf-table-saved-leave-to) {
+  opacity: 0;
+}
+
+/* Bulk bar (artboard 01): fixed to the viewport while rows are selected, centred over its table
+ * (AppDataTable measures the surface into --hf-bulk-center / --hf-bulk-max), above the table's
+ * sticky and pinned cells and below overlays and toasts. */
+.hf-ui .hf-bulk-bar {
+  position: fixed;
+  bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  left: var(--hf-bulk-center, 50%);
+  translate: -50% 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: min(var(--hf-bulk-max, 100vw), calc(100vw - 2rem));
+  padding: 0.5rem;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background-color: var(--hf-surface);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--hf-ink) 16%, transparent);
+  overflow-x: auto;
+}
+
+.hf-ui .hf-bulk-bar__count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  height: 2rem;
+  padding: 0 0.625rem;
+  border-radius: 6px;
+  background-color: var(--hf-active-soft);
+  color: var(--hf-active);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.hf-ui .hf-bulk-bar__summary {
+  padding: 0 0.5rem;
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.hf-ui .hf-bulk-bar__summary :is(b, strong) {
+  color: var(--hf-ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.hf-ui .hf-bulk-bar__sep {
+  flex: none;
+  width: 1px;
+  height: 1.5rem;
+  background-color: var(--hf-border);
+}
+
+.hf-ui .hf-bulk-bar__danger {
+  color: var(--hf-danger);
+}
+
+.hf-ui :is(.hf-bulk-bar-enter-active, .hf-bulk-bar-leave-active) {
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.hf-ui :is(.hf-bulk-bar-enter-from, .hf-bulk-bar-leave-to) {
+  opacity: 0;
+  transform: translateY(0.5rem);
+}
+
 /* «Columnas» panel (artboard 01): three sections of draggable rows with pin buttons and switches.
  * The popover root carries `hf-theme hf-ui`, so the descendant form reaches it. */
 .hf-ui .hf-columns-panel {
@@ -543,6 +722,26 @@ body.hf-app {
   padding: 0 1rem 0.5rem;
   font-size: 0.8125rem;
   color: var(--hf-muted);
+}
+
+/* «Densidad» on top of the panel: the segmented control spans the panel width. */
+.hf-ui .hf-columns-density {
+  padding: 0 1rem 0.75rem;
+  border-bottom: 1px solid var(--hf-border);
+}
+
+.hf-ui .hf-columns-density .hf-columns-section__title {
+  padding-inline: 0;
+}
+
+.hf-ui .hf-columns-density .hf-density {
+  display: flex;
+  width: 100%;
+}
+
+.hf-ui .hf-columns-density .hf-density__option {
+  flex: 1 1 0;
+  justify-content: center;
 }
 
 .hf-ui .hf-columns-panel__body {
@@ -741,6 +940,14 @@ body.hf-app {
   .hf-ui [data-resize-handle]::after,
   .hf-ui :is(.hf-th-grip, .hf-th-menu) {
     transition: none;
+  }
+
+  .hf-ui :is(.hf-table-saved-enter-active, .hf-table-saved-leave-active, .hf-bulk-bar-enter-active, .hf-bulk-bar-leave-active) {
+    transition: none;
+  }
+
+  .hf-ui :is(.hf-table-saved, .hf-bulk-bar) {
+    transform: none;
   }
 
   .hf-ui .hf-table-drag-ghost {

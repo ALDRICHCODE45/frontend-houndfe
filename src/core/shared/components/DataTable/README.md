@@ -275,6 +275,23 @@ una hoja inferior con solo los interruptores. Los nombres salen de `meta.label` 
 </template>
 ```
 
+### Densidad, «Guardado en tu vista» y barra de selección
+
+- **Densidad**: la sección «Densidad» arriba del panel «Columnas» (encima de «Fijadas a la
+  izquierda») es un grupo de radio «Densidad de filas»: Compacta 40 / Normal 48 / Cómoda 64 (la de
+  hoy y la predeterminada); las flechas cambian la opción. Va por `v-model:density`, que el layout
+  persistido guarda. Compacta y Normal muestran solo la línea principal (`hf-row-secondary` se
+  oculta). No está en la barra de herramientas, ni en la hoja de tarjetas/móvil;
+  `:enable-density="false"` la quita del panel.
+- **«Guardado en tu vista»**: con `persist-layout` (los v-model del layout vienen de
+  `useTablePreferences` o de `useServerTable` con `persistKey`), un cambio del usuario (orden, fijado,
+  ancho, visibilidad, densidad) muestra la confirmación unos 2 s y la anuncia. Nunca al cargar, al
+  restablecer ni cuando la pantalla cambia el layout por props.
+- **Barra de selección**: flota al pie de la tabla con el conteo («3 seleccionadas» con
+  `:selected-label="{ one: 'seleccionada', other: 'seleccionadas' }"`), el slot opcional
+  `#bulk-summary="{ count, rows }"`, las `bulk-actions` (las `destructive` van al final en rojo y
+  `disabled` se respeta) y ✕ «Quitar selección».
+
 ## Column Header Patterns
 
 ### Simple Header (no sortable)
