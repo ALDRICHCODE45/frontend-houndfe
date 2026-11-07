@@ -259,7 +259,7 @@ describe('CashMovementsPanel · readable history', () => {
       },
     })
     const table = wrapper.get('[data-testid="cash-movements-table"]')
-    expect(table.findAll('th').map((header) => header.text())).toEqual([
+    expect(table.findAll('thead th').map((header) => header.text())).toEqual([
       'Tipo',
       'Fecha',
       'Canal',
@@ -446,5 +446,32 @@ describe('CashMovementsPanel · design pass (T4)', () => {
     expect(when.text()).toMatch(/\d{1,2} \w+/)
     expect(when.text()).not.toContain('T')
     expect(when.attributes('datetime')).toBe(ONE_MOVEMENT.occurredAt)
+  })
+})
+
+// Premium tables T7 (S5): the totals row counts the movements and adds up Importe, the signed
+// deltaCents of each movement, with the same cents formatter as the cells.
+describe('CashMovementsPanel · totals row', () => {
+  const OUT = { ...ONE_MOVEMENT, id: 'm-2', kind: 'CASH_OUT', deltaCents: -5025, reason: 'Bolsas' }
+  const mountHistory = (props = {}) =>
+    mountWithUApp(CashMovementsPanel, {
+      attachTo: document.body,
+      props: { detail: makeDetail({ movements: [ONE_MOVEMENT, OUT] }), currentUserId: 'cashier-1', ...props },
+    })
+
+  it('counts the movements and nets Importe in cents', () => {
+    const wrapper = mountHistory()
+    const foot = wrapper.get('tfoot')
+    expect(foot.get('th.hf-colid-kind').text()).toContain('2 movimientos')
+    expect(foot.get('[data-testid="table-totals-scope"]').text()).toBe('Esta página')
+    expect(foot.get('th.hf-colid-amount').text()).toBe('$149.75')
+    for (const id of ['time', 'channel', 'reason']) expect(foot.get(`th.hf-colid-${id}`).text()).toBe('')
+  })
+
+  it('has no totals row while loading, failed or on mobile cards', () => {
+    expect(mountHistory({ loading: true }).find('tfoot').exists()).toBe(false)
+    expect(mountHistory({ error: true }).find('tfoot').exists()).toBe(false)
+    isMobile.value = true
+    expect(mountHistory().find('tfoot').exists()).toBe(false)
   })
 })

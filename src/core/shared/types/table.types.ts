@@ -20,8 +20,44 @@ declare module '@tanstack/vue-table' {
      * string header or the `SortableHeader` label, else the column id.
      */
     label?: string
+    /**
+     * Opts the table into the totals row (`AppDataTable`) and says what this column adds up. A
+     * `count` is the row's label in the first arrangeable column («14 ventas»), wherever the column
+     * that declares it is; `sum` and `custom` show in their own column and leave with it when hidden.
+     */
+    total?: TableColumnTotal<TData>
   }
 }
+
+/** What a column contributes to the totals row of `AppDataTable`. */
+export type TableColumnTotal<TData> =
+  | {
+      kind: 'count'
+      /** The label for `n` rows: `n => \`${n} ventas\``. */
+      label: (count: number) => string
+      /** The label for `n` selected rows. Default: `n` and the table's `selectedLabel`. */
+      selectedLabel?: (count: number) => string
+    }
+  | {
+      kind: 'sum'
+      /** The row's amount, in the unit `format` expects (cents with `formatCentsMXN`). */
+      value: (row: TData) => number
+      format: (total: number) => string
+    }
+  | {
+      kind: 'custom'
+      /** The text for these rows (e.g. one sum per tax basis). */
+      compute: (rows: TData[]) => string
+      /** Formats a numeric server total for this column. Default: the number as is. */
+      format?: (total: number) => string
+    }
+
+/**
+ * Server totals of the whole filter, keyed by column id (e.g. from an API summary). A number goes
+ * through the column's `format`; a string is shown as is. The `count` column's entry is the count
+ * (default: the table's `totalCount`).
+ */
+export type TableTotals = Record<string, number | string>
 
 // Server response shape for paginated endpoints
 export interface PaginatedResponse<T> {

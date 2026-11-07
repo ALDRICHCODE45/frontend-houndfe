@@ -68,11 +68,23 @@ const MOVEMENT_LABELS: Record<CashMovementKind, string> = {
 }
 
 const right = { class: { th: 'text-right', td: 'text-right' } }
+// Totals row (premium tables S5): the count of movements and Importe netted from the signed
+// deltaCents, formatted like the cells.
 const columns: TableColumn<CashMovement, unknown>[] = [
-  { id: 'kind', header: 'Tipo', enableSorting: false },
+  {
+    id: 'kind',
+    header: 'Tipo',
+    enableSorting: false,
+    meta: { total: { kind: 'count', label: (n) => `${n} ${n === 1 ? 'movimiento' : 'movimientos'}` } },
+  },
   { id: 'time', header: 'Fecha', enableSorting: false },
   { id: 'channel', header: 'Canal', enableSorting: false },
-  { id: 'amount', header: 'Importe', enableSorting: false, meta: right },
+  {
+    id: 'amount',
+    header: 'Importe',
+    enableSorting: false,
+    meta: { ...right, total: { kind: 'sum', value: (movement) => movement.deltaCents, format: formatCentsMXN } },
+  },
   { id: 'reason', header: 'Motivo', enableSorting: false },
 ]
 const emptyState = {

@@ -1197,3 +1197,55 @@ describe('SalesListView — sale address source notice (odd sale-address-change-
     expect(notices(mountSalesList())).toHaveLength(0)
   })
 })
+
+// Premium tables T7 (S5): the totals row counts the sales and adds up Total and Deuda in cents,
+// formatted like their cells; a canceled sale owes nothing, as its Deuda cell shows «—».
+describe('SalesListView — totals row (premium tables S5)', () => {
+  type Total = {
+    kind: string
+    label?: (n: number) => string
+    value?: (row: ConfirmedSaleRow) => number
+    format?: (n: number) => string
+  }
+  const totalOf = (wrapper: VueWrapper, id: string) => {
+    const columns = wrapper.findComponent(appDataTableStub).props('columns') as Array<{
+      id?: string
+      accessorKey?: string
+      meta?: { total?: Total }
+    }>
+    return columns.find((column) => (column.id ?? column.accessorKey) === id)?.meta?.total
+  }
+  const sum = (total: Total, rows: ConfirmedSaleRow[]) =>
+    total.format!(rows.reduce((acc, row) => acc + total.value!(row), 0))
+  const rows: ConfirmedSaleRow[] = [
+    { ...initialRow, id: 's1', totalCents: 127000, debtCents: 0 },
+    { ...initialRow, id: 's2', totalCents: 50050, debtCents: 20025, paymentStatus: 'PARTIAL' },
+    { ...initialRow, id: 's3', totalCents: 9900, debtCents: 9900, status: 'CANCELED' },
+  ]
+
+  it('counts the sales in the first column label', () => {
+    const count = totalOf(mountSalesList(), 'venta')!
+    expect(count.kind).toBe('count')
+    expect(count.label!(1)).toBe('1 venta')
+    expect(count.label!(14)).toBe('14 ventas')
+  })
+
+  it('sums Total from totalCents with the cents formatter', () => {
+    const total = totalOf(mountSalesList(), 'totalCents')!
+    expect(total.kind).toBe('sum')
+    expect(sum(total, rows)).toBe('$1,869.50')
+  })
+
+  it('sums Deuda from the open debt in cents, a canceled sale adding nothing', () => {
+    const debt = totalOf(mountSalesList(), 'debtCents')!
+    expect(debt.kind).toBe('sum')
+    expect(sum(debt, rows)).toBe('$200.25')
+  })
+
+  it('declares totals on no other column', () => {
+    const wrapper = mountSalesList()
+    for (const id of ['customer', 'paymentStatus', 'confirmedAt', 'cashier']) {
+      expect(totalOf(wrapper, id)).toBeUndefined()
+    }
+  })
+})

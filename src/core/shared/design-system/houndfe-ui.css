@@ -297,6 +297,81 @@ body.hf-app {
   box-shadow: inset 1px 0 0 var(--hf-border), -8px 0 8px -6px color-mix(in srgb, var(--hf-ink) 14%, transparent);
 }
 
+/* Totals row (artboard 02): a 40px footer fixed to the bottom of the surface, on the header's wash,
+ * 13px/600 with tabular figures aligned like their column. Every cell is opaque (pinned ones keep
+ * their offsets), and a hairline on top separates it from the last row. */
+.hf-ui .hf-data-table tfoot.hf-table-totals {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background-color: var(--hf-table-head);
+  backdrop-filter: none;
+}
+
+.hf-ui .hf-data-table tfoot.hf-table-totals th[data-slot='th'] {
+  height: 2.5rem;
+  padding-block: 0;
+  background-color: var(--hf-table-head);
+  box-shadow: inset 0 1px 0 var(--hf-border);
+  color: var(--hf-heading);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  vertical-align: middle;
+}
+
+/* UTable's absolute separator row would paint over the unpinned cells; the cells draw the hairline. */
+.hf-ui .hf-data-table tfoot.hf-table-totals > tr[data-slot='separator'] {
+  display: none;
+}
+
+/* Pinned sides only: UTable writes `data-pinned="false"` on every unpinned cell. */
+.hf-ui .hf-data-table tfoot.hf-table-totals th[data-slot='th']:is([data-pinned='left'], [data-pinned='right']) {
+  z-index: 3;
+}
+
+.hf-ui .hf-table-scrolled-left tfoot.hf-table-totals th[data-slot='th'].hf-pin-edge-left {
+  box-shadow: inset 0 1px 0 var(--hf-border), inset -1px 0 0 var(--hf-border),
+    8px 0 8px -6px color-mix(in srgb, var(--hf-ink) 14%, transparent);
+}
+
+.hf-ui .hf-table-scrolled-right tfoot.hf-table-totals th[data-slot='th'].hf-pin-edge-right {
+  box-shadow: inset 0 1px 0 var(--hf-border), inset 1px 0 0 var(--hf-border),
+    -8px 0 8px -6px color-mix(in srgb, var(--hf-ink) 14%, transparent);
+}
+
+/* The label runs over the empty footer cells after it (AppDataTable measures them, within the
+ * label's pinned group, into `--hf-totals-span`) and ends in an ellipsis only at the first cell with
+ * a value. Its cell stays one column wide and is raised above those neighbours. */
+.hf-ui .hf-data-table tfoot.hf-table-totals th[data-slot='th'][data-hf-totals-label] {
+  overflow: visible;
+  z-index: 2;
+}
+
+.hf-ui .hf-data-table tfoot.hf-table-totals th[data-slot='th'][data-hf-totals-label='pinned'] {
+  z-index: 4;
+}
+
+.hf-ui .hf-table-totals__overflow {
+  position: relative;
+  display: block;
+  max-width: calc(var(--hf-totals-span, 100%) - 1.5rem);
+  width: max-content;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hf-ui .hf-table-totals__label {
+  color: var(--hf-heading);
+}
+
+.hf-ui .hf-table-totals__scope {
+  margin-left: 0.5rem;
+  color: var(--hf-muted);
+  font-weight: 500;
+}
+
 /* Resize handle: an 8px hit area on the header's right edge with a faint line on hover and the
  * action colour while dragging or focused (keyboard: Alt+←/→). */
 .hf-ui [data-resize-handle] {

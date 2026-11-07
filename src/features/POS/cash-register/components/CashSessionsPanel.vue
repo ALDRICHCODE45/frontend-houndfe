@@ -54,10 +54,22 @@ const emit = defineEmits<{
 }>()
 
 const right = { class: { th: 'text-right', td: 'text-right' } }
+// Totals row (premium tables S5): the count of sessions and the opening funds (openingCents),
+// formatted like the cells.
 const columns: TableColumn<CashSession, unknown>[] = [
-  { id: 'register', header: 'Caja', enableSorting: false },
+  {
+    id: 'register',
+    header: 'Caja',
+    enableSorting: false,
+    meta: { total: { kind: 'count', label: (n) => `${n} ${n === 1 ? 'sesión' : 'sesiones'}` } },
+  },
   { id: 'status', header: 'Estado', enableSorting: false },
-  { id: 'opening', header: 'Fondo inicial', enableSorting: false, meta: right },
+  {
+    id: 'opening',
+    header: 'Fondo inicial',
+    enableSorting: false,
+    meta: { ...right, total: { kind: 'sum', value: (session) => session.openingCents, format: formatCentsMXN } },
+  },
   { id: 'count', header: 'Conteo', enableSorting: false },
   { id: 'drawer', header: 'Cajón', enableSorting: false },
   {

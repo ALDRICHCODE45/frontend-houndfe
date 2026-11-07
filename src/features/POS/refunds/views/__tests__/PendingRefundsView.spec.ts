@@ -222,4 +222,34 @@ describe('PendingRefundsView', () => {
     wrapper.findComponent({ name: 'AppDataTable' }).vm.$emit('clear-filters')
     expect(list.lastOptions!.search.value).toBe('')
   })
+
+  // Premium tables T7 (S5): the totals row counts the refunds and adds up Total, Devuelto and
+  // Pendiente in cents with the same formatter as their cells.
+  describe('totals row', () => {
+    type Total = { kind: string; label?: (n: number) => string; value?: (r: PendingRefundListRow) => number; format?: (n: number) => string }
+    const totalOf = (wrapper: ReturnType<typeof mountView>, id: string) =>
+      (wrapper.findComponent({ name: 'AppDataTable' }).props('columns') as Array<{ id: string; meta?: { total?: Total } }>)
+        .find(column => column.id === id)?.meta?.total
+    const sum = (total: Total, rows: PendingRefundListRow[]) => total.format!(rows.reduce((acc, r) => acc + total.value!(r), 0))
+    const rows = [row('1'), row('2', { amountCents: 100_000, settledCents: 0, outstandingCents: 100_000 })]
+
+    it('counts the refunds in the label', () => {
+      const count = totalOf(mountView(), 'sale')!
+      expect(count.kind).toBe('count')
+      expect(count.label!(1)).toBe('1 reembolso')
+      expect(count.label!(3)).toBe('3 reembolsos')
+    })
+
+    it('sums Total, Devuelto and Pendiente from their cents fields', () => {
+      const wrapper = mountView()
+      expect(sum(totalOf(wrapper, 'amountCents')!, rows)).toBe('$1,065.55')
+      expect(sum(totalOf(wrapper, 'settledCents')!, rows)).toBe('$20.00')
+      expect(sum(totalOf(wrapper, 'outstandingCents')!, rows)).toBe('$1,045.55')
+    })
+
+    it('adds nothing up in the other columns', () => {
+      const wrapper = mountView()
+      for (const id of ['reason', 'method', 'actions']) expect(totalOf(wrapper, id)).toBeUndefined()
+    })
+  })
 })

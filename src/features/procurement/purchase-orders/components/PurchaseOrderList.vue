@@ -8,7 +8,7 @@ import { useClickableRow } from '@/core/shared/composables/useClickableRow'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { TableColumn } from '@/core/shared/types/table.types'
 import type { PurchaseOrderSummary } from '../interfaces/purchase-order.types'
-import { avisoText, orderRowActions, orderRowLabel, orderTotals, statusLabels, statusTones, type OrderRowActionKey } from '../utils/order-presentation'
+import { avisoText, orderRowActions, orderRowLabel, orderTotals, ordersTotalText, statusLabels, statusTones, type OrderRowActionKey } from '../utils/order-presentation'
 const props = defineProps<{ items: readonly PurchaseOrderSummary[]; canEdit: boolean; canDelete: boolean; canCreate?: boolean; filtered?: boolean; canConfirm?: boolean; canCancel?: boolean; loading?: boolean; fetching?: boolean; error?: boolean; disabled?: boolean; activeFilterCount?: number }>()
 // `origin` is the row's primary button: the element focus returns to when the order it opened is closed.
 const emit = defineEmits<{ open: [order: PurchaseOrderSummary, origin: HTMLElement | null]; confirm: [order: PurchaseOrderSummary, origin: HTMLElement | null]; cancel: [order: PurchaseOrderSummary, origin: HTMLElement | null]; discard: [order: PurchaseOrderSummary]; refresh: []; create: []; 'clear-filters': [] }>()
@@ -21,11 +21,13 @@ const emptyState = computed(() => ({
   ...(props.canCreate ? { actionLabel: 'Nueva orden' } : {}),
 }))
 const right = { class: { th: 'text-right', td: 'text-right' } }
+// Totals row (premium tables S5): the count of orders and Total added up per tax basis from the
+// server decimals, formatted like the cells.
 const columns: TableColumn<PurchaseOrderSummary, unknown>[] = [
-  { id: 'supplier', header: 'Proveedor', enableSorting: false },
+  { id: 'supplier', header: 'Proveedor', enableSorting: false, meta: { total: { kind: 'count', label: n => `${n} ${n === 1 ? 'orden' : 'órdenes'}` } } },
   { id: 'status', header: 'Estado', enableSorting: false },
   { accessorKey: 'lineCount', header: 'Renglones', enableSorting: false, meta: right },
-  { id: 'total', header: 'Total', enableSorting: false, meta: right },
+  { id: 'total', header: 'Total', enableSorting: false, meta: { ...right, total: { kind: 'custom', compute: ordersTotalText } } },
   { accessorKey: 'updatedAt', header: 'Actualizada', enableSorting: false },
   { id: 'actions', header: 'Acciones', enableSorting: false },
 ]

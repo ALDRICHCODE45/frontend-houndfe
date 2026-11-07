@@ -258,3 +258,29 @@ describe('compact desktop rows', () => {
     expect(sfc).toMatch(/\.order-row-link \{[^}]*padding: 0/)
   })
 })
+
+// Premium tables T7 (S5): the totals row counts the orders and adds up Total per tax basis.
+describe('totals row', () => {
+  type Total = { kind: string; label?: (n: number) => string; compute?: (rows: PurchaseOrderSummary[]) => string }
+  const totalOf = (id: string) =>
+    (mountList([row]).getComponent(table).props('columns') as Array<{ id?: string; accessorKey?: string; meta?: { total?: Total } }>)
+      .find(column => (column.id ?? column.accessorKey) === id)?.meta?.total
+  it('counts the orders in the label', () => {
+    const count = totalOf('supplier')!
+    expect(count.kind).toBe('count')
+    expect(count.label!(1)).toBe('1 orden')
+    expect(count.label!(4)).toBe('4 órdenes')
+  })
+  it('sums Total from the server decimals per tax basis', () => {
+    const sum = totalOf('total')!
+    expect(sum.kind).toBe('custom')
+    const orders = [
+      { ...row, id: 'a', totals: [{ amount: '1000.50', currency: 'MXN' as const, taxBasis: 'INCLUDES_TAX' as const }] },
+      { ...row, id: 'b', totals: [{ amount: '99.5', currency: 'MXN' as const, taxBasis: 'INCLUDES_TAX' as const }] },
+    ]
+    expect(sum.compute!(orders)).toBe('$1,100.00')
+  })
+  it('adds nothing up in Renglones, Estado or Actualizada', () => {
+    for (const id of ['status', 'lineCount', 'updatedAt', 'actions']) expect(totalOf(id)).toBeUndefined()
+  })
+})

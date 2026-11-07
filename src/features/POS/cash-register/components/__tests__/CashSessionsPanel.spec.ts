@@ -263,3 +263,21 @@ describe('CashSessionsPanel · display fields (T12)', () => {
     expect(wrapper.text()).not.toContain('Sin nombre')
   })
 })
+
+// Premium tables T7 (S5): the totals row counts the sessions and adds up Fondo inicial
+// (openingCents) with the same cents formatter as the cells.
+describe('CashSessionsPanel · totals row', () => {
+  it('counts the sessions and sums the opening funds in cents', () => {
+    const foot = mountPanel().get('tfoot')
+    expect(foot.get('th.hf-colid-register').text()).toContain('2 sesiones')
+    expect(foot.get('[data-testid="table-totals-scope"]').text()).toBe('Esta página')
+    expect(foot.get('th.hf-colid-opening').text()).toBe('$1,700.50')
+    for (const id of ['status', 'count', 'drawer', 'actions']) expect(foot.get(`th.hf-colid-${id}`).text()).toBe('')
+  })
+
+  it('has no totals row on mobile cards or when empty', () => {
+    expect(mountPanel({ sessions: [] }).find('tfoot').exists()).toBe(false)
+    isMobile.value = true
+    expect(mountPanel().find('tfoot').exists()).toBe(false)
+  })
+})

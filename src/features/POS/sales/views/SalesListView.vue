@@ -21,6 +21,7 @@ import { formatCentsMXN } from '../utils/currency.utils'
 import { extractFolioNumber } from '../utils/saleFolio.utils'
 import { isCanceledSale, saleDeliveryBadge, saleOpenDebtCents, salePaymentBadge } from '../utils/saleStatus.utils'
 import type { ConfirmedSaleRow } from '../interfaces/sale.types'
+import type { TableColumnTotal } from '@/core/shared/types/table.types'
 import { customerApi } from '@/features/POS/customers/api/customer.api'
 import { usersApi } from '@/features/POS/users/api/user.api'
 import { customerQueryKeys, usersQueryKeys } from '@/core/shared/constants/query-keys'
@@ -102,7 +103,19 @@ const {
   filterErrors,
 } = useConfirmedSales(filtersCtl.backendParams)
 
-const { columns } = useSalesColumns()
+const { columns: saleColumns } = useSalesColumns()
+
+// Totals row (premium tables S5): the count of sales, and Total and Deuda in cents exactly as their
+// cells show them (a canceled sale's Deuda reads «—», so it adds nothing).
+const SALE_TOTALS: Record<string, TableColumnTotal<ConfirmedSaleRow>> = {
+  venta: { kind: 'count', label: (n) => `${n} ${n === 1 ? 'venta' : 'ventas'}` },
+  totalCents: { kind: 'sum', value: (sale) => sale.totalCents, format: formatCentsMXN },
+  debtCents: { kind: 'sum', value: saleOpenDebtCents, format: formatCentsMXN },
+}
+const columns = saleColumns.map((column) => {
+  const total = SALE_TOTALS[column.id ?? ('accessorKey' in column ? String(column.accessorKey) : '')]
+  return total ? { ...column, meta: { ...column.meta, total } } : column
+})
 
 // Error title of the sales table: a human sentence, never the server message.
 const salesErrorMessage = 'No se pudieron cargar las ventas'

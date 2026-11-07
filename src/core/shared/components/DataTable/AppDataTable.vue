@@ -35,7 +35,7 @@ import type {
   VisibilityState,
   RowSelectionState,
 } from '../../types/table.types'
-import type { BulkAction } from '../../types/table.types'
+import type { BulkAction, TableColumnTotal, TableTotals } from '../../types/table.types'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import DataTableToolbar from './DataTableToolbar.vue'
 import DataTableHeaderCell from './DataTableHeaderCell.vue'
@@ -218,6 +218,11 @@ const props = withDefaults(
      * back. Without a listener the table clears order, pinning, visibility and widths itself.
      */
     onResetColumns?: () => void
+    /**
+     * Server totals of the whole filter for the totals row (columns with `meta.total`), keyed by
+     * column id. Shown as «Total del filtro» instead of the sums of the page; a selection still wins.
+     */
+    totals?: TableTotals
   }>(),
   {
     loading: false,
@@ -252,6 +257,7 @@ const props = withDefaults(
     mobileRender: 'table',
     mobileBreakpoint: 'md',
     onResetColumns: undefined,
+    totals: undefined,
   },
 )
 
@@ -339,9 +345,18 @@ const showTableSkeleton = computed(() => props.loading && props.data.length === 
 // C1: the name column has priority width. `meta.primary` picks it; the default is the first data
 // column after the selection column.
 const primaryKey = computed(() => findPrimaryColumnKey(props.columns, columnVisibility.value))
-const displayColumns = computed(() =>
-  withColumnLayout(withPrimaryColumn(props.columns, primaryKey.value), primaryKey.value),
-)
+const displayColumns = computed(() => {
+  const layout = withColumnLayout(withPrimaryColumn(props.columns, primaryKey.value), primaryKey.value)
+  // UTable renders its `tfoot` (one cell per visible column, same classes, widths and pinned offsets
+  // as the header) as soon as a column has a `footer`; the cells come from the `#<id>-footer` slots.
+  return showTotals.value ? withFooters(layout) : layout
+})
+function withFooters<C extends object>(columns: C[]): C[] {
+  return columns.map(column => {
+    const children = (column as { columns?: C[] }).columns
+    return children ? { ...column, columns: withFooters(children) } : { ...column, footer: '' }
+  })
+}
 
 // ── Column layout: order, pinning and widths ───────────────────────────────
 const leaves = computed(() => leafColumns(props.columns))
@@ -624,9 +639,12 @@ const skeletonColumns = computed(() => {
 // Every leaf header is rendered here (the consumer's `#<id>-header` slot or the column's header,
 // plus the resize handle), so those slots are not forwarded as is.
 const headerSlotNames = computed(() => new Set(leafIds.value.map(id => `${id}-header`)))
+// With the totals row on, every leaf footer is the table's own too.
+const footerSlotNames = computed(() => new Set(showTotals.value ? leafIds.value.map(id => `${id}-footer`) : []))
 const forwardedTableSlots = computed(() =>
   Object.keys(slots).filter(
-    (name) => !SLOTS_NOT_FORWARDED_TO_TABLE.has(name) && !headerSlotNames.value.has(name),
+    (name) =>
+      !SLOTS_NOT_FORWARDED_TO_TABLE.has(name) && !headerSlotNames.value.has(name) && !footerSlotNames.value.has(name),
   ),
 )
 
@@ -956,6 +974,103 @@ const columnDrag = useColumnDrag({
 const dragGhost = columnDrag.ghost
 const dropLine = columnDrag.line
 
+// ── Totals row (S5): count and sums, of the page, the selection or the whole filter ────────
+const columnTotals = computed(() => {
+  const totals = new Map<string, TableColumnTotal<T>>()
+  for (const column of leaves.value) {
+    const total = column.meta?.total as TableColumnTotal<T> | undefined
+    if (total) totals.set(columnKey(column)!, total)
+  }
+  return totals
+})
+const showTotals = computed(
+  () => columnTotals.value.size > 0 && !props.loading && !props.error && props.data.length > 0,
+)
+type TotalsScope = 'selection' | 'filter' | 'page'
+const TOTALS_SCOPE_TEXT: Record<TotalsScope, string> = {
+  selection: 'Selección',
+  filter: 'Total del filtro',
+  page: 'Esta página',
+}
+const totalsScope = computed<TotalsScope>(() =>
+  selectedRows.value.length > 0 ? 'selection' : props.totals ? 'filter' : 'page',
+)
+const totalsRows = computed<T[]>(() => (totalsScope.value === 'selection' ? selectedRows.value : props.data))
+const countTotal = computed(() => {
+  for (const [id, total] of columnTotals.value) if (total.kind === 'count') return { id, total }
+  return undefined
+})
+const hasAmount = (id: string) => {
+  const total = columnTotals.value.get(id)
+  return total !== undefined && total.kind !== 'count'
+}
+// The label sits in the first arrangeable column on screen that has no amount of its own.
+const totalsLabelId = computed(() => screenOrder(arrangement.value, isVisible).find(id => !hasAmount(id)))
+const totalsLabel = computed(() => {
+  const scope = totalsScope.value
+  const count = countTotal.value
+  if (scope === 'selection') {
+    const n = selectedRows.value.length
+    if (count?.total.kind === 'count' && count.total.selectedLabel) return count.total.selectedLabel(n)
+    const noun = props.selectedLabel ?? { one: 'seleccionado', other: 'seleccionados' }
+    return `${n} ${n === 1 ? noun.one : noun.other}`
+  }
+  if (count?.total.kind !== 'count') return ''
+  if (scope === 'filter') {
+    const server = props.totals?.[count.id]
+    const n = typeof server === 'number' ? server : props.totalCount
+    return count.total.label(n)
+  }
+  return count.total.label(props.data.length)
+})
+const totalsValues = computed(() => {
+  const values: Record<string, string> = {}
+  const rows = totalsRows.value
+  for (const [id, total] of columnTotals.value) {
+    if (total.kind === 'count') continue
+    if (totalsScope.value === 'filter') {
+      const server = props.totals?.[id]
+      if (server === undefined) continue
+      values[id] = typeof server === 'string' ? server : (total.format?.(server) ?? String(server))
+    } else {
+      values[id] =
+        total.kind === 'sum' ? total.format(rows.reduce((sum, row) => sum + total.value(row), 0)) : total.compute(rows)
+    }
+  }
+  return values
+})
+// The label may run over the empty footer cells right after it, within its own group (pinned left,
+// centre or pinned right), up to the first cell with a value: its width, in px.
+const totalsLabelSpan = computed(() => {
+  const id = totalsLabelId.value
+  if (id === undefined) return 0
+  const members = groupMembers(groupOf(id), arrangement.value, isVisible)
+  let width = columnWidths.value[id] ?? 0
+  for (const next of members.slice(members.indexOf(id) + 1)) {
+    if (totalsValues.value[next]) break
+    width += columnWidths.value[next] ?? 0
+  }
+  return width
+})
+/**
+ * UTable's footer cells are all `th`s: the label cell becomes the row header and the amounts plain
+ * cells. Set from the cell content on every render, so a moved label never keeps a stale scope.
+ */
+function markTotalsCell(element: unknown, id: string) {
+  const th = element instanceof HTMLElement ? element.closest('th') : null
+  if (!th) return
+  if (id === totalsLabelId.value) {
+    th.setAttribute('scope', 'row')
+    th.removeAttribute('role')
+    // Raised over its empty neighbours (pinned cells sit one layer higher than scrolled ones).
+    th.setAttribute('data-hf-totals-label', pinnedSide(id) ? 'pinned' : '')
+  } else {
+    th.setAttribute('role', 'cell')
+    th.removeAttribute('scope')
+    th.removeAttribute('data-hf-totals-label')
+  }
+}
+
 // Width announced once a pointer resize ends.
 watch(resizingColumnId, (now, before) => {
   if (!before || now) return
@@ -966,6 +1081,8 @@ watch(resizingColumnId, (now, before) => {
 // Selected count and rows for the bulk bar
 const selectedCount = computed(() => Object.keys(rowSelection.value).length)
 const selectedRows = computed<T[]>(() => {
+  // The rows of the page change under the same selection (refetch): read them again.
+  void props.data
   if (selectedCount.value === 0) return []
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (tableApi.value?.getSelectedRowModel().rows ?? []).map((row: any) => row.original as T)
@@ -1315,7 +1432,7 @@ defineExpose({
         :sorting-options="{
           manualSorting: true,
         }"
-        :ui="{ base: 'w-(--hf-table-w) min-w-full table-fixed' }"
+        :ui="{ base: 'w-(--hf-table-w) min-w-full table-fixed', tfoot: 'hf-table-totals' }"
         :class="['w-full min-w-0 max-w-full flex-1', surfaceClasses]"
         :style="widthVars"
         :data-density="density"
@@ -1379,6 +1496,26 @@ defineExpose({
             @click.stop
             @dblclick.stop.prevent="fitColumn(id)"
           />
+        </template>
+        <template v-for="id in showTotals ? leafIds : []" #[`${id}-footer`] :key="`footer-${id}`">
+          <span
+            :ref="element => markTotalsCell(element, id)"
+            class="hf-table-totals__cell"
+            :data-testid="`table-total-${id}`"
+          >
+            <span
+              v-if="id === totalsLabelId"
+              class="hf-table-totals__overflow"
+              :style="{ '--hf-totals-span': `${totalsLabelSpan}px` }"
+              data-testid="table-totals-label"
+            >
+              <span v-if="totalsLabel" class="hf-table-totals__label">{{ totalsLabel }}</span>
+              <span class="hf-table-totals__scope" data-testid="table-totals-scope">{{
+                TOTALS_SCOPE_TEXT[totalsScope]
+              }}</span>
+            </span>
+            <template v-else-if="totalsValues[id] !== undefined">{{ totalsValues[id] }}</template>
+          </span>
         </template>
         <template v-if="sharedEmptyKind && !slots.empty" #empty>
           <EmptyState

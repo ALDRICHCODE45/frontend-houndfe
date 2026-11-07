@@ -66,13 +66,26 @@ const showingTo = computed(() =>
   total.value === 0 ? 0 : pagination.value.pageIndex * pagination.value.pageSize + list.rows.value.length,
 )
 
+// Totals row (premium tables S5): the count of refunds and each amount column in cents, formatted
+// like its cells.
+const right = { th: 'text-right', td: 'text-right' }
+const centsSum = (value: (row: PendingRefundListRow) => number) =>
+  ({ kind: 'sum', value, format: formatCentsMXN }) as const
 const columns: TableColumn<PendingRefundListRow>[] = [
-  { id: 'sale', header: 'Venta' },
+  {
+    id: 'sale',
+    header: 'Venta',
+    meta: { total: { kind: 'count', label: (n) => `${n} ${n === 1 ? 'reembolso' : 'reembolsos'}` } },
+  },
   { id: 'reason', header: 'Motivo', meta: { class: { th: 'refund-col-reason', td: 'refund-col-reason' } } },
   { id: 'method', header: 'Pagó con' },
-  { id: 'amountCents', header: 'Total', meta: { class: { th: 'text-right', td: 'text-right' } } },
-  { id: 'settledCents', header: 'Devuelto', meta: { class: { th: 'text-right', td: 'text-right' } } },
-  { id: 'outstandingCents', header: 'Pendiente', meta: { class: { th: 'text-right', td: 'text-right' } } },
+  { id: 'amountCents', header: 'Total', meta: { class: right, total: centsSum((row) => row.amountCents) } },
+  { id: 'settledCents', header: 'Devuelto', meta: { class: right, total: centsSum((row) => row.settledCents) } },
+  {
+    id: 'outstandingCents',
+    header: 'Pendiente',
+    meta: { class: right, total: centsSum((row) => row.outstandingCents) },
+  },
   { id: 'actions', header: 'Acciones', meta: { class: { th: 'w-16', td: 'w-16 text-right' } } },
 ]
 
