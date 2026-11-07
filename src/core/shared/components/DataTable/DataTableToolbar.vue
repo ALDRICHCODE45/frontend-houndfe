@@ -150,24 +150,25 @@ function openColumnsSheet() {
     <!-- ─── Desktop layout (md+) — historical horizontal layout ───────── -->
     <template v-if="!isMobile">
       <div
-        class="hf-toolbar-search-region flex flex-1 flex-col items-stretch gap-2 sm:flex-row sm:items-center"
+        class="hf-toolbar-search-region flex min-w-0 flex-1 flex-col items-stretch gap-2 sm:flex-row sm:items-center"
       >
         <!-- Search Input -->
         <UInput
           :model-value="props.globalFilter"
           :placeholder="props.searchPlaceholder"
           icon="i-lucide-search"
-          class="hf-toolbar-search w-full sm:max-w-sm"
+          class="hf-toolbar-search w-full min-w-48 shrink sm:max-w-sm"
           @update:model-value="emit('update:globalFilter', $event as string)"
         />
 
         <!-- Inline filter slots (desktop only) -->
-        <div class="hf-toolbar-filters min-w-0 flex flex-1 items-center gap-2">
+        <div class="hf-toolbar-filters min-w-0 flex flex-1 shrink-0 basis-auto items-center gap-2">
           <slot name="filters" />
         </div>
       </div>
 
-      <div class="hf-toolbar-actions flex items-center gap-2">
+      <!-- shrink-0: when space runs out the search gives way first; actions never slide over the filters. -->
+      <div class="hf-toolbar-actions flex shrink-0 items-center gap-2">
         <!-- «Guardado en tu vista»: a quiet visual echo; the words are read from AppDataTable's status -->
         <Transition name="hf-table-saved">
           <span v-if="props.saved" class="hf-table-saved" aria-hidden="true" data-testid="table-saved">
