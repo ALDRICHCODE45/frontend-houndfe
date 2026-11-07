@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
-import { AppDataTable } from '@/core/shared/components/DataTable'
+import { AppDataTable, DataTableViews } from '@/core/shared/components/DataTable'
 import { DataTableFilters, useDataTableFilters, useFiltersUrlAdapter } from '@/core/shared/data-table-filters'
 import SortableHeader from '@/core/shared/components/DataTable/SortableHeader.vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
@@ -13,7 +13,13 @@ import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { useConfirmedSales } from '../composables/useConfirmedSales'
 import { useSalesColumns } from '../composables/useSalesColumns'
-import SalesListTabs, { type SalesListTab, type SalesListTabChange } from '../components/SalesListTabs.vue'
+import {
+  SALES_STATUS_FILTERS,
+  SALES_VIEWS,
+  salesStatusCount,
+  useSalesViews,
+  type SalesListStatus,
+} from '../composables/useSalesViews'
 import PaymentMethodPills from '../components/PaymentMethodPills.vue'
 import { createSalesFiltersSchema } from '../config/salesFiltersSchema'
 import { formatSaleDueDate } from '../utils/saleDate.utils'
@@ -88,6 +94,10 @@ const {
   rowSelection,
   columnPinning,
   columnVisibility,
+  columnOrder,
+  columnSizing,
+  density,
+  resetLayout,
   data,
   totalCount,
   pageCount,
@@ -131,11 +141,24 @@ function customerDisplay(sale: ConfirmedSaleRow) {
 const saleWhen = (sale: ConfirmedSaleRow) =>
   sale.confirmedAt == null ? 'Fecha no disponible' : formatShortDateTime(sale.confirmedAt)
 
-const sortValue = ref<'confirmedAt:desc' | 'totalCents:asc' | 'createdAt:desc'>('confirmedAt:desc')
-
-watch(sortValue, (value) => {
-  const [id, order] = value.split(':')
-  sorting.value = [{ id: id ?? 'confirmedAt', desc: order === 'desc' }]
+// Predefined orderings (backend-safe) over the same `sorting` the headers and the views write.
+const SORT_OPTIONS = [
+  { label: 'Más recientes', value: 'confirmedAt:desc' },
+  { label: 'Más antiguas', value: 'confirmedAt:asc' },
+  { label: 'Total mayor a menor', value: 'totalCents:desc' },
+  { label: 'Total menor a mayor', value: 'totalCents:asc' },
+  { label: 'Creación reciente', value: 'createdAt:desc' },
+]
+const sortValue = computed({
+  get: () => {
+    const first = sorting.value[0]
+    return first ? `${first.id}:${first.desc ? 'desc' : 'asc'}` : undefined
+  },
+  set: (value: string | undefined) => {
+    if (!value) return
+    const [id, order] = value.split(':')
+    sorting.value = [{ id: id ?? 'confirmedAt', desc: order === 'desc' }]
+  },
 })
 
 function goToNewSale() {
@@ -155,28 +178,39 @@ const { rowProps } = useClickableRow<ConfirmedSaleRow>(openSale, { focusable: fa
 
 // No ⋮ menu: its only item would be "Ver venta", which the row click already does.
 
-// Quick-tab selection lives here so the list can tell "no sales yet" from
-// "no sales for this tab" and offer one way back (Limpiar filtros).
-const activeTab = ref<SalesListTab>('all')
-function onTabChange(payload: SalesListTabChange) {
-  activeTab.value =
-    payload.deliveryStatus !== undefined ? 'pending-delivery'
-      : payload.paymentStatus !== undefined ? 'pending-payments'
-        : 'all'
-  setTabFilter(payload)
-}
+// Saved views (premium tables S6): «Todas», «Cobranza», «Entregas» and the user's own. Each carries
+// the status filter the old status tabs set, so the list has one row of tabs. The status lives here
+// so the list can tell "no sales yet" from "no sales for this view" and offer one way back.
+const status = ref<SalesListStatus>('all')
+watch(status, (next) => setTabFilter(SALES_STATUS_FILTERS[next]))
+
+const salesViews = useSalesViews({
+  columnIds: columns.map((column) => column.id ?? ('accessorKey' in column ? String(column.accessorKey) : '')),
+  layout: { order: columnOrder, pinning: columnPinning, sizing: columnSizing, visibility: columnVisibility, density },
+  sorting,
+  status,
+})
+const VIEWS_PANEL_ID = 'sales-views-panel'
+const VIEWS_TAB_PREFIX = 'sales-views'
 
 const hasSearch = computed(() => globalFilter.value.trim() !== '')
 const hasActiveFilters = computed(
-  () => hasSearch.value || filtersCtl.activeCount.value > 0 || activeTab.value !== 'all',
+  () => hasSearch.value || filtersCtl.activeCount.value > 0 || status.value !== 'all',
 )
 // Counts describe the tenant's sales: with none yet, while loading, or after a failed load there is nothing to count.
 const showTabCounts = computed(
   () => !isLoading.value && !isError.value && (totalCount.value > 0 || hasActiveFilters.value),
 )
 const activeFilterCount = computed(
-  () => filtersCtl.activeCount.value + (activeTab.value !== 'all' ? 1 : 0),
+  () => filtersCtl.activeCount.value + (status.value !== 'all' ? 1 : 0),
 )
+// Each view's tab shows the count of its status filter, like the old status tabs.
+const viewCounts = computed(() => {
+  if (!showTabCounts.value) return undefined
+  return Object.fromEntries(
+    salesViews.views.value.map((view) => [view.id, salesStatusCount(view.query?.status ?? 'all', counts.value)]),
+  )
+})
 // With a search term the table names it (`Ningún resultado para «…»`); this covers filters only.
 const noMatchTitle = 'Ninguna venta con estos filtros'
 const emptyState = computed(() => ({
@@ -189,7 +223,8 @@ const emptyState = computed(() => ({
 function clearFilters() {
   filtersCtl.clearAll()
   globalFilter.value = ''
-  onTabChange({})
+  // A view's status filter is cleared by going back to «Todas».
+  if (status.value !== 'all' && !salesViews.select(SALES_VIEWS[0]!.id)) status.value = 'all'
 }
 
 watch(() => filtersCtl.serializedState.value, () => {
@@ -210,13 +245,30 @@ watch(() => filtersCtl.serializedState.value, () => {
       :ui="{ body: 'p-0 sm:p-0' }"
       class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm"
     >
-      <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4 space-y-4">
+      <DataTableViews
+        :views="salesViews"
+        :counts="viewCounts"
+        :controls="VIEWS_PANEL_ID"
+        :tab-id-prefix="VIEWS_TAB_PREFIX"
+        portal-class="hf-theme hf-ui sales-list-portal"
+      />
+      <div
+        :id="VIEWS_PANEL_ID"
+        role="tabpanel"
+        :aria-labelledby="`${VIEWS_TAB_PREFIX}-tab-${salesViews.activeId.value}`"
+        class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4 space-y-4"
+      >
+        <!-- No persist-layout: the views bar reports the layout state («Cambios sin guardar»), so the
+             «Guardado en tu vista» pill would contradict it. The layout is still persisted. -->
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
           v-model:global-filter="globalFilter"
           v-model:column-pinning="columnPinning"
           v-model:column-visibility="columnVisibility"
+          v-model:column-order="columnOrder"
+          v-model:column-sizing="columnSizing"
+          v-model:density="density"
           v-model:row-selection="rowSelection"
           :columns="columns"
           :data="data"
@@ -250,13 +302,14 @@ watch(() => filtersCtl.serializedState.value, () => {
           @empty-action="goToNewSale"
           @refresh="refresh"
           @clear-filters="clearFilters"
+          @reset-columns="resetLayout"
         >
           <template #filters>
-            <!-- Three regions (filter · segment · sort) separated by vertical
-                 dividers so the toolbar reads as one composed row instead of
-                 a flat pile. Dividers only render at md+ — mobile wraps and
-                 keeps its own bottom-sheet layout, where the dividers would
-                 be noise. -->
+            <!-- Two regions (filter · sort) separated by a vertical divider so
+                 the toolbar reads as one composed row instead of a flat pile.
+                 The status segment moved to the saved views above the toolbar.
+                 The divider only renders at md+ — mobile wraps and keeps its
+                 own bottom-sheet layout, where it would be noise. -->
             <div class="flex w-full flex-wrap items-center gap-x-4 gap-y-3 md:flex-nowrap">
               <!-- Region 1 — filter (DataTableFilters renders its own chips +
                 "Limpiar todo" when not embedded, which covers the previous
@@ -273,22 +326,13 @@ watch(() => filtersCtl.serializedState.value, () => {
 
               <div class="hidden h-5 w-px shrink-0 bg-default md:block" aria-hidden="true" />
 
-              <!-- Region 2 — segment (delivery-status quick tabs). -->
-              <div class="overflow-x-auto">
-                <SalesListTabs :counts="counts" :active="activeTab" :show-counts="showTabCounts" @change="onTabChange" />
-              </div>
-
-              <div class="hidden h-5 w-px shrink-0 bg-default md:block" aria-hidden="true" />
-
-              <!-- Region 3 — sort (predefined orderings, backend-safe). -->
+              <!-- Region 2 — sort (predefined orderings, backend-safe). -->
               <USelect
                 v-model="sortValue"
-                :items="[
-                  { label: 'Más recientes', value: 'confirmedAt:desc' },
-                  { label: 'Total menor a mayor', value: 'totalCents:asc' },
-                  { label: 'Creación reciente', value: 'createdAt:desc' },
-                ]"
+                :items="SORT_OPTIONS"
+                aria-label="Ordenar ventas"
                 class="w-56 shrink-0"
+                data-testid="sales-sort-select"
                 :ui="{ content: 'hf-theme hf-ui sales-list-portal' }"
               />
             </div>

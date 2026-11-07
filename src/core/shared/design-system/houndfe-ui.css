@@ -1010,6 +1010,164 @@ body.hf-app {
   border-top: 1px solid var(--hf-border);
 }
 
+/* Saved views (artboard 02): a row of tabs across the top of the table surface, above the toolbar,
+ * with «Cambios sin guardar», «Restablecer» and «Guardar vista» at its right end. */
+.hf-ui .hf-views {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  min-height: 3.25rem;
+  padding: 0 0.75rem 0 0.5rem;
+  border-bottom: 1px solid var(--hf-border);
+}
+
+.hf-ui .hf-views__tabs {
+  display: flex;
+  align-items: stretch;
+  align-self: stretch;
+  gap: 2px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.hf-ui .hf-views__tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  margin-top: 0.25rem;
+  padding: 0 0.75rem;
+  border: 0;
+  border-radius: var(--hf-radius-control) var(--hf-radius-control) 0 0;
+  background-color: transparent;
+  color: var(--hf-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.hf-ui .hf-views__tab:hover {
+  background-color: color-mix(in srgb, var(--hf-surface-muted) 45%, var(--hf-surface));
+  color: var(--hf-ink);
+}
+
+.hf-ui .hf-views__tab[aria-selected='true'] {
+  color: var(--hf-heading);
+  font-weight: 600;
+}
+
+.hf-ui .hf-views__tab[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  right: 0.5rem;
+  bottom: -1px;
+  left: 0.5rem;
+  height: 2px;
+  border-radius: 2px;
+  background-color: var(--hf-action);
+}
+
+.hf-ui .hf-views__tab:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: -2px;
+}
+
+.hf-ui .hf-views__count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--hf-muted);
+}
+
+.hf-ui .hf-views__dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--hf-warning);
+}
+
+.hf-ui .hf-views__grow {
+  flex: 1;
+}
+
+.hf-ui .hf-views__unsaved {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--hf-warning);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.hf-ui .hf-views__action {
+  flex: none;
+}
+
+.hf-ui .hf-views__select {
+  min-width: 0;
+  max-width: 14rem;
+  padding-inline-start: 3.25rem;
+}
+
+.hf-ui .hf-views__select-label {
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.hf-ui .hf-views__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.hf-ui .hf-views__label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--hf-ink);
+}
+
+.hf-ui .hf-views__error {
+  margin: 0;
+  color: var(--hf-danger);
+  font-size: 0.8125rem;
+}
+
+.hf-ui .hf-views__hint {
+  margin: 0;
+  color: var(--hf-muted);
+  font-size: 0.75rem;
+}
+
+.hf-ui .hf-views__form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+@media (max-width: 767px) {
+  .hf-ui .hf-views {
+    min-height: 3rem;
+    padding: 0 0.5rem;
+  }
+
+  /* Icon-only below md: square buttons as tall as the «Vista:» select beside them. */
+  .hf-ui .hf-views__action {
+    justify-content: center;
+    width: var(--hf-control-height);
+    height: var(--hf-control-height);
+    padding: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hf-ui :is(td[data-slot='td'], th[data-slot='th']):is(.hf-pin-edge-left, .hf-pin-edge-right),
   .hf-ui [data-resize-handle]::after,
