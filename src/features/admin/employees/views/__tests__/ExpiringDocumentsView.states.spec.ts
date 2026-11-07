@@ -196,12 +196,18 @@ describe('ExpiringDocumentsView states — data', () => {
     expect(card.get('.hf-status-badge').text()).toBe('Vencido hace 142 días')
   })
 
-  it('keeps the sortable headers and the document anchor column', () => {
+  it('keeps the sortable headers and the document anchor column', async () => {
     tableState.data.value = [makeItem()]
     const wrapper = mountView()
+    // SortableHeader registers with the table once mounted; let the headers re-render.
+    await flushPromises()
     const headers = wrapper.findAll('thead th').map((th) => th.text())
     expect(headers).toEqual(['Documento', 'Tiempo restante', 'Colaborador', 'Fecha de vencimiento', 'Categoría'])
-    expect(wrapper.findAll('thead th button')).toHaveLength(4)
+    // The header target sorts on activation when it carries no ⋯ menu popup (DataTableHeaderCell).
+    const sortable = wrapper
+      .findAll('thead th [data-hf-header]:not([aria-haspopup])')
+      .map((target) => target.attributes('data-column-id'))
+    expect(sortable).toEqual(['restante', 'colaborador', 'vencimiento', 'categoria'])
   })
 })
 

@@ -103,6 +103,63 @@ describe('AppDataTable widths', () => {
   })
 })
 
+// Before T3 a list always fit its card; default widths must still fit, and the horizontal scroll
+// appears only once user widths or the minimum widths make it unavoidable.
+describe('AppDataTable default widths fit the surface', () => {
+  const eight = [
+    { accessorKey: 'name', header: 'Nombre' },
+    ...['a', 'b', 'c', 'd', 'e', 'f'].map(key => ({ accessorKey: key, header: key.toUpperCase() })),
+    { id: 'actions', header: 'Acciones', meta: { class: { th: 'w-16', td: 'w-16' } } },
+  ]
+  const ids = ['name', 'a', 'b', 'c', 'd', 'e', 'f', 'actions']
+  const width = (wrapper: Wrapper, id: string) => parseFloat(rootVar(wrapper, `--hf-col-w-${id}`))
+
+  async function mountIn(surface: number, props: Record<string, unknown> = {}, rectWidth?: number) {
+    const wrapper = mountTable({ columns: eight, ...props })
+    await nextTick()
+    const el = root(wrapper).element as HTMLElement
+    Object.defineProperty(el, 'clientWidth', { configurable: true, value: surface })
+    if (rectWidth !== undefined) {
+      vi.spyOn(el, 'getBoundingClientRect').mockReturnValue({ width: rectWidth } as DOMRect)
+    }
+    observers.forEach(callback => callback())
+    await nextTick()
+    return wrapper
+  }
+
+  it('shrinks the unsized columns of 8 default columns into a 1022px surface with no overflow', async () => {
+    const wrapper = await mountIn(1022)
+    expect(rootVar(wrapper, '--hf-table-w')).toBe('1022px')
+    expect(ids.reduce((sum, id) => sum + width(wrapper, id), 0)).toBe(1022)
+    expect(width(wrapper, 'actions')).toBe(64)
+    expect(width(wrapper, 'name')).toBeGreaterThanOrEqual(160)
+    for (const id of ['a', 'b', 'c', 'd', 'e', 'f']) expect(width(wrapper, id)).toBeGreaterThanOrEqual(96)
+    wrapper.unmount()
+  })
+
+  it('keeps a user width exactly and shrinks only the others', async () => {
+    const wrapper = await mountIn(1022, { columnSizing: { a: 300 } })
+    expect(width(wrapper, 'a')).toBe(300)
+    expect(rootVar(wrapper, '--hf-table-w')).toBe('1022px')
+    wrapper.unmount()
+  })
+
+  it('scrolls only once the minimum widths cannot fit', async () => {
+    const wrapper = await mountIn(600)
+    expect(width(wrapper, 'name')).toBe(160)
+    for (const id of ['a', 'b', 'c', 'd', 'e', 'f']) expect(width(wrapper, id)).toBe(96)
+    expect(rootVar(wrapper, '--hf-table-w')).toBe(`${160 + 6 * 96 + 64}px`)
+    wrapper.unmount()
+  })
+
+  it('never overflows by a rounding pixel', async () => {
+    // clientWidth rounds 1022.6 up to 1023; the table must use the 1022 that really fits.
+    const wrapper = await mountIn(1023, {}, 1022.6)
+    expect(rootVar(wrapper, '--hf-table-w')).toBe('1022px')
+    wrapper.unmount()
+  })
+})
+
 describe('AppDataTable resize handle', () => {
   it('renders an accessible handle on resizable headers only', () => {
     const wrapper = mountTable()

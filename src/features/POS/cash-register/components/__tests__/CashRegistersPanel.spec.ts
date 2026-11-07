@@ -16,6 +16,9 @@ vi.mock('@vueuse/core', async (importOriginal) => {
   return { ...actual, useBreakpoints: () => ({ smaller: () => isMobile }) }
 })
 
+// Row ⋮ triggers only: the header ⋯ column menus share aria-haspopup="menu".
+const ROW_MENU = 'button[aria-haspopup="menu"]:not([aria-label^="Opciones de la columna"])'
+
 const REGISTERS = [
   { id: 'r-1', name: 'Caja principal', isActive: true, createdAt: '2026-10-01T00:00:00.000Z' },
   { id: 'r-2', name: 'Caja secundaria', isActive: false, createdAt: '2026-10-02T00:00:00.000Z' },
@@ -35,7 +38,7 @@ function mountPanel(props = {}) {
 }
 
 async function openMenu(wrapper, index = 0) {
-  await wrapper.findAll('button[aria-haspopup="menu"]')[index].trigger('click')
+  await wrapper.findAll(ROW_MENU)[index].trigger('click')
   await tick()
 }
 
@@ -71,7 +74,7 @@ describe('CashRegistersPanel · four states', () => {
     const wrapper = mountPanel({ registers: [], loading: true })
     expect(wrapper.find('[data-testid="table-skeleton"]').exists()).toBe(true)
     // No data rows: no row menu and no empty or error state while the skeleton shows.
-    expect(wrapper.find('button[aria-haspopup="menu"]').exists()).toBe(false)
+    expect(wrapper.find(ROW_MENU).exists()).toBe(false)
     expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
   })
 
@@ -96,8 +99,8 @@ describe('CashRegistersPanel · four states', () => {
     const states = wrapper.findAll('.hf-status-badge')
     expect(states.map((badge) => badge.text())).toEqual(['Activa', 'Inactiva'])
     expect(states.map((badge) => badge.attributes('data-tone'))).toEqual(['success', 'neutral'])
-    expect(wrapper.findAll('button[aria-haspopup="menu"]')).toHaveLength(2)
-    expect(wrapper.get('button[aria-haspopup="menu"]').attributes('aria-label')).toBe(
+    expect(wrapper.findAll(ROW_MENU)).toHaveLength(2)
+    expect(wrapper.get(ROW_MENU).attributes('aria-label')).toBe(
       'Acciones de Caja principal',
     )
     expect(wrapper.text()).toContain('Caja secundaria')
@@ -112,7 +115,7 @@ describe('CashRegistersPanel · four states', () => {
       'Activa',
       'Inactiva',
     ])
-    expect(wrapper.findAll('button[aria-haspopup="menu"]')).toHaveLength(2)
+    expect(wrapper.findAll(ROW_MENU)).toHaveLength(2)
   })
 })
 
@@ -120,7 +123,7 @@ describe('CashRegistersPanel · row actions', () => {
   it('opens a register from its name and from the whole row, only when active and permitted', async () => {
     const forbidden = mountPanel()
     expect(forbidden.find('[data-testid="cash-register-open-r-1"]').exists()).toBe(false)
-    expect(forbidden.find('button[aria-haspopup="menu"]').exists()).toBe(false)
+    expect(forbidden.find(ROW_MENU).exists()).toBe(false)
 
     const allowed = mountPanel({ canOpen: true })
     expect(allowed.find('[data-testid="cash-register-open-r-2"]').exists()).toBe(false)
@@ -141,12 +144,12 @@ describe('CashRegistersPanel · row actions', () => {
 
     const selected = mountPanel({ canOpen: true, selectedRegisterId: 'r-1' })
     expect(selected.get('.hf-row-secondary').text()).toBe('Seleccionada')
-    expect(selected.findAll('button[aria-haspopup="menu"]')).toHaveLength(0)
+    expect(selected.findAll(ROW_MENU)).toHaveLength(0)
   })
 
   it('emits the inverted isActive from the menu, only with the update permission', async () => {
     const readOnly = mountPanel()
-    expect(readOnly.find('button[aria-haspopup="menu"]').exists()).toBe(false)
+    expect(readOnly.find(ROW_MENU).exists()).toBe(false)
 
     const wrapper = mountPanel({ canUpdate: true })
     await openMenu(wrapper, 0)

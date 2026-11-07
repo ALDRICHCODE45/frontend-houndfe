@@ -15,6 +15,11 @@ declare module '@tanstack/vue-table' {
      * first data column after the selection column.
      */
     primary?: boolean
+    /**
+     * The column's name in the header menu, the announcements and the width tooltip. Default: a
+     * string header or the `SortableHeader` label, else the column id.
+     */
+    label?: string
   }
 }
 

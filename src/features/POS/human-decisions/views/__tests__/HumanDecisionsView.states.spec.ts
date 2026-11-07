@@ -26,6 +26,9 @@ vi.mock('@vueuse/core', async (importOriginal) => {
 })
 vi.mock('../../composables/useHumanDecisionsInbox', () => ({ useHumanDecisionsInbox: vi.fn() }))
 
+// Row ⋮ triggers only: the header ⋯ column menus share aria-haspopup="menu".
+const ROW_MENU = 'button[aria-haspopup="menu"]:not([aria-label^="Opciones de la columna"])'
+
 const pending: PendingHumanDecision = {
   id: 'decision-1',
   type: 'RESTOCK',
@@ -173,7 +176,7 @@ describe('HumanDecisionsView states — data', () => {
       'warning',
       'success',
     ])
-    expect(wrapper.findAll('button[aria-haspopup="menu"]')).toHaveLength(0)
+    expect(wrapper.findAll(ROW_MENU)).toHaveLength(0)
     expect(wrapper.get('tbody tr').classes()).toContain('hf-clickable-row')
     expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
     expect(wrapper.find('[data-testid="table-skeleton"]').exists()).toBe(false)

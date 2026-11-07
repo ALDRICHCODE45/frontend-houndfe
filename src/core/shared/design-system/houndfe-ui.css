@@ -333,10 +333,194 @@ body.hf-app {
   background-color: var(--hf-action);
 }
 
+/* Header of an arrangeable column (artboard 01): the label is the focus target; the grip and the ⋯
+ * menu float over its edges on hover or focus, so the label stays readable. */
+.hf-ui .hf-th {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.hf-ui .hf-th-target {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-width: 0;
+  min-height: 2rem;
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+  outline: none;
+}
+
+.hf-ui .hf-th-target:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--hf-focus);
+}
+
+.hf-ui th[data-slot='th'].text-right .hf-th-target {
+  justify-content: flex-end;
+}
+
+.hf-ui :is(th[data-slot='th']:hover, th[data-slot='th']:focus-within) .hf-th-target {
+  padding-right: 1.75rem;
+}
+
+.hf-ui .hf-th-grip {
+  position: absolute;
+  top: 50%;
+  left: -0.625rem;
+  display: grid;
+  place-items: center;
+  width: 0.75rem;
+  height: 1.5rem;
+  transform: translateY(-50%);
+  color: var(--hf-muted);
+  opacity: 0;
+  cursor: grab;
+  transition: opacity 120ms ease;
+}
+
+.hf-ui .hf-th-menu {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 4px;
+  background-color: var(--hf-table-head);
+  color: var(--hf-muted);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 120ms ease, background-color 120ms ease;
+}
+
+.hf-ui :is(.hf-th-menu:hover, .hf-th-menu[aria-expanded='true']) {
+  background-color: color-mix(in srgb, var(--hf-ink) 8%, var(--hf-table-head));
+  color: var(--hf-ink);
+}
+
+.hf-ui :is(th[data-slot='th']:hover, th[data-slot='th']:focus-within) :is(.hf-th-grip, .hf-th-menu),
+.hf-ui .hf-th-menu[aria-expanded='true'] {
+  opacity: 1;
+}
+
+.hf-ui .hf-th-pin {
+  flex: none;
+  width: 0.8125rem;
+  height: 0.8125rem;
+  color: var(--hf-active);
+}
+
+/* SortableHeader inside a managed header: the arrow shows on hover/focus, always once sorted. */
+.hf-ui .hf-th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.hf-ui .hf-th-sort-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hf-ui .hf-th-sort-icon {
+  display: none;
+  flex: none;
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--hf-muted);
+}
+
+.hf-ui :is(th[data-slot='th']:hover, th[data-slot='th']:focus-within) .hf-th-sort-icon,
+.hf-ui .hf-th-sort[data-sorted] .hf-th-sort-icon {
+  display: block;
+}
+
+.hf-ui .hf-th-sort[data-sorted] {
+  color: var(--hf-ink);
+}
+
+.hf-ui .hf-th-sort[data-sorted] .hf-th-sort-icon {
+  color: var(--hf-active);
+}
+
+/* Column drag: the dragged column's cells, the ghost under the pointer and the drop line. */
+.hf-ui :is(td[data-slot='td'], th[data-slot='th']).hf-col-dragging {
+  background-color: color-mix(in srgb, var(--hf-active-soft) 70%, var(--hf-surface));
+  color: var(--hf-muted);
+}
+
+body.hf-table-dragging,
+body.hf-table-dragging * {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.hf-ui .hf-table-drag-ghost {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 2.25rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--hf-action);
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-surface);
+  color: var(--hf-ink);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--hf-ink) 16%, transparent);
+  transform: translate(10px, -50%) rotate(-1.5deg);
+  pointer-events: none;
+}
+
+.hf-ui .hf-table-drop-line {
+  position: fixed;
+  z-index: 55;
+  width: 2px;
+  border-radius: 2px;
+  background-color: var(--hf-action);
+  pointer-events: none;
+}
+
+.hf-ui .hf-table-drop-line::before,
+.hf-ui .hf-table-drop-line::after {
+  content: '';
+  position: absolute;
+  left: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--hf-action);
+}
+
+.hf-ui .hf-table-drop-line::before {
+  top: -4px;
+}
+
+.hf-ui .hf-table-drop-line::after {
+  bottom: -4px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hf-ui :is(td[data-slot='td'], th[data-slot='th']):is(.hf-pin-edge-left, .hf-pin-edge-right),
-  .hf-ui [data-resize-handle]::after {
+  .hf-ui [data-resize-handle]::after,
+  .hf-ui :is(.hf-th-grip, .hf-th-menu) {
     transition: none;
+  }
+
+  .hf-ui .hf-table-drag-ghost {
+    transform: translate(10px, -50%);
   }
 }
 

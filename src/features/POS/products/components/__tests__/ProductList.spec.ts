@@ -45,6 +45,9 @@ const product: Product = {
   updatedAt: '2020-03-03T20:43:00.000Z',
 }
 
+// Row ⋮ triggers only: the header ⋯ column menus share aria-haspopup="menu".
+const ROW_MENU = 'button[aria-haspopup="menu"]:not([aria-label^="Opciones de la columna"])'
+
 const permissions = { canRead: true, canUpdate: true, canDelete: true, canCreate: true }
 
 function mountList(props: Record<string, unknown> = {}) {
@@ -142,7 +145,7 @@ describe('ProductList — data', () => {
     await wrapper.get('tbody td:nth-child(2)').trigger('click')
     expect(wrapper.emitted('open')).toHaveLength(1)
     expect(wrapper.emitted('open')![0]![0]).toEqual(product)
-    await wrapper.get('button[aria-haspopup="menu"]').trigger('click')
+    await wrapper.get(ROW_MENU).trigger('click')
     await tick()
     expect(wrapper.emitted('open')).toHaveLength(1)
     wrapper.unmount()
@@ -158,7 +161,7 @@ describe('ProductList — data', () => {
 
   it('lists the actions in the ⋮ menu: destructive last, behind a separator, with … on the confirmation', async () => {
     const wrapper = mountList()
-    const trigger = wrapper.get('button[aria-haspopup="menu"]')
+    const trigger = wrapper.get(ROW_MENU)
     expect(trigger.attributes('aria-label')).toBe('Acciones de Collar ajustable')
     expect(wrapper.get('td:last-child').findAll('button')).toHaveLength(1)
     await trigger.trigger('click')
@@ -175,7 +178,7 @@ describe('ProductList — data', () => {
     [{ canRead: false, canUpdate: false, canDelete: true }, ['Eliminar…']],
   ])('lists only what the role allows: %j', async (flags, expected) => {
     const wrapper = mountList(flags)
-    await wrapper.get('button[aria-haspopup="menu"]').trigger('click')
+    await wrapper.get(ROW_MENU).trigger('click')
     await tick()
     expect(labels()).toEqual(expected)
     wrapper.unmount()
@@ -188,7 +191,7 @@ describe('ProductList — data', () => {
       ['Editar', 'edit'],
       ['Eliminar…', 'delete'],
     ] as const) {
-      await wrapper.get('button[aria-haspopup="menu"]').trigger('click')
+      await wrapper.get(ROW_MENU).trigger('click')
       await tick()
       menuItems().find((item) => item.textContent?.trim() === label)!.click()
       await tick()
@@ -199,7 +202,7 @@ describe('ProductList — data', () => {
 
   it('shows no ⋮ when the role has no action at all', () => {
     const wrapper = mountList({ canRead: false, canUpdate: false, canDelete: false })
-    expect(wrapper.find('button[aria-haspopup="menu"]').exists()).toBe(false)
+    expect(wrapper.find(ROW_MENU).exists()).toBe(false)
     wrapper.unmount()
   })
 
@@ -212,7 +215,7 @@ describe('ProductList — data', () => {
     expect(card.text()).toContain('$1,299.00')
     expect(card.text()).toContain('25 unidades')
     expect(card.text()).toContain(formatShortDateTime(product.updatedAt))
-    expect(card.get('button[aria-haspopup="menu"]').attributes('aria-label')).toBe(
+    expect(card.get(ROW_MENU).attributes('aria-label')).toBe(
       'Acciones de Collar ajustable',
     )
     await card.trigger('click')

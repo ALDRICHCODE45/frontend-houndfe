@@ -17,6 +17,9 @@ vi.mock('@vueuse/core', async (importOriginal) => {
   return { ...actual, useBreakpoints: () => ({ smaller: () => isMobile }) }
 })
 
+// Row ⋮ triggers only: the header ⋯ column menus share aria-haspopup="menu".
+const ROW_MENU = 'button[aria-haspopup="menu"]:not([aria-label^="Opciones de la columna"])'
+
 const SESSIONS = [
   {
     id: 's-1',
@@ -93,8 +96,8 @@ describe('CashSessionsPanel · four states', () => {
     ).toBe('neutral')
     expect(wrapper.get('[data-testid="cash-session-open-s-1"]').text()).toBe('Caja principal')
     expect(wrapper.get('[data-testid="cash-session-open-s-2"]').text()).toBe('Caja secundaria')
-    expect(wrapper.findAll('button[aria-haspopup="menu"]')).toHaveLength(2)
-    expect(wrapper.get('button[aria-haspopup="menu"]').attributes('aria-label')).toBe(
+    expect(wrapper.findAll(ROW_MENU)).toHaveLength(2)
+    expect(wrapper.get(ROW_MENU).attributes('aria-label')).toBe(
       'Acciones de la sesión de Caja principal, abierta',
     )
     expect(wrapper.get('[data-testid="cash-session-blind-s-2"]').text()).toBe('Ciego')
@@ -109,7 +112,7 @@ describe('CashSessionsPanel · four states', () => {
     const wrapper = mountPanel()
     expect(wrapper.findAll('[data-testid="mobile-cards-list"] article')).toHaveLength(2)
     expect(wrapper.get('[data-testid="cash-session-status-s-1"]').text()).toBe('Abierta')
-    expect(wrapper.findAll('button[aria-haspopup="menu"]')).toHaveLength(2)
+    expect(wrapper.findAll(ROW_MENU)).toHaveLength(2)
     expect(wrapper.text()).toContain('$1,200.50')
   })
 

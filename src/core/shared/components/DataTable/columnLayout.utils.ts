@@ -36,6 +36,12 @@ export const COLUMN_SIZE = 128
 const PRIMARY_BOUNDS: ColumnSizeBounds = { min: 160, max: 1200 }
 const COLUMN_BOUNDS: ColumnSizeBounds = { min: 80, max: 640 }
 
+/**
+ * Default widths that exceed the surface shrink toward this floor (never below a column's own
+ * minimum) before the surface scrolls; the name column stops at its minimum.
+ */
+export const SHRINK_FLOOR = 96
+
 /** Keyboard resize step (Alt+←/→). */
 export const RESIZE_STEP = 16
 

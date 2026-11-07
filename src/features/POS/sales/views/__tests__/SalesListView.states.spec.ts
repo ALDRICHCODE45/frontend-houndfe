@@ -29,6 +29,9 @@ vi.mock('vue-router', () => ({
 const authMock = { userCan: vi.fn((_action: string) => true), currentTenantId: 'tenant-1' }
 vi.mock('@/features/auth/stores/useAuthStore', () => ({ useAuthStore: () => authMock }))
 
+// Row ⋮ triggers only: the header ⋯ column menus share aria-haspopup="menu".
+const ROW_MENU = 'button[aria-haspopup="menu"]:not([aria-label^="Opciones de la columna"])'
+
 const row: ConfirmedSaleRow = {
   id: 'sale-1',
   folio: 'A-202605-000012',
@@ -233,7 +236,7 @@ describe('SalesListView states — data', () => {
     expect(wrapper.get('.sale-total').text()).toBe('$1,270.00')
     expect(wrapper.get('tbody tr').classes()).toContain('hf-clickable-row')
     // The only possible item would be "Ver venta", which the row click already does.
-    expect(wrapper.find('button[aria-haspopup="menu"]').exists()).toBe(false)
+    expect(wrapper.find(ROW_MENU).exists()).toBe(false)
     expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
     expect(wrapper.find('[data-testid="table-skeleton"]').exists()).toBe(false)
   })
