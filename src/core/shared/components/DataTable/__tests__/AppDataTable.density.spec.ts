@@ -218,6 +218,37 @@ describe('«Guardado en tu vista»', () => {
     wrapper.unmount()
   })
 
+  it('shows the same pill at the table surface when the table has no toolbar', async () => {
+    vi.useFakeTimers()
+    const wrapper = mountLive({ persistLayout: true, showToolbar: false })
+    expect(wrapper.find('.hf-toolbar-actions').exists()).toBe(false)
+    expect(saved(wrapper).exists()).toBe(false)
+    const header = wrapper.get('[data-hf-header][data-column-id="status"]')
+    header.element.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', altKey: true, bubbles: true }))
+    await nextTick()
+    expect(saved(wrapper).exists()).toBe(true)
+    expect(saved(wrapper).classes()).toEqual(expect.arrayContaining(['hf-table-saved', 'hf-table-saved--surface']))
+    expect(saved(wrapper).attributes('aria-hidden')).toBe('true')
+    expect(saved(wrapper).text()).toBe('Guardado en tu vista')
+    // Anchored to the table's own box (the positioning root), outside the scrolling surface.
+    expect(saved(wrapper).element.closest('[data-testid="table-view"]')).toBeNull()
+    expect(wrapper.classes()).toContain('relative')
+    expect(savedStatus(wrapper)).toBe('Guardado en tu vista')
+    vi.advanceTimersByTime(2100)
+    await nextTick()
+    expect(saved(wrapper).exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows one pill only, in the toolbar, when the table has one', async () => {
+    const wrapper = mountLive({ persistLayout: true })
+    await radio(wrapper, 'Normal').trigger('click')
+    await nextTick()
+    expect(wrapper.findAll('[data-testid="table-saved"]')).toHaveLength(1)
+    expect(saved(wrapper).classes()).not.toContain('hf-table-saved--surface')
+    wrapper.unmount()
+  })
+
   it('stays quiet on a table that does not persist its layout', async () => {
     const wrapper = mountLive()
     await radio(wrapper, 'Normal').trigger('click')

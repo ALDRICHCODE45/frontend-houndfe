@@ -197,6 +197,35 @@ describe('⋯ column menu items', () => {
     }
   })
 
+  it('disables «Restablecer columnas» while the layout is already the default', () => {
+    const wrapper = mountTable({ showToolbar: false })
+    expect(menuItem(wrapper, 'seller', 'Restablecer columnas').disabled).toBe(true)
+    wrapper.unmount()
+
+    const changed = [
+      { columnOrder: ['select', 'seller', 'name', 'status', 'total', 'actions'] },
+      { columnPinning: { left: ['seller'], right: [] } },
+      { columnVisibility: { status: false } },
+      { columnSizing: { total: 200 } },
+    ]
+    for (const props of changed) {
+      const custom = mountTable({ showToolbar: false, ...props })
+      expect(menuItem(custom, 'seller', 'Restablecer columnas').disabled).toBe(false)
+      custom.unmount()
+    }
+
+    // The default order written out in full, an explicit visible column or the locked edges pinned
+    // are still the default layout.
+    const same = mountTable({
+      showToolbar: false,
+      columnOrder: ['select', 'name', 'seller', 'status', 'total', 'actions'],
+      columnPinning: { left: ['select'], right: ['actions'] },
+      columnVisibility: { status: true },
+    })
+    expect(menuItem(same, 'seller', 'Restablecer columnas').disabled).toBe(true)
+    same.unmount()
+  })
+
   it('adds «Quitar orden» once the column is sorted and «Restablecer ancho» once it is sized', async () => {
     const wrapper = mountTable({ sorting: [{ id: 'total', desc: false }], columnSizing: { total: 200 } })
     // SortableHeader registers its column once mounted.

@@ -409,7 +409,7 @@ body.hf-app {
 }
 
 /* Header of an arrangeable column (artboard 01): the label is the focus target; the grip and the ⋯
- * menu float over its edges on hover or focus, so the label stays readable. */
+ * menu float over the cell's padding on hover or focus, so the label keeps its place and width. */
 .hf-ui .hf-th {
   position: relative;
   display: flex;
@@ -440,14 +440,22 @@ body.hf-app {
   justify-content: flex-end;
 }
 
-.hf-ui :is(th[data-slot='th']:hover, th[data-slot='th']:focus-within) .hf-th-target {
-  padding-right: 1.75rem;
+/* The ⋯ overlays the label's last 18px; a left-aligned label runs under its fade, but the sort
+ * arrow, a right-aligned label and the pin mark sit at that edge, so they get the room. */
+.hf-ui :is(th[data-slot='th']:hover, th[data-slot='th']:focus-within) :is(.hf-th-target:has(.hf-th-sort), th[data-slot='th'].text-right .hf-th-target) {
+  padding-right: 1.25rem;
 }
 
+.hf-ui :is(th[data-slot='th']:hover, th[data-slot='th']:focus-within) .hf-th:has(.hf-th-pin) {
+  padding-right: 1.25rem;
+}
+
+/* The grip sits in the cell's 12px left padding, its dots about 6px clear of the label (its box
+ * runs 2px past the cell edge, where the cell clips only empty space). */
 .hf-ui .hf-th-grip {
   position: absolute;
   top: 50%;
-  left: -0.625rem;
+  left: -0.875rem;
   display: grid;
   place-items: center;
   width: 0.75rem;
@@ -459,14 +467,21 @@ body.hf-app {
   transition: opacity 120ms ease;
 }
 
+.hf-ui .hf-th-grip__icon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+/* The ⋯ ends 2px short of the cell edge (the resize handle keeps its outer 6px) and fades the label
+ * out behind it. */
 .hf-ui .hf-th-menu {
   position: absolute;
   top: 50%;
-  right: 0;
+  right: -0.625rem;
   display: grid;
   place-items: center;
   width: 1.75rem;
-  height: 1.75rem;
+  height: 2rem;
   transform: translateY(-50%);
   border: 0;
   border-radius: 4px;
@@ -475,6 +490,22 @@ body.hf-app {
   opacity: 0;
   cursor: pointer;
   transition: opacity 120ms ease, background-color 120ms ease;
+}
+
+.hf-ui .hf-th-menu::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 100%;
+  bottom: 0;
+  width: 0.75rem;
+  background: linear-gradient(to right, transparent, var(--hf-table-head));
+  pointer-events: none;
+}
+
+.hf-ui .hf-th-menu:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--hf-focus);
 }
 
 .hf-ui :is(.hf-th-menu:hover, .hf-th-menu[aria-expanded='true']) {
@@ -684,6 +715,15 @@ body.hf-app {
   font-weight: 600;
   white-space: nowrap;
   pointer-events: none;
+}
+
+/* A table without a toolbar shows it at its surface's top-right corner, over the header row (and
+ * its sticky and pinned cells) for the two seconds it lasts. */
+.hf-ui .hf-table-saved--surface {
+  top: 0.375rem;
+  right: 0.5rem;
+  z-index: 6;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--hf-ink) 10%, transparent);
 }
 
 .hf-ui .hf-table-saved__icon {
@@ -1321,6 +1361,23 @@ body.hf-app {
   width: 0.875rem;
   height: 0.875rem;
   flex: none;
+}
+
+/* In a table cell the badge never runs into the next column: at a narrow width it shrinks to the
+ * cell and its label ends in an ellipsis (an inline block, so the text can carry one). */
+.hf-ui .hf-data-table td[data-slot='td'] .hf-status-badge {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: calc(1.5rem - 2px);
+  vertical-align: middle;
+}
+
+.hf-ui .hf-data-table td[data-slot='td'] .hf-status-badge :is(.hf-status-badge__dot, .hf-status-badge__icon) {
+  display: inline-block;
+  margin-right: 0.1875rem;
+  vertical-align: middle;
 }
 
 /* ── Row actions menu (RowActionsMenu.vue) ───────────────────────────────── */

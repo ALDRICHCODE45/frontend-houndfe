@@ -3,8 +3,8 @@ import type { DropdownMenuItem } from '@nuxt/ui'
 
 /**
  * The header of an arrangeable column (artboard 01): the label is the single focus target, and the
- * grip and the ⋯ menu float over its edges on hover or focus. AppDataTable owns the keyboard, the
- * drag and the menu actions; this only lays the parts out.
+ * grip and the ⋯ menu float over the cell's padding on hover or focus, so the label keeps its place.
+ * AppDataTable owns the keyboard, the drag and the menu actions; this only lays the parts out.
  */
 const props = defineProps<{
   columnId: string
@@ -41,7 +41,7 @@ function onCloseAutoFocus(event: Event) {
 <template>
   <div class="hf-th" @pointerdown="emit('pointerdown', $event)">
     <span class="hf-th-grip" aria-hidden="true" data-hf-grip>
-      <UIcon name="i-lucide-grip-vertical" />
+      <UIcon name="i-lucide-grip-vertical" class="hf-th-grip__icon" />
     </span>
     <div
       class="hf-th-target"

@@ -866,6 +866,20 @@ function onMenuClosed(id: string) {
 
 const hasColumnsPanel = computed(() => props.showToolbar && props.enableColumnVisibility)
 
+// The layout a reset would give: natural order, only the locked edges pinned, every column visible
+// and no user widths. (A screen's own default pinning reads as changed, so the reset stays offered.)
+const isDefaultLayout = computed(() => {
+  const natural = sanitizeOrder([], leafIds.value)
+  const pinning = effectivePinning.value
+  return (
+    effectiveOrder.value.every((id, index) => id === natural[index]) &&
+    pinning.left!.every(isLockedColumn) &&
+    pinning.right!.every(isLockedColumn) &&
+    leafIds.value.every(id => columnVisibility.value[id] !== false) &&
+    Object.keys(storedSizing.value).length === 0
+  )
+})
+
 function columnMenuItems(id: string): DropdownMenuItem[][] {
   const groups: DropdownMenuItem[][] = []
   if (isSortable(id)) {
@@ -916,7 +930,14 @@ function columnMenuItems(id: string): DropdownMenuItem[][] {
   // Hiding needs the «Columnas» panel to bring the column back; without it the menu offers a
   // full reset instead, so a hidden or rearranged layout can always be undone.
   if (!hasColumnsPanel.value) {
-    groups.push([{ label: 'Restablecer columnas', icon: 'i-lucide-rotate-ccw', onSelect: resetColumns }])
+    groups.push([
+      {
+        label: 'Restablecer columnas',
+        icon: 'i-lucide-rotate-ccw',
+        disabled: isDefaultLayout.value,
+        onSelect: resetColumns,
+      },
+    ])
   } else if (id !== primaryKey.value) {
     groups.push([{ label: 'Ocultar columna', icon: 'i-lucide-eye-off', onSelect: () => hideColumn(id) }])
   }
@@ -1166,7 +1187,7 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="root" class="flex w-full min-w-0 max-w-full flex-col gap-4">
+  <div ref="root" class="relative flex w-full min-w-0 max-w-full flex-col gap-4">
     <!-- Toolbar -->
     <DataTableToolbar
       v-if="props.showToolbar"
@@ -1566,6 +1587,17 @@ defineExpose({
     <div class="sr-only" aria-live="polite" aria-atomic="true" data-testid="table-announcer">
       <span :key="announcementKey">{{ announcement }}</span>
     </div>
+    <!-- Without a toolbar the quiet pill sits at the surface's top-right corner instead -->
+    <Transition name="hf-table-saved">
+      <span
+        v-if="savedVisible && !props.showToolbar"
+        class="hf-table-saved hf-table-saved--surface"
+        aria-hidden="true"
+        data-testid="table-saved"
+      >
+        <UIcon name="i-lucide-check" class="hf-table-saved__icon" />Guardado en tu vista
+      </span>
+    </Transition>
     <!-- «Guardado en tu vista», read once per user layout change (the toolbar shows it quietly) -->
     <div class="sr-only" role="status" aria-live="polite" data-testid="table-saved-status">
       <template v-if="savedVisible">Guardado en tu vista</template>
