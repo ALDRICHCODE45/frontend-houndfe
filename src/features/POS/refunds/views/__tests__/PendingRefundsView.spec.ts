@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
+import { columnLabel } from '@/core/shared/components/DataTable/columnLayout.utils'
 import type { PendingRefundListRow } from '../../composables/usePendingRefundsList'
 
 const list = vi.hoisted(() => ({
@@ -56,8 +57,33 @@ vi.mock('../../components/SettleRefundSlideover.vue', () => ({
 vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
   default: {
     name: 'AppDataTable',
-    props: ['data', 'loading', 'error', 'errorMessage', 'emptyState', 'filtered', 'rowOpen', 'columns', 'totalCount'],
-    emits: ['refresh', 'clear-filters'],
+    props: [
+      'data',
+      'loading',
+      'error',
+      'errorMessage',
+      'emptyState',
+      'filtered',
+      'rowOpen',
+      'columns',
+      'totalCount',
+      'columnOrder',
+      'columnPinning',
+      'columnSizing',
+      'columnVisibility',
+      'density',
+      'persistLayout',
+    ],
+    emits: [
+      'refresh',
+      'clear-filters',
+      'reset-columns',
+      'update:columnOrder',
+      'update:columnPinning',
+      'update:columnSizing',
+      'update:columnVisibility',
+      'update:density',
+    ],
     template: `
       <div data-testid="table">
         <span v-for="c in columns" :key="c.id" data-testid="column-header" :data-column="c.id">{{ c.header }}</span>
@@ -251,5 +277,50 @@ describe('PendingRefundsView', () => {
       const wrapper = mountView()
       for (const id of ['reason', 'method', 'actions']) expect(totalOf(wrapper, id)).toBeUndefined()
     })
+  })
+})
+
+describe('PendingRefundsView — column layout (premium tables T9)', () => {
+  const STORAGE_KEY = 'table-preferences-pos-pending-refunds'
+  beforeEach(() => {
+    localStorage.clear()
+    list.rows = ref([row('1')])
+    list.loading = ref(false)
+    list.error = ref(false)
+    auth.grants = new Set(['read:SaleRefund', 'update:SaleRefund'])
+  })
+  afterEach(() => localStorage.clear())
+
+  it('persists order, pins, widths, visibility and density under pos-pending-refunds', async () => {
+    const wrapper = mountView()
+    const table = wrapper.getComponent({ name: 'AppDataTable' })
+    expect(table.props('persistLayout')).toBe(true)
+
+    table.vm.$emit('update:columnOrder', ['sale', 'amountCents', 'reason', 'method', 'settledCents', 'outstandingCents', 'actions'])
+    table.vm.$emit('update:columnPinning', { left: ['sale'], right: ['actions'] })
+    table.vm.$emit('update:columnSizing', { reason: 200 })
+    table.vm.$emit('update:columnVisibility', { method: false })
+    table.vm.$emit('update:density', 'normal')
+    await nextTick()
+
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
+      pinning: { left: ['sale'], right: ['actions'] },
+      sizing: { reason: 200 },
+      visibility: { method: false },
+      density: 'normal',
+    })
+    expect(table.props('columnVisibility')).toEqual({ method: false })
+
+    table.vm.$emit('reset-columns')
+    await nextTick()
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull()
+    expect(table.props('columnVisibility')).toEqual({})
+    wrapper.unmount()
+  })
+
+  it('names every column for the «Columnas» panel, never with its id', () => {
+    const table = mountView().getComponent({ name: 'AppDataTable' })
+    const labels = (table.props('columns') as Parameters<typeof columnLabel>[0][]).map(columnLabel)
+    expect(labels).toEqual(['Venta', 'Motivo', 'Pagó con', 'Total', 'Devuelto', 'Pendiente', 'Acciones'])
   })
 })

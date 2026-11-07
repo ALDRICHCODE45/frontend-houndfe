@@ -15,4 +15,10 @@ describe('usePromotionColumns — capacity column', () => {
     const col = columns.find((c) => 'id' in c && c.id === 'capacity')
     expect(col!.enableHiding).not.toBe(false)
   })
+
+  it('gives the capacity badge room by default («Quedan 400 unidades» does not spill into Inicio)', () => {
+    const { columns } = usePromotionColumns()
+    const col = columns.find((c) => 'id' in c && c.id === 'capacity')
+    expect(col!.size).toBe(176)
+  })
 })

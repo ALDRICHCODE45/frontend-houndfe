@@ -32,10 +32,13 @@ describe('refunds presentation', () => {
   })
 
   it('lets «Motivo» wrap to two lines in an 11rem column, the cancellation age on one line', () => {
-    // 7 columns at 1440 with the sidebar open: 16rem name + 11rem + badge + 3 x 7rem + 4rem fit the 1022px card.
+    // The 11rem is the column's default size (premium tables): the user can still resize it, so
+    // the stylesheet pins no width. 7 columns at 1440 with the sidebar open fit the 1022px card.
+    const view = readFileSync('src/features/POS/refunds/views/PendingRefundsView.vue', 'utf8')
+    expect(view).toMatch(/id: 'reason',[^}]*size: 176/)
     const column = rule(".hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']).refund-col-reason")
-    expect(column).toContain('width: 11rem')
-    expect(column).toContain('min-width: 11rem')
+    expect(column).toContain('white-space: normal')
+    expect(column).not.toMatch(/(^|[^-])width:/)
     const reason = rule('.hf-ui .refund-reason')
     expect(reason).toContain('white-space: normal')
     expect(reason).not.toContain('text-overflow: ellipsis')

@@ -1,4 +1,7 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { columnLabel } from '@/core/shared/components/DataTable/columnLayout.utils'
 import { mount, flushPromises } from '@vue/test-utils'
 import { computed, ref } from 'vue'
 import CustomersView from '../CustomersView.vue'
@@ -16,6 +19,10 @@ const mockState = {
   globalFilter: ref(''),
   columnPinning: ref<{ left: string[]; right: string[] }>({ left: [], right: [] }),
   columnVisibility: ref<Record<string, boolean>>({}),
+  columnOrder: ref<string[]>([]),
+  columnSizing: ref<Record<string, number>>({}),
+  density: ref('comfortable'),
+  resetLayout: vi.fn(),
   rowSelection: ref({}),
   data: ref<Customer[]>([]),
   totalCount: ref(0),
@@ -37,6 +44,10 @@ vi.mock('@/core/shared/composables/useServerTable', () => ({
     globalFilter: mockState.globalFilter,
     columnPinning: mockState.columnPinning,
     columnVisibility: mockState.columnVisibility,
+    columnOrder: mockState.columnOrder,
+    columnSizing: mockState.columnSizing,
+    density: mockState.density,
+    resetLayout: mockState.resetLayout,
     rowSelection: mockState.rowSelection,
     data: computed(() => mockState.data.value),
     totalCount: computed(() => mockState.totalCount.value),
@@ -147,8 +158,28 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
       sorting: { default: () => [] },
       pagination: { default: () => ({ pageIndex: 0, pageSize: 10 }) },
       showAddButton: { default: false },
+      columnPinning: { default: undefined },
+      columnVisibility: { default: undefined },
+      columnOrder: { default: undefined },
+      columnSizing: { default: undefined },
+      density: { default: undefined },
+      persistLayout: { default: false },
     },
-    emits: ['add', 'refresh', 'empty-action', 'clear-filters', 'update:globalFilter', 'update:sorting', 'update:pagination'],
+    emits: [
+      'add',
+      'refresh',
+      'empty-action',
+      'clear-filters',
+      'reset-columns',
+      'update:globalFilter',
+      'update:sorting',
+      'update:pagination',
+      'update:columnPinning',
+      'update:columnVisibility',
+      'update:columnOrder',
+      'update:columnSizing',
+      'update:density',
+    ],
   },
 }))
 
@@ -185,6 +216,10 @@ beforeEach(() => {
   mockState.globalFilter.value = ''
   mockState.columnPinning.value = { left: [], right: [] }
   mockState.columnVisibility.value = {}
+  mockState.columnOrder.value = []
+  mockState.columnSizing.value = {}
+  mockState.density.value = 'comfortable'
+  mockState.resetLayout.mockClear()
   mockState.rowSelection.value = {}
   mockState.data.value = []
   mockState.totalCount.value = 0
@@ -640,5 +675,42 @@ describe('CustomersView — delete confirmation opt-in (S1-S3)', () => {
     confirm.vm.$emit('update:open', false)
     await flushPromises()
     expect(confirm.props('open')).toBe(false)
+  })
+})
+
+describe('CustomersView — column layout (premium tables T9)', () => {
+  it('binds the persisted layout (pos-customers), persist-layout and «Restablecer columnas»', async () => {
+    const view = readFileSync(resolve(__dirname, '../CustomersView.vue'), 'utf8')
+    expect(view).toContain("persistKey: 'pos-customers'")
+    const wrapper = mount(CustomersView)
+    const table = wrapper.getComponent({ name: 'AppDataTable' })
+    expect(table.props()).toMatchObject({
+      persistLayout: true,
+      columnPinning: { left: [], right: [] },
+      columnVisibility: {},
+      columnOrder: [],
+      columnSizing: {},
+      density: 'comfortable',
+    })
+
+    table.vm.$emit('update:columnOrder', ['phone', 'fullName'])
+    table.vm.$emit('update:columnSizing', { fullName: 300 })
+    table.vm.$emit('update:columnPinning', { left: ['fullName'], right: ['actions'] })
+    table.vm.$emit('update:columnVisibility', { email: false })
+    table.vm.$emit('update:density', 'compact')
+    expect(mockState.columnOrder.value).toEqual(['phone', 'fullName'])
+    expect(mockState.columnSizing.value).toEqual({ fullName: 300 })
+    expect(mockState.columnPinning.value).toEqual({ left: ['fullName'], right: ['actions'] })
+    expect(mockState.columnVisibility.value).toEqual({ email: false })
+    expect(mockState.density.value).toBe('compact')
+
+    table.vm.$emit('reset-columns')
+    expect(mockState.resetLayout).toHaveBeenCalledTimes(1)
+  })
+
+  it('names every column for the «Columnas» panel, never with its id', () => {
+    const table = mount(CustomersView).getComponent({ name: 'AppDataTable' })
+    const labels = (table.props('columns') as Parameters<typeof columnLabel>[0][]).map(columnLabel)
+    expect(labels).toEqual(['Nombre', 'Correo electrónico', 'Teléfono', 'Lista de precios', 'Acciones'])
   })
 })

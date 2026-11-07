@@ -6,7 +6,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ProductsView from '../ProductsView.vue'
 import type { Product } from '../../interfaces/product.types'
 
-const tableMocks = vi.hoisted(() => ({ refresh: vi.fn() }))
+const tableMocks = vi.hoisted(() => ({ refresh: vi.fn(), resetLayout: vi.fn() }))
+// The layout refs the last useServerTable call returned (premium tables T9).
+const layoutRefs = vi.hoisted(() => ({
+  current: {} as { columnOrder?: { value: unknown }; columnSizing?: { value: unknown }; density?: { value: unknown } },
+}))
 
 // Mutable server-table state so each spec drives one of the four screen states.
 const tableState = vi.hoisted(() => ({
@@ -62,7 +66,15 @@ vi.mock('@tanstack/vue-query', () => ({
 }))
 
 vi.mock('@/core/shared/composables/useServerTable', () => ({
-  useServerTable: () => ({
+  useServerTable: () => {
+    layoutRefs.current = {
+      columnOrder: ref([]),
+      columnSizing: ref({}),
+      density: ref('comfortable'),
+    }
+    return {
+    ...layoutRefs.current,
+    resetLayout: tableMocks.resetLayout,
     pagination: ref({ pageIndex: 0, pageSize: 10 }),
     sorting: ref([]),
     globalFilter: ref(tableState.globalFilter),
@@ -80,7 +92,8 @@ vi.mock('@/core/shared/composables/useServerTable', () => ({
     pageSizeOptions: [10],
     showingFrom: 1,
     showingTo: 1,
-  }),
+    }
+  },
 }))
 
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
@@ -123,8 +136,23 @@ const ProductListStub = defineComponent({
     'activeFilterCount',
     'totalCount',
     'columnPinning',
+    'columnOrder',
+    'columnSizing',
+    'density',
+    'persistLayout',
   ],
-  emits: ['open', 'edit', 'delete', 'add', 'refresh', 'clear-filters'],
+  emits: [
+    'open',
+    'edit',
+    'delete',
+    'add',
+    'refresh',
+    'clear-filters',
+    'reset-columns',
+    'update:columnOrder',
+    'update:columnSizing',
+    'update:density',
+  ],
   setup(props, { slots, emit }) {
     return () =>
       h('div', { 'data-testid': 'product-list', class: 'hf-data-table' }, [
@@ -282,6 +310,32 @@ describe('ProductsView list wiring', () => {
 
     await wrapper.get('[data-testid="emit-open"]').trigger('click')
     expect(push).not.toHaveBeenCalled()
+  })
+})
+
+describe('ProductsView column layout (premium tables T9)', () => {
+  it('persists the layout under pos-products and binds every layout v-model to the list', async () => {
+    tableMocks.resetLayout.mockClear()
+    expect(source()).toContain("persistKey: 'pos-products'")
+    const wrapper = mountView()
+    const stub = list(wrapper)
+    expect(stub.props()).toMatchObject({
+      persistLayout: true,
+      columnOrder: [],
+      columnSizing: {},
+      density: 'comfortable',
+      columnPinning: { left: [], right: ['actions'] },
+    })
+
+    stub.vm.$emit('update:columnOrder', ['brandName', 'name'])
+    stub.vm.$emit('update:columnSizing', { name: 300 })
+    stub.vm.$emit('update:density', 'compact')
+    expect(layoutRefs.current.columnOrder?.value).toEqual(['brandName', 'name'])
+    expect(layoutRefs.current.columnSizing?.value).toEqual({ name: 300 })
+    expect(layoutRefs.current.density?.value).toBe('compact')
+
+    stub.vm.$emit('reset-columns')
+    expect(tableMocks.resetLayout).toHaveBeenCalledTimes(1)
   })
 })
 

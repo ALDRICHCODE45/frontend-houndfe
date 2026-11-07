@@ -1,5 +1,7 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
+import { columnLabel } from '@/core/shared/components/DataTable/columnLayout.utils'
 import HumanDecisionsListPanel from '../HumanDecisionsListPanel.vue'
 import type { PaginationState } from '@/core/shared/types/table.types'
 import type { HumanDecision, PendingHumanDecision } from '../../interfaces/human-decision.types'
@@ -39,8 +41,25 @@ const AppDataTableStub = {
     'searchPlaceholder',
     'pagination',
     'globalFilter',
+    'columnOrder',
+    'columnPinning',
+    'columnSizing',
+    'columnVisibility',
+    'density',
+    'persistLayout',
   ],
-  emits: ['refresh', 'clear-filters', 'update:pagination', 'update:globalFilter'],
+  emits: [
+    'refresh',
+    'clear-filters',
+    'reset-columns',
+    'update:pagination',
+    'update:globalFilter',
+    'update:columnOrder',
+    'update:columnPinning',
+    'update:columnSizing',
+    'update:columnVisibility',
+    'update:density',
+  ],
   template: `
     <div data-testid="table-stub">
       <slot name="filters" />
@@ -331,4 +350,51 @@ describe('HumanDecisionsListPanel', () => {
       expect(wrapper.emitted('openDetail')).toContainEqual([{ id: 'exp-1', status: row.status }])
     },
   )
+})
+
+describe('HumanDecisionsListPanel — column layout (premium tables T9)', () => {
+  const STORAGE_KEY = 'table-preferences-pos-human-decisions'
+  afterEach(() => localStorage.clear())
+
+  it('persists order, pins, widths, visibility and density under pos-human-decisions', async () => {
+    localStorage.clear()
+    const wrapper = mountPanel()
+    const table = wrapper.getComponent(AppDataTableStub)
+    expect(table.props('persistLayout')).toBe(true)
+    expect(table.props('density')).toBe('comfortable')
+
+    table.vm.$emit('update:columnOrder', ['createdAt', 'product', 'status', 'requestedQuantity', 'response'])
+    table.vm.$emit('update:columnPinning', { left: ['product'], right: [] })
+    table.vm.$emit('update:columnSizing', { product: 300 })
+    table.vm.$emit('update:columnVisibility', { response: false })
+    table.vm.$emit('update:density', 'compact')
+    await nextTick()
+
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')
+    expect(stored).toMatchObject({
+      order: ['createdAt', 'product', 'status', 'requestedQuantity', 'response'],
+      pinning: { left: ['product'] },
+      sizing: { product: 300 },
+      visibility: { response: false },
+      density: 'compact',
+    })
+    expect(table.props('columnSizing')).toEqual({ product: 300 })
+
+    // A fresh mount (reload) reads the saved layout back.
+    wrapper.unmount()
+    const reloaded = mountPanel().getComponent(AppDataTableStub)
+    expect(reloaded.props('columnSizing')).toEqual({ product: 300 })
+    expect(reloaded.props('density')).toBe('compact')
+
+    reloaded.vm.$emit('reset-columns')
+    await nextTick()
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull()
+    expect(reloaded.props('columnSizing')).toEqual({})
+  })
+
+  it('names every column for the «Columnas» panel, never with its id', () => {
+    const table = mountPanel().getComponent(AppDataTableStub)
+    const labels = (table.props('columns') as Parameters<typeof columnLabel>[0][]).map(columnLabel)
+    expect(labels).toEqual(['Solicitud', 'Estado', 'Solicitado', 'Creada', 'Respuesta'])
+  })
 })

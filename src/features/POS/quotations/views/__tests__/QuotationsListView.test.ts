@@ -9,11 +9,14 @@
  * `QuotationsListView.states.spec.ts`.
  */
 
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, RouterLinkStub } from '@vue/test-utils'
 import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
 import { computed, ref } from 'vue'
 import QuotationsListView from '../QuotationsListView.vue'
+import { columnLabel } from '@/core/shared/components/DataTable/columnLayout.utils'
 import type {
   PaginatedQuotations,
   QuotationResponseDto,
@@ -28,6 +31,10 @@ const composableState = {
   rowSelection: ref<Record<string, boolean>>({}),
   columnPinning: ref<{ left: string[], right: string[] }>({ left: [], right: [] }),
   columnVisibility: ref<Record<string, boolean>>({}),
+  columnOrder: ref<string[]>([]),
+  columnSizing: ref<Record<string, number>>({}),
+  density: ref('comfortable'),
+  resetLayout: vi.fn(),
   data: ref<QuotationResponseDto[]>([]),
   totalCount: ref(0),
   pageCount: ref(0),
@@ -60,6 +67,10 @@ vi.mock('../../composables/useQuotationsListTable', () => ({
     rowSelection: composableState.rowSelection,
     columnPinning: composableState.columnPinning,
     columnVisibility: composableState.columnVisibility,
+    columnOrder: composableState.columnOrder,
+    columnSizing: composableState.columnSizing,
+    density: composableState.density,
+    resetLayout: composableState.resetLayout,
     data: computed(() => composableState.data.value),
     totalCount: computed(() => composableState.totalCount.value),
     pageCount: computed(() => composableState.pageCount.value),
@@ -185,8 +196,20 @@ const appDataTableStub = {
     'filtered',
     'noMatchTitle',
     'activeFilterCount',
+    'columnPinning',
+    'columnVisibility',
+    'columnOrder',
+    'columnSizing',
+    'density',
+    'persistLayout',
   ],
   emits: [
+    'update:columnPinning',
+    'update:columnVisibility',
+    'update:columnOrder',
+    'update:columnSizing',
+    'update:density',
+    'reset-columns',
     'update:pagination',
     'update:sorting',
     'update:global-filter',
@@ -333,6 +356,10 @@ function resetState() {
   composableState.rowSelection.value = {}
   composableState.columnPinning.value = { left: [], right: [] }
   composableState.columnVisibility.value = {}
+  composableState.columnOrder.value = []
+  composableState.columnSizing.value = {}
+  composableState.density.value = 'comfortable'
+  composableState.resetLayout.mockReset()
   composableState.data.value = []
   composableState.totalCount.value = 0
   composableState.pageCount.value = 0
@@ -553,6 +580,43 @@ describe('QuotationsListView — Filtros slideover + chips (REQ-QAF-010)', () =>
     const wrapper = mountView()
 
     expect(wrapper.findAll('[data-testid="filters-chips"]')).toHaveLength(1)
+  })
+})
+
+describe('QuotationsListView — column layout (premium tables T9)', () => {
+  it('binds the persisted layout v-models, persist-layout and «Restablecer columnas»', async () => {
+    const composable = readFileSync(resolve(__dirname, '../../composables/useQuotationsListTable.ts'), 'utf8')
+    expect(composable).toContain("persistKey: 'pos-quotations-list'")
+    const wrapper = mountView()
+    const table = wrapper.getComponent(appDataTableStub)
+    expect(table.props()).toMatchObject({
+      persistLayout: true,
+      columnOrder: [],
+      columnSizing: {},
+      density: 'comfortable',
+      columnPinning: { left: [], right: [] },
+      columnVisibility: {},
+    })
+
+    table.vm.$emit('update:columnOrder', ['totalCents', 'customer'])
+    table.vm.$emit('update:columnSizing', { customer: 300 })
+    table.vm.$emit('update:columnPinning', { left: ['customer'], right: ['actions'] })
+    table.vm.$emit('update:columnVisibility', { expiresAt: false })
+    table.vm.$emit('update:density', 'compact')
+    expect(composableState.columnOrder.value).toEqual(['totalCents', 'customer'])
+    expect(composableState.columnSizing.value).toEqual({ customer: 300 })
+    expect(composableState.columnPinning.value).toEqual({ left: ['customer'], right: ['actions'] })
+    expect(composableState.columnVisibility.value).toEqual({ expiresAt: false })
+    expect(composableState.density.value).toBe('compact')
+
+    table.vm.$emit('reset-columns')
+    expect(composableState.resetLayout).toHaveBeenCalledTimes(1)
+  })
+
+  it('names every column for the «Columnas» panel, never with its id', () => {
+    const table = mountView().getComponent(appDataTableStub)
+    const labels = (table.props('columns') as Parameters<typeof columnLabel>[0][]).map(columnLabel)
+    expect(labels).toEqual(['Cliente', 'Estado', 'Total', 'Expira', 'Creada', 'Acciones'])
   })
 })
 

@@ -140,6 +140,10 @@ const {
   rowSelection,
   columnPinning,
   columnVisibility,
+  columnOrder,
+  columnSizing,
+  density,
+  resetLayout,
   data,
   totalCount,
   pageCount,
@@ -664,7 +668,12 @@ defineExpose({
           v-model:global-filter="globalFilter"
           v-model:column-pinning="columnPinning"
           v-model:column-visibility="columnVisibility"
+          v-model:column-order="columnOrder"
+          v-model:column-sizing="columnSizing"
+          v-model:density="density"
           v-model:row-selection="rowSelection"
+          :persist-layout="true"
+          :selected-label="{ one: 'seleccionada', other: 'seleccionadas' }"
           :columns="tableColumns"
           :data="data"
           :loading="isLoading"
@@ -698,6 +707,7 @@ defineExpose({
           @empty-action="handleAddPromotion"
           @refresh="refresh"
           @clear-filters="resetFilters"
+          @reset-columns="resetLayout"
         >
           <template #filters>
             <ToolbarSelectFilter

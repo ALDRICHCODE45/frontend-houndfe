@@ -14,6 +14,7 @@ import EmptyState from '@/core/shared/components/EmptyState.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
+import { useTablePreferences } from '@/core/shared/composables/useTablePreferences'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import SettleRefundSlideover from '../components/SettleRefundSlideover.vue'
 import {
@@ -77,17 +78,37 @@ const columns: TableColumn<PendingRefundListRow>[] = [
     header: 'Venta',
     meta: { total: { kind: 'count', label: (n) => `${n} ${n === 1 ? 'reembolso' : 'reembolsos'}` } },
   },
-  { id: 'reason', header: 'Motivo', meta: { class: { th: 'refund-col-reason', td: 'refund-col-reason' } } },
-  { id: 'method', header: 'Pagó con' },
-  { id: 'amountCents', header: 'Total', meta: { class: right, total: centsSum((row) => row.amountCents) } },
-  { id: 'settledCents', header: 'Devuelto', meta: { class: right, total: centsSum((row) => row.settledCents) } },
+  {
+    id: 'reason',
+    header: 'Motivo',
+    size: 176,
+    meta: { class: { th: 'refund-col-reason', td: 'refund-col-reason' } },
+  },
+  // Default widths that keep the seven columns inside the card at 1440: the method badge
+  // («Tarjeta de crédito») whole, the amounts at their widest.
+  { id: 'method', header: 'Pagó con', size: 152 },
+  { id: 'amountCents', header: 'Total', size: 120, meta: { class: right, total: centsSum((row) => row.amountCents) } },
+  {
+    id: 'settledCents',
+    header: 'Devuelto',
+    size: 120,
+    meta: { class: right, total: centsSum((row) => row.settledCents) },
+  },
   {
     id: 'outstandingCents',
     header: 'Pendiente',
+    size: 120,
     meta: { class: right, total: centsSum((row) => row.outstandingCents) },
   },
   { id: 'actions', header: 'Acciones', meta: { class: { th: 'w-16', td: 'w-16 text-right' } } },
 ]
+
+// Column layout saved per user in this browser (order, pins, widths, visibility, density).
+const layout = useTablePreferences({
+  persistKey: 'pos-pending-refunds',
+  columnIds: columns.map((column) => column.id ?? ''),
+})
+const { columnOrder, columnPinning, columnSizing, columnVisibility, density } = layout
 
 const rowActions = computed<RowAction[]>(() => [
   ...(canSettle.value ? [{ key: 'settle', label: 'Liquidar…', icon: 'i-lucide-hand-coins' }] : []),
@@ -159,6 +180,12 @@ const rowLabel = (row: PendingRefundListRow) => `${row.folioLabel}, ${row.custom
         <AppDataTable
           v-model:pagination="pagination"
           v-model:global-filter="search"
+          v-model:column-order="columnOrder"
+          v-model:column-pinning="columnPinning"
+          v-model:column-sizing="columnSizing"
+          v-model:column-visibility="columnVisibility"
+          v-model:density="density"
+          :persist-layout="true"
           :columns="columns"
           :data="list.visibleRows.value"
           :loading="list.isInitialLoading.value"
@@ -184,6 +211,7 @@ const rowLabel = (row: PendingRefundListRow) => `${row.folioLabel}, ${row.custom
           pagination-portal-class="hf-theme hf-ui"
           @refresh="list.refetch()"
           @clear-filters="search = ''"
+          @reset-columns="layout.reset"
         >
           <template v-if="total > 0" #actions>
             <span class="refunds-owed" data-testid="refunds-owed">

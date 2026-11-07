@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { ref } from 'vue'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
+import { columnLabel } from '@/core/shared/components/DataTable/columnLayout.utils'
 import ProductList from '../ProductList.vue'
 import type { Product } from '../../interfaces/product.types'
 
@@ -342,5 +343,38 @@ describe('ProductList — review round 1', () => {
     const wrapper = mountList({ items: [variantsProduct] })
     expect(wrapper.text()).toContain('24 · 2 variantes')
     wrapper.unmount()
+  })
+})
+
+describe('ProductList — column layout (premium tables T9)', () => {
+  it('forwards the layout v-models, persist-layout and «Restablecer columnas» of the table', async () => {
+    const wrapper = mountList({
+      persistLayout: true,
+      columnOrder: ['brandName'],
+      columnSizing: { name: 300 },
+      density: 'normal',
+    })
+    const table = wrapper.getComponent({ name: 'AppDataTable' })
+    expect(table.props()).toMatchObject({
+      persistLayout: true,
+      columnOrder: ['brandName'],
+      columnSizing: { name: 300 },
+      density: 'normal',
+    })
+
+    table.vm.$emit('update:columnOrder', ['priceCents'])
+    table.vm.$emit('update:columnSizing', { name: 280 })
+    table.vm.$emit('update:density', 'compact')
+    table.vm.$emit('reset-columns')
+    expect(wrapper.emitted('update:columnOrder')?.slice(-1)[0]).toEqual([['priceCents']])
+    expect(wrapper.emitted('update:columnSizing')?.slice(-1)[0]).toEqual([{ name: 280 }])
+    expect(wrapper.emitted('update:density')?.slice(-1)[0]).toEqual(['compact'])
+    expect(wrapper.emitted('reset-columns')).toHaveLength(1)
+  })
+
+  it('names every column for the «Columnas» panel, never with its id', () => {
+    const table = mountList().getComponent({ name: 'AppDataTable' })
+    const labels = (table.props('columns') as Parameters<typeof columnLabel>[0][]).map(columnLabel)
+    expect(labels).toEqual(['Nombre', 'Estado', 'Tipo', 'Categoría', 'Marca', 'Precio', 'Stock', 'Acciones'])
   })
 })

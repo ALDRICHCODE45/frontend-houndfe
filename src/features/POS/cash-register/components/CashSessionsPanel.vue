@@ -15,6 +15,7 @@ import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { useClickableRow } from '@/core/shared/composables/useClickableRow'
+import { useTablePreferences } from '@/core/shared/composables/useTablePreferences'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import type { TableColumn } from '@/core/shared/types/table.types'
 import type { CashSession } from '../interfaces/cash.types'
@@ -80,6 +81,13 @@ const columns: TableColumn<CashSession, unknown>[] = [
   },
 ]
 
+// Column layout saved per user in this browser (order, pins, widths, visibility, density).
+const layout = useTablePreferences({
+  persistKey: 'pos-cash-sessions',
+  columnIds: columns.map((column) => column.id ?? ''),
+})
+const { columnOrder, columnPinning, columnSizing, columnVisibility, density } = layout
+
 const data = computed(() => [...props.sessions])
 const emptyState = computed(() => ({
   title: 'Aún no hay sesiones',
@@ -135,6 +143,12 @@ const { rowProps } = useClickableRow<CashSession>(open, { focusable: false })
     </header>
 
     <AppDataTable
+      v-model:column-order="columnOrder"
+      v-model:column-pinning="columnPinning"
+      v-model:column-sizing="columnSizing"
+      v-model:column-visibility="columnVisibility"
+      v-model:density="density"
+      :persist-layout="true"
       :show-toolbar="false"
       :columns="columns"
       :data="data"
@@ -149,6 +163,7 @@ const { rowProps } = useClickableRow<CashSession>(open, { focusable: false })
       class="hf-data-table cash-table-surface"
       @refresh="emit('refresh')"
       @empty-action="emit('request-opening')"
+      @reset-columns="layout.reset"
     >
       <template #register-cell="{ row }">
         <button
