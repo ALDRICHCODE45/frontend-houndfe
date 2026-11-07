@@ -864,6 +864,8 @@ function onMenuClosed(id: string) {
   focusHeader(target)
 }
 
+const hasColumnsPanel = computed(() => props.showToolbar && props.enableColumnVisibility)
+
 function columnMenuItems(id: string): DropdownMenuItem[][] {
   const groups: DropdownMenuItem[][] = []
   if (isSortable(id)) {
@@ -911,7 +913,11 @@ function columnMenuItems(id: string): DropdownMenuItem[][] {
       onSelect: () => resetColumnWidth(id),
     },
   ])
-  if (id !== primaryKey.value) {
+  // Hiding needs the «Columnas» panel to bring the column back; without it the menu offers a
+  // full reset instead, so a hidden or rearranged layout can always be undone.
+  if (!hasColumnsPanel.value) {
+    groups.push([{ label: 'Restablecer columnas', icon: 'i-lucide-rotate-ccw', onSelect: resetColumns }])
+  } else if (id !== primaryKey.value) {
     groups.push([{ label: 'Ocultar columna', icon: 'i-lucide-eye-off', onSelect: () => hideColumn(id) }])
   }
   return groups

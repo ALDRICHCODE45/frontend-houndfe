@@ -187,6 +187,16 @@ describe('⋯ column menu items', () => {
     wrapper.unmount()
   })
 
+  it('without a «Columnas» panel, never hides a column and offers «Restablecer columnas» instead', () => {
+    for (const props of [{ showToolbar: false }, { enableColumnVisibility: false }]) {
+      const wrapper = mountTable(props)
+      const labels = menuLabels(wrapper, 'seller')
+      expect(labels).not.toContain('Ocultar columna')
+      expect(labels[labels.length - 1]).toBe('Restablecer columnas')
+      wrapper.unmount()
+    }
+  })
+
   it('adds «Quitar orden» once the column is sorted and «Restablecer ancho» once it is sized', async () => {
     const wrapper = mountTable({ sorting: [{ id: 'total', desc: false }], columnSizing: { total: 200 } })
     // SortableHeader registers its column once mounted.
