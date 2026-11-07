@@ -140,6 +140,7 @@ export function useEmployeeColumns() {
       header: 'Estado',
       enableSorting: false,
       enableHiding: true,
+      size: 112,
     },
     {
       id: 'cargo',
@@ -147,6 +148,7 @@ export function useEmployeeColumns() {
       header: 'Cargo',
       enableSorting: false,
       enableHiding: true,
+      size: 152,
     },
     {
       id: 'departamento',
@@ -167,6 +169,8 @@ export function useEmployeeColumns() {
       header: 'Fecha de ingreso',
       enableSorting: false,
       enableHiding: true,
+      // Default widths fit 1440 with the header whole; the person takes the rest.
+      size: 152,
     },
     {
       id: 'actions',

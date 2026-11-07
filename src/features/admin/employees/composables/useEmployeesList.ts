@@ -148,6 +148,10 @@ export function useEmployeesList(options: UseEmployeesListOptions = {}) {
     rowSelection: t.rowSelection,
     columnPinning: t.columnPinning,
     columnVisibility: t.columnVisibility,
+    columnOrder: t.columnOrder,
+    columnSizing: t.columnSizing,
+    density: t.density,
+    resetLayout: t.resetLayout,
     // Derived data — `data` is the alias for `employees` (consumed by view)
     employees: t.data,
     totalCount: t.totalCount,

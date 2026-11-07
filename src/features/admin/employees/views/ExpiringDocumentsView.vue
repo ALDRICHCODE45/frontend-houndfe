@@ -61,6 +61,11 @@ const {
   sorting,
   globalFilter,
   columnVisibility,
+  columnPinning,
+  columnOrder,
+  columnSizing,
+  density,
+  resetLayout,
   totalCount,
   pageCount,
   isLoading,
@@ -98,11 +103,12 @@ function clearFilters(): void {
 
 // ─── Columns ───────────────────────────────────────────────────────────────────
 
+// Size hints keep every header whole at 1440; the document takes the rest.
 const columns = computed<TableColumn<ExpiringDocumentTableRow>[]>(() => [
   { id: 'documento', header: createSimpleHeader('Documento'), enableSorting: false, enableHiding: false },
-  { id: 'restante', header: createSimpleHeader('Tiempo restante'), enableSorting: true, enableHiding: true },
-  { id: 'colaborador', header: createSimpleHeader('Colaborador'), enableSorting: true, enableHiding: true },
-  { id: 'vencimiento', header: createSimpleHeader('Fecha de vencimiento'), enableSorting: true, enableHiding: true },
+  { id: 'restante', header: createSimpleHeader('Tiempo restante'), enableSorting: true, enableHiding: true, size: 160 },
+  { id: 'colaborador', header: createSimpleHeader('Colaborador'), enableSorting: true, enableHiding: true, size: 192 },
+  { id: 'vencimiento', header: createSimpleHeader('Fecha de vencimiento'), enableSorting: true, enableHiding: true, size: 200 },
   { id: 'categoria', header: createSimpleHeader('Categoría'), enableSorting: true, enableHiding: true },
 ])
 
@@ -138,7 +144,12 @@ function getCategoryLabel(category: string): string {
           v-model:sorting="sorting"
           v-model:pagination="pagination"
           v-model:global-filter="globalFilter"
+          v-model:column-pinning="columnPinning"
           v-model:column-visibility="columnVisibility"
+          v-model:column-order="columnOrder"
+          v-model:column-sizing="columnSizing"
+          v-model:density="density"
+          :persist-layout="true"
           :columns="columns"
           :data="documents"
           :loading="isLoading"
@@ -165,6 +176,7 @@ function getCategoryLabel(category: string): string {
           pagination-portal-class="hf-theme hf-ui employees-list-portal"
           @refresh="refresh"
           @clear-filters="clearFilters"
+          @reset-columns="resetLayout"
         >
           <template #filters>
             <ToolbarSelectFilter

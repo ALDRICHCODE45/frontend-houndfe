@@ -89,7 +89,7 @@ vi.mock('../../api/memberships.api', () => ({
 
 // Mock Nuxt UI toast
 const mockToastAdd = vi.fn()
-;(global as any).useToast = vi.fn(() => ({ add: mockToastAdd }))
+Object.assign(globalThis, { useToast: vi.fn(() => ({ add: mockToastAdd })) })
 
 describe('AdminTenantMembersView - useServerTable wiring', () => {
   beforeEach(() => {
@@ -99,7 +99,7 @@ describe('AdminTenantMembersView - useServerTable wiring', () => {
   it('reads tenantId from route params', async () => {
     const { useRoute } = await import('vue-router')
     const mockRoute = { params: { tenantId: 'tenant-456' } }
-    vi.mocked(useRoute).mockReturnValue(mockRoute as any)
+    vi.mocked(useRoute).mockReturnValue(mockRoute as unknown as ReturnType<typeof useRoute>)
 
     mount(AdminTenantMembersView, {
       global: {
@@ -173,7 +173,7 @@ describe('AdminTenantMembersView - useServerTable wiring', () => {
     expect(callArgs.defaultPageSize).toBe(10)
   })
 
-  it('uses persist key "admin-tenant-members-{tenantId}"', async () => {
+  it('uses one persist key "admin-tenant-members" for every branch (never per record)', async () => {
     const { useServerTable } = await import('@/core/shared/composables/useServerTable')
 
     mount(AdminTenantMembersView, {
@@ -188,7 +188,7 @@ describe('AdminTenantMembersView - useServerTable wiring', () => {
     })
 
     const callArgs = vi.mocked(useServerTable).mock.calls[0]![0]
-    expect(callArgs.persistKey).toContain('admin-tenant-members')
+    expect(callArgs.persistKey).toBe('admin-tenant-members')
   })
 
   it('sorts by the member name by default, never by email', async () => {
@@ -213,8 +213,8 @@ describe('AdminTenantMembersView - useServerTable wiring', () => {
     const { useQueryClient, useMutation } = await import('@tanstack/vue-query')
     const { useRoute } = await import('vue-router')
     const invalidateQueries = vi.fn().mockResolvedValue(undefined)
-    vi.mocked(useRoute).mockReturnValue({ params: { tenantId: 'tenant-123' } } as any)
-    vi.mocked(useQueryClient).mockReturnValue({ invalidateQueries } as any)
+    vi.mocked(useRoute).mockReturnValue({ params: { tenantId: 'tenant-123' } } as unknown as ReturnType<typeof useRoute>)
+    vi.mocked(useQueryClient).mockReturnValue({ invalidateQueries } as unknown as ReturnType<typeof useQueryClient>)
 
     mount(AdminTenantMembersView, {
       global: {

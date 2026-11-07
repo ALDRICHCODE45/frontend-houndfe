@@ -68,6 +68,12 @@ const {
   pagination,
   sorting,
   globalFilter,
+  columnPinning,
+  columnVisibility,
+  columnOrder,
+  columnSizing,
+  density,
+  resetLayout,
   data,
   totalCount,
   pageCount,
@@ -274,6 +280,12 @@ function handleEditSubmit(payload: UpdatePaymentMethodRequest) {
           v-model:sorting="sorting"
           v-model:pagination="pagination"
           v-model:global-filter="globalFilter"
+          v-model:column-pinning="columnPinning"
+          v-model:column-visibility="columnVisibility"
+          v-model:column-order="columnOrder"
+          v-model:column-sizing="columnSizing"
+          v-model:density="density"
+          :persist-layout="true"
           :columns="columns"
           :data="data"
           :loading="isLoading"
@@ -303,6 +315,7 @@ function handleEditSubmit(payload: UpdatePaymentMethodRequest) {
           @empty-action="isCreateOpen = true"
           @clear-filters="clearFilters"
           @refresh="refresh"
+          @reset-columns="resetLayout"
         >
           <template #name-header="{ column }">
             <SortableHeader :column="column" label="Método" />

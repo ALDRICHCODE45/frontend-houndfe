@@ -13,8 +13,10 @@ import AdminTenantMembersView from '../AdminTenantMembersView.vue'
 import {
   isBelowBreakpoint,
   resetTableState,
+  serverTableConfig,
   tableState,
 } from '@/features/admin/__tests__/helpers/serverTableMock'
+import { expectLayoutBound } from '@/features/admin/__tests__/helpers/layoutBinding'
 import type { MembershipTableRow } from '../../interfaces/membership.types'
 
 vi.mock('@/core/shared/composables/useServerTable', async () =>
@@ -307,5 +309,14 @@ describe('AdminTenantMembersView states — page header', () => {
     expect(back.text()).toBe('Sucursales')
     await back.trigger('click')
     expect(push).toHaveBeenCalledWith({ name: 'admin-tenants' })
+  })
+})
+
+describe('AdminTenantMembersView — premium table layout', () => {
+  it('persists the layout under a stable key and binds it to the table', async () => {
+    const wrapper = mountView()
+    const config = serverTableConfig.mock.lastCall![0] as { persistKey: string }
+    expect(config.persistKey).toBe('admin-tenant-members')
+    await expectLayoutBound(wrapper, { ...tableState, reset: tableState.resetLayout })
   })
 })
