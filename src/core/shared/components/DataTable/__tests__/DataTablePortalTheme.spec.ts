@@ -15,16 +15,10 @@ const PortalStub = defineComponent({
   props: ['ui', 'items', 'open'],
   template: '<div><slot /><slot name="content" /></div>',
 })
-const tableApi = {
-  getAllColumns: () => [
-    {
-      id: 'name',
-      columnDef: { header: 'Nombre' },
-      getCanHide: () => true,
-      getIsVisible: () => true,
-      toggleVisibility: vi.fn(),
-    },
-  ],
+const columns = {
+  left: [],
+  center: [{ id: 'name', label: 'Nombre', visible: true, primary: true }],
+  right: [],
 }
 
 function mountToolbar(portalClass?: string) {
@@ -33,7 +27,7 @@ function mountToolbar(portalClass?: string) {
       globalFilter: '',
       showColumnVisibility: true,
       showRefresh: true,
-      tableApi,
+      columns,
       ...(portalClass ? { portalClass } : {}),
     },
     slots: { filters: '<span>Existing filter</span>' },
@@ -45,6 +39,8 @@ function mountToolbar(portalClass?: string) {
         DropdownMenu: PortalStub,
         USlideover: PortalStub,
         Slideover: PortalStub,
+        UPopover: PortalStub,
+        Popover: PortalStub,
       },
     },
   })
@@ -61,8 +57,12 @@ describe('DataTable opt-in portal presentation', () => {
       const wrapper = mountToolbar()
       const portals = wrapper.findAllComponents(PortalStub)
       expect(portals.length).toBeGreaterThanOrEqual(2)
+      // The «Columnas» panel and sheet always carry the theme (premium tables T5); the rest keep theirs.
+      const themed = portals.filter(portal => portal.find('[data-testid="columns-panel"], [data-testid="columns-sheet"]').exists() && !portal.find('[data-testid="toolbar-filters-body"]').exists())
+      expect(themed.length).toBeGreaterThanOrEqual(1)
       for (const portal of portals) {
-        expect(portal.props('ui')?.content).toBeUndefined()
+        if (themed.includes(portal)) expect(portal.props('ui')?.content).toBe('hf-theme hf-ui')
+        else expect(portal.props('ui')?.content).toBeUndefined()
       }
       wrapper.unmount()
     })
@@ -75,6 +75,7 @@ describe('DataTable opt-in portal presentation', () => {
       for (const portal of portals) {
         expect(portal.props('ui')?.content).toBe('hf-theme hf-ui')
       }
+      expect(portals.some(portal => portal.find('[data-testid="columns-panel"], [data-testid="columns-sheet"]').exists())).toBe(true)
       expect(wrapper.props('globalFilter')).toBe('')
       wrapper.unmount()
     })

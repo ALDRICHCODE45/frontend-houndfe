@@ -84,3 +84,39 @@ export function moveColumn(
   if (index < 0 || target < 0 || target >= members.length) return undefined
   return placeColumn(arrangement, id, group, target, visible)
 }
+
+const GROUPS: readonly ColumnGroup[] = ['left', 'center', 'right']
+
+/**
+ * One step up (-1) or down (+1) in the «Columnas» panel: inside the column's group, and past its
+ * edge into the neighbouring group (pinning or unpinning it); `undefined` at the outer edges.
+ */
+export function stepColumn(
+  arrangement: ColumnArrangement,
+  id: string,
+  delta: number,
+  visible: IsVisible,
+): ColumnArrangement | undefined {
+  const group = columnGroup(id, arrangement.pinning)
+  const members = groupMembers(group, arrangement, visible)
+  const index = members.indexOf(id)
+  if (index < 0) return undefined
+  const target = index + delta
+  if (target >= 0 && target < members.length) return placeColumn(arrangement, id, group, target, visible)
+  const next = GROUPS[GROUPS.indexOf(group) + (delta < 0 ? -1 : 1)]
+  if (!next) return undefined
+  const end = delta < 0 ? groupMembers(next, withoutColumn(arrangement, id), visible).length : 0
+  return placeColumn(arrangement, id, next, end, visible)
+}
+
+/** One row of the «Columnas» panel. */
+export interface ColumnsPanelColumn {
+  id: string
+  label: string
+  visible: boolean
+  /** The name column: it cannot be hidden. */
+  primary: boolean
+}
+
+/** The panel's rows per group, in screen order, hidden columns included. */
+export type ColumnsPanelGroups = Record<ColumnGroup, ColumnsPanelColumn[]>

@@ -68,9 +68,11 @@ import {
   moveColumn as movedArrangement,
   placeColumn,
   screenOrder,
+  stepColumn,
   withoutColumn,
   type ColumnArrangement,
   type ColumnGroup,
+  type ColumnsPanelGroups,
 } from './columnArrange.utils'
 import { useColumnDrag, type ColumnDropTarget } from './useColumnDrag'
 import { DATA_TABLE_HEADER } from './headerContext'
@@ -137,6 +139,10 @@ const props = withDefaults(
     showingFrom?: number
     showingTo?: number
     // Features
+    /**
+     * The «Columnas» control (panel at md+, visibility sheet below md / in card mode). Shown by
+     * default whenever the table has columns besides the locked selection / Acciones ones.
+     */
     enableColumnVisibility?: boolean
     enableRowSelection?: boolean
     // Toolbar
@@ -191,6 +197,12 @@ const props = withDefaults(
     displayMode?: 'auto' | 'table' | 'cards'
     mobileRender?: 'table' | 'cards'
     mobileBreakpoint?: 'sm' | 'md' | 'lg' | 'xl'
+    /**
+     * «Restablecer columnas» (`@reset-columns`). Bind the persisted layout's reset
+     * (`useTablePreferences().reset` / `useServerTable().resetLayout`) so the table's defaults come
+     * back. Without a listener the table clears order, pinning, visibility and widths itself.
+     */
+    onResetColumns?: () => void
   }>(),
   {
     loading: false,
@@ -206,7 +218,7 @@ const props = withDefaults(
     pageSizeOptions: () => [5, 10, 20, 50],
     showingFrom: 0,
     showingTo: 0,
-    enableColumnVisibility: false,
+    enableColumnVisibility: true,
     enableRowSelection: false,
     showToolbar: true,
     searchPlaceholder: 'Buscar...',
@@ -221,6 +233,7 @@ const props = withDefaults(
     displayMode: 'auto',
     mobileRender: 'table',
     mobileBreakpoint: 'md',
+    onResetColumns: undefined,
   },
 )
 
@@ -623,6 +636,7 @@ const arrangement = computed<ColumnArrangement>(() => ({
   pinning: effectivePinning.value,
 }))
 const isVisible = (id: string) => columnVisibility.value[id] !== false
+const allColumns = () => true
 const groupOf = (id: string) => columnGroup(id, effectivePinning.value)
 const pinnedSide = (id: string) => {
   const group = groupOf(id)
@@ -647,21 +661,25 @@ function applyArrangement(next: ColumnArrangement) {
   if (next.order.join() !== effectiveOrder.value.join()) setColumnOrder(next.order)
   if (JSON.stringify(next.pinning) !== JSON.stringify(effectivePinning.value)) setColumnPinning(next.pinning)
 }
-function positionText(id: string, next: ColumnArrangement) {
-  const order = screenOrder(next, isVisible)
+function positionText(id: string, next: ColumnArrangement, counted = isVisible) {
+  const order = screenOrder(next, counted)
   return `posición ${order.indexOf(id) + 1} de ${order.length}`
 }
-/** Applies a new place for `id` and announces a move, a pin or an unpin. */
+/**
+ * Applies a new place for `id` and announces a move, a pin or an unpin. A hidden column (moved in the
+ * «Columnas» panel) counts its position among all the columns.
+ */
 function arrangeColumn(id: string, next: ColumnArrangement) {
   const before = groupOf(id)
   const after = columnGroup(id, next.pinning)
-  const moved = screenOrder(next, isVisible).join() !== screenOrder(arrangement.value, isVisible).join()
+  const counted = isVisible(id) ? isVisible : allColumns
+  const moved = screenOrder(next, counted).join() !== screenOrder(arrangement.value, counted).join()
   applyArrangement(next)
   const label = labelOf(id)
   if (after !== before) {
     announce(after === 'center' ? `Columna ${label} desfijada` : `Columna ${label} fijada ${SIDE_TEXT[after]}`)
   } else if (moved) {
-    announce(`Columna ${label} movida a la ${positionText(id, next)}`)
+    announce(`Columna ${label} movida a la ${positionText(id, next, counted)}`)
   }
 }
 const canShift = (id: string, delta: number) => movedArrangement(arrangement.value, id, delta, isVisible) !== undefined
@@ -712,6 +730,46 @@ function hideColumn(id: string) {
   refocusId.value = order[index + 1] ?? order[index - 1]
   columnVisibility.value = { ...columnVisibility.value, [id]: false }
   announce(`Columna ${labelOf(id)} oculta`)
+}
+
+// ── «Columnas» panel: every arrangeable column, hidden ones included ───────────
+const columnsPanel = computed<ColumnsPanelGroups>(() => {
+  const rows = (group: ColumnGroup) =>
+    groupMembers(group, arrangement.value, allColumns).map(id => ({
+      id,
+      label: labelOf(id),
+      visible: isVisible(id),
+      primary: id === primaryKey.value,
+    }))
+  return { left: rows('left'), center: rows('center'), right: rows('right') }
+})
+const hasArrangeableColumns = computed(() => leafIds.value.some(id => !isLockedColumn(id)))
+function placeFromPanel(id: string, group: ColumnGroup, index: number) {
+  arrangeColumn(id, placeColumn(arrangement.value, id, group, index, allColumns))
+}
+function stepFromPanel(id: string, delta: number) {
+  const next = stepColumn(arrangement.value, id, delta, allColumns)
+  if (next) arrangeColumn(id, next)
+  else announce(`Columna ${labelOf(id)} ya es la ${delta < 0 ? 'primera' : 'última'}`)
+}
+function setColumnVisible(id: string, visible: boolean) {
+  if (!visible && id === primaryKey.value) {
+    announce(`${labelOf(id)} siempre está visible`)
+    return
+  }
+  columnVisibility.value = { ...columnVisibility.value, [id]: visible }
+  announce(`Columna ${labelOf(id)} ${visible ? 'visible' : 'oculta'}`)
+}
+function resetColumns() {
+  if (props.onResetColumns) {
+    props.onResetColumns()
+  } else {
+    setColumnOrder([])
+    setColumnPinning({ left: [], right: [] })
+    columnVisibility.value = {}
+    columnSizing.value = {}
+  }
+  announce('Columnas restablecidas')
 }
 
 // ⋯ menu: one open at a time; on close the focus returns to the header (or its neighbour).
@@ -909,11 +967,13 @@ defineExpose({
       :show-add-button="props.showAddButton"
       :add-button-text="props.addButtonText"
       :add-button-icon="props.addButtonIcon"
-      :show-column-visibility="props.enableColumnVisibility && !isCardsMode"
+      :show-column-visibility="props.enableColumnVisibility && hasArrangeableColumns"
+      :columns="columnsPanel"
+      :columns-disabled="!isCardsMode && (props.error || showTableSkeleton)"
+      :columns-sheet="isCardsMode"
       :show-refresh="props.showRefresh"
       :fetching="props.fetching"
       :portal-class="props.portalClass"
-      :table-api="tableApi"
       :refresh-button-test-id="props.refreshButtonTestId"
       :add-button-test-id="props.addButtonTestId"
       :active-filter-count="props.activeFilterCount"
@@ -921,6 +981,11 @@ defineExpose({
       @add="emit('add')"
       @refresh="emit('refresh')"
       @clear-filters="emit('clear-filters')"
+      @column-place="placeFromPanel"
+      @column-step="stepFromPanel"
+      @column-pin="pinColumn"
+      @column-visibility="setColumnVisible"
+      @reset-columns="resetColumns"
     >
       <!-- Forward a slot only when the screen provides it: an always-present wrapper renders an
            empty fragment, which made the toolbar draw a mobile "Filtros" button (and an empty
@@ -963,6 +1028,8 @@ defineExpose({
         :data="props.data"
         :loading="isLoading"
         :empty="props.empty"
+        :column-visibility="columnVisibility"
+        :is-column-visible="isVisible"
       />
 
       <template v-else>
@@ -1039,6 +1106,8 @@ defineExpose({
             name="mobile-card"
             :row="row"
             :index="index"
+            :column-visibility="columnVisibility"
+            :is-column-visible="isVisible"
           />
         </div>
       </template>

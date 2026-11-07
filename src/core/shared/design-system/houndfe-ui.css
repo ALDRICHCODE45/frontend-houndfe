@@ -513,6 +513,229 @@ body.hf-app {
   bottom: -4px;
 }
 
+/* «Columnas» panel (artboard 01): three sections of draggable rows with pin buttons and switches.
+ * The popover root carries `hf-theme hf-ui`, so the descendant form reaches it. */
+.hf-ui .hf-columns-panel {
+  display: flex;
+  flex-direction: column;
+  width: 23.25rem;
+  max-width: calc(100vw - 2rem);
+  max-height: min(37.5rem, calc(100vh - 2rem));
+  color: var(--hf-ink);
+}
+
+.hf-ui .hf-columns-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.5rem 0.25rem 1rem;
+}
+
+.hf-ui .hf-columns-panel__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+.hf-ui .hf-columns-panel__sub {
+  margin: 0;
+  padding: 0 1rem 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+}
+
+.hf-ui .hf-columns-panel__body {
+  position: relative;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 0.5rem 0.5rem;
+}
+
+.hf-ui .hf-columns-section {
+  padding-top: 0.5rem;
+}
+
+.hf-ui .hf-columns-section__title {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--hf-muted);
+}
+
+.hf-ui .hf-columns-section__count {
+  font-variant-numeric: tabular-nums;
+}
+
+.hf-ui .hf-columns-list {
+  position: relative;
+  min-height: 2.75rem;
+  margin: 0;
+  padding: 0.125rem 0;
+  list-style: none;
+  border-radius: 8px;
+}
+
+.hf-ui .hf-columns-list--drop {
+  background-color: var(--hf-active-soft);
+  outline: 1px dashed var(--hf-active);
+  outline-offset: -1px;
+}
+
+.hf-ui .hf-columns-empty {
+  display: flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: 0 0.625rem;
+  border: 1px dashed var(--hf-border);
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+}
+
+.hf-ui .hf-columns-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 2.75rem;
+  padding: 0 0.25rem;
+  border-radius: 6px;
+}
+
+.hf-ui .hf-columns-row:hover {
+  background-color: color-mix(in srgb, var(--hf-surface-muted) 45%, var(--hf-surface));
+}
+
+.hf-ui .hf-columns-row--lifting {
+  opacity: 0.45;
+}
+
+.hf-ui .hf-columns-row__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.hf-ui .hf-columns-row--off .hf-columns-row__label {
+  color: var(--hf-muted);
+}
+
+.hf-ui .hf-columns-grip {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 2.25rem;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--hf-muted);
+  cursor: grab;
+  touch-action: none;
+}
+
+.hf-ui .hf-columns-pin {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--hf-muted);
+}
+
+.hf-ui :is(.hf-columns-grip, .hf-columns-pin):hover {
+  color: var(--hf-ink);
+}
+
+.hf-ui .hf-columns-pin:hover {
+  background-color: color-mix(in srgb, var(--hf-ink) 7%, transparent);
+}
+
+.hf-ui .hf-columns-pin[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--hf-active) 35%, transparent);
+  background-color: var(--hf-active-soft);
+  color: var(--hf-active);
+}
+
+.hf-ui :is(.hf-columns-grip, .hf-columns-pin):focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: -2px;
+}
+
+.hf-ui .hf-columns-guide {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  z-index: 3;
+  height: 2px;
+  border-radius: 2px;
+  background-color: var(--hf-action);
+  pointer-events: none;
+}
+
+.hf-ui .hf-columns-panel__foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.5rem;
+  border-top: 1px solid var(--hf-border);
+}
+
+/* «Columnas» sheet below md: visibility switches only. */
+.hf-ui .hf-columns-sheet {
+  display: flex;
+  flex-direction: column;
+  max-height: 78vh;
+}
+
+.hf-ui .hf-columns-sheet__grab {
+  width: 2.25rem;
+  height: 0.25rem;
+  margin: 0.5rem auto 0;
+  border-radius: 2px;
+  background-color: var(--hf-border);
+}
+
+.hf-ui .hf-columns-sheet__body {
+  min-height: 0;
+  margin: 0;
+  padding: 0 0.5rem;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.hf-ui .hf-columns-sheet__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  padding: 0 0.25rem 0 0.75rem;
+  border-bottom: 1px solid var(--hf-border);
+}
+
+.hf-ui .hf-columns-sheet__row:last-child {
+  border-bottom: 0;
+}
+
+.hf-ui .hf-columns-sheet__note {
+  font-size: 0.75rem;
+  color: var(--hf-muted);
+}
+
+.hf-ui .hf-columns-sheet__foot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--hf-border);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hf-ui :is(td[data-slot='td'], th[data-slot='th']):is(.hf-pin-edge-left, .hf-pin-edge-right),
   .hf-ui [data-resize-handle]::after,

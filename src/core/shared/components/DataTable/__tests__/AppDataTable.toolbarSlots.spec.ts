@@ -16,9 +16,9 @@ type Row = { id: number; name: string }
 const columns = [{ accessorKey: 'name', header: 'Nombre' }]
 const rows: Row[] = [{ id: 1, name: 'Alpha' }]
 
-function mountTable(slots: Record<string, () => unknown> = {}) {
+function mountTable(slots: Record<string, () => unknown> = {}, props: Record<string, unknown> = {}) {
   return mount(AppDataTable<Row>, {
-    props: { columns, data: rows, totalCount: 1, pageCount: 1, mobileRender: 'cards' },
+    props: { columns, data: rows, totalCount: 1, pageCount: 1, mobileRender: 'cards', ...props },
     slots: { 'mobile-card': () => h('article', 'card'), ...slots },
     global: {
       stubs: {
@@ -42,9 +42,16 @@ describe('AppDataTable toolbar slots on mobile', () => {
     expect(wrapper.find('[data-testid="toolbar-mobile-filters-row"]').exists()).toBe(false)
   })
 
-  it('shows no empty controls row when there are neither filters nor actions', () => {
-    const wrapper = mountTable()
+  it('shows no empty controls row when there are neither filters, actions nor «Columnas»', () => {
+    const wrapper = mountTable({}, { enableColumnVisibility: false })
     expect(wrapper.find('[data-testid="toolbar-mobile-controls-row"]').exists()).toBe(false)
+  })
+
+  it('keeps the controls row for «Columnas» alone, which is shown by default', () => {
+    const wrapper = mountTable()
+    const controls = wrapper.get('[data-testid="toolbar-mobile-controls-row"]')
+    expect(controls.find('[data-testid="toolbar-mobile-columns-button"]').exists()).toBe(true)
+    expect(filtros(wrapper).exists()).toBe(false)
   })
 
   it('shows Filtros once a screen provides #filters', () => {
