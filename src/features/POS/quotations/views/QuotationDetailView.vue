@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import '../styles/quotations-workspace-visual.css'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
+import DetailPageFrame from '@/core/shared/components/DetailPageFrame.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import AssignCustomerSlideover from '@/features/POS/sales/components/AssignCustomerSlideover.vue'
 import PriceListSelector from '@/features/POS/sales/components/PriceListSelector.vue'
@@ -90,6 +91,22 @@ const isNotFound = computed(() => {
   if (isCreateRoute.value || !isError.value) return false
   return (error.value as { response?: { status?: number } } | null)?.response?.status === 404
 })
+
+/**
+ * The mobile bar sits in the frame's footer, outside the state chain, so it repeats the chain's
+ * gate: only a loaded draft the user can edit.
+ */
+const showMobileActionBar = computed(
+  () =>
+    !isCreating.value &&
+    !isLoading.value &&
+    !isNotFound.value &&
+    !isError.value &&
+    !createError.value &&
+    !!quotation.value &&
+    isDraft.value &&
+    canUpdateQuotation.value,
+)
 
 // The notes counter shows from 90% of the limit (text diet).
 const NOTES_MAX = 280
@@ -776,513 +793,626 @@ function onHeaderAction(key: string): void {
 </script>
 
 <template>
-  <section
-    class="quotation-detail-view hf-theme hf-ui quotations-workspace-visual flex flex-col gap-6 px-4 sm:px-8 lg:px-10"
+  <!-- Detail page frame: the header stays pinned while the full-width area below scrolls. The
+       outer px-4 sm:px-6 stands in for the dashboard body's padding the frame cancels. -->
+  <DetailPageFrame
+    class="quotation-detail-view hf-theme hf-ui quotations-workspace-visual"
     data-testid="quotation-detail-view"
   >
-    <header class="flex flex-col gap-4 border-b border-default pb-5">
-      <button
-        type="button"
-        class="inline-flex w-fit items-center gap-2 text-sm font-medium text-muted hover:text-highlighted"
-        data-testid="back-button"
-        @click="goBack"
-      >
-        <span aria-hidden="true">←</span>
-        Cotizaciones
-      </button>
-
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div class="min-w-0">
-          <div
-            v-if="isLoading || isCreating"
-            class="quotation-skeleton-bar animate-pulse h-3.5 w-48"
-            data-skeleton="meta"
-          />
-          <div
-            v-else-if="quotation"
-            class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted"
-            data-testid="quotation-header-meta"
-          >
-            <StatusBadge
-              v-if="headerStatus"
-              :label="headerStatus.label"
-              :tone="headerStatus.tone"
-              data-testid="status-badge"
-            />
-            <!-- The expiry is said once: a draft sets it in the Expira field below; once sent,
-                 this line is where it is read. -->
-            <template v-if="!isDraft">
-              <span v-if="quotation.expiresAt">Expira {{ formatDate(quotation.expiresAt) }}</span>
-              <span v-else>Sin fecha de expiración</span>
-            </template>
-            <span>Creada {{ formatDate(quotation.createdAt) }}</span>
-          </div>
-          <h1 class="quotation-detail-title" :class="{ 'mt-2': quotation || isLoading || isCreating }">
-            {{ title }}
-          </h1>
-        </div>
-
-        <!-- One outline action (PDF) and the ⋮ menu for the rest; the single
-             primary, "Enviar cotización", lives in the summary (sticky bar on mobile). -->
-        <div
-          v-if="quotation"
-          class="flex flex-wrap items-center gap-2"
-          data-testid="detail-header-actions"
-        >
+    <template #header>
+      <header class="border-b border-default bg-default px-4 sm:px-6">
+        <div class="flex flex-col gap-4 px-4 py-3 sm:px-8 lg:px-10">
           <button
             type="button"
-            class="quotation-outline-action"
-            :disabled="isPdfLoading"
-            data-testid="preview-pdf-button"
-            @click="handlePreviewPdf"
+            class="inline-flex w-fit items-center gap-2 text-sm font-medium text-muted hover:text-highlighted"
+            data-testid="back-button"
+            @click="goBack"
           >
-            <UIcon name="i-lucide-file-text" class="h-4 w-4" />
-            <span>{{ isPdfLoading ? 'Generando…' : 'Previsualizar PDF' }}</span>
+            <span aria-hidden="true">←</span>
+            Cotizaciones
           </button>
-          <RowActionsMenu
-            :actions="headerActions"
-            row-label="la cotización"
-            aria-label="Más acciones de la cotización"
-            portal-class="quotations-workspace-portal"
-            @select="onHeaderAction"
-          />
-        </div>
-      </div>
 
-      <!-- REQ-UI-003: 3-state progress stepper placed below the status
-           metadata so it reads as a secondary detail, not the primary
-           visual anchor. Compact presentation — smaller nodes and text. -->
-      <QuotationProgressStepper v-if="quotation" :status="quotation.status" compact />
-    </header>
-
-    <div
-      v-if="isCreating || isLoading"
-      class="quotation-skeleton"
-      aria-busy="true"
-      :data-testid="isCreating ? 'create-loading' : 'detail-loading'"
-    >
-      <span class="sr-only">{{ isCreating ? 'Creando cotización…' : 'Cargando cotización…' }}</span>
-      <div class="quotation-skeleton-main">
-        <div class="quotation-skeleton-settings">
-          <div v-for="n in 3" :key="n" class="quotation-skeleton-card" data-skeleton="setting">
-            <div class="quotation-skeleton-bar animate-pulse h-3.5 w-1/3" />
-            <div class="quotation-skeleton-bar animate-pulse h-9 w-full" />
-          </div>
-        </div>
-        <div class="quotation-skeleton-card" data-skeleton="expiry">
-          <div class="quotation-skeleton-bar animate-pulse h-3.5 w-1/4" />
-          <div class="quotation-skeleton-bar animate-pulse h-9 w-1/2" />
-        </div>
-        <div class="quotation-skeleton-card" data-skeleton="items">
-          <div class="quotation-skeleton-bar animate-pulse h-3.5 w-1/4" />
-          <div v-for="n in 3" :key="n" class="quotation-skeleton-bar animate-pulse h-14 w-full" />
-        </div>
-      </div>
-      <div class="quotation-skeleton-card" data-skeleton="summary">
-        <div class="quotation-skeleton-bar animate-pulse h-3.5 w-1/3" />
-        <div class="quotation-skeleton-bar animate-pulse h-3.5 w-full" />
-        <div class="quotation-skeleton-bar animate-pulse h-3.5 w-full" />
-        <div class="quotation-skeleton-bar animate-pulse h-8 w-1/2" />
-        <div class="quotation-skeleton-bar animate-pulse h-11 w-full" />
-      </div>
-    </div>
-
-    <div v-else-if="isNotFound" data-testid="detail-not-found">
-      <EmptyState
-        title="No encontramos la cotización"
-        description="Pudo haberse eliminado o el enlace no es correcto."
-        action-label="Volver a cotizaciones"
-        action-icon="i-lucide-arrow-left"
-        action-test-id="detail-not-found-back"
-        @action="goBack"
-      />
-    </div>
-
-    <div v-else-if="isError || createError" data-testid="detail-error">
-      <EmptyState
-        kind="error"
-        title="No se pudo cargar la cotización"
-        description="Inténtalo de nuevo en un momento."
-        action-label="Reintentar"
-        action-test-id="detail-error-retry"
-        @action="retryLoad"
-      />
-    </div>
-
-    <template v-else-if="quotation">
-      <!-- T-UI-03 — REQ-UI-002: 2-column Coco layout. The grid splits at the
-           lg breakpoint into a left col-span-2 (main sections) and a right
-           col-span-1 sticky sidebar (summary). Below lg, everything stacks
-           into a single column and the sticky behavior is dropped. -->
-      <div class="grid gap-4 lg:grid-cols-3" data-testid="quotation-detail-layout">
-        <div class="flex flex-col gap-4 lg:col-span-2" data-testid="quotation-detail-main">
-          <div class="grid gap-4 lg:grid-cols-3">
-            <!-- T-UI-16 — REQ-UI-005 customer card. Extracted into
-                 QuotationCustomerCard so the avatar / email / phone /
-                 "Cambiar cliente" affordance lives in one place. The card
-                 is editable only in DRAFT (read-only otherwise). The
-                 change-customer event opens the same AssignCustomerSlideover
-                 that handled the old "Asignar cliente" button. -->
-            <section class="rounded-xl border border-default bg-default p-5">
-              <p class="mb-3 text-sm font-medium text-muted">Cliente</p>
-              <QuotationCustomerCard
-                v-if="quotation.customer"
-                :customer="quotation.customer"
-                :editable="isDraft"
-                @change-customer="isAssignCustomerOpen = true"
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div class="min-w-0">
+              <div
+                v-if="isLoading || isCreating"
+                class="quotation-skeleton-bar animate-pulse h-3.5 w-48"
+                data-skeleton="meta"
               />
-              <p
-                v-else-if="!isDraft"
-                class="text-sm text-muted"
-                data-testid="customer-empty-readonly"
+              <div
+                v-else-if="quotation"
+                class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted"
+                data-testid="quotation-header-meta"
               >
-                Sin cliente
-              </p>
-              <QuotationCustomerCard
-                v-else
-                :customer="null"
-                :editable="true"
-                @change-customer="isAssignCustomerOpen = true"
-              />
-            </section>
-
-            <section
-              class="rounded-xl border border-default bg-default p-5"
-              data-testid="price-list-section"
-            >
-              <p class="text-sm font-medium text-muted">Lista de precios</p>
-              <PriceListSelector
-                v-if="isDraft"
-                class="mt-3"
-                :active-draft="quotation"
-                :is-mutating="false"
-                portal-class="hf-theme hf-ui quotations-workspace-portal"
-                @change-price-list="handlePriceListChange"
-                @request-confirm="handlePriceListChange"
-              />
-              <p
-                v-else
-                class="mt-2 text-sm font-medium text-highlighted"
-                data-testid="price-list-name"
-              >
-                {{ priceListLabel }}
-              </p>
-            </section>
-
-            <!-- REQ-QTN-016 — seller assignment (backend §3.13d). Inline
-                 picker so the cashier never opens a slideover for a
-                 1-tap change. DRAFT: editable USelectMenu; any other
-                 status: read-only resolved name. Mirrors the visual
-                 language of the price-list-section above. Lives in the
-                 same 3-col grid as Cliente + Lista so the three settings
-                 share the row instead of stacking. -->
-            <section
-              class="rounded-xl border border-default bg-default p-5"
-              data-testid="seller-section"
-            >
-              <p class="text-sm font-medium text-muted">Vendedor</p>
-              <div v-if="isDraft" class="mt-3">
-                <div
-                  v-if="assignableUsersQuery.isLoading.value && !assignableUsersQuery.data.value"
-                  class="h-9 w-full animate-pulse rounded-md bg-elevated"
-                  data-testid="seller-loading"
+                <StatusBadge
+                  v-if="headerStatus"
+                  :label="headerStatus.label"
+                  :tone="headerStatus.tone"
+                  data-testid="status-badge"
                 />
-                <USelectMenu
-                  v-else
-                  :model-value="quotation.sellerUserId || null"
-                  :items="sellerOptions"
-                  value-key="value"
-                  label-key="label"
-                  :loading="assignableUsersQuery.isFetching.value"
-                  :disabled="draft.isMutating.value"
-                  placeholder="Buscar vendedor..."
-                  class="w-full"
-                  :ui="{ content: 'hf-theme hf-ui quotations-workspace-portal' }"
-                  data-testid="seller-select"
-                  @update:model-value="handleSellerChange"
-                >
-                  <template #leading>
-                    <UIcon name="i-lucide-user" class="size-4 text-muted" />
-                  </template>
-                  <template #item-label="{ item }">
-                    <span class="truncate">{{ item.label }}</span>
-                  </template>
-                  <template #empty>
-                    <span class="text-sm text-muted">No hay vendedores disponibles</span>
-                  </template>
-                </USelectMenu>
+                <!-- The expiry is said once: a draft sets it in the Expira field below; once sent,
+                     this line is where it is read. -->
+                <template v-if="!isDraft">
+                  <span v-if="quotation.expiresAt">Expira {{ formatDate(quotation.expiresAt) }}</span>
+                  <span v-else>Sin fecha de expiración</span>
+                </template>
+                <span>Creada {{ formatDate(quotation.createdAt) }}</span>
               </div>
-              <p
-                v-else
-                class="mt-2 text-sm font-medium text-highlighted"
-                data-testid="seller-readonly"
-              >
-                {{ quotation.seller?.name ?? 'Sin asignar' }}
-              </p>
-            </section>
-          </div>
+              <h1 class="quotation-detail-title" :class="{ 'mt-2': quotation || isLoading || isCreating }">
+                {{ title }}
+              </h1>
+            </div>
 
-          <!-- S6 — expiry picker. The picker itself owns the input + clear
-               button; the view just plumbs the value through setExpiry /
-               clearExpiry on the composable. -->
-          <section
-            v-if="isDraft"
-            class="rounded-xl border border-default bg-default p-5"
-            data-testid="expiry-section"
-          >
-            <QuotationExpiryPicker
-              :expires-at="quotation.expiresAt"
-              :readonly="false"
-              portal-class="hf-theme hf-ui quotations-workspace-portal"
-              @update:expires-at="handleExpiryUpdate"
-            />
-          </section>
-
-          <!-- Items section — always visible. The list + add-product affordance
-               in DRAFT; read-only list for every other status. Product search
-               opens in a dedicated slideover (not inline) so the items list is
-               always visible and never hidden behind the search panel. -->
-          <section
-            class="flex flex-col gap-4 rounded-xl border border-default bg-default p-5"
-            data-testid="items-section"
-          >
-            <div class="flex items-center justify-between">
-              <div>
-                <h2 class="text-base font-semibold text-highlighted">Productos</h2>
-                <p class="mt-0.5 text-xs text-muted">
-                  {{ items.length }} {{ items.length === 1 ? 'producto' : 'productos' }}
-                </p>
-              </div>
+            <!-- One outline action (PDF) and the ⋮ menu for the rest; the single
+                 primary, "Enviar cotización", lives in the summary (sticky bar on mobile). -->
+            <div
+              v-if="quotation"
+              class="flex flex-wrap items-center gap-2"
+              data-testid="detail-header-actions"
+            >
               <button
-                v-if="isDraft"
                 type="button"
                 class="quotation-outline-action"
-                data-testid="add-product-button"
-                @click="isProductSearchOpen = true"
+                :disabled="isPdfLoading"
+                data-testid="preview-pdf-button"
+                @click="handlePreviewPdf"
               >
-                <UIcon name="i-lucide-plus" class="h-4 w-4" />
-                Agregar producto
+                <UIcon name="i-lucide-file-text" class="h-4 w-4" />
+                <span>{{ isPdfLoading ? 'Generando…' : 'Previsualizar PDF' }}</span>
               </button>
+              <RowActionsMenu
+                :actions="headerActions"
+                row-label="la cotización"
+                aria-label="Más acciones de la cotización"
+                portal-class="quotations-workspace-portal"
+                @select="onHeaderAction"
+              />
             </div>
+          </div>
 
-            <EmptyState
-              v-if="items.length === 0"
-              title="Aún no hay productos"
-              data-testid="items-empty-state"
-            />
+          <!-- REQ-UI-003: 3-state progress stepper placed below the status
+               metadata so it reads as a secondary detail, not the primary
+               visual anchor. Compact presentation — smaller nodes and text. -->
+          <QuotationProgressStepper v-if="quotation" :status="quotation.status" compact />
+        </div>
+      </header>
+    </template>
 
-            <ul v-else class="flex flex-col gap-2" data-testid="items-list">
-              <li v-for="item in items" :key="item.id">
-                <QuotationItemRow
-                  :item="item"
-                  :readonly="!isDraft"
-                  @update-quantity="handleUpdateQuantity"
-                  @request-price-override="handleRequestPriceOverride"
-                  @request-remove="handleRequestRemove"
-                />
-              </li>
-            </ul>
-          </section>
+    <div class="px-4 sm:px-6">
+      <div class="flex flex-col gap-6 px-4 py-6 sm:px-8 lg:px-10">
+        <div
+          v-if="isCreating || isLoading"
+          class="quotation-skeleton"
+          aria-busy="true"
+          :data-testid="isCreating ? 'create-loading' : 'detail-loading'"
+        >
+          <span class="sr-only">{{ isCreating ? 'Creando cotización…' : 'Cargando cotización…' }}</span>
+          <div class="quotation-skeleton-main">
+            <div class="quotation-skeleton-settings">
+              <div v-for="n in 3" :key="n" class="quotation-skeleton-card" data-skeleton="setting">
+                <div class="quotation-skeleton-bar animate-pulse h-3.5 w-1/3" />
+                <div class="quotation-skeleton-bar animate-pulse h-9 w-full" />
+              </div>
+            </div>
+            <div class="quotation-skeleton-card" data-skeleton="expiry">
+              <div class="quotation-skeleton-bar animate-pulse h-3.5 w-1/4" />
+              <div class="quotation-skeleton-bar animate-pulse h-9 w-1/2" />
+            </div>
+            <div class="quotation-skeleton-card" data-skeleton="items">
+              <div class="quotation-skeleton-bar animate-pulse h-3.5 w-1/4" />
+              <div v-for="n in 3" :key="n" class="quotation-skeleton-bar animate-pulse h-14 w-full" />
+            </div>
+          </div>
+          <div class="quotation-skeleton-card" data-skeleton="summary">
+            <div class="quotation-skeleton-bar animate-pulse h-3.5 w-1/3" />
+            <div class="quotation-skeleton-bar animate-pulse h-3.5 w-full" />
+            <div class="quotation-skeleton-bar animate-pulse h-3.5 w-full" />
+            <div class="quotation-skeleton-bar animate-pulse h-8 w-1/2" />
+            <div class="quotation-skeleton-bar animate-pulse h-11 w-full" />
+          </div>
+        </div>
 
-          <!-- S6 — promotions section. Only visible in DRAFT (mutations are
-               blocked server-side for any other status). Three sub-blocks:
-                 1. Applied promotions (manual + auto) with "Quitar"/"Vetar".
-                 2. Vetoed auto promotions with "Re-activar".
-                 3. One picker (USelectMenu) over the ACTIVE manual promotions —
-                    the cashier picks a promotion instead of typing its ID, and it
-                    applies immediately on selection. The backend validates the type. -->
-          <section
-            v-if="isDraft"
-            class="flex flex-col gap-4 rounded-xl border border-default bg-default p-5"
-          >
-            <h2 class="text-base font-semibold text-highlighted">Promociones</h2>
+        <div v-else-if="isNotFound" data-testid="detail-not-found">
+          <EmptyState
+            title="No encontramos la cotización"
+            description="Pudo haberse eliminado o el enlace no es correcto."
+            action-label="Volver a cotizaciones"
+            action-icon="i-lucide-arrow-left"
+            action-test-id="detail-not-found-back"
+            @action="goBack"
+          />
+        </div>
 
-            <div
-              v-if="appliedPromotions.length > 0"
-              class="flex flex-col gap-2"
-              data-testid="applied-promotions-list"
-            >
-              <p class="text-sm font-medium text-muted">Aplicadas</p>
-              <ul class="flex flex-col gap-2">
-                <!-- T-UI-20 — REQ-UI-008 promotion cards. Extracted to
-                     QuotationPromotionCard so the border-l-4 accent
-                     treatment + outlined badge + blue discount live in
-                     one place. The parent routes MANUAL removes via
-                     removeManualPromotion and AUTOMATIC ones via
-                     vetoPromotion — the card itself never calls the
-                     API directly. -->
-                <li v-for="promo in resolvedAppliedPromotions" :key="promo.promotionId">
-                  <QuotationPromotionCard
-                    :promotion="promo"
-                    :method="appliedMethod(promo.promotionId) === 'Manual' ? 'MANUAL' : 'AUTOMATIC'"
-                    @remove="handleRemoveAppliedPromotion"
-                    @veto="handleRemoveAppliedPromotion"
+        <div v-else-if="isError || createError" data-testid="detail-error">
+          <EmptyState
+            kind="error"
+            title="No se pudo cargar la cotización"
+            description="Inténtalo de nuevo en un momento."
+            action-label="Reintentar"
+            action-test-id="detail-error-retry"
+            @action="retryLoad"
+          />
+        </div>
+
+        <template v-else-if="quotation">
+          <!-- T-UI-03 — REQ-UI-002: 2-column Coco layout. The grid splits at the
+               lg breakpoint into a left col-span-2 (main sections) and a right
+               col-span-1 sticky sidebar (summary). Below lg, everything stacks
+               into a single column and the sticky behavior is dropped. -->
+          <div class="grid gap-4 lg:grid-cols-3" data-testid="quotation-detail-layout">
+            <div class="flex flex-col gap-4 lg:col-span-2" data-testid="quotation-detail-main">
+              <div class="grid gap-4 lg:grid-cols-3">
+                <!-- T-UI-16 — REQ-UI-005 customer card. Extracted into
+                     QuotationCustomerCard so the avatar / email / phone /
+                     "Cambiar cliente" affordance lives in one place. The card
+                     is editable only in DRAFT (read-only otherwise). The
+                     change-customer event opens the same AssignCustomerSlideover
+                     that handled the old "Asignar cliente" button. -->
+                <section class="rounded-xl border border-default bg-default p-5">
+                  <p class="mb-3 text-sm font-medium text-muted">Cliente</p>
+                  <QuotationCustomerCard
+                    v-if="quotation.customer"
+                    :customer="quotation.customer"
+                    :editable="isDraft"
+                    @change-customer="isAssignCustomerOpen = true"
                   />
-                </li>
-              </ul>
-            </div>
+                  <p
+                    v-else-if="!isDraft"
+                    class="text-sm text-muted"
+                    data-testid="customer-empty-readonly"
+                  >
+                    Sin cliente
+                  </p>
+                  <QuotationCustomerCard
+                    v-else
+                    :customer="null"
+                    :editable="true"
+                    @change-customer="isAssignCustomerOpen = true"
+                  />
+                </section>
 
-            <div
-              v-if="vetoedPromotionIds.length > 0"
-              class="flex flex-col gap-2"
-              data-testid="vetoed-promotions-list"
-            >
-              <p class="text-sm font-medium text-muted">Vetadas</p>
-              <ul class="flex flex-col gap-2">
-                <li
-                  v-for="promo in vetoedPromotions"
-                  :key="promo.promotionId"
-                  class="flex items-center justify-between gap-2 rounded-lg border border-default px-3 py-2"
-                  :data-testid="`vetoed-promo-${promo.promotionId}`"
+                <section
+                  class="rounded-xl border border-default bg-default p-5"
+                  data-testid="price-list-section"
                 >
-                  <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-highlighted truncate">{{ promo.title }}</p>
-                    <StatusBadge class="mt-1" label="Automática" tone="info" aria-label="Promoción automática" />
+                  <p class="text-sm font-medium text-muted">Lista de precios</p>
+                  <PriceListSelector
+                    v-if="isDraft"
+                    class="mt-3"
+                    :active-draft="quotation"
+                    :is-mutating="false"
+                    portal-class="hf-theme hf-ui quotations-workspace-portal"
+                    @change-price-list="handlePriceListChange"
+                    @request-confirm="handlePriceListChange"
+                  />
+                  <p
+                    v-else
+                    class="mt-2 text-sm font-medium text-highlighted"
+                    data-testid="price-list-name"
+                  >
+                    {{ priceListLabel }}
+                  </p>
+                </section>
+
+                <!-- REQ-QTN-016 — seller assignment (backend §3.13d). Inline
+                     picker so the cashier never opens a slideover for a
+                     1-tap change. DRAFT: editable USelectMenu; any other
+                     status: read-only resolved name. Mirrors the visual
+                     language of the price-list-section above. Lives in the
+                     same 3-col grid as Cliente + Lista so the three settings
+                     share the row instead of stacking. -->
+                <section
+                  class="rounded-xl border border-default bg-default p-5"
+                  data-testid="seller-section"
+                >
+                  <p class="text-sm font-medium text-muted">Vendedor</p>
+                  <div v-if="isDraft" class="mt-3">
+                    <div
+                      v-if="assignableUsersQuery.isLoading.value && !assignableUsersQuery.data.value"
+                      class="h-9 w-full animate-pulse rounded-md bg-elevated"
+                      data-testid="seller-loading"
+                    />
+                    <USelectMenu
+                      v-else
+                      :model-value="quotation.sellerUserId || null"
+                      :items="sellerOptions"
+                      value-key="value"
+                      label-key="label"
+                      :loading="assignableUsersQuery.isFetching.value"
+                      :disabled="draft.isMutating.value"
+                      placeholder="Buscar vendedor..."
+                      class="w-full"
+                      :ui="{ content: 'hf-theme hf-ui quotations-workspace-portal' }"
+                      data-testid="seller-select"
+                      @update:model-value="handleSellerChange"
+                    >
+                      <template #leading>
+                        <UIcon name="i-lucide-user" class="size-4 text-muted" />
+                      </template>
+                      <template #item-label="{ item }">
+                        <span class="truncate">{{ item.label }}</span>
+                      </template>
+                      <template #empty>
+                        <span class="text-sm text-muted">No hay vendedores disponibles</span>
+                      </template>
+                    </USelectMenu>
+                  </div>
+                  <p
+                    v-else
+                    class="mt-2 text-sm font-medium text-highlighted"
+                    data-testid="seller-readonly"
+                  >
+                    {{ quotation.seller?.name ?? 'Sin asignar' }}
+                  </p>
+                </section>
+              </div>
+
+              <!-- S6 — expiry picker. The picker itself owns the input + clear
+                   button; the view just plumbs the value through setExpiry /
+                   clearExpiry on the composable. -->
+              <section
+                v-if="isDraft"
+                class="rounded-xl border border-default bg-default p-5"
+                data-testid="expiry-section"
+              >
+                <QuotationExpiryPicker
+                  :expires-at="quotation.expiresAt"
+                  :readonly="false"
+                  portal-class="hf-theme hf-ui quotations-workspace-portal"
+                  @update:expires-at="handleExpiryUpdate"
+                />
+              </section>
+
+              <!-- Items section — always visible. The list + add-product affordance
+                   in DRAFT; read-only list for every other status. Product search
+                   opens in a dedicated slideover (not inline) so the items list is
+                   always visible and never hidden behind the search panel. -->
+              <section
+                class="flex flex-col gap-4 rounded-xl border border-default bg-default p-5"
+                data-testid="items-section"
+              >
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h2 class="text-base font-semibold text-highlighted">Productos</h2>
+                    <p class="mt-0.5 text-xs text-muted">
+                      {{ items.length }} {{ items.length === 1 ? 'producto' : 'productos' }}
+                    </p>
                   </div>
                   <button
+                    v-if="isDraft"
                     type="button"
-                    class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-1.5 text-xs font-medium hover:bg-elevated"
-                    :data-testid="`unveto-promo-${promo.promotionId}`"
-                    @click="handleUnvetoPromotion(promo.promotionId)"
+                    class="quotation-outline-action"
+                    data-testid="add-product-button"
+                    @click="isProductSearchOpen = true"
                   >
-                    <UIcon name="i-lucide-rotate-ccw" class="h-3.5 w-3.5" />
-                    Re-activar
+                    <UIcon name="i-lucide-plus" class="h-4 w-4" />
+                    Agregar producto
                   </button>
-                </li>
-              </ul>
-            </div>
+                </div>
 
-            <div class="flex flex-col gap-2" data-testid="apply-manual-promo-select">
-              <p class="text-sm font-medium text-muted">Agregar promoción</p>
-              <USelectMenu
-                v-model="selectedPromotion"
-                value-key="value"
-                :items="allPromoItems"
-                :loading="isLoadingAllPromos"
-                placeholder="Selecciona una promoción…"
-                :search-input="{ icon: 'i-lucide-search' }"
-                class="w-full"
-                :ui="{ content: 'hf-theme hf-ui quotations-workspace-portal' }"
-                data-testid="manual-promo-select"
-                @update:model-value="handleSelectPromotion"
+                <EmptyState
+                  v-if="items.length === 0"
+                  title="Aún no hay productos"
+                  data-testid="items-empty-state"
+                />
+
+                <ul v-else class="flex flex-col gap-2" data-testid="items-list">
+                  <li v-for="item in items" :key="item.id">
+                    <QuotationItemRow
+                      :item="item"
+                      :readonly="!isDraft"
+                      @update-quantity="handleUpdateQuantity"
+                      @request-price-override="handleRequestPriceOverride"
+                      @request-remove="handleRequestRemove"
+                    />
+                  </li>
+                </ul>
+              </section>
+
+              <!-- S6 — promotions section. Only visible in DRAFT (mutations are
+                   blocked server-side for any other status). Three sub-blocks:
+                     1. Applied promotions (manual + auto) with "Quitar"/"Vetar".
+                     2. Vetoed auto promotions with "Re-activar".
+                     3. One picker (USelectMenu) over the ACTIVE manual promotions —
+                        the cashier picks a promotion instead of typing its ID, and it
+                        applies immediately on selection. The backend validates the type. -->
+              <section
+                v-if="isDraft"
+                class="flex flex-col gap-4 rounded-xl border border-default bg-default p-5"
               >
-                <template #empty>
-                  <span v-if="isLoadingAllPromos">Cargando promociones…</span>
-                  <span v-else>No hay promociones activas</span>
-                </template>
-              </USelectMenu>
+                <h2 class="text-base font-semibold text-highlighted">Promociones</h2>
+
+                <div
+                  v-if="appliedPromotions.length > 0"
+                  class="flex flex-col gap-2"
+                  data-testid="applied-promotions-list"
+                >
+                  <p class="text-sm font-medium text-muted">Aplicadas</p>
+                  <ul class="flex flex-col gap-2">
+                    <!-- T-UI-20 — REQ-UI-008 promotion cards. Extracted to
+                         QuotationPromotionCard so the border-l-4 accent
+                         treatment + outlined badge + blue discount live in
+                         one place. The parent routes MANUAL removes via
+                         removeManualPromotion and AUTOMATIC ones via
+                         vetoPromotion — the card itself never calls the
+                         API directly. -->
+                    <li v-for="promo in resolvedAppliedPromotions" :key="promo.promotionId">
+                      <QuotationPromotionCard
+                        :promotion="promo"
+                        :method="appliedMethod(promo.promotionId) === 'Manual' ? 'MANUAL' : 'AUTOMATIC'"
+                        @remove="handleRemoveAppliedPromotion"
+                        @veto="handleRemoveAppliedPromotion"
+                      />
+                    </li>
+                  </ul>
+                </div>
+
+                <div
+                  v-if="vetoedPromotionIds.length > 0"
+                  class="flex flex-col gap-2"
+                  data-testid="vetoed-promotions-list"
+                >
+                  <p class="text-sm font-medium text-muted">Vetadas</p>
+                  <ul class="flex flex-col gap-2">
+                    <li
+                      v-for="promo in vetoedPromotions"
+                      :key="promo.promotionId"
+                      class="flex items-center justify-between gap-2 rounded-lg border border-default px-3 py-2"
+                      :data-testid="`vetoed-promo-${promo.promotionId}`"
+                    >
+                      <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-highlighted truncate">{{ promo.title }}</p>
+                        <StatusBadge class="mt-1" label="Automática" tone="info" aria-label="Promoción automática" />
+                      </div>
+                      <button
+                        type="button"
+                        class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-1.5 text-xs font-medium hover:bg-elevated"
+                        :data-testid="`unveto-promo-${promo.promotionId}`"
+                        @click="handleUnvetoPromotion(promo.promotionId)"
+                      >
+                        <UIcon name="i-lucide-rotate-ccw" class="h-3.5 w-3.5" />
+                        Re-activar
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+
+                <div class="flex flex-col gap-2" data-testid="apply-manual-promo-select">
+                  <p class="text-sm font-medium text-muted">Agregar promoción</p>
+                  <USelectMenu
+                    v-model="selectedPromotion"
+                    value-key="value"
+                    :items="allPromoItems"
+                    :loading="isLoadingAllPromos"
+                    placeholder="Selecciona una promoción…"
+                    :search-input="{ icon: 'i-lucide-search' }"
+                    class="w-full"
+                    :ui="{ content: 'hf-theme hf-ui quotations-workspace-portal' }"
+                    data-testid="manual-promo-select"
+                    @update:model-value="handleSelectPromotion"
+                  >
+                    <template #empty>
+                      <span v-if="isLoadingAllPromos">Cargando promociones…</span>
+                      <span v-else>No hay promociones activas</span>
+                    </template>
+                  </USelectMenu>
+                </div>
+              </section>
+
+              <!-- S8 — CANCELLED detail banner (REQ-QTN-012). The backend stamps the
+                   cancel reason; we surface it as a permanent notice so any saved
+                   PDF copy / later access makes the cancellation traceable. -->
+              <section
+                v-if="quotation?.status === 'CANCELLED' && cancelReasonLabel"
+                class="quotation-banner quotation-banner--danger"
+                data-testid="cancel-reason-banner"
+              >
+                <p class="font-semibold">Cotización cancelada</p>
+                <p class="mt-1 text-muted">
+                  {{ cancelReasonLabel
+                  }}<span v-if="canceledAtFormatted"> · {{ canceledAtFormatted }}</span>
+                </p>
+              </section>
+
+              <!-- S8 — lazy EXPIRED banner (REQ-QTN-008 / backend §7.4). Shown when
+                   the cached status is still SENT but `expiresAt < now`. We never
+                   persist this — the next GET will return status=EXPIRED for real. -->
+              <section
+                v-if="isLazyExpired"
+                class="quotation-banner quotation-banner--warning"
+                data-testid="lazy-expired-notice"
+              >
+                <p class="font-semibold">Cotización expirada</p>
+                <p class="mt-1 text-muted">Pasó su fecha límite; se actualizará al recargar.</p>
+              </section>
+
+              <!-- S8 — generic read-only banner. Placed BELOW the more specific
+                   EXPIRED / CANCELLED banners so the cashier sees the *reason* the
+                   view is read-only first, and the generic notice second. -->
+              <section
+                v-if="!isDraft"
+                class="rounded-xl border border-default bg-elevated p-5 text-sm text-muted"
+                data-testid="read-only-notice"
+              >
+                Solo lectura. Esta cotización ya no admite cambios.
+              </section>
             </div>
-          </section>
 
-          <!-- S8 — CANCELLED detail banner (REQ-QTN-012). The backend stamps the
-               cancel reason; we surface it as a permanent notice so any saved
-               PDF copy / later access makes the cancellation traceable. -->
-          <section
-            v-if="quotation?.status === 'CANCELLED' && cancelReasonLabel"
-            class="quotation-banner quotation-banner--danger"
-            data-testid="cancel-reason-banner"
-          >
-            <p class="font-semibold">Cotización cancelada</p>
-            <p class="mt-1 text-muted">
-              {{ cancelReasonLabel
-              }}<span v-if="canceledAtFormatted"> · {{ canceledAtFormatted }}</span>
-            </p>
-          </section>
+            <!-- T-UI-03 — right sticky sidebar. REQ-UI-002 reads the summary
+                 MUST stay visible while the cashier scrolls the long product
+                 list. `lg:sticky` is no-op below lg so the sidebar flows on
+                 mobile. -->
+            <div
+              class="flex flex-col gap-4 lg:col-span-1 lg:sticky lg:top-4 lg:self-start"
+              data-testid="quotation-detail-sidebar"
+            >
+              <!-- T-UI-22/23 — REQ-UI-009 summary sidebar. Pass
+                   `editable=isDraft` so the CTAs only render in DRAFT,
+                   and wire `send`
+                   / `save-draft` to the existing dialog + composable
+                   actions. `priceListName` is optional and not yet
+                   exposed by the backend, so we leave it null.
+                   T-UI-29 — the footer also accepts `update:tax-rate`
+                   so the cashier can override the IVA rate from the
+                   sidebar; we wire it to the dedicated
+                   setTaxRateMutation that hits PATCH /tax-rate. -->
+              <QuotationTotalsFooter
+                :quotation="quotation"
+                :editable="isDraft && canUpdateQuotation"
+                @send="openSendDialog"
+                @save-draft="handleSaveDraftFromSidebar"
+                @update:tax-rate="handleTaxRateChange"
+              />
 
-          <!-- S8 — lazy EXPIRED banner (REQ-QTN-008 / backend §7.4). Shown when
-               the cached status is still SENT but `expiresAt < now`. We never
-               persist this — the next GET will return status=EXPIRED for real. -->
-          <section
-            v-if="isLazyExpired"
-            class="quotation-banner quotation-banner--warning"
-            data-testid="lazy-expired-notice"
-          >
-            <p class="font-semibold">Cotización expirada</p>
-            <p class="mt-1 text-muted">Pasó su fecha límite; se actualizará al recargar.</p>
-          </section>
+              <!-- T-UI-21/22 / REQ-UI-010 — customer notes. The textarea is
+                   seeded from `quotation.customerNotes` and saved back to the
+                   backend via PATCH /quotations/drafts/:id/notes (debounced
+                   300ms). Read-only when the quotation is not DRAFT. -->
+              <section
+                class="flex flex-col gap-2 rounded-xl border border-default bg-default p-5"
+                data-testid="customer-notes-section"
+              >
+                <div class="flex items-center justify-between">
+                  <label for="customer-notes" class="text-sm font-medium text-muted">
+                    Notas
+                  </label>
+                  <span
+                    v-if="customerNotes.length >= NOTES_COUNTER_FROM"
+                    class="quotation-notes-counter"
+                    :class="{ 'is-limit': customerNotes.length >= NOTES_MAX }"
+                    aria-live="polite"
+                    data-testid="notes-char-counter"
+                  >
+                    {{ customerNotes.length }} / {{ NOTES_MAX }}
+                  </span>
+                </div>
+                <textarea
+                  id="customer-notes"
+                  :value="customerNotes"
+                  rows="4"
+                  :maxlength="NOTES_MAX"
+                  :readonly="!isDraft"
+                  :class="[
+                    'w-full resize-none rounded-lg border border-default bg-default p-2 text-sm text-highlighted focus:outline-none focus:ring-1 focus:ring-primary',
+                    !isDraft && 'cursor-not-allowed bg-elevated text-muted',
+                  ]"
+                  placeholder="Condiciones de entrega, referencias de pago..."
+                  data-testid="customer-notes-textarea"
+                  @input="handleNotesInput(($event.target as HTMLTextAreaElement).value)"
+                />
+              </section>
+            </div>
+          </div>
 
-          <!-- S8 — generic read-only banner. Placed BELOW the more specific
-               EXPIRED / CANCELLED banners so the cashier sees the *reason* the
-               view is read-only first, and the generic notice second. -->
-          <section
-            v-if="!isDraft"
-            class="rounded-xl border border-default bg-elevated p-5 text-sm text-muted"
-            data-testid="read-only-notice"
-          >
-            Solo lectura. Esta cotización ya no admite cambios.
-          </section>
-        </div>
-
-        <!-- T-UI-03 — right sticky sidebar. REQ-UI-002 reads the summary
-             MUST stay visible while the cashier scrolls the long product
-             list. `lg:sticky` is no-op below lg so the sidebar flows on
-             mobile. -->
-        <div
-          class="flex flex-col gap-4 lg:col-span-1 lg:sticky lg:top-4 lg:self-start"
-          data-testid="quotation-detail-sidebar"
-        >
-          <!-- T-UI-22/23 — REQ-UI-009 summary sidebar. Pass
-               `editable=isDraft` so the CTAs only render in DRAFT,
-               and wire `send`
-               / `save-draft` to the existing dialog + composable
-               actions. `priceListName` is optional and not yet
-               exposed by the backend, so we leave it null.
-               T-UI-29 — the footer also accepts `update:tax-rate`
-               so the cashier can override the IVA rate from the
-               sidebar; we wire it to the dedicated
-               setTaxRateMutation that hits PATCH /tax-rate. -->
-          <QuotationTotalsFooter
-            :quotation="quotation"
-            :editable="isDraft && canUpdateQuotation"
-            @send="openSendDialog"
-            @save-draft="handleSaveDraftFromSidebar"
-            @update:tax-rate="handleTaxRateChange"
+          <AssignCustomerSlideover
+            v-model:open="isAssignCustomerOpen"
+            portal-class="hf-theme hf-ui hf-form-overlay quotations-workspace-portal"
+            @customer-selected="handleCustomerSelected"
           />
 
-          <!-- T-UI-21/22 / REQ-UI-010 — customer notes. The textarea is
-               seeded from `quotation.customerNotes` and saved back to the
-               backend via PATCH /quotations/drafts/:id/notes (debounced
-               300ms). Read-only when the quotation is not DRAFT. -->
-          <section
-            class="flex flex-col gap-2 rounded-xl border border-default bg-default p-5"
-            data-testid="customer-notes-section"
-          >
-            <div class="flex items-center justify-between">
-              <label for="customer-notes" class="text-sm font-medium text-muted">
-                Notas
-              </label>
-              <span
-                v-if="customerNotes.length >= NOTES_COUNTER_FROM"
-                class="quotation-notes-counter"
-                :class="{ 'is-limit': customerNotes.length >= NOTES_MAX }"
-                aria-live="polite"
-                data-testid="notes-char-counter"
-              >
-                {{ customerNotes.length }} / {{ NOTES_MAX }}
-              </span>
-            </div>
-            <textarea
-              id="customer-notes"
-              :value="customerNotes"
-              rows="4"
-              :maxlength="NOTES_MAX"
-              :readonly="!isDraft"
-              :class="[
-                'w-full resize-none rounded-lg border border-default bg-default p-2 text-sm text-highlighted focus:outline-none focus:ring-1 focus:ring-primary',
-                !isDraft && 'cursor-not-allowed bg-elevated text-muted',
-              ]"
-              placeholder="Condiciones de entrega, referencias de pago..."
-              data-testid="customer-notes-textarea"
-              @input="handleNotesInput(($event.target as HTMLTextAreaElement).value)"
-            />
-          </section>
-        </div>
-      </div>
+          <ConfirmModal
+            :open="isRemoveConfirmOpen"
+            title="Quitar producto"
+            description="¿Quitar este producto de la cotización? Esta acción no se puede deshacer."
+            confirm-label="Quitar"
+            confirm-color="error"
+            :ui="{ content: 'hf-theme hf-ui hf-form-overlay quotations-workspace-portal' }"
+            @update:open="
+              (value) => {
+                if (!value) handleRemoveCancel()
+              }
+            "
+            @confirm="handleRemoveConfirm"
+          />
 
-      <!-- Mobile: the single primary lives in the sticky bottom bar; the
-           summary hides its own actions below lg. -->
+          <!-- REQ-QTN-013 — Delete quotation confirmation. Separate from the
+               remove-item modal so the two destructive flows don't share state.
+               `loading` is bound to the mutation's pending flag so the confirm
+               button stays disabled while DELETE /quotations/:id is in-flight. -->
+          <ConfirmModal
+            :open="isDeleteConfirmOpen"
+            title="¿Eliminar esta cotización?"
+            description="Esta acción no se puede deshacer."
+            confirm-label="Eliminar"
+            confirm-color="error"
+            :loading="deleteMutation.isPending.value"
+            :ui="{ content: 'hf-theme hf-ui hf-form-overlay quotations-workspace-portal' }"
+            @update:open="
+              (val) => {
+                if (!val) isDeleteConfirmOpen = false
+              }
+            "
+            @confirm="deleteMutation.mutate()"
+          />
+
+          <QuotationPriceOverrideModal
+            v-if="pendingOverrideItem"
+            :open="isPriceOverrideOpen"
+            :item="pendingOverrideItem"
+            :on-submit="handlePriceOverrideSubmit"
+            @update:open="
+              (value: boolean) => {
+                if (!value) handlePriceOverrideCancel()
+              }
+            "
+          />
+
+          <!-- S7 — send dialog. Only mount in DRAFT (the button that opens it is
+               also gated, but mounting only-when-DRAFT keeps the modal far from
+               SENT/EXPIRED/CANCELLED render paths.) -->
+          <QuotationSendDialog
+            v-if="quotation"
+            :open="isSendDialogOpen"
+            :quotation="quotation"
+            :send="handleSend"
+            @close="handleSendDialogClose"
+            @sent="handleSendDialogClose"
+          />
+
+          <!-- S7 — cancel dialog. Same DRAFT-only mounting. -->
+          <QuotationCancelDialog
+            v-if="quotation"
+            :open="isCancelDialogOpen"
+            :quotation="quotation"
+            :cancel="handleCancel"
+            @close="handleCancelDialogClose"
+            @cancelled="handleCancelDialogClose"
+          />
+
+          <!-- Product search slideover — opens from the right, contains the
+               ProductSearchPanel so it never covers the items list. Gated with
+               v-if (not just :open) to prevent the backdrop from leaking when
+               the slideover is closed (known Nuxt UI 4 behavior). -->
+          <USlideover
+            v-if="isProductSearchOpen && isDraft"
+            :open="isProductSearchOpen"
+            side="right"
+            inset
+            :ui="{ content: 'hf-theme hf-ui hf-form-overlay quotations-workspace-portal !max-w-xl' }"
+            @update:open="
+              (value: boolean) => {
+                if (!value) isProductSearchOpen = false
+              }
+            "
+          >
+            <template #title>Buscar productos</template>
+            <template #body>
+              <ProductSearchPanel
+                class="h-full product-search-panel--two-cols quotations-product-search"
+                data-testid="product-search-panel"
+                portal-class="hf-theme hf-ui hf-form-overlay quotations-workspace-portal"
+                @add-product="handleAddProduct"
+              />
+            </template>
+          </USlideover>
+        </template>
+      </div>
+    </div>
+
+    <template v-if="showMobileActionBar" #footer>
+      <!-- Mobile: the single primary lives in the bottom bar (the frame's footer, below the
+           scroller); the summary hides its own actions below lg. -->
       <div
-        v-if="isDraft && canUpdateQuotation"
         class="quotation-action-bar lg:hidden"
         data-testid="mobile-action-bar"
       >
@@ -1304,110 +1434,8 @@ function onHeaderAction(key: string): void {
           Enviar
         </button>
       </div>
-
-      <AssignCustomerSlideover
-        v-model:open="isAssignCustomerOpen"
-        portal-class="hf-theme hf-ui hf-form-overlay quotations-workspace-portal"
-        @customer-selected="handleCustomerSelected"
-      />
-
-      <ConfirmModal
-        :open="isRemoveConfirmOpen"
-        title="Quitar producto"
-        description="¿Quitar este producto de la cotización? Esta acción no se puede deshacer."
-        confirm-label="Quitar"
-        confirm-color="error"
-        :ui="{ content: 'hf-theme hf-ui hf-form-overlay quotations-workspace-portal' }"
-        @update:open="
-          (value) => {
-            if (!value) handleRemoveCancel()
-          }
-        "
-        @confirm="handleRemoveConfirm"
-      />
-
-      <!-- REQ-QTN-013 — Delete quotation confirmation. Separate from the
-           remove-item modal so the two destructive flows don't share state.
-           `loading` is bound to the mutation's pending flag so the confirm
-           button stays disabled while DELETE /quotations/:id is in-flight. -->
-      <ConfirmModal
-        :open="isDeleteConfirmOpen"
-        title="¿Eliminar esta cotización?"
-        description="Esta acción no se puede deshacer."
-        confirm-label="Eliminar"
-        confirm-color="error"
-        :loading="deleteMutation.isPending.value"
-        :ui="{ content: 'hf-theme hf-ui hf-form-overlay quotations-workspace-portal' }"
-        @update:open="
-          (val) => {
-            if (!val) isDeleteConfirmOpen = false
-          }
-        "
-        @confirm="deleteMutation.mutate()"
-      />
-
-      <QuotationPriceOverrideModal
-        v-if="pendingOverrideItem"
-        :open="isPriceOverrideOpen"
-        :item="pendingOverrideItem"
-        :on-submit="handlePriceOverrideSubmit"
-        @update:open="
-          (value: boolean) => {
-            if (!value) handlePriceOverrideCancel()
-          }
-        "
-      />
-
-      <!-- S7 — send dialog. Only mount in DRAFT (the button that opens it is
-           also gated, but mounting only-when-DRAFT keeps the modal far from
-           SENT/EXPIRED/CANCELLED render paths.) -->
-      <QuotationSendDialog
-        v-if="quotation"
-        :open="isSendDialogOpen"
-        :quotation="quotation"
-        :send="handleSend"
-        @close="handleSendDialogClose"
-        @sent="handleSendDialogClose"
-      />
-
-      <!-- S7 — cancel dialog. Same DRAFT-only mounting. -->
-      <QuotationCancelDialog
-        v-if="quotation"
-        :open="isCancelDialogOpen"
-        :quotation="quotation"
-        :cancel="handleCancel"
-        @close="handleCancelDialogClose"
-        @cancelled="handleCancelDialogClose"
-      />
-
-      <!-- Product search slideover — opens from the right, contains the
-           ProductSearchPanel so it never covers the items list. Gated with
-           v-if (not just :open) to prevent the backdrop from leaking when
-           the slideover is closed (known Nuxt UI 4 behavior). -->
-      <USlideover
-        v-if="isProductSearchOpen && isDraft"
-        :open="isProductSearchOpen"
-        side="right"
-        inset
-        :ui="{ content: 'hf-theme hf-ui hf-form-overlay quotations-workspace-portal !max-w-xl' }"
-        @update:open="
-          (value: boolean) => {
-            if (!value) isProductSearchOpen = false
-          }
-        "
-      >
-        <template #title>Buscar productos</template>
-        <template #body>
-          <ProductSearchPanel
-            class="h-full product-search-panel--two-cols quotations-product-search"
-            data-testid="product-search-panel"
-            portal-class="hf-theme hf-ui hf-form-overlay quotations-workspace-portal"
-            @add-product="handleAddProduct"
-          />
-        </template>
-      </USlideover>
     </template>
-  </section>
+  </DetailPageFrame>
 </template>
 
 <style scoped>
@@ -1471,16 +1499,12 @@ function onHeaderAction(key: string): void {
   background: var(--hf-surface-muted);
 }
 
-/* Mobile detail: the primary rides in a sticky bottom bar (design system:
- * Sticky mobile action bar), two equal columns with centered labels. */
+/* Mobile detail: the primary rides in the bottom bar (design system: Sticky mobile action bar),
+ * pinned by the frame's footer below the scroller, two equal columns with centered labels. */
 .quotation-action-bar {
-  position: sticky;
-  bottom: 0;
-  z-index: 20;
   grid-auto-flow: column;
   grid-auto-columns: minmax(0, 1fr);
   gap: 8px;
-  margin: 0 -16px;
   border-top: 1px solid var(--hf-border);
   background: var(--hf-surface);
   padding: 12px 16px max(12px, env(safe-area-inset-bottom));

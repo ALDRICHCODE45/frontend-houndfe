@@ -11,8 +11,8 @@ One shared frame for every detail page: header pinned at the top with no strip a
 ## Tasks
 - [x] T1 S4 Navbar: hide the collapse button below lg — parent — 6858ce77
 - [x] T2 S1-S3 Shared DetailPageFrame (src/core/shared/components/DetailPageFrame.vue) (header slot pinned, full-width scroller, inner max-width, bottom slot) — parent
-- [ ] T3 S1-S3 Migrate sale, product, promotion — worker
-- [ ] T4 S3 Migrate quotation, employee, delivery route — worker
+- [x] T3 S1-S3 Migrate sale, product, promotion — worker — 4cc2a091
+- [x] T4 S3 Migrate quotation, employee, delivery route — worker
 - [ ] T5 S1-S4 Design-system rule, browser checks (1440, 1920, 390, light/dark), full suite — parent
 
 ## Log
@@ -21,3 +21,6 @@ One shared frame for every detail page: header pinned at the top with no strip a
 - L3 Owner decisions: «Todos los detalles iguales (Recomendado)»; breadcrumb cause «Sí, es eso».
 - L4 T1 done (6858ce77): .hf-shell-collapse hidden below 1023.98px; browser 390 «Reembolsos pendientes» complete, collapse visible at 1440. Browser proof of the strip: sale header top 89 with sticky, 65 (flush under the 65px navbar) after removing sticky; it also overlapped the scroller by 24px.
 - L5 T2 done: DetailPageFrame.vue — root -m-4 sm:-m-6 h-[calc(100%+2rem)] sm:h-[calc(100%+3rem)] flex flex-col min-h-0; [data-slot=header] w-full shrink-0 (never sticky); [data-slot=scroll] w-full min-h-0 flex-1 overflow-y-auto overflow-x-hidden with prop scrollTestid; [data-slot=footer] for the mobile bar; header/footer wrappers only when the slot is used; attrs/classes fall through to the root. 6 tests.
+- L6 Docs cd9e5f19: «Detail page scroll» rule in docs/design-system.md and design/system.md; navbar breadcrumb rule mentions hf-shell-collapse.
+- L7 T3 (4cc2a091, worker): sale header no longer sticky; product max-w-[1480px] and promotion max-w-6xl columns are inner boxes in the full-width scroller; mobile bars in #footer. Related 32 files / 425 tests, type-check 0. T4 (worker): quotation, employee, route on the frame; headers border-b border-default bg-default with the page column inside; mobile bars in #footer (quotation showMobileActionBar, employee hasDetail computed); employee bar no longer position:fixed. Related 24 files / 492 tests, type-check 0.
+- L8 Browser (manager): all six at 1920/1440/390 — header top = navbar bottom (65 desktop, 60 mobile, no strip); scroller full width (1844 at 1920, 1364 at 1440, 390); wheel over the right edge scrolls; header stays pinned; no horizontal scroll; product summary sticks 24px under the header and the Guardar bar stays at the bottom; dark mode sale/employee fine. 390 header heights: sale 70, promo 61, employee 96, product 131, route 139, quotation 198 (step strip + PDF button pinned; open for the owner). Console: three 401 on load (token refresh), no other errors.

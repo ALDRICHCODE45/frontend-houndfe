@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { computed, ref } from 'vue'
 import EmployeeDetailView from '../EmployeeDetailView.vue'
+import DetailPageFrame from '@/core/shared/components/DetailPageFrame.vue'
 import { isBelowBreakpoint } from '../../__tests__/helpers/employeesServerTable'
 import { EMPLOYEE_DETAIL_TABS } from '../../composables/useEmployeeDetail'
 import type { Employee } from '../../interfaces/employee.types'
@@ -191,7 +192,7 @@ describe('EmployeeDetailView states — mobile', () => {
     isBelowBreakpoint.value = true
     state.employee.value = makeEmployee()
     const wrapper = mountView()
-    const bar = wrapper.get('[data-testid="employee-detail-action-bar"]')
+    const bar = wrapper.get('[data-slot="footer"] [data-testid="employee-detail-action-bar"]')
     expect(bar.find('[data-testid="employee-detail-edit"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="employee-detail-header"]').find('[data-testid="employee-detail-edit"]').exists()).toBe(false)
     expect(wrapper.findAll('[data-testid="employee-detail-edit"]')).toHaveLength(1)
@@ -233,6 +234,16 @@ describe('EmployeeDetailView states — data', () => {
     expect(header.text()).toContain('Gerente de tienda · Operaciones')
     expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
     expect(wrapper.find('[data-testid="employee-detail-skeleton"]').exists()).toBe(false)
+  })
+
+  // detail-page-frame S3: the header stays pinned above the full-width scroller.
+  it('renders the shared detail frame with the header pinned and the tabs in the scroll area', () => {
+    state.employee.value = makeEmployee()
+    const wrapper = mountView()
+    expect(wrapper.findComponent(DetailPageFrame).exists()).toBe(true)
+    expect(wrapper.find('[data-slot="header"] [data-testid="employee-detail-header"]').exists()).toBe(true)
+    expect(wrapper.find('[data-slot="scroll"] [role="tablist"]').exists()).toBe(true)
+    expect(wrapper.find('[data-slot="scroll"] [data-testid="employee-detail-header"]').exists()).toBe(false)
   })
 
   it('keeps one primary action and moves the rest into the ⋮ menu', () => {

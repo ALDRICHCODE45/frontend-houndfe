@@ -45,8 +45,8 @@ describe('employee detail header CSS', () => {
     )
   })
 
-  it('keeps the sticky action bar above the content with a safe-area inset', () => {
-    expect(css).toMatch(/\.employee-detail-action-bar\s*\{[^}]*position: fixed/)
+  it('leaves the action bar to the frame footer (no fixed overlay) with a safe-area inset', () => {
+    expect(css).not.toMatch(/\.employee-detail-action-bar\s*\{[^}]*position: fixed/)
     expect(css).toContain('safe-area-inset-bottom')
   })
 })
