@@ -58,7 +58,7 @@
 /* ── Creation / edit workspace ───────────────────────────────────────────── */
 
 /* `PromotionDetailView` serves both create and edit routes. Its existing
- * sticky header, bounded column, section order and summary rail are kept; only
+ * pinned header, bounded column, section order and summary rail are kept; only
  * semantic roles change. */
 .promotions-workspace .promotions-workspace-header {
   background-color: var(--hf-surface);
@@ -214,7 +214,7 @@
   background-color: var(--hf-surface-muted);
 }
 
-/* ── Mobile sticky action bar: the one primary, full width ───────────────── */
+/* ── Mobile action bar: the one primary, full width ──────────────────────── */
 
 .promotions-workspace .promotions-action-bar {
   border-top: 1px solid var(--hf-border);

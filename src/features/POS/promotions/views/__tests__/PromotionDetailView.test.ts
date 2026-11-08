@@ -567,10 +567,25 @@ describe('PromotionDetailView — review round 1', () => {
     expect(loading.find('[data-skeleton="field"]').exists()).toBe(true)
   })
 
-  it('mobile: the single primary rides in the sticky bottom bar and submits the form', () => {
+  // detail-page-frame S2/S3: the shared frame pins the header (never sticky) and the full-width
+  // area scrolls; the max-w-6xl column only centres the content inside it.
+  it('renders in the shared detail frame: header pinned, full-width scroll area, centred column', () => {
+    const wrapper = mountCreate()
+    const header = wrapper.get('[data-slot="header"] .promotions-workspace-header')
+    expect(header.classes().some((name) => name.includes('sticky'))).toBe(false)
+    const scroll = wrapper.get('[data-slot="scroll"]')
+    expect(scroll.classes().some((name) => name.startsWith('max-w'))).toBe(false)
+    const column = scroll.get(':scope > .max-w-6xl')
+    expect(column.classes()).toEqual(expect.arrayContaining(['mx-auto', 'w-full', 'gap-6']))
+    expect(column.classes()).not.toContain('overflow-y-auto')
+    expect(column.find('[data-testid="promotion-form"]').exists()).toBe(true)
+  })
+
+  it('mobile: the single primary rides in the bottom bar and submits the form', () => {
     const wrapper = mountCreate()
     const bar = wrapper.get('[data-testid="mobile-action-bar"]')
     expect(bar.classes()).toContain('md:hidden')
+    expect(bar.element.closest('[data-slot="footer"]')).not.toBeNull()
     const submit = bar.get('button[type="submit"]')
     expect(submit.attributes('form')).toBe('promotion-detail-form')
     expect(submit.text()).toBe('Crear promoción')

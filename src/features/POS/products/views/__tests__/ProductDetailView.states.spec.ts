@@ -184,7 +184,24 @@ describe('ProductDetailView — review round 1', () => {
     expect(wrapper.get('h1').text()).toBe('Producto')
   })
 
-  it('mobile: the single primary rides in the sticky bottom bar (Presentaciones; Identidad has its save bar)', async () => {
+  // detail-page-frame S2/S3: the shared frame pins the header (never sticky) and the full-width
+  // area scrolls; the 1480px column only centres the content inside it.
+  it('renders in the shared detail frame: header pinned, full-width scroll area, centred column', async () => {
+    api.getById.mockResolvedValue(product)
+    const wrapper = mountView()
+    await flushPromises()
+
+    const header = wrapper.get('[data-slot="header"] .product-workspace-header')
+    expect(header.classes().some((name) => name.includes('sticky'))).toBe(false)
+    const scroll = wrapper.get('[data-slot="scroll"]')
+    expect(scroll.classes().some((name) => name.startsWith('max-w'))).toBe(false)
+    const column = scroll.get(':scope > .max-w-\\[1480px\\]')
+    expect(column.classes()).toEqual(expect.arrayContaining(['mx-auto', 'w-full', 'gap-6']))
+    expect(column.classes()).not.toContain('overflow-y-auto')
+    expect(column.find('#product-detail-form').exists()).toBe(true)
+  })
+
+  it('mobile: the single primary rides in the bottom bar (Presentaciones; Identidad has its save bar)', async () => {
     api.getById.mockResolvedValue(product)
     const wrapper = mountView()
     await flushPromises()
@@ -194,6 +211,7 @@ describe('ProductDetailView — review round 1', () => {
 
     const bar = wrapper.get('[data-testid="mobile-action-bar"]')
     expect(bar.classes()).toContain('md:hidden')
+    expect(bar.element.closest('[data-slot="footer"]')).not.toBeNull()
     const submit = bar.get('button[type="submit"]')
     expect(submit.attributes('form')).toBe('product-detail-form')
     expect(submit.text()).toBe('Guardar cambios')

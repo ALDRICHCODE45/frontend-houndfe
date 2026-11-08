@@ -19,6 +19,7 @@ import { useCatalogSettingsQuery } from '@/features/system/catalog-settings/comp
 import type { OnlineStockPresentationMode } from '@/features/system/catalog-settings/interfaces/catalog-settings.types'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
+import DetailPageFrame from '@/core/shared/components/DetailPageFrame.vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
@@ -2079,49 +2080,51 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
 </script>
 
 <template>
-  <div class="hf-theme hf-ui product-workspace -m-4 flex h-[calc(100%+2rem)] flex-col sm:-m-6 sm:h-[calc(100%+3rem)]">
-    <div class="product-workspace-header shrink-0 border-b border-default px-4 py-4 sm:px-6 lg:px-10">
-      <div class="mx-auto flex w-full max-w-[1480px] flex-wrap items-center justify-between gap-4">
-        <div class="flex min-w-0 flex-1 items-center gap-3">
-          <UButton
-            icon="i-lucide-arrow-left"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            aria-label="Volver a productos"
-            @click="handleBack"
-          />
-          <div class="min-w-0">
-            <div
-              v-if="showWorkspace && !isCreateMode && productStatus"
-              class="product-header-meta mb-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted"
-            >
-              <StatusBadge :label="productStatus.label" :tone="productStatus.tone" />
-              <span v-if="product?.updatedAt">Actualizado {{ formatShortDateTime(product.updatedAt) }}</span>
+  <DetailPageFrame class="hf-theme hf-ui product-workspace">
+    <template #header>
+      <div class="product-workspace-header border-b border-default px-4 py-4 sm:px-6 lg:px-10">
+        <div class="mx-auto flex w-full max-w-[1480px] flex-wrap items-center justify-between gap-4">
+          <div class="flex min-w-0 flex-1 items-center gap-3">
+            <UButton
+              icon="i-lucide-arrow-left"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              aria-label="Volver a productos"
+              @click="handleBack"
+            />
+            <div class="min-w-0">
+              <div
+                v-if="showWorkspace && !isCreateMode && productStatus"
+                class="product-header-meta mb-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted"
+              >
+                <StatusBadge :label="productStatus.label" :tone="productStatus.tone" />
+                <span v-if="product?.updatedAt">Actualizado {{ formatShortDateTime(product.updatedAt) }}</span>
+              </div>
+              <h1 class="hf-page-title line-clamp-2 break-words">
+                {{ isCreateMode ? createModeTitle : showWorkspace ? formState.name || 'Producto' : 'Producto' }}
+              </h1>
             </div>
-            <h1 class="hf-page-title line-clamp-2 break-words">
-              {{ isCreateMode ? createModeTitle : showWorkspace ? formState.name || 'Producto' : 'Producto' }}
-            </h1>
+          </div>
+
+          <div v-if="showHeaderSave" class="max-md:hidden">
+            <UButton
+              :label="isCreateMode ? createModeSubmitLabel : 'Guardar cambios'"
+              type="submit"
+              form="product-detail-form"
+              :loading="updateMutation.isPending.value || createMutation.isPending.value"
+              :disabled="headerSaveDisabled"
+              color="primary"
+              class="hf-primary-control"
+            />
           </div>
         </div>
-
-        <div v-if="showHeaderSave" class="max-md:hidden">
-          <UButton
-            :label="isCreateMode ? createModeSubmitLabel : 'Guardar cambios'"
-            type="submit"
-            form="product-detail-form"
-            :loading="updateMutation.isPending.value || createMutation.isPending.value"
-            :disabled="headerSaveDisabled"
-            color="primary"
-            class="hf-primary-control"
-          />
-        </div>
       </div>
-    </div>
+    </template>
 
     <!-- On Contenido and Identidad the save bar is the last thing in the scroll, flush to its bottom edge: no padding under it. -->
     <div
-      class="mx-auto flex w-full min-w-0 max-w-[1480px] flex-1 flex-col gap-6 overflow-y-auto px-4 pt-6 sm:px-6 lg:px-10"
+      class="mx-auto flex min-h-full w-full min-w-0 max-w-[1480px] flex-col gap-6 px-4 pt-6 sm:px-6 lg:px-10"
       :class="isEditorialTask || showIdentitySaveBar ? 'pb-0' : 'pb-6'"
     >
       <EmptyState
@@ -2767,22 +2770,6 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
       </div>
     </div>
 
-    <!-- Mobile: the single primary lives in the sticky bottom bar. -->
-    <div
-      v-if="showHeaderSave"
-      class="product-action-bar shrink-0 md:hidden"
-      data-testid="mobile-action-bar"
-    >
-      <button
-        type="submit"
-        form="product-detail-form"
-        class="product-bar-primary"
-        :disabled="headerSaveDisabled || isSaving"
-      >
-        {{ isCreateMode ? createModeSubmitLabel : 'Guardar cambios' }}
-      </button>
-    </div>
-
     <UModal
       v-model:open="isTierPricesModalOpen"
       title="Precios por cantidad"
@@ -3275,7 +3262,25 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
         </div>
       </template>
     </UModal>
-  </div>
+
+    <!-- Mobile: the single primary lives in the bottom bar. -->
+    <template #footer>
+      <div
+        v-if="showHeaderSave"
+        class="product-action-bar md:hidden"
+        data-testid="mobile-action-bar"
+      >
+        <button
+          type="submit"
+          form="product-detail-form"
+          class="product-bar-primary"
+          :disabled="headerSaveDisabled || isSaving"
+        >
+          {{ isCreateMode ? createModeSubmitLabel : 'Guardar cambios' }}
+        </button>
+      </div>
+    </template>
+  </DetailPageFrame>
 </template>
 
 <style scoped>
@@ -3310,7 +3315,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
   /* The summary leads on mobile, collapsed behind its toggle. */
   .product-workspace-grid > :last-child { order: -1; }
 }
-/* Identidad: section cards 16px apart, then its save bar flush to the scroller's bottom edge (as on Contenido). */
+/* Identidad: section cards 16px apart, then its save bar flush to the scroll area's bottom edge (as on Contenido). */
 .product-identity { display: grid; gap: 16px; min-width: 0; }
 .product-identity-save { position: sticky; bottom: 0; z-index: 5; margin-inline: -16px; }
 .product-identity-save :deep(.hf-save-bar) { position: static; padding-bottom: max(12px, env(safe-area-inset-bottom)); }

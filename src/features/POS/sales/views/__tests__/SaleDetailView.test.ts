@@ -233,7 +233,7 @@ describe('SaleDetailView', () => {
     })
   }
 
-  // sale-detail-redesign: layout is a sticky header above a flat two-column
+  // sale-detail-redesign: layout is a pinned header above a flat two-column
   // grid (1fr / 360px). Left column stacks PRODUCTOS (items) + DATOS
   // (sidebar-data-reflow + 5 reflow cards) + HISTORIAL (timeline + composer);
   // right column stacks TOTALES + PAGOS REGISTRADOS. All four body stubs
@@ -263,19 +263,28 @@ describe('SaleDetailView', () => {
     expect(wrapper.find('[data-testid="totals"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="timeline"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="comment-input"]').exists()).toBe(true)
-    // Sticky workbench header is present.
+    // Pinned workbench header is present.
     expect(wrapper.find('[data-testid="sale-detail-header"]').exists()).toBe(true)
     // Sidebar testid is gone with the deleted sidebar component.
     expect(wrapper.find('[data-testid="sidebar"]').exists()).toBe(false)
 
-    // The sticky header paints on the surface role (translucency kept for the
+    // The header paints on the surface role (translucency kept for the
     // blur) through the owned class, not through legacy palette utilities.
     const header = wrapper.get('[data-testid="sale-detail-header"]')
     expect(header.classes()).toEqual(
-      expect.arrayContaining(['sales-detail-sticky-header', 'sticky', 'backdrop-blur-sm']),
+      expect.arrayContaining(['sales-detail-sticky-header', 'backdrop-blur-sm']),
     )
     expect(header.classes().join(' ')).not.toContain('coco-')
     expect(header.classes()).not.toContain('bg-white/90')
+
+    // detail-page-frame S1/S3: the shared frame pins the header (never sticky,
+    // which left a blank strip above it) over the full-width scroll area.
+    expect(wrapper.get('[data-slot="header"] [data-testid="sale-detail-header"]')).toBeTruthy()
+    const scroll = wrapper.get('[data-slot="scroll"]')
+    expect(scroll.attributes('data-testid')).toBe('sale-detail-layout')
+    expect(scroll.find('[data-testid="sale-detail-layout-body"]').exists()).toBe(true)
+    expect(header.classes().some((name) => name.includes('sticky') && name !== 'sales-detail-sticky-header')).toBe(false)
+    expect(header.classes()).not.toContain('top-0')
 
     // The folio is the 600-weight detail title, never bold.
     expect(wrapper.get('[data-testid="header-folio"]').classes()).toContain('sale-detail-title')

@@ -26,6 +26,7 @@ import SaleDetailRefundsCard from '../components/SaleDetailRefundsCard.vue'
 import SettleRefundSlideover from '@/features/POS/refunds/components/SettleRefundSlideover.vue'
 import type { PendingRefundListRow } from '@/features/POS/refunds/composables/usePendingRefundsList'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import DetailPageFrame from '@/core/shared/components/DetailPageFrame.vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
@@ -337,348 +338,338 @@ watch(
 </script>
 
 <template>
-  <div
+  <DetailPageFrame
     v-if="canReadSales"
-    class="sales-detail-visual hf-theme hf-ui -m-4 flex h-[calc(100%+2rem)] flex-col sm:-m-6 sm:h-[calc(100%+3rem)]"
+    class="sales-detail-visual hf-theme hf-ui"
+    scroll-testid="sale-detail-layout"
   >
-    <!-- Fixed compact header — identity + actions persist on scroll.
-         The root consumes the dashboard panel body's padding (-m-4 sm:-m-6)
-         so this header spans the full panel width at the very top. The body
-         content scrolls BELOW it in its own flex-1 overflow-y-auto
-         container, so nothing ever passes behind the header (no
-         backdrop-blur bleed-through possible). shrink-0 keeps it pinned;
-         sticky top-0 z-50 retained for HST-REQ-002 semantics. -->
-    <header
-      v-if="!isLoading && sale"
-      class="sales-detail-sticky-header sticky top-0 z-50 w-full shrink-0 border-b backdrop-blur-sm"
-      data-testid="sale-detail-header"
-    >
-      <div class="mx-auto w-full max-w-7xl">
-        <div class="flex items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <!-- Identity: back + folio + status badges + date -->
-          <div class="flex min-w-0 items-start gap-3 sm:items-center">
-            <UButton
-              icon="i-lucide-arrow-left"
-              variant="ghost"
-              color="neutral"
-              size="sm"
-              aria-label="Volver"
-              @click="goBack"
-            />
-            <div class="min-w-0">
-              <div class="flex flex-wrap items-center gap-2">
-                <span class="sale-detail-title" data-testid="header-folio">
-                  Venta {{ extractFolioNumber(sale.folio) }}
-                </span>
-                <!-- A cancellation is neutral (design-system.md, Status badge). -->
-                <StatusBadge
-                  v-if="isCanceled"
-                  label="Cancelada"
-                  tone="neutral"
-                  aria-prefix="Venta:"
-                  data-testid="badge"
-                />
-                <StatusBadge
-                  v-if="!isCanceled"
-                  v-bind="deliveryBadge"
-                  aria-prefix="Productos:"
-                  data-testid="badge"
-                />
-                <StatusBadge
-                  v-if="paymentBadge && !isCanceled"
-                  v-bind="paymentBadge"
-                  aria-prefix="Pago:"
-                  data-testid="badge"
-                />
+    <template #header>
+      <!-- Compact header — identity + actions stay pinned above the scroll area. -->
+      <header
+        v-if="!isLoading && sale"
+        class="sales-detail-sticky-header w-full border-b backdrop-blur-sm"
+        data-testid="sale-detail-header"
+      >
+        <div class="mx-auto w-full max-w-7xl">
+          <div class="flex items-center justify-between gap-4 px-4 py-3 sm:px-6">
+            <!-- Identity: back + folio + status badges + date -->
+            <div class="flex min-w-0 items-start gap-3 sm:items-center">
+              <UButton
+                icon="i-lucide-arrow-left"
+                variant="ghost"
+                color="neutral"
+                size="sm"
+                aria-label="Volver"
+                @click="goBack"
+              />
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="sale-detail-title" data-testid="header-folio">
+                    Venta {{ extractFolioNumber(sale.folio) }}
+                  </span>
+                  <!-- A cancellation is neutral (design-system.md, Status badge). -->
+                  <StatusBadge
+                    v-if="isCanceled"
+                    label="Cancelada"
+                    tone="neutral"
+                    aria-prefix="Venta:"
+                    data-testid="badge"
+                  />
+                  <StatusBadge
+                    v-if="!isCanceled"
+                    v-bind="deliveryBadge"
+                    aria-prefix="Productos:"
+                    data-testid="badge"
+                  />
+                  <StatusBadge
+                    v-if="paymentBadge && !isCanceled"
+                    v-bind="paymentBadge"
+                    aria-prefix="Pago:"
+                    data-testid="badge"
+                  />
+                </div>
+                <p class="sale-detail-meta" data-testid="header-date">
+                  {{ formatSaleDate(sale.confirmedAt) }}
+                </p>
               </div>
-              <p class="sale-detail-meta" data-testid="header-date">
-                {{ formatSaleDate(sale.confirmedAt) }}
-              </p>
-            </div>
-          </div>
-
-          <!-- Actions: total, the one primary, and the ⋮ menu for the rest -->
-          <div class="flex shrink-0 items-center gap-3">
-            <div class="hidden text-right sm:block">
-              <p class="text-xs text-(--hf-muted)">Total</p>
-              <p class="hf-figure text-xl font-semibold text-(--hf-heading)">{{ formatCentsMXN(sale.totalCents) }}</p>
             </div>
 
-            <UButton
-              v-if="canRegisterPayment && !mobile"
-              icon="i-lucide-credit-card"
-              size="sm"
-              data-testid="register-payment-header"
-              class="hf-primary-control sales-detail-primary-action"
-              :disabled="isSubmitting"
-              @click="debtModalOpen = true"
-            >
-              Registrar pago
-            </UButton>
+            <!-- Actions: total, the one primary, and the ⋮ menu for the rest -->
+            <div class="flex shrink-0 items-center gap-3">
+              <div class="hidden text-right sm:block">
+                <p class="text-xs text-(--hf-muted)">Total</p>
+                <p class="hf-figure text-xl font-semibold text-(--hf-heading)">{{ formatCentsMXN(sale.totalCents) }}</p>
+              </div>
 
-            <UTooltip
-              v-if="hasAnyAction && triggerTooltipText"
-              :text="triggerTooltipText"
-              :ui="{ content: 'hf-theme hf-ui sales-detail-portal' }"
-            >
+              <UButton
+                v-if="canRegisterPayment && !mobile"
+                icon="i-lucide-credit-card"
+                size="sm"
+                data-testid="register-payment-header"
+                class="hf-primary-control sales-detail-primary-action"
+                :disabled="isSubmitting"
+                @click="debtModalOpen = true"
+              >
+                Registrar pago
+              </UButton>
+
+              <UTooltip
+                v-if="hasAnyAction && triggerTooltipText"
+                :text="triggerTooltipText"
+                :ui="{ content: 'hf-theme hf-ui sales-detail-portal' }"
+              >
+                <RowActionsMenu
+                  :actions="actionItems"
+                  aria-label="Más acciones de la venta"
+                  row-label="la venta"
+                  portal-class="sales-detail-portal"
+                  @select="onSaleAction"
+                />
+              </UTooltip>
               <RowActionsMenu
+                v-else-if="hasAnyAction"
                 :actions="actionItems"
                 aria-label="Más acciones de la venta"
                 row-label="la venta"
                 portal-class="sales-detail-portal"
                 @select="onSaleAction"
               />
-            </UTooltip>
-            <RowActionsMenu
-              v-else-if="hasAnyAction"
-              :actions="actionItems"
-              aria-label="Más acciones de la venta"
-              row-label="la venta"
-              portal-class="sales-detail-portal"
-              @select="onSaleAction"
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Loading: a header bar shaped like the real one, so the page does not
+           jump when the sale arrives (also on mobile, where the header is the
+           only identity the page has). -->
+      <div
+        v-else-if="showSkeleton"
+        class="sales-detail-sticky-header w-full border-b"
+        data-testid="sale-detail-header-skeleton"
+        aria-hidden="true"
+      >
+        <div class="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+          <div class="flex min-w-0 items-center gap-3">
+            <USkeleton class="size-8 shrink-0 rounded-md" />
+            <div class="space-y-2">
+              <div class="flex items-center gap-2">
+                <USkeleton class="h-5 w-28" />
+                <USkeleton class="h-6 w-24 rounded-md" />
+                <USkeleton class="hidden h-6 w-16 rounded-md sm:block" />
+              </div>
+              <USkeleton class="h-3.5 w-32" />
+            </div>
+          </div>
+          <div class="flex shrink-0 items-center gap-3">
+            <USkeleton class="hidden h-9 w-20 sm:block" />
+            <USkeleton class="hidden h-9 w-28 rounded-md sm:block" />
+            <USkeleton class="size-9 rounded-md" />
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Error state: the request failed and there is nothing to show. -->
+    <div
+      v-if="isError && !sale"
+      class="mx-auto w-full max-w-3xl px-6 pb-6 pt-16"
+      data-testid="sale-detail-error"
+    >
+      <EmptyState
+        kind="error"
+        title="No se pudo cargar la venta"
+        description="Inténtalo de nuevo en un momento."
+        action-label="Reintentar"
+        action-test-id="sale-detail-retry"
+        @action="refetch()"
+      />
+    </div>
+
+    <!-- Not found: the record does not exist. An empty state with one way
+         back, never an error and never a redirect. -->
+    <div
+      v-else-if="isNotFound && !sale"
+      class="mx-auto w-full max-w-3xl px-6 pb-6 pt-16"
+      data-testid="sale-detail-not-found"
+    >
+      <EmptyState
+        kind="empty"
+        title="No encontramos la venta"
+        description="Puede que se haya eliminado o que el enlace no sea correcto."
+        action-label="Volver a ventas"
+        action-icon="i-lucide-arrow-left"
+        action-test-id="sale-detail-back"
+        @action="goBack"
+      />
+    </div>
+
+    <!-- Loading skeleton: the two columns as titled cards with rows -->
+    <div
+      v-else-if="!sale"
+      data-testid="sale-detail-skeleton"
+      aria-busy="true"
+      class="mx-auto w-full max-w-7xl px-4 pb-6 pt-6 sm:px-6 sm:pt-16"
+    >
+      <div class="grid gap-6 lg:grid-cols-[1fr_360px]">
+        <div class="contents lg:block lg:space-y-6">
+          <div
+            v-for="card in SKELETON_MAIN"
+            :key="card.section"
+            data-testid="sale-detail-skeleton-card"
+            :data-section="card.section"
+            :class="card.order"
+            class="sale-detail-skeleton-card space-y-4 rounded-lg border p-4 lg:order-none"
+          >
+            <USkeleton class="h-5 w-36" />
+            <USkeleton v-for="row in card.rows" :key="row" class="h-4 w-full" />
+          </div>
+        </div>
+        <div class="contents lg:block lg:space-y-6">
+          <div
+            v-for="card in SKELETON_SIDE"
+            :key="card.section"
+            data-testid="sale-detail-skeleton-card"
+            :data-section="card.section"
+            :class="card.order"
+            class="sale-detail-skeleton-card space-y-4 rounded-lg border p-4 lg:order-none"
+          >
+            <USkeleton class="h-5 w-28" />
+            <USkeleton v-for="row in card.rows" :key="row" class="h-4 w-full" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Flat two-column body — replaces the previous UTabs workbench. -->
+    <div v-else class="mx-auto w-full max-w-7xl px-4 pb-6 pt-6 sm:px-6 sm:pt-16">
+      <div
+        class="grid gap-6 lg:grid-cols-[1fr_360px]"
+        data-testid="sale-detail-layout-body"
+      >
+        <!-- Below lg the two columns dissolve (`contents`) and each section
+             takes its `order-N`: Productos, Totales, Pagos, Datos, Historial.
+             From lg the columns are back and the order is neutral. -->
+        <div class="contents lg:block lg:space-y-6" data-testid="sale-detail-column-main">
+          <div
+            v-if="isCanceled"
+            :class="sectionOrder.cancellation"
+            class="lg:order-none"
+            data-testid="sale-detail-section-cancellation"
+          >
+            <SaleDetailCancellationCard :sale="sale" />
+          </div>
+          <div :class="sectionOrder.items" class="lg:order-none" data-testid="sale-detail-section-items">
+            <SaleDetailItemsList
+              :items="sale.items"
+              portal-class="hf-theme hf-ui sales-detail-portal"
+            />
+          </div>
+          <div :class="sectionOrder.data" class="lg:order-none" data-testid="sale-detail-section-data">
+            <SaleDetailSalesDataCard
+              :sale="sale"
+              :locked="isCanceled"
+              @assign-seller="sellerSlideoverOpen = true"
+            />
+          </div>
+          <div :class="sectionOrder.history" class="lg:order-none" data-testid="sale-detail-section-history">
+            <SaleDetailHistoryCard
+              :timeline="sale.timeline"
+              :current-user-id="authStore.user?.id ?? null"
+              :comments-pending="commentsPending"
+              :on-update-comment="updateComment"
+              :on-delete-comment="deleteComment"
+              :on-submit-comment="addComment"
+              portal-class="hf-theme hf-ui hf-form-overlay sales-detail-portal"
+            />
+          </div>
+        </div>
+        <div class="contents lg:block lg:space-y-6" data-testid="sale-detail-column-side">
+          <div
+            v-if="isCanceled"
+            :class="sectionOrder.refunds"
+            class="lg:order-none"
+            data-testid="sale-detail-section-refunds"
+          >
+            <SaleDetailRefundsCard
+              :refunds="sale.refunds ?? []"
+              :can-settle="canSettleRefunds"
+              @settle="openSettle"
+            />
+          </div>
+          <div :class="sectionOrder.totals" class="lg:order-none" data-testid="sale-detail-section-totals">
+            <SaleDetailTotalsCard
+              :subtotal-cents="sale.subtotalCents"
+              :discount-cents="sale.discountCents"
+              :total-cents="sale.totalCents"
+              :paid-cents="sale.paidCents"
+              :debt-cents="sale.debtCents"
+              :change-due-cents="sale.changeDueCents"
+            />
+          </div>
+          <div :class="sectionOrder.payments" class="lg:order-none" data-testid="sale-detail-section-payments">
+            <PaymentsListSection
+              :payments="sale.payments"
+              :loading="referencePending"
+              :readonly="isCanceled"
+              data-testid="sale-detail-payments-list"
+              portal-class="hf-theme hf-ui hf-form-overlay sales-detail-portal"
+              @submit="handleReferenceSubmit"
             />
           </div>
         </div>
       </div>
-    </header>
 
-    <!-- Loading: a header bar shaped like the real one, so the page does not
-         jump when the sale arrives (also on mobile, where the header is the
-         only identity the page has). -->
-    <div
-      v-else-if="showSkeleton"
-      class="sales-detail-sticky-header w-full shrink-0 border-b"
-      data-testid="sale-detail-header-skeleton"
-      aria-hidden="true"
-    >
-      <div class="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <div class="flex min-w-0 items-center gap-3">
-          <USkeleton class="size-8 shrink-0 rounded-md" />
-          <div class="space-y-2">
-            <div class="flex items-center gap-2">
-              <USkeleton class="h-5 w-28" />
-              <USkeleton class="h-6 w-24 rounded-md" />
-              <USkeleton class="hidden h-6 w-16 rounded-md sm:block" />
-            </div>
-            <USkeleton class="h-3.5 w-32" />
-          </div>
-        </div>
-        <div class="flex shrink-0 items-center gap-3">
-          <USkeleton class="hidden h-9 w-20 sm:block" />
-          <USkeleton class="hidden h-9 w-28 rounded-md sm:block" />
-          <USkeleton class="size-9 rounded-md" />
-        </div>
-      </div>
+      <DebtPaymentModal
+        v-model:open="debtModalOpen"
+        :sale-id="sale.id"
+        :debt-cents="sale.debtCents"
+        portal-class="hf-theme hf-ui hf-form-overlay sales-detail-portal"
+        @success="debtModalOpen = false"
+      />
+      <AssignSellerSlideover
+        v-model:open="sellerSlideoverOpen"
+        :sale-id="sale.id"
+        portal-class="hf-theme hf-ui hf-form-overlay sales-detail-portal"
+      />
+      <ConfirmModal
+        :open="cancelModalOpen"
+        title="Cancelar venta"
+        :description="cancellationDescription"
+        confirm-label="Cancelar venta"
+        confirm-color="error"
+        :loading="cancellationPending"
+        :ui="{ content: 'hf-theme hf-ui hf-form-overlay sales-detail-portal' }"
+        @update:open="cancelModalOpen = $event"
+        @confirm="handleConfirmCancellation"
+      />
+      <!-- Mounted on the first «Liquidar», so reading a sale never loads cash sessions. -->
+      <SettleRefundSlideover
+        v-if="isCanceled && canSettleRefunds && settleRefundId"
+        v-model:open="settleOpen"
+        :refund="settleRow"
+      />
     </div>
 
-    <!-- Full-width scroll container — the scrollbar sits at the edge of the
-         panel body (full width, unlike the old promotions workaround that
-         constrained scroll to max-w-6xl); the content is centered below.
-         overflow-x-hidden: the negative-margin root (-m-4 sm:-m-6) extends
-         into the panel body's padding for the full-bleed header; without
-         clipping here the body's computed overflow-x:auto would expose a
-         horizontal scrollbar that slides the whole detail screen left. -->
-    <div class="flex-1 overflow-y-auto overflow-x-hidden" data-testid="sale-detail-layout">
-      <!-- Error state: the request failed and there is nothing to show. -->
+    <!-- Mobile: the one primary lives in the bottom bar. -->
+    <template #footer>
       <div
-        v-if="isError && !sale"
-        class="mx-auto w-full max-w-3xl px-6 pb-6 pt-16"
-        data-testid="sale-detail-error"
+        v-if="showMobileBar"
+        class="sale-detail-mobile-bar"
+        data-testid="sale-detail-mobile-bar"
       >
-        <EmptyState
-          kind="error"
-          title="No se pudo cargar la venta"
-          description="Inténtalo de nuevo en un momento."
-          action-label="Reintentar"
-          action-test-id="sale-detail-retry"
-          @action="refetch()"
-        />
-      </div>
-
-      <!-- Not found: the record does not exist. An empty state with one way
-           back, never an error and never a redirect. -->
-      <div
-        v-else-if="isNotFound && !sale"
-        class="mx-auto w-full max-w-3xl px-6 pb-6 pt-16"
-        data-testid="sale-detail-not-found"
-      >
-        <EmptyState
-          kind="empty"
-          title="No encontramos la venta"
-          description="Puede que se haya eliminado o que el enlace no sea correcto."
-          action-label="Volver a ventas"
-          action-icon="i-lucide-arrow-left"
-          action-test-id="sale-detail-back"
-          @action="goBack"
-        />
-      </div>
-
-      <!-- Loading skeleton: the two columns as titled cards with rows -->
-      <div
-        v-else-if="!sale"
-        data-testid="sale-detail-skeleton"
-        aria-busy="true"
-        class="mx-auto w-full max-w-7xl px-4 pb-6 pt-6 sm:px-6 sm:pt-16"
-      >
-        <div class="grid gap-6 lg:grid-cols-[1fr_360px]">
-          <div class="contents lg:block lg:space-y-6">
-            <div
-              v-for="card in SKELETON_MAIN"
-              :key="card.section"
-              data-testid="sale-detail-skeleton-card"
-              :data-section="card.section"
-              :class="card.order"
-              class="sale-detail-skeleton-card space-y-4 rounded-lg border p-4 lg:order-none"
-            >
-              <USkeleton class="h-5 w-36" />
-              <USkeleton v-for="row in card.rows" :key="row" class="h-4 w-full" />
-            </div>
-          </div>
-          <div class="contents lg:block lg:space-y-6">
-            <div
-              v-for="card in SKELETON_SIDE"
-              :key="card.section"
-              data-testid="sale-detail-skeleton-card"
-              :data-section="card.section"
-              :class="card.order"
-              class="sale-detail-skeleton-card space-y-4 rounded-lg border p-4 lg:order-none"
-            >
-              <USkeleton class="h-5 w-28" />
-              <USkeleton v-for="row in card.rows" :key="row" class="h-4 w-full" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Flat two-column body — replaces the previous UTabs workbench. -->
-      <div v-else class="mx-auto w-full max-w-7xl px-4 pb-6 pt-6 sm:px-6 sm:pt-16">
-        <div
-          class="grid gap-6 lg:grid-cols-[1fr_360px]"
-          data-testid="sale-detail-layout-body"
+        <UButton
+          block
+          icon="i-lucide-credit-card"
+          data-testid="register-payment-mobile"
+          class="hf-primary-control sales-detail-primary-action"
+          :disabled="isSubmitting"
+          @click="debtModalOpen = true"
         >
-          <!-- Below lg the two columns dissolve (`contents`) and each section
-               takes its `order-N`: Productos, Totales, Pagos, Datos, Historial.
-               From lg the columns are back and the order is neutral. -->
-          <div class="contents lg:block lg:space-y-6" data-testid="sale-detail-column-main">
-            <div
-              v-if="isCanceled"
-              :class="sectionOrder.cancellation"
-              class="lg:order-none"
-              data-testid="sale-detail-section-cancellation"
-            >
-              <SaleDetailCancellationCard :sale="sale" />
-            </div>
-            <div :class="sectionOrder.items" class="lg:order-none" data-testid="sale-detail-section-items">
-              <SaleDetailItemsList
-                :items="sale.items"
-                portal-class="hf-theme hf-ui sales-detail-portal"
-              />
-            </div>
-            <div :class="sectionOrder.data" class="lg:order-none" data-testid="sale-detail-section-data">
-              <SaleDetailSalesDataCard
-                :sale="sale"
-                :locked="isCanceled"
-                @assign-seller="sellerSlideoverOpen = true"
-              />
-            </div>
-            <div :class="sectionOrder.history" class="lg:order-none" data-testid="sale-detail-section-history">
-              <SaleDetailHistoryCard
-                :timeline="sale.timeline"
-                :current-user-id="authStore.user?.id ?? null"
-                :comments-pending="commentsPending"
-                :on-update-comment="updateComment"
-                :on-delete-comment="deleteComment"
-                :on-submit-comment="addComment"
-                portal-class="hf-theme hf-ui hf-form-overlay sales-detail-portal"
-              />
-            </div>
-          </div>
-          <div class="contents lg:block lg:space-y-6" data-testid="sale-detail-column-side">
-            <div
-              v-if="isCanceled"
-              :class="sectionOrder.refunds"
-              class="lg:order-none"
-              data-testid="sale-detail-section-refunds"
-            >
-              <SaleDetailRefundsCard
-                :refunds="sale.refunds ?? []"
-                :can-settle="canSettleRefunds"
-                @settle="openSettle"
-              />
-            </div>
-            <div :class="sectionOrder.totals" class="lg:order-none" data-testid="sale-detail-section-totals">
-              <SaleDetailTotalsCard
-                :subtotal-cents="sale.subtotalCents"
-                :discount-cents="sale.discountCents"
-                :total-cents="sale.totalCents"
-                :paid-cents="sale.paidCents"
-                :debt-cents="sale.debtCents"
-                :change-due-cents="sale.changeDueCents"
-              />
-            </div>
-            <div :class="sectionOrder.payments" class="lg:order-none" data-testid="sale-detail-section-payments">
-              <PaymentsListSection
-                :payments="sale.payments"
-                :loading="referencePending"
-                :readonly="isCanceled"
-                data-testid="sale-detail-payments-list"
-                portal-class="hf-theme hf-ui hf-form-overlay sales-detail-portal"
-                @submit="handleReferenceSubmit"
-              />
-            </div>
-          </div>
-        </div>
-
-        <DebtPaymentModal
-          v-model:open="debtModalOpen"
-          :sale-id="sale.id"
-          :debt-cents="sale.debtCents"
-          portal-class="hf-theme hf-ui hf-form-overlay sales-detail-portal"
-          @success="debtModalOpen = false"
-        />
-        <AssignSellerSlideover
-          v-model:open="sellerSlideoverOpen"
-          :sale-id="sale.id"
-          portal-class="hf-theme hf-ui hf-form-overlay sales-detail-portal"
-        />
-        <ConfirmModal
-          :open="cancelModalOpen"
-          title="Cancelar venta"
-          :description="cancellationDescription"
-          confirm-label="Cancelar venta"
-          confirm-color="error"
-          :loading="cancellationPending"
-          :ui="{ content: 'hf-theme hf-ui hf-form-overlay sales-detail-portal' }"
-          @update:open="cancelModalOpen = $event"
-          @confirm="handleConfirmCancellation"
-        />
-        <!-- Mounted on the first «Liquidar», so reading a sale never loads cash sessions. -->
-        <SettleRefundSlideover
-          v-if="isCanceled && canSettleRefunds && settleRefundId"
-          v-model:open="settleOpen"
-          :refund="settleRow"
-        />
+          Registrar pago
+        </UButton>
       </div>
-    </div>
-
-    <!-- Mobile: the one primary lives in the sticky bottom bar. -->
-    <div
-      v-if="showMobileBar"
-      class="sale-detail-mobile-bar"
-      data-testid="sale-detail-mobile-bar"
-    >
-      <UButton
-        block
-        icon="i-lucide-credit-card"
-        data-testid="register-payment-mobile"
-        class="hf-primary-control sales-detail-primary-action"
-        :disabled="isSubmitting"
-        @click="debtModalOpen = true"
-      >
-        Registrar pago
-      </UButton>
-    </div>
-  </div>
+    </template>
+  </DetailPageFrame>
 
   <EmptyState
     v-else

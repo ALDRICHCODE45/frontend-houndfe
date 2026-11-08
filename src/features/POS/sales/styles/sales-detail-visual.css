@@ -4,7 +4,7 @@
  * Sales detail visual adapter (T4 / S3 + S4).
  *
  * The persistent-header sale detail is a specialized workspace, not a table:
- * its sticky identity bar, PRODUCTOS/DATOS/HISTORIAL column and
+ * its pinned identity bar, PRODUCTOS/DATOS/HISTORIAL column and
  * TOTALES/PAGOS column keep their existing composition, density and
  * interactions. This file only re-points the legacy presentation vocabulary at
  * the shared `--hf-*` foundation so light/dark fidelity comes from
@@ -52,10 +52,10 @@
   background-color: var(--hf-surface);
 }
 
-/* ── Sticky identity bar ─────────────────────────────────────────────────── */
+/* ── Identity bar ────────────────────────────────────────────────────────── */
 
-/* The persistent header follows the surface role (with the translucency the
- * sticky blur relies on) and the shared border role. `--hf-*` resolves per
+/* The pinned header follows the surface role (with the translucency the
+ * blur relies on) and the shared border role. `--hf-*` resolves per
  * theme, so one rule covers both modes. */
 .sales-detail-visual .sales-detail-sticky-header {
   background-color: color-mix(in srgb, var(--hf-surface) 92%, transparent);
