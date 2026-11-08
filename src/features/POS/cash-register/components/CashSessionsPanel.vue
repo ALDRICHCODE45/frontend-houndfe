@@ -55,8 +55,8 @@ const emit = defineEmits<{
 }>()
 
 const right = { class: { th: 'text-right', td: 'text-right' } }
-// Totals row (premium tables S5): the count of sessions and the opening funds (openingCents),
-// formatted like the cells.
+// Totals row (premium tables S5): the count of sessions only. Opening funds are not added up:
+// each session reuses the same drawer money, so a sum would double count it.
 const columns: TableColumn<CashSession, unknown>[] = [
   {
     id: 'register',
@@ -69,7 +69,7 @@ const columns: TableColumn<CashSession, unknown>[] = [
     id: 'opening',
     header: 'Fondo inicial',
     enableSorting: false,
-    meta: { ...right, total: { kind: 'sum', value: (session) => session.openingCents, format: formatCentsMXN } },
+    meta: right,
   },
   { id: 'count', header: 'Conteo', enableSorting: false },
   { id: 'drawer', header: 'Cajón', enableSorting: false },
