@@ -32,6 +32,9 @@ export interface UseServerTableReturn<T> {
 
   // Derived data
   data: ComputedRef<T[]>
+  // The current query result as the queryFn returned it, for extra fields a feature adds next to
+  // data and pagination. Follows the cache, so it never outlives the page it came with.
+  response: ComputedRef<PaginatedResponse<T> | undefined>
   totalCount: ComputedRef<number>
   pageCount: ComputedRef<number>
   isLoading: ComputedRef<boolean>
@@ -171,6 +174,7 @@ export function useServerTable<T>(config: ServerTableConfig<T>): UseServerTableR
 
   // --- Derived Data ---
   const data = computed<T[]>(() => queryData.value?.data ?? [])
+  const response = computed(() => queryData.value)
   const totalCount = computed(() => queryData.value?.pagination?.totalCount ?? 0)
   const pageCount = computed(() => queryData.value?.pagination?.pageCount ?? 0)
   const isLoading = computed(() => queryIsLoading.value && !queryData.value)
@@ -247,6 +251,7 @@ export function useServerTable<T>(config: ServerTableConfig<T>): UseServerTableR
     density,
     // Derived
     data,
+    response,
     totalCount,
     pageCount,
     isLoading,

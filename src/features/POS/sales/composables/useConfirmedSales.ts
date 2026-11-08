@@ -1,11 +1,12 @@
 import { computed, ref, type Ref } from 'vue'
 import type { AxiosError } from 'axios'
-import type { ServerTableParams, TableTotals } from '@/core/shared/types/table.types'
+import type { PaginatedResponse, ServerTableParams, TableTotals } from '@/core/shared/types/table.types'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { saleQueryKeys } from '@/core/shared/constants/query-keys'
 import { mapListingErrorToFilterField } from '@/core/shared/data-table-filters'
 import { saleApi } from '../api/sale.api'
 import type {
+  ConfirmedSaleRow,
   ListSalesParams,
   SalesListCounts,
   SalesListFilterSummary,
@@ -111,6 +112,8 @@ function resolvePaymentStatus(
 // Discriminated payload from SalesListTabs — a tab activates exactly one
 // filter dimension at a time. Adding new quick-tab dimensions means adding
 // an optional field here and a corresponding branch in `setTabFilter`.
+type SalesListPage = PaginatedResponse<ConfirmedSaleRow> & { filterSummary?: SalesListFilterSummary }
+
 type SalesListTabChange = {
   deliveryStatus?: SaleDeliveryStatus
   paymentStatus?: string
@@ -119,7 +122,6 @@ type SalesListTabChange = {
 export function useConfirmedSales(filters: Ref<Record<string, unknown>> = ref({})) {
   const authStore = useAuthStore()
   const counts = ref<SalesListCounts>(DEFAULT_COUNTS)
-  const filterSummary = ref<SalesListFilterSummary | undefined>(undefined)
   const deliveryStatusFilter = ref<SaleDeliveryStatus | undefined>(undefined)
   const paymentStatusFilter = ref<string | undefined>(undefined)
   const filterErrors = ref<Record<string, string>>({})
@@ -152,9 +154,10 @@ export function useConfirmedSales(filters: Ref<Record<string, unknown>> = ref({}
         filterErrors.value = {}
 
         counts.value = response.counts
-        filterSummary.value = response.filterSummary
 
-        return {
+        // filterSummary travels with its page in the query cache: a page served from the cache
+        // brings its own totals back, never the ones of the filter fetched last.
+        const page: SalesListPage = {
           data: response.data,
           pagination: {
             pageIndex: response.pagination.page - 1,
@@ -162,7 +165,9 @@ export function useConfirmedSales(filters: Ref<Record<string, unknown>> = ref({}
             totalCount: response.pagination.total,
             pageCount: response.pagination.totalPages,
           },
+          filterSummary: response.filterSummary,
         }
+        return page
       }
       catch (error) {
         const mapped = mapListingErrorToFilterField(toListingErrorPayload(error))
@@ -206,7 +211,7 @@ export function useConfirmedSales(filters: Ref<Record<string, unknown>> = ref({}
     counts: computed(() => counts.value),
     // Whole-filter totals for the table's totals row, keyed by the Venta, Total and Deuda columns.
     filterTotals: computed<TableTotals | undefined>(() => {
-      const summary = filterSummary.value
+      const summary = (table.response.value as SalesListPage | undefined)?.filterSummary
       return summary && { venta: summary.count, totalCents: summary.totalCents, debtCents: summary.debtCents }
     }),
     filterErrors: computed(() => filterErrors.value),

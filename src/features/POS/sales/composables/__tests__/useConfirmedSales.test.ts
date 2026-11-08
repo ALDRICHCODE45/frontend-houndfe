@@ -17,7 +17,7 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
   }),
 }))
 
-function mountComposable<T>(composable: () => T) {
+function mountComposable<T>(composable: () => T, staleTime = 0) {
   let result: T | undefined
 
   const TestComponent = defineComponent({
@@ -29,7 +29,7 @@ function mountComposable<T>(composable: () => T) {
 
   const queryClient = new QueryClient({
     defaultOptions: {
-      queries: { retry: false, gcTime: 0 },
+      queries: { retry: false, gcTime: staleTime ? 60_000 : 0, staleTime },
     },
   })
 
@@ -148,6 +148,31 @@ describe('useConfirmedSales', () => {
     await vi.waitFor(() => {
       expect(result.filterTotals.value).toEqual({ venta: 137, totalCents: 4823500, debtCents: 912300 })
     })
+  })
+
+  it('shows the totals of the current filter again when it comes back from the cache', async () => {
+    const page = (count: number, debtCents: number) => ({
+      data: [],
+      pagination: { page: 1, limit: 20, total: count, totalPages: 1 },
+      counts: { all: 68, pendingPayments: 10, notDelivered: 19 },
+      summary: { salesCount: 68, totalSoldCents: 0, outstandingDebtCents: 0 },
+      filterSummary: { count, totalCents: count * 100, debtCents },
+    })
+    vi.mocked(saleApi.listConfirmed).mockImplementation(async (params) =>
+      params?.paymentStatus ? page(10, 1108710) : page(68, 1200000),
+    )
+    // A fresh cache entry (the app sets a staleTime) is served without calling the backend again.
+    const { result } = mountComposable(() => useConfirmedSales(), 60_000)
+    await vi.waitFor(() => expect(result.filterTotals.value?.venta).toBe(68))
+
+    result.setTabFilter({ paymentStatus: 'PARTIAL,CREDIT' })
+    await vi.waitFor(() => expect(result.filterTotals.value?.venta).toBe(10))
+
+    result.setTabFilter({})
+    await vi.waitFor(() =>
+      expect(result.filterTotals.value).toEqual({ venta: 68, totalCents: 6800, debtCents: 1200000 }),
+    )
+    expect(saleApi.listConfirmed).toHaveBeenCalledTimes(2)
   })
 
   it('has no whole-filter totals when the backend sends no filterSummary', async () => {
