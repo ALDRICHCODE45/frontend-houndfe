@@ -56,6 +56,7 @@ const state = {
   columnVisibility: ref<Record<string, boolean>>({}),
   density: ref<'compact' | 'normal' | 'comfortable'>('comfortable'),
   setTabFilter: vi.fn(),
+  filterTotals: ref<Record<string, number> | undefined>(undefined),
 }
 
 vi.mock('../../composables/useConfirmedSales', () => {
@@ -84,6 +85,7 @@ vi.mock('../../composables/useConfirmedSales', () => {
       showingTo: computed(() => 20),
       counts: computed(() => ({ all: 50, pendingPayments: 3, notDelivered: 1 })),
       setTabFilter: state.setTabFilter,
+      filterTotals: computed(() => state.filterTotals.value),
       filterErrors: computed(() => ({})),
     }),
   }
@@ -121,6 +123,7 @@ const resetState = async () => {
   state.columnSizing.value = {}
   state.columnVisibility.value = { ...defaultColumnVisibility }
   state.density.value = 'comfortable'
+  state.filterTotals.value = undefined
 }
 
 beforeEach(async () => {
@@ -157,7 +160,17 @@ describe('SalesListView — saved views', () => {
     expect(panel.find('[data-testid="table-views"]').exists()).toBe(false)
   })
 
-  it('«Cobranza» moves Deuda after Cliente, pins both left, shows Vence, oldest first, pending payments', async () => {
+  it('passes the whole-filter totals to the table, and none while the backend sends none', async () => {
+    const wrapper = mountList()
+    await flushPromises()
+    expect(tableProp(wrapper, 'totals')).toBeUndefined()
+
+    state.filterTotals.value = { venta: 137, totalCents: 4823500, debtCents: 912300 }
+    await flushPromises()
+    expect(tableProp(wrapper, 'totals')).toEqual({ venta: 137, totalCents: 4823500, debtCents: 912300 })
+  })
+
+  it('«Cobranza» moves Deuda after Cliente, pins both left, shows Vence, most debt first, pending payments', async () => {
     const wrapper = mountList()
     await flushPromises()
     await tab(wrapper, 'cobranza').trigger('click')
@@ -166,7 +179,7 @@ describe('SalesListView — saved views', () => {
     expect(state.columnOrder.value.slice(0, 3)).toEqual(['venta', 'customer', 'debtCents'])
     expect(state.columnPinning.value).toEqual({ left: ['customer', 'debtCents'], right: [] })
     expect(state.columnVisibility.value.dueDate).toBe(true)
-    expect(state.sorting.value).toEqual([{ id: 'confirmedAt', desc: false }])
+    expect(state.sorting.value).toEqual([{ id: 'debtCents', desc: true }])
     expect(state.setTabFilter).toHaveBeenLastCalledWith({ paymentStatus: 'PARTIAL,CREDIT' })
     expect(tableProp(wrapper, 'columnOrder')).toEqual(state.columnOrder.value)
     expect(wrapper.find('[data-testid="table-views-unsaved"]').exists()).toBe(false)
@@ -215,7 +228,7 @@ describe('SalesListView — saved views', () => {
     await tab(wrapper, 'cobranza').trigger('click')
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="sales-sort-select"]').text()).toContain('Más antiguas')
+    expect(wrapper.get('[data-testid="sales-sort-select"]').text()).toContain('Mayor deuda primero')
   })
 
   it('reopens on the last view with its status filter', async () => {
@@ -231,7 +244,7 @@ describe('SalesListView — saved views', () => {
     await flushPromises()
     expect(tab(second, 'cobranza').attributes('aria-selected')).toBe('true')
     expect(state.setTabFilter).toHaveBeenLastCalledWith({ paymentStatus: 'PARTIAL,CREDIT' })
-    expect(state.sorting.value).toEqual([{ id: 'confirmedAt', desc: false }])
+    expect(state.sorting.value).toEqual([{ id: 'debtCents', desc: true }])
   })
 
   it('«Limpiar filtros» from a filtered view goes back to «Todas»', async () => {

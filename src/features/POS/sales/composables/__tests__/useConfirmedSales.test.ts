@@ -86,6 +86,17 @@ describe('useConfirmedSales', () => {
     })
   })
 
+  it('sends sortBy=debtCents when the list is ordered by Deuda', () => {
+    expect(
+      mapServerTableParamsToListSalesParams({
+        pageIndex: 0,
+        pageSize: 20,
+        sorting: [{ id: 'debtCents', desc: true }],
+        globalFilter: '',
+      }),
+    ).toMatchObject({ sortBy: 'debtCents', sortOrder: 'desc' })
+  })
+
   it('falls back to confirmedAt when sortBy is not backend-supported', () => {
     // The backend only accepts confirmedAt | totalCents | createdAt. A stale
     // sortable column (e.g. "venta") must never reach the network — it would
@@ -122,6 +133,28 @@ describe('useConfirmedSales', () => {
       expect(result.counts.value).toEqual({ all: 50, pendingPayments: 3, notDelivered: 1 })
       expect(result.totalCount.value).toBe(50)
     })
+  })
+
+  it('exposes the whole-filter totals keyed by the Venta, Total and Deuda columns', async () => {
+    vi.mocked(saleApi.listConfirmed).mockResolvedValue({
+      data: [],
+      pagination: { page: 1, limit: 20, total: 137, totalPages: 7 },
+      counts: { all: 137, pendingPayments: 3, notDelivered: 1 },
+      summary: { salesCount: 137, totalSoldCents: 4823500, outstandingDebtCents: 912300 },
+      filterSummary: { count: 137, totalCents: 4823500, debtCents: 912300 },
+    })
+    const { result } = mountComposable(() => useConfirmedSales())
+
+    await vi.waitFor(() => {
+      expect(result.filterTotals.value).toEqual({ venta: 137, totalCents: 4823500, debtCents: 912300 })
+    })
+  })
+
+  it('has no whole-filter totals when the backend sends no filterSummary', async () => {
+    const { result } = mountComposable(() => useConfirmedSales())
+
+    await vi.waitFor(() => expect(result.totalCount.value).toBe(50))
+    expect(result.filterTotals.value).toBeUndefined()
   })
 
   it('forwards deliveryStatus when tab filter changes', async () => {

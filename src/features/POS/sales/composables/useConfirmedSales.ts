@@ -1,11 +1,16 @@
 import { computed, ref, type Ref } from 'vue'
 import type { AxiosError } from 'axios'
-import type { ServerTableParams } from '@/core/shared/types/table.types'
+import type { ServerTableParams, TableTotals } from '@/core/shared/types/table.types'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { saleQueryKeys } from '@/core/shared/constants/query-keys'
 import { mapListingErrorToFilterField } from '@/core/shared/data-table-filters'
 import { saleApi } from '../api/sale.api'
-import type { ListSalesParams, SalesListCounts, SaleDeliveryStatus } from '../interfaces/sale.types'
+import type {
+  ListSalesParams,
+  SalesListCounts,
+  SalesListFilterSummary,
+  SaleDeliveryStatus,
+} from '../interfaces/sale.types'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { defaultColumnVisibility } from './useSalesColumns'
 import { formatFolioForBackend } from '../utils/folio'
@@ -18,7 +23,7 @@ const DEFAULT_COUNTS: SalesListCounts = { all: 0, pendingPayments: 0, notDeliver
  * consumer accidentally leaves sortable in the UI — falls back to the default
  * instead of producing a 400.
  */
-const ALLOWED_SALES_SORT_BY: ReadonlySet<string> = new Set(['confirmedAt', 'totalCents', 'createdAt'])
+const ALLOWED_SALES_SORT_BY: ReadonlySet<string> = new Set(['confirmedAt', 'totalCents', 'createdAt', 'debtCents'])
 
 export function mapServerTableParamsToListSalesParams(params: ServerTableParams): ListSalesParams {
   const firstSort = params.sorting?.[0]
@@ -114,6 +119,7 @@ type SalesListTabChange = {
 export function useConfirmedSales(filters: Ref<Record<string, unknown>> = ref({})) {
   const authStore = useAuthStore()
   const counts = ref<SalesListCounts>(DEFAULT_COUNTS)
+  const filterSummary = ref<SalesListFilterSummary | undefined>(undefined)
   const deliveryStatusFilter = ref<SaleDeliveryStatus | undefined>(undefined)
   const paymentStatusFilter = ref<string | undefined>(undefined)
   const filterErrors = ref<Record<string, string>>({})
@@ -146,6 +152,7 @@ export function useConfirmedSales(filters: Ref<Record<string, unknown>> = ref({}
         filterErrors.value = {}
 
         counts.value = response.counts
+        filterSummary.value = response.filterSummary
 
         return {
           data: response.data,
@@ -197,6 +204,11 @@ export function useConfirmedSales(filters: Ref<Record<string, unknown>> = ref({}
   return {
     ...table,
     counts: computed(() => counts.value),
+    // Whole-filter totals for the table's totals row, keyed by the Venta, Total and Deuda columns.
+    filterTotals: computed<TableTotals | undefined>(() => {
+      const summary = filterSummary.value
+      return summary && { venta: summary.count, totalCents: summary.totalCents, debtCents: summary.debtCents }
+    }),
     filterErrors: computed(() => filterErrors.value),
     setTabFilter,
     setDeliveryStatusFilter,

@@ -87,13 +87,13 @@ describe('useSalesColumns', () => {
   })
 
   // The backend confirmed-sales endpoint only accepts sortBy values
-  // confirmedAt | totalCents | createdAt (see list-sales-query.dto.ts).
+  // confirmedAt | totalCents | createdAt | debtCents (see list-sales-query.dto.ts).
   // createdAt is not a visible column (the USelect shortcut offers it), so
-  // exactly the two visible backend-sortable columns declare
+  // exactly the three visible backend-sortable columns declare
   // enableSorting: true and get a live sort control; every other column is
   // explicitly false so no dead control appears on a column the backend
   // cannot order by (sorting by them returns a 400).
-  it('enables sorting on exactly the two visible backend-sortable columns', () => {
+  it('enables sorting on exactly the three visible backend-sortable columns', () => {
     const { columns } = useSalesColumns()
 
     const sortable = columns
@@ -102,6 +102,7 @@ describe('useSalesColumns', () => {
 
     expect(sortable).toEqual([
       'totalCents',
+      'debtCents',
       'confirmedAt',
     ])
   })
@@ -129,7 +130,6 @@ describe('useSalesColumns', () => {
       'paymentStatus',
       'deliveryStatus',
       'paymentMethods',
-      'debtCents',
       'dueDate',
       'cashier',
       'seller',
