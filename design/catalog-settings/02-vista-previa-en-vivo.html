@@ -1,0 +1,828 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catálogo online · configuración · 02 Con vista previa en vivo</title>
+<style>
+:root{
+  --hf-page:#f5f6f8;--hf-surface:#ffffff;--hf-surface-muted:#e7eef7;--hf-field:#ffffff;--hf-field-border:#8593a3;
+  --hf-ink:#24313d;--hf-heading:#173968;--hf-muted:#576574;--hf-border:#dce2e8;--hf-action:#2442f6;--hf-on-action:#ffffff;
+  --hf-active:#2442f6;--hf-active-soft:#edf0ff;--hf-focus:#2442f6;--hf-gold:#f6bb13;--hf-gold-soft:#fff5d6;--hf-gold-ink:#443218;
+  --hf-warning:#805511;--hf-warning-soft:#fff5d6;--hf-success:#236044;--hf-danger:#b42318;--hf-danger-soft:#fef3f2;--hf-danger-border:#f4b8b2;
+  --hf-font:'Geist',ui-sans-serif,system-ui,sans-serif;
+  --hf-radius-card:12px;--hf-radius-control:6px;--hf-control-height:44px;
+  color-scheme:light;
+}
+html.dark{
+  --hf-page:#0e1520;--hf-surface:#192332;--hf-surface-muted:#202e43;--hf-field:#121d2c;--hf-field-border:#64758d;
+  --hf-ink:#edf2fa;--hf-heading:#edf2fa;--hf-muted:#adbcd0;--hf-border:#354459;--hf-action:#91b0ff;--hf-on-action:#132344;
+  --hf-active:#b3caff;--hf-active-soft:#223555;--hf-focus:#a6c1ff;--hf-gold:#f2c456;--hf-gold-soft:#3b311d;--hf-gold-ink:#f2cb71;
+  --hf-warning:#f2cb71;--hf-warning-soft:#3b311d;--hf-success:#a2d9b9;--hf-danger:#ffb4ab;--hf-danger-soft:#3d2220;--hf-danger-border:#7a3f3b;
+  color-scheme:dark;
+}
+:root{
+  --soft-hover:color-mix(in srgb,var(--hf-surface-muted) 55%,var(--hf-surface));
+  --surface-shadow:0 1px 2px color-mix(in srgb,var(--hf-ink) 5%,transparent);
+  --float-shadow:0 12px 32px color-mix(in srgb,var(--hf-ink) 16%,transparent);
+  --success-soft:color-mix(in srgb,var(--hf-success) 12%,var(--hf-surface));
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{font-family:var(--hf-font);font-size:14px;line-height:1.45;color:var(--hf-ink);background:var(--hf-page);font-feature-settings:"cv11","ss01";-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+h1,h2,h3,p{margin:0}
+svg.i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+svg.i.filled{fill:currentColor}
+:focus-visible{outline:2px solid var(--hf-focus);outline-offset:2px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.fig{font-variant-numeric:tabular-nums}
+
+/* ---------- Artboard frame (not product UI) ---------- */
+.ab{position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:70;display:flex;align-items:center;gap:8px;padding:8px 8px 8px 12px;border:1px dashed var(--hf-gold-ink);border-radius:var(--hf-radius-card);background:var(--hf-gold-soft);color:var(--hf-gold-ink);font-size:12px}
+.ab strong{font-weight:600;margin-right:4px}
+.ab button{height:32px;padding:0 10px;border:1px solid color-mix(in srgb,var(--hf-gold-ink) 40%,transparent);border-radius:6px;background:transparent;color:var(--hf-gold-ink);font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.ab button[aria-pressed="true"]{background:var(--hf-gold-ink);color:var(--hf-gold-soft)}
+.ab button svg{width:14px;height:14px}
+.stage{min-height:100vh}
+.mcap{display:none;max-width:260px;padding-top:24px;font-size:13px;color:var(--hf-muted)}
+.mcap h2{margin:0 0 8px;font-size:16px;font-weight:600;color:var(--hf-heading)}
+.mcap p{margin:0 0 8px}
+.vp{container:vp/inline-size;min-height:100vh;background:var(--hf-page)}
+body.m-mode .stage{display:flex;justify-content:center;align-items:flex-start;gap:32px;padding:72px 24px 96px}
+body.m-mode .mcap{display:block}
+body.m-mode .vp{width:390px;flex:none;height:844px;min-height:0;overflow-y:auto;border:1px solid var(--hf-border);border-radius:28px;box-shadow:var(--float-shadow)}
+
+/* ---------- App shell ---------- */
+.app{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:100%}
+.side{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;background:var(--hf-surface);border-right:1px solid var(--hf-border);padding:16px 12px;display:flex;flex-direction:column;gap:16px}
+.logo{display:flex;align-items:center;gap:10px;min-height:40px;padding:0 8px;font-size:18px;font-weight:600;color:var(--hf-heading);letter-spacing:-0.02em}
+.logo-mark{width:28px;height:28px;border-radius:8px;background:var(--hf-gold);display:grid;place-items:center;color:var(--hf-gold-ink)}
+html.dark .logo-mark{color:var(--hf-page)}
+.nav{display:grid;gap:12px}
+.nav-group h2{margin:0 0 2px;padding:0 10px;font-size:12px;font-weight:600;color:var(--hf-muted)}
+.nav-group ul{list-style:none;margin:0;padding:0;display:grid;gap:1px}
+.nav-group a{display:flex;align-items:center;gap:10px;min-height:36px;padding:0 10px;border-radius:var(--hf-radius-control);color:var(--hf-ink);text-decoration:none;font-weight:500}
+.nav-group a:hover{background:var(--soft-hover)}
+.nav-group a svg{color:var(--hf-muted)}
+.nav-group a[aria-current="page"]{background:var(--hf-active-soft);color:var(--hf-active);font-weight:600}
+.nav-group a[aria-current="page"] svg{color:var(--hf-active)}
+
+.col{min-width:0;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:8px;height:64px;padding:0 24px 0 32px;background:var(--hf-surface);border-bottom:1px solid var(--hf-border)}
+.crumbs ol{list-style:none;margin:0;padding:0;display:flex;align-items:center;gap:6px;font-size:13px;color:var(--hf-muted)}
+.crumbs a{color:var(--hf-muted);text-decoration:none}
+.crumbs a:hover{text-decoration:underline}
+.crumbs [aria-current]{color:var(--hf-ink);font-weight:500}
+.spacer{flex:1}
+.search{position:relative;width:280px}
+.search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--hf-muted)}
+.search input{width:100%;height:var(--hf-control-height);padding:0 12px 0 38px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-field)}
+.search input::placeholder{color:var(--hf-muted)}
+.search input:hover{border-color:var(--hf-field-border)}
+.search input:focus-visible{outline:2px solid var(--hf-focus);outline-offset:0;border-color:transparent}
+.icon-btn{display:inline-grid;place-items:center;width:44px;height:44px;flex:none;border:0;border-radius:var(--hf-radius-control);background:transparent;color:var(--hf-muted)}
+.icon-btn:hover{background:var(--soft-hover);color:var(--hf-ink)}
+.icon-btn svg{width:18px;height:18px}
+.avatar{display:inline-grid;place-items:center;width:44px;height:44px;flex:none;border:0;border-radius:50%;background:transparent;padding:0}
+.avatar span{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--hf-surface-muted);color:var(--hf-heading);font-size:13px;font-weight:600}
+.only-m{display:none!important}
+
+.main{padding:24px 32px 48px;display:flex;flex-direction:column;gap:24px}
+.page-head{display:grid;gap:.35rem}
+.page-title{font-size:clamp(1.75rem,1.55rem + .6vw,2rem);font-weight:600;line-height:1.25;letter-spacing:-0.045em;color:var(--hf-heading)}
+.page-sub{font-size:.875rem;line-height:1.5;color:var(--hf-muted);max-width:62ch}
+
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 392px;gap:24px;align-items:start}
+.controls{display:flex;flex-direction:column;gap:16px;min-width:0}
+
+/* ---------- Cards ---------- */
+.card{background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);box-shadow:var(--surface-shadow)}
+.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:20px 24px 0}
+.card-head h2{font-size:16px;font-weight:600;color:var(--hf-heading);line-height:1.35}
+.card-head p{margin-top:2px;font-size:13px;color:var(--hf-muted)}
+.card-body{padding:16px 24px 24px;display:grid;gap:16px}
+.meta{font-size:12px;color:var(--hf-muted);white-space:nowrap;font-variant-numeric:tabular-nums;padding-top:3px}
+
+/* status badge */
+.badge{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap;flex:none}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.badge.no-dot::before{display:none}
+.b-neutral{background:var(--hf-surface-muted);color:var(--hf-muted)}
+.b-info{background:var(--hf-active-soft);color:var(--hf-active)}
+.b-success{background:var(--success-soft);color:var(--hf-success)}
+.b-warning{background:var(--hf-warning-soft);color:var(--hf-warning)}
+.badge svg{width:13px;height:13px}
+
+/* switch row: the whole row is the control */
+.switch-row{display:flex;align-items:center;gap:16px;width:100%;min-height:72px;padding:12px 16px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);background:var(--hf-surface);text-align:left;transition:border-color .15s,background-color .15s}
+.switch-row:hover{border-color:var(--hf-field-border);background:var(--soft-hover)}
+.switch-row[aria-checked="true"]{background:color-mix(in srgb,var(--hf-active-soft) 55%,var(--hf-surface));border-color:color-mix(in srgb,var(--hf-active) 45%,var(--hf-border))}
+.switch-row .tile{display:grid;place-items:center;width:40px;height:40px;flex:none;border-radius:10px;background:var(--hf-surface-muted);color:var(--hf-muted)}
+.switch-row[aria-checked="true"] .tile{background:var(--hf-active-soft);color:var(--hf-active)}
+.switch-row .tile svg{width:20px;height:20px}
+.switch-row .txt{flex:1;min-width:0;display:grid;gap:2px}
+.switch-row .ttl{font-weight:600;color:var(--hf-heading)}
+.switch-row .dsc{font-size:13px;color:var(--hf-muted)}
+.switch-row .state{font-size:13px;font-weight:600;color:var(--hf-muted);min-width:64px;text-align:right}
+.switch-row[aria-checked="true"] .state{color:var(--hf-active)}
+.track{position:relative;width:44px;height:26px;flex:none;border-radius:999px;border:1.5px solid var(--hf-field-border);background:var(--hf-field);transition:background-color .15s,border-color .15s}
+.track::after{content:"";position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;background:var(--hf-field-border);transition:transform .15s}
+[aria-checked="true"] .track{background:var(--hf-action);border-color:var(--hf-action)}
+[aria-checked="true"] .track::after{background:var(--hf-on-action);transform:translateX(18px)}
+
+/* issue checklist */
+.issues{display:grid;gap:8px;padding:12px 16px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);background:var(--hf-surface-muted);font-size:13px}
+.issues h3{font-size:13px;font-weight:600;color:var(--hf-ink)}
+.issues ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.issues li{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:var(--hf-warning);font-weight:600}
+.issues li svg{color:var(--hf-warning)}
+.issues .fix{min-height:32px;padding:0 10px;margin-left:auto;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-surface);color:var(--hf-ink);font-size:13px;font-weight:500}
+.issues .fix:hover{border-color:var(--hf-field-border)}
+
+/* toggle chips (multi-select, aria-pressed) */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
+.chip{display:inline-flex;align-items:center;gap:8px;min-height:var(--hf-control-height);padding:0 16px 0 12px;border:1px solid var(--hf-field-border);border-radius:9999px;background:var(--hf-surface);color:var(--hf-ink);font-weight:500;transition:background-color .15s,border-color .15s,color .15s}
+.chip:hover{background:var(--soft-hover)}
+.chip .mark{display:grid;place-items:center;width:20px;height:20px;border-radius:50%;border:1.5px solid var(--hf-field-border);color:var(--hf-muted);flex:none}
+.chip .mark svg{width:12px;height:12px;stroke-width:2.5}
+.chip[aria-pressed="true"]{background:var(--hf-active-soft);border-color:var(--hf-active);color:var(--hf-active);font-weight:600}
+.chip[aria-pressed="true"] .mark{background:var(--hf-active);border-color:var(--hf-active);color:var(--hf-active-soft)}
+.chip .star{display:inline-flex;align-items:center;gap:4px;margin-left:2px;padding-left:8px;border-left:1px solid color-mix(in srgb,var(--hf-active) 35%,transparent);font-size:12px;font-weight:600}
+.chip .star svg{width:14px;height:14px}
+
+.field-label{font-size:13px;font-weight:600;color:var(--hf-ink)}
+.hint{font-size:13px;color:var(--hf-muted)}
+.def-row{display:grid;gap:8px;padding-top:16px;border-top:1px solid var(--hf-border)}
+.def-line{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.seg{display:inline-flex;flex-wrap:wrap;align-items:center;min-height:var(--hf-control-height);padding:3px;gap:2px;border:1px solid var(--hf-field-border);border-radius:var(--hf-radius-control);background:var(--hf-field)}
+.seg button{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border:0;border-radius:4px;background:transparent;color:var(--hf-muted);font-size:13px;font-weight:500}
+.seg button:hover{color:var(--hf-ink);background:var(--soft-hover)}
+.seg button[aria-checked="true"]{background:var(--hf-active-soft);color:var(--hf-active);font-weight:600;box-shadow:inset 0 0 0 1px var(--hf-active)}
+.seg button svg{width:14px;height:14px}
+.seg button:focus-visible{outline-offset:1px}
+.empty-def{display:flex;align-items:center;gap:8px;min-height:var(--hf-control-height);padding:0 12px;border:1px dashed var(--hf-border);border-radius:var(--hf-radius-control);font-size:13px;color:var(--hf-muted)}
+.notice{display:flex;align-items:flex-start;gap:6px;font-size:12px;font-weight:600;color:var(--hf-warning)}
+.notice svg{width:14px;height:14px;margin-top:1px}
+
+/* stock option cards (radio group) */
+.opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.opt{position:relative;display:grid;grid-template-rows:auto 1fr auto;gap:8px;min-height:156px;padding:16px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);background:var(--hf-surface);text-align:left;transition:border-color .15s,background-color .15s}
+.opt:hover{border-color:var(--hf-field-border);background:var(--soft-hover)}
+.opt[aria-checked="true"]{border-color:var(--hf-active);background:var(--hf-active-soft);box-shadow:inset 0 0 0 1px var(--hf-active)}
+.opt-top{display:flex;align-items:center;gap:10px;padding-right:32px}
+.opt-ic{display:grid;place-items:center;width:32px;height:32px;flex:none;border-radius:8px;background:var(--hf-surface-muted);color:var(--hf-muted)}
+.opt[aria-checked="true"] .opt-ic{background:var(--hf-surface);color:var(--hf-active)}
+.opt-title{font-weight:600;color:var(--hf-heading)}
+.opt-desc{font-size:13px;line-height:1.45;color:var(--hf-muted)}
+.opt-prev{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.radio-dot{position:absolute;top:16px;right:16px;display:grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--hf-field-border);background:var(--hf-field);color:transparent}
+.radio-dot svg{width:13px;height:13px;stroke-width:3}
+.opt[aria-checked="true"] .radio-dot{background:var(--hf-active);border-color:var(--hf-active);color:var(--hf-active-soft)}
+.ghost-pill{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border:1px dashed var(--hf-field-border);border-radius:6px;font-size:12px;font-weight:500;color:var(--hf-muted)}
+.ghost-pill svg{width:13px;height:13px}
+
+.qty{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;align-items:center;padding:16px;border:1px solid var(--hf-active);border-radius:var(--hf-radius-card);background:color-mix(in srgb,var(--hf-active-soft) 45%,var(--hf-surface));animation:reveal .18s ease-out}
+.qty label{grid-column:1/-1;font-size:13px;font-weight:600;color:var(--hf-ink)}
+.qty input{width:140px;height:var(--hf-control-height);padding:0 12px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-field);font-variant-numeric:tabular-nums;font-weight:600}
+.qty input:hover{border-color:var(--hf-field-border)}
+.qty input:focus-visible{outline:2px solid var(--hf-focus);outline-offset:0;border-color:transparent}
+.qty input[aria-invalid="true"]{border-color:var(--hf-danger)}
+.qty .hint{max-width:46ch}
+.qty .err{grid-column:1/-1;font-size:12px;font-weight:600;color:var(--hf-danger)}
+@keyframes reveal{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.footnote{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--hf-muted)}
+.footnote svg{margin-top:2px}
+
+/* save bar */
+.savebar{position:sticky;bottom:16px;z-index:10;display:flex;align-items:center;gap:12px;padding:12px 12px 12px 20px;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);box-shadow:var(--surface-shadow)}
+.savebar.dirty{box-shadow:var(--float-shadow)}
+.save-status{flex:1;min-width:0;display:grid;gap:1px}
+.save-state{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--hf-muted)}
+.save-state svg{width:14px;height:14px}
+.save-state.is-dirty{color:var(--hf-warning)}
+.save-state.is-saved{color:var(--hf-success)}
+.save-state.is-error{color:var(--hf-danger)}
+.save-when{font-size:12px;color:var(--hf-muted);font-variant-numeric:tabular-nums}
+.save-btns{display:flex;gap:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:var(--hf-control-height);padding:0 16px;border-radius:var(--hf-radius-control);border:1px solid var(--hf-border);background:var(--hf-surface);color:var(--hf-ink);font-weight:500;white-space:nowrap}
+.btn:hover{border-color:var(--hf-field-border)}
+.btn-primary{min-width:120px;background:var(--hf-action);border-color:var(--hf-action);color:var(--hf-on-action);font-weight:600;font-size:.875rem}
+.btn-primary:hover{background:color-mix(in srgb,var(--hf-action) 88%,var(--hf-ink));border-color:transparent}
+.btn[disabled]{background:var(--hf-page);color:var(--hf-muted);border-color:var(--hf-border);cursor:not-allowed}
+html.dark .btn[disabled]{color:color-mix(in srgb,var(--hf-muted) 60%,var(--hf-page))}
+.btn[aria-busy="true"]{cursor:progress}
+.spin{animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ---------- Live preview ---------- */
+.pv{position:sticky;top:88px;display:grid;gap:12px}
+.pv-shell{overflow:hidden}
+.pv-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:16px 16px 12px 20px;border-bottom:1px solid var(--hf-border)}
+.pv-head h2{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:600;color:var(--hf-heading)}
+.pv-head h2 svg{color:var(--hf-muted)}
+.pv-toggle{display:none}
+.pv-body{position:relative;padding:16px;background:var(--hf-page)}
+.store{display:grid;gap:12px;transition:opacity .2s,filter .2s}
+.store-bar{display:flex;align-items:center;gap:8px;padding:0 2px}
+.store-name{font-size:13px;font-weight:600;color:var(--hf-heading)}
+.store-search{flex:1;display:flex;align-items:center;gap:6px;height:32px;padding:0 10px;border:1px solid var(--hf-border);border-radius:999px;background:var(--hf-surface);font-size:12px;color:var(--hf-muted)}
+.store-search svg{width:13px;height:13px}
+.lists-sw{display:grid;gap:6px}
+.lists-sw .lbl{font-size:12px;font-weight:600;color:var(--hf-muted)}
+.lists-sw .seg{justify-self:start;background:var(--hf-surface)}
+.lists-sw .seg button{min-height:32px;padding:0 10px;font-size:12px}
+.single-list{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--hf-muted)}
+.product{background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);overflow:hidden}
+.product-img{display:block;width:100%;height:auto;aspect-ratio:16/10}
+.pi-bg{fill:var(--hf-surface-muted)}
+.pi-floor{fill:color-mix(in srgb,var(--hf-heading) 8%,var(--hf-surface-muted))}
+.pi-bag{fill:var(--hf-heading)}
+.pi-fold{fill:color-mix(in srgb,var(--hf-heading) 80%,var(--hf-surface))}
+.pi-band{fill:var(--hf-gold)}
+.pi-band-txt{fill:var(--hf-gold-ink);font:600 15px var(--hf-font)}
+html.dark .pi-band-txt{fill:var(--hf-page)}
+.pi-label{fill:var(--hf-surface)}
+.pi-paw{fill:var(--hf-heading)}
+.pi-kibble{fill:color-mix(in srgb,var(--hf-gold) 55%,var(--hf-heading))}
+.product-info{display:grid;gap:6px;padding:14px 16px 16px}
+.p-meta{font-size:12px;color:var(--hf-muted)}
+.p-name{font-size:15px;font-weight:600;line-height:1.35;color:var(--hf-heading)}
+.p-row{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-top:4px;min-height:44px}
+.p-price{display:grid;gap:0}
+.p-price b{font-size:22px;font-weight:600;letter-spacing:-0.02em;color:var(--hf-ink);font-variant-numeric:tabular-nums;line-height:1.2}
+.p-price span{font-size:12px;color:var(--hf-muted)}
+.p-stock{min-height:24px;display:flex;align-items:center}
+.p-add{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;padding:0 14px;border:1px solid var(--hf-field-border);border-radius:var(--hf-radius-control);color:var(--hf-ink);font-size:13px;font-weight:600;white-space:nowrap}
+.p-add svg{width:14px;height:14px}
+.p-add.blocked{border-color:var(--hf-border);color:var(--hf-muted);background:var(--hf-page)}
+.p-blocked{font-size:12px;color:var(--hf-muted)}
+.overlay{position:absolute;inset:0;z-index:2;display:grid;place-items:center;padding:24px;background:color-mix(in srgb,var(--hf-page) 74%,transparent);backdrop-filter:blur(1.5px)}
+.overlay-box{display:grid;justify-items:center;gap:8px;max-width:280px;padding:20px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);background:var(--hf-surface);text-align:center;box-shadow:var(--float-shadow)}
+.overlay-box svg{width:24px;height:24px;color:var(--hf-muted)}
+.overlay-box h3{font-size:15px;font-weight:600;color:var(--hf-heading)}
+.overlay-box p{font-size:13px;color:var(--hf-muted)}
+.pv-body.off .store{opacity:.55;filter:grayscale(1)}
+.sim{display:grid;gap:8px;padding:12px 16px 16px;border-top:1px solid var(--hf-border)}
+.sim .lbl{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;font-weight:600;color:var(--hf-muted)}
+.sim .seg{width:100%;flex-wrap:nowrap}
+.sim .seg button{flex:1;justify-content:center;min-height:36px;padding:0 6px;font-size:12px}
+.pv-note{font-size:12px;color:var(--hf-muted);padding:0 4px}
+.pv-note b{font-weight:600;color:var(--hf-ink)}
+
+/* ---------- Narrow layouts (container = the app viewport) ---------- */
+@container vp (max-width:1180px){
+  .layout{grid-template-columns:minmax(0,1fr)}
+  .pv{position:static}
+}
+@container vp (max-width:900px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .side,.only-d{display:none!important}
+  .only-m{display:inline-grid!important}
+  .topbar{padding:0 8px;gap:4px;height:56px}
+  .crumbs li:not(:last-child){display:none}
+  .crumbs [aria-current]{font-size:15px;font-weight:600;color:var(--hf-heading)}
+}
+@container vp (max-width:760px){
+  .main{padding:16px 16px 0;gap:16px}
+  .page-title{font-size:1.75rem}
+  .card-head{padding:16px 16px 0}
+  .card-body{padding:12px 16px 16px}
+  .meta.only-wide{display:none}
+  .switch-row{padding:12px;gap:12px}
+  .switch-row .tile{display:none}
+  .switch-row .state{display:none}
+  .opts{grid-template-columns:minmax(0,1fr)}
+  .opt{min-height:0}
+  .qty{grid-template-columns:minmax(0,1fr)}
+  .qty input{width:100%}
+  .def-line{display:grid;gap:8px}
+  .seg.def{display:flex}
+  .seg.def button{flex:1 1 auto;justify-content:center}
+  .pv-head{padding:0;border-bottom:0}
+  .pv-head h2{display:none}
+  .pv-head .badge{display:none}
+  .pv-toggle{display:flex;align-items:center;gap:10px;width:100%;min-height:56px;padding:0 16px;border:0;background:transparent;text-align:left;font-weight:600;color:var(--hf-heading)}
+  .pv-toggle .sub{display:block;font-size:12px;font-weight:400;color:var(--hf-muted)}
+  .pv-toggle .chev{margin-left:auto;color:var(--hf-muted);transition:transform .15s}
+  .pv-toggle[aria-expanded="true"] .chev{transform:rotate(180deg)}
+  .pv-toggle:focus-visible{outline-offset:-2px;border-radius:var(--hf-radius-card)}
+  .pv.collapsed .pv-body,.pv.collapsed .sim{display:none}
+  .pv-body{border-top:1px solid var(--hf-border)}
+  .savebar{bottom:0;margin:0 -16px;flex-wrap:wrap;gap:8px;padding:12px 16px;border-radius:0;border-width:1px 0 0;box-shadow:none}
+  .savebar.dirty{box-shadow:none}
+  .save-status{flex:1 1 100%;display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .save-btns{flex:1 1 100%;display:grid;grid-auto-flow:column;grid-auto-columns:1fr}
+  .btn-primary{min-width:0}
+  .controls{gap:16px}
+  .layout{gap:16px}
+  .ending{order:3}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}
+}
+</style>
+</head>
+<body>
+<div class="sr-only" aria-live="polite" id="live"></div>
+
+<div class="ab" role="region" aria-label="Controles del artboard">
+  <strong>02 · Con vista previa en vivo</strong>
+  <button type="button" id="abDark" aria-pressed="false"><svg class="i" data-i="moon"></svg>Oscuro</button>
+  <button type="button" id="ab390" aria-pressed="false"><svg class="i" data-i="phone"></svg>Ver en móvil (390)</button>
+</div>
+
+<div class="stage">
+<div class="vp" id="vp">
+<div class="app">
+  <aside class="side" aria-label="Navegación principal">
+    <div class="logo"><span class="logo-mark" aria-hidden="true"><svg class="i" data-i="paw"></svg></span>HoundFe</div>
+    <nav class="nav" aria-label="Secciones">
+      <div class="nav-group"><h2>POS</h2><ul>
+        <li><a href="#"><svg class="i" data-i="receipt"></svg>Ventas</a></li>
+        <li><a href="#"><svg class="i" data-i="package"></svg>Productos</a></li>
+        <li><a href="#"><svg class="i" data-i="users"></svg>Clientes</a></li>
+        <li><a href="#"><svg class="i" data-i="wallet"></svg>Caja</a></li>
+        <li><a href="#"><svg class="i" data-i="tag"></svg>Promociones</a></li>
+        <li><a href="#"><svg class="i" data-i="file"></svg>Cotizaciones</a></li>
+      </ul></div>
+      <div class="nav-group"><h2>Chatbot</h2><ul><li><a href="#"><svg class="i" data-i="chat"></svg>Solicitudes</a></li></ul></div>
+      <div class="nav-group"><h2>Compras</h2><ul>
+        <li><a href="#"><svg class="i" data-i="truck"></svg>Proveedores</a></li>
+        <li><a href="#"><svg class="i" data-i="clipboard"></svg>Órdenes de compra</a></li>
+      </ul></div>
+      <div class="nav-group"><h2>RR.HH.</h2><ul><li><a href="#"><svg class="i" data-i="idcard"></svg>Colaboradores</a></li></ul></div>
+      <div class="nav-group"><h2>Admin</h2><ul>
+        <li><a href="#"><svg class="i" data-i="shield"></svg>Usuarios</a></li>
+        <li><a href="#"><svg class="i" data-i="store"></svg>Sucursales</a></li>
+      </ul></div>
+      <div class="nav-group"><h2>Sistema</h2><ul>
+        <li><a href="#"><svg class="i" data-i="bell"></svg>Notificaciones</a></li>
+        <li><a href="#" aria-current="page"><svg class="i" data-i="globe"></svg>Catálogo online</a></li>
+        <li><a href="#"><svg class="i" data-i="send"></svg>Envíos</a></li>
+      </ul></div>
+    </nav>
+  </aside>
+
+  <div class="col">
+    <header class="topbar">
+      <button class="icon-btn only-m" type="button" aria-label="Abrir menú"><svg class="i" data-i="menu"></svg></button>
+      <nav class="crumbs" aria-label="Ruta"><ol><li><a href="#">Sistema</a></li><li aria-hidden="true">›</li><li><span aria-current="page">Catálogo online</span></li></ol></nav>
+      <span class="spacer"></span>
+      <label class="search only-d"><span class="sr-only">Buscar en HoundFe</span><svg class="i" data-i="search"></svg><input type="search" placeholder="Buscar en HoundFe…" autocomplete="off"></label>
+      <button class="icon-btn only-m" type="button" aria-label="Buscar"><svg class="i" data-i="search"></svg></button>
+      <button class="icon-btn" type="button" id="themeBtn" aria-pressed="false" aria-label="Tema oscuro"><svg class="i" data-i="moon"></svg></button>
+      <button class="avatar" type="button" aria-label="Tu cuenta"><span aria-hidden="true">AD</span></button>
+    </header>
+
+    <main class="main" id="main">
+      <header class="page-head">
+        <h1 class="page-title">Catálogo online</h1>
+        <p class="page-sub">Decide si tus clientes ven el catálogo, con qué listas de precios y cómo se muestra el stock. A la derecha ves cómo queda.</p>
+      </header>
+
+      <div class="layout">
+        <div class="controls">
+
+          <!-- Publicación -->
+          <section class="card" aria-labelledby="pubTitle">
+            <div class="card-head">
+              <div><h2 id="pubTitle">Publicación</h2><p>Lo que ven los clientes que entran a tu catálogo.</p></div>
+              <span class="badge" id="pubBadge"></span>
+            </div>
+            <div class="card-body">
+              <button type="button" class="switch-row" id="pubSwitch" role="switch" aria-checked="true" aria-labelledby="pubSwTtl" aria-describedby="pubSwDsc">
+                <span class="tile" aria-hidden="true"><svg class="i" data-i="globe"></svg></span>
+                <span class="txt"><span class="ttl" id="pubSwTtl">Publicado</span><span class="dsc" id="pubSwDsc">Habilitar la visibilidad del catálogo para clientes públicos</span></span>
+                <span class="state" id="pubSwState" aria-hidden="true">Activado</span>
+                <span class="track" aria-hidden="true"></span>
+              </button>
+              <div class="issues" id="issues" role="status" hidden>
+                <h3>Para que tus clientes vean el catálogo falta:</h3>
+                <ul id="issueList"></ul>
+              </div>
+            </div>
+          </section>
+
+          <!-- Listas de precios -->
+          <section class="card" aria-labelledby="listsTitle">
+            <div class="card-head">
+              <div><h2 id="listsTitle">Listas de precios públicas</h2><p id="listsDesc">Toca una lista para mostrarla u ocultarla en el catálogo.</p></div>
+              <span class="meta" id="listsCount"></span>
+            </div>
+            <div class="card-body">
+              <ul class="chips" id="chips" aria-labelledby="listsTitle" aria-describedby="listsDesc"></ul>
+              <div class="def-row">
+                <div class="def-line">
+                  <span class="field-label" id="defLbl">Predeterminada:</span>
+                  <div class="seg def" id="defSeg" role="radiogroup" aria-labelledby="defLbl" aria-describedby="defHint"></div>
+                  <div class="empty-def" id="defEmpty" hidden><svg class="i" data-i="info"></svg>Activa al menos una lista para elegir la predeterminada.</div>
+                </div>
+                <p class="hint" id="defHint">Los clientes públicos verán esta lista primero.</p>
+                <p class="notice" id="defNotice" hidden><svg class="i" data-i="alert"></svg><span></span></p>
+              </div>
+            </div>
+          </section>
+
+          <!-- Stock -->
+          <section class="card" aria-labelledby="stockTitle">
+            <div class="card-head">
+              <div><h2 id="stockTitle">Stock en catálogo</h2><p>Cómo se ven las existencias en cada producto.</p></div>
+            </div>
+            <div class="card-body">
+              <div class="opts" id="opts" role="radiogroup" aria-labelledby="stockTitle">
+                <button type="button" class="opt" role="radio" data-mode="detailed" aria-checked="true">
+                  <span class="opt-top"><span class="opt-ic" aria-hidden="true"><svg class="i" data-i="bars"></svg></span><span class="opt-title">Estado detallado</span></span>
+                  <span class="opt-desc">Muestra Disponible, Pocas piezas o Agotado según las existencias reales, sin publicar cantidades.</span>
+                  <span class="opt-prev" aria-label="Ejemplo: Disponible · Pocas piezas · Agotado"><span class="badge b-success" aria-hidden="true">Disponible</span><span class="badge b-warning" aria-hidden="true">Pocas piezas</span><span class="badge b-neutral" aria-hidden="true">Agotado</span></span>
+                  <span class="radio-dot" aria-hidden="true"><svg class="i" data-i="check"></svg></span>
+                </button>
+                <button type="button" class="opt" role="radio" data-mode="availability" aria-checked="false">
+                  <span class="opt-top"><span class="opt-ic" aria-hidden="true"><svg class="i" data-i="ccheck"></svg></span><span class="opt-title">Solo disponibilidad</span></span>
+                  <span class="opt-desc">Muestra solo Disponible o Agotado, sin revelar cuándo queda poco stock.</span>
+                  <span class="opt-prev" aria-label="Ejemplo: Disponible · Agotado"><span class="badge b-success" aria-hidden="true">Disponible</span><span class="badge b-neutral" aria-hidden="true">Agotado</span></span>
+                  <span class="radio-dot" aria-hidden="true"><svg class="i" data-i="check"></svg></span>
+                </button>
+                <button type="button" class="opt" role="radio" data-mode="fixed" aria-checked="false">
+                  <span class="opt-top"><span class="opt-ic" aria-hidden="true"><svg class="i" data-i="hash"></svg></span><span class="opt-title">Mostrar cantidad fija</span></span>
+                  <span class="opt-desc">Muestra siempre la cantidad definida como dato informativo; no cambia las existencias y la venta sigue bloqueada si no hay stock real.</span>
+                  <span class="opt-prev" id="fixedPrev"></span>
+                  <span class="radio-dot" aria-hidden="true"><svg class="i" data-i="check"></svg></span>
+                </button>
+                <button type="button" class="opt" role="radio" data-mode="hidden" aria-checked="false">
+                  <span class="opt-top"><span class="opt-ic" aria-hidden="true"><svg class="i" data-i="eyeoff"></svg></span><span class="opt-title">No mostrar stock</span></span>
+                  <span class="opt-desc">No muestra ningún texto de stock en el catálogo; las validaciones de venta siguen usando las existencias reales.</span>
+                  <span class="opt-prev" aria-label="Ejemplo: sin texto de stock"><span class="ghost-pill" aria-hidden="true"><svg class="i" data-i="eyeoff"></svg>Sin texto de stock</span></span>
+                  <span class="radio-dot" aria-hidden="true"><svg class="i" data-i="check"></svg></span>
+                </button>
+              </div>
+
+              <div class="qty" id="qtyBox" hidden>
+                <label for="qty">Cantidad a mostrar</label>
+                <input id="qty" type="text" inputmode="numeric" autocomplete="off" value="12" aria-describedby="qtyHint qtyErr">
+                <span class="hint" id="qtyHint">Se muestra igual en todos los productos que usen este modo. No cambia tus existencias.</span>
+                <span class="err" id="qtyErr" hidden>Escribe un número entero, 0 o mayor.</span>
+              </div>
+
+              <p class="footnote"><svg class="i" data-i="info"></svg><span>Es el modo general. Un producto o variante puede elegir otro; los que tienen «Usar configuración global» siguen este.</span></p>
+            </div>
+          </section>
+
+          <div class="savebar" id="savebar" role="region" aria-label="Guardar cambios">
+            <div class="save-status">
+              <span class="save-state" id="saveState" aria-live="polite"></span>
+              <span class="save-when" id="saveWhen"></span>
+            </div>
+            <div class="save-btns">
+              <button type="button" class="btn" id="discardBtn" hidden><svg class="i" data-i="undo"></svg>Descartar</button>
+              <button type="button" class="btn btn-primary" id="saveBtn">Guardar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Vista previa -->
+        <aside class="pv" id="pv" aria-labelledby="pvTitle">
+          <div class="card pv-shell">
+            <div class="pv-head">
+              <h2 id="pvTitle"><svg class="i" data-i="eye"></svg>Así lo ve tu cliente</h2>
+              <span class="badge b-info no-dot">En vivo</span>
+              <button type="button" class="pv-toggle" id="pvToggle" aria-expanded="false" aria-controls="pvBody">
+                <svg class="i" data-i="eye"></svg>
+                <span>Ver vista previa<span class="sub">Así lo ve tu cliente</span></span>
+                <svg class="i chev" data-i="chevron-down"></svg>
+              </button>
+            </div>
+            <div class="pv-body" id="pvBody">
+              <div class="store" id="store">
+                <div class="store-bar" aria-hidden="true">
+                  <span class="store-name">Catálogo</span>
+                  <span class="store-search"><svg class="i" data-i="search"></svg>Buscar productos</span>
+                </div>
+                <div class="lists-sw" id="pvLists"></div>
+                <article class="product" aria-label="Producto de ejemplo en el catálogo público">
+                  <svg class="product-img" viewBox="0 0 320 200" role="img" aria-label="Foto del producto">
+                    <rect class="pi-bg" width="320" height="200"/>
+                    <ellipse class="pi-floor" cx="160" cy="184" rx="118" ry="12"/>
+                    <path class="pi-bag" d="M112 34h96l10 20v118a10 10 0 0 1-10 10h-96a10 10 0 0 1-10-10V54z"/>
+                    <path class="pi-fold" d="M112 34h96l10 20H102z"/>
+                    <rect class="pi-label" x="120" y="70" width="80" height="62" rx="8"/>
+                    <circle class="pi-paw" cx="160" cy="108" r="10"/>
+                    <circle class="pi-paw" cx="146" cy="92" r="4.5"/><circle class="pi-paw" cx="156" cy="86" r="4.5"/><circle class="pi-paw" cx="166" cy="86" r="4.5"/><circle class="pi-paw" cx="175" cy="92" r="4.5"/>
+                    <rect class="pi-band" x="102" y="144" width="116" height="24"/>
+                    <text class="pi-band-txt" x="160" y="161" text-anchor="middle">20 kg</text>
+                    <circle class="pi-kibble" cx="238" cy="176" r="6"/><circle class="pi-kibble" cx="252" cy="179" r="5"/><circle class="pi-kibble" cx="244" cy="166" r="5"/><circle class="pi-kibble" cx="78" cy="178" r="5"/>
+                  </svg>
+                  <div class="product-info">
+                    <p class="p-meta">Alimento seco · Perro adulto</p>
+                    <h3 class="p-name">Croquetas Adulto Res y Pollo 20 kg</h3>
+                    <div class="p-stock" id="pvStock"></div>
+                    <div class="p-row">
+                      <p class="p-price"><b id="pvPrice"></b><span id="pvPriceList"></span></p>
+                      <span class="p-add" id="pvAdd"><svg class="i" data-i="plus"></svg>Agregar</span>
+                    </div>
+                    <p class="p-blocked" id="pvBlocked" hidden>La venta sigue bloqueada: no hay existencias reales.</p>
+                  </div>
+                </article>
+                <p class="pv-note" id="pvNote"></p>
+              </div>
+              <div class="overlay" id="pvOverlay" hidden>
+                <div class="overlay-box">
+                  <svg class="i" data-i="lock"></svg>
+                  <h3>Tu catálogo no está publicado</h3>
+                  <p id="pvOverlayMsg"></p>
+                </div>
+              </div>
+            </div>
+            <div class="sim" id="sim">
+              <div class="lbl"><span id="simLbl">Simular existencias reales</span><span>Solo vista previa</span></div>
+              <div class="seg" id="simSeg" role="radiogroup" aria-labelledby="simLbl">
+                <button type="button" role="radio" data-sim="24">Con stock (24)</button>
+                <button type="button" role="radio" data-sim="3">Pocas (3)</button>
+                <button type="button" role="radio" data-sim="0">Sin stock (0)</button>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
+</div>
+</div>
+
+<aside class="mcap" aria-label="Notas de la vista móvil">
+  <h2>Vista 390 px</h2>
+  <p>Una columna: publicación, listas, stock. Las opciones de stock se apilan como tarjetas completas.</p>
+  <p>La vista previa baja al final como «Ver vista previa» (plegada).</p>
+  <p>Barra fija abajo con el estado y «Guardar»; «Descartar» aparece solo con cambios, en columnas iguales.</p>
+</aside>
+</div>
+
+<script>
+(function(){
+'use strict';
+const P=d=>d.split('|').map(x=>x.startsWith('<')?x:'<path d="'+x+'"/>').join('');
+const ICONS={
+  receipt:P('M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z|M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8|M12 17.5v-11'),
+  package:P('M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z|M12 22V12|m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7|m7.5 4.27 9 5.15'),
+  users:P('M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2|<circle cx="9" cy="7" r="4"/>|M22 21v-2a4 4 0 0 0-3-3.87|M16 3.13a4 4 0 0 1 0 7.75'),
+  wallet:P('M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1|M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4'),
+  tag:P('M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z|<circle cx="7.5" cy="7.5" r="1"/>'),
+  file:P('M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z|M14 2v4a2 2 0 0 0 2 2h4|M10 9H8|M16 13H8|M16 17H8'),
+  chat:P('M7.9 20A9 9 0 1 0 4 16.1L2 22Z'),
+  truck:P('M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2|M15 18H9|M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14|<circle cx="17" cy="18" r="2"/>|<circle cx="7" cy="18" r="2"/>'),
+  clipboard:P('<rect width="8" height="4" x="8" y="2" rx="1"/>|M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2'),
+  idcard:P('<rect width="20" height="14" x="2" y="5" rx="2"/>|M16 10h2|M16 14h2|<circle cx="9" cy="11" r="2"/>|M6.17 15a3 3 0 0 1 5.66 0'),
+  shield:P('M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z'),
+  store:P('m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7|M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8|M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4|M2 7h20|M22 7v3a2 2 0 0 1-2 2 2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7'),
+  bell:P('M10.268 21a2 2 0 0 0 3.464 0|M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326'),
+  globe:P('<circle cx="12" cy="12" r="10"/>|M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20|M2 12h20'),
+  send:P('M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z|m21.854 2.147-10.94 10.939'),
+  search:P('<circle cx="11" cy="11" r="8"/>|m21 21-4.3-4.3'),
+  menu:P('M4 12h16|M4 18h16|M4 6h16'),
+  sun:P('<circle cx="12" cy="12" r="4"/>|M12 2v2|M12 20v2|m4.93 4.93 1.41 1.41|m17.66 17.66 1.41 1.41|M2 12h2|M20 12h2|m6.34 17.66-1.41 1.41|m19.07 4.93-1.41 1.41'),
+  moon:P('M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z'),
+  phone:P('<rect x="5" y="2" width="14" height="20" rx="2"/>|M12 18h.01'),
+  monitor:P('<rect width="20" height="14" x="2" y="3" rx="2"/>|M8 21h8|M12 17v4'),
+  paw:P('<circle cx="11" cy="4" r="2"/>|<circle cx="18" cy="8" r="2"/>|<circle cx="20" cy="16" r="2"/>|M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z'),
+  check:P('M20 6 9 17l-5-5'),
+  plus:P('M5 12h14|M12 5v14'),
+  star:P('M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z'),
+  bars:P('M2 20h.01|M7 20v-4|M12 20v-8|M17 20V8|M22 4v16'),
+  ccheck:P('<circle cx="12" cy="12" r="10"/>|m9 12 2 2 4-4'),
+  hash:P('M4 9h16|M4 15h16|M10 3 8 21|M16 3l-2 18'),
+  eye:P('M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0|<circle cx="12" cy="12" r="3"/>'),
+  eyeoff:P('M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49|M14.084 14.158a3 3 0 0 1-4.242-4.242|M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143|m2 2 20 20'),
+  alert:P('m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3|M12 9v4|M12 17h.01'),
+  info:P('<circle cx="12" cy="12" r="10"/>|M12 16v-4|M12 8h.01'),
+  lock:P('<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>|M7 11V7a5 5 0 0 1 10 0v4'),
+  loader:P('M21 12a9 9 0 1 1-6.219-8.56'),
+  undo:P('M3 7v6h6|M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13'),
+  'chevron-down':P('m6 9 6 6 6-6'),
+  dot:P('<circle cx="12" cy="12" r="4"/>')
+};
+/* All dynamic text goes through esc(); markup comes from constants in this file. */
+function setMarkup(el,markup){const r=document.createRange();r.selectNodeContents(el);el.replaceChildren(r.createContextualFragment(markup));}
+const ic=(n,cls)=>'<svg class="i'+(cls?' '+cls:'')+'" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'+(ICONS[n]||'')+'</svg>';
+function hydrate(root){root.querySelectorAll('svg[data-i]').forEach(s=>{s.setAttribute('viewBox','0 0 24 24');s.setAttribute('aria-hidden','true');s.setAttribute('focusable','false');setMarkup(s,ICONS[s.dataset.i]||'');s.removeAttribute('data-i');});}
+hydrate(document);
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const live=msg=>{const l=$('live');l.textContent='';setTimeout(()=>{l.textContent=msg;},30);};
+
+/* ---------- Data (tenant price lists; keys are internal, never shown) ---------- */
+const LISTS=[
+  {key:'publico',name:'PUBLICO',price:1249},
+  {key:'mayoreo',name:'Mayoreo',price:1099},
+  {key:'vet',name:'Veterinarias',price:1129},
+  {key:'criadores',name:'Criadores',price:1059},
+  {key:'empleados',name:'Empleados',price:999}
+];
+const MODES={
+  detailed:'Estado detallado',availability:'Solo disponibilidad',fixed:'Mostrar cantidad fija',hidden:'No mostrar stock'
+};
+const MONTHS=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const fmtDate=d=>d.getDate()+' '+MONTHS[d.getMonth()]+', '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+const money=new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'});
+const byKey=k=>LISTS.find(l=>l.key===k);
+
+let saved={published:true,publicKeys:['publico','mayoreo'],def:'publico',mode:'detailed',qty:'12'};
+let updatedAt=new Date(2026,10,4,15,5);
+let state=structuredClone(saved);
+let saveStatus='idle'; // idle | saving | saved
+let defNotice='';
+let pvList=state.def;
+let sim=24;
+
+const pubLists=()=>LISTS.filter(l=>state.publicKeys.includes(l.key));
+const qtyValid=()=>/^\d+$/.test(String(state.qty).trim());
+function warnings(){const w=[];if(!pubLists().length)w.push('No hay listas de precios públicas');return w;}
+const norm=s=>JSON.stringify({p:s.published,k:LISTS.filter(l=>s.publicKeys.includes(l.key)).map(l=>l.key),d:s.def,m:s.mode,q:String(s.qty).trim()});
+const isDirty=()=>norm(state)!==norm(saved);
+
+/* ---------- Publication ---------- */
+$('pubSwitch').addEventListener('click',()=>{state.published=!state.published;live(state.published?'Catálogo publicado activado':'Catálogo publicado desactivado');update();});
+function renderPublication(){
+  const sw=$('pubSwitch');sw.setAttribute('aria-checked',String(state.published));
+  $('pubSwState').textContent=state.published?'Activado':'Apagado';
+  const w=warnings();const eff=state.published&&!w.length;const b=$('pubBadge');
+  if(eff){b.className='badge b-success';b.textContent='Visible para clientes';}
+  else if(state.published){b.className='badge b-warning no-dot';setMarkup(b,ic('alert')+'No visible · '+w.length+(w.length===1?' aviso':' avisos'));}
+  else{b.className='badge b-neutral';b.textContent='No publicado';}
+  $('issues').hidden=!w.length;
+  setMarkup($('issueList'),w.map(t=>'<li>'+ic('alert')+'<span>'+esc(t)+'</span><button type="button" class="fix" data-fix="lists">Elegir listas</button></li>').join(''));
+}
+$('issueList').addEventListener('click',e=>{if(e.target.closest('[data-fix]'))$('chips').querySelector('.chip').focus();});
+
+/* ---------- Price lists: toggle chips + default chooser ---------- */
+setMarkup($('chips'),LISTS.map(l=>'<li><button type="button" class="chip" data-key="'+l.key+'" aria-pressed="false"><span class="mark" aria-hidden="true"></span><span>'+esc(l.name)+'</span><span class="star" hidden>'+ic('star','filled')+'<span>Predeterminada</span></span></button></li>').join(''));
+$('chips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(b)toggleList(b.dataset.key);});
+function toggleList(key){
+  const l=byKey(key);const on=state.publicKeys.includes(key);
+  if(on){
+    state.publicKeys=state.publicKeys.filter(k=>k!==key);
+    if(state.def===key){
+      const next=pubLists()[0];state.def=next?next.key:null;
+      defNotice=next?'«'+next.name+'» es ahora la predeterminada porque «'+l.name+'» dejó de ser pública.':'';
+      live(l.name+' ya no es pública.'+(next?' '+next.name+' es ahora la predeterminada.':' No hay listas públicas.'));
+    } else live(l.name+' ya no es pública.');
+  } else {
+    state.publicKeys.push(key);
+    if(!state.def){state.def=key;defNotice='«'+l.name+'» es la predeterminada porque es la única lista pública.';live(l.name+' es pública y predeterminada.');}
+    else live(l.name+' es pública.');
+  }
+  update();
+}
+function renderLists(){
+  const pub=pubLists();
+  $('chips').querySelectorAll('.chip').forEach(b=>{
+    const on=state.publicKeys.includes(b.dataset.key);const isDef=state.def===b.dataset.key;
+    b.setAttribute('aria-pressed',String(on));
+    setMarkup(b.querySelector('.mark'),on?ic('check'):'');
+    b.querySelector('.star').hidden=!isDef;
+  });
+  $('listsCount').textContent=pub.length+' de '+LISTS.length+' públicas';
+  const seg=$('defSeg');const hadFocus=seg.contains(document.activeElement);
+  seg.hidden=!pub.length;$('defEmpty').hidden=!!pub.length;
+  setMarkup(seg,pub.map(l=>{const sel=l.key===state.def;return '<button type="button" role="radio" data-key="'+l.key+'" aria-checked="'+sel+'" tabindex="'+(sel?0:-1)+'">'+(sel?ic('star','filled'):'')+esc(l.name)+'</button>';}).join(''));
+  if(hadFocus){const f=seg.querySelector('[aria-checked="true"]');if(f)f.focus();}
+  const n=$('defNotice');n.hidden=!defNotice;n.querySelector('span').textContent=defNotice;
+}
+function setDefault(key){if(state.def===key)return;state.def=key;defNotice='';live(byKey(key).name+' es la lista predeterminada.');update();}
+$('defSeg').addEventListener('click',e=>{const b=e.target.closest('[role="radio"]');if(b)setDefault(b.dataset.key);});
+
+/* radio-group keyboard: arrows move and select, Home/End */
+function radioKeys(group,onPick){
+  group.addEventListener('keydown',e=>{
+    const step={ArrowRight:1,ArrowDown:1,ArrowLeft:-1,ArrowUp:-1}[e.key];
+    if(step===undefined&&e.key!=='Home'&&e.key!=='End')return;
+    const items=[...group.querySelectorAll('[role="radio"]')];let i=items.indexOf(document.activeElement);if(i<0)return;
+    e.preventDefault();
+    i=e.key==='Home'?0:e.key==='End'?items.length-1:(i+step+items.length)%items.length;
+    onPick(items[i]);const again=[...group.querySelectorAll('[role="radio"]')][i];if(again)again.focus();
+  });
+}
+radioKeys($('defSeg'),b=>setDefault(b.dataset.key));
+
+/* ---------- Stock mode ---------- */
+const opts=[...$('opts').querySelectorAll('.opt')];
+function setMode(m){if(state.mode===m)return;state.mode=m;live('Stock en catálogo: '+MODES[m]);update();}
+$('opts').addEventListener('click',e=>{const b=e.target.closest('.opt');if(b)setMode(b.dataset.mode);});
+radioKeys($('opts'),b=>setMode(b.dataset.mode));
+$('qty').addEventListener('input',e=>{state.qty=e.target.value;update();});
+function renderStock(){
+  opts.forEach(o=>{const sel=o.dataset.mode===state.mode;o.setAttribute('aria-checked',String(sel));o.tabIndex=sel?0:-1;});
+  const showQty=state.mode==='fixed';const box=$('qtyBox');
+  if(box.hidden===showQty){box.hidden=!showQty;}
+  const ok=qtyValid();const inp=$('qty');
+  if(inp.value!==state.qty)inp.value=state.qty;
+  inp.setAttribute('aria-invalid',String(!ok));$('qtyErr').hidden=ok;
+  const q=ok?String(parseInt(state.qty,10)):'—';
+  $('fixedPrev').setAttribute('aria-label','Ejemplo: '+q+' disponibles');
+  setMarkup($('fixedPrev'),'<span class="badge b-info no-dot" aria-hidden="true">'+ic('package')+esc(q)+' disponibles</span>');
+}
+
+/* ---------- Live preview ---------- */
+function stockLabel(){
+  const m=state.mode;
+  if(m==='hidden')return '';
+  if(m==='fixed'){const q=qtyValid()?String(parseInt(state.qty,10)):'—';return '<span class="badge b-info no-dot">'+ic('package')+esc(q)+' disponibles</span>';}
+  if(sim===0)return '<span class="badge b-neutral">Agotado</span>';
+  if(m==='detailed'&&sim<=3)return '<span class="badge b-warning">Pocas piezas</span>';
+  return '<span class="badge b-success">Disponible</span>';
+}
+function renderPreview(){
+  const pub=pubLists();
+  if(!pub.some(l=>l.key===pvList))pvList=state.def;
+  const host=$('pvLists');const hadFocus=host.contains(document.activeElement);
+  if(pub.length>1){
+    setMarkup(host,'<span class="lbl" id="pvListsLbl">Ver precios de</span><div class="seg" role="radiogroup" aria-labelledby="pvListsLbl">'+
+      pub.map(l=>{const sel=l.key===pvList;return '<button type="button" role="radio" data-key="'+l.key+'" aria-checked="'+sel+'" tabindex="'+(sel?0:-1)+'">'+(l.key===state.def?ic('star','filled')+'<span class="sr-only">Predeterminada: </span>':'')+esc(l.name)+'</button>';}).join('')+'</div>');
+    if(hadFocus){const f=host.querySelector('[aria-checked="true"]');if(f)f.focus();}
+  } else if(pub.length===1){
+    setMarkup(host,'<span class="single-list">'+ic('tag')+'Precios de '+esc(pub[0].name)+'</span>');
+  } else setMarkup(host,'');
+  const l=byKey(pvList)||LISTS[0];
+  $('pvPrice').textContent=pub.length?money.format(l.price):'—';
+  $('pvPriceList').textContent=pub.length?'Precio · '+l.name+(l.key===state.def?' (predeterminada)':''):'Sin lista pública';
+  setMarkup($('pvStock'),stockLabel());$('pvStock').hidden=state.mode==='hidden';
+  const blocked=sim===0;
+  $('pvAdd').className='p-add'+(blocked?' blocked':'');
+  setMarkup($('pvAdd'),blocked?'No disponible':ic('plus')+'Agregar');
+  $('pvBlocked').hidden=!(blocked&&(state.mode==='fixed'||state.mode==='hidden'));
+  setMarkup($('pvNote'),'Stock: <b>'+esc(MODES[state.mode])+'</b>'+(state.mode==='hidden'?' · la tarjeta no muestra existencias.':'.'));
+  const w=warnings();const off=!state.published||w.length>0;
+  $('pvOverlay').hidden=!off;$('pvBody').classList.toggle('off',off);
+  $('store').inert=off;
+  $('pvOverlayMsg').textContent=!state.published?'Activa «Publicado» para que tus clientes lo vean.':'Activaste la publicación, pero falta: '+w.join(', ')+'.';
+  $('simSeg').querySelectorAll('[role="radio"]').forEach(b=>{const sel=Number(b.dataset.sim)===sim;b.setAttribute('aria-checked',String(sel));b.tabIndex=sel?0:-1;});
+}
+$('pvLists').addEventListener('click',e=>{const b=e.target.closest('[role="radio"]');if(b){pvList=b.dataset.key;renderPreview();}});
+$('pvLists').addEventListener('keydown',e=>{
+  const step={ArrowRight:1,ArrowDown:1,ArrowLeft:-1,ArrowUp:-1}[e.key];if(step===undefined)return;
+  const items=[...$('pvLists').querySelectorAll('[role="radio"]')];let i=items.indexOf(document.activeElement);if(i<0)return;
+  e.preventDefault();i=(i+step+items.length)%items.length;pvList=items[i].dataset.key;renderPreview();
+});
+function setSim(v){sim=v;renderPreview();}
+$('simSeg').addEventListener('click',e=>{const b=e.target.closest('[role="radio"]');if(b)setSim(Number(b.dataset.sim));});
+radioKeys($('simSeg'),b=>setSim(Number(b.dataset.sim)));
+$('pvToggle').addEventListener('click',()=>{const open=$('pv').classList.toggle('collapsed')===false;$('pvToggle').setAttribute('aria-expanded',String(open));});
+
+/* ---------- Save ---------- */
+let savedTimer=0;
+function renderSave(){
+  const dirty=isDirty();const ok=qtyValid()||state.mode!=='fixed';
+  const st=$('saveState');const btn=$('saveBtn');
+  $('savebar').classList.toggle('dirty',dirty);
+  $('discardBtn').hidden=!dirty||saveStatus==='saving';
+  if(saveStatus==='saving'){st.className='save-state';setMarkup(st,ic('loader','spin')+'Guardando…');btn.disabled=true;btn.setAttribute('aria-busy','true');setMarkup(btn,ic('loader','spin')+'Guardando…');}
+  else{
+    btn.removeAttribute('aria-busy');btn.textContent='Guardar';
+    if(dirty&&!ok){st.className='save-state is-error';setMarkup(st,ic('alert')+'Revisa la cantidad a mostrar');btn.disabled=true;}
+    else if(dirty){st.className='save-state is-dirty';setMarkup(st,ic('dot','filled')+'Cambios sin guardar');btn.disabled=false;}
+    else if(saveStatus==='saved'){st.className='save-state is-saved';setMarkup(st,ic('check')+'Guardado');btn.disabled=true;}
+    else{st.className='save-state';st.textContent='Sin cambios para guardar';btn.disabled=true;}
+  }
+  $('saveWhen').textContent='Actualizado '+fmtDate(updatedAt);
+}
+$('saveBtn').addEventListener('click',()=>{
+  if(!isDirty())return;saveStatus='saving';renderSave();
+  setTimeout(()=>{
+    state.qty=String(state.qty).trim();
+    saved=structuredClone(state);updatedAt=new Date();saveStatus='saved';defNotice='';update();
+    clearTimeout(savedTimer);savedTimer=setTimeout(()=>{saveStatus='idle';renderSave();},2400);
+  },900);
+});
+$('discardBtn').addEventListener('click',()=>{state=structuredClone(saved);defNotice='';pvList=state.def;live('Cambios descartados');update();$('saveBtn').focus();});
+
+let lastDef=state.def;
+function update(){
+  if(saveStatus==='saved'&&isDirty()){saveStatus='idle';clearTimeout(savedTimer);}
+  if(state.def!==lastDef){pvList=state.def;lastDef=state.def;}
+  renderPublication();renderLists();renderStock();renderPreview();renderSave();
+}
+update();
+
+/* ---------- Theme + 390 view ---------- */
+function setDark(on){
+  document.documentElement.classList.toggle('dark',on);
+  $('abDark').setAttribute('aria-pressed',String(on));
+  const t=$('themeBtn');t.setAttribute('aria-pressed',String(on));setMarkup(t,ic(on?'sun':'moon'));
+}
+$('abDark').addEventListener('click',()=>setDark(!document.documentElement.classList.contains('dark')));
+$('themeBtn').addEventListener('click',()=>setDark(!document.documentElement.classList.contains('dark')));
+$('ab390').addEventListener('click',()=>{
+  const on=!document.body.classList.contains('m-mode');
+  document.body.classList.toggle('m-mode',on);
+  $('ab390').setAttribute('aria-pressed',String(on));
+  setMarkup($('ab390'),ic(on?'monitor':'phone')+(on?'Ver en escritorio (1440)':'Ver en móvil (390)'));
+  $('vp').scrollTop=0;window.scrollTo(0,0);
+  if(on){$('pv').classList.add('collapsed');$('pvToggle').setAttribute('aria-expanded','false');}
+  else{$('pv').classList.remove('collapsed');}
+});
+})();
+</script>
+</body>
+</html>

@@ -64,7 +64,13 @@ export function fromCatalogSettingsResponse(
   }
 }
 
-/** Validate editable draft. Publishing requires non-empty allowlist + selected default. */
+/** Said in context by the screen (lists warning row, quantity field), so the summary skips them. */
+export const NO_PUBLIC_LIST_ERROR =
+  'Publicar el catálogo requiere al menos una lista de precios pública'
+export const STOCK_QUANTITY_ERROR = 'Escribe un número entero de 0 o más.'
+
+/** Validate editable draft. Publishing requires non-empty allowlist + selected default;
+ *  a fixed stock quantity must be a non-negative integer. */
 export function validateCatalogSettingsDraft(draft: CatalogSettingsDraft): string[] {
   const errors: string[] = []
   const unique = new Set(draft.publicPriceListIds)
@@ -80,10 +86,14 @@ export function validateCatalogSettingsDraft(draft: CatalogSettingsDraft): strin
   if (draft.catalogPublished) {
     if (draft.publicPriceListIds.length === 0) {
       // No lists is the one cause; a default cannot exist without them, so it is not a second error.
-      errors.push('Publicar el catálogo requiere al menos una lista de precios pública')
+      errors.push(NO_PUBLIC_LIST_ERROR)
     } else if (draft.catalogDefaultPriceListId === null) {
       errors.push('Publicar el catálogo requiere una lista de precios predeterminada')
     }
+  }
+  const { mode, customQuantity } = draft.stockPresentationDefault
+  if (mode === 'CUSTOM_QUANTITY' && !isStockQuantity(customQuantity)) {
+    errors.push(STOCK_QUANTITY_ERROR)
   }
   return errors
 }
@@ -153,6 +163,11 @@ export function serializeStockPresentationDefault(
 /** Closed-set warning map. Unknown codes return null (dropped silently). */
 export function mapCatalogSettingsWarning(code: string): string | null {
   return WARNING_COPY[code] ?? null
+}
+
+/** A displayable fixed quantity: integer, 0 or more (`NaN` marks a half-typed entry). */
+export function isStockQuantity(value: number | null): value is number {
+  return value !== null && Number.isInteger(value) && value >= 0
 }
 
 function sameArr(a: readonly string[], b: readonly string[]): boolean {

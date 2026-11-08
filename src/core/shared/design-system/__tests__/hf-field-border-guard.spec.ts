@@ -11,6 +11,9 @@ const ROOTS = ['src/features', 'src/core', 'src/app']
 const ALLOWED = new Set([
   // Checkbox indicator: a non-text control boundary keeps 3:1 (WCAG 1.4.11).
   'src/core/shared/components/form/hf-form.css :: .hf-ui .hf-combobox__box',
+  // Round radio mark of the catalog settings pills and stock cards (Selección sin checkboxes): the
+  // empty ring identifies a non-text control, so it keeps 3:1 (WCAG 1.4.11).
+  'src/features/system/catalog-settings/styles/catalog-settings-visual.css :: .catalog-settings-visual .cs-mark',
   // Step marker in the purchase-order stepper, a graphic, not a field.
   'src/features/procurement/purchase-orders/styles/purchase-orders-visual.css :: .purchase-orders-portal .order-step-mark',
   // Secondary buttons.

@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catálogo online · configuración · 01 Ajustes en filas</title>
+<style>
+:root{
+  --hf-page:#f5f6f8;--hf-surface:#ffffff;--hf-surface-muted:#e7eef7;--hf-field:#ffffff;--hf-field-border:#8593a3;
+  --hf-ink:#24313d;--hf-heading:#173968;--hf-muted:#576574;--hf-border:#dce2e8;--hf-action:#2442f6;--hf-on-action:#ffffff;
+  --hf-active:#2442f6;--hf-active-soft:#edf0ff;--hf-focus:#2442f6;--hf-gold:#f6bb13;--hf-gold-soft:#fff5d6;--hf-gold-ink:#443218;
+  --hf-warning:#805511;--hf-warning-soft:#fff5d6;--hf-success:#236044;--hf-danger:#b42318;--hf-danger-soft:#fef3f2;--hf-danger-border:#f4b8b2;
+  --hf-font:'Geist',ui-sans-serif,system-ui,sans-serif;
+  --hf-radius-card:12px;--hf-radius-control:6px;--hf-control-height:44px;
+  color-scheme:light;
+}
+html.dark{
+  --hf-page:#0e1520;--hf-surface:#192332;--hf-surface-muted:#202e43;--hf-field:#121d2c;--hf-field-border:#64758d;
+  --hf-ink:#edf2fa;--hf-heading:#edf2fa;--hf-muted:#adbcd0;--hf-border:#354459;--hf-action:#91b0ff;--hf-on-action:#132344;
+  --hf-active:#b3caff;--hf-active-soft:#223555;--hf-focus:#a6c1ff;--hf-gold:#f2c456;--hf-gold-soft:#3b311d;--hf-gold-ink:#f2cb71;
+  --hf-warning:#f2cb71;--hf-warning-soft:#3b311d;--hf-success:#a2d9b9;--hf-danger:#ffb4ab;--hf-danger-soft:#3d2220;--hf-danger-border:#7a3f3b;
+  color-scheme:dark;
+}
+:root{
+  --hover:color-mix(in srgb,var(--hf-surface-muted) 45%,var(--hf-surface));
+  --success-bg:color-mix(in srgb,var(--hf-success) 12%,var(--hf-surface));
+  --float-shadow:0 12px 32px color-mix(in srgb,var(--hf-ink) 16%,transparent);
+  --surface-shadow:0 1px 2px color-mix(in srgb,var(--hf-ink) 5%,transparent);
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%}
+body{font-family:var(--hf-font);font-size:14px;line-height:1.45;color:var(--hf-ink);background:var(--hf-page);font-feature-settings:"cv11","ss01";-webkit-font-smoothing:antialiased;display:flex;flex-direction:column}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+p{margin:0}
+svg.i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+:focus-visible{outline:2px solid var(--hf-focus);outline-offset:2px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.fig{font-variant-numeric:tabular-nums}
+
+/* ---------- artboard band (not product UI) ---------- */
+.ab{flex:none;display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px dashed var(--hf-gold-ink);background:var(--hf-gold-soft);color:var(--hf-gold-ink);font-size:12px}
+.ab strong{font-weight:600}
+.ab .sp{flex:1}
+.ab button{height:32px;padding:0 10px;border:1px solid color-mix(in srgb,var(--hf-gold-ink) 40%,transparent);border-radius:6px;background:transparent;color:var(--hf-gold-ink);font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.ab button[aria-pressed="true"]{background:var(--hf-gold-ink);color:var(--hf-gold-soft)}
+.ab button svg{width:14px;height:14px}
+
+/* ---------- app shell ---------- */
+.app{flex:1;min-height:0;display:grid;grid-template-columns:240px minmax(0,1fr)}
+.side{background:var(--hf-surface);border-right:1px solid var(--hf-border);padding:20px 12px;display:flex;flex-direction:column;gap:20px;overflow-y:auto}
+.logo{display:flex;align-items:center;gap:10px;padding:0 8px;font-size:18px;font-weight:600;color:var(--hf-heading);letter-spacing:-0.02em}
+.logo-mark{width:28px;height:28px;border-radius:8px;background:var(--hf-gold);display:grid;place-items:center;color:var(--hf-gold-ink)}
+html.dark .logo-mark{color:var(--hf-page)}
+.nav-group+.nav-group{margin-top:16px}
+.nav-group h2{margin:0 0 4px;padding:0 10px;font-size:12px;font-weight:600;color:var(--hf-muted)}
+.nav-group ul{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.nav-group a{display:flex;align-items:center;gap:10px;min-height:38px;padding:0 10px;border-radius:var(--hf-radius-control);color:var(--hf-ink);text-decoration:none;font-weight:500}
+.nav-group a:hover{background:var(--hover)}
+.nav-group a svg{color:var(--hf-muted)}
+.nav-group a[aria-current="page"]{background:var(--hf-active-soft);color:var(--hf-active)}
+.nav-group a[aria-current="page"] svg{color:var(--hf-active)}
+.main{display:flex;flex-direction:column;min-width:0;min-height:0}
+.top{flex:none;display:flex;align-items:center;gap:8px;height:60px;padding:0 16px 0 32px;background:var(--hf-surface);border-bottom:1px solid var(--hf-border)}
+.crumbs ol{list-style:none;margin:0;padding:0;display:flex;align-items:center;gap:6px;font-size:13px;color:var(--hf-muted)}
+.crumbs a{color:var(--hf-muted);text-decoration:none}
+.crumbs a:hover{text-decoration:underline}
+.crumbs [aria-current]{color:var(--hf-ink);font-weight:500}
+.top .sp{flex:1}
+.search{position:relative;width:280px}
+.search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--hf-muted)}
+.search input{width:100%;height:var(--hf-control-height);padding:0 12px 0 38px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-field)}
+.search input::placeholder{color:var(--hf-muted)}
+.search input:hover{border-color:var(--hf-field-border)}
+.search input:focus-visible{outline-offset:0;border-color:transparent}
+.icon-btn{display:inline-grid;place-items:center;width:44px;height:44px;border-radius:var(--hf-radius-control);border:0;background:transparent;color:var(--hf-muted)}
+.icon-btn:hover{background:var(--hover);color:var(--hf-ink)}
+.avatar{display:inline-grid;place-items:center;width:36px;height:36px;margin:4px;border-radius:50%;background:var(--hf-surface-muted);color:var(--hf-heading);font-size:13px;font-weight:600;border:0}
+.scroll{flex:1;min-height:0;overflow-y:auto}
+#deskSlot{padding:32px 32px 24px}
+
+/* ---------- page column ---------- */
+.page{container:page/inline-size;max-width:880px;margin:0 auto;display:flex;flex-direction:column;gap:32px}
+.page-head{display:grid;gap:.35rem}
+.page-title{margin:0;font-size:clamp(1.75rem,1.55rem + .6vw,2rem);font-weight:600;line-height:1.25;letter-spacing:-0.045em;color:var(--hf-heading)}
+.page-sub{font-size:.875rem;line-height:1.5;color:var(--hf-muted);max-width:62ch}
+
+.group{display:grid;gap:12px}
+.group-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
+.group-head h2{margin:0;font-size:16px;font-weight:600;color:var(--hf-heading)}
+.group-head p{font-size:13px;color:var(--hf-muted);margin-top:2px;max-width:60ch}
+.group-head .count{flex:none;font-size:13px;font-weight:500;color:var(--hf-muted)}
+.surface{background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);box-shadow:var(--surface-shadow)}
+
+/* setting row as a whole-row switch */
+.row-switch{display:flex;align-items:center;gap:16px;width:100%;min-height:76px;padding:16px 20px;border:0;border-radius:var(--hf-radius-card) var(--hf-radius-card) 0 0;background:transparent;text-align:left}
+.row-switch:hover{background:var(--hover)}
+.row-text{flex:1;min-width:0;display:grid;gap:2px}
+.row-title{font-weight:600;color:var(--hf-heading)}
+.row-desc{font-size:13px;color:var(--hf-muted)}
+
+/* switch visual */
+.track{position:relative;flex:none;width:44px;height:24px;border-radius:999px;border:1.5px solid var(--hf-field-border);background:var(--hf-field);transition:background-color .15s,border-color .15s}
+.track::after{content:"";position:absolute;top:2.5px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--hf-field-border);transition:transform .15s,background-color .15s}
+.track svg{position:absolute;top:5px;left:22px;width:11px;height:11px;stroke-width:3;color:var(--hf-action);opacity:0;z-index:1;transition:opacity .15s}
+[aria-checked="true"]>.track,[aria-checked="true"] .track{background:var(--hf-action);border-color:var(--hf-action)}
+[aria-checked="true"] .track::after{background:var(--hf-on-action);transform:translateX(17px)}
+[aria-checked="true"] .track svg{opacity:1}
+
+/* effective status line */
+.status{display:flex;align-items:flex-start;gap:10px;padding:12px 20px;border-top:1px solid var(--hf-border);font-size:13px;border-radius:0 0 var(--hf-radius-card) var(--hf-radius-card)}
+.status svg{margin-top:1px}
+.status .s-text{flex:1;min-width:0}
+.status b{font-weight:600}
+.status.ok{color:var(--hf-success);background:var(--success-bg)}
+.status.warn{color:var(--hf-warning);background:var(--hf-warning-soft)}
+.status.off{color:var(--hf-muted);background:color-mix(in srgb,var(--hf-surface-muted) 50%,var(--hf-surface))}
+.status .s-meta{color:var(--hf-ink)}
+.status.off .s-meta{color:var(--hf-muted)}
+.status ul{margin:4px 0 0;padding-left:18px;color:var(--hf-ink)}
+.status .pending{display:inline-block;margin-right:6px;font-weight:600;color:var(--hf-muted)}
+.link-btn{display:inline-flex;align-items:center;min-height:32px;margin:-6px 0;padding:0 8px;border:0;border-radius:var(--hf-radius-control);background:transparent;color:var(--hf-action);font-weight:600;font-size:13px;text-decoration:underline;text-underline-offset:2px;white-space:nowrap}
+.link-btn:hover{background:color-mix(in srgb,var(--hf-action) 8%,transparent)}
+
+/* price list rows */
+.lists{display:block}
+.prow{display:grid;grid-template-columns:minmax(0,1fr) 196px auto;grid-template-areas:"name def sw";align-items:center;gap:12px;min-height:72px;padding:12px 12px 12px 20px;border-top:1px solid var(--hf-border)}
+.prow:first-child{border-top:0}
+.prow.is-default{background:color-mix(in srgb,var(--hf-active-soft) 45%,var(--hf-surface))}
+.prow:first-child.is-default{border-radius:var(--hf-radius-card) var(--hf-radius-card) 0 0}
+.prow:last-child.is-default{border-radius:0 0 var(--hf-radius-card) var(--hf-radius-card)}
+.p-name{grid-area:name;min-width:0;display:grid;gap:2px}
+.p-title{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-weight:600;color:var(--hf-heading)}
+.p-meta{font-size:13px;color:var(--hf-muted)}
+.prow.off .p-title{color:var(--hf-ink);font-weight:500}
+.badge{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.b-info{background:var(--hf-active-soft);color:var(--hf-active)}
+html.dark .prow.is-default .b-info{background:var(--hf-surface)}
+.b-success{background:var(--success-bg);color:var(--hf-success)}
+.b-warning{background:var(--hf-warning-soft);color:var(--hf-warning)}
+.b-neutral{background:var(--hf-surface-muted);color:var(--hf-muted)}
+.b-neutral::before{display:none}
+.b-none{border:1px dashed var(--hf-field-border);color:var(--hf-muted);background:transparent;font-weight:500}
+.b-none::before{display:none}
+
+/* radio pill «Predeterminada» */
+.def{grid-area:def;display:flex;align-items:center;gap:10px;width:100%;min-height:var(--hf-control-height);padding:0 12px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-surface);color:var(--hf-muted);font-weight:500;text-align:left}
+.def:hover{border-color:var(--hf-field-border);color:var(--hf-ink)}
+.ring{position:relative;flex:none;display:grid;place-items:center;width:18px;height:18px;border-radius:50%;border:1.5px solid var(--hf-field-border);background:var(--hf-field)}
+.ring svg{width:12px;height:12px;stroke-width:3;opacity:0}
+.def[aria-checked="true"]{background:var(--hf-active-soft);border-color:var(--hf-active);box-shadow:inset 0 0 0 1px var(--hf-active);color:var(--hf-active);font-weight:600}
+[aria-checked="true"]>.ring,[aria-checked="true"] .ring{background:var(--hf-active);border-color:var(--hf-active);color:var(--hf-on-action)}
+[aria-checked="true"] .ring svg{opacity:1}
+.def-slot{grid-area:def}
+
+/* labelled compact switch «Pública» */
+.sw{grid-area:sw;display:inline-flex;align-items:center;gap:10px;min-height:var(--hf-control-height);padding:0 8px 0 12px;border:0;border-radius:var(--hf-radius-control);background:transparent;font-weight:500;color:var(--hf-ink)}
+.sw:hover{background:var(--hover)}
+.sw .sw-l{min-width:44px;text-align:right}
+
+.notice{display:flex;align-items:flex-start;gap:8px;padding:12px 20px;border-top:1px solid var(--hf-border);font-size:12px;font-weight:600;color:var(--hf-warning);background:var(--hf-warning-soft)}
+.notice.info{color:var(--hf-active);background:var(--hf-active-soft)}
+.notice svg{width:14px;height:14px;margin-top:1px}
+.notice .n-text{flex:1}
+.notice .link-btn{font-size:12px}
+.notice-wrap .notice:last-child{border-radius:0 0 var(--hf-radius-card) var(--hf-radius-card)}
+
+/* stock radio cards */
+.opts{display:grid}
+.opt{position:relative;border:1px solid var(--hf-border);background:var(--hf-surface);margin-top:-1px}
+.opt:first-child{margin-top:0;border-radius:var(--hf-radius-card) var(--hf-radius-card) 0 0}
+.opt:last-child{border-radius:0 0 var(--hf-radius-card) var(--hf-radius-card)}
+.opt.sel{z-index:1;border-color:var(--hf-active);box-shadow:inset 0 0 0 1px var(--hf-active);background:var(--hf-active-soft)}
+.opt:focus-within{z-index:2}
+.opt-main{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;gap:4px 14px;width:100%;min-height:88px;padding:16px 20px;border:0;border-radius:inherit;background:transparent;text-align:left}
+.opt:not(.sel) .opt-main:hover{background:var(--hover)}
+.opt-main .ring{margin-top:1px}
+.o-body{display:grid;gap:4px}
+.o-title{font-weight:600;color:var(--hf-heading)}
+.opt.sel .o-title{color:var(--hf-active)}
+.o-desc{font-size:13px;color:var(--hf-muted);max-width:58ch}
+.opt.sel .o-desc{color:var(--hf-ink)}
+.o-prev{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:6px;font-size:12px;color:var(--hf-muted)}
+.o-prev .badge{height:22px}
+.o-tag{align-self:center;font-size:12px;font-weight:600;color:var(--hf-active);white-space:nowrap}
+.opt:not(.sel) .o-tag{visibility:hidden}
+.opt-extra{display:flex;align-items:flex-start;gap:16px;padding:0 20px 16px 52px}
+.field{display:grid;gap:6px}
+.field label{font-size:13px;font-weight:500;color:var(--hf-ink)}
+.field input{width:160px;height:var(--hf-control-height);padding:0 12px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-field);font-variant-numeric:tabular-nums}
+.field input:hover{border-color:var(--hf-field-border)}
+.field input:focus-visible{outline-offset:0;border-color:transparent}
+.field input[aria-invalid="true"]{border-color:var(--hf-danger)}
+.field .help{font-size:12px;color:var(--hf-muted);max-width:40ch}
+.field .err{display:flex;gap:6px;align-items:flex-start;font-size:12px;font-weight:600;color:var(--hf-danger)}
+.field .err svg{width:14px;height:14px;margin-top:1px}
+.foot-note{display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--hf-muted)}
+.foot-note svg{width:14px;height:14px;margin-top:1px}
+
+/* sticky save bar */
+.savebar{position:sticky;bottom:16px;z-index:5;display:flex;align-items:center;gap:12px;padding:10px 10px 10px 20px;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);box-shadow:var(--float-shadow)}
+.save-state{flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px;font-size:13px}
+.st{display:inline-flex;align-items:center;gap:8px;font-weight:600}
+.st.clean{color:var(--hf-muted);font-weight:500}
+.st.dirty{color:var(--hf-warning)}
+.st.dirty::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.st.saved{color:var(--hf-success)}
+.st.saving{color:var(--hf-ink);font-weight:500}
+.upd{color:var(--hf-muted)}
+.btns{display:flex;gap:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:var(--hf-control-height);padding:0 16px;border-radius:var(--hf-radius-control);border:1px solid var(--hf-border);background:var(--hf-surface);color:var(--hf-ink);font-weight:500;white-space:nowrap}
+.btn:hover{border-color:var(--hf-field-border)}
+.btn-primary{min-width:120px;background:var(--hf-action);border-color:var(--hf-action);color:var(--hf-on-action);font-weight:600;font-size:.875rem}
+.btn-primary:hover{background:color-mix(in srgb,var(--hf-action) 88%,var(--hf-ink));border-color:transparent}
+.btn[disabled],.btn[disabled]:hover{background:var(--hf-page);color:var(--hf-muted);border-color:var(--hf-border);cursor:not-allowed}
+html.dark .btn[disabled]{color:color-mix(in srgb,var(--hf-muted) 60%,var(--hf-page))}
+.btn[aria-busy="true"]{cursor:progress}
+.spin{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.bottom-gap{height:8px}
+
+/* ---------- narrow column (390 view and small containers) ---------- */
+@container page (max-width:600px){
+  .page{gap:24px}
+  .page-title{font-size:28px}
+  .group-head{flex-direction:column;align-items:flex-start;gap:4px}
+  .row-switch{padding:16px;border-radius:var(--hf-radius-card) var(--hf-radius-card) 0 0}
+  .status{padding:12px 16px}
+  .prow{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"name sw" "def def";padding:12px 8px 12px 16px;gap:8px 8px;min-height:68px}
+  .prow .def{margin-right:8px}
+  .def-slot{display:none}
+  .sw .sw-l{min-width:0}
+  .notice{padding:12px 16px}
+  .opt-main{padding:16px;gap:4px 12px;grid-template-columns:auto minmax(0,1fr)}
+  .o-tag{display:none}
+  .opt-extra{padding:0 16px 16px 46px;flex-direction:column}
+  .field input{width:100%}
+  .savebar{bottom:0;margin:0 -16px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-radius:0;border-width:1px 0 0;box-shadow:none;flex-direction:column;align-items:stretch;gap:8px}
+  .save-state{justify-content:space-between;font-size:12px}
+  .btns{display:grid;grid-template-columns:1fr 1fr}
+  .btns .btn{width:100%}
+  .btns.solo{grid-template-columns:1fr}
+  .bottom-gap{display:none}
+}
+
+/* ---------- 390 stage ---------- */
+.mstage{display:none;flex:1;min-height:0;overflow:auto;padding:24px 16px;justify-content:center;align-items:flex-start;gap:32px}
+body.m-mode .app{display:none}
+body.m-mode .mstage{display:flex}
+.mcap{max-width:260px;font-size:13px;color:var(--hf-muted);padding-top:40px}
+.mcap h2{margin:0 0 6px;font-size:16px;font-weight:600;color:var(--hf-heading)}
+.mcap p{margin:0 0 8px}
+.device{flex:none;width:390px;height:844px;border:1px solid var(--hf-border);border-radius:28px;background:var(--hf-page);overflow:hidden;box-shadow:var(--float-shadow);display:flex;flex-direction:column}
+.mbar{flex:none;display:flex;align-items:center;gap:4px;height:56px;padding:0 6px;background:var(--hf-surface);border-bottom:1px solid var(--hf-border)}
+.mbar .logo{padding:0 4px;font-size:16px;flex:1}
+.mbar .logo-mark{width:24px;height:24px}
+.mscroll{flex:1;min-height:0;overflow-y:auto}
+#devSlot{padding:16px 16px 0}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}
+}
+</style>
+</head>
+<body>
+<div class="ab" role="region" aria-label="Controles del artboard">
+  <strong>Artboard 01 · Ajustes en filas</strong><span>Sistema › Catálogo online</span>
+  <span class="sp"></span>
+  <button type="button" id="abTheme" aria-pressed="false"><svg class="i" data-i="moon"></svg>Tema oscuro</button>
+  <button type="button" id="ab390" aria-pressed="false"><svg class="i" data-i="phone"></svg>Ver en móvil (390)</button>
+</div>
+
+<div class="app" id="app">
+  <aside class="side" aria-label="Navegación principal">
+    <div class="logo"><span class="logo-mark" aria-hidden="true"><svg class="i" data-i="paw"></svg></span>HoundFe</div>
+    <nav aria-label="Secciones">
+      <div class="nav-group"><h2>POS</h2><ul>
+        <li><a href="#"><svg class="i" data-i="cart"></svg>Punto de venta</a></li>
+        <li><a href="#"><svg class="i" data-i="receipt"></svg>Ventas</a></li>
+        <li><a href="#"><svg class="i" data-i="package"></svg>Productos</a></li>
+        <li><a href="#"><svg class="i" data-i="users"></svg>Clientes</a></li>
+      </ul></div>
+      <div class="nav-group"><h2>Chatbot</h2><ul><li><a href="#"><svg class="i" data-i="chat"></svg>Conversaciones</a></li></ul></div>
+      <div class="nav-group"><h2>Compras</h2><ul><li><a href="#"><svg class="i" data-i="truck"></svg>Órdenes de compra</a></li></ul></div>
+      <div class="nav-group"><h2>Admin</h2><ul><li><a href="#"><svg class="i" data-i="shield"></svg>Usuarios y roles</a></li></ul></div>
+      <div class="nav-group"><h2>Sistema</h2><ul>
+        <li><a href="#"><svg class="i" data-i="settings"></svg>Configuración</a></li>
+        <li><a href="#" aria-current="page"><svg class="i" data-i="store"></svg>Catálogo online</a></li>
+      </ul></div>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <header class="top">
+      <nav class="crumbs" aria-label="Ruta"><ol><li><a href="#">Sistema</a></li><li aria-hidden="true">›</li><li><span aria-current="page">Catálogo online</span></li></ol></nav>
+      <span class="sp"></span>
+      <label class="search"><span class="sr-only">Buscar en HoundFe</span><svg class="i" data-i="search"></svg><input type="search" placeholder="Buscar productos, ventas, clientes…" autocomplete="off"></label>
+      <button class="icon-btn" type="button" id="topTheme" aria-label="Cambiar a tema oscuro"><svg class="i" data-i="moon"></svg></button>
+      <button class="avatar" type="button" aria-label="Cuenta de Mariana Ruiz">MR</button>
+    </header>
+    <div class="scroll" id="deskScroll"><div id="deskSlot">
+
+<main class="page" id="page" aria-labelledby="pageTitle">
+  <header class="page-head">
+    <h1 class="page-title" id="pageTitle">Catálogo online</h1>
+    <p class="page-sub">Decide si tus clientes ven el catálogo, con qué precios y cómo se muestra el stock.</p>
+  </header>
+
+  <!-- Publicación -->
+  <section class="group" aria-labelledby="gPub">
+    <div class="group-head"><div><h2 id="gPub">Publicación</h2></div></div>
+    <div class="surface">
+      <button type="button" class="row-switch" role="switch" id="pubSwitch" aria-checked="true" aria-labelledby="pubT" aria-describedby="pubD">
+        <span class="row-text">
+          <span class="row-title" id="pubT">Catálogo publicado</span>
+          <span class="row-desc" id="pubD">Habilita la visibilidad del catálogo para clientes públicos.</span>
+        </span>
+        <span class="track" aria-hidden="true"><svg class="i" data-i="check"></svg></span>
+      </button>
+      <div class="status" id="pubStatus" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- Precios -->
+  <section class="group" aria-labelledby="gPrices">
+    <div class="group-head">
+      <div><h2 id="gPrices">Precios que ve el público</h2><p id="gPricesD">Activa las listas que pueden verse en el catálogo. La predeterminada es la que aparece primero.</p></div>
+      <span class="count fig" id="pubCount"></span>
+    </div>
+    <div class="surface">
+      <div class="lists" id="lists" role="radiogroup" aria-label="Lista predeterminada del catálogo" aria-describedby="gPricesD"></div>
+      <div class="notice-wrap" id="listNotices" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- Stock -->
+  <section class="group" aria-labelledby="gStock">
+    <div class="group-head"><div><h2 id="gStock">Stock en el catálogo</h2><p>Cómo se informa la disponibilidad a tus clientes. No cambia las existencias ni las validaciones de venta.</p></div></div>
+    <div class="opts" role="radiogroup" aria-labelledby="gStock" id="stockGroup">
+      <div class="opt" data-mode="detailed">
+        <button type="button" class="opt-main" role="radio" aria-checked="false" aria-labelledby="oT1" aria-describedby="oD1 oP1">
+          <span class="ring" aria-hidden="true"><svg class="i" data-i="check"></svg></span>
+          <span class="o-body">
+            <span class="o-title" id="oT1">Estado detallado</span>
+            <span class="o-desc" id="oD1">Muestra Disponible, Pocas piezas o Agotado según las existencias reales, sin publicar cantidades.</span>
+            <span class="o-prev" id="oP1"><span class="sr-only">Vista previa:</span><span class="badge b-success">Disponible</span><span class="badge b-warning">Pocas piezas</span><span class="badge b-neutral">Agotado</span></span>
+          </span>
+          <span class="o-tag" aria-hidden="true">Seleccionado</span>
+        </button>
+      </div>
+      <div class="opt" data-mode="availability">
+        <button type="button" class="opt-main" role="radio" aria-checked="false" aria-labelledby="oT2" aria-describedby="oD2 oP2">
+          <span class="ring" aria-hidden="true"><svg class="i" data-i="check"></svg></span>
+          <span class="o-body">
+            <span class="o-title" id="oT2">Solo disponibilidad</span>
+            <span class="o-desc" id="oD2">Muestra solo Disponible o Agotado, sin revelar cuándo queda poco stock.</span>
+            <span class="o-prev" id="oP2"><span class="sr-only">Vista previa:</span><span class="badge b-success">Disponible</span><span class="badge b-neutral">Agotado</span></span>
+          </span>
+          <span class="o-tag" aria-hidden="true">Seleccionado</span>
+        </button>
+      </div>
+      <div class="opt" data-mode="fixed">
+        <button type="button" class="opt-main" role="radio" aria-checked="false" aria-labelledby="oT3" aria-describedby="oD3 oP3">
+          <span class="ring" aria-hidden="true"><svg class="i" data-i="check"></svg></span>
+          <span class="o-body">
+            <span class="o-title" id="oT3">Mostrar cantidad fija</span>
+            <span class="o-desc" id="oD3">Muestra siempre la cantidad definida como dato informativo; no cambia las existencias y la venta sigue bloqueada si no hay stock real.</span>
+            <span class="o-prev" id="oP3"><span class="sr-only">Vista previa:</span><span class="badge b-neutral fig" id="qtyPrev">10 piezas</span></span>
+          </span>
+          <span class="o-tag" aria-hidden="true">Seleccionado</span>
+        </button>
+        <div class="opt-extra" id="qtyBox" hidden>
+          <div class="field">
+            <label for="qty">Cantidad a mostrar</label>
+            <input id="qty" type="text" inputmode="numeric" autocomplete="off" value="10" aria-describedby="qtyHelp qtyErr">
+            <span class="help" id="qtyHelp">Número entero, 0 o más. Se muestra igual en todos los productos.</span>
+            <span class="err" id="qtyErr" hidden><svg class="i" data-i="alert"></svg><span>Escribe un número entero de 0 o más.</span></span>
+          </div>
+        </div>
+      </div>
+      <div class="opt" data-mode="hidden">
+        <button type="button" class="opt-main" role="radio" aria-checked="false" aria-labelledby="oT4" aria-describedby="oD4 oP4">
+          <span class="ring" aria-hidden="true"><svg class="i" data-i="check"></svg></span>
+          <span class="o-body">
+            <span class="o-title" id="oT4">No mostrar stock</span>
+            <span class="o-desc" id="oD4">No muestra ningún texto de stock en el catálogo; las validaciones de venta siguen usando las existencias reales.</span>
+            <span class="o-prev" id="oP4"><span class="sr-only">Vista previa:</span><span class="badge b-none">Sin texto de stock</span></span>
+          </span>
+          <span class="o-tag" aria-hidden="true">Seleccionado</span>
+        </button>
+      </div>
+    </div>
+    <p class="foot-note"><svg class="i" data-i="info"></svg><span>Esta es la opción global. Cada producto o variante puede elegir otra; los que tienen «Usar configuración global» siguen esta.</span></p>
+  </section>
+
+  <div class="savebar" id="savebar" role="region" aria-label="Guardar cambios">
+    <div class="save-state">
+      <span class="st clean" id="saveStatus" role="status">Sin cambios para guardar</span>
+      <span class="upd fig" id="updatedAt"></span>
+    </div>
+    <div class="btns" id="btns">
+      <button type="button" class="btn" id="discardBtn" hidden><svg class="i" data-i="undo"></svg>Descartar</button>
+      <button type="button" class="btn btn-primary" id="saveBtn" disabled>Guardar</button>
+    </div>
+  </div>
+  <div class="bottom-gap" aria-hidden="true"></div>
+</main>
+
+    </div></div>
+  </div>
+</div>
+
+<div class="mstage" id="mstage">
+  <div class="mcap">
+    <h2>Vista de 390 px</h2>
+    <p>La columna queda en una sola pila. En cada lista el interruptor «Pública» se queda a la derecha del nombre y «Predeterminada» baja a una fila completa de 44 px.</p>
+    <p>Las opciones de stock son tarjetas completas: se toca cualquier parte. La barra de guardar se fija abajo con «Descartar» y «Guardar» en columnas iguales.</p>
+  </div>
+  <div class="device" role="region" aria-label="Vista móvil de 390 px">
+    <div class="mbar">
+      <button class="icon-btn" type="button" aria-label="Abrir menú"><svg class="i" data-i="menu"></svg></button>
+      <span class="logo"><span class="logo-mark" aria-hidden="true"><svg class="i" data-i="paw"></svg></span>HoundFe</span>
+      <button class="icon-btn" type="button" aria-label="Buscar"><svg class="i" data-i="search"></svg></button>
+      <button class="avatar" type="button" aria-label="Cuenta de Mariana Ruiz">MR</button>
+    </div>
+    <div class="mscroll" id="mScroll"><div id="devSlot"></div></div>
+  </div>
+</div>
+
+<div class="sr-only" aria-live="polite" id="announce"></div>
+
+<script>
+const P=d=>d.split('|').map(x=>x.startsWith('<')?x:'<path d="'+x+'"/>').join('');
+const ICONS={
+  paw:P('<circle cx="11" cy="4" r="2"/>|<circle cx="18" cy="8" r="2"/>|<circle cx="20" cy="16" r="2"/>|M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z'),
+  cart:P('<circle cx="8" cy="21" r="1"/>|<circle cx="19" cy="21" r="1"/>|M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12'),
+  receipt:P('M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z|M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8|M12 17.5v-11'),
+  package:P('M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z|M12 22V12|m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7|m7.5 4.27 9 5.15'),
+  users:P('M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2|<circle cx="9" cy="7" r="4"/>|M22 21v-2a4 4 0 0 0-3-3.87|M16 3.13a4 4 0 0 1 0 7.75'),
+  chat:P('M7.9 20A9 9 0 1 0 4 16.1L2 22Z'),
+  truck:P('M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2|M15 18H9|M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14|<circle cx="17" cy="18" r="2"/>|<circle cx="7" cy="18" r="2"/>'),
+  shield:P('M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z'),
+  settings:P('M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z|<circle cx="12" cy="12" r="3"/>'),
+  store:P('m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7|M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8|M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4|M2 7h20|M22 7v3a2 2 0 0 1-2 2a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7'),
+  search:P('<circle cx="11" cy="11" r="8"/>|m21 21-4.3-4.3'),
+  check:P('M20 6 9 17l-5-5'),
+  'circle-check':P('<circle cx="12" cy="12" r="10"/>|m9 12 2 2 4-4'),
+  alert:P('m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3|M12 9v4|M12 17h.01'),
+  info:P('<circle cx="12" cy="12" r="10"/>|M12 16v-4|M12 8h.01'),
+  'eye-off':P('M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49|M14.084 14.158a3 3 0 0 1-4.242-4.242|M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143|m2 2 20 20'),
+  undo:P('M9 14 4 9l5-5|M4 9h10.5a5.5 5.5 0 0 1 0 11H11'),
+  loader:P('M21 12a9 9 0 1 1-6.219-8.56'),
+  menu:P('M4 12h16|M4 18h16|M4 6h16'),
+  sun:P('<circle cx="12" cy="12" r="4"/>|M12 2v2|M12 20v2|m4.93 4.93 1.41 1.41|m17.66 17.66 1.41 1.41|M2 12h2|M20 12h2|m6.34 17.66-1.41 1.41|m19.07 4.93-1.41 1.41'),
+  moon:P('M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z'),
+  phone:P('<rect x="5" y="2" width="14" height="20" rx="2"/>|M12 18h.01'),
+  monitor:P('<rect width="20" height="14" x="2" y="3" rx="2"/>|M8 21h8|M12 17v4')
+};
+function setHTML(el,html){const r=document.createRange();r.selectNodeContents(el);el.replaceChildren(r.createContextualFragment(html));}
+const ic=(n,cls)=>'<svg class="i'+(cls?' '+cls:'')+'" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'+(ICONS[n]||'')+'</svg>';
+function hydrate(root){root.querySelectorAll('svg[data-i]').forEach(s=>{s.setAttribute('viewBox','0 0 24 24');s.setAttribute('aria-hidden','true');s.setAttribute('focusable','false');setHTML(s,ICONS[s.dataset.i]||'');s.removeAttribute('data-i');});}
+hydrate(document);
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- state (shape mirrors the API, ids never shown) ---------- */
+const clone=o=>structuredClone(o);
+let state={
+  catalogPublished:true,
+  lists:[
+    {key:'publico',name:'PUBLICO',note:'Público general',isPublic:true},
+    {key:'mayoreo',name:'Mayoreo',note:'',isPublic:true},
+    {key:'veterinarias',name:'Veterinarias',note:'',isPublic:false},
+    {key:'criadores',name:'Criadores',note:'',isPublic:false},
+    {key:'empleados',name:'Empleados',note:'',isPublic:false}
+  ],
+  defaultKey:'publico',
+  stockMode:'detailed',
+  fixedQty:'10'
+};
+let saved=clone(state);
+let updatedAt=new Date(2026,10,4,15,5);
+let moved=null;      // {from,to,prev} after the default list lost its public flag
+let saveFlash=false, saving=false;
+const MONTHS=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const fmt=d=>d.getDate()+' '+MONTHS[d.getMonth()]+', '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+const byKey=k=>state.lists.find(l=>l.key===k);
+const publicLists=()=>state.lists.filter(l=>l.isPublic);
+const qtyValid=()=>state.stockMode!=='fixed'||/^\d+$/.test(state.fixedQty.trim());
+const norm=s=>JSON.stringify({...s,fixedQty:s.fixedQty.trim()});
+const isDirty=()=>norm(state)!==norm(saved);
+function warningsFor(s){const w=[];if(!s.lists.some(l=>l.isPublic))w.push('No hay listas de precios públicas');return w;}
+function announce(t){const a=$('announce');a.textContent='';setTimeout(()=>{a.textContent=t;},30);}
+
+/* ---------- publication ---------- */
+function renderPublication(){
+  $('pubSwitch').setAttribute('aria-checked',String(state.catalogPublished));
+  const w=warningsFor(state), st=$('pubStatus');
+  const pre=isDirty()?'<span class="pending">Al guardar:</span>':'';
+  const def=byKey(state.defaultKey);
+  if(!state.catalogPublished){
+    st.className='status off';
+    setHTML(st,ic('eye-off')+'<div class="s-text">'+pre+'<b>No visible:</b> la publicación está desactivada. <span class="s-meta">Tus clientes no pueden abrir el catálogo.</span></div>');
+  }else if(w.length){
+    st.className='status warn';
+    setHTML(st,ic('alert')+'<div class="s-text">'+pre+'<b>No visible:</b> '+esc(w[0])+'.'+(w.length>1?'<ul>'+w.slice(1).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':'')+'</div><button type="button" class="link-btn" id="fixLists">Activar una lista</button>');
+    $('fixLists').addEventListener('click',()=>{const b=document.querySelector('#lists .sw');if(b){b.scrollIntoView({block:'center',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});b.focus({preventScroll:true});}});
+  }else{
+    const n=publicLists().length;
+    st.className='status ok';
+    setHTML(st,ic('circle-check')+'<div class="s-text">'+pre+'<b>Visible para el público</b> <span class="s-meta">· '+n+(n===1?' lista de precios':' listas de precios')+'; se muestra primero '+esc(def?def.name:'')+'.</span></div>');
+  }
+}
+
+/* ---------- price lists ---------- */
+function renderLists(){
+  const focusId=document.activeElement&&document.activeElement.id;
+  const host=$('lists');
+  setHTML(host,state.lists.map(l=>{
+    const isDef=l.isPublic&&l.key===state.defaultKey;
+    const meta=l.isPublic?(isDef?'Los clientes la ven primero':'Visible en el catálogo'):'Oculta en el catálogo';
+    const note=l.note?esc(l.note)+' · ':'';
+    return '<div class="prow'+(l.isPublic?'':' off')+(isDef?' is-default':'')+'">'+
+      '<div class="p-name"><span class="p-title"><span id="n-'+l.key+'">'+esc(l.name)+'</span>'+(isDef?'<span class="badge b-info">Predeterminada</span>':'')+'</span><span class="p-meta">'+note+meta+'</span></div>'+
+      (l.isPublic
+        ?'<button type="button" class="def" role="radio" id="def-'+l.key+'" data-key="'+l.key+'" aria-checked="'+isDef+'" tabindex="'+(isDef?0:-1)+'" aria-label="Predeterminada: '+esc(l.name)+'"><span class="ring" aria-hidden="true">'+ic('check')+'</span>Predeterminada</button>'
+        :'<span class="def-slot" aria-hidden="true"></span>')+
+      '<button type="button" class="sw" role="switch" id="sw-'+l.key+'" data-key="'+l.key+'" aria-checked="'+l.isPublic+'" aria-label="Lista '+esc(l.name)+' pública"><span class="sw-l" aria-hidden="true">Pública</span><span class="track" aria-hidden="true">'+ic('check')+'</span></button>'+
+    '</div>';
+  }).join(''));
+  // no default checked (no public list): nothing tabbable in the group except switches, which is fine
+  const n=publicLists().length;
+  $('pubCount').textContent=n+' de '+state.lists.length+' públicas';
+  const notes=[];
+  if(moved)notes.push('<div class="notice info">'+ic('info')+'<span class="n-text">'+esc(moved.to)+' ahora es la predeterminada porque '+esc(moved.from)+' dejó de ser pública.</span><button type="button" class="link-btn" id="undoMove">Deshacer</button></div>');
+  if(!n)notes.push('<div class="notice">'+ic('alert')+'<span class="n-text">Activa al menos una lista para que el catálogo pueda publicarse. Sin listas públicas no hay precios que mostrar.</span></div>');
+  setHTML($('listNotices'),notes.join(''));
+  if($('undoMove'))$('undoMove').addEventListener('click',()=>{const m=moved;moved=null;byKey(m.fromKey).isPublic=true;state.defaultKey=m.fromKey;announce(m.from+' vuelve a ser pública y predeterminada.');update();$('sw-'+m.fromKey).focus();});
+  if(focusId&&$(focusId))$(focusId).focus();
+  else if(focusId==='undoMove'&&!$('undoMove'))$('lists').querySelector('.sw')?.focus();
+}
+$('lists').addEventListener('click',e=>{
+  const sw=e.target.closest('.sw'), df=e.target.closest('.def');
+  if(sw)togglePublic(sw.dataset.key);
+  else if(df)setDefault(df.dataset.key);
+});
+$('lists').addEventListener('keydown',e=>{
+  const df=e.target.closest('.def');if(!df)return;
+  const radios=[...$('lists').querySelectorAll('.def')];const i=radios.indexOf(df);let j=-1;
+  if(e.key==='ArrowDown'||e.key==='ArrowRight')j=(i+1)%radios.length;
+  else if(e.key==='ArrowUp'||e.key==='ArrowLeft')j=(i-1+radios.length)%radios.length;
+  else if(e.key==='Home')j=0;else if(e.key==='End')j=radios.length-1;
+  if(j<0)return;e.preventDefault();setDefault(radios[j].dataset.key);$('def-'+radios[j].dataset.key).focus();
+});
+function setDefault(k){if(state.defaultKey===k)return;state.defaultKey=k;moved=null;announce(byKey(k).name+' es la lista predeterminada.');update();}
+function togglePublic(k){
+  const l=byKey(k);l.isPublic=!l.isPublic;moved=null;
+  if(l.isPublic){
+    if(!byKey(state.defaultKey)||!byKey(state.defaultKey).isPublic){state.defaultKey=k;announce(l.name+' es pública y quedó como predeterminada.');}
+    else announce(l.name+' ahora es pública.');
+  }else if(state.defaultKey===k){
+    const next=publicLists()[0];
+    if(next){moved={from:l.name,fromKey:k,to:next.name};state.defaultKey=next.key;announce(l.name+' ya no es pública. '+next.name+' ahora es la predeterminada.');}
+    else{state.defaultKey=null;announce(l.name+' ya no es pública. No hay listas públicas: el catálogo no será visible.');}
+  }else announce(l.name+' ya no es pública.');
+  update();
+}
+
+/* ---------- stock ---------- */
+const opts=[...document.querySelectorAll('#stockGroup .opt')];
+function renderStock(){
+  opts.forEach(o=>{const on=o.dataset.mode===state.stockMode;o.classList.toggle('sel',on);const b=o.querySelector('.opt-main');b.setAttribute('aria-checked',String(on));b.tabIndex=on?0:-1;});
+  $('qtyBox').hidden=state.stockMode!=='fixed';
+  const q=$('qty'), bad=!qtyValid();
+  if(q.value!==state.fixedQty)q.value=state.fixedQty;
+  q.setAttribute('aria-invalid',String(bad));$('qtyErr').hidden=!bad;
+  const v=state.fixedQty.trim();$('qtyPrev').textContent=/^\d+$/.test(v)?(Number(v)===1?'1 pieza':Number(v)+' piezas'):'— piezas';
+}
+opts.forEach((o,i)=>{
+  const b=o.querySelector('.opt-main');
+  b.addEventListener('click',()=>{setStock(o.dataset.mode);});
+  b.addEventListener('keydown',e=>{let j=-1;
+    if(e.key==='ArrowDown'||e.key==='ArrowRight')j=(i+1)%opts.length;
+    else if(e.key==='ArrowUp'||e.key==='ArrowLeft')j=(i-1+opts.length)%opts.length;
+    else if(e.key==='Home')j=0;else if(e.key==='End')j=opts.length-1;
+    if(j<0)return;e.preventDefault();setStock(opts[j].dataset.mode);opts[j].querySelector('.opt-main').focus();});
+});
+function setStock(m){if(state.stockMode===m)return;state.stockMode=m;announce(document.querySelector('.opt[data-mode="'+m+'"] .o-title').textContent+' seleccionado.');update();}
+$('qty').addEventListener('input',e=>{state.fixedQty=e.target.value;update();});
+
+/* ---------- publication switch ---------- */
+$('pubSwitch').addEventListener('click',()=>{state.catalogPublished=!state.catalogPublished;update();});
+
+/* ---------- save bar ---------- */
+function renderSave(){
+  const dirty=isDirty(), st=$('saveStatus'), btn=$('saveBtn'), dis=$('discardBtn');
+  $('updatedAt').textContent='Actualizado '+fmt(updatedAt);
+  if(saving){st.className='st saving';st.textContent='Guardando…';}
+  else if(dirty){st.className='st dirty';st.textContent=qtyValid()?'Cambios sin guardar':'Cambios sin guardar · revisa la cantidad';saveFlash=false;}
+  else if(saveFlash){st.className='st saved';setHTML(st,ic('check')+'Guardado');}
+  else{st.className='st clean';st.textContent='Sin cambios para guardar';}
+  dis.hidden=!dirty||saving;
+  $('btns').classList.toggle('solo',dis.hidden);
+  btn.disabled=saving?false:(!dirty||!qtyValid());
+  btn.setAttribute('aria-busy',String(saving));
+  setHTML(btn,saving?ic('loader','spin')+'Guardando…':'Guardar');
+}
+$('saveBtn').addEventListener('click',()=>{
+  if(saving||!isDirty()||!qtyValid())return;
+  saving=true;renderSave();
+  setTimeout(()=>{
+    state.fixedQty=state.fixedQty.trim();saved=clone(state);moved=null;updatedAt=new Date();saving=false;saveFlash=true;update();
+    setTimeout(()=>{saveFlash=false;renderSave();},2200);
+  },900);
+});
+$('discardBtn').addEventListener('click',()=>{state=clone(saved);moved=null;announce('Cambios descartados.');update();$('saveBtn').focus();});
+
+function update(){renderLists();renderStock();renderPublication();renderSave();}
+update();
+
+/* ---------- theme ---------- */
+function setTheme(dark){
+  document.documentElement.classList.toggle('dark',dark);
+  $('abTheme').setAttribute('aria-pressed',String(dark));
+  setHTML($('abTheme'),ic(dark?'sun':'moon')+(dark?'Tema claro':'Tema oscuro'));
+  setHTML($('topTheme'),ic(dark?'sun':'moon'));
+  $('topTheme').setAttribute('aria-label',dark?'Cambiar a tema claro':'Cambiar a tema oscuro');
+}
+const toggleTheme=()=>setTheme(!document.documentElement.classList.contains('dark'));
+$('abTheme').addEventListener('click',toggleTheme);
+$('topTheme').addEventListener('click',toggleTheme);
+
+/* ---------- 390 view: the same page node moves into the device ---------- */
+function setMobile(on){
+  document.body.classList.toggle('m-mode',on);
+  $('ab390').setAttribute('aria-pressed',String(on));
+  setHTML($('ab390'),ic(on?'monitor':'phone')+(on?'Ver en escritorio':'Ver en móvil (390)'));
+  (on?$('devSlot'):$('deskSlot')).appendChild($('page'));
+}
+$('ab390').addEventListener('click',()=>setMobile(!document.body.classList.contains('m-mode')));
+</script>
+</body>
+</html>

@@ -1,13 +1,11 @@
-// CatalogSettingsReadView.spec.ts — STRICT-TDD tests for the WU3A read-only
-// accepted-settings surface (REQ-5, REQ-8, REQ-11, REQ-12).
-//
-// The component receives the ACCEPTED response DTO and renders it read-only:
-// publication badges, contexts/default, stock default, warnings, timestamp,
-// empty state. No mutation UI, no PATCH wiring (WU3B owns that).
+// CatalogSettingsReadView.spec.ts — the accepted settings in the same rows,
+// read-only (REQ-5 / REQ-11 / REQ-12): publication badge and status line read
+// as-is, public lists in server order with the default badge, the accepted
+// stock mode only, closed-set warnings, and no control at all.
 
 import { describe, expect, it } from 'vitest'
 import { mountWithUApp } from '@/test/mountWithUApp'
-import CatalogSettingsReadView from '../CatalogSettingsReadView.vue'
+import CatalogSettingsReadView from '@/features/system/catalog-settings/components/CatalogSettingsReadView.vue'
 import type { CatalogSettingsResponseDto } from '../../interfaces/catalog-settings.types'
 
 function makeResponse(
@@ -17,8 +15,8 @@ function makeResponse(
     catalogPublished: true,
     effectivePublication: true,
     priceContexts: [
-      { priceListId: 'pl_a', name: 'Lista A', isCatalogDefault: true },
       { priceListId: 'pl_b', name: 'Lista B', isCatalogDefault: false },
+      { priceListId: 'pl_a', name: 'Lista A', isCatalogDefault: true },
     ],
     stockPresentationDefault: { mode: 'SYSTEM_STATUS', customQuantity: null },
     warnings: [],
@@ -27,260 +25,69 @@ function makeResponse(
   }
 }
 
-describe('CatalogSettingsReadView — accepted publication rendering (REQ-5, REQ-11)', () => {
-  it.each([
-    [true, true, 'success', 'success'],
-    [false, true, 'neutral', 'success'],
-    [true, false, 'success', 'neutral'],
-  ])('maps publication %s / effective %s to StatusBadge tones %s / %s', (published, effective, publicationTone, effectiveTone) => {
-    const wrapper = mountWithUApp(CatalogSettingsReadView, {
-      props: { settings: makeResponse({ catalogPublished: published, effectivePublication: effective }) },
-    })
-    expect(wrapper.find('[data-testid="publication-badge"]').attributes('data-tone')).toBe(publicationTone)
-    expect(wrapper.find('[data-testid="effective-badge"]').attributes('data-tone')).toBe(effectiveTone)
-    // Nothing here is a pending item the user must act on.
-    expect(wrapper.findAll('.hf-status-badge[data-tone="warning"]')).toHaveLength(0)
-  })
+function mountView(overrides: Partial<CatalogSettingsResponseDto> = {}) {
+  return mountWithUApp(CatalogSettingsReadView, { props: { settings: makeResponse(overrides) } })
+}
 
-  it('marks the default list with an info StatusBadge', () => {
-    const wrapper = mountWithUApp(CatalogSettingsReadView, { props: { settings: makeResponse() } })
-    const defaults = wrapper.findAll('[data-testid="context-row"] .hf-status-badge')
-    expect(defaults).toHaveLength(1)
-    expect(defaults[0]!.attributes('data-tone')).toBe('info')
-    expect(defaults[0]!.text()).toBe('Predeterminada')
-  })
-
-  it('keeps the three semantic sections card-free for the routed outer card', () => {
-    const wrapper = mountWithUApp(CatalogSettingsReadView, {
-      props: { settings: makeResponse() },
-    })
-
-    expect(wrapper.findAllComponents({ name: 'Card' })).toHaveLength(0)
+describe('CatalogSettingsReadView — read-only rows', () => {
+  it('renders the three sections without any switch, radio, input or checkbox', () => {
+    const wrapper = mountView()
     for (const testId of ['publication-card', 'contexts-card', 'stock-card']) {
-      expect(wrapper.find(`[data-testid="${testId}"]`).element.tagName).toBe('SECTION')
+      expect(wrapper.find(`[data-testid="${testId}"]`).exists()).toBe(true)
     }
-    expect(wrapper.find('[data-testid="catalog-settings-read"]').classes()).toContain('sm:gap-8')
-    expect(wrapper.find('[data-testid="contexts-card"]').classes()).toContain('border-t')
-    expect(wrapper.find('[data-testid="stock-card"]').classes()).toContain('sm:pt-8')
+    expect(wrapper.findAll('[role="switch"], [role="radio"], input, button')).toHaveLength(0)
   })
 
-  it('shows the accepted catalogPublished state with a visible badge', () => {
-    const wrapper = mountWithUApp(CatalogSettingsReadView, {
-      props: { settings: makeResponse({ catalogPublished: true }) },
-    })
-    expect(wrapper.find('[data-testid="publication-badge"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Publicado')
-  })
-
-  it('shows the unpublished accepted state', () => {
-    const wrapper = mountWithUApp(CatalogSettingsReadView, {
-      props: { settings: makeResponse({ catalogPublished: false }) },
-    })
-    expect(wrapper.find('[data-testid="publication-badge"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('No publicado')
-  })
-
-  it('renders effectivePublication faithfully even when divergent (REQ-11)', () => {
-    const wrapper = mountWithUApp(CatalogSettingsReadView, {
-      props: {
-        settings: makeResponse({ catalogPublished: true, effectivePublication: false }),
-      },
-    })
-    expect(wrapper.find('[data-testid="effective-badge"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain(
-      'La publicación efectiva también depende del estado del tenant.',
+  it('shows the accepted publication as a badge with the status line', () => {
+    const published = mountView()
+    expect(published.get('[data-testid="publication-badge"]').text()).toBe('Publicado')
+    expect(published.get('[data-testid="publication-badge"]').attributes('data-tone')).toBe('success')
+    expect(published.get('[data-testid="publication-status"]').text()).toContain(
+      'se muestra primero Lista A.',
     )
-    expect(wrapper.text()).toContain('Inactiva')
+
+    const unpublished = mountView({ catalogPublished: false, effectivePublication: false })
+    expect(unpublished.get('[data-testid="publication-badge"]').text()).toBe('No publicado')
+    expect(unpublished.get('[data-testid="publication-badge"]').attributes('data-tone')).toBe('neutral')
   })
 
-  it('hides the effective-publication helper when effectivePublication is true', () => {
-    const wrapper = mountWithUApp(CatalogSettingsReadView, {
-      props: {
-        settings: makeResponse({ catalogPublished: true, effectivePublication: true }),
-      },
-    })
-    expect(wrapper.text()).not.toContain(
-      'La publicación efectiva también depende del estado del tenant.',
-    )
-  })
-})
-
-describe('CatalogSettingsReadView — contexts + default ul > li semantics (REQ-5, REQ-6)', () => {
-  it('wraps rows in a <ul> with a data-testid', () => {
-    const wrapper = mountWithUApp(CatalogSettingsReadView, {
-      props: { settings: makeResponse() },
-    })
-    expect(wrapper.find('ul[data-testid="contexts-list"]').exists()).toBe(true)
+  it('renders effectivePublication as-is even when it diverges (REQ-11)', () => {
+    const wrapper = mountView({ catalogPublished: true, effectivePublication: false })
+    expect(wrapper.get('[data-testid="publication-status"]').text()).toContain('No visible:')
   })
 
-  it('uses <li> as direct children — validates with DOM .children', () => {
-    const wrapper = mountWithUApp(CatalogSettingsReadView, {
-      props: { settings: makeResponse() },
-    })
-    const list = wrapper.find('ul[data-testid="contexts-list"]').element
-    // Exact child count
-    expect(list.children).toHaveLength(2)
-    // Every direct child is an <li>
-    for (const child of list.children) {
-      expect(child.tagName).toBe('LI')
-    }
+  it('lists the accepted public lists in server order with the default badge', () => {
+    const wrapper = mountView()
+    const rows = wrapper.findAll('[data-testid="context-row"]')
+    expect(rows.map((row) => row.get('.cs-price-title > span').text())).toEqual(['Lista B', 'Lista A'])
+    expect(rows[1]!.attributes('data-default')).toBe('true')
+    expect(rows[1]!.get('.hf-status-badge').text()).toBe('Predeterminada')
   })
 
-  it('renders the accepted price contexts in server order with the default marked', () => {
-    const wrapper = mountWithUApp(CatalogSettingsReadView, {
-      props: { settings: makeResponse() },
-    })
-    const items = wrapper.findAll('li[data-testid="context-row"]')
-    expect(items).toHaveLength(2)
-    expect(items[0]!.text()).toContain('Lista A')
-    expect(items[0]!.text()).toContain('Predeterminada')
-    expect(items[1]!.text()).toContain('Lista B')
-  })
-
-  it('row class contains sm:flex-row for horizontal layout at breakpoint', () => {
-    const wrapper = mountWithUApp(CatalogSettingsReadView, {
-      props: { settings: makeResponse() },
-    })
-    const row = wrapper.find('li[data-testid="context-row"]')
-    expect(row.classes()).toContain('sm:flex-row')
-  })
-
-  it('name wrapper has min-w-0 and break-words for safe wrapping', () => {
-    const wrapper = mountWithUApp(CatalogSettingsReadView, {
-      props: { settings: makeResponse() },
-    })
-    const nameSpan = wrapper.find('li[data-testid="context-row"] span')
-    expect(nameSpan.classes()).toContain('min-w-0')
-    expect(nameSpan.classes()).toContain('break-words')
-  })
-
-  it('renders the empty-state copy when priceContexts is empty', () => {
-    const wrapper = mountWithUApp(CatalogSettingsReadView, {
-      props: { settings: makeResponse({ priceContexts: [] }) },
-    })
-    expect(wrapper.text()).toContain(
+  it('says so when there are no public lists', () => {
+    const wrapper = mountView({ priceContexts: [] })
+    expect(wrapper.get('[data-testid="contexts-empty"]').text()).toContain(
       'Sin listas públicas: la configuración no se mostrará públicamente',
     )
   })
-})
 
-describe('CatalogSettingsReadView — stock default (REQ-8)', () => {
-  it('renders the shared customer-facing mode label and explanation without a quantity', () => {
-    const wrapper = mountWithUApp(CatalogSettingsReadView, {
-      props: {
-        settings: makeResponse({
-          stockPresentationDefault: { mode: 'SYSTEM_STATUS', customQuantity: null },
-        }),
-      },
-    })
-    const stock = wrapper.find('[data-testid="stock-default"]')
-    expect(stock.exists()).toBe(true)
-    expect(stock.text()).toContain('Estado detallado')
-    expect(stock.text()).toContain(
-      'Muestra Disponible, Pocas piezas o Agotado según las existencias reales, sin publicar cantidades.',
-    )
-    expect(stock.text()).not.toContain('Mostrar 0')
+  it('shows only the accepted stock mode with its shared copy; fixed 0 reads «Mostrar 0»', () => {
+    const detailed = mountView()
+    expect(detailed.findAll('[data-testid="stock-default"]')).toHaveLength(1)
+    expect(detailed.get('[data-testid="stock-default"]').text()).toContain('Estado detallado')
+
+    const fixed = mountView({ stockPresentationDefault: { mode: 'CUSTOM_QUANTITY', customQuantity: 0 } })
+    expect(fixed.get('[data-testid="stock-default"]').text()).toContain('Mostrar cantidad fija')
+    expect(fixed.get('[data-testid="stock-quantity-label"]').text()).toBe('Mostrar 0')
   })
 
-  it('labels CUSTOM_QUANTITY 0 as "Mostrar 0"', () => {
-    const wrapper = mountWithUApp(CatalogSettingsReadView, {
-      props: {
-        settings: makeResponse({
-          stockPresentationDefault: { mode: 'CUSTOM_QUANTITY', customQuantity: 0 },
-        }),
-      },
+  it('maps known warnings to Spanish copy and drops unknown codes', () => {
+    const wrapper = mountView({
+      effectivePublication: false,
+      warnings: ['DEFAULT_CONTEXT_HAS_NO_VALID_PRICES', 'SOMETHING_NEW'],
     })
-    expect(wrapper.find('[data-testid="stock-default"]').text()).toContain('Mostrar 0')
-  })
-
-  it('labels CUSTOM_QUANTITY with a positive quantity as "Mostrar n"', () => {
-    const wrapper = mountWithUApp(CatalogSettingsReadView, {
-      props: {
-        settings: makeResponse({
-          stockPresentationDefault: { mode: 'CUSTOM_QUANTITY', customQuantity: 2 },
-        }),
-      },
-    })
-    expect(wrapper.find('[data-testid="stock-default"]').text()).toContain('Mostrar 2')
-  })
-
-  it.each([
-    [
-      'ABSTRACT_STATUS',
-      'Solo disponibilidad',
-      'Muestra solo Disponible o Agotado, sin revelar cuándo queda poco stock.',
-    ],
-    [
-      'HIDDEN',
-      'No mostrar stock',
-      'No muestra ningún texto de stock en el catálogo; las validaciones de venta siguen usando las existencias reales.',
-    ],
-  ] as const)(
-    'renders mode %s with its shared label and explanation',
-    (mode, label, description) => {
-      const wrapper = mountWithUApp(CatalogSettingsReadView, {
-        props: {
-          settings: makeResponse({
-            stockPresentationDefault: { mode, customQuantity: null },
-          }),
-        },
-      })
-      const stock = wrapper.find('[data-testid="stock-default"]')
-      expect(stock.text()).toContain(label)
-      expect(stock.text()).toContain(description)
-    },
-  )
-
-  it('explains the fixed-quantity mode as display-only alongside the preserved quantity', () => {
-    const wrapper = mountWithUApp(CatalogSettingsReadView, {
-      props: {
-        settings: makeResponse({
-          stockPresentationDefault: { mode: 'CUSTOM_QUANTITY', customQuantity: 0 },
-        }),
-      },
-    })
-    const stock = wrapper.find('[data-testid="stock-default"]')
-    expect(stock.text()).toContain('Mostrar cantidad fija')
-    expect(stock.text()).toContain('Mostrar 0')
-    expect(stock.text()).toContain(
-      'Muestra siempre la cantidad definida como dato informativo; no cambia las existencias y la venta sigue bloqueada si no hay stock real.',
-    )
-  })
-})
-
-describe('CatalogSettingsReadView — warnings + timestamp (REQ-11)', () => {
-  it('shows the known warning with its Spanish copy, read-only', () => {
-    const wrapper = mountWithUApp(CatalogSettingsReadView, {
-      props: {
-        settings: makeResponse({ warnings: ['DEFAULT_CONTEXT_HAS_NO_VALID_PRICES'] }),
-      },
-    })
-    expect(wrapper.text()).toContain('El contexto de catálogo por defecto no tiene precios válidos')
-  })
-
-  it('drops unknown warning codes silently', () => {
-    const wrapper = mountWithUApp(CatalogSettingsReadView, {
-      props: {
-        settings: makeResponse({ warnings: ['SOME_FUTURE_CODE'] }),
-      },
-    })
-    expect(wrapper.text()).not.toContain('SOME_FUTURE_CODE')
-  })
-
-  it('renders the accepted updatedAt timestamp', () => {
-    const wrapper = mountWithUApp(CatalogSettingsReadView, {
-      props: { settings: makeResponse({ updatedAt: '2026-02-14T10:00:00.000Z' }) },
-    })
-    expect(wrapper.find('[data-testid="updated-at"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="updated-at"]').text()).toMatch(/14 feb/)
-  })
-})
-
-describe('CatalogSettingsReadView — update-permission notice moved to page footer (REQ-12, WU3B)', () => {
-  it('does not render a canUpdate prop — the notice lives in the page sticky footer', () => {
-    const wrapper = mountWithUApp(CatalogSettingsReadView, {
-      props: { settings: makeResponse() },
-    })
-    expect(wrapper.find('[data-testid="readonly-notice"]').exists()).toBe(false)
+    const text = wrapper.get('[data-testid="publication-status"]').text()
+    expect(text).toContain('El contexto de catálogo por defecto no tiene precios válidos')
+    expect(text).not.toContain('SOMETHING_NEW')
   })
 })

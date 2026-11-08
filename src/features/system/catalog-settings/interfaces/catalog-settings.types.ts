@@ -78,3 +78,9 @@ export interface CatalogSettingsDraft {
   catalogDefaultPriceListId: string | null
   stockPresentationDefault: CatalogStockPresentationDefaultDto
 }
+
+/** UI notice after the default list stopped being public and the next public list took over. */
+export interface CatalogDefaultMove {
+  fromName: string
+  toName: string
+}

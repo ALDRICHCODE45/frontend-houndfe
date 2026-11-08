@@ -6,7 +6,7 @@ import {
   toPatchCatalogSettingsBody, validateCatalogSettingsDraft,
   isCatalogSettingsDirty, isPublishRisingEdge,
   serializeStockPresentationDefault, mapCatalogSettingsWarning,
-  mapCatalogSettingsError,
+  mapCatalogSettingsError, STOCK_QUANTITY_ERROR,
 } from '../catalogSettingsMappers'
 import type { CatalogSettingsDraft, CatalogSettingsResponseDto }
   from '../../interfaces/catalog-settings.types'
@@ -213,5 +213,22 @@ describe('mapCatalogSettingsError', () => {
     const out = mapCatalogSettingsError(input)
     expect(out.field).toBe(expectedField)
     expect(out.toast).toContain(toastIncludes)
+  })
+})
+
+describe('validateCatalogSettingsDraft — fixed stock quantity', () => {
+  const custom = (customQuantity: number | null) =>
+    D({ stockPresentationDefault: { mode: 'CUSTOM_QUANTITY', customQuantity } })
+
+  it.each([0, 1, 250])('accepts the integer %s', (quantity) => {
+    expect(validateCatalogSettingsDraft(custom(quantity))).toEqual([])
+  })
+
+  it.each([Number.NaN, -1, 1.5])('blocks %s with the field message', (quantity) => {
+    expect(validateCatalogSettingsDraft(custom(quantity))).toEqual([STOCK_QUANTITY_ERROR])
+  })
+
+  it('ignores the quantity outside CUSTOM_QUANTITY', () => {
+    expect(validateCatalogSettingsDraft(D())).toEqual([])
   })
 })

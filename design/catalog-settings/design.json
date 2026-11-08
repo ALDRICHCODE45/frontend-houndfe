@@ -1,0 +1,35 @@
+{
+  "title": "Catálogo online · configuración",
+  "brief": "Rediseño de Sistema › Catálogo online (publicación, listas de precios públicas y predeterminada, stock en catálogo) y regla del sistema: sin checkboxes clásicos, alternativas modernas y accesibles.",
+  "artboards": [
+    {
+      "file": "01-ajustes-en-filas.html",
+      "title": "Ajustes en filas",
+      "tradeoff": "Familiar y escaneable (tipo Stripe/Linear); menos visual, no muestra cómo lo ve el cliente",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "02-vista-previa-en-vivo.html",
+      "title": "Con vista previa en vivo",
+      "tradeoff": "Cada cambio se ve en una tarjeta del catálogo público; ocupa más ancho y en móvil la vista previa baja al final",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "03-estado-primero.html",
+      "title": "Estado primero",
+      "tradeoff": "Lo más importante arriba (¿está publicado?, avisos) y cada lista como fila con interruptor; más alto, pide scroll",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "04-regla-sin-checkboxes.html",
+      "title": "Regla: sin checkboxes",
+      "tradeoff": "Propuesta para el design system: qué usar en lugar de cada checkbox, con estados y móvil",
+      "width": 1440,
+      "height": 3800
+    }
+  ],
+  "feature": "odd/tasks/catalog-settings-rows.md"
+}

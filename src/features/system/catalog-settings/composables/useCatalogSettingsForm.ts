@@ -23,6 +23,14 @@ import {
 
 type SaveRoute = 'confirm' | 'save'
 
+function cloneDraft(source: CatalogSettingsDraft): CatalogSettingsDraft {
+  return {
+    ...source,
+    publicPriceListIds: [...source.publicPriceListIds],
+    stockPresentationDefault: { ...source.stockPresentationDefault },
+  }
+}
+
 export interface CatalogSettingsFormApi {
   accepted: Ref<CatalogSettingsResponseDto | null>
   pristine: Ref<CatalogSettingsDraft | null>
@@ -36,6 +44,7 @@ export interface CatalogSettingsFormApi {
   confirmPublish: () => SaveRoute
   cancelPublish: () => void
   buildSaveBody: () => CatalogSettingsPatchBody | null
+  discard: () => void
   acceptPatch: (response: CatalogSettingsResponseDto) => void
   beginMutation: () => void
   endMutation: () => void
@@ -96,7 +105,7 @@ export function useCatalogSettingsForm(
   function acceptResponse(response: CatalogSettingsResponseDto): void {
     accepted.value = response
     pristine.value = fromCatalogSettingsResponse(response)
-    draft.value = { ...pristine.value }
+    draft.value = cloneDraft(pristine.value)
   }
 
   /** Save gate: invalid / pristine / pending drafts issue nothing (REQ-7, REQ-12). */
@@ -123,6 +132,12 @@ export function useCatalogSettingsForm(
   function buildSaveBody(): CatalogSettingsPatchBody | null {
     if (!draft.value || !pristine.value) return null
     return toPatchCatalogSettingsBody(draft.value, pristine.value)
+  }
+
+  /** Back to the last accepted snapshot (save bar «Descartar»). */
+  function discard(): void {
+    if (!pristine.value) return
+    draft.value = cloneDraft(pristine.value)
   }
 
   function beginMutation(): void {
@@ -152,6 +167,7 @@ export function useCatalogSettingsForm(
     confirmPublish,
     cancelPublish,
     buildSaveBody,
+    discard,
     acceptPatch,
     beginMutation,
     endMutation,

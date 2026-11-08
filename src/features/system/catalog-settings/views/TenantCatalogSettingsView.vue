@@ -1,23 +1,26 @@
 <script setup lang="ts">
 /**
- * TenantCatalogSettingsView — routed composition surface at
- * /system/catalog-settings (WU3A base; WU3B layers the editable form).
+ * TenantCatalogSettingsView — routed surface at /system/catalog-settings,
+ * laid out after artboard design/catalog-settings/01-ajustes-en-filas.html:
+ * page header, then a centred ~880px column with «Publicación», «Precios que
+ * ve el público» and «Stock en el catálogo» as surfaces of rows, and a sticky
+ * save bar at the bottom of the column.
  *
- * Composition: tenant id from useSafeTenantId, the WU2C read query, the WU3B
- * form composable, the WU2C PATCH mutation, and the candidates composable.
- * States — loading skeleton, GET error with Reintentar (no synthetic
- * defaults), editable form when update:TenantCatalogSettings is held, and the
- * accepted read-only surface (with the locked save-permission notice)
+ * Composition: tenant id from useSafeTenantId, the read query, the form
+ * composable (single draft owner), the PATCH mutation and the candidates
+ * query. States — loading skeleton in the screen's shape, GET error with
+ * Reintentar (no synthetic defaults), the editable form when
+ * update:TenantCatalogSettings is held, and the accepted read-only rows
  * otherwise. The ConfirmModal opens ONLY on the publish rising edge; Cancel
- * keeps the dirty draft editable. Toasts: success copy and the WU2B error
- * mapper; no optimistic publication update ever happens.
+ * keeps the dirty draft. Toasts: success copy and the error mapper; no
+ * optimistic publication update ever happens.
  *
- * UI redesign (U5): unified large-card shell (ProductsView pattern) — one
- * UCard with #header, card body, and #footer. Header/footer are no longer
- * detached page-level rectangles; footer is no longer viewport-sticky. All
- * composable wiring, data-testid, and state contracts are preserved.
+ * Default-list rules (artboard decision, S4): turning a list public when there
+ * is no public default makes it the default; turning the default off moves the
+ * default to the first other public list and shows a notice with «Deshacer»;
+ * clearing the last public list also clears publication intent (REQ-9).
  */
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { useCatalogSettingsQuery } from '../composables/useCatalogSettingsQuery'
 import { useCatalogSettingsForm } from '../composables/useCatalogSettingsForm'
 import { useCatalogPriceListCandidatesQuery } from '../composables/useCatalogPriceListCandidatesQuery'
@@ -28,9 +31,18 @@ import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import CatalogSettingsReadView from '../components/CatalogSettingsReadView.vue'
 import CatalogSettingsForm from '../components/CatalogSettingsForm.vue'
-import { mapCatalogSettingsError } from '../utils/catalogSettingsMappers'
-import type { CatalogSettingsResponseDto } from '../interfaces/catalog-settings.types'
-import type { CatalogStockPresentationDefaultDto } from '../interfaces/catalog-settings.types'
+import CatalogSaveBar from '../components/CatalogSaveBar.vue'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
+import {
+  mapCatalogSettingsError,
+  mapCatalogSettingsWarning,
+  STOCK_QUANTITY_ERROR,
+} from '../utils/catalogSettingsMappers'
+import type {
+  CatalogDefaultMove,
+  CatalogSettingsResponseDto,
+  CatalogStockPresentationDefaultDto,
+} from '../interfaces/catalog-settings.types'
 import '../styles/catalog-settings-visual.css'
 
 declare const useToast: () => {
@@ -40,6 +52,8 @@ declare const useToast: () => {
     color?: 'success' | 'error' | 'warning' | 'primary' | 'neutral'
   }) => void
 }
+
+const SAVED_CUE_MS = 2200
 
 const tenantId = useSafeTenantId()
 const authStore = useAuthStore()
@@ -56,14 +70,50 @@ const toast = useToast()
 // publication and stock remain independently available when otherwise valid.
 const canEditContexts = computed(() => canUpdate.value && canReadGlobalPriceLists.value)
 const acceptedContexts = computed(() => query.settings.value?.priceContexts ?? [])
+const candidates = computed(() => candidatesQuery.candidates.value ?? [])
 const formDraft = computed(() => form.draft.value)
-const formCanSave = computed(() => form.canSave.value && !mutation.isPending.value)
 const saving = computed(() => mutation.isPending.value)
+const formCanSave = computed(() => form.canSave.value && !saving.value)
+const isDirty = computed(() => form.isDirty.value)
 
-/** Whether the footer should render (not while loading or errored). */
-const showFooter = computed(
-  () => !query.isLoading.value && !query.isError.value && !!query.settings.value,
+const acceptedWarnings = computed(() =>
+  (query.settings.value?.warnings ?? [])
+    .map((code) => mapCatalogSettingsWarning(code))
+    .filter((copy): copy is string => copy !== null),
 )
+const updatedAt = computed(
+  () => form.accepted.value?.updatedAt ?? query.settings.value?.updatedAt ?? '',
+)
+const saveHint = computed(() => {
+  const errors = form.validationErrors.value
+  if (errors.length === 0) return null
+  return errors.includes(STOCK_QUANTITY_ERROR) ? 'revisa la cantidad' : 'revisa los avisos'
+})
+
+/** Save bar «Guardado» cue for a moment after a successful save. */
+const justSaved = ref(false)
+let savedTimer: ReturnType<typeof setTimeout> | undefined
+function flashSaved() {
+  justSaved.value = true
+  clearTimeout(savedTimer)
+  savedTimer = setTimeout(() => {
+    justSaved.value = false
+  }, SAVED_CUE_MS)
+}
+onBeforeUnmount(() => clearTimeout(savedTimer))
+
+/** The default moved because its list stopped being public; «Deshacer» restores the snapshot. */
+const defaultMove = ref<
+  (CatalogDefaultMove & { previous: { ids: string[]; defaultId: string | null; published: boolean } }) | null
+>(null)
+
+function nameOf(priceListId: string): string {
+  return (
+    candidates.value.find((candidate) => candidate.id === priceListId)?.name ??
+    acceptedContexts.value.find((context) => context.priceListId === priceListId)?.name ??
+    'Lista sin nombre'
+  )
+}
 
 /** Re-run the read query after a GET failure (any non-2xx, incl. 404). */
 function onRetry() {
@@ -75,29 +125,59 @@ function togglePublish() {
   if (form.draft.value) form.draft.value.catalogPublished = !form.draft.value.catalogPublished
 }
 function addContext(priceListId: string) {
-  if (form.draft.value) {
-    form.draft.value.publicPriceListIds = [...form.draft.value.publicPriceListIds, priceListId]
+  const draft = form.draft.value
+  if (!draft) return
+  defaultMove.value = null
+  draft.publicPriceListIds = [...draft.publicPriceListIds, priceListId]
+  const defaultId = draft.catalogDefaultPriceListId
+  if (!defaultId || !draft.publicPriceListIds.includes(defaultId)) {
+    draft.catalogDefaultPriceListId = priceListId
   }
 }
 function removeContext(priceListId: string) {
-  if (!form.draft.value) return
-  form.draft.value.publicPriceListIds = form.draft.value.publicPriceListIds.filter(
-    (id) => id !== priceListId,
-  )
-  if (form.draft.value.catalogDefaultPriceListId === priceListId) {
-    form.draft.value.catalogDefaultPriceListId = null
+  const draft = form.draft.value
+  if (!draft) return
+  defaultMove.value = null
+  const previous = {
+    ids: [...draft.publicPriceListIds],
+    defaultId: draft.catalogDefaultPriceListId,
+    published: draft.catalogPublished,
   }
-  // Design: clearing the last public context also clears publication intent;
-  // the atomic clear triple is built by the WU2B mapper at save time (REQ-9).
-  if (form.draft.value.publicPriceListIds.length === 0 && form.draft.value.catalogPublished) {
-    form.draft.value.catalogPublished = false
+  draft.publicPriceListIds = draft.publicPriceListIds.filter((id) => id !== priceListId)
+  if (draft.catalogDefaultPriceListId === priceListId) {
+    const next = draft.publicPriceListIds[0] ?? null
+    draft.catalogDefaultPriceListId = next
+    if (next) defaultMove.value = { fromName: nameOf(priceListId), toName: nameOf(next), previous }
+  }
+  // Clearing the last public context also clears publication intent; the
+  // atomic clear triple is built by the mapper at save time (REQ-9).
+  if (draft.publicPriceListIds.length === 0 && draft.catalogPublished) {
+    draft.catalogPublished = false
   }
 }
+function undoDefaultMove() {
+  const draft = form.draft.value
+  const move = defaultMove.value
+  if (!draft || !move) return
+  draft.publicPriceListIds = [...move.previous.ids]
+  draft.catalogDefaultPriceListId = move.previous.defaultId
+  draft.catalogPublished = move.previous.published
+  defaultMove.value = null
+}
 function setDefault(priceListId: string | null) {
-  if (form.draft.value) form.draft.value.catalogDefaultPriceListId = priceListId
+  if (!form.draft.value) return
+  defaultMove.value = null
+  form.draft.value.catalogDefaultPriceListId = priceListId
 }
 function onStockChange(value: CatalogStockPresentationDefaultDto) {
   if (form.draft.value) form.draft.value.stockPresentationDefault = value
+}
+function onDiscard() {
+  defaultMove.value = null
+  form.discard()
+}
+function onRetryCandidates() {
+  void candidatesQuery.refetch()
 }
 
 /** Save routing: rising edge opens the confirmation; everything else saves directly. */
@@ -122,6 +202,8 @@ async function submit() {
       body,
     })) as CatalogSettingsResponseDto
     form.acceptPatch(response)
+    defaultMove.value = null
+    flashSaved()
     toast.add({ title: 'Configuración de catálogo guardada', color: 'success' })
   } catch (error) {
     const status = (error as { response?: { status?: number } })?.response?.status
@@ -133,131 +215,104 @@ async function submit() {
 </script>
 
 <template>
-  <div
-    class="hf-theme hf-ui catalog-settings-visual mx-auto flex w-full min-w-0 max-w-[1320px] flex-col gap-6 md:px-6 lg:px-10"
-  >
-    <!-- Canonical page header (design-system §4), outside the settings surface. -->
-    <div class="hf-page-header">
-      <h1 class="hf-page-title">Configuración del catálogo online</h1>
-    </div>
+  <div class="hf-theme hf-ui catalog-settings-visual cs-page mx-auto flex w-full min-w-0 flex-col">
+    <!-- Canonical page header (design-system §4): title plus one short subtitle. -->
+    <header class="hf-page-header">
+      <h1 class="hf-page-title">Catálogo online</h1>
+      <p class="hf-page-subtitle">
+        Decide si tus clientes ven el catálogo, con qué precios y cómo se muestra el stock.
+      </p>
+    </header>
 
-    <UCard
-      data-testid="settings-card"
-      class="catalog-settings-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm"
+    <!-- Loading state in the screen's shape: three sections of rows, no controls. -->
+    <div
+      v-if="query.isLoading.value"
+      data-testid="settings-loading"
+      role="status"
+      aria-busy="true"
+      class="flex flex-col gap-8"
     >
-      <!-- Card body: loading skeleton, error state, editable form, or read-only view.
-         Inner responsive padding matches the Products list pattern. -->
-      <div class="px-3 py-3 sm:px-4 sm:py-4">
-        <!-- Loading state: the form's own shape (publication row, two columns of
-           label + control); no enabled controls, no synthetic values. -->
-        <div
-          v-if="query.isLoading.value"
-          data-testid="settings-loading"
-          role="status"
-          aria-busy="true"
-          class="flex flex-col gap-6 sm:gap-8"
-        >
-          <span class="sr-only">Cargando la configuración del catálogo…</span>
-          <div
-            data-skeleton="publication"
-            class="settings-skeleton-block flex animate-pulse items-center gap-3 rounded-lg px-4 py-3"
-            aria-hidden="true"
-          >
-            <span class="settings-skeleton-bar h-5 w-9 rounded-full" />
+      <span class="sr-only">Cargando la configuración del catálogo…</span>
+      <div
+        v-for="rows in [1, 3, 4]"
+        :key="rows"
+        data-skeleton="section"
+        class="cs-group animate-pulse"
+        aria-hidden="true"
+      >
+        <span class="settings-skeleton-bar h-4 w-44" />
+        <div class="cs-surface">
+          <div v-for="n in rows" :key="n" data-skeleton="row" class="cs-price-row">
             <span class="flex flex-col gap-2">
-              <span class="settings-skeleton-bar h-4 w-24" />
+              <span class="settings-skeleton-bar h-4 w-32" />
               <span class="settings-skeleton-bar h-3 w-56 max-w-full" />
             </span>
           </div>
-          <div
-            class="grid grid-cols-1 gap-6 border-t border-default pt-6 sm:gap-8 sm:pt-8 lg:grid-cols-2"
-            aria-hidden="true"
-          >
-            <div
-              v-for="n in 2"
-              :key="n"
-              data-skeleton="section"
-              class="flex animate-pulse flex-col gap-3"
-            >
-              <span class="settings-skeleton-bar h-4 w-40" />
-              <span data-skeleton="control" class="settings-skeleton-bar h-11 w-full" />
-              <span class="settings-skeleton-bar h-3 w-48 max-w-full" />
-              <span data-skeleton="control" class="settings-skeleton-bar h-11 w-full" />
-            </div>
-          </div>
         </div>
+      </div>
+    </div>
 
-        <!-- GET error state: explicit retry, never a 404-as-default fallback. -->
-        <EmptyState
-          v-else-if="query.isError.value"
-          data-testid="settings-error"
-          kind="error"
-          title="No se pudo cargar la configuración del catálogo"
-          action-label="Reintentar"
-          action-test-id="retry-button"
-          @action="onRetry"
+    <!-- GET error state: explicit retry, never a 404-as-default fallback. -->
+    <EmptyState
+      v-else-if="query.isError.value"
+      data-testid="settings-error"
+      kind="error"
+      title="No se pudo cargar la configuración del catálogo"
+      action-label="Reintentar"
+      action-test-id="retry-button"
+      @action="onRetry"
+    />
+
+    <template v-else-if="query.settings.value">
+      <!-- Editable surface (REQ-12: only with update:TenantCatalogSettings). -->
+      <template v-if="canUpdate && formDraft">
+        <CatalogSettingsForm
+          :draft="formDraft"
+          :accepted-contexts="acceptedContexts"
+          :candidates="candidates"
+          :candidates-loading="candidatesQuery.isLoading.value"
+          :candidates-error="candidatesQuery.isError.value"
+          :validation-errors="form.validationErrors.value"
+          :can-edit-contexts="canEditContexts"
+          :effective-publication="query.settings.value.effectivePublication"
+          :warnings="acceptedWarnings"
+          :dirty="isDirty"
+          :default-move="defaultMove"
+          @toggle-publish="togglePublish"
+          @add-context="addContext"
+          @remove-context="removeContext"
+          @set-default="setDefault"
+          @stock-change="onStockChange"
+          @undo-default-move="undoDefaultMove"
+          @retry-candidates="onRetryCandidates"
         />
 
-        <template v-else-if="query.settings.value">
-          <!-- Editable surface (REQ-12: only with update:TenantCatalogSettings). -->
-          <CatalogSettingsForm
-            v-if="canUpdate && formDraft"
-            :draft="formDraft"
-            :accepted-contexts="acceptedContexts"
-            :candidates="candidatesQuery.candidates.value ?? []"
-            :validation-errors="form.validationErrors.value"
-            :can-edit-contexts="canEditContexts"
-            @toggle-publish="togglePublish"
-            @add-context="addContext"
-            @remove-context="removeContext"
-            @set-default="setDefault"
-            @stock-change="onStockChange"
-          />
-
-          <!-- Read-only surface with the save-permission notice (REQ-12). -->
-          <CatalogSettingsReadView v-else :settings="query.settings.value" />
-        </template>
-      </div>
-
-      <template v-if="showFooter" #footer>
-        <!-- Save/read-only action surface — non-sticky, inside the card.
-           Renders only when content is loaded; connects to dirty/loading state
-           through the form composable refs. The no-update-permission notice
-           appears here so the read-only surface stays focused on its data.
-           Responsive: mobile-stacked with full-width button, sm horizontal with auto-width button. -->
-        <div
-          class="flex w-full flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end"
-          data-testid="settings-footer"
-        >
-          <p
-            v-if="!canUpdate"
-            class="text-xs text-muted sm:mr-auto"
-            data-testid="readonly-notice"
-          >
-            No tienes permisos para guardar cambios
-          </p>
-          <template v-else>
-            <span
-              v-if="!formCanSave && !saving"
-              class="text-xs text-muted"
-              data-testid="no-changes-hint"
-            >
-              Sin cambios para guardar
-            </span>
-            <UButton
-              color="primary"
-              data-testid="footer-save-button"
-              class="w-full justify-center sm:w-auto"
-              :disabled="!formCanSave"
-              :loading="saving"
-              @click="onSave"
-            >
-              Guardar
-            </UButton>
-          </template>
-        </div>
+        <CatalogSaveBar
+          :dirty="isDirty"
+          :can-save="formCanSave"
+          :saving="saving"
+          :saved="justSaved"
+          :hint="saveHint"
+          :updated-at="updatedAt"
+          @save="onSave"
+          @discard="onDiscard"
+        />
       </template>
-    </UCard>
+
+      <!-- Read-only rows with the save-permission notice (REQ-12). -->
+      <template v-else>
+        <CatalogSettingsReadView :settings="query.settings.value" />
+        <p class="cs-foot-note" data-testid="readonly-notice">
+          <UIcon name="i-lucide-lock" class="cs-notice-icon" aria-hidden="true" />
+          <span>
+            No tienes permisos para guardar cambios ·
+            <span class="hf-figure" data-testid="updated-at">
+              Actualizado {{ formatShortDateTime(updatedAt) }}
+            </span>
+          </span>
+        </p>
+      </template>
+    </template>
 
     <!-- REQ-10: rising-edge confirmation only; Cancel keeps the dirty draft. -->
     <ConfirmModal
