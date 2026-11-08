@@ -1,30 +1,591 @@
 @import '../../../../core/shared/design-system/houndfe-ui.css';
 
-/* Online catalog settings. The palette comes from the shared `.hf-theme`
- * roles; this file only maps Nuxt's warning role for the closed-set warnings
- * and repaints the card. */
+/* Online catalog settings (artboard design/catalog-settings/01-ajustes-en-filas.html,
+ * controls from board 04 «Selección sin checkboxes»). Colors come only from the
+ * shared `.hf-theme` roles, so dark mode follows the tokens. */
 .hf-theme.catalog-settings-visual {
   --ui-warning: var(--hf-warning);
   --color-warning: var(--hf-warning);
+  --cs-hover: color-mix(in srgb, var(--hf-surface-muted) 45%, var(--hf-surface));
+  --cs-success-soft: color-mix(in srgb, var(--hf-success) 12%, var(--hf-surface));
+  --cs-default-tint: color-mix(in srgb, var(--hf-active-soft) 45%, var(--hf-surface));
+  --cs-surface-shadow: 0 1px 2px color-mix(in srgb, var(--hf-ink) 5%, transparent);
+  --cs-float-shadow: 0 12px 32px color-mix(in srgb, var(--hf-ink) 16%, transparent);
 }
 
-/* The global UCard theme paints literal palette colors; the owned hook
- * repaints the surface and border roles. */
-.catalog-settings-visual .catalog-settings-surface {
+/* ── Page column ─────────────────────────────────────────────────────────── */
+.catalog-settings-visual.cs-page {
+  container: cs-page / inline-size;
+  max-width: 880px;
+  gap: 2rem;
+}
+
+.catalog-settings-visual .cs-group {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.catalog-settings-visual .cs-group-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.catalog-settings-visual .cs-group-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+.catalog-settings-visual .cs-group-desc {
+  margin-top: 2px;
+  max-width: 60ch;
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+}
+
+.catalog-settings-visual .cs-count {
+  flex: none;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--hf-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.catalog-settings-visual .cs-surface {
+  overflow: hidden;
   border: 1px solid var(--hf-border);
-  background-color: var(--hf-surface);
+  border-radius: var(--hf-radius-card);
+  background: var(--hf-surface);
+  box-shadow: var(--cs-surface-shadow);
+}
+
+.catalog-settings-visual .cs-focus:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+.catalog-settings-visual .cs-row-title {
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+.catalog-settings-visual .cs-row-desc {
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+}
+
+/* ── Whole-row switch and the switch track ───────────────────────────────── */
+.catalog-settings-visual .cs-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  min-height: 76px;
+  padding: 1rem 1.25rem;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.catalog-settings-visual .cs-switch-row:hover {
+  background: var(--cs-hover);
+}
+.catalog-settings-visual .cs-static-row,
+.catalog-settings-visual .cs-static-row:hover {
+  background: transparent;
+  cursor: default;
+}
+.catalog-settings-visual .cs-switch-row:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: -2px;
+}
+
+/* Off track follows the shared off-switch rule (muted track, --hf-muted
+ * inset outline, muted thumb); on is the action pairing. */
+.catalog-settings-visual .cs-track {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background-color: var(--hf-surface-muted);
+  box-shadow: inset 0 0 0 1px var(--hf-muted);
+  transition: background-color 0.15s, box-shadow 0.15s;
+}
+.catalog-settings-visual .cs-track::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: var(--hf-muted);
+  transition: transform 0.15s, background-color 0.15s;
+}
+.catalog-settings-visual [aria-checked='true'] > .cs-track {
+  background-color: var(--hf-action);
+  box-shadow: none;
+}
+.catalog-settings-visual [aria-checked='true'] > .cs-track::after {
+  background-color: var(--hf-on-action);
+  transform: translateX(20px);
+}
+
+/* ── Effective status line ───────────────────────────────────────────────── */
+.catalog-settings-visual .cs-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid var(--hf-border);
+  font-size: 0.8125rem;
+}
+.catalog-settings-visual .cs-status-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+}
+.catalog-settings-visual .cs-status[data-tone='success'] {
+  color: var(--hf-success);
+  background: var(--cs-success-soft);
+}
+.catalog-settings-visual .cs-status[data-tone='warning'] {
+  color: var(--hf-warning);
+  background: var(--hf-warning-soft);
+}
+.catalog-settings-visual .cs-status[data-tone='muted'] {
+  color: var(--hf-muted);
+  background: color-mix(in srgb, var(--hf-surface-muted) 50%, var(--hf-surface));
+}
+.catalog-settings-visual .cs-status-meta {
+  color: var(--hf-ink);
+}
+.catalog-settings-visual .cs-status[data-tone='muted'] .cs-status-meta {
+  color: var(--hf-muted);
+}
+.catalog-settings-visual .cs-status-pending {
+  margin-right: 0.375rem;
+  font-weight: 600;
+  color: var(--hf-muted);
+}
+
+/* ── Price list rows ─────────────────────────────────────────────────────── */
+.catalog-settings-visual .cs-price-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 196px auto;
+  grid-template-areas: 'name def sw';
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 72px;
+  padding: 0.75rem 0.75rem 0.75rem 1.25rem;
+  border-top: 1px solid var(--hf-border);
+}
+.catalog-settings-visual .cs-price-row:first-child {
+  border-top: 0;
+}
+.catalog-settings-visual .cs-price-row[data-default='true'] {
+  background: var(--cs-default-tint);
+}
+.catalog-settings-visual .cs-price-name {
+  grid-area: name;
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.catalog-settings-visual .cs-price-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+  overflow-wrap: anywhere;
+}
+.catalog-settings-visual .cs-price-row[data-public='false'] .cs-price-title {
+  font-weight: 500;
   color: var(--hf-ink);
 }
 
-/* Loading shapes: neutral bars on the muted surface, never blank boxes. */
-.catalog-settings-visual .settings-skeleton-block {
-  background-color: var(--hf-surface-muted);
+/* «Predeterminada» radio pill */
+.catalog-settings-visual .cs-default-pill {
+  grid-area: def;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  min-height: var(--hf-control-height);
+  padding: 0 0.75rem;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  background: var(--hf-surface);
+  color: var(--hf-muted);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
 }
+.catalog-settings-visual .cs-default-pill:hover {
+  border-color: var(--hf-field-border);
+  color: var(--hf-ink);
+}
+.catalog-settings-visual .cs-default-pill[aria-checked='true'] {
+  border-color: var(--hf-active);
+  box-shadow: inset 0 0 0 1px var(--hf-active);
+  background: var(--hf-active-soft);
+  color: var(--hf-active);
+  font-weight: 600;
+}
+
+/* Round mark shared by the pill and the stock cards: empty ring at rest,
+ * filled with a check when selected (never color alone). */
+.catalog-settings-visual .cs-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--hf-field-border);
+  border-radius: 50%;
+  background: var(--hf-field);
+  color: var(--hf-on-action);
+}
+.catalog-settings-visual .cs-mark-icon {
+  width: 12px;
+  height: 12px;
+  opacity: 0;
+}
+.catalog-settings-visual [aria-checked='true'] .cs-mark,
+.catalog-settings-visual .cs-mark[data-checked='true'] {
+  border-color: var(--hf-active);
+  background: var(--hf-active);
+}
+.catalog-settings-visual [aria-checked='true'] .cs-mark-icon,
+.catalog-settings-visual .cs-mark[data-checked='true'] .cs-mark-icon {
+  opacity: 1;
+}
+
+/* Compact labelled switch «Pública» */
+.catalog-settings-visual .cs-public-switch {
+  grid-area: sw;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: var(--hf-control-height);
+  padding: 0 0.5rem 0 0.75rem;
+  border: 0;
+  border-radius: var(--hf-radius-control);
+  background: transparent;
+  color: var(--hf-ink);
+  font-weight: 500;
+  cursor: pointer;
+}
+.catalog-settings-visual .cs-public-switch:hover {
+  background: var(--cs-hover);
+}
+.catalog-settings-visual .cs-public-switch[aria-disabled='true'] {
+  cursor: not-allowed;
+  color: var(--hf-muted);
+}
+.catalog-settings-visual .cs-public-switch[aria-disabled='true']:hover {
+  background: transparent;
+}
+
+/* Notices under the rows (inline notice with icon) */
+.catalog-settings-visual .cs-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid var(--hf-border);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.catalog-settings-visual .cs-surface > .cs-notice:first-child {
+  border-top: 0;
+}
+.catalog-settings-visual .cs-notice[data-tone='warning'] {
+  color: var(--hf-warning);
+  background: var(--hf-warning-soft);
+}
+.catalog-settings-visual .cs-notice[data-tone='info'] {
+  color: var(--hf-active);
+  background: var(--hf-active-soft);
+}
+.catalog-settings-visual .cs-notice[data-tone='muted'] {
+  color: var(--hf-muted);
+  font-weight: 400;
+}
+.catalog-settings-visual .cs-notice-icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 1px;
+}
+.catalog-settings-visual .cs-link-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  margin: -0.375rem 0;
+  padding: 0 0.5rem;
+  border: 0;
+  border-radius: var(--hf-radius-control);
+  background: transparent;
+  color: var(--hf-action);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.catalog-settings-visual .cs-link-button:hover {
+  background: color-mix(in srgb, var(--hf-action) 8%, transparent);
+}
+
+/* ── Stock radio cards ───────────────────────────────────────────────────── */
+.catalog-settings-visual .cs-stock-cards {
+  display: grid;
+}
+.catalog-settings-visual .cs-stock-card {
+  position: relative;
+  margin-top: -1px;
+  border: 1px solid var(--hf-border);
+  background: var(--hf-surface);
+}
+.catalog-settings-visual .cs-stock-card:first-child {
+  margin-top: 0;
+  border-radius: var(--hf-radius-card) var(--hf-radius-card) 0 0;
+}
+.catalog-settings-visual .cs-stock-card:last-child {
+  border-radius: 0 0 var(--hf-radius-card) var(--hf-radius-card);
+}
+.catalog-settings-visual .cs-stock-card:only-child {
+  border-radius: var(--hf-radius-card);
+}
+.catalog-settings-visual .cs-stock-card[data-selected='true'] {
+  z-index: 1;
+  border-color: var(--hf-active);
+  box-shadow: inset 0 0 0 1px var(--hf-active);
+  background: var(--hf-active-soft);
+}
+.catalog-settings-visual .cs-stock-card:focus-within {
+  z-index: 2;
+}
+.catalog-settings-visual .cs-stock-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.25rem 0.875rem;
+  width: 100%;
+  min-height: 88px;
+  padding: 1rem 1.25rem;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  text-align: left;
+}
+.catalog-settings-visual button.cs-stock-main {
+  cursor: pointer;
+}
+.catalog-settings-visual .cs-stock-card:not([data-selected='true']) button.cs-stock-main:hover {
+  background: var(--cs-hover);
+}
+.catalog-settings-visual .cs-stock-main .cs-mark {
+  margin-top: 1px;
+}
+.catalog-settings-visual .cs-stock-body {
+  display: grid;
+  gap: 0.25rem;
+}
+.catalog-settings-visual .cs-stock-title {
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+.catalog-settings-visual .cs-stock-card[data-selected='true'] .cs-stock-title {
+  color: var(--hf-active);
+}
+.catalog-settings-visual .cs-stock-desc {
+  max-width: 58ch;
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+}
+.catalog-settings-visual .cs-stock-card[data-selected='true'] .cs-stock-desc {
+  color: var(--hf-ink);
+}
+.catalog-settings-visual .cs-stock-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.375rem;
+}
+.catalog-settings-visual .cs-stock-tag {
+  align-self: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--hf-active);
+  white-space: nowrap;
+}
+.catalog-settings-visual .cs-stock-extra {
+  padding: 0 1.25rem 1rem 3.25rem;
+}
+.catalog-settings-visual .cs-foot-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--hf-muted);
+}
+
+/* ── Save bar ────────────────────────────────────────────────────────────── */
+.catalog-settings-visual .cs-savebar {
+  position: sticky;
+  bottom: 1rem;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.625rem 0.625rem 1.25rem;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background: var(--hf-surface);
+  box-shadow: var(--cs-float-shadow);
+}
+.catalog-settings-visual .cs-save-state {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  min-width: 0;
+  font-size: 0.8125rem;
+}
+.catalog-settings-visual .cs-save-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+.catalog-settings-visual .cs-save-status[data-state='clean'] {
+  color: var(--hf-muted);
+  font-weight: 500;
+}
+.catalog-settings-visual .cs-save-status[data-state='dirty'] {
+  color: var(--hf-warning);
+}
+.catalog-settings-visual .cs-save-status[data-state='dirty']::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.catalog-settings-visual .cs-save-status[data-state='saved'] {
+  color: var(--hf-success);
+}
+.catalog-settings-visual .cs-save-status[data-state='saving'] {
+  color: var(--hf-ink);
+  font-weight: 500;
+}
+.catalog-settings-visual .cs-save-updated {
+  color: var(--hf-muted);
+  font-variant-numeric: tabular-nums;
+}
+.catalog-settings-visual .cs-save-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+.catalog-settings-visual .cs-save-primary {
+  min-width: 120px;
+}
+
+/* ── Skeleton ────────────────────────────────────────────────────────────── */
 .catalog-settings-visual .settings-skeleton-bar {
   display: block;
   border-radius: 6px;
-  background-color: var(--hf-surface-muted);
+  background-color: color-mix(in srgb, var(--hf-ink) 16%, var(--hf-surface));
 }
-.catalog-settings-visual .settings-skeleton-block .settings-skeleton-bar {
-  background-color: var(--hf-border);
+
+/* ── Narrow column (390 and small containers) ────────────────────────────── */
+@container cs-page (max-width: 600px) {
+  .catalog-settings-visual .cs-group-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  .catalog-settings-visual .cs-switch-row {
+    padding: 1rem;
+  }
+  .catalog-settings-visual .cs-status,
+  .catalog-settings-visual .cs-notice {
+    padding: 0.75rem 1rem;
+  }
+  .catalog-settings-visual .cs-price-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'name sw' 'def def';
+    gap: 0.5rem;
+    min-height: 68px;
+    padding: 0.75rem 0.5rem 0.75rem 1rem;
+  }
+  .catalog-settings-visual .cs-default-pill {
+    width: calc(100% - 0.5rem);
+  }
+  .catalog-settings-visual .cs-default-slot {
+    display: none;
+  }
+  .catalog-settings-visual .cs-stock-main {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.25rem 0.75rem;
+    padding: 1rem;
+  }
+  .catalog-settings-visual .cs-stock-tag {
+    display: none;
+  }
+  .catalog-settings-visual .cs-stock-extra {
+    padding: 0 1rem 1rem 2.875rem;
+  }
+}
+
+/* Sticky mobile bar (design system): full bleed over the shell padding, equal columns. */
+@media (max-width: 639px) {
+  .catalog-settings-visual.cs-page {
+    gap: 1.5rem;
+  }
+  /* The selected «Predeterminada» pill spans the row on mobile; the badge would repeat it. */
+  .catalog-settings-visual .cs-default-badge {
+    display: none;
+  }
+  .catalog-settings-visual .cs-savebar {
+    bottom: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    margin-inline: -1rem;
+    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+    border-width: 1px 0 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .catalog-settings-visual .cs-save-state {
+    justify-content: space-between;
+    font-size: 0.75rem;
+  }
+  .catalog-settings-visual .cs-save-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  }
+  .catalog-settings-visual .cs-save-buttons > * {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .catalog-settings-visual .cs-track,
+  .catalog-settings-visual .cs-track::after {
+    transition: none;
+  }
 }

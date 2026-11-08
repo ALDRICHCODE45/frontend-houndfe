@@ -9,7 +9,7 @@ Redesign Sistema › Catálogo online after artboard design/catalog-settings/01-
 - S4 Behaviour kept: same API and save contract (catalogPublished, publicPriceListIds, catalogDefaultPriceListId, stockPresentationDefault), read-only view for users without update permission, default must be public, at least one public list warning; when the default stops being public the first other public list becomes the default with a notice (artboard decision, owner accepted the artboards).
 
 ## Tasks
-- [ ] T1 S1,S3,S4 Catalog settings screen in rows — worker
+- [x] T1 S1,S3,S4 Catalog settings screen in rows — worker
 - [x] T2 S2 Design-system rule «Selección sin checkboxes» — parent
 - [ ] T3 S1-S4 Browser check (1440/390, light/dark), full suite, handoff implemented — parent
 
@@ -18,3 +18,5 @@ Redesign Sistema › Catálogo online after artboard design/catalog-settings/01-
 - L2 Canvas design/catalog-settings/: 01-ajustes-en-filas, 02-vista-previa-en-vivo, 03-estado-primero, 04-regla-sin-checkboxes (board).
 - L3 User: «el primero me gusta mucho, creo que es el que elijo, y la propuesta para el system design esta bien. adelante.» Chosen artboard 01 (02 and 03 are alternatives); board 04 approved as the rule. Migration of the ~20 screens that still use checkboxes is not part of this feature (to be decided).
 - L4 T2: docs/design-system.md section «Selección sin checkboxes» (situation→pattern table, switch row, radio card, selectable rows with mark, toggle chips, segmented, table row mark, accessibility checklist, migration note; multiple HfCombobox marked to migrate) and a design/system.md rule line.
+- L5 T1 (worker): view + CatalogPublicationSection + CatalogSaveBar (new), price-list rows and stock radio cards rewritten in place, read-only rows, discard(), fixed-quantity validation; 163 feature tests, type-check 0. Worker choices: removing the last public list still switches publication off (existing REQ-9); «Visible con avisos: …» when the server says visible with warnings.
+- L6 Browser (manager, dev): 1440 light/dark — rows, «Cambios sin guardar» + Descartar after toggling Veterinarias, selected radio card with fill/border/check, «Cantidad a mostrar» revealed; 0 checkbox controls; no horizontal scroll at 390. Defect fixed by the parent: at 390 the default row repeated «Predeterminada» (badge + selected pill) → .cs-default-badge hidden below 640px on the editable rows only (read-only keeps it); 165 feature tests.

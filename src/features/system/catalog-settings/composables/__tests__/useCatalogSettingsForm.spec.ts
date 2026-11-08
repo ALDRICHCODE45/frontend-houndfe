@@ -202,4 +202,17 @@ describe('useCatalogSettingsForm — pending suppression and PATCH acceptance (R
     expect(form.pristine.value).toBeNull()
     expect(form.accepted.value).toBeNull()
   })
+
+  it('discard restores the accepted snapshot without sharing arrays with it', async () => {
+    const { form } = makeForm()
+    await nextTick()
+    form.draft.value!.catalogPublished = true
+    form.draft.value!.publicPriceListIds = ['pl_b']
+    expect(form.isDirty.value).toBe(true)
+
+    form.discard()
+    expect(form.isDirty.value).toBe(false)
+    expect(form.draft.value).toEqual(form.pristine.value)
+    expect(form.draft.value!.publicPriceListIds).not.toBe(form.pristine.value!.publicPriceListIds)
+  })
 })

@@ -1,36 +1,51 @@
 <script setup lang="ts">
 /**
- * CatalogSettingsForm — WU3B editable settings composition (REQ-7 / REQ-8 /
- * REQ-10 / REQ-12). Composes the publication switch, the contexts field, the
- * stock field, and the validation summary. The page owns the Save footer. The draft is owned
- * by the parent view's form composable; this component emits granular intents
- * (no prop mutation) and the parent applies them. The parent view owns save
+ * CatalogSettingsForm — editable settings in rows (artboard 01, REQ-7 / REQ-8 /
+ * REQ-10 / REQ-12): «Publicación», «Precios que ve el público» and «Stock en el
+ * catálogo». The draft is owned by the parent view's form composable; this
+ * component emits granular intents (no prop mutation) and the parent applies
+ * them, including the default-list rules. The page owns the save bar, save
  * routing (rising-edge confirmation) and toasts.
  *
- * UI redesign: USwitch with label/description replaces the raw button-role
- * switch. Semantic internal sections sit inside the routed view's single outer
- * card: the publication intent owns a compact subtle surface, and the contexts
- * and stock sections share one responsive internal grid (one column on mobile,
- * two columns from `lg` up) split by a divider. The page footer owns save
- * state. All data-testid, props, emits, and validation-error contracts are
- * preserved; no nested UCard is introduced.
+ * Validation messages already said in context (no public list → the lists
+ * warning row; fixed quantity → under its field) are left out of the summary.
  */
 import { computed } from 'vue'
+import CatalogPublicationSection from './CatalogPublicationSection.vue'
 import CatalogPriceContextsField from './CatalogPriceContextsField.vue'
 import CatalogStockPresentationField from './CatalogStockPresentationField.vue'
 import type {
+  CatalogDefaultMove,
   CatalogPriceContextDto,
   CatalogSettingsDraft,
   CatalogStockPresentationDefaultDto,
 } from '../interfaces/catalog-settings.types'
+import { NO_PUBLIC_LIST_ERROR, STOCK_QUANTITY_ERROR } from '../utils/catalogSettingsMappers'
 
-const props = defineProps<{
-  draft: CatalogSettingsDraft
-  acceptedContexts: Array<CatalogPriceContextDto>
-  candidates: Array<{ id: string; name: string }>
-  validationErrors: string[]
-  canEditContexts: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    draft: CatalogSettingsDraft
+    acceptedContexts: Array<CatalogPriceContextDto>
+    candidates: Array<{ id: string; name: string }>
+    validationErrors: string[]
+    canEditContexts: boolean
+    candidatesLoading?: boolean
+    candidatesError?: boolean
+    effectivePublication?: boolean
+    /** Closed-set server warnings of the accepted state, mapped to Spanish copy. */
+    warnings?: string[]
+    dirty?: boolean
+    defaultMove?: CatalogDefaultMove | null
+  }>(),
+  {
+    candidatesLoading: false,
+    candidatesError: false,
+    effectivePublication: true,
+    warnings: () => [],
+    dirty: false,
+    defaultMove: null,
+  },
+)
 
 const emit = defineEmits<{
   (event: 'toggle-publish'): void
@@ -38,70 +53,68 @@ const emit = defineEmits<{
   (event: 'remove-context', priceListId: string): void
   (event: 'set-default', priceListId: string | null): void
   (event: 'stock-change', value: CatalogStockPresentationDefaultDto): void
+  (event: 'undo-default-move'): void
+  (event: 'retry-candidates'): void
 }>()
 
-const publishLabel = computed(() => (props.draft.catalogPublished ? 'Publicado' : 'No publicado'))
+const defaultName = computed(() => {
+  const id = props.draft.catalogDefaultPriceListId
+  if (!id) return null
+  return (
+    props.candidates.find((candidate) => candidate.id === id)?.name ??
+    props.acceptedContexts.find((context) => context.priceListId === id)?.name ??
+    null
+  )
+})
+
+const summaryErrors = computed(() =>
+  props.validationErrors.filter(
+    (error) => error !== NO_PUBLIC_LIST_ERROR && error !== STOCK_QUANTITY_ERROR,
+  ),
+)
 </script>
 
 <template>
-  <section class="flex flex-col gap-6 sm:gap-8" data-testid="catalog-settings-form">
-    <!-- Publication intent (REQ-10: accepted badge stays read-only in the
-         read view; the switch only carries local intent until PATCH). Compact
-         subtle surface so the section does not read as a sparse full-width
-         strip on wide screens. -->
-    <section
-      class="min-w-0 rounded-lg border border-default px-4 py-3"
-      data-testid="publication-card"
-    >
-      <USwitch
-        :model-value="props.draft.catalogPublished"
-        :label="publishLabel"
-        description="Habilitar la visibilidad del catálogo para clientes públicos"
-        data-testid="publish-switch"
-        @update:model-value="emit('toggle-publish')"
-      />
-    </section>
+  <div class="flex flex-col gap-6 sm:gap-8" data-testid="catalog-settings-form">
+    <CatalogPublicationSection
+      :published="props.draft.catalogPublished"
+      :public-count="props.draft.publicPriceListIds.length"
+      :default-name="defaultName"
+      :effective-publication="props.effectivePublication"
+      :warnings="props.warnings"
+      :dirty="props.dirty"
+      @toggle="emit('toggle-publish')"
+    />
 
-    <!-- Contexts + default editing, gated by global-list read (REQ-6A), and the
-         tenant stock-presentation default (REQ-8) share one responsive grid:
-         stacked on mobile, two columns from `lg` up, split by a divider. -->
-    <div
-      class="grid grid-cols-1 gap-6 border-t border-default pt-6 sm:gap-8 sm:pt-8 lg:grid-cols-2 lg:gap-0"
-      data-testid="settings-grid"
-    >
-      <section class="min-w-0 lg:pr-8" data-testid="contexts-card">
-        <CatalogPriceContextsField
-          :draft="props.draft"
-          :accepted-contexts="props.acceptedContexts"
-          :candidates="props.candidates"
-          :disabled="!props.canEditContexts"
-          :hide-empty-hint="props.validationErrors.length > 0"
-          @add="emit('add-context', $event)"
-          @remove="emit('remove-context', $event)"
-          @set-default="emit('set-default', $event)"
-        />
-      </section>
+    <CatalogPriceContextsField
+      :draft="props.draft"
+      :accepted-contexts="props.acceptedContexts"
+      :candidates="props.candidates"
+      :loading="props.candidatesLoading"
+      :error="props.candidatesError"
+      :disabled="!props.canEditContexts"
+      :default-move="props.defaultMove"
+      @add="emit('add-context', $event)"
+      @remove="emit('remove-context', $event)"
+      @set-default="emit('set-default', $event)"
+      @undo-default-move="emit('undo-default-move')"
+      @retry="emit('retry-candidates')"
+    />
 
-      <section
-        class="min-w-0 border-t border-default pt-6 sm:pt-8 lg:border-t-0 lg:border-l lg:pl-8 lg:pt-0"
-        data-testid="stock-card"
-      >
-        <CatalogStockPresentationField
-          :stock-default="props.draft.stockPresentationDefault"
-          @change="emit('stock-change', $event)"
-        />
-      </section>
-    </div>
+    <CatalogStockPresentationField
+      :stock-default="props.draft.stockPresentationDefault"
+      @change="emit('stock-change', $event)"
+    />
 
-    <!-- Validation summary (REQ-12: invalid drafts never reach the API). -->
+    <!-- Remaining validation (REQ-12: invalid drafts never reach the API). -->
     <ul
-      v-if="props.validationErrors.length > 0"
-      class="flex flex-col gap-1 rounded-lg border border-error/30 bg-error/5 p-4"
+      v-if="summaryErrors.length > 0"
+      class="m-0 flex list-none flex-col gap-1 rounded-(--hf-radius-card) border border-(--hf-danger-border) bg-(--hf-danger-soft) px-5 py-3"
       data-testid="validation-summary"
     >
-      <li v-for="error in props.validationErrors" :key="error" class="text-sm text-error">
+      <li v-for="error in summaryErrors" :key="error" class="text-sm font-semibold text-(--hf-danger)">
         {{ error }}
       </li>
     </ul>
-  </section>
+  </div>
 </template>
