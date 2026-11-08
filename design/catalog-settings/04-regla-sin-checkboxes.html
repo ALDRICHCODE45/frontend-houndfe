@@ -1,0 +1,859 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catálogo online · 04 Regla: sin checkboxes</title>
+<style>
+:root{
+  --hf-page:#f5f6f8;--hf-surface:#ffffff;--hf-surface-muted:#e7eef7;--hf-field:#ffffff;--hf-field-border:#8593a3;
+  --hf-ink:#24313d;--hf-heading:#173968;--hf-muted:#576574;--hf-border:#dce2e8;--hf-action:#2442f6;--hf-on-action:#ffffff;
+  --hf-active:#2442f6;--hf-active-soft:#edf0ff;--hf-focus:#2442f6;--hf-gold:#f6bb13;--hf-gold-soft:#fff5d6;--hf-gold-ink:#443218;
+  --hf-warning:#805511;--hf-warning-soft:#fff5d6;--hf-success:#236044;--hf-danger:#b42318;--hf-danger-soft:#fef3f2;--hf-danger-border:#f4b8b2;
+  --hf-font:'Geist',ui-sans-serif,system-ui,sans-serif;
+  --hf-radius-card:12px;--hf-radius-control:6px;--hf-control-height:44px;
+  color-scheme:light;
+}
+html.dark{
+  --hf-page:#0e1520;--hf-surface:#192332;--hf-surface-muted:#202e43;--hf-field:#121d2c;--hf-field-border:#64758d;
+  --hf-ink:#edf2fa;--hf-heading:#edf2fa;--hf-muted:#adbcd0;--hf-border:#354459;--hf-action:#91b0ff;--hf-on-action:#132344;
+  --hf-active:#b3caff;--hf-active-soft:#223555;--hf-focus:#a6c1ff;--hf-gold:#f2c456;--hf-gold-soft:#3b311d;--hf-gold-ink:#f2cb71;
+  --hf-warning:#f2cb71;--hf-warning-soft:#3b311d;--hf-success:#a2d9b9;--hf-danger:#ffb4ab;--hf-danger-soft:#3d2220;--hf-danger-border:#7a3f3b;
+  color-scheme:dark;
+}
+:root{
+  --hf-table-head:color-mix(in srgb,var(--hf-ink) 4%,var(--hf-surface));
+  --hover:color-mix(in srgb,var(--hf-surface-muted) 45%,var(--hf-surface));
+  --row-hover:color-mix(in srgb,var(--hf-active-soft) 55%,var(--hf-surface));
+  --disabled-ink:color-mix(in srgb,var(--hf-muted) 75%,var(--hf-page));
+  --shadow:0 1px 2px color-mix(in srgb,var(--hf-ink) 5%,transparent);
+  --t:150ms ease;
+}
+html.dark{--disabled-ink:color-mix(in srgb,var(--hf-muted) 60%,var(--hf-page))}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{font-family:var(--hf-font);font-size:14px;line-height:1.45;color:var(--hf-ink);background:var(--hf-page);font-feature-settings:"cv11","ss01";-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+svg.i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+:focus-visible{outline:2px solid var(--hf-focus);outline-offset:2px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.fig{font-variant-numeric:tabular-nums}
+kbd{font-family:inherit;font-size:12px;font-weight:600;padding:1px 5px;border:1px solid var(--hf-border);border-bottom-width:2px;border-radius:4px;background:var(--hf-surface);color:var(--hf-ink)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+
+/* ---------- Board layout ---------- */
+.board{width:1440px;margin:0 auto;padding:40px 48px 64px;display:grid;gap:32px}
+.top{display:flex;align-items:flex-start;justify-content:space-between;gap:24px}
+.eyebrow-free{display:grid;gap:.35rem}
+.title{margin:0;font-size:2rem;font-weight:600;line-height:1.25;letter-spacing:-0.045em;color:var(--hf-heading)}
+.sub{margin:0;font-size:.875rem;line-height:1.5;color:var(--hf-muted);max-width:62ch}
+.meta{font-size:12px;color:var(--hf-muted)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:var(--hf-control-height);padding:0 14px;border-radius:var(--hf-radius-control);border:1px solid var(--hf-border);background:var(--hf-surface);color:var(--hf-ink);font-weight:500;white-space:nowrap;transition:border-color var(--t),background var(--t)}
+.btn:hover{border-color:var(--hf-field-border)}
+.btn-primary{background:var(--hf-action);border-color:var(--hf-action);color:var(--hf-on-action);font-weight:600;padding:0 16px}
+.btn-primary:hover{background:color-mix(in srgb,var(--hf-action) 88%,var(--hf-ink));border-color:transparent}
+.btn:disabled{background:var(--hf-page);color:var(--hf-muted);border-color:var(--hf-border);cursor:not-allowed}
+html.dark .btn:disabled{color:color-mix(in srgb,var(--hf-muted) 60%,var(--hf-page))}
+.btn-ghost{border-color:transparent;background:transparent}
+.btn-ghost:hover{background:var(--hover);border-color:transparent}
+
+/* Why */
+.why{display:grid;grid-template-columns:1.1fr 1fr 1fr 1fr;gap:16px}
+.why-card{background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);padding:16px;display:grid;gap:8px;align-content:start}
+.why-card h3{margin:0;font-size:14px;font-weight:600;color:var(--hf-heading);display:flex;gap:8px;align-items:center}
+.why-card h3 svg{color:var(--hf-danger)}
+.why-card p{margin:0;font-size:13px;color:var(--hf-muted)}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cmp{display:grid;gap:6px}
+.cmp .tag{font-size:12px;font-weight:600}
+.cmp .tag.bad{color:var(--hf-danger)}
+.cmp .tag.good{color:var(--hf-success)}
+.cmp-box{position:relative;border:1px dashed var(--hf-border);border-radius:var(--hf-radius-control);padding:10px;min-height:64px;display:flex;align-items:center;gap:8px;font-size:13px}
+.cmp-hit{position:absolute;border:2px dashed var(--hf-active);border-radius:4px;pointer-events:none}
+.cmp small{font-size:12px;color:var(--hf-muted)}
+
+/* Main grid */
+.main{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:24px;align-items:start}
+.patterns{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.span2{grid-column:1 / -1}
+.pat{background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);box-shadow:var(--shadow);display:grid;align-content:start}
+.pat-head{padding:16px 20px 12px;display:grid;gap:4px;border-bottom:1px solid var(--hf-border)}
+.pat-head h2{margin:0;font-size:16px;font-weight:600;color:var(--hf-heading);display:flex;align-items:center;gap:10px}
+.num{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:6px;background:var(--hf-surface-muted);color:var(--hf-heading);font-size:12px;font-weight:600}
+.pat-head p{margin:0;font-size:13px;color:var(--hf-muted)}
+.pat-head .rep{font-size:12px;color:var(--hf-muted)}
+.pat-head .rep b{font-weight:600;color:var(--hf-ink)}
+.live{padding:16px 20px;display:grid;gap:10px}
+.live-label{font-size:12px;font-weight:600;color:var(--hf-muted);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.live-label .badge{font-weight:600}
+.states{padding:12px 20px 16px;border-top:1px solid var(--hf-border);background:var(--hf-table-head);border-radius:0 0 var(--hf-radius-card) var(--hf-radius-card);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 12px}
+.span2 .states{grid-template-columns:repeat(6,minmax(0,1fr))}
+.st{display:grid;gap:6px;align-content:start;min-width:0}
+.st > span{font-size:12px;font-weight:600;color:var(--hf-muted)}
+.specs{margin:0;padding:0 20px 14px;list-style:none;display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--hf-muted)}
+.specs li::before{content:"·";margin-right:6px;color:var(--hf-field-border)}
+.specs li:first-child::before{content:none}
+
+.badge{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:600;background:var(--hf-active-soft);color:var(--hf-active)}
+.badge.neutral{background:var(--hf-surface-muted);color:var(--hf-muted)}
+.err{display:flex;align-items:flex-start;gap:6px;font-size:12px;font-weight:600;color:var(--hf-danger)}
+.err svg{width:14px;height:14px;margin-top:1px}
+.hint{font-size:12px;color:var(--hf-muted)}
+
+/* Shared indicator: round mark */
+.mark{flex:none;width:20px;height:20px;border-radius:50%;border:1.5px solid var(--hf-field-border);display:grid;place-items:center;background:var(--hf-field);transition:background var(--t),border-color var(--t)}
+.mark svg{width:12px;height:12px;stroke-width:3;opacity:0;color:var(--hf-on-action)}
+.on > .mark,[aria-checked="true"] .mark,[aria-selected="true"] .mark,[aria-pressed="true"] .mark{background:var(--hf-action);border-color:var(--hf-action)}
+.on > .mark svg,[aria-checked="true"] .mark svg,[aria-selected="true"] .mark svg,[aria-pressed="true"] .mark svg{opacity:1}
+
+/* 1. Switch row */
+.sw-list{border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);overflow:hidden}
+.sw-row{width:100%;display:flex;align-items:center;gap:12px;min-height:60px;padding:10px 16px;border:0;border-top:1px solid var(--hf-border);background:var(--hf-surface);text-align:left;transition:background var(--t)}
+.sw-list .sw-row:first-child{border-top:0}
+.sw-row:hover,.sw-row.is-hover{background:var(--hover)}
+.sw-row:focus-visible,.sw-row.is-focus{outline:2px solid var(--hf-focus);outline-offset:-2px}
+.sw-text{flex:1;min-width:0;display:grid;gap:2px}
+.sw-text b{font-weight:500;color:var(--hf-ink)}
+.sw-text small{font-size:13px;color:var(--hf-muted)}
+.sw-state{font-size:12px;font-weight:600;color:var(--hf-muted);min-width:68px;text-align:right}
+[aria-checked="true"] .sw-state,.sw-row.on .sw-state{color:var(--hf-active)}
+.track{flex:none;position:relative;width:44px;height:26px;border-radius:999px;border:1.5px solid var(--hf-field-border);background:var(--hf-surface-muted);transition:background var(--t),border-color var(--t)}
+.track::after{content:"";position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;background:var(--hf-muted);transition:transform var(--t),background var(--t)}
+.sw-row[aria-checked="true"] .track,.sw-row.on .track{background:var(--hf-action);border-color:var(--hf-action)}
+.sw-row[aria-checked="true"] .track::after,.sw-row.on .track::after{transform:translateX(18px);background:var(--hf-on-action)}
+.sw-row[aria-disabled="true"],.sw-row.is-disabled{background:var(--hf-page);cursor:not-allowed}
+.sw-row[aria-disabled="true"] b,.sw-row.is-disabled b,.sw-row[aria-disabled="true"] small,.sw-row.is-disabled small,.sw-row.is-disabled .sw-state{color:var(--disabled-ink)}
+.sw-row[aria-disabled="true"] .track,.sw-row.is-disabled .track{border-color:var(--hf-border);background:var(--hf-page)}
+.sw-row[aria-disabled="true"] .track::after,.sw-row.is-disabled .track::after{background:var(--hf-border)}
+.sw-row.is-error{box-shadow:inset 0 0 0 1px var(--hf-danger);background:var(--hf-danger-soft)}
+.mini .sw-row{min-height:48px;padding:8px 10px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);gap:8px}
+.mini .sw-row .sw-state{display:none}
+.mini .track{width:36px;height:22px}
+.mini .track::after{width:13px;height:13px}
+.mini .sw-row.on .track::after{transform:translateX(14px)}
+
+/* 2. Radio card */
+.rc-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.rc{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-content:start;width:100%;min-height:44px;padding:14px 16px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);background:var(--hf-surface);text-align:left;transition:background var(--t),border-color var(--t),box-shadow var(--t)}
+.rc:hover,.rc.is-hover{border-color:var(--hf-field-border);background:var(--hover)}
+.rc:focus-visible,.rc.is-focus{outline:2px solid var(--hf-focus);outline-offset:2px}
+.rc[aria-checked="true"],.rc.on{border-color:var(--hf-active);box-shadow:inset 0 0 0 1px var(--hf-active);background:var(--hf-active-soft)}
+.rc-title{font-weight:600;color:var(--hf-heading)}
+.rc[aria-checked="true"] .rc-title,.rc.on .rc-title{color:var(--hf-active)}
+.rc .mark{grid-column:2;grid-row:1}
+.rc-desc{grid-column:1 / -1;font-size:13px;color:var(--hf-muted)}
+.rc-prev{grid-column:1 / -1;margin-top:4px;font-size:12px;font-weight:600;color:var(--hf-ink);display:flex;gap:6px;flex-wrap:wrap}
+.rc-prev span{padding:2px 6px;border-radius:4px;background:var(--hf-surface-muted)}
+.rc-prev span.ok{color:var(--hf-success);background:color-mix(in srgb,var(--hf-success) 12%,var(--hf-surface))}
+.rc-prev span.low{color:var(--hf-warning);background:var(--hf-warning-soft)}
+.rc-prev span.out{color:var(--hf-muted)}
+.rc[aria-disabled="true"],.rc.is-disabled{background:var(--hf-page);border-color:var(--hf-border);box-shadow:none;cursor:not-allowed}
+.rc[aria-disabled="true"] .rc-title,.rc.is-disabled .rc-title,.rc.is-disabled .rc-desc{color:var(--disabled-ink)}
+.rc.is-disabled .mark{border-color:var(--hf-border);background:var(--hf-page)}
+.rc.is-error{border-color:var(--hf-danger);box-shadow:inset 0 0 0 1px var(--hf-danger)}
+.rc.is-error .mark{border-color:var(--hf-danger)}
+.mini .rc{padding:10px 12px;border-radius:var(--hf-radius-control)}
+.mini .rc .rc-title{font-size:13px}
+.qty{display:grid;gap:6px;max-width:260px}
+.qty label{font-size:13px;font-weight:500;color:var(--hf-ink)}
+.field{height:var(--hf-control-height);padding:0 12px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-field);width:100%;font-variant-numeric:tabular-nums}
+.field:hover{border-color:var(--hf-field-border)}
+.field:focus-visible{outline:2px solid var(--hf-focus);outline-offset:0;border-color:transparent}
+.field[aria-invalid="true"]{border-color:var(--hf-danger)}
+
+/* 3. Selectable rows (listbox) */
+.lb{list-style:none;margin:0;padding:0;border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);overflow:hidden;background:var(--hf-surface)}
+.lb[aria-invalid="true"]{border-color:var(--hf-danger)}
+.opt{display:flex;align-items:center;gap:12px;min-height:48px;padding:6px 16px;border-top:1px solid var(--hf-border);cursor:pointer;transition:background var(--t);user-select:none}
+.lb .opt:first-child{border-top:0}
+.opt:hover,.opt.is-hover{background:var(--hover)}
+.opt:focus-visible,.opt.is-focus{outline:2px solid var(--hf-focus);outline-offset:-2px}
+.opt[aria-selected="true"],.opt.on{background:var(--hf-active-soft)}
+.opt-text{flex:1;min-width:0;display:grid}
+.opt-text b{font-weight:500;color:var(--hf-ink)}
+.opt[aria-selected="true"] .opt-text b,.opt.on .opt-text b{font-weight:600;color:var(--hf-active)}
+.opt-text small{font-size:12px;color:var(--hf-muted)}
+.opt .mark{border-radius:6px}
+.opt[aria-disabled="true"],.opt.is-disabled{background:var(--hf-page);cursor:not-allowed}
+.opt.is-disabled b,.opt[aria-disabled="true"] b,.opt.is-disabled small,.opt[aria-disabled="true"] small{color:var(--disabled-ink)}
+.opt.is-disabled .mark,.opt[aria-disabled="true"] .mark{border-color:var(--hf-border);background:var(--hf-page)}
+.opt.is-error{box-shadow:inset 0 0 0 1px var(--hf-danger)}
+.mini .opt{border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);padding:6px 10px;gap:8px}
+.mini .opt.on{border-color:var(--hf-active)}
+
+/* 4. Chips */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:var(--hf-control-height);padding:0 14px;border:1px solid var(--hf-border);border-radius:999px;background:var(--hf-surface);color:var(--hf-ink);font-weight:500;transition:background var(--t),border-color var(--t)}
+.chip svg.ck{width:14px;height:14px;stroke-width:3;display:none}
+.chip:hover,.chip.is-hover{border-color:var(--hf-field-border);background:var(--hover)}
+.chip:focus-visible,.chip.is-focus{outline:2px solid var(--hf-focus);outline-offset:2px}
+.chip[aria-pressed="true"],.chip.on{background:var(--hf-active-soft);border-color:var(--hf-active);color:var(--hf-active);font-weight:600}
+.chip[aria-pressed="true"] svg.ck,.chip.on svg.ck{display:block}
+.chip .n{font-size:12px;font-weight:600;color:var(--hf-muted)}
+.chip[aria-pressed="true"] .n,.chip.on .n{color:var(--hf-active)}
+.chip:disabled,.chip.is-disabled{background:var(--hf-page);border-color:var(--hf-border);color:var(--disabled-ink);cursor:not-allowed}
+.chip.is-error{border-color:var(--hf-danger)}
+.mini .chip{min-height:36px;padding:0 10px;font-size:13px}
+
+/* 5. Segmented */
+.seg{display:inline-flex;align-items:center;height:var(--hf-control-height);padding:3px;gap:2px;border:1px solid var(--hf-field-border);border-radius:var(--hf-radius-control);background:var(--hf-surface);max-width:100%}
+.seg button{height:36px;padding:0 14px;border:0;border-radius:4px;background:transparent;color:var(--hf-muted);font-weight:500;display:inline-flex;align-items:center;gap:6px;transition:background var(--t),color var(--t)}
+.seg button svg.ck{width:14px;height:14px;stroke-width:3;display:none}
+.seg button:hover,.seg button.is-hover{color:var(--hf-ink);background:var(--hover)}
+.seg button:focus-visible,.seg button.is-focus{outline:2px solid var(--hf-focus);outline-offset:1px}
+.seg button[aria-checked="true"],.seg button.on{background:var(--hf-active-soft);color:var(--hf-active);font-weight:600;box-shadow:inset 0 0 0 1px var(--hf-active)}
+.seg button[aria-checked="true"] svg.ck,.seg button.on svg.ck{display:block}
+.seg.is-disabled{border-color:var(--hf-border);background:var(--hf-page)}
+.seg.is-disabled button{color:var(--disabled-ink);cursor:not-allowed}
+.seg.is-disabled button.on{background:var(--hf-surface-muted);box-shadow:none;color:var(--disabled-ink)}
+.seg.is-error{border-color:var(--hf-danger)}
+.mini .seg{height:36px;padding:2px}
+.mini .seg button{height:30px;padding:0 8px;font-size:12px}
+.dens-prev{display:grid;gap:4px}
+.dens-prev div{border-radius:4px;background:var(--hf-surface-muted);transition:height var(--t)}
+
+/* 6. Table selection */
+.tbl-wrap{border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);overflow:hidden;position:relative}
+table.tbl{width:100%;border-collapse:collapse;table-layout:fixed}
+.tbl th{height:40px;background:var(--hf-table-head);color:var(--hf-muted);font-size:13px;font-weight:600;text-align:left;padding:0 12px;border-bottom:1px solid var(--hf-border)}
+.tbl td{height:64px;padding:0 12px;border-bottom:1px solid var(--hf-border);font-size:14px}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl .sel{width:48px;padding:0 2px;text-align:center}
+.tbl .num-c{text-align:right;font-variant-numeric:tabular-nums}
+.tbl tbody tr{cursor:pointer;transition:background var(--t)}
+.tbl tbody tr:hover,.tbl tbody tr.is-hover{background:var(--row-hover)}
+.tbl tbody tr:focus-visible,.tbl tr.is-focus{outline:2px solid var(--hf-focus);outline-offset:-2px}
+.tbl tbody tr.selected{background:var(--hf-active-soft)}
+.tbl .pname{font-weight:600;color:var(--hf-heading);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tbl .psub{font-size:13px;color:var(--hf-muted)}
+.selbtn{width:44px;height:44px;border:0;background:transparent;border-radius:var(--hf-radius-control);display:inline-grid;place-items:center;padding:0}
+.selbtn .dot{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--hf-field-border);background:var(--hf-field);display:grid;place-items:center;transition:background var(--t),border-color var(--t)}
+.selbtn .dot svg{grid-area:1 / 1;width:14px;height:14px;stroke-width:3;color:var(--hf-on-action);opacity:0}
+.selbtn:hover .dot,.selbtn.is-hover .dot,tr:hover .selbtn .dot{border-color:var(--hf-active)}
+.selbtn[aria-pressed="true"] .dot,.selbtn[aria-pressed="mixed"] .dot,.selbtn.on .dot{background:var(--hf-action);border-color:var(--hf-action)}
+.selbtn[aria-pressed="true"] .dot .c,.selbtn[aria-pressed="mixed"] .dot .m,.selbtn.on .dot .c{opacity:1}
+.selbtn.is-disabled .dot{border-color:var(--hf-border);background:var(--hf-page)}
+.selbtn.is-error .dot{border-color:var(--hf-danger)}
+.hit{position:relative}
+.hit::after{content:"44 px";position:absolute;inset:0;border:1.5px dashed var(--hf-active);border-radius:var(--hf-radius-control);font-size:10px;font-weight:600;color:var(--hf-active);display:flex;align-items:flex-end;justify-content:center;padding-bottom:1px;pointer-events:none}
+.bulk{display:flex;align-items:center;gap:12px;padding:8px 8px 8px 12px;border-top:1px solid var(--hf-border);background:var(--hf-surface)}
+.bulk .badge{height:28px}
+.bulk .sp{flex:1}
+.mini-row{display:flex;align-items:center;gap:6px;min-height:48px;padding:0 8px 0 0;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-surface);font-size:13px;font-weight:600;color:var(--hf-heading);min-width:0}
+.mini-row span{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.mini-row.is-hover{background:var(--row-hover)}
+.mini-row.is-focus{outline:2px solid var(--hf-focus);outline-offset:-2px}
+.mini-row.on{background:var(--hf-active-soft)}
+.mini-row.is-disabled{background:var(--hf-page);color:var(--disabled-ink)}
+.mini-row.is-error{border-color:var(--hf-danger)}
+.tbl-notes{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.note{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--hf-muted)}
+.note svg{color:var(--hf-active);margin-top:2px}
+.note b{color:var(--hf-ink);font-weight:600}
+.callout{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:var(--hf-radius-card);background:var(--hf-active-soft);color:var(--hf-ink);font-size:13px}
+.callout svg{color:var(--hf-active);margin-top:2px}
+.callout b{color:var(--hf-active);font-weight:600}
+
+/* Right column */
+.side{display:grid;gap:24px;position:sticky;top:24px}
+.phone{width:390px;background:var(--hf-page);border:1px solid var(--hf-border);border-radius:28px;overflow:hidden;box-shadow:0 12px 32px -12px color-mix(in srgb,var(--hf-ink) 22%,transparent)}
+.phone-cap{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;font-size:12px;font-weight:600;color:var(--hf-muted);background:var(--hf-surface);border-bottom:1px solid var(--hf-border)}
+.phone-scroll{height:600px;overflow:auto;padding:16px;display:grid;gap:16px;align-content:start}
+.phone h3{margin:0;font-size:17px;font-weight:600;letter-spacing:-0.02em;color:var(--hf-heading)}
+.phone .sec{display:grid;gap:8px}
+.phone .sec h4{margin:0;font-size:13px;font-weight:600;color:var(--hf-muted)}
+.phone .rc-grid{grid-template-columns:1fr}
+.phone .sw-state{display:none}
+.mbar{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 16px;background:var(--hf-surface);border-top:1px solid var(--hf-border)}
+.mbar .btn{width:100%}
+.mstatus{grid-column:1 / -1;font-size:12px;font-weight:600;color:var(--hf-muted);display:flex;align-items:center;gap:6px}
+.mstatus.dirty{color:var(--hf-warning)}
+.panel{background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);padding:16px 20px;display:grid;gap:10px}
+.panel h2{margin:0;font-size:16px;font-weight:600;color:var(--hf-heading)}
+.a11y{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.a11y li{display:grid;grid-template-columns:20px 1fr;gap:8px;font-size:13px;color:var(--hf-ink)}
+.a11y li svg{color:var(--hf-success);margin-top:2px}
+.a11y li small{display:block;color:var(--hf-muted);font-size:12px}
+
+/* Decision table */
+.decide table{width:100%;border-collapse:collapse}
+.decide th{background:var(--hf-table-head);color:var(--hf-muted);font-size:13px;font-weight:600;text-align:left;height:40px;padding:0 12px;border-bottom:1px solid var(--hf-border)}
+.decide td{padding:12px;border-bottom:1px solid var(--hf-border);font-size:14px;vertical-align:top}
+.decide tr:last-child td{border-bottom:0}
+.decide td:nth-child(2){font-weight:600;color:var(--hf-heading)}
+.decide td small{display:block;font-size:12px;color:var(--hf-muted);font-weight:400}
+.decide .tblsurf{border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);overflow:hidden;background:var(--hf-surface)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-pointer" viewBox="0 0 24 24"><path d="m4 4 7 17 2.5-7.5L21 11Z"/></symbol>
+  <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.5"/></symbol>
+</svg>
+
+<main class="board">
+  <header class="top">
+    <div class="eyebrow-free">
+      <span class="meta">Design system · Propuesta · Catálogo online 04</span>
+      <h1 class="title">Selección sin checkboxes</h1>
+      <p class="sub">En HoundFe no usamos la casilla clásica. Cada elección se hace con un control grande, con su texto como parte del objetivo y con un estado que se lee sin depender del color. Estos seis patrones la reemplazan en todo el sistema.</p>
+    </div>
+    <button class="btn" type="button" id="themeBtn" aria-pressed="false">
+      <svg class="i" id="themeIcon"><use href="#i-moon"/></svg><span id="themeLabel">Tema oscuro</span>
+    </button>
+  </header>
+
+  <!-- Why -->
+  <section class="why" aria-labelledby="whyTitle">
+    <h2 id="whyTitle" class="sr-only">Por qué quitamos la casilla</h2>
+    <div class="why-card">
+      <h3>Antes y ahora</h3>
+      <div class="compare">
+        <div class="cmp">
+          <span class="tag bad">Antes · casilla</span>
+          <div class="cmp-box" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 16 16" style="flex:none"><rect x="1" y="1" width="14" height="14" rx="3" style="fill:none;stroke:var(--hf-field-border);stroke-width:1.5"/></svg>
+            <span style="color:var(--hf-muted)">Mayoreo</span>
+            <span class="cmp-hit" style="left:8px;top:22px;width:20px;height:20px"></span>
+          </div>
+          <small>Objetivo de 16 px; el texto no responde.</small>
+        </div>
+        <div class="cmp">
+          <span class="tag good">Ahora · fila</span>
+          <div class="cmp-box" aria-hidden="true" style="background:var(--hf-active-soft)">
+            <span style="flex:1;font-weight:600;color:var(--hf-active)">Mayoreo</span>
+            <span class="mark" style="background:var(--hf-action);border-color:var(--hf-action)"><svg class="i" style="opacity:1"><use href="#i-check"/></svg></span>
+            <span class="cmp-hit" style="inset:6px"></span>
+          </div>
+          <small>Toda la fila, 48 px de alto.</small>
+        </div>
+      </div>
+    </div>
+    <div class="why-card">
+      <h3><svg class="i"><use href="#i-target"/></svg>Objetivo demasiado chico</h3>
+      <p>Una casilla mide 16 px. En la caja, con el ratón o el dedo, se falla seguido. WCAG pide al menos 24 px y nuestros controles miden 44 px.</p>
+    </div>
+    <div class="why-card">
+      <h3><svg class="i"><use href="#i-pointer"/></svg>La etiqueta no siempre se puede tocar</h3>
+      <p>Si la etiqueta no está bien enlazada, tocar el texto no hace nada. En los patrones nuevos el texto, la descripción y la marca son un solo botón.</p>
+    </div>
+    <div class="why-card">
+      <h3><svg class="i"><use href="#i-eye"/></svg>El estado cuesta verlo</h3>
+      <p>Una palomita fina en una caja gris se pierde en tablas largas y en tema oscuro. Ahora lo elegido cambia de fondo, de borde, de peso del texto y lleva marca.</p>
+    </div>
+  </section>
+
+  <div class="main">
+    <div class="patterns">
+
+      <!-- 1. Switch row -->
+      <article class="pat" aria-labelledby="p1">
+        <div class="pat-head">
+          <h2 id="p1"><span class="num">1</span>Interruptor en fila completa</h2>
+          <p>Para activar o desactivar una opción. El efecto es inmediato o se aplica al guardar, pero siempre es sí o no.</p>
+          <span class="rep">Reemplaza: <b>casilla suelta de «sí/no»</b></span>
+        </div>
+        <div class="live">
+          <div class="live-label">Ejemplo en vivo · Catálogo online</div>
+          <div class="sw-list">
+            <button type="button" class="sw-row" role="switch" aria-checked="true" data-switch>
+              <span class="sw-text"><b>Publicado</b><small>Habilitar la visibilidad del catálogo para clientes públicos.</small></span>
+              <span class="sw-state" data-on="Activado" data-off="Desactivado">Activado</span><span class="track" aria-hidden="true"></span>
+            </button>
+            <button type="button" class="sw-row" role="switch" aria-checked="false" data-switch>
+              <span class="sw-text"><b>Veterinarias es pública</b><small>Los clientes públicos podrán ver esta lista de precios.</small></span>
+              <span class="sw-state" data-on="Activado" data-off="Desactivado">Desactivado</span><span class="track" aria-hidden="true"></span>
+            </button>
+            <button type="button" class="sw-row" role="switch" aria-checked="false" aria-disabled="true" aria-describedby="swDisNote" data-switch>
+              <span class="sw-text"><b>Empleados es pública</b><small id="swDisNote">Lista interna; no se puede publicar.</small></span>
+              <span class="sw-state">Bloqueado</span><span class="track" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+        <ul class="specs"><li><code>role="switch"</code> + <code>aria-checked</code></li><li>Fila ≥ 48 px</li><li><kbd>Espacio</kbd> o <kbd>Enter</kbd></li><li>Texto «Activado / Desactivado»</li></ul>
+        <div class="states" aria-hidden="true">
+          <div class="st mini"><span>Reposo</span><div class="sw-row"><span class="sw-text"><b>Publicado</b></span><span class="track"></span></div></div>
+          <div class="st mini"><span>Hover</span><div class="sw-row is-hover"><span class="sw-text"><b>Publicado</b></span><span class="track"></span></div></div>
+          <div class="st mini"><span>Foco</span><div class="sw-row is-focus"><span class="sw-text"><b>Publicado</b></span><span class="track"></span></div></div>
+          <div class="st mini"><span>Activado</span><div class="sw-row on"><span class="sw-text"><b>Publicado</b></span><span class="track"></span></div></div>
+          <div class="st mini"><span>Deshabilitado</span><div class="sw-row is-disabled"><span class="sw-text"><b>Publicado</b></span><span class="track"></span></div></div>
+          <div class="st mini"><span>Error</span><div class="sw-row is-error on"><span class="sw-text"><b>Publicado</b></span><span class="track"></span></div><span class="err"><svg class="i"><use href="#i-alert"/></svg>No hay listas públicas</span></div>
+        </div>
+      </article>
+
+      <!-- 5. Segmented -->
+      <article class="pat" aria-labelledby="p5">
+        <div class="pat-head">
+          <h2 id="p5"><span class="num">5</span>Control segmentado</h2>
+          <p>Para 2 a 4 opciones excluyentes con nombre corto, sin explicación. Cambia la vista o un modo al momento.</p>
+          <span class="rep">Reemplaza: <b>radios en línea y casillas que se excluyen entre sí</b></span>
+        </div>
+        <div class="live">
+          <div class="live-label"><span id="densLbl">Densidad de la tabla</span></div>
+          <div class="seg" role="radiogroup" aria-labelledby="densLbl" data-rg="dens">
+            <button type="button" role="radio" aria-checked="false" tabindex="-1" data-value="40"><svg class="i ck"><use href="#i-check"/></svg>Compacta</button>
+            <button type="button" role="radio" aria-checked="false" tabindex="-1" data-value="48"><svg class="i ck"><use href="#i-check"/></svg>Normal</button>
+            <button type="button" role="radio" aria-checked="true" tabindex="0" data-value="64"><svg class="i ck"><use href="#i-check"/></svg>Cómoda</button>
+          </div>
+          <div class="dens-prev" aria-hidden="true" id="densPrev"><div></div><div></div><div></div></div>
+          <span class="hint" id="densNote">Filas de 64 px con línea secundaria.</span>
+        </div>
+        <ul class="specs"><li><code>radiogroup</code> + <code>radio</code></li><li>44 px de alto</li><li><kbd>←</kbd> <kbd>→</kbd> mueven y eligen</li><li>Marca + borde, no solo color</li></ul>
+        <div class="states" aria-hidden="true">
+          <div class="st mini"><span>Reposo</span><div class="seg"><button tabindex="-1">Normal</button><button tabindex="-1">Cómoda</button></div></div>
+          <div class="st mini"><span>Hover</span><div class="seg"><button tabindex="-1" class="is-hover">Normal</button><button tabindex="-1">Cómoda</button></div></div>
+          <div class="st mini"><span>Foco</span><div class="seg"><button tabindex="-1" class="is-focus">Normal</button><button tabindex="-1">Cómoda</button></div></div>
+          <div class="st mini"><span>Elegido</span><div class="seg"><button tabindex="-1">Normal</button><button tabindex="-1" class="on"><svg class="i ck"><use href="#i-check"/></svg>Cómoda</button></div></div>
+          <div class="st mini"><span>Deshabilitado</span><div class="seg is-disabled"><button tabindex="-1">Normal</button><button tabindex="-1" class="on">Cómoda</button></div></div>
+          <div class="st mini"><span>Error</span><div class="seg is-error"><button tabindex="-1">Normal</button><button tabindex="-1">Cómoda</button></div><span class="err"><svg class="i"><use href="#i-alert"/></svg>Elige una opción</span></div>
+        </div>
+      </article>
+
+      <!-- 2. Radio card -->
+      <article class="pat span2" aria-labelledby="p2">
+        <div class="pat-head">
+          <h2 id="p2"><span class="num">2</span>Tarjeta seleccionable</h2>
+          <p>Para elegir una entre 2 y 5 opciones que necesitan explicación o una muestra. Toda la tarjeta es el botón; la marca redonda confirma la elegida.</p>
+          <span class="rep">Reemplaza: <b>select con descripción aparte y radios con texto largo</b></span>
+        </div>
+        <div class="live">
+          <div class="live-label"><span id="stockLbl">Stock en catálogo · predeterminado</span><span class="badge neutral" id="stockBadge">Estado detallado</span></div>
+          <div class="rc-grid" role="radiogroup" aria-labelledby="stockLbl" data-rg="stock">
+            <button type="button" class="rc" role="radio" aria-checked="true" tabindex="0" data-value="detailed">
+              <span class="rc-title">Estado detallado</span><span class="mark" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span>
+              <span class="rc-desc">Muestra Disponible, Pocas piezas o Agotado según las existencias reales, sin publicar cantidades.</span>
+              <span class="rc-prev" aria-hidden="true"><span class="ok">Disponible</span><span class="low">Pocas piezas</span><span class="out">Agotado</span></span>
+            </button>
+            <button type="button" class="rc" role="radio" aria-checked="false" tabindex="-1" data-value="availability">
+              <span class="rc-title">Solo disponibilidad</span><span class="mark" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span>
+              <span class="rc-desc">Muestra solo Disponible o Agotado, sin revelar cuándo queda poco stock.</span>
+              <span class="rc-prev" aria-hidden="true"><span class="ok">Disponible</span><span class="out">Agotado</span></span>
+            </button>
+            <button type="button" class="rc" role="radio" aria-checked="false" tabindex="-1" data-value="fixed">
+              <span class="rc-title">Mostrar cantidad fija</span><span class="mark" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span>
+              <span class="rc-desc">Muestra siempre la cantidad definida como dato informativo; no cambia las existencias y la venta sigue bloqueada si no hay stock real.</span>
+            </button>
+            <button type="button" class="rc" role="radio" aria-checked="false" tabindex="-1" data-value="hidden">
+              <span class="rc-title">No mostrar stock</span><span class="mark" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span>
+              <span class="rc-desc">No muestra ningún texto de stock en el catálogo; las validaciones de venta siguen usando las existencias reales.</span>
+            </button>
+          </div>
+          <div class="qty" id="qtyWrap" hidden>
+            <label for="qty">Cantidad a mostrar</label>
+            <input class="field" id="qty" type="number" inputmode="numeric" min="0" step="1" value="10" aria-describedby="qtyHint">
+            <span class="hint" id="qtyHint">Número entero, 0 o mayor.</span>
+            <span class="err" id="qtyErr" hidden><svg class="i"><use href="#i-alert"/></svg>Escribe un número entero de 0 o más.</span>
+          </div>
+        </div>
+        <ul class="specs"><li><code>radiogroup</code> + <code>radio</code>, foco itinerante</li><li><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> mueven y eligen</li><li>Elegida: <code>--hf-active-soft</code>, borde 2 px <code>--hf-active</code>, marca con palomita y título en color</li><li>Lo que depende de la opción aparece debajo, no en otra pantalla</li></ul>
+        <div class="states" aria-hidden="true">
+          <div class="st mini"><span>Reposo</span><div class="rc"><span class="rc-title">Solo disponibilidad</span><span class="mark"></span></div></div>
+          <div class="st mini"><span>Hover</span><div class="rc is-hover"><span class="rc-title">Solo disponibilidad</span><span class="mark"></span></div></div>
+          <div class="st mini"><span>Foco</span><div class="rc is-focus"><span class="rc-title">Solo disponibilidad</span><span class="mark"></span></div></div>
+          <div class="st mini"><span>Elegida</span><div class="rc on"><span class="rc-title">Solo disponibilidad</span><span class="mark"><svg class="i"><use href="#i-check"/></svg></span></div></div>
+          <div class="st mini"><span>Deshabilitada</span><div class="rc is-disabled"><span class="rc-title">Solo disponibilidad</span><span class="mark"></span></div></div>
+          <div class="st mini"><span>Error</span><div class="rc is-error"><span class="rc-title">Solo disponibilidad</span><span class="mark"></span></div><span class="err"><svg class="i"><use href="#i-alert"/></svg>Elige cómo mostrar el stock</span></div>
+        </div>
+      </article>
+
+      <!-- 3. Selectable rows -->
+      <article class="pat" aria-labelledby="p3">
+        <div class="pat-head">
+          <h2 id="p3"><span class="num">3</span>Filas seleccionables con marca</h2>
+          <p>Para elegir varias de una lista medio larga (5 a 15). Fila de 48 px, marca a la derecha; tocar cualquier parte la activa.</p>
+          <span class="rep">Reemplaza: <b>grupo de casillas y select múltiple que oculta opciones</b></span>
+        </div>
+        <div class="live">
+          <div class="live-label"><span id="plLbl">Listas de precios públicas</span><span class="badge" id="plCount">2 seleccionadas</span></div>
+          <ul class="lb" role="listbox" aria-multiselectable="true" aria-labelledby="plLbl" aria-describedby="plErr" data-lb>
+            <li class="opt" role="option" aria-selected="true" tabindex="0"><span class="opt-text"><b>PUBLICO</b><small>Público general</small></span><span class="mark" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span></li>
+            <li class="opt" role="option" aria-selected="true" tabindex="-1"><span class="opt-text"><b>Mayoreo</b><small>Compra por volumen</small></span><span class="mark" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span></li>
+            <li class="opt" role="option" aria-selected="false" tabindex="-1"><span class="opt-text"><b>Veterinarias</b><small>Clínicas con convenio</small></span><span class="mark" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span></li>
+            <li class="opt" role="option" aria-selected="false" tabindex="-1"><span class="opt-text"><b>Criadores</b><small>Criaderos registrados</small></span><span class="mark" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span></li>
+            <li class="opt" role="option" aria-selected="false" aria-disabled="true" tabindex="-1"><span class="opt-text"><b>Empleados</b><small>Lista interna, no publicable</small></span><span class="mark" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span></li>
+          </ul>
+          <span class="err" id="plErr" hidden><svg class="i"><use href="#i-alert"/></svg>Elige al menos una lista pública para publicar el catálogo.</span>
+        </div>
+        <ul class="specs"><li><code>listbox</code> <code>aria-multiselectable</code></li><li><kbd>↑</kbd> <kbd>↓</kbd> mueven, <kbd>Espacio</kbd> marca</li><li>Contador visible</li></ul>
+        <div class="states" aria-hidden="true">
+          <div class="st mini"><span>Reposo</span><div class="opt"><span class="opt-text"><b>Criadores</b></span><span class="mark"></span></div></div>
+          <div class="st mini"><span>Hover</span><div class="opt is-hover"><span class="opt-text"><b>Criadores</b></span><span class="mark"></span></div></div>
+          <div class="st mini"><span>Foco</span><div class="opt is-focus"><span class="opt-text"><b>Criadores</b></span><span class="mark"></span></div></div>
+          <div class="st mini"><span>Elegida</span><div class="opt on"><span class="opt-text"><b>Criadores</b></span><span class="mark"><svg class="i"><use href="#i-check"/></svg></span></div></div>
+          <div class="st mini"><span>Deshabilitada</span><div class="opt is-disabled"><span class="opt-text"><b>Empleados</b></span><span class="mark"></span></div></div>
+          <div class="st mini"><span>Error</span><div class="opt is-error"><span class="opt-text"><b>Criadores</b></span><span class="mark"></span></div><span class="err"><svg class="i"><use href="#i-alert"/></svg>Elige al menos una</span></div>
+        </div>
+      </article>
+
+      <!-- 4. Chips -->
+      <article class="pat" aria-labelledby="p4">
+        <div class="pat-head">
+          <h2 id="p4"><span class="num">4</span>Chips alternables</h2>
+          <p>Para filtros y pocas opciones múltiples (hasta 8) con nombre corto. Cada chip es un botón que se queda presionado.</p>
+          <span class="rep">Reemplaza: <b>casillas de filtro en barras y paneles</b></span>
+        </div>
+        <div class="live">
+          <div class="live-label"><span id="chipLbl">Productos · Especie</span><button type="button" class="btn btn-ghost" id="chipClear" style="min-height:32px;padding:0 8px;font-size:12px" hidden>Limpiar (<span id="chipN">0</span>)</button></div>
+          <div class="chips" role="group" aria-labelledby="chipLbl" data-chips>
+            <button type="button" class="chip" aria-pressed="true"><svg class="i ck"><use href="#i-check"/></svg>Perro <span class="n fig">412</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="i ck"><use href="#i-check"/></svg>Gato <span class="n fig">286</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="i ck"><use href="#i-check"/></svg>Aves <span class="n fig">64</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="i ck"><use href="#i-check"/></svg>Peces <span class="n fig">58</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="i ck"><use href="#i-check"/></svg>Roedores <span class="n fig">37</span></button>
+            <button type="button" class="chip" aria-pressed="false" disabled title="Sin productos"><svg class="i ck"><use href="#i-check"/></svg>Reptiles <span class="n fig">0</span></button>
+          </div>
+          <span class="hint" id="chipResult" aria-live="polite">Mostrando 412 productos de Perro.</span>
+        </div>
+        <ul class="specs"><li><code>button</code> + <code>aria-pressed</code></li><li>44 px de alto</li><li>Palomita + peso 600 al activarse</li><li>Más de 8: usa filas (3)</li></ul>
+        <div class="states" aria-hidden="true">
+          <div class="st mini"><span>Reposo</span><div class="chips"><span class="chip">Gato</span></div></div>
+          <div class="st mini"><span>Hover</span><div class="chips"><span class="chip is-hover">Gato</span></div></div>
+          <div class="st mini"><span>Foco</span><div class="chips"><span class="chip is-focus">Gato</span></div></div>
+          <div class="st mini"><span>Activo</span><div class="chips"><span class="chip on"><svg class="i ck"><use href="#i-check"/></svg>Gato</span></div></div>
+          <div class="st mini"><span>Deshabilitado</span><div class="chips"><span class="chip is-disabled">Reptiles</span></div></div>
+          <div class="st mini"><span>Error</span><div class="chips"><span class="chip is-error">Gato</span></div><span class="err"><svg class="i"><use href="#i-alert"/></svg>Elige una especie</span></div>
+        </div>
+      </article>
+
+      <!-- 6. Table selection -->
+      <article class="pat span2" aria-labelledby="p6">
+        <div class="pat-head">
+          <h2 id="p6"><span class="num">6</span>Selección de filas en tablas</h2>
+          <p>Reemplaza la casilla de la tabla. Una marca redonda de 24 px dentro de un área de 44 px en la columna de selección (48 px). Con el foco en la fila, <kbd>Espacio</kbd> la selecciona y <kbd>Enter</kbd> la abre.</p>
+          <span class="rep">Reemplaza: <b>la casilla de selección de AppDataTable, incluida la de «seleccionar todo»</b></span>
+        </div>
+        <div class="live">
+          <div class="live-label"><span id="tblLbl">Productos · selección para acciones en lote</span><span class="hint">Las líneas punteadas muestran el área de 44 px (solo en este tablero)</span></div>
+          <div class="tbl-wrap">
+            <table class="tbl" aria-labelledby="tblLbl" data-tbl>
+              <thead><tr>
+                <th class="sel"><button type="button" class="selbtn hit" aria-pressed="false" aria-label="Seleccionar todos los productos de esta página" data-all><span class="dot"><svg class="i c"><use href="#i-check"/></svg><svg class="i m"><use href="#i-minus"/></svg></span></button></th>
+                <th>Producto</th><th style="width:160px">Categoría</th><th style="width:120px" class="num-c">Existencias</th><th style="width:130px" class="num-c">Precio PUBLICO</th>
+              </tr></thead>
+              <tbody>
+                <tr tabindex="0" aria-label="Croquetas Royal Canin Medium Adult 15 kg"><td class="sel"><button type="button" class="selbtn" tabindex="-1" aria-pressed="false" aria-label="Seleccionar Croquetas Royal Canin Medium Adult 15 kg"><span class="dot"><svg class="i c"><use href="#i-check"/></svg></span></button></td><td><div class="pname">Croquetas Royal Canin Medium Adult 15 kg</div><div class="psub">SKU RC-MA-15</div></td><td>Alimento perro</td><td class="num-c">24</td><td class="num-c">$1,899.00</td></tr>
+                <tr tabindex="-1" aria-label="Arena aglutinante Cat's Best 10 L"><td class="sel"><button type="button" class="selbtn" tabindex="-1" aria-pressed="false" aria-label="Seleccionar Arena aglutinante Cat's Best 10 L"><span class="dot"><svg class="i c"><use href="#i-check"/></svg></span></button></td><td><div class="pname">Arena aglutinante Cat's Best 10 L</div><div class="psub">SKU CB-AR-10</div></td><td>Higiene gato</td><td class="num-c">3</td><td class="num-c">$389.00</td></tr>
+                <tr tabindex="-1" aria-label="Collar antipulgas Seresto perro grande"><td class="sel"><button type="button" class="selbtn" tabindex="-1" aria-pressed="false" aria-label="Seleccionar Collar antipulgas Seresto perro grande"><span class="dot"><svg class="i c"><use href="#i-check"/></svg></span></button></td><td><div class="pname">Collar antipulgas Seresto perro grande</div><div class="psub">SKU SE-PG-01</div></td><td>Salud</td><td class="num-c">0</td><td class="num-c">$1,250.00</td></tr>
+              </tbody>
+            </table>
+            <div class="bulk" id="bulk" hidden>
+              <span class="badge fig" id="bulkCount">1 seleccionado</span>
+              <span class="hint">Esta página</span>
+              <span class="sp"></span>
+              <button type="button" class="btn"><svg class="i"><use href="#i-tag"/></svg>Cambiar precio</button>
+              <button type="button" class="btn" style="color:var(--hf-danger)"><svg class="i"><use href="#i-trash"/></svg>Archivar…</button>
+              <button type="button" class="btn btn-ghost" id="bulkClear"><svg class="i"><use href="#i-x"/></svg>Quitar selección</button>
+            </div>
+          </div>
+          <span class="hint" id="tblMsg" aria-live="polite">Usa <kbd>↑</kbd> <kbd>↓</kbd> para moverte entre filas.</span>
+          <div class="tbl-notes">
+            <div class="note"><svg class="i"><use href="#i-target"/></svg><span><b>Clic en la marca</b> selecciona; clic en el resto de la fila abre el registro, como hoy.</span></div>
+            <div class="note"><svg class="i"><use href="#i-keyboard"/></svg><span><b>Espacio</b> selecciona la fila con foco; <b>Shift + clic</b> selecciona un rango.</span></div>
+            <div class="note"><svg class="i"><use href="#i-info"/></svg><span><b>Encabezado</b>: vacío, con palomita (todos) o con guion (algunos, <code>aria-pressed="mixed"</code>).</span></div>
+          </div>
+        </div>
+        <div class="states" aria-hidden="true">
+          <div class="st"><span>Reposo</span><div class="mini-row"><span class="selbtn"><span class="dot"></span></span><span>Cat's Best 10 L</span></div></div>
+          <div class="st"><span>Hover</span><div class="mini-row is-hover"><span class="selbtn is-hover"><span class="dot"></span></span><span>Cat's Best 10 L</span></div></div>
+          <div class="st"><span>Foco</span><div class="mini-row is-focus"><span class="selbtn"><span class="dot"></span></span><span>Cat's Best 10 L</span></div></div>
+          <div class="st"><span>Seleccionada</span><div class="mini-row on"><span class="selbtn on"><span class="dot"><svg class="i c"><use href="#i-check"/></svg></span></span><span>Cat's Best 10 L</span></div></div>
+          <div class="st"><span>Deshabilitada</span><div class="mini-row is-disabled"><span class="selbtn is-disabled"><span class="dot"></span></span><span>Cat's Best 10 L</span></div></div>
+          <div class="st"><span>Error</span><div class="mini-row is-error"><span class="selbtn is-error"><span class="dot"></span></span><span>Cat's Best 10 L</span></div><span class="err"><svg class="i"><use href="#i-alert"/></svg>Selecciona al menos uno</span></div>
+        </div>
+      </article>
+    </div>
+
+    <!-- Right column -->
+    <aside class="side">
+      <section class="phone" aria-labelledby="phoneTitle">
+        <div class="phone-cap"><span id="phoneTitle">Móvil · 390 px</span><span>Patrones 1 y 2</span></div>
+        <div class="phone-scroll">
+          <h3>Catálogo online</h3>
+          <div class="sec">
+            <h4 id="mPubLbl">Publicación</h4>
+            <div class="sw-list" role="group" aria-labelledby="mPubLbl">
+              <button type="button" class="sw-row" role="switch" aria-checked="true" data-switch data-dirty>
+                <span class="sw-text"><b>Publicado</b><small>Habilitar la visibilidad del catálogo para clientes públicos.</small></span>
+                <span class="track" aria-hidden="true"></span>
+              </button>
+              <button type="button" class="sw-row" role="switch" aria-checked="true" data-switch data-dirty>
+                <span class="sw-text"><b>Mayoreo es pública</b><small>Los clientes públicos podrán ver esta lista.</small></span>
+                <span class="track" aria-hidden="true"></span>
+              </button>
+            </div>
+          </div>
+          <div class="sec">
+            <h4 id="mStockLbl">Stock en catálogo</h4>
+            <div class="rc-grid" role="radiogroup" aria-labelledby="mStockLbl" data-rg="mstock">
+              <button type="button" class="rc" role="radio" aria-checked="true" tabindex="0" data-value="detailed" data-dirty>
+                <span class="rc-title">Estado detallado</span><span class="mark" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span>
+                <span class="rc-desc">Muestra Disponible, Pocas piezas o Agotado según las existencias reales, sin publicar cantidades.</span>
+              </button>
+              <button type="button" class="rc" role="radio" aria-checked="false" tabindex="-1" data-value="availability" data-dirty>
+                <span class="rc-title">Solo disponibilidad</span><span class="mark" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span>
+                <span class="rc-desc">Muestra solo Disponible o Agotado, sin revelar cuándo queda poco stock.</span>
+              </button>
+              <button type="button" class="rc" role="radio" aria-checked="false" tabindex="-1" data-value="fixed" data-dirty>
+                <span class="rc-title">Mostrar cantidad fija</span><span class="mark" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span>
+                <span class="rc-desc">Muestra siempre la cantidad definida como dato informativo; no cambia las existencias y la venta sigue bloqueada si no hay stock real.</span>
+              </button>
+              <button type="button" class="rc" role="radio" aria-checked="false" tabindex="-1" data-value="hidden" data-dirty>
+                <span class="rc-title">No mostrar stock</span><span class="mark" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span>
+                <span class="rc-desc">No muestra ningún texto de stock en el catálogo; las validaciones de venta siguen usando las existencias reales.</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="mbar">
+          <span class="mstatus" id="mStatus" aria-live="polite">Sin cambios para guardar · Actualizado 4 nov, 15:05</span>
+          <button type="button" class="btn" id="mDiscard" disabled>Descartar</button>
+          <button type="button" class="btn btn-primary" id="mSave">Guardar</button>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="a11yTitle">
+        <h2 id="a11yTitle">Accesibilidad</h2>
+        <ul class="a11y">
+          <li><svg class="i"><use href="#i-check"/></svg><span>Objetivo de 44 px o más<small>Fila, tarjeta, chip o área de la marca; nunca solo el ícono.</small></span></li>
+          <li><svg class="i"><use href="#i-check"/></svg><span>La etiqueta también se toca<small>Texto, descripción y marca viven dentro del mismo botón.</small></span></li>
+          <li><svg class="i"><use href="#i-check"/></svg><span>Rol y estado correctos<small><code>switch</code>/<code>aria-checked</code>, <code>radio</code>, <code>option</code>/<code>aria-selected</code>, <code>aria-pressed</code>.</small></span></li>
+          <li><svg class="i"><use href="#i-check"/></svg><span>Todo con teclado<small><kbd>Tab</kbd> entra al grupo, flechas se mueven, <kbd>Espacio</kbd>/<kbd>Enter</kbd> eligen.</small></span></li>
+          <li><svg class="i"><use href="#i-check"/></svg><span>Foco distinto de la selección<small>Foco: anillo de 2 px <code>--hf-focus</code> separado 2 px. Selección: fondo, borde y marca.</small></span></li>
+          <li><svg class="i"><use href="#i-check"/></svg><span>No solo color<small>Marca con palomita, peso 600 o texto «Activado».</small></span></li>
+          <li><svg class="i"><use href="#i-check"/></svg><span>Contraste 3:1 en lo no textual<small>Contornos en reposo con <code>--hf-field-border</code>; texto en AA.</small></span></li>
+          <li><svg class="i"><use href="#i-check"/></svg><span>Errores con texto e ícono<small>Debajo del grupo, enlazados con <code>aria-describedby</code>.</small></span></li>
+        </ul>
+      </section>
+    </aside>
+  </div>
+
+  <!-- Decision table -->
+  <section class="decide panel" aria-labelledby="decTitle">
+    <h2 id="decTitle">Cómo elegir</h2>
+    <div class="tblsurf">
+      <table>
+        <thead><tr><th style="width:42%">Situación</th><th style="width:26%">Patrón</th><th>Ejemplo en HoundFe</th></tr></thead>
+        <tbody>
+          <tr><td>Activar o desactivar una sola cosa (sí / no)</td><td>1 · Interruptor en fila completa</td><td>«Publicado» del catálogo; lista pública sí/no</td></tr>
+          <tr><td>Elegir una entre 2 y 5 opciones que necesitan explicación</td><td>2 · Tarjeta seleccionable</td><td>«Stock en catálogo»</td></tr>
+          <tr><td>Elegir varias de una lista de 5 a 15 elementos</td><td>3 · Filas seleccionables con marca<small>Más de 15: las mismas filas dentro de un selector con búsqueda</small></td><td>«Listas de precios públicas»</td></tr>
+          <tr><td>Filtrar o marcar pocas opciones múltiples con nombre corto</td><td>4 · Chips alternables</td><td>Filtro de especie en Productos</td></tr>
+          <tr><td>2 a 4 opciones excluyentes y cortas, sin explicación</td><td>5 · Control segmentado</td><td>Densidad de tabla: Compacta / Normal / Cómoda</td></tr>
+          <tr><td>Seleccionar registros para una acción en lote</td><td>6 · Selección de filas en tablas</td><td>Productos, Ventas, Clientes</td></tr>
+          <tr><td>Confirmar una acción importante («Entiendo que…»)</td><td>Ninguno: botón explícito en el diálogo<small>La confirmación es el botón con el verbo, no una casilla previa</small></td><td>«Archivar 3 productos…»</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+(function(){
+  var root = document.documentElement;
+  var themeBtn = document.getElementById('themeBtn');
+  themeBtn.addEventListener('click', function(){
+    var dark = root.classList.toggle('dark');
+    themeBtn.setAttribute('aria-pressed', String(dark));
+    document.getElementById('themeLabel').textContent = dark ? 'Tema claro' : 'Tema oscuro';
+    document.querySelector('#themeIcon use').setAttribute('href', dark ? '#i-sun' : '#i-moon');
+  });
+
+  // Mobile dirty state
+  var mStatus = document.getElementById('mStatus'), mDiscard = document.getElementById('mDiscard'), mSave = document.getElementById('mSave');
+  var phone = document.querySelector('.phone');
+  var snapshot = null;
+  function phoneState(){
+    return Array.prototype.map.call(phone.querySelectorAll('[data-dirty]'), function(el){ return el.getAttribute('aria-checked'); }).join();
+  }
+  function refreshDirty(){
+    var dirty = phoneState() !== snapshot;
+    mStatus.textContent = dirty ? 'Cambios sin guardar' : 'Sin cambios para guardar · Actualizado 4 nov, 15:05';
+    mStatus.classList.toggle('dirty', dirty);
+    mDiscard.disabled = !dirty;
+  }
+  var saved = phoneState();
+  snapshot = saved;
+  mSave.addEventListener('click', function(){
+    if (phoneState() === snapshot) return;
+    mSave.textContent = 'Guardando…'; mSave.disabled = true;
+    setTimeout(function(){
+      snapshot = phoneState(); saved = snapshot;
+      mSave.textContent = 'Guardar'; mSave.disabled = false;
+      mStatus.classList.remove('dirty'); mDiscard.disabled = true;
+      mStatus.textContent = 'Guardado · Actualizado 8 nov, ' + new Date().toTimeString().slice(0,5);
+    }, 700);
+  });
+  mDiscard.addEventListener('click', function(){
+    var vals = saved.split(',');
+    phone.querySelectorAll('[data-dirty]').forEach(function(el, i){
+      el.setAttribute('aria-checked', vals[i]);
+      if (el.getAttribute('role') === 'radio') el.tabIndex = vals[i] === 'true' ? 0 : -1;
+    });
+    refreshDirty();
+  });
+  function inPhone(el){ return phone.contains(el); }
+
+  // 1. Switches
+  document.querySelectorAll('[data-switch]').forEach(function(sw){
+    sw.addEventListener('click', function(){
+      if (sw.getAttribute('aria-disabled') === 'true') return;
+      var on = sw.getAttribute('aria-checked') !== 'true';
+      sw.setAttribute('aria-checked', String(on));
+      var st = sw.querySelector('.sw-state[data-on]');
+      if (st) st.textContent = on ? st.dataset.on : st.dataset.off;
+      if (inPhone(sw)) refreshDirty();
+    });
+  });
+
+  // 2 & 5. Radio groups (roving tabindex, arrows select)
+  var densNotes = {'40':'Filas de 40 px, solo la línea principal.','48':'Filas de 48 px, solo la línea principal.','64':'Filas de 64 px con línea secundaria.'};
+  var stockNames = {detailed:'Estado detallado',availability:'Solo disponibilidad',fixed:'Mostrar cantidad fija',hidden:'No mostrar stock'};
+  function onRadioChange(group, value){
+    var key = group.dataset.rg;
+    if (key === 'dens'){
+      var h = Number(value);
+      document.querySelectorAll('#densPrev div').forEach(function(d){ d.style.height = Math.round(h / 4) + 'px'; });
+      document.getElementById('densNote').textContent = densNotes[value];
+    }
+    if (key === 'stock'){
+      document.getElementById('qtyWrap').hidden = value !== 'fixed';
+      document.getElementById('stockBadge').textContent = stockNames[value];
+    }
+    if (inPhone(group)) refreshDirty();
+  }
+  document.querySelectorAll('[data-rg]').forEach(function(group){
+    var radios = Array.prototype.slice.call(group.querySelectorAll('[role="radio"]'));
+    function select(r, focus){
+      if (r.getAttribute('aria-disabled') === 'true') return;
+      radios.forEach(function(x){ var on = x === r; x.setAttribute('aria-checked', String(on)); x.tabIndex = on ? 0 : -1; });
+      if (focus) r.focus();
+      onRadioChange(group, r.dataset.value);
+    }
+    radios.forEach(function(r, i){
+      r.addEventListener('click', function(){ select(r, false); });
+      r.addEventListener('keydown', function(e){
+        var d = {ArrowRight:1, ArrowDown:1, ArrowLeft:-1, ArrowUp:-1}[e.key];
+        if (e.key === 'Home' || e.key === 'End'){ e.preventDefault(); select(radios[e.key === 'Home' ? 0 : radios.length - 1], true); return; }
+        if (!d) return;
+        e.preventDefault();
+        select(radios[(i + d + radios.length) % radios.length], true);
+      });
+    });
+    var cur = group.querySelector('[aria-checked="true"]');
+    if (cur) onRadioChange(group, cur.dataset.value);
+  });
+  refreshDirty();
+
+  var qty = document.getElementById('qty'), qtyErr = document.getElementById('qtyErr');
+  qty.addEventListener('input', function(){
+    var ok = /^\d+$/.test(qty.value);
+    qty.setAttribute('aria-invalid', String(!ok));
+    qtyErr.hidden = ok;
+    qty.setAttribute('aria-describedby', ok ? 'qtyHint' : 'qtyHint qtyErr');
+  });
+
+  // 3. Listbox multiselect
+  document.querySelectorAll('[data-lb]').forEach(function(lb){
+    var opts = Array.prototype.slice.call(lb.querySelectorAll('[role="option"]'));
+    var count = document.getElementById('plCount'), err = document.getElementById('plErr');
+    function update(){
+      var n = opts.filter(function(o){ return o.getAttribute('aria-selected') === 'true'; }).length;
+      count.textContent = n === 1 ? '1 seleccionada' : n + ' seleccionadas';
+      count.classList.toggle('neutral', n === 0);
+      err.hidden = n > 0;
+      lb.setAttribute('aria-invalid', String(n === 0));
+    }
+    function toggle(o){
+      if (o.getAttribute('aria-disabled') === 'true') return;
+      o.setAttribute('aria-selected', String(o.getAttribute('aria-selected') !== 'true'));
+      update();
+    }
+    function move(o){ opts.forEach(function(x){ x.tabIndex = x === o ? 0 : -1; }); o.focus(); }
+    opts.forEach(function(o, i){
+      o.addEventListener('click', function(){ move(o); toggle(o); });
+      o.addEventListener('keydown', function(e){
+        if (e.key === ' ' || e.key === 'Enter'){ e.preventDefault(); toggle(o); }
+        else if (e.key === 'ArrowDown'){ e.preventDefault(); move(opts[Math.min(i + 1, opts.length - 1)]); }
+        else if (e.key === 'ArrowUp'){ e.preventDefault(); move(opts[Math.max(i - 1, 0)]); }
+        else if (e.key === 'Home'){ e.preventDefault(); move(opts[0]); }
+        else if (e.key === 'End'){ e.preventDefault(); move(opts[opts.length - 1]); }
+      });
+    });
+    update();
+  });
+
+  // 4. Chips
+  var chipWrap = document.querySelector('[data-chips]');
+  var chips = Array.prototype.slice.call(chipWrap.querySelectorAll('.chip'));
+  var chipClear = document.getElementById('chipClear');
+  function chipUpdate(){
+    var on = chips.filter(function(c){ return c.getAttribute('aria-pressed') === 'true'; });
+    var total = on.reduce(function(s, c){ return s + Number(c.querySelector('.n').textContent); }, 0);
+    chipClear.hidden = on.length === 0;
+    document.getElementById('chipN').textContent = on.length;
+    document.getElementById('chipResult').textContent = on.length === 0
+      ? 'Mostrando todos los productos (857).'
+      : 'Mostrando ' + total + ' productos de ' + on.map(function(c){ return c.firstChild.nextSibling.textContent.trim(); }).join(', ') + '.';
+  }
+  chips.forEach(function(c){
+    c.addEventListener('click', function(){ c.setAttribute('aria-pressed', String(c.getAttribute('aria-pressed') !== 'true')); chipUpdate(); });
+  });
+  chipClear.addEventListener('click', function(){ chips.forEach(function(c){ c.setAttribute('aria-pressed', 'false'); }); chipUpdate(); chips[0].focus(); });
+  chipUpdate();
+
+  // 6. Table selection
+  var tbl = document.querySelector('[data-tbl]');
+  var rows = Array.prototype.slice.call(tbl.querySelectorAll('tbody tr'));
+  var all = tbl.querySelector('[data-all]');
+  var bulk = document.getElementById('bulk'), bulkCount = document.getElementById('bulkCount'), msg = document.getElementById('tblMsg');
+  var last = null;
+  function isSel(r){ return r.classList.contains('selected'); }
+  function setSel(r, on){ r.classList.toggle('selected', on); r.querySelector('.selbtn').setAttribute('aria-pressed', String(on)); }
+  function tblUpdate(){
+    var n = rows.filter(isSel).length;
+    all.setAttribute('aria-pressed', n === 0 ? 'false' : n === rows.length ? 'true' : 'mixed');
+    bulk.hidden = n === 0;
+    bulkCount.textContent = n === 1 ? '1 seleccionado' : n + ' seleccionados';
+  }
+  function focusRow(r){ rows.forEach(function(x){ x.tabIndex = x === r ? 0 : -1; }); r.focus(); }
+  rows.forEach(function(r, i){
+    var btn = r.querySelector('.selbtn');
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      if (e.shiftKey && last !== null){
+        var a = Math.min(last, i), b = Math.max(last, i), on = !isSel(r);
+        for (var k = a; k <= b; k++) setSel(rows[k], on);
+      } else setSel(r, !isSel(r));
+      last = i; focusRow(r); tblUpdate();
+    });
+    r.addEventListener('click', function(){ focusRow(r); msg.textContent = 'Clic en la fila: abriría «' + r.getAttribute('aria-label') + '».'; });
+    r.addEventListener('keydown', function(e){
+      if (e.key === ' '){ e.preventDefault(); setSel(r, !isSel(r)); last = i; tblUpdate(); }
+      else if (e.key === 'Enter'){ e.preventDefault(); msg.textContent = 'Enter: abriría «' + r.getAttribute('aria-label') + '».'; }
+      else if (e.key === 'ArrowDown' && rows[i + 1]){ e.preventDefault(); focusRow(rows[i + 1]); }
+      else if (e.key === 'ArrowUp' && rows[i - 1]){ e.preventDefault(); focusRow(rows[i - 1]); }
+    });
+  });
+  all.addEventListener('click', function(){
+    var on = all.getAttribute('aria-pressed') !== 'true';
+    rows.forEach(function(r){ setSel(r, on); }); tblUpdate();
+  });
+  document.getElementById('bulkClear').addEventListener('click', function(){ rows.forEach(function(r){ setSel(r, false); }); tblUpdate(); rows[0].focus(); });
+  tblUpdate();
+})();
+</script>
+</body>
+</html>
