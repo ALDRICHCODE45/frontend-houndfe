@@ -110,12 +110,21 @@ export const SaleListSummarySchema = z.object({
 
 export type SaleListSummary = z.infer<typeof SaleListSummarySchema>
 
+// Totals of every sale the current filters match, not only the page (count === pagination.total).
+// debtCents counts a canceled sale as 0, like the Deuda cells. Optional until every backend sends it.
+export interface SalesListFilterSummary {
+  count: number
+  totalCents: number
+  debtCents: number
+}
+
 // sdd customer-sales-history S1 (design §3.1): required summary from the backend.
 export interface ConfirmedSalesListResponse {
   data: ConfirmedSaleRow[]
   pagination: SalesListPagination
   counts: SalesListCounts
   summary: SaleListSummary
+  filterSummary?: SalesListFilterSummary
 }
 
 // sdd customer-sales-history S1: the typed subset of ListSalesParams used for the
@@ -320,7 +329,7 @@ export interface SaleCancellationResponse {
 export interface ListSalesParams {
   page?: number
   limit?: number
-  sortBy?: 'confirmedAt' | 'totalCents' | 'createdAt'
+  sortBy?: 'confirmedAt' | 'totalCents' | 'createdAt' | 'debtCents'
   sortOrder?: 'asc' | 'desc'
   q?: string
   status?: SaleStatus[] // 'CANCELED' (one L) is now part of the SaleStatus union (sdd/magic-string-constants slice 3).

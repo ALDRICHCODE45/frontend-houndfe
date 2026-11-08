@@ -109,6 +109,7 @@ const {
   showingFrom,
   showingTo,
   counts,
+  filterTotals,
   setTabFilter,
   filterErrors,
 } = useConfirmedSales(filtersCtl.backendParams)
@@ -147,6 +148,7 @@ const SORT_OPTIONS = [
   { label: 'Más antiguas', value: 'confirmedAt:asc' },
   { label: 'Total mayor a menor', value: 'totalCents:desc' },
   { label: 'Total menor a mayor', value: 'totalCents:asc' },
+  { label: 'Mayor deuda primero', value: 'debtCents:desc' },
   { label: 'Creación reciente', value: 'createdAt:desc' },
 ]
 const sortValue = computed({
@@ -278,6 +280,7 @@ watch(() => filtersCtl.serializedState.value, () => {
           :error-message="salesErrorMessage"
           :page-count="pageCount"
           :total-count="totalCount"
+          :totals="filterTotals"
           :showing-from="showingFrom"
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"

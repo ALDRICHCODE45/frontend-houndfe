@@ -17,7 +17,7 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
   }),
 }))
 
-function mountComposable<T>(composable: () => T) {
+function mountComposable<T>(composable: () => T, staleTime = 0) {
   let result: T | undefined
 
   const TestComponent = defineComponent({
@@ -29,7 +29,7 @@ function mountComposable<T>(composable: () => T) {
 
   const queryClient = new QueryClient({
     defaultOptions: {
-      queries: { retry: false, gcTime: 0 },
+      queries: { retry: false, gcTime: staleTime ? 60_000 : 0, staleTime },
     },
   })
 
@@ -86,6 +86,17 @@ describe('useConfirmedSales', () => {
     })
   })
 
+  it('sends sortBy=debtCents when the list is ordered by Deuda', () => {
+    expect(
+      mapServerTableParamsToListSalesParams({
+        pageIndex: 0,
+        pageSize: 20,
+        sorting: [{ id: 'debtCents', desc: true }],
+        globalFilter: '',
+      }),
+    ).toMatchObject({ sortBy: 'debtCents', sortOrder: 'desc' })
+  })
+
   it('falls back to confirmedAt when sortBy is not backend-supported', () => {
     // The backend only accepts confirmedAt | totalCents | createdAt. A stale
     // sortable column (e.g. "venta") must never reach the network — it would
@@ -122,6 +133,53 @@ describe('useConfirmedSales', () => {
       expect(result.counts.value).toEqual({ all: 50, pendingPayments: 3, notDelivered: 1 })
       expect(result.totalCount.value).toBe(50)
     })
+  })
+
+  it('exposes the whole-filter totals keyed by the Venta, Total and Deuda columns', async () => {
+    vi.mocked(saleApi.listConfirmed).mockResolvedValue({
+      data: [],
+      pagination: { page: 1, limit: 20, total: 137, totalPages: 7 },
+      counts: { all: 137, pendingPayments: 3, notDelivered: 1 },
+      summary: { salesCount: 137, totalSoldCents: 4823500, outstandingDebtCents: 912300 },
+      filterSummary: { count: 137, totalCents: 4823500, debtCents: 912300 },
+    })
+    const { result } = mountComposable(() => useConfirmedSales())
+
+    await vi.waitFor(() => {
+      expect(result.filterTotals.value).toEqual({ venta: 137, totalCents: 4823500, debtCents: 912300 })
+    })
+  })
+
+  it('shows the totals of the current filter again when it comes back from the cache', async () => {
+    const page = (count: number, debtCents: number) => ({
+      data: [],
+      pagination: { page: 1, limit: 20, total: count, totalPages: 1 },
+      counts: { all: 68, pendingPayments: 10, notDelivered: 19 },
+      summary: { salesCount: 68, totalSoldCents: 0, outstandingDebtCents: 0 },
+      filterSummary: { count, totalCents: count * 100, debtCents },
+    })
+    vi.mocked(saleApi.listConfirmed).mockImplementation(async (params) =>
+      params?.paymentStatus ? page(10, 1108710) : page(68, 1200000),
+    )
+    // A fresh cache entry (the app sets a staleTime) is served without calling the backend again.
+    const { result } = mountComposable(() => useConfirmedSales(), 60_000)
+    await vi.waitFor(() => expect(result.filterTotals.value?.venta).toBe(68))
+
+    result.setTabFilter({ paymentStatus: 'PARTIAL,CREDIT' })
+    await vi.waitFor(() => expect(result.filterTotals.value?.venta).toBe(10))
+
+    result.setTabFilter({})
+    await vi.waitFor(() =>
+      expect(result.filterTotals.value).toEqual({ venta: 68, totalCents: 6800, debtCents: 1200000 }),
+    )
+    expect(saleApi.listConfirmed).toHaveBeenCalledTimes(2)
+  })
+
+  it('has no whole-filter totals when the backend sends no filterSummary', async () => {
+    const { result } = mountComposable(() => useConfirmedSales())
+
+    await vi.waitFor(() => expect(result.totalCount.value).toBe(50))
+    expect(result.filterTotals.value).toBeUndefined()
   })
 
   it('forwards deliveryStatus when tab filter changes', async () => {

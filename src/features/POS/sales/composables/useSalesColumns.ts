@@ -22,7 +22,7 @@ export const defaultColumnVisibility: VisibilityState = {
 export function useSalesColumns() {
   // `enableSorting` is declared explicitly on every column so no column silently
   // inherits TanStack's default-on behaviour. Only the columns the backend
-  // accepts as `sortBy` — `confirmedAt`, `totalCents` (and `createdAt`, which
+  // accepts as `sortBy` — `confirmedAt`, `totalCents`, `debtCents` (and `createdAt`, which
   // is not a visible column but is offered by the USelect shortcut) — declare
   // `enableSorting: true`; their ids match those field names, so
   // `sorting[0].id` maps straight through with no translation layer. The rest
@@ -37,7 +37,7 @@ export function useSalesColumns() {
     { accessorKey: 'deliveryStatus', header: createSimpleHeader('Productos'), enableSorting: false, size: 152 },
     { id: 'paymentMethods', accessorKey: 'paymentMethods', header: createSimpleHeader('Método'), enableSorting: false },
     { accessorKey: 'totalCents', header: 'Total', enableSorting: true, meta: { class: { th: 'text-right', td: 'text-right' } } },
-    { accessorKey: 'debtCents', header: createSimpleHeader('Deuda'), enableSorting: false, meta: { class: { th: 'text-right', td: 'text-right' } } },
+    { accessorKey: 'debtCents', header: 'Deuda', enableSorting: true, meta: { class: { th: 'text-right', td: 'text-right' } } },
     { accessorKey: 'confirmedAt', header: 'Fecha', enableSorting: true },
     { accessorKey: 'dueDate', header: createSimpleHeader('Vence'), enableSorting: false },
     { accessorKey: 'cashier', header: createSimpleHeader('Cajero'), enableSorting: false },

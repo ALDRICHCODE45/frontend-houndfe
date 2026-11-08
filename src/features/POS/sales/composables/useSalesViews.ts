@@ -34,8 +34,7 @@ export const SALES_STATUS_FILTERS: Record<
 
 export const SALES_DEFAULT_SORTING: SortingState = [{ id: 'confirmedAt', desc: true }]
 
-// The backend orders sales only by confirmedAt, totalCents or createdAt (no debt), so Cobranza
-// puts the oldest sales first: the debts that have waited longest.
+// Cobranza puts the largest open debt first (the backend orders canceled sales as 0 debt).
 export const SALES_VIEWS: TableViewDefinition<SalesViewQuery>[] = [
   { id: 'todas', name: 'Todas' },
   {
@@ -46,7 +45,7 @@ export const SALES_VIEWS: TableViewDefinition<SalesViewQuery>[] = [
       pinning: { left: ['customer', 'debtCents'], right: [] },
       visibility: { ...defaultColumnVisibility, dueDate: true },
     },
-    sorting: [{ id: 'confirmedAt', desc: false }],
+    sorting: [{ id: 'debtCents', desc: true }],
     query: { status: 'pending-payments' },
   },
   {
