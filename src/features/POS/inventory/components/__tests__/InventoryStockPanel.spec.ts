@@ -3,15 +3,14 @@
  * real composables, kardex table and adjustment dialog; only the API, the context and
  * the overlay primitive are replaced.
  */
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import { computed, defineComponent, h, ref } from 'vue'
+import { computed, defineComponent, h, nextTick, ref } from 'vue'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { inventoryApi } from '../../api/inventory.api'
 import type { AdjustmentResult, StockMovement, StockSnapshot } from '../../interfaces/inventory.types'
 import type { InventoryContext } from '../../composables/useInventoryAccess'
+import { columnLabel } from '@/core/shared/components/DataTable/columnLayout.utils'
 import InventoryStockPanel from '../InventoryStockPanel.vue'
 
 const holder = vi.hoisted(() => ({ context: null as unknown as { value: InventoryContext } }))
@@ -61,7 +60,12 @@ function setup(context: Partial<InventoryContext> = {}, productId = 'p1') {
   return wrapper
 }
 const total = (wrapper: VueWrapper) => wrapper.get('[data-testid="stock-total"]').text()
-const rows = (wrapper: VueWrapper) => wrapper.findAll('[data-testid="stock-row"]')
+// The stock table is an AppDataTable (premium tables T9): its body rows, never the kardex's.
+const stockTable = (wrapper: VueWrapper) => wrapper.get('[data-testid="stock-table"]')
+const rows = (wrapper: VueWrapper) => stockTable(wrapper).findAll('tbody tr')
+// The first AppDataTable of the panel is the stock table; the kardex comes after it.
+const stockTableComponent = (wrapper: VueWrapper) => wrapper.findAllComponents({ name: 'AppDataTable' })[0]!
+const caption = (wrapper: VueWrapper) => stockTable(wrapper).get('caption').text()
 async function openAdjust(wrapper: VueWrapper, label: string) {
   await wrapper.get(`[data-testid="stock-adjust"][aria-label="Ajustar stock de ${label}"]`).trigger('click')
   await flushPromises()
@@ -162,28 +166,43 @@ describe('stock panel — data', () => {
   it('heads the stock and the kardex with «Lote» for a product with lots', async () => {
     const wrapper = setup()
     await flushPromises()
-    const table = wrapper.get('table[aria-label="Existencias por lote"]')
-    expect(table.findAll('thead th')[0]!.text()).toBe('Lote')
+    expect(caption(wrapper)).toBe('Existencias por lote')
+    expect(stockTable(wrapper).findAll('thead th')[0]!.text()).toBe('Lote')
     expect(wrapper.get('[data-testid="kardex-filters"]').attributes('aria-label')).toBe('Filtrar por lote')
     expect(wrapper.text()).not.toContain('Ubicación')
   })
 
-  it('says «Venció» for the expired lot under its name', async () => {
+  it('dates the expired lot in its Vence column and says it is not sold under its name', async () => {
     const wrapper = setup()
     await flushPromises()
-    expect(rows(wrapper)[1]!.get('.stock-expires').text()).toBe('Venció 15 oct 2026')
+    const [label, expiry] = rows(wrapper)[1]!.findAll('td')
+    expect(label!.text()).toContain('No se vende')
+    expect(expiry!.text()).toBe('15 oct 2026')
   })
 
-  // Found in the T10 runtime check: at 390 the four columns were 419px wide in a 356px card, so every
-  // «Ajustar» sat behind a horizontal scroll. Below 480px the Vence column folds under the lot name.
-  it('repeats the expiry under the lot name and folds the Vence column on narrow screens', async () => {
+  it('keeps the expiry in its own Vence column on the table', async () => {
     const wrapper = setup()
     await flushPromises()
     expect(rows(wrapper)[0]!.find('.stock-expires').exists()).toBe(false)
-    expect(rows(wrapper)[2]!.get('.stock-expires').text()).toBe('Vence 15 ene 2027')
-    const source = readFileSync(resolve(__dirname, '../InventoryStockPanel.vue'), 'utf8')
-    expect(source).toMatch(/@media \(max-width: 480px\)\s*\{[^}]*\.stock-when-col\s*\{\s*display:\s*none/)
-    expect(source).toMatch(/\.stock-expires\s*\{\s*display:\s*none/)
+    expect(rows(wrapper)[2]!.findAll('td')[1]!.text()).toBe('15 ene 2027')
+    expect(rows(wrapper)[0]!.findAll('td')[1]!.text()).toBe('—')
+  })
+
+  // Found in the T10 runtime check: at 390 four columns did not fit the card and «Ajustar» sat behind
+  // a horizontal scroll. On phones every bucket is a card with the expiry under its name.
+  it('shows one card per bucket on phones, with the expiry under the name and «Ajustar»', async () => {
+    isBelowBreakpoint.value = true
+    const wrapper = setup()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="stock-table"] table').exists()).toBe(false)
+    const cards = wrapper.findAll('[data-testid="stock-card"]')
+    expect(cards.map(card => card.get('[data-testid="stock-label"]').text())).toEqual([
+      'Sin lote', 'Lote L-2026-08', 'Lote L-2027-01', 'Lote L-2027-06',
+    ])
+    expect(cards[2]!.get('.stock-expires').text()).toBe('Vence 15 ene 2027')
+    expect(cards[1]!.get('.stock-expires').text()).toBe('Venció 15 oct 2026')
+    expect(cards[2]!.get('[data-testid="stock-quantity"]').text()).toBe('22')
+    expect(cards[2]!.find('[data-testid="stock-adjust"][aria-label="Ajustar stock de Lote L-2027-01"]').exists()).toBe(true)
   })
 
   it('marks only the expired lot as «Vencido» and says it is not sold', async () => {
@@ -207,8 +226,9 @@ describe('stock panel — data', () => {
     const wrapper = setup()
     await flushPromises()
     expect(rows(wrapper).map(row => row.get('[data-testid="stock-label"]').text())).toEqual(['Existencias'])
-    const table = wrapper.get('table[aria-label="Existencias del producto"]')
-    expect(table.findAll('thead th')[0]!.text()).toBe('Producto')
+    expect(caption(wrapper)).toBe('Existencias del producto')
+    expect(stockTable(wrapper).findAll('thead th')[0]!.text()).toBe('Producto')
+    expect(stockTable(wrapper).findAll('thead th').map(th => th.text())).not.toContain('Vence')
     expect(wrapper.text()).not.toContain('Sin lote')
     expect(wrapper.find('[data-testid="stock-adjust"][aria-label="Ajustar stock de Existencias"]').exists()).toBe(true)
   })
@@ -218,9 +238,9 @@ describe('stock panel — data', () => {
     const wrapper = setup({}, 'p2')
     await flushPromises()
     expect(rows(wrapper).map(row => row.get('[data-testid="stock-label"]').text())).toEqual(['Chico · Azul', 'Mediano · Rojo'])
-    const table = wrapper.get('table[aria-label="Existencias por presentación"]')
-    expect(table.text()).not.toContain('Sin lote')
-    expect(table.findAll('thead th')[0]!.text()).toBe('Presentación')
+    expect(caption(wrapper)).toBe('Existencias por presentación')
+    expect(stockTable(wrapper).text()).not.toContain('Sin lote')
+    expect(stockTable(wrapper).findAll('thead th')[0]!.text()).toBe('Presentación')
     expect(wrapper.get('[data-testid="kardex-filters"]').attributes('aria-label')).toBe('Filtrar por presentación')
     expect(total(wrapper)).toBe('24')
   })
@@ -371,5 +391,74 @@ describe('stock panel — adjusting', () => {
     await typeAdjustment(wrapper, '5')
     expect(wrapper.find('[data-testid="overlay"]').exists()).toBe(false)
     expect(rows(wrapper)).toHaveLength(3)
+  })
+})
+
+describe('stock panel — column layout (premium tables T9)', () => {
+  const STORAGE_KEY = 'table-preferences-pos-inventory-stock'
+  beforeEach(() => localStorage.clear())
+  afterEach(() => localStorage.clear())
+
+  it('persists order, pins, widths, visibility and density under one key for every product', async () => {
+    const wrapper = setup()
+    await flushPromises()
+    const table = stockTableComponent(wrapper)
+    expect(table.props('persistLayout')).toBe(true)
+
+    expect(table.props('columnPinning')).toEqual({ left: [], right: ['actions'] })
+    table.vm.$emit('update:columnOrder', ['expiration', 'bucket', 'quantity', 'actions'])
+    table.vm.$emit('update:columnPinning', { left: ['bucket'], right: [] })
+    table.vm.$emit('update:columnSizing', { quantity: 160 })
+    table.vm.$emit('update:columnVisibility', { expiration: false })
+    table.vm.$emit('update:density', 'normal')
+    await nextTick()
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
+      order: ['expiration', 'bucket', 'quantity', 'actions'],
+      pinning: { left: ['bucket'], right: ['actions'] },
+      sizing: { quantity: 160 },
+      visibility: { expiration: false },
+      density: 'normal',
+    })
+
+    table.vm.$emit('reset-columns')
+    await nextTick()
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull()
+    expect(table.props('columnSizing')).toEqual({})
+    expect(table.props('columnPinning')).toEqual({ left: [], right: ['actions'] })
+  })
+
+  // The «Ajustar» button lives in the shared locked Acciones column, sized to fit it: held at the
+  // right edge, never moved, resized or hidden, and its header shows only the hidden label.
+  it('puts «Ajustar» in the locked Acciones column at 112px with a hidden header', async () => {
+    const wrapper = setup()
+    await flushPromises()
+    const table = stockTableComponent(wrapper)
+    const columns = table.props('columns') as Array<{ id?: string; size?: number }>
+    const actions = columns[columns.length - 1]!
+    expect(actions).toMatchObject({ id: 'actions', size: 112 })
+    const view = stockTable(wrapper).get('[data-testid="table-view"]').element as HTMLElement
+    expect(view.style.getPropertyValue('--hf-col-w-actions')).toBe('112px')
+    const headers = stockTable(wrapper).findAll('thead th')
+    const header = headers[headers.length - 1]!
+    expect(header.attributes('data-pinned')).toBe('right')
+    expect(header.get('.sr-only').text()).toBe('Acciones')
+    expect(header.find('.hf-th-pin').exists()).toBe(false)
+    expect(header.find('[data-resize-handle]').exists()).toBe(false)
+  })
+
+  it('names every column for the column menus, never with its id', async () => {
+    const wrapper = setup()
+    await flushPromises()
+    const table = stockTableComponent(wrapper)
+    const labels = (table.props('columns') as Parameters<typeof columnLabel>[0][]).map(columnLabel)
+    expect(labels).toEqual(['Lote', 'Vence', 'Existencias', 'Acciones'])
+  })
+
+  it('drops the Acciones column for a read-only role', async () => {
+    const wrapper = setup({ canAdjust: false })
+    await flushPromises()
+    const table = stockTableComponent(wrapper)
+    const labels = (table.props('columns') as Parameters<typeof columnLabel>[0][]).map(columnLabel)
+    expect(labels).toEqual(['Lote', 'Vence', 'Existencias'])
   })
 })

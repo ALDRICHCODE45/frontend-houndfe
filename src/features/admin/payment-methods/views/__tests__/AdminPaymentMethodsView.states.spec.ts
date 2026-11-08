@@ -12,8 +12,10 @@ import AdminPaymentMethodsView from '../AdminPaymentMethodsView.vue'
 import {
   isBelowBreakpoint,
   resetTableState,
+  serverTableConfig,
   tableState,
 } from '@/features/admin/__tests__/helpers/serverTableMock'
+import { expectLayoutBound } from '@/features/admin/__tests__/helpers/layoutBinding'
 import type { PaymentMethodTableRow } from '../../interfaces/payment-method.types'
 
 vi.mock('@/core/shared/composables/useServerTable', async () =>
@@ -254,5 +256,14 @@ describe('AdminPaymentMethodsView states — page header', () => {
     expect(wrapper.get('.hf-page-title').text()).toBe('Métodos de cobro')
     expect(wrapper.find('.hf-page-subtitle').exists()).toBe(false)
     expect(wrapper.find('.hf-table-surface .hf-page-title').exists()).toBe(false)
+  })
+})
+
+describe('AdminPaymentMethodsView — premium table layout', () => {
+  it('persists the layout under a stable key and binds it to the table', async () => {
+    const wrapper = mountView()
+    const config = serverTableConfig.mock.lastCall![0] as { persistKey: string }
+    expect(config.persistKey).toBe('admin-payment-methods')
+    await expectLayoutBound(wrapper, { ...tableState, reset: tableState.resetLayout })
   })
 })

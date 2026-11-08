@@ -38,11 +38,9 @@
 }
 
 /* «Motivo»: the reason wraps (two lines at most for the longest label), the age under it stays
- * whole. The cell itself must give it room: the table's cells are nowrap with max-width 0, which
- * clipped the label. 11rem keeps the 7 columns inside the card at 1440 with the sidebar open. */
+ * whole. Its 11rem default width is the column's `size` in PendingRefundsView, so the user can
+ * still resize it; the cells are nowrap elsewhere. */
 .hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']).refund-col-reason {
-  width: 11rem;
-  min-width: 11rem;
   max-width: none;
   white-space: normal;
 }

@@ -356,12 +356,11 @@ describe('Sales listing adapter — installed native popup ownership (S3/S4)', (
   })
 
   it('forwards portalClass onto the real toolbar column menu content root', async () => {
-    const column = {
-      id: 'customer',
-      columnDef: { header: 'Cliente' },
-      getCanHide: () => true,
-      getIsVisible: () => true,
-      toggleVisibility: () => {},
+    // The «Columnas» panel reads the table's column model (left / center / right groups).
+    const columns = {
+      left: [],
+      center: [{ id: 'customer', label: 'Cliente', visible: true, primary: true }],
+      right: [],
     }
     mountWithUApp(DataTableToolbar, {
       attachTo: document.body,
@@ -369,7 +368,7 @@ describe('Sales listing adapter — installed native popup ownership (S3/S4)', (
         globalFilter: '',
         portalClass: PORTAL_MARKER,
         showColumnVisibility: true,
-        tableApi: { getAllColumns: () => [column] },
+        columns,
       },
     })
 

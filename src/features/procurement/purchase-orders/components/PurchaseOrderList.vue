@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
-import DataTableToolbar from '@/core/shared/components/DataTable/DataTableToolbar.vue'
 import RowActionsMenu from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { useClickableRow } from '@/core/shared/composables/useClickableRow'
+import { useTablePreferences } from '@/core/shared/composables/useTablePreferences'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { TableColumn } from '@/core/shared/types/table.types'
 import type { PurchaseOrderSummary } from '../interfaces/purchase-order.types'
-import { avisoText, orderRowActions, orderRowLabel, orderTotals, statusLabels, statusTones, type OrderRowActionKey } from '../utils/order-presentation'
+import { avisoText, orderRowActions, orderRowLabel, orderTotals, ordersTotalText, statusLabels, statusTones, type OrderRowActionKey } from '../utils/order-presentation'
 const props = defineProps<{ items: readonly PurchaseOrderSummary[]; canEdit: boolean; canDelete: boolean; canCreate?: boolean; filtered?: boolean; canConfirm?: boolean; canCancel?: boolean; loading?: boolean; fetching?: boolean; error?: boolean; disabled?: boolean; activeFilterCount?: number }>()
 // `origin` is the row's primary button: the element focus returns to when the order it opened is closed.
 const emit = defineEmits<{ open: [order: PurchaseOrderSummary, origin: HTMLElement | null]; confirm: [order: PurchaseOrderSummary, origin: HTMLElement | null]; cancel: [order: PurchaseOrderSummary, origin: HTMLElement | null]; discard: [order: PurchaseOrderSummary]; refresh: []; create: []; 'clear-filters': [] }>()
@@ -21,14 +21,22 @@ const emptyState = computed(() => ({
   ...(props.canCreate ? { actionLabel: 'Nueva orden' } : {}),
 }))
 const right = { class: { th: 'text-right', td: 'text-right' } }
+// Totals row (premium tables S5): the count of orders and Total added up per tax basis from the
+// server decimals, formatted like the cells.
+// Default widths: Estado holds the badge and its aviso, Total two stacked amounts; Proveedor takes the rest.
 const columns: TableColumn<PurchaseOrderSummary, unknown>[] = [
-  { id: 'supplier', header: 'Proveedor', enableSorting: false },
-  { id: 'status', header: 'Estado', enableSorting: false },
-  { accessorKey: 'lineCount', header: 'Renglones', enableSorting: false, meta: right },
-  { id: 'total', header: 'Total', enableSorting: false, meta: right },
-  { accessorKey: 'updatedAt', header: 'Actualizada', enableSorting: false },
-  { id: 'actions', header: 'Acciones', enableSorting: false },
+  { id: 'supplier', header: 'Proveedor', enableSorting: false, meta: { total: { kind: 'count', label: n => `${n} ${n === 1 ? 'orden' : 'órdenes'}` } } },
+  { id: 'status', header: 'Estado', enableSorting: false, size: 200 },
+  { accessorKey: 'lineCount', header: 'Renglones', enableSorting: false, size: 112, meta: right },
+  { id: 'total', header: 'Total', enableSorting: false, size: 152, meta: { ...right, total: { kind: 'custom', compute: ordersTotalText } } },
+  { accessorKey: 'updatedAt', header: 'Actualizada', enableSorting: false, size: 144 },
+  { id: 'actions', header: 'Acciones', enableSorting: false, meta: { class: { th: 'w-16', td: 'w-16 text-right' } } },
 ]
+// Premium tables T9: the user's column layout (order, pinning, widths, visibility, density) is kept per table.
+const { columnOrder, columnPinning, columnSizing, columnVisibility, density, reset: resetLayout } = useTablePreferences({
+  persistKey: 'procurement-purchase-orders',
+  columnIds: columns.map(column => column.id ?? ('accessorKey' in column ? String(column.accessorKey) : '')),
+})
 const primaries = new Map<string, HTMLElement>()
 function setPrimary(id: string, element: unknown) { if (element instanceof HTMLElement) primaries.set(id, element); else primaries.delete(id) }
 const originOf = (order: PurchaseOrderSummary) => primaries.get(order.id) ?? null
@@ -50,18 +58,18 @@ const lines = (count: number) => `${count} ${count === 1 ? 'renglón' : 'renglon
 
 <template>
   <div class="order-list">
-    <!-- AppDataTable always wraps #filters, even when absent. Compose its own
-         shared toolbar directly so an empty wrapper cannot create Filtros. -->
-    <DataTableToolbar v-model:global-filter="search" search-placeholder="Buscar por proveedor o nota..." portal-class="hf-theme hf-ui" :active-filter-count="activeFilterCount" @clear-filters="emit('clear-filters')">
-      <template v-if="$slots.filters" #filters><slot name="filters" /></template>
-      <template #actions><slot name="actions" /></template>
-    </DataTableToolbar>
     <div class="order-table">
-      <AppDataTable :show-toolbar="false" :row-open="open" :columns="columns" :data="data" :loading="loading" :fetching="fetching" :error="error"
+      <AppDataTable v-model:global-filter="search" v-model:column-order="columnOrder" v-model:column-pinning="columnPinning" v-model:column-sizing="columnSizing"
+        v-model:column-visibility="columnVisibility" v-model:density="density" :persist-layout="true"
+        :row-open="open" :columns="columns" :data="data" :loading="loading" :fetching="fetching" :error="error"
         error-message="No se pudieron cargar las órdenes"
-        :empty-state="emptyState" :filtered="filtered" no-match-title="Ninguna orden con estos filtros" :global-filter="search"
+        :empty-state="emptyState" :filtered="filtered" no-match-title="Ninguna orden con estos filtros"
+        search-placeholder="Buscar por proveedor o nota..." portal-class="hf-theme hf-ui" :active-filter-count="activeFilterCount"
         display-mode="auto" mobile-render="cards"
-        class="hf-data-table" @refresh="emit('refresh')" @empty-action="emit('create')" @clear-filters="emit('clear-filters')">
+        class="hf-data-table" @refresh="emit('refresh')" @empty-action="emit('create')" @clear-filters="emit('clear-filters')" @reset-columns="resetLayout">
+        <!-- Forward the toolbar slots only when the screen fills them: an empty #filters would draw a mobile «Filtros». -->
+        <template v-if="$slots.filters" #filters><slot name="filters" /></template>
+        <template v-if="$slots.actions" #actions><slot name="actions" /></template>
         <template #supplier-cell="{ row }">
           <div class="order-supplier">
             <span class="order-supplier-line">
@@ -140,12 +148,4 @@ const lines = (count: number) => `${count} ${count === 1 ? 'renglón' : 'renglon
 .order-card-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hf-border); color: var(--hf-muted); font-size: 13px; }
 .order-card-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 4px; min-width: 0; }
 .order-card-summary .order-total { display: inline-flex; flex-wrap: wrap; gap: 0 8px; justify-items: start; color: var(--hf-ink); font-weight: 600; }
-:deep(table[data-slot='base']) { table-layout: fixed; }
-:deep(th[data-slot='th']:nth-child(2)) { width: 200px; }
-:deep(th[data-slot='th']:nth-child(3)) { width: 104px; }
-:deep(th[data-slot='th']:nth-child(4)) { width: 148px; }
-:deep(th[data-slot='th']:nth-child(5)) { width: 136px; }
-:deep(th[data-slot='th']:nth-child(6)) { width: 72px; }
-:deep(td[data-slot='td']) { height: 64px; padding-block: 10px; vertical-align: middle; }
-:deep(td[data-slot='td']:last-child) { padding-inline: 8px; }
 </style>

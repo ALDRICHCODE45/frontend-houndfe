@@ -12,8 +12,10 @@ import ExpiringDocumentsView from '../ExpiringDocumentsView.vue'
 import {
   isBelowBreakpoint,
   resetTableState,
+  serverTableConfig,
   tableState,
 } from '../../__tests__/helpers/employeesServerTable'
+import { expectLayoutBound } from '@/features/admin/__tests__/helpers/layoutBinding'
 
 vi.mock('@/core/shared/composables/useServerTable', async () =>
   (await import('../../__tests__/helpers/employeesServerTable')).serverTableModule,
@@ -196,12 +198,18 @@ describe('ExpiringDocumentsView states — data', () => {
     expect(card.get('.hf-status-badge').text()).toBe('Vencido hace 142 días')
   })
 
-  it('keeps the sortable headers and the document anchor column', () => {
+  it('keeps the sortable headers and the document anchor column', async () => {
     tableState.data.value = [makeItem()]
     const wrapper = mountView()
+    // SortableHeader registers with the table once mounted; let the headers re-render.
+    await flushPromises()
     const headers = wrapper.findAll('thead th').map((th) => th.text())
     expect(headers).toEqual(['Documento', 'Tiempo restante', 'Colaborador', 'Fecha de vencimiento', 'Categoría'])
-    expect(wrapper.findAll('thead th button')).toHaveLength(4)
+    // The header target sorts on activation when it carries no ⋯ menu popup (DataTableHeaderCell).
+    const sortable = wrapper
+      .findAll('thead th [data-hf-header]:not([aria-haspopup])')
+      .map((target) => target.attributes('data-column-id'))
+    expect(sortable).toEqual(['restante', 'colaborador', 'vencimiento', 'categoria'])
   })
 })
 
@@ -278,5 +286,14 @@ describe('ExpiringDocumentsView states — table wiring', () => {
     const wrapper = mountView()
     expect(wrapper.getComponent({ name: 'AppDataTable' }).props('globalFilter')).toBe('ana')
     expect(wrapper.get('tbody tr').text()).toContain('Ana García')
+  })
+})
+
+describe('ExpiringDocumentsView — premium table layout', () => {
+  it('persists the layout under a stable key and binds it to the table', async () => {
+    const wrapper = mountView()
+    const config = serverTableConfig.mock.lastCall![0] as { persistKey: string }
+    expect(config.persistKey).toBe('admin-expiring-documents')
+    await expectLayoutBound(wrapper, { ...tableState, reset: tableState.resetLayout })
   })
 })

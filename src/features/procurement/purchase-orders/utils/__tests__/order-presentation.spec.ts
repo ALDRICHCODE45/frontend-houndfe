@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { avisoText, orderHeaderActions, orderRowActions, orderRowLabel, orderTotals, statusLabels, statusTones } from '../order-presentation'
+import { avisoText, orderHeaderActions, orderRowActions, orderRowLabel, orderTotals, ordersTotalText, statusLabels, statusTones } from '../order-presentation'
 import type { PurchaseOrderSummary } from '../../interfaces/purchase-order.types'
 const row = (patch: Partial<PurchaseOrderSummary> = {}): PurchaseOrderSummary => ({
   id: 'order-id', version: 1, status: 'DRAFT', supplierDisplaySnapshot: { id: 's', displayName: 'Distribuidora del Norte', status: 'ACTIVE' },
@@ -99,5 +99,24 @@ describe('open-order header ⋮ menu', () => {
     expect(orderHeaderActions('DRAFT', { ...gates, cancelEnabled: false }).find(action => action.key === 'cancel')!.disabled).toBe(true)
     expect(orderHeaderActions('DRAFT', { ...gates, busy: true }).find(action => action.key === 'discard')!.disabled).toBe(true)
     expect(orderHeaderActions('CONFIRMED', { ...gates, canDelete: false, canCancel: false })).toEqual([])
+  })
+})
+
+// Premium tables T7 (S5): the list's totals row adds the server decimals exactly, one sum per tax
+// basis (never mixed), and says how many orders have no total yet.
+describe('ordersTotalText', () => {
+  const total = (amount: string, taxBasis: 'INCLUDES_TAX' | 'EXCLUDES_TAX' = 'INCLUDES_TAX') => ({ amount, currency: 'MXN' as const, taxBasis })
+  it('adds the decimal strings exactly with the decimal money formatter', () => {
+    expect(ordersTotalText([row({ totals: [total('0.1')] }), row({ totals: [total('0.2')] }), row({ totals: [total('1200.125')] })])).toBe('$1,200.43')
+  })
+  it('keeps one sum per tax basis, labelled only when both bases appear', () => {
+    const orders = [row({ totals: [total('100', 'EXCLUDES_TAX')] }), row({ totals: [total('50.5', 'EXCLUDES_TAX'), total('116', 'INCLUDES_TAX')] })]
+    expect(ordersTotalText(orders)).toBe('$150.50 sin imp. · $116.00 con imp.')
+    expect(ordersTotalText([row({ totals: [total('100', 'EXCLUDES_TAX')] })])).toBe('$100.00')
+  })
+  it('counts the orders without a total instead of hiding them', () => {
+    expect(ordersTotalText([row({ totals: [total('10')] }), row({ totals: null }), row({ totals: null })])).toBe('$10.00 · 2 sin total')
+    expect(ordersTotalText([row({ totals: null })])).toBe('1 sin total')
+    expect(ordersTotalText([])).toBe('')
   })
 })

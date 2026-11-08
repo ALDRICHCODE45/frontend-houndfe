@@ -17,8 +17,9 @@ export function usePaymentDetailColumns() {
   const columns: TableColumn<PaymentDetailTableRow>[] = [
     { accessorKey: 'bankName', header: 'Banco', enableSorting: true },
     { id: 'isActive', header: 'Estado', enableSorting: false },
-    { accessorKey: 'clabe', header: 'CLABE', enableSorting: false },
-    { accessorKey: 'accountNumber', header: 'Número de cuenta', enableSorting: false },
+    // The CLABE (18 digits) and the account number read whole at their default width.
+    { accessorKey: 'clabe', header: 'CLABE', enableSorting: false, size: 192 },
+    { accessorKey: 'accountNumber', header: 'Número de cuenta', enableSorting: false, size: 168 },
     { accessorKey: 'updatedAt', header: 'Actualizado', enableSorting: false },
     {
       id: 'actions',

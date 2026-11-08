@@ -42,6 +42,8 @@ afterEach(() => {
   dispose.splice(0).forEach(fn => fn())
   document.body.innerHTML = ''
 })
+// Row ⋮ triggers only: the header ⋯ column menus share aria-haspopup="menu".
+const ROW_MENU = 'button[aria-haspopup="menu"]:not([aria-label^="Opciones de la columna"])'
 const menuItem = (label: string) => Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).find(item => item.textContent?.trim() === label)
 const menuTrigger = (wrapper: ReturnType<typeof setup>, name = 'Centro') => wrapper.get<HTMLButtonElement>(`button[aria-label="Acciones de ${name}"]`)
 // Row actions live in the ⋮ menu: open it from the real trigger and pick the item.
@@ -276,7 +278,7 @@ describe('supplier screen integration', () => {
     const wrapper = setup(['read'])
     await flushPromises()
     expect(wrapper.find('[data-testid="create-supplier"]').exists()).toBe(false)
-    expect(wrapper.find('button[aria-haspopup="menu"]').exists()).toBe(false)
+    expect(wrapper.find(ROW_MENU).exists()).toBe(false)
     await wrapper.get('[data-testid="supplier-detail"]').trigger('click')
     await flushPromises()
     expect(wrapper.findComponent(SupplierForm).exists()).toBe(false)

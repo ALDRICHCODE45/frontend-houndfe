@@ -284,4 +284,18 @@ describe('Sales detail visual wiring', () => {
     expect(paymentsList).toContain('portalClass?: string')
     expect(paymentsList).toContain(':portal-class="portalClass"')
   })
+
+  // Premium tables S7: the items of a sale stay a small plain table with the shared `.hf-plain-table`
+  // look (guarded in hf-plain-table.spec.ts). Rows are not clickable: no hover modifier, no hover rule.
+  it('dresses the items table with the shared plain-table look and no row hover', () => {
+    const items = '.sales-detail-visual .sale-detail-items-table'
+    const list = readFileSync('src/features/POS/sales/components/SaleDetailItemsList.vue', 'utf8')
+    expect(list).toMatch(/<table[^>]*class="hf-plain-table sale-detail-items-table/)
+    expect(list).not.toContain('hf-plain-table--hover')
+    expect(shared).toMatch(/\.hf-ui \.hf-plain-table thead \{[^}]*background-color: var\(--hf-table-head\)/)
+    expect(ruleWith(css, `${items} th`, 'height')!.style.getPropertyValue('height')).toBe('40px')
+    expect(ruleWith(css, `${items} td`, 'padding')!.style.getPropertyValue('padding')).toBe('12px')
+    expect(ruleWith(css, `${items} tbody tr:hover`, 'background-color')).toBeUndefined()
+    expect(ruleWith(css, `${items} thead`, 'background-color')).toBeUndefined()
+  })
 })

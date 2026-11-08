@@ -19,6 +19,7 @@
  */
 import { computed, ref } from 'vue'
 import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
+import { useTablePreferences } from '@/core/shared/composables/useTablePreferences'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { TableColumn } from '@/core/shared/types/table.types'
@@ -68,13 +69,33 @@ const MOVEMENT_LABELS: Record<CashMovementKind, string> = {
 }
 
 const right = { class: { th: 'text-right', td: 'text-right' } }
+// Totals row (premium tables S5): the count of movements and Importe netted from the signed
+// deltaCents, formatted like the cells.
 const columns: TableColumn<CashMovement, unknown>[] = [
-  { id: 'kind', header: 'Tipo', enableSorting: false },
+  {
+    id: 'kind',
+    header: 'Tipo',
+    enableSorting: false,
+    meta: { total: { kind: 'count', label: (n) => `${n} ${n === 1 ? 'movimiento' : 'movimientos'}` } },
+  },
   { id: 'time', header: 'Fecha', enableSorting: false },
   { id: 'channel', header: 'Canal', enableSorting: false },
-  { id: 'amount', header: 'Importe', enableSorting: false, meta: right },
+  {
+    id: 'amount',
+    header: 'Importe',
+    enableSorting: false,
+    meta: { ...right, total: { kind: 'sum', value: (movement) => movement.deltaCents, format: formatCentsMXN } },
+  },
   { id: 'reason', header: 'Motivo', enableSorting: false },
 ]
+
+// Column layout saved per user in this browser (order, pins, widths, visibility, density).
+const layout = useTablePreferences({
+  persistKey: 'pos-cash-movements',
+  columnIds: columns.map((column) => column.id ?? ''),
+})
+const { columnOrder, columnPinning, columnSizing, columnVisibility, density } = layout
+
 const emptyState = {
   title: 'Aún no hay movimientos',
   description: 'Los ingresos y retiros de esta sesión aparecerán aquí.',
@@ -182,6 +203,12 @@ function submit(kind: 'CASH_IN' | 'CASH_OUT') {
         aria-label="Historial de movimientos de efectivo"
       >
         <AppDataTable
+          v-model:column-order="columnOrder"
+          v-model:column-pinning="columnPinning"
+          v-model:column-sizing="columnSizing"
+          v-model:column-visibility="columnVisibility"
+          v-model:density="density"
+          :persist-layout="true"
           :show-toolbar="false"
           :columns="columns"
           :data="movements"
@@ -193,6 +220,7 @@ function submit(kind: 'CASH_IN' | 'CASH_OUT') {
           mobile-render="cards"
           class="hf-data-table cash-table-surface"
           @refresh="emit('refresh')"
+          @reset-columns="layout.reset"
         >
           <template #kind-cell="{ row }">
             <span

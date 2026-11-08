@@ -6,7 +6,8 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
+import { columnLabel } from '@/core/shared/components/DataTable/columnLayout.utils'
 import type { StockMovement } from '../../interfaces/inventory.types'
 import StockKardex from '../StockKardex.vue'
 
@@ -215,5 +216,45 @@ describe('kardex — Cargar más', () => {
     expect(wrapper.get('[data-testid="kardex-load-more-error"]').attributes('role')).toBe('alert')
     expect(wrapper.get('[data-testid="kardex-load-more-error"]').text()).toBe('No se pudieron cargar más movimientos.')
     expect(wrapper.find('[data-testid="kardex-load-more"]').exists()).toBe(true)
+  })
+})
+
+describe('kardex — column layout (premium tables T9)', () => {
+  const STORAGE_KEY = 'table-preferences-pos-stock-kardex'
+  beforeEach(() => localStorage.clear())
+
+  it('persists order, pins, widths, visibility and density under one key for every kardex', async () => {
+    const wrapper = mountKardex()
+    const table = wrapper.getComponent({ name: 'AppDataTable' })
+    expect(table.props('persistLayout')).toBe(true)
+
+    table.vm.$emit('update:columnOrder', ['createdAt', 'movement', 'location', 'delta', 'balance', 'total'])
+    table.vm.$emit('update:columnPinning', { left: ['movement'], right: [] })
+    table.vm.$emit('update:columnSizing', { location: 180 })
+    table.vm.$emit('update:columnVisibility', { total: false })
+    table.vm.$emit('update:density', 'compact')
+    await nextTick()
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
+      order: ['createdAt', 'movement', 'location', 'delta', 'balance', 'total'],
+      pinning: { left: ['movement'] },
+      sizing: { location: 180 },
+      visibility: { total: false },
+      density: 'compact',
+    })
+
+    // Another product's kardex (or a reload) reads the same layout.
+    wrapper.unmount()
+    const other = mountKardex({ bucket: 'variant' }).getComponent({ name: 'AppDataTable' })
+    expect(other.props('columnSizing')).toEqual({ location: 180 })
+    other.vm.$emit('reset-columns')
+    await nextTick()
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull()
+    expect(other.props('columnSizing')).toEqual({})
+  })
+
+  it('names every column for the column menus, never with its id', () => {
+    const table = mountKardex().getComponent({ name: 'AppDataTable' })
+    const labels = (table.props('columns') as Parameters<typeof columnLabel>[0][]).map(columnLabel)
+    expect(labels).toEqual(['Movimiento', 'Fecha', 'Ubicación', 'Cambio', 'Saldo', 'Total'])
   })
 })

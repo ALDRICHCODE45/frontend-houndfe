@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { ref } from 'vue'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
+import { columnLabel } from '@/core/shared/components/DataTable/columnLayout.utils'
 import ProductList from '../ProductList.vue'
 import type { Product } from '../../interfaces/product.types'
 
@@ -44,6 +45,9 @@ const product: Product = {
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2020-03-03T20:43:00.000Z',
 }
+
+// Row ⋮ triggers only: the header ⋯ column menus share aria-haspopup="menu".
+const ROW_MENU = 'button[aria-haspopup="menu"]:not([aria-label^="Opciones de la columna"])'
 
 const permissions = { canRead: true, canUpdate: true, canDelete: true, canCreate: true }
 
@@ -142,7 +146,7 @@ describe('ProductList — data', () => {
     await wrapper.get('tbody td:nth-child(2)').trigger('click')
     expect(wrapper.emitted('open')).toHaveLength(1)
     expect(wrapper.emitted('open')![0]![0]).toEqual(product)
-    await wrapper.get('button[aria-haspopup="menu"]').trigger('click')
+    await wrapper.get(ROW_MENU).trigger('click')
     await tick()
     expect(wrapper.emitted('open')).toHaveLength(1)
     wrapper.unmount()
@@ -158,7 +162,7 @@ describe('ProductList — data', () => {
 
   it('lists the actions in the ⋮ menu: destructive last, behind a separator, with … on the confirmation', async () => {
     const wrapper = mountList()
-    const trigger = wrapper.get('button[aria-haspopup="menu"]')
+    const trigger = wrapper.get(ROW_MENU)
     expect(trigger.attributes('aria-label')).toBe('Acciones de Collar ajustable')
     expect(wrapper.get('td:last-child').findAll('button')).toHaveLength(1)
     await trigger.trigger('click')
@@ -175,7 +179,7 @@ describe('ProductList — data', () => {
     [{ canRead: false, canUpdate: false, canDelete: true }, ['Eliminar…']],
   ])('lists only what the role allows: %j', async (flags, expected) => {
     const wrapper = mountList(flags)
-    await wrapper.get('button[aria-haspopup="menu"]').trigger('click')
+    await wrapper.get(ROW_MENU).trigger('click')
     await tick()
     expect(labels()).toEqual(expected)
     wrapper.unmount()
@@ -188,7 +192,7 @@ describe('ProductList — data', () => {
       ['Editar', 'edit'],
       ['Eliminar…', 'delete'],
     ] as const) {
-      await wrapper.get('button[aria-haspopup="menu"]').trigger('click')
+      await wrapper.get(ROW_MENU).trigger('click')
       await tick()
       menuItems().find((item) => item.textContent?.trim() === label)!.click()
       await tick()
@@ -199,7 +203,7 @@ describe('ProductList — data', () => {
 
   it('shows no ⋮ when the role has no action at all', () => {
     const wrapper = mountList({ canRead: false, canUpdate: false, canDelete: false })
-    expect(wrapper.find('button[aria-haspopup="menu"]').exists()).toBe(false)
+    expect(wrapper.find(ROW_MENU).exists()).toBe(false)
     wrapper.unmount()
   })
 
@@ -212,7 +216,7 @@ describe('ProductList — data', () => {
     expect(card.text()).toContain('$1,299.00')
     expect(card.text()).toContain('25 unidades')
     expect(card.text()).toContain(formatShortDateTime(product.updatedAt))
-    expect(card.get('button[aria-haspopup="menu"]').attributes('aria-label')).toBe(
+    expect(card.get(ROW_MENU).attributes('aria-label')).toBe(
       'Acciones de Collar ajustable',
     )
     await card.trigger('click')
@@ -339,5 +343,38 @@ describe('ProductList — review round 1', () => {
     const wrapper = mountList({ items: [variantsProduct] })
     expect(wrapper.text()).toContain('24 · 2 variantes')
     wrapper.unmount()
+  })
+})
+
+describe('ProductList — column layout (premium tables T9)', () => {
+  it('forwards the layout v-models, persist-layout and «Restablecer columnas» of the table', async () => {
+    const wrapper = mountList({
+      persistLayout: true,
+      columnOrder: ['brandName'],
+      columnSizing: { name: 300 },
+      density: 'normal',
+    })
+    const table = wrapper.getComponent({ name: 'AppDataTable' })
+    expect(table.props()).toMatchObject({
+      persistLayout: true,
+      columnOrder: ['brandName'],
+      columnSizing: { name: 300 },
+      density: 'normal',
+    })
+
+    table.vm.$emit('update:columnOrder', ['priceCents'])
+    table.vm.$emit('update:columnSizing', { name: 280 })
+    table.vm.$emit('update:density', 'compact')
+    table.vm.$emit('reset-columns')
+    expect(wrapper.emitted('update:columnOrder')?.slice(-1)[0]).toEqual([['priceCents']])
+    expect(wrapper.emitted('update:columnSizing')?.slice(-1)[0]).toEqual([{ name: 280 }])
+    expect(wrapper.emitted('update:density')?.slice(-1)[0]).toEqual(['compact'])
+    expect(wrapper.emitted('reset-columns')).toHaveLength(1)
+  })
+
+  it('names every column for the «Columnas» panel, never with its id', () => {
+    const table = mountList().getComponent({ name: 'AppDataTable' })
+    const labels = (table.props('columns') as Parameters<typeof columnLabel>[0][]).map(columnLabel)
+    expect(labels).toEqual(['Nombre', 'Estado', 'Tipo', 'Categoría', 'Marca', 'Precio', 'Stock', 'Acciones'])
   })
 })

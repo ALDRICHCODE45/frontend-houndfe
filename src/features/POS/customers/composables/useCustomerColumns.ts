@@ -7,9 +7,10 @@ import type { Customer } from '../interfaces/customer.types'
 export function useCustomerColumns() {
   const columns: TableColumn<Customer>[] = [
     { accessorKey: 'fullName', header: 'Nombre' },
-    { accessorKey: 'email', header: 'Correo electrónico' },
-    { accessorKey: 'phone', header: 'Teléfono' },
-    { accessorKey: 'globalPriceListName', header: 'Lista de precios' },
+    // Default widths that show a whole e-mail and phone; the name keeps the free space.
+    { accessorKey: 'email', header: 'Correo electrónico', size: 240 },
+    { accessorKey: 'phone', header: 'Teléfono', size: 168 },
+    { accessorKey: 'globalPriceListName', header: 'Lista de precios', size: 160 },
     {
       id: 'actions',
       header: 'Acciones',

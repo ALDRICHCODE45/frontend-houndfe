@@ -48,4 +48,14 @@ describe('Dashboard trend presentation contract', () => {
       expect(css).toContain(`.dashboard-trend-${hook}`)
     }
   })
+
+  // Premium tables S7: the chart's accessible data table stays plain with the shared `.hf-plain-table`
+  // look without row hover: its rows are not clickable (same rule as the sale items); this file keeps only its geometry.
+  it('dresses the data table with the shared plain-table look', () => {
+    expect(component).toMatch(/<table[^>]*class="hf-plain-table dashboard-trend-data/)
+    expect(component).not.toContain('hf-plain-table--hover')
+    expect(css).toMatch(/\.dashboard-trend-data thead th \{[^}]*height: 40px;[^}]*padding: 0 12px/s)
+    expect(css).not.toMatch(/\.dashboard-trend-data thead \{/)
+    expect(css).not.toMatch(/\.dashboard-trend-data tbody tr:hover/)
+  })
 })

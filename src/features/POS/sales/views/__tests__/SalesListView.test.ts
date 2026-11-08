@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount as _mount, RouterLinkStub } from '@vue/test-utils'
+import { flushPromises, mount as _mount, RouterLinkStub } from '@vue/test-utils'
+import type { Component } from 'vue'
+import { DataTableViews } from '@/core/shared/components/DataTable'
 import { computed, ref, onUnmounted } from 'vue'
 import { VueWrapper } from '@vue/test-utils'
 import _SalesListView from '../SalesListView.vue'
@@ -135,6 +137,11 @@ const mockState = {
   globalFilter: ref(''),
   columnPinning: ref({ left: [], right: [] }),
   columnVisibility: ref<Record<string, boolean>>({}),
+  // Layout v-models the saved views read and write (premium tables T8).
+  columnOrder: ref<string[]>([]),
+  columnSizing: ref<Record<string, number>>({}),
+  density: ref<'compact' | 'normal' | 'comfortable'>('comfortable'),
+  resetLayout: vi.fn(),
   rowSelection: ref({}),
   isLoading: ref(false),
   isFetching: ref(false),
@@ -328,10 +335,6 @@ const appDataTableStub = {
 
 const stubs = {
   UCard: { template: '<div><slot name="header" /><slot /></div>' },
-  SalesListTabs: {
-    template: `<button data-testid="tab-pending" @click="$emit('change', { deliveryStatus: 'PENDING' })">tab</button>`,
-    props: ['counts'],
-  },
   AppDataTable: appDataTableStub,
   DataTableFilters: {
     props: ['state', 'schema', 'errors', 'embedded', 'portalClass'],
@@ -376,6 +379,12 @@ const stubs = {
   RouterLink: RouterLinkStub,
 }
 
+// Picks a saved view through the bar's controller (the mobile select drives the same call).
+function selectView(wrapper: VueWrapper, id: string) {
+  const bar = wrapper.findComponent(DataTableViews as unknown as Component)
+  ;((bar.props() as Record<string, unknown>).views as { select: (viewId: string) => boolean }).select(id)
+}
+
 // Top-level so every describe in this file starts from the same state. The
 // suite has several describes now; scoping this to one of them let `data: []`
 // from the error-state cases leak into later blocks.
@@ -383,6 +392,10 @@ beforeEach(() => {
   vi.clearAllMocks()
   authMock.userCan.mockReturnValue(true)
   mockState.columnVisibility.value = {}
+  mockState.columnOrder.value = []
+  mockState.columnSizing.value = {}
+  mockState.density.value = 'comfortable'
+  mockState.columnPinning.value = { left: [], right: [] }
   mockState.data.value = [{ ...initialRow }]
   mockState.isError.value = false
   mockState.error.value = null
@@ -412,9 +425,12 @@ describe('SalesListView', () => {
     expect(push).toHaveBeenCalledWith('/pos/ventas/sale-1')
   })
 
-  it('updates delivery tab filter from tabs component', async () => {
+  // Premium tables T8: the saved views replaced the status tabs and carry their filter.
+  it('updates the delivery filter from the «Entregas» view tab', async () => {
     const wrapper = mountSalesList()
-    await wrapper.get('[data-testid="tab-pending"]').trigger('click')
+    // This suite runs at the mobile breakpoint, where the views are a «Vista:» select.
+    selectView(wrapper, 'entregas')
+    await flushPromises()
     expect(mockState.setTabFilter).toHaveBeenCalledWith({ deliveryStatus: 'PENDING' })
   })
 
@@ -774,7 +790,8 @@ describe('SalesListView — sortable column headers (REQ-13)', () => {
     const wrapper = mountSalesList()
 
     expect(wrapper.find('[data-header-for="actions"]').exists()).toBe(false)
-    expect(wrapper.find('button[aria-haspopup="menu"]').exists()).toBe(false)
+    // Scoped to the table: the saved-views bar above it has its own «Guardar vista» menu.
+    expect(wrapper.get('[data-testid="app-data-table"]').find('button[aria-haspopup="menu"]').exists()).toBe(false)
   })
 
   it('updates sorting to totalCents when the Total header is clicked', async () => {
@@ -795,8 +812,9 @@ describe('SalesListView — sortable column headers (REQ-13)', () => {
     // The USelect shortcut writes into the same `sorting` ref. A header must
     // therefore report itself as sorted when that ref names its column, and
     // report nothing when it names a different one.
-    mockState.sorting.value = [{ id: 'totalCents', desc: true }]
+    // Set after mounting: on mount the active saved view applies its own sorting.
     const wrapper = mountSalesList()
+    mockState.sorting.value = [{ id: 'totalCents', desc: true }]
 
     const headers = wrapper.findAllComponents(SortableHeader)
     const total = headers.find((h) => h.props('label') === 'Total')
@@ -871,18 +889,18 @@ describe('SalesListView — consolidated toolbar (REQ-14, REQ-15)', () => {
   })
 
   // WU-3 / REQ-6: the embedded DataTableFilters lives in the same #filters
-  // slot as the SalesListTabs and sort select. The card-wrap must tolerate
+  // slot as the sort select (the status tabs moved to the saved views, T8). The card-wrap must tolerate
   // siblings without breaking them — every direct child of #filters gets its
   // own card section in the wrapper's mobile sheet.
-  it('forwards embedded=true to DataTableFilters and lets the sales tabs + sort sibling survive the wrap', () => {
+  it('forwards embedded=true to DataTableFilters and lets the sort sibling survive the wrap', () => {
     const wrapper = mountSalesList()
 
     const filters = wrapper.find('[data-testid="sales-filters"]')
     expect(filters.exists()).toBe(true)
     expect(filters.attributes('data-embedded')).toBe('true')
-    // Mixed siblings (tabs + sort select) MUST remain rendered.
-    expect(wrapper.find('[data-testid="tab-pending"]').exists()).toBe(true)
-    expect(wrapper.find('select').exists()).toBe(true)
+    // The sort select sibling MUST remain rendered; the status tabs are the views above the toolbar.
+    expect(wrapper.find('[data-testid="sales-sort-select"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="tab-pending"]').exists()).toBe(false)
   })
 
   it('clears only the slideover filter state when Limpiar is clicked', async () => {
@@ -1049,12 +1067,14 @@ describe('SalesListView — preserved invariants (REQ-16)', () => {
     expect(card.find('button[aria-haspopup="menu"]').exists()).toBe(false)
   })
 
-  it('keeps SalesListTabs driving the delivery-status quick filter', async () => {
+  it('keeps the «Cobranza» view driving the pending-payments quick filter', async () => {
     const wrapper = mountSalesList()
 
-    await wrapper.get('[data-testid="tab-pending"]').trigger('click')
+    // This suite runs at the mobile breakpoint, where the views are a «Vista:» select.
+    selectView(wrapper, 'cobranza')
+    await flushPromises()
 
-    expect(mockState.setTabFilter).toHaveBeenCalledWith({ deliveryStatus: 'PENDING' })
+    expect(mockState.setTabFilter).toHaveBeenCalledWith({ paymentStatus: 'PARTIAL,CREDIT' })
   })
 
   it('keeps row selection disabled and the pos-sales-list persist key intact', () => {
@@ -1195,5 +1215,57 @@ describe('SalesListView — sale address source notice (odd sale-address-change-
       { ...initialRow, id: 'o' },
     ]
     expect(notices(mountSalesList())).toHaveLength(0)
+  })
+})
+
+// Premium tables T7 (S5): the totals row counts the sales and adds up Total and Deuda in cents,
+// formatted like their cells; a canceled sale owes nothing, as its Deuda cell shows «—».
+describe('SalesListView — totals row (premium tables S5)', () => {
+  type Total = {
+    kind: string
+    label?: (n: number) => string
+    value?: (row: ConfirmedSaleRow) => number
+    format?: (n: number) => string
+  }
+  const totalOf = (wrapper: VueWrapper, id: string) => {
+    const columns = wrapper.findComponent(appDataTableStub).props('columns') as Array<{
+      id?: string
+      accessorKey?: string
+      meta?: { total?: Total }
+    }>
+    return columns.find((column) => (column.id ?? column.accessorKey) === id)?.meta?.total
+  }
+  const sum = (total: Total, rows: ConfirmedSaleRow[]) =>
+    total.format!(rows.reduce((acc, row) => acc + total.value!(row), 0))
+  const rows: ConfirmedSaleRow[] = [
+    { ...initialRow, id: 's1', totalCents: 127000, debtCents: 0 },
+    { ...initialRow, id: 's2', totalCents: 50050, debtCents: 20025, paymentStatus: 'PARTIAL' },
+    { ...initialRow, id: 's3', totalCents: 9900, debtCents: 9900, status: 'CANCELED' },
+  ]
+
+  it('counts the sales in the first column label', () => {
+    const count = totalOf(mountSalesList(), 'venta')!
+    expect(count.kind).toBe('count')
+    expect(count.label!(1)).toBe('1 venta')
+    expect(count.label!(14)).toBe('14 ventas')
+  })
+
+  it('sums Total from totalCents with the cents formatter', () => {
+    const total = totalOf(mountSalesList(), 'totalCents')!
+    expect(total.kind).toBe('sum')
+    expect(sum(total, rows)).toBe('$1,869.50')
+  })
+
+  it('sums Deuda from the open debt in cents, a canceled sale adding nothing', () => {
+    const debt = totalOf(mountSalesList(), 'debtCents')!
+    expect(debt.kind).toBe('sum')
+    expect(sum(debt, rows)).toBe('$200.25')
+  })
+
+  it('declares totals on no other column', () => {
+    const wrapper = mountSalesList()
+    for (const id of ['customer', 'paymentStatus', 'confirmedAt', 'cashier']) {
+      expect(totalOf(wrapper, id)).toBeUndefined()
+    }
   })
 })

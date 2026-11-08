@@ -47,8 +47,8 @@
 
 import { computed, ref, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
-import type { ColumnPinningState } from '@tanstack/vue-table'
 import { AppDataTable } from '@/core/shared/components/DataTable'
+import { useTablePreferences } from '@/core/shared/composables/useTablePreferences'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
@@ -194,10 +194,22 @@ const pagination = computed({
   },
 })
 
-// ─── Column visibility + right-pinning (REQ-3) ────────────────────────────────
-
-const columnPinning = ref<ColumnPinningState>({ left: [], right: ['acciones'] })
-const columnVisibility = ref<Record<string, boolean>>({})
+// ─── Column layout (REQ-3 + premium tables), persisted in the browser ──────────
+//
+// Reconciled against every column, the conditional Estado included, so hiding it
+// for an all-pending queue never drops the user's choices for it.
+const {
+  columnPinning,
+  columnVisibility,
+  columnOrder,
+  columnSizing,
+  density,
+  reset: resetLayout,
+} = useTablePreferences({
+  persistKey: 'admin-pending-approvals',
+  defaultPinning: { left: [], right: ['acciones'] },
+  columnIds: () => allColumns.value.map((column) => column.id!),
+})
 
 // ─── Error title (a fixed human sentence, never the server message) ───────────
 
@@ -319,6 +331,10 @@ function rowLabelOf(request: TimeOffRequest): string {
           v-model:global-filter="searchQuery"
           v-model:column-pinning="columnPinning"
           v-model:column-visibility="columnVisibility"
+          v-model:column-order="columnOrder"
+          v-model:column-sizing="columnSizing"
+          v-model:density="density"
+          :persist-layout="true"
           :columns="columns"
           :data="paged.pageRows"
           :loading="isLoading"
@@ -345,6 +361,7 @@ function rowLabelOf(request: TimeOffRequest): string {
           pagination-portal-class="hf-theme hf-ui employees-list-portal"
           @refresh="() => refetch()"
           @clear-filters="clearSearch"
+          @reset-columns="resetLayout"
         >
           <template #colaborador-cell="{ row }">
             <div class="flex min-w-0 items-center gap-3">

@@ -48,6 +48,8 @@ export function usePromotionColumns() {
       id: 'capacity',
       header: 'Cupo',
       enableSorting: false,
+      // Room for the whole badge («Quedan 400 unidades») by default.
+      size: 176,
     },
 
     // ── Fecha de inicio (sortable) ─────────────────────────────────────
@@ -55,6 +57,7 @@ export function usePromotionColumns() {
       accessorKey: 'startDate',
       header: 'Inicio',
       enableSorting: true,
+      size: 112,
     },
 
     // ── Fecha de creación (sortable) ──────────────────────────────────

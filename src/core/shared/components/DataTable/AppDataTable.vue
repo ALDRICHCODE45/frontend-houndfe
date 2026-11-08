@@ -1,6 +1,32 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
-import { useTemplateRef, computed, useSlots, defineComponent, type PropType, type VNode } from 'vue'
-import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
+import {
+  useTemplateRef,
+  computed,
+  useSlots,
+  defineComponent,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  provide,
+  reactive,
+  ref,
+  watch,
+  type PropType,
+  type VNode,
+} from 'vue'
+import {
+  breakpointsTailwind,
+  useBreakpoints,
+  useEventListener,
+  useResizeObserver,
+} from '@vueuse/core'
+import {
+  FlexRender,
+  type ColumnOrderState,
+  type ColumnSizingInfoState,
+  type ColumnSizingState,
+  type Header,
+} from '@tanstack/vue-table'
 import type {
   TableColumn,
   SortingState,
@@ -9,8 +35,10 @@ import type {
   VisibilityState,
   RowSelectionState,
 } from '../../types/table.types'
-import type { BulkAction } from '../../types/table.types'
+import type { BulkAction, TableColumnTotal, TableTotals } from '../../types/table.types'
+import type { DropdownMenuItem } from '@nuxt/ui'
 import DataTableToolbar from './DataTableToolbar.vue'
+import DataTableHeaderCell from './DataTableHeaderCell.vue'
 import DataTablePagination from './DataTablePagination.vue'
 import DataTableBulkActions from './DataTableBulkActions.vue'
 import { useClickableRow } from '../../composables/useClickableRow'
@@ -24,6 +52,41 @@ import {
   resolveSkeletonHeader,
   withPrimaryColumn,
 } from './primaryColumn.utils'
+import {
+  columnCellClass,
+  columnLabel,
+  columnSizeBounds,
+  columnWidthVar,
+  defaultColumnSize,
+  leafColumns,
+  RESIZE_STEP,
+  SHRINK_FLOOR,
+  withColumnLayout,
+} from './columnLayout.utils'
+import {
+  columnGroup,
+  groupMembers,
+  moveColumn as movedArrangement,
+  placeColumn,
+  screenOrder,
+  stepColumn,
+  withoutColumn,
+  type ColumnArrangement,
+  type ColumnGroup,
+  type ColumnsPanelGroups,
+} from './columnArrange.utils'
+import { useColumnDrag, type ColumnDropTarget } from './useColumnDrag'
+import { DATA_TABLE_HEADER } from './headerContext'
+import {
+  DEFAULT_TABLE_DENSITY,
+  isLockedColumn,
+  lockedSide,
+  sanitizeOrder,
+  sanitizePinning,
+  sanitizeSizing,
+  type ColumnSizeBounds,
+  type TableDensity,
+} from './tableLayout'
 
 /** Copy for the shared "nothing yet" state (`emptyState` prop). */
 interface TableEmptyState {
@@ -77,7 +140,23 @@ const props = withDefaults(
     showingFrom?: number
     showingTo?: number
     // Features
+    /**
+     * The «Columnas» control (panel at md+, visibility sheet below md / in card mode). Shown by
+     * default whenever the table has columns besides the locked selection / Acciones ones.
+     */
     enableColumnVisibility?: boolean
+    /**
+     * The row density control (Compacta / Normal / Cómoda) beside «Columnas». Shown by default on the
+     * desktop table; never in card mode or below the mobile breakpoint. Drives `v-model:density`.
+     */
+    enableDensity?: boolean
+    /**
+     * The bound layout v-models are persisted (`useTablePreferences` / `useServerTable` with a
+     * `persistKey`). A layout change made by the user (order, pin, width, visibility, density) then
+     * confirms «Guardado en tu vista» for a moment; loading, resetting or a layout set by the screen
+     * never does.
+     */
+    persistLayout?: boolean
     enableRowSelection?: boolean
     // Toolbar
     showToolbar?: boolean
@@ -118,6 +197,8 @@ const props = withDefaults(
     activeFilterCount?: number
     // Bulk actions
     bulkActions?: BulkAction<T>[]
+    /** Noun after the bulk bar count, e.g. `{ one: 'seleccionada', other: 'seleccionadas' }`. */
+    selectedLabel?: { one: string; other: string }
     /**
      * Optional whole-row click contract. When set, a click on a body row (outside
      * interactive children, with no modifier, on the primary button and with no
@@ -131,6 +212,17 @@ const props = withDefaults(
     displayMode?: 'auto' | 'table' | 'cards'
     mobileRender?: 'table' | 'cards'
     mobileBreakpoint?: 'sm' | 'md' | 'lg' | 'xl'
+    /**
+     * «Restablecer columnas» (`@reset-columns`). Bind the persisted layout's reset
+     * (`useTablePreferences().reset` / `useServerTable().resetLayout`) so the table's defaults come
+     * back. Without a listener the table clears order, pinning, visibility and widths itself.
+     */
+    onResetColumns?: () => void
+    /**
+     * Server totals of the whole filter for the totals row (columns with `meta.total`), keyed by
+     * column id. Shown as «Total del filtro» instead of the sums of the page; a selection still wins.
+     */
+    totals?: TableTotals
   }>(),
   {
     loading: false,
@@ -146,7 +238,9 @@ const props = withDefaults(
     pageSizeOptions: () => [5, 10, 20, 50],
     showingFrom: 0,
     showingTo: 0,
-    enableColumnVisibility: false,
+    enableColumnVisibility: true,
+    enableDensity: true,
+    persistLayout: false,
     enableRowSelection: false,
     showToolbar: true,
     searchPlaceholder: 'Buscar...',
@@ -158,9 +252,12 @@ const props = withDefaults(
     addButtonTestId: undefined,
     activeFilterCount: 0,
     bulkActions: () => [],
+    selectedLabel: undefined,
     displayMode: 'auto',
     mobileRender: 'table',
     mobileBreakpoint: 'md',
+    onResetColumns: undefined,
+    totals: undefined,
   },
 )
 
@@ -187,6 +284,20 @@ const columnVisibility = defineModel<VisibilityState>('columnVisibility', {
 const rowSelection = defineModel<RowSelectionState>('rowSelection', {
   default: () => ({}),
 })
+// Column layout (premium tables). Every write goes through the setters below, which keep the
+// selection column pinned first on the left and Acciones last on the right, unresizable.
+const columnOrder = defineModel<ColumnOrderState>('columnOrder', { default: () => [] })
+const columnSizing = defineModel<ColumnSizingState>('columnSizing', { default: () => ({}) })
+/** Row density; `comfortable` is today's 64px row. Set by the toolbar's density control. */
+const density = defineModel<TableDensity>('density', { default: DEFAULT_TABLE_DENSITY })
+const columnSizingInfo = ref<ColumnSizingInfoState>({
+  startOffset: null,
+  startSize: null,
+  deltaOffset: null,
+  deltaPercentage: null,
+  isResizingColumn: false,
+  columnSizingStart: [],
+})
 
 // Table ref for accessing tableApi
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -205,6 +316,7 @@ const SLOTS_NOT_FORWARDED_TO_TABLE = new Set([
   'above-table',
   'cards',
   'mobile-card',
+  'bulk-summary',
 ])
 
 const breakpoints = useBreakpoints(breakpointsTailwind)
@@ -233,7 +345,259 @@ const showTableSkeleton = computed(() => props.loading && props.data.length === 
 // C1: the name column has priority width. `meta.primary` picks it; the default is the first data
 // column after the selection column.
 const primaryKey = computed(() => findPrimaryColumnKey(props.columns, columnVisibility.value))
-const displayColumns = computed(() => withPrimaryColumn(props.columns, primaryKey.value))
+const displayColumns = computed(() => {
+  const layout = withColumnLayout(withPrimaryColumn(props.columns, primaryKey.value), primaryKey.value)
+  // UTable renders its `tfoot` (one cell per visible column, same classes, widths and pinned offsets
+  // as the header) as soon as a column has a `footer`; the cells come from the `#<id>-footer` slots.
+  return showTotals.value ? withFooters(layout) : layout
+})
+function withFooters<C extends object>(columns: C[]): C[] {
+  return columns.map(column => {
+    const children = (column as { columns?: C[] }).columns
+    return children ? { ...column, columns: withFooters(children) } : { ...column, footer: '' }
+  })
+}
+
+// ── Column layout: order, pinning and widths ───────────────────────────────
+const leaves = computed(() => leafColumns(props.columns))
+const leafIds = computed(() => leaves.value.map(column => columnKey(column)!))
+const columnInfo = computed(() => {
+  const info = new Map<string, { label: string; size: number; bounds: ColumnSizeBounds }>()
+  for (const column of leaves.value) {
+    const id = columnKey(column)!
+    const primary = id === primaryKey.value
+    info.set(id, {
+      label: columnLabel(column),
+      size: defaultColumnSize(column, primary),
+      bounds: columnSizeBounds(column, primary),
+    })
+  }
+  return info
+})
+const boundsOf = (id: string) => columnInfo.value.get(id)?.bounds
+const labelOf = (id: string) => columnInfo.value.get(id)?.label ?? id
+
+const effectiveOrder = computed(() => sanitizeOrder(columnOrder.value, leafIds.value))
+const effectivePinning = computed(() => sanitizePinning(columnPinning.value, leafIds.value))
+const storedSizing = computed(() => sanitizeSizing(columnSizing.value, leafIds.value, boundsOf))
+const visibleIds = computed(() => leafIds.value.filter(id => columnVisibility.value[id] !== false))
+
+// The surface's inner width. When the columns are narrower, the free space goes to one column
+// (the name column until the user sizes it, then the last centre column the user has not sized),
+// so the table always fills the surface and user widths hold exactly. When they are wider, the
+// columns the user has not sized shrink toward their floors first, so default widths still fit and
+// the surface scrolls only once user widths or the floors make it unavoidable.
+const containerWidth = ref(0)
+const flexColumnId = computed(() => {
+  const visible = new Set(visibleIds.value)
+  const pinned = new Set([...effectivePinning.value.left!, ...effectivePinning.value.right!])
+  const centre = effectiveOrder.value.filter(id => visible.has(id) && !pinned.has(id) && !isLockedColumn(id))
+  const primary = primaryKey.value !== undefined && visible.has(primaryKey.value) ? primaryKey.value : undefined
+  const unsized = (id: string | undefined) => id !== undefined && storedSizing.value[id] === undefined
+  if (unsized(primary)) return primary
+  return [...centre].reverse().find(unsized) ?? primary ?? centre[centre.length - 1]
+})
+const columnWidths = computed<Record<string, number>>(() => {
+  const widths: Record<string, number> = {}
+  for (const id of visibleIds.value) {
+    widths[id] = storedSizing.value[id] ?? columnInfo.value.get(id)?.size ?? 0
+  }
+  const surface = Math.floor(containerWidth.value)
+  if (surface <= 0) return widths
+  const free = surface - Object.values(widths).reduce((sum, width) => sum + width, 0)
+  const flex = flexColumnId.value
+  if (free > 0 && flex !== undefined) widths[flex]! += free
+  if (free < 0) shrinkToFit(widths, -free)
+  return widths
+})
+/** The narrowest a default width shrinks to: the floor, or the column's own minimum if larger. */
+function shrinkFloor(id: string) {
+  const info = columnInfo.value.get(id)
+  return info ? Math.max(info.bounds.min, Math.min(SHRINK_FLOOR, info.size)) : 0
+}
+/** Takes `overflow` px from the unsized columns, in proportion to how far each can shrink. */
+function shrinkToFit(widths: Record<string, number>, overflow: number) {
+  const slack = Object.keys(widths)
+    .filter(id => !isLockedColumn(id) && storedSizing.value[id] === undefined)
+    .map(id => ({ id, room: widths[id]! - shrinkFloor(id) }))
+    .filter(column => column.room > 0)
+  const room = slack.reduce((sum, column) => sum + column.room, 0)
+  if (room === 0) return
+  const cut = Math.min(overflow, room)
+  let rest = cut
+  for (const column of slack) {
+    const share = Math.floor((cut * column.room) / room)
+    widths[column.id]! -= share
+    rest -= share
+  }
+  // Rounding leftovers, one pixel at a time from the columns that can still shrink.
+  while (rest > 0) {
+    const column = slack.find(candidate => widths[candidate.id]! > shrinkFloor(candidate.id))
+    if (!column) break
+    widths[column.id]! -= 1
+    rest -= 1
+  }
+}
+const tableWidth = computed(() => Object.values(columnWidths.value).reduce((sum, width) => sum + width, 0))
+// What TanStack reads as `column.getSize()` (pinned offsets, the resize handler's start width).
+const effectiveSizing = computed<ColumnSizingState>(() => {
+  const sizing: ColumnSizingState = {}
+  for (const [id, info] of columnInfo.value) sizing[id] = storedSizing.value[id] ?? info.size
+  return { ...sizing, ...columnWidths.value }
+})
+const widthVars = computed(() => {
+  const vars: Record<string, string> = { '--hf-table-w': `${tableWidth.value}px` }
+  for (const [id, width] of Object.entries(columnWidths.value)) vars[columnWidthVar(id)] = `${width}px`
+  return vars
+})
+
+function setColumnOrder(next: ColumnOrderState) {
+  columnOrder.value = sanitizeOrder(next, leafIds.value)
+}
+function setColumnPinning(next: ColumnPinningState) {
+  columnPinning.value = sanitizePinning(next, leafIds.value)
+}
+// TanStack hands over the whole sizing state: a width that differs from the rendered one is the
+// user's, an unchanged one keeps what was stored, and a missing one goes back to its default.
+function setColumnSizing(next: ColumnSizingState) {
+  const result: ColumnSizingState = {}
+  for (const [id, width] of Object.entries(next)) {
+    if (width !== effectiveSizing.value[id]) result[id] = width
+    else if (storedSizing.value[id] !== undefined) result[id] = storedSizing.value[id]!
+  }
+  columnSizing.value = sanitizeSizing(result, leafIds.value, boundsOf)
+}
+/** Sets one column's width, clamped to its bounds, and returns the width set. */
+function setColumnWidth(id: string, width: number): number {
+  const next = sanitizeSizing({ ...storedSizing.value, [id]: width }, leafIds.value, boundsOf)
+  columnSizing.value = next
+  return next[id] ?? width
+}
+function resizeColumnBy(id: string, delta: number): number {
+  return setColumnWidth(id, (columnWidths.value[id] ?? effectiveSizing.value[id] ?? 0) + delta)
+}
+
+// ── Resize handle: pointer, keyboard and autofit ───────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function onResizeStart(event: MouseEvent, header: Header<any, unknown>) {
+  if (event.button !== 0) return
+  header.getResizeHandler()(event)
+}
+
+// Header keyboard, from anywhere in a header cell: Alt+←/→ resizes (the handle itself also takes
+// plain arrows), Alt+Shift+←/→ moves, Shift+F10 or the menu key opens ⋯, and Enter/Space on the
+// header sorts where the column sorts (else opens ⋯).
+function onTableKeydown(event: KeyboardEvent) {
+  const target = event.target instanceof Element ? event.target : null
+  const th = target?.closest<HTMLElement>('th[data-slot="th"]')
+  const id = th ? headerColumnId(th) : undefined
+  if (!th || !id) return
+  const arrangeable = !isLockedColumn(id)
+  const plain = !event.altKey && !event.shiftKey && !event.ctrlKey && !event.metaKey
+  if ((event.key === 'Enter' || event.key === ' ') && plain && target?.matches('[data-hf-header]')) {
+    event.preventDefault()
+    activateHeader(id)
+    return
+  }
+  if (arrangeable && (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey))) {
+    event.preventDefault()
+    openMenuId.value = id
+    return
+  }
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+  if (event.ctrlKey || event.metaKey) return
+  const delta = event.key === 'ArrowLeft' ? -1 : 1
+  if (event.altKey && event.shiftKey) {
+    if (!arrangeable) return
+    event.preventDefault()
+    shiftColumn(id, delta)
+    focusHeader(id)
+    return
+  }
+  if (event.shiftKey) return
+  const onHandle = target?.matches('[data-resize-handle]') ?? false
+  if (!event.altKey && !onHandle) return
+  if (!th.querySelector('[data-resize-handle]')) return
+  event.preventDefault()
+  const width = resizeColumnBy(id, delta * RESIZE_STEP)
+  announce(`Ancho de ${labelOf(id)}: ${width} px`)
+  layoutChanged()
+}
+
+/** Fits a column to its widest rendered cell (header included), within its bounds. */
+function autofitColumn(id: string): number | undefined {
+  const surface = surfaceEl.value
+  if (!surface) return undefined
+  const cells = surface.querySelectorAll<HTMLElement>(`.${columnCellClass(id)}`)
+  const probe = document.createElement('div')
+  probe.setAttribute('data-hf-measure', '')
+  probe.setAttribute('aria-hidden', 'true')
+  probe.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:max-content;white-space:nowrap'
+  surface.appendChild(probe)
+  let widest = 0
+  for (const cell of cells) {
+    const style = getComputedStyle(cell)
+    probe.style.font = style.font
+    probe.replaceChildren(...Array.from(cell.childNodes, node => node.cloneNode(true)))
+    probe.querySelectorAll('[data-resize-handle]').forEach(node => node.remove())
+    const padding = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0)
+    widest = Math.max(widest, probe.getBoundingClientRect().width + padding)
+  }
+  probe.remove()
+  return widest > 0 ? setColumnWidth(id, Math.ceil(widest)) : undefined
+}
+
+// Width tooltip while dragging: «Estado · 152 px».
+const resizingColumnId = computed(() => columnSizingInfo.value.isResizingColumn || undefined)
+const resizeTip = ref<{ text: string; left: number; top: number }>()
+watch(
+  [resizingColumnId, columnWidths],
+  ([id]) => {
+    const handle = id
+      ? Array.from(surfaceEl.value?.querySelectorAll<HTMLElement>('[data-resize-handle]') ?? []).find(
+          el => el.dataset.columnId === id,
+        )
+      : undefined
+    if (!id || !handle) {
+      resizeTip.value = undefined
+      return
+    }
+    const rect = handle.getBoundingClientRect()
+    resizeTip.value = { text: `${labelOf(id)} · ${columnWidths.value[id]} px`, left: rect.right, top: rect.top }
+  },
+  { flush: 'post' },
+)
+
+// ── Pinned edge: shown only while content is scrolled under it ─────────────
+const skeletonRef = useTemplateRef<HTMLElement>('skeleton')
+const surfaceEl = computed<HTMLElement | undefined>(
+  () => (tableRef.value?.$el as HTMLElement | undefined) ?? skeletonRef.value ?? undefined,
+)
+const scrolledLeft = ref(false)
+const scrolledRight = ref(false)
+function measureSurface() {
+  const el = surfaceEl.value
+  if (!el) return
+  // clientWidth rounds a fractional width up; the floored box width (minus its borders) is what
+  // really fits, so the table never overflows by a pixel.
+  const box = el.getBoundingClientRect().width
+  const style = getComputedStyle(el)
+  const borders = (parseFloat(style.borderLeftWidth) || 0) + (parseFloat(style.borderRightWidth) || 0)
+  containerWidth.value = box > 0 ? Math.min(el.clientWidth, Math.floor(box - borders)) : el.clientWidth
+  const max = el.scrollWidth - el.clientWidth
+  scrolledLeft.value = el.scrollLeft > 0
+  scrolledRight.value = max > 1 && el.scrollLeft < max - 1
+}
+useEventListener(surfaceEl, 'scroll', measureSurface, { passive: true })
+useResizeObserver(surfaceEl, measureSurface)
+onMounted(measureSurface)
+watch(tableWidth, () => nextTick(measureSurface))
+// A string: UTable merges `class` through tailwind-variants, which drops object syntax.
+const surfaceClasses = computed(() =>
+  [scrolledLeft.value ? 'hf-table-scrolled-left' : '', scrolledRight.value ? 'hf-table-scrolled-right' : '']
+    .filter(Boolean)
+    .join(' '),
+)
 
 // C2: the loading skeleton keeps the real header row and `min(pageSize, 5)` rows, so the surface
 // does not change height when the data arrives.
@@ -241,6 +605,9 @@ const SkeletonHeaderNode = defineComponent({
   props: { node: { type: Object as PropType<VNode>, required: true } },
   setup: props => () => props.node,
 })
+const SKELETON_ROW_HEIGHT: Record<TableDensity, string> = { compact: 'h-10', normal: 'h-12', comfortable: 'h-16' }
+const skeletonRowClass = computed(() => SKELETON_ROW_HEIGHT[density.value] ?? 'h-16')
+const skeletonCellPadding = computed(() => (density.value === 'comfortable' ? 'p-4' : 'px-4 py-0.5'))
 const skeletonRowCount = computed(() =>
   Math.max(1, Math.min(pagination.value.pageSize, SKELETON_ROW_COUNT)),
 )
@@ -263,17 +630,507 @@ const skeletonColumns = computed(() => {
         header: resolveSkeletonHeader(column),
         thClass: [classes.th, primary ? PRIMARY_COLUMN_CLASS : ''],
         tdClass: [classes.td, primary ? PRIMARY_COLUMN_CLASS : ''],
+        width: key === undefined ? undefined : `var(${columnWidthVar(key)})`,
         barClass: index === 0 || primary ? 'w-2/3' : 'w-1/2',
       }
     })
 })
 
+// Every leaf header is rendered here (the consumer's `#<id>-header` slot or the column's header,
+// plus the resize handle), so those slots are not forwarded as is.
+const headerSlotNames = computed(() => new Set(leafIds.value.map(id => `${id}-header`)))
+// With the totals row on, every leaf footer is the table's own too.
+const footerSlotNames = computed(() => new Set(showTotals.value ? leafIds.value.map(id => `${id}-footer`) : []))
 const forwardedTableSlots = computed(() =>
-  Object.keys(slots).filter((name) => !SLOTS_NOT_FORWARDED_TO_TABLE.has(name)),
+  Object.keys(slots).filter(
+    (name) =>
+      !SLOTS_NOT_FORWARDED_TO_TABLE.has(name) && !headerSlotNames.value.has(name) && !footerSlotNames.value.has(name),
+  ),
 )
 
-// Selected count for bulk actions
+// ── Arranging columns: header menu, keyboard moves, drag and announcements ─────────────
+// Columns whose header is a SortableHeader (they register themselves through the context).
+const sortableCounts = reactive(new Map<string, number>())
+provide(DATA_TABLE_HEADER, {
+  registerSortable(id: string) {
+    sortableCounts.set(id, (sortableCounts.get(id) ?? 0) + 1)
+    return () => {
+      const count = (sortableCounts.get(id) ?? 1) - 1
+      if (count > 0) sortableCounts.set(id, count)
+      else sortableCounts.delete(id)
+    }
+  },
+})
+const isSortable = (id: string) => sortableCounts.has(id)
+
+// One polite live region; the key re-renders the text so a repeated message is read again.
+const announcement = ref('')
+const announcementKey = ref(0)
+function announce(text: string) {
+  announcement.value = text
+  announcementKey.value += 1
+}
+
+// «Guardado en tu vista»: only after a change the user makes on a persisted layout. Every user path
+// calls `layoutChanged`; the screen's own writes (load, reset, defaults) never go through it.
+const SAVED_MS = 2000
+const savedVisible = ref(false)
+let savedTimer: ReturnType<typeof setTimeout> | undefined
+function layoutChanged() {
+  if (!props.persistLayout) return
+  savedVisible.value = true
+  clearTimeout(savedTimer)
+  savedTimer = setTimeout(() => (savedVisible.value = false), SAVED_MS)
+}
+function hideSaved() {
+  clearTimeout(savedTimer)
+  savedVisible.value = false
+}
+onBeforeUnmount(() => clearTimeout(savedTimer))
+
+// ── Density: Compacta 40 / Normal 48 / Cómoda 64 ───────────────────────────
+const DENSITY_TEXT: Record<TableDensity, string> = {
+  compact: 'Compacta, filas de 40 px',
+  normal: 'Normal, filas de 48 px',
+  comfortable: 'Cómoda, filas de 64 px',
+}
+const showDensity = computed(() => props.enableDensity && !isCardsMode.value && !isMobileViewport.value)
+function setDensity(next: TableDensity) {
+  if (next === density.value) return
+  density.value = next
+  announce(`Densidad ${DENSITY_TEXT[next]}`)
+  layoutChanged()
+}
+
+const SIDE_TEXT = { left: 'a la izquierda', right: 'a la derecha' } as const
+const arrangement = computed<ColumnArrangement>(() => ({
+  order: effectiveOrder.value,
+  pinning: effectivePinning.value,
+}))
+const isVisible = (id: string) => columnVisibility.value[id] !== false
+const allColumns = () => true
+const groupOf = (id: string) => columnGroup(id, effectivePinning.value)
+const pinnedSide = (id: string) => {
+  const group = groupOf(id)
+  return group === 'center' ? undefined : group
+}
+
+// Header cells carry the column's cell class (`hf-colid-<id>`); this maps it back to the id.
+const idByCellClass = computed(() => new Map(leafIds.value.map(id => [columnCellClass(id), id])))
+function headerColumnId(th: Element): string | undefined {
+  for (const name of Array.from(th.classList)) {
+    const id = idByCellClass.value.get(name)
+    if (id !== undefined) return id
+  }
+  return undefined
+}
+const headerTargets = () => Array.from(surfaceEl.value?.querySelectorAll<HTMLElement>('[data-hf-header]') ?? [])
+function focusHeader(id: string) {
+  nextTick(() => headerTargets().find(el => el.dataset.columnId === id)?.focus())
+}
+
+function applyArrangement(next: ColumnArrangement) {
+  if (next.order.join() !== effectiveOrder.value.join()) setColumnOrder(next.order)
+  if (JSON.stringify(next.pinning) !== JSON.stringify(effectivePinning.value)) setColumnPinning(next.pinning)
+}
+function positionText(id: string, next: ColumnArrangement, counted = isVisible) {
+  const order = screenOrder(next, counted)
+  return `posición ${order.indexOf(id) + 1} de ${order.length}`
+}
+/**
+ * Applies a new place for `id` and announces a move, a pin or an unpin. A hidden column (moved in the
+ * «Columnas» panel) counts its position among all the columns.
+ */
+function arrangeColumn(id: string, next: ColumnArrangement) {
+  const before = groupOf(id)
+  const after = columnGroup(id, next.pinning)
+  const counted = isVisible(id) ? isVisible : allColumns
+  const moved = screenOrder(next, counted).join() !== screenOrder(arrangement.value, counted).join()
+  applyArrangement(next)
+  const label = labelOf(id)
+  if (after !== before) {
+    announce(after === 'center' ? `Columna ${label} desfijada` : `Columna ${label} fijada ${SIDE_TEXT[after]}`)
+  } else if (moved) {
+    announce(`Columna ${label} movida a la ${positionText(id, next, counted)}`)
+  }
+  if (after !== before || moved) layoutChanged()
+}
+const canShift = (id: string, delta: number) => movedArrangement(arrangement.value, id, delta, isVisible) !== undefined
+function shiftColumn(id: string, delta: number) {
+  const next = movedArrangement(arrangement.value, id, delta, isVisible)
+  if (next) arrangeColumn(id, next)
+  else announce(`Columna ${labelOf(id)} ya está en el borde de su grupo`)
+}
+function pinColumn(id: string, side: 'left' | 'right' | false) {
+  const from = groupOf(id)
+  const target: ColumnGroup = side === false ? 'center' : side
+  const members = groupMembers(target, withoutColumn(arrangement.value, id), isVisible)
+  // Pinned left goes last on the left, pinned right first on the right; unpinned returns to the
+  // edge of the centre it came from.
+  const index = target === 'left' || (target === 'center' && from === 'right') ? members.length : 0
+  arrangeColumn(id, placeColumn(arrangement.value, id, target, index, isVisible))
+}
+
+function setSort(id: string, desc: boolean | undefined) {
+  sorting.value = desc === undefined ? sorting.value.filter(sort => sort.id !== id) : [{ id, desc }]
+  const label = labelOf(id)
+  announce(desc === undefined ? 'Sin orden' : `Ordenado por ${label}, ${desc ? 'descendente' : 'ascendente'}`)
+}
+function activateHeader(id: string) {
+  const column = tableApi.value?.getColumn(id)
+  if (isSortable(id) && column) column.toggleSorting(column.getIsSorted() === 'asc')
+  else if (!isLockedColumn(id)) openMenuId.value = id
+}
+/** A click on the header sorts where the column sorts; the ⋯ button opens the menu. */
+function onHeaderClick(id: string) {
+  if (isSortable(id)) activateHeader(id)
+}
+
+function resetColumnWidth(id: string) {
+  const rest = { ...storedSizing.value }
+  delete rest[id]
+  columnSizing.value = rest
+  announce(`Ancho de ${labelOf(id)} restablecido`)
+  layoutChanged()
+}
+function fitColumn(id: string) {
+  const width = autofitColumn(id)
+  if (width === undefined) return
+  announce(`Ancho de ${labelOf(id)}: ${width} px`)
+  layoutChanged()
+}
+function hideColumn(id: string) {
+  // The focus goes to the neighbour once the header is gone.
+  const order = screenOrder(arrangement.value, isVisible)
+  const index = order.indexOf(id)
+  refocusId.value = order[index + 1] ?? order[index - 1]
+  columnVisibility.value = { ...columnVisibility.value, [id]: false }
+  announce(`Columna ${labelOf(id)} oculta`)
+  layoutChanged()
+}
+
+// ── «Columnas» panel: every arrangeable column, hidden ones included ───────────
+const columnsPanel = computed<ColumnsPanelGroups>(() => {
+  const rows = (group: ColumnGroup) =>
+    groupMembers(group, arrangement.value, allColumns).map(id => ({
+      id,
+      label: labelOf(id),
+      visible: isVisible(id),
+      primary: id === primaryKey.value,
+    }))
+  return { left: rows('left'), center: rows('center'), right: rows('right') }
+})
+const hasArrangeableColumns = computed(() => leafIds.value.some(id => !isLockedColumn(id)))
+function placeFromPanel(id: string, group: ColumnGroup, index: number) {
+  arrangeColumn(id, placeColumn(arrangement.value, id, group, index, allColumns))
+}
+function stepFromPanel(id: string, delta: number) {
+  const next = stepColumn(arrangement.value, id, delta, allColumns)
+  if (next) arrangeColumn(id, next)
+  else announce(`Columna ${labelOf(id)} ya es la ${delta < 0 ? 'primera' : 'última'}`)
+}
+function setColumnVisible(id: string, visible: boolean) {
+  if (!visible && id === primaryKey.value) {
+    announce(`${labelOf(id)} siempre está visible`)
+    return
+  }
+  columnVisibility.value = { ...columnVisibility.value, [id]: visible }
+  announce(`Columna ${labelOf(id)} ${visible ? 'visible' : 'oculta'}`)
+  layoutChanged()
+}
+function resetColumns() {
+  if (props.onResetColumns) {
+    props.onResetColumns()
+  } else {
+    setColumnOrder([])
+    setColumnPinning({ left: [], right: [] })
+    columnVisibility.value = {}
+    columnSizing.value = {}
+  }
+  hideSaved()
+  announce('Columnas restablecidas')
+}
+
+// ⋯ menu: one open at a time; on close the focus returns to the header (or its neighbour).
+const openMenuId = ref<string>()
+const refocusId = ref<string>()
+function onMenuOpen(id: string, open: boolean) {
+  if (open) openMenuId.value = id
+  else if (openMenuId.value === id) openMenuId.value = undefined
+}
+function onMenuClosed(id: string) {
+  const target = refocusId.value ?? id
+  refocusId.value = undefined
+  focusHeader(target)
+}
+
+const hasColumnsPanel = computed(() => props.showToolbar && props.enableColumnVisibility)
+
+// The layout a reset would give: natural order, only the locked edges pinned, every column visible
+// and no user widths. (A screen's own default pinning reads as changed, so the reset stays offered.)
+const isDefaultLayout = computed(() => {
+  const natural = sanitizeOrder([], leafIds.value)
+  const pinning = effectivePinning.value
+  return (
+    effectiveOrder.value.every((id, index) => id === natural[index]) &&
+    pinning.left!.every(isLockedColumn) &&
+    pinning.right!.every(isLockedColumn) &&
+    leafIds.value.every(id => columnVisibility.value[id] !== false) &&
+    Object.keys(storedSizing.value).length === 0
+  )
+})
+
+function columnMenuItems(id: string): DropdownMenuItem[][] {
+  const groups: DropdownMenuItem[][] = []
+  if (isSortable(id)) {
+    const sort: DropdownMenuItem[] = [
+      { label: 'Ordenar ascendente', icon: 'i-lucide-arrow-up-narrow-wide', onSelect: () => setSort(id, false) },
+      { label: 'Ordenar descendente', icon: 'i-lucide-arrow-down-wide-narrow', onSelect: () => setSort(id, true) },
+    ]
+    if (sorting.value.some(item => item.id === id)) {
+      sort.push({ label: 'Quitar orden', icon: 'i-lucide-x', onSelect: () => setSort(id, undefined) })
+    }
+    groups.push(sort)
+  }
+  const group = groupOf(id)
+  const unpin: DropdownMenuItem = { label: 'Desfijar', icon: 'i-lucide-pin-off', onSelect: () => pinColumn(id, false) }
+  groups.push([
+    group === 'left'
+      ? unpin
+      : { label: 'Fijar a la izquierda', icon: 'i-lucide-panel-left', onSelect: () => pinColumn(id, 'left') },
+    group === 'right'
+      ? unpin
+      : { label: 'Fijar a la derecha', icon: 'i-lucide-panel-right', onSelect: () => pinColumn(id, 'right') },
+  ])
+  groups.push([
+    {
+      label: 'Mover a la izquierda',
+      icon: 'i-lucide-arrow-left',
+      kbds: ['alt', 'shift', 'arrowleft'],
+      disabled: !canShift(id, -1),
+      onSelect: () => shiftColumn(id, -1),
+    },
+    {
+      label: 'Mover a la derecha',
+      icon: 'i-lucide-arrow-right',
+      kbds: ['alt', 'shift', 'arrowright'],
+      disabled: !canShift(id, 1),
+      onSelect: () => shiftColumn(id, 1),
+    },
+  ])
+  groups.push([
+    { label: 'Ajustar ancho al contenido', icon: 'i-lucide-move-horizontal', onSelect: () => fitColumn(id) },
+    {
+      label: 'Restablecer ancho',
+      icon: 'i-lucide-rotate-ccw',
+      disabled: storedSizing.value[id] === undefined,
+      onSelect: () => resetColumnWidth(id),
+    },
+  ])
+  // Hiding needs the «Columnas» panel to bring the column back; without it the menu offers a
+  // full reset instead, so a hidden or rearranged layout can always be undone.
+  if (!hasColumnsPanel.value) {
+    groups.push([
+      {
+        label: 'Restablecer columnas',
+        icon: 'i-lucide-rotate-ccw',
+        disabled: isDefaultLayout.value,
+        onSelect: resetColumns,
+      },
+    ])
+  } else if (id !== primaryKey.value) {
+    groups.push([{ label: 'Ocultar columna', icon: 'i-lucide-eye-off', onSelect: () => hideColumn(id) }])
+  }
+  return groups
+}
+
+function headerName(id: string) {
+  const side = pinnedSide(id)
+  const sort = sorting.value.find(item => item.id === id)
+  return [
+    labelOf(id),
+    side ? `fijada ${SIDE_TEXT[side]}` : '',
+    sort ? `orden ${sort.desc ? 'descendente' : 'ascendente'}` : '',
+  ]
+    .filter(Boolean)
+    .join(', ')
+}
+
+// Drop target under the pointer: the gap before or after the header hit (pinned headers paint over
+// the scrolled ones, so they are hit first). A locked edge column stands for its pinned side.
+function dropTargetAt(id: string, x: number): ColumnDropTarget | undefined {
+  const surface = surfaceEl.value
+  if (!surface) return undefined
+  const bounds = surface.getBoundingClientRect()
+  const cells = Array.from(surface.querySelectorAll<HTMLElement>('thead th[data-slot="th"]'))
+    .map(th => ({ th, id: headerColumnId(th), rect: th.getBoundingClientRect() }))
+    .filter((cell): cell is { th: HTMLElement; id: string; rect: DOMRect } => cell.id !== undefined)
+  if (cells.length === 0) return undefined
+  const ranked = [...cells.filter(cell => cell.th.hasAttribute('data-pinned')), ...cells.filter(cell => !cell.th.hasAttribute('data-pinned'))]
+  const first = cells[0]!
+  const last = cells[cells.length - 1]!
+  const hit =
+    ranked.find(cell => x >= cell.rect.left && x < cell.rect.right) ??
+    (x < first.rect.left ? first : x >= last.rect.right ? last : undefined)
+  if (!hit || hit.id === id) return undefined
+  const clamp = (value: number) => Math.min(bounds.right, Math.max(bounds.left, value))
+  const base = withoutColumn(arrangement.value, id)
+  const locked = lockedSide(hit.id)
+  if (locked === 'left') return { group: 'left', index: 0, x: clamp(hit.rect.right) }
+  if (locked === 'right') {
+    return { group: 'right', index: groupMembers('right', base, isVisible).length, x: clamp(hit.rect.left) }
+  }
+  const before = x < hit.rect.left + hit.rect.width / 2
+  const group = groupOf(hit.id)
+  const index = groupMembers(group, base, isVisible).indexOf(hit.id) + (before ? 0 : 1)
+  return { group, index, x: clamp(before ? hit.rect.left : hit.rect.right) }
+}
+
+const columnDrag = useColumnDrag({
+  surface: () => surfaceEl.value,
+  canDrag: id => !isLockedColumn(id) && !isCardsMode.value,
+  labelOf,
+  cellsOf: id => Array.from(surfaceEl.value?.querySelectorAll<HTMLElement>(`.${columnCellClass(id)}`) ?? []),
+  targetAt: dropTargetAt,
+  onDrop(id, target) {
+    arrangeColumn(id, placeColumn(arrangement.value, id, target.group, target.index, isVisible))
+    focusHeader(id)
+  },
+  onCancel: () => announce('Movimiento cancelado'),
+})
+const dragGhost = columnDrag.ghost
+const dropLine = columnDrag.line
+
+// ── Totals row (S5): count and sums, of the page, the selection or the whole filter ────────
+const columnTotals = computed(() => {
+  const totals = new Map<string, TableColumnTotal<T>>()
+  for (const column of leaves.value) {
+    const total = column.meta?.total as TableColumnTotal<T> | undefined
+    if (total) totals.set(columnKey(column)!, total)
+  }
+  return totals
+})
+const showTotals = computed(
+  () => columnTotals.value.size > 0 && !props.loading && !props.error && props.data.length > 0,
+)
+type TotalsScope = 'selection' | 'filter' | 'page'
+const TOTALS_SCOPE_TEXT: Record<TotalsScope, string> = {
+  selection: 'Selección',
+  filter: 'Total del filtro',
+  page: 'Esta página',
+}
+const totalsScope = computed<TotalsScope>(() =>
+  selectedRows.value.length > 0 ? 'selection' : props.totals ? 'filter' : 'page',
+)
+const totalsRows = computed<T[]>(() => (totalsScope.value === 'selection' ? selectedRows.value : props.data))
+const countTotal = computed(() => {
+  for (const [id, total] of columnTotals.value) if (total.kind === 'count') return { id, total }
+  return undefined
+})
+const hasAmount = (id: string) => {
+  const total = columnTotals.value.get(id)
+  return total !== undefined && total.kind !== 'count'
+}
+// The label sits in the first arrangeable column on screen that has no amount of its own.
+const totalsLabelId = computed(() => screenOrder(arrangement.value, isVisible).find(id => !hasAmount(id)))
+const totalsLabel = computed(() => {
+  const scope = totalsScope.value
+  const count = countTotal.value
+  if (scope === 'selection') {
+    const n = selectedRows.value.length
+    if (count?.total.kind === 'count' && count.total.selectedLabel) return count.total.selectedLabel(n)
+    const noun = props.selectedLabel ?? { one: 'seleccionado', other: 'seleccionados' }
+    return `${n} ${n === 1 ? noun.one : noun.other}`
+  }
+  if (count?.total.kind !== 'count') return ''
+  if (scope === 'filter') {
+    const server = props.totals?.[count.id]
+    const n = typeof server === 'number' ? server : props.totalCount
+    return count.total.label(n)
+  }
+  return count.total.label(props.data.length)
+})
+const totalsValues = computed(() => {
+  const values: Record<string, string> = {}
+  const rows = totalsRows.value
+  for (const [id, total] of columnTotals.value) {
+    if (total.kind === 'count') continue
+    if (totalsScope.value === 'filter') {
+      const server = props.totals?.[id]
+      if (server === undefined) continue
+      values[id] = typeof server === 'string' ? server : (total.format?.(server) ?? String(server))
+    } else {
+      values[id] =
+        total.kind === 'sum' ? total.format(rows.reduce((sum, row) => sum + total.value(row), 0)) : total.compute(rows)
+    }
+  }
+  return values
+})
+// The label may run over the empty footer cells right after it, within its own group (pinned left,
+// centre or pinned right), up to the first cell with a value: its width, in px.
+const totalsLabelSpan = computed(() => {
+  const id = totalsLabelId.value
+  if (id === undefined) return 0
+  const members = groupMembers(groupOf(id), arrangement.value, isVisible)
+  let width = columnWidths.value[id] ?? 0
+  for (const next of members.slice(members.indexOf(id) + 1)) {
+    if (totalsValues.value[next]) break
+    width += columnWidths.value[next] ?? 0
+  }
+  return width
+})
+/**
+ * UTable's footer cells are all `th`s: the label cell becomes the row header and the amounts plain
+ * cells. Set from the cell content on every render, so a moved label never keeps a stale scope.
+ */
+function markTotalsCell(element: unknown, id: string) {
+  const th = element instanceof HTMLElement ? element.closest('th') : null
+  if (!th) return
+  if (id === totalsLabelId.value) {
+    th.setAttribute('scope', 'row')
+    th.removeAttribute('role')
+    // Raised over its empty neighbours (pinned cells sit one layer higher than scrolled ones).
+    th.setAttribute('data-hf-totals-label', pinnedSide(id) ? 'pinned' : '')
+  } else {
+    th.setAttribute('role', 'cell')
+    th.removeAttribute('scope')
+    th.removeAttribute('data-hf-totals-label')
+  }
+}
+
+// Width announced once a pointer resize ends.
+watch(resizingColumnId, (now, before) => {
+  if (!before || now) return
+  announce(`Ancho de ${labelOf(before)}: ${columnWidths.value[before]} px`)
+  layoutChanged()
+})
+
+// Selected count and rows for the bulk bar
 const selectedCount = computed(() => Object.keys(rowSelection.value).length)
+const selectedRows = computed<T[]>(() => {
+  // The rows of the page change under the same selection (refetch): read them again.
+  void props.data
+  if (selectedCount.value === 0) return []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (tableApi.value?.getSelectedRowModel().rows ?? []).map((row: any) => row.original as T)
+})
+const showBulkBar = computed(
+  () => props.enableRowSelection && (props.bulkActions.length > 0 || !!slots['bulk-summary']),
+)
+// The bar is fixed to the viewport; it centres over this table's box, measured while rows are selected.
+const rootEl = useTemplateRef<HTMLElement>('root')
+const bulkAnchor = ref<{ left: number; width: number }>()
+function measureBulkAnchor() {
+  if (!showBulkBar.value || selectedCount.value === 0 || !rootEl.value) return
+  const box = rootEl.value.getBoundingClientRect()
+  if (bulkAnchor.value?.left !== box.left || bulkAnchor.value?.width !== box.width) {
+    bulkAnchor.value = { left: box.left, width: box.width }
+  }
+}
+watch(selectedCount, () => nextTick(measureBulkAnchor), { immediate: true })
+useResizeObserver(rootEl, measureBulkAnchor)
+useEventListener(window, 'resize', measureBulkAnchor, { passive: true })
+useEventListener(window, 'scroll', measureBulkAnchor, { passive: true, capture: true })
 
 // Handle page index change from pagination component
 function handlePageIndexChange(newIndex: number) {
@@ -296,7 +1153,10 @@ const BODY_ROW_SELECTOR = 'tbody > tr[data-slot="tr"][data-selected]'
 const rowMeta = computed(() =>
   props.rowOpen ? { class: { tr: 'hf-clickable-row' } } : undefined,
 )
-const rowListeners = computed(() => (props.rowOpen ? { click: onTableClick } : {}))
+const tableListeners = computed(() => ({
+  keydown: onTableKeydown,
+  ...(props.rowOpen ? { click: onTableClick } : {}),
+}))
 
 function onTableClick(event: MouseEvent) {
   const tr = event.target instanceof Element ? event.target.closest(BODY_ROW_SELECTOR) : null
@@ -310,10 +1170,24 @@ function onTableClick(event: MouseEvent) {
 function handleClearSelection() {
   rowSelection.value = {}
 }
+
+defineExpose({
+  /** The TanStack table (undefined until the table renders). */
+  get tableApi() {
+    return tableApi.value
+  },
+  /** Rendered width per visible column, in px. */
+  columnWidths,
+  /** Default width and bounds per column. */
+  columnInfo,
+  setColumnWidth,
+  resizeColumnBy,
+  autofitColumn,
+})
 </script>
 
 <template>
-  <div class="flex w-full min-w-0 max-w-full flex-col gap-4">
+  <div ref="root" class="relative flex w-full min-w-0 max-w-full flex-col gap-4">
     <!-- Toolbar -->
     <DataTableToolbar
       v-if="props.showToolbar"
@@ -322,11 +1196,17 @@ function handleClearSelection() {
       :show-add-button="props.showAddButton"
       :add-button-text="props.addButtonText"
       :add-button-icon="props.addButtonIcon"
-      :show-column-visibility="props.enableColumnVisibility && !isCardsMode"
+      :show-column-visibility="props.enableColumnVisibility && hasArrangeableColumns"
+      :columns="columnsPanel"
+      :columns-disabled="!isCardsMode && (props.error || showTableSkeleton)"
+      :columns-sheet="isCardsMode"
+      :show-density="showDensity"
+      :density="density"
+      :density-disabled="props.error"
+      :saved="savedVisible"
       :show-refresh="props.showRefresh"
       :fetching="props.fetching"
       :portal-class="props.portalClass"
-      :table-api="tableApi"
       :refresh-button-test-id="props.refreshButtonTestId"
       :add-button-test-id="props.addButtonTestId"
       :active-filter-count="props.activeFilterCount"
@@ -334,6 +1214,12 @@ function handleClearSelection() {
       @add="emit('add')"
       @refresh="emit('refresh')"
       @clear-filters="emit('clear-filters')"
+      @column-place="placeFromPanel"
+      @column-step="stepFromPanel"
+      @column-pin="pinColumn"
+      @column-visibility="setColumnVisible"
+      @reset-columns="resetColumns"
+      @update:density="setDensity"
     >
       <!-- Forward a slot only when the screen provides it: an always-present wrapper renders an
            empty fragment, which made the toolbar draw a mobile "Filtros" button (and an empty
@@ -376,6 +1262,8 @@ function handleClearSelection() {
         :data="props.data"
         :loading="isLoading"
         :empty="props.empty"
+        :column-visibility="columnVisibility"
+        :is-column-visible="isVisible"
       />
 
       <template v-else>
@@ -452,6 +1340,8 @@ function handleClearSelection() {
             name="mobile-card"
             :row="row"
             :index="index"
+            :column-visibility="columnVisibility"
+            :is-column-visible="isVisible"
           />
         </div>
       </template>
@@ -477,12 +1367,15 @@ function handleClearSelection() {
            when the rows arrive. A background refetch with rows keeps UTable's progress bar. -->
       <div
         v-else-if="showTableSkeleton"
+        ref="skeleton"
         class="relative w-full min-w-0 max-w-full flex-1 overflow-auto"
+        :style="widthVars"
+        :data-density="density"
         aria-busy="true"
         data-testid="table-skeleton"
       >
         <span class="sr-only">Cargando</span>
-        <table data-slot="base" class="min-w-full overflow-clip" aria-hidden="true">
+        <table data-slot="base" class="w-(--hf-table-w) min-w-full table-fixed overflow-clip" aria-hidden="true">
           <thead data-slot="thead" class="relative" inert data-testid="table-skeleton-header">
             <tr data-slot="tr">
               <th
@@ -491,7 +1384,10 @@ function handleClearSelection() {
                 data-slot="th"
                 class="border-b border-[var(--hf-border)] px-4 py-3.5 text-left text-sm font-semibold"
                 :class="column.thClass"
-                :style="column.select ? 'width:3rem;min-width:3rem;max-width:3rem;padding-inline:0.75rem 0' : undefined"
+                :style="[
+                  column.width ? { width: column.width, minWidth: column.width, maxWidth: column.width } : {},
+                  column.select ? 'padding-inline:0.75rem 0' : '',
+                ]"
               >
                 <span v-if="column.header.kind === 'text'" :class="column.actions ? 'sr-only' : undefined">
                   {{ column.header.text }}
@@ -510,16 +1406,19 @@ function handleClearSelection() {
             v-for="row in skeletonRowCount"
             :key="`skeleton-row-${row}`"
             data-slot="tr"
-            class="h-16"
+            :class="skeletonRowClass"
             data-testid="table-skeleton-row"
           >
             <td
               v-for="column in skeletonColumns"
               :key="`skeleton-cell-${row}-${column.key}`"
               data-slot="td"
-              class="border-b border-[var(--hf-border)] p-4 text-sm"
-              :class="column.tdClass"
-              :style="column.select ? 'width:3rem;min-width:3rem;max-width:3rem;padding-inline:0.75rem 0;overflow:visible' : undefined"
+              class="border-b border-[var(--hf-border)] text-sm"
+              :class="[skeletonCellPadding, column.tdClass]"
+              :style="[
+                column.width ? { width: column.width, minWidth: column.width, maxWidth: column.width } : {},
+                column.select ? 'padding-inline:0.75rem 0;overflow:visible' : '',
+              ]"
             >
               <span
                 class="hf-skeleton block animate-pulse"
@@ -540,9 +1439,14 @@ function handleClearSelection() {
         v-else
         ref="table"
         v-model:sorting="sorting"
-        v-model:column-pinning="columnPinning"
         v-model:column-visibility="columnVisibility"
         v-model:row-selection="rowSelection"
+        v-model:column-sizing-info="columnSizingInfo"
+        :column-order="effectiveOrder"
+        :column-pinning="effectivePinning"
+        :column-sizing="effectiveSizing"
+        :column-pinning-options="{ enableColumnPinning: true }"
+        :column-sizing-options="{ enableColumnResizing: true, columnResizeMode: 'onChange' }"
         :row-selection-options="{ enableRowSelection: props.enableRowSelection }"
         :data="props.data"
         :columns="displayColumns"
@@ -555,12 +1459,90 @@ function handleClearSelection() {
         :sorting-options="{
           manualSorting: true,
         }"
-        class="w-full min-w-0 max-w-full flex-1"
+        :ui="{ base: 'w-(--hf-table-w) min-w-full table-fixed', tfoot: 'hf-table-totals' }"
+        :class="['w-full min-w-0 max-w-full flex-1', surfaceClasses]"
+        :style="widthVars"
+        :data-density="density"
         data-testid="table-view"
-        v-on="rowListeners"
+        @update:column-order="setColumnOrder"
+        @update:column-pinning="setColumnPinning"
+        @update:column-sizing="setColumnSizing"
+        v-on="tableListeners"
       >
         <template v-for="name in forwardedTableSlots" #[name]="slotProps">
           <slot :name="name" v-bind="slotProps ?? {}" />
+        </template>
+        <template v-for="id in leafIds" #[`${id}-header`]="headerProps">
+          <DataTableHeaderCell
+            v-if="!isLockedColumn(id)"
+            :key="`cell-${id}`"
+            :column-id="id"
+            :label="labelOf(id)"
+            :name="headerName(id)"
+            :sortable="isSortable(id)"
+            :pinned="pinnedSide(id)"
+            :items="columnMenuItems(id)"
+            :open="openMenuId === id"
+            @update:open="onMenuOpen(id, $event)"
+            @pointerdown="columnDrag.onPointerDown($event, id)"
+            @activate="onHeaderClick(id)"
+            @menu-closed="onMenuClosed(id)"
+          >
+            <slot v-if="slots[`${id}-header`]" :name="`${id}-header`" v-bind="headerProps" />
+            <FlexRender
+              v-else-if="!headerProps.header.isPlaceholder"
+              :render="headerProps.column.columnDef.header"
+              :props="headerProps"
+            />
+          </DataTableHeaderCell>
+          <template v-else>
+            <slot v-if="slots[`${id}-header`]" :name="`${id}-header`" v-bind="headerProps" />
+            <FlexRender
+              v-else-if="!headerProps.header.isPlaceholder"
+              :key="`header-${id}`"
+              :render="headerProps.column.columnDef.header"
+              :props="headerProps"
+            />
+          </template>
+          <span
+            v-if="headerProps.column.getCanResize()"
+            :key="`resize-${id}`"
+            role="separator"
+            aria-orientation="vertical"
+            :aria-label="`Cambiar ancho de ${labelOf(id)}`"
+            :aria-valuenow="columnWidths[id]"
+            :aria-valuemin="columnInfo.get(id)?.bounds.min"
+            :aria-valuemax="columnInfo.get(id)?.bounds.max"
+            tabindex="-1"
+            title="Arrastra para cambiar el ancho; doble clic para ajustarlo al contenido"
+            data-resize-handle
+            :data-column-id="id"
+            :data-resizing="resizingColumnId === id || undefined"
+            class="absolute inset-y-0 right-0 z-[2] w-2 cursor-col-resize touch-none"
+            @mousedown.stop="onResizeStart($event, headerProps.header)"
+            @click.stop
+            @dblclick.stop.prevent="fitColumn(id)"
+          />
+        </template>
+        <template v-for="id in showTotals ? leafIds : []" #[`${id}-footer`] :key="`footer-${id}`">
+          <span
+            :ref="element => markTotalsCell(element, id)"
+            class="hf-table-totals__cell"
+            :data-testid="`table-total-${id}`"
+          >
+            <span
+              v-if="id === totalsLabelId"
+              class="hf-table-totals__overflow"
+              :style="{ '--hf-totals-span': `${totalsLabelSpan}px` }"
+              data-testid="table-totals-label"
+            >
+              <span v-if="totalsLabel" class="hf-table-totals__label">{{ totalsLabel }}</span>
+              <span class="hf-table-totals__scope" data-testid="table-totals-scope">{{
+                TOTALS_SCOPE_TEXT[totalsScope]
+              }}</span>
+            </span>
+            <template v-else-if="totalsValues[id] !== undefined">{{ totalsValues[id] }}</template>
+          </span>
         </template>
         <template v-if="sharedEmptyKind && !slots.empty" #empty>
           <EmptyState
@@ -583,6 +1565,56 @@ function handleClearSelection() {
       </UTable>
     </template>
 
+    <!-- Column drag: the ghost under the pointer and the drop line between the target columns -->
+    <div
+      v-if="dragGhost"
+      class="hf-table-drag-ghost"
+      :style="{ left: `${dragGhost.x}px`, top: `${dragGhost.y}px` }"
+      aria-hidden="true"
+      data-testid="table-drag-ghost"
+    >
+      <UIcon name="i-lucide-grip-vertical" class="size-3.5" />{{ dragGhost.label }}
+    </div>
+    <div
+      v-if="dropLine"
+      class="hf-table-drop-line"
+      :style="{ left: `${dropLine.x - 1}px`, top: `${dropLine.top}px`, height: `${dropLine.height}px` }"
+      aria-hidden="true"
+      data-testid="table-drop-line"
+    />
+
+    <!-- Announcements of column moves, pins, widths and sorting -->
+    <div class="sr-only" aria-live="polite" aria-atomic="true" data-testid="table-announcer">
+      <span :key="announcementKey">{{ announcement }}</span>
+    </div>
+    <!-- Without a toolbar the quiet pill sits at the surface's top-right corner instead -->
+    <Transition name="hf-table-saved">
+      <span
+        v-if="savedVisible && !props.showToolbar"
+        class="hf-table-saved hf-table-saved--surface"
+        aria-hidden="true"
+        data-testid="table-saved"
+      >
+        <UIcon name="i-lucide-check" class="hf-table-saved__icon" />Guardado en tu vista
+      </span>
+    </Transition>
+    <!-- «Guardado en tu vista», read once per user layout change (the toolbar shows it quietly) -->
+    <div class="sr-only" role="status" aria-live="polite" data-testid="table-saved-status">
+      <template v-if="savedVisible">Guardado en tu vista</template>
+    </div>
+
+    <!-- Width while dragging a column edge -->
+    <div
+      v-if="resizeTip"
+      class="pointer-events-none fixed z-50 -translate-y-full rounded px-2 py-1 text-xs font-semibold tabular-nums"
+      style="background-color: var(--hf-ink); color: var(--hf-surface)"
+      :style="{ left: `${resizeTip.left + 8}px`, top: `${resizeTip.top - 4}px` }"
+      aria-hidden="true"
+      data-testid="table-resize-tip"
+    >
+      {{ resizeTip.text }}
+    </div>
+
     <!-- Pagination -->
     <DataTablePagination
       v-if="props.totalCount > 0"
@@ -601,11 +1633,18 @@ function handleClearSelection() {
 
     <!-- Bulk Actions -->
     <DataTableBulkActions
-      v-if="props.bulkActions.length > 0 && props.enableRowSelection"
+      v-if="showBulkBar"
       :selected-count="selectedCount"
       :total-count="props.totalCount"
       :actions="props.bulkActions"
+      :selected-rows="selectedRows"
+      :selected-label="props.selectedLabel"
+      :anchor="bulkAnchor"
       @clear-selection="handleClearSelection"
-    />
+    >
+      <template v-if="slots['bulk-summary']" #summary>
+        <slot name="bulk-summary" :count="selectedCount" :rows="selectedRows" />
+      </template>
+    </DataTableBulkActions>
   </div>
 </template>

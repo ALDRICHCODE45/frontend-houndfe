@@ -190,13 +190,20 @@ body.hf-app {
  * restyle every control nested inside the data table. Each rule below anchors
  * on the box type that actually owns the slot, which keeps table geometry on
  * the `<table>` and its rows/cells only. */
+/* The surface scrolls horizontally when the user's column widths exceed it. */
 .hf-ui .hf-data-table [data-slot='root']:has(table[data-slot='base']) {
   max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
 }
 
+/* Widths are the columns' (AppDataTable sets `--hf-col-w-<id>` on every cell and their sum as
+ * `--hf-table-w`), never the content's: a fixed layout keeps a user width exactly. */
 .hf-ui .hf-data-table table[data-slot='base'] {
-  width: 100%;
-  max-width: 100%;
+  table-layout: fixed;
+  width: var(--hf-table-w, 100%);
+  min-width: 100%;
+  max-width: none;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 0.875rem;
@@ -231,34 +238,20 @@ body.hf-app {
   vertical-align: middle;
 }
 
-/* Fit. A table of up to 8 columns fits its card at 1440 with the sidebar open,
- * with no horizontal scroll. Nuxt's `td` is `whitespace-nowrap`, so a long text
- * cell used to widen the whole table and push the last columns behind the pinned
- * Acciones cell. Cells now shrink (`max-width: 0` lets the auto layout hand each
- * column its share of the card) and truncate with an ellipsis; `min-width` keeps
- * a status badge whole. Full text stays reachable in the detail. */
+/* A cell truncates inside its column width with an ellipsis (Nuxt's `td` is `whitespace-nowrap`);
+ * the full text stays reachable in the detail, or the user widens the column. */
 .hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']) {
-  min-width: 7rem;
-  max-width: 0;
   padding-inline: 0.75rem;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* The name column has priority (`hf-col-primary`, added by AppDataTable to the first data column
- * or to `meta: { primary: true }`): a 16rem floor and the largest share of the card, so the other
- * columns shrink first and names are not cut while a neighbour has room. */
-.hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']).hf-col-primary {
-  width: 40%;
-  min-width: 16rem;
-}
-
-/* A status badge is never truncated: its cell sizes to the badge. */
-.hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']):not(.hf-col-primary):has(.hf-status-badge) {
-  width: 1%;
-  max-width: none;
+/* A status badge is never cut by an ellipsis. (The name column's priority is now its width: 16rem
+ * by default plus the free space of the surface, set by AppDataTable.) */
+.hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']):has(.hf-status-badge) {
   overflow: visible;
   white-space: nowrap;
+  text-overflow: clip;
 }
 
 /* The selection column is only its checkbox. */
@@ -288,6 +281,951 @@ body.hf-app {
 
 .hf-ui .hf-data-table th[data-slot='th'][data-pinned] {
   background-color: var(--hf-table-head);
+}
+
+/* Pinned edge: the last left-pinned and the first right-pinned column get a divider and a soft
+ * shadow only while content is scrolled under them (AppDataTable tracks the scroll). */
+.hf-ui :is(td[data-slot='td'], th[data-slot='th']):is(.hf-pin-edge-left, .hf-pin-edge-right) {
+  transition: box-shadow 150ms ease;
+}
+
+.hf-ui .hf-table-scrolled-left :is(td[data-slot='td'], th[data-slot='th']).hf-pin-edge-left {
+  box-shadow: inset -1px 0 0 var(--hf-border), 8px 0 8px -6px color-mix(in srgb, var(--hf-ink) 14%, transparent);
+}
+
+.hf-ui .hf-table-scrolled-right :is(td[data-slot='td'], th[data-slot='th']).hf-pin-edge-right {
+  box-shadow: inset 1px 0 0 var(--hf-border), -8px 0 8px -6px color-mix(in srgb, var(--hf-ink) 14%, transparent);
+}
+
+/* Totals row (artboard 02): a 40px footer fixed to the bottom of the surface, on the header's wash,
+ * 13px/600 with tabular figures aligned like their column. Every cell is opaque (pinned ones keep
+ * their offsets), and a hairline on top separates it from the last row. */
+.hf-ui .hf-data-table tfoot.hf-table-totals {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background-color: var(--hf-table-head);
+  backdrop-filter: none;
+}
+
+.hf-ui .hf-data-table tfoot.hf-table-totals th[data-slot='th'] {
+  height: 2.5rem;
+  padding-block: 0;
+  background-color: var(--hf-table-head);
+  box-shadow: inset 0 1px 0 var(--hf-border);
+  color: var(--hf-heading);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  vertical-align: middle;
+}
+
+/* UTable's absolute separator row would paint over the unpinned cells; the cells draw the hairline. */
+.hf-ui .hf-data-table tfoot.hf-table-totals > tr[data-slot='separator'] {
+  display: none;
+}
+
+/* Pinned sides only: UTable writes `data-pinned="false"` on every unpinned cell. */
+.hf-ui .hf-data-table tfoot.hf-table-totals th[data-slot='th']:is([data-pinned='left'], [data-pinned='right']) {
+  z-index: 3;
+}
+
+.hf-ui .hf-table-scrolled-left tfoot.hf-table-totals th[data-slot='th'].hf-pin-edge-left {
+  box-shadow: inset 0 1px 0 var(--hf-border), inset -1px 0 0 var(--hf-border),
+    8px 0 8px -6px color-mix(in srgb, var(--hf-ink) 14%, transparent);
+}
+
+.hf-ui .hf-table-scrolled-right tfoot.hf-table-totals th[data-slot='th'].hf-pin-edge-right {
+  box-shadow: inset 0 1px 0 var(--hf-border), inset 1px 0 0 var(--hf-border),
+    -8px 0 8px -6px color-mix(in srgb, var(--hf-ink) 14%, transparent);
+}
+
+/* The label runs over the empty footer cells after it (AppDataTable measures them, within the
+ * label's pinned group, into `--hf-totals-span`) and ends in an ellipsis only at the first cell with
+ * a value. Its cell stays one column wide and is raised above those neighbours. */
+.hf-ui .hf-data-table tfoot.hf-table-totals th[data-slot='th'][data-hf-totals-label] {
+  overflow: visible;
+  z-index: 2;
+}
+
+.hf-ui .hf-data-table tfoot.hf-table-totals th[data-slot='th'][data-hf-totals-label='pinned'] {
+  z-index: 4;
+}
+
+.hf-ui .hf-table-totals__overflow {
+  position: relative;
+  display: block;
+  max-width: calc(var(--hf-totals-span, 100%) - 1.5rem);
+  width: max-content;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hf-ui .hf-table-totals__label {
+  color: var(--hf-heading);
+}
+
+.hf-ui .hf-table-totals__scope {
+  margin-left: 0.5rem;
+  color: var(--hf-muted);
+  font-weight: 500;
+}
+
+/* Resize handle: an 8px hit area on the header's right edge with a faint line on hover and the
+ * action colour while dragging or focused (keyboard: Alt+←/→). */
+.hf-ui [data-resize-handle] {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.hf-ui [data-resize-handle]::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 0;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 2px;
+  background-color: transparent;
+  transition: background-color 120ms ease;
+}
+
+.hf-ui [data-resize-handle]:focus-visible {
+  outline: none;
+}
+
+.hf-ui th[data-slot='th']:hover [data-resize-handle]::after {
+  background-color: var(--hf-border);
+}
+
+.hf-ui :is([data-resize-handle]:hover, [data-resize-handle]:focus-visible, [data-resize-handle][data-resizing])::after {
+  background-color: var(--hf-action);
+}
+
+/* Header of an arrangeable column (artboard 01): the label is the focus target; the grip and the ⋯
+ * menu float over the cell's padding on hover or focus, so the label keeps its place and width. */
+.hf-ui .hf-th {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.hf-ui .hf-th-target {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-width: 0;
+  min-height: 2rem;
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+  outline: none;
+}
+
+.hf-ui .hf-th-target:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--hf-focus);
+}
+
+.hf-ui th[data-slot='th'].text-right .hf-th-target {
+  justify-content: flex-end;
+}
+
+/* The ⋯ overlays the label's last 18px; a left-aligned label runs under its fade, but the sort
+ * arrow, a right-aligned label and the pin mark sit at that edge, so they get the room. */
+.hf-ui :is(th[data-slot='th']:hover, th[data-slot='th']:focus-within) :is(.hf-th-target:has(.hf-th-sort), th[data-slot='th'].text-right .hf-th-target) {
+  padding-right: 1.25rem;
+}
+
+.hf-ui :is(th[data-slot='th']:hover, th[data-slot='th']:focus-within) .hf-th:has(.hf-th-pin) {
+  padding-right: 1.25rem;
+}
+
+/* The grip sits in the cell's 12px left padding, its dots about 6px clear of the label (its box
+ * runs 2px past the cell edge, where the cell clips only empty space). */
+.hf-ui .hf-th-grip {
+  position: absolute;
+  top: 50%;
+  left: -0.875rem;
+  display: grid;
+  place-items: center;
+  width: 0.75rem;
+  height: 1.5rem;
+  transform: translateY(-50%);
+  color: var(--hf-muted);
+  opacity: 0;
+  cursor: grab;
+  transition: opacity 120ms ease;
+}
+
+.hf-ui .hf-th-grip__icon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+/* The ⋯ ends 2px short of the cell edge (the resize handle keeps its outer 6px) and fades the label
+ * out behind it. */
+.hf-ui .hf-th-menu {
+  position: absolute;
+  top: 50%;
+  right: -0.625rem;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 2rem;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 4px;
+  background-color: var(--hf-table-head);
+  color: var(--hf-muted);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 120ms ease, background-color 120ms ease;
+}
+
+.hf-ui .hf-th-menu::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 100%;
+  bottom: 0;
+  width: 0.75rem;
+  background: linear-gradient(to right, transparent, var(--hf-table-head));
+  pointer-events: none;
+}
+
+.hf-ui .hf-th-menu:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--hf-focus);
+}
+
+.hf-ui :is(.hf-th-menu:hover, .hf-th-menu[aria-expanded='true']) {
+  background-color: color-mix(in srgb, var(--hf-ink) 8%, var(--hf-table-head));
+  color: var(--hf-ink);
+}
+
+.hf-ui :is(th[data-slot='th']:hover, th[data-slot='th']:focus-within) :is(.hf-th-grip, .hf-th-menu),
+.hf-ui .hf-th-menu[aria-expanded='true'] {
+  opacity: 1;
+}
+
+.hf-ui .hf-th-pin {
+  flex: none;
+  width: 0.8125rem;
+  height: 0.8125rem;
+  color: var(--hf-active);
+}
+
+/* SortableHeader inside a managed header: the arrow shows on hover/focus, always once sorted. */
+.hf-ui .hf-th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.hf-ui .hf-th-sort-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hf-ui .hf-th-sort-icon {
+  display: none;
+  flex: none;
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--hf-muted);
+}
+
+.hf-ui :is(th[data-slot='th']:hover, th[data-slot='th']:focus-within) .hf-th-sort-icon,
+.hf-ui .hf-th-sort[data-sorted] .hf-th-sort-icon {
+  display: block;
+}
+
+.hf-ui .hf-th-sort[data-sorted] {
+  color: var(--hf-ink);
+}
+
+.hf-ui .hf-th-sort[data-sorted] .hf-th-sort-icon {
+  color: var(--hf-active);
+}
+
+/* Column drag: the dragged column's cells, the ghost under the pointer and the drop line. */
+.hf-ui :is(td[data-slot='td'], th[data-slot='th']).hf-col-dragging {
+  background-color: color-mix(in srgb, var(--hf-active-soft) 70%, var(--hf-surface));
+  color: var(--hf-muted);
+}
+
+/* The drag adds hf-table-dragging to <body>; the rule stays scoped to the themed app root. */
+.hf-table-dragging .hf-ui,
+.hf-table-dragging .hf-ui * {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.hf-ui .hf-table-drag-ghost {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 2.25rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--hf-action);
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-surface);
+  color: var(--hf-ink);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--hf-ink) 16%, transparent);
+  transform: translate(10px, -50%) rotate(-1.5deg);
+  pointer-events: none;
+}
+
+.hf-ui .hf-table-drop-line {
+  position: fixed;
+  z-index: 55;
+  width: 2px;
+  border-radius: 2px;
+  background-color: var(--hf-action);
+  pointer-events: none;
+}
+
+.hf-ui .hf-table-drop-line::before,
+.hf-ui .hf-table-drop-line::after {
+  content: '';
+  position: absolute;
+  left: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--hf-action);
+}
+
+.hf-ui .hf-table-drop-line::before {
+  top: -4px;
+}
+
+.hf-ui .hf-table-drop-line::after {
+  bottom: -4px;
+}
+
+/* Row density (artboard 01): AppDataTable sets `data-density` on the table root. Cómoda (64px) is
+ * today's row and keeps Nuxt's cell padding; Compacta (40px) and Normal (48px) set the row height
+ * (a cell height is its minimum), a thin vertical padding and only the primary line. The header
+ * keeps its own height in every density. */
+.hf-ui [data-density='compact'] td[data-slot='td'] {
+  height: 2.5rem;
+  padding-block: 0.125rem;
+}
+
+.hf-ui [data-density='normal'] td[data-slot='td'] {
+  height: 3rem;
+  padding-block: 0.125rem;
+}
+
+.hf-ui :is([data-density='compact'], [data-density='normal']) .hf-row-secondary {
+  display: none;
+}
+
+.hf-ui [data-density='compact'] .hf-row-actions-trigger {
+  width: 2.25rem;
+  min-width: 2.25rem;
+  height: 2.25rem;
+}
+
+/* Density control: a segmented radio group as tall as a control (top of the «Columnas» panel). */
+.hf-ui .hf-density {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: var(--hf-control-height);
+  padding: 3px;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-surface);
+}
+
+.hf-ui .hf-density__option {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  min-height: 0;
+  padding: 0 0.625rem;
+  border: 0;
+  border-radius: 4px;
+  background-color: transparent;
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.hf-ui .hf-density__option:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--hf-surface-muted) 50%, var(--hf-surface));
+  color: var(--hf-ink);
+}
+
+.hf-ui .hf-density__option[aria-checked='true'] {
+  background-color: var(--hf-active-soft);
+  color: var(--hf-active);
+  font-weight: 600;
+}
+
+.hf-ui .hf-density__option:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 0;
+}
+
+.hf-ui .hf-density__option:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* «Guardado en tu vista»: a quiet success pill that fades in and out beside the controls. */
+/* Anchored under the toolbar's right edge, out of the flow: it never pushes or covers a control. */
+.hf-ui .hf-toolbar-actions {
+  position: relative;
+}
+
+.hf-ui .hf-table-saved {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 1.75rem;
+  padding: 0 0.625rem;
+  border-radius: 999px;
+  background-color: color-mix(in srgb, var(--hf-success) 12%, var(--hf-surface));
+  color: var(--hf-success);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* A table without a toolbar shows it at its surface's top-right corner, over the header row (and
+ * its sticky and pinned cells) for the two seconds it lasts. */
+.hf-ui .hf-table-saved--surface {
+  top: 0.375rem;
+  right: 0.5rem;
+  z-index: 6;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--hf-ink) 10%, transparent);
+}
+
+.hf-ui .hf-table-saved__icon {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.hf-ui :is(.hf-table-saved-enter-active, .hf-table-saved-leave-active) {
+  transition: opacity 200ms ease;
+}
+
+.hf-ui :is(.hf-table-saved-enter-from, .hf-table-saved-leave-to) {
+  opacity: 0;
+}
+
+/* Bulk bar (artboard 01): fixed to the viewport while rows are selected, centred over its table
+ * (AppDataTable measures the surface into --hf-bulk-center / --hf-bulk-max), above the table's
+ * sticky and pinned cells and below overlays and toasts. */
+.hf-ui .hf-bulk-bar {
+  position: fixed;
+  bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  left: var(--hf-bulk-center, 50%);
+  translate: -50% 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: min(var(--hf-bulk-max, 100vw), calc(100vw - 2rem));
+  padding: 0.5rem;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background-color: var(--hf-surface);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--hf-ink) 16%, transparent);
+  overflow-x: auto;
+}
+
+.hf-ui .hf-bulk-bar__count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  height: 2rem;
+  padding: 0 0.625rem;
+  border-radius: 6px;
+  background-color: var(--hf-active-soft);
+  color: var(--hf-active);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.hf-ui .hf-bulk-bar__summary {
+  padding: 0 0.5rem;
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.hf-ui .hf-bulk-bar__summary :is(b, strong) {
+  color: var(--hf-ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.hf-ui .hf-bulk-bar__sep {
+  flex: none;
+  width: 1px;
+  height: 1.5rem;
+  background-color: var(--hf-border);
+}
+
+.hf-ui .hf-bulk-bar__danger {
+  color: var(--hf-danger);
+}
+
+.hf-ui :is(.hf-bulk-bar-enter-active, .hf-bulk-bar-leave-active) {
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.hf-ui :is(.hf-bulk-bar-enter-from, .hf-bulk-bar-leave-to) {
+  opacity: 0;
+  transform: translateY(0.5rem);
+}
+
+/* «Columnas» panel (artboard 01): three sections of draggable rows with pin buttons and switches.
+ * The popover root carries `hf-theme hf-ui`, so the descendant form reaches it. */
+.hf-ui .hf-columns-panel {
+  display: flex;
+  flex-direction: column;
+  width: 23.25rem;
+  max-width: calc(100vw - 2rem);
+  max-height: min(37.5rem, calc(100vh - 2rem));
+  color: var(--hf-ink);
+}
+
+.hf-ui .hf-columns-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.5rem 0.25rem 1rem;
+}
+
+.hf-ui .hf-columns-panel__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+.hf-ui .hf-columns-panel__sub {
+  margin: 0;
+  padding: 0 1rem 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+}
+
+/* «Densidad» on top of the panel: the segmented control spans the panel width. */
+.hf-ui .hf-columns-density {
+  padding: 0 1rem 0.75rem;
+  border-bottom: 1px solid var(--hf-border);
+}
+
+.hf-ui .hf-columns-density .hf-columns-section__title {
+  padding-inline: 0;
+}
+
+.hf-ui .hf-columns-density .hf-density {
+  display: flex;
+  width: 100%;
+}
+
+.hf-ui .hf-columns-density .hf-density__option {
+  flex: 1 1 0;
+  justify-content: center;
+}
+
+.hf-ui .hf-columns-panel__body {
+  position: relative;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 0.5rem 0.5rem;
+}
+
+.hf-ui .hf-columns-section {
+  padding-top: 0.5rem;
+}
+
+.hf-ui .hf-columns-section__title {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--hf-muted);
+}
+
+.hf-ui .hf-columns-section__count {
+  font-variant-numeric: tabular-nums;
+}
+
+.hf-ui .hf-columns-list {
+  position: relative;
+  min-height: 2.75rem;
+  margin: 0;
+  padding: 0.125rem 0;
+  list-style: none;
+  border-radius: 8px;
+}
+
+.hf-ui .hf-columns-list--drop {
+  background-color: var(--hf-active-soft);
+  outline: 1px dashed var(--hf-active);
+  outline-offset: -1px;
+}
+
+.hf-ui .hf-columns-empty {
+  display: flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: 0 0.625rem;
+  border: 1px dashed var(--hf-border);
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+}
+
+.hf-ui .hf-columns-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 2.75rem;
+  padding: 0 0.25rem;
+  border-radius: 6px;
+}
+
+.hf-ui .hf-columns-row:hover {
+  background-color: color-mix(in srgb, var(--hf-surface-muted) 45%, var(--hf-surface));
+}
+
+.hf-ui .hf-columns-row--lifting {
+  opacity: 0.45;
+}
+
+.hf-ui .hf-columns-row__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.hf-ui .hf-columns-row--off .hf-columns-row__label {
+  color: var(--hf-muted);
+}
+
+.hf-ui .hf-columns-grip {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 2.25rem;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--hf-muted);
+  cursor: grab;
+  touch-action: none;
+}
+
+.hf-ui .hf-columns-pin {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--hf-muted);
+}
+
+.hf-ui :is(.hf-columns-grip, .hf-columns-pin):hover {
+  color: var(--hf-ink);
+}
+
+.hf-ui .hf-columns-pin:hover {
+  background-color: color-mix(in srgb, var(--hf-ink) 7%, transparent);
+}
+
+.hf-ui .hf-columns-pin[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--hf-active) 35%, transparent);
+  background-color: var(--hf-active-soft);
+  color: var(--hf-active);
+}
+
+.hf-ui :is(.hf-columns-grip, .hf-columns-pin):focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: -2px;
+}
+
+.hf-ui .hf-columns-guide {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  z-index: 3;
+  height: 2px;
+  border-radius: 2px;
+  background-color: var(--hf-action);
+  pointer-events: none;
+}
+
+.hf-ui .hf-columns-panel__foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.5rem;
+  border-top: 1px solid var(--hf-border);
+}
+
+/* «Columnas» sheet below md: visibility switches only. */
+.hf-ui .hf-columns-sheet {
+  display: flex;
+  flex-direction: column;
+  max-height: 78vh;
+}
+
+.hf-ui .hf-columns-sheet__grab {
+  width: 2.25rem;
+  height: 0.25rem;
+  margin: 0.5rem auto 0;
+  border-radius: 2px;
+  background-color: var(--hf-border);
+}
+
+.hf-ui .hf-columns-sheet__body {
+  min-height: 0;
+  margin: 0;
+  padding: 0 0.5rem;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.hf-ui .hf-columns-sheet__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  padding: 0 0.25rem 0 0.75rem;
+  border-bottom: 1px solid var(--hf-border);
+}
+
+.hf-ui .hf-columns-sheet__row:last-child {
+  border-bottom: 0;
+}
+
+.hf-ui .hf-columns-sheet__note {
+  font-size: 0.75rem;
+  color: var(--hf-muted);
+}
+
+.hf-ui .hf-columns-sheet__foot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--hf-border);
+}
+
+/* Saved views (artboard 02): a row of tabs across the top of the table surface, above the toolbar,
+ * with «Cambios sin guardar», «Restablecer» and «Guardar vista» at its right end. */
+.hf-ui .hf-views {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  min-height: 3.25rem;
+  padding: 0 0.75rem 0 0.5rem;
+  border-bottom: 1px solid var(--hf-border);
+}
+
+.hf-ui .hf-views__tabs {
+  display: flex;
+  align-items: stretch;
+  align-self: stretch;
+  gap: 2px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.hf-ui .hf-views__tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  margin-top: 0.25rem;
+  padding: 0 0.75rem;
+  border: 0;
+  border-radius: var(--hf-radius-control) var(--hf-radius-control) 0 0;
+  background-color: transparent;
+  color: var(--hf-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.hf-ui .hf-views__tab:hover {
+  background-color: color-mix(in srgb, var(--hf-surface-muted) 45%, var(--hf-surface));
+  color: var(--hf-ink);
+}
+
+.hf-ui .hf-views__tab[aria-selected='true'] {
+  color: var(--hf-heading);
+  font-weight: 600;
+}
+
+.hf-ui .hf-views__tab[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  right: 0.5rem;
+  bottom: -1px;
+  left: 0.5rem;
+  height: 2px;
+  border-radius: 2px;
+  background-color: var(--hf-action);
+}
+
+.hf-ui .hf-views__tab:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: -2px;
+}
+
+.hf-ui .hf-views__count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--hf-muted);
+}
+
+.hf-ui .hf-views__dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--hf-warning);
+}
+
+.hf-ui .hf-views__grow {
+  flex: 1;
+}
+
+.hf-ui .hf-views__unsaved {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--hf-warning);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.hf-ui .hf-views__action {
+  flex: none;
+}
+
+.hf-ui .hf-views__select {
+  min-width: 0;
+  max-width: 14rem;
+  padding-inline-start: 3.25rem;
+}
+
+.hf-ui .hf-views__select-label {
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.hf-ui .hf-views__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.hf-ui .hf-views__label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--hf-ink);
+}
+
+.hf-ui .hf-views__error {
+  margin: 0;
+  color: var(--hf-danger);
+  font-size: 0.8125rem;
+}
+
+.hf-ui .hf-views__hint {
+  margin: 0;
+  color: var(--hf-muted);
+  font-size: 0.75rem;
+}
+
+.hf-ui .hf-views__form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+@media (max-width: 767px) {
+  .hf-ui .hf-views {
+    min-height: 3rem;
+    padding: 0 0.5rem;
+  }
+
+  /* Icon-only below md: square buttons as tall as the «Vista:» select beside them. */
+  .hf-ui .hf-views__action {
+    justify-content: center;
+    width: var(--hf-control-height);
+    height: var(--hf-control-height);
+    padding: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hf-ui :is(td[data-slot='td'], th[data-slot='th']):is(.hf-pin-edge-left, .hf-pin-edge-right),
+  .hf-ui [data-resize-handle]::after,
+  .hf-ui :is(.hf-th-grip, .hf-th-menu) {
+    transition: none;
+  }
+
+  .hf-ui :is(.hf-table-saved-enter-active, .hf-table-saved-leave-active, .hf-bulk-bar-enter-active, .hf-bulk-bar-leave-active) {
+    transition: none;
+  }
+
+  .hf-ui :is(.hf-table-saved, .hf-bulk-bar) {
+    transform: none;
+  }
+
+  .hf-ui .hf-table-drag-ghost {
+    transform: translate(10px, -50%);
+  }
 }
 
 .hf-ui .hf-data-table tr[data-slot='tr']:hover {
@@ -361,6 +1299,46 @@ body.hf-app {
   text-align: right;
 }
 
+/* Plain tables (premium tables S7): the small <table>s inside forms and details wear the
+ * AppDataTable look without its machinery — the same header wash and muted 13px/600 headings,
+ * hairline rows on --hf-border and tabular figures. Spacing and the table model stay the
+ * feature's. Rows hover only with `.hf-plain-table--hover`, for rows that do something. */
+.hf-ui .hf-plain-table {
+  --hf-table-head: color-mix(in srgb, var(--hf-ink) 4%, var(--hf-surface));
+}
+
+.hf-ui .hf-plain-table thead {
+  background-color: var(--hf-table-head);
+}
+
+.hf-ui .hf-plain-table thead th {
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Cells draw the hairline (any table model); Tailwind `divide-*` borders take the same colour. */
+.hf-ui .hf-plain-table :is(th, td) {
+  border-bottom: 1px solid var(--hf-border);
+}
+
+.hf-ui .hf-plain-table :is(thead, tbody, tr) {
+  border-color: var(--hf-border);
+}
+
+.hf-ui .hf-plain-table tbody tr:last-child > :is(th, td) {
+  border-bottom: 0;
+}
+
+.hf-ui .hf-plain-table :is(td, .hf-figure) {
+  font-variant-numeric: tabular-nums;
+}
+
+.hf-ui .hf-plain-table--hover tbody tr:hover {
+  background-color: color-mix(in srgb, var(--hf-active-soft) 55%, var(--hf-surface));
+}
+
 /* ── Status badge: dot + tinted soft background (StatusBadge.vue) ─────────── */
 
 .hf-ui .hf-status-badge {
@@ -423,6 +1401,23 @@ body.hf-app {
   width: 0.875rem;
   height: 0.875rem;
   flex: none;
+}
+
+/* In a table cell the badge never runs into the next column: at a narrow width it shrinks to the
+ * cell and its label ends in an ellipsis (an inline block, so the text can carry one). */
+.hf-ui .hf-data-table td[data-slot='td'] .hf-status-badge {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: calc(1.5rem - 2px);
+  vertical-align: middle;
+}
+
+.hf-ui .hf-data-table td[data-slot='td'] .hf-status-badge :is(.hf-status-badge__dot, .hf-status-badge__icon) {
+  display: inline-block;
+  margin-right: 0.1875rem;
+  vertical-align: middle;
 }
 
 /* ── Row actions menu (RowActionsMenu.vue) ───────────────────────────────── */

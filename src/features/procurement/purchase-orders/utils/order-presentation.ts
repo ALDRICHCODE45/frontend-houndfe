@@ -26,6 +26,41 @@ export function orderTotals(order: Pick<PurchaseOrderSummary, 'totals'>) {
   return totals.map(total => ({ key: total.taxBasis, text: formatDecimalMoney(total.amount, total.currency), title: decimalMoneyTitle(total.amount, total.currency), label: totals.length > 1 ? basisLabels[total.taxBasis] : null }))
 }
 
+/** Adds plain decimal strings exactly (scaled integers), e.g. "0.1" + "0.2" = "0.3". */
+function addDecimals(amounts: readonly string[]): string {
+  const scale = Math.max(0, ...amounts.map(amount => amount.split('.')[1]?.length ?? 0))
+  const scaled = (amount: string) => {
+    const negative = amount.startsWith('-')
+    const [whole = '0', fraction = ''] = amount.replace('-', '').split('.')
+    const value = BigInt(whole + fraction.padEnd(scale, '0'))
+    return negative ? -value : value
+  }
+  const total = amounts.reduce((sum, amount) => sum + scaled(amount), 0n)
+  const digits = (total < 0n ? -total : total).toString().padStart(scale + 1, '0')
+  const whole = digits.slice(0, digits.length - scale)
+  return `${total < 0n ? '-' : ''}${whole}${scale ? `.${digits.slice(-scale)}` : ''}`
+}
+
+/**
+ * The orders' Total for the list's totals row: one exact sum per tax basis (never mixed), the basis
+ * labelled only when both appear, then how many orders have no total yet. Empty when nothing to add.
+ */
+export function ordersTotalText(orders: readonly Pick<PurchaseOrderSummary, 'totals'>[]): string {
+  const byBasis = new Map<OrderTotal['taxBasis'], string[]>()
+  let missing = 0
+  for (const order of orders) {
+    if (!order.totals?.length) missing += 1
+    for (const total of order.totals ?? []) byBasis.set(total.taxBasis, [...(byBasis.get(total.taxBasis) ?? []), total.amount])
+  }
+  const bases = (['EXCLUDES_TAX', 'INCLUDES_TAX'] as const).filter(basis => byBasis.has(basis))
+  const parts = bases.map(basis => {
+    const text = formatDecimalMoney(addDecimals(byBasis.get(basis)!), 'MXN')
+    return bases.length > 1 ? `${text} ${basisLabels[basis]}` : text
+  })
+  if (missing > 0) parts.push(`${missing} sin total`)
+  return parts.join(' · ')
+}
+
 export interface RowActionGates { canEdit: boolean; canConfirm: boolean; canCancel: boolean; canDelete: boolean; disabled?: boolean }
 export type OrderRowActionKey = 'open' | 'confirm' | 'cancel' | 'discard'
 export function orderRowActions(order: PurchaseOrderSummary, gates: RowActionGates): Array<RowAction & { key: OrderRowActionKey }> {

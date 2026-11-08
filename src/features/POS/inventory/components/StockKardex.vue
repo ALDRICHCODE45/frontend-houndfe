@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
+import { useTablePreferences } from '@/core/shared/composables/useTablePreferences'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { TableColumn } from '@/core/shared/types/table.types'
 import type { KardexFilterOption, StockMovement } from '../interfaces/inventory.types'
@@ -53,6 +54,12 @@ const columns = computed<TableColumn<KardexRow, unknown>[]>(() => [
   { id: 'balance', header: 'Saldo', enableSorting: false, meta: right },
   { id: 'total', header: 'Total', enableSorting: false, meta: right },
 ])
+// Column layout saved per user in this browser, one for every kardex (never per product).
+const layout = useTablePreferences({
+  persistKey: 'pos-stock-kardex',
+  columnIds: () => columns.value.map(column => column.id ?? ''),
+})
+const { columnOrder, columnPinning, columnSizing, columnVisibility, density } = layout
 const number = (value: number) => value.toLocaleString('es-MX')
 const signed = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${number(Math.abs(value))}`
 const isActive = (option: KardexFilterOption | null) =>
@@ -74,10 +81,13 @@ const toggleLabel = (row: KardexRow) => `${isOpen(row) ? 'Ocultar' : 'Ver'} el d
     </div>
     <div class="kardex-surface">
     <AppDataTable
+      v-model:column-order="columnOrder" v-model:column-pinning="columnPinning" v-model:column-sizing="columnSizing"
+      v-model:column-visibility="columnVisibility" v-model:density="density" :persist-layout="true"
       :show-toolbar="false" :columns="columns" :data="rows" :loading="loading" :fetching="fetching" :error="error"
       error-message="No se pudieron cargar los movimientos" :empty-state="emptyState" :filtered="filtered"
       :no-match-title="copy.noMatch" display-mode="auto" mobile-render="cards"
       class="hf-data-table" @refresh="emit('refresh')" @clear-filters="choose(null)"
+      @reset-columns="layout.reset"
     >
       <template #movement-cell="{ row }">
         <div class="kardex-movement" :class="{ 'is-child': row.original.kind === 'child' }">

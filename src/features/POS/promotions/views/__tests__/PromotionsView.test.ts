@@ -3,6 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
 import { ref } from 'vue'
 import { AxiosError } from 'axios'
+import { columnLabel } from '@/core/shared/components/DataTable/columnLayout.utils'
 import PromotionsView from '../PromotionsView.vue'
 import { promotionApi } from '../../api/promotion.api'
 import type { PromotionResponse } from '../../interfaces/promotion.types'
@@ -158,8 +159,26 @@ const STUBS = {
       'activeFilterCount',
       'showAddButton',
       'rowOpen',
+      'columnPinning',
+      'columnVisibility',
+      'columnOrder',
+      'columnSizing',
+      'density',
+      'persistLayout',
+      'selectedLabel',
     ],
-    emits: ['add', 'refresh', 'empty-action', 'clear-filters'],
+    emits: [
+      'add',
+      'refresh',
+      'empty-action',
+      'clear-filters',
+      'reset-columns',
+      'update:columnPinning',
+      'update:columnVisibility',
+      'update:columnOrder',
+      'update:columnSizing',
+      'update:density',
+    ],
     // The view passes `:error="isError"` and the mock may return either a
     // real Vue ref (after auto-unwrap → boolean) or a plain `{ value: ... }`
     // object (no auto-unwrap). Resolve both forms with a small helper.
@@ -412,6 +431,61 @@ describe('PromotionsView', () => {
     expect(surface.exists()).toBe(true)
     expect(surface.find('h1').exists()).toBe(false)
     expect(surface.find('[data-testid="app-data-table"]').exists()).toBe(true)
+  })
+
+  // ── Column layout (premium tables T9) ─────────────────────────────────────
+  it('binds the persisted layout (pos-promotions), persist-layout, «seleccionadas» and «Restablecer columnas»', async () => {
+    const { useServerTable } = await import('@/core/shared/composables/useServerTable')
+    const base = useServerTable({} as never)
+    const layout = {
+      columnPinning: r({ left: [], right: ['actions'] }),
+      columnVisibility: r({}),
+      columnOrder: r<string[]>([]),
+      columnSizing: r<Record<string, number>>({}),
+      density: r('comfortable'),
+      resetLayout: vi.fn(),
+    }
+    vi.mocked(useServerTable).mockReturnValueOnce({ ...base, ...layout } as unknown as ReturnType<
+      typeof useServerTable
+    >)
+    const wrapper = mountView()
+    expect(vi.mocked(useServerTable).mock.lastCall?.[0]).toMatchObject({ persistKey: 'pos-promotions' })
+
+    const table = wrapper.getComponent(STUBS.AppDataTable)
+    expect(table.props()).toMatchObject({
+      persistLayout: true,
+      selectedLabel: { one: 'seleccionada', other: 'seleccionadas' },
+      columnOrder: [],
+      columnSizing: {},
+      density: 'comfortable',
+      columnPinning: { left: [], right: ['actions'] },
+      columnVisibility: {},
+    })
+
+    table.vm.$emit('update:columnOrder', ['createdAt', 'title'])
+    table.vm.$emit('update:columnSizing', { title: 320 })
+    table.vm.$emit('update:columnPinning', { left: ['title'], right: ['actions'] })
+    table.vm.$emit('update:columnVisibility', { method: false })
+    table.vm.$emit('update:density', 'compact')
+    expect(layout.columnOrder.value).toEqual(['createdAt', 'title'])
+    expect(layout.columnSizing.value).toEqual({ title: 320 })
+    expect(layout.columnPinning.value).toEqual({ left: ['title'], right: ['actions'] })
+    expect(layout.columnVisibility.value).toEqual({ method: false })
+    expect(layout.density.value).toBe('compact')
+
+    table.vm.$emit('reset-columns')
+    expect(layout.resetLayout).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('names every column for the «Columnas» panel, never with its id', async () => {
+    const { usePromotionColumns } = await vi.importActual<
+      typeof import('../../composables/usePromotionColumns')
+    >('../../composables/usePromotionColumns')
+    const labels = usePromotionColumns()
+      .columns.filter((column) => column.id !== 'select')
+      .map(columnLabel)
+    expect(labels).toEqual(['Promoción', 'Estado', 'Método', 'Cupo', 'Inicio', 'Creada', 'Acciones'])
   })
 
   it('renders the AppDataTable component', () => {

@@ -44,6 +44,15 @@ describe('inline toolbar filter layout (md+)', () => {
     expect(classes(document.querySelector('.hf-toolbar-search'))).toEqual(expect.arrayContaining(['w-full', 'sm:max-w-sm']))
     expect(classes(document.querySelector('.hf-toolbar-filters'))).toEqual(expect.arrayContaining(['min-w-0', 'flex-1']))
   })
+  it('lets the search shrink to a floor before the filters, so two filters plus the actions never overlap', () => {
+    mountToolbar()
+    const region = document.querySelector('.hf-toolbar-search-region')!
+    expect(classes(region)).toContain('min-w-0')
+    expect(classes(document.querySelector('.hf-toolbar-search'))).toEqual(expect.arrayContaining(['min-w-48', 'shrink']))
+    expect(classes(document.querySelector('.hf-toolbar-actions'))).toContain('shrink-0')
+    // The filters' basis is their content and they never shrink, so the search is what gives way.
+    expect(classes(document.querySelector('.hf-toolbar-filters'))).toEqual(expect.arrayContaining(['basis-auto', 'shrink-0']))
+  })
   it('dissolves the mobile section card on md+ and keeps the select at a fixed width that never shrinks away', () => {
     mountToolbar()
     const select = document.querySelector('[data-testid="status-filter"]')!

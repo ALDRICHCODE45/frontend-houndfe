@@ -464,7 +464,7 @@ const areaFill = `url(#${gradientId})`
         <div class="mt-2 min-w-0 overflow-x-auto">
           <table
             data-testid="branch-sales-trend-table"
-            class="w-full min-w-0 border-collapse text-left"
+            class="hf-plain-table dashboard-trend-data w-full min-w-0 text-left"
           >
             <caption class="px-1 py-2 text-left text-xs text-muted">
               {{
@@ -472,29 +472,25 @@ const areaFill = `url(#${gradientId})`
               }}
             </caption>
             <thead>
-              <tr class="border-b border-default">
-                <th scope="col" class="px-1 py-2 text-xs font-semibold text-muted">Fecha</th>
-                <th scope="col" class="px-1 py-2 text-right text-xs font-semibold text-muted">
+              <tr>
+                <th scope="col">Fecha</th>
+                <th scope="col" class="text-right">
                   {{ selectedMetric.label }}
                 </th>
               </tr>
             </thead>
             <tbody>
-              <tr
-                v-for="point in props.points"
-                :key="point.date"
-                class="border-b border-default/60"
-              >
+              <tr v-for="point in props.points" :key="point.date">
                 <th
                   scope="row"
                   data-testid="branch-sales-trend-date"
-                  class="px-1 py-2 text-left text-xs font-normal tabular-nums text-default"
+                  class="text-left font-normal tabular-nums text-default"
                 >
                   {{ point.date }}
                 </th>
                 <td
                   data-testid="branch-sales-trend-value"
-                  class="px-1 py-2 text-right text-sm font-medium tabular-nums text-highlighted"
+                  class="text-right font-medium tabular-nums text-highlighted"
                 >
                   {{
                     formatBranchSalesTimeseriesValue(

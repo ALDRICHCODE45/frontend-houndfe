@@ -136,6 +136,12 @@ html.dark .dashboard-visual .branch-sales-trend-chart {
   font-size: 12px;
 }
 .dashboard-visual .dashboard-trend-table { padding: 0 24px 8px; }
+/* The chart's data table (premium tables S7): a small plain table wearing the shared
+ * `.hf-plain-table` look with its row hover; here only its geometry and the row headings. */
+.dashboard-visual .dashboard-trend-data { border-collapse: separate; border-spacing: 0; font-size: 14px; }
+.dashboard-visual .dashboard-trend-data thead th { height: 40px; padding: 0 12px; }
+.dashboard-visual .dashboard-trend-data tbody :is(th, td) { height: 40px; padding: 0 12px; font-size: 14px; }
+.dashboard-visual .dashboard-trend-data tbody th { color: var(--hf-ink); font-weight: 400; }
 .dashboard-visual .dashboard-trend-table summary {
   position: absolute;
   top: 6px;

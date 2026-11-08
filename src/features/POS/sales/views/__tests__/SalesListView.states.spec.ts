@@ -29,6 +29,9 @@ vi.mock('vue-router', () => ({
 const authMock = { userCan: vi.fn((_action: string) => true), currentTenantId: 'tenant-1' }
 vi.mock('@/features/auth/stores/useAuthStore', () => ({ useAuthStore: () => authMock }))
 
+// Row ⋮ triggers only: the header ⋯ column menus share aria-haspopup="menu".
+const ROW_MENU = 'button[aria-haspopup="menu"]:not([aria-label^="Opciones de la columna"])'
+
 const row: ConfirmedSaleRow = {
   id: 'sale-1',
   folio: 'A-202605-000012',
@@ -63,6 +66,10 @@ vi.mock('../../composables/useConfirmedSales', () => ({
     rowSelection: ref({}),
     columnPinning: ref({ left: [], right: [] }),
     columnVisibility: ref<Record<string, boolean>>({ paymentMethods: false, dueDate: false }),
+    columnOrder: ref<string[]>([]),
+    columnSizing: ref<Record<string, number>>({}),
+    density: ref('comfortable'),
+    resetLayout: vi.fn(),
     data: computed(() => state.data.value),
     totalCount: computed(() => state.data.value.length),
     pageCount: computed(() => (state.data.value.length ? 1 : 0)),
@@ -89,7 +96,6 @@ function mountList() {
         DataTableToolbar: { template: '<div data-testid="toolbar"><slot name="filters" /></div>' },
         DataTablePagination: { template: '<div data-testid="pagination" />' },
         DataTableFilters: true,
-        SalesListTabs: true,
       },
     },
   })
@@ -137,8 +143,9 @@ describe('SalesListView states — empty', () => {
 })
 
 describe('SalesListView states — tabs', () => {
-  // `SalesListTabs` is stubbed in this file: the stub exposes its props as attributes.
-  const showCounts = (wrapper: VueWrapper) => wrapper.get('sales-list-tabs-stub').attributes('showcounts')
+  // Premium tables T8: the counts live on the saved-view tabs that replaced the status tabs.
+  const showCounts = (wrapper: VueWrapper) =>
+    String(wrapper.findAll('[role="tab"] .hf-views__count').length > 0)
 
   it('hides the tab counts while there is nothing to count (no sales yet)', async () => {
     const wrapper = mountList()
@@ -233,7 +240,8 @@ describe('SalesListView states — data', () => {
     expect(wrapper.get('.sale-total').text()).toBe('$1,270.00')
     expect(wrapper.get('tbody tr').classes()).toContain('hf-clickable-row')
     // The only possible item would be "Ver venta", which the row click already does.
-    expect(wrapper.find('button[aria-haspopup="menu"]').exists()).toBe(false)
+    // Scoped to the table: the saved-views bar above it has its own «Guardar vista» menu.
+    expect(wrapper.get('[role="tabpanel"]').find(ROW_MENU).exists()).toBe(false)
     expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
     expect(wrapper.find('[data-testid="table-skeleton"]').exists()).toBe(false)
   })

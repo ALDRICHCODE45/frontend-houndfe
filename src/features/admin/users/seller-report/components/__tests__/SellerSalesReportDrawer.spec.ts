@@ -16,6 +16,13 @@ import { getMexicoCityRangePreset } from '@/core/shared/utils/mexicoCityCalendar
 import SellerSalesReportDrawer from '../SellerSalesReportDrawer.vue'
 import type { SellerSalesReport } from '../../interfaces/seller-report.types'
 
+// The confirmed list is an AppDataTable: its body rows, without the empty row.
+const confirmedRows = (wrapper: VueWrapper) =>
+  wrapper
+    .get('[data-testid="seller-report-confirmed-table"]')
+    .findAll('tbody tr')
+    .filter((row) => row.find('td[data-slot="td"]').exists())
+
 const apiMock = vi.hoisted(() => ({ getReport: vi.fn(), getReportPdf: vi.fn() }))
 vi.mock('../../api/sellerReport.api', () => ({ sellerReportApi: apiMock }))
 
@@ -204,7 +211,7 @@ describe('SellerSalesReportDrawer — request identity', () => {
     expect(wrapper.find('[data-testid="seller-report-metric-net-sales"]').text()).toContain(
       '$1,160.00',
     )
-    expect(wrapper.findAll('[data-testid="seller-report-confirmed-row"]')).toHaveLength(1)
+    expect(confirmedRows(wrapper)).toHaveLength(1)
     expect(downloadButton().attributes('disabled')).toBeUndefined()
     expect(downloadButton().text()).toContain('Descargar PDF')
   })
@@ -218,7 +225,7 @@ describe('SellerSalesReportDrawer — request identity', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-testid="seller-report-inactive-note"]').exists()).toBe(true)
-    expect(wrapper.findAll('[data-testid="seller-report-confirmed-row"]')).toHaveLength(1)
+    expect(confirmedRows(wrapper)).toHaveLength(1)
   })
 
   it('renders the report-local Nuxt UI date filter and stops querying when the window becomes invalid', async () => {
@@ -299,7 +306,7 @@ describe('SellerSalesReportDrawer — PDF download', () => {
     const wrapper = mountDrawer()
     await flushPromises()
     await flushPromises()
-    expect(wrapper.findAll('[data-testid="seller-report-confirmed-row"]')).toHaveLength(1)
+    expect(confirmedRows(wrapper)).toHaveLength(1)
 
     await wrapper.find('[data-testid="seller-report-download"]').trigger('click')
     await flushPromises()

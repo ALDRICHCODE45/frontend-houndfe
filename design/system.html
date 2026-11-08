@@ -129,6 +129,30 @@
   .tb { display: flex; align-items: center; gap: 8px; padding: 12px; }
   .tb .field { max-width: 360px; }
   .tb .spacer { flex: 1; }
+  /* Premium table layout: houndfe-ui.css .hf-th-* / .hf-pin-edge-* / .hf-columns-* / .hf-density */
+  .dt th.th-hover { position: relative; }
+  .th-grip { position: absolute; top: 50%; left: 0; display: grid; place-items: center; width: 12px; height: 24px; transform: translateY(-50%); color: var(--hf-muted); }
+  .th-menu { position: absolute; top: 50%; right: 2px; display: grid; place-items: center; width: 28px; height: 32px; transform: translateY(-50%); border-radius: 4px; background-color: color-mix(in srgb, var(--hf-ink) 8%, var(--hf-table-head)); color: var(--hf-ink); }
+  .th-pin { width: 13px; height: 13px; margin-left: 4px; vertical-align: -2px; color: var(--hf-active); }
+  .th-resize { position: absolute; top: 8px; right: 0; bottom: 8px; width: 2px; border-radius: 2px; background-color: var(--hf-border); }
+  .dt .pin-edge { background-color: var(--hf-surface); box-shadow: inset -1px 0 0 var(--hf-border), 8px 0 8px -6px color-mix(in srgb, var(--hf-ink) 14%, transparent); }
+  .dt th.pin-edge { background-color: var(--hf-table-head); }
+  .dt tr.hover td.pin-edge { background-color: color-mix(in srgb, var(--hf-surface-muted) 45%, var(--hf-surface)); }
+  .dt tr.pending td.pin-edge { background-color: var(--hf-warning-soft); }
+  .cols { width: 372px; margin-top: 8px; margin-left: auto; padding: 8px 0; background: var(--hf-surface); border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); box-shadow: 0 1px 2px color-mix(in srgb, var(--hf-ink) 5%, transparent); }
+  .cols-title { padding: 0 16px; color: var(--hf-heading); font-size: 16px; font-weight: 600; }
+  .cols-sec { display: flex; justify-content: space-between; padding: 4px 16px; color: var(--hf-muted); font-size: 12px; font-weight: 600; }
+  .density { display: flex; gap: 2px; height: var(--hf-control-height); margin: 0 16px 12px; padding: 3px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-control); background-color: var(--hf-surface); }
+  .density span { display: inline-flex; flex: 1 1 0; align-items: center; justify-content: center; border-radius: 4px; color: var(--hf-muted); font-size: 13px; font-weight: 500; }
+  .density span[aria-checked='true'] { background-color: var(--hf-active-soft); color: var(--hf-active); font-weight: 600; }
+  .cols-body { padding: 8px 8px 0; border-top: 1px solid var(--hf-border); }
+  .cols-row { display: flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 4px; border-radius: 6px; }
+  .cols-row .lbl { flex: 1; font-weight: 500; }
+  .cols-pin { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid transparent; border-radius: 6px; color: var(--hf-muted); }
+  .cols-pin.on { border-color: color-mix(in srgb, var(--hf-active) 35%, transparent); background-color: var(--hf-active-soft); color: var(--hf-active); }
+  .sw-on { width: 32px; height: 18px; border-radius: 9px; background-color: var(--hf-action); position: relative; }
+  .sw-on::after { content: ''; position: absolute; top: 2px; right: 2px; width: 14px; height: 14px; border-radius: 50%; background-color: var(--hf-on-action); }
+  .cols-note { padding: 8px 16px 0; color: var(--hf-muted); font-size: 13px; }
 
   /* Empty state: houndfe-ui.css .hf-empty-state */
   .empties { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -186,6 +210,10 @@
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
   <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M21.17 6.81a2.83 2.83 0 0 0-4-4L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5Z"/></symbol>
+  <symbol id="i-grip" viewBox="0 0 24 24"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></symbol>
+  <symbol id="i-hdots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></symbol>
+  <symbol id="i-columns" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></symbol>
   <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
 </svg>
 
@@ -286,26 +314,27 @@
   </section>
 
   <section aria-label="Fila de tabla">
-    <h2 class="sec-h">AppDataTable · fila con ⋮</h2>
+    <h2 class="sec-h">AppDataTable · fila con ⋮ · columnas</h2>
     <div class="surface">
       <div class="tb">
         <input class="field" type="text" placeholder="Buscar orden o proveedor" aria-label="Buscar orden o proveedor">
         <span class="spacer"></span>
+        <button class="btn btn-outline" type="button"><svg class="ico-16" aria-hidden="true"><use href="#i-columns"/></svg>Columnas</button>
         <button class="btn btn-primary" type="button"><svg class="ico-16" aria-hidden="true"><use href="#i-plus"/></svg>Nueva orden</button>
       </div>
       <table class="dt">
         <thead><tr>
-          <th scope="col">Orden</th><th scope="col" class="col-stat">Estado</th><th scope="col" class="col-num num">Total</th><th scope="col" class="col-act"><span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Acciones</span></th>
+          <th scope="col" class="th-hover pin-edge"><span class="th-grip" aria-hidden="true"><svg class="ico" style="width:12px;height:12px"><use href="#i-grip"/></svg></span>Orden<svg class="th-pin" aria-label="fijada a la izquierda"><use href="#i-pin"/></svg><span class="th-menu" aria-hidden="true"><svg class="ico"><use href="#i-hdots"/></svg></span><span class="th-resize" aria-hidden="true"></span></th><th scope="col" class="col-stat">Estado</th><th scope="col" class="col-num num">Total</th><th scope="col" class="col-act"><span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Acciones</span></th>
         </tr></thead>
         <tbody>
           <tr class="hover">
-            <td><span class="row-primary">Distribuidora Veterinaria del Norte</span><span class="row-secondary">Bodega principal · 3 renglones</span></td>
+            <td class="pin-edge"><span class="row-primary">Distribuidora Veterinaria del Norte</span><span class="row-secondary">Bodega principal · 3 renglones</span></td>
             <td class="col-stat"><span class="hf-status-badge" data-tone="success"><span class="dot"></span>Confirmada</span></td>
             <td class="num">$12,946.00</td>
             <td class="col-act"><button class="btn btn-ghost btn-icon" type="button" aria-label="Acciones de la orden de Distribuidora Veterinaria del Norte, confirmada"><svg class="ico-16" aria-hidden="true"><use href="#i-dots"/></svg></button></td>
           </tr>
           <tr class="pending">
-            <td><span class="row-primary">Mascotas y Más del Bajío</span><span class="row-secondary">Andén 3 · 2 renglones</span></td>
+            <td class="pin-edge"><span class="row-primary">Mascotas y Más del Bajío</span><span class="row-secondary">Andén 3 · 2 renglones</span></td>
             <td class="col-stat"><span class="hf-status-badge" data-tone="neutral"><span class="dot"></span>Borrador</span> </td>
             <td class="num"><span class="missing"><svg class="ico" aria-hidden="true"><use href="#i-warn"/></svg>Falta</span></td>
             <td class="col-act"><button class="btn btn-ghost btn-icon" type="button" aria-label="Acciones de la orden de Mascotas y Más del Bajío, borrador"><svg class="ico-16" aria-hidden="true"><use href="#i-dots"/></svg></button></td>
@@ -318,6 +347,22 @@
       <div class="item" role="menuitem"><svg class="ico-16" aria-hidden="true"><use href="#i-check"/></svg>Confirmar…</div>
       <hr>
       <div class="item danger" role="menuitem"><svg class="ico-16" aria-hidden="true"><use href="#i-trash"/></svg>Descartar borrador</div>
+    </div>
+    <p class="meta" style="margin-top:8px">Encabezado «Orden» en hover: asa, ⋯ y borde de ancho; fijada a la izquierda con divisor y sombra mientras hay desplazamiento.</p>
+    <div class="cols" role="group" aria-label="Panel Columnas, ejemplo abierto">
+      <p class="cols-title">Columnas</p>
+      <p class="cols-sec">Densidad</p>
+      <div class="density" role="radiogroup" aria-label="Densidad de filas">
+        <span role="radio" aria-checked="false">Compacta</span><span role="radio" aria-checked="false">Normal</span><span role="radio" aria-checked="true">Cómoda</span>
+      </div>
+      <div class="cols-body">
+        <p class="cols-sec">Fijadas a la izquierda <span>1</span></p>
+        <div class="cols-row"><svg class="ico" aria-hidden="true"><use href="#i-grip"/></svg><span class="lbl">Orden</span><span class="cols-pin on" aria-label="Desfijar"><svg class="ico"><use href="#i-pin"/></svg></span><span class="sw-on" aria-label="Siempre visible"></span></div>
+        <p class="cols-sec">Columnas <span>2</span></p>
+        <div class="cols-row"><svg class="ico" aria-hidden="true"><use href="#i-grip"/></svg><span class="lbl">Estado</span><span class="cols-pin" aria-label="Fijar a la izquierda"><svg class="ico"><use href="#i-pin"/></svg></span><span class="sw-on" aria-label="Visible"></span></div>
+        <p class="cols-sec">Fijadas a la derecha <span>0</span></p>
+      </div>
+      <p class="cols-note">Densidad arriba (Compacta 40 · Normal 48 · Cómoda 64), tres grupos arrastrables, fijar y ver; «Restablecer columnas» al pie. Se guarda en tu vista.</p>
     </div>
   </section>
 

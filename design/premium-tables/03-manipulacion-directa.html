@@ -1,0 +1,1036 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ventas · Manipulación directa — HoundFe</title>
+<style>
+/* Tokens: design/system.md (houndfe-theme.css + houndfe-ui.css). Nothing else. */
+:root {
+  --hf-page:#f5f6f8; --hf-surface:#ffffff; --hf-surface-muted:#e7eef7; --hf-field:#ffffff; --hf-field-border:#8593a3;
+  --hf-ink:#24313d; --hf-heading:#173968; --hf-muted:#576574; --hf-border:#dce2e8; --hf-action:#2442f6; --hf-on-action:#ffffff;
+  --hf-active:#2442f6; --hf-active-soft:#edf0ff; --hf-focus:#2442f6; --hf-gold:#f6bb13; --hf-gold-soft:#fff5d6; --hf-gold-ink:#443218;
+  --hf-warning:#805511; --hf-warning-soft:#fff5d6; --hf-success:#236044; --hf-danger:#b42318; --hf-danger-soft:#fef3f2; --hf-danger-border:#f4b8b2;
+  color-scheme: light;
+}
+:root.dark {
+  --hf-page:#0e1520; --hf-surface:#192332; --hf-surface-muted:#202e43; --hf-field:#121d2c; --hf-field-border:#64758d;
+  --hf-ink:#edf2fa; --hf-heading:#edf2fa; --hf-muted:#adbcd0; --hf-border:#354459; --hf-action:#91b0ff; --hf-on-action:#132344;
+  --hf-active:#b3caff; --hf-active-soft:#223555; --hf-focus:#a6c1ff; --hf-gold:#f2c456; --hf-gold-soft:#3b311d; --hf-gold-ink:#f2cb71;
+  --hf-warning:#f2cb71; --hf-warning-soft:#3b311d; --hf-success:#a2d9b9; --hf-danger:#ffb4ab; --hf-danger-soft:#3d2220; --hf-danger-border:#7a3f3b;
+  color-scheme: dark;
+}
+:root {
+  --hf-font: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --hf-radius-card: 12px; --hf-radius-control: 6px; --hf-control-height: 44px;
+  --hf-table-head: color-mix(in srgb, var(--hf-ink) 4%, var(--hf-surface));
+  --row-hover: color-mix(in srgb, var(--hf-surface-muted) 45%, var(--hf-surface));
+  --head-hover: color-mix(in srgb, var(--hf-ink) 8%, var(--hf-surface));
+  --slot-wash: color-mix(in srgb, var(--hf-active-soft) 70%, var(--hf-surface));
+  --edge-shadow: color-mix(in srgb, var(--hf-ink) 12%, transparent);
+  --lift-shadow: 0 10px 28px -10px color-mix(in srgb, var(--hf-ink) 35%, transparent), 0 2px 6px color-mix(in srgb, var(--hf-ink) 10%, transparent);
+  --t: 160ms cubic-bezier(.2,.7,.2,1);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--hf-page); color: var(--hf-ink); font: 400 14px/1.45 var(--hf-font); -webkit-font-smoothing: antialiased; }
+button, input { font: inherit; color: inherit; }
+.sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
+.fig { font-variant-numeric: tabular-nums; }
+
+/* ── App chrome ─────────────────────────────────────── */
+.app { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: 100vh; }
+.side { background: var(--hf-surface); border-right: 1px solid var(--hf-border); padding: 16px 12px; display: flex; flex-direction: column; gap: 16px; }
+.logo { display: flex; align-items: center; gap: 8px; padding: 4px 8px 8px; font-weight: 600; font-size: 16px; color: var(--hf-heading); letter-spacing: -0.02em; }
+.logo-mark { width: 28px; height: 28px; border-radius: var(--hf-radius-control); background: var(--hf-gold); color: var(--hf-gold-ink); display: grid; place-items: center; font-size: 13px; font-weight: 600; }
+#nav { display: grid; gap: 16px; }
+/* Dark gold ink matches the gold fill, so the mark takes the dark gold surface as its ink. */
+:root.dark .logo-mark { color: var(--hf-gold-soft); }
+.nav-group h2 { margin: 0 0 4px; padding: 0 8px; font-size: 12px; font-weight: 600; color: var(--hf-muted); }
+.nav-group ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.nav-group a { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 8px; border-radius: var(--hf-radius-control); color: var(--hf-ink); text-decoration: none; font-weight: 500; }
+.nav-group a:hover { background: var(--row-hover); }
+.nav-group a[aria-current="page"] { background: var(--hf-active-soft); color: var(--hf-active); }
+.nav-group a svg { color: var(--hf-muted); }
+.nav-group a[aria-current="page"] svg { color: var(--hf-active); }
+
+.main { min-width: 0; display: flex; flex-direction: column; }
+.topbar { height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 32px; border-bottom: 1px solid var(--hf-border); background: var(--hf-surface); }
+.crumbs ol { display: flex; gap: 6px; list-style: none; margin: 0; padding: 0; font-size: 13px; color: var(--hf-muted); }
+.crumbs a { color: var(--hf-muted); text-decoration: none; }
+.crumbs a:hover { color: var(--hf-ink); text-decoration: underline; }
+.crumbs [aria-current] { color: var(--hf-ink); font-weight: 500; }
+.top-right { display: flex; align-items: center; gap: 12px; }
+.branch { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-control); background: var(--hf-surface); font-size: 13px; font-weight: 500; cursor: pointer; }
+.avatar { width: 32px; height: 32px; border-radius: 9999px; background: var(--hf-surface-muted); color: var(--hf-heading); display: grid; place-items: center; font-size: 12px; font-weight: 600; }
+
+.page { padding: 24px 32px 96px; display: flex; flex-direction: column; gap: 24px; }
+.page-head { display: grid; gap: 0.35rem; }
+.page-title { margin: 0; font-size: clamp(1.75rem, 1.55rem + 0.6vw, 2rem); font-weight: 600; line-height: 1.25; letter-spacing: -0.045em; color: var(--hf-heading); }
+.page-subtitle { margin: 0; font-size: 0.875rem; line-height: 1.5; color: var(--hf-muted); max-width: 62ch; }
+
+/* ── Table surface ─────────────────────────────────── */
+.surface { background: var(--hf-surface); border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); box-shadow: 0 1px 2px color-mix(in srgb, var(--hf-ink) 5%, transparent); overflow: hidden; }
+.toolbar { display: flex; align-items: center; gap: 8px; padding: 1rem; }
+.search { position: relative; flex: 0 1 360px; min-width: 220px; }
+.search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--hf-muted); pointer-events: none; }
+.field { width: 100%; height: var(--hf-control-height); padding: 0 12px 0 36px; background: var(--hf-field); border: 1px solid var(--hf-border); border-radius: var(--hf-radius-control); color: var(--hf-ink); }
+.field::placeholder { color: var(--hf-muted); }
+.field:hover { border-color: var(--hf-field-border); }
+.field:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 0; border-color: transparent; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: var(--hf-control-height); padding: 0 1rem; border-radius: var(--hf-radius-control); border: 1px solid var(--hf-border); background: var(--hf-surface); color: var(--hf-ink); font-weight: 500; font-size: 0.875rem; cursor: pointer; white-space: nowrap; }
+.btn:hover { background: var(--row-hover); border-color: var(--hf-field-border); }
+.btn[aria-expanded="true"] { background: var(--hf-surface-muted); }
+.btn-primary { background: var(--hf-action); color: var(--hf-on-action); border-color: var(--hf-action); font-weight: 600; }
+.btn-primary:hover { background: color-mix(in srgb, var(--hf-action) 88%, var(--hf-ink)); border-color: transparent; }
+.btn-ghost { border-color: transparent; background: transparent; }
+.spacer { flex: 1; }
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 4px 0 10px; border-radius: 9999px; background: var(--hf-surface-muted); color: var(--hf-ink); font-size: 12px; font-weight: 500; white-space: nowrap; }
+.chip b { font-weight: 600; color: var(--hf-heading); }
+.chip .sep { color: var(--hf-muted); }
+.chip button { height: 24px; padding: 0 8px; border: 0; border-radius: 9999px; background: transparent; color: var(--hf-active); font-weight: 600; font-size: 12px; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; }
+.chip button:hover { background: var(--hf-active-soft); }
+.chip button svg { width: 13px; height: 13px; }
+.chip[hidden] { display: none; }
+
+.hint { display: flex; align-items: flex-start; gap: 8px; margin: 0 1rem 12px; padding: 8px 8px 8px 12px; border-radius: var(--hf-radius-control); background: var(--hf-surface-muted); color: var(--hf-ink); font-size: 13px; }
+.hint > svg { margin-top: 2px; color: var(--hf-muted); }
+.hint p { margin: 0; flex: 1; }
+.hint kbd, .kbd-bubble kbd { font: 600 11px/1 var(--hf-font); padding: 2px 5px; border-radius: 4px; border: 1px solid var(--hf-border); background: var(--hf-surface); color: var(--hf-ink); }
+.hint .x { width: 28px; height: 28px; border: 0; border-radius: var(--hf-radius-control); background: transparent; color: var(--hf-muted); display: grid; place-items: center; cursor: pointer; margin: -4px 0; }
+.hint .x:hover { background: var(--hf-surface); color: var(--hf-ink); }
+.hint[hidden] { display: none; }
+
+/* Grid: the scroll area plus the overlays that do not scroll (freeze bars, drop slot). */
+.grid { position: relative; border-top: 1px solid var(--hf-border); }
+.scroll { overflow-x: auto; overflow-y: hidden; }
+table { border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 0.875rem; }
+th, td { padding: 0 12px; text-align: left; border-bottom: 1px solid var(--hf-border); background: var(--hf-surface); }
+thead th { height: 40px; background: var(--hf-table-head); color: var(--hf-muted); font-size: 0.8125rem; font-weight: 600; white-space: nowrap; position: relative; }
+tbody td { height: 48px; color: var(--hf-ink); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: 0; }
+.sticky-l, .sticky-r { position: sticky; z-index: 2; }
+thead .sticky-l, thead .sticky-r { z-index: 3; }
+.al-r { text-align: right; }
+.al-r .h-in { justify-content: flex-end; }
+.ci { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c-sel { padding: 0 0 0 16px; }
+.c-act { padding: 0 10px; text-align: center; }
+.c-fill { padding: 0; }
+
+/* Header: calm at rest; the whole cell is the drag handle. */
+th.h { cursor: grab; user-select: none; outline: none; }
+th.h:hover { background: var(--head-hover); color: var(--hf-ink); }
+th.h:focus-visible { box-shadow: inset 0 0 0 2px var(--hf-focus); }
+.h-in { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.h-label { overflow: hidden; text-overflow: ellipsis; }
+.h-sort { opacity: 0; color: var(--hf-muted); width: 14px; height: 14px; }
+th.h[aria-sort]:hover .h-sort { opacity: .7; }
+th.h[aria-sort="ascending"] .h-sort, th.h[aria-sort="descending"] .h-sort { opacity: 1; color: var(--hf-ink); }
+th.h[aria-sort="ascending"], th.h[aria-sort="descending"] { color: var(--hf-ink); }
+/* Resize edge: 8px hit area, faint 1px line on header hover, strong while dragging. */
+.rz { position: absolute; top: 0; right: -4px; width: 8px; height: 100%; cursor: col-resize; z-index: 4; touch-action: none; }
+.rz::after { content: ""; position: absolute; top: 10px; bottom: 10px; left: 3px; width: 2px; border-radius: 2px; background: transparent; transition: background var(--t); }
+th.h:hover .rz::after { background: var(--hf-border); }
+.rz:hover::after, .rz.on::after { background: var(--hf-action); top: 0; bottom: 0; }
+body.resizing, body.resizing * { cursor: col-resize !important; user-select: none; }
+body.dragging, body.dragging * { cursor: grabbing !important; user-select: none; }
+
+/* Pinned edge: divider and shadow only once the centre is scrolled under it. */
+.edge-l::after, .edge-r::before { content: ""; position: absolute; top: 0; bottom: -1px; width: 10px; pointer-events: none; opacity: 0; transition: opacity var(--t); }
+.edge-l::after { right: -10px; background: linear-gradient(to right, var(--edge-shadow), transparent); }
+.edge-r::before { left: -10px; background: linear-gradient(to left, var(--edge-shadow), transparent); }
+.sl .edge-l::after, .sr .edge-r::before { opacity: 1; }
+.sl .edge-l { box-shadow: inset -1px 0 0 var(--hf-border); }
+.sr .edge-r { box-shadow: inset 1px 0 0 var(--hf-border); }
+thead th.edge-l:focus-visible, thead th.edge-r:focus-visible { box-shadow: inset 0 0 0 2px var(--hf-focus); }
+
+/* Rows */
+tbody tr.row { cursor: pointer; }
+tbody tr.row:hover td { background: var(--row-hover); }
+tbody tr.row.sel td { background: var(--hf-active-soft); }
+.pc { min-width: 0; }
+.pc .p { font-weight: 600; color: var(--hf-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 18px; }
+.pc .s { font-size: 0.8125rem; color: var(--hf-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 16px; }
+.folio { font-weight: 600; color: var(--hf-heading); }
+.money { font-weight: 600; }
+.absent { color: var(--hf-muted); }
+.badge { display: inline-flex; height: 24px; align-items: center; gap: 6px; padding: 0 8px; border: 1px solid transparent; border-radius: var(--hf-radius-control); background: var(--bb); color: var(--bf); font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap; }
+.badge .dot { width: 6px; height: 6px; border-radius: 9999px; background: currentColor; }
+.t-neutral { --bf: var(--hf-muted); --bb: var(--hf-surface-muted); }
+.t-info { --bf: var(--hf-active); --bb: var(--hf-active-soft); }
+.t-success { --bf: var(--hf-success); --bb: color-mix(in srgb, var(--hf-success) 12%, var(--hf-surface)); }
+.t-warning { --bf: var(--hf-warning); --bb: var(--hf-warning-soft); }
+.t-danger { --bf: var(--hf-danger); --bb: var(--hf-danger-soft); }
+input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--hf-action); cursor: pointer; vertical-align: middle; }
+.kebab { width: 44px; height: 44px; border: 0; border-radius: var(--hf-radius-control); background: transparent; color: var(--hf-muted); display: inline-grid; place-items: center; cursor: pointer; }
+.kebab:hover, .kebab[aria-expanded="true"] { background: var(--hf-surface-muted); color: var(--hf-ink); }
+
+/* Drag placeholder column (the live drop slot) */
+.ph { background: var(--slot-wash) !important; }
+.ph > * { opacity: .28; }
+th.ph { color: var(--hf-active) !important; }
+th.ph > .h-in { opacity: 1; }
+.slot { position: absolute; top: 0; border: 2px solid var(--hf-action); border-radius: var(--hf-radius-control); pointer-events: none; z-index: 6; }
+.slot[hidden] { display: none; }
+.ghost { position: fixed; z-index: 50; pointer-events: none; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px 0 8px; border-radius: var(--hf-radius-control); background: var(--hf-surface); border: 1px solid var(--hf-action); color: var(--hf-ink); box-shadow: var(--lift-shadow); font-size: 13px; font-weight: 600; white-space: nowrap; transform: rotate(-1.5deg); }
+.ghost[hidden] { display: none; }
+.ghost svg { color: var(--hf-muted); }
+.ghost small { font-weight: 500; color: var(--hf-active); font-size: 12px; }
+.kbd-bubble { position: fixed; z-index: 40; display: flex; gap: 8px; align-items: center; padding: 6px 10px; border-radius: var(--hf-radius-control); background: var(--hf-heading); color: var(--hf-surface); font-size: 12px; font-weight: 500; box-shadow: var(--lift-shadow); white-space: nowrap; }
+:root.dark .kbd-bubble { background: var(--hf-surface-muted); color: var(--hf-ink); border: 1px solid var(--hf-border); }
+.kbd-bubble kbd { background: transparent; color: inherit; border-color: currentColor; }
+.kbd-bubble[hidden] { display: none; }
+
+/* Freeze bars: 4px visual, 16px hit area, snap between columns. */
+.fbar { position: absolute; top: 0; bottom: 0; width: 16px; margin-left: -8px; z-index: 7; cursor: ew-resize; touch-action: none; outline: none; }
+.fbar { pointer-events: none; }
+.fbar > span { pointer-events: none; }
+/* Hit areas: full 16px over the rows; in the header only the inner 8px, so the
+   column's own resize edge on the boundary stays reachable. */
+.fbar::before, .fbar::after { content: ""; position: absolute; pointer-events: auto; }
+.fbar::before { top: 0; height: 40px; left: 12px; width: 8px; }
+.fbar::after { top: 40px; bottom: 0; left: 0; width: 16px; }
+.fbar.snap { transition: left var(--t); }
+.fbar-line { position: absolute; top: 0; bottom: 0; left: 6px; width: 4px; border-radius: 4px; background: transparent; transition: background var(--t); }
+.fbar.has .fbar-line { background: color-mix(in srgb, var(--hf-border) 70%, transparent); }
+.fbar-knob { position: absolute; top: 10px; left: 6px; width: 4px; height: 20px; border-radius: 4px; background: var(--hf-field-border); transition: background var(--t), height var(--t), top var(--t); }
+.fbar:hover .fbar-line, .grid.dz .fbar .fbar-line { background: var(--hf-field-border); }
+.fbar:hover .fbar-knob { background: var(--hf-ink); }
+.fbar:focus-visible .fbar-line, .fbar.on .fbar-line, .fbar.target .fbar-line, .fbar:focus-visible .fbar-knob, .fbar.on .fbar-knob, .fbar.target .fbar-knob { background: var(--hf-action); }
+.fbar:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 0; border-radius: 4px; }
+.fbar-label { position: absolute; top: 6px; padding: 0 8px; height: 26px; display: inline-flex; align-items: center; border-radius: var(--hf-radius-control); background: var(--hf-action); color: var(--hf-on-action); font-size: 12px; font-weight: 600; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity var(--t); }
+.fbar-l .fbar-label { left: 16px; }
+.fbar-r .fbar-label { right: 16px; }
+.fbar:hover .fbar-label, .fbar:focus-visible .fbar-label, .fbar.on .fbar-label, .fbar.target .fbar-label { opacity: 1; }
+
+.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 40px 16px; min-height: 8rem; text-align: center; }
+.empty svg { width: 24px; height: 24px; color: var(--hf-muted); }
+.empty h3 { margin: 0; font-size: 15px; font-weight: 600; color: var(--hf-heading); }
+.empty p { margin: 0; font-size: 13px; color: var(--hf-muted); max-width: 28rem; }
+
+.foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 1rem; border-top: 1px solid var(--hf-border); font-size: 13px; color: var(--hf-muted); }
+.pager { display: flex; gap: 4px; align-items: center; }
+.pager button { min-width: 36px; height: 36px; padding: 0 8px; border: 1px solid transparent; border-radius: var(--hf-radius-control); background: transparent; color: var(--hf-ink); font-weight: 500; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.pager button:hover:not(:disabled) { background: var(--row-hover); }
+.pager button[aria-current="page"] { border-color: var(--hf-border); background: var(--hf-surface); font-weight: 600; color: var(--hf-heading); }
+.pager button:disabled { color: var(--hf-muted); cursor: not-allowed; }
+
+/* Menus and popovers */
+.menu { position: fixed; z-index: 60; min-width: 220px; padding: 4px; background: var(--hf-surface); border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); box-shadow: var(--lift-shadow); }
+.menu[hidden] { display: none; }
+.menu [role="menuitem"] { display: flex; width: 100%; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--hf-radius-control); background: transparent; font-weight: 500; text-align: left; cursor: pointer; }
+.menu [role="menuitem"]:hover, .menu [role="menuitem"]:focus-visible { background: var(--row-hover); outline: none; box-shadow: inset 0 0 0 2px var(--hf-focus); }
+.menu [role="menuitem"]:hover { box-shadow: none; }
+.menu .danger { color: var(--hf-danger); }
+.menu .danger:hover { background: color-mix(in srgb, var(--hf-danger) 10%, var(--hf-surface)); }
+.menu hr { border: 0; border-top: 1px solid var(--hf-border); margin: 4px 0; }
+.pop { width: 300px; padding: 8px; }
+.pop h3 { margin: 4px 8px 8px; font-size: 13px; font-weight: 600; color: var(--hf-muted); }
+.pop label { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 8px; border-radius: var(--hf-radius-control); cursor: pointer; }
+.pop label:hover { background: var(--row-hover); }
+.pop label span { flex: 1; }
+.pop label small { font-size: 12px; color: var(--hf-muted); }
+.pop label.dis { cursor: not-allowed; }
+.pop .pop-foot { border-top: 1px solid var(--hf-border); margin-top: 6px; padding-top: 6px; }
+.pop .pop-foot p { margin: 4px 8px 8px; font-size: 12px; color: var(--hf-muted); }
+
+/* ── Artboard controls (not product UI) ─────────────── */
+.abc { position: fixed; right: 16px; bottom: 16px; z-index: 80; display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 12px; border: 1px dashed var(--hf-gold-ink); border-radius: var(--hf-radius-card); background: var(--hf-gold-soft); color: var(--hf-gold-ink); font-size: 12px; box-shadow: var(--lift-shadow); }
+.abc strong { font-weight: 600; margin-right: 4px; }
+.abc .seg { display: inline-flex; border: 1px solid var(--hf-gold-ink); border-radius: var(--hf-radius-control); overflow: hidden; }
+.abc button { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 0; background: transparent; color: var(--hf-gold-ink); font-size: 12px; font-weight: 600; cursor: pointer; }
+.abc .seg button[aria-pressed="true"] { background: var(--hf-gold-ink); color: var(--hf-gold-soft); }
+.abc .solo { border: 1px solid var(--hf-gold-ink); border-radius: var(--hf-radius-control); }
+.abc button svg { width: 14px; height: 14px; }
+
+/* ── 390 px view ────────────────────────────────────── */
+.m-overlay { position: fixed; inset: 0; z-index: 90; background: color-mix(in srgb, var(--hf-page) 70%, transparent); backdrop-filter: blur(2px); display: flex; align-items: flex-start; justify-content: center; gap: 24px; padding: 24px; overflow: auto; }
+.m-overlay[hidden] { display: none; }
+.m-side { width: 240px; padding-top: 8px; color: var(--hf-ink); font-size: 13px; display: grid; gap: 12px; align-content: start; }
+.m-side h2 { margin: 0; font-size: 16px; font-weight: 600; color: var(--hf-heading); }
+.m-side p { margin: 0; color: var(--hf-muted); }
+.m-frame { width: 390px; height: 844px; flex: none; overflow-y: auto; background: var(--hf-page); border: 1px solid var(--hf-border); border-radius: 28px; box-shadow: var(--lift-shadow); }
+.m-top { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 8px; background: var(--hf-surface); border-bottom: 1px solid var(--hf-border); }
+.m-top .logo { padding: 0; font-size: 15px; }
+.m-top .branch { margin-left: auto; height: 32px; font-size: 12px; }
+.m-body { padding: 16px; display: grid; gap: 16px; }
+.m-tools { display: grid; gap: 8px; }
+.m-tools .search { width: 100%; flex: none; min-width: 0; }
+.m-row { display: flex; justify-content: space-between; gap: 8px; }
+.m-note { display: flex; align-items: flex-start; gap: 6px; margin: 0; font-size: 12px; color: var(--hf-muted); }
+.m-note svg { width: 14px; height: 14px; margin-top: 1px; }
+.cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.card { position: relative; background: var(--hf-surface); border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); padding: 16px; display: grid; gap: 8px; }
+.card:hover { background: var(--row-hover); }
+.card:focus-within { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
+.card a { font-weight: 600; color: var(--hf-heading); text-decoration: none; padding-right: 44px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; outline: none; }
+.card a::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+.card .kebab { position: absolute; top: 4px; right: 4px; z-index: 1; }
+.card .s { font-size: 13px; color: var(--hf-muted); margin-top: -6px; }
+.card .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.card .cfoot { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; padding-top: 10px; margin-top: 2px; border-top: 1px solid var(--hf-border); font-size: 13px; }
+.card .cfoot .figs { display: flex; gap: 16px; }
+.card .cfoot .figs span { display: grid; }
+.card .cfoot small { font-size: 12px; color: var(--hf-muted); }
+.card .cfoot .date { color: var(--hf-muted); font-size: 12px; }
+.m-foot { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--hf-muted); padding-bottom: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+  .ghost { transform: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side" aria-label="Navegación principal">
+    <div class="logo"><span class="logo-mark" aria-hidden="true">Hf</span>HoundFe</div>
+    <nav aria-label="Secciones" id="nav"></nav>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <nav class="crumbs" aria-label="Ruta"><ol><li><a href="#">POS</a></li><li aria-hidden="true">›</li><li><span aria-current="page">Ventas</span></li></ol></nav>
+      <div class="top-right">
+        <button class="branch" type="button"><i data-ic="store"></i>Sucursal Centro<i data-ic="chev-down"></i></button>
+        <span class="avatar" aria-label="Carmen Ruiz" role="img">CR</span>
+      </div>
+    </header>
+
+    <main class="page" id="main">
+      <div class="page-head">
+        <h1 class="page-title">Ventas</h1>
+        <p class="page-subtitle">Ventas de Sucursal Centro, de la más reciente a la más antigua.</p>
+      </div>
+
+      <section class="surface" aria-label="Lista de ventas">
+        <div class="toolbar" role="toolbar" aria-label="Herramientas de la lista">
+          <div class="search"><i data-ic="search"></i><label class="sr-only" for="q">Buscar ventas</label><input id="q" class="field" type="search" placeholder="Buscar ventas…" autocomplete="off"></div>
+          <button class="btn" type="button"><i data-ic="filter"></i>Filtros</button>
+          <div class="chip" id="layoutChip" hidden><span>Diseño de columnas:</span><b>Personalizado</b><span class="sep" aria-hidden="true">·</span><button type="button" id="chipReset"><i data-ic="reset"></i>Restablecer</button></div>
+          <span class="spacer"></span>
+          <button class="btn" type="button" id="colsBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="colsPop"><i data-ic="columns"></i>Columnas</button>
+          <button class="btn btn-primary" type="button"><i data-ic="plus"></i>Nueva venta</button>
+        </div>
+
+        <div class="hint" id="hint">
+          <i data-ic="move"></i>
+          <p>Arrastra un encabezado para moverlo, su borde para el ancho y las barras laterales para fijar columnas. Teclado: <kbd>Enter</kbd> toma, <kbd>←</kbd> <kbd>→</kbd> mueven.</p>
+          <button class="x" type="button" id="hintX" aria-label="Ocultar la ayuda de gestos"><i data-ic="x"></i></button>
+        </div>
+
+        <div class="grid" id="grid">
+          <div class="scroll" id="scroll">
+            <table id="tbl" aria-describedby="tblHelp">
+              <caption class="sr-only">Ventas de Sucursal Centro</caption>
+              <colgroup id="cg"></colgroup>
+              <thead id="thead"></thead>
+              <tbody id="tbody"></tbody>
+            </table>
+          </div>
+          <div class="fbar fbar-l" id="barL" tabindex="0" role="separator" aria-orientation="vertical" aria-label="Columnas fijadas a la izquierda" aria-valuemin="0"><span class="fbar-line"></span><span class="fbar-knob"></span><span class="fbar-label" aria-hidden="true"></span></div>
+          <div class="fbar fbar-r" id="barR" tabindex="0" role="separator" aria-orientation="vertical" aria-label="Columnas fijadas a la derecha" aria-valuemin="0"><span class="fbar-line"></span><span class="fbar-knob"></span><span class="fbar-label" aria-hidden="true"></span></div>
+          <div class="slot" id="slot" hidden></div>
+        </div>
+        <p class="sr-only" id="tblHelp">En cada encabezado: Enter toma la columna para moverla con las flechas, Enter la suelta y Escape cancela. Espacio ordena. Alt más flechas cambia el ancho. Las barras de fijado se mueven con las flechas.</p>
+
+        <div class="foot">
+          <span id="count">Mostrando 1-14 de 65</span>
+          <nav class="pager" aria-label="Páginas">
+            <button type="button" disabled><i data-ic="chev-left"></i>Anterior</button>
+            <button type="button" aria-current="page">1</button><button type="button">2</button><button type="button">3</button><button type="button">4</button><button type="button">5</button>
+            <button type="button">Siguiente<i data-ic="chev-right"></i></button>
+          </nav>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<div class="ghost" id="ghost" hidden aria-hidden="true"></div>
+<div class="kbd-bubble" id="bubble" hidden aria-hidden="true"><span><kbd>←</kbd> <kbd>→</kbd> mover</span><span><kbd>Enter</kbd> soltar</span><span><kbd>Esc</kbd> cancelar</span></div>
+
+<div class="menu" id="rowMenu" role="menu" hidden aria-label="Acciones de la venta">
+  <button role="menuitem" type="button" tabindex="-1"><i data-ic="eye"></i>Ver detalle</button>
+  <button role="menuitem" type="button" tabindex="-1"><i data-ic="printer"></i>Imprimir ticket</button>
+  <hr>
+  <button role="menuitem" type="button" tabindex="-1" class="danger"><i data-ic="ban"></i>Cancelar venta…</button>
+</div>
+
+<div class="menu pop" id="colsPop" role="dialog" aria-label="Columnas" hidden>
+  <h3>Columnas visibles</h3>
+  <div id="colsList"></div>
+  <div class="pop-foot">
+    <p>Para ordenar o fijar, arrastra los encabezados y las barras laterales.</p>
+    <button class="btn btn-ghost" type="button" id="popReset" style="width:100%;justify-content:flex-start"><i data-ic="reset"></i>Restablecer columnas</button>
+  </div>
+</div>
+
+<aside class="abc" aria-label="Controles del artboard">
+  <strong>Controles del artboard</strong>
+  <div class="seg" role="group" aria-label="Tema">
+    <button type="button" id="thLight" aria-pressed="true"><i data-ic="sun"></i>Claro</button>
+    <button type="button" id="thDark" aria-pressed="false"><i data-ic="moon"></i>Oscuro</button>
+  </div>
+  <button type="button" class="solo" id="mOpen"><i data-ic="phone"></i>Ver en 390 px</button>
+</aside>
+
+<div class="m-overlay" id="mView" hidden role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <div class="m-side">
+    <h2 id="mTitle">Vista de 390 px</h2>
+    <p>En el teléfono la lista pasa a tarjetas. Los gestos de columnas se desactivan en pantallas táctiles; el diseño que elijas en la computadora se conserva.</p>
+    <button class="btn" type="button" id="mClose"><i data-ic="x"></i>Volver a 1440 px</button>
+  </div>
+  <div class="m-frame" role="region" aria-label="Pantalla de 390 px">
+    <div class="m-top">
+      <button class="kebab" type="button" aria-label="Abrir menú"><i data-ic="menu"></i></button>
+      <div class="logo"><span class="logo-mark" aria-hidden="true">Hf</span>HoundFe</div>
+      <button class="branch" type="button">Sucursal Centro<i data-ic="chev-down"></i></button>
+    </div>
+    <div class="m-body">
+      <div class="page-head"><h2 class="page-title" style="font-size:1.75rem">Ventas</h2></div>
+      <div class="m-tools">
+        <div class="search"><i data-ic="search"></i><label class="sr-only" for="mq">Buscar ventas</label><input id="mq" class="field" type="search" placeholder="Buscar ventas…"></div>
+        <div class="m-row"><button class="btn" type="button"><i data-ic="filter"></i>Filtros</button><button class="btn btn-primary" type="button"><i data-ic="plus"></i>Nueva venta</button></div>
+        <p class="m-note"><i data-ic="info"></i>En pantallas táctiles no se mueven ni fijan columnas; hazlo desde una computadora.</p>
+      </div>
+      <ul class="cards" id="cards"></ul>
+      <div class="m-foot"><span>Mostrando 1-14 de 65</span><span class="pager"><button type="button" disabled aria-label="Página anterior"><i data-ic="chev-left"></i></button><button type="button" aria-label="Página siguiente"><i data-ic="chev-right"></i></button></span></div>
+    </div>
+  </div>
+</div>
+
+<div class="sr-only" role="status" aria-live="polite" id="live"></div>
+
+<script>
+(() => {
+'use strict';
+const STORE = 'hf-premium-tables-03-manipulacion-directa:layout';
+const HINT = 'hf-premium-tables-03-manipulacion-directa:hint';
+const SEL_W = 48, ACT_W = 64, MIN_CENTRE = 200;
+const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+const $ = (s, r = document) => r.querySelector(s);
+
+/* Icons (Lucide paths, inline) */
+const P = {
+  search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>', filter:'<path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/>',
+  columns:'<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/>', plus:'<path d="M5 12h14"/><path d="M12 5v14"/>',
+  kebab:'<circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>',
+  grip:'<circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/>',
+  x:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>', reset:'<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  moon:'<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>', phone:'<rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/>',
+  move:'<path d="m18 8 4 4-4 4"/><path d="M2 12h20"/><path d="m6 8-4 4 4 4"/>', info:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  'chev-left':'<path d="m15 18-6-6 6-6"/>', 'chev-right':'<path d="m9 18 6-6-6-6"/>', 'chev-down':'<path d="m6 9 6 6 6-6"/>', menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',
+  up:'<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>', down:'<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
+  updown:'<path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/>',
+  eye:'<path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/>',
+  printer:'<path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/>',
+  ban:'<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>', 'search-x':'<path d="m13.5 8.5-5 5"/><path d="m8.5 8.5 5 5"/><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  store:'<path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7"/>',
+  cart:'<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>',
+  wallet:'<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+  chat:'<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  pkg:'<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 8.7 5 8.7-5"/>',
+  truck:'<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  shield:'<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
+  sliders:'<path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/>',
+  tag:'<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5"/>'
+};
+const ic = (n, cls = '') => `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${P[n]}</svg>`;
+/* All markup comes from the constants in this file; the only user text (the search query) goes through esc(). */
+const esc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const frag = (ctx, markup) => { const r = document.createRange(); r.selectNodeContents(ctx); return r.createContextualFragment(markup); };
+const html = (el, markup) => el.replaceChildren(frag(el, markup));
+const hydrateIcons = (root = document) => root.querySelectorAll('i[data-ic]').forEach(el => { el.replaceWith(frag(el.parentNode, ic(el.dataset.ic))); });
+
+/* Sidebar */
+const NAV = [
+  ['POS', [['cart','Ventas',1],['wallet','Caja'],['truck','Entregas']]],
+  ['Chatbot', [['chat','Conversaciones']]],
+  ['Compras', [['pkg','Órdenes de compra'],['users','Proveedores']]],
+  ['RR.HH.', [['users','Empleados']]],
+  ['Admin', [['tag','Productos'],['users','Clientes']]],
+  ['Sistema', [['sliders','Configuración'],['shield','Permisos']]]
+];
+html($('#nav'), NAV.map(([g, items]) => `<div class="nav-group"><h2>${g}</h2><ul>${items.map(([i, l, a]) => `<li><a href="#"${a ? ' aria-current="page"' : ''}>${ic(i)}${l}</a></li>`).join('')}</ul></div>`).join(''));
+
+/* Data */
+const mxn = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+const R = (folio, cliente, tel, pago, entrega, productos, total, deuda, vendedor, metodo, fecha, ts) => ({ folio, cliente, tel, pago, entrega, productos, total, deuda, vendedor, metodo, fecha, ts });
+const ROWS = [
+  R(73,'Ana Lucía Ibarra Méndez','55 2318 4470','Pagada','Entregada',3,1599,null,'Carmen Ruiz','Tarjeta','6 nov, 02:14',14),
+  R(72,'Ricardo Herrera Paredes','33 1904 2286','Parcial','En ruta',5,4250,1250,'Jorge Salinas','Transferencia','6 nov, 01:47',13),
+  R(71,'Público en general','Venta de mostrador','Pagada','Entregada',1,189.5,null,'Carmen Ruiz','Efectivo','5 nov, 21:30',12),
+  R(70,'Estética Canina Patitas Felices','81 2211 0938','Deuda','No entregada',12,8940,8940,'Luis Ortega','Transferencia','5 nov, 19:05',11),
+  R(69,'María Fernanda Ochoa Ríos','55 4102 7735','Pagada','En ruta',2,730,null,'Jorge Salinas','Tarjeta','5 nov, 17:42',10),
+  R(68,'José Manuel Treviño Garza','81 3390 1164','Pagada','Entregada',4,2316.8,null,'Luis Ortega','Efectivo','5 nov, 16:10',9),
+  R(67,'Veterinaria San Francisco','33 3615 8820','Parcial','Entregada',9,6125,2000,'Carmen Ruiz','Transferencia','5 nov, 13:28',8),
+  R(66,'Público en general','Venta de mostrador','Pagada','Entregada',2,349,null,'Diana Castillo','Efectivo','5 nov, 12:51',7),
+  R(65,'Guadalupe Sánchez Villalobos','222 418 9037','Deuda','Entregada',3,1080,1080,'Diana Castillo','Efectivo','5 nov, 11:06',6),
+  R(64,'Fernando Aguilar Cárdenas','442 207 5513','Pagada','Entregada',6,3478.4,null,'Jorge Salinas','Tarjeta','4 nov, 20:17',5),
+  R(63,'Hotel Canino Huellitas','998 145 6620','Parcial','En ruta',15,12480,4480,'Luis Ortega','Transferencia','4 nov, 18:33',4),
+  R(62,'Sofía Ramírez Lozano','55 6684 2091','Pagada','Entregada',1,95,null,'Carmen Ruiz','Efectivo','4 nov, 15:02',3),
+  R(61,'Alejandro Domínguez Peña','477 390 1188','Pagada','No entregada',2,1250,null,'Diana Castillo','Tarjeta','4 nov, 12:44',2),
+  R(60,'Daniela Castro Medina','614 225 7346','Deuda','No entregada',4,2899,2899,'Jorge Salinas','Efectivo','4 nov, 10:20',1)
+];
+const PAGO = { Pagada: 'success', Deuda: 'danger', Parcial: 'warning' };
+const ENTREGA = { Entregada: 'success', 'No entregada': 'danger', 'En ruta': 'info' };
+const badge = (txt, tone) => `<span class="badge t-${tone} m"><span class="dot" aria-hidden="true"></span>${txt}</span>`;
+const items = n => `${n} ${n === 1 ? 'artículo' : 'artículos'}`;
+
+const COLS = {
+  venta:    { label: 'Venta', w: 88, min: 72, max: 200, sort: r => r.folio, cell: r => `<div class="ci m folio fig">#${r.folio}</div>` },
+  cliente:  { label: 'Cliente', w: 260, min: 180, max: 480, sort: r => r.cliente, cell: r => `<div class="pc"><div class="p m">${r.cliente}</div><div class="s m">${r.tel}</div></div>` },
+  pago:     { label: 'Pago', w: 128, min: 104, max: 240, cell: r => `<div class="ci">${badge(r.pago, PAGO[r.pago])}</div>` },
+  entrega:  { label: 'Entrega', w: 148, min: 128, max: 260, cell: r => `<div class="ci">${badge(r.entrega, ENTREGA[r.entrega])}</div>` },
+  productos:{ label: 'Productos', w: 128, min: 96, max: 220, right: 1, sort: r => r.productos, cell: r => `<div class="ci m fig">${items(r.productos)}</div>` },
+  total:    { label: 'Total', w: 128, min: 96, max: 240, right: 1, sort: r => r.total, cell: r => `<div class="ci m fig money">${mxn.format(r.total)}</div>` },
+  deuda:    { label: 'Deuda', w: 120, min: 96, max: 240, right: 1, sort: r => r.deuda || 0, cell: r => r.deuda ? `<div class="ci m fig money">${mxn.format(r.deuda)}</div>` : `<div class="ci m absent" aria-label="Sin deuda">—</div>` },
+  vendedor: { label: 'Vendedor', w: 168, min: 120, max: 320, sort: r => r.vendedor, cell: r => `<div class="ci m">${r.vendedor}</div>` },
+  metodo:   { label: 'Método de pago', w: 156, min: 140, max: 260, cell: r => `<div class="ci">${badge(r.metodo, 'neutral')}</div>` },
+  fecha:    { label: 'Fecha', w: 136, min: 112, max: 220, sort: r => r.ts, cell: r => `<div class="ci m fig">${r.fecha}</div>` }
+};
+const KEYS = Object.keys(COLS);
+const defaults = () => ({ L: [], C: KEYS.slice(), R: [], widths: Object.fromEntries(KEYS.map(k => [k, COLS[k].w])), hidden: [] });
+const clone = o => structuredClone(o);
+const sameLayout = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORE));
+    const all = [...s.L, ...s.C, ...s.R];
+    if (all.length !== KEYS.length || !KEYS.every(k => all.includes(k))) throw 0;
+    const d = defaults();
+    KEYS.forEach(k => { const w = +s.widths[k]; d.widths[k] = w >= COLS[k].min && w <= COLS[k].max ? w : COLS[k].w; });
+    return { L: s.L, C: s.C, R: s.R, widths: d.widths, hidden: (s.hidden || []).filter(k => KEYS.includes(k)) };
+  } catch { return defaults(); }
+}
+let S = load();
+let sort = { key: 'fecha', dir: 'desc' };
+let query = '';
+const selected = new Set();
+const save = () => { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch {} };
+
+/* Helpers */
+const live = $('#live');
+let liveT;
+const say = msg => { live.textContent = ''; clearTimeout(liveT); liveT = setTimeout(() => { live.textContent = msg; }, 30); };
+const isHidden = k => S.hidden.includes(k);
+const visC = () => S.C.filter(k => !isHidden(k));
+const visOrder = () => [...S.L, ...visC(), ...S.R];
+const zoneOf = k => S.L.includes(k) ? 'L' : S.R.includes(k) ? 'R' : 'C';
+const sum = (ks, st = S) => ks.reduce((a, k) => a + st.widths[k], 0);
+const scroll = $('#scroll'), grid = $('#grid'), thead = $('#thead'), tbody = $('#tbody'), cg = $('#cg'), tbl = $('#tbl');
+const barL = $('#barL'), barR = $('#barR');
+const wrapW = () => scroll.clientWidth;
+const pinnedFits = (L, Rr, st = S) => sum(L, st) + sum(Rr, st) + SEL_W + ACT_W <= wrapW() - MIN_CENTRE;
+const th = k => thead.querySelector(`th[data-key="${k}"]`);
+const posText = k => { const o = visOrder(); return `posición ${o.indexOf(k) + 1} de ${o.length}`; };
+const zoneText = z => z === 'L' ? 'fijada a la izquierda' : z === 'R' ? 'fijada a la derecha' : '';
+const names = ks => ks.map(k => COLS[k].label).join(', ').replace(/, ([^,]*)$/, ' y $1');
+
+let dragKey = null;      // column being moved (pointer or keyboard)
+let resizingKey = null;
+
+/* Render */
+function rows() {
+  let list = ROWS;
+  if (query) { const q = query.toLowerCase(); list = list.filter(r => [r.cliente, '#' + r.folio, r.vendedor, r.tel].some(v => v.toLowerCase().includes(q))); }
+  if (sort.key) {
+    const f = COLS[sort.key].sort, d = sort.dir === 'asc' ? 1 : -1;
+    list = list.slice().sort((a, b) => { const x = f(a), y = f(b); return (typeof x === 'string' ? x.localeCompare(y, 'es') : x - y) * d; });
+  }
+  return list;
+}
+
+function render() {
+  const L = S.L, C = visC(), Rr = S.R;
+  const total = SEL_W + sum(L) + sum(C) + sum(Rr) + ACT_W;
+  tbl.style.width = Math.max(total, wrapW()) + 'px';
+  html(cg, `<col style="width:${SEL_W}px">` + [...L, ...C].map(k => `<col style="width:${S.widths[k]}px">`).join('') + '<col>' + Rr.map(k => `<col style="width:${S.widths[k]}px">`).join('') + `<col style="width:${ACT_W}px">`);
+
+  const pos = {};
+  let x = SEL_W; L.forEach(k => { pos[k] = `left:${x}px`; x += S.widths[k]; });
+  let y = ACT_W; for (let i = Rr.length - 1; i >= 0; i--) { pos[Rr[i]] = `right:${y}px`; y += S.widths[Rr[i]]; }
+  const edgeL = L.length ? L[L.length - 1] : '_sel', edgeR = Rr.length ? Rr[0] : '_act';
+  const cls = (k, z) => [z === 'L' ? 'sticky-l' : z === 'R' ? 'sticky-r' : '', COLS[k].right ? 'al-r' : '', k === edgeL ? 'edge-l' : '', k === edgeR ? 'edge-r' : '', k === dragKey ? 'ph' : ''].join(' ');
+  const zones = [...L.map(k => [k, 'L']), ...C.map(k => [k, 'C'])], zonesR = Rr.map(k => [k, 'R']);
+
+  const list = rows();
+  const allSel = list.length && list.every(r => selected.has(r.folio)), someSel = list.some(r => selected.has(r.folio));
+  const head = k => {
+    const c = COLS[k], z = zoneOf(k);
+    const ariaSort = c.sort ? ` aria-sort="${sort.key === k ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}"` : '';
+    const icon = sort.key === k ? (sort.dir === 'asc' ? 'up' : 'down') : 'updown';
+    return `<th scope="col" class="h ${cls(k, z)}" data-key="${k}" tabindex="0" aria-roledescription="encabezado movible"${ariaSort}${pos[k] ? ` style="${pos[k]}"` : ''}>`
+      + `<div class="h-in"><span class="h-label m">${c.label}</span>${c.sort ? ic(icon, 'h-sort') : ''}</div>`
+      + (z !== 'C' ? `<span class="sr-only">, ${zoneText(z)}</span>` : '')
+      + `<span class="rz${resizingKey === k ? ' on' : ''}" data-rz="${k}" aria-hidden="true"></span></th>`;
+  };
+  html(thead, `<tr><th scope="col" class="c-sel sticky-l ${edgeL === '_sel' ? 'edge-l' : ''}" style="left:0"><input type="checkbox" id="selAll" aria-label="Seleccionar todas las ventas" ${allSel ? 'checked' : ''}></th>`
+    + zones.map(([k]) => head(k)).join('') + '<th class="c-fill" aria-hidden="true"></th>' + zonesR.map(([k]) => head(k)).join('')
+    + `<th scope="col" class="c-act sticky-r ${edgeR === '_act' ? 'edge-r' : ''}" style="right:0"><span class="sr-only">Acciones</span></th></tr>`);
+  const sa = $('#selAll'); if (sa) sa.indeterminate = !allSel && someSel;
+
+  const cell = (r, k) => `<td class="${cls(k, zoneOf(k))}" data-key="${k}"${pos[k] ? ` style="${pos[k]}"` : ''}>${COLS[k].cell(r)}</td>`;
+  if (!list.length) {
+    html(tbody, `<tr><td colspan="${zones.length + zonesR.length + 3}"><div class="empty">${ic('search-x')}<h3>No hay ventas que coincidan con «${esc(query)}»</h3><p>Revisa el nombre o el folio, o limpia la búsqueda.</p><button class="btn" type="button" id="clearQ">Limpiar búsqueda</button></div></td></tr>`);
+  } else {
+    html(tbody, list.map(r => `<tr class="row${selected.has(r.folio) ? ' sel' : ''}" data-id="${r.folio}">`
+      + `<td class="c-sel sticky-l ${edgeL === '_sel' ? 'edge-l' : ''}" style="left:0"><input type="checkbox" aria-label="Seleccionar venta #${r.folio}" ${selected.has(r.folio) ? 'checked' : ''}></td>`
+      + zones.map(([k]) => cell(r, k)).join('') + '<td class="c-fill"></td>' + zonesR.map(([k]) => cell(r, k)).join('')
+      + `<td class="c-act sticky-r ${edgeR === '_act' ? 'edge-r' : ''}" style="right:0"><button class="kebab" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Acciones de la venta #${r.folio}, ${r.cliente}">${ic('kebab')}</button></td></tr>`).join(''));
+  }
+  $('#count').textContent = query ? `${list.length} ${list.length === 1 ? 'coincidencia' : 'coincidencias'} en esta página` : 'Mostrando 1-14 de 65';
+  $('#layoutChip').hidden = sameLayout(S, defaults());
+  placeBars();
+  edges();
+  renderCols();
+}
+
+function placeBars() {
+  const lB = SEL_W + sum(S.L), rB = wrapW() - ACT_W - sum(S.R);
+  barL.style.left = lB + 'px'; barR.style.left = rB + 'px';
+  const maxL = maxPin('L'), maxR = maxPin('R');
+  barL.setAttribute('aria-valuenow', S.L.length); barL.setAttribute('aria-valuemax', maxL);
+  barR.setAttribute('aria-valuenow', S.R.length); barR.setAttribute('aria-valuemax', maxR);
+  barL.setAttribute('aria-valuetext', S.L.length ? `${S.L.length} fijadas a la izquierda: ${names(S.L)}` : 'Ninguna columna fijada a la izquierda');
+  barR.setAttribute('aria-valuetext', S.R.length ? `${S.R.length} fijadas a la derecha: ${names(S.R)}` : 'Ninguna columna fijada a la derecha');
+  barL.querySelector('.fbar-label').textContent = `Fijadas: ${S.L.length}`;
+  barR.querySelector('.fbar-label').textContent = `Fijadas: ${S.R.length}`;
+  barL.classList.toggle('has', S.L.length > 0); barR.classList.toggle('has', S.R.length > 0);
+}
+function edges() {
+  const max = scroll.scrollWidth - scroll.clientWidth;
+  grid.classList.toggle('sl', scroll.scrollLeft > 1);
+  grid.classList.toggle('sr', scroll.scrollLeft < max - 1);
+}
+scroll.addEventListener('scroll', () => { edges(); if (kbd) placeBubble(); }, { passive: true });
+addEventListener('resize', () => render());
+
+/* FLIP: neighbours slide to their new place (skipped under reduced motion). */
+const baseLeft = el => el.getBoundingClientRect().left - (new DOMMatrix(getComputedStyle(el).transform).m41 || 0);
+function flipRender() {
+  const before = {};
+  thead.querySelectorAll('th[data-key]').forEach(el => { before[el.dataset.key] = baseLeft(el); });
+  render();
+  if (reduced.matches) return;
+  const moved = [];
+  thead.querySelectorAll('th[data-key]').forEach(el => {
+    const k = el.dataset.key, dx = before[k] - el.getBoundingClientRect().left;
+    if (k in before && Math.abs(dx) > 0.5) tbl.querySelectorAll(`[data-key="${k}"]`).forEach(c => { c.style.transition = 'none'; c.style.transform = `translateX(${dx}px)`; moved.push(c); });
+  });
+  if (!moved.length) return;
+  tbl.offsetWidth;
+  moved.forEach(c => { c.style.transition = 'transform 160ms cubic-bezier(.2,.7,.2,1)'; c.style.transform = ''; });
+}
+
+/* ── Pointer drag to reorder (and to pin across a freeze bar) ── */
+const ghost = $('#ghost'), slot = $('#slot');
+let drag = null, raf = 0, suppressClick = false;
+
+thead.addEventListener('pointerdown', e => {
+  const h = e.target.closest('th.h');
+  if (!h || e.button !== 0 || e.target.closest('.rz') || kbd) return;
+  if (e.pointerType === 'touch') return; // gestures are off on touch
+  drag = { key: h.dataset.key, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY, started: false, snap: clone(S), scroll: scroll.scrollLeft };
+});
+addEventListener('pointermove', e => {
+  if (!drag) return;
+  drag.x = e.clientX; drag.y = e.clientY;
+  if (!drag.started) {
+    if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 5) return;
+    drag.started = true; dragKey = drag.key;
+    document.body.classList.add('dragging'); grid.classList.add('dz');
+    html(ghost, `${ic('grip')}<span>${COLS[drag.key].label}</span><small id="ghostZone"></small>`);
+    ghost.hidden = false;
+    render();
+    raf = requestAnimationFrame(tick);
+  }
+  ghost.style.left = (e.clientX + 12) + 'px'; ghost.style.top = (e.clientY - 20) + 'px';
+  placePointer();
+});
+addEventListener('pointerup', () => endDrag(true));
+addEventListener('pointercancel', () => endDrag(false));
+
+function zoneAt(x) {
+  const g = grid.getBoundingClientRect();
+  const lB = g.left + SEL_W + sum(S.L), rB = g.left + wrapW() - ACT_W - sum(S.R);
+  return x < lB ? 'L' : x > rB ? 'R' : 'C';
+}
+function placePointer() {
+  const k = drag.key, x = drag.x;
+  let z = zoneAt(x);
+  const lists = { L: S.L.filter(c => c !== k), C: S.C.filter(c => c !== k), R: S.R.filter(c => c !== k) };
+  if (z !== 'C') {
+    const nL = z === 'L' ? [...lists.L, k] : lists.L, nR = z === 'R' ? [...lists.R, k] : lists.R;
+    if (!pinnedFits(nL, nR) || !lists.C.some(c => !isHidden(c))) z = 'C';
+  }
+  const target = lists[z], vis = target.filter(c => !isHidden(c));
+  let n = 0;
+  vis.forEach(c => { const el = th(c); if (el) { const r = el.getBoundingClientRect(), l = baseLeft(el); if (l + r.width / 2 < x) n++; } });
+  target.splice(n < vis.length ? target.indexOf(vis[n]) : target.length, 0, k);
+  barL.classList.toggle('target', z === 'L'); barR.classList.toggle('target', z === 'R');
+  const gz = $('#ghostZone'); if (gz) gz.textContent = z === 'L' ? 'Fijar a la izquierda' : z === 'R' ? 'Fijar a la derecha' : '';
+  if (lists.L.join() !== S.L.join() || lists.C.join() !== S.C.join() || lists.R.join() !== S.R.join()) {
+    S.L = lists.L; S.C = lists.C; S.R = lists.R;
+    flipRender();
+  }
+}
+function tick() {
+  if (!drag || !drag.started) return;
+  // Auto-scroll when the pointer nears the edges of the scrolling centre.
+  const g = grid.getBoundingClientRect();
+  const lB = g.left + SEL_W + sum(S.L), rB = g.left + wrapW() - ACT_W - sum(S.R);
+  let v = 0;
+  if (drag.x >= lB && drag.x < lB + 48) v = -10; else if (drag.x <= rB && drag.x > rB - 48) v = 10;
+  if (v) { const before = scroll.scrollLeft; scroll.scrollLeft += v; if (scroll.scrollLeft !== before) placePointer(); }
+  showSlot(dragKey);
+  raf = requestAnimationFrame(tick);
+}
+function showSlot(k) {
+  const el = k && th(k);
+  if (!el) { slot.hidden = true; return; }
+  const g = grid.getBoundingClientRect(), r = el.getBoundingClientRect();
+  const left = Math.max(r.left, g.left) - g.left, right = Math.min(r.right, g.left + wrapW()) - g.left;
+  slot.hidden = false;
+  slot.style.left = left + 'px'; slot.style.width = Math.max(0, right - left) + 'px';
+  slot.style.height = Math.min(tbl.offsetHeight, scroll.clientHeight) + 'px';
+}
+function endDrag(commit) {
+  if (!drag) return;
+  const d = drag; drag = null;
+  if (!d.started) return;
+  cancelAnimationFrame(raf);
+  suppressClick = true; setTimeout(() => { suppressClick = false; }, 0);
+  document.body.classList.remove('dragging'); grid.classList.remove('dz');
+  barL.classList.remove('target'); barR.classList.remove('target');
+  ghost.hidden = true; slot.hidden = true; dragKey = null;
+  if (!commit) { S = d.snap; render(); say('Movimiento cancelado'); return; }
+  render(); save();
+  announceMove(d.key, d.snap);
+}
+function announceMove(k, prev) {
+  const was = prev.L.includes(k) ? 'L' : prev.R.includes(k) ? 'R' : 'C', now = zoneOf(k), name = COLS[k].label;
+  if (was !== now) say(now === 'C' ? `Columna ${name} ya no está fijada, ${posText(k)}` : `Columna ${name} ${zoneText(now)}`);
+  else if (sameLayout(prev, S)) say(`Columna ${name} sin cambios`);
+  else say(`Columna ${name} movida a la ${posText(k)}`);
+}
+addEventListener('keydown', e => { if (e.key === 'Escape' && drag && drag.started) { e.preventDefault(); endDrag(false); } });
+
+/* ── Header clicks, sort, keyboard grab ── */
+thead.addEventListener('click', e => {
+  if (suppressClick || e.target.closest('.rz')) return;
+  const h = e.target.closest('th.h');
+  if (h) toggleSort(h.dataset.key);
+});
+function toggleSort(k) {
+  if (!COLS[k].sort) return;
+  sort = sort.key === k ? { key: k, dir: sort.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: typeof COLS[k].sort(ROWS[0]) === 'string' ? 'asc' : 'desc' };
+  render(); th(k)?.focus({ preventScroll: true });
+  say(`Ordenado por ${COLS[k].label}, ${sort.dir === 'asc' ? 'ascendente' : 'descendente'}`);
+}
+
+let kbd = null; // { key, snap }
+const bubble = $('#bubble');
+function placeBubble() {
+  const el = kbd && th(kbd.key);
+  if (!el) { bubble.hidden = true; if (!drag) slot.hidden = true; return; }
+  const r = el.getBoundingClientRect(), l = baseLeft(el);
+  bubble.hidden = false;
+  bubble.style.left = Math.max(8, Math.min(l, innerWidth - bubble.offsetWidth - 8)) + 'px';
+  bubble.style.top = (r.bottom + 6) + 'px';
+  showSlot(kbd.key);
+}
+function refocus(k) {
+  const el = th(k); if (!el) return;
+  el.focus({ preventScroll: true });
+  el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  // Keep a centre column clear of the pinned zones, which would otherwise cover it.
+  if (zoneOf(k) === 'C') {
+    const g = grid.getBoundingClientRect(), r = el.getBoundingClientRect(), l = baseLeft(el);
+    const lB = g.left + SEL_W + sum(S.L), rB = g.left + wrapW() - ACT_W - sum(S.R);
+    if (l < lB) scroll.scrollLeft -= lB - l; else if (l + r.width > rB) scroll.scrollLeft += l + r.width - rB;
+  }
+  if (kbd) { requestAnimationFrame(placeBubble); setTimeout(placeBubble, 200); }
+}
+addEventListener('scroll', () => { if (kbd) placeBubble(); }, { passive: true });
+
+thead.addEventListener('keydown', e => {
+  const h = e.target.closest('th.h');
+  if (!h || e.target !== h) return;
+  const k = h.dataset.key;
+  if (kbd && kbd.key === k) {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); kbMove(k, e.key === 'ArrowLeft' ? -1 : 1); }
+    else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const snap = kbd.snap; kbd = null; dragKey = null; render(); refocus(k); placeBubble(); save(); announceMove(k, snap); }
+    else if (e.key === 'Escape') { e.preventDefault(); S = kbd.snap; kbd = null; dragKey = null; render(); refocus(k); placeBubble(); say(`Movimiento cancelado. Columna ${COLS[k].label} en la ${posText(k)}`); }
+    else if (e.key === 'Tab') { e.preventDefault(); }
+    return;
+  }
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    kbd = { key: k, snap: clone(S) }; dragKey = k; render(); refocus(k); placeBubble();
+    say(`Columna ${COLS[k].label} tomada, ${posText(k)}. Usa las flechas para moverla, Enter para soltarla, Escape para cancelar.`);
+  } else if (e.key === ' ') {
+    e.preventDefault(); toggleSort(k);
+  } else if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    e.preventDefault();
+    setWidth(k, S.widths[k] + (e.key === 'ArrowRight' ? 16 : -16)); render(); refocus(k); save();
+    say(`Columna ${COLS[k].label}: ${S.widths[k]} px`);
+  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    e.preventDefault();
+    const o = visOrder(), i = o.indexOf(k) + (e.key === 'ArrowLeft' ? -1 : 1);
+    if (o[i]) refocus(o[i]);
+  }
+});
+thead.addEventListener('focusout', e => {
+  // Leaving a grabbed header (click elsewhere) drops it where it is.
+  if (!kbd) return;
+  setTimeout(() => {
+    if (kbd && !thead.contains(document.activeElement)) { const k = kbd.key, snap = kbd.snap; kbd = null; dragKey = null; render(); placeBubble(); save(); announceMove(k, snap); }
+  }, 0);
+});
+
+function kbMove(k, dir) {
+  const z = zoneOf(k), name = COLS[k].label;
+  const swap = (arr, i, j) => { [arr[i], arr[j]] = [arr[j], arr[i]]; };
+  let msg = '';
+  if (z === 'L') {
+    const i = S.L.indexOf(k);
+    if (dir < 0) { if (i > 0) swap(S.L, i, i - 1); else msg = `${name} ya es la primera columna`; }
+    else if (i < S.L.length - 1) swap(S.L, i, i + 1);
+    else { S.L.splice(i, 1); S.C.unshift(k); msg = `Columna ${name} ya no está fijada, ${posText(k)}`; }
+  } else if (z === 'R') {
+    const i = S.R.indexOf(k);
+    if (dir > 0) { if (i < S.R.length - 1) swap(S.R, i, i + 1); else msg = `${name} ya es la última columna`; }
+    else if (i > 0) swap(S.R, i, i - 1);
+    else { S.R.splice(i, 1); S.C.push(k); msg = `Columna ${name} ya no está fijada, ${posText(k)}`; }
+  } else {
+    const vc = visC(), i = vc.indexOf(k);
+    const nb = vc[i + dir];
+    if (nb) { const a = S.C.indexOf(k), b = S.C.indexOf(nb); S.C.splice(a, 1); S.C.splice(b, 0, k); }
+    else {
+      const side = dir < 0 ? 'L' : 'R';
+      const nL = side === 'L' ? [...S.L, k] : S.L, nR = side === 'R' ? [k, ...S.R] : S.R;
+      if (vc.length < 2) msg = `${name} es la única columna sin fijar`;
+      else if (!pinnedFits(nL, nR)) msg = `No cabe otra columna fijada ${side === 'L' ? 'a la izquierda' : 'a la derecha'}`;
+      else { S.C.splice(S.C.indexOf(k), 1); if (side === 'L') S.L.push(k); else S.R.unshift(k); msg = `Columna ${name} ${zoneText(side)}`; }
+    }
+  }
+  flipRender(); refocus(k); placeBubble();
+  say(msg || `Columna ${name}, ${posText(k)}${zoneOf(k) !== 'C' ? ', ' + zoneText(zoneOf(k)) : ''}`);
+}
+
+/* ── Resize: drag the edge, double-click to autofit ── */
+function setWidth(k, w) {
+  const c = COLS[k];
+  let max = c.max;
+  if (zoneOf(k) !== 'C') { const room = wrapW() - MIN_CENTRE - SEL_W - ACT_W - (sum(S.L) + sum(S.R) - S.widths[k]); max = Math.max(c.min, Math.min(max, room)); }
+  S.widths[k] = Math.round(Math.max(c.min, Math.min(max, w)));
+}
+let rz = null;
+thead.addEventListener('pointerdown', e => {
+  const h = e.target.closest('.rz');
+  if (!h || e.button !== 0 || e.pointerType === 'touch') return;
+  e.preventDefault(); e.stopPropagation();
+  rz = { key: h.dataset.rz, sx: e.clientX, w: S.widths[h.dataset.rz], moved: false };
+});
+addEventListener('pointermove', e => {
+  if (!rz) return;
+  const dx = e.clientX - rz.sx;
+  if (!rz.moved && Math.abs(dx) < 2) return;
+  if (!rz.moved) { rz.moved = true; resizingKey = rz.key; document.body.classList.add('resizing'); }
+  setWidth(rz.key, rz.w + dx); render();
+});
+addEventListener('pointerup', () => {
+  if (!rz) return;
+  const r = rz; rz = null;
+  if (!r.moved) return;
+  resizingKey = null; document.body.classList.remove('resizing');
+  suppressClick = true; setTimeout(() => { suppressClick = false; }, 0);
+  render(); save(); say(`Columna ${COLS[r.key].label}: ${S.widths[r.key]} px`);
+});
+thead.addEventListener('dblclick', e => {
+  const h = e.target.closest('.rz');
+  if (!h) return;
+  autofit(h.dataset.rz);
+});
+function autofit(k) {
+  let w = 0;
+  tbl.querySelectorAll(`[data-key="${k}"]`).forEach(c => {
+    c.querySelectorAll('.m').forEach(m => { w = Math.max(w, m.scrollWidth + (m.classList.contains('h-label') && COLS[k].sort ? 20 : 0)); });
+  });
+  setWidth(k, w + 26); render(); save();
+  say(`Columna ${COLS[k].label} ajustada a su contenido: ${S.widths[k]} px`);
+}
+
+/* ── Freeze bars: drag across columns or move with arrows ── */
+function maxPin(side) {
+  const seq = side === 'L' ? [...S.L, ...visC()] : [...visC(), ...S.R].reverse();
+  const other = side === 'L' ? S.R : S.L;
+  let n = 0;
+  for (let k = 1; k < seq.length; k++) { if (pinnedFits(seq.slice(0, k), other)) n = k; else break; }
+  return n;
+}
+function setPinned(side, n, announce) {
+  const vc = visC(), hiddenC = S.C.filter(isHidden);
+  if (side === 'L') { const seq = [...S.L, ...vc]; n = Math.max(0, Math.min(n, maxPin('L'))); S.L = seq.slice(0, n); S.C = [...seq.slice(n), ...hiddenC]; }
+  else { const seq = [...vc, ...S.R]; n = Math.max(0, Math.min(n, maxPin('R'))); S.R = seq.slice(seq.length - n); S.C = [...seq.slice(0, seq.length - n), ...hiddenC]; }
+  render();
+  if (announce) { save(); const ks = side === 'L' ? S.L : S.R; say(ks.length ? `${ks.length} ${ks.length === 1 ? 'columna fijada' : 'columnas fijadas'} a la ${side === 'L' ? 'izquierda' : 'derecha'}: ${names(ks)}` : `Ninguna columna fijada a la ${side === 'L' ? 'izquierda' : 'derecha'}`); }
+}
+let fb = null;
+[[barL, 'L'], [barR, 'R']].forEach(([bar, side]) => {
+  bar.addEventListener('pointerdown', e => {
+    if (e.button !== 0 || e.pointerType === 'touch') return;
+    e.preventDefault(); bar.focus({ preventScroll: true });
+    // Align the centre with the bar so the snap points sit on real column edges.
+    scroll.scrollLeft = side === 'L' ? 0 : scroll.scrollWidth;
+    fb = { bar, side, start: (side === 'L' ? S.L : S.R).length };
+    bar.classList.add('on', 'snap'); bar.setPointerCapture(e.pointerId);
+  });
+  bar.addEventListener('pointermove', e => {
+    if (!fb || fb.bar !== bar) return;
+    const g = grid.getBoundingClientRect(), x = e.clientX - g.left;
+    const seq = side === 'L' ? [...S.L, ...visC()] : [...visC(), ...S.R].reverse();
+    const max = maxPin(side);
+    let best = 0, bd = Infinity, acc = side === 'L' ? SEL_W : wrapW() - ACT_W;
+    for (let n = 0; n <= max; n++) {
+      const d = Math.abs(x - acc); if (d < bd) { bd = d; best = n; }
+      if (seq[n]) acc += (side === 'L' ? 1 : -1) * S.widths[seq[n]];
+    }
+    if (best !== (side === 'L' ? S.L : S.R).length) setPinned(side, best, false);
+  });
+  const end = () => {
+    if (!fb || fb.bar !== bar) return;
+    const changed = (side === 'L' ? S.L : S.R).length !== fb.start;
+    fb = null; bar.classList.remove('on');
+    if (changed) setPinned(side, (side === 'L' ? S.L : S.R).length, true);
+    setTimeout(() => bar.classList.remove('snap'), 200);
+  };
+  bar.addEventListener('pointerup', end); bar.addEventListener('pointercancel', end);
+  bar.addEventListener('keydown', e => {
+    const cur = (side === 'L' ? S.L : S.R).length;
+    const inc = side === 'L' ? 'ArrowRight' : 'ArrowLeft', dec = side === 'L' ? 'ArrowLeft' : 'ArrowRight';
+    let n = null;
+    if (e.key === inc || e.key === 'ArrowUp') n = cur + 1;
+    else if (e.key === dec || e.key === 'ArrowDown') n = cur - 1;
+    else if (e.key === 'Home') n = 0;
+    else if (e.key === 'End') n = maxPin(side);
+    if (n === null) return;
+    e.preventDefault();
+    if (n > maxPin(side)) { say(`No cabe otra columna fijada a la ${side === 'L' ? 'izquierda' : 'derecha'}`); return; }
+    if (n < 0 || n === cur) return;
+    scroll.scrollLeft = side === 'L' ? 0 : scroll.scrollWidth;
+    bar.classList.add('snap'); setPinned(side, n, true); setTimeout(() => bar.classList.remove('snap'), 200);
+  });
+});
+
+/* ── Rows: selection, row menu ── */
+tbody.addEventListener('change', e => {
+  const tr = e.target.closest('tr.row'); if (!tr) return;
+  const id = +tr.dataset.id; e.target.checked ? selected.add(id) : selected.delete(id); render();
+});
+thead.addEventListener('change', e => {
+  if (e.target.id !== 'selAll') return;
+  rows().forEach(r => e.target.checked ? selected.add(r.folio) : selected.delete(r.folio)); render(); $('#selAll').focus();
+});
+const menu = $('#rowMenu'); let menuBtn = null;
+function closeMenu(focus) { if (menu.hidden) return; menu.hidden = true; if (menuBtn) { menuBtn.setAttribute('aria-expanded', 'false'); if (focus) menuBtn.focus(); } menuBtn = null; }
+tbody.addEventListener('click', e => {
+  if (e.target.id === 'clearQ') { query = ''; $('#q').value = ''; render(); $('#q').focus(); return; }
+  const b = e.target.closest('.kebab');
+  if (b) {
+    e.stopPropagation();
+    if (menuBtn === b) { closeMenu(true); return; }
+    closeMenu(false); menuBtn = b; b.setAttribute('aria-expanded', 'true');
+    const r = b.getBoundingClientRect(); menu.hidden = false;
+    menu.style.left = (r.right - menu.offsetWidth) + 'px';
+    menu.style.top = (r.bottom + menu.offsetHeight + 8 > innerHeight ? r.top - menu.offsetHeight - 4 : r.bottom + 4) + 'px';
+    menu.querySelector('[role=menuitem]').focus();
+  }
+});
+menu.addEventListener('keydown', e => {
+  const its = [...menu.querySelectorAll('[role=menuitem]')], i = its.indexOf(document.activeElement);
+  if (e.key === 'ArrowDown') { e.preventDefault(); its[(i + 1) % its.length].focus(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); its[(i - 1 + its.length) % its.length].focus(); }
+  else if (e.key === 'Escape' || e.key === 'Tab') { e.preventDefault(); closeMenu(true); }
+});
+menu.addEventListener('click', () => closeMenu(true));
+document.addEventListener('pointerdown', e => {
+  if (!menu.hidden && !menu.contains(e.target) && !e.target.closest('.kebab')) closeMenu(false);
+  if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('#colsBtn')) closePop(false);
+});
+
+/* ── Toolbar: search, layout chip, Columnas ── */
+$('#q').addEventListener('input', e => { query = e.target.value.trim(); render(); });
+function resetLayout(focusEl) { S = defaults(); save(); render(); say('Columnas restablecidas'); focusEl?.focus(); }
+$('#chipReset').addEventListener('click', () => resetLayout($('#q')));
+const pop = $('#colsPop'), colsBtn = $('#colsBtn');
+function renderCols() {
+  if (pop.hidden) return;
+  const order = [...S.L, ...S.C, ...S.R];
+  const onlyC = visC().length === 1 ? visC()[0] : null;
+  html($('#colsList'), order.map(k => {
+    const z = zoneOf(k), dis = k === onlyC;
+    return `<label class="${dis ? 'dis' : ''}"><input type="checkbox" data-col="${k}" ${isHidden(k) ? '' : 'checked'} ${dis ? 'disabled' : ''}><span>${COLS[k].label}</span>${z !== 'C' ? `<small>Fijada ${z === 'L' ? 'izq.' : 'der.'}</small>` : ''}</label>`;
+  }).join(''));
+}
+function openPop() { pop.hidden = false; colsBtn.setAttribute('aria-expanded', 'true'); renderCols(); const r = colsBtn.getBoundingClientRect(); pop.style.left = (r.right - pop.offsetWidth) + 'px'; pop.style.top = (r.bottom + 6) + 'px'; pop.querySelector('input')?.focus(); }
+function closePop(focus) { if (pop.hidden) return; pop.hidden = true; colsBtn.setAttribute('aria-expanded', 'false'); if (focus) colsBtn.focus(); }
+colsBtn.addEventListener('click', () => pop.hidden ? openPop() : closePop(true));
+pop.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); closePop(true); } });
+pop.addEventListener('change', e => {
+  const k = e.target.dataset.col; if (!k) return;
+  if (e.target.checked) S.hidden = S.hidden.filter(x => x !== k);
+  else { if (zoneOf(k) !== 'C') { S.L = S.L.filter(x => x !== k); S.R = S.R.filter(x => x !== k); S.C.push(k); } S.hidden.push(k); }
+  save(); render(); pop.querySelector(`[data-col="${k}"]`)?.focus();
+  say(`Columna ${COLS[k].label} ${e.target.checked ? 'visible' : 'oculta'}`);
+});
+$('#popReset').addEventListener('click', () => resetLayout($('#popReset')));
+
+/* ── First-use hint ── */
+const hint = $('#hint');
+try { if (localStorage.getItem(HINT) === 'off') hint.hidden = true; } catch {}
+$('#hintX').addEventListener('click', () => { hint.hidden = true; try { localStorage.setItem(HINT, 'off'); } catch {} $('#q').focus(); render(); });
+
+/* ── Artboard controls ── */
+function setTheme(dark) {
+  document.documentElement.classList.toggle('dark', dark);
+  $('#thLight').setAttribute('aria-pressed', String(!dark)); $('#thDark').setAttribute('aria-pressed', String(dark));
+}
+$('#thLight').addEventListener('click', () => setTheme(false));
+$('#thDark').addEventListener('click', () => setTheme(true));
+const mView = $('#mView');
+function renderCards() {
+  html($('#cards'), ROWS.map(r => `<li class="card">
+    <a href="#">${r.cliente}</a>
+    <button class="kebab" type="button" aria-label="Acciones de la venta #${r.folio}, ${r.cliente}">${ic('kebab')}</button>
+    <div class="s"><span class="fig">#${r.folio}</span> · ${r.tel} · ${items(r.productos)}</div>
+    <div class="badges">${badge(r.pago, PAGO[r.pago])}${badge(r.entrega, ENTREGA[r.entrega])}${badge(r.metodo, 'neutral')}</div>
+    <div class="cfoot"><div class="figs"><span><small>Total</small><b class="fig money">${mxn.format(r.total)}</b></span><span><small>Deuda</small>${r.deuda ? `<b class="fig money">${mxn.format(r.deuda)}</b>` : '<span class="absent" aria-label="Sin deuda">—</span>'}</span></div><span class="date fig">${r.fecha}</span></div>
+  </li>`).join(''));
+}
+$('#mOpen').addEventListener('click', () => { renderCards(); mView.hidden = false; $('#mClose').focus(); });
+const closeM = () => { mView.hidden = true; $('#mOpen').focus(); };
+$('#mClose').addEventListener('click', closeM);
+mView.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { e.preventDefault(); closeM(); }
+  if (e.key === 'Tab') { // keep focus inside the dialog
+    const f = [...mView.querySelectorAll('button, a, input')].filter(el => !el.disabled && el.offsetParent);
+    if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+    else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+  }
+});
+
+hydrateIcons();
+render();
+})();
+</script>
+</body>
+</html>

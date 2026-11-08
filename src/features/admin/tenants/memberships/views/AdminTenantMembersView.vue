@@ -52,6 +52,12 @@ const {
   pagination,
   sorting,
   globalFilter,
+  columnPinning,
+  columnVisibility,
+  columnOrder,
+  columnSizing,
+  density,
+  resetLayout,
   data,
   totalCount,
   pageCount,
@@ -66,7 +72,8 @@ const {
   queryKey: () => adminTenantMembershipQueryKeys.list(tenantId.value),
   queryFn: (params) => membershipsApi.getPaginated(tenantId.value, params),
   defaultPageSize: 10,
-  persistKey: `admin-tenant-members-${tenantId.value}`,
+  // One layout for every branch's members: the key never carries the record id.
+  persistKey: 'admin-tenant-members',
   defaultSorting: [{ id: 'userName', desc: false }],
 })
 
@@ -250,6 +257,12 @@ function clearFilters() {
           v-model:sorting="sorting"
           v-model:pagination="pagination"
           v-model:global-filter="globalFilter"
+          v-model:column-pinning="columnPinning"
+          v-model:column-visibility="columnVisibility"
+          v-model:column-order="columnOrder"
+          v-model:column-sizing="columnSizing"
+          v-model:density="density"
+          :persist-layout="true"
           :columns="columns"
           :data="data"
           :loading="isLoading"
@@ -279,6 +292,7 @@ function clearFilters() {
           @empty-action="isCreateOpen = true"
           @clear-filters="clearFilters"
           @refresh="refresh"
+          @reset-columns="resetLayout"
         >
           <template #userName-header="{ column }">
             <SortableHeader :column="column" label="Usuario" />

@@ -12,8 +12,10 @@ import AdminRolesView from '../AdminRolesView.vue'
 import {
   isBelowBreakpoint,
   resetTableState,
+  serverTableConfig,
   tableState,
 } from '@/features/admin/__tests__/helpers/serverTableMock'
+import { expectLayoutBound } from '@/features/admin/__tests__/helpers/layoutBinding'
 import type { RoleTableRow } from '../../interfaces/role.types'
 
 vi.mock('@/core/shared/composables/useServerTable', async () =>
@@ -265,5 +267,14 @@ describe('AdminRolesView states — page header', () => {
     expect(wrapper.get('.hf-page-title').text()).toBe('Roles')
     expect(wrapper.find('.hf-page-subtitle').exists()).toBe(false)
     expect(wrapper.find('.hf-table-surface .hf-page-title').exists()).toBe(false)
+  })
+})
+
+describe('AdminRolesView — premium table layout', () => {
+  it('persists the layout under a stable key and binds it to the table', async () => {
+    const wrapper = mountView()
+    const config = serverTableConfig.mock.lastCall![0] as { persistKey: string }
+    expect(config.persistKey).toBe('admin-roles')
+    await expectLayoutBound(wrapper, { ...tableState, reset: tableState.resetLayout })
   })
 })

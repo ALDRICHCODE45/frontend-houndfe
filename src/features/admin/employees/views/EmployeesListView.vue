@@ -124,6 +124,10 @@ const {
   rowSelection,
   columnPinning,
   columnVisibility,
+  columnOrder,
+  columnSizing,
+  density,
+  resetLayout,
   employees,
   totalCount,
   pageCount,
@@ -329,6 +333,10 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
           v-model:row-selection="rowSelection"
           v-model:column-pinning="columnPinning"
           v-model:column-visibility="columnVisibility"
+          v-model:column-order="columnOrder"
+          v-model:column-sizing="columnSizing"
+          v-model:density="density"
+          :persist-layout="true"
           :columns="columns"
           :data="employees"
           :enable-row-selection="canUseBatchActions"
@@ -359,6 +367,7 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
           portal-class="hf-theme hf-ui employees-list-portal"
           pagination-portal-class="hf-theme hf-ui employees-list-portal"
           @refresh="refresh"
+          @reset-columns="resetLayout"
           @add="openCreateSlideover"
           @empty-action="openCreateSlideover"
           @clear-filters="clearFilters"

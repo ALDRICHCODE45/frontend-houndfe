@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { useCustomerColumns } from '../useCustomerColumns'
 
-type Column = { id?: string; accessorKey?: string; enableSorting?: boolean; meta?: { class?: { th?: string; td?: string } } }
+type Column = { id?: string; accessorKey?: string; size?: number; enableSorting?: boolean; meta?: { class?: { th?: string; td?: string } } }
 
 describe('useCustomerColumns', () => {
   const columns = useCustomerColumns().columns as Column[]
@@ -32,5 +32,10 @@ describe('useCustomerColumns', () => {
     expect(actions.meta?.class?.th).toContain('w-16')
     expect(actions.meta?.class?.td).toContain('w-16')
     expect(actions.meta?.class?.td).toContain('text-right')
+  })
+
+  it('shows a whole e-mail and phone by default; the name keeps the free space', () => {
+    const sizes = Object.fromEntries(columns.map((column) => [keyOf(column), column.size]))
+    expect(sizes).toMatchObject({ fullName: undefined, email: 240, phone: 168, globalPriceListName: 160 })
   })
 })

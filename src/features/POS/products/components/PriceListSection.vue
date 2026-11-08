@@ -435,7 +435,7 @@ function formatMarginAmount(list: PriceList): string {
     </template>
 
     <div class="overflow-x-auto rounded-md border border-default">
-      <table class="products-plain-table products-price-table min-w-full divide-y divide-default text-sm" data-stack>
+      <table class="hf-plain-table hf-plain-table--hover products-plain-table products-price-table min-w-full divide-y divide-default text-sm" data-stack>
         <thead>
           <tr>
             <th class="px-4 py-3 text-left font-semibold">Lista de precios</th>

@@ -253,6 +253,45 @@ const bulkActions = [
 </template>
 ```
 
+### Panel «Columnas»
+
+Se muestra por defecto siempre que la tabla tenga columnas además de las bloqueadas (selección y
+Acciones); `:enable-column-visibility="false"` lo oculta. En md+ abre un popover con tres secciones
+(«Fijadas a la izquierda», «Columnas», «Fijadas a la derecha»): las filas se arrastran (o se mueven con
+↑/↓ desde su asa, cruzar una sección fija o desfija), tienen botones para fijar a cada lado y un
+interruptor de visibilidad (la columna principal no se oculta). Debajo de md o en modo tarjetas abre
+una hoja inferior con solo los interruptores. Los nombres salen de `meta.label` o del encabezado.
+
+- Todo pasa por los v-model `column-order`, `column-pinning` y `column-visibility`.
+- «Restablecer columnas» llama a `@reset-columns`; enlaza ahí el reset del layout persistido
+  (`useTablePreferences().reset` o `useServerTable().resetLayout`). Sin listener, la tabla limpia
+  orden, fijado, visibilidad y anchos por su cuenta.
+- Las tarjetas leen la misma visibilidad: los slots `#mobile-card` y `#cards` reciben
+  `columnVisibility` e `isColumnVisible(id)`, así los interruptores de la hoja eligen los campos.
+
+```vue
+<template #mobile-card="{ row, isColumnVisible }">
+  <ProductCard :product="row" :show-sku="isColumnVisible('sku')" />
+</template>
+```
+
+### Densidad, «Guardado en tu vista» y barra de selección
+
+- **Densidad**: la sección «Densidad» arriba del panel «Columnas» (encima de «Fijadas a la
+  izquierda») es un grupo de radio «Densidad de filas»: Compacta 40 / Normal 48 / Cómoda 64 (la de
+  hoy y la predeterminada); las flechas cambian la opción. Va por `v-model:density`, que el layout
+  persistido guarda. Compacta y Normal muestran solo la línea principal (`hf-row-secondary` se
+  oculta). No está en la barra de herramientas, ni en la hoja de tarjetas/móvil;
+  `:enable-density="false"` la quita del panel.
+- **«Guardado en tu vista»**: con `persist-layout` (los v-model del layout vienen de
+  `useTablePreferences` o de `useServerTable` con `persistKey`), un cambio del usuario (orden, fijado,
+  ancho, visibilidad, densidad) muestra la confirmación unos 2 s y la anuncia. Nunca al cargar, al
+  restablecer ni cuando la pantalla cambia el layout por props.
+- **Barra de selección**: flota al pie de la tabla con el conteo («3 seleccionadas» con
+  `:selected-label="{ one: 'seleccionada', other: 'seleccionadas' }"`), el slot opcional
+  `#bulk-summary="{ count, rows }"`, las `bulk-actions` (las `destructive` van al final en rojo y
+  `disabled` se respeta) y ✕ «Quitar selección».
+
 ## Column Header Patterns
 
 ### Simple Header (no sortable)

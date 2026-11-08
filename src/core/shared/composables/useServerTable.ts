@@ -2,6 +2,8 @@ import { ref, computed, watch, type Ref, type ComputedRef } from 'vue'
 import { useQuery, keepPreviousData } from '@tanstack/vue-query'
 import { refDebounced } from '@vueuse/core'
 import { useTablePreferences } from './useTablePreferences'
+import type { ColumnOrderState, ColumnSizingState } from '@tanstack/vue-table'
+import { DEFAULT_TABLE_DENSITY, type TableDensity } from '../components/DataTable/tableLayout'
 import { useTableUrlSync } from './useTableUrlSync'
 import type {
   ServerTableConfig,
@@ -22,6 +24,11 @@ export interface UseServerTableReturn<T> {
   rowSelection: Ref<RowSelectionState>
   columnPinning: Ref<ColumnPinningState>
   columnVisibility: Ref<VisibilityState>
+  // Column layout (persisted with persistKey) for AppDataTable's v-model:column-order,
+  // v-model:column-sizing and v-model:density
+  columnOrder: Ref<ColumnOrderState>
+  columnSizing: Ref<ColumnSizingState>
+  density: Ref<TableDensity>
 
   // Derived data
   data: ComputedRef<T[]>
@@ -42,6 +49,8 @@ export interface UseServerTableReturn<T> {
   // Actions
   refresh: () => void
   resetFilters: () => void
+  /** Back to the default column layout (forgets the stored one). */
+  resetLayout: () => void
   selectedRows: ComputedRef<T[]>
   clearSelection: () => void
 
@@ -89,6 +98,9 @@ export function useServerTable<T>(config: ServerTableConfig<T>): UseServerTableR
   const columnPinning = preferences?.columnPinning ?? ref<ColumnPinningState>(defaultPinning)
   const columnVisibility =
     preferences?.columnVisibility ?? ref<VisibilityState>(defaultColumnVisibility)
+  const columnOrder = preferences?.columnOrder ?? ref<ColumnOrderState>([])
+  const columnSizing = preferences?.columnSizing ?? ref<ColumnSizingState>({})
+  const density = preferences?.density ?? ref<TableDensity>(DEFAULT_TABLE_DENSITY)
 
   // --- URL Sync (opt-in) ---
   if (urlSync && persistKey) {
@@ -206,6 +218,18 @@ export function useServerTable<T>(config: ServerTableConfig<T>): UseServerTableR
     pagination.value = { pageIndex: 0, pageSize: defaultPageSize }
   }
 
+  function resetLayout() {
+    if (preferences) {
+      preferences.reset()
+      return
+    }
+    columnPinning.value = defaultPinning
+    columnVisibility.value = defaultColumnVisibility
+    columnOrder.value = []
+    columnSizing.value = {}
+    density.value = DEFAULT_TABLE_DENSITY
+  }
+
   function clearSelection() {
     rowSelection.value = {}
   }
@@ -218,6 +242,9 @@ export function useServerTable<T>(config: ServerTableConfig<T>): UseServerTableR
     rowSelection,
     columnPinning,
     columnVisibility,
+    columnOrder,
+    columnSizing,
+    density,
     // Derived
     data,
     totalCount,
@@ -232,6 +259,7 @@ export function useServerTable<T>(config: ServerTableConfig<T>): UseServerTableR
     // Actions
     refresh,
     resetFilters,
+    resetLayout,
     selectedRows,
     clearSelection,
     // Info

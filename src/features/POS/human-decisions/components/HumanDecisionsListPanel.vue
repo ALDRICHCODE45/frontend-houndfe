@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { AppDataTable } from '@/core/shared/components/DataTable'
 import ToolbarSelectFilter from '@/core/shared/components/DataTable/ToolbarSelectFilter.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { useTablePreferences } from '@/core/shared/composables/useTablePreferences'
 import type { PaginationState, SortingState } from '@/core/shared/types/table.types'
 import { useHumanDecisionColumns } from '../composables/useHumanDecisionColumns'
 import type { HumanDecision, HumanDecisionListFilter } from '../interfaces/human-decision.types'
@@ -71,6 +72,12 @@ const pagination = defineModel<PaginationState>('pagination', {
 const globalFilter = defineModel<string>('globalFilter', { default: '' })
 const sorting = ref<SortingState>([])
 const { columns } = useHumanDecisionColumns()
+// Column layout saved per user in this browser (order, pins, widths, visibility, density).
+const layout = useTablePreferences({
+  persistKey: 'pos-human-decisions',
+  columnIds: columns.map((column) => column.id ?? ''),
+})
+const { columnOrder, columnPinning, columnSizing, columnVisibility, density } = layout
 
 // ── List states ───────────────────────────────────────────────────────────────
 const searchTerm = computed(() => globalFilter.value.trim())
@@ -106,6 +113,12 @@ function clearFilters() {
           v-model:pagination="pagination"
           v-model:sorting="sorting"
           v-model:global-filter="globalFilter"
+          v-model:column-order="columnOrder"
+          v-model:column-pinning="columnPinning"
+          v-model:column-sizing="columnSizing"
+          v-model:column-visibility="columnVisibility"
+          v-model:density="density"
+          :persist-layout="true"
           :columns="columns"
           :data="data"
           :loading="loading"
@@ -131,6 +144,7 @@ function clearFilters() {
           pagination-portal-class="hf-theme hf-ui human-decisions-list-portal"
           @refresh="emit('refresh')"
           @clear-filters="clearFilters"
+          @reset-columns="layout.reset"
         >
           <template #filters>
             <ToolbarSelectFilter

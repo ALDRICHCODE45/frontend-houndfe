@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import { computed, ref, useSlots } from 'vue'
+import DataTableColumnsPanel from './DataTableColumnsPanel.vue'
+import type { ColumnGroup, ColumnsPanelGroups } from './columnArrange.utils'
+import { DEFAULT_TABLE_DENSITY, type TableDensity } from './tableLayout'
 
 const props = withDefaults(
   defineProps<{
@@ -35,6 +38,24 @@ const props = withDefaults(
      * — the toolbar itself does NOT derive the number (REQ-2 phase-1).
      */
     activeFilterCount?: number
+    /**
+     * Rows of the «Columnas» panel per group (AppDataTable builds them from its layout). Without them
+     * a visible «Columnas» control stays in place, disabled.
+     */
+    columns?: ColumnsPanelGroups
+    /** Keeps «Columnas» in place but disabled (no table to configure: first load, error). */
+    columnsDisabled?: boolean
+    /** «Columnas» opens the visibility-only sheet even at md+ (card mode). */
+    columnsSheet?: boolean
+    /**
+     * The «Densidad» section at the top of the «Columnas» panel. The panel only opens at md+ outside
+     * card mode, so the visibility sheet never shows it.
+     */
+    showDensity?: boolean
+    density?: TableDensity
+    densityDisabled?: boolean
+    /** Shows «Guardado en tu vista» for a moment (AppDataTable owns the timing and the live region). */
+    saved?: boolean
   }>(),
   {
     searchPlaceholder: 'Buscar...',
@@ -46,6 +67,13 @@ const props = withDefaults(
     refreshButtonTestId: undefined,
     addButtonTestId: undefined,
     activeFilterCount: 0,
+    columns: undefined,
+    columnsDisabled: false,
+    columnsSheet: false,
+    showDensity: false,
+    density: DEFAULT_TABLE_DENSITY,
+    densityDisabled: false,
+    saved: false,
   },
 )
 
@@ -54,11 +82,13 @@ const emit = defineEmits<{
   add: []
   refresh: []
   'clear-filters': []
+  'column-place': [id: string, group: ColumnGroup, index: number]
+  'column-step': [id: string, delta: number]
+  'column-pin': [id: string, side: 'left' | 'right' | false]
+  'column-visibility': [id: string, visible: boolean]
+  'reset-columns': []
+  'update:density': [density: TableDensity]
 }>()
-
-// Table API injection for column visibility — provided by parent
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const tableApi = defineModel<any>('tableApi')
 
 // ─── Mobile / desktop detection ──────────────────────────────────────────────
 // `useBreakpoints(breakpointsTailwind).smaller('md')` evaluates to `true` for
@@ -91,9 +121,25 @@ function closeFilters() {
   isFiltersOpen.value = false
 }
 
-/** Capitalize first letter of a string (column-header fallback). */
-function capitalize(str: string): string {
-  return str.charAt(0).toUpperCase() + str.slice(1)
+// ─── «Columnas»: popover panel at md+, visibility-only sheet below md or in card mode ──
+const columnsEnabled = computed(() => !!props.columns && !props.columnsDisabled)
+const useColumnsSheet = computed(() => isMobile.value || props.columnsSheet)
+const columnRows = computed(() =>
+  props.columns ? [...props.columns.left, ...props.columns.center, ...props.columns.right] : [],
+)
+const hiddenCount = computed(() => columnRows.value.filter(column => !column.visible).length)
+const columnsName = computed(() => {
+  const count = hiddenCount.value
+  if (count === 0) return 'Columnas'
+  return `Columnas · ${count} ${count === 1 ? 'oculta' : 'ocultas'}`
+})
+// The panel and the sheet render outside the app root, so they carry the theme themselves.
+const columnsContentClass = computed(() =>
+  [...new Set(['hf-theme', 'hf-ui', ...(props.portalClass?.split(/\s+/) ?? [])])].filter(Boolean).join(' '),
+)
+const isColumnsOpen = ref(false)
+function openColumnsSheet() {
+  if (columnsEnabled.value) isColumnsOpen.value = true
 }
 </script>
 
@@ -104,24 +150,32 @@ function capitalize(str: string): string {
     <!-- ─── Desktop layout (md+) — historical horizontal layout ───────── -->
     <template v-if="!isMobile">
       <div
-        class="hf-toolbar-search-region flex flex-1 flex-col items-stretch gap-2 sm:flex-row sm:items-center"
+        class="hf-toolbar-search-region flex min-w-0 flex-1 flex-col items-stretch gap-2 sm:flex-row sm:items-center"
       >
         <!-- Search Input -->
         <UInput
           :model-value="props.globalFilter"
           :placeholder="props.searchPlaceholder"
           icon="i-lucide-search"
-          class="hf-toolbar-search w-full sm:max-w-sm"
+          class="hf-toolbar-search w-full min-w-48 shrink sm:max-w-sm"
           @update:model-value="emit('update:globalFilter', $event as string)"
         />
 
         <!-- Inline filter slots (desktop only) -->
-        <div class="hf-toolbar-filters min-w-0 flex flex-1 items-center gap-2">
+        <div class="hf-toolbar-filters min-w-0 flex flex-1 shrink-0 basis-auto items-center gap-2">
           <slot name="filters" />
         </div>
       </div>
 
-      <div class="hf-toolbar-actions flex items-center gap-2">
+      <!-- shrink-0: when space runs out the search gives way first; actions never slide over the filters. -->
+      <div class="hf-toolbar-actions flex shrink-0 items-center gap-2">
+        <!-- «Guardado en tu vista»: a quiet visual echo; the words are read from AppDataTable's status -->
+        <Transition name="hf-table-saved">
+          <span v-if="props.saved" class="hf-table-saved" aria-hidden="true" data-testid="table-saved">
+            <UIcon name="i-lucide-check" class="hf-table-saved__icon" />Guardado en tu vista
+          </span>
+        </Transition>
+
         <!-- Refresh Button -->
         <UTooltip v-if="showRefresh" text="Refrescar" :ui="{ content: props.portalClass }">
           <UButton
@@ -134,51 +188,69 @@ function capitalize(str: string): string {
           />
         </UTooltip>
 
-        <!-- Column Visibility Dropdown -->
-        <UDropdownMenu
-          v-if="showColumnVisibility && tableApi"
-          :items="
-            tableApi
-              .getAllColumns()
-              .filter((col: any) => col.getCanHide())
-              .map((col: any) => ({
-                label:
-                  typeof col.columnDef.header === 'string'
-                    ? col.columnDef.header
-                    : typeof col.columnDef.header === 'function'
-                      ? col.columnDef.header() || capitalize(col.id)
-                      : capitalize(col.id),
-                icon: col.getIsVisible() ? 'i-lucide-circle-check-big' : 'i-lucide-circle',
-                onSelect: (e: Event) => {
-                  e.preventDefault()
-                  col.toggleVisibility(!col.getIsVisible())
-                },
-              }))
-          "
-          :content="{ align: 'end' as const }"
-          :ui="{
-            itemLeadingIcon: 'size-4 text-primary',
-            content: props.portalClass,
-          }"
-        >
+        <!-- «Columnas»: the artboard-01 panel (sections, drag, pin, visibility, reset) -->
+        <template v-if="showColumnVisibility">
+          <UPopover
+            v-if="columnsEnabled && !useColumnsSheet"
+            v-model:open="isColumnsOpen"
+            :content="{ align: 'end', sideOffset: 6 }"
+            :ui="{ content: columnsContentClass }"
+          >
+            <UButton
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-columns-3"
+              :aria-label="columnsName"
+              data-testid="toolbar-columns-button"
+            >
+              Columnas
+              <UBadge
+                v-if="hiddenCount > 0"
+                :label="String(hiddenCount)"
+                color="neutral"
+                variant="soft"
+                size="sm"
+                aria-hidden="true"
+                data-testid="toolbar-columns-badge"
+              />
+            </UButton>
+            <template #content>
+              <DataTableColumnsPanel
+                :groups="props.columns!"
+                :density="props.showDensity ? props.density : undefined"
+                :density-disabled="props.densityDisabled"
+                @place="(id, group, index) => emit('column-place', id, group, index)"
+                @step="(id, delta) => emit('column-step', id, delta)"
+                @pin="(id, side) => emit('column-pin', id, side)"
+                @visibility="(id, visible) => emit('column-visibility', id, visible)"
+                @reset="emit('reset-columns')"
+                @close="isColumnsOpen = false"
+                @density="emit('update:density', $event)"
+              />
+            </template>
+          </UPopover>
           <UButton
+            v-else
             color="neutral"
             variant="outline"
-            label="Columnas"
-            trailing-icon="i-lucide-chevron-down"
-          />
-        </UDropdownMenu>
-
-        <!-- No table yet (loading skeleton or error): keep the control in place so the toolbar
-             does not change shape between states. -->
-        <UButton
-          v-else-if="showColumnVisibility"
-          color="neutral"
-          variant="outline"
-          label="Columnas"
-          trailing-icon="i-lucide-chevron-down"
-          disabled
-        />
+            icon="i-lucide-columns-3"
+            :aria-label="columnsName"
+            :disabled="!columnsEnabled"
+            data-testid="toolbar-columns-button"
+            @click="openColumnsSheet"
+          >
+            Columnas
+            <UBadge
+              v-if="hiddenCount > 0"
+              :label="String(hiddenCount)"
+              color="neutral"
+              variant="soft"
+              size="sm"
+              aria-hidden="true"
+              data-testid="toolbar-columns-badge"
+            />
+          </UButton>
+        </template>
 
         <!-- Add Button (kept last on desktop per historical layout) -->
         <UButton
@@ -259,53 +331,27 @@ function capitalize(str: string): string {
             />
           </UTooltip>
 
-          <UDropdownMenu
-            v-if="showColumnVisibility && tableApi"
-            :items="
-              tableApi
-                .getAllColumns()
-                .filter((col: any) => col.getCanHide())
-                .map((col: any) => ({
-                  label:
-                    typeof col.columnDef.header === 'string'
-                      ? col.columnDef.header
-                      : typeof col.columnDef.header === 'function'
-                        ? col.columnDef.header() || capitalize(col.id)
-                        : capitalize(col.id),
-                  icon: col.getIsVisible() ? 'i-lucide-circle-check-big' : 'i-lucide-circle',
-                  onSelect: (e: Event) => {
-                    e.preventDefault()
-                    col.toggleVisibility(!col.getIsVisible())
-                  },
-                }))
-            "
-            :content="{ align: 'end' as const }"
-            :ui="{
-              itemLeadingIcon: 'size-4 text-primary',
-              content: props.portalClass,
-            }"
-          >
-            <UButton
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-columns-3"
-              :aria-label="'Columnas'"
-              :title="'Columnas'"
-              trailing-icon="i-lucide-chevron-down"
-              data-testid="toolbar-mobile-columns-button"
-            />
-          </UDropdownMenu>
           <UButton
-            v-else-if="showColumnVisibility"
+            v-if="showColumnVisibility"
             color="neutral"
             variant="outline"
             icon="i-lucide-columns-3"
-            aria-label="Columnas"
+            :aria-label="columnsName"
             title="Columnas"
-            trailing-icon="i-lucide-chevron-down"
+            :disabled="!columnsEnabled"
             data-testid="toolbar-mobile-columns-button"
-            disabled
-          />
+            @click="openColumnsSheet"
+          >
+            <UBadge
+              v-if="hiddenCount > 0"
+              :label="String(hiddenCount)"
+              color="neutral"
+              variant="soft"
+              size="sm"
+              aria-hidden="true"
+              data-testid="toolbar-columns-badge"
+            />
+          </UButton>
 
           <slot name="actions" />
 
@@ -393,5 +439,53 @@ function capitalize(str: string): string {
         </template>
       </USlideover>
     </template>
+
+    <!-- «Columnas» sheet (below md or in card mode): visibility switches only, no drag or pin. The
+         same visibility reaches the card slots, so the switches choose the card fields. -->
+    <USlideover
+      v-if="showColumnVisibility && columnsEnabled && useColumnsSheet"
+      v-model:open="isColumnsOpen"
+      side="bottom"
+      inset
+      :dismissible="true"
+      title="Columnas"
+      :ui="{ content: columnsContentClass }"
+    >
+      <template #content>
+        <div class="hf-columns-sheet" data-testid="columns-sheet">
+          <span class="hf-columns-sheet__grab" aria-hidden="true" />
+          <div class="hf-columns-panel__head">
+            <h2 class="hf-columns-panel__title">Columnas</h2>
+            <UButton
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              icon="i-lucide-x"
+              aria-label="Cerrar"
+              @click="isColumnsOpen = false"
+            />
+          </div>
+          <p class="hf-columns-panel__sub">Elige qué campos ves en cada tarjeta.</p>
+          <ul class="hf-columns-sheet__body">
+            <li v-for="column in columnRows" :key="column.id" class="hf-columns-sheet__row">
+              <span class="hf-columns-row__label">{{ column.label }}</span>
+              <span v-if="column.primary" class="hf-columns-sheet__note">Siempre visible</span>
+              <USwitch
+                :model-value="column.visible"
+                :disabled="column.primary"
+                :aria-label="`Mostrar ${column.label} en la tarjeta`"
+                @update:model-value="emit('column-visibility', column.id, $event as boolean)"
+              />
+            </li>
+          </ul>
+          <div class="hf-columns-sheet__foot">
+            <UButton color="neutral" variant="outline" icon="i-lucide-rotate-ccw" block @click="emit('reset-columns')">
+              Restablecer
+            </UButton>
+            <UButton block @click="isColumnsOpen = false">Listo</UButton>
+          </div>
+        </div>
+      </template>
+    </USlideover>
   </div>
 </template>

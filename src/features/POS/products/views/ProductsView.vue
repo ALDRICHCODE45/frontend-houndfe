@@ -64,13 +64,16 @@ const {
   rowSelection,
   columnPinning,
   columnVisibility,
+  columnOrder,
+  columnSizing,
+  density,
+  resetLayout,
   data,
   totalCount,
   pageCount,
   isLoading,
   isFetching,
   isError,
-  error,
   refresh,
   pageSizeOptions,
   showingFrom,
@@ -635,6 +638,10 @@ const productsErrorMessage = 'No se pudieron cargar los productos'
           v-model:global-filter="globalFilter"
           v-model:column-pinning="columnPinning"
           v-model:column-visibility="columnVisibility"
+          v-model:column-order="columnOrder"
+          v-model:column-sizing="columnSizing"
+          v-model:density="density"
+          :persist-layout="true"
           :items="data"
           :can-read="canReadProduct"
           :can-update="canUpdateProduct"
@@ -658,6 +665,7 @@ const productsErrorMessage = 'No se pudieron cargar los productos'
           @add="handleAdd"
           @refresh="refresh"
           @clear-filters="clearFilters"
+          @reset-columns="resetLayout"
         >
           <template #filters>
             <ToolbarSelectFilter

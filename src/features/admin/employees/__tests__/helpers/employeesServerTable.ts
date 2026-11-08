@@ -25,6 +25,10 @@ export const tableState = {
   globalFilter: ref(''),
   columnPinning: ref({ left: [] as string[], right: ['actions'] as string[] }),
   columnVisibility: ref<Record<string, boolean>>({}),
+  columnOrder: ref<string[]>([]),
+  columnSizing: ref<Record<string, number>>({}),
+  density: ref<string>('comfortable'),
+  resetLayout: vi.fn(),
   rowSelection: ref<Record<string, boolean>>({}),
   data: ref<unknown[]>([]),
   isLoading: ref(false),
@@ -44,6 +48,10 @@ export const serverTableModule = {
       globalFilter: tableState.globalFilter,
       columnPinning: tableState.columnPinning,
       columnVisibility: tableState.columnVisibility,
+      columnOrder: tableState.columnOrder,
+      columnSizing: tableState.columnSizing,
+      density: tableState.density,
+      resetLayout: tableState.resetLayout,
       rowSelection: tableState.rowSelection,
       data: computed(() => tableState.data.value),
       totalCount: computed(() => tableState.data.value.length),
@@ -74,6 +82,10 @@ export function resetTableState() {
   tableState.globalFilter.value = ''
   tableState.columnPinning.value = { left: [], right: ['actions'] }
   tableState.columnVisibility.value = {}
+  tableState.columnOrder.value = []
+  tableState.columnSizing.value = {}
+  tableState.density.value = 'comfortable'
+  tableState.resetLayout.mockReset()
   tableState.rowSelection.value = {}
   tableState.data.value = []
   tableState.isLoading.value = false

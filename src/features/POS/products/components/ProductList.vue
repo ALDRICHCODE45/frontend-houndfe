@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
+import {
+  AppDataTable,
+  DEFAULT_TABLE_DENSITY,
+  SortableHeader,
+  type TableDensity,
+} from '@/core/shared/components/DataTable'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { useClickableRow } from '@/core/shared/composables/useClickableRow'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
+import type { ColumnOrderState, ColumnSizingState } from '@tanstack/vue-table'
 import type {
   ColumnPinningState,
   PaginationState,
@@ -42,6 +48,8 @@ const props = defineProps<{
   showingFrom?: number
   showingTo?: number
   pageSizeOptions?: number[]
+  /** The bound layout is persisted (ProductsView's `persistKey`): confirms «Guardado en tu vista». */
+  persistLayout?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -51,6 +59,7 @@ const emit = defineEmits<{
   add: []
   refresh: []
   'clear-filters': []
+  'reset-columns': []
 }>()
 
 const sorting = defineModel<SortingState>('sorting', { default: () => [] })
@@ -64,6 +73,9 @@ const columnPinning = defineModel<ColumnPinningState>('columnPinning', {
 const columnVisibility = defineModel<VisibilityState>('columnVisibility', {
   default: () => ({}),
 })
+const columnOrder = defineModel<ColumnOrderState>('columnOrder', { default: () => [] })
+const columnSizing = defineModel<ColumnSizingState>('columnSizing', { default: () => ({}) })
+const density = defineModel<TableDensity>('density', { default: DEFAULT_TABLE_DENSITY })
 
 const { columns } = useProductColumns()
 
@@ -114,6 +126,10 @@ const rowOpen = computed(() => (props.canRead ? open : undefined))
     v-model:global-filter="globalFilter"
     v-model:column-pinning="columnPinning"
     v-model:column-visibility="columnVisibility"
+    v-model:column-order="columnOrder"
+    v-model:column-sizing="columnSizing"
+    v-model:density="density"
+    :persist-layout="persistLayout"
     :columns="columns"
     :data="items"
     :loading="loading"
@@ -143,6 +159,7 @@ const rowOpen = computed(() => (props.canRead ? open : undefined))
     @empty-action="emit('add')"
     @refresh="emit('refresh')"
     @clear-filters="emit('clear-filters')"
+    @reset-columns="emit('reset-columns')"
   >
     <template #filters><slot name="filters" /></template>
 

@@ -10,6 +10,7 @@ import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { useClickableRow } from '@/core/shared/composables/useClickableRow'
+import { useTablePreferences } from '@/core/shared/composables/useTablePreferences'
 import type { TableColumn } from '@/core/shared/types/table.types'
 import type { ShippingBox } from '../interfaces/shipping-settings.types'
 import { formatCm, formatKg } from '../utils/shippingUnits'
@@ -48,6 +49,12 @@ const columns = computed<TableColumn<ShippingBox, unknown>[]>(() => [
     : []),
 ])
 
+// Premium tables T9: the user's column layout (order, pinning, widths, visibility, density) is kept per table.
+const { columnOrder, columnPinning, columnSizing, columnVisibility, density, reset: resetLayout } = useTablePreferences({
+  persistKey: 'shipping-boxes',
+  columnIds: () => columns.value.map(column => column.id ?? ('accessorKey' in column ? String(column.accessorKey) : '')),
+})
+
 const size = (box: ShippingBox) =>
   `${formatCm(box.innerLengthCm)} × ${formatCm(box.innerWidthCm)} × ${formatCm(box.innerHeightCm)} cm`
 const kg = (grams: number) => `${formatKg(grams)} kg`
@@ -73,6 +80,12 @@ const clickable = useClickableRow<ShippingBox>(open, { focusable: false })
 
 <template>
   <AppDataTable
+    v-model:column-order="columnOrder"
+    v-model:column-pinning="columnPinning"
+    v-model:column-sizing="columnSizing"
+    v-model:column-visibility="columnVisibility"
+    v-model:density="density"
+    :persist-layout="true"
     :show-toolbar="false"
     :columns="columns"
     :data="data"
@@ -87,6 +100,7 @@ const clickable = useClickableRow<ShippingBox>(open, { focusable: false })
     class="hf-data-table"
     @refresh="emit('refresh')"
     @empty-action="emit('create')"
+    @reset-columns="resetLayout"
   >
     <template #name-cell="{ row }">
       <button

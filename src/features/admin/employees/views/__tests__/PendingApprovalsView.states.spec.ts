@@ -8,7 +8,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import PendingApprovalsView from '../PendingApprovalsView.vue'
 import { isBelowBreakpoint } from '../../__tests__/helpers/employeesServerTable'
 import type { Employee, TimeOffRequest } from '../../interfaces/employee.types'
@@ -339,5 +339,34 @@ describe('PendingApprovalsView states — chrome', () => {
     expect(wrapper.find('.hf-page-subtitle').exists()).toBe(false)
     expect(wrapper.find('[data-testid="pending-approvals-summary"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="view-toggle"]').exists()).toBe(false)
+  })
+})
+
+describe('PendingApprovalsView — premium table layout', () => {
+  const KEY = 'table-preferences-admin-pending-approvals'
+  afterEach(() => localStorage.removeItem(KEY))
+
+  it('keeps the layout in the browser under a stable key and resets it from the table', async () => {
+    pending.data.value = [makeRequest()]
+    const table = mountView().findComponent({ name: 'AppDataTable' })
+    const props = table.props() as Record<string, unknown>
+    expect(props.persistLayout).toBe(true)
+    expect(props.columnPinning).toEqual({ left: [], right: ['acciones'] })
+    expect(props.density).toBe('comfortable')
+
+    table.vm.$emit('update:columnOrder', ['fechas', 'colaborador'])
+    table.vm.$emit('update:columnSizing', { motivo: 300 })
+    table.vm.$emit('update:density', 'compact')
+    await nextTick()
+    const stored = JSON.parse(localStorage.getItem(KEY) ?? '{}')
+    expect(stored.order.slice(0, 2)).toEqual(['fechas', 'colaborador'])
+    expect(stored.sizing).toEqual({ motivo: 300 })
+    expect(stored.density).toBe('compact')
+    expect((table.props() as Record<string, unknown>).density).toBe('compact')
+
+    table.vm.$emit('reset-columns')
+    await nextTick()
+    expect(localStorage.getItem(KEY)).toBeNull()
+    expect((table.props() as Record<string, unknown>).density).toBe('comfortable')
   })
 })

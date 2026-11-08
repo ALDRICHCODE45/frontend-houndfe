@@ -101,13 +101,16 @@ const {
   rowSelection,
   columnPinning,
   columnVisibility,
+  columnOrder,
+  columnSizing,
+  density,
+  resetLayout,
   data,
   totalCount,
   pageCount,
   isLoading,
   isFetching,
   isError,
-  error,
   refresh,
   pageSizeOptions,
   showingFrom,
@@ -357,7 +360,11 @@ const errorMessage = 'No se pudieron cargar las cotizaciones'
             v-model:global-filter="globalFilter"
             v-model:column-pinning="columnPinning"
             v-model:column-visibility="columnVisibility"
+            v-model:column-order="columnOrder"
+            v-model:column-sizing="columnSizing"
+            v-model:density="density"
             v-model:row-selection="rowSelection"
+            :persist-layout="true"
             :columns="columns"
             :data="data"
             :loading="isLoading"
@@ -390,6 +397,7 @@ const errorMessage = 'No se pudieron cargar las cotizaciones'
             @add="goToCreate"
             @empty-action="goToCreate"
             @clear-filters="clearAllFilters"
+            @reset-columns="resetLayout"
           >
             <!-- Embedded below md: the wrapper's bottom sheet owns the trigger,
                  header and footer, so users see ONE "Filtros" tap → ONE sheet. -->

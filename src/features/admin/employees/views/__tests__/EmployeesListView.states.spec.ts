@@ -16,6 +16,7 @@ import {
   serverTableConfig,
   tableState,
 } from '../../__tests__/helpers/employeesServerTable'
+import { expectLayoutBound } from '@/features/admin/__tests__/helpers/layoutBinding'
 import type { Employee } from '../../interfaces/employee.types'
 
 vi.mock('@/core/shared/composables/useServerTable', async () =>
@@ -380,5 +381,14 @@ describe('EmployeesListView states — mobile density containment (S4)', () => {
     expect(Array.from(wrapper.get('.hf-table-content').element.classList)).toEqual(
       expect.arrayContaining(['w-full', 'min-w-0', 'px-3', 'py-3', 'sm:px-4', 'sm:py-4']),
     )
+  })
+})
+
+describe('EmployeesListView — premium table layout', () => {
+  it('persists the layout under a stable key and binds it to the table', async () => {
+    const wrapper = mountView()
+    const config = serverTableConfig.mock.lastCall![0] as { persistKey: string }
+    expect(config.persistKey).toBe('admin-employees')
+    await expectLayoutBound(wrapper, { ...tableState, reset: tableState.resetLayout })
   })
 })

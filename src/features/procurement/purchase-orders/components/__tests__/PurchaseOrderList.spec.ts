@@ -10,7 +10,8 @@ import type { PurchaseOrderSummary } from '../../interfaces/purchase-order.types
 const row: PurchaseOrderSummary = { id: 'o', version: 1, status: 'DRAFT', supplierDisplaySnapshot: { id: 's', displayName: 'Proveedor', status: 'ACTIVE' }, lineCount: 2, issueCount: 0, note: 'Nota', locationDetail: null, totals: null, createdAt: '2026-01-01T10:00:00Z', updatedAt: '2026-01-01T10:20:00Z' }
 // A real <table>; both layouts render so cells and cards can be read together. The real AppDataTable owns the row-click contract (its own spec covers it); the stub honors `rowOpen` the same way.
 const table = defineComponent({
-  props: ['data', 'columns', 'rowOpen'],
+  props: ['data', 'columns', 'rowOpen', 'globalFilter', 'searchPlaceholder', 'showRefresh', 'showToolbar', 'activeFilterCount'],
+  emits: ['update:globalFilter', 'clear-filters'],
   methods: {
     clickRow(event: MouseEvent, row: unknown) { if (this.rowOpen && !isInteractiveTarget(event.target, event.currentTarget as Element)) this.rowOpen(row) },
   },
@@ -25,8 +26,7 @@ const table = defineComponent({
     <div class="cards"><slot name="mobile-card" v-for="row in data" :row="row"/></div>
   </div>`,
 })
-const toolbar = defineComponent({ props: ['globalFilter', 'searchPlaceholder', 'showRefresh', 'activeFilterCount'], emits: ['refresh', 'clear-filters'], template: '<div><slot name="actions"/><slot name="filters"/></div>' })
-const stubs = { AppDataTable: table, DataTableToolbar: toolbar }
+const stubs = { AppDataTable: table }
 const permissions = { canEdit: true, canDelete: true, canConfirm: true, canCancel: true }
 const mountList = (items: PurchaseOrderSummary[], props: Record<string, unknown> = {}) => mount(PurchaseOrderList, { props: { items, ...permissions, ...props }, global: { stubs } })
 const cell = (wrapper: ReturnType<typeof mountList>, name: string, index = 0) => wrapper.findAll(`td[data-cell="${name}"]`)[index]!
@@ -38,25 +38,28 @@ describe('list columns and toolbar', () => {
     expect(columns.map(column => column.header)).toEqual(['Proveedor', 'Estado', 'Renglones', 'Total', 'Actualizada', 'Acciones'])
     expect(columns[columns.length - 1]!.id).toBe('actions')
   })
+  it('uses the shared table toolbar (with its «Columnas» panel) instead of composing its own', () => {
+    expect(mountList([]).getComponent(table).props('showToolbar')).not.toBe(false)
+  })
   it('does not expose an empty filters slot to the shared toolbar', () => {
-    expect(mountList([]).getComponent(toolbar).vm.$slots.filters).toBeUndefined()
+    expect(mountList([]).getComponent(table).vm.$slots.filters).toBeUndefined()
   })
   it('emits search to the server owner without filtering the current page locally', async () => {
     const wrapper = mountList([row])
-    expect(wrapper.getComponent(toolbar).props('searchPlaceholder')).toBe('Buscar por proveedor o nota...')
-    wrapper.getComponent(toolbar).vm.$emit('update:globalFilter', 'inexistente')
+    expect(wrapper.getComponent(table).props('searchPlaceholder')).toBe('Buscar por proveedor o nota...')
+    wrapper.getComponent(table).vm.$emit('update:globalFilter', 'inexistente')
     await wrapper.vm.$nextTick()
     expect(wrapper.emitted('update:search')?.[0]).toEqual(['inexistente'])
     expect(wrapper.text()).toContain('Proveedor')
   })
   it('forwards the active filter count to the shared toolbar and relays clear-filters', () => {
     const wrapper = mountList([], { activeFilterCount: 1 })
-    expect(wrapper.getComponent(toolbar).props('activeFilterCount')).toBe(1)
-    wrapper.getComponent(toolbar).vm.$emit('clear-filters')
+    expect(wrapper.getComponent(table).props('activeFilterCount')).toBe(1)
+    wrapper.getComponent(table).vm.$emit('clear-filters')
     expect(wrapper.emitted('clear-filters')).toHaveLength(1)
   })
   it('drops the refresh button from the toolbar, as the pattern catalog says', () => {
-    expect(mountList([]).getComponent(toolbar).props('showRefresh')).toBeFalsy()
+    expect(mountList([]).getComponent(table).props('showRefresh')).toBeFalsy()
   })
 })
 
@@ -247,14 +250,45 @@ describe('mobile card', () => {
   })
 })
 
-describe('compact desktop rows', () => {
+describe('desktop rows and widths', () => {
   const sfc = readFileSync('src/features/procurement/purchase-orders/components/PurchaseOrderList.vue', 'utf8')
-  it('uses a 64px cell with tight vertical padding, so a two-line cell is about 64px and not the 44px button plus 32px of padding', () => {
-    expect(sfc).toMatch(/td\[data-slot='td'\]\) \{[^}]*height: 64px/)
-    expect(sfc).toMatch(/td\[data-slot='td'\]\) \{[^}]*padding-block: 10px/)
+  it('leaves row height to the table density and widths to the column layout: no feature height or nth-child widths', () => {
+    expect(sfc).not.toMatch(/td\[data-slot='td'\]\) \{[^}]*height:/)
+    expect(sfc).not.toMatch(/nth-child/)
+    expect(sfc).not.toMatch(/table-layout/)
+  })
+  it('hints the default widths on the columns, so they move and resize with them', () => {
+    const columns = mountList([row]).getComponent(table).props('columns') as Array<{ id?: string; accessorKey?: string; size?: number }>
+    expect(Object.fromEntries(columns.map(column => [column.id ?? column.accessorKey, column.size]))).toEqual({ supplier: undefined, status: 200, lineCount: 112, total: 152, updatedAt: 144, actions: undefined })
   })
   it('does not give the primary button its own box (no min-height or padding): the shared class owns that', () => {
     expect(sfc).not.toMatch(/\.order-row-link \{[^}]*min-height: var/)
     expect(sfc).toMatch(/\.order-row-link \{[^}]*padding: 0/)
+  })
+})
+
+// Premium tables T7 (S5): the totals row counts the orders and adds up Total per tax basis.
+describe('totals row', () => {
+  type Total = { kind: string; label?: (n: number) => string; compute?: (rows: PurchaseOrderSummary[]) => string }
+  const totalOf = (id: string) =>
+    (mountList([row]).getComponent(table).props('columns') as Array<{ id?: string; accessorKey?: string; meta?: { total?: Total } }>)
+      .find(column => (column.id ?? column.accessorKey) === id)?.meta?.total
+  it('counts the orders in the label', () => {
+    const count = totalOf('supplier')!
+    expect(count.kind).toBe('count')
+    expect(count.label!(1)).toBe('1 orden')
+    expect(count.label!(4)).toBe('4 órdenes')
+  })
+  it('sums Total from the server decimals per tax basis', () => {
+    const sum = totalOf('total')!
+    expect(sum.kind).toBe('custom')
+    const orders = [
+      { ...row, id: 'a', totals: [{ amount: '1000.50', currency: 'MXN' as const, taxBasis: 'INCLUDES_TAX' as const }] },
+      { ...row, id: 'b', totals: [{ amount: '99.5', currency: 'MXN' as const, taxBasis: 'INCLUDES_TAX' as const }] },
+    ]
+    expect(sum.compute!(orders)).toBe('$1,100.00')
+  })
+  it('adds nothing up in Renglones, Estado or Actualizada', () => {
+    for (const id of ['status', 'lineCount', 'updatedAt', 'actions']) expect(totalOf(id)).toBeUndefined()
   })
 })

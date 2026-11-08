@@ -1,16 +1,58 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { BulkAction } from '../../types/table.types'
 
-defineProps<{
-  selectedCount: number
-  totalCount: number
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  actions: BulkAction<any>[]
-}>()
+const props = withDefaults(
+  defineProps<{
+    selectedCount: number
+    totalCount: number
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    actions: BulkAction<any>[]
+    /** Rows handed to `action.onClick`; without them the actions keep receiving `[]`. */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    selectedRows?: any[]
+    /** Noun after the count («3 seleccionadas»). */
+    selectedLabel?: { one: string; other: string }
+    /** Name of the bar's region for assistive tech. */
+    label?: string
+    /** Box of the table surface (viewport px); the fixed bar centres over it. Unset → the viewport. */
+    anchor?: { left: number; width: number }
+  }>(),
+  {
+    selectedRows: undefined,
+    selectedLabel: () => ({ one: 'seleccionado', other: 'seleccionados' }),
+    label: 'Acciones para las filas seleccionadas',
+    anchor: undefined,
+  },
+)
 
 const emit = defineEmits<{
   clearSelection: []
 }>()
+
+defineSlots<{
+  /** Summary of the selection beside the count (e.g. the total of the selected sales). */
+  summary?: () => unknown
+}>()
+
+const noun = computed(() => (props.selectedCount === 1 ? props.selectedLabel.one : props.selectedLabel.other))
+const status = computed(() =>
+  props.totalCount > 0 ? `${props.selectedCount} ${noun.value} de ${props.totalCount}` : `${props.selectedCount} ${noun.value}`,
+)
+// 16px of breathing room on each side of the surface.
+const anchorStyle = computed(() =>
+  props.anchor
+    ? {
+        '--hf-bulk-center': `${props.anchor.left + props.anchor.width / 2}px`,
+        '--hf-bulk-max': `${Math.max(0, props.anchor.width - 32)}px`,
+      }
+    : undefined,
+)
+// The destructive action goes last, right before ✕, like every danger action in the system.
+const orderedActions = computed(() => [
+  ...props.actions.filter(action => action.variant !== 'destructive'),
+  ...props.actions.filter(action => action.variant === 'destructive'),
+])
 
 /**
  * Map BulkAction.variant to a Nuxt UI `color`.
@@ -20,7 +62,7 @@ const emit = defineEmits<{
  * - 'primary'     → 'primary' (success-tone, e.g. batch-reactivate)
  * - 'default'/undefined → 'neutral' (gray, generic)
  */
-function resolveActionColor(variant: BulkAction<unknown>['variant']): string {
+function resolveActionColor(variant: BulkAction<unknown>['variant']) {
   switch (variant) {
     case 'destructive':
       return 'error'
@@ -36,59 +78,46 @@ function resolveActionColor(variant: BulkAction<unknown>['variant']): string {
 </script>
 
 <template>
-  <Transition
-    enter-active-class="transition-all duration-200 ease-out"
-    enter-from-class="translate-y-full opacity-0"
-    enter-to-class="translate-y-0 opacity-100"
-    leave-active-class="transition-all duration-150 ease-in"
-    leave-from-class="translate-y-0 opacity-100"
-    leave-to-class="translate-y-full opacity-0"
-  >
-    <div
-      v-if="selectedCount > 0"
-      class="bg-elevated border-default sticky bottom-0 z-10 flex items-center justify-between gap-3 rounded-lg border p-3 shadow-lg"
-    >
-      <div class="flex items-center gap-2 text-sm">
-        <span class="hf-bulk-count" data-testid="bulk-selected-count">{{ selectedCount }}</span>
-        <span class="text-muted"> de {{ totalCount }} seleccionados </span>
-        <UButton
-          color="neutral"
-          variant="link"
-          label="Deseleccionar"
-          size="xs"
-          @click="emit('clearSelection')"
-        />
-      </div>
+  <Transition name="hf-bulk-bar">
+    <div v-if="selectedCount > 0" class="hf-bulk-bar" role="region" :aria-label="props.label" :style="anchorStyle">
+      <span class="hf-bulk-bar__count"
+        ><span class="hf-bulk-count" data-testid="bulk-selected-count">{{ selectedCount }}</span> {{ noun }}</span
+      >
+      <span class="sr-only" role="status">{{ status }}</span>
+      <span v-if="$slots.summary" class="hf-bulk-bar__summary"><slot name="summary" /></span>
 
-      <div class="flex items-center gap-2">
+      <template v-if="orderedActions.length > 0">
+        <span class="hf-bulk-bar__sep" aria-hidden="true" />
         <UButton
-          v-for="action in actions"
+          v-for="action in orderedActions"
           :key="action.id"
           :label="action.label"
           :icon="action.icon"
           :color="resolveActionColor(action.variant)"
-          variant="outline"
-          size="sm"
-          @click="action.onClick([])"
+          :disabled="action.disabled"
+          :class="action.variant === 'destructive' ? 'hf-bulk-bar__danger' : undefined"
+          variant="ghost"
+          data-bulk-action
+          @click="action.onClick(props.selectedRows ?? [])"
         />
-      </div>
+      </template>
+
+      <span class="hf-bulk-bar__sep" aria-hidden="true" />
+      <UButton
+        color="neutral"
+        variant="ghost"
+        icon="i-lucide-x"
+        aria-label="Quitar selección"
+        title="Quitar selección"
+        @click="emit('clearSelection')"
+      />
     </div>
   </Transition>
 </template>
 
 <style scoped>
 .hf-bulk-count {
-  display: inline-flex;
-  min-width: 1.5rem;
-  height: 1.5rem;
-  align-items: center;
-  justify-content: center;
-  padding: 0 0.5rem;
-  border-radius: 6px;
-  background: var(--hf-active-soft);
-  color: var(--hf-heading);
-  font-size: 0.75rem;
-  font-weight: 600;
   font-variant-numeric: tabular-nums;
+  color: var(--hf-active);
 }
 </style>
