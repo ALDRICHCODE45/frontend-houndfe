@@ -411,6 +411,30 @@ In cards mode the same state renders under `data-testid="mobile-empty-state"`.
 
 Pick the container by the size of the job: a **confirm modal** for a decision (`ConfirmModal`: title as a question, one line of consequence, the action named as a verb, a destructive confirm in `--hf-danger`); a **slideover** (`max-w-md`) for creating or editing a simple record, up to about 10 fields; the **wide record workspace** (`max-w-3xl`) for a record with lines or sections; a **page** for a long or multi-step editor (product detail, quotation, sale). Fields are labeled above the input, one column on mobile, and two columns only for short related pairs (price and currency). A required field is marked once in its label; errors appear under the field in `--hf-danger` and on submit, then live. The footer holds one primary (`Guardar`, `Crear proveedor`); `Cancelar` is unnecessary when X and Escape close the overlay.
 
+### Selección sin checkboxes
+
+Owner rule («no quiero que haya "checkboxes" típicos porque siento que no son accesibles para el usuario, son difíciles de clickear»): HoundFe uses **no classic checkbox**. A 16px box misses under a finger or a quick mouse, its label is often not part of the target, and a thin tick on grey is hard to read in long lists and in dark mode. Every choice is a large control whose text, description and mark are one target, with a state that reads without color. Reference board: `design/catalog-settings/04-regla-sin-checkboxes.html`; first screen built on it: Sistema › Catálogo online (`design/catalog-settings/01-ajustes-en-filas.html`).
+
+| Situation | Pattern |
+|---|---|
+| Turn one option on or off (applies now or on save) | **Switch row** |
+| Pick one of 2–5 options that need an explanation or a sample | **Radio card** |
+| Pick several from a medium list (up to about 12) | **Selectable rows with mark** |
+| Filters or a few short multiple options | **Toggle chips** |
+| Pick one of 2–4 short, self-explaining options | **Segmented control** (`HfSegmented`) |
+| Select rows in a table for a bulk action | **Row mark** |
+| Many options or search needed | `HfCombobox` (single or multiple) |
+| Confirm a consequence («acepto», «sí, borrar») | An explicit button or `ConfirmModal`, never a box |
+
+- **Switch row** (`USwitch`, `role="switch"` + `aria-checked`): the whole row is the target (min 48px; label 14px/500, description 13px `--hf-muted`, switch on the right); a state word (`Activado` / `Desactivado`) when the row does not make it obvious. Disabled rows say why (`Lista interna; no se puede publicar`). Off track per the Inputs rule (`hf-switch-off.spec.ts`).
+- **Radio card** (`role="radiogroup"` / `role="radio"`, roving tabindex, arrows Home End): the whole card is the target; title 14px/600, description 13px, optional preview line; selected = `--hf-active-soft` background, `--hf-active` 1px border, a filled round check mark and the title in `--hf-active`, never color alone. A card that needs input (`Cantidad a mostrar`) reveals it inside the selected card.
+- **Selectable rows with mark** (`role="listbox" aria-multiselectable="true"` with `role="option" aria-selected`, or buttons with `aria-pressed`): 48px rows, label left, a round check mark right (empty ring at rest), Space toggles, a live count (`2 de 5 públicas`). An empty required selection shows its error under the list.
+- **Toggle chips** (`aria-pressed`): 36px pills (44px on mobile) with a check icon when pressed, `--hf-active-soft` / `--hf-active`; `Limpiar (n)` when any is on.
+- **Segmented control**: 44px, selected segment `--hf-active-soft` with `--hf-active` and a check icon; arrows move and choose. Density in the «Columnas» panel is one.
+- **Row mark in tables**: a round 24px mark inside a 44px hit area replaces the table checkbox, header included (empty → all → some, `aria-pressed="mixed"`); Space on the focused row selects, Enter opens, Shift+click selects a range; the bulk bar appears as today.
+- **Accessibility checklist**: target ≥ 44px (the row, card, chip or the mark's area, never the painted icon alone); the label is part of the target; correct role and `aria-*`; full keyboard (Tab to the group, arrows inside radio groups, Space/Enter); focus ring 2px `--hf-focus` offset 2px, distinct from the selected look; selected never by color only (mark, border, weight or text); 3:1 for the boundary of every non-text control; errors linked with `aria-describedby`.
+- **Migration**: the existing checkbox uses (the multiple `HfCombobox` options, the table selection column, `EditorialAttributeCell` lists and about twenty feature screens) move to these patterns screen by screen; new work never adds a checkbox.
+
 ### Formularios modernos
 
 The chosen direction for long forms is `design/content-editor-v3/02-section-cards.html` (principles in its `BRIEF.md`). It is built from the shared components in `src/core/shared/components/form/` (styles in `hf-form.css`, colors only from `--hf-*`):
@@ -432,7 +456,7 @@ The chosen direction for long forms is `design/content-editor-v3/02-section-card
 - **Tokens:** trigger `--hf-field` with a `--hf-border` rest, `--hf-field-border` hover, `--hf-focus` ring and `--hf-danger` when invalid; options in `--hf-ink`, highlight `--hf-active-soft`, check `--hf-active`; chips `--hf-surface-muted`; the special label in `--hf-muted` italic.
 - **States:**
   - Options are 36px with the label centered and no gap under it. Hover and keyboard highlight use `--hf-active-soft`. The chosen option carries a trailing check.
-  - Multiple: every option gets a checkbox, and the trigger shows at most 2 chips, then `+N` (read as `y N más`).
+  - Multiple: every option gets a checkbox (to migrate to a trailing round check mark, Selección sin checkboxes), and the trigger shows at most 2 chips, then `+N` (read as `y N más`).
   - Search is accent-insensitive. When it filters out every option it shows `Sin resultados para «…»`, and the footer stays.
   - Picking a special answer emits `update:special` and leaves the value alone. Picking a regular option afterwards clears the special answer (`null`).
 - **Mobile:** 44px trigger and 44px options.
