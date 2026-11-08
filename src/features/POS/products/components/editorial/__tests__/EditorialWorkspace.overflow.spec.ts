@@ -9,8 +9,12 @@ const detail = readFileSync('src/features/POS/products/views/ProductDetailView.v
 const style = (source: string) => source.slice(source.indexOf('<style scoped>'))
 
 describe('Contenido never scrolls the product page sideways', () => {
-  it('lets the product scroller and every grid item shrink below their content', () => {
-    expect(detail).toMatch(/class="mx-auto flex w-full min-w-0 max-w-\[1480px\][^"]*overflow-y-auto/)
+  // The scroller is DetailPageFrame's full-width area (overflow-x-hidden, DetailPageFrame.spec.ts);
+  // the centred column inside it must still shrink and never scroll on its own.
+  it('lets the product column and every grid item shrink below their content', () => {
+    expect(detail).toMatch(/<DetailPageFrame\b/)
+    expect(detail).toMatch(/class="mx-auto flex [^"]*min-w-0 max-w-\[1480px\][^"]*"/)
+    expect(detail).not.toMatch(/max-w-\[1480px\][^"]*overflow-y-auto/)
     expect(style(detail)).toMatch(/\.product-workspace-grid > \*\s*\{[^}]*min-width: 0/)
     expect(style(workspace)).toMatch(/\.editorial-layout > \*\s*\{[^}]*min-width: 0/)
   })
