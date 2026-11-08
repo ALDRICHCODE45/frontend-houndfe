@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { AxiosError } from 'axios'
+import DetailPageFrame from '@/core/shared/components/DetailPageFrame.vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import { promotionQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
@@ -208,50 +209,50 @@ const formType = computed<PromotionType>(() => {
 </script>
 
 <template>
-  <div
-    class="hf-theme hf-ui promotions-workspace -m-4 flex h-[calc(100%+2rem)] flex-col sm:-m-6 sm:h-[calc(100%+3rem)]"
-  >
-    <!-- ── Header bar ────────────────────────────────────────────────────────── -->
-    <div
-      class="promotions-workspace-header shrink-0 border-b border-default bg-default px-4 py-4 md:px-10"
-    >
-      <div class="mx-auto flex w-full max-w-6xl items-center justify-between">
-        <!-- Back + title -->
-        <div class="flex min-w-0 items-center gap-3">
-          <UButton
-            icon="i-lucide-arrow-left"
-            color="neutral"
-            variant="ghost"
-            class="cursor-pointer"
-            aria-label="Volver a promociones"
-            @click="handleCancel"
-          />
-          <h1 class="promotions-workspace-title min-w-0 text-lg font-semibold">
-            {{ headerTitle }}
-          </h1>
-        </div>
+  <DetailPageFrame class="hf-theme hf-ui promotions-workspace">
+    <template #header>
+      <!-- ── Header bar ────────────────────────────────────────────────────────── -->
+      <div
+        class="promotions-workspace-header border-b border-default bg-default px-4 py-4 md:px-10"
+      >
+        <div class="mx-auto flex w-full max-w-6xl items-center justify-between">
+          <!-- Back + title -->
+          <div class="flex min-w-0 items-center gap-3">
+            <UButton
+              icon="i-lucide-arrow-left"
+              color="neutral"
+              variant="ghost"
+              class="cursor-pointer"
+              aria-label="Volver a promociones"
+              @click="handleCancel"
+            />
+            <h1 class="promotions-workspace-title min-w-0 text-lg font-semibold">
+              {{ headerTitle }}
+            </h1>
+          </div>
 
-        <!-- The one primary action; the back arrow leaves without saving.
-             Below md it moves to the sticky bottom bar. -->
-        <div
-          v-if="showForm"
-          class="hidden shrink-0 items-center gap-3 md:flex"
-          data-testid="header-submit"
-        >
-          <!-- CRITICAL 3: Header submit button triggers UForm via form ID -->
-          <UButton
-            :label="isCreateMode ? 'Crear promoción' : 'Guardar cambios'"
-            :loading="isSubmitting"
-            class="cursor-pointer"
-            type="submit"
-            form="promotion-detail-form"
-          />
+          <!-- The one primary action; the back arrow leaves without saving.
+               Below md it moves to the bottom bar. -->
+          <div
+            v-if="showForm"
+            class="hidden shrink-0 items-center gap-3 md:flex"
+            data-testid="header-submit"
+          >
+            <!-- CRITICAL 3: Header submit button triggers UForm via form ID -->
+            <UButton
+              :label="isCreateMode ? 'Crear promoción' : 'Guardar cambios'"
+              :loading="isSubmitting"
+              class="cursor-pointer"
+              type="submit"
+              form="promotion-detail-form"
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </template>
 
     <!-- ── Content area ──────────────────────────────────────────────────────── -->
-    <div class="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 overflow-y-auto px-4 pb-6 pt-6 md:px-10">
+    <div class="mx-auto flex min-h-full w-full max-w-6xl flex-col gap-6 px-4 pb-6 pt-6 md:px-10">
       <!-- Loading skeleton (edit mode while fetching), shaped like the form -->
       <div
         v-if="isLoadingPromotion"
@@ -326,20 +327,22 @@ const formType = computed<PromotionType>(() => {
       />
     </div>
 
-    <!-- Mobile: the single primary lives in the sticky bottom bar. -->
-    <div
-      v-if="showForm"
-      class="promotions-action-bar shrink-0 md:hidden"
-      data-testid="mobile-action-bar"
-    >
-      <button
-        type="submit"
-        form="promotion-detail-form"
-        class="promotions-bar-primary"
-        :disabled="isSubmitting"
+    <!-- Mobile: the single primary lives in the bottom bar. -->
+    <template #footer>
+      <div
+        v-if="showForm"
+        class="promotions-action-bar md:hidden"
+        data-testid="mobile-action-bar"
       >
-        {{ isCreateMode ? 'Crear promoción' : 'Guardar cambios' }}
-      </button>
-    </div>
-  </div>
+        <button
+          type="submit"
+          form="promotion-detail-form"
+          class="promotions-bar-primary"
+          :disabled="isSubmitting"
+        >
+          {{ isCreateMode ? 'Crear promoción' : 'Guardar cambios' }}
+        </button>
+      </div>
+    </template>
+  </DetailPageFrame>
 </template>

@@ -201,7 +201,7 @@ The shell has **no palette of its own**. `unified-shell.css` declares its `--she
 
 ### Navbar breadcrumb
 
-The shell breadcrumb shares one row with the menu and icon buttons, so it never wraps: every crumb is one line and a long name truncates with an ellipsis (full text in `title`). On mobile (< 768px) only the current page shows; ancestors and chevrons hide. Reference: `DashboardLayout.vue`, `unified-shell.css` (`hf-shell-breadcrumb-item`, `hf-shell-breadcrumb-ancestor`); spec `unified-shell.breadcrumb.spec.ts`.
+The shell breadcrumb shares one row with the menu and icon buttons, so it never wraps: every crumb is one line and a long name truncates with an ellipsis (full text in `title`). On mobile (< 768px) only the current page shows; ancestors and chevrons hide. Below `lg` the menu toggle is the only sidebar control: the desktop collapse button (`hf-shell-collapse`) hides, so the page name keeps the room. Reference: `DashboardLayout.vue`, `unified-shell.css` (`hf-shell-breadcrumb-item`, `hf-shell-breadcrumb-ancestor`); spec `unified-shell.breadcrumb.spec.ts`.
 
 ### Toolbar
 
@@ -284,6 +284,10 @@ Top of the record workspace (artboard 04), in this order:
 4. **Step strip** underneath when the record has a flow.
 
 On mobile the header is a bar: close, meta plus title, ⋮; the primary moves to the sticky action bar.
+
+### Detail page scroll
+
+Every detail page (sale, product, promotion, quotation, employee, delivery route) sits in `DetailPageFrame` (owner decision: «Todos los detalles iguales»). The frame cancels the dashboard body's padding and fills the panel; the **header** (Detail header) is pinned at the top by the flex column, flush under the navbar, its surface full width and its content aligned with the body's column; the **full-width area below is the only scroller**, so the wheel and the scrollbar work anywhere on the page, also beside the content; each page centres its content inside it (`mx-auto max-w-*`); the **footer** slot holds the sticky mobile action bar. Never make the header `sticky` (inside the padded body it is offset into a blank strip above it) and never make a `max-w-*` column the scroller (outside it the wheel does nothing on wide screens). Sticky children (a summary aside, a save bar) stick to the frame's scroller. Reference: `src/core/shared/components/DetailPageFrame.vue`; spec `DetailPageFrame.spec.ts`.
 
 ### Step strip
 

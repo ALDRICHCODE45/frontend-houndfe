@@ -87,6 +87,14 @@ describe('shell chrome — navbar and collapse icon buttons', () => {
     })
   })
 
+  // The icon-button hook is unlayered and sets display, so it beat Nuxt UI's `hidden lg:flex` on
+  // the desktop collapse button: below lg it sat next to the mobile menu toggle and crowded the
+  // breadcrumb (detail-page-frame S4).
+  it('hides the desktop collapse button below lg and keeps it from lg up', () => {
+    expect(paint('.hf-shell-collapse', '1023')).toMatchObject({ display: 'none' })
+    expect(paint('.hf-shell-collapse').display).toBeUndefined()
+  })
+
   it('rings the account avatar instead of filling a square behind it', () => {
     expect(paint('.hf-shell-avatar-button')['border-radius']).toBe('999px')
     expect(paint('.hf-shell-avatar-button:hover')['box-shadow']).toBe(

@@ -277,7 +277,7 @@ watch(isSearchOpen, async (open) => {
           <template #left>
             <UDashboardSidebarCollapse
               variant="ghost"
-              class="hf-shell-icon-button shrink-0"
+              class="hf-shell-icon-button hf-shell-collapse shrink-0"
             />
 
             <nav aria-label="breadcrumb" class="hf-shell-breadcrumb">

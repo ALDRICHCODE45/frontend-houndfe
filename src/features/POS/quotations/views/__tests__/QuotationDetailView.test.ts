@@ -9,6 +9,7 @@ import QuotationExpiryPicker from '../../components/QuotationExpiryPicker.vue'
 import QuotationTotalsFooter from '../../components/QuotationTotalsFooter.vue'
 import ProductSearchPanel from '@/features/POS/sales/components/ProductSearchPanel.vue'
 import type { QuotationResponseDto } from '../../interfaces/quotation.types'
+import DetailPageFrame from '@/core/shared/components/DetailPageFrame.vue'
 import type { PromotionResponse } from '@/features/POS/promotions/interfaces/promotion.types'
 import { productQueryKeys, usersQueryKeys } from '@/core/shared/constants/query-keys'
 
@@ -523,6 +524,16 @@ beforeEach(() => {
 })
 
 describe('QuotationDetailView header', () => {
+  // detail-page-frame S3: the header stays pinned above the full-width scroller.
+  it('renders the shared detail frame with the header pinned and the content in the scroll area', () => {
+    const wrapper = mountView()
+    expect(wrapper.findComponent(DetailPageFrame).exists()).toBe(true)
+    expect(wrapper.find('[data-slot="header"] h1').exists()).toBe(true)
+    expect(wrapper.find('[data-slot="header"] [data-testid="back-button"]').exists()).toBe(true)
+    expect(wrapper.find('[data-slot="scroll"] [data-testid="quotation-detail-layout"]').exists()).toBe(true)
+    expect(wrapper.find('[data-slot="scroll"] header').exists()).toBe(false)
+  })
+
   it('names the record by its customer (never the id), with status badge, expiry and created date', () => {
     const wrapper = mountView()
 
@@ -2527,7 +2538,7 @@ describe('QuotationDetailView — review round 1', () => {
 
   it('draft on mobile: the single primary lives in a sticky bottom bar with equal columns', async () => {
     const wrapper = mountView()
-    const bar = wrapper.get('[data-testid="mobile-action-bar"]')
+    const bar = wrapper.get('[data-slot="footer"] [data-testid="mobile-action-bar"]')
     expect(bar.classes()).toContain('lg:hidden')
     expect(bar.get('[data-testid="mobile-send-btn"]').text()).toBe('Enviar')
     expect(bar.get('[data-testid="mobile-save-draft-btn"]').text()).toContain('Guardar borrador')

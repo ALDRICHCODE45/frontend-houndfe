@@ -32,6 +32,7 @@ import {
 } from '../composables/useEmployeeDetail'
 import { useManagerResolution } from '../composables/useManagerResolution'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
+import DetailPageFrame from '@/core/shared/components/DetailPageFrame.vue'
 import EmployeeDetailHeader from '../components/EmployeeDetailHeader.vue'
 import ResumenPanel from '../components/ResumenPanel.vue'
 import PersonalPanel from '../components/PersonalPanel.vue'
@@ -150,6 +151,11 @@ const activeTabLabel = computed(
 // ── Mobile: the primary moves to the sticky bottom bar ────────────────────────
 const isMobile = useBreakpoints(breakpointsTailwind).smaller('md')
 
+// The frame's header and footer sit outside the state chain, so they repeat its gate.
+const hasDetail = computed(
+  () => !isLoading.value && !isNotFound.value && !isError.value && !!employee.value,
+)
+
 // ── Tab strip: a fade at the end while more tabs wait off-screen ───────────────
 const tabsScroll = ref<HTMLElement | null>(null)
 const tabsHaveMore = ref(false)
@@ -187,199 +193,210 @@ function goBack(): void {
 </script>
 
 <template>
-  <div
-    class="hf-theme hf-ui employees-visual employees-detail mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-6 px-4 sm:px-6 lg:px-10"
-    :class="{ 'pb-24': isMobile && canUpdate && employee }"
-  >
-    <!-- Loading state: the final shape of the page, never a blank screen -->
-    <div
-      v-if="isLoading"
-      class="flex flex-col gap-6"
-      aria-busy="true"
-      data-testid="employee-detail-skeleton"
-    >
-      <span class="sr-only">Cargando</span>
-      <div class="flex items-center gap-3" aria-hidden="true">
-        <div class="size-11 shrink-0 animate-pulse rounded-lg bg-(--hf-surface-muted)" />
-        <div class="flex flex-1 flex-col gap-2">
-          <div class="h-5 w-40 animate-pulse rounded bg-(--hf-surface-muted)" />
-          <div class="h-6 w-64 max-w-full animate-pulse rounded bg-(--hf-surface-muted)" />
+  <!-- Detail page frame: the header stays pinned while the full-width area below scrolls. The
+       outer px-4 sm:px-6 stands in for the dashboard body's padding the frame cancels; header and
+       body share the max-w-5xl column. -->
+  <DetailPageFrame class="hf-theme hf-ui employees-visual employees-detail">
+    <template v-if="hasDetail && employee" #header>
+      <div class="border-b border-default bg-default px-4 sm:px-6">
+        <div class="mx-auto w-full min-w-0 max-w-5xl px-4 py-3 sm:px-6 lg:px-10">
+          <EmployeeDetailHeader
+            :employee="employee"
+            :can-update="canUpdate"
+            :mobile="isMobile"
+            @back="goBack"
+            @edit="openEdit"
+            @terminate="openTerminate"
+            @reactivate="openReactivate"
+          />
         </div>
       </div>
-      <div class="flex gap-4 border-b border-(--hf-border) pb-3" aria-hidden="true">
+    </template>
+
+    <div class="px-4 sm:px-6">
+      <div class="mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-10">
+        <!-- Loading state: the final shape of the page, never a blank screen -->
         <div
-          v-for="tab in 4"
-          :key="tab"
-          class="h-5 w-20 animate-pulse rounded bg-(--hf-surface-muted)"
-          data-testid="employee-detail-skeleton-tab"
-        />
-      </div>
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-3" aria-hidden="true">
-        <div
-          v-for="card in 3"
-          :key="card"
-          class="flex h-28 flex-col gap-3 rounded-xl border border-(--hf-border) p-4"
-          data-testid="employee-detail-skeleton-card"
+          v-if="isLoading"
+          class="flex flex-col gap-6"
+          aria-busy="true"
+          data-testid="employee-detail-skeleton"
         >
-          <div class="h-4 w-24 animate-pulse rounded bg-(--hf-surface-muted)" />
-          <div class="h-7 w-32 animate-pulse rounded bg-(--hf-surface-muted)" />
-          <div class="h-4 w-20 animate-pulse rounded bg-(--hf-surface-muted)" />
-        </div>
-      </div>
-      <div
-        class="flex h-32 flex-col gap-3 rounded-xl border border-(--hf-border) p-5"
-        aria-hidden="true"
-      >
-        <div class="h-5 w-28 animate-pulse rounded bg-(--hf-surface-muted)" />
-        <div class="h-4 w-56 max-w-full animate-pulse rounded bg-(--hf-surface-muted)" />
-      </div>
-    </div>
-
-    <!-- Not found: an empty state with a way back, never a connection error -->
-    <div v-else-if="isNotFound" class="pt-4">
-      <EmptyState
-        title="No encontramos al colaborador"
-        description="Puede que se haya eliminado o que el enlace ya no sirva."
-        action-label="Volver a colaboradores"
-        action-icon="i-lucide-arrow-left"
-        action-test-id="employee-detail-not-found-back"
-        @action="goBack"
-      />
-    </div>
-
-    <!-- Error state -->
-    <div v-else-if="isError" class="flex flex-col gap-4 pt-4">
-      <div>
-        <UButton
-          icon="i-lucide-arrow-left"
-          color="neutral"
-          variant="ghost"
-          data-testid="employee-detail-error-back"
-          @click="goBack"
-        >
-          Colaboradores
-        </UButton>
-      </div>
-      <EmptyState
-        kind="error"
-        title="No se pudo cargar el colaborador"
-        description="No pudimos obtener los datos del colaborador."
-        action-label="Reintentar"
-        action-test-id="employee-detail-retry"
-        @action="() => refetch()"
-      />
-    </div>
-
-    <!-- Detail content -->
-    <template v-else-if="employee">
-      <EmployeeDetailHeader
-        :employee="employee"
-        :can-update="canUpdate"
-        :mobile="isMobile"
-        @back="goBack"
-        @edit="openEdit"
-        @terminate="openTerminate"
-        @reactivate="openReactivate"
-      />
-
-      <!-- Tab navigation — horizontal scroll on mobile -->
-      <div
-        ref="tabsScroll"
-        class="employees-detail-tabs-scroll"
-        :data-more="tabsHaveMore"
-        :data-less="tabsScrolled"
-        @scroll.passive="measureTabs"
-      >
-        <div class="employees-detail-tabs" role="tablist" aria-label="Secciones del colaborador">
-          <button
-            v-for="tab in visibleTabs"
-            :key="tab.key"
-            type="button"
-            class="employees-detail-tab"
-            :aria-selected="activeTab === tab.key"
-            role="tab"
-            @click="setTab(tab.key)"
+          <span class="sr-only">Cargando</span>
+          <div class="flex items-center gap-3" aria-hidden="true">
+            <div class="size-11 shrink-0 animate-pulse rounded-lg bg-(--hf-surface-muted)" />
+            <div class="flex flex-1 flex-col gap-2">
+              <div class="h-5 w-40 animate-pulse rounded bg-(--hf-surface-muted)" />
+              <div class="h-6 w-64 max-w-full animate-pulse rounded bg-(--hf-surface-muted)" />
+            </div>
+          </div>
+          <div class="flex gap-4 border-b border-(--hf-border) pb-3" aria-hidden="true">
+            <div
+              v-for="tab in 4"
+              :key="tab"
+              class="h-5 w-20 animate-pulse rounded bg-(--hf-surface-muted)"
+              data-testid="employee-detail-skeleton-tab"
+            />
+          </div>
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-3" aria-hidden="true">
+            <div
+              v-for="card in 3"
+              :key="card"
+              class="flex h-28 flex-col gap-3 rounded-xl border border-(--hf-border) p-4"
+              data-testid="employee-detail-skeleton-card"
+            >
+              <div class="h-4 w-24 animate-pulse rounded bg-(--hf-surface-muted)" />
+              <div class="h-7 w-32 animate-pulse rounded bg-(--hf-surface-muted)" />
+              <div class="h-4 w-20 animate-pulse rounded bg-(--hf-surface-muted)" />
+            </div>
+          </div>
+          <div
+            class="flex h-32 flex-col gap-3 rounded-xl border border-(--hf-border) p-5"
+            aria-hidden="true"
           >
-            {{ tab.label }}
-          </button>
+            <div class="h-5 w-28 animate-pulse rounded bg-(--hf-surface-muted)" />
+            <div class="h-4 w-56 max-w-full animate-pulse rounded bg-(--hf-surface-muted)" />
+          </div>
         </div>
-      </div>
 
-      <!-- Tab panels -->
-      <div class="min-w-0" role="tabpanel" :aria-label="activeTabLabel">
-        <!-- Resumen -->
-        <ResumenPanel
-          v-if="activeTab === 'resumen'"
-          :employee="employee"
-          :manager-display="managerDisplay"
-          :manager-info="managerInfo"
-          :can-read-salary="canReadSalary"
-        />
+        <!-- Not found: an empty state with a way back, never a connection error -->
+        <div v-else-if="isNotFound" class="pt-4">
+          <EmptyState
+            title="No encontramos al colaborador"
+            description="Puede que se haya eliminado o que el enlace ya no sirva."
+            action-label="Volver a colaboradores"
+            action-icon="i-lucide-arrow-left"
+            action-test-id="employee-detail-not-found-back"
+            @action="goBack"
+          />
+        </div>
 
-        <!-- Personal + Emergency Contacts — WU-11 -->
-        <template v-else-if="activeTab === 'personal'">
-          <div class="flex flex-col gap-6">
-            <PersonalPanel :employee="employee" />
-            <EmergencyContactsPanel
+        <!-- Error state -->
+        <div v-else-if="isError" class="flex flex-col gap-4 pt-4">
+          <div>
+            <UButton
+              icon="i-lucide-arrow-left"
+              color="neutral"
+              variant="ghost"
+              data-testid="employee-detail-error-back"
+              @click="goBack"
+            >
+              Colaboradores
+            </UButton>
+          </div>
+          <EmptyState
+            kind="error"
+            title="No se pudo cargar el colaborador"
+            description="No pudimos obtener los datos del colaborador."
+            action-label="Reintentar"
+            action-test-id="employee-detail-retry"
+            @action="() => refetch()"
+          />
+        </div>
+
+        <!-- Detail content -->
+        <template v-else-if="employee">
+          <!-- Tab navigation — horizontal scroll on mobile -->
+          <div
+            ref="tabsScroll"
+            class="employees-detail-tabs-scroll"
+            :data-more="tabsHaveMore"
+            :data-less="tabsScrolled"
+            @scroll.passive="measureTabs"
+          >
+            <div class="employees-detail-tabs" role="tablist" aria-label="Secciones del colaborador">
+              <button
+                v-for="tab in visibleTabs"
+                :key="tab.key"
+                type="button"
+                class="employees-detail-tab"
+                :aria-selected="activeTab === tab.key"
+                role="tab"
+                @click="setTab(tab.key)"
+              >
+                {{ tab.label }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Tab panels -->
+          <div class="min-w-0" role="tabpanel" :aria-label="activeTabLabel">
+            <!-- Resumen -->
+            <ResumenPanel
+              v-if="activeTab === 'resumen'"
               :employee="employee"
-              :can-create="canCreateEmergencyContact"
-              :can-update="canUpdateEmergencyContact"
-              :can-delete="canDeleteEmergencyContact"
+              :manager-display="managerDisplay"
+              :manager-info="managerInfo"
+              :can-read-salary="canReadSalary"
+            />
+
+            <!-- Personal + Emergency Contacts — WU-11 -->
+            <template v-else-if="activeTab === 'personal'">
+              <div class="flex flex-col gap-6">
+                <PersonalPanel :employee="employee" />
+                <EmergencyContactsPanel
+                  :employee="employee"
+                  :can-create="canCreateEmergencyContact"
+                  :can-update="canUpdateEmergencyContact"
+                  :can-delete="canDeleteEmergencyContact"
+                />
+              </div>
+            </template>
+
+            <!-- Laboral -->
+            <LaboralPanel
+              v-else-if="activeTab === 'laboral'"
+              :employee="employee"
+              :manager-display="managerDisplay"
+              :manager-id="employee.managerId"
+            />
+
+            <!-- Compensación — WU-07 -->
+            <CompensacionPanel
+              v-else-if="activeTab === 'compensacion'"
+              :employee="employee"
+              :can-read-salary="canReadSalary"
+              :can-create-salary="canCreateSalary"
+              :can-update="canUpdate"
+            />
+
+            <!-- Organigrama — WU-08 -->
+            <OrganigramaPanel
+              v-else-if="activeTab === 'organigrama'"
+              :employee="employee"
+            />
+
+            <!-- CV — WU-08 -->
+            <CvPanel
+              v-else-if="activeTab === 'cv'"
+              :employee="employee"
+              :can-update="canUpdate"
+              @cv-updated="onActionSuccess"
+            />
+
+            <!-- Documentos — WU-09 -->
+            <DocumentosPanel
+              v-else-if="activeTab === 'documentos'"
+              :employee="employee"
+              :can-create="canCreateDocument"
+              :can-delete="canDeleteDocument"
+            />
+
+            <!-- Ausencias — WU-10 -->
+            <AusenciasPanel
+              v-else-if="activeTab === 'ausencias'"
+              :employee="employee"
+              :can-create="canCreateTimeOff"
+              :can-update="canUpdateTimeOff"
             />
           </div>
         </template>
-
-        <!-- Laboral -->
-        <LaboralPanel
-          v-else-if="activeTab === 'laboral'"
-          :employee="employee"
-          :manager-display="managerDisplay"
-          :manager-id="employee.managerId"
-        />
-
-        <!-- Compensación — WU-07 -->
-        <CompensacionPanel
-          v-else-if="activeTab === 'compensacion'"
-          :employee="employee"
-          :can-read-salary="canReadSalary"
-          :can-create-salary="canCreateSalary"
-          :can-update="canUpdate"
-        />
-
-        <!-- Organigrama — WU-08 -->
-        <OrganigramaPanel
-          v-else-if="activeTab === 'organigrama'"
-          :employee="employee"
-        />
-
-        <!-- CV — WU-08 -->
-        <CvPanel
-          v-else-if="activeTab === 'cv'"
-          :employee="employee"
-          :can-update="canUpdate"
-          @cv-updated="onActionSuccess"
-        />
-
-        <!-- Documentos — WU-09 -->
-        <DocumentosPanel
-          v-else-if="activeTab === 'documentos'"
-          :employee="employee"
-          :can-create="canCreateDocument"
-          :can-delete="canDeleteDocument"
-        />
-
-        <!-- Ausencias — WU-10 -->
-        <AusenciasPanel
-          v-else-if="activeTab === 'ausencias'"
-          :employee="employee"
-          :can-create="canCreateTimeOff"
-          :can-update="canUpdateTimeOff"
-        />
       </div>
+    </div>
 
-      <!-- Mobile: the one primary lives in the sticky bottom bar -->
+    <template v-if="hasDetail && isMobile && canUpdate" #footer>
+      <!-- Mobile: the one primary lives in the bottom bar (the frame's footer) -->
       <div
-        v-if="isMobile && canUpdate"
         class="employee-detail-action-bar"
         data-testid="employee-detail-action-bar"
       >
@@ -393,7 +410,7 @@ function goBack(): void {
         </UButton>
       </div>
     </template>
-  </div>
+  </DetailPageFrame>
 
   <!-- Dialogs & slideoveres — rendered outside the main layout via Teleport inside components -->
   <EmployeeEditSlideover

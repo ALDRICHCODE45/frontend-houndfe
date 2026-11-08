@@ -366,6 +366,7 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
 }))
 
 import DeliveryRouteDetailView from '../DeliveryRouteDetailView.vue'
+import DetailPageFrame from '@/core/shared/components/DetailPageFrame.vue'
 
 // The ⋮ menu (RowActionsMenu → UDropdownMenu): render every item as a plain
 // button that fires the item's `onSelect`, skipping separators.
@@ -1415,10 +1416,23 @@ describe('DeliveryRouteDetailView — manager workspace width (odd delivery-rout
     resetDetailState({ data: makeDraftRoute() })
     const wrapper = mountView()
     await flushPromises()
-    const root = wrapper.find('[data-testid="detail-manager-workspace"]')
-    expect(root.classes()).toContain('max-w-[1320px]')
-    expect(root.classes()).toContain('mx-auto')
-    expect(root.classes()).toContain('w-full')
+    const column = wrapper.get('[data-testid="detail-manager-workspace"] [data-slot="scroll"] .max-w-\\[1320px\\]')
+    expect(column.classes()).toContain('mx-auto')
+    expect(column.classes()).toContain('w-full')
+  })
+
+  // detail-page-frame S3: the header stays pinned above the full-width scroller.
+  it('renders the shared detail frame with the header pinned and the workspace in the scroll area', async () => {
+    resetRoleFlags({ isManager: { value: true } })
+    resetDetailState({ data: makeDraftRoute() })
+    const wrapper = mountView()
+    await flushPromises()
+    const frame = wrapper.findComponent(DetailPageFrame)
+    expect(frame.exists()).toBe(true)
+    expect(frame.attributes('data-testid')).toBe('detail-manager-workspace')
+    expect(wrapper.find('[data-slot="header"] [data-testid="detail-route-summary"]').exists()).toBe(true)
+    expect(wrapper.find('[data-slot="scroll"] [data-testid="detail-route-summary"]').exists()).toBe(false)
+    expect(wrapper.find('[data-slot="scroll"] [data-testid="detail-progress"]').exists()).toBe(true)
   })
 })
 
@@ -1554,7 +1568,8 @@ describe('DeliveryRouteDetailView — mobile detail header and progress (review 
 
   it('uses the shared 40px page gutter on the manager skeleton and workspace', () => {
     const source = readFileSync('src/features/delivery-routes/views/DeliveryRouteDetailView.vue', 'utf8')
-    expect(source.match(/max-w-\[1320px\][^"]*md:px-10/g)).toHaveLength(2)
+    // The skeleton, plus the framed workspace's header and body columns.
+    expect(source.match(/max-w-\[1320px\][^"]*md:px-10/g)).toHaveLength(3)
   })
 
   it('shows the meta separators only from sm, so a wrapped phone line never dangles a dot', async () => {
@@ -1581,7 +1596,7 @@ describe('DeliveryRouteDetailView — mobile detail header and progress (review 
     expect(desktop.classes()).toContain('max-md:hidden')
     expect(header.findAll('[data-testid="row-actions-menu"]')).toHaveLength(1)
     // Mobile: the same primary in the bar, hidden from md.
-    const bar = wrapper.get('[data-testid="mobile-action-bar"]')
+    const bar = wrapper.get('[data-slot="footer"] [data-testid="mobile-action-bar"]')
     expect(bar.classes()).toContain('md:hidden')
     const mobile = bar.get('[data-testid="detail-start-button-mobile"]')
     await mobile.trigger('click')
