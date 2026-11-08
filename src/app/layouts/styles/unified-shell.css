@@ -597,6 +597,15 @@
   color: var(--shell-action);
 }
 
+/* The hook above sets display and is unlayered, so it beats Nuxt UI's `hidden lg:flex` on the
+ * desktop collapse button. Below lg the native menu toggle opens the drawer; the collapse button
+ * would only sit next to it and crowd the breadcrumb. */
+@media (max-width: 1023.98px) {
+  .hf-shell-collapse {
+    display: none;
+  }
+}
+
 /* The account avatar is a person, not a toolbar glyph: a round target that
  * rings on hover instead of filling a square behind it. */
 .hf-shell-avatar-button {
