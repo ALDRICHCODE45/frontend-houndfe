@@ -48,39 +48,42 @@ const groups = computed(() =>
     role="region"
     aria-label="Filtrar por características"
   >
-    <div
-      v-for="group in groups"
-      :key="group.code"
-      class="catalog-facet-group"
-      role="group"
-      :data-facet="group.code"
-      :aria-labelledby="group.labelId"
-    >
-      <p class="catalog-facet-label">
-        <span :id="group.labelId">{{ group.label }}</span>
-        <span v-if="group.active" data-testid="catalog-facet-active" class="catalog-facet-active">{{
-          group.active
-        }}</span>
-      </p>
-      <div class="catalog-facet-options">
-        <button
-          v-for="option in group.options"
-          :key="option.token"
-          type="button"
-          class="catalog-facet-chip"
-          :aria-pressed="option.pressed"
-          :aria-label="option.ariaLabel"
-          @click="emit('toggle', option.token)"
-        >
-          <UIcon
-            v-if="option.pressed"
-            data-testid="catalog-facet-check"
-            name="i-lucide-check"
-            class="size-4"
-            aria-hidden="true"
-          />
-          {{ option.label }} <span class="catalog-facet-count">{{ option.count }}</span>
-        </button>
+    <!-- Groups scroll inside their own row; «Limpiar filtros» sits outside it, so it never covers them. -->
+    <div class="catalog-facet-scroller" data-testid="catalog-facet-scroller">
+      <div
+        v-for="group in groups"
+        :key="group.code"
+        class="catalog-facet-group"
+        role="group"
+        :data-facet="group.code"
+        :aria-labelledby="group.labelId"
+      >
+        <p class="catalog-facet-label">
+          <span :id="group.labelId">{{ group.label }}</span>
+          <span v-if="group.active" data-testid="catalog-facet-active" class="catalog-facet-active">{{
+            group.active
+          }}</span>
+        </p>
+        <div class="catalog-facet-options">
+          <button
+            v-for="option in group.options"
+            :key="option.token"
+            type="button"
+            class="catalog-facet-chip"
+            :aria-pressed="option.pressed"
+            :aria-label="option.ariaLabel"
+            @click="emit('toggle', option.token)"
+          >
+            <UIcon
+              v-if="option.pressed"
+              data-testid="catalog-facet-check"
+              name="i-lucide-check"
+              class="size-4"
+              aria-hidden="true"
+            />
+            {{ option.label }} <span class="catalog-facet-count">{{ option.count }}</span>
+          </button>
+        </div>
       </div>
     </div>
     <button

@@ -358,20 +358,22 @@ function valuesChanged(values: EditorialDocumentEditingState['values']) {
       <template v-if="hasContent && authoritative && !noDraft && !errorMessage">
         <StatusBadge v-if="family" data-testid="editorial-progress" :label="missingTotal ? `Faltan ${missingTotal}` : 'Completo'"
           :tone="missingTotal ? 'warning' : 'success'" aria-prefix="Avance:" />
-        <span class="editorial-spacer" />
-        <UButton v-if="unpublication.visible.value" color="neutral" variant="ghost" icon="i-lucide-eye-off" class="editorial-head__action" data-testid="unpublish"
-          :label="unpublication.retryable.value ? 'Reintentar despublicar' : 'Despublicar'" :loading="unpublication.busy.value"
-          :disabled="!unpublication.retryable.value && !unpublication.canUnpublish.value" @click="unpublishOrRetry" />
-        <UButton v-if="canWrite && authoritative.draft" color="neutral" variant="ghost" icon="i-lucide-trash-2" class="editorial-head__action" data-testid="discard-draft"
-          label="Descartar borrador" :disabled="!canDiscard" @click="discardDraftOpen = true" />
-        <UButton color="neutral" variant="ghost" icon="i-lucide-history" class="editorial-head__action" data-testid="open-history" label="Historial" @click="historyOpen = true" />
+        <div class="editorial-actions">
+          <UButton v-if="unpublication.visible.value" color="neutral" variant="ghost" icon="i-lucide-eye-off" class="editorial-head__action" data-testid="unpublish"
+            :label="unpublication.retryable.value ? 'Reintentar despublicar' : 'Despublicar'" :loading="unpublication.busy.value"
+            :disabled="!unpublication.retryable.value && !unpublication.canUnpublish.value" @click="unpublishOrRetry" />
+          <UButton v-if="canWrite && authoritative.draft" color="neutral" variant="ghost" icon="i-lucide-trash-2" class="editorial-head__action" data-testid="discard-draft"
+            label="Descartar borrador" :disabled="!canDiscard" @click="discardDraftOpen = true" />
+          <UButton color="neutral" variant="ghost" icon="i-lucide-history" class="editorial-head__action" data-testid="open-history" label="Historial" @click="historyOpen = true" />
+        </div>
       </template>
       <template v-else-if="authoritative?.published && noDraft && !errorMessage">
-        <span class="editorial-spacer" />
-        <UButton v-if="unpublication.visible.value" color="neutral" variant="ghost" icon="i-lucide-eye-off" class="editorial-head__action" data-testid="unpublish"
-          :label="unpublication.retryable.value ? 'Reintentar despublicar' : 'Despublicar'" :loading="unpublication.busy.value"
-          :disabled="!unpublication.retryable.value && !unpublication.canUnpublish.value" @click="unpublishOrRetry" />
-        <UButton color="neutral" variant="ghost" icon="i-lucide-history" class="editorial-head__action" data-testid="open-history" label="Historial" @click="historyOpen = true" />
+        <div class="editorial-actions">
+          <UButton v-if="unpublication.visible.value" color="neutral" variant="ghost" icon="i-lucide-eye-off" class="editorial-head__action" data-testid="unpublish"
+            :label="unpublication.retryable.value ? 'Reintentar despublicar' : 'Despublicar'" :loading="unpublication.busy.value"
+            :disabled="!unpublication.retryable.value && !unpublication.canUnpublish.value" @click="unpublishOrRetry" />
+          <UButton color="neutral" variant="ghost" icon="i-lucide-history" class="editorial-head__action" data-testid="open-history" label="Historial" @click="historyOpen = true" />
+        </div>
       </template>
     </div>
 
@@ -536,7 +538,8 @@ function valuesChanged(values: EditorialDocumentEditingState['values']) {
 .editorial-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; min-height: 36px; }
 .editorial-head__title { margin: 0; color: var(--hf-heading); font-size: 16px; font-weight: 600; line-height: 1.4; }
 .editorial-head__action { color: var(--hf-muted); }
-.editorial-spacer { flex: 1 1 0; }
+/* The actions wrap as one group, right-aligned, so a narrow header never strands one action on its own line. */
+.editorial-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 4px 12px; min-width: 0; margin-inline-start: auto; }
 .editorial-refresh { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .editorial-quiet { margin: 0; color: var(--hf-muted); font-size: 13px; }
 .editorial-read { margin: 0; font-size: 14px; }

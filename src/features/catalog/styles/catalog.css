@@ -960,31 +960,51 @@ body[data-catalog-theme='light'] .catalog-category-controls .catalog-category-er
 }
 
 /*
- * Attribute facets: toggle chips per definition. On mobile each definition is one row whose chips
- * scroll sideways, so eight definitions never push the products off screen; from 601px they wrap.
+ * Attribute facets: toggle chips per definition. On a phone every definition shares ONE row that
+ * scrolls sideways (quiet label, then its chips), so eight definitions cost one 44px row instead
+ * of pushing the products off screen. «Limpiar filtros» is a separate item before that scroller,
+ * never on top of it, so it cannot cover a label or a chip. From 601px the scroller dissolves
+ * (display: contents): the definitions flow side by side (label above its chips) and wrap, and
+ * «Limpiar filtros» returns to the end.
  */
 .catalog-facets {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
   margin-top: 12px;
   contain: inline-size;
 }
+.catalog-facet-scroller {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  padding-block: 2px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+.catalog-facet-scroller::-webkit-scrollbar {
+  display: none;
+}
 .catalog-facet-group {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex: none;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
 }
 .catalog-facet-label {
   display: flex;
-  flex-wrap: wrap;
   gap: 2px 8px;
   margin: 0;
   color: var(--catalog-title);
   font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
+  scroll-snap-align: start;
 }
 .catalog-facet-active {
   color: var(--catalog-action);
@@ -995,13 +1015,6 @@ body[data-catalog-theme='light'] .catalog-category-controls .catalog-category-er
   display: flex;
   gap: 6px;
   min-width: 0;
-  overflow-x: auto;
-  scroll-snap-type: x proximity;
-  scrollbar-width: none;
-  padding-block: 2px;
-}
-.catalog-facet-options::-webkit-scrollbar {
-  display: none;
 }
 .catalog-facet-chip {
   display: inline-flex;
@@ -1042,14 +1055,37 @@ body[data-catalog-theme='light'] .catalog-category-controls .catalog-category-er
   }
 }
 .catalog-facet-clear {
-  align-self: flex-start;
+  flex: none;
+  order: -1;
 }
 @media (min-width: 601px) {
+  .catalog-facets {
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px 28px;
+  }
+  .catalog-facet-scroller {
+    display: contents;
+  }
+  .catalog-facet-group {
+    flex: 0 1 auto;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .catalog-facet-label {
+    flex-wrap: wrap;
+    white-space: normal;
+  }
   .catalog-facet-options {
     flex-wrap: wrap;
-    overflow-x: visible;
   }
-  .catalog-facet-chip {
+  .catalog-facet-chip,
+  .catalog-facet-clear {
     min-height: 36px;
   }
+  .catalog-facet-clear {
+    order: 0;
+  }
 }
+
