@@ -11,6 +11,7 @@ import EmptyState from '@/core/shared/components/EmptyState.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import type { ProductImage, ProductVariant } from '../interfaces/product.types'
 import { useImageUpload } from '../composables/useImageUpload'
+import ProductImageLightbox from './ProductImageLightbox.vue'
 
 declare const useToast: () => {
   add: (options: {
@@ -400,65 +401,45 @@ function isImageBroken(imageId: string): boolean {
   />
 
   <!-- Image preview modal (lightbox) -->
-  <UModal
+  <ProductImageLightbox
     :open="previewImage !== null"
-    :ui="{ content: 'hf-theme hf-ui' }"
-    @update:open="(val: boolean) => { if (!val) closePreview() }"
+    :src="previewImage?.url ?? null"
+    :alt="previewImage ? `Imagen ${getVariantName(previewImage.variantId)}` : ''"
+    @close="closePreview"
   >
-    <template #content>
-      <div class="relative flex flex-col items-center">
-        <!-- Close button -->
-        <UButton
-          icon="i-lucide-x"
-          color="neutral"
-          variant="ghost"
-          size="lg"
-          aria-label="Cerrar vista previa"
-          class="absolute top-3 right-3 z-10"
-          @click="closePreview"
-        />
+    <template #footer>
+      <!-- Footer info -->
+      <div v-if="previewImage" class="flex items-center justify-between w-full px-4 py-3">
+        <div class="flex items-center gap-2">
+          <StatusBadge v-if="previewImage.isMain" label="Principal" tone="info" aria-prefix="Imagen:" />
+          <span class="text-sm text-muted">{{ getVariantName(previewImage.variantId) }}</span>
+        </div>
 
-        <!-- Image -->
-        <img
-          v-if="previewImage"
-          :src="previewImage.url"
-          :alt="`Imagen ${getVariantName(previewImage.variantId)}`"
-          class="max-h-[80vh] w-full object-contain rounded-lg"
-        />
-
-        <!-- Footer info -->
-        <div v-if="previewImage" class="flex items-center justify-between w-full px-4 py-3">
-          <div class="flex items-center gap-2">
-            <StatusBadge v-if="previewImage.isMain" label="Principal" tone="info" aria-prefix="Imagen:" />
-            <span class="text-sm text-muted">{{ getVariantName(previewImage.variantId) }}</span>
-          </div>
-
-          <div class="flex items-center gap-2">
-            <UTooltip v-if="canUpdate && !previewImage.isMain" text="Marcar como principal">
-              <UButton
-                icon="i-lucide-star"
-                color="primary"
-                variant="soft"
-                size="sm"
-                aria-label="Marcar como imagen principal"
-                :loading="setMainMutation.isPending.value"
-                @click="handleSetMain(previewImage!)"
-              />
-            </UTooltip>
-            <UTooltip v-if="canDelete" text="Eliminar imagen">
-              <UButton
-                icon="i-lucide-trash-2"
-                color="error"
-                variant="ghost"
-                size="sm"
-                aria-label="Eliminar imagen"
-                :loading="deleteMutation.isPending.value"
-                @click="handleDelete(previewImage!)"
-              />
-            </UTooltip>
-          </div>
+        <div class="flex items-center gap-2">
+          <UTooltip v-if="canUpdate && !previewImage.isMain" text="Marcar como principal">
+            <UButton
+              icon="i-lucide-star"
+              color="primary"
+              variant="soft"
+              size="sm"
+              aria-label="Marcar como imagen principal"
+              :loading="setMainMutation.isPending.value"
+              @click="handleSetMain(previewImage!)"
+            />
+          </UTooltip>
+          <UTooltip v-if="canDelete" text="Eliminar imagen">
+            <UButton
+              icon="i-lucide-trash-2"
+              color="error"
+              variant="ghost"
+              size="sm"
+              aria-label="Eliminar imagen"
+              :loading="deleteMutation.isPending.value"
+              @click="handleDelete(previewImage!)"
+            />
+          </UTooltip>
         </div>
       </div>
     </template>
-  </UModal>
+  </ProductImageLightbox>
 </template>

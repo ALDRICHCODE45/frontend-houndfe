@@ -7,6 +7,7 @@
 import { computed, ref } from 'vue'
 import { useMediaQuery } from '@vueuse/core'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
+import ProductImageLightbox from './ProductImageLightbox.vue'
 
 interface ProductSummaryChecklistItem {
   label: string
@@ -40,13 +41,25 @@ const bodyVisible = computed(() => !isNarrow.value || expanded.value)
 // creation is a single muted note.
 const applicableChecklist = computed(() => props.checklist.filter((item) => !item.disabled))
 const deferredItems = computed(() => props.checklist.filter((item) => item.disabled))
+
+// The thumbnail is small on purpose; clicking it shows the whole image.
+const imageAlt = computed(() => props.name || 'Imagen del producto')
+const previewOpen = ref(false)
 </script>
 
 <template>
   <aside class="product-summary" aria-label="Resumen operativo del producto">
     <div class="product-summary-identity">
       <div class="product-summary-image">
-        <img v-if="imageUrl" :src="imageUrl" :alt="name || 'Imagen del producto'" />
+        <button
+          v-if="imageUrl"
+          type="button"
+          class="product-summary-image-trigger"
+          aria-label="Ver imagen completa"
+          @click="previewOpen = true"
+        >
+          <img :src="imageUrl" :alt="imageAlt" />
+        </button>
         <p v-else class="text-sm text-muted">Sin imagen</p>
       </div>
       <div class="product-summary-heading">
@@ -127,6 +140,13 @@ const deferredItems = computed(() => props.checklist.filter((item) => item.disab
         {{ item.label }}
       </p>
     </div>
+
+    <ProductImageLightbox
+      :open="previewOpen"
+      :src="imageUrl ?? null"
+      :alt="imageAlt"
+      @close="previewOpen = false"
+    />
   </aside>
 </template>
 
@@ -156,6 +176,17 @@ const deferredItems = computed(() => props.checklist.filter((item) => item.disab
   overflow: hidden;
   border-radius: var(--hf-radius-control);
   background: var(--hf-surface-muted);
+}
+.product-summary-image-trigger {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  cursor: zoom-in;
+}
+.product-summary-image-trigger:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: -2px;
 }
 .product-summary-image img {
   display: block;
