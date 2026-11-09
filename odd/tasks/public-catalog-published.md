@@ -11,7 +11,7 @@ Out of scope: public cart (no FE cart exists; handoff §5 n/a), media in Publish
 ## Tasks
 - T1 | S1 | worker | done — 188/188 catalog-settings tests, vue-tsc clean; commit 33cee1d6
 - T2 | S2, S3 | worker | pending
-- T3 | S4 | worker | pending
+- T3 | S4 | worker | done — 645/645 related tests, vue-tsc clean; commit 56271cd3
 - T4 | S1-S4 | parent runtime + browser design check against BE dev, docs (design-system), full suite, merge | pending
 
 ## Log
@@ -19,3 +19,4 @@ Out of scope: public cart (no FE cart exists; handoff §5 n/a), media in Publish
 - L2 Parent decision: without a draft, «Despublicar» initializes first so content is never lost (handoff §6 recommendation); reversible, no product decision opened.
 - L3 T1 done (33cee1d6). Worker choices: confirm title is the handoff heading «Antes de encender el interruptor» (not a question) with checklist in ConfirmModal items; checklist trimmed to the 5 tenant-actionable §9 lines; publish + switch-on in one save asks once. Check both in T4 browser pass.
 - L4 Delivery: one commit per task (T1, T2, T3) as review slices; the branch exceeds ~400 lines in total, so each commit is a separate reviewable slice.
+- L5 T3 done. Deviations accepted by parent: a publisher without update grant on a product with no draft does not see «Despublicar» (initialize needs update; unpublishing would lose content, L2). 409 CONFLICT whose reload shows nothing published → toast «Ya estaba despublicado.». 404 shows the generic error alert (no navigation).
