@@ -9,9 +9,9 @@
 // AND the closed-set warning filter, so unknown string codes are silently
 // dropped and non-string warning members throw, and (b) parses the PATCH body
 // through the Zod patch schema so the body that reaches http.patch contains
-// ONLY the four documented whitelisted keys (`catalogPublished`,
-// `publicPriceListIds`, `catalogDefaultPriceListId`,
-// `stockPresentationDefault`). Zod's default object behavior strips unknown
+// ONLY the five documented whitelisted keys (`catalogPublished`,
+// `catalogRequiresPublishedEditorial`, `publicPriceListIds`,
+// `catalogDefaultPriceListId`, `stockPresentationDefault`). Zod's default object behavior strips unknown
 // fields, so this catches every forged arbitrary key — not only the previously
 // known response-only keys — even when callers bypass the TypeScript type with
 // `as unknown as CatalogSettingsPatchBody`.
@@ -35,9 +35,9 @@ async function get(tenantId: string): Promise<CatalogSettingsResponseDto> {
  *
  * The body is parsed through `catalogSettingsPatchBodySchema`. Zod's default
  * object behavior strips unknown fields, so the resulting object can contain
- * ONLY the four documented whitelisted keys (`catalogPublished`,
- * `publicPriceListIds`, `catalogDefaultPriceListId`,
- * `stockPresentationDefault`). A caller who bypasses the TypeScript type with
+ * ONLY the five documented whitelisted keys (`catalogPublished`,
+ * `catalogRequiresPublishedEditorial`, `publicPriceListIds`,
+ * `catalogDefaultPriceListId`, `stockPresentationDefault`). A caller who bypasses the TypeScript type with
  * `as unknown as CatalogSettingsPatchBody` still cannot smuggle any other key
  * — including arbitrary forged keys the API boundary has never seen.
  */

@@ -5,6 +5,7 @@ import EmptyState from '@/core/shared/components/EmptyState.vue'
 import CatalogHeader from '../components/CatalogHeader.vue'
 import CatalogHero from '../components/CatalogHero.vue'
 import CatalogCategoryBar from '../components/CatalogCategoryBar.vue'
+import CatalogFacetFilters from '../components/CatalogFacetFilters.vue'
 import CatalogFooter from '../components/CatalogFooter.vue'
 import CatalogProductDetailModal from '../components/CatalogProductDetailModal.vue'
 import CatalogProductGrid, {
@@ -15,6 +16,7 @@ import { useCatalogProductDetail } from '../composables/useCatalogProductDetail'
 import { useCatalogProducts } from '../composables/useCatalogProducts'
 import { useCatalogPriceContexts } from '../composables/useCatalogPriceContexts'
 import type { PublicCatalogPriceContextDto } from '../interfaces/public-catalog-price-context.types'
+import type { PublicCatalogAttributeFacetDto } from '../interfaces/public-catalog-products.types'
 
 const route = useRoute()
 const router = useRouter()
@@ -128,6 +130,23 @@ const search = computed(() => {
   const raw = route.query.q
   return raw === undefined ? '' : typeof raw === 'string' ? raw : null
 })
+/**
+ * Attribute facet tokens from the URL (`facet=<definition>:<option>`, repeatable). Malformed
+ * values are ignored rather than blocking the listing; duplicates collapse and at most 50 are sent.
+ */
+const FACET_TOKEN = /^[A-Za-z0-9._-]{1,120}:[A-Za-z0-9._-]{1,120}$/
+const MAX_FACETS = 50
+const facetTokens = computed<string[]>(() => {
+  const raw = route.query.facet
+  const values = raw === undefined ? [] : Array.isArray(raw) ? raw : [raw]
+  const tokens: string[] = []
+  for (const value of values) {
+    if (typeof value !== 'string' || !FACET_TOKEN.test(value) || tokens.includes(value)) continue
+    tokens.push(value)
+    if (tokens.length === MAX_FACETS) break
+  }
+  return tokens
+})
 const searchDraft = shallowRef('')
 watch(
   () => route.fullPath,
@@ -158,6 +177,7 @@ const listingOptions = computed(() => ({
   ...(search.value !== null && search.value !== '' ? { q: search.value } : {}),
   ...(categoryId.value !== null ? { categoryId: categoryId.value } : {}),
   ...(page.value !== null && page.value !== 1 ? { page: page.value } : {}),
+  ...(facetTokens.value.length > 0 ? { facets: facetTokens.value } : {}),
 }))
 // Facets are context-scoped, unfiltered, first-page data. The identical initial
 // listing shares this key/request; filtered responses never replace these options.
@@ -214,7 +234,60 @@ const isCatalogEmpty = computed(
     filterError.value === null &&
     !hasSearch.value &&
     route.query.categoryId === undefined &&
+    facetTokens.value.length === 0 &&
     !isPageOutOfRange.value,
+)
+
+/**
+ * Facet chips come from the current filtered listing. While the next selection loads, the last
+ * chips stay mounted so the pressed chip keeps focus and the band does not collapse.
+ */
+const displayedFacets = shallowRef<PublicCatalogAttributeFacetDto[]>([])
+watch(
+  response,
+  (current) => {
+    if (current !== null) displayedFacets.value = current.facets.attributes ?? []
+  },
+  { immediate: true },
+)
+watch([readyBranch, requestedPrice, listingFailed], ([branch, , failed], [oldBranch, oldPrice]) => {
+  if (failed || branch !== oldBranch || requestedPrice.value !== oldPrice)
+    displayedFacets.value = response.value?.facets.attributes ?? []
+})
+const showFacets = computed(
+  () => readyBranch.value !== null && filterError.value === null && !isCatalogEmpty.value,
+)
+
+async function writeFacets(tokens: string[], replace = false) {
+  const query = { ...route.query }
+  delete query.page
+  if (tokens.length === 0) delete query.facet
+  else query.facet = tokens.length === 1 ? tokens[0]! : tokens
+  try {
+    await (replace ? router.replace : router.push)({ query, hash: route.hash })
+  } catch {
+    // Keep the current route authoritative.
+  }
+}
+function toggleFacet(token: string) {
+  const tokens = facetTokens.value
+  void writeFacets(
+    tokens.includes(token) ? tokens.filter((entry) => entry !== token) : [...tokens, token],
+  )
+}
+/**
+ * A vocabulary change or the switch turning off makes a facet unknown. The error carries no
+ * reliable token, so every facet leaves the URL (replaced, not pushed) and the list reloads.
+ */
+watch(
+  () => productsState.value === 'facet-unavailable',
+  (stale) => {
+    if (stale) void writeFacets([], true)
+  },
+)
+/** A stale facet is recovered by navigation, never shown as a product failure. */
+const gridState = computed(() =>
+  productsState.value === 'facet-unavailable' ? 'loading' : productsState.value,
 )
 
 const showPager = computed(
@@ -336,7 +409,8 @@ watch(
     () => selectedBranch.value?.slug ?? null,
     priceContextProposalKey,
     priceListId,
-    () => JSON.stringify([route.query.categoryId, route.query.page, search.value]),
+    () =>
+      JSON.stringify([route.query.categoryId, route.query.page, search.value, facetTokens.value]),
   ],
   () => clearDetail(false),
   { flush: 'sync' },
@@ -458,6 +532,13 @@ async function selectPriceContext(priceListIdToSelect: string) {
             @select="selectCategory"
             @retry="retryBaseline"
           />
+          <CatalogFacetFilters
+            v-if="showFacets"
+            :facets="displayedFacets"
+            :selected="facetTokens"
+            @toggle="toggleFacet"
+            @clear="writeFacets([])"
+          />
         </div>
         <div v-if="filterError && readyBranch" class="catalog-container">
           <EmptyState
@@ -496,7 +577,7 @@ async function selectPriceContext(priceListIdToSelect: string) {
           :selection-state="selectionState"
           :branches-state="branchesState"
           :products="products"
-          :state="productsState"
+          :state="gridState"
           :context-state="contextState"
           @retry="retryListing"
           @retry-branches="retryBranches"

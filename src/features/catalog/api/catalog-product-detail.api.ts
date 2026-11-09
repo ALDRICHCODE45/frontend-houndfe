@@ -108,6 +108,32 @@ function isImages(value: unknown): boolean {
   )
 }
 
+/**
+ * Lenient on `value`: only its `type` tag is required, so a value type added later still renders
+ * through `display` instead of failing the whole detail.
+ */
+function isAttribute(value: unknown): boolean {
+  if (!isRecord(value)) return false
+  const section = value.section
+  return (
+    typeof value.code === 'string' &&
+    typeof value.label === 'string' &&
+    typeof value.display === 'string' &&
+    (section === null ||
+      (isRecord(section) && typeof section.code === 'string' && typeof section.label === 'string')) &&
+    isRecord(value.value) &&
+    typeof value.value.type === 'string'
+  )
+}
+
+/** Attributes exist only while the tenant shows published editorial data; absence is valid. */
+function hasValidAttributes(value: Record<string, unknown>): boolean {
+  return (
+    !('attributes' in value) ||
+    (Array.isArray(value.attributes) && value.attributes.every(isAttribute))
+  )
+}
+
 function isVariant(value: unknown): boolean {
   if (!isRecord(value) || !Array.isArray(value.availabilityByBranch)) return false
   const stockPresentation = value.stockPresentation
@@ -121,6 +147,7 @@ function isVariant(value: unknown): boolean {
     (value.image === null || (isRecord(value.image) && typeof value.image.url === 'string')) &&
     isPrice(value.price) &&
     isStockPresentation(stockPresentation) &&
+    hasValidAttributes(value) &&
     selectedAvailability.length === 1 &&
     selectedAvailability.every(
       (availability) =>
@@ -160,6 +187,7 @@ function isProductDetail(
     value.variants.every(isVariant) &&
     value.rating === null &&
     value.featuredLabel === null &&
+    hasValidAttributes(value) &&
     typeof priceContext.priceListId === 'string' &&
     priceContext.priceListId === requestedPriceListId &&
     typeof priceContext.name === 'string' &&

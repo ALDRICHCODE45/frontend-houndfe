@@ -46,6 +46,8 @@ const catalogStockPresentationDefaultDtoSchema = z.object({
 
 export const catalogSettingsResponseDtoSchema = z.object({
   catalogPublished: z.boolean(),
+  /** Public catalog shows only products with a Published editorial (never null). */
+  catalogRequiresPublishedEditorial: z.boolean(),
   effectivePublication: z.boolean(),
   priceContexts: z.array(catalogPriceContextDtoSchema),
   stockPresentationDefault: catalogStockPresentationDefaultDtoSchema,
@@ -55,6 +57,7 @@ export const catalogSettingsResponseDtoSchema = z.object({
 
 export const catalogSettingsPatchBodySchema = z.object({
   catalogPublished: z.boolean().optional(),
+  catalogRequiresPublishedEditorial: z.boolean().optional(),
   publicPriceListIds: z.array(z.string().min(1)).optional(),
   catalogDefaultPriceListId: z.string().min(1).nullable().optional(),
   stockPresentationDefault: catalogStockPresentationDefaultDtoSchema.optional(),
@@ -74,6 +77,7 @@ export type CatalogSettingsPatchBody = z.infer<typeof catalogSettingsPatchBodySc
  */
 export interface CatalogSettingsDraft {
   catalogPublished: boolean
+  catalogRequiresPublishedEditorial: boolean
   publicPriceListIds: string[]
   catalogDefaultPriceListId: string | null
   stockPresentationDefault: CatalogStockPresentationDefaultDto

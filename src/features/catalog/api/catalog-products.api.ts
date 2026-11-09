@@ -4,7 +4,12 @@ import type {
   PublicCatalogProductsResponseDto,
 } from '../interfaces/public-catalog-products.types'
 
-export type CatalogProductsErrorKind = 'unavailable' | 'rate-limit' | 'server' | 'network'
+export type CatalogProductsErrorKind =
+  | 'unavailable'
+  | 'rate-limit'
+  | 'server'
+  | 'network'
+  | 'facet-unavailable'
 
 class CatalogProductsError extends Error {
   readonly kind: CatalogProductsErrorKind
@@ -18,7 +23,9 @@ class CatalogProductsError extends Error {
           ? 'Too many requests'
           : kind === 'network'
             ? 'Network failure'
-            : 'Server failure',
+            : kind === 'facet-unavailable'
+              ? 'Facet not available'
+              : 'Server failure',
     )
     this.name = 'CatalogProductsError'
     this.kind = kind
@@ -125,6 +132,26 @@ function isProduct(value: unknown): value is PublicCatalogProductDto {
   )
 }
 
+function isAttributeFacets(value: unknown): boolean {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (facet) =>
+        isRecord(facet) &&
+        typeof facet.code === 'string' &&
+        typeof facet.label === 'string' &&
+        Array.isArray(facet.options) &&
+        facet.options.every(
+          (option) =>
+            isRecord(option) &&
+            typeof option.code === 'string' &&
+            typeof option.label === 'string' &&
+            isNonNegativeInteger(option.count),
+        ),
+    )
+  )
+}
+
 function isProductsResponse(
   value: unknown,
   requestedPriceListId: string | null,
@@ -147,6 +174,8 @@ function isProductsResponse(
     (requestedPriceListId === null || priceContext.priceListId === requestedPriceListId) &&
     isNonBlankString(priceContext.name) &&
     typeof priceContext.isCatalogDefault === 'boolean' &&
+    // Attribute facets exist only while the tenant shows published editorial data.
+    (!('attributes' in value.facets) || isAttributeFacets(value.facets.attributes)) &&
     value.facets.categories.every(
       (category) =>
         isRecord(category) &&
@@ -174,6 +203,7 @@ export async function fetchCatalogProducts(
     params.push(`categoryId=${encodeURIComponent(options.categoryId)}`)
   if (options.page !== undefined) params.push(`page=${options.page}`)
   if (options.q !== undefined && options.q !== '') params.push(`q=${encodeURIComponent(options.q)}`)
+  for (const facet of options.facets ?? []) params.push(`facet=${encodeURIComponent(facet)}`)
   const url = `${apiBase}${path}${params.length ? `?${params.join('&')}` : ''}`
   let response: Response
   try {
@@ -188,6 +218,14 @@ export async function fetchCatalogProducts(
   try {
     if (response.status === 404) throw new CatalogProductsError('unavailable', 404)
     if (response.status === 429) throw new CatalogProductsError('rate-limit', 429)
+    if (response.status === 400) {
+      // A stale facet is identified by the stable error code only, never by the message text.
+      const body: unknown = await response.json()
+      throw new CatalogProductsError(
+        isRecord(body) && body.error === 'FACET_NOT_AVAILABLE' ? 'facet-unavailable' : 'server',
+        400,
+      )
+    }
     if (response.status !== 200) throw new CatalogProductsError('server', response.status)
     const body: unknown = await response.json()
     if (!isProductsResponse(body, requestedPriceListId))

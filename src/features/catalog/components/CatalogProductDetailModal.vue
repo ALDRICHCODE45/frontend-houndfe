@@ -7,6 +7,7 @@ import type {
   PublicCatalogProductDetailAvailability,
   PublicCatalogProductDetailDto,
   PublicCatalogProductDetailStockPresentationDto,
+  PublicProductAttribute,
 } from '../interfaces/public-catalog-product-detail.types'
 
 const props = defineProps<{
@@ -78,14 +79,47 @@ const detailAvailability = computed(() =>
     : null,
 )
 
+interface AttributeGroup {
+  id: string
+  label: string | null
+  attributes: PublicProductAttribute[]
+}
+
 /**
- * A published product may carry no description and no variants at all. Those two fields are the only
- * density the panel can offer, so the panel states the absence instead of leaving a blank region.
+ * Groups consecutive attributes by form section, keeping the server order (sections, then position).
+ * A null section is its own unlabelled group. Only `display` is shown, so an unknown value type renders.
+ */
+function groupAttributes(attributes: PublicProductAttribute[]): AttributeGroup[] {
+  const groups: AttributeGroup[] = []
+  for (const attribute of attributes) {
+    const sectionCode = attribute.section?.code ?? null
+    const last = groups[groups.length - 1]
+    if (last && (last.attributes[0]?.section?.code ?? null) === sectionCode) {
+      last.attributes.push(attribute)
+    } else {
+      groups.push({
+        id: `${groups.length}:${sectionCode ?? ''}`,
+        label: attribute.section?.label ?? null,
+        attributes: [attribute],
+      })
+    }
+  }
+  return groups
+}
+
+/** Published attributes exist only while the tenant shows published editorial data. */
+const attributeGroups = computed(() => groupAttributes(props.detail?.attributes ?? []))
+
+/**
+ * A published product may carry no description, no variants and no attributes at all. Those are the
+ * only density the panel can offer, so the panel states the absence instead of leaving a blank region.
  */
 const hasDescription = computed(() => Boolean(props.detail?.description?.trim()))
 const hasVariants = computed(() => (props.detail?.variants.length ?? 0) > 0)
+const hasAttributes = computed(() => attributeGroups.value.length > 0)
 const showEmptyDetailNote = computed(
-  () => props.detail !== null && !hasDescription.value && !hasVariants.value,
+  () =>
+    props.detail !== null && !hasDescription.value && !hasVariants.value && !hasAttributes.value,
 )
 
 /** Read-only variant cards. Only the branch selected by the route resolution is reported. */
@@ -106,6 +140,7 @@ const variants = computed(() =>
         variant.stockPresentation,
         selectedBranch?.availability ?? null,
       ),
+      attributes: variant.attributes ?? [],
     }
   }),
 )
@@ -602,6 +637,36 @@ onBeforeUnmount(() => {
           </section>
 
           <section
+            v-if="hasAttributes"
+            aria-labelledby="catalog-detail-attributes"
+            class="flex min-w-0 flex-col gap-3"
+          >
+            <h3 id="catalog-detail-attributes" class="text-base font-semibold text-highlighted">
+              Características
+            </h3>
+            <div
+              v-for="group in attributeGroups"
+              :key="group.id"
+              data-testid="catalog-detail-attribute-group"
+              class="flex min-w-0 flex-col gap-1.5"
+            >
+              <h4 v-if="group.label" class="text-sm font-semibold text-highlighted">
+                {{ group.label }}
+              </h4>
+              <dl class="catalog-detail-attributes">
+                <div
+                  v-for="attribute in group.attributes"
+                  :key="attribute.code"
+                  class="catalog-detail-attribute"
+                >
+                  <dt>{{ attribute.label }}</dt>
+                  <dd>{{ attribute.display }}</dd>
+                </div>
+              </dl>
+            </div>
+          </section>
+
+          <section
             v-if="hasVariants"
             aria-labelledby="catalog-detail-variants"
             class="flex min-w-0 flex-col gap-3"
@@ -715,6 +780,20 @@ onBeforeUnmount(() => {
                       <span class="font-medium">{{ variant.availability.label }}</span>
                     </span>
                   </div>
+                  <dl
+                    v-if="variant.attributes.length > 0"
+                    data-testid="catalog-detail-variant-attributes"
+                    class="catalog-detail-attributes catalog-detail-attributes--compact mt-2"
+                  >
+                    <div
+                      v-for="attribute in variant.attributes"
+                      :key="attribute.code"
+                      class="catalog-detail-attribute"
+                    >
+                      <dt>{{ attribute.label }}</dt>
+                      <dd>{{ attribute.display }}</dd>
+                    </div>
+                  </dl>
                 </div>
               </li>
             </ul>

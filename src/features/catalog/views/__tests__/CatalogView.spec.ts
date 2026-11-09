@@ -1712,4 +1712,225 @@ describe('CatalogView public browse', () => {
     expect(fetchMock).toHaveBeenCalledTimes(5)
     expect(wrapper.get('[role="dialog"] [data-testid="detail-id"]').text()).toBe(product.id)
   })
+
+  describe('attribute facets', () => {
+    const cat = 'animal.target:ani.dom.cat'
+    const dog = 'animal.target:ani.dom.dog'
+    const kibble = 'food.format:food.format.kibble'
+    /** Counts depend on the request so the test proves chips come from the filtered response. */
+    const facetsFor = (selected: string[]) => [
+      {
+        code: 'animal.target',
+        label: 'Especie',
+        options: [
+          { code: 'ani.dom.cat', label: 'Gato', count: selected.length ? 5 : 2 },
+          { code: 'ani.dom.dog', label: 'Perro', count: 1 },
+        ],
+      },
+      {
+        code: 'food.format',
+        label: 'Formato del alimento',
+        options: [{ code: 'food.format.kibble', label: 'Croquetas', count: 2 }],
+      },
+    ]
+    const facetPage = (url: URL) => {
+      const selected = url.searchParams.getAll('facet')
+      return {
+        ...productsResponseFor(
+          url.searchParams.get('priceListId') ?? 'list-1',
+          selected.length ? [{ ...product, name: 'Café filtrado' }] : [product],
+        ),
+        facets: { categories: [], attributes: facetsFor(selected) },
+      }
+    }
+    const install = (
+      products: (url: URL) => Response | Promise<Response> = (url) => jsonResponse(facetPage(url)),
+    ) => {
+      const fetchMock = createCatalogFetch({ products: (_slug, _price, url) => products(url) })
+      vi.stubGlobal('fetch', fetchMock)
+      return fetchMock
+    }
+    const facetsOf = (url: string | undefined) => new URL(url!).searchParams.getAll('facet')
+    const chip = (wrapper: VueWrapper, label: string) =>
+      wrapper.findAll('[data-testid="catalog-facet-filters"] button').find((button) =>
+        (button.attributes('aria-label') ?? '').startsWith(label),
+      )!
+
+    it('renders chips from the filtered listing and sends no facet without a selection', async () => {
+      const fetchMock = install()
+      const { wrapper } = await mountAt('/catalogo/centro')
+      await flushPromises()
+      expect(productRequestUrls(fetchMock)).toEqual([productsUrl('centro')])
+      expect(chip(wrapper, 'Especie: Gato').attributes('aria-label')).toBe(
+        'Especie: Gato, 2 productos',
+      )
+      expect(chip(wrapper, 'Especie: Gato').attributes('aria-pressed')).toBe('false')
+      expect(wrapper.text()).not.toContain('Limpiar filtros')
+    })
+
+    it('toggles a facet into repeated URL params, drops page and keeps the rest of the URL', async () => {
+      const fetchMock = install()
+      const { wrapper, router } = await mountAt(
+        '/catalogo/centro?priceListId=list-mayoreo&page=2&keep=yes#catalogo',
+      )
+      await flushPromises()
+      await chip(wrapper, 'Especie: Gato').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query).toEqual({
+        priceListId: 'list-mayoreo',
+        keep: 'yes',
+        facet: cat,
+      })
+      expect(router.currentRoute.value.hash).toBe('#catalogo')
+      expect(facetsOf(lastProductRequestUrl(fetchMock))).toEqual([cat])
+      expect(new URL(lastProductRequestUrl(fetchMock)!).searchParams.has('page')).toBe(false)
+      expect(wrapper.text()).toContain('Café filtrado')
+      // Counts come from the current filtered response, not the baseline.
+      expect(chip(wrapper, 'Especie: Gato').attributes('aria-label')).toBe(
+        'Especie: Gato, 5 productos',
+      )
+      expect(chip(wrapper, 'Especie: Gato').attributes('aria-pressed')).toBe('true')
+
+      await chip(wrapper, 'Formato del alimento: Croquetas').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query.facet).toEqual([cat, kibble])
+      expect(facetsOf(lastProductRequestUrl(fetchMock))).toEqual([cat, kibble])
+
+      await chip(wrapper, 'Especie: Gato').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query.facet).toBe(kibble)
+      expect(facetsOf(lastProductRequestUrl(fetchMock))).toEqual([kibble])
+    })
+
+    it('clears every facet at once with «Limpiar filtros (n)», keeping other filters', async () => {
+      install()
+      const { wrapper, router } = await mountAt(
+        `/catalogo/centro?facet=${cat}&facet=${dog}&page=2&q=caf#catalogo`,
+      )
+      await flushPromises()
+      expect(chip(wrapper, 'Especie: Gato').attributes('aria-pressed')).toBe('true')
+      expect(chip(wrapper, 'Especie: Perro').attributes('aria-pressed')).toBe('true')
+      expect(wrapper.get('[data-testid="catalog-facet-active"]').text()).toBe('Gato, Perro')
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'Limpiar filtros (2)')!
+        .trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query).toEqual({ q: 'caf' })
+      expect(router.currentRoute.value.hash).toBe('#catalogo')
+      expect(wrapper.text()).not.toContain('Limpiar filtros')
+    })
+
+    it('ignores malformed tokens, dedupes and caps the facet params at 50', async () => {
+      const fetchMock = install()
+      const many = Array.from({ length: 60 }, (_, index) => `def.${index}:opt.${index}`)
+      const query = [
+        'facet=nocolon',
+        'facet=bad%20space:opt',
+        `facet=${'a'.repeat(121)}:opt`,
+        'facet=def:',
+        `facet=${cat}`,
+        `facet=${cat}`,
+        ...many.map((token) => `facet=${token}`),
+      ].join('&')
+      const { wrapper } = await mountAt(`/catalogo/centro?${query}`)
+      await flushPromises()
+      const sent = facetsOf(lastProductRequestUrl(fetchMock))
+      expect(sent).toEqual([cat, ...many.slice(0, 49)])
+      expect(wrapper.find('[data-testid="catalog-product-grid"]').exists()).toBe(true)
+      expect(wrapper.text()).not.toContain('no válida')
+    })
+
+    it('keeps the request byte-identical to today when every facet token is malformed', async () => {
+      const fetchMock = install()
+      await mountAt('/catalogo/centro?facet=nocolon&facet=')
+      await flushPromises()
+      expect(productRequestUrls(fetchMock)).toEqual([productsUrl('centro')])
+    })
+
+    it('drops stale facets from the URL and reloads the list on FACET_NOT_AVAILABLE', async () => {
+      const fetchMock = install((url) =>
+        url.searchParams.has('facet')
+          ? jsonResponse(
+              {
+                statusCode: 400,
+                error: 'FACET_NOT_AVAILABLE',
+                message: 'Facet is not available: animal.target:ani.dom.cat',
+              },
+              400,
+            )
+          : jsonResponse(facetPage(url)),
+      )
+      const { wrapper, router } = await mountAt(
+        `/catalogo/centro?facet=${cat}&page=2&q=caf&keep=yes#catalogo`,
+      )
+      const push = vi.spyOn(router, 'push')
+      const replace = vi.spyOn(router, 'replace')
+      await flushPromises()
+      expect(router.currentRoute.value.query).toEqual({ q: 'caf', keep: 'yes' })
+      expect(router.currentRoute.value.hash).toBe('#catalogo')
+      expect(new URL(lastProductRequestUrl(fetchMock)!).searchParams.has('facet')).toBe(false)
+      expect(new URL(lastProductRequestUrl(fetchMock)!).searchParams.get('q')).toBe('caf')
+      expect(wrapper.text()).toContain('Café molido')
+      expect(wrapper.find('[data-testid="catalog-product-grid"]').exists()).toBe(true)
+      expect(wrapper.text()).not.toContain('Limpiar filtros')
+      // Replaced, not pushed: going back never returns to the stale facet.
+      expect(replace).toHaveBeenCalledTimes(1)
+      expect(push).not.toHaveBeenCalled()
+    })
+
+    it('keeps any other 400 an ordinary listing failure', async () => {
+      install((url) =>
+        url.searchParams.has('facet')
+          ? jsonResponse({ statusCode: 400, error: 'Bad Request', message: 'FACET_NOT_AVAILABLE' }, 400)
+          : jsonResponse(facetPage(url)),
+      )
+      const { wrapper, router } = await mountAt(`/catalogo/centro?facet=${cat}`)
+      await flushPromises()
+      expect(router.currentRoute.value.query).toEqual({ facet: cat })
+      expect(wrapper.text()).toContain('Reintentar')
+    })
+
+    it('closes an open detail when the facet selection changes', async () => {
+      install()
+      const { wrapper } = await mountAt('/catalogo/centro')
+      await flushPromises()
+      await wrapper.get('button[aria-label="Ver detalles de Café molido"]').trigger('click')
+      await flushPromises()
+      expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+      await chip(wrapper, 'Especie: Gato').trigger('click')
+      await flushPromises()
+      expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    })
+
+    it('keeps the chips mounted while the next filtered page loads', async () => {
+      let release!: () => void
+      install((url) =>
+        url.searchParams.has('facet')
+          ? new Promise<Response>((resolve) => {
+              release = () => resolve(jsonResponse(facetPage(url)))
+            })
+          : jsonResponse(facetPage(url)),
+      )
+      const { wrapper } = await mountAt('/catalogo/centro')
+      await flushPromises()
+      const gato = chip(wrapper, 'Especie: Gato')
+      await gato.trigger('click')
+      await flushPromises()
+      expect(chip(wrapper, 'Especie: Gato').element).toBe(gato.element)
+      expect(chip(wrapper, 'Especie: Gato').attributes('aria-pressed')).toBe('true')
+      release()
+      await flushPromises()
+      expect(chip(wrapper, 'Especie: Gato').attributes('aria-label')).toBe(
+        'Especie: Gato, 5 productos',
+      )
+    })
+
+    it('shows no facet block when the listing has no attribute facets (switch off)', async () => {
+      install((url) => jsonResponse({ ...productsResponse(), facets: { categories: [] }, _u: String(url) }))
+      const { wrapper } = await mountAt('/catalogo/centro')
+      await flushPromises()
+      expect(wrapper.find('[data-testid="catalog-facet-filters"]').exists()).toBe(false)
+    })
+  })
 })

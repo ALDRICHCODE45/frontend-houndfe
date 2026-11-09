@@ -16,6 +16,7 @@ import {
   EDITORIAL_STATE_UNREADABLE_ACTION, EDITORIAL_STATE_UNREADABLE_MESSAGE, EDITORIAL_STATE_UNREADABLE_TITLE,
 } from '../../composables/useEditorialEditor'
 import { useEditorialPublish } from '../../composables/useEditorialPublish'
+import { useEditorialUnpublish } from '../../composables/useEditorialUnpublish'
 import type { EditorialReadinessItem } from '../../interfaces/editorial-contract-readiness.types'
 import EditorialPublishBar from './EditorialPublishBar.vue'
 import EditorialPublishChecklist, { type EditorialChecklistEntry } from './EditorialPublishChecklist.vue'
@@ -65,6 +66,12 @@ const { confirm } = useConfirm()
 const publication = useEditorialPublish(editor, {
   productId: () => props.productId,
   confirmCare: () => confirm({ title: '¿Publicar la información de cuidado?', description: 'Confirmo que revisé la información de cuidado.', confirmLabel: 'Publicar' }),
+  notify: title => toast.add({ title, color: 'success' }),
+})
+const unpublication = useEditorialUnpublish(editor, {
+  productId: () => props.productId,
+  confirm: () => confirm({ title: '¿Despublicar este producto?', confirmLabel: 'Despublicar', tone: 'danger',
+    description: 'Si la tienda muestra solo productos con ficha publicada, este producto sale del catálogo en línea. El contenido se queda como borrador para volver a publicarlo.' }),
   notify: title => toast.add({ title, color: 'success' }),
 })
 
@@ -255,8 +262,10 @@ const forbidden = computed(() => !canRead.value || readStatus.value === 401 || r
 const showRefresh = computed(() => !notFound.value && (errorMessage.value ? forbidden.value : !canWrite.value))
 const noDraft = computed(() => Boolean(authoritative.value) && !authoritative.value!.draft && canWrite.value)
 const hasContent = computed(() => Boolean(shown.value && vocabulary.value && qualification.value))
-// A publish attempt reports in its own bar (useEditorialPublish); this alert is for saves and discards.
-const needsReconciliation = computed(() => Boolean(pendingIntent.value) && pendingIntent.value?.kind !== 'publish' && outcome.value !== 'acknowledged')
+// A publish attempt reports in its own bar (useEditorialPublish), an unpublish under the header
+// (useEditorialUnpublish); this alert is for saves and discards.
+const needsReconciliation = computed(() => Boolean(pendingIntent.value) && pendingIntent.value?.kind !== 'publish'
+  && pendingIntent.value?.kind !== 'unpublish' && outcome.value !== 'acknowledged')
 // The stored state is not V2: reloading or retrying reads the same slot, so the alert offers neither.
 const writeUnreadable = computed(() => needsReconciliation.value && error.value?.code === 'EDITORIAL_STATE_UNREADABLE')
 const reconciliationText = computed(() => {
@@ -276,7 +285,7 @@ const dirtyCount = computed(() => {
 const saveError = computed(() => (issues.value.length ? `No se guardó · corrige ${issues.value.length === 1 ? '1 dato' : `${issues.value.length} datos`}` : null))
 // «Guardar» is the primary while there is something to save; once all is saved, «Publicar» (for publishers).
 const bar = computed<'save' | 'publish' | null>(() => {
-  const saving = isPending.value && pendingIntent.value?.kind !== 'publish'
+  const saving = isPending.value && pendingIntent.value?.kind !== 'publish' && pendingIntent.value?.kind !== 'unpublish'
   if (publication.visible.value && authoritative.value?.draft && !dirtyCount.value && !saveError.value && !saving) return 'publish'
   return canWrite.value && buffer.value ? 'save' : null
 })
@@ -297,6 +306,8 @@ async function submit() {
 async function start() {
   if (canInitialize.value && (await editor.initialize())) { savedAt.value = new Date(); await editor.refresh('discard') }
 }
+// An ambiguous unpublish retransmits the same attempt; it was already confirmed.
+function unpublishOrRetry() { void (unpublication.retryable.value ? unpublication.retry() : unpublication.unpublish()) }
 async function confirmDiscardDraft() {
   discardDraftOpen.value = false
   // The discard is acknowledged without installing state: one GET brings back the empty state.
@@ -347,16 +358,28 @@ function valuesChanged(values: EditorialDocumentEditingState['values']) {
       <template v-if="hasContent && authoritative && !noDraft && !errorMessage">
         <StatusBadge v-if="family" data-testid="editorial-progress" :label="missingTotal ? `Faltan ${missingTotal}` : 'Completo'"
           :tone="missingTotal ? 'warning' : 'success'" aria-prefix="Avance:" />
-        <span class="editorial-spacer" />
-        <UButton v-if="canWrite && authoritative.draft" color="neutral" variant="ghost" icon="i-lucide-trash-2" class="editorial-head__action" data-testid="discard-draft"
-          label="Descartar borrador" :disabled="!canDiscard" @click="discardDraftOpen = true" />
-        <UButton color="neutral" variant="ghost" icon="i-lucide-history" class="editorial-head__action" data-testid="open-history" label="Historial" @click="historyOpen = true" />
+        <div class="editorial-actions">
+          <UButton v-if="unpublication.visible.value" color="neutral" variant="ghost" icon="i-lucide-eye-off" class="editorial-head__action" data-testid="unpublish"
+            :label="unpublication.retryable.value ? 'Reintentar despublicar' : 'Despublicar'" :loading="unpublication.busy.value"
+            :disabled="!unpublication.retryable.value && !unpublication.canUnpublish.value" @click="unpublishOrRetry" />
+          <UButton v-if="canWrite && authoritative.draft" color="neutral" variant="ghost" icon="i-lucide-trash-2" class="editorial-head__action" data-testid="discard-draft"
+            label="Descartar borrador" :disabled="!canDiscard" @click="discardDraftOpen = true" />
+          <UButton color="neutral" variant="ghost" icon="i-lucide-history" class="editorial-head__action" data-testid="open-history" label="Historial" @click="historyOpen = true" />
+        </div>
       </template>
       <template v-else-if="authoritative?.published && noDraft && !errorMessage">
-        <span class="editorial-spacer" />
-        <UButton color="neutral" variant="ghost" icon="i-lucide-history" class="editorial-head__action" data-testid="open-history" label="Historial" @click="historyOpen = true" />
+        <div class="editorial-actions">
+          <UButton v-if="unpublication.visible.value" color="neutral" variant="ghost" icon="i-lucide-eye-off" class="editorial-head__action" data-testid="unpublish"
+            :label="unpublication.retryable.value ? 'Reintentar despublicar' : 'Despublicar'" :loading="unpublication.busy.value"
+            :disabled="!unpublication.retryable.value && !unpublication.canUnpublish.value" @click="unpublishOrRetry" />
+          <UButton color="neutral" variant="ghost" icon="i-lucide-history" class="editorial-head__action" data-testid="open-history" label="Historial" @click="historyOpen = true" />
+        </div>
       </template>
     </div>
+
+    <p v-if="unpublication.message.value && !errorMessage" role="alert" class="editorial-alert" data-tone="warning" data-testid="unpublish-message">
+      {{ unpublication.message.value }}
+    </p>
 
     <div v-if="showRefresh" class="editorial-refresh">
       <p v-if="!canWrite && !errorMessage" class="editorial-quiet">Solo consulta. Para editar necesitas permiso de edición del contenido editorial.</p>
@@ -515,7 +538,8 @@ function valuesChanged(values: EditorialDocumentEditingState['values']) {
 .editorial-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; min-height: 36px; }
 .editorial-head__title { margin: 0; color: var(--hf-heading); font-size: 16px; font-weight: 600; line-height: 1.4; }
 .editorial-head__action { color: var(--hf-muted); }
-.editorial-spacer { flex: 1 1 0; }
+/* The actions wrap as one group, right-aligned, so a narrow header never strands one action on its own line. */
+.editorial-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 4px 12px; min-width: 0; margin-inline-start: auto; }
 .editorial-refresh { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .editorial-quiet { margin: 0; color: var(--hf-muted); font-size: 13px; }
 .editorial-read { margin: 0; font-size: 14px; }

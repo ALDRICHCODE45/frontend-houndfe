@@ -44,6 +44,7 @@ const stockDefault = computed(() =>
     <CatalogPublicationSection
       readonly
       :published="settings.catalogPublished"
+      :published-only="settings.catalogRequiresPublishedEditorial"
       :public-count="settings.priceContexts.length"
       :default-name="defaultName"
       :effective-publication="settings.effectivePublication"

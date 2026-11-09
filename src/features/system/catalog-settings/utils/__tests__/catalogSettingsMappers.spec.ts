@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest'
 import {
   parseCatalogSettingsResponse, fromCatalogSettingsResponse,
   toPatchCatalogSettingsBody, validateCatalogSettingsDraft,
-  isCatalogSettingsDirty, isPublishRisingEdge,
+  isCatalogSettingsDirty, isPublishRisingEdge, isPublishedOnlyRisingEdge,
   serializeStockPresentationDefault, mapCatalogSettingsWarning,
   mapCatalogSettingsError, STOCK_QUANTITY_ERROR,
 } from '../catalogSettingsMappers'
@@ -13,6 +13,7 @@ import type { CatalogSettingsDraft, CatalogSettingsResponseDto }
 
 const D = (o: Partial<CatalogSettingsDraft> = {}): CatalogSettingsDraft => ({
   catalogPublished: true,
+  catalogRequiresPublishedEditorial: false,
   publicPriceListIds: ['pl_a'],
   catalogDefaultPriceListId: 'pl_a',
   stockPresentationDefault: { mode: 'SYSTEM_STATUS', customQuantity: null },
@@ -20,7 +21,8 @@ const D = (o: Partial<CatalogSettingsDraft> = {}): CatalogSettingsDraft => ({
 })
 
 const R = (o: Partial<CatalogSettingsResponseDto> = {}): CatalogSettingsResponseDto => ({
-  catalogPublished: true, effectivePublication: true, priceContexts: [],
+  catalogPublished: true, catalogRequiresPublishedEditorial: false,
+  effectivePublication: true, priceContexts: [],
   stockPresentationDefault: { mode: 'SYSTEM_STATUS', customQuantity: null },
   warnings: [], updatedAt: '2026-01-01T00:00:00.000Z',
   ...o,
@@ -230,5 +232,62 @@ describe('validateCatalogSettingsDraft — fixed stock quantity', () => {
 
   it('ignores the quantity outside CUSTOM_QUANTITY', () => {
     expect(validateCatalogSettingsDraft(D())).toEqual([])
+  })
+})
+
+describe('catalogRequiresPublishedEditorial (C3.3 S1)', () => {
+  it('parses the boolean and rejects a payload without it or with null', () => {
+    expect(parseCatalogSettingsResponse(R({ catalogRequiresPublishedEditorial: true }))
+      .catalogRequiresPublishedEditorial).toBe(true)
+    const { catalogRequiresPublishedEditorial: _omit, ...missing } = R()
+    expect(() => parseCatalogSettingsResponse(missing)).toThrow()
+    expect(() => parseCatalogSettingsResponse({ ...R(), catalogRequiresPublishedEditorial: null }))
+      .toThrow()
+  })
+
+  it('copies the accepted value into the draft', () => {
+    expect(fromCatalogSettingsResponse(R({ catalogRequiresPublishedEditorial: true }))
+      .catalogRequiresPublishedEditorial).toBe(true)
+    expect(fromCatalogSettingsResponse(R()).catalogRequiresPublishedEditorial).toBe(false)
+  })
+
+  it.each([
+    ['turning it on sends only the changed key', false, true],
+    ['turning it off sends only the changed key', true, false],
+  ])('%s', (_n, before, after) => {
+    const pristine = D({ catalogRequiresPublishedEditorial: before })
+    const draft = D({ catalogRequiresPublishedEditorial: after })
+    expect(toPatchCatalogSettingsBody(draft, pristine))
+      .toEqual({ catalogRequiresPublishedEditorial: after })
+    expect(isCatalogSettingsDirty(draft, pristine)).toBe(true)
+  })
+
+  it('keeps the key next to the atomic clear triple', () => {
+    const pristine = D()
+    const draft = D({ catalogPublished: true, publicPriceListIds: [], catalogDefaultPriceListId: null,
+      catalogRequiresPublishedEditorial: true })
+    expect(toPatchCatalogSettingsBody(draft, pristine)).toEqual({
+      catalogPublished: false, publicPriceListIds: [], catalogDefaultPriceListId: null,
+      catalogRequiresPublishedEditorial: true,
+    })
+  })
+
+  it('an unchanged value is neither dirty nor sent', () => {
+    const pristine = D({ catalogRequiresPublishedEditorial: true })
+    const draft = D({ catalogRequiresPublishedEditorial: true })
+    expect(isCatalogSettingsDirty(draft, pristine)).toBe(false)
+    expect(toPatchCatalogSettingsBody(draft, pristine)).toEqual({})
+  })
+
+  it.each([
+    ['false → true ⇒ rising edge', false, true, true],
+    ['true → false ⇒ no confirm', true, false, false],
+    ['true → true ⇒ no change', true, true, false],
+    ['false → false ⇒ no change', false, false, false],
+  ])('isPublishedOnlyRisingEdge: %s', (_n, p, d, expected) => {
+    expect(isPublishedOnlyRisingEdge(
+      D({ catalogRequiresPublishedEditorial: p }),
+      D({ catalogRequiresPublishedEditorial: d }),
+    )).toBe(expected)
   })
 })

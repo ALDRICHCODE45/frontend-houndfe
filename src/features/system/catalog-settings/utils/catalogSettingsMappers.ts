@@ -58,6 +58,7 @@ export function fromCatalogSettingsResponse(
   const def = response.priceContexts.find((c) => c.isCatalogDefault)
   return {
     catalogPublished: response.catalogPublished,
+    catalogRequiresPublishedEditorial: response.catalogRequiresPublishedEditorial,
     publicPriceListIds: response.priceContexts.map((c) => c.priceListId),
     catalogDefaultPriceListId: def ? def.priceListId : null,
     stockPresentationDefault: { ...response.stockPresentationDefault },
@@ -121,6 +122,9 @@ export function toPatchCatalogSettingsBody(
       body.catalogDefaultPriceListId = draft.catalogDefaultPriceListId
     }
   }
+  if (draft.catalogRequiresPublishedEditorial !== pristine.catalogRequiresPublishedEditorial) {
+    body.catalogRequiresPublishedEditorial = draft.catalogRequiresPublishedEditorial
+  }
   if (!sameStock(draft.stockPresentationDefault, pristine.stockPresentationDefault)) {
     body.stockPresentationDefault = serializeStockPresentationDefault(
       draft.stockPresentationDefault,
@@ -136,6 +140,7 @@ export function isCatalogSettingsDirty(
 ): boolean {
   return (
     current.catalogPublished !== pristine.catalogPublished ||
+    current.catalogRequiresPublishedEditorial !== pristine.catalogRequiresPublishedEditorial ||
     !sameArr(current.publicPriceListIds, pristine.publicPriceListIds) ||
     current.catalogDefaultPriceListId !== pristine.catalogDefaultPriceListId ||
     !sameStock(current.stockPresentationDefault, pristine.stockPresentationDefault)
@@ -148,6 +153,17 @@ export function isPublishRisingEdge(
   draft: CatalogSettingsDraft,
 ): boolean {
   return pristine.catalogPublished === false && draft.catalogPublished === true
+}
+
+/** Rising edge (false → true) of «solo fichas publicadas»: asks with the go-live checklist. */
+export function isPublishedOnlyRisingEdge(
+  pristine: CatalogSettingsDraft,
+  draft: CatalogSettingsDraft,
+): boolean {
+  return (
+    pristine.catalogRequiresPublishedEditorial === false &&
+    draft.catalogRequiresPublishedEditorial === true
+  )
 }
 
 /** CUSTOM_QUANTITY keeps the integer (0 preserved literally); others force null. */

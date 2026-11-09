@@ -147,4 +147,11 @@ export const editorialContractApi = {
     http.post(`${editorialPath(productId)}/draft/discard`, body, writeConfig(key, revision, null, signal)),
     200, envelopeReader(decodeEditorialStateResponse, revision),
   ),
+  /** «Despublicar»: `expectedRevision` is the Published revision; never a care header, even for Cuidado. */
+  unpublish: (
+    productId: string, body: EditorialContractTransitionRequest, key: string, revision: string, signal?: AbortSignal,
+  ): Promise<EditorialStateResponse> => unwrap(
+    http.post(`${editorialPath(productId)}/published/unpublish`, body, writeConfig(key, revision, null, signal)),
+    200, envelopeReader(decodeEditorialStateResponse, revision),
+  ),
 }

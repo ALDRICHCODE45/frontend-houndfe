@@ -91,4 +91,24 @@ describe('catalog stylesheet', () => {
     const desktop = css.slice(css.indexOf('@media (min-width: 601px) {'))
     expect(desktop).toMatch(/\.catalog-footer-inner \{[^}]*gap: 28px 32px/)
   })
+
+  it('keeps every attribute facet on one sideways row on a phone and lets them flow side by side on desktop', () => {
+    const facets = css.slice(css.indexOf('.catalog-facets {'))
+    const phone = facets.slice(0, facets.indexOf('@media (min-width: 601px) {'))
+    // Phone: one scrolling row (eight definitions stacked pushed the products off screen).
+    // Only the groups scroll; «Limpiar filtros» is a separate item before the scroller and is
+    // never pinned over it (a sticky clear covered the first label «Especie»).
+    expect(phone).toMatch(/\.catalog-facet-scroller \{[^}]*overflow-x: auto/)
+    expect(phone).not.toMatch(/\.catalog-facets \{[^}]*overflow-x/)
+    expect(phone).not.toMatch(/\.catalog-facets \{[^}]*flex-direction: column/)
+    expect(phone).toMatch(/\.catalog-facet-group \{[^}]*flex: none/)
+    expect(phone).toMatch(/\.catalog-facet-chip \{[^}]*min-height: 44px/)
+    expect(phone).toMatch(/\.catalog-facet-clear \{[^}]*flex: none[^}]*order: -1/)
+    expect(facets).not.toMatch(/\.catalog-facet-clear \{[^}]*position: (?:sticky|absolute|fixed)/)
+    const desktop = facets.slice(facets.indexOf('@media (min-width: 601px) {'))
+    expect(desktop).toMatch(/\.catalog-facets \{[^}]*flex-wrap: wrap/)
+    expect(desktop).toMatch(/\.catalog-facet-scroller \{[^}]*display: contents/)
+    expect(desktop).toMatch(/\.catalog-facet-group \{[^}]*flex-direction: column/)
+    expect(desktop).toMatch(/\.catalog-facet-clear \{[^}]*order: 0/)
+  })
 })

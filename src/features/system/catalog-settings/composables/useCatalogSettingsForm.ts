@@ -17,6 +17,7 @@ import {
   fromCatalogSettingsResponse,
   isCatalogSettingsDirty,
   isPublishRisingEdge,
+  isPublishedOnlyRisingEdge,
   toPatchCatalogSettingsBody,
   validateCatalogSettingsDraft,
 } from '../utils/catalogSettingsMappers'
@@ -38,6 +39,7 @@ export interface CatalogSettingsFormApi {
   isDirty: ComputedRef<boolean>
   validationErrors: ComputedRef<string[]>
   isRisingEdge: ComputedRef<boolean>
+  isPublishedOnlyRisingEdge: ComputedRef<boolean>
   canSave: ComputedRef<boolean>
   confirmationOpen: Ref<boolean>
   requestSave: () => SaveRoute | null
@@ -94,6 +96,12 @@ export function useCatalogSettingsForm(
       draft.value !== null &&
       isPublishRisingEdge(pristine.value, draft.value),
   )
+  const isPublishedOnlyRising = computed(
+    () =>
+      pristine.value !== null &&
+      draft.value !== null &&
+      isPublishedOnlyRisingEdge(pristine.value, draft.value),
+  )
   const canSave = computed(
     () =>
       draft.value !== null &&
@@ -111,8 +119,8 @@ export function useCatalogSettingsForm(
   /** Save gate: invalid / pristine / pending drafts issue nothing (REQ-7, REQ-12). */
   function requestSave(): SaveRoute | null {
     if (!canSave.value) return null
-    if (isRisingEdge.value) {
-      // REQ-10: rising edge opens the confirmation modal; no PATCH yet.
+    if (isRisingEdge.value || isPublishedOnlyRising.value) {
+      // REQ-10 / C3.3: either rising edge opens ONE confirmation; no PATCH yet.
       confirmationOpen.value = true
       return 'confirm'
     }
@@ -161,6 +169,7 @@ export function useCatalogSettingsForm(
     isDirty,
     validationErrors,
     isRisingEdge,
+    isPublishedOnlyRisingEdge: isPublishedOnlyRising,
     canSave,
     confirmationOpen,
     requestSave,

@@ -16,6 +16,7 @@ function makeResponse(
 ): CatalogSettingsResponseDto {
   return {
     catalogPublished: false,
+    catalogRequiresPublishedEditorial: false,
     effectivePublication: false,
     priceContexts: [
       { priceListId: 'pl_a', name: 'Lista A', isCatalogDefault: true },
@@ -43,6 +44,7 @@ describe('useCatalogSettingsForm — hydration derives from priceContexts (REQ-6
     await nextTick()
     expect(form.draft.value).toEqual({
       catalogPublished: false,
+      catalogRequiresPublishedEditorial: false,
       publicPriceListIds: ['pl_a', 'pl_b'],
       catalogDefaultPriceListId: 'pl_a',
       stockPresentationDefault: { mode: 'SYSTEM_STATUS', customQuantity: null },
@@ -214,5 +216,51 @@ describe('useCatalogSettingsForm — pending suppression and PATCH acceptance (R
     expect(form.isDirty.value).toBe(false)
     expect(form.draft.value).toEqual(form.pristine.value)
     expect(form.draft.value!.publicPriceListIds).not.toBe(form.pristine.value!.publicPriceListIds)
+  })
+})
+
+describe('useCatalogSettingsForm — «solo fichas publicadas» switch (C3.3 S1)', () => {
+  it('turning it on routes to confirm and flags only that edge; confirm saves only the key', async () => {
+    const { form } = makeForm(true)
+    await nextTick()
+    form.draft.value!.catalogRequiresPublishedEditorial = true
+    expect(form.isPublishedOnlyRisingEdge.value).toBe(true)
+    expect(form.isRisingEdge.value).toBe(false)
+    expect(form.requestSave()).toBe('confirm')
+    expect(form.confirmationOpen.value).toBe(true)
+    form.cancelPublish()
+    expect(form.confirmationOpen.value).toBe(false)
+    expect(form.draft.value!.catalogRequiresPublishedEditorial).toBe(true)
+    expect(form.confirmPublish()).toBe('save')
+    expect(form.buildSaveBody()).toEqual({ catalogRequiresPublishedEditorial: true })
+  })
+
+  it('turning it off saves directly with only the key', async () => {
+    const tenantId = ref('tenant-1')
+    const settings = ref<CatalogSettingsResponseDto | undefined>(
+      makeResponse({ catalogPublished: true, catalogRequiresPublishedEditorial: true }),
+    )
+    const form = useCatalogSettingsForm(tenantId, settings)
+    await nextTick()
+    form.draft.value!.catalogRequiresPublishedEditorial = false
+    expect(form.isPublishedOnlyRisingEdge.value).toBe(false)
+    expect(form.requestSave()).toBe('save')
+    expect(form.confirmationOpen.value).toBe(false)
+    expect(form.buildSaveBody()).toEqual({ catalogRequiresPublishedEditorial: false })
+  })
+
+  it('both rising edges in one save open one confirmation', async () => {
+    const { form } = makeForm(false)
+    await nextTick()
+    form.draft.value!.catalogPublished = true
+    form.draft.value!.catalogRequiresPublishedEditorial = true
+    expect(form.isRisingEdge.value).toBe(true)
+    expect(form.isPublishedOnlyRisingEdge.value).toBe(true)
+    expect(form.requestSave()).toBe('confirm')
+    expect(form.confirmPublish()).toBe('save')
+    expect(form.buildSaveBody()).toEqual({
+      catalogPublished: true,
+      catalogRequiresPublishedEditorial: true,
+    })
   })
 })

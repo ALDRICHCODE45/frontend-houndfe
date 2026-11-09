@@ -17,6 +17,7 @@ vi.mock('@/core/shared/api/http', () => ({ http: { get: vi.fn(), patch: vi.fn() 
 
 const sampleResponse: CatalogSettingsResponseDto = {
   catalogPublished: true,
+  catalogRequiresPublishedEditorial: false,
   effectivePublication: true,
   priceContexts: [{ priceListId: 'pl_a', name: 'Retail', isCatalogDefault: true }],
   stockPresentationDefault: { mode: 'SYSTEM_STATUS', customQuantity: null },
