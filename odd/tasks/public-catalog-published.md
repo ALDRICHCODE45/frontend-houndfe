@@ -9,7 +9,7 @@ Out of scope: public cart (no FE cart exists; handoff §5 n/a), media in Publish
 - S4 «Despublicar» in the editorial editor header. `POST /products/:productId/editorial/published/unpublish`, headers `Idempotency-Key` + one `Editorial-Vocabulary-Revision`, never care/contract-version/adoption headers, body exactly `{ expectedCycle, expectedRevision: published.revision }`. Shown when `published` is not null and the user can publish (read+publish). Confirmation says the product leaves the online catalog if the tenant shows only published products. Without a draft, keep the content: call `initialize` first (copies Published into a draft), then unpublish. Errors per §6 table: 409 CONFLICT → reload read, retry with a new key if still published; 409 VOCABULARY_CHANGED → reload vocabulary+read, retry once with a new key; ambiguous network failure → retry with the same key/body/headers; 403 → hide. After success the header shows «Borrador» (draft) or no editorial state.
 
 ## Tasks
-- T1 | S1 | worker | pending
+- T1 | S1 | worker | done — 188/188 catalog-settings tests, vue-tsc clean; commit 33cee1d6
 - T2 | S2, S3 | worker | pending
 - T3 | S4 | worker | pending
 - T4 | S1-S4 | parent runtime + browser design check against BE dev, docs (design-system), full suite, merge | pending
@@ -17,3 +17,5 @@ Out of scope: public cart (no FE cart exists; handoff §5 n/a), media in Publish
 ## Log
 - L1 User 2026-11-09: «Si hermano, quiero que todo esto del catalogo publico quede listo.» (after the status report recommending C3.3 FE first)
 - L2 Parent decision: without a draft, «Despublicar» initializes first so content is never lost (handoff §6 recommendation); reversible, no product decision opened.
+- L3 T1 done (33cee1d6). Worker choices: confirm title is the handoff heading «Antes de encender el interruptor» (not a question) with checklist in ConfirmModal items; checklist trimmed to the 5 tenant-actionable §9 lines; publish + switch-on in one save asks once. Check both in T4 browser pass.
+- L4 Delivery: one commit per task (T1, T2, T3) as review slices; the branch exceeds ~400 lines in total, so each commit is a separate reviewable slice.
