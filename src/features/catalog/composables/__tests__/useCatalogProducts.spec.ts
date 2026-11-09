@@ -342,6 +342,67 @@ describe('useCatalogProducts', () => {
     )
   })
 
+  it('keeps the key byte-identical without facets and sorts selected facets into the identity', async () => {
+    for (const options of [{}, { facets: [] }, { page: 1, facets: [] }]) {
+      expect(JSON.stringify(catalogProductsQueryKey('centro', null, options))).toBe(
+        JSON.stringify(catalogProductsQueryKey('centro')),
+      )
+    }
+    expect(
+      JSON.stringify(catalogProductsQueryKey('centro', null, { categoryId: 'category-1', facets: [] })),
+    ).toBe(JSON.stringify(catalogProductsQueryKey('centro', null, { categoryId: 'category-1' })))
+    const dogThenCat = catalogProductsQueryKey('centro', null, {
+      facets: ['animal.target:ani.dom.dog', 'animal.target:ani.dom.cat'],
+    })
+    expect(dogThenCat).toEqual([
+      ...catalogProductsQueryKey('centro'),
+      {
+        categoryId: null,
+        page: 1,
+        facets: ['animal.target:ani.dom.cat', 'animal.target:ani.dom.dog'],
+      },
+    ])
+    expect(
+      catalogProductsQueryKey('centro', null, {
+        facets: ['animal.target:ani.dom.cat', 'animal.target:ani.dom.dog'],
+      }),
+    ).toEqual(dogThenCat)
+    expect(
+      catalogProductsQueryKey('centro', null, { facets: ['animal.target:ani.dom.cat'] }),
+    ).not.toEqual(dogThenCat)
+
+    const options = shallowRef<CatalogProductsOptions>({
+      facets: ['animal.target:ani.dom.dog', 'animal.target:ani.dom.cat'],
+    })
+    fetchCatalogProductsMock.mockResolvedValue(page())
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          useCatalogProducts('centro', null, options)
+          return () => null
+        },
+      }),
+      { global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]] } },
+    )
+    await flushPromises()
+    // The request keeps the URL order; only the cache identity is canonical.
+    expect(fetchCatalogProductsMock).toHaveBeenLastCalledWith('centro', null, expect.any(AbortSignal), {
+      facets: ['animal.target:ani.dom.dog', 'animal.target:ani.dom.cat'],
+    })
+    wrapper.unmount()
+  })
+
+  it('exposes a stale facet as its own failure state', async () => {
+    fetchCatalogProductsMock.mockRejectedValueOnce(
+      Object.assign(new Error('facet'), { kind: 'facet-unavailable' }),
+    )
+    const { catalog } = mountHarness('centro')
+    await flushPromises()
+    expect(catalog().state.value).toBe('facet-unavailable')
+    expect(catalog().products.value).toEqual([])
+    expect(catalog().response.value).toBeNull()
+  })
+
   it('shows empty, rate-limit, server, and network states without automatic retries', async () => {
     fetchCatalogProductsMock
       .mockResolvedValueOnce(page([]))

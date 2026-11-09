@@ -5,6 +5,8 @@ export interface CatalogProductsOptions {
   q?: string
   categoryId?: string
   page?: number
+  /** Attribute facet tokens `<definition code>:<option code>`, sent as repeated `facet` params. */
+  facets?: string[]
 }
 
 /** Public response contract for GET /public/catalog/:tenantSlug/products. */
@@ -69,11 +71,25 @@ export interface PublicCatalogProductsCategoryFacetDto {
   count: number
 }
 
+export interface PublicCatalogAttributeFacetOptionDto {
+  code: string
+  label: string
+  count: number
+}
+
+/** A choice facet definition; present only when the tenant shows published editorial data. */
+export interface PublicCatalogAttributeFacetDto {
+  code: string
+  label: string
+  options: PublicCatalogAttributeFacetOptionDto[]
+}
+
 export interface PublicCatalogProductsResponseDto {
   items: PublicCatalogProductDto[]
   meta: PublicCatalogProductsMetaDto
   facets: {
     categories: PublicCatalogProductsCategoryFacetDto[]
+    attributes?: PublicCatalogAttributeFacetDto[]
   }
   excludedCount: number
   priceContext: PublicCatalogPriceContextDto

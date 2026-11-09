@@ -413,6 +413,7 @@ body[data-catalog-theme='light'] .catalog-category-toolbar {
   gap: 8px 14px;
 }
 
+
 body[data-catalog-theme='light'] .catalog-footer .catalog-logo {
   width: 40px;
   height: 40px;
@@ -653,6 +654,44 @@ body[data-catalog-theme='light'] [data-testid='catalog-detail-empty-note'] {
 body[data-catalog-theme='light'] .catalog-detail-general {
   padding-block: 20px;
   border-block: 1px solid var(--catalog-border);
+}
+
+/* Published attributes: a read-only description list, label above value on mobile. */
+.catalog-detail-attributes {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+}
+.catalog-detail-attribute {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.catalog-detail-attribute dt {
+  color: var(--catalog-muted);
+  font-size: 13px;
+}
+.catalog-detail-attribute dd {
+  margin: 0;
+  color: var(--catalog-text);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.catalog-detail-attributes--compact {
+  gap: 4px;
+  font-size: 13px;
+}
+@media (min-width: 768px) {
+  .catalog-detail-attribute {
+    grid-template-columns: minmax(8rem, max-content) minmax(0, 1fr);
+    column-gap: 16px;
+    align-items: baseline;
+  }
+  .catalog-detail-attributes--compact .catalog-detail-attribute {
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: 12px;
+  }
 }
 
 @media (min-width: 768px) {
@@ -918,4 +957,99 @@ body[data-catalog-theme='light'] .catalog-category-controls .catalog-category-er
   width: 88px;
   height: 36px;
   border-radius: 6px;
+}
+
+/*
+ * Attribute facets: toggle chips per definition. On mobile each definition is one row whose chips
+ * scroll sideways, so eight definitions never push the products off screen; from 601px they wrap.
+ */
+.catalog-facets {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  margin-top: 12px;
+  contain: inline-size;
+}
+.catalog-facet-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.catalog-facet-label {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  margin: 0;
+  color: var(--catalog-title);
+  font-size: 13px;
+  font-weight: 600;
+}
+.catalog-facet-active {
+  color: var(--catalog-action);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.catalog-facet-options {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  padding-block: 2px;
+}
+.catalog-facet-options::-webkit-scrollbar {
+  display: none;
+}
+.catalog-facet-chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 6px 14px;
+  border: 1px solid var(--catalog-border);
+  border-radius: 999px;
+  background: var(--catalog-surface);
+  color: var(--catalog-text);
+  font-size: 13px;
+  white-space: nowrap;
+  scroll-snap-align: start;
+  cursor: pointer;
+}
+.catalog-facet-count {
+  color: var(--catalog-muted);
+  font-variant-numeric: tabular-nums;
+}
+.catalog-facet-chip[aria-pressed='true'] {
+  border-color: var(--catalog-action);
+  background: var(--catalog-active-soft);
+  color: var(--catalog-action);
+  font-weight: 600;
+}
+.catalog-facet-chip[aria-pressed='true'] .catalog-facet-count {
+  color: var(--catalog-action);
+}
+.catalog-facet-chip:focus-visible {
+  outline: 2px solid var(--catalog-action);
+  outline-offset: 2px;
+}
+@media (hover: hover) {
+  .catalog-facet-chip:hover {
+    border-color: var(--catalog-border-strong);
+  }
+}
+.catalog-facet-clear {
+  align-self: flex-start;
+}
+@media (min-width: 601px) {
+  .catalog-facet-options {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+  .catalog-facet-chip {
+    min-height: 36px;
+  }
 }

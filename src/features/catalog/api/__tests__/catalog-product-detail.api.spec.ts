@@ -336,4 +336,79 @@ describe('fetchCatalogProductDetail', () => {
     controller.abort()
     await expect(request).rejects.toMatchObject({ kind: 'network' })
   })
+
+  describe('published attributes', () => {
+    const species = {
+      code: 'animal.target',
+      label: 'Especie',
+      facet: true,
+      section: { code: 'para-quien', label: 'Para quién' },
+      value: { type: 'multi', options: [{ code: 'ani.dom.cat', label: 'Gato' }] },
+      display: 'Gato',
+    }
+    const netMass = {
+      code: 'measure.net_mass',
+      label: 'Peso neto',
+      facet: true,
+      section: null,
+      value: { type: 'number', value: 1.5, unit: { code: 'kg', label: 'kg' } },
+      display: '1.5 kg',
+    }
+    const futureType = {
+      code: 'future.thing',
+      label: 'Algo nuevo',
+      facet: false,
+      section: null,
+      value: { type: 'color', hex: '#fff' },
+      display: 'Blanco',
+    }
+    const stub = (body: unknown) =>
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status: 200 })),
+      )
+
+    it('accepts product and variant attributes, an unknown value type included, in server order', async () => {
+      const body = withResponse({
+        attributes: [species, netMass, futureType],
+        variants: [{ ...response.variants[0], attributes: [netMass] }],
+      })
+      stub(body)
+      const detail = await fetchCatalogProductDetail('centro', productId, priceListId)
+      expect(detail).toEqual(body)
+      expect(detail.attributes?.map((attribute) => attribute.code)).toEqual([
+        'animal.target',
+        'measure.net_mass',
+        'future.thing',
+      ])
+      expect(detail.variants[0]?.attributes).toEqual([netMass])
+    })
+
+    it('still accepts a detail without attributes keys (switch off)', async () => {
+      stub(response)
+      const detail = await fetchCatalogProductDetail('centro', productId, priceListId)
+      expect('attributes' in detail).toBe(false)
+      expect('attributes' in detail.variants[0]!).toBe(false)
+    })
+
+    it.each([
+      ['attributes that are not an array', withResponse({ attributes: species })],
+      ['an attribute without display', withResponse({ attributes: [{ ...species, display: 1 }] })],
+      ['an attribute without label', withResponse({ attributes: [{ ...species, label: null }] })],
+      [
+        'a section without label',
+        withResponse({ attributes: [{ ...species, section: { code: 'x' } }] }),
+      ],
+      ['a value without type', withResponse({ attributes: [{ ...species, value: {} }] })],
+      [
+        'variant attributes that are not an array',
+        withResponse({ variants: [{ ...response.variants[0], attributes: null }] }),
+      ],
+    ])('rejects %s as a server contract failure', async (_, body) => {
+      stub(body)
+      await expect(
+        fetchCatalogProductDetail('centro', productId, priceListId),
+      ).rejects.toMatchObject({ kind: 'server', status: 200 })
+    })
+  })
 })

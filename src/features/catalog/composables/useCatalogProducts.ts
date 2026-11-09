@@ -15,6 +15,7 @@ export type CatalogProductsState =
   | 'rate-limit'
   | 'server'
   | 'network'
+  | 'facet-unavailable'
 
 const apiBase = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000').replace(/\/$/, '')
 
@@ -36,7 +37,12 @@ export function catalogProductsQueryKey(
       : explicitPriceSelection(priceListId)
   const base = ['public-catalog', 'products', apiBase, tenantSlug, selection] as const
   const q = options.q === '' ? undefined : options.q
-  return options.categoryId === undefined && (options.page ?? 1) === 1 && q === undefined
+  // Selection order is not identity: the same facet set always shares one cache entry.
+  const facets = options.facets?.length ? [...options.facets].sort() : undefined
+  return options.categoryId === undefined &&
+    (options.page ?? 1) === 1 &&
+    q === undefined &&
+    facets === undefined
     ? base
     : ([
         ...base,
@@ -44,6 +50,7 @@ export function catalogProductsQueryKey(
           categoryId: options.categoryId ?? null,
           page: options.page ?? 1,
           ...(q !== undefined ? { q } : {}),
+          ...(facets !== undefined ? { facets } : {}),
         },
       ] as const)
 }

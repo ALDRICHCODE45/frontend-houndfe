@@ -488,4 +488,134 @@ describe('fetchCatalogProducts', () => {
     controller.abort()
     await expect(request).rejects.toMatchObject({ kind: 'network' })
   })
+
+  describe('attribute facets', () => {
+    const attributeFacets = [
+      {
+        code: 'animal.target',
+        label: 'Especie',
+        options: [
+          { code: 'ani.dom.cat', label: 'Gato', count: 2 },
+          { code: 'ani.dom.dog', label: 'Perro', count: 0 },
+        ],
+      },
+      { code: 'food.format', label: 'Formato del alimento', options: [] },
+    ]
+    const withAttributes = (attributes: unknown) => ({
+      ...response,
+      facets: { ...response.facets, attributes },
+    })
+
+    it('sends each facet token as its own repeated encoded param after the other filters', async () => {
+      const fetchMock = vi
+        .fn()
+        .mockImplementation(() => Promise.resolve(new Response(JSON.stringify(response))))
+      vi.stubGlobal('fetch', fetchMock)
+      const signal = new AbortController().signal
+      await fetchCatalogProducts('centro', 'list-1', signal, {
+        q: 'gato',
+        categoryId: 'category-1',
+        page: 2,
+        facets: ['animal.target:ani.dom.dog', 'animal.target:ani.dom.cat', 'food.format:pate'],
+      })
+      expect(fetchMock).toHaveBeenLastCalledWith(
+        'http://localhost:3000/public/catalog/centro/products?priceListId=list-1&categoryId=category-1&page=2&q=gato&facet=animal.target%3Aani.dom.dog&facet=animal.target%3Aani.dom.cat&facet=food.format%3Apate',
+        { method: 'GET', credentials: 'omit', signal },
+      )
+      await fetchCatalogProducts('centro', null, signal, { facets: [] })
+      expect(fetchMock).toHaveBeenLastCalledWith(
+        'http://localhost:3000/public/catalog/centro/products',
+        { method: 'GET', credentials: 'omit', signal },
+      )
+    })
+
+    it('accepts a listing with attribute facets and keeps them in server order', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(new Response(JSON.stringify(withAttributes(attributeFacets)))),
+      )
+      const body = await fetchCatalogProducts('centro')
+      expect(body.facets.attributes).toEqual(attributeFacets)
+      expect(body.facets.categories).toEqual(response.facets.categories)
+    })
+
+    it('still accepts a listing without the attributes key (switch off)', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(response))))
+      const body = await fetchCatalogProducts('centro')
+      expect(body.facets).toEqual({ categories: response.facets.categories })
+      expect('attributes' in body.facets).toBe(false)
+    })
+
+    it.each([
+      ['not an array', { code: 'a', label: 'A', options: [] }],
+      ['a definition without a label', [{ code: 'a', options: [] }]],
+      ['a definition without options', [{ code: 'a', label: 'A' }]],
+      ['an option without a code', [{ code: 'a', label: 'A', options: [{ label: 'B', count: 1 }] }]],
+      [
+        'a negative count',
+        [{ code: 'a', label: 'A', options: [{ code: 'b', label: 'B', count: -1 }] }],
+      ],
+      [
+        'a fractional count',
+        [{ code: 'a', label: 'A', options: [{ code: 'b', label: 'B', count: 1.5 }] }],
+      ],
+      ['null', null],
+    ])('rejects malformed attribute facets (%s) as a server contract failure', async (_, value) => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(new Response(JSON.stringify(withAttributes(value)))),
+      )
+      await expect(fetchCatalogProducts('centro')).rejects.toMatchObject({
+        kind: 'server',
+        status: 200,
+      })
+    })
+
+    it('classifies a 400 FACET_NOT_AVAILABLE by its error code, never by its message', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          new Response(
+            JSON.stringify({
+              statusCode: 400,
+              error: 'FACET_NOT_AVAILABLE',
+              message: 'Facet is not available: animal.target:nope.nope',
+              timestamp: '2026-11-05T22:45:05.967Z',
+            }),
+            { status: 400 },
+          ),
+        ),
+      )
+      await expect(fetchCatalogProducts('centro')).rejects.toMatchObject({
+        kind: 'facet-unavailable',
+        status: 400,
+      })
+    })
+
+    it.each([
+      [
+        'a validation-pipe body',
+        {
+          message: [{ property: 'facet', constraints: { matches: 'FACET_NOT_AVAILABLE' } }],
+          error: 'Bad Request',
+          statusCode: 400,
+        },
+      ],
+      ['the code only in the message', { message: 'FACET_NOT_AVAILABLE', statusCode: 400 }],
+      ['a non-JSON body', 'oops'],
+    ])('keeps any other 400 (%s) a server failure', async (_, body) => {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValue(
+            new Response(typeof body === 'string' ? body : JSON.stringify(body), { status: 400 }),
+          ),
+      )
+      await expect(fetchCatalogProducts('centro')).rejects.toMatchObject({
+        kind: 'server',
+        status: 400,
+      })
+    })
+  })
 })

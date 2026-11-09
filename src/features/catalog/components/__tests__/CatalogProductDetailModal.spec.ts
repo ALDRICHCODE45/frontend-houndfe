@@ -1924,4 +1924,126 @@ describe('CatalogProductDetailModal', () => {
 
     expect(wrapper.emitted('close')).toEqual([[], []])
   })
+
+  describe('published attributes', () => {
+    const paraQuien = { code: 'para-quien', label: 'Para quién' }
+    const queEs = { code: 'que-es', label: 'Qué es' }
+    const attribute = (
+      code: string,
+      label: string,
+      display: string,
+      section: { code: string; label: string } | null,
+      value: Record<string, unknown> = { type: 'text', text: display },
+    ) => ({ code, label, facet: false, section, value, display })
+    const productAttributes = [
+      attribute('animal.target', 'Especie', 'Perro, Gato', paraQuien, {
+        type: 'multi',
+        options: [
+          { code: 'ani.dom.dog', label: 'Perro' },
+          { code: 'ani.dom.cat', label: 'Gato' },
+        ],
+      }),
+      attribute('life.stage', 'Etapa de vida', 'Adulto', paraQuien),
+      attribute('food.format', 'Formato del alimento', 'Croquetas', queEs),
+      attribute('origin.note', 'Origen', 'Nacional', null),
+      // A value type the UI does not know yet still renders through `display`.
+      attribute('future.thing', 'Algo nuevo', 'Blanco', null, { type: 'color', hex: '#fff' }),
+    ]
+    const attributesSection = 'section[aria-labelledby="catalog-detail-attributes"]'
+    const groups = () => getAllRendered('[data-testid="catalog-detail-attribute-group"]')
+    const pairs = (root: Pick<DOMWrapper<Element>, 'findAll'>) =>
+      root.findAll('dl > div').map((pair) => [pair.get('dt').text(), pair.get('dd').text()])
+
+    it('lists product attributes after the description as read-only pairs grouped by section, in server order', async () => {
+      mountModal({ detail: { ...detail, attributes: productAttributes } })
+      await nextTick()
+
+      const section = getRendered(attributesSection)
+      expect(section.get('h3').text()).toBe('Características')
+      // After the general description and before the variants.
+      const description = getRendered('section[aria-labelledby="catalog-detail-general"]')
+      const variants = getRendered('section[aria-labelledby="catalog-detail-variants"]')
+      expect(
+        description.element.compareDocumentPosition(section.element) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+      expect(
+        section.element.compareDocumentPosition(variants.element) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+
+      const rendered = groups()
+      expect(rendered).toHaveLength(3)
+      expect(rendered.map((group) => group.find('h4').exists() && group.get('h4').text())).toEqual([
+        'Para quién',
+        'Qué es',
+        false,
+      ])
+      expect(rendered.map(pairs)).toEqual([
+        [
+          ['Especie', 'Perro, Gato'],
+          ['Etapa de vida', 'Adulto'],
+        ],
+        [['Formato del alimento', 'Croquetas']],
+        [
+          ['Origen', 'Nacional'],
+          ['Algo nuevo', 'Blanco'],
+        ],
+      ])
+      // Read-only: no controls, no internal codes.
+      expect(section.findAll('button, a, input, select')).toHaveLength(0)
+      expect(section.text()).not.toMatch(/animal\.target|ani\.dom|para-quien|color/)
+    })
+
+    it('shows each variant’s own attributes inside that variant only', async () => {
+      const second = {
+        ...detail.variants[0]!,
+        id: 'variant-2',
+        name: 'Bolsa grande',
+        attributes: [attribute('measure.net_mass', 'Peso neto', '3 kg', null)],
+      }
+      const first = {
+        ...detail.variants[0]!,
+        attributes: [attribute('measure.net_mass', 'Peso neto', '1.5 kg', null)],
+      }
+      mountModal({ detail: { ...detail, attributes: [], variants: [first, second] } })
+      await nextTick()
+
+      expect(document.body.querySelector(attributesSection)).toBeNull()
+      const variantRows = getAllRendered('[data-testid="catalog-detail-variant"]')
+      expect(
+        variantRows.map((row) => pairs(row.get('[data-testid="catalog-detail-variant-attributes"]'))),
+      ).toEqual([[['Peso neto', '1.5 kg']], [['Peso neto', '3 kg']]])
+    })
+
+    it('changes nothing when the attributes keys are absent or empty', async () => {
+      for (const extra of [{}, { attributes: [] }]) {
+        const wrapper = mountModal({
+          detail: { ...detail, ...extra, variants: [{ ...detail.variants[0]!, ...extra }] },
+        })
+        await nextTick()
+        expect(document.body.querySelector(attributesSection)).toBeNull()
+        expect(
+          document.body.querySelector('[data-testid="catalog-detail-variant-attributes"]'),
+        ).toBeNull()
+        expect(getRendered('[data-testid="catalog-detail-variant"]')).toBeDefined()
+        wrapper.unmount()
+      }
+    })
+
+    it('never claims emptiness when only attributes are published', async () => {
+      mountModal({
+        detail: {
+          ...detail,
+          description: null,
+          hasVariants: false,
+          variants: [],
+          attributes: [productAttributes[2]],
+        },
+      })
+      await nextTick()
+      expect(document.body.querySelector(emptyDetailNote)).toBeNull()
+      expect(pairs(getRendered(attributesSection))).toEqual([['Formato del alimento', 'Croquetas']])
+    })
+  })
 })

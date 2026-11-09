@@ -44,6 +44,35 @@ interface PublicCatalogProductDetailVariantAvailabilityDto {
   isSelected: boolean
 }
 
+interface PublicProductAttributeCodedLabel {
+  code: string
+  label: string
+}
+
+/**
+ * Published attribute value. The type set is closed today, but unknown types are data: the UI
+ * always shows `display` and never branches on `value.type` to decide whether to render.
+ */
+type PublicProductAttributeValue =
+  | { type: 'text'; text: string }
+  | { type: 'boolean'; value: boolean }
+  | { type: 'single'; option: PublicProductAttributeCodedLabel }
+  | { type: 'multi'; options: PublicProductAttributeCodedLabel[] }
+  | { type: 'number'; value: number; unit: PublicProductAttributeCodedLabel | null }
+  | { type: 'range'; min: number; max: number; unit: PublicProductAttributeCodedLabel }
+  | { type: string; [key: string]: unknown }
+
+/** A known published attribute; present only while the tenant shows published editorial data. */
+export interface PublicProductAttribute {
+  code: string
+  label: string
+  facet: boolean
+  section: PublicProductAttributeCodedLabel | null
+  value: PublicProductAttributeValue
+  /** Ready-to-show es-MX text. */
+  display: string
+}
+
 interface PublicCatalogProductDetailVariantDto {
   id: string
   name: string
@@ -53,6 +82,7 @@ interface PublicCatalogProductDetailVariantDto {
   price: PublicCatalogProductDetailPriceDto
   availabilityByBranch: PublicCatalogProductDetailVariantAvailabilityDto[]
   stockPresentation: PublicCatalogProductDetailStockPresentationDto
+  attributes?: PublicProductAttribute[]
 }
 
 interface PublicCatalogProductDetailPriceContextDto {
@@ -76,6 +106,7 @@ export interface PublicCatalogProductDetailDto {
   variants: PublicCatalogProductDetailVariantDto[]
   rating: null
   featuredLabel: null
+  attributes?: PublicProductAttribute[]
   priceContext: PublicCatalogProductDetailPriceContextDto
   excludedCount: 0
 }
