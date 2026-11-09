@@ -46,6 +46,9 @@ const calls = [
     data: state, invoke: (signal?: AbortSignal) => api.publish('p/1', body, key, R, 'review-v1', signal), body, pinned: true },
   { operation: 'discard', method: 'post', path: '/products/p%2F1/editorial/draft/discard', status: 200,
     data: state, invoke: (signal?: AbortSignal) => api.discard('p/1', body, key, R, signal), body, pinned: true },
+  // «Despublicar» (handoff 07 §6): the same transition body, never a care header even for Cuidado.
+  { operation: 'unpublish', method: 'post', path: '/products/p%2F1/editorial/published/unpublish', status: 200,
+    data: state, invoke: (signal?: AbortSignal) => api.unpublish('p/1', body, key, R, signal), body, pinned: true },
 ]
 it.each(calls)('$operation uses exact wire contract and detached complete response', async operation => {
   respond(operation.data, operation.status, operation.operation === 'context' ? {} : semanticHeaders())
@@ -143,14 +146,15 @@ it('network errors have no invented status or retry', async () => {
   expect(adapter).toHaveBeenCalledTimes(1)
 })
 it.each([
-  ['initialize', null], ['save', null], ['discard', null], ['publish', null], ['publish', 'review-v1'],
+  ['initialize', null], ['save', null], ['discard', null], ['publish', null], ['publish', 'review-v1'], ['unpublish', null],
 ] as const)('frozen %s/%s retransmission survives newer read', async (action, confirmation) => {
   const initialize = Object.freeze({ expectedCycle: null })
   const transition = Object.freeze({ ...body })
   const save = Object.freeze({ ...body, document })
   const invoke = () => action === 'initialize' ? api.initialize('p', initialize, key, R)
     : action === 'save' ? api.save('p', save, key, R)
-      : action === 'publish' ? api.publish('p', transition, key, R, confirmation) : api.discard('p', transition, key, R)
+      : action === 'publish' ? api.publish('p', transition, key, R, confirmation)
+        : action === 'unpublish' ? api.unpublish('p', transition, key, R) : api.discard('p', transition, key, R)
   const status = action === 'initialize' ? 201 : 200
   respond(state, status)
   await expect(invoke()).resolves.toEqual(state)

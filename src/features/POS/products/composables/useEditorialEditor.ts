@@ -109,14 +109,16 @@ export function useEditorialEditor(productId: MaybeRefOrGetter<string>, api: May
   function replaceDocument(document: EditorialDocumentEditingState) { if (editable.value) { lifecycle.buffer.value = document; lifecycle.issues.value = [] } }
   const canPublish = computed(() => !loading.value && !readError.value && lifecycle.canPublishDraft.value)
   const canDiscard = computed(() => !loading.value && !readError.value && lifecycle.canDiscard.value)
+  const canUnpublish = computed(() => !loading.value && !readError.value && lifecycle.canUnpublish.value)
   // Retransmission uses only captured intent and current grants, not fresh candidate
   // admission or current metadata. A failed read cannot rewrite the original R/token.
   async function retransmit() { return !loading.value ? lifecycle.retransmit() : false }
   const errorMessage = computed(() => !lifecycle.canRead.value ? 'No tienes acceso al contenido editorial en el contexto actual.' : readError.value)
   return { lifecycle, vocabulary, qualification, loading, errorMessage, readStatus, readUnreadable, staleView, metadataMessage, issues: lifecycle.issues,
-    sections, editable, canSave, canInitialize, canPublish, canDiscard, publishIssues: lifecycle.publishIssues, hasUnsavedChanges: lifecycle.hasUnsavedChanges,
+    sections, editable, canSave, canInitialize, canPublish, canDiscard, canUnpublish, publishIssues: lifecycle.publishIssues, hasUnsavedChanges: lifecycle.hasUnsavedChanges,
     replaceDocument, refresh, retransmit, save: () => canSave.value ? lifecycle.save() : Promise.resolve(false),
     initialize: () => canInitialize.value ? lifecycle.initialize() : Promise.resolve(false),
     publish: (confirmation: 'review-v1' | null = null) => canPublish.value ? lifecycle.publish(confirmation) : Promise.resolve(false),
-    discard: () => canDiscard.value ? lifecycle.discard() : Promise.resolve(false) }
+    discard: () => canDiscard.value ? lifecycle.discard() : Promise.resolve(false),
+    unpublish: () => canUnpublish.value ? lifecycle.unpublish() : Promise.resolve(false) }
 }

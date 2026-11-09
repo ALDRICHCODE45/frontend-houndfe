@@ -17,7 +17,7 @@ export interface EditorialDraftContext {
 export type EditorialIntent = Readonly<{ key: string; productId: string; revision: string; confirmation: 'review-v1' | null } & (
   | { kind: 'initialize'; body: EditorialContractInitializeRequest }
   | { kind: 'save'; body: EditorialContractSaveRequest }
-  | { kind: 'publish' | 'discard'; body: EditorialContractTransitionRequest }
+  | { kind: 'publish' | 'discard' | 'unpublish'; body: EditorialContractTransitionRequest }
 )>
 export interface EditorialSnapshotTicket { readonly id: symbol }
 function copy<T>(value: T): T {
@@ -73,11 +73,13 @@ export function useEditorialDraft(context: MaybeRefOrGetter<EditorialDraftContex
     return current && draft ? inspectEditorialPublicationContent(draft.document, authoritative.value?.published?.document ?? null,
       current.vocabulary.vocabulary, current.context) : [{ code: 'metadata' }]
   })
-  function intentAllowed(kind: EditorialIntent['kind']) { return kind === 'publish' ? canPublish.value : canWrite.value }
+  function intentAllowed(kind: EditorialIntent['kind']) { return kind === 'publish' || kind === 'unpublish' ? canPublish.value : canWrite.value }
   function freshActionAllowed(kind: EditorialIntent['kind'] = 'save') {
     return intentAllowed(kind) && !isPending.value && pendingIntent.value === null && snapshot.value !== null && activeTicket.value === null
   }
   const canDiscard = computed(() => freshActionAllowed('discard') && Boolean(authoritative.value?.draft))
+  // «Despublicar» targets the Published revision; it needs no draft and leaves any draft as it is.
+  const canUnpublish = computed(() => freshActionAllowed('unpublish') && Boolean(authoritative.value?.published) && authoritative.value?.cycle != null)
   const canPublishDraft = computed(() => freshActionAllowed('publish') && Boolean(authoritative.value?.draft) && !hasUnsavedChanges.value && publishIssues.value.length === 0)
   function resetContext() {
     generation++; idCounter = 0; writeController?.abort(); writeController = null; activeTicket.value = null
@@ -114,7 +116,8 @@ export function useEditorialDraft(context: MaybeRefOrGetter<EditorialDraftContex
       const response = intent.kind === 'initialize' ? await requestedApi.initialize(intent.productId, intent.body, intent.key, intent.revision, signal)
         : intent.kind === 'save' ? await requestedApi.save(intent.productId, intent.body, intent.key, intent.revision, signal)
           : intent.kind === 'publish' ? await requestedApi.publish(intent.productId, intent.body, intent.key, intent.revision, intent.confirmation, signal)
-            : await requestedApi.discard(intent.productId, intent.body, intent.key, intent.revision, signal)
+            : intent.kind === 'unpublish' ? await requestedApi.unpublish(intent.productId, intent.body, intent.key, intent.revision, signal)
+              : await requestedApi.discard(intent.productId, intent.body, intent.key, intent.revision, signal)
       if (!current()) return false
       receipt.value = freeze(copy(response)); outcome.value = 'acknowledged'
       if (intent.kind === 'discard' || (intent.kind === 'publish' && !hasUnsavedChanges.value)) buffer.value = null
@@ -153,6 +156,12 @@ export function useEditorialDraft(context: MaybeRefOrGetter<EditorialDraftContex
     const intent = captureIntent({ kind, body: { expectedCycle: saved.cycle!, expectedRevision: saved.draft!.revision }, confirmation: kind === 'publish' ? confirmation : null })
     pendingIntent.value = intent; return transmit(intent)
   }
+  async function unpublish() {
+    if (!canUnpublish.value) return false
+    const saved = authoritative.value!
+    const intent = captureIntent({ kind: 'unpublish', body: { expectedCycle: saved.cycle!, expectedRevision: saved.published!.revision }, confirmation: null })
+    pendingIntent.value = intent; return transmit(intent)
+  }
   /** A definitive refusal (400, 401, 403, 404, 409) leaves nothing to retransmit: the owner has read the
    * error and drops the intent. A later attempt captures a fresh key. Ambiguous intents stay for retransmit. */
   function dismissRejection() {
@@ -167,7 +176,7 @@ export function useEditorialDraft(context: MaybeRefOrGetter<EditorialDraftContex
   }
   return { snapshot: computed(() => snapshot.value), authoritative, buffer, nextId, issues,
     pendingIntent: computed(() => pendingIntent.value), receipt: computed(() => receipt.value), outcome: computed(() => outcome.value), error: computed(() => error.value),
-    isPending: computed(() => isPending.value), canRead, canWrite, canPublish, canPublishDraft, canDiscard, hasUnsavedChanges, publishIssues,
-    beginSnapshotRead, cancelSnapshotRead, reconcileSnapshot, initialize, save, retransmit, dismissRejection,
+    isPending: computed(() => isPending.value), canRead, canWrite, canPublish, canPublishDraft, canDiscard, canUnpublish, hasUnsavedChanges, publishIssues,
+    beginSnapshotRead, cancelSnapshotRead, reconcileSnapshot, initialize, save, retransmit, dismissRejection, unpublish,
     publish: (confirmation: 'review-v1' | null = null) => transition('publish', confirmation), discard: () => transition('discard') }
 }
