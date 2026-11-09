@@ -15,6 +15,19 @@ beforeEach(() => {
   isNarrow.value = false
 })
 
+const modalStub = {
+  props: ['open', 'ui', 'title'],
+  emits: ['update:open'],
+  template:
+    '<div v-if="open" data-testid="image-lightbox" :data-title="title" :data-content-class="ui?.content"><slot name="content" /></div>',
+}
+// Nuxt UI registers the modal as `Modal`; stub both names.
+const lightboxStubs = {
+  UModal: modalStub,
+  Modal: modalStub,
+  UButton: { template: '<button type="button" v-bind="$attrs"><slot /></button>' },
+}
+
 const props = {
   name: 'Collar ajustable',
   imageUrl: null,
@@ -78,6 +91,33 @@ describe('ProductSummaryPanel', () => {
     const without = mount(ProductSummaryPanel, { props })
     expect(without.text()).toContain('Sin imagen')
     without.unmount()
+  })
+
+  it('opens the whole product image in a centered lightbox from the thumbnail', async () => {
+    const wrapper = mount(ProductSummaryPanel, {
+      props: { ...props, imageUrl: '/img/collar.png' },
+      global: { stubs: lightboxStubs },
+    })
+    const trigger = wrapper.get('button[aria-label="Ver imagen completa"]')
+    expect(trigger.attributes('type')).toBe('button')
+    expect(wrapper.find('[data-testid="image-lightbox"]').exists()).toBe(false)
+    await trigger.trigger('click')
+    const modal = wrapper.get('[data-testid="image-lightbox"]')
+    expect(modal.attributes('data-content-class')).toContain('hf-theme hf-ui')
+    expect(modal.attributes('data-title')).toBe('Collar ajustable')
+    const full = modal.get('img')
+    expect(full.attributes('src')).toBe('/img/collar.png')
+    expect(full.attributes('alt')).toBe('Collar ajustable')
+    expect(full.classes()).toContain('object-contain')
+    await modal.get('button[aria-label="Cerrar vista previa"]').trigger('click')
+    expect(wrapper.find('[data-testid="image-lightbox"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('offers no lightbox button without a thumbnail', () => {
+    const wrapper = mount(ProductSummaryPanel, { props, global: { stubs: lightboxStubs } })
+    expect(wrapper.find('button[aria-label="Ver imagen completa"]').exists()).toBe(false)
+    wrapper.unmount()
   })
 
   it('counts what it lists: the item that waits for creation is a note, not a list row', () => {
