@@ -10,6 +10,10 @@
  * success with the list count and the default. Server warnings describe the
  * accepted state, so they only apply while the draft is clean; a dirty draft
  * prefixes «Al guardar:». Read-only mode shows the accepted value as a badge.
+ *
+ * A second switch row under the status line, «Mostrar solo productos con
+ * ficha publicada» (C3.3), mirrors catalogRequiresPublishedEditorial; the page
+ * asks with the go-live checklist when it turns on at save time.
  */
 import { computed, useId } from 'vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
@@ -17,6 +21,7 @@ import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 const props = withDefaults(
   defineProps<{
     published: boolean
+    publishedOnly: boolean
     publicCount: number
     defaultName: string | null
     effectivePublication: boolean
@@ -28,11 +33,16 @@ const props = withDefaults(
   { dirty: false, readonly: false },
 )
 
-const emit = defineEmits<{ (event: 'toggle'): void }>()
+const emit = defineEmits<{
+  (event: 'toggle'): void
+  (event: 'toggle-published-only'): void
+}>()
 
 const headingId = useId()
 const titleId = useId()
 const descriptionId = useId()
+const publishedOnlyTitleId = useId()
+const publishedOnlyDescriptionId = useId()
 
 type StatusTone = 'success' | 'warning' | 'muted'
 
@@ -132,6 +142,45 @@ const statusIcon = computed(
             </li>
           </ul>
         </div>
+      </div>
+
+      <button
+        v-if="!props.readonly"
+        type="button"
+        role="switch"
+        class="cs-switch-row cs-row-divider"
+        :aria-checked="props.publishedOnly"
+        :aria-labelledby="publishedOnlyTitleId"
+        :aria-describedby="publishedOnlyDescriptionId"
+        data-testid="published-only-switch"
+        @click="emit('toggle-published-only')"
+      >
+        <span class="grid min-w-0 flex-1 gap-0.5">
+          <span :id="publishedOnlyTitleId" class="cs-row-title">
+            Mostrar solo productos con ficha publicada
+          </span>
+          <span :id="publishedOnlyDescriptionId" class="cs-row-desc">
+            El catálogo público solo muestra productos con ficha publicada, con su título y descripción.
+          </span>
+        </span>
+        <span class="cs-track" aria-hidden="true" />
+      </button>
+      <div
+        v-else
+        class="cs-switch-row cs-static-row cs-row-divider"
+        data-testid="published-only-row"
+      >
+        <span class="grid min-w-0 flex-1 gap-0.5">
+          <span class="cs-row-title">Mostrar solo productos con ficha publicada</span>
+          <span class="cs-row-desc">
+            El catálogo público solo muestra productos con ficha publicada, con su título y descripción.
+          </span>
+        </span>
+        <StatusBadge
+          data-testid="published-only-badge"
+          :label="props.publishedOnly ? 'Activado' : 'Desactivado'"
+          :tone="props.publishedOnly ? 'success' : 'neutral'"
+        />
       </div>
     </div>
   </section>

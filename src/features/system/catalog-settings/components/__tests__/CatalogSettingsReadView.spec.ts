@@ -13,6 +13,7 @@ function makeResponse(
 ): CatalogSettingsResponseDto {
   return {
     catalogPublished: true,
+    catalogRequiresPublishedEditorial: false,
     effectivePublication: true,
     priceContexts: [
       { priceListId: 'pl_b', name: 'Lista B', isCatalogDefault: false },
@@ -89,5 +90,20 @@ describe('CatalogSettingsReadView — read-only rows', () => {
     const text = wrapper.get('[data-testid="publication-status"]').text()
     expect(text).toContain('El contexto de catálogo por defecto no tiene precios válidos')
     expect(text).not.toContain('SOMETHING_NEW')
+  })
+})
+
+describe('CatalogSettingsReadView — «solo fichas publicadas» (C3.3 S1)', () => {
+  it('shows the accepted value as a badge row, without a switch', () => {
+    const off = mountView()
+    const offRow = off.get('[data-testid="published-only-row"]')
+    expect(offRow.text()).toContain('Mostrar solo productos con ficha publicada')
+    expect(off.get('[data-testid="published-only-badge"]').text()).toBe('Desactivado')
+    expect(off.get('[data-testid="published-only-badge"]').attributes('data-tone')).toBe('neutral')
+    expect(off.find('[data-testid="published-only-switch"]').exists()).toBe(false)
+
+    const on = mountView({ catalogRequiresPublishedEditorial: true })
+    expect(on.get('[data-testid="published-only-badge"]').text()).toBe('Activado')
+    expect(on.get('[data-testid="published-only-badge"]').attributes('data-tone')).toBe('success')
   })
 })

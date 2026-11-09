@@ -17,6 +17,7 @@ const candidates = [
 function makeDraft(overrides: Partial<CatalogSettingsDraft> = {}): CatalogSettingsDraft {
   return {
     catalogPublished: true,
+    catalogRequiresPublishedEditorial: false,
     publicPriceListIds: ['pl_a', 'pl_b'],
     catalogDefaultPriceListId: 'pl_a',
     stockPresentationDefault: { mode: 'SYSTEM_STATUS', customQuantity: null },

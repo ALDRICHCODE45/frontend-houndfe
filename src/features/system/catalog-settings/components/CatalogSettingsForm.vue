@@ -49,6 +49,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (event: 'toggle-publish'): void
+  (event: 'toggle-published-only'): void
   (event: 'add-context', priceListId: string): void
   (event: 'remove-context', priceListId: string): void
   (event: 'set-default', priceListId: string | null): void
@@ -78,12 +79,14 @@ const summaryErrors = computed(() =>
   <div class="flex flex-col gap-6 sm:gap-8" data-testid="catalog-settings-form">
     <CatalogPublicationSection
       :published="props.draft.catalogPublished"
+      :published-only="props.draft.catalogRequiresPublishedEditorial"
       :public-count="props.draft.publicPriceListIds.length"
       :default-name="defaultName"
       :effective-publication="props.effectivePublication"
       :warnings="props.warnings"
       :dirty="props.dirty"
       @toggle="emit('toggle-publish')"
+      @toggle-published-only="emit('toggle-published-only')"
     />
 
     <CatalogPriceContextsField

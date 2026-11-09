@@ -11,6 +11,7 @@ import { NO_PUBLIC_LIST_ERROR, STOCK_QUANTITY_ERROR } from '../../utils/catalogS
 function makeDraft(overrides: Partial<CatalogSettingsDraft> = {}): CatalogSettingsDraft {
   return {
     catalogPublished: true,
+    catalogRequiresPublishedEditorial: false,
     publicPriceListIds: ['pl_a'],
     catalogDefaultPriceListId: 'pl_a',
     stockPresentationDefault: { mode: 'SYSTEM_STATUS', customQuantity: null },
@@ -141,5 +142,29 @@ describe('CatalogSettingsForm — validation summary', () => {
   it('draws no summary when every error is said in context', () => {
     const wrapper = mountForm(makeDraft(), { validationErrors: [STOCK_QUANTITY_ERROR] })
     expect(wrapper.find('[data-testid="validation-summary"]').exists()).toBe(false)
+  })
+})
+
+describe('CatalogSettingsForm — «solo fichas publicadas» switch row (C3.3 S1)', () => {
+  it('is a whole-row switch with title and description that emits its own intent', async () => {
+    const draft = makeDraft()
+    const wrapper = mountForm(draft)
+    const toggle = wrapper.get('[data-testid="published-only-switch"]')
+    expect(toggle.element.tagName).toBe('BUTTON')
+    expect(toggle.attributes('role')).toBe('switch')
+    expect(toggle.attributes('aria-checked')).toBe('false')
+    expect(toggle.text()).toContain('Mostrar solo productos con ficha publicada')
+    expect(toggle.text()).toContain(
+      'El catálogo público solo muestra productos con ficha publicada, con su título y descripción.',
+    )
+    await toggle.get('.cs-row-desc').trigger('click')
+    expect(wrapper.emitted('toggle-published-only')).toHaveLength(1)
+    expect(wrapper.emitted('toggle-publish')).toBeUndefined()
+    expect(draft).toEqual(makeDraft())
+  })
+
+  it('reflects the draft value', () => {
+    const wrapper = mountForm(makeDraft({ catalogRequiresPublishedEditorial: true }))
+    expect(wrapper.get('[data-testid="published-only-switch"]').attributes('aria-checked')).toBe('true')
   })
 })

@@ -11,8 +11,10 @@
  * query. States — loading skeleton in the screen's shape, GET error with
  * Reintentar (no synthetic defaults), the editable form when
  * update:TenantCatalogSettings is held, and the accepted read-only rows
- * otherwise. The ConfirmModal opens ONLY on the publish rising edge; Cancel
- * keeps the dirty draft. Toasts: success copy and the error mapper; no
+ * otherwise. The ConfirmModal opens ONLY on a rising edge: publishing, or
+ * turning «Mostrar solo productos con ficha publicada» on (C3.3, the go-live
+ * checklist of handoff 07 §9). Both in one save ask once, with the publish
+ * consequence first and the checklist after it. Cancel keeps the dirty draft. Toasts: success copy and the error mapper; no
  * optimistic publication update ever happens.
  *
  * Default-list rules (artboard decision, S4): turning a list public when there
@@ -55,6 +57,16 @@ declare const useToast: () => {
 
 const SAVED_CUE_MS = 2200
 
+/** Handoff 07 §9 «Antes de encender el interruptor», the items the tenant acts on. */
+const PUBLISHED_ONLY_CHECKLIST = [
+  'Publica primero las fichas de los productos que deben seguir en línea; los demás dejarán de verse.',
+  'Vuelve a publicar las fichas guardadas antes de la versión actual: no cuentan como publicadas.',
+  'Si agregaste variantes después de publicar, vuelve a publicar: hasta entonces no se ven.',
+  'La búsqueda solo encontrará el título y la descripción publicados.',
+  'El cambio puede tardar hasta 60 segundos en verse en el catálogo público.',
+]
+const PUBLISH_CONSEQUENCE = 'El catálogo será visible para clientes públicos.'
+
 const tenantId = useSafeTenantId()
 const authStore = useAuthStore()
 const canUpdate = computed(() => authStore.userCan('update', 'TenantCatalogSettings'))
@@ -84,6 +96,33 @@ const acceptedWarnings = computed(() =>
 const updatedAt = computed(
   () => form.accepted.value?.updatedAt ?? query.settings.value?.updatedAt ?? '',
 )
+/** One confirmation for the rising edges of this save. */
+const confirmCopy = computed(() => {
+  const publishedOnly = form.isPublishedOnlyRisingEdge.value
+  if (!publishedOnly) {
+    return {
+      title: 'Publicar catálogo online',
+      description: `${PUBLISH_CONSEQUENCE} ¿Continuar?`,
+      confirmLabel: 'Confirmar',
+      items: undefined,
+    }
+  }
+  const alsoPublish = form.isRisingEdge.value
+  const lines = alsoPublish
+    ? [PUBLISH_CONSEQUENCE, ...PUBLISHED_ONLY_CHECKLIST]
+    : PUBLISHED_ONLY_CHECKLIST
+  return {
+    title: alsoPublish
+      ? 'Antes de publicar y encender el interruptor'
+      : 'Antes de encender el interruptor',
+    description: lines.join(' '),
+    confirmLabel: alsoPublish
+      ? 'Publicar y mostrar solo fichas publicadas'
+      : 'Mostrar solo fichas publicadas',
+    items: lines.map((title, index) => ({ id: `check-${index}`, title })),
+  }
+})
+
 const saveHint = computed(() => {
   const errors = form.validationErrors.value
   if (errors.length === 0) return null
@@ -123,6 +162,10 @@ function onRetry() {
 /** Draft intents applied by the form component (single source: the form composable). */
 function togglePublish() {
   if (form.draft.value) form.draft.value.catalogPublished = !form.draft.value.catalogPublished
+}
+function togglePublishedOnly() {
+  const draft = form.draft.value
+  if (draft) draft.catalogRequiresPublishedEditorial = !draft.catalogRequiresPublishedEditorial
 }
 function addContext(priceListId: string) {
   const draft = form.draft.value
@@ -279,6 +322,7 @@ async function submit() {
           :dirty="isDirty"
           :default-move="defaultMove"
           @toggle-publish="togglePublish"
+          @toggle-published-only="togglePublishedOnly"
           @add-context="addContext"
           @remove-context="removeContext"
           @set-default="setDefault"
@@ -314,12 +358,13 @@ async function submit() {
       </template>
     </template>
 
-    <!-- REQ-10: rising-edge confirmation only; Cancel keeps the dirty draft. -->
+    <!-- REQ-10 / C3.3: rising-edge confirmation only; Cancel keeps the dirty draft. -->
     <ConfirmModal
       v-model:open="form.confirmationOpen.value"
-      title="Publicar catálogo online"
-      description="El catálogo será visible para clientes públicos. ¿Continuar?"
-      confirm-label="Confirmar"
+      :title="confirmCopy.title"
+      :description="confirmCopy.description"
+      :items="confirmCopy.items"
+      :confirm-label="confirmCopy.confirmLabel"
       cancel-label="Cancelar"
       :loading="saving"
       :ui="{ content: 'hf-theme hf-ui hf-form-overlay' }"

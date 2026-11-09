@@ -24,6 +24,7 @@ vi.mock('@/core/shared/api/http', () => ({
 
 const sampleResponse: CatalogSettingsResponseDto = {
   catalogPublished: true,
+  catalogRequiresPublishedEditorial: false,
   effectivePublication: true,
   priceContexts: [{ priceListId: 'pl_a', name: 'Retail', isCatalogDefault: true }],
   stockPresentationDefault: { mode: 'SYSTEM_STATUS', customQuantity: null },
@@ -318,5 +319,33 @@ describe('catalogSettingsApi.patch — runtime body whitelist (REQ-7 pin)', () =
     expect(keys).not.toContain('arbitraryUnknownField')
     expect(keys).not.toContain('anotherUnknownKey')
     expect(keys).not.toContain('yetAnotherForged')
+  })
+})
+describe('catalogSettingsApi — catalogRequiresPublishedEditorial (C3.3 S1)', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('PATCH keeps the switch key, alone, through the runtime whitelist', async () => {
+    vi.mocked(http.patch).mockResolvedValue({
+      data: { ...sampleResponse, catalogRequiresPublishedEditorial: true },
+    })
+
+    const result = await catalogSettingsApi.patch('tenant-1', {
+      catalogRequiresPublishedEditorial: true,
+    })
+
+    const [url, payload] = vi.mocked(http.patch).mock.calls[0]!
+    expect(url).toBe('/tenants/tenant-1/catalog-settings')
+    expect(payload).toEqual({ catalogRequiresPublishedEditorial: true })
+    expect(result.catalogRequiresPublishedEditorial).toBe(true)
+  })
+
+  it('GET returns the accepted switch value', async () => {
+    vi.mocked(http.get).mockResolvedValue({
+      data: { ...sampleResponse, catalogRequiresPublishedEditorial: true },
+    })
+
+    const result = await catalogSettingsApi.get('tenant-1')
+
+    expect(result.catalogRequiresPublishedEditorial).toBe(true)
   })
 })

@@ -93,6 +93,9 @@
 .catalog-settings-visual .cs-switch-row:hover {
   background: var(--cs-hover);
 }
+.catalog-settings-visual .cs-row-divider {
+  border-top: 1px solid var(--hf-border);
+}
 .catalog-settings-visual .cs-static-row,
 .catalog-settings-visual .cs-static-row:hover {
   background: transparent;

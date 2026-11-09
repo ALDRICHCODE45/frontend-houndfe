@@ -63,10 +63,10 @@ vi.mock('../../composables/useUpdateCatalogSettingsMutation', () => ({
 vi.mock('@/core/shared/components/ConfirmModal.vue', () => ({
   default: {
     name: 'ConfirmModal',
-    props: ['open', 'title', 'description', 'confirmLabel', 'cancelLabel', 'loading'],
+    props: ['open', 'title', 'description', 'confirmLabel', 'cancelLabel', 'loading', 'items'],
     emits: ['update:open', 'confirm', 'cancel'],
     template:
-      '<div v-if="open" data-testid="confirm-modal"><p>{{ description }}</p><button data-testid="confirm-accept" @click="$emit(\'confirm\')">Confirmar</button><button data-testid="confirm-cancel" @click="$emit(\'cancel\')">Cancelar</button></div>',
+      '<div v-if="open" data-testid="confirm-modal"><h2 data-testid="confirm-title">{{ title }}</h2><p>{{ description }}</p><ul v-if="items"><li v-for="item in items" :key="item.id" data-testid="confirm-item">{{ item.title }}</li></ul><button data-testid="confirm-accept" @click="$emit(\'confirm\')">{{ confirmLabel }}</button><button data-testid="confirm-cancel" @click="$emit(\'cancel\')">Cancelar</button></div>',
   },
 }))
 
@@ -90,6 +90,7 @@ function makeResponse(
 ): CatalogSettingsResponseDto {
   return {
     catalogPublished: true,
+    catalogRequiresPublishedEditorial: false,
     effectivePublication: true,
     priceContexts: [
       { priceListId: 'pl_pub', name: 'PUBLICO', isCatalogDefault: true },
@@ -473,5 +474,106 @@ describe('Catálogo online — read-only and screen states (S4)', () => {
     expect(wrapper.find('[data-testid="catalog-settings-form"]').exists()).toBe(false)
     await wrapper.get('[data-testid="retry-button"]').trigger('click')
     expect(queryMock.refetch).toHaveBeenCalledTimes(1)
+  })
+})
+
+// ── Published-only switch ───────────────────────────────────────────────────
+
+const CHECKLIST = [
+  'Publica primero las fichas de los productos que deben seguir en línea; los demás dejarán de verse.',
+  'Vuelve a publicar las fichas guardadas antes de la versión actual: no cuentan como publicadas.',
+  'Si agregaste variantes después de publicar, vuelve a publicar: hasta entonces no se ven.',
+  'La búsqueda solo encontrará el título y la descripción publicados.',
+  'El cambio puede tardar hasta 60 segundos en verse en el catálogo público.',
+]
+
+describe('Catálogo online — «solo fichas publicadas» (C3.3 S1)', () => {
+  it('turning it on asks with the checklist before any PATCH, then sends only the key', async () => {
+    mutateAsyncMock.mockResolvedValue(makeResponse({ catalogRequiresPublishedEditorial: true }))
+    const wrapper = mountEditor()
+    const toggle = wrapper.get('[data-testid="published-only-switch"]')
+    await toggle.trigger('click')
+    expect(toggle.attributes('aria-checked')).toBe('true')
+    expect(saveStatus(wrapper).text()).toBe('Cambios sin guardar')
+
+    await saveButton(wrapper).trigger('click')
+    expect(mutateAsyncMock).not.toHaveBeenCalled()
+    expect(wrapper.get('[data-testid="confirm-title"]').text()).toBe(
+      'Antes de encender el interruptor',
+    )
+    expect(wrapper.findAll('[data-testid="confirm-item"]').map((item) => item.text())).toEqual(
+      CHECKLIST,
+    )
+    expect(wrapper.get('[data-testid="confirm-accept"]').text()).toBe('Mostrar solo fichas publicadas')
+
+    await wrapper.get('[data-testid="confirm-accept"]').trigger('click')
+    await flushPromises()
+    expect(mutateAsyncMock).toHaveBeenCalledTimes(1)
+    expect(mutateAsyncMock).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      body: { catalogRequiresPublishedEditorial: true },
+    })
+    expect(wrapper.find('[data-testid="confirm-modal"]').exists()).toBe(false)
+    expect(saveStatus(wrapper).text()).toBe('Guardado')
+  })
+
+  it('Cancelar sends nothing and keeps the switch on in the draft', async () => {
+    const wrapper = mountEditor()
+    await wrapper.get('[data-testid="published-only-switch"]').trigger('click')
+    await saveButton(wrapper).trigger('click')
+    await wrapper.get('[data-testid="confirm-cancel"]').trigger('click')
+    expect(mutateAsyncMock).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="confirm-modal"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="published-only-switch"]').attributes('aria-checked')).toBe('true')
+    expect(saveStatus(wrapper).text()).toBe('Cambios sin guardar')
+  })
+
+  it('turning it off saves directly without confirmation', async () => {
+    mutateAsyncMock.mockResolvedValue(makeResponse())
+    const wrapper = mountEditor(makeResponse({ catalogRequiresPublishedEditorial: true }))
+    await wrapper.get('[data-testid="published-only-switch"]').trigger('click')
+    await saveButton(wrapper).trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="confirm-modal"]').exists()).toBe(false)
+    expect(mutateAsyncMock).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      body: { catalogRequiresPublishedEditorial: false },
+    })
+  })
+
+  it('publishing and turning it on in one save asks once, covering both', async () => {
+    mutateAsyncMock.mockResolvedValue(
+      makeResponse({ catalogRequiresPublishedEditorial: true }),
+    )
+    const wrapper = mountEditor(makeResponse({ catalogPublished: false, effectivePublication: false }))
+    await wrapper.get('[data-testid="publish-switch"]').trigger('click')
+    await wrapper.get('[data-testid="published-only-switch"]').trigger('click')
+    await saveButton(wrapper).trigger('click')
+    expect(mutateAsyncMock).not.toHaveBeenCalled()
+    expect(wrapper.findAll('[data-testid="confirm-modal"]')).toHaveLength(1)
+    expect(wrapper.get('[data-testid="confirm-title"]').text()).toBe(
+      'Antes de publicar y encender el interruptor',
+    )
+    expect(wrapper.findAll('[data-testid="confirm-item"]').map((item) => item.text())).toEqual([
+      'El catálogo será visible para clientes públicos.',
+      ...CHECKLIST,
+    ])
+    expect(wrapper.get('[data-testid="confirm-accept"]').text()).toBe('Publicar y mostrar solo fichas publicadas')
+
+    await wrapper.get('[data-testid="confirm-accept"]').trigger('click')
+    await flushPromises()
+    expect(mutateAsyncMock).toHaveBeenCalledTimes(1)
+    expect(mutateAsyncMock).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      body: { catalogPublished: true, catalogRequiresPublishedEditorial: true },
+    })
+  })
+
+  it('without update permission shows the accepted value read-only, no switch', () => {
+    queryMock.settings.value = makeResponse({ catalogRequiresPublishedEditorial: true })
+    grant('read:TenantCatalogSettings')
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    expect(wrapper.find('[data-testid="published-only-switch"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="published-only-badge"]').text()).toBe('Activado')
   })
 })
