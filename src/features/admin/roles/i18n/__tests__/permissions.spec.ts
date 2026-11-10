@@ -485,3 +485,79 @@ describe('permissions i18n — HumanDecision subject (ODD human-decisions-restoc
     }
   })
 })
+
+// ODD chatbot-requests-inbox T1 (S1) — the nine chatbot request codes from
+// houndfe-backend docs/chatbot-requests-permissions.md, plus ReceiptEvidence.
+// Each registered (subject, action) needs curated es-MX copy; every other verb
+// falls back to the generic label, proving no extra keys (no manage).
+describe('permissions i18n — chatbot request subjects (ODD chatbot-requests-inbox T1)', () => {
+  const CHATBOT_COPY: Record<string, { subject: string; actions: Record<string, string> }> = {
+    ChatbotRequest: {
+      subject: 'Solicitudes del chatbot',
+      actions: { read: 'Ver solicitudes del chatbot', update: 'Atender solicitudes del chatbot' },
+    },
+    ChatbotRequestAssignment: {
+      subject: 'Asignación de solicitudes del chatbot',
+      actions: { update: 'Reasignar solicitudes del chatbot' },
+    },
+    ChatbotConversation: {
+      subject: 'Conversaciones del chatbot',
+      actions: { read: 'Ver conversaciones del chatbot' },
+    },
+    ChatbotEscalation: {
+      subject: 'Escalamientos del chatbot',
+      actions: { read: 'Recibir escalamientos del chatbot' },
+    },
+    CustomerPhone: {
+      subject: 'Teléfono completo del cliente',
+      actions: { read: 'Ver teléfono completo del cliente' },
+    },
+    ChatbotSettings: {
+      subject: 'Configuración del chatbot',
+      actions: {
+        read: 'Ver configuración del chatbot',
+        update: 'Editar configuración del chatbot',
+      },
+    },
+    ChatbotSettingsAllBranches: {
+      subject: 'Configuración del chatbot en todas las sucursales',
+      actions: { update: 'Aplicar configuración del chatbot a todas las sucursales' },
+    },
+  }
+
+  it.each(Object.entries(CHATBOT_COPY))('labels %s in es-MX and keeps it visible', (subject, copy) => {
+    expect(getSubjectLabel(subject)).toBe(copy.subject)
+    expect(isSubjectHidden(subject)).toBe(false)
+  })
+
+  it.each(Object.entries(CHATBOT_COPY))(
+    'gives %s curated copy only for its backend actions',
+    (subject, copy) => {
+      for (const [action, label] of Object.entries(copy.actions)) {
+        expect(getPermissionLabel(subject, action)).toBe(label)
+        expect(getPermissionDescription(subject, action).length).toBeGreaterThan(20)
+        expect(getPermissionDescription(subject, action)).not.toContain(subject)
+      }
+      for (const action of ['create', 'read', 'update', 'delete', 'manage', 'batch_delete']) {
+        if (action in copy.actions) continue
+        expect(getPermissionDescription(subject, action)).toBe('')
+        expect(getPermissionLabel(subject, action)).toContain(copy.subject)
+      }
+    },
+  )
+
+  it('describes what each code enables, matching the backend table', () => {
+    expect(getPermissionDescription('ChatbotRequest', 'update')).toMatch(/Ver solicitudes del chatbot/)
+    expect(getPermissionDescription('ChatbotConversation', 'read')).toMatch(/propia sesión/)
+    expect(getPermissionDescription('ChatbotSettingsAllBranches', 'update')).toMatch(
+      /mismo permiso/,
+    )
+  })
+
+  it('keeps the ReceiptEvidence copy for read, update and manage', () => {
+    expect(getSubjectLabel('ReceiptEvidence')).toBe('Comprobantes de pago')
+    expect(getPermissionLabel('ReceiptEvidence', 'read')).toBe('Ver comprobantes de pago')
+    expect(getPermissionLabel('ReceiptEvidence', 'update')).toBe('Revisar comprobantes de pago')
+    expect(getPermissionLabel('ReceiptEvidence', 'manage')).toBe('Gestión completa de comprobantes')
+  })
+})

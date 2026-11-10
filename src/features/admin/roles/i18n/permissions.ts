@@ -72,6 +72,15 @@ const SUBJECT_LABELS: Record<string, string> = {
   // menu AND the role permissions UI. Generic and future-safe (not RESTOCK-only).
   // Must stay in sync with auth.types.ts AppSubject + ability.ts APP_SUBJECTS.
   HumanDecision: 'Decisiones pendientes',
+  // ODD chatbot-requests-inbox T1: chatbot request subjects. Must stay in sync
+  // with auth.types.ts AppSubject + ability.ts APP_SUBJECTS.
+  ChatbotRequest: 'Solicitudes del chatbot',
+  ChatbotRequestAssignment: 'Asignación de solicitudes del chatbot',
+  ChatbotConversation: 'Conversaciones del chatbot',
+  ChatbotEscalation: 'Escalamientos del chatbot',
+  CustomerPhone: 'Teléfono completo del cliente',
+  ChatbotSettings: 'Configuración del chatbot',
+  ChatbotSettingsAllBranches: 'Configuración del chatbot en todas las sucursales',
 }
 
 export function getSubjectLabel(subject: string): string {
@@ -656,6 +665,75 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
       label: 'Resolver decisiones pendientes',
       description:
         'Registrar la respuesta autorizada a una decisión pendiente, sin alterar por sí sola el estado del negocio.',
+    },
+  },
+
+  // ODD chatbot-requests-inbox T1: exactly the backend codes from houndfe-backend
+  // docs/chatbot-requests-permissions.md (read/update only, NO manage). Copy
+  // follows the «What it enables» column of that table.
+  ChatbotRequest: {
+    read: {
+      label: 'Ver solicitudes del chatbot',
+      description:
+        'Consultar la bandeja, el historial, los contadores y el detalle de las solicitudes, sin la conversación. Las tomadas por otra persona se ven en modo lectura.',
+    },
+    update: {
+      label: 'Atender solicitudes del chatbot',
+      description:
+        'Tomar, liberar las propias, resolver, responder, chatear, enviar archivos y plantillas, finalizar y reagendar. Requiere también Ver solicitudes del chatbot.',
+    },
+  },
+
+  ChatbotRequestAssignment: {
+    update: {
+      label: 'Reasignar solicitudes del chatbot',
+      description:
+        'Reasignar o liberar solicitudes que atiende otra persona y forzar que vuelvan al bot.',
+    },
+  },
+
+  ChatbotConversation: {
+    read: {
+      label: 'Ver conversaciones del chatbot',
+      description:
+        'Consultar la conversación con el bot, sus archivos y audios. Sin este permiso, en una atención en vivo solo se ven los mensajes de la propia sesión.',
+    },
+  },
+
+  ChatbotEscalation: {
+    read: {
+      label: 'Recibir escalamientos del chatbot',
+      description:
+        'Recibir avisos de solicitudes por vencer, vencidas o sin respuesta durante 15 minutos.',
+    },
+  },
+
+  CustomerPhone: {
+    read: {
+      label: 'Ver teléfono completo del cliente',
+      description:
+        'Ver el número de teléfono del cliente sin enmascarar en las solicitudes y en los avisos.',
+    },
+  },
+
+  ChatbotSettings: {
+    read: {
+      label: 'Ver configuración del chatbot',
+      description:
+        'Consultar el horario de atención, los días cerrados, los tiempos límite y la agenda de la sucursal.',
+    },
+    update: {
+      label: 'Editar configuración del chatbot',
+      description:
+        'Modificar el horario de atención, los días cerrados, los tiempos límite y la agenda de la sucursal.',
+    },
+  },
+
+  ChatbotSettingsAllBranches: {
+    update: {
+      label: 'Aplicar configuración del chatbot a todas las sucursales',
+      description:
+        'Copiar la configuración del chatbot a cada sucursal donde se tiene este mismo permiso.',
     },
   },
 }
