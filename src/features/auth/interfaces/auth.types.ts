@@ -145,6 +145,18 @@ export type AppSubject =
   // The runtime half is APP_SUBJECTS in authorization/ability.ts.
   | 'DeliveryZone'
   | 'ShippingSettings'
+  // ODD chatbot-requests-inbox T1 (S1): the chatbot request subjects, verbatim from
+  // houndfe-backend docs/chatbot-requests-permissions.md. They use read/update
+  // only; `manage` is never seeded on them (only `manage:all` implies them).
+  // ReceiptEvidence (read/update/manage) was silently dropped before.
+  | 'ChatbotRequest'
+  | 'ChatbotRequestAssignment'
+  | 'ChatbotConversation'
+  | 'ChatbotEscalation'
+  | 'CustomerPhone'
+  | 'ChatbotSettings'
+  | 'ChatbotSettingsAllBranches'
+  | 'ReceiptEvidence'
   | 'all'
 
 interface EffectivePermission {

@@ -83,6 +83,16 @@ const APP_SUBJECTS: AppSubject[] = [
   // null and the zone, validation and shipping settings grants drop silently.
   'DeliveryZone',
   'ShippingSettings',
+  // ODD chatbot-requests-inbox T1: without these entries parsePermissionCode
+  // returns null and the chatbot request and receipt evidence grants drop silently.
+  'ChatbotRequest',
+  'ChatbotRequestAssignment',
+  'ChatbotConversation',
+  'ChatbotEscalation',
+  'CustomerPhone',
+  'ChatbotSettings',
+  'ChatbotSettingsAllBranches',
+  'ReceiptEvidence',
   'all',
 ]
 
