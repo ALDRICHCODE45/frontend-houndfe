@@ -1,262 +1,140 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+/**
+ * ProductImageGallery — the photo ⋯ menu (Ver imagen completa, Marcar como
+ * principal, Eliminar… with a confirm), plus source guards: --hf roles only,
+ * no reorder affordance (no backend for it) and the confirm stacking over the
+ * lightbox.
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+import { flushPromises } from '@vue/test-utils'
+import { mountWithUApp } from '@/test/mountWithUApp'
 import ProductImageGallery from '../ProductImageGallery.vue'
 
-// Mock toast
-const mockToast = {
-  add: vi.fn(),
+const toast = vi.hoisted(() => ({ add: vi.fn() }))
+vi.stubGlobal('useToast', () => toast)
+vi.mock('@nuxt/ui/runtime/composables/useToast', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useToast: () => toast,
+}))
+
+const api = vi.hoisted(() => ({ getImages: vi.fn(), setMainImage: vi.fn(), removeImage: vi.fn() }))
+vi.mock('../../api/product.api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../api/product.api')>()
+  return { ...actual, productApi: Object.assign({}, actual.productApi, api) }
+})
+
+const image = (id: string, isMain: boolean, sortOrder = 0) => ({
+  id,
+  productId: 'product-1',
+  variantId: null,
+  url: `/img/${id}.png`,
+  isMain,
+  sortOrder,
+  createdAt: '2026-11-01T00:00:00Z',
+  fileId: null,
+})
+
+const sfc = readFileSync(join(__dirname, '..', 'ProductImageGallery.vue'), 'utf-8')
+const tick = () => new Promise((resolve) => setTimeout(resolve, 50))
+const menuItems = () => Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]'))
+
+function mountGallery(props: Record<string, unknown> = {}) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+  return mountWithUApp(ProductImageGallery, {
+    attachTo: document.body,
+    props: { productId: 'product-1', variants: [], canUpdate: true, canDelete: true, ...props },
+    global: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      plugins: [[VueQueryPlugin, { queryClient }]] as any,
+    },
+  })
 }
-vi.stubGlobal('useToast', () => mockToast)
 
-describe('ProductImageGallery - Dropzone-first refactor', () => {
-  let queryClient: QueryClient
+async function openPhotoMenu(wrapper: ReturnType<typeof mountGallery>, label: string) {
+  await wrapper.get(`button[aria-label="${label}"]`).trigger('click')
+  await tick()
+}
 
-  beforeEach(() => {
-    queryClient = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false },
-        mutations: { retry: false },
-      },
-    })
-    mockToast.add.mockClear()
+beforeEach(() => {
+  api.getImages.mockReset().mockResolvedValue([image('a', true), image('b', false, 1)])
+  api.setMainImage.mockReset().mockResolvedValue({})
+  api.removeImage.mockReset().mockResolvedValue(undefined)
+  toast.add.mockClear()
+})
+afterEach(() => {
+  document.body.innerHTML = ''
+})
+
+describe('ProductImageGallery photo menu', () => {
+  it('a photo ⋯ offers Ver imagen completa, Marcar como principal and a last Eliminar…', async () => {
+    const wrapper = mountGallery()
+    await flushPromises()
+
+    await openPhotoMenu(wrapper, 'Acciones de la foto 2 del producto')
+    expect(menuItems().map((item) => item.textContent?.trim())).toEqual([
+      'Ver imagen completa',
+      'Marcar como principal',
+      'Eliminar…',
+    ])
+
+    menuItems()[1]!.click()
+    await flushPromises()
+    expect(api.setMainImage).toHaveBeenCalledWith('product-1', 'b')
   })
 
-  const createWrapper = (props = {}) => {
-    return mount(ProductImageGallery, {
-      props: {
-        productId: 'product-1',
-        variants: [],
-        canUpdate: true,
-        canDelete: true,
-        ...props,
-      },
-      global: {
-        plugins: [[VueQueryPlugin, { queryClient }]],
-        stubs: {
-          UCard: { template: '<div class="u-card"><slot name="header" /><slot /></div>' },
-          UButton: { template: '<button class="u-button" v-bind="$attrs"><slot /></button>' },
-          UIcon: { template: '<i class="u-icon" />' },
-          UInput: { template: '<input class="u-input" />' },
-          USelect: { template: '<select class="u-select" />' },
-          UCheckbox: { template: '<input type="checkbox" class="u-checkbox" />' },
-          UBadge: { template: '<span class="u-badge"><slot /></span>' },
-          UTooltip: { template: '<div class="u-tooltip"><slot /></div>' },
-          UProgress: { template: '<div class="u-progress" />' },
-          UCollapsible: {
-            template: '<details class="u-collapsible"><summary><slot name="trigger" /></summary><slot /></details>',
-          },
-          ConfirmModal: { template: '<div class="confirm-modal" />' },
-        },
-      },
-    })
-  }
+  it('the main photo has no «Marcar como principal»', async () => {
+    const wrapper = mountGallery()
+    await flushPromises()
 
-  describe('Dropzone affordance', () => {
-    it('should render dropzone with idle state (dashed border, bg-default)', () => {
-      const wrapper = createWrapper()
-      
-      const dropzone = wrapper.find('[role="button"][tabindex="0"]')
-      expect(dropzone.exists()).toBe(true)
-      expect(dropzone.classes()).toContain('border-dashed')
-      expect(dropzone.classes()).toContain('border-default')
-      expect(dropzone.classes()).toContain('bg-default')
-    })
-
-    it('should show idle copy "Arrastra tus imágenes aquí o haz clic para elegir"', () => {
-      const wrapper = createWrapper()
-      
-      const dropzone = wrapper.find('[role="button"]')
-      expect(dropzone.text()).toContain('Arrastra tus imágenes aquí')
-      expect(dropzone.text()).toContain('haz clic para elegir')
-    })
-
-    it('should show allowed formats copy "JPG, PNG, WEBP o GIF — máx 10 MB"', () => {
-      const wrapper = createWrapper()
-      
-      const dropzone = wrapper.find('[role="button"]')
-      expect(dropzone.text()).toContain('JPG, PNG, WEBP o GIF')
-      expect(dropzone.text()).toContain('máx 10 MB')
-    })
-
-    it('should have keyboard accessibility (role=button, tabindex=0)', () => {
-      const wrapper = createWrapper()
-      
-      const dropzone = wrapper.find('[data-dropzone]')
-      expect(dropzone.attributes('role')).toBe('button')
-      expect(dropzone.attributes('tabindex')).toBe('0')
-    })
-
-    it('should show cursor-pointer class for clickability affordance', () => {
-      const wrapper = createWrapper()
-      
-      const dropzone = wrapper.find('[role="button"]')
-      expect(dropzone.classes()).toContain('cursor-pointer')
-    })
+    await openPhotoMenu(wrapper, 'Acciones de la foto 1 del producto, principal')
+    expect(menuItems().map((item) => item.textContent?.trim())).toEqual(['Ver imagen completa', 'Eliminar…'])
   })
 
-  describe('Drag-over visual feedback', () => {
-    it('should carry the --hf-active hover tokens on the idle dropzone', async () => {
-      const wrapper = createWrapper()
+  it('Eliminar… asks first and deletes only after the confirm', async () => {
+    const wrapper = mountGallery()
+    await flushPromises()
 
-      // Simulate isOverDropZone = true from useImageUpload
-      const dropzone = wrapper.find('[data-dropzone]')
+    await openPhotoMenu(wrapper, 'Acciones de la foto 2 del producto')
+    menuItems().find((item) => item.textContent?.trim() === 'Eliminar…')!.click()
+    await tick()
 
-      expect(dropzone.classes()).toEqual(
-        expect.arrayContaining(['hover:border-(--hf-active)', 'hover:bg-(--hf-active-soft)']),
-      )
-    })
-
-    it('should show upload cloud icon when drag-over', async () => {
-      const wrapper = createWrapper()
-      
-      // This will fail until we conditionally render icon based on isOverDropZone
-      expect(wrapper.html()).toBeTruthy() // Placeholder - will check for i-lucide-upload-cloud
-    })
+    expect(api.removeImage).not.toHaveBeenCalled()
+    expect(document.body.textContent).toContain('¿Eliminar esta foto?')
+    const confirm = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(
+      (button) => button.textContent?.trim() === 'Eliminar',
+    )!
+    confirm.click()
+    await flushPromises()
+    expect(api.removeImage).toHaveBeenCalledWith('product-1', 'b')
   })
 
-  describe('Design tokens', () => {
-    it('uses --hf roles only: no coco-* classes, brand tokens or AppBadge', () => {
-      const sfc = readFileSync(join(__dirname, '..', 'ProductImageGallery.vue'), 'utf-8')
-      expect(sfc).not.toMatch(/coco-|--brand-|AppBadge/)
-    })
+  it('with update but no delete rights, the menu has no Eliminar…', async () => {
+    const wrapper = mountGallery({ canDelete: false })
+    await flushPromises()
+
+    await openPhotoMenu(wrapper, 'Acciones de la foto 2 del producto')
+    expect(menuItems().map((item) => item.textContent?.trim())).toEqual([
+      'Ver imagen completa',
+      'Marcar como principal',
+    ])
+  })
+})
+
+describe('ProductImageGallery source guards', () => {
+  it('uses --hf roles only: no coco-* classes, brand tokens or AppBadge', () => {
+    expect(sfc).not.toMatch(/coco-|--brand-|AppBadge/)
   })
 
-  describe('URL input removed', () => {
-    it('should NOT render URL input (completely removed)', () => {
-      const wrapper = createWrapper()
-      
-      // Verify the URL input is NOT present (removed entirely)
-      const urlInput = wrapper.find('input[placeholder*="cdn"]')
-      expect(urlInput.exists()).toBe(false)
-      
-      // Verify no collapsible structure for URL input
-      const html = wrapper.html()
-      expect(html).not.toContain('Agregar por URL')
-    })
-
-    it('should only have dropzone as the upload method', () => {
-      const wrapper = createWrapper()
-      
-      // Only dropzone should exist
-      const dropzone = wrapper.find('[data-dropzone]')
-      expect(dropzone.exists()).toBe(true)
-      
-      // No URL input anywhere
-      const urlInput = wrapper.find('input[placeholder*="cdn"]')
-      expect(urlInput.exists()).toBe(false)
-    })
+  it('has no URL input and no drag-to-reorder (the backend has no order endpoint)', () => {
+    expect(sfc).not.toMatch(/draggable|drag-handle|Agregar por URL/)
   })
 
-  describe('No drag-to-reorder affordances', () => {
-    it('should NOT render vuedraggable component', () => {
-      const wrapper = createWrapper()
-      
-      // vuedraggable should be removed from the gallery grid
-      const draggable = wrapper.findComponent({ name: 'draggable' })
-      expect(draggable.exists()).toBe(false)
-    })
-
-    it('should NOT show drag handles (grip-vertical icon)', () => {
-      const wrapper = createWrapper()
-      
-      const dragHandle = wrapper.find('.drag-handle')
-      expect(dragHandle.exists()).toBe(false)
-    })
-
-    it('should NOT use draggable component in template', () => {
-      const wrapper = createWrapper()
-      
-      // Ensure draggable component is NOT present in the component tree
-      const draggable = wrapper.findComponent({ name: 'draggable' })
-      expect(draggable.exists()).toBe(false)
-      
-      // The template should use a plain div for the grid (visible when images exist)
-      // We're not testing with mock images here, just ensuring draggable isn't imported/used
-      const html = wrapper.html()
-      expect(html).not.toContain('draggable')
-    })
-  })
-
-  describe('Upload progress visibility', () => {
-    it('should show UProgress when isUploading is true', async () => {
-      const wrapper = createWrapper()
-      
-      // Will fail until we add progress UI
-      // We'll need to trigger upload and check for UProgress component
-      expect(wrapper.html()).toBeTruthy() // Placeholder
-    })
-
-    it('should show uploading state overlay on dropzone during upload', async () => {
-      const wrapper = createWrapper()
-      
-      // Check for overlay with loading indicator
-      expect(wrapper.html()).toBeTruthy() // Placeholder
-    })
-  })
-
-  describe('Empty state', () => {
-    it('should show dropzone when no images exist (idle state)', () => {
-      const wrapper = createWrapper()
-      
-      const dropzone = wrapper.find('[role="button"]')
-      expect(dropzone.exists()).toBe(true)
-      expect(dropzone.classes()).toContain('border-dashed')
-    })
-
-    it('should have empty state UI in template', () => {
-      const wrapper = createWrapper()
-      
-      // Check that the empty state template exists in the HTML
-      // (it may not be visible due to loading/conditional rendering, but should be in the template)
-      const html = wrapper.html()
-      
-      // The component should have the dropzone for adding first images when empty
-      expect(html).toContain('data-dropzone')
-      expect(html).toContain('Arrastra tus imágenes aquí')
-    })
-  })
-
-  describe('Gallery grid with uploaded images', () => {
-    it('should display thumbnails in grid when images exist', () => {
-      // This will fail until we mock the query to return images
-      const wrapper = createWrapper()
-      
-      expect(wrapper.html()).toBeTruthy() // Placeholder
-    })
-
-    it('should show delete button on each image card', () => {
-      const wrapper = createWrapper()
-      
-      // Will check for delete buttons in image cards
-      expect(wrapper.html()).toBeTruthy() // Placeholder
-    })
-
-    it('should show "Marcar como principal" button on non-main images', () => {
-      const wrapper = createWrapper()
-      
-      expect(wrapper.html()).toBeTruthy() // Placeholder
-    })
-
-    it('should show "Principal" badge on main image', () => {
-      const wrapper = createWrapper()
-      
-      expect(wrapper.html()).toBeTruthy() // Placeholder
-    })
-  })
-
-  describe('Confirm z-index stacking fix (delete modal over lightbox)', () => {
-    it('renders the ConfirmModal with a z-[60]/z-[61] ui so it stacks above the image lightbox', () => {
-      const sfc = readFileSync(
-        join(__dirname, '..', 'ProductImageGallery.vue'),
-        'utf-8',
-      )
-      const confirmBlock = sfc.match(/<ConfirmModal[\s\S]*?\/>/)?.[0]
-      expect(confirmBlock, 'ConfirmModal must exist in the gallery SFC').toBeTruthy()
-      expect(confirmBlock).toMatch(/overlay:\s*'z-\[60\]'/)
-      expect(confirmBlock).toMatch(/content:\s*'z-\[61\]'/)
-    })
+  it('renders the ConfirmModal with a z-[60]/z-[61] ui so it stacks above the image lightbox', () => {
+    const confirmBlock = sfc.match(/<ConfirmModal[\s\S]*?\/>/)?.[0]
+    expect(confirmBlock, 'ConfirmModal must exist in the gallery SFC').toBeTruthy()
+    expect(confirmBlock).toMatch(/overlay:\s*'z-\[60\]'/)
+    expect(confirmBlock).toMatch(/content:\s*'z-\[61\]'/)
   })
 })

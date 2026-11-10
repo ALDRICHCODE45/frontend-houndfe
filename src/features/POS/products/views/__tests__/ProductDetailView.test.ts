@@ -1,5 +1,5 @@
 /**
- * Integration tests for ProductDetailView variant image modal trigger
+ * Integration tests for ProductDetailView (variant photos popover wiring and more)
  */
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
@@ -11,7 +11,7 @@ import { envelope, vocabularyEnvelope } from '../../__tests__/editorial-contract
 import UApp from '@nuxt/ui/runtime/components/App.vue'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import ProductDetailView from '@/features/POS/products/views/ProductDetailView.vue'
-import VariantImagePickerModal from '@/features/POS/products/components/VariantImagePickerModal.vue'
+import VariantImagesPopover from '@/features/POS/products/components/VariantImagesPopover.vue'
 import ProductCatalogSettingsSection from '@/features/POS/products/components/ProductCatalogSettingsSection.vue'
 import ProductVariantsTable from '@/features/POS/products/components/ProductVariantsTable.vue'
 
@@ -248,9 +248,10 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       PriceListSection: { template: '<div />' },
       VariantDetailModal: { template: '<div />' },
       ConfirmModal: { template: '<div />' },
-      VariantImagePickerModal: {
-        template: '<div v-if="open" data-testid="variant-image-modal" />',
-        props: ['open', 'productId', 'productName', 'variant', 'canUpdate', 'canDelete'],
+      VariantImagesPopover: {
+        template:
+          '<div data-testid="variant-photos" :data-variant="variant.id"><div v-if="open" data-testid="variant-photos-open" /></div>',
+        props: ['open', 'productId', 'variant', 'label', 'canUpdate', 'canDelete'],
       },
     },
   })
@@ -276,51 +277,41 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
     expect(variantsTable.props('pending')).toBe(false)
   })
 
-  it('opens VariantImagePickerModal when image icon button is clicked', async () => {
+  it('shows each saved variant photo thumbnail in its row, closed', async () => {
     const wrapper = mountWithUApp(ProductDetailView, {
       global: getGlobalConfig(),
       attachTo: document.body,
     })
-
-    // Wait for async data
     await wrapper.vm.$nextTick()
     await new Promise((resolve) => setTimeout(resolve, 100))
 
-    // Initially, modal should be closed
-    expect(wrapper.find('[data-testid="variant-image-modal"]').exists()).toBe(false)
-
-    // Choose "Elegir fotos" in the first variant's ⋮ menu
-    await chooseFirstVariantPhotos(wrapper)
-
-    // Modal should now be open
-    expect(wrapper.find('[data-testid="variant-image-modal"]').exists()).toBe(true)
+    const thumbs = wrapper.findAll('[data-testid="variant-photos"]')
+    expect(thumbs.length).toBeGreaterThan(0)
+    expect(thumbs[0]!.attributes('data-variant')).toBe('variant-1')
+    expect(wrapper.find('[data-testid="variant-photos-open"]').exists()).toBe(false)
   })
 
-  it('passes correct props to VariantImagePickerModal', async () => {
+  it('the row ⋮ «Fotos» opens that variant photo popover with the product rights', async () => {
     const wrapper = mountWithUApp(ProductDetailView, {
       global: getGlobalConfig(),
       attachTo: document.body,
     })
-
-    // Wait for data
     await wrapper.vm.$nextTick()
     await new Promise((resolve) => setTimeout(resolve, 100))
 
-    // Open the modal from the first variant's ⋮ menu
     await chooseFirstVariantPhotos(wrapper)
 
-    // Find the modal component
-    const modal = wrapper.findComponent(VariantImagePickerModal)
-    expect(modal.exists()).toBe(true)
+    const popover = wrapper.findAllComponents(VariantImagesPopover).find((item) => item.props('variant').id === 'variant-1')!
+    expect(popover.props('open')).toBe(true)
+    expect(popover.props('productId')).toBe('test-product-id')
+    expect(popover.props('label')).toBeTruthy()
+    expect(popover.props('canUpdate')).toBe(true)
+    expect(popover.props('canDelete')).toBe(true)
+    expect(wrapper.findAll('[data-testid="variant-photos-open"]')).toHaveLength(1)
 
-    // Verify props
-    expect(modal.props('open')).toBe(true)
-    expect(modal.props('productId')).toBe('test-product-id')
-    expect(modal.props('productName')).toBe('Test Product')
-    expect(modal.props('variant')).toBeDefined()
-    expect(modal.props('variant').id).toBe('variant-1')
-    expect(modal.props('canUpdate')).toBe(true)
-    expect(modal.props('canDelete')).toBe(true)
+    popover.vm.$emit('update:open', false)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-testid="variant-photos-open"]').exists()).toBe(false)
   })
 
   it('uses HF presentation and an always-rendered operational summary (S2/S5/S6)', async () => {

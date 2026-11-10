@@ -4,6 +4,7 @@
  */
 import { afterEach, describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { h } from 'vue'
 import ProductVariantsTable, { type ProductVariantRow } from '../ProductVariantsTable.vue'
 
 const row: ProductVariantRow = {
@@ -121,14 +122,14 @@ describe('ProductVariantsTable', () => {
   it('lists photos, details, edit and a last, confirmed delete for a saved variant', async () => {
     const wrapper = mountTable()
     await openMenu(wrapper)
-    expect(labels()).toEqual(['Elegir fotos', 'Más datos', 'Editar', 'Eliminar…'])
+    expect(labels()).toEqual(['Fotos', 'Más datos', 'Editar', 'Eliminar…'])
     wrapper.unmount()
   })
 
   it('offers «Empaque» for a saved variant of a product, readable without update rights (S3)', async () => {
     const wrapper = mountTable({ packaging: true, canUpdate: false })
     await openMenu(wrapper)
-    expect(labels()).toEqual(['Elegir fotos', 'Más datos', 'Empaque', 'Editar', 'Eliminar…'])
+    expect(labels()).toEqual(['Fotos', 'Más datos', 'Empaque', 'Editar', 'Eliminar…'])
     const item = menuItems().find((entry) => entry.textContent?.trim() === 'Empaque')!
     expect(item.getAttribute('data-disabled')).toBeNull()
     item.click()
@@ -160,7 +161,7 @@ describe('ProductVariantsTable', () => {
   it('emits the chosen action with the row id', async () => {
     const wrapper = mountTable()
     await openMenu(wrapper)
-    menuItems().find((item) => item.textContent?.trim() === 'Elegir fotos')!.click()
+    menuItems().find((item) => item.textContent?.trim() === 'Fotos')!.click()
     await tick()
     expect(wrapper.emitted('action')).toEqual([['photos', 'variant-1']])
     wrapper.unmount()
@@ -175,7 +176,9 @@ describe('ProductVariantsTable', () => {
     const disabled = menuItems()
       .filter((item) => item.getAttribute('data-disabled') !== null)
       .map((item) => (item.textContent ?? '').trim())
-    expect(disabled).toEqual(expect.arrayContaining(['Elegir fotos', 'Editar', 'Eliminar…']))
+    expect(disabled).toEqual(expect.arrayContaining(['Editar', 'Eliminar…']))
+    // The photos are still viewable read-only (the popover hides upload, ⋯ and drop).
+    expect(disabled).not.toContain('Fotos')
     wrapper.unmount()
   })
 
@@ -252,6 +255,39 @@ describe('ProductVariantsTable', () => {
       await input.trigger('blur')
       expect(wrapper.emitted('update-quantity')).toEqual([['variant-1', 12]])
       expect(wrapper.emitted('commit-quantity')).toEqual([['variant-1']])
+      wrapper.unmount()
+    })
+  })
+
+  describe('variant photo column (artboard 01)', () => {
+    it('saved rows get a leading photo cell filled by the owner, with a hidden «Foto» heading', () => {
+      const wrapper = mount(ProductVariantsTable, {
+        attachTo: document.body,
+        props: baseProps,
+        slots: { photo: ({ row: slotRow }: { row: ProductVariantRow }) => h('span', { 'data-testid': 'photo-slot' }, slotRow.id) },
+      })
+      const firstCell = wrapper.get('tbody tr td')
+      expect(firstCell.attributes('data-area')).toBe('photo')
+      expect(firstCell.get('[data-testid="photo-slot"]').text()).toBe('variant-1')
+      expect(wrapper.get('thead th').text()).toBe('Foto')
+      expect(wrapper.get('table').classes()).toContain('products-variants-table--photos')
+      wrapper.unmount()
+    })
+
+    it('pending rows (creation) have no photo column, even with the slot', () => {
+      const wrapper = mount(ProductVariantsTable, {
+        attachTo: document.body,
+        props: { ...baseProps, pending: true },
+        slots: { photo: () => h('span', { 'data-testid': 'photo-slot' }) },
+      })
+      expect(wrapper.find('[data-testid="photo-slot"]').exists()).toBe(false)
+      expect(wrapper.find('td[data-area="photo"]').exists()).toBe(false)
+      wrapper.unmount()
+    })
+
+    it('without the slot there is no photo column', () => {
+      const wrapper = mountTable()
+      expect(wrapper.find('td[data-area="photo"]').exists()).toBe(false)
       wrapper.unmount()
     })
   })
