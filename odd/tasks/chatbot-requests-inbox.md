@@ -10,7 +10,7 @@ Frontend of the cross-repo program «Intervención humana dentro del sistema». 
 - S6 Clarification reply, live conversation (chat, media, audio, template button when window closed, finish with complaint outcome), settings screen (hours per branch, apply to all, closed days, SLA per subtype, slots cap), retire Sistema zone queue.
 
 ## Tasks
-- T1 | S1 | inline/worker | in progress — BE unit 1 merged on feat/human-intervention (7cd73b1d)
+- T1 | S1 | worker + independent verify + native review | done — commit 3615edf4; verify PASS (6/6); native review approved (review-f0a2acf56e891576, risk+reliability), authority burned
 - T2 | S2, S3 (decisions) | blocked — waiting BE units 2–4 handoff
 - T3 | S4 | blocked — waiting BE unit 6 (notifications)
 - T4 | S5 | blocked — waiting BE unit 8 (SSE)
@@ -19,3 +19,4 @@ Frontend of the cross-repo program «Intervención humana dentro del sistema». 
 ## Log
 - L1 User 2026-11-10: «Bien hermano, ya hice push, adelante con los siguientes pasos recomendados.» (after the plan: start the inbox once the backend hands off; contract v1.1 closed)
 - L2 BE status 2026-11-10: feat/human-intervention has unit 1 (permissions, 7cd73b1d) and unit 2 model/state machine (3f144abe, ca8fc0f4); no HTTP endpoints or FE handoff yet. FE starts with S1, which only needs the fixed codes.
+- L3 T1 done (3615edf4): 9 chatbot codes + ReceiptEvidence registered, es-MX role labels, APP_ACTIONS unchanged. Related tests 6150/6150, vue-tsc clean. Independent verify PASS on all S1 checks. Native review approved with one non-blocking reliability suggestion (R3-001, permissions.spec.ts:557-562), left as later work. No Chatbot section in the role screen because it has no area grouping; labels carry «chatbot».
