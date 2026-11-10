@@ -269,10 +269,14 @@ async function writeFacets(tokens: string[], replace = false) {
     // Keep the current route authoritative.
   }
 }
-function toggleFacet(token: string) {
+/** A chip carries one token, or several when same-label options were merged into it. */
+function toggleFacet(chipTokens: string[]) {
   const tokens = facetTokens.value
+  const pressed = chipTokens.some((token) => tokens.includes(token))
   void writeFacets(
-    tokens.includes(token) ? tokens.filter((entry) => entry !== token) : [...tokens, token],
+    pressed
+      ? tokens.filter((entry) => !chipTokens.includes(entry))
+      : [...tokens, ...chipTokens.filter((token) => !tokens.includes(token))],
   )
 }
 /**

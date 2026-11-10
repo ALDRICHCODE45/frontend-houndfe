@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import type { CatalogProductDetailState } from '../composables/useCatalogProductDetail'
 import { catalogAvailabilityConfig } from '../utils/availability'
+import { sortVariantsBySize } from '../utils/variant-order'
 import type {
   PublicCatalogProductDetailAvailability,
   PublicCatalogProductDetailDto,
@@ -122,9 +123,12 @@ const showEmptyDetailNote = computed(
     props.detail !== null && !hasDescription.value && !hasVariants.value && !hasAttributes.value,
 )
 
-/** Read-only variant cards. Only the branch selected by the route resolution is reported. */
+/**
+ * Read-only variant cards, smallest size first (`sortVariantsBySize`). Only the branch selected by
+ * the route resolution is reported.
+ */
 const variants = computed(() =>
-  (props.detail?.variants ?? []).map((variant) => {
+  sortVariantsBySize(props.detail?.variants ?? []).map((variant) => {
     const selectedBranch = variant.availabilityByBranch.find((entry) => entry.isSelected) ?? null
     const imageUrl = variant.image?.url ?? null
     return {

@@ -1802,6 +1802,40 @@ describe('CatalogView public browse', () => {
       expect(facetsOf(lastProductRequestUrl(fetchMock))).toEqual([kibble])
     })
 
+    it('toggles every code of a merged same-label chip together, keeping raw tokens in the URL', async () => {
+      const dogAdult = 'life.stage:life.dog.adult'
+      const catAdult = 'life.stage:life.cat.adult'
+      const fetchMock = install((url) =>
+        jsonResponse({
+          ...facetPage(url),
+          facets: {
+            categories: [],
+            attributes: [
+              {
+                code: 'life.stage',
+                label: 'Etapa de vida',
+                options: [
+                  { code: 'life.dog.adult', label: 'Adulto', count: 4 },
+                  { code: 'life.cat.adult', label: 'Adulto', count: 2 },
+                ],
+              },
+            ],
+          },
+        }),
+      )
+      const { wrapper, router } = await mountAt(`/catalogo/centro?facet=${kibble}`)
+      await flushPromises()
+      await chip(wrapper, 'Etapa de vida: Adulto').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query.facet).toEqual([kibble, dogAdult, catAdult])
+      expect(facetsOf(lastProductRequestUrl(fetchMock))).toEqual([kibble, dogAdult, catAdult])
+      expect(chip(wrapper, 'Etapa de vida: Adulto').attributes('aria-pressed')).toBe('true')
+
+      await chip(wrapper, 'Etapa de vida: Adulto').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query.facet).toBe(kibble)
+    })
+
     it('clears every facet at once with «Limpiar filtros (n)», keeping other filters', async () => {
       install()
       const { wrapper, router } = await mountAt(

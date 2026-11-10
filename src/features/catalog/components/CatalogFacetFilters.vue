@@ -1,31 +1,32 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { PublicCatalogAttributeFacetDto } from '../interfaces/public-catalog-products.types'
+import { mergeFacetOptions } from '../utils/facet-options'
 
 /**
  * Attribute facets as toggle chips (Selección sin checkboxes). Definitions and options come from
- * the current filtered listing in server order; the selection is the URL's facet tokens.
+ * the current filtered listing in server order; the selection is the URL's facet tokens. Options
+ * sharing a label within a definition are one chip (see `mergeFacetOptions`): it reads pressed
+ * when any of its tokens is selected, and toggling it adds or removes all of them.
  */
 const props = defineProps<{
   facets: PublicCatalogAttributeFacetDto[]
   /** Facet tokens `<definition code>:<option code>` currently in the URL. */
   selected: string[]
 }>()
-const emit = defineEmits<{ toggle: [token: string]; clear: [] }>()
+const emit = defineEmits<{ toggle: [tokens: string[]]; clear: [] }>()
 
 const selectedTokens = computed(() => new Set(props.selected))
 const groups = computed(() =>
   props.facets.map((definition) => {
-    const options = definition.options.map((option) => {
-      const token = `${definition.code}:${option.code}`
-      return {
-        token,
-        label: option.label,
-        count: option.count,
-        pressed: selectedTokens.value.has(token),
-        ariaLabel: `${definition.label}: ${option.label}, ${option.count} ${option.count === 1 ? 'producto' : 'productos'}`,
-      }
-    })
+    const options = mergeFacetOptions(definition).map((option) => ({
+      key: option.tokens[0]!,
+      tokens: option.tokens,
+      label: option.label,
+      count: option.count,
+      pressed: option.tokens.some((token) => selectedTokens.value.has(token)),
+      ariaLabel: `${definition.label}: ${option.label}, ${option.count} ${option.count === 1 ? 'producto' : 'productos'}`,
+    }))
     return {
       code: definition.code,
       label: definition.label,
@@ -38,6 +39,15 @@ const groups = computed(() =>
     }
   }),
 )
+/** Selected choices: a merged chip counts once; tokens no chip shows still count. */
+const selectedCount = computed(() => {
+  const shown = groups.value.flatMap((group) => group.options)
+  const shownTokens = new Set(shown.flatMap((option) => option.tokens))
+  return (
+    shown.filter((option) => option.pressed).length +
+    props.selected.filter((token) => !shownTokens.has(token)).length
+  )
+})
 </script>
 
 <template>
@@ -67,12 +77,12 @@ const groups = computed(() =>
         <div class="catalog-facet-options">
           <button
             v-for="option in group.options"
-            :key="option.token"
+            :key="option.key"
             type="button"
             class="catalog-facet-chip"
             :aria-pressed="option.pressed"
             :aria-label="option.ariaLabel"
-            @click="emit('toggle', option.token)"
+            @click="emit('toggle', option.tokens)"
           >
             <UIcon
               v-if="option.pressed"
@@ -92,7 +102,7 @@ const groups = computed(() =>
       class="catalog-filter-button catalog-facet-clear"
       @click="emit('clear')"
     >
-      Limpiar filtros ({{ selected.length }})
+      Limpiar filtros ({{ selectedCount }})
     </button>
   </div>
 </template>
