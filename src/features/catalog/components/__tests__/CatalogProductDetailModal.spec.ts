@@ -550,6 +550,44 @@ describe('CatalogProductDetailModal', () => {
     }
   })
 
+  it('lists variants from the smallest size up, by the size in their name or value', async () => {
+    mountModal({
+      detail: {
+        ...detail,
+        variants: [
+          { ...detail.variants[0], id: 'v20', name: 'Nupec 20 kg', value: null },
+          { ...detail.variants[0], id: 'v2', name: 'Nupec 2 kg', value: null },
+          { ...detail.variants[0], id: 'v8', name: 'Nupec 8 kg', value: null },
+        ],
+      },
+    })
+    await nextTick()
+    expect(
+      getAllRendered('[data-testid="catalog-detail-variant"]').map(
+        (row) => row.text().match(/Nupec \d+ kg/)?.[0],
+      ),
+    ).toEqual(['Nupec 2 kg', 'Nupec 8 kg', 'Nupec 20 kg'])
+  })
+
+  it('keeps the server order when a variant has no readable size', async () => {
+    mountModal({
+      detail: {
+        ...detail,
+        variants: [
+          { ...detail.variants[0], id: 'a', name: 'Pollo 8 kg', value: null },
+          { ...detail.variants[0], id: 'b', name: 'Sabor res', value: null },
+          { ...detail.variants[0], id: 'c', name: 'Pollo 2 kg', value: null },
+        ],
+      },
+    })
+    await nextTick()
+    expect(
+      getAllRendered('[data-testid="catalog-detail-variant"]').map(
+        (row) => row.text().match(/Pollo 8 kg|Sabor res|Pollo 2 kg/)?.[0],
+      ),
+    ).toEqual(['Pollo 8 kg', 'Sabor res', 'Pollo 2 kg'])
+  })
+
   it('never copies a sibling variant’s option, value, price or stock into another row', async () => {
     mountModal({
       detail: {
