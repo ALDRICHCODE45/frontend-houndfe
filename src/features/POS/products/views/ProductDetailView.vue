@@ -56,7 +56,7 @@ import { useConfirm } from '@/core/shared/composables/useConfirm'
 import { useLeaveGuard } from '@/core/shared/composables/useLeaveGuard'
 import SatKeySelect from '../components/SatKeySelect.vue'
 import VariantDetailModal from '../components/VariantDetailModal.vue'
-import VariantImagePickerModal from '../components/VariantImagePickerModal.vue'
+import VariantImagesPopover from '../components/VariantImagesPopover.vue'
 import {
   productFormSchema,
   centsToDecimalInput,
@@ -236,8 +236,8 @@ const isLotModalOpen = ref(false)
 const editingVariantId = ref<string | null>(null)
 const isVariantDetailModalOpen = ref(false)
 const variantDetailModalVariant = ref<ProductVariant | null>(null)
-const isVariantImageModalOpen = ref(false)
-const variantImageModalVariant = ref<ProductVariant | null>(null)
+/** The saved variant whose photo popover is open (its row thumbnail or ⋮ «Fotos»). */
+const variantPhotosOpenId = ref<string | null>(null)
 const confirmState = ref({
   open: false,
   description: '',
@@ -1864,13 +1864,9 @@ function handleVariantDetailModalOpenChange(isOpen: boolean) {
   isVariantDetailModalOpen.value = isOpen
 }
 
-function handleOpenVariantImageModal(variant: ProductVariant) {
-  variantImageModalVariant.value = variant
-  isVariantImageModalOpen.value = true
-}
-
-function handleVariantImageModalOpenChange(isOpen: boolean) {
-  isVariantImageModalOpen.value = isOpen
+function handleVariantPhotosOpenChange(variantId: string, isOpen: boolean) {
+  if (isOpen) variantPhotosOpenId.value = variantId
+  else if (variantPhotosOpenId.value === variantId) variantPhotosOpenId.value = null
 }
 
 function handleInlineVariantPublicPriceBlur(variant: ProductVariant, nextPriceCents: number) {
@@ -2012,7 +2008,7 @@ function handleVariantPriceCommit(id: string, cents: number) {
 function handleVariantAction(key: string, id: string) {
   const variant = findSavedVariant(id)
   const pending = pendingVariants.value.find((pv) => pv._localId === id)
-  if (key === 'photos' && variant) handleOpenVariantImageModal(variant)
+  if (key === 'photos' && variant) handleVariantPhotosOpenChange(variant.id, true)
   else if (key === 'packaging' && variant) openVariantPackaging(variant)
   else if (key === 'details') {
     if (isCreateMode.value) openPendingVariantDetailModal(id)
@@ -2623,7 +2619,20 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
               @commit-price="handleVariantPriceCommit"
               @action="handleVariantAction"
               @retry="refetchVariants()"
-            />
+            >
+              <template #photo="{ row }">
+                <VariantImagesPopover
+                  v-if="findSavedVariant(row.id)"
+                  :open="variantPhotosOpenId === row.id"
+                  :product-id="productIdOrEmpty"
+                  :variant="findSavedVariant(row.id)!"
+                  :label="row.label"
+                  :can-update="canUpdateProduct"
+                  :can-delete="canDeleteProduct"
+                  @update:open="handleVariantPhotosOpenChange(row.id, $event)"
+                />
+              </template>
+            </ProductVariantsTable>
           </UCard>
 
           <ProductPackagingSection
@@ -3045,17 +3054,6 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
       :product-type="formState.type"
       :product-purchase-net-cost-cents="product?.purchaseNetCostCents ?? 0"
       @update:open="handleVariantDetailModalOpenChange"
-    />
-
-    <VariantImagePickerModal
-      v-if="!isCreateMode && variantImageModalVariant"
-      :open="isVariantImageModalOpen"
-      :product-id="productIdOrEmpty"
-      :product-name="product?.name ?? ''"
-      :variant="variantImageModalVariant"
-      :can-update="canUpdateProduct"
-      :can-delete="canDeleteProduct"
-      @update:open="handleVariantImageModalOpenChange"
     />
 
     <ConfirmModal

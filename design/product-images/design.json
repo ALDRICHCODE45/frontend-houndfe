@@ -1,0 +1,27 @@
+{
+  "title": "Imágenes del producto y de las variantes",
+  "brief": "Rediseño de la tarjeta «Imágenes» de la pestaña Presentaciones y del modal «Elegir fotos» de una variante: que ocupen mucho menos espacio, se sientan como el resto del sistema y la foto principal siga siendo evidente. Mantiene lo que la API ya permite: subir al producto o a una variante (arrastrar o elegir, JPG/PNG/WEBP/GIF hasta 10 MB), marcar principal, eliminar con confirmación, filtrar por destino, ver completa (lightbox) y vista de solo lectura sin permisos. Estados: con fotos, vacío, subiendo, error en un archivo, solo lectura, no cargó; escritorio 1440 y móvil 390.",
+  "artboards": [
+    {
+      "file": "01-tira-compacta.html",
+      "title": "Tira compacta",
+      "tradeoff": "El cambio más pequeño respecto a hoy: la principal grande con una tira de miniaturas y la miniatura de cada variante en su renglón, que abre un popover pequeño (hoja inferior en móvil). La tarjeta baja de unos 900 px a unos 290, pero todavía depende de los chips para saber a qué destino se sube, y en «Todas» cada foto necesita una etiqueta de destino.",
+      "width": 1440,
+      "height": 2940
+    },
+    {
+      "file": "02-por-destino.html",
+      "title": "Por destino",
+      "tradeoff": "Una fila por destino (Producto y cada variante): el lugar donde sueltas la foto es su destino, así que ya no hacen falta chips, «Subiendo a» ni el modal. Es la más clara para repartir fotos, pero crece unos 90 px por variante (unos 380 px con 3) y arrastrar una foto entre filas para moverla requiere backend.",
+      "width": 1440,
+      "height": 3169
+    },
+    {
+      "file": "03-en-cada-presentacion.html",
+      "title": "Dentro de cada presentación",
+      "tradeoff": "Desaparece la tarjeta «Imágenes»: las fotos generales quedan en una franja arriba de Variantes y cada variante abre una bandeja en su propio renglón. Cerrada agrega unos 90 px, la que menos ocupa, pero ya no ves todas las fotos juntas y hay que abrir la bandeja de cada variante.",
+      "width": 1440,
+      "height": 2836
+    }
+  ]
+}

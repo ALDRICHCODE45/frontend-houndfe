@@ -95,7 +95,7 @@ function mountView() {
         ProductImageGallery: { template: '<div />' },
         PriceListSection: { template: '<div />' },
         VariantDetailModal: { template: '<div />' },
-        VariantImagePickerModal: { template: '<div />' },
+        VariantImagesPopover: { template: '<div />' },
         ConfirmModal: { template: '<div />' },
         UModal: { template: '<div />' },
       },

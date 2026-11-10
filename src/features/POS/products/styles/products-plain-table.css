@@ -12,6 +12,8 @@
  */
 .products-variants-table { --products-stack-areas: 'name name actions' 'stock price price'; }
 .products-price-table { --products-stack-areas: 'name name actions' 'price price price' 'margin gain gain'; }
+/* With the variant photo (artboard 01): the 44px thumbnail leads the card, beside the name. */
+.products-variants-table--photos { --products-stack-areas: 'photo name name actions' 'stock stock price price'; }
 
 @media (max-width: 639px) {
   .products-plain-table[data-stack] thead {
@@ -30,6 +32,7 @@
     gap: 8px 12px;
     padding: 12px 16px;
   }
+  .products-variants-table--photos[data-stack] tbody tr { grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto; }
   .products-plain-table[data-stack] tbody td {
     display: block;
     min-width: 0;
@@ -48,6 +51,7 @@
     font-weight: 500;
   }
   .products-plain-table[data-stack] td[data-area='name'] { grid-area: name; align-self: center; }
+  .products-plain-table[data-stack] td[data-area='photo'] { grid-area: photo; align-self: center; }
   .products-plain-table[data-stack] td[data-area='actions'] { grid-area: actions; align-self: center; margin-right: -8px; }
   .products-plain-table[data-stack] td[data-area='stock'] { grid-area: stock; }
   .products-plain-table[data-stack] td[data-area='price'] { grid-area: price; }
@@ -55,4 +59,6 @@
   .products-plain-table[data-stack] td[data-area='gain'] { grid-area: gain; }
   /* The cell's control takes the card width and starts on the left, under its label. */
   .products-plain-table[data-stack] td[data-area] > * { max-width: none; margin-left: 0; align-items: flex-start; }
+  /* The variant photo thumbnail keeps its centred mark (the rule above is for labelled controls). */
+  .products-plain-table[data-stack] td[data-area='photo'] > * { align-items: center; }
 }

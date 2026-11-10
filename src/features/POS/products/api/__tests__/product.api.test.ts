@@ -128,6 +128,37 @@ describe('productApi - Image Upload', () => {
       expect(result.fileId).toBe('file-999')
     })
   })
+
+  describe('upload progress', () => {
+    it('forwards onUploadProgress to axios for product and variant uploads', async () => {
+      const file = new File(['content'], 'p.png', { type: 'image/png' })
+      const onUploadProgress = vi.fn()
+      vi.mocked(http.post).mockResolvedValue({ data: {} })
+
+      await productApi.uploadProductImage('prod-1', file, { onUploadProgress })
+      await productApi.uploadVariantImage('prod-1', 'var-1', file, { onUploadProgress })
+
+      expect(http.post).toHaveBeenNthCalledWith(1, '/products/prod-1/images/upload', expect.any(FormData), {
+        onUploadProgress,
+      })
+      expect(http.post).toHaveBeenNthCalledWith(
+        2,
+        '/products/prod-1/variants/var-1/images/upload',
+        expect.any(FormData),
+        { onUploadProgress },
+      )
+    })
+
+    it('sends no axios config when no progress callback is given', async () => {
+      const file = new File(['content'], 'p.png', { type: 'image/png' })
+      vi.mocked(http.post).mockResolvedValue({ data: {} })
+
+      await productApi.uploadProductImage('prod-1', file)
+      await productApi.uploadVariantImage('prod-1', 'var-1', file)
+
+      for (const call of vi.mocked(http.post).mock.calls) expect(call).toHaveLength(2)
+    })
+  })
 })
 
 // ─── getPaginated ─────────────────────────────────────────────────────────────

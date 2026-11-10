@@ -1,4 +1,5 @@
 import type { PaginatedResponse, ServerTableParams } from '@/core/shared/types/table.types'
+import type { AxiosProgressEvent } from 'axios'
 import { http } from '@/core/shared/api/http'
 import type {
   BrandOption,
@@ -304,6 +305,11 @@ function mapLot(productId: string, item: ProductLotBackendResponse): ProductLot 
 
 function mapArrayResponse<T>(response: T[] | { data: T[] }): T[] {
   return Array.isArray(response) ? response : response.data
+}
+
+/** Optional upload config: per-file progress for the image strip. */
+export interface ImageUploadOptions {
+  onUploadProgress?: (event: AxiosProgressEvent) => void
 }
 
 export const productApi = {
@@ -624,13 +630,17 @@ export const productApi = {
 
   // ── Image Upload ─────────────────────────────────────────
 
-  async uploadProductImage(productId: string, file: File): Promise<ProductImage> {
+  async uploadProductImage(
+    productId: string,
+    file: File,
+    options?: ImageUploadOptions,
+  ): Promise<ProductImage> {
     const formData = new FormData()
     formData.append('file', file)
-    const { data } = await http.post<ProductImage>(
-      `/products/${productId}/images/upload`,
-      formData,
-    )
+    const url = `/products/${productId}/images/upload`
+    const { data } = options?.onUploadProgress
+      ? await http.post<ProductImage>(url, formData, { onUploadProgress: options.onUploadProgress })
+      : await http.post<ProductImage>(url, formData)
     return data
   },
 
@@ -638,13 +648,14 @@ export const productApi = {
     productId: string,
     variantId: string,
     file: File,
+    options?: ImageUploadOptions,
   ): Promise<ProductImage> {
     const formData = new FormData()
     formData.append('file', file)
-    const { data } = await http.post<ProductImage>(
-      `/products/${productId}/variants/${variantId}/images/upload`,
-      formData,
-    )
+    const url = `/products/${productId}/variants/${variantId}/images/upload`
+    const { data } = options?.onUploadProgress
+      ? await http.post<ProductImage>(url, formData, { onUploadProgress: options.onUploadProgress })
+      : await http.post<ProductImage>(url, formData)
     return data
   },
 }

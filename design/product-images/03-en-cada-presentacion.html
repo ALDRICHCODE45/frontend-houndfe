@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HoundFe · Imágenes · 03 Dentro de cada presentación</title>
+<style>
+:root{
+--hf-page:#f5f6f8;--hf-surface:#ffffff;--hf-surface-muted:#e7eef7;--hf-field:#ffffff;--hf-field-border:#8593a3;
+--hf-ink:#24313d;--hf-heading:#173968;--hf-muted:#576574;--hf-border:#dce2e8;
+--hf-action:#2442f6;--hf-on-action:#ffffff;--hf-active:#2442f6;--hf-active-soft:#edf0ff;--hf-focus:#2442f6;
+--hf-gold:#f6bb13;--hf-gold-soft:#fff5d6;--hf-gold-ink:#443218;
+--hf-warning:#805511;--hf-warning-soft:#fff5d6;--hf-success:#236044;
+--hf-danger:#b42318;--hf-danger-soft:#fef3f2;--hf-danger-border:#f4b8b2;
+--hf-font:'Geist', ui-sans-serif, system-ui, sans-serif;
+--hf-radius-card:12px;--hf-radius-control:6px;--hf-control-height:44px;
+--hf-table-head:color-mix(in srgb,var(--hf-ink) 4%,var(--hf-surface));
+--hf-shadow:0 1px 2px color-mix(in srgb,var(--hf-ink) 5%,transparent);
+--hf-float:0 12px 32px color-mix(in srgb,var(--hf-ink) 16%,transparent);
+}
+html.dark{
+--hf-page:#0e1520;--hf-surface:#192332;--hf-surface-muted:#202e43;--hf-field:#121d2c;--hf-field-border:#64758d;
+--hf-ink:#edf2fa;--hf-heading:#edf2fa;--hf-muted:#adbcd0;--hf-border:#354459;
+--hf-action:#91b0ff;--hf-on-action:#132344;--hf-active:#b3caff;--hf-active-soft:#223555;--hf-focus:#a6c1ff;
+--hf-gold:#f2c456;--hf-gold-soft:#3b311d;--hf-gold-ink:#f2cb71;
+--hf-warning:#f2cb71;--hf-warning-soft:#3b311d;--hf-success:#a2d9b9;
+--hf-danger:#ffb4ab;--hf-danger-soft:#3d2220;--hf-danger-border:#7a3f3b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--hf-page);color:var(--hf-ink);font:400 14px/1.5 var(--hf-font)}
+button{font:inherit;color:inherit}
+h1,h2,h3,h4,p{margin:0}
+h1,h2,h3,h4{color:var(--hf-heading);font-weight:600}
+.icon{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.icon.sm{width:16px;height:16px}.icon.xs{width:14px;height:14px}
+:focus-visible{outline:2px solid var(--hf-focus);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.fig{font-variant-numeric:tabular-nums}
+.muted{color:var(--hf-muted)}
+
+/* buttons */
+.btn{min-height:var(--hf-control-height);padding:8px 16px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-field);font-size:14px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;cursor:pointer}
+.btn:hover{border-color:var(--hf-field-border);background:var(--hf-surface-muted)}
+.btn.primary{background:var(--hf-action);color:var(--hf-on-action);border-color:var(--hf-action)}
+.btn.sm{min-height:36px;padding:0 12px;font-size:13px}
+.btn.ghost{border-color:transparent;background:transparent}
+.icon-btn{width:44px;height:44px;padding:0;border:1px solid transparent;border-radius:var(--hf-radius-control);background:transparent;display:inline-flex;align-items:center;justify-content:center;color:var(--hf-muted);cursor:pointer;flex-shrink:0}
+.icon-btn:hover{background:var(--hf-surface-muted);color:var(--hf-ink)}
+.link{border:0;background:transparent;padding:0;color:var(--hf-action);font-size:13px;font-weight:500;text-decoration:underline;text-underline-offset:2px;cursor:pointer;min-height:24px}
+
+/* status badge */
+.badge{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap;background:var(--hf-surface-muted);color:var(--hf-muted)}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.badge.success{background:color-mix(in srgb,var(--hf-success) 12%,var(--hf-surface));color:var(--hf-success)}
+.badge.info{background:var(--hf-active-soft);color:var(--hf-active)}
+.badge.warning{background:var(--hf-warning-soft);color:var(--hf-warning)}
+.badge.nodot::before{display:none}
+
+/* menu */
+.menu{position:absolute;z-index:30;min-width:232px;padding:4px;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:8px;box-shadow:var(--hf-float)}
+.menu button{display:flex;align-items:center;gap:12px;width:100%;min-height:44px;padding:0 12px;border:0;border-radius:6px;background:transparent;text-align:left;font-size:14px;font-weight:500;cursor:pointer}
+.menu button:hover,.menu button:focus-visible{background:var(--hf-active-soft)}
+.menu button.dng{color:var(--hf-danger)}
+.menu button.dng:hover{background:color-mix(in srgb,var(--hf-danger) 10%,var(--hf-surface))}
+.menu hr{border:0;border-top:1px solid var(--hf-border);margin:4px 0}
+
+/* artboard chrome (not product UI) */
+.proto{position:sticky;top:0;z-index:80;display:flex;align-items:center;gap:16px;padding:10px 32px;background:var(--hf-surface);border-bottom:1px solid var(--hf-border);font-size:13px;color:var(--hf-muted)}
+.proto b{color:var(--hf-heading);font-size:14px}
+.proto .sp{flex:1}
+.board{padding:32px;display:grid;gap:40px}
+.cap{display:flex;align-items:baseline;gap:12px;margin-bottom:12px}
+.cap h2{font-size:16px}
+.cap p{font-size:13px;color:var(--hf-muted)}
+.note{font-size:12px;color:var(--hf-muted);display:flex;gap:6px;align-items:flex-start}
+.tag-be{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:4px;border:1px dashed var(--hf-warning);color:var(--hf-warning);font-size:11px;font-weight:600;white-space:nowrap}
+
+/* app frame: desktop workspace */
+.frame{border:1px solid var(--hf-border);border-radius:12px;overflow:hidden;background:var(--hf-page);position:relative}
+.shell{display:grid;grid-template-columns:184px minmax(0,1fr)}
+.side{padding:24px 16px;border-right:1px solid var(--hf-border);background:var(--hf-surface);display:flex;flex-direction:column;gap:24px}
+.brand{display:flex;align-items:center;gap:8px;color:var(--hf-heading);font-size:16px;font-weight:600}
+.brand .icon{width:32px;height:32px;padding:5px;border-radius:6px;background:var(--hf-gold-soft);color:var(--hf-gold-ink)}
+.side nav{display:grid;gap:4px}
+.side nav a{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:var(--hf-ink);text-decoration:none}
+.side nav a[aria-current="page"]{background:var(--hf-active-soft);color:var(--hf-active);font-weight:600}
+.dh{padding:16px 32px 0;background:var(--hf-surface);border-bottom:1px solid var(--hf-border)}
+.meta{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--hf-muted)}
+.trow{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:4px 0}
+.trow h1{font-size:22px;line-height:1.3;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trow .acts{display:flex;gap:4px;align-items:center}
+.tabs{display:flex;gap:4px}
+.tabs a{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-bottom:2px solid transparent;font-size:14px;font-weight:500;color:var(--hf-muted);text-decoration:none}
+.tabs a[aria-current="page"]{border-bottom-color:var(--hf-active);color:var(--hf-active);font-weight:600}
+.wsb{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;padding:24px 32px 32px;align-items:start}
+.stack{display:grid;gap:16px;min-width:0}
+.card{background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);padding:20px 24px;min-width:0;position:relative}
+.card-h{display:flex;align-items:center;gap:12px;min-height:36px}
+.card-h h3{font-size:16px}
+.card-h .sp{flex:1}
+.count{font-size:13px;color:var(--hf-muted)}
+
+/* plain table */
+.pt{width:100%;border-collapse:separate;border-spacing:0;margin-top:12px;border:1px solid var(--hf-border);border-radius:8px;overflow:hidden}
+.pt th{height:40px;padding:0 12px;text-align:left;background:var(--hf-table-head);color:var(--hf-muted);font-size:13px;font-weight:600;border-bottom:1px solid var(--hf-border)}
+.pt td{padding:8px 12px;border-bottom:1px solid var(--hf-border);vertical-align:middle}
+.pt tr:last-child td{border-bottom:0}
+.pt .r{text-align:right}
+.pt tbody tr:hover td{background:color-mix(in srgb,var(--hf-active-soft) 55%,var(--hf-surface))}
+.vn{font-weight:600;color:var(--hf-heading)}
+.vc{font-size:12px;color:var(--hf-muted)}
+
+/* summary aside */
+.sumc{padding:16px}
+.sumc .hero{border-radius:8px;overflow:hidden;aspect-ratio:1;border:1px solid var(--hf-border)}
+.sumc dl{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin:12px 0 0;font-size:13px}
+.sumc dt{color:var(--hf-muted)}.sumc dd{margin:0;text-align:right;font-weight:600}
+
+/* product photos (pixels: they keep their light colors in dark mode, like a real photo) */
+svg.ph{display:block;width:100%;height:100%}
+:root,svg.ph{--p-bg:#e7eef7;--p-hi:#ffffff;--p-steel:#dce2e8;--p-mid:#8593a3;--p-dk:#576574;--p-rub:#24313d;--p-kib:#805511;--p-kib2:#f6bb13;--p-box:#173968;--p-lab:#f6bb13}
+svg.ph.b2{--p-bg:#f5f6f8}svg.ph.b3{--p-bg:#fff5d6}svg.ph.b4{--p-bg:#edf0ff}
+
+/* thumbnails */
+.th{position:relative;flex:none;width:var(--s,96px);aspect-ratio:1;border-radius:8px;overflow:hidden;border:1px solid var(--hf-border);background:var(--hf-surface-muted)}
+.th>button.open{all:unset;position:absolute;inset:0;cursor:zoom-in;border-radius:8px}
+.th>button.open:focus-visible{outline:2px solid var(--hf-focus);outline-offset:-2px}
+.th.main{outline:2px solid var(--hf-active);outline-offset:2px}
+.th .pin{position:absolute;left:6px;bottom:6px;pointer-events:none}
+.th .pin.star{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--hf-active);color:var(--hf-on-action)}
+.th .pin.star .icon{width:13px;height:13px;fill:currentColor;stroke:none}
+.th .scope{position:absolute;left:6px;bottom:6px;max-width:calc(100% - 12px);height:20px;padding:0 6px;border-radius:4px;background:var(--hf-surface);color:var(--hf-ink);font-size:11px;font-weight:600;line-height:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;box-shadow:var(--hf-shadow)}
+.th .more{position:absolute;right:4px;top:4px;width:32px;height:32px;border-radius:6px;border:0;background:var(--hf-surface);color:var(--hf-ink);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:var(--hf-shadow);opacity:0}
+.th .more::after{content:"";position:absolute;inset:-6px}
+.th:hover .more,.th:focus-within .more,.th .more[aria-expanded="true"]{opacity:1}
+@media (hover:none){.th .more{opacity:1}}
+/* uploading */
+.th.up svg.ph{opacity:.45}
+.th .prog{position:absolute;left:8px;right:8px;bottom:8px;height:4px;border-radius:2px;background:var(--hf-surface);overflow:hidden}
+.th .prog i{display:block;height:100%;background:var(--hf-action)}
+.th .pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--hf-heading)}
+.th .pct span{padding:2px 6px;border-radius:4px;background:var(--hf-surface)}
+/* failed */
+.th.err{border-color:var(--hf-danger-border);background:var(--hf-danger-soft);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--hf-danger);font-size:12px;font-weight:600;text-align:center;padding:6px}
+/* add tile */
+.add{flex:none;width:var(--s,96px);aspect-ratio:1;border:1px dashed var(--hf-field-border);border-radius:8px;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--hf-action);font-size:13px;font-weight:600;cursor:pointer}
+.add:hover{background:var(--hf-active-soft);border-style:solid;border-color:var(--hf-active)}
+
+/* toggle chips */
+.chips{display:flex;gap:4px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border:1px solid var(--hf-border);border-radius:999px;background:var(--hf-field);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.chip:hover{border-color:var(--hf-field-border)}
+.chip[aria-pressed="true"]{background:var(--hf-active-soft);border-color:var(--hf-active);color:var(--hf-active);font-weight:600}
+.chip .n{font-size:12px;color:var(--hf-muted);font-variant-numeric:tabular-nums}
+.chip[aria-pressed="true"] .n{color:var(--hf-active)}
+
+/* inline alert */
+.alert{display:flex;align-items:flex-start;gap:8px;padding:10px 12px;border:1px solid var(--hf-danger-border);background:var(--hf-danger-soft);border-radius:8px;font-size:13px;color:var(--hf-ink)}
+.alert .icon{color:var(--hf-danger);margin-top:1px}
+.alert b{color:var(--hf-danger);font-weight:600}
+.alert .acts{margin-left:auto;display:flex;gap:12px;flex:none}
+
+/* phone frame */
+.phone{width:390px;flex:none;border:1px solid var(--hf-border);border-radius:24px;overflow:hidden;background:var(--hf-page);position:relative}
+.mbar{display:flex;align-items:center;gap:4px;padding:8px;background:var(--hf-surface);border-bottom:1px solid var(--hf-border)}
+.mbar .t{flex:1;min-width:0}
+.mbar small{display:block;font-size:12px;color:var(--hf-muted)}
+.mbar b{display:block;font-size:17px;font-weight:600;color:var(--hf-heading);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mtabs{display:flex;gap:0;overflow:hidden;background:var(--hf-surface);border-bottom:1px solid var(--hf-border);padding:0 8px}
+.mtabs a{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;font-size:14px;font-weight:500;color:var(--hf-muted);text-decoration:none;border-bottom:2px solid transparent;white-space:nowrap}
+.mtabs a[aria-current="page"]{color:var(--hf-active);border-bottom-color:var(--hf-active);font-weight:600}
+.mbody{padding:16px;display:grid;gap:12px}
+.mbody .card{padding:16px}
+.mfoot{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:8px;padding:12px 16px;background:var(--hf-surface);border-top:1px solid var(--hf-border)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--hf-surface);border-top:1px solid var(--hf-border);border-radius:16px 16px 0 0;padding:8px 16px 16px;box-shadow:var(--hf-float);z-index:5}
+.scrim{position:absolute;inset:0;background:color-mix(in srgb,var(--hf-page) 78%,transparent);z-index:4}
+.grab{width:36px;height:4px;border-radius:2px;background:var(--hf-border);margin:0 auto 8px}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ── direction 01 ── */
+.strip{display:flex;gap:12px;align-items:flex-start;margin-top:16px}
+.rail{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 6px;min-width:0;scrollbar-width:thin}
+.foot-hint{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--hf-muted)}
+.vthumb{all:unset;position:relative;display:inline-flex;width:44px;height:44px;border-radius:8px;cursor:pointer}
+.vthumb:focus-visible{outline:2px solid var(--hf-focus);outline-offset:2px}
+.vthumb .th{--s:44px;border-radius:8px}
+.vthumb .more-n{position:absolute;right:-6px;bottom:-6px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:var(--hf-surface);border:1px solid var(--hf-border);font-size:11px;font-weight:600;line-height:18px;text-align:center;color:var(--hf-ink)}
+.vthumb.none{border:1px dashed var(--hf-field-border);color:var(--hf-muted);align-items:center;justify-content:center}
+.vthumb[aria-expanded="true"]{outline:2px solid var(--hf-active);outline-offset:2px}
+.pop{position:absolute;z-index:40;width:420px;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:12px;box-shadow:var(--hf-float);padding:16px}
+.pop::before{content:"";position:absolute;left:28px;top:-7px;width:12px;height:12px;background:var(--hf-surface);border-left:1px solid var(--hf-border);border-top:1px solid var(--hf-border);transform:rotate(45deg)}
+.pop-h{display:flex;align-items:flex-start;gap:8px;margin:-4px -8px 12px 0}
+.pop-h h4{font-size:15px}
+.pop-h p{font-size:12px;color:var(--hf-muted)}
+.pop .rail{flex-wrap:wrap;overflow:visible}
+.drop{border:2px solid var(--hf-active)!important;background:var(--hf-active-soft)!important}
+.drop-ovl{position:absolute;inset:0;border-radius:var(--hf-radius-card);border:2px dashed var(--hf-active);background:color-mix(in srgb,var(--hf-active-soft) 92%,transparent);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--hf-active);font-weight:600;z-index:3}
+.drop-ovl small{font-weight:400;color:var(--hf-ink);font-size:13px}
+.states{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.st-l{font-size:12px;font-weight:600;color:var(--hf-muted);margin-bottom:8px;text-transform:none}
+.empty-row{display:flex;align-items:center;gap:16px;margin-top:16px}
+.empty-row p{font-size:13px;color:var(--hf-muted);max-width:40ch}
+.empty-row b{display:block;font-size:15px;color:var(--hf-heading);font-weight:600}
+.ro{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--hf-muted)}
+.mob{display:flex;gap:32px;align-items:flex-start}
+.mnotes{flex:1;display:grid;gap:12px;font-size:13px;align-content:start}
+.mnotes h3{font-size:15px}
+.mnotes ul{margin:0;padding-left:18px;display:grid;gap:6px}
+.size{display:flex;gap:16px;align-items:center;font-size:13px}
+.size .bar{height:8px;border-radius:4px;background:var(--hf-border)}
+.size .bar.n{background:var(--hf-action)}
+/* ── direction 03 ── */
+.pgen{display:grid;grid-template-columns:200px minmax(0,1fr);gap:16px;align-items:center;margin-top:12px;padding:12px;border-radius:8px;background:color-mix(in srgb,var(--hf-surface-muted) 45%,var(--hf-surface))}
+.pgen .dl{display:grid;gap:2px}
+.pgen .dl b{font-weight:600;color:var(--hf-heading)}
+.pgen .dl span{font-size:12px;color:var(--hf-muted)}
+.pgen .rail{align-items:center}
+.cellf{display:flex;align-items:center;gap:6px}
+.cellf .mini{position:relative;width:40px;height:40px;border-radius:6px;overflow:hidden;border:1px solid var(--hf-border);flex:none}
+.cellf .mini.main{outline:2px solid var(--hf-active);outline-offset:1px}
+.fbtn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 10px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--hf-action);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.fbtn:hover{background:var(--hf-surface-muted)}
+.fbtn[aria-expanded="true"]{background:var(--hf-active-soft);color:var(--hf-active)}
+.fbtn[aria-expanded="true"] .icon{transform:rotate(180deg)}
+.fbtn.ro{color:var(--hf-muted);cursor:default}
+.pt tr.open-row td{background:var(--hf-active-soft)}
+.pt tr.tray td{padding:0;background:color-mix(in srgb,var(--hf-surface-muted) 45%,var(--hf-surface))}
+.trayin{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px 16px;align-items:end;padding:16px 16px 16px 24px;border-left:3px solid var(--hf-active)}
+.trayin .rail{flex-wrap:wrap;overflow:visible}
+.trayin .th{background:var(--hf-surface)}
+.trayin .foot-hint{grid-column:1;margin:0}
+.trayin .done{grid-column:2;grid-row:1/3;align-self:end}
+.mcard{border-top:1px solid var(--hf-border);padding:12px 0;display:grid;gap:8px}
+.mcard .r1{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.mcard .tr{margin:0 -16px;padding:12px 16px;background:color-mix(in srgb,var(--hf-surface-muted) 45%,var(--hf-surface));border-left:3px solid var(--hf-active);display:grid;gap:8px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+<defs>
+<radialGradient id="g-rim" cx="40%" cy="35%" r="70%"><stop offset="0" style="stop-color:var(--p-hi)"/><stop offset=".55" style="stop-color:var(--p-steel)"/><stop offset="1" style="stop-color:var(--p-mid)"/></radialGradient>
+<radialGradient id="g-bowl" cx="60%" cy="65%" r="75%"><stop offset="0" style="stop-color:var(--p-hi)"/><stop offset=".45" style="stop-color:var(--p-steel)"/><stop offset="1" style="stop-color:var(--p-dk)"/></radialGradient>
+<linearGradient id="g-side" x1="0" x2="1"><stop offset="0" style="stop-color:var(--p-mid)"/><stop offset=".3" style="stop-color:var(--p-hi)"/><stop offset=".55" style="stop-color:var(--p-steel)"/><stop offset="1" style="stop-color:var(--p-dk)"/></linearGradient>
+</defs>
+<symbol id="ph-top" viewBox="0 0 120 120" preserveAspectRatio="xMidYMid slice"><rect width="120" height="120" style="fill:var(--p-bg)"/><ellipse cx="64" cy="66" rx="47" ry="45" style="fill:var(--p-rub);opacity:.14"/><circle cx="60" cy="60" r="45" style="fill:var(--p-rub)"/><circle cx="60" cy="60" r="41" fill="url(#g-rim)"/><circle cx="60" cy="60" r="29" fill="url(#g-bowl)"/><path d="M36 44a30 30 0 0 1 22-14" style="fill:none;stroke:var(--p-hi);stroke-width:3;stroke-linecap:round;opacity:.9"/></symbol>
+<symbol id="ph-side" viewBox="0 0 120 120" preserveAspectRatio="xMidYMid slice"><rect width="120" height="120" style="fill:var(--p-bg)"/><ellipse cx="60" cy="98" rx="46" ry="5" style="fill:var(--p-rub);opacity:.16"/><path d="M26 86h68l-4 9H30z" style="fill:var(--p-rub)"/><path d="M16 52q44-8 88 0l-10 34q-34 6-68 0z" fill="url(#g-side)"/><ellipse cx="60" cy="52" rx="44" ry="7" style="fill:var(--p-hi);stroke:var(--p-mid);stroke-width:1"/><ellipse cx="60" cy="53" rx="37" ry="4.5" style="fill:var(--p-dk);opacity:.45"/><path d="M36 60l4 22" style="stroke:var(--p-hi);stroke-width:3;stroke-linecap:round;opacity:.8"/></symbol>
+<symbol id="ph-food" viewBox="0 0 120 120" preserveAspectRatio="xMidYMid slice"><rect width="120" height="120" style="fill:var(--p-bg)"/><circle cx="60" cy="60" r="45" style="fill:var(--p-rub)"/><circle cx="60" cy="60" r="41" fill="url(#g-rim)"/><circle cx="60" cy="60" r="29" fill="url(#g-bowl)"/><g style="fill:var(--p-kib)"><circle cx="52" cy="56" r="5"/><circle cx="63" cy="52" r="5"/><circle cx="70" cy="62" r="5"/><circle cx="58" cy="66" r="5"/><circle cx="48" cy="66" r="4.5"/><circle cx="66" cy="72" r="4.5"/></g><g style="fill:var(--p-kib2)"><circle cx="57" cy="59" r="4.5"/><circle cx="68" cy="56" r="4"/><circle cx="54" cy="72" r="4"/><circle cx="74" cy="68" r="3.5"/></g></symbol>
+<symbol id="ph-box" viewBox="0 0 120 120" preserveAspectRatio="xMidYMid slice"><rect width="120" height="120" style="fill:var(--p-bg)"/><path d="M78 30l14-8v66l-14 8z" style="fill:var(--p-rub)"/><path d="M30 30l14-8h48l-14 8z" style="fill:var(--p-mid)"/><rect x="30" y="30" width="48" height="66" style="fill:var(--p-box)"/><rect x="30" y="70" width="48" height="12" style="fill:var(--p-lab)"/><circle cx="54" cy="50" r="11" style="fill:var(--p-steel)"/><circle cx="54" cy="50" r="7" style="fill:var(--p-mid)"/><rect x="36" y="86" width="22" height="3" rx="1.5" style="fill:var(--p-hi);opacity:.8"/></symbol>
+<symbol id="ph-base" viewBox="0 0 120 120" preserveAspectRatio="xMidYMid slice"><rect width="120" height="120" style="fill:var(--p-bg)"/><circle cx="60" cy="60" r="48" style="fill:var(--p-rub)"/><circle cx="60" cy="60" r="40" fill="url(#g-bowl)"/><g style="stroke:var(--p-dk);stroke-width:2;opacity:.9"><path d="M60 13v6M60 101v6M13 60h6M101 60h6M27 27l4 4M89 89l4 4M27 93l4-4M89 31l4-4"/></g><circle cx="60" cy="60" r="10" style="fill:var(--p-steel);stroke:var(--p-mid)"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></symbol>
+<symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+<symbol id="i-dots" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></symbol>
+<symbol id="i-expand" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3zM12 9v4M12 17h.01"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+<symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></symbol>
+<symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8"/></symbol>
+<symbol id="i-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+<symbol id="i-paw" viewBox="0 0 24 24"><circle cx="5" cy="10" r="2"/><circle cx="9" cy="5" r="2"/><circle cx="15" cy="5" r="2"/><circle cx="19" cy="10" r="2"/><path d="M12 11c-3 0-6 4-6 7a3 3 0 0 0 4 2.5 6 6 0 0 1 4 0A3 3 0 0 0 18 18c0-3-3-7-6-7z"/></symbol>
+<symbol id="i-rotate" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+</svg>
+
+<header class="proto">
+  <b>03 · Dentro de cada presentación</b>
+  <span>No hay tarjeta «Imágenes»: las fotos generales van arriba de Variantes y cada variante abre su bandeja de fotos en su propio renglón.</span>
+  <span class="sp"></span>
+  <button class="btn sm" type="button" id="theme" aria-pressed="false">Tema oscuro</button>
+</header>
+
+<main class="board">
+<section aria-labelledby="capA">
+  <div class="cap"><h2 id="capA">Escritorio · Presentaciones con fotos</h2><p>Bandeja de Talla S abierta, subiendo una foto · menú ⋯ de una foto abierto.</p></div>
+  <div class="frame" style="width:1376px">
+    <div class="shell">
+      <aside class="side" aria-label="Menú principal">
+        <div class="brand"><svg class="icon"><use href="#i-paw"/></svg>HoundFe</div>
+        <nav aria-label="Secciones"><a href="#">Venta</a><a href="#" aria-current="page">Productos</a><a href="#">Inventario</a><a href="#">Clientes</a><a href="#">Reportes</a></nav>
+      </aside>
+      <div>
+        <header class="dh">
+          <div class="meta"><span class="badge success">Activo</span><span>Productos · guardado 9 nov, 10:12</span></div>
+          <div class="trow"><h1>Petmate plato de acero inoxidable con base antiderrapante</h1><div class="acts"><button class="btn primary" type="button">Guardar cambios</button><button class="icon-btn" type="button" aria-label="Más acciones del producto"><svg class="icon"><use href="#i-dots"/></svg></button></div></div>
+          <nav class="tabs" aria-label="Tareas del producto"><a href="#">Identidad</a><a href="#" aria-current="page">Presentaciones</a><a href="#">Inventario</a><a href="#">Contenido</a></nav>
+        </header>
+        <div class="wsb">
+          <div class="stack">
+            <section class="card" aria-labelledby="vh">
+              <div class="card-h"><h3 id="vh">Variantes y fotos</h3><span class="count">3 variantes · 6 fotos</span><span class="sp"></span><button class="btn sm" type="button"><svg class="icon sm"><use href="#i-plus"/></svg>Agregar variante</button></div>
+
+              <div class="pgen" aria-labelledby="pgh">
+                <div class="dl"><b id="pgh">Fotos del producto</b><span>3 · se ven en todas las variantes</span></div>
+                <div class="rail" style="--s:64px">
+                  <div class="th main"><button class="open" type="button" aria-label="Ver completa: foto principal del producto"></button><svg class="ph" aria-hidden="true"><use href="#ph-top"/></svg><span class="pin star"><svg class="icon"><use href="#i-star"/></svg><span class="sr">Principal</span></span><button class="more" type="button" aria-label="Acciones de la foto principal del producto"><svg class="icon sm"><use href="#i-more"/></svg></button></div>
+                  <div class="th"><button class="open" type="button" aria-label="Ver completa: foto 2 del producto"></button><svg class="ph b3" aria-hidden="true"><use href="#ph-food"/></svg><button class="more" type="button" aria-label="Acciones de la foto 2 del producto"><svg class="icon sm"><use href="#i-more"/></svg></button></div>
+                  <div class="th"><button class="open" type="button" aria-label="Ver completa: foto 3 del producto"></button><svg class="ph b4" aria-hidden="true"><use href="#ph-box"/></svg><button class="more" type="button" aria-label="Acciones de la foto 3 del producto"><svg class="icon sm"><use href="#i-more"/></svg></button></div>
+                  <button class="add" type="button" aria-label="Agregar fotos al producto"><svg class="icon sm"><use href="#i-plus"/></svg>Agregar</button>
+                  <span class="foot-hint" style="margin:0 0 0 8px">o arrastra aquí · JPG, PNG, WEBP o GIF, máx. 10 MB</span>
+                </div>
+              </div>
+
+              <table class="pt">
+                <thead><tr><th>Variante</th><th style="width:250px">Fotos</th><th class="r" style="width:120px">Existencias</th><th class="r" style="width:140px">Precio público</th><th style="width:64px"><span class="sr">Acciones</span></th></tr></thead>
+                <tbody>
+                  <tr class="open-row"><td><div class="vn">Talla S (0.47 l)</div><div class="vc">SKU: PM-PLA-S · Código: 7501234500017</div></td>
+                    <td><div class="cellf"><span class="mini main"><svg class="ph b2" aria-hidden="true"><use href="#ph-side"/></svg></span><span class="mini"><svg class="ph b3" aria-hidden="true"><use href="#ph-food"/></svg></span><button class="fbtn" type="button" aria-expanded="true" aria-controls="trayS" aria-label="Fotos de Talla S (0.47 l): 2, subiendo 1">Fotos · 2<svg class="icon sm"><use href="#i-chev"/></svg></button></div></td>
+                    <td class="r fig">12</td><td class="r fig">$189.00</td>
+                    <td><button class="icon-btn" type="button" aria-label="Acciones de Talla S (0.47 l)"><svg class="icon"><use href="#i-dots"/></svg></button></td></tr>
+                  <tr class="tray" id="trayS"><td colspan="5">
+                    <div class="trayin" role="region" aria-label="Fotos de Talla S (0.47 l)">
+                      <div class="rail" style="--s:88px">
+                        <div class="th main"><button class="open" type="button" aria-label="Ver completa: foto principal de Talla S"></button><svg class="ph b2" aria-hidden="true"><use href="#ph-side"/></svg><span class="pin"><span class="badge info">Principal</span></span><button class="more" type="button" aria-label="Acciones de la foto 1 de Talla S"><svg class="icon sm"><use href="#i-more"/></svg></button></div>
+                        <div class="th"><button class="open" type="button" aria-label="Ver completa: foto 2 de Talla S"></button><svg class="ph b3" aria-hidden="true"><use href="#ph-food"/></svg><button class="more" type="button" aria-expanded="true" aria-label="Acciones de la foto 2 de Talla S" style="opacity:1"><svg class="icon sm"><use href="#i-more"/></svg></button></div>
+                        <div class="th up" role="progressbar" aria-label="Subiendo plato-s-base.jpg" aria-valuenow="58" aria-valuemin="0" aria-valuemax="100"><svg class="ph" aria-hidden="true"><use href="#ph-base"/></svg><span class="pct"><span>58 %</span></span><span class="prog"><i style="width:58%"></i></span></div>
+                        <button class="add" type="button" aria-label="Agregar fotos a Talla S"><svg class="icon"><use href="#i-plus"/></svg>Agregar</button>
+                      </div>
+                      <button class="btn sm done" type="button">Listo</button>
+                      <p class="foot-hint">Arrastra fotos a esta bandeja para subirlas a Talla S · se muestran al elegir esta variante</p>
+                      <div class="menu" role="menu" aria-label="Acciones de la foto 2 de Talla S" style="left:150px;top:56px">
+                        <button role="menuitem" type="button"><svg class="icon"><use href="#i-expand"/></svg>Ver completa</button>
+                        <button role="menuitem" type="button"><svg class="icon"><use href="#i-star"/></svg>Marcar como principal</button>
+                        <hr>
+                        <button role="menuitem" class="dng" type="button"><svg class="icon"><use href="#i-trash"/></svg>Eliminar…</button>
+                      </div>
+                    </div>
+                  </td></tr>
+                  <tr><td><div class="vn">Talla M (0.95 l)</div><div class="vc">SKU: PM-PLA-M · Código: 7501234500024</div></td>
+                    <td><div class="cellf"><span class="mini main"><svg class="ph" aria-hidden="true"><use href="#ph-top"/></svg></span><button class="fbtn" type="button" aria-expanded="false" aria-label="Fotos de Talla M (0.95 l): 1">Fotos · 1<svg class="icon sm"><use href="#i-chev"/></svg></button></div></td>
+                    <td class="r fig">8</td><td class="r fig">$249.00</td>
+                    <td><button class="icon-btn" type="button" aria-label="Acciones de Talla M (0.95 l)"><svg class="icon"><use href="#i-dots"/></svg></button></td></tr>
+                  <tr><td><div class="vn">Talla L (1.9 l)</div><div class="vc">SKU: PM-PLA-L</div></td>
+                    <td><div class="cellf"><button class="fbtn" type="button" aria-expanded="false" aria-label="Talla L (1.9 l): sin fotos propias. Agregar fotos"><svg class="icon sm"><use href="#i-plus"/></svg>Agregar fotos</button></div></td>
+                    <td class="r fig">0</td><td class="r fig">$329.00</td>
+                    <td><button class="icon-btn" type="button" aria-label="Acciones de Talla L (1.9 l)"><svg class="icon"><use href="#i-dots"/></svg></button></td></tr>
+                </tbody>
+              </table>
+            </section>
+          </div>
+          <aside class="card sumc" aria-label="Resumen">
+            <div class="hero"><svg class="ph" aria-hidden="true"><use href="#ph-top"/></svg></div>
+            <p class="note" style="margin-top:8px">La foto principal es la que ven en la venta y el catálogo.</p>
+            <dl><dt>Presentaciones</dt><dd>3</dd><dt>Precio</dt><dd class="fig">$189.00 – $329.00</dd><dt>Existencias</dt><dd class="fig">20</dd></dl>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="size" style="margin-top:12px"><span class="muted">Alto que agregan las fotos (aprox.)</span><span>Hoy</span><span class="bar" style="width:300px"></span><span class="fig">≈ 900 px</span><span>Aquí, cerrado</span><span class="bar n" style="width:30px"></span><span class="fig">≈ 90 px</span><span>con una bandeja abierta</span><span class="bar n" style="width:80px"></span><span class="fig">≈ 240 px</span></div>
+</section>
+
+<section aria-labelledby="capB">
+  <div class="cap"><h2 id="capB">Estados</h2><p>Fotos del producto y bandeja de una variante, al ancho de la tarjeta.</p></div>
+  <div class="states">
+    <div>
+      <p class="st-l">Vacío (con permiso)</p>
+      <section class="card" aria-label="Fotos, vacío">
+        <div class="card-h"><h3>Variantes y fotos</h3><span class="count">3 variantes · sin fotos</span></div>
+        <div class="pgen"><div class="dl"><b>Fotos del producto</b><span>La primera será la principal</span></div><div class="rail" style="--s:64px"><button class="add" type="button" aria-label="Agregar fotos al producto"><svg class="icon sm"><use href="#i-plus"/></svg>Agregar</button><span class="foot-hint" style="margin:0 0 0 8px">Aún no hay fotos. Es la que ven en la venta y el catálogo.</span></div></div>
+        <table class="pt"><thead><tr><th>Variante</th><th style="width:200px">Fotos</th></tr></thead><tbody><tr><td><div class="vn">Talla S (0.47 l)</div></td><td><button class="fbtn" type="button" aria-label="Talla S: agregar fotos"><svg class="icon sm"><use href="#i-plus"/></svg>Agregar fotos</button></td></tr></tbody></table>
+      </section>
+    </div>
+    <div>
+      <p class="st-l">Arrastrando archivos sobre la bandeja de Talla M</p>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="trayin drop" role="status" style="border-left-color:var(--hf-active);min-height:150px;align-items:center">
+          <div class="rail" style="--s:88px"><div class="th main"><svg class="ph" aria-hidden="true"><use href="#ph-top"/></svg></div><p class="foot-hint" style="color:var(--hf-active);font-weight:600;font-size:13px;margin-left:8px"><svg class="icon sm"><use href="#i-upload"/></svg>Suelta para subir 2 fotos a Talla M</p></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <p class="st-l">Subiendo 3 fotos a Talla S · una falló</p>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="trayin" role="region" aria-label="Fotos de Talla S, subiendo">
+          <div class="rail" style="--s:88px">
+            <div class="th main"><svg class="ph b2" aria-hidden="true"><use href="#ph-side"/></svg><span class="pin"><span class="badge info">Principal</span></span></div>
+            <div class="th up" role="progressbar" aria-label="Subiendo plato-s-base.jpg" aria-valuenow="81" aria-valuemin="0" aria-valuemax="100"><svg class="ph" aria-hidden="true"><use href="#ph-base"/></svg><span class="pct"><span>81 %</span></span><span class="prog"><i style="width:81%"></i></span></div>
+            <div class="th up" role="progressbar" aria-label="En cola plato-s-caja.png" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"><svg class="ph b4" aria-hidden="true"><use href="#ph-box"/></svg><span class="pct"><span>En cola</span></span></div>
+            <div class="th err"><svg class="icon sm"><use href="#i-alert"/></svg>No se subió</div>
+          </div>
+          <button class="btn sm done" type="button">Listo</button>
+          <div class="alert" role="alert" style="grid-column:1"><svg class="icon sm"><use href="#i-alert"/></svg><span><b>plato-s-lado.jpg no se subió.</b> Se perdió la conexión; puedes intentar de nuevo.</span><span class="acts"><button class="link" type="button">Reintentar</button><button class="link" type="button">Descartar</button></span></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <p class="st-l">Solo lectura: sin «Agregar», sin ⋯, sin soltar; «Ver fotos» abre la bandeja sin acciones</p>
+      <section class="card" aria-label="Fotos, solo lectura">
+        <div class="card-h"><h3>Variantes y fotos</h3><span class="sp"></span><span class="ro"><svg class="icon xs"><use href="#i-lock"/></svg>Solo lectura</span></div>
+        <div class="pgen"><div class="dl"><b>Fotos del producto</b><span>3</span></div><div class="rail" style="--s:64px"><div class="th main"><button class="open" type="button" aria-label="Ver completa: principal"></button><svg class="ph" aria-hidden="true"><use href="#ph-top"/></svg><span class="pin star"><svg class="icon"><use href="#i-star"/></svg><span class="sr">Principal</span></span></div><div class="th"><button class="open" type="button" aria-label="Ver completa: foto 2"></button><svg class="ph b3" aria-hidden="true"><use href="#ph-food"/></svg></div><div class="th"><button class="open" type="button" aria-label="Ver completa: foto 3"></button><svg class="ph b4" aria-hidden="true"><use href="#ph-box"/></svg></div></div></div>
+        <table class="pt"><thead><tr><th>Variante</th><th style="width:220px">Fotos</th></tr></thead><tbody>
+          <tr><td><div class="vn">Talla S (0.47 l)</div></td><td><div class="cellf"><span class="mini main"><svg class="ph b2" aria-hidden="true"><use href="#ph-side"/></svg></span><span class="mini"><svg class="ph b3" aria-hidden="true"><use href="#ph-food"/></svg></span><button class="fbtn" type="button" aria-expanded="false">Ver fotos · 2<svg class="icon sm"><use href="#i-chev"/></svg></button></div></td></tr>
+          <tr><td><div class="vn">Talla L (1.9 l)</div></td><td><span class="muted" style="font-size:13px">Sin fotos propias</span></td></tr>
+        </tbody></table>
+      </section>
+    </div>
+    <div>
+      <p class="st-l">Bandeja de una variante sin fotos</p>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="trayin" role="region" aria-label="Fotos de Talla L">
+          <div class="rail" style="--s:88px"><button class="add" type="button" aria-label="Agregar fotos a Talla L"><svg class="icon"><use href="#i-plus"/></svg>Agregar</button><p class="foot-hint" style="margin-left:8px">Talla L aún no tiene fotos propias. Arrastra aquí o usa «Agregar» · máx. 10 MB</p></div>
+          <button class="btn sm done" type="button">Listo</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <p class="st-l">No cargaron las fotos</p>
+      <section class="card" aria-label="Fotos, error">
+        <div class="card-h"><h3>Variantes y fotos</h3></div>
+        <div class="alert" role="alert" style="margin-top:12px"><svg class="icon sm"><use href="#i-alert"/></svg><span><b>No se pudieron cargar las fotos.</b> Tus fotos siguen guardadas; las variantes se pueden editar.</span><span class="acts"><button class="btn sm" type="button"><svg class="icon sm"><use href="#i-rotate"/></svg>Reintentar</button></span></div>
+      </section>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="capC">
+  <div class="cap"><h2 id="capC">Móvil · 390 px</h2><p>Cada variante es una tarjeta; «Fotos» despliega su bandeja dentro de la misma tarjeta.</p></div>
+  <div class="mob">
+    <div class="phone" aria-label="Móvil: Presentaciones">
+      <div class="mbar"><button class="icon-btn" type="button" aria-label="Volver a productos"><svg class="icon"><use href="#i-left"/></svg></button><div class="t"><small>Activo · guardado 10:12</small><b>Petmate plato de acero inoxidable</b></div><button class="icon-btn" type="button" aria-label="Más acciones"><svg class="icon"><use href="#i-dots"/></svg></button></div>
+      <nav class="mtabs" aria-label="Tareas"><a href="#">Identidad</a><a href="#" aria-current="page">Presentaciones</a><a href="#">Inventario</a></nav>
+      <div class="mbody">
+        <section class="card" aria-label="Variantes y fotos">
+          <div class="card-h"><h3>Variantes y fotos</h3><span class="count">3</span></div>
+          <div class="mcard" style="border-top:0">
+            <div class="r1"><div><div class="vn">Fotos del producto</div><div class="vc">3 · en todas las variantes</div></div><button class="btn sm" type="button" style="min-height:44px" aria-label="Agregar fotos al producto"><svg class="icon sm"><use href="#i-plus"/></svg>Agregar</button></div>
+            <div class="rail" style="--s:80px"><div class="th main"><svg class="ph" aria-hidden="true"><use href="#ph-top"/></svg><span class="pin star"><svg class="icon"><use href="#i-star"/></svg><span class="sr">Principal</span></span><button class="more" type="button" aria-label="Acciones de la foto principal"><svg class="icon sm"><use href="#i-more"/></svg></button></div><div class="th"><svg class="ph b3" aria-hidden="true"><use href="#ph-food"/></svg><button class="more" type="button" aria-label="Acciones de la foto 2"><svg class="icon sm"><use href="#i-more"/></svg></button></div><div class="th"><svg class="ph b4" aria-hidden="true"><use href="#ph-box"/></svg><button class="more" type="button" aria-label="Acciones de la foto 3"><svg class="icon sm"><use href="#i-more"/></svg></button></div></div>
+          </div>
+          <div class="mcard">
+            <div class="r1"><div><div class="vn">Talla S (0.47 l)</div><div class="vc fig">12 pzas · $189.00</div></div><button class="icon-btn" type="button" aria-label="Acciones de Talla S" style="margin:-8px -8px 0 0"><svg class="icon"><use href="#i-dots"/></svg></button></div>
+            <button class="fbtn" type="button" aria-expanded="true" aria-controls="mtrS" style="justify-self:start;margin-left:-10px">Fotos · 2<svg class="icon sm"><use href="#i-chev"/></svg></button>
+            <div class="tr" id="mtrS" role="region" aria-label="Fotos de Talla S">
+              <div class="rail" style="--s:96px"><div class="th main"><svg class="ph b2" aria-hidden="true"><use href="#ph-side"/></svg><span class="pin"><span class="badge info">Principal</span></span><button class="more" type="button" aria-label="Acciones de la foto 1 de Talla S"><svg class="icon sm"><use href="#i-more"/></svg></button></div><div class="th"><svg class="ph b3" aria-hidden="true"><use href="#ph-food"/></svg><button class="more" type="button" aria-label="Acciones de la foto 2 de Talla S"><svg class="icon sm"><use href="#i-more"/></svg></button></div><div class="th up" role="progressbar" aria-label="Subiendo foto" aria-valuenow="58" aria-valuemin="0" aria-valuemax="100"><svg class="ph" aria-hidden="true"><use href="#ph-base"/></svg><span class="pct"><span>58 %</span></span><span class="prog"><i style="width:58%"></i></span></div></div>
+              <div style="display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:8px"><button class="btn" type="button"><svg class="icon sm"><use href="#i-upload"/></svg>Subir fotos</button><button class="btn" type="button">Listo</button></div>
+            </div>
+          </div>
+          <div class="mcard">
+            <div class="r1"><div><div class="vn">Talla M (0.95 l)</div><div class="vc fig">8 pzas · $249.00</div></div><button class="icon-btn" type="button" aria-label="Acciones de Talla M" style="margin:-8px -8px 0 0"><svg class="icon"><use href="#i-dots"/></svg></button></div>
+            <div class="cellf"><span class="mini main"><svg class="ph" aria-hidden="true"><use href="#ph-top"/></svg></span><button class="fbtn" type="button" aria-expanded="false">Fotos · 1<svg class="icon sm"><use href="#i-chev"/></svg></button></div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div class="mnotes">
+      <h3>Qué usa y qué no</h3>
+      <ul>
+        <li>Fotos del producto: subida al producto. Bandeja de una variante: subida a esa variante. Marcar principal, eliminar con confirmación y ver completa, como hoy. Todo es API actual.</li>
+        <li>La bandeja reemplaza el modal «Elegir fotos»; la opción del ⋮ se vuelve «Fotos» y abre la misma bandeja. Una sola abierta a la vez; «Listo» la cierra y devuelve el foco a «Fotos · 2».</li>
+        <li>La miniatura y el conteo de cada renglón salen de <code>variantId</code> en la lista de fotos que ya se carga.</li>
+        <li>Avance por archivo y error dentro de la bandeja: solo FE (<code>onUploadProgress</code>).</li>
+        <li>Orden manual y mover una foto de una variante a otra: <span class="tag-be">requiere backend</span>; no se muestran.</li>
+        <li>Se pierde la vista «todas las fotos juntas»: para revisar todo hay que abrir cada bandeja.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+</main>
+<script>
+const t=document.getElementById('theme');
+t.addEventListener('click',()=>{const on=document.documentElement.classList.toggle('dark');t.setAttribute('aria-pressed',on);t.textContent=on?'Tema claro':'Tema oscuro'});
+</script>
+</body>
+</html>

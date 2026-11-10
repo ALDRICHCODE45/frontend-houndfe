@@ -13,8 +13,11 @@ import '../styles/products-plain-table.css'
  *                             amount (InlinePriceInput)
  *   action(key, id) — photos | details | packaging | edit | delete (delete is confirmed by the owner)
  *   retry() — the error state's Reintentar
+ *
+ * Slots:
+ *   photo({ row }) — saved rows only: the variant's photo thumbnail (VariantImagesPopover), first column
  */
-import { computed } from 'vue'
+import { computed, useSlots } from 'vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import InlinePriceInput from './InlinePriceInput.vue'
@@ -53,7 +56,10 @@ const emit = defineEmits<{
   retry: []
 }>()
 
-const columnCount = computed(() => (props.showStock ? 4 : 3))
+const slots = useSlots()
+/** The photo column: saved variants only (a pending one has nowhere to keep photos yet). */
+const showPhoto = computed(() => !props.pending && Boolean(slots.photo))
+const columnCount = computed(() => (props.showStock ? 4 : 3) + (showPhoto.value ? 1 : 0))
 /** Below 640px the rows stack as cards and the heading (with the stock hint) is visually hidden: say it once
  * above them (aria-hidden, since screen readers still read the heading). */
 const showPhoneStockHint = computed(() => props.showStock && !props.pending && props.rows.length > 0)
@@ -74,7 +80,7 @@ function actionsFor(): RowAction[] {
   return [
     ...(props.pending
       ? []
-      : [{ key: 'photos', label: 'Elegir fotos', icon: 'i-lucide-image', disabled: !props.canUpdate }]),
+      : [{ key: 'photos', label: 'Fotos', icon: 'i-lucide-image' }]),
     { key: 'details', label: 'Más datos', icon: 'i-lucide-list-plus' },
     ...(props.packaging && !props.pending
       ? [{ key: 'packaging', label: 'Empaque', icon: 'i-lucide-package' }]
@@ -101,9 +107,14 @@ function actionsFor(): RowAction[] {
     >
       <span class="font-medium text-toned">Existencias</span> · {{ STOCK_ADJUST_HINT }}
     </p>
-    <table class="hf-plain-table hf-plain-table--hover products-plain-table products-variants-table min-w-full divide-y divide-default text-sm" data-stack>
+    <table
+      class="hf-plain-table hf-plain-table--hover products-plain-table products-variants-table min-w-full divide-y divide-default text-sm"
+      :class="{ 'products-variants-table--photos': showPhoto }"
+      data-stack
+    >
       <thead>
         <tr>
+          <th v-if="showPhoto" class="w-[72px] px-4 py-3"><span class="sr-only">Foto</span></th>
           <th class="px-4 py-3 text-left font-semibold">Variante</th>
           <th v-if="showStock" class="px-4 py-3 text-right font-semibold">
             Existencias
@@ -132,6 +143,9 @@ function actionsFor(): RowAction[] {
           <td :colspan="columnCount" class="px-4 py-3 text-muted">{{ emptyText }}</td>
         </tr>
         <tr v-for="row in rows" :key="row.id">
+          <td v-if="showPhoto" class="px-4 py-2 align-middle" data-area="photo">
+            <slot name="photo" :row="row" />
+          </td>
           <td class="px-4 py-3" data-area="name">
             <div class="font-semibold text-highlighted">{{ row.label }}</div>
             <div v-if="codesOf(row)" class="text-xs text-muted" data-testid="variant-codes">{{ codesOf(row) }}</div>
