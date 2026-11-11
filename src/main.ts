@@ -34,7 +34,8 @@ const authStore = useAuthStore(pinia)
 onSessionExpired(() => {
   const currentRoute = router.currentRoute.value
   const isOnLogin = currentRoute.path === '/login'
-  const isOnPublicCatalog = currentRoute.name === 'public-catalog'
+  const isOnPublicCatalog =
+    currentRoute.name === 'public-catalog' || currentRoute.name === 'public-catalog-product'
   const redirectTarget = isOnLogin ? undefined : currentRoute.fullPath
 
   authStore.clearSession()

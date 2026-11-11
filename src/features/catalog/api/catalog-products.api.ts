@@ -85,6 +85,16 @@ function isStockPresentation(
   switch (value.mode) {
     case 'SYSTEM_STATUS':
       return value.customQuantity === null && value.status !== null && isAvailability(value.status)
+    case 'SYSTEM_STATUS_EXACT_LOW_STOCK':
+      // Opt-in mode (handoff 15 §3): SYSTEM_STATUS rules, plus an optional real quantity.
+      return (
+        value.customQuantity === null &&
+        value.status !== null &&
+        isAvailability(value.status) &&
+        (value.exactQuantity === undefined ||
+          value.exactQuantity === null ||
+          isNonNegativeInteger(value.exactQuantity))
+      )
     case 'ABSTRACT_STATUS':
       return (
         value.customQuantity === null &&
@@ -204,6 +214,7 @@ export async function fetchCatalogProducts(
   if (options.page !== undefined) params.push(`page=${options.page}`)
   if (options.q !== undefined && options.q !== '') params.push(`q=${encodeURIComponent(options.q)}`)
   for (const facet of options.facets ?? []) params.push(`facet=${encodeURIComponent(facet)}`)
+  if (options.sort !== undefined) params.push(`sort=${encodeURIComponent(options.sort)}`)
   const url = `${apiBase}${path}${params.length ? `?${params.join('&')}` : ''}`
   let response: Response
   try {

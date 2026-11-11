@@ -144,3 +144,27 @@ describe('useCatalogBranches', () => {
     void catalog
   })
 })
+
+describe('useCachedCatalogBranch', () => {
+  it('reads the branch of a slug from the shared query without requesting anything itself', async () => {
+    const { useCachedCatalogBranch, catalogBranchesQueryKey } = await import('../useCatalogBranches')
+    const queryClient = new QueryClient({ defaultOptions: { queries: { gcTime: 60_000 } } })
+    queryClient.setQueryData(catalogBranchesQueryKey, [{ ...branch, whatsappNumber: '+5215500000000' }])
+    fetchCatalogBranchesMock.mockReset()
+    let result!: ReturnType<typeof useCachedCatalogBranch>
+    mount(
+      defineComponent({ setup: () => { result = useCachedCatalogBranch('centro'); return () => null } }),
+      { global: { plugins: [[VueQueryPlugin, { queryClient }]] } },
+    )
+    await flushPromises()
+    expect(result.branch.value?.whatsappNumber).toBe('+5215500000000')
+    expect(fetchCatalogBranchesMock).not.toHaveBeenCalled()
+  })
+
+  it('is empty without a query client or for another slug', async () => {
+    const { useCachedCatalogBranch } = await import('../useCatalogBranches')
+    let result!: ReturnType<typeof useCachedCatalogBranch>
+    mount(defineComponent({ setup: () => { result = useCachedCatalogBranch('centro'); return () => null } }))
+    expect(result.branch.value).toBeNull()
+  })
+})

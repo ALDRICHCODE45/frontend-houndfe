@@ -1,0 +1,2924 @@
+
+######## firefox-dark-dark
+html class="dark" body class="hf-theme hf-ui hf-app"
+listing card computed: {"card":"rgb(255, 255, 255)","body":"rgba(0, 0, 0, 0)","title":"rgb(23, 57, 104)"}
+{
+ "tag": "firefox-dark-dark",
+ "kind": "list-card",
+ "chain": [
+  {
+   "tag": "a",
+   "cls": "catalog-product-card group flex h-full w-full min-w-0 flex-col overflo",
+   "attrs": "data-catalog-product-id=0b2f0000-0000-4000-8000-000000000001",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "article",
+   "cls": "catalog-card-cell h-full min-w-0 catalog-card-cell--wa",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-4 lg:grid-cols-4",
+   "attrs": "data-testid=catalog-product-grid",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "section",
+   "cls": "",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-container py-6 lg:py-8",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-split-main",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-split catalog-split--filters",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-container",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "section",
+   "cls": "catalog-listing",
+   "attrs": " #catalogo",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "main",
+   "cls": "catalog-main flex-1",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "flex min-h-dvh flex-col",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-layout min-h-dvh h-full",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "",
+   "attrs": " #app",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "body",
+   "cls": "hf-theme hf-ui hf-app",
+   "attrs": "data-catalog-theme=light",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "html",
+   "cls": "dark",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(0, 0, 0)",
+   "scheme": "normal",
+   "v": {
+    "--ui-bg": "#2c2434",
+    "--ui-bg-elevated": "#423651",
+    "--ui-bg-accented": "#5a4d6e",
+    "--ui-text-highlighted": "#fff",
+    "--hf-surface": "",
+    "--background-color-default": "#2c2434",
+    "--background-color-elevated": ""
+   }
+  }
+ ]
+}
+{
+ "tag": "firefox-dark-dark",
+ "kind": "list-body",
+ "chain": [
+  {
+   "tag": "div",
+   "cls": "catalog-product-body flex w-full min-w-0 flex-1 flex-col",
+   "attrs": "data-testid=catalog-product-body",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "a",
+   "cls": "catalog-product-card group flex h-full w-full min-w-0 flex-col overflo",
+   "attrs": "data-catalog-product-id=0b2f0000-0000-4000-8000-000000000001",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "article",
+   "cls": "catalog-card-cell h-full min-w-0 catalog-card-cell--wa",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-4 lg:grid-cols-4",
+   "attrs": "data-testid=catalog-product-grid",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "section",
+   "cls": "",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-container py-6 lg:py-8",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-split-main",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-split catalog-split--filters",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-container",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "section",
+   "cls": "catalog-listing",
+   "attrs": " #catalogo",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "main",
+   "cls": "catalog-main flex-1",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "flex min-h-dvh flex-col",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-layout min-h-dvh h-full",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "",
+   "attrs": " #app",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "body",
+   "cls": "hf-theme hf-ui hf-app",
+   "attrs": "data-catalog-theme=light",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "html",
+   "cls": "dark",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(0, 0, 0)",
+   "scheme": "normal",
+   "v": {
+    "--ui-bg": "#2c2434",
+    "--ui-bg-elevated": "#423651",
+    "--ui-bg-accented": "#5a4d6e",
+    "--ui-text-highlighted": "#fff",
+    "--hf-surface": "",
+    "--background-color-default": "#2c2434",
+    "--background-color-elevated": ""
+   }
+  }
+ ]
+}
+detail skeletons: [{"cls":"animate-pulse rounded-md bg-elevated catalog-pdp-skeleton-main","bg":"color(srgb 0.862588 0.870745 0.878275)"},{"cls":"animate-pulse rounded-md bg-elevated catalog-pdp-skeleton-thumb","bg":"color(srgb 0.862588 0.870745 0.878275)"},{"cls":"animate-pulse rounded-md bg-elevated catalog-pdp-skeleton-thumb","bg":"color(srgb 0.862588 0.870745 0.878275)"},{"cls":"animate-pulse rounded-md bg-elevated catalog-pdp-skeleton-thumb","bg":"color(srgb 0.862588 0.870745 0.878275)"}]
+{
+ "tag": "firefox-dark-dark",
+ "kind": "detail-skeleton",
+ "chain": [
+  {
+   "tag": "div",
+   "cls": "animate-pulse rounded-md bg-elevated catalog-pdp-skeleton-main",
+   "attrs": "",
+   "bg": "color(srgb 0.862588 0.870745 0.878275)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-pdp-skeleton-gallery",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-pdp-skeleton",
+   "attrs": "data-testid=catalog-detail-loading",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-container",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "main",
+   "cls": "catalog-main catalog-pdp-main flex-1",
+   "attrs": " #contenido",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-pdp-page flex min-h-dvh flex-col",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-layout min-h-dvh h-full",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "",
+   "attrs": " #app",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "body",
+   "cls": "hf-theme hf-ui hf-app",
+   "attrs": "data-catalog-theme=light",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "html",
+   "cls": "dark",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(0, 0, 0)",
+   "scheme": "normal",
+   "v": {
+    "--ui-bg": "#2c2434",
+    "--ui-bg-elevated": "#423651",
+    "--ui-bg-accented": "#5a4d6e",
+    "--ui-text-highlighted": "#fff",
+    "--hf-surface": "",
+    "--background-color-default": "#2c2434",
+    "--background-color-elevated": ""
+   }
+  }
+ ]
+}
+first dark --ui-bg-elevated ancestor (inner->outer): html.dark 
+  div.animate-pulse rounded-md bg-elevated cat [] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=color(srgb 0.862588 0.870745 0.878275) scheme=light
+  div.catalog-pdp-skeleton-gallery [] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  div.catalog-pdp-skeleton [data-testid=catalog-detail-loading] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  div.catalog-container [] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  main.catalog-main catalog-pdp-main flex-1 [ #contenido] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  div.catalog-pdp-page flex min-h-dvh flex-col [] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  div.catalog-layout min-h-dvh h-full [] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgb(245, 246, 248) scheme=light
+  div. [ #app] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  body.hf-theme hf-ui hf-app [data-catalog-theme=light] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgb(245, 246, 248) scheme=light
+  html.dark [] elev=#423651 bg=#2c2434 acc=#5a4d6e hl=#fff hfsurf= cbg=rgb(245, 246, 248) scheme=normal
+
+######## firefox-auto-dark
+html class="dark" body class="hf-theme hf-ui hf-app"
+listing card computed: {"card":"rgb(255, 255, 255)","body":"rgba(0, 0, 0, 0)","title":"rgb(23, 57, 104)"}
+{
+ "tag": "firefox-auto-dark",
+ "kind": "list-card",
+ "chain": [
+  {
+   "tag": "a",
+   "cls": "catalog-product-card group flex h-full w-full min-w-0 flex-col overflo",
+   "attrs": "data-catalog-product-id=0b2f0000-0000-4000-8000-000000000001",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "article",
+   "cls": "catalog-card-cell h-full min-w-0 catalog-card-cell--wa",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-4 lg:grid-cols-4",
+   "attrs": "data-testid=catalog-product-grid",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "section",
+   "cls": "",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-container py-6 lg:py-8",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-split-main",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-split catalog-split--filters",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-container",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "section",
+   "cls": "catalog-listing",
+   "attrs": " #catalogo",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "main",
+   "cls": "catalog-main flex-1",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "flex min-h-dvh flex-col",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-layout min-h-dvh h-full",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "",
+   "attrs": " #app",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "body",
+   "cls": "hf-theme hf-ui hf-app",
+   "attrs": "data-catalog-theme=light",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "html",
+   "cls": "dark",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(0, 0, 0)",
+   "scheme": "normal",
+   "v": {
+    "--ui-bg": "#2c2434",
+    "--ui-bg-elevated": "#423651",
+    "--ui-bg-accented": "#5a4d6e",
+    "--ui-text-highlighted": "#fff",
+    "--hf-surface": "",
+    "--background-color-default": "#2c2434",
+    "--background-color-elevated": ""
+   }
+  }
+ ]
+}
+{
+ "tag": "firefox-auto-dark",
+ "kind": "list-body",
+ "chain": [
+  {
+   "tag": "div",
+   "cls": "catalog-product-body flex w-full min-w-0 flex-1 flex-col",
+   "attrs": "data-testid=catalog-product-body",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "a",
+   "cls": "catalog-product-card group flex h-full w-full min-w-0 flex-col overflo",
+   "attrs": "data-catalog-product-id=0b2f0000-0000-4000-8000-000000000001",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "article",
+   "cls": "catalog-card-cell h-full min-w-0 catalog-card-cell--wa",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-4 lg:grid-cols-4",
+   "attrs": "data-testid=catalog-product-grid",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "section",
+   "cls": "",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-container py-6 lg:py-8",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-split-main",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-split catalog-split--filters",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-container",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "section",
+   "cls": "catalog-listing",
+   "attrs": " #catalogo",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "main",
+   "cls": "catalog-main flex-1",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "flex min-h-dvh flex-col",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-layout min-h-dvh h-full",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "",
+   "attrs": " #app",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "body",
+   "cls": "hf-theme hf-ui hf-app",
+   "attrs": "data-catalog-theme=light",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "html",
+   "cls": "dark",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(0, 0, 0)",
+   "scheme": "normal",
+   "v": {
+    "--ui-bg": "#2c2434",
+    "--ui-bg-elevated": "#423651",
+    "--ui-bg-accented": "#5a4d6e",
+    "--ui-text-highlighted": "#fff",
+    "--hf-surface": "",
+    "--background-color-default": "#2c2434",
+    "--background-color-elevated": ""
+   }
+  }
+ ]
+}
+detail skeletons: [{"cls":"animate-pulse rounded-md bg-elevated catalog-pdp-skeleton-main","bg":"color(srgb 0.862588 0.870745 0.878275)"},{"cls":"animate-pulse rounded-md bg-elevated catalog-pdp-skeleton-thumb","bg":"color(srgb 0.862588 0.870745 0.878275)"},{"cls":"animate-pulse rounded-md bg-elevated catalog-pdp-skeleton-thumb","bg":"color(srgb 0.862588 0.870745 0.878275)"},{"cls":"animate-pulse rounded-md bg-elevated catalog-pdp-skeleton-thumb","bg":"color(srgb 0.862588 0.870745 0.878275)"}]
+{
+ "tag": "firefox-auto-dark",
+ "kind": "detail-skeleton",
+ "chain": [
+  {
+   "tag": "div",
+   "cls": "animate-pulse rounded-md bg-elevated catalog-pdp-skeleton-main",
+   "attrs": "",
+   "bg": "color(srgb 0.862588 0.870745 0.878275)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-pdp-skeleton-gallery",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-pdp-skeleton",
+   "attrs": "data-testid=catalog-detail-loading",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-container",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "main",
+   "cls": "catalog-main catalog-pdp-main flex-1",
+   "attrs": " #contenido",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-pdp-page flex min-h-dvh flex-col",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-layout min-h-dvh h-full",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "",
+   "attrs": " #app",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "body",
+   "cls": "hf-theme hf-ui hf-app",
+   "attrs": "data-catalog-theme=light",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "html",
+   "cls": "dark",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(0, 0, 0)",
+   "scheme": "normal",
+   "v": {
+    "--ui-bg": "#2c2434",
+    "--ui-bg-elevated": "#423651",
+    "--ui-bg-accented": "#5a4d6e",
+    "--ui-text-highlighted": "#fff",
+    "--hf-surface": "",
+    "--background-color-default": "#2c2434",
+    "--background-color-elevated": ""
+   }
+  }
+ ]
+}
+first dark --ui-bg-elevated ancestor (inner->outer): html.dark 
+  div.animate-pulse rounded-md bg-elevated cat [] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=color(srgb 0.862588 0.870745 0.878275) scheme=light
+  div.catalog-pdp-skeleton-gallery [] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  div.catalog-pdp-skeleton [data-testid=catalog-detail-loading] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  div.catalog-container [] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  main.catalog-main catalog-pdp-main flex-1 [ #contenido] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  div.catalog-pdp-page flex min-h-dvh flex-col [] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  div.catalog-layout min-h-dvh h-full [] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgb(245, 246, 248) scheme=light
+  div. [ #app] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  body.hf-theme hf-ui hf-app [data-catalog-theme=light] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgb(245, 246, 248) scheme=light
+  html.dark [] elev=#423651 bg=#2c2434 acc=#5a4d6e hl=#fff hfsurf= cbg=rgb(245, 246, 248) scheme=normal
+
+######## chromium-dark-dark
+html class="dark" body class="hf-theme hf-ui hf-app"
+listing card computed: {"card":"rgb(255, 255, 255)","body":"rgba(0, 0, 0, 0)","title":"rgb(23, 57, 104)"}
+{
+ "tag": "chromium-dark-dark",
+ "kind": "list-card",
+ "chain": [
+  {
+   "tag": "a",
+   "cls": "catalog-product-card group flex h-full w-full min-w-0 flex-col overflo",
+   "attrs": "data-catalog-product-id=0b2f0000-0000-4000-8000-000000000001",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "article",
+   "cls": "catalog-card-cell h-full min-w-0 catalog-card-cell--wa",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-4 lg:grid-cols-4",
+   "attrs": "data-testid=catalog-product-grid",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "section",
+   "cls": "",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-container py-6 lg:py-8",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-split-main",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-split catalog-split--filters",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-container",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "section",
+   "cls": "catalog-listing",
+   "attrs": " #catalogo",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "main",
+   "cls": "catalog-main flex-1",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "flex min-h-dvh flex-col",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-layout min-h-dvh h-full",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "",
+   "attrs": " #app",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "body",
+   "cls": "hf-theme hf-ui hf-app",
+   "attrs": "data-catalog-theme=light",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "html",
+   "cls": "dark",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(0, 0, 0)",
+   "scheme": "normal",
+   "v": {
+    "--ui-bg": "#2c2434",
+    "--ui-bg-elevated": "#423651",
+    "--ui-bg-accented": "#5a4d6e",
+    "--ui-text-highlighted": "#fff",
+    "--hf-surface": "",
+    "--background-color-default": "#2c2434",
+    "--background-color-elevated": ""
+   }
+  }
+ ]
+}
+{
+ "tag": "chromium-dark-dark",
+ "kind": "list-body",
+ "chain": [
+  {
+   "tag": "div",
+   "cls": "catalog-product-body flex w-full min-w-0 flex-1 flex-col",
+   "attrs": "data-testid=catalog-product-body",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "a",
+   "cls": "catalog-product-card group flex h-full w-full min-w-0 flex-col overflo",
+   "attrs": "data-catalog-product-id=0b2f0000-0000-4000-8000-000000000001",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "article",
+   "cls": "catalog-card-cell h-full min-w-0 catalog-card-cell--wa",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-4 lg:grid-cols-4",
+   "attrs": "data-testid=catalog-product-grid",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "section",
+   "cls": "",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-container py-6 lg:py-8",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-split-main",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-split catalog-split--filters",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-container",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "section",
+   "cls": "catalog-listing",
+   "attrs": " #catalogo",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "main",
+   "cls": "catalog-main flex-1",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "flex min-h-dvh flex-col",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-layout min-h-dvh h-full",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "",
+   "attrs": " #app",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "body",
+   "cls": "hf-theme hf-ui hf-app",
+   "attrs": "data-catalog-theme=light",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "html",
+   "cls": "dark",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(0, 0, 0)",
+   "scheme": "normal",
+   "v": {
+    "--ui-bg": "#2c2434",
+    "--ui-bg-elevated": "#423651",
+    "--ui-bg-accented": "#5a4d6e",
+    "--ui-text-highlighted": "#fff",
+    "--hf-surface": "",
+    "--background-color-default": "#2c2434",
+    "--background-color-elevated": ""
+   }
+  }
+ ]
+}
+detail skeletons: [{"cls":"animate-pulse rounded-md bg-elevated catalog-pdp-skeleton-main","bg":"color(srgb 0.862588 0.870745 0.878275)"},{"cls":"animate-pulse rounded-md bg-elevated catalog-pdp-skeleton-thumb","bg":"color(srgb 0.862588 0.870745 0.878275)"},{"cls":"animate-pulse rounded-md bg-elevated catalog-pdp-skeleton-thumb","bg":"color(srgb 0.862588 0.870745 0.878275)"},{"cls":"animate-pulse rounded-md bg-elevated catalog-pdp-skeleton-thumb","bg":"color(srgb 0.862588 0.870745 0.878275)"}]
+{
+ "tag": "chromium-dark-dark",
+ "kind": "detail-skeleton",
+ "chain": [
+  {
+   "tag": "div",
+   "cls": "animate-pulse rounded-md bg-elevated catalog-pdp-skeleton-main",
+   "attrs": "",
+   "bg": "color(srgb 0.862588 0.870745 0.878275)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-pdp-skeleton-gallery",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-pdp-skeleton",
+   "attrs": "data-testid=catalog-detail-loading",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-container",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "main",
+   "cls": "catalog-main catalog-pdp-main flex-1",
+   "attrs": " #contenido",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-pdp-page flex min-h-dvh flex-col",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-layout min-h-dvh h-full",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "",
+   "attrs": " #app",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "body",
+   "cls": "hf-theme hf-ui hf-app",
+   "attrs": "data-catalog-theme=light",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "html",
+   "cls": "dark",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(0, 0, 0)",
+   "scheme": "normal",
+   "v": {
+    "--ui-bg": "#2c2434",
+    "--ui-bg-elevated": "#423651",
+    "--ui-bg-accented": "#5a4d6e",
+    "--ui-text-highlighted": "#fff",
+    "--hf-surface": "",
+    "--background-color-default": "#2c2434",
+    "--background-color-elevated": ""
+   }
+  }
+ ]
+}
+first dark --ui-bg-elevated ancestor (inner->outer): html.dark 
+  div.animate-pulse rounded-md bg-elevated cat [] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=color(srgb 0.862588 0.870745 0.878275) scheme=light
+  div.catalog-pdp-skeleton-gallery [] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  div.catalog-pdp-skeleton [data-testid=catalog-detail-loading] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  div.catalog-container [] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  main.catalog-main catalog-pdp-main flex-1 [ #contenido] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  div.catalog-pdp-page flex min-h-dvh flex-col [] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  div.catalog-layout min-h-dvh h-full [] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgb(245, 246, 248) scheme=light
+  div. [ #app] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  body.hf-theme hf-ui hf-app [data-catalog-theme=light] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgb(245, 246, 248) scheme=light
+  html.dark [] elev=#423651 bg=#2c2434 acc=#5a4d6e hl=#fff hfsurf= cbg=rgb(245, 246, 248) scheme=normal
+
+######## chromium-auto-dark
+html class="dark" body class="hf-theme hf-ui hf-app"
+listing card computed: {"card":"rgb(255, 255, 255)","body":"rgba(0, 0, 0, 0)","title":"rgb(23, 57, 104)"}
+{
+ "tag": "chromium-auto-dark",
+ "kind": "list-card",
+ "chain": [
+  {
+   "tag": "a",
+   "cls": "catalog-product-card group flex h-full w-full min-w-0 flex-col overflo",
+   "attrs": "data-catalog-product-id=0b2f0000-0000-4000-8000-000000000001",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "article",
+   "cls": "catalog-card-cell h-full min-w-0 catalog-card-cell--wa",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-4 lg:grid-cols-4",
+   "attrs": "data-testid=catalog-product-grid",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "section",
+   "cls": "",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-container py-6 lg:py-8",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-split-main",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-split catalog-split--filters",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-container",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "section",
+   "cls": "catalog-listing",
+   "attrs": " #catalogo",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "main",
+   "cls": "catalog-main flex-1",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "flex min-h-dvh flex-col",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-layout min-h-dvh h-full",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "",
+   "attrs": " #app",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "body",
+   "cls": "hf-theme hf-ui hf-app",
+   "attrs": "data-catalog-theme=light",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "html",
+   "cls": "dark",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(0, 0, 0)",
+   "scheme": "normal",
+   "v": {
+    "--ui-bg": "#2c2434",
+    "--ui-bg-elevated": "#423651",
+    "--ui-bg-accented": "#5a4d6e",
+    "--ui-text-highlighted": "#fff",
+    "--hf-surface": "",
+    "--background-color-default": "#2c2434",
+    "--background-color-elevated": ""
+   }
+  }
+ ]
+}
+{
+ "tag": "chromium-auto-dark",
+ "kind": "list-body",
+ "chain": [
+  {
+   "tag": "div",
+   "cls": "catalog-product-body flex w-full min-w-0 flex-1 flex-col",
+   "attrs": "data-testid=catalog-product-body",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "a",
+   "cls": "catalog-product-card group flex h-full w-full min-w-0 flex-col overflo",
+   "attrs": "data-catalog-product-id=0b2f0000-0000-4000-8000-000000000001",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "article",
+   "cls": "catalog-card-cell h-full min-w-0 catalog-card-cell--wa",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-4 lg:grid-cols-4",
+   "attrs": "data-testid=catalog-product-grid",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "section",
+   "cls": "",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-container py-6 lg:py-8",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-split-main",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-split catalog-split--filters",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-container",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "section",
+   "cls": "catalog-listing",
+   "attrs": " #catalogo",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "main",
+   "cls": "catalog-main flex-1",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "flex min-h-dvh flex-col",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-layout min-h-dvh h-full",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "",
+   "attrs": " #app",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "body",
+   "cls": "hf-theme hf-ui hf-app",
+   "attrs": "data-catalog-theme=light",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "html",
+   "cls": "dark",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(0, 0, 0)",
+   "scheme": "normal",
+   "v": {
+    "--ui-bg": "#2c2434",
+    "--ui-bg-elevated": "#423651",
+    "--ui-bg-accented": "#5a4d6e",
+    "--ui-text-highlighted": "#fff",
+    "--hf-surface": "",
+    "--background-color-default": "#2c2434",
+    "--background-color-elevated": ""
+   }
+  }
+ ]
+}
+detail skeletons: [{"cls":"animate-pulse rounded-md bg-elevated catalog-pdp-skeleton-main","bg":"color(srgb 0.862588 0.870745 0.878275)"},{"cls":"animate-pulse rounded-md bg-elevated catalog-pdp-skeleton-thumb","bg":"color(srgb 0.862588 0.870745 0.878275)"},{"cls":"animate-pulse rounded-md bg-elevated catalog-pdp-skeleton-thumb","bg":"color(srgb 0.862588 0.870745 0.878275)"},{"cls":"animate-pulse rounded-md bg-elevated catalog-pdp-skeleton-thumb","bg":"color(srgb 0.862588 0.870745 0.878275)"}]
+{
+ "tag": "chromium-auto-dark",
+ "kind": "detail-skeleton",
+ "chain": [
+  {
+   "tag": "div",
+   "cls": "animate-pulse rounded-md bg-elevated catalog-pdp-skeleton-main",
+   "attrs": "",
+   "bg": "color(srgb 0.862588 0.870745 0.878275)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-pdp-skeleton-gallery",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-pdp-skeleton",
+   "attrs": "data-testid=catalog-detail-loading",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-container",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "main",
+   "cls": "catalog-main catalog-pdp-main flex-1",
+   "attrs": " #contenido",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-pdp-page flex min-h-dvh flex-col",
+   "attrs": "",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "catalog-layout min-h-dvh h-full",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "div",
+   "cls": "",
+   "attrs": " #app",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "body",
+   "cls": "hf-theme hf-ui hf-app",
+   "attrs": "data-catalog-theme=light",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(36, 49, 61)",
+   "scheme": "light",
+   "v": {
+    "--ui-bg": "#ffffff",
+    "--ui-bg-elevated": "#ffffff",
+    "--ui-bg-accented": "#e7eef7",
+    "--ui-text-highlighted": "#173968",
+    "--hf-surface": "#ffffff",
+    "--background-color-default": "#ffffff",
+    "--background-color-elevated": "#ffffff"
+   }
+  },
+  {
+   "tag": "html",
+   "cls": "dark",
+   "attrs": "",
+   "bg": "rgb(245, 246, 248)",
+   "color": "rgb(0, 0, 0)",
+   "scheme": "normal",
+   "v": {
+    "--ui-bg": "#2c2434",
+    "--ui-bg-elevated": "#423651",
+    "--ui-bg-accented": "#5a4d6e",
+    "--ui-text-highlighted": "#fff",
+    "--hf-surface": "",
+    "--background-color-default": "#2c2434",
+    "--background-color-elevated": ""
+   }
+  }
+ ]
+}
+first dark --ui-bg-elevated ancestor (inner->outer): html.dark 
+  div.animate-pulse rounded-md bg-elevated cat [] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=color(srgb 0.862588 0.870745 0.878275) scheme=light
+  div.catalog-pdp-skeleton-gallery [] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  div.catalog-pdp-skeleton [data-testid=catalog-detail-loading] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  div.catalog-container [] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  main.catalog-main catalog-pdp-main flex-1 [ #contenido] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  div.catalog-pdp-page flex min-h-dvh flex-col [] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  div.catalog-layout min-h-dvh h-full [] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgb(245, 246, 248) scheme=light
+  div. [ #app] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgba(0, 0, 0, 0) scheme=light
+  body.hf-theme hf-ui hf-app [data-catalog-theme=light] elev=#ffffff bg=#ffffff acc=#e7eef7 hl=#173968 hfsurf=#ffffff cbg=rgb(245, 246, 248) scheme=light
+  html.dark [] elev=#423651 bg=#2c2434 acc=#5a4d6e hl=#fff hfsurf= cbg=rgb(245, 246, 248) scheme=normal

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import CatalogPriceContextSelector from './CatalogPriceContextSelector.vue'
+import { shortBranchName } from '../utils/branch-name'
 import type { PublicBranchDto } from '../interfaces/catalog.types'
 import type { PublicCatalogPriceContextDto } from '../interfaces/public-catalog-price-context.types'
 import type { CatalogBranchesState } from '../composables/useCatalogBranches'
@@ -27,6 +28,10 @@ const emit = defineEmits<{
  */
 const isChooserOpen = ref(false)
 const selectedSlug = computed(() => props.selectedBranch?.slug ?? null)
+/** Short on a phone, where the pin already says what it is; the full name stays in the title. */
+const branchLabel = computed(() =>
+  props.selectedBranch ? shortBranchName(props.selectedBranch.name) : 'Elegir sucursal',
+)
 const isLoading = computed(() => props.state === 'loading' || props.state === 'retry-pending')
 
 /** Neutral absence copy. The catalog never invents an address for a branch that has none. */
@@ -46,6 +51,25 @@ const retryMessage = computed(() =>
     : '',
 )
 
+/** The real logo leads home: the selected branch's unfiltered first page. */
+const homeTo = computed(() =>
+  selectedSlug.value
+    ? { name: 'public-catalog', params: { branchSlug: selectedSlug.value } }
+    : { name: 'public-catalog' },
+)
+
+/**
+ * The price list is a discreet control only when the visitor has a real choice: more than
+ * one list, or a single list that is not the default and must be chosen. Otherwise the
+ * listing just says «Precios en MXN». Discovery loading and failures live in the listing.
+ */
+const showPriceSelector = computed(
+  () =>
+    props.priceContextsState === 'populated' &&
+    (props.priceContextOptions.length > 1 ||
+      (props.priceContextOptions.length === 1 && props.selectedPriceListId === null)),
+)
+
 /** The dialog closes first, then the route change stays the only visible selection outcome. */
 function selectBranch(slug: string) {
   isChooserOpen.value = false
@@ -55,14 +79,26 @@ function selectBranch(slug: string) {
 
 <template>
   <header class="catalog-header">
-    <div class="catalog-header-inner catalog-container">
-      <img
-        class="catalog-logo"
-        src="/hounfeLogos/primary.png"
-        alt="HoundFe"
-        width="96"
-        height="96"
-      />
+    <div
+      class="catalog-header-inner catalog-container"
+      :class="{ 'catalog-header-inner--lists': showPriceSelector }"
+    >
+      <RouterLink :to="homeTo" class="catalog-home-link" aria-label="HoundFe, ir al inicio">
+        <img
+          class="catalog-logo"
+          src="/hounfeLogos/primary.png"
+          alt="HoundFe"
+          width="96"
+          height="96"
+        />
+      </RouterLink>
+
+      <div v-if="$slots.categories" class="catalog-header-categories">
+        <slot name="categories" />
+      </div>
+      <div v-if="$slots.search" class="catalog-header-search">
+        <slot name="search" />
+      </div>
 
       <UModal
         v-model:open="isChooserOpen"
@@ -80,15 +116,17 @@ function selectBranch(slug: string) {
           color="neutral"
           variant="outline"
           size="sm"
-          class="catalog-branch-trigger min-h-11 min-w-0 shrink rounded-lg"
+          class="catalog-branch-trigger min-h-11 min-w-0 shrink"
           aria-label="Explorar sucursales"
+          :title="selectedBranch?.name"
         >
           <template #leading>
-            <UIcon name="i-lucide-map-pin" class="size-3.5 shrink-0 text-primary" />
+            <UIcon name="i-lucide-map-pin" class="size-4 shrink-0 text-muted" />
           </template>
-          <span class="max-w-[9rem] truncate sm:max-w-[12rem]">{{
-            selectedBranch?.name ?? 'Elegir sucursal'
-          }}</span>
+          <span class="catalog-select-text">
+            <small>Sucursal</small>
+            <strong class="catalog-select-name">{{ branchLabel }}</strong>
+          </span>
           <template #trailing>
             <UIcon
               name="i-lucide-chevron-down"
@@ -183,7 +221,11 @@ function selectBranch(slug: string) {
         </template>
       </UModal>
 
-      <div data-testid="catalog-header-controls" class="catalog-header-controls">
+      <div
+        v-if="showPriceSelector"
+        data-testid="catalog-header-controls"
+        class="catalog-header-controls"
+      >
         <CatalogPriceContextSelector
           :options="props.priceContextOptions"
           :state="props.priceContextsState"

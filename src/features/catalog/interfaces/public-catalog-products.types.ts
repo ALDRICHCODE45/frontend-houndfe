@@ -1,5 +1,11 @@
 import type { PublicCatalogPriceContextDto } from './public-catalog-price-context.types'
 
+/**
+ * Public listing orders (handoff 15 §1). `newest` is the server default; a backend without
+ * v0 support ignores the param. «Relevancia» is never offered: it behaves exactly like `newest`.
+ */
+export type CatalogProductsSort = 'newest' | 'price_asc' | 'price_desc'
+
 /** Optional server listing inputs; absence keeps the original first-page request. */
 export interface CatalogProductsOptions {
   q?: string
@@ -7,6 +13,8 @@ export interface CatalogProductsOptions {
   page?: number
   /** Attribute facet tokens `<definition code>:<option code>`, sent as repeated `facet` params. */
   facets?: string[]
+  /** Sent as `sort` only when present; absence keeps the server default order. */
+  sort?: CatalogProductsSort
 }
 
 /** Public response contract for GET /public/catalog/:tenantSlug/products. */
@@ -16,6 +24,7 @@ type PublicCatalogStockPresentationMode =
   | 'ABSTRACT_STATUS'
   | 'CUSTOM_QUANTITY'
   | 'HIDDEN'
+  | 'SYSTEM_STATUS_EXACT_LOW_STOCK'
 
 interface PublicCatalogProductPriceDto {
   fromPriceCents: number | null
@@ -27,6 +36,8 @@ interface PublicCatalogProductStockPresentationDto {
   mode: PublicCatalogStockPresentationMode
   status: PublicCatalogProductAvailability
   customQuantity: number | null
+  /** Handoff 15 §3: the real quantity while `low_stock`, only under the opt-in exact mode. */
+  exactQuantity?: number | null
 }
 
 interface PublicCatalogProductCategoryDto {

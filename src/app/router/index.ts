@@ -100,6 +100,7 @@ const DeliveryRoutesListView = () =>
 const DeliveryRouteDetailView = () =>
   import('@/features/delivery-routes/views/DeliveryRouteDetailView.vue')
 const CatalogView = () => import('@/features/catalog/views/CatalogView.vue')
+const CatalogProductView = () => import('@/features/catalog/views/CatalogProductView.vue')
 // ─── Notification config (WU-11) ──────────────────────────────────────────
 const NotificationConfigView = () =>
   import('@/features/system/notifications/views/NotificationConfigView.vue')
@@ -541,6 +542,13 @@ const router = createRouter({
       meta: { layout: 'catalog', public: true },
     },
     {
+      // The path the backend share redirect uses for one product of a branch catalog.
+      path: '/catalogo/:branchSlug/p/:productId',
+      name: 'public-catalog-product',
+      component: CatalogProductView,
+      meta: { layout: 'catalog', public: true },
+    },
+    {
       path: '/403',
       name: 'forbidden',
       component: ForbiddenView,
@@ -601,7 +609,7 @@ function resolveRootLandingTarget(
 }
 
 router.beforeEach(async (to) => {
-  if (to.name === 'public-catalog') return true
+  if (to.name === 'public-catalog' || to.name === 'public-catalog-product') return true
 
   const authStore = useAuthStore()
 

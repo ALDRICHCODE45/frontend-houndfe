@@ -1,7 +1,10 @@
-import { mount } from '@vue/test-utils'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+import { flushPromises, mount } from '@vue/test-utils'
 import { defineComponent, h, nextTick } from 'vue'
-import { describe, expect, it } from 'vitest'
+import { createMemoryHistory, createRouter, type Router } from 'vue-router'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
+import { catalogBranchesQueryKey } from '@/features/catalog/composables/useCatalogBranches'
 import CatalogProductCard from '@/features/catalog/components/CatalogProductCard.vue'
 
 const product = {
@@ -26,22 +29,47 @@ const product = {
 
 const stubs = { UIcon: defineComponent({ setup: () => () => h('span') }) }
 
+const Empty = defineComponent({ render: () => null })
+let router: Router
+
+function createCatalogRouter() {
+  return createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/catalogo/:branchSlug?', name: 'public-catalog', component: Empty },
+      {
+        path: '/catalogo/:branchSlug/p/:productId',
+        name: 'public-catalog-product',
+        component: Empty,
+      },
+    ],
+  })
+}
+
+beforeEach(async () => {
+  router = createCatalogRouter()
+  await router.push('/catalogo/centro?priceListId=list-1')
+  await router.isReady()
+})
+
 const mountCard = (overrides = {}) =>
   mount(CatalogProductCard, {
     props: { product: { ...product, ...overrides } },
-    global: { stubs },
+    global: { stubs, plugins: [router] },
   })
 
+const cardLink = (wrapper: ReturnType<typeof mountCard>) =>
+  wrapper.get(`a[aria-label="Ver detalles de ${product.name}"]`)
+
 describe('CatalogProductCard', () => {
-  it('labels the unchanged differing variant-derived amount as reference, not minimum or product price', () => {
+  it('labels the variant-derived minimum «Desde» (handoff 15 §1: fromPriceCents is the lowest presentation price)', () => {
     const wrapper = mountCard({
       hasVariants: true,
       price: { fromPriceCents: 14900, priceCents: 12900, hidden: false },
     })
     expect(wrapper.get('[data-testid="catalog-product-price"]').text()).toBe(formatCentsMXN(14900))
-    expect(wrapper.text()).toContain('Precio de referencia')
-    expect(wrapper.text()).toContain('Consulta los precios por presentación en el detalle.')
-    expect(wrapper.text()).not.toMatch(/Desde|Precio del producto/)
+    expect(wrapper.text()).toContain('Desde')
+    expect(wrapper.text()).not.toMatch(/Precio de referencia|Precio del producto/)
   })
 
   it.each([
@@ -50,7 +78,7 @@ describe('CatalogProductCard', () => {
     { hasVariants: true, price: { fromPriceCents: 14900, priceCents: 12900, hidden: true } },
   ])('withholds reference scope when inapplicable (%j)', (overrides) => {
     expect(mountCard(overrides).text()).not.toMatch(
-      /Precio de referencia|Consulta los precios por presentación/,
+      /Desde|Consulta los precios por presentación/,
     )
   })
 
@@ -60,8 +88,8 @@ describe('CatalogProductCard', () => {
       price: { fromPriceCents: 0, priceCents: 12900, hidden: false },
     })
     expect(wrapper.get('[data-testid="catalog-product-price"]').text()).toBe(formatCentsMXN(0))
-    expect(wrapper.text()).toContain('Precio de referencia')
-    expect(wrapper.text()).not.toMatch(/Desde|Consultar precio/)
+    expect(wrapper.text()).toContain('Desde')
+    expect(wrapper.text()).not.toMatch(/Precio de referencia|Consultar precio/)
   })
 
   it('retains product-price fallback when the reference amount is null', () => {
@@ -70,17 +98,26 @@ describe('CatalogProductCard', () => {
       price: { fromPriceCents: null, priceCents: 12900, hidden: false },
     })
     expect(wrapper.get('[data-testid="catalog-product-price"]').text()).toBe(formatCentsMXN(12900))
-    expect(wrapper.text()).toContain('Precio de referencia')
+    expect(wrapper.text()).toContain('Desde')
   })
 
-  it('contains published media and makes the read-only detail action visible without nested controls', () => {
+  it('contains published media and shows the quiet «Elegir presentación» affordance without nested controls', () => {
     const wrapper = mountCard({ hasVariants: true })
 
     expect(wrapper.get('img').classes()).toContain('object-contain')
-    expect(wrapper.get('button').text()).toContain('Ver detalles')
-    expect(wrapper.findAll('button')).toHaveLength(1)
-    expect(wrapper.find('button button, button a, select, input').exists()).toBe(false)
-    expect(wrapper.text()).not.toMatch(/Desde|presentaciones|Agregar|Elegir presentación/)
+    expect(wrapper.get('[data-testid="catalog-product-action"]').text()).toContain(
+      'Elegir presentación',
+    )
+    expect(wrapper.findAll('a')).toHaveLength(1)
+    expect(wrapper.find('button, a a, a button, select, input').exists()).toBe(false)
+    expect(wrapper.text()).not.toMatch(/Agregar|Consulta los precios por presentación/)
+  })
+
+  it('reads «Ver detalle» when the product has a single presentation', () => {
+    const action = mountCard({ hasVariants: false }).get('[data-testid="catalog-product-action"]')
+
+    expect(action.text()).toContain('Ver detalle')
+    expect(action.text()).not.toContain('Elegir presentación')
   })
 
   it.each([
@@ -100,26 +137,42 @@ describe('CatalogProductCard', () => {
       alt: `Imagen de ${product.name}`,
     })
     expect(wrapper.text()).toContain(formatCentsMXN(2599))
-    expect(wrapper.text()).toContain('Disponible')
+    expect(wrapper.text()).not.toContain('Disponible')
     expect(wrapper.text()).toContain('Tostadores')
     expect(wrapper.text()).toContain('Café')
   })
 
-  it('uses one accessible native card control and emits the exact product ID for pointer and keyboard click activation', async () => {
+  it('makes the whole card one link to the product page of the current branch, keeping the listing query', async () => {
+    await router.push(
+      '/catalogo/centro?priceListId=list-1&categoryId=11111111-1111-4111-8111-111111111111&page=2&facet=life:adult',
+    )
     const wrapper = mountCard()
-    const control = wrapper.get(`button[aria-label="Ver detalles de ${product.name}"]`)
+    const link = cardLink(wrapper)
+    const target = router.resolve(link.attributes('href')!)
 
-    expect(control.attributes('type')).toBe('button')
-    expect(control.attributes('data-catalog-product-id')).toBe(product.id)
+    expect(link.element.tagName).toBe('A')
+    expect(link.attributes('data-catalog-product-id')).toBe(product.id)
+    expect(target.name).toBe('public-catalog-product')
+    expect(target.params).toEqual({ branchSlug: 'centro', productId: product.id })
+    expect(target.query).toEqual({
+      priceListId: 'list-1',
+      categoryId: '11111111-1111-4111-8111-111111111111',
+      page: '2',
+      facet: 'life:adult',
+    })
+  })
 
-    await control.trigger('click')
-    expect(wrapper.emitted('open-detail')).toEqual([[product.id, control.element]])
+  it('navigates to the product page on activation and still emits open-detail for compatibility', async () => {
+    const wrapper = mountCard()
+    const link = cardLink(wrapper)
 
-    await control.trigger('click')
-    expect(wrapper.emitted('open-detail')).toEqual([
-      [product.id, control.element],
-      [product.id, control.element],
-    ])
+    await link.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.emitted('open-detail')).toEqual([[product.id, link.element]])
+    expect(router.currentRoute.value.name).toBe('public-catalog-product')
+    expect(router.currentRoute.value.params.productId).toBe(product.id)
+    expect(router.currentRoute.value.query.priceListId).toBe('list-1')
   })
 
   it('uses a neutral fallback and consult-price copy for an absent image and hidden/null price', () => {
@@ -228,16 +281,40 @@ describe('CatalogProductCard', () => {
     expect(wrapper.text()).not.toMatch(/Disponible|Pocas piezas|Agotado/)
   })
 
-  it('leads with the media region and keeps the availability pill inside it', () => {
+  it('says nothing about availability on an ordinary available card', () => {
     const wrapper = mountCard()
+    expect(wrapper.find('[data-testid="catalog-product-availability"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Disponible')
+  })
 
-    const control = wrapper.get(`button[aria-label="Ver detalles de ${product.name}"]`)
+  it('puts the «Desde» note inline before the price, with a small MXN after it', () => {
+    const wrapper = mountCard({
+      hasVariants: true,
+      price: { fromPriceCents: 14900, priceCents: 12900, hidden: false },
+    })
+    const line = wrapper.get('[data-testid="catalog-product-price-line"]')
+    expect(Array.from(line.element.children).map((child) => child.textContent?.trim())).toEqual([
+      'Desde',
+      formatCentsMXN(14900),
+      'MXN',
+    ])
+    expect(wrapper.findAll('.catalog-product-price-note')).toHaveLength(1)
+    expect(line.find('.catalog-product-price-note').exists()).toBe(true)
+  })
+
+  it('leads with the media region and keeps the availability pill inside it', () => {
+    const wrapper = mountCard({
+      availability: 'low_stock',
+      stockPresentation: { mode: 'SYSTEM_STATUS', status: 'low_stock', customQuantity: null },
+    })
+
+    const control = cardLink(wrapper)
     const media = wrapper.get('[data-testid="catalog-product-media"]')
     expect(control.element.firstElementChild).toBe(media.element)
     expect(media.find('img').exists()).toBe(true)
 
     const availability = media.get('[data-testid="catalog-product-availability"]')
-    expect(availability.text()).toContain('Disponible')
+    expect(availability.text()).toContain('Pocas piezas')
   })
 
   it('orders the card body as brand, name, category and price', () => {
@@ -252,7 +329,9 @@ describe('CatalogProductCard', () => {
       'catalog-product-brand',
       'h2',
       'catalog-product-category',
+      'catalog-product-price-line',
       'catalog-product-price',
+      'catalog-product-action',
     ])
     expect(body.get('h2').text()).toBe(product.name)
     expect(body.get('[data-testid="catalog-product-brand"]').text()).toBe(product.brand.name)
@@ -270,7 +349,7 @@ describe('CatalogProductCard', () => {
 
     const price = wrapper.get('[data-testid="catalog-product-price"]')
     const quantity = wrapper.get('[data-testid="catalog-product-quantity"]')
-    const row = price.element.parentElement
+    const row = price.element.closest('.catalog-product-price-row')
 
     expect(row?.className).toContain('flex-wrap')
     for (const value of [price, quantity]) {
@@ -305,7 +384,6 @@ describe('CatalogProductCard', () => {
 
   describe('status tones and paint', () => {
     it.each([
-      ['available', 'Disponible', 'success'],
       ['low_stock', 'Pocas piezas', 'warning'],
       ['out_of_stock', 'Agotado', 'neutral'],
     ] as const)('maps %s to the %s tone, never a palette color', (status, label, tone) => {
@@ -327,3 +405,83 @@ describe('CatalogProductCard', () => {
     })
   })
 })
+
+describe('CatalogProductCard v0 extras', () => {
+  const branch = { id: 'b-1', name: 'Sucursal Centro', slug: 'centro', address: null, phone: null }
+
+  function mountWithBranches(branches: unknown[], overrides = {}) {
+    const queryClient = new QueryClient()
+    queryClient.setQueryData(catalogBranchesQueryKey, branches)
+    return mount(CatalogProductCard, {
+      props: { product: { ...product, ...overrides } },
+      global: { stubs, plugins: [router, [VueQueryPlugin, { queryClient }]] },
+    })
+  }
+
+  it('renders no WhatsApp control without a number (backend without v0)', async () => {
+    const wrapper = mountWithBranches([branch])
+    await flushPromises()
+    expect(wrapper.find('[data-testid="catalog-whatsapp-link"]').exists()).toBe(false)
+    expect(wrapper.html()).not.toMatch(/whatsapp|wa\.me/i)
+    expect(wrapper.findAll('a')).toHaveLength(1)
+  })
+
+  it('renders no WhatsApp control for a null number or an unrelated branch number', async () => {
+    const wrapper = mountWithBranches([
+      { ...branch, whatsappNumber: null },
+      { ...branch, id: 'b-2', slug: 'norte', whatsappNumber: '+5215500000000' },
+    ])
+    await flushPromises()
+    expect(wrapper.find('[data-testid="catalog-whatsapp-link"]').exists()).toBe(false)
+  })
+
+  it('links «Pedir» to wa.me beside the card link, never inside it', async () => {
+    const wrapper = mountWithBranches([{ ...branch, whatsappNumber: '+5215500000000' }])
+    await flushPromises()
+    const link = wrapper.get('[data-testid="catalog-whatsapp-link"]')
+    const url = new URL(link.attributes('href')!)
+    expect(url.origin + url.pathname).toBe('https://wa.me/5215500000000')
+    const text = url.searchParams.get('text')!
+    expect(text).toContain(product.name)
+    expect(text).toContain('Sucursal Centro')
+    expect(text).toContain('/catalogo/centro/p/product-1')
+    expect(text).toContain('priceListId=list-1')
+    expect(link.attributes('aria-label')).toBe(`Pedir por WhatsApp: ${product.name}`)
+    expect(cardLinkOf(wrapper).element.contains(link.element)).toBe(false)
+  })
+
+  it('reads «Preguntar» when the product is out of stock', async () => {
+    const wrapper = mountWithBranches([{ ...branch, whatsappNumber: '+5215500000000' }], {
+      availability: 'out_of_stock',
+      stockPresentation: { mode: 'SYSTEM_STATUS', status: 'out_of_stock', customQuantity: null },
+    })
+    await flushPromises()
+    const link = wrapper.get('[data-testid="catalog-whatsapp-link"]')
+    expect(link.attributes('aria-label')).toBe(`Preguntar por WhatsApp: ${product.name}`)
+    expect(new URL(link.attributes('href')!).searchParams.get('text')).toContain('¿cuándo vuelve')
+  })
+
+  const exact = (exactQuantity?: number | null) => ({
+    availability: 'low_stock' as const,
+    stockPresentation: {
+      mode: 'SYSTEM_STATUS_EXACT_LOW_STOCK' as const,
+      status: 'low_stock' as const,
+      customQuantity: null,
+      ...(exactQuantity === undefined ? {} : { exactQuantity }),
+    },
+  })
+
+  it('writes «Quedan N» on the availability pill when the exact quantity is published', () => {
+    const wrapper = mountCard(exact(3))
+    expect(wrapper.get('[data-testid="catalog-product-availability"]').text()).toBe('Quedan 3')
+  })
+
+  it.each([[null], [undefined]])('keeps «Pocas piezas» when the exact quantity is %s', (quantity) => {
+    const wrapper = mountCard(exact(quantity))
+    expect(wrapper.get('[data-testid="catalog-product-availability"]').text()).toBe('Pocas piezas')
+  })
+})
+
+function cardLinkOf(wrapper: ReturnType<typeof mount>) {
+  return wrapper.get(`a[aria-label="Ver detalles de ${product.name}"]`)
+}

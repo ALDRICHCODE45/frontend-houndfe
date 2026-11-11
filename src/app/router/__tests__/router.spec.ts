@@ -300,6 +300,40 @@ describe('router tenant guard', () => {
     },
   )
 
+  it('resolves the unauthenticated product page without auth work or diversion', async () => {
+    const { default: router } = await import('../index')
+
+    await router.push('/catalogo/centro/p/product-1?priceListId=list-1')
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe('public-catalog-product')
+    expect(router.currentRoute.value.params).toEqual({
+      branchSlug: 'centro',
+      productId: 'product-1',
+    })
+    expect(router.currentRoute.value.query.priceListId).toBe('list-1')
+    expect(router.currentRoute.value.meta).toMatchObject({ layout: 'catalog', public: true })
+    expect(useAuthStore).not.toHaveBeenCalled()
+    expect(mockAuthStore.hydrateFromStorage).not.toHaveBeenCalled()
+    expect(mockAuthStore.fetchMe).not.toHaveBeenCalled()
+    expect(mockAuthStore.userCan).not.toHaveBeenCalled()
+  })
+
+  it('keeps authenticated-only routes behind login next to the public product page', async () => {
+    const { default: router } = await import('../index')
+
+    await router.push('/catalogo/centro/p/product-1')
+    await router.isReady()
+    expect(router.currentRoute.value.name).toBe('public-catalog-product')
+    expect(mockAuthStore.hydrateFromStorage).not.toHaveBeenCalled()
+
+    await router.push('/pos/customers')
+
+    expect(router.currentRoute.value.path).toBe('/login')
+    expect(router.currentRoute.value.query.redirect).toBe('/pos/customers')
+    expect(mockAuthStore.hydrateFromStorage).toHaveBeenCalled()
+  })
+
   it.each([
     ['/403', 'forbidden'],
     ['/missing-route', 'not-found'],

@@ -1,12 +1,12 @@
-import { computed, ref } from 'vue'
-import { useQuery } from '@tanstack/vue-query'
+import { computed, hasInjectionContext, ref, shallowRef, toValue, type MaybeRefOrGetter } from 'vue'
+import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { fetchCatalogBranches } from '../api/catalog-branches.api'
 import type { PublicBranchDto } from '../interfaces/catalog.types'
 
 export type CatalogBranchesState = 'loading' | 'retry-pending' | 'populated' | 'empty' | 'rate-limit' | 'server' | 'network'
 
 const apiBase = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000').replace(/\/$/, '')
-const catalogBranchesQueryKey = ['public-catalog', 'branches', apiBase] as const
+export const catalogBranchesQueryKey = ['public-catalog', 'branches', apiBase] as const
 
 export function useCatalogBranches() {
   const retryRequested = ref(false)
@@ -47,4 +47,32 @@ export function useCatalogBranches() {
   }
 
   return { branches, state, retry }
+}
+
+/**
+ * The branch of a slug read from the shared branches query without ever requesting it: the
+ * listing view already owns that request, so a card or a footer only observes the cache.
+ * Without a query client (or before the branches arrive) the branch is null.
+ */
+export function useCachedCatalogBranch(slug: MaybeRefOrGetter<string | null | undefined>) {
+  let hasClient = false
+  if (hasInjectionContext()) {
+    try {
+      useQueryClient()
+      hasClient = true
+    } catch {
+      hasClient = false
+    }
+  }
+  if (!hasClient) return { branch: shallowRef<PublicBranchDto | null>(null) }
+  const query = useQuery<PublicBranchDto[]>({
+    queryKey: catalogBranchesQueryKey,
+    queryFn: ({ signal }) => fetchCatalogBranches(signal),
+    enabled: false,
+  })
+  const branch = computed(() => {
+    const value = toValue(slug)
+    return (query.data.value ?? []).find((entry) => entry.slug === value) ?? null
+  })
+  return { branch }
 }
