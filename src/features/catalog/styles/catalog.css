@@ -1,5 +1,10 @@
-/* Reuse the project's web-loaded Geist family through its token; the boundary includes UI portals. */
-body[data-catalog-theme='light'] {
+/*
+ * Reuse the project's web-loaded Geist family through its token; the boundary includes UI portals.
+ * `.catalog-layout` repeats the tokens on the layout root as a net: in-page content stays light even
+ * if the body attribute is missing for a moment (portals still rely on the body scope).
+ */
+body[data-catalog-theme='light'],
+.catalog-layout {
   --catalog-page: #f5f6f8;
   --catalog-surface: #ffffff;
   --catalog-soft: #e7eef7;
@@ -43,7 +48,8 @@ body[data-catalog-theme='light'] {
 /* The catalog is forced light, but body also carries `hf-theme hf-ui`, whose
  * `.dark` palette would turn the shared pieces dark on this surface. Bind the
  * hf roles to the catalog palette so shared badges and states stay light. */
-html body.hf-theme[data-catalog-theme='light'] {
+html body.hf-theme[data-catalog-theme='light'],
+html body .catalog-layout {
   --hf-page: var(--catalog-page);
   --hf-surface: var(--catalog-surface);
   --hf-surface-muted: var(--catalog-soft);

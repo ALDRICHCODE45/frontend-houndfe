@@ -9,7 +9,7 @@ const css = readFileSync('src/features/catalog/styles/catalog.css', 'utf8')
 
 /** The stylesheet without its token block and `var(--x, fallback)` fallbacks. */
 function withoutTokens(source: string): string {
-  const start = source.indexOf("body[data-catalog-theme='light'] {\n  --catalog-page")
+  const start = source.indexOf("body[data-catalog-theme='light'],\n.catalog-layout {\n  --catalog-page")
   const end = source.indexOf('}', start)
   return (source.slice(0, start) + source.slice(end + 1)).replace(/var\([^)]*\)/g, 'var()')
 }
@@ -22,6 +22,11 @@ describe('catalog stylesheet', () => {
   it('has no uppercase eyebrows or tracked micro-labels', () => {
     expect(css).not.toMatch(/text-transform:\s*uppercase/)
     expect(css).not.toMatch(/letter-spacing:\s*1(?:\.\d+)?px/)
+  })
+
+  it('repeats the light tokens on the layout root as a net for a missing body boundary', () => {
+    expect(css).toContain("body[data-catalog-theme='light'],\n.catalog-layout {\n  --catalog-page")
+    expect(css).toContain("html body.hf-theme[data-catalog-theme='light'],\nhtml body .catalog-layout {")
   })
 
   it('keeps hex literals inside the token block', () => {
