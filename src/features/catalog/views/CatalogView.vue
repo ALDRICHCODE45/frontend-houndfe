@@ -4,7 +4,9 @@ import { useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import CatalogHeader from '../components/CatalogHeader.vue'
 import CatalogHero from '../components/CatalogHero.vue'
-import CatalogFacetFilters from '../components/CatalogFacetFilters.vue'
+import CatalogFilterRecipientTiles from '../components/CatalogFilterRecipientTiles.vue'
+import CatalogFilterSheet from '../components/CatalogFilterSheet.vue'
+import CatalogFilterSidebar from '../components/CatalogFilterSidebar.vue'
 import CatalogFooter from '../components/CatalogFooter.vue'
 import CatalogListingActiveFilters, {
   type CatalogActiveFilterChip,
@@ -27,7 +29,15 @@ import type {
   CatalogProductsSort,
   PublicCatalogAttributeFacetDto,
 } from '../interfaces/public-catalog-products.types'
-import { mergeFacetOptions } from '../utils/facet-options'
+import type { CatalogFilterSelection } from '../composables/useCatalogFilterDraft'
+import {
+  buildFacetChips,
+  buildFilterGroups,
+  clearRecipientTokens,
+  findRecipientFacet,
+  toggleFacetTokens,
+  type FilterOption,
+} from '../utils/filter-model'
 
 const route = useRoute()
 const router = useRouter()
@@ -280,9 +290,6 @@ watch([readyBranch, requestedPrice, listingFailed], ([branch, , failed], [oldBra
   if (failed || branch !== oldBranch || requestedPrice.value !== oldPrice)
     displayedFacets.value = response.value?.facets.attributes ?? []
 })
-const showFacets = computed(
-  () => readyBranch.value !== null && filterError.value === null && !isCatalogEmpty.value,
-)
 
 async function writeFacets(tokens: string[], replace = false) {
   const query = { ...route.query }
@@ -295,15 +302,13 @@ async function writeFacets(tokens: string[], replace = false) {
     // Keep the current route authoritative.
   }
 }
-/** A chip carries one token, or several when same-label options were merged into it. */
-function toggleFacet(chipTokens: string[]) {
-  const tokens = facetTokens.value
-  const pressed = chipTokens.some((token) => tokens.includes(token))
-  void writeFacets(
-    pressed
-      ? tokens.filter((entry) => !chipTokens.includes(entry))
-      : [...tokens, ...chipTokens.filter((token) => !tokens.includes(token))],
-  )
+/** An option carries one token, or several when same-label options were merged into it. */
+function toggleFacet(optionTokens: string[]) {
+  void writeFacets(toggleFacetTokens(facetTokens.value, optionTokens))
+}
+/** «Todos» in the recipient tiles: only the recipient leaves, every other filter stays. */
+function clearRecipient() {
+  void writeFacets(clearRecipientTokens(facetTokens.value))
 }
 /**
  * A vocabulary change or the switch turning off makes a facet unknown. The error carries no
@@ -391,29 +396,24 @@ const selectedCategoryName = computed(() => {
     (category) => category.id === categoryId.value,
   )
   if (facet) return facet.name
-  return products.value.find((product) => product.category?.id === categoryId.value)?.category?.name ?? null
+  return (
+    products.value.find((product) => product.category?.id === categoryId.value)?.category?.name ??
+    null
+  )
 })
 /** Selected facet tokens grouped as the chips show them; tokens no facet labels stay one chip. */
-const facetChips = computed<CatalogActiveFilterChip[]>(() => {
-  const selected = new Set(facetTokens.value)
-  const chips: CatalogActiveFilterChip[] = []
-  const labelled = new Set<string>()
-  for (const definition of displayedFacets.value) {
-    for (const option of mergeFacetOptions(definition)) {
-      const tokens = option.tokens.filter((token) => selected.has(token))
-      if (tokens.length === 0) continue
-      tokens.forEach((token) => labelled.add(token))
-      chips.push({ kind: 'facet', key: tokens[0]!, label: option.label, tokens })
-    }
-  }
-  const rest = facetTokens.value.filter((token) => !labelled.has(token))
-  if (rest.length > 0)
-    chips.push({ kind: 'facet', key: 'facet-rest', label: 'Otros filtros', tokens: rest })
-  return chips
-})
+const facetChips = computed<CatalogActiveFilterChip[]>(() =>
+  buildFacetChips(displayedFacets.value, facetTokens.value),
+)
 const activeChips = computed<CatalogActiveFilterChip[]>(() => [
   ...(route.query.categoryId !== undefined
-    ? [{ kind: 'category' as const, key: 'category', label: selectedCategoryName.value ?? 'Categoría' }]
+    ? [
+        {
+          kind: 'category' as const,
+          key: 'category',
+          label: selectedCategoryName.value ?? 'Categoría',
+        },
+      ]
     : []),
   ...facetChips.value,
   ...(search.value ? [{ kind: 'search' as const, key: 'search', label: search.value }] : []),
@@ -464,6 +464,41 @@ async function selectCategory(id: string | null) {
   } catch {
     // Keep the current route authoritative.
   }
+}
+/** Recipient tiles and counts are stable (unfiltered) data, like the category list. */
+const recipientFacet = computed(() => findRecipientFacet(categoryBaseline.value?.facets.attributes))
+const sidebarCategories = computed(() => categoryBaseline.value?.facets.categories ?? [])
+const filterGroups = computed(() =>
+  buildFilterGroups({
+    categories: sidebarCategories.value,
+    attributes: displayedFacets.value,
+    categoryId: categoryId.value,
+    tokens: facetTokens.value,
+  }),
+)
+/** A sidebar row applies at once through the URL: a category replaces, a facet option toggles. */
+function selectFilterOption(option: FilterOption) {
+  if (option.target.kind === 'category')
+    void selectCategory(option.target.id === categoryId.value ? null : option.target.id)
+  else toggleFacet(option.target.tokens)
+}
+const showSidebar = computed(
+  () =>
+    listingReady.value &&
+    (filterGroups.value.groups.length > 0 || filterGroups.value.recipientHint),
+)
+const showRecipients = computed(() => listingReady.value && recipientFacet.value !== null)
+
+const sheetOpen = shallowRef(false)
+/** Confirming the sheet writes the whole draft at once and starts again at the first page. */
+function applySheet(selection: CatalogFilterSelection) {
+  void pushQuery((query) => {
+    delete query.page
+    if (selection.categoryId === null) delete query.categoryId
+    else query.categoryId = selection.categoryId
+    if (selection.tokens.length === 0) delete query.facet
+    else query.facet = selection.tokens.length === 1 ? selection.tokens[0]! : selection.tokens
+  })
 }
 async function recoverPage() {
   const query = { ...route.query }
@@ -541,6 +576,14 @@ async function selectPriceContext(priceListIdToSelect: string) {
       <div class="catalog-container">
         <CatalogHero v-if="isHome" :branch-name="selectedBranch?.name ?? null" />
         <CatalogListingHeroBar v-else :branch-name="selectedBranch?.name ?? null" />
+        <CatalogFilterRecipientTiles
+          v-if="showRecipients"
+          :facet="recipientFacet"
+          :total="categoryBaseline?.meta.total ?? null"
+          :selected="facetTokens"
+          @toggle="toggleFacet"
+          @clear="clearRecipient"
+        />
       </div>
       <section
         id="catalogo"
@@ -553,99 +596,133 @@ async function selectPriceContext(priceListIdToSelect: string) {
             :total="filterError || isCatalogEmpty ? null : (response?.meta.total ?? null)"
             :branch-name="selectedBranch?.name ?? null"
           />
-          <CatalogFacetFilters
-            v-if="showFacets"
-            :facets="displayedFacets"
-            :selected="facetTokens"
-            @toggle="toggleFacet"
-            @clear="writeFacets([])"
-          />
-          <div v-if="listingReady" class="catalog-results-toolbar">
-            <CatalogListingActiveFilters
-              v-if="activeChips.length > 0"
-              :chips="activeChips"
-              @remove="removeChip"
-              @clear="clearAll"
+        </div>
+        <div class="catalog-container">
+          <div :class="['catalog-split', { 'catalog-split--filters': showSidebar }]">
+            <CatalogFilterSidebar
+              v-if="showSidebar"
+              :groups="filterGroups.groups"
+              :hint="filterGroups.recipientHint"
+              @select="selectFilterOption"
             />
-            <p v-else-if="rangeLabel" class="catalog-results-range">{{ rangeLabel }}</p>
-            <CatalogListingSort :model-value="sort" @update:model-value="selectSort" />
+            <div class="catalog-split-main">
+              <div v-if="listingReady" class="catalog-results-toolbar">
+                <button
+                  v-if="showSidebar"
+                  type="button"
+                  class="catalog-filter-trigger"
+                  aria-haspopup="dialog"
+                  :aria-expanded="sheetOpen"
+                  @click="sheetOpen = true"
+                >
+                  <UIcon name="i-lucide-sliders-horizontal" class="size-4" aria-hidden="true" />
+                  Filtros
+                  <span
+                    v-if="filterChips.length > 0"
+                    class="catalog-filter-sheet-badge"
+                    :aria-label="`${filterChips.length} ${filterChips.length === 1 ? 'filtro elegido' : 'filtros elegidos'}`"
+                    >{{ filterChips.length }}</span
+                  >
+                </button>
+                <CatalogListingActiveFilters
+                  v-if="activeChips.length > 0"
+                  :chips="activeChips"
+                  @remove="removeChip"
+                  @clear="clearAll"
+                />
+                <p v-else-if="rangeLabel" class="catalog-results-range">{{ rangeLabel }}</p>
+                <CatalogListingSort :model-value="sort" @update:model-value="selectSort" />
+              </div>
+              <div v-if="filterError && readyBranch" class="catalog-container">
+                <EmptyState
+                  kind="empty"
+                  :title="
+                    filterError === 'search'
+                      ? 'Búsqueda no válida.'
+                      : filterError === 'category'
+                        ? 'Categoría no válida.'
+                        : 'Página no válida.'
+                  "
+                  :action-label="
+                    filterError === 'search'
+                      ? 'Limpiar búsqueda'
+                      : filterError === 'category'
+                        ? 'Limpiar categoría'
+                        : 'Restablecer página'
+                  "
+                  action-icon="i-lucide-rotate-ccw"
+                  action-test-id="catalog-filter-recover"
+                  @action="
+                    filterError === 'search'
+                      ? commitSearch('')
+                      : filterError === 'category'
+                        ? selectCategory(null)
+                        : recoverPage()
+                  "
+                />
+              </div>
+              <div v-else-if="isPageOutOfRange" class="catalog-container">
+                <EmptyState
+                  kind="empty"
+                  title="Página fuera de rango"
+                  action-label="Ir a la última página disponible"
+                  action-icon="i-lucide-chevrons-right"
+                  action-test-id="catalog-filter-recover"
+                  @action="navigatePage(lastAvailablePage)"
+                />
+              </div>
+              <div v-else-if="showNoResults" class="catalog-container py-6 lg:py-8">
+                <CatalogListingNoResults
+                  :search="search ?? ''"
+                  :filter-labels="filterChips.map((chip) => chip.label)"
+                  :categories="categoryBaseline?.facets.categories ?? []"
+                  :selected-category-id="categoryId"
+                  @clear-all="clearAll"
+                  @remove-filter="removeOnlyFilter"
+                  @clear-search="commitSearch('')"
+                  @select-category="selectCategory"
+                />
+              </div>
+              <CatalogProductGrid
+                v-else
+                :selection-state="selectionState"
+                :branches-state="branchesState"
+                :branches="branches"
+                :products="products"
+                :state="gridState"
+                :context-state="contextState"
+                @retry="retryListing"
+                @retry-branches="retryBranches"
+                @retry-context="retryPriceContexts"
+                @select-branch="selectBranch"
+              />
+              <div v-if="showPager && paginationMeta" class="catalog-container">
+                <CatalogListingPager
+                  :page="paginationMeta.page"
+                  :total-pages="paginationMeta.totalPages"
+                  :total="paginationMeta.total"
+                  :limit="paginationMeta.limit"
+                  @navigate="navigatePage"
+                />
+              </div>
+            </div>
           </div>
-        </div>
-        <div v-if="filterError && readyBranch" class="catalog-container">
-          <EmptyState
-            kind="empty"
-            :title="
-              filterError === 'search'
-                ? 'Búsqueda no válida.'
-                : filterError === 'category'
-                  ? 'Categoría no válida.'
-                  : 'Página no válida.'
-            "
-            :action-label="
-              filterError === 'search'
-                ? 'Limpiar búsqueda'
-                : filterError === 'category'
-                  ? 'Limpiar categoría'
-                  : 'Restablecer página'
-            "
-            action-icon="i-lucide-rotate-ccw"
-            action-test-id="catalog-filter-recover"
-            @action="
-              filterError === 'search'
-                ? commitSearch('')
-                : filterError === 'category'
-                  ? selectCategory(null)
-                  : recoverPage()
-            "
-          />
-        </div>
-        <div v-else-if="isPageOutOfRange" class="catalog-container">
-          <EmptyState
-            kind="empty"
-            title="Página fuera de rango"
-            action-label="Ir a la última página disponible"
-            action-icon="i-lucide-chevrons-right"
-            action-test-id="catalog-filter-recover"
-            @action="navigatePage(lastAvailablePage)"
-          />
-        </div>
-        <div v-else-if="showNoResults" class="catalog-container py-6 lg:py-8">
-          <CatalogListingNoResults
-            :search="search ?? ''"
-            :filter-labels="filterChips.map((chip) => chip.label)"
-            :categories="categoryBaseline?.facets.categories ?? []"
-            :selected-category-id="categoryId"
-            @clear-all="clearAll"
-            @remove-filter="removeOnlyFilter"
-            @clear-search="commitSearch('')"
-            @select-category="selectCategory"
-          />
-        </div>
-        <CatalogProductGrid
-          v-else
-          :selection-state="selectionState"
-          :branches-state="branchesState"
-          :branches="branches"
-          :products="products"
-          :state="gridState"
-          :context-state="contextState"
-          @retry="retryListing"
-          @retry-branches="retryBranches"
-          @retry-context="retryPriceContexts"
-          @select-branch="selectBranch"
-        />
-        <div v-if="showPager && paginationMeta" class="catalog-container">
-          <CatalogListingPager
-            :page="paginationMeta.page"
-            :total-pages="paginationMeta.totalPages"
-            :total="paginationMeta.total"
-            :limit="paginationMeta.limit"
-            @navigate="navigatePage"
-          />
         </div>
       </section>
     </main>
 
+    <CatalogFilterSheet
+      v-if="showSidebar"
+      v-model:open="sheetOpen"
+      :branch-slug="readyBranch"
+      :price-list-id="requestedPrice"
+      :search="search ?? ''"
+      :categories="sidebarCategories"
+      :attributes="displayedFacets"
+      :selected-category-id="categoryId"
+      :selected-tokens="facetTokens"
+      @apply="applySheet"
+    />
     <CatalogFooter :branch-name="selectedBranch?.name ?? null" />
   </div>
 </template>

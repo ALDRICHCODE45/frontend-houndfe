@@ -113,12 +113,30 @@ const detailResponse = (overrides = {}) => ({
 const jsonResponse = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
 const categoryId = '11111111-1111-4111-8111-111111111111'
 const categoryFacets = [{ id: categoryId, name: 'Café', count: 3 }]
+const toysId = '22222222-2222-4222-8222-222222222222'
 const categoryPage = (filtered: boolean) => ({
   ...productsResponse(filtered ? [{ ...product, name: 'Café filtrado' }] : [product]),
   meta: { page: 1, limit: 20, total: filtered ? 1 : 4, totalPages: 1 },
   facets: { categories: filtered ? [] : categoryFacets },
 })
 const productsUrl = (slug: string) => `http://localhost:3000/public/catalog/${slug}/products`
+
+const isBranchCardRequest = (input: RequestInfo | URL) =>
+  /\/public\/catalog\/[^/]+\/branch(?:\?|$)/.test(String(input))
+/**
+ * Installs `fetchMock` as the global fetch, answering the footer's branch-card request
+ * (GET /public/catalog/:slug/branch) with a 404, «no branch card». The request never reaches
+ * `fetchMock`, so sequenced `mockResolvedValueOnce` chains and call counts stay about the listing.
+ */
+function stubCatalogFetch(
+  fetchMock: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
+) {
+  vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) =>
+    isBranchCardRequest(input)
+      ? Promise.resolve(new Response('{}', { status: 404 }))
+      : fetchMock(input, init),
+  )
+}
 
 type CatalogFetchOverrides = {
   contexts?: (slug: string) => Response | Promise<Response>
@@ -130,6 +148,7 @@ type CatalogFetchOverrides = {
 function createCatalogFetch(overrides: CatalogFetchOverrides = {}) {
   return vi.fn((input: RequestInfo | URL, _init?: RequestInit) => {
     const url = String(input)
+    if (isBranchCardRequest(input)) return Promise.resolve(new Response('{}', { status: 404 }))
     if (url.endsWith('/public/catalog/branches')) return Promise.resolve(jsonResponse(branches))
 
     const contextsMatch = url.match(/\/public\/catalog\/([^/]+)\/price-contexts$/)
@@ -237,8 +256,7 @@ const lastProductRequestUrl = (fetchMock: ReturnType<typeof vi.fn>) => {
   return urls[urls.length - 1]
 }
 /** Card markup belongs to the card (T2); the listing only promises the names in its grid. */
-const gridText = (wrapper: VueWrapper) =>
-  wrapper.get('[data-testid="catalog-product-grid"]').text()
+const gridText = (wrapper: VueWrapper) => wrapper.get('[data-testid="catalog-product-grid"]').text()
 
 /** The header «Categorías» menu: a closed disclosure until the visitor opens it. */
 const categoriesTrigger = (wrapper: VueWrapper) =>
@@ -267,7 +285,7 @@ describe('CatalogView public browse', () => {
 
   it('selects a discovered branch through the URL, preserves query/hash, and renders its first real product page', async () => {
     const fetchMock = createCatalogFetch()
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper, router } = await mountAt('/catalogo?source=home#top')
 
     await flushPromises()
@@ -313,7 +331,7 @@ describe('CatalogView public browse', () => {
           productsResponseFor('list-1', [slug === 'centro' ? centroProduct : norteProduct]),
         ),
     })
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper, router } = await mountAt('/catalogo/centro')
 
     await flushPromises()
@@ -358,7 +376,7 @@ describe('CatalogView public browse', () => {
     ['/catalogo/desconocida', 'Esta sucursal aún no publica su catálogo'],
   ])('does not request products for %s', async (path, expectedHeading) => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(branches))
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper } = await mountAt(path)
 
     await flushPromises()
@@ -371,7 +389,7 @@ describe('CatalogView public browse', () => {
 
   it('does not claim a new branch selection when navigation is rejected', async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(branches))
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper, router } = await mountAt('/catalogo')
     const push = vi.spyOn(router, 'push').mockRejectedValueOnce(new Error('navigation blocked'))
 
@@ -403,7 +421,7 @@ describe('CatalogView public browse', () => {
       if (failure === 'network') fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'))
       else fetchMock.mockResolvedValueOnce(jsonResponse(productsResponse(), failure as number))
       fetchMock.mockResolvedValueOnce(jsonResponse(productsResponse([])))
-      vi.stubGlobal('fetch', fetchMock)
+      stubCatalogFetch(fetchMock)
       const { wrapper } = await mountAt('/catalogo/centro')
 
       await flushPromises()
@@ -432,7 +450,7 @@ describe('CatalogView public browse', () => {
           resolveRetry = resolve
         }),
       )
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper } = await mountAt('/catalogo/centro')
 
     await flushPromises()
@@ -453,7 +471,7 @@ describe('CatalogView public browse', () => {
 
   it('refetches under the explicit context when the visitor switches price list', async () => {
     const fetchMock = createCatalogFetch()
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper, router } = await mountAt('/catalogo/centro')
 
     await flushPromises()
@@ -468,7 +486,7 @@ describe('CatalogView public browse', () => {
 
   it('uses the discovered default without inventing an explicit priceListId', async () => {
     const fetchMock = createCatalogFetch()
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper } = await mountAt('/catalogo/centro')
 
     await flushPromises()
@@ -479,7 +497,7 @@ describe('CatalogView public browse', () => {
 
   it('sends the exact Mayoreo context the visitor proposed', async () => {
     const fetchMock = createCatalogFetch()
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper } = await mountAt('/catalogo/centro?priceListId=list-mayoreo')
 
     await flushPromises()
@@ -491,7 +509,7 @@ describe('CatalogView public browse', () => {
 
   it('writes the selected context into the URL and restores it on back and forward', async () => {
     const fetchMock = createCatalogFetch()
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper, router } = await mountAt('/catalogo/centro')
 
     await flushPromises()
@@ -520,7 +538,7 @@ describe('CatalogView public browse', () => {
 
   it('drops only the previous priceListId when the branch changes while preserving query and hash', async () => {
     const fetchMock = createCatalogFetch()
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper, router } = await mountAt(
       '/catalogo/centro?priceListId=list-mayoreo&source=home#top',
     )
@@ -543,7 +561,7 @@ describe('CatalogView public browse', () => {
     'never requests products for a %s explicit context and never selects the default',
     async (path) => {
       const fetchMock = createCatalogFetch()
-      vi.stubGlobal('fetch', fetchMock)
+      stubCatalogFetch(fetchMock)
       const { wrapper } = await mountAt(path)
 
       await flushPromises()
@@ -560,7 +578,7 @@ describe('CatalogView public browse', () => {
       { priceListId: 'list-mayoreo', name: 'Mayoreo', isCatalogDefault: false },
     ]
     const fetchMock = createCatalogFetch({ contexts: () => jsonResponse(noDefaultContexts) })
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper } = await mountAt('/catalogo/centro')
 
     await flushPromises()
@@ -607,7 +625,7 @@ describe('CatalogView public browse', () => {
       fetchMock
         .mockResolvedValueOnce(jsonResponse(priceContexts))
         .mockResolvedValueOnce(jsonResponse(productsResponse()))
-      vi.stubGlobal('fetch', fetchMock)
+      stubCatalogFetch(fetchMock)
       const { wrapper } = await mountAt('/catalogo/centro')
 
       await flushPromises()
@@ -629,7 +647,7 @@ describe('CatalogView public browse', () => {
       .mockResolvedValueOnce(jsonResponse(branches))
       .mockResolvedValueOnce(jsonResponse(priceContexts))
       .mockResolvedValueOnce(jsonResponse({}, 404))
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper } = await mountAt('/catalogo/centro?priceListId=list-mayoreo')
 
     await flushPromises()
@@ -649,7 +667,7 @@ describe('CatalogView public browse', () => {
       contexts: () => jsonResponse([priceContexts[0]!]),
       products: () => jsonResponse({ ...productsResponse(), priceContext: staleContext }),
     })
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper } = await mountAt('/catalogo/centro')
 
     await flushPromises()
@@ -663,7 +681,7 @@ describe('CatalogView public browse', () => {
 
   it('does not claim a context selection when navigation is rejected', async () => {
     const fetchMock = createCatalogFetch()
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper, router } = await mountAt('/catalogo/centro')
     await flushPromises()
     const push = vi.spyOn(router, 'push').mockRejectedValueOnce(new Error('navigation blocked'))
@@ -679,7 +697,7 @@ describe('CatalogView public browse', () => {
 
   it('keeps real controls compact without unsupported header clutter', async () => {
     const fetchMock = createCatalogFetch()
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper } = await mountAt('/catalogo/centro')
 
     await flushPromises()
@@ -712,7 +730,7 @@ describe('CatalogView public browse', () => {
       .mockResolvedValueOnce(jsonResponse(publishedBranches))
       .mockResolvedValueOnce(jsonResponse(priceContexts))
       .mockResolvedValueOnce(jsonResponse(productsResponse()))
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper } = await mountAt('/catalogo/centro')
 
     await flushPromises()
@@ -750,7 +768,7 @@ describe('CatalogView public browse', () => {
           facets: { categories },
         }),
     })
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper } = await mountAt('/catalogo/centro')
 
     await flushPromises()
@@ -767,7 +785,7 @@ describe('CatalogView public browse', () => {
 
   it('keeps the enabled control inventory exact while the branch selector is closed and adds only its own controls once it opens', async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(branches))
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper } = await mountAt('/catalogo')
 
     await flushPromises()
@@ -786,7 +804,7 @@ describe('CatalogView public browse', () => {
 
   it('withholds the result total copy before a product response exists and preserves a real zero afterwards', async () => {
     const discoveryFetch = vi.fn().mockResolvedValueOnce(jsonResponse(branches))
-    vi.stubGlobal('fetch', discoveryFetch)
+    stubCatalogFetch(discoveryFetch)
     const discovery = await mountAt('/catalogo')
 
     await flushPromises()
@@ -797,7 +815,7 @@ describe('CatalogView public browse', () => {
     const emptyFetch = createCatalogFetch({
       products: () => jsonResponse({ ...productsResponse([]), excludedCount: 2 }),
     })
-    vi.stubGlobal('fetch', emptyFetch)
+    stubCatalogFetch(emptyFetch)
     const selected = await mountAt('/catalogo/centro')
 
     await flushPromises()
@@ -845,7 +863,7 @@ describe('CatalogView public browse', () => {
         resolveBranches = resolve
       }),
     )
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper } = await mountAt('/catalogo')
 
     await flushPromises()
@@ -883,7 +901,7 @@ describe('CatalogView public browse', () => {
         .fn()
         .mockImplementationOnce(firstResponse)
         .mockResolvedValue(jsonResponse(branches))
-      vi.stubGlobal('fetch', fetchMock)
+      stubCatalogFetch(fetchMock)
       const { wrapper } = await mountAt('/catalogo')
 
       await flushPromises()
@@ -916,7 +934,7 @@ describe('CatalogView public browse', () => {
           priceContext: priceContexts[1],
         }),
     })
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper, router } = await mountAt(
       '/catalogo/centro?priceListId=list-mayoreo&page=2&keep=yes#catalogo',
     )
@@ -958,7 +976,7 @@ describe('CatalogView public browse', () => {
     '?page=',
   ])('suppresses invalid listing %s and offers targeted recovery', async (query) => {
     const fetchMock = createCatalogFetch({ products: () => jsonResponse(categoryPage(false)) })
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper, router } = await mountAt(`/catalogo/centro${query}&keep=yes#catalogo`)
     await flushPromises()
     expect(wrapper.find('[data-testid="catalog-product-grid"]').exists()).toBe(false)
@@ -987,7 +1005,7 @@ describe('CatalogView public browse', () => {
           url.searchParams.has('categoryId') ? productsResponse([]) : categoryPage(false),
         ),
     })
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const unknown = '22222222-2222-4222-8222-222222222222'
     const { wrapper, router } = await mountAt(
       `/catalogo/centro?categoryId=${unknown}&page=no&keep=yes`,
@@ -1020,7 +1038,7 @@ describe('CatalogView public browse', () => {
           ? jsonResponse({}, 500)
           : jsonResponse(categoryPage(false)),
     })
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper } = await mountAt(`/catalogo/centro?categoryId=${categoryId}`)
     await flushPromises()
     const main = wrapper.get('main')
@@ -1051,7 +1069,7 @@ describe('CatalogView public browse', () => {
             ? jsonResponse({}, 500)
             : jsonResponse(categoryPage(false)),
     })
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper } = await mountAt(`/catalogo/centro?categoryId=${categoryId}`)
     await flushPromises()
     const menu = await openCategories(wrapper)
@@ -1102,7 +1120,7 @@ describe('CatalogView public browse', () => {
           priceContext: url.searchParams.has('categoryId') ? priceContexts[1] : baselineContext,
         }),
     })
-    vi.stubGlobal('fetch', fetchMock)
+    stubCatalogFetch(fetchMock)
     const { wrapper } = await mountAt(`/catalogo/centro?categoryId=${categoryId}&q=café`)
     await flushPromises()
     const menu = await openCategories(wrapper)
@@ -1171,7 +1189,7 @@ describe('CatalogView public browse', () => {
               priceContexts.find((context) => context.priceListId === price) ?? priceContext,
           }),
       })
-      vi.stubGlobal('fetch', fetchMock)
+      stubCatalogFetch(fetchMock)
       return fetchMock
     }
 
@@ -1308,7 +1326,7 @@ describe('CatalogView public browse', () => {
             ? jsonResponse({}, 500)
             : jsonResponse(categoryPage(url.searchParams.has('q'))),
       })
-      vi.stubGlobal('fetch', fetchMock)
+      stubCatalogFetch(fetchMock)
       const { wrapper } = await mountAt('/catalogo/centro?q=café')
       await flushPromises()
       expect(wrapper.text()).not.toContain('Café molido')
@@ -1359,7 +1377,7 @@ describe('CatalogView public browse', () => {
               priceContexts.find((context) => context.priceListId === price) ?? priceContext,
           }),
       })
-      vi.stubGlobal('fetch', fetchMock)
+      stubCatalogFetch(fetchMock)
       return fetchMock
     }
 
@@ -1539,9 +1557,12 @@ describe('CatalogView public browse', () => {
 
   describe('attribute facets', () => {
     const cat = 'animal.target:ani.dom.cat'
+    /** A category group needs two real choices to be worth a section. */
+    const twoCategories = [...categoryFacets, { id: toysId, name: 'Juguetes', count: 1 }]
     const dog = 'animal.target:ani.dom.dog'
+    const adult = 'life.stage:adult'
     const kibble = 'food.format:food.format.kibble'
-    /** Counts depend on the request so the test proves chips come from the filtered response. */
+    /** Counts depend on the request so the tests prove tiles come from the baseline and groups from the filtered response. */
     const facetsFor = (selected: string[]) => [
       {
         code: 'animal.target',
@@ -1552,53 +1573,80 @@ describe('CatalogView public browse', () => {
         ],
       },
       {
+        code: 'life.stage',
+        label: 'Etapa de vida',
+        options: [
+          { code: 'adult', label: 'Adulto', count: 3 },
+          { code: 'puppy', label: 'Cachorro', count: 2 },
+        ],
+      },
+      {
         code: 'food.format',
         label: 'Formato del alimento',
-        options: [{ code: 'food.format.kibble', label: 'Croquetas', count: 2 }],
+        options: [
+          { code: 'food.format.kibble', label: 'Croquetas', count: 2 },
+          { code: 'food.format.wet', label: 'Húmedo', count: 1 },
+        ],
       },
     ]
-    const facetPage = (url: URL) => {
+    const facetPage = (url: URL, attributes = facetsFor(url.searchParams.getAll('facet'))) => {
       const selected = url.searchParams.getAll('facet')
       return {
         ...productsResponseFor(
           url.searchParams.get('priceListId') ?? 'list-1',
           selected.length ? [{ ...product, name: 'Café filtrado' }] : [product],
         ),
-        facets: { categories: [], attributes: facetsFor(selected) },
+        meta: { page: 1, limit: 20, total: selected.length ? 1 : 38, totalPages: 1 },
+        facets: { categories: selected.length ? [] : twoCategories, attributes },
       }
     }
     const install = (
       products: (url: URL) => Response | Promise<Response> = (url) => jsonResponse(facetPage(url)),
     ) => {
       const fetchMock = createCatalogFetch({ products: (_slug, _price, url) => products(url) })
-      vi.stubGlobal('fetch', fetchMock)
+      stubCatalogFetch(fetchMock)
       return fetchMock
     }
     const facetsOf = (url: string | undefined) => new URL(url!).searchParams.getAll('facet')
-    const chip = (wrapper: VueWrapper, label: string) =>
-      wrapper.findAll('[data-testid="catalog-facet-filters"] button').find((button) =>
-        (button.attributes('aria-label') ?? '').startsWith(label),
-      )!
+    const sidebar = (wrapper: VueWrapper) =>
+      wrapper.find('aside[aria-label="Filtros del catálogo"]')
+    const row = (wrapper: VueWrapper, label: string) =>
+      sidebar(wrapper)
+        .findAll('button[aria-pressed]')
+        .find((button) => (button.attributes('aria-label') ?? '').startsWith(label))!
+    const tiles = (wrapper: VueWrapper) =>
+      wrapper.findAll('section[aria-label="Explorar por destinatario"] button')
+    const tile = (wrapper: VueWrapper, label: string) =>
+      tiles(wrapper).find((button) => (button.attributes('aria-label') ?? '').startsWith(label))!
+    const squash = (text: string) => text.replace(/\s+/g, ' ').trim()
 
-    it('renders chips from the filtered listing and sends no facet without a selection', async () => {
+    it('shows tiles from the unfiltered animal.target facet and only Categoría plus a hint in the sidebar', async () => {
       const fetchMock = install()
       const { wrapper } = await mountAt('/catalogo/centro')
       await flushPromises()
       expect(productRequestUrls(fetchMock)).toEqual([productsUrl('centro')])
-      expect(chip(wrapper, 'Especie: Gato').attributes('aria-label')).toBe(
-        'Especie: Gato, 2 productos',
-      )
-      expect(chip(wrapper, 'Especie: Gato').attributes('aria-pressed')).toBe('false')
-      expect(wrapper.text()).not.toContain('Limpiar filtros')
+      expect(tiles(wrapper).map((button) => squash(button.text()))).toEqual([
+        'Todos 38',
+        'Gato 2',
+        'Perro 1',
+      ])
+      expect(tile(wrapper, 'Todos').attributes('aria-pressed')).toBe('true')
+      expect(tile(wrapper, 'Gato').attributes('aria-pressed')).toBe('false')
+      expect(sidebar(wrapper).exists()).toBe(true)
+      expect(row(wrapper, 'Categoría: Café').attributes('aria-pressed')).toBe('false')
+      expect(sidebar(wrapper).text()).toContain('Elige un destinatario')
+      expect(sidebar(wrapper).text()).not.toContain('Etapa de vida')
+      expect(sidebar(wrapper).text()).not.toContain('Especie')
+      expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
     })
 
-    it('toggles a facet into repeated URL params, drops page and keeps the rest of the URL', async () => {
+    it('toggles a recipient tile into repeated URL params, drops page, keeps the rest and unlocks the other groups', async () => {
       const fetchMock = install()
       const { wrapper, router } = await mountAt(
         '/catalogo/centro?priceListId=list-mayoreo&page=2&keep=yes#catalogo',
       )
       await flushPromises()
-      await chip(wrapper, 'Especie: Gato').trigger('click')
+      await tile(wrapper, 'Gato').trigger('click')
       await flushPromises()
       expect(router.currentRoute.value.query).toEqual({
         priceListId: 'list-mayoreo',
@@ -1609,74 +1657,130 @@ describe('CatalogView public browse', () => {
       expect(facetsOf(lastProductRequestUrl(fetchMock))).toEqual([cat])
       expect(new URL(lastProductRequestUrl(fetchMock)!).searchParams.has('page')).toBe(false)
       expect(wrapper.text()).toContain('Café filtrado')
-      // Counts come from the current filtered response, not the baseline.
-      expect(chip(wrapper, 'Especie: Gato').attributes('aria-label')).toBe(
-        'Especie: Gato, 5 productos',
-      )
-      expect(chip(wrapper, 'Especie: Gato').attributes('aria-pressed')).toBe('true')
+      expect(tile(wrapper, 'Gato').attributes('aria-pressed')).toBe('true')
+      expect(tile(wrapper, 'Todos').attributes('aria-pressed')).toBe('false')
+      // Tile counts stay the baseline's; they do not follow the filtered response (5).
+      expect(squash(tile(wrapper, 'Gato').text())).toBe('Gato 2')
+      expect(sidebar(wrapper).text()).toContain('Etapa de vida')
+      expect(sidebar(wrapper).text()).not.toContain('Elige un destinatario')
 
-      await chip(wrapper, 'Formato del alimento: Croquetas').trigger('click')
+      await tile(wrapper, 'Gato').trigger('click')
       await flushPromises()
-      expect(router.currentRoute.value.query.facet).toEqual([cat, kibble])
-      expect(facetsOf(lastProductRequestUrl(fetchMock))).toEqual([cat, kibble])
-
-      await chip(wrapper, 'Especie: Gato').trigger('click')
-      await flushPromises()
-      expect(router.currentRoute.value.query.facet).toBe(kibble)
-      expect(facetsOf(lastProductRequestUrl(fetchMock))).toEqual([kibble])
+      expect(router.currentRoute.value.query.facet).toBeUndefined()
     })
 
-    it('toggles every code of a merged same-label chip together, keeping raw tokens in the URL', async () => {
+    it('«Todos» clears only the recipient filter and keeps every other facet', async () => {
+      install()
+      const { wrapper, router } = await mountAt(
+        `/catalogo/centro?facet=${cat}&facet=${dog}&facet=${adult}&page=2&q=caf#catalogo`,
+      )
+      await flushPromises()
+      expect(tile(wrapper, 'Gato').attributes('aria-pressed')).toBe('true')
+      expect(tile(wrapper, 'Perro').attributes('aria-pressed')).toBe('true')
+      await tile(wrapper, 'Todos').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query).toEqual({ q: 'caf', facet: adult })
+      expect(router.currentRoute.value.hash).toBe('#catalogo')
+    })
+
+    it('applies a sidebar row at once through the URL and keeps the rest of the query', async () => {
+      const fetchMock = install()
+      const { wrapper, router } = await mountAt(`/catalogo/centro?facet=${cat}&keep=yes&page=3`)
+      await flushPromises()
+      expect(row(wrapper, 'Etapa de vida: Adulto').attributes('aria-pressed')).toBe('false')
+      await row(wrapper, 'Etapa de vida: Adulto').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query).toEqual({ facet: [cat, adult], keep: 'yes' })
+      expect(facetsOf(lastProductRequestUrl(fetchMock))).toEqual([cat, adult])
+      expect(row(wrapper, 'Etapa de vida: Adulto').attributes('aria-pressed')).toBe('true')
+
+      await row(wrapper, 'Formato del alimento: Croquetas').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query.facet).toEqual([cat, adult, kibble])
+
+      await row(wrapper, 'Etapa de vida: Adulto').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query.facet).toEqual([cat, kibble])
+    })
+
+    it('toggles every code of a merged same-label row together, keeping raw tokens in the URL', async () => {
       const dogAdult = 'life.stage:life.dog.adult'
       const catAdult = 'life.stage:life.cat.adult'
       const fetchMock = install((url) =>
-        jsonResponse({
-          ...facetPage(url),
-          facets: {
-            categories: [],
-            attributes: [
-              {
-                code: 'life.stage',
-                label: 'Etapa de vida',
-                options: [
-                  { code: 'life.dog.adult', label: 'Adulto', count: 4 },
-                  { code: 'life.cat.adult', label: 'Adulto', count: 2 },
-                ],
-              },
-            ],
-          },
-        }),
+        jsonResponse(
+          facetPage(url, [
+            ...facetsFor(url.searchParams.getAll('facet')).slice(0, 1),
+            {
+              code: 'life.stage',
+              label: 'Etapa de vida',
+              options: [
+                { code: 'life.dog.adult', label: 'Adulto', count: 4 },
+                { code: 'life.cat.adult', label: 'Adulto', count: 2 },
+                { code: 'life.dog.puppy', label: 'Cachorro', count: 1 },
+              ],
+            },
+          ]),
+        ),
       )
-      const { wrapper, router } = await mountAt(`/catalogo/centro?facet=${kibble}`)
+      const { wrapper, router } = await mountAt(`/catalogo/centro?facet=${cat}`)
       await flushPromises()
-      await chip(wrapper, 'Etapa de vida: Adulto').trigger('click')
+      await row(wrapper, 'Etapa de vida: Adulto').trigger('click')
       await flushPromises()
-      expect(router.currentRoute.value.query.facet).toEqual([kibble, dogAdult, catAdult])
-      expect(facetsOf(lastProductRequestUrl(fetchMock))).toEqual([kibble, dogAdult, catAdult])
-      expect(chip(wrapper, 'Etapa de vida: Adulto').attributes('aria-pressed')).toBe('true')
+      expect(router.currentRoute.value.query.facet).toEqual([cat, dogAdult, catAdult])
+      expect(facetsOf(lastProductRequestUrl(fetchMock))).toEqual([cat, dogAdult, catAdult])
+      expect(row(wrapper, 'Etapa de vida: Adulto').attributes('aria-pressed')).toBe('true')
 
-      await chip(wrapper, 'Etapa de vida: Adulto').trigger('click')
+      await row(wrapper, 'Etapa de vida: Adulto').trigger('click')
       await flushPromises()
-      expect(router.currentRoute.value.query.facet).toBe(kibble)
+      expect(router.currentRoute.value.query.facet).toBe(cat)
     })
 
-    it('clears every facet at once with «Limpiar filtros (n)», keeping other filters', async () => {
+    it('selects and unselects a category row through categoryId and drops the page', async () => {
       install()
-      const { wrapper, router } = await mountAt(
-        `/catalogo/centro?facet=${cat}&facet=${dog}&page=2&q=caf#catalogo`,
+      const { wrapper, router } = await mountAt('/catalogo/centro?page=2&keep=yes')
+      await flushPromises()
+      await row(wrapper, 'Categoría: Café').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query).toEqual({ categoryId, keep: 'yes' })
+      expect(row(wrapper, 'Categoría: Café').attributes('aria-pressed')).toBe('true')
+      await row(wrapper, 'Categoría: Café').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query).toEqual({ keep: 'yes' })
+    })
+
+    it('shows five options and «Ver más (n)» for the rest of a group', async () => {
+      const options = Array.from({ length: 7 }, (_, index) => ({
+        code: `opt.${index}`,
+        label: `Opción ${index}`,
+        count: index + 1,
+      }))
+      install((url) =>
+        jsonResponse(
+          facetPage(url, [
+            ...facetsFor(url.searchParams.getAll('facet')).slice(0, 1),
+            { code: 'many.def', label: 'Muchas', options },
+          ]),
+        ),
       )
+      const { wrapper } = await mountAt(`/catalogo/centro?facet=${cat}`)
       await flushPromises()
-      expect(chip(wrapper, 'Especie: Gato').attributes('aria-pressed')).toBe('true')
-      expect(chip(wrapper, 'Especie: Perro').attributes('aria-pressed')).toBe('true')
-      expect(wrapper.get('[data-testid="catalog-facet-active"]').text()).toBe('Gato, Perro')
-      await wrapper
-        .findAll('button')
-        .find((button) => button.text() === 'Limpiar filtros (2)')!
-        .trigger('click')
+      const group = () => sidebar(wrapper).get('[data-facet="many.def"]')
+      expect(group().findAll('button[aria-pressed]')).toHaveLength(5)
+      const more = group().get('button[aria-expanded]')
+      expect(more.text()).toContain('Ver más (2)')
+      await more.trigger('click')
+      expect(group().findAll('button[aria-pressed]')).toHaveLength(7)
+    })
+
+    it('shows no tiles when the response has no animal.target facet, and lists every group without a hint', async () => {
+      install((url) => jsonResponse(facetPage(url, facetsFor([]).slice(1))))
+      const { wrapper } = await mountAt('/catalogo/centro')
       await flushPromises()
-      expect(router.currentRoute.value.query).toEqual({ q: 'caf' })
-      expect(router.currentRoute.value.hash).toBe('#catalogo')
-      expect(wrapper.text()).not.toContain('Limpiar filtros')
+      expect(tiles(wrapper)).toHaveLength(0)
+      expect(wrapper.find('section[aria-label="Explorar por destinatario"]').exists()).toBe(false)
+      expect(sidebar(wrapper).text()).toContain('Etapa de vida')
+      expect(sidebar(wrapper).text()).toContain('Formato del alimento')
+      expect(sidebar(wrapper).text()).not.toContain('Elige un destinatario')
     })
 
     it('ignores malformed tokens, dedupes and caps the facet params at 50', async () => {
@@ -1731,7 +1835,6 @@ describe('CatalogView public browse', () => {
       expect(new URL(lastProductRequestUrl(fetchMock)!).searchParams.get('q')).toBe('caf')
       expect(wrapper.text()).toContain('Café molido')
       expect(wrapper.find('[data-testid="catalog-product-grid"]').exists()).toBe(true)
-      expect(wrapper.text()).not.toContain('Limpiar filtros')
       // Replaced, not pushed: going back never returns to the stale facet.
       expect(replace).toHaveBeenCalledTimes(1)
       expect(push).not.toHaveBeenCalled()
@@ -1740,7 +1843,10 @@ describe('CatalogView public browse', () => {
     it('keeps any other 400 an ordinary listing failure', async () => {
       install((url) =>
         url.searchParams.has('facet')
-          ? jsonResponse({ statusCode: 400, error: 'Bad Request', message: 'FACET_NOT_AVAILABLE' }, 400)
+          ? jsonResponse(
+              { statusCode: 400, error: 'Bad Request', message: 'FACET_NOT_AVAILABLE' },
+              400,
+            )
           : jsonResponse(facetPage(url)),
       )
       const { wrapper, router } = await mountAt(`/catalogo/centro?facet=${cat}`)
@@ -1749,34 +1855,191 @@ describe('CatalogView public browse', () => {
       expect(wrapper.text()).toContain('Reintentar')
     })
 
-    it('keeps the chips mounted while the next filtered page loads', async () => {
+    it('keeps the sidebar rows mounted while the next filtered page loads', async () => {
       let release!: () => void
       install((url) =>
-        url.searchParams.has('facet')
+        url.searchParams.getAll('facet').length > 1
           ? new Promise<Response>((resolve) => {
               release = () => resolve(jsonResponse(facetPage(url)))
             })
           : jsonResponse(facetPage(url)),
       )
-      const { wrapper } = await mountAt('/catalogo/centro')
+      const { wrapper } = await mountAt(`/catalogo/centro?facet=${cat}`)
       await flushPromises()
-      const gato = chip(wrapper, 'Especie: Gato')
-      await gato.trigger('click')
+      const adultRow = row(wrapper, 'Etapa de vida: Adulto')
+      await adultRow.trigger('click')
       await flushPromises()
-      expect(chip(wrapper, 'Especie: Gato').element).toBe(gato.element)
-      expect(chip(wrapper, 'Especie: Gato').attributes('aria-pressed')).toBe('true')
+      expect(row(wrapper, 'Etapa de vida: Adulto').element).toBe(adultRow.element)
+      expect(row(wrapper, 'Etapa de vida: Adulto').attributes('aria-pressed')).toBe('true')
       release()
       await flushPromises()
-      expect(chip(wrapper, 'Especie: Gato').attributes('aria-label')).toBe(
-        'Especie: Gato, 5 productos',
-      )
+      expect(row(wrapper, 'Etapa de vida: Adulto').attributes('aria-pressed')).toBe('true')
     })
 
-    it('shows no facet block when the listing has no attribute facets (switch off)', async () => {
-      install((url) => jsonResponse({ ...productsResponse(), facets: { categories: [] }, _u: String(url) }))
+    it('shows no tiles and no attribute groups when the listing has no attribute facets (switch off)', async () => {
+      install((url) =>
+        jsonResponse({
+          ...productsResponse(),
+          facets: { categories: twoCategories },
+          _u: String(url),
+        }),
+      )
       const { wrapper } = await mountAt('/catalogo/centro')
       await flushPromises()
-      expect(wrapper.find('[data-testid="catalog-facet-filters"]').exists()).toBe(false)
+      expect(tiles(wrapper)).toHaveLength(0)
+      expect(sidebar(wrapper).findAll('section')).toHaveLength(1)
+      expect(sidebar(wrapper).text()).toContain('Categoría')
+    })
+  })
+
+  describe('mobile filters sheet', () => {
+    const cat = 'animal.target:ani.dom.cat'
+    const twoCategories = [...categoryFacets, { id: toysId, name: 'Juguetes', count: 1 }]
+    const adult = 'life.stage:adult'
+    const attributes = [
+      {
+        code: 'animal.target',
+        label: 'Especie',
+        options: [
+          { code: 'ani.dom.cat', label: 'Gato', count: 2 },
+          { code: 'ani.dom.dog', label: 'Perro', count: 1 },
+        ],
+      },
+      {
+        code: 'life.stage',
+        label: 'Etapa de vida',
+        options: [
+          { code: 'adult', label: 'Adulto', count: 3 },
+          { code: 'puppy', label: 'Cachorro', count: 2 },
+        ],
+      },
+    ]
+    /** Listing requests carry a page of products; probes carry `limit=1` and answer a total by filters. */
+    const install = () => {
+      const fetchMock = createCatalogFetch({
+        products: (_slug, _price, url) => {
+          const facets = url.searchParams.getAll('facet')
+          const probe = url.searchParams.get('limit') === '1'
+          return jsonResponse({
+            ...productsResponse(),
+            meta: {
+              page: 1,
+              limit: probe ? 1 : 20,
+              total: probe ? 7 - facets.length : 38,
+              totalPages: 1,
+            },
+            facets: { categories: twoCategories, attributes },
+          })
+        },
+      })
+      stubCatalogFetch(fetchMock)
+      return fetchMock
+    }
+    const probes = (fetchMock: ReturnType<typeof vi.fn>) =>
+      productRequestUrls(fetchMock)
+        .map((url) => new URL(url))
+        .filter((url) => url.searchParams.get('limit') === '1')
+    const trigger = (wrapper: VueWrapper) =>
+      wrapper
+        .findAll('button')
+        .find(
+          (button) =>
+            button.attributes('aria-haspopup') === 'dialog' && button.text().startsWith('Filtros'),
+        )!
+    const sheet = () => document.body.querySelector<HTMLElement>('[role="dialog"]')
+    const sheetButton = (label: string) =>
+      [...sheet()!.querySelectorAll('button')].find((button) =>
+        (button.getAttribute('aria-label') ?? button.textContent ?? '').trim().startsWith(label),
+      )!
+    const apply = () =>
+      sheet()!.querySelector<HTMLButtonElement>('[data-testid="catalog-filter-apply"]')!
+    async function press(element: Element) {
+      element.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await flushPromises()
+    }
+    const waitDebounce = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 380))
+      await flushPromises()
+    }
+
+    it('shows «Filtros» with the active count and opens a dialog without probing before it opens', async () => {
+      const fetchMock = install()
+      const { wrapper } = await mountAt(`/catalogo/centro?facet=${cat}`)
+      await flushPromises()
+      expect(trigger(wrapper).text()).toContain('1')
+      expect(trigger(wrapper).attributes('aria-expanded')).toBe('false')
+      expect(sheet()).toBeNull()
+      expect(probes(fetchMock)).toHaveLength(0)
+      await trigger(wrapper).trigger('click')
+      await flushPromises()
+      expect(sheet()).not.toBeNull()
+      expect(probes(fetchMock)).toHaveLength(1)
+      expect(probes(fetchMock)[0]!.searchParams.getAll('facet')).toEqual([cat])
+      expect(apply().textContent!.trim()).toBe('Ver 6 productos')
+    })
+
+    it('keeps changes as a draft until «Ver N productos», then applies them to the URL without the page', async () => {
+      const fetchMock = install()
+      const { wrapper, router } = await mountAt(`/catalogo/centro?facet=${cat}&page=2&keep=yes`)
+      await flushPromises()
+      await trigger(wrapper).trigger('click')
+      await flushPromises()
+      await press(sheet()!.querySelectorAll('[data-testid="catalog-filter-group-toggle"]')[1]!)
+      await press(sheetButton('Etapa de vida: Adulto'))
+      // Nothing reaches the URL while the draft is open.
+      expect(router.currentRoute.value.query).toEqual({ facet: cat, page: '2', keep: 'yes' })
+      await waitDebounce()
+      const last = probes(fetchMock).slice(-1)[0]!
+      expect(last.searchParams.getAll('facet')).toEqual([cat, adult])
+      expect(last.searchParams.has('page')).toBe(false)
+      expect(apply().textContent!.trim()).toBe('Ver 5 productos')
+
+      await press(apply())
+      expect(router.currentRoute.value.query).toEqual({ facet: [cat, adult], keep: 'yes' })
+      expect(sheet()).toBeNull()
+    })
+
+    it('closes with Escape without applying the draft', async () => {
+      install()
+      const { wrapper, router } = await mountAt(`/catalogo/centro?facet=${cat}`)
+      await flushPromises()
+      await trigger(wrapper).trigger('click')
+      await flushPromises()
+      await press(sheetButton('Quitar filtro: Gato'))
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      await flushPromises()
+      expect(sheet()).toBeNull()
+      expect(router.currentRoute.value.query).toEqual({ facet: cat })
+    })
+
+    it('«Limpiar» empties the draft and confirming removes the filters from the URL', async () => {
+      install()
+      const { wrapper, router } = await mountAt(`/catalogo/centro?facet=${cat}&q=caf`)
+      await flushPromises()
+      await trigger(wrapper).trigger('click')
+      await flushPromises()
+      await press(sheetButton('Limpiar'))
+      expect(router.currentRoute.value.query).toEqual({ facet: cat, q: 'caf' })
+      await press(apply())
+      expect(router.currentRoute.value.query).toEqual({ q: 'caf' })
+    })
+
+    it('falls back to «Ver productos» when the probe fails', async () => {
+      const fetchMock = createCatalogFetch({
+        products: (_slug, _price, url) =>
+          url.searchParams.get('limit') === '1'
+            ? jsonResponse({}, 500)
+            : jsonResponse({
+                ...productsResponse(),
+                facets: { categories: twoCategories, attributes },
+              }),
+      })
+      stubCatalogFetch(fetchMock)
+      const { wrapper } = await mountAt(`/catalogo/centro?facet=${cat}`)
+      await flushPromises()
+      await trigger(wrapper).trigger('click')
+      await flushPromises()
+      expect(apply().textContent!.trim()).toBe('Ver productos')
     })
   })
 
@@ -1794,12 +2057,10 @@ describe('CatalogView public browse', () => {
 
     it('sends the order from the URL, never «Relevancia», and changes it from page 1', async () => {
       const fetchMock = pagedFetch()
-      vi.stubGlobal('fetch', fetchMock)
+      stubCatalogFetch(fetchMock)
       const { wrapper, router } = await mountAt('/catalogo/centro?sort=price_desc&page=2&keep=yes')
       await flushPromises()
-      expect(new URL(lastProductRequestUrl(fetchMock)!).searchParams.get('sort')).toBe(
-        'price_desc',
-      )
+      expect(new URL(lastProductRequestUrl(fetchMock)!).searchParams.get('sort')).toBe('price_desc')
       const select = wrapper.get<HTMLSelectElement>('#catalogo select')
       expect(select.element.value).toBe('price_desc')
       expect(select.findAll('option').map((option) => option.text())).toEqual([
@@ -1824,7 +2085,7 @@ describe('CatalogView public browse', () => {
       'keeps the default request byte-identical for %s',
       async (query) => {
         const fetchMock = createCatalogFetch()
-        vi.stubGlobal('fetch', fetchMock)
+        stubCatalogFetch(fetchMock)
         await mountAt(`/catalogo/centro${query}`)
         await flushPromises()
         expect(productRequestUrls(fetchMock)).toEqual([productsUrl('centro')])
@@ -1840,7 +2101,7 @@ describe('CatalogView public browse', () => {
       ['/catalogo/centro?facet=animal.target:ani.dom.cat', false],
       ['/catalogo/centro?page=2', false],
     ])('shows the full hero only on the unfiltered first page (%s → %s)', async (path, full) => {
-      vi.stubGlobal('fetch', pagedFetch())
+      stubCatalogFetch(pagedFetch())
       const { wrapper } = await mountAt(path)
       await flushPromises()
       expect(wrapper.find('.catalog-hero').exists()).toBe(full)
@@ -1854,7 +2115,7 @@ describe('CatalogView public browse', () => {
     })
 
     it('reads «Mostrando a–b de N» from the meta and numbers the pages', async () => {
-      vi.stubGlobal('fetch', pagedFetch())
+      stubCatalogFetch(pagedFetch())
       const { wrapper, router } = await mountAt('/catalogo/centro?page=2')
       await flushPromises()
       const pager = wrapper.get('nav[aria-label="Paginación del catálogo"]')
@@ -1896,7 +2157,9 @@ describe('CatalogView public browse', () => {
       )
       await flushPromises()
       const chips = wrapper.get('[aria-label="Filtros activos"]')
-      expect(chips.findAll('button').map((button) => button.attributes('aria-label') ?? button.text())).toEqual([
+      expect(
+        chips.findAll('button').map((button) => button.attributes('aria-label') ?? button.text()),
+      ).toEqual([
         'Quitar filtro: Café',
         'Quitar filtro: Perros',
         'Quitar búsqueda: croqueta',
@@ -1945,7 +2208,7 @@ describe('CatalogView public browse', () => {
 
     it('offers the published branches when the URL names a branch without a catalog', async () => {
       const fetchMock = createCatalogFetch()
-      vi.stubGlobal('fetch', fetchMock)
+      stubCatalogFetch(fetchMock)
       const { wrapper, router } = await mountAt('/catalogo/norte-viejo?keep=yes')
       await flushPromises()
       expect(wrapper.text()).toContain('Esta sucursal aún no publica su catálogo')
@@ -1966,7 +2229,9 @@ describe('CatalogView public browse', () => {
       const { wrapper } = await mountAt('/catalogo/centro')
       await flushPromises()
       expect(wrapper.find('[data-testid="catalog-price-context-selector"]').exists()).toBe(false)
-      expect(wrapper.get('.catalog-listing-context').text()).toBe('Precios en MXN · Sucursal Centro')
+      expect(wrapper.get('.catalog-listing-context').text()).toBe(
+        'Precios en MXN · Sucursal Centro',
+      )
       expect(wrapper.get('footer').text()).toContain(
         'Catálogo de Sucursal Centro. Precios en pesos mexicanos (MXN).',
       )

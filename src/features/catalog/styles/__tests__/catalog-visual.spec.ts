@@ -77,7 +77,10 @@ describe('catalog stylesheet', () => {
   })
 
   it('keeps the artboard 02 phone header: logo, «Categorías» and branch, then the full-width search', () => {
-    const base = css.slice(css.indexOf('.catalog-header-inner {'), css.indexOf('@media (min-width: 721px) {'))
+    const base = css.slice(
+      css.indexOf('.catalog-header-inner {'),
+      css.indexOf('@media (min-width: 721px) {'),
+    )
     expect(base).toContain("'logo cats branch'")
     expect(base).toContain("'search search search'")
     // The discreet price list shares the search row only when there is a real choice.
@@ -109,23 +112,21 @@ describe('catalog stylesheet', () => {
     expect(desktop).toMatch(/\.catalog-footer-inner \{[^}]*gap: 28px 32px/)
   })
 
-  it('keeps every attribute facet on one sideways row on a phone and lets them flow side by side on desktop', () => {
-    const facets = css.slice(css.indexOf('.catalog-facets {'))
-    const phone = facets.slice(0, facets.indexOf('@media (min-width: 601px) {'))
-    // Phone: one scrolling row (eight definitions stacked pushed the products off screen).
-    // Only the groups scroll; «Limpiar filtros» is a separate item before the scroller and is
-    // never pinned over it (a sticky clear covered the first label «Especie»).
-    expect(phone).toMatch(/\.catalog-facet-scroller \{[^}]*overflow-x: auto/)
-    expect(phone).not.toMatch(/\.catalog-facets \{[^}]*overflow-x/)
-    expect(phone).not.toMatch(/\.catalog-facets \{[^}]*flex-direction: column/)
-    expect(phone).toMatch(/\.catalog-facet-group \{[^}]*flex: none/)
-    expect(phone).toMatch(/\.catalog-facet-chip \{[^}]*min-height: 44px/)
-    expect(phone).toMatch(/\.catalog-facet-clear \{[^}]*flex: none[^}]*order: -1/)
-    expect(facets).not.toMatch(/\.catalog-facet-clear \{[^}]*position: (?:sticky|absolute|fixed)/)
-    const desktop = facets.slice(facets.indexOf('@media (min-width: 601px) {'))
-    expect(desktop).toMatch(/\.catalog-facets \{[^}]*flex-wrap: wrap/)
-    expect(desktop).toMatch(/\.catalog-facet-scroller \{[^}]*display: contents/)
-    expect(desktop).toMatch(/\.catalog-facet-group \{[^}]*flex-direction: column/)
-    expect(desktop).toMatch(/\.catalog-facet-clear \{[^}]*order: 0/)
+  it('pins the filters: 40/48px rows with a round mark, the sidebar from 901px and the sheet on a phone', () => {
+    const filters = css.slice(css.indexOf('Filters (design/public-catalog-v0'))
+    expect(filters).toMatch(/\.catalog-filter-option \{[^}]*min-height: 40px/)
+    expect(filters).toMatch(/\.catalog-filter-option-mark \{[^}]*border-radius: 50%/)
+    expect(filters).toMatch(
+      /\.catalog-filter-sheet-body \.catalog-filter-option \{[^}]*min-height: 48px/,
+    )
+    expect(filters).toMatch(/\.catalog-recipient \{[^}]*min-height: 44px/)
+    // Phone: no sidebar and no classic checkbox styling; the sidebar and the card grid come at 901px.
+    expect(filters).toMatch(/\.catalog-filter-sidebar \{[^}]*display: none/)
+    const desktop = filters.slice(filters.indexOf('@media (min-width: 901px) {'))
+    expect(desktop).toMatch(/\.catalog-split--filters \{[^}]*grid-template-columns: 208px/)
+    expect(desktop).toMatch(/\.catalog-filter-sidebar \{[^}]*display: block/)
+    expect(desktop).toMatch(/\.catalog-filter-trigger \{[^}]*display: none/)
+    expect(desktop).toMatch(/repeat\(4, minmax\(0, 1fr\)\)/)
+    expect(filters).not.toMatch(/input\[type=['"]?checkbox/)
   })
 })
