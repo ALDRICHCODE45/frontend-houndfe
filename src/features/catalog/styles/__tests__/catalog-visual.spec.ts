@@ -60,9 +60,9 @@ describe('catalog stylesheet', () => {
     expect(base).toMatch(/\.catalog-footer \.catalog-logo \{[^}]*width: 40px/)
     expect(base).toMatch(/\.catalog-footer \{[^}]*padding-block: 20px/)
     expect(base).toMatch(/\.catalog-footer p \{[^}]*margin-top: 4px/)
-    // From 601px the roomier footer comes back.
+    // The logo stays ~40px on every width, like the artboard (no oversized logo on desktop).
     const desktop = css.slice(css.indexOf('@media (min-width: 601px) {'))
-    expect(desktop).toMatch(/\.catalog-footer \.catalog-logo \{[^}]*width: 80px/)
+    expect(desktop).not.toMatch(/\.catalog-footer \.catalog-logo \{/)
   })
 
   it('pins skeleton cards that respect reduced motion', () => {
@@ -83,8 +83,9 @@ describe('catalog stylesheet', () => {
     )
     expect(base).toContain("'logo cats branch'")
     expect(base).toContain("'search search search'")
-    // The discreet price list shares the search row only when there is a real choice.
-    expect(base).toMatch(/\.catalog-header-inner--lists \{[^}]*'search search lists'/)
+    // The discreet price list gets its own third row on a phone, only when there is a real choice.
+    expect(base).toMatch(/\.catalog-header-inner--lists \{[^}]*'lists lists lists'/)
+    expect(base).toMatch(/\.catalog-select-name \{[^}]*text-overflow: ellipsis/)
     expect(base).toMatch(/\.catalog-logo \{[^}]*width: 48px/)
     expect(base).toMatch(/\.catalog-header-controls \{[^}]*grid-area: lists/)
     // From 721px one row: logo, Categorías, search, branch (and lists).
@@ -128,5 +129,23 @@ describe('catalog stylesheet', () => {
     expect(desktop).toMatch(/\.catalog-filter-trigger \{[^}]*display: none/)
     expect(desktop).toMatch(/repeat\(4, minmax\(0, 1fr\)\)/)
     expect(filters).not.toMatch(/input\[type=['"]?checkbox/)
+  })
+
+  it('keeps the detail eyebrow in sentence case, like every other label', () => {
+    const detail = readFileSync('src/features/catalog/styles/catalog-detail.css', 'utf8')
+    const eyebrow = detail.slice(detail.indexOf('.catalog-pdp-eyebrow {'))
+    expect(eyebrow.slice(0, eyebrow.indexOf('}'))).not.toMatch(/uppercase|letter-spacing/)
+  })
+
+  it('gives the branch-without-catalog options their own full-width rows', () => {
+    expect(css).toMatch(/\.catalog-branch-pick \{[^}]*width: 100%/)
+    expect(css).toMatch(/\.catalog-branch-pick-name \{[^}]*min-width: 0/)
+    // The branch block's `.catalog-branch-row` styles its first child 16px wide: never reuse it.
+    expect(css).not.toContain('.catalog-branch-row')
+  })
+
+  it('draws the card media as a full-width square with the photo contained', () => {
+    expect(css).toMatch(/\.catalog-product-media \{[^}]*aspect-ratio: 1 \/ 1/)
+    expect(css).toMatch(/\.catalog-product-image \{[^}]*object-fit: contain/)
   })
 })

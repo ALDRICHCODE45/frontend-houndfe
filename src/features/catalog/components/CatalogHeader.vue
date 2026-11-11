@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import CatalogPriceContextSelector from './CatalogPriceContextSelector.vue'
+import { shortBranchName } from '../utils/branch-name'
 import type { PublicBranchDto } from '../interfaces/catalog.types'
 import type { PublicCatalogPriceContextDto } from '../interfaces/public-catalog-price-context.types'
 import type { CatalogBranchesState } from '../composables/useCatalogBranches'
@@ -27,6 +28,10 @@ const emit = defineEmits<{
  */
 const isChooserOpen = ref(false)
 const selectedSlug = computed(() => props.selectedBranch?.slug ?? null)
+/** Short on a phone, where the pin already says what it is; the full name stays in the title. */
+const branchLabel = computed(() =>
+  props.selectedBranch ? shortBranchName(props.selectedBranch.name) : 'Elegir sucursal',
+)
 const isLoading = computed(() => props.state === 'loading' || props.state === 'retry-pending')
 
 /** Neutral absence copy. The catalog never invents an address for a branch that has none. */
@@ -113,15 +118,14 @@ function selectBranch(slug: string) {
           size="sm"
           class="catalog-branch-trigger min-h-11 min-w-0 shrink"
           aria-label="Explorar sucursales"
+          :title="selectedBranch?.name"
         >
           <template #leading>
             <UIcon name="i-lucide-map-pin" class="size-4 shrink-0 text-muted" />
           </template>
           <span class="catalog-select-text">
             <small>Sucursal</small>
-            <strong class="max-w-[9rem] truncate sm:max-w-[12rem]">{{
-              selectedBranch?.name ?? 'Elegir sucursal'
-            }}</strong>
+            <strong class="catalog-select-name">{{ branchLabel }}</strong>
           </span>
           <template #trailing>
             <UIcon

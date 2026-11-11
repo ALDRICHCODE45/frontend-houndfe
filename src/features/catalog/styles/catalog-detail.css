@@ -83,11 +83,9 @@
 
 .catalog-pdp-eyebrow {
   color: var(--catalog-muted);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
+  font-size: 13px;
+  font-weight: 500;
   line-height: 1.6;
-  text-transform: uppercase;
 }
 
 .catalog-pdp-head h1 {
@@ -256,10 +254,20 @@
   letter-spacing: 0;
 }
 
-.catalog-pdp-price-context,
+.catalog-pdp-meta,
 .catalog-pdp-quantity {
   color: var(--catalog-muted);
+  font-size: 14px;
+}
+
+/* What the WhatsApp button will send (desktop only: the phone has the bar). */
+.catalog-pdp-wa-hint {
+  display: none;
+  margin-top: 4px;
+  color: var(--catalog-muted);
   font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .catalog-pdp-quantity {
@@ -395,20 +403,21 @@
 
 .catalog-pdp-presentations-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(var(--catalog-pdp-cols-sm, 2), minmax(0, 1fr));
   gap: 10px;
 }
 
+/* A compact tile: name, price with the unit price inline, stock, then the saving chip. */
 .catalog-pdp-presentation {
   position: relative;
   display: grid;
-  grid-template-areas: 'top price' 'state price' 'quantity price';
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  column-gap: 12px;
+  grid-template-areas: 'top' 'price' 'state' 'quantity' 'saving';
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  justify-items: start;
   row-gap: 4px;
-  min-height: 68px;
-  padding: 12px 14px;
+  min-width: 0;
+  padding: 12px;
   border: 1px solid var(--catalog-border-strong);
   border-radius: var(--catalog-panel-radius);
   background: var(--catalog-surface);
@@ -418,6 +427,7 @@
 .catalog-pdp-presentation-top {
   grid-area: top;
   display: flex;
+  width: 100%;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
@@ -427,7 +437,7 @@
 .catalog-pdp-presentation-name {
   min-width: 0;
   color: var(--catalog-title);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
@@ -446,11 +456,14 @@
 
 .catalog-pdp-presentation-price {
   grid-area: price;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 6px;
   color: var(--catalog-text);
-  font-size: 16px;
+  font-size: 15px;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
-  text-align: right;
 }
 
 .catalog-pdp-presentation-consult {
@@ -843,20 +856,11 @@
   }
 
   .catalog-pdp-presentations-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    grid-template-columns: repeat(var(--catalog-pdp-cols, 3), minmax(0, 1fr));
   }
 
-  .catalog-pdp-presentation {
-    grid-template-areas: 'top' 'price' 'state' 'quantity';
-    grid-template-columns: minmax(0, 1fr);
-    align-content: start;
-    align-items: start;
-    min-height: 92px;
-  }
-
-  .catalog-pdp-presentation-price {
-    font-size: 15px;
-    text-align: left;
+  .catalog-pdp-wa-hint {
+    display: block;
   }
 
   .catalog-pdp-spec-group dl > div {

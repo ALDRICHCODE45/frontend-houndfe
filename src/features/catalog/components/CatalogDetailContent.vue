@@ -12,6 +12,7 @@ import CatalogDetailStickyBar from './CatalogDetailStickyBar.vue'
 import CatalogWhatsappLink from './CatalogWhatsappLink.vue'
 import CatalogDetailSpecs from './CatalogDetailSpecs.vue'
 import { sortVariantsBySize } from '../utils/variant-order'
+import { presentationLabel } from '../utils/presentation-label'
 import { computeUnitPrices } from '../utils/unit-price'
 import { normalizeWhatsappNumber, productInquiryMessage } from '../utils/whatsapp'
 import {
@@ -19,9 +20,11 @@ import {
   displayAvailability,
   displayPrice,
   displayQuantity,
+  exactQuantityLabel,
   groupAttributesBySection,
   presentationAttributes,
 } from '../utils/detail-presentation'
+import type { DisplayAvailability } from '../utils/detail-presentation'
 import type { PublicCatalogProductDetailDto } from '../interfaces/public-catalog-product-detail.types'
 import type { PublicCatalogBranchDetailDto } from '../interfaces/public-catalog-branch.types'
 import '../styles/catalog-extras.css'
@@ -60,7 +63,7 @@ const unitPrices = computed(() => {
     props.detail.variants.length > 0
       ? props.detail.variants.map((variant) => ({
           id: variant.id,
-          name: variant.name,
+          name: presentationLabel(props.detail.name, variant.name),
           priceCents: variant.price.hidden ? null : variant.price.priceCents,
           attributes: presentationAttributes(productAttributes, variant.attributes ?? []),
         }))
@@ -75,23 +78,42 @@ const unitPrices = computed(() => {
   return computeUnitPrices(items)
 })
 
+/**
+ * What a stock line says: the real quantity («Quedan 3») replaces the generic low-stock wording,
+ * so the quantity never needs a line of its own. Only a published custom quantity stays apart.
+ */
+function stockLines(
+  stock: PublicCatalogProductDetailDto['stockPresentation'],
+  status: DisplayAvailability | null,
+) {
+  const exact = exactQuantityLabel(stock)
+  return {
+    availability: status && exact ? { ...status, label: exact } : status,
+    quantity: exact ? null : displayQuantity(stock),
+  }
+}
+
 /** Presentations from the smallest size up, each reporting the selected branch only. */
 const variants = computed(() =>
   sortVariantsBySize(props.detail.variants).map((variant) => {
     const selectedBranch = variant.availabilityByBranch.find((entry) => entry.isSelected) ?? null
+    const stock = stockLines(
+      variant.stockPresentation,
+      displayAvailability(variant.stockPresentation, selectedBranch?.availability ?? null),
+    )
+    const unit = unitPrices.value[variant.id] ?? null
+    const label = presentationLabel(props.detail.name, variant.name)
     return {
       variant,
+      label,
       option: {
         id: variant.id,
-        name: variant.name,
+        name: label,
         price: displayPrice(variant.price),
-        quantity: displayQuantity(variant.stockPresentation),
-        unitPrice: unitPrices.value[variant.id]?.label ?? null,
-        saving: savingLabel(unitPrices.value[variant.id]?.saving ?? null),
-        availability: displayAvailability(
-          variant.stockPresentation,
-          selectedBranch?.availability ?? null,
-        ),
+        quantity: stock.quantity,
+        unitPrice: unit ? `${unit.amount}/${unit.unit}` : null,
+        saving: savingLabel(unit?.saving ?? null),
+        availability: stock.availability,
       } satisfies CatalogDetailPresentationOption,
     }
   }),
@@ -118,13 +140,17 @@ const selected = computed(
 const price = computed(() =>
   selected.value ? selected.value.option.price : displayPrice(props.detail.price),
 )
-const quantity = computed(() =>
-  selected.value ? selected.value.option.quantity : displayQuantity(props.detail.stockPresentation),
+const stock = computed(() =>
+  selected.value
+    ? { availability: selected.value.option.availability, quantity: selected.value.option.quantity }
+    : stockLines(
+        props.detail.stockPresentation,
+        displayAvailability(props.detail.stockPresentation, props.detail.availability),
+      ),
 )
+const quantity = computed(() => stock.value.quantity)
 const availability = computed(() => {
-  const status = selected.value
-    ? selected.value.option.availability
-    : displayAvailability(props.detail.stockPresentation, props.detail.availability)
+  const status = stock.value.availability
   if (!status) return null
   return {
     ...status,
@@ -132,22 +158,22 @@ const availability = computed(() => {
   }
 })
 
-/** The unit price of what is shown: the selected presentation, or the product itself. */
-const unitPrice = computed(
-  () => unitPrices.value[selected.value ? selected.value.variant.id : props.detail.id]?.label ?? null,
-)
-
-const outOfStock = computed(() => {
-  const status = selected.value
-    ? selected.value.option.availability
-    : displayAvailability(props.detail.stockPresentation, props.detail.availability)
-  return status?.isOut ?? false
+/** «Presentación 2 kg · $110.00 por kg»: each part only when it exists; nothing else is invented. */
+const metaLine = computed(() => {
+  const unit = unitPrices.value[selected.value ? selected.value.variant.id : props.detail.id]
+  const parts = [
+    selected.value ? `Presentación ${selected.value.label}` : null,
+    unit ? `${unit.amount} por ${unit.unit}` : null,
+  ].filter((part): part is string => part !== null)
+  return parts.length > 0 ? parts.join(' · ') : null
 })
+
+const outOfStock = computed(() => stock.value.availability?.isOut ?? false)
 const hasWhatsapp = computed(() => normalizeWhatsappNumber(props.whatsappNumber) !== null)
 const whatsappMessage = computed(() =>
   productInquiryMessage({
     productName: props.detail.name,
-    presentationName: selected.value?.variant.name ?? null,
+    presentationName: selected.value?.label ?? null,
     branchName: props.branchName,
     url: props.pageUrl,
     outOfStock: outOfStock.value,
@@ -184,8 +210,8 @@ const galleryImages = computed<CatalogDetailGalleryImage[]>(() => {
   return [
     {
       url,
-      alt: `Imagen de ${props.detail.name}, presentación ${variant.name}`,
-      caption: `Presentación ${variant.name}`,
+      alt: `Imagen de ${props.detail.name}, presentación ${selected.value?.label ?? variant.name}`,
+      caption: `Presentación ${selected.value?.label ?? variant.name}`,
     },
     ...productImages.value.filter((image) => image.url !== url),
   ]
@@ -249,16 +275,8 @@ const showEmptyNote = computed(
           >
             Consultar precio
           </p>
-          <p data-testid="catalog-detail-price-context" class="catalog-pdp-price-context">
-            <template v-if="selected">Presentación {{ selected.variant.name }} · </template>Lista de
-            precios: {{ detail.priceContext.name }}
-          </p>
-          <p
-            v-if="unitPrice"
-            data-testid="catalog-detail-unit-price"
-            class="catalog-pdp-unit-price"
-          >
-            {{ unitPrice }}
+          <p v-if="metaLine" data-testid="catalog-detail-meta" class="catalog-pdp-meta">
+            {{ metaLine }}
           </p>
           <p v-if="quantity" data-testid="catalog-detail-quantity" class="catalog-pdp-quantity">
             {{ quantity }}
@@ -281,6 +299,9 @@ const showEmptyNote = computed(
           />
           <CatalogDetailShareButton :url="shareUrl" :title="detail.name" mode="copy" />
         </div>
+        <p v-if="hasWhatsapp" data-testid="catalog-detail-whatsapp-hint" class="catalog-pdp-wa-hint">
+          Abrirá WhatsApp con este mensaje: «{{ whatsappMessage }}»
+        </p>
       </div>
 
       <CatalogDetailPresentations
@@ -295,7 +316,7 @@ const showEmptyNote = computed(
       <CatalogDetailSpecs
         :description="description"
         :groups="attributeGroups"
-        :scope="selected ? selected.variant.name : null"
+        :scope="selected ? selected.label : null"
       />
 
       <div
@@ -313,7 +334,7 @@ const showEmptyNote = computed(
   <CatalogDetailStickyBar
     v-if="hasWhatsapp && whatsappNumber"
     :price="price"
-    :line="selected ? selected.variant.name : null"
+    :line="selected ? selected.label : null"
     :can-change="options.length > 1"
     :whatsapp-number="whatsappNumber"
     :message="whatsappMessage"

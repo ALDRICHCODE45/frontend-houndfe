@@ -96,7 +96,9 @@ describe('CatalogHeader fidelity', () => {
     const wrapper = mountHeader()
     const trigger = wrapper.get('[aria-label="Explorar sucursales"]')
     expect(trigger.text()).toContain('Sucursal')
-    expect(trigger.text()).toContain('Sucursal Centro')
+    // The control says «Sucursal» itself, so the name is the short one; the full name is the title.
+    expect(trigger.get('strong').text()).toBe('Centro')
+    expect(trigger.attributes('title')).toBe('Sucursal Centro')
     wrapper.unmount()
   })
 

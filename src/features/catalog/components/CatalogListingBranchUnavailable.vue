@@ -22,20 +22,20 @@ const chosen = computed(
     <span class="catalog-listing-state-icon"><UIcon name="i-lucide-store" class="size-5" aria-hidden="true" /></span>
     <h3>Esta sucursal aún no publica su catálogo</h3>
     <p>Puedes ver el catálogo de otra sucursal.</p>
-    <div class="catalog-branch-rows" role="group" aria-label="Sucursales">
+    <div class="catalog-branch-picks" role="group" aria-label="Sucursales">
       <button
         v-for="branch in branches"
         :key="branch.id"
         type="button"
-        class="catalog-branch-row"
+        class="catalog-branch-pick"
         :aria-pressed="chosen?.slug === branch.slug"
         @click="chosenSlug = branch.slug"
       >
-        <span class="catalog-branch-row-name">
+        <span class="catalog-branch-pick-name">
           <b>{{ branch.name }}</b>
           <span v-if="branch.address">{{ branch.address }}</span>
         </span>
-        <span class="catalog-branch-row-mark" aria-hidden="true">
+        <span class="catalog-branch-pick-mark" aria-hidden="true">
           <UIcon name="i-lucide-check" class="size-3.5" />
         </span>
       </button>

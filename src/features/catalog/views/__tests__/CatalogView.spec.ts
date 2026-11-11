@@ -308,7 +308,7 @@ describe('CatalogView public browse', () => {
     expect(router.currentRoute.value.fullPath).toBe('/catalogo/centro?source=home#top')
     expect(branchTrigger(wrapper).attributes('aria-expanded')).toBe('false')
     expect(wrapper.find('button[aria-label="Sucursal Centro"]').exists()).toBe(false)
-    expect(branchTrigger(wrapper).text()).toContain('Sucursal Centro')
+    expect(branchTrigger(wrapper).get('strong').text()).toBe('Centro')
     expect(requestUrls(fetchMock)).toEqual([
       'http://localhost:3000/public/catalog/branches',
       'http://localhost:3000/public/catalog/centro/price-contexts',
@@ -335,7 +335,7 @@ describe('CatalogView public browse', () => {
     const { wrapper, router } = await mountAt('/catalogo/centro')
 
     await flushPromises()
-    expect(branchTrigger(wrapper).text()).toContain('Sucursal Centro')
+    expect(branchTrigger(wrapper).get('strong').text()).toBe('Centro')
     expect(gridText(wrapper)).toContain('Producto Centro')
 
     await openBranchSelector(wrapper)
@@ -353,21 +353,21 @@ describe('CatalogView public browse', () => {
 
     await router.push('/catalogo/norte')
     await flushPromises()
-    expect(branchTrigger(wrapper).text()).toContain('Sucursal Norte')
+    expect(branchTrigger(wrapper).get('strong').text()).toBe('Norte')
     expect(gridText(wrapper)).toContain('Producto Norte')
 
     const back = waitForNavigation(router)
     router.back()
     await back
     await flushPromises()
-    expect(branchTrigger(wrapper).text()).toContain('Sucursal Centro')
+    expect(branchTrigger(wrapper).get('strong').text()).toBe('Centro')
     expect(gridText(wrapper)).toContain('Producto Centro')
 
     const forward = waitForNavigation(router)
     router.forward()
     await forward
     await flushPromises()
-    expect(branchTrigger(wrapper).text()).toContain('Sucursal Norte')
+    expect(branchTrigger(wrapper).get('strong').text()).toBe('Norte')
     expect(gridText(wrapper)).toContain('Producto Norte')
   })
 

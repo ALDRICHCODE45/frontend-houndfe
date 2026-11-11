@@ -29,9 +29,16 @@ describe('computeUnitPrices', () => {
       item('b', '8 kg', 74900, [content(8)]),
       item('c', '20 kg', 168900, [content(20)]),
     ])
-    expect(result.a).toEqual({ label: '$110.00 / kg', saving: null })
+    expect(result.a).toEqual({
+      label: '$110.00 / kg',
+      amount: '$110.00',
+      unit: 'kg',
+      saving: null,
+    })
     expect(result.b).toEqual({
       label: '$93.63 / kg',
+      amount: '$93.63',
+      unit: 'kg',
       saving: { percent: 15, versus: '2 kg' },
     })
     expect(result.c?.label).toBe('$84.45 / kg')
@@ -68,7 +75,7 @@ describe('computeUnitPrices', () => {
 
   it('gives a single presentation its unit price and no saving', () => {
     expect(computeUnitPrices([item('a', '2 kg', 22000, [content(2)])])).toEqual({
-      a: { label: '$110.00 / kg', saving: null },
+      a: { label: '$110.00 / kg', amount: '$110.00', unit: 'kg', saving: null },
     })
   })
 
@@ -95,7 +102,12 @@ describe('computeUnitPrices', () => {
       item('a', '2 kg', 20000, [content(2)]),
       item('b', '8 kg', 90000, [content(8)]),
     ])
-    expect(result.b).toEqual({ label: '$112.50 / kg', saving: null })
+    expect(result.b).toEqual({
+      label: '$112.50 / kg',
+      amount: '$112.50',
+      unit: 'kg',
+      saving: null,
+    })
   })
 
   it('returns nothing for an empty list', () => {

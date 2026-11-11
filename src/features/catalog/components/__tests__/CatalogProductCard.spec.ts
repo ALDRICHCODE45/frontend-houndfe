@@ -137,7 +137,7 @@ describe('CatalogProductCard', () => {
       alt: `Imagen de ${product.name}`,
     })
     expect(wrapper.text()).toContain(formatCentsMXN(2599))
-    expect(wrapper.text()).toContain('Disponible')
+    expect(wrapper.text()).not.toContain('Disponible')
     expect(wrapper.text()).toContain('Tostadores')
     expect(wrapper.text()).toContain('Café')
   })
@@ -281,8 +281,32 @@ describe('CatalogProductCard', () => {
     expect(wrapper.text()).not.toMatch(/Disponible|Pocas piezas|Agotado/)
   })
 
-  it('leads with the media region and keeps the availability pill inside it', () => {
+  it('says nothing about availability on an ordinary available card', () => {
     const wrapper = mountCard()
+    expect(wrapper.find('[data-testid="catalog-product-availability"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Disponible')
+  })
+
+  it('puts the «Desde» note inline before the price, with a small MXN after it', () => {
+    const wrapper = mountCard({
+      hasVariants: true,
+      price: { fromPriceCents: 14900, priceCents: 12900, hidden: false },
+    })
+    const line = wrapper.get('[data-testid="catalog-product-price-line"]')
+    expect(Array.from(line.element.children).map((child) => child.textContent?.trim())).toEqual([
+      'Desde',
+      formatCentsMXN(14900),
+      'MXN',
+    ])
+    expect(wrapper.findAll('.catalog-product-price-note')).toHaveLength(1)
+    expect(line.find('.catalog-product-price-note').exists()).toBe(true)
+  })
+
+  it('leads with the media region and keeps the availability pill inside it', () => {
+    const wrapper = mountCard({
+      availability: 'low_stock',
+      stockPresentation: { mode: 'SYSTEM_STATUS', status: 'low_stock', customQuantity: null },
+    })
 
     const control = cardLink(wrapper)
     const media = wrapper.get('[data-testid="catalog-product-media"]')
@@ -290,7 +314,7 @@ describe('CatalogProductCard', () => {
     expect(media.find('img').exists()).toBe(true)
 
     const availability = media.get('[data-testid="catalog-product-availability"]')
-    expect(availability.text()).toContain('Disponible')
+    expect(availability.text()).toContain('Pocas piezas')
   })
 
   it('orders the card body as brand, name, category and price', () => {
@@ -305,6 +329,7 @@ describe('CatalogProductCard', () => {
       'catalog-product-brand',
       'h2',
       'catalog-product-category',
+      'catalog-product-price-line',
       'catalog-product-price',
       'catalog-product-action',
     ])
@@ -324,7 +349,7 @@ describe('CatalogProductCard', () => {
 
     const price = wrapper.get('[data-testid="catalog-product-price"]')
     const quantity = wrapper.get('[data-testid="catalog-product-quantity"]')
-    const row = price.element.parentElement
+    const row = price.element.closest('.catalog-product-price-row')
 
     expect(row?.className).toContain('flex-wrap')
     for (const value of [price, quantity]) {
@@ -359,7 +384,6 @@ describe('CatalogProductCard', () => {
 
   describe('status tones and paint', () => {
     it.each([
-      ['available', 'Disponible', 'success'],
       ['low_stock', 'Pocas piezas', 'warning'],
       ['out_of_stock', 'Agotado', 'neutral'],
     ] as const)('maps %s to the %s tone, never a palette color', (status, label, tone) => {

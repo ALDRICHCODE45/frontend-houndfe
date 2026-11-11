@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import CatalogWhatsappIcon from './CatalogWhatsappIcon.vue'
 import { buildWhatsappUrl } from '../utils/whatsapp'
 import '../styles/catalog-extras.css'
 
@@ -35,7 +36,7 @@ const href = computed(() => buildWhatsappUrl(props.number, props.message))
     rel="noopener noreferrer"
     :aria-label="variant === 'icon' ? (ariaLabel ?? label) : undefined"
   >
-    <UIcon name="i-lucide-message-circle" class="catalog-wa-icon" aria-hidden="true" />
+    <CatalogWhatsappIcon class="catalog-wa-icon" />
     <span v-if="variant !== 'icon'">{{ label }}</span>
   </a>
 </template>

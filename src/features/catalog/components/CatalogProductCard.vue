@@ -65,6 +65,8 @@ const formattedPrice = computed(() => {
 const availability = computed(() => {
   const presentation = props.product.stockPresentation
   if (presentation.mode === 'HIDDEN' || presentation.status === null) return null
+  // An ordinary available product says nothing: the pill is only for what a shopper must know.
+  if (presentation.status === 'available') return null
   const config = catalogAvailabilityConfig[presentation.status]
   // The real quantity (opt-in exact mode) replaces the generic low-stock wording.
   const exact = exactQuantityLabel(presentation)
@@ -181,21 +183,21 @@ function openDetail(event: MouseEvent) {
           {{ product.category.name }}
         </p>
 
-        <p
-          v-if="product.hasVariants && formattedPrice"
-          class="catalog-product-price-note text-muted"
-        >
-          Desde
-        </p>
         <div
           class="catalog-product-price-row flex min-w-0 flex-wrap items-end justify-between gap-x-3 gap-y-1"
         >
           <p
             v-if="formattedPrice"
-            data-testid="catalog-product-price"
-            class="catalog-product-price min-w-0 break-words font-semibold tracking-tight text-highlighted tabular-nums"
+            data-testid="catalog-product-price-line"
+            class="catalog-product-price-line min-w-0"
           >
-            {{ formattedPrice }}
+            <span v-if="product.hasVariants" class="catalog-product-price-note">Desde</span>
+            <span
+              data-testid="catalog-product-price"
+              class="catalog-product-price min-w-0 break-words font-semibold tracking-tight text-highlighted tabular-nums"
+              >{{ formattedPrice }}</span
+            >
+            <small class="catalog-product-currency">MXN</small>
           </p>
           <p
             v-else

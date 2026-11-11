@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, shallowRef } from 'vue'
 import {
   RouterLink,
   useRoute,
@@ -12,10 +12,13 @@ import CatalogFooter from '../components/CatalogFooter.vue'
 import CatalogDetailContent from '../components/CatalogDetailContent.vue'
 import CatalogDetailNotice from '../components/CatalogDetailNotice.vue'
 import CatalogDetailSkeleton from '../components/CatalogDetailSkeleton.vue'
+import CatalogListingCategoryMenu from '../components/CatalogListingCategoryMenu.vue'
+import CatalogListingSearch from '../components/CatalogListingSearch.vue'
 import { useCatalogBranches } from '../composables/useCatalogBranches'
 import { useCatalogBranchDetail } from '../composables/useCatalogBranchDetail'
 import { useCatalogPriceContexts } from '../composables/useCatalogPriceContexts'
 import { useCatalogProductDetail } from '../composables/useCatalogProductDetail'
+import { useCatalogProducts } from '../composables/useCatalogProducts'
 import { buildSharePreviewUrl } from '../utils/whatsapp'
 import '../styles/catalog-detail.css'
 
@@ -182,6 +185,40 @@ const selectedPriceListId = computed(
   () => detail.value?.priceContext.priceListId ?? priceListId.value,
 )
 
+/**
+ * The header is the listing's: «Categorías» with its counts and the search. The counts are the
+ * unfiltered listing facets, read the same way the listing reads them; both controls lead to the
+ * listing, never filter this page.
+ */
+const {
+  response: listing,
+  state: listingState,
+  retry: retryListing,
+} = useCatalogProducts(
+  computed(() => selectedBranch.value?.slug ?? null),
+  requestedPriceListId,
+)
+const searchDraft = shallowRef('')
+
+async function openListing(query: LocationQuery) {
+  try {
+    await router.push({
+      name: 'public-catalog',
+      params: listingParams.value,
+      query: { ...priceListQuery.value, ...query },
+    })
+  } catch {
+    // The committed route stays authoritative.
+  }
+}
+function selectCategory(id: string | null) {
+  void openListing(id === null ? {} : { categoryId: id })
+}
+function submitSearch(value: string) {
+  const text = value.trim()
+  void openListing(text === '' ? {} : { q: text })
+}
+
 async function selectBranch(slug: string) {
   try {
     await router.push({ name: 'public-catalog', params: { branchSlug: slug } })
@@ -201,7 +238,7 @@ async function selectPriceContext(id: string) {
 </script>
 
 <template>
-  <div class="flex min-h-dvh flex-col">
+  <div class="catalog-pdp-page flex min-h-dvh flex-col">
     <CatalogHeader
       :branches="branches"
       :state="branchesState"
@@ -213,7 +250,23 @@ async function selectPriceContext(id: string) {
       @select="selectBranch"
       @select-price-context="selectPriceContext"
       @retry-price-contexts="retryContexts"
-    />
+    >
+      <template v-if="selectedBranch" #categories>
+        <CatalogListingCategoryMenu
+          :categories="listing?.facets.categories ?? []"
+          :all-total="listing?.meta.total ?? null"
+          :selected-id="null"
+          :state="listingState"
+          :context-mismatch="false"
+          :combined-error="false"
+          @select="selectCategory"
+          @retry="retryListing"
+        />
+      </template>
+      <template v-if="selectedBranch" #search>
+        <CatalogListingSearch v-model="searchDraft" @submit="submitSearch" />
+      </template>
+    </CatalogHeader>
     <main id="contenido" class="catalog-main catalog-pdp-main flex-1" tabindex="-1">
       <div class="catalog-container">
         <CatalogDetailSkeleton v-if="pageState === 'loading'" />

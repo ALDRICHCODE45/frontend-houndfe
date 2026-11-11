@@ -18,6 +18,10 @@ export interface UnitPriceInput {
 export interface UnitPrice {
   /** «$93.63 / kg». */
   label: string
+  /** «$93.63»: the amount alone, for lines that write the unit their own way («$93.63 por kg»). */
+  amount: string
+  /** «kg»: the unit alone, lowercased. */
+  unit: string
   /** Set on a bigger presentation that is cheaper per unit than the smallest priced one. */
   saving: { percent: number; versus: string } | null
 }
@@ -69,8 +73,11 @@ export function computeUnitPrices(items: readonly UnitPriceInput[]): Record<stri
         entry.content.value > smallest.content.value
           ? Math.round((1 - entry.perUnit / smallest.perUnit) * 100)
           : 0
+      const amount = formatCentsMXN(Math.round(entry.perUnit))
       result[entry.item.id] = {
-        label: `${formatCentsMXN(Math.round(entry.perUnit))} / ${unitLabel}`,
+        label: `${amount} / ${unitLabel}`,
+        amount,
+        unit: unitLabel,
         saving: percent >= 1 ? { percent, versus: smallest.item.name } : null,
       }
     }

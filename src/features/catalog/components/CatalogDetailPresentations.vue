@@ -8,7 +8,7 @@ export interface CatalogDetailPresentationOption {
   name: string
   price: string | null
   quantity: string | null
-  /** «$93.63 / kg», only when every presentation shares a content unit. */
+  /** «$93.63/kg», only when every presentation shares a content unit. */
   unitPrice?: string | null
   /** «Ahorras 15 % vs 2 kg», only on a bigger presentation that is cheaper per unit. */
   saving?: string | null
@@ -36,7 +36,14 @@ const countLabel = computed(() =>
       {{ countLabel }}. El precio, la disponibilidad y las características son los de la
       presentación que elijas.
     </p>
-    <div class="catalog-pdp-presentations-grid" :aria-describedby="hintId">
+    <div
+      class="catalog-pdp-presentations-grid"
+      :style="{
+        '--catalog-pdp-cols': Math.min(options.length, 3),
+        '--catalog-pdp-cols-sm': Math.min(options.length, 2),
+      }"
+      :aria-describedby="hintId"
+    >
       <label
         v-for="option in options"
         :key="option.id"
@@ -86,7 +93,9 @@ const countLabel = computed(() =>
           v-if="option.saving"
           data-testid="catalog-detail-presentation-saving"
           class="catalog-pdp-presentation-saving"
-          >{{ option.saving }}</span
+          ><UIcon name="i-lucide-tag" class="size-3.5 shrink-0" aria-hidden="true" />{{
+            option.saving
+          }}</span
         >
       </label>
     </div>

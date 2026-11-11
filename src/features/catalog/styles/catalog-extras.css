@@ -84,48 +84,36 @@
   }
 }
 
-/* ---------- Card: the WhatsApp control sits beside the quiet «Ver detalle» row ---------- */
+/* ---------- Card: the WhatsApp square sits right of the «Elegir presentación ›» link ---------- */
 .catalog-card-cell {
   position: relative;
 }
 
 .catalog-card-wa {
   position: absolute;
-  right: 10px;
-  bottom: 12px;
+  right: 12px;
+  bottom: 9px;
   z-index: 2;
-}
-
-.catalog-card-cell--wa .catalog-product-action {
-  margin-right: 52px;
-  width: auto;
 }
 
 @media (min-width: 601px) {
   .catalog-card-wa {
     right: 16px;
-    bottom: 16px;
   }
 }
 
 /* ---------- Unit price and saving (detail) ---------- */
-.catalog-pdp-unit-price {
-  color: var(--catalog-muted);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 500;
-}
-
 .catalog-pdp-presentation-unit {
-  display: block;
   color: var(--catalog-muted);
   font-size: 12px;
   font-weight: 500;
 }
 
 .catalog-pdp-presentation-saving {
-  grid-column: 1 / -1;
-  justify-self: start;
+  grid-area: saving;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   margin-top: 4px;
   padding: 2px 8px;
   border-radius: 6px;
@@ -247,22 +235,52 @@
   text-underline-offset: 3px;
 }
 
+/* The WhatsApp line reads as one more row of the list: glyph, then the link, aligned left. */
+.catalog-footer-contact .catalog-wa--text {
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 24px;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.catalog-footer-contact .catalog-wa--text .catalog-wa-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--catalog-muted);
+}
+
 .catalog-footer-contact [data-icon] {
   flex: none;
   width: 16px;
   height: 16px;
 }
 
-/* ---------- Mobile sticky bar ---------- */
+/* ---------- Mobile sticky bar (artboard 04): two quiet lines and the WhatsApp button ---------- */
+.catalog-pdp-page {
+  --catalog-sticky-bar-height: 64px;
+}
+
+/* The bar is fixed, so the page keeps its height free below the content: nothing hides behind it. */
+@media (max-width: 767.98px) {
+  .catalog-pdp-page:has(.catalog-sticky-bar) {
+    padding-bottom: calc(var(--catalog-sticky-bar-height) + env(safe-area-inset-bottom));
+  }
+}
+
 .catalog-sticky-bar {
-  position: sticky;
+  position: fixed;
+  right: 0;
   bottom: 0;
+  left: 0;
   z-index: 5;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  min-height: var(--catalog-sticky-bar-height);
+  padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--catalog-border);
   background: var(--catalog-surface);
   box-shadow: 0 -4px 16px rgb(23 57 104 / 8%);
@@ -270,34 +288,50 @@
 
 .catalog-sticky-summary {
   display: grid;
+  flex: 1;
   min-width: 0;
-  line-height: 1.25;
+  line-height: 1.3;
 }
 
 .catalog-sticky-summary b {
+  overflow: hidden;
   color: var(--catalog-title);
-  font-size: 20px;
+  font-size: 14px;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .catalog-sticky-summary b small {
   color: var(--catalog-muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
 }
 
 .catalog-sticky-summary .catalog-sticky-consult {
   color: var(--catalog-muted);
-  font-size: 15px;
+  font-size: 14px;
 }
 
-.catalog-sticky-summary span {
+.catalog-sticky-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
   color: var(--catalog-muted);
-  font-size: 12px;
+  font-size: 13px;
+  white-space: nowrap;
 }
 
-.catalog-sticky-summary button {
+.catalog-sticky-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.catalog-sticky-line button {
+  flex: none;
   min-height: 24px;
   padding: 0;
   color: var(--catalog-action);

@@ -32,6 +32,9 @@ const fake = vi.hoisted(() => ({
   detailState: null as unknown as import('vue').ShallowRef<CatalogProductDetailState>,
   retryDetail: null as unknown as ReturnType<typeof import('vitest').vi.fn>,
   identity: null as unknown as import('vue').ComputedRef<Array<string | null | undefined>>,
+  listing: null as unknown as import('vue').ShallowRef<unknown>,
+  listingState: null as unknown as import('vue').ShallowRef<string>,
+  listingSlug: [] as Array<string | null>,
 }))
 
 vi.mock('@/features/catalog/composables/useCatalogBranches', () => ({
@@ -53,6 +56,15 @@ vi.mock('@/features/catalog/composables/useCatalogPriceContexts', async () => {
     },
   }
 })
+vi.mock('@/features/catalog/composables/useCatalogProducts', async () => {
+  const { toValue } = await import('vue')
+  return {
+    useCatalogProducts: (slug: import('vue').MaybeRefOrGetter<string | null>) => {
+      fake.listingSlug.push(toValue(slug))
+      return { products: shallowRef([]), response: fake.listing, state: fake.listingState, retry: vi.fn() }
+    },
+  }
+})
 vi.mock('@/features/catalog/composables/useCatalogProductDetail', async () => {
   const { computed: vueComputed, toValue } = await import('vue')
   return {
@@ -66,7 +78,10 @@ vi.mock('@/features/catalog/composables/useCatalogProductDetail', async () => {
 })
 
 const stubs = {
-  CatalogHeader: defineComponent({ setup: () => () => h('header', 'header') }),
+  CatalogHeader: defineComponent({
+    setup: (_props, { slots }) => () =>
+      h('header', [slots.categories?.(), slots.search?.()]),
+  }),
   CatalogFooter: defineComponent({ setup: () => () => h('footer', 'footer') }),
   UIcon: defineComponent({ setup: () => () => h('span') }),
   USkeleton: defineComponent({ setup: () => () => h('span', { 'data-testid': 'skeleton' }) }),
@@ -234,6 +249,20 @@ beforeEach(() => {
   fake.detailState = shallowRef<CatalogProductDetailState>('populated')
   fake.retryDetail = vi.fn()
   fake.identity = computed(() => [])
+  fake.listing = shallowRef({
+    items: [],
+    meta: { total: 12, page: 1, limit: 20, totalPages: 1 },
+    facets: {
+      categories: [
+        { id: '11111111-1111-4111-8111-111111111111', name: 'Alimento para perro', count: 7 },
+        { id: '22222222-2222-4222-8222-222222222222', name: 'Juguetes', count: 5 },
+      ],
+      attributes: [],
+    },
+    priceContext: { priceListId: 'list-1', name: 'Público', isCatalogDefault: true },
+  })
+  fake.listingState = shallowRef('populated')
+  fake.listingSlug = []
 })
 
 afterEach(() => {
@@ -262,6 +291,41 @@ describe('CatalogProductView', () => {
     })
   })
 
+  describe('header', () => {
+    it('offers «Categorías» with the listing counts and opens the listing on that category', async () => {
+      await mountPage('/catalogo/centro/p/product-1?priceListId=list-1&page=3')
+      expect(fake.listingSlug).toContain('centro')
+      await get('.catalog-select-trigger').trigger('click')
+      const items = findAll('.catalog-menu-item').map((item) => item.text())
+      expect(items[0]).toContain('Todas las categorías')
+      expect(items[0]).toContain('12')
+      expect(items).toContain('Juguetes 5')
+
+      await findAll('.catalog-menu-item')[2]!.trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.name).toBe('public-catalog')
+      expect(router.currentRoute.value.params.branchSlug).toBe('centro')
+      expect(router.currentRoute.value.query).toEqual({
+        priceListId: 'list-1',
+        categoryId: '22222222-2222-4222-8222-222222222222',
+      })
+    })
+
+    it('submits the search to the listing with q, keeping only the price list', async () => {
+      await mountPage('/catalogo/centro/p/product-1?priceListId=list-1&categoryId=x&page=2')
+      await get('input[type="search"]').setValue('croquetas')
+      await get('form[role="search"]').trigger('submit')
+      await flushPromises()
+      expect(router.currentRoute.value.name).toBe('public-catalog')
+      expect(router.currentRoute.value.query).toEqual({ priceListId: 'list-1', q: 'croquetas' })
+    })
+
+    it('never asks for the listing of a branch that does not publish its catalog', async () => {
+      await mountPage('/catalogo/sur/p/product-1')
+      expect(fake.listingSlug.every((slug) => slug === null)).toBe(true)
+    })
+  })
+
   describe('populated page', () => {
     it('shows identity, the presentation price, the price list and the branch availability', async () => {
       await mountPage()
@@ -272,9 +336,10 @@ describe('CatalogProductView', () => {
       // Arrival selects the first presentation in stock in size order: 2 kg.
       expect(get('[data-testid="catalog-detail-price"]').text()).toContain(formatCentsMXN(22000))
       expect(get('[data-testid="catalog-detail-price"]').text()).toContain('MXN')
-      expect(get('[data-testid="catalog-detail-price-context"]').text()).toContain(
-        'Lista de precios: Público',
-      )
+      // One meta line, one availability pill: no price-list text, no separate quantity line.
+      expect(get('[data-testid="catalog-detail-meta"]').text()).toBe('Presentación 2 kg')
+      expect(body().text()).not.toContain('Lista de precios')
+      expect(find('[data-testid="catalog-detail-unit-price"]').exists()).toBe(false)
       const availability = get('[data-testid="catalog-detail-availability"]')
       expect(availability.text()).toBe('Pocas piezas en Sucursal Centro')
       expect(availability.attributes('data-tone')).toBe('warning')
@@ -746,6 +811,21 @@ describe('CatalogProductView v0 extras', () => {
       expect(text).not.toContain('page=2')
     })
 
+    it('tells what the WhatsApp button will send, only when the button renders', async () => {
+      await mountPage()
+      expect(find('[data-testid="catalog-detail-whatsapp-hint"]').exists()).toBe(false)
+
+      withNumber()
+      await mountPage()
+      const hint = get('[data-testid="catalog-detail-whatsapp-hint"]')
+      expect(hint.text()).toContain('Abrirá WhatsApp con este mensaje: «Hola, quiero Croqueta Nupec Cachorro 2 kg · Sucursal Centro')
+      expect(hint.text().endsWith('»')).toBe(true)
+      await choose('20 kg')
+      expect(get('[data-testid="catalog-detail-whatsapp-hint"]').text()).toContain(
+        '¿cuándo vuelve Croqueta Nupec Cachorro 20 kg?',
+      )
+    })
+
     it('follows the selected presentation and asks («Preguntar») when it is sold out', async () => {
       withNumber()
       await mountPage()
@@ -774,7 +854,9 @@ describe('CatalogProductView v0 extras', () => {
       await mountPage()
       const bar = get('[data-testid="catalog-detail-sticky-bar"]')
       expect(bar.get('[data-testid="catalog-sticky-price"]').text()).toContain(formatCentsMXN(22000))
-      expect(bar.text()).toContain('2 kg')
+      expect(bar.get('[data-testid="catalog-sticky-line"]').text().replace(/\s+/g, ' ')).toBe(
+        '2 kg · Cambiar',
+      )
       expect(bar.find('[data-testid="catalog-whatsapp-link"]').exists()).toBe(true)
       const scrollIntoView = vi.fn()
       Element.prototype.scrollIntoView = scrollIntoView
@@ -842,17 +924,50 @@ describe('CatalogProductView v0 extras', () => {
     })
   })
 
+  describe('presentation labels', () => {
+    it('shows only what follows the product name in tiles, meta line, caption and bar', async () => {
+      withNumber()
+      const detail = fake.detail.value!
+      fake.detail.value = {
+        ...detail,
+        variants: detail.variants.map((variant) => ({
+          ...variant,
+          name: `${detail.name} ${variant.name}`,
+        })),
+      }
+      await mountPage()
+      expect(
+        findAll('[data-testid="catalog-detail-presentation-name"]').map((entry) => entry.text()),
+      ).toEqual(['2 kg', '8 kg', '20 kg'])
+      expect(get('[data-testid="catalog-detail-meta"]').text()).toBe('Presentación 2 kg')
+      await choose('8 kg')
+      expect(get('[data-testid="catalog-detail-gallery-caption"]').text()).toBe('Presentación 8 kg')
+      expect(get('[data-testid="catalog-sticky-line"]').text().replace(/\s+/g, ' ')).toBe(
+        '8 kg · Cambiar',
+      )
+      const message = new URL(waLinks()[0]!.attributes('href')!).searchParams.get('text')!
+      expect(message).toContain('Hola, quiero Croqueta Nupec Cachorro 8 kg')
+    })
+  })
+
   describe('unit price', () => {
     it('shows the price per unit and «Ahorras N %» when every presentation shares the unit', async () => {
       withContents(['kg', 'kg', 'kg'])
       await mountPage()
-      expect(get('[data-testid="catalog-detail-unit-price"]').text()).toBe('$110.00 / kg')
+      expect(get('[data-testid="catalog-detail-meta"]').text()).toBe(
+        'Presentación 2 kg · $110.00 por kg',
+      )
+      expect(
+        findAll('[data-testid="catalog-detail-presentation-unit"]').map((entry) => entry.text()),
+      ).toEqual(['$110.00/kg', '$93.63/kg', '$84.45/kg'])
       const savings = findAll('[data-testid="catalog-detail-presentation-saving"]').map((entry) =>
         entry.text(),
       )
       expect(savings).toEqual(['Ahorras 15 % vs 2 kg', 'Ahorras 23 % vs 2 kg'])
       await choose('8 kg')
-      expect(get('[data-testid="catalog-detail-unit-price"]').text()).toBe('$93.63 / kg')
+      expect(get('[data-testid="catalog-detail-meta"]').text()).toBe(
+        'Presentación 8 kg · $93.63 por kg',
+      )
     })
 
     it('shows nothing when the units differ or the data is absent (as today)', async () => {
@@ -884,9 +999,16 @@ describe('CatalogProductView v0 extras', () => {
         ),
       }
       await mountPage()
-      expect(get('[data-testid="catalog-detail-quantity"]').text()).toBe('Quedan 3')
-      await choose('8 kg')
+      // The quantity lives in the availability pill and the tile, never on a line of its own.
+      expect(get('[data-testid="catalog-detail-availability"]').text()).toBe(
+        'Quedan 3 en Sucursal Centro',
+      )
       expect(find('[data-testid="catalog-detail-quantity"]').exists()).toBe(false)
+      expect(presentationInput('2 kg').element.closest('label')?.textContent).toContain('Quedan 3')
+      await choose('8 kg')
+      expect(get('[data-testid="catalog-detail-availability"]').text()).toBe(
+        'Disponible en Sucursal Centro',
+      )
     })
   })
 })

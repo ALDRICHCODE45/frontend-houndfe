@@ -30,10 +30,17 @@ const emit = defineEmits<{ change: [] }>()
     <div class="catalog-sticky-summary">
       <b v-if="price" data-testid="catalog-sticky-price">{{ price }} <small>MXN</small></b>
       <b v-else class="catalog-sticky-consult">Consultar precio</b>
-      <span v-if="line || canChange">
-        <template v-if="line">{{ line }}</template>
+      <span v-if="line || canChange" data-testid="catalog-sticky-line" class="catalog-sticky-line">
+        <template v-if="line"
+          ><span class="catalog-sticky-name">{{ line }}</span></template
+        >
         <template v-if="line && canChange"> · </template>
-        <button v-if="canChange" data-testid="catalog-sticky-change" type="button" @click="emit('change')">
+        <button
+          v-if="canChange"
+          data-testid="catalog-sticky-change"
+          type="button"
+          @click="emit('change')"
+        >
           Cambiar
         </button>
       </span>
