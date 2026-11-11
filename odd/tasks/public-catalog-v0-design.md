@@ -13,8 +13,8 @@ S7. Standing owner rule: Playwright MCP checks verify the UI design (that it loo
 S8. Prior rule (public-catalog-v0-fidelity): no fake controls or invented data. Sample data in the artboards (WhatsApp number, address, hours, «Quedan 3», per-kg prices, «Relevancia», Marca filter, «Más para perros», tile counts) never ships as literals.
 
 ## Tasks
-- T0 | S1 | parent | commit design boards and this document
-- T1 | S2, S5 (sort), S6 | worker | listing chrome
+- T0 | S1 | parent | done — 0d135479
+- T1 | S2, S5 (sort), S6 | worker | done — 0e6972a9; parent: type-check 0, 62 files/972 tests (catalog, layouts, router, catalog-settings), eslint clean
 - T2 | S4 | worker | detail page and route (Risk item 2: public route auth bypass)
 - T3 | S3 | pending | filter sidebar, recipient tiles, mobile sheet
 - T4 | S5 | pending | WhatsApp, branch block, exact stock, unit price, share preview URL
@@ -24,3 +24,4 @@ S8. Prior rule (public-catalog-v0-fidelity): no fake controls or invented data. 
 - L1 User 2026-11-11: «Bien hermano, me gusta, podemos avanzar con el diseno que propones, recuerda revisar el diseno real con el mcp de playwrhite por favor.»
 - L2 Explorer gap map (task mwcj34z1-1-asaa): the current FE has hero, category bar, chips facets, card→modal detail, prev/next pager, skeletons; it lacks sort, sidebar, sheet, detail page, WhatsApp, branch card. The tests forbid WhatsApp today (`CatalogView.spec.ts:302`, `CatalogProductDetailModal.spec.ts:707,1185,1915`); those change on purpose in T4. No backend has a brand facet, card presentation names, card unit price or related products, so those stay out. `animal.target` is a locked editorial vocabulary code (BE `editorial-production-vocabulary-catalog.ts:39`).
 - L3 Decisions taken without asking (within the approved design, no invented data): recipient tiles use the `animal.target` facet; unit price only when all presentations share the unit of one number attribute; the v0 extras are built against handoff 15 and stay hidden on a backend without them.
+- L4 T1 committed 0e6972a9 (+2589/−3971; the deletions are the retired modal, its spec, CatalogCategoryBar and dead catalog-detail CSS). Over the ~400-line advisory slice because the listing chrome is one coherent unit; the slice boundary is this commit. Left out: WhatsApp, footer address/hours (T4), sidebar/tiles/sheet (T3), 429 countdown (no retry-after), per-branch product counts (no data). Deviations: sentence-case eyebrows (standing visual spec), simplified no-results line until brand search is deployed, Tailwind grid breakpoints. Not visually compared yet (T5).

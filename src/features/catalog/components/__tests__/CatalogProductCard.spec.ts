@@ -1,6 +1,7 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { defineComponent, h, nextTick } from 'vue'
-import { describe, expect, it } from 'vitest'
+import { createMemoryHistory, createRouter, type Router } from 'vue-router'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import CatalogProductCard from '@/features/catalog/components/CatalogProductCard.vue'
 
@@ -26,11 +27,37 @@ const product = {
 
 const stubs = { UIcon: defineComponent({ setup: () => () => h('span') }) }
 
+const Empty = defineComponent({ render: () => null })
+let router: Router
+
+function createCatalogRouter() {
+  return createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/catalogo/:branchSlug?', name: 'public-catalog', component: Empty },
+      {
+        path: '/catalogo/:branchSlug/p/:productId',
+        name: 'public-catalog-product',
+        component: Empty,
+      },
+    ],
+  })
+}
+
+beforeEach(async () => {
+  router = createCatalogRouter()
+  await router.push('/catalogo/centro?priceListId=list-1')
+  await router.isReady()
+})
+
 const mountCard = (overrides = {}) =>
   mount(CatalogProductCard, {
     props: { product: { ...product, ...overrides } },
-    global: { stubs },
+    global: { stubs, plugins: [router] },
   })
+
+const cardLink = (wrapper: ReturnType<typeof mountCard>) =>
+  wrapper.get(`a[aria-label="Ver detalles de ${product.name}"]`)
 
 describe('CatalogProductCard', () => {
   it('labels the unchanged differing variant-derived amount as reference, not minimum or product price', () => {
@@ -40,7 +67,6 @@ describe('CatalogProductCard', () => {
     })
     expect(wrapper.get('[data-testid="catalog-product-price"]').text()).toBe(formatCentsMXN(14900))
     expect(wrapper.text()).toContain('Precio de referencia')
-    expect(wrapper.text()).toContain('Consulta los precios por presentación en el detalle.')
     expect(wrapper.text()).not.toMatch(/Desde|Precio del producto/)
   })
 
@@ -73,14 +99,23 @@ describe('CatalogProductCard', () => {
     expect(wrapper.text()).toContain('Precio de referencia')
   })
 
-  it('contains published media and makes the read-only detail action visible without nested controls', () => {
+  it('contains published media and shows the quiet «Elegir presentación» affordance without nested controls', () => {
     const wrapper = mountCard({ hasVariants: true })
 
     expect(wrapper.get('img').classes()).toContain('object-contain')
-    expect(wrapper.get('button').text()).toContain('Ver detalles')
-    expect(wrapper.findAll('button')).toHaveLength(1)
-    expect(wrapper.find('button button, button a, select, input').exists()).toBe(false)
-    expect(wrapper.text()).not.toMatch(/Desde|presentaciones|Agregar|Elegir presentación/)
+    expect(wrapper.get('[data-testid="catalog-product-action"]').text()).toContain(
+      'Elegir presentación',
+    )
+    expect(wrapper.findAll('a')).toHaveLength(1)
+    expect(wrapper.find('button, a a, a button, select, input').exists()).toBe(false)
+    expect(wrapper.text()).not.toMatch(/Desde|Agregar|Consulta los precios por presentación/)
+  })
+
+  it('reads «Ver detalle» when the product has a single presentation', () => {
+    const action = mountCard({ hasVariants: false }).get('[data-testid="catalog-product-action"]')
+
+    expect(action.text()).toContain('Ver detalle')
+    expect(action.text()).not.toContain('Elegir presentación')
   })
 
   it.each([
@@ -105,21 +140,37 @@ describe('CatalogProductCard', () => {
     expect(wrapper.text()).toContain('Café')
   })
 
-  it('uses one accessible native card control and emits the exact product ID for pointer and keyboard click activation', async () => {
+  it('makes the whole card one link to the product page of the current branch, keeping the listing query', async () => {
+    await router.push(
+      '/catalogo/centro?priceListId=list-1&categoryId=11111111-1111-4111-8111-111111111111&page=2&facet=life:adult',
+    )
     const wrapper = mountCard()
-    const control = wrapper.get(`button[aria-label="Ver detalles de ${product.name}"]`)
+    const link = cardLink(wrapper)
+    const target = router.resolve(link.attributes('href')!)
 
-    expect(control.attributes('type')).toBe('button')
-    expect(control.attributes('data-catalog-product-id')).toBe(product.id)
+    expect(link.element.tagName).toBe('A')
+    expect(link.attributes('data-catalog-product-id')).toBe(product.id)
+    expect(target.name).toBe('public-catalog-product')
+    expect(target.params).toEqual({ branchSlug: 'centro', productId: product.id })
+    expect(target.query).toEqual({
+      priceListId: 'list-1',
+      categoryId: '11111111-1111-4111-8111-111111111111',
+      page: '2',
+      facet: 'life:adult',
+    })
+  })
 
-    await control.trigger('click')
-    expect(wrapper.emitted('open-detail')).toEqual([[product.id, control.element]])
+  it('navigates to the product page on activation and still emits open-detail for compatibility', async () => {
+    const wrapper = mountCard()
+    const link = cardLink(wrapper)
 
-    await control.trigger('click')
-    expect(wrapper.emitted('open-detail')).toEqual([
-      [product.id, control.element],
-      [product.id, control.element],
-    ])
+    await link.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.emitted('open-detail')).toEqual([[product.id, link.element]])
+    expect(router.currentRoute.value.name).toBe('public-catalog-product')
+    expect(router.currentRoute.value.params.productId).toBe(product.id)
+    expect(router.currentRoute.value.query.priceListId).toBe('list-1')
   })
 
   it('uses a neutral fallback and consult-price copy for an absent image and hidden/null price', () => {
@@ -231,7 +282,7 @@ describe('CatalogProductCard', () => {
   it('leads with the media region and keeps the availability pill inside it', () => {
     const wrapper = mountCard()
 
-    const control = wrapper.get(`button[aria-label="Ver detalles de ${product.name}"]`)
+    const control = cardLink(wrapper)
     const media = wrapper.get('[data-testid="catalog-product-media"]')
     expect(control.element.firstElementChild).toBe(media.element)
     expect(media.find('img').exists()).toBe(true)
@@ -253,6 +304,7 @@ describe('CatalogProductCard', () => {
       'h2',
       'catalog-product-category',
       'catalog-product-price',
+      'catalog-product-action',
     ])
     expect(body.get('h2').text()).toBe(product.name)
     expect(body.get('[data-testid="catalog-product-brand"]').text()).toBe(product.brand.name)
