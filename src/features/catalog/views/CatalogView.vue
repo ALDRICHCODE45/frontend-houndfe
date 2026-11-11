@@ -1,22 +1,33 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, shallowRef, watch } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import CatalogHeader from '../components/CatalogHeader.vue'
 import CatalogHero from '../components/CatalogHero.vue'
-import CatalogCategoryBar from '../components/CatalogCategoryBar.vue'
 import CatalogFacetFilters from '../components/CatalogFacetFilters.vue'
 import CatalogFooter from '../components/CatalogFooter.vue'
-import CatalogProductDetailModal from '../components/CatalogProductDetailModal.vue'
+import CatalogListingActiveFilters, {
+  type CatalogActiveFilterChip,
+} from '../components/CatalogListingActiveFilters.vue'
+import CatalogListingCategoryMenu from '../components/CatalogListingCategoryMenu.vue'
+import CatalogListingHeading from '../components/CatalogListingHeading.vue'
+import CatalogListingHeroBar from '../components/CatalogListingHeroBar.vue'
+import CatalogListingNoResults from '../components/CatalogListingNoResults.vue'
+import CatalogListingPager, { resultsRangeLabel } from '../components/CatalogListingPager.vue'
+import CatalogListingSearch from '../components/CatalogListingSearch.vue'
+import CatalogListingSort from '../components/CatalogListingSort.vue'
 import CatalogProductGrid, {
   type CatalogProductContextState,
 } from '../components/CatalogProductGrid.vue'
 import { useCatalogBranches } from '../composables/useCatalogBranches'
-import { useCatalogProductDetail } from '../composables/useCatalogProductDetail'
 import { useCatalogProducts } from '../composables/useCatalogProducts'
 import { useCatalogPriceContexts } from '../composables/useCatalogPriceContexts'
 import type { PublicCatalogPriceContextDto } from '../interfaces/public-catalog-price-context.types'
-import type { PublicCatalogAttributeFacetDto } from '../interfaces/public-catalog-products.types'
+import type {
+  CatalogProductsSort,
+  PublicCatalogAttributeFacetDto,
+} from '../interfaces/public-catalog-products.types'
+import { mergeFacetOptions } from '../utils/facet-options'
 
 const route = useRoute()
 const router = useRouter()
@@ -173,12 +184,29 @@ const filterError = computed(() => {
   if (route.query.categoryId !== undefined && categoryId.value === null) return 'category'
   return page.value === null ? 'page' : null
 })
+/** Only the two price orders travel; anything else (absent, `newest`, unknown) is the default. */
+const sort = computed<CatalogProductsSort>(() => {
+  const raw = route.query.sort
+  return raw === 'price_asc' || raw === 'price_desc' ? raw : 'newest'
+})
 const listingOptions = computed(() => ({
   ...(search.value !== null && search.value !== '' ? { q: search.value } : {}),
   ...(categoryId.value !== null ? { categoryId: categoryId.value } : {}),
   ...(page.value !== null && page.value !== 1 ? { page: page.value } : {}),
   ...(facetTokens.value.length > 0 ? { facets: facetTokens.value } : {}),
+  ...(sort.value !== 'newest' ? { sort: sort.value } : {}),
 }))
+/**
+ * The full hero belongs to the unfiltered first page. Any filter, search or page past the
+ * first shrinks it to a bar so the listing moves up; the order alone is not a filter.
+ */
+const isHome = computed(
+  () =>
+    page.value === 1 &&
+    (route.query.q === undefined || route.query.q === '') &&
+    route.query.categoryId === undefined &&
+    facetTokens.value.length === 0,
+)
 // Facets are context-scoped, unfiltered, first-page data. The identical initial
 // listing shares this key/request; filtered responses never replace these options.
 const {
@@ -212,8 +240,6 @@ function retryListing() {
   retryProducts()
   if (FAILED_STATES.includes(baselineState.value)) retryBaseline()
 }
-// A malformed `q` (null) still counts: it must stay clearable.
-const hasSearch = computed(() => searchDraft.value !== '' || route.query.q !== undefined)
 
 const paginationMeta = computed(() =>
   readyBranch.value !== null &&
@@ -232,7 +258,7 @@ const isCatalogEmpty = computed(
     readyBranch.value !== null &&
     productsState.value === 'empty' &&
     filterError.value === null &&
-    !hasSearch.value &&
+    route.query.q === undefined &&
     route.query.categoryId === undefined &&
     facetTokens.value.length === 0 &&
     !isPageOutOfRange.value,
@@ -338,86 +364,93 @@ const selectorOptions = computed<PublicCatalogPriceContextDto[]>(() => {
   return [...contexts.value, authoritative]
 })
 
-const selectedProductId = ref<string | null>(null)
-const isDetailOpen = ref(false)
-const detailProductId = computed(() =>
-  isDetailOpen.value &&
-  selectionState.value === 'selected' &&
-  priceListId.value !== null &&
-  selectedProductId.value !== null
-    ? selectedProductId.value
-    : null,
-)
-const {
-  detail,
-  state: detailState,
-  retry: retryDetail,
-} = useCatalogProductDetail(
-  computed(() => selectedBranch.value?.slug ?? null),
-  detailProductId,
-  priceListId,
-)
-
-type InvokerFocus = {
-  element: HTMLButtonElement
-  branchSlug: string
-  productId: string
+/** Pushes a query built from the current one; the committed URL stays authoritative on rejection. */
+async function pushQuery(edit: (query: Record<string, unknown>) => void) {
+  const query = { ...route.query } as Record<string, unknown>
+  edit(query)
+  try {
+    await router.push({ query: query as typeof route.query, hash: route.hash })
+  } catch {
+    // Keep the current route authoritative.
+  }
 }
-const detailInvoker = ref<InvokerFocus | null>(null)
 
-function clearDetail(restoreFocus: boolean) {
-  const invoker = detailInvoker.value
-  detailInvoker.value = null
-  isDetailOpen.value = false
-  selectedProductId.value = null
-
-  if (!restoreFocus || !invoker) return
-  void nextTick(() => {
-    if (
-      selectedBranch.value?.slug === invoker.branchSlug &&
-      invoker.element.isConnected &&
-      !invoker.element.disabled &&
-      document.contains(invoker.element)
-    ) {
-      invoker.element.focus()
-    }
+/** A new order starts again at the first page. */
+function selectSort(next: CatalogProductsSort) {
+  void pushQuery((query) => {
+    delete query.page
+    if (next === 'newest') delete query.sort
+    else query.sort = next
   })
 }
 
-function openDetail(productId: string, invoker: HTMLButtonElement) {
-  const branchSlug = selectedBranch.value?.slug
-  const hasResolvedPriceContext =
-    typeof priceListId.value === 'string' && priceListId.value.length > 0
-  const isCurrentProduct = products.value.some((product) => product.id === productId)
-  if (
-    selectionState.value !== 'selected' ||
-    productsState.value !== 'populated' ||
-    !branchSlug ||
-    !hasResolvedPriceContext ||
-    !isCurrentProduct
-  ) {
-    return
+/** The selected category's name comes from the real facets or the cards; never a raw id. */
+const selectedCategoryName = computed(() => {
+  if (categoryId.value === null) return null
+  const facet = categoryBaseline.value?.facets.categories.find(
+    (category) => category.id === categoryId.value,
+  )
+  if (facet) return facet.name
+  return products.value.find((product) => product.category?.id === categoryId.value)?.category?.name ?? null
+})
+/** Selected facet tokens grouped as the chips show them; tokens no facet labels stay one chip. */
+const facetChips = computed<CatalogActiveFilterChip[]>(() => {
+  const selected = new Set(facetTokens.value)
+  const chips: CatalogActiveFilterChip[] = []
+  const labelled = new Set<string>()
+  for (const definition of displayedFacets.value) {
+    for (const option of mergeFacetOptions(definition)) {
+      const tokens = option.tokens.filter((token) => selected.has(token))
+      if (tokens.length === 0) continue
+      tokens.forEach((token) => labelled.add(token))
+      chips.push({ kind: 'facet', key: tokens[0]!, label: option.label, tokens })
+    }
   }
+  const rest = facetTokens.value.filter((token) => !labelled.has(token))
+  if (rest.length > 0)
+    chips.push({ kind: 'facet', key: 'facet-rest', label: 'Otros filtros', tokens: rest })
+  return chips
+})
+const activeChips = computed<CatalogActiveFilterChip[]>(() => [
+  ...(route.query.categoryId !== undefined
+    ? [{ kind: 'category' as const, key: 'category', label: selectedCategoryName.value ?? 'Categoría' }]
+    : []),
+  ...facetChips.value,
+  ...(search.value ? [{ kind: 'search' as const, key: 'search', label: search.value }] : []),
+])
+const filterChips = computed(() => activeChips.value.filter((chip) => chip.kind !== 'search'))
 
-  detailInvoker.value = { element: invoker, branchSlug, productId }
-  selectedProductId.value = productId
-  isDetailOpen.value = true
+function removeChip(chip: CatalogActiveFilterChip) {
+  if (chip.kind === 'search') void commitSearch('')
+  else if (chip.kind === 'category') void selectCategory(null)
+  else void writeFacets(facetTokens.value.filter((token) => !chip.tokens?.includes(token)))
+}
+/** «Limpiar todo» drops every filter and the search; the order and the price list stay. */
+function clearAll() {
+  void pushQuery((query) => {
+    for (const key of ['q', 'categoryId', 'facet', 'page']) delete query[key]
+  })
+}
+function removeOnlyFilter() {
+  const [chip] = filterChips.value
+  if (chip) removeChip(chip)
 }
 
-const priceContextProposalKey = computed(() => {
-  const proposal = priceContextProposal.value
-  return proposal.kind === 'explicit' ? proposal.id : proposal.kind
-})
-watch(
-  [
-    () => selectedBranch.value?.slug ?? null,
-    priceContextProposalKey,
-    priceListId,
-    () =>
-      JSON.stringify([route.query.categoryId, route.query.page, search.value, facetTokens.value]),
-  ],
-  () => clearDetail(false),
-  { flush: 'sync' },
+const listingReady = computed(
+  () => readyBranch.value !== null && filterError.value === null && !isCatalogEmpty.value,
+)
+const showNoResults = computed(
+  () =>
+    readyBranch.value !== null &&
+    filterError.value === null &&
+    productsState.value === 'empty' &&
+    !isPageOutOfRange.value &&
+    activeChips.value.length > 0,
+)
+const rangeLabel = computed(() =>
+  paginationMeta.value && productsState.value === 'populated'
+    ? resultsRangeLabel(paginationMeta.value)
+    : null,
 )
 
 /** Only committed route state changes selection, including rejected navigation. */
@@ -487,9 +520,28 @@ async function selectPriceContext(priceListIdToSelect: string) {
       @select="selectBranch"
       @select-price-context="selectPriceContext"
       @retry-price-contexts="retryPriceContexts"
-    />
+    >
+      <template v-if="readyBranch !== null && !isCatalogEmpty" #categories>
+        <CatalogListingCategoryMenu
+          :categories="categoryBaseline?.facets.categories ?? []"
+          :all-total="categoryBaseline?.meta.total ?? null"
+          :selected-id="categoryId"
+          :state="baselineState"
+          :context-mismatch="baselineContextMismatch"
+          :combined-error="listingFailed"
+          @select="selectCategory"
+          @retry="retryBaseline"
+        />
+      </template>
+      <template v-if="readyBranch !== null && !isCatalogEmpty" #search>
+        <CatalogListingSearch v-model="searchDraft" @submit="commitSearch" />
+      </template>
+    </CatalogHeader>
     <main class="catalog-main flex-1">
-      <div class="catalog-container"><CatalogHero /></div>
+      <div class="catalog-container">
+        <CatalogHero v-if="isHome" :branch-name="selectedBranch?.name ?? null" />
+        <CatalogListingHeroBar v-else :branch-name="selectedBranch?.name ?? null" />
+      </div>
       <section
         id="catalogo"
         tabindex="-1"
@@ -497,44 +549,9 @@ async function selectPriceContext(priceListIdToSelect: string) {
         class="catalog-listing"
       >
         <div class="catalog-container">
-          <form
-            v-if="readyBranch !== null && !isCatalogEmpty"
-            class="catalog-search"
-            role="search"
-            @submit.prevent="commitSearch(searchDraft)"
-          >
-            <label for="catalog-search">Buscar productos o marcas</label>
-            <div class="catalog-search-controls">
-              <input
-                id="catalog-search"
-                v-model="searchDraft"
-                type="search"
-                placeholder="¿Qué necesita tu compañero?"
-              />
-              <button type="submit" class="catalog-filter-button">Buscar</button>
-              <button
-                v-if="hasSearch"
-                type="button"
-                class="catalog-filter-button"
-                @click="commitSearch('')"
-              >
-                Limpiar búsqueda
-              </button>
-            </div>
-          </form>
-          <CatalogCategoryBar
-            :categories="categoryBaseline?.facets.categories ?? []"
-            :all-total="categoryBaseline?.meta.total ?? null"
-            :context-mismatch="baselineContextMismatch"
-            :total="filterError ? null : (response?.meta.total ?? null)"
-            :selected-id="categoryId"
-            :has-category="route.query.categoryId !== undefined"
-            :ready="readyBranch !== null"
-            :state="baselineState"
-            :combined-error="listingFailed"
-            :catalog-empty="isCatalogEmpty"
-            @select="selectCategory"
-            @retry="retryBaseline"
+          <CatalogListingHeading
+            :total="filterError || isCatalogEmpty ? null : (response?.meta.total ?? null)"
+            :branch-name="selectedBranch?.name ?? null"
           />
           <CatalogFacetFilters
             v-if="showFacets"
@@ -543,6 +560,16 @@ async function selectPriceContext(priceListIdToSelect: string) {
             @toggle="toggleFacet"
             @clear="writeFacets([])"
           />
+          <div v-if="listingReady" class="catalog-results-toolbar">
+            <CatalogListingActiveFilters
+              v-if="activeChips.length > 0"
+              :chips="activeChips"
+              @remove="removeChip"
+              @clear="clearAll"
+            />
+            <p v-else-if="rangeLabel" class="catalog-results-range">{{ rangeLabel }}</p>
+            <CatalogListingSort :model-value="sort" @update:model-value="selectSort" />
+          </div>
         </div>
         <div v-if="filterError && readyBranch" class="catalog-container">
           <EmptyState
@@ -555,15 +582,21 @@ async function selectPriceContext(priceListIdToSelect: string) {
                   : 'Página no válida.'
             "
             :action-label="
-              filterError === 'category'
-                ? 'Limpiar categoría'
-                : filterError === 'page'
-                  ? 'Restablecer página'
-                  : undefined
+              filterError === 'search'
+                ? 'Limpiar búsqueda'
+                : filterError === 'category'
+                  ? 'Limpiar categoría'
+                  : 'Restablecer página'
             "
             action-icon="i-lucide-rotate-ccw"
             action-test-id="catalog-filter-recover"
-            @action="filterError === 'category' ? selectCategory(null) : recoverPage()"
+            @action="
+              filterError === 'search'
+                ? commitSearch('')
+                : filterError === 'category'
+                  ? selectCategory(null)
+                  : recoverPage()
+            "
           />
         </div>
         <div v-else-if="isPageOutOfRange" class="catalog-container">
@@ -576,51 +609,43 @@ async function selectPriceContext(priceListIdToSelect: string) {
             @action="navigatePage(lastAvailablePage)"
           />
         </div>
+        <div v-else-if="showNoResults" class="catalog-container py-6 lg:py-8">
+          <CatalogListingNoResults
+            :search="search ?? ''"
+            :filter-labels="filterChips.map((chip) => chip.label)"
+            :categories="categoryBaseline?.facets.categories ?? []"
+            :selected-category-id="categoryId"
+            @clear-all="clearAll"
+            @remove-filter="removeOnlyFilter"
+            @clear-search="commitSearch('')"
+            @select-category="selectCategory"
+          />
+        </div>
         <CatalogProductGrid
           v-else
           :selection-state="selectionState"
           :branches-state="branchesState"
+          :branches="branches"
           :products="products"
           :state="gridState"
           :context-state="contextState"
           @retry="retryListing"
           @retry-branches="retryBranches"
           @retry-context="retryPriceContexts"
-          @open-detail="openDetail"
+          @select-branch="selectBranch"
         />
         <div v-if="showPager && paginationMeta" class="catalog-container">
-          <nav class="catalog-pagination" aria-label="Paginación del catálogo">
-            <button
-              type="button"
-              class="catalog-filter-button"
-              :disabled="paginationMeta.page <= 1"
-              @click="navigatePage(paginationMeta.page - 1)"
-            >
-              Anterior
-            </button>
-            <span role="status" aria-live="polite">
-              Página {{ paginationMeta.page }} de {{ paginationMeta.totalPages }}
-            </span>
-            <button
-              type="button"
-              class="catalog-filter-button"
-              :disabled="paginationMeta.page >= paginationMeta.totalPages"
-              @click="navigatePage(paginationMeta.page + 1)"
-            >
-              Siguiente
-            </button>
-          </nav>
+          <CatalogListingPager
+            :page="paginationMeta.page"
+            :total-pages="paginationMeta.totalPages"
+            :total="paginationMeta.total"
+            :limit="paginationMeta.limit"
+            @navigate="navigatePage"
+          />
         </div>
       </section>
     </main>
 
-    <CatalogFooter />
-    <CatalogProductDetailModal
-      :open="isDetailOpen"
-      :detail="detail"
-      :state="detailState"
-      @close="clearDetail(true)"
-      @retry="retryDetail"
-    />
+    <CatalogFooter :branch-name="selectedBranch?.name ?? null" />
   </div>
 </template>

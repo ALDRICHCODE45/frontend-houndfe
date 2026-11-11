@@ -39,10 +39,12 @@ export function catalogProductsQueryKey(
   const q = options.q === '' ? undefined : options.q
   // Selection order is not identity: the same facet set always shares one cache entry.
   const facets = options.facets?.length ? [...options.facets].sort() : undefined
+  const sort = options.sort
   return options.categoryId === undefined &&
     (options.page ?? 1) === 1 &&
     q === undefined &&
-    facets === undefined
+    facets === undefined &&
+    sort === undefined
     ? base
     : ([
         ...base,
@@ -51,6 +53,7 @@ export function catalogProductsQueryKey(
           page: options.page ?? 1,
           ...(q !== undefined ? { q } : {}),
           ...(facets !== undefined ? { facets } : {}),
+          ...(sort !== undefined ? { sort } : {}),
         },
       ] as const)
 }

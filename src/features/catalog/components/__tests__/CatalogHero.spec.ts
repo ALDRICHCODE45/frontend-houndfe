@@ -26,13 +26,26 @@ describe('CatalogHero', () => {
     }
   })
 
-  it('keeps the title, one line and one action: no eyebrow and no photo caption', () => {
+  it('draws the approved hero: branch eyebrow, one line, one action and the photo caption', () => {
+    const wrapper = mount(CatalogHero, { props: { branchName: 'Sucursal Centro' } })
+    try {
+      expect(wrapper.get('.catalog-hero-eyebrow').text()).toBe('Tienda en línea · Sucursal Centro')
+      expect(wrapper.get('.catalog-hero-copy p').text()).toBe(
+        'Consulta presentaciones, precios y disponibilidad de tu sucursal.',
+      )
+      expect(wrapper.get('.catalog-hero-caption').text()).toBe(
+        'Grandes compañeros.Pequeños cuidados, todos los días.',
+      )
+      expect(wrapper.findAll('a')).toHaveLength(1)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('keeps the eyebrow generic until a branch is selected', () => {
     const wrapper = mount(CatalogHero)
     try {
-      expect(wrapper.find('.catalog-hero-eyebrow').exists()).toBe(false)
-      expect(wrapper.find('.catalog-hero-caption').exists()).toBe(false)
-      expect(wrapper.findAll('p')).toHaveLength(1)
-      expect(wrapper.findAll('a')).toHaveLength(1)
+      expect(wrapper.get('.catalog-hero-eyebrow').text()).toBe('Tienda en línea')
     } finally {
       wrapper.unmount()
     }

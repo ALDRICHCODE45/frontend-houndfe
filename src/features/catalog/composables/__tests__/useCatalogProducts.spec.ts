@@ -392,6 +392,18 @@ describe('useCatalogProducts', () => {
     wrapper.unmount()
   })
 
+  it('keeps the default order on the base key and gives each explicit sort its own identity', () => {
+    expect(catalogProductsQueryKey('centro', null, { sort: undefined })).toEqual(
+      catalogProductsQueryKey('centro'),
+    )
+    const cheapest = catalogProductsQueryKey('centro', null, { sort: 'price_asc' })
+    expect(cheapest).toEqual([
+      ...catalogProductsQueryKey('centro'),
+      { categoryId: null, page: 1, sort: 'price_asc' },
+    ])
+    expect(catalogProductsQueryKey('centro', null, { sort: 'price_desc' })).not.toEqual(cheapest)
+  })
+
   it('exposes a stale facet as its own failure state', async () => {
     fetchCatalogProductsMock.mockRejectedValueOnce(
       Object.assign(new Error('facet'), { kind: 'facet-unavailable' }),

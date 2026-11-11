@@ -19,6 +19,8 @@ export type CatalogProductContextState =
 import { computed } from 'vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import CatalogProductCard from './CatalogProductCard.vue'
+import CatalogListingBranchUnavailable from './CatalogListingBranchUnavailable.vue'
+import type { PublicBranchDto } from '../interfaces/catalog.types'
 import type { CatalogBranchesState } from '../composables/useCatalogBranches'
 import type { CatalogProductsState } from '../composables/useCatalogProducts'
 import type { PublicCatalogProductDto } from '../interfaces/public-catalog-products.types'
@@ -30,14 +32,16 @@ const props = withDefaults(
     state: CatalogProductsState
     contextState?: CatalogProductContextState
     branchesState?: CatalogBranchesState
+    /** Published branches offered when the URL names a branch without a catalog. */
+    branches?: PublicBranchDto[]
   }>(),
-  { contextState: 'context-ready', branchesState: 'populated' },
+  { contextState: 'context-ready', branchesState: 'populated', branches: () => [] },
 )
 const emit = defineEmits<{
   retry: []
   'retry-context': []
   'retry-branches': []
-  'open-detail': [productId: string, invoker: HTMLButtonElement]
+  'select-branch': [slug: string]
 }>()
 
 const branchesPending = computed(
@@ -97,17 +101,17 @@ const skeletonLabel = computed<string | null>(() => {
   }
   return null
 })
-const productsErrorTitle = computed(() =>
+/** Artboard 05: the filters and the search survive a failure; a rate limit asks to wait. */
+const productsError = computed(() =>
   props.state === 'rate-limit'
-    ? 'Demasiadas solicitudes. Intenta de nuevo más tarde.'
-    : props.state === 'network'
-      ? 'No se pudo conectar. Inténtalo de nuevo en un momento.'
-      : 'No pudimos cargar los productos.',
+    ? { title: 'Demasiadas consultas seguidas', description: 'Espera unos segundos y vuelve a intentarlo.' }
+    : {
+        title: 'No pudimos cargar el catálogo',
+        description:
+          'Revisa tu conexión e inténtalo de nuevo. Tus filtros y tu búsqueda se conservan.',
+      },
 )
-
-function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
-  emit('open-detail', productId, invoker)
-}
+const gridClass = 'grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-4 lg:grid-cols-4'
 </script>
 
 <template>
@@ -120,17 +124,21 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
       :aria-busy="true"
     >
       <h2 class="sr-only">{{ skeletonLabel }}</h2>
-      <div class="grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-5" aria-hidden="true">
+      <div :class="gridClass" aria-hidden="true">
         <div
-          v-for="index in 10"
+          v-for="index in 8"
           :key="index"
           class="catalog-skeleton-card"
           data-testid="catalog-product-skeleton-card"
         >
           <span class="catalog-skeleton catalog-skeleton-media" />
-          <span class="catalog-skeleton catalog-skeleton-line" />
-          <span class="catalog-skeleton catalog-skeleton-line catalog-skeleton-line--short" />
-          <span class="catalog-skeleton catalog-skeleton-price" />
+          <span class="catalog-skeleton-body">
+            <span class="catalog-skeleton catalog-skeleton-brand" />
+            <span class="catalog-skeleton catalog-skeleton-line" />
+            <span class="catalog-skeleton catalog-skeleton-line catalog-skeleton-line--short" />
+            <span class="catalog-skeleton catalog-skeleton-price" />
+            <span class="catalog-skeleton catalog-skeleton-action" />
+          </span>
         </div>
       </div>
     </section>
@@ -166,6 +174,12 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
       description="Selecciona una sucursal publicada para ver sus productos."
     />
 
+    <CatalogListingBranchUnavailable
+      v-else-if="selectionState === 'invalid' && branches.length > 0"
+      :branches="branches"
+      @select="emit('select-branch', $event)"
+    />
+
     <EmptyState
       v-else-if="selectionState === 'invalid'"
       data-testid="catalog-state"
@@ -198,13 +212,8 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
 
     <section v-else-if="state === 'populated'" aria-live="polite">
       <p class="sr-only" role="status">Productos cargados</p>
-      <div data-testid="catalog-product-grid" class="grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-5">
-        <CatalogProductCard
-          v-for="product in products"
-          :key="product.id"
-          :product="product"
-          @open-detail="relayOpenDetail"
-        />
+      <div data-testid="catalog-product-grid" :class="gridClass">
+        <CatalogProductCard v-for="product in products" :key="product.id" :product="product" />
       </div>
     </section>
 
@@ -233,7 +242,8 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
       v-else
       data-testid="catalog-state"
       kind="error"
-      :title="productsErrorTitle"
+      :title="productsError.title"
+      :description="productsError.description"
       action-label="Reintentar"
       action-test-id="catalog-retry-products"
       @action="emit('retry')"

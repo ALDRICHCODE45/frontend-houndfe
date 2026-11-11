@@ -76,14 +76,31 @@ describe('catalog stylesheet', () => {
     expect(css).toContain('.catalog-category-error')
   })
 
-  it('keeps the phone header to one compact row: small logo, branch and price list side by side', () => {
-    const base = css.slice(css.indexOf('.catalog-header-inner {'), css.indexOf('.catalog-branch-trigger {'))
-    expect(base).toContain('grid-template-columns: 48px minmax(0, 1fr) auto')
+  it('keeps the artboard 02 phone header: logo, «Categorías» and branch, then the full-width search', () => {
+    const base = css.slice(css.indexOf('.catalog-header-inner {'), css.indexOf('@media (min-width: 721px) {'))
+    expect(base).toContain("'logo cats branch'")
+    expect(base).toContain("'search search search'")
+    // The discreet price list shares the search row only when there is a real choice.
+    expect(base).toMatch(/\.catalog-header-inner--lists \{[^}]*'search search lists'/)
     expect(base).toMatch(/\.catalog-logo \{[^}]*width: 48px/)
-    expect(base).toMatch(/\.catalog-header-controls \{[^}]*grid-column: 3[^}]*max-width: 8\.5rem/)
-    // From 601px the desktop logo and spacing come back.
-    const desktop = css.slice(css.indexOf('@media (min-width: 601px) {'))
-    expect(desktop).toMatch(/\.catalog-header \.catalog-logo \{[^}]*width: 80px/)
+    expect(base).toMatch(/\.catalog-header-controls \{[^}]*grid-area: lists/)
+    // From 721px one row: logo, Categorías, search, branch (and lists).
+    const desktop = css.slice(css.indexOf('@media (min-width: 721px) {'))
+    expect(desktop).toContain("grid-template-areas: 'logo cats search branch'")
+    expect(desktop).toContain("grid-template-areas: 'logo cats search branch lists'")
+    const tablet = css.slice(css.indexOf('@media (min-width: 601px) {'))
+    expect(tablet).toMatch(/\.catalog-header \.catalog-logo \{[^}]*width: 56px/)
+  })
+
+  it('pins the listing chrome: 44px targets, chips, pager and the hero bar', () => {
+    expect(css).toMatch(/\.catalog-sort select \{[^}]*min-height: 44px/)
+    expect(css).toMatch(/\.catalog-pager-button \{[^}]*min-height: 44px/)
+    expect(css).toMatch(/\.catalog-menu-item \{[^}]*min-height: 44px/)
+    expect(css).toMatch(/\.catalog-chip \{[^}]*border-radius: 999px/)
+    expect(css).toMatch(/\.catalog-hero-bar \{[^}]*min-height: 52px/)
+    // Phones read «Página X de Y»; desktop numbers the pages.
+    const desktop = css.slice(css.indexOf('@media (min-width: 721px) {'))
+    expect(desktop).toMatch(/\.catalog-pager-compact \{[^}]*display: none/)
   })
 
   it('keeps the footer lines close on a phone and spaced on desktop', () => {

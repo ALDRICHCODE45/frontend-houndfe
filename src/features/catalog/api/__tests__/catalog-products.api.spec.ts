@@ -489,6 +489,36 @@ describe('fetchCatalogProducts', () => {
     await expect(request).rejects.toMatchObject({ kind: 'network' })
   })
 
+  describe('sort', () => {
+    it('sends the sort after every other filter and omits it when absent', async () => {
+      const fetchMock = vi
+        .fn()
+        .mockImplementation(() => Promise.resolve(new Response(JSON.stringify(response))))
+      vi.stubGlobal('fetch', fetchMock)
+      const signal = new AbortController().signal
+      await fetchCatalogProducts('centro', 'list-1', signal, {
+        q: 'gato',
+        page: 2,
+        facets: ['animal.target:ani.dom.cat'],
+        sort: 'price_asc',
+      })
+      expect(fetchMock).toHaveBeenLastCalledWith(
+        'http://localhost:3000/public/catalog/centro/products?priceListId=list-1&page=2&q=gato&facet=animal.target%3Aani.dom.cat&sort=price_asc',
+        { method: 'GET', credentials: 'omit', signal },
+      )
+      await fetchCatalogProducts('centro', null, signal, { sort: 'price_desc' })
+      expect(fetchMock).toHaveBeenLastCalledWith(
+        'http://localhost:3000/public/catalog/centro/products?sort=price_desc',
+        { method: 'GET', credentials: 'omit', signal },
+      )
+      await fetchCatalogProducts('centro', null, signal, {})
+      expect(fetchMock).toHaveBeenLastCalledWith(
+        'http://localhost:3000/public/catalog/centro/products',
+        { method: 'GET', credentials: 'omit', signal },
+      )
+    })
+  })
+
   describe('attribute facets', () => {
     const attributeFacets = [
       {
