@@ -144,6 +144,16 @@ describe('catalog stylesheet', () => {
     expect(css).not.toContain('.catalog-branch-row')
   })
 
+  it('pins the card colours to the catalog palette instead of the inherited Nuxt UI variables', () => {
+    // The owner saw dark card bodies (white title on near-black) while the media stayed light.
+    expect(css).toMatch(/\.catalog-product-card \{[^}]*background: var\(--catalog-surface\)/)
+    expect(css).toMatch(/\.catalog-product-card \{[^}]*--ui-bg: var\(--catalog-surface\)/)
+    expect(css).toMatch(/\.catalog-product-card \{[^}]*--ui-text-highlighted: var\(--catalog-title\)/)
+    expect(css).toMatch(/\.catalog-product-name \{[^}]*color: var\(--catalog-title\)/)
+    expect(css).toMatch(/\.catalog-product-price \{[^}]*color: var\(--catalog-title\)/)
+    expect(css).toMatch(/\.catalog-product-brand \{[^}]*color: var\(--catalog-muted\)/)
+  })
+
   it('draws the card media edge to edge on a soft stage with the photo contained', () => {
     // A square white frame with padding left landscape photos floating in empty space.
     expect(css).toMatch(/\.catalog-product-media \{[^}]*aspect-ratio: 4 \/ 3/)
