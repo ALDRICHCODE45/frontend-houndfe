@@ -87,6 +87,22 @@ describe('application bootstrap', () => {
     expect(mocks.router.replace).not.toHaveBeenCalled()
   })
 
+  it('clears an expired session on a catalog product page without redirecting to login', async () => {
+    mocks.router.currentRoute.value = {
+      name: 'public-catalog-product',
+      path: '/catalogo/centro/p/product-1',
+      fullPath: '/catalogo/centro/p/product-1?priceListId=list-1',
+    }
+
+    await import('./main')
+
+    const handler = mocks.onSessionExpired.mock.calls[0]?.[0] as (reason: string) => void
+    handler('refresh-failed')
+
+    expect(mocks.authStore.clearSession).toHaveBeenCalledTimes(1)
+    expect(mocks.router.replace).not.toHaveBeenCalled()
+  })
+
   it('clears an expired protected session and redirects to login with its path', async () => {
     mocks.router.currentRoute.value = {
       name: 'pos-orders',

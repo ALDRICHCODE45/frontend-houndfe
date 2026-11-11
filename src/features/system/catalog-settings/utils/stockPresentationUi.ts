@@ -115,7 +115,7 @@ export function formatCustomQuantityLabel(quantity: number | null | undefined): 
 /**
  * Public preview for a resolved (non-null) mode. For `CUSTOM_QUANTITY` it
  * mirrors the storefront wording exactly — `CatalogProductCard` and
- * `CatalogProductDetailModal` both render `` `${customQuantity} unidades` ``,
+ * the product page (`detail-presentation.ts`) both render `` `${customQuantity} unidades` ``,
  * so `0` shows as `0 unidades` rather than the admin-only `Mostrar 0` label.
  */
 export function resolveStockPresentationPreview(

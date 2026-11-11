@@ -57,4 +57,18 @@ describe('fetchCatalogBranches', () => {
     expect(controller.signal.aborted).toBe(true)
     await expect(request).rejects.toMatchObject({ kind: 'network' })
   })
+
+  it('keeps the optional v0 whatsappNumber and still accepts a backend without it', async () => {
+    const withNumber = { ...branch, whatsappNumber: '+5215500000000' }
+    const withNull = { ...branch, id: 'b-2', whatsappNumber: null }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([withNumber, withNull, { ...branch, id: 'b-3' }]), { status: 200 })))
+
+    await expect(fetchCatalogBranches()).resolves.toEqual([withNumber, withNull, { ...branch, id: 'b-3' }])
+  })
+
+  it('rejects a whatsappNumber of the wrong type', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([{ ...branch, whatsappNumber: 5215500000000 }]), { status: 200 })))
+
+    await expect(fetchCatalogBranches()).rejects.toMatchObject({ kind: 'server' })
+  })
 })

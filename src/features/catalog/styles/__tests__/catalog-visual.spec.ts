@@ -9,7 +9,7 @@ const css = readFileSync('src/features/catalog/styles/catalog.css', 'utf8')
 
 /** The stylesheet without its token block and `var(--x, fallback)` fallbacks. */
 function withoutTokens(source: string): string {
-  const start = source.indexOf("body[data-catalog-theme='light'] {\n  --catalog-page")
+  const start = source.indexOf("body[data-catalog-theme='light'],\n.catalog-layout {\n  --catalog-page")
   const end = source.indexOf('}', start)
   return (source.slice(0, start) + source.slice(end + 1)).replace(/var\([^)]*\)/g, 'var()')
 }
@@ -22,6 +22,11 @@ describe('catalog stylesheet', () => {
   it('has no uppercase eyebrows or tracked micro-labels', () => {
     expect(css).not.toMatch(/text-transform:\s*uppercase/)
     expect(css).not.toMatch(/letter-spacing:\s*1(?:\.\d+)?px/)
+  })
+
+  it('repeats the light tokens on the layout root as a net for a missing body boundary', () => {
+    expect(css).toContain("body[data-catalog-theme='light'],\n.catalog-layout {\n  --catalog-page")
+    expect(css).toContain("html body.hf-theme[data-catalog-theme='light'],\nhtml body .catalog-layout {")
   })
 
   it('keeps hex literals inside the token block', () => {
@@ -60,9 +65,9 @@ describe('catalog stylesheet', () => {
     expect(base).toMatch(/\.catalog-footer \.catalog-logo \{[^}]*width: 40px/)
     expect(base).toMatch(/\.catalog-footer \{[^}]*padding-block: 20px/)
     expect(base).toMatch(/\.catalog-footer p \{[^}]*margin-top: 4px/)
-    // From 601px the roomier footer comes back.
+    // The logo stays ~40px on every width, like the artboard (no oversized logo on desktop).
     const desktop = css.slice(css.indexOf('@media (min-width: 601px) {'))
-    expect(desktop).toMatch(/\.catalog-footer \.catalog-logo \{[^}]*width: 80px/)
+    expect(desktop).not.toMatch(/\.catalog-footer \.catalog-logo \{/)
   })
 
   it('pins skeleton cards that respect reduced motion', () => {
@@ -76,14 +81,35 @@ describe('catalog stylesheet', () => {
     expect(css).toContain('.catalog-category-error')
   })
 
-  it('keeps the phone header to one compact row: small logo, branch and price list side by side', () => {
-    const base = css.slice(css.indexOf('.catalog-header-inner {'), css.indexOf('.catalog-branch-trigger {'))
-    expect(base).toContain('grid-template-columns: 48px minmax(0, 1fr) auto')
+  it('keeps the artboard 02 phone header: logo, «Categorías» and branch, then the full-width search', () => {
+    const base = css.slice(
+      css.indexOf('.catalog-header-inner {'),
+      css.indexOf('@media (min-width: 721px) {'),
+    )
+    expect(base).toContain("'logo cats branch'")
+    expect(base).toContain("'search search search'")
+    // The discreet price list gets its own third row on a phone, only when there is a real choice.
+    expect(base).toMatch(/\.catalog-header-inner--lists \{[^}]*'lists lists lists'/)
+    expect(base).toMatch(/\.catalog-select-name \{[^}]*text-overflow: ellipsis/)
     expect(base).toMatch(/\.catalog-logo \{[^}]*width: 48px/)
-    expect(base).toMatch(/\.catalog-header-controls \{[^}]*grid-column: 3[^}]*max-width: 8\.5rem/)
-    // From 601px the desktop logo and spacing come back.
-    const desktop = css.slice(css.indexOf('@media (min-width: 601px) {'))
-    expect(desktop).toMatch(/\.catalog-header \.catalog-logo \{[^}]*width: 80px/)
+    expect(base).toMatch(/\.catalog-header-controls \{[^}]*grid-area: lists/)
+    // From 721px one row: logo, Categorías, search, branch (and lists).
+    const desktop = css.slice(css.indexOf('@media (min-width: 721px) {'))
+    expect(desktop).toContain("grid-template-areas: 'logo cats search branch'")
+    expect(desktop).toContain("grid-template-areas: 'logo cats search branch lists'")
+    const tablet = css.slice(css.indexOf('@media (min-width: 601px) {'))
+    expect(tablet).toMatch(/\.catalog-header \.catalog-logo \{[^}]*width: 56px/)
+  })
+
+  it('pins the listing chrome: 44px targets, chips, pager and the hero bar', () => {
+    expect(css).toMatch(/\.catalog-sort select \{[^}]*min-height: 44px/)
+    expect(css).toMatch(/\.catalog-pager-button \{[^}]*min-height: 44px/)
+    expect(css).toMatch(/\.catalog-menu-item \{[^}]*min-height: 44px/)
+    expect(css).toMatch(/\.catalog-chip \{[^}]*border-radius: 999px/)
+    expect(css).toMatch(/\.catalog-hero-bar \{[^}]*min-height: 52px/)
+    // Phones read «Página X de Y»; desktop numbers the pages.
+    const desktop = css.slice(css.indexOf('@media (min-width: 721px) {'))
+    expect(desktop).toMatch(/\.catalog-pager-compact \{[^}]*display: none/)
   })
 
   it('keeps the footer lines close on a phone and spaced on desktop', () => {
@@ -92,23 +118,54 @@ describe('catalog stylesheet', () => {
     expect(desktop).toMatch(/\.catalog-footer-inner \{[^}]*gap: 28px 32px/)
   })
 
-  it('keeps every attribute facet on one sideways row on a phone and lets them flow side by side on desktop', () => {
-    const facets = css.slice(css.indexOf('.catalog-facets {'))
-    const phone = facets.slice(0, facets.indexOf('@media (min-width: 601px) {'))
-    // Phone: one scrolling row (eight definitions stacked pushed the products off screen).
-    // Only the groups scroll; «Limpiar filtros» is a separate item before the scroller and is
-    // never pinned over it (a sticky clear covered the first label «Especie»).
-    expect(phone).toMatch(/\.catalog-facet-scroller \{[^}]*overflow-x: auto/)
-    expect(phone).not.toMatch(/\.catalog-facets \{[^}]*overflow-x/)
-    expect(phone).not.toMatch(/\.catalog-facets \{[^}]*flex-direction: column/)
-    expect(phone).toMatch(/\.catalog-facet-group \{[^}]*flex: none/)
-    expect(phone).toMatch(/\.catalog-facet-chip \{[^}]*min-height: 44px/)
-    expect(phone).toMatch(/\.catalog-facet-clear \{[^}]*flex: none[^}]*order: -1/)
-    expect(facets).not.toMatch(/\.catalog-facet-clear \{[^}]*position: (?:sticky|absolute|fixed)/)
-    const desktop = facets.slice(facets.indexOf('@media (min-width: 601px) {'))
-    expect(desktop).toMatch(/\.catalog-facets \{[^}]*flex-wrap: wrap/)
-    expect(desktop).toMatch(/\.catalog-facet-scroller \{[^}]*display: contents/)
-    expect(desktop).toMatch(/\.catalog-facet-group \{[^}]*flex-direction: column/)
-    expect(desktop).toMatch(/\.catalog-facet-clear \{[^}]*order: 0/)
+  it('pins the filters: 40/48px rows with a round mark, the sidebar from 901px and the sheet on a phone', () => {
+    const filters = css.slice(css.indexOf('Filters (design/public-catalog-v0'))
+    expect(filters).toMatch(/\.catalog-filter-option \{[^}]*min-height: 40px/)
+    expect(filters).toMatch(/\.catalog-filter-option-mark \{[^}]*border-radius: 50%/)
+    expect(filters).toMatch(
+      /\.catalog-filter-sheet-body \.catalog-filter-option \{[^}]*min-height: 48px/,
+    )
+    expect(filters).toMatch(/\.catalog-recipient \{[^}]*min-height: 44px/)
+    // Phone: no sidebar and no classic checkbox styling; the sidebar and the card grid come at 901px.
+    expect(filters).toMatch(/\.catalog-filter-sidebar \{[^}]*display: none/)
+    const desktop = filters.slice(filters.indexOf('@media (min-width: 901px) {'))
+    expect(desktop).toMatch(/\.catalog-split--filters \{[^}]*grid-template-columns: 208px/)
+    expect(desktop).toMatch(/\.catalog-filter-sidebar \{[^}]*display: block/)
+    expect(desktop).toMatch(/\.catalog-filter-trigger \{[^}]*display: none/)
+    expect(desktop).toMatch(/repeat\(4, minmax\(0, 1fr\)\)/)
+    expect(filters).not.toMatch(/input\[type=['"]?checkbox/)
+  })
+
+  it('keeps the detail eyebrow in sentence case, like every other label', () => {
+    const detail = readFileSync('src/features/catalog/styles/catalog-detail.css', 'utf8')
+    const eyebrow = detail.slice(detail.indexOf('.catalog-pdp-eyebrow {'))
+    expect(eyebrow.slice(0, eyebrow.indexOf('}'))).not.toMatch(/uppercase|letter-spacing/)
+  })
+
+  it('gives the branch-without-catalog options their own full-width rows', () => {
+    expect(css).toMatch(/\.catalog-branch-pick \{[^}]*width: 100%/)
+    expect(css).toMatch(/\.catalog-branch-pick-name \{[^}]*min-width: 0/)
+    // The branch block's `.catalog-branch-row` styles its first child 16px wide: never reuse it.
+    expect(css).not.toContain('.catalog-branch-row')
+  })
+
+  it('pins the card colours to the catalog palette instead of the inherited Nuxt UI variables', () => {
+    // The owner saw dark card bodies (white title on near-black) while the media stayed light.
+    expect(css).toMatch(/\.catalog-product-card \{[^}]*background: var\(--catalog-surface\)/)
+    expect(css).toMatch(/\.catalog-product-card \{[^}]*--ui-bg: var\(--catalog-surface\)/)
+    expect(css).toMatch(/\.catalog-product-card \{[^}]*--ui-text-highlighted: var\(--catalog-title\)/)
+    expect(css).toMatch(/\.catalog-product-name \{[^}]*color: var\(--catalog-title\)/)
+    expect(css).toMatch(/\.catalog-product-price \{[^}]*color: var\(--catalog-title\)/)
+    expect(css).toMatch(/\.catalog-product-brand \{[^}]*color: var\(--catalog-muted\)/)
+  })
+
+  it('draws the card media edge to edge on a soft stage with the photo contained', () => {
+    // A square white frame with padding left landscape photos floating in empty space.
+    expect(css).toMatch(/\.catalog-product-media \{[^}]*aspect-ratio: 4 \/ 3/)
+    expect(css).toMatch(/\.catalog-product-media \{[^}]*padding: 0;/)
+    expect(css).toMatch(/\.catalog-product-media \{[^}]*background: var\(--catalog-page\)/)
+    expect(css).toMatch(/\.catalog-product-image \{[^}]*object-fit: contain/)
+    // Packshots on white blend into the stage instead of showing a white box.
+    expect(css).toMatch(/\.catalog-product-image \{[^}]*mix-blend-mode: multiply/)
   })
 })

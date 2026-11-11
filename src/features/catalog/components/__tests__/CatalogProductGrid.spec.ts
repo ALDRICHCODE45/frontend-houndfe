@@ -23,7 +23,20 @@ const product = {
   featuredLabel: null,
 }
 
-const stubs = { UIcon: defineComponent({ setup: () => () => h('span') }) }
+const stubs = {
+  UIcon: defineComponent({ setup: () => () => h('span') }),
+  // The card owns its own link to the detail page; the grid only lays cards out.
+  CatalogProductCard: defineComponent({
+    props: { product: { type: Object, required: true } },
+    setup: (props) => () =>
+      h('article', { 'data-catalog-product-id': (props.product as { id: string }).id }, [
+        (props.product as { name: string }).name,
+      ]),
+  }),
+}
+const branches = [
+  { id: 'b-1', name: 'Sucursal Centro', slug: 'centro', address: null, phone: null },
+]
 const mountGrid = (props: Partial<InstanceType<typeof CatalogProductGrid>['$props']> = {}) =>
   mount(CatalogProductGrid, {
     props: {
@@ -66,23 +79,35 @@ describe('CatalogProductGrid', () => {
     },
   )
 
-  it('relays the exact product ID from a populated real card', async () => {
+  it('lays out one card per product and relays no detail event (the card is a link)', () => {
     const wrapper = mountGrid()
 
-    const card = wrapper.get(`button[aria-label="Ver detalles de ${product.name}"]`)
-    await card.trigger('click')
-
-    expect(wrapper.emitted('open-detail')).toEqual([[product.id, card.element]])
+    expect(wrapper.findAll('[data-catalog-product-id]').map((card) => card.text())).toEqual([
+      product.name,
+    ])
+    expect(wrapper.emitted('open-detail')).toBeUndefined()
   })
 
-  it('keeps two compact mobile columns, then adds tablet and desktop density without a sidebar', () => {
+  it('offers the published branches when the URL names a branch without a catalog', async () => {
+    const wrapper = mountGrid({ selectionState: 'invalid', branches })
+
+    expect(wrapper.text()).toContain('Esta sucursal aún no publica su catálogo')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Ver catálogo de Sucursal Centro')!
+      .trigger('click')
+    expect(wrapper.emitted('select-branch')).toEqual([['centro']])
+  })
+
+  it('keeps two compact mobile columns, then three and four as the artboard draws them', () => {
     const wrapper = mountGrid()
 
     expect(wrapper.classes()).toContain('catalog-container')
     const grid = wrapper.get('[data-testid="catalog-product-grid"]')
     expect(grid.classes()).toEqual(
-      expect.arrayContaining(['grid-cols-2', 'md:grid-cols-3', 'lg:grid-cols-4', 'xl:grid-cols-5']),
+      expect.arrayContaining(['grid-cols-2', 'md:grid-cols-3', 'lg:grid-cols-4']),
     )
+    expect(grid.classes()).not.toContain('xl:grid-cols-5')
   })
 
   it.each([
@@ -109,12 +134,11 @@ describe('CatalogProductGrid', () => {
     ['selected', 'empty'],
     ['selected', 'network'],
   ] as const)(
-    'does not emit detail events outside populated cards (%s, %s)',
+    'renders no card outside the populated state (%s, %s)',
     async (selectionState, state) => {
       const wrapper = mountGrid({ selectionState, state })
 
       expect(wrapper.find('[data-catalog-product-id]').exists()).toBe(false)
-      expect(wrapper.emitted('open-detail')).toBeUndefined()
     },
   )
 
@@ -192,7 +216,11 @@ describe('CatalogProductGrid', () => {
       const skeleton = wrapper.get('[data-testid="catalog-product-skeleton"]')
 
       expect(skeleton.attributes('aria-busy')).toBe('true')
-      expect(skeleton.findAll('[data-testid="catalog-product-skeleton-card"]').length).toBeGreaterThanOrEqual(4)
+      const cards = skeleton.findAll('[data-testid="catalog-product-skeleton-card"]')
+      expect(cards.length).toBeGreaterThanOrEqual(4)
+      // The artboard card shape: a square photo and five lines (brand, two title lines, price, action).
+      expect(cards[0]!.findAll('.catalog-skeleton-media')).toHaveLength(1)
+      expect(cards[0]!.findAll('.catalog-skeleton-body .catalog-skeleton')).toHaveLength(5)
       expect(wrapper.find('.animate-spin').exists()).toBe(false)
       expect(wrapper.text()).toContain(
         state === 'retry-pending' ? 'Reintentando productos…' : 'Cargando productos…',
@@ -205,6 +233,9 @@ describe('CatalogProductGrid', () => {
     const section = wrapper.get('[data-testid="catalog-state"]')
 
     expect(section.attributes('data-kind')).toBe('error')
+    expect(section.get('.hf-empty-state__description').text()).toBe(
+      'Revisa tu conexión e inténtalo de nuevo. Tus filtros y tu búsqueda se conservan.',
+    )
     expect(wrapper.findAll('button')).toHaveLength(1)
     await wrapper.get('[data-testid="catalog-retry-products"]').trigger('click')
     expect(wrapper.emitted('retry')).toHaveLength(1)
@@ -234,7 +265,8 @@ describe('CatalogProductGrid', () => {
   it.each([
     ['branches', { branchesState: 'server' as const, selectionState: 'none' as const }, 'No pudimos cargar las sucursales.', 'catalog-retry-branches'],
     ['price lists', { contextState: 'context-network' as const }, 'No se pudo conectar. Inténtalo de nuevo en un momento.', 'catalog-retry-context'],
-    ['products', { state: 'rate-limit' as const, products: [] }, 'Demasiadas solicitudes. Intenta de nuevo más tarde.', 'catalog-retry-products'],
+    ['products', { state: 'server' as const, products: [] }, 'No pudimos cargar el catálogo', 'catalog-retry-products'],
+    ['products rate limit', { state: 'rate-limit' as const, products: [] }, 'Demasiadas consultas seguidas', 'catalog-retry-products'],
   ])('shows the %s failure through the shared error state with Reintentar', async (_label, props, title, retryId) => {
     const wrapper = mountGrid(props)
     const state = wrapper.get('[data-testid="catalog-state"]')

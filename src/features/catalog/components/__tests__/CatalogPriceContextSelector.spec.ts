@@ -26,11 +26,8 @@ describe('CatalogPriceContextSelector', () => {
 
   it('presents only the discovered options with priceListId identity and the accessible Spanish label', () => {
     const wrapper = mountSelector()
-    const label = wrapper.get('[data-testid="catalog-price-context-label"]')
-    expect(label.text()).toBe('Lista de precios')
-    expect(label.classes()).not.toContain('sr-only')
-    // On a phone the label gives its room to the control (the select keeps its aria-label).
-    expect(label.classes()).toContain('max-sm:sr-only')
+    // The discreet header control names itself; there is no separate visible label.
+    expect(wrapper.find('[data-testid="catalog-price-context-label"]').exists()).toBe(false)
     expect(findMenu(wrapper).props('items')).toEqual(options)
     expect(findMenu(wrapper).props('valueKey')).toBe('priceListId')
     expect(findMenu(wrapper).props('labelKey')).toBe('name')
@@ -39,12 +36,11 @@ describe('CatalogPriceContextSelector', () => {
     expect(wrapper.get('[aria-label="Lista de precios"]').text()).toContain('Público')
   })
 
-  it('names the control inside it on a phone, where the visible label is hidden', () => {
+  it('names the control inside it as «Precios: <lista>»', () => {
     const wrapper = mountSelector()
     const prefix = wrapper.get('[data-testid="catalog-price-context-prefix"]')
-    expect(prefix.text()).toBe('Lista ·')
-    expect(prefix.classes()).toContain('sm:hidden')
-    expect(wrapper.get('[aria-label="Lista de precios"]').text()).toContain('Lista · Público')
+    expect(prefix.text()).toBe('Precios:')
+    expect(wrapper.get('[aria-label="Lista de precios"]').text()).toContain('Precios: Público')
     const empty = mountSelector({ modelValue: null })
     expect(empty.get('[aria-label="Lista de precios"]').text()).toContain('Elegir lista de precios')
     expect(empty.find('[data-testid="catalog-price-context-prefix"]').exists()).toBe(false)

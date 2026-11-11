@@ -52,9 +52,6 @@ function onSelect(value: string | null) {
     data-testid="catalog-price-context-selector"
     class="catalog-price-context w-full min-w-0"
   >
-    <span data-testid="catalog-price-context-label" class="text-xs font-medium text-muted max-sm:sr-only">
-      Lista de precios
-    </span>
     <USelectMenu
       :model-value="modelValue"
       :items="options"
@@ -79,10 +76,10 @@ function onSelect(value: string | null) {
       data-testid="catalog-price-context-menu"
       @update:model-value="onSelect"
     >
-      <!-- On a phone the visible label gives way, so the control names itself (`Lista · Público`). -->
+      <!-- A discreet header control (artboard 05): it names itself, `Precios: Mayoreo`. -->
       <template v-if="selectedName !== null" #default>
         <span class="truncate">
-          <span data-testid="catalog-price-context-prefix" class="text-muted sm:hidden">Lista ·</span>
+          <span data-testid="catalog-price-context-prefix" class="text-muted">Precios:</span>
           {{ selectedName }}
         </span>
       </template>
