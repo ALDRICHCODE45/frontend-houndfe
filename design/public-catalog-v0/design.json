@@ -1,0 +1,41 @@
+{
+  "title": "Catálogo en línea · versión v0",
+  "brief": "Catálogo público de HoundFe basado en el diseño de v0 (hero con el perro y el gato, mosaicos por destinatario, sidebar de filtros, tarjeta con «Desde $X», ficha con presentaciones), adaptado a lo que existe hoy y con las mejoras aprobadas por el dueño: conversión por WhatsApp, precio por unidad, menos duplicación (hero en barra, tarjeta tranquila, categorías en menú), confianza (logo real, sucursal, horario) y estados (cargando, sin resultados, error, sin catálogo).",
+  "artboards": [
+    {
+      "file": "01-inicio-y-listado-escritorio.html",
+      "title": "Inicio y listado · escritorio",
+      "tradeoff": "Dos estados: inicio con hero completo y listado filtrado con el hero en barra; tarjeta tranquila con WhatsApp, pero «Ordenar por» y la búsqueda por marca dependen de backend",
+      "width": 1440,
+      "height": 4740
+    },
+    {
+      "file": "02-listado-movil.html",
+      "title": "Listado · móvil (con panel de filtros)",
+      "tradeoff": "Catálogo en el primer pliegue con filtros en una hoja inferior; el conteo «Ver N productos» exige una consulta por cada cambio del borrador",
+      "width": 390,
+      "height": 5890
+    },
+    {
+      "file": "03-detalle-escritorio.html",
+      "title": "Detalle · escritorio",
+      "tradeoff": "«Pedir por WhatsApp» como CTA, precio por kg y ahorro, bloque de sucursal y compartir; agotado sigue elegible (pregunta por WhatsApp) y varios datos son de ejemplo hasta tener backend",
+      "width": 1440,
+      "height": 3300
+    },
+    {
+      "file": "04-detalle-movil.html",
+      "title": "Detalle · móvil",
+      "tradeoff": "Barra inferior con precio, «Cambiar» y «Pedir por WhatsApp»; ficha larga en una columna, con compartir en la fila de migas",
+      "width": 390,
+      "height": 4540
+    },
+    {
+      "file": "05-estados.html",
+      "title": "Estados y extras",
+      "tradeoff": "Cargando, sin resultados, error, sucursal sin catálogo, compartir, galería por presentación, menú Categorías y lista de precios; tablero de referencia, no una pantalla navegable",
+      "width": 1440,
+      "height": 6280
+    }
+  ]
+}
