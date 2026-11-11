@@ -1,0 +1,11 @@
+{
+  "title": "Chatbot → Solicitudes (bandeja y detalle)",
+  "brief": "Bandeja «Chatbot → Solicitudes» agrupada por cliente y página de detalle /chatbot/solicitudes/:id para la intervención humana dentro del sistema (S2, S3 de odd/tasks/chatbot-requests-inbox.md), con los campos reales de los handoffs 11, 12 y 14 del backend. Tres direcciones en escritorio 1440 y un tablero móvil 390 con estados para la recomendada. Los artboards son interactivos: selectores para rol, horario, solicitud y respuesta simulada.",
+  "feature": "odd/tasks/chatbot-requests-inbox.md",
+  "artboards": [
+    { "file": "01-tabla-agrupada.html", "title": "A · Tabla agrupada (recomendada)", "tradeoff": "Densa y conocida (mismo patrón que Reembolsos pendientes): grupos plegables por cliente, panel de acciones fijo a la derecha; un grupo con más de 10 solicitudes alarga la página y hay que abrir el detalle para actuar", "width": 1440, "height": 900 },
+    { "file": "02-maestro-detalle.html", "title": "B · Maestro–detalle", "tradeoff": "Atender varias seguidas sin salir de la lista (panel a la derecha y «Siguiente» en la página completa); dos zonas con scroll, una petición de detalle por clic y el «siguiente» lo decide el front, no el servidor", "width": 1440, "height": 900 },
+    { "file": "03-tarjetas-por-cliente.html", "title": "C · Tarjetas por cliente", "tradeoff": "Se lee quién está esperando y cuánto; el detalle usa pestañas y formularios en panel lateral. Compara mal la urgencia entre clientes y los grupos grandes necesitan una vista aparte", "width": 1440, "height": 900 },
+    { "file": "04-movil-y-estados.html", "title": "Móvil 390 y estados (dirección A)", "tradeoff": "Tarjetas por solicitud, barra inferior con una sola acción primaria y hoja inferior para formularios; cubre carga, vacío, error, vista limitada por permisos, conflicto 409 y fuera de horario", "width": 1440, "height": 2700 }
+  ]
+}

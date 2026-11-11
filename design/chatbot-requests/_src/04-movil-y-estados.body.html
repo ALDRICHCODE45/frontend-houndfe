@@ -1,0 +1,12 @@
+<main class="gallery" id="root" aria-label="Pantallas móviles y estados"></main>
+<aside class="notes-sheet" id="notes" hidden aria-label="Notas de diseño">
+  <h2>Notas · móvil 390 y estados (dirección A)</h2>
+  <ul>
+    <li>Recomendada: <b>A · Tabla agrupada</b>. En móvil la tabla pasa a tarjetas (12 px de radio, 16 px de relleno, texto principal como enlace extendido, pie con el tiempo y la antigüedad). Los grupos siguen siendo encabezados con el semáforo del más urgente.</li>
+    <li>Detalle móvil: barra superior (volver, folio y título, ⋮), tiempo límite en una franja, secciones apiladas y barra inferior fija con una sola acción primaria; el resto de <code>allowedActions</code> va en «Más acciones».</li>
+    <li>Formularios en hoja inferior; «Mensaje para el cliente» (máx. 500) es opcional y con «Duplicada» no se envía.</li>
+    <li>Vista limitada (rol sin <code>read:CustomerPhone</code>, <code>read:ChatbotConversation</code> ni permiso de resolver): teléfono enmascarado tal como lo manda el servidor, sin copiar ni llamar, conversación bloqueada con su motivo y sin «Resolver».</li>
+    <li>Conflicto: se conserva lo que el usuario escribió, se nombra quién la tomó (<code>current.claimedBy</code>) y se ofrece actualizar. Switch por <code>code</code>, nunca por <code>message</code>.</li>
+    <li>Las pantallas son estáticas; para probar los flujos use las direcciones 01 a 03.</li>
+  </ul>
+</aside>
