@@ -412,3 +412,75 @@ describe('fetchCatalogProductDetail', () => {
     })
   })
 })
+
+describe('fetchCatalogProductDetail exact low stock (handoff 15 §3)', () => {
+  const exactStock = (status: string, extra: Record<string, unknown>) => ({
+    mode: 'SYSTEM_STATUS_EXACT_LOW_STOCK',
+    status,
+    customQuantity: null,
+    ...extra,
+  })
+  const variantWith = (stockPresentation: unknown, availability: string) => ({
+    ...response.variants[0],
+    availabilityByBranch: [{ ...response.variants[0]!.availabilityByBranch[0], availability }],
+    stockPresentation,
+  })
+  /** A variant product: the top level never carries a quantity, the variant row does. */
+  const detailWith = (variantStock: unknown, variantAvailability: string) =>
+    withResponse({
+      stockPresentation: exactStock('available', { exactQuantity: null }),
+      variants: [variantWith(variantStock, variantAvailability)],
+    })
+  const stubBody = (body: unknown) =>
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status: 200 })),
+    )
+
+  it.each([
+    [
+      'a number on a low-stock variant',
+      detailWith(exactStock('low_stock', { exactQuantity: 2 }), 'low_stock'),
+    ],
+    ['a null quantity', detailWith(exactStock('available', { exactQuantity: null }), 'available')],
+    ['an absent quantity', detailWith(exactStock('available', {}), 'available')],
+    [
+      'a low-stock simple product',
+      withResponse({
+        availability: 'low_stock',
+        stockPresentation: exactStock('low_stock', { exactQuantity: 4 }),
+      }),
+    ],
+  ])('accepts the exact mode with %s', async (_, body) => {
+    stubBody(body)
+    await expect(fetchCatalogProductDetail('centro', productId, priceListId)).resolves.toEqual(body)
+  })
+
+  it.each([
+    [
+      'a negative quantity',
+      detailWith(exactStock('low_stock', { exactQuantity: -2 }), 'low_stock'),
+    ],
+    [
+      'a fractional quantity',
+      detailWith(exactStock('low_stock', { exactQuantity: 2.5 }), 'low_stock'),
+    ],
+    [
+      'a string quantity',
+      detailWith(exactStock('low_stock', { exactQuantity: '2' }), 'low_stock'),
+    ],
+    [
+      'a custom quantity',
+      detailWith(exactStock('low_stock', { customQuantity: 2, exactQuantity: 2 }), 'low_stock'),
+    ],
+    [
+      'a variant status that differs from its branch availability',
+      detailWith(exactStock('low_stock', { exactQuantity: 2 }), 'available'),
+    ],
+  ])('rejects the exact mode with %s', async (_, body) => {
+    stubBody(body)
+    await expect(fetchCatalogProductDetail('centro', productId, priceListId)).rejects.toMatchObject(
+      { kind: 'server', status: 200 },
+    )
+  })
+})

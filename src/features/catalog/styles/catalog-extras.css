@@ -1,0 +1,320 @@
+/*
+ * v0 backend extras of the public catalog: WhatsApp links, branch block, footer contact,
+ * mobile sticky bar. Catalog roles only (`--catalog-*`); no palette literals.
+ */
+
+/* ---------- WhatsApp link ---------- */
+.catalog-wa {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border: 1px solid var(--catalog-action);
+  border-radius: var(--catalog-control-radius);
+  background: var(--catalog-action);
+  color: var(--catalog-on-action);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.catalog-wa-icon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+.catalog-wa--cta {
+  flex: 1;
+  min-width: 220px;
+  min-height: 48px;
+  padding: 0 16px;
+}
+
+.catalog-wa--bar {
+  flex: none;
+  padding: 0 14px;
+  min-height: 48px;
+}
+
+.catalog-wa--secondary,
+.catalog-wa--icon,
+.catalog-wa--text {
+  border-color: var(--catalog-border-strong);
+  background: var(--catalog-surface);
+  color: var(--catalog-title);
+}
+
+.catalog-wa--icon {
+  width: 44px;
+  padding: 0;
+}
+
+.catalog-wa--text {
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  color: var(--catalog-action);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.catalog-wa:focus-visible {
+  outline: 2px solid var(--catalog-action);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .catalog-wa:not(.catalog-wa--secondary):not(.catalog-wa--icon):not(.catalog-wa--text):hover {
+    border-color: var(--catalog-title);
+    background: var(--catalog-title);
+  }
+
+  .catalog-wa--secondary:hover,
+  .catalog-wa--icon:hover {
+    border-color: var(--catalog-action);
+    background: var(--catalog-active-soft);
+    color: var(--catalog-action);
+  }
+}
+
+/* ---------- Card: the WhatsApp control sits beside the quiet «Ver detalle» row ---------- */
+.catalog-card-cell {
+  position: relative;
+}
+
+.catalog-card-wa {
+  position: absolute;
+  right: 10px;
+  bottom: 12px;
+  z-index: 2;
+}
+
+.catalog-card-cell--wa .catalog-product-action {
+  margin-right: 52px;
+  width: auto;
+}
+
+@media (min-width: 601px) {
+  .catalog-card-wa {
+    right: 16px;
+    bottom: 16px;
+  }
+}
+
+/* ---------- Unit price and saving (detail) ---------- */
+.catalog-pdp-unit-price {
+  color: var(--catalog-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.catalog-pdp-presentation-unit {
+  display: block;
+  color: var(--catalog-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.catalog-pdp-presentation-saving {
+  grid-column: 1 / -1;
+  justify-self: start;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--catalog-success-soft);
+  color: var(--catalog-success);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* ---------- Branch block ---------- */
+.catalog-branch-block {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--catalog-border);
+  border-radius: var(--catalog-panel-radius);
+  background: var(--catalog-surface);
+}
+
+.catalog-branch-block h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  color: var(--catalog-title);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.catalog-branch-hours {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--catalog-soft);
+  color: var(--catalog-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.catalog-branch-hours[data-kind='today'] {
+  background: var(--catalog-success-soft);
+  color: var(--catalog-success);
+}
+
+.catalog-branch-hours[data-kind='today']::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.catalog-branch-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--catalog-text);
+  font-size: 14px;
+}
+
+.catalog-branch-row > :first-child,
+.catalog-branch-options li > :first-child {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  color: var(--catalog-muted);
+}
+
+.catalog-branch-options {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--catalog-border);
+  list-style: none;
+}
+
+.catalog-branch-options li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  font-size: 14px;
+}
+
+.catalog-branch-options li b {
+  color: var(--catalog-title);
+  font-weight: 600;
+}
+
+.catalog-branch-options li span {
+  color: var(--catalog-muted);
+  font-size: 13px;
+}
+
+/* ---------- Footer contact ---------- */
+.catalog-footer-contact {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  font-size: 13px;
+}
+
+.catalog-footer-contact span,
+.catalog-footer-contact a {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--catalog-muted);
+}
+
+.catalog-footer-contact a {
+  color: var(--catalog-action);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.catalog-footer-contact [data-icon] {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+/* ---------- Mobile sticky bar ---------- */
+.catalog-sticky-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--catalog-border);
+  background: var(--catalog-surface);
+  box-shadow: 0 -4px 16px rgb(23 57 104 / 8%);
+}
+
+.catalog-sticky-summary {
+  display: grid;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.catalog-sticky-summary b {
+  color: var(--catalog-title);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.catalog-sticky-summary b small {
+  color: var(--catalog-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.catalog-sticky-summary .catalog-sticky-consult {
+  color: var(--catalog-muted);
+  font-size: 15px;
+}
+
+.catalog-sticky-summary span {
+  color: var(--catalog-muted);
+  font-size: 12px;
+}
+
+.catalog-sticky-summary button {
+  min-height: 24px;
+  padding: 0;
+  color: var(--catalog-action);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media (min-width: 768px) {
+  .catalog-sticky-bar {
+    display: none;
+  }
+}
+
+/* The page keeps one WhatsApp CTA: inline on desktop, in the bar on mobile. */
+@media (max-width: 767.98px) {
+  .catalog-pdp-actions .catalog-wa--cta {
+    display: none;
+  }
+}

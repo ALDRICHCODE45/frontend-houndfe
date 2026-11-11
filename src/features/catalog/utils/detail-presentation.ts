@@ -11,10 +11,29 @@ export function displayPrice(price: { priceCents: number | null; hidden: boolean
   return !price.hidden && price.priceCents !== null ? formatCentsMXN(price.priceCents) : null
 }
 
-/** «N unidades» only when the business chose to publish a custom quantity. */
+/**
+ * «Quedan N» only when the backend sends the real quantity of a low-stock row (opt-in exact mode;
+ * the field is absent or null otherwise, and always null on a variant product's top level).
+ */
+export function exactQuantityLabel(presentation: {
+  status: string | null
+  exactQuantity?: number | null
+}): string | null {
+  const quantity = presentation.exactQuantity
+  return presentation.status === 'low_stock' &&
+    typeof quantity === 'number' &&
+    Number.isInteger(quantity) &&
+    quantity >= 0
+    ? `Quedan ${quantity}`
+    : null
+}
+
+/** «Quedan N» when the exact quantity is published, «N unidades» for a published custom quantity. */
 export function displayQuantity(
   presentation: PublicCatalogProductDetailStockPresentationDto,
 ): string | null {
+  const exact = exactQuantityLabel(presentation)
+  if (exact) return exact
   return presentation.mode === 'CUSTOM_QUANTITY' && presentation.customQuantity !== null
     ? `${presentation.customQuantity} unidades`
     : null

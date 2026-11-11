@@ -8,4 +8,6 @@ export type PublicBranchDto = {
   slug: string
   address: string | null
   phone: string | null
+  /** Public catalog v0 (handoff 15 §5): the bot's WhatsApp number; absent on a backend without v0. */
+  whatsappNumber?: string | null
 }

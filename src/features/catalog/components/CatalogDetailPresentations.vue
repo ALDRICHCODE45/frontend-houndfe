@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, useId } from 'vue'
+import '../styles/catalog-extras.css'
 import type { DisplayAvailability } from '../utils/detail-presentation'
 
 export interface CatalogDetailPresentationOption {
@@ -7,6 +8,10 @@ export interface CatalogDetailPresentationOption {
   name: string
   price: string | null
   quantity: string | null
+  /** «$93.63 / kg», only when every presentation shares a content unit. */
+  unitPrice?: string | null
+  /** «Ahorras 15 % vs 2 kg», only on a bigger presentation that is cheaper per unit. */
+  saving?: string | null
   availability: DisplayAvailability | null
 }
 
@@ -60,6 +65,12 @@ const countLabel = computed(() =>
         <span class="catalog-pdp-presentation-price">
           <b v-if="option.price">{{ option.price }}</b>
           <span v-else class="catalog-pdp-presentation-consult">Consultar precio</span>
+          <small
+            v-if="option.unitPrice"
+            data-testid="catalog-detail-presentation-unit"
+            class="catalog-pdp-presentation-unit"
+            >{{ option.unitPrice }}</small
+          >
         </span>
         <span
           v-if="option.availability"
@@ -71,6 +82,12 @@ const countLabel = computed(() =>
         <span v-if="option.quantity" class="catalog-pdp-presentation-quantity">
           {{ option.quantity }}
         </span>
+        <span
+          v-if="option.saving"
+          data-testid="catalog-detail-presentation-saving"
+          class="catalog-pdp-presentation-saving"
+          >{{ option.saving }}</span
+        >
       </label>
     </div>
   </fieldset>

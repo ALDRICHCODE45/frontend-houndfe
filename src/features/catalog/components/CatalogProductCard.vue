@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { RouterLink, useRoute, type RouteLocationRaw } from 'vue-router'
+import { RouterLink, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
+import CatalogWhatsappLink from './CatalogWhatsappLink.vue'
+import { useCachedCatalogBranch } from '../composables/useCatalogBranches'
 import { catalogAvailabilityConfig } from '../utils/availability'
+import { exactQuantityLabel } from '../utils/detail-presentation'
+import { normalizeWhatsappNumber, productInquiryMessage } from '../utils/whatsapp'
 import type { PublicCatalogProductDto } from '../interfaces/public-catalog-products.types'
+import '../styles/catalog-extras.css'
 
 const props = defineProps<{ product: PublicCatalogProductDto }>()
 const emit = defineEmits<{
@@ -11,6 +16,7 @@ const emit = defineEmits<{
   'open-detail': [productId: string, invoker: HTMLElement]
 }>()
 const route = useRoute()
+const router = useRouter()
 
 /**
  * The card opens the product page of the branch being browsed. The listing query (price list,
@@ -59,8 +65,40 @@ const formattedPrice = computed(() => {
 const availability = computed(() => {
   const presentation = props.product.stockPresentation
   if (presentation.mode === 'HIDDEN' || presentation.status === null) return null
-  return catalogAvailabilityConfig[presentation.status]
+  const config = catalogAvailabilityConfig[presentation.status]
+  // The real quantity (opt-in exact mode) replaces the generic low-stock wording.
+  const exact = exactQuantityLabel(presentation)
+  return exact ? { ...config, label: exact } : config
 })
+const isOut = computed(() => props.product.stockPresentation.status === 'out_of_stock')
+
+/** WhatsApp: the number and branch name come from the cached branches query, never a prop. */
+const branchSlug = computed(() => {
+  const slug = route.params.branchSlug
+  return typeof slug === 'string' && slug.length > 0 ? slug : null
+})
+const { branch } = useCachedCatalogBranch(branchSlug)
+const hasWhatsapp = computed(() => normalizeWhatsappNumber(branch.value?.whatsappNumber) !== null)
+const pageUrl = computed(() => {
+  if (!branchSlug.value) return ''
+  const priceListId = route.query.priceListId
+  const href = router.resolve({
+    name: 'public-catalog-product',
+    params: { branchSlug: branchSlug.value, productId: props.product.id },
+    query: typeof priceListId === 'string' && priceListId ? { priceListId } : {},
+  }).href
+  return new URL(href, window.location.origin).href
+})
+const whatsappMessage = computed(() =>
+  productInquiryMessage({
+    productName: props.product.name,
+    presentationName: null,
+    branchName: branch.value?.name ?? null,
+    url: pageUrl.value,
+    outOfStock: isOut.value,
+  }),
+)
+const whatsappLabel = computed(() => (isOut.value ? 'Preguntar' : 'Pedir'))
 const presentationQuantity = computed(() => {
   const presentation = props.product.stockPresentation
   return presentation.mode === 'CUSTOM_QUANTITY' && presentation.customQuantity !== null
@@ -75,7 +113,10 @@ function openDetail(event: MouseEvent) {
 </script>
 
 <template>
-  <article class="h-full min-w-0">
+  <article
+    class="catalog-card-cell h-full min-w-0"
+    :class="{ 'catalog-card-cell--wa': hasWhatsapp }"
+  >
     <component
       :is="productLocation ? RouterLink : 'div'"
       :to="productLocation ?? undefined"
@@ -144,7 +185,7 @@ function openDetail(event: MouseEvent) {
           v-if="product.hasVariants && formattedPrice"
           class="catalog-product-price-note text-muted"
         >
-          Precio de referencia
+          Desde
         </p>
         <div
           class="catalog-product-price-row flex min-w-0 flex-wrap items-end justify-between gap-x-3 gap-y-1"
@@ -189,5 +230,16 @@ function openDetail(event: MouseEvent) {
         </span>
       </div>
     </component>
+    <!-- Outside the card link: a link inside a link is invalid, and the control has its own target. -->
+    <CatalogWhatsappLink
+      v-if="hasWhatsapp"
+      class="catalog-card-wa"
+      variant="icon"
+      :number="branch?.whatsappNumber"
+      :message="whatsappMessage"
+      :label="`${whatsappLabel} por WhatsApp`"
+      :aria-label="`${whatsappLabel} por WhatsApp: ${product.name}`"
+      :secondary="isOut"
+    />
   </article>
 </template>

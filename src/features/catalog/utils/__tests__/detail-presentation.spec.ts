@@ -5,6 +5,7 @@ import {
   displayAvailability,
   displayPrice,
   displayQuantity,
+  exactQuantityLabel,
   groupAttributesBySection,
   presentationAttributes,
 } from '../detail-presentation'
@@ -90,5 +91,33 @@ describe('detail presentation helpers', () => {
     ).toBe('b')
     expect(defaultPresentationId([{ id: 'a', isOut: true }])).toBe('a')
     expect(defaultPresentationId([])).toBeNull()
+  })
+
+  describe('exact low stock («Quedan N»)', () => {
+    const exact = (status: 'low_stock' | 'available' | 'out_of_stock', exactQuantity?: number | null) => ({
+      mode: 'SYSTEM_STATUS_EXACT_LOW_STOCK' as const,
+      status,
+      customQuantity: null,
+      ...(exactQuantity === undefined ? {} : { exactQuantity }),
+    })
+
+    it('writes the real quantity only when the backend sends it', () => {
+      expect(exactQuantityLabel(exact('low_stock', 3))).toBe('Quedan 3')
+      expect(displayQuantity(exact('low_stock', 1))).toBe('Quedan 1')
+    })
+
+    it.each([
+      ['null', exact('low_stock', null)],
+      ['absent', exact('low_stock')],
+      ['not low stock', exact('available', null)],
+      ['a plain system status', { mode: 'SYSTEM_STATUS' as const, status: 'low_stock' as const, customQuantity: null }],
+    ])('renders nothing when the quantity is %s (as today)', (_, presentation) => {
+      expect(exactQuantityLabel(presentation)).toBeNull()
+      expect(displayQuantity(presentation)).toBeNull()
+    })
+
+    it('keeps «N unidades» for a custom quantity', () => {
+      expect(displayQuantity({ mode: 'CUSTOM_QUANTITY', status: null, customQuantity: 4 })).toBe('4 unidades')
+    })
   })
 })

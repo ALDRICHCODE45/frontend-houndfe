@@ -1,8 +1,10 @@
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { flushPromises, mount } from '@vue/test-utils'
 import { defineComponent, h, nextTick } from 'vue'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
+import { catalogBranchesQueryKey } from '@/features/catalog/composables/useCatalogBranches'
 import CatalogProductCard from '@/features/catalog/components/CatalogProductCard.vue'
 
 const product = {
@@ -60,14 +62,14 @@ const cardLink = (wrapper: ReturnType<typeof mountCard>) =>
   wrapper.get(`a[aria-label="Ver detalles de ${product.name}"]`)
 
 describe('CatalogProductCard', () => {
-  it('labels the unchanged differing variant-derived amount as reference, not minimum or product price', () => {
+  it('labels the variant-derived minimum «Desde» (handoff 15 §1: fromPriceCents is the lowest presentation price)', () => {
     const wrapper = mountCard({
       hasVariants: true,
       price: { fromPriceCents: 14900, priceCents: 12900, hidden: false },
     })
     expect(wrapper.get('[data-testid="catalog-product-price"]').text()).toBe(formatCentsMXN(14900))
-    expect(wrapper.text()).toContain('Precio de referencia')
-    expect(wrapper.text()).not.toMatch(/Desde|Precio del producto/)
+    expect(wrapper.text()).toContain('Desde')
+    expect(wrapper.text()).not.toMatch(/Precio de referencia|Precio del producto/)
   })
 
   it.each([
@@ -76,7 +78,7 @@ describe('CatalogProductCard', () => {
     { hasVariants: true, price: { fromPriceCents: 14900, priceCents: 12900, hidden: true } },
   ])('withholds reference scope when inapplicable (%j)', (overrides) => {
     expect(mountCard(overrides).text()).not.toMatch(
-      /Precio de referencia|Consulta los precios por presentación/,
+      /Desde|Consulta los precios por presentación/,
     )
   })
 
@@ -86,8 +88,8 @@ describe('CatalogProductCard', () => {
       price: { fromPriceCents: 0, priceCents: 12900, hidden: false },
     })
     expect(wrapper.get('[data-testid="catalog-product-price"]').text()).toBe(formatCentsMXN(0))
-    expect(wrapper.text()).toContain('Precio de referencia')
-    expect(wrapper.text()).not.toMatch(/Desde|Consultar precio/)
+    expect(wrapper.text()).toContain('Desde')
+    expect(wrapper.text()).not.toMatch(/Precio de referencia|Consultar precio/)
   })
 
   it('retains product-price fallback when the reference amount is null', () => {
@@ -96,7 +98,7 @@ describe('CatalogProductCard', () => {
       price: { fromPriceCents: null, priceCents: 12900, hidden: false },
     })
     expect(wrapper.get('[data-testid="catalog-product-price"]').text()).toBe(formatCentsMXN(12900))
-    expect(wrapper.text()).toContain('Precio de referencia')
+    expect(wrapper.text()).toContain('Desde')
   })
 
   it('contains published media and shows the quiet «Elegir presentación» affordance without nested controls', () => {
@@ -108,7 +110,7 @@ describe('CatalogProductCard', () => {
     )
     expect(wrapper.findAll('a')).toHaveLength(1)
     expect(wrapper.find('button, a a, a button, select, input').exists()).toBe(false)
-    expect(wrapper.text()).not.toMatch(/Desde|Agregar|Consulta los precios por presentación/)
+    expect(wrapper.text()).not.toMatch(/Agregar|Consulta los precios por presentación/)
   })
 
   it('reads «Ver detalle» when the product has a single presentation', () => {
@@ -379,3 +381,83 @@ describe('CatalogProductCard', () => {
     })
   })
 })
+
+describe('CatalogProductCard v0 extras', () => {
+  const branch = { id: 'b-1', name: 'Sucursal Centro', slug: 'centro', address: null, phone: null }
+
+  function mountWithBranches(branches: unknown[], overrides = {}) {
+    const queryClient = new QueryClient()
+    queryClient.setQueryData(catalogBranchesQueryKey, branches)
+    return mount(CatalogProductCard, {
+      props: { product: { ...product, ...overrides } },
+      global: { stubs, plugins: [router, [VueQueryPlugin, { queryClient }]] },
+    })
+  }
+
+  it('renders no WhatsApp control without a number (backend without v0)', async () => {
+    const wrapper = mountWithBranches([branch])
+    await flushPromises()
+    expect(wrapper.find('[data-testid="catalog-whatsapp-link"]').exists()).toBe(false)
+    expect(wrapper.html()).not.toMatch(/whatsapp|wa\.me/i)
+    expect(wrapper.findAll('a')).toHaveLength(1)
+  })
+
+  it('renders no WhatsApp control for a null number or an unrelated branch number', async () => {
+    const wrapper = mountWithBranches([
+      { ...branch, whatsappNumber: null },
+      { ...branch, id: 'b-2', slug: 'norte', whatsappNumber: '+5215500000000' },
+    ])
+    await flushPromises()
+    expect(wrapper.find('[data-testid="catalog-whatsapp-link"]').exists()).toBe(false)
+  })
+
+  it('links «Pedir» to wa.me beside the card link, never inside it', async () => {
+    const wrapper = mountWithBranches([{ ...branch, whatsappNumber: '+5215500000000' }])
+    await flushPromises()
+    const link = wrapper.get('[data-testid="catalog-whatsapp-link"]')
+    const url = new URL(link.attributes('href')!)
+    expect(url.origin + url.pathname).toBe('https://wa.me/5215500000000')
+    const text = url.searchParams.get('text')!
+    expect(text).toContain(product.name)
+    expect(text).toContain('Sucursal Centro')
+    expect(text).toContain('/catalogo/centro/p/product-1')
+    expect(text).toContain('priceListId=list-1')
+    expect(link.attributes('aria-label')).toBe(`Pedir por WhatsApp: ${product.name}`)
+    expect(cardLinkOf(wrapper).element.contains(link.element)).toBe(false)
+  })
+
+  it('reads «Preguntar» when the product is out of stock', async () => {
+    const wrapper = mountWithBranches([{ ...branch, whatsappNumber: '+5215500000000' }], {
+      availability: 'out_of_stock',
+      stockPresentation: { mode: 'SYSTEM_STATUS', status: 'out_of_stock', customQuantity: null },
+    })
+    await flushPromises()
+    const link = wrapper.get('[data-testid="catalog-whatsapp-link"]')
+    expect(link.attributes('aria-label')).toBe(`Preguntar por WhatsApp: ${product.name}`)
+    expect(new URL(link.attributes('href')!).searchParams.get('text')).toContain('¿cuándo vuelve')
+  })
+
+  const exact = (exactQuantity?: number | null) => ({
+    availability: 'low_stock' as const,
+    stockPresentation: {
+      mode: 'SYSTEM_STATUS_EXACT_LOW_STOCK' as const,
+      status: 'low_stock' as const,
+      customQuantity: null,
+      ...(exactQuantity === undefined ? {} : { exactQuantity }),
+    },
+  })
+
+  it('writes «Quedan N» on the availability pill when the exact quantity is published', () => {
+    const wrapper = mountCard(exact(3))
+    expect(wrapper.get('[data-testid="catalog-product-availability"]').text()).toBe('Quedan 3')
+  })
+
+  it.each([[null], [undefined]])('keeps «Pocas piezas» when the exact quantity is %s', (quantity) => {
+    const wrapper = mountCard(exact(quantity))
+    expect(wrapper.get('[data-testid="catalog-product-availability"]').text()).toBe('Pocas piezas')
+  })
+})
+
+function cardLinkOf(wrapper: ReturnType<typeof mount>) {
+  return wrapper.get(`a[aria-label="Ver detalles de ${product.name}"]`)
+}

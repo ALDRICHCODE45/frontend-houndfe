@@ -649,3 +649,46 @@ describe('fetchCatalogProducts', () => {
     })
   })
 })
+
+describe('fetchCatalogProducts exact low stock (handoff 15 §3)', () => {
+  const exactStock = (status: string, extra: Record<string, unknown>) => ({
+    mode: 'SYSTEM_STATUS_EXACT_LOW_STOCK',
+    status,
+    customQuantity: null,
+    ...extra,
+  })
+  const exactProduct = (status: string, extra: Record<string, unknown>) =>
+    withProduct({ availability: status, stockPresentation: exactStock(status, extra) })
+
+  it.each([
+    ['a number on a low-stock row', exactProduct('low_stock', { exactQuantity: 3 })],
+    ['zero on a low-stock row', exactProduct('low_stock', { exactQuantity: 0 })],
+    ['a null quantity', exactProduct('low_stock', { exactQuantity: null })],
+    ['an absent quantity', exactProduct('available', {})],
+    ['a null quantity on an out-of-stock row', exactProduct('out_of_stock', { exactQuantity: null })],
+  ])('accepts the exact mode with %s', async (_, body) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status: 200 })),
+    )
+    await expect(fetchCatalogProducts('centro')).resolves.toEqual(body)
+  })
+
+  it.each([
+    ['a negative quantity', exactProduct('low_stock', { exactQuantity: -1 })],
+    ['a fractional quantity', exactProduct('low_stock', { exactQuantity: 1.5 })],
+    ['a string quantity', exactProduct('low_stock', { exactQuantity: '3' })],
+    ['a null status', withProduct({ availability: null, stockPresentation: exactStock('x', { status: null }) })],
+    ['a custom quantity', exactProduct('low_stock', { customQuantity: 2, exactQuantity: 2 })],
+    ['a status that differs from availability', withProduct({ availability: 'available', stockPresentation: exactStock('low_stock', { exactQuantity: 2 }) })],
+  ])('rejects the exact mode with %s', async (_, body) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status: 200 })),
+    )
+    await expect(fetchCatalogProducts('centro')).rejects.toMatchObject({
+      kind: 'server',
+      status: 200,
+    })
+  })
+})

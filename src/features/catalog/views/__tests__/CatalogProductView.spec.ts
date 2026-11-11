@@ -9,6 +9,7 @@ import type { CatalogProductDetailState } from '../../composables/useCatalogProd
 import type { CatalogBranchesState } from '../../composables/useCatalogBranches'
 import type { CatalogPriceContextsState } from '../../composables/useCatalogPriceContexts'
 import type { PublicBranchDto } from '../../interfaces/catalog.types'
+import type { PublicCatalogBranchDetailDto } from '../../interfaces/public-catalog-branch.types'
 import type { PublicCatalogPriceContextDto } from '../../interfaces/public-catalog-price-context.types'
 import type {
   PublicCatalogProductDetailDto,
@@ -23,6 +24,7 @@ const fake = vi.hoisted(() => ({
   branches: null as unknown as import('vue').ShallowRef<PublicBranchDto[]>,
   branchesState: null as unknown as import('vue').ShallowRef<CatalogBranchesState>,
   retryBranches: null as unknown as ReturnType<typeof import('vitest').vi.fn>,
+  branchDetail: null as unknown as import('vue').ShallowRef<PublicCatalogBranchDetailDto | null>,
   contexts: null as unknown as import('vue').ShallowRef<PublicCatalogPriceContextDto[]>,
   contextsState: null as unknown as import('vue').ShallowRef<CatalogPriceContextsState>,
   contextsSlug: [] as Array<string | null>,
@@ -38,6 +40,9 @@ vi.mock('@/features/catalog/composables/useCatalogBranches', () => ({
     state: fake.branchesState,
     retry: fake.retryBranches,
   }),
+}))
+vi.mock('@/features/catalog/composables/useCatalogBranchDetail', () => ({
+  useCatalogBranchDetail: () => ({ branch: fake.branchDetail }),
 }))
 vi.mock('@/features/catalog/composables/useCatalogPriceContexts', async () => {
   const { toValue } = await import('vue')
@@ -221,6 +226,7 @@ beforeEach(() => {
   fake.branches = shallowRef(branches)
   fake.branchesState = shallowRef<CatalogBranchesState>('populated')
   fake.retryBranches = vi.fn()
+  fake.branchDetail = shallowRef<PublicCatalogBranchDetailDto | null>(null)
   fake.contexts = shallowRef(priceContexts)
   fake.contextsState = shallowRef<CatalogPriceContextsState>('populated')
   fake.contextsSlug = []
@@ -402,7 +408,7 @@ describe('CatalogProductView', () => {
       )
     })
 
-    it('exposes no WhatsApp, cart, quantity picker, rating or related products', async () => {
+    it('exposes no WhatsApp, cart, quantity picker, rating or related products without v0 data', async () => {
       await mountPage()
       const text = body().text()
 
@@ -528,7 +534,7 @@ describe('CatalogProductView', () => {
     const copyShare = () => get('[data-testid="catalog-detail-share-copy"]')
     const nativeShare = () => get('[data-testid="catalog-detail-share-native"]')
 
-    it('copies the product page URL with its price list and confirms «Enlace copiado»', async () => {
+    it('copies the share-preview URL with its price list and confirms «Enlace copiado»', async () => {
       const writeText = vi.fn().mockResolvedValue(undefined)
       vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })
       await mountPage('/catalogo/centro/p/product-1?priceListId=list-2&page=3')
@@ -538,7 +544,9 @@ describe('CatalogProductView', () => {
 
       expect(writeText).toHaveBeenCalledTimes(1)
       const shared = new URL(writeText.mock.calls[0]![0] as string)
-      expect(shared.pathname).toBe('/catalogo/centro/p/product-1')
+      // The preview route lives on the API host; it redirects people to the storefront page.
+      expect(shared.origin).toBe('http://localhost:3000')
+      expect(shared.pathname).toBe('/share/centro/p/product-1')
       expect(Object.fromEntries(shared.searchParams)).toEqual({ priceListId: 'list-2' })
       const toast = get('[data-testid="catalog-detail-share-feedback"]')
       expect(toast.text()).toBe('Enlace copiado')
@@ -571,7 +579,7 @@ describe('CatalogProductView', () => {
 
       expect(share).toHaveBeenCalledWith({
         title: 'Croqueta Nupec Cachorro',
-        url: expect.stringContaining('/catalogo/centro/p/product-1?priceListId=list-1'),
+        url: 'http://localhost:3000/share/centro/p/product-1?priceListId=list-1',
       })
       expect(writeText).not.toHaveBeenCalled()
     })
@@ -677,6 +685,208 @@ describe('CatalogProductView', () => {
         'Ver catálogo de Sucursal Norte',
       ])
       expect(router.resolve(links[1]!.attributes('href')!).params.branchSlug).toBe('norte')
+    })
+  })
+})
+
+describe('CatalogProductView v0 extras', () => {
+  const number = '+5215500000000'
+  const withNumber = () => {
+    fake.branches.value = [{ ...branches[0]!, whatsappNumber: number }, branches[1]!]
+  }
+  const waLinks = () => findAll('[data-testid="catalog-whatsapp-link"]')
+  const messageOf = (link: ReturnType<typeof waLinks>[number]) =>
+    new URL(link.attributes('href')!).searchParams.get('text')!
+
+  const contentAttribute = (value: number, unit: string, code = 'measure.net_mass') =>
+    ({
+      code,
+      label: 'Contenido',
+      facet: false,
+      section: packSection,
+      value: { type: 'number', value, unit: { code: unit, label: unit } },
+      display: `${value} ${unit}`,
+    }) satisfies PublicProductAttribute
+  const withContents = (units: [string, string, string]) => {
+    const detail = fake.detail.value!
+    const contents: Record<string, [number, string]> = {
+      'v-2': [2, units[0]],
+      'v-8': [8, units[1]],
+      'v-20': [20, units[2]],
+    }
+    fake.detail.value = {
+      ...detail,
+      variants: detail.variants.map((variant) => ({
+        ...variant,
+        attributes: [contentAttribute(...contents[variant.id]!)],
+      })),
+    }
+  }
+
+  describe('WhatsApp', () => {
+    it('renders no WhatsApp UI at all without a number', async () => {
+      await mountPage()
+      expect(waLinks()).toHaveLength(0)
+      expect(find('[data-testid="catalog-detail-sticky-bar"]').exists()).toBe(false)
+      expect(body().html()).not.toMatch(/wa\.me|WhatsApp/)
+    })
+
+    it('offers «Pedir por WhatsApp» naming product, presentation, branch and page', async () => {
+      withNumber()
+      await mountPage('/catalogo/centro/p/product-1?priceListId=list-1&page=2')
+      const cta = waLinks()[0]!
+      const url = new URL(cta.attributes('href')!)
+      expect(url.origin + url.pathname).toBe('https://wa.me/5215500000000')
+      expect(cta.text()).toBe('Pedir por WhatsApp')
+      const text = messageOf(cta)
+      expect(text).toContain('Croqueta Nupec Cachorro')
+      expect(text).toContain('2 kg')
+      expect(text).toContain('Sucursal Centro')
+      expect(text).toContain('/catalogo/centro/p/product-1?priceListId=list-1')
+      expect(text).not.toContain('page=2')
+    })
+
+    it('follows the selected presentation and asks («Preguntar») when it is sold out', async () => {
+      withNumber()
+      await mountPage()
+      await choose('20 kg')
+      const cta = waLinks()[0]!
+      expect(cta.text()).toBe('Preguntar por WhatsApp')
+      expect(messageOf(cta)).toContain('¿cuándo vuelve Croqueta Nupec Cachorro 20 kg?')
+    })
+
+    it('takes the number from the branch card when the branches list has none', async () => {
+      fake.branchDetail.value = {
+        name: 'Sucursal Centro',
+        phone: null,
+        address: null,
+        hours: null,
+        pickupAvailable: false,
+        deliveryAvailable: false,
+        whatsappNumber: number,
+      }
+      await mountPage()
+      expect(new URL(waLinks()[0]!.attributes('href')!).pathname).toBe('/5215500000000')
+    })
+
+    it('shows the mobile bar with price, «Cambiar» and the same WhatsApp action', async () => {
+      withNumber()
+      await mountPage()
+      const bar = get('[data-testid="catalog-detail-sticky-bar"]')
+      expect(bar.get('[data-testid="catalog-sticky-price"]').text()).toContain(formatCentsMXN(22000))
+      expect(bar.text()).toContain('2 kg')
+      expect(bar.find('[data-testid="catalog-whatsapp-link"]').exists()).toBe(true)
+      const scrollIntoView = vi.fn()
+      Element.prototype.scrollIntoView = scrollIntoView
+      await bar.get('[data-testid="catalog-sticky-change"]').trigger('click')
+      await flushPromises()
+      expect(scrollIntoView).toHaveBeenCalled()
+      expect(document.activeElement).toBe(presentationInput('2 kg').element)
+    })
+  })
+
+  describe('branch block', () => {
+    const card = (overrides: Partial<PublicCatalogBranchDetailDto> = {}): PublicCatalogBranchDetailDto => ({
+      name: 'Sucursal Centro',
+      phone: null,
+      address: { formatted: 'Dirección formateada por el backend' },
+      hours: {
+        timeZone: 'America/Mexico_City',
+        days: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(
+          (day) => ({ day, label: day, closed: false, ranges: [{ open: '08:00', close: '17:00' }] }),
+        ),
+        summary: 'Resumen del backend',
+      },
+      pickupAvailable: true,
+      deliveryAvailable: false,
+      whatsappNumber: null,
+      ...overrides,
+    })
+
+    it('renders nothing without a branch card (404, network error or backend without v0)', async () => {
+      await mountPage()
+      expect(find('[data-testid="catalog-branch-block"]').exists()).toBe(false)
+    })
+
+    it('shows the address, today\'s hours and only the flagged pickup / delivery lines', async () => {
+      fake.branchDetail.value = card()
+      await mountPage()
+      const block = get('[data-testid="catalog-branch-block"]')
+      expect(block.get('[data-testid="catalog-branch-address"]').text()).toBe(
+        'Dirección formateada por el backend',
+      )
+      expect(block.get('[data-testid="catalog-branch-hours"]').text()).toBe('Abierto hoy 08:00–17:00')
+      expect(block.find('[data-testid="catalog-branch-pickup"]').exists()).toBe(true)
+      expect(block.find('[data-testid="catalog-branch-delivery"]').exists()).toBe(false)
+    })
+
+    it('falls back to the summary when hours or address are missing', async () => {
+      fake.branchDetail.value = card({
+        address: null,
+        pickupAvailable: false,
+        deliveryAvailable: true,
+        hours: { timeZone: 'Not/AZone', days: [], summary: 'Resumen del backend' },
+      })
+      await mountPage()
+      const block = get('[data-testid="catalog-branch-block"]')
+      expect(block.get('[data-testid="catalog-branch-hours"]').text()).toBe('Resumen del backend')
+      expect(block.find('[data-testid="catalog-branch-address"]').exists()).toBe(false)
+      expect(block.find('[data-testid="catalog-branch-pickup"]').exists()).toBe(false)
+      expect(block.find('[data-testid="catalog-branch-delivery"]').exists()).toBe(true)
+    })
+
+    it('renders no block for a branch with nothing configured', async () => {
+      fake.branchDetail.value = card({ address: null, hours: null, pickupAvailable: false })
+      await mountPage()
+      expect(find('[data-testid="catalog-branch-block"]').exists()).toBe(false)
+    })
+  })
+
+  describe('unit price', () => {
+    it('shows the price per unit and «Ahorras N %» when every presentation shares the unit', async () => {
+      withContents(['kg', 'kg', 'kg'])
+      await mountPage()
+      expect(get('[data-testid="catalog-detail-unit-price"]').text()).toBe('$110.00 / kg')
+      const savings = findAll('[data-testid="catalog-detail-presentation-saving"]').map((entry) =>
+        entry.text(),
+      )
+      expect(savings).toEqual(['Ahorras 15 % vs 2 kg', 'Ahorras 23 % vs 2 kg'])
+      await choose('8 kg')
+      expect(get('[data-testid="catalog-detail-unit-price"]').text()).toBe('$93.63 / kg')
+    })
+
+    it('shows nothing when the units differ or the data is absent (as today)', async () => {
+      withContents(['kg', 'g', 'kg'])
+      await mountPage()
+      expect(find('[data-testid="catalog-detail-unit-price"]').exists()).toBe(false)
+      expect(find('[data-testid="catalog-detail-presentation-unit"]').exists()).toBe(false)
+      expect(find('[data-testid="catalog-detail-presentation-saving"]').exists()).toBe(false)
+    })
+  })
+
+  describe('exact stock', () => {
+    it('writes «Quedan N» for the selected presentation when the backend sends it', async () => {
+      const detail = fake.detail.value!
+      fake.detail.value = {
+        ...detail,
+        variants: detail.variants.map((variant) =>
+          variant.id === 'v-2'
+            ? {
+                ...variant,
+                stockPresentation: {
+                  mode: 'SYSTEM_STATUS_EXACT_LOW_STOCK',
+                  status: 'low_stock',
+                  customQuantity: null,
+                  exactQuantity: 3,
+                },
+              }
+            : variant,
+        ),
+      }
+      await mountPage()
+      expect(get('[data-testid="catalog-detail-quantity"]').text()).toBe('Quedan 3')
+      await choose('8 kg')
+      expect(find('[data-testid="catalog-detail-quantity"]').exists()).toBe(false)
     })
   })
 })

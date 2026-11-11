@@ -24,6 +24,7 @@ function isPublicBranch(value: unknown): value is PublicBranchDto {
     && typeof branch.slug === 'string'
     && (branch.address === null || typeof branch.address === 'string')
     && (branch.phone === null || typeof branch.phone === 'string')
+    && (branch.whatsappNumber === undefined || branch.whatsappNumber === null || typeof branch.whatsappNumber === 'string')
 }
 
 export async function fetchCatalogBranches(signal?: AbortSignal): Promise<PublicBranchDto[]> {

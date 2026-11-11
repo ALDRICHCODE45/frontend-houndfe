@@ -24,6 +24,7 @@ type PublicCatalogStockPresentationMode =
   | 'ABSTRACT_STATUS'
   | 'CUSTOM_QUANTITY'
   | 'HIDDEN'
+  | 'SYSTEM_STATUS_EXACT_LOW_STOCK'
 
 interface PublicCatalogProductPriceDto {
   fromPriceCents: number | null
@@ -35,6 +36,8 @@ interface PublicCatalogProductStockPresentationDto {
   mode: PublicCatalogStockPresentationMode
   status: PublicCatalogProductAvailability
   customQuantity: number | null
+  /** Handoff 15 §3: the real quantity while `low_stock`, only under the opt-in exact mode. */
+  exactQuantity?: number | null
 }
 
 interface PublicCatalogProductCategoryDto {

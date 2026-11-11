@@ -13,8 +13,10 @@ import CatalogDetailContent from '../components/CatalogDetailContent.vue'
 import CatalogDetailNotice from '../components/CatalogDetailNotice.vue'
 import CatalogDetailSkeleton from '../components/CatalogDetailSkeleton.vue'
 import { useCatalogBranches } from '../composables/useCatalogBranches'
+import { useCatalogBranchDetail } from '../composables/useCatalogBranchDetail'
 import { useCatalogPriceContexts } from '../composables/useCatalogPriceContexts'
 import { useCatalogProductDetail } from '../composables/useCatalogProductDetail'
+import { buildSharePreviewUrl } from '../utils/whatsapp'
 import '../styles/catalog-detail.css'
 
 const route = useRoute()
@@ -30,6 +32,12 @@ const { branches, state: branchesState, retry: retryBranches } = useCatalogBranc
 const selectedBranch = computed(
   () => branches.value.find((branch) => branch.slug === branchSlug.value) ?? null,
 )
+/** The branch card is an extra: a failure or a backend without it simply leaves it out. */
+const { branch: branchDetail } = useCatalogBranchDetail(() => selectedBranch.value?.slug ?? null)
+const whatsappNumber = computed(
+  () => selectedBranch.value?.whatsappNumber || branchDetail.value?.whatsappNumber || null,
+)
+const apiBase = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000').replace(/\/$/, '')
 const branchesSettled = computed(
   () => branchesState.value === 'populated' || branchesState.value === 'empty',
 )
@@ -151,8 +159,8 @@ const backLabel = computed(() => {
     : 'Volver al catálogo'
 })
 
-/** The page's own canonical URL. T4 may swap it for the backend /share preview URL. */
-const shareUrl = computed(() => {
+/** The storefront URL of this page: what a WhatsApp message names. */
+const pageUrl = computed(() => {
   const href = router.resolve({
     name: 'public-catalog-product',
     params: { branchSlug: branchSlug.value ?? '', productId: productId.value ?? '' },
@@ -160,6 +168,15 @@ const shareUrl = computed(() => {
   }).href
   return new URL(href, window.location.origin).href
 })
+/** Sharing uses the backend preview route (API host), so crawlers read the Open Graph tags. */
+const shareUrl = computed(() =>
+  buildSharePreviewUrl(
+    apiBase,
+    branchSlug.value ?? '',
+    productId.value ?? '',
+    requestedPriceListId.value,
+  ),
+)
 
 const selectedPriceListId = computed(
   () => detail.value?.priceContext.priceListId ?? priceListId.value,
@@ -210,6 +227,9 @@ async function selectPriceContext(id: string) {
           :back-to="backTo"
           :back-label="backLabel"
           :share-url="shareUrl"
+          :page-url="pageUrl"
+          :whatsapp-number="whatsappNumber"
+          :branch-detail="branchDetail"
         />
 
         <CatalogDetailNotice
@@ -288,6 +308,6 @@ async function selectPriceContext(id: string) {
         </CatalogDetailNotice>
       </div>
     </main>
-    <CatalogFooter />
+    <CatalogFooter :branch-name="selectedBranch?.name ?? null" />
   </div>
 </template>
