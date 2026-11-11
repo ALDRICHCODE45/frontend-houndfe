@@ -509,11 +509,15 @@ body[data-catalog-theme='light'] .catalog-product-card:focus-visible {
   outline-offset: 3px;
 }
 
-/* Card media (artboard 01/02): the full card width, square, white, the photo contained and centered. */
+/*
+ * Card media: edge to edge on a soft stage, 4:3, the photo contained and centered. A padded white
+ * square left landscape photos floating in empty space; on the stage the bands read as a frame,
+ * and packshots on white blend into it (multiply) instead of showing a white box.
+ */
 body[data-catalog-theme='light'] .catalog-product-media {
-  aspect-ratio: 1 / 1;
-  padding: 10px 12px 6px;
-  background: var(--catalog-surface);
+  aspect-ratio: 4 / 3;
+  padding: 0;
+  background: var(--catalog-page);
 }
 body[data-catalog-theme='light'] .catalog-product-image,
 body[data-catalog-theme='light'] [data-testid='catalog-product-image-fallback'] {
@@ -524,6 +528,7 @@ body[data-catalog-theme='light'] [data-testid='catalog-product-image-fallback'] 
 body[data-catalog-theme='light'] .catalog-product-image {
   object-fit: contain;
   object-position: center;
+  mix-blend-mode: multiply;
 }
 /* The no-image state fills the same square, quietly: no box, no tint. */
 body[data-catalog-theme='light'] [data-testid='catalog-product-image-fallback'] {

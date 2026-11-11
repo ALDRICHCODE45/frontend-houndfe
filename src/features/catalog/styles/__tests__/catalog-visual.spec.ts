@@ -144,8 +144,13 @@ describe('catalog stylesheet', () => {
     expect(css).not.toContain('.catalog-branch-row')
   })
 
-  it('draws the card media as a full-width square with the photo contained', () => {
-    expect(css).toMatch(/\.catalog-product-media \{[^}]*aspect-ratio: 1 \/ 1/)
+  it('draws the card media edge to edge on a soft stage with the photo contained', () => {
+    // A square white frame with padding left landscape photos floating in empty space.
+    expect(css).toMatch(/\.catalog-product-media \{[^}]*aspect-ratio: 4 \/ 3/)
+    expect(css).toMatch(/\.catalog-product-media \{[^}]*padding: 0;/)
+    expect(css).toMatch(/\.catalog-product-media \{[^}]*background: var\(--catalog-page\)/)
     expect(css).toMatch(/\.catalog-product-image \{[^}]*object-fit: contain/)
+    // Packshots on white blend into the stage instead of showing a white box.
+    expect(css).toMatch(/\.catalog-product-image \{[^}]*mix-blend-mode: multiply/)
   })
 })
