@@ -113,6 +113,13 @@ describe('NotificationsPanel — shell', () => {
 })
 
 describe('NotificationsPanel — tabs and paging', () => {
+  it('the «Sin leer» tab reads its count with a space, and ✕ does not sit on top of the preferences button', async () => {
+    await mountPanel()
+    expect(findText('button', 'Sin leer')!.textContent!.replace(/\s+/g, ' ').trim()).toMatch(/^Sin leer \d/)
+    const close = document.querySelector('[aria-label="Cerrar notificaciones"]')!
+    expect(close.className).not.toMatch(/\babsolute\b/)
+  })
+
   it('«Sin leer» asks the server for unread=true', async () => {
     await mountPanel()
     findText('button', 'Sin leer')!.click()

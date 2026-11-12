@@ -76,6 +76,8 @@ function openItem(item: NotificationItem) {
       content:
         'w-full max-w-full sm:max-w-[440px] notifications-panel hf-theme hf-ui motion-reduce:transition-none',
       header: 'notifications-panel__header',
+      // ✕ sits in the header row after the actions instead of floating over the preferences button.
+      close: 'static shrink-0',
       description: 'sr-only',
       body: 'notifications-panel__body',
       footer: 'notifications-panel__footer',
@@ -98,7 +100,7 @@ function openItem(item: NotificationItem) {
       <div class="nt-tabs" role="group" aria-label="Mostrar">
         <button type="button" :aria-pressed="tab === 'all'" @click="tab = 'all'">Todas</button>
         <button type="button" :aria-pressed="tab === 'unread'" @click="tab = 'unread'">
-          Sin leer<span v-if="unreadCount > 0" class="nt-tabs__count"> {{ countLabel(unreadCount) }}</span>
+          Sin leer<template v-if="unreadCount > 0">&nbsp;<span class="nt-tabs__count">{{ countLabel(unreadCount) }}</span></template>
         </button>
       </div>
 
