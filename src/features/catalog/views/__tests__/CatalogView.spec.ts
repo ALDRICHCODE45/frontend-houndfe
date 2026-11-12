@@ -2061,21 +2061,23 @@ describe('CatalogView public browse', () => {
       const { wrapper, router } = await mountAt('/catalogo/centro?sort=price_desc&page=2&keep=yes')
       await flushPromises()
       expect(new URL(lastProductRequestUrl(fetchMock)!).searchParams.get('sort')).toBe('price_desc')
-      const select = wrapper.get<HTMLSelectElement>('#catalogo select')
-      expect(select.element.value).toBe('price_desc')
-      expect(select.findAll('option').map((option) => option.text())).toEqual([
+      const sortMenu = () =>
+        wrapper.get('#catalogo .catalog-sort').getComponent({ name: 'SelectMenu' })
+      expect(wrapper.find('#catalogo select').exists()).toBe(false)
+      expect(sortMenu().props('modelValue')).toBe('price_desc')
+      expect(sortMenu().props('items').map((option: { label: string }) => option.label)).toEqual([
         'Novedades',
         'Precio menor',
         'Precio mayor',
       ])
       expect(wrapper.text()).not.toContain('Relevancia')
 
-      await select.setValue('price_asc')
+      sortMenu().vm.$emit('update:modelValue', 'price_asc')
       await flushPromises()
       expect(router.currentRoute.value.query).toEqual({ sort: 'price_asc', keep: 'yes' })
       expect(new URL(lastProductRequestUrl(fetchMock)!).searchParams.get('sort')).toBe('price_asc')
 
-      await wrapper.get<HTMLSelectElement>('#catalogo select').setValue('newest')
+      sortMenu().vm.$emit('update:modelValue', 'newest')
       await flushPromises()
       expect(router.currentRoute.value.query).toEqual({ keep: 'yes' })
       expect(lastProductRequestUrl(fetchMock)).toBe(productsUrl('centro'))

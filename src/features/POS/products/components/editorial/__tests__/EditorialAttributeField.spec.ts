@@ -6,6 +6,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineComponent, h, shallowRef } from 'vue'
 import { mount } from '@vue/test-utils'
+import { CalendarDate } from '@internationalized/date'
 import Field from '../EditorialAttributeField.vue'
 import HfCombobox from '@/core/shared/components/form/HfCombobox.vue'
 import HfUnitField from '@/core/shared/components/form/HfUnitField.vue'
@@ -253,13 +254,18 @@ describe('EditorialAttributeField — the label row', () => {
     expect(action.attributes('aria-label')).toBe('Agregar evidencia de Medida')
     await action.trigger('click'); await tick()
     const source = document.querySelector<HTMLInputElement>('#f-evidence-source')!
-    const date = document.querySelector<HTMLInputElement>('#f-evidence-date')!
-    expect(date.type).toBe('date')
+    // The date is the app's calendar field, never the browser's native date input.
+    const date = wrapper.findComponent({ name: 'InputDate' })
+    expect(date.exists()).toBe(true)
+    // (the calendar field keeps one aria-hidden form input of its own)
+    expect([...document.querySelectorAll('input[type="date"]')].filter(item => item.getAttribute('aria-hidden') !== 'true')).toHaveLength(0)
+    expect(date.props('modelValue')).toBeUndefined()
     document.querySelector<HTMLButtonElement>('[data-action="save-evidence"]')!.click(); await tick()
     expect(document.body.textContent).toContain('Escribe la fuente y una fecha válida.')
     expect(input.value).toEqual(known({ type: 'text', value: 'a' }))
     source.value = ' Ficha del proveedor '; source.dispatchEvent(new Event('input', { bubbles: true }))
-    date.value = '2026-10-12'; date.dispatchEvent(new Event('input', { bubbles: true }))
+    date.vm.$emit('update:modelValue', new CalendarDate(2026, 10, 12)); await tick()
+    expect(String(date.props('modelValue'))).toBe('2026-10-12')
     document.querySelector<HTMLButtonElement>('[data-action="save-evidence"]')!.click(); await tick()
     expect(input.value).toEqual(known({ type: 'text', value: 'a' }, { sourceRef: ' Ficha del proveedor ', verifiedOn: '2026-10-12' }))
     expect(wrapper.get('[data-action="evidence"]').attributes('aria-label')).toBe('Editar evidencia de Medida')
@@ -269,6 +275,7 @@ describe('EditorialAttributeField — the label row', () => {
     const { wrapper, input } = render('text', known({ type: 'text', value: 'a' }, { sourceRef: 'Fuente', verifiedOn: '2026-01-01' }))
     await wrapper.get('[data-action="evidence"]').trigger('click'); await tick()
     expect((document.querySelector('#f-evidence-source') as HTMLInputElement).value).toBe('Fuente')
+    expect(String(wrapper.findComponent({ name: 'InputDate' }).props('modelValue'))).toBe('2026-01-01')
     document.querySelector<HTMLButtonElement>('[data-action="remove-evidence"]')!.click(); await tick()
     expect(input.value).toEqual(known({ type: 'text', value: 'a' }))
   })

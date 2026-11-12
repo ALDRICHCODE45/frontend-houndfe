@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, useTemplateRef } from 'vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
+import HfCombobox, { type HfComboboxItem } from '@/core/shared/components/form/HfCombobox.vue'
 import { useClickableRow } from '@/core/shared/composables/useClickableRow'
 import { decimalMoneyTitle, formatDecimalMoney } from '@/core/shared/utils/currency.utils'
 import type { OrderProductReadContext } from '../composables/usePurchaseOrderProducts'
@@ -15,6 +16,20 @@ const variants = usePurchaseOrderVariants(() => props.modelValue.productId, () =
 const { items, error, isFetching } = variants
 const showVariants = computed(() => props.modelValue.hasVariants === true || props.modelValue.variantId !== null || items.value.length > 0)
 function update<K extends keyof LineBuffer>(key: K, value: LineBuffer[K]) { emit('update:modelValue', { ...props.modelValue, [key]: value }) }
+// The system combobox has no empty pick, so «Pendiente de selección» is an item of its own.
+const PENDING = '__pending'
+const PENDING_ITEM: HfComboboxItem = { label: 'Pendiente de selección', value: PENDING }
+const variantItems = computed<HfComboboxItem[]>(() => [
+  PENDING_ITEM,
+  ...(props.modelValue.variantId && !items.value.some(item => item.id === props.modelValue.variantId)
+    ? [{ label: props.modelValue.variantName || 'Variante guardada', value: props.modelValue.variantId }] : []),
+  ...items.value.map(variant => ({ label: variant.name, value: variant.id })),
+])
+const taxItems: HfComboboxItem[] = [PENDING_ITEM, { label: 'Incluye impuestos', value: 'INCLUDES_TAX' }, { label: 'No incluye impuestos', value: 'EXCLUDES_TAX' }]
+function variantPicked(value: string | string[] | null) { if (typeof value === 'string') selectVariant(value === PENDING ? '' : value) }
+function taxPicked(value: string | string[] | null) {
+  if (typeof value === 'string') update('taxBasis', (value === PENDING ? '' : value) as LineBuffer['taxBasis'])
+}
 function selectVariant(id: string) { emit('update:modelValue', { ...props.modelValue, variantId: id || null, variantName: items.value.find(item => item.id === id)?.name ?? (id ? props.modelValue.variantName : null) }) }
 const messagesFor = (field: string) => props.messages[`/lines/${props.index}/${field}`] ?? []
 
@@ -52,7 +67,7 @@ const { rowProps } = useClickableRow<void>(() => emit('update:open', !props.open
 function done() { emit('update:open', false); void nextTick(() => toggleButton.value?.focus()) }
 // Called by the checklist link after the row opened: land on the first missing field.
 function focusIssue() {
-  const target = editRow.value?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? editRow.value?.querySelector<HTMLElement>('input, select')
+  const target = editRow.value?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? editRow.value?.querySelector<HTMLElement>('input, [role="combobox"]')
   target?.focus()
 }
 defineExpose({ focusIssue })
@@ -82,11 +97,7 @@ defineExpose({ focusIssue })
     <div v-if="open" :id="editId" ref="edit" class="order-line-edit" role="group" :aria-label="`Edición del renglón ${index + 1}`">
       <div class="order-edit-grid">
         <label v-if="showVariants" class="order-field order-edit-wide">Variante
-          <select data-testid="line-variant" :value="modelValue.variantId || ''" :disabled="disabled || isFetching" :aria-invalid="missing.variant ? 'true' : undefined" :aria-describedby="missing.variant ? describedby : undefined" @change="selectVariant(($event.target as HTMLSelectElement).value)">
-            <option value="">Pendiente de selección</option>
-            <option v-if="modelValue.variantId && !items.some(item => item.id === modelValue.variantId)" :value="modelValue.variantId">{{ modelValue.variantName || 'Variante guardada' }}</option>
-            <option v-for="variant in items" :key="variant.id" :value="variant.id">{{ variant.name }}</option>
-          </select>
+          <HfCombobox data-testid="line-variant" label="Variante" placeholder="Pendiente de selección" :items="variantItems" :model-value="modelValue.variantId || PENDING" :disabled="disabled || isFetching" :invalid="missing.variant" :describedby="missing.variant ? describedby : undefined" @update:model-value="variantPicked" />
         </label>
         <label class="order-field">Cantidad · {{ unit || 'Unidad pendiente' }}
           <input data-testid="line-quantity" type="text" inputmode="decimal" :step="quantityRule(modelValue.unit) === 'fractional' ? '0.001' : '1'" :value="modelValue.quantity" :disabled="disabled" :aria-invalid="missing.quantity ? 'true' : undefined" :aria-describedby="missing.quantity ? describedby : undefined" @input="update('quantity', ($event.target as HTMLInputElement).value)" />
@@ -97,7 +108,7 @@ defineExpose({ focusIssue })
           <span v-for="(message, n) in messagesFor('informedUnitCost/amount')" :key="n" class="order-warning">{{ message }}</span>
         </label>
         <label class="order-field">Impuestos
-          <select data-testid="line-tax" :value="modelValue.taxBasis" :disabled="disabled" :aria-invalid="missing.tax ? 'true' : undefined" :aria-describedby="missing.tax ? describedby : undefined" @change="update('taxBasis', ($event.target as HTMLSelectElement).value as LineBuffer['taxBasis'])"><option value="">Pendiente de selección</option><option value="INCLUDES_TAX">Incluye impuestos</option><option value="EXCLUDES_TAX">No incluye impuestos</option></select>
+          <HfCombobox data-testid="line-tax" label="Impuestos" placeholder="Pendiente de selección" :items="taxItems" :model-value="modelValue.taxBasis || PENDING" :disabled="disabled" :invalid="missing.tax" :describedby="missing.tax ? describedby : undefined" @update:model-value="taxPicked" />
         </label>
         <div class="order-edit-done"><UButton type="button" color="neutral" variant="outline" class="order-line-done" @click="done">Listo</UButton></div>
       </div>
