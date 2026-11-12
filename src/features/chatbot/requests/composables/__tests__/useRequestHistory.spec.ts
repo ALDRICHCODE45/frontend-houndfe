@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
+import { ref } from 'vue'
 import { axiosError, defaultsClient, withQuery } from './withQuery'
 import { makeRow } from '../../interfaces/__tests__/chatbot-request.fixture'
 import { chatbotRequestKeys } from '../../constants/queryKeys'
@@ -61,6 +62,17 @@ describe('useRequestHistory («Historial», closed more than 7 days ago)', () =>
     await flushPromises()
     expect(listHistory.mock.calls[1]![0]).toMatchObject({ cursor: 'c2' })
     expect(result.requests.value.map((r) => r.id)).toEqual(['h1', 'h2'])
+  })
+
+  it('does not fire while inactive (another tab is open), and fires once activated', async () => {
+    const active = ref(false)
+    withQuery(() => useRequestHistory({ filters: {}, active }))
+    await flushPromises()
+    expect(listHistory).not.toHaveBeenCalled()
+
+    active.value = true
+    await flushPromises()
+    expect(listHistory).toHaveBeenCalledTimes(1)
   })
 
   it('does not fire without permission; does not poll', async () => {

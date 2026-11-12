@@ -77,7 +77,10 @@ const isHistory = computed(() => state.value.tab === 'history')
 const filtersActive = computed(() => hasActiveFilters(state.value))
 
 const grouped = useRequestGroups({ filters: () => groupsFiltersOf(state.value) })
-const history = useRequestHistory({ filters: () => historyFiltersOf(state.value) })
+const history = useRequestHistory({
+  filters: () => historyFiltersOf(state.value),
+  active: () => isHistory.value,
+})
 
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = breakpoints.smaller('md')

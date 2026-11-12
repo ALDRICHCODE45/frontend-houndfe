@@ -10,11 +10,15 @@ import { useRequestAccess } from './useRequestAccess'
 export interface UseRequestHistoryOptions {
   filters: MaybeRefOrGetter<Omit<ChatbotRequestHistoryParams, 'cursor' | 'limit'>>
   limit?: number
+  /** Only read while the «Historial» tab is open (default: always). */
+  active?: MaybeRefOrGetter<boolean>
 }
 
 /** «Historial»: closed more than 7 days ago, flat and newest first. No polling. */
 export function useRequestHistory(options: UseRequestHistoryOptions) {
-  const { tenantId, enabled } = useRequestAccess()
+  const access = useRequestAccess()
+  const tenantId = access.tenantId
+  const enabled = computed(() => access.enabled.value && toValue(options.active ?? true))
   const limit = options.limit ?? REQUESTS_PAGE_SIZE
   const filters = computed(() => ({ ...toValue(options.filters), limit }))
 

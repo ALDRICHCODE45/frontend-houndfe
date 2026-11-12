@@ -83,11 +83,13 @@ const historyState = vi.hoisted(() => ({
   reload: vi.fn(),
   calls: 0,
   filters: null as null | (() => Record<string, unknown>),
+  active: null as null | (() => boolean),
 }))
 vi.mock('../../composables/useRequestHistory', () => ({
-  useRequestHistory: (options: { filters: () => Record<string, unknown> }) => {
+  useRequestHistory: (options: { filters: () => Record<string, unknown>; active?: () => boolean }) => {
     historyState.calls += 1
     historyState.filters = options.filters
+    historyState.active = options.active ?? null
     return {
       requests: historyState.requests,
       isEnabled: ref(true),
@@ -247,8 +249,11 @@ describe('ChatbotRequestsView — tabs', () => {
     ]
     const { wrapper, router } = await mountView()
     const groupsBefore = groupsState.calls
+    // The history list only reads on its own tab: «Abiertas» must not send /history.
+    expect(historyState.active?.()).toBe(false)
     await tab(wrapper, 'Historial').trigger('click')
     await flushPromises()
+    expect(historyState.active?.()).toBe(true)
     expect(query(router).tab).toBe('history')
     expect(historyState.calls).toBe(1)
     expect(historyState.filters!()).toEqual({})
