@@ -17,6 +17,7 @@ Frontend of the cross-repo program «Intervención humana dentro del sistema». 
   - T2.U2 | S2 | worker | done — 9748d809 — inbox list view, filter bar, grouped table, states, mobile cards
   - T2.U3 | S3 | worker | done — a112f01d; 6 files/114 tests, no type errors in its files — detail read side: customer, needs/context, decision, conversation gate, other open, audit, SLA rail, action panel with deniedActions reasons
   - T2.U4 | S3 | worker | done — commit below; chatbot folder 38 files/583 tests, type-check 0, eslint 0 — commands: claim/release/reassign/cancel (U4a), resolve per subtype with zone impact, merge, link-customer (U4b)
+- T3a | S4 | design worker | in progress — canvas directions design/notifications/ (bell + list + /perfil preferences); owner picks before code
 - T3 | S4 | pending — BE unit 6 ready in dev (handoff 13, plus 7c reminder/escalation/overdue notices)
 - T4 | S5 | blocked — waiting BE unit 8 (SSE); polling until then
 - T5 | S6 | blocked — waiting BE units 7, 9–14
