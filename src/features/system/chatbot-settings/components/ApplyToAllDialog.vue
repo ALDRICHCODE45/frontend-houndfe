@@ -40,6 +40,7 @@ const recomputeFailed = computed(() => applied.value.filter((a) => a.recompute =
 const title = computed(() => {
   switch (props.step) {
     case 'save-first': return 'Guardar y revisar'
+    case 'blocked': return 'Primero hay que guardar la configuración'
     case 'loading': return 'Revisando sucursales'
     case 'applying': return 'Aplicando…'
     case 'conflict': return 'La configuración cambió'
@@ -78,6 +79,15 @@ function onOpenChange(value: boolean) {
           <p v-else>Esta sucursal aún no tiene configuración guardada, y aplicar copia la <b>guardada</b>.</p>
           <p class="cbs-help">Primero se guardan tus cambios y luego verás a qué sucursales llegarían, antes de confirmar nada.</p>
         </template>
+
+        <div v-else-if="step === 'blocked'" class="cbs-alert" data-tone="warn" role="alert" data-testid="apply-blocked">
+          <UIcon name="i-lucide-lock" class="cbs-alert__icon" aria-hidden="true" />
+          <div>
+            <strong>Esta sucursal aún no tiene configuración guardada</strong>
+            «Aplicar a todas» copia la configuración guardada, y tu rol no puede guardar los ajustes del chatbot. Pide que
+            alguien con permiso para editar los ajustes del chatbot la guarde primero; después podrás aplicarla.
+          </div>
+        </div>
 
         <div v-else-if="busy" class="cbs-wait" role="status">
           <span class="cbs-spinner" aria-hidden="true" />
@@ -207,6 +217,9 @@ function onOpenChange(value: boolean) {
             Guardar y revisar
           </button>
         </template>
+        <button v-else-if="step === 'blocked'" type="button" class="cbs-btn cbs-btn--primary" data-testid="apply-close" @click="emit('close')">
+          Entendido
+        </button>
         <button v-else-if="busy" type="button" class="cbs-btn" disabled>{{ step === 'loading' ? 'Cancelar' : 'Un momento…' }}</button>
         <template v-else-if="step === 'conflict' || step === 'error'">
           <button type="button" class="cbs-btn" data-testid="apply-close" @click="emit('close')">Cerrar</button>

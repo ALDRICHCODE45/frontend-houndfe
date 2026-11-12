@@ -376,6 +376,20 @@ describe('apply to all branches', () => {
     expect(w.get('[data-testid="modal-title"]').text()).toBe('Aplicar a 1 sucursal')
   })
 
+  it('read + apply-all without update:ChatbotSettings on a version 0 branch: an explicit message, nothing is sent', async () => {
+    const w = await mountView(['read:ChatbotSettings', 'update:ChatbotSettingsAllBranches'], defaultsFixture())
+    await w.get('[data-testid="apply-open"]').trigger('click')
+    await flushPromises()
+
+    expect(w.get('[data-testid="modal-title"]').text()).toBe('Primero hay que guardar la configuración')
+    expect(w.get('[data-testid="apply-blocked"]').text()).toContain('alguien con permiso para editar')
+    expect(api.put).not.toHaveBeenCalled()
+    expect(api.applyToAllBranches).not.toHaveBeenCalled()
+    await w.get('[data-testid="apply-close"]').trigger('click')
+    await flushPromises()
+    expect(w.find('[data-testid="apply-dialog"]').exists()).toBe(false)
+  })
+
   it('a 409 on the dry run without «current» asks to review again', async () => {
     api.applyToAllBranches.mockRejectedValueOnce(axiosError(409, { code: 'VERSION_CONFLICT' }))
     const w = await mountView(ADMIN)

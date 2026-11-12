@@ -207,7 +207,7 @@ const readonlyText = (day: ChatbotWeekday) => rangesOf(day).map((r) => `${r.open
           <button
             v-if="!readonly && rangesOf(day).length"
             type="button"
-            class="cbs-btn cbs-btn--ghost"
+            class="cbs-btn cbs-btn--ghost cbs-copy-trigger"
             aria-haspopup="dialog"
             :aria-expanded="copyFrom === day"
             :aria-label="`Copiar el horario del ${long(day).toLowerCase()} a otros días`"

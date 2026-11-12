@@ -25,6 +25,13 @@ describe('readSettingsError', () => {
     expect(error.current).toBeNull()
   })
 
+  it('a current with a key this screen does not know is not usable (a refetch shows the comparison)', () => {
+    const current = { ...settingsFixture({ version: 4 }), futureField: 1 }
+    const error = readSettingsError(axiosError(409, { code: 'VERSION_CONFLICT', current }))
+    expect(error.kind).toBe('conflict')
+    expect(error.current).toBeNull()
+  })
+
   it('classifies 400, 401/403, 5xx and network errors', () => {
     expect(readSettingsError(axiosError(400, { code: 'VALIDATION_ERROR', reason: 'INVALID_OPENING_HOURS' })).kind).toBe('validation')
     expect(readSettingsError(axiosError(403, { code: 'INSUFFICIENT_PERMISSIONS' })).kind).toBe('forbidden')

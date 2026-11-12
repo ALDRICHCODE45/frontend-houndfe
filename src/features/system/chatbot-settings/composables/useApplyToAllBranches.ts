@@ -13,10 +13,14 @@ export type ApplyStep =
   | 'result'
   | 'conflict'
   | 'error'
+  /** Needs saving, but the user may not edit the settings: someone who can must save them first. */
+  | 'blocked'
 
 export interface ApplyToAllOptions {
   /** `update:ChatbotSettingsAllBranches`. */
   canApply: MaybeRefOrGetter<boolean>
+  /** `update:ChatbotSettings`: without it the user cannot save, only apply what is already saved. */
+  canSave: MaybeRefOrGetter<boolean>
   /** Unsaved changes, or a version 0 that was never saved: apply copies what is SAVED. */
   needsSave: () => boolean
   /** The version of THIS branch on screen (`expectedVersion`). */
@@ -36,6 +40,8 @@ export function useApplyToAllBranches(options: ApplyToAllOptions) {
   const result = shallowRef<ChatbotApplyResult | null>(null)
   const errorKind = ref<SettingsErrorKind | null>(null)
   let lastCall: 'dry' | 'real' = 'dry'
+  /** The version the preview showed: the real run applies exactly that, never a newer one on screen. */
+  let previewVersion: number | null = null
   let run = 0
 
   function fail(err: unknown, call: 'dry' | 'real') {
@@ -54,6 +60,7 @@ export function useApplyToAllBranches(options: ApplyToAllOptions) {
       const data = await chatbotSettingsApi.applyToAllBranches({ dryRun: true, expectedVersion: options.version() })
       if (token !== run) return
       result.value = data
+      previewVersion = data.source.version
       step.value = 'review'
     } catch (err) {
       if (token === run) fail(err, 'dry')
@@ -66,7 +73,7 @@ export function useApplyToAllBranches(options: ApplyToAllOptions) {
     errorKind.value = null
     step.value = 'applying'
     try {
-      const data = await chatbotSettingsApi.applyToAllBranches({ expectedVersion: options.version() })
+      const data = await chatbotSettingsApi.applyToAllBranches({ expectedVersion: previewVersion ?? options.version() })
       if (token !== run) return
       result.value = data
       step.value = 'result'
@@ -78,14 +85,16 @@ export function useApplyToAllBranches(options: ApplyToAllOptions) {
   async function open() {
     if (!toValue(options.canApply)) return
     result.value = null
+    previewVersion = null
     if (options.needsSave()) {
-      step.value = 'save-first'
+      step.value = toValue(options.canSave) ? 'save-first' : 'blocked'
       return
     }
     await dryRun()
   }
 
   async function saveFirst() {
+    if (step.value !== 'save-first') return
     const token = ++run
     const outcome = await options.save()
     if (token !== run) return
@@ -103,6 +112,7 @@ export function useApplyToAllBranches(options: ApplyToAllOptions) {
 
   function close() {
     run++
+    previewVersion = null
     step.value = 'closed'
     result.value = null
     errorKind.value = null

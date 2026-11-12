@@ -35,37 +35,47 @@ export type ChatbotSettingsSubtype = (typeof CHATBOT_SETTINGS_SUBTYPES)[number]
 const weekdaySchema = z.enum(CHATBOT_WEEKDAYS)
 const subtypeSchema = z.enum(CHATBOT_SETTINGS_SUBTYPES)
 
-const rangeSchema = z.object({ open: z.string(), close: z.string() })
-const openingHoursSchema = z.object({
-  timeZone: z.string(),
-  days: z.array(z.object({ day: weekdaySchema, ranges: z.array(rangeSchema) })),
-})
-const slaSchema = z.object({
-  subtype: subtypeSchema,
-  claimMinutes: z.number().nullable(),
-  resolveMinutes: z.number().nullable(),
-})
-const schedulingSchema = z.object({
-  enabled: z.boolean(),
-  slotMinutes: z.number(),
-  slotsOffered: z.number(),
-  maxScheduledPerSlot: z.number(),
-})
+// Strict on purpose: the PUT is a full replacement, so a field this screen does not know would be silently
+// dropped on save. An unknown key fails the load (the load-error state) instead, like an unknown subtype.
+const rangeSchema = z.object({ open: z.string(), close: z.string() }).strict()
+const openingHoursSchema = z
+  .object({
+    timeZone: z.string(),
+    days: z.array(z.object({ day: weekdaySchema, ranges: z.array(rangeSchema) }).strict()),
+  })
+  .strict()
+const slaSchema = z
+  .object({
+    subtype: subtypeSchema,
+    claimMinutes: z.number().nullable(),
+    resolveMinutes: z.number().nullable(),
+  })
+  .strict()
+const schedulingSchema = z
+  .object({
+    enabled: z.boolean(),
+    slotMinutes: z.number(),
+    slotsOffered: z.number(),
+    maxScheduledPerSlot: z.number(),
+  })
+  .strict()
 
-/** Runtime shape of the `GET` body (unknown fields are stripped, a drift in the known ones throws). */
-export const chatbotSettingsSchema = z.object({
-  version: z.number().int().min(0),
-  openingHours: openingHoursSchema,
-  closedDates: z.array(z.string()),
-  slas: z.array(slaSchema),
-  windowWarningMinutes: z.number(),
-  templateName: z.string().nullable(),
-  templateCostText: z.string(),
-  enabledSubtypes: z.array(subtypeSchema),
-  receiptCloseMarginMinutes: z.number(),
-  scheduling: schedulingSchema,
-  branchOpeningHours: openingHoursSchema.nullable(),
-})
+/** Runtime shape of the `GET` body: any drift, known or unknown key, throws. */
+export const chatbotSettingsSchema = z
+  .object({
+    version: z.number().int().min(0),
+    openingHours: openingHoursSchema,
+    closedDates: z.array(z.string()),
+    slas: z.array(slaSchema),
+    windowWarningMinutes: z.number(),
+    templateName: z.string().nullable(),
+    templateCostText: z.string(),
+    enabledSubtypes: z.array(subtypeSchema),
+    receiptCloseMarginMinutes: z.number(),
+    scheduling: schedulingSchema,
+    branchOpeningHours: openingHoursSchema.nullable(),
+  })
+  .strict()
 
 export const chatbotRecomputeSchema = z.enum(['DONE', 'PARTIAL', 'FAILED', 'NOT_NEEDED'])
 

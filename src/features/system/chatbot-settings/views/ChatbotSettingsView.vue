@@ -77,6 +77,7 @@ async function save() {
 
 const apply = useApplyToAllBranches({
   canApply: access.canApplyAll,
+  canSave: access.canUpdate,
   needsSave: () => editor.needsSave.value,
   version: () => editor.accepted.value?.version ?? 0,
   save,

@@ -87,6 +87,18 @@ describe('ApplyToAllDialog', () => {
     )
   })
 
+  it('blocked: says someone with edit permission must save the settings first, and only offers Cerrar', async () => {
+    const w = mountApply({ step: 'blocked', result: null, creating: true })
+    expect(title(w)).toBe('Primero hay que guardar la configuración')
+    const text = w.get('[data-testid="apply-blocked"]').text()
+    expect(text).toContain('aún no tiene configuración guardada')
+    expect(text).toContain('alguien con permiso para editar')
+    expect(w.find('[data-testid="apply-save-first"]').exists()).toBe(false)
+    expect(w.find('[data-testid="apply-confirm"]').exists()).toBe(false)
+    await w.get('[data-testid="apply-close"]').trigger('click')
+    expect(w.emitted('close')).toHaveLength(1)
+  })
+
   it('result: per-branch outcome with the FAILED recompute warning', () => {
     const w = mountApply({
       step: 'result',

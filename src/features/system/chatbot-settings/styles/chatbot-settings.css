@@ -37,6 +37,7 @@
   align-items: start;
 }
 .chatbot-settings .cbs-main {
+  container: cbs-main / inline-size;
   display: grid;
   gap: 1rem;
   min-width: 0;
@@ -106,8 +107,21 @@
     z-index: 15;
     margin-inline: -0.25rem;
     padding: 0.5rem 0.25rem;
+    padding-inline: 0.75rem;
     overflow-x: auto;
     background: var(--hf-page);
+    /* Scrollable by touch and keyboard, without the native bar and its arrows; the fade on the right edge
+       says there is more. The left padding keeps the first chip clear of the fade. */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-mask-image: linear-gradient(to right, black 0, black calc(100% - 2rem), transparent 100%);
+    mask-image: linear-gradient(to right, black 0, black calc(100% - 2rem), transparent 100%);
+  }
+  .chatbot-settings .cbs-index::-webkit-scrollbar {
+    display: none;
+  }
+  .chatbot-settings .cbs-index ul {
+    padding-inline-end: 2rem;
   }
   .chatbot-settings .cbs-index ul {
     display: flex;
@@ -349,7 +363,9 @@
   color: var(--hf-muted);
 }
 .chatbot-settings .cbs-time {
-  width: 7.5rem;
+  /* «09:00 p. m.» plus the clock icon, at the widest locale text. */
+  width: 9.25rem;
+  padding-inline: 0.5rem;
 }
 .chatbot-settings .cbs-counter {
   justify-self: end;
@@ -598,7 +614,8 @@
 .chatbot-settings .cbs-day {
   position: relative;
   display: grid;
-  grid-template-columns: 104px 150px minmax(0, 1fr) 72px 136px;
+  min-width: 0;
+  grid-template-columns: 96px 132px minmax(0, 1fr) 56px 124px;
   align-items: start;
   gap: 4px 12px;
   padding: 10px 12px 10px 16px;
@@ -626,6 +643,7 @@
 }
 .chatbot-settings .cbs-range {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
 }
@@ -642,6 +660,12 @@
   min-height: 0;
   padding-bottom: 4px;
 }
+/* «Copiar a…» stays on one line; it wrapped to «Copiar / a…» in the day row at 1440. */
+.chatbot-settings .cbs-copy-trigger {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .chatbot-settings .cbs-copy {
   position: absolute;
   z-index: 40;
@@ -676,25 +700,52 @@
   gap: 0.5rem;
 }
 
-@container cbs-page (max-width: 720px) {
+/* Compact: the ranges take their own full-width row under the name, the switch and «Copiar a…». */
+@container cbs-main (max-width: 919px) {
   .chatbot-settings .cbs-day {
-    grid-template-columns: minmax(0, 1fr) auto;
-    padding: 12px;
+    grid-template-columns: 7rem auto minmax(0, 1fr);
+    padding: 10px 8px 10px 12px;
   }
   .chatbot-settings .cbs-day__ranges {
     grid-column: 1 / -1;
+    grid-row: 2;
+    align-items: stretch;
+  }
+  .chatbot-settings .cbs-day__copy {
+    grid-column: 3;
+    grid-row: 1;
+    justify-content: flex-end;
   }
   .chatbot-settings .cbs-day__total {
     display: none;
   }
-  .chatbot-settings .cbs-day__copy {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
+  .chatbot-settings .cbs-time {
+    flex: 1 1 6.75rem;
+    min-width: 6.75rem;
+    width: auto;
+    font-size: 0.875rem;
+  }
+  .chatbot-settings .cbs-range .cbs-icon-btn {
+    flex: none;
+    width: 40px;
   }
   .chatbot-settings .cbs-copy {
     position: static;
     width: auto;
     grid-column: 1 / -1;
+  }
+}
+@container cbs-main (max-width: 560px) {
+  .chatbot-settings .cbs-day {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .chatbot-settings .cbs-day__copy {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-content: flex-start;
+  }
+  .chatbot-settings .cbs-range > span[aria-hidden='true'] {
+    display: none;
   }
 }
 

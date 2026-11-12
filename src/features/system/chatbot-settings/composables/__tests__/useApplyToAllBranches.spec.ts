@@ -26,13 +26,14 @@ const real: ChatbotApplyResult = {
   tenantsApplied: [{ tenantId: 't2', name: 'Norte', recompute: 'DONE' }],
 }
 
-function setup(over: { canApply?: boolean; needsSave?: boolean; version?: number } = {}) {
+function setup(over: { canApply?: boolean; canSave?: boolean; needsSave?: boolean; version?: number } = {}) {
   const state = { needsSave: over.needsSave ?? false, version: over.version ?? 3 }
   const save = vi.fn().mockResolvedValue({ status: 'saved', changed: true, notice: null })
   const refetch = vi.fn().mockResolvedValue(settingsFixture({ version: 4 }))
   const mounted = withQuery(() =>
     useApplyToAllBranches({
       canApply: ref(over.canApply ?? true),
+      canSave: ref(over.canSave ?? true),
       needsSave: () => state.needsSave,
       version: () => state.version,
       save,
@@ -71,6 +72,33 @@ describe('open', () => {
 
     expect(flow.step.value).toBe('save-first')
     expect(apply).not.toHaveBeenCalled()
+  })
+})
+
+describe('without permission to edit the settings', () => {
+  it('a version 0 branch that needs saving is a stated dead end, not a silent close', async () => {
+    const { flow, save } = setup({ needsSave: true, canSave: false })
+    await flow.open()
+
+    expect(flow.step.value).toBe('blocked')
+    expect(save).not.toHaveBeenCalled()
+    expect(apply).not.toHaveBeenCalled()
+  })
+
+  it('saveFirst does nothing from the blocked step', async () => {
+    const { flow, save } = setup({ needsSave: true, canSave: false })
+    await flow.open()
+    await flow.saveFirst()
+
+    expect(save).not.toHaveBeenCalled()
+    expect(flow.step.value).toBe('blocked')
+  })
+
+  it('with nothing to save it still previews and applies', async () => {
+    const { flow } = setup({ needsSave: false, canSave: false })
+    await flow.open()
+
+    expect(flow.step.value).toBe('review')
   })
 })
 
@@ -132,6 +160,29 @@ describe('confirm', () => {
     expect(flow.step.value).toBe('result')
     expect(flow.result.value!.tenantsFailed).toHaveLength(1)
     expect(flow.result.value!.tenantsApplied[0]!.recompute).toBe('FAILED')
+  })
+
+  it('applies exactly the version the preview showed, even if the screen version moved meanwhile', async () => {
+    const { flow, state } = setup()
+    await flow.open()
+    expect(flow.result.value!.source.version).toBe(3)
+    state.version = 4
+    apply.mockResolvedValue(real)
+    await flow.confirm()
+
+    expect(apply).toHaveBeenLastCalledWith({ expectedVersion: 3 })
+  })
+
+  it('a new review after a conflict previews and applies the new version', async () => {
+    const { flow, state } = setup()
+    await flow.open()
+    state.version = 4
+    apply.mockResolvedValueOnce({ ...dry, source: { tenantId: 't1', version: 4 } })
+    await flow.retry()
+    apply.mockResolvedValue(real)
+    await flow.confirm()
+
+    expect(apply).toHaveBeenLastCalledWith({ expectedVersion: 4 })
   })
 
   it('retrying the failed ones repeats the same call (the server operation is idempotent)', async () => {
