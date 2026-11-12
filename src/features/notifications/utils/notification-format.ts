@@ -50,10 +50,16 @@ const REASON_LABEL: Record<NotificationReason, string> = {
   ESCALATION: 'Por escalamiento',
 }
 
-/** «S-000118 · Pregunta del bot»: folio and subtype label, whichever the notice has. */
-export function notificationRef(item: Pick<NotificationItem, 'folio' | 'subtype'>): string | null {
+/**
+ * «S-000118 · Pregunta del bot»: folio and subtype label, whichever the notice has. The folio is
+ * left out when the server body already shows it, so the row does not repeat it.
+ */
+export function notificationRef(
+  item: Pick<NotificationItem, 'folio' | 'subtype'> & { body?: string | null },
+): string | null {
   const subtype = item.subtype ? (SUBTYPE_LABELS as Record<string, string | undefined>)[item.subtype] : undefined
-  const parts = [item.folio || null, subtype ?? null].filter((part): part is string => part !== null)
+  const folio = item.folio && !(item.body ?? '').includes(item.folio) ? item.folio : null
+  const parts = [folio, subtype ?? null].filter((part): part is string => part !== null)
   return parts.length > 0 ? parts.join(' · ') : null
 }
 

@@ -118,6 +118,13 @@ describe('structured fields helpers', () => {
     expect(notificationRef({ folio: 'S-1', subtype: 'FUTURE' })).toBe('S-1')
   })
 
+  it('notificationRef drops the folio the server body already shows (seen live: «… · S-000004» twice)', () => {
+    const body = 'Pregunta sin respuesta · S-000004'
+    expect(notificationRef({ folio: 'S-000004', subtype: 'UNKNOWN_QUESTION', body })).toBe('Pregunta del bot')
+    expect(notificationRef({ folio: 'S-000004', subtype: null, body })).toBeNull()
+    expect(notificationRef({ folio: 'S-000004', subtype: null, body: 'Otro texto' })).toBe('S-000004')
+  })
+
   it('notificationReasonLabel only speaks on 80 % / overdue notices', () => {
     expect(notificationReasonLabel({ type: 'REQUEST_OVERDUE', reason: 'ASSIGNEE' })).toBe('Tuya')
     expect(notificationReasonLabel({ type: 'REQUEST_ESCALATION', reason: 'ESCALATION' })).toBe('Por escalamiento')
