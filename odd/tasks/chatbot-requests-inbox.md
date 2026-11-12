@@ -13,9 +13,9 @@ Frontend of the cross-repo program «Intervención humana dentro del sistema». 
 - T1 | S1 | worker + independent verify + native review | done — commit 3615edf4; verify PASS (6/6); native review approved (review-f0a2acf56e891576, risk+reliability), authority burned
 - T2a | S2, S3 | design worker | done — 4d283598; owner chose A (01-tabla-agrupada) + 04 mobile/states
 - T2 | S2, S3 (decisions) | in progress — implement direction A against handoffs 11, 12 and 14 §14 at BE 86f9b6b7, in src/features/chatbot/requests/:
-  - T2.U1 | S2, S3 | worker | done — commit below; parent: 79 files/1062 tests (chatbot + app), type-check 0, eslint 0 — foundation: types, api (reads + commands with Idempotency-Key), feature query keys, error wrapper (current, zoneImpact), labels, read composables with polling, shared SlaIndicator / RequestStatusBadge / SubtypeTag, routes /chatbot/solicitudes and /chatbot/solicitudes/:id (read:ChatbotRequest), nav entry repointed; /pos/decisiones-pendientes kept without nav entry until the BE backfill (redirect is an owner decision later)
-  - T2.U2 | S2 | pending (after U1) — inbox list view, filter bar, grouped table, states, mobile cards
-  - T2.U3 | S3 | pending (after U1, parallel with U2) — detail read side: customer, needs/context, decision, conversation gate, other open, audit, SLA rail, action panel with deniedActions reasons
+  - T2.U1 | S2, S3 | worker | done — f5d964c2; parent: 79 files/1062 tests (chatbot + app), type-check 0, eslint 0 — foundation: types, api (reads + commands with Idempotency-Key), feature query keys, error wrapper (current, zoneImpact), labels, read composables with polling, shared SlaIndicator / RequestStatusBadge / SubtypeTag, routes /chatbot/solicitudes and /chatbot/solicitudes/:id (read:ChatbotRequest), nav entry repointed; /pos/decisiones-pendientes kept without nav entry until the BE backfill (redirect is an owner decision later)
+  - T2.U2 | S2 | worker | in progress — inbox list view, filter bar, grouped table, states, mobile cards
+  - T2.U3 | S3 | worker | in progress — detail read side: customer, needs/context, decision, conversation gate, other open, audit, SLA rail, action panel with deniedActions reasons
   - T2.U4 | S3 | pending (after U3) — commands: claim/release/reassign/cancel (U4a), resolve per subtype with zone impact, merge, link-customer (U4b)
 - T3 | S4 | pending — BE unit 6 ready in dev (handoff 13, plus 7c reminder/escalation/overdue notices)
 - T4 | S5 | blocked — waiting BE unit 8 (SSE); polling until then
