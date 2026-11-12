@@ -267,13 +267,13 @@ describe('useRequestConversation — polling newer messages', () => {
 describe('useRequestConversation — opening resets the unread count (server side)', () => {
   const key = (name: string) => ['chatbot-requests', 'tenant-1', name, 'x']
 
-  it('invalidates groups, by-customer and detail once after the first load, never the conversation itself', async () => {
+  it('invalidates groups and by-customer once after the first load and zeroes the cached detail count without refetching it', async () => {
     vi.useFakeTimers()
     getPage.mockResolvedValue(page([1]))
     const { client } = withQuery(() => useRequestConversation('req-1'))
     client.setQueryData(key('groups'), { items: [] })
     client.setQueryData(key('by-customer'), { items: [] })
-    client.setQueryData(chatbotRequestKeys.detail('tenant-1', 'req-1'), { id: 'req-1' })
+    client.setQueryData(chatbotRequestKeys.detail('tenant-1', 'req-1'), { id: 'req-1', unreadCustomerMessages: 3 })
     client.setQueryData(key('counts'), {})
     const spy = vi.spyOn(client, 'invalidateQueries')
 
@@ -282,7 +282,11 @@ describe('useRequestConversation — opening resets the unread count (server sid
     expect(spy).toHaveBeenCalledTimes(1)
     expect(client.getQueryState(key('groups'))!.isInvalidated).toBe(true)
     expect(client.getQueryState(key('by-customer'))!.isInvalidated).toBe(true)
-    expect(client.getQueryState(chatbotRequestKeys.detail('tenant-1', 'req-1'))!.isInvalidated).toBe(true)
+    expect(client.getQueryState(chatbotRequestKeys.detail('tenant-1', 'req-1'))!.isInvalidated).toBe(false)
+    expect(client.getQueryData(chatbotRequestKeys.detail('tenant-1', 'req-1'))).toEqual({
+      id: 'req-1',
+      unreadCustomerMessages: 0,
+    })
     expect(client.getQueryState(key('counts'))!.isInvalidated).toBe(false)
     expect(client.getQueryState(chatbotRequestKeys.conversation('tenant-1', 'req-1'))!.isInvalidated).toBe(false)
 
