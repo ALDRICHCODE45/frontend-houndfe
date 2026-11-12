@@ -1,0 +1,11 @@
+<main class="gallery" id="root" aria-label="Pantallas móviles y estados"></main>
+<aside class="notes-sheet" id="notes" hidden aria-label="Notas de diseño">
+  <h2>Notas · móvil 390 y estados (dirección A)</h2>
+  <ul>
+    <li>En móvil la campana sigue en la barra superior (44 × 44 px) y el panel se abre a pantalla completa, con regreso con la flecha, «Preferencias» en el encabezado y «Marcar todas como leídas» fija abajo.</li>
+    <li>Cargando: filas de esqueleto en el mismo espacio. Vacío: «Aún no hay notificaciones». «Estás al día»: filtro «Sin leer» sin resultados, con salida a «Ver todas». Error al cargar: mensaje con «Reintentar» (<code>role="alert"</code>), sin dar por perdido nada.</li>
+    <li>Error al marcar todas: los avisos siguen sin leer y el mensaje lo dice; «Reintentar» repite <code>POST /notifications/read-all</code> (idempotente). Conteo que no se actualiza: la campana cambia a campana tachada con el número en tono de advertencia y su nombre accesible lo dice.</li>
+    <li>/perfil: interruptores en fila completa (sin casillas), «Avisos en el sistema» fijo y deshabilitado con su razón a la vista. «Avisos del navegador» es por dispositivo y <b>no está en el contrato</b> (solo <code>emailEnabled</code> y <code>soundEnabled</code>). Error al guardar: la fila se marca, conserva el valor anterior y ofrece «Reintentar» (PATCH).</li>
+    <li>Las pantallas son estáticas; para probar los flujos use las direcciones 01 a 03.</li>
+  </ul>
+</aside>

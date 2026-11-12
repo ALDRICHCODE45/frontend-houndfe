@@ -1,0 +1,11 @@
+{
+  "title": "Notificaciones (campana, lista y preferencias)",
+  "brief": "Campana con conteo de no leídas en la barra superior, lista de notificaciones de las solicitudes del chatbot (Hoy / Antes, sin leer y leídas, enlace a /chatbot/solicitudes/:id, «Marcar todas como leídas», estados vacío, cargando y error) y preferencias en /perfil (correo y sonido como filas con interruptor, sin casillas), según el handoff 13 del backend (86f9b6b7) y los avisos de tiempo de la unidad 7c (S4 de odd/tasks/chatbot-requests-inbox.md). Tres direcciones en escritorio 1440 y un tablero móvil 390 con estados para la recomendada. Los artboards son interactivos: selectores para vista, estado de la lista, estado de las preferencias y permiso del navegador, y un botón para simular un aviso nuevo.",
+  "feature": "odd/tasks/chatbot-requests-inbox.md",
+  "artboards": [
+    { "file": "01-popover-campana.html", "title": "A · Popover desde la campana (recomendada)", "tradeoff": "Ligero y sin salir de lo que se hace; 420 px de ancho con dos líneas por aviso y sin lugar para filtros más allá de Todas / Sin leer; el historial largo se recorre con «Ver anteriores»", "width": 1440, "height": 900 },
+    { "file": "02-panel-lateral.html", "title": "B · Panel lateral", "tradeoff": "Más aire y una etiqueta de texto por tipo que acelera el triaje de vencidas; es modal y tapa la bandeja mientras se lee, un peso mayor para algo que se abre muchas veces al día", "width": 1440, "height": 900 },
+    { "file": "03-popover-y-pagina.html", "title": "C · Popover corto y página /notificaciones", "tradeoff": "Popover de 5 avisos más una página con todo el historial; la mejor para revisar atrasos, pero añade una ruta que S4 y el contrato no piden y dos listas que mantener", "width": 1440, "height": 900 },
+    { "file": "04-movil-y-estados.html", "title": "Móvil 390 y estados (dirección A)", "tradeoff": "Panel a pantalla completa con «Marcar todas» fija abajo y /perfil con filas de interruptor; cubre vacío, «Estás al día», cargando, error al cargar, error al marcar y error al guardar", "width": 1440, "height": 2700 }
+  ]
+}

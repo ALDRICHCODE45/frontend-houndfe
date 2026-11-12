@@ -1,0 +1,10 @@
+<div id="root"></div>
+<aside class="notes-sheet" id="notes" hidden aria-label="Notas de diseño">
+  <h2>Notas de la dirección C · Popover corto y página</h2>
+  <ul>
+    <li>El popover enseña solo las 5 más recientes (una sola petición <code>?limit=5</code>) y lleva a una página <code>/notificaciones</code> con todo el historial y «Ver anteriores» (cursor). <b>Esa ruta no está en S4 ni en el contrato de navegación: es una propuesta que el dueño debe aprobar.</b></li>
+    <li>Marcar todas como leídas existe en ambos lugares; sigue siendo <code>POST /notifications/read-all</code> (solo esta sucursal).</li>
+    <li>Ventaja: el popover es ligero y el historial tiene espacio. Costo: una pantalla más que mantener, un destino más en la navegación y dos listas que deben coincidir.</li>
+    <li>Preferencias: igual que A y B en <code>/perfil</code>.</li>
+  </ul>
+</aside>
