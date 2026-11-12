@@ -1,4 +1,5 @@
-// Chatbot navigation keeps the existing HumanDecision route and read permission.
+// Chatbot → Solicitudes points at the request inbox (read:ChatbotRequest). The old human-decisions
+// route keeps working but has no nav entry until the BE backfill (handoff 12 §5).
 
 import { describe, expect, it } from 'vitest'
 import { navigationGroups, quickActions } from '../navigation.registry'
@@ -11,11 +12,13 @@ import {
 } from '../navigation.access'
 import type { AppAction, AppSubject } from '@/features/auth/interfaces/auth.types'
 
-const ENTRY_ID = 'pos-human-decisions'
-const ENTRY_PATH = '/pos/decisiones-pendientes'
+const ENTRY_ID = 'chatbot-requests'
+const ENTRY_PATH = '/chatbot/solicitudes'
+const OLD_ENTRY_ID = 'pos-human-decisions'
+const OLD_PATH = '/pos/decisiones-pendientes'
 
 type UserCan = (action: AppAction, subject: AppSubject) => boolean
-const canReadHumanDecision: UserCan = (a, s) => a === 'read' && s === 'HumanDecision'
+const canReadChatbotRequest: UserCan = (a, s) => a === 'read' && s === 'ChatbotRequest'
 
 function store(userCan: UserCan): AccessAuthStore {
   return { isSuperAdmin: false, userCan }
@@ -41,33 +44,41 @@ describe('navigation registry — Chatbot / Solicitudes', () => {
     expect(entry.label).toBe('Solicitudes')
     expect(entry.icon).toBe('i-lucide-inbox')
     expect(entry.to).toBe(ENTRY_PATH)
-    expect(entry.permission).toEqual(['read', 'HumanDecision'])
+    expect(entry.permission).toEqual(['read', 'ChatbotRequest'])
     expect(entry.requiresSuperAdmin).toBeUndefined()
   })
 
   it('exposes no quick action for the inbox path or permission', () => {
     const offenders = quickActions.filter(
-      (a) => a.to === ENTRY_PATH || a.permission?.[1] === 'HumanDecision',
+      (a) =>
+        a.to === ENTRY_PATH ||
+        a.to === OLD_PATH ||
+        a.permission?.[1] === 'ChatbotRequest' ||
+        a.permission?.[1] === 'HumanDecision',
     )
     expect(offenders).toEqual([])
   })
 
-  it('keeps the entry only when read:HumanDecision is granted', () => {
+  it('keeps the entry only when read:ChatbotRequest is granted', () => {
     const granted = filterAccessibleGroups(
       navigationGroups,
-      buildCanAccess(store(canReadHumanDecision)),
+      buildCanAccess(store(canReadChatbotRequest)),
     )
     expect(granted.map((g) => g.label)).toEqual(['Chatbot'])
     const entry = chatbotGroup(granted)!.children.find((c) => c.id === ENTRY_ID)
     expect(entry).toBeDefined()
     expect(entry!.to).toBe(ENTRY_PATH)
-    expect(resolveLandingDestination(buildCanAccess(store(canReadHumanDecision)))).toBe(ENTRY_PATH)
+    expect(resolveLandingDestination(buildCanAccess(store(canReadChatbotRequest)))).toBe(ENTRY_PATH)
   })
 
   it.each([
     [
       'update-only',
-      ((a: AppAction, s: AppSubject) => a === 'update' && s === 'HumanDecision') as UserCan,
+      ((a: AppAction, s: AppSubject) => a === 'update' && s === 'ChatbotRequest') as UserCan,
+    ],
+    [
+      'the old read:HumanDecision permission',
+      ((a: AppAction, s: AppSubject) => a === 'read' && s === 'HumanDecision') as UserCan,
     ],
     [
       'unrelated read',
@@ -80,9 +91,9 @@ describe('navigation registry — Chatbot / Solicitudes', () => {
     expect(chatbotGroup(filtered)).toBeUndefined()
   })
 
-  it('feeds the command palette only when read:HumanDecision is held', () => {
+  it('feeds the command palette only when read:ChatbotRequest is held', () => {
     const granted = toPaletteItems(
-      filterAccessibleGroups(navigationGroups, buildCanAccess(store(canReadHumanDecision))),
+      filterAccessibleGroups(navigationGroups, buildCanAccess(store(canReadChatbotRequest))),
     )
     expect(granted).toEqual([
       { id: ENTRY_ID, label: 'Chatbot / Solicitudes', icon: 'i-lucide-inbox', to: ENTRY_PATH },
@@ -100,7 +111,12 @@ describe('navigation registry — Chatbot / Solicitudes', () => {
     expect(chatbotGroup()!.children.map((c) => c.id)).toEqual(before)
     expect(chatbotGroup()!.children.find((c) => c.id === ENTRY_ID)!.permission).toEqual([
       'read',
-      'HumanDecision',
+      'ChatbotRequest',
     ])
+  })
+
+  it('leaves no nav entry for the old human-decisions route (the route itself keeps working)', () => {
+    const all = navigationGroups.flatMap((g) => g.children)
+    expect(all.some((c) => c.id === OLD_ENTRY_ID || c.to === OLD_PATH)).toBe(false)
   })
 })

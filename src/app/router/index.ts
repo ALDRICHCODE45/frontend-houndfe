@@ -55,6 +55,10 @@ const HumanDecisionsView = () =>
   import.meta.env.DEV && import.meta.env.VITE_HUMAN_DECISIONS_OFFLINE_DEMO === 'true'
     ? import('@/features/POS/human-decisions/views/HumanDecisionsOfflineDemoRouteView.vue')
     : import('@/features/POS/human-decisions/views/HumanDecisionsView.vue')
+// Chatbot request inbox (T2.U1): list at /chatbot/solicitudes, detail as the email deep link.
+const ChatbotRequestsView = () => import('@/features/chatbot/requests/views/ChatbotRequestsView.vue')
+const ChatbotRequestDetailView = () =>
+  import('@/features/chatbot/requests/views/ChatbotRequestDetailView.vue')
 const PromotionsView = () => import('@/features/POS/promotions/views/PromotionsView.vue')
 const PromotionDetailView = () => import('@/features/POS/promotions/views/PromotionDetailView.vue')
 // ─── Quotations module (sdd-quotations-crud S1, REQ-QTN-001) ──────────────────
@@ -255,7 +259,28 @@ const router = createRouter({
         permission: ['read', 'SaleRefund'] as RoutePermission,
       },
     },
+    // ─── Chatbot request inbox (chatbot-requests-inbox T2.U1) ────────────────
+    {
+      path: '/chatbot/solicitudes',
+      name: 'chatbot-requests',
+      component: ChatbotRequestsView,
+      meta: {
+        layout: 'dashboard',
+        rememberAsLanding: true,
+        permission: ['read', 'ChatbotRequest'] as RoutePermission,
+      },
+    },
+    {
+      path: '/chatbot/solicitudes/:id',
+      name: 'chatbot-request-detail',
+      component: ChatbotRequestDetailView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'ChatbotRequest'] as RoutePermission,
+      },
+    },
     // ─── Pending human decisions (ODD human-decisions-restock-inbox HD3A) ────
+    // Kept without a nav entry until the BE backfill (handoff 12 §5); the redirect is an owner decision.
     {
       path: '/pos/decisiones-pendientes',
       name: 'pos-human-decisions',

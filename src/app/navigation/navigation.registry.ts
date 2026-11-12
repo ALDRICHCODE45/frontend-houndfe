@@ -102,13 +102,13 @@ export const navigationGroups: NavGroup[] = [
     icon: 'i-lucide-bot',
     defaultOpen: true,
     children: [
-      // Keep existing links and the route guard's read:HumanDecision contract.
+      // The request inbox. /pos/decisiones-pendientes keeps working but has no entry until the BE backfill.
       {
-        id: 'pos-human-decisions',
+        id: 'chatbot-requests',
         label: 'Solicitudes',
         icon: 'i-lucide-inbox',
-        to: '/pos/decisiones-pendientes',
-        permission: ['read', 'HumanDecision'],
+        to: '/chatbot/solicitudes',
+        permission: ['read', 'ChatbotRequest'],
       },
     ],
   },
