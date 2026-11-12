@@ -225,3 +225,33 @@ describe('RequestGroupRow — card layout (mobile)', () => {
     expect(push).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('RequestGroupRow — unread customer messages', () => {
+  it('shows «N nuevos» on a row with unread customer messages, in the table and in the card', async () => {
+    const table = await mountRow({ unreadCustomerMessages: 3 })
+    const badge = table.wrapper.get('[data-testid="unread-badge"]')
+    expect(badge.text()).toBe('3 nuevos')
+    expect(badge.attributes('aria-label')).toBe('3 mensajes nuevos del cliente')
+
+    const card = await mountRow({ unreadCustomerMessages: 12 }, { layout: 'cards' })
+    expect(card.wrapper.get('[data-testid="unread-badge"]').text()).toBe('12 nuevos')
+  })
+
+  it('reads «1 nuevo» for a single message', async () => {
+    const { wrapper } = await mountRow({ unreadCustomerMessages: 1 })
+    expect(wrapper.get('[data-testid="unread-badge"]').text()).toBe('1 nuevo')
+    expect(wrapper.get('[data-testid="unread-badge"]').attributes('aria-label')).toBe('1 mensaje nuevo del cliente')
+  })
+
+  it('shows nothing when the count is 0', async () => {
+    const table = await mountRow({ unreadCustomerMessages: 0 })
+    expect(table.wrapper.find('[data-testid="unread-badge"]').exists()).toBe(false)
+    const card = await mountRow({ unreadCustomerMessages: 0 }, { layout: 'cards' })
+    expect(card.wrapper.find('[data-testid="unread-badge"]').exists()).toBe(false)
+  })
+
+  it('tolerates a backend that does not send the count yet', async () => {
+    const { wrapper } = await mountRow({ unreadCustomerMessages: undefined as unknown as number })
+    expect(wrapper.find('[data-testid="unread-badge"]').exists()).toBe(false)
+  })
+})

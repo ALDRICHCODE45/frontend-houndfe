@@ -457,6 +457,21 @@
   font-size: 0.75rem;
 }
 
+/* «N nuevos»: customer messages nobody has read yet. Info tone, not an alert (the SLA light owns urgency). */
+.hf-ui .chatbot-unread {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background-color: var(--hf-active-soft);
+  color: var(--hf-action);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.125rem;
+  white-space: nowrap;
+}
+
 .hf-ui .chatbot-window-tag__icon {
   width: 0.875rem;
   height: 0.875rem;

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import RequestDetailHeader from '../RequestDetailHeader.vue'
-import RequestDetailConversation from '../RequestDetailConversation.vue'
 import RequestDetailOtherOpen from '../RequestDetailOtherOpen.vue'
 import RequestDetailDeliveries from '../RequestDetailDeliveries.vue'
 import RequestDetailAudit from '../RequestDetailAudit.vue'
@@ -59,15 +58,6 @@ describe('RequestDetailHeader', () => {
     expect(soon.get('[data-testid="window-tag"]').text()).toContain('Ventana de 24 h cierra en 1 h')
     const far = mountHeader({ whatsappWindowClosesAt: '2026-11-12T10:00:00.000Z' })
     expect(far.find('[data-testid="window-tag"]').exists()).toBe(false)
-  })
-})
-
-describe('RequestDetailConversation', () => {
-  it('is a «Disponible próximamente» placeholder (unit 9 pending)', () => {
-    const wrapper = mount(RequestDetailConversation, { global })
-    expect(wrapper.get('[data-testid="detail-conversation"]').text()).toContain('Disponible próximamente')
-    expect(wrapper.find('textarea').exists()).toBe(false)
-    expect(wrapper.find('button').exists()).toBe(false)
   })
 })
 

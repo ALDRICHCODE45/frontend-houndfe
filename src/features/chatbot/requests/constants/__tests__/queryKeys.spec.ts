@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { chatbotRequestKeys } from '../queryKeys'
+import { chatbotMediaKeys, chatbotRequestKeys } from '../queryKeys'
 
 const T = 'tenant-1'
 
@@ -16,6 +16,7 @@ describe('chatbotRequestKeys', () => {
       chatbotRequestKeys.mergeCandidates(T, 'req-1'),
       chatbotRequestKeys.assignableUsers(T),
       chatbotRequestKeys.zoneImpact(T, 'req-1'),
+      chatbotRequestKeys.conversation(T, 'req-1'),
     ]
     for (const key of keys) expect(key.slice(0, all.length)).toEqual([...all])
   })
@@ -38,5 +39,14 @@ describe('chatbotRequestKeys', () => {
   it('keys are JSON-serializable', () => {
     const key = chatbotRequestKeys.groups(T, { status: 'open', overdue: true })
     expect(JSON.parse(JSON.stringify(key))).toEqual(key)
+  })
+})
+
+describe('chatbotMediaKeys', () => {
+  it('is tenant-scoped and per media id, outside all(tenant) so a command never refetches blobs', () => {
+    expect(chatbotMediaKeys.file('a', 'm-1')).not.toEqual(chatbotMediaKeys.file('b', 'm-1'))
+    expect(chatbotMediaKeys.file(T, 'm-1')).not.toEqual(chatbotMediaKeys.file(T, 'm-2'))
+    expect(chatbotMediaKeys.file(T, 'm-1').slice(0, 2)).toEqual([...chatbotMediaKeys.all(T)])
+    expect(chatbotMediaKeys.file(T, 'm-1')[0]).not.toBe(chatbotRequestKeys.all(T)[0])
   })
 })

@@ -672,3 +672,321 @@
     grid-template-columns: minmax(0, 1fr) 380px;
   }
 }
+
+/* ── Conversation (T5.C). Design: 01-tabla-agrupada `convoHTML` (.bubble.them / .bot / .staff) and
+ * 04-movil-y-estados (same block in the single column). Customer left, bot / staff right. ─────── */
+
+.chatbot-request-detail .rc-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.chatbot-request-detail .rc-log {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  max-height: min(60vh, 32rem);
+  padding: 4px 2px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.chatbot-request-detail .rc-day {
+  justify-self: center;
+  margin: 8px 0 2px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background-color: var(--hf-surface-muted);
+  color: var(--hf-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.chatbot-request-detail .rc-day:first-child {
+  margin-top: 0;
+}
+
+.chatbot-request-detail .rc-msg {
+  display: flex;
+  min-width: 0;
+}
+
+.chatbot-request-detail .rc-msg--them {
+  justify-content: flex-start;
+}
+
+.chatbot-request-detail .rc-msg--bot,
+.chatbot-request-detail .rc-msg--staff {
+  justify-content: flex-end;
+}
+
+.chatbot-request-detail .rc-msg--system {
+  justify-content: center;
+}
+
+.chatbot-request-detail .rc-bubble {
+  display: grid;
+  gap: 4px;
+  max-width: 82%;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--hf-border);
+  border-radius: 12px;
+  background-color: var(--hf-page);
+  color: var(--hf-ink);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.chatbot-request-detail .rc-msg--bot .rc-bubble {
+  background-color: var(--hf-active-soft);
+  border-color: transparent;
+}
+
+.chatbot-request-detail .rc-msg--staff .rc-bubble {
+  background-color: var(--hf-gold-soft);
+  border-color: transparent;
+  color: var(--hf-gold-ink);
+}
+
+.chatbot-request-detail .rc-msg--system .rc-bubble {
+  max-width: 100%;
+  background-color: transparent;
+  border-style: dashed;
+  color: var(--hf-muted);
+  text-align: center;
+}
+
+/* The customer's own words: text only, line breaks kept, long words wrapped. */
+.chatbot-request-detail .rc-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.chatbot-request-detail .rc-text--unsupported {
+  color: var(--hf-muted);
+  font-style: italic;
+}
+
+.chatbot-request-detail .rc-meta {
+  font-size: 0.6875rem;
+  color: var(--hf-muted);
+}
+
+.chatbot-request-detail .rc-msg--staff .rc-meta {
+  color: inherit;
+  opacity: 0.8;
+}
+
+.chatbot-request-detail .rc-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  justify-self: start;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--hf-muted);
+}
+
+/* Media */
+
+.chatbot-request-detail .rc-media {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  min-width: 0;
+}
+
+.chatbot-request-detail .rc-media__loading {
+  display: grid;
+  place-items: center;
+  width: 12rem;
+  max-width: 100%;
+  height: 8rem;
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-surface-muted);
+  color: var(--hf-muted);
+}
+
+.chatbot-request-detail .rc-thumb {
+  display: block;
+  padding: 0;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  background: none;
+  cursor: zoom-in;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.chatbot-request-detail .rc-thumb img {
+  display: block;
+  max-width: 100%;
+  max-height: 14rem;
+  object-fit: cover;
+}
+
+.chatbot-request-detail .rc-thumb--sticker {
+  border-color: transparent;
+}
+
+.chatbot-request-detail .rc-thumb--sticker img {
+  max-height: 8rem;
+}
+
+.chatbot-request-detail .rc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 6px 12px;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-surface);
+  color: var(--hf-ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.chatbot-request-detail .rc-chip:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--hf-surface-muted) 45%, var(--hf-surface));
+}
+
+.chatbot-request-detail .rc-chip:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.chatbot-request-detail .rc-chip__label {
+  display: grid;
+  min-width: 0;
+}
+
+.chatbot-request-detail .rc-chip__label small {
+  font-size: 0.75rem;
+  color: var(--hf-muted);
+}
+
+.chatbot-request-detail .rc-chip__go {
+  color: var(--hf-muted);
+}
+
+.chatbot-request-detail .rc-audio {
+  width: 100%;
+  min-width: 12rem;
+  max-width: 20rem;
+}
+
+.chatbot-request-detail .rc-media__error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+}
+
+/* Older messages, loading, buttons */
+
+.chatbot-request-detail .rc-older {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+
+.chatbot-request-detail .rc-older__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-surface);
+  color: var(--hf-action);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chatbot-request-detail .rc-older__btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.chatbot-request-detail .rc-older__error {
+  font-size: 0.75rem;
+  color: var(--hf-danger);
+}
+
+.chatbot-request-detail .rc-linkbtn {
+  display: inline;
+  padding: 0;
+  margin-left: 6px;
+  border: 0;
+  background: none;
+  color: var(--hf-action);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.chatbot-request-detail .rc-loading {
+  display: grid;
+  gap: 8px;
+}
+
+.chatbot-request-detail .rc-skeleton {
+  height: 2.25rem;
+  border-radius: 12px;
+  background-color: var(--hf-surface-muted);
+  animation: rc-pulse 1.4s ease-in-out infinite;
+}
+
+.chatbot-request-detail .rc-skeleton--them {
+  justify-self: start;
+  width: 55%;
+}
+
+.chatbot-request-detail .rc-skeleton--bot {
+  justify-self: end;
+  width: 65%;
+}
+
+@keyframes rc-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chatbot-request-detail .rc-skeleton {
+    animation: none;
+  }
+}
+
+.chatbot-request-detail .rc-thumb:focus-visible,
+.chatbot-request-detail .rc-chip:focus-visible,
+.chatbot-request-detail .rc-older__btn:focus-visible,
+.chatbot-request-detail .rc-linkbtn:focus-visible,
+.chatbot-request-detail .rc-log:focus-visible {
+  outline: 2px solid var(--hf-action);
+  outline-offset: 2px;
+}
+
+/* Single column (mobile, design 04): bubbles use more of the width, the log grows with the page. */
+@media (max-width: 767px) {
+  .chatbot-request-detail .rc-bubble {
+    max-width: 92%;
+  }
+
+  .chatbot-request-detail .rc-log {
+    max-height: 70vh;
+  }
+}

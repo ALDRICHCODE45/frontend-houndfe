@@ -631,3 +631,72 @@ export interface ChatbotRequestErrorCurrent {
   /** `ZONE_SET_CHANGED` only: the new impact (without `validationId`). */
   zoneImpact?: ChatbotRequestZoneImpact
 }
+
+// ─── Conversation mirror (handoff 18, read only) ──────────────────────────────
+
+export type ChatbotMessageDirection = 'IN' | 'OUT'
+export type ChatbotMessageAuthor = 'CUSTOMER' | 'BOT' | 'STAFF' | 'SYSTEM'
+export type ChatbotMessageType =
+  | 'TEXT'
+  | 'IMAGE'
+  | 'STICKER'
+  | 'DOCUMENT'
+  | 'AUDIO'
+  | 'TEMPLATE'
+  | 'SYSTEM'
+  | 'UNSUPPORTED'
+export type ChatbotMessageDeliveryStatus =
+  | 'QUEUED'
+  | 'DEFERRED'
+  | 'SENT'
+  | 'DELIVERED'
+  | 'READ'
+  | 'FAILED'
+  | 'UNKNOWN'
+
+export interface ChatbotMessageMedia {
+  id: string
+  /** `null` once the retention purge removed the file row. */
+  mimeType: string | null
+  sizeBytes: number | null
+  /** Always `null` today: read it from the browser. */
+  durationSec: number | null
+  /** Always `false` today: there are no thumbnails, show the original. */
+  hasThumb: boolean
+  /** The 12-month retention deleted the file (`GET /chatbot-media/:id` answers 410). */
+  purged: boolean
+}
+
+export interface ChatbotMessage {
+  id: string
+  /** Backend order inside the chat (1, 2, 3… no gaps): the only sort key. */
+  seq: number
+  direction: ChatbotMessageDirection
+  author: ChatbotMessageAuthor
+  /** Only for `STAFF` (unit 11). */
+  staff: ChatbotRequestPerson | null
+  type: ChatbotMessageType
+  /** Plain text typed by the customer: never HTML. Caption for IMAGE / DOCUMENT. */
+  text: string | null
+  media: ChatbotMessageMedia | null
+  deliveryStatus: ChatbotMessageDeliveryStatus | null
+  clientMessageId: string | null
+  providerTimestamp: string | null
+  createdAt: string
+}
+
+export interface ChatbotConversationPage {
+  /** Always ascending by `seq`, whichever cursor was used. */
+  items: ChatbotMessage[]
+  /** A message with a lower `seq` than the first item exists. */
+  hasMoreBefore: boolean
+}
+
+export interface ChatbotConversationParams {
+  /** 1–100, default 50. */
+  limit?: number
+  /** Older than this `seq` (≥ 2). Never together with `after`. */
+  before?: number
+  /** Newer than this `seq` (≥ 0). Never together with `before`. */
+  after?: number
+}

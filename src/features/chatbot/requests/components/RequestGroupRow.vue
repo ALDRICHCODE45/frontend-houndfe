@@ -40,6 +40,15 @@ const isOpen = computed(() => props.row.status === 'NEW' || props.row.status ===
 const subtypeLabel = computed(() => SUBTYPE_LABELS[props.row.subtype] ?? 'Solicitud')
 const subtypeIcon = computed(() => SUBTYPE_ICONS[props.row.subtype] ?? 'i-lucide-inbox')
 const age = computed(() => formatAge(props.row.createdAt, props.now))
+/** Customer messages nobody has opened yet (the server resets the count when the conversation is read). */
+const unread = computed(() => {
+  const count = props.row.unreadCustomerMessages
+  return typeof count === 'number' && count > 0 ? count : 0
+})
+const unreadText = computed(() => `${unread.value} ${unread.value === 1 ? 'nuevo' : 'nuevos'}`)
+const unreadLabel = computed(
+  () => `${unread.value} ${unread.value === 1 ? 'mensaje nuevo' : 'mensajes nuevos'} del cliente`,
+)
 const windowTag = computed(() =>
   isOpen.value ? windowClosingTag(props.row.whatsappWindowClosesAt, props.now) : null,
 )
@@ -84,6 +93,7 @@ function openDetailFromKey(event: KeyboardEvent) {
       <div class="chatbot-row__secondary">
         <span class="chatbot-row__folio">{{ row.folio }}</span>
         <span>{{ subtypeLabel }}</span>
+        <span v-if="unread" class="chatbot-unread" data-testid="unread-badge" :aria-label="unreadLabel">{{ unreadText }}</span>
         <span v-if="windowTag" class="chatbot-window-tag" data-testid="window-tag">
           <UIcon name="i-lucide-clock" class="chatbot-window-tag__icon" aria-hidden="true" />{{ windowTag }}
         </span>
@@ -111,6 +121,7 @@ function openDetailFromKey(event: KeyboardEvent) {
       <RequestStatusBadge :row="row" :current-user-id="currentUserId" />
       <span class="chatbot-row__folio">{{ row.folio }}</span>
       <SubtypeTag :subtype="row.subtype" />
+      <span v-if="unread" class="chatbot-unread" data-testid="unread-badge" :aria-label="unreadLabel">{{ unreadText }}</span>
     </div>
     <div v-if="windowTag" class="chatbot-card__window">
       <span class="chatbot-window-tag" data-testid="window-tag">

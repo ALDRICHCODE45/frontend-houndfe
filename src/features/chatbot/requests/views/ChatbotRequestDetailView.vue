@@ -173,7 +173,7 @@ function onAction(action: ChatbotRequestAction): void {
           </div>
 
           <RequestDetailDecision v-if="detail.decision" :request="detail" />
-          <RequestDetailConversation v-if="canSeeConversation" />
+          <RequestDetailConversation v-if="canSeeConversation" :request-id="detail.id" />
           <RequestDetailOtherOpen :requests="detail.otherOpenRequests" :current-user-id="currentUserId" />
           <RequestDetailDeliveries v-if="detail.deliveries.length > 0" :deliveries="detail.deliveries" />
           <RequestDetailAudit

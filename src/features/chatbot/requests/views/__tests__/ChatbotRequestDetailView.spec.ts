@@ -16,6 +16,9 @@ vi.mock('vue-router', () => ({
 vi.mock('../../api/chatbot-request.api', () => ({
   chatbotRequestApi: { getDetail: vi.fn(), listAudit: vi.fn() },
 }))
+vi.mock('../../api/chatbot-conversation.api', () => ({
+  chatbotConversationApi: { getPage: vi.fn(), getMedia: vi.fn() },
+}))
 
 const auth = vi.hoisted(() => ({
   perms: new Set<string>(),
@@ -33,10 +36,13 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
 }))
 
 import { chatbotRequestApi } from '../../api/chatbot-request.api'
+import { chatbotConversationApi } from '../../api/chatbot-conversation.api'
 import ChatbotRequestDetailView from '../ChatbotRequestDetailView.vue'
+import { makeMessage } from '../../utils/conversation-fixture'
 
 const getDetail = vi.mocked(chatbotRequestApi.getDetail)
 const listAudit = vi.mocked(chatbotRequestApi.listAudit)
+const getPage = vi.mocked(chatbotConversationApi.getPage)
 
 const ALL_PERMS = ['read:ChatbotRequest', 'read:CustomerPhone', 'read:ChatbotConversation']
 
@@ -65,6 +71,8 @@ async function mountView(detail: ChatbotRequestDetail | Error = makeDetail()) {
 beforeEach(() => {
   getDetail.mockReset()
   listAudit.mockReset()
+  getPage.mockReset()
+  getPage.mockResolvedValue({ items: [], hasMoreBefore: false })
   push.mockReset()
   route.params = { id: 'req-1' }
   auth.perms = new Set(ALL_PERMS)
@@ -102,15 +110,35 @@ describe('ChatbotRequestDetailView — header and main column', () => {
     expect(limited).not.toContain('conversación')
   })
 
-  it('shows the «Disponible próximamente» conversation block only with read:ChatbotConversation', async () => {
+  it('reads and shows the conversation only with read:ChatbotConversation, limited note otherwise', async () => {
+    getPage.mockResolvedValue({
+      items: [makeMessage({ seq: 1, text: 'Hola, ¿tienen croquetas?' })],
+      hasMoreBefore: false,
+    })
     const withIt = await mountView()
-    expect(withIt.get('[data-testid="detail-conversation"]').text()).toContain('Disponible próximamente')
-    expect(withIt.text()).not.toContain('Mensajes del cliente')
+    expect(getPage).toHaveBeenCalledWith('req-1', { limit: 50 }, { signal: expect.anything() })
+    expect(withIt.get('[data-testid="detail-conversation"]').text()).toContain('Hola, ¿tienen croquetas?')
+    expect(withIt.text()).not.toContain('Disponible próximamente')
 
+    getPage.mockClear()
     auth.perms.delete('read:ChatbotConversation')
     const without = await mountView()
     expect(without.find('[data-testid="detail-conversation"]').exists()).toBe(false)
     expect(without.get('[data-testid="limited-view"]').text()).toContain('conversación')
+    expect(getPage).not.toHaveBeenCalled()
+  })
+
+  it('shows «Todavía no hay mensajes» for a loaded empty conversation', async () => {
+    const wrapper = await mountView()
+    expect(wrapper.get('[data-testid="conversation-empty"]').text()).toContain('Todavía no hay mensajes')
+  })
+
+  it('opening the conversation refreshes the detail so the unread count drops', async () => {
+    getPage.mockResolvedValue({ items: [makeMessage({ seq: 1 })], hasMoreBefore: false })
+    await mountView(makeDetail({ unreadCustomerMessages: 3 }))
+    await flushPromises()
+    // detail loaded once, then invalidated by the first conversation read
+    expect(getDetail.mock.calls.length).toBeGreaterThanOrEqual(2)
   })
 
   it('lists both missing permissions in the limited view', async () => {
@@ -292,8 +320,10 @@ describe('ChatbotRequestDetailView — rail', () => {
     const panel = wrapper.get('[data-testid="action-panel"]')
     expect(panel.get('[data-testid="action-CLAIM"]').attributes('disabled')).toBeUndefined()
     expect(panel.get('[data-testid="action-CANCEL"]').attributes('disabled')).toBeUndefined()
+    // The first conversation read already refreshed the detail once (the unread count resets).
+    const readsBeforeClick = getDetail.mock.calls.length
     await panel.get('[data-testid="action-CLAIM"]').trigger('click')
-    expect(getDetail).toHaveBeenCalledTimes(1)
+    expect(getDetail).toHaveBeenCalledTimes(readsBeforeClick)
     expect(push).not.toHaveBeenCalled()
   })
 
@@ -400,7 +430,8 @@ describe('ChatbotRequestDetailView — states', () => {
     getDetail.mockResolvedValue(makeDetail())
     await wrapper.get('[data-testid="empty-action"]').trigger('click')
     await flushPromises()
-    expect(getDetail).toHaveBeenCalledTimes(2)
+    // Retry read + the refresh the first conversation read triggers.
+    expect(getDetail.mock.calls.length).toBeGreaterThanOrEqual(2)
     expect(wrapper.find('[data-testid="empty-state"]').exists()).toBe(false)
     expect(wrapper.get('h1').text()).toBe('Croquetas 15 kg para el viernes')
   })
