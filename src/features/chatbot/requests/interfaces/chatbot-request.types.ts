@@ -99,6 +99,8 @@ export interface ChatbotRequestRow {
   /** Next opening while `slaPaused`, else `null`. */
   slaResumesAt: string | null
   whatsappWindowClosesAt: string | null
+  /** Handoff 14 §16: open and inside the branch windowWarningMinutes (same rule as the filter). */
+  windowClosingSoon?: boolean
   unreadCustomerMessages: number
   scheduledFor: string | null
   requiresTemplateAtStart: boolean

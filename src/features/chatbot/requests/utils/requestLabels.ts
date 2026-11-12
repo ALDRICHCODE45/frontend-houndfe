@@ -145,12 +145,23 @@ function duration(minutes: number): string {
  * threshold of the row/header tag only: the inbox filter «Ventana por cerrar» and its count follow the
  * branch's `windowWarningMinutes` on the server, which the rows do not expose, so the two can differ.
  */
-export function windowClosingTag(whatsappWindowClosesAt: string | null, now: Date = new Date()): string | null {
+/**
+ * «Ventana de 24 h cierra en …». When the backend sends `windowClosingSoon` (handoff 14 §16, computed
+ * with the branch windowWarningMinutes like the filter), it decides whether to show the tag; without it
+ * (older backend) the fixed 120-minute threshold applies. The countdown itself is always local.
+ */
+export function windowClosingTag(
+  whatsappWindowClosesAt: string | null,
+  now: Date = new Date(),
+  windowClosingSoon?: boolean,
+): string | null {
   if (!whatsappWindowClosesAt) return null
   const closesAt = new Date(whatsappWindowClosesAt).getTime()
   if (Number.isNaN(closesAt)) return null
   const minutes = (closesAt - now.getTime()) / 60_000
-  if (minutes <= 0 || minutes > WINDOW_TAG_MINUTES) return null
+  if (minutes <= 0) return null
+  if (windowClosingSoon === false) return null
+  if (windowClosingSoon === undefined && minutes > WINDOW_TAG_MINUTES) return null
   return `Ventana de 24 h cierra en ${duration(minutes)}`
 }
 

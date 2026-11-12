@@ -19,7 +19,7 @@ const props = defineProps<{
 
 const inbox = { name: 'chatbot-requests' }
 const created = computed(() => formatWhen(props.request.createdAt, { timeZone: props.timeZone, now: props.now }))
-const windowTag = computed(() => windowClosingTag(props.request.whatsappWindowClosesAt, props.now))
+const windowTag = computed(() => windowClosingTag(props.request.whatsappWindowClosesAt, props.now, props.request.windowClosingSoon))
 </script>
 
 <template>

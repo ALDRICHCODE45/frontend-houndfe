@@ -50,7 +50,7 @@ const unreadLabel = computed(
   () => `${unread.value} ${unread.value === 1 ? 'mensaje nuevo' : 'mensajes nuevos'} del cliente`,
 )
 const windowTag = computed(() =>
-  isOpen.value ? windowClosingTag(props.row.whatsappWindowClosesAt, props.now) : null,
+  isOpen.value ? windowClosingTag(props.row.whatsappWindowClosesAt, props.now, props.row.windowClosingSoon) : null,
 )
 const closed = computed(() =>
   isOpen.value ? null : closedLine(props.row, props.currentUserId, { now: props.now, timeZone: props.timeZone }),

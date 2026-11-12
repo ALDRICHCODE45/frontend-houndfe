@@ -161,6 +161,15 @@ describe('windowClosingTag', () => {
     expect(windowClosingTag(null, now)).toBeNull()
     expect(windowClosingTag('not a date', now)).toBeNull()
   })
+
+  it('follows the backend windowClosingSoon flag when present (branch windowWarningMinutes), keeping the local countdown', () => {
+    // 4 h left: outside the old fixed 2 h, but the branch warns at 5 h → the server says soon.
+    expect(windowClosingTag('2026-11-11T21:05:00.000Z', now, true)).toBe('Ventana de 24 h cierra en 4 h')
+    // 30 min left but the server says not soon (e.g. the request is closed or the branch warns at 15 min).
+    expect(windowClosingTag('2026-11-11T17:35:00.000Z', now, false)).toBeNull()
+    // Already closed: no tag even if the flag is stale.
+    expect(windowClosingTag('2026-11-11T17:00:00.000Z', now, true)).toBeNull()
+  })
 })
 
 describe('formatScheduledFor / formatWhen', () => {
