@@ -31,6 +31,18 @@ describe('commandNotice — typed conflicts shown in the rail', () => {
     expect(notice.actions).toEqual(['refresh'])
   })
 
+  it('VERSION_CONFLICT on a merge target says the request that stays changed, not this one', () => {
+    const notice = commandNotice(
+      read(409, { code: 'VERSION_CONFLICT', intoRequestId: 'req-9', current: { version: 7 } }),
+    )!
+    expect(notice.title).toBe('La solicitud que se queda cambió')
+    expect(notice.detail).toBe(
+      'La solicitud con la que ibas a unirla cambió mientras la mirabas. No se unió nada; revisa los candidatos y vuelve a intentarlo.',
+    )
+    expect(notice.detail).not.toContain('versión')
+    expect(notice.actions).toEqual(['refresh'])
+  })
+
   it('REQUEST_CLOSED says it can no longer be changed', () => {
     const notice = commandNotice(read(409, { code: 'REQUEST_CLOSED' }))!
     expect(notice.title).toBe('Esta solicitud ya se cerró')

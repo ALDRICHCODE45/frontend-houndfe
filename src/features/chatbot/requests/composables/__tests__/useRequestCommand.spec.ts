@@ -201,6 +201,23 @@ describe('useRequestCommand — invalidation', () => {
     expect(invalidate).toHaveBeenCalledWith(all())
   })
 
+  it('stays pending until the refresh after a state-changing error lands, so no resend uses the old version', async () => {
+    api.claim.mockRejectedValueOnce(axiosError(409, { code: 'VERSION_CONFLICT', current: { version: 2 } }))
+    const { command, invalidate } = setup()
+    let landed!: () => void
+    invalidate.mockReturnValue(new Promise<void>((resolve) => (landed = resolve)))
+
+    const run = command.claim('req-1', { expectedVersion: 1 })
+    await flushPromises()
+    expect(command.isPending.value).toBe(true)
+    expect(await command.claim('req-1', { expectedVersion: 1 })).toEqual({ status: 'ignored' })
+
+    landed()
+    expect((await run).status).toBe('failed')
+    expect(command.isPending.value).toBe(false)
+    expect(api.claim).toHaveBeenCalledTimes(1)
+  })
+
   it('does not refresh after validation, permission, network or server errors', async () => {
     const { command, invalidate } = setup()
     for (const failure of [

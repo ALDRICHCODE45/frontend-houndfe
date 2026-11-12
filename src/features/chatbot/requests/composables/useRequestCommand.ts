@@ -49,8 +49,8 @@ export function useRequestCommand() {
   const error = ref<ChatbotRequestError | null>(null)
   let attempt: Attempt | null = null
 
-  function refresh() {
-    void queryClient.invalidateQueries({ queryKey: chatbotRequestKeys.all(tenantId.value) })
+  function refresh(): Promise<void> {
+    return queryClient.invalidateQueries({ queryKey: chatbotRequestKeys.all(tenantId.value) })
   }
 
   async function run(
@@ -70,14 +70,16 @@ export function useRequestCommand() {
     try {
       const response = await send(current.key)
       attempt = null
-      refresh()
+      void refresh()
       return { status: 'done', response }
     } catch (caught) {
       const failure = readRequestError(caught)
       error.value = failure
       // Network errors and 5xx leave the answer unknown: the same key is resent safely.
       if (failure.status !== null && failure.status < 500) attempt = null
-      if (isStateChangingError(failure)) refresh()
+      // Stay pending until the detail is refetched: a resend before it lands would carry the old
+      // expectedVersion and earn a second VERSION_CONFLICT.
+      if (isStateChangingError(failure)) await refresh().catch(() => undefined)
       return { status: 'failed', error: failure, message: requestErrorMessage(failure) }
     } finally {
       pending.value = false

@@ -720,8 +720,8 @@ describe('RequestCommandHost — merge', () => {
     await pick(wrapper, 'req-9')
     await submit(wrapper)
 
-    expect(byId(wrapper, 'command-notice-title').text()).toBe('La solicitud cambió mientras la mirabas')
-    expect(byId(wrapper, 'command-notice-detail').text()).toContain('versión 5')
+    expect(byId(wrapper, 'command-notice-title').text()).toBe('La solicitud que se queda cambió')
+    expect(byId(wrapper, 'command-notice-detail').text()).not.toContain('versión')
   })
 })
 

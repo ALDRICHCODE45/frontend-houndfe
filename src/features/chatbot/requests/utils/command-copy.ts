@@ -99,6 +99,14 @@ export function commandNotice(error: ChatbotRequestError): CommandNotice | null 
         ['refresh'],
       )
     case 'VERSION_CONFLICT':
+      // A merge whose target moved: the version in `current` is the target's, not this request's.
+      if (error.intoRequestId) {
+        return make(
+          'La solicitud que se queda cambió',
+          'La solicitud con la que ibas a unirla cambió mientras la mirabas. No se unió nada; revisa los candidatos y vuelve a intentarlo.',
+          ['refresh'],
+        )
+      }
       return make(
         'La solicitud cambió mientras la mirabas',
         current?.version !== undefined
