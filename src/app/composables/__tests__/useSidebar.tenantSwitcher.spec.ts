@@ -170,8 +170,8 @@ describe('useSidebar — account menu', () => {
     const { userItems } = await sidebar()
     const top = userItems.value.flat()
 
-    expect(top.map((item) => item.label)).toEqual(['Apariencia', 'Cerrar sesión'])
-    const appearance = (top[0]!.children ?? []).flat() as DropdownMenuItem[]
+    expect(top.map((item) => item.label)).toEqual(['Mi perfil', 'Apariencia', 'Cerrar sesión'])
+    const appearance = (top[1]!.children ?? []).flat() as DropdownMenuItem[]
     expect(appearance.map((item) => item.label)).toEqual(['Claro', 'Oscuro'])
     expect(JSON.stringify(userItems.value)).not.toMatch(
       /Profile|Settings|Appearance|Light|Dark|Log out/,

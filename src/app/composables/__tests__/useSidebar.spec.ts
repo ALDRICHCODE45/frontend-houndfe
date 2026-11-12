@@ -140,6 +140,21 @@ describe('useSidebar — tenant integration', () => {
     expect(mockSwitch).toHaveBeenCalledExactlyOnceWith(null)
   })
 
+  it('the user menu opens «Mi perfil» at /perfil, before «Apariencia» and «Cerrar sesión»', async () => {
+    vi.mocked(useAuthStore).mockReturnValue(
+      makeAuthStore({ memberships: tenants, isSuperAdmin: false }) as unknown as ReturnType<
+        typeof useAuthStore
+      >,
+    )
+
+    const { useSidebar } = await import('../useSidebar')
+    const sidebar = useSidebar()
+    const items = sidebar.userItems.value.flat()
+
+    expect(items.map((item) => item.label)).toEqual(['Mi perfil', 'Apariencia', 'Cerrar sesión'])
+    expect(items[0]).toMatchObject({ to: '/perfil', icon: 'i-lucide-user-round' })
+  })
+
   it('showTenantSwitcher is true when user has multiple memberships', async () => {
     vi.mocked(useAuthStore).mockReturnValue(
       makeAuthStore({ memberships: tenants, isSuperAdmin: false }) as unknown as ReturnType<
