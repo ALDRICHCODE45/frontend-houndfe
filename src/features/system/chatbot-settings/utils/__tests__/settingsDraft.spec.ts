@@ -249,6 +249,38 @@ describe('closed date reasons', () => {
     expect(out.closedDateReasons).toEqual({ '2026-12-25': 'Navidad' })
     expect(out.windowWarningMinutes).toBe(30)
   })
+
+  it('rebase merges the date lists: my reason edit keeps the date they added, and my removal stays removed', () => {
+    const base = settingsFixture()
+    const mine = clone(base)
+    mine.closedDateReasons = { '2026-12-25': 'Navidad' }
+    mine.closedDates = mine.closedDates.filter((d) => d !== '2027-01-01')
+    const theirs = clone(base)
+    theirs.version = 4
+    theirs.closedDates = [...theirs.closedDates, '2027-02-05'].sort()
+    theirs.closedDateReasons = { '2027-02-05': 'Constitución' }
+    const out = rebaseDraft(base, mine, theirs)
+    expect(out.closedDates).toEqual(['2026-09-16', '2026-12-25', '2027-02-05'])
+    expect(out.closedDateReasons).toEqual({ '2026-12-25': 'Navidad', '2027-02-05': 'Constitución' })
+  })
+
+  it('rebase applies only the SLA and scheduling fields I changed, keeping their unknown nested keys', () => {
+    const base = settingsFixture() as ReturnType<typeof settingsFixture> & Record<string, unknown>
+    const mine = clone(base)
+    const sub = mine.slas[0]!.subtype
+    mine.slas[0]!.claimMinutes = 77
+    mine.scheduling.slotMinutes = 45
+    const theirs = clone(base)
+    theirs.version = 4
+    Object.assign(theirs.slas[0]!, { slaExtra: 'srv' })
+    Object.assign(theirs.scheduling, { futureKnob: [1, 2] })
+    const out = rebaseDraft(base, mine, theirs)
+    const sla = out.slas.find((s) => s.subtype === sub) as unknown as Record<string, unknown>
+    expect(sla.claimMinutes).toBe(77)
+    expect(sla.slaExtra).toBe('srv')
+    expect(out.scheduling.slotMinutes).toBe(45)
+    expect((out.scheduling as unknown as Record<string, unknown>).futureKnob).toEqual([1, 2])
+  })
 })
 
 describe('closed dates', () => {

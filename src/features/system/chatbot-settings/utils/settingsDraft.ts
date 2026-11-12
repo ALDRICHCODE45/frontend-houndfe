@@ -205,6 +205,32 @@ export function removePastClosedDates(draft: ChatbotSettings, today: string): nu
  * the user's value wins (the dialog says so). Read-only fields (`enabledSubtypes`, `branchOpeningHours`)
  * always come from `theirs`.
  */
+/** Copies onto `theirs` only the keys I changed against `base`, so their other (and unknown) keys survive. */
+function applyMyFields<T extends object>(theirs: T, base: T | undefined, mine: T): T {
+  const out = { ...theirs } as Record<string, unknown>
+  const baseRecord = (base ?? {}) as Record<string, unknown>
+  for (const [key, value] of Object.entries(mine as Record<string, unknown>)) {
+    if (JSON.stringify(value) !== JSON.stringify(baseRecord[key])) out[key] = deepCopy(value)
+  }
+  return out as T
+}
+
+/** Three-way merge of the closed-date list and its reasons: my additions, removals and reason edits on top of theirs. */
+function mergeClosedDates(out: ChatbotSettings, base: ChatbotSettings, mine: ChatbotSettings) {
+  const added = mine.closedDates.filter((d) => !base.closedDates.includes(d))
+  const removed = new Set(base.closedDates.filter((d) => !mine.closedDates.includes(d)))
+  out.closedDates = [...new Set([...out.closedDates, ...added])].filter((d) => !removed.has(d)).sort()
+  const reasons = { ...out.closedDateReasons }
+  const dates = new Set([...Object.keys(mine.closedDateReasons), ...Object.keys(base.closedDateReasons)])
+  for (const date of dates) {
+    if (mine.closedDateReasons[date] === base.closedDateReasons[date]) continue
+    if (mine.closedDateReasons[date] === undefined) delete reasons[date]
+    else reasons[date] = mine.closedDateReasons[date]!
+  }
+  out.closedDateReasons = reasons
+  dropOrphanReasons(out)
+}
+
 export function rebaseDraft(base: ChatbotSettings, mine: ChatbotSettings, theirs: ChatbotSettings): ChatbotSettings {
   const out = cloneSettings(theirs)
   for (const { key: changed } of diffItems(base, mine)) {
@@ -213,15 +239,13 @@ export function rebaseDraft(base: ChatbotSettings, mine: ChatbotSettings, theirs
       const target = out.openingHours.days.find((d) => d.day === name)
       if (target) target.ranges = deepCopy(dayRanges(mine, name as ChatbotWeekday))
     } else if (changed === 'tz') out.openingHours.timeZone = mine.openingHours.timeZone
-    else if (changed === 'dates') {
-      out.closedDates = [...mine.closedDates]
-      out.closedDateReasons = { ...mine.closedDateReasons }
-    }
+    else if (changed === 'dates') mergeClosedDates(out, base, mine)
     else if (kind === 's' && name) {
-      const sla = slaOf(mine, name)
       const index = out.slas.findIndex((s) => s.subtype === name)
-      if (sla && index >= 0) out.slas[index] = { ...sla }
-    } else if (changed === 'sched') out.scheduling = { ...mine.scheduling }
+      const mineSla = slaOf(mine, name)
+      const baseSla = slaOf(base, name)
+      if (mineSla && index >= 0) out.slas[index] = applyMyFields(out.slas[index]!, baseSla, mineSla)
+    } else if (changed === 'sched') out.scheduling = applyMyFields(out.scheduling, base.scheduling, mine.scheduling)
     else if (changed === 'x:receiptCloseMarginMinutes') out.receiptCloseMarginMinutes = mine.receiptCloseMarginMinutes
     else if (changed === 'x:windowWarningMinutes') out.windowWarningMinutes = mine.windowWarningMinutes
     else if (changed === 'x:templateName') out.templateName = mine.templateName
