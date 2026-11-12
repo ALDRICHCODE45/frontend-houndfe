@@ -318,7 +318,8 @@ describe('ChatbotRequestsView — chips', () => {
 
   it('the subtype select writes ?subtype= and the param', async () => {
     const { wrapper, router } = await mountView()
-    await wrapper.get('select').setValue('COMPLAINT')
+    expect(wrapper.find('select:not([aria-hidden="true"])').exists()).toBe(false)
+    wrapper.getComponent({ name: 'Select' }).vm.$emit('update:modelValue', 'COMPLAINT')
     await flushPromises()
     expect(query(router).subtype).toBe('COMPLAINT')
     expect(groupsState.filters!()).toEqual({ status: 'open', subtype: 'COMPLAINT' })

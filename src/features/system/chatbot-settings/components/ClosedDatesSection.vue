@@ -4,7 +4,8 @@
  * relative text («en 43 días»), past dates marked and removable in bulk. The contract stores only the date
  * (no reason), sorted, unique, up to 400; adding is validated by the parent, which answers with `addError`.
  */
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { calendarPartsToDateString, parseMexicoCityCalendarDate } from '@/core/shared/utils/mexicoCityCalendar'
 import { describeDate, plural } from '../utils/settingsLabels'
 import { MAX_CLOSED_DATES } from '../utils/settingsValidation'
 
@@ -17,7 +18,15 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ add: [value: string]; remove: [date: string]; 'remove-past': [] }>()
 
+// The parent speaks «YYYY-MM-DD»; the system date field speaks `CalendarDate`. Convert at the boundary
+// (never through a JS `Date`, which would shift the day across zones).
 const value = ref('')
+const model = computed(() => parseMexicoCityCalendarDate(value.value) ?? undefined)
+const open = ref(false)
+function pick(next: unknown) {
+  value.value = calendarPartsToDateString(next) ?? ''
+  open.value = false
+}
 const past = () => props.dates.filter((d) => d < props.today)
 
 // A date that was added clears the input; a refused one stays so it can be fixed.
@@ -34,16 +43,29 @@ watch(
     <template v-if="!readonly">
       <div class="cbs-dates__add">
         <div class="cbs-field">
-          <label class="cbs-label" for="cbs-date-in">Nueva fecha cerrada</label>
-          <input
-            id="cbs-date-in"
-            v-model="value"
-            type="date"
-            class="cbs-input"
-            :aria-invalid="addError ? 'true' : undefined"
-            aria-describedby="cbs-date-help cbs-date-error"
-            data-testid="date-input"
-          />
+          <label id="cbs-date-label" class="cbs-label" for="cbs-date-in">Nueva fecha cerrada</label>
+          <UPopover
+            v-model:open="open"
+            :content="{ align: 'start', side: 'bottom', sideOffset: 8 }"
+            :ui="{ content: 'hf-theme hf-ui hf-form-overlay chatbot-settings-dialog' }"
+          >
+            <UInputDate
+              id="cbs-date-in"
+              class="cbs-date-input"
+              size="lg"
+              :model-value="model"
+              :color="addError ? 'error' : 'primary'"
+              :highlight="!!addError"
+              aria-labelledby="cbs-date-label"
+              :aria-invalid="addError ? 'true' : undefined"
+              aria-describedby="cbs-date-help cbs-date-error"
+              data-testid="date-input"
+              @update:model-value="pick"
+            />
+            <template #content>
+              <UCalendar class="p-2" :model-value="model" data-testid="date-calendar" @update:model-value="pick" />
+            </template>
+          </UPopover>
         </div>
         <button type="button" class="cbs-btn" data-testid="date-add" @click="emit('add', value)">
           <UIcon name="i-lucide-plus" class="size-4" aria-hidden="true" />

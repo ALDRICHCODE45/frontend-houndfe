@@ -363,9 +363,17 @@
   color: var(--hf-muted);
 }
 .chatbot-settings .cbs-time {
-  /* «09:00 p. m.» plus the clock icon, at the widest locale text. */
+  /* «09:00 p. m.» at the widest locale text. */
   width: 9.25rem;
   padding-inline: 0.5rem;
+}
+/* System select / time / date fields: the same control height as the rest of the page. */
+.chatbot-settings :is(.cbs-time, .cbs-unit, .cbs-date-input, #cbs-tz) {
+  min-height: var(--hf-control-height);
+  font-size: 0.875rem;
+}
+.chatbot-settings .cbs-date-input {
+  width: 11rem;
 }
 .chatbot-settings .cbs-counter {
   justify-self: end;

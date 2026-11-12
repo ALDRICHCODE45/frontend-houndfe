@@ -25,10 +25,11 @@ describe('ExtrasSection', () => {
   it('emits the window in minutes, the template (blank = null) and the cost text', async () => {
     const w = mountExtras()
     // 120 min shows as hours, so «2» is 2 h; switch to minutes to type 30 min.
-    await w.get('[data-testid="duration-unit"]').setValue('min')
+    w.getComponent({ name: 'Select' }).vm.$emit('update:modelValue', 'min')
+    await w.vm.$nextTick()
     await w.get('[data-testid="duration-input"]').setValue('30')
     expect(w.emitted('set-window')![0]).toEqual([30])
-    expect(w.get('[data-testid="duration-unit"]').findAll('option')).toHaveLength(2)
+    expect(w.getComponent({ name: 'Select' }).props('items')).toHaveLength(2)
 
     await w.get('[data-testid="template-input"]').setValue('aviso_1')
     await w.get('[data-testid="template-input"]').setValue('')

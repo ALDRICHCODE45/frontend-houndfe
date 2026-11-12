@@ -20,6 +20,9 @@ function mountFilters(props: Record<string, unknown> = {}) {
 }
 
 const tabButtons = (w: ReturnType<typeof mountFilters>) => w.findAll('[data-testid="list-tab"]')
+const subtypeSelect = (w: ReturnType<typeof mountFilters>) => w.getComponent({ name: 'Select' })
+// Reka mirrors a select into an `aria-hidden`, `tabindex=-1` native <select> (form mirror); it is not a control.
+const VISIBLE_SELECT = 'select:not([aria-hidden="true"])'
 const chip = (w: ReturnType<typeof mountFilters>, id: string) => w.get(`[data-testid="chip-${id}"]`)
 
 describe('RequestsListFilters — tabs', () => {
@@ -125,20 +128,33 @@ describe('RequestsListFilters — search and subtype', () => {
 
   it('lists the subtypes (no Descuento) and emits the chosen one, or null for «Todos»', async () => {
     const wrapper = mountFilters()
-    const select = wrapper.get('select')
-    const labels = select.findAll('option').map((o) => o.text())
+    const select = subtypeSelect(wrapper)
+    const items = select.props('items') as Array<{ label: string; value: string }>
+    const labels = items.map((o) => o.label)
     expect(labels[0]).toBe('Tipo · Todos')
     expect(labels).toContain('Reposición')
     expect(labels).toContain('Zona de entrega')
     expect(labels).not.toContain('Descuento')
-    await select.setValue('RESTOCK')
+    expect(items.map((o) => o.value)).not.toContain('DISCOUNT')
+    select.vm.$emit('update:modelValue', 'RESTOCK')
     expect(wrapper.emitted('update:subtype')).toEqual([['RESTOCK']])
-    await select.setValue('')
+    select.vm.$emit('update:modelValue', items[0]!.value)
     expect(wrapper.emitted('update:subtype')![1]).toEqual([null])
   })
 
-  it('shows the selected subtype', () => {
-    expect((mountFilters({ subtype: 'COMPLAINT' }).get('select').element as HTMLSelectElement).value).toBe('COMPLAINT')
+  it('uses the system select, not a native one, and keeps its accessible label', () => {
+    const wrapper = mountFilters()
+    expect(wrapper.find(VISIBLE_SELECT).exists()).toBe(false)
+    const trigger = wrapper.get('[role="combobox"]')
+    const label = wrapper.get('.chatbot-subtype label.sr-only')
+    expect(label.text()).toBe('Tipo de solicitud')
+    expect(label.attributes('for')).toBe(trigger.attributes('id'))
+  })
+
+  it('shows the selected subtype, or «Tipo · Todos» with none', () => {
+    expect(subtypeSelect(mountFilters({ subtype: 'COMPLAINT' })).props('modelValue')).toBe('COMPLAINT')
+    expect(mountFilters({ subtype: 'COMPLAINT' }).get('[role="combobox"]').text()).toBe('Queja')
+    expect(mountFilters().get('[role="combobox"]').text()).toBe('Tipo · Todos')
   })
 })
 
@@ -147,6 +163,7 @@ describe('RequestsListFilters — history tab', () => {
     const wrapper = mountFilters({ tab: 'history' })
     expect(wrapper.find('input[type="search"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="chip-mine"]').exists()).toBe(false)
-    expect(wrapper.find('select').exists()).toBe(true)
+    expect(wrapper.find('[role="combobox"]').exists()).toBe(true)
+    expect(wrapper.find(VISIBLE_SELECT).exists()).toBe(false)
   })
 })

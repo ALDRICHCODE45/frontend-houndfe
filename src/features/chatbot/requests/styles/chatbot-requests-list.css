@@ -215,6 +215,11 @@
   max-width: 100%;
 }
 
+.hf-ui .chatbot-subtype [data-slot='base'] {
+  min-height: var(--hf-control-height, 44px);
+  font-size: 0.875rem;
+}
+
 /* ── Grouped table ────────────────────────────────────────────────────── */
 .hf-ui .chatbot-table {
   width: 100%;

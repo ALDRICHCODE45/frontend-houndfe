@@ -6,7 +6,7 @@
  * say so). The unit and the typed text are local; they resync only when the model changes from outside
  * (discard, 409, reload).
  */
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   initialUnit,
   parseDuration,
@@ -57,8 +57,15 @@ function onInput(event: Event) {
   emit('update:modelValue', parse())
 }
 
-function onUnit(event: Event) {
-  const next = (event.target as HTMLSelectElement).value as Unit
+const unitItems = computed(() => [
+  { label: 'min', value: 'min' },
+  { label: 'h', value: 'h' },
+  ...(props.nullable ? [{ label: 'Sin plazo', value: 'none' }] : []),
+])
+
+function onUnit(value: unknown) {
+  const next = value as Unit
+  if (next === unit.value) return
   const current = props.modelValue
   unit.value = next
   if (next === 'none') {
@@ -88,16 +95,17 @@ function onUnit(event: Event) {
       data-testid="duration-input"
       @input="onInput"
     />
-    <select
-      class="cbs-input cbs-unit"
-      :value="unit"
+    <USelect
+      :model-value="unit"
+      :items="unitItems"
+      value-key="value"
+      label-key="label"
+      size="lg"
+      class="cbs-unit"
+      :ui="{ content: 'hf-theme hf-ui hf-form-overlay chatbot-settings-dialog' }"
       :aria-label="`Unidad de ${label}`"
       data-testid="duration-unit"
-      @change="onUnit"
-    >
-      <option value="min">min</option>
-      <option value="h">h</option>
-      <option v-if="nullable" value="none">Sin plazo</option>
-    </select>
+      @update:model-value="onUnit"
+    />
   </div>
 </template>

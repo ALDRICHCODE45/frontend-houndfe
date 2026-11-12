@@ -6,6 +6,7 @@
  * only local state is the open «Copiar a…» panel.
  */
 import { computed, ref } from 'vue'
+import { Time } from '@internationalized/date'
 import { CHATBOT_WEEKDAYS, type ChatbotSettings, type ChatbotWeekday } from '../interfaces/chatbot-settings.types'
 import { DAY_LABELS, MAX_RANGES_PER_DAY, plural, timeZoneOptions } from '../utils/settingsLabels'
 import type { SettingsErrors } from '../utils/settingsValidation'
@@ -34,6 +35,18 @@ const toMin = (t: string) => (/^\d{2}:\d{2}$/.test(t) ? Number(t.slice(0, 2)) * 
 const dayMinutes = (ranges: Array<{ open: string; close: string }>) =>
   ranges.reduce((sum, r) => (toMin(r.close) > toMin(r.open) ? sum + toMin(r.close) - toMin(r.open) : sum), 0)
 const weekTotal = computed(() => props.draft.openingHours.days.reduce((sum, d) => sum + dayMinutes(d.ranges), 0))
+
+// The API and the draft speak «HH:mm» strings; the system time field speaks `Time`. Convert at the boundary.
+const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/
+function toTime(value: string): Time | undefined {
+  const match = TIME_PATTERN.exec(value)
+  return match ? new Time(Number(match[1]), Number(match[2])) : undefined
+}
+const pad = (n: number) => String(n).padStart(2, '0')
+function setTime(day: ChatbotWeekday, index: number, part: 'open' | 'close', value: unknown) {
+  const time = value as { hour: number; minute: number } | null | undefined
+  emit('set-time', day, index, part, time ? `${pad(time.hour)}:${pad(time.minute)}` : '')
+}
 
 const copyFrom = ref<ChatbotWeekday | null>(null)
 const copyTo = ref<ChatbotWeekday[]>([])
@@ -75,16 +88,19 @@ const readonlyText = (day: ChatbotWeekday) => rangesOf(day).map((r) => `${r.open
     <div class="cbs-hours__top">
       <div class="cbs-field">
         <label class="cbs-label" for="cbs-tz">Zona horaria</label>
-        <select
+        <USelect
           v-if="!readonly"
           id="cbs-tz"
-          class="cbs-input"
-          :value="draft.openingHours.timeZone"
+          :model-value="draft.openingHours.timeZone"
+          :items="zones"
+          value-key="value"
+          label-key="label"
+          size="lg"
+          class="w-full"
+          :ui="{ content: 'hf-theme hf-ui hf-form-overlay chatbot-settings-dialog' }"
           data-testid="tz-select"
-          @change="emit('set-zone', ($event.target as HTMLSelectElement).value)"
-        >
-          <option v-for="zone in zones" :key="zone.value" :value="zone.value">{{ zone.label }}</option>
-        </select>
+          @update:model-value="emit('set-zone', $event as string)"
+        />
         <span v-else class="cbs-readonly" data-testid="tz-readonly">
           {{ zones.find((z) => z.value === draft.openingHours.timeZone)?.label ?? draft.openingHours.timeZone }}
         </span>
@@ -154,28 +170,30 @@ const readonlyText = (day: ChatbotWeekday) => rangesOf(day).map((r) => `${r.open
           <span v-else-if="readonly" class="cbs-figure" :data-testid="`ranges-${day}`">{{ readonlyText(day) }}</span>
           <template v-else>
             <div v-for="(range, index) in rangesOf(day)" :key="index" class="cbs-range">
-              <input
+              <UInputTime
                 :id="`t-${day}-${index}-open`"
-                type="time"
-                max="23:59"
-                class="cbs-input cbs-time"
-                :value="range.open"
+                class="cbs-time"
+                size="lg"
+                :model-value="toTime(range.open)"
+                :color="errors[`h:${day}`] ? 'error' : 'primary'"
+                :highlight="!!errors[`h:${day}`]"
                 :aria-label="`${long(day)}, horario ${index + 1}: abre`"
                 :aria-invalid="errors[`h:${day}`] ? 'true' : undefined"
                 :data-testid="`open-${day}-${index}`"
-                @change="emit('set-time', day, index, 'open', ($event.target as HTMLInputElement).value)"
+                @update:model-value="setTime(day, index, 'open', $event)"
               />
               <span class="cbs-muted" aria-hidden="true">a</span>
-              <input
+              <UInputTime
                 :id="`t-${day}-${index}-close`"
-                type="time"
-                max="23:59"
-                class="cbs-input cbs-time"
-                :value="range.close"
+                class="cbs-time"
+                size="lg"
+                :model-value="toTime(range.close)"
+                :color="errors[`h:${day}`] ? 'error' : 'primary'"
+                :highlight="!!errors[`h:${day}`]"
                 :aria-label="`${long(day)}, horario ${index + 1}: cierra`"
                 :aria-invalid="errors[`h:${day}`] ? 'true' : undefined"
                 :data-testid="`close-${day}-${index}`"
-                @change="emit('set-time', day, index, 'close', ($event.target as HTMLInputElement).value)"
+                @update:model-value="setTime(day, index, 'close', $event)"
               />
               <button
                 type="button"

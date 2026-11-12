@@ -77,14 +77,19 @@ const chips = computed<Array<{ id: RequestsListChip; label: string; pressed: boo
   },
 ])
 
-// The design leaves «Descuento» out of the filter.
-const subtypeOptions = (Object.entries(SUBTYPE_LABELS) as Array<[ChatbotRequestSubtype, string]>).filter(
-  ([id]) => id !== 'DISCOUNT',
-)
+// Reka's select cannot hold an empty value, so «Todos» travels as a sentinel and leaves as `null`.
+const ALL_SUBTYPES = '__all__'
 
-function onSubtype(event: Event) {
-  const value = (event.target as HTMLSelectElement).value
-  emit('update:subtype', value ? (value as ChatbotRequestSubtype) : null)
+// The design leaves «Descuento» out of the filter.
+const subtypeOptions: Array<{ label: string; value: string }> = [
+  { label: 'Tipo · Todos', value: ALL_SUBTYPES },
+  ...(Object.entries(SUBTYPE_LABELS) as Array<[ChatbotRequestSubtype, string]>)
+    .filter(([id]) => id !== 'DISCOUNT')
+    .map(([id, label]) => ({ label, value: id })),
+]
+
+function onSubtype(value: unknown) {
+  emit('update:subtype', typeof value === 'string' && value !== ALL_SUBTYPES ? (value as ChatbotRequestSubtype) : null)
 }
 </script>
 
@@ -151,12 +156,18 @@ function onSubtype(event: Event) {
 
       <div class="chatbot-subtype">
         <label class="sr-only" :for="subtypeId">Tipo de solicitud</label>
-        <select :id="subtypeId" class="chatbot-ctl" @change="onSubtype">
-          <option value="" :selected="subtype === null">Tipo · Todos</option>
-          <option v-for="[id, label] in subtypeOptions" :key="id" :value="id" :selected="subtype === id">
-            {{ label }}
-          </option>
-        </select>
+        <USelect
+          :id="subtypeId"
+          :model-value="subtype ?? ALL_SUBTYPES"
+          :items="subtypeOptions"
+          value-key="value"
+          label-key="label"
+          size="lg"
+          class="w-full"
+          :ui="{ content: 'hf-theme hf-ui hf-form-overlay chatbot-requests-portal' }"
+          data-testid="subtype-select"
+          @update:model-value="onSubtype"
+        />
       </div>
     </div>
   </div>

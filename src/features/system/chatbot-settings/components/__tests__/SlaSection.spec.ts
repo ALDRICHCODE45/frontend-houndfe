@@ -16,7 +16,7 @@ describe('SlaSection', () => {
     const [claim, resolve] = restock.findAll('[data-testid="duration-input"]')
     expect((claim!.element as HTMLInputElement).value).toBe('1')
     expect((resolve!.element as HTMLInputElement).value).toBe('4')
-    expect(restock.findAll('[data-testid="duration-unit"]').map((u) => (u.element as HTMLSelectElement).value)).toEqual(['h', 'h'])
+    expect(restock.findAllComponents({ name: 'Select' }).map((u: { props: (key: string) => unknown }) => u.props('modelValue'))).toEqual(['h', 'h'])
     expect(restock.text()).toContain('4 h de atención')
   })
 
@@ -28,8 +28,8 @@ describe('SlaSection', () => {
     expect((resolve!.element as HTMLInputElement).disabled).toBe(true)
     expect(talk.text()).toContain('Sin límite de tiempo')
 
-    const unit = talk.findAll('[data-testid="duration-unit"]')[1]!
-    await unit.setValue('h')
+    talk.findAllComponents({ name: 'Select' })[1]!.vm.$emit('update:modelValue', 'h')
+    await w.vm.$nextTick()
     await resolve!.setValue('2')
     const calls = w.emitted('set-sla')!
     expect(calls[calls.length - 1]).toEqual(['TALK_TO_HUMAN', 'resolveMinutes', 120])
@@ -41,7 +41,8 @@ describe('SlaSection', () => {
     const claim = complaint.findAll('[data-testid="duration-input"]')[0]!
     await claim.setValue('20')
     expect(w.emitted('set-sla')![0]).toEqual(['COMPLAINT', 'claimMinutes', 20])
-    await complaint.findAll('[data-testid="duration-unit"]')[0]!.setValue('none')
+    complaint.findAllComponents({ name: 'Select' })[0]!.vm.$emit('update:modelValue', 'none')
+    await w.vm.$nextTick()
     const calls = w.emitted('set-sla')!
     expect(calls[calls.length - 1]).toEqual(['COMPLAINT', 'claimMinutes', null])
   })
@@ -56,7 +57,7 @@ describe('SlaSection', () => {
     expect(inputs).toHaveLength(1)
     await inputs[0]!.setValue('2')
     expect(w.emitted('set-margin')![0]).toEqual([120])
-    expect(receipt.findAll('[data-testid="duration-unit"]')[0]!.findAll('option')).toHaveLength(2)
+    expect((receipt.findAllComponents({ name: 'Select' })[0]!.props('items') as unknown[])).toHaveLength(2)
   })
 
   it('shows the server-mirrored errors under the field', () => {
@@ -73,7 +74,8 @@ describe('SlaSection', () => {
     expect(w.get('[data-testid="RESTOCK-claimMinutes-readonly"]').text()).toBe('1 h')
     expect(w.get('[data-testid="TALK_TO_HUMAN-resolveMinutes-readonly"]').text()).toBe('Sin plazo')
     expect(w.find('input').exists()).toBe(false)
-    expect(w.find('select').exists()).toBe(false)
+    expect(w.find('select:not([aria-hidden="true"])').exists()).toBe(false)
+    expect(w.find('[role="combobox"]').exists()).toBe(false)
   })
 
   it('lists the eight subtypes in contract order', () => {

@@ -210,7 +210,12 @@ describe('dirty state and save', () => {
     const w = await mountView()
     const window = w.get('#cbs-window')
     await window.setValue('30')
-    await w.get('[data-testid="duration-unit"]').setValue('min')
+    // The unit select of the «ventana» field (the view has one per duration).
+    w.findAllComponents({ name: 'DurationField' })
+      .find((field) => field.props('id') === 'cbs-window')!
+      .getComponent({ name: 'Select' })
+      .vm.$emit('update:modelValue', 'min')
+    await w.vm.$nextTick()
     await w.get('#cbs-window').setValue('1441')
     await flushPromises()
 
@@ -314,7 +319,8 @@ describe('read-only without update:ChatbotSettings', () => {
     expect(w.get('[data-testid="ranges-WEDNESDAY"]').text()).toBe('09:00 – 14:00 · 16:00 – 19:00')
     expect(w.get('[data-testid="RESTOCK-claimMinutes-readonly"]').text()).toBe('1 h')
     expect(w.find('input').exists()).toBe(false)
-    expect(w.find('select').exists()).toBe(false)
+    expect(w.find('select:not([aria-hidden="true"])').exists()).toBe(false)
+    expect(w.find('[role="combobox"]').exists()).toBe(false)
     expect(w.find('textarea').exists()).toBe(false)
     expect(w.find('[data-testid="save-bar"]').exists()).toBe(false)
     expect(w.find('[data-testid="apply-open"]').exists()).toBe(false)

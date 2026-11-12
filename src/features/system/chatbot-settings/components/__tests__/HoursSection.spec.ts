@@ -1,12 +1,23 @@
 // HoursSection — weekly chat hours: switch rows, ranges (max 6), «Copiar a…», pickup copy, read-only.
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { Time } from '@internationalized/date'
 import HoursSection from '../HoursSection.vue'
 import { defaultsFixture, settingsFixture } from '../../interfaces/__tests__/chatbot-settings.fixture'
 
 function mountHours(props: Record<string, unknown> = {}) {
   return mount(HoursSection, { props: { draft: settingsFixture(), readonly: false, errors: {}, ...props } })
 }
+// Reka mirrors time/select fields into `aria-hidden`, `tabindex=-1` native inputs (form mirror); they are not controls.
+const VISIBLE_NATIVE = 'select:not([aria-hidden="true"]), input[type="time"]:not([aria-hidden="true"])'
+const timeField = (w: ReturnType<typeof mountHours>, testid: string) =>
+  // The field renders a fragment, so the component is matched by its id (`t-DAY-n-open|close`).
+  w.findAllComponents({ name: 'InputTime' }).find((c) => c.props('id') === idOf(testid))!
+const idOf = (testid: string) => {
+  const [part, day, index] = testid.split('-')
+  return `t-${day}-${index}-${part}`
+}
+const field = (w: ReturnType<typeof mountHours>, testid: string) => w.get(`[data-testid="${testid}"]`)
 const emitted = (w: ReturnType<typeof mountHours>, name: string) => w.emitted(name)!
 
 describe('HoursSection', () => {
@@ -35,10 +46,42 @@ describe('HoursSection', () => {
     await w.get('[data-testid="remove-WEDNESDAY-1"]').trigger('click')
     expect(emitted(w, 'remove-range')[0]).toEqual(['WEDNESDAY', 1])
 
-    const input = w.get('[data-testid="open-MONDAY-0"]')
-    ;(input.element as HTMLInputElement).value = '08:30'
-    await input.trigger('change')
+    timeField(w, 'open-MONDAY-0').vm.$emit('update:modelValue', new Time(8, 30))
     expect(emitted(w, 'set-time')[0]).toEqual(['MONDAY', 0, 'open', '08:30'])
+  })
+
+  it('the range times are the system time field: HH:mm in, HH:mm out, labelled, no native time input', () => {
+    const w = mountHours()
+    expect(w.find(VISIBLE_NATIVE).exists()).toBe(false)
+    const open = timeField(w, 'open-WEDNESDAY-1')
+    const close = timeField(w, 'close-WEDNESDAY-1')
+    const openEl = field(w, 'open-WEDNESDAY-1')
+    const closeEl = field(w, 'close-WEDNESDAY-1')
+    expect(open.props('modelValue')).toEqual(new Time(16, 0))
+    expect(close.props('modelValue')).toEqual(new Time(19, 0))
+    expect(openEl.attributes('aria-label')).toBe('Miércoles, horario 2: abre')
+    expect(closeEl.attributes('aria-label')).toBe('Miércoles, horario 2: cierra')
+    expect(open.props('id')).toBe('t-WEDNESDAY-1-open')
+    // 12 h values must not clip: the sizing class stays on the field.
+    expect(openEl.classes()).toContain('cbs-time')
+    expect(closeEl.classes()).toContain('cbs-time')
+  })
+
+  it('pads a time to HH:mm and reports a cleared field as an empty string', () => {
+    const w = mountHours()
+    timeField(w, 'close-MONDAY-0').vm.$emit('update:modelValue', new Time(7, 5))
+    timeField(w, 'close-MONDAY-0').vm.$emit('update:modelValue', undefined)
+    expect(emitted(w, 'set-time')).toEqual([
+      ['MONDAY', 0, 'close', '07:05'],
+      ['MONDAY', 0, 'close', ''],
+    ])
+  })
+
+  it('marks the ranges of a day with an error as invalid', () => {
+    const w = mountHours({ errors: { 'h:MONDAY': 'El cierre debe ser después de la apertura.' } })
+    expect(field(w, 'open-MONDAY-0').attributes('aria-invalid')).toBe('true')
+    expect(field(w, 'close-MONDAY-0').attributes('aria-invalid')).toBe('true')
+    expect(field(w, 'open-TUESDAY-0').attributes('aria-invalid')).toBeUndefined()
   })
 
   it('hides «Agregar horario» at 6 ranges', () => {
@@ -97,10 +140,21 @@ describe('HoursSection', () => {
     const draft = settingsFixture()
     draft.openingHours.timeZone = 'America/Chihuahua'
     const w = mountHours({ draft })
-    const options = w.findAll('[data-testid="tz-select"] option').map((o) => o.attributes('value'))
+    const zone = w.getComponent({ name: 'Select' })
+    const options = (zone.props('items') as Array<{ value: string }>).map((o) => o.value)
     expect(options).toContain('America/Chihuahua')
-    await w.get('[data-testid="tz-select"]').setValue('America/Tijuana')
+    expect(zone.props('modelValue')).toBe('America/Chihuahua')
+    zone.vm.$emit('update:modelValue', 'America/Tijuana')
     expect(emitted(w, 'set-zone')[0]).toEqual(['America/Tijuana'])
+  })
+
+  it('the time zone is the system select, labelled by «Zona horaria»', () => {
+    const w = mountHours()
+    expect(w.find(VISIBLE_NATIVE).exists()).toBe(false)
+    const trigger = w.get('[data-testid="tz-select"]')
+    expect(trigger.attributes('role')).toBe('combobox')
+    expect(trigger.attributes('id')).toBe('cbs-tz')
+    expect(w.get('label[for="cbs-tz"]').text()).toBe('Zona horaria')
   })
 
   it('shows the day and week errors', () => {
@@ -118,6 +172,8 @@ describe('HoursSection', () => {
     expect(w.find('[data-testid="toggle-MONDAY"]').exists()).toBe(false)
     expect(w.find('input').exists()).toBe(false)
     expect(w.find('select').exists()).toBe(false)
+    expect(w.find('[role="combobox"]').exists()).toBe(false)
+    expect(w.findAllComponents({ name: 'InputTime' })).toHaveLength(0)
     expect(w.find('[data-testid="copy-pickup"]').exists()).toBe(false)
     expect(w.find('[data-testid="copy-WEDNESDAY"]').exists()).toBe(false)
   })
