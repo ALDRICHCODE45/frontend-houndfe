@@ -1,0 +1,292 @@
+@import '../../../../core/shared/design-system/houndfe-ui.css';
+
+/* Chatbot request commands (T2.U4): the forms of the detail page and the conflict notice. Design:
+ * design/chatbot-requests _src/detail.js (forms) and 04-movil-y-estados (cancel sheet). Colors come
+ * from the shared `--hf-*` roles; this file declares no palette. The sheet is portaled, so every
+ * selector lives under `.chatbot-request-commands` (the portal class) or `.chatbot-request-detail`
+ * (the notice shown in the rail). */
+
+.chatbot-request-commands .rc-sheet {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  padding: 16px;
+  color: var(--hf-ink);
+}
+
+.chatbot-request-commands .rc-form,
+.chatbot-request-detail .rc-host {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.chatbot-request-detail .rc-host:empty {
+  display: none;
+}
+
+.chatbot-request-commands .rc-lead,
+.chatbot-request-commands .rc-help,
+.chatbot-request-commands .rc-counter {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+}
+
+.chatbot-request-commands .rc-field,
+.chatbot-request-commands .rc-zone {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.chatbot-request-commands .rc-zone {
+  gap: 16px;
+}
+
+.chatbot-request-commands .rc-label {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+.chatbot-request-commands .rc-label span {
+  font-weight: 400;
+  color: var(--hf-muted);
+}
+
+/* ── Text controls ─────────────────────────────────────────────────────────── */
+
+.chatbot-request-commands .rc-control {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.chatbot-request-commands .rc-prefix {
+  display: grid;
+  place-items: center;
+  padding: 0 10px;
+  border: 1px solid var(--hf-border);
+  border-right: 0;
+  border-radius: 8px 0 0 8px;
+  background-color: var(--hf-surface-muted);
+  color: var(--hf-muted);
+}
+
+.chatbot-request-commands .rc-ctl {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--hf-border);
+  border-radius: 8px;
+  background-color: var(--hf-surface);
+  color: var(--hf-ink);
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.chatbot-request-commands .rc-prefix + .rc-ctl {
+  border-radius: 0 8px 8px 0;
+}
+
+.chatbot-request-commands textarea.rc-ctl {
+  resize: vertical;
+  min-height: 84px;
+}
+
+.chatbot-request-commands .rc-ctl:focus-visible {
+  outline: 2px solid var(--hf-action);
+  outline-offset: 1px;
+}
+
+.chatbot-request-commands .rc-ctl[aria-invalid='true'] {
+  border-color: var(--hf-danger);
+}
+
+.chatbot-request-commands .rc-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chatbot-request-commands .rc-meta p {
+  margin: 0;
+}
+
+.chatbot-request-commands .rc-counter {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.chatbot-request-commands .rc-error {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--hf-danger);
+}
+
+/* ── Radio rows ────────────────────────────────────────────────────────────── */
+
+.chatbot-request-commands .rc-radios {
+  display: grid;
+  gap: 8px;
+}
+
+.chatbot-request-commands .rc-radio {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background-color: var(--hf-surface);
+  color: var(--hf-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chatbot-request-commands .rc-radio[aria-checked='true'] {
+  border-color: var(--hf-action);
+  background-color: var(--hf-active-soft);
+}
+
+.chatbot-request-commands .rc-radio:focus-visible {
+  outline: 2px solid var(--hf-action);
+  outline-offset: 2px;
+}
+
+.chatbot-request-commands .rc-radio:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.chatbot-request-commands .rc-radio__mark {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  border: 2px solid var(--hf-border);
+  border-radius: 50%;
+}
+
+.chatbot-request-commands .rc-radio[aria-checked='true'] .rc-radio__mark {
+  border-color: var(--hf-action);
+  background: radial-gradient(circle, var(--hf-action) 0 45%, transparent 50%);
+}
+
+.chatbot-request-commands .rc-radio__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.chatbot-request-commands .rc-radio__text b {
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.chatbot-request-commands .rc-radio__text small {
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+  overflow-wrap: anywhere;
+}
+
+/* ── Hints, impact, footer ─────────────────────────────────────────────────── */
+
+.chatbot-request-commands .rc-hint,
+.chatbot-request-commands .rc-impact {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background-color: var(--hf-surface-muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.chatbot-request-commands .rc-impact {
+  flex-wrap: nowrap;
+  background-color: var(--hf-warning-soft);
+  border-color: color-mix(in srgb, var(--hf-warning) 35%, var(--hf-border));
+}
+
+.chatbot-request-commands .rc-impact > div {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
+
+.chatbot-request-commands .rc-impact--changed {
+  border-color: var(--hf-danger);
+}
+
+.chatbot-request-commands .rc-footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 0 calc(4px + env(safe-area-inset-bottom));
+  background-color: var(--hf-surface);
+  border-top: 1px solid var(--hf-border);
+}
+
+/* ── Conflict notice (rail and sheet) ──────────────────────────────────────── */
+
+.chatbot-request-commands .rc-notice,
+.chatbot-request-detail .rc-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border: 1px solid var(--hf-danger-border, var(--hf-danger));
+  border-radius: var(--hf-radius-card);
+  background-color: var(--hf-danger-soft);
+  color: var(--hf-ink);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.chatbot-request-commands .rc-notice > div,
+.chatbot-request-detail .rc-notice > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.chatbot-request-commands .rc-notice strong,
+.chatbot-request-detail .rc-notice strong {
+  font-weight: 600;
+  color: var(--hf-danger);
+}
+
+.chatbot-request-commands .rc-notice__actions,
+.chatbot-request-detail .rc-notice__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.chatbot-request-commands .rc-notice__tech,
+.chatbot-request-detail .rc-notice__tech {
+  font-size: 0.75rem;
+  color: var(--hf-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chatbot-request-commands * {
+    transition: none !important;
+  }
+}

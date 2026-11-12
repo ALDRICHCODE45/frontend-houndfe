@@ -226,3 +226,34 @@ describe('RequestDetailActionPanel', () => {
     })
   })
 })
+
+describe('RequestDetailActionPanel — a command in flight (T2.U4)', () => {
+  const mountPending = (variant: 'panel' | 'bar' = 'panel') =>
+    mount(RequestDetailActionPanel, {
+      props: {
+        allowed: ['CLAIM', 'CANCEL'],
+        denied: [],
+        assignee: null,
+        status: 'NEW',
+        version: 1,
+        variant,
+        pendingAction: 'CLAIM',
+      },
+      global,
+    })
+
+  it('disables every action while one is being sent and ignores clicks', async () => {
+    const wrapper = mountPending()
+    for (const action of ['CLAIM', 'CANCEL']) {
+      expect(wrapper.get(`[data-testid="action-${action}"]`).attributes('disabled')).toBeDefined()
+    }
+    await wrapper.get('[data-testid="action-CLAIM"]').trigger('click')
+    expect(wrapper.emitted('action')).toBeUndefined()
+  })
+
+  it('disables the mobile bar buttons too', () => {
+    const wrapper = mountPending('bar')
+    expect(wrapper.get('[data-testid="bar-primary"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-testid="bar-more"]').attributes('disabled')).toBeDefined()
+  })
+})

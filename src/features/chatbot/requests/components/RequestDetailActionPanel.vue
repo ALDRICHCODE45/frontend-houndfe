@@ -37,8 +37,10 @@ const props = withDefaults(
     version: number
     currentUserId?: string | null
     variant?: 'panel' | 'bar'
+    /** The action being sent: every button waits, and that one shows it is working. */
+    pendingAction?: ChatbotRequestAction | null
   }>(),
-  { currentUserId: null, variant: 'panel' },
+  { currentUserId: null, variant: 'panel', pendingAction: null },
 )
 
 const emit = defineEmits<{ action: [action: ChatbotRequestAction] }>()
@@ -89,7 +91,7 @@ function reasonId(action: ChatbotRequestAction): string {
 }
 
 function trigger(item: ActionItem): void {
-  if (item.reason !== null) return
+  if (item.reason !== null || props.pendingAction !== null) return
   moreOpen.value = false
   emit('action', item.action)
 }
@@ -129,7 +131,8 @@ function trigger(item: ActionItem): void {
           :icon="item.icon"
           :color="item.action === 'CANCEL' ? 'error' : item.primary ? 'primary' : 'neutral'"
           :variant="item.primary ? 'solid' : 'outline'"
-          :disabled="item.reason !== null"
+          :disabled="item.reason !== null || pendingAction !== null"
+          :loading="pendingAction === item.action"
           :aria-describedby="item.reason !== null ? reasonId(item.action) : undefined"
           block
           @click="trigger(item)"
@@ -155,12 +158,15 @@ function trigger(item: ActionItem): void {
         :label="primaryItem ? undefined : `Acciones (${rest.length})`"
         :aria-label="primaryItem ? 'Más acciones' : undefined"
         :aria-expanded="moreOpen"
+        :disabled="pendingAction !== null"
         @click="moreOpen = !moreOpen"
       />
       <UButton
         v-if="primaryItem"
         data-testid="bar-primary"
         color="primary"
+        :disabled="pendingAction !== null"
+        :loading="pendingAction === primaryItem.action"
         :icon="primaryItem.icon"
         :label="primaryItem.label"
         @click="trigger(primaryItem)"

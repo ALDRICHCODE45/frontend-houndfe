@@ -8,14 +8,16 @@
  * permission the backend documents (`read:CustomerPhone`, `read:ChatbotConversation`); the action
  * buttons only follow `allowedActions` / `deniedActions` — the view never decides them.
  *
- * Commands (claim, release, reassign, resolve, cancel, merge, link) are unit 4: `onAction` is the
- * placeholder it replaces.
+ * Commands (claim, release, reassign, resolve, cancel, merge, link) live in `RequestCommandHost`
+ * (T2.U4): the action panels emit `action`, the view hands it to the host, which sends the command
+ * or opens its form and shows the conflict notice above «Qué hacer».
  */
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import DetailPageFrame from '@/core/shared/components/DetailPageFrame.vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import RequestCommandHost from '../components/RequestCommandHost.vue'
 import RequestDetailActionPanel from '../components/RequestDetailActionPanel.vue'
 import RequestDetailAudit from '../components/RequestDetailAudit.vue'
 import RequestDetailClosedNotice from '../components/RequestDetailClosedNotice.vue'
@@ -90,10 +92,12 @@ function onMoreAudit(): void {
   else void audit.fetchNextPage()
 }
 
-// ─── Actions (placeholder for unit 4) ─────────────────────────────────────────
+// ─── Actions: the host sends the command or opens its form ───────────────────
+const commands = ref<InstanceType<typeof RequestCommandHost> | null>(null)
+const pendingAction = ref<ChatbotRequestAction | null>(null)
+
 function onAction(action: ChatbotRequestAction): void {
-  // Unit 4 opens the form or sends the command for `action`; unit 3 is read only.
-  void action
+  commands.value?.start(action)
 }
 </script>
 
@@ -183,6 +187,12 @@ function onAction(action: ChatbotRequestAction): void {
 
         <aside class="rd-rail" aria-label="Tiempo y acciones">
           <RequestDetailSlaPanel :request="detail" :current-user-id="currentUserId" />
+          <RequestCommandHost
+            ref="commands"
+            v-model:pending-action="pendingAction"
+            :detail="detail"
+            @refresh="refetch()"
+          />
           <section class="rd-panel rd-rail__actions" aria-labelledby="rd-actions-title">
             <h2 id="rd-actions-title">Qué hacer</h2>
             <RequestDetailActionPanel
@@ -192,6 +202,7 @@ function onAction(action: ChatbotRequestAction): void {
               :status="detail.status"
               :version="detail.version"
               :current-user-id="currentUserId"
+              :pending-action="pendingAction"
               @action="onAction"
             />
           </section>
@@ -209,6 +220,7 @@ function onAction(action: ChatbotRequestAction): void {
           :status="detail.status"
           :version="detail.version"
           :current-user-id="currentUserId"
+          :pending-action="pendingAction"
           @action="onAction"
         />
       </div>
