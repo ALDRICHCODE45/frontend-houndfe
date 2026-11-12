@@ -238,6 +238,14 @@ export const navigationGroups: NavGroup[] = [
         to: '/system/catalog-settings',
         permission: ['read', 'TenantCatalogSettings'],
       },
+      // ODD chatbot-requests-inbox T5.S: the route guard repeats read:ChatbotSettings.
+      {
+        id: 'sistema-chatbot-settings',
+        label: 'Atención del chatbot',
+        icon: 'i-lucide-bot',
+        to: '/sistema/atencion-chatbot',
+        permission: ['read', 'ChatbotSettings'],
+      },
       // ODD shipping-settings T1 (S2 «Envíos + Validaciones aparte»): the route
       // guards repeat both checks; the Zonas tab also needs read:DeliveryZone.
       {

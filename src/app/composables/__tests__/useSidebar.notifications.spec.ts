@@ -36,9 +36,9 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
       if (action === 'read' && subject === 'TenantCatalogSettings') {
         return state.tenantCatalogReturn
       }
-      // Shipping entries share the Sistema group; follow the catalog flag so
-      // the group-absence case still has no children.
-      if (subject === 'ShippingSettings' || subject === 'DeliveryZone') {
+      // Shipping and chatbot settings share the Sistema group; follow the catalog
+      // flag so the group-absence case still has no children.
+      if (subject === 'ShippingSettings' || subject === 'DeliveryZone' || subject === 'ChatbotSettings') {
         return state.tenantCatalogReturn
       }
       return true

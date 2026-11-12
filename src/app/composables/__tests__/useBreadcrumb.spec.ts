@@ -103,6 +103,15 @@ describe('useBreadcrumb', () => {
     ])
   })
 
+  it('resolves Sistema / Atención del chatbot from the registry', () => {
+    routePath.value = '/sistema/atencion-chatbot'
+    const { breadcrumb } = useBreadcrumb()
+    expect(breadcrumb.value).toEqual([
+      { label: 'Sistema' },
+      { label: 'Atención del chatbot', to: '/sistema/atencion-chatbot' },
+    ])
+  })
+
   it('resolves the sistema notification config section', () => {
     routePath.value = '/sistema/configuracion/notificaciones'
     const { breadcrumb } = useBreadcrumb()

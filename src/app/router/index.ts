@@ -116,6 +116,11 @@ const NotificationConfigView = () =>
 // layers the editable form + confirmation modal on the same route.
 const TenantCatalogSettingsView = () =>
   import('@/features/system/catalog-settings/views/TenantCatalogSettingsView.vue')
+// ─── Chatbot settings (ODD chatbot-requests-inbox T5.S) ──────────────────
+// Tenant-scoped Sistema route guarded by read:ChatbotSettings; editing and «Aplicar a todas»
+// are gated inside the view (update:ChatbotSettings, update:ChatbotSettingsAllBranches).
+const ChatbotSettingsView = () =>
+  import('@/features/system/chatbot-settings/views/ChatbotSettingsView.vue')
 // ─── Shipping settings (ODD shipping-settings T1, S2) ─────────────────────
 // Envíos keeps its tab in the query (?tab=zonas|cajas|origen|horario); the
 // zone validations queue has its own entry, guarded by validate:DeliveryZone.
@@ -533,6 +538,17 @@ const router = createRouter({
         layout: 'dashboard',
         rememberAsLanding: true,
         permission: ['read', 'TenantCatalogSettings'] as RoutePermission,
+      },
+    },
+    // ─── Chatbot settings (ODD chatbot-requests-inbox T5.S) ──────────────────
+    {
+      path: '/sistema/atencion-chatbot',
+      name: 'chatbot-settings',
+      component: ChatbotSettingsView,
+      meta: {
+        layout: 'dashboard',
+        rememberAsLanding: true,
+        permission: ['read', 'ChatbotSettings'] as RoutePermission,
       },
     },
     // ─── Shipping settings (ODD shipping-settings T1, S2) ────────────────────
