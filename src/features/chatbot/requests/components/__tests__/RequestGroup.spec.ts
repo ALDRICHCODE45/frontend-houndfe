@@ -193,10 +193,10 @@ describe('RequestGroup — «Ver las N restantes»', () => {
     expect(more.lastOptions!.filters?.() ?? {}).toEqual({})
   })
 
-  it('a scheduled tab reads the open requests of the customer', async () => {
+  it('a scheduled tab reads the scheduled requests of the customer', async () => {
     const wrapper = await mountGroup(grouped(), { tab: 'scheduled' })
     await wrapper.get('[data-testid="group-more"] button').trigger('click')
-    expect(more.lastOptions!.status!()).toBe('open')
+    expect(more.lastOptions!.status!()).toBe('scheduled')
   })
 
   it('while loading the button is busy and disabled', async () => {

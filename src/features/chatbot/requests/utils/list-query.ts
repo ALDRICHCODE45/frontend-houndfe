@@ -124,9 +124,9 @@ export function historyFiltersOf(
   return state.subtype ? { subtype: state.subtype } : {}
 }
 
-/** Status of `?customerKey=` for a tab (it has no `scheduled`: those are open requests). */
+/** Status of `?customerKey=` for a tab: the same values as groups (BE confirmed `scheduled`). */
 export function customerStatusOf(tab: RequestsListTab): ChatbotRequestCustomerParams['status'] {
-  if (tab === 'resolved' || tab === 'cancelled') return tab
+  if (tab === 'resolved' || tab === 'cancelled' || tab === 'scheduled') return tab
   return 'open'
 }
 

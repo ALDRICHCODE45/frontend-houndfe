@@ -207,7 +207,7 @@ export type ChatbotRequestCustomerFilters = Pick<
 export interface ChatbotRequestCustomerParams extends ChatbotRequestCustomerFilters {
   /** Required token of a group. */
   customerKey: string
-  status?: Exclude<ChatbotRequestListStatus, 'scheduled'>
+  status?: ChatbotRequestListStatus
   cursor?: string
   limit?: number
 }

@@ -145,9 +145,10 @@ describe('historyFiltersOf / customerStatusOf', () => {
     expect(historyFiltersOf(state({ tab: 'history' }))).toEqual({})
   })
 
-  it('«Ver las N restantes» asks for the tab status; scheduled reads the open ones', () => {
+  it('«Ver las N restantes» asks for the tab status, scheduled included (BE: same DTO as groups)', () => {
     expect(customerStatusOf('open')).toBe('open')
-    expect(customerStatusOf('scheduled')).toBe('open')
+    expect(customerStatusOf('scheduled')).toBe('scheduled')
+    expect(customerStatusOf('history')).toBe('open')
     expect(customerStatusOf('resolved')).toBe('resolved')
     expect(customerStatusOf('cancelled')).toBe('cancelled')
   })
