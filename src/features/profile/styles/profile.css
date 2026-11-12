@@ -1,0 +1,214 @@
+@import '../../../core/shared/design-system/houndfe-ui.css';
+
+/* «Mi perfil» (design/notifications/02-panel-lateral «Preferencias /perfil», mobile frame in
+ * 04-movil-y-estados). Selection without checkboxes: whole-row switches, the same pattern as the
+ * catalog settings rows. Colors come only from the shared `.hf-theme` roles, so dark mode follows
+ * the tokens; rest borders are --hf-border (--hf-field-border is for hover/emphasis only). */
+.hf-theme.profile-visual {
+  --pf-hover: color-mix(in srgb, var(--hf-surface-muted) 45%, var(--hf-surface));
+  --pf-shadow: 0 1px 2px color-mix(in srgb, var(--hf-ink) 5%, transparent);
+  max-width: 760px;
+}
+
+.profile-visual .pf-group {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.profile-visual .pf-group-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.profile-visual .pf-group-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+.profile-visual .pf-group-sub {
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+}
+
+.profile-visual .pf-surface {
+  overflow: hidden;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background: var(--hf-surface);
+  box-shadow: var(--pf-shadow);
+}
+
+/* ── Account ─────────────────────────────────────────────────────────────── */
+.profile-visual .pf-kv {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 0.5rem 0.75rem;
+  margin: 0;
+  padding: 1rem 1.25rem;
+  font-size: 0.875rem;
+}
+.profile-visual .pf-kv dt {
+  color: var(--hf-muted);
+}
+.profile-visual .pf-kv dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--hf-ink);
+  overflow-wrap: anywhere;
+}
+
+/* ── Rows ────────────────────────────────────────────────────────────────── */
+.profile-visual .pf-surface > * + *,
+.profile-visual .pf-surface > .pf-loading > * + * {
+  border-top: 1px solid var(--hf-border);
+}
+
+.profile-visual .pf-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 64px;
+  padding: 0.75rem 1.25rem;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.profile-visual .pf-switch-row:hover {
+  background: var(--pf-hover);
+}
+.profile-visual .pf-switch-row:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: -2px;
+}
+.profile-visual .pf-switch-row[aria-busy='true'] {
+  cursor: progress;
+}
+
+.profile-visual .pf-text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 0.125rem;
+}
+.profile-visual .pf-text--grow {
+  min-width: 200px;
+}
+.profile-visual .pf-title {
+  font-weight: 500;
+  color: var(--hf-ink);
+}
+.profile-visual .pf-desc {
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+}
+.profile-visual .pf-help {
+  margin-top: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--hf-ink);
+}
+
+.profile-visual .pf-state {
+  min-width: 68px;
+  text-align: right;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--hf-muted);
+}
+.profile-visual .pf-switch-row[aria-checked='true'] .pf-state {
+  color: var(--hf-active);
+}
+.profile-visual .pf-switch-row[aria-busy='true'] .pf-state {
+  color: var(--hf-muted);
+}
+
+/* Off track follows the shared off-switch rule (muted track, --hf-muted inset outline, muted
+ * thumb); on is the action pairing. */
+.profile-visual .pf-track {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background-color: var(--hf-surface-muted);
+  box-shadow: inset 0 0 0 1px var(--hf-muted);
+  transition: background-color 0.15s, box-shadow 0.15s;
+}
+.profile-visual .pf-track::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: var(--hf-muted);
+  transition: transform 0.15s, background-color 0.15s;
+}
+.profile-visual [aria-checked='true'] > .pf-track {
+  background-color: var(--hf-action);
+  box-shadow: none;
+}
+.profile-visual [aria-checked='true'] > .pf-track::after {
+  background-color: var(--hf-on-action);
+  transform: translateX(20px);
+}
+
+/* ── Failed save ─────────────────────────────────────────────────────────── */
+.profile-visual .pf-switch.is-error .pf-switch-row {
+  background: var(--hf-danger-soft);
+  box-shadow: inset 0 0 0 1px var(--hf-danger);
+}
+.profile-visual .pf-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.25rem 0.625rem;
+  border-top: 1px solid var(--hf-danger-border);
+  background: var(--hf-danger-soft);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--hf-danger);
+}
+.profile-visual .pf-error__icon {
+  flex: none;
+}
+
+/* ── Browser row and loading ─────────────────────────────────────────────── */
+.profile-visual .pf-extra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 64px;
+  padding: 0.75rem 1.25rem;
+  background: var(--hf-surface);
+}
+
+/* ── Small screens: the state word drops under the text, the track stays on the right ── */
+@media (max-width: 480px) {
+  .profile-visual .pf-switch-row,
+  .profile-visual .pf-extra {
+    padding-inline: 1rem;
+  }
+  .profile-visual .pf-state {
+    min-width: 0;
+  }
+  .profile-visual .pf-kv {
+    grid-template-columns: 76px minmax(0, 1fr);
+    padding-inline: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-visual .pf-track,
+  .profile-visual .pf-track::after {
+    transition: none;
+  }
+}

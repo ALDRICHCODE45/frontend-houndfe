@@ -40,6 +40,12 @@ describe('useBreadcrumb', () => {
     expect(breadcrumb.value).toEqual([{ label: 'POS' }, { label: 'Ventas', to: '/pos/ventas' }])
   })
 
+  it('uses Mi perfil for the profile page, which has no navigation entry', () => {
+    routePath.value = '/perfil'
+    const { breadcrumb } = useBreadcrumb()
+    expect(breadcrumb.value).toEqual([{ label: 'Mi perfil', to: '/perfil' }])
+  })
+
   it('uses Chatbot / Solicitudes for the request inbox URL', () => {
     routePath.value = '/chatbot/solicitudes'
     const { breadcrumb } = useBreadcrumb()

@@ -59,6 +59,8 @@ const HumanDecisionsView = () =>
 const ChatbotRequestsView = () => import('@/features/chatbot/requests/views/ChatbotRequestsView.vue')
 const ChatbotRequestDetailView = () =>
   import('@/features/chatbot/requests/views/ChatbotRequestDetailView.vue')
+// «Mi perfil» (chatbot-requests-inbox T3.N2): for every authenticated user, no permission.
+const ProfileView = () => import('@/features/profile/views/ProfileView.vue')
 const PromotionsView = () => import('@/features/POS/promotions/views/PromotionsView.vue')
 const PromotionDetailView = () => import('@/features/POS/promotions/views/PromotionDetailView.vue')
 // ─── Quotations module (sdd-quotations-crud S1, REQ-QTN-001) ──────────────────
@@ -278,6 +280,16 @@ const router = createRouter({
         layout: 'dashboard',
         permission: ['read', 'ChatbotRequest'] as RoutePermission,
       },
+    },
+    // ─── Mi perfil (chatbot-requests-inbox T3.N2, S4) ────────────────────────
+    // Account data and notification preferences of the signed-in person (handoff 13 §3: no CASL
+    // permission). Deliberately without `permission` meta and without `rememberAsLanding`: it is
+    // not a work area to land on. The user menu links to it by route name `profile`.
+    {
+      path: '/perfil',
+      name: 'profile',
+      component: ProfileView,
+      meta: { layout: 'dashboard' },
     },
     // ─── Pending human decisions (ODD human-decisions-restock-inbox HD3A) ────
     // Kept without a nav entry until the BE backfill (handoff 12 §5); the redirect is an owner decision.
