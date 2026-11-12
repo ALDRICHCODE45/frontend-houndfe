@@ -45,6 +45,46 @@ describe('useCustomerRequests («Ver las N restantes»)', () => {
     ).toBeDefined()
   })
 
+  it('passes the list filters, so the rest of the group respects them', async () => {
+    const filters = ref({ assignee: 'unassigned', subtype: 'COMPLAINT' as const, q: 'rosa' })
+    const { client } = withQuery(() =>
+      useCustomerRequests({ customerKey: 'k1.a', status: 'open', filters }),
+    )
+    await flushPromises()
+
+    expect(listByCustomer.mock.calls[0]![0]).toEqual({
+      customerKey: 'k1.a',
+      status: 'open',
+      assignee: 'unassigned',
+      subtype: 'COMPLAINT',
+      q: 'rosa',
+      limit: 25,
+    })
+    expect(
+      client.getQueryData(
+        chatbotRequestKeys.byCustomer('tenant-1', 'k1.a', {
+          status: 'open',
+          assignee: 'unassigned',
+          subtype: 'COMPLAINT',
+          q: 'rosa',
+          limit: 25,
+        }),
+      ),
+    ).toBeDefined()
+  })
+
+  it('a filter change reads again with the new filters (and the same token)', async () => {
+    const filters = ref<{ overdue?: boolean }>({})
+    withQuery(() => useCustomerRequests({ customerKey: 'k1.a', filters }))
+    await flushPromises()
+    filters.value = { overdue: true }
+    await flushPromises()
+
+    expect(listByCustomer).toHaveBeenCalledTimes(2)
+    expect(listByCustomer.mock.calls[1]![0]).toMatchObject({ customerKey: 'k1.a', overdue: true })
+    expect(listByCustomer.mock.calls[0]![0]).not.toHaveProperty('overdue')
+  })
+
   it('accumulates pages by cursor', async () => {
     listByCustomer
       .mockResolvedValueOnce({ items: [makeRow({ id: 'a' })], nextCursor: 'c2' })

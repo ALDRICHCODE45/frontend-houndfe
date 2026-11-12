@@ -6,7 +6,7 @@
  * clientes» (next cursor) and, on the open tab, the SLA legend.
  */
 import { computed } from 'vue'
-import type { ChatbotRequestGroup } from '../interfaces/chatbot-request.types'
+import type { ChatbotRequestCustomerFilters, ChatbotRequestGroup } from '../interfaces/chatbot-request.types'
 import type { RequestsListTab } from '../utils/list-query'
 import RequestGroup from './RequestGroup.vue'
 import RequestsListLegend from './RequestsListLegend.vue'
@@ -19,12 +19,14 @@ const props = withDefaults(
     hasNextPage: boolean
     isFetchingNextPage: boolean
     currentUserId?: string | null
+    /** The list filters in force, handed to each group for «Ver las N restantes». */
+    filters?: ChatbotRequestCustomerFilters
     /** Injected "current" instant (tests); defaults to the real clock. */
     now?: Date
     /** IANA zone for the times; defaults to the runtime zone. */
     timeZone?: string
   }>(),
-  { currentUserId: null, now: undefined, timeZone: undefined },
+  { currentUserId: null, filters: undefined, now: undefined, timeZone: undefined },
 )
 
 const emit = defineEmits<{
@@ -67,6 +69,7 @@ const footerText = computed(() => {
         :tab="tab"
         layout="table"
         :current-user-id="currentUserId"
+        :filters="filters"
         :now="now"
         :time-zone="timeZone"
         @stale="emit('stale')"
@@ -81,6 +84,7 @@ const footerText = computed(() => {
         :tab="tab"
         layout="cards"
         :current-user-id="currentUserId"
+        :filters="filters"
         :now="now"
         :time-zone="timeZone"
         @stale="emit('stale')"

@@ -764,3 +764,34 @@
     width: 100%;
   }
 }
+
+/* Historial · «Cliente» column and the customer line above a mobile card */
+.hf-ui .chatbot-hcustomer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.hf-ui .chatbot-hcustomer__name {
+  overflow: hidden;
+  color: var(--hf-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hf-ui .chatbot-hcustomer__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--hf-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.hf-ui .chatbot-hcustomer--card {
+  padding: 0.5rem 0.875rem 0;
+}

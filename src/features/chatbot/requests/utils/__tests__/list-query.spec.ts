@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   clearListFilters,
+  customerFiltersOf,
   customerStatusOf,
   groupsFiltersOf,
   hasActiveFilters,
@@ -118,6 +119,21 @@ describe('groupsFiltersOf — tab and chips become GET /groups params', () => {
       subtype: 'RESTOCK',
     })
     expect(groupsFiltersOf(state({ q: '   ' }))).not.toHaveProperty('q')
+  })
+})
+
+describe('customerFiltersOf — the group filters «Ver las N restantes» keeps', () => {
+  it('is empty without filters (the tab is the status, not a filter)', () => {
+    expect(customerFiltersOf(state())).toEqual({})
+    expect(customerFiltersOf(state({ tab: 'resolved' }))).toEqual({})
+  })
+
+  it('carries search, assignee, chips and subtype exactly like the groups request', () => {
+    const active = state({ q: 'rosa', unassigned: true, overdue: true, windowClosingSoon: true, subtype: 'COMPLAINT' })
+    const { status, ...groups } = groupsFiltersOf(active)
+    expect(status).toBe('open')
+    expect(customerFiltersOf(active)).toEqual(groups)
+    expect(customerFiltersOf(state({ mine: true }))).toEqual({ assignee: 'me' })
   })
 })
 

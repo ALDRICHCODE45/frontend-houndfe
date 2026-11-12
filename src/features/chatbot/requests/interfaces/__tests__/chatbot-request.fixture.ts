@@ -66,4 +66,5 @@ export const countsFixture: ChatbotRequestCounts = {
   resolved7d: 12,
   cancelled7d: 5,
   openGroups: 9,
+  unassigned: 4,
 }

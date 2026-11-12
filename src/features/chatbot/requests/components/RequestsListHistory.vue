@@ -11,6 +11,7 @@ import type { TableColumn } from '@nuxt/ui'
 import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
 import type { ChatbotRequestRow } from '../interfaces/chatbot-request.types'
 import { closedLine, formatAge } from '../utils/list-format'
+import { groupDisplayName, groupPhone } from '../utils/list-group'
 import { SUBTYPE_ICONS, SUBTYPE_LABELS } from '../utils/requestLabels'
 import RequestGroupRow from './RequestGroupRow.vue'
 import RequestStatusBadge from './RequestStatusBadge.vue'
@@ -41,13 +42,17 @@ const emit = defineEmits<{
 
 const router = useRouter()
 
-const columns: TableColumn<ChatbotRequestRow>[] = [
+// «Cliente» only when the backend sends the customer on the rows (handoff 14 §15.4).
+const hasCustomer = computed(() => props.rows.some((row) => row.customer))
+
+const columns = computed<TableColumn<ChatbotRequestRow>[]>(() => [
   { id: 'request', header: 'Solicitud' },
+  ...(hasCustomer.value ? [{ id: 'customer', header: 'Cliente', size: 200 }] : []),
   { id: 'status', header: 'Estado', size: 160 },
   { id: 'closed', header: 'Cierre', size: 220 },
   { id: 'created', header: 'Creada', size: 120 },
   { id: 'open', header: 'Abrir', size: 64, meta: { class: { th: 'w-16', td: 'w-16 text-right' } } },
-]
+])
 
 const detailTo = (row: ChatbotRequestRow) => ({ name: 'chatbot-request-detail', params: { id: row.id } })
 const openRow = (row: ChatbotRequestRow) => void router.push(detailTo(row))
@@ -92,6 +97,16 @@ const isCards = computed(() => props.layout === 'cards')
         </span>
       </template>
 
+      <template #customer-cell="{ row }">
+        <div v-if="row.original.customer" class="chatbot-hcustomer" data-testid="history-customer">
+          <span class="chatbot-hcustomer__name">{{ groupDisplayName(row.original.customer) }}</span>
+          <span class="chatbot-hcustomer__meta">
+            <span data-testid="history-customer-phone">{{ groupPhone(row.original.customer) }}</span>
+            <span v-if="row.original.customer.isTrusted" class="chatbot-trusted">De confianza</span>
+          </span>
+        </div>
+      </template>
+
       <template #status-cell="{ row }">
         <RequestStatusBadge :row="row.original" :current-user-id="currentUserId" />
       </template>
@@ -114,10 +129,18 @@ const isCards = computed(() => props.layout === 'cards')
       </template>
 
       <template #mobile-card="{ row }">
+        <div v-if="row.customer" class="chatbot-hcustomer chatbot-hcustomer--card" data-testid="history-card-customer">
+          <span class="chatbot-hcustomer__name">{{ groupDisplayName(row.customer) }}</span>
+          <span class="chatbot-hcustomer__meta">
+            <span>{{ groupPhone(row.customer) }}</span>
+            <span v-if="row.customer.isTrusted" class="chatbot-trusted">De confianza</span>
+          </span>
+        </div>
         <RequestGroupRow
           :row="row"
           layout="cards"
           tab="history"
+          :customer-name="row.customer ? groupDisplayName(row.customer) : null"
           :current-user-id="currentUserId"
           :now="now"
           :time-zone="timeZone"

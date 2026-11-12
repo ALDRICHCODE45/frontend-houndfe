@@ -77,15 +77,43 @@ describe('chatbotRequestApi reads', () => {
     })
   })
 
-  it('by customer: never sends groups-only filters', async () => {
+  it('by customer: sends the list filters of groups (handoff 14 §15.1), false included', async () => {
     get.mockResolvedValue({ data: { items: [], nextCursor: null } })
     await chatbotRequestApi.listByCustomer({
       customerKey: 'k1.a',
-      // @ts-expect-error `subtype` belongs to groups/history, not to ?customerKey=
-      subtype: 'RESTOCK',
+      status: 'open',
+      subtype: 'COMPLAINT',
+      assignee: 'unassigned',
+      overdue: true,
+      windowClosingSoon: false,
+      q: 'rosa',
+      limit: 25,
     })
-    expect(get.mock.calls[0]![1]).toMatchObject({ params: { customerKey: 'k1.a' } })
-    expect((get.mock.calls[0]![1] as { params: object }).params).not.toHaveProperty('subtype')
+    expect(get).toHaveBeenCalledWith('/chatbot-requests', {
+      params: {
+        customerKey: 'k1.a',
+        status: 'open',
+        subtype: 'COMPLAINT',
+        assignee: 'unassigned',
+        overdue: true,
+        windowClosingSoon: false,
+        q: 'rosa',
+        limit: 25,
+      },
+      signal: undefined,
+    })
+  })
+
+  it('by customer: leaves out blank filters and drops any key it does not know', async () => {
+    get.mockResolvedValue({ data: { items: [], nextCursor: null } })
+    await chatbotRequestApi.listByCustomer({
+      customerKey: 'k1.a',
+      q: '   ',
+      assignee: undefined,
+      // @ts-expect-error `resolvedBy` belongs to history, not to ?customerKey=
+      resolvedBy: 'u-1',
+    })
+    expect((get.mock.calls[0]![1] as { params: object }).params).toEqual({ customerKey: 'k1.a' })
   })
 
   it('counts: GET /chatbot-requests/counts with no params', async () => {

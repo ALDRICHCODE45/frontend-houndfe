@@ -16,6 +16,7 @@ import { emptyCopy, noMatchTitle } from '../utils/list-copy'
 import { pausedResumeAt } from '../utils/list-group'
 import {
   clearListFilters,
+  customerFiltersOf,
   groupsFiltersOf,
   hasActiveFilters,
   historyFiltersOf,
@@ -76,6 +77,7 @@ const clearFilters = () => update(clearListFilters(state.value))
 const isHistory = computed(() => state.value.tab === 'history')
 const filtersActive = computed(() => hasActiveFilters(state.value))
 
+const customerFilters = computed(() => customerFiltersOf(state.value))
 const grouped = useRequestGroups({ filters: () => groupsFiltersOf(state.value) })
 const history = useRequestHistory({
   filters: () => historyFiltersOf(state.value),
@@ -193,6 +195,7 @@ function reloadGroups() {
             :has-next-page="grouped.hasNextPage.value"
             :is-fetching-next-page="grouped.isFetchingNextPage.value"
             :current-user-id="currentUserId"
+            :filters="customerFilters"
             @load-more="grouped.fetchNextPage()"
             @stale="groupStale = true"
           />

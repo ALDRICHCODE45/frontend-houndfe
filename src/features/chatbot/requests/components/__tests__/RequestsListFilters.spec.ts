@@ -64,12 +64,23 @@ describe('RequestsListFilters — tabs', () => {
 })
 
 describe('RequestsListFilters — chips', () => {
-  it('shows the four toggle chips with their counts (Sin responsable has none)', () => {
+  it('shows the four toggle chips with their counts', () => {
     const wrapper = mountFilters()
     expect(chip(wrapper, 'mine').text().replace(/\s+/g, ' ')).toBe('Mías 2')
-    expect(chip(wrapper, 'unassigned').text()).toBe('Sin responsable')
+    expect(chip(wrapper, 'unassigned').text().replace(/\s+/g, ' ')).toBe('Sin responsable 4')
     expect(chip(wrapper, 'overdue').text().replace(/\s+/g, ' ')).toBe('Vencidas 1')
     expect(chip(wrapper, 'windowClosingSoon').text().replace(/\s+/g, ' ')).toBe('Ventana por cerrar 3')
+  })
+
+  it('Sin responsable has no number when the backend sends no counts.unassigned', () => {
+    const wrapper = mountFilters({ counts: { ...countsFixture, unassigned: undefined } })
+    expect(chip(wrapper, 'unassigned').text()).toBe('Sin responsable')
+    expect(chip(wrapper, 'mine').text().replace(/\s+/g, ' ')).toBe('Mías 2')
+  })
+
+  it('a zero unassigned count is shown, it is not «absent»', () => {
+    const wrapper = mountFilters({ counts: { ...countsFixture, unassigned: 0 } })
+    expect(chip(wrapper, 'unassigned').text().replace(/\s+/g, ' ')).toBe('Sin responsable 0')
   })
 
   it('reflects each active chip with aria-pressed', () => {

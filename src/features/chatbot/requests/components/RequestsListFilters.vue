@@ -67,7 +67,7 @@ const groupedTabs = computed(() =>
 
 const chips = computed<Array<{ id: RequestsListChip; label: string; pressed: boolean; count: number | null }>>(() => [
   { id: 'mine', label: 'Mías', pressed: props.mine, count: props.counts?.mine ?? null },
-  { id: 'unassigned', label: 'Sin responsable', pressed: props.unassigned, count: null },
+  { id: 'unassigned', label: 'Sin responsable', pressed: props.unassigned, count: props.counts?.unassigned ?? null },
   { id: 'overdue', label: 'Vencidas', pressed: props.overdue, count: props.counts?.overdue ?? null },
   {
     id: 'windowClosingSoon',

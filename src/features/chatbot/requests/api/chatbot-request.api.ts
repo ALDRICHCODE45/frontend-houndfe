@@ -49,7 +49,18 @@ const GROUPS_PARAMS = [
   'cursor',
   'limit',
 ] as const
-const CUSTOMER_PARAMS = ['customerKey', 'status', 'cursor', 'limit'] as const
+/** `?customerKey=` takes the same list filters as `groups` (handoff 14 §15.1) plus its own paging. */
+const CUSTOMER_PARAMS = [
+  'customerKey',
+  'status',
+  'subtype',
+  'assignee',
+  'overdue',
+  'windowClosingSoon',
+  'q',
+  'cursor',
+  'limit',
+] as const
 const HISTORY_PARAMS = ['subtype', 'resolvedBy', 'customerKey', 'from', 'to', 'cursor', 'limit'] as const
 const AUDIT_PARAMS = ['cursor', 'limit'] as const
 

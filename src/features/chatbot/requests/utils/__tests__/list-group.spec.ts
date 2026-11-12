@@ -3,6 +3,7 @@ import { makeGroup, makeRow } from '../../interfaces/__tests__/chatbot-request.f
 import {
   groupCountLabel,
   groupDisplayName,
+  groupOverdueCount,
   groupPhone,
   groupTone,
   mergeGroupRows,
@@ -54,6 +55,25 @@ describe('overdueCount', () => {
       makeRow({ id: 'c', status: 'RESOLVED', displayStatus: 'RESOLVED', overdueAt: '2026-11-10T16:00:00.000Z' }),
     ]
     expect(overdueCount(rows)).toBe(1)
+  })
+})
+
+describe('groupOverdueCount — exact count of the backend, local count for older backends', () => {
+  const overdueRow = (id: string) => makeRow({ id, overdueAt: '2026-11-11T16:00:00.000Z', displayStatus: 'EXPIRED' })
+
+  it('prefers group.overdueCount, even when the loaded rows say otherwise', () => {
+    const group = { ...makeGroup('k1.a', [makeRow({ id: 'a' })]), overdueCount: 13 }
+    expect(groupOverdueCount(group, group.requests)).toBe(13)
+  })
+
+  it('a backend zero is a zero (no fallback to the loaded rows)', () => {
+    const rows = [overdueRow('a')]
+    expect(groupOverdueCount({ ...makeGroup('k1.a', rows), overdueCount: 0 }, rows)).toBe(0)
+  })
+
+  it('without overdueCount it counts the rows on screen', () => {
+    const rows = [overdueRow('a'), overdueRow('b'), makeRow({ id: 'c' })]
+    expect(groupOverdueCount(makeGroup('k1.a', rows), rows)).toBe(2)
   })
 })
 

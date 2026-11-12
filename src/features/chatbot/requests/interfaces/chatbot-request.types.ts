@@ -116,6 +116,11 @@ export interface ChatbotRequestRow {
   slaLevel: ChatbotRequestSlaLevel | null
   allowedActions: ChatbotRequestAction[]
   deniedActions: ChatbotRequestDeniedAction[]
+  /**
+   * Only on `/history` rows (handoff 14 §15.4): the same card as a group header. Absent on a
+   * backend before 269804ce, so the history simply has no «Cliente» column then.
+   */
+  customer?: ChatbotRequestGroupCustomer
 }
 
 // ─── Groups, counts ───────────────────────────────────────────────────────────
@@ -136,6 +141,11 @@ export interface ChatbotRequestGroup {
   mostUrgentAt: string | null
   /** The customer's open total, whatever the filter. */
   openCount: number
+  /**
+   * Exact count of the customer's open requests with `overdueAt`, whatever the filter (`0` on the
+   * closed tabs). Absent on a backend before 269804ce: count the loaded rows instead.
+   */
+  overdueCount?: number
   /** Up to 10 matching rows. */
   requests: ChatbotRequestRow[]
   /** Matching rows left; page them with `GET /chatbot-requests?customerKey=`. */
@@ -163,6 +173,8 @@ export interface ChatbotRequestCounts {
   resolved7d: number
   cancelled7d: number
   openGroups: number
+  /** Open requests with no assignee, per request. Absent on a backend before 269804ce. */
+  unassigned?: number
 }
 
 // ─── Query params (only these keys are ever sent) ─────────────────────────────
@@ -186,7 +198,13 @@ export interface ChatbotRequestGroupsParams {
 
 export type ChatbotRequestGroupsFilters = Omit<ChatbotRequestGroupsParams, 'cursor'>
 
-export interface ChatbotRequestCustomerParams {
+/** The list filters `?customerKey=` accepts, with the same values and 400s as `groups` (§15.1). */
+export type ChatbotRequestCustomerFilters = Pick<
+  ChatbotRequestGroupsParams,
+  'subtype' | 'assignee' | 'overdue' | 'windowClosingSoon' | 'q'
+>
+
+export interface ChatbotRequestCustomerParams extends ChatbotRequestCustomerFilters {
   /** Required token of a group. */
   customerKey: string
   status?: Exclude<ChatbotRequestListStatus, 'scheduled'>

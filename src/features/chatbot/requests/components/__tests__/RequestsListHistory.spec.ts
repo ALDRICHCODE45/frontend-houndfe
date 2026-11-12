@@ -16,6 +16,7 @@ const AppDataTableStub = {
       <span v-for="c in columns" :key="c.id" data-testid="column-header" :data-column="c.id">{{ c.header }}</span>
       <div v-for="row in data" :key="row.id" data-testid="history-row" @click="rowOpen && rowOpen(row)">
         <slot name="request-cell" :row="{ original: row }" />
+        <slot name="customer-cell" :row="{ original: row }" />
         <slot name="status-cell" :row="{ original: row }" />
         <slot name="closed-cell" :row="{ original: row }" />
         <slot name="created-cell" :row="{ original: row }" />
@@ -105,6 +106,71 @@ describe('RequestsListHistory — flat table', () => {
   it('has no action buttons in the rows', async () => {
     const { wrapper } = await mountHistory([closed({ allowedActions: ['CLAIM', 'CANCEL'] })])
     expect(wrapper.get('[data-testid="history-row"]').find('button').exists()).toBe(false)
+  })
+})
+
+describe('RequestsListHistory — «Cliente» column (handoff 14 §15.4)', () => {
+  const customer = (patch: Partial<NonNullable<ChatbotRequestRow['customer']>> = {}) => ({
+    id: 'c-1',
+    displayName: 'Juan Pérez',
+    phone: '55 **** 5678',
+    isTrusted: false,
+    ...patch,
+  })
+  const headers = (w: Awaited<ReturnType<typeof mountHistory>>['wrapper']) =>
+    w.findAll('[data-testid="column-header"]').map((c) => c.text())
+
+  it('adds «Cliente» after «Solicitud» when the rows carry the customer', async () => {
+    const { wrapper } = await mountHistory([closed({ customer: customer() })])
+    expect(headers(wrapper)).toEqual(['Solicitud', 'Cliente', 'Estado', 'Cierre', 'Creada', 'Abrir'])
+  })
+
+  it('shows the name, the phone exactly as the server sent it and «De confianza»', async () => {
+    const { wrapper } = await mountHistory([closed({ customer: customer({ isTrusted: true }) })])
+    const cell = wrapper.get('[data-testid="history-customer"]')
+    expect(cell.text()).toContain('Juan Pérez')
+    expect(cell.get('[data-testid="history-customer-phone"]').text()).toBe('55 **** 5678')
+    expect(cell.text()).toContain('De confianza')
+  })
+
+  it('passes an unmasked phone through untouched and does not mark an untrusted customer', async () => {
+    const { wrapper } = await mountHistory([closed({ customer: customer({ phone: '+525512345678' }) })])
+    const cell = wrapper.get('[data-testid="history-customer"]')
+    expect(cell.get('[data-testid="history-customer-phone"]').text()).toBe('+525512345678')
+    expect(cell.text()).not.toContain('De confianza')
+  })
+
+  it('an unlinked customer reads «Cliente sin vincular» with its phone', async () => {
+    const { wrapper } = await mountHistory([
+      closed({ customer: customer({ id: null, displayName: null }) }),
+    ])
+    const cell = wrapper.get('[data-testid="history-customer"]')
+    expect(cell.text()).toContain('Cliente sin vincular')
+    expect(cell.get('[data-testid="history-customer-phone"]').text()).toBe('55 **** 5678')
+  })
+
+  it('a customer without phone says «Sin teléfono» and the name is shown as text', async () => {
+    const { wrapper } = await mountHistory([
+      closed({ customer: customer({ displayName: '<b>Ana</b>', phone: null }) }),
+    ])
+    const cell = wrapper.get('[data-testid="history-customer"]')
+    expect(cell.text()).toContain('<b>Ana</b>')
+    expect(cell.find('b').exists()).toBe(false)
+    expect(cell.get('[data-testid="history-customer-phone"]').text()).toBe('Sin teléfono')
+  })
+
+  it('degrades without the column when no row carries a customer (older backend)', async () => {
+    const { wrapper } = await mountHistory([closed()])
+    expect(headers(wrapper)).not.toContain('Cliente')
+    expect(wrapper.find('[data-testid="history-customer"]').exists()).toBe(false)
+  })
+
+  it('the mobile card shows the customer above the card', async () => {
+    const { wrapper } = await mountHistory([closed({ customer: customer({ isTrusted: true }) })], { layout: 'cards' })
+    const line = wrapper.get('[data-testid="history-card-customer"]')
+    expect(line.text()).toContain('Juan Pérez')
+    expect(line.text()).toContain('55 **** 5678')
+    expect(line.text()).toContain('De confianza')
   })
 })
 

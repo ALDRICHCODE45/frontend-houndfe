@@ -23,6 +23,7 @@ const more = vi.hoisted(() => ({
   lastOptions: null as null | {
     customerKey: () => string | null | undefined
     status?: () => string | undefined
+    filters?: () => Record<string, unknown> | undefined
   },
 }))
 
@@ -114,6 +115,21 @@ describe('RequestGroup — header', () => {
     expect(none.find('[data-testid="group-overdue"]').exists()).toBe(false)
   })
 
+  it('prefers the exact overdueCount of the backend over the rows on screen', async () => {
+    const group = { ...named(makeGroup('k1.a', rows(3))), openCount: 25, overdueCount: 13, moreRequests: 22 }
+    const wrapper = await mountGroup(group)
+    expect(wrapper.get('[data-testid="group-overdue"]').text()).toContain('13 vencidas')
+  })
+
+  it('a backend overdueCount of 1 reads in the singular; 0 shows no badge even with overdue rows loaded', async () => {
+    const overdue = { overdueAt: '2026-11-11T16:00:00.000Z', displayStatus: 'EXPIRED', slaLevel: 'OVERDUE' } as const
+    const one = await mountGroup({ ...named(makeGroup('k1.a', rows(2))), overdueCount: 1 })
+    expect(one.get('[data-testid="group-overdue"]').text()).toContain('1 vencida')
+    expect(one.get('[data-testid="group-overdue"]').text()).not.toContain('vencidas')
+    const zero = await mountGroup({ ...named(makeGroup('k1.b', [makeRow({ id: 'a', ...overdue })])), overdueCount: 0 })
+    expect(zero.find('[data-testid="group-overdue"]').exists()).toBe(false)
+  })
+
   it('the tone dot is the most urgent row of the group', async () => {
     const wrapper = await mountGroup(
       named(makeGroup('k1.a', [makeRow({ id: 'a', slaLevel: 'OK' }), makeRow({ id: 'b', slaLevel: 'ESCALATION' })])),
@@ -162,6 +178,19 @@ describe('RequestGroup — «Ver las N restantes»', () => {
     await wrapper.get('[data-testid="group-more"] button').trigger('click')
     expect(more.lastOptions!.customerKey()).toBe('k1.big')
     expect(more.lastOptions!.status!()).toBe('open')
+  })
+
+  it('the expansion uses the active list filters', async () => {
+    const filters = { assignee: 'unassigned', subtype: 'COMPLAINT', q: 'rosa' }
+    const wrapper = await mountGroup(grouped(), { filters })
+    await wrapper.get('[data-testid="group-more"] button').trigger('click')
+    expect(more.lastOptions!.filters!()).toEqual(filters)
+  })
+
+  it('without filters the expansion sends none', async () => {
+    const wrapper = await mountGroup(grouped())
+    await wrapper.get('[data-testid="group-more"] button').trigger('click')
+    expect(more.lastOptions!.filters?.() ?? {}).toEqual({})
   })
 
   it('a scheduled tab reads the open requests of the customer', async () => {

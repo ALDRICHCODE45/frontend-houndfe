@@ -106,9 +106,14 @@ vi.mock('../../composables/useRequestHistory', () => ({
   },
 }))
 
-const customerState = vi.hoisted(() => ({ needsReload: null as unknown as Ref<boolean> }))
+const customerState = vi.hoisted(() => ({
+  needsReload: null as unknown as Ref<boolean>,
+  filters: null as null | (() => Record<string, unknown> | undefined),
+}))
 vi.mock('../../composables/useCustomerRequests', () => ({
-  useCustomerRequests: () => ({
+  useCustomerRequests: (options: { filters?: () => Record<string, unknown> | undefined }) => {
+    customerState.filters = options.filters ?? null
+    return {
     requests: ref([]),
     isLoading: ref(false),
     isFetchingNextPage: ref(false),
@@ -117,7 +122,8 @@ vi.mock('../../composables/useCustomerRequests', () => ({
     hasNextPage: ref(false),
     fetchNextPage: vi.fn(),
     reload: vi.fn(),
-  }),
+    }
+  },
 }))
 
 const AppDataTableStub = {
@@ -156,6 +162,7 @@ beforeEach(() => {
   historyState.calls = 0
   historyState.filters = null
   customerState.needsReload = ref(false)
+  customerState.filters = null
 })
 
 afterEach(() => {
@@ -329,6 +336,22 @@ describe('ChatbotRequestsView — chips', () => {
       subtype: 'RESTOCK',
     })
     expect((wrapper.get('input[type="search"]').element as HTMLInputElement).value).toBe('Ana')
+  })
+
+  it('«Ver las N restantes» of a group keeps the filters of the URL (not the tab, not the cursor)', async () => {
+    withData()
+    groupsState.groups.value = [{ ...groupsState.groups.value[0]!, moreRequests: 3 }]
+    const { wrapper } = await mountView(
+      '/chatbot/solicitudes?q=rosa&unassigned=1&overdue=1&window=1&subtype=COMPLAINT',
+    )
+    await wrapper.get('[data-testid="group-more"] button').trigger('click')
+    expect(customerState.filters!()).toEqual({
+      q: 'rosa',
+      assignee: 'unassigned',
+      overdue: true,
+      windowClosingSoon: true,
+      subtype: 'COMPLAINT',
+    })
   })
 
   it('keeps unrelated URL params when filters change', async () => {

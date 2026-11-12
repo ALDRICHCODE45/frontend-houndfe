@@ -2,7 +2,11 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { keepPreviousData, useInfiniteQuery } from '@tanstack/vue-query'
 import { chatbotRequestApi } from '../api/chatbot-request.api'
 import { chatbotRequestKeys } from '../constants/queryKeys'
-import type { ChatbotRequestCustomerParams, ChatbotRequestRow } from '../interfaces/chatbot-request.types'
+import type {
+  ChatbotRequestCustomerFilters,
+  ChatbotRequestCustomerParams,
+  ChatbotRequestRow,
+} from '../interfaces/chatbot-request.types'
 import { isStaleCustomerKeyError } from '../utils/requestErrors'
 import { REQUESTS_PAGE_SIZE } from './polling'
 import { useRequestAccess } from './useRequestAccess'
@@ -11,6 +15,8 @@ export interface UseCustomerRequestsOptions {
   /** Opaque token of a group (`k1.…`). Never parsed or built here. */
   customerKey: MaybeRefOrGetter<string | null | undefined>
   status?: MaybeRefOrGetter<ChatbotRequestCustomerParams['status']>
+  /** The list filters in force (search, assignee, chips, subtype): the group's rest respects them. */
+  filters?: MaybeRefOrGetter<ChatbotRequestCustomerFilters | null | undefined>
   limit?: number
 }
 
@@ -19,7 +25,7 @@ export function useCustomerRequests(options: UseCustomerRequestsOptions) {
   const { tenantId, enabled: canRead } = useRequestAccess()
   const limit = options.limit ?? REQUESTS_PAGE_SIZE
   const customerKey = computed(() => toValue(options.customerKey)?.trim() ?? '')
-  const params = computed(() => ({ status: toValue(options.status), limit }))
+  const params = computed(() => ({ status: toValue(options.status), ...toValue(options.filters), limit }))
   const enabled = computed(() => canRead.value && customerKey.value.length > 0)
 
   const query = useInfiniteQuery({

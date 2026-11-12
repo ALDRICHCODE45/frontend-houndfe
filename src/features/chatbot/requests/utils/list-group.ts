@@ -50,6 +50,14 @@ export function overdueCount(rows: ChatbotRequestRow[]): number {
   return rows.filter((row) => isOpen(row) && (row.overdueAt !== null || row.displayStatus === 'EXPIRED')).length
 }
 
+/**
+ * Overdue badge of a group header: the backend's exact `overdueCount` (it covers rows not loaded
+ * yet and does not follow the filters), or the rows on screen for a backend that does not send it.
+ */
+export function groupOverdueCount(group: ChatbotRequestGroup, rows: ChatbotRequestRow[]): number {
+  return group.overdueCount ?? overdueCount(rows)
+}
+
 /** The rows already on screen first, then the ones «Ver las N restantes» brought, without repeats. */
 export function mergeGroupRows(first: ChatbotRequestRow[], fetched: ChatbotRequestRow[]): ChatbotRequestRow[] {
   const seen = new Set(first.map((row) => row.id))

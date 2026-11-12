@@ -8,14 +8,14 @@
  */
 import { computed, ref, watch } from 'vue'
 import { useCustomerRequests } from '../composables/useCustomerRequests'
-import type { ChatbotRequestGroup } from '../interfaces/chatbot-request.types'
+import type { ChatbotRequestCustomerFilters, ChatbotRequestGroup } from '../interfaces/chatbot-request.types'
 import {
   groupCountLabel,
   groupDisplayName,
+  groupOverdueCount,
   groupPhone,
   groupTone,
   mergeGroupRows,
-  overdueCount,
 } from '../utils/list-group'
 import { customerStatusOf, type RequestsListTab } from '../utils/list-query'
 import RequestGroupRow from './RequestGroupRow.vue'
@@ -26,12 +26,14 @@ const props = withDefaults(
     tab: RequestsListTab
     layout: 'table' | 'cards'
     currentUserId?: string | null
+    /** The list filters in force: «Ver las N restantes» asks the rest of the group with them. */
+    filters?: ChatbotRequestCustomerFilters
     /** Injected "current" instant (tests); defaults to the real clock. */
     now?: Date
     /** IANA zone for the times; defaults to the runtime zone. */
     timeZone?: string
   }>(),
-  { currentUserId: null, now: undefined, timeZone: undefined },
+  { currentUserId: null, filters: undefined, now: undefined, timeZone: undefined },
 )
 
 const emit = defineEmits<{
@@ -46,6 +48,7 @@ const showAll = ref(false)
 const more = useCustomerRequests({
   customerKey: () => (showAll.value ? props.group.customerKey : null),
   status: () => customerStatusOf(props.tab),
+  filters: () => props.filters,
 })
 
 const rows = computed(() =>
@@ -54,7 +57,7 @@ const rows = computed(() =>
 const name = computed(() => groupDisplayName(props.group.customer))
 const phone = computed(() => groupPhone(props.group.customer))
 const tone = computed(() => groupTone(rows.value, props.now))
-const overdue = computed(() => overdueCount(rows.value))
+const overdue = computed(() => groupOverdueCount(props.group, rows.value))
 const countLabel = computed(() => groupCountLabel(props.group, props.tab, props.group.requests.length))
 const overdueLabel = computed(() => `${overdue.value} ${overdue.value === 1 ? 'vencida' : 'vencidas'}`)
 

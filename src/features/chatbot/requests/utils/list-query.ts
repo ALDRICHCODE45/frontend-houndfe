@@ -6,6 +6,7 @@
  * params named in `groupsFiltersOf` / `historyFiltersOf` ever reach the API.
  */
 import type {
+  ChatbotRequestCustomerFilters,
   ChatbotRequestCustomerParams,
   ChatbotRequestGroupsFilters,
   ChatbotRequestHistoryParams,
@@ -103,6 +104,16 @@ export function groupsFiltersOf(state: RequestsListState): ChatbotRequestGroupsF
   const q = state.q.trim().slice(0, SEARCH_MAX_LENGTH)
   if (q) filters.q = q
   if (state.subtype) filters.subtype = state.subtype
+  return filters
+}
+
+/**
+ * Filters of `GET /chatbot-requests?customerKey=` («Ver las N restantes»): the ones of `groups`
+ * without the tab, so the rest of a group matches what its first rows matched (§15.1).
+ */
+export function customerFiltersOf(state: RequestsListState): ChatbotRequestCustomerFilters {
+  const filters: ChatbotRequestCustomerFilters = { ...groupsFiltersOf(state) }
+  delete (filters as { status?: unknown }).status
   return filters
 }
 
