@@ -21,8 +21,8 @@ export const CONVERSATION_POLL_MS = 15_000
 /** Upper bound of back-to-back `after` pages in one poll (a full page means there may be more). */
 const MAX_CATCH_UP_PAGES = 10
 
-/** Cached queries whose `unreadCustomerMessages` the server resets when the conversation is opened. */
-const UNREAD_BEARING = new Set(['groups', 'by-customer', 'detail'])
+/** Cached list queries whose `unreadCustomerMessages` the server resets when the conversation is opened. */
+const UNREAD_BEARING_LISTS = new Set(['groups', 'by-customer'])
 
 /**
  * The chat of one request (handoff 18): latest page first, older pages on demand (`before`), newer
@@ -31,8 +31,8 @@ const UNREAD_BEARING = new Set(['groups', 'by-customer', 'detail'])
  * Enabled only with `read:ChatbotRequest` and `read:ChatbotConversation`: an assignee without the
  * second one would get an empty page from the server, which must not read as «sin mensajes», so the
  * block is simply not read (the view keeps its limited-view note). The first successful read of a
- * request marks it opened on the server (unread count to 0), so the list and detail are
- * invalidated once to show it.
+ * request marks it opened on the server (unread count to 0): the lists are invalidated once, and the
+ * cached detail (which is on screen and does not show the count) is zeroed in place, not refetched.
  */
 export function useRequestConversation(id: MaybeRefOrGetter<string | null | undefined>) {
   const client = useQueryClient()
@@ -50,12 +50,16 @@ export function useRequestConversation(id: MaybeRefOrGetter<string | null | unde
     const scope = `${tenant}:${request}`
     if (openedFor === scope) return
     openedFor = scope
+    client.setQueryData<{ unreadCustomerMessages?: number }>(
+      chatbotRequestKeys.detail(tenant, request),
+      (held) => (held && held.unreadCustomerMessages ? { ...held, unreadCustomerMessages: 0 } : held),
+    )
     void client.invalidateQueries({
       predicate: ({ queryKey }) =>
         queryKey[0] === 'chatbot-requests' &&
         queryKey[1] === tenant &&
         typeof queryKey[2] === 'string' &&
-        UNREAD_BEARING.has(queryKey[2]),
+        UNREAD_BEARING_LISTS.has(queryKey[2]),
     })
   }
 

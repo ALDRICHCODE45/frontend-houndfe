@@ -133,12 +133,12 @@ describe('ChatbotRequestDetailView — header and main column', () => {
     expect(wrapper.get('[data-testid="conversation-empty"]').text()).toContain('Todavía no hay mensajes')
   })
 
-  it('opening the conversation refreshes the detail so the unread count drops', async () => {
+  it('opening the conversation does not fetch the detail again (its unread count is zeroed in cache)', async () => {
     getPage.mockResolvedValue({ items: [makeMessage({ seq: 1 })], hasMoreBefore: false })
     await mountView(makeDetail({ unreadCustomerMessages: 3 }))
     await flushPromises()
-    // detail loaded once, then invalidated by the first conversation read
-    expect(getDetail.mock.calls.length).toBeGreaterThanOrEqual(2)
+    expect(getPage).toHaveBeenCalledTimes(1)
+    expect(getDetail).toHaveBeenCalledTimes(1)
   })
 
   it('lists both missing permissions in the limited view', async () => {
