@@ -2,7 +2,12 @@
  * Presentation helpers of the notifications feature. The contract sends `title` and `body` as
  * text; the label, icon and tone below are derived on the client from `type` (design 02-panel-lateral).
  */
-import type { NotificationItem } from '../interfaces/notifications.types'
+import { SUBTYPE_LABELS } from '@/features/chatbot/requests/utils/requestLabels'
+import type {
+  NotificationCause,
+  NotificationItem,
+  NotificationReason,
+} from '../interfaces/notifications.types'
 
 export type NotificationTone = 'info' | 'warning' | 'danger' | 'neutral'
 
@@ -26,6 +31,56 @@ const FALLBACK_META: NotificationMeta = { icon: 'i-lucide-bell', tone: 'neutral'
 
 export function notificationMeta(type: string): NotificationMeta {
   return TYPE_META[type] ?? FALLBACK_META
+}
+
+/** Close-cause texts, exactly as handoff 13 §2 words them (the `title` of each cause). */
+const CAUSE_TEXT: Record<NotificationCause, string> = {
+  CUSTOMER: 'El cliente canceló la solicitud',
+  RESOLVED_BY_OTHER: 'Otra persona resolvió la solicitud',
+  CANCELLED_BY_OTHER: 'Otra persona canceló la solicitud',
+  SIBLING_RESOLVED: 'Se resolvió junto con otras de su zona',
+  MERGED: 'Otra persona la unió con otra solicitud del cliente',
+}
+
+/** Only the two notices that are about the 80 % / overdue clock carry a reason (13 §3). */
+const REASON_TYPES = new Set(['REQUEST_ESCALATION', 'REQUEST_OVERDUE'])
+
+const REASON_LABEL: Record<NotificationReason, string> = {
+  ASSIGNEE: 'Tuya',
+  ESCALATION: 'Por escalamiento',
+}
+
+/** «S-000118 · Pregunta del bot»: folio and subtype label, whichever the notice has. */
+export function notificationRef(item: Pick<NotificationItem, 'folio' | 'subtype'>): string | null {
+  const subtype = item.subtype ? (SUBTYPE_LABELS as Record<string, string | undefined>)[item.subtype] : undefined
+  const parts = [item.folio || null, subtype ?? null].filter((part): part is string => part !== null)
+  return parts.length > 0 ? parts.join(' · ') : null
+}
+
+/** «Tuya» / «Por escalamiento»; `null` off the 80 % / overdue types, without a reason, or for an unknown one. */
+export function notificationReasonLabel(item: Pick<NotificationItem, 'type' | 'reason'>): string | null {
+  if (!item.reason || !REASON_TYPES.has(item.type)) return null
+  return REASON_LABEL[item.reason] ?? null
+}
+
+/**
+ * Close cause of a REQUEST_CANCELLED notice. `null` when there is none, the cause is not one this
+ * client knows, or the server `title` already says it (no repeated line).
+ */
+export function notificationCauseText(
+  item: Pick<NotificationItem, 'type' | 'cause' | 'title'>,
+): string | null {
+  if (item.type !== 'REQUEST_CANCELLED' || !item.cause) return null
+  const text = CAUSE_TEXT[item.cause]
+  return text && text !== item.title ? text : null
+}
+
+/**
+ * The linked request is closed. A cancelled notice already says «Cerrada» by type, so it gets no
+ * second tag.
+ */
+export function isClosedNotice(item: Pick<NotificationItem, 'type' | 'requestOpen'>): boolean {
+  return item.requestOpen === false && item.type !== 'REQUEST_CANCELLED'
 }
 
 /** The backend count is unbounded per branch: the «99+» cap is the client's. */

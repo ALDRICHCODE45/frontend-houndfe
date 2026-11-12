@@ -248,8 +248,21 @@
   overflow-wrap: anywhere;
 }
 
+.notifications-panel .nt-cause,
+.notifications-panel .nt-ref {
+  color: var(--hf-muted);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.notifications-panel .nt-ref {
+  font-variant-numeric: tabular-nums;
+}
+
 .notifications-panel .nt-chips {
   display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
   margin-top: 4px;
 }
 

@@ -3,8 +3,12 @@ import {
   bellLabel,
   countLabel,
   groupByDay,
+  isClosedNotice,
+  notificationCauseText,
   notificationDetailPath,
   notificationMeta,
+  notificationReasonLabel,
+  notificationRef,
   relativeTime,
 } from '../notification-format'
 import type { NotificationItem } from '../../interfaces/notifications.types'
@@ -103,5 +107,42 @@ describe('groupByDay', () => {
     ])
     expect(groupByDay([before], NOW).map((g) => g.label)).toEqual(['Antes'])
     expect(groupByDay([], NOW)).toEqual([])
+  })
+})
+
+describe('structured fields helpers', () => {
+  it('notificationRef joins folio and the shared subtype label', () => {
+    expect(notificationRef({ folio: 'S-000118', subtype: 'UNKNOWN_QUESTION' })).toBe('S-000118 · Pregunta del bot')
+    expect(notificationRef({ folio: null, subtype: null })).toBeNull()
+    expect(notificationRef({})).toBeNull()
+    expect(notificationRef({ folio: 'S-1', subtype: 'FUTURE' })).toBe('S-1')
+  })
+
+  it('notificationReasonLabel only speaks on 80 % / overdue notices', () => {
+    expect(notificationReasonLabel({ type: 'REQUEST_OVERDUE', reason: 'ASSIGNEE' })).toBe('Tuya')
+    expect(notificationReasonLabel({ type: 'REQUEST_ESCALATION', reason: 'ESCALATION' })).toBe('Por escalamiento')
+    expect(notificationReasonLabel({ type: 'REQUEST_CREATED', reason: 'ASSIGNEE' })).toBeNull()
+    expect(notificationReasonLabel({ type: 'REQUEST_OVERDUE', reason: null })).toBeNull()
+  })
+
+  it('notificationCauseText uses the handoff copy and skips what the title already says', () => {
+    expect(notificationCauseText({ type: 'REQUEST_CANCELLED', cause: 'SIBLING_RESOLVED', title: 'x' })).toBe(
+      'Se resolvió junto con otras de su zona',
+    )
+    expect(
+      notificationCauseText({
+        type: 'REQUEST_CANCELLED',
+        cause: 'MERGED',
+        title: 'Otra persona la unió con otra solicitud del cliente',
+      }),
+    ).toBeNull()
+    expect(notificationCauseText({ type: 'REQUEST_CANCELLED', cause: null, title: 'x' })).toBeNull()
+  })
+
+  it('isClosedNotice is true only for requestOpen === false off the cancelled type', () => {
+    expect(isClosedNotice({ type: 'REQUEST_OVERDUE', requestOpen: false })).toBe(true)
+    expect(isClosedNotice({ type: 'REQUEST_OVERDUE', requestOpen: null })).toBe(false)
+    expect(isClosedNotice({ type: 'REQUEST_OVERDUE' })).toBe(false)
+    expect(isClosedNotice({ type: 'REQUEST_CANCELLED', requestOpen: false })).toBe(false)
   })
 })

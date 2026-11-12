@@ -1,6 +1,6 @@
 /**
  * In-app notifications — wire types, typed against houndfe-backend
- * `docs/frontend-handoff/13-notifications.md` at 86f9b6b7.
+ * `docs/frontend-handoff/13-notifications.md` at 8c12ae09.
  *
  * `title` and `body` are Spanish text built by the server. They are plain text: never render them
  * as HTML. There is no CASL permission; the user and the branch come from the JWT.
@@ -15,6 +15,16 @@ export type NotificationType =
   | 'REQUEST_ESCALATION'
   | 'REQUEST_OVERDUE'
 
+/** Close causes of a REQUEST_CANCELLED notice (13 §2). A future cause still renders (no cause line). */
+export type NotificationCause =
+  | 'CUSTOMER'
+  | 'RESOLVED_BY_OTHER'
+  | 'CANCELLED_BY_OTHER'
+  | 'SIBLING_RESOLVED'
+  | 'MERGED'
+
+export type NotificationReason = 'ASSIGNEE' | 'ESCALATION'
+
 export interface NotificationItem {
   id: string
   /** Typed as the known union, but the client tolerates a type it has never seen. */
@@ -28,14 +38,17 @@ export interface NotificationItem {
   /** ISO instant, `null` while unread. */
   readAt: string | null
 
-  // Announced by the backend, not yet on the wire (parent update). Typed now so the row can use
-  // them later; nothing in this unit depends on them.
+  // Structured fields (13 §3, 8c12ae09). All optional: a backend before 8c12ae09 omits them, and
+  // the row must then render exactly as it did without them.
+  /** Formatted like the inbox (`S-000123`); `null` only on a row that has none. */
   folio?: string | null
+  /** Request subtype code (`UNKNOWN_QUESTION`, …), not the Spanish label. */
   subtype?: string | null
-  /** Why a REQUEST_CANCELLED closed (may include `MERGED`). */
-  cause?: string | null
-  /** On 80 % / overdue notices: yours (`ASSIGNEE`) or by permission (`ESCALATION`). */
-  reason?: 'ASSIGNEE' | 'ESCALATION' | null
+  /** Why a REQUEST_CANCELLED closed; `null` for other types and for rows written before causes. */
+  cause?: NotificationCause | null
+  /** Only on REQUEST_ESCALATION / REQUEST_OVERDUE: yours (`ASSIGNEE`, wins) or by permission (`ESCALATION`). */
+  reason?: NotificationReason | null
+  /** The linked request is NEW / IN_PROGRESS at the moment of the read; `null` without a request. */
   requestOpen?: boolean | null
 }
 

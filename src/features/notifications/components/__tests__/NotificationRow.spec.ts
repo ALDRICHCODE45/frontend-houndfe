@@ -77,4 +77,101 @@ describe('NotificationRow', () => {
     await wrapper.get('button').trigger('click')
     expect(wrapper.emitted('open')).toHaveLength(1)
   })
+
+  describe('structured fields (handoff 13 §3, 8c12ae09)', () => {
+    it('shows folio and the subtype label as a meta line', () => {
+      const wrapper = mountRow({ folio: 'S-000118', subtype: 'UNKNOWN_QUESTION' })
+      expect(wrapper.get('[data-testid="notification-ref"]').text()).toBe('S-000118 · Pregunta del bot')
+    })
+
+    it('shows only what is present: folio alone, subtype alone', () => {
+      expect(mountRow({ folio: 'S-000118' }).get('[data-testid="notification-ref"]').text()).toBe('S-000118')
+      expect(mountRow({ subtype: 'COMPLAINT' }).get('[data-testid="notification-ref"]').text()).toBe('Queja')
+    })
+
+    it('does not print the raw code of a subtype it does not know', () => {
+      const wrapper = mountRow({ folio: 'S-000118', subtype: 'SOMETHING_NEW' })
+      expect(wrapper.get('[data-testid="notification-ref"]').text()).toBe('S-000118')
+      expect(wrapper.text()).not.toContain('SOMETHING_NEW')
+    })
+
+    it.each([
+      ['REQUEST_OVERDUE', 'ASSIGNEE', 'Tuya'],
+      ['REQUEST_ESCALATION', 'ASSIGNEE', 'Tuya'],
+      ['REQUEST_OVERDUE', 'ESCALATION', 'Por escalamiento'],
+      ['REQUEST_ESCALATION', 'ESCALATION', 'Por escalamiento'],
+    ])('%s with reason %s carries the tag «%s»', (type, reason, label) => {
+      expect(mountRow({ type, reason }).get('[data-testid="notification-reason"]').text()).toBe(label)
+    })
+
+    it('has no reason tag when reason is null or the type is not an 80 % / overdue notice', () => {
+      expect(mountRow({ type: 'REQUEST_OVERDUE', reason: null }).find('[data-testid="notification-reason"]').exists()).toBe(false)
+      expect(mountRow({ type: 'REQUEST_CREATED', reason: 'ASSIGNEE' }).find('[data-testid="notification-reason"]').exists()).toBe(false)
+    })
+
+    it('requestOpen false: a muted «Cerrada» tag and the link to the detail is kept', () => {
+      const wrapper = mountRow({ type: 'REQUEST_OVERDUE', requestOpen: false })
+      expect(wrapper.get('[data-testid="notification-closed"]').text()).toBe('Cerrada')
+      expect(wrapper.get('[data-testid="notification-closed"]').attributes('data-tone')).toBe('neutral')
+      expect(wrapper.get('a').attributes('href')).toBe('/chatbot/solicitudes/req-n1')
+    })
+
+    it('requestOpen true or null: no «Cerrada» tag', () => {
+      expect(mountRow({ requestOpen: true }).find('[data-testid="notification-closed"]').exists()).toBe(false)
+      expect(mountRow({ requestOpen: null }).find('[data-testid="notification-closed"]').exists()).toBe(false)
+    })
+
+    it('a cancelled notice already says «Cerrada» by type: no second tag', () => {
+      const wrapper = mountRow({ type: 'REQUEST_CANCELLED', requestOpen: false })
+      expect(wrapper.find('[data-testid="notification-closed"]').exists()).toBe(false)
+      expect(wrapper.get('[data-testid="notification-type"]').text()).toBe('Cerrada')
+    })
+
+    it.each([
+      ['CUSTOMER', 'El cliente canceló la solicitud'],
+      ['RESOLVED_BY_OTHER', 'Otra persona resolvió la solicitud'],
+      ['CANCELLED_BY_OTHER', 'Otra persona canceló la solicitud'],
+      ['SIBLING_RESOLVED', 'Se resolvió junto con otras de su zona'],
+      ['MERGED', 'Otra persona la unió con otra solicitud del cliente'],
+    ])('REQUEST_CANCELLED with cause %s reads «%s»', (cause, text) => {
+      const wrapper = mountRow({ type: 'REQUEST_CANCELLED', title: 'Solicitud cerrada', cause })
+      expect(wrapper.get('[data-testid="notification-cause"]').text()).toBe(text)
+    })
+
+    it('the cause line is not repeated when the server title already says it', () => {
+      const text = 'Otra persona la unió con otra solicitud del cliente'
+      const wrapper = mountRow({ type: 'REQUEST_CANCELLED', title: text, cause: 'MERGED' })
+      expect(wrapper.find('[data-testid="notification-cause"]').exists()).toBe(false)
+      expect(wrapper.text().split(text)).toHaveLength(2)
+    })
+
+    it('no cause line without a cause, for an unknown cause, or on another type', () => {
+      expect(mountRow({ type: 'REQUEST_CANCELLED', cause: null }).find('[data-testid="notification-cause"]').exists()).toBe(false)
+      expect(mountRow({ type: 'REQUEST_CANCELLED', cause: 'NEW_CAUSE' }).find('[data-testid="notification-cause"]').exists()).toBe(false)
+      expect(mountRow({ type: 'REQUEST_CREATED', cause: 'MERGED' }).find('[data-testid="notification-cause"]').exists()).toBe(false)
+    })
+
+    it('renders folio as text, never as HTML', () => {
+      const wrapper = mountRow({ folio: '<img src=x onerror=alert(1)>' })
+      expect(wrapper.find('img').exists()).toBe(false)
+      expect(wrapper.get('[data-testid="notification-ref"]').text()).toContain('<img')
+    })
+
+    it('absent fields render exactly as before', () => {
+      const wrapper = mountRow()
+      for (const id of ['ref', 'reason', 'closed', 'cause']) {
+        expect(wrapper.find(`[data-testid="notification-${id}"]`).exists()).toBe(false)
+      }
+      expect(wrapper.findAll('.hf-status-badge')).toHaveLength(1)
+      expect(wrapper.get('[data-testid="notification-type"]').text()).toBe('Nueva')
+    })
+
+    it('null fields (a pre-existing row on the new backend) render like absent ones', () => {
+      const wrapper = mountRow({ type: 'REQUEST_OVERDUE', folio: null, subtype: null, cause: null, reason: null, requestOpen: null })
+      for (const id of ['ref', 'reason', 'closed', 'cause']) {
+        expect(wrapper.find(`[data-testid="notification-${id}"]`).exists()).toBe(false)
+      }
+      expect(wrapper.findAll('.hf-status-badge')).toHaveLength(1)
+    })
+  })
 })
