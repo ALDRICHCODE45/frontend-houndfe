@@ -800,6 +800,14 @@
       "sessions": 42,
       "memories": 0,
       "prompts": 0
+    },
+    {
+      "id": "19490e61",
+      "created_by": "aldrich_coder45",
+      "created_at": "2026-11-12T23:47:22.945758925Z",
+      "sessions": 2,
+      "memories": 1,
+      "prompts": 0
     }
   ]
 }
