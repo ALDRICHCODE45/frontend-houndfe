@@ -1,0 +1,936 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HoundFe · Atención del chatbot · 04-movil-y-estados</title>
+<style>
+/* Chatbot requests: shared tokens and components. Source only: the canvas serves .html files, so build.sh inlines this file into every artboard.
+   Every value comes from design/system.md (src/core/shared/design-system/*). */
+:root{
+--hf-page:#f5f6f8;--hf-surface:#ffffff;--hf-surface-muted:#e7eef7;--hf-field:#ffffff;--hf-field-border:#8593a3;
+--hf-ink:#24313d;--hf-heading:#173968;--hf-muted:#576574;--hf-border:#dce2e8;
+--hf-action:#2442f6;--hf-on-action:#ffffff;--hf-active:#2442f6;--hf-active-soft:#edf0ff;--hf-focus:#2442f6;
+--hf-gold:#f6bb13;--hf-gold-soft:#fff5d6;--hf-gold-ink:#443218;
+--hf-warning:#805511;--hf-warning-soft:#fff5d6;--hf-success:#236044;
+--hf-danger:#b42318;--hf-danger-soft:#fef3f2;--hf-danger-border:#f4b8b2;
+--hf-font:'Geist',ui-sans-serif,system-ui,sans-serif;
+--hf-radius-card:12px;--hf-radius-control:6px;--hf-control-height:44px;
+--table-head:color-mix(in srgb,var(--hf-ink) 4%,var(--hf-surface));
+--row-hover:color-mix(in srgb,var(--hf-surface-muted) 45%,var(--hf-surface));
+--skel:color-mix(in srgb,var(--hf-ink) 16%,var(--hf-surface));
+--shadow-soft:0 1px 2px color-mix(in srgb,var(--hf-ink) 5%,transparent);
+--shadow-pop:0 12px 32px -12px color-mix(in srgb,var(--hf-ink) 24%,transparent),0 2px 6px color-mix(in srgb,var(--hf-ink) 8%,transparent);
+--scrim:color-mix(in srgb,var(--hf-ink) 32%,transparent);
+color-scheme:light;
+}
+html.dark{
+--hf-page:#0e1520;--hf-surface:#192332;--hf-surface-muted:#202e43;--hf-field:#121d2c;--hf-field-border:#64758d;
+--hf-ink:#edf2fa;--hf-heading:#edf2fa;--hf-muted:#adbcd0;--hf-border:#354459;
+--hf-action:#91b0ff;--hf-on-action:#132344;--hf-active:#b3caff;--hf-active-soft:#223555;--hf-focus:#a6c1ff;
+--hf-gold:#f2c456;--hf-gold-soft:#3b311d;--hf-gold-ink:#f2cb71;
+--hf-warning:#f2cb71;--hf-warning-soft:#3b311d;--hf-success:#a2d9b9;
+--hf-danger:#ffb4ab;--hf-danger-soft:#3d2220;--hf-danger-border:#7a3f3b;
+--shadow-soft:0 1px 2px color-mix(in srgb,var(--hf-page) 40%,transparent);
+--shadow-pop:0 12px 32px -12px color-mix(in srgb,var(--hf-page) 90%,transparent),0 2px 6px color-mix(in srgb,var(--hf-page) 60%,transparent);
+--scrim:color-mix(in srgb,var(--hf-page) 70%,transparent);
+color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--hf-page);color:var(--hf-ink);font:400 14px/1.5 var(--hf-font);font-feature-settings:"cv11","ss01"}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3,h4,p,ul,ol,dl,dd{margin:0}
+ul,ol{padding:0;list-style:none}
+h1,h2,h3,h4{color:var(--hf-heading);font-weight:600}
+a{color:var(--hf-action)}
+:focus-visible{outline:2px solid var(--hf-focus);outline-offset:2px}
+.icon{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.icon.sm{width:16px;height:16px}.icon.xs{width:14px;height:14px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.fig{font-variant-numeric:tabular-nums}
+.muted{color:var(--hf-muted)}
+.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+
+/* artboard tools (outside the mock) */
+.tools{position:relative;z-index:200;display:flex;flex-wrap:wrap;align-items:center;gap:4px;min-height:44px;padding:4px 12px;background:var(--hf-surface-muted);border-bottom:1px solid var(--hf-border)}
+.tools .grow{flex:1}
+.tools button,.tools label{height:32px;padding:0 10px;border:0;border-radius:8px;background:transparent;font-size:12px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap}
+.tools button:hover{background:var(--hf-surface-muted)}
+.tools select{height:28px;max-width:190px;border:1px solid var(--hf-border);border-radius:6px;background:var(--hf-field);font-size:12px;padding:0 4px}
+.tools [aria-pressed="true"]{background:var(--hf-active-soft);color:var(--hf-active)}
+.notes-sheet{position:fixed;z-index:210;top:calc(var(--tools-h,44px) + 4px);right:12px;width:min(440px,calc(100vw - 24px));max-height:calc(100vh - 68px);overflow:auto;padding:16px;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:12px;box-shadow:var(--shadow-pop);font-size:13px}
+.notes-sheet h2{font-size:15px;margin-bottom:8px}.notes-sheet h3{font-size:13px;margin:12px 0 4px}
+.notes-sheet ul{display:grid;gap:4px;padding-left:16px;list-style:disc;color:var(--hf-muted)}
+.notes-sheet code{font-size:12px;color:var(--hf-ink)}
+
+/* app frame and shell */
+.app{display:flex;height:calc(100vh - var(--tools-h,44px));min-height:576px;background:var(--hf-page);overflow:hidden}
+.side{width:232px;flex-shrink:0;display:flex;flex-direction:column;background:var(--hf-surface);border-right:1px solid var(--hf-border);min-height:0}
+.brand{display:flex;align-items:center;gap:10px;height:56px;padding:0 20px;font-weight:600;font-size:16px;color:var(--hf-heading);letter-spacing:-0.02em}
+.brand-mark{width:28px;height:28px;border-radius:8px;background:var(--hf-gold);color:var(--hf-gold-ink);display:inline-flex;align-items:center;justify-content:center}
+.tenant{margin:0 12px 8px;display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--hf-border);border-radius:8px;font-size:13px}
+.tenant-tile{width:28px;height:28px;border-radius:6px;background:var(--hf-surface-muted);color:var(--hf-heading);display:inline-flex;align-items:center;justify-content:center;font-weight:600}
+.tenant strong{display:block;font-weight:600}.tenant small{display:block;color:var(--hf-muted);font-size:12px}
+.nav{flex:1;overflow-y:auto;padding:4px 12px 12px}
+.nav ul{display:grid;gap:2px}
+.nav-group{margin-top:12px;padding:0 10px 4px;font-size:12px;font-weight:600;color:var(--hf-muted)}
+.nav a{display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;border-radius:6px;color:var(--hf-ink);font-size:13px;font-weight:500;text-decoration:none;white-space:nowrap}
+.nav a:hover{background:var(--hf-surface-muted)}
+.nav a.sub{padding-left:36px}
+.nav a[aria-current="page"]{background:var(--hf-active-soft);color:var(--hf-active);font-weight:600}
+.nav .count{margin-left:auto;min-width:22px;height:20px;padding:0 6px;border-radius:999px;background:var(--hf-warning-soft);color:var(--hf-warning);font-size:12px;font-weight:600;display:inline-flex;align-items:center;justify-content:center}
+.nav .chev{margin-left:auto;color:var(--hf-muted)}
+.side-foot{display:flex;align-items:center;gap:10px;padding:12px 16px;border-top:1px solid var(--hf-border);font-size:13px}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--hf-surface-muted);color:var(--hf-heading);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;flex-shrink:0}
+.avatar.sm{width:24px;height:24px;font-size:11px}
+.side-foot small{display:block;color:var(--hf-muted);font-size:12px}
+.col{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0}
+.topbar{height:56px;flex-shrink:0;display:flex;align-items:center;gap:12px;padding:0 32px;background:var(--hf-surface);border-bottom:1px solid var(--hf-border)}
+.crumbs{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--hf-muted);min-width:0}
+.crumbs a{color:var(--hf-muted);text-decoration:none;border-radius:4px}.crumbs a:hover{color:var(--hf-ink)}
+.crumbs [aria-current]{color:var(--hf-ink);font-weight:500;white-space:nowrap}
+.spacer{flex:1}
+.icon-btn{position:relative;width:44px;height:44px;border:0;border-radius:6px;background:transparent;color:var(--hf-muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.icon-btn:hover{background:var(--hf-surface-muted);color:var(--hf-ink)}
+.icon-btn .dotc{position:absolute;top:6px;right:5px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--hf-danger);color:var(--hf-surface);font-size:11px;font-weight:600;display:inline-flex;align-items:center;justify-content:center}
+.scroll{flex:1;min-height:0;overflow-y:auto}
+.page{padding:24px 32px 40px;display:grid;gap:16px;align-content:start}
+.page-title{font-size:clamp(1.75rem,1.55rem + 0.6vw,2rem);line-height:1.25;letter-spacing:-0.045em}
+.page-sub{font-size:14px;color:var(--hf-muted);max-width:62ch}
+.title-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+
+/* badges */
+.badge{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;background:var(--hf-surface-muted);color:var(--hf-muted);max-width:100%}
+.badge .t{overflow:hidden;text-overflow:ellipsis}
+.badge.dot::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+.badge.warning{background:var(--hf-warning-soft);color:var(--hf-warning)}
+.badge.info{background:var(--hf-active-soft);color:var(--hf-active)}
+.badge.success{background:color-mix(in srgb,var(--hf-success) 12%,var(--hf-surface));color:var(--hf-success)}
+.badge.danger{background:var(--hf-danger-soft);color:var(--hf-danger);box-shadow:inset 0 0 0 1px var(--hf-danger-border)}
+.badge.urgent{background:color-mix(in srgb,var(--hf-danger) 18%,var(--hf-surface));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--hf-danger) 55%,var(--hf-surface))}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--hf-muted)}
+.tag.warn{color:var(--hf-warning);font-weight:600}
+
+/* SLA traffic light: dot or icon plus text, never color alone */
+.sla{display:flex;align-items:flex-start;gap:6px;min-width:0;font-size:13px;line-height:1.35}
+.sla .icon{margin-top:1px}
+.sla b{display:block;font-weight:600}
+.sla small{display:block;font-size:12px;color:var(--hf-muted)}
+.sla.ok{color:var(--hf-success)}.sla.warn{color:var(--hf-warning)}.sla.bad{color:var(--hf-danger)}.sla.pause,.sla.none{color:var(--hf-muted)}
+.sla.sched{color:var(--hf-active)}
+
+/* buttons, fields */
+.btn{height:44px;padding:0 16px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-surface);color:var(--hf-ink);font-size:14px;font-weight:600;line-height:1;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;cursor:pointer}
+.btn:hover:not(:disabled){background:var(--hf-surface-muted)}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn.primary{background:var(--hf-action);border-color:var(--hf-action);color:var(--hf-on-action)}
+.btn.primary:hover:not(:disabled){background:color-mix(in srgb,var(--hf-action) 88%,var(--hf-ink))}
+.btn.danger{color:var(--hf-danger);border-color:var(--hf-danger-border)}
+.btn.danger:hover:not(:disabled){background:var(--hf-danger-soft)}
+.btn.sm{height:36px;padding:0 12px;font-size:13px}
+.btn:disabled{cursor:not-allowed;background:var(--hf-page);border-color:var(--hf-border);color:var(--hf-muted)}
+.btn.block{width:100%}
+.spin{width:16px;height:16px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ctl{width:100%;min-width:0;height:44px;padding:0 12px;background:var(--hf-field);border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);font-size:14px}
+textarea.ctl{height:auto;min-height:88px;padding:10px 12px;resize:vertical;line-height:1.45}
+.ctl:hover:not(:disabled){border-color:var(--hf-field-border)}
+.ctl:focus,.ctl:focus-visible{outline:2px solid var(--hf-focus);outline-offset:2px}
+.ctl::placeholder{color:var(--hf-muted);opacity:1}
+.ctl[aria-invalid="true"]{border-color:var(--hf-danger)}
+.field{display:grid;gap:6px;align-content:start;min-width:0}
+.lbl{font-size:13px;font-weight:500}
+.help{font-size:12px;color:var(--hf-muted)}
+.err{display:flex;gap:6px;align-items:flex-start;font-size:12px;font-weight:500;color:var(--hf-danger)}
+.counter{font-size:12px;color:var(--hf-muted);text-align:right}
+.search{position:relative;min-width:0}
+.search .icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--hf-muted);pointer-events:none}
+.search input{padding-left:38px}
+
+/* no classic checkbox: toggle chips, segmented control, radio rows with a round mark */
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border:1px solid var(--hf-border);border-radius:999px;background:var(--hf-surface);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.chip:hover{background:var(--hf-surface-muted)}
+.chip[aria-pressed="true"]{background:var(--hf-active-soft);border-color:var(--hf-active);color:var(--hf-active);font-weight:600}
+.chip .n{font-weight:600;font-variant-numeric:tabular-nums}
+.seg{display:inline-flex;align-items:center;height:44px;padding:3px;gap:2px;border:1px solid var(--hf-field-border);border-radius:var(--hf-radius-control);background:var(--hf-surface);max-width:100%}
+.seg button{height:36px;padding:0 12px;border:0;border-radius:4px;background:transparent;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.seg button:hover{background:var(--hf-surface-muted)}
+.seg button[aria-pressed="true"],.seg button[aria-selected="true"]{background:var(--hf-active-soft);color:var(--hf-active);font-weight:600}
+.mark{flex:none;width:20px;height:20px;border-radius:50%;border:1.5px solid var(--hf-field-border);display:grid;place-items:center;background:var(--hf-field)}
+.mark .icon{width:12px;height:12px;stroke-width:3;color:var(--hf-on-action);opacity:0}
+[aria-checked="true"] > .mark{background:var(--hf-action);border-color:var(--hf-action)}
+[aria-checked="true"] > .mark .icon{opacity:1}
+.rrow{width:100%;display:flex;align-items:center;gap:12px;min-height:56px;padding:10px 12px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-surface);text-align:left;cursor:pointer}
+.rrow:hover{background:var(--hf-surface-muted)}
+.rrow[aria-checked="true"]{background:var(--hf-active-soft);border-color:var(--hf-active)}
+.rrow .tx{flex:1;min-width:0;display:grid;gap:2px}
+.rrow .tx b{font-weight:600}.rrow .tx small{font-size:12px;color:var(--hf-muted)}
+.rgroup{display:grid;gap:8px}
+
+/* surfaces, tables */
+.surface{background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);box-shadow:var(--shadow-soft);overflow:hidden}
+.panel{background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);padding:16px;display:grid;gap:12px;align-content:start;min-width:0}
+.panel > h2,.panel > .ph h2{font-size:16px}
+.ph{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--hf-border)}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+th{height:40px;padding:0 12px;background:var(--table-head);color:var(--hf-muted);font-size:13px;font-weight:600;text-align:left;border-bottom:1px solid var(--hf-border);white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid var(--hf-border);vertical-align:middle;overflow:hidden}
+th:first-child,td:first-child{padding-left:16px}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.name{font-weight:600;color:var(--hf-heading)}
+.p2{font-size:13px;color:var(--hf-muted)}
+.kebab{width:44px;height:44px;border:0;border-radius:6px;background:transparent;color:var(--hf-muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.kebab:hover{background:var(--hf-surface-muted);color:var(--hf-ink)}
+.folio{font-size:12px;font-weight:600;color:var(--hf-muted);font-variant-numeric:tabular-nums}
+
+/* states */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:40px 16px;min-height:8rem;text-align:center}
+.empty .icon{width:24px;height:24px;color:var(--hf-muted)}
+.empty h2{font-size:15px}.empty p{font-size:13px;color:var(--hf-muted);max-width:28rem}.empty .btn{margin-top:8px}
+.empty.error{margin:16px;background:var(--hf-danger-soft);border:1px solid var(--hf-danger-border);border-radius:var(--hf-radius-card)}
+.empty.error .icon,.empty.error h2{color:var(--hf-danger)}
+.skel{display:block;height:12px;border-radius:4px;background:var(--skel);animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.55}}
+.alert{display:flex;gap:10px;padding:12px 14px;border-radius:8px;font-size:13px;border:1px solid var(--hf-border);background:var(--hf-surface)}
+.alert .icon{margin-top:1px}
+.alert strong{display:block;font-size:14px;font-weight:600}
+.alert .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.alert.warn{background:var(--hf-warning-soft);border-color:color-mix(in srgb,var(--hf-warning) 40%,var(--hf-surface))}
+.alert.warn .icon,.alert.warn strong{color:var(--hf-warning)}
+.alert.danger{background:var(--hf-danger-soft);border-color:var(--hf-danger-border)}
+.alert.danger .icon,.alert.danger strong{color:var(--hf-danger)}
+.alert.info{background:var(--hf-active-soft);border-color:color-mix(in srgb,var(--hf-active) 35%,var(--hf-surface))}
+.alert.info .icon,.alert.info strong{color:var(--hf-active)}
+.alert.success{background:color-mix(in srgb,var(--hf-success) 10%,var(--hf-surface));border-color:color-mix(in srgb,var(--hf-success) 35%,var(--hf-surface))}
+.alert.success .icon,.alert.success strong{color:var(--hf-success)}
+.toasts{position:fixed;z-index:150;right:16px;bottom:16px;width:min(360px,calc(100vw - 32px));display:grid;gap:8px}
+.toast{display:flex;gap:12px;padding:16px;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);box-shadow:var(--shadow-pop)}
+.toast .tile{width:36px;height:36px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;background:color-mix(in srgb,var(--hf-success) 12%,var(--hf-surface));color:var(--hf-success)}
+.toast strong{display:block;font-size:14px;font-weight:600;color:var(--hf-heading)}.toast p{font-size:13px;color:var(--hf-muted)}
+
+/* detail building blocks */
+.kv{display:grid;grid-template-columns:132px minmax(0,1fr);gap:6px 12px;font-size:13px}
+.kv dt{color:var(--hf-muted)}.kv dd{min-width:0;overflow-wrap:anywhere}
+.quote{padding:10px 12px;border-left:3px solid var(--hf-border);background:var(--hf-page);border-radius:0 6px 6px 0;font-size:14px}
+.bubble-list{display:grid;gap:8px}
+.bubble{max-width:82%;padding:8px 12px;border-radius:12px;font-size:14px;background:var(--hf-page);border:1px solid var(--hf-border)}
+.bubble small{display:block;font-size:11px;color:var(--hf-muted);margin-top:2px}
+.bubble.them{justify-self:start}
+.bubble.bot{justify-self:end;background:var(--hf-active-soft);border-color:transparent}
+.bubble.staff{justify-self:end;background:var(--hf-gold-soft);color:var(--hf-gold-ink);border-color:transparent}
+.tl{display:grid;gap:0;position:relative}
+.tl li{position:relative;padding:0 0 14px 22px;font-size:13px}
+.tl li::before{content:"";position:absolute;left:4px;top:6px;width:9px;height:9px;border-radius:50%;background:var(--hf-surface);border:2px solid var(--hf-field-border)}
+.tl li::after{content:"";position:absolute;left:8px;top:18px;bottom:0;width:1px;background:var(--hf-border)}
+.tl li:last-child::after{display:none}
+.tl li.done::before{background:var(--hf-success);border-color:var(--hf-success)}
+.tl li.bad::before{background:var(--hf-danger);border-color:var(--hf-danger)}
+.tl b{font-weight:600}.tl small{display:block;color:var(--hf-muted);font-size:12px}
+.mock-flag{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 6px;border-radius:4px;font-size:11px;font-weight:600;background:var(--hf-gold-soft);color:var(--hf-gold-ink);white-space:nowrap}
+.hint-box{padding:10px 12px;border:1px dashed var(--hf-field-border);border-radius:var(--hf-radius-control);font-size:12px;color:var(--hf-muted)}
+.sheet-scrim{position:fixed;inset:var(--tools-h,44px) 0 0 0;z-index:100;background:var(--scrim)}
+.sheet{position:fixed;z-index:101;top:var(--tools-h,44px);right:0;bottom:0;width:460px;max-width:100%;display:flex;flex-direction:column;background:var(--hf-surface);border-left:1px solid var(--hf-border);box-shadow:var(--shadow-pop)}
+.sheet-head{display:flex;align-items:flex-start;gap:12px;padding:20px 24px 16px;border-bottom:1px solid var(--hf-border)}
+.sheet-head .t{flex:1;min-width:0}.sheet-head .meta{font-size:13px;color:var(--hf-muted)}.sheet-head h2{font-size:22px;letter-spacing:-0.02em;line-height:1.3}
+.sheet-body{flex:1;overflow-y:auto;padding:20px 24px;display:grid;gap:16px;align-content:start}
+.sheet-foot{display:flex;gap:8px;justify-content:flex-end;padding:12px 24px;border-top:1px solid var(--hf-border)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+/* Chatbot settings: components shared by every artboard. Tokens only from design/system.md. */
+:root{--hover:color-mix(in srgb,var(--hf-surface-muted) 45%,var(--hf-surface))}
+.cq{container-type:inline-size;container-name:main}
+.phead{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.sec{gap:16px}.sec-h{align-items:flex-start;flex-wrap:wrap}.phl{flex:1;min-width:220px;display:grid;gap:2px}.phr{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.p2{font-size:13px;color:var(--hf-muted)}
+.foot-note{display:flex;gap:6px;align-items:flex-start}.foot-note .icon{margin-top:2px}
+.badge.pend{background:transparent;box-shadow:inset 0 0 0 1px var(--hf-border);color:var(--hf-muted);font-weight:500;margin-left:6px;vertical-align:middle}
+.badge.pend::before{display:none}
+.mock-flag{margin-left:6px;vertical-align:middle}
+.mono{font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.link-btn{display:inline-flex;align-items:center;gap:4px;min-height:36px;padding:0 8px;border:0;border-radius:var(--hf-radius-control);background:transparent;color:var(--hf-action);font-weight:600;font-size:13px;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.link-btn:hover{background:color-mix(in srgb,var(--hf-action) 8%,transparent)}
+.kebab.sm{width:36px;height:36px}
+.rov{font-weight:500}
+
+/* switch (no classic checkbox) */
+.swb{display:inline-flex;align-items:center;gap:10px;min-height:44px;padding:0 8px;border:0;border-radius:var(--hf-radius-control);background:transparent;font-weight:500;color:var(--hf-ink);cursor:pointer}
+.swb:hover{background:var(--hover)}
+.swb .sl{min-width:60px;text-align:left}
+.track{position:relative;flex:none;width:44px;height:24px;border-radius:999px;border:1.5px solid var(--hf-field-border);background:var(--hf-field);transition:background-color .15s,border-color .15s}
+.track::after{content:"";position:absolute;top:2.5px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--hf-field-border);transition:transform .15s,background-color .15s}
+.track .icon{position:absolute;top:5px;left:5px;width:11px;height:11px;stroke-width:3;color:var(--hf-on-action);opacity:0;z-index:1}
+.swb[aria-checked="true"] .track{background:var(--hf-action);border-color:var(--hf-action)}
+.swb[aria-checked="true"] .track::after{background:var(--hf-on-action);transform:translateX(19px)}
+.swb[aria-checked="true"] .track .icon{opacity:1}
+
+/* hours */
+.hrow-top{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.tzf{width:280px;max-width:100%}
+.pickrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;flex:1;min-width:260px}.pickrow .help{flex:1;min-width:200px}
+.days{border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);overflow:visible}
+.dr{position:relative;display:grid;grid-template-columns:104px 150px minmax(0,1fr) 72px 128px;align-items:start;gap:4px 12px;padding:10px 12px 10px 16px;border-top:1px solid var(--hf-border);min-height:64px}
+.dr:first-child{border-top:0;border-radius:var(--hf-radius-card) var(--hf-radius-card) 0 0}.dr:last-child{border-radius:0 0 var(--hf-radius-card) var(--hf-radius-card)}
+.dr.closed{background:var(--table-head)}
+.dr.bad{background:var(--hf-danger-soft)}
+.dr>*{min-height:44px;display:flex;align-items:center}
+.dn b{font-weight:600;color:var(--hf-heading)}
+.dr .rg{flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;padding:0}
+.dr .tot{justify-content:flex-end;color:var(--hf-muted);font-size:13px}
+.dr .ac{justify-content:flex-end;position:relative}
+.dr .derr{grid-column:1/-1;min-height:0;padding:0 0 4px 0}
+.rng{display:flex;align-items:center;gap:8px}
+.ctl.t{width:128px}
+.pop2{position:absolute;z-index:40;top:calc(100% - 4px);right:0;width:340px;max-width:calc(100vw - 32px);display:grid;gap:12px;padding:16px;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);box-shadow:var(--shadow-pop);text-align:left;min-height:0;align-items:start}
+.pop2 h3{font-size:15px}
+.pop2 .chips{display:flex;flex-wrap:wrap;gap:6px}
+.pop2 .chip{min-width:48px;justify-content:center;min-height:44px}
+.pop2 .quick{display:flex;gap:4px}
+.pop2f{display:flex;gap:8px;justify-content:flex-end}
+.alert a,.help a{color:var(--hf-action)}
+
+/* closed dates */
+.dadd{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}.dadd .field{width:240px;max-width:100%}
+.dates{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px}
+.date{display:flex;align-items:center;gap:8px;min-height:56px;padding:4px 0 4px 4px;border-bottom:1px solid var(--hf-border)}
+.date .dd{flex:1;min-width:0;display:grid}.date .dd b{font-weight:600}.date .dd small{font-size:12px;color:var(--hf-muted)}
+.date.past .dd b{color:var(--hf-muted);font-weight:500}
+.dfoot{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+
+/* SLA */
+.sla-note{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;background:var(--hf-surface-muted);border-radius:var(--hf-radius-control)}.sla-note .icon{margin-top:2px;color:var(--hf-muted)}
+.slat{border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);overflow:hidden}
+.sh,.slr{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr);gap:12px;padding:0 16px;align-items:start}
+.sh{height:40px;align-items:center;background:var(--table-head);color:var(--hf-muted);font-size:13px;font-weight:600;border-bottom:1px solid var(--hf-border)}
+.slr{padding-top:12px;padding-bottom:12px;border-top:1px solid var(--hf-border)}.sh+.slr{border-top:0}
+.sn{display:flex;gap:10px;align-items:flex-start;min-height:44px}.sn b{display:block;font-weight:600;color:var(--hf-heading)}.sn small{display:block;font-size:12px;color:var(--hf-muted)}
+.sico{width:32px;height:32px;border-radius:8px;background:var(--hf-surface-muted);color:var(--hf-heading);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.sc{display:grid;gap:4px;align-content:start;min-width:0}
+.sc small,.sc .rd{font-size:12px;color:var(--hf-muted)}
+.sc.fx{min-height:44px;align-content:center}.fxv{font-weight:500;color:var(--hf-ink)}
+.slr.fixed{background:var(--table-head)}
+.sc .marg{display:grid;gap:4px;margin-top:8px}
+.numg{display:flex;gap:8px}.numg .ctl:first-child{flex:1;min-width:0}.numg .u{width:76px;flex:none;padding:0 8px}
+.notes2{display:grid;gap:4px;padding-left:18px;list-style:disc}
+.fgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.fgrid.three{grid-template-columns:repeat(3,minmax(0,1fr))}.fgrid .wide{grid-column:1/-1}
+.srow{display:flex;align-items:center;gap:12px;min-height:64px;padding:8px 12px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control)}
+.srt{display:grid}.srt small{font-size:13px;color:var(--hf-muted)}
+
+/* checklist + save bar */
+.checklist{padding:12px 16px;background:var(--hf-danger-soft);border:1px solid var(--hf-danger-border);border-radius:var(--hf-radius-card);font-size:13px;display:grid;gap:6px}
+.checklist b{color:var(--hf-danger);font-size:14px}.checklist ul{display:grid;gap:2px}
+.checklist li{display:flex;gap:8px;flex-wrap:wrap;align-items:baseline}.checklist a{font-weight:600;color:var(--hf-danger);min-height:24px}.checklist li span{color:var(--hf-ink)}
+.sbar{position:sticky;bottom:0;z-index:20;display:flex;align-items:center;gap:12px;padding:12px 32px;background:var(--hf-surface);border-top:1px solid var(--hf-border);box-shadow:0 -8px 24px -16px color-mix(in srgb,var(--hf-ink) 24%,transparent)}
+.sbar>span:not(.grow):not(.spin):not(.sb-i){display:grid;min-width:0}.sbar b{font-weight:600;color:var(--hf-heading)}.sbar small{font-size:12px;color:var(--hf-muted)}
+.sbar .grow{flex:1}.sb-i{flex:none;display:inline-flex}.sb-i.warn{color:var(--hf-warning)}.sb-i.bad{color:var(--hf-danger)}.sb-i.ok{color:var(--hf-success)}
+
+/* dialogs */
+.mod-scrim{position:fixed;inset:var(--tools-h,44px) 0 0 0;z-index:100;background:var(--scrim)}
+.mod{position:fixed;z-index:101;left:50%;top:calc(var(--tools-h,44px) + 5vh);transform:translateX(-50%);width:640px;max-width:calc(100vw - 32px);max-height:calc(100vh - var(--tools-h,44px) - 10vh);display:flex;flex-direction:column;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);box-shadow:var(--shadow-pop)}
+.mod-h{display:flex;align-items:center;gap:8px;padding:16px 8px 8px 24px}.mod-h h2{flex:1;font-size:20px;letter-spacing:-0.02em}
+.mod-b{padding:8px 24px 16px;overflow-y:auto;display:grid;gap:16px;align-content:start}
+.mod-f{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;padding:12px 24px;border-top:1px solid var(--hf-border)}
+.mod-scrim.inframe{position:absolute;inset:0}
+.mod.inframe{position:absolute;left:0;right:0;top:auto;bottom:0;transform:none;width:auto;max-width:none;max-height:92%;border-radius:20px 20px 0 0;border-bottom:0}
+.mod.inframe .mod-f .btn{flex:1 1 100%;white-space:normal;height:auto;min-height:44px}
+.mod.inframe .mod-h{padding-left:16px}.mod.inframe .mod-b{padding:8px 16px 16px}.mod.inframe .mod-f{padding:12px 16px}
+.brg{display:grid;gap:6px}.brg h3{font-size:13px;color:var(--hf-muted)}
+.brg ul{border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);overflow:hidden}
+.br{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;min-height:48px;padding:6px 12px;border-top:1px solid var(--hf-border)}.br:first-child{border-top:0}
+.bn{display:flex;align-items:center;gap:8px}.bn .icon{color:var(--hf-muted)}.bs{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--hf-muted);text-align:right}
+.br.go .bs{color:var(--hf-active);font-weight:600}.br.warn .bs{color:var(--hf-warning);font-weight:600}.br.bad .bs{color:var(--hf-danger);font-weight:600}.br.ok .bs{color:var(--hf-success);font-weight:600}
+.cp2{display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:13px}.cp2 h3{font-size:13px;margin-bottom:4px}.cp2 ul{display:grid;gap:2px;padding-left:16px;list-style:disc;color:var(--hf-muted)}
+.wait{display:flex;align-items:center;gap:12px;padding:16px 0}
+
+@container main (max-width:760px){
+  .dr{grid-template-columns:minmax(0,1fr) auto;padding:12px 12px 12px 16px}
+  .dr .rg{grid-column:1/-1;order:3}.dr .tot{display:none}.dr .ac{grid-column:1/-1;order:4;justify-content:flex-start}.dr .cplbl{display:inline}
+  .pop2{left:0;right:auto}
+  .sh{display:none}
+  .slr{grid-template-columns:1fr;gap:10px;padding:16px}
+  .slr .sc:nth-of-type(2)::before{content:"Atender en";font-size:12px;font-weight:600;color:var(--hf-muted)}
+  .slr .sc:nth-of-type(3)::before{content:"Resolver en";font-size:12px;font-weight:600;color:var(--hf-muted)}
+  .dates,.fgrid,.fgrid.three,.cp2{grid-template-columns:1fr}
+  .sbar{padding:12px 16px;flex-wrap:wrap}.sbar .btn{flex:1}.sbar .grow{display:none}.sbar>span:not(.spin):not(.sb-i){flex:1 1 calc(100% - 40px)}
+  .tzf{width:100%}
+  .phead .btn{width:100%;white-space:normal;height:auto;min-height:44px}
+  .page{padding:16px}
+}
+/* 04: mobile 390 and states for the recommended direction (A) */
+body{background:color-mix(in srgb,var(--hf-surface-muted) 45%,var(--hf-page))}
+.gallery{display:grid;grid-template-columns:repeat(3,390px);gap:32px 48px;justify-content:center;padding:24px 24px 48px}
+.phone{display:grid;gap:8px;align-content:start;margin:0}
+.phone>figcaption{font-size:13px;font-weight:600;color:var(--hf-heading)}
+.phone>figcaption small{display:block;font-weight:400;color:var(--hf-muted);font-size:12px}
+.screen{position:relative;width:390px;height:780px;display:flex;flex-direction:column;background:var(--hf-page);border:1px solid var(--hf-border);border-radius:20px;overflow:hidden;box-shadow:var(--shadow-pop)}
+.mbar{height:56px;flex-shrink:0;display:flex;align-items:center;padding:0 4px;background:var(--hf-surface);border-bottom:1px solid var(--hf-border)}
+.mbar .t{flex:1;min-width:0;font-size:17px;font-weight:600;color:var(--hf-heading);letter-spacing:-0.02em;padding-left:4px}
+.mbody{flex:1;min-height:0;overflow-y:auto;position:relative}
+.screen .page{padding:16px;gap:12px}
+.screen .page-title{font-size:1.5rem}
+.screen .sbar{padding:12px 16px}
+@media (max-width:1300px){.gallery{grid-template-columns:repeat(2,390px)}}
+</style>
+</head>
+<body>
+<div class="tools" id="tools"></div>
+<main class="gallery" id="root" aria-label="Pantallas móviles y estados"></main>
+<aside class="notes-sheet" id="notes" hidden aria-label="Notas de diseño">
+  <h2>Notas · móvil 390 y estados (dirección A)</h2>
+  <ul>
+    <li>En móvil el índice de secciones pasa a una fila de chips fija arriba; los horarios se apilan por día (interruptor, franjas y «Copiar a…» en su propia línea) y los plazos pasan a una tarjeta por tipo con «Atender en» y «Resolver en».</li>
+    <li>«Copiar a…» abre un panel con los días como chips alternables (sin casillas) y un botón explícito; «Aplicar a todas» y el conflicto 409 usan una hoja inferior con botones a ancho completo.</li>
+    <li>Estados: solo lectura (sin controles de edición ni barra de guardado), versión 0, errores con lista y barra, cargando, error al cargar, guardado con aviso de recálculo, resultado parcial al aplicar (una sucursal falló, otra con recálculo pendiente).</li>
+    <li>Sin permiso para ver la pantalla, el aviso es una pantalla vacía de acceso; no se muestra en estas tarjetas porque es igual que el resto de pantallas del sistema.</li>
+    <li>Las pantallas son estáticas; para probar los flujos use las direcciones 01 a 03.</li>
+  </ul>
+</aside>
+<script>
+(() => {
+/* Shared helpers and sample data. Field names follow houndfe-backend docs/frontend-handoff/14 (rows, groups, detail). */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const setHTML = (el, s) => el.replaceChildren(document.createRange().createContextualFragment(s));
+const ic = (n, cls = '') => `<svg class="icon ${cls}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const ICONS = {
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>', dots: '<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>', check: '<path d="M20 6 9 17l-5-5"/>', 'check-circle': '<circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+  alert: '<path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/>',
+  down: '<path d="m6 9 6 6 6-6"/>', right: '<path d="m9 18 6-6-6-6"/>', left: '<path d="m15 18-6-6 6-6"/>', up: '<path d="m18 15-6-6-6 6"/>',
+  inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1Z"/>',
+  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/>', menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+  home: '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/>', cart: '<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h3l2.7 12.4a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L21 7H6"/>',
+  package: '<path d="M21 8 12 3 3 8v8l9 5 9-5Z"/><path d="m3 8 9 5 9-5M12 13v8"/>', users: '<circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2M16 3.1a4 4 0 0 1 0 7.8M22 21v-2a4 4 0 0 0-3-3.9"/>',
+  truck: '<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2M15 18H9M19 18h2a1 1 0 0 0 1-1v-3.7a1 1 0 0 0-.2-.6l-3.5-4.3A1 1 0 0 0 17.5 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>', sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>', monitor: '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>', paw: '<circle cx="6" cy="10" r="2"/><circle cx="10" cy="5.5" r="2"/><circle cx="14" cy="5.5" r="2"/><circle cx="18" cy="10" r="2"/><path d="M8 17c0-2.8 1.8-5 4-5s4 2.2 4 5c0 2-1.5 3-4 3s-4-1-4-3Z"/>',
+  lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>', clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', pause: '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/>', 'user-check': '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/>',
+  message: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/>', bot: '<rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 8V4M9 14h.01M15 14h.01"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>', link: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
+  merge: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/>', swap: '<path d="m16 3 4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16"/>',
+  undo: '<path d="M3 7v6h6M3 13a9 9 0 1 0 3-7.7L3 8"/>', ban: '<circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/>', history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l4 2"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>', refresh: '<path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/>',
+  back: '<path d="m12 19-7-7 7-7M19 12H5"/>', receipt: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6M16 12H8M13 16H8"/>',
+  pin: '<path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>', image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
+  phone: '<rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/>', filter: '<path d="M22 3H2l8 9.5V19l4 2v-8.5Z"/>', send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>', warn: '<circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>'
+};
+function injectIcons() {
+  // Static icon markup only (no user data), parsed as SVG instead of assigned through innerHTML.
+  const src = `<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute" aria-hidden="true">${Object.entries(ICONS).map(([k, v]) => `<symbol id="i-${k}" viewBox="0 0 24 24">${v}</symbol>`).join('')}</svg>`;
+  const doc = new DOMParser().parseFromString(src, 'image/svg+xml');
+  document.body.prepend(document.importNode(doc.documentElement, true));
+}
+
+/* Contract-shaped sample data: houndfe-backend docs/frontend-handoff/16-chatbot-settings.md at 8c12ae09 (GET/PUT /chatbot-settings, POST /chatbot-settings/apply-to-all-tenants).
+   The artboard's "now" is Thu 12 nov 2026, 11:05 in Ciudad de México (UTC-6, no DST). */
+Object.assign(ICONS, {
+  plus: '<path d="M5 12h14M12 5v14"/>', trash: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/>',
+  copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>',
+  store: '<path d="m3 9 1.5-5h15L21 9M3 9v11h18V9M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0M9 20v-6h6v6"/>',
+  timer: '<path d="M10 2h4M12 14V9"/><circle cx="12" cy="14" r="8"/>', globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  pencil: '<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>', building: '<rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 22v-4h6v4M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9 7 7M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/>', eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
+  dollar: '<path d="M12 2v20M17 6.5C16 5 14.3 4.5 12 4.5c-2.8 0-4.5 1.2-4.5 3s1.6 2.6 4.5 3 4.5 1.2 4.5 3.2-1.8 3.3-4.5 3.3c-2.5 0-4.2-.7-5.2-2.3"/>'
+});
+const clone = o => JSON.parse(JSON.stringify(o));
+const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+const DAY_L = { MONDAY: ['Lunes', 'lun'], TUESDAY: ['Martes', 'mar'], WEDNESDAY: ['Miércoles', 'mié'], THURSDAY: ['Jueves', 'jue'], FRIDAY: ['Viernes', 'vie'], SATURDAY: ['Sábado', 'sáb'], SUNDAY: ['Domingo', 'dom'] };
+const SUBS = {
+  RESTOCK: ['Reposición', 'package', 'Un cliente pide que vuelva un producto.'], EXPIRATION: ['Caducidad', 'calendar', 'Se consulta una fecha de caducidad.'],
+  DELIVERY_ZONE: ['Zona de entrega', 'pin', 'Se valida una dirección fuera de las zonas.'], TRANSFER_RECEIPT: ['Comprobante', 'receipt', 'Comprobante de transferencia por confirmar.'],
+  TALK_TO_HUMAN: ['Hablar con una persona', 'message', 'El cliente pide atención en vivo.'], COMPLAINT: ['Queja', 'alert', 'Una queja que requiere seguimiento.'],
+  UNKNOWN_QUESTION: ['Pregunta del bot', 'help', 'Una pregunta que el bot no supo contestar.'], DISCOUNT: ['Descuento', 'receipt', 'El cliente pide un descuento.']
+};
+const SUB_ORDER = Object.keys(SUBS);
+const TZ = { 'America/Mexico_City': 'Ciudad de México (GMT−6)', 'America/Monterrey': 'Monterrey (GMT−6)', 'America/Tijuana': 'Tijuana (GMT−8)', 'America/Hermosillo': 'Hermosillo (GMT−7)', 'America/Cancun': 'Cancún (GMT−5)' };
+const wk = (r, over = {}) => ({ timeZone: 'America/Mexico_City', days: DAYS.map(d => ({ day: d, ranges: (over[d] || r[d] || []).map(([open, close]) => ({ open, close })) })) });
+const FULL = [['09:00', '19:00']];
+const sla = (s, c, r) => ({ subtype: s, claimMinutes: c, resolveMinutes: r });
+const SERVER = {
+  version: 3,
+  openingHours: wk({ MONDAY: FULL, TUESDAY: FULL, WEDNESDAY: [['09:00', '14:00'], ['16:00', '19:00']], THURSDAY: FULL, FRIDAY: FULL, SATURDAY: [['09:00', '14:00']] }),
+  closedDates: ['2026-09-16', '2026-11-16', '2026-12-25', '2027-01-01'],
+  slas: [sla('RESTOCK', 60, 240), sla('EXPIRATION', 60, 240), sla('DELIVERY_ZONE', 60, 240), sla('TRANSFER_RECEIPT', null, null), sla('TALK_TO_HUMAN', 10, null), sla('COMPLAINT', 30, 240), sla('UNKNOWN_QUESTION', 30, 120), sla('DISCOUNT', 30, 120)],
+  windowWarningMinutes: 120, templateName: null, templateCostText: 'Enviar la plantilla tiene un costo para el negocio.',
+  enabledSubtypes: SUB_ORDER.slice(), receiptCloseMarginMinutes: 60,
+  scheduling: { enabled: false, slotMinutes: 30, slotsOffered: 3, maxScheduledPerSlot: 3 },
+  branchOpeningHours: wk({ MONDAY: [['10:00', '18:00']], TUESDAY: [['10:00', '18:00']], WEDNESDAY: [['10:00', '18:00']], THURSDAY: [['10:00', '18:00']], FRIDAY: [['10:00', '18:00']], SATURDAY: [['10:00', '14:00']] })
+};
+/* what a sucursal with no row gets (version 0) */
+const DEFAULTS = Object.assign(clone(SERVER), {
+  version: 0, closedDates: [], openingHours: wk({ MONDAY: FULL, TUESDAY: FULL, WEDNESDAY: FULL, THURSDAY: FULL, FRIDAY: FULL, SATURDAY: FULL })
+});
+DEFAULTS.slas = [sla('RESTOCK', 60, 240), sla('EXPIRATION', 60, 240), sla('DELIVERY_ZONE', 60, 240), sla('TRANSFER_RECEIPT', null, null), sla('TALK_TO_HUMAN', 10, null), sla('COMPLAINT', 30, 240), sla('UNKNOWN_QUESTION', 30, 120), sla('DISCOUNT', 30, 120)];
+/* response of POST /apply-to-all-tenants (dryRun true / false); only branches with a membership are ever listed */
+const APPLY = {
+  dry: { dryRun: true, source: { tenantId: 't-centro', version: 3 },
+    tenantsApplied: [{ tenantId: 't-norte', name: 'Sucursal Norte' }, { tenantId: 't-poniente', name: 'Sucursal Poniente' }],
+    tenantsUnchanged: [{ tenantId: 't-centro', name: 'Sucursal Centro', self: true }, { tenantId: 't-aeropuerto', name: 'Sucursal Aeropuerto' }],
+    tenantsSkipped: [{ tenantId: 't-sur', name: 'Sucursal Sur', reason: 'NO_PERMISSION' }, { tenantId: 't-bodega', name: 'Sucursal Bodega', reason: 'TENANT_INACTIVE' }], tenantsFailed: [] },
+  real: { ok: { dryRun: false, source: { tenantId: 't-centro', version: 3 },
+      tenantsApplied: [{ tenantId: 't-norte', name: 'Sucursal Norte', recompute: 'DONE' }, { tenantId: 't-poniente', name: 'Sucursal Poniente', recompute: 'DONE' }],
+      tenantsUnchanged: [{ name: 'Sucursal Centro', self: true }, { name: 'Sucursal Aeropuerto' }], tenantsSkipped: [{ name: 'Sucursal Sur', reason: 'NO_PERMISSION' }, { name: 'Sucursal Bodega', reason: 'TENANT_INACTIVE' }], tenantsFailed: [] },
+    partial: { dryRun: false, source: { tenantId: 't-centro', version: 3 },
+      tenantsApplied: [{ tenantId: 't-norte', name: 'Sucursal Norte', recompute: 'FAILED' }],
+      tenantsUnchanged: [{ name: 'Sucursal Centro', self: true }, { name: 'Sucursal Aeropuerto' }], tenantsSkipped: [{ name: 'Sucursal Sur', reason: 'NO_PERMISSION' }, { name: 'Sucursal Bodega', reason: 'TENANT_INACTIVE' }],
+      tenantsFailed: [{ tenantId: 't-poniente', name: 'Sucursal Poniente' }] } },
+  none: { dryRun: true, source: { tenantId: 't-centro', version: 3 }, tenantsApplied: [], tenantsUnchanged: [{ name: 'Sucursal Centro', self: true }, { name: 'Sucursal Norte' }, { name: 'Sucursal Poniente' }, { name: 'Sucursal Aeropuerto' }], tenantsSkipped: [], tenantsFailed: [] }
+};
+/* what someone else saved first (409 VERSION_CONFLICT body.current) */
+const theirs = () => { const c = clone(SERVER); c.version = 4; c.slas.find(s => s.subtype === 'COMPLAINT').claimMinutes = 20; c.closedDates.push('2027-01-06'); c.closedDates.sort(); return c; };
+
+/* ---- formatting ---- */
+const TODAY = '2026-11-12', MON = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const U = s => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+const dowOf = s => new Date(U(s)).getUTCDay(); // 0 = domingo
+const WDAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+const dlabel = s => { const [y, m, d] = s.split('-').map(Number); return `${WDAYS[dowOf(s)]} ${d} ${MON[m - 1]} ${y}`; };
+const dshort = s => { const [, m, d] = s.split('-').map(Number); return `${WDAYS[dowOf(s)]} ${d} ${MON[m - 1]}`; };
+const rel = s => { const n = Math.round((U(s) - U(TODAY)) / 864e5); return n === 0 ? 'hoy' : n === 1 ? 'mañana' : n > 0 ? `en ${n} días` : n === -1 ? 'ayer' : `hace ${-n} días`; };
+const hm = t => { const m = /^(\d{2}):(\d{2})$/.exec(t || ''); return m ? +m[1] * 60 + +m[2] : null; };
+const fmtMin = m => m == null ? 'Sin plazo' : m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ' ' + (m % 60) + ' min' : ''}`;
+const fmtClock = m => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+const dayTotal = ranges => ranges.reduce((a, r) => (hm(r.open) != null && hm(r.close) != null && hm(r.close) > hm(r.open) ? a + hm(r.close) - hm(r.open) : a), 0);
+const weekTotal = oh => oh.days.reduce((a, d) => a + dayTotal(d.ranges), 0);
+const rangesText = r => r.length ? r.map(x => `${x.open}–${x.close}`).join(' y ') : 'Cerrado';
+const plural = (n, a, b) => `${n} ${n === 1 ? a : b}`;
+const dayOf = (cfg, d) => cfg.openingHours.days.find(x => x.day === d);
+
+/* business time: the same idea the server applies (stops outside hours and on closed dates). Local, illustrative: the server's answer is the one that counts. */
+function dueAt(cfg, arrival, minutes) { // arrival 'YYYY-MM-DDTHH:mm' local to the sucursal
+  let [date, t] = arrival.split('T'); let cur = hm(t), left = minutes;
+  for (let i = 0; i < 400; i++) {
+    if (!cfg.closedDates.includes(date)) {
+      const d = dayOf(cfg, DAYS[(dowOf(date) + 6) % 7]);
+      for (const r of [...d.ranges].sort((a, b) => hm(a.open) - hm(b.open))) {
+        const o = hm(r.open), c = hm(r.close); if (o == null || c == null || c <= o) continue;
+        const from = Math.max(o, cur); if (from >= c) continue;
+        if (left <= c - from) return { date, min: from + left };
+        left -= c - from;
+      }
+    }
+    date = new Date(U(date) + 864e5).toISOString().slice(0, 10); cur = 0;
+  }
+  return null;
+}
+const fmtDue = d => d ? `${dshort(d.date)}, ${fmtClock(d.min)}` : 'Sin horario abierto';
+
+/* ---- validation: mirrors the server rules (the server answers 400 without saying which day or field) ---- */
+function validate(c) {
+  const e = {};
+  let any = false;
+  for (const d of c.openingHours.days) {
+    const rs = d.ranges; if (rs.length) any = true;
+    const bad = rs.findIndex(r => hm(r.open) == null || hm(r.close) == null);
+    if (bad >= 0) { e['h:' + d.day] = 'Completa la hora de apertura y de cierre.'; continue; }
+    const inv = rs.find(r => hm(r.close) <= hm(r.open));
+    if (inv) { e['h:' + d.day] = `El cierre (${inv.close}) debe ser después de la apertura (${inv.open}).`; continue; }
+    const s = [...rs].sort((a, b) => hm(a.open) - hm(b.open));
+    for (let i = 1; i < s.length; i++) if (hm(s[i].open) <= hm(s[i - 1].close)) { e['h:' + d.day] = `${s[i - 1].open}–${s[i - 1].close} y ${s[i].open}–${s[i].close} se empalman o se tocan. Únelos en un solo horario.`; break; }
+  }
+  if (!any) e['h:week'] = 'Deja al menos un día con horario abierto.';
+  for (const s of c.slas) {
+    if (s.subtype === 'TRANSFER_RECEIPT') continue;
+    const chk = (v, k) => { if (v != null && (!Number.isInteger(v) || v < 1 || v > 10080)) e[`s:${s.subtype}:${k}`] = 'Usa un número entre 1 min y 168 h.'; };
+    chk(s.claimMinutes, 'claim'); chk(s.resolveMinutes, 'resolve');
+    if (s.claimMinutes != null && s.resolveMinutes != null && s.resolveMinutes < s.claimMinutes && !e[`s:${s.subtype}:resolve`]) e[`s:${s.subtype}:resolve`] = `Resolver no puede ser antes que atender (${fmtMin(s.claimMinutes)}).`;
+  }
+  const rng = (v, lo, hi, k, msg) => { if (!Number.isInteger(v) || v < lo || v > hi) e[k] = msg; };
+  rng(c.windowWarningMinutes, 0, 1440, 'x:window', 'Usa un valor entre 0 min y 24 h.');
+  rng(c.receiptCloseMarginMinutes, 0, 1440, 'x:margin', 'Usa un valor entre 0 min y 24 h.');
+  if (c.templateName != null && !/^[a-z0-9_]{1,512}$/.test(c.templateName)) e['x:template'] = 'Solo minúsculas, números y guion bajo (_).';
+  rng(c.scheduling.slotMinutes, 5, 240, 'c:slot', 'Entre 5 y 240 minutos.');
+  rng(c.scheduling.slotsOffered, 1, 10, 'c:offered', 'Entre 1 y 10 horarios.');
+  rng(c.scheduling.maxScheduledPerSlot, 1, 50, 'c:max', 'Entre 1 y 50 conversaciones.');
+  return e;
+}
+const SECTION_OF = k => k === 'x:margin' ? 'sla' : k[0] === 'h' ? 'hours' : k[0] === 's' ? 'sla' : k[0] === 'x' ? 'extras' : k[0] === 'c' ? 'sched' : 'dates';
+const SEC_NAME = { hours: 'Horario de atención', dates: 'Fechas cerradas', sla: 'Plazos por tipo', extras: 'Ventana y plantilla', sched: 'Conversaciones agendadas' };
+/* parts1: state and section builders (hours, closed dates, SLA, extras, scheduling). Each returns an HTML string; S is the artboard state. */
+const newState = () => ({
+  role: 'manager', mode: 'normal', cfg: clone(SERVER), draft: clone(SERVER), errors: {}, shown: false, saving: false, savedAt: null,
+  units: {}, raw: {}, copyFrom: null, copyTo: [], dateIn: '', dateErr: '', outcome: 'ok', applyOut: 'ok', dialog: null, conflict: null, notice: null, toast: null, tab: 'hours', day: 'THURSDAY', sim: '2026-11-13T18:30'
+});
+let S = newState();
+const can = () => ({ edit: S.role === 'manager' || S.role === 'admin', all: S.role === 'admin' });
+const creating = () => S.cfg.version === 0;
+const sub = i => SUBS[i];
+const short = s => s.length > 200 ? s.slice(0, 197) + '…' : s;
+
+/* ---- change tracking, shared by the save bar and the 409 comparison ---- */
+function diffItems(a, b) {
+  const out = [];
+  DAYS.forEach(d => { if (JSON.stringify(dayOf(a, d).ranges) !== JSON.stringify(dayOf(b, d).ranges)) out.push({ sec: 'hours', key: 'h:' + d, label: DAY_L[d][0] }); });
+  if (a.openingHours.timeZone !== b.openingHours.timeZone) out.push({ sec: 'hours', key: 'tz', label: 'Zona horaria' });
+  if (JSON.stringify(a.closedDates) !== JSON.stringify(b.closedDates)) out.push({ sec: 'dates', key: 'dates', label: 'Fechas cerradas' });
+  SUB_ORDER.forEach(s => { const x = a.slas.find(q => q.subtype === s), y = b.slas.find(q => q.subtype === s); if (x.claimMinutes !== y.claimMinutes || x.resolveMinutes !== y.resolveMinutes) out.push({ sec: 'sla', key: 's:' + s, label: 'Plazo de ' + SUBS[s][0].toLowerCase() }); });
+  [['receiptCloseMarginMinutes', 'Margen de comprobantes', 'sla'], ['windowWarningMinutes', 'Aviso de ventana', 'extras'], ['templateName', 'Nombre de plantilla', 'extras'], ['templateCostText', 'Texto de costo', 'extras']].forEach(([k, l, sec]) => { if (a[k] !== b[k]) out.push({ sec, key: 'x:' + k, label: l }); });
+  if (JSON.stringify(a.scheduling) !== JSON.stringify(b.scheduling)) out.push({ sec: 'sched', key: 'sched', label: 'Conversaciones agendadas' });
+  return out;
+}
+const dirtyItems = () => diffItems(S.cfg, S.draft);
+const errCount = sec => Object.keys(S.errors).filter(k => !sec || SECTION_OF(k) === sec).length;
+
+/* ---- small pieces ---- */
+const swBtn = (on, label, attrs, texts = ['Abierto', 'Cerrado']) => `<button type="button" class="swb" role="switch" aria-checked="${on}" aria-label="${esc(label)}" ${attrs}><span class="track" aria-hidden="true">${ic('check')}</span><span class="sl" aria-hidden="true">${on ? texts[0] : texts[1]}</span></button>`;
+const pending = () => `<span class="badge dot pend" title="Se guarda, pero todavía no cambia lo que hace el chatbot">${ic('clock', 'xs')}Aún sin efecto</span>`;
+const gap = t => `<span class="mock-flag" title="${esc(t)}">${ic('info', 'xs')}No está en el contrato</span>`;
+const errLine = (id, m) => m ? `<span class="err" id="${id}-e" role="alert">${ic('alert', 'sm')}<span>${esc(m)}</span></span>` : '';
+const secBadges = sec => {
+  const n = S.shown ? errCount(sec) : 0, d = dirtyItems().filter(i => i.sec === sec).length;
+  return (n ? `<span class="badge danger">${ic('alert', 'xs')}${plural(n, 'campo por corregir', 'campos por corregir')}</span>` : '') + (d ? `<span class="badge info dot">Modificado</span>` : '');
+};
+const secCard = (id, title, desc, body, o = {}) => `<section class="panel sec" id="sec-${id}" aria-labelledby="h-${id}"><div class="ph sec-h"><div class="phl"><h2 id="h-${id}">${title}</h2>${desc ? `<p class="p2">${desc}</p>` : ''}</div><div class="phr">${o.tag || ''}${secBadges(id)}${o.actions || ''}</div></div>${body}</section>`;
+
+/* number with optional unit (min / h); the stored value is always minutes */
+function numField(path, id, label, v, o = {}) {
+  const ed = can().edit, err = S.errors[path];
+  if (!ed) return `<span class="rov fig">${o.unit === false ? (v ?? '—') : fmtMin(v)}</span>`;
+  if (o.unit === false) return `<input class="ctl fig" inputmode="numeric" id="${id}" data-f="${path}" value="${esc(S.raw[path] ?? v ?? '')}" aria-label="${esc(label)}" ${err ? 'aria-invalid="true"' : ''} aria-describedby="${id}-e">`;
+  const unit = S.units[path] ?? (v != null && v >= 60 && v % 60 === 0 ? 'h' : 'min');
+  const text = S.raw[path] ?? (v == null ? '' : unit === 'h' ? v / 60 : v);
+  return `<div class="numg"><input class="ctl fig" inputmode="numeric" id="${id}" data-f="${path}" value="${esc(text)}" placeholder="${o.ph || 'Sin plazo'}" aria-label="${esc(label)}" ${err ? 'aria-invalid="true"' : ''} aria-describedby="${id}-e ${id}-r"><select class="ctl u" data-u="${path}" aria-label="Unidad de ${esc(label)}"><option value="min" ${unit === 'min' ? 'selected' : ''}>min</option><option value="h" ${unit === 'h' ? 'selected' : ''}>h</option></select></div>`;
+}
+
+/* ---- weekly attention hours ---- */
+function dayRow(d) {
+  const ed = can().edit, [long, sh] = DAY_L[d.day], open = d.ranges.length > 0, err = S.errors['h:' + d.day], lower = long.toLowerCase();
+  const sw = ed ? swBtn(open, `${long}: ${open ? 'abierto' : 'cerrado'}`, `data-act="toggleDay" data-day="${d.day}"`) : `<span class="badge dot ${open ? 'success' : ''}">${open ? 'Abierto' : 'Cerrado'}</span>`;
+  let rg;
+  if (!open) rg = `<span class="muted">Sin atención este día</span>`;
+  else if (!ed) rg = `<span class="fig">${d.ranges.map(r => `${r.open} – ${r.close}`).join('<span class="muted"> · </span>')}</span>`;
+  else rg = d.ranges.map((r, i) => `<div class="rng"><input type="time" class="ctl t" max="23:59" id="t-${d.day}-${i}-open" data-f="h:${d.day}:${i}:open" value="${r.open}" aria-label="${long}, horario ${i + 1}: abre" ${err ? 'aria-invalid="true"' : ''}><span class="muted" aria-hidden="true">a</span><input type="time" class="ctl t" max="23:59" id="t-${d.day}-${i}-close" data-f="h:${d.day}:${i}:close" value="${r.close}" aria-label="${long}, horario ${i + 1}: cierra" ${err ? 'aria-invalid="true"' : ''}><button type="button" class="kebab sm" data-act="delRange" data-day="${d.day}" data-i="${i}" aria-label="Quitar horario ${i + 1} del ${lower}">${ic('x', 'sm')}</button></div>`).join('')
+    + (d.ranges.length < 6 ? `<button type="button" class="link-btn" data-act="addRange" data-day="${d.day}" aria-label="Agregar horario al ${lower}">${ic('plus', 'xs')}Agregar horario</button>` : '');
+  const tot = open ? dayTotal(d.ranges) : 0;
+  const cp = ed && open ? `<button type="button" class="btn ghost sm" data-act="copyOpen" data-day="${d.day}" aria-haspopup="dialog" aria-expanded="${S.copyFrom === d.day}" id="cp-${d.day}" aria-label="Copiar el horario del ${lower} a otros días">${ic('copy', 'sm')}<span class="cplbl">Copiar a…</span></button>` : '';
+  return `<li class="dr ${open ? '' : 'closed'} ${err ? 'bad' : ''}" id="dr-${d.day}"><div class="dn"><b>${long}</b></div><div class="dsw">${sw}</div><div class="rg">${rg}</div><div class="tot fig">${open && tot ? fmtMin(tot) : ''}</div><div class="ac">${cp}${S.copyFrom === d.day ? copyPop(d.day) : ''}</div>${err ? `<div class="derr">${errLine('t-' + d.day, err)}</div>` : ''}</li>`;
+}
+function copyPop(from) {
+  const long = DAY_L[from][0], others = DAYS.filter(d => d !== from);
+  return `<div class="pop2" role="dialog" aria-label="Copiar el horario del ${long.toLowerCase()}" id="copyPop"><h3>Copiar el horario del ${long.toLowerCase()} a…</h3><p class="p2">${esc(rangesText(dayOf(S.draft, from).ranges))}. Reemplaza el horario de los días que elijas.</p><div class="chips" role="group" aria-label="Días de destino">${others.map(d => `<button type="button" class="chip" data-act="copyToggle" data-day="${d}" aria-pressed="${S.copyTo.includes(d)}">${DAY_L[d][1]}</button>`).join('')}</div><div class="quick"><button type="button" class="link-btn" data-act="copyPick" data-set="wk">Lun–vie</button><button type="button" class="link-btn" data-act="copyPick" data-set="all">Todos</button><button type="button" class="link-btn" data-act="copyPick" data-set="none">Ninguno</button></div><div class="pop2f"><button type="button" class="btn sm" data-act="copyClose">Cancelar</button><button type="button" class="btn sm primary" data-act="copyApply" ${S.copyTo.length ? '' : 'disabled'}>Copiar a ${plural(S.copyTo.length, 'día', 'días')}</button></div></div>`;
+}
+function tzField() {
+  const ed = can().edit, z = S.draft.openingHours.timeZone;
+  if (!ed) return `<div class="field"><span class="lbl">Zona horaria</span><span class="rov">${TZ[z] || z}</span></div>`;
+  return `<div class="field tzf"><label class="lbl" for="tz">Zona horaria ${gap('El contrato recibe la zona IANA; la lista de opciones es de ejemplo')}</label><select class="ctl" id="tz" data-f="tz">${Object.entries(TZ).map(([k, v]) => `<option value="${k}" ${k === z ? 'selected' : ''}>${v}</option>`).join('')}</select></div>`;
+}
+const pickupNote = () => `<div class="alert info" role="note">${ic('info', 'sm')}<div><strong>Este horario es solo para el chatbot</strong>Mide los plazos y pausa los tiempos fuera de horario. No cambia el horario de recolección en tienda, que se edita en <a href="#" data-act="noop">Sistema › Envíos › Horario</a>.</div></div>`;
+function pickupCopy() {
+  const has = !!S.draft.branchOpeningHours;
+  return `<div class="pickrow"><button type="button" class="btn sm" data-act="copyPickup" ${has ? '' : 'disabled aria-describedby="pickWhy"'}>${ic('store', 'sm')}Copiar horario de recolección</button><span class="help" id="pickWhy">${has ? 'Trae el horario de Envíos como punto de partida. Después los dos horarios son independientes; se guarda con «Guardar».' : 'Esta sucursal no tiene horario de recolección en Envíos, así que no hay nada que copiar.'}</span></div>`;
+}
+function hoursBody(o = {}) {
+  const ed = can().edit, e = S.errors['h:week'];
+  const wtotal = weekTotal(S.draft.openingHours);
+  return `${o.noNote ? '' : pickupNote()}<div class="hrow-top">${tzField()}${ed ? pickupCopy() : ''}</div>${e ? `<div class="alert danger" role="alert">${ic('alert', 'sm')}<div><strong>${esc(e)}</strong>El chatbot necesita al menos un horario para calcular plazos.</div></div>` : ''}<ul class="days" aria-label="Horario de atención por día">${S.draft.openingHours.days.map(dayRow).join('')}</ul><p class="p2 foot-note">${ic('clock', 'xs')}${wtotal ? `${fmtMin(wtotal)} de atención por semana.` : 'Sin horas de atención esta semana.'} Fuera de este horario los plazos se pausan y las solicitudes muestran «se reanuda…».</p>`;
+}
+
+/* ---- closed dates (contract: array of YYYY-MM-DD, sorted, unique, up to 400; no reason field) ---- */
+function datesBody() {
+  const ed = can().edit, list = S.draft.closedDates, past = list.filter(d => d < TODAY);
+  const add = ed ? `<div class="dadd"><div class="field"><label class="lbl" for="dateIn">Nueva fecha cerrada</label><input type="date" class="ctl" id="dateIn" value="${esc(S.dateIn)}" ${S.dateErr ? 'aria-invalid="true"' : ''} aria-describedby="dateIn-e dateIn-h"></div><button type="button" class="btn" data-act="dateAdd">${ic('plus', 'sm')}Agregar fecha</button></div>${errLine('dateIn', S.dateErr)}<span class="help" id="dateIn-h">Día completo sin atención, en la zona horaria del horario. El contrato guarda solo la fecha, sin motivo ${gap('No hay campo de motivo en el contrato')}</span>` : '';
+  const rows = list.length ? `<ul class="dates" aria-label="Fechas cerradas">${list.map(d => `<li class="date ${d < TODAY ? 'past' : ''}"><span class="dd"><b>${dlabel(d)}</b><small>${d < TODAY ? 'Pasada · ' : ''}${rel(d)}</small></span>${d < TODAY ? '<span class="badge">Pasada</span>' : ''}${ed ? `<button type="button" class="kebab" data-act="dateDel" data-d="${d}" aria-label="Quitar ${dlabel(d)}">${ic('x', 'sm')}</button>` : ''}</li>`).join('')}</ul><div class="dfoot"><span class="p2 fig">${plural(list.length, 'fecha', 'fechas')} · máximo 400</span>${ed && past.length ? `<button type="button" class="link-btn" data-act="datePast">Quitar ${plural(past.length, 'pasada', 'pasadas')}</button>` : ''}</div>`
+    : `<div class="empty"><svg class="icon" aria-hidden="true"><use href="#i-calendar"/></svg><h2>Sin fechas cerradas</h2><p>Agrega los días en que no habrá atención (feriados, inventario). En esas fechas los plazos se pausan todo el día.</p></div>`;
+  return add + rows;
+}
+
+/* ---- SLA per subtype, business minutes in human units ---- */
+function slaRow(s) {
+  const ed = can().edit, [name, icon, hint] = SUBS[s.subtype], id = 's-' + s.subtype, ec = S.errors[`s:${s.subtype}:claim`], er = S.errors[`s:${s.subtype}:resolve`];
+  const lbl = `<div class="sn"><span class="sico">${ic(icon, 'sm')}</span><span><b>${name}</b><small>${hint}</small></span></div>`;
+  if (s.subtype === 'TRANSFER_RECEIPT') {
+    const m = S.draft.receiptCloseMarginMinutes, em = S.errors['x:margin'];
+    return `<div class="slr fixed" role="row">${lbl}<div class="sc fx"><span class="fxv">No tiene plazo para atender</span></div><div class="sc fx"><span class="fxv">Al cierre del día en que llega</span><small>Si llega con menos de ${ed ? '' : fmtMin(m)} de margen antes del cierre, vence al cierre del siguiente día hábil.</small>${ed ? `<div class="marg"><label class="lbl" for="margin">Margen antes del cierre</label>${numField('x:margin', 'margin', 'Margen antes del cierre', m)}<span class="help" id="margin-r">${fmtMin(m)} de atención</span>${errLine('margin', em)}</div>` : ''}</div></div>`;
+  }
+  const cell = (k, v, e, ro) => `<div class="sc">${ro ? `<span class="fxv">${ro}</span>` : `${numField(`s:${s.subtype}:${k}`, `${id}-${k}`, `${k === 'claim' ? 'Atender' : 'Resolver'} ${name.toLowerCase()}`, v)}<small class="rd" id="${id}-${k}-r">${v == null ? 'Sin límite de tiempo' : fmtMin(v) + ' de atención'}</small>${errLine(`${id}-${k}`, e)}`}</div>`;
+  const cl = ed ? cell('claim', s.claimMinutes, ec) : `<div class="sc"><span class="fxv fig">${fmtMin(s.claimMinutes)}</span></div>`;
+  const rs = s.subtype === 'TALK_TO_HUMAN' ? `<div class="sc fx"><span class="fxv">En vivo</span><small>Sin plazo para resolver: se atiende en la conversación.</small></div>` : ed ? cell('resolve', s.resolveMinutes, er) : `<div class="sc"><span class="fxv fig">${fmtMin(s.resolveMinutes)}</span></div>`;
+  return `<div class="slr" role="row">${lbl}${cl}${rs}</div>`;
+}
+function slaBody(o = {}) {
+  return `<div class="sla-note p2">${ic('timer', 'sm')}<span><b>Atender</b> es el tiempo para que alguien tome la solicitud; <b>resolver</b>, para cerrarla. Se cuentan desde que llega y <b>solo dentro del horario de atención</b> (minutos hábiles).</span></div><div class="slat" role="table" aria-label="Plazos por tipo de solicitud"><div class="sh" role="row"><span role="columnheader">Tipo</span><span role="columnheader">Atender en</span><span role="columnheader">Resolver en</span></div>${S.draft.slas.map(slaRow).join('')}</div><ul class="notes2 p2"><li>Al liberar una solicitud, el plazo para atender vuelve a empezar; el de resolver no se reinicia.</li><li>Al guardar se recalculan las solicitudes abiertas. Las cerradas no cambian.</li></ul>`;
+}
+
+/* ---- window warning + template (stored only today) ---- */
+function extrasBody() {
+  const ed = can().edit, d = S.draft, et = S.errors['x:template'], ew = S.errors['x:window'];
+  const tname = ed ? `<input class="ctl mono" id="tpl" data-f="x:templateName" value="${esc(d.templateName ?? '')}" placeholder="p. ej. aviso_seguimiento" ${et ? 'aria-invalid="true"' : ''} aria-describedby="tpl-h tpl-e" autocomplete="off" spellcheck="false">` : `<span class="rov mono">${d.templateName ? esc(d.templateName) : 'Sin configurar'}</span>`;
+  const cost = ed ? `<textarea class="ctl" id="tplc" data-f="x:templateCostText" maxlength="200" rows="2" aria-describedby="tplc-h">${esc(d.templateCostText)}</textarea><span class="counter fig">${d.templateCostText.length} / 200</span>` : `<span class="rov">${esc(d.templateCostText)}</span>`;
+  return `<div class="fgrid"><div class="field"><label class="lbl" for="win">Avisar antes de que se cierre la ventana de WhatsApp ${pending()}</label>${numField('x:window', 'win', 'Avisar antes de que se cierre la ventana de WhatsApp', d.windowWarningMinutes, { ph: '0' })}<span class="help" id="win-r">La ventana de 24 h permite escribir sin plantilla. Hoy el filtro «Ventana por cerrar» de la bandeja usa 2 h fijas.</span>${errLine('win', ew)}</div>
+<div class="field"><label class="lbl" for="tpl">Plantilla de WhatsApp ${pending()}</label>${tname}<span class="help" id="tpl-h">Minúsculas, números y _. Sin nombre, «Enviar plantilla» no estará disponible (422 TEMPLATE_NOT_CONFIGURED).</span>${errLine('tpl', et)}</div>
+<div class="field wide"><label class="lbl" for="tplc">Texto de costo al enviar una plantilla</label>${cost}<span class="help" id="tplc-h">Se muestra tal cual en la confirmación de «Enviar plantilla».</span></div></div><p class="p2 foot-note">${ic('info', 'xs')}La plantilla y su texto de costo son por sucursal: «Aplicar a todas» no los copia.</p>`;
+}
+
+/* ---- scheduled conversations: the «slots cap» lives here (stored only) ---- */
+function schedBody() {
+  const ed = can().edit, c = S.draft.scheduling, e = k => S.errors['c:' + k];
+  const f = (k, id, label, help, v) => `<div class="field"><label class="lbl" for="${id}">${label}</label>${numField('c:' + k, id, label, v, { unit: false })}<span class="help">${help}</span>${errLine(id, e(k))}</div>`;
+  return `<div class="alert info" role="note">${ic('info', 'sm')}<div><strong>Se guarda, pero todavía no cambia al chatbot</strong>Las conversaciones agendadas llegan en una versión posterior. Puedes dejar los valores listos.</div></div><div class="srow">${ed ? swBtn(c.enabled, 'Permitir conversaciones agendadas', 'data-act="schedToggle"', ['Activadas', 'Desactivadas']) : `<span class="badge dot">${c.enabled ? 'Activadas' : 'Desactivadas'}</span>`}<div class="srt"><b>Permitir conversaciones agendadas</b><small>El cliente elige un horario para que una persona lo atienda.</small></div></div><div class="fgrid three">${f('slot', 'slot', 'Duración de cada horario (min)', 'De 5 a 240.', c.slotMinutes)}${f('offered', 'offered', 'Horarios que se ofrecen', 'De 1 a 10 opciones.', c.slotsOffered)}${f('max', 'maxs', 'Máximo por horario', 'Conversaciones a la vez, de 1 a 50.', c.maxScheduledPerSlot)}</div>`;
+}
+/* parts2: shell, states, banners, save bar, dialogs, actions. */
+const sidebar = () => `<aside class="side" aria-label="Navegación principal"><div class="brand"><span class="brand-mark">${ic('paw')}</span>HoundFe</div><div class="tenant"><span class="tenant-tile">C</span><div><strong>Sucursal Centro</strong><small>Ciudad de México</small></div></div><nav class="nav" aria-label="Secciones"><ul>
+<li><a href="#">${ic('home', 'sm')}Inicio</a></li><li><a href="#">${ic('cart', 'sm')}Ventas</a></li><li><a href="#">${ic('package', 'sm')}Productos</a></li><li><a href="#">${ic('users', 'sm')}Clientes</a></li>
+<li class="nav-group">Chatbot</li><li><a href="#">${ic('inbox', 'sm')}Solicitudes<span class="count">5</span></a></li>
+<li class="nav-group">Sistema</li><li><a href="#">${ic('bell', 'sm')}Notificaciones</a></li><li><a href="#">${ic('globe', 'sm')}Catálogo online</a></li><li><a href="#">${ic('truck', 'sm')}Envíos</a></li><li><a href="#">${ic('pin', 'sm')}Validaciones de zona</a></li><li><a href="#" aria-current="page">${ic('bot', 'sm')}Atención del chatbot</a></li></ul></nav><div class="side-foot"><span class="avatar">LM</span><div><b>Laura Méndez</b><small>Gerente</small></div></div></aside>`;
+const topbar = () => `<header class="topbar"><nav class="crumbs" aria-label="Ruta"><a href="#">Sistema</a>${ic('right', 'xs')}<span aria-current="page">Atención del chatbot</span></nav><span class="spacer"></span><button class="icon-btn" aria-label="Notificaciones, 5 sin leer">${ic('bell')}<span class="dotc">5</span></button><span class="avatar">LM</span></header>`;
+const shell = inner => `<div class="app">${sidebar()}<div class="col">${topbar()}<div class="scroll cq" id="scroll">${inner}</div></div></div>`;
+const pageHead = () => `<div class="phead"><div><h1 class="page-title">Atención del chatbot</h1><p class="page-sub">Horario, fechas cerradas y plazos con los que se miden las solicitudes del chatbot en Sucursal Centro.</p></div>${can().all ? `<button type="button" class="btn" data-act="applyOpen" id="applyBtn">${ic('building', 'sm')}Aplicar a todas mis sucursales</button>` : ''}</div>`;
+
+/* ---- screen-level states ---- */
+const skelSec = n => `<section class="panel" aria-hidden="true"><span class="skel" style="width:30%;height:16px"></span><span class="skel" style="width:55%"></span>${Array.from({ length: n }, () => '<span class="skel" style="height:44px"></span>').join('')}</section>`;
+function gate(inner) {
+  if (S.mode === 'forbidden') return `<div class="page"><div class="surface"><div class="empty"><svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg><h2>No tienes acceso a esta pantalla</h2><p>Pide a quien administra tu rol el permiso «Ver ajustes del chatbot» (read:ChatbotSettings).</p></div></div></div>`;
+  if (S.mode === 'loading') return `<div class="page" role="status" aria-label="Cargando ajustes del chatbot"><span class="skel" style="width:280px;height:32px"></span><span class="skel" style="width:60%"></span>${skelSec(5)}${skelSec(3)}</div>`;
+  if (S.mode === 'loaderror') return `<div class="page"><div class="surface"><div class="empty error" role="alert"><svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg><h2>No pudimos cargar los ajustes</h2><p>No se cambió nada. Revisa tu conexión e inténtalo de nuevo.</p><button type="button" class="btn" data-act="retry">${ic('refresh', 'sm')}Reintentar</button></div></div></div>`;
+  return inner();
+}
+const errTarget = k => {
+  const p = k.split(':');
+  if (p[0] === 'h') return p[1] === 'week' ? ['Horario de atención', 'sec-hours'] : [`${DAY_L[p[1]][0]}: horario`, 'dr-' + p[1]];
+  if (p[0] === 's') return [`${SUBS[p[1]][0]}: ${p[2] === 'claim' ? 'atender' : 'resolver'}`, `s-${p[1]}-${p[2]}`];
+  return [{ 'x:window': 'Aviso de ventana', 'x:margin': 'Margen de comprobantes', 'x:template': 'Plantilla', 'c:slot': 'Duración de cada horario', 'c:offered': 'Horarios que se ofrecen', 'c:max': 'Máximo por horario' }[k], { 'x:window': 'win', 'x:margin': 'margin', 'x:template': 'tpl', 'c:slot': 'slot', 'c:offered': 'offered', 'c:max': 'maxs' }[k]];
+};
+const NOTICE = {
+  failed: ['warn', 'alert', 'Guardado; los plazos de las solicitudes abiertas se actualizarán más tarde', 'Tus cambios ya están en la versión {v}. No hace falta guardar otra vez ni reintentar.'],
+  partial: ['info', 'info', 'Guardado; algunas solicitudes se actualizarán la próxima vez que alguien las toque', 'Estaban cambiando justo ahora. Los plazos nuevos se aplican solos.'],
+  500: ['danger', 'alert', 'No se pudo guardar', 'Tus cambios siguen aquí y no se perdió nada. Es seguro volver a intentarlo.'],
+  403: ['danger', 'lock', 'Ya no tienes permiso para guardar', 'Tus cambios siguen aquí. Pide el permiso «Cambiar ajustes del chatbot» (update:ChatbotSettings) y vuelve a intentarlo.']
+};
+function banners() {
+  const out = [];
+  if (!can().edit) out.push(`<div class="alert info" role="note">${ic('lock', 'sm')}<div><strong>Solo lectura</strong>Puedes ver cómo está configurado, pero no cambiarlo. Pide el permiso «Cambiar ajustes del chatbot» a quien administra tu rol.</div></div>`);
+  if (creating() && S.mode !== 'errors') out.push(`<div class="alert info" role="note">${ic('info', 'sm')}<div><strong>Esta sucursal aún no tiene configuración propia</strong>Mostramos los valores recomendados (versión 0). Se vuelven tuyos al presionar «Guardar configuración»; puedes ajustarlos antes.</div></div>`);
+  if (S.notice) { const [t, i, ti, de] = NOTICE[S.notice.kind]; out.push(`<div class="alert ${t}" role="${t === 'danger' ? 'alert' : 'status'}">${ic(i, 'sm')}<div><strong>${ti}</strong>${de.replace('{v}', S.cfg.version)}<div class="acts">${S.notice.kind === '500' ? '<button type="button" class="btn sm" data-act="save">Reintentar</button>' : ''}<button type="button" class="btn sm ghost" data-act="noticeClose">Entendido</button></div></div></div>`); }
+  if (S.conflict && !S.dialog) out.push(`<div class="alert warn" role="alert">${ic('alert', 'sm')}<div><strong>Otra persona guardó cambios antes que tú</strong>Ya existe la versión ${S.conflict.version}. Tus cambios siguen aquí; no se ha enviado nada.<div class="acts"><button type="button" class="btn sm" data-act="conflictOpen">Revisar y resolver</button></div></div></div>`);
+  const ks = Object.keys(S.errors);
+  if (S.shown && ks.length) out.push(`<div class="checklist" role="alert"><b>${plural(ks.length, 'campo por corregir', 'campos por corregir')} antes de guardar</b><ul>${ks.map(k => { const [l, id] = errTarget(k); return `<li><a href="#${id}" data-act="goto" data-id="${id}">${esc(l)}</a><span>${esc(S.errors[k])}</span></li>`; }).join('')}</ul></div>`);
+  return out.join('');
+}
+
+/* ---- save bar ---- */
+function saveBar() {
+  if (!can().edit) return '';
+  const items = dirtyItems(), n = items.length, cr = creating(), ne = Object.keys(S.errors).length;
+  if (!n && !cr && !S.savedAt && !S.saving) return '';
+  let txt;
+  if (S.saving) txt = `<span class="spin" aria-hidden="true"></span><span><b>Guardando…</b><small>Después se recalculan las solicitudes abiertas.</small></span>`;
+  else if (S.shown && ne) txt = `<span class="sb-i bad">${ic('alert', 'sm')}</span><span><b>${plural(ne, 'campo por corregir', 'campos por corregir')}</b><small>Revisa la lista de arriba para poder guardar.</small></span>`;
+  else if (n) txt = `<span class="sb-i warn">${ic('pencil', 'sm')}</span><span><b>${plural(n, 'cambio sin guardar', 'cambios sin guardar')}</b><small>${esc(items.slice(0, 3).map(i => i.label).join(', ') + (n > 3 ? ` y ${n - 3} más` : ''))}. Al guardar se recalculan los plazos de las solicitudes abiertas.</small></span>`;
+  else if (cr) txt = `<span class="sb-i warn">${ic('info', 'sm')}</span><span><b>Sin guardar todavía</b><small>Estos son los valores recomendados; guárdalos para tener configuración propia.</small></span>`;
+  else txt = `<span class="sb-i ok">${ic('check-circle', 'sm')}</span><span><b>Todo guardado</b><small>Versión ${S.cfg.version}</small></span>`;
+  const btn = n || cr || S.saving;
+  return `<div class="sbar" role="region" aria-label="Guardar cambios">${txt}<span class="grow"></span>${btn ? `${n ? `<button type="button" class="btn ghost" data-act="discard" ${S.saving ? 'disabled' : ''}>Descartar cambios</button>` : ''}<button type="button" class="btn primary" data-act="save" ${S.saving ? 'disabled' : ''}>${S.saving ? '<span class="spin"></span>Guardando' : cr && !n ? 'Guardar configuración' : 'Guardar cambios'}</button>` : ''}</div>`;
+}
+
+/* ---- dialogs ---- */
+const modal = (title, body, foot, o = {}) => `<div class="mod-scrim ${o.frame ? 'inframe' : ''}" ${o.noClose ? '' : 'data-act="dlgClose"'}></div><div class="mod ${o.frame ? 'inframe' : ''}" role="dialog" aria-modal="true" aria-labelledby="mod-t"><div class="mod-h"><h2 id="mod-t">${title}</h2>${o.noClose ? '' : `<button type="button" class="kebab" data-act="dlgClose" aria-label="Cerrar">${ic('x')}</button>`}</div><div class="mod-b">${body}</div><div class="mod-f">${foot}</div></div>`;
+const REASON = { NO_PERMISSION: 'No tienes permiso para aplicar ahí', TENANT_INACTIVE: 'Sucursal desactivada' };
+const RECOMP = { DONE: ['ok', 'check-circle', 'Aplicada'], PARTIAL: ['warn', 'info', 'Aplicada; algunas solicitudes se actualizan después'], FAILED: ['warn', 'alert', 'Guardada; los plazos de sus solicitudes abiertas se actualizarán más tarde'] };
+const brGroup = (title, list, kind, fmt) => list.length ? `<section class="brg"><h3>${title} <span class="fig">${list.length}</span></h3><ul>${list.map(b => { const [cls, icon, t] = fmt(b); return `<li class="br ${cls}"><span class="bn">${ic('building', 'sm')}<b>${esc(b.name)}</b></span><span class="bs">${ic(icon, 'sm')}${t}</span></li>`; }).join('')}</ul></section>` : '';
+function applyBody(step, d) {
+  const sv = S.cfg.version;
+  if (step === 'save-first') { const n = dirtyItems().length; return [`Guardar y revisar`, `<p>Aplicar copia la configuración <b>guardada</b> de Sucursal Centro, y tienes ${plural(n, 'cambio sin guardar', 'cambios sin guardar')}.</p><p class="p2">Primero se guardan tus cambios y luego verás a qué sucursales llegarían, antes de confirmar nada.</p>`, `<button type="button" class="btn" data-act="dlgClose">Cancelar</button><button type="button" class="btn primary" data-act="applySaveFirst">Guardar y revisar</button>`]; }
+  if (step === 'loading' || step === 'applying') return [step === 'loading' ? 'Revisando sucursales' : 'Aplicando…', `<div class="wait" role="status"><span class="spin" aria-hidden="true"></span><span>${step === 'loading' ? 'Calculando qué cambiaría en cada sucursal. No se escribe nada todavía.' : 'Copiando la configuración. Cada sucursal se guarda por separado.'}</span></div>`, `<button type="button" class="btn" disabled>${step === 'loading' ? 'Cancelar' : 'Un momento…'}</button>`];
+  if (step === 'conflict') return ['La configuración cambió', `<div class="alert warn" role="alert">${ic('alert', 'sm')}<div><strong>Alguien guardó otra versión mientras revisabas</strong>No se copió nada. Recarga la configuración y repite la revisión.</div></div><p class="p2">Tu rol puede aplicar a otras sucursales pero no ver los ajustes de esta, así que no podemos mostrarte qué cambió. Si tienes permiso de lectura, aquí aparecería la comparación.</p>`, `<button type="button" class="btn" data-act="dlgClose">Cerrar</button><button type="button" class="btn primary" data-act="applyRetry">Volver a revisar</button>`];
+  if (step === 'review' && !d.tenantsApplied.length) return ['Nada que aplicar', `<div class="alert success" role="status">${ic('check-circle', 'sm')}<div><strong>Tus demás sucursales ya tienen esta configuración</strong>No se cambiaría nada en ${plural(d.tenantsUnchanged.length, 'sucursal', 'sucursales')}.</div></div>${brGroup('Ya igual', d.tenantsUnchanged, 'u', b => ['mute', 'check', b.self ? 'Esta sucursal (origen)' : 'Ya igual'])}`, `<button type="button" class="btn primary" data-act="dlgClose">Entendido</button>`];
+  if (step === 'review') {
+    const n = d.tenantsApplied.length;
+    return [`Aplicar a ${plural(n, 'sucursal', 'sucursales')}`, `<p>Se copia la configuración guardada de <b>Sucursal Centro</b> (versión ${d.source.version}). Esto <b>reemplaza</b> esos valores en las sucursales de abajo y recalcula sus solicitudes abiertas.</p>
+<div class="cp2"><div><h3>Se copia</h3><ul><li>Horario y zona horaria</li><li>Fechas cerradas</li><li>Plazos por tipo y margen de comprobantes</li><li>Aviso de ventana</li><li>Conversaciones agendadas</li></ul></div><div><h3>Se queda en cada sucursal</h3><ul><li>Plantilla y su texto de costo</li><li>Tipos de solicitud habilitados</li></ul></div></div>
+${brGroup('Cambiarán', d.tenantsApplied, 'a', () => ['go', 'right', 'Recibirá los cambios'])}${brGroup('Ya igual', d.tenantsUnchanged, 'u', b => ['mute', 'check', b.self ? 'Esta sucursal (origen)' : 'Ya igual'])}${brGroup('No se pueden cambiar', d.tenantsSkipped, 's', b => ['warn', 'lock', REASON[b.reason]])}
+<p class="p2 foot-note">${ic('info', 'xs')}Solo se incluyen las sucursales donde tienes membresía y permiso. Las demás no aparecen ni se cuentan.</p>`, `<button type="button" class="btn" data-act="dlgClose">Cancelar</button><button type="button" class="btn primary" data-act="applyConfirm">Aplicar a ${plural(n, 'sucursal', 'sucursales')}</button>`];
+  }
+  const ok = !d.tenantsFailed.length && d.tenantsApplied.every(a => a.recompute === 'DONE');
+  return [d.tenantsFailed.length ? 'Se aplicó en algunas sucursales' : 'Configuración aplicada', `<div class="alert ${d.tenantsFailed.length ? 'warn' : 'success'}" role="status">${ic(d.tenantsFailed.length ? 'alert' : 'check-circle', 'sm')}<div><strong>${plural(d.tenantsApplied.length, 'sucursal recibió', 'sucursales recibieron')} los cambios${d.tenantsFailed.length ? ` y ${plural(d.tenantsFailed.length, 'falló', 'fallaron')}` : ''}</strong>${d.tenantsFailed.length ? 'Lo que falló no se guardó en esas sucursales. Es seguro reintentar: la operación se puede repetir.' : ok ? 'Los plazos de sus solicitudes abiertas ya están al día.' : 'Revisa los avisos de abajo.'}</div></div>${brGroup('Aplicadas', d.tenantsApplied, 'a', b => RECOMP[b.recompute])}${brGroup('No se guardó', d.tenantsFailed, 'f', () => ['bad', 'alert', 'No se pudo guardar en esta sucursal'])}${brGroup('No se pueden cambiar', d.tenantsSkipped, 's', b => ['warn', 'lock', REASON[b.reason]])}${brGroup('Sin cambios', d.tenantsUnchanged, 'u', b => ['mute', 'check', b.self ? 'Esta sucursal (origen)' : 'Ya igual'])}`, `${d.tenantsFailed.length ? '<button type="button" class="btn" data-act="applyRetry">Reintentar las que fallaron</button>' : ''}<button type="button" class="btn primary" data-act="dlgClose">Listo</button>`];
+}
+const valOf = (c, k) => k[0] === 's' ? (() => { const s = c.slas.find(q => q.subtype === k.slice(2)); return `atender ${fmtMin(s.claimMinutes)}, resolver ${fmtMin(s.resolveMinutes)}`; })() : k[0] === 'h' ? rangesText(dayOf(c, k.slice(2)).ranges) : k === 'dates' ? plural(c.closedDates.length, 'fecha', 'fechas') : '';
+function conflictModal(o = {}) {
+  const mine = diffItems(S.cfg, S.draft), th = diffItems(S.cfg, S.conflict), both = mine.filter(m => th.some(t => t.key === m.key)), onlyMine = mine.filter(m => !both.includes(m)), onlyTh = th.filter(t => !both.some(m => m.key === t.key)), v = S.conflict.version;
+  const list = (title, arr, f) => arr.length ? `<section class="brg"><h3>${title} <span class="fig">${arr.length}</span></h3><ul>${arr.map(i => `<li class="br"><span class="bn"><b>${esc(i.label)}</b></span><span class="bs">${f(i)}</span></li>`).join('')}</ul></section>` : '';
+  return modal('Otra persona guardó antes que tú', `<p>Mientras editabas se guardó la <b>versión ${v}</b> (la tuya partía de la ${S.cfg.version}). No se envió nada: tus cambios siguen aquí.</p>${list('Solo cambiaste tú', onlyMine, i => 'se conserva')}${list('Solo cambió la otra persona', onlyTh, i => esc(valOf(S.conflict, i.key)) || 'cambió')}${list('Cambiaron los dos', both, i => `tú: ${esc(valOf(S.draft, i.key))} · otra persona: ${esc(valOf(S.conflict, i.key))}`)}<p class="p2 foot-note">${ic('info', 'xs')}Si conservas tus cambios, tus valores reemplazan los de la otra persona donde cambiaron los dos. Revisa y guarda de nuevo.</p>`, `<button type="button" class="btn" data-act="conflictTheirs">Usar la versión ${v} y descartar lo mío</button><button type="button" class="btn primary" data-act="conflictMine">Conservar mis cambios</button>`, o);
+}
+function overlay() {
+  let h = '';
+  const dl = S.dialog;
+  if (dl) { if (dl.type === 'conflict') h += conflictModal(); else { const [t, b, f] = applyBody(dl.step, dl.data); h += modal(t, b, f); } }
+  if (S.toast) h += `<div class="toasts"><div class="toast" role="status"><span class="tile">${ic('check')}</span><div><strong>${esc(S.toast.title)}</strong><p>${esc(S.toast.desc)}</p></div></div></div>`;
+  return h;
+}
+
+/* ---- actions ---- */
+let VIEW = () => '', toastT = 0;
+function render(focusId) {
+  const root = $('#root'); if (!root) return;
+  const active = focusId || document.activeElement?.id, sc = $('.scroll'), top = sc ? sc.scrollTop : 0;
+  const had = !!$('.mod'), key = S.dialog ? S.dialog.type + (S.dialog.step || '') : '';
+  setHTML(root, VIEW() + overlay());
+  const sc2 = $('.scroll'); if (sc2) sc2.scrollTop = top;
+  if (S.dialog && (!had || S._k !== key)) ($('.mod .btn.primary:not(:disabled)') || $('.mod button'))?.focus(); else if (active) document.getElementById(active)?.focus({ preventScroll: true });
+  S._k = key;
+  clearTimeout(toastT); if (S.toast) toastT = setTimeout(() => { S.toast = null; render(); }, 4200);
+}
+const parseNum = (raw, unit) => { raw = String(raw).trim().replace(',', '.'); if (raw === '') return null; if (unit === 'h') return /^\d+(\.\d{1,2})?$/.test(raw) ? Math.round(parseFloat(raw) * 60) : NaN; return /^\d+$/.test(raw) ? parseInt(raw, 10) : NaN; };
+function setField(el) {
+  const f = el.dataset.f, p = f.split(':'), d = S.draft;
+  if (f === 'tz') d.openingHours.timeZone = el.value;
+  else if (p[0] === 'h') dayOf(d, p[1]).ranges[+p[2]][p[3]] = el.value;
+  else if (f === 'x:templateName') d.templateName = el.value === '' ? null : el.value;
+  else if (f === 'x:templateCostText') d.templateCostText = el.value;
+  else {
+    const us = $(`[data-u="${f}"]`), unit = us ? us.value : null;
+    const v = parseNum(el.value, unit);
+    if (Number.isNaN(v)) S.raw[f] = el.value; else delete S.raw[f];
+    if (p[0] === 's') d.slas.find(s => s.subtype === p[1])[p[2] === 'claim' ? 'claimMinutes' : 'resolveMinutes'] = v;
+    else if (f === 'x:window') d.windowWarningMinutes = v == null ? NaN : v;
+    else if (f === 'x:margin') d.receiptCloseMarginMinutes = v == null ? NaN : v;
+    else if (p[0] === 'c') d.scheduling[{ slot: 'slotMinutes', offered: 'slotsOffered', max: 'maxScheduledPerSlot' }[p[1]]] = v == null ? NaN : v;
+  }
+  S.savedAt = null; S.errors = validate(d); if (!Object.keys(S.errors).length) S.shown = false;
+}
+function saveNow(after) {
+  if (S.saving || !can().edit) return;
+  S.errors = validate(S.draft);
+  const ks = Object.keys(S.errors);
+  if (ks.length) { S.shown = true; if (window.TABFOR) S.tab = window.TABFOR(errTarget(ks[0])[1]); render(); const id = errTarget(ks[0])[1]; $('#' + id)?.scrollIntoView({ block: 'center' }); ($('#' + id + ' input') || $('#' + id))?.focus?.({ preventScroll: true }); return; }
+  S.saving = true; render();
+  setTimeout(() => {
+    S.saving = false; const o = S.outcome;
+    if (o === 'conflict') { S.conflict = theirs(); S.dialog = { type: 'conflict' }; }
+    else if (o === 'error') S.notice = { kind: '500' };
+    else if (o === 'forbidden') S.notice = { kind: '403' };
+    else {
+      const changed = dirtyItems().length > 0 || creating(), ver = changed ? S.cfg.version + 1 : S.cfg.version;
+      S.cfg = clone(S.draft); S.cfg.version = ver; S.draft = clone(S.cfg); S.savedAt = Date.now(); S.shown = false;
+      S.notice = changed && (o === 'failed' || o === 'partial') ? { kind: o } : null;
+      S.toast = changed ? { title: 'Cambios guardados', desc: `Versión ${ver}. Las solicitudes abiertas se recalculan.` } : { title: 'No había cambios', desc: 'La configuración ya estaba así; no se creó otra versión.' };
+      if (o !== 'error') S.outcome = 'ok';
+      if (after) { render(); return after(); }
+    }
+    render();
+  }, 700);
+}
+function applyStart() {
+  S.dialog = { type: 'apply', step: 'loading' }; render();
+  setTimeout(() => { if (!S.dialog) return; S.dialog = S.applyOut === 'conflict' ? { type: 'apply', step: 'conflict' } : { type: 'apply', step: 'review', data: S.applyOut === 'none' ? APPLY.none : APPLY.dry }; render(); }, 700);
+}
+const ACT = {
+  noop: (b, e) => e.preventDefault(),
+  toggleDay: b => { const r = dayOf(S.draft, b.dataset.day); r.ranges = r.ranges.length ? [] : [{ open: '09:00', close: '19:00' }]; S.copyFrom = null; S.errors = validate(S.draft); S.savedAt = null; render(); },
+  addRange: b => { const r = dayOf(S.draft, b.dataset.day).ranges, last = r[r.length - 1], s = last ? Math.min(hm(last.close) + 60, 22 * 60) : 540; r.push({ open: fmtClock(s).padStart(5, '0'), close: fmtClock(Math.min(s + 120, 1439)).padStart(5, '0') }); S.errors = validate(S.draft); S.savedAt = null; render(`t-${b.dataset.day}-${r.length - 1}-open`); },
+  delRange: b => { dayOf(S.draft, b.dataset.day).ranges.splice(+b.dataset.i, 1); S.errors = validate(S.draft); S.savedAt = null; render(); },
+  copyOpen: b => { S.copyFrom = S.copyFrom === b.dataset.day ? null : b.dataset.day; S.copyTo = []; render(); },
+  copyClose: () => { const id = 'cp-' + S.copyFrom; S.copyFrom = null; render(id); },
+  copyToggle: b => { const d = b.dataset.day; S.copyTo = S.copyTo.includes(d) ? S.copyTo.filter(x => x !== d) : [...S.copyTo, d]; render(); },
+  copyPick: b => { const o = DAYS.filter(d => d !== S.copyFrom), s = b.dataset.set; S.copyTo = s === 'all' ? o : s === 'none' ? [] : o.filter(d => !['SATURDAY', 'SUNDAY'].includes(d)); render(); },
+  copyApply: () => { const src = clone(dayOf(S.draft, S.copyFrom).ranges), n = S.copyTo.length, from = S.copyFrom; S.copyTo.forEach(d => { dayOf(S.draft, d).ranges = clone(src); }); S.copyFrom = null; S.copyTo = []; S.errors = validate(S.draft); S.savedAt = null; S.toast = { title: 'Horario copiado', desc: `Del ${DAY_L[from][0].toLowerCase()} a ${plural(n, 'día', 'días')}. Falta guardar.` }; render('cp-' + from); },
+  copyPickup: () => { S.draft.openingHours = clone(S.draft.branchOpeningHours); S.errors = validate(S.draft); S.savedAt = null; S.toast = { title: 'Horario de recolección copiado', desc: 'Está en el editor como borrador; falta guardar. No cambia Envíos.' }; render(); },
+  dateAdd: () => {
+    const v = $('#dateIn').value; S.dateIn = v;
+    if (!v) S.dateErr = 'Elige una fecha.'; else if (S.draft.closedDates.includes(v)) S.dateErr = 'Esa fecha ya está en la lista.'; else if (S.draft.closedDates.length >= 400) S.dateErr = 'Llegaste al máximo de 400 fechas.';
+    else { S.draft.closedDates = [...S.draft.closedDates, v].sort(); S.dateIn = ''; S.dateErr = ''; S.savedAt = null; }
+    render('dateIn');
+  },
+  dateDel: b => { S.draft.closedDates = S.draft.closedDates.filter(d => d !== b.dataset.d); S.savedAt = null; render('dateIn'); },
+  datePast: () => { S.draft.closedDates = S.draft.closedDates.filter(d => d >= TODAY); S.savedAt = null; render(); },
+  schedToggle: () => { S.draft.scheduling.enabled = !S.draft.scheduling.enabled; S.savedAt = null; render(); },
+  save: () => saveNow(), discard: () => { S.draft = clone(S.cfg); S.errors = {}; S.shown = false; S.raw = {}; S.dateErr = ''; S.notice = null; render(); },
+  goto: (b, e) => { e.preventDefault(); const t = document.getElementById(b.dataset.id); t?.scrollIntoView({ block: 'center' }); (t?.querySelector('input,select') || t)?.focus?.({ preventScroll: true }); },
+  noticeClose: () => { S.notice = null; render(); }, retry: () => { setMode('normal'); },
+  applyOpen: () => { if (dirtyItems().length || creating()) { S.dialog = { type: 'apply', step: 'save-first' }; render(); } else applyStart(); },
+  applySaveFirst: () => { S.dialog = null; saveNow(() => { if (!S.dialog && !S.notice) applyStart(); }); },
+  applyConfirm: () => { S.dialog = { type: 'apply', step: 'applying' }; render(); setTimeout(() => { if (!S.dialog) return; S.dialog = { type: 'apply', step: 'result', data: S.applyOut === 'partial' ? APPLY.real.partial : APPLY.real.ok }; render(); }, 900); },
+  applyRetry: () => { if (S.dialog?.step === 'conflict') S.applyOut = 'ok'; applyStart(); },
+  dlgClose: () => { S.dialog = null; render('applyBtn'); },
+  conflictOpen: () => { S.dialog = { type: 'conflict' }; render(); },
+  conflictTheirs: () => { S.cfg = clone(S.conflict); S.draft = clone(S.conflict); S.conflict = null; S.dialog = null; S.errors = {}; S.toast = { title: `Cargamos la versión ${S.cfg.version}`, desc: 'Tus cambios se descartaron.' }; render(); },
+  conflictMine: () => { const c = S.conflict; S.cfg = clone(c); S.conflict = null; S.dialog = null; S.toast = { title: 'Tus cambios siguen aquí', desc: `Ahora parten de la versión ${c.version}. Revisa y guarda de nuevo.` }; render(); }
+};
+function setMode(m) {
+  const keep = { role: S.role, outcome: S.outcome, applyOut: S.applyOut, sim: S.sim, tab: S.tab, day: S.day };
+  S = Object.assign(newState(), keep, { mode: m });
+  if (m === 'defaults') { S.cfg = clone(DEFAULTS); S.draft = clone(DEFAULTS); }
+  if (m === 'errors') {
+    const d = S.draft; dayOf(d, 'WEDNESDAY').ranges = [{ open: '09:00', close: '15:00' }, { open: '14:00', close: '19:00' }]; dayOf(d, 'THURSDAY').ranges = [{ open: '19:00', close: '09:00' }];
+    const q = d.slas.find(s => s.subtype === 'COMPLAINT'); q.claimMinutes = 60; q.resolveMinutes = 30; d.windowWarningMinutes = 1500; d.scheduling.maxScheduledPerSlot = 60; d.templateName = 'Aviso-Seguimiento';
+    S.errors = validate(d); S.shown = true; S.dateIn = '2026-12-25'; S.dateErr = 'Esa fecha ya está en la lista.';
+  }
+  if (m === 'conflict') { dayOf(S.draft, 'MONDAY').ranges = [{ open: '08:00', close: '19:00' }]; S.draft.slas.find(s => s.subtype === 'COMPLAINT').claimMinutes = 45; S.conflict = theirs(); S.dialog = { type: 'conflict' }; }
+  if (m === 'failed') { S.cfg.version = 4; S.draft.version = 4; S.notice = { kind: 'failed' }; S.savedAt = 1; }
+  if (m === 'applying') { S.dialog = { type: 'apply', step: 'review', data: APPLY.dry }; }
+  render();
+}
+function bind() {
+  document.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b && ACT[b.dataset.act]) ACT[b.dataset.act](b, e); });
+  document.addEventListener('change', e => { const t = e.target; if (t.dataset?.f) { setField(t); render(t.id); } else if (t.dataset?.u) { S.units[t.dataset.u] = t.value; const i = $(`[data-f="${t.dataset.u}"]`); setField(i); render(t.id); } });
+  document.addEventListener('input', e => { const t = e.target; if (t.id === 'dateIn') S.dateIn = t.value; if (t.id === 'tplc') { const c = t.parentElement.querySelector('.counter'); if (c) c.textContent = `${t.value.length} / 200`; } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (S.dialog) ACT.dlgClose(); else if (S.copyFrom) ACT.copyClose(); } });
+}
+/* tools: artboard controls (outside the mock): permission, screen state, save outcome, apply outcome, notes, theme. */
+function mountTools() {
+  const sel = (id, label, opts) => `<label>${label}<select id="${id}">${opts.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select></label>`;
+  setHTML($('#tools'), `<strong style="font-size:12px;padding:0 8px">Atención del chatbot</strong>
+${sel('t-role', 'Permiso', [['manager', 'Gerente: ver y cambiar'], ['admin', 'Gerente + todas las sucursales'], ['reader', 'Solo ver']])}
+${sel('t-mode', 'Estado', [['normal', 'Configurada (versión 3)'], ['defaults', 'Sin configurar (versión 0)'], ['errors', 'Con errores de validación'], ['conflict', 'Conflicto 409 al guardar'], ['failed', 'Guardado con aviso (recompute FAILED)'], ['loading', 'Cargando'], ['loaderror', 'Error al cargar'], ['forbidden', 'Sin permiso para ver']])}
+${sel('t-out', 'Al guardar', [['ok', 'Guarda bien'], ['conflict', 'Otra persona guardó antes (409)'], ['failed', 'Plazos pendientes (FAILED)'], ['partial', 'Plazos parciales (PARTIAL)'], ['error', 'Error del servidor'], ['forbidden', 'Sin permiso (403)']])}
+${sel('t-apply', 'Al aplicar a todas', [['ok', 'Todo bien'], ['partial', 'Resultado parcial'], ['none', 'Nada que cambiar'], ['conflict', 'Conflicto sin permiso de lectura']])}
+<span class="grow"></span><button type="button" id="t-notes" aria-pressed="false">${ic('info', 'sm')}Notas</button><button type="button" id="t-theme" aria-pressed="false">${ic('moon', 'sm')}Oscuro</button>`);
+  const h = () => document.documentElement.style.setProperty('--tools-h', $('#tools').offsetHeight + 'px'); h(); addEventListener('resize', h);
+  $('#t-role').addEventListener('change', e => { S.role = e.target.value; S.copyFrom = null; S.dialog = null; render(); });
+  $('#t-mode').addEventListener('change', e => setMode(e.target.value));
+  $('#t-out').addEventListener('change', e => { S.outcome = e.target.value; });
+  $('#t-apply').addEventListener('change', e => { S.applyOut = e.target.value; });
+  $('#t-notes').addEventListener('click', e => { const n = $('#notes'); n.hidden = !n.hidden; e.currentTarget.setAttribute('aria-pressed', String(!n.hidden)); });
+  $('#t-theme').addEventListener('click', e => { const d = document.documentElement.classList.toggle('dark'); e.currentTarget.setAttribute('aria-pressed', String(d)); });
+}
+const NAVS = [['hours', 'Horario de atención', 'clock'], ['dates', 'Fechas cerradas', 'calendar'], ['sla', 'Plazos por tipo', 'timer'], ['extras', 'Ventana y plantilla', 'send'], ['sched', 'Conversaciones agendadas', 'calendar']];
+const SEC = {
+  hours: () => secCard('hours', 'Horario de atención', 'Cuándo corren los plazos del chatbot. Fuera de este horario se pausan.', hoursBody()),
+  dates: () => secCard('dates', 'Fechas cerradas', 'Días sin atención aunque el horario diga lo contrario.', datesBody()),
+  sla: () => secCard('sla', 'Plazos por tipo de solicitud', 'Cuánto tiempo hay para atender y para resolver cada tipo.', slaBody()),
+  extras: () => secCard('extras', 'Ventana de WhatsApp y plantilla', 'Para cuando pasaron más de 24 h desde el último mensaje del cliente.', extrasBody()),
+  sched: () => secCard('sched', 'Conversaciones agendadas', 'Horarios que el cliente puede elegir para ser atendido.', schedBody(), { tag: pending() })
+};
+const secMark = id => { const n = S.shown ? errCount(id) : 0, d = dirtyItems().filter(i => i.sec === id).length; return n ? `<span class="nb bad" aria-label="${plural(n, 'campo por corregir', 'campos por corregir')}">${n}</span>` : d ? `<span class="nb" aria-label="Modificado"></span>` : ''; };
+const uniq = (h, n) => h.replace(/\b(id|for|aria-controls)="([^"]+)"/g, `$1="f${n}-$2"`).replace(/aria-describedby="([^"]+)"/g, (m, v) => `aria-describedby="${v.split(' ').map(x => `f${n}-${x}`).join(' ')}"`).replace(/href="#(?!i-)([^"]+)"/g, `href="#f${n}-$1"`);
+const mbar = () => `<header class="mbar"><button class="icon-btn" aria-label="Abrir menú">${ic('menu')}</button><span class="t">Atención del chatbot</span><button class="icon-btn" aria-label="Notificaciones, 5 sin leer">${ic('bell')}<span class="dotc">5</span></button></header>`;
+const errState = () => {
+  const d = S.draft; dayOf(d, 'WEDNESDAY').ranges = [{ open: '09:00', close: '15:00' }, { open: '14:00', close: '19:00' }]; dayOf(d, 'THURSDAY').ranges = [{ open: '19:00', close: '09:00' }];
+  const q = d.slas.find(s => s.subtype === 'COMPLAINT'); q.claimMinutes = 60; q.resolveMinutes = 30; d.windowWarningMinutes = 1500; d.scheduling.maxScheduledPerSlot = 60; d.templateName = 'Aviso-Seguimiento';
+  S.errors = validate(d); S.shown = true; S.dateIn = '2026-12-25'; S.dateErr = 'Esa fecha ya está en la lista.';
+};
+const dirty = () => { dayOf(S.draft, 'MONDAY').ranges = [{ open: '08:00', close: '19:00' }]; S.draft.slas.find(s => s.subtype === 'COMPLAINT').claimMinutes = 45; };
+const page = (...parts) => `<div class="page">${parts.join('')}</div>`;
+const FR = [
+  ['Horario por día', 'Cada día apilado; «Copiar a…» en su línea', {}, () => page(banners(), SEC.hours())],
+  ['Copiar a otros días', 'Chips alternables y botón explícito; barra con cambios', { copyFrom: 'MONDAY', copyTo: ['TUESDAY', 'WEDNESDAY'] }, () => { dirty(); S.copyFrom = 'MONDAY'; return page(SEC.hours()) + saveBar(); }],
+  ['Fechas cerradas', 'Lista con quitar, «Pasada» y alta por fecha', {}, () => page(SEC.dates())],
+  ['Plazos por tipo', 'Una tarjeta por tipo, minutos hábiles en horas', {}, () => page(SEC.sla())],
+  ['Conflicto 409', 'Hoja inferior: qué cambió cada quien', { conflict: theirs() }, () => { dirty(); return page(banners(), SEC.hours()) + saveBar() + conflictModal({ frame: true }); }],
+  ['Aplicar a todas · revisión', 'Prueba en seco: cambian, igual, no se pueden', { role: 'admin' }, () => page(pageHead(), SEC.hours()) + modal(...(([t, b, f]) => [t, b, f])(applyBody('review', APPLY.dry)), { frame: true })],
+  ['Aplicar a todas · resultado parcial', 'Una guardada con recálculo pendiente, una falló', { role: 'admin' }, () => page(pageHead(), SEC.hours()) + modal(...applyBody('result', APPLY.real.partial), { frame: true })],
+  ['Solo lectura', 'Sin controles ni barra; aviso con el permiso faltante', { role: 'reader' }, () => page(banners(), SEC.hours(), SEC.sla())],
+  ['Sin configurar (versión 0)', 'Valores recomendados; «Guardar configuración»', { cfg: clone(DEFAULTS), draft: clone(DEFAULTS) }, () => page(banners(), SEC.hours()) + saveBar()],
+  ['Errores de validación', 'Lista enlazada, campos marcados y barra', {}, () => { errState(); return page(banners(), SEC.hours()) + saveBar(); }],
+  ['Guardado con aviso', 'recompute FAILED: guardado, plazos después', {}, () => { S.cfg.version = 4; S.draft.version = 4; S.notice = { kind: 'failed' }; S.savedAt = 1; return page(banners(), SEC.hours()) + saveBar(); }],
+  ['Cargando', 'Esqueleto con el espacio de las secciones', { mode: 'loading' }, () => gate(() => '')],
+  ['Error al cargar', 'No se cambió nada; reintentar', { mode: 'loaderror' }, () => gate(() => '')]
+];
+function build() {
+  const root = $('#root'), out = FR.map(([t, sub, patch, fn], i) => {
+    const keep = S; S = Object.assign(newState(), patch); S.cfg = patch.cfg || S.cfg;
+    const inner = fn(); S = keep;
+    return `<figure class="phone"><figcaption>${i + 1}. ${t}<small>${sub}</small></figcaption><div class="screen">${mbar()}<div class="mbody cq">${uniq(inner, i)}</div></div></figure>`;
+  }).join('');
+  setHTML(root, out);
+  const pop = document.getElementById('f1-copyPop'); if (pop) pop.closest('.mbody').scrollTop = pop.getBoundingClientRect().top - pop.closest('.mbody').getBoundingClientRect().top - 140;
+}
+injectIcons(); mountTools(); build();
+for (const id of ['t-role', 't-mode', 't-out', 't-apply']) $('#' + id).disabled = true;
+
+})();
+</script>
+</body>
+</html>

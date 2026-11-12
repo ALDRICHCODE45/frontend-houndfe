@@ -1,0 +1,12 @@
+<div class="tools" id="tools"></div>
+<div id="root"></div>
+<aside class="notes-sheet" id="notes" hidden aria-label="Notas de diseño">
+  <h2>Notas de la dirección C · Semana visual y simulador</h2>
+  <ul>
+    <li>La semana se lee como una línea de tiempo (0–24 h); cada día se edita en el panel de la derecha. Mismos campos y mismo <code>PUT</code> que A y B.</li>
+    <li>El simulador calcula con el horario y las fechas cerradas del borrador cuándo vencería cada plazo para una solicitud que llega en la fecha elegida. Es un cálculo local de ejemplo: el servidor es quien manda. <span class="mock-flag">No está en el contrato</span></li>
+    <li>Las horas hábiles no coinciden con las horas de reloj; el simulador lo muestra con ejemplos y evita que 240 «minutos» se lean como 4 h corridas.</li>
+    <li>Fechas cerradas, ventana de WhatsApp y conversaciones agendadas usan los mismos bloques que A.</li>
+    <li>Prueba: elige un día en la semana, cambia un horario y mira cómo se mueven los vencimientos del simulador.</li>
+  </ul>
+</aside>

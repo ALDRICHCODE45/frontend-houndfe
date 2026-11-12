@@ -1,0 +1,14 @@
+<div class="tools" id="tools"></div>
+<div id="root"></div>
+<aside class="notes-sheet" id="notes" hidden aria-label="Notas de diseño">
+  <h2>Notas de la dirección A · Una página con secciones</h2>
+  <ul>
+    <li>Contrato: <code>GET /chatbot-settings</code> al entrar (guarda <code>version</code>), un solo <code>PUT</code> con <code>expectedVersion</code> para toda la pantalla, <code>POST /chatbot-settings/apply-to-all-tenants</code> con <code>dryRun</code> y <code>expectedVersion</code> (handoff 16 en 8c12ae09).</li>
+    <li>Lo que no se muestra (<code>enabledSubtypes</code>, <code>branchOpeningHours</code>, <code>templateCostText</code> si el rol no edita) se devuelve tal cual en el <code>PUT</code>: el cuerpo es un reemplazo completo. <code>recompute</code> y <code>version</code> nunca se reenvían.</li>
+    <li>«Aún sin efecto»: ventana de WhatsApp, plantilla y conversaciones agendadas (<code>scheduling</code>) se guardan pero no cambian nada todavía.</li>
+    <li>Este horario no es el de recolección en tienda (<code>/tenants/:id/opening-hours</code>): aviso fijo arriba del editor y botón que solo copia valores al borrador.</li>
+    <li>Marcado «No está en el contrato»: lista de zonas horarias y límite de 6 horarios por día (el editor de Envíos ya lo usa). No hay motivo en las fechas cerradas ni quién/cuándo guardó.</li>
+    <li>«Aplicar a todas» solo se ve con <code>update:ChatbotSettingsAllBranches</code> y copia lo guardado: si hay cambios, primero «Guardar y revisar».</li>
+    <li>Prueba: selector «Estado» (v0, errores, 409, aviso FAILED, cargando, error, sin permiso), «Al guardar» y «Al aplicar», y cambia un horario o un plazo para ver la barra de guardado.</li>
+  </ul>
+</aside>
