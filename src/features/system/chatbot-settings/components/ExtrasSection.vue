@@ -1,9 +1,9 @@
 <script setup lang="ts">
 /**
  * ExtrasSection — «Ventana y plantilla» (design 01): WhatsApp window warning, template name and the cost
- * text. Stored only today: the window warning and the template are marked «Aún sin efecto» (the inbox filter
- * keeps its own 2 h; the send-template command comes later). Template and cost are per branch: «Aplicar a
- * todas» does not copy them.
+ * text. The window warning drives the inbox filter «Ventana por cerrar» (0 turns it off); the template is
+ * still stored only and marked «Aún sin efecto» (the send-template command comes later). Template and cost
+ * are per branch: «Aplicar a todas» does not copy them.
  */
 import type { ChatbotSettings } from '../interfaces/chatbot-settings.types'
 import type { SettingsErrors } from '../utils/settingsValidation'
@@ -29,7 +29,6 @@ const emit = defineEmits<{
       <div class="cbs-field">
         <label class="cbs-label" for="cbs-window">
           Avisar antes de que se cierre la ventana de WhatsApp
-          <PendingBadge />
         </label>
         <span v-if="readonly" class="cbs-readonly cbs-figure" data-testid="window-readonly">
           {{ formatDuration(draft.windowWarningMinutes) }}
@@ -45,7 +44,7 @@ const emit = defineEmits<{
           @update:model-value="emit('set-window', $event ?? Number.NaN)"
         />
         <span id="cbs-window-help" class="cbs-help">
-          La ventana de 24 h permite escribir sin plantilla. Hoy el filtro «Ventana por cerrar» de la bandeja usa 2 h fijas.
+          La ventana de 24 h permite escribir sin plantilla. El filtro «Ventana por cerrar» de la bandeja usa este valor; con 0 se apaga el aviso.
         </span>
         <span v-if="errors['x:window']" id="cbs-window-error" class="cbs-error" role="alert" data-testid="window-error">
           {{ errors['x:window'] }}

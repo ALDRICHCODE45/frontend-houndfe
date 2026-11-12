@@ -1,7 +1,7 @@
 /**
  * Client mirror of the server rules (handoff 16 §3-§4). The server answers `400 VALIDATION_ERROR`
  * without saying which field, so everything is checked here first. Keys:
- * `h:<DAY>` `h:week` `h:tz` · `d:list` · `s:<SUBTYPE>:claim|resolve` · `x:margin` `x:window`
+ * `h:<DAY>` `h:week` `h:tz` · `d:list` · `r:<DATE>` · `s:<SUBTYPE>:claim|resolve` · `x:margin` `x:window`
  * `x:template` `x:templateCost` · `c:slot` `c:offered` `c:max`.
  */
 import type { ChatbotOpeningRange, ChatbotSettings } from '../interfaces/chatbot-settings.types'
@@ -11,6 +11,7 @@ import { formatDuration } from './settingsUnits'
 export type SettingsErrors = Record<string, string>
 
 export const MAX_CLOSED_DATES = 400
+export const MAX_REASON_LENGTH = 80
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
 const TEMPLATE = /^[a-z0-9_]{1,512}$/
 
@@ -61,6 +62,12 @@ export function validateSettings(settings: ChatbotSettings): SettingsErrors {
   if (dates.length > MAX_CLOSED_DATES) errors['d:list'] = `Máximo ${MAX_CLOSED_DATES} fechas cerradas.`
   else if (dates.some((d) => !isRealDate(d))) errors['d:list'] = 'Hay una fecha cerrada que no es una fecha válida.'
   else if (new Set(dates).size !== dates.length) errors['d:list'] = 'Hay una fecha cerrada repetida.'
+
+  // Reasons: 1 to 80 characters once trimmed; blank means «no reason»; a reason of an absent date is never sent.
+  for (const date of dates) {
+    const reason = settings.closedDateReasons?.[date]?.trim()
+    if (reason && reason.length > MAX_REASON_LENGTH) errors[`r:${date}`] = `El motivo admite hasta ${MAX_REASON_LENGTH} caracteres.`
+  }
 
   for (const sla of settings.slas) {
     const bound = 'Usa un número entre 1 min y 168 h.'

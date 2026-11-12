@@ -108,3 +108,42 @@ describe('ClosedDatesSection', () => {
     expect(w.findAll('li.cbs-date')).toHaveLength(2)
   })
 })
+
+describe('ClosedDatesSection reasons', () => {
+  const reasonInput = (w: ReturnType<typeof mountDates>, date: string) => w.get(`[data-testid="date-reason-${date}"] input, input[data-testid="date-reason-${date}"]`)
+
+  it('shows an optional reason input per date with the current reason, labelled by the date', () => {
+    const w = mountDates({ reasons: { '2026-12-25': 'Navidad' } })
+    const christmas = reasonInput(w, '2026-12-25')
+    expect((christmas.element as HTMLInputElement).value).toBe('Navidad')
+    expect(christmas.attributes('aria-label')).toBe('Motivo de vie 25 dic 2026 (opcional)')
+    expect(christmas.attributes('id')).toBe('r-2026-12-25')
+    expect((reasonInput(w, '2026-09-16').element as HTMLInputElement).value).toBe('')
+    expect(reasonInput(w, '2026-09-16').attributes('placeholder')).toBe('Motivo (opcional)')
+  })
+
+  it('emits the typed text for its date, untouched (the draft trims on send)', async () => {
+    const w = mountDates()
+    await reasonInput(w, '2026-12-25').setValue('Navidad ')
+    expect(w.emitted('set-reason')![0]).toEqual(['2026-12-25', 'Navidad '])
+  })
+
+  it('shows the reason error under its date and marks the input invalid', () => {
+    const w = mountDates({ reasons: { '2026-12-25': 'x' }, errors: { 'r:2026-12-25': 'El motivo admite hasta 80 caracteres.' } })
+    expect(w.get('[data-testid="date-2026-12-25"]').text()).toContain('El motivo admite hasta 80 caracteres.')
+    expect(reasonInput(w, '2026-12-25').attributes('aria-invalid')).toBe('true')
+    expect(w.get('[data-testid="date-2026-09-16"]').text()).not.toContain('80 caracteres')
+  })
+
+  it('read-only prints the reason in the list and has no reason input', () => {
+    const w = mountDates({ readonly: true, reasons: { '2026-12-25': 'Navidad' } })
+    expect(w.get('[data-testid="date-2026-12-25"]').text()).toContain('Navidad')
+    expect(w.get('[data-testid="date-reason-text-2026-12-25"]').text()).toBe('Navidad')
+    expect(w.find('[data-testid="date-reason-2026-12-25"]').exists()).toBe(false)
+    expect(w.find('[data-testid="date-reason-text-2026-09-16"]').exists()).toBe(false)
+  })
+
+  it('the help text no longer says only the date is saved', () => {
+    expect(mountDates().get('#cbs-date-help').text()).not.toContain('sin motivo')
+  })
+})

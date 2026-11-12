@@ -15,11 +15,18 @@ function mountSched(props: Record<string, unknown> = {}) {
 }
 
 describe('ExtrasSection', () => {
-  it('marks the window warning and the template «Aún sin efecto», not the cost text', () => {
+  it('marks only the template «Aún sin efecto»: the window warning now drives the inbox filter', () => {
     const w = mountExtras()
-    expect(w.findAll('[data-testid="pending-badge"]')).toHaveLength(2)
+    expect(w.findAll('[data-testid="pending-badge"]')).toHaveLength(1)
     expect(w.text()).toContain('Aún sin efecto')
     expect(w.text()).toContain('«Aplicar a todas» no los copia')
+  })
+
+  it('no longer says the inbox filter uses a fixed 2 h; it says the filter follows this value', () => {
+    const text = mountExtras().get('#cbs-window-help').text()
+    expect(text).not.toContain('2 h fijas')
+    expect(text).toContain('«Ventana por cerrar»')
+    expect(text).toContain('0')
   })
 
   it('emits the window in minutes, the template (blank = null) and the cost text', async () => {

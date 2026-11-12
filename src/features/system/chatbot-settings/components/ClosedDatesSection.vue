@@ -1,22 +1,41 @@
 <script setup lang="ts">
 /**
  * ClosedDatesSection — closed dates (design 01): a date input with «Agregar fecha», the sorted list with
- * relative text («en 43 días»), past dates marked and removable in bulk. The contract stores only the date
- * (no reason), sorted, unique, up to 400; adding is validated by the parent, which answers with `addError`.
+ * relative text («en 43 días»), past dates marked and removable in bulk, and an optional reason per date
+ * (1 to 80 characters, shown in the list). Dates are sorted, unique, up to 400; adding is validated by the
+ * parent, which answers with `addError`. The reason text travels as typed; the draft trims it on send and
+ * an empty one means «no reason». A reason error arrives under `errors['r:<date>']`.
  */
 import { computed, ref, watch } from 'vue'
 import { calendarPartsToDateString, parseMexicoCityCalendarDate } from '@/core/shared/utils/mexicoCityCalendar'
 import { describeDate, plural } from '../utils/settingsLabels'
-import { MAX_CLOSED_DATES } from '../utils/settingsValidation'
+import { MAX_CLOSED_DATES, type SettingsErrors } from '../utils/settingsValidation'
 
-const props = defineProps<{
-  dates: string[]
-  today: string
-  readonly: boolean
-  addError: string | null
-  listError?: string
+const props = withDefaults(
+  defineProps<{
+    dates: string[]
+    today: string
+    readonly: boolean
+    addError: string | null
+    listError?: string
+    /** Reason per date (`closedDateReasons`). */
+    reasons?: Record<string, string>
+    errors?: SettingsErrors
+  }>(),
+  { listError: undefined, reasons: () => ({}), errors: () => ({}) },
+)
+const emit = defineEmits<{
+  add: [value: string]
+  remove: [date: string]
+  'remove-past': []
+  'set-reason': [date: string, value: string]
 }>()
-const emit = defineEmits<{ add: [value: string]; remove: [date: string]; 'remove-past': [] }>()
+
+const reasonOf = (date: string) => props.reasons[date] ?? ''
+const reasonText = (date: string) => reasonOf(date).trim()
+function onReason(date: string, event: Event) {
+  emit('set-reason', date, (event.target as HTMLInputElement).value)
+}
 
 // The parent speaks «YYYY-MM-DD»; the system date field speaks `CalendarDate`. Convert at the boundary
 // (never through a JS `Date`, which would shift the day across zones).
@@ -77,7 +96,7 @@ watch(
         {{ addError }}
       </span>
       <span id="cbs-date-help" class="cbs-help">
-        Día completo sin atención, en la zona horaria del horario. Solo se guarda la fecha, sin motivo.
+        Día completo sin atención, en la zona horaria del horario. Puedes escribir un motivo (opcional) en cada fecha.
       </span>
     </template>
 
@@ -95,7 +114,23 @@ watch(
           <span class="cbs-date__text">
             <b>{{ describeDate(date, today).label }}</b>
             <small>{{ describeDate(date, today).past ? 'Pasada · ' : '' }}{{ describeDate(date, today).relative }}</small>
+            <small v-if="readonly && reasonText(date)" class="cbs-date__reason" :data-testid="`date-reason-text-${date}`">{{ reasonText(date) }}</small>
+            <span v-if="errors[`r:${date}`]" :id="`r-${date}-error`" class="cbs-error" role="alert">{{ errors[`r:${date}`] }}</span>
           </span>
+          <input
+            v-if="!readonly"
+            :id="`r-${date}`"
+            class="cbs-input cbs-date__input"
+            type="text"
+            autocomplete="off"
+            placeholder="Motivo (opcional)"
+            :value="reasonOf(date)"
+            :aria-label="`Motivo de ${describeDate(date, today).label} (opcional)`"
+            :aria-invalid="errors[`r:${date}`] ? 'true' : undefined"
+            :aria-describedby="errors[`r:${date}`] ? `r-${date}-error` : undefined"
+            :data-testid="`date-reason-${date}`"
+            @input="onReason(date, $event)"
+          />
           <span v-if="describeDate(date, today).past" class="cbs-badge" data-tone="muted">Pasada</span>
           <button
             v-if="!readonly"

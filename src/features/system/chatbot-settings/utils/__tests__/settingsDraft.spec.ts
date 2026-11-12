@@ -8,7 +8,9 @@ import {
   diffItems,
   removePastClosedDates,
   rebaseDraft,
+  removeClosedDate,
   removeRange,
+  setClosedDateReason,
   setRangeTime,
   toPutBody,
   toggleDay,
@@ -58,6 +60,45 @@ describe('toPutBody', () => {
   it('a cleared template name is sent as null', () => {
     const s = settingsFixture({ templateName: '' })
     expect(toPutBody(s, 3).templateName).toBeNull()
+  })
+
+  it('never carries the read-only keys, even when the draft has them', () => {
+    const s = settingsFixture({
+      version: 3,
+      updatedBy: { id: 'u1', displayName: 'Ana López' },
+      updatedAt: '2026-11-12T15:04:05.123Z',
+    }) as ReturnType<typeof settingsFixture> & Record<string, unknown>
+    s.recompute = 'DONE'
+    const body = toPutBody(s, 3) as Record<string, unknown>
+    for (const key of ['version', 'recompute', 'updatedBy', 'updatedAt']) expect(body).not.toHaveProperty(key)
+  })
+
+  it('sends an unknown key back unchanged: top level, in a day, a range, an sla, scheduling', () => {
+    const s = clone(settingsFixture()) as ReturnType<typeof settingsFixture> & Record<string, unknown>
+    s.futureTop = { a: [1, 2] }
+    ;(s.openingHours as unknown as Record<string, unknown>).futureHours = 'h'
+    ;(s.openingHours.days[0] as unknown as Record<string, unknown>).futureDay = 'd'
+    ;(s.openingHours.days[0]!.ranges[0] as unknown as Record<string, unknown>).futureRange = 'r'
+    ;(s.slas[0] as unknown as Record<string, unknown>).futureSla = 's'
+    ;(s.scheduling as unknown as Record<string, unknown>).futureSched = 'c'
+    const body = toPutBody(s, 3) as unknown as Record<string, unknown> & typeof s
+    expect(body.futureTop).toEqual({ a: [1, 2] })
+    expect((body.openingHours as unknown as Record<string, unknown>).futureHours).toBe('h')
+    expect((body.openingHours.days[0] as unknown as Record<string, unknown>).futureDay).toBe('d')
+    expect((body.openingHours.days[0]!.ranges[0] as unknown as Record<string, unknown>).futureRange).toBe('r')
+    expect((body.slas[0] as unknown as Record<string, unknown>).futureSla).toBe('s')
+    expect((body.scheduling as unknown as Record<string, unknown>).futureSched).toBe('c')
+  })
+
+  it('sends closedDateReasons trimmed, without empty ones and only for dates that are present', () => {
+    const s = settingsFixture({
+      closedDateReasons: { '2026-12-25': '  Navidad ', '2027-01-01': '   ', '2030-05-05': 'Huérfano' },
+    })
+    expect(toPutBody(s, 3).closedDateReasons).toEqual({ '2026-12-25': 'Navidad' })
+  })
+
+  it('sends an empty closedDateReasons object when there are none', () => {
+    expect(toPutBody(settingsFixture(), 3).closedDateReasons).toEqual({})
   })
 })
 
@@ -162,6 +203,51 @@ describe('hours editing', () => {
     const before = clone(none.openingHours)
     expect(copyPickupHours(none)).toBe(false)
     expect(none.openingHours).toEqual(before)
+  })
+})
+
+describe('closed date reasons', () => {
+  it('setClosedDateReason stores the text as typed and an empty text removes it', () => {
+    const s = settingsFixture()
+    setClosedDateReason(s, '2026-12-25', 'Navidad ')
+    expect(s.closedDateReasons).toEqual({ '2026-12-25': 'Navidad ' })
+    setClosedDateReason(s, '2026-12-25', '')
+    expect(s.closedDateReasons).toEqual({})
+  })
+
+  it('ignores a reason for a date that is not in the list', () => {
+    const s = settingsFixture()
+    setClosedDateReason(s, '2030-01-01', 'x')
+    expect(s.closedDateReasons).toEqual({})
+  })
+
+  it('removing a date drops its reason; removing past dates drops theirs', () => {
+    const s = settingsFixture({ closedDateReasons: { '2026-09-16': 'Patria', '2026-12-25': 'Navidad' } })
+    removeClosedDate(s, '2026-12-25')
+    expect(s.closedDateReasons).toEqual({ '2026-09-16': 'Patria' })
+    removePastClosedDates(s, '2026-11-12')
+    expect(s.closedDateReasons).toEqual({})
+  })
+
+  it('a reason change is a dates change; a whitespace-only change is not', () => {
+    const a = settingsFixture({ closedDateReasons: { '2026-12-25': 'Navidad' } })
+    const b = clone(a)
+    b.closedDateReasons['2026-12-25'] = 'Navidad '
+    expect(diffItems(a, b)).toEqual([])
+    b.closedDateReasons['2026-12-25'] = 'Nochebuena'
+    expect(diffItems(a, b).map((i) => i.key)).toEqual(['dates'])
+    b.closedDateReasons = {}
+    expect(diffItems(a, b).map((i) => i.key)).toEqual(['dates'])
+  })
+
+  it('rebase keeps my dates and my reasons on top of their version', () => {
+    const base = settingsFixture()
+    const mine = clone(base)
+    mine.closedDateReasons = { '2026-12-25': 'Navidad' }
+    const theirs = settingsFixture({ version: 4, windowWarningMinutes: 30 })
+    const out = rebaseDraft(base, mine, theirs)
+    expect(out.closedDateReasons).toEqual({ '2026-12-25': 'Navidad' })
+    expect(out.windowWarningMinutes).toBe(30)
   })
 })
 

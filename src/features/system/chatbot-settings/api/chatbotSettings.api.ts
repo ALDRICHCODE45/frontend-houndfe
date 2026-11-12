@@ -1,10 +1,11 @@
 /**
  * Chatbot settings transport on the shared axios `http` (handoff 16 at 8c12ae09).
  *
- * The tenant and the actor come from the JWT, never from the path or the body. The `PUT` body and the
- * apply body are picked by an explicit allow-list: the server answers `400` to any unknown field
- * (`version` and `recompute` included), so nothing that is not named here reaches the wire. Responses are
- * parsed at the boundary (unknown fields stripped; a drift in the known ones throws).
+ * The tenant and the actor come from the JWT, never from the path or the body. The `PUT` is a full
+ * replacement, so the body is the draft minus exactly the read-only keys (`version`, `recompute`,
+ * `updatedBy`, `updatedAt`: the server answers `400` to them); every other key, known or not, goes back
+ * unchanged. The apply body is picked by an allow-list. Responses are parsed at the boundary (unknown
+ * keys kept; a drift in a known key or an unknown enumerated value throws).
  */
 import { http } from '@/core/shared/api/http'
 import { deepCopy } from '../utils/deepCopy'
@@ -17,6 +18,7 @@ import {
   type ChatbotSettings,
   type ChatbotSettingsPutBody,
   type ChatbotSettingsSaved,
+  READ_ONLY_SETTINGS_KEYS,
 } from '../interfaces/chatbot-settings.types'
 
 const BASE = '/chatbot-settings'
@@ -32,19 +34,9 @@ async function get(options: ChatbotSettingsReadOptions = {}): Promise<ChatbotSet
 
 /** Full replacement plus the edited version. `branchOpeningHours` is accepted and ignored by the server; sent only when present. */
 async function put(body: ChatbotSettingsPutBody): Promise<ChatbotSettingsSaved> {
-  const wire: ChatbotSettingsPutBody = {
-    expectedVersion: body.expectedVersion,
-    openingHours: deepCopy(body.openingHours),
-    closedDates: deepCopy(body.closedDates),
-    slas: deepCopy(body.slas),
-    windowWarningMinutes: body.windowWarningMinutes,
-    templateName: body.templateName,
-    templateCostText: body.templateCostText,
-    enabledSubtypes: deepCopy(body.enabledSubtypes),
-    receiptCloseMarginMinutes: body.receiptCloseMarginMinutes,
-    scheduling: deepCopy(body.scheduling),
-  }
-  if (body.branchOpeningHours) wire.branchOpeningHours = deepCopy(body.branchOpeningHours)
+  const wire: Record<string, unknown> = deepCopy(body)
+  for (const key of READ_ONLY_SETTINGS_KEYS) delete wire[key]
+  if (!wire.branchOpeningHours) delete wire.branchOpeningHours
   const { data } = await http.put(BASE, wire)
   return chatbotSettingsSavedSchema.parse(data)
 }

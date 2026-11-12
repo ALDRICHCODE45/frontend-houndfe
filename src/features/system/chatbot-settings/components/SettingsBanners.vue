@@ -10,16 +10,18 @@ import type { SettingsErrors } from '../utils/settingsValidation'
 import { errorTarget } from '../utils/settingsErrorTargets'
 import { plural } from '../utils/settingsLabels'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   readonly: boolean
   creating: boolean
   notice: EditorNotice | null
   version: number
   /** Version saved by the other person; `null` = no conflict pending. */
   conflictVersion: number | null
+  /** «Ana López guardó cambios a las 10:30»; falls back to the generic line when the view does not know who. */
+  conflictHeadline?: string
   errors: SettingsErrors
   showErrors: boolean
-}>()
+}>(), { conflictHeadline: 'Otra persona guardó cambios antes que tú' })
 const emit = defineEmits<{
   'close-notice': []
   'retry-save': []
@@ -111,7 +113,7 @@ const entries = computed(() => Object.entries(props.errors).map(([key, message])
     <div v-if="conflictVersion !== null" class="cbs-alert" data-tone="warn" role="alert" data-testid="conflict-banner">
       <UIcon name="i-lucide-triangle-alert" class="cbs-alert__icon" aria-hidden="true" />
       <div>
-        <strong>Otra persona guardó cambios antes que tú</strong>
+        <strong>{{ conflictHeadline }}</strong>
         Ya existe la versión {{ conflictVersion }}. Tus cambios siguen aquí; no se ha enviado nada.
         <div class="cbs-alert__actions">
           <button type="button" class="cbs-btn" data-testid="conflict-open" @click="emit('open-conflict')">Ver cambios</button>

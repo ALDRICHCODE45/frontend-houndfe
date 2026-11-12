@@ -49,6 +49,7 @@ export function settingsFixture(over: Partial<ChatbotSettings> = {}): ChatbotSet
       SATURDAY: [['09:00', '14:00']],
     }),
     closedDates: ['2026-09-16', '2026-12-25', '2027-01-01'],
+    closedDateReasons: {},
     slas: slas(),
     windowWarningMinutes: 120,
     templateName: null,
@@ -57,6 +58,8 @@ export function settingsFixture(over: Partial<ChatbotSettings> = {}): ChatbotSet
     receiptCloseMarginMinutes: 60,
     scheduling: { enabled: false, slotMinutes: 30, slotsOffered: 3, maxScheduledPerSlot: 3 },
     branchOpeningHours: week({ MONDAY: [['10:00', '18:00']], TUESDAY: [['10:00', '18:00']] }),
+    updatedBy: null,
+    updatedAt: null,
     ...over,
   }
 }

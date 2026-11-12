@@ -47,10 +47,13 @@ describe('Atención del chatbot presentation adapter', () => {
     }
   })
 
-  it('never sends read-only response fields: the sources do not build a body with version or recompute', () => {
+  it('never sends read-only response fields: the PUT wire drops exactly the read-only keys', () => {
     const api = read('api/chatbotSettings.api.ts')
-    expect(api).not.toMatch(/wire\.(version|recompute)/)
-    expect(api).toContain('expectedVersion: body.expectedVersion')
+    expect(api).not.toMatch(/wire\.(version|recompute|updatedBy|updatedAt)\s*=/)
+    expect(api).toContain('READ_ONLY_SETTINGS_KEYS')
+    expect(read('interfaces/chatbot-settings.types.ts')).toContain(
+      "['version', 'recompute', 'updatedBy', 'updatedAt'] as const",
+    )
   })
 })
 

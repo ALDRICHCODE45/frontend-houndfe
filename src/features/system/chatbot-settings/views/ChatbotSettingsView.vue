@@ -21,9 +21,12 @@ import {
   removeClosedDate,
   removePastClosedDates,
   removeRange,
+  setClosedDateReason,
   setRangeTime,
   toggleDay,
 } from '../utils/settingsDraft'
+import { conflictHeadline, formatSavedBy } from '../utils/settingsErrors'
+import { errorTarget } from '../utils/settingsErrorTargets'
 import { plural, todayIn } from '../utils/settingsLabels'
 import { sectionOfError, type ErrorSection } from '../utils/settingsValidation'
 import ApplyToAllDialog from '../components/ApplyToAllDialog.vue'
@@ -55,9 +58,19 @@ const editor = useChatbotSettingsEditor({
 
 const readonly = computed(() => !access.canUpdate.value)
 const draft = computed(() => editor.draft.value)
-const errors = editor.errors
+/** Client rules plus the located errors of a refused save (400 `fieldErrors`). */
+const errors = editor.allErrors
 const today = computed(() => todayIn(draft.value?.openingHours.timeZone ?? 'America/Mexico_City'))
 const dateError = ref<string | null>(null)
+const zone = computed(() => draft.value?.openingHours.timeZone ?? 'America/Mexico_City')
+const savedBy = computed(() => {
+  const accepted = editor.accepted.value
+  return accepted ? formatSavedBy(accepted.updatedBy, accepted.updatedAt, zone.value) : null
+})
+const conflictLine = computed(() => {
+  const current = editor.conflict.value
+  return current ? conflictHeadline(current.updatedBy, current.updatedAt, zone.value) : undefined
+})
 
 async function save() {
   const outcome = await editor.save()
@@ -71,6 +84,10 @@ async function save() {
   } else if (outcome.status === 'invalid') {
     const first = Object.keys(errors.value)[0]
     if (first) focusFirstError()
+  } else if (outcome.status === 'error' && outcome.located && outcome.first) {
+    // The server named the fields: scroll to and focus the first one it reported.
+    const id = errorTarget(outcome.first).id
+    queueMicrotask(() => goto(id))
   }
   return outcome
 }
@@ -87,7 +104,7 @@ const apply = useApplyToAllBranches({
 function goto(id: string) {
   const target = document.getElementById(id)
   if (!target) return
-  target.scrollIntoView({ block: 'center' })
+  target.scrollIntoView?.({ block: 'center' })
   const focusable = target.matches('input,select,textarea,button') ? target : target.querySelector('input,select,textarea')
   ;(focusable as HTMLElement | null)?.focus?.({ preventScroll: true })
 }
@@ -158,6 +175,7 @@ const applyBusy = computed(() => apply.step.value !== 'closed')
         <p class="hf-page-subtitle">
           Horario, fechas cerradas y plazos con los que se miden las solicitudes del chatbot en esta sucursal.
         </p>
+        <p v-if="savedBy" class="hf-page-subtitle cbs-saved-by" data-testid="saved-by">{{ savedBy }}</p>
       </div>
       <button
         v-if="access.canRead.value && access.canApplyAll.value && draft"
@@ -208,6 +226,7 @@ const applyBusy = computed(() => apply.step.value !== 'closed')
         :notice="editor.notice.value"
         :version="editor.accepted.value.version"
         :conflict-version="editor.conflict.value && !editor.conflictDialogOpen.value ? editor.conflict.value.version : null"
+        :conflict-headline="conflictLine"
         :errors="errors"
         :show-errors="editor.showErrors.value"
         @close-notice="editor.closeNotice()"
@@ -254,7 +273,10 @@ const applyBusy = computed(() => apply.step.value !== 'closed')
               :readonly="readonly"
               :add-error="dateError"
               :list-error="errors['d:list']"
+              :reasons="draft.closedDateReasons"
+              :errors="errors"
               @add="addDate"
+              @set-reason="(date, value) => editor.edit((d) => setClosedDateReason(d, date, value))"
               @remove="(date) => editor.edit((d) => removeClosedDate(d, date))"
               @remove-past="removePast"
             />

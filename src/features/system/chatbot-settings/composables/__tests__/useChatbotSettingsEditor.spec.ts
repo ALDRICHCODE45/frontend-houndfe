@@ -325,6 +325,169 @@ describe('save errors', () => {
     expect(editor.saving.value).toBe(false)
   })
 
+  describe('400 with fieldErrors', () => {
+    const fieldErrors = [
+      { path: 'scheduling.slotMinutes', code: 'OUT_OF_RANGE' },
+      { path: 'openingHours.days[1].ranges[1]', code: 'OVERLAP' },
+    ]
+
+    it('locates each error on its field, shows the checklist and keeps the draft', async () => {
+      put.mockRejectedValue(axiosError(400, { code: 'VALIDATION_ERROR', fieldErrors }))
+      const { editor } = setup()
+      await flushPromises()
+      editor.edit(setWindow(60))
+
+      const outcome = await editor.save()
+
+      expect(outcome).toEqual({ status: 'error', located: true, first: 'c:slot' })
+      expect(Object.keys(editor.serverErrors.value)).toEqual(['c:slot', 'h:TUESDAY'])
+      expect(Object.keys(editor.allErrors.value)).toEqual(['c:slot', 'h:TUESDAY'])
+      expect(editor.showErrors.value).toBe(true)
+      // every error was located: the field messages are the notice, no generic banner on top
+      expect(editor.notice.value).toBeNull()
+      expect(editor.draft.value!.windowWarningMinutes).toBe(60)
+    })
+
+    it('an error that cannot be located also raises the generic notice', async () => {
+      put.mockRejectedValue(
+        axiosError(400, { code: 'VALIDATION_ERROR', fieldErrors: [...fieldErrors, { path: 'tenantId', code: 'UNKNOWN_FIELD' }] }),
+      )
+      const { editor } = setup()
+      await flushPromises()
+      editor.edit(setWindow(60))
+
+      const outcome = await editor.save()
+
+      expect(outcome).toMatchObject({ status: 'error', located: true })
+      expect(editor.notice.value).toBe('validation')
+    })
+
+    it('an empty or missing fieldErrors falls back to the generic notice only', async () => {
+      put.mockRejectedValue(axiosError(400, { code: 'VALIDATION_ERROR', fieldErrors: [] }))
+      const { editor } = setup()
+      await flushPromises()
+      editor.edit(setWindow(60))
+
+      const outcome = await editor.save()
+
+      expect(outcome).toEqual({ status: 'error', located: false, first: null })
+      expect(editor.notice.value).toBe('validation')
+      expect(editor.serverErrors.value).toEqual({})
+    })
+
+    it('maps indexes against the body that was sent (ranges and dates are sorted on send)', async () => {
+      put.mockRejectedValue(
+        axiosError(400, { code: 'VALIDATION_ERROR', fieldErrors: [{ path: 'slas[3].resolveMinutes', code: 'MUST_BE_NULL' }] }),
+      )
+      const { editor } = setup()
+      await flushPromises()
+      editor.edit(setWindow(60))
+      await editor.save()
+      expect(Object.keys(editor.serverErrors.value)).toEqual(['s:TRANSFER_RECEIPT:resolve'])
+    })
+
+    it('editing a field clears its server error and keeps the others', async () => {
+      put.mockRejectedValue(axiosError(400, { code: 'VALIDATION_ERROR', fieldErrors }))
+      const { editor } = setup()
+      await flushPromises()
+      editor.edit(setWindow(60))
+      await editor.save()
+
+      editor.edit((d) => {
+        d.scheduling.slotMinutes = 45
+      })
+
+      expect(Object.keys(editor.serverErrors.value)).toEqual(['h:TUESDAY'])
+      expect(editor.showErrors.value).toBe(true)
+
+      editor.edit((d) => {
+        d.openingHours.days[1]!.ranges = [{ open: '09:00', close: '10:00' }]
+      })
+
+      expect(editor.serverErrors.value).toEqual({})
+      expect(editor.showErrors.value).toBe(false)
+    })
+
+    it('the next save starts clean, and discard clears the server errors', async () => {
+      put.mockRejectedValueOnce(axiosError(400, { code: 'VALIDATION_ERROR', fieldErrors }))
+      const { editor } = setup()
+      await flushPromises()
+      editor.edit(setWindow(60))
+      await editor.save()
+      put.mockResolvedValueOnce(saved({ windowWarningMinutes: 60 }))
+
+      await editor.save()
+      expect(editor.serverErrors.value).toEqual({})
+
+      put.mockRejectedValueOnce(axiosError(400, { code: 'VALIDATION_ERROR', fieldErrors }))
+      editor.edit(setWindow(61))
+      await editor.save()
+      expect(Object.keys(editor.serverErrors.value)).toHaveLength(2)
+      editor.discard()
+      expect(editor.serverErrors.value).toEqual({})
+    })
+
+    it('a server error does not block sending again (the server decides)', async () => {
+      put.mockRejectedValueOnce(axiosError(400, { code: 'VALIDATION_ERROR', fieldErrors }))
+      const { editor } = setup()
+      await flushPromises()
+      editor.edit(setWindow(60))
+      await editor.save()
+      put.mockResolvedValueOnce(saved({ windowWarningMinutes: 60 }))
+
+      expect((await editor.save()).status).toBe('saved')
+    })
+  })
+
+  describe('round trip', () => {
+    it('sends an unknown key of the GET back unchanged and never the read-only keys', async () => {
+      put.mockResolvedValue(saved())
+      const source = {
+        ...settingsFixture({ updatedBy: { id: 'u1', displayName: 'Ana' }, updatedAt: '2026-11-12T15:04:05.123Z' }),
+        futureTop: { keep: true },
+      } as ChatbotSettings
+      ;(source.scheduling as unknown as Record<string, unknown>).futureNested = 9
+      const { editor } = setup(source)
+      await flushPromises()
+      editor.edit(setWindow(60))
+
+      await editor.save()
+
+      const sent = put.mock.calls[0]![0] as Record<string, unknown>
+      expect(sent.futureTop).toEqual({ keep: true })
+      expect((sent.scheduling as Record<string, unknown>).futureNested).toBe(9)
+      for (const key of ['version', 'recompute', 'updatedBy', 'updatedAt']) expect(sent).not.toHaveProperty(key)
+    })
+
+    it('a reason edit makes the draft dirty and travels in the PUT for present dates only', async () => {
+      put.mockResolvedValue(saved())
+      const { editor } = setup()
+      await flushPromises()
+
+      editor.edit((d) => {
+        d.closedDateReasons = { '2026-12-25': ' Navidad ' }
+      })
+      expect(editor.isDirty.value).toBe(true)
+      await editor.save()
+
+      expect(put.mock.calls[0]![0].closedDateReasons).toEqual({ '2026-12-25': 'Navidad' })
+    })
+
+    it('a reason over 80 characters blocks the save client-side, under its date', async () => {
+      const { editor } = setup()
+      await flushPromises()
+      editor.edit((d) => {
+        d.closedDateReasons = { '2026-12-25': 'a'.repeat(81) }
+      })
+
+      const outcome = await editor.save()
+
+      expect(outcome.status).toBe('invalid')
+      expect(Object.keys(editor.allErrors.value)).toEqual(['r:2026-12-25'])
+      expect(put).not.toHaveBeenCalled()
+    })
+  })
+
   it('a network failure raises the generic «error» notice', async () => {
     put.mockRejectedValue(new Error('Network Error'))
     const { editor } = setup()

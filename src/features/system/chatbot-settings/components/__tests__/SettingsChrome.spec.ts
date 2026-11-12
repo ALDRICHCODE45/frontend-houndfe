@@ -118,6 +118,14 @@ describe('SettingsBanners', () => {
     expect(w.emitted('open-conflict')).toHaveLength(1)
   })
 
+  it('the 409 banner names the other person and the time when current carries them', () => {
+    const w = mountBanners({ conflictVersion: 5, conflictHeadline: 'Ana López guardó cambios a las 10:30' })
+    const banner = w.get('[data-testid="conflict-banner"]')
+    expect(banner.text()).toContain('Ana López guardó cambios a las 10:30')
+    expect(banner.text()).not.toContain('Otra persona guardó cambios antes que tú')
+    expect(banner.text()).toContain('versión 5')
+  })
+
   it('the checklist lists the fields to fix and jumps to them', async () => {
     const w = mountBanners({
       showErrors: true,

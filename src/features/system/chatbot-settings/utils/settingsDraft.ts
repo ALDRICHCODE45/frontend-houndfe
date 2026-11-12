@@ -7,7 +7,11 @@ import type {
   ChatbotSettingsPutBody,
   ChatbotWeekday,
 } from '../interfaces/chatbot-settings.types'
-import { CHATBOT_SETTINGS_SUBTYPES, CHATBOT_WEEKDAYS } from '../interfaces/chatbot-settings.types'
+import {
+  CHATBOT_SETTINGS_SUBTYPES,
+  CHATBOT_WEEKDAYS,
+  READ_ONLY_SETTINGS_KEYS,
+} from '../interfaces/chatbot-settings.types'
 import { DAY_LABELS, MAX_RANGES_PER_DAY, SUBTYPE_COPY } from './settingsLabels'
 import { deepCopy } from './deepCopy'
 import { isRealDate, MAX_CLOSED_DATES } from './settingsValidation'
@@ -18,28 +22,42 @@ export const cloneSettings = (settings: ChatbotSettings): ChatbotSettings =>
 const toMinutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5))
 const pad = (n: number) => `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`
 
-/** The `PUT` body: whitelist of the contract, `expectedVersion` instead of `version`, no `recompute`. */
+/** Reasons as the server stores them: trimmed, not empty, and only for dates that are in `dates`. */
+function normalizedReasons(reasons: Record<string, string>, dates: readonly string[]): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const date of [...dates].sort()) {
+    const text = reasons[date]?.trim()
+    if (text) out[date] = text
+  }
+  return out
+}
+
+/**
+ * The `PUT` body: the draft minus exactly the read-only keys (`version`, `recompute`, `updatedBy`,
+ * `updatedAt`), plus `expectedVersion`. Every other key, known or not, is kept as is so the full
+ * replacement never deletes what this screen does not know. Dates and ranges are sorted, reasons are
+ * trimmed and kept for present dates only, a blank template name is `null`, and a missing pickup week is
+ * not sent.
+ */
 export function toPutBody(draft: ChatbotSettings, expectedVersion: number): ChatbotSettingsPutBody {
-  const copy = cloneSettings(draft)
+  const copy = cloneSettings(draft) as ChatbotSettings & Record<string, unknown>
+  for (const key of READ_ONLY_SETTINGS_KEYS) delete copy[key]
+  const { openingHours, closedDates, closedDateReasons, templateName, branchOpeningHours, ...rest } = copy
   const body: ChatbotSettingsPutBody = {
+    ...rest,
     expectedVersion,
     openingHours: {
-      timeZone: copy.openingHours.timeZone,
-      days: copy.openingHours.days.map((day) => ({
-        day: day.day,
+      ...openingHours,
+      days: openingHours.days.map((day) => ({
+        ...day,
         ranges: [...day.ranges].sort((a, b) => toMinutes(a.open) - toMinutes(b.open)),
       })),
     },
-    closedDates: [...copy.closedDates].sort(),
-    slas: copy.slas,
-    windowWarningMinutes: copy.windowWarningMinutes,
-    templateName: copy.templateName === '' ? null : copy.templateName,
-    templateCostText: copy.templateCostText,
-    enabledSubtypes: copy.enabledSubtypes,
-    receiptCloseMarginMinutes: copy.receiptCloseMarginMinutes,
-    scheduling: copy.scheduling,
-  }
-  if (copy.branchOpeningHours) body.branchOpeningHours = copy.branchOpeningHours
+    closedDates: [...closedDates].sort(),
+    closedDateReasons: normalizedReasons(closedDateReasons ?? {}, closedDates),
+    templateName: templateName === '' ? null : templateName,
+  } as ChatbotSettingsPutBody
+  if (branchOpeningHours) body.branchOpeningHours = branchOpeningHours
   return body
 }
 
@@ -62,7 +80,12 @@ export function diffItems(a: ChatbotSettings, b: ChatbotSettings): DiffItem[] {
     if (!same(dayRanges(a, day), dayRanges(b, day))) out.push({ sec: 'hours', key: `h:${day}`, label: DAY_LABELS[day].long })
   }
   if (a.openingHours.timeZone !== b.openingHours.timeZone) out.push({ sec: 'hours', key: 'tz', label: 'Zona horaria' })
-  if (!same(a.closedDates, b.closedDates)) out.push({ sec: 'dates', key: 'dates', label: 'Fechas cerradas' })
+  if (
+    !same(a.closedDates, b.closedDates) ||
+    !same(normalizedReasons(a.closedDateReasons, a.closedDates), normalizedReasons(b.closedDateReasons, b.closedDates))
+  ) {
+    out.push({ sec: 'dates', key: 'dates', label: 'Fechas cerradas' })
+  }
   for (const subtype of CHATBOT_SETTINGS_SUBTYPES) {
     const x = slaOf(a, subtype)
     const y = slaOf(b, subtype)
@@ -146,12 +169,33 @@ export function addClosedDate(draft: ChatbotSettings, value: string): string | n
 
 export function removeClosedDate(draft: ChatbotSettings, value: string): void {
   draft.closedDates = draft.closedDates.filter((d) => d !== value)
+  dropOrphanReasons(draft)
+}
+
+/** A reason only lives with its date: removing the date removes the reason. */
+function dropOrphanReasons(draft: ChatbotSettings): void {
+  const kept: Record<string, string> = {}
+  for (const date of draft.closedDates) {
+    const text = draft.closedDateReasons?.[date]
+    if (text !== undefined) kept[date] = text
+  }
+  draft.closedDateReasons = kept
+}
+
+/** Stores the reason as typed (trimmed only when sent); an empty text means «no reason». Ignored for an absent date. */
+export function setClosedDateReason(draft: ChatbotSettings, date: string, text: string): void {
+  if (!draft.closedDates.includes(date)) return
+  const next = { ...(draft.closedDateReasons ?? {}) }
+  if (text === '') delete next[date]
+  else next[date] = text
+  draft.closedDateReasons = next
 }
 
 /** Drops dates before `today` (a `YYYY-MM-DD` in the branch zone); returns how many. */
 export function removePastClosedDates(draft: ChatbotSettings, today: string): number {
   const before = draft.closedDates.length
   draft.closedDates = draft.closedDates.filter((d) => d >= today)
+  dropOrphanReasons(draft)
   return before - draft.closedDates.length
 }
 
@@ -169,7 +213,10 @@ export function rebaseDraft(base: ChatbotSettings, mine: ChatbotSettings, theirs
       const target = out.openingHours.days.find((d) => d.day === name)
       if (target) target.ranges = deepCopy(dayRanges(mine, name as ChatbotWeekday))
     } else if (changed === 'tz') out.openingHours.timeZone = mine.openingHours.timeZone
-    else if (changed === 'dates') out.closedDates = [...mine.closedDates]
+    else if (changed === 'dates') {
+      out.closedDates = [...mine.closedDates]
+      out.closedDateReasons = { ...mine.closedDateReasons }
+    }
     else if (kind === 's' && name) {
       const sla = slaOf(mine, name)
       const index = out.slas.findIndex((s) => s.subtype === name)

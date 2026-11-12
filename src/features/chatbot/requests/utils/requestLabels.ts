@@ -140,7 +140,11 @@ function duration(minutes: number): string {
   return rest ? `${hours} h ${rest} min` : `${hours} h`
 }
 
-/** «Ventana de 24 h cierra en …» only while the WhatsApp window closes within 2 h (same rule as the filter). */
+/**
+ * «Ventana de 24 h cierra en …» only while the WhatsApp window closes within 2 h. This is a display
+ * threshold of the row/header tag only: the inbox filter «Ventana por cerrar» and its count follow the
+ * branch's `windowWarningMinutes` on the server, which the rows do not expose, so the two can differ.
+ */
 export function windowClosingTag(whatsappWindowClosesAt: string | null, now: Date = new Date()): string | null {
   if (!whatsappWindowClosesAt) return null
   const closesAt = new Date(whatsappWindowClosesAt).getTime()

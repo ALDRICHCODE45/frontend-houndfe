@@ -18,7 +18,7 @@ const put = vi.mocked(http.put)
 const post = vi.mocked(http.post)
 
 function putBodyOf(source = settingsFixture()): ChatbotSettingsPutBody {
-  const { version, branchOpeningHours, ...rest } = source
+  const { version, branchOpeningHours, updatedBy, updatedAt, ...rest } = source
   return { ...rest, expectedVersion: version, ...(branchOpeningHours ? { branchOpeningHours } : {}) }
 }
 
@@ -40,21 +40,54 @@ describe('chatbotSettingsApi.get', () => {
     expect(await chatbotSettingsApi.get()).toEqual(settingsFixture())
   })
 
-  // A full-replace PUT would silently drop a field this screen does not know, so an unknown key fails the load.
+  // The PUT is a full replacement, so an unknown key must survive the parse (it goes back unchanged on save).
   it.each([
-    ['top level', (b: Record<string, unknown>) => { b.futureField = 1 }],
+    ['top level', (b: Record<string, unknown>) => { b.futureField = { a: 1 } }],
     ['openingHours', (b: Record<string, unknown>) => { (b.openingHours as Record<string, unknown>).futureField = 1 }],
     ['an opening day', (b: Record<string, unknown>) => { ((b.openingHours as { days: Array<Record<string, unknown>> }).days[0]!).futureField = 1 }],
     ['an opening range', (b: Record<string, unknown>) => { ((b.openingHours as { days: Array<{ ranges: Array<Record<string, unknown>> }> }).days[0]!.ranges[0]!).futureField = 1 }],
     ['an sla entry', (b: Record<string, unknown>) => { (b.slas as Array<Record<string, unknown>>)[0]!.futureField = 1 }],
     ['scheduling', (b: Record<string, unknown>) => { (b.scheduling as Record<string, unknown>).futureField = 1 }],
     ['branchOpeningHours', (b: Record<string, unknown>) => { (b.branchOpeningHours as Record<string, unknown>).futureField = 1 }],
-  ])('rejects an unknown key in %s instead of stripping it', async (_where, mutate) => {
+  ])('keeps an unknown key in %s instead of stripping or rejecting it', async (_where, mutate) => {
     const body = clone(settingsFixture()) as unknown as Record<string, unknown>
     mutate(body)
     get.mockResolvedValue({ data: body })
 
-    await expect(chatbotSettingsApi.get()).rejects.toThrow()
+    const settings = await chatbotSettingsApi.get()
+
+    expect(JSON.stringify(settings)).toContain('"futureField"')
+    expect(settings).toEqual(body)
+  })
+
+  it('reads updatedBy, updatedAt and closedDateReasons', async () => {
+    const body = {
+      ...settingsFixture(),
+      closedDateReasons: { '2026-12-25': 'Navidad' },
+      updatedBy: { id: '6f1c', displayName: 'Ana López' },
+      updatedAt: '2026-11-12T15:04:05.123Z',
+    }
+    get.mockResolvedValue({ data: body })
+
+    const settings = await chatbotSettingsApi.get()
+
+    expect(settings.closedDateReasons).toEqual({ '2026-12-25': 'Navidad' })
+    expect(settings.updatedBy).toEqual({ id: '6f1c', displayName: 'Ana López' })
+    expect(settings.updatedAt).toBe('2026-11-12T15:04:05.123Z')
+  })
+
+  it('defaults the S11 fields when an older body lacks them (no reasons, nobody saved)', async () => {
+    const body = clone(settingsFixture()) as unknown as Record<string, unknown>
+    delete body.closedDateReasons
+    delete body.updatedBy
+    delete body.updatedAt
+    get.mockResolvedValue({ data: body })
+
+    const settings = await chatbotSettingsApi.get()
+
+    expect(settings.closedDateReasons).toEqual({})
+    expect(settings.updatedBy).toBeNull()
+    expect(settings.updatedAt).toBeNull()
   })
 
   it('rejects an unknown subtype', async () => {
@@ -116,24 +149,24 @@ describe('chatbotSettingsApi.put', () => {
     expect(sent.branchOpeningHours).toEqual(source.branchOpeningHours)
   })
 
-  it('drops the read-only fields the contract excludes (version, recompute) and unknown keys', async () => {
+  it('never sends the read-only keys (version, recompute, updatedBy, updatedAt)', async () => {
     put.mockResolvedValue({ data: { ...settingsFixture(), recompute: 'DONE' } })
     const forged = {
       ...putBodyOf(),
       version: 3,
       recompute: 'DONE',
-      updatedBy: 'x',
+      updatedBy: { id: 'x', displayName: 'Ana' },
+      updatedAt: '2026-11-12T15:04:05.123Z',
     } as unknown as ChatbotSettingsPutBody
 
     await chatbotSettingsApi.put(forged)
 
     const sent = put.mock.calls[0]![1] as Record<string, unknown>
-    expect(sent).not.toHaveProperty('version')
-    expect(sent).not.toHaveProperty('recompute')
-    expect(sent).not.toHaveProperty('updatedBy')
+    for (const key of ['version', 'recompute', 'updatedBy', 'updatedAt']) expect(sent).not.toHaveProperty(key)
     expect(Object.keys(sent).sort()).toEqual(
       [
         'branchOpeningHours',
+        'closedDateReasons',
         'closedDates',
         'enabledSubtypes',
         'expectedVersion',
@@ -146,6 +179,19 @@ describe('chatbotSettingsApi.put', () => {
         'windowWarningMinutes',
       ].sort(),
     )
+  })
+
+  it('sends an unknown key back unchanged, at the top level and nested', async () => {
+    put.mockResolvedValue({ data: { ...settingsFixture(), recompute: 'DONE' } })
+    const body = putBodyOf() as ChatbotSettingsPutBody & Record<string, unknown>
+    body.futureTop = { keep: ['me'] }
+    ;(body.scheduling as unknown as Record<string, unknown>).futureNested = 7
+
+    await chatbotSettingsApi.put(body)
+
+    const sent = put.mock.calls[0]![1] as Record<string, unknown>
+    expect(sent.futureTop).toEqual({ keep: ['me'] })
+    expect((sent.scheduling as Record<string, unknown>).futureNested).toBe(7)
   })
 
   it('omits branchOpeningHours when the GET had none', async () => {
@@ -176,8 +222,25 @@ describe('chatbotSettingsApi.put', () => {
     expect(body).toEqual(snapshot)
   })
 
-  it('rejects a PUT response with an unknown key', async () => {
-    put.mockResolvedValue({ data: { ...settingsFixture(), recompute: 'DONE', futureField: 1 } })
+  it('keeps an unknown key of the PUT response, and reads who saved', async () => {
+    put.mockResolvedValue({
+      data: {
+        ...settingsFixture({ version: 4, updatedBy: { id: 'u1', displayName: 'Ana López' }, updatedAt: '2026-11-12T15:04:05.123Z' }),
+        recompute: 'DONE',
+        futureField: 1,
+      },
+    })
+
+    const saved = await chatbotSettingsApi.put(putBodyOf())
+
+    expect((saved as unknown as Record<string, unknown>).futureField).toBe(1)
+    expect(saved.updatedBy?.displayName).toBe('Ana López')
+  })
+
+  it('rejects a PUT response with an unknown subtype', async () => {
+    const body = { ...clone(settingsFixture()), recompute: 'DONE' } as unknown as { slas: Array<Record<string, unknown>> }
+    body.slas[0]!.subtype = 'NEW_SUBTYPE'
+    put.mockResolvedValue({ data: body })
 
     await expect(chatbotSettingsApi.put(putBodyOf())).rejects.toThrow()
   })

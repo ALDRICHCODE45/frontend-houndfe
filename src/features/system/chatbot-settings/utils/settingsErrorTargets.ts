@@ -20,6 +20,7 @@ export function errorTarget(key: string): { label: string; id: string } {
   if (fixed) return fixed
   const [kind, name, field] = key.split(':')
   if (kind === 'h' && name) return { label: `${DAY_LABELS[name as ChatbotWeekday].long}: horario`, id: `dr-${name}` }
+  if (kind === 'r' && name) return { label: `Motivo de ${name}`, id: `r-${name}` }
   if (kind === 's' && name) {
     const subtype = SUBTYPE_COPY[name as ChatbotSettingsSubtype]?.name ?? name
     return { label: `${subtype}: ${field === 'claim' ? 'atender' : 'resolver'}`, id: `s-${name}-${field}` }

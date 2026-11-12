@@ -2,9 +2,10 @@
  * Chatbot settings API (houndfe-backend `docs/frontend-handoff/16-chatbot-settings.md` at 8c12ae09).
  *
  * `GET /chatbot-settings` and the `PUT` response share one body; the `PUT` request is the same
- * object without `version` and `branchOpeningHours`' read-only role, plus `expectedVersion`.
- * `version` and `recompute` are read-only: they never travel back to the server (an unknown
- * field is a `400`). Times are business minutes; instants are UTC ISO strings (none on this screen).
+ * object plus `expectedVersion`. `version`, `recompute`, `updatedBy` and `updatedAt` are read-only: they
+ * never travel back to the server (an unknown field is a `400`). Every other key, known or not, is kept
+ * in the draft and sent back unchanged: the PUT is a full replacement, so stripping an unknown key would
+ * silently delete it. Times are business minutes; instants are UTC ISO strings.
  */
 import { z } from 'zod'
 
@@ -35,22 +36,22 @@ export type ChatbotSettingsSubtype = (typeof CHATBOT_SETTINGS_SUBTYPES)[number]
 const weekdaySchema = z.enum(CHATBOT_WEEKDAYS)
 const subtypeSchema = z.enum(CHATBOT_SETTINGS_SUBTYPES)
 
-// Strict on purpose: the PUT is a full replacement, so a field this screen does not know would be silently
-// dropped on save. An unknown key fails the load (the load-error state) instead, like an unknown subtype.
-const rangeSchema = z.object({ open: z.string(), close: z.string() }).strict()
+// Tolerant on purpose (`passthrough` at every level): a key this screen does not know is kept and sent back
+// unchanged on the full-replace PUT. Unknown values of an enumerated field (subtype, weekday) still fail.
+const rangeSchema = z.object({ open: z.string(), close: z.string() }).passthrough()
 const openingHoursSchema = z
   .object({
     timeZone: z.string(),
-    days: z.array(z.object({ day: weekdaySchema, ranges: z.array(rangeSchema) }).strict()),
+    days: z.array(z.object({ day: weekdaySchema, ranges: z.array(rangeSchema) }).passthrough()),
   })
-  .strict()
+  .passthrough()
 const slaSchema = z
   .object({
     subtype: subtypeSchema,
     claimMinutes: z.number().nullable(),
     resolveMinutes: z.number().nullable(),
   })
-  .strict()
+  .passthrough()
 const schedulingSchema = z
   .object({
     enabled: z.boolean(),
@@ -58,14 +59,17 @@ const schedulingSchema = z
     slotsOffered: z.number(),
     maxScheduledPerSlot: z.number(),
   })
-  .strict()
+  .passthrough()
+const updatedBySchema = z.object({ id: z.string(), displayName: z.string() }).passthrough()
 
-/** Runtime shape of the `GET` body: any drift, known or unknown key, throws. */
+/** Runtime shape of the `GET` body: drift in a known key throws, an unknown key is kept. */
 export const chatbotSettingsSchema = z
   .object({
     version: z.number().int().min(0),
     openingHours: openingHoursSchema,
     closedDates: z.array(z.string()),
+    // S11: always present from 7b8cc5f0; defaulted so an older body still loads.
+    closedDateReasons: z.record(z.string(), z.string()).default({}),
     slas: z.array(slaSchema),
     windowWarningMinutes: z.number(),
     templateName: z.string().nullable(),
@@ -74,8 +78,10 @@ export const chatbotSettingsSchema = z
     receiptCloseMarginMinutes: z.number(),
     scheduling: schedulingSchema,
     branchOpeningHours: openingHoursSchema.nullable(),
+    updatedBy: updatedBySchema.nullable().default(null),
+    updatedAt: z.string().nullable().default(null),
   })
-  .strict()
+  .passthrough()
 
 export const chatbotRecomputeSchema = z.enum(['DONE', 'PARTIAL', 'FAILED', 'NOT_NEEDED'])
 
@@ -112,13 +118,21 @@ export interface ChatbotScheduling {
   maxScheduledPerSlot: number
 }
 
+/** Who saved the settings last; `displayName` is a copy made at the save, so it survives the user. */
+export interface ChatbotSettingsAuthor {
+  id: string
+  displayName: string
+}
+
 export interface ChatbotSettings {
   /** Read-only. `0` = the branch never saved (defaults). */
   version: number
   openingHours: ChatbotOpeningHours
   closedDates: string[]
+  /** Optional text (1 to 80) per closed date, keyed by date; only dates present in `closedDates`. */
+  closedDateReasons: Record<string, string>
   slas: ChatbotSla[]
-  /** Stored only: the inbox filter keeps its own 2 h. */
+  /** Minutes before the 24 h WhatsApp window closes that the inbox «Ventana por cerrar» filter counts (0 = off). */
   windowWarningMinutes: number
   /** Stored only. `null` = not configured. */
   templateName: string | null
@@ -129,6 +143,10 @@ export interface ChatbotSettings {
   scheduling: ChatbotScheduling
   /** Read-only: pickup hours of the same branch, `null` when it has none. */
   branchOpeningHours: ChatbotOpeningHours | null
+  /** Read-only. `null` for a branch that never saved. */
+  updatedBy: ChatbotSettingsAuthor | null
+  /** Read-only, UTC ISO. `null` for a branch that never saved. */
+  updatedAt: string | null
 }
 
 export type ChatbotRecompute = 'DONE' | 'PARTIAL' | 'FAILED' | 'NOT_NEEDED'
@@ -138,15 +156,19 @@ export interface ChatbotSettingsSaved extends ChatbotSettings {
   recompute: ChatbotRecompute
 }
 
+/** The keys the server answers but never accepts back (an unknown field is a `400`). */
+export const READ_ONLY_SETTINGS_KEYS = ['version', 'recompute', 'updatedBy', 'updatedAt'] as const
+
 /**
- * `PUT` body: a full replacement plus the version that was edited. No `version`, no `recompute`.
- * `branchOpeningHours` is accepted and ignored by the server; it is round-tripped only when the
- * `GET` carried one.
+ * `PUT` body: a full replacement plus the version that was edited. None of the read-only keys. Unknown
+ * keys of the `GET` travel back unchanged (hence the index signature). `branchOpeningHours` is accepted
+ * and ignored by the server; it is round-tripped only when the `GET` carried one.
  */
 export interface ChatbotSettingsPutBody {
   expectedVersion: number
   openingHours: ChatbotOpeningHours
   closedDates: string[]
+  closedDateReasons: Record<string, string>
   slas: ChatbotSla[]
   windowWarningMinutes: number
   templateName: string | null
@@ -155,6 +177,7 @@ export interface ChatbotSettingsPutBody {
   receiptCloseMarginMinutes: number
   scheduling: ChatbotScheduling
   branchOpeningHours?: ChatbotOpeningHours
+  [unknownKey: string]: unknown
 }
 
 /** `POST /chatbot-settings/apply-to-all-tenants` body; both fields optional. */

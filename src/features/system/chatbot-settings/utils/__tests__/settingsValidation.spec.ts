@@ -211,3 +211,22 @@ describe('validateSettings — margin, window, template, scheduling', () => {
     }
   })
 })
+
+describe('closed date reasons', () => {
+  it('accepts 1 to 80 characters after trimming, and blank means no reason', () => {
+    const ok = settingsFixture({
+      closedDateReasons: { '2026-09-16': 'a'.repeat(80), '2026-12-25': '  Navidad  ', '2027-01-01': '   ' },
+    })
+    expect(validateSettings(ok)).toEqual({})
+  })
+
+  it('refuses a reason longer than 80 characters once trimmed, under the date key', () => {
+    const bad = settingsFixture({ closedDateReasons: { '2026-12-25': `  ${'a'.repeat(81)}  ` } })
+    expect(validateSettings(bad)['r:2026-12-25']).toMatch(/80/)
+  })
+
+  it('ignores a reason of a date that is not in the list (it is never sent)', () => {
+    const orphan = settingsFixture({ closedDateReasons: { '2030-01-01': 'a'.repeat(200) } })
+    expect(validateSettings(orphan)).toEqual({})
+  })
+})

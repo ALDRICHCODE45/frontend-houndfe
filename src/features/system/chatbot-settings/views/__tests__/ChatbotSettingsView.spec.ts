@@ -147,6 +147,115 @@ describe('layout', () => {
   })
 })
 
+describe('saved by', () => {
+  const ANA = { id: 'u1', displayName: 'Ana López' }
+
+  it('shows «Guardado por …» with the time near the header', async () => {
+    const w = await mountView(EDITOR, settingsFixture({ updatedBy: ANA, updatedAt: '2026-11-12T16:30:00.000Z' }))
+    const text = w.get('[data-testid="saved-by"]').text()
+    expect(text).toContain('Guardado por Ana López')
+    expect(text).toContain('10:30')
+  })
+
+  it('shows nothing when nobody saved (version 0 or null author)', async () => {
+    const w = await mountView(EDITOR, defaultsFixture())
+    expect(w.find('[data-testid="saved-by"]').exists()).toBe(false)
+  })
+
+  it('shows it read-only too, and updates it after a save', async () => {
+    const readonly = await mountView(['read:ChatbotSettings'], settingsFixture({ updatedBy: ANA, updatedAt: '2026-11-12T16:30:00.000Z' }))
+    expect(readonly.get('[data-testid="saved-by"]').text()).toContain('Ana López')
+
+    api.put.mockResolvedValue({
+      ...settingsFixture({ version: 4, updatedBy: { id: 'u2', displayName: 'Luis Pérez' }, updatedAt: '2026-11-12T17:00:00.000Z' }),
+      recompute: 'DONE',
+    })
+    const w = await mountView(EDITOR, settingsFixture({ updatedBy: ANA, updatedAt: '2026-11-12T16:30:00.000Z' }))
+    await editComplaintClaim(w, '20')
+    await w.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
+    expect(w.get('[data-testid="saved-by"]').text()).toContain('Luis Pérez')
+  })
+})
+
+describe('closed date reasons', () => {
+  it('a typed reason makes the draft dirty and goes in the PUT trimmed, for the present date only', async () => {
+    api.put.mockResolvedValue({ ...settingsFixture({ version: 4 }), recompute: 'DONE' })
+    const w = await mountView()
+    await w.get('#r-2026-12-25').setValue('  Navidad ')
+    await flushPromises()
+    expect(w.find('[data-testid="dirty-count"]').exists()).toBe(true)
+
+    await w.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
+
+    expect(api.put.mock.calls[0]![0].closedDateReasons).toEqual({ '2026-12-25': 'Navidad' })
+  })
+
+  it('removing a date drops its reason from the PUT', async () => {
+    api.put.mockResolvedValue({ ...settingsFixture({ version: 4 }), recompute: 'DONE' })
+    const w = await mountView(EDITOR, settingsFixture({ closedDateReasons: { '2026-12-25': 'Navidad', '2027-01-01': 'Año nuevo' } }))
+    await w.get('[data-testid="date-remove-2026-12-25"]').trigger('click')
+    await flushPromises()
+    await w.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
+
+    expect(api.put.mock.calls[0]![0].closedDateReasons).toEqual({ '2027-01-01': 'Año nuevo' })
+  })
+})
+
+describe('400 fieldErrors', () => {
+  it('puts each message on its field, lists them, and focuses the first', async () => {
+    api.put.mockRejectedValue(
+      axiosError(400, {
+        code: 'VALIDATION_ERROR',
+        fieldErrors: [
+          { path: 'slas[5].resolveMinutes', code: 'RESOLVE_BELOW_CLAIM' },
+          { path: 'closedDateReasons["2026-12-25"]', code: 'INVALID_TEXT' },
+        ],
+      }),
+    )
+    const w = await mountView()
+    await editComplaintClaim(w, '20')
+    await w.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
+
+    const checklist = w.get('[data-testid="error-checklist"]').text()
+    expect(checklist).toContain('Queja: resolver')
+    expect(checklist).toContain('Motivo de 2026-12-25')
+    expect(w.get('[data-testid="date-2026-12-25"]').text()).toContain('Escribe solo texto')
+    expect(w.find('[data-testid="notice-validation"]').exists()).toBe(false)
+    expect(w.get('[data-testid="save-bar"]').attributes('data-state')).toBe('invalid')
+    expect(document.activeElement?.id).toBe('s-COMPLAINT-resolve')
+  })
+
+  it('unknown paths fall back to the generic message', async () => {
+    api.put.mockRejectedValue(
+      axiosError(400, { code: 'VALIDATION_ERROR', fieldErrors: [{ path: 'brandNew.thing', code: 'FUTURE_CODE' }] }),
+    )
+    const w = await mountView()
+    await editComplaintClaim(w, '20')
+    await w.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
+
+    expect(w.get('[data-testid="notice-validation"]').text()).toContain('El servidor no aceptó algún valor')
+    expect(w.find('[data-testid="error-checklist"]').exists()).toBe(false)
+  })
+
+  it('TOO_MANY_RANGES lands on its day', async () => {
+    api.put.mockRejectedValue(
+      axiosError(400, { code: 'VALIDATION_ERROR', fieldErrors: [{ path: 'openingHours.days[3].ranges', code: 'TOO_MANY_RANGES' }] }),
+    )
+    const w = await mountView()
+    await editComplaintClaim(w, '20')
+    await w.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
+
+    expect(w.get('[data-testid="error-checklist"]').text()).toContain('Jueves')
+    expect(w.get('[data-testid="error-checklist"]').text()).toContain('Máximo 6 horarios por día')
+  })
+})
+
 describe('dirty state and save', () => {
   it('an edit shows the dirty bar, marks the section and the index; discard restores', async () => {
     const w = await mountView()
@@ -281,6 +390,28 @@ describe('409 VERSION_CONFLICT', () => {
     expect(body.expectedVersion).toBe(4)
     expect(body.closedDates).toContain('2027-01-06')
     expect(body.slas.find((s) => s.subtype === 'COMPLAINT')!.claimMinutes).toBe(20)
+  })
+
+  it('the banner names the other person and the time from current, and falls back to «Otra persona»', async () => {
+    const named = () => ({
+      ...theirs(),
+      updatedBy: { id: 'u1', displayName: 'Ana López' },
+      updatedAt: '2026-11-12T16:30:00.000Z',
+    })
+    api.put.mockRejectedValueOnce(axiosError(409, { code: 'VERSION_CONFLICT', current: named() }))
+    const w = await mountView()
+    await editComplaintClaim(w, '20')
+    await w.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
+    // close the dialog to see the banner
+    w.findComponent({ name: 'ConflictDialog' }).vm.$emit('close')
+    await flushPromises()
+    expect(w.get('[data-testid="conflict-banner"]').text()).toContain('Ana López guardó cambios a las 10:30')
+
+    const anon = await conflicted()
+    anon.findComponent({ name: 'ConflictDialog' }).vm.$emit('close')
+    await flushPromises()
+    expect(anon.get('[data-testid="conflict-banner"]').text()).toContain('Otra persona guardó cambios antes que tú')
   })
 
   it('closing the dialog leaves the conflict banner with «Ver cambios»; «Usar la versión 4» drops my edit', async () => {

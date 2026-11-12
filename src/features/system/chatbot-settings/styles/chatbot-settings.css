@@ -793,6 +793,19 @@
 .chatbot-settings .cbs-date__text small {
   color: var(--hf-muted);
 }
+.chatbot-settings .cbs-date__input {
+  flex: 0 1 18rem;
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  .chatbot-settings .cbs-date {
+    flex-wrap: wrap;
+  }
+  .chatbot-settings .cbs-date__input {
+    order: 3;
+    flex: 1 1 100%;
+  }
+}
 .chatbot-settings .cbs-dates__foot {
   display: flex;
   flex-wrap: wrap;
