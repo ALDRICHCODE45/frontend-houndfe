@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue'
+import { calendarPartsToDateString, parseMexicoCityCalendarDate } from '@/core/shared/utils/mexicoCityCalendar'
 import HfCombobox, { type HfSpecialAnswer } from '@/core/shared/components/form/HfCombobox.vue'
 import HfFormField from '@/core/shared/components/form/HfFormField.vue'
 import HfUnitField, { type HfUnitValue } from '@/core/shared/components/form/HfUnitField.vue'
@@ -157,6 +158,14 @@ const evidenceOpen = shallowRef(false)
 const draft = shallowRef<EditorialEvidence>({ sourceRef: '', verifiedOn: '' })
 const evidenceError = shallowRef('')
 watch(evidenceOpen, open => { if (open) { draft.value = { ...(evidence.value ?? { sourceRef: '', verifiedOn: '' }) }; evidenceError.value = '' } })
+// The evidence date is the app's calendar field; it holds AAAA-MM-DD and only a complete, real date fills it.
+const evidenceDateModel = computed(() => parseMexicoCityCalendarDate(draft.value.verifiedOn) ?? undefined)
+const evidenceDateOpen = shallowRef(false)
+function evidenceDateChanged(value: unknown) {
+  const date = calendarPartsToDateString(value)
+  draft.value = { ...draft.value, verifiedOn: date ?? '' }
+  if (date !== null) evidenceDateOpen.value = false
+}
 function saveEvidence() {
   if (!isFreshEditorialEvidence(draft.value)) { evidenceError.value = 'Escribe la fuente y una fecha válida.'; return }
   if (known.value) update({ ...known.value, evidence: { ...draft.value } })
@@ -187,8 +196,13 @@ function removeEvidence() {
               <p class="attr-field__evidence-note">Solo la ve tu equipo.</p>
               <label :for="`${id}-evidence-source`">Fuente</label>
               <input :id="`${id}-evidence-source`" v-model="draft.sourceRef" class="attr-field__input" type="text" @keydown.enter.prevent="saveEvidence">
-              <label :for="`${id}-evidence-date`">Fecha</label>
-              <input :id="`${id}-evidence-date`" v-model="draft.verifiedOn" class="attr-field__input" type="date" @keydown.enter.prevent="saveEvidence">
+              <span :id="`${id}-evidence-date`" class="attr-field__evidence-label">Fecha</span>
+              <UPopover v-model:open="evidenceDateOpen" :content="{ align: 'start', side: 'bottom', sideOffset: 8 }" :ui="{ content: 'hf-theme hf-ui attr-field-popover' }">
+                <UInputDate class="attr-field__date" :model-value="evidenceDateModel" :aria-labelledby="`${id}-evidence-date`" @update:model-value="evidenceDateChanged" />
+                <template #content>
+                  <UCalendar class="p-2" :model-value="evidenceDateModel" @update:model-value="evidenceDateChanged" />
+                </template>
+              </UPopover>
               <p v-if="evidenceError" class="attr-field__error" role="alert">{{ evidenceError }}</p>
               <div class="attr-field__evidence-actions">
                 <UButton v-if="evidence" color="neutral" variant="ghost" label="Quitar evidencia" data-action="remove-evidence" @click="removeEvidence" />
@@ -261,7 +275,8 @@ function removeEvidence() {
 .attr-field__action:disabled { cursor: not-allowed; opacity: .65; }
 .attr-field__evidence { display: inline-flex; color: var(--hf-muted); }
 .attr-field__evidence-form { display: grid; gap: 6px; width: min(20rem, 86vw); padding: 12px; color: var(--hf-ink); font-size: 14px; }
-.attr-field__evidence-form label { font-size: 13px; font-weight: 500; }
+.attr-field__evidence-form label, .attr-field__evidence-label { font-size: 13px; font-weight: 500; }
+.attr-field__date { width: 100%; }
 .attr-field__evidence-note { margin: 0; color: var(--hf-muted); font-size: 13px; }
 .attr-field__input { box-sizing: border-box; width: 100%; height: 40px; padding: 0 12px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-control); background: var(--hf-field); color: var(--hf-ink); font: inherit; }
 .attr-field__input:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }

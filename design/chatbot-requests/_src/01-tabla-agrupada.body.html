@@ -1,0 +1,12 @@
+<div id="root"></div>
+<aside class="notes-sheet" id="notes" hidden aria-label="Notas de diseño">
+  <h2>Notas de la dirección A · Tabla agrupada</h2>
+  <ul>
+    <li>Bandeja: <code>GET /chatbot-requests/groups</code> (25 grupos por página, cursor; <code>status</code> open · resolved · cancelled · scheduled), <code>/counts</code> para los chips y <code>?customerKey=</code> para «Ver las N restantes» de un grupo con más de 10.</li>
+    <li>El semáforo es una derivación del front: verde con más de la mitad del tiempo, amarillo entre 10 % y 50 %, rojo debajo de 10 % o con <code>overdueAt</code>. <b>Umbrales no definidos en el contrato: por validar con el dueño.</b></li>
+    <li>Fuera de horario <code>slaPaused</code> es verdadero para todas las solicitudes abiertas a la vez (lo calcula el servidor al leer). Use el selector «Horario» para verlo.</li>
+    <li>«Agendada · mar 10:30» y «Ventana por cerrar» usan <code>scheduledFor</code> (hoy siempre <code>null</code> hasta la unidad 14) y <code>whatsappWindowClosesAt</code>.</li>
+    <li>Sin <code>allowedActions</code> en las filas, no hay botón «Atender» en la lista: se atiende en el detalle.</li>
+    <li>Datos de ejemplo marcados «por confirmar»: forma del contexto, mensajes de la conversación (unidad 9) y tipos de evento de auditoría.</li>
+  </ul>
+</aside>

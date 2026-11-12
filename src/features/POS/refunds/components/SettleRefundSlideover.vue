@@ -13,10 +13,12 @@
  * refetches. A dirty form asks before closing (`confirmLeave`) and before leaving the route.
  */
 import { computed, reactive, ref, watch } from 'vue'
+import { parseDateTime, toCalendarDate, type CalendarDate, type CalendarDateTime } from '@internationalized/date'
 import HfCombobox from '@/core/shared/components/form/HfCombobox.vue'
 import HfFormField from '@/core/shared/components/form/HfFormField.vue'
 import { confirmLeave, useLeaveGuard } from '@/core/shared/composables/useLeaveGuard'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
+import { calendarPartsToDateString } from '@/core/shared/utils/mexicoCityCalendar'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { useCashSaleSession } from '@/features/POS/cash-register/composables/useCashSaleSession'
 import type { RefundSettlementMethod } from '@/features/POS/sales/interfaces/refund-settlement.types'
@@ -181,6 +183,44 @@ function normalizeAmount() {
 
 function changeDate() {
   form.settledAt = localNow()
+}
+
+// «Fecha y hora» is the app's calendar field at minute precision. The form keeps its local
+// `AAAA-MM-DDTHH:mm` value; it converts to and from the field's date-time only at this boundary.
+const toDateTime = (value: string | null): CalendarDateTime | undefined => {
+  if (!value) return undefined
+  try {
+    return parseDateTime(value)
+  } catch {
+    return undefined
+  }
+}
+const settledModel = computed(() => toDateTime(form.settledAt))
+const calendarModel = computed<CalendarDate | undefined>(() =>
+  settledModel.value ? toCalendarDate(settledModel.value) : undefined,
+)
+const maxMoment = computed(() => toDateTime(localNow()))
+const maxDay = computed(() => (maxMoment.value ? toCalendarDate(maxMoment.value) : undefined))
+const dateOpen = ref(false)
+const pad2 = (value: number) => String(value).padStart(2, '0')
+
+/** A complete, real date and time commits; anything else empties the field so the form names it. */
+function settledChanged(value: unknown) {
+  const date = calendarPartsToDateString(value)
+  if (date === null) {
+    form.settledAt = ''
+    return
+  }
+  const { hour, minute } = value as { hour?: unknown; minute?: unknown }
+  const keep = settledModel.value ?? maxMoment.value
+  const hh = Number.isInteger(hour) ? (hour as number) : (keep?.hour ?? 0)
+  const mm = Number.isInteger(minute) ? (minute as number) : (keep?.minute ?? 0)
+  form.settledAt = `${date}T${pad2(hh)}:${pad2(mm)}`
+}
+// A day picked in the calendar keeps the time already chosen and closes the calendar.
+function dayPicked(value: unknown) {
+  settledChanged(value)
+  if (form.settledAt) dateOpen.value = false
 }
 
 const metaLine = computed(() =>
@@ -395,8 +435,7 @@ async function requestClose() {
 
             <HfFormField
               label="Fecha y hora en que se devolvió el dinero"
-              :for="form.settledAt === null ? undefined : 'settle-date'"
-              :label-id="form.settledAt === null ? 'settle-date-label' : undefined"
+              label-id="settle-date-label"
               :error="shownErrors.settledAt"
             >
               <div v-if="form.settledAt === null" class="refund-date-now">
@@ -413,15 +452,31 @@ async function requestClose() {
                 </button>
               </div>
               <div v-else class="refund-date-custom">
-                <UInput
-                  id="settle-date"
-                  v-model="form.settledAt"
-                  type="datetime-local"
-                  class="min-w-0 flex-1 hf-figure"
-                  :max="localNow()"
-                  aria-describedby="settle-date-message"
-                  :aria-invalid="shownErrors.settledAt ? 'true' : 'false'"
-                />
+                <UPopover
+                  v-model:open="dateOpen"
+                  :content="{ align: 'start', side: 'bottom', sideOffset: 8 }"
+                  :ui="{ content: 'hf-theme hf-ui' }"
+                >
+                  <UInputDate
+                    id="settle-date"
+                    class="min-w-0 flex-1 hf-figure"
+                    granularity="minute"
+                    :model-value="settledModel"
+                    :max-value="maxMoment"
+                    aria-labelledby="settle-date-label"
+                    aria-describedby="settle-date-label-message"
+                    :aria-invalid="shownErrors.settledAt ? 'true' : 'false'"
+                    @update:model-value="settledChanged"
+                  />
+                  <template #content>
+                    <UCalendar
+                      class="p-2"
+                      :model-value="calendarModel"
+                      :max-value="maxDay"
+                      @update:model-value="dayPicked"
+                    />
+                  </template>
+                </UPopover>
                 <button type="button" class="refund-link" @click="form.settledAt = null">
                   Usar ahora
                 </button>

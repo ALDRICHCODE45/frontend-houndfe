@@ -40,13 +40,34 @@ describe('useBreadcrumb', () => {
     expect(breadcrumb.value).toEqual([{ label: 'POS' }, { label: 'Ventas', to: '/pos/ventas' }])
   })
 
-  it('uses Chatbot / Solicitudes for the existing POS inbox URL', () => {
-    routePath.value = '/pos/decisiones-pendientes'
+  it('uses Mi perfil for the profile page, which has no navigation entry', () => {
+    routePath.value = '/perfil'
+    const { breadcrumb } = useBreadcrumb()
+    expect(breadcrumb.value).toEqual([{ label: 'Mi perfil', to: '/perfil' }])
+  })
+
+  it('uses Chatbot / Solicitudes for the request inbox URL', () => {
+    routePath.value = '/chatbot/solicitudes'
     const { breadcrumb } = useBreadcrumb()
     expect(breadcrumb.value).toEqual([
       { label: 'Chatbot' },
-      { label: 'Solicitudes', to: '/pos/decisiones-pendientes' },
+      { label: 'Solicitudes', to: '/chatbot/solicitudes' },
     ])
+  })
+
+  it('keeps Chatbot / Solicitudes for a request detail (/chatbot/solicitudes/:id)', () => {
+    routePath.value = '/chatbot/solicitudes/2b7c1a90-6f3e-4d2a-8b1c-0d9e8f7a6b5c'
+    const { breadcrumb } = useBreadcrumb()
+    expect(breadcrumb.value).toEqual([
+      { label: 'Chatbot' },
+      { label: 'Solicitudes', to: '/chatbot/solicitudes' },
+    ])
+  })
+
+  it('the old human-decisions URL has no nav entry any more and falls back to Resumen', () => {
+    routePath.value = '/pos/decisiones-pendientes'
+    const { breadcrumb } = useBreadcrumb()
+    expect(breadcrumb.value).toEqual(DASHBOARD_TRAIL)
   })
 
   it('keeps the parent section for a detail sub-route (/:id)', () => {
@@ -79,6 +100,15 @@ describe('useBreadcrumb', () => {
     expect(breadcrumb.value).toEqual([
       { label: 'Admin' },
       { label: 'Datos bancarios', to: '/admin/payment-details' },
+    ])
+  })
+
+  it('resolves Sistema / Atención del chatbot from the registry', () => {
+    routePath.value = '/sistema/atencion-chatbot'
+    const { breadcrumb } = useBreadcrumb()
+    expect(breadcrumb.value).toEqual([
+      { label: 'Sistema' },
+      { label: 'Atención del chatbot', to: '/sistema/atencion-chatbot' },
     ])
   })
 

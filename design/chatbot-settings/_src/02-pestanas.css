@@ -1,0 +1,14 @@
+/* B: tabs, one panel at a time, summary beside the hours */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--hf-border);overflow-x:auto}
+.tabs button{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--hf-muted);font-size:14px;font-weight:500;white-space:nowrap;cursor:pointer;margin-bottom:-1px}
+.tabs button:hover{color:var(--hf-ink);background:var(--hover)}
+.tabs button[aria-selected="true"]{color:var(--hf-heading);font-weight:600;border-bottom-color:var(--hf-action)}
+.nb{width:8px;height:8px;border-radius:50%;background:var(--hf-active)}
+.nb.bad{width:auto;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--hf-danger-soft);color:var(--hf-danger);font-size:12px;font-weight:600;box-shadow:inset 0 0 0 1px var(--hf-danger-border);display:inline-flex;align-items:center;justify-content:center}
+.b-two{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+.b-sum{position:sticky;top:16px;display:grid;gap:12px}
+.b-sum h2{font-size:15px}
+.fact{display:flex;gap:10px;align-items:flex-start}.fact .icon{margin-top:2px;color:var(--hf-muted)}.fact b{display:block;font-weight:600;color:var(--hf-heading)}.fact small{color:var(--hf-muted);font-size:13px}
+.fact.ok .icon{color:var(--hf-success)}
+.b-one{max-width:920px}
+@container main (max-width:1100px){.b-two{grid-template-columns:1fr}.b-sum{position:static}}

@@ -55,6 +55,12 @@ const HumanDecisionsView = () =>
   import.meta.env.DEV && import.meta.env.VITE_HUMAN_DECISIONS_OFFLINE_DEMO === 'true'
     ? import('@/features/POS/human-decisions/views/HumanDecisionsOfflineDemoRouteView.vue')
     : import('@/features/POS/human-decisions/views/HumanDecisionsView.vue')
+// Chatbot request inbox (T2.U1): list at /chatbot/solicitudes, detail as the email deep link.
+const ChatbotRequestsView = () => import('@/features/chatbot/requests/views/ChatbotRequestsView.vue')
+const ChatbotRequestDetailView = () =>
+  import('@/features/chatbot/requests/views/ChatbotRequestDetailView.vue')
+// «Mi perfil» (chatbot-requests-inbox T3.N2): for every authenticated user, no permission.
+const ProfileView = () => import('@/features/profile/views/ProfileView.vue')
 const PromotionsView = () => import('@/features/POS/promotions/views/PromotionsView.vue')
 const PromotionDetailView = () => import('@/features/POS/promotions/views/PromotionDetailView.vue')
 // ─── Quotations module (sdd-quotations-crud S1, REQ-QTN-001) ──────────────────
@@ -110,6 +116,11 @@ const NotificationConfigView = () =>
 // layers the editable form + confirmation modal on the same route.
 const TenantCatalogSettingsView = () =>
   import('@/features/system/catalog-settings/views/TenantCatalogSettingsView.vue')
+// ─── Chatbot settings (ODD chatbot-requests-inbox T5.S) ──────────────────
+// Tenant-scoped Sistema route guarded by read:ChatbotSettings; editing and «Aplicar a todas»
+// are gated inside the view (update:ChatbotSettings, update:ChatbotSettingsAllBranches).
+const ChatbotSettingsView = () =>
+  import('@/features/system/chatbot-settings/views/ChatbotSettingsView.vue')
 // ─── Shipping settings (ODD shipping-settings T1, S2) ─────────────────────
 // Envíos keeps its tab in the query (?tab=zonas|cajas|origen|horario); the
 // zone validations queue has its own entry, guarded by validate:DeliveryZone.
@@ -255,7 +266,38 @@ const router = createRouter({
         permission: ['read', 'SaleRefund'] as RoutePermission,
       },
     },
+    // ─── Chatbot request inbox (chatbot-requests-inbox T2.U1) ────────────────
+    {
+      path: '/chatbot/solicitudes',
+      name: 'chatbot-requests',
+      component: ChatbotRequestsView,
+      meta: {
+        layout: 'dashboard',
+        rememberAsLanding: true,
+        permission: ['read', 'ChatbotRequest'] as RoutePermission,
+      },
+    },
+    {
+      path: '/chatbot/solicitudes/:id',
+      name: 'chatbot-request-detail',
+      component: ChatbotRequestDetailView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'ChatbotRequest'] as RoutePermission,
+      },
+    },
+    // ─── Mi perfil (chatbot-requests-inbox T3.N2, S4) ────────────────────────
+    // Account data and notification preferences of the signed-in person (handoff 13 §3: no CASL
+    // permission). Deliberately without `permission` meta and without `rememberAsLanding`: it is
+    // not a work area to land on. The user menu links to it by route name `profile`.
+    {
+      path: '/perfil',
+      name: 'profile',
+      component: ProfileView,
+      meta: { layout: 'dashboard' },
+    },
     // ─── Pending human decisions (ODD human-decisions-restock-inbox HD3A) ────
+    // Kept without a nav entry until the BE backfill (handoff 12 §5); the redirect is an owner decision.
     {
       path: '/pos/decisiones-pendientes',
       name: 'pos-human-decisions',
@@ -496,6 +538,17 @@ const router = createRouter({
         layout: 'dashboard',
         rememberAsLanding: true,
         permission: ['read', 'TenantCatalogSettings'] as RoutePermission,
+      },
+    },
+    // ─── Chatbot settings (ODD chatbot-requests-inbox T5.S) ──────────────────
+    {
+      path: '/sistema/atencion-chatbot',
+      name: 'chatbot-settings',
+      component: ChatbotSettingsView,
+      meta: {
+        layout: 'dashboard',
+        rememberAsLanding: true,
+        permission: ['read', 'ChatbotSettings'] as RoutePermission,
       },
     },
     // ─── Shipping settings (ODD shipping-settings T1, S2) ────────────────────

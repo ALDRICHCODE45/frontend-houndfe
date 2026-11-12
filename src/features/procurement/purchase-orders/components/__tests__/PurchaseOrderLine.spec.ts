@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { shallowRef } from 'vue'
 import PurchaseOrderLine from '../PurchaseOrderLine.vue'
 import RowActionsMenu from '@/core/shared/components/RowActionsMenu.vue'
+import HfCombobox from '@/core/shared/components/form/HfCombobox.vue'
 import { replaceLineProduct } from '../../utils/order-buffer'
 import type { LineBuffer } from '../../utils/order-buffer'
 vi.mock('../../composables/usePurchaseOrderProducts', () => ({ usePurchaseOrderVariants: () => ({ items: shallowRef([{ id: 'v', name: 'Grande' }]), error: shallowRef(null), isFetching: shallowRef(false), refresh: vi.fn() }) }))
@@ -10,6 +11,13 @@ const clean = { product: false, variant: false, quantity: false, cost: false, ta
 const line = (patch: Partial<LineBuffer> = {}): LineBuffer => ({ ...replaceLineProduct({ id: 'p', name: 'Harina', type: 'PRODUCT', unit: 'KILOGRAMO', hasVariants: true, useStock: true }), variantId: 'v', variantName: 'Grande', quantity: '1.230', amount: '12', taxBasis: 'INCLUDES_TAX', hasCost: true, ...patch })
 const subtotal = { amount: '23.100', currency: 'MXN', taxBasis: 'INCLUDES_TAX' as const }
 const context = { userId: 'u', tenantId: 't', ready: true, canReadProduct: true }
+// The combobox renders a fragment, so each one is found by its accessible name; its test id lands on the trigger.
+const PICKERS: Record<string, string> = { 'line-variant': 'Variante', 'line-tax': 'Impuestos' }
+const pickerOf = (wrapper: ReturnType<typeof mount>, testid: string) => {
+  const picker = wrapper.findAllComponents(HfCombobox).find(item => item.props('label') === PICKERS[testid])!
+  expect(wrapper.find(`button[data-testid="${testid}"]`).attributes('aria-label')).toBe(PICKERS[testid])
+  return picker
+}
 const mountLine = (props: Record<string, unknown> = {}) => mount(PurchaseOrderLine, { props: { modelValue: line(), index: 0, context, messages: {}, subtotal, flags: clean, open: false, ...props }, attachTo: document.body })
 
 describe('compact line row', () => {
@@ -83,7 +91,8 @@ describe('inline edit row', () => {
   })
   it('holds quantity, cost and impuestos with the decimal rules, and keeps strings as typed', async () => {
     const wrapper = mountLine({ open: true, modelValue: line({ taxBasis: '' }) })
-    expect(wrapper.get<HTMLSelectElement>('[data-testid="line-tax"]').element.value).toBe('')
+    expect(wrapper.find('select').exists()).toBe(false)
+    expect(pickerOf(wrapper, 'line-tax').text()).toContain('Pendiente de selección')
     expect(wrapper.get('[data-testid="line-quantity"]').attributes('step')).toBe('0.001')
     expect(wrapper.find('input[value="MXN"]').exists()).toBe(false)
     await wrapper.get('[data-testid="line-quantity"]').setValue('2.500')
@@ -92,10 +101,39 @@ describe('inline edit row', () => {
     expect(wrapper.emitted('update:modelValue')?.slice(-1)[0]?.[0]).toMatchObject({ amount: '10.5' })
     wrapper.unmount()
   })
-  it('offers the variant select when the product has variants', () => {
+  it('offers the variant and tax choices as the system combobox, never a native select', async () => {
     const wrapper = mountLine({ open: true })
-    expect(wrapper.find('select[data-testid="line-variant"]').exists()).toBe(true)
+    expect(wrapper.find('select').exists()).toBe(false)
+    expect(wrapper.findAllComponents(HfCombobox)).toHaveLength(2)
+    const variant = pickerOf(wrapper, 'line-variant')
+    expect(variant.props('label')).toBe('Variante')
+    expect(variant.props('modelValue')).toBe('v')
+    expect(variant.text()).toContain('Grande')
+    expect(variant.props('items').map((item: { label: string }) => item.label)).toEqual(['Pendiente de selección', 'Grande'])
+    variant.vm.$emit('update:modelValue', 'v')
+    expect(wrapper.emitted('update:modelValue')?.slice(-1)[0]?.[0]).toMatchObject({ variantId: 'v', variantName: 'Grande' })
+    variant.vm.$emit('update:modelValue', '__pending')
+    expect(wrapper.emitted('update:modelValue')?.slice(-1)[0]?.[0]).toMatchObject({ variantId: null, variantName: null })
+
+    const tax = pickerOf(wrapper, 'line-tax')
+    expect(tax.props('label')).toBe('Impuestos')
+    expect(tax.props('items').map((item: { label: string }) => item.label)).toEqual(['Pendiente de selección', 'Incluye impuestos', 'No incluye impuestos'])
+    expect(tax.props('modelValue')).toBe('INCLUDES_TAX')
+    tax.vm.$emit('update:modelValue', 'EXCLUDES_TAX')
+    expect(wrapper.emitted('update:modelValue')?.slice(-1)[0]?.[0]).toMatchObject({ taxBasis: 'EXCLUDES_TAX' })
+    tax.vm.$emit('update:modelValue', '__pending')
+    expect(wrapper.emitted('update:modelValue')?.slice(-1)[0]?.[0]).toMatchObject({ taxBasis: '' })
     wrapper.unmount()
+  })
+  it('keeps a saved variant that the list no longer offers, and flags the empty ones as invalid', () => {
+    const wrapper = mountLine({ open: true, modelValue: line({ variantId: 'gone', variantName: 'Vieja' }) })
+    expect(pickerOf(wrapper, 'line-variant').props('items').map((item: { label: string }) => item.label)).toEqual(['Pendiente de selección', 'Vieja', 'Grande'])
+    wrapper.unmount()
+    const flagged = mountLine({ open: true, modelValue: line({ variantId: null, variantName: null, taxBasis: '' }), flags: { ...clean, variant: true, tax: true, any: true }, describedby: 'issues' })
+    expect(pickerOf(flagged, 'line-variant').props('invalid')).toBe(true)
+    expect(pickerOf(flagged, 'line-tax').props('invalid')).toBe(true)
+    expect(pickerOf(flagged, 'line-tax').props('describedby')).toBe('issues')
+    flagged.unmount()
   })
   it('collapses on Listo and returns focus to the line toggle', async () => {
     const wrapper = mountLine({ open: true })

@@ -1,0 +1,11 @@
+<div id="root"></div>
+<aside class="notes-sheet" id="notes" hidden aria-label="Notas de diseño">
+  <h2>Notas de la dirección B · Maestro–detalle</h2>
+  <ul>
+    <li>Bandeja: mismas rutas que A (<code>/groups</code>, <code>/counts</code>, <code>?customerKey=</code>). Elegir una fila cambia la URL a <code>/chatbot/solicitudes/:id</code> sin recargar la lista; abrir el enlace del correo carga la página completa con la cola a la izquierda.</li>
+    <li>El panel derecho hace <code>GET /chatbot-requests/:id</code> al elegir una fila: una petición por clic. «Siguiente» recorre las filas visibles; <b>el contrato no ofrece «siguiente solicitud» del servidor</b>, así que el orden es el de la página cargada.</li>
+    <li>Semáforo: umbrales derivados en el front (por validar). Fuera de horario, <code>slaPaused</code> aplica a todas.</li>
+    <li>Grupo con más de 10: la fila final «Ver las N restantes» pide <code>?customerKey=</code>.</li>
+    <li>Por confirmar: forma del contexto, mensajes (unidad 9), tipos de auditoría. Sin <code>allowedActions</code> en filas, no hay acciones en la lista.</li>
+  </ul>
+</aside>

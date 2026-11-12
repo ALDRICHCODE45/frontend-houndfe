@@ -23,6 +23,7 @@ import DetailPageFrame from '@/core/shared/components/DetailPageFrame.vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
+import { calendarPartsToDateString, parseMexicoCityCalendarDate } from '@/core/shared/utils/mexicoCityCalendar'
 import { parseMoneyInput } from '@/core/shared/utils/money-input.utils'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
@@ -307,6 +308,18 @@ const lotState = reactive<LotFormState>({
   manufactureDate: '',
   expirationDate: '',
 })
+
+// «Fabricación» and «Caducidad» are the app's calendar fields. The form keeps AAAA-MM-DD strings;
+// only a complete, real date fills one, and an emptied field is an empty string (the schema decides).
+type LotDateField = 'manufactureDate' | 'expirationDate'
+const manufactureDateModel = computed(() => parseMexicoCityCalendarDate(lotState.manufactureDate) ?? undefined)
+const expirationDateModel = computed(() => parseMexicoCityCalendarDate(lotState.expirationDate) ?? undefined)
+const lotDateOpen = reactive<Record<LotDateField, boolean>>({ manufactureDate: false, expirationDate: false })
+function lotDateChanged(field: LotDateField, value: unknown) {
+  const date = calendarPartsToDateString(value)
+  lotState[field] = date ?? ''
+  if (date !== null) lotDateOpen[field] = false
+}
 
 // ── Local state for create-mode inline sub-resources ────────
 let localIdCounter = 0
@@ -3128,11 +3141,45 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
           </UFormField>
 
           <UFormField label="Fabricación" name="manufactureDate">
-            <UInput v-model="lotState.manufactureDate" type="date" />
+            <UPopover
+              v-model:open="lotDateOpen.manufactureDate"
+              :content="{ align: 'start', side: 'bottom', sideOffset: 8 }"
+              :ui="{ content: 'hf-theme hf-ui hf-form-overlay' }"
+            >
+              <UInputDate
+                class="w-full"
+                :model-value="manufactureDateModel"
+                @update:model-value="lotDateChanged('manufactureDate', $event)"
+              />
+              <template #content>
+                <UCalendar
+                  class="p-2"
+                  :model-value="manufactureDateModel"
+                  @update:model-value="lotDateChanged('manufactureDate', $event)"
+                />
+              </template>
+            </UPopover>
           </UFormField>
 
           <UFormField label="Caducidad" name="expirationDate">
-            <UInput v-model="lotState.expirationDate" type="date" />
+            <UPopover
+              v-model:open="lotDateOpen.expirationDate"
+              :content="{ align: 'start', side: 'bottom', sideOffset: 8 }"
+              :ui="{ content: 'hf-theme hf-ui hf-form-overlay' }"
+            >
+              <UInputDate
+                class="w-full"
+                :model-value="expirationDateModel"
+                @update:model-value="lotDateChanged('expirationDate', $event)"
+              />
+              <template #content>
+                <UCalendar
+                  class="p-2"
+                  :model-value="expirationDateModel"
+                  @update:model-value="lotDateChanged('expirationDate', $event)"
+                />
+              </template>
+            </UPopover>
           </UFormField>
         </UForm>
       </template>

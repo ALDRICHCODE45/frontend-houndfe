@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { ref } from 'vue'
+import { CalendarDate, CalendarDateTime } from '@internationalized/date'
 import type { PendingRefundListRow } from '../../composables/usePendingRefundsList'
 
 const settle = vi.hoisted(() => ({ submit: vi.fn(), reset: vi.fn() }))
@@ -239,5 +240,79 @@ describe('SettleRefundSlideover', () => {
     await flushPromises()
     expect(confirmLeave).toHaveBeenCalled()
     expect(open.value).toBe(true)
+  })
+
+  describe('the date and time of the return', () => {
+    const NOW = new Date(2026, 10, 5, 12, 0, 0)
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(NOW)
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    const visibleNativeDates = (w: ReturnType<typeof mountPanel>['wrapper']) =>
+      [...w.element.querySelectorAll('input[type="datetime-local"], input[type="date"], input[type="time"]')].filter(
+        (item) => item.getAttribute('aria-hidden') !== 'true',
+      )
+    const dateField = (w: ReturnType<typeof mountPanel>['wrapper']) => w.findComponent({ name: 'InputDate' })
+
+    it('uses the calendar field (never the native one), keeps minute precision and sends the same local value', async () => {
+      settle.submit.mockResolvedValueOnce(settledResponse(0, 4555))
+      const { wrapper } = mountPanel()
+      expect(dateField(wrapper).exists()).toBe(false)
+      await wrapper.get('[data-testid="settle-date-change"]').trigger('click')
+
+      expect(visibleNativeDates(wrapper)).toHaveLength(0)
+      const field = dateField(wrapper)
+      expect(field.exists()).toBe(true)
+      expect(field.props('granularity')).toBe('minute')
+      expect(String(field.props('modelValue'))).toBe('2026-11-05T12:00:00')
+      expect(wrapper.get('#settle-date-label').text()).toContain('Fecha y hora en que se devolvió el dinero')
+      expect(wrapper.get('[aria-labelledby="settle-date-label"]').attributes('aria-describedby')).toBe('settle-date-label-message')
+
+      field.vm.$emit('update:modelValue', new CalendarDateTime(2026, 11, 4, 18, 30))
+      await flushPromises()
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      expect(settle.submit).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ settledAt: '2026-11-04T18:30' }),
+        expect.anything(),
+      )
+    })
+
+    it('picking a day in the calendar keeps the time already chosen', async () => {
+      const { wrapper } = mountPanel()
+      await wrapper.get('[data-testid="settle-date-change"]').trigger('click')
+      dateField(wrapper).vm.$emit('update:modelValue', new CalendarDateTime(2026, 11, 4, 18, 30))
+      await flushPromises()
+      wrapper.findComponent({ name: 'Popover' }).vm.$emit('update:open', true)
+      await flushPromises()
+      const calendar = wrapper.findComponent({ name: 'Calendar' })
+      expect(calendar.exists()).toBe(true)
+      calendar.vm.$emit('update:modelValue', new CalendarDate(2026, 11, 2))
+      await flushPromises()
+      expect(String(dateField(wrapper).props('modelValue'))).toBe('2026-11-02T18:30:00')
+    })
+
+    it('refuses a moment after now and an emptied field, and «Usar ahora» goes back to «Ahora»', async () => {
+      const { wrapper } = mountPanel()
+      await wrapper.get('[data-testid="settle-date-change"]').trigger('click')
+      dateField(wrapper).vm.$emit('update:modelValue', new CalendarDateTime(2026, 11, 7, 9, 0))
+      await flushPromises()
+      await wrapper.get('form').trigger('submit')
+      expect(settle.submit).not.toHaveBeenCalled()
+      expect(wrapper.text()).toContain('La fecha no puede ser posterior a este momento.')
+
+      dateField(wrapper).vm.$emit('update:modelValue', undefined)
+      await flushPromises()
+      expect(wrapper.text()).toContain('Elige la fecha y hora de la devolución.')
+
+      await wrapper.findAll('button').find((item) => item.text() === 'Usar ahora')!.trigger('click')
+      expect(dateField(wrapper).exists()).toBe(false)
+      expect(wrapper.text()).toContain('Ahora')
+    })
   })
 })

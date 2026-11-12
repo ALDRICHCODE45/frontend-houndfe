@@ -1,0 +1,1128 @@
+@import '../../../../core/shared/design-system/houndfe-ui.css';
+
+/* Chatbot settings (design/chatbot-settings/01-secciones-y-barra.html + mobile frames of 04). Colors come only
+ * from the shared `.hf-theme` roles, so dark mode follows the tokens. A control rests on --hf-border; the
+ * stronger --hf-field-border is the hover boundary only (S16). No classic checkbox: switch rows and chips. */
+.hf-theme.chatbot-settings {
+  --cbs-hover: color-mix(in srgb, var(--hf-surface-muted) 45%, var(--hf-surface));
+  --cbs-success-soft: color-mix(in srgb, var(--hf-success) 12%, var(--hf-surface));
+  --cbs-shadow: 0 1px 2px color-mix(in srgb, var(--hf-ink) 5%, transparent);
+  --cbs-float: 0 12px 32px color-mix(in srgb, var(--hf-ink) 16%, transparent);
+  --ui-warning: var(--hf-warning);
+  --color-warning: var(--hf-warning);
+}
+
+/* ── Page ────────────────────────────────────────────────────────────────── */
+.chatbot-settings.cbs-page {
+  container: cbs-page / inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  min-width: 0;
+  max-width: 1160px;
+  margin-inline: auto;
+}
+.chatbot-settings .cbs-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.chatbot-settings .cbs-grid-page {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+.chatbot-settings .cbs-main {
+  container: cbs-main / inline-size;
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+@container cbs-page (max-width: 1000px) {
+  .chatbot-settings .cbs-grid-page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ── Side index ──────────────────────────────────────────────────────────── */
+.chatbot-settings .cbs-index {
+  position: sticky;
+  top: 1.5rem;
+}
+.chatbot-settings .cbs-index ul {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.chatbot-settings .cbs-index a {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border-radius: var(--hf-radius-control);
+  color: var(--hf-ink);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+.chatbot-settings .cbs-index a:hover {
+  background: var(--hf-surface-muted);
+}
+.chatbot-settings .cbs-index a:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: -2px;
+}
+.chatbot-settings .cbs-index__dot {
+  margin-left: auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--hf-active);
+}
+.chatbot-settings .cbs-index__count {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--hf-danger-soft);
+  box-shadow: inset 0 0 0 1px var(--hf-danger-border);
+  color: var(--hf-danger);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+@container cbs-page (max-width: 1000px) {
+  .chatbot-settings .cbs-index {
+    top: 0;
+    z-index: 15;
+    margin-inline: -0.25rem;
+    padding: 0.5rem 0.25rem;
+    padding-inline: 0.75rem;
+    overflow-x: auto;
+    background: var(--hf-page);
+    /* Scrollable by touch and keyboard, without the native bar and its arrows; the fade on the right edge
+       says there is more. The left padding keeps the first chip clear of the fade. */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-mask-image: linear-gradient(to right, black 0, black calc(100% - 2rem), transparent 100%);
+    mask-image: linear-gradient(to right, black 0, black calc(100% - 2rem), transparent 100%);
+  }
+  .chatbot-settings .cbs-index::-webkit-scrollbar {
+    display: none;
+  }
+  .chatbot-settings .cbs-index ul {
+    padding-inline-end: 2rem;
+  }
+  .chatbot-settings .cbs-index ul {
+    display: flex;
+    gap: 6px;
+  }
+  .chatbot-settings .cbs-index a {
+    min-height: 40px;
+    border: 1px solid var(--hf-border);
+    border-radius: 999px;
+    background: var(--hf-surface);
+    white-space: nowrap;
+  }
+  .chatbot-settings .cbs-index a .iconify,
+  .chatbot-settings .cbs-index a svg {
+    display: none;
+  }
+}
+
+/* ── Section card ────────────────────────────────────────────────────────── */
+.chatbot-settings .cbs-sec {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background: var(--hf-surface);
+  box-shadow: var(--cbs-shadow);
+  scroll-margin-top: 1rem;
+}
+.chatbot-settings .cbs-sec__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+.chatbot-settings .cbs-sec__title {
+  display: grid;
+  flex: 1;
+  min-width: 220px;
+  gap: 2px;
+}
+.chatbot-settings .cbs-sec__title h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+.chatbot-settings .cbs-sec__title h2:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+.chatbot-settings .cbs-sec__badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ── Text, notes, alerts, badges ─────────────────────────────────────────── */
+.chatbot-settings .cbs-help {
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+}
+.chatbot-settings .cbs-muted {
+  color: var(--hf-muted);
+}
+.chatbot-settings .cbs-figure {
+  font-variant-numeric: tabular-nums;
+}
+.chatbot-settings .cbs-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.chatbot-settings .cbs-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.chatbot-settings .cbs-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--hf-danger);
+}
+.chatbot-settings .cbs-note,
+.chatbot-settings .cbs-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  font-size: 0.8125rem;
+  color: var(--hf-ink);
+}
+.chatbot-settings .cbs-note,
+.chatbot-settings .cbs-alert[data-tone='info'] {
+  border-color: transparent;
+  background: var(--hf-active-soft);
+}
+.chatbot-settings .cbs-alert[data-tone='warn'] {
+  border-color: transparent;
+  background: var(--hf-warning-soft);
+}
+.chatbot-settings .cbs-alert[data-tone='danger'] {
+  border-color: var(--hf-danger-border);
+  background: var(--hf-danger-soft);
+}
+.chatbot-settings .cbs-alert[data-tone='success'] {
+  border-color: transparent;
+  background: var(--cbs-success-soft);
+}
+.chatbot-settings .cbs-note p,
+.chatbot-settings .cbs-alert strong {
+  margin: 0;
+}
+.chatbot-settings .cbs-alert strong {
+  display: block;
+  color: var(--hf-heading);
+}
+.chatbot-settings .cbs-note__icon,
+.chatbot-settings .cbs-alert__icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+.chatbot-settings .cbs-alert__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.chatbot-settings .cbs-banners {
+  display: grid;
+  gap: 0.75rem;
+}
+.chatbot-settings .cbs-checklist {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--hf-danger-border);
+  border-radius: var(--hf-radius-control);
+  background: var(--hf-danger-soft);
+  font-size: 0.8125rem;
+}
+.chatbot-settings .cbs-checklist ul {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.chatbot-settings .cbs-checklist li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+}
+.chatbot-settings .cbs-checklist a {
+  font-weight: 600;
+  color: var(--hf-danger);
+  text-decoration: underline;
+}
+.chatbot-settings .cbs-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--hf-surface-muted);
+  color: var(--hf-ink);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.chatbot-settings .cbs-badge[data-tone='info'] {
+  background: var(--hf-active-soft);
+  color: var(--hf-active);
+}
+.chatbot-settings .cbs-badge[data-tone='danger'] {
+  background: var(--hf-danger-soft);
+  color: var(--hf-danger);
+}
+.chatbot-settings .cbs-badge[data-tone='success'] {
+  background: var(--cbs-success-soft);
+  color: var(--hf-success);
+}
+.chatbot-settings .cbs-badge[data-tone='pending'] {
+  background: var(--hf-warning-soft);
+  color: var(--hf-warning);
+}
+.chatbot-settings .cbs-badge[data-tone='muted'] {
+  color: var(--hf-muted);
+}
+
+/* ── Controls ────────────────────────────────────────────────────────────── */
+.chatbot-settings .cbs-field {
+  display: grid;
+  align-content: start;
+  gap: 0.375rem;
+  min-width: 0;
+}
+.chatbot-settings .cbs-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--hf-heading);
+}
+.chatbot-settings .cbs-readonly {
+  color: var(--hf-ink);
+}
+.chatbot-settings .cbs-input {
+  width: 100%;
+  min-height: var(--hf-control-height);
+  padding: 0 0.75rem;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  background: var(--hf-field);
+  color: var(--hf-ink);
+}
+.chatbot-settings textarea.cbs-input {
+  padding-block: 0.5rem;
+  resize: vertical;
+}
+.chatbot-settings .cbs-input:hover:not(:disabled) {
+  border-color: var(--hf-field-border);
+}
+.chatbot-settings .cbs-input:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 0;
+}
+.chatbot-settings .cbs-input[aria-invalid='true'] {
+  border-color: var(--hf-danger);
+}
+.chatbot-settings .cbs-input:disabled {
+  background: var(--hf-surface-muted);
+  color: var(--hf-muted);
+}
+.chatbot-settings .cbs-time {
+  /* «09:00 p. m.» at the widest locale text. */
+  width: 9.25rem;
+  padding-inline: 0.5rem;
+}
+/* System select / time / date fields: the same control height as the rest of the page. */
+.chatbot-settings :is(.cbs-time, .cbs-unit, .cbs-date-input, #cbs-tz) {
+  min-height: var(--hf-control-height);
+  font-size: 0.875rem;
+}
+.chatbot-settings .cbs-date-input {
+  width: 11rem;
+}
+.chatbot-settings .cbs-counter {
+  justify-self: end;
+  font-size: 0.75rem;
+  color: var(--hf-muted);
+}
+.chatbot-settings .cbs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.chatbot-settings .cbs-grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.chatbot-settings .cbs-field--wide {
+  grid-column: 1 / -1;
+}
+@container cbs-page (max-width: 700px) {
+  .chatbot-settings .cbs-grid,
+  .chatbot-settings .cbs-grid--three {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.chatbot-settings .cbs-duration {
+  display: flex;
+  gap: 0.5rem;
+}
+.chatbot-settings .cbs-duration .cbs-input:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.chatbot-settings .cbs-unit {
+  flex: none;
+  width: 6.5rem;
+  padding-inline: 0.5rem;
+}
+
+.chatbot-settings .cbs-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0 1rem;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  background: var(--hf-surface);
+  color: var(--hf-ink);
+  font-weight: 500;
+  cursor: pointer;
+}
+.chatbot-settings .cbs-btn:hover:not(:disabled) {
+  border-color: var(--hf-field-border);
+  background: var(--cbs-hover);
+}
+.chatbot-settings .cbs-btn:focus-visible,
+.chatbot-settings .cbs-link:focus-visible,
+.chatbot-settings .cbs-icon-btn:focus-visible,
+.chatbot-settings .cbs-chip:focus-visible,
+.chatbot-settings .cbs-switch:focus-visible,
+.chatbot-settings .cbs-switch-row:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+.chatbot-settings .cbs-btn:disabled {
+  cursor: not-allowed;
+  color: var(--hf-muted);
+}
+.chatbot-settings .cbs-btn--primary {
+  border-color: var(--hf-action);
+  background: var(--hf-action);
+  color: var(--hf-on-action);
+}
+.chatbot-settings .cbs-btn--primary:hover:not(:disabled) {
+  border-color: var(--hf-action);
+  background: var(--hf-action);
+  filter: brightness(1.08);
+}
+.chatbot-settings .cbs-btn--primary:disabled {
+  opacity: 0.6;
+  color: var(--hf-on-action);
+}
+.chatbot-settings .cbs-btn--ghost {
+  border-color: transparent;
+  background: transparent;
+}
+.chatbot-settings .cbs-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 32px;
+  padding: 0 0.25rem;
+  border: 0;
+  background: transparent;
+  color: var(--hf-active);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.chatbot-settings .cbs-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--hf-radius-control);
+  background: transparent;
+  color: var(--hf-muted);
+  cursor: pointer;
+}
+.chatbot-settings .cbs-icon-btn:hover {
+  background: var(--hf-surface-muted);
+  color: var(--hf-ink);
+}
+.chatbot-settings .cbs-chip {
+  min-width: 48px;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--hf-border);
+  border-radius: 999px;
+  background: var(--hf-surface);
+  color: var(--hf-ink);
+  font-weight: 500;
+  cursor: pointer;
+}
+.chatbot-settings .cbs-chip[aria-pressed='true'] {
+  border-color: var(--hf-active);
+  background: var(--hf-active-soft);
+  color: var(--hf-active);
+  font-weight: 600;
+}
+
+/* ── Switches (no classic checkbox) ──────────────────────────────────────── */
+.chatbot-settings .cbs-track {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background-color: var(--hf-surface-muted);
+  box-shadow: inset 0 0 0 1px var(--hf-muted);
+  transition: background-color 0.15s, box-shadow 0.15s;
+}
+.chatbot-settings .cbs-track::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: var(--hf-muted);
+  transition: transform 0.15s, background-color 0.15s;
+}
+.chatbot-settings [aria-checked='true'] > .cbs-track {
+  background-color: var(--hf-action);
+  box-shadow: none;
+}
+.chatbot-settings [aria-checked='true'] > .cbs-track::after {
+  background-color: var(--hf-on-action);
+  transform: translateX(20px);
+}
+.chatbot-settings .cbs-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 44px;
+  padding: 0 0.5rem;
+  border: 0;
+  border-radius: var(--hf-radius-control);
+  background: transparent;
+  color: var(--hf-ink);
+  font-weight: 500;
+  cursor: pointer;
+}
+.chatbot-settings .cbs-switch:hover {
+  background: var(--cbs-hover);
+}
+.chatbot-settings .cbs-switch__text {
+  min-width: 3.75rem;
+  text-align: left;
+}
+.chatbot-settings .cbs-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  min-height: 72px;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.chatbot-settings .cbs-switch-row:hover {
+  background: var(--cbs-hover);
+}
+.chatbot-settings .cbs-switch-row--static,
+.chatbot-settings .cbs-switch-row--static:hover {
+  background: transparent;
+  cursor: default;
+}
+.chatbot-settings .cbs-switch-row__text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+.chatbot-settings .cbs-switch-row__title {
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+/* ── Hours ───────────────────────────────────────────────────────────────── */
+.chatbot-settings .cbs-hours,
+.chatbot-settings .cbs-dates,
+.chatbot-settings .cbs-sla,
+.chatbot-settings .cbs-extras,
+.chatbot-settings .cbs-sched {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.chatbot-settings .cbs-hours__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1rem 1.5rem;
+}
+.chatbot-settings .cbs-hours__top .cbs-field {
+  min-width: 14rem;
+}
+.chatbot-settings .cbs-pickup {
+  display: grid;
+  gap: 0.375rem;
+  max-width: 28rem;
+}
+.chatbot-settings .cbs-days {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+}
+.chatbot-settings .cbs-day {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 96px 132px minmax(0, 1fr) 56px 124px;
+  align-items: start;
+  gap: 4px 12px;
+  padding: 10px 12px 10px 16px;
+  border-top: 1px solid var(--hf-border);
+}
+.chatbot-settings .cbs-day:first-child {
+  border-top: 0;
+}
+.chatbot-settings .cbs-day > * {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+.chatbot-settings .cbs-day[data-open='false'] {
+  background: var(--hf-table-head);
+}
+.chatbot-settings .cbs-day[data-invalid='true'] {
+  background: var(--hf-danger-soft);
+}
+.chatbot-settings .cbs-day__ranges {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+}
+.chatbot-settings .cbs-range {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.chatbot-settings .cbs-day__total {
+  justify-content: flex-end;
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+}
+.chatbot-settings .cbs-day__copy {
+  justify-content: flex-end;
+}
+.chatbot-settings .cbs-day__error {
+  grid-column: 1 / -1;
+  min-height: 0;
+  padding-bottom: 4px;
+}
+/* «Copiar a…» stays on one line; it wrapped to «Copiar / a…» in the day row at 1440. */
+.chatbot-settings .cbs-copy-trigger {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.chatbot-settings .cbs-copy {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% - 4px);
+  right: 12px;
+  display: grid;
+  align-items: start;
+  gap: 0.75rem;
+  width: 340px;
+  max-width: calc(100vw - 2rem);
+  min-height: 0;
+  padding: 1rem;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background: var(--hf-surface);
+  box-shadow: var(--cbs-float);
+}
+.chatbot-settings .cbs-copy h3 {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.chatbot-settings .cbs-chips,
+.chatbot-settings .cbs-copy__quick,
+.chatbot-settings .cbs-copy__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chatbot-settings .cbs-copy__foot {
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* Compact: the ranges take their own full-width row under the name, the switch and «Copiar a…». */
+@container cbs-main (max-width: 919px) {
+  .chatbot-settings .cbs-day {
+    grid-template-columns: 7rem auto minmax(0, 1fr);
+    padding: 10px 8px 10px 12px;
+  }
+  .chatbot-settings .cbs-day__ranges {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    align-items: stretch;
+  }
+  .chatbot-settings .cbs-day__copy {
+    grid-column: 3;
+    grid-row: 1;
+    justify-content: flex-end;
+  }
+  .chatbot-settings .cbs-day__total {
+    display: none;
+  }
+  .chatbot-settings .cbs-time {
+    flex: 1 1 6.75rem;
+    min-width: 6.75rem;
+    width: auto;
+    font-size: 0.875rem;
+  }
+  .chatbot-settings .cbs-range .cbs-icon-btn {
+    flex: none;
+    width: 40px;
+  }
+  .chatbot-settings .cbs-copy {
+    position: static;
+    width: auto;
+    grid-column: 1 / -1;
+  }
+}
+@container cbs-main (max-width: 560px) {
+  .chatbot-settings .cbs-day {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .chatbot-settings .cbs-day__copy {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-content: flex-start;
+  }
+  .chatbot-settings .cbs-range > span[aria-hidden='true'] {
+    display: none;
+  }
+}
+
+/* ── Closed dates ────────────────────────────────────────────────────────── */
+.chatbot-settings .cbs-dates__add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+.chatbot-settings .cbs-date-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+}
+.chatbot-settings .cbs-date {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 52px;
+  padding: 0.25rem 0.5rem 0.25rem 1rem;
+  border-top: 1px solid var(--hf-border);
+}
+.chatbot-settings .cbs-date:first-child {
+  border-top: 0;
+}
+.chatbot-settings .cbs-date[data-past='true'] {
+  color: var(--hf-muted);
+}
+.chatbot-settings .cbs-date__text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+.chatbot-settings .cbs-date__text small {
+  color: var(--hf-muted);
+}
+.chatbot-settings .cbs-date__input {
+  flex: 0 1 18rem;
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  .chatbot-settings .cbs-date {
+    flex-wrap: wrap;
+  }
+  .chatbot-settings .cbs-date__input {
+    order: 3;
+    flex: 1 1 100%;
+  }
+}
+.chatbot-settings .cbs-dates__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.chatbot-settings .cbs-empty {
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  padding: 1.5rem 1rem;
+  border: 1px dashed var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  text-align: center;
+  color: var(--hf-muted);
+}
+.chatbot-settings .cbs-empty strong {
+  color: var(--hf-heading);
+}
+.chatbot-settings .cbs-empty p {
+  max-width: 48ch;
+  margin: 0;
+}
+
+/* ── SLA table ───────────────────────────────────────────────────────────── */
+.chatbot-settings .cbs-sla__note {
+  display: flex;
+  gap: 0.5rem;
+}
+.chatbot-settings .cbs-sla__table {
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+}
+.chatbot-settings .cbs-sla__head,
+.chatbot-settings .cbs-sla__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.75rem 1rem;
+  padding: 0.75rem 1rem;
+}
+.chatbot-settings .cbs-sla__head {
+  background: var(--hf-table-head);
+  color: var(--hf-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: var(--hf-radius-card) var(--hf-radius-card) 0 0;
+}
+.chatbot-settings .cbs-sla__row {
+  align-items: start;
+  border-top: 1px solid var(--hf-border);
+}
+.chatbot-settings .cbs-sla__row[data-fixed='true'] {
+  background: var(--hf-table-head);
+}
+.chatbot-settings .cbs-sla__name {
+  display: flex;
+  gap: 0.625rem;
+  min-width: 0;
+}
+.chatbot-settings .cbs-sla__name span {
+  display: grid;
+}
+.chatbot-settings .cbs-sla__name small,
+.chatbot-settings .cbs-sla__cell small {
+  color: var(--hf-muted);
+  font-size: 0.75rem;
+}
+.chatbot-settings .cbs-sla__cell {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+.chatbot-settings .cbs-fixed {
+  font-weight: 500;
+}
+.chatbot-settings .cbs-sla__margin {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+.chatbot-settings .cbs-sla__notes {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+@container cbs-page (max-width: 720px) {
+  .chatbot-settings .cbs-sla__head {
+    display: none;
+  }
+  .chatbot-settings .cbs-sla__row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ── Save bar ────────────────────────────────────────────────────────────── */
+.chatbot-settings .cbs-savebar {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--hf-border);
+  background: var(--hf-surface);
+  box-shadow: 0 -8px 24px -16px color-mix(in srgb, var(--hf-ink) 24%, transparent);
+}
+.chatbot-settings .cbs-savebar__text {
+  display: grid;
+  min-width: 0;
+}
+.chatbot-settings .cbs-savebar__text b {
+  color: var(--hf-heading);
+}
+.chatbot-settings .cbs-savebar__text small {
+  color: var(--hf-muted);
+  font-size: 0.75rem;
+}
+.chatbot-settings .cbs-savebar[data-state='dirty'] b {
+  color: var(--hf-warning);
+}
+.chatbot-settings .cbs-savebar[data-state='invalid'] b {
+  color: var(--hf-danger);
+}
+.chatbot-settings .cbs-grow {
+  flex: 1;
+}
+@media (max-width: 639px) {
+  .chatbot-settings .cbs-savebar {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+  }
+  .chatbot-settings .cbs-savebar .cbs-btn {
+    flex: 1 1 0;
+  }
+  .chatbot-settings.cbs-page {
+    padding-bottom: 8rem;
+  }
+}
+
+/* ── Dialogs ─────────────────────────────────────────────────────────────── */
+.chatbot-settings-dialog .cbs-dialog {
+  display: grid;
+  gap: 1rem;
+  font-size: 0.875rem;
+}
+.chatbot-settings-dialog .cbs-dialog__foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  width: 100%;
+}
+.chatbot-settings-dialog .cbs-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 1rem;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  background: var(--hf-surface);
+  color: var(--hf-ink);
+  font-weight: 500;
+  cursor: pointer;
+}
+.chatbot-settings-dialog .cbs-btn--primary {
+  border-color: var(--hf-action);
+  background: var(--hf-action);
+  color: var(--hf-on-action);
+}
+.chatbot-settings-dialog .cbs-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.chatbot-settings-dialog .cbs-help {
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+}
+.chatbot-settings-dialog .cbs-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--hf-radius-control);
+  font-size: 0.8125rem;
+  background: var(--hf-active-soft);
+}
+.chatbot-settings-dialog .cbs-alert[data-tone='warn'] {
+  background: var(--hf-warning-soft);
+}
+.chatbot-settings-dialog .cbs-alert[data-tone='danger'] {
+  border: 1px solid var(--hf-danger-border);
+  background: var(--hf-danger-soft);
+}
+.chatbot-settings-dialog .cbs-alert[data-tone='success'] {
+  background: color-mix(in srgb, var(--hf-success) 12%, var(--hf-surface));
+}
+.chatbot-settings-dialog .cbs-alert strong {
+  display: block;
+  color: var(--hf-heading);
+}
+.chatbot-settings-dialog .cbs-alert__icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+.chatbot-settings-dialog .cbs-wait {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.chatbot-settings-dialog .cbs-spinner {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--hf-border);
+  border-top-color: var(--hf-action);
+  border-radius: 50%;
+  animation: cbs-spin 0.8s linear infinite;
+}
+@keyframes cbs-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chatbot-settings-dialog .cbs-spinner {
+    animation-duration: 2.4s;
+  }
+}
+.chatbot-settings-dialog .cbs-copies {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  font-size: 0.8125rem;
+}
+.chatbot-settings-dialog .cbs-copies h3,
+.chatbot-settings-dialog .cbs-branches h3 {
+  margin: 0 0 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+}
+.chatbot-settings-dialog .cbs-copies ul {
+  margin: 0;
+  padding-left: 1.125rem;
+}
+.chatbot-settings-dialog .cbs-branches ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+}
+.chatbot-settings-dialog .cbs-branches li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+  min-height: 48px;
+  padding: 0.375rem 0.75rem;
+  border-top: 1px solid var(--hf-border);
+}
+.chatbot-settings-dialog .cbs-branches li:first-child {
+  border-top: 0;
+}
+.chatbot-settings-dialog .cbs-branches li span {
+  font-weight: 600;
+}
+.chatbot-settings-dialog .cbs-branches li[data-tone='go'] span {
+  color: var(--hf-active);
+}
+.chatbot-settings-dialog .cbs-branches li[data-tone='warn'] span {
+  color: var(--hf-warning);
+}
+.chatbot-settings-dialog .cbs-branches li[data-tone='bad'] span {
+  color: var(--hf-danger);
+}
+.chatbot-settings-dialog .cbs-branches li[data-tone='mute'] span {
+  color: var(--hf-muted);
+  font-weight: 400;
+}
+@media (max-width: 639px) {
+  .chatbot-settings-dialog .cbs-copies {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .chatbot-settings-dialog .cbs-dialog__foot .cbs-btn {
+    flex: 1 1 100%;
+  }
+}
+
+/* ── Skeleton ────────────────────────────────────────────────────────────── */
+.chatbot-settings .cbs-skeleton {
+  display: grid;
+  gap: 1rem;
+}
+.chatbot-settings .cbs-bar {
+  display: block;
+  height: 16px;
+  border-radius: 6px;
+  background: var(--hf-surface-muted);
+  animation: cbs-pulse 1.4s ease-in-out infinite;
+}
+@keyframes cbs-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chatbot-settings .cbs-bar {
+    animation: none;
+  }
+}

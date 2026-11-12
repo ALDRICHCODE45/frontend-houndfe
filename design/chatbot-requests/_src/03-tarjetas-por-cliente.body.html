@@ -1,0 +1,11 @@
+<div id="root"></div>
+<aside class="notes-sheet" id="notes" hidden aria-label="Notas de diseño">
+  <h2>Notas de la dirección C · Tarjetas por cliente</h2>
+  <ul>
+    <li>Cada tarjeta es un grupo de <code>/chatbot-requests/groups</code>. Muestra 4 filas y «Ver las N» abre el cliente completo con <code>?customerKey=</code> (el servidor manda hasta 10 por grupo y <code>moreRequests</code>).</li>
+    <li>La franja superior toma el color de la solicitud más urgente del grupo (derivado en el front; umbrales por validar). El orden de las tarjetas lo manda el servidor (<code>mostUrgentAt</code>); en rejilla el orden de lectura es por filas, no por columna.</li>
+    <li>Detalle: pestañas Resumen · Conversación · Actividad (<code>audit[]</code> y <code>/audit?cursor=</code>); la barra fija muestra el tiempo y los botones de <code>allowedActions</code>. Cada acción abre un panel lateral con su formulario.</li>
+    <li>Conversación: solo con <code>read:ChatbotConversation</code>; mensajes dependen de la unidad 9 (forma por confirmar).</li>
+    <li>Sin <code>allowedActions</code> en filas no hay acciones en las tarjetas.</li>
+  </ul>
+</aside>

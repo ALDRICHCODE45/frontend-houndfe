@@ -227,10 +227,11 @@ export const useSidebar = () => {
     await router.push('/login')
   }
 
-  // Account menu: Mexican Spanish, and only actions that do something. The
-  // former "Profile" and "Settings" entries had no destination.
+  // Account menu: Mexican Spanish, and only actions that do something.
+  // «Mi perfil» opens /perfil (account and notification preferences).
   const userItems = computed<DropdownMenuItem[][]>(() => [
     [
+      { label: 'Mi perfil', icon: 'i-lucide-user-round', to: '/perfil' },
       {
         label: 'Apariencia',
         icon: 'i-lucide-sun-moon',

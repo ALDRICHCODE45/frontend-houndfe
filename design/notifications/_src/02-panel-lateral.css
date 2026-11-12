@@ -1,0 +1,9 @@
+/* B: modal side panel (slideover), like the command forms of the inbox */
+.sheet{width:440px}
+.sheet .nh{padding:20px 12px 12px 24px}
+.sheet .nh h2{font-size:22px;letter-spacing:-0.02em}
+.sheet .nsub{padding:0 24px 16px}
+.sheet .nt-link{padding:14px 24px}
+.sheet .ngh{padding:8px 24px}
+.sheet .nfoot{padding:12px 24px}
+.sheet .nbody .empty{padding:56px 24px}

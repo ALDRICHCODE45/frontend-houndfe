@@ -34,6 +34,7 @@ export interface BreadcrumbItem {
  */
 export const useBreadcrumb = () => {
   const route = useRoute()
+  const PROFILE_PATH = '/perfil'
 
   const breadcrumb = computed<BreadcrumbItem[]>(() => {
     const path = route.path
@@ -41,6 +42,9 @@ export const useBreadcrumb = () => {
     if (path === DASHBOARD_PATH || path === '') {
       return [{ label: 'Resumen', to: DASHBOARD_PATH }]
     }
+
+    // The personal profile has no sidebar entry (it lives in the user menu).
+    if (path === PROFILE_PATH) return [{ label: 'Mi perfil', to: PROFILE_PATH }]
 
     let best: { groupLabel: string; childLabel: string; childTo: string } | null = null
 

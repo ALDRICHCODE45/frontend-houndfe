@@ -12,6 +12,7 @@ import { defineShortcuts } from '@nuxt/ui/runtime/composables/defineShortcuts.js
 import { PENDING_REFUNDS_PATH, ZONE_VALIDATIONS_PATH } from '@/app/navigation/navigation.registry'
 import { usePendingRefundsCount } from '@/features/POS/refunds/composables/usePendingRefundsCount'
 import { usePendingZoneValidationsCount } from '@/features/shipping/delivery-zones/composables/usePendingZoneValidationsCount'
+import NotificationsHost from '@/features/notifications/components/NotificationsHost.vue'
 import { withNavBadges } from './navBadges'
 
 const {
@@ -314,9 +315,10 @@ watch(isSearchOpen, async (open) => {
               @click="openSearch"
             />
             <!--
-              Notifications bell hidden: it had no action. Restore it here when
-              a real notification center exists.
+              Notifications bell + side panel. Renders only for an authenticated
+              user with a tenant (notices belong to a person in a branch).
             -->
+            <NotificationsHost />
             <UColorModeButton
               class="hf-shell-icon-button"
               :ui="{ leadingIcon: 'shrink-0 size-4.5' }"

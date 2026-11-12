@@ -16,8 +16,7 @@ const options: { value: CatalogProductsSort; label: string }[] = [
 ]
 const id = useId()
 
-function onChange(event: Event) {
-  const value = (event.target as HTMLSelectElement).value
+function onChange(value: unknown) {
   const match = options.find((option) => option.value === value)
   if (match) emit('update:modelValue', match.value)
 }
@@ -29,11 +28,22 @@ function onChange(event: Event) {
       <span class="catalog-sort-long">Ordenar por</span>
       <span class="catalog-sort-short" aria-hidden="true">Orden</span>
     </label>
-    <select :id="id" :value="modelValue" @change="onChange">
-      <option v-for="option in options" :key="option.value" :value="option.value">
-        {{ option.label }}
-      </option>
-    </select>
-    <UIcon name="i-lucide-chevron-down" class="catalog-sort-chevron" aria-hidden="true" />
+    <USelectMenu
+      :id="id"
+      :model-value="modelValue"
+      :items="options"
+      value-key="value"
+      label-key="label"
+      :search-input="false"
+      class="catalog-sort-menu"
+      :ui="{
+        base: 'catalog-sort-trigger',
+        content: 'catalog-sort-popup z-30',
+        viewport: 'p-1.5',
+        item: 'catalog-sort-option min-h-11 px-3 py-2',
+      }"
+      data-testid="catalog-sort-menu"
+      @update:model-value="onChange"
+    />
   </div>
 </template>

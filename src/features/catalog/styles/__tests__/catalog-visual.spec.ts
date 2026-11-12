@@ -102,7 +102,8 @@ describe('catalog stylesheet', () => {
   })
 
   it('pins the listing chrome: 44px targets, chips, pager and the hero bar', () => {
-    expect(css).toMatch(/\.catalog-sort select \{[^}]*min-height: 44px/)
+    expect(css).toMatch(/\.catalog-sort-trigger \{[^}]*min-height: 44px/)
+    expect(css).not.toMatch(/\.catalog-sort select/)
     expect(css).toMatch(/\.catalog-pager-button \{[^}]*min-height: 44px/)
     expect(css).toMatch(/\.catalog-menu-item \{[^}]*min-height: 44px/)
     expect(css).toMatch(/\.catalog-chip \{[^}]*border-radius: 999px/)

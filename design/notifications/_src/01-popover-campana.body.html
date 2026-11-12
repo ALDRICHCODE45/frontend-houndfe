@@ -1,0 +1,12 @@
+<div id="root"></div>
+<aside class="notes-sheet" id="notes" hidden aria-label="Notas de diseño">
+  <h2>Notas de la dirección A · Popover desde la campana</h2>
+  <ul>
+    <li>Campana en la barra superior, entre «Buscar» y el tema (donde <code>DashboardLayout.vue</code> dejó el comentario). El número viene de <code>GET /notifications/unread-count</code> (sondeo cada 30 s y al enfocar la pestaña; hoy sin SSE). Desde 100: «99+» (decisión de diseño, el contrato no pone tope).</li>
+    <li>Lista: <code>GET /notifications?limit=20</code>, de nuevo a antiguo; «Sin leer» usa <code>unread=true</code>; «Ver anteriores» envía <code>nextCursor</code> tal cual. Hoy / Antes se agrupa en el navegador con la zona horaria del equipo (el contrato no da zona).</li>
+    <li>Cada fila es un enlace a <code>/chatbot/solicitudes/:requestId</code>; al abrirla se llama <code>POST /notifications/:id/read</code>. «Marcar todas como leídas» llama <code>POST /notifications/read-all</code> → <code>{updated}</code> (solo esta sucursal).</li>
+    <li>Título y cuerpo vienen en español del servidor (nunca con nombre, teléfono ni mensaje del cliente); el ícono y el tono salen de <code>type</code>. Tipos: REQUEST_CREATED, REQUEST_REASSIGNED, REQUEST_CANCELLED (cuatro causas en el título; <code>MERGED</code> existe en código pero no en el handoff 13), REQUEST_CLAIM_REMINDER, REQUEST_ESCALATION, REQUEST_OVERDUE.</li>
+    <li>Los dos avisos de las 09:00 («por vencer» y «sin tomar») son lo que pasa fuera de horario: se retienen y salen en la próxima apertura.</li>
+    <li>«Simular aviso nuevo» muestra el aviso del navegador con la pestaña oculta; solo suena si <code>soundEnabled</code>. Esc cierra y devuelve el foco a la campana.</li>
+  </ul>
+</aside>

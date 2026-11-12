@@ -102,13 +102,13 @@ export const navigationGroups: NavGroup[] = [
     icon: 'i-lucide-bot',
     defaultOpen: true,
     children: [
-      // Keep existing links and the route guard's read:HumanDecision contract.
+      // The request inbox. /pos/decisiones-pendientes keeps working but has no entry until the BE backfill.
       {
-        id: 'pos-human-decisions',
+        id: 'chatbot-requests',
         label: 'Solicitudes',
         icon: 'i-lucide-inbox',
-        to: '/pos/decisiones-pendientes',
-        permission: ['read', 'HumanDecision'],
+        to: '/chatbot/solicitudes',
+        permission: ['read', 'ChatbotRequest'],
       },
     ],
   },
@@ -237,6 +237,14 @@ export const navigationGroups: NavGroup[] = [
         icon: 'i-lucide-globe',
         to: '/system/catalog-settings',
         permission: ['read', 'TenantCatalogSettings'],
+      },
+      // ODD chatbot-requests-inbox T5.S: the route guard repeats read:ChatbotSettings.
+      {
+        id: 'sistema-chatbot-settings',
+        label: 'Atención del chatbot',
+        icon: 'i-lucide-bot',
+        to: '/sistema/atencion-chatbot',
+        permission: ['read', 'ChatbotSettings'],
       },
       // ODD shipping-settings T1 (S2 «Envíos + Validaciones aparte»): the route
       // guards repeat both checks; the Zonas tab also needs read:DeliveryZone.
