@@ -230,7 +230,7 @@ describe('RequestDetailActionPanel', () => {
 describe('RequestDetailActionPanel — action vocabulary safety net (T7a)', () => {
   const mountPanel = (
     allowed: string[],
-    denied: Array<{ action: string; code: string }> = [],
+    denied: Array<{ action: string; code: string; claimableAt?: string }> = [],
     extra: Record<string, unknown> = {},
   ) =>
     mount(RequestDetailActionPanel, {
@@ -267,11 +267,41 @@ describe('RequestDetailActionPanel — action vocabulary safety net (T7a)', () =
 
   it('never renders an action this version does not know, never as a blank button', () => {
     const wrapper = mountPanel(
-      ['CLAIM', 'RESCHEDULE', 'SOMETHING_NEW'],
-      [{ action: 'RESCHEDULE', code: 'INSUFFICIENT_PERMISSIONS' }],
+      ['CLAIM', 'SOMETHING_NEW' as ChatbotRequestAction],
+      [{ action: 'SOMETHING_NEW' as ChatbotRequestAction, code: 'INSUFFICIENT_PERMISSIONS' }],
     )
     expect(testIds(wrapper)).toEqual(['action-CLAIM'])
     for (const node of wrapper.findAll('button')) expect(node.text().trim()).not.toBe('')
+  })
+
+  describe('scheduled conversations (handoff 21)', () => {
+    const button = (w: ReturnType<typeof mountPanel>, action: string) => w.get(`[data-testid="action-${action}"]`)
+    it('renders RESCHEDULE as an enabled «Reagendar…» button that emits its code', async () => {
+      const wrapper = mountPanel(['RESCHEDULE', 'CANCEL'])
+      expect(button(wrapper, 'RESCHEDULE').text()).toContain('Reagendar')
+      expect(button(wrapper, 'RESCHEDULE').attributes('disabled')).toBeUndefined()
+      await button(wrapper, 'RESCHEDULE').trigger('click')
+      expect(wrapper.emitted('action')).toEqual([['RESCHEDULE']])
+    })
+
+    it('a CLAIM denied with SCHEDULED_TOO_EARLY is a disabled «Atender» that says «Disponible desde HH:MM»', async () => {
+      const wrapper = mountPanel(
+        ['RESCHEDULE'],
+        [{ action: 'CLAIM', code: 'SCHEDULED_TOO_EARLY', claimableAt: '2026-11-14T15:55:00.000Z' }],
+        { timeZone: 'America/Mexico_City' },
+      )
+      expect(button(wrapper, 'CLAIM').attributes('disabled')).toBeDefined()
+      expect(wrapper.get('[data-testid="denied-reason-CLAIM"]').text()).toBe('Disponible desde 09:55')
+      await button(wrapper, 'CLAIM').trigger('click')
+      expect(wrapper.emitted('action')).toBeUndefined()
+    })
+
+    it('without claimableAt the reason is honest and generic to scheduling, never «Invalid Date»', () => {
+      const wrapper = mountPanel([], [{ action: 'CLAIM', code: 'SCHEDULED_TOO_EARLY' }])
+      const reason = wrapper.get('[data-testid="denied-reason-CLAIM"]').text()
+      expect(reason).toContain('agendada')
+      expect(reason).not.toContain('Invalid')
+    })
   })
 
   it('says the request is read-only instead of an empty list when every allowed action is hidden', () => {

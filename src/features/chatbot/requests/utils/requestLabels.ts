@@ -223,6 +223,21 @@ export function formatScheduledFor(iso: string | null, options: WhenOptions = {}
   return `${weekday} ${time}`
 }
 
+/** «09:55» — the time of day of an instant (24 h, two digits). `null` for an invalid date. */
+export function formatClockTime(iso: string | null | undefined, options: Pick<WhenOptions, 'timeZone'> = {}): string | null {
+  if (!iso) return null
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return null
+  const parts = new Intl.DateTimeFormat('es-MX', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+    timeZone: options.timeZone,
+  }).formatToParts(date)
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ''
+  return `${part('hour')}:${part('minute')}`
+}
+
 /** «hoy 9:00», «mañana 9:00», «ayer 9:00» or «jue 12 nov 9:00» (`slaResumesAt`). `null` for an invalid date. */
 export function formatWhen(iso: string | null, options: WhenOptions = {}): string | null {
   if (!iso) return null

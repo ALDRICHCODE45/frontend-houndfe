@@ -3,7 +3,7 @@
  * RequestCommandHost — runs the staff commands of one request (T2.U4).
  *
  * The detail view calls `start(action)` when the action panel emits. CLAIM and RELEASE are sent at
- * once; RESOLVE, REPLY, FINISH, CANCEL, REASSIGN, MERGE and LINK_CUSTOMER open their form in a slideover (desktop)
+ * once; RESOLVE, REPLY, FINISH, CANCEL, REASSIGN, RESCHEDULE, MERGE and LINK_CUSTOMER open their form in a slideover (desktop)
  * or bottom sheet (mobile). Bodies are built from the form answers and the detail's `version`; the
  * idempotency, in-flight guard and invalidation live in `useRequestCommand`.
  *
@@ -14,6 +14,7 @@
 import { computed, ref, watch } from 'vue'
 import type {
   ChatbotRequestAction,
+  ChatbotRequestCommandResponse,
   ChatbotRequestDetail,
   ChatbotRequestStaffCancelReason,
   ChatbotRequestZoneImpact,
@@ -21,6 +22,7 @@ import type {
 import { useAssignableUsers } from '../composables/useAssignableUsers'
 import { useMergeCandidates } from '../composables/useMergeCandidates'
 import { useRequestCommand, type RequestCommandOutcome } from '../composables/useRequestCommand'
+import { useSchedulingSlots } from '../composables/useSchedulingSlots'
 import { useZoneImpact } from '../composables/useZoneImpact'
 import {
   commandFieldErrors,
@@ -36,6 +38,7 @@ import {
   buildMergeBody,
   buildReassignBody,
   buildReplyBody,
+  buildRescheduleBody,
   buildResolveBody,
   type CancelDraft,
   type FinishDraft,
@@ -50,6 +53,7 @@ import RequestCommandNotice from './RequestCommandNotice.vue'
 import RequestCommandPickForm from './RequestCommandPickForm.vue'
 import RequestCommandReassignForm from './RequestCommandReassignForm.vue'
 import RequestCommandReplyForm from './RequestCommandReplyForm.vue'
+import RequestCommandRescheduleForm from './RequestCommandRescheduleForm.vue'
 import RequestCommandResolveForm from './RequestCommandResolveForm.vue'
 import RequestCommandSheet from './RequestCommandSheet.vue'
 
@@ -63,7 +67,7 @@ declare const useToast: () => {
 
 type FormAction = Extract<
   ChatbotRequestAction,
-  'RESOLVE' | 'REPLY' | 'FINISH' | 'CANCEL' | 'REASSIGN' | 'MERGE' | 'LINK_CUSTOMER'
+  'RESOLVE' | 'REPLY' | 'FINISH' | 'CANCEL' | 'REASSIGN' | 'RESCHEDULE' | 'MERGE' | 'LINK_CUSTOMER'
 >
 const FORM_ACTIONS: ReadonlySet<ChatbotRequestAction> = new Set<ChatbotRequestAction>([
   'RESOLVE',
@@ -72,8 +76,17 @@ const FORM_ACTIONS: ReadonlySet<ChatbotRequestAction> = new Set<ChatbotRequestAc
   'FINISH_IDLE',
   'CANCEL',
   'REASSIGN',
+  'RESCHEDULE',
   'MERGE',
   'LINK_CUSTOMER',
+])
+
+/** After these answers the request moved under the open sheet: close it, the notice shows in the rail (handoff 21 §3). */
+const CLOSES_RESCHEDULE: ReadonlySet<string> = new Set([
+  'VERSION_CONFLICT',
+  'RESCHEDULE_NOT_ALLOWED',
+  'REQUEST_CLOSED',
+  'NOT_SCHEDULED',
 ])
 
 const props = defineProps<{ detail: ChatbotRequestDetail }>()
@@ -113,6 +126,8 @@ const impact = computed<ChatbotRequestZoneImpact | null>(
   () => changedImpact.value ?? zoneQuery.impact.value ?? props.detail.zoneImpact ?? null,
 )
 
+const scheduling = useSchedulingSlots(() => props.detail.id, { enabled: () => openForm.value === 'RESCHEDULE' })
+
 const assignable = useAssignableUsers({ enabled: () => openForm.value === 'REASSIGN' })
 const mergeCandidates = useMergeCandidates(() => props.detail.id, { enabled: () => openForm.value === 'MERGE' })
 
@@ -147,7 +162,7 @@ function closeSheet(): void {
 async function execute(
   action: ChatbotRequestAction,
   send: () => Promise<RequestCommandOutcome>,
-  toastContext: (customer?: string) => CommandToastContext,
+  toastContext: (response: ChatbotRequestCommandResponse) => CommandToastContext,
 ): Promise<void> {
   lastAction.value = action
   lastRun = () => execute(action, send, toastContext)
@@ -155,9 +170,16 @@ async function execute(
   if (outcome.status === 'ignored') return
   if (outcome.status === 'done') {
     lastRun = null
-    toast.add({ ...commandSuccessToast(action, toastContext()), color: 'success' })
+    const done = commandSuccessToast(action, toastContext(outcome.response))
+    toast.add({ ...done, color: done.color ?? 'success' })
     closeSheet()
     return
+  }
+  if (action === 'RESCHEDULE') {
+    const { code, slotsUpdate } = outcome.error
+    // Nothing changed and the 409 carries the next free blocks: swap them in and let the attendee choose again.
+    if (code === 'SLOT_UNAVAILABLE' && slotsUpdate) scheduling.replaceSlots(slotsUpdate)
+    else if (code && CLOSES_RESCHEDULE.has(code)) closeSheet()
   }
   if (outcome.error.code === 'ZONE_SET_CHANGED' && outcome.error.zoneImpact) {
     changedImpact.value = outcome.error.zoneImpact
@@ -196,6 +218,16 @@ function onReassign(draft: ReassignDraft): void {
   const body = buildReassignBody(draft, props.detail.version)
   const name = assignable.users.value.find((user) => user.id === draft.toUserId)?.displayName
   void execute('REASSIGN', () => command.reassign(id.value, body), () => ({ folio: folio.value, assignee: name }))
+}
+
+function onReschedule(scheduledFor: string): void {
+  const body = buildRescheduleBody(scheduledFor, props.detail.version)
+  void execute('RESCHEDULE', () => command.reschedule(id.value, body), (response) => ({
+    folio: folio.value,
+    scheduledFor,
+    timeZone: scheduling.data.value?.timeZone || undefined,
+    customerNoticeExpected: response.customerNotice?.expected ?? response.request.customerNotice?.expected,
+  }))
 }
 
 function onReply(draft: ReplyDraft): void {
@@ -272,6 +304,7 @@ const SHEET_TITLES: Record<FormAction, string> = {
   FINISH: 'Finalizar conversación',
   CANCEL: 'Cancelar solicitud',
   REASSIGN: 'Reasignar',
+  RESCHEDULE: 'Reagendar',
   MERGE: 'Unir con otra solicitud',
   LINK_CUSTOMER: 'Vincular cliente',
 }
@@ -324,6 +357,19 @@ defineExpose({ start, pendingAction })
         @submit="onReassign"
         @back="closeSheet"
         @reload="assignable.refetch()"
+      />
+
+      <RequestCommandRescheduleForm
+        v-else-if="openForm === 'RESCHEDULE'"
+        :slots="scheduling.data.value"
+        :loading="scheduling.isLoading.value"
+        :load-error="scheduling.errorMessage.value"
+        :current-scheduled-for="detail.scheduledFor"
+        :pending="command.isPending.value"
+        :server-errors="fieldErrors"
+        @submit="onReschedule"
+        @back="closeSheet"
+        @reload="scheduling.refetch()"
       />
 
       <RequestCommandReplyForm

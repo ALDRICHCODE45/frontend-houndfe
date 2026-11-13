@@ -8,11 +8,14 @@
 import { readApiErrorEnvelope, type ApiErrorEnvelope } from '@/core/shared/utils/api-error-envelope'
 import type {
   ChatbotRequestDeniedCode,
+  ChatbotSchedulingSlot,
+  ChatbotSchedulingSlotsUpdate,
   ChatbotRequestErrorCurrent,
   ChatbotRequestPerson,
   ChatbotRequestStatus,
   ChatbotRequestZoneImpact,
 } from '../interfaces/chatbot-request.types'
+import { formatClockTime } from './requestLabels'
 
 export interface ChatbotRequestError extends ApiErrorEnvelope {
   /** The request as the server sees it now; `null` when the body carries none. */
@@ -21,6 +24,10 @@ export interface ChatbotRequestError extends ApiErrorEnvelope {
   zoneImpact: ChatbotRequestZoneImpact | null
   /** Target-side `409 VERSION_CONFLICT` of a merge: which side moved. */
   intoRequestId: string | null
+  /** `409 SCHEDULED_TOO_EARLY` (handoff 21 §1.2): ISO instant from which the claim is possible. */
+  claimableAt?: string | null
+  /** `409 SLOT_UNAVAILABLE` (handoff 21 §3): the fresh list to swap into the picker. */
+  slotsUpdate?: ChatbotSchedulingSlotsUpdate | null
 }
 
 const STATUSES: ReadonlySet<string> = new Set<ChatbotRequestStatus>([
@@ -88,6 +95,22 @@ function readFieldErrorList(value: unknown): Record<string, string[]> {
   return out
 }
 
+function readSlot(value: unknown): ChatbotSchedulingSlot | null {
+  const slot = asRecord(value)
+  if (!slot || typeof slot.startsAt !== 'string' || Number.isNaN(new Date(slot.startsAt).getTime())) return null
+  return { startsAt: slot.startsAt, withinWindow: slot.withinWindow !== false, available: true }
+}
+
+/** The list a `409 SLOT_UNAVAILABLE` carries; `null` for any other answer. */
+function readSlotsUpdate(body: Record<string, unknown> | null): ChatbotSchedulingSlotsUpdate | null {
+  if (!body || body.code !== 'SLOT_UNAVAILABLE' || !Array.isArray(body.slots)) return null
+  return {
+    slots: body.slots.map(readSlot).filter((slot): slot is ChatbotSchedulingSlot => slot !== null),
+    timeZone: typeof body.timeZone === 'string' ? body.timeZone : '',
+    whatsappWindowClosesAt: typeof body.whatsappWindowClosesAt === 'string' ? body.whatsappWindowClosesAt : null,
+  }
+}
+
 export function readRequestError(err: unknown): ChatbotRequestError {
   const envelope = readApiErrorEnvelope(err)
   const response = asRecord(asRecord(err)?.response)
@@ -99,6 +122,8 @@ export function readRequestError(err: unknown): ChatbotRequestError {
     current,
     zoneImpact: current?.zoneImpact ?? null,
     intoRequestId: typeof body?.intoRequestId === 'string' ? body.intoRequestId : null,
+    claimableAt: typeof body?.claimableAt === 'string' ? body.claimableAt : null,
+    slotsUpdate: readSlotsUpdate(body),
   }
 }
 
@@ -142,11 +167,21 @@ const CODE_COPY: Record<string, string> = {
   RANGE_TOO_LARGE: 'El rango de fechas es demasiado amplio: elige un máximo de 92 días.',
   FORBIDDEN: 'No tienes acceso a esta sucursal.',
   UNAUTHORIZED: 'Tu sesión terminó. Vuelve a iniciar sesión.',
+  SLOT_UNAVAILABLE: 'Ese horario ya no está disponible. Elige uno de la lista actualizada.',
+  RESCHEDULE_NOT_ALLOWED: 'Ya no se puede reagendar: alguien la tomó o la conversación ya empezó.',
+  NOT_SCHEDULED: 'Esta solicitud no está agendada.',
+  SCHEDULING_DISABLED: 'El agendado está desactivado en esta sucursal.',
+  SCHEDULED_TOO_EARLY: 'Todavía no se puede atender: la conversación está agendada.',
   INTERNAL_ERROR: 'Ocurrió un error inesperado. Reintenta: se envía la misma acción.',
 }
 
+export interface ErrorCopyOptions {
+  /** IANA zone for the times in the copy; defaults to the runtime zone. */
+  timeZone?: string
+}
+
 /** Copy for a command or read failure. Accepts the raw axios error or an already-read one. */
-export function requestErrorMessage(err: unknown): string {
+export function requestErrorMessage(err: unknown, options: ErrorCopyOptions = {}): string {
   const error = isReadError(err) ? err : readRequestError(err)
   const { status, code, current, zoneImpact } = error
 
@@ -155,6 +190,10 @@ export function requestErrorMessage(err: unknown): string {
   if (code === 'REQUEST_CLAIMED_BY_OTHER') {
     const holder = current?.claimedBy?.displayName
     return `${holder ?? 'Otra persona'} ya tomó esta solicitud. No se aplicó tu acción.`
+  }
+  if (code === 'SCHEDULED_TOO_EARLY') {
+    const from = formatClockTime(error.claimableAt, options)
+    return from ? `Todavía no se puede atender. Disponible desde ${from}.` : CODE_COPY.SCHEDULED_TOO_EARLY!
   }
   if (code === 'ZONE_SET_CHANGED') {
     return zoneImpact
@@ -182,6 +221,7 @@ function isReadError(err: unknown): err is ChatbotRequestError {
 export function deniedActionReason(
   code: ChatbotRequestDeniedCode,
   assignee?: ChatbotRequestPerson | null,
+  options: ErrorCopyOptions & { claimableAt?: string | null } = {},
 ): string {
   switch (code) {
     case 'INSUFFICIENT_PERMISSIONS':
@@ -192,6 +232,11 @@ export function deniedActionReason(
       return 'Solo quien la atiende puede hacerlo.'
     case 'CANCEL_NOT_ALLOWED':
       return 'Esta solicitud no se puede cancelar.'
+    case 'SCHEDULED_TOO_EARLY': {
+      // «Disponible desde 09:55»: the local time of `claimableAt`, never a generic reason.
+      const from = formatClockTime(options.claimableAt, options)
+      return from ? `Disponible desde ${from}` : CODE_COPY.SCHEDULED_TOO_EARLY!
+    }
     default:
       return 'No está disponible ahora.'
   }

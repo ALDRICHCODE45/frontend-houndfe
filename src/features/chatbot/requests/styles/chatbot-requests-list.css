@@ -477,6 +477,16 @@
   white-space: nowrap;
 }
 
+/* «Reagendar»: a booked time that fell outside the hours. Stronger than the window tag: staff must act. */
+.hf-ui .chatbot-reschedule-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--hf-danger);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .hf-ui .chatbot-window-tag__icon {
   width: 0.875rem;
   height: 0.875rem;

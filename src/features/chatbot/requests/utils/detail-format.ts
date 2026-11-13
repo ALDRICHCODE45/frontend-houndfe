@@ -209,6 +209,7 @@ export const ACTION_LABELS: Record<ChatbotRequestAction, string> = {
   SEND_TEMPLATE: 'Enviar plantilla…',
   FINISH: 'Finalizar conversación…',
   FINISH_IDLE: 'Finalizar conversación…',
+  RESCHEDULE: 'Reagendar…',
 }
 
 export const ACTION_ICONS: Record<ChatbotRequestAction, string> = {
@@ -224,6 +225,7 @@ export const ACTION_ICONS: Record<ChatbotRequestAction, string> = {
   SEND_TEMPLATE: 'i-lucide-file-text',
   FINISH: 'i-lucide-flag',
   FINISH_IDLE: 'i-lucide-flag',
+  RESCHEDULE: 'i-lucide-calendar-clock',
 }
 
 // ─── Audit ────────────────────────────────────────────────────────────────────

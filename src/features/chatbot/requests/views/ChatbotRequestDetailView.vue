@@ -28,6 +28,7 @@ import RequestDetailDeliveries from '../components/RequestDetailDeliveries.vue'
 import RequestDetailHeader from '../components/RequestDetailHeader.vue'
 import RequestDetailNeeds from '../components/RequestDetailNeeds.vue'
 import RequestDetailReply from '../components/RequestDetailReply.vue'
+import RequestDetailSchedule from '../components/RequestDetailSchedule.vue'
 import RequestDetailOtherOpen from '../components/RequestDetailOtherOpen.vue'
 import RequestDetailSkeleton from '../components/RequestDetailSkeleton.vue'
 import RequestDetailSlaPanel from '../components/RequestDetailSlaPanel.vue'
@@ -170,6 +171,8 @@ function onAction(action: ChatbotRequestAction): void {
       <div v-else-if="detail" class="rd-grid">
         <div class="rd-main">
           <RequestDetailClosedNotice :request="detail" :current-user-id="currentUserId" />
+
+          <RequestDetailSchedule :request="detail" @action="onAction" />
 
           <div v-if="limitedParts.length" class="rd-alert rd-alert--info" role="note" data-testid="limited-view">
             <UIcon name="i-lucide-lock" aria-hidden="true" />

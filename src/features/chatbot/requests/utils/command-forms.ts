@@ -24,6 +24,7 @@ import type {
   MergeRequestBody,
   ReassignRequestBody,
   ReplyRequestBody,
+  RescheduleRequestBody,
   ResolveRequestBody,
   ZoneType,
 } from '../interfaces/chatbot-request.types'
@@ -135,6 +136,13 @@ export function validateReply(draft: ReplyDraft): FieldErrors {
 /** Exactly `{expectedVersion, text}`, the text trimmed (line breaks inside stay). */
 export function buildReplyBody(draft: ReplyDraft, expectedVersion: number): ReplyRequestBody {
   return { expectedVersion, text: text(draft.text) }
+}
+
+// ─── Reschedule (handoff 21 §3) ───────────────────────────────────────────────
+
+/** Exactly `{expectedVersion, scheduledFor}`: the block start as the picker listed it. */
+export function buildRescheduleBody(scheduledFor: string, expectedVersion: number): RescheduleRequestBody {
+  return { expectedVersion, scheduledFor }
 }
 
 // ─── Finish (handoff 20 §4) ───────────────────────────────────────────────────

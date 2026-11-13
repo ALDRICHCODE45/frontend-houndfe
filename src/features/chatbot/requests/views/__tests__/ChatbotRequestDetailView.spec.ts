@@ -626,3 +626,32 @@ describe('ChatbotRequestDetailView — live conversation (handoff 20)', () => {
     expect(claim).toHaveBeenCalledWith('req-1', { expectedVersion: 5 }, expect.any(String))
   })
 })
+
+describe('ChatbotRequestDetailView — scheduled conversations (handoff 21)', () => {
+  const SCHEDULED = '2099-11-14T16:00:00.000Z'
+
+  it('shows the booking and, when needsReschedule, the «Por reagendar» banner in the main column', async () => {
+    const wrapper = await mountView(makeDetail({ scheduledFor: SCHEDULED, scheduleVersion: 1, needsReschedule: true }))
+    expect(wrapper.get('[data-testid="schedule-chip"]').text()).toContain('Agendada para')
+    expect(wrapper.get('[data-testid="reschedule-banner"]').text()).toContain('Por reagendar')
+  })
+
+  it('a too-early CLAIM reads «Disponible desde HH:MM» in the rail instead of a generic reason', async () => {
+    const wrapper = await mountView(
+      makeDetail({
+        scheduledFor: SCHEDULED,
+        allowedActions: ['RESCHEDULE'],
+        deniedActions: [{ action: 'CLAIM', code: 'SCHEDULED_TOO_EARLY', claimableAt: '2099-11-14T15:55:00.000Z' }],
+      }),
+    )
+    const reason = wrapper.get('[data-testid="denied-reason-CLAIM"]').text()
+    expect(reason).toMatch(/^Disponible desde \d{2}:\d{2}$/)
+    expect(reason).not.toContain('No está disponible ahora')
+  })
+
+  it('a request that was never scheduled shows no schedule block', async () => {
+    const wrapper = await mountView()
+    expect(wrapper.find('[data-testid="schedule-block"]').exists()).toBe(false)
+  })
+})
+

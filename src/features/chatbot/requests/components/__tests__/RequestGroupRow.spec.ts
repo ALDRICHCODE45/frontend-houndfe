@@ -255,3 +255,34 @@ describe('RequestGroupRow — unread customer messages', () => {
     expect(wrapper.find('[data-testid="unread-badge"]').exists()).toBe(false)
   })
 })
+
+describe('RequestGroupRow — scheduled conversations (handoff 21)', () => {
+  const FUTURE = '2026-11-17T16:30:00.000Z' // Tue 10:30 in Mexico City
+
+  it('a future scheduled row reads «Agendada · mar 10:30» in both layouts', async () => {
+    const table = await mountRow({ scheduledFor: FUTURE, scheduleVersion: 1 })
+    expect(table.wrapper.get('[data-testid="sla-indicator"]').text()).toContain('Agendada · mar 10:30')
+    const card = await mountRow({ scheduledFor: FUTURE, scheduleVersion: 1 }, { layout: 'cards' })
+    expect(card.wrapper.get('[data-testid="sla-indicator"]').text()).toContain('Agendada · mar 10:30')
+  })
+
+  it('needsReschedule adds a visible «Reagendar» marker, with its reason for assistive tech', async () => {
+    const table = await mountRow({ scheduledFor: FUTURE, needsReschedule: true })
+    const tag = table.wrapper.get('[data-testid="reschedule-tag"]')
+    expect(tag.text()).toBe('Reagendar')
+    expect(tag.attributes('aria-label')).toContain('Por reagendar')
+    const card = await mountRow({ scheduledFor: FUTURE, needsReschedule: true }, { layout: 'cards' })
+    expect(card.wrapper.get('[data-testid="reschedule-tag"]').text()).toBe('Reagendar')
+  })
+
+  it('no marker without needsReschedule, and none on a closed row', async () => {
+    const plain = await mountRow({ scheduledFor: FUTURE })
+    expect(plain.wrapper.find('[data-testid="reschedule-tag"]').exists()).toBe(false)
+    const closed = await mountRow(
+      { status: 'CANCELLED', displayStatus: 'CANCELLED', closedAt: '2026-11-11T16:00:00.000Z', needsReschedule: true },
+      { tab: 'cancelled' },
+    )
+    expect(closed.wrapper.find('[data-testid="reschedule-tag"]').exists()).toBe(false)
+  })
+})
+

@@ -25,6 +25,7 @@ export function makeRow(overrides: Partial<ChatbotRequestRow> = {}): ChatbotRequ
     whatsappWindowClosesAt: null,
     unreadCustomerMessages: 0,
     scheduledFor: null,
+    scheduleVersion: 0,
     requiresTemplateAtStart: false,
     needsReschedule: false,
     liveSession: null,

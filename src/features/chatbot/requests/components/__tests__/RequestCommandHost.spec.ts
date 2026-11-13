@@ -21,6 +21,8 @@ vi.mock('../../api/chatbot-request.api', () => ({
     resolve: vi.fn(),
     reply: vi.fn(),
     finish: vi.fn(),
+    reschedule: vi.fn(),
+    getSchedulingSlots: vi.fn(),
     listAssignableUsers: vi.fn(),
     listMergeCandidates: vi.fn(),
     getZoneImpact: vi.fn(),
@@ -1073,3 +1075,199 @@ describe('RequestCommandHost — finish a conversation (T7c)', () => {
     expect(wrapper.find('[data-testid="drawer"]').exists()).toBe(true)
   })
 })
+
+describe('RequestCommandHost — reschedule (handoff 21)', () => {
+  const FUTURE_CLOSE = '2099-11-14T03:10:00.000Z'
+  const PAST_CLOSE = '2020-11-14T03:10:00.000Z'
+  const slotsAnswer = (whatsappWindowClosesAt: string | null = FUTURE_CLOSE) => ({
+    timeZone: 'America/Mexico_City',
+    whatsappWindowClosesAt,
+    slots: [
+      { startsAt: '2099-11-14T15:00:00.000Z', withinWindow: true, available: true as const },
+      { startsAt: '2099-11-14T15:30:00.000Z', withinWindow: false, available: true as const },
+    ],
+  })
+  const scheduled = (overrides: Partial<ChatbotRequestDetail> = {}) =>
+    makeDetail({
+      kind: 'CONVERSATION',
+      subtype: 'TALK_TO_HUMAN',
+      decision: null,
+      version: 4,
+      scheduledFor: '2099-11-14T14:00:00.000Z',
+      scheduleVersion: 1,
+      allowedActions: ['RESCHEDULE', 'CANCEL'],
+      ...overrides,
+    })
+  const rescheduled = (expected: boolean): ChatbotRequestCommandResponse => ({
+    ...ok(5),
+    customerNotice: { expected },
+  })
+
+  it('opens «Reagendar» with the staff picker read from the backend, as radio rows', async () => {
+    api.getSchedulingSlots.mockResolvedValue(slotsAnswer())
+    const wrapper = mountHost(scheduled())
+
+    await start(wrapper, 'RESCHEDULE')
+
+    expect(byId(wrapper, 'drawer-title').text()).toBe('Reagendar')
+    expect(api.getSchedulingSlots).toHaveBeenCalledWith('req-1', { signal: expect.anything() })
+    expect(wrapper.findAll('[role="radio"]')).toHaveLength(2)
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
+  })
+
+  it('does not read the picker until the sheet opens', async () => {
+    mountHost(scheduled())
+    await flushPromises()
+    expect(api.getSchedulingSlots).not.toHaveBeenCalled()
+  })
+
+  it('confirms with the version on screen and the exact block, then toasts that the customer is told', async () => {
+    api.getSchedulingSlots.mockResolvedValue(slotsAnswer())
+    api.reschedule.mockResolvedValue(rescheduled(true))
+    const wrapper = mountHost(scheduled())
+    await start(wrapper, 'RESCHEDULE')
+
+    await pick(wrapper, '2099-11-14T15:00:00.000Z')
+    await submit(wrapper)
+
+    expect(api.reschedule).toHaveBeenCalledWith(
+      'req-1',
+      { expectedVersion: 4, scheduledFor: '2099-11-14T15:00:00.000Z' },
+      KEY,
+    )
+    const toast = toastAdd.mock.calls[0]![0]
+    expect(toast.title).toBe('Conversación reagendada')
+    expect(toast.description).toContain('Se avisará al cliente de la nueva hora.')
+    expect(toast.color).toBe('success')
+    expect(wrapper.find('[data-testid="drawer"]').exists()).toBe(false)
+  })
+
+  it('warns before confirming when the window is closed, and the toast repeats it as a warning when expected is false', async () => {
+    api.getSchedulingSlots.mockResolvedValue(slotsAnswer(PAST_CLOSE))
+    api.reschedule.mockResolvedValue(rescheduled(false))
+    const wrapper = mountHost(scheduled())
+    await start(wrapper, 'RESCHEDULE')
+
+    expect(byId(wrapper, 'reschedule-notice').text()).toContain('El cliente no recibirá aviso')
+
+    await pick(wrapper, '2099-11-14T15:00:00.000Z')
+    await submit(wrapper)
+
+    const toast = toastAdd.mock.calls[0]![0]
+    expect(toast.description).toContain('El cliente no recibirá aviso de la nueva hora')
+    expect(toast.color).toBe('warning')
+  })
+
+  it('the answer is the truth: expected true overrides a window the picker thought closed', async () => {
+    api.getSchedulingSlots.mockResolvedValue(slotsAnswer(PAST_CLOSE))
+    api.reschedule.mockResolvedValue(rescheduled(true))
+    const wrapper = mountHost(scheduled())
+    await start(wrapper, 'RESCHEDULE')
+    await pick(wrapper, '2099-11-14T15:00:00.000Z')
+    await submit(wrapper)
+    expect(toastAdd.mock.calls[0]![0].description).toContain('Se avisará al cliente')
+  })
+
+  it('SLOT_UNAVAILABLE swaps the list for the fresh one, keeps the sheet open and explains', async () => {
+    api.getSchedulingSlots.mockResolvedValue(slotsAnswer())
+    api.reschedule.mockRejectedValue(
+      axiosError(409, {
+        code: 'SLOT_UNAVAILABLE',
+        slots: [{ startsAt: '2099-11-14T16:00:00.000Z', withinWindow: true, available: true }],
+        timeZone: 'America/Mexico_City',
+        whatsappWindowClosesAt: FUTURE_CLOSE,
+        current: { version: 4, status: 'NEW', claimedBy: null },
+      }),
+    )
+    const wrapper = mountHost(scheduled())
+    await start(wrapper, 'RESCHEDULE')
+    await pick(wrapper, '2099-11-14T15:00:00.000Z')
+    await submit(wrapper)
+
+    expect(byId(wrapper, 'command-notice-title').text()).toBe('Ese horario ya no está disponible')
+    expect(wrapper.findAll('[role="radio"]').map((row) => row.attributes('data-testid'))).toEqual([
+      'radio-2099-11-14T16:00:00.000Z',
+    ])
+    expect(wrapper.findAll('[aria-checked="true"]')).toHaveLength(0)
+    expect(toastAdd).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="drawer"]').exists()).toBe(true)
+    // The picker list is not re-read: the 409 carried the fresh one.
+    expect(api.getSchedulingSlots).toHaveBeenCalledTimes(1)
+  })
+
+  it('after SLOT_UNAVAILABLE the next confirmation uses a new Idempotency-Key', async () => {
+    api.getSchedulingSlots.mockResolvedValue(slotsAnswer())
+    api.reschedule
+      .mockRejectedValueOnce(
+        axiosError(409, {
+          code: 'SLOT_UNAVAILABLE',
+          slots: [{ startsAt: '2099-11-14T16:00:00.000Z', withinWindow: true, available: true }],
+          timeZone: 'America/Mexico_City',
+        }),
+      )
+      .mockResolvedValueOnce(rescheduled(true))
+    const wrapper = mountHost(scheduled())
+    await start(wrapper, 'RESCHEDULE')
+    await pick(wrapper, '2099-11-14T15:00:00.000Z')
+    await submit(wrapper)
+    await pick(wrapper, '2099-11-14T16:00:00.000Z')
+    await submit(wrapper)
+
+    expect(api.reschedule).toHaveBeenCalledTimes(2)
+    expect(api.reschedule.mock.calls[1]![2]).not.toBe(api.reschedule.mock.calls[0]![2])
+    expect(api.reschedule.mock.calls[1]![1]).toEqual({ expectedVersion: 4, scheduledFor: '2099-11-14T16:00:00.000Z' })
+  })
+
+  it.each([
+    ['VERSION_CONFLICT', 'La solicitud cambió mientras la mirabas'],
+    ['RESCHEDULE_NOT_ALLOWED', 'Ya no se puede reagendar'],
+    ['REQUEST_CLOSED', 'Esta solicitud ya se cerró'],
+    ['NOT_SCHEDULED', 'Esta solicitud no está agendada'],
+  ])('%s closes the sheet, shows the notice in the rail and refetches', async (code, title) => {
+    api.getSchedulingSlots.mockResolvedValue(slotsAnswer())
+    api.reschedule.mockRejectedValue(axiosError(409, { code, current: { version: 6, status: 'NEW', claimedBy: null } }))
+    const wrapper = mountHost(scheduled())
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    await start(wrapper, 'RESCHEDULE')
+    await pick(wrapper, '2099-11-14T15:00:00.000Z')
+    await submit(wrapper)
+
+    expect(wrapper.find('[data-testid="drawer"]').exists()).toBe(false)
+    expect(byId(wrapper, 'command-notice-title').text()).toBe(title)
+    expect(invalidate).toHaveBeenCalled()
+    await byId(wrapper, 'notice-refresh').trigger('click')
+    expect(wrapper.emitted('refresh')).toHaveLength(1)
+  })
+
+  it('a picker that cannot load because scheduling is off says so, with no way to submit', async () => {
+    api.getSchedulingSlots.mockRejectedValue(axiosError(422, { code: 'SCHEDULING_DISABLED' }))
+    const wrapper = mountHost(scheduled())
+    await start(wrapper, 'RESCHEDULE')
+    expect(byId(wrapper, 'reschedule-load-failed').text()).toContain('El agendado está desactivado en esta sucursal.')
+    expect(byId(wrapper, 'command-submit').attributes('disabled')).toBeDefined()
+  })
+
+  it('closes the sheet when a refetch no longer offers RESCHEDULE', async () => {
+    api.getSchedulingSlots.mockResolvedValue(slotsAnswer())
+    const wrapper = mountHost(scheduled())
+    await start(wrapper, 'RESCHEDULE')
+    expect(wrapper.find('[data-testid="drawer"]').exists()).toBe(true)
+    await wrapper.setProps({ detail: scheduled({ allowedActions: ['CANCEL'], version: 5 }) })
+    expect(wrapper.find('[data-testid="drawer"]').exists()).toBe(false)
+  })
+
+  it('a claim that came too early shows «Disponible desde HH:MM» in the rail', async () => {
+    api.claim.mockRejectedValue(
+      axiosError(409, {
+        code: 'SCHEDULED_TOO_EARLY',
+        claimableAt: '2099-11-14T15:55:00.000Z',
+        current: { version: 1, status: 'NEW', claimedBy: null },
+      }),
+    )
+    const wrapper = mountHost(scheduled({ allowedActions: ['CLAIM'] }))
+    await start(wrapper, 'CLAIM')
+    expect(byId(wrapper, 'command-notice-title').text()).toBe('Todavía no se puede atender')
+    expect(wrapper.get('[data-testid="command-notice"]').text()).toMatch(/Disponible desde \d{2}:\d{2}/)
+  })
+})
+

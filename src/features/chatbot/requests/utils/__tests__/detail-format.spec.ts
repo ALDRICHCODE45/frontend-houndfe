@@ -153,6 +153,11 @@ describe('labels for resolutions, deliveries and previews', () => {
       expect(ACTION_ICONS[action]).toMatch(/^i-lucide-/)
     }
   })
+
+  it('labels and icons RESCHEDULE (handoff 21)', () => {
+    expect(ACTION_LABELS.RESCHEDULE).toBe('Reagendar…')
+    expect(ACTION_ICONS.RESCHEDULE).toMatch(/^i-lucide-/)
+  })
 })
 
 describe('safeUrl', () => {

@@ -290,3 +290,77 @@ describe('reply and finish copy (T7)', () => {
     expect(commandSuccessToast('FINISH_IDLE', { folio: 'S-000123' }).title).toBe('Conversación finalizada')
   })
 })
+
+describe('scheduled conversations (handoff 21)', () => {
+  it('RESCHEDULE_NOT_ALLOWED and NOT_SCHEDULED close the story with «Actualizar» and refetch', () => {
+    const claimed = commandNotice(read(409, { code: 'RESCHEDULE_NOT_ALLOWED', current: { version: 3 } }), 'RESCHEDULE')!
+    expect(claimed.title).toBe('Ya no se puede reagendar')
+    expect(claimed.detail).toContain('No se movió nada')
+    expect(claimed.actions).toEqual(['refresh'])
+    const notScheduled = commandNotice(read(409, { code: 'NOT_SCHEDULED' }), 'RESCHEDULE')!
+    expect(notScheduled.title).toBe('Esta solicitud no está agendada')
+    expect(isStateChangingError(read(409, { code: 'RESCHEDULE_NOT_ALLOWED' }))).toBe(true)
+    expect(isStateChangingError(read(409, { code: 'NOT_SCHEDULED' }))).toBe(true)
+  })
+
+  it('SLOT_UNAVAILABLE says the time was taken and keeps the form (dismiss only, no refetch)', () => {
+    const notice = commandNotice(read(409, { code: 'SLOT_UNAVAILABLE' }), 'RESCHEDULE')!
+    expect(notice.title).toBe('Ese horario ya no está disponible')
+    expect(notice.detail).toContain('lista')
+    expect(notice.detail).toContain('Se conserva el horario anterior')
+    expect(notice.actions).toEqual(['dismiss'])
+    expect(isStateChangingError(read(409, { code: 'SLOT_UNAVAILABLE' }))).toBe(false)
+  })
+
+  it('SCHEDULING_DISABLED says scheduling is off in this branch', () => {
+    const notice = commandNotice(read(422, { code: 'SCHEDULING_DISABLED' }), 'RESCHEDULE')!
+    expect(notice.title).toBe('El agendado está desactivado')
+    expect(notice.actions).toEqual(['dismiss'])
+  })
+
+  it('a claim that came too early says «Disponible desde HH:MM» and refetches the request', () => {
+    const error = read(409, { code: 'SCHEDULED_TOO_EARLY', claimableAt: '2026-11-14T15:55:00.000Z' })
+    const notice = commandNotice(error, 'CLAIM', { timeZone: 'America/Mexico_City' })!
+    expect(notice.title).toBe('Todavía no se puede atender')
+    expect(notice.detail).toContain('Disponible desde 09:55')
+    expect(notice.actions).toEqual(['refresh'])
+    expect(isStateChangingError(error)).toBe(true)
+  })
+
+  it('a 400 on scheduledFor points at the slot choice', () => {
+    const error = read(400, { code: 'VALIDATION_ERROR', fieldErrors: [{ path: 'scheduledFor', code: 'INVALID' }] })
+    expect(Object.keys(commandFieldErrors(error))).toEqual(['scheduledFor'])
+  })
+
+  it('reschedule toast: customer will be told', () => {
+    expect(
+      commandSuccessToast('RESCHEDULE', {
+        folio: 'S-000123',
+        scheduledFor: '2026-11-14T16:00:00.000Z',
+        timeZone: 'America/Mexico_City',
+        customerNoticeExpected: true,
+      }),
+    ).toEqual({
+      title: 'Conversación reagendada',
+      description: 'S-000123 quedó para sáb 10:00. Se avisará al cliente de la nueva hora.',
+    })
+  })
+
+  it('reschedule toast: window closed → the customer will NOT be told, as a warning', () => {
+    const toast = commandSuccessToast('RESCHEDULE', {
+      folio: 'S-000123',
+      scheduledFor: '2026-11-14T16:00:00.000Z',
+      timeZone: 'America/Mexico_City',
+      customerNoticeExpected: false,
+    })
+    expect(toast.color).toBe('warning')
+    expect(toast.description).toContain('El cliente no recibirá aviso de la nueva hora')
+    expect(toast.description).toContain('Avísale por otro medio')
+  })
+
+  it('reschedule toast without a customerNotice says nothing about the customer', () => {
+    const toast = commandSuccessToast('RESCHEDULE', { folio: 'S-000123' })
+    expect(toast.title).toBe('Conversación reagendada')
+    expect(toast.description).toBe('S-000123 tiene una nueva hora.')
+  })
+})
