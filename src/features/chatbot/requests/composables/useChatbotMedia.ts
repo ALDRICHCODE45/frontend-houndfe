@@ -1,10 +1,11 @@
-import { computed, ref, toValue, watch, type MaybeRefOrGetter } from 'vue'
+import { computed, inject, ref, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { readApiErrorEnvelope } from '@/core/shared/utils/api-error-envelope'
 import { chatbotConversationApi } from '../api/chatbot-conversation.api'
 import { chatbotMediaKeys } from '../constants/queryKeys'
 import { MEDIA_PURGED_COPY, mediaErrorMessage } from '../utils/conversation-copy'
+import { ATTENDEE_MEDIA_KEY } from './liveChatContext'
 import { useRequestAccess } from './useRequestAccess'
 
 /** A media file never changes: keep the blob for a long time and never refetch it on its own. */
@@ -15,6 +16,11 @@ export interface UseChatbotMediaOptions {
   enabled?: MaybeRefOrGetter<boolean>
   /** The message already says the 12-month retention deleted it: do not ask. */
   purged?: MaybeRefOrGetter<boolean>
+  /**
+   * The viewer is the attendee of the live session: the proxy serves them the files of their session
+   * without `read:ChatbotConversation` (handoff 20 §3b). Defaults to what the conversation block provides.
+   */
+  asAttendee?: MaybeRefOrGetter<boolean>
 }
 
 /**
@@ -28,12 +34,14 @@ export function useChatbotMedia(
 ) {
   const auth = useAuthStore()
   const { tenantId, enabled: canReadRequest } = useRequestAccess()
+  const provided = inject(ATTENDEE_MEDIA_KEY, null)
+  const attendee = computed(() => (options.asAttendee ? toValue(options.asAttendee) : (provided?.value ?? false)))
   const id = computed(() => toValue(mediaId)?.trim() ?? '')
   const knownPurged = computed(() => (options.purged ? toValue(options.purged) : false))
   const enabled = computed(
     () =>
       canReadRequest.value &&
-      auth.userCan('read', 'ChatbotConversation') &&
+      (auth.userCan('read', 'ChatbotConversation') || attendee.value) &&
       id.value.length > 0 &&
       !knownPurged.value &&
       (options.enabled ? toValue(options.enabled) : true),

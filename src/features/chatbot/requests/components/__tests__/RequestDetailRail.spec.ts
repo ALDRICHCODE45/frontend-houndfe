@@ -294,6 +294,39 @@ describe('RequestDetailActionPanel — action vocabulary safety net (T7a)', () =
     expect(wrapper.emitted('action')).toEqual([['FINISH_IDLE']])
   })
 
+  describe('live conversation actions', () => {
+    const mountBar = (allowed: ChatbotRequestAction[], denied: ChatbotRequestDeniedAction[] = []) =>
+      mountPanel(allowed, denied, { variant: 'bar', status: 'IN_PROGRESS' })
+
+    it('on mobile SEND_MESSAGE is the primary «Abrir conversación» and Finalizar waits behind «Más acciones»', async () => {
+      const bar = mountBar(['SEND_MESSAGE', 'FINISH'])
+      expect(bar.get('[data-testid="bar-primary"]').text()).toContain('Abrir conversación')
+      await bar.get('[data-testid="bar-primary"]').trigger('click')
+      expect(bar.emitted('action')).toEqual([['SEND_MESSAGE']])
+      await bar.get('[data-testid="bar-more"]').trigger('click')
+      expect(testIds(bar)).toContain('action-FINISH')
+      expect(testIds(bar)).not.toContain('action-SEND_MESSAGE')
+    })
+
+    it('on desktop the composer is in the chat: no «Abrir conversación» in «Qué hacer»', () => {
+      const panel = mountPanel(['SEND_MESSAGE', 'FINISH'], [], { status: 'IN_PROGRESS' })
+      expect(panel.text()).not.toContain('Abrir conversación')
+      expect(testIds(panel)).toEqual(['action-FINISH'])
+    })
+
+    it('SEND_TEMPLATE has no button anywhere: it lives in the blocked composer, with its cost', () => {
+      const bar = mountBar(['SEND_TEMPLATE'], [{ action: 'SEND_TEMPLATE', code: 'NOT_ASSIGNEE' }])
+      expect(bar.find('[data-testid="mobile-action-bar"]').exists()).toBe(false)
+      const panel = mountPanel(['SEND_TEMPLATE'], [], { status: 'IN_PROGRESS' })
+      expect(testIds(panel)).toEqual([])
+    })
+
+    it('a denied SEND_MESSAGE is not a dead button either', () => {
+      const bar = mountBar(['FINISH'], [{ action: 'SEND_MESSAGE', code: 'NOT_ASSIGNEE' }])
+      expect(bar.find('[data-testid="denied-reason-SEND_MESSAGE"]').exists()).toBe(false)
+    })
+  })
+
   it('REPLY is the primary action of a clarification, also on a NEW one that offers «Atender»', () => {
     const panel = mountPanel(['CLAIM', 'REPLY', 'CANCEL'])
     expect(testIds(panel)[0]).toBe('action-REPLY')

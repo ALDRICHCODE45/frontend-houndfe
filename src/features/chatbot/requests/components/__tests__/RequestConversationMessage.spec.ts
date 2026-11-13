@@ -280,3 +280,79 @@ describe('RequestConversationMessage — voice note', () => {
     expect(wrapper.get('[data-testid="media-error"]').text()).toContain('se elimina a los 12 meses')
   })
 })
+
+describe('RequestConversationMessage — live delivery states (handoff 20 §3)', () => {
+  const CREATED = '2026-11-13T16:00:00.000Z'
+  const at = (seconds: number) => new Date(Date.parse(CREATED) + seconds * 1000)
+  const staff = (overrides: Record<string, unknown> = {}, props: Record<string, unknown> = {}) =>
+    mount(RequestConversationMessage, {
+      props: {
+        message: makeMessage({
+          seq: 20,
+          direction: 'OUT',
+          author: 'STAFF',
+          staff: { id: 'u-1', displayName: 'Laura Méndez' },
+          deliveryStatus: 'QUEUED',
+          createdAt: CREATED,
+          providerTimestamp: null,
+          ...overrides,
+        }),
+        timeZone: TZ,
+        now: at(5),
+        ...props,
+      },
+      global: { stubs },
+    })
+
+  it('shows icon + words for each state', () => {
+    expect(staff().get('[data-testid="message-delivery"]').text()).toBe('En cola')
+    expect(staff({ deliveryStatus: 'SENT' }).get('[data-testid="message-delivery"]').text()).toBe('Enviado')
+    expect(staff({ deliveryStatus: 'DEFERRED' }).get('[data-testid="message-delivery"]').text()).toBe(
+      'No enviado, ventana cerrada',
+    )
+    expect(staff({ deliveryStatus: 'UNKNOWN' }).get('[data-testid="message-delivery"]').text()).toBe('Entrega dudosa')
+  })
+
+  it('turns «Pendiente de envío» after 30 s without SENT, with the explanation', () => {
+    const wrapper = staff({}, { now: at(31) })
+    expect(wrapper.get('[data-testid="message-delivery"]').text()).toBe('Pendiente de envío')
+    expect(wrapper.get('[data-testid="message-delivery-note"]').text()).toContain('no hace falta escribirlo otra vez')
+    expect(wrapper.find('[data-testid="message-retry"]').exists()).toBe(false)
+  })
+
+  it('FAILED offers «Reintentar» that emits retry with the message', async () => {
+    const wrapper = staff({ deliveryStatus: 'FAILED' }, { canAct: true })
+    const button = wrapper.get('[data-testid="message-retry"]')
+    expect(button.text()).toBe('Reintentar')
+    await button.trigger('click')
+    expect(wrapper.emitted('retry')![0]![0]).toMatchObject({ seq: 20 })
+  })
+
+  it('UNKNOWN offers «Enviar como mensaje nuevo»', () => {
+    const wrapper = staff({ deliveryStatus: 'UNKNOWN' }, { canAct: true })
+    expect(wrapper.get('[data-testid="message-retry"]').text()).toBe('Enviar como mensaje nuevo')
+  })
+
+  it('shows no button to a viewer who cannot send, nor after the message was resent', () => {
+    expect(staff({ deliveryStatus: 'FAILED' }).find('[data-testid="message-retry"]').exists()).toBe(false)
+    const resent = staff({ deliveryStatus: 'FAILED' }, { canAct: true, retried: true })
+    expect(resent.find('[data-testid="message-retry"]').exists()).toBe(false)
+    expect(resent.get('[data-testid="message-delivery-note"]').text()).toBe('Reenviado como mensaje nuevo.')
+  })
+
+  it('shows a template as «Plantilla «name»» with its cost note', () => {
+    const wrapper = staff({ type: 'TEMPLATE', text: '', templateName: 'seguimiento_pedido', deliveryStatus: 'DELIVERED' })
+    expect(wrapper.get('[data-testid="message-template"]').text()).toContain('seguimiento_pedido')
+    expect(wrapper.text()).toContain('Mensaje aprobado de WhatsApp')
+  })
+
+  it('names the PDF the attendee sent', () => {
+    const wrapper = staff({
+      type: 'DOCUMENT',
+      text: 'Política',
+      media: makeMedia({ mimeType: 'application/pdf', filename: 'politica-de-cambios.pdf' }),
+      deliveryStatus: 'SENT',
+    })
+    expect(wrapper.get('[data-testid="media-pdf"]').text()).toContain('politica-de-cambios.pdf')
+  })
+})

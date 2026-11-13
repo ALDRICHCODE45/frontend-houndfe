@@ -134,10 +134,10 @@ describe('layout', () => {
     expect(w.text()).toContain('Atención del chatbot')
   })
 
-  it('marks the stored-only sections «Aún sin efecto»', async () => {
+  it('marks only the stored-only scheduling «Aún sin efecto» (the template is sent from the live chat)', async () => {
     const w = await mountView()
     expect(w.get('[data-testid="section-sched"]').text()).toContain('Aún sin efecto')
-    expect(w.get('[data-testid="section-extras"]').text()).toContain('Aún sin efecto')
+    expect(w.get('[data-testid="section-extras"]').text()).not.toContain('Aún sin efecto')
     expect(w.get('[data-testid="section-sla"]').text()).not.toContain('Aún sin efecto')
   })
 

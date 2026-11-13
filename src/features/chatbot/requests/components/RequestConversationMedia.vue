@@ -127,7 +127,7 @@ const canRetry = computed(() => showError.value && !isPurged.value)
       >
         <UIcon :name="isLoading ? 'i-lucide-loader-circle' : 'i-lucide-file-text'" aria-hidden="true" />
         <span class="rc-chip__label">
-          <b>Documento PDF</b>
+          <b>{{ media?.filename || 'Documento PDF' }}</b>
           <small>{{ isLoading ? 'Abriendo…' : size || 'Abrir en una pestaña nueva' }}</small>
         </span>
         <UIcon v-if="!isPurged" name="i-lucide-external-link" class="rc-chip__go" aria-hidden="true" />

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { ref } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { DETAIL_STUBS } from '../../utils/detail-fixture'
 import { makeMedia, makeMessage } from '../../utils/conversation-fixture'
 import type { ChatbotMessage } from '../../interfaces/chatbot-request.types'
@@ -24,11 +25,22 @@ vi.mock('../../composables/useChatbotMedia', () => ({
   }),
 }))
 
+// Without a live session the block only reads: its live parts need an auth store and a query client.
+vi.mock('@/features/auth/stores/useAuthStore', () => ({
+  useAuthStore: () => ({ currentTenantId: 'tenant-1', user: { id: 'u-1' }, userCan: () => true }),
+}))
+vi.mock('../../composables/useTemplateCost', () => ({
+  useTemplateCost: () => ({ costText: ref('costo'), isFromSettings: ref(false) }),
+}))
+
 import RequestDetailConversation from '../RequestDetailConversation.vue'
 
 const TZ = 'America/Mexico_City'
 const NOW = new Date('2026-11-12T18:00:00.000Z')
-const global = { stubs: { ...DETAIL_STUBS, UModal: { template: '<div />' }, Modal: { template: '<div />' } } }
+const global = {
+  plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]] as never,
+  stubs: { ...DETAIL_STUBS, UModal: { template: '<div />' }, Modal: { template: '<div />' } },
+}
 
 function state(overrides: Record<string, unknown> = {}) {
   const base: Record<string, unknown> = {

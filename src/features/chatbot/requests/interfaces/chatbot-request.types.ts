@@ -734,6 +734,8 @@ export interface ChatbotMessageMedia {
   hasThumb: boolean
   /** The 12-month retention deleted the file (`GET /chatbot-media/:id` answers 410). */
   purged: boolean
+  /** Only on a message the attendee just sent (handoff 20 §3b): the name the customer sees. */
+  filename?: string | null
 }
 
 export interface ChatbotMessage {
@@ -752,6 +754,8 @@ export interface ChatbotMessage {
   clientMessageId: string | null
   providerTimestamp: string | null
   createdAt: string
+  /** Only on `TEMPLATE` messages (handoff 20 §3c). */
+  templateName?: string | null
 }
 
 export interface ChatbotConversationPage {
@@ -768,4 +772,38 @@ export interface ChatbotConversationParams {
   before?: number
   /** Newer than this `seq` (≥ 0). Never together with `before`. */
   after?: number
+}
+
+// ─── Live conversation (handoff 20 §3) ────────────────────────────────────────
+
+/** A text message, or a photo / PDF already uploaded with `POST …/media`. `type` defaults to `TEXT`. */
+export type SendMessageBody =
+  | { clientMessageId: string; expectedEpoch: number; text: string }
+  | {
+      clientMessageId: string
+      expectedEpoch: number
+      type: 'IMAGE' | 'DOCUMENT'
+      mediaId: string
+      /** Optional, trimmed, at most 1024. */
+      caption?: string
+    }
+
+/** `POST …/messages` and `POST …/template` answer `200 {message}` (QUEUED). */
+export interface SendMessageResponse {
+  message: ChatbotMessage
+}
+
+/** `POST …/template`: exactly this body; the template name and language come from the branch settings. */
+export interface SendTemplateBody {
+  expectedEpoch: number
+}
+
+/** `POST …/media` (`201` first time, `200` replay). */
+export interface UploadMediaResponse {
+  mediaId: string
+  mimeType: string
+  sizeBytes: number
+  sha256: string
+  /** The name the customer will see, cleaned by the backend. */
+  filename: string
 }

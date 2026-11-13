@@ -35,6 +35,7 @@ import { useRequestAccess } from '../composables/useRequestAccess'
 import { useRequestAudit } from '../composables/useRequestAudit'
 import { useRequestDetail } from '../composables/useRequestDetail'
 import type { ChatbotRequestAction } from '../interfaces/chatbot-request.types'
+import { isAttendee } from '../utils/live-session'
 import { readRequestError } from '../utils/requestErrors'
 import '../styles/chatbot-request-detail.css'
 
@@ -50,7 +51,10 @@ const { detail, isError, isNotFound, error, refetch } = useRequestDetail(request
 
 // ─── Section gates ────────────────────────────────────────────────────────────
 const canSeePhone = computed(() => auth.userCan('read', 'CustomerPhone'))
-const canSeeConversation = computed(() => auth.userCan('read', 'ChatbotConversation'))
+const canReadConversation = computed(() => auth.userCan('read', 'ChatbotConversation'))
+/** Handoff 20 §5: the attendee reads their own live session even without `read:ChatbotConversation`. */
+const attendee = computed(() => (detail.value ? isAttendee(detail.value, currentUserId.value) : false))
+const canSeeConversation = computed(() => canReadConversation.value || attendee.value)
 const limitedParts = computed(() => {
   const missing: string[] = []
   if (!canSeePhone.value) missing.push('teléfono completo')
@@ -96,8 +100,15 @@ function onMoreAudit(): void {
 // ─── Actions: the host sends the command or opens its form ───────────────────
 const commands = ref<InstanceType<typeof RequestCommandHost> | null>(null)
 const pendingAction = ref<ChatbotRequestAction | null>(null)
+/** Below 768 px the live chat is a full-screen view opened from a card or the bar (design 04). */
+const chatOpen = ref(false)
 
 function onAction(action: ChatbotRequestAction): void {
+  // SEND_MESSAGE is not a command: «Abrir conversación» of the mobile bar opens the chat.
+  if (action === 'SEND_MESSAGE') {
+    chatOpen.value = true
+    return
+  }
   commands.value?.start(action)
 }
 </script>
@@ -180,7 +191,14 @@ function onAction(action: ChatbotRequestAction): void {
             :deliveries="detail.deliveries"
             :current-user-id="currentUserId"
           />
-          <RequestDetailConversation v-if="canSeeConversation" :request-id="detail.id" />
+          <RequestDetailConversation
+            v-if="canSeeConversation"
+            v-model:mobile-open="chatOpen"
+            :request-id="detail.id"
+            :detail="detail"
+            :current-user-id="currentUserId"
+            @action="onAction"
+          />
           <RequestDetailOtherOpen :requests="detail.otherOpenRequests" :current-user-id="currentUserId" />
           <RequestDetailDeliveries v-if="detail.deliveries.length > 0" :deliveries="detail.deliveries" />
           <RequestDetailAudit
