@@ -73,6 +73,21 @@ function readCurrent(value: unknown): ChatbotRequestErrorCurrent | null {
   return current
 }
 
+/**
+ * `fieldErrors: [{path, code}]` of the 400/422 bodies of handoffs 16 and 20 (the shared envelope
+ * only reads the validation-pipe shape): `path` → the codes found there.
+ */
+function readFieldErrorList(value: unknown): Record<string, string[]> {
+  const out: Record<string, string[]> = {}
+  if (!Array.isArray(value)) return out
+  for (const entry of value) {
+    const item = asRecord(entry)
+    if (!item || typeof item.path !== 'string' || item.path === '') continue
+    out[item.path] = [...(out[item.path] ?? []), typeof item.code === 'string' ? item.code : 'INVALID']
+  }
+  return out
+}
+
 export function readRequestError(err: unknown): ChatbotRequestError {
   const envelope = readApiErrorEnvelope(err)
   const response = asRecord(asRecord(err)?.response)
@@ -80,6 +95,7 @@ export function readRequestError(err: unknown): ChatbotRequestError {
   const current = readCurrent(body?.current)
   return {
     ...envelope,
+    fieldErrors: { ...readFieldErrorList(body?.fieldErrors), ...envelope.fieldErrors },
     current,
     zoneImpact: current?.zoneImpact ?? null,
     intoRequestId: typeof body?.intoRequestId === 'string' ? body.intoRequestId : null,
@@ -113,6 +129,16 @@ const CODE_COPY: Record<string, string> = {
   CUSTOMER_PHONE_MISMATCH: 'El teléfono de ese cliente no coincide con el de la solicitud.',
   VALIDATION_ERROR: 'Revisa los datos e intenta de nuevo.',
   NOT_FOUND: 'Esta solicitud ya no existe en esta sucursal.',
+  COMPLAINT_OUTCOME_REQUIRED: 'Elige cómo terminó la queja para poder finalizar la conversación.',
+  SESSION_NOT_ACTIVE: 'La conversación no está activa en este momento. Actualiza y revisa antes de continuar.',
+  STALE_EPOCH: 'La conversación cambió mientras la mirabas. Actualiza e intenta de nuevo.',
+  WINDOW_CLOSED: 'La ventana de 24 h de WhatsApp está cerrada: no se puede escribir hasta que el cliente responda.',
+  WINDOW_OPEN: 'La ventana de 24 h sigue abierta: escribe un mensaje en lugar de enviar la plantilla.',
+  TEMPLATE_NOT_CONFIGURED: 'Esta sucursal no tiene plantilla configurada. Pide a un administrador que la agregue en Atención del chatbot.',
+  TEMPLATE_ALREADY_SENT: 'Ya se envió una plantilla en esta ventana cerrada. Solo se puede enviar una por ventana.',
+  MEDIA_NOT_FOUND: 'No encontramos ese archivo. Súbelo de nuevo.',
+  MEDIA_PURGED: 'Ese archivo ya no está disponible: se borró por antigüedad.',
+  MEDIA_TYPE_MISMATCH: 'El archivo no coincide con el tipo elegido (imagen o PDF).',
   RANGE_TOO_LARGE: 'El rango de fechas es demasiado amplio: elige un máximo de 92 días.',
   FORBIDDEN: 'No tienes acceso a esta sucursal.',
   UNAUTHORIZED: 'Tu sesión terminó. Vuelve a iniciar sesión.',

@@ -27,6 +27,7 @@ import RequestDetailDecision from '../components/RequestDetailDecision.vue'
 import RequestDetailDeliveries from '../components/RequestDetailDeliveries.vue'
 import RequestDetailHeader from '../components/RequestDetailHeader.vue'
 import RequestDetailNeeds from '../components/RequestDetailNeeds.vue'
+import RequestDetailReply from '../components/RequestDetailReply.vue'
 import RequestDetailOtherOpen from '../components/RequestDetailOtherOpen.vue'
 import RequestDetailSkeleton from '../components/RequestDetailSkeleton.vue'
 import RequestDetailSlaPanel from '../components/RequestDetailSlaPanel.vue'
@@ -173,6 +174,12 @@ function onAction(action: ChatbotRequestAction): void {
           </div>
 
           <RequestDetailDecision v-if="detail.decision" :request="detail" />
+          <RequestDetailReply
+            v-if="detail.reply"
+            :reply="detail.reply"
+            :deliveries="detail.deliveries"
+            :current-user-id="currentUserId"
+          />
           <RequestDetailConversation v-if="canSeeConversation" :request-id="detail.id" />
           <RequestDetailOtherOpen :requests="detail.otherOpenRequests" :current-user-id="currentUserId" />
           <RequestDetailDeliveries v-if="detail.deliveries.length > 0" :deliveries="detail.deliveries" />

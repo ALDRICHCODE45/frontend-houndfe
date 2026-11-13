@@ -282,6 +282,41 @@ describe('chatbotRequestApi commands', () => {
     )
   })
 
+  it('reply: POST /:id/reply sends exactly {expectedVersion, text} and never type, mediaId or caption', async () => {
+    await chatbotRequestApi.reply(
+      'req-1',
+      {
+        expectedVersion: 2,
+        text: 'Sí, es apto desde las 8 semanas.',
+        // @ts-expect-error the reply takes no media: the backend answers 400 to these
+        mediaId: 'm-1',
+        type: 'IMAGE',
+        caption: 'x',
+      },
+      KEY,
+    )
+    expect(post).toHaveBeenCalledWith(
+      '/chatbot-requests/req-1/reply',
+      { expectedVersion: 2, text: 'Sí, es apto desde las 8 semanas.' },
+      headers,
+    )
+  })
+
+  it('finish: POST /:id/finish sends note and complaintOutcome only when there is one', async () => {
+    await chatbotRequestApi.finish(
+      'req-1',
+      { expectedVersion: 5, note: 'Resuelto por teléfono', complaintOutcome: 'NO_ACTION' },
+      KEY,
+    )
+    expect(post).toHaveBeenLastCalledWith(
+      '/chatbot-requests/req-1/finish',
+      { expectedVersion: 5, note: 'Resuelto por teléfono', complaintOutcome: 'NO_ACTION' },
+      headers,
+    )
+    await chatbotRequestApi.finish('req-1', { expectedVersion: 5, note: 'Listo' }, KEY)
+    expect(post).toHaveBeenLastCalledWith('/chatbot-requests/req-1/finish', { expectedVersion: 5, note: 'Listo' }, headers)
+  })
+
   it('resolve: POST /:id/resolve sends the flat body of the action', async () => {
     await chatbotRequestApi.resolve(
       'req-1',

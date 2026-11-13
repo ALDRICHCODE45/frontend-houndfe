@@ -19,6 +19,8 @@ vi.mock('../../api/chatbot-request.api', () => ({
     merge: vi.fn(),
     linkCustomer: vi.fn(),
     resolve: vi.fn(),
+    reply: vi.fn(),
+    finish: vi.fn(),
     listAssignableUsers: vi.fn(),
     listMergeCandidates: vi.fn(),
     getZoneImpact: vi.fn(),
@@ -779,5 +781,295 @@ describe('RequestCommandHost — refresh of the feature cache', () => {
     const invalidate = vi.spyOn(client, 'invalidateQueries')
     await start(wrapper, 'CLAIM')
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['chatbot-requests', 'tenant-1'] })
+  })
+})
+
+describe('RequestCommandHost — reply to a clarification (T7b)', () => {
+  const clarification = (overrides: Partial<ChatbotRequestDetail> = {}) =>
+    makeDetail({
+      kind: 'CLARIFICATION',
+      subtype: 'UNKNOWN_QUESTION',
+      decision: null,
+      status: 'IN_PROGRESS',
+      version: 4,
+      assignee: { id: 'u-1', displayName: 'Laura' },
+      allowedActions: ['RELEASE', 'REPLY', 'CANCEL'],
+      ...overrides,
+    })
+
+  it('opens «Responder al cliente» with a plain textarea and a 0/1500 counter', async () => {
+    const wrapper = mountHost(clarification())
+    await start(wrapper, 'REPLY')
+
+    expect(byId(wrapper, 'drawer-title').text()).toBe('Responder al cliente')
+    expect(wrapper.find('[data-testid="reply-form"]').exists()).toBe(true)
+    expect(byId(wrapper, 'reply-text').element.tagName).toBe('TEXTAREA')
+    expect(byId(wrapper, 'reply-text-count').text()).toBe('0/1500')
+    expect(wrapper.find('[data-testid="reply-claims"]').exists()).toBe(false)
+    await type(wrapper, 'reply-text', 'Hola')
+    expect(byId(wrapper, 'reply-text-count').text()).toBe('4/1500')
+  })
+
+  it('on a NEW clarification says that replying also takes and resolves it', async () => {
+    const wrapper = mountHost(clarification({ status: 'NEW', assignee: null, allowedActions: ['CLAIM', 'REPLY', 'CANCEL'] }))
+    await start(wrapper, 'REPLY')
+    expect(byId(wrapper, 'reply-claims').text()).toBe('Al responder también la tomas y la resuelves.')
+  })
+
+  it('sends {expectedVersion, text} trimmed with an Idempotency-Key, thanks and closes', async () => {
+    api.reply.mockResolvedValue(ok(5))
+    const wrapper = mountHost(clarification())
+    await start(wrapper, 'REPLY')
+
+    await type(wrapper, 'reply-text', '  Sí, es apto desde las 8 semanas.  ')
+    await submit(wrapper)
+
+    expect(api.reply).toHaveBeenCalledWith(
+      'req-1',
+      { expectedVersion: 4, text: 'Sí, es apto desde las 8 semanas.' },
+      KEY,
+    )
+    expect(toastAdd).toHaveBeenCalledWith({
+      title: 'Respuesta enviada',
+      description: 'S-000123 quedó resuelta. El bot se la hará llegar al cliente.',
+      color: 'success',
+    })
+    expect(wrapper.find('[data-testid="drawer"]').exists()).toBe(false)
+  })
+
+  it('a blank reply shows the error under the field and sends nothing', async () => {
+    const wrapper = mountHost(clarification())
+    await start(wrapper, 'REPLY')
+
+    await type(wrapper, 'reply-text', '   ')
+    await submit(wrapper)
+
+    expect(api.reply).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="alert"]').text()).toBe('Escribe la respuesta para el cliente.')
+  })
+
+  it('NOT_ASSIGNEE keeps the form and the text, names the holder and offers «Actualizar»', async () => {
+    api.reply.mockRejectedValue(
+      axiosError(403, {
+        code: 'NOT_ASSIGNEE',
+        current: { version: 5, status: 'IN_PROGRESS', claimedBy: { id: 'u-2', displayName: 'Ana López' } },
+      }),
+    )
+    const wrapper = mountHost(clarification({ status: 'NEW', assignee: null, allowedActions: ['CLAIM', 'REPLY'] }))
+    await start(wrapper, 'REPLY')
+    await type(wrapper, 'reply-text', 'Hola')
+    await submit(wrapper)
+
+    expect(byId(wrapper, 'command-notice-title').text()).toBe('La atiende Ana López')
+    expect((byId(wrapper, 'reply-text').element as HTMLTextAreaElement).value).toBe('Hola')
+    expect(toastAdd).not.toHaveBeenCalled()
+  })
+
+  it('REQUEST_CLOSED (someone answered first) says it was closed and refreshes', async () => {
+    api.reply.mockRejectedValue(axiosError(409, { code: 'REQUEST_CLOSED' }))
+    const wrapper = mountHost(clarification())
+    await start(wrapper, 'REPLY')
+    await type(wrapper, 'reply-text', 'Hola')
+    await submit(wrapper)
+
+    expect(byId(wrapper, 'command-notice-title').text()).toBe('Esta solicitud ya se cerró')
+    expect(wrapper.find('[data-testid="notice-refresh"]').exists()).toBe(true)
+  })
+
+  it('VERSION_CONFLICT behaves like the other commands: notice with the new version, text kept', async () => {
+    api.reply.mockRejectedValue(axiosError(409, { code: 'VERSION_CONFLICT', current: { version: 6 } }))
+    const wrapper = mountHost(clarification())
+    await start(wrapper, 'REPLY')
+    await type(wrapper, 'reply-text', 'Hola')
+    await submit(wrapper)
+
+    expect(byId(wrapper, 'command-notice-title').text()).toBe('La solicitud cambió mientras la mirabas')
+    expect((byId(wrapper, 'reply-text').element as HTMLTextAreaElement).value).toBe('Hola')
+  })
+
+  it('resending the same text after a network error reuses the Idempotency-Key', async () => {
+    api.reply.mockRejectedValueOnce(new Error('Network Error')).mockResolvedValueOnce(ok(5))
+    const wrapper = mountHost(clarification())
+    await start(wrapper, 'REPLY')
+    await type(wrapper, 'reply-text', 'Hola')
+    await submit(wrapper)
+    await submit(wrapper)
+
+    expect(api.reply).toHaveBeenCalledTimes(2)
+    expect(api.reply.mock.calls[1]![2]).toBe(api.reply.mock.calls[0]![2])
+  })
+
+  it('closes the form when a refetch no longer offers REPLY', async () => {
+    const wrapper = mountHost(clarification())
+    await start(wrapper, 'REPLY')
+    await wrapper.setProps({ detail: clarification({ allowedActions: ['CANCEL'] }) })
+    expect(wrapper.find('[data-testid="drawer"]').exists()).toBe(false)
+  })
+})
+
+describe('RequestCommandHost — finish a conversation (T7c)', () => {
+  const live = (overrides: Partial<ChatbotRequestDetail> = {}) =>
+    makeDetail({
+      kind: 'CONVERSATION',
+      subtype: 'TALK_TO_HUMAN',
+      decision: null,
+      status: 'IN_PROGRESS',
+      version: 6,
+      assignee: { id: 'u-1', displayName: 'Laura' },
+      allowedActions: ['FINISH'],
+      ...overrides,
+    })
+  const complaint = (overrides: Partial<ChatbotRequestDetail> = {}) => live({ subtype: 'COMPLAINT', ...overrides })
+
+  it('opens «Finalizar conversación» with an internal note and no outcome for a non-complaint', async () => {
+    const wrapper = mountHost(live())
+    await start(wrapper, 'FINISH')
+
+    expect(byId(wrapper, 'drawer-title').text()).toBe('Finalizar conversación')
+    expect(byId(wrapper, 'finish-note').element.tagName).toBe('TEXTAREA')
+    expect(byId(wrapper, 'finish-note-count').text()).toBe('0/1000')
+    expect(wrapper.text()).toContain('Solo la ve el personal')
+    expect(wrapper.findAll('[role="radio"]')).toHaveLength(0)
+  })
+
+  it('FINISH_IDLE opens the same form and says the customer has been silent for 30 minutes', async () => {
+    const wrapper = mountHost(live({ allowedActions: ['FINISH', 'FINISH_IDLE'] }))
+    await start(wrapper, 'FINISH_IDLE')
+
+    expect(byId(wrapper, 'drawer-title').text()).toBe('Finalizar conversación')
+    expect(byId(wrapper, 'finish-idle').text()).toContain('30 min')
+    expect(wrapper.find('[data-testid="finish-note"]').exists()).toBe(true)
+  })
+
+  it('plain FINISH does not claim the customer is idle', async () => {
+    const wrapper = mountHost(live())
+    await start(wrapper, 'FINISH')
+    expect(wrapper.find('[data-testid="finish-idle"]').exists()).toBe(false)
+  })
+
+  it('sends {expectedVersion, note} without complaintOutcome for a non-complaint', async () => {
+    api.finish.mockResolvedValue(ok(7))
+    const wrapper = mountHost(live())
+    await start(wrapper, 'FINISH')
+
+    await type(wrapper, 'finish-note', '  Resuelto por teléfono  ')
+    await submit(wrapper)
+
+    expect(api.finish).toHaveBeenCalledWith('req-1', { expectedVersion: 6, note: 'Resuelto por teléfono' }, KEY)
+    expect(toastAdd).toHaveBeenCalledWith({
+      title: 'Conversación finalizada',
+      description: 'S-000123 quedó resuelta.',
+      color: 'success',
+    })
+    expect(wrapper.find('[data-testid="drawer"]').exists()).toBe(false)
+  })
+
+  it('a complaint shows the four outcomes as radio rows, none preselected, no checkboxes', async () => {
+    const wrapper = mountHost(complaint())
+    await start(wrapper, 'FINISH')
+
+    const labels = wrapper.findAll('[role="radio"]').map((row) => row.text())
+    expect(labels).toEqual([
+      expect.stringContaining('Devolución'),
+      expect.stringContaining('Reemplazo'),
+      expect.stringContaining('Reembolso'),
+      expect.stringContaining('Sin acción'),
+    ])
+    expect(wrapper.findAll('[role="radio"][aria-checked="true"]')).toHaveLength(0)
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
+  })
+
+  it('a complaint cannot be finished without an outcome: the error shows on the selector and nothing is sent', async () => {
+    const wrapper = mountHost(complaint())
+    await start(wrapper, 'FINISH')
+
+    await type(wrapper, 'finish-note', 'Se atendió')
+    await submit(wrapper)
+
+    expect(api.finish).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="alert"]').text()).toBe('Elige cómo terminó la queja.')
+  })
+
+  it('a complaint sends the chosen complaintOutcome', async () => {
+    api.finish.mockResolvedValue(ok(7))
+    const wrapper = mountHost(complaint())
+    await start(wrapper, 'FINISH')
+
+    await pick(wrapper, 'REFUND')
+    await type(wrapper, 'finish-note', 'Se devolvió el dinero')
+    await submit(wrapper)
+
+    expect(api.finish).toHaveBeenCalledWith(
+      'req-1',
+      { expectedVersion: 6, note: 'Se devolvió el dinero', complaintOutcome: 'REFUND' },
+      KEY,
+    )
+  })
+
+  it('an empty note shows its error and sends nothing', async () => {
+    const wrapper = mountHost(live())
+    await start(wrapper, 'FINISH')
+    await submit(wrapper)
+    expect(api.finish).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="alert"]').text()).toBe('Escribe una nota interna.')
+  })
+
+  it('a 422 COMPLAINT_OUTCOME_REQUIRED (fieldErrors complaintOutcome) lands on the selector, form kept', async () => {
+    api.finish.mockRejectedValue(
+      axiosError(422, {
+        code: 'COMPLAINT_OUTCOME_REQUIRED',
+        fieldErrors: [{ path: 'complaintOutcome', code: 'REQUIRED' }],
+      }),
+    )
+    const wrapper = mountHost(complaint())
+    await start(wrapper, 'FINISH')
+    await pick(wrapper, 'RETURN')
+    await type(wrapper, 'finish-note', 'Listo')
+    await submit(wrapper)
+
+    expect(api.finish).toHaveBeenCalledTimes(1)
+    expect(wrapper.get('[role="alert"]').text()).toBe('Elige cómo terminó la queja.')
+    expect(wrapper.find('[data-testid="command-notice"]').exists()).toBe(false)
+    expect((byId(wrapper, 'finish-note').element as HTMLTextAreaElement).value).toBe('Listo')
+  })
+
+  it('SESSION_NOT_ACTIVE keeps the form and shows the notice with «Actualizar»', async () => {
+    api.finish.mockRejectedValue(axiosError(409, { code: 'SESSION_NOT_ACTIVE' }))
+    const wrapper = mountHost(live())
+    await start(wrapper, 'FINISH')
+    await type(wrapper, 'finish-note', 'Listo')
+    await submit(wrapper)
+
+    expect(byId(wrapper, 'command-notice-title').text()).toBe('No se pudo aplicar tu acción')
+    expect(wrapper.get('[data-testid="command-notice"]').text()).toContain('La conversación no está activa')
+    expect(wrapper.find('[data-testid="notice-refresh"]').exists()).toBe(true)
+  })
+
+  it('VERSION_CONFLICT shows the new version, and the resend carries the refreshed version', async () => {
+    api.finish.mockRejectedValue(axiosError(409, { code: 'VERSION_CONFLICT', current: { version: 8 } }))
+    const wrapper = mountHost(live())
+    await start(wrapper, 'FINISH')
+    await type(wrapper, 'finish-note', 'Listo')
+    await submit(wrapper)
+    expect(byId(wrapper, 'command-notice-title').text()).toBe('La solicitud cambió mientras la mirabas')
+
+    api.finish.mockResolvedValue(ok(9))
+    await wrapper.setProps({ detail: live({ version: 8 }) })
+    await submit(wrapper)
+    expect(api.finish).toHaveBeenLastCalledWith('req-1', { expectedVersion: 8, note: 'Listo' }, KEY)
+  })
+
+  it('closes the form when neither FINISH nor FINISH_IDLE is offered any more', async () => {
+    const wrapper = mountHost(live())
+    await start(wrapper, 'FINISH')
+    await wrapper.setProps({ detail: live({ allowedActions: [] }) })
+    expect(wrapper.find('[data-testid="drawer"]').exists()).toBe(false)
+  })
+
+  it('keeps the form open while FINISH_IDLE alone is still offered', async () => {
+    const wrapper = mountHost(live({ allowedActions: ['FINISH_IDLE'] }))
+    await start(wrapper, 'FINISH_IDLE')
+    await wrapper.setProps({ detail: live({ allowedActions: ['FINISH_IDLE'], version: 7 }) })
+    expect(wrapper.find('[data-testid="drawer"]').exists()).toBe(true)
   })
 })

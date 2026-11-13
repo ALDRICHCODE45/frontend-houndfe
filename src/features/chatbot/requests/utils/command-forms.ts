@@ -16,11 +16,14 @@ import {
 } from '@/features/shipping/delivery-zones/utils/zoneForm'
 import type {
   CancelRequestBody,
+  ChatbotComplaintOutcome,
   ChatbotRequestStaffCancelReason,
   ChatbotRequestSubtype,
+  FinishRequestBody,
   LinkCustomerRequestBody,
   MergeRequestBody,
   ReassignRequestBody,
+  ReplyRequestBody,
   ResolveRequestBody,
   ZoneType,
 } from '../interfaces/chatbot-request.types'
@@ -33,6 +36,8 @@ export const RESTOCK_DAYS_MAX = 365
 export const EXPIRATION_TEXT_MAX = 500
 export const RECEIPT_REASON_MAX = 1000
 export const RECEIPT_CUSTOMER_REASON_MAX = 300
+export const REPLY_MAX = 1500
+export const FINISH_NOTE_MAX = 1000
 
 const tooLong = (max: number) => `Máximo ${max} caracteres.`
 const text = (value: string) => value.trim()
@@ -107,6 +112,73 @@ export function buildMergeBody(
 
 export function buildLinkBody(customerId: string, expectedVersion: number): LinkCustomerRequestBody {
   return { expectedVersion, customerId }
+}
+
+// ─── Reply (handoff 19) ───────────────────────────────────────────────────────
+
+export interface ReplyDraft {
+  text: string
+}
+
+export const emptyReplyDraft = (): ReplyDraft => ({ text: '' })
+
+/** Characters as the backend counts them: an emoji is one (like WhatsApp). */
+const characters = (value: string) => Array.from(value).length
+
+export function validateReply(draft: ReplyDraft): FieldErrors {
+  const value = text(draft.text)
+  if (value === '') return { text: 'Escribe la respuesta para el cliente.' }
+  if (characters(value) > REPLY_MAX) return { text: tooLong(REPLY_MAX) }
+  return {}
+}
+
+/** Exactly `{expectedVersion, text}`, the text trimmed (line breaks inside stay). */
+export function buildReplyBody(draft: ReplyDraft, expectedVersion: number): ReplyRequestBody {
+  return { expectedVersion, text: text(draft.text) }
+}
+
+// ─── Finish (handoff 20 §4) ───────────────────────────────────────────────────
+
+export const COMPLAINT_OUTCOMES: readonly ChatbotComplaintOutcome[] = [
+  'RETURN',
+  'REPLACEMENT',
+  'REFUND',
+  'NO_ACTION',
+]
+
+export interface FinishDraft {
+  note: string
+  /** One of the four, or `''` while nothing is chosen. */
+  complaintOutcome: string
+}
+
+export const emptyFinishDraft = (): FinishDraft => ({ note: '', complaintOutcome: '' })
+
+const isOutcome = (value: string): value is ChatbotComplaintOutcome =>
+  (COMPLAINT_OUTCOMES as readonly string[]).includes(value)
+
+export function validateFinish(subtype: ChatbotRequestSubtype, draft: FinishDraft): FieldErrors {
+  const errors: FieldErrors = {}
+  const note = text(draft.note)
+  if (note === '') errors.note = 'Escribe una nota interna.'
+  else if (note.length > FINISH_NOTE_MAX) errors.note = tooLong(FINISH_NOTE_MAX)
+  // Only a complaint is classified: the backend ignores the field for any other subtype.
+  if (subtype === 'COMPLAINT' && !isOutcome(draft.complaintOutcome)) {
+    errors.complaintOutcome = 'Elige cómo terminó la queja.'
+  }
+  return errors
+}
+
+/** `null` for an invalid draft. `complaintOutcome` is sent for a complaint only. */
+export function buildFinishBody(
+  subtype: ChatbotRequestSubtype,
+  draft: FinishDraft,
+  expectedVersion: number,
+): FinishRequestBody | null {
+  if (Object.keys(validateFinish(subtype, draft)).length > 0) return null
+  const body: FinishRequestBody = { expectedVersion, note: text(draft.note) }
+  if (subtype === 'COMPLAINT' && isOutcome(draft.complaintOutcome)) body.complaintOutcome = draft.complaintOutcome
+  return body
 }
 
 // ─── Resolve ──────────────────────────────────────────────────────────────────

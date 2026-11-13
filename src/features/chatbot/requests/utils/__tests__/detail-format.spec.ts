@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ACTION_ICONS,
   ACTION_LABELS,
   auditActorLabel,
   auditEventDetail,
@@ -140,6 +141,17 @@ describe('labels for resolutions, deliveries and previews', () => {
     expect(ACTION_LABELS.CLAIM).toBe('Atender')
     expect(ACTION_LABELS.RESOLVE).toBe('Resolver…')
     expect(ACTION_LABELS.CANCEL).toBe('Cancelar solicitud…')
+  })
+
+  it('labels and icons every action of the vocabulary, including the replies and live ones (T7a)', () => {
+    expect(ACTION_LABELS.REPLY).toBe('Responder…')
+    expect(ACTION_LABELS.FINISH).toBe('Finalizar conversación…')
+    expect(ACTION_LABELS.FINISH_IDLE).toBe('Finalizar conversación…')
+    expect(ACTION_LABELS.SEND_MESSAGE).toBe('Enviar mensaje')
+    expect(ACTION_LABELS.SEND_TEMPLATE).toBe('Enviar plantilla…')
+    for (const action of ['REPLY', 'SEND_MESSAGE', 'SEND_TEMPLATE', 'FINISH', 'FINISH_IDLE'] as const) {
+      expect(ACTION_ICONS[action]).toMatch(/^i-lucide-/)
+    }
   })
 })
 

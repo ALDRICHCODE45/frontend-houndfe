@@ -1,7 +1,8 @@
 /**
  * Chatbot request inbox — wire types. Typed exactly against houndfe-backend
  * `docs/frontend-handoff/14-chatbot-request-inbox.md` (incl. §14 v1.3),
- * `11-chatbot-request-commands.md` and `12-chatbot-request-resolve.md` at 86f9b6b7.
+ * `11-chatbot-request-commands.md` and `12-chatbot-request-resolve.md` at 86f9b6b7, plus
+ * `19-clarification-replies.md` and `20-live-conversation.md` (§2 liveSession, §4 finish) at ff5baa0d.
  *
  * Text that comes from the bot or the customer (`summary`, `needs`, `context`, snapshots) is
  * plain text: never render it as HTML. The backend decides what a phone looks like (masked
@@ -42,15 +43,25 @@ export type ChatbotRequestStaffCancelReason =
   | 'CUSTOMER_UNREACHABLE'
   | 'OTHER'
 
-/** Order of the contract; rows never carry MERGE / LINK_CUSTOMER, the detail can. */
+/**
+ * Order of the contract (handoff 19 §2: `CLAIM, RELEASE, REASSIGN, RESOLVE, REPLY, MERGE,
+ * LINK_CUSTOMER, CANCEL`); rows never carry MERGE / LINK_CUSTOMER, the detail can. The live ones
+ * (handoff 20 §2) are typed so a list never breaks, but `SEND_MESSAGE` and `SEND_TEMPLATE` have no
+ * UI until the live chat (T5L): the action panel hides what the FE does not handle.
+ */
 export type ChatbotRequestAction =
   | 'CLAIM'
   | 'RELEASE'
   | 'REASSIGN'
   | 'RESOLVE'
+  | 'REPLY'
   | 'MERGE'
   | 'LINK_CUSTOMER'
   | 'CANCEL'
+  | 'SEND_MESSAGE'
+  | 'SEND_TEMPLATE'
+  | 'FINISH'
+  | 'FINISH_IDLE'
 
 /** Codes of `deniedActions` (handoff 14 §14.4): exactly what the command would answer. */
 export type ChatbotRequestDeniedCode =
@@ -67,6 +78,33 @@ export interface ChatbotRequestDeniedAction {
 export interface ChatbotRequestPerson {
   id: string
   displayName: string
+}
+
+/**
+ * `STARTING` → `ACTIVE` → `ENDING` → `ENDED`; `WAITING` is an open request whose session ended
+ * without finishing it (the start-timeout revert). Handoff 20 §1.
+ */
+export type ChatbotLiveSessionState = 'STARTING' | 'ACTIVE' | 'ENDING' | 'ENDED' | 'WAITING'
+
+/** The attendee is the row's `assignee`, not repeated here. */
+export interface ChatbotRequestLiveSession {
+  state: ChatbotLiveSessionState
+  /** `expectedEpoch` of messages and templates. */
+  handoffEpoch: number
+  /** The attendee's last message in this session (at the claim: the claim time). */
+  lastStaffActivityAt: string | null
+  lastCustomerMessageAt: string | null
+}
+
+export type ChatbotComplaintOutcome = 'RETURN' | 'REPLACEMENT' | 'REFUND' | 'NO_ACTION'
+
+/** Handoff 19 §3: the answer of a clarification, `null` until it is answered. */
+export interface ChatbotRequestReply {
+  id: string
+  /** Plain text: never HTML. */
+  text: string
+  repliedBy: ChatbotRequestPerson
+  repliedAt: string
 }
 
 // ─── Row (groups, ?customerKey=, history, otherOpenRequests, merge-candidates) ─
@@ -105,8 +143,8 @@ export interface ChatbotRequestRow {
   scheduledFor: string | null
   requiresTemplateAtStart: boolean
   needsReschedule: boolean
-  /** Always `null` until live conversations (unit 11); final shape unknown. */
-  liveSession: unknown
+  /** Handoff 20 §2: `null` unless the request is a conversation that had a session. */
+  liveSession: ChatbotRequestLiveSession | null
   closedAt: string | null
   /** Null for open and for cancelled rows. */
   resolvedBy: ChatbotRequestPerson | null
@@ -509,6 +547,10 @@ export interface ChatbotRequestDetail extends ChatbotRequestRow {
   decision: ChatbotRequestDecision | null
   /** Only on DELIVERY_ZONE with a validation. */
   zoneImpact?: ChatbotRequestZoneImpact | null
+  /** Handoff 19 §3: the answer of a clarification; `null` until answered. Absent on an older backend. */
+  reply?: ChatbotRequestReply | null
+  /** Handoff 20 §4: `null` while open, for non-complaints and for a complaint the backend closed itself. */
+  complaintOutcome?: ChatbotComplaintOutcome | null
   /** Newest first, at most 50. */
   deliveries: ChatbotRequestDelivery[]
   /** The 20 most recent events, newest first. */
@@ -558,6 +600,20 @@ export interface MergeRequestBody extends ChatbotRequestVersionedBody {
 
 export interface LinkCustomerRequestBody extends ChatbotRequestVersionedBody {
   customerId: string
+}
+
+/** Handoff 19 §1: nothing else (type, mediaId and caption are 400). */
+export interface ReplyRequestBody extends ChatbotRequestVersionedBody {
+  /** 1..1500 characters after trimming; plain text. */
+  text: string
+}
+
+/** Handoff 20 §4. */
+export interface FinishRequestBody extends ChatbotRequestVersionedBody {
+  /** Internal, 1..1000 characters, required. */
+  note: string
+  /** Only for `subtype === 'COMPLAINT'` (mandatory there); ignored for any other subtype. */
+  complaintOutcome?: ChatbotComplaintOutcome
 }
 
 export type ZoneType = 'FREE' | 'SURCHARGE' | 'CARRIER_ONLY'
@@ -624,6 +680,17 @@ export type ChatbotRequestErrorCode =
   | 'CUSTOMER_PHONE_MISMATCH'
   | 'VALIDATION_ERROR'
   | 'NOT_FOUND'
+  // Replies, finish and the live conversation (handoffs 19 and 20).
+  | 'COMPLAINT_OUTCOME_REQUIRED'
+  | 'SESSION_NOT_ACTIVE'
+  | 'STALE_EPOCH'
+  | 'WINDOW_CLOSED'
+  | 'WINDOW_OPEN'
+  | 'TEMPLATE_NOT_CONFIGURED'
+  | 'TEMPLATE_ALREADY_SENT'
+  | 'MEDIA_NOT_FOUND'
+  | 'MEDIA_PURGED'
+  | 'MEDIA_TYPE_MISMATCH'
 
 /** The `current` of a typed error: enough to patch the row without reloading. */
 export interface ChatbotRequestErrorCurrent {

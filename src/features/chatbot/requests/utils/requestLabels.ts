@@ -3,6 +3,7 @@
  * (_src/data.js, parts.js, detail.js). Labels only: nothing here computes SLA thresholds.
  */
 import type {
+  ChatbotComplaintOutcome,
   ChatbotRequestAuditType,
   ChatbotRequestCancelReason,
   ChatbotRequestDisplayStatus,
@@ -42,6 +43,19 @@ export const DISPLAY_STATUS_LABELS: Record<ChatbotRequestDisplayStatus, string> 
   RESOLVED: 'Resuelta',
   CANCELLED: 'Cancelada',
   EXPIRED: 'Vencida',
+}
+
+/** Classification of a finished complaint (handoff 20 §4); stored only, nothing is triggered. */
+export const COMPLAINT_OUTCOME_LABELS: Record<ChatbotComplaintOutcome, string> = {
+  RETURN: 'Devolución',
+  REPLACEMENT: 'Reemplazo',
+  REFUND: 'Reembolso',
+  NO_ACTION: 'Sin acción',
+}
+
+/** `null` for a missing or unknown outcome: never print the raw code. */
+export function complaintOutcomeLabel(outcome: unknown): string | null {
+  return typeof outcome === 'string' ? (COMPLAINT_OUTCOME_LABELS[outcome as ChatbotComplaintOutcome] ?? null) : null
 }
 
 export const SLA_LEVEL_LABELS: Record<ChatbotRequestSlaLevel, string> = {

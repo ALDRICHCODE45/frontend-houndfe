@@ -13,6 +13,8 @@ vi.mock('../../api/chatbot-request.api', () => ({
     merge: vi.fn(),
     linkCustomer: vi.fn(),
     resolve: vi.fn(),
+    reply: vi.fn(),
+    finish: vi.fn(),
   },
 }))
 
@@ -292,5 +294,55 @@ describe('useRequestCommand — every command goes through its api call with the
     expect(api.linkCustomer).toHaveBeenCalledWith('req-1', { expectedVersion: 1, customerId: 'cus-7' }, expect.any(String))
     expect(api.resolve).toHaveBeenCalledWith('req-1', { expectedVersion: 1, action: 'PROVIDE_RESTOCK_ESTIMATE', restockDays: 7 }, expect.any(String))
     expect(api.release).toHaveBeenCalledWith('req-1', { expectedVersion: 2 }, expect.any(String))
+  })
+})
+
+describe('useRequestCommand — reply and finish (T7)', () => {
+  it('reply: resends the same text under the same key after a network error, a new text opens a new attempt', async () => {
+    api.reply
+      .mockRejectedValueOnce(new Error('Network Error'))
+      .mockResolvedValueOnce(response())
+      .mockResolvedValueOnce(response())
+    const { command } = setup()
+
+    await command.reply('req-1', { expectedVersion: 2, text: 'Hola' })
+    await command.reply('req-1', { expectedVersion: 2, text: 'Hola' })
+    await command.reply('req-1', { expectedVersion: 3, text: 'Otra' })
+
+    const keys = api.reply.mock.calls.map((call) => call[2])
+    expect(keys[1]).toBe(keys[0])
+    expect(keys[2]).not.toBe(keys[0])
+  })
+
+  it('reply: a 4xx closes the attempt, so the same body gets a new key afterwards', async () => {
+    api.reply.mockRejectedValueOnce(axiosError(409, { code: 'REQUEST_CLOSED' })).mockResolvedValueOnce(response())
+    const { command } = setup()
+
+    const first = await command.reply('req-1', { expectedVersion: 2, text: 'Hola' })
+    expect(first.status).toBe('failed')
+    await command.reply('req-1', { expectedVersion: 2, text: 'Hola' })
+
+    expect(api.reply.mock.calls[1]![2]).not.toBe(api.reply.mock.calls[0]![2])
+  })
+
+  it('finish: sends the body with the key and keeps the key across a 5xx retry', async () => {
+    api.finish.mockRejectedValueOnce(axiosError(500, {})).mockResolvedValueOnce(response())
+    const { command } = setup()
+    const body = { expectedVersion: 5, note: 'Listo', complaintOutcome: 'REFUND' as const }
+
+    await command.finish('req-1', body)
+    await command.finish('req-1', body)
+
+    expect(api.finish).toHaveBeenCalledWith('req-1', body, expect.stringMatching(/^[0-9a-f-]{36}$/))
+    expect(api.finish.mock.calls[1]![2]).toBe(api.finish.mock.calls[0]![2])
+  })
+
+  it('finish: a state error (SESSION_NOT_ACTIVE) refetches the detail before the form can resend', async () => {
+    api.finish.mockRejectedValue(axiosError(409, { code: 'SESSION_NOT_ACTIVE' }))
+    const { command, invalidate } = setup()
+
+    await command.finish('req-1', { expectedVersion: 5, note: 'Listo' })
+
+    expect(invalidate).toHaveBeenCalledTimes(1)
   })
 })

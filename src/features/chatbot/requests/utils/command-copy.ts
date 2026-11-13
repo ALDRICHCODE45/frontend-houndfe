@@ -38,9 +38,17 @@ const FIELD_NAMES: ReadonlySet<string> = new Set([
   'amountCents',
   'intoRequestId',
   'customerId',
+  'text',
+  'complaintOutcome',
 ])
 
-const FIELD_ONLY_CODES: ReadonlySet<string> = new Set(['USER_NOT_ASSIGNABLE', 'CUSTOMER_PHONE_MISMATCH'])
+const FIELD_ONLY_CODES: ReadonlySet<string> = new Set([
+  'USER_NOT_ASSIGNABLE',
+  'CUSTOMER_PHONE_MISMATCH',
+  'COMPLAINT_OUTCOME_REQUIRED',
+])
+
+const COMPLAINT_OUTCOME_MESSAGE = 'Elige cómo terminó la queja.'
 
 const STATE_CHANGING_CODES: ReadonlySet<string> = new Set([
   'VERSION_CONFLICT',
@@ -53,6 +61,8 @@ const STATE_CHANGING_CODES: ReadonlySet<string> = new Set([
   'NOT_ASSIGNEE',
   'ACTION_NOT_ALLOWED',
   'NOT_FOUND',
+  'SESSION_NOT_ACTIVE',
+  'STALE_EPOCH',
 ])
 
 export function isStateChangingError(error: ChatbotRequestError): boolean {
@@ -67,17 +77,20 @@ export function isRetryableError(error: ChatbotRequestError): boolean {
 export function commandFieldErrors(error: ChatbotRequestError): Record<string, string> {
   if (error.code === 'USER_NOT_ASSIGNABLE') return { toUserId: requestErrorMessage(error) }
   if (error.code === 'CUSTOMER_PHONE_MISMATCH') return { customerId: requestErrorMessage(error) }
+  if (error.code === 'COMPLAINT_OUTCOME_REQUIRED') return { complaintOutcome: COMPLAINT_OUTCOME_MESSAGE }
   if (error.status !== 400 && error.status !== 422) return {}
   const errors: Record<string, string> = {}
   for (const property of Object.keys(error.fieldErrors)) {
-    if (FIELD_NAMES.has(property)) errors[property] = 'Revisa este campo.'
+    if (!FIELD_NAMES.has(property)) continue
+    errors[property] = property === 'complaintOutcome' ? COMPLAINT_OUTCOME_MESSAGE : 'Revisa este campo.'
   }
   return errors
 }
 
 const REFRESH_DETAIL = 'No se aplicó tu acción ni se guardó nada.'
 
-export function commandNotice(error: ChatbotRequestError): CommandNotice | null {
+/** `action` is the command that failed: a reply has no reassign override, so its copy differs. */
+export function commandNotice(error: ChatbotRequestError, action?: ChatbotRequestAction | null): CommandNotice | null {
   const { status, code, current, zoneImpact } = error
   const technical = `${status ?? 'Sin conexión'}${code ? ` ${code}` : ''}`
   const make = (title: string, detail: string, actions: CommandNoticeAction[]): CommandNotice => ({
@@ -129,6 +142,13 @@ export function commandNotice(error: ChatbotRequestError): CommandNotice | null 
         ['reconfirm'],
       )
     case 'NOT_ASSIGNEE':
+      if (action === 'REPLY') {
+        return make(
+          current?.claimedBy ? `La atiende ${current.claimedBy.displayName}` : 'La atiende otra persona',
+          'Solo quien la atiende puede responder; no hay forma de responder la de otra persona. No se envió nada.',
+          ['refresh'],
+        )
+      }
       return make(
         'Solo quien la atiende puede hacerlo',
         'Para liberar o cancelar la de otra persona hace falta el permiso de reasignar.',
@@ -204,6 +224,18 @@ export function commandSuccessToast(action: ChatbotRequestAction, ctx: CommandTo
         title: 'Solicitudes unidas',
         description: ctx.intoFolio ? `${ctx.folio} se unió con ${ctx.intoFolio}.` : `${ctx.folio} se unió con otra solicitud.`,
       }
+    case 'REPLY':
+      return {
+        title: 'Respuesta enviada',
+        description: `${ctx.folio} quedó resuelta. El bot se la hará llegar al cliente.`,
+      }
+    case 'FINISH':
+    case 'FINISH_IDLE':
+      return { title: 'Conversación finalizada', description: `${ctx.folio} quedó resuelta.` }
+    case 'SEND_MESSAGE':
+    case 'SEND_TEMPLATE':
+      // Live chat sends (T5L) have their own feedback in the thread, not a toast.
+      return { title: 'Mensaje enviado', description: `${ctx.folio} · el bot se lo hará llegar al cliente.` }
     case 'LINK_CUSTOMER':
       return {
         title: 'Cliente vinculado',

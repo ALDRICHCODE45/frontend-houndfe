@@ -469,3 +469,85 @@ describe('ChatbotRequestDetailView — states', () => {
     expect(wrapper.find('[data-slot="header"] [data-testid="back-to-inbox"]').exists()).toBe(true)
   })
 })
+
+describe('ChatbotRequestDetailView — reply and finish outcome (T7)', () => {
+  const answered = (overrides: Partial<ChatbotRequestDetail> = {}) =>
+    makeDetail({
+      kind: 'CLARIFICATION',
+      subtype: 'UNKNOWN_QUESTION',
+      decision: null,
+      status: 'RESOLVED',
+      displayStatus: 'RESOLVED',
+      closedAt: '2026-11-12T16:00:00.000Z',
+      allowedActions: [],
+      reply: {
+        id: 'r-1',
+        text: 'Sí, es apto desde las 8 semanas.',
+        repliedBy: { id: 'u-2', displayName: 'Ana López' },
+        repliedAt: '2026-11-12T16:00:00.000Z',
+      },
+      deliveries: [
+        {
+          deliveryId: 'd-1',
+          type: 'request.answered',
+          createdAt: '2026-11-12T16:00:00.000Z',
+          outcome: 'DEFERRED_WINDOW_CLOSED',
+          attemptedAt: null,
+          providerStatus: null,
+          needsReconciliation: false,
+        },
+      ],
+      audit: [makeAuditEvent('REPLIED', { data: { messageId: 'r-1' }, fromStatus: 'IN_PROGRESS', toStatus: 'RESOLVED' })],
+      ...overrides,
+    })
+
+  it('shows «Respuesta enviada» with the text, author and the pending delivery', async () => {
+    const wrapper = await mountView(answered())
+    const block = wrapper.get('[data-testid="reply-block"]')
+    expect(block.text()).toContain('Respuesta enviada')
+    expect(block.text()).toContain('Sí, es apto desde las 8 semanas.')
+    expect(block.text()).toContain('Ana López')
+    expect(wrapper.get('[data-testid="reply-delivery"]').text()).toBe(
+      'Pendiente: se enviará cuando el cliente escriba',
+    )
+  })
+
+  it('renders the REPLIED audit row without the text', async () => {
+    const wrapper = await mountView(answered())
+    const rows = wrapper.findAll('[data-testid="audit-item"]').map((row) => row.text())
+    expect(rows[0]).toContain('Respuesta enviada')
+    expect(rows[0]).not.toContain('apto desde')
+  })
+
+  it('has no reply block while the clarification is unanswered or for a decision', async () => {
+    expect((await mountView(answered({ reply: null }))).find('[data-testid="reply-block"]').exists()).toBe(false)
+    expect((await mountView()).find('[data-testid="reply-block"]').exists()).toBe(false)
+  })
+
+  it('shows the complaint outcome label of a finished complaint, and the outcome in the FINISHED row', async () => {
+    const wrapper = await mountView(
+      makeDetail({
+        kind: 'CONVERSATION',
+        subtype: 'COMPLAINT',
+        decision: null,
+        status: 'RESOLVED',
+        displayStatus: 'RESOLVED',
+        closedAt: '2026-11-12T16:00:00.000Z',
+        allowedActions: [],
+        complaintOutcome: 'REPLACEMENT',
+        audit: [
+          makeAuditEvent('FINISHED', { data: { complaintOutcome: 'REPLACEMENT' }, fromStatus: 'IN_PROGRESS', toStatus: 'RESOLVED' }),
+        ],
+      }),
+    )
+    expect(wrapper.get('[data-testid="complaint-outcome"]').text()).toBe('Resultado de la queja: Reemplazo')
+    expect(wrapper.get('[data-testid="audit-item"]').text()).toContain('Reemplazo')
+  })
+
+  it('shows no outcome line for a complaint closed by the system (null) or a non-complaint', async () => {
+    const wrapper = await mountView(
+      makeDetail({ subtype: 'COMPLAINT', status: 'RESOLVED', displayStatus: 'RESOLVED', complaintOutcome: null, allowedActions: [] }),
+    )
+    expect(wrapper.find('[data-testid="complaint-outcome"]').exists()).toBe(false)
+  })
+})

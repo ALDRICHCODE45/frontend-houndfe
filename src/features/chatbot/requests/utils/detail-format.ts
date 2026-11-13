@@ -14,6 +14,7 @@ import type {
 } from '../interfaces/chatbot-request.types'
 import {
   CANCEL_REASON_LABELS,
+  complaintOutcomeLabel,
   formatFolioNumber,
   STAFF_CANCEL_REASON_LABELS,
 } from './requestLabels'
@@ -149,6 +150,23 @@ export function deliveryOutcomeLabel(outcome: unknown): string {
   )
 }
 
+const REPLY_DELIVERY_LABELS: Record<string, string> = {
+  PENDING: 'Pendiente de envío',
+  PROVIDER_ACCEPTED: 'Entregada a WhatsApp',
+  DEFERRED_WINDOW_CLOSED: 'Pendiente: se enviará cuando el cliente escriba',
+  DEFERRED_HUMAN_SESSION: 'Pendiente: se enviará cuando termine la conversación con una persona',
+  DELIVERY_UNKNOWN: 'Entrega dudosa: no sabemos si llegó',
+  STALE: 'No se envió',
+}
+
+/** State of the `request.answered` delivery of a reply (handoff 19 §3). */
+export function replyDeliveryLabel(outcome: unknown): string {
+  return (
+    (typeof outcome === 'string' ? REPLY_DELIVERY_LABELS[outcome] : undefined) ??
+    'Estado de entrega desconocido'
+  )
+}
+
 const PREVIEW_STATUS_LABELS: Record<string, string> = {
   READY: 'Vista previa lista',
   PENDING: 'Generando la vista previa',
@@ -183,9 +201,14 @@ export const ACTION_LABELS: Record<ChatbotRequestAction, string> = {
   RELEASE: 'Liberar',
   REASSIGN: 'Reasignar…',
   RESOLVE: 'Resolver…',
+  REPLY: 'Responder…',
   MERGE: 'Unir con otra…',
   LINK_CUSTOMER: 'Vincular cliente…',
   CANCEL: 'Cancelar solicitud…',
+  SEND_MESSAGE: 'Enviar mensaje',
+  SEND_TEMPLATE: 'Enviar plantilla…',
+  FINISH: 'Finalizar conversación…',
+  FINISH_IDLE: 'Finalizar conversación…',
 }
 
 export const ACTION_ICONS: Record<ChatbotRequestAction, string> = {
@@ -193,9 +216,14 @@ export const ACTION_ICONS: Record<ChatbotRequestAction, string> = {
   RELEASE: 'i-lucide-undo-2',
   REASSIGN: 'i-lucide-arrow-left-right',
   RESOLVE: 'i-lucide-circle-check',
+  REPLY: 'i-lucide-reply',
   MERGE: 'i-lucide-merge',
   LINK_CUSTOMER: 'i-lucide-link',
   CANCEL: 'i-lucide-ban',
+  SEND_MESSAGE: 'i-lucide-send',
+  SEND_TEMPLATE: 'i-lucide-file-text',
+  FINISH: 'i-lucide-flag',
+  FINISH_IDLE: 'i-lucide-flag',
 }
 
 // ─── Audit ────────────────────────────────────────────────────────────────────
@@ -266,6 +294,10 @@ export function auditEventDetail(event: ChatbotRequestAuditItem): string | null 
         quoted('nota', data.note),
         quoted('mensaje al cliente', data.customerNote),
       ])
+    }
+    case 'FINISHED': {
+      const outcome = complaintOutcomeLabel(data.complaintOutcome)
+      return join([outcome ? `Resultado de la queja: ${outcome}` : null, quoted('nota', data.note)])
     }
     case 'SLA_MILESTONE':
       if (data.clock === 'CLAIM') return 'Tiempo para tomarla'

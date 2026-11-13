@@ -185,3 +185,41 @@ describe('deniedActionReason (why a button is missing)', () => {
     expect(deniedActionReason('CANCEL_NOT_ALLOWED')).toBe('Esta solicitud no se puede cancelar.')
   })
 })
+
+describe('codes of the reply, finish and live conversation (T7a)', () => {
+  const GENERIC = 'No se pudo completar la acción. Intenta de nuevo.'
+  const cases: Array<[number, string, RegExp]> = [
+    [422, 'COMPLAINT_OUTCOME_REQUIRED', /queja/i],
+    [409, 'SESSION_NOT_ACTIVE', /conversación/i],
+    [409, 'STALE_EPOCH', /cambió/i],
+    [409, 'WINDOW_CLOSED', /24 h/],
+    [409, 'WINDOW_OPEN', /24 h/],
+    [422, 'TEMPLATE_NOT_CONFIGURED', /plantilla/i],
+    [409, 'TEMPLATE_ALREADY_SENT', /plantilla/i],
+    [404, 'MEDIA_NOT_FOUND', /archivo/i],
+    [422, 'MEDIA_PURGED', /archivo/i],
+    [422, 'MEDIA_TYPE_MISMATCH', /archivo/i],
+    [409, 'IDEMPOTENCY_CONFLICT', /acción/i],
+  ]
+
+  it.each(cases)('%i %s has its own es-MX copy', (status, code, pattern) => {
+    const message = requestErrorMessage(axiosError(status, { statusCode: status, code }))
+    expect(message).not.toBe(GENERIC)
+    expect(message).toMatch(pattern)
+    expect(message).not.toContain(code)
+  })
+
+  it('reads the 422 fieldErrors [{path, code}] of a missing complaint outcome', () => {
+    const error = readRequestError(
+      axiosError(422, {
+        statusCode: 422,
+        code: 'COMPLAINT_OUTCOME_REQUIRED',
+        message: 'x',
+        current: { version: 5, status: 'IN_PROGRESS', claimedBy: null },
+        fieldErrors: [{ path: 'complaintOutcome', code: 'REQUIRED' }],
+      }),
+    )
+    expect(error.fieldErrors.complaintOutcome).toEqual(['REQUIRED'])
+    expect(error.current?.version).toBe(5)
+  })
+})

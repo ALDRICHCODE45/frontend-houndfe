@@ -227,6 +227,106 @@ describe('RequestDetailActionPanel', () => {
   })
 })
 
+describe('RequestDetailActionPanel — action vocabulary safety net (T7a)', () => {
+  const mountPanel = (
+    allowed: string[],
+    denied: Array<{ action: string; code: string }> = [],
+    extra: Record<string, unknown> = {},
+  ) =>
+    mount(RequestDetailActionPanel, {
+      props: {
+        allowed: allowed as ChatbotRequestAction[],
+        denied: denied as ChatbotRequestDeniedAction[],
+        assignee: null,
+        status: 'NEW',
+        version: 3,
+        ...extra,
+      },
+      global,
+    })
+  const testIds = (wrapper: ReturnType<typeof mountPanel>) =>
+    wrapper
+      .findAll('[data-testid^="action-"]')
+      .map((node) => node.attributes('data-testid'))
+      .filter((id) => id !== 'action-panel')
+
+  it('labels REPLY «Responder…» and FINISH «Finalizar conversación…»', () => {
+    const wrapper = mountPanel(['REPLY', 'FINISH'], [], { status: 'IN_PROGRESS' })
+    expect(wrapper.get('[data-testid="action-REPLY"]').text()).toContain('Responder')
+    expect(wrapper.get('[data-testid="action-FINISH"]').text()).toContain('Finalizar conversación')
+  })
+
+  it('never renders SEND_MESSAGE or SEND_TEMPLATE (they wait for the live chat), allowed or denied', () => {
+    const wrapper = mountPanel(
+      ['SEND_MESSAGE', 'SEND_TEMPLATE', 'FINISH'],
+      [{ action: 'SEND_TEMPLATE', code: 'NOT_ASSIGNEE' }],
+      { status: 'IN_PROGRESS' },
+    )
+    expect(testIds(wrapper)).toEqual(['action-FINISH'])
+  })
+
+  it('never renders an action this version does not know, never as a blank button', () => {
+    const wrapper = mountPanel(
+      ['CLAIM', 'RESCHEDULE', 'SOMETHING_NEW'],
+      [{ action: 'RESCHEDULE', code: 'INSUFFICIENT_PERMISSIONS' }],
+    )
+    expect(testIds(wrapper)).toEqual(['action-CLAIM'])
+    for (const node of wrapper.findAll('button')) expect(node.text().trim()).not.toBe('')
+  })
+
+  it('says the request is read-only instead of an empty list when every allowed action is hidden', () => {
+    const wrapper = mountPanel(['SEND_MESSAGE'], [], { status: 'IN_PROGRESS' })
+    expect(testIds(wrapper)).toEqual([])
+    expect(wrapper.find('[data-testid="no-actions"]').exists()).toBe(true)
+  })
+
+  it('shows one «Finalizar» button when FINISH and FINISH_IDLE are both allowed', async () => {
+    const wrapper = mountPanel(['FINISH', 'FINISH_IDLE'], [], { status: 'IN_PROGRESS' })
+    expect(testIds(wrapper)).toEqual(['action-FINISH'])
+    await wrapper.get('[data-testid="action-FINISH"]').trigger('click')
+    expect(wrapper.emitted('action')).toEqual([['FINISH']])
+  })
+
+  it('renders FINISH_IDLE on its own when FINISH is not in the list', async () => {
+    const wrapper = mountPanel(['FINISH_IDLE'], [], { status: 'IN_PROGRESS' })
+    expect(wrapper.get('[data-testid="action-FINISH_IDLE"]').text()).toContain('Finalizar conversación')
+    await wrapper.get('[data-testid="action-FINISH_IDLE"]').trigger('click')
+    expect(wrapper.emitted('action')).toEqual([['FINISH_IDLE']])
+  })
+
+  it('REPLY is the primary action of a clarification, also on a NEW one that offers «Atender»', () => {
+    const panel = mountPanel(['CLAIM', 'REPLY', 'CANCEL'])
+    expect(testIds(panel)[0]).toBe('action-REPLY')
+    const bar = mountPanel(['CLAIM', 'REPLY', 'CANCEL'], [], { variant: 'bar' })
+    expect(bar.get('[data-testid="bar-primary"]').text()).toContain('Responder')
+  })
+
+  it('without REPLY, «Atender» stays the primary action', () => {
+    const bar = mountPanel(['CLAIM', 'RESOLVE'], [], { variant: 'bar' })
+    expect(bar.get('[data-testid="bar-primary"]').text()).toContain('Atender')
+  })
+
+  it('a denied REPLY is a disabled button with its reason', () => {
+    const wrapper = mountPanel(
+      [],
+      [{ action: 'REPLY', code: 'NOT_ASSIGNEE' }],
+      { status: 'IN_PROGRESS', assignee: { id: 'u-2', displayName: 'Luis Ortega' } },
+    )
+    expect(wrapper.get('[data-testid="action-REPLY"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-testid="denied-reason-REPLY"]').text()).toBe('Solo quien la atiende puede hacerlo.')
+  })
+})
+
+describe('RequestDetailActionPanel — finish in flight (T7c)', () => {
+  it('FINISH_IDLE alone shows as loading when the host reports FINISH (same form, same command)', () => {
+    const wrapper = mount(RequestDetailActionPanel, {
+      props: { allowed: ['FINISH_IDLE'], denied: [], assignee: null, status: 'IN_PROGRESS', version: 1, pendingAction: 'FINISH' },
+      global,
+    })
+    expect(wrapper.get('[data-testid="action-FINISH_IDLE"]').attributes('disabled')).toBeDefined()
+  })
+})
+
 describe('RequestDetailActionPanel — a command in flight (T2.U4)', () => {
   const mountPending = (variant: 'panel' | 'bar' = 'panel') =>
     mount(RequestDetailActionPanel, {
