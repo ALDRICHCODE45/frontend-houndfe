@@ -21,6 +21,8 @@ const props = defineProps<{
   timeZone?: string
   /** Injected "current" instant (tests); defaults to the live clock. */
   now?: Date
+  /** The window the composer uses (server overrides included); absent → computed from the detail alone. */
+  window?: { closed: boolean; closesAt: number | null } | null
 }>()
 
 const headingId = useId()
@@ -54,6 +56,12 @@ const customerLine = computed(() => {
 })
 
 const windowLine = computed(() => {
+  if (props.window) {
+    if (props.window.closed) return 'cerrada'
+    const left = props.window.closesAt === null ? null : props.window.closesAt - clock.value.getTime()
+    if (left === null) return '—'
+    return left <= 0 ? 'abierta' : `cierra en ${formatRemaining(left)}`
+  }
   const closes = windowClosesAt({
     messages: [],
     lastCustomerMessageAt: session.value?.lastCustomerMessageAt ?? null,

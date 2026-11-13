@@ -44,6 +44,8 @@ const emit = defineEmits<{
   /** Buttons that run a request action (the view hands it to the command host). */
   action: [action: ChatbotRequestAction]
   'update:mobileOpen': [value: boolean]
+  /** The window the composer uses, so the rest of the page says the same. */
+  'window-state': [value: { closed: boolean; closesAt: number | null }]
 }>()
 
 const auth = useAuthStore()
@@ -87,6 +89,7 @@ const {
   notice,
   displayMessages,
   retried,
+  unsent,
   textLimit,
   overLimit,
   canSend,
@@ -97,6 +100,11 @@ const {
   templateAvailable,
   templateSending,
 } = chat
+watch(
+  [windowClosed, windowClosesAt],
+  () => emit('window-state', { closed: windowClosed.value, closesAt: windowClosesAt.value }),
+  { immediate: true },
+)
 const templateCost = useTemplateCost()
 const templateOpen = ref(false)
 
@@ -313,6 +321,28 @@ onMounted(() => {
     </div>
 
     <template v-if="isEnabled && isLive && detail">
+      <div
+        v-for="item in unsent"
+        :key="item.id"
+        class="lc-note lc-unsent"
+        role="status"
+        data-testid="live-unsent"
+      >
+        <UIcon name="i-lucide-triangle-alert" aria-hidden="true" />
+        <div class="lc-note__text">
+          <strong>Texto no enviado</strong>
+          <span data-testid="live-unsent-text">{{ item.text || item.attachmentName }}</span>
+          <small v-if="item.attachmentName && item.text">Con el archivo {{ item.attachmentName }}</small>
+        </div>
+        <div class="lc-note__acts">
+          <button type="button" class="rc-linkbtn" data-testid="live-unsent-use" @click="chat.useUnsent(item.id)">
+            Usar este texto
+          </button>
+          <button type="button" class="rc-linkbtn" data-testid="live-unsent-discard" @click="chat.discardUnsent(item.id)">
+            Descartar
+          </button>
+        </div>
+      </div>
       <RequestLiveComposer
         v-if="mode === 'composer' || mode === 'connecting'"
         v-model="draft"

@@ -49,6 +49,24 @@ interface OutboxEntry {
   message: ChatbotMessage
 }
 
+/**
+ * A refused message the composer could not take back without overwriting what the attendee typed
+ * meanwhile (or without handing a photo to new text as its caption): it waits as a note until the
+ * attendee decides («Usar este texto»).
+ */
+export interface UnsentText {
+  id: string
+  text: string
+  /** Name of the attachment that went with it, or `null` for a plain text. */
+  attachmentName: string | null
+}
+
+interface UnsentHold extends UnsentText {
+  input: SendInput
+  error: LiveError
+  shown: LiveNotice
+}
+
 export interface UseLiveChatOptions {
   /** `null` while there is no live session to talk about (the chat then sends nothing). */
   detail: MaybeRefOrGetter<ChatbotRequestDetail | null>
@@ -87,6 +105,10 @@ export function useLiveChat(options: UseLiveChatOptions) {
   const notice = ref<LiveNotice | null>(null)
   const entries = ref<OutboxEntry[]>([])
   const retried = ref<ReadonlySet<string>>(new Set())
+  const holds = ref<UnsentHold[]>([])
+  const unsent = computed<UnsentText[]>(() =>
+    holds.value.map(({ id, text, attachmentName }) => ({ id, text, attachmentName })),
+  )
 
   /** Highest customer `seq` known when the server said `WINDOW_CLOSED`. */
   const forcedClosedAfterSeq = ref<number | null>(null)
@@ -109,6 +131,22 @@ export function useLiveChat(options: UseLiveChatOptions) {
   })
 
   const isSending = computed(() => entries.value.some((e) => e.phase === 'sending'))
+
+  function serverHas(clientMessageId: string | null | undefined): boolean {
+    return !!clientMessageId && threadMessages.value.some((m) => m.clientMessageId === clientMessageId)
+  }
+
+  // The server's copy of a clientMessageId is the truth: the local entry (unsent, stored, sending)
+  // has nothing left to say, and must not make «Reintentar» resend the old id.
+  watch(
+    threadMessages,
+    () => {
+      if (entries.value.some((e) => serverHas(e.clientMessageId))) {
+        entries.value = entries.value.filter((e) => !serverHas(e.clientMessageId))
+      }
+    },
+    { flush: 'sync' },
+  )
 
   // ─── Window and template ─────────────────────────────────────────────────────
   const windowInput = computed<WindowInput>(() => ({
@@ -253,7 +291,7 @@ export function useLiveChat(options: UseLiveChatOptions) {
     { restore }: { restore: boolean } = { restore: false },
   ): Promise<DispatchResult> {
     const expectedEpoch = epoch.value
-    if (expectedEpoch === null) return { ok: false, error: null, notice: null }
+    if (!sessionActive.value || expectedEpoch === null) return { ok: false, error: null, notice: null }
     const message = optimisticMessage(clientMessageId, input)
     upsert({ clientMessageId, input, phase: 'sending', message })
     try {
@@ -277,26 +315,27 @@ export function useLiveChat(options: UseLiveChatOptions) {
         drop(clientMessageId)
         applyRefusal(error)
         if (shown.refetch) refetchDetail()
-        if (restore) restoreInput(input, error, shown)
+        // NOT_ASSIGNEE: the person can no longer send, so the text does not come back to the box.
+        if (restore && error.code !== 'NOT_ASSIGNEE') restoreInput(input, error, shown)
       }
       return { ok: false, error, notice: shown }
     }
   }
 
-  function restoreDraft(text: string): void {
-    if (draft.value.trim().length === 0) draft.value = text
+  function holdOf(input: SendInput, error: LiveError, shown: LiveNotice): UnsentHold {
+    return {
+      id: `unsent-${newIdempotencyKey()}`,
+      text: input.kind === 'text' ? input.text : input.caption,
+      attachmentName: input.kind === 'media' ? input.name : null,
+      input,
+      error,
+      shown,
+    }
   }
 
-  /** Puts a refused message back in the composer without overwriting what was typed or picked since. */
-  function restoreInput(input: SendInput, error: LiveError, shown: LiveNotice): void {
-    if (input.kind === 'text') {
-      restoreDraft(input.text)
-      return
-    }
-    restoreDraft(input.caption)
-    if (attachment.value) return
+  function attachmentOf(input: Extract<SendInput, { kind: 'media' }>, error: LiveError, shown: LiveNotice): LiveAttachment {
     const mediaGone = ['MEDIA_NOT_FOUND', 'MEDIA_PURGED', 'MEDIA_TYPE_MISMATCH'].includes(error.code ?? '')
-    attachment.value = {
+    return {
       name: input.name,
       size: input.size,
       kind: input.type,
@@ -305,6 +344,43 @@ export function useLiveChat(options: UseLiveChatOptions) {
       mediaId: input.mediaId,
       error: mediaGone ? (shown.detail ?? 'Súbelo de nuevo.') : null,
     }
+  }
+
+  /**
+   * Puts a refused message back in the composer. It goes straight back only when that overwrites
+   * nothing and hands nothing to new text: an empty box (and, for a photo, no attachment held). Any
+   * other case waits as an «unsent» note, never merged silently.
+   */
+  function restoreInput(input: SendInput, error: LiveError, shown: LiveNotice): void {
+    const boxEmpty = draft.value.trim().length === 0
+    if (input.kind === 'text') {
+      if (boxEmpty) draft.value = input.text
+      else holds.value = [...holds.value, holdOf(input, error, shown)]
+      return
+    }
+    if (boxEmpty && !attachment.value) {
+      draft.value = input.caption
+      attachment.value = attachmentOf(input, error, shown)
+      return
+    }
+    holds.value = [...holds.value, holdOf(input, error, shown)]
+  }
+
+  /** «Usar este texto»: puts a held message back; text goes after what is typed, after a blank line. */
+  function useUnsent(id: string): void {
+    const hold = holds.value.find((h) => h.id === id)
+    if (!hold) return
+    holds.value = holds.value.filter((h) => h.id !== id)
+    if (hold.text.length > 0) {
+      draft.value = draft.value.trim().length === 0 ? hold.text : `${draft.value}\n\n${hold.text}`
+    }
+    if (hold.input.kind === 'media' && !attachment.value) {
+      attachment.value = attachmentOf(hold.input, hold.error, hold.shown)
+    }
+  }
+
+  function discardUnsent(id: string): void {
+    holds.value = holds.value.filter((h) => h.id !== id)
   }
 
   // ─── Sending the composer ────────────────────────────────────────────────────
@@ -333,9 +409,14 @@ export function useLiveChat(options: UseLiveChatOptions) {
 
   /** «Reintentar» / «Enviar como mensaje nuevo» on a delivery that did not work out. */
   async function retry(message: ChatbotMessage): Promise<void> {
-    const held = entries.value.find((e) => e.clientMessageId === message.clientMessageId)
-    // A second click / Enter while the first resend is in flight must not send anything else.
-    if (held?.phase === 'sending' || retried.value.has(message.id)) return
+    if (!sessionActive.value) return
+    // The server's copy supersedes a local entry of the same id: a resend is then a NEW message.
+    const held = serverHas(message.clientMessageId)
+      ? undefined
+      : entries.value.find((e) => e.clientMessageId === message.clientMessageId)
+    // A second click / Enter while the first resend is in flight must not send anything else; a
+    // stored bubble is the server's already (no new-id send from a stale bubble).
+    if (held?.phase === 'sending' || held?.phase === 'stored' || retried.value.has(message.id)) return
     notice.value = null
     if (held?.phase === 'unsent') {
       await dispatch(held.clientMessageId, held.input, { restore: true })
@@ -470,6 +551,9 @@ export function useLiveChat(options: UseLiveChatOptions) {
     notice,
     displayMessages,
     retried,
+    unsent,
+    useUnsent,
+    discardUnsent,
     isSending,
     textLimit,
     overLimit,

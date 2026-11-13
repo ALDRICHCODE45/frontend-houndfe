@@ -88,6 +88,16 @@ describe('isWindowClosed — T5L.F: the server saying WINDOW_OPEN beats the cloc
     expect(isWindowClosed({ ...base, forcedOpenAfterSeq: 10 }, NOW_D)).toBe(false)
   })
 
+  it('T13 D5: server truth wins over the local clock, even past 24 h from the newest customer message', () => {
+    expect(isWindowClosed({ ...base, forcedOpenAfterSeq: 10 }, new Date(Date.parse(OLD) + 2 * WINDOW_MS))).toBe(false)
+  })
+
+  it('T13 D5: the override also holds when only the stale row value says closed', () => {
+    const noMessages = { messages: [], lastCustomerMessageAt: null, rowClosesAt: '2026-11-13T10:00:00.000Z', forcedClosedAfterSeq: null }
+    expect(isWindowClosed(noMessages, NOW_D)).toBe(true)
+    expect(isWindowClosed({ ...noMessages, forcedOpenAfterSeq: 0 }, NOW_D)).toBe(false)
+  })
+
   it('hands back to the clock once a newer customer message exists', () => {
     const newer = [...base.messages, makeMessage({ seq: 11, direction: 'IN', author: 'CUSTOMER', providerTimestamp: OLD, createdAt: OLD })]
     expect(isWindowClosed({ ...base, messages: newer, forcedOpenAfterSeq: 10 }, NOW_D)).toBe(true)

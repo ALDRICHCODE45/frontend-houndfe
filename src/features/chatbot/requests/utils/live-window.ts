@@ -6,7 +6,9 @@
  * customer message (thread or `liveSession.lastCustomerMessageAt`) plus 24 h. The server is still
  * the truth: a `409 WINDOW_CLOSED` closes the composer (`forcedClosedAfterSeq`) until the customer
  * writes again, and a staff message that ended `DEFERRED` means the same. A `409 WINDOW_OPEN`
- * (`forcedOpenAfterSeq`) overrides the local clock the same way.
+ * (`forcedOpenAfterSeq`) overrides the local clock the same way: server truth wins over a skewed
+ * clock. An enabled composer past the real end is harmless (the send gets `409 WINDOW_CLOSED`,
+ * which closes it again and delivers nothing).
  */
 import type { ChatbotMessage } from '../interfaces/chatbot-request.types'
 
@@ -22,7 +24,7 @@ export interface WindowInput {
   /**
    * Highest customer `seq` known when the server said `WINDOW_OPEN`: the server's word beats the
    * local clock (a skewed clock must not block the composer for good) until the customer writes
-   * again. Absent / `null` when it never did.
+   * again or the server says `WINDOW_CLOSED`. Absent / `null` when it never did.
    */
   forcedOpenAfterSeq?: number | null
 }

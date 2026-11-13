@@ -180,7 +180,6 @@ describe('useLiveChat — conflicts keep the draft', () => {
   it.each([
     ['STALE_EPOCH', 409, { code: 'STALE_EPOCH', currentEpoch: 4 }],
     ['SESSION_NOT_ACTIVE', 409, { code: 'SESSION_NOT_ACTIVE', sessionState: 'ENDED' }],
-    ['NOT_ASSIGNEE', 403, { code: 'NOT_ASSIGNEE' }],
   ])('%s refetches the detail and keeps the draft', async (_name, status, body) => {
     api.sendMessage.mockRejectedValue(axiosError(status, body))
     const { chat, invalidate } = setup()
@@ -701,9 +700,18 @@ describe('useLiveChat — T5L.F: a server WINDOW_OPEN beats the local clock', ()
       detail: liveDetail({ liveSession: { state: 'ACTIVE', handoffEpoch: 3, lastStaffActivityAt: null, lastCustomerMessageAt: OLD } }),
     })
 
-  it('after WINDOW_OPEN the composer opens even though the local clock says closed', async () => {
+  const rowOnly = () =>
+    setup({
+      messages: [],
+      detail: liveDetail({
+        whatsappWindowClosesAt: '2026-11-13T10:00:00.000Z',
+        liveSession: { state: 'ACTIVE', handoffEpoch: 3, lastStaffActivityAt: null, lastCustomerMessageAt: null },
+      }),
+    })
+
+  it('after WINDOW_OPEN the composer opens even though the stale row value says closed', async () => {
     api.sendTemplate.mockRejectedValue(axiosError(409, { code: 'WINDOW_OPEN' }))
-    const { chat } = skewed()
+    const { chat } = rowOnly()
     expect(chat.windowClosed.value).toBe(true)
 
     await chat.sendTemplate()
@@ -712,13 +720,23 @@ describe('useLiveChat — T5L.F: a server WINDOW_OPEN beats the local clock', ()
     expect(chat.templateAvailable.value).toBe(false)
   })
 
+  it('T13 D5: skewed clock — «Enviar plantilla» answered WINDOW_OPEN opens the composer even past 24 h from the newest customer message', async () => {
+    api.sendTemplate.mockRejectedValue(axiosError(409, { code: 'WINDOW_OPEN' }))
+    const { chat } = skewed()
+    expect(chat.windowClosed.value).toBe(true)
+
+    await chat.sendTemplate()
+
+    expect(chat.windowClosed.value).toBe(false)
+  })
+
   it('until the next customer message, which hands the decision back to the clock', async () => {
     api.sendTemplate.mockRejectedValue(axiosError(409, { code: 'WINDOW_OPEN' }))
-    const { chat, messages } = skewed()
+    const { chat, messages } = rowOnly()
     await chat.sendTemplate()
     expect(chat.windowClosed.value).toBe(false)
 
-    messages.value = [customer(10, OLD), customer(11, OLD)]
+    messages.value = [customer(11, OLD)]
     expect(chat.windowClosed.value).toBe(true)
   })
 
@@ -731,5 +749,204 @@ describe('useLiveChat — T5L.F: a server WINDOW_OPEN beats the local clock', ()
     // The composer is open by the server's word: sending is allowed and answered WINDOW_CLOSED.
     await chat.send()
     expect(chat.windowClosed.value).toBe(true)
+  })
+})
+
+describe('useLiveChat — T13 D1: a refused text stays recoverable', () => {
+  it('keeps the refused text when the attendee already typed something else (no silent merge)', async () => {
+    let reject!: (e: unknown) => void
+    api.sendMessage.mockReturnValue(new Promise((_, r) => (reject = r)))
+    const { chat } = setup()
+    chat.draft.value = 'Primero'
+    const sending = chat.send()
+    await flushPromises()
+    chat.draft.value = 'Ya escribí otra cosa'
+    reject(axiosError(409, { code: 'STALE_EPOCH' }))
+    await sending
+
+    expect(chat.draft.value).toBe('Ya escribí otra cosa')
+    expect(chat.unsent.value).toHaveLength(1)
+    expect(chat.unsent.value[0]).toMatchObject({ text: 'Primero', attachmentName: null })
+  })
+
+  it('«Usar este texto» appends it after a blank line and clears the note', async () => {
+    api.sendMessage.mockRejectedValueOnce(axiosError(409, { code: 'STALE_EPOCH' }))
+    const { chat } = setup()
+    chat.draft.value = 'Primero'
+    // The attendee types again before the refusal arrives: simulate by typing right after send().
+    const sending = chat.send()
+    chat.draft.value = 'Segundo'
+    await sending
+
+    chat.useUnsent(chat.unsent.value[0]!.id)
+
+    expect(chat.draft.value).toBe('Segundo\n\nPrimero')
+    expect(chat.unsent.value).toEqual([])
+  })
+
+  it('«Usar este texto» fills an empty box as it is, and the note can be discarded', async () => {
+    api.sendMessage.mockRejectedValue(axiosError(409, { code: 'STALE_EPOCH' }))
+    const { chat } = setup()
+    chat.draft.value = 'Uno'
+    const first = chat.send()
+    chat.draft.value = 'Otro'
+    await first
+    chat.draft.value = ''
+    chat.useUnsent(chat.unsent.value[0]!.id)
+    expect(chat.draft.value).toBe('Uno')
+
+    chat.draft.value = 'Dos'
+    const second = chat.send()
+    chat.draft.value = 'Tres'
+    await second
+    chat.discardUnsent(chat.unsent.value[0]!.id)
+    expect(chat.unsent.value).toEqual([])
+  })
+
+  it('a refused retry of an unsent bubble with newer typing keeps the old text recoverable', async () => {
+    api.sendMessage
+      .mockRejectedValueOnce(new Error('network'))
+      .mockRejectedValueOnce(axiosError(409, { code: 'STALE_EPOCH' }))
+    const { chat } = setup()
+    chat.draft.value = 'Primero'
+    await chat.send()
+    chat.draft.value = 'Ya escribí otra cosa'
+
+    await chat.retry(chat.displayMessages.value[1]!)
+
+    expect(chat.draft.value).toBe('Ya escribí otra cosa')
+    expect(chat.unsent.value[0]).toMatchObject({ text: 'Primero' })
+  })
+
+  it('a refused photo does not come back as the attachment of the newly typed text', async () => {
+    api.uploadMedia.mockResolvedValue({ mediaId: 'media-9', mimeType: 'image/png', sizeBytes: 2048, sha256: 'x', filename: 'foto.png' })
+    api.sendMessage.mockRejectedValueOnce(axiosError(409, { code: 'STALE_EPOCH' }))
+    const { chat } = setup()
+    await chat.pickFile(new File(['x'], 'foto.png', { type: 'image/png' }))
+    chat.draft.value = 'Así quedó'
+    const sending = chat.send()
+    chat.draft.value = 'Texto nuevo'
+    await sending
+
+    expect(chat.attachment.value).toBeNull()
+    expect(chat.draft.value).toBe('Texto nuevo')
+    expect(chat.unsent.value[0]).toMatchObject({ text: 'Así quedó', attachmentName: 'foto.png' })
+
+    // Recovering it is an explicit act: the photo and its caption come back together.
+    chat.draft.value = ''
+    chat.useUnsent(chat.unsent.value[0]!.id)
+    expect(chat.attachment.value).toMatchObject({ mediaId: 'media-9', status: 'ready' })
+    expect(chat.draft.value).toBe('Así quedó')
+  })
+
+  it('an empty box still restores the refused text directly (no note)', async () => {
+    api.sendMessage.mockRejectedValue(axiosError(409, { code: 'STALE_EPOCH' }))
+    const { chat } = setup()
+    chat.draft.value = 'Hola'
+    await chat.send()
+    expect(chat.draft.value).toBe('Hola')
+    expect(chat.unsent.value).toEqual([])
+  })
+})
+
+describe('useLiveChat — T13: NOT_ASSIGNEE does not restore the text', () => {
+  it('leaves the box empty, keeps no unsent note and refetches the detail', async () => {
+    api.sendMessage.mockRejectedValue(axiosError(403, { code: 'NOT_ASSIGNEE' }))
+    const { chat, invalidate } = setup()
+    chat.draft.value = 'Escribía esto'
+
+    await chat.send()
+
+    expect(chat.draft.value).toBe('')
+    expect(chat.unsent.value).toEqual([])
+    expect(seqs(chat.displayMessages.value)).toEqual([10])
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: chatbotRequestKeys.detail('tenant-1', 'req-1') })
+    expect(chat.notice.value?.title).toBe('Ya no la atiendes tú')
+  })
+
+  it('a refused retry (unsent bubble) with newer typing leaves that typing alone and keeps no note', async () => {
+    api.sendMessage
+      .mockRejectedValueOnce(new Error('network'))
+      .mockRejectedValueOnce(axiosError(403, { code: 'NOT_ASSIGNEE' }))
+    const { chat } = setup()
+    chat.draft.value = 'Primero'
+    await chat.send()
+    chat.draft.value = 'Otra cosa'
+
+    await chat.retry(chat.displayMessages.value[1]!)
+
+    expect(chat.draft.value).toBe('Otra cosa')
+    expect(chat.unsent.value).toEqual([])
+  })
+})
+
+describe('useLiveChat — T13 D2: the server copy replaces the local unsent entry', () => {
+  it.each(['FAILED', 'UNKNOWN'] as const)(
+    'Reintentar on a server %s sends a NEW id at the first click',
+    async (status) => {
+      api.sendMessage
+        .mockRejectedValueOnce(new Error('network'))
+        .mockResolvedValueOnce({ message: staffMessage(12, 'key-2') })
+      const { chat, messages } = setup()
+      chat.draft.value = 'Hola'
+      await chat.send()
+      expect(chat.displayMessages.value[1]).toMatchObject({ clientMessageId: 'key-1', unconfirmed: true })
+
+      const server = staffMessage(11, 'key-1', { deliveryStatus: status })
+      messages.value = [customer(10), server]
+      await flushPromises()
+      await chat.retry(chat.displayMessages.value[1]!)
+
+      expect(api.sendMessage).toHaveBeenCalledTimes(2)
+      expect(api.sendMessage.mock.calls[1]![1]).toMatchObject({ clientMessageId: 'key-2', text: 'Hola' })
+    },
+  )
+
+  it('still resends the SAME id while the server copy has not arrived', async () => {
+    api.sendMessage.mockRejectedValueOnce(new Error('network')).mockResolvedValueOnce({ message: staffMessage(11, 'key-1') })
+    const { chat } = setup()
+    chat.draft.value = 'Hola'
+    await chat.send()
+    await chat.retry(chat.displayMessages.value[1]!)
+    expect(api.sendMessage.mock.calls[1]![1]).toMatchObject({ clientMessageId: 'key-1' })
+  })
+})
+
+describe('useLiveChat — T13 D3: a stored bubble is not retried', () => {
+  it('retry() on an entry in phase «stored» sends nothing', async () => {
+    api.sendMessage.mockResolvedValue({ message: staffMessage(11, 'key-1', { deliveryStatus: 'FAILED' }) })
+    const { chat } = setup()
+    chat.draft.value = 'Hola'
+    await chat.send()
+    const stored = chat.displayMessages.value[1]!
+    expect(stored.seq).toBe(11)
+
+    await chat.retry(stored)
+
+    expect(api.sendMessage).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('useLiveChat — T13 D4: retry and dispatch need an ACTIVE session', () => {
+  const ended = () =>
+    liveDetail({ liveSession: { state: 'ENDED', handoffEpoch: 3, lastStaffActivityAt: null, lastCustomerMessageAt: null } })
+
+  it('retry() of a server FAILED message sends nothing when the session is not ACTIVE', async () => {
+    const failed = staffMessage(11, 'old-id', { deliveryStatus: 'FAILED' })
+    const { chat } = setup({ detail: ended(), messages: [customer(10), failed] })
+    await chat.retry(failed)
+    expect(api.sendMessage).not.toHaveBeenCalled()
+  })
+
+  it('retry() of an unsent bubble sends nothing once the session stopped being ACTIVE', async () => {
+    api.sendMessage.mockRejectedValueOnce(new Error('network'))
+    const { chat, detail } = setup()
+    chat.draft.value = 'Hola'
+    await chat.send()
+    detail.value = ended()
+
+    await chat.retry(chat.displayMessages.value[1]!)
+
+    expect(api.sendMessage).toHaveBeenCalledTimes(1)
   })
 })

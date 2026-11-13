@@ -200,6 +200,35 @@ describe('RequestDetailConversation — composer', () => {
     expect(wrapper.get('[data-testid="template-open"]').attributes('disabled')).toBeUndefined()
   })
 
+  it('T13: a refused text with newer typing waits in «Texto no enviado»; «Usar este texto» appends it', async () => {
+    let reject!: (e: unknown) => void
+    api.sendMessage.mockReturnValue(new Promise((_, r) => (reject = r)))
+    const wrapper = mountBlock(live('ACTIVE'))
+    const box = wrapper.get('[data-testid="composer-text"]')
+    await box.setValue('Primero')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    await box.setValue('Segundo')
+    reject(axiosError(409, { code: 'STALE_EPOCH', currentEpoch: 4 }))
+    await flushPromises()
+
+    expect((box.element as HTMLTextAreaElement).value).toBe('Segundo')
+    expect(wrapper.get('[data-testid="live-unsent"]').text()).toContain('Texto no enviado')
+    expect(wrapper.get('[data-testid="live-unsent-text"]').text()).toBe('Primero')
+
+    await wrapper.get('[data-testid="live-unsent-use"]').trigger('click')
+    expect((box.element as HTMLTextAreaElement).value).toBe('Segundo\n\nPrimero')
+    expect(wrapper.find('[data-testid="live-unsent"]').exists()).toBe(false)
+  })
+
+  it('T13 D5: tells its parent the window the composer uses (for the rail)', async () => {
+    const wrapper = mountBlock(live('ACTIVE'))
+    await flushPromises()
+    const emitted = wrapper.emitted('window-state')
+    expect(emitted).toBeTruthy()
+    expect(emitted![emitted!.length - 1]![0]).toMatchObject({ closed: false })
+  })
+
   it('a STALE_EPOCH keeps the draft in the box and says the conversation changed', async () => {
     api.sendMessage.mockRejectedValue(axiosError(409, { code: 'STALE_EPOCH', currentEpoch: 4 }))
     const wrapper = mountBlock(live('ACTIVE'))

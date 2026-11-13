@@ -65,6 +65,16 @@ describe('RequestDetailSessionPanel — «Esta conversación» (design A rail ca
     expect(row(wrapper, 'customer')).toBe('sin escribir desde hace 1 h')
   })
 
+  it('T13 D5: follows the window computed for the composer when it is handed down', () => {
+    const detail = live({ liveSession: session({ lastCustomerMessageAt: '2026-11-10T10:00:00.000Z' }) })
+    const at = (window: { closed: boolean; closesAt: number | null }) =>
+      row(mount(RequestDetailSessionPanel, { props: { detail, currentUserId: 'u-1', timeZone: TZ, now: NOW, window }, global: { stubs: DETAIL_STUBS } }), 'window')
+    // The server said WINDOW_OPEN: the composer is open, so the rail does not say «cerrada».
+    expect(at({ closed: false, closesAt: NOW.getTime() - 3_600_000 })).toBe('abierta')
+    expect(at({ closed: true, closesAt: NOW.getTime() + 3_600_000 })).toBe('cerrada')
+    expect(at({ closed: false, closesAt: NOW.getTime() + 3 * 3_600_000 })).toBe('cierra en 3 h')
+  })
+
   it('reads a closed window as «cerrada»', () => {
     const wrapper = mountPanel(live({ liveSession: session({ lastCustomerMessageAt: '2026-11-10T10:00:00.000Z' }) }))
     expect(row(wrapper, 'window')).toBe('cerrada')
