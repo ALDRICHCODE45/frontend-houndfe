@@ -55,3 +55,56 @@ export function firstSeq(items: readonly ChatbotMessage[]): number | null {
 export function lastSeq(items: readonly ChatbotMessage[]): number | null {
   return items.length > 0 ? items[items.length - 1]!.seq : null
 }
+
+/** What a realtime event does to the cached thread: a new thread, «re-read it from the server», or nothing. */
+export type ThreadPatch = ConversationThread | 'refetch' | null
+
+/** The shape the thread needs of a message that came over the stream (it is not parsed by the API layer). */
+export function isThreadMessage(value: unknown): value is ChatbotMessage {
+  if (!value || typeof value !== 'object') return false
+  const m = value as Record<string, unknown>
+  return (
+    typeof m.id === 'string' &&
+    typeof m.seq === 'number' &&
+    Number.isInteger(m.seq) &&
+    m.seq > 0 &&
+    typeof m.author === 'string' &&
+    typeof m.direction === 'string' &&
+    typeof m.type === 'string'
+  )
+}
+
+/**
+ * `conversation.message` (handoff 18 §4): a message is the state at delivery time, replaced by `seq`.
+ * A seq with a hole before it is NOT inserted (the poll cursor is the highest seq held, so the hole
+ * would never be read): the thread is re-read instead. Older than the loaded window is left to
+ * «Cargar anteriores» (its cursor is the lowest seq held).
+ */
+export function applyRealtimeMessage(thread: ConversationThread, message: ChatbotMessage): ThreadPatch {
+  const first = firstSeq(thread.items)
+  const last = lastSeq(thread.items)
+  if (first === null || last === null) return message.seq === 1 ? { ...thread, items: [message] } : 'refetch'
+  if (message.seq > last + 1) return 'refetch'
+  if (message.seq < first) return null
+  return { ...thread, items: mergeMessages(thread.items, [message]) }
+}
+
+/**
+ * `message.status`: moves the held copy of a staff message along the status ladder (never back; the
+ * off-ladder states are taken as they come). A seq the thread has not read yet means a message was
+ * missed: re-read. One older than the loaded window is ignored.
+ */
+export function applyRealtimeStatus(
+  thread: ConversationThread,
+  status: { seq: number; messageId: string; deliveryStatus: string },
+): ThreadPatch {
+  const held = thread.items.find((m) => m.seq === status.seq)
+  if (!held) {
+    const last = lastSeq(thread.items)
+    return last === null || status.seq > last ? 'refetch' : null
+  }
+  if (held.id !== status.messageId) return 'refetch'
+  if (held.author !== 'STAFF') return null
+  const next = { ...held, deliveryStatus: status.deliveryStatus as ChatbotMessage['deliveryStatus'] }
+  return { ...thread, items: mergeMessages(thread.items, [next]) }
+}

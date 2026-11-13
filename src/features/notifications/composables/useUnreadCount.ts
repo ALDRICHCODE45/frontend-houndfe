@@ -1,17 +1,20 @@
 import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
+import { useRealtimeOpen, whileStreamOpen } from '@/core/realtime/polling'
 import { notificationsApi } from '../api/notifications.api'
 import { notificationKeys } from '../constants/queryKeys'
 import { useNotificationsAccess } from './useNotificationsAccess'
 
 /**
- * Unread badge of the bell. The backend has no push yet (SSE, handoff 17, is not consumed): the
- * count is read every 30 s while the tab is visible (`refetchIntervalInBackground` stays off).
+ * Unread badge of the bell: read every 30 s while the tab is visible (`refetchIntervalInBackground`
+ * stays off). With the realtime stream open (`VITE_REALTIME_SSE`, handoff 17) `notification.created`
+ * / `notification.read` set the badge, so this is only a safety net (`REALTIME_OPEN_REFETCH_MS`).
  */
 export const UNREAD_COUNT_REFETCH_MS = 30_000
 
 export function useUnreadCount() {
   const { tenantId, enabled } = useNotificationsAccess()
+  const streamOpen = useRealtimeOpen()
 
   const query = useQuery({
     queryKey: computed(() => notificationKeys.unreadCount(tenantId.value)),
@@ -19,7 +22,7 @@ export function useUnreadCount() {
     enabled,
     staleTime: 15_000,
     retry: false,
-    refetchInterval: UNREAD_COUNT_REFETCH_MS,
+    refetchInterval: computed(() => whileStreamOpen(UNREAD_COUNT_REFETCH_MS, streamOpen.value)),
   })
 
   return {

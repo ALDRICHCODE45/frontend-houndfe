@@ -1,8 +1,9 @@
 /**
  * fetch-based reader of `GET /realtime/stream` (handoff 17), no EventSource.
  *
- * Owns one connection at a time: SSE parsing, heartbeat watchdog (dead after
- * 45 s of silence), reconnect with backoff (3 s → 30 s, jitter, `Retry-After`),
+ * Owns one connection at a time: SSE parsing, connect timeout (15 s to the response
+ * headers), heartbeat watchdog (dead after 45 s of silence), reconnect with backoff
+ * (3 s → 30 s, equal jitter, `Retry-After`), once-per-token `auth-expired` refresh,
  * `Last-Event-ID` cursor, dedupe by id, and every control event of §3.4.
  * It knows nothing about tabs or the app: the service wraps it.
  */
@@ -35,10 +36,13 @@ export interface StreamClient {
   getCursor(): string | null
 }
 
+/** No response headers within this long: abort the attempt and retry with backoff. */
+const CONNECT_TIMEOUT_MS = 15_000
 const HEARTBEAT_DEAD_MS = 45_000
 const BACKOFF_START_MS = 3_000
 const BACKOFF_MAX_MS = 30_000
-const JITTER_RATIO = 0.25
+/** A wait the server asks for (`Retry-After`, `server-unavailable`) is spread upwards by up to this share. */
+const FLOOR_SPREAD_RATIO = 0.25
 const SERVER_UNAVAILABLE_MIN_MS = 5_000
 const RETRY_AFTER_MAX_MS = 120_000
 /** A connection that lived this long counts as healthy again after `slow-consumer`. */
@@ -75,10 +79,13 @@ export function createStreamClient(options: StreamClientOptions): StreamClient {
   let attempt = 0
   let retryHintMs = BACKOFF_START_MS
   let refreshedFor401 = false
+  /** The token a stream last ended with `auth-expired`: a second one for the same token does not refresh again. */
+  let authExpiredToken: string | null = null
   let slowStreak = 0
   let openedAt = 0
   let retryTimer: ReturnType<typeof setTimeout> | null = null
   let watchdog: ReturnType<typeof setTimeout> | null = null
+  let connectTimer: ReturnType<typeof setTimeout> | null = null
   let lastStatus: StreamStatus | null = null
 
   function setStatus(status: StreamStatus) {
@@ -100,7 +107,8 @@ export function createStreamClient(options: StreamClientOptions): StreamClient {
   function clearTimers() {
     if (retryTimer) clearTimeout(retryTimer)
     if (watchdog) clearTimeout(watchdog)
-    retryTimer = watchdog = null
+    if (connectTimer) clearTimeout(connectTimer)
+    retryTimer = watchdog = connectTimer = null
   }
 
   /** Invalidates the current connection (and any async work tied to it) and aborts it. */
@@ -108,6 +116,8 @@ export function createStreamClient(options: StreamClientOptions): StreamClient {
     generation++
     if (watchdog) clearTimeout(watchdog)
     watchdog = null
+    if (connectTimer) clearTimeout(connectTimer)
+    connectTimer = null
     controller?.abort()
     controller = null
   }
@@ -119,15 +129,23 @@ export function createStreamClient(options: StreamClientOptions): StreamClient {
     setStatus({ state: 'stopped', reason })
   }
 
+  /**
+   * Equal jitter over the base delay: half of it is fixed, the other half is random, so clients
+   * that lost the stream together (a deploy) come back spread over [base / 2, base] instead of
+   * one narrow window. Never above the 30 s cap.
+   */
   function backoffDelay(): number {
     const base = Math.min(BACKOFF_MAX_MS, retryHintMs * 2 ** attempt)
-    return Math.min(BACKOFF_MAX_MS, base * (1 + JITTER_RATIO * random()))
+    return Math.min(BACKOFF_MAX_MS, base / 2 + (base / 2) * random())
   }
 
   function scheduleRetry(minMs = 0) {
     if (!running) return
     setStatus({ state: 'reconnecting' })
-    const delay = Math.max(minMs, backoffDelay())
+    // A floor from the server is honoured, never shortened; it is spread upwards so the clients
+    // it was given to do not all return at the same instant.
+    const floor = minMs > 0 ? minMs + minMs * FLOOR_SPREAD_RATIO * random() : 0
+    const delay = Math.max(floor, backoffDelay())
     attempt++
     if (retryTimer) clearTimeout(retryTimer)
     retryTimer = setTimeout(() => {
@@ -172,10 +190,14 @@ export function createStreamClient(options: StreamClientOptions): StreamClient {
   function handleMessage(gen: number, message: SseMessage) {
     if (gen !== generation) return
 
+    // A second auth-expired for a token we already refreshed for does not prove the connection
+    // works (REST may accept a token the stream keeps rejecting): it must not reset the backoff.
+    const repeatedAuthExpired = message.event === 'auth-expired' && authExpiredToken === currentToken
+
     // Any message proves the connection works: reset the backoff, unless the
     // server just dropped us as a slow consumer (then only a stable connection resets it).
     if (slowStreak > 0 && Date.now() - openedAt >= STABLE_AFTER_MS) slowStreak = 0
-    if (slowStreak === 0) attempt = 0
+    if (slowStreak === 0 && !repeatedAuthExpired) attempt = 0
 
     let data: unknown
     let parsed = true
@@ -188,6 +210,12 @@ export function createStreamClient(options: StreamClientOptions): StreamClient {
     switch (message.event) {
       case 'auth-expired':
         endConnection()
+        if (repeatedAuthExpired) {
+          // Same token, same answer: treat it like a 401 after a refresh and back off.
+          scheduleRetry()
+          return
+        }
+        authExpiredToken = currentToken
         void refreshThenReconnect(currentToken, generation)
         return
       case 'access-revoked':
@@ -286,6 +314,15 @@ export function createStreamClient(options: StreamClientOptions): StreamClient {
     }
     if (cursor !== null) headers['Last-Event-ID'] = cursor
 
+    // The watchdog only arms once the response is open: without this a connect that never gets
+    // headers would stay `connecting` for good (and keep the leader lock).
+    connectTimer = setTimeout(() => {
+      connectTimer = null
+      if (gen !== generation || !running) return
+      endConnection()
+      scheduleRetry()
+    }, CONNECT_TIMEOUT_MS)
+
     let response: Response
     try {
       response = await options.fetch(`${options.baseUrl}/realtime/stream`, {
@@ -304,6 +341,9 @@ export function createStreamClient(options: StreamClientOptions): StreamClient {
       abort.abort()
       return
     }
+
+    if (connectTimer) clearTimeout(connectTimer)
+    connectTimer = null
 
     if (response.ok) {
       refreshedFor401 = false
@@ -368,6 +408,7 @@ export function createStreamClient(options: StreamClientOptions): StreamClient {
       attempt = 0
       slowStreak = 0
       refreshedFor401 = false
+      authExpiredToken = null
       void connect()
     },
     getCursor: () => cursor,

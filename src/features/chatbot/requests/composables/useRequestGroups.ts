@@ -5,6 +5,7 @@ import { chatbotRequestKeys } from '../constants/queryKeys'
 import type { ChatbotRequestGroup, ChatbotRequestGroupsFilters } from '../interfaces/chatbot-request.types'
 import { isStaleCustomerKeyError } from '../utils/requestErrors'
 import { pollingInterval, REQUESTS_PAGE_SIZE } from './polling'
+import { useRealtimeOpen } from '@/core/realtime/polling'
 import { useRequestAccess } from './useRequestAccess'
 
 export interface UseRequestGroupsOptions {
@@ -18,6 +19,7 @@ export interface UseRequestGroupsOptions {
  * tab is visible. A `400` on a stale cursor shows as `needsReload` and is never retried.
  */
 export function useRequestGroups(options: UseRequestGroupsOptions) {
+  const streamOpen = useRealtimeOpen()
   const { tenantId, enabled } = useRequestAccess()
   const limit = options.limit ?? REQUESTS_PAGE_SIZE
   const filters = computed<ChatbotRequestGroupsFilters>(() => ({ ...toValue(options.filters), limit }))
@@ -33,7 +35,11 @@ export function useRequestGroups(options: UseRequestGroupsOptions) {
     placeholderData: keepPreviousData,
     staleTime: 15_000,
     retry: false,
-    refetchInterval: pollingInterval,
+    // Re-evaluated when the stream opens or closes (the closure holds the state it was built with).
+    refetchInterval: computed(() => {
+      const open = streamOpen.value
+      return (query: Parameters<typeof pollingInterval>[0]) => pollingInterval(query, open)
+    }),
   })
 
   // Pages never repeat a group, but a refetch can overlap two cursors: first occurrence wins.

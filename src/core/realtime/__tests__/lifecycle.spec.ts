@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { effectScope, reactive } from 'vue'
+import { effectScope, reactive, ref } from 'vue'
 import { startRealtimeLifecycle, type RealtimeAuthState } from '../lifecycle'
 import type { RealtimeService } from '../realtime-service'
 import { setRealtimeServiceForTests, useRealtime } from '../useRealtime'
@@ -69,6 +69,42 @@ describe('startRealtimeLifecycle', () => {
     auth.currentTenantId = 't1'
     expect(mocks.start).not.toHaveBeenCalled()
     expect(mocks.stop).toHaveBeenCalled()
+  })
+})
+
+describe('startRealtimeLifecycle — read:ChatbotRequest gate', () => {
+  it('opens no stream for a user without read:ChatbotRequest, starts when granted, stops when revoked', () => {
+    const { service, mocks } = fakeService()
+    const allowed = ref(false)
+    const asked: Array<[string, string]> = []
+    const auth = reactive<RealtimeAuthState>({
+      isAuthenticated: true,
+      user: { id: 'u1' },
+      currentTenantId: 't1',
+      userCan: (action: string, subject: string) => {
+        asked.push([action, subject])
+        return allowed.value
+      },
+    })
+    const stop = startRealtimeLifecycle(auth, service)
+    expect(mocks.start).not.toHaveBeenCalled()
+    expect(asked[0]).toEqual(['read', 'ChatbotRequest'])
+
+    allowed.value = true
+    expect(mocks.start).toHaveBeenLastCalledWith({ userId: 'u1', tenantId: 't1' })
+
+    mocks.stop.mockClear()
+    allowed.value = false
+    expect(mocks.stop).toHaveBeenCalledTimes(1)
+    stop()
+  })
+
+  it('keeps starting for a state that carries no permission check (backwards compatible)', () => {
+    const { service, mocks } = fakeService()
+    const auth = reactive<RealtimeAuthState>({ isAuthenticated: true, user: { id: 'u1' }, currentTenantId: 't1' })
+    const stop = startRealtimeLifecycle(auth, service)
+    expect(mocks.start).toHaveBeenCalledWith({ userId: 'u1', tenantId: 't1' })
+    stop()
   })
 })
 

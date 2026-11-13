@@ -18,7 +18,9 @@ interface Setup {
   client: ReturnType<typeof createStreamClient>
 }
 
-function setup(over: { random?: () => number; refresh?: (stale: string | null) => Promise<boolean> } = {}): Setup {
+function setup(
+  over: { random?: () => number; refresh?: (stale: string | null) => Promise<boolean>; keepToken?: boolean } = {},
+): Setup {
   const f = createFetchMock()
   const events: RealtimeEnvelope[] = []
   const statuses: Setup['statuses'] = []
@@ -28,7 +30,8 @@ function setup(over: { random?: () => number; refresh?: (stale: string | null) =
     refresh: vi.fn(
       over.refresh ??
         (async () => {
-          auth.token = 't2'
+          // `keepToken`: a refresh that finds the stored token still good (REST accepts it) and leaves it as is.
+          if (!over.keepToken) auth.token = 't2'
           return true
         }),
     ),
@@ -37,7 +40,7 @@ function setup(over: { random?: () => number; refresh?: (stale: string | null) =
     baseUrl: 'http://api.test',
     fetch: f.fetch,
     auth,
-    random: over.random ?? (() => 0),
+    random: over.random ?? (() => 1),
     onEvent: (e) => events.push(e),
     onStatus: (s) => statuses.push(s),
   })
@@ -161,20 +164,94 @@ describe('stream client', () => {
       }
     })
 
-    it('adds jitter on top of the base delay but never exceeds 30 s', async () => {
+    it('equal jitter: the wait is between half the base delay and the base delay (never above 30 s)', async () => {
+      // random 0 → half of the base: 3 s → 1.5 s, then 6 s → 3 s
+      const low = setup({ random: () => 0 })
+      low.f.enqueue(new Error('down'), new Error('down'))
+      low.client.start()
+      await flush()
+      await vi.advanceTimersByTimeAsync(1_499)
+      expect(low.f.calls).toHaveLength(1)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(low.f.calls).toHaveLength(2)
+      await vi.advanceTimersByTimeAsync(2_999)
+      expect(low.f.calls).toHaveLength(2)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(low.f.calls).toHaveLength(3)
+
+      // random 0.5 → three quarters of the base: 3 s → 2.25 s
+      const mid = setup({ random: () => 0.5 })
+      mid.f.enqueue(new Error('down'), new Error('down'))
+      mid.client.start()
+      await flush()
+      await vi.advanceTimersByTimeAsync(2_249)
+      expect(mid.f.calls).toHaveLength(1)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(mid.f.calls).toHaveLength(2)
+    })
+
+    it('equal jitter keeps the 30 s cap: base 30 s waits 15–30 s', async () => {
       const s = setup({ random: () => 1 })
-      s.f.enqueue(new Error('down'), new Error('down'))
+      s.f.enqueue(...Array.from({ length: 7 }, () => new Error('down')))
       s.client.start()
       await flush()
-      await vi.advanceTimersByTimeAsync(3_000)
+      for (const delay of [3_000, 6_000, 12_000, 24_000, 30_000, 30_000]) {
+        await vi.advanceTimersByTimeAsync(delay)
+      }
+      expect(s.f.calls).toHaveLength(7)
+      const half = setup({ random: () => 0 })
+      half.f.enqueue(...Array.from({ length: 8 }, () => new Error('down')))
+      half.client.start()
+      await flush()
+      for (const delay of [1_500, 3_000, 6_000, 12_000, 15_000, 15_000]) {
+        await vi.advanceTimersByTimeAsync(delay)
+      }
+      expect(half.f.calls).toHaveLength(7)
+    })
+
+    it('leaders that lose the stream at the same instant reconnect spread over 1.5–3 s, not in one narrow window', async () => {
+      const waits: number[] = []
+      for (const draw of [0, 0.25, 0.5, 0.75, 1]) {
+        const s = setup({ random: () => draw })
+        const res = await open(s)
+        s.f.enqueue(streamResponse().response)
+        res.stream.push(sse('server-shutdown', { reason: 'SHUTDOWN' }))
+        await flush()
+        let waited = 0
+        while (s.f.calls.length < 2 && waited < 10_000) {
+          await vi.advanceTimersByTimeAsync(50)
+          waited += 50
+        }
+        waits.push(waited)
+        s.client.stop()
+      }
+      expect(Math.min(...waits)).toBeGreaterThanOrEqual(1_500)
+      expect(Math.max(...waits)).toBeLessThanOrEqual(3_000)
+      expect(Math.max(...waits) - Math.min(...waits)).toBeGreaterThanOrEqual(1_400)
+      expect(new Set(waits).size).toBe(5)
+    })
+
+    it('a floor from the server (Retry-After, server-unavailable) is spread upwards, never shortened', async () => {
+      const s = setup({ random: () => 1 })
+      const res = await open(s)
+      res.stream.push(sse('server-unavailable', { reason: 'REALTIME_UNAVAILABLE' }))
+      await flush()
+      s.f.enqueue(streamResponse().response)
+      // random 1 → the full spread: 5 s + 25 % = 6.25 s
+      await vi.advanceTimersByTimeAsync(6_249)
       expect(s.f.calls).toHaveLength(1)
-      await vi.advanceTimersByTimeAsync(750)
-      expect(s.f.calls).toHaveLength(2)
-      // second delay: 6 s base + 25 % = 7.5 s
-      await vi.advanceTimersByTimeAsync(7_499)
-      expect(s.f.calls).toHaveLength(2)
       await vi.advanceTimersByTimeAsync(1)
-      expect(s.f.calls).toHaveLength(3)
+      expect(s.f.calls).toHaveLength(2)
+
+      const none = setup({ random: () => 0 })
+      const res2 = await open(none)
+      res2.stream.push(sse('server-unavailable', { reason: 'REALTIME_UNAVAILABLE' }))
+      await flush()
+      none.f.enqueue(streamResponse().response)
+      await vi.advanceTimersByTimeAsync(4_999)
+      expect(none.f.calls).toHaveLength(1)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(none.f.calls).toHaveLength(2)
     })
 
     it('resets the backoff once a message arrives', async () => {
@@ -262,9 +339,93 @@ describe('stream client', () => {
     })
   })
 
+  describe('connect (handshake) timeout', () => {
+    const hang = () => new Promise<Response>(() => {})
+
+    it('aborts a connect that gets no response headers within 15 s and retries with backoff', async () => {
+      const s = setup()
+      s.f.enqueue(hang)
+      s.client.start()
+      await flush()
+      const signal = s.f.calls[0]!.signal
+      expect(last(s)!.state).toBe('connecting')
+      await vi.advanceTimersByTimeAsync(14_999)
+      expect(signal.aborted).toBe(false)
+      expect(last(s)!.state).toBe('connecting')
+      s.f.enqueue(streamResponse().response)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(signal.aborted).toBe(true)
+      expect(last(s)!.state).toBe('reconnecting')
+      await vi.advanceTimersByTimeAsync(2_999)
+      expect(s.f.calls).toHaveLength(1)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(s.f.calls).toHaveLength(2)
+      expect(last(s)!.state).toBe('open')
+    })
+
+    it('keeps backing off while connects keep stalling (3 s, then 6 s)', async () => {
+      const s = setup()
+      s.f.enqueue(hang, hang, streamResponse().response)
+      s.client.start()
+      await flush()
+      await vi.advanceTimersByTimeAsync(15_000)
+      await vi.advanceTimersByTimeAsync(3_000)
+      expect(s.f.calls).toHaveLength(2)
+      await vi.advanceTimersByTimeAsync(15_000)
+      await vi.advanceTimersByTimeAsync(5_999)
+      expect(s.f.calls).toHaveLength(2)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(s.f.calls).toHaveLength(3)
+    })
+
+    it('is not armed once the headers arrive: an open stream is not cut at 15 s', async () => {
+      const s = setup()
+      const res = await open(s)
+      const signal = s.f.calls[0]!.signal
+      for (let i = 0; i < 4; i++) {
+        await vi.advanceTimersByTimeAsync(10_000)
+        res.stream.push(sse('heartbeat', { serverTime: 'x' }))
+        await flush()
+      }
+      expect(signal.aborted).toBe(false)
+      expect(s.f.calls).toHaveLength(1)
+    })
+
+    it('an error status inside 15 s does not leave a timer behind that cuts the next connection', async () => {
+      const s = setup()
+      const ok = streamResponse()
+      s.f.enqueue(errorResponse(502), ok.response)
+      s.client.start()
+      await flush()
+      await vi.advanceTimersByTimeAsync(3_000)
+      expect(s.f.calls).toHaveLength(2)
+      const signal = s.f.calls[1]!.signal
+      // the first attempt's 15 s mark passes while the second connection is open and healthy
+      await vi.advanceTimersByTimeAsync(10_000)
+      ok.stream.push(sse('heartbeat', { serverTime: 'x' }))
+      await flush()
+      await vi.advanceTimersByTimeAsync(10_000)
+      expect(signal.aborted).toBe(false)
+      expect(s.f.calls).toHaveLength(2)
+      expect(last(s)!.state).toBe('open')
+    })
+
+    it('stop() while connecting cancels the timer: no reconnecting status, no new call', async () => {
+      const s = setup()
+      s.f.enqueue(hang)
+      s.client.start()
+      await flush()
+      await vi.advanceTimersByTimeAsync(5_000)
+      s.client.stop()
+      await vi.advanceTimersByTimeAsync(120_000)
+      expect(s.f.calls).toHaveLength(1)
+      expect(last(s)).toEqual({ state: 'idle' })
+    })
+  })
+
   describe('HTTP errors', () => {
     it('503 honours Retry-After when longer than the backoff', async () => {
-      const s = setup()
+      const s = setup({ random: () => 0 })
       s.f.enqueue(errorResponse(503, { 'Retry-After': '5' }, { code: 'STREAM_CAPACITY' }))
       s.client.start()
       await flush()
@@ -422,6 +583,86 @@ describe('stream client', () => {
       expect(s.f.calls).toHaveLength(1)
     })
 
+    it('a repeated auth-expired for the same token backs off instead of refreshing and reconnecting at once', async () => {
+      // REST still accepts the token, so the refresh leaves it as it was and the stream says it again.
+      const s = setup({ keepToken: true })
+      const first = await open(s)
+      const second = streamResponse()
+      s.f.enqueue(second.response)
+      first.stream.push(sse('auth-expired', {}))
+      await flush()
+      expect(s.auth.refresh).toHaveBeenCalledTimes(1)
+      expect(s.f.calls).toHaveLength(2)
+
+      // the second connection says auth-expired again for the very same token
+      const third = streamResponse()
+      s.f.enqueue(third.response)
+      second.stream.push(sse('auth-expired', {}))
+      await flush()
+      expect(s.auth.refresh).toHaveBeenCalledTimes(1)
+      expect(s.f.calls).toHaveLength(2)
+      expect(last(s)!.state).toBe('reconnecting')
+      await vi.advanceTimersByTimeAsync(2_999)
+      expect(s.f.calls).toHaveLength(2)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(s.f.calls).toHaveLength(3)
+
+      // and again: the wait grows (3 s → 6 s) with no refresh probe in between
+      const fourth = streamResponse()
+      s.f.enqueue(fourth.response)
+      third.stream.push(sse('auth-expired', {}))
+      await flush()
+      await vi.advanceTimersByTimeAsync(5_999)
+      expect(s.f.calls).toHaveLength(3)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(s.f.calls).toHaveLength(4)
+      expect(s.auth.refresh).toHaveBeenCalledTimes(1)
+    })
+
+    it('an auth-expired after the token changed refreshes at once (once per token)', async () => {
+      let rotation = 1
+      const s = setup({
+        refresh: async () => {
+          rotation++
+          s.auth.token = `t${rotation}`
+          return true
+        },
+      })
+      const first = await open(s)
+      const second = streamResponse()
+      s.f.enqueue(second.response)
+      first.stream.push(sse('auth-expired', {}))
+      await flush()
+      expect(s.f.calls[1]!.headers.authorization).toBe('Bearer t2')
+
+      const third = streamResponse()
+      s.f.enqueue(third.response)
+      second.stream.push(sse('auth-expired', {}))
+      await flush()
+      expect(s.auth.refresh).toHaveBeenCalledTimes(2)
+      expect(s.f.calls).toHaveLength(3)
+      expect(s.f.calls[2]!.headers.authorization).toBe('Bearer t3')
+    })
+
+    it('reconnect() forgets the once-per-token guard', async () => {
+      const s = setup({ keepToken: true })
+      const first = await open(s)
+      const second = streamResponse()
+      s.f.enqueue(second.response)
+      first.stream.push(sse('auth-expired', {}))
+      await flush()
+      const third = streamResponse()
+      s.f.enqueue(third.response)
+      s.client.reconnect()
+      await flush()
+      const fourth = streamResponse()
+      s.f.enqueue(fourth.response)
+      third.stream.push(sse('auth-expired', {}))
+      await flush()
+      expect(s.auth.refresh).toHaveBeenCalledTimes(2)
+      expect(s.f.calls).toHaveLength(4)
+    })
+
     it('access-revoked stops without reconnecting', async () => {
       const s = setup()
       const res = await open(s)
@@ -486,7 +727,7 @@ describe('stream client', () => {
     })
 
     it('server-unavailable reconnects no sooner than 5 s', async () => {
-      const s = setup()
+      const s = setup({ random: () => 0 })
       const res = await open(s)
       res.stream.push(sse('server-unavailable', { reason: 'REALTIME_UNAVAILABLE' }))
       await flush()
