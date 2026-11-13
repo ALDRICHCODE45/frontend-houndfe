@@ -122,6 +122,9 @@ export interface ChatbotRequestMergedInto {
   folio: string
 }
 
+/** Handoff 21 §1: the cause of «Por reagendar». */
+export type ChatbotRescheduleReason = 'CLOSED_DATE' | 'HOURS_CHANGED'
+
 export interface ChatbotRequestRow {
   id: string
   /** `S-000123`. */
@@ -154,6 +157,12 @@ export interface ChatbotRequestRow {
   requiresTemplateAtStart: boolean
   /** Handoff 21 §1: the branch hours changed and `scheduledFor` is outside them; staff must move it. */
   needsReschedule: boolean
+  /**
+   * Handoff 21 §1: why `needsReschedule` is set — `CLOSED_DATE` (the day is closed; wins over the hours) or
+   * `HOURS_CHANGED`. `null` when not flagged or flagged before the field existed (show the generic copy);
+   * absent from an older backend.
+   */
+  needsRescheduleReason?: ChatbotRescheduleReason | null
   /** Handoff 20 §2: `null` unless the request is a conversation that had a session. */
   liveSession: ChatbotRequestLiveSession | null
   closedAt: string | null
@@ -548,6 +557,11 @@ export type ChatbotRequestAuditItem = {
 export type ChatbotRequestAuditPage = ChatbotRequestPage<ChatbotRequestAuditItem>
 
 export interface ChatbotRequestDetail extends ChatbotRequestRow {
+  /**
+   * Handoff 20 §3c: the tenant's `templateCostText`, readable without `read:ChatbotSettings`; `null` when the
+   * tenant has no settings row. Absent from list rows (and from an older backend): fall back to the settings.
+   */
+  templateCostText?: string | null
   /** Free text ≤1000, bot-untrusted: plain text. */
   needs: string | null
   context: ChatbotRequestContext | null

@@ -105,7 +105,7 @@ watch(
   () => emit('window-state', { closed: windowClosed.value, closesAt: windowClosesAt.value }),
   { immediate: true },
 )
-const templateCost = useTemplateCost()
+const templateCost = useTemplateCost(() => props.detail?.templateCostText)
 const templateOpen = ref(false)
 
 const mode = computed(() =>

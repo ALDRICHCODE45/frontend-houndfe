@@ -12,7 +12,7 @@ import { RouterLink, useRouter } from 'vue-router'
 import type { ChatbotRequestRow } from '../interfaces/chatbot-request.types'
 import { closedLine, formatAge } from '../utils/list-format'
 import type { RequestsListTab } from '../utils/list-query'
-import { SUBTYPE_ICONS, SUBTYPE_LABELS, windowClosingTag } from '../utils/requestLabels'
+import { SUBTYPE_ICONS, SUBTYPE_LABELS, rescheduleMarkerLabel, windowClosingTag } from '../utils/requestLabels'
 import RequestStatusBadge from './RequestStatusBadge.vue'
 import SlaIndicator from './SlaIndicator.vue'
 import SubtypeTag from './SubtypeTag.vue'
@@ -54,6 +54,7 @@ const windowTag = computed(() =>
 )
 /** Handoff 21: the branch hours changed under a booked time; staff must move it (nobody told the customer). */
 const needsReschedule = computed(() => isOpen.value && props.row.needsReschedule === true)
+const rescheduleLabel = computed(() => rescheduleMarkerLabel(props.row.needsRescheduleReason))
 const closed = computed(() =>
   isOpen.value ? null : closedLine(props.row, props.currentUserId, { now: props.now, timeZone: props.timeZone }),
 )
@@ -96,7 +97,7 @@ function openDetailFromKey(event: KeyboardEvent) {
         <span class="chatbot-row__folio">{{ row.folio }}</span>
         <span>{{ subtypeLabel }}</span>
         <span v-if="unread" class="chatbot-unread" data-testid="unread-badge" :aria-label="unreadLabel">{{ unreadText }}</span>
-        <span v-if="needsReschedule" class="chatbot-reschedule-tag" data-testid="reschedule-tag" aria-label="Por reagendar: la hora agendada quedó fuera del horario de atención">
+        <span v-if="needsReschedule" class="chatbot-reschedule-tag" data-testid="reschedule-tag" :aria-label="rescheduleLabel" :title="rescheduleLabel">
           <UIcon name="i-lucide-calendar-clock" class="chatbot-window-tag__icon" aria-hidden="true" />Reagendar
         </span>
         <span v-if="windowTag" class="chatbot-window-tag" data-testid="window-tag">
@@ -127,7 +128,7 @@ function openDetailFromKey(event: KeyboardEvent) {
       <span class="chatbot-row__folio">{{ row.folio }}</span>
       <SubtypeTag :subtype="row.subtype" />
       <span v-if="unread" class="chatbot-unread" data-testid="unread-badge" :aria-label="unreadLabel">{{ unreadText }}</span>
-      <span v-if="needsReschedule" class="chatbot-reschedule-tag" data-testid="reschedule-tag" aria-label="Por reagendar: la hora agendada quedó fuera del horario de atención">
+      <span v-if="needsReschedule" class="chatbot-reschedule-tag" data-testid="reschedule-tag" :aria-label="rescheduleLabel" :title="rescheduleLabel">
           <UIcon name="i-lucide-calendar-clock" class="chatbot-window-tag__icon" aria-hidden="true" />Reagendar
         </span>
     </div>

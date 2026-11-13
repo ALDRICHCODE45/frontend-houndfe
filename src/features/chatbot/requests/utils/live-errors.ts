@@ -43,7 +43,11 @@ export interface LiveNotice {
   tone: 'info' | 'warn' | 'danger'
   title: string
   detail: string
-  /** The request moved: refetch the detail (the draft stays in the box). */
+  /**
+   * The request moved: refetch the detail. Nothing here promises where the text went: it returns to the
+   * box only when the box was empty, otherwise it waits in «Texto no enviado», and a resend under a new
+   * id (or a NOT_ASSIGNEE refusal) keeps it nowhere.
+   */
   refetch: boolean
 }
 
@@ -73,7 +77,7 @@ export function liveErrorNotice(error: LiveError, options: LiveNoticeOptions = {
       return make(
         'warn',
         'La ventana de 24 h está cerrada',
-        'WhatsApp solo deja escribir libremente 24 h después del último mensaje del cliente. Tu borrador se conservó.',
+        'WhatsApp solo deja escribir libremente 24 h después del último mensaje del cliente. Lo que escribiste no se envió.',
       )
     case 'WINDOW_OPEN':
       return make('info', 'La ventana sigue abierta', 'Ya puedes escribirle un mensaje al cliente: no hace falta la plantilla.')
@@ -81,7 +85,7 @@ export function liveErrorNotice(error: LiveError, options: LiveNoticeOptions = {
       return make(
         'warn',
         'La conversación cambió',
-        'Otra persona la tomó o la reasignó mientras escribías. Actualizamos los datos y tu borrador sigue en el cuadro de mensaje.',
+        'Otra persona la tomó o la reasignó mientras escribías. El mensaje no se envió y actualizamos los datos. Revisa el cuadro de mensaje y la nota «Texto no enviado» antes de volver a escribir.',
         true,
       )
     case 'NOT_ASSIGNEE':
@@ -102,7 +106,7 @@ export function liveErrorNotice(error: LiveError, options: LiveNoticeOptions = {
         : make(
             'warn',
             'La conversación ya no está activa',
-            'Terminó mientras escribías. No se envió nada; tu borrador sigue en el cuadro.',
+            'Terminó mientras escribías. No se envió nada. Revisa el cuadro de mensaje y la nota «Texto no enviado» por si necesitas tu texto.',
             true,
           )
     case 'TEMPLATE_NOT_CONFIGURED':
