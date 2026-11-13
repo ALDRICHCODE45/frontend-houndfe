@@ -17,6 +17,7 @@ import {
   type AttachmentKind,
 } from '../utils/live-attachments'
 import { liveErrorNotice, readLiveError, type LiveError, type LiveNotice } from '../utils/live-errors'
+import { outboxFor, type LiveOutbox, type OutboxEntry, type SendInput, type UnsentHold, type UnsentText } from './liveOutbox'
 import { retriedStoreFor } from './liveRetried'
 import { isWindowClosed, lastCustomerSeq, windowClosesAt as closesAtOf, type WindowInput } from '../utils/live-window'
 
@@ -35,38 +36,7 @@ export interface LiveAttachment {
 
 export type TemplateState = 'ready' | 'pending' | 'failed' | 'unknown' | 'none'
 
-type SendInput =
-  | { kind: 'text'; text: string }
-  | { kind: 'media'; type: 'IMAGE' | 'DOCUMENT'; mediaId: string; caption: string; name: string; size: number }
-
-/**
- * A message the attendee sent (or is sending) that the polled thread may not hold yet.
- * `sending` / `unsent` have no `seq` (shown last); `stored` has the server's copy.
- */
-interface OutboxEntry {
-  clientMessageId: string
-  input: SendInput
-  phase: 'sending' | 'stored' | 'unsent'
-  message: ChatbotMessage
-}
-
-/**
- * A refused message the composer could not take back without overwriting what the attendee typed
- * meanwhile (or without handing a photo to new text as its caption): it waits as a note until the
- * attendee decides («Usar este texto»).
- */
-export interface UnsentText {
-  id: string
-  text: string
-  /** Name of the attachment that went with it, or `null` for a plain text. */
-  attachmentName: string | null
-}
-
-interface UnsentHold extends UnsentText {
-  input: SendInput
-  error: LiveError
-  shown: LiveNotice
-}
+export type { UnsentText }
 
 export interface UseLiveChatOptions {
   /** `null` while there is no live session to talk about (the chat then sends nothing). */
@@ -102,16 +72,22 @@ export function useLiveChat(options: UseLiveChatOptions) {
   const epoch = computed(() => detail.value?.liveSession?.handoffEpoch ?? null)
 
   let uploadToken = 0
-  let templateKey: string | null = null
+  /**
+   * Bumped whenever the block starts talking about another tenant/request. An operation captures it
+   * when it starts and, after every await, drops each write into the state on screen if it changed.
+   */
+  let generation = 0
 
   const draft = ref('')
   const attachment = ref<LiveAttachment | null>(null)
   const notice = ref<LiveNotice | null>(null)
-  const entries = ref<OutboxEntry[]>([])
+  // What waits on the server belongs to the request, not to the block (see liveOutbox).
+  const outbox = computed(() => outboxFor(client, tenantId.value, requestId.value))
+  const entries = computed(() => outbox.value.entries.value)
   // Per tenant + request and outside the block: a remount for the same request keeps it (see liveRetried).
   const retriedStore = computed(() => retriedStoreFor(client, tenantId.value, requestId.value))
   const retried = computed(() => retriedStore.value.value)
-  const holds = ref<UnsentHold[]>([])
+  const holds = computed(() => outbox.value.holds.value)
   const unsent = computed<UnsentText[]>(() =>
     holds.value.map(({ id, text, attachmentName }) => ({ id, text, attachmentName })),
   )
@@ -122,7 +98,7 @@ export function useLiveChat(options: UseLiveChatOptions) {
   const forcedOpenAfterSeq = ref<number | null>(null)
   const templateAllowed = ref<boolean | null>(null)
   const templateNotConfigured = ref(false)
-  const templateSending = ref(false)
+  const templateSending = computed(() => outbox.value.templateSending.value)
 
   // ─── Display: thread + outbox ────────────────────────────────────────────────
   const displayMessages = computed<ChatbotMessage[]>(() => {
@@ -147,34 +123,48 @@ export function useLiveChat(options: UseLiveChatOptions) {
   watch(
     threadMessages,
     () => {
-      if (entries.value.some((e) => serverHas(e.clientMessageId))) {
-        entries.value = entries.value.filter((e) => !serverHas(e.clientMessageId))
+      const store = outbox.value
+      if (store.entries.value.some((e) => serverHas(e.clientMessageId))) {
+        store.entries.value = store.entries.value.filter((e) => !serverHas(e.clientMessageId))
       }
     },
     { flush: 'sync' },
   )
 
   // The detail view reuses this block across /chatbot/solicitudes/:id: what belongs to one request (its
-  // typing, attachment, notice, outbox, held texts, window and template answers) must not reach the next.
+  // typing, attachment, notice, window and template answers) must not reach the next. Its outbox and held
+  // texts are keyed by request (liveOutbox), so they simply are not the ones on screen any more; an answer
+  // that is still in flight sees the bumped `generation` and writes nothing here.
   watch(
-    requestId,
+    () => `${tenantId.value}\u0000${requestId.value}`,
     (next, previous) => {
       if (next === previous) return
+      generation += 1
       uploadToken += 1
-      templateKey = null
       draft.value = ''
       attachment.value = null
       notice.value = null
-      entries.value = []
-      holds.value = []
       forcedClosedAfterSeq.value = null
       forcedOpenAfterSeq.value = null
       templateAllowed.value = null
       templateNotConfigured.value = false
-      templateSending.value = false
     },
     { flush: 'sync' },
   )
+
+  interface Scope {
+    generation: number
+    tenantId: string
+    requestId: string
+    outbox: LiveOutbox
+  }
+  /** What an operation started in: its request, its outbox and the generation it must still match. */
+  function captureScope(): Scope {
+    return { generation, tenantId: tenantId.value, requestId: requestId.value, outbox: outbox.value }
+  }
+  function isStale(scope: Scope): boolean {
+    return scope.generation !== generation
+  }
 
   // ─── Window and template ─────────────────────────────────────────────────────
   const windowInput = computed<WindowInput>(() => ({
@@ -233,8 +223,8 @@ export function useLiveChat(options: UseLiveChatOptions) {
   })
 
   // ─── Plumbing ────────────────────────────────────────────────────────────────
-  function refetchDetail(): void {
-    void client.invalidateQueries({ queryKey: chatbotRequestKeys.detail(tenantId.value, requestId.value) })
+  function refetchDetail(scope: Scope = captureScope()): void {
+    void client.invalidateQueries({ queryKey: chatbotRequestKeys.detail(scope.tenantId, scope.requestId) })
   }
 
   function optimisticMessage(clientMessageId: string, input: SendInput): ChatbotMessage {
@@ -269,12 +259,12 @@ export function useLiveChat(options: UseLiveChatOptions) {
     }
   }
 
-  function upsert(entry: OutboxEntry): void {
-    const rest = entries.value.filter((e) => e.clientMessageId !== entry.clientMessageId)
-    entries.value = [...rest, entry]
+  function upsert(store: LiveOutbox, entry: OutboxEntry): void {
+    const rest = store.entries.value.filter((e) => e.clientMessageId !== entry.clientMessageId)
+    store.entries.value = [...rest, entry]
   }
-  function drop(clientMessageId: string): void {
-    entries.value = entries.value.filter((e) => e.clientMessageId !== clientMessageId)
+  function drop(store: LiveOutbox, clientMessageId: string): void {
+    store.entries.value = store.entries.value.filter((e) => e.clientMessageId !== clientMessageId)
   }
 
   function bodyOf(clientMessageId: string, input: SendInput, expectedEpoch: number): SendMessageBody {
@@ -320,31 +310,40 @@ export function useLiveChat(options: UseLiveChatOptions) {
   ): Promise<DispatchResult> {
     const expectedEpoch = epoch.value
     if (!sessionActive.value || expectedEpoch === null) return { ok: false, error: null, notice: null }
+    const scope = captureScope()
+    const store = scope.outbox
     const message = optimisticMessage(clientMessageId, input)
-    upsert({ clientMessageId, input, phase: 'sending', message })
+    upsert(store, { clientMessageId, input, phase: 'sending', message })
     try {
-      const response = await chatbotLiveApi.sendMessage(requestId.value, bodyOf(clientMessageId, input, expectedEpoch))
-      upsert({ clientMessageId, input, phase: 'stored', message: response.message })
-      options.refreshThread?.()
+      const response = await chatbotLiveApi.sendMessage(scope.requestId, bodyOf(clientMessageId, input, expectedEpoch))
+      upsert(store, { clientMessageId, input, phase: 'stored', message: response.message })
+      if (!isStale(scope)) options.refreshThread?.()
       return { ok: true, error: null, notice: null }
     } catch (caught) {
       const error = readLiveError(caught)
       const shown = liveErrorNotice(error, { fileName: input.kind === 'media' ? input.name : undefined })
-      notice.value = shown
+      // The view moved to another request while this was in flight: what it answered belongs to the
+      // request that sent it. Nothing below writes into the state on screen; only that request's own
+      // outbox (and its query cache) hears about it.
+      const stale = isStale(scope)
+      if (!stale) notice.value = shown
       if (error.retryable) {
         // The answer is unknown (it may have arrived): keep the bubble so «Reintentar» resends the same id.
-        upsert({
+        upsert(store, {
           clientMessageId,
           input,
           phase: 'unsent',
           message: { ...message, deliveryStatus: 'FAILED', unconfirmed: true },
         })
       } else {
-        drop(clientMessageId)
-        applyRefusal(error)
-        if (shown.refetch) refetchDetail()
+        drop(store, clientMessageId)
+        if (!stale) applyRefusal(error)
+        if (shown.refetch) refetchDetail(scope)
         // NOT_ASSIGNEE: the person can no longer send, so the text does not come back to the box.
-        if (restore && error.code !== 'NOT_ASSIGNEE') restoreInput(input, error, shown)
+        if (restore && error.code !== 'NOT_ASSIGNEE') {
+          if (stale) store.holds.value = [...store.holds.value, holdOf(input, error, shown)]
+          else restoreInput(input, error, shown)
+        }
       }
       return { ok: false, error, notice: shown }
     }
@@ -383,7 +382,7 @@ export function useLiveChat(options: UseLiveChatOptions) {
     const boxEmpty = draft.value.trim().length === 0
     if (input.kind === 'text') {
       if (boxEmpty) draft.value = input.text
-      else holds.value = [...holds.value, holdOf(input, error, shown)]
+      else addHold(holdOf(input, error, shown))
       return
     }
     if (boxEmpty && !attachment.value) {
@@ -391,7 +390,11 @@ export function useLiveChat(options: UseLiveChatOptions) {
       attachment.value = attachmentOf(input, error, shown)
       return
     }
-    holds.value = [...holds.value, holdOf(input, error, shown)]
+    addHold(holdOf(input, error, shown))
+  }
+
+  function addHold(hold: UnsentHold): void {
+    outbox.value.holds.value = [...outbox.value.holds.value, hold]
   }
 
   /**
@@ -411,7 +414,7 @@ export function useLiveChat(options: UseLiveChatOptions) {
       }
       return
     }
-    holds.value = holds.value.filter((h) => h.id !== id)
+    outbox.value.holds.value = holds.value.filter((h) => h.id !== id)
     if (hold.text.length > 0) {
       draft.value = draft.value.trim().length === 0 ? hold.text : `${draft.value}\n\n${hold.text}`
     }
@@ -421,7 +424,7 @@ export function useLiveChat(options: UseLiveChatOptions) {
   }
 
   function discardUnsent(id: string): void {
-    holds.value = holds.value.filter((h) => h.id !== id)
+    outbox.value.holds.value = holds.value.filter((h) => h.id !== id)
   }
 
   // ─── Sending the composer ────────────────────────────────────────────────────
@@ -503,6 +506,7 @@ export function useLiveChat(options: UseLiveChatOptions) {
       }
       return
     }
+    const uploadRequestId = requestId.value
     attachment.value = {
       name: file.name,
       size: file.size,
@@ -513,7 +517,7 @@ export function useLiveChat(options: UseLiveChatOptions) {
       error: null,
     }
     try {
-      const uploaded = await chatbotLiveApi.uploadMedia(requestId.value, file, newIdempotencyKey(), {
+      const uploaded = await chatbotLiveApi.uploadMedia(uploadRequestId, file, newIdempotencyKey(), {
         onProgress: (percent) => {
           if (token === uploadToken && attachment.value) attachment.value = { ...attachment.value, progress: percent }
         },
@@ -549,37 +553,44 @@ export function useLiveChat(options: UseLiveChatOptions) {
   async function sendTemplate(): Promise<boolean> {
     const expectedEpoch = epoch.value
     if (!sessionActive.value || expectedEpoch === null || templateSending.value) return false
-    templateKey ??= newIdempotencyKey()
-    templateSending.value = true
+    // The sending flag and the key belong to the request (its outbox): an answer for another request
+    // never ends this one's «sending» nor reuses its key.
+    const scope = captureScope()
+    const store = scope.outbox
+    store.templateKey ??= newIdempotencyKey()
+    const key = store.templateKey
+    store.templateSending.value = true
     notice.value = null
     try {
-      const response = await chatbotLiveApi.sendTemplate(requestId.value, { expectedEpoch }, templateKey)
-      templateKey = null
-      upsert({
+      const response = await chatbotLiveApi.sendTemplate(scope.requestId, { expectedEpoch }, key)
+      store.templateKey = null
+      upsert(store, {
         clientMessageId: response.message.clientMessageId ?? `template-${response.message.id}`,
         input: { kind: 'text', text: '' },
         phase: 'stored',
         message: response.message,
       })
-      options.refreshThread?.()
-      refetchDetail()
+      if (!isStale(scope)) options.refreshThread?.()
+      refetchDetail(scope)
       return true
     } catch (caught) {
       const error = readLiveError(caught)
       // The same key only travels again while the answer is unknown.
-      if (!error.retryable) templateKey = null
-      if (error.code === 'TEMPLATE_NOT_CONFIGURED') templateNotConfigured.value = true
-      if (error.code === 'TEMPLATE_ALREADY_SENT') templateAllowed.value = false
-      applyRefusal(error)
+      if (!error.retryable) store.templateKey = null
       const shown = liveErrorNotice(error)
-      notice.value = shown
-      if (shown.refetch) {
-        refetchDetail()
-        options.refreshThread?.()
+      if (shown.refetch) refetchDetail(scope)
+      // Everything below is the screen's state (window, template answers, notice): only for the
+      // request that is still on screen.
+      if (!isStale(scope)) {
+        if (error.code === 'TEMPLATE_NOT_CONFIGURED') templateNotConfigured.value = true
+        if (error.code === 'TEMPLATE_ALREADY_SENT') templateAllowed.value = false
+        applyRefusal(error)
+        notice.value = shown
+        if (shown.refetch) options.refreshThread?.()
       }
       return false
     } finally {
-      templateSending.value = false
+      store.templateSending.value = false
     }
   }
 
