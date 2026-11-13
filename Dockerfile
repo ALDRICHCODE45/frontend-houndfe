@@ -18,6 +18,10 @@ COPY . .
 #    so the API base URL must be a build ARG, not a runtime env var.
 ARG VITE_API_BASE_URL=https://api.houndfe.com
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+#    Realtime stream (SSE, src/core/realtime): off unless the build argument is "true" or "1".
+#    Turning it on or off needs a rebuild (Dokploy: Build-time Arguments, not Environment).
+ARG VITE_REALTIME_SSE=false
+ENV VITE_REALTIME_SSE=$VITE_REALTIME_SSE
 
 # 4. Production build (type-check + vite build)
 RUN pnpm build
