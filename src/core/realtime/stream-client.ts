@@ -138,12 +138,17 @@ export function createStreamClient(options: StreamClientOptions): StreamClient {
   }
 
   /**
-   * Equal jitter over the base delay: half of it is fixed, the other half is random, so clients
-   * that lost the stream together (a deploy) come back spread over [base / 2, base] instead of
-   * one narrow window. Never below the 3 s start (handoff 17 §4: the first retry waits the `retry:`
-   * value, and a smaller hint must not shorten it) and never above the 30 s cap.
+   * Jitter above a floor, so clients that lost the stream together (a deploy) never come back in
+   * the same instant. First retry: between the `retry:` value (at least 3 s, handoff 17 §4: a
+   * smaller hint must not shorten it) and 1.5 × that value. Later retries: equal jitter over
+   * [base / 2, base], never below 3 s. Never above the 30 s cap. On the first retry the draw is
+   * read downwards, so a draw of 1 is exactly the `retry:` value, as later draws of 1 are the base.
    */
   function backoffDelay(): number {
+    if (attempt === 0) {
+      const first = Math.max(BACKOFF_START_MS, retryHintMs)
+      return Math.min(BACKOFF_MAX_MS, first + first * 0.5 * (1 - random()))
+    }
     const base = Math.min(BACKOFF_MAX_MS, retryHintMs * 2 ** attempt)
     return Math.min(BACKOFF_MAX_MS, Math.max(BACKOFF_START_MS, base / 2 + (base / 2) * random()))
   }

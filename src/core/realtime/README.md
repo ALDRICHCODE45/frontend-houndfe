@@ -55,8 +55,8 @@ store's `fetchPermissions` (handoff 17 §7); the permission watch then stops the
   must equal the user / tenant the stream was started for (`token-identity.ts`, read-only decode);
   otherwise nothing is sent and the stream halts with `identity-mismatch`. The next user / tenant
   change in the auth store starts a new session; `reconnect()` checks again.
-- Backoff 3 s → 30 s with equal jitter (half fixed, half random) and a 3 s floor (a smaller
-  `retry:` hint never shortens the first wait), reset on any message (after
+- Backoff 3 s → 30 s with jitter above a 3 s floor (a smaller `retry:` hint never shortens the
+  first wait): the first retry is spread over 3–4.5 s, later ones over [base / 2, base], reset on any message (after
   `slow-consumer` only when the connection lived 60 s); `503` honours `Retry-After`;
   `server-unavailable` waits at least 5 s.
 - `401` refreshes once and reconnects; a 401 for the refreshed token backs off (3 s → 30 s) and

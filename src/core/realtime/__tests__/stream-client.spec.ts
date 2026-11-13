@@ -173,12 +173,12 @@ describe('stream client', () => {
     })
 
     it('equal jitter above the 3 s floor: the first retry is never below 3 s, later ones wait between half the base and the base', async () => {
-      // random 0: the first wait would be 1.5 s by equal jitter, but the floor is 3 s; then 6 s → 3 s.
+      // random 0: the first wait is spread to its top, 4.5 s (never one instant for all); then 6 s → 3 s.
       const low = setup({ random: () => 0 })
       low.f.enqueue(new Error('down'), new Error('down'))
       low.client.start()
       await flush()
-      await vi.advanceTimersByTimeAsync(2_999)
+      await vi.advanceTimersByTimeAsync(4_499)
       expect(low.f.calls).toHaveLength(1)
       await vi.advanceTimersByTimeAsync(1)
       expect(low.f.calls).toHaveLength(2)
@@ -187,12 +187,12 @@ describe('stream client', () => {
       await vi.advanceTimersByTimeAsync(1)
       expect(low.f.calls).toHaveLength(3)
 
-      // random 0.5: three quarters of the base, 6 s → 4.5 s on the second retry (the first stays at the floor)
+      // random 0.5: the first retry 3.75 s, then three quarters of the base, 6 s → 4.5 s
       const mid = setup({ random: () => 0.5 })
       mid.f.enqueue(new Error('down'), new Error('down'), new Error('down'))
       mid.client.start()
       await flush()
-      await vi.advanceTimersByTimeAsync(3_000)
+      await vi.advanceTimersByTimeAsync(3_750)
       expect(mid.f.calls).toHaveLength(2)
       await vi.advanceTimersByTimeAsync(4_499)
       expect(mid.f.calls).toHaveLength(2)
@@ -201,7 +201,7 @@ describe('stream client', () => {
     })
 
     it('a `retry:` hint below 3 s does not lower the first wait under the 3 s floor', async () => {
-      const s = setup({ random: () => 0 })
+      const s = setup({ random: () => 1 })
       const res = await open(s)
       res.stream.push('retry: 1000\n\n')
       await flush()
@@ -227,31 +227,31 @@ describe('stream client', () => {
       half.f.enqueue(...Array.from({ length: 8 }, () => new Error('down')))
       half.client.start()
       await flush()
-      for (const delay of [3_000, 3_000, 6_000, 12_000, 15_000, 15_000]) {
+      for (const delay of [4_500, 3_000, 6_000, 12_000, 15_000, 15_000]) {
         await vi.advanceTimersByTimeAsync(delay)
       }
       expect(half.f.calls).toHaveLength(7)
     })
 
-    it('leaders that lose the stream at the same instant never return before 3 s and spread out from the second retry on', async () => {
+    it('leaders that lose the stream at the same instant (a deploy) never return before 3 s and are spread already on the first retry', async () => {
       const waits: number[] = []
       for (const draw of [0, 0.25, 0.5, 0.75, 1]) {
         const s = setup({ random: () => draw })
-        s.f.enqueue(new Error('down'), new Error('down'), streamResponse().response)
+        s.f.enqueue(new Error('down'), streamResponse().response)
         s.client.start()
         await flush()
         let waited = 0
-        // the first retry is the floor (3 s) for everybody, the second is spread over 3–6 s
-        while (s.f.calls.length < 3 && waited < 20_000) {
+        while (s.f.calls.length < 2 && waited < 20_000) {
           await vi.advanceTimersByTimeAsync(50)
           waited += 50
         }
         waits.push(waited)
         s.client.stop()
       }
-      expect(Math.min(...waits)).toBeGreaterThanOrEqual(6_000)
-      expect(Math.max(...waits)).toBeLessThanOrEqual(9_000)
-      expect(Math.max(...waits) - Math.min(...waits)).toBeGreaterThanOrEqual(2_900)
+      // jitter above the 3 s floor: the first retry is spread over 3–4.5 s instead of one instant
+      expect(Math.min(...waits)).toBeGreaterThanOrEqual(3_000)
+      expect(Math.max(...waits)).toBeLessThanOrEqual(4_550)
+      expect(Math.max(...waits) - Math.min(...waits)).toBeGreaterThanOrEqual(1_400)
       expect(new Set(waits).size).toBe(5)
     })
 
