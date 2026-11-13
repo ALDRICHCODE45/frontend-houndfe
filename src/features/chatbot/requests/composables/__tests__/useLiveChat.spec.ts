@@ -56,11 +56,13 @@ const staffMessage = (seq: number, clientMessageId: string, extra: Partial<Chatb
     ...extra,
   })
 
-function setup(initial: { detail?: ChatbotRequestDetail; messages?: ChatbotMessage[]; now?: Date } = {}) {
+function setup(
+  initial: { detail?: ChatbotRequestDetail; messages?: ChatbotMessage[]; now?: Date; client?: QueryClient } = {},
+) {
   const detail = ref(initial.detail ?? liveDetail())
   const messages = ref<ChatbotMessage[]>(initial.messages ?? [customer(10)])
   const now = ref(initial.now ?? NOW)
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const client = initial.client ?? new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const invalidate = vi.spyOn(client, 'invalidateQueries')
   const { result } = withQuery(() => useLiveChat({ detail, messages, now }), client)
   return { chat: result, detail, messages, now, invalidate }
@@ -948,5 +950,156 @@ describe('useLiveChat — T13 D4: retry and dispatch need an ACTIVE session', ()
     await chat.retry(chat.displayMessages.value[1]!)
 
     expect(api.sendMessage).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('useLiveChat — T14: «Usar este texto» never drops a photo silently', () => {
+  async function photoHold() {
+    api.uploadMedia.mockResolvedValue({ mediaId: 'media-9', mimeType: 'image/png', sizeBytes: 2048, sha256: 'x', filename: 'foto.png' })
+    api.sendMessage.mockRejectedValueOnce(axiosError(409, { code: 'STALE_EPOCH' }))
+    const ctx = setup()
+    await ctx.chat.pickFile(new File(['x'], 'foto.png', { type: 'image/png' }))
+    ctx.chat.draft.value = 'Así quedó'
+    const sending = ctx.chat.send()
+    ctx.chat.draft.value = 'Texto nuevo'
+    await sending
+    return ctx
+  }
+
+  it('keeps the hold, the typing and the held attachment untouched, and says why', async () => {
+    const { chat } = await photoHold()
+    api.uploadMedia.mockResolvedValueOnce({ mediaId: 'media-2', mimeType: 'application/pdf', sizeBytes: 100, sha256: 'y', filename: 'lista.pdf' })
+    await chat.pickFile(new File(['y'], 'lista.pdf', { type: 'application/pdf' }))
+    const hold = chat.unsent.value[0]!
+
+    chat.useUnsent(hold.id)
+
+    expect(chat.unsent.value).toHaveLength(1)
+    expect(chat.attachment.value).toMatchObject({ mediaId: 'media-2' })
+    expect(chat.draft.value).toBe('Texto nuevo')
+    expect(chat.notice.value?.title).toBe('Ya tienes un archivo adjunto')
+    expect(chat.notice.value?.detail).toContain('foto.png')
+  })
+
+  it('once the attachment is removed the same hold comes back whole, photo and caption', async () => {
+    const { chat } = await photoHold()
+    api.uploadMedia.mockResolvedValueOnce({ mediaId: 'media-2', mimeType: 'application/pdf', sizeBytes: 100, sha256: 'y', filename: 'lista.pdf' })
+    await chat.pickFile(new File(['y'], 'lista.pdf', { type: 'application/pdf' }))
+    const hold = chat.unsent.value[0]!
+    chat.useUnsent(hold.id)
+    chat.clearAttachment()
+    chat.dismissNotice()
+
+    chat.useUnsent(hold.id)
+
+    expect(chat.unsent.value).toHaveLength(0)
+    expect(chat.attachment.value).toMatchObject({ mediaId: 'media-9', status: 'ready' })
+    expect(chat.draft.value).toBe('Texto nuevo\n\nAsí quedó')
+    expect(chat.notice.value).toBeNull()
+  })
+
+  it('a text hold is still usable while an attachment is held', async () => {
+    api.uploadMedia.mockResolvedValue({ mediaId: 'media-2', mimeType: 'image/png', sizeBytes: 100, sha256: 'y', filename: 'otra.png' })
+    api.sendMessage.mockRejectedValueOnce(axiosError(409, { code: 'STALE_EPOCH' }))
+    const { chat } = setup()
+    chat.draft.value = 'Primero'
+    const sending = chat.send()
+    chat.draft.value = 'Segundo'
+    await sending
+    await chat.pickFile(new File(['y'], 'otra.png', { type: 'image/png' }))
+
+    chat.useUnsent(chat.unsent.value[0]!.id)
+
+    expect(chat.unsent.value).toHaveLength(0)
+    expect(chat.draft.value).toBe('Segundo\n\nPrimero')
+    expect(chat.attachment.value).toMatchObject({ mediaId: 'media-2' })
+  })
+})
+
+describe('useLiveChat — T14: «resent» survives a remount of the block for the same request', () => {
+  const failed = () => staffMessage(11, 'old-id', { deliveryStatus: 'FAILED', text: 'Tu folio es S-000412.' })
+
+  it('a second instance on the same client and request still has the message marked as resent', async () => {
+    api.sendMessage.mockResolvedValue({ message: staffMessage(13, 'key-1') })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const first = setup({ messages: [customer(10), failed()], client })
+    await first.chat.retry(failed())
+    expect(first.chat.retried.value.has('msg-11')).toBe(true)
+
+    const second = setup({ messages: [customer(10), failed()], client })
+    expect(second.chat.retried.value.has('msg-11')).toBe(true)
+
+    api.sendMessage.mockClear()
+    await second.chat.retry(failed())
+    expect(api.sendMessage).not.toHaveBeenCalled()
+  })
+
+  it('is not shared with another request nor another tenant', async () => {
+    api.sendMessage.mockResolvedValue({ message: staffMessage(13, 'key-1') })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const first = setup({ messages: [customer(10), failed()], client })
+    await first.chat.retry(failed())
+
+    const other = setup({ messages: [customer(10), failed()], detail: liveDetail({ id: 'req-2' }), client })
+    expect(other.chat.retried.value.has('msg-11')).toBe(false)
+  })
+
+  it('a refused resend un-marks it for every instance', async () => {
+    api.sendMessage.mockRejectedValue(axiosError(409, { code: 'STALE_EPOCH' }))
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const first = setup({ messages: [customer(10), failed()], client })
+    await first.chat.retry(failed())
+    const second = setup({ messages: [customer(10), failed()], client })
+    expect(second.chat.retried.value.has('msg-11')).toBe(false)
+  })
+})
+
+describe('useLiveChat — T14: the block is reused when the detail view switches request', () => {
+  const OLD = '2026-11-12T10:00:00.000Z'
+
+  it('a WINDOW_OPEN override of the previous request does not carry over', async () => {
+    api.sendTemplate.mockRejectedValue(axiosError(409, { code: 'WINDOW_OPEN' }))
+    const detail = liveDetail({
+      liveSession: { state: 'ACTIVE', handoffEpoch: 3, lastStaffActivityAt: null, lastCustomerMessageAt: OLD },
+    })
+    const { chat, detail: current, messages } = setup({ detail, messages: [customer(10, OLD)] })
+    await chat.sendTemplate()
+    expect(chat.windowClosed.value).toBe(false)
+
+    messages.value = [customer(10, OLD)]
+    current.value = { ...detail, id: 'req-2' }
+
+    expect(chat.windowClosed.value).toBe(true)
+  })
+
+  it('a WINDOW_CLOSED override of the previous request does not carry over', async () => {
+    api.sendMessage.mockRejectedValue(axiosError(409, { code: 'WINDOW_CLOSED', templateAllowed: true }))
+    const { chat, detail: current } = setup()
+    chat.draft.value = 'Hola'
+    await chat.send()
+    expect(chat.windowClosed.value).toBe(true)
+
+    current.value = { ...current.value, id: 'req-2' }
+
+    expect(chat.windowClosed.value).toBe(false)
+    expect(chat.templateAllowed.value).toBeNull()
+  })
+
+  it('the draft, the attachment, the notice, the outbox and the held texts do not move to the other request', async () => {
+    api.sendMessage.mockRejectedValueOnce(axiosError(409, { code: 'STALE_EPOCH' }))
+    const { chat, detail: current } = setup()
+    chat.draft.value = 'Primero'
+    const sending = chat.send()
+    chat.draft.value = 'Segundo'
+    await sending
+    expect(chat.unsent.value).toHaveLength(1)
+    expect(chat.notice.value).not.toBeNull()
+
+    current.value = { ...current.value, id: 'req-2' }
+
+    expect(chat.draft.value).toBe('')
+    expect(chat.unsent.value).toHaveLength(0)
+    expect(chat.notice.value).toBeNull()
+    expect(chat.attachment.value).toBeNull()
   })
 })

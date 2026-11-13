@@ -49,3 +49,39 @@ describe('useTemplateCost — templateCostText comes from GET /chatbot-settings'
     expect(result.costText.value).toBe(DEFAULT_TEMPLATE_COST_TEXT)
   })
 })
+
+describe('useTemplateCost — T12: the detail carries the text first', () => {
+  it('uses the detail text and never reads the settings, even with read:ChatbotSettings', async () => {
+    get.mockResolvedValue({ ...settingsFixture(), templateCostText: 'Del ajuste.' })
+    const { result } = withQuery(() => useTemplateCost(() => 'Cada plantilla cuesta $0.62 MXN.'))
+    await flushPromises()
+    expect(get).not.toHaveBeenCalled()
+    expect(result.costText.value).toBe('Cada plantilla cuesta $0.62 MXN.')
+    expect(result.isFromSettings.value).toBe(true)
+  })
+
+  it('an attendee without read:ChatbotSettings still gets the detail text and no call is made', async () => {
+    auth.perms = new Set()
+    const { result } = withQuery(() => useTemplateCost(() => 'Cuesta $0.62.'))
+    await flushPromises()
+    expect(get).not.toHaveBeenCalled()
+    expect(result.costText.value).toBe('Cuesta $0.62.')
+  })
+
+  it.each([null, undefined, '   '])('falls back to GET /chatbot-settings when the detail text is %j', async (text) => {
+    get.mockResolvedValue({ ...settingsFixture(), templateCostText: 'Del ajuste.' })
+    const { result } = withQuery(() => useTemplateCost(() => text))
+    await flushPromises()
+    expect(get).toHaveBeenCalledTimes(1)
+    expect(result.costText.value).toBe('Del ajuste.')
+  })
+
+  it('falls back to the generic line when neither the detail nor the settings have it', async () => {
+    auth.perms = new Set()
+    const { result } = withQuery(() => useTemplateCost(() => null))
+    await flushPromises()
+    expect(get).not.toHaveBeenCalled()
+    expect(result.costText.value).toBe(DEFAULT_TEMPLATE_COST_TEXT)
+    expect(result.isFromSettings.value).toBe(false)
+  })
+})

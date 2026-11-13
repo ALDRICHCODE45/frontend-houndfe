@@ -49,6 +49,40 @@ describe('RequestDetailSchedule — scheduled conversations (handoff 21 §6.1)',
     expect(banner.text()).toContain('Nadie avisó al cliente')
   })
 
+  it('T12: CLOSED_DATE names the cause — the day was closed in the branch settings', () => {
+    const wrapper = mountSchedule({
+      scheduledFor: '2026-11-14T16:00:00.000Z',
+      needsReschedule: true,
+      needsRescheduleReason: 'CLOSED_DATE',
+    })
+    const text = wrapper.get('[data-testid="reschedule-banner"]').text()
+    expect(text).toContain('Por reagendar')
+    expect(text).toContain('cerrado en la configuración de la sucursal')
+    expect(text).not.toContain('cambió el horario')
+    expect(text).toContain('Nadie avisó al cliente')
+  })
+
+  it('T12: HOURS_CHANGED names the cause — the branch hours changed', () => {
+    const wrapper = mountSchedule({
+      scheduledFor: '2026-11-14T16:00:00.000Z',
+      needsReschedule: true,
+      needsRescheduleReason: 'HOURS_CHANGED',
+    })
+    const text = wrapper.get('[data-testid="reschedule-banner"]').text()
+    expect(text).toContain('Cambió el horario de la sucursal')
+    expect(text).not.toContain('cerrado en la configuración')
+    expect(text).toContain('Nadie avisó al cliente')
+  })
+
+  it('T12: a null reason (flagged before the field existed) keeps the generic copy', () => {
+    const wrapper = mountSchedule({
+      scheduledFor: '2026-11-14T16:00:00.000Z',
+      needsReschedule: true,
+      needsRescheduleReason: null,
+    })
+    expect(wrapper.get('[data-testid="reschedule-banner"]').text()).toContain('cerró ese día o cambió el horario')
+  })
+
   it('«Reagendar» in the banner emits RESCHEDULE only when the server allows it', async () => {
     const allowed = mountSchedule({
       scheduledFor: '2026-11-14T16:00:00.000Z',

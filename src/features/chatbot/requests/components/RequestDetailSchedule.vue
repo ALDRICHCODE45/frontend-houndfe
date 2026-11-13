@@ -2,12 +2,12 @@
 /**
  * RequestDetailSchedule — the booking of a scheduled conversation (handoff 21 §6.1): «Agendada para
  * …» from `scheduledFor`, the «Plantilla de pago al iniciar» badge from `requiresTemplateAtStart`,
- * and the «Por reagendar» banner from `needsReschedule` explaining why. «Reagendar» only appears
+ * and the «Por reagendar» banner from `needsReschedule`, naming the cause from `needsRescheduleReason`. «Reagendar» only appears
  * when the server offers RESCHEDULE; it emits `action` like the action panel. Open requests only.
  */
 import { computed } from 'vue'
 import type { ChatbotRequestAction, ChatbotRequestDetail } from '../interfaces/chatbot-request.types'
-import { formatWhen } from '../utils/requestLabels'
+import { formatWhen, rescheduleReasonText } from '../utils/requestLabels'
 
 const props = defineProps<{
   request: ChatbotRequestDetail
@@ -20,6 +20,7 @@ const open = computed(() => props.request.status === 'NEW' || props.request.stat
 const when = computed(() => formatWhen(props.request.scheduledFor, { timeZone: props.timeZone, now: props.now }))
 const visible = computed(() => open.value && when.value !== null)
 const needsReschedule = computed(() => props.request.needsReschedule === true)
+const reasonText = computed(() => rescheduleReasonText(props.request.needsRescheduleReason))
 const canReschedule = computed(() => props.request.allowedActions.includes('RESCHEDULE'))
 </script>
 
@@ -39,8 +40,8 @@ const canReschedule = computed(() => props.request.allowedActions.includes('RESC
       <UIcon name="i-lucide-calendar-clock" aria-hidden="true" />
       <div>
         <strong>Por reagendar</strong>
-        Se cerró ese día o cambió el horario de atención, y la hora agendada ya no cae dentro de él. Nadie avisó al
-        cliente: elige una nueva hora.
+        <span data-testid="reschedule-reason">{{ reasonText }}</span>
+        Nadie avisó al cliente: elige una nueva hora.
         <UButton
           v-if="canReschedule"
           data-testid="reschedule-banner-action"

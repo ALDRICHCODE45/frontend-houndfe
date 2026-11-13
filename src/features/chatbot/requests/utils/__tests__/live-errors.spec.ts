@@ -40,19 +40,25 @@ describe('readLiveError — what the live 409s carry beyond the envelope', () =>
 })
 
 describe('liveErrorNotice — es-MX copy of the contract errors', () => {
+  it('WINDOW_CLOSED does not promise the draft stayed in the box (it may be in the «Texto no enviado» note)', () => {
+    const notice = liveErrorNotice(readLiveError(axiosError(409, { code: 'WINDOW_CLOSED', templateAllowed: true, whatsappWindowClosesAt: null })))
+    expect(notice.detail).not.toContain('se conservó')
+  })
+
   const notice = (status: number, body: Record<string, unknown>, fileName?: string) =>
     liveErrorNotice(readLiveError(axiosError(status, body)), { fileName })
 
-  it('WINDOW_CLOSED says the draft was kept', () => {
+  it('WINDOW_CLOSED says the message was not sent', () => {
     const n = notice(409, { code: 'WINDOW_CLOSED', templateAllowed: true })
     expect(n.title).toBe('La ventana de 24 h está cerrada')
-    expect(n.detail).toContain('borrador')
+    expect(n.detail).toContain('no se envió')
   })
 
-  it('STALE_EPOCH and NOT_ASSIGNEE refetch and keep the draft', () => {
+  it('STALE_EPOCH and NOT_ASSIGNEE refetch, and STALE_EPOCH does not promise where the draft is', () => {
     const stale = notice(409, { code: 'STALE_EPOCH', currentEpoch: 4 })
     expect(stale.title).toBe('La conversación cambió')
-    expect(stale.detail).toContain('borrador sigue')
+    expect(stale.detail).not.toContain('sigue en el cuadro')
+    expect(stale.detail).toContain('Texto no enviado')
     expect(stale.refetch).toBe(true)
     const other = notice(403, { code: 'NOT_ASSIGNEE' })
     expect(other.title).toBe('Ya no la atiendes tú')
@@ -65,6 +71,7 @@ describe('liveErrorNotice — es-MX copy of the contract errors', () => {
     expect(starting.refetch).toBe(true)
     const ended = notice(409, { code: 'SESSION_NOT_ACTIVE', sessionState: 'ENDED' })
     expect(ended.title).toBe('La conversación ya no está activa')
+    expect(ended.detail).not.toContain('sigue en el cuadro')
   })
 
   it('template errors', () => {

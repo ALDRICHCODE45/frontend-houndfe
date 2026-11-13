@@ -17,6 +17,7 @@ import {
   type AttachmentKind,
 } from '../utils/live-attachments'
 import { liveErrorNotice, readLiveError, type LiveError, type LiveNotice } from '../utils/live-errors'
+import { retriedStoreFor } from './liveRetried'
 import { isWindowClosed, lastCustomerSeq, windowClosesAt as closesAtOf, type WindowInput } from '../utils/live-window'
 
 /** The attendee's attachment while it is picked, uploaded and waiting for «Enviar». */
@@ -100,11 +101,16 @@ export function useLiveChat(options: UseLiveChatOptions) {
   const requestId = computed(() => detail.value?.id ?? toValue(options.requestId) ?? '')
   const epoch = computed(() => detail.value?.liveSession?.handoffEpoch ?? null)
 
+  let uploadToken = 0
+  let templateKey: string | null = null
+
   const draft = ref('')
   const attachment = ref<LiveAttachment | null>(null)
   const notice = ref<LiveNotice | null>(null)
   const entries = ref<OutboxEntry[]>([])
-  const retried = ref<ReadonlySet<string>>(new Set())
+  // Per tenant + request and outside the block: a remount for the same request keeps it (see liveRetried).
+  const retriedStore = computed(() => retriedStoreFor(client, tenantId.value, requestId.value))
+  const retried = computed(() => retriedStore.value.value)
   const holds = ref<UnsentHold[]>([])
   const unsent = computed<UnsentText[]>(() =>
     holds.value.map(({ id, text, attachmentName }) => ({ id, text, attachmentName })),
@@ -144,6 +150,28 @@ export function useLiveChat(options: UseLiveChatOptions) {
       if (entries.value.some((e) => serverHas(e.clientMessageId))) {
         entries.value = entries.value.filter((e) => !serverHas(e.clientMessageId))
       }
+    },
+    { flush: 'sync' },
+  )
+
+  // The detail view reuses this block across /chatbot/solicitudes/:id: what belongs to one request (its
+  // typing, attachment, notice, outbox, held texts, window and template answers) must not reach the next.
+  watch(
+    requestId,
+    (next, previous) => {
+      if (next === previous) return
+      uploadToken += 1
+      templateKey = null
+      draft.value = ''
+      attachment.value = null
+      notice.value = null
+      entries.value = []
+      holds.value = []
+      forcedClosedAfterSeq.value = null
+      forcedOpenAfterSeq.value = null
+      templateAllowed.value = null
+      templateNotConfigured.value = false
+      templateSending.value = false
     },
     { flush: 'sync' },
   )
@@ -366,15 +394,28 @@ export function useLiveChat(options: UseLiveChatOptions) {
     holds.value = [...holds.value, holdOf(input, error, shown)]
   }
 
-  /** «Usar este texto»: puts a held message back; text goes after what is typed, after a blank line. */
+  /**
+   * «Usar este texto»: puts a held message back; text goes after what is typed, after a blank line. A held
+   * photo needs the attachment slot: while another attachment is held the whole hold stays (nothing is
+   * dropped, nothing is merged) and a notice says to remove the current one first.
+   */
   function useUnsent(id: string): void {
     const hold = holds.value.find((h) => h.id === id)
     if (!hold) return
+    if (hold.input.kind === 'media' && attachment.value) {
+      notice.value = {
+        tone: 'info',
+        title: 'Ya tienes un archivo adjunto',
+        detail: `Quita «${attachment.value.name}» para recuperar «${hold.input.name}»: el mensaje no se pierde mientras tanto.`,
+        refetch: false,
+      }
+      return
+    }
     holds.value = holds.value.filter((h) => h.id !== id)
     if (hold.text.length > 0) {
       draft.value = draft.value.trim().length === 0 ? hold.text : `${draft.value}\n\n${hold.text}`
     }
-    if (hold.input.kind === 'media' && !attachment.value) {
+    if (hold.input.kind === 'media') {
       attachment.value = attachmentOf(hold.input, hold.error, hold.shown)
     }
   }
@@ -436,18 +477,17 @@ export function useLiveChat(options: UseLiveChatOptions) {
             }
           : null
     if (!input || (input.kind === 'text' && input.text.length === 0)) return
-    retried.value = new Set(retried.value).add(message.id)
+    const store = retriedStore.value
+    store.value = new Set(store.value).add(message.id)
     const result = await dispatch(newIdempotencyKey(), input)
     if (!result.ok && !result.error?.retryable) {
-      const next = new Set(retried.value)
+      const next = new Set(store.value)
       next.delete(message.id)
-      retried.value = next
+      store.value = next
     }
   }
 
   // ─── Attachments ─────────────────────────────────────────────────────────────
-  let uploadToken = 0
-
   async function pickFile(file: File): Promise<void> {
     const token = ++uploadToken
     const check = validateAttachment(file)
@@ -506,8 +546,6 @@ export function useLiveChat(options: UseLiveChatOptions) {
   }
 
   // ─── Template ────────────────────────────────────────────────────────────────
-  let templateKey: string | null = null
-
   async function sendTemplate(): Promise<boolean> {
     const expectedEpoch = epoch.value
     if (!sessionActive.value || expectedEpoch === null || templateSending.value) return false

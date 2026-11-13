@@ -275,6 +275,21 @@ describe('RequestGroupRow — scheduled conversations (handoff 21)', () => {
     expect(card.wrapper.get('[data-testid="reschedule-tag"]').text()).toBe('Reagendar')
   })
 
+  it('T12: the marker names the cause for assistive tech and in the tooltip', async () => {
+    const closed = await mountRow({ scheduledFor: FUTURE, needsReschedule: true, needsRescheduleReason: 'CLOSED_DATE' })
+    const tag = closed.wrapper.get('[data-testid="reschedule-tag"]')
+    expect(tag.attributes('aria-label')).toBe('Por reagendar: la sucursal cerró ese día')
+    expect(tag.attributes('title')).toBe('Por reagendar: la sucursal cerró ese día')
+    const hours = await mountRow({ scheduledFor: FUTURE, needsReschedule: true, needsRescheduleReason: 'HOURS_CHANGED' }, { layout: 'cards' })
+    expect(hours.wrapper.get('[data-testid="reschedule-tag"]').attributes('aria-label')).toBe(
+      'Por reagendar: cambió el horario de la sucursal',
+    )
+    const generic = await mountRow({ scheduledFor: FUTURE, needsReschedule: true, needsRescheduleReason: null })
+    expect(generic.wrapper.get('[data-testid="reschedule-tag"]').attributes('aria-label')).toContain(
+      'quedó fuera del horario de atención',
+    )
+  })
+
   it('no marker without needsReschedule, and none on a closed row', async () => {
     const plain = await mountRow({ scheduledFor: FUTURE })
     expect(plain.wrapper.find('[data-testid="reschedule-tag"]').exists()).toBe(false)

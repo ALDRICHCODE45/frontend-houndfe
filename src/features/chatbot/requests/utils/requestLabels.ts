@@ -9,6 +9,7 @@ import type {
   ChatbotRequestDisplayStatus,
   ChatbotRequestMergedInto,
   ChatbotRequestRow,
+  ChatbotRescheduleReason,
   ChatbotRequestSlaLevel,
   ChatbotRequestStaffCancelReason,
   ChatbotRequestSubtype,
@@ -249,4 +250,23 @@ export function formatAvailableFrom(iso: string | null | undefined, options: Whe
     return clockParts(date, options.timeZone).time
   }
   return formatWhen(iso, options)
+}
+
+/** Handoff 21 §6.1: the sentence that says why a booked time must be moved; `null` reason keeps the generic one. */
+export const RESCHEDULE_REASON_LABELS: Record<ChatbotRescheduleReason, string> = {
+  CLOSED_DATE: 'Ese día se marcó como cerrado en la configuración de la sucursal.',
+  HOURS_CHANGED: 'Cambió el horario de la sucursal y la hora agendada quedó fuera de él.',
+}
+export const RESCHEDULE_REASON_GENERIC =
+  'Se cerró ese día o cambió el horario de atención, y la hora agendada ya no cae dentro de él.'
+
+export function rescheduleReasonText(reason: ChatbotRescheduleReason | null | undefined): string {
+  return (reason && RESCHEDULE_REASON_LABELS[reason]) || RESCHEDULE_REASON_GENERIC
+}
+
+/** Short cause for the row marker (tooltip and aria): «Por reagendar: la sucursal cerró ese día». */
+export function rescheduleMarkerLabel(reason: ChatbotRescheduleReason | null | undefined): string {
+  if (reason === 'CLOSED_DATE') return 'Por reagendar: la sucursal cerró ese día'
+  if (reason === 'HOURS_CHANGED') return 'Por reagendar: cambió el horario de la sucursal'
+  return 'Por reagendar: la hora agendada quedó fuera del horario de atención'
 }

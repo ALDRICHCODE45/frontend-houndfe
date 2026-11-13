@@ -41,9 +41,16 @@ vi.mock('../../api/chatbot-live.api', () => ({
   chatbotLiveApi: { sendMessage: vi.fn(), uploadMedia: vi.fn(), sendTemplate: vi.fn() },
 }))
 const COST = 'Cada plantilla se cobra a la tarifa de WhatsApp Business (aprox. $0.62 MXN).'
-vi.mock('../../composables/useTemplateCost', () => ({
-  useTemplateCost: () => ({ costText: ref(COST), isFromSettings: ref(true) }),
-}))
+vi.mock('../../composables/useTemplateCost', async () => {
+  const { computed, toValue } = await import('vue')
+  return {
+    // Mirrors the real order: the detail text first, then the settings text (COST here).
+    useTemplateCost: (fromDetail?: unknown) => ({
+      costText: computed(() => (toValue(fromDetail as never) as string | null | undefined)?.trim() || COST),
+      isFromSettings: ref(true),
+    }),
+  }
+})
 const auth = vi.hoisted(() => ({ perms: new Set<string>() }))
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: () => ({
@@ -196,7 +203,7 @@ describe('RequestDetailConversation — composer', () => {
     expect(wrapper.find('[data-testid="live-composer"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="live-blocked"]').text()).toContain('La ventana de 24 h está cerrada')
     expect(wrapper.get('[data-testid="blocked-draft"]').text()).toContain('Te confirmo en unos minutos.')
-    expect(wrapper.get('[data-testid="live-notice"]').text()).toContain('borrador')
+    expect(wrapper.get('[data-testid="live-notice"]').text()).toContain('no se envió')
     expect(wrapper.get('[data-testid="template-open"]').attributes('disabled')).toBeUndefined()
   })
 
@@ -357,6 +364,13 @@ describe('RequestDetailConversation — window closed and the template', () => {
     expect(wrapper.get('[data-testid="template-confirm-cost"]').text()).toBe(COST)
   })
 
+  it('T12: the confirmation shows the cost the detail carries, ahead of the settings', async () => {
+    const detail = { ...closed(), templateCostText: 'Costo del detalle: $0.62 MXN.' }
+    const wrapper = mountBlock(detail, oldMessages())
+    await wrapper.get('[data-testid="template-open"]').trigger('click')
+    expect(wrapper.get('[data-testid="template-confirm-cost"]').text()).toBe('Costo del detalle: $0.62 MXN.')
+  })
+
   it('confirming POSTs the template with the epoch and closes the sheet', async () => {
     api.sendTemplate.mockResolvedValue({
       message: sent(11, 'tpl', { type: 'TEMPLATE', text: '', templateName: 'seguimiento_pedido' }),
@@ -458,5 +472,65 @@ describe('RequestDetailConversation — without a live session nothing changes',
     expect(wrapper.text()).toContain('Solo lectura')
     expect(wrapper.find('[data-testid="live-status"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="live-card"]').exists()).toBe(false)
+  })
+})
+
+describe('RequestDetailConversation — T14: remount and reuse for the same or another request', () => {
+  const failed = () => sent(11, 'old-id', { deliveryStatus: 'FAILED', text: 'Tu folio es S-000412.' })
+  const sharedClient = () => new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const mountWith = (client: QueryClient, detail: ChatbotRequestDetail = live('ACTIVE')) => {
+    convo.messages = ref([customer(10), failed()])
+    return mount(RequestDetailConversation, {
+      props: { requestId: detail.id, timeZone: TZ, now: NOW, detail, currentUserId: 'u-1' },
+      global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs },
+    })
+  }
+
+  it('«Enviar como mensaje nuevo» does not come back on an already resent FAILED message after a remount', async () => {
+    api.sendMessage.mockResolvedValue({ message: sent(13, 'new') })
+    const client = sharedClient()
+    const first = mountWith(client)
+    await first.get('[data-testid="message-retry"]').trigger('click')
+    await flushPromises()
+    expect(api.sendMessage).toHaveBeenCalledTimes(1)
+    first.unmount()
+
+    const second = mountWith(client)
+    await flushPromises()
+    expect(second.find('[data-testid="message-retry"]').exists()).toBe(false)
+  })
+
+  it('another request mounted on the same client still offers it', async () => {
+    api.sendMessage.mockResolvedValue({ message: sent(13, 'new') })
+    const client = sharedClient()
+    const first = mountWith(client)
+    await first.get('[data-testid="message-retry"]').trigger('click')
+    await flushPromises()
+    first.unmount()
+
+    const other = mountWith(client, live('ACTIVE', { id: 'req-2' }))
+    expect(other.find('[data-testid="message-retry"]').exists()).toBe(true)
+  })
+
+  it('the view reuses the block across /chatbot/solicitudes/:id: the typed text stays with its own request', async () => {
+    const wrapper = mountBlock(live('ACTIVE'))
+    await wrapper.get('[data-testid="composer-text"]').setValue('Para la solicitud uno')
+    await wrapper.setProps({ requestId: 'req-2', detail: live('ACTIVE', { id: 'req-2' }) })
+    await flushPromises()
+    expect((wrapper.get('[data-testid="composer-text"]').element as HTMLTextAreaElement).value).toBe('')
+  })
+
+  it('the WINDOW_CLOSED override of a request does not close the composer of the next one', async () => {
+    api.sendMessage.mockRejectedValue(axiosError(409, { code: 'WINDOW_CLOSED', templateAllowed: true }))
+    const wrapper = mountBlock(live('ACTIVE'))
+    await wrapper.get('[data-testid="composer-text"]').setValue('Hola')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="live-composer"]').exists()).toBe(false)
+
+    await wrapper.setProps({ requestId: 'req-2', detail: live('ACTIVE', { id: 'req-2' }) })
+    await flushPromises()
+    expect(wrapper.find('[data-testid="live-composer"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="live-blocked"]').exists()).toBe(false)
   })
 })
