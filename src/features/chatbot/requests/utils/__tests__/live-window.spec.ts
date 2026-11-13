@@ -72,3 +72,29 @@ describe('formatRemaining', () => {
     expect(formatRemaining(-5)).toBe('0 min')
   })
 })
+
+describe('isWindowClosed — T5L.F: the server saying WINDOW_OPEN beats the clock', () => {
+  const OLD = '2026-11-12T10:00:00.000Z'
+  const NOW_D = new Date('2026-11-13T16:06:00.000Z')
+  const base = {
+    messages: [makeMessage({ seq: 10, direction: 'IN', author: 'CUSTOMER', providerTimestamp: OLD, createdAt: OLD })],
+    lastCustomerMessageAt: OLD,
+    rowClosesAt: null,
+    forcedClosedAfterSeq: null,
+  }
+
+  it('is open while no customer message newer than the answer arrived', () => {
+    expect(isWindowClosed({ ...base }, NOW_D)).toBe(true)
+    expect(isWindowClosed({ ...base, forcedOpenAfterSeq: 10 }, NOW_D)).toBe(false)
+  })
+
+  it('hands back to the clock once a newer customer message exists', () => {
+    const newer = [...base.messages, makeMessage({ seq: 11, direction: 'IN', author: 'CUSTOMER', providerTimestamp: OLD, createdAt: OLD })]
+    expect(isWindowClosed({ ...base, messages: newer, forcedOpenAfterSeq: 10 }, NOW_D)).toBe(true)
+  })
+
+  it('does not hide a deferred staff message', () => {
+    const deferred = makeMessage({ seq: 12, direction: 'OUT', author: 'STAFF', deliveryStatus: 'DEFERRED', providerTimestamp: null })
+    expect(isWindowClosed({ ...base, messages: [...base.messages, deferred], forcedOpenAfterSeq: 10 }, NOW_D)).toBe(true)
+  })
+})

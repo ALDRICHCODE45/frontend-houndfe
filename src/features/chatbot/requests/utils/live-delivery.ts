@@ -8,9 +8,21 @@ import type { ChatbotMessage } from '../interfaces/chatbot-request.types'
 
 export const PENDING_SEND_MS = 30_000
 
-export type DeliveryKey = 'QUEUED' | 'PENDING' | 'SENT' | 'DELIVERED' | 'READ' | 'DEFERRED' | 'FAILED' | 'UNKNOWN'
+export type DeliveryKey =
+  | 'QUEUED'
+  | 'PENDING'
+  | 'SENT'
+  | 'DELIVERED'
+  | 'READ'
+  | 'DEFERRED'
+  | 'FAILED'
+  | 'UNKNOWN'
+  | 'UNCONFIRMED'
 export type DeliveryTone = 'neutral' | 'read' | 'warn' | 'bad'
-/** `retry`: «Reintentar» (FAILED). `resend`: «Enviar como mensaje nuevo» (UNKNOWN). Both create a new message. */
+/**
+ * `retry`: «Reintentar» (FAILED creates a new message; UNCONFIRMED resends the same id, which the
+ * server answers without duplicating). `resend`: «Enviar como mensaje nuevo» (UNKNOWN, a new message).
+ */
 export type DeliveryAction = 'retry' | 'resend'
 
 export interface DeliveryView {
@@ -39,11 +51,13 @@ const BASE: Record<DeliveryKey, Omit<DeliveryView, 'key' | 'note' | 'action'>> =
   DEFERRED: { label: 'No enviado, ventana cerrada', tone: 'warn', icon: 'i-lucide-triangle-alert' },
   FAILED: { label: 'No enviado', tone: 'bad', icon: 'i-lucide-triangle-alert' },
   UNKNOWN: { label: 'Entrega dudosa', tone: 'warn', icon: 'i-lucide-circle-help' },
+  UNCONFIRMED: { label: 'No sabemos si se envió', tone: 'warn', icon: 'i-lucide-circle-help' },
 }
 
 function keyOf(message: ChatbotMessage, now: Date): DeliveryKey | null {
   const status = message.deliveryStatus
   if (!status) return null
+  if (status === 'FAILED' && message.unconfirmed) return 'UNCONFIRMED'
   if (status === 'QUEUED') {
     const created = Date.parse(message.createdAt)
     if (Number.isFinite(created) && now.getTime() - created >= PENDING_SEND_MS) return 'PENDING'
@@ -65,6 +79,8 @@ function noteOf(key: DeliveryKey, message: ChatbotMessage, now: Date, staff: boo
       return template
         ? 'La plantilla no se entregó. Puedes reintentar desde el recuadro de abajo.'
         : 'No se pudo enviar. El cliente no lo recibió.'
+    case 'UNCONFIRMED':
+      return 'Puede que el cliente ya lo haya recibido: se perdió la conexión antes de la respuesta. Reintentar es seguro, no se duplica.'
     case 'UNKNOWN':
       return template
         ? 'Puede que ya se haya enviado y costado. No se puede reenviar: espera la respuesta del cliente.'
@@ -85,7 +101,7 @@ export function deliveryView(message: ChatbotMessage, options: DeliveryOptions):
   const retried = options.retried === true
   let action: DeliveryAction | null = null
   if (staff && !template && !retried && options.canAct !== false) {
-    if (key === 'FAILED') action = 'retry'
+    if (key === 'FAILED' || key === 'UNCONFIRMED') action = 'retry'
     else if (key === 'UNKNOWN') action = 'resend'
   }
   const resent = staff && !template && retried && (key === 'FAILED' || key === 'UNKNOWN')

@@ -3,12 +3,12 @@ import { useQuery } from '@tanstack/vue-query'
 import { chatbotRequestApi } from '../api/chatbot-request.api'
 import { chatbotRequestKeys } from '../constants/queryKeys'
 import { readRequestError } from '../utils/requestErrors'
-import { pollingInterval } from './polling'
+import { detailPollingInterval } from './polling'
 import { useRequestAccess } from './useRequestAccess'
 
 /**
- * One request (the email deep link), refetched every 30 s while the tab is visible. No
- * `keepPreviousData`: another id must never show the previous request's actions. A `404` is a gone
+ * One request (the email deep link), refetched every 30 s while the tab is visible (every 4 s while its
+ * live session is STARTING or ENDING). No `keepPreviousData`: another id must never show the previous request's actions. A `404` is a gone
  * request (or another branch's): not retried and polling stops.
  */
 export function useRequestDetail(id: MaybeRefOrGetter<string | null | undefined>) {
@@ -22,7 +22,7 @@ export function useRequestDetail(id: MaybeRefOrGetter<string | null | undefined>
     enabled,
     staleTime: 15_000,
     retry: false,
-    refetchInterval: pollingInterval,
+    refetchInterval: detailPollingInterval,
   })
 
   return {

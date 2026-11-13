@@ -346,6 +346,31 @@ describe('useRequestConversation — the attendee without read:ChatbotConversati
   })
 })
 
+describe('useRequestConversation — T5L.F: an attendee who also reads conversations does not move the marker', () => {
+  it('keeps the cached unread count and invalidates nothing when opened as the attendee', async () => {
+    auth.perms = new Set(['read:ChatbotRequest', 'read:ChatbotConversation'])
+    getPage.mockResolvedValue(page([21]))
+    const { client } = withQuery(() => useRequestConversation('req-1', { asAttendee: () => true }))
+    const detailKey = chatbotRequestKeys.detail('tenant-1', 'req-1')
+    client.setQueryData(detailKey, { id: 'req-1', unreadCustomerMessages: 3 })
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    await flushPromises()
+
+    expect(client.getQueryData<{ unreadCustomerMessages: number }>(detailKey)!.unreadCustomerMessages).toBe(3)
+    expect(invalidate).not.toHaveBeenCalled()
+  })
+
+  it('a reader who is not the attendee still marks it opened', async () => {
+    auth.perms = new Set(['read:ChatbotRequest', 'read:ChatbotConversation'])
+    getPage.mockResolvedValue(page([21]))
+    const { client } = withQuery(() => useRequestConversation('req-1', { asAttendee: () => false }))
+    const detailKey = chatbotRequestKeys.detail('tenant-1', 'req-1')
+    client.setQueryData(detailKey, { id: 'req-1', unreadCustomerMessages: 3 })
+    await flushPromises()
+    expect(client.getQueryData<{ unreadCustomerMessages: number }>(detailKey)!.unreadCustomerMessages).toBe(0)
+  })
+})
+
 describe('useRequestConversation — live mode polls faster and refreshes delivery states', () => {
   const out = (seq: number, deliveryStatus: 'QUEUED' | 'SENT' | 'DELIVERED' | 'READ', extra = {}) =>
     makeMessage({ seq, direction: 'OUT', author: 'STAFF', deliveryStatus, ...extra })

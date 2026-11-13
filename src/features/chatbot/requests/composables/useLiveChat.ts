@@ -36,7 +36,7 @@ export type TemplateState = 'ready' | 'pending' | 'failed' | 'unknown' | 'none'
 
 type SendInput =
   | { kind: 'text'; text: string }
-  | { kind: 'media'; type: 'IMAGE' | 'DOCUMENT'; mediaId: string; caption: string; name: string }
+  | { kind: 'media'; type: 'IMAGE' | 'DOCUMENT'; mediaId: string; caption: string; name: string; size: number }
 
 /**
  * A message the attendee sent (or is sending) that the polled thread may not hold yet.
@@ -90,6 +90,8 @@ export function useLiveChat(options: UseLiveChatOptions) {
 
   /** Highest customer `seq` known when the server said `WINDOW_CLOSED`. */
   const forcedClosedAfterSeq = ref<number | null>(null)
+  /** Highest customer `seq` known when the server said `WINDOW_OPEN`: beats the local clock until the customer writes. */
+  const forcedOpenAfterSeq = ref<number | null>(null)
   const templateAllowed = ref<boolean | null>(null)
   const templateNotConfigured = ref(false)
   const templateSending = ref(false)
@@ -114,6 +116,7 @@ export function useLiveChat(options: UseLiveChatOptions) {
     lastCustomerMessageAt: detail.value?.liveSession?.lastCustomerMessageAt ?? null,
     rowClosesAt: detail.value?.whatsappWindowClosesAt ?? null,
     forcedClosedAfterSeq: forcedClosedAfterSeq.value,
+    forcedOpenAfterSeq: forcedOpenAfterSeq.value,
   }))
   const windowClosed = computed(() => isWindowClosed(windowInput.value, now.value))
   /** Epoch ms when the window closes, from the newest customer message; `null` when nothing says. */
@@ -155,8 +158,10 @@ export function useLiveChat(options: UseLiveChatOptions) {
   // ─── Limits ──────────────────────────────────────────────────────────────────
   const textLimit = computed(() => (attachment.value ? CAPTION_MAX : TEXT_MAX))
   const overLimit = computed(() => draft.value.length > textLimit.value)
+  /** Only an `ACTIVE` session takes messages (`SESSION_NOT_ACTIVE` otherwise, handoff 20 §3). */
+  const sessionActive = computed(() => epoch.value !== null && detail.value?.liveSession?.state === 'ACTIVE')
   const canSend = computed(() => {
-    if (epoch.value === null || overLimit.value) return false
+    if (!sessionActive.value || overLimit.value) return false
     if (attachment.value) return attachment.value.status === 'ready'
     return draft.value.trim().length > 0
   })
@@ -221,10 +226,12 @@ export function useLiveChat(options: UseLiveChatOptions) {
   function applyRefusal(error: LiveError): void {
     if (error.code === 'WINDOW_CLOSED') {
       forcedClosedAfterSeq.value = lastCustomerSeq(displayMessages.value) ?? 0
+      forcedOpenAfterSeq.value = null
       templateAllowed.value = error.templateAllowed
     }
     if (error.code === 'WINDOW_OPEN') {
       forcedClosedAfterSeq.value = null
+      forcedOpenAfterSeq.value = lastCustomerSeq(displayMessages.value) ?? 0
       templateAllowed.value = null
     }
   }
@@ -236,7 +243,15 @@ export function useLiveChat(options: UseLiveChatOptions) {
     notice: LiveNotice | null
   }
 
-  async function dispatch(clientMessageId: string, input: SendInput): Promise<DispatchResult> {
+  /**
+   * `restore`: the attendee's own composer content (not a resend of a message the server already
+   * holds). A refusal then puts the text, and the attachment if any, back in the composer.
+   */
+  async function dispatch(
+    clientMessageId: string,
+    input: SendInput,
+    { restore }: { restore: boolean } = { restore: false },
+  ): Promise<DispatchResult> {
     const expectedEpoch = epoch.value
     if (expectedEpoch === null) return { ok: false, error: null, notice: null }
     const message = optimisticMessage(clientMessageId, input)
@@ -251,12 +266,18 @@ export function useLiveChat(options: UseLiveChatOptions) {
       const shown = liveErrorNotice(error, { fileName: input.kind === 'media' ? input.name : undefined })
       notice.value = shown
       if (error.retryable) {
-        // The answer is unknown: keep the bubble so «Reintentar» resends the same id.
-        upsert({ clientMessageId, input, phase: 'unsent', message: { ...message, deliveryStatus: 'FAILED' } })
+        // The answer is unknown (it may have arrived): keep the bubble so «Reintentar» resends the same id.
+        upsert({
+          clientMessageId,
+          input,
+          phase: 'unsent',
+          message: { ...message, deliveryStatus: 'FAILED', unconfirmed: true },
+        })
       } else {
         drop(clientMessageId)
         applyRefusal(error)
         if (shown.refetch) refetchDetail()
+        if (restore) restoreInput(input, error, shown)
       }
       return { ok: false, error, notice: shown }
     }
@@ -264,6 +285,26 @@ export function useLiveChat(options: UseLiveChatOptions) {
 
   function restoreDraft(text: string): void {
     if (draft.value.trim().length === 0) draft.value = text
+  }
+
+  /** Puts a refused message back in the composer without overwriting what was typed or picked since. */
+  function restoreInput(input: SendInput, error: LiveError, shown: LiveNotice): void {
+    if (input.kind === 'text') {
+      restoreDraft(input.text)
+      return
+    }
+    restoreDraft(input.caption)
+    if (attachment.value) return
+    const mediaGone = ['MEDIA_NOT_FOUND', 'MEDIA_PURGED', 'MEDIA_TYPE_MISMATCH'].includes(error.code ?? '')
+    attachment.value = {
+      name: input.name,
+      size: input.size,
+      kind: input.type,
+      status: mediaGone ? 'error' : 'ready',
+      progress: 100,
+      mediaId: input.mediaId,
+      error: mediaGone ? (shown.detail ?? 'Súbelo de nuevo.') : null,
+    }
   }
 
   // ─── Sending the composer ────────────────────────────────────────────────────
@@ -274,32 +315,30 @@ export function useLiveChat(options: UseLiveChatOptions) {
     const clientMessageId = newIdempotencyKey()
     const input: SendInput =
       held && held.mediaId && held.kind
-        ? { kind: 'media', type: held.kind, mediaId: held.mediaId, caption: text.trim(), name: held.name }
+        ? {
+            kind: 'media',
+            type: held.kind,
+            mediaId: held.mediaId,
+            caption: text.trim(),
+            name: held.name,
+            size: held.size,
+          }
         : { kind: 'text', text: text.trim() }
 
     notice.value = null
     draft.value = ''
     attachment.value = null
-    const result = await dispatch(clientMessageId, input)
-
-    if (result.ok || result.error?.retryable) return
-    restoreDraft(text)
-    if (held) {
-      const mediaGone = ['MEDIA_NOT_FOUND', 'MEDIA_PURGED', 'MEDIA_TYPE_MISMATCH'].includes(result.error?.code ?? '')
-      attachment.value = mediaGone
-        ? { ...held, status: 'error', error: result.notice?.detail ?? 'Súbelo de nuevo.' }
-        : held
-    }
+    await dispatch(clientMessageId, input, { restore: true })
   }
 
   /** «Reintentar» / «Enviar como mensaje nuevo» on a delivery that did not work out. */
   async function retry(message: ChatbotMessage): Promise<void> {
+    const held = entries.value.find((e) => e.clientMessageId === message.clientMessageId)
+    // A second click / Enter while the first resend is in flight must not send anything else.
+    if (held?.phase === 'sending' || retried.value.has(message.id)) return
     notice.value = null
-    const unsent = entries.value.find(
-      (e) => e.phase === 'unsent' && e.clientMessageId === message.clientMessageId,
-    )
-    if (unsent) {
-      await dispatch(unsent.clientMessageId, unsent.input)
+    if (held?.phase === 'unsent') {
+      await dispatch(held.clientMessageId, held.input, { restore: true })
       return
     }
     const input: SendInput | null =
@@ -312,6 +351,7 @@ export function useLiveChat(options: UseLiveChatOptions) {
               mediaId: message.media.id,
               caption: (message.text ?? '').trim(),
               name: message.media.filename ?? '',
+              size: message.media.sizeBytes ?? 0,
             }
           : null
     if (!input || (input.kind === 'text' && input.text.length === 0)) return
@@ -389,7 +429,7 @@ export function useLiveChat(options: UseLiveChatOptions) {
 
   async function sendTemplate(): Promise<boolean> {
     const expectedEpoch = epoch.value
-    if (expectedEpoch === null || templateSending.value) return false
+    if (!sessionActive.value || expectedEpoch === null || templateSending.value) return false
     templateKey ??= newIdempotencyKey()
     templateSending.value = true
     notice.value = null

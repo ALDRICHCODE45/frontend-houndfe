@@ -5,7 +5,8 @@
  * does not move with the conversation (known limit), so the best local knowledge is the newest
  * customer message (thread or `liveSession.lastCustomerMessageAt`) plus 24 h. The server is still
  * the truth: a `409 WINDOW_CLOSED` closes the composer (`forcedClosedAfterSeq`) until the customer
- * writes again, and a staff message that ended `DEFERRED` means the same.
+ * writes again, and a staff message that ended `DEFERRED` means the same. A `409 WINDOW_OPEN`
+ * (`forcedOpenAfterSeq`) overrides the local clock the same way.
  */
 import type { ChatbotMessage } from '../interfaces/chatbot-request.types'
 
@@ -18,6 +19,12 @@ export interface WindowInput {
   rowClosesAt: string | null
   /** Highest customer `seq` known when the server said `WINDOW_CLOSED`; `null` when it never did. */
   forcedClosedAfterSeq: number | null
+  /**
+   * Highest customer `seq` known when the server said `WINDOW_OPEN`: the server's word beats the
+   * local clock (a skewed clock must not block the composer for good) until the customer writes
+   * again. Absent / `null` when it never did.
+   */
+  forcedOpenAfterSeq?: number | null
 }
 
 function instant(value: string | null | undefined): number | null {
@@ -58,6 +65,7 @@ export function isWindowClosed(input: WindowInput, now: Date): boolean {
     (message) => message.author === 'STAFF' && message.deliveryStatus === 'DEFERRED' && message.seq > customerSeq,
   )
   if (deferred) return true
+  if (input.forcedOpenAfterSeq != null && customerSeq <= input.forcedOpenAfterSeq) return false
   const closes = windowClosesAt(input)
   return closes !== null && now.getTime() >= closes
 }

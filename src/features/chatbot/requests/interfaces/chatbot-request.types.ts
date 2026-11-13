@@ -791,6 +791,12 @@ export interface ChatbotMessage {
   createdAt: string
   /** Only on `TEMPLATE` messages (handoff 20 §3c). */
   templateName?: string | null
+  /**
+   * Client only, never sent by the backend: the POST ended in a network error or a `5xx`, so the
+   * message may have reached the customer. Its local `FAILED` status then reads «No sabemos si se
+   * envió» (not «El cliente no lo recibió»), and «Reintentar» resends the same id.
+   */
+  unconfirmed?: boolean
 }
 
 export interface ChatbotConversationPage {

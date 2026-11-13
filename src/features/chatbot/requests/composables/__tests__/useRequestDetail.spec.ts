@@ -104,6 +104,56 @@ describe('useRequestDetail', () => {
   })
 })
 
+describe('useRequestDetail — T5L.F M3: polls faster while the session changes state', () => {
+  const withSession = (state: string) =>
+    ({ id: 'req-1', version: 3, liveSession: { state, handoffEpoch: 1 } }) as unknown as ChatbotRequestDetail
+
+  it.each(['STARTING', 'ENDING'])('%s polls every 4 s, not every 30 s', async (state) => {
+    vi.useFakeTimers()
+    getDetail.mockResolvedValue(withSession(state))
+    withQuery(() => useRequestDetail('req-1'))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(getDetail).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(4_000)
+    expect(getDetail).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(4_000)
+    expect(getDetail).toHaveBeenCalledTimes(3)
+  })
+
+  it('goes back to 30 s once the session is ACTIVE (and for ENDED, WAITING or no session)', async () => {
+    vi.useFakeTimers()
+    getDetail.mockResolvedValueOnce(withSession('STARTING')).mockResolvedValue(withSession('ACTIVE'))
+    withQuery(() => useRequestDetail('req-1'))
+    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(4_000)
+    expect(getDetail).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(20_000)
+    expect(getDetail).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(getDetail).toHaveBeenCalledTimes(3)
+  })
+
+  it('does not poll in the background, even while STARTING', async () => {
+    vi.useFakeTimers()
+    getDetail.mockResolvedValue(withSession('STARTING'))
+    withQuery(() => useRequestDetail('req-1'))
+    await vi.advanceTimersByTimeAsync(0)
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(getDetail).toHaveBeenCalledTimes(1)
+  })
+
+  it('a 404 still stops the polling while STARTING', async () => {
+    vi.useFakeTimers()
+    getDetail.mockResolvedValueOnce(withSession('STARTING')).mockRejectedValue(axiosError(404, { code: 'NOT_FOUND' }))
+    withQuery(() => useRequestDetail('req-1'), defaultsClient())
+    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(4_000)
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(getDetail).toHaveBeenCalledTimes(2)
+  })
+})
+
 describe('useRequestAudit (events beyond the 20 of the detail)', () => {
   const event = (id: string) => ({ id, type: 'CLAIMED' }) as never
 

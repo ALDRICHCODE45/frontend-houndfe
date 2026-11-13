@@ -99,3 +99,24 @@ describe('deliveryView — actions', () => {
     expect(view?.action).toBeNull()
   })
 })
+
+describe('deliveryView — T5L.F M2: an unconfirmed send (network error / 5xx) is not «El cliente no lo recibió»', () => {
+  const unconfirmed = staff({ deliveryStatus: 'FAILED', unconfirmed: true })
+
+  it('reads «No sabemos si se envió» and says Reintentar is safe', () => {
+    const view = deliveryView(unconfirmed, { now: at(5) })
+    expect(view).toMatchObject({ key: 'UNCONFIRMED', label: 'No sabemos si se envió', tone: 'warn', action: 'retry' })
+    expect(view?.note).toContain('Reintentar')
+    expect(view?.note).toContain('no se duplica')
+    expect(view?.note).not.toContain('El cliente no lo recibió')
+  })
+
+  it('has no button for someone who cannot act', () => {
+    expect(deliveryView(unconfirmed, { now: at(5), canAct: false })?.action).toBeNull()
+  })
+
+  it('the server FAILED keeps «No enviado» and «El cliente no lo recibió»', () => {
+    const view = deliveryView(staff({ deliveryStatus: 'FAILED' }), { now: at(5) })
+    expect(view).toMatchObject({ key: 'FAILED', label: 'No enviado', note: 'No se pudo enviar. El cliente no lo recibió.' })
+  })
+})

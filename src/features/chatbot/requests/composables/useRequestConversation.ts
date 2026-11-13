@@ -63,7 +63,7 @@ function pollCursor(items: readonly ChatbotMessage[], live: boolean): number | n
  * request (`asAttendee`, handoff 20 §5: the server then answers their own session). Anyone else
  * would get an empty page, which must not read as «sin mensajes», so the block is simply not read
  * (the view keeps its limited-view note). `live` polls every 4 s and refreshes delivery states. The first successful read of a
- * request marks it opened on the server (unread count to 0): the lists are invalidated once, and the
+ * request by a reader who is not its attendee marks it opened on the server (unread count to 0): the lists are invalidated once, and the
  * cached detail (which is on screen and does not show the count) is zeroed in place, not refetched.
  */
 export function useRequestConversation(
@@ -130,7 +130,9 @@ export function useRequestConversation(
       }
       thread = fresh
     }
-    if (isReader.value) markOpened(tenant, request)
+    // Handoff 20 §5: opening the chat as the attendee does not move the unread marker, with or
+    // without `read:ChatbotConversation`, so nothing is zeroed for it.
+    if (isReader.value && !attendee.value) markOpened(tenant, request)
     return thread
   }
 

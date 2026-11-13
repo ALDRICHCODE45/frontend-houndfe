@@ -513,3 +513,223 @@ describe('useLiveChat — what the block shows about the window', () => {
     expect(chat.deferred.value).toBe(false)
   })
 })
+
+describe('useLiveChat — T5L.F M1: «Reintentar» then a refusal restores the text', () => {
+  it('network error, Reintentar, then STALE_EPOCH: the bubble goes, the text returns to the draft and the detail is refetched', async () => {
+    api.sendMessage
+      .mockRejectedValueOnce(new Error('network'))
+      .mockRejectedValueOnce(axiosError(409, { code: 'STALE_EPOCH', currentEpoch: 4 }))
+    const { chat, invalidate } = setup()
+    chat.draft.value = 'Te confirmo en unos minutos.'
+    await chat.send()
+    expect(chat.draft.value).toBe('')
+    const unsent = chat.displayMessages.value[1]!
+
+    await chat.retry(unsent)
+
+    expect(seqs(chat.displayMessages.value)).toEqual([10])
+    expect(chat.draft.value).toBe('Te confirmo en unos minutos.')
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: chatbotRequestKeys.detail('tenant-1', 'req-1') })
+    expect(chat.notice.value?.title).toBe('La conversación cambió')
+  })
+
+  it('does not overwrite what was typed since the first attempt', async () => {
+    api.sendMessage
+      .mockRejectedValueOnce(new Error('network'))
+      .mockRejectedValueOnce(axiosError(403, { code: 'NOT_ASSIGNEE' }))
+    const { chat } = setup()
+    chat.draft.value = 'Primero'
+    await chat.send()
+    chat.draft.value = 'Ya escribí otra cosa'
+
+    await chat.retry(chat.displayMessages.value[1]!)
+
+    expect(chat.draft.value).toBe('Ya escribí otra cosa')
+    expect(seqs(chat.displayMessages.value)).toEqual([10])
+  })
+
+  it('restores the caption and the attachment of a photo, and marks it for upload again when the file is gone', async () => {
+    api.uploadMedia.mockResolvedValue({ mediaId: 'media-9', mimeType: 'image/png', sizeBytes: 2048, sha256: 'x', filename: 'foto.png' })
+    api.sendMessage
+      .mockRejectedValueOnce(new Error('network'))
+      .mockRejectedValueOnce(axiosError(409, { code: 'STALE_EPOCH' }))
+    const { chat } = setup()
+    await chat.pickFile(new File(['x'], 'foto.png', { type: 'image/png' }))
+    chat.draft.value = 'Así quedó'
+    await chat.send()
+    expect(chat.attachment.value).toBeNull()
+
+    await chat.retry(chat.displayMessages.value[1]!)
+
+    expect(chat.draft.value).toBe('Así quedó')
+    expect(chat.attachment.value).toMatchObject({ name: 'foto.png', mediaId: 'media-9', kind: 'IMAGE', status: 'ready', size: 2048 })
+  })
+
+  it('does not replace an attachment picked since', async () => {
+    api.uploadMedia
+      .mockResolvedValueOnce({ mediaId: 'media-1', mimeType: 'image/png', sizeBytes: 5, sha256: 'x', filename: 'a.png' })
+      .mockResolvedValueOnce({ mediaId: 'media-2', mimeType: 'image/png', sizeBytes: 5, sha256: 'x', filename: 'b.png' })
+    api.sendMessage
+      .mockRejectedValueOnce(new Error('network'))
+      .mockRejectedValueOnce(axiosError(409, { code: 'STALE_EPOCH' }))
+    const { chat } = setup()
+    await chat.pickFile(new File(['x'], 'a.png', { type: 'image/png' }))
+    await chat.send()
+    await chat.pickFile(new File(['x'], 'b.png', { type: 'image/png' }))
+
+    await chat.retry(chat.displayMessages.value[1]!)
+
+    expect(chat.attachment.value).toMatchObject({ mediaId: 'media-2' })
+  })
+
+  it('a refusal of the «Enviar como mensaje nuevo» resend does not touch the draft (the old message stays in the thread)', async () => {
+    api.sendMessage.mockRejectedValue(axiosError(409, { code: 'STALE_EPOCH' }))
+    const failed = staffMessage(11, 'old-id', { deliveryStatus: 'FAILED', text: 'Tu folio es S-000412.' })
+    const { chat } = setup({ messages: [customer(10), failed] })
+    await chat.retry(failed)
+    expect(chat.draft.value).toBe('')
+  })
+})
+
+describe('useLiveChat — T5L.F M2: an unknown answer is not «El cliente no lo recibió»', () => {
+  it('marks the local bubble as unconfirmed (it keeps a FAILED status but says so)', async () => {
+    api.sendMessage.mockRejectedValueOnce(new Error('network'))
+    const { chat } = setup()
+    chat.draft.value = 'Hola'
+    await chat.send()
+    expect(chat.displayMessages.value[1]).toMatchObject({ clientMessageId: 'key-1', unconfirmed: true })
+  })
+
+  it('a 5xx is unconfirmed too, and the server copy afterwards is not', async () => {
+    api.sendMessage.mockRejectedValueOnce(axiosError(503)).mockResolvedValueOnce({ message: staffMessage(11, 'key-1') })
+    const { chat } = setup()
+    chat.draft.value = 'Hola'
+    await chat.send()
+    expect(chat.displayMessages.value[1]!.unconfirmed).toBe(true)
+    await chat.retry(chat.displayMessages.value[1]!)
+    expect(chat.displayMessages.value[1]!.unconfirmed).toBeFalsy()
+  })
+})
+
+describe('useLiveChat — T5L.F: double Enter / double click send once', () => {
+  it('two send() calls in the same tick POST once', async () => {
+    let resolve!: (value: { message: ChatbotMessage }) => void
+    api.sendMessage.mockReturnValue(new Promise((r) => (resolve = r)))
+    const { chat } = setup()
+    chat.draft.value = 'Hola'
+
+    const first = chat.send()
+    const second = chat.send()
+    resolve({ message: staffMessage(11, 'key-1') })
+    await Promise.all([first, second])
+
+    expect(api.sendMessage).toHaveBeenCalledTimes(1)
+    expect(seqs(chat.displayMessages.value)).toEqual([10, 11])
+  })
+
+  it('two «Reintentar» in a row after a network error POST once more, not twice', async () => {
+    let resolve!: (value: { message: ChatbotMessage }) => void
+    api.sendMessage.mockRejectedValueOnce(new Error('network')).mockReturnValueOnce(new Promise((r) => (resolve = r)))
+    const { chat } = setup()
+    chat.draft.value = 'Hola'
+    await chat.send()
+    const unsent = chat.displayMessages.value[1]!
+
+    const first = chat.retry(unsent)
+    const second = chat.retry(unsent)
+    resolve({ message: staffMessage(11, 'key-1') })
+    await Promise.all([first, second])
+
+    expect(api.sendMessage).toHaveBeenCalledTimes(2)
+    expect(api.sendMessage.mock.calls.map((c) => (c[1] as { clientMessageId: string }).clientMessageId)).toEqual(['key-1', 'key-1'])
+    expect(seqs(chat.displayMessages.value)).toEqual([10, 11])
+  })
+
+  it('two «Enviar como mensaje nuevo» on a FAILED message POST once', async () => {
+    let resolve!: (value: { message: ChatbotMessage }) => void
+    api.sendMessage.mockReturnValue(new Promise((r) => (resolve = r)))
+    const failed = staffMessage(11, 'old-id', { deliveryStatus: 'FAILED', text: 'Hola' })
+    const { chat } = setup({ messages: [customer(10), failed] })
+
+    const first = chat.retry(failed)
+    const second = chat.retry(failed)
+    resolve({ message: staffMessage(13, 'key-1') })
+    await Promise.all([first, second])
+
+    expect(api.sendMessage).toHaveBeenCalledTimes(1)
+  })
+
+  it('a poll that lands before the POST answer leaves exactly one bubble', async () => {
+    let resolve!: (value: { message: ChatbotMessage }) => void
+    api.sendMessage.mockReturnValue(new Promise((r) => (resolve = r)))
+    const { chat, messages } = setup()
+    chat.draft.value = 'Hola'
+    const sending = chat.send()
+    await flushPromises()
+    expect(seqs(chat.displayMessages.value)).toEqual([10, 0])
+
+    messages.value = [customer(10), staffMessage(11, 'key-1', { deliveryStatus: 'SENT' })]
+    expect(seqs(chat.displayMessages.value)).toEqual([10, 11])
+
+    resolve({ message: staffMessage(11, 'key-1') })
+    await sending
+    expect(seqs(chat.displayMessages.value)).toEqual([10, 11])
+    expect(chat.displayMessages.value[1]!.deliveryStatus).toBe('SENT')
+  })
+})
+
+describe('useLiveChat — T5L.F: only an ACTIVE session sends', () => {
+  it.each(['STARTING', 'ENDING', 'ENDED', 'WAITING'] as const)('%s: send() and sendTemplate() post nothing', async (state) => {
+    const detail = liveDetail({
+      liveSession: { state, handoffEpoch: 3, lastStaffActivityAt: null, lastCustomerMessageAt: '2026-11-13T16:05:00.000Z' },
+    })
+    const { chat } = setup({ detail })
+    chat.draft.value = 'Hola'
+    expect(chat.canSend.value).toBe(false)
+    await chat.send()
+    expect(await chat.sendTemplate()).toBe(false)
+    expect(api.sendMessage).not.toHaveBeenCalled()
+    expect(api.sendTemplate).not.toHaveBeenCalled()
+  })
+})
+
+describe('useLiveChat — T5L.F: a server WINDOW_OPEN beats the local clock', () => {
+  const OLD = '2026-11-12T10:00:00.000Z'
+  const skewed = () =>
+    setup({
+      messages: [customer(10, OLD)],
+      detail: liveDetail({ liveSession: { state: 'ACTIVE', handoffEpoch: 3, lastStaffActivityAt: null, lastCustomerMessageAt: OLD } }),
+    })
+
+  it('after WINDOW_OPEN the composer opens even though the local clock says closed', async () => {
+    api.sendTemplate.mockRejectedValue(axiosError(409, { code: 'WINDOW_OPEN' }))
+    const { chat } = skewed()
+    expect(chat.windowClosed.value).toBe(true)
+
+    await chat.sendTemplate()
+
+    expect(chat.windowClosed.value).toBe(false)
+    expect(chat.templateAvailable.value).toBe(false)
+  })
+
+  it('until the next customer message, which hands the decision back to the clock', async () => {
+    api.sendTemplate.mockRejectedValue(axiosError(409, { code: 'WINDOW_OPEN' }))
+    const { chat, messages } = skewed()
+    await chat.sendTemplate()
+    expect(chat.windowClosed.value).toBe(false)
+
+    messages.value = [customer(10, OLD), customer(11, OLD)]
+    expect(chat.windowClosed.value).toBe(true)
+  })
+
+  it('a later WINDOW_CLOSED answer closes it again', async () => {
+    api.sendTemplate.mockRejectedValue(axiosError(409, { code: 'WINDOW_OPEN' }))
+    api.sendMessage.mockRejectedValue(axiosError(409, { code: 'WINDOW_CLOSED', templateAllowed: true }))
+    const { chat } = skewed()
+    await chat.sendTemplate()
+    chat.draft.value = 'Hola'
+    // The composer is open by the server's word: sending is allowed and answered WINDOW_CLOSED.
+    await chat.send()
+    expect(chat.windowClosed.value).toBe(true)
+  })
+})

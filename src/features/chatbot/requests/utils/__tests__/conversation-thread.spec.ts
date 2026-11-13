@@ -55,3 +55,51 @@ describe('thread paging helpers', () => {
     expect(lastSeq(items)).toBe(9)
   })
 })
+
+describe('mergeMessages — T5L.F: a staff delivery status never goes backwards', () => {
+  const out = (seq: number, deliveryStatus: 'QUEUED' | 'SENT' | 'DELIVERED' | 'READ' | 'DEFERRED' | 'UNKNOWN' | 'FAILED') =>
+    makeMessage({ seq, direction: 'OUT', author: 'STAFF', deliveryStatus })
+  const statusOf = (existing: ReturnType<typeof out>, incoming: ReturnType<typeof out>) =>
+    mergeMessages([existing], [incoming])[0]!.deliveryStatus
+
+  it.each([
+    ['READ', 'DELIVERED'],
+    ['READ', 'SENT'],
+    ['READ', 'QUEUED'],
+    ['DELIVERED', 'SENT'],
+    ['DELIVERED', 'QUEUED'],
+    ['SENT', 'QUEUED'],
+  ] as const)('a stale %s → %s answer keeps %s', (held, stale) => {
+    expect(statusOf(out(5, held), out(5, stale))).toBe(held)
+  })
+
+  it.each([
+    ['QUEUED', 'SENT'],
+    ['SENT', 'DELIVERED'],
+    ['DELIVERED', 'READ'],
+    ['QUEUED', 'READ'],
+    ['SENT', 'SENT'],
+  ] as const)('%s → %s moves forward', (held, next) => {
+    expect(statusOf(out(5, held), out(5, next))).toBe(next)
+  })
+
+  it.each(['DEFERRED', 'UNKNOWN', 'FAILED'] as const)('%s from the server is always taken (it is not on the ladder)', (next) => {
+    expect(statusOf(out(5, 'READ'), out(5, next))).toBe(next)
+    expect(statusOf(out(5, 'SENT'), out(5, next))).toBe(next)
+  })
+
+  it.each(['DEFERRED', 'UNKNOWN', 'FAILED'] as const)('a resend or a late report after %s moves it back onto the ladder', (held) => {
+    expect(statusOf(out(5, held), out(5, 'QUEUED'))).toBe('QUEUED')
+    expect(statusOf(out(5, held), out(5, 'DELIVERED'))).toBe('DELIVERED')
+  })
+
+  it('keeps the rest of the incoming copy while holding the status', () => {
+    const merged = mergeMessages([out(5, 'READ')], [{ ...out(5, 'SENT'), text: 'corregido' }])
+    expect(merged[0]).toMatchObject({ deliveryStatus: 'READ', text: 'corregido' })
+  })
+
+  it('does not apply to customer messages', () => {
+    const merged = mergeMessages([makeMessage({ seq: 5, deliveryStatus: 'READ' })], [makeMessage({ seq: 5, deliveryStatus: 'SENT' })])
+    expect(merged[0]!.deliveryStatus).toBe('SENT')
+  })
+})

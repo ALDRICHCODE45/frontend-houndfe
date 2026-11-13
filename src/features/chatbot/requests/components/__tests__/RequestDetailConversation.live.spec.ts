@@ -116,9 +116,10 @@ const sent = (seq: number, clientMessageId: string, extra: Partial<ChatbotMessag
     ...extra,
   })
 
-function mountBlock(detail: ChatbotRequestDetail | undefined, messages: ChatbotMessage[] = [customer(10)], props: Record<string, unknown> = {}) {
+function mountBlock(detail: ChatbotRequestDetail | undefined, messages: ChatbotMessage[] = [customer(10)], props: Record<string, unknown> = {}, attachTo?: HTMLElement) {
   convo.messages = ref(messages)
   return mount(RequestDetailConversation, {
+    attachTo,
     props: { requestId: 'req-1', timeZone: TZ, now: NOW, detail, currentUserId: 'u-1', ...props },
     global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]], stubs },
   })
@@ -234,6 +235,75 @@ describe('RequestDetailConversation — composer', () => {
     const queued = sent(11, 'k', { createdAt: '2026-11-13T16:05:00.000Z' })
     const wrapper = mountBlock(live('ACTIVE'), [customer(10), queued])
     expect(lastOf(wrapper.findAll('[data-testid="message-delivery"]')).text()).toBe('Pendiente de envío')
+  })
+})
+
+describe('RequestDetailConversation — T5L.F: double Enter and double click send once', () => {
+  const pending = () => {
+    let resolve!: (v: { message: ChatbotMessage }) => void
+    api.sendMessage.mockReturnValue(new Promise((r) => (resolve = r)))
+    return (message: ChatbotMessage) => resolve({ message })
+  }
+
+  it('Enter twice in a row POSTs once', async () => {
+    const answer = pending()
+    const wrapper = mountBlock(live('ACTIVE'))
+    const box = wrapper.get('[data-testid="composer-text"]')
+    await box.setValue('Hola, soy Ana.')
+    await box.trigger('keydown', { key: 'Enter' })
+    await box.trigger('keydown', { key: 'Enter' })
+    answer(sent(11, 'x', { text: 'Hola, soy Ana.' }))
+    await flushPromises()
+
+    expect(api.sendMessage).toHaveBeenCalledTimes(1)
+    expect(wrapper.findAll('[data-testid="conversation-message"]')).toHaveLength(2)
+  })
+
+  it('a double click on «Enviar» POSTs once and leaves one bubble', async () => {
+    const answer = pending()
+    const wrapper = mountBlock(live('ACTIVE'), [customer(10)], {}, document.body)
+    await wrapper.get('[data-testid="composer-text"]').setValue('Hola, soy Ana.')
+    const button = wrapper.get('[data-testid="composer-send"]')
+    await button.trigger('click')
+    await button.trigger('click')
+    answer(sent(11, 'x', { text: 'Hola, soy Ana.' }))
+    await flushPromises()
+
+    expect(api.sendMessage).toHaveBeenCalledTimes(1)
+    expect(wrapper.findAll('[data-testid="conversation-message"]')).toHaveLength(2)
+    wrapper.unmount()
+  })
+
+  it('a double click on «Reintentar» of an unconfirmed message POSTs the same id once more, not twice', async () => {
+    api.sendMessage.mockRejectedValueOnce(new Error('network'))
+    const wrapper = mountBlock(live('ACTIVE'))
+    await wrapper.get('[data-testid="composer-text"]').setValue('Hola, soy Ana.')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(lastOf(wrapper.findAll('[data-testid="message-delivery"]')).text()).toContain('No sabemos si se envió')
+
+    const answer = pending()
+    const retry = wrapper.get('[data-testid="message-retry"]')
+    await retry.trigger('click')
+    await retry.trigger('click')
+    answer(sent(11, 'x', { text: 'Hola, soy Ana.' }))
+    await flushPromises()
+
+    expect(api.sendMessage).toHaveBeenCalledTimes(2)
+    const ids = api.sendMessage.mock.calls.map((c) => (c[1] as { clientMessageId: string }).clientMessageId)
+    expect(ids[1]).toBe(ids[0])
+  })
+
+  it('a double click on «Reintentar» of a server FAILED message POSTs one new message', async () => {
+    const answer = pending()
+    const failed = sent(11, 'old-id', { deliveryStatus: 'FAILED', text: 'Tu folio es S-000412.' })
+    const wrapper = mountBlock(live('ACTIVE'), [customer(10), failed])
+    const retry = wrapper.get('[data-testid="message-retry"]')
+    await retry.trigger('click')
+    await retry.trigger('click')
+    answer(sent(13, 'new'))
+    await flushPromises()
+    expect(api.sendMessage).toHaveBeenCalledTimes(1)
   })
 })
 
