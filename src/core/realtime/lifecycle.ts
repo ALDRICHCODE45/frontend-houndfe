@@ -14,6 +14,12 @@ export interface RealtimeAuthState {
    * whose `userCan` takes narrower action / subject unions still fits.
    */
   userCan?(action: string, subject: string): boolean
+  /**
+   * Refetch the session's permissions (the store's `fetchPermissions`). Called when the stream
+   * ends with `access-revoked` (handoff 17 §7); the result lands in the store, which re-evaluates
+   * `userCan` and so stops or keeps the stream through the watch below. Absent: nothing to refetch.
+   */
+  fetchPermissions?(): Promise<unknown>
 }
 
 /** What the stream needs to be allowed: the same permission as the inbox (handoff 17 §1). */
@@ -44,8 +50,24 @@ export function startRealtimeLifecycle(
     },
     { immediate: true, flush: 'sync' },
   )
+  // `access-revoked` ends the stream and must not be reconnected in a loop: refetch who the user
+  // is now and let the watch above decide (it stops when `read:ChatbotRequest` is gone). A stream
+  // that stays revoked while the permission is still held stays stopped, polling keeps working.
+  const stopListening = service.onStatus((status) => {
+    if (status.state !== 'stopped' || status.reason !== 'revoked') return
+    if (!auth.fetchPermissions) return
+    const noop = () => {
+      /* a failed refetch changes nothing: the next request or login refreshes the permissions */
+    }
+    try {
+      void Promise.resolve(auth.fetchPermissions()).catch(noop)
+    } catch {
+      noop()
+    }
+  })
   return () => {
     stopWatching()
+    stopListening()
     service.stop()
   }
 }

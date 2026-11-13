@@ -170,6 +170,7 @@ export function createRealtimeService(options: RealtimeServiceOptions): Realtime
       baseUrl: options.baseUrl ?? getRealtimeBaseUrl(),
       fetch: fetchImpl,
       auth: options.auth,
+      identity: current.identity,
       random: options.random,
       initialCursor: current.cursor,
       onEvent: (envelope) => {

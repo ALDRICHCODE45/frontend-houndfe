@@ -182,3 +182,15 @@ export function createChannelHub() {
   }
 }
 
+
+export function b64url(input: string | Uint8Array): string {
+  const bytes = typeof input === 'string' ? new TextEncoder().encode(input) : input
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+/** An unsigned JWT with the given claims (the realtime code only reads the payload). */
+export function jwtFor(claims: Record<string, unknown>): string {
+  return `${b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))}.${b64url(JSON.stringify(claims))}.sig`
+}

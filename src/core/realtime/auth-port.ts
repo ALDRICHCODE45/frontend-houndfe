@@ -11,6 +11,7 @@
  */
 import { http } from '@/core/shared/api/http'
 import { authStorage } from '@/features/auth/services/auth-storage'
+import { tokenBelongsTo } from './token-identity'
 import type { RealtimeAuthPort } from './types'
 
 /** Smallest authenticated read the API offers; any 401-guarded route would do. */
@@ -23,6 +24,8 @@ function isUnauthorized(error: unknown): boolean {
 export function createDefaultAuthPort(): RealtimeAuthPort {
   return {
     getAccessToken: () => authStorage.getAccessToken(),
+
+    tokenMatches: (token, identity) => tokenBelongsTo(token, identity),
 
     async refresh(staleToken) {
       const current = authStorage.getAccessToken()

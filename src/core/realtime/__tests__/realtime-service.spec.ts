@@ -24,6 +24,7 @@ function makeAuth(): RealtimeAuthPort {
 function tab(
   env: {
     fetch: typeof fetch
+    auth?: RealtimeAuthPort
     locks?: ReturnType<ReturnType<typeof createLockRegistry>['tab']>['facade'] | null
     hub?: ReturnType<typeof createChannelHub> | null
   },
@@ -34,7 +35,7 @@ function tab(
     enabled: () => enabled,
     baseUrl: 'http://api.test',
     fetch: env.fetch,
-    auth: makeAuth(),
+    auth: env.auth ?? makeAuth(),
     locks: env.locks ?? null,
     createChannel: env.hub ? env.hub.create : null,
     random: () => 0,
@@ -197,6 +198,26 @@ describe('realtime service', () => {
       expect(f.calls[0]!.signal.aborted).toBe(true)
       expect(f.calls).toHaveLength(2)
       expect(f.calls[1]!.headers['last-event-id']).toBeUndefined()
+    })
+
+    it('hands the identity it was started with to the stream: a token of another session is not sent', async () => {
+      const f = createFetchMock()
+      f.enqueue(streamResponse().response)
+      const asked: Array<[string, unknown]> = []
+      const auth: RealtimeAuthPort = {
+        ...makeAuth(),
+        getAccessToken: () => 'other-session-token',
+        tokenMatches: (token, identity) => {
+          asked.push([token, identity])
+          return false
+        },
+      }
+      const t = tab({ fetch: f.fetch, auth })
+      t.service.start(IDENTITY)
+      await flush()
+      expect(asked).toEqual([['other-session-token', IDENTITY]])
+      expect(f.calls).toHaveLength(0)
+      expect(lastStatus(t)).toEqual({ state: 'stopped', role: 'leader', reason: 'identity-mismatch' })
     })
 
     it('exposes a stop reason through status (connection-replaced) and reconnect() restarts', async () => {

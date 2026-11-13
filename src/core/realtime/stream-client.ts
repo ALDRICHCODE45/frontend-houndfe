@@ -3,12 +3,12 @@
  *
  * Owns one connection at a time: SSE parsing, connect timeout (15 s to the response
  * headers), heartbeat watchdog (dead after 45 s of silence), reconnect with backoff
- * (3 s → 30 s, equal jitter, `Retry-After`), once-per-token `auth-expired` refresh,
+ * (3 s floor → 30 s, equal jitter, `Retry-After`), once-per-token `auth-expired` refresh,
  * `Last-Event-ID` cursor, dedupe by id, and every control event of §3.4.
  * It knows nothing about tabs or the app: the service wraps it.
  */
 import { createSseParser, type SseMessage } from './sse-parser'
-import type { RealtimeAuthPort, RealtimeEnvelope, StopReason } from './types'
+import type { RealtimeAuthPort, RealtimeEnvelope, RealtimeIdentity, StopReason } from './types'
 
 export interface StreamStatus {
   state: 'idle' | 'connecting' | 'open' | 'reconnecting' | 'stopped'
@@ -19,6 +19,12 @@ export interface StreamClientOptions {
   baseUrl: string
   fetch: typeof fetch
   auth: RealtimeAuthPort
+  /**
+   * The user + tenant this stream belongs to. When set (and the auth port can tell whose a token
+   * is), every connect first checks that the stored token is that session's; otherwise it halts
+   * with `identity-mismatch` without sending anything.
+   */
+  identity?: RealtimeIdentity
   onEvent: (envelope: RealtimeEnvelope) => void
   onStatus: (status: StreamStatus) => void
   /** Cursor to resume from (the last id processed for this user + tenant). */
@@ -79,6 +85,8 @@ export function createStreamClient(options: StreamClientOptions): StreamClient {
   let attempt = 0
   let retryHintMs = BACKOFF_START_MS
   let refreshedFor401 = false
+  /** The token that was rejected with 401 right after a refresh: the same one is retried with backoff, never refreshed again. */
+  let rejectedAfterRefresh: string | null = null
   /** The token a stream last ended with `auth-expired`: a second one for the same token does not refresh again. */
   let authExpiredToken: string | null = null
   let slowStreak = 0
@@ -132,11 +140,12 @@ export function createStreamClient(options: StreamClientOptions): StreamClient {
   /**
    * Equal jitter over the base delay: half of it is fixed, the other half is random, so clients
    * that lost the stream together (a deploy) come back spread over [base / 2, base] instead of
-   * one narrow window. Never above the 30 s cap.
+   * one narrow window. Never below the 3 s start (handoff 17 §4: the first retry waits the `retry:`
+   * value, and a smaller hint must not shorten it) and never above the 30 s cap.
    */
   function backoffDelay(): number {
     const base = Math.min(BACKOFF_MAX_MS, retryHintMs * 2 ** attempt)
-    return Math.min(BACKOFF_MAX_MS, base / 2 + (base / 2) * random())
+    return Math.min(BACKOFF_MAX_MS, Math.max(BACKOFF_START_MS, base / 2 + (base / 2) * random()))
   }
 
   function scheduleRetry(minMs = 0) {
@@ -303,6 +312,21 @@ export function createStreamClient(options: StreamClientOptions): StreamClient {
       halt('unauthorized')
       return
     }
+    // The storage is shared by every tab: a login or tenant switch elsewhere can have replaced the
+    // token under this stream. Never send a token that is not this session's.
+    if (
+      options.identity &&
+      options.auth.tokenMatches &&
+      !options.auth.tokenMatches(token, options.identity)
+    ) {
+      halt('identity-mismatch')
+      return
+    }
+    // A token rotated elsewhere while backing off from a 401 earns one new refresh.
+    if (rejectedAfterRefresh !== null && token !== rejectedAfterRefresh) {
+      rejectedAfterRefresh = null
+      refreshedFor401 = false
+    }
     currentToken = token
     const abort = new AbortController()
     controller = abort
@@ -347,6 +371,7 @@ export function createStreamClient(options: StreamClientOptions): StreamClient {
 
     if (response.ok) {
       refreshedFor401 = false
+      rejectedAfterRefresh = null
       openedAt = Date.now()
       setStatus({ state: 'open' })
       armWatchdog(gen)
@@ -358,7 +383,12 @@ export function createStreamClient(options: StreamClientOptions): StreamClient {
     switch (response.status) {
       case 401:
         if (refreshedFor401) {
-          halt('unauthorized')
+          // Still rejected after a refresh (REST may accept a token the stream does not, or a
+          // deploy is mid-rollout): the session is not gone, so back off (3 s → 30 s) and try again
+          // instead of stopping for good. The same token is not refreshed again; a rotated one is.
+          rejectedAfterRefresh = token
+          endConnection()
+          scheduleRetry()
           return
         }
         refreshedFor401 = true
@@ -408,6 +438,7 @@ export function createStreamClient(options: StreamClientOptions): StreamClient {
       attempt = 0
       slowStreak = 0
       refreshedFor401 = false
+      rejectedAfterRefresh = null
       authExpiredToken = null
       void connect()
     },

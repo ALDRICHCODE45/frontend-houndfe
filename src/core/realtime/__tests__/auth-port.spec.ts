@@ -9,6 +9,7 @@ vi.mock('@/features/auth/services/auth-storage', () => ({
 }))
 
 import { createDefaultAuthPort } from '../auth-port'
+import { jwtFor } from './helpers'
 
 describe('default auth port', () => {
   beforeEach(() => {
@@ -52,5 +53,14 @@ describe('default auth port', () => {
   it('treats a network error as retryable while the session still exists', async () => {
     httpGet.mockRejectedValue(new Error('Network Error'))
     await expect(createDefaultAuthPort().refresh('old')).resolves.toBe(true)
+  })
+
+  it('tokenMatches compares the JWT `sub` and `tenantId` with the session identity', () => {
+    const port = createDefaultAuthPort()
+    const me = { userId: 'u1', tenantId: 't1' }
+    expect(port.tokenMatches?.(jwtFor({ sub: 'u1', tenantId: 't1' }), me)).toBe(true)
+    expect(port.tokenMatches?.(jwtFor({ sub: 'u2', tenantId: 't1' }), me)).toBe(false)
+    expect(port.tokenMatches?.(jwtFor({ sub: 'u1', tenantId: 't2' }), me)).toBe(false)
+    expect(port.tokenMatches?.('opaque', me)).toBe(false)
   })
 })

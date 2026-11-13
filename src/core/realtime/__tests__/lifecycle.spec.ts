@@ -108,6 +108,114 @@ describe('startRealtimeLifecycle — read:ChatbotRequest gate', () => {
   })
 })
 
+describe('startRealtimeLifecycle — access-revoked (handoff 17 §7)', () => {
+  const revoked: RealtimeStatus = { state: 'stopped', role: 'leader', reason: 'revoked' }
+
+  it('refetches the permissions/session when the stream stops as revoked, once per stop', async () => {
+    const { service, statusHandlers } = fakeService()
+    const fetchPermissions = vi.fn(async () => null)
+    const auth = reactive<RealtimeAuthState>({
+      isAuthenticated: true,
+      user: { id: 'u1' },
+      currentTenantId: 't1',
+      fetchPermissions,
+    })
+    const stop = startRealtimeLifecycle(auth, service)
+    expect(fetchPermissions).not.toHaveBeenCalled()
+    for (const h of statusHandlers) h(revoked)
+    expect(fetchPermissions).toHaveBeenCalledTimes(1)
+    for (const h of statusHandlers) h({ state: 'stopped', role: 'follower', reason: 'revoked' })
+    expect(fetchPermissions).toHaveBeenCalledTimes(2) // another tab's stop is another revoke for this tab's store
+    stop()
+  })
+
+  it.each<RealtimeStatus>([
+    { state: 'open', role: 'leader' },
+    { state: 'stopped', role: 'leader', reason: 'replaced' },
+    { state: 'stopped', role: 'leader', reason: 'identity-mismatch' },
+    { state: 'stopped', role: 'leader', reason: 'forbidden' },
+    { state: 'reconnecting', role: 'leader' },
+  ])('does not refetch for status %o', (status) => {
+    const { service, statusHandlers } = fakeService()
+    const fetchPermissions = vi.fn(async () => null)
+    const auth = reactive<RealtimeAuthState>({
+      isAuthenticated: true,
+      user: { id: 'u1' },
+      currentTenantId: 't1',
+      fetchPermissions,
+    })
+    const stop = startRealtimeLifecycle(auth, service)
+    for (const h of statusHandlers) h(status)
+    expect(fetchPermissions).not.toHaveBeenCalled()
+    stop()
+  })
+
+  it('does not reconnect by itself (no loop); a failed refetch is swallowed', async () => {
+    const { service, mocks, statusHandlers } = fakeService()
+    const fetchPermissions = vi.fn(async () => {
+      throw new Error('network')
+    })
+    const auth = reactive<RealtimeAuthState>({
+      isAuthenticated: true,
+      user: { id: 'u1' },
+      currentTenantId: 't1',
+      fetchPermissions,
+    })
+    const stop = startRealtimeLifecycle(auth, service)
+    mocks.start.mockClear()
+    for (const h of statusHandlers) h(revoked)
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(fetchPermissions).toHaveBeenCalledTimes(1)
+    expect(mocks.reconnect).not.toHaveBeenCalled()
+    expect(mocks.start).not.toHaveBeenCalled()
+    stop()
+  })
+
+  it('works without a fetchPermissions port, and stops listening when the lifecycle stops', () => {
+    const { service, statusHandlers } = fakeService()
+    const fetchPermissions = vi.fn(async () => null)
+    const bare = reactive<RealtimeAuthState>({ isAuthenticated: true, user: { id: 'u1' }, currentTenantId: 't1' })
+    const stopBare = startRealtimeLifecycle(bare, service)
+    expect(() => {
+      for (const h of statusHandlers) h(revoked)
+    }).not.toThrow()
+    stopBare()
+
+    const withPort = reactive<RealtimeAuthState>({
+      isAuthenticated: true,
+      user: { id: 'u1' },
+      currentTenantId: 't1',
+      fetchPermissions,
+    })
+    const stop = startRealtimeLifecycle(withPort, service)
+    stop()
+    expect(statusHandlers.size).toBe(0)
+  })
+
+  it('restarts through the normal watch when the refetched permissions drop read:ChatbotRequest', () => {
+    const { service, mocks, statusHandlers } = fakeService()
+    const allowed = ref(true)
+    const auth = reactive<RealtimeAuthState>({
+      isAuthenticated: true,
+      user: { id: 'u1' },
+      currentTenantId: 't1',
+      userCan: () => allowed.value,
+      fetchPermissions: async () => {
+        allowed.value = false
+        return null
+      },
+    })
+    const stop = startRealtimeLifecycle(auth, service)
+    mocks.stop.mockClear()
+    for (const h of statusHandlers) h(revoked)
+    return Promise.resolve().then(() => {
+      expect(mocks.stop).toHaveBeenCalledTimes(1)
+      stop()
+    })
+  })
+})
+
 describe('useRealtime', () => {
   afterEach(() => setRealtimeServiceForTests(null))
 

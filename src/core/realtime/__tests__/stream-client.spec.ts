@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createStreamClient } from '../stream-client'
-import type { RealtimeAuthPort, RealtimeEnvelope } from '../types'
+import type { RealtimeAuthPort, RealtimeEnvelope, RealtimeIdentity } from '../types'
 import {
   createFetchMock,
   errorResponse,
@@ -19,7 +19,13 @@ interface Setup {
 }
 
 function setup(
-  over: { random?: () => number; refresh?: (stale: string | null) => Promise<boolean>; keepToken?: boolean } = {},
+  over: {
+    random?: () => number
+    refresh?: (stale: string | null) => Promise<boolean>
+    keepToken?: boolean
+    identity?: RealtimeIdentity
+    tokenMatches?: (token: string, identity: RealtimeIdentity) => boolean
+  } = {},
 ): Setup {
   const f = createFetchMock()
   const events: RealtimeEnvelope[] = []
@@ -27,6 +33,7 @@ function setup(
   const auth = {
     token: 't1' as string | null,
     getAccessToken: () => auth.token,
+    ...(over.tokenMatches ? { tokenMatches: over.tokenMatches } : {}),
     refresh: vi.fn(
       over.refresh ??
         (async () => {
@@ -41,6 +48,7 @@ function setup(
     fetch: f.fetch,
     auth,
     random: over.random ?? (() => 1),
+    ...(over.identity ? { identity: over.identity } : {}),
     onEvent: (e) => events.push(e),
     onStatus: (s) => statuses.push(s),
   })
@@ -164,13 +172,13 @@ describe('stream client', () => {
       }
     })
 
-    it('equal jitter: the wait is between half the base delay and the base delay (never above 30 s)', async () => {
-      // random 0 → half of the base: 3 s → 1.5 s, then 6 s → 3 s
+    it('equal jitter above the 3 s floor: the first retry is never below 3 s, later ones wait between half the base and the base', async () => {
+      // random 0: the first wait would be 1.5 s by equal jitter, but the floor is 3 s; then 6 s → 3 s.
       const low = setup({ random: () => 0 })
       low.f.enqueue(new Error('down'), new Error('down'))
       low.client.start()
       await flush()
-      await vi.advanceTimersByTimeAsync(1_499)
+      await vi.advanceTimersByTimeAsync(2_999)
       expect(low.f.calls).toHaveLength(1)
       await vi.advanceTimersByTimeAsync(1)
       expect(low.f.calls).toHaveLength(2)
@@ -179,15 +187,31 @@ describe('stream client', () => {
       await vi.advanceTimersByTimeAsync(1)
       expect(low.f.calls).toHaveLength(3)
 
-      // random 0.5 → three quarters of the base: 3 s → 2.25 s
+      // random 0.5: three quarters of the base, 6 s → 4.5 s on the second retry (the first stays at the floor)
       const mid = setup({ random: () => 0.5 })
-      mid.f.enqueue(new Error('down'), new Error('down'))
+      mid.f.enqueue(new Error('down'), new Error('down'), new Error('down'))
       mid.client.start()
       await flush()
-      await vi.advanceTimersByTimeAsync(2_249)
-      expect(mid.f.calls).toHaveLength(1)
-      await vi.advanceTimersByTimeAsync(1)
+      await vi.advanceTimersByTimeAsync(3_000)
       expect(mid.f.calls).toHaveLength(2)
+      await vi.advanceTimersByTimeAsync(4_499)
+      expect(mid.f.calls).toHaveLength(2)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(mid.f.calls).toHaveLength(3)
+    })
+
+    it('a `retry:` hint below 3 s does not lower the first wait under the 3 s floor', async () => {
+      const s = setup({ random: () => 0 })
+      const res = await open(s)
+      res.stream.push('retry: 1000\n\n')
+      await flush()
+      s.f.enqueue(new Error('down'))
+      res.stream.close()
+      await flush()
+      await vi.advanceTimersByTimeAsync(2_999)
+      expect(s.f.calls).toHaveLength(1)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(s.f.calls).toHaveLength(2)
     })
 
     it('equal jitter keeps the 30 s cap: base 30 s waits 15–30 s', async () => {
@@ -203,31 +227,31 @@ describe('stream client', () => {
       half.f.enqueue(...Array.from({ length: 8 }, () => new Error('down')))
       half.client.start()
       await flush()
-      for (const delay of [1_500, 3_000, 6_000, 12_000, 15_000, 15_000]) {
+      for (const delay of [3_000, 3_000, 6_000, 12_000, 15_000, 15_000]) {
         await vi.advanceTimersByTimeAsync(delay)
       }
       expect(half.f.calls).toHaveLength(7)
     })
 
-    it('leaders that lose the stream at the same instant reconnect spread over 1.5–3 s, not in one narrow window', async () => {
+    it('leaders that lose the stream at the same instant never return before 3 s and spread out from the second retry on', async () => {
       const waits: number[] = []
       for (const draw of [0, 0.25, 0.5, 0.75, 1]) {
         const s = setup({ random: () => draw })
-        const res = await open(s)
-        s.f.enqueue(streamResponse().response)
-        res.stream.push(sse('server-shutdown', { reason: 'SHUTDOWN' }))
+        s.f.enqueue(new Error('down'), new Error('down'), streamResponse().response)
+        s.client.start()
         await flush()
         let waited = 0
-        while (s.f.calls.length < 2 && waited < 10_000) {
+        // the first retry is the floor (3 s) for everybody, the second is spread over 3–6 s
+        while (s.f.calls.length < 3 && waited < 20_000) {
           await vi.advanceTimersByTimeAsync(50)
           waited += 50
         }
         waits.push(waited)
         s.client.stop()
       }
-      expect(Math.min(...waits)).toBeGreaterThanOrEqual(1_500)
-      expect(Math.max(...waits)).toBeLessThanOrEqual(3_000)
-      expect(Math.max(...waits) - Math.min(...waits)).toBeGreaterThanOrEqual(1_400)
+      expect(Math.min(...waits)).toBeGreaterThanOrEqual(6_000)
+      expect(Math.max(...waits)).toBeLessThanOrEqual(9_000)
+      expect(Math.max(...waits) - Math.min(...waits)).toBeGreaterThanOrEqual(2_900)
       expect(new Set(waits).size).toBe(5)
     })
 
@@ -464,15 +488,62 @@ describe('stream client', () => {
       expect(last(s)!.state).toBe('open')
     })
 
-    it('a second 401 right after a refresh stops with reason unauthorized', async () => {
+    it('a second 401 right after a refresh backs off and retries later (bounded), it does not stop for good', async () => {
+      const s = setup({ random: () => 1 })
+      s.f.enqueue(errorResponse(401), errorResponse(401), errorResponse(401), errorResponse(401))
+      s.client.start()
+      await flush()
+      expect(s.auth.refresh).toHaveBeenCalledTimes(1)
+      expect(last(s)).toEqual({ state: 'reconnecting' })
+      expect(s.f.calls).toHaveLength(2)
+      // same token that already failed after a refresh: no new refresh, a longer wait each time, capped at 30 s
+      for (const delay of [3_000, 6_000, 12_000, 24_000, 30_000, 30_000]) {
+        s.f.enqueue(errorResponse(401))
+        const before = s.f.calls.length
+        await vi.advanceTimersByTimeAsync(delay - 1)
+        expect(s.f.calls).toHaveLength(before)
+        await vi.advanceTimersByTimeAsync(1)
+        expect(s.f.calls).toHaveLength(before + 1)
+      }
+      expect(s.auth.refresh).toHaveBeenCalledTimes(1)
+      expect(last(s)!.state).toBe('reconnecting')
+    })
+
+    it('after backing off from a second 401, the stream opens as soon as the retry is accepted, and a later 401 may refresh again', async () => {
+      const s = setup()
+      s.f.enqueue(errorResponse(401), errorResponse(401))
+      const ok = streamResponse()
+      s.f.enqueue(ok.response)
+      s.client.start()
+      await flush()
+      await vi.advanceTimersByTimeAsync(3_000)
+      await flush()
+      expect(last(s)!.state).toBe('open')
+      ok.stream.push(sse('request.created', { n: 1 }, 1))
+      await flush()
+      s.f.enqueue(errorResponse(401), streamResponse().response)
+      ok.stream.close()
+      await vi.advanceTimersByTimeAsync(3_000)
+      await flush()
+      expect(s.auth.refresh).toHaveBeenCalledTimes(2)
+      expect(last(s)!.state).toBe('open')
+    })
+
+    it('a new stored token (another tab refreshed) earns one new refresh after backing off', async () => {
       const s = setup()
       s.f.enqueue(errorResponse(401), errorResponse(401))
       s.client.start()
       await flush()
       expect(s.auth.refresh).toHaveBeenCalledTimes(1)
-      expect(last(s)).toEqual({ state: 'stopped', reason: 'unauthorized' })
-      await vi.advanceTimersByTimeAsync(120_000)
-      expect(s.f.calls).toHaveLength(2)
+      expect(s.auth.token).toBe('t2')
+      s.auth.token = 't3' // rotated elsewhere while we back off
+      s.f.enqueue(errorResponse(401), streamResponse().response)
+      await vi.advanceTimersByTimeAsync(3_000)
+      await flush()
+      expect(s.f.calls[2]!.headers.authorization).toBe('Bearer t3')
+      expect(s.auth.refresh).toHaveBeenCalledTimes(2)
+      expect(s.auth.refresh).toHaveBeenLastCalledWith('t3')
+      expect(last(s)!.state).toBe('open')
     })
 
     it('stops with unauthorized when the refresh fails', async () => {
@@ -543,6 +614,93 @@ describe('stream client', () => {
       expect(last(s)!.state).toBe('reconnecting')
       await vi.advanceTimersByTimeAsync(3_000)
       expect(s.f.calls).toHaveLength(2)
+    })
+  })
+
+  describe('session identity of the token (D1)', () => {
+    const ME = { userId: 'u1', tenantId: 't1' }
+    const owns = (token: string) => token === 'mine' || token === 'mine-2'
+
+    it('connects with a token that belongs to the session', async () => {
+      const s = setup({ identity: ME, tokenMatches: (token) => owns(token) })
+      s.auth.token = 'mine'
+      await open(s)
+      expect(s.f.calls).toHaveLength(1)
+      expect(s.f.calls[0]!.headers.authorization).toBe('Bearer mine')
+      expect(last(s)!.state).toBe('open')
+    })
+
+    it('a token of another user or tenant is never sent: no fetch, halts with identity-mismatch', async () => {
+      const asked: Array<[string, RealtimeIdentity]> = []
+      const s = setup({
+        identity: ME,
+        tokenMatches: (token, identity) => {
+          asked.push([token, identity])
+          return owns(token)
+        },
+      })
+      s.auth.token = 'someone-else'
+      s.client.start()
+      await flush()
+      expect(asked).toEqual([['someone-else', ME]])
+      expect(s.f.calls).toHaveLength(0)
+      expect(last(s)).toEqual({ state: 'stopped', reason: 'identity-mismatch' })
+      await vi.advanceTimersByTimeAsync(120_000)
+      expect(s.f.calls).toHaveLength(0)
+    })
+
+    it('checks again after a refresh: a refreshed token of another session is not sent', async () => {
+      const s = setup({
+        identity: ME,
+        tokenMatches: (token) => owns(token),
+        refresh: async () => {
+          s.auth.token = 'someone-else' // another tab signed in while we refreshed
+          return true
+        },
+      })
+      s.auth.token = 'mine'
+      s.f.enqueue(errorResponse(401))
+      s.client.start()
+      await flush()
+      expect(s.auth.refresh).toHaveBeenCalledTimes(1)
+      expect(s.f.calls).toHaveLength(1)
+      expect(s.f.calls.map((c) => c.headers.authorization)).toEqual(['Bearer mine'])
+      expect(last(s)).toEqual({ state: 'stopped', reason: 'identity-mismatch' })
+    })
+
+    it('checks before every reconnect, not only the first connect', async () => {
+      const s = setup({ identity: ME, tokenMatches: (token) => owns(token) })
+      s.auth.token = 'mine'
+      const res = await open(s)
+      s.auth.token = 'someone-else'
+      res.stream.close()
+      await flush()
+      await vi.advanceTimersByTimeAsync(3_000)
+      await flush()
+      expect(s.f.calls).toHaveLength(1)
+      expect(last(s)).toEqual({ state: 'stopped', reason: 'identity-mismatch' })
+    })
+
+    it('«reconnect» checks the stored token again and resumes once it is the session\'s', async () => {
+      const s = setup({ identity: ME, tokenMatches: (token) => owns(token) })
+      s.auth.token = 'someone-else'
+      s.client.start()
+      await flush()
+      expect(last(s)).toEqual({ state: 'stopped', reason: 'identity-mismatch' })
+      s.auth.token = 'mine-2'
+      s.f.enqueue(streamResponse().response)
+      s.client.reconnect()
+      await flush()
+      expect(s.f.calls[0]!.headers.authorization).toBe('Bearer mine-2')
+      expect(last(s)!.state).toBe('open')
+    })
+
+    it('a missing token still stops as unauthorized, not as a mismatch', async () => {
+      const s = setup({ identity: ME, tokenMatches: () => false })
+      s.auth.token = null
+      s.client.start()
+      await flush()
+      expect(last(s)).toEqual({ state: 'stopped', reason: 'unauthorized' })
     })
   })
 

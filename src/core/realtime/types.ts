@@ -132,6 +132,13 @@ export type StopReason =
   | 'forbidden'
   /** 401 that a refresh could not fix. */
   | 'unauthorized'
+  /**
+   * The access token in the shared storage is not (or cannot be shown to be) the one of the
+   * session the stream was started for: another tab signed in or switched sucursal, or the token
+   * is undecodable. Nothing was sent. The lifecycle starts a new session when the auth store's
+   * user / tenant change; `reconnect()` checks again.
+   */
+  | 'identity-mismatch'
   /** Anything unrecoverable (for example a 400 that persists without a cursor). */
   | 'error'
 
@@ -166,4 +173,9 @@ export interface RealtimeAuthPort {
    * session is gone (the caller must stop).
    */
   refresh(staleToken: string | null): Promise<boolean>
+  /**
+   * Does `token` belong to this session (same user and tenant)? Checked before every connect, so a
+   * token written by another tab's login / tenant switch is never sent. Absent: no check (tests).
+   */
+  tokenMatches?(token: string, identity: RealtimeIdentity): boolean
 }
