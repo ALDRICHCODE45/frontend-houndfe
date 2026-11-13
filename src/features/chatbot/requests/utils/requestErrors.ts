@@ -15,7 +15,7 @@ import type {
   ChatbotRequestStatus,
   ChatbotRequestZoneImpact,
 } from '../interfaces/chatbot-request.types'
-import { formatClockTime } from './requestLabels'
+import { formatAvailableFrom } from './requestLabels'
 
 export interface ChatbotRequestError extends ApiErrorEnvelope {
   /** The request as the server sees it now; `null` when the body carries none. */
@@ -178,6 +178,8 @@ const CODE_COPY: Record<string, string> = {
 export interface ErrorCopyOptions {
   /** IANA zone for the times in the copy; defaults to the runtime zone. */
   timeZone?: string
+  /** Injected "current" instant (tests); defaults to `new Date()`. */
+  now?: Date
 }
 
 /** Copy for a command or read failure. Accepts the raw axios error or an already-read one. */
@@ -192,7 +194,7 @@ export function requestErrorMessage(err: unknown, options: ErrorCopyOptions = {}
     return `${holder ?? 'Otra persona'} ya tomó esta solicitud. No se aplicó tu acción.`
   }
   if (code === 'SCHEDULED_TOO_EARLY') {
-    const from = formatClockTime(error.claimableAt, options)
+    const from = formatAvailableFrom(error.claimableAt, options)
     return from ? `Todavía no se puede atender. Disponible desde ${from}.` : CODE_COPY.SCHEDULED_TOO_EARLY!
   }
   if (code === 'ZONE_SET_CHANGED') {
@@ -233,8 +235,8 @@ export function deniedActionReason(
     case 'CANCEL_NOT_ALLOWED':
       return 'Esta solicitud no se puede cancelar.'
     case 'SCHEDULED_TOO_EARLY': {
-      // «Disponible desde 09:55»: the local time of `claimableAt`, never a generic reason.
-      const from = formatClockTime(options.claimableAt, options)
+      // «Disponible desde 9:55» / «mañana 9:25»: the local time of `claimableAt`, never a generic reason.
+      const from = formatAvailableFrom(options.claimableAt, options)
       return from ? `Disponible desde ${from}` : CODE_COPY.SCHEDULED_TOO_EARLY!
     }
     default:

@@ -223,21 +223,6 @@ export function formatScheduledFor(iso: string | null, options: WhenOptions = {}
   return `${weekday} ${time}`
 }
 
-/** «09:55» — the time of day of an instant (24 h, two digits). `null` for an invalid date. */
-export function formatClockTime(iso: string | null | undefined, options: Pick<WhenOptions, 'timeZone'> = {}): string | null {
-  if (!iso) return null
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return null
-  const parts = new Intl.DateTimeFormat('es-MX', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-    timeZone: options.timeZone,
-  }).formatToParts(date)
-  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ''
-  return `${part('hour')}:${part('minute')}`
-}
-
 /** «hoy 9:00», «mañana 9:00», «ayer 9:00» or «jue 12 nov 9:00» (`slaResumesAt`). `null` for an invalid date. */
 export function formatWhen(iso: string | null, options: WhenOptions = {}): string | null {
   if (!iso) return null
@@ -249,4 +234,19 @@ export function formatWhen(iso: string | null, options: WhenOptions = {}): strin
   if (diff === 1) return `mañana ${time}`
   if (diff === -1) return `ayer ${time}`
   return `${weekday} ${day} ${month} ${time}`
+}
+
+/**
+ * «Disponible desde …»: only the time («9:25», no zero padding like the rest of the app) when the
+ * instant is today in the display zone, the named day otherwise («mañana 9:25», «lun 16 nov 9:55»).
+ * `null` for an absent or invalid date.
+ */
+export function formatAvailableFrom(iso: string | null | undefined, options: WhenOptions = {}): string | null {
+  if (!iso) return null
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return null
+  if (dayNumber(date, options.timeZone) === dayNumber(options.now ?? new Date(), options.timeZone)) {
+    return clockParts(date, options.timeZone).time
+  }
+  return formatWhen(iso, options)
 }

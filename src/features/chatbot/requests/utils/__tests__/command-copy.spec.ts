@@ -320,9 +320,12 @@ describe('scheduled conversations (handoff 21)', () => {
 
   it('a claim that came too early says «Disponible desde HH:MM» and refetches the request', () => {
     const error = read(409, { code: 'SCHEDULED_TOO_EARLY', claimableAt: '2026-11-14T15:55:00.000Z' })
-    const notice = commandNotice(error, 'CLAIM', { timeZone: 'America/Mexico_City' })!
+    const notice = commandNotice(error, 'CLAIM', {
+      timeZone: 'America/Mexico_City',
+      now: new Date('2026-11-14T14:00:00.000Z'),
+    })!
     expect(notice.title).toBe('Todavía no se puede atender')
-    expect(notice.detail).toContain('Disponible desde 09:55')
+    expect(notice.detail).toContain('Disponible desde 9:55')
     expect(notice.actions).toEqual(['refresh'])
     expect(isStateChangingError(error)).toBe(true)
   })

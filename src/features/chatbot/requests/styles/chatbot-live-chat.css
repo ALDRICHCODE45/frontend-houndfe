@@ -121,12 +121,24 @@
 /* ── Thread: fixed height with its own scroll, the composer pinned under it ── */
 
 .chatbot-request-detail .rc--live .rc-log {
-  height: clamp(18rem, 52vh, 28rem);
+  height: clamp(18rem, calc(100dvh - 30rem), 30rem);
   max-height: none;
+  overflow-y: auto;
   background-color: var(--hf-page);
   border: 1px solid var(--hf-border);
   border-radius: var(--hf-radius-control);
   padding: 12px;
+}
+
+/* Design A: the live chat is the first panel of the main column, above the customer cards, so the
+ * composer sits in the first screen. `order` keeps the DOM (and the draft) where it is. */
+.chatbot-request-detail .rd-main > .rc--live {
+  order: -1;
+}
+
+.chatbot-request-detail .rd-main > .rd-schedule,
+.chatbot-request-detail .rd-main > .rd-alert {
+  order: -2;
 }
 
 /* ── Bubbles: delivery state, notes, retry ─────────────────────────────────── */

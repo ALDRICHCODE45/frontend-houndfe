@@ -180,6 +180,7 @@ function onPicked(event: Event): void {
     <RequestCommandSheet
       v-model:open="sheetOpen"
       title="Adjuntar"
+      short
       description="Imagen JPG, PNG o WebP, o un PDF. Hasta 10 MB."
     >
       <div class="lc-pick" data-testid="attach-sheet">

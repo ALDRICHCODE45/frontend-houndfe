@@ -12,7 +12,7 @@
 import type { ChatbotRequestAction, ChatbotRequestStaffCancelReason } from '../interfaces/chatbot-request.types'
 import { zoneImpactText } from './detail-format'
 import { requestErrorMessage, type ChatbotRequestError, type ErrorCopyOptions } from './requestErrors'
-import { formatClockTime, formatScheduledFor } from './requestLabels'
+import { formatAvailableFrom, formatScheduledFor } from './requestLabels'
 
 export type CommandNoticeAction = 'refresh' | 'retry' | 'dismiss' | 'reconfirm'
 
@@ -167,7 +167,7 @@ export function commandNotice(
     case 'INSUFFICIENT_PERMISSIONS':
       return make('No tienes permiso para hacer esto', requestErrorMessage(error), ['dismiss'])
     case 'SCHEDULED_TOO_EARLY': {
-      const from = formatClockTime(error.claimableAt, options)
+      const from = formatAvailableFrom(error.claimableAt, options)
       return make(
         'Todavía no se puede atender',
         from

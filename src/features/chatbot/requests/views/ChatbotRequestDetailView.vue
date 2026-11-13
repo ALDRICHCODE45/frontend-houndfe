@@ -30,6 +30,7 @@ import RequestDetailNeeds from '../components/RequestDetailNeeds.vue'
 import RequestDetailReply from '../components/RequestDetailReply.vue'
 import RequestDetailSchedule from '../components/RequestDetailSchedule.vue'
 import RequestDetailOtherOpen from '../components/RequestDetailOtherOpen.vue'
+import RequestDetailSessionPanel from '../components/RequestDetailSessionPanel.vue'
 import RequestDetailSkeleton from '../components/RequestDetailSkeleton.vue'
 import RequestDetailSlaPanel from '../components/RequestDetailSlaPanel.vue'
 import { useRequestAccess } from '../composables/useRequestAccess'
@@ -234,6 +235,7 @@ function onAction(action: ChatbotRequestAction): void {
               @action="onAction"
             />
           </section>
+          <RequestDetailSessionPanel :detail="detail" :current-user-id="currentUserId" />
         </aside>
       </div>
     </div>

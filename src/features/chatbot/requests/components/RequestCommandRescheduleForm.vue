@@ -108,9 +108,15 @@ function submit(): void {
     <template v-else>
       <RequestCommandRadioGroup v-model="chosen" :items="items" label="Nueva hora" :error="error" :disabled="pending" />
       <p class="rc-help" data-testid="reschedule-zone">Horas en {{ slots?.timeZone }}.</p>
-      <p class="rc-hint" role="note" data-testid="reschedule-notice" :data-expected="expected">
-        <UIcon name="i-lucide-info" aria-hidden="true" />
-        <span>{{ noticeText }}</span>
+      <p
+        class="rc-hint"
+        :class="expected === 'false' ? 'rc-hint--warn' : 'rc-hint--info'"
+        role="note"
+        data-testid="reschedule-notice"
+        :data-expected="expected"
+      >
+        <UIcon :name="expected === 'false' ? 'i-lucide-triangle-alert' : 'i-lucide-info'" aria-hidden="true" />
+        <span class="rc-hint__text">{{ noticeText }}</span>
       </p>
     </template>
 
