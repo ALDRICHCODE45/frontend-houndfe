@@ -122,9 +122,20 @@ const lastCustomerLabel = computed(() =>
 const noticeTone = computed(() => (notice.value?.tone === 'info' ? 'info' : 'warn'))
 const unread = computed(() => props.detail?.unreadCustomerMessages ?? 0)
 
+// The view is reused across requests: a sheet opened for A never stays open on B, and A's late
+// answer only closes the sheet when the same request is still on screen.
+watch(
+  () => props.requestId,
+  () => {
+    templateOpen.value = false
+  },
+  { flush: 'sync' },
+)
+
 async function confirmTemplate(): Promise<void> {
+  const forRequest = props.requestId
   await chat.sendTemplate()
-  templateOpen.value = false
+  if (props.requestId === forRequest) templateOpen.value = false
 }
 
 const days = computed(() => groupByDay(displayMessages.value, { now: props.now, timeZone: props.timeZone }))

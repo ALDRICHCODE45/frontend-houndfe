@@ -357,6 +357,27 @@ describe('RequestDetailConversation — window closed and the template', () => {
     expect(wrapper.classes()).toContain('rc--blocked')
   })
 
+  it('T15: switching to another request closes the template confirmation (never offer A\'s paid template on B)', async () => {
+    const wrapper = mountBlock(closed(), oldMessages())
+    await wrapper.get('[data-testid="template-open"]').trigger('click')
+    expect(wrapper.find('[data-testid="template-confirm-cost"]').exists()).toBe(true)
+    await wrapper.setProps({ requestId: 'req-2', detail: { ...closed(), id: 'req-2' } })
+    expect(wrapper.find('[data-testid="template-confirm-cost"]').exists()).toBe(false)
+  })
+
+  it('T15: a late template answer of A does not close a confirmation B opened', async () => {
+    let resolveA!: (value: unknown) => void
+    api.sendTemplate.mockImplementationOnce(() => new Promise((resolve) => { resolveA = resolve }))
+    const wrapper = mountBlock(closed(), oldMessages())
+    await wrapper.get('[data-testid="template-open"]').trigger('click')
+    await wrapper.get('[data-testid="template-confirm"]').trigger('click')
+    await wrapper.setProps({ requestId: 'req-2', detail: { ...closed(), id: 'req-2' } })
+    await wrapper.get('[data-testid="template-open"]').trigger('click')
+    resolveA({ message: null })
+    await flushPromises()
+    expect(wrapper.find('[data-testid="template-confirm-cost"]').exists()).toBe(true)
+  })
+
   it('the button does not send: it opens the confirmation with the settings cost', async () => {
     const wrapper = mountBlock(closed(), oldMessages())
     await wrapper.get('[data-testid="template-open"]').trigger('click')
