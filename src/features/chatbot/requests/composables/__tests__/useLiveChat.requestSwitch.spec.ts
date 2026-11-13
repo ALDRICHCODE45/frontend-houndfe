@@ -364,6 +364,94 @@ describe('useLiveChat — T15: an upload of request A that answers after the vie
   })
 })
 
+describe('useLiveChat — T16 D2: A → B → A, the answer of A applies once A is back on screen', () => {
+  it('a refusal restores A’s text into the empty box and shows the notice', async () => {
+    const pending = deferred<{ message: ChatbotMessage }>()
+    api.sendMessage.mockReturnValue(pending.promise)
+    const { chat, goTo } = setup()
+    chat.draft.value = 'Texto de A'
+    const sending = chat.send()
+    await flushPromises()
+
+    goTo('req-B')
+    goTo('req-A')
+    pending.reject(axiosError(409, { code: 'STALE_EPOCH' }))
+    await sending
+
+    expect(chat.draft.value).toBe('Texto de A')
+    expect(chat.unsent.value).toEqual([])
+    expect(chat.notice.value).not.toBeNull()
+  })
+
+  it('WINDOW_CLOSED of A is learned when A is back (the composer window closes)', async () => {
+    const pending = deferred<{ message: ChatbotMessage }>()
+    api.sendMessage.mockReturnValue(pending.promise)
+    const { chat, goTo } = setup()
+    chat.draft.value = 'Texto de A'
+    const sending = chat.send()
+    await flushPromises()
+
+    goTo('req-B')
+    goTo('req-A')
+    pending.reject(axiosError(409, { code: 'WINDOW_CLOSED', templateAllowed: true }))
+    await sending
+
+    expect(chat.windowClosed.value).toBe(true)
+    expect(chat.templateAllowed.value).toBe(true)
+    expect(chat.draft.value).toBe('Texto de A')
+  })
+
+  it('a success polls the thread again once A is back', async () => {
+    const pending = deferred<{ message: ChatbotMessage }>()
+    api.sendMessage.mockReturnValue(pending.promise)
+    const { chat, goTo, refreshThread } = setup()
+    chat.draft.value = 'Texto de A'
+    const sending = chat.send()
+    await flushPromises()
+
+    goTo('req-B')
+    goTo('req-A')
+    pending.resolve({ message: staffMessage(11, 'key-1', { text: 'Texto de A' }) })
+    await sending
+
+    expect(refreshThread).toHaveBeenCalledTimes(1)
+  })
+
+  it('a template refusal of A applies to A’s screen once A is back', async () => {
+    const pending = deferred<{ message: ChatbotMessage }>()
+    api.sendTemplate.mockReturnValue(pending.promise)
+    const { chat, goTo } = setup()
+    const sending = chat.sendTemplate()
+    await flushPromises()
+
+    goTo('req-B')
+    goTo('req-A')
+    pending.reject(axiosError(409, { code: 'TEMPLATE_NOT_CONFIGURED' }))
+    await sending
+
+    expect(chat.templateState.value).toBe('none')
+    expect(chat.notice.value).not.toBeNull()
+  })
+
+  it('while B is on screen the same answer still goes nowhere (A → B protection stays)', async () => {
+    const pending = deferred<{ message: ChatbotMessage }>()
+    api.sendMessage.mockReturnValue(pending.promise)
+    const { chat, goTo } = setup()
+    chat.draft.value = 'Texto de A'
+    const sending = chat.send()
+    await flushPromises()
+
+    goTo('req-B')
+    pending.reject(axiosError(409, { code: 'STALE_EPOCH' }))
+    await sending
+    expect(chat.draft.value).toBe('')
+    expect(chat.notice.value).toBeNull()
+
+    goTo('req-A')
+    expect(chat.unsent.value.map((u) => u.text)).toEqual(['Texto de A'])
+  })
+})
+
 describe('useLiveChat — T15 D2: an unconfirmed message survives a remount of the block', () => {
   it('after a network error on «Enviar como mensaje nuevo» and a remount, the text is still recoverable', async () => {
     const failed = staffMessage(11, 'old-id', { deliveryStatus: 'FAILED', text: 'Tu folio es S-000412.' })

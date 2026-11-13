@@ -8,7 +8,7 @@
  * The text goes to the customer as written, so the box says so. The clip opens the file picker
  * (desktop) or a bottom sheet with «Foto o imagen» / «Documento PDF» (below 1024 px, design 04).
  */
-import { computed, ref, useId, useTemplateRef } from 'vue'
+import { computed, ref, useId, useTemplateRef, watch } from 'vue'
 import type { LiveAttachment } from '../composables/useLiveChat'
 import { formatBytes } from '../utils/conversation-format'
 import { ATTACH_ACCEPT } from '../utils/live-attachments'
@@ -24,6 +24,11 @@ const props = defineProps<{
   /** Waiting for the bot («Conectando…»): nothing can be typed or attached. */
   disabled?: boolean
   disabledText?: string
+  /**
+   * What the box is talking about (the request on screen). When it changes the attach sheet closes and
+   * a file whose dialog was opened for the previous one is ignored, never uploaded to the new one.
+   */
+  scope?: string
 }>()
 const emit = defineEmits<{
   'update:modelValue': [value: string]
@@ -36,6 +41,18 @@ const uid = useId()
 const input = useTemplateRef<HTMLInputElement>('file')
 const accept = ref(ATTACH_ACCEPT)
 const sheetOpen = ref(false)
+/** The scope a file dialog was opened in, so an answer that comes after a switch can be told apart. */
+let pickScope: string | undefined
+
+watch(
+  () => props.scope,
+  () => {
+    sheetOpen.value = false
+    pickScope = undefined
+    accept.value = ATTACH_ACCEPT
+  },
+  { flush: 'sync' },
+)
 
 const fmt = (n: number) => n.toLocaleString('en-US')
 const length = computed(() => props.modelValue.length)
@@ -64,20 +81,31 @@ function smallScreen(): boolean {
 function openPicker(accepts: string): void {
   accept.value = accepts
   sheetOpen.value = false
+  const opened = props.scope
   // The attribute is read when the dialog opens: let the DOM take the new `accept` first.
-  void Promise.resolve().then(() => input.value?.click())
+  void Promise.resolve().then(() => {
+    if (props.scope !== opened) return
+    openDialog()
+  })
+}
+
+function openDialog(): void {
+  pickScope = props.scope
+  input.value?.click()
 }
 
 function onAttach(): void {
   if (props.disabled) return
   if (smallScreen()) sheetOpen.value = true
-  else input.value?.click()
+  else openDialog()
 }
 
 function onPicked(event: Event): void {
   const el = event.target as HTMLInputElement
   const file = el.files?.[0]
-  if (file) emit('pick', file)
+  // A dialog opened for another request (or opened by nobody) answers nothing here.
+  if (file && pickScope === props.scope) emit('pick', file)
+  pickScope = undefined
   el.value = ''
   accept.value = ATTACH_ACCEPT
 }

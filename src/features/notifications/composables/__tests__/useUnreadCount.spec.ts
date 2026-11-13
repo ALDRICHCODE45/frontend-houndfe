@@ -3,6 +3,8 @@ import { flushPromises } from '@vue/test-utils'
 import { QueryClient } from '@tanstack/vue-query'
 import { axiosError, withQuery } from './support'
 import { notificationKeys } from '../../constants/queryKeys'
+import { createFakeRealtime } from '@/core/realtime/__tests__/fake-realtime'
+import { setRealtimeServiceForTests } from '@/core/realtime/useRealtime'
 
 vi.mock('../../api/notifications.api', () => ({ notificationsApi: { unreadCount: vi.fn() } }))
 
@@ -77,5 +79,51 @@ describe('useUnreadCount', () => {
     expect(unreadCount).toHaveBeenCalledTimes(1)
     expect(result.isError.value).toBe(true)
     expect(result.count.value).toBeNull()
+  })
+})
+
+describe('useUnreadCount with the realtime stream', () => {
+  async function tick(ms: number) {
+    await vi.advanceTimersByTimeAsync(ms)
+  }
+
+  it('polls every 30 s while the stream is not open, slows down while it is open, and speeds up when it drops', async () => {
+    vi.useFakeTimers()
+    vi.stubEnv('VITE_REALTIME_SSE', 'true')
+    const fake = createFakeRealtime({ state: 'reconnecting', role: 'leader' })
+    setRealtimeServiceForTests(fake.service)
+    try {
+      withQuery(() => useUnreadCount())
+      await tick(0)
+      await tick(30_000)
+      expect(unreadCount).toHaveBeenCalledTimes(2)
+
+      fake.setStatus({ state: 'open', role: 'leader' })
+      unreadCount.mockClear()
+      await tick(30_000 * 5)
+      expect(unreadCount).not.toHaveBeenCalled()
+
+      fake.setStatus({ state: 'reconnecting', role: 'leader' })
+      await tick(30_000)
+      expect(unreadCount).toHaveBeenCalledTimes(1)
+    } finally {
+      setRealtimeServiceForTests(null)
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('flag off: never subscribes to the stream and keeps the 30 s poll', async () => {
+    vi.useFakeTimers()
+    const fake = createFakeRealtime({ state: 'open', role: 'leader' })
+    setRealtimeServiceForTests(fake.service)
+    try {
+      withQuery(() => useUnreadCount())
+      await tick(0)
+      await tick(30_000)
+      expect(unreadCount).toHaveBeenCalledTimes(2)
+      expect(fake.mocks.onStatus).not.toHaveBeenCalled()
+    } finally {
+      setRealtimeServiceForTests(null)
+    }
   })
 })

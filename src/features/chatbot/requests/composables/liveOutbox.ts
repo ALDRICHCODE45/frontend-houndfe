@@ -2,6 +2,7 @@ import { ref, type Ref } from 'vue'
 import type { QueryClient } from '@tanstack/vue-query'
 import type { ChatbotMessage } from '../interfaces/chatbot-request.types'
 import type { LiveError, LiveNotice } from '../utils/live-errors'
+import { createRequestStores } from './liveStoreScope'
 
 export type SendInput =
   | { kind: 'text'; text: string }
@@ -46,26 +47,26 @@ export interface LiveOutbox {
 }
 
 /**
- * The outbox per tenant + request. It lives next to the QueryClient (like liveRetried), not in the
+ * The outbox per user + tenant + request. It lives next to the QueryClient (like liveRetried), not in the
  * conversation block, for two reasons: (1) the detail view reuses the block across
  * /chatbot/solicitudes/:id, and an answer that arrives after the view moved to another request must
  * land in ITS request's outbox and never in the one on screen; (2) a remount of the block for the
  * same request keeps the unconfirmed messages and the held texts, so nothing the attendee wrote
  * drops out of the UI.
  */
-const outboxes = new WeakMap<QueryClient, Map<string, LiveOutbox>>()
+const outboxes = createRequestStores<LiveOutbox>(
+  () => ({ entries: ref([]), holds: ref([]), templateSending: ref(false), templateKey: null }),
+  (outbox) =>
+    outbox.entries.value.length === 0 &&
+    outbox.holds.value.length === 0 &&
+    !outbox.templateSending.value &&
+    outbox.templateKey === null,
+)
 
-export function outboxFor(client: QueryClient, tenantId: string, requestId: string): LiveOutbox {
-  let byKey = outboxes.get(client)
-  if (!byKey) {
-    byKey = new Map()
-    outboxes.set(client, byKey)
-  }
-  const key = `${tenantId}\u0000${requestId}`
-  let outbox = byKey.get(key)
-  if (!outbox) {
-    outbox = { entries: ref([]), holds: ref([]), templateSending: ref(false), templateKey: null }
-    byKey.set(key, outbox)
-  }
-  return outbox
+/**
+ * Also per signed-in user: the client survives a tenant switch and a logout, and a held text or an
+ * unconfirmed message must never be read by another person (see liveStoreScope). Empty ones are pruned.
+ */
+export function outboxFor(client: QueryClient, userId: string, tenantId: string, requestId: string): LiveOutbox {
+  return outboxes.get(client, userId, tenantId, requestId)
 }

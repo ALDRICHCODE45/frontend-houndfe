@@ -3,10 +3,12 @@ import { useQuery } from '@tanstack/vue-query'
 import { chatbotRequestApi } from '../api/chatbot-request.api'
 import { chatbotRequestKeys } from '../constants/queryKeys'
 import { pollingInterval } from './polling'
+import { useRealtimeOpen } from '@/core/realtime/polling'
 import { useRequestAccess } from './useRequestAccess'
 
 /** Tab and filter counters (and the nav badge), refetched every 30 s while the tab is visible. */
 export function useRequestCounts() {
+  const streamOpen = useRealtimeOpen()
   const { tenantId, enabled } = useRequestAccess()
 
   const query = useQuery({
@@ -15,7 +17,11 @@ export function useRequestCounts() {
     enabled,
     staleTime: 15_000,
     retry: false,
-    refetchInterval: pollingInterval,
+    // Re-evaluated when the stream opens or closes (the closure holds the state it was built with).
+    refetchInterval: computed(() => {
+      const open = streamOpen.value
+      return (query: Parameters<typeof pollingInterval>[0]) => pollingInterval(query, open)
+    }),
   })
 
   return {

@@ -4,6 +4,7 @@ import { chatbotRequestApi } from '../api/chatbot-request.api'
 import { chatbotRequestKeys } from '../constants/queryKeys'
 import { readRequestError } from '../utils/requestErrors'
 import { detailPollingInterval } from './polling'
+import { useRealtimeOpen } from '@/core/realtime/polling'
 import { useRequestAccess } from './useRequestAccess'
 
 /**
@@ -12,6 +13,7 @@ import { useRequestAccess } from './useRequestAccess'
  * request (or another branch's): not retried and polling stops.
  */
 export function useRequestDetail(id: MaybeRefOrGetter<string | null | undefined>) {
+  const streamOpen = useRealtimeOpen()
   const { tenantId, enabled: canRead } = useRequestAccess()
   const requestId = computed(() => toValue(id)?.trim() ?? '')
   const enabled = computed(() => canRead.value && requestId.value.length > 0)
@@ -22,7 +24,11 @@ export function useRequestDetail(id: MaybeRefOrGetter<string | null | undefined>
     enabled,
     staleTime: 15_000,
     retry: false,
-    refetchInterval: detailPollingInterval,
+    // Re-evaluated when the stream opens or closes (the closure holds the state it was built with).
+    refetchInterval: computed(() => {
+      const open = streamOpen.value
+      return (query: Parameters<typeof detailPollingInterval>[0]) => detailPollingInterval(query, open)
+    }),
   })
 
   return {

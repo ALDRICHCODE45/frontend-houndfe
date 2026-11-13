@@ -12,7 +12,7 @@
  * (T2.U4): the action panels emit `action`, the view hands it to the host, which sends the command
  * or opens its form and shows the conflict notice above «Qué hacer».
  */
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import DetailPageFrame from '@/core/shared/components/DetailPageFrame.vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
@@ -104,6 +104,11 @@ const commands = ref<InstanceType<typeof RequestCommandHost> | null>(null)
 const pendingAction = ref<ChatbotRequestAction | null>(null)
 /** Below 768 px the live chat is a full-screen view opened from a card or the bar (design 04). */
 const chatOpen = ref(false)
+// The view is reused across /chatbot/solicitudes/:id: the full-screen chat opened on one request
+// must not stay open (showing another request's thread) when the route moves to the next one.
+watch(requestId, () => {
+  chatOpen.value = false
+})
 /** The window the composer uses (server overrides included); the rail says the same. */
 const liveWindow = ref<{ closed: boolean; closesAt: number | null } | null>(null)
 

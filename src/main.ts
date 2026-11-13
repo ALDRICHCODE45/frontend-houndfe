@@ -4,6 +4,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { VueQueryPlugin } from '@tanstack/vue-query'
 import { queryClient } from '@/core/shared/api/queryClient'
+import { isRealtimeEnabled } from '@/core/realtime/config'
 import { abilitiesPlugin } from '@casl/vue'
 import ui from '@nuxt/ui/vue-plugin'
 import router from '@/app/router'
@@ -30,6 +31,38 @@ app.use(ui)
 app.use(VueQueryPlugin, { queryClient })
 
 const authStore = useAuthStore(pinia)
+
+// ── Realtime (SSE), behind VITE_REALTIME_SSE (off by default) ─────────────────
+// Polling stays the fallback. With the flag off none of this runs: no service, no fetch, no lock.
+// The lifecycle only connects a user who has a tenant and
+// `read:ChatbotRequest`; the two sync functions patch the query cache from its events.
+// The modules are loaded only when the flag is on, so the default path imports none of them.
+// The lifecycle is started straight on the auth store (what realtimePlugin does), without a
+// top-level await, so mounting never waits for the realtime chunks.
+if (isRealtimeEnabled()) {
+  void Promise.all([
+    import('@/core/realtime'),
+    import('@/features/chatbot/requests/realtime/chatbot-realtime-sync'),
+    import('@/features/notifications/realtime/notifications-realtime-sync'),
+  ]).then(([{ startRealtimeLifecycle, getRealtimeService }, { startChatbotRealtimeSync }, { startNotificationsRealtimeSync }]) => {
+    const realtime = getRealtimeService()
+    startChatbotRealtimeSync({
+      client: queryClient,
+      service: realtime,
+      getTenantId: () => authStore.currentTenantId,
+      getUserId: () => authStore.user?.id ?? null,
+    })
+    startNotificationsRealtimeSync({
+      client: queryClient,
+      service: realtime,
+      getTenantId: () => authStore.currentTenantId,
+    })
+    startRealtimeLifecycle(authStore)
+  }).catch((error: unknown) => {
+    // A chunk that fails to load leaves realtime off; polling keeps the screens fresh.
+    console.warn('[realtime] could not start; polling stays in charge.', error)
+  })
+}
 
 onSessionExpired(() => {
   const currentRoute = router.currentRoute.value

@@ -1,5 +1,6 @@
 import { computed, ref, toValue, type MaybeRefOrGetter } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useRealtimeOpen, whileStreamOpen } from '@/core/realtime/polling'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { readApiErrorEnvelope } from '@/core/shared/utils/api-error-envelope'
 import { chatbotConversationApi } from '../api/chatbot-conversation.api'
@@ -21,6 +22,13 @@ export const CONVERSATION_PAGE_SIZE = 50
 export const CONVERSATION_POLL_MS = 15_000
 /** While a live session runs the thread is polled every 4 s (handoff 18 §5: 3 to 5 s until the stream is on). */
 export const CONVERSATION_LIVE_POLL_MS = 4_000
+/**
+ * With the realtime stream open (`conversation.message` / `message.status`, handoff 18 §4) the thread
+ * is only re-read this often as a safety net. Only for readers of the conversation: the stream sends
+ * those events to `read:ChatbotConversation` + `read:ChatbotRequest`, so an attendee without the
+ * first keeps the poll.
+ */
+export const CONVERSATION_STREAM_POLL_MS = 60_000
 /** Delivery states that can still move forward (handoff 20 §3): the poll re-reads from the oldest of them. */
 const VOLATILE_STATUSES: ReadonlySet<string> = new Set(['QUEUED', 'SENT', 'DELIVERED', 'DEFERRED'])
 /** Upper bound of back-to-back `after` pages in one poll (a full page means there may be more). */
@@ -72,6 +80,7 @@ export function useRequestConversation(
 ) {
   const client = useQueryClient()
   const auth = useAuthStore()
+  const streamOpen = useRealtimeOpen()
   const { tenantId, enabled: canReadRequest } = useRequestAccess()
   const requestId = computed(() => toValue(id)?.trim() ?? '')
   const isReader = computed(() => auth.userCan('read', 'ChatbotConversation'))
@@ -141,12 +150,17 @@ export function useRequestConversation(
     queryFn: ({ signal }) => readThread(signal),
     enabled,
     retry: false,
-    refetchInterval: (q) => {
-      if (!q.state.data) return false
-      const status = q.state.error ? readApiErrorEnvelope(q.state.error).status : null
-      if (status === 403 || status === 404) return false
-      return live.value ? CONVERSATION_LIVE_POLL_MS : CONVERSATION_POLL_MS
-    },
+    refetchInterval: computed(() => {
+      // Read here so the interval is rebuilt when the stream opens or closes.
+      const streamed = streamOpen.value && isReader.value
+      return (q: { state: { data?: unknown; error: unknown } }) => {
+        if (!q.state.data) return false
+        const status = q.state.error ? readApiErrorEnvelope(q.state.error).status : null
+        if (status === 403 || status === 404) return false
+        const base = live.value ? CONVERSATION_LIVE_POLL_MS : CONVERSATION_POLL_MS
+        return whileStreamOpen(base, streamed, CONVERSATION_STREAM_POLL_MS)
+      }
+    }),
   })
 
   const thread = computed<ConversationThread>(() =>
