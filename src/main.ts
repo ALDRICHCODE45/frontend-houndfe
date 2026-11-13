@@ -4,15 +4,13 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { VueQueryPlugin } from '@tanstack/vue-query'
 import { queryClient } from '@/core/shared/api/queryClient'
-import { isRealtimeEnabled, realtimePlugin, getRealtimeService } from '@/core/realtime'
+import { isRealtimeEnabled } from '@/core/realtime/config'
 import { abilitiesPlugin } from '@casl/vue'
 import ui from '@nuxt/ui/vue-plugin'
 import router from '@/app/router'
 import { ability } from '@/features/auth/authorization/ability'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { onSessionExpired } from '@/features/auth/services/session-events'
-import { startChatbotRealtimeSync } from '@/features/chatbot/requests/realtime/chatbot-realtime-sync'
-import { startNotificationsRealtimeSync } from '@/features/notifications/realtime/notifications-realtime-sync'
 import App from './App.vue'
 
 // ── Coco dark-first default ───────────────────────────────────────────────────
@@ -36,21 +34,30 @@ const authStore = useAuthStore(pinia)
 
 // ── Realtime (SSE), behind VITE_REALTIME_SSE (off by default) ─────────────────
 // Polling stays the fallback. With the flag off none of this runs: no service, no fetch, no lock.
-// The lifecycle (installed after Pinia) only connects a user who has a tenant and
+// The lifecycle only connects a user who has a tenant and
 // `read:ChatbotRequest`; the two sync functions patch the query cache from its events.
+// The modules are loaded only when the flag is on, so the default path imports none of them.
+// The lifecycle is started straight on the auth store (what realtimePlugin does), without a
+// top-level await, so mounting never waits for the realtime chunks.
 if (isRealtimeEnabled()) {
-  app.use(realtimePlugin)
-  const realtime = getRealtimeService()
-  startChatbotRealtimeSync({
-    client: queryClient,
-    service: realtime,
-    getTenantId: () => authStore.currentTenantId,
-    getUserId: () => authStore.user?.id ?? null,
-  })
-  startNotificationsRealtimeSync({
-    client: queryClient,
-    service: realtime,
-    getTenantId: () => authStore.currentTenantId,
+  void Promise.all([
+    import('@/core/realtime'),
+    import('@/features/chatbot/requests/realtime/chatbot-realtime-sync'),
+    import('@/features/notifications/realtime/notifications-realtime-sync'),
+  ]).then(([{ startRealtimeLifecycle, getRealtimeService }, { startChatbotRealtimeSync }, { startNotificationsRealtimeSync }]) => {
+    const realtime = getRealtimeService()
+    startChatbotRealtimeSync({
+      client: queryClient,
+      service: realtime,
+      getTenantId: () => authStore.currentTenantId,
+      getUserId: () => authStore.user?.id ?? null,
+    })
+    startNotificationsRealtimeSync({
+      client: queryClient,
+      service: realtime,
+      getTenantId: () => authStore.currentTenantId,
+    })
+    startRealtimeLifecycle(authStore)
   })
 }
 
