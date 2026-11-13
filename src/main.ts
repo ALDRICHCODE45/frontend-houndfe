@@ -58,6 +58,9 @@ if (isRealtimeEnabled()) {
       getTenantId: () => authStore.currentTenantId,
     })
     startRealtimeLifecycle(authStore)
+  }).catch((error: unknown) => {
+    // A chunk that fails to load leaves realtime off; polling keeps the screens fresh.
+    console.warn('[realtime] could not start; polling stays in charge.', error)
   })
 }
 
