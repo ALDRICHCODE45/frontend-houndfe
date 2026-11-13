@@ -171,7 +171,7 @@ watch(
   ([first, last], [prevFirst, prevLast]) => {
     const el = log.value
     if (!el || last === null) return
-    if (prevFirst !== null && first !== null && first < prevFirst && last === prevLast) {
+    if (!firstOpen && prevFirst !== null && first !== null && first < prevFirst && last === prevLast) {
       el.scrollTop += el.scrollHeight - before.height
       return
     }
@@ -179,6 +179,15 @@ watch(
     firstOpen = false
   },
   { flush: 'post' },
+)
+// Another request is another thread: it opens at its latest message, whatever place the last one was left at.
+watch(
+  () => props.requestId,
+  () => {
+    firstOpen = true
+    before = { near: true, height: 0 }
+  },
+  { flush: 'sync' },
 )
 onMounted(() => {
   const el = log.value
@@ -363,6 +372,7 @@ onMounted(() => {
         :can-send="canSend"
         :disabled="mode === 'connecting'"
         disabled-text="Conectando…"
+        :scope="requestId"
         @send="chat.send()"
         @pick="chat.pickFile($event)"
         @clear-attachment="chat.clearAttachment()"

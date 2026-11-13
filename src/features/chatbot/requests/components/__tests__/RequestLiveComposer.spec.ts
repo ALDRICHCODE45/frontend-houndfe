@@ -171,6 +171,58 @@ describe('RequestLiveComposer — attachments', () => {
   })
 })
 
+describe('RequestLiveComposer — T16: nothing carries from one request to the next', () => {
+  const small = () =>
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query, addEventListener() {}, removeEventListener() {} }))
+  const pickFile = async (wrapper: ReturnType<typeof mountComposer>, file: File) => {
+    const input = wrapper.get('input[type="file"]').element as HTMLInputElement
+    Object.defineProperty(input, 'files', { value: [file], configurable: true })
+    await wrapper.get('input[type="file"]').trigger('change')
+  }
+
+  it('the attach sheet opened on A is closed when the request changes', async () => {
+    small()
+    const wrapper = mountComposer({ scope: 'req-A' })
+    await wrapper.get('[data-testid="composer-attach"]').trigger('click')
+    expect(wrapper.find('[data-testid="attach-sheet"]').exists()).toBe(true)
+
+    await wrapper.setProps({ scope: 'req-B' })
+    expect(wrapper.find('[data-testid="attach-sheet"]').exists()).toBe(false)
+  })
+
+  it('a file picked after the request changed is ignored (the dialog was opened for A)', async () => {
+    const wrapper = mountComposer({ scope: 'req-A' })
+    await wrapper.get('[data-testid="composer-attach"]').trigger('click')
+    await wrapper.setProps({ scope: 'req-B' })
+    await pickFile(wrapper, new File(['x'], 'foto.jpg', { type: 'image/jpeg' }))
+    expect(wrapper.emitted('pick')).toBeUndefined()
+  })
+
+  it('a file picked from the sheet after the request changed is ignored too', async () => {
+    small()
+    const wrapper = mountComposer({ scope: 'req-A' })
+    await wrapper.get('[data-testid="composer-attach"]').trigger('click')
+    await wrapper.get('[data-testid="attach-pick-image"]').trigger('click')
+    await wrapper.setProps({ scope: 'req-B' })
+    await pickFile(wrapper, new File(['x'], 'foto.jpg', { type: 'image/jpeg' }))
+    expect(wrapper.emitted('pick')).toBeUndefined()
+  })
+
+  it('a file picked on the same request still goes up, and B can pick its own after the switch', async () => {
+    const wrapper = mountComposer({ scope: 'req-A' })
+    const file = new File(['x'], 'foto.jpg', { type: 'image/jpeg' })
+    await wrapper.get('[data-testid="composer-attach"]').trigger('click')
+    await pickFile(wrapper, file)
+    expect(wrapper.emitted('pick')).toEqual([[file]])
+
+    await wrapper.setProps({ scope: 'req-B' })
+    await wrapper.get('[data-testid="composer-attach"]').trigger('click')
+    const other = new File(['y'], 'otra.jpg', { type: 'image/jpeg' })
+    await pickFile(wrapper, other)
+    expect(wrapper.emitted('pick')).toEqual([[file], [other]])
+  })
+})
+
 describe('RequestLiveComposer — waiting for the bot', () => {
   it('is disabled with the reason as placeholder', () => {
     const wrapper = mountComposer({ disabled: true, disabledText: 'Conectando…' })

@@ -1,4 +1,4 @@
-import { computed, ref, toValue, watch, type MaybeRefOrGetter } from 'vue'
+import { computed, onScopeDispose, ref, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import { useQueryClient } from '@tanstack/vue-query'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { newIdempotencyKey } from '@/features/POS/sales/utils/idempotency.utils'
@@ -19,6 +19,7 @@ import {
 import { liveErrorNotice, readLiveError, type LiveError, type LiveNotice } from '../utils/live-errors'
 import { outboxFor, type LiveOutbox, type OutboxEntry, type SendInput, type UnsentHold, type UnsentText } from './liveOutbox'
 import { retriedStoreFor } from './liveRetried'
+import { pruneLiveStores, signedInUserId } from './liveStoreScope'
 import { isWindowClosed, lastCustomerSeq, windowClosesAt as closesAtOf, type WindowInput } from '../utils/live-window'
 
 /** The attendee's attachment while it is picked, uploaded and waiting for «Enviar». */
@@ -64,6 +65,8 @@ export interface UseLiveChatOptions {
 export function useLiveChat(options: UseLiveChatOptions) {
   const client = useQueryClient()
   const tenantId = useSafeTenantId()
+  // Everything the chat keeps is the signed-in user's: another user never reads it (liveStoreScope).
+  const userId = computed(() => signedInUserId())
 
   const detail = computed(() => toValue(options.detail))
   const threadMessages = computed(() => toValue(options.messages))
@@ -72,20 +75,17 @@ export function useLiveChat(options: UseLiveChatOptions) {
   const epoch = computed(() => detail.value?.liveSession?.handoffEpoch ?? null)
 
   let uploadToken = 0
-  /**
-   * Bumped whenever the block starts talking about another tenant/request. An operation captures it
-   * when it starts and, after every await, drops each write into the state on screen if it changed.
-   */
-  let generation = 0
+  /** Who, where and about which request the block is talking right now. */
+  const scopeKey = computed(() => `${userId.value}\u0000${tenantId.value}\u0000${requestId.value}`)
 
   const draft = ref('')
   const attachment = ref<LiveAttachment | null>(null)
   const notice = ref<LiveNotice | null>(null)
   // What waits on the server belongs to the request, not to the block (see liveOutbox).
-  const outbox = computed(() => outboxFor(client, tenantId.value, requestId.value))
+  const outbox = computed(() => outboxFor(client, userId.value, tenantId.value, requestId.value))
   const entries = computed(() => outbox.value.entries.value)
   // Per tenant + request and outside the block: a remount for the same request keeps it (see liveRetried).
-  const retriedStore = computed(() => retriedStoreFor(client, tenantId.value, requestId.value))
+  const retriedStore = computed(() => retriedStoreFor(client, userId.value, tenantId.value, requestId.value))
   const retried = computed(() => retriedStore.value.value)
   const holds = computed(() => outbox.value.holds.value)
   const unsent = computed<UnsentText[]>(() =>
@@ -133,13 +133,13 @@ export function useLiveChat(options: UseLiveChatOptions) {
 
   // The detail view reuses this block across /chatbot/solicitudes/:id: what belongs to one request (its
   // typing, attachment, notice, window and template answers) must not reach the next. Its outbox and held
-  // texts are keyed by request (liveOutbox), so they simply are not the ones on screen any more; an answer
-  // that is still in flight sees the bumped `generation` and writes nothing here.
+  // texts are keyed by user and request (liveOutbox), so they simply are not the ones on screen any more; an
+  // answer that is still in flight finds another scope on screen and writes nothing here. If the attendee
+  // comes back to the same request, that same answer is current again and applies normally.
   watch(
-    () => `${tenantId.value}\u0000${requestId.value}`,
+    scopeKey,
     (next, previous) => {
       if (next === previous) return
-      generation += 1
       uploadToken += 1
       draft.value = ''
       attachment.value = null
@@ -148,22 +148,29 @@ export function useLiveChat(options: UseLiveChatOptions) {
       forcedOpenAfterSeq.value = null
       templateAllowed.value = null
       templateNotConfigured.value = false
+      // The request left behind may hold nothing any more: do not keep an empty entry around.
+      pruneLiveStores(client, userId.value)
     },
     { flush: 'sync' },
   )
+  onScopeDispose(() => pruneLiveStores(client, userId.value))
 
   interface Scope {
-    generation: number
+    key: string
     tenantId: string
     requestId: string
     outbox: LiveOutbox
   }
-  /** What an operation started in: its request, its outbox and the generation it must still match. */
+  /** What an operation started in: its user + tenant + request and the outbox of that request. */
   function captureScope(): Scope {
-    return { generation, tenantId: tenantId.value, requestId: requestId.value, outbox: outbox.value }
+    return { key: scopeKey.value, tenantId: tenantId.value, requestId: requestId.value, outbox: outbox.value }
   }
+  /**
+   * The operation's scope is no longer the one on screen. Comparing the scope (not a counter) means
+   * A → B → A leaves A's late answer current; a different user or a dropped store is always stale.
+   */
   function isStale(scope: Scope): boolean {
-    return scope.generation !== generation
+    return scope.key !== scopeKey.value || scope.outbox !== outbox.value
   }
 
   // ─── Window and template ─────────────────────────────────────────────────────

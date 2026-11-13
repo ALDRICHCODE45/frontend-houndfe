@@ -343,6 +343,56 @@ describe('RequestDetailConversation — T5L.F: double Enter and double click sen
   })
 })
 
+describe('RequestDetailConversation — T16: the view reused across requests keeps nothing of the previous one', () => {
+  const switchTo = (wrapper: ReturnType<typeof mountBlock>, id: string) =>
+    wrapper.setProps({ requestId: id, detail: live('ACTIVE', { id }) })
+
+  it('a file dialog opened on A and answered after the switch to B uploads nothing', async () => {
+    const wrapper = mountBlock(live('ACTIVE'))
+    await wrapper.get('[data-testid="composer-attach"]').trigger('click')
+    await switchTo(wrapper, 'req-2')
+    const input = wrapper.get('input[type="file"]').element as HTMLInputElement
+    Object.defineProperty(input, 'files', { value: [new File(['x'], 'foto.png', { type: 'image/png' })], configurable: true })
+    await wrapper.get('input[type="file"]').trigger('change')
+    await flushPromises()
+    expect(api.uploadMedia).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="composer-attachment"]').exists()).toBe(false)
+  })
+
+  it('the attach sheet opened on A is closed on B', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query, addEventListener() {}, removeEventListener() {} }))
+    try {
+      const wrapper = mountBlock(live('ACTIVE'))
+      await wrapper.get('[data-testid="composer-attach"]').trigger('click')
+      expect(wrapper.find('[data-testid="attach-sheet"]').exists()).toBe(true)
+      await switchTo(wrapper, 'req-2')
+      expect(wrapper.find('[data-testid="attach-sheet"]').exists()).toBe(false)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('B opens at its latest message even when the attendee had scrolled A up', async () => {
+    const height = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(1000)
+    const visible = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(400)
+    try {
+      const wrapper = mountBlock(live('ACTIVE'), [customer(10), customer(11)])
+      await flushPromises()
+      const log = wrapper.get('.rc-log').element as HTMLElement
+      expect(log.scrollTop).toBe(1000)
+
+      log.scrollTop = 0 // the attendee reads upwards on A
+      ;(convo.messages as { value: ChatbotMessage[] }).value = [customer(20, 'B uno'), customer(21, 'B dos')]
+      await switchTo(wrapper, 'req-2')
+      await flushPromises()
+      expect((wrapper.get('.rc-log').element as HTMLElement).scrollTop).toBe(1000)
+    } finally {
+      height.mockRestore()
+      visible.mockRestore()
+    }
+  })
+})
+
 describe('RequestDetailConversation — window closed and the template', () => {
   const closed = () =>
     live('ACTIVE', { allowedActions: ['SEND_MESSAGE', 'SEND_TEMPLATE', 'FINISH'] }, { lastCustomerMessageAt: '2026-11-12T10:00:00.000Z' })
@@ -373,9 +423,14 @@ describe('RequestDetailConversation — window closed and the template', () => {
     await wrapper.get('[data-testid="template-confirm"]').trigger('click')
     await wrapper.setProps({ requestId: 'req-2', detail: { ...closed(), id: 'req-2' } })
     await wrapper.get('[data-testid="template-open"]').trigger('click')
+    // B's confirmation is usable: A's pending template does not leave B's button disabled.
+    expect(wrapper.get('[data-testid="template-confirm"]').attributes('disabled')).toBeUndefined()
     resolveA({ message: null })
     await flushPromises()
     expect(wrapper.find('[data-testid="template-confirm-cost"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="template-confirm"]').attributes('disabled')).toBeUndefined()
+    // Only A's request ever reached the API.
+    expect(api.sendTemplate.mock.calls.map((call) => call[0])).toEqual(['req-1'])
   })
 
   it('the button does not send: it opens the confirmation with the settings cost', async () => {
