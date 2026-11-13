@@ -56,6 +56,8 @@ export function settingsFixture(over: Partial<ChatbotSettings> = {}): ChatbotSet
     templateCostText: 'Enviar la plantilla tiene un costo para el negocio.',
     enabledSubtypes: ['RESTOCK', 'COMPLAINT'],
     receiptCloseMarginMinutes: 60,
+    startTimeoutSeconds: 120,
+    templateLanguageCode: 'es_MX',
     scheduling: { enabled: false, slotMinutes: 30, slotsOffered: 3, maxScheduledPerSlot: 3 },
     branchOpeningHours: week({ MONDAY: [['10:00', '18:00']], TUESDAY: [['10:00', '18:00']] }),
     updatedBy: null,

@@ -23,10 +23,12 @@ import type {
   ChatbotRequestRowsPage,
   ChatbotRequestZoneImpact,
   ClaimRequestBody,
+  FinishRequestBody,
   LinkCustomerRequestBody,
   MergeRequestBody,
   ReassignRequestBody,
   ReleaseRequestBody,
+  ReplyRequestBody,
   ResolveRequestAction,
   ResolveRequestBody,
 } from '../interfaces/chatbot-request.types'
@@ -238,6 +240,16 @@ export const chatbotRequestApi = {
 
   linkCustomer(id: string, body: LinkCustomerRequestBody, idempotencyKey: string) {
     return command(path(id, '/link-customer'), pick(body, ['expectedVersion', 'customerId']), idempotencyKey)
+  },
+
+  /** Answers a clarification and closes it (handoff 19): exactly `{expectedVersion, text}`. */
+  reply(id: string, body: ReplyRequestBody, idempotencyKey: string) {
+    return command(path(id, '/reply'), pick(body, ['expectedVersion', 'text']), idempotencyKey)
+  },
+
+  /** Ends a live conversation (handoff 20 §4); `complaintOutcome` goes only when the caller set it. */
+  finish(id: string, body: FinishRequestBody, idempotencyKey: string) {
+    return command(path(id, '/finish'), pick(body, ['expectedVersion', 'note', 'complaintOutcome']), idempotencyKey)
   },
 
   /** Flat body of the action; never `resolutionRequestId` (the backend derives it from the key). */

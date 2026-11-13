@@ -3,7 +3,7 @@
  * RequestCommandHost — runs the staff commands of one request (T2.U4).
  *
  * The detail view calls `start(action)` when the action panel emits. CLAIM and RELEASE are sent at
- * once; RESOLVE, CANCEL, REASSIGN, MERGE and LINK_CUSTOMER open their form in a slideover (desktop)
+ * once; RESOLVE, REPLY, FINISH, CANCEL, REASSIGN, MERGE and LINK_CUSTOMER open their form in a slideover (desktop)
  * or bottom sheet (mobile). Bodies are built from the form answers and the detail's `version`; the
  * idempotency, in-flight guard and invalidation live in `useRequestCommand`.
  *
@@ -31,19 +31,25 @@ import {
 } from '../utils/command-copy'
 import {
   buildCancelBody,
+  buildFinishBody,
   buildLinkBody,
   buildMergeBody,
   buildReassignBody,
+  buildReplyBody,
   buildResolveBody,
   type CancelDraft,
+  type FinishDraft,
   type ReassignDraft,
+  type ReplyDraft,
   type ResolveDraft,
 } from '../utils/command-forms'
 import { SUBTYPE_LABELS } from '../utils/requestLabels'
 import RequestCommandCancelForm from './RequestCommandCancelForm.vue'
+import RequestCommandFinishForm from './RequestCommandFinishForm.vue'
 import RequestCommandNotice from './RequestCommandNotice.vue'
 import RequestCommandPickForm from './RequestCommandPickForm.vue'
 import RequestCommandReassignForm from './RequestCommandReassignForm.vue'
+import RequestCommandReplyForm from './RequestCommandReplyForm.vue'
 import RequestCommandResolveForm from './RequestCommandResolveForm.vue'
 import RequestCommandSheet from './RequestCommandSheet.vue'
 
@@ -55,9 +61,15 @@ declare const useToast: () => {
   }) => void
 }
 
-type FormAction = Extract<ChatbotRequestAction, 'RESOLVE' | 'CANCEL' | 'REASSIGN' | 'MERGE' | 'LINK_CUSTOMER'>
-const FORM_ACTIONS: ReadonlySet<ChatbotRequestAction> = new Set<FormAction>([
+type FormAction = Extract<
+  ChatbotRequestAction,
+  'RESOLVE' | 'REPLY' | 'FINISH' | 'CANCEL' | 'REASSIGN' | 'MERGE' | 'LINK_CUSTOMER'
+>
+const FORM_ACTIONS: ReadonlySet<ChatbotRequestAction> = new Set<ChatbotRequestAction>([
   'RESOLVE',
+  'REPLY',
+  'FINISH',
+  'FINISH_IDLE',
   'CANCEL',
   'REASSIGN',
   'MERGE',
@@ -84,7 +96,9 @@ watch(pendingAction, (action) => emit('update:pendingAction', action))
 let lastRun: (() => Promise<void>) | null = null
 
 // ─── Failure state ────────────────────────────────────────────────────────────
-const notice = computed(() => (command.error.value ? commandNotice(command.error.value) : null))
+const notice = computed(() =>
+  command.error.value ? commandNotice(command.error.value, lastAction.value) : null,
+)
 const fieldErrors = computed(() => (command.error.value ? commandFieldErrors(command.error.value) : {}))
 /** Same notice, without the button the form itself plays (the submit becomes the new confirmation). */
 const noticeActions = computed(() => notice.value?.actions.filter((action) => action !== 'reconfirm') ?? [])
@@ -157,7 +171,8 @@ function start(action: ChatbotRequestAction): void {
   command.clearError()
   if (FORM_ACTIONS.has(action)) {
     changedImpact.value = null
-    openForm.value = action as FormAction
+    // FINISH and FINISH_IDLE are one form: the idle line comes from what the server offers.
+    openForm.value = action === 'FINISH_IDLE' ? 'FINISH' : (action as FormAction)
     return
   }
   const body = { expectedVersion: props.detail.version }
@@ -181,6 +196,17 @@ function onReassign(draft: ReassignDraft): void {
   const body = buildReassignBody(draft, props.detail.version)
   const name = assignable.users.value.find((user) => user.id === draft.toUserId)?.displayName
   void execute('REASSIGN', () => command.reassign(id.value, body), () => ({ folio: folio.value, assignee: name }))
+}
+
+function onReply(draft: ReplyDraft): void {
+  const body = buildReplyBody(draft, props.detail.version)
+  void execute('REPLY', () => command.reply(id.value, body), () => ({ folio: folio.value }))
+}
+
+function onFinish(draft: FinishDraft): void {
+  const body = buildFinishBody(props.detail.subtype, draft, props.detail.version)
+  if (!body) return
+  void execute('FINISH', () => command.finish(id.value, body), () => ({ folio: folio.value }))
 }
 
 function onResolve(draft: ResolveDraft): void {
@@ -231,12 +257,19 @@ function onSheetOpen(open: boolean): void {
 watch(
   () => props.detail.allowedActions,
   (allowed) => {
-    if (openForm.value && !allowed.includes(openForm.value)) closeSheet()
+    if (!openForm.value) return
+    const stillOffered =
+      openForm.value === 'FINISH'
+        ? allowed.includes('FINISH') || allowed.includes('FINISH_IDLE')
+        : allowed.includes(openForm.value)
+    if (!stillOffered) closeSheet()
   },
 )
 
 const SHEET_TITLES: Record<FormAction, string> = {
   RESOLVE: 'Resolver',
+  REPLY: 'Responder al cliente',
+  FINISH: 'Finalizar conversación',
   CANCEL: 'Cancelar solicitud',
   REASSIGN: 'Reasignar',
   MERGE: 'Unir con otra solicitud',
@@ -291,6 +324,25 @@ defineExpose({ start, pendingAction })
         @submit="onReassign"
         @back="closeSheet"
         @reload="assignable.refetch()"
+      />
+
+      <RequestCommandReplyForm
+        v-else-if="openForm === 'REPLY'"
+        :claims-on-reply="detail.status === 'NEW'"
+        :pending="command.isPending.value"
+        :server-errors="fieldErrors"
+        @submit="onReply"
+        @back="closeSheet"
+      />
+
+      <RequestCommandFinishForm
+        v-else-if="openForm === 'FINISH'"
+        :subtype="detail.subtype"
+        :idle="detail.allowedActions.includes('FINISH_IDLE')"
+        :pending="command.isPending.value"
+        :server-errors="fieldErrors"
+        @submit="onFinish"
+        @back="closeSheet"
       />
 
       <RequestCommandResolveForm

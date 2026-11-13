@@ -211,6 +211,18 @@ describe('save', () => {
     expect(editor.errors.value['x:window']).toBeDefined()
   })
 
+  it('does not send an out-of-range timeout or a malformed language', async () => {
+    const { editor } = setup()
+    await flushPromises()
+    editor.edit((d) => { d.startTimeoutSeconds = 29 })
+    expect((await editor.save()).status).toBe('invalid')
+    expect(editor.errors.value['x:startTimeout']).toBe('Entre 30 y 600 segundos.')
+    editor.edit((d) => { d.startTimeoutSeconds = 120; d.templateLanguageCode = 'es-MX' })
+    expect((await editor.save()).status).toBe('invalid')
+    expect(editor.errors.value['x:templateLanguage']).toBeDefined()
+    expect(put).not.toHaveBeenCalled()
+  })
+
   it('ignores a second save while one is in flight', async () => {
     let resolve!: (value: ReturnType<typeof saved>) => void
     put.mockReturnValue(
@@ -406,6 +418,28 @@ describe('save errors', () => {
 
       expect(editor.serverErrors.value).toEqual({})
       expect(editor.showErrors.value).toBe(false)
+    })
+
+    it('editing the timeout or the language clears only its own server error', async () => {
+      put.mockRejectedValue(
+        axiosError(400, {
+          code: 'VALIDATION_ERROR',
+          fieldErrors: [
+            { path: 'startTimeoutSeconds', code: 'OUT_OF_RANGE' },
+            { path: 'templateLanguageCode', code: 'INVALID_LANGUAGE_CODE' },
+          ],
+        }),
+      )
+      const { editor } = setup()
+      await flushPromises()
+      editor.edit(setWindow(60))
+      await editor.save()
+      expect(Object.keys(editor.serverErrors.value)).toEqual(['x:startTimeout', 'x:templateLanguage'])
+
+      editor.edit((d) => { d.startTimeoutSeconds = 200 })
+      expect(Object.keys(editor.serverErrors.value)).toEqual(['x:templateLanguage'])
+      editor.edit((d) => { d.templateLanguageCode = 'es' })
+      expect(editor.serverErrors.value).toEqual({})
     })
 
     it('the next save starts clean, and discard clears the server errors', async () => {

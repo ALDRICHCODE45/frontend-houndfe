@@ -189,6 +189,24 @@ describe('validateSettings — margin, window, template, scheduling', () => {
     expect(edit((s) => { s.templateName = '' })['x:template']).toBeDefined()
   })
 
+  it('startTimeoutSeconds is a whole number from 30 to 600', () => {
+    for (const [value, ok] of [[29, false], [30, true], [120, true], [600, true], [601, false], [30.5, false], [Number.NaN, false]] as const) {
+      const errors = edit((s) => { s.startTimeoutSeconds = value })
+      expect(errors['x:startTimeout'] === undefined, `timeout ${value}`).toBe(ok)
+    }
+    expect(edit((s) => { s.startTimeoutSeconds = 29 })['x:startTimeout']).toBe('Entre 30 y 600 segundos.')
+  })
+
+  it('templateLanguageCode is xx or xx_YY (lowercase language, uppercase country)', () => {
+    for (const [value, ok] of [['es', true], ['es_MX', true], ['en_US', true], ['ES', false], ['es_mx', false], ['es-MX', false], ['', false], ['e', false], ['esp', false], ['es_MXX', false], [' es', false]] as const) {
+      const errors = edit((s) => { s.templateLanguageCode = value })
+      expect(errors['x:templateLanguage'] === undefined, `language «${value}»`).toBe(ok)
+    }
+    expect(edit((s) => { s.templateLanguageCode = 'es-MX' })['x:templateLanguage']).toBe(
+      'Usa el formato es o es_MX: idioma en minúsculas y país en mayúsculas.',
+    )
+  })
+
   it('templateCostText is 1 to 200 characters', () => {
     expect(edit((s) => { s.templateCostText = 'x' })['x:templateCost']).toBeUndefined()
     expect(edit((s) => { s.templateCostText = 'x'.repeat(200) })['x:templateCost']).toBeUndefined()

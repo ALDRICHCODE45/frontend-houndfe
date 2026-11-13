@@ -31,6 +31,8 @@ function clearsKey(changed: string, errorKey: string): boolean {
     'x:windowWarningMinutes': 'x:window',
     'x:templateName': 'x:template',
     'x:templateCostText': 'x:templateCost',
+    'x:templateLanguageCode': 'x:templateLanguage',
+    'x:startTimeoutSeconds': 'x:startTimeout',
   }
   return scalar[changed] === errorKey
 }

@@ -9,10 +9,12 @@ import type {
   ChatbotRequestCommandResponse,
   ChatbotRequestVersionedBody,
   ClaimRequestBody,
+  FinishRequestBody,
   LinkCustomerRequestBody,
   MergeRequestBody,
   ReassignRequestBody,
   ReleaseRequestBody,
+  ReplyRequestBody,
   ResolveRequestBody,
 } from '../interfaces/chatbot-request.types'
 import { isStateChangingError } from '../utils/command-copy'
@@ -117,5 +119,9 @@ export function useRequestCommand() {
       run('link-customer', id, body, (key) => chatbotRequestApi.linkCustomer(id, body, key)),
     resolve: (id: string, body: ResolveRequestBody) =>
       run('resolve', id, body, (key) => chatbotRequestApi.resolve(id, body, key)),
+    reply: (id: string, body: ReplyRequestBody) =>
+      run('reply', id, body, (key) => chatbotRequestApi.reply(id, body, key)),
+    finish: (id: string, body: FinishRequestBody) =>
+      run('finish', id, body, (key) => chatbotRequestApi.finish(id, body, key)),
   }
 }

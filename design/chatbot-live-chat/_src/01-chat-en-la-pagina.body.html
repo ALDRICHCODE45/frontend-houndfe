@@ -1,0 +1,14 @@
+<div id="root"></div>
+<aside class="notes-sheet" id="notes" hidden aria-label="Notas de diseño">
+  <h2>Notas de la dirección A · Chat en la página</h2>
+  <ul>
+    <li>El chat es el primer panel del detalle ya construido (columna principal + riel de acciones). Alto fijo de 420 px con scroll propio y compositor pegado abajo; el resto de la página sigue debajo.</li>
+    <li>Sesión (<code>liveSession.state</code>): STARTING «Conectando…», ACTIVE «En vivo», ENDING «Terminando…», ENDED «Terminada», WAITING «Sin confirmar» (solicitud de vuelta en Nueva). Usa el selector «Sesión».</li>
+    <li>Entrega (<code>message.status</code>): En cola → Enviado → Entregado → Leído; «Pendiente de envío» a los 30 s sin <code>SENT</code> (lo calcula el front); «No enviado, ventana cerrada» (<code>DEFERRED</code>); «No enviado» con Reintentar (<code>FAILED</code>); «Entrega dudosa» con «Enviar como mensaje nuevo» (<code>UNKNOWN</code>). Reintentar siempre es un mensaje nuevo con otro <code>clientMessageId</code>. Prueba con «Próximo envío» y «Hilo → Todos los estados».</li>
+    <li>Ventana cerrada: el compositor se bloquea («La ventana de 24 h está cerrada») y muestra el costo (<code>templateCostText</code> de Ajustes, no viene en el detalle) antes del botón «Enviar plantilla…», que abre una confirmación. Nunca se envía sola. Una por ventana cerrada (<code>TEMPLATE_ALREADY_SENT</code>); FAILED permite reintentar, UNKNOWN no.</li>
+    <li>«Finalizar conversación» abre el panel lateral de comandos (mismo patrón que Reasignar o Cancelar): nota interna 1–1000 obligatoria y, solo en quejas, clasificación Devolución / Reemplazo / Reembolso / Sin acción en filas de radio (no checkboxes). Sin clasificar aparece el error del <code>422 COMPLAINT_OUTCOME_REQUIRED</code> en el campo.</li>
+    <li>Inactividad: con el cliente callado 30 min o más (<code>FINISH_IDLE</code>) aparece el aviso «puedes finalizar ahora sin más pasos» con el botón. Con el cliente activo, el panel agrega una línea («escribió hace 1 min»). A las 2 h el backend finaliza solo. <b>Interpretación mía de §2: el contrato no define un bloqueo, solo «sin confirmación extra»; por validar.</b></li>
+    <li>No es quien atiende: el compositor se cambia por «Atiende Diego Ramírez» (solo lectura); con permiso de reasignación aparecen Reasignar y «Finalizar en su lugar…». Sin <code>read:ChatbotConversation</code> el atendedor ve solo su sesión.</li>
+    <li>Conocido del contrato: <code>whatsappWindowClosesAt</code> de la fila puede estar desactualizado; el compositor es la verdad (<code>409 WINDOW_CLOSED</code> lo bloquea y conserva el borrador). Los eventos <code>conversation.message</code> y <code>message.status</code> no llegan sin <code>read:ChatbotConversation</code>: ese rol usa sondeo <code>?after=</code>.</li>
+  </ul>
+</aside>

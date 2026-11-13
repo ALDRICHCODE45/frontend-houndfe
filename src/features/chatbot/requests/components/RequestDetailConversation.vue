@@ -152,7 +152,7 @@ onMounted(() => {
 
     <p v-if="isEnabled" class="rd-help">
       <UIcon name="i-lucide-info" aria-hidden="true" />
-      Aquí solo se lee la conversación. Responder desde el sistema llegará más adelante.
+      Solo lectura: aquí ves lo que el cliente y el bot se escribieron.
     </p>
   </section>
 </template>

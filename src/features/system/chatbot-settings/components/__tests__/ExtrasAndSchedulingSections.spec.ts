@@ -19,7 +19,6 @@ describe('ExtrasSection', () => {
     const w = mountExtras()
     expect(w.findAll('[data-testid="pending-badge"]')).toHaveLength(1)
     expect(w.text()).toContain('Aún sin efecto')
-    expect(w.text()).toContain('«Aplicar a todas» no los copia')
   })
 
   it('no longer says the inbox filter uses a fixed 2 h; it says the filter follows this value', () => {
@@ -46,6 +45,43 @@ describe('ExtrasSection', () => {
     expect(w.emitted('set-template-cost')![0]).toEqual(['Cuesta'])
   })
 
+  it('edits the template language next to the name, monospace, and emits it as typed', async () => {
+    const w = mountExtras()
+    const input = w.get('[data-testid="template-language-input"]')
+    expect((input.element as HTMLInputElement).value).toBe('es_MX')
+    expect(input.classes()).toContain('cbs-mono')
+    await input.setValue('en_US')
+    expect(w.emitted('set-template-language')).toEqual([['en_US']])
+  })
+
+  it('edits the start timeout as whole seconds and explains it applies to the next claim', async () => {
+    const w = mountExtras()
+    const input = w.get('#cbs-start-timeout')
+    expect((input as unknown as { element: HTMLInputElement }).element.value).toBe('120')
+    await input.setValue('90')
+    await input.setValue('abc')
+    expect(w.emitted('set-start-timeout')).toEqual([[90], [Number.NaN]])
+    const help = w.get('#cbs-start-timeout-help').text()
+    expect(help).toContain('bot')
+    expect(help).toContain('siguiente')
+  })
+
+  it('shows the timeout and language errors with their message', () => {
+    const w = mountExtras({
+      errors: { 'x:startTimeout': 'Entre 30 y 600 segundos.', 'x:templateLanguage': 'Usa el formato es o es_MX.' },
+    })
+    expect(w.get('[data-testid="start-timeout-error"]').text()).toBe('Entre 30 y 600 segundos.')
+    expect(w.get('[data-testid="template-language-error"]').text()).toBe('Usa el formato es o es_MX.')
+    expect(w.get('[data-testid="template-language-input"]').attributes('aria-invalid')).toBe('true')
+    expect(w.get('#cbs-start-timeout').attributes('aria-invalid')).toBe('true')
+  })
+
+  it('the foot note says «Aplicar a todas» copies neither the template, its language, the cost nor the timeout', () => {
+    const text = mountExtras().get('.cbs-foot').text()
+    expect(text).toContain('«Aplicar a todas» no copia')
+    for (const word of ['plantilla', 'idioma', 'costo', 'tiempo']) expect(text).toContain(word)
+  })
+
   it('shows the cost counter and the errors', () => {
     const w = mountExtras({
       errors: { 'x:window': 'Usa un valor entre 0 min y 24 h.', 'x:template': 'Solo minúsculas.', 'x:templateCost': 'Escribe un texto.' },
@@ -62,6 +98,8 @@ describe('ExtrasSection', () => {
     expect(w.get('[data-testid="window-readonly"]').text()).toBe('2 h')
     expect(w.get('[data-testid="template-readonly"]').text()).toBe('Sin configurar')
     expect(w.get('[data-testid="cost-readonly"]').text()).toContain('costo para el negocio')
+    expect(w.get('[data-testid="template-language-readonly"]').text()).toBe('es_MX')
+    expect(w.get('[data-testid="start-timeout-readonly"]').text()).toBe('120 s')
     expect(w.find('input').exists()).toBe(false)
     expect(w.find('textarea').exists()).toBe(false)
   })

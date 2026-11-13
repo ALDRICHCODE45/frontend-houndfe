@@ -1,0 +1,903 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HoundFe · Chatbot → Conversación en vivo · 01-chat-en-la-pagina</title>
+<style>
+/* Chatbot live chat: shared tokens and components (copied from design/chatbot-requests/shared.css). Every value comes from design/system.md. Source only: build.sh inlines it into each artboard. */
+:root{
+--hf-page:#f5f6f8;--hf-surface:#ffffff;--hf-surface-muted:#e7eef7;--hf-field:#ffffff;--hf-field-border:#8593a3;
+--hf-ink:#24313d;--hf-heading:#173968;--hf-muted:#576574;--hf-border:#dce2e8;
+--hf-action:#2442f6;--hf-on-action:#ffffff;--hf-active:#2442f6;--hf-active-soft:#edf0ff;--hf-focus:#2442f6;
+--hf-gold:#f6bb13;--hf-gold-soft:#fff5d6;--hf-gold-ink:#443218;
+--hf-warning:#805511;--hf-warning-soft:#fff5d6;--hf-success:#236044;
+--hf-danger:#b42318;--hf-danger-soft:#fef3f2;--hf-danger-border:#f4b8b2;
+--hf-font:'Geist',ui-sans-serif,system-ui,sans-serif;
+--hf-radius-card:12px;--hf-radius-control:6px;--hf-control-height:44px;
+--table-head:color-mix(in srgb,var(--hf-ink) 4%,var(--hf-surface));
+--row-hover:color-mix(in srgb,var(--hf-surface-muted) 45%,var(--hf-surface));
+--skel:color-mix(in srgb,var(--hf-ink) 16%,var(--hf-surface));
+--shadow-soft:0 1px 2px color-mix(in srgb,var(--hf-ink) 5%,transparent);
+--shadow-pop:0 12px 32px -12px color-mix(in srgb,var(--hf-ink) 24%,transparent),0 2px 6px color-mix(in srgb,var(--hf-ink) 8%,transparent);
+--scrim:color-mix(in srgb,var(--hf-ink) 32%,transparent);
+color-scheme:light;
+}
+html.dark{
+--hf-page:#0e1520;--hf-surface:#192332;--hf-surface-muted:#202e43;--hf-field:#121d2c;--hf-field-border:#64758d;
+--hf-ink:#edf2fa;--hf-heading:#edf2fa;--hf-muted:#adbcd0;--hf-border:#354459;
+--hf-action:#91b0ff;--hf-on-action:#132344;--hf-active:#b3caff;--hf-active-soft:#223555;--hf-focus:#a6c1ff;
+--hf-gold:#f2c456;--hf-gold-soft:#3b311d;--hf-gold-ink:#f2cb71;
+--hf-warning:#f2cb71;--hf-warning-soft:#3b311d;--hf-success:#a2d9b9;
+--hf-danger:#ffb4ab;--hf-danger-soft:#3d2220;--hf-danger-border:#7a3f3b;
+--shadow-soft:0 1px 2px color-mix(in srgb,var(--hf-page) 40%,transparent);
+--shadow-pop:0 12px 32px -12px color-mix(in srgb,var(--hf-page) 90%,transparent),0 2px 6px color-mix(in srgb,var(--hf-page) 60%,transparent);
+--scrim:color-mix(in srgb,var(--hf-page) 70%,transparent);
+color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--hf-page);color:var(--hf-ink);font:400 14px/1.5 var(--hf-font);font-feature-settings:"cv11","ss01"}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3,h4,p,ul,ol,dl,dd{margin:0}
+ul,ol{padding:0;list-style:none}
+h1,h2,h3,h4{color:var(--hf-heading);font-weight:600}
+a{color:var(--hf-action)}
+:focus-visible{outline:2px solid var(--hf-focus);outline-offset:2px}
+.icon{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.icon.sm{width:16px;height:16px}.icon.xs{width:14px;height:14px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.fig{font-variant-numeric:tabular-nums}
+.muted{color:var(--hf-muted)}
+.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+
+/* artboard tools (outside the mock) */
+.tools{position:relative;z-index:200;display:flex;flex-wrap:wrap;align-items:center;gap:4px;min-height:44px;padding:4px 12px;background:var(--hf-surface-muted);border-bottom:1px solid var(--hf-border)}
+.tools .grow{flex:1}
+.tools button,.tools label{height:32px;padding:0 10px;border:0;border-radius:8px;background:transparent;font-size:12px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap}
+.tools button:hover{background:var(--hf-surface-muted)}
+.tools select{height:28px;max-width:190px;border:1px solid var(--hf-border);border-radius:6px;background:var(--hf-field);font-size:12px;padding:0 4px}
+.tools [aria-pressed="true"]{background:var(--hf-active-soft);color:var(--hf-active)}
+.notes-sheet{position:fixed;z-index:210;top:calc(var(--tools-h,44px) + 4px);right:12px;width:min(440px,calc(100vw - 24px));max-height:calc(100vh - 68px);overflow:auto;padding:16px;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:12px;box-shadow:var(--shadow-pop);font-size:13px}
+.notes-sheet h2{font-size:15px;margin-bottom:8px}.notes-sheet h3{font-size:13px;margin:12px 0 4px}
+.notes-sheet ul{display:grid;gap:4px;padding-left:16px;list-style:disc;color:var(--hf-muted)}
+.notes-sheet code{font-size:12px;color:var(--hf-ink)}
+
+/* app frame and shell */
+.app{display:flex;height:calc(100vh - var(--tools-h,44px));min-height:576px;background:var(--hf-page);overflow:hidden}
+.side{width:232px;flex-shrink:0;display:flex;flex-direction:column;background:var(--hf-surface);border-right:1px solid var(--hf-border);min-height:0}
+.brand{display:flex;align-items:center;gap:10px;height:56px;padding:0 20px;font-weight:600;font-size:16px;color:var(--hf-heading);letter-spacing:-0.02em}
+.brand-mark{width:28px;height:28px;border-radius:8px;background:var(--hf-gold);color:var(--hf-gold-ink);display:inline-flex;align-items:center;justify-content:center}
+.tenant{margin:0 12px 8px;display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--hf-border);border-radius:8px;font-size:13px}
+.tenant-tile{width:28px;height:28px;border-radius:6px;background:var(--hf-surface-muted);color:var(--hf-heading);display:inline-flex;align-items:center;justify-content:center;font-weight:600}
+.tenant strong{display:block;font-weight:600}.tenant small{display:block;color:var(--hf-muted);font-size:12px}
+.nav{flex:1;overflow-y:auto;padding:4px 12px 12px}
+.nav ul{display:grid;gap:2px}
+.nav-group{margin-top:12px;padding:0 10px 4px;font-size:12px;font-weight:600;color:var(--hf-muted)}
+.nav a{display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;border-radius:6px;color:var(--hf-ink);font-size:13px;font-weight:500;text-decoration:none;white-space:nowrap}
+.nav a:hover{background:var(--hf-surface-muted)}
+.nav a.sub{padding-left:36px}
+.nav a[aria-current="page"]{background:var(--hf-active-soft);color:var(--hf-active);font-weight:600}
+.nav .count{margin-left:auto;min-width:22px;height:20px;padding:0 6px;border-radius:999px;background:var(--hf-warning-soft);color:var(--hf-warning);font-size:12px;font-weight:600;display:inline-flex;align-items:center;justify-content:center}
+.nav .chev{margin-left:auto;color:var(--hf-muted)}
+.side-foot{display:flex;align-items:center;gap:10px;padding:12px 16px;border-top:1px solid var(--hf-border);font-size:13px}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--hf-surface-muted);color:var(--hf-heading);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;flex-shrink:0}
+.avatar.sm{width:24px;height:24px;font-size:11px}
+.side-foot small{display:block;color:var(--hf-muted);font-size:12px}
+.col{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0}
+.topbar{height:56px;flex-shrink:0;display:flex;align-items:center;gap:12px;padding:0 32px;background:var(--hf-surface);border-bottom:1px solid var(--hf-border)}
+.crumbs{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--hf-muted);min-width:0}
+.crumbs a{color:var(--hf-muted);text-decoration:none;border-radius:4px}.crumbs a:hover{color:var(--hf-ink)}
+.crumbs [aria-current]{color:var(--hf-ink);font-weight:500;white-space:nowrap}
+.spacer{flex:1}
+.icon-btn{position:relative;width:44px;height:44px;border:0;border-radius:6px;background:transparent;color:var(--hf-muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.icon-btn:hover{background:var(--hf-surface-muted);color:var(--hf-ink)}
+.icon-btn .dotc{position:absolute;top:6px;right:5px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--hf-danger);color:var(--hf-surface);font-size:11px;font-weight:600;display:inline-flex;align-items:center;justify-content:center}
+.scroll{flex:1;min-height:0;overflow-y:auto}
+.page{padding:24px 32px 40px;display:grid;gap:16px;align-content:start}
+.page-title{font-size:clamp(1.75rem,1.55rem + 0.6vw,2rem);line-height:1.25;letter-spacing:-0.045em}
+.page-sub{font-size:14px;color:var(--hf-muted);max-width:62ch}
+.title-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+
+/* badges */
+.badge{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;background:var(--hf-surface-muted);color:var(--hf-muted);max-width:100%}
+.badge .t{overflow:hidden;text-overflow:ellipsis}
+.badge.dot::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+.badge.warning{background:var(--hf-warning-soft);color:var(--hf-warning)}
+.badge.info{background:var(--hf-active-soft);color:var(--hf-active)}
+.badge.success{background:color-mix(in srgb,var(--hf-success) 12%,var(--hf-surface));color:var(--hf-success)}
+.badge.danger{background:var(--hf-danger-soft);color:var(--hf-danger);box-shadow:inset 0 0 0 1px var(--hf-danger-border)}
+.badge.urgent{background:color-mix(in srgb,var(--hf-danger) 18%,var(--hf-surface));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--hf-danger) 55%,var(--hf-surface))}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--hf-muted)}
+.tag.warn{color:var(--hf-warning);font-weight:600}
+
+/* SLA traffic light: dot or icon plus text, never color alone */
+.sla{display:flex;align-items:flex-start;gap:6px;min-width:0;font-size:13px;line-height:1.35}
+.sla .icon{margin-top:1px}
+.sla b{display:block;font-weight:600}
+.sla small{display:block;font-size:12px;color:var(--hf-muted)}
+.sla.ok{color:var(--hf-success)}.sla.warn{color:var(--hf-warning)}.sla.bad{color:var(--hf-danger)}.sla.pause,.sla.none{color:var(--hf-muted)}
+.sla.sched{color:var(--hf-active)}
+
+/* buttons, fields */
+.btn{height:44px;padding:0 16px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-surface);color:var(--hf-ink);font-size:14px;font-weight:600;line-height:1;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;cursor:pointer}
+.btn:hover:not(:disabled){background:var(--hf-surface-muted)}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn.primary{background:var(--hf-action);border-color:var(--hf-action);color:var(--hf-on-action)}
+.btn.primary:hover:not(:disabled){background:color-mix(in srgb,var(--hf-action) 88%,var(--hf-ink))}
+.btn.danger{color:var(--hf-danger);border-color:var(--hf-danger-border)}
+.btn.danger:hover:not(:disabled){background:var(--hf-danger-soft)}
+.btn.sm{height:36px;padding:0 12px;font-size:13px}
+.btn:disabled{cursor:not-allowed;background:var(--hf-page);border-color:var(--hf-border);color:var(--hf-muted)}
+.btn.block{width:100%}
+.spin{width:16px;height:16px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ctl{width:100%;min-width:0;height:44px;padding:0 12px;background:var(--hf-field);border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);font-size:14px}
+textarea.ctl{height:auto;min-height:88px;padding:10px 12px;resize:vertical;line-height:1.45}
+.ctl:hover:not(:disabled){border-color:var(--hf-field-border)}
+.ctl:focus,.ctl:focus-visible{outline:2px solid var(--hf-focus);outline-offset:2px}
+.ctl::placeholder{color:var(--hf-muted);opacity:1}
+.ctl[aria-invalid="true"]{border-color:var(--hf-danger)}
+.field{display:grid;gap:6px;align-content:start;min-width:0}
+.lbl{font-size:13px;font-weight:500}
+.help{font-size:12px;color:var(--hf-muted)}
+.err{display:flex;gap:6px;align-items:flex-start;font-size:12px;font-weight:500;color:var(--hf-danger)}
+.counter{font-size:12px;color:var(--hf-muted);text-align:right}
+.search{position:relative;min-width:0}
+.search .icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--hf-muted);pointer-events:none}
+.search input{padding-left:38px}
+
+/* no classic checkbox: toggle chips, segmented control, radio rows with a round mark */
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border:1px solid var(--hf-border);border-radius:999px;background:var(--hf-surface);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.chip:hover{background:var(--hf-surface-muted)}
+.chip[aria-pressed="true"]{background:var(--hf-active-soft);border-color:var(--hf-active);color:var(--hf-active);font-weight:600}
+.chip .n{font-weight:600;font-variant-numeric:tabular-nums}
+.seg{display:inline-flex;align-items:center;height:44px;padding:3px;gap:2px;border:1px solid var(--hf-field-border);border-radius:var(--hf-radius-control);background:var(--hf-surface);max-width:100%}
+.seg button{height:36px;padding:0 12px;border:0;border-radius:4px;background:transparent;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.seg button:hover{background:var(--hf-surface-muted)}
+.seg button[aria-pressed="true"],.seg button[aria-selected="true"]{background:var(--hf-active-soft);color:var(--hf-active);font-weight:600}
+.mark{flex:none;width:20px;height:20px;border-radius:50%;border:1.5px solid var(--hf-field-border);display:grid;place-items:center;background:var(--hf-field)}
+.mark .icon{width:12px;height:12px;stroke-width:3;color:var(--hf-on-action);opacity:0}
+[aria-checked="true"] > .mark{background:var(--hf-action);border-color:var(--hf-action)}
+[aria-checked="true"] > .mark .icon{opacity:1}
+.rrow{width:100%;display:flex;align-items:center;gap:12px;min-height:56px;padding:10px 12px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-surface);text-align:left;cursor:pointer}
+.rrow:hover{background:var(--hf-surface-muted)}
+.rrow[aria-checked="true"]{background:var(--hf-active-soft);border-color:var(--hf-active)}
+.rrow .tx{flex:1;min-width:0;display:grid;gap:2px}
+.rrow .tx b{font-weight:600}.rrow .tx small{font-size:12px;color:var(--hf-muted)}
+.rgroup{display:grid;gap:8px}
+
+/* surfaces, tables */
+.surface{background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);box-shadow:var(--shadow-soft);overflow:hidden}
+.panel{background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);padding:16px;display:grid;gap:12px;align-content:start;min-width:0}
+.panel > h2,.panel > .ph h2{font-size:16px}
+.ph{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--hf-border)}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+th{height:40px;padding:0 12px;background:var(--table-head);color:var(--hf-muted);font-size:13px;font-weight:600;text-align:left;border-bottom:1px solid var(--hf-border);white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid var(--hf-border);vertical-align:middle;overflow:hidden}
+th:first-child,td:first-child{padding-left:16px}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.name{font-weight:600;color:var(--hf-heading)}
+.p2{font-size:13px;color:var(--hf-muted)}
+.kebab{width:44px;height:44px;border:0;border-radius:6px;background:transparent;color:var(--hf-muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.kebab:hover{background:var(--hf-surface-muted);color:var(--hf-ink)}
+.folio{font-size:12px;font-weight:600;color:var(--hf-muted);font-variant-numeric:tabular-nums}
+
+/* states */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:40px 16px;min-height:8rem;text-align:center}
+.empty .icon{width:24px;height:24px;color:var(--hf-muted)}
+.empty h2{font-size:15px}.empty p{font-size:13px;color:var(--hf-muted);max-width:28rem}.empty .btn{margin-top:8px}
+.empty.error{margin:16px;background:var(--hf-danger-soft);border:1px solid var(--hf-danger-border);border-radius:var(--hf-radius-card)}
+.empty.error .icon,.empty.error h2{color:var(--hf-danger)}
+.skel{display:block;height:12px;border-radius:4px;background:var(--skel);animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.55}}
+.alert{display:flex;gap:10px;padding:12px 14px;border-radius:8px;font-size:13px;border:1px solid var(--hf-border);background:var(--hf-surface)}
+.alert .icon{margin-top:1px}
+.alert strong{display:block;font-size:14px;font-weight:600}
+.alert .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.alert.warn{background:var(--hf-warning-soft);border-color:color-mix(in srgb,var(--hf-warning) 40%,var(--hf-surface))}
+.alert.warn .icon,.alert.warn strong{color:var(--hf-warning)}
+.alert.danger{background:var(--hf-danger-soft);border-color:var(--hf-danger-border)}
+.alert.danger .icon,.alert.danger strong{color:var(--hf-danger)}
+.alert.info{background:var(--hf-active-soft);border-color:color-mix(in srgb,var(--hf-active) 35%,var(--hf-surface))}
+.alert.info .icon,.alert.info strong{color:var(--hf-active)}
+.alert.success{background:color-mix(in srgb,var(--hf-success) 10%,var(--hf-surface));border-color:color-mix(in srgb,var(--hf-success) 35%,var(--hf-surface))}
+.alert.success .icon,.alert.success strong{color:var(--hf-success)}
+.toasts{position:fixed;z-index:150;right:16px;bottom:16px;width:min(360px,calc(100vw - 32px));display:grid;gap:8px}
+.toast{display:flex;gap:12px;padding:16px;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);box-shadow:var(--shadow-pop)}
+.toast .tile{width:36px;height:36px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;background:color-mix(in srgb,var(--hf-success) 12%,var(--hf-surface));color:var(--hf-success)}
+.toast strong{display:block;font-size:14px;font-weight:600;color:var(--hf-heading)}.toast p{font-size:13px;color:var(--hf-muted)}
+
+/* detail building blocks */
+.kv{display:grid;grid-template-columns:132px minmax(0,1fr);gap:6px 12px;font-size:13px}
+.kv dt{color:var(--hf-muted)}.kv dd{min-width:0;overflow-wrap:anywhere}
+.quote{padding:10px 12px;border-left:3px solid var(--hf-border);background:var(--hf-page);border-radius:0 6px 6px 0;font-size:14px}
+.bubble-list{display:grid;gap:8px}
+.bubble{max-width:82%;padding:8px 12px;border-radius:12px;font-size:14px;background:var(--hf-page);border:1px solid var(--hf-border)}
+.bubble small{display:block;font-size:11px;color:var(--hf-muted);margin-top:2px}
+.bubble.them{justify-self:start}
+.bubble.bot{justify-self:end;background:var(--hf-active-soft);border-color:transparent}
+.bubble.staff{justify-self:end;background:var(--hf-gold-soft);color:var(--hf-gold-ink);border-color:transparent}
+.tl{display:grid;gap:0;position:relative}
+.tl li{position:relative;padding:0 0 14px 22px;font-size:13px}
+.tl li::before{content:"";position:absolute;left:4px;top:6px;width:9px;height:9px;border-radius:50%;background:var(--hf-surface);border:2px solid var(--hf-field-border)}
+.tl li::after{content:"";position:absolute;left:8px;top:18px;bottom:0;width:1px;background:var(--hf-border)}
+.tl li:last-child::after{display:none}
+.tl li.done::before{background:var(--hf-success);border-color:var(--hf-success)}
+.tl li.bad::before{background:var(--hf-danger);border-color:var(--hf-danger)}
+.tl b{font-weight:600}.tl small{display:block;color:var(--hf-muted);font-size:12px}
+.mock-flag{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 6px;border-radius:4px;font-size:11px;font-weight:600;background:var(--hf-gold-soft);color:var(--hf-gold-ink);white-space:nowrap}
+.hint-box{padding:10px 12px;border:1px dashed var(--hf-field-border);border-radius:var(--hf-radius-control);font-size:12px;color:var(--hf-muted)}
+.sheet-scrim{position:fixed;inset:var(--tools-h,44px) 0 0 0;z-index:100;background:var(--scrim)}
+.sheet{position:fixed;z-index:101;top:var(--tools-h,44px);right:0;bottom:0;width:460px;max-width:100%;display:flex;flex-direction:column;background:var(--hf-surface);border-left:1px solid var(--hf-border);box-shadow:var(--shadow-pop)}
+.sheet-head{display:flex;align-items:flex-start;gap:12px;padding:20px 24px 16px;border-bottom:1px solid var(--hf-border)}
+.sheet-head .t{flex:1;min-width:0}.sheet-head .meta{font-size:13px;color:var(--hf-muted)}.sheet-head h2{font-size:22px;letter-spacing:-0.02em;line-height:1.3}
+.sheet-body{flex:1;overflow-y:auto;padding:20px 24px;display:grid;gap:16px;align-content:start}
+.sheet-foot{display:flex;gap:8px;justify-content:flex-end;padding:12px 24px;border-top:1px solid var(--hf-border)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+/* Live chat components shared by the three directions (tokens only, from design/system.md). */
+.thread-list{display:grid;gap:8px;padding:16px;margin:0;align-content:start}
+.day{justify-self:center;margin:8px 0 2px}
+.day span{display:inline-block;padding:2px 12px;border-radius:999px;background:var(--hf-surface-muted);color:var(--hf-muted);font-size:12px;font-weight:600}
+.mk{justify-self:center;display:flex;align-items:center;justify-content:center;gap:6px;max-width:92%;padding:4px 12px;border:1px dashed var(--hf-border);border-radius:999px;background:var(--hf-surface);font-size:12px;color:var(--hf-muted);text-align:center}
+.mk time{font-variant-numeric:tabular-nums;white-space:nowrap}
+.older{justify-self:center}
+.msg{display:flex}.msg.out{justify-content:flex-end}
+.bub{max-width:min(78%,600px);min-width:0;padding:8px 12px;border-radius:12px;background:var(--hf-surface);border:1px solid var(--hf-border);font-size:14px}
+.bub.bot{background:var(--hf-active-soft);border-color:transparent}
+.bub.staff{background:var(--hf-gold-soft);color:var(--hf-gold-ink);border-color:transparent}
+.bub.attn{box-shadow:inset 0 0 0 1px var(--hf-danger-border)}
+.bwho{font-size:12px;font-weight:600;color:var(--hf-heading);margin-bottom:2px}
+.bub.staff .bwho{color:var(--hf-gold-ink)}
+.bt{white-space:pre-wrap;overflow-wrap:break-word}
+.bmeta{display:flex;align-items:center;justify-content:flex-start;gap:8px;margin-top:2px;font-size:12px;color:var(--hf-muted)}
+.msg.out .bmeta{justify-content:flex-end}
+.bub.staff .bmeta{color:var(--hf-gold-ink)}
+.bmeta time{font-variant-numeric:tabular-nums}
+.dl{display:inline-flex;align-items:center;gap:4px;font-weight:500}
+.dl.read{color:var(--hf-active)}
+.bub.staff .dl.read{color:var(--hf-gold-ink);font-weight:600}
+.dl.warn{color:var(--hf-warning);font-weight:600}.dl.bad{color:var(--hf-danger);font-weight:600}
+.dl-note{margin-top:4px;font-size:12px;color:var(--hf-muted)}
+.dl-note.warn{color:var(--hf-warning)}.dl-note.bad{color:var(--hf-danger)}
+.dl-note + .btn{margin-top:8px}
+.tplmsg{display:flex;align-items:center;gap:8px;font-weight:600}
+.tn{font-size:12px;opacity:.85}
+.media{position:relative;width:260px;max-width:100%;aspect-ratio:4/3;border-radius:8px;overflow:hidden;display:grid;place-items:center;background:var(--hf-surface-muted);color:var(--hf-muted);margin-bottom:6px}
+.media .ph-art{position:absolute;inset:0;background:linear-gradient(135deg,color-mix(in srgb,var(--hf-gold) 38%,var(--hf-surface-muted)),color-mix(in srgb,var(--hf-action) 22%,var(--hf-surface-muted)))}
+.media .icon{position:relative;width:32px;height:32px;color:var(--hf-heading)}
+.media .mn{position:absolute;left:8px;bottom:8px;max-width:calc(100% - 16px);padding:2px 8px;border-radius:6px;background:var(--hf-surface);color:var(--hf-ink);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.media.gone{aspect-ratio:auto;min-height:72px;gap:6px;border:1px dashed var(--hf-field-border);background:transparent;grid-auto-flow:column;justify-content:center;font-size:13px}
+.doc{display:flex;align-items:center;gap:10px;min-width:220px;max-width:100%;padding:8px 10px;margin-bottom:6px;border:1px solid var(--hf-border);border-radius:8px;background:var(--hf-surface);color:var(--hf-ink)}
+.doc .tx{min-width:0;display:grid}.doc b{font-weight:600}.doc small{font-size:12px;color:var(--hf-muted)}
+.aud{display:flex;align-items:center;gap:8px;min-width:220px}
+.aud-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--hf-border);background:var(--hf-surface);color:var(--hf-action);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.aud-btn:hover{background:var(--hf-surface-muted)}
+.wave{display:flex;align-items:center;gap:2px;height:22px;flex:1}.wave i{display:block;width:3px;border-radius:2px;background:var(--hf-field-border)}
+.newpill{position:sticky;bottom:8px;display:flex;align-items:center;gap:6px;margin:0 auto;height:32px;padding:0 14px;border:0;border-radius:999px;background:var(--hf-action);color:var(--hf-on-action);font-size:13px;font-weight:600;box-shadow:var(--shadow-pop);cursor:pointer}
+
+/* header chips */
+.tag.wc.warn{color:var(--hf-warning);font-weight:600}.tag.wc.bad{color:var(--hf-danger);font-weight:600}
+.spin.sm{width:12px;height:12px;border-width:2px}
+.alert .spin{margin-top:2px;color:var(--hf-active)}
+.sumkv{margin-top:8px;grid-template-columns:110px minmax(0,1fr)}
+.tplkv{grid-template-columns:84px minmax(0,1fr);margin:12px 0}
+
+/* composer */
+.comp{padding:12px 16px 14px;border-top:1px solid var(--hf-border);background:var(--hf-surface);display:grid;gap:8px;position:relative}
+.comp-box{display:grid;border:1px solid var(--hf-border);border-radius:8px;background:var(--hf-field)}
+.comp-box:hover{border-color:var(--hf-field-border)}
+.comp-box:focus-within{outline:2px solid var(--hf-focus);outline-offset:2px}
+.comp-box.bad{border-color:var(--hf-danger)}
+.cta{display:block;width:100%;min-height:56px;max-height:168px;padding:10px 12px;border:0;background:transparent;resize:none;line-height:1.45;font-size:14px;outline:none}
+.cta::placeholder{color:var(--hf-muted);opacity:1}
+.comp-row{display:flex;align-items:center;gap:8px;padding:2px 8px 8px 4px}
+.comp-row .hint{flex:1;min-width:0;font-size:12px;color:var(--hf-muted)}
+.counter.near{color:var(--hf-warning);font-weight:600}.counter.over{color:var(--hf-danger);font-weight:600}
+.comp .help{font-size:12px}
+.comp.off .comp-box{background:var(--hf-page)}
+.comp.off .cta:disabled{color:var(--hf-muted)}
+.menu-wrap{position:relative}
+.amenu{position:absolute;z-index:30;left:0;bottom:calc(100% + 8px);width:300px;padding:8px;border:1px solid var(--hf-border);border-radius:12px;background:var(--hf-surface);box-shadow:var(--shadow-pop);display:grid;gap:2px}
+.amenu .am-h{padding:4px 8px 6px;font-size:12px;color:var(--hf-muted)}
+.amenu button{display:flex;align-items:center;gap:10px;min-height:48px;padding:6px 8px;border:0;border-radius:6px;background:transparent;text-align:left;cursor:pointer}
+.amenu button:hover{background:var(--hf-surface-muted)}
+.amenu b{display:block;font-weight:600;font-size:13px}.amenu small{display:block;font-size:12px;color:var(--hf-muted)}
+.att{display:flex;align-items:center;gap:12px;padding:6px 6px 6px 8px;border:1px solid var(--hf-border);border-radius:8px;background:var(--hf-page)}
+.att .thumb{width:40px;height:40px;border-radius:6px;background:var(--hf-surface-muted);color:var(--hf-heading);display:grid;place-items:center;flex-shrink:0}
+.att .tx{flex:1;min-width:0;display:grid;gap:2px}.att b{font-size:13px;font-weight:600}
+.att small{display:flex;align-items:flex-start;gap:4px;font-size:12px;color:var(--hf-muted)}
+.att small.ok{color:var(--hf-success)}.att small.bad{color:var(--hf-danger);font-weight:500}
+.att.error{border-color:var(--hf-danger-border);background:var(--hf-danger-soft)}
+.prog{display:block;height:4px;border-radius:2px;background:var(--hf-border);overflow:hidden}.prog i{display:block;height:100%;background:var(--hf-action)}
+.comp.bar{grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;background:var(--hf-surface-muted)}
+.comp.bar .tx{font-size:13px;color:var(--hf-muted)}.comp.bar .tx strong{display:block;font-size:14px;color:var(--hf-heading);font-weight:600}
+.comp.bar > .icon{color:var(--hf-muted)}
+.comp.bar.end > .icon{color:var(--hf-success)}
+.bar-acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.comp.blocked{gap:12px}
+.blk-h{display:flex;gap:12px;align-items:flex-start}.blk-h > .icon{margin-top:2px;color:var(--hf-warning)}
+.blk-h h3{font-size:16px}.blk-h p{font-size:13px;color:var(--hf-muted);margin-top:2px}
+.kept{padding:8px 12px;border:1px dashed var(--hf-field-border);border-radius:8px;font-size:13px}.kept .lbl{color:var(--hf-muted);font-size:12px}
+.cost{display:flex;gap:12px;padding:12px;border-radius:8px;background:var(--hf-surface-muted);font-size:13px}
+.cost > .icon{margin-top:2px;color:var(--hf-heading)}
+.cost b{display:block;font-weight:600;color:var(--hf-heading)}.cost span{display:block}
+.cost small{display:block;margin-top:4px;font-size:12px;color:var(--hf-muted)}
+.blk-act{display:grid;gap:8px;justify-items:start}.blk-act .alert{width:100%}
+.row-between{display:flex;justify-content:space-between;gap:8px}
+.fs{border:0;padding:0;margin:0;min-width:0}.fs legend{padding:0;margin-bottom:2px}
+.dlg-body{display:grid;gap:16px;align-content:start}
+@media (prefers-reduced-motion:reduce){.spin{animation:none;border-right-color:currentColor}}
+/* Direction A: the chat is the first panel of the existing two-column detail page; actions stay in the rail; finish is the command slideover. */
+.dhead{flex-shrink:0;display:flex;align-items:flex-start;gap:16px;padding:16px 32px;background:var(--hf-surface);border-bottom:1px solid var(--hf-border)}
+.dhead .t{flex:1;min-width:0}
+.dhead .meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--hf-muted)}
+.dhead h1{font-size:22px;letter-spacing:-0.02em;line-height:1.3;margin-top:4px}
+.dgrid{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;align-items:start;padding:24px 32px 40px;max-width:1360px;margin:0 auto}
+.dmain{display:grid;gap:16px;min-width:0}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.rail{position:sticky;top:0;display:grid;gap:16px;min-width:0}
+.chatp{padding:0;gap:0;overflow:visible;border-radius:var(--hf-radius-card);display:flex;flex-direction:column}
+.chat-h{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:14px 16px;border-bottom:1px solid var(--hf-border)}
+.chat-h h2{font-size:16px}
+.chat-h-r{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end}
+#h-banner{display:grid;gap:8px;padding:0 16px}#h-banner:not(:empty){padding:12px 16px 0}
+.thread{height:calc(100vh - var(--tools-h,44px) - 56px - 90px - 48px - 70px - 134px);min-height:300px;overflow-y:auto;background:var(--hf-page);margin-top:12px;border-top:1px solid var(--hf-border)}
+
+#h-banner:empty + .thread{margin-top:0}
+.chatp .comp{border-radius:0 0 var(--hf-radius-card) var(--hf-radius-card)}
+.forbid{padding:24px 16px}
+table.plain th{height:32px;font-size:12px}
+table.plain td{height:auto;padding:8px 12px}
+table.plain td:last-child,table.plain th:last-child{padding-right:0}
+.railkv{grid-template-columns:104px minmax(0,1fr)}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<aside class="notes-sheet" id="notes" hidden aria-label="Notas de diseño">
+  <h2>Notas de la dirección A · Chat en la página</h2>
+  <ul>
+    <li>El chat es el primer panel del detalle ya construido (columna principal + riel de acciones). Alto fijo de 420 px con scroll propio y compositor pegado abajo; el resto de la página sigue debajo.</li>
+    <li>Sesión (<code>liveSession.state</code>): STARTING «Conectando…», ACTIVE «En vivo», ENDING «Terminando…», ENDED «Terminada», WAITING «Sin confirmar» (solicitud de vuelta en Nueva). Usa el selector «Sesión».</li>
+    <li>Entrega (<code>message.status</code>): En cola → Enviado → Entregado → Leído; «Pendiente de envío» a los 30 s sin <code>SENT</code> (lo calcula el front); «No enviado, ventana cerrada» (<code>DEFERRED</code>); «No enviado» con Reintentar (<code>FAILED</code>); «Entrega dudosa» con «Enviar como mensaje nuevo» (<code>UNKNOWN</code>). Reintentar siempre es un mensaje nuevo con otro <code>clientMessageId</code>. Prueba con «Próximo envío» y «Hilo → Todos los estados».</li>
+    <li>Ventana cerrada: el compositor se bloquea («La ventana de 24 h está cerrada») y muestra el costo (<code>templateCostText</code> de Ajustes, no viene en el detalle) antes del botón «Enviar plantilla…», que abre una confirmación. Nunca se envía sola. Una por ventana cerrada (<code>TEMPLATE_ALREADY_SENT</code>); FAILED permite reintentar, UNKNOWN no.</li>
+    <li>«Finalizar conversación» abre el panel lateral de comandos (mismo patrón que Reasignar o Cancelar): nota interna 1–1000 obligatoria y, solo en quejas, clasificación Devolución / Reemplazo / Reembolso / Sin acción en filas de radio (no checkboxes). Sin clasificar aparece el error del <code>422 COMPLAINT_OUTCOME_REQUIRED</code> en el campo.</li>
+    <li>Inactividad: con el cliente callado 30 min o más (<code>FINISH_IDLE</code>) aparece el aviso «puedes finalizar ahora sin más pasos» con el botón. Con el cliente activo, el panel agrega una línea («escribió hace 1 min»). A las 2 h el backend finaliza solo. <b>Interpretación mía de §2: el contrato no define un bloqueo, solo «sin confirmación extra»; por validar.</b></li>
+    <li>No es quien atiende: el compositor se cambia por «Atiende Diego Ramírez» (solo lectura); con permiso de reasignación aparecen Reasignar y «Finalizar en su lugar…». Sin <code>read:ChatbotConversation</code> el atendedor ve solo su sesión.</li>
+    <li>Conocido del contrato: <code>whatsappWindowClosesAt</code> de la fila puede estar desactualizado; el compositor es la verdad (<code>409 WINDOW_CLOSED</code> lo bloquea y conserva el borrador). Los eventos <code>conversation.message</code> y <code>message.status</code> no llegan sin <code>read:ChatbotConversation</code>: ese rol usa sondeo <code>?after=</code>.</li>
+  </ul>
+</aside>
+<script>
+(() => {
+/* Shared helpers, icons, sample data and the live-session model.
+   Field names and rules follow houndfe-backend docs/frontend-handoff/20-live-conversation.md (sessions, messages, template, finish)
+   and 18-conversation.md (thread, media). The artboard's "now" is Friday 13 Nov 2026, 16:06 in Guadalajara. */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const setHTML = (el, s) => el.replaceChildren(document.createRange().createContextualFragment(s));
+const ic = (n, cls = '') => `<svg class="icon ${cls}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const ICONS = {
+  x: '<path d="M18 6 6 18M6 6l12 12"/>', check: '<path d="M20 6 9 17l-5-5"/>', check2: '<path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/>',
+  'check-circle': '<circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+  alert: '<path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/>',
+  down: '<path d="m6 9 6 6 6-6"/>', right: '<path d="m9 18 6-6-6-6"/>', up: '<path d="m18 15-6-6-6 6"/>', back: '<path d="m12 19-7-7 7-7M19 12H5"/>',
+  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/>', menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+  home: '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/>',
+  cart: '<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h3l2.7 12.4a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L21 7H6"/>',
+  package: '<path d="M21 8 12 3 3 8v8l9 5 9-5Z"/><path d="m3 8 9 5 9-5M12 13v8"/>',
+  users: '<circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2M16 3.1a4 4 0 0 1 0 7.8M22 21v-2a4 4 0 0 0-3-3.9"/>',
+  truck: '<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2M15 18H9M19 18h2a1 1 0 0 0 1-1v-3.7a1 1 0 0 0-.2-.6l-3.5-4.3A1 1 0 0 0 17.5 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  paw: '<circle cx="6" cy="10" r="2"/><circle cx="10" cy="5.5" r="2"/><circle cx="14" cy="5.5" r="2"/><circle cx="18" cy="10" r="2"/><path d="M12 11c-3 0-5 3-5 5.5 0 1.7 1.3 2.5 3 2.5 1 0 1.3-.5 2-.5s1 .5 2 .5c1.7 0 3-.8 3-2.5C17 14 15 11 12 11Z"/>',
+  lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>', clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/>',
+  message: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/>', bot: '<rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 8V4M9 14h.01M15 14h.01"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>', info: '<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>',
+  refresh: '<path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/>', swap: '<path d="m16 3 4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16"/>',
+  inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1Z"/>',
+  image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
+  file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M9 13h6M9 17h4"/>',
+  paperclip: '<path d="m21.4 11.6-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/>',
+  send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>', play: '<path d="M7 4v16l13-8Z"/>', dots: '<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>',
+  receipt: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6M16 12H8M13 16H8"/>',
+  flag: '<path d="M4 22V4M4 4h13l-2 4 2 4H4"/>', 'wifi-off': '<path d="M12 20h.01M8.5 16.4a5 5 0 0 1 7 0M5 12.9a10 10 0 0 1 5-2.7M2 8.8a15 15 0 0 1 4.2-2.7M19 12.9a10 10 0 0 0-1.8-.9M22 8.8a15 15 0 0 0-6.4-3.5M2 2l20 20"/>',
+  panel: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/>', history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l4 2"/>',
+  ban: '<circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/>', phone: '<rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/>', mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+  'arrow-down': '<path d="M12 5v14M19 12l-7 7-7-7"/>'
+};
+function injectIcons() {
+  // Static icon markup only (no user data), parsed as SVG instead of assigned through innerHTML.
+  const src = `<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute" aria-hidden="true">${Object.entries(ICONS).map(([k, v]) => `<symbol id="i-${k}" viewBox="0 0 24 24">${v}</symbol>`).join('')}</svg>`;
+  const doc = new DOMParser().parseFromString(src, 'image/svg+xml');
+  document.body.prepend(document.importNode(doc.documentElement, true));
+}
+
+/* ---- time helpers (minutes of the day; day 0 = hoy, -1 = ayer) ---- */
+const pad = n => String(n).padStart(2, '0');
+const hm = m => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+const dur = m => m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}` : `${m} min`;
+const DAYLBL = { 0: 'Hoy · viernes 13 nov', '-1': 'Ayer · jueves 12 nov' };
+
+/* ---- people and settings ---- */
+const ME = 'Laura Méndez', OTHER = 'Diego Ramírez', CUST = 'Mariana Ortega', CF = 'Mariana';
+const PHONE = '55 **** 4417';
+const TPL = { name: 'seguimiento_pedido', cost: 'Cada plantilla se cobra a la tarifa de WhatsApp Business (aprox. $0.62 MXN), aunque el cliente no la lea.' };
+const SUBT = { COMPLAINT: 'Queja', TALK_TO_HUMAN: 'Hablar con una persona' };
+const OUTCOMES = [
+  ['RETURN', 'Devolución', 'El cliente regresa el producto.'],
+  ['REPLACEMENT', 'Reemplazo', 'Se le entrega un producto nuevo.'],
+  ['REFUND', 'Reembolso', 'Se le regresa el dinero.'],
+  ['NO_ACTION', 'Sin acción', 'No hubo nada que corregir o el cliente no lo pidió.']
+];
+
+/* ---- state: one object per rendered chat (the interactive boards use S, the static boards build their own) ---- */
+const mk = (o = {}) => ({
+  session: 'ACTIVE', win: 'open', cust: 'active', role: 'me', sub: 'COMPLAINT', thread: 'normal', next: 'ok', tpl: 'ready',
+  draft: '', attach: null, menu: false, dlg: null, fin: { note: '', outcome: '', err: null, busy: false, ok: false }, sent: [], extra: [], deferred: false, winOpened: false,
+  conn: 'ok', outcome: null, note: '', ...o
+});
+const mine = s => s.role === 'me' || s.role === 'me-scoped';
+const assignee = s => mine(s) ? ME : OTHER;
+const idle = s => s.winOpened ? false : (s.win !== 'open' || s.cust === 'idle');
+const nowM = s => idle(s) && s.win === 'open' ? 1001 : 966;
+const winEff = s => s.winOpened ? 'open' : s.deferred ? 'closed' : s.win;
+
+const cIn = (id, at, text, x = {}) => ({ id, dir: 'IN', author: 'CUSTOMER', type: 'TEXT', text, at, day: 0, ...x });
+const bot = (id, at, text, x = {}) => ({ id, dir: 'OUT', author: 'BOT', type: 'TEXT', text, at, day: 0, status: 'READ', ...x });
+const st = (id, at, text, status, x = {}) => ({ id, dir: 'OUT', author: 'STAFF', type: 'TEXT', text, at, day: 0, status, ...x });
+const mark = (id, at, text, x = {}) => ({ id, kind: 'mark', at, day: 0, text, ...x });
+const PHOTO = { name: 'bolsa-rota.jpg', size: '1.8 MB' };
+const PRE_TODAY = () => [
+  cIn('c1', 941, 'Hola, buenas tardes. Me llegó mi pedido y una de las bolsas de croquetas venía rota, ya se había salido casi la mitad.'),
+  cIn('c2', 942, 'Así llegó', { type: 'IMAGE', media: PHOTO }),
+  bot('b1', 942, 'Lamento lo que pasó, Mariana. Voy a pedir que una persona del equipo te atienda por aquí mismo.')
+];
+const PRE_YDAY = (t) => [
+  cIn('c1', t, 'Hola, buenas tardes. Me llegó mi pedido y una de las bolsas de croquetas venía rota, ya se había salido casi la mitad.', { day: -1 }),
+  cIn('c2', t + 1, 'Así llegó', { type: 'IMAGE', media: PHOTO, day: -1 }),
+  bot('b1', t + 1, 'Lamento lo que pasó, Mariana. Voy a pedir que una persona del equipo te atienda por aquí mismo.', { day: -1 })
+];
+const CLAIM = (at = 958) => mark('m1', at, `${'{who}'} tomó la conversación. El bot ya no responde.`, { claim: true });
+
+/* a thread is { pre: before the claim, live: from the claim on } */
+function threadParts(s) {
+  const id = idle(s);
+  if (s.thread === 'states') {
+    return { pre: PRE_TODAY(), live: [CLAIM(),
+      st('s1', 959, 'Hola Mariana, soy Laura de HoundFe Centro. Siento mucho lo de tu pedido V-1042.', 'READ'),
+      st('s2', 960, 'Ya revisé tu foto. ¿La otra bolsa llegó sellada?', 'DELIVERED'),
+      st('s3', 961, 'Así se ve la bolsa de reposición.', 'SENT', { type: 'IMAGE', media: { name: 'reposicion-croquetas.jpg', size: '1.4 MB' } }),
+      st('s4', 963, '¿Te la llevamos hoy antes de las 6 p. m.?', 'QUEUED', { age: 4 }),
+      st('s5', 964, 'Te confirmo en un momento.', 'QUEUED', { age: 48 }),
+      st('s6', 964, 'Te escribo en cuanto pueda.', 'DEFERRED'),
+      st('s7', 965, 'Tu folio de queja es S-000412.', 'FAILED'),
+      st('s8', 965, 'Gracias por tu paciencia, Mariana.', 'UNKNOWN')] };
+  }
+  if (s.win === 'closed') return { pre: PRE_YDAY(826).concat([cIn('c3', 828, 'Sigo esperando, ¿alguien me puede ayudar?', { day: -1 })]), live: [CLAIM(963)] };
+  if (s.win === 'soon') return { pre: PRE_YDAY(1041).concat([cIn('c3', 1050, '¿Alguien me puede atender? Quiero resolver esto hoy.', { day: -1 })]), live: [CLAIM(),
+    st('s1', 959, 'Hola Mariana, soy Laura de HoundFe Centro. Ya tengo tu foto y tu pedido V-1042.', 'DELIVERED'),
+    st('s2', 962, 'Cuando puedas, ¿me confirmas si la otra bolsa llegó sellada?', 'SENT')] };
+  const live = [CLAIM(),
+    st('s1', 959, 'Hola Mariana, soy Laura de HoundFe Centro. Siento mucho lo de tu pedido V-1042.', 'READ'),
+    cIn('c3', 960, '', { type: 'AUDIO', dur: '0:14' }),
+    st('s2', 962, 'Escuché tu audio, gracias. ¿La otra bolsa de Croquetas Premium Adulto 15 kg sí llegó sellada?', 'READ'),
+    cIn('c4', 963, 'Sí, esa viene bien. Solo la otra tiene un corte en la orilla.'),
+    st('s3', 964, 'Aquí está nuestra política de cambios.', 'READ', { type: 'DOCUMENT', media: { name: 'politica-de-cambios.pdf', size: '218 KB' } }),
+    st('s4', 964, 'Te puedo mandar una bolsa nueva hoy mismo. ¿Te late?', id ? 'DELIVERED' : 'READ')];
+  if (!id) live.push(cIn('c5', 965, 'Sí, por favor. La necesito para el fin de semana.'));
+  return { pre: PRE_TODAY(), live };
+}
+function tplItems(s) {
+  if (winEff(s) !== 'closed' && !(s.winOpened && s.win === 'closed' && s.tpl !== 'ready')) return [];
+  const m = x => ({ id: 'tpl1', dir: 'OUT', author: 'STAFF', type: 'TEMPLATE', text: '', templateName: TPL.name, at: 965, day: 0, ...x });
+  if (s.tpl === 'pending') return [m({ status: 'DELIVERED' })];
+  if (s.tpl === 'failed') return [m({ status: 'FAILED' })];
+  if (s.tpl === 'unknown') return [m({ status: 'UNKNOWN' })];
+  return [];
+}
+function items(s, full) {
+  const p = threadParts(s);
+  let out;
+  if (s.session === 'STARTING') out = p.pre.concat([mark('m1', 958, 'Tomaste la conversación. Esperando a que el bot confirme que se calló…', { claim: true, plain: true })]);
+  else if (s.session === 'WAITING') out = p.pre;
+  else {
+    const live = p.live.concat(tplItems(s), s.sent, s.extra);
+    if (s.session === 'ENDING') live.push(mark('m2', nowM(s), `${assignee(s)} finalizó la conversación. El bot se despide de ${CF}.`, { plain: true }));
+    if (s.session === 'ENDED') live.push(mark('m2', nowM(s), `${assignee(s)} finalizó la conversación.`, { plain: true }), mark('m3', nowM(s) + 1, `El bot retomó la conversación con ${CF}.`, { plain: true }));
+    out = (s.role === 'me-scoped' && !full ? [] : p.pre).concat(live);
+  }
+  return out;
+}
+const lastCustAbs = s => {
+  const p = threadParts(s);
+  const c = p.pre.concat(p.live, s.extra).filter(m => m.dir === 'IN');
+  const l = c[c.length - 1];
+  return l ? l.at + 1440 * l.day : 0;
+};
+const closesIn = s => lastCustAbs(s) + 1440 - nowM(s);
+const silentMin = s => nowM(s) - lastCustAbs(s);
+const winLabel = s => {
+  const w = winEff(s);
+  if (w === 'closed') return { tone: 'bad', icon: 'lock', t: 'Ventana de 24 h cerrada' };
+  const c = closesIn(s);
+  return { tone: c <= 120 ? 'warn' : 'ok', icon: 'clock', t: `Ventana de 24 h: cierra en ${dur(c)}` };
+};
+const DL = {
+  QUEUED: ['clock', 'En cola', ''], SENT: ['check', 'Enviado', ''], DELIVERED: ['check2', 'Entregado', ''], READ: ['check2', 'Leído', 'read'],
+  PENDING: ['alert', 'Pendiente de envío', 'warn'], DEFERRED: ['alert', 'No enviado, ventana cerrada', 'warn'], FAILED: ['alert', 'No enviado', 'bad'], UNKNOWN: ['help', 'Entrega dudosa', 'warn']
+};
+const dlKey = m => m.status === 'QUEUED' && (m.age || 0) >= 30 ? 'PENDING' : m.status;
+/* Components shared by the three directions. Every builder is a pure function of a state object s (see mk in core.js),
+   so the static boards of artboard 04 reuse them. Interactive wiring (S, paint, events) is at the bottom. */
+const NAMEOF = (m, s) => m.author === 'CUSTOMER' ? CF : m.author === 'BOT' ? 'Bot' : `${assignee(s)}${mine(s) ? ' (tú)' : ''}`;
+const fmtN = n => n.toLocaleString('en-US');
+const lastCustLabel = s => { const a = lastCustAbs(s); return `${a < 0 ? 'ayer' : 'hoy'} a las ${hm(((a % 1440) + 1440) % 1440)}`; };
+
+/* ---- delivery state: icon plus words, color only reinforces ---- */
+function dlHTML(m, o = {}) {
+  const k = dlKey(m), [i, t, tone] = DL[k];
+  if (o.compact && !tone.match(/warn|bad/)) return `<span class="dl ${tone}" title="${t}">${ic(i, 'xs')}<span class="sr">${t}</span></span>`;
+  return `<span class="dl ${tone}">${ic(i, 'xs')}<span>${t}</span></span>`;
+}
+function dlExtra(m) {
+  const k = dlKey(m);
+  if (m.retried) return `<p class="dl-note">Reenviado como mensaje nuevo.</p>`;
+  if (k === 'PENDING') return `<p class="dl-note warn">Sigue en cola desde hace ${m.age} s. Todavía no sale; no hace falta escribirlo otra vez.</p>`;
+  if (k === 'DEFERRED') return `<p class="dl-note warn">WhatsApp cerró la ventana. Se reenvía solo si ${CF} vuelve a escribir; si la conversación termina antes, queda como «No enviado».</p>`;
+  if (k === 'FAILED') return m.type === 'TEMPLATE' ? `<p class="dl-note bad">La plantilla no se entregó. Puedes reintentar desde el recuadro de abajo.</p>` : `<p class="dl-note bad">No se pudo enviar. ${CF} no lo recibió.</p><button type="button" class="btn sm" data-retry="${m.id}">${ic('refresh', 'sm')}Reintentar</button>`;
+  if (k === 'UNKNOWN') return m.type === 'TEMPLATE' ? `<p class="dl-note warn">Puede que ya se haya enviado y costado. No se puede reenviar: espera la respuesta de ${CF}.</p>` : `<p class="dl-note warn">Puede que ${CF} ya lo haya recibido. Reenviarlo crea un mensaje nuevo.</p><button type="button" class="btn sm" data-resend="${m.id}">${ic('send', 'sm')}Enviar como mensaje nuevo</button>`;
+  return '';
+}
+
+/* ---- bubbles and thread ---- */
+function mediaHTML(m) {
+  const md = m.media || {};
+  if (md.purged) return `<div class="media gone">${ic('ban')}<span>Archivo eliminado</span></div>`;
+  if (m.type === 'IMAGE') return `<div class="media" role="img" aria-label="Foto ${esc(md.name)}"><span class="ph-art" aria-hidden="true"></span>${ic('image')}<span class="mn">${esc(md.name)} · ${md.size}</span></div>`;
+  return `<div class="doc">${ic('file')}<span class="tx"><b class="ell">${esc(md.name)}</b><small>PDF · ${md.size}</small></span></div>`;
+}
+function bubbleHTML(m, s, o = {}) {
+  const out = m.dir === 'OUT', cls = m.author === 'CUSTOMER' ? 'them' : m.author === 'BOT' ? 'bot' : 'staff';
+  let body = '';
+  if (m.type === 'TEXT') body = `<p class="bt">${esc(m.text)}</p>`;
+  else if (m.type === 'AUDIO') body = `<div class="aud"><button type="button" class="aud-btn" aria-label="Reproducir nota de voz de ${m.dur.replace(':', ' minutos ')} segundos" data-noop>${ic('play', 'sm')}</button><span class="wave" aria-hidden="true">${[6, 12, 8, 16, 10, 14, 6, 12, 18, 9, 13, 7, 11, 15, 8, 10].map(h => `<i style="height:${h}px"></i>`).join('')}</span><span class="fig">${m.dur}</span></div>`;
+  else if (m.type === 'TEMPLATE') body = `<p class="bt tplmsg">${ic('receipt', 'sm')}<span>Plantilla «${m.templateName}»</span></p><p class="tn">Mensaje aprobado de WhatsApp, enviado con costo.</p>`;
+  else body = `${mediaHTML(m)}${m.text ? `<p class="bt">${esc(m.text)}</p>` : ''}`;
+  const showName = o.author === false ? false : o.author === 'other' ? (m.author === 'BOT' || (m.author === 'STAFF' && !mine(s))) : true;
+  const name = showName ? `<div class="bwho">${NAMEOF(m, s)}</div>` : '';
+  return `<li class="msg ${out ? 'out' : 'in'}"><div class="bub ${cls}${m.status === 'FAILED' || m.status === 'DEFERRED' ? ' attn' : ''}">${name}${body}<div class="bmeta"><time>${hm(m.at)}</time>${out && m.status ? dlHTML(m, o) : ''}</div>${out && m.status && !o.compact ? dlExtra(m) : out && m.status && o.compact && /FAILED|UNKNOWN|DEFERRED|QUEUED/.test(m.status) ? dlExtra(m) : ''}</div></li>`;
+}
+function threadHTML(s, o = {}) {
+  const its = items(s);
+  let day = null, html = '';
+  const older = s.role !== 'me-scoped' && its.length ? `<li class="older"><button type="button" class="btn ghost sm" data-noop>${ic('history', 'sm')}Cargar mensajes anteriores</button></li>` : '';
+  its.forEach(m => {
+    if (m.day !== day) { day = m.day; html += `<li class="day"><span>${DAYLBL[m.day]}</span></li>`; }
+    if (m.kind === 'mark') html += `<li class="mk"><span>${m.plain ? '' : ic('user', 'xs')}${m.text.replace('{who}', assignee(s))}</span><time>${hm(m.at)}</time></li>`;
+    else html += bubbleHTML(m, s, o);
+  });
+  return `<ol class="thread-list" role="log" aria-live="polite" aria-label="Mensajes con ${CF}">${older}${html}</ol>${o.newPill ? `<button type="button" class="newpill" data-pill>${ic('arrow-down', 'xs')}${o.newPill} mensajes nuevos</button>` : ''}`;
+}
+
+/* ---- header chips and badges ---- */
+function sessBadge(s) {
+  return ({
+    STARTING: `<span class="badge info"><span class="spin sm" aria-hidden="true"></span>Conectando…</span>`,
+    ACTIVE: `<span class="badge success dot">En vivo</span>`,
+    ENDING: `<span class="badge warning dot">Terminando…</span>`,
+    ENDED: `<span class="badge dot">Terminada</span>`,
+    WAITING: `<span class="badge warning dot">Sin confirmar</span>`
+  })[s.session];
+}
+function reqBadge(s) {
+  if (s.session === 'WAITING') return `<span class="badge warning dot">Nueva</span>`;
+  if (s.session === 'ENDING' || s.session === 'ENDED') return `<span class="badge success dot">Resuelta</span>`;
+  return `<span class="badge info dot"><span class="t">En atención · por ${mine(s) ? 'ti' : OTHER}</span></span>`;
+}
+function winChip(s) {
+  if (s.session === 'ENDED' || s.session === 'WAITING' || s.session === 'ENDING') return '';
+  const w = winLabel(s);
+  return `<span class="tag wc ${w.tone}">${ic(w.icon, 'xs')}${w.t}</span>`;
+}
+const staffActLine = s => s.session === 'ACTIVE' && mine(s) ? `<span class="tag">${ic('message', 'xs')}Tu última respuesta: hace ${Math.max(1, nowM(s) - (items(s).filter(m => m.author === 'STAFF').pop() || { at: nowM(s) - 1 }).at)} min</span>` : '';
+
+/* ---- banners above the thread ---- */
+const al = (tone, icon, title, body, acts = '') => `<div class="alert ${tone}" role="${tone === 'danger' ? 'alert' : 'status'}">${icon}<div><strong>${title}</strong>${body}${acts ? `<div class="acts">${acts}</div>` : ''}</div></div>`;
+function bannerHTML(s, o = {}) {
+  const out = [];
+  if (s.conn === 'lost') out.push(al('warn', ic('wifi-off', 'sm'), 'Sin conexión en tiempo real', 'Seguimos consultando cada 5 s. Los mensajes que ya enviaste no se pierden.'));
+  if (s.role === 'me-scoped') out.push(al('info', ic('lock', 'sm'), 'Solo ves los mensajes de tu sesión', `Empiezan cuando la tomaste. Para ver toda la conversación necesitas el permiso «Ver conversaciones del chatbot». Los avances de entrega llegan con un retraso de unos segundos.`));
+  const canFin = mine(s) || s.role === 'reassigner';
+  const fin = canFin && o.fin !== false ? `<button type="button" class="btn sm" data-finish-open>${ic('check-circle', 'sm')}Finalizar conversación</button>` : '';
+  if (s.session === 'STARTING') out.push(al('info', `<span class="spin" aria-hidden="true"></span>`, 'Conectando…', `Esperando a que el bot confirme que se calló. Van <span class="fig" data-elapsed>${Math.floor((s.elapsed ?? 42) / 60)}:${pad((s.elapsed ?? 42) % 60)}</span>. Si no confirma a tiempo, la solicitud vuelve a Nueva y no se envía nada a ${CF}.`));
+  else if (s.session === 'WAITING') out.push(al('warn', ic('alert', 'sm'), 'El bot no confirmó a tiempo', `Pasaron 2 min sin respuesta del bot, así que la solicitud volvió a Nueva y nadie la tiene. No se envió nada a ${CF}.`, o.fin === false ? '' : `<button type="button" class="btn sm primary" data-claim>${ic('user', 'sm')}Atender de nuevo</button>`));
+  else if (s.session === 'ENDING') out.push(al('info', `<span class="spin" aria-hidden="true"></span>`, 'Terminando…', `El bot se despide de ${CF} y retoma la conversación. Puede tardar hasta 10 min; no hace falta esperar aquí.`));
+  else if (s.session === 'ENDED') out.push(`<div class="alert" role="status">${ic('check-circle', 'sm')}<div><strong>Conversación terminada a las ${hm(nowM(s) + 1)}</strong>${CF} vuelve a hablar con el bot.<dl class="kv sumkv"><dt>Nota interna</dt><dd>${esc(s.note || 'Se mandó reposición de la bolsa; el cliente confirmó por WhatsApp.')}</dd>${s.sub === 'COMPLAINT' ? `<dt>Clasificación</dt><dd>${s.outcome === 'none' ? 'Sin clasificar (se cerró sola)' : (OUTCOMES.find(o => o[0] === (s.outcome || 'REPLACEMENT')) || [])[1]}</dd>` : ''}</dl></div></div>`);
+  else if (s.session === 'ACTIVE') {
+    if (s.deferred) out.push(al('warn', ic('lock', 'sm'), 'WhatsApp cerró la ventana', `Tu último mensaje quedó como «No enviado, ventana cerrada» y se reenvía solo si ${CF} vuelve a escribir. Mientras tanto solo puedes enviar la plantilla.`));
+    else if (winEff(s) === 'soon' || (winEff(s) === 'open' && closesIn(s) <= 120)) out.push(al('warn', ic('clock', 'sm'), `La ventana cierra en ${dur(closesIn(s))}`, 'Después solo podrás enviar la plantilla, que tiene costo. Si ya resolviste, puedes finalizar.'));
+    if (idle(s) && winEff(s) === 'open' && canFin) out.push(al('info', ic('clock', 'sm'), `${CF} no escribe desde hace ${dur(silentMin(s))}`, `Puedes finalizar ahora sin más pasos. Si pasan 2 h sin respuesta, la conversación se finaliza sola con una nota automática.`, fin));
+  }
+  return out.join('');
+}
+
+/* ---- composer ---- */
+const FILES = {
+  img: { kind: 'IMAGE', name: 'foto-reposicion.jpg', size: '1.4 MB' }, pdf: { kind: 'PDF', name: 'politica-de-cambios.pdf', size: '218 KB' },
+  video: { kind: 'VIDEO', name: 'empaque-bolsa.mp4', size: '6.2 MB', err: `No se puede enviar empaque-bolsa.mp4. Solo imágenes (JPG, PNG, WebP) y PDF.` },
+  big: { kind: 'IMAGE', name: 'foto-original.jpg', size: '14.2 MB', err: `foto-original.jpg pesa 14.2 MB. El máximo es 10 MB.` }
+};
+function attachHTML(a) {
+  if (!a) return '';
+  const icn = a.kind === 'PDF' ? 'file' : a.kind === 'VIDEO' ? 'file' : 'image';
+  const st = a.status === 'uploading' ? `<span class="prog" role="progressbar" aria-label="Subiendo ${esc(a.name)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${a.pct}"><i style="width:${a.pct}%"></i></span><small>Subiendo… ${a.pct} %</small>`
+    : a.status === 'error' ? `<small class="bad">${ic('alert', 'xs')}${esc(a.err)}</small>`
+      : `<small class="ok">${ic('check-circle', 'xs')}Listo para enviar · ${a.size}</small>`;
+  return `<div class="att ${a.status}"><span class="thumb ${a.kind === 'IMAGE' ? 'img' : ''}" aria-hidden="true">${ic(icn)}</span><span class="tx"><b class="ell">${esc(a.name)}</b>${st}</span><button type="button" class="icon-btn sm" data-attach-clear aria-label="Quitar ${esc(a.name)}">${ic('x', 'sm')}</button></div>`;
+}
+function attachMenuHTML() {
+  return `<div class="amenu" role="menu" aria-label="Adjuntar archivo"><p class="am-h">Simulación del selector de archivos</p>
+  <button type="button" role="menuitem" data-pick="img">${ic('image', 'sm')}<span><b>foto-reposicion.jpg</b><small>JPG · 1.4 MB</small></span></button>
+  <button type="button" role="menuitem" data-pick="pdf">${ic('file', 'sm')}<span><b>politica-de-cambios.pdf</b><small>PDF · 218 KB</small></span></button>
+  <button type="button" role="menuitem" data-pick="video">${ic('file', 'sm')}<span><b>empaque-bolsa.mp4</b><small>Video · 6.2 MB · no permitido</small></span></button>
+  <button type="button" role="menuitem" data-pick="big">${ic('image', 'sm')}<span><b>foto-original.jpg</b><small>JPG · 14.2 MB · muy grande</small></span></button></div>`;
+}
+const notice = (cls, icon, title, body, acts = '') => `<div class="comp bar ${cls}">${icon}<div class="tx"><strong>${title}</strong>${body}</div>${acts}</div>`;
+function offHTML(title, body) {
+  return `<div class="comp off"><div class="comp-box"><label class="sr" for="draft-off">Mensaje para ${CF}</label><textarea class="cta" id="draft-off" rows="2" disabled placeholder="${title}"></textarea><div class="comp-row"><button type="button" class="icon-btn sm" disabled aria-label="Adjuntar imagen o PDF">${ic('paperclip')}</button><span class="hint">${body}</span><button type="button" class="btn primary" disabled>${ic('send', 'sm')}Enviar</button></div></div></div>`;
+}
+function composerHTML(s, o = {}) {
+  if (s.role === 'other-noconv') return '';
+  if (s.session === 'ENDED' || s.session === 'ENDING') return notice('end', ic('check-circle'), 'La conversación terminó', 'Ya no se pueden enviar mensajes. Si el cliente vuelve a escribir, lo atiende el bot.');
+  if (!mine(s)) {
+    const re = s.role === 'reassigner' ? `<div class="bar-acts"><button type="button" class="btn sm" data-noop>${ic('swap', 'sm')}Reasignar…</button><button type="button" class="btn sm" data-finish-open>${ic('check-circle', 'sm')}Finalizar en su lugar…</button></div>` : '';
+    return notice('ro', ic('lock'), `Atiende ${OTHER}`, `Solo quien la atiende puede escribirle a ${CF}. Tú puedes leer la conversación${s.role === 'reassigner' ? ' y reasignarla o finalizarla si hace falta' : ''}.`, re);
+  }
+  if (s.session === 'STARTING') return offHTML('Conectando…', 'Podrás escribir cuando el bot confirme que se calló.');
+  if (s.session === 'WAITING') return offHTML('Atiende la solicitud para escribir', 'Nadie la tiene todavía.');
+  if (winEff(s) === 'closed') return blockedHTML(s, o);
+  const a = s.attach, n = s.draft.length, lim = a ? 1024 : 4096, over = n > lim;
+  const can = !over && ((a && a.status === 'ready') || (!a && s.draft.trim()));
+  return `<form class="comp" id="comp" data-form aria-label="Escribir a ${CF}" novalidate>${attachHTML(a)}
+  <div class="comp-box${over ? ' bad' : ''}"><label class="sr" for="draft">${a ? 'Pie de foto' : 'Mensaje'} para ${CF}</label>
+  <textarea class="cta" id="draft" rows="${o.rows || 2}" placeholder="${a ? 'Pie de foto (opcional)' : `Escribe un mensaje para ${CF}…`}" aria-describedby="draft-help" aria-invalid="${over}">${esc(s.draft)}</textarea>
+  <div class="comp-row"><div class="menu-wrap"><button type="button" class="icon-btn sm" data-attach-toggle aria-haspopup="menu" aria-expanded="${s.menu}" aria-label="Adjuntar imagen o PDF">${ic('paperclip')}</button>${s.menu ? attachMenuHTML() : ''}</div>
+  <span class="hint" id="draft-help">${o.mobile ? 'Se envía tal cual, sin formato.' : 'Enter envía · Shift+Enter agrega una línea · Se envía tal cual, sin formato'}</span>
+  <span class="counter fig${n > lim - 300 ? ' near' : ''}${over ? ' over' : ''}" id="cnt" aria-live="polite">${fmtN(n)} / ${fmtN(lim)}</span>
+  <button type="submit" class="btn primary" id="send" ${can ? '' : 'disabled'}>${ic('send', 'sm')}Enviar</button></div></div>
+  ${over ? `<p class="err" id="over-err">${ic('alert', 'xs')}<span>Máximo ${fmtN(lim)} caracteres. Quita ${fmtN(n - lim)} para enviarlo.</span></p>` : ''}
+  <p class="help">Los mensajes no se pueden editar ni borrar después de enviarse.</p></form>`;
+}
+function blockedHTML(s, o = {}) {
+  const t = s.tpl;
+  const cost = `<div class="cost">${ic('receipt', 'sm')}<div><b>Plantilla «${TPL.name}»</b><span>${TPL.cost}</span><small>Se manda solo cuando tú lo confirmas, una sola vez por ventana cerrada. Cuando ${CF} responda, la ventana se abre y podrás escribir aquí.</small></div></div>`;
+  let act;
+  if (t === 'pending') act = `${al('info', ic('check-circle', 'sm'), `Plantilla enviada a las ${hm(965)} · Entregada`, `Esperamos la respuesta de ${CF}. Solo se envía una por ventana cerrada.`)}<button type="button" class="btn" disabled>${ic('receipt', 'sm')}Plantilla enviada</button>`;
+  else if (t === 'failed') act = `${al('danger', ic('alert', 'sm'), 'La plantilla no se pudo entregar', 'Reintentar crea un envío nuevo. Antes de confirmar vuelves a ver el costo.')}<button type="button" class="btn primary" data-tpl-open>${ic('refresh', 'sm')}Reintentar plantilla…</button>`;
+  else if (t === 'unknown') act = `${al('warn', ic('help', 'sm'), 'Entrega dudosa', 'Puede que la plantilla ya se haya enviado y costado. No se puede reenviar: espera la respuesta de ' + CF + '.')}<button type="button" class="btn" disabled>${ic('receipt', 'sm')}Plantilla enviada</button>`;
+  else if (t === 'none') act = `${al('warn', ic('alert', 'sm'), 'No hay plantilla configurada', 'Esta sucursal no tiene una plantilla en Ajustes del chatbot. Pide a un administrador que la configure.', `<a href="#" class="btn sm" data-noop>Ir a Ajustes del chatbot</a>`)}<button type="button" class="btn" disabled>${ic('receipt', 'sm')}Enviar plantilla…</button>`;
+  else act = `<button type="button" class="btn primary" data-tpl-open>${ic('receipt', 'sm')}Enviar plantilla…</button>`;
+  return `<section class="comp blocked" aria-labelledby="blk-t"><div class="blk-h">${ic('lock')}<div><h3 id="blk-t">La ventana de 24 h está cerrada</h3><p>WhatsApp solo deja escribir libremente durante 24 h después del último mensaje del cliente. ${CF} escribió por última vez ${lastCustLabel(s)}.</p></div></div>
+  ${s.draft ? `<div class="kept"><span class="lbl">Tu borrador, sin enviar</span><p class="bt">${esc(s.draft)}</p></div>` : ''}
+  ${t === 'ready' || t === 'failed' || t === 'none' || t === 'pending' || t === 'unknown' ? cost : ''}<div class="blk-act">${act}</div></section>`;
+}
+
+/* ---- dialogs: finish and template ---- */
+const radios = (key, rows, val, lbl) => `<div class="rgroup" role="radiogroup" aria-label="${lbl}">${rows.map(([v, t, sub]) => `<button type="button" role="radio" class="rrow" aria-checked="${val === v}" data-radio="${key}" data-val="${v}"><span class="mark">${ic('check')}</span><span class="tx"><b>${t}</b>${sub ? `<small>${sub}</small>` : ''}</span></button>`).join('')}</div>`;
+function finishBody(s) {
+  const f = s.fin, complaint = s.sub === 'COMPLAINT', n = f.note.length;
+  const forced = s.role === 'reassigner';
+  return `${forced ? al('warn', ic('users', 'sm'), `Vas a finalizar la conversación de ${OTHER}`, `${OTHER} ya no podrá escribirle a ${CF}. El bot se despide y retoma la conversación.`) : ''}
+  ${!forced && !idle(s) ? al('info', ic('message', 'sm'), `${CF} escribió hace ${Math.max(1, silentMin(s))} min`, 'Al finalizar, el bot se despide y retoma la conversación. Si falta algo, escríbelo antes.') : ''}
+  ${!forced && idle(s) ? `<p class="p2">${CF} no escribe desde hace ${winEff(s) === 'closed' ? 'más de 24 h' : dur(silentMin(s))}. El bot se despide y retoma la conversación.</p>` : ''}
+  <div class="field"><label class="lbl" for="f-note">Nota interna</label>
+  <textarea class="ctl" id="f-note" data-fnote rows="3" aria-invalid="${!!f.err?.note}" aria-describedby="f-note-h">${esc(f.note)}</textarea>
+  <div class="row-between"><span class="help" id="f-note-h">Solo la ve el personal. No se envía a ${CF}.</span><span class="counter fig" id="f-cnt">${n} / 1,000</span></div>
+  ${f.err?.note ? `<p class="err">${ic('alert', 'xs')}<span>${f.err.note}</span></p>` : ''}</div>
+  ${complaint ? `<fieldset class="field fs"><legend class="lbl">¿Cómo se resolvió la queja?</legend><p class="help">Solo se registra para las métricas. No crea la devolución, el reemplazo ni el reembolso: eso se hace en Ventas.</p>${radios('outcome', OUTCOMES, f.outcome, 'Resultado de la queja')}${f.err?.outcome ? `<p class="err" id="f-out-err">${ic('alert', 'xs')}<span>${f.err.outcome}</span></p>` : ''}</fieldset>` : ''}`;
+}
+const finishFoot = (s, cancel = 'Cancelar') => `<button type="button" class="btn ghost" data-dlg-close>${cancel}</button><button type="button" class="btn primary" data-finish-submit ${s.fin.busy ? 'disabled' : ''}>${s.fin.busy ? '<span class="spin" aria-hidden="true"></span>Finalizando…' : `${ic('check-circle', 'sm')}${s.role === 'reassigner' ? 'Finalizar en su lugar' : 'Finalizar conversación'}`}</button>`;
+const finishSub = s => s.role === 'reassigner' ? `Solicitud S-000412 · la atiende ${OTHER}` : `Solicitud S-000412 · ${SUBT[s.sub]} de ${CUST}`;
+function tplBody(s) {
+  return `<p>Vas a enviarle a ${CF} una <b>plantilla aprobada de WhatsApp</b>, porque la ventana de 24 h está cerrada.</p>
+  <dl class="kv tplkv"><dt>Plantilla</dt><dd><b>${TPL.name}</b><br><span class="p2">El texto lo define la plantilla aprobada en WhatsApp; aquí no se edita.</span></dd><dt>Costo</dt><dd>${TPL.cost}</dd><dt>Cuántas</dt><dd>Una sola por ventana cerrada.</dd></dl>
+  ${al('info', ic('info', 'sm'), 'Qué pasa después', `No podrás escribirle hasta que ${CF} responda. Cuando lo haga, la ventana se abre y el cuadro de mensaje vuelve a funcionar.`)}`;
+}
+const tplFoot = s => `<button type="button" class="btn ghost" data-dlg-close>Cancelar</button><button type="button" class="btn primary" data-tpl-confirm ${s.tplBusy ? 'disabled' : ''}>${s.tplBusy ? '<span class="spin" aria-hidden="true"></span>Enviando…' : `${ic('receipt', 'sm')}Enviar plantilla`}</button>`;
+
+/* ---- actions (rail, header or bar, depending on the direction) ---- */
+function actionsHTML(s) {
+  if (s.session === 'WAITING') return `<button type="button" class="btn primary block" data-claim>${ic('user', 'sm')}Atender</button><p class="help">Atender la toma y el bot se calla. Si no confirma a tiempo, vuelve a Nueva.</p>`;
+  if (s.session === 'STARTING') return al('info', ic('clock', 'sm'), 'Conectando…', 'Las acciones se habilitan cuando el bot confirme. Mientras hay una sesión no se puede liberar ni cancelar.');
+  if (s.session === 'ENDING' || s.session === 'ENDED') return al('success', ic('check-circle', 'sm'), 'Solicitud resuelta', `Finalizó ${assignee(s)}${mine(s) ? ' (tú)' : ''}.`);
+  if (mine(s)) return `<button type="button" class="btn primary block" data-finish-open>${ic('check-circle', 'sm')}Finalizar conversación</button>${s.role === 'me' ? `<button type="button" class="btn block" data-noop>${ic('swap', 'sm')}Reasignar…</button>` : ''}<p class="help">${ic('info', 'xs')} Liberar no está disponible con una conversación en vivo: la salida es finalizarla o reasignarla.</p>`;
+  if (s.role === 'reassigner') return `${al('info', ic('lock', 'sm'), `La atiende ${OTHER}`, 'Solo esa persona puede escribir.')}<button type="button" class="btn block" data-noop>${ic('swap', 'sm')}Reasignar…</button><button type="button" class="btn block" data-finish-open>${ic('check-circle', 'sm')}Finalizar en su lugar…</button>`;
+  return `${al('info', ic('lock', 'sm'), `La atiende ${OTHER}`, 'Solo puedes verla. Reasignar o finalizar por otra persona requiere el permiso de reasignación.')}`;
+}
+
+/* ---- app shell and artboard tools ---- */
+const COUNTNEW = 4;
+function shell(crumbs, content) {
+  const nav = (i, l) => `<li><a href="#" data-noop>${ic(i, 'sm')}${l}</a></li>`;
+  return `<div class="app"><aside class="side" aria-label="Menú principal"><div class="brand"><span class="brand-mark" aria-hidden="true">${ic('paw', 'sm')}</span>HoundFe</div>
+  <div class="tenant"><span class="tenant-tile" aria-hidden="true">C</span><span><strong>Sucursal Centro</strong><small>Guadalajara</small></span></div>
+  <nav class="nav" aria-label="Módulos"><ul>${nav('home', 'Resumen')}</ul><p class="nav-group">POS</p><ul>${nav('cart', 'Ventas')}${nav('package', 'Productos')}${nav('users', 'Clientes')}${nav('truck', 'Rutas de entrega')}</ul>
+  <p class="nav-group">Chatbot</p><ul><li><a href="#" data-noop aria-current="page" class="sub">${ic('inbox', 'sm')}Solicitudes<span class="count fig" aria-label="${COUNTNEW} nuevas">${COUNTNEW}</span></a></li></ul></nav>
+  <div class="side-foot"><span class="avatar" aria-hidden="true">LM</span><span>${ME}<small>Gerente</small></span></div></aside>
+  <div class="col"><header class="topbar"><nav class="crumbs" aria-label="Ruta">${crumbs}</nav><span class="spacer"></span><button type="button" class="icon-btn" aria-label="Notificaciones, 3 sin leer">${ic('bell')}<span class="dotc fig" aria-hidden="true">3</span></button></header>${content}</div></div>`;
+}
+const crumbs = () => `<a href="#" data-noop>Chatbot</a><span aria-hidden="true">/</span><a href="#" data-noop>Solicitudes</a><span aria-hidden="true">/</span><span aria-current="page">S-000412</span>`;
+const opt = (v, t, cur) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${t}</option>`;
+function toolsHTML(extra = '') {
+  return `<div class="tools" role="group" aria-label="Opciones del artboard"><button type="button" id="t-theme"></button>
+  <label>Sesión <select id="t-session">${opt('STARTING', 'Conectando…', S.session)}${opt('ACTIVE', 'Activa', S.session)}${opt('ENDING', 'Terminando…', S.session)}${opt('ENDED', 'Terminada', S.session)}${opt('WAITING', 'Sin confirmar (volvió a Nueva)', S.session)}</select></label>
+  <label>Ventana <select id="t-win">${opt('open', 'Abierta', S.win)}${opt('soon', 'Cierra en 1 h 24 min', S.win)}${opt('closed', 'Cerrada', S.win)}</select></label>
+  <label>Cliente <select id="t-cust">${opt('active', 'Escribió hace 1 min', S.cust)}${opt('idle', 'Sin escribir 38 min', S.cust)}</select></label>
+  <label>Rol <select id="t-role">${opt('me', 'La atiendes tú', S.role)}${opt('me-scoped', 'La atiendes tú, sin ver todo el chat', S.role)}${opt('other', 'La atiende otra persona', S.role)}${opt('reassigner', 'Otra persona; puedes reasignar', S.role)}${opt('other-noconv', 'Otra persona; sin permiso de conversación', S.role)}</select></label>
+  <label>Tipo <select id="t-sub">${opt('COMPLAINT', 'Queja', S.sub)}${opt('TALK_TO_HUMAN', 'Hablar con una persona', S.sub)}</select></label>
+  <label>Hilo <select id="t-thread">${opt('normal', 'Conversación normal', S.thread)}${opt('states', 'Todos los estados de entrega', S.thread)}</select></label>
+  <label>Próximo envío <select id="t-next">${opt('ok', 'Sale bien', S.next)}${opt('stuck', 'Se queda en cola', S.next)}${opt('deferred', 'WhatsApp cierra la ventana', S.next)}${opt('failed', 'Falla', S.next)}</select></label>
+  <label>Plantilla <select id="t-tpl">${opt('ready', 'Disponible', S.tpl)}${opt('pending', 'Ya enviada', S.tpl)}${opt('failed', 'Falló', S.tpl)}${opt('unknown', 'Entrega dudosa', S.tpl)}${opt('none', 'Sin configurar', S.tpl)}</select></label>
+  <button type="button" id="t-in">${ic('message', 'sm')}El cliente escribe</button><button type="button" id="t-conn" aria-pressed="false">${ic('wifi-off', 'sm')}Sin conexión</button>${extra}<span class="grow"></span><button type="button" id="t-notes" aria-pressed="false">${ic('info', 'sm')}Notas</button></div>`;
+}
+function toast(title, desc, icon = 'check-circle') {
+  const t = document.createElement('div'); t.className = 'toast';
+  setHTML(t, `<span class="tile">${ic(icon)}</span><div><strong>${esc(title)}</strong>${desc ? `<p>${esc(desc)}</p>` : ''}</div>`);
+  let host = $('#toasts'); if (!host) { host = document.createElement('div'); host.id = 'toasts'; host.className = 'toasts'; host.setAttribute('role', 'status'); document.body.appendChild(host); }
+  host.appendChild(t); setTimeout(() => t.remove(), 4500);
+}
+
+/* ---- interactive wiring (boards 01 to 03) ---- */
+let S = mk(), seq = 0;
+const HOSTS = {};
+function paint(...ids) {
+  const th = $('#h-thread'), was = th ? th.scrollHeight - th.scrollTop - th.clientHeight < 60 : true;
+  (ids.length ? ids : Object.keys(HOSTS)).forEach(id => {
+    const el = $('#h-' + id); if (!el || !HOSTS[id]) return;
+    const keep = id === 'comp' && document.activeElement && document.activeElement.id === 'draft' ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] : null;
+    setHTML(el, HOSTS[id](S));
+    if (keep && $('#draft')) { $('#draft').focus(); $('#draft').setSelectionRange(...keep); }
+    if (id === 'comp') grow();
+  });
+  const t2 = $('#h-thread'); if (t2 && (was || S.stick)) t2.scrollTop = t2.scrollHeight;
+  S.stick = false;
+}
+const grow = () => { const t = $('#draft'); if (t) { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 168) + 'px'; } };
+function syncComposer() {
+  const t = $('#draft'); if (!t) return;
+  S.draft = t.value; const n = S.draft.length, lim = S.attach ? 1024 : 4096, over = n > lim;
+  const c = $('#cnt'); c.textContent = `${fmtN(n)} / ${fmtN(lim)}`; c.classList.toggle('near', n > lim - 300); c.classList.toggle('over', over);
+  $('#send').disabled = over || !((S.attach && S.attach.status === 'ready') || (!S.attach && S.draft.trim()));
+  $('.comp-box').classList.toggle('bad', over);
+  const had = $('#over-err'); if (over && !had) paint('comp'); else if (!over && had) paint('comp');
+  grow();
+}
+function deliver(m) {
+  const set = (st, ms, extra) => setTimeout(() => { m.status = st; if (extra) extra(); paint('thread'); }, ms);
+  if (S.next === 'stuck') setTimeout(() => { m.age = 48; paint('thread'); }, 2500);
+  else if (S.next === 'failed') set('FAILED', 900);
+  else if (S.next === 'deferred') { set('SENT', 700); set('DEFERRED', 1800, () => { S.deferred = true; paint('banner', 'comp', 'head', 'rail'); }); }
+  else { set('SENT', 700); set('DELIVERED', 1700); set('READ', 3200); }
+}
+function sendNow(txt, att, retryOf) {
+  const m = { id: 'n' + (++seq), dir: 'OUT', author: 'STAFF', type: att ? (att.kind === 'PDF' ? 'DOCUMENT' : 'IMAGE') : 'TEXT', text: txt, media: att ? { name: att.name, size: att.size } : null, at: nowM(S), day: 0, status: 'QUEUED', age: 0 };
+  S.sent.push(m); S.stick = true; paint('thread'); deliver(m);
+}
+function submitMsg() {
+  const a = S.attach, t = S.draft.trim();
+  if ((a && a.status !== 'ready') || (!a && !t) || t.length > (a ? 1024 : 4096)) return;
+  sendNow(t, a); S.draft = ''; S.attach = null; paint('comp');
+}
+function dlgClose() { S.dlg = null; S.tplBusy = false; S.fin.busy = false; paint('dlg', 'comp', 'rail'); }
+document.addEventListener('click', e => {
+  const t = e.target;
+  if (t.closest('[data-noop]')) { e.preventDefault(); return; }
+  const rt = t.closest('[data-retry]'); if (rt) { const m = S.sent.concat(items(S)).find(x => x.id === rt.dataset.retry); if (m) { m.retried = true; sendNow(m.text, m.media ? { kind: m.type === 'DOCUMENT' ? 'PDF' : 'IMAGE', ...m.media } : null); } return; }
+  const rs = t.closest('[data-resend]'); if (rs) { const m = items(S).find(x => x.id === rs.dataset.resend); if (m) { m.retried = true; sendNow(m.text, null); } return; }
+  if (t.closest('[data-attach-toggle]')) { S.menu = !S.menu; paint('comp'); return; }
+  const pk = t.closest('[data-pick]'); if (pk) {
+    const f = FILES[pk.dataset.pick]; S.menu = false;
+    if (f.err) S.attach = { ...f, status: 'error', pct: 0 };
+    else { S.attach = { ...f, status: 'uploading', pct: 55 }; setTimeout(() => { if (S.attach && S.attach.name === f.name) { S.attach.status = 'ready'; S.attach.pct = 100; paint('comp'); } }, 1400); }
+    paint('comp'); return;
+  }
+  if (t.closest('[data-attach-clear]')) { S.attach = null; paint('comp'); return; }
+  if (S.menu && !t.closest('.menu-wrap')) { S.menu = false; paint('comp'); }
+  if (t.closest('[data-tpl-open]')) { S.dlg = 'tpl'; paint('dlg'); const b = $('[data-tpl-confirm]'); if (b) b.focus(); return; }
+  if (t.closest('[data-tpl-confirm]')) {
+    S.tplBusy = true; paint('dlg');
+    setTimeout(() => { S.tplBusy = false; S.dlg = null; S.tpl = 'pending'; S.stick = true; paint('dlg', 'thread', 'comp'); toast('Plantilla enviada', `Esperamos la respuesta de ${CF}.`, 'receipt'); }, 900); return;
+  }
+  if (t.closest('[data-finish-open]')) { S.fin = { note: '', outcome: '', err: null, busy: false }; S.dlg = 'finish'; paint('dlg'); const b = $('#f-note'); if (b) b.focus(); return; }
+  if (t.closest('[data-dlg-close]')) { dlgClose(); return; }
+  const rd = t.closest('[data-radio]'); if (rd) { S.fin.outcome = rd.dataset.val; S.fin.err = { ...(S.fin.err || {}), outcome: null }; paint('dlg'); const r = $(`[data-val="${rd.dataset.val}"]`); if (r) r.focus(); return; }
+  if (t.closest('[data-finish-submit]')) {
+    const err = {}; if (!S.fin.note.trim()) err.note = 'Escribe una nota interna para cerrar la conversación.';
+    if (S.sub === 'COMPLAINT' && !S.fin.outcome) err.outcome = 'Elige cómo se resolvió la queja. Es obligatorio para finalizar una queja.';
+    if (Object.keys(err).length) { S.fin.err = err; paint('dlg'); const f = $(err.note ? '#f-note' : '[data-radio]'); if (f) f.focus(); return; }
+    S.fin.busy = true; paint('dlg');
+    setTimeout(() => {
+      S.note = S.fin.note.trim(); S.outcome = S.sub === 'COMPLAINT' ? S.fin.outcome : null; S.fin.busy = false; S.dlg = null; S.session = 'ENDING'; S.stick = true;
+      paint(); toast('Conversación finalizada', `El bot se despide de ${CF} y retoma la conversación.`);
+      setTimeout(() => { if (S.session === 'ENDING') { S.session = 'ENDED'; paint(); const sel = $('#t-session'); if (sel) sel.value = 'ENDED'; } }, 3500);
+    }, 900); return;
+  }
+  if (t.closest('[data-claim]')) { S.session = 'STARTING'; S.elapsed = 0; S.claimed = true; paint(); const sel = $('#t-session'); if (sel) sel.value = 'STARTING'; return; }
+  if (t.closest('[data-pill]')) { const n = $('.scroll-t'); if (n) n.scrollTop = n.scrollHeight; return; }
+  if (t.closest('#t-theme')) { document.documentElement.classList.toggle('dark'); paintTheme(); return; }
+  if (t.closest('#t-in')) {
+    if (winEff(S) === 'closed' && S.win === 'closed' && S.tpl === 'pending') { S.winOpened = true; S.tpl = 'pending'; }
+    else if (winEff(S) === 'closed') { toast('Con la ventana cerrada, el cliente no escribe sola', 'Envía la plantilla y luego simula la respuesta.', 'info'); return; }
+    S.extra.push(cIn('x' + (++seq), nowM(S), 'Perdón, ¿a qué hora me lo traen?')); S.stick = true; S.cust = 'active'; paint(); return;
+  }
+  if (t.closest('#t-conn')) { const b = t.closest('#t-conn'); S.conn = S.conn === 'lost' ? 'ok' : 'lost'; b.setAttribute('aria-pressed', String(S.conn === 'lost')); paint('banner'); return; }
+  if (t.closest('#t-notes')) { const n = $('#notes'), b = t.closest('#t-notes'); n.hidden = !n.hidden; b.setAttribute('aria-pressed', String(!n.hidden)); }
+});
+document.addEventListener('input', e => {
+  if (e.target.id === 'draft') syncComposer();
+  if (e.target.id === 'f-note') { S.fin.note = e.target.value; $('#f-cnt').textContent = `${fmtN(S.fin.note.length)} / 1,000`; }
+});
+document.addEventListener('submit', e => { if (e.target.matches('[data-form]')) { e.preventDefault(); submitMsg(); } });
+document.addEventListener('keydown', e => {
+  if (e.target.id === 'draft' && e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submitMsg(); }
+  if (e.key === 'Escape') { if (S.menu) { S.menu = false; paint('comp'); } else if (S.dlg) dlgClose(); }
+});
+const RESET = ['win', 'thread'];
+document.addEventListener('change', e => {
+  const m = { 't-session': 'session', 't-win': 'win', 't-cust': 'cust', 't-role': 'role', 't-sub': 'sub', 't-thread': 'thread', 't-next': 'next', 't-tpl': 'tpl' }[e.target.id];
+  if (!m) return;
+  S[m] = e.target.value;
+  if (RESET.includes(m)) Object.assign(S, { sent: [], extra: [], deferred: false, winOpened: false });
+  if (m === 'session') { S.elapsed = 42; S.claimed = false; }
+  S.fin = { note: '', outcome: '', err: null, busy: false }; S.dlg = null; paint();
+});
+function paintTheme() { const d = document.documentElement.classList.contains('dark'); setHTML($('#t-theme'), `${ic(d ? 'moon' : 'sun', 'sm')}${d ? 'Oscuro' : 'Claro'}`); }
+function measureTools() { document.documentElement.style.setProperty('--tools-h', $('.tools').offsetHeight + 'px'); }
+function mountTools(extra) { const h = document.createElement('div'); setHTML(h, toolsHTML(extra)); document.body.prepend(h.firstElementChild); paintTheme(); measureTools(); addEventListener('resize', measureTools); }
+setInterval(() => { if (S.session === 'STARTING') { S.elapsed = (S.elapsed ?? 42) + 1; $$('[data-elapsed]').forEach(n => { n.textContent = `${Math.floor(S.elapsed / 60)}:${pad(S.elapsed % 60)}`; }); if (S.elapsed === 3 && S.claimed) { S.claimed = false; S.session = 'ACTIVE'; paint(); const sel = $('#t-session'); if (sel) sel.value = 'ACTIVE'; } } }, 1000);
+/* Board 01: direction A. */
+injectIcons();
+const OTHERS = () => `<div class="two"><section class="panel" aria-labelledby="h-sum"><h2 id="h-sum">Resumen del bot</h2><p class="quote">${CF} recibió una bolsa de Croquetas Premium Adulto 15 kg rota en su pedido V-1042 y pide que se la repongan.</p></section>
+<section class="panel" aria-labelledby="h-need"><h2 id="h-need">Qué necesita el cliente</h2><p class="quote">Reposición de la bolsa dañada. La necesita para el fin de semana.</p></section></div>`;
+const auditHTML = s => {
+  const live = s.session !== 'WAITING';
+  const rows = [];
+  if (s.session === 'ENDING' || s.session === 'ENDED') rows.push(`<li class="done"><b>Resuelta por ${assignee(s)}</b><small>hoy ${hm(nowM(s))} · clasificación: ${s.sub === 'COMPLAINT' ? (OUTCOMES.find(o => o[0] === s.outcome) || ['', 'Reemplazo'])[1] : 'no aplica'}</small></li>`);
+  if (live) rows.push(`<li><b>Conversación ${s.session === 'STARTING' ? 'conectando…' : 'conectada'}</b><small>hoy 15:58 · el bot se calló</small></li>`);
+  rows.push(s.session === 'WAITING' ? `<li class="bad"><b>Liberada: el bot no confirmó</b><small>hoy 16:00 · volvió a Nueva</small></li>` : '', `<li><b>Tomada por ${assignee(s)}</b><small>hoy 15:58</small></li>`, `<li><b>Solicitud creada por el bot</b><small>hoy 15:42 · Queja</small></li>`);
+  return `<section class="panel" aria-labelledby="h-aud"><h2 id="h-aud">Historial de la solicitud</h2><ol class="tl">${rows.join('')}</ol></section>`;
+};
+const railHTML = s => `<section class="panel" aria-labelledby="h-act"><h2 id="h-act">Qué hacer</h2><div style="display:grid;gap:8px">${actionsHTML(s)}</div></section>
+<section class="panel" aria-labelledby="h-ses"><h2 id="h-ses">Esta conversación</h2><dl class="kv railkv"><dt>Sesión</dt><dd>${sessBadge(s)}</dd><dt>Atiende</dt><dd>${s.session === 'WAITING' ? 'Nadie todavía' : `${assignee(s)}${mine(s) ? ' (tú)' : ''}`}</dd><dt>Empezó</dt><dd>${s.session === 'WAITING' ? '—' : 'hoy 15:58'}</dd><dt>Cliente</dt><dd>${s.session === 'ACTIVE' ? (idle(s) ? `sin escribir desde hace ${dur(silentMin(s))}` : `escribió hace ${silentMin(s)} min`) : '—'}</dd><dt>Ventana</dt><dd>${winEff(s) === 'closed' ? 'cerrada' : `cierra en ${dur(closesIn(s))}`}</dd></dl>
+<p class="help">${ic('info', 'xs')} Si ${CF} no escribe en 2 h, la conversación se finaliza sola.</p></section>
+<section class="panel" aria-labelledby="h-cus"><div class="ph"><h2 id="h-cus">Cliente</h2><span class="badge success">De confianza</span></div><div style="display:flex;gap:12px;align-items:center"><span class="avatar" aria-hidden="true">MO</span><div style="min-width:0"><div class="name ell">${CUST}</div><div class="p2">${PHONE}</div></div></div>
+<table class="plain" aria-label="Pedidos recientes"><thead><tr><th scope="col" style="padding-left:0">Pedido</th><th scope="col" class="num">Total</th><th scope="col">Estado</th></tr></thead><tbody><tr><td style="padding-left:0"><b class="fig">V-1042</b></td><td class="num">$1,840.00</td><td>Entregado</td></tr><tr><td style="padding-left:0"><b class="fig">V-0988</b></td><td class="num">$965.50</td><td>Entregado</td></tr></tbody></table></section>`;
+
+setHTML($('#root'), shell(crumbs(), `<div id="h-head"></div><div class="scroll"><div class="dgrid"><div class="dmain">
+<section class="panel chatp" aria-labelledby="h-conv-t"><div id="h-chathead"></div><div id="h-banner"></div><div id="h-thread" class="thread scroll-t" tabindex="0" aria-label="Conversación"></div><div id="h-comp"></div></section>
+${OTHERS()}<div id="h-audit"></div></div><aside class="rail" aria-label="Acciones y datos" id="h-rail"></aside></div></div><div id="h-dlg"></div>`));
+HOSTS.head = s => `<header class="dhead"><button type="button" class="icon-btn" data-noop aria-label="Volver a Solicitudes">${ic('back')}</button><div class="t"><div class="meta">${reqBadge(s)}<span class="folio">S-000412</span><span>Queja</span><span>Creada hoy 15:42</span></div><h1>${SUBT[s.sub]} · ${CUST}</h1></div></header>`;
+HOSTS.chathead = s => `<div class="chat-h"><div><h2 id="h-conv-t">Conversación</h2><p class="p2">${CUST} · WhatsApp ${PHONE}</p></div><div class="chat-h-r">${sessBadge(s)}${winChip(s)}${staffActLine(s)}</div></div>`;
+HOSTS.banner = s => s.role === 'other-noconv' ? '' : bannerHTML(s, { fin: false });
+HOSTS.thread = s => s.role === 'other-noconv' ? `<div class="empty forbid">${ic('lock')}<h2>No tienes permiso para ver esta conversación</h2><p>La atiende ${OTHER}. Pide el permiso «Ver conversaciones del chatbot» para leerla.</p></div>` : threadHTML(s);
+HOSTS.comp = s => composerHTML(s);
+HOSTS.rail = railHTML;
+HOSTS.audit = auditHTML;
+HOSTS.dlg = s => {
+  if (!s.dlg) return '';
+  const fin = s.dlg === 'finish';
+  return `<div class="sheet-scrim" data-dlg-close></div><aside class="sheet" role="dialog" aria-modal="true" aria-labelledby="dlg-t"><div class="sheet-head"><div class="t"><div class="meta">${fin ? finishSub(s) : `Solicitud S-000412 · ${CUST}`}</div><h2 id="dlg-t">${fin ? 'Finalizar conversación' : `¿Enviar plantilla a ${CF}?`}</h2></div><button type="button" class="icon-btn" data-dlg-close aria-label="Cerrar">${ic('x')}</button></div>
+  <div class="sheet-body">${fin ? finishBody(s) : tplBody(s)}</div><div class="sheet-foot">${fin ? finishFoot(s) : tplFoot(s)}</div></aside>`;
+};
+mountTools('');
+paint();
+
+})();
+</script>
+</body>
+</html>

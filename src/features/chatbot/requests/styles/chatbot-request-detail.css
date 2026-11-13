@@ -525,6 +525,16 @@
   color: var(--hf-danger);
 }
 
+/* The staff member's own reply keeps its line breaks; it is text, never markup. */
+.chatbot-request-detail .rd-reply__text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.chatbot-request-detail .rd-reply__delivery {
+  margin: 8px 0 0;
+}
+
 /* ── Audit timeline ────────────────────────────────────────────────────────── */
 
 .chatbot-request-detail .rd-timeline {

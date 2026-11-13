@@ -51,13 +51,47 @@ const moreOpen = ref(false)
 const isBar = computed(() => props.variant === 'bar')
 const closed = computed(() => props.status === 'RESOLVED' || props.status === 'CANCELLED')
 
+/**
+ * What this version of the FE handles. Anything else the server lists (SEND_MESSAGE and
+ * SEND_TEMPLATE until the live chat, RESCHEDULE or a later action) is not rendered: a button with
+ * no handler would be a blank, enabled dead end.
+ */
+const HANDLED_ACTIONS: ReadonlySet<string> = new Set<ChatbotRequestAction>([
+  'CLAIM',
+  'RELEASE',
+  'REASSIGN',
+  'RESOLVE',
+  'REPLY',
+  'MERGE',
+  'LINK_CUSTOMER',
+  'CANCEL',
+  'FINISH',
+  'FINISH_IDLE',
+])
+
+const handledAllowed = computed(() => {
+  // FINISH and FINISH_IDLE open the same form: one «Finalizar» button, FINISH wins.
+  const finishToo = props.allowed.includes('FINISH')
+  return props.allowed.filter(
+    (action) => HANDLED_ACTIONS.has(action) && !(action === 'FINISH_IDLE' && finishToo),
+  )
+})
+const handledDenied = computed(() => props.denied.filter(({ action }) => HANDLED_ACTIONS.has(action)))
+
+// A clarification is answered with REPLY (also on a NEW one: replying claims and resolves in one step).
 const primary = computed<ChatbotRequestAction | null>(() =>
-  props.allowed.includes('CLAIM') ? 'CLAIM' : props.allowed.includes('RESOLVE') ? 'RESOLVE' : null,
+  handledAllowed.value.includes('REPLY')
+    ? 'REPLY'
+    : handledAllowed.value.includes('CLAIM')
+      ? 'CLAIM'
+      : handledAllowed.value.includes('RESOLVE')
+        ? 'RESOLVE'
+        : null,
 )
 
 const items = computed<ActionItem[]>(() => {
-  const claimToo = props.allowed.includes('CLAIM')
-  const allowedItems = props.allowed.map<ActionItem>((action) => ({
+  const claimToo = handledAllowed.value.includes('CLAIM')
+  const allowedItems = handledAllowed.value.map<ActionItem>((action) => ({
     action,
     label: action === 'RESOLVE' && claimToo ? 'Resolver sin tomarla…' : ACTION_LABELS[action],
     icon: ACTION_ICONS[action],
@@ -66,7 +100,7 @@ const items = computed<ActionItem[]>(() => {
   }))
   // The primary first; the rest keep the contract order.
   allowedItems.sort((a, b) => Number(b.primary) - Number(a.primary))
-  const deniedItems = props.denied.map<ActionItem>(({ action, code }) => ({
+  const deniedItems = handledDenied.value.map<ActionItem>(({ action, code }) => ({
     action,
     label: ACTION_LABELS[action],
     icon: ACTION_ICONS[action],
@@ -88,6 +122,14 @@ const holder = computed(() =>
 
 function reasonId(action: ChatbotRequestAction): string {
   return `${uid}-denied-${action}`
+}
+
+/** FINISH and FINISH_IDLE are one command: either button shows it working. */
+function isWorking(action: ChatbotRequestAction): boolean {
+  const pending = props.pendingAction
+  if (pending === null) return false
+  const finish = (value: ChatbotRequestAction) => value === 'FINISH' || value === 'FINISH_IDLE'
+  return pending === action || (finish(pending) && finish(action))
 }
 
 function trigger(item: ActionItem): void {
@@ -132,7 +174,7 @@ function trigger(item: ActionItem): void {
           :color="item.action === 'CANCEL' ? 'error' : item.primary ? 'primary' : 'neutral'"
           :variant="item.primary ? 'solid' : 'outline'"
           :disabled="item.reason !== null || pendingAction !== null"
-          :loading="pendingAction === item.action"
+          :loading="isWorking(item.action)"
           :aria-describedby="item.reason !== null ? reasonId(item.action) : undefined"
           block
           @click="trigger(item)"
@@ -166,7 +208,7 @@ function trigger(item: ActionItem): void {
         data-testid="bar-primary"
         color="primary"
         :disabled="pendingAction !== null"
-        :loading="pendingAction === primaryItem.action"
+        :loading="isWorking(primaryItem.action)"
         :icon="primaryItem.icon"
         :label="primaryItem.label"
         @click="trigger(primaryItem)"

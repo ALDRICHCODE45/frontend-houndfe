@@ -6,7 +6,7 @@
  */
 import { computed } from 'vue'
 import type { ChatbotRequestDetail } from '../interfaces/chatbot-request.types'
-import { cancelCauseLabel, formatWhen } from '../utils/requestLabels'
+import { cancelCauseLabel, complaintOutcomeLabel, formatWhen } from '../utils/requestLabels'
 
 const props = defineProps<{
   request: ChatbotRequestDetail
@@ -23,6 +23,7 @@ const resolver = computed(() => {
   if (!by) return null
   return by.id === props.currentUserId ? 'ti' : by.displayName
 })
+const outcome = computed(() => complaintOutcomeLabel(props.request.complaintOutcome))
 const cause = computed(() => (props.request.mergedInto ? null : cancelCauseLabel(props.request)))
 </script>
 
@@ -38,6 +39,7 @@ const cause = computed(() => (props.request.mergedInto ? null : cancelCauseLabel
     <div>
       <strong>{{ resolved ? 'Solicitud resuelta' : 'Solicitud cancelada' }}</strong>
       <span v-if="resolved && resolver">Resuelta por {{ resolver }}</span>
+      <span v-if="resolved && outcome" data-testid="complaint-outcome">Resultado de la queja: {{ outcome }}</span>
       <span v-if="cause">{{ cause }}</span>
       <span v-if="request.mergedInto">
         Fusionada en

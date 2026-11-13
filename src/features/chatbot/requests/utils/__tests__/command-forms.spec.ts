@@ -3,7 +3,15 @@ import {
   buildCancelBody,
   buildLinkBody,
   buildMergeBody,
+  buildFinishBody,
   buildReassignBody,
+  buildReplyBody,
+  emptyFinishDraft,
+  emptyReplyDraft,
+  validateFinish,
+  validateReply,
+  FINISH_NOTE_MAX,
+  REPLY_MAX,
   buildResolveBody,
   defaultResolveOption,
   emptyCancelDraft,
@@ -305,5 +313,64 @@ describe('resolve — a subtype with no resolve form', () => {
   it('builds nothing', () => {
     expect(buildResolveBody('UNKNOWN_QUESTION', emptyResolveDraft(), 1)).toBeNull()
     expect(validateResolve('UNKNOWN_QUESTION', emptyResolveDraft())).toEqual({})
+  })
+})
+
+describe('reply form (handoff 19 §1)', () => {
+  it('limits are 1–1500 characters after trimming', () => {
+    expect(REPLY_MAX).toBe(1500)
+    expect(validateReply({ text: '   ' })).toEqual({ text: 'Escribe la respuesta para el cliente.' })
+    expect(validateReply(emptyReplyDraft())).toEqual({ text: 'Escribe la respuesta para el cliente.' })
+    expect(validateReply({ text: 'a'.repeat(1500) })).toEqual({})
+    expect(validateReply({ text: ' ' + 'a'.repeat(1500) + ' ' })).toEqual({})
+    expect(validateReply({ text: 'a'.repeat(1501) })).toEqual({ text: 'Máximo 1500 caracteres.' })
+  })
+
+  it('counts an emoji as one character, like the backend', () => {
+    expect(validateReply({ text: '😀'.repeat(1500) })).toEqual({})
+  })
+
+  it('builds exactly {expectedVersion, text} with the text trimmed, line breaks kept', () => {
+    expect(buildReplyBody({ text: '  Hola\n\nGracias  ' }, 4)).toEqual({ expectedVersion: 4, text: 'Hola\n\nGracias' })
+  })
+})
+
+describe('finish form (handoff 20 §4)', () => {
+  it('the note is required, 1–1000, internal', () => {
+    expect(FINISH_NOTE_MAX).toBe(1000)
+    expect(validateFinish('UNKNOWN_QUESTION', emptyFinishDraft())).toEqual({ note: 'Escribe una nota interna.' })
+    expect(validateFinish('TALK_TO_HUMAN', { note: 'a'.repeat(1001), complaintOutcome: '' })).toEqual({
+      note: 'Máximo 1000 caracteres.',
+    })
+    expect(validateFinish('TALK_TO_HUMAN', { note: 'Listo', complaintOutcome: '' })).toEqual({})
+  })
+
+  it('a complaint also needs one of the four outcomes', () => {
+    expect(validateFinish('COMPLAINT', { note: 'Listo', complaintOutcome: '' })).toEqual({
+      complaintOutcome: 'Elige cómo terminó la queja.',
+    })
+    expect(validateFinish('COMPLAINT', { note: 'Listo', complaintOutcome: 'NOPE' })).toEqual({
+      complaintOutcome: 'Elige cómo terminó la queja.',
+    })
+    for (const outcome of ['RETURN', 'REPLACEMENT', 'REFUND', 'NO_ACTION']) {
+      expect(validateFinish('COMPLAINT', { note: 'Listo', complaintOutcome: outcome })).toEqual({})
+    }
+  })
+
+  it('sends complaintOutcome only for a complaint, even if one was picked before', () => {
+    expect(buildFinishBody('COMPLAINT', { note: ' Listo ', complaintOutcome: 'REFUND' }, 5)).toEqual({
+      expectedVersion: 5,
+      note: 'Listo',
+      complaintOutcome: 'REFUND',
+    })
+    expect(buildFinishBody('TALK_TO_HUMAN', { note: 'Listo', complaintOutcome: 'REFUND' }, 5)).toEqual({
+      expectedVersion: 5,
+      note: 'Listo',
+    })
+  })
+
+  it('returns null for an invalid draft', () => {
+    expect(buildFinishBody('COMPLAINT', { note: 'Listo', complaintOutcome: '' }, 5)).toBeNull()
+    expect(buildFinishBody('TALK_TO_HUMAN', { note: '  ', complaintOutcome: '' }, 5)).toBeNull()
   })
 })

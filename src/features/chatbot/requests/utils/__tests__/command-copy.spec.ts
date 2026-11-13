@@ -226,3 +226,67 @@ describe('commandSuccessToast — es-MX', () => {
     })
   })
 })
+
+describe('reply and finish copy (T7)', () => {
+  it('NOT_ASSIGNEE on a reply names the holder and says there is no override', () => {
+    const notice = commandNotice(
+      read(403, {
+        code: 'NOT_ASSIGNEE',
+        current: { version: 4, status: 'IN_PROGRESS', claimedBy: { id: 'u-2', displayName: 'Ana López' } },
+      }),
+      'REPLY',
+    )!
+    expect(notice.title).toBe('La atiende Ana López')
+    expect(notice.detail).toContain('Solo quien la atiende puede responder')
+    expect(notice.detail).not.toContain('permiso de reasignar')
+    expect(notice.actions).toEqual(['refresh'])
+  })
+
+  it('NOT_ASSIGNEE on another action keeps the reassign hint', () => {
+    expect(commandNotice(read(403, { code: 'NOT_ASSIGNEE' }), 'CANCEL')!.detail).toContain('permiso de reasignar')
+    expect(commandNotice(read(403, { code: 'NOT_ASSIGNEE' }))!.detail).toContain('permiso de reasignar')
+  })
+
+  it('a missing complaint outcome lands on its field, not in a notice', () => {
+    const error = read(422, {
+      code: 'COMPLAINT_OUTCOME_REQUIRED',
+      fieldErrors: [{ path: 'complaintOutcome', code: 'REQUIRED' }],
+    })
+    expect(commandFieldErrors(error)).toEqual({ complaintOutcome: 'Elige cómo terminó la queja.' })
+    expect(commandNotice(error, 'FINISH')).toBeNull()
+  })
+
+  it('a missing complaint outcome without fieldErrors still lands on the field', () => {
+    const error = read(422, { code: 'COMPLAINT_OUTCOME_REQUIRED' })
+    expect(commandFieldErrors(error)).toEqual({ complaintOutcome: 'Elige cómo terminó la queja.' })
+  })
+
+  it('400 field errors of text and note point at their fields', () => {
+    const error = read(400, {
+      code: 'VALIDATION_ERROR',
+      fieldErrors: [
+        { path: 'text', code: 'TOO_LONG' },
+        { path: 'note', code: 'REQUIRED' },
+      ],
+    })
+    expect(Object.keys(commandFieldErrors(error)).sort()).toEqual(['note', 'text'])
+  })
+
+  it('SESSION_NOT_ACTIVE and STALE_EPOCH refetch the request', () => {
+    expect(isStateChangingError(read(409, { code: 'SESSION_NOT_ACTIVE' }))).toBe(true)
+    expect(isStateChangingError(read(409, { code: 'STALE_EPOCH' }))).toBe(true)
+    expect(isStateChangingError(read(422, { code: 'COMPLAINT_OUTCOME_REQUIRED' }))).toBe(false)
+  })
+
+  it('success toasts', () => {
+    expect(commandSuccessToast('REPLY', { folio: 'S-000123' })).toEqual({
+      title: 'Respuesta enviada',
+      description: 'S-000123 quedó resuelta. El bot se la hará llegar al cliente.',
+    })
+    expect(commandSuccessToast('FINISH', { folio: 'S-000123' })).toEqual({
+      title: 'Conversación finalizada',
+      description: 'S-000123 quedó resuelta.',
+    })
+    expect(commandSuccessToast('FINISH_IDLE', { folio: 'S-000123' }).title).toBe('Conversación finalizada')
+  })
+})

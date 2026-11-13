@@ -1,0 +1,31 @@
+import { open, shot, BASE } from './lib.mjs'
+const w = Number(process.argv[2] ?? 1440)
+const { browser, page, log } = await open({ width: w, height: w < 500 ? 844 : 900 })
+const blocked = []
+await page.route(/:3003\/chatbot-settings/, (route) => route.request().method() !== 'GET' ? (blocked.push(route.request().method()), route.abort()) : route.continue())
+page.on('request', r => { if (r.method()!=='GET' && r.url().includes('3003')) blocked.push('attempt '+r.method()+' '+r.url()) })
+await page.goto(`${BASE}/sistema/atencion-chatbot`, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(3500)
+const sec = page.locator('section, [id*=window], [id*=ventana]').filter({ hasText: 'Ventana y plantilla' }).last()
+await sec.scrollIntoViewIfNeeded(); await page.waitForTimeout(500)
+console.log('SECTION:', (await sec.innerText()).replace(/\n+/g, ' | ').slice(0, 1500))
+await shot(page, `settings-window-template-${w}`)
+const inputs = await sec.locator('input, textarea').evaluateAll(a => a.map(e => ({ id: e.id, name: e.name, type: e.type, val: e.value, aria: e.getAttribute('aria-label'), min: e.min, max: e.max })))
+console.log(JSON.stringify(inputs))
+const secs = sec.locator('input:visible')
+// timeout field: the numeric one
+const num = page.locator('#cbs-start-timeout')
+const lang = page.locator('#cbs-template-language')
+console.log('num id', await num.getAttribute('id').catch(()=>null), 'lang id', await lang.getAttribute('id').catch(()=>null))
+const orig = { n: await num.inputValue(), l: await lang.inputValue() }
+console.log('orig', JSON.stringify(orig))
+await num.fill('29'); await num.blur(); await page.waitForTimeout(400)
+await lang.fill('ES'); await lang.blur(); await page.waitForTimeout(400)
+console.log('AFTER INVALID:', (await sec.innerText()).replace(/\n+/g, ' | ').slice(0, 1500))
+await shot(page, `settings-window-template-invalid-${w}`)
+console.log('save bar:', (await page.locator('body').innerText()).match(/(Guardar[^\n]*|Descartar[^\n]*|cambios sin guardar[^\n]*|Hay cambios[^\n]*)/g))
+await shot(page, `settings-savebar-${w}`)
+const disc = page.getByRole('button', { name: /Descartar cambios/ }).first()
+if (await disc.count()) { await disc.click(); await page.waitForTimeout(800); const conf = page.getByRole('button', { name: /Descartar|Sí|Confirmar/ }); console.log('discard buttons', await conf.allInnerTexts()) }
+console.log('values after discard', await num.inputValue(), await lang.inputValue())
+console.log('BLOCKED', blocked, 'CONSOLE', log.console, log.failed)
+await browser.close()

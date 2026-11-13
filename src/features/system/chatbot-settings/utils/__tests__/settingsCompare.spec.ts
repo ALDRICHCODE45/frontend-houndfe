@@ -38,5 +38,7 @@ describe('describeValue', () => {
     expect(describeValue(s, 's:TALK_TO_HUMAN')).toBe('atender 10 min, resolver Sin plazo')
     expect(describeValue(s, 'x:windowWarningMinutes')).toBe('2 h')
     expect(describeValue(s, 'x:templateName')).toBe('Sin configurar')
+    expect(describeValue(s, 'x:startTimeoutSeconds')).toBe('120 segundos')
+    expect(describeValue(s, 'x:templateLanguageCode')).toBe('es_MX')
   })
 })
