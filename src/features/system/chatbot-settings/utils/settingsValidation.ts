@@ -2,7 +2,7 @@
  * Client mirror of the server rules (handoff 16 §3-§4). The server answers `400 VALIDATION_ERROR`
  * without saying which field, so everything is checked here first. Keys:
  * `h:<DAY>` `h:week` `h:tz` · `d:list` · `r:<DATE>` · `s:<SUBTYPE>:claim|resolve` · `x:margin` `x:window`
- * `x:template` `x:templateCost` · `c:slot` `c:offered` `c:max`.
+ * `x:template` `x:templateCost` `x:startTimeout` `x:templateLanguage` · `c:slot` `c:offered` `c:max`.
  */
 import type { ChatbotOpeningRange, ChatbotSettings } from '../interfaces/chatbot-settings.types'
 import { MAX_RANGES_PER_DAY } from './settingsLabels'
@@ -14,6 +14,11 @@ export const MAX_CLOSED_DATES = 400
 export const MAX_REASON_LENGTH = 80
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
 const TEMPLATE = /^[a-z0-9_]{1,512}$/
+/** `xx` or `xx_YY`: lowercase language, uppercase country (handoff 16 §4). */
+const LANGUAGE = /^[a-z]{2}(_[A-Z]{2})?$/
+
+export const START_TIMEOUT_TEXT = 'Entre 30 y 600 segundos.'
+export const TEMPLATE_LANGUAGE_TEXT = 'Usa el formato es o es_MX: idioma en minúsculas y país en mayúsculas.'
 
 const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5))
 
@@ -89,6 +94,10 @@ export function validateSettings(settings: ChatbotSettings): SettingsErrors {
   if (!inRange(settings.windowWarningMinutes, 0, 1440)) errors['x:window'] = span
   if (settings.templateName !== null && !TEMPLATE.test(settings.templateName)) {
     errors['x:template'] = 'Solo minúsculas, números y guion bajo (_), hasta 512 caracteres.'
+  }
+  if (!inRange(settings.startTimeoutSeconds, 30, 600)) errors['x:startTimeout'] = START_TIMEOUT_TEXT
+  if (typeof settings.templateLanguageCode !== 'string' || !LANGUAGE.test(settings.templateLanguageCode)) {
+    errors['x:templateLanguage'] = TEMPLATE_LANGUAGE_TEXT
   }
   const cost = settings.templateCostText.length
   if (cost < 1 || cost > 200) errors['x:templateCost'] = 'Escribe un texto de 1 a 200 caracteres.'

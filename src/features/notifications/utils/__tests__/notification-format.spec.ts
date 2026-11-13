@@ -45,6 +45,30 @@ describe('notificationMeta (text label, icon and tone per type)', () => {
     expect(meta.icon).toMatch(/^i-lucide-/)
   })
 
+  it('live-chat notices: customer message and unanswered per level', () => {
+    expect(notificationMeta('CONVERSATION_CUSTOMER_MESSAGE')).toMatchObject({
+      label: 'Nuevo mensaje del cliente',
+      tone: 'info',
+      icon: 'i-lucide-message-circle',
+    })
+    expect(notificationMeta('CONVERSATION_UNANSWERED', 5)).toMatchObject({
+      label: 'Cliente sin respuesta · 5 min',
+      tone: 'warning',
+    })
+    expect(notificationMeta('CONVERSATION_UNANSWERED', 15)).toMatchObject({
+      label: 'Cliente sin respuesta · 15 min',
+      tone: 'danger',
+    })
+    // no level (or one this client does not know): still the type, never a wrong minute count
+    expect(notificationMeta('CONVERSATION_UNANSWERED').label).toBe('Cliente sin respuesta')
+    expect(notificationMeta('CONVERSATION_UNANSWERED', 7).label).toBe('Cliente sin respuesta')
+    expect(notificationMeta('CONVERSATION_UNANSWERED', 15).icon).toMatch(/^i-lucide-/)
+  })
+
+  it('a level on a type that has none is ignored', () => {
+    expect(notificationMeta('REQUEST_OVERDUE', 5).label).toBe('Vencida')
+  })
+
   it('falls back to a neutral «Aviso» for a type it has never seen', () => {
     expect(notificationMeta('SOMETHING_NEW')).toMatchObject({ label: 'Aviso', tone: 'neutral' })
   })

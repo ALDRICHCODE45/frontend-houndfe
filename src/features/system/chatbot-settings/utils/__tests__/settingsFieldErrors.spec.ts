@@ -35,6 +35,9 @@ describe('mapFieldErrors', () => {
     ['windowWarningMinutes', 'INVALID_TYPE', 'x:window'],
     ['templateName', 'INVALID_TEMPLATE_NAME', 'x:template'],
     ['templateCostText', 'INVALID_LENGTH', 'x:templateCost'],
+    ['startTimeoutSeconds', 'OUT_OF_RANGE', 'x:startTimeout'],
+    ['startTimeoutSeconds', 'INVALID_TYPE', 'x:startTimeout'],
+    ['templateLanguageCode', 'INVALID_LANGUAGE_CODE', 'x:templateLanguage'],
     ['scheduling.slotMinutes', 'OUT_OF_RANGE', 'c:slot'],
     ['scheduling.slotsOffered', 'OUT_OF_RANGE', 'c:offered'],
     ['scheduling.maxScheduledPerSlot', 'OUT_OF_RANGE', 'c:max'],
@@ -84,6 +87,13 @@ describe('mapFieldErrors', () => {
   it('uses the limit of the field for OUT_OF_RANGE', () => {
     expect(run([{ path: 'scheduling.slotMinutes', code: 'OUT_OF_RANGE' }]).errors['c:slot']).toBe('Entre 5 y 240 minutos.')
     expect(run([{ path: 'windowWarningMinutes', code: 'OUT_OF_RANGE' }]).errors['x:window']).toBe('Usa un valor entre 0 min y 24 h.')
+  })
+
+  it('says the limit of the timeout and the format of the language', () => {
+    expect(run([{ path: 'startTimeoutSeconds', code: 'OUT_OF_RANGE' }]).errors['x:startTimeout']).toBe('Entre 30 y 600 segundos.')
+    expect(run([{ path: 'templateLanguageCode', code: 'INVALID_LANGUAGE_CODE' }]).errors['x:templateLanguage']).toBe(
+      'Usa el formato es o es_MX: idioma en minúsculas y país en mayúsculas.',
+    )
   })
 
   it('has no first key and no errors for an empty list', () => {

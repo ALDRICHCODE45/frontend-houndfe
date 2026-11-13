@@ -1,14 +1,17 @@
 <script setup lang="ts">
 /**
- * ExtrasSection — «Ventana y plantilla» (design 01): WhatsApp window warning, template name and the cost
- * text. The window warning drives the inbox filter «Ventana por cerrar» (0 turns it off); the template is
- * still stored only and marked «Aún sin efecto» (the send-template command comes later). Template and cost
- * are per branch: «Aplicar a todas» does not copy them.
+ * ExtrasSection — «Ventana y plantilla» (design 01): WhatsApp window warning, template name and language,
+ * the cost text and the start timeout of a live conversation. The window warning drives the inbox filter
+ * «Ventana por cerrar» (0 turns it off); the template is still stored only and marked «Aún sin efecto» (the
+ * send-template button comes later). The language (`xx` or `xx_YY`) is the paid template's. The timeout
+ * (30 to 600 s) is how long a claim waits for the bot to confirm; a change applies to the next claim only.
+ * Template, its language, the cost and the timeout are per branch: «Aplicar a todas» does not copy them.
  */
 import type { ChatbotSettings } from '../interfaces/chatbot-settings.types'
 import type { SettingsErrors } from '../utils/settingsValidation'
 import { formatDuration } from '../utils/settingsUnits'
 import DurationField from './DurationField.vue'
+import NumberField from './NumberField.vue'
 import PendingBadge from './PendingBadge.vue'
 
 defineProps<{
@@ -20,6 +23,8 @@ const emit = defineEmits<{
   'set-window': [value: number]
   'set-template-name': [value: string | null]
   'set-template-cost': [value: string]
+  'set-template-language': [value: string]
+  'set-start-timeout': [value: number]
 }>()
 </script>
 
@@ -80,6 +85,66 @@ const emit = defineEmits<{
         </span>
       </div>
 
+      <div class="cbs-field">
+        <label class="cbs-label" for="cbs-template-language">Idioma de la plantilla</label>
+        <span v-if="readonly" class="cbs-readonly cbs-mono" data-testid="template-language-readonly">
+          {{ draft.templateLanguageCode }}
+        </span>
+        <input
+          v-else
+          id="cbs-template-language"
+          class="cbs-input cbs-mono"
+          :value="draft.templateLanguageCode"
+          placeholder="es_MX"
+          autocomplete="off"
+          spellcheck="false"
+          :aria-invalid="errors['x:templateLanguage'] ? 'true' : undefined"
+          aria-describedby="cbs-template-language-help cbs-template-language-error"
+          data-testid="template-language-input"
+          @input="emit('set-template-language', ($event.target as HTMLInputElement).value)"
+        />
+        <span id="cbs-template-language-help" class="cbs-help">
+          Idioma en el que está aprobada la plantilla: es o es_MX, en minúsculas y con el país en mayúsculas.
+        </span>
+        <span
+          v-if="errors['x:templateLanguage']"
+          id="cbs-template-language-error"
+          class="cbs-error"
+          role="alert"
+          data-testid="template-language-error"
+        >
+          {{ errors['x:templateLanguage'] }}
+        </span>
+      </div>
+
+      <div class="cbs-field">
+        <label class="cbs-label" for="cbs-start-timeout">Espera al tomar una conversación en vivo (segundos)</label>
+        <span v-if="readonly" class="cbs-readonly cbs-figure" data-testid="start-timeout-readonly">
+          {{ draft.startTimeoutSeconds }} s
+        </span>
+        <NumberField
+          v-else
+          id="cbs-start-timeout"
+          :model-value="draft.startTimeoutSeconds"
+          label="Espera al tomar una conversación en vivo, en segundos"
+          :invalid="!!errors['x:startTimeout']"
+          describedby="cbs-start-timeout-help cbs-start-timeout-error"
+          @update:model-value="emit('set-start-timeout', $event)"
+        />
+        <span id="cbs-start-timeout-help" class="cbs-help">
+          Segundos (de 30 a 600) que espera el chatbot para confirmar que dejó de responder cuando alguien toma una conversación en vivo. Un cambio aplica a la siguiente toma, no a una ya iniciada.
+        </span>
+        <span
+          v-if="errors['x:startTimeout']"
+          id="cbs-start-timeout-error"
+          class="cbs-error"
+          role="alert"
+          data-testid="start-timeout-error"
+        >
+          {{ errors['x:startTimeout'] }}
+        </span>
+      </div>
+
       <div class="cbs-field cbs-field--wide">
         <label class="cbs-label" for="cbs-cost">Texto de costo al enviar una plantilla</label>
         <span v-if="readonly" class="cbs-readonly" data-testid="cost-readonly">{{ draft.templateCostText }}</span>
@@ -105,7 +170,7 @@ const emit = defineEmits<{
     </div>
     <p class="cbs-help cbs-foot">
       <UIcon name="i-lucide-info" class="size-3.5" aria-hidden="true" />
-      La plantilla y su texto de costo son por sucursal: «Aplicar a todas» no los copia.
+      Son por sucursal: «Aplicar a todas» no copia la plantilla, su idioma, el texto de costo ni el tiempo de espera.
     </p>
   </div>
 </template>

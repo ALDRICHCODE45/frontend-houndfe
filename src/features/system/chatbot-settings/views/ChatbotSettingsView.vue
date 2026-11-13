@@ -318,6 +318,8 @@ const applyBusy = computed(() => apply.step.value !== 'closed')
               @set-window="(value) => editor.edit((d) => (d.windowWarningMinutes = value))"
               @set-template-name="(value) => editor.edit((d) => (d.templateName = value))"
               @set-template-cost="(value) => editor.edit((d) => (d.templateCostText = value))"
+              @set-template-language="(value) => editor.edit((d) => (d.templateLanguageCode = value))"
+              @set-start-timeout="(value) => editor.edit((d) => (d.startTimeoutSeconds = value))"
             />
           </SettingsSection>
 

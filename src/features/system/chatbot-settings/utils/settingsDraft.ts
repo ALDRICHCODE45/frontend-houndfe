@@ -99,6 +99,8 @@ export function diffItems(a: ChatbotSettings, b: ChatbotSettings): DiffItem[] {
     ['windowWarningMinutes', 'Aviso de ventana', 'extras'],
     ['templateName', 'Nombre de plantilla', 'extras'],
     ['templateCostText', 'Texto de costo', 'extras'],
+    ['templateLanguageCode', 'Idioma de la plantilla', 'extras'],
+    ['startTimeoutSeconds', 'Espera al tomar una conversación', 'extras'],
   ]
   for (const [field, label, sec] of scalars) {
     if (!Object.is(a[field], b[field])) out.push({ sec, key: `x:${field}`, label })
@@ -250,6 +252,8 @@ export function rebaseDraft(base: ChatbotSettings, mine: ChatbotSettings, theirs
     else if (changed === 'x:windowWarningMinutes') out.windowWarningMinutes = mine.windowWarningMinutes
     else if (changed === 'x:templateName') out.templateName = mine.templateName
     else if (changed === 'x:templateCostText') out.templateCostText = mine.templateCostText
+    else if (changed === 'x:templateLanguageCode') out.templateLanguageCode = mine.templateLanguageCode
+    else if (changed === 'x:startTimeoutSeconds') out.startTimeoutSeconds = mine.startTimeoutSeconds
   }
   return out
 }

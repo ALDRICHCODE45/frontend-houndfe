@@ -22,6 +22,22 @@ describe('NotificationRow', () => {
     expect(mountRow({ type }).get('[data-testid="notification-type"]').text()).toBe(label)
   })
 
+  it('live-chat notices carry their label; the unanswered one says the minutes from its level', () => {
+    expect(mountRow({ type: 'CONVERSATION_CUSTOMER_MESSAGE' }).get('[data-testid="notification-type"]').text()).toBe(
+      'Nuevo mensaje del cliente',
+    )
+    expect(mountRow({ type: 'CONVERSATION_UNANSWERED', level: 5 }).get('[data-testid="notification-type"]').text()).toBe(
+      'Cliente sin respuesta · 5 min',
+    )
+    expect(mountRow({ type: 'CONVERSATION_UNANSWERED', level: 15 }).get('[data-testid="notification-type"]').text()).toBe(
+      'Cliente sin respuesta · 15 min',
+    )
+  })
+
+  it('an unknown type still reads «Aviso»', () => {
+    expect(mountRow({ type: 'SOMETHING_NEW' }).get('[data-testid="notification-type"]').text()).toBe('Aviso')
+  })
+
   it('shows the server title, the body and the relative time', () => {
     const wrapper = mountRow({ title: 'Solicitud vencida', body: 'Zona de entrega · S-000118' })
     expect(wrapper.text()).toContain('Solicitud vencida')

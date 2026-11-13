@@ -10,6 +10,8 @@ const FIXED: Record<string, { label: string; id: string }> = {
   'x:margin': { label: 'Margen de comprobantes', id: 'cbs-margin' },
   'x:template': { label: 'Plantilla', id: 'cbs-template' },
   'x:templateCost': { label: 'Texto de costo', id: 'cbs-cost' },
+  'x:templateLanguage': { label: 'Idioma de la plantilla', id: 'cbs-template-language' },
+  'x:startTimeout': { label: 'Espera al tomar una conversación', id: 'cbs-start-timeout' },
   'c:slot': { label: 'Duración de cada horario', id: 'cbs-slot' },
   'c:offered': { label: 'Horarios que se ofrecen', id: 'cbs-offered' },
   'c:max': { label: 'Máximo por horario', id: 'cbs-max' },

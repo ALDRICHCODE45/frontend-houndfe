@@ -76,6 +76,9 @@ export const chatbotSettingsSchema = z
     templateCostText: z.string(),
     enabledSubtypes: z.array(subtypeSchema),
     receiptCloseMarginMinutes: z.number(),
+    // Unit 11 (handoff 16): always present from the backend that ships live conversations; defaulted so an older body still loads.
+    startTimeoutSeconds: z.number().default(120),
+    templateLanguageCode: z.string().default('es_MX'),
     scheduling: schedulingSchema,
     branchOpeningHours: openingHoursSchema.nullable(),
     updatedBy: updatedBySchema.nullable().default(null),
@@ -140,6 +143,10 @@ export interface ChatbotSettings {
   /** Stored only; this screen never edits it and sends it back untouched. */
   enabledSubtypes: ChatbotSettingsSubtype[]
   receiptCloseMarginMinutes: number
+  /** Whole seconds, 30 to 600 (default 120): how long a claim of a live conversation waits for the bot to confirm. Applies to the next claim only. */
+  startTimeoutSeconds: number
+  /** `xx` or `xx_YY` (default `es_MX`): language of the paid WhatsApp template. */
+  templateLanguageCode: string
   scheduling: ChatbotScheduling
   /** Read-only: pickup hours of the same branch, `null` when it has none. */
   branchOpeningHours: ChatbotOpeningHours | null
@@ -175,6 +182,8 @@ export interface ChatbotSettingsPutBody {
   templateCostText: string
   enabledSubtypes: ChatbotSettingsSubtype[]
   receiptCloseMarginMinutes: number
+  startTimeoutSeconds: number
+  templateLanguageCode: string
   scheduling: ChatbotScheduling
   branchOpeningHours?: ChatbotOpeningHours
   [unknownKey: string]: unknown

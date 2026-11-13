@@ -26,7 +26,7 @@ import {
 const props = defineProps<{ item: NotificationItem; now: Date }>()
 const emit = defineEmits<{ open: [item: NotificationItem]; mark: [item: NotificationItem] }>()
 
-const meta = computed(() => notificationMeta(props.item.type))
+const meta = computed(() => notificationMeta(props.item.type, props.item.level))
 const ref = computed(() => notificationRef(props.item))
 const reasonLabel = computed(() => notificationReasonLabel(props.item))
 const causeText = computed(() => notificationCauseText(props.item))

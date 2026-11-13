@@ -116,6 +116,8 @@ describe('diffItems', () => {
     b.receiptCloseMarginMinutes = 30
     b.windowWarningMinutes = 60
     b.templateName = 'x'
+    b.startTimeoutSeconds = 90
+    b.templateLanguageCode = 'en_US'
     b.scheduling.enabled = true
     b.openingHours.timeZone = 'America/Tijuana'
     const keys = diffItems(a, b).map((item) => `${item.sec}:${item.key}`)
@@ -128,10 +130,12 @@ describe('diffItems', () => {
         'sla:x:receiptCloseMarginMinutes',
         'extras:x:windowWarningMinutes',
         'extras:x:templateName',
+        'extras:x:startTimeoutSeconds',
+        'extras:x:templateLanguageCode',
         'sched:sched',
       ]),
     )
-    expect(keys).toHaveLength(8)
+    expect(keys).toHaveLength(10)
   })
 
   it('does not count read-only fields (version, branchOpeningHours, enabledSubtypes)', () => {
@@ -238,6 +242,29 @@ describe('closed date reasons', () => {
     expect(diffItems(a, b).map((i) => i.key)).toEqual(['dates'])
     b.closedDateReasons = {}
     expect(diffItems(a, b).map((i) => i.key)).toEqual(['dates'])
+  })
+
+  it('the PUT keeps round-tripping the timeout and the language', () => {
+    const body = toPutBody(settingsFixture({ startTimeoutSeconds: 90, templateLanguageCode: 'en_US' }), 3)
+    expect(body.startTimeoutSeconds).toBe(90)
+    expect(body.templateLanguageCode).toBe('en_US')
+  })
+
+  it('rebase merges the timeout and the language field by field', () => {
+    const base = settingsFixture()
+    const mine = clone(base)
+    mine.startTimeoutSeconds = 45
+    const theirs = settingsFixture({ version: 4, templateLanguageCode: 'es' })
+    const out = rebaseDraft(base, mine, theirs)
+    expect(out.startTimeoutSeconds).toBe(45)
+    expect(out.templateLanguageCode).toBe('es')
+
+    const mine2 = clone(base)
+    mine2.templateLanguageCode = 'en_US'
+    const theirs2 = settingsFixture({ version: 4, startTimeoutSeconds: 300 })
+    const out2 = rebaseDraft(base, mine2, theirs2)
+    expect(out2.templateLanguageCode).toBe('en_US')
+    expect(out2.startTimeoutSeconds).toBe(300)
   })
 
   it('rebase keeps my dates and my reasons on top of their version', () => {

@@ -45,5 +45,7 @@ export function describeValue(settings: ChatbotSettings, changed: string): strin
   if (changed === 'x:windowWarningMinutes') return formatDuration(settings.windowWarningMinutes)
   if (changed === 'x:templateName') return settings.templateName ?? 'Sin configurar'
   if (changed === 'x:templateCostText') return `«${settings.templateCostText}»`
+  if (changed === 'x:templateLanguageCode') return settings.templateLanguageCode
+  if (changed === 'x:startTimeoutSeconds') return `${settings.startTimeoutSeconds} segundos`
   return ''
 }

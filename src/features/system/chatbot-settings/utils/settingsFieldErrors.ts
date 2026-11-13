@@ -9,7 +9,13 @@
 import type { ChatbotSettingsPutBody } from '../interfaces/chatbot-settings.types'
 import type { SettingsFieldError } from './settingsErrors'
 import { MAX_RANGES_PER_DAY } from './settingsLabels'
-import { MAX_CLOSED_DATES, MAX_REASON_LENGTH, type SettingsErrors } from './settingsValidation'
+import {
+  MAX_CLOSED_DATES,
+  MAX_REASON_LENGTH,
+  START_TIMEOUT_TEXT,
+  TEMPLATE_LANGUAGE_TEXT,
+  type SettingsErrors,
+} from './settingsValidation'
 
 const SCALAR_KEYS: Record<string, string> = {
   'openingHours.timeZone': 'h:tz',
@@ -18,6 +24,8 @@ const SCALAR_KEYS: Record<string, string> = {
   receiptCloseMarginMinutes: 'x:margin',
   templateName: 'x:template',
   templateCostText: 'x:templateCost',
+  startTimeoutSeconds: 'x:startTimeout',
+  templateLanguageCode: 'x:templateLanguage',
   'scheduling.slotMinutes': 'c:slot',
   'scheduling.slotsOffered': 'c:offered',
   'scheduling.maxScheduledPerSlot': 'c:max',
@@ -27,6 +35,7 @@ const SCALAR_KEYS: Record<string, string> = {
 const RANGE_TEXT: Record<string, string> = {
   'x:window': 'Usa un valor entre 0 min y 24 h.',
   'x:margin': 'Usa un valor entre 0 min y 24 h.',
+  'x:startTimeout': START_TIMEOUT_TEXT,
   'c:slot': 'Entre 5 y 240 minutos.',
   'c:offered': 'Entre 1 y 10 horarios.',
   'c:max': 'Entre 1 y 50 conversaciones.',
@@ -45,6 +54,7 @@ const MESSAGES: Record<string, string> = {
   INVALID_VALUE: 'Elige un valor permitido.',
   UNKNOWN_FIELD: 'Este campo no se acepta.',
   INVALID_TEXT: 'Escribe solo texto, sin caracteres especiales.',
+  INVALID_LANGUAGE_CODE: TEMPLATE_LANGUAGE_TEXT,
   INVALID_TEMPLATE_NAME: 'Solo minúsculas, números y guion bajo (_), hasta 512 caracteres.',
   INVALID_TIME: 'Usa una hora válida (de 00:00 a 23:59).',
   CROSSES_MIDNIGHT: 'Un horario no puede cruzar la medianoche. Divídelo entre dos días.',

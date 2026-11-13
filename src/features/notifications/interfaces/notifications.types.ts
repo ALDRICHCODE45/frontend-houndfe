@@ -14,6 +14,8 @@ export type NotificationType =
   | 'REQUEST_CLAIM_REMINDER'
   | 'REQUEST_ESCALATION'
   | 'REQUEST_OVERDUE'
+  | 'CONVERSATION_CUSTOMER_MESSAGE'
+  | 'CONVERSATION_UNANSWERED'
 
 /** Close causes of a REQUEST_CANCELLED notice (13 §2). A future cause still renders (no cause line). */
 export type NotificationCause =
@@ -50,6 +52,8 @@ export interface NotificationItem {
   reason?: NotificationReason | null
   /** The linked request is NEW / IN_PROGRESS at the moment of the read; `null` without a request. */
   requestOpen?: boolean | null
+  /** Only on CONVERSATION_UNANSWERED (handoff 20 §T11d): minutes the customer has waited, 5 or 15. Absent → the label has no minutes. */
+  level?: number | null
 }
 
 export interface NotificationsPage {

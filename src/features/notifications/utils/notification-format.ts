@@ -25,11 +25,21 @@ const TYPE_META: Record<string, NotificationMeta> = {
   REQUEST_CLAIM_REMINDER: { icon: 'i-lucide-clock', tone: 'warning', label: 'Sin tomar' },
   REQUEST_ESCALATION: { icon: 'i-lucide-triangle-alert', tone: 'warning', label: 'Por vencer' },
   REQUEST_OVERDUE: { icon: 'i-lucide-triangle-alert', tone: 'danger', label: 'Vencida' },
+  CONVERSATION_CUSTOMER_MESSAGE: { icon: 'i-lucide-message-circle', tone: 'info', label: 'Nuevo mensaje del cliente' },
+  CONVERSATION_UNANSWERED: { icon: 'i-lucide-message-circle-warning', tone: 'warning', label: 'Cliente sin respuesta' },
+}
+
+/** Live-conversation notices (handoff 20): the unanswered one names its minutes from `level`. */
+const UNANSWERED_LEVELS: Record<number, NotificationMeta> = {
+  5: { icon: 'i-lucide-message-circle-warning', tone: 'warning', label: 'Cliente sin respuesta · 5 min' },
+  15: { icon: 'i-lucide-message-circle-warning', tone: 'danger', label: 'Cliente sin respuesta · 15 min' },
 }
 
 const FALLBACK_META: NotificationMeta = { icon: 'i-lucide-bell', tone: 'neutral', label: 'Aviso' }
 
-export function notificationMeta(type: string): NotificationMeta {
+/** `level` only matters for CONVERSATION_UNANSWERED; an unknown level keeps the plain label (never a wrong minute count). */
+export function notificationMeta(type: string, level?: number | null): NotificationMeta {
+  if (type === 'CONVERSATION_UNANSWERED' && level != null && UNANSWERED_LEVELS[level]) return UNANSWERED_LEVELS[level]!
   return TYPE_META[type] ?? FALLBACK_META
 }
 
