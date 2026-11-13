@@ -57,6 +57,12 @@ beforeEach(() => {
 })
 
 describe('RequestDetailConversation — states', () => {
+  it('no longer promises that replying «llegará más adelante»', () => {
+    const text = mountBlock().text()
+    expect(text).not.toContain('más adelante')
+    expect(text).toContain('Solo lectura')
+  })
+
   it('reads the conversation of the given request', () => {
     mountBlock()
     expect((convo.ids[0] as () => string)()).toBe('req-1')

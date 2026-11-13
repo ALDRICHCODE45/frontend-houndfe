@@ -1,0 +1,2 @@
+# T9 live check (dev :3003 at ff5baa0d, centro, manager@) — 2026-11-12/13
+Driven with Playwright (node scripts s*.mjs + lib.mjs here; the Playwright MCP was not reachable from this agent). Screenshots in shots/ (git-excluded dir may apply). All non-GET chatbot calls were aborted client-side; nothing was sent. Notices CONVERSATION_* and windowClosingSoon variants were checked with browser-side mocked responses (s7.mjs), labelled MOCK.
