@@ -1,0 +1,4 @@
+# T10 / T5L live check (dev :3003 at 5b549e18, centro, manager@) — 2026-11-12/13
+Playwright scripts: c1 inbox, c2/c3 detail + reschedule at 1440/390, c4 live chat (MOCK), c5 regression, c6 settings badges + design reference renders. m0.mjs was a one-off probe (superseded). lib.mjs reuses chatbot-t9/lib.mjs login and aborts every non-GET to :3003 (the `blocked` log stayed empty in every run). Nothing was claimed, sent, uploaded, rescheduled, finished or cancelled.
+Live chat (c4 + mock-live.mjs) is MOCK: detail/conversation GETs and POST /messages|/template are fulfilled in the browser from the real S-000018 detail patched to IN_PROGRESS + liveSession assigned to the logged-in user (allowedActions chosen by the mock, so «Liberar» showing is a mock artefact).
+Run: `node cN.mjs 1440|390 [scenario: ok failed network closed starting waiting ended ending]`. Screenshots in shots/.
