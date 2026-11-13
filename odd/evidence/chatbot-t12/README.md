@@ -1,0 +1,3 @@
+# T12 browser check (dev :3003, centro, manager@, Vite on :5199 started and stopped for the run) — 2026-11-13
+Reuses T11 → T10 → T9 (login with the password read from the BE seed at runtime; global abort of every non-GET to :3003, `blocked` empty in every run). Nothing was sent, saved, claimed, templated or rescheduled.
+Scripts: a1 (S-000025/26/22 banners + «Agendadas» markers, `node a1.mjs 1440|390`), a2 (MOCK live template cost: `node a2.mjs <w> detail|null|nullset|real`), a3 (clarification S-000004 + S-000018 regression). lib.mjs adds `installLiveMockWithCost` (browser-side override of detail.templateCostText on top of chatbot-t10 mock-live.mjs; `nullset` also fulfils GET /chatbot-settings in the browser with a distinct text). Logs *.log, screenshots in shots/.
