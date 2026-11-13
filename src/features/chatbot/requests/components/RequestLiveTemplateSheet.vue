@@ -20,6 +20,7 @@ const emit = defineEmits<{ 'update:open': [value: boolean]; confirm: [] }>()
 <template>
   <RequestCommandSheet
     :open="open"
+    short
     title="¿Enviar plantilla al cliente?"
     description="La ventana de 24 h está cerrada"
     @update:open="emit('update:open', $event)"

@@ -130,6 +130,11 @@
   padding: 12px;
 }
 
+/* Window closed: the blocked box is taller than the composer, so the thread gives up height to keep «Enviar plantilla» in view. */
+.chatbot-request-detail .rc--live.rc--blocked .rc-log {
+  height: clamp(12rem, calc(100dvh - 40rem), 22rem);
+}
+
 /* Design A: the live chat is the first panel of the main column, above the customer cards, so the
  * composer sits in the first screen. `order` keeps the DOM (and the draft) where it is. */
 .chatbot-request-detail .rd-main > .rc--live {

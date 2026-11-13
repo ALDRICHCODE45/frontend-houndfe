@@ -1,0 +1,25 @@
+// T11 items 1, 2, 4 at 390: mobile bar (Atender + reason), actions sheet, reschedule sheet picked. Nothing is confirmed.
+import { open, shot, BASE, blocked, IDS, settle, iconSizes } from './lib.mjs'
+const { browser, page, log } = await open({ width: 390, height: 844 })
+for (const key of ['s20', 's21', 's22']) {
+  await page.goto(`${BASE}/chatbot/solicitudes/${IDS[key]}`, { waitUntil: 'domcontentloaded' }); await settle(page, 1800)
+  console.log(`\n=== ${key} @390 overflow-x:`, await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth))
+  const bar = await page.getByText(/Disponible desde/).evaluateAll((els) => els.filter((e) => e.getBoundingClientRect().width > 0).map((e) => { const b = e.getBoundingClientRect(); const btn = [...document.querySelectorAll('button')].find((x) => /^Atender$/.test(x.innerText.trim()) && x.getBoundingClientRect().width > 0)?.getBoundingClientRect(); return { t: e.innerText.trim(), fs: getComputedStyle(e).fontSize, top: Math.round(b.top), left: Math.round(b.left), atenderBottom: btn && Math.round(btn.bottom), atenderTop: btn && Math.round(btn.top), vh: innerHeight } }))
+  console.log('BAR reason vs button', JSON.stringify(bar))
+  await shot(page, `d2-${key}-detail-390`); await shot(page, `d2-${key}-detail-390-full`, true)
+  await page.getByTestId('bar-more').click(); await page.waitForTimeout(800)
+  await shot(page, `d2-${key}-actions-390`)
+    console.log('BAR LIST', (await page.getByTestId('mobile-action-bar').innerText()).replace(/\n+/g, ' | '))
+  await page.getByRole('button', { name: 'Reagendar…', exact: true }).last().click(); await settle(page, 1800)
+  await shot(page, `d2-${key}-resched-390`)
+  const radios = page.getByRole('radio'); const n = await radios.count()
+  await radios.nth(n - 1).click({ force: true }); await page.waitForTimeout(500)
+  await page.locator('[data-testid=reschedule-notice]').scrollIntoViewIfNeeded()
+  await shot(page, `d2-${key}-resched-picked-390`)
+  console.log('NOTICE', await page.locator('[data-testid=reschedule-notice]').evaluate((e) => { const cs = getComputedStyle(e); const ic = e.querySelector('svg, [class*=i-]')?.getBoundingClientRect(); return { cls: e.className, t: e.innerText.trim().replace(/\s+/g, ' '), bg: cs.backgroundColor, color: cs.color, icon: ic && [ic.width, ic.height, Math.round(ic.top - e.getBoundingClientRect().top)] } }))
+  await page.keyboard.press('Escape'); await page.waitForTimeout(600)
+  console.log('dialogs left', await page.locator('[role=dialog]').count())
+}
+console.log('\nBLOCKED non-GET (must be empty):', blocked)
+console.log('CONSOLE', log.console, 'FAILED', log.failed)
+await browser.close()

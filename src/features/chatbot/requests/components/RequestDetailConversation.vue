@@ -173,7 +173,7 @@ onMounted(() => {
 <template>
   <section
     class="rd-panel rc"
-    :class="{ 'rc--live': isLive, 'rc--open': isLive && mobileOpen }"
+    :class="{ 'rc--live': isLive, 'rc--open': isLive && mobileOpen, 'rc--blocked': isLive && mode === 'blocked' }"
     :aria-labelledby="headingId"
     data-testid="detail-conversation"
   >

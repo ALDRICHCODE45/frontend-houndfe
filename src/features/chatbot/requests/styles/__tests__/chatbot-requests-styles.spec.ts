@@ -107,6 +107,11 @@ describe('live block at desktop', () => {
     expect(body).toMatch(/overflow-y: auto/)
   })
 
+  it('with the window closed the thread is shorter, so the blocked box and «Enviar plantilla» stay in view', () => {
+    const body = rule(live, '.chatbot-request-detail .rc--live.rc--blocked .rc-log')!
+    expect(body).toMatch(/height: clamp\([^;]*dvh[^;]*\)/)
+  })
+
   it('the live conversation is the first panel of the main column (design A)', () => {
     const body = rule(live, '.chatbot-request-detail .rd-main > .rc--live')!
     expect(body).toMatch(/order: -1/)
