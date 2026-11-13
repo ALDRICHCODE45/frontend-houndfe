@@ -318,6 +318,7 @@ describe('RequestDetailConversation — window closed and the template', () => {
     expect(wrapper.get('[data-testid="template-cost"]').text()).toContain(COST)
     expect(wrapper.find('[data-testid="session-badge"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="window-chip"]').text()).toBe('Ventana de 24 h cerrada')
+    expect(wrapper.classes()).toContain('rc--blocked')
   })
 
   it('the button does not send: it opens the confirmation with the settings cost', async () => {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import RequestDetailSlaPanel from '../RequestDetailSlaPanel.vue'
 import RequestDetailActionPanel from '../RequestDetailActionPanel.vue'
@@ -12,6 +12,12 @@ import type {
 const TZ = 'America/Mexico_City'
 const NOW = new Date('2026-11-11T17:05:00.000Z') // Wed 11:05 in Mexico City
 const global = { stubs: DETAIL_STUBS }
+
+afterEach(() => vi.useRealTimers())
+
+/** A solid primary Nuxt button carries `bg-primary` and no outline ring (a disabled one is restyled by CSS). */
+const isSolidPrimary = (node: { classes: () => string[] }) =>
+  node.classes().includes('bg-primary') && !node.classes().includes('ring-inset')
 
 describe('RequestDetailSlaPanel — «Tiempo límite»', () => {
   const mountSla = (overrides: Partial<ChatbotRequestDetail> = {}, currentUserId: string | null = 'u-1') =>
@@ -285,15 +291,60 @@ describe('RequestDetailActionPanel — action vocabulary safety net (T7a)', () =
     })
 
     it('a CLAIM denied with SCHEDULED_TOO_EARLY is a disabled «Atender» that says «Disponible desde HH:MM»', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2026-11-12T14:00:00.000Z'))
       const wrapper = mountPanel(
         ['RESCHEDULE'],
         [{ action: 'CLAIM', code: 'SCHEDULED_TOO_EARLY', claimableAt: '2026-11-14T15:55:00.000Z' }],
         { timeZone: 'America/Mexico_City' },
       )
       expect(button(wrapper, 'CLAIM').attributes('disabled')).toBeDefined()
-      expect(wrapper.get('[data-testid="denied-reason-CLAIM"]').text()).toBe('Disponible desde 09:55')
+      // Not today (fake clock 12 nov): the day is named, the time has no zero padding.
+      expect(wrapper.get('[data-testid="denied-reason-CLAIM"]').text()).toBe('Disponible desde sáb 14 nov 9:55')
       await button(wrapper, 'CLAIM').trigger('click')
       expect(wrapper.emitted('action')).toBeUndefined()
+    })
+
+    it('a denied «Atender» is the disabled primary: solid primary (the design-system disabled look), first in the list', () => {
+      const wrapper = mountPanel(
+        ['CANCEL', 'RESCHEDULE'],
+        [{ action: 'CLAIM', code: 'SCHEDULED_TOO_EARLY', claimableAt: '2026-11-14T15:55:00.000Z' }],
+        { timeZone: 'America/Mexico_City' },
+      )
+      const claim = button(wrapper, 'CLAIM')
+      expect(claim.attributes('disabled')).toBeDefined()
+      expect(isSolidPrimary(claim)).toBe(true)
+      expect(testIds(wrapper)[0]).toBe('action-CLAIM')
+      // The allowed ones keep their outline look.
+      expect(isSolidPrimary(button(wrapper, 'RESCHEDULE'))).toBe(false)
+      expect(button(wrapper, 'RESCHEDULE').classes()).toContain('ring-inset')
+    })
+
+    it('a denied action that is not the primary stays an outline button (disabled by CSS like the rest)', () => {
+      const wrapper = mountPanel([], [{ action: 'CANCEL', code: 'CANCEL_NOT_ALLOWED' }])
+      expect(isSolidPrimary(button(wrapper, 'CANCEL'))).toBe(false)
+      expect(button(wrapper, 'CANCEL').classes()).toContain('ring-inset')
+    })
+
+    it('on mobile the denied primary stays in the bar, disabled, with its reason visible without opening the menu', async () => {
+      const wrapper = mountPanel(
+        ['RESCHEDULE'],
+        [{ action: 'CLAIM', code: 'SCHEDULED_TOO_EARLY', claimableAt: '2026-11-14T15:55:00.000Z' }],
+        { variant: 'bar', timeZone: 'America/Mexico_City' },
+      )
+      const primary = wrapper.get('[data-testid="bar-primary"]')
+      expect(primary.text()).toContain('Atender')
+      expect(primary.attributes('disabled')).toBeDefined()
+      const reason = wrapper.get('[data-testid="denied-reason-CLAIM"]')
+      expect(reason.text()).toMatch(/^Disponible desde /)
+      expect(primary.attributes('aria-describedby')).toBe(reason.attributes('id'))
+      await primary.trigger('click')
+      expect(wrapper.emitted('action')).toBeUndefined()
+      // The rest still waits behind «Más acciones».
+      expect(wrapper.find('[data-testid="action-RESCHEDULE"]').exists()).toBe(false)
+      await wrapper.get('[data-testid="bar-more"]').trigger('click')
+      expect(wrapper.find('[data-testid="action-RESCHEDULE"]').exists()).toBe(true)
+      expect(wrapper.findAll('[data-testid="denied-reason-CLAIM"]')).toHaveLength(1)
     })
 
     it('without claimableAt the reason is honest and generic to scheduling, never «Invalid Date»', () => {
@@ -336,6 +387,26 @@ describe('RequestDetailActionPanel — action vocabulary safety net (T7a)', () =
       await bar.get('[data-testid="bar-more"]').trigger('click')
       expect(testIds(bar)).toContain('action-FINISH')
       expect(testIds(bar)).not.toContain('action-SEND_MESSAGE')
+    })
+
+    it('«Finalizar conversación…» is the solid primary of a live request, first in «Qué hacer»', () => {
+      const wrapper = mountPanel(['RELEASE', 'FINISH', 'REASSIGN'], [], { status: 'IN_PROGRESS' })
+      expect(isSolidPrimary(wrapper.get('[data-testid="action-FINISH"]'))).toBe(true)
+      expect(testIds(wrapper)[0]).toBe('action-FINISH')
+      expect(isSolidPrimary(wrapper.get('[data-testid="action-REASSIGN"]'))).toBe(false)
+    })
+
+    it('FINISH_IDLE alone is the primary too (one «Finalizar» button)', () => {
+      const wrapper = mountPanel(['FINISH_IDLE', 'REASSIGN'], [], { status: 'IN_PROGRESS' })
+      expect(isSolidPrimary(wrapper.get('[data-testid="action-FINISH_IDLE"]'))).toBe(true)
+    })
+
+    it('REPLY still wins over finishing, and the mobile bar keeps «Abrir conversación» as its primary', () => {
+      const reply = mountPanel(['REPLY', 'FINISH'], [], { status: 'IN_PROGRESS' })
+      expect(isSolidPrimary(reply.get('[data-testid="action-REPLY"]'))).toBe(true)
+      expect(isSolidPrimary(reply.get('[data-testid="action-FINISH"]'))).toBe(false)
+      const bar = mountPanel(['SEND_MESSAGE', 'FINISH'], [], { status: 'IN_PROGRESS', variant: 'bar' })
+      expect(bar.get('[data-testid="bar-primary"]').text()).toContain('Abrir conversación')
     })
 
     it('on desktop the composer is in the chat: no «Abrir conversación» in «Qué hacer»', () => {

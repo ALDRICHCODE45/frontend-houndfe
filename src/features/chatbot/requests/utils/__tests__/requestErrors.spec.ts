@@ -226,11 +226,21 @@ describe('codes of the reply, finish and live conversation (T7a)', () => {
 
 describe('scheduled conversations (handoff 21)', () => {
   const TZ = 'America/Mexico_City'
+  const NOW = new Date('2026-11-14T14:00:00.000Z') // Sat 14 nov, 8:00 in Mexico City
 
-  it('SCHEDULED_TOO_EARLY denies CLAIM with «Disponible desde HH:MM» from claimableAt, in the given zone', () => {
-    expect(deniedActionReason('SCHEDULED_TOO_EARLY', null, { claimableAt: '2026-11-14T15:55:00.000Z', timeZone: TZ })).toBe(
-      'Disponible desde 09:55',
-    )
+  it('SCHEDULED_TOO_EARLY denies CLAIM with «Disponible desde H:MM» from claimableAt, in the given zone', () => {
+    expect(
+      deniedActionReason('SCHEDULED_TOO_EARLY', null, { claimableAt: '2026-11-14T15:55:00.000Z', timeZone: TZ, now: NOW }),
+    ).toBe('Disponible desde 9:55')
+  })
+
+  it('SCHEDULED_TOO_EARLY names the day when claimableAt is not today', () => {
+    expect(
+      deniedActionReason('SCHEDULED_TOO_EARLY', null, { claimableAt: '2026-11-15T15:25:00.000Z', timeZone: TZ, now: NOW }),
+    ).toBe('Disponible desde mañana 9:25')
+    expect(
+      deniedActionReason('SCHEDULED_TOO_EARLY', null, { claimableAt: '2026-11-16T15:55:00.000Z', timeZone: TZ, now: NOW }),
+    ).toBe('Disponible desde lun 16 nov 9:55')
   })
 
   it('SCHEDULED_TOO_EARLY without a usable claimableAt stays honest, never «Invalid Date»', () => {
@@ -272,6 +282,6 @@ describe('scheduled conversations (handoff 21)', () => {
 
   it('SCHEDULED_TOO_EARLY on a claim names the time when the body carries claimableAt', () => {
     const error = readRequestError(axiosError(409, { code: 'SCHEDULED_TOO_EARLY', claimableAt: '2026-11-14T15:55:00.000Z' }))
-    expect(requestErrorMessage(error, { timeZone: TZ })).toContain('09:55')
+    expect(requestErrorMessage(error, { timeZone: TZ, now: NOW })).toContain('9:55')
   })
 })

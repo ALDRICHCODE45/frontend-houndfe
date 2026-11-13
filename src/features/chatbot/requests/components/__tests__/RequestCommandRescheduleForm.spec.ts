@@ -17,7 +17,7 @@ const slots = (overrides: Partial<ChatbotSchedulingSlots> = {}): ChatbotScheduli
 })
 
 const STUBS = {
-  UIcon: { template: '<span />' },
+  UIcon: { props: ['name'], template: '<span :data-name="name" />' },
   UButton: {
     props: ['label', 'disabled', 'loading', 'type'],
     emits: ['click'],
@@ -61,6 +61,9 @@ describe('RequestCommandRescheduleForm', () => {
     const notice = mountForm().get('[data-testid="reschedule-notice"]')
     expect(notice.attributes('data-expected')).toBe('true')
     expect(notice.text()).toContain('Se avisará al cliente de la nueva hora.')
+    // Info tone: the plain note, with the info icon.
+    expect(notice.classes()).toContain('rc-hint--info')
+    expect(notice.classes()).not.toContain('rc-hint--warn')
   })
 
   it('warns BEFORE confirming that the customer will NOT be told when the window already closed', () => {
@@ -70,6 +73,19 @@ describe('RequestCommandRescheduleForm', () => {
     expect(notice.attributes('data-expected')).toBe('false')
     expect(notice.text()).toContain('El cliente no recibirá aviso de la nueva hora')
     expect(notice.text()).toContain('Avísale por otro medio')
+    // Warning tone (the customer is NOT told): the warning modifier, not the info one.
+    expect(notice.classes()).toContain('rc-hint--warn')
+    expect(notice.classes()).not.toContain('rc-hint--info')
+  })
+
+  it('keeps the icon and the text in one row: the text is its own flexible child', () => {
+    for (const closes of ['2026-11-13T10:00:00.000Z', '2026-11-14T03:10:00.000Z']) {
+      const notice = mountForm({ slots: slots({ whatsappWindowClosesAt: closes }) }).get('[data-testid="reschedule-notice"]')
+      const children = Array.from(notice.element.children)
+      expect(children).toHaveLength(2)
+      expect(children[0]!.getAttribute('aria-hidden')).toBe('true') // the icon
+      expect(children[1]!.classList.contains('rc-hint__text')).toBe(true)
+    }
   })
 
   it('does not claim either outcome when the picker did not say when the window closes', () => {

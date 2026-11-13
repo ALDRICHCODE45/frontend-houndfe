@@ -86,17 +86,20 @@ const handledAllowed = computed(() => {
 const handledDenied = computed(() => props.denied.filter(({ action }) => HANDLED_ACTIONS.has(action)))
 
 // A clarification is answered with REPLY (also on a NEW one: replying claims and resolves in one step).
-const primary = computed<ChatbotRequestAction | null>(() =>
-  handledAllowed.value.includes('SEND_MESSAGE')
-    ? 'SEND_MESSAGE'
-    : handledAllowed.value.includes('REPLY')
-    ? 'REPLY'
-    : handledAllowed.value.includes('CLAIM')
-      ? 'CLAIM'
-      : handledAllowed.value.includes('RESOLVE')
-        ? 'RESOLVE'
-        : null,
+// A live conversation is closed with «Finalizar conversación…» (design A: the primary of the rail).
+// With nothing allowed to lead, a denied «Atender» is the primary: a disabled one that says why.
+const finishAction = computed<ChatbotRequestAction | null>(() =>
+  handledAllowed.value.includes('FINISH') ? 'FINISH' : handledAllowed.value.includes('FINISH_IDLE') ? 'FINISH_IDLE' : null,
 )
+const primary = computed<ChatbotRequestAction | null>(() => {
+  const allowedNow = handledAllowed.value
+  if (allowedNow.includes('SEND_MESSAGE')) return 'SEND_MESSAGE'
+  if (allowedNow.includes('REPLY')) return 'REPLY'
+  if (finishAction.value) return finishAction.value
+  if (allowedNow.includes('CLAIM')) return 'CLAIM'
+  if (allowedNow.includes('RESOLVE')) return 'RESOLVE'
+  return handledDenied.value.some(({ action }) => action === 'CLAIM') ? 'CLAIM' : null
+})
 
 const items = computed<ActionItem[]>(() => {
   const claimToo = handledAllowed.value.includes('CLAIM')
@@ -112,16 +115,15 @@ const items = computed<ActionItem[]>(() => {
     primary: action === primary.value,
     reason: null,
   }))
-  // The primary first; the rest keep the contract order.
-  allowedItems.sort((a, b) => Number(b.primary) - Number(a.primary))
   const deniedItems = handledDenied.value.map<ActionItem>(({ action, code, claimableAt }) => ({
     action,
     label: ACTION_LABELS[action],
     icon: ACTION_ICONS[action],
-    primary: false,
+    primary: action === primary.value,
     reason: deniedActionReason(code, props.assignee, { claimableAt, timeZone: props.timeZone }),
   }))
-  return [...allowedItems, ...deniedItems]
+  // The primary first (a denied one too); the rest keep allowed-then-denied order.
+  return [...allowedItems, ...deniedItems].sort((a, b) => Number(b.primary) - Number(a.primary))
 })
 
 const primaryItem = computed(() => items.value.find((item) => item.primary) ?? null)
@@ -221,13 +223,22 @@ function trigger(item: ActionItem): void {
         v-if="primaryItem"
         data-testid="bar-primary"
         color="primary"
-        :disabled="pendingAction !== null"
+        :disabled="primaryItem.reason !== null || pendingAction !== null"
         :loading="isWorking(primaryItem.action)"
         :icon="primaryItem.icon"
         :label="primaryItem.label"
+        :aria-describedby="primaryItem.reason !== null ? reasonId(primaryItem.action) : undefined"
         @click="trigger(primaryItem)"
       />
     </div>
+    <p
+      v-if="isBar && primaryItem && primaryItem.reason !== null"
+      :id="reasonId(primaryItem.action)"
+      class="rd-bar__reason"
+      :data-testid="`denied-reason-${primaryItem.action}`"
+    >
+      {{ primaryItem.reason }}
+    </p>
 
     <p v-if="!isBar && !closed" class="rd-help">Versión {{ version }}</p>
   </div>

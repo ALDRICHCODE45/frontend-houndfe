@@ -55,3 +55,21 @@ describe('RequestLiveTemplateSheet — confirming the paid template', () => {
     expect(wrapper.text()).toContain('Reintentar crea un envío nuevo')
   })
 })
+
+describe('RequestLiveTemplateSheet — size', () => {
+  it('is a short, content-height bottom sheet on small screens', () => {
+    const wrapper = mount(RequestLiveTemplateSheet, {
+      props: { open: true, costText: COST },
+      global: {
+        stubs: {
+          ...STUBS,
+          AppResponsiveDrawer: {
+            props: ['open', 'portalClass'],
+            template: '<section data-testid="drawer" :data-portal-class="portalClass"><slot name="body" /></section>',
+          },
+        },
+      },
+    })
+    expect(wrapper.get('[data-testid="drawer"]').attributes('data-portal-class')).toContain('rc-portal--short')
+  })
+})

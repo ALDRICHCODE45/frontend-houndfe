@@ -90,7 +90,7 @@ export const DETAIL_STUBS = {
     props: ['to'],
     template: '<a data-stub="router-link" :data-to="JSON.stringify(to)"><slot /></a>',
   },
-  UIcon: { template: '<span data-stub="icon" />' },
+  UIcon: { props: ['name'], template: '<span data-stub="icon" :data-name="name" />' },
   UButton: {
     props: ['label', 'disabled', 'icon', 'color', 'variant', 'loading', 'block'],
     emits: ['click'],

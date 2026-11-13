@@ -131,7 +131,8 @@
 
 /* Below 768 the actions live in the footer bar. `.rd-panel` sets its own display later in the file,
  * so the hide rule carries both classes to win (the rail panel and the bar showed the same actions). */
-.chatbot-request-detail .rd-panel.rd-rail__actions {
+.chatbot-request-detail .rd-panel.rd-rail__actions,
+.chatbot-request-detail .rd-panel.rd-rail__session {
   display: none;
 }
 
@@ -153,7 +154,8 @@
     font-size: 1.375rem;
   }
 
-  .chatbot-request-detail .rd-panel.rd-rail__actions {
+  .chatbot-request-detail .rd-panel.rd-rail__actions,
+  .chatbot-request-detail .rd-panel.rd-rail__session {
     display: grid;
   }
 
@@ -363,7 +365,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
 }
 
 .chatbot-request-detail .rd-schedule {
@@ -425,6 +427,19 @@
 .chatbot-request-detail .rd-alert--success {
   background-color: color-mix(in srgb, var(--hf-success) 10%, var(--hf-surface));
   border-color: color-mix(in srgb, var(--hf-success) 30%, var(--hf-border));
+}
+
+/* Inline icons of notes and banners keep their real size: in a flex row an icon with no content
+ * of its own shrinks to a few pixels next to long text. */
+.chatbot-request-detail .rd-alert > :is(svg, .iconify, [class*='i-lucide']),
+.chatbot-request-detail .lc-note > :is(svg, .iconify, [class*='i-lucide']),
+.chatbot-request-detail .lb-head > :is(svg, .iconify, [class*='i-lucide']),
+.chatbot-request-detail .lb-cost > :is(svg, .iconify, [class*='i-lucide']),
+.chatbot-request-detail .rd-help > :is(svg, .iconify, [class*='i-lucide']) {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.125rem;
 }
 
 /* ── Decision, file, conversation ─────────────────────────────────────────── */
@@ -632,6 +647,31 @@
 .chatbot-request-detail .rd-action {
   display: grid;
   gap: 4px;
+}
+
+/* A disabled action reads as disabled like every disabled button of the system (page well, muted
+ * label, hairline, opacity 1, not-allowed): Nuxt's own `disabled:opacity-75` made an outline
+ * «Atender» look like the enabled buttons beside it. */
+.chatbot-request-detail .rd-action button:disabled,
+.chatbot-request-detail .rd-bar__buttons button:disabled {
+  border-color: var(--hf-border);
+  background-color: var(--hf-page);
+  color: var(--hf-muted);
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+.dark .chatbot-request-detail .rd-action button:disabled,
+.dark .chatbot-request-detail .rd-bar__buttons button:disabled {
+  color: color-mix(in srgb, var(--hf-muted) 60%, var(--hf-page));
+}
+
+/* The reason of a denied primary stays under the mobile bar button, no menu needed. */
+.chatbot-request-detail .rd-bar__reason {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--hf-muted);
 }
 
 /* ── Mobile action bar (footer of DetailPageFrame) ────────────────────────── */

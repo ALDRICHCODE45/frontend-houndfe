@@ -581,6 +581,17 @@ describe('ChatbotRequestDetailView — live conversation (handoff 20)', () => {
     expect(wrapper.find('[data-testid="limited-view"]').exists()).toBe(false)
   })
 
+  it('shows «Esta conversación» in the rail for a live request, and only for one', async () => {
+    const wrapper = await mountView(liveDetail())
+    const card = wrapper.get('aside [data-testid="session-panel"]')
+    expect(card.text()).toContain('Esta conversación')
+    expect(card.get('[data-testid="session-attendee"]').text()).toBe('Laura Méndez (tú)')
+    expect(card.get('[data-testid="session-state"]').text()).toContain('En vivo')
+
+    const plain = await mountView(makeDetail())
+    expect(plain.find('[data-testid="session-panel"]').exists()).toBe(false)
+  })
+
   it('keeps the limited-view note for a viewer who is not the attendee', async () => {
     auth.perms.delete('read:ChatbotConversation')
     const wrapper = await mountView(liveDetail({ assignee: { id: 'u-9', displayName: 'Diego Ramírez' } }))
@@ -645,7 +656,7 @@ describe('ChatbotRequestDetailView — scheduled conversations (handoff 21)', ()
       }),
     )
     const reason = wrapper.get('[data-testid="denied-reason-CLAIM"]').text()
-    expect(reason).toMatch(/^Disponible desde \d{2}:\d{2}$/)
+    expect(reason).toMatch(/^Disponible desde .*\d{1,2}:\d{2}$/)
     expect(reason).not.toContain('No está disponible ahora')
   })
 

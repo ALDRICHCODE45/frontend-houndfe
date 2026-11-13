@@ -5,6 +5,7 @@ import {
   CANCEL_REASON_LABELS,
   cancelCauseLabel,
   DISPLAY_STATUS_LABELS,
+  formatAvailableFrom,
   formatFolioNumber,
   SLA_LEVEL_LABELS,
   STAFF_CANCEL_REASON_LABELS,
@@ -190,6 +191,16 @@ describe('formatScheduledFor / formatWhen', () => {
   it('compares days in the display zone, not in UTC', () => {
     // 2026-11-12T04:00Z is still 11 nov 22:00 in Mexico City.
     expect(formatWhen('2026-11-12T04:00:00.000Z', { timeZone: tz, now })).toBe('hoy 22:00')
+  })
+
+  it('formatAvailableFrom: only the time today, the day named otherwise, never zero padded', () => {
+    expect(formatAvailableFrom('2026-11-11T15:25:00.000Z', { timeZone: tz, now })).toBe('9:25')
+    expect(formatAvailableFrom('2026-11-12T15:25:00.000Z', { timeZone: tz, now })).toBe('mañana 9:25')
+    expect(formatAvailableFrom('2026-11-16T15:55:00.000Z', { timeZone: tz, now })).toBe('lun 16 nov 9:55')
+    // 2026-11-12T04:00Z is still 11 nov 22:00 in Mexico City: today.
+    expect(formatAvailableFrom('2026-11-12T04:00:00.000Z', { timeZone: tz, now })).toBe('22:00')
+    expect(formatAvailableFrom(null, { timeZone: tz, now })).toBeNull()
+    expect(formatAvailableFrom('nope', { timeZone: tz, now })).toBeNull()
   })
 
   it('returns null for absent or invalid input', () => {

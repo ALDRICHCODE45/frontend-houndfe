@@ -1267,7 +1267,7 @@ describe('RequestCommandHost — reschedule (handoff 21)', () => {
     const wrapper = mountHost(scheduled({ allowedActions: ['CLAIM'] }))
     await start(wrapper, 'CLAIM')
     expect(byId(wrapper, 'command-notice-title').text()).toBe('Todavía no se puede atender')
-    expect(wrapper.get('[data-testid="command-notice"]').text()).toMatch(/Disponible desde \d{2}:\d{2}/)
+    expect(wrapper.get('[data-testid="command-notice"]').text()).toMatch(/Disponible desde .*\d{1,2}:\d{2}/)
   })
 })
 
