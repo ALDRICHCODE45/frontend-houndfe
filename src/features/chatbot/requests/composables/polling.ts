@@ -7,6 +7,14 @@ import { isStaleCustomerKeyError, readRequestError } from '../utils/requestError
  */
 export const REQUESTS_REFETCH_MS = 30_000
 
+/**
+ * While a live session changes state (STARTING → ACTIVE, ENDING → ENDED) the detail is refetched as
+ * often as the live thread, so «Conectando…» opens the composer promptly (`allowedActions` and the
+ * session only move on the detail). ACTIVE stays at the slow cadence: nothing the detail carries
+ * needs to be seen sooner there.
+ */
+export const REQUESTS_LIVE_TRANSITION_REFETCH_MS = 4_000
+
 /** Page size of the cursor lists (the backend allows 1–50; default 25). */
 export const REQUESTS_PAGE_SIZE = 25
 
@@ -21,4 +29,14 @@ export function pollingInterval(query: { state: { error: unknown } }): number | 
   const error = query.state.error
   if (error && (isStaleCustomerKeyError(error) || readRequestError(error).status === 404)) return false
   return REQUESTS_REFETCH_MS
+}
+
+/** The detail's interval: fast while its live session is STARTING or ENDING, else {@link pollingInterval}. */
+export function detailPollingInterval(query: {
+  state: { error: unknown; data?: { liveSession?: { state: string } | null } | undefined }
+}): number | false {
+  const slow = pollingInterval(query)
+  if (slow === false) return false
+  const state = query.state.data?.liveSession?.state
+  return state === 'STARTING' || state === 'ENDING' ? REQUESTS_LIVE_TRANSITION_REFETCH_MS : slow
 }

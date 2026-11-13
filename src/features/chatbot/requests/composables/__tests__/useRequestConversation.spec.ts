@@ -23,6 +23,7 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
 
 import { chatbotConversationApi } from '../../api/chatbot-conversation.api'
 import {
+  CONVERSATION_LIVE_POLL_MS,
   CONVERSATION_PAGE_SIZE,
   CONVERSATION_POLL_MS,
   useRequestConversation,
@@ -301,5 +302,133 @@ describe('useRequestConversation — opening resets the unread count (server sid
     const spy = vi.spyOn(client, 'invalidateQueries')
     await flushPromises()
     expect(spy).not.toHaveBeenCalled()
+  })
+})
+
+describe('useRequestConversation — the attendee without read:ChatbotConversation (handoff 20 §5)', () => {
+  it('reads the session thread when the caller says they are the attendee', async () => {
+    auth.perms = new Set(['read:ChatbotRequest'])
+    getPage.mockResolvedValue(page([21, 22]))
+    const { result } = withQuery(() => useRequestConversation('req-1', { asAttendee: () => true }))
+    await flushPromises()
+
+    expect(getPage).toHaveBeenCalledTimes(1)
+    expect(result.isEnabled.value).toBe(true)
+    expect(seqsOf(result.messages.value)).toEqual([21, 22])
+  })
+
+  it('still reads nothing for someone who is neither a reader nor the attendee', async () => {
+    auth.perms = new Set(['read:ChatbotRequest'])
+    const { result } = withQuery(() => useRequestConversation('req-1', { asAttendee: () => false }))
+    await flushPromises()
+    expect(getPage).not.toHaveBeenCalled()
+    expect(result.isEnabled.value).toBe(false)
+  })
+
+  it('never reads without read:ChatbotRequest, even as the attendee', async () => {
+    auth.perms = new Set()
+    withQuery(() => useRequestConversation('req-1', { asAttendee: () => true }))
+    await flushPromises()
+    expect(getPage).not.toHaveBeenCalled()
+  })
+
+  it('does not zero the unread count nor invalidate the lists: opening as attendee does not move the marker', async () => {
+    auth.perms = new Set(['read:ChatbotRequest'])
+    getPage.mockResolvedValue(page([21]))
+    const { client } = withQuery(() => useRequestConversation('req-1', { asAttendee: () => true }))
+    const detailKey = chatbotRequestKeys.detail('tenant-1', 'req-1')
+    client.setQueryData(detailKey, { id: 'req-1', unreadCustomerMessages: 3 })
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    await flushPromises()
+
+    expect(client.getQueryData<{ unreadCustomerMessages: number }>(detailKey)!.unreadCustomerMessages).toBe(3)
+    expect(invalidate).not.toHaveBeenCalled()
+  })
+})
+
+describe('useRequestConversation — T5L.F: an attendee who also reads conversations does not move the marker', () => {
+  it('keeps the cached unread count and invalidates nothing when opened as the attendee', async () => {
+    auth.perms = new Set(['read:ChatbotRequest', 'read:ChatbotConversation'])
+    getPage.mockResolvedValue(page([21]))
+    const { client } = withQuery(() => useRequestConversation('req-1', { asAttendee: () => true }))
+    const detailKey = chatbotRequestKeys.detail('tenant-1', 'req-1')
+    client.setQueryData(detailKey, { id: 'req-1', unreadCustomerMessages: 3 })
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    await flushPromises()
+
+    expect(client.getQueryData<{ unreadCustomerMessages: number }>(detailKey)!.unreadCustomerMessages).toBe(3)
+    expect(invalidate).not.toHaveBeenCalled()
+  })
+
+  it('a reader who is not the attendee still marks it opened', async () => {
+    auth.perms = new Set(['read:ChatbotRequest', 'read:ChatbotConversation'])
+    getPage.mockResolvedValue(page([21]))
+    const { client } = withQuery(() => useRequestConversation('req-1', { asAttendee: () => false }))
+    const detailKey = chatbotRequestKeys.detail('tenant-1', 'req-1')
+    client.setQueryData(detailKey, { id: 'req-1', unreadCustomerMessages: 3 })
+    await flushPromises()
+    expect(client.getQueryData<{ unreadCustomerMessages: number }>(detailKey)!.unreadCustomerMessages).toBe(0)
+  })
+})
+
+describe('useRequestConversation — live mode polls faster and refreshes delivery states', () => {
+  const out = (seq: number, deliveryStatus: 'QUEUED' | 'SENT' | 'DELIVERED' | 'READ', extra = {}) =>
+    makeMessage({ seq, direction: 'OUT', author: 'STAFF', deliveryStatus, ...extra })
+
+  it('polls every few seconds instead of 15 s', async () => {
+    vi.useFakeTimers()
+    getPage.mockResolvedValue(page([1]))
+    withQuery(() => useRequestConversation('req-1', { live: () => true }))
+    await flushPromises()
+    expect(getPage).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(CONVERSATION_LIVE_POLL_MS)
+    expect(getPage).toHaveBeenCalledTimes(2)
+    expect(CONVERSATION_LIVE_POLL_MS).toBeLessThan(CONVERSATION_POLL_MS)
+  })
+
+  it('keeps the 15 s pace when not live', async () => {
+    vi.useFakeTimers()
+    getPage.mockResolvedValue(page([1]))
+    withQuery(() => useRequestConversation('req-1', { live: () => false }))
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(CONVERSATION_LIVE_POLL_MS)
+    expect(getPage).toHaveBeenCalledTimes(1)
+  })
+
+  it('re-reads from the oldest message that can still change state, so QUEUED → SENT → DELIVERED shows up', async () => {
+    vi.useFakeTimers()
+    getPage.mockResolvedValueOnce({ items: [makeMessage({ seq: 4 }), out(5, 'QUEUED'), makeMessage({ seq: 6 })], hasMoreBefore: false })
+    const { result } = withQuery(() => useRequestConversation('req-1', { live: () => true }))
+    await flushPromises()
+
+    getPage.mockResolvedValueOnce({ items: [out(5, 'DELIVERED'), makeMessage({ seq: 6 })], hasMoreBefore: false })
+    await vi.advanceTimersByTimeAsync(CONVERSATION_LIVE_POLL_MS)
+
+    expect(getPage).toHaveBeenLastCalledWith('req-1', { after: 4, limit: CONVERSATION_PAGE_SIZE }, { signal: expect.anything() })
+    expect(result.messages.value.find((m) => m.seq === 5)!.deliveryStatus).toBe('DELIVERED')
+  })
+
+  it('goes back to «after the highest seq» once everything is READ, FAILED or UNKNOWN', async () => {
+    vi.useFakeTimers()
+    getPage.mockResolvedValueOnce({ items: [out(5, 'READ'), makeMessage({ seq: 6 })], hasMoreBefore: false })
+    withQuery(() => useRequestConversation('req-1', { live: () => true }))
+    await flushPromises()
+
+    getPage.mockResolvedValueOnce(page([]))
+    await vi.advanceTimersByTimeAsync(CONVERSATION_LIVE_POLL_MS)
+    expect(getPage).toHaveBeenLastCalledWith('req-1', { after: 6, limit: CONVERSATION_PAGE_SIZE }, { signal: expect.anything() })
+  })
+
+  it('does not re-read an old DELIVERED message forever: only the last page of messages counts', async () => {
+    vi.useFakeTimers()
+    const filler = Array.from({ length: CONVERSATION_PAGE_SIZE }, (_, i) => makeMessage({ seq: 10 + i }))
+    getPage.mockResolvedValueOnce({ items: [out(5, 'DELIVERED'), ...filler], hasMoreBefore: false })
+    withQuery(() => useRequestConversation('req-1', { live: () => true }))
+    await flushPromises()
+
+    getPage.mockResolvedValueOnce(page([]))
+    await vi.advanceTimersByTimeAsync(CONVERSATION_LIVE_POLL_MS)
+    expect(getPage).toHaveBeenLastCalledWith('req-1', { after: 59, limit: CONVERSATION_PAGE_SIZE }, { signal: expect.anything() })
   })
 })

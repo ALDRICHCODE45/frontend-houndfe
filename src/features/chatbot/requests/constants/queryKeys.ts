@@ -29,6 +29,8 @@ export const chatbotRequestKeys = {
     ['chatbot-requests', tenantId, 'merge-candidates', id] as const,
   assignableUsers: (tenantId: string) => ['chatbot-requests', tenantId, 'assignable-users'] as const,
   zoneImpact: (tenantId: string, id: string) => ['chatbot-requests', tenantId, 'zone-impact', id] as const,
+  schedulingSlots: (tenantId: string, id: string) =>
+    ['chatbot-requests', tenantId, 'scheduling-slots', id] as const,
   /** The loaded thread of one request (latest page + older + polled newer, merged by `seq`). */
   conversation: (tenantId: string, id: string) => ['chatbot-requests', tenantId, 'conversation', id] as const,
 }

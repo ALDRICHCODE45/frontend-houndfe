@@ -2,8 +2,8 @@
 /**
  * ExtrasSection — «Ventana y plantilla» (design 01): WhatsApp window warning, template name and language,
  * the cost text and the start timeout of a live conversation. The window warning drives the inbox filter
- * «Ventana por cerrar» (0 turns it off); the template is still stored only and marked «Aún sin efecto» (the
- * send-template button comes later). The language (`xx` or `xx_YY`) is the paid template's. The timeout
+ * «Ventana por cerrar» (0 turns it off); the template, its language and the cost text are read by the
+ * «Enviar plantilla» button of the live chat. The language (`xx` or `xx_YY`) is the paid template's. The timeout
  * (30 to 600 s) is how long a claim waits for the bot to confirm; a change applies to the next claim only.
  * Template, its language, the cost and the timeout are per branch: «Aplicar a todas» does not copy them.
  */
@@ -12,7 +12,6 @@ import type { SettingsErrors } from '../utils/settingsValidation'
 import { formatDuration } from '../utils/settingsUnits'
 import DurationField from './DurationField.vue'
 import NumberField from './NumberField.vue'
-import PendingBadge from './PendingBadge.vue'
 
 defineProps<{
   draft: ChatbotSettings
@@ -59,7 +58,6 @@ const emit = defineEmits<{
       <div class="cbs-field">
         <label class="cbs-label" for="cbs-template">
           Plantilla de WhatsApp
-          <PendingBadge />
         </label>
         <span v-if="readonly" class="cbs-readonly cbs-mono" data-testid="template-readonly">
           {{ draft.templateName ?? 'Sin configurar' }}

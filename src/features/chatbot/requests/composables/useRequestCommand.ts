@@ -15,6 +15,7 @@ import type {
   ReassignRequestBody,
   ReleaseRequestBody,
   ReplyRequestBody,
+  RescheduleRequestBody,
   ResolveRequestBody,
 } from '../interfaces/chatbot-request.types'
 import { isStateChangingError } from '../utils/command-copy'
@@ -123,5 +124,7 @@ export function useRequestCommand() {
       run('reply', id, body, (key) => chatbotRequestApi.reply(id, body, key)),
     finish: (id: string, body: FinishRequestBody) =>
       run('finish', id, body, (key) => chatbotRequestApi.finish(id, body, key)),
+    reschedule: (id: string, body: RescheduleRequestBody) =>
+      run('reschedule', id, body, (key) => chatbotRequestApi.reschedule(id, body, key)),
   }
 }

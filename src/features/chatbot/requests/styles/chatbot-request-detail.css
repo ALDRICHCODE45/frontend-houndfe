@@ -366,6 +366,24 @@
   font-size: 0.75rem;
 }
 
+.chatbot-request-detail .rd-schedule {
+  display: grid;
+  gap: 8px;
+}
+
+.chatbot-request-detail .rd-schedule__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.chatbot-request-detail .rd-schedule .rd-alert .u-button,
+.chatbot-request-detail .rd-schedule .rd-alert button {
+  justify-self: start;
+  margin-top: 6px;
+}
+
 .chatbot-request-detail .rd-tag--warn {
   color: var(--hf-warning);
   font-weight: 600;

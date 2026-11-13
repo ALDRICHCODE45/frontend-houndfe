@@ -191,6 +191,36 @@ describe('chatbotRequestApi reads', () => {
   })
 })
 
+describe('chatbotRequestApi scheduling (handoff 21)', () => {
+  it('slots: GET /chatbot-requests/:id/scheduling/slots with the signal and no params', async () => {
+    const slots = { timeZone: 'America/Mexico_City', whatsappWindowClosesAt: null, businessHours: {}, slots: [] }
+    get.mockResolvedValue({ data: slots })
+    expect(await chatbotRequestApi.getSchedulingSlots('req-1', { signal })).toBe(slots)
+    expect(get).toHaveBeenCalledWith('/chatbot-requests/req-1/scheduling/slots', { signal })
+  })
+
+  it('reschedule: POST /:id/reschedule sends exactly {expectedVersion, scheduledFor} under the key', async () => {
+    const answer = { request: { id: 'req-1', version: 2 }, customerNotice: { expected: true } }
+    post.mockResolvedValue({ data: answer })
+    const result = await chatbotRequestApi.reschedule(
+      'req-1',
+      {
+        expectedVersion: 1,
+        scheduledFor: '2026-11-14T16:00:00.000Z',
+        // @ts-expect-error unknown body fields must never reach the wire
+        slotId: 'x',
+      },
+      KEY,
+    )
+    expect(result).toBe(answer)
+    expect(post).toHaveBeenCalledWith(
+      '/chatbot-requests/req-1/reschedule',
+      { expectedVersion: 1, scheduledFor: '2026-11-14T16:00:00.000Z' },
+      { headers: { 'Idempotency-Key': KEY } },
+    )
+  })
+})
+
 describe('chatbotRequestApi commands', () => {
   const summary = { request: { id: 'req-1', version: 2 } }
   const headers = { headers: { 'Idempotency-Key': KEY } }

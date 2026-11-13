@@ -85,6 +85,20 @@ function dayLabel(date: Date, key: string, nowKey: string, timeZone?: string): s
   return key.slice(0, 4) === nowKey.slice(0, 4) ? base : `${base} ${part('year')}`
 }
 
+/** «hoy a las 10:05», «ayer a las 10:05», «el lun 9 nov a las 10:05»; `null` for an invalid date. */
+export function momentLabel(iso: string | null | undefined, options: DayOptions = {}): string | null {
+  const date = iso ? new Date(iso) : null
+  if (!date || Number.isNaN(date.getTime())) return null
+  const { timeZone } = options
+  const key = dayKey(date, timeZone)
+  const nowKey = dayKey(options.now ?? new Date(), timeZone)
+  const label = dayLabel(date, key, nowKey, timeZone)
+  const day = label === 'Hoy' ? 'hoy' : label === 'Ayer' ? 'ayer' : `el ${label}`
+  const time = new Intl.DateTimeFormat('es-MX', { hour: 'numeric', minute: '2-digit', hourCycle: 'h23', timeZone }).formatToParts(date)
+  const part = (type: Intl.DateTimeFormatPartTypes) => time.find((p) => p.type === type)?.value ?? ''
+  return `${day} a las ${Number(part('hour'))}:${part('minute')}`
+}
+
 export interface DayGroup {
   key: string
   label: string

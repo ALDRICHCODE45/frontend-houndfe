@@ -12,6 +12,7 @@ import {
   validateReply,
   FINISH_NOTE_MAX,
   REPLY_MAX,
+  buildRescheduleBody,
   buildResolveBody,
   defaultResolveOption,
   emptyCancelDraft,
@@ -374,3 +375,13 @@ describe('finish form (handoff 20 §4)', () => {
     expect(buildFinishBody('TALK_TO_HUMAN', { note: '  ', complaintOutcome: '' }, 5)).toBeNull()
   })
 })
+
+describe('reschedule body (handoff 21 §3)', () => {
+  it('is exactly {expectedVersion, scheduledFor}, the block start untouched', () => {
+    expect(buildRescheduleBody('2026-11-14T16:00:00.000Z', 4)).toEqual({
+      expectedVersion: 4,
+      scheduledFor: '2026-11-14T16:00:00.000Z',
+    })
+  })
+})
+

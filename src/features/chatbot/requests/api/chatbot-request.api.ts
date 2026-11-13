@@ -22,6 +22,7 @@ import type {
   ChatbotRequestMergeCandidatesResponse,
   ChatbotRequestRowsPage,
   ChatbotRequestZoneImpact,
+  ChatbotSchedulingSlots,
   ClaimRequestBody,
   FinishRequestBody,
   LinkCustomerRequestBody,
@@ -29,6 +30,7 @@ import type {
   ReassignRequestBody,
   ReleaseRequestBody,
   ReplyRequestBody,
+  RescheduleRequestBody,
   ResolveRequestAction,
   ResolveRequestBody,
 } from '../interfaces/chatbot-request.types'
@@ -210,6 +212,14 @@ export const chatbotRequestApi = {
     return data
   },
 
+  /** GET /chatbot-requests/:id/scheduling/slots — the staff picker of a reschedule (handoff 21 §2). */
+  async getSchedulingSlots(id: string, options?: ChatbotRequestReadOptions): Promise<ChatbotSchedulingSlots> {
+    const { data } = await http.get<ChatbotSchedulingSlots>(path(id, '/scheduling/slots'), {
+      signal: options?.signal,
+    })
+    return data
+  },
+
   // ─── Commands (each answers a small 200 `{request}`) ──────────────────────
 
   claim(id: string, body: ClaimRequestBody, idempotencyKey: string) {
@@ -250,6 +260,11 @@ export const chatbotRequestApi = {
   /** Ends a live conversation (handoff 20 §4); `complaintOutcome` goes only when the caller set it. */
   finish(id: string, body: FinishRequestBody, idempotencyKey: string) {
     return command(path(id, '/finish'), pick(body, ['expectedVersion', 'note', 'complaintOutcome']), idempotencyKey)
+  },
+
+  /** Moves a scheduled conversation to a slot of the picker (handoff 21 §3): exactly `{expectedVersion, scheduledFor}`. */
+  reschedule(id: string, body: RescheduleRequestBody, idempotencyKey: string) {
+    return command(path(id, '/reschedule'), pick(body, ['expectedVersion', 'scheduledFor']), idempotencyKey)
   },
 
   /** Flat body of the action; never `resolutionRequestId` (the backend derives it from the key). */

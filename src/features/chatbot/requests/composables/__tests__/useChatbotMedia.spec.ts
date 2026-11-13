@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
-import { flushPromises } from '@vue/test-utils'
-import { QueryClient } from '@tanstack/vue-query'
+import { defineComponent, h, provide, ref } from 'vue'
+import { flushPromises, mount } from '@vue/test-utils'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { axiosError, withQuery } from './withQuery'
 import { chatbotMediaKeys } from '../../constants/queryKeys'
 import { MEDIA_PURGED_COPY } from '../../utils/conversation-copy'
+import { ATTENDEE_MEDIA_KEY } from '../liveChatContext'
 
 vi.mock('../../api/chatbot-conversation.api', () => ({
   chatbotConversationApi: { getPage: vi.fn(), getMedia: vi.fn() },
@@ -170,5 +171,43 @@ describe('useChatbotMedia — errors', () => {
     await flushPromises()
     expect(result.errorMessage.value).toBeNull()
     expect(result.url.value).toBe('blob:app/1')
+  })
+})
+
+describe('useChatbotMedia — the attendee opens the files of their session (handoff 20 §3b)', () => {
+  it('fetches without read:ChatbotConversation when asAttendee is true', async () => {
+    auth.perms = new Set(['read:ChatbotRequest'])
+    getMedia.mockResolvedValue(blobOf())
+    const { result } = withQuery(() => useChatbotMedia('m-1', { asAttendee: () => true }))
+    await flushPromises()
+    expect(getMedia).toHaveBeenCalledTimes(1)
+    expect(result.url.value).toBe('blob:app/1')
+  })
+
+  it('still fetches nothing without the permission when asAttendee is false', async () => {
+    auth.perms = new Set(['read:ChatbotRequest'])
+    withQuery(() => useChatbotMedia('m-1', { asAttendee: () => false }))
+    await flushPromises()
+    expect(getMedia).not.toHaveBeenCalled()
+  })
+
+  it('reads the flag the conversation block provides when no option is given', async () => {
+    auth.perms = new Set(['read:ChatbotRequest'])
+    getMedia.mockResolvedValue(blobOf())
+    const Child = defineComponent({
+      setup() {
+        useChatbotMedia('m-9')
+        return () => h('i')
+      },
+    })
+    const Parent = defineComponent({
+      setup() {
+        provide(ATTENDEE_MEDIA_KEY, ref(true))
+        return () => h(Child)
+      },
+    })
+    mount(Parent, { global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]] } })
+    await flushPromises()
+    expect(getMedia).toHaveBeenCalledWith('m-9', { signal: expect.anything() })
   })
 })

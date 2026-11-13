@@ -15,6 +15,7 @@ vi.mock('../../api/chatbot-request.api', () => ({
     resolve: vi.fn(),
     reply: vi.fn(),
     finish: vi.fn(),
+    reschedule: vi.fn(),
   },
 }))
 
@@ -344,5 +345,57 @@ describe('useRequestCommand — reply and finish (T7)', () => {
     await command.finish('req-1', { expectedVersion: 5, note: 'Listo' })
 
     expect(invalidate).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('useRequestCommand — reschedule (handoff 21)', () => {
+  const body = { expectedVersion: 1, scheduledFor: '2026-11-14T16:00:00.000Z' }
+  const answer = (expected: boolean): ChatbotRequestCommandResponse => ({
+    ...response(2),
+    customerNotice: { expected },
+  })
+
+  it('sends {expectedVersion, scheduledFor} under a uuid key and hands back customerNotice', async () => {
+    api.reschedule.mockResolvedValue(answer(false))
+    const { command, invalidate } = setup()
+
+    const outcome = await command.reschedule('req-1', body)
+
+    expect(api.reschedule).toHaveBeenCalledWith('req-1', body, expect.stringMatching(/^[0-9a-f-]{36}$/))
+    expect(outcome).toMatchObject({ status: 'done', response: { customerNotice: { expected: false } } })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: chatbotRequestKeys.all('tenant-1') })
+  })
+
+  it('reuses the key for the same body after a network error and takes a new one after a 409', async () => {
+    api.reschedule
+      .mockRejectedValueOnce(new Error('Network Error'))
+      .mockRejectedValueOnce(axiosError(409, { code: 'SLOT_UNAVAILABLE' }))
+      .mockResolvedValueOnce(answer(true))
+    const { command } = setup()
+
+    await command.reschedule('req-1', body)
+    await command.reschedule('req-1', body)
+    await command.reschedule('req-1', body)
+
+    const keys = api.reschedule.mock.calls.map((call) => call[2])
+    expect(keys[1]).toBe(keys[0])
+    expect(keys[2]).not.toBe(keys[1])
+  })
+
+  it('a stale version or a claimed request refetches the detail before it is free again', async () => {
+    api.reschedule.mockRejectedValue(axiosError(409, { code: 'RESCHEDULE_NOT_ALLOWED', current: { version: 4 } }))
+    const { command, invalidate } = setup()
+
+    const outcome = await command.reschedule('req-1', body)
+
+    expect(outcome.status).toBe('failed')
+    expect(invalidate).toHaveBeenCalledTimes(1)
+  })
+
+  it('SLOT_UNAVAILABLE does not refetch the detail: nothing changed', async () => {
+    api.reschedule.mockRejectedValue(axiosError(409, { code: 'SLOT_UNAVAILABLE', slots: [] }))
+    const { command, invalidate } = setup()
+    await command.reschedule('req-1', body)
+    expect(invalidate).not.toHaveBeenCalled()
   })
 })

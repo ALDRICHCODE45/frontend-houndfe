@@ -551,3 +551,107 @@ describe('ChatbotRequestDetailView — reply and finish outcome (T7)', () => {
     expect(wrapper.find('[data-testid="complaint-outcome"]').exists()).toBe(false)
   })
 })
+
+describe('ChatbotRequestDetailView — live conversation (handoff 20)', () => {
+  const liveDetail = (overrides: Partial<ChatbotRequestDetail> = {}) =>
+    makeDetail({
+      subtype: 'COMPLAINT',
+      status: 'IN_PROGRESS',
+      assignee: { id: 'u-1', displayName: 'Laura Méndez' },
+      allowedActions: ['SEND_MESSAGE', 'FINISH'],
+      liveSession: {
+        state: 'ACTIVE',
+        handoffEpoch: 3,
+        lastStaffActivityAt: new Date().toISOString(),
+        lastCustomerMessageAt: new Date().toISOString(),
+      },
+      ...overrides,
+    })
+
+  it('mounts the chat for the attendee without read:ChatbotConversation and reads their session', async () => {
+    auth.perms.delete('read:ChatbotConversation')
+    getPage.mockResolvedValue({ items: [makeMessage({ seq: 21, text: 'Hola, ¿sigue ahí?' })], hasMoreBefore: false })
+    const wrapper = await mountView(liveDetail())
+
+    expect(getPage).toHaveBeenCalledWith('req-1', { limit: 50 }, { signal: expect.anything() })
+    expect(wrapper.get('[data-testid="detail-conversation"]').text()).toContain('Hola, ¿sigue ahí?')
+    expect(wrapper.find('[data-testid="live-composer"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="banner-scoped"]').exists()).toBe(true)
+    // The role still lacks the permission for the rest, but the conversation is not among the limits.
+    expect(wrapper.find('[data-testid="limited-view"]').exists()).toBe(false)
+  })
+
+  it('keeps the limited-view note for a viewer who is not the attendee', async () => {
+    auth.perms.delete('read:ChatbotConversation')
+    const wrapper = await mountView(liveDetail({ assignee: { id: 'u-9', displayName: 'Diego Ramírez' } }))
+    expect(wrapper.find('[data-testid="detail-conversation"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="limited-view"]').text()).toContain('conversación')
+    expect(getPage).not.toHaveBeenCalled()
+  })
+
+  it('a reader with the permission who is not the attendee gets the read-only view', async () => {
+    const wrapper = await mountView(liveDetail({ assignee: { id: 'u-9', displayName: 'Diego Ramírez' }, allowedActions: [] }))
+    expect(wrapper.find('[data-testid="live-composer"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="live-note"]').text()).toContain('Atiende Diego Ramírez')
+  })
+
+  it('the mobile bar opens the chat full screen and the back button returns to the detail', async () => {
+    const wrapper = await mountView(liveDetail())
+    const block = () => wrapper.get('[data-testid="detail-conversation"]')
+    expect(block().classes()).not.toContain('rc--open')
+    await wrapper.get('[data-testid="bar-primary"]').trigger('click')
+    expect(block().classes()).toContain('rc--open')
+    await wrapper.get('[data-testid="live-back"]').trigger('click')
+    expect(block().classes()).not.toContain('rc--open')
+  })
+
+  it('«Atender de nuevo» in the chat runs the same claim as the action panel', async () => {
+    // The list-only mock of this file has no commands: this test adds the one it needs.
+    const claim = vi.fn()
+    Object.assign(chatbotRequestApi, { claim })
+    claim.mockResolvedValue({
+      request: { id: 'req-1', folio: 'S-000123', kind: 'DECISION', subtype: 'COMPLAINT', status: 'IN_PROGRESS', displayStatus: 'IN_PROGRESS', version: 2, assignee: null, claimedAt: null, overdueAt: null, closedAt: null },
+    })
+    const wrapper = await mountView(
+      liveDetail({
+        status: 'NEW',
+        assignee: null,
+        version: 5,
+        allowedActions: ['CLAIM'],
+        liveSession: { state: 'WAITING', handoffEpoch: 3, lastStaffActivityAt: null, lastCustomerMessageAt: null },
+      }),
+    )
+    await wrapper.get('[data-testid="banner-claim"]').trigger('click')
+    await flushPromises()
+    expect(claim).toHaveBeenCalledWith('req-1', { expectedVersion: 5 }, expect.any(String))
+  })
+})
+
+describe('ChatbotRequestDetailView — scheduled conversations (handoff 21)', () => {
+  const SCHEDULED = '2099-11-14T16:00:00.000Z'
+
+  it('shows the booking and, when needsReschedule, the «Por reagendar» banner in the main column', async () => {
+    const wrapper = await mountView(makeDetail({ scheduledFor: SCHEDULED, scheduleVersion: 1, needsReschedule: true }))
+    expect(wrapper.get('[data-testid="schedule-chip"]').text()).toContain('Agendada para')
+    expect(wrapper.get('[data-testid="reschedule-banner"]').text()).toContain('Por reagendar')
+  })
+
+  it('a too-early CLAIM reads «Disponible desde HH:MM» in the rail instead of a generic reason', async () => {
+    const wrapper = await mountView(
+      makeDetail({
+        scheduledFor: SCHEDULED,
+        allowedActions: ['RESCHEDULE'],
+        deniedActions: [{ action: 'CLAIM', code: 'SCHEDULED_TOO_EARLY', claimableAt: '2099-11-14T15:55:00.000Z' }],
+      }),
+    )
+    const reason = wrapper.get('[data-testid="denied-reason-CLAIM"]').text()
+    expect(reason).toMatch(/^Disponible desde \d{2}:\d{2}$/)
+    expect(reason).not.toContain('No está disponible ahora')
+  })
+
+  it('a request that was never scheduled shows no schedule block', async () => {
+    const wrapper = await mountView()
+    expect(wrapper.find('[data-testid="schedule-block"]').exists()).toBe(false)
+  })
+})
+

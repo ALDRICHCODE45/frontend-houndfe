@@ -1,4 +1,4 @@
-// Stored-only sections: «Ventana y plantilla» and «Conversaciones agendadas» carry «Aún sin efecto».
+// «Ventana y plantilla» now drives the inbox filter and the «Enviar plantilla» button; «Conversaciones agendadas» is still stored only («Aún sin efecto»).
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ExtrasSection from '../ExtrasSection.vue'
@@ -15,10 +15,10 @@ function mountSched(props: Record<string, unknown> = {}) {
 }
 
 describe('ExtrasSection', () => {
-  it('marks only the template «Aún sin efecto»: the window warning now drives the inbox filter', () => {
+  it('no longer marks the template «Aún sin efecto»: «Enviar plantilla» in the live chat reads it', () => {
     const w = mountExtras()
-    expect(w.findAll('[data-testid="pending-badge"]')).toHaveLength(1)
-    expect(w.text()).toContain('Aún sin efecto')
+    expect(w.findAll('[data-testid="pending-badge"]')).toHaveLength(0)
+    expect(w.text()).not.toContain('Aún sin efecto')
   })
 
   it('no longer says the inbox filter uses a fixed 2 h; it says the filter follows this value', () => {

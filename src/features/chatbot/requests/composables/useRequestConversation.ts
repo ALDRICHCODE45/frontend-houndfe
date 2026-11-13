@@ -4,6 +4,7 @@ import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { readApiErrorEnvelope } from '@/core/shared/utils/api-error-envelope'
 import { chatbotConversationApi } from '../api/chatbot-conversation.api'
 import { chatbotRequestKeys } from '../constants/queryKeys'
+import type { ChatbotMessage } from '../interfaces/chatbot-request.types'
 import {
   appendNewer,
   emptyThread,
@@ -18,30 +19,67 @@ import { useRequestAccess } from './useRequestAccess'
 export const CONVERSATION_PAGE_SIZE = 50
 /** Newer messages are polled every 15 s while the tab is visible (SSE of handoff 17 stays off). */
 export const CONVERSATION_POLL_MS = 15_000
+/** While a live session runs the thread is polled every 4 s (handoff 18 §5: 3 to 5 s until the stream is on). */
+export const CONVERSATION_LIVE_POLL_MS = 4_000
+/** Delivery states that can still move forward (handoff 20 §3): the poll re-reads from the oldest of them. */
+const VOLATILE_STATUSES: ReadonlySet<string> = new Set(['QUEUED', 'SENT', 'DELIVERED', 'DEFERRED'])
 /** Upper bound of back-to-back `after` pages in one poll (a full page means there may be more). */
 const MAX_CATCH_UP_PAGES = 10
 
 /** Cached list queries whose `unreadCustomerMessages` the server resets when the conversation is opened. */
 const UNREAD_BEARING_LISTS = new Set(['groups', 'by-customer'])
 
+export interface UseRequestConversationOptions {
+  /**
+   * The caller is the attendee of this request: without `read:ChatbotConversation` the server answers
+   * them the messages of their own session (handoff 20 §5), so the read is allowed. That read never
+   * moves the unread marker, so nothing is zeroed or invalidated for it.
+   */
+  asAttendee?: MaybeRefOrGetter<boolean>
+  /** A live session is running: poll every 4 s and re-read messages whose delivery state can still move. */
+  live?: MaybeRefOrGetter<boolean>
+}
+
+/**
+ * Where the next poll starts. Polling `after` the highest `seq` never sees a status change of a
+ * message already held, so a live thread re-reads from the oldest recent staff message that can
+ * still move (QUEUED, SENT, DELIVERED, DEFERRED). Only the last page counts: an old DELIVERED that
+ * never turns READ must not keep the cursor back forever.
+ */
+function pollCursor(items: readonly ChatbotMessage[], live: boolean): number | null {
+  const last = lastSeq(items)
+  if (!live || last === null) return last
+  const volatile = items
+    .slice(-CONVERSATION_PAGE_SIZE)
+    .find((message) => message.author === 'STAFF' && !!message.deliveryStatus && VOLATILE_STATUSES.has(message.deliveryStatus))
+  return volatile ? Math.min(last, volatile.seq - 1) : last
+}
+
 /**
  * The chat of one request (handoff 18): latest page first, older pages on demand (`before`), newer
  * messages by polling (`after`), all merged by `seq` in one cached thread per tenant and request.
  *
- * Enabled only with `read:ChatbotRequest` and `read:ChatbotConversation`: an assignee without the
- * second one would get an empty page from the server, which must not read as «sin mensajes», so the
- * block is simply not read (the view keeps its limited-view note). The first successful read of a
- * request marks it opened on the server (unread count to 0): the lists are invalidated once, and the
+ * Enabled with `read:ChatbotRequest` plus `read:ChatbotConversation`, or as the attendee of the
+ * request (`asAttendee`, handoff 20 §5: the server then answers their own session). Anyone else
+ * would get an empty page, which must not read as «sin mensajes», so the block is simply not read
+ * (the view keeps its limited-view note). `live` polls every 4 s and refreshes delivery states. The first successful read of a
+ * request by a reader who is not its attendee marks it opened on the server (unread count to 0): the lists are invalidated once, and the
  * cached detail (which is on screen and does not show the count) is zeroed in place, not refetched.
  */
-export function useRequestConversation(id: MaybeRefOrGetter<string | null | undefined>) {
+export function useRequestConversation(
+  id: MaybeRefOrGetter<string | null | undefined>,
+  options: UseRequestConversationOptions = {},
+) {
   const client = useQueryClient()
   const auth = useAuthStore()
   const { tenantId, enabled: canReadRequest } = useRequestAccess()
   const requestId = computed(() => toValue(id)?.trim() ?? '')
+  const isReader = computed(() => auth.userCan('read', 'ChatbotConversation'))
+  const attendee = computed(() => (options.asAttendee ? toValue(options.asAttendee) : false))
+  const live = computed(() => (options.live ? toValue(options.live) : false))
   const enabled = computed(
     () =>
-      canReadRequest.value && auth.userCan('read', 'ChatbotConversation') && requestId.value.length > 0,
+      canReadRequest.value && (isReader.value || attendee.value) && requestId.value.length > 0,
   )
   const key = computed(() => chatbotRequestKeys.conversation(tenantId.value, requestId.value))
 
@@ -68,7 +106,7 @@ export function useRequestConversation(id: MaybeRefOrGetter<string | null | unde
     const request = requestId.value
     const threadKey = chatbotRequestKeys.conversation(tenant, request)
     const held = client.getQueryData<ConversationThread>(threadKey)
-    const after = held ? lastSeq(held.items) : null
+    const after = held ? pollCursor(held.items, live.value) : null
 
     let thread: ConversationThread
     if (after === null) {
@@ -92,7 +130,9 @@ export function useRequestConversation(id: MaybeRefOrGetter<string | null | unde
       }
       thread = fresh
     }
-    markOpened(tenant, request)
+    // Handoff 20 §5: opening the chat as the attendee does not move the unread marker, with or
+    // without `read:ChatbotConversation`, so nothing is zeroed for it.
+    if (isReader.value && !attendee.value) markOpened(tenant, request)
     return thread
   }
 
@@ -104,7 +144,8 @@ export function useRequestConversation(id: MaybeRefOrGetter<string | null | unde
     refetchInterval: (q) => {
       if (!q.state.data) return false
       const status = q.state.error ? readApiErrorEnvelope(q.state.error).status : null
-      return status === 403 || status === 404 ? false : CONVERSATION_POLL_MS
+      if (status === 403 || status === 404) return false
+      return live.value ? CONVERSATION_LIVE_POLL_MS : CONVERSATION_POLL_MS
     },
   })
 

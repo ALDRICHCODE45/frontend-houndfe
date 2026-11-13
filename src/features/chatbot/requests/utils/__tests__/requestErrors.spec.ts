@@ -223,3 +223,55 @@ describe('codes of the reply, finish and live conversation (T7a)', () => {
     expect(error.current?.version).toBe(5)
   })
 })
+
+describe('scheduled conversations (handoff 21)', () => {
+  const TZ = 'America/Mexico_City'
+
+  it('SCHEDULED_TOO_EARLY denies CLAIM with «Disponible desde HH:MM» from claimableAt, in the given zone', () => {
+    expect(deniedActionReason('SCHEDULED_TOO_EARLY', null, { claimableAt: '2026-11-14T15:55:00.000Z', timeZone: TZ })).toBe(
+      'Disponible desde 09:55',
+    )
+  })
+
+  it('SCHEDULED_TOO_EARLY without a usable claimableAt stays honest, never «Invalid Date»', () => {
+    expect(deniedActionReason('SCHEDULED_TOO_EARLY')).toBe('Todavía no se puede atender: la conversación está agendada.')
+    expect(deniedActionReason('SCHEDULED_TOO_EARLY', null, { claimableAt: 'nope' })).toBe(
+      'Todavía no se puede atender: la conversación está agendada.',
+    )
+  })
+
+  it('readRequestError keeps claimableAt and the fresh slots of a SLOT_UNAVAILABLE 409', () => {
+    const slots = [{ startsAt: '2026-11-14T16:00:00.000Z', withinWindow: true, available: true }]
+    const early = readRequestError(axiosError(409, { code: 'SCHEDULED_TOO_EARLY', claimableAt: '2026-11-14T15:55:00.000Z' }))
+    expect(early.claimableAt).toBe('2026-11-14T15:55:00.000Z')
+    const taken = readRequestError(
+      axiosError(409, { code: 'SLOT_UNAVAILABLE', slots, timeZone: TZ, whatsappWindowClosesAt: '2026-11-14T03:10:00.000Z' }),
+    )
+    expect(taken.slotsUpdate).toEqual({ slots, timeZone: TZ, whatsappWindowClosesAt: '2026-11-14T03:10:00.000Z' })
+    expect(readRequestError(axiosError(409, { code: 'VERSION_CONFLICT' })).slotsUpdate).toBeNull()
+    expect(readRequestError(axiosError(409, { code: 'VERSION_CONFLICT' })).claimableAt).toBeNull()
+  })
+
+  it('malformed slots in the body are dropped, not trusted', () => {
+    const error = readRequestError(axiosError(409, { code: 'SLOT_UNAVAILABLE', slots: [{ startsAt: 5 }, 'x'] }))
+    expect(error.slotsUpdate?.slots).toEqual([])
+  })
+
+  const cases: Array<[number, string, RegExp]> = [
+    [409, 'SLOT_UNAVAILABLE', /horario/i],
+    [409, 'RESCHEDULE_NOT_ALLOWED', /reagendar/i],
+    [409, 'NOT_SCHEDULED', /agendada/i],
+    [422, 'SCHEDULING_DISABLED', /agend/i],
+    [409, 'SCHEDULED_TOO_EARLY', /todavía/i],
+  ]
+  it.each(cases)('%s %s has its own es-MX copy', (status, code, pattern) => {
+    const message = requestErrorMessage(axiosError(status, { code }))
+    expect(message).toMatch(pattern)
+    expect(message).not.toBe('No se pudo completar la acción. Intenta de nuevo.')
+  })
+
+  it('SCHEDULED_TOO_EARLY on a claim names the time when the body carries claimableAt', () => {
+    const error = readRequestError(axiosError(409, { code: 'SCHEDULED_TOO_EARLY', claimableAt: '2026-11-14T15:55:00.000Z' }))
+    expect(requestErrorMessage(error, { timeZone: TZ })).toContain('09:55')
+  })
+})

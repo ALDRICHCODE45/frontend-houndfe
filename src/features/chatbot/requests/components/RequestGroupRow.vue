@@ -52,6 +52,8 @@ const unreadLabel = computed(
 const windowTag = computed(() =>
   isOpen.value ? windowClosingTag(props.row.whatsappWindowClosesAt, props.now, props.row.windowClosingSoon) : null,
 )
+/** Handoff 21: the branch hours changed under a booked time; staff must move it (nobody told the customer). */
+const needsReschedule = computed(() => isOpen.value && props.row.needsReschedule === true)
 const closed = computed(() =>
   isOpen.value ? null : closedLine(props.row, props.currentUserId, { now: props.now, timeZone: props.timeZone }),
 )
@@ -94,6 +96,9 @@ function openDetailFromKey(event: KeyboardEvent) {
         <span class="chatbot-row__folio">{{ row.folio }}</span>
         <span>{{ subtypeLabel }}</span>
         <span v-if="unread" class="chatbot-unread" data-testid="unread-badge" :aria-label="unreadLabel">{{ unreadText }}</span>
+        <span v-if="needsReschedule" class="chatbot-reschedule-tag" data-testid="reschedule-tag" aria-label="Por reagendar: la hora agendada quedó fuera del horario de atención">
+          <UIcon name="i-lucide-calendar-clock" class="chatbot-window-tag__icon" aria-hidden="true" />Reagendar
+        </span>
         <span v-if="windowTag" class="chatbot-window-tag" data-testid="window-tag">
           <UIcon name="i-lucide-clock" class="chatbot-window-tag__icon" aria-hidden="true" />{{ windowTag }}
         </span>
@@ -122,6 +127,9 @@ function openDetailFromKey(event: KeyboardEvent) {
       <span class="chatbot-row__folio">{{ row.folio }}</span>
       <SubtypeTag :subtype="row.subtype" />
       <span v-if="unread" class="chatbot-unread" data-testid="unread-badge" :aria-label="unreadLabel">{{ unreadText }}</span>
+      <span v-if="needsReschedule" class="chatbot-reschedule-tag" data-testid="reschedule-tag" aria-label="Por reagendar: la hora agendada quedó fuera del horario de atención">
+          <UIcon name="i-lucide-calendar-clock" class="chatbot-window-tag__icon" aria-hidden="true" />Reagendar
+        </span>
     </div>
     <div v-if="windowTag" class="chatbot-card__window">
       <span class="chatbot-window-tag" data-testid="window-tag">

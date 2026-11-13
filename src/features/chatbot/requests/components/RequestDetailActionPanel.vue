@@ -37,10 +37,12 @@ const props = withDefaults(
     version: number
     currentUserId?: string | null
     variant?: 'panel' | 'bar'
+    /** IANA zone for «Disponible desde HH:MM»; defaults to the runtime zone like the rest of the detail. */
+    timeZone?: string
     /** The action being sent: every button waits, and that one shows it is working. */
     pendingAction?: ChatbotRequestAction | null
   }>(),
-  { currentUserId: null, variant: 'panel', pendingAction: null },
+  { currentUserId: null, variant: 'panel', pendingAction: null, timeZone: undefined },
 )
 
 const emit = defineEmits<{ action: [action: ChatbotRequestAction] }>()
@@ -52,9 +54,11 @@ const isBar = computed(() => props.variant === 'bar')
 const closed = computed(() => props.status === 'RESOLVED' || props.status === 'CANCELLED')
 
 /**
- * What this version of the FE handles. Anything else the server lists (SEND_MESSAGE and
- * SEND_TEMPLATE until the live chat, RESCHEDULE or a later action) is not rendered: a button with
- * no handler would be a blank, enabled dead end.
+ * What this version of the FE handles. Anything else the server lists (a later
+ * action) is not rendered: a button with no handler would be a blank, enabled dead end.
+ * SEND_MESSAGE and SEND_TEMPLATE belong to the live chat: the composer (and the blocked composer's
+ * «Enviar plantilla», with its cost) is inside the conversation block, so «Qué hacer» never lists
+ * them. Only the mobile bar uses SEND_MESSAGE, as «Abrir conversación» (the chat is full screen).
  */
 const HANDLED_ACTIONS: ReadonlySet<string> = new Set<ChatbotRequestAction>([
   'CLAIM',
@@ -67,20 +71,25 @@ const HANDLED_ACTIONS: ReadonlySet<string> = new Set<ChatbotRequestAction>([
   'CANCEL',
   'FINISH',
   'FINISH_IDLE',
+  'RESCHEDULE',
 ])
 
 const handledAllowed = computed(() => {
   // FINISH and FINISH_IDLE open the same form: one «Finalizar» button, FINISH wins.
   const finishToo = props.allowed.includes('FINISH')
   return props.allowed.filter(
-    (action) => HANDLED_ACTIONS.has(action) && !(action === 'FINISH_IDLE' && finishToo),
+    (action) =>
+      (HANDLED_ACTIONS.has(action) || (isBar.value && action === 'SEND_MESSAGE')) &&
+      !(action === 'FINISH_IDLE' && finishToo),
   )
 })
 const handledDenied = computed(() => props.denied.filter(({ action }) => HANDLED_ACTIONS.has(action)))
 
 // A clarification is answered with REPLY (also on a NEW one: replying claims and resolves in one step).
 const primary = computed<ChatbotRequestAction | null>(() =>
-  handledAllowed.value.includes('REPLY')
+  handledAllowed.value.includes('SEND_MESSAGE')
+    ? 'SEND_MESSAGE'
+    : handledAllowed.value.includes('REPLY')
     ? 'REPLY'
     : handledAllowed.value.includes('CLAIM')
       ? 'CLAIM'
@@ -93,19 +102,24 @@ const items = computed<ActionItem[]>(() => {
   const claimToo = handledAllowed.value.includes('CLAIM')
   const allowedItems = handledAllowed.value.map<ActionItem>((action) => ({
     action,
-    label: action === 'RESOLVE' && claimToo ? 'Resolver sin tomarla…' : ACTION_LABELS[action],
-    icon: ACTION_ICONS[action],
+    label:
+      action === 'RESOLVE' && claimToo
+        ? 'Resolver sin tomarla…'
+        : action === 'SEND_MESSAGE'
+          ? 'Abrir conversación'
+          : ACTION_LABELS[action],
+    icon: action === 'SEND_MESSAGE' ? 'i-lucide-message-square' : ACTION_ICONS[action],
     primary: action === primary.value,
     reason: null,
   }))
   // The primary first; the rest keep the contract order.
   allowedItems.sort((a, b) => Number(b.primary) - Number(a.primary))
-  const deniedItems = handledDenied.value.map<ActionItem>(({ action, code }) => ({
+  const deniedItems = handledDenied.value.map<ActionItem>(({ action, code, claimableAt }) => ({
     action,
     label: ACTION_LABELS[action],
     icon: ACTION_ICONS[action],
     primary: false,
-    reason: deniedActionReason(code, props.assignee),
+    reason: deniedActionReason(code, props.assignee, { claimableAt, timeZone: props.timeZone }),
   }))
   return [...allowedItems, ...deniedItems]
 })

@@ -2,7 +2,8 @@
  * Chatbot request inbox — wire types. Typed exactly against houndfe-backend
  * `docs/frontend-handoff/14-chatbot-request-inbox.md` (incl. §14 v1.3),
  * `11-chatbot-request-commands.md` and `12-chatbot-request-resolve.md` at 86f9b6b7, plus
- * `19-clarification-replies.md` and `20-live-conversation.md` (§2 liveSession, §4 finish) at ff5baa0d.
+ * `19-clarification-replies.md` and `20-live-conversation.md` (§2 liveSession, §4 finish) at ff5baa0d,
+ * and `21-scheduled-conversations.md` (scheduling, reschedule) at 5b549e18.
  *
  * Text that comes from the bot or the customer (`summary`, `needs`, `context`, snapshots) is
  * plain text: never render it as HTML. The backend decides what a phone looks like (masked
@@ -62,6 +63,8 @@ export type ChatbotRequestAction =
   | 'SEND_TEMPLATE'
   | 'FINISH'
   | 'FINISH_IDLE'
+  /** Handoff 21 §1.2: an open, scheduled, not-started request. */
+  | 'RESCHEDULE'
 
 /** Codes of `deniedActions` (handoff 14 §14.4): exactly what the command would answer. */
 export type ChatbotRequestDeniedCode =
@@ -69,10 +72,14 @@ export type ChatbotRequestDeniedCode =
   | 'REQUEST_CLAIMED_BY_OTHER'
   | 'NOT_ASSIGNEE'
   | 'CANCEL_NOT_ALLOWED'
+  /** Handoff 21 §1.2: `CLAIM` of a scheduled request more than 5 minutes ahead of its time. */
+  | 'SCHEDULED_TOO_EARLY'
 
 export interface ChatbotRequestDeniedAction {
   action: ChatbotRequestAction
   code: ChatbotRequestDeniedCode
+  /** Only with `SCHEDULED_TOO_EARLY`: ISO instant (`scheduledFor − 5 min`) from which `CLAIM` is offered. */
+  claimableAt?: string
 }
 
 export interface ChatbotRequestPerson {
@@ -140,8 +147,12 @@ export interface ChatbotRequestRow {
   /** Handoff 14 §16: open and inside the branch windowWarningMinutes (same rule as the filter). */
   windowClosingSoon?: boolean
   unreadCustomerMessages: number
+  /** ISO UTC instant the customer booked, or `null`. Show it in the branch's time zone. */
   scheduledFor: string | null
+  /** Handoff 21 §1: 1 at booking, +1 per reschedule and cancel, `0` when never scheduled. Not a concurrency token. */
+  scheduleVersion: number
   requiresTemplateAtStart: boolean
+  /** Handoff 21 §1: the branch hours changed and `scheduledFor` is outside them; staff must move it. */
   needsReschedule: boolean
   /** Handoff 20 §2: `null` unless the request is a conversation that had a session. */
   liveSession: ChatbotRequestLiveSession | null
@@ -616,6 +627,11 @@ export interface FinishRequestBody extends ChatbotRequestVersionedBody {
   complaintOutcome?: ChatbotComplaintOutcome
 }
 
+/** Handoff 21 §3: exactly this body; `scheduledFor` is a block start of the picker (ISO with a zone). */
+export interface RescheduleRequestBody extends ChatbotRequestVersionedBody {
+  scheduledFor: string
+}
+
 export type ZoneType = 'FREE' | 'SURCHARGE' | 'CARRIER_ONLY'
 
 /** Flat body: `expectedVersion`, `action` and the fields of that action. Never `resolutionRequestId`. */
@@ -656,10 +672,23 @@ export interface ChatbotRequestCommandSummary {
   claimedAt: string | null
   overdueAt: string | null
   closedAt: string | null
+  /** Only on the answer of a reschedule (handoff 21 §3). */
+  scheduledFor?: string | null
+  previousScheduledFor?: string | null
+  scheduleVersion?: number
+  requiresTemplateAtStart?: boolean
+  customerNotice?: ChatbotCustomerNotice
+}
+
+/** Handoff 21 §3 (S19 Q9): whether the bot will tell the customer about the new time. */
+export interface ChatbotCustomerNotice {
+  expected: boolean
 }
 
 export interface ChatbotRequestCommandResponse {
   request: ChatbotRequestCommandSummary
+  /** Only on the answer of a reschedule; also repeated inside `request`. `false` → the customer is NOT told. */
+  customerNotice?: ChatbotCustomerNotice
 }
 
 // ─── Command errors ───────────────────────────────────────────────────────────
@@ -691,6 +720,12 @@ export type ChatbotRequestErrorCode =
   | 'MEDIA_NOT_FOUND'
   | 'MEDIA_PURGED'
   | 'MEDIA_TYPE_MISMATCH'
+  // Scheduled conversations (handoff 21).
+  | 'SCHEDULED_TOO_EARLY'
+  | 'SLOT_UNAVAILABLE'
+  | 'RESCHEDULE_NOT_ALLOWED'
+  | 'NOT_SCHEDULED'
+  | 'SCHEDULING_DISABLED'
 
 /** The `current` of a typed error: enough to patch the row without reloading. */
 export interface ChatbotRequestErrorCurrent {
@@ -734,6 +769,8 @@ export interface ChatbotMessageMedia {
   hasThumb: boolean
   /** The 12-month retention deleted the file (`GET /chatbot-media/:id` answers 410). */
   purged: boolean
+  /** Only on a message the attendee just sent (handoff 20 §3b): the name the customer sees. */
+  filename?: string | null
 }
 
 export interface ChatbotMessage {
@@ -752,6 +789,14 @@ export interface ChatbotMessage {
   clientMessageId: string | null
   providerTimestamp: string | null
   createdAt: string
+  /** Only on `TEMPLATE` messages (handoff 20 §3c). */
+  templateName?: string | null
+  /**
+   * Client only, never sent by the backend: the POST ended in a network error or a `5xx`, so the
+   * message may have reached the customer. Its local `FAILED` status then reads «No sabemos si se
+   * envió» (not «El cliente no lo recibió»), and «Reintentar» resends the same id.
+   */
+  unconfirmed?: boolean
 }
 
 export interface ChatbotConversationPage {
@@ -769,3 +814,73 @@ export interface ChatbotConversationParams {
   /** Newer than this `seq` (≥ 0). Never together with `before`. */
   after?: number
 }
+
+// ─── Live conversation (handoff 20 §3) ────────────────────────────────────────
+
+/** A text message, or a photo / PDF already uploaded with `POST …/media`. `type` defaults to `TEXT`. */
+export type SendMessageBody =
+  | { clientMessageId: string; expectedEpoch: number; text: string }
+  | {
+      clientMessageId: string
+      expectedEpoch: number
+      type: 'IMAGE' | 'DOCUMENT'
+      mediaId: string
+      /** Optional, trimmed, at most 1024. */
+      caption?: string
+    }
+
+/** `POST …/messages` and `POST …/template` answer `200 {message}` (QUEUED). */
+export interface SendMessageResponse {
+  message: ChatbotMessage
+}
+
+/** `POST …/template`: exactly this body; the template name and language come from the branch settings. */
+export interface SendTemplateBody {
+  expectedEpoch: number
+}
+
+/** `POST …/media` (`201` first time, `200` replay). */
+export interface UploadMediaResponse {
+  mediaId: string
+  mimeType: string
+  sizeBytes: number
+  sha256: string
+  /** The name the customer will see, cleaned by the backend. */
+  filename: string
+}
+
+// ─── Scheduling (handoff 21 §2) ───────────────────────────────────────────────
+
+export interface ChatbotSchedulingSlot {
+  /** ISO UTC start of a block (render in `timeZone`). */
+  startsAt: string
+  /** `false`: the greeting at that time is outside the free 24 h window — the paid template will be needed. */
+  withinWindow: boolean
+  /** Always `true`: a full block is simply not listed. */
+  available: boolean
+}
+
+export interface ChatbotSchedulingBusinessHours {
+  openNow: boolean
+  nextOpenAt: string | null
+  timeZone: string
+  weeklyRanges: Array<{ day: string; ranges: Array<{ open: string; close: string }> }>
+  /** `YYYY-MM-DD` in the branch zone, today through the next 14 days. */
+  closedDates: string[]
+}
+
+/** `GET /chatbot-requests/:id/scheduling/slots`: up to 24 blocks, earliest first, 10 min to 14 days ahead. */
+export interface ChatbotSchedulingSlots {
+  /** IANA zone of the branch: every instant is shown in it. */
+  timeZone: string
+  /** When the customer's free 24 h window closes; decides `customerNotice` before confirming. */
+  whatsappWindowClosesAt: string | null
+  businessHours?: ChatbotSchedulingBusinessHours
+  slots: ChatbotSchedulingSlot[]
+}
+
+/** The fresh list a `409 SLOT_UNAVAILABLE` carries (the offered few; no business hours). */
+export type ChatbotSchedulingSlotsUpdate = Pick<
+  ChatbotSchedulingSlots,
+  'timeZone' | 'whatsappWindowClosesAt' | 'slots'
+>

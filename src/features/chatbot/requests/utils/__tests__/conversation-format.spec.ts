@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { makeMessage } from '../conversation-fixture'
 import {
   authorLabel,
-  deliveryLabel,
   formatBytes,
+  momentLabel,
   groupByDay,
   mediaKind,
   messageSide,
@@ -107,14 +107,16 @@ describe('formatBytes', () => {
   })
 })
 
-describe('deliveryLabel', () => {
-  it('names the delivery state of outgoing messages only', () => {
-    expect(deliveryLabel('SENT')).toBe('Enviado')
-    expect(deliveryLabel('DELIVERED')).toBe('Entregado')
-    expect(deliveryLabel('READ')).toBe('Leído')
-    expect(deliveryLabel('FAILED')).toBe('No se entregó')
-    expect(deliveryLabel('QUEUED')).toBe('En cola')
-    expect(deliveryLabel('UNKNOWN')).toBeNull()
-    expect(deliveryLabel(null)).toBeNull()
+describe('momentLabel — «ayer a las 10:05»', () => {
+  const TZ = 'America/Mexico_City'
+  const now = new Date('2026-11-13T22:00:00.000Z') // 16:00 in Mexico City
+  it('says hoy, ayer or the date, then the local time', () => {
+    expect(momentLabel('2026-11-13T16:05:00.000Z', { now, timeZone: TZ })).toBe('hoy a las 10:05')
+    expect(momentLabel('2026-11-12T16:05:00.000Z', { now, timeZone: TZ })).toBe('ayer a las 10:05')
+    expect(momentLabel('2026-11-09T16:05:00.000Z', { now, timeZone: TZ })).toBe('el lun 9 nov a las 10:05')
+  })
+  it('is null without a valid date', () => {
+    expect(momentLabel(null, { now, timeZone: TZ })).toBeNull()
+    expect(momentLabel('nope', { now, timeZone: TZ })).toBeNull()
   })
 })
