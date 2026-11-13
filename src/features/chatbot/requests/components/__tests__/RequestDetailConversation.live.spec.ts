@@ -367,7 +367,7 @@ describe('RequestDetailConversation — window closed and the template', () => {
 
   it('T15: a late template answer of A does not close a confirmation B opened', async () => {
     let resolveA!: (value: unknown) => void
-    api.sendTemplate.mockImplementationOnce(() => new Promise((resolve) => { resolveA = resolve }))
+    api.sendTemplate.mockImplementationOnce(() => new Promise((resolve) => { resolveA = resolve as (value: unknown) => void }))
     const wrapper = mountBlock(closed(), oldMessages())
     await wrapper.get('[data-testid="template-open"]').trigger('click')
     await wrapper.get('[data-testid="template-confirm"]').trigger('click')
