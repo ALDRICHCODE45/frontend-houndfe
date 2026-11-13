@@ -104,6 +104,8 @@ const commands = ref<InstanceType<typeof RequestCommandHost> | null>(null)
 const pendingAction = ref<ChatbotRequestAction | null>(null)
 /** Below 768 px the live chat is a full-screen view opened from a card or the bar (design 04). */
 const chatOpen = ref(false)
+/** The window the composer uses (server overrides included); the rail says the same. */
+const liveWindow = ref<{ closed: boolean; closesAt: number | null } | null>(null)
 
 function onAction(action: ChatbotRequestAction): void {
   // SEND_MESSAGE is not a command: «Abrir conversación» of the mobile bar opens the chat.
@@ -202,6 +204,7 @@ function onAction(action: ChatbotRequestAction): void {
             :detail="detail"
             :current-user-id="currentUserId"
             @action="onAction"
+            @window-state="liveWindow = $event"
           />
           <RequestDetailOtherOpen :requests="detail.otherOpenRequests" :current-user-id="currentUserId" />
           <RequestDetailDeliveries v-if="detail.deliveries.length > 0" :deliveries="detail.deliveries" />
@@ -235,7 +238,11 @@ function onAction(action: ChatbotRequestAction): void {
               @action="onAction"
             />
           </section>
-          <RequestDetailSessionPanel :detail="detail" :current-user-id="currentUserId" />
+          <RequestDetailSessionPanel
+            :detail="detail"
+            :current-user-id="currentUserId"
+            :window="canSeeConversation ? liveWindow : null"
+          />
         </aside>
       </div>
     </div>

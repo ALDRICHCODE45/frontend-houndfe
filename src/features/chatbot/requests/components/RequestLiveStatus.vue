@@ -24,10 +24,10 @@ const badge = computed(() => (session.value ? sessionBadge(session.value.state) 
 const showWindow = computed(() => session.value?.state === 'STARTING' || session.value?.state === 'ACTIVE')
 const remainingMs = computed(() => (props.closesAt === null ? null : props.closesAt - props.now.getTime()))
 const windowChip = computed(() => {
-  if (props.windowClosed || (remainingMs.value !== null && remainingMs.value <= 0)) {
-    return { text: 'Ventana de 24 h cerrada', tone: 'bad', icon: 'i-lucide-lock' }
-  }
-  if (remainingMs.value === null) return null
+  // The composer decides: closed there is closed here. Open there, a stale end in the past (the
+  // server said WINDOW_OPEN) is not shown as «cerrada».
+  if (props.windowClosed) return { text: 'Ventana de 24 h cerrada', tone: 'bad', icon: 'i-lucide-lock' }
+  if (remainingMs.value === null || remainingMs.value <= 0) return null
   return {
     text: `Ventana de 24 h: cierra en ${formatRemaining(remainingMs.value)}`,
     tone: remainingMs.value <= 120 * 60_000 ? 'warn' : 'ok',

@@ -88,7 +88,7 @@ export function liveErrorNotice(error: LiveError, options: LiveNoticeOptions = {
       return make(
         'warn',
         'Ya no la atiendes tú',
-        'Te la reasignaron o la tomó otra persona. Actualizamos los datos; tu borrador sigue aquí por si lo necesitas.',
+        'Te la reasignaron o la tomó otra persona. El mensaje no se envió. Actualizamos los datos.',
         true,
       )
     case 'SESSION_NOT_ACTIVE':
