@@ -7,6 +7,9 @@
  */
 body[data-catalog-theme='light'] .catalog-animal {
   display: grid;
+  /* minmax(0, 1fr): the column never grows with a species row's min-content width, so on a phone
+     the row scrolls inside its own box instead of scrolling the whole page sideways. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   margin: 12px 0 16px;
   --catalog-animal-hover: color-mix(in srgb, var(--catalog-soft) 45%, var(--catalog-surface));

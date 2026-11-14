@@ -143,6 +143,8 @@ describe('catalog stylesheet', () => {
     expect(animal).toMatch(/\.catalog-animal-sheet-mark \{[^}]*border-radius: 50%/)
     expect(animal).toMatch(/\.catalog-animal-name \{[^}]*text-overflow: ellipsis/)
     expect(animal).toMatch(/\.catalog-animal-scroll \{[^}]*mask-image: linear-gradient/)
+    // D1: the one-column grid must not grow with the species row's min-content width (page scrolled sideways on a phone)
+    expect(animal).toMatch(/\.catalog-animal \{[^}]*grid-template-columns: minmax\(0, 1fr\)/)
     const desktop = animal.slice(animal.indexOf('@media (min-width: 901px) {'))
     expect(desktop).toMatch(/\.catalog-animal-chip \{[^}]*min-height: 48px/)
     expect(desktop).toMatch(/\.catalog-animal-scroll \{[^}]*flex-wrap: wrap/)
