@@ -1,0 +1,42 @@
+{
+  "title": "Catálogo en línea · filtro de animal",
+  "brief": "Rediseño de la tira «Explorar por destinatario» del catálogo público (CatalogFilterRecipientTiles): hoy son 19 tarjetas de ancho fijo en dos filas con la misma huella, nombres largos que se parten y un seleccionado que se desborda. Tres direcciones con los datos reales de «centro» (Todos 36, Perro 26, Gato 13 y 16 especies de 1–2 productos), más móvil 390 y estados límite de la recomendada. Sin checkboxes; «Todos» solo seleccionado cuando no hay filtro de animal.",
+  "feature": "odd/tasks/catalog-animal-filters.md",
+  "artboards": [
+    {
+      "file": "01-direccion-a-grupos-y-especies.html",
+      "title": "A · Grupos con icono y sub-fila de especies",
+      "tradeoff": "Recomendada: la tira pasa de 19 tarjetas a 5 chips con icono propio y total, y las especies viven en una sub-fila de píldoras; exige un mapa de etiquetas, iconos y orden en el FE porque el API no envía el grupo, y el total del grupo es una suma",
+      "width": 1440,
+      "height": 4330
+    },
+    {
+      "file": "02-direccion-b-pildoras-compactas.html",
+      "title": "B · Píldoras compactas con «Ver más (n)»",
+      "tradeoff": "La más simple de construir (sin grupos ni mapa, solo ordenar por relevancia), pero un nombre largo elegido sigue recortándose y 37 píldoras planas escalan peor aunque haya buscador",
+      "width": 1440,
+      "height": 3070
+    },
+    {
+      "file": "03-direccion-c-grupos-con-menu.html",
+      "title": "C · Grupos con menú de especies",
+      "tradeoff": "Es la que mejor escala con muchas especies y no mueve la página, pero esconde la especie elegida dentro de un menú (depende de los filtros activos) y cuesta un clic más explorar",
+      "width": 1440,
+      "height": 3820
+    },
+    {
+      "file": "04-movil-direccion-a.html",
+      "title": "04 · Móvil 390 · Dirección A",
+      "tradeoff": "Chips de 44 px con scroll horizontal y sub-fila deslizable; sin tooltip en táctil, así que los nombres largos dependen de la fila de filtros activos",
+      "width": 390,
+      "height": 2790
+    },
+    {
+      "file": "05-estados-direccion-a.html",
+      "title": "05 · Estados límite · Dirección A",
+      "tradeoff": "Cubre muchas opciones (hoja «Ver todas»), cargando, sin animales, un solo animal, elegido sin productos y códigos sin mapa; propone ocultar la tira con menos de 2 opciones, una regla nueva",
+      "width": 1440,
+      "height": 2350
+    }
+  ]
+}

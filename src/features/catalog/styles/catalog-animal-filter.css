@@ -1,0 +1,395 @@
+/*
+ * Animal strip (design/catalog-animal-filters, direction A, artboards 01, 04 and 05): group chips
+ * with their own icon and total, a species row of auto-width pills for the chosen group, and a
+ * bottom sheet for very long groups. Choices are buttons with a visible mark (✓ inside the chip or
+ * pill, a round mark in the sheet), never classic checkboxes. A phone scrolls the rows sideways
+ * with fades on the side that still hides content; from 901px they wrap.
+ */
+body[data-catalog-theme='light'] .catalog-animal {
+  display: grid;
+  /* minmax(0, 1fr): the column never grows with a species row's min-content width, so on a phone
+     the row scrolls inside its own box instead of scrolling the whole page sideways. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  margin: 12px 0 16px;
+  --catalog-animal-hover: color-mix(in srgb, var(--catalog-soft) 45%, var(--catalog-surface));
+}
+
+/* Rows: sideways scroll with fades on a phone. */
+body[data-catalog-theme='light'] .catalog-animal-scroll {
+  --catalog-fade-start: 0px;
+  --catalog-fade-end: 0px;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin-inline: -16px;
+  padding: 2px 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--catalog-fade-start),
+    #000 calc(100% - var(--catalog-fade-end)),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--catalog-fade-start),
+    #000 calc(100% - var(--catalog-fade-end)),
+    transparent
+  );
+}
+body[data-catalog-theme='light'] .catalog-animal-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Group chips: 44px targets on a phone, 48px from 901px. */
+body[data-catalog-theme='light'] .catalog-animal-chip {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  max-width: 230px;
+  padding: 4px 12px 4px 6px;
+  border: 1px solid var(--catalog-border);
+  border-radius: var(--catalog-panel-radius);
+  background: var(--catalog-surface);
+  color: var(--catalog-title);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+}
+body[data-catalog-theme='light'] .catalog-animal-chip:hover {
+  border-color: var(--catalog-border-strong);
+  background: var(--catalog-animal-hover);
+}
+body[data-catalog-theme='light'] .catalog-animal-chip[aria-pressed='true'] {
+  border-color: var(--catalog-action);
+  background: var(--catalog-active-soft);
+  color: var(--catalog-action);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--catalog-action);
+}
+body[data-catalog-theme='light'] .catalog-animal-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--catalog-soft);
+  color: var(--catalog-title);
+  font-size: 20px;
+}
+body[data-catalog-theme='light'] .catalog-animal-chip[aria-pressed='true'] .catalog-animal-icon {
+  background: var(--catalog-surface);
+  color: var(--catalog-action);
+}
+body[data-catalog-theme='light'] .catalog-animal-chip-check {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+body[data-catalog-theme='light'] .catalog-animal-chevron {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-left: -4px;
+  color: var(--catalog-muted);
+  transition: transform 150ms ease;
+}
+body[data-catalog-theme='light'] .catalog-animal-chip[aria-expanded='true'] .catalog-animal-chevron {
+  transform: rotate(180deg);
+}
+body[data-catalog-theme='light'] .catalog-animal-chip[aria-pressed='true'] .catalog-animal-chevron {
+  color: var(--catalog-action);
+}
+
+/* One line per name; the count never wraps and the selected state never overflows. */
+body[data-catalog-theme='light'] .catalog-animal-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body[data-catalog-theme='light'] .catalog-animal-count {
+  flex: none;
+  color: var(--catalog-muted);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+body[data-catalog-theme='light'] .catalog-animal-chip[aria-pressed='true'] .catalog-animal-count {
+  color: var(--catalog-action);
+}
+
+/* Species row. */
+body[data-catalog-theme='light'] .catalog-animal-sub {
+  padding: 6px 0 10px;
+  border: 1px solid var(--catalog-border);
+  border-inline: 0;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--catalog-soft) 45%, var(--catalog-surface));
+  margin-inline: -16px;
+}
+body[data-catalog-theme='light'] .catalog-animal-sub-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 16px;
+  color: var(--catalog-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+body[data-catalog-theme='light'] .catalog-animal-sub-icon {
+  width: 16px;
+  height: 16px;
+}
+body[data-catalog-theme='light'] .catalog-animal-sub .catalog-animal-scroll {
+  margin-inline: 0;
+  padding: 4px 16px;
+}
+body[data-catalog-theme='light'] .catalog-animal-pill {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  max-width: 240px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--catalog-border);
+  border-radius: 9999px;
+  background: var(--catalog-surface);
+  color: var(--catalog-title);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+}
+body[data-catalog-theme='light'] .catalog-animal-pill::after {
+  content: '';
+  position: absolute;
+  inset: -2px 0;
+}
+body[data-catalog-theme='light'] .catalog-animal-pill:hover {
+  border-color: var(--catalog-border-strong);
+  background: var(--catalog-animal-hover);
+}
+body[data-catalog-theme='light'] .catalog-animal-pill[aria-pressed='true'] {
+  border-color: var(--catalog-action);
+  background: var(--catalog-action);
+  color: var(--catalog-on-action);
+  font-weight: 600;
+}
+body[data-catalog-theme='light'] .catalog-animal-pill[aria-pressed='true']:hover {
+  border-color: color-mix(in srgb, var(--catalog-action) 88%, var(--catalog-text));
+  background: color-mix(in srgb, var(--catalog-action) 88%, var(--catalog-text));
+}
+body[data-catalog-theme='light'] .catalog-animal-pill[aria-pressed='true'] .catalog-animal-count {
+  color: color-mix(in srgb, var(--catalog-on-action) 85%, var(--catalog-action));
+}
+body[data-catalog-theme='light'] .catalog-animal-pill-check {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+body[data-catalog-theme='light'] .catalog-animal-more {
+  border-style: dashed;
+  border-color: var(--catalog-border-strong);
+  color: var(--catalog-action);
+  font-weight: 600;
+}
+body[data-catalog-theme='light'] .catalog-animal-more:hover {
+  border-style: solid;
+}
+body[data-catalog-theme='light'] .catalog-animal-empty {
+  padding: 4px 16px 0;
+  color: var(--catalog-muted);
+  font-size: 13px;
+}
+
+/* Species search (inline from 901px, inside the sheet on a phone). */
+body[data-catalog-theme='light'] .catalog-animal-search,
+body[data-catalog-theme='light'] .catalog-animal-sheet-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+body[data-catalog-theme='light'] .catalog-animal-search {
+  margin-left: auto;
+  width: 240px;
+}
+body[data-catalog-theme='light'] .catalog-animal-search-icon {
+  position: absolute;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  color: var(--catalog-muted);
+  pointer-events: none;
+}
+body[data-catalog-theme='light'] :is(.catalog-animal-search, .catalog-animal-sheet-search) input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px 0 36px;
+  border: 1px solid var(--catalog-border);
+  border-radius: var(--catalog-control-radius);
+  background: var(--catalog-surface);
+  color: var(--catalog-text);
+  font-size: 16px;
+}
+body[data-catalog-theme='light'] :is(.catalog-animal-search, .catalog-animal-sheet-search) input::placeholder {
+  color: var(--catalog-muted);
+  opacity: 1;
+}
+body[data-catalog-theme='light'] :is(.catalog-animal-search, .catalog-animal-sheet-search) input:hover {
+  border-color: var(--catalog-border-strong);
+}
+
+/* Species sheet (phone). */
+body[data-catalog-theme='light'] .catalog-animal-sheet {
+  height: min(620px, calc(100dvh - 32px));
+}
+body[data-catalog-theme='light'] .catalog-animal-sheet-search {
+  flex: none;
+  margin: 8px 16px;
+}
+body[data-catalog-theme='light'] .catalog-animal-sheet-list {
+  flex: 1;
+  min-height: 0;
+  padding: 0 8px;
+  overflow-y: auto;
+}
+body[data-catalog-theme='light'] .catalog-animal-sheet-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: var(--catalog-title);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+body[data-catalog-theme='light'] .catalog-animal-sheet-row .catalog-animal-name {
+  flex: 1;
+}
+body[data-catalog-theme='light'] .catalog-animal-sheet-row:hover {
+  background: var(--catalog-animal-hover);
+}
+body[data-catalog-theme='light'] .catalog-animal-sheet-row[aria-pressed='true'] {
+  background: var(--catalog-active-soft);
+  color: var(--catalog-action);
+  font-weight: 600;
+}
+body[data-catalog-theme='light'] .catalog-animal-sheet-row[aria-pressed='true'] .catalog-animal-count {
+  color: var(--catalog-action);
+}
+body[data-catalog-theme='light'] .catalog-animal-sheet-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--catalog-border-strong);
+  border-radius: 50%;
+  color: transparent;
+}
+body[data-catalog-theme='light'] .catalog-animal-sheet-row[aria-pressed='true'] .catalog-animal-sheet-mark {
+  border-color: var(--catalog-action);
+  background: var(--catalog-action);
+  color: var(--catalog-on-action);
+}
+body[data-catalog-theme='light'] .catalog-animal-sheet-foot {
+  grid-template-columns: 1fr;
+}
+body[data-catalog-theme='light'] .catalog-animal-sheet-foot .catalog-button {
+  min-height: 48px;
+}
+
+body[data-catalog-theme='light']
+  :is(
+    .catalog-animal-chip,
+    .catalog-animal-pill,
+    .catalog-animal-sheet-row,
+    .catalog-animal-search input,
+    .catalog-animal-sheet-search input
+  ):focus-visible {
+  outline: 2px solid var(--catalog-action);
+  outline-offset: 2px;
+}
+body[data-catalog-theme='light'] .catalog-animal-sheet-row:focus-visible {
+  outline-offset: -2px;
+}
+
+/* From 901px the rows wrap instead of scrolling, and the species row becomes a boxed panel. */
+@media (min-width: 901px) {
+  body[data-catalog-theme='light'] .catalog-animal {
+    margin: 16px 0 24px;
+  }
+  body[data-catalog-theme='light'] .catalog-animal-scroll {
+    flex-wrap: wrap;
+    margin-inline: 0;
+    padding: 0;
+    overflow: visible;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  body[data-catalog-theme='light'] .catalog-animal-chip {
+    min-height: 48px;
+    max-width: 240px;
+    padding: 6px 14px 6px 8px;
+    gap: 10px;
+  }
+  body[data-catalog-theme='light'] .catalog-animal-icon {
+    width: 32px;
+    height: 32px;
+  }
+  body[data-catalog-theme='light'] .catalog-animal-sub {
+    margin-inline: 0;
+    padding: 12px 14px 14px;
+    border: 1px solid var(--catalog-border);
+    border-radius: var(--catalog-panel-radius);
+  }
+  body[data-catalog-theme='light'] .catalog-animal-sub-head {
+    margin: -4px 0 4px;
+    padding: 0;
+    min-height: 44px;
+  }
+  body[data-catalog-theme='light'] .catalog-animal-sub .catalog-animal-scroll {
+    padding: 4px 0 0;
+  }
+  body[data-catalog-theme='light'] .catalog-animal-pill {
+    height: 36px;
+    font-size: 13px;
+  }
+  body[data-catalog-theme='light'] .catalog-animal-pill::after {
+    inset: -4px 0;
+  }
+  body[data-catalog-theme='light'] .catalog-animal-search input {
+    min-height: 36px;
+    font-size: 13px;
+  }
+  body[data-catalog-theme='light'] .catalog-animal-empty {
+    padding: 8px 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-catalog-theme='light'] .catalog-animal-chevron {
+    transition: none;
+  }
+  body[data-catalog-theme='light'] .catalog-animal-scroll {
+    scroll-behavior: auto;
+  }
+}

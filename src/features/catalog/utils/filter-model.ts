@@ -2,9 +2,10 @@ import type {
   PublicCatalogAttributeFacetDto,
   PublicCatalogProductsCategoryFacetDto,
 } from '../interfaces/public-catalog-products.types'
+import { buildAnimalStrip } from './animal-groups'
 import { mergeFacetOptions } from './facet-options'
 
-/** The recipient («¿Para quién?») definition: it feeds the tiles, never a sidebar group. */
+/** The recipient («¿Para quién?») definition: it feeds the animal strip, never a sidebar group. */
 export const RECIPIENT_FACET_CODE = 'animal.target'
 /** Options shown before «Ver más». */
 export const FILTER_VISIBLE_OPTIONS = 5
@@ -141,7 +142,11 @@ export function buildFilterGroups(input: FilterGroupsInput): {
     if (group) attributeGroups.push(group)
   }
 
-  const gated = findRecipientFacet(input.attributes) !== null && input.tokens.length === 0
+  // The gate only makes sense while the animal strip is on screen to open it (a branch with a
+  // single animal hides the strip, and then nothing could ever unlock the other groups).
+  const gated =
+    buildAnimalStrip(findRecipientFacet(input.attributes), input.tokens).visible &&
+    input.tokens.length === 0
   if (gated) return { groups, recipientHint: attributeGroups.length > 0 }
   return { groups: [...groups, ...attributeGroups], recipientHint: false }
 }

@@ -1505,81 +1505,16 @@ body[data-catalog-theme='light'] .catalog-footer-branch b {
 }
 
 /*
- * Filters (design/public-catalog-v0, artboards 01 and 02): recipient tiles, the desktop sidebar,
- * the mobile «Filtros» button and its bottom sheet. Choices are rows, tiles and chips with a
- * visible mark (Selección sin checkboxes), never classic checkboxes.
+ * Filters (design/public-catalog-v0, artboards 01 and 02): the desktop sidebar, the mobile
+ * «Filtros» button and its bottom sheet (the animal strip has its own catalog-animal-filter.css).
+ * Choices are rows and chips with a visible mark (Selección sin checkboxes), never classic
+ * checkboxes.
  */
 body[data-catalog-theme='light'] {
   --catalog-hover: color-mix(in srgb, var(--catalog-soft) 45%, var(--catalog-surface));
 }
 
-/* Recipient tiles: one scrolling row of 44px tiles on a phone, a grid from 901px. */
-body[data-catalog-theme='light'] .catalog-recipients {
-  display: flex;
-  gap: 8px;
-  margin: 12px -16px 16px;
-  padding: 2px 16px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
-}
-body[data-catalog-theme='light'] .catalog-recipients::-webkit-scrollbar {
-  display: none;
-}
-body[data-catalog-theme='light'] .catalog-recipient {
-  position: relative;
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 8px 14px;
-  border: 1px solid var(--catalog-border);
-  border-radius: var(--catalog-panel-radius);
-  background: var(--catalog-surface);
-  color: var(--catalog-title);
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.2;
-  text-align: center;
-  cursor: pointer;
-}
-body[data-catalog-theme='light'] .catalog-recipient:hover {
-  border-color: var(--catalog-border-strong);
-}
-body[data-catalog-theme='light'] .catalog-recipient[aria-pressed='true'] {
-  border-color: var(--catalog-action);
-  background: var(--catalog-active-soft);
-  color: var(--catalog-action);
-  font-weight: 600;
-  box-shadow: inset 0 0 0 1px var(--catalog-action);
-}
-body[data-catalog-theme='light'] .catalog-recipient-icon {
-  width: 20px;
-  height: 20px;
-  flex: none;
-}
-body[data-catalog-theme='light'] .catalog-recipient-check {
-  width: 16px;
-  height: 16px;
-  flex: none;
-}
-body[data-catalog-theme='light'] .catalog-recipient-text {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-}
-body[data-catalog-theme='light'] .catalog-recipient-count {
-  color: var(--catalog-muted);
-  font-size: 12px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-body[data-catalog-theme='light'] .catalog-recipient[aria-pressed='true'] .catalog-recipient-count {
-  color: var(--catalog-action);
-}
-body[data-catalog-theme='light'] :is(.catalog-recipient, .catalog-filter-option, .catalog-filter-more, .catalog-filter-trigger, .catalog-filter-group-toggle, .catalog-filter-sheet-close):focus-visible {
+body[data-catalog-theme='light'] :is(.catalog-filter-option, .catalog-filter-more, .catalog-filter-trigger, .catalog-filter-group-toggle, .catalog-filter-sheet-close):focus-visible {
   outline: 2px solid var(--catalog-action);
   outline-offset: 2px;
 }
@@ -1887,24 +1822,6 @@ body[data-catalog-theme='light'] .catalog-filter-sheet-foot .catalog-button {
   }
   body[data-catalog-theme='light'] .catalog-filter-trigger {
     display: none;
-  }
-  body[data-catalog-theme='light'] .catalog-recipients {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    margin: 16px 0 24px;
-    padding: 0;
-    overflow: visible;
-    mask-image: none;
-  }
-  body[data-catalog-theme='light'] .catalog-recipient {
-    flex: initial;
-    min-height: 52px;
-    padding: 8px 10px;
-    gap: 10px;
-  }
-  body[data-catalog-theme='light'] .catalog-recipient-icon {
-    width: 22px;
-    height: 22px;
   }
   /* The sidebar takes its column: three cards a row until 1181px (the artboard's four). */
   body[data-catalog-theme='light'] .catalog-split--filters .catalog-split-main .grid {

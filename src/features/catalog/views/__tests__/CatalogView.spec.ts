@@ -1615,7 +1615,7 @@ describe('CatalogView public browse', () => {
         .findAll('button[aria-pressed]')
         .find((button) => (button.attributes('aria-label') ?? '').startsWith(label))!
     const tiles = (wrapper: VueWrapper) =>
-      wrapper.findAll('section[aria-label="Explorar por destinatario"] button')
+      wrapper.findAll('section[aria-label="Explorar por animal"] .catalog-animal-chip')
     const tile = (wrapper: VueWrapper, label: string) =>
       tiles(wrapper).find((button) => (button.attributes('aria-label') ?? '').startsWith(label))!
     const squash = (text: string) => text.replace(/\s+/g, ' ').trim()
@@ -1681,6 +1681,80 @@ describe('CatalogView public browse', () => {
       await flushPromises()
       expect(router.currentRoute.value.query).toEqual({ q: 'caf', facet: adult })
       expect(router.currentRoute.value.hash).toBe('#catalogo')
+    })
+
+    const zoo = (url: URL) => [
+      {
+        code: 'animal.target',
+        label: 'Especie',
+        options: [
+          { code: 'ani.dom.dog', label: 'Perro', count: 5 },
+          { code: 'ani.freshwater.guppy', label: 'Guppy', count: 2 },
+          { code: 'ani.freshwater_group.mollies', label: 'Mollys', count: 2 },
+          { code: 'ani.bird_pet.canary', label: 'Canario doméstico', count: 1 },
+        ],
+      },
+      ...facetsFor(url.searchParams.getAll('facet')).slice(1),
+    ]
+
+    it('groups the animals: a group click writes every species token, a species narrows it, «Todos» clears only animals', async () => {
+      const guppy = 'animal.target:ani.freshwater.guppy'
+      const mollies = 'animal.target:ani.freshwater_group.mollies'
+      install((url) => jsonResponse(facetPage(url, zoo(url))))
+      const { wrapper, router } = await mountAt('/catalogo/centro?page=2&keep=yes#catalogo')
+      await flushPromises()
+      expect(tiles(wrapper).map((button) => squash(button.text()))).toEqual([
+        'Todos 38',
+        'Perro 5',
+        'Peces 4',
+        'Canario doméstico 1',
+      ])
+      await tile(wrapper, 'Peces').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query).toEqual({ keep: 'yes', facet: [guppy, mollies] })
+      expect(router.currentRoute.value.hash).toBe('#catalogo')
+      expect(tile(wrapper, 'Peces').attributes('aria-pressed')).toBe('true')
+      expect(tile(wrapper, 'Todos').attributes('aria-pressed')).toBe('false')
+
+      await wrapper.get('button.catalog-animal-pill[title="Guppy"]').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query.facet).toBe(guppy)
+
+      await row(wrapper, 'Etapa de vida: Adulto').trigger('click')
+      await flushPromises()
+      await tile(wrapper, 'Todos').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query).toEqual({ keep: 'yes', facet: adult })
+    })
+
+    it('keeps «Todos» selected while only a product category is active', async () => {
+      install()
+      const { wrapper, router } = await mountAt('/catalogo/centro')
+      await flushPromises()
+      await row(wrapper, 'Categoría: Café').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query.categoryId).toBe(categoryId)
+      expect(tile(wrapper, 'Todos').attributes('aria-pressed')).toBe('true')
+    })
+
+    it('hides the strip with a single animal and then does not gate the other filter groups', async () => {
+      install((url) =>
+        jsonResponse(
+          facetPage(url, [
+            {
+              code: 'animal.target',
+              label: 'Especie',
+              options: [{ code: 'ani.dom.dog', label: 'Perro', count: 13 }],
+            },
+            ...facetsFor(url.searchParams.getAll('facet')).slice(1),
+          ]),
+        ),
+      )
+      const { wrapper } = await mountAt('/catalogo/centro')
+      await flushPromises()
+      expect(wrapper.find('section[aria-label="Explorar por animal"]').exists()).toBe(false)
+      expect(sidebar(wrapper).text()).toContain('Etapa de vida')
+      expect(sidebar(wrapper).text()).not.toContain('Elige un destinatario')
     })
 
     it('applies a sidebar row at once through the URL and keeps the rest of the query', async () => {
@@ -1777,7 +1851,7 @@ describe('CatalogView public browse', () => {
       const { wrapper } = await mountAt('/catalogo/centro')
       await flushPromises()
       expect(tiles(wrapper)).toHaveLength(0)
-      expect(wrapper.find('section[aria-label="Explorar por destinatario"]').exists()).toBe(false)
+      expect(wrapper.find('section[aria-label="Explorar por animal"]').exists()).toBe(false)
       expect(sidebar(wrapper).text()).toContain('Etapa de vida')
       expect(sidebar(wrapper).text()).toContain('Formato del alimento')
       expect(sidebar(wrapper).text()).not.toContain('Elige un destinatario')

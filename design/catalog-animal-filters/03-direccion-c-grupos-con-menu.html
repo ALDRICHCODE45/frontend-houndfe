@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Filtro de animal · Dirección C · Grupos con menú de especies</title>
+<style>
+/*BASE-CSS*/
+:root{
+  --hf-page:#f5f6f8;--hf-surface:#ffffff;--hf-surface-muted:#e7eef7;--hf-ink:#24313d;--hf-heading:#173968;--hf-muted:#576574;
+  --hf-border:#dce2e8;--hf-field-border:#8593a3;--catalog-border-strong:#7b8999;
+  --hf-action:#2442f6;--hf-on-action:#ffffff;--hf-active:#2442f6;--hf-active-soft:#edf0ff;--hf-focus:#2442f6;
+  --hf-warning:#805511;--hf-warning-soft:#fff5d6;--hf-success:#236044;
+  --hf-danger:#b42318;--hf-danger-soft:#fef3f2;--hf-danger-border:#f4b8b2;
+  --hf-font:'Geist',ui-sans-serif,system-ui,sans-serif;
+  --hf-radius-card:12px;--hf-radius-control:6px;
+  --hover:color-mix(in srgb,var(--hf-surface-muted) 45%,var(--hf-surface));
+  --float:0 12px 32px color-mix(in srgb,var(--hf-ink) 16%,transparent);
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{font-family:var(--hf-font);font-size:14px;line-height:1.5;color:var(--hf-ink);background:var(--hf-page);font-feature-settings:"cv11","ss01";-webkit-font-smoothing:antialiased}
+h1,h2,h3,p,ul,ol{margin:0}ul,ol{padding:0;list-style:none}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0;padding:0;text-align:inherit}
+.i{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+:focus-visible,.is-focus{outline:2px solid var(--hf-focus);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+
+/* Board chrome (not part of the storefront) */
+.board{max-width:1440px;margin:0 auto;padding:24px 32px 56px}
+.bar h1{font-size:22px;font-weight:600;color:var(--hf-heading);letter-spacing:-.02em}
+.bar p{font-size:13px;color:var(--hf-muted);max-width:90ch;margin-top:4px}
+.frame{margin-top:32px}
+.fhead{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.fhead h2{font-size:16px;font-weight:600;color:var(--hf-heading)}
+.tag{font-size:12px;font-weight:600;color:var(--hf-active);background:var(--hf-active-soft);border-radius:6px;padding:2px 8px}
+.fbody{display:grid;grid-template-columns:1092px minmax(0,1fr);gap:24px;align-items:start}
+.stage{position:relative;background:var(--hf-page);border:1px dashed var(--catalog-border-strong);border-radius:12px;padding:24px}
+.res{display:flex;justify-content:space-between;align-items:baseline;margin:20px 0 12px;font-size:13px;color:var(--hf-muted)}
+.res b{color:var(--hf-heading);font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+.gph{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.gph i{display:block;height:56px;border:1px solid var(--hf-border);border-radius:12px;background:var(--hf-surface)}
+.note{font-size:13px;color:var(--hf-ink)}
+.note h3{font-size:13px;font-weight:600;color:var(--hf-heading);margin-bottom:6px}
+.note li{position:relative;margin:0 0 8px;padding-left:14px}
+.note li::before{content:"";position:absolute;left:0;top:8px;width:5px;height:5px;border-radius:50%;background:var(--hf-field-border)}
+.note b{font-weight:600;color:var(--hf-heading)}
+.note .warn{color:var(--hf-warning);font-weight:600}
+.panel{background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:12px;padding:20px 24px}
+.panel h2{font-size:16px;font-weight:600;color:var(--hf-heading);margin-bottom:4px}
+.panel .lead{font-size:13px;color:var(--hf-muted);max-width:90ch}
+.tbl{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}
+.tbl th{background:color-mix(in srgb,var(--hf-ink) 4%,var(--hf-surface));color:var(--hf-muted);text-align:left;font-weight:600;padding:8px 12px}
+.tbl td{padding:8px 12px;border-top:1px solid var(--hf-border);vertical-align:top}
+.tbl code,.panel code{font-size:12px;background:var(--hf-surface-muted);border-radius:4px;padding:1px 5px;color:var(--hf-heading)}
+.ok{color:var(--hf-success);font-weight:600}.no{color:var(--hf-danger);font-weight:600}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:16px}
+.samples{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:20px 16px;margin-top:4px}
+.sample{display:grid;gap:8px;align-content:start;justify-items:start}
+.sample .sl{font-size:12px;font-weight:600;color:var(--hf-muted)}
+.shead{font-size:12px;font-weight:600;color:var(--hf-muted);text-transform:none;margin:20px 0 8px}
+.shead:first-child{margin-top:0}
+
+/* Pills: A sub-row and B strip share them */
+.pills{position:relative;display:flex;flex-wrap:wrap;gap:8px}
+.pill{position:relative;display:inline-flex;align-items:center;gap:6px;height:36px;max-width:var(--pill-max,240px);flex:0 1 auto;padding:0 12px;border:1px solid var(--hf-border);border-radius:9999px;background:var(--hf-surface);color:var(--hf-heading);font-size:13px;font-weight:500;line-height:1}
+.pill::after{content:"";position:absolute;inset:-4px 0}
+.pill .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pill .ct{flex:none;font-size:12px;font-weight:500;color:var(--hf-muted);font-variant-numeric:tabular-nums}
+.pill .ck{display:none;width:14px;height:14px}
+.pill:hover,.pill.is-hover{border-color:var(--catalog-border-strong);background:var(--hover)}
+.pill[aria-pressed=true]{background:var(--hf-action);border-color:var(--hf-action);color:var(--hf-on-action);font-weight:600}
+.pill[aria-pressed=true] .ck{display:block}
+.pill[aria-pressed=true] .ct{color:color-mix(in srgb,var(--hf-on-action) 85%,var(--hf-action))}
+.pill[aria-pressed=true]:hover,.pill[aria-pressed=true].is-hover{background:color-mix(in srgb,var(--hf-action) 88%,var(--hf-ink));border-color:color-mix(in srgb,var(--hf-action) 88%,var(--hf-ink))}
+.pill .tip{position:absolute;z-index:5;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);padding:4px 8px;border-radius:6px;background:var(--hf-ink);color:var(--hf-surface);font-size:12px;font-weight:500;white-space:nowrap;opacity:0;pointer-events:none}
+.pill.trunc:hover .tip,.pill.trunc:focus-visible .tip,.pill.trunc.is-hover .tip,.pill.trunc.is-focus .tip{opacity:1}
+.pill.more{color:var(--hf-action);border-style:dashed;border-color:var(--hf-field-border);font-weight:600}
+.pill.more:hover{border-style:solid}
+.srch{display:flex;align-items:center;gap:8px;min-height:36px;width:240px;padding:0 12px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-surface)}
+.srch:hover{border-color:var(--hf-field-border)}
+.srch .i{width:16px;height:16px;color:var(--hf-muted)}
+.srch input{flex:1;min-width:0;border:0;background:none;outline:0;font-size:13px}
+.srch:focus-within{outline:2px solid var(--hf-focus);outline-offset:2px}
+.srch input::placeholder{color:var(--hf-muted);opacity:1}
+
+/* Active filters (existing component, simplified) */
+.act{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px}
+.act .lab{font-size:12px;font-weight:600;color:var(--hf-muted)}
+.achip{display:inline-flex;align-items:center;gap:4px;min-height:32px;padding:0 4px 0 12px;border:1px solid var(--hf-border);border-radius:9999px;background:var(--hf-surface);font-size:13px;font-weight:500;color:var(--hf-heading)}
+.achip button{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;color:var(--hf-muted)}
+.achip button:hover{background:var(--hf-surface-muted)}
+.achip .i{width:14px;height:14px}
+.clear{min-height:32px;font-size:13px;font-weight:600;color:var(--hf-action);text-decoration:underline;text-underline-offset:3px}
+/*END-BASE-CSS*/
+/*A-CSS*/
+.strip{display:flex;flex-wrap:wrap;gap:8px}
+.gchip{display:inline-flex;align-items:center;gap:10px;min-height:48px;max-width:240px;padding:6px 14px 6px 8px;border:1px solid var(--hf-border);border-radius:12px;background:var(--hf-surface);color:var(--hf-heading);font-size:14px;font-weight:500;line-height:1.2}
+.gchip .ico{display:grid;place-items:center;flex:none;width:32px;height:32px;border-radius:8px;background:var(--hf-surface-muted);color:var(--hf-heading)}
+.gchip .ico .i{width:20px;height:20px}
+.gchip .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gchip .ct{flex:none;font-size:12px;font-weight:500;color:var(--hf-muted);font-variant-numeric:tabular-nums}
+.gchip .ck{display:none;width:16px;height:16px}
+.gchip .chev{width:16px;height:16px;color:var(--hf-muted);margin-left:-4px}
+.gchip[aria-expanded=true] .chev{transform:rotate(180deg)}
+.gchip:hover,.gchip.is-hover{border-color:var(--catalog-border-strong);background:var(--hover)}
+.gchip[aria-pressed=true]{border-color:var(--hf-active);background:var(--hf-active-soft);color:var(--hf-active);font-weight:600;box-shadow:inset 0 0 0 1px var(--hf-active)}
+.gchip[aria-pressed=true] .ico{background:var(--hf-surface);color:var(--hf-active)}
+.gchip[aria-pressed=true] .ct,.gchip[aria-pressed=true] .chev{color:var(--hf-active)}
+.gchip[aria-pressed=true] .ck{display:block}
+.sub{margin-top:8px;padding:12px 14px 14px;border:1px solid var(--hf-border);border-radius:12px;background:color-mix(in srgb,var(--hf-surface-muted) 45%,var(--hf-surface))}
+.sub-h{display:flex;align-items:center;gap:8px;min-height:36px;margin:-4px 0 4px;font-size:12px;font-weight:600;color:var(--hf-muted)}
+.sub-h .i{width:16px;height:16px}
+.sub-h .sp{flex:1}
+.sub .pills{padding-top:4px}
+/*END-A-CSS*/
+
+/*C-CSS*/
+.gwrap{position:relative;display:inline-block}
+.pop{position:absolute;z-index:10;top:calc(100% + 8px);left:0;width:320px;padding:8px;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:12px;box-shadow:var(--float)}
+.pop.r{left:auto;right:0}
+.pop-h{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:36px;padding:0 8px 0 12px;font-size:12px;font-weight:600;color:var(--hf-muted)}
+.pop-h .lnk{min-height:36px;padding:0 4px;font-size:13px;font-weight:600;color:var(--hf-action);text-decoration:underline;text-underline-offset:3px}
+.pop .srch{width:auto;margin:0 4px 8px}
+.pop-list{max-height:308px;overflow:auto;display:grid;gap:2px}
+.srow{display:flex;align-items:center;gap:12px;min-height:44px;width:100%;padding:0 12px;border-radius:8px;color:var(--hf-heading);font-size:14px;font-weight:500}
+.srow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.srow .ct{flex:none;font-size:12px;color:var(--hf-muted);font-variant-numeric:tabular-nums}
+.srow .mk{display:grid;place-items:center;flex:none;width:22px;height:22px;border:1.5px solid var(--hf-field-border);border-radius:50%;color:transparent}
+.srow .mk .i{width:14px;height:14px}
+.srow:hover,.srow.is-hover{background:var(--hover)}
+.srow[aria-pressed=true]{background:var(--hf-active-soft);color:var(--hf-active);font-weight:600}
+.srow[aria-pressed=true] .ct{color:var(--hf-active)}
+.srow[aria-pressed=true] .mk{background:var(--hf-action);border-color:var(--hf-action);color:var(--hf-on-action)}
+.srow:focus-visible,.srow.is-focus{outline-offset:-2px}
+.pop-f{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px;padding:10px 4px 2px;border-top:1px solid var(--hf-border);font-size:13px;color:var(--hf-muted)}
+.pop-f b{color:var(--hf-heading);font-weight:600;font-variant-numeric:tabular-nums}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 16px;border-radius:var(--hf-radius-control);background:var(--hf-action);color:var(--hf-on-action);font-size:14px;font-weight:600}
+.btn:hover{background:color-mix(in srgb,var(--hf-action) 88%,var(--hf-ink))}
+.gchip .bdg{flex:none;display:grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:9999px;background:var(--hf-action);color:var(--hf-on-action);font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+/*END-C-CSS*/
+</style>
+</head>
+<body>
+<!--SPRITE-->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+<symbol id="i-dog" viewBox="0 0 24 24"><path d="M5 9 4 4.5C4 3.7 4.700 3.300 5.500 3.600L9 5.500"/><path d="M19 9l1-4.500c0-.8-.7-1.200-1.500-.9L15 5.500"/><path d="M9 5.500C10.300 5.200 13.700 5.200 15 5.500 17.500 6.300 19 8.500 19 11c0 4-3 7.500-7 7.500S5 15 5 11c0-2.500 1.500-4.700 4-5.500z"/><path d="M9.500 11h.01M14.500 11h.01"/><path d="M10.500 14.500h3L12 16z"/><path d="M12 16v1.500"/></symbol>
+<symbol id="i-cat" viewBox="0 0 24 24"><path d="M5 10.500V4l4 2.500c1.900-.7 4.100-.7 6 0L19 4v6.500"/><path d="M5 10.500C5 15.500 8 19 12 19s7-3.500 7-8.500"/><path d="M9 11.500h.01M15 11.500h.01"/><path d="M11 14.500h2l-1 1z"/><path d="M3 13.500l4 .8M21 13.500l-4 .8"/></symbol>
+<symbol id="i-bird" viewBox="0 0 24 24"><path d="M16 7h.01"/><path d="M3.400 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.280-2.300L2 20"/><path d="m20 7 2 .5-2 .5"/><path d="M10 18v3M14 17.750V21"/><path d="M7 18a6 6 0 0 0 3.840-10.610"/></symbol>
+<symbol id="i-fish" viewBox="0 0 24 24"><path d="M2.500 12c2.200-4.500 6-6.500 9.500-6.500 4 0 7 2.500 9.500 6.500-2.500 4-5.500 6.500-9.500 6.500-3.500 0-7.300-2-9.500-6.500z"/><path d="M17 12h.01"/><path d="M21.500 12 23 8.500M21.500 12 23 15.500"/><path d="M8 8.500c1 2 1 5 0 7"/></symbol>
+<symbol id="i-turtle" viewBox="0 0 24 24"><path d="M4 15a8 8 0 0 1 16 0z"/><path d="M8 15v3M16 15v3M12 7v8M7.500 10.500 12 12l4.500-1.500"/><path d="M20 12.500a2 2 0 0 1 2 2"/></symbol>
+<symbol id="i-rabbit" viewBox="0 0 24 24"><path d="M8 11V4.500a1.500 1.500 0 0 1 3 0V10M13 10V4.500a1.500 1.500 0 0 1 3 0V11"/><path d="M5 17c0-3.500 3-6 7-6h1c3.500 0 6 2.500 6 6 0 2-1.500 3.500-3.500 3.500h-7C6.500 20.500 5 19 5 17z"/><path d="M15.500 15h.01"/></symbol>
+<symbol id="i-paw" viewBox="0 0 24 24"><circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/><path d="M9 10a5 5 0 0 1 5 5v3.500a3.500 3.500 0 0 1-6.840 1.045Q6.520 17.480 4.460 16.840A3.500 3.500 0 0 1 5.500 10Z"/></symbol>
+<symbol id="i-package" viewBox="0 0 24 24"><path d="m7.5 4.3 9 5.2"/><path d="M21 8a2 2 0 0 0-1-1.700l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.700l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.700z"/><path d="m3.300 7 8.700 5 8.700-5M12 22V12"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+<symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.500-3.500"/></symbol>
+</svg>
+<!--END-SPRITE-->
+<main class="board" id="b"><noscript>Este tablero necesita JavaScript para dibujar los estados.</noscript></main>
+<script>
+//BASE-JS
+const ic=(n,c='')=>`<svg class="i ${c}" aria-hidden="true" focusable="false"><use href="#i-${n}"/></svg>`;
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+const norm=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+const frag=html=>document.createRange().createContextualFragment(html);
+const prods=n=>`${n} ${n===1?'producto':'productos'}`;
+
+/* Datos reales de «centro» (spec L2). El grupo NO viene del API: se deriva del código con el mapa de abajo. */
+const CENTRO=[
+['ani.dom.dog','Perro',26],['ani.dom.cat','Gato',13],
+['ani.freshwater_group.bettas','Bettas',1],['ani.freshwater_group.swordtails','Colas de espada',1],['ani.freshwater_group.corydoras','Corydoras',1],['ani.freshwater.guppy','Guppy',2],['ani.freshwater_group.mollies','Mollys',2],['ani.freshwater_group.platies','Platys',2],['ani.freshwater.neon_tetra','Tetra neón',2],
+['ani.bird_pet.canary','Canario doméstico',1],['ani.bird_pet.zebra_finch','Diamante mandarín',1],['ani.bird_pet.cockatiel','Ninfa',1],['ani.bird_pet.budgerigar','Periquito australiano',1],
+['ani.lizard_group.anoles','Anolis',1],['ani.lizard_group.bearded_dragons','Dragones barbudos',1],['ani.lizard.crested_gecko','Gecko crestado',1],['ani.lizard.leopard_gecko','Gecko leopardo',1],['ani.snake.corn_snake','Serpiente del maíz',1]
+].map(([c,l,n])=>({c,l,n}));
+/* Ejemplo para probar 20+ opciones: etiquetas reales del vocabulario, conteos inventados. */
+const EXTRA=[
+['ani.dom.rabbit','Conejo doméstico',3],['ani.dom.guinea_pig','Cobaya',2],['ani.small.syrian_hamster','Hámster sirio',2],['ani.small.degu','Degú',1],
+['ani.bird_group.lovebirds','Agapornis',1],['ani.bird_group.parrots','Loros',2],['ani.poultry.chicken','Gallina doméstica',2],
+['ani.freshwater.goldfish','Pez dorado',3],['ani.freshwater_group.cichlids','Cíclidos',1],['ani.freshwater_group.plecos','Plecos',1],['ani.freshwater_group.gouramis','Guramis',1],['ani.freshwater_group.discus','Peces disco',1],['ani.freshwater.cardinal_tetra','Tetra cardenal',2],['ani.freshwater.zebrafish','Pez cebra',1],['ani.aquatic_other.koi','Carpas koi',1],['ani.marine.clownfish','Peces payaso',1],
+['ani.amphibian.axolotl','Ajolote mexicano',1],['ani.lizard.green_iguana','Iguana verde',1],['ani.snake.ball_python','Pitón bola',1]
+].map(([c,l,n])=>({c,l,n}));
+const MANY=[...CENTRO,...EXTRA];
+
+/* Mapa propuesto del FE: prefijo de 2 segmentos → familia. `ani.dom` mezcla perro, gato, conejo, cobaya: se resuelve por código completo. */
+const FAMILY={'ani.freshwater':'peces','ani.freshwater_group':'peces','ani.aquatic_other':'peces','ani.marine':'peces','ani.bird_pet':'aves','ani.bird_group':'aves','ani.lizard':'reptiles','ani.lizard_group':'reptiles','ani.snake':'reptiles','ani.reptile_group':'reptiles','ani.small':'peq','ani.small_group':'peq','ani.poultry':'corral','ani.poultry_group':'corral','ani.amphibian':'anfi','ani.amphibian_group':'anfi'};
+const FAM={
+perro:{label:'Perro',all:'Todos los perros',icon:'dog'},gato:{label:'Gato',all:'Todos los gatos',icon:'cat'},
+peces:{label:'Peces',all:'Todos los peces',icon:'fish'},aves:{label:'Aves',all:'Todas las aves',icon:'bird'},
+reptiles:{label:'Reptiles',all:'Todos los reptiles',icon:'turtle'},peq:{label:'Pequeños mamíferos',all:'Todos los pequeños mamíferos',icon:'rabbit'},
+corral:{label:'Aves de corral',all:'Todas las aves de corral',icon:'bird'},anfi:{label:'Anfibios',all:'Todos los anfibios',icon:'paw'},
+otros:{label:'Otros animales',all:'Todos los otros animales',icon:'paw'}};
+function familyOf(code){const [a,b,c]=code.split('.');const k=a+'.'+b;if(k==='ani.dom')return {dog:'perro',cat:'gato'}[c]||'peq';return FAMILY[k]||'otros'}
+const byRel=(a,b)=>b.n-a.n||a.l.localeCompare(b.l,'es');
+/* Grupos ordenados por total (relevancia); una familia con una sola especie se muestra como la especie. */
+function groupsOf(items){
+  const m=new Map();
+  items.forEach(it=>{const k=familyOf(it.c);(m.get(k)||m.set(k,[]).get(k)).push(it)});
+  return [...m].map(([k,a])=>{a.sort(byRel);const single=a.length===1;
+    return {key:k,items:a,single,label:single?a[0].l:FAM[k].label,all:FAM[k].all,icon:FAM[k].icon,total:a.reduce((s,x)=>s+x.n,0)}})
+    .sort((a,b)=>b.total-a.total||a.label.localeCompare(b.label,'es'));
+}
+const sumSel=(items,sel)=>items.filter(i=>sel.has(i.c)).reduce((s,i)=>s+i.n,0);
+
+function pill(o){const a=o.aria||`${o.name}, ${prods(o.count)}`;
+  return `<button type="button" class="pill ${o.cls||''}" aria-pressed="${!!o.pressed}" aria-label="${esc(a)}" data-name="${esc(o.name)}" ${o.style?`style="${o.style}"`:''}>${ic('check','ck')}<span class="nm">${esc(o.name)}</span><span class="ct">${o.count}</span><span class="tip" aria-hidden="true">${esc(o.name)}</span></button>`}
+function actRow(names){if(!names.length)return '';
+  return `<div class="act"><span class="lab">Filtros activos</span>${names.map(n=>`<span class="achip">${esc(n)}<button type="button" aria-label="Quitar ${esc(n)}">${ic('x')}</button></span>`).join('')}<button type="button" class="clear">Quitar todo</button></div>`}
+function stage(inner,{total,min,cls=''}={}){
+  return `<div class="stage ${cls}" ${min?`style="min-height:${min}px"`:''}>${inner}<div class="res"><b>${prods(total)}</b><span>Sucursal Centro</span></div><div class="gph" aria-hidden="true"><i></i><i></i><i></i><i></i></div></div>`}
+function frame(tag,title,stageHtml,notes=[]){
+  return `<section class="frame"><div class="fhead"><span class="tag">${tag}</span><h2>${title}</h2></div><div class="fbody">${stageHtml}<aside class="note"><h3>Qué mirar</h3><ul>${notes.map(n=>`<li>${n}</li>`).join('')}</ul></aside></div></section>`}
+
+/* Recorta una fila de píldoras a `rows` filas y agrega «Ver más (n)»; las seleccionadas nunca se ocultan. */
+function clampPills(box){
+  const rows=+box.dataset.rows||0,expanded=box.dataset.expanded==='1';
+  box.querySelectorAll('.pill.more').forEach(m=>m.remove());
+  const pills=[...box.querySelectorAll('.pill')];
+  pills.forEach(p=>{p.hidden=false;p.classList.remove('trunc')});
+  const q=box.dataset.q?norm(box.dataset.q):'';
+  if(q)pills.forEach(p=>{p.hidden=!norm(p.dataset.name).includes(q)});
+  const vis=()=>pills.filter(p=>!p.hidden);
+  const rowsOf=els=>new Set(els.map(e=>e.offsetTop)).size;
+  if(rows&&(expanded||q)){if(expanded&&!q){box.append(frag(`<button type="button" class="pill more" aria-expanded="true">Ver menos</button>`))}}
+  else if(rows&&rowsOf(vis())>rows){
+    box.append(frag(`<button type="button" class="pill more" aria-expanded="false">Ver más (<span>0</span>)</button>`));
+    const more=box.querySelector('.more'),n=more.querySelector('span');let hidden=0;
+    while(rowsOf([...vis(),more])>rows){
+      const c=pills.findLast(p=>!p.hidden&&p.getAttribute('aria-pressed')!=='true');
+      if(!c)break;c.hidden=true;hidden++;n.textContent=hidden}
+    more.setAttribute('aria-label',`Ver más, ${hidden} más`);
+  }
+  box.querySelectorAll('.pill:not(.more)').forEach(p=>{const nm=p.querySelector('.nm');if(!p.hidden&&nm.scrollWidth>nm.clientWidth)p.classList.add('trunc')});
+}
+function markTrunc(){document.querySelectorAll('.pill:not(.more)').forEach(p=>{const nm=p.querySelector('.nm');p.classList.toggle('trunc',!p.hidden&&nm.scrollWidth>nm.clientWidth)})}
+function reclamp(){document.querySelectorAll('.pills[data-rows]').forEach(clampPills);markTrunc()}
+document.addEventListener('click',e=>{const m=e.target.closest('.pill.more');if(!m)return;const box=m.closest('.pills');box.dataset.expanded=box.dataset.expanded==='1'?'0':'1';clampPills(box);const s=box.closest('.sub,.panel-wrap,.stage');s&&s.dispatchEvent(new CustomEvent('moretoggle',{bubbles:true}))});
+document.addEventListener('input',e=>{const i=e.target.closest('.srch input');if(!i)return;const box=i.closest('.sub,.panel-wrap,.stage').querySelector('.pills[data-rows]');box.dataset.q=i.value.trim();clampPills(box)});
+window.addEventListener('resize',reclamp);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(reclamp);
+function mount(html){document.getElementById('b').append(frag(html));reclamp()}
+//END-BASE-JS
+//A-JS
+function gchip(o){
+  const name=esc(o.name);let aria=o.aria||`${o.name}, ${prods(o.count)}`;
+  return `<button type="button" class="gchip ${o.cls||''}" aria-pressed="${!!o.pressed}" ${o.exp!=null?`aria-expanded="${o.exp}" aria-controls="sub"`:''} aria-label="${esc(aria)}"><span class="ico">${ic(o.icon)}</span><span class="nm">${name}</span><span class="ct">${o.ct??o.count}</span>${o.exp!=null?ic('down','chev'):''}${ic('check','ck')}</button>`}
+/* Tira A completa. sel: Set de códigos; open: clave de grupo con sub-fila; rows/expanded: recorte de la sub-fila. */
+function stripA({items,total,sel=new Set(),open=null,rows=1,expanded=false,q=''}){
+  const gs=groupsOf(items);
+  let h=`<div class="strip" role="group" aria-label="Explorar por animal">`;
+  h+=gchip({icon:'package',name:'Todos',count:total,pressed:sel.size===0,aria:`Todos, ${prods(total)}`});
+  gs.forEach(g=>{
+    const n=g.items.filter(i=>sel.has(i.c)).length;
+    if(g.single){h+=gchip({icon:g.icon,name:g.label,count:g.total,pressed:n===1});return}
+    const whole=n===g.items.length,part=n>0&&!whole;
+    h+=gchip({icon:g.icon,name:g.label,count:g.total,pressed:n>0,exp:open===g.key,ct:part?`${n} de ${g.items.length}`:g.total,aria:part?`${g.label}, ${n} de ${g.items.length} especies elegidas`:`${g.label}, ${prods(g.total)}`})});
+  h+=`</div>`;
+  const g=gs.find(x=>x.key===open&&!x.single);
+  if(g){
+    const n=g.items.filter(i=>sel.has(i.c)).length,whole=n===g.items.length,part=n>0&&!whole;
+    h+=`<div class="sub" id="sub" role="group" aria-label="Especies de ${esc(g.label)}"><div class="sub-h">${ic(g.icon)}<span>Especies de ${esc(g.label)}</span><span class="sp"></span>${expanded&&g.items.length>12?`<label class="srch">${ic('search')}<input type="search" placeholder="Buscar especie" aria-label="Buscar especie en ${esc(g.label)}" value="${esc(q)}"></label>`:''}</div>`;
+    h+=`<div class="pills" data-rows="${rows}" data-expanded="${expanded?1:0}" ${q?`data-q="${esc(q)}"`:''}>`;
+    h+=pill({name:g.all,count:g.total,pressed:whole});
+    g.items.forEach(i=>{h+=pill({name:i.l,count:i.n,pressed:part&&sel.has(i.c)})});
+    h+=`</div></div>`;
+  }
+  return h;
+}
+//END-A-JS
+
+//C-JS
+function srow(o){return `<button type="button" class="srow ${o.cls||''}" aria-pressed="${!!o.pressed}" aria-label="${esc(o.name)}, ${prods(o.count)}" title="${esc(o.name)}"><span class="nm">${esc(o.name)}</span><span class="ct">${o.count}</span><span class="mk">${ic('check')}</span></button>`}
+/* Chip de grupo de C: no filtra por sí mismo, abre el menú; el distintivo cuenta las especies elegidas. */
+function cchip(g,n,expanded){
+  const label=n>0?`${g.label}, ${n} de ${g.items.length} elegidas`:`${g.label}, ${prods(g.total)}`;
+  return `<button type="button" class="gchip" aria-pressed="${n>0}" aria-expanded="${expanded}" aria-haspopup="true" aria-controls="pop-${g.key}" aria-label="${esc(label)}"><span class="ico">${ic(g.icon)}</span><span class="nm">${esc(g.label)}</span>${n>0?`<span class="bdg">${n}</span>`:`<span class="ct">${g.total}</span>`}${ic('down','chev')}</button>`}
+function popC(g,sel,{right=false,search=false,total}){
+  const n=g.items.filter(i=>sel.has(i.c)).length;
+  return `<div class="pop ${right?'r':''}" id="pop-${g.key}" role="group" aria-label="Especies de ${esc(g.label)}"><div class="pop-h"><span>${esc(g.label)} · elige una o más</span>${n?`<button type="button" class="lnk">Quitar</button>`:''}</div>${search?`<label class="srch">${ic('search')}<input type="search" placeholder="Buscar especie" aria-label="Buscar especie en ${esc(g.label)}"></label>`:''}<div class="pop-list">${g.items.map(i=>srow({name:i.l,count:i.n,pressed:sel.has(i.c)})).join('')}</div><div class="pop-f"><span><b>${prods(total)}</b> con tu selección</span><button type="button" class="btn">Listo</button></div></div>`}
+function stripC({items,total,sel=new Set(),menu=null,search=false,menuTotal}){
+  const gs=groupsOf(items);
+  let h=`<div class="strip" role="group" aria-label="Explorar por animal">`;
+  h+=gchip({icon:'package',name:'Todos',count:total,pressed:sel.size===0,aria:`Todos, ${prods(total)}`});
+  gs.forEach((g,idx)=>{
+    const n=g.items.filter(i=>sel.has(i.c)).length;
+    if(g.single){h+=gchip({icon:g.icon,name:g.label,count:g.total,pressed:n===1});return}
+    const shown=menu===g.key;
+    h+=`<div class="gwrap">${cchip(g,n,shown)}${shown?popC(g,sel,{right:idx===gs.length-1&&gs.length>=4,search,total:menuTotal}):''}</div>`});
+  return h+`</div>`;
+}
+//END-C-JS
+const SEL=(...cs)=>new Set(cs);
+
+mount(`<header class="bar"><h1>Filtro de animal · Dirección C · Grupos con menú de especies</h1><p>La tira se queda en una sola fila corta de grupos. Perro y Gato siguen a un clic; los grupos con varias especies (Peces, Reptiles, Aves…) abren un menú con filas seleccionables, marca redonda a la derecha y conteo vivo. Es la que mejor escala con muchas especies y la que menos espacio ocupa; a cambio, las especies elegidas quedan un clic dentro de un menú. Ancho del escenario: 1092 px.</p></header>`);
+
+mount(frame('C1','Por defecto · centro (36 productos, 5 grupos)',stage(stripC({items:CENTRO,total:36}),{total:36}),[
+ '<b>Todos</b> seleccionado: no hay animal elegido.',
+ 'Mismos chips de grupo que A, pero el chevron abre un <b>menú</b> en lugar de una sub-fila: la página no se mueve al explorar.',
+ 'Reptiles, Aves y Peces muestran su total (suma de especies).']));
+
+mount(frame('C2','Un elemento elegido · Guppy, con el menú de Peces abierto',stage(stripC({items:CENTRO,total:36,sel:SEL('ani.freshwater.guppy'),menu:'peces',menuTotal:2}),{total:2,min:540}),[
+ 'El grupo <b>Peces</b> muestra un distintivo «1» (especies elegidas) y queda marcado; el chevron indica que hay menú.',
+ 'Filas de 44 px con la marca redonda a la derecha y el conteo; sin checkboxes (regla del dueño y del sistema de diseño).',
+ 'El conteo «2 productos con tu selección» se actualiza en vivo; el menú aplica al instante y «Listo» solo lo cierra.',
+ '«Quitar» limpia las especies de este grupo.']));
+
+mount(frame('C3','Dos elegidos · Perro y Periquito australiano (nombre largo), menú de Aves abierto',stage(stripC({items:CENTRO,total:36,sel:SEL('ani.dom.dog','ani.bird_pet.budgerigar'),menu:'aves',menuTotal:1}),{total:27,min:470}),[
+ 'Perro marcado como chip directo; Aves lleva «1» y el menú muestra las cuatro especies.',
+ '«Periquito australiano» cabe completo en la fila: los nombres largos viven en un menú de 320 px, no en un chip de 120 px.',
+ 'Es la dirección donde el nombre largo deja de ser un problema visual.']));
+
+mount(frame('C3b','Los mismos dos elegidos, menú cerrado',stage(stripC({items:CENTRO,total:36,sel:SEL('ani.dom.dog','ani.bird_pet.budgerigar')})+actRow(['Perro','Periquito australiano']),{total:27}),[
+ 'Cerrado, el nombre elegido no aparece en la tira: solo el distintivo «1» en Aves.',
+ 'Por eso la fila de <b>filtros activos</b> (componente existente) se vuelve imprescindible aquí.',
+ '<span class="warn">Costo:</span> saber «cuál especie de Aves» exige abrir el menú o leer la fila de filtros activos.']));
+
+mount(frame('C4','Regla de «Todos»: solo cuando no hay filtro de animal',stage(
+ `<p class="shead">1 · Sin ningún filtro</p>${stripC({items:CENTRO,total:36})}`+
+ `<p class="shead">2 · Un animal elegido (Gato)</p>${stripC({items:CENTRO,total:36,sel:SEL('ani.dom.cat')})}`+
+ `<p class="shead">3 · Solo una categoría activa (por ejemplo «Control de desechos»)</p>${stripC({items:CENTRO,total:36})}${actRow(['Categoría: Control de desechos'])}`,{total:36}),[
+ 'Misma regla que hoy en <code>allPressed</code>: ningún token de <code>animal.target</code> en el URL.',
+ '<span class="warn">Duda para el dueño:</span> en L2 se vio «Todos» marcado con «Control de desechos» activo. Si eso es un error para él, Todos debería apagarse con cualquier filtro. No lo asumí.']));
+
+(function(){
+  const S=(l,html)=>`<div class="sample"><span class="sl">${l}</span>${html}</div>`;
+  const g=groupsOf(CENTRO).find(x=>x.label==='Peces');
+  let h=`<section class="frame"><div class="fhead"><span class="tag">C5</span><h2>Hover y foco con teclado</h2></div><div class="panel"><div class="samples">`;
+  h+=`<div style="grid-column:1/-1"><p class="shead">Chip de grupo</p></div>`;
+  h+=S('Reposo',cchip(g,0,false));
+  h+=S('Hover',cchip(g,0,false).replace('class="gchip','class="gchip is-hover'));
+  h+=S('Foco (Tab)',cchip(g,0,false).replace('class="gchip','class="gchip is-focus'));
+  h+=S('Con selección',cchip(g,2,false));
+  h+=S('Menú abierto',cchip(g,2,true));
+  h+=S('Perro seleccionado',gchip({icon:'dog',name:'Perro',count:26,pressed:true}));
+  h+=`<div style="grid-column:1/-1"><p class="shead">Fila del menú</p></div>`;
+  const row=(l,o,w=280)=>S(l,`<div style="width:${w}px">${srow(o)}</div>`);
+  h+=row('Reposo',{name:'Guppy',count:2});
+  h+=row('Hover',{name:'Guppy',count:2,cls:'is-hover'});
+  h+=row('Foco (Tab)',{name:'Guppy',count:2,cls:'is-focus'});
+  h+=row('Seleccionada',{name:'Guppy',count:2,pressed:true});
+  h+=row('Seleccionada + foco',{name:'Guppy',count:2,pressed:true,cls:'is-focus'});
+  h+=row('Nombre largo, ancho justo (…)',{name:'Periquito australiano de cola larga',count:1,pressed:true},210);
+  h+=`</div><p class="lead" style="margin-top:20px">Foco = anillo de 2 px <code>--hf-focus</code> (hacia adentro en las filas del menú para no cortarse), distinto del fondo suave de selección. La marca redonda ✓ acompaña al color. Flechas ↑↓ mueven entre filas, Espacio selecciona, Esc cierra y devuelve el foco al chip.</p></div></section>`;
+  mount(h);
+})();
+
+mount(frame('C6','20+ opciones · 37 animales (ejemplo), menú de Peces con 16 especies',
+ stage(stripC({items:MANY,total:64,sel:SEL('ani.dom.dog','ani.freshwater.cardinal_tetra','ani.freshwater_group.plecos'),menu:'peces',search:true,menuTotal:29}),{total:29,min:640}),[
+ 'Con 37 animales la tira sigue siendo <b>9 chips</b> (en dos filas): el costo de escalar lo paga el menú, no la página.',
+ 'Con más de 12 filas, el menú recorta a ~7 y se desplaza por dentro, con «Buscar especie» arriba.',
+ 'Ejemplo ilustrativo: etiquetas del vocabulario, conteos inventados.']));
+</script>
+</body>
+</html>
