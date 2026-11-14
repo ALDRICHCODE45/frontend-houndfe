@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import CatalogHeader from '../components/CatalogHeader.vue'
 import CatalogHero from '../components/CatalogHero.vue'
-import CatalogFilterRecipientTiles from '../components/CatalogFilterRecipientTiles.vue'
+import CatalogAnimalFilter from '../components/CatalogAnimalFilter.vue'
 import CatalogFilterSheet from '../components/CatalogFilterSheet.vue'
 import CatalogFilterSidebar from '../components/CatalogFilterSidebar.vue'
 import CatalogFooter from '../components/CatalogFooter.vue'
@@ -575,7 +575,7 @@ async function selectPriceContext(priceListIdToSelect: string) {
       <div class="catalog-container">
         <CatalogHero v-if="isHome" :branch-name="selectedBranch?.name ?? null" />
         <CatalogListingHeroBar v-else :branch-name="selectedBranch?.name ?? null" />
-        <CatalogFilterRecipientTiles
+        <CatalogAnimalFilter
           v-if="showRecipients"
           :facet="recipientFacet"
           :total="categoryBaseline?.meta.total ?? null"

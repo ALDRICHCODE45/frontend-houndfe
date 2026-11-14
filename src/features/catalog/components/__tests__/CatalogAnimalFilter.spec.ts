@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mountWithUApp } from '../../../../test/mountWithUApp'
-import CatalogFilterRecipientTiles from '../CatalogFilterRecipientTiles.vue'
+import CatalogAnimalFilter from '../CatalogAnimalFilter.vue'
 
 const option = (code: string, label: string, count: number) => ({ code, label, count })
 const facetOf = (options: ReturnType<typeof option>[]) => ({
@@ -69,7 +69,7 @@ afterEach(() => {
 
 const mountStrip = (props: Record<string, unknown> = {}) => {
   stubViewport(false)
-  return mount(CatalogFilterRecipientTiles, {
+  return mount(CatalogAnimalFilter, {
     props: { facet: centro, total: 36, selected: [], resultTotal: 36, ...props },
   })
 }
@@ -89,7 +89,7 @@ const lastChange = (wrapper: Emitter) => {
   return all[all.length - 1]![0]!
 }
 
-describe('CatalogFilterRecipientTiles', () => {
+describe('CatalogAnimalFilter', () => {
   describe('visibility', () => {
     it('renders nothing without the animal.target facet', () => {
       const wrapper = mountStrip({ facet: null })
@@ -400,7 +400,7 @@ describe('CatalogFilterRecipientTiles', () => {
 
   describe('on a phone', () => {
     const mountCompact = (props: Record<string, unknown> = {}) => {
-      const wrapper = mountWithUApp(CatalogFilterRecipientTiles, {
+      const wrapper = mountWithUApp(CatalogAnimalFilter, {
         attachTo: document.body,
         props: { facet: manyFish, total: 40, selected: [], resultTotal: 4, ...props },
       })
