@@ -126,6 +126,18 @@ describe('buildFilterGroups', () => {
     expect(chosen.recipientHint).toBe(false)
   })
 
+  it('does not gate the other groups while the animal strip is hidden (fewer than two animals)', () => {
+    const oneAnimal = { ...recipient, options: [{ code: 'ani.dom.dog', label: 'Perro', count: 13 }] }
+    const { groups, recipientHint } = buildFilterGroups({
+      categories,
+      attributes: [oneAnimal, stage],
+      categoryId: null,
+      tokens: [],
+    })
+    expect(groups.map((group) => group.key)).toEqual(['category', 'life.stage'])
+    expect(recipientHint).toBe(false)
+  })
+
   it('shows every group, with no hint, when the response has no recipient facet', () => {
     const { groups, recipientHint } = buildFilterGroups({
       categories,

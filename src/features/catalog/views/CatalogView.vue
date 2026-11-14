@@ -33,7 +33,6 @@ import type { CatalogFilterSelection } from '../composables/useCatalogFilterDraf
 import {
   buildFacetChips,
   buildFilterGroups,
-  clearRecipientTokens,
   findRecipientFacet,
   toggleFacetTokens,
   type FilterOption,
@@ -306,9 +305,9 @@ async function writeFacets(tokens: string[], replace = false) {
 function toggleFacet(optionTokens: string[]) {
   void writeFacets(toggleFacetTokens(facetTokens.value, optionTokens))
 }
-/** «Todos» in the recipient tiles: only the recipient leaves, every other filter stays. */
-function clearRecipient() {
-  void writeFacets(clearRecipientTokens(facetTokens.value))
+/** The animal strip hands back the whole facet list: «Todos» already dropped only the animals. */
+function changeFacets(tokens: string[]) {
+  void writeFacets(tokens)
 }
 /**
  * A vocabulary change or the switch turning off makes a facet unknown. The error carries no
@@ -465,7 +464,7 @@ async function selectCategory(id: string | null) {
     // Keep the current route authoritative.
   }
 }
-/** Recipient tiles and counts are stable (unfiltered) data, like the category list. */
+/** Animal strip options and counts are stable (unfiltered) data, like the category list. */
 const recipientFacet = computed(() => findRecipientFacet(categoryBaseline.value?.facets.attributes))
 const sidebarCategories = computed(() => categoryBaseline.value?.facets.categories ?? [])
 const filterGroups = computed(() =>
@@ -581,8 +580,8 @@ async function selectPriceContext(priceListIdToSelect: string) {
           :facet="recipientFacet"
           :total="categoryBaseline?.meta.total ?? null"
           :selected="facetTokens"
-          @toggle="toggleFacet"
-          @clear="clearRecipient"
+          :result-total="filterError || isCatalogEmpty ? null : (response?.meta.total ?? null)"
+          @change="changeFacets"
         />
       </div>
       <section

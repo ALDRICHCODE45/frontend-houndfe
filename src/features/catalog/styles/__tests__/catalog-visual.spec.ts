@@ -126,7 +126,6 @@ describe('catalog stylesheet', () => {
     expect(filters).toMatch(
       /\.catalog-filter-sheet-body \.catalog-filter-option \{[^}]*min-height: 48px/,
     )
-    expect(filters).toMatch(/\.catalog-recipient \{[^}]*min-height: 44px/)
     // Phone: no sidebar and no classic checkbox styling; the sidebar and the card grid come at 901px.
     expect(filters).toMatch(/\.catalog-filter-sidebar \{[^}]*display: none/)
     const desktop = filters.slice(filters.indexOf('@media (min-width: 901px) {'))
@@ -135,6 +134,22 @@ describe('catalog stylesheet', () => {
     expect(desktop).toMatch(/\.catalog-filter-trigger \{[^}]*display: none/)
     expect(desktop).toMatch(/repeat\(4, minmax\(0, 1fr\)\)/)
     expect(filters).not.toMatch(/input\[type=['"]?checkbox/)
+  })
+
+  it('pins the animal strip: 44px chips and sheet rows, 48px chips from 901px, round sheet mark, fades, no checkboxes', () => {
+    const animal = readFileSync('src/features/catalog/styles/catalog-animal-filter.css', 'utf8')
+    expect(animal).toMatch(/\.catalog-animal-chip \{[^}]*min-height: 44px/)
+    expect(animal).toMatch(/\.catalog-animal-sheet-row \{[^}]*min-height: 44px/)
+    expect(animal).toMatch(/\.catalog-animal-sheet-mark \{[^}]*border-radius: 50%/)
+    expect(animal).toMatch(/\.catalog-animal-name \{[^}]*text-overflow: ellipsis/)
+    expect(animal).toMatch(/\.catalog-animal-scroll \{[^}]*mask-image: linear-gradient/)
+    const desktop = animal.slice(animal.indexOf('@media (min-width: 901px) {'))
+    expect(desktop).toMatch(/\.catalog-animal-chip \{[^}]*min-height: 48px/)
+    expect(desktop).toMatch(/\.catalog-animal-scroll \{[^}]*flex-wrap: wrap/)
+    expect(animal).toMatch(/prefers-reduced-motion: reduce/)
+    expect(animal).toMatch(/\.catalog-animal-chip,[\s\S]*:focus-visible \{[^}]*outline: 2px solid/)
+    expect(animal).not.toMatch(/input\[type=['"]?checkbox/)
+    expect(css).not.toMatch(/catalog-recipient/)
   })
 
   it('keeps the detail eyebrow in sentence case, like every other label', () => {
