@@ -2,7 +2,7 @@ import type {
   PublicCatalogAttributeFacetDto,
   PublicCatalogProductsCategoryFacetDto,
 } from '../interfaces/public-catalog-products.types'
-import { buildAnimalStrip } from './animal-groups'
+import { buildAnimalStrip, type AnimalGroup } from './animal-groups'
 import { mergeFacetOptions } from './facet-options'
 
 /** The recipient («¿Para quién?») definition: it feeds the animal strip, never a sidebar group. */
@@ -48,6 +48,8 @@ export interface FilterChip {
   key: string
   label: string
   tokens: string[]
+  /** Overrides the default «Quitar filtro: <label>»; set by the whole-group chip. */
+  ariaLabel?: string
 }
 
 const productsLabel = (count: number) => `${count} ${count === 1 ? 'producto' : 'productos'}`
@@ -151,18 +153,54 @@ export function buildFilterGroups(input: FilterGroupsInput): {
   return { groups: [...groups, ...attributeGroups], recipientHint: false }
 }
 
-/** Selected facet tokens grouped as one chip per option label; tokens no facet labels stay one chip. */
+function groupChip(group: AnimalGroup): FilterChip {
+  return {
+    kind: 'facet',
+    key: `group:${group.key}`,
+    label: `${group.label} (todas)`,
+    ariaLabel: `Quitar filtro: ${group.label}, todas las especies`,
+    tokens: group.species.flatMap((species) => species.tokens),
+  }
+}
+
+/**
+ * Selected facet tokens grouped as one chip per option label; tokens no facet labels stay one chip.
+ * With `animalFacet` (the branch's unfiltered animal.target facet, the one the animal strip is
+ * built from), a whole multi-species animal group collapses into one «<Grupo> (todas)» chip that
+ * carries every token of the group; a partial selection and single-species groups keep their
+ * per-species chips. Without it nothing is grouped.
+ */
 export function buildFacetChips(
   attributes: PublicCatalogAttributeFacetDto[],
   tokens: string[],
+  animalFacet: PublicCatalogAttributeFacetDto | null = null,
 ): FilterChip[] {
   const selected = new Set(tokens)
   const chips: FilterChip[] = []
   const labelled = new Set<string>()
+  const wholeGroups = buildAnimalStrip(animalFacet, tokens).groups.filter(
+    (group) => group.whole && !group.single,
+  )
+  const groupOfToken = new Map<string, AnimalGroup>()
+  for (const group of wholeGroups)
+    for (const species of group.species)
+      for (const token of species.tokens) groupOfToken.set(token, group)
+  const emitted = new Set<AnimalGroup>()
+  const emitGroup = (group: AnimalGroup) => {
+    if (emitted.has(group)) return
+    emitted.add(group)
+    group.species.forEach((species) => species.tokens.forEach((token) => labelled.add(token)))
+    chips.push(groupChip(group))
+  }
   for (const definition of attributes) {
     for (const option of mergeFacetOptions(definition)) {
       const optionTokens = option.tokens.filter((token) => selected.has(token))
       if (optionTokens.length === 0) continue
+      const group = groupOfToken.get(optionTokens[0]!)
+      if (group) {
+        emitGroup(group)
+        continue
+      }
       optionTokens.forEach((token) => labelled.add(token))
       chips.push({
         kind: 'facet',
@@ -172,6 +210,8 @@ export function buildFacetChips(
       })
     }
   }
+  // A group the displayed facets no longer list is still one chip, not «Otros filtros».
+  wholeGroups.forEach(emitGroup)
   const rest = tokens.filter((token) => !labelled.has(token))
   if (rest.length > 0)
     chips.push({ kind: 'facet', key: 'facet-rest', label: 'Otros filtros', tokens: rest })

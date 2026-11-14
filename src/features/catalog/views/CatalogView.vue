@@ -402,7 +402,7 @@ const selectedCategoryName = computed(() => {
 })
 /** Selected facet tokens grouped as the chips show them; tokens no facet labels stay one chip. */
 const facetChips = computed<CatalogActiveFilterChip[]>(() =>
-  buildFacetChips(displayedFacets.value, facetTokens.value),
+  buildFacetChips(displayedFacets.value, facetTokens.value, recipientFacet.value),
 )
 const activeChips = computed<CatalogActiveFilterChip[]>(() => [
   ...(route.query.categoryId !== undefined
@@ -718,6 +718,7 @@ async function selectPriceContext(priceListIdToSelect: string) {
       :search="search ?? ''"
       :categories="sidebarCategories"
       :attributes="displayedFacets"
+      :animal-facet="recipientFacet"
       :selected-category-id="categoryId"
       :selected-tokens="facetTokens"
       @apply="applySheet"

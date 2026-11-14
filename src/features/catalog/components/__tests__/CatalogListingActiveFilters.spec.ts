@@ -36,4 +36,22 @@ describe('CatalogListingActiveFilters', () => {
     expect(wrapper.find('[aria-label="Filtros activos"]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('Limpiar todo')
   })
+
+  it('names a group chip through its own aria label and emits it on removal', async () => {
+    const group: CatalogActiveFilterChip = {
+      kind: 'facet',
+      key: 'group:peces',
+      label: 'Peces (todas)',
+      ariaLabel: 'Quitar filtro: Peces, todas las especies',
+      tokens: ['animal.target:ani.freshwater.guppy'],
+    }
+    const wrapper = mount(CatalogListingActiveFilters, {
+      props: { chips: [group] },
+      global: { stubs },
+    })
+    const button = wrapper.get('button[aria-label="Quitar filtro: Peces, todas las especies"]')
+    expect(button.text()).toBe('Peces (todas)')
+    await button.trigger('click')
+    expect(wrapper.emitted('remove')).toEqual([[group]])
+  })
 })

@@ -5,6 +5,8 @@ export interface CatalogActiveFilterChip {
   key: string
   label: string
   tokens?: string[]
+  /** Overrides the default «Quitar filtro: <label>» (the whole-group chip names its scope). */
+  ariaLabel?: string
 }
 </script>
 
@@ -13,6 +15,7 @@ defineProps<{ chips: CatalogActiveFilterChip[] }>()
 const emit = defineEmits<{ remove: [chip: CatalogActiveFilterChip]; clear: [] }>()
 
 function ariaLabel(chip: CatalogActiveFilterChip) {
+  if (chip.ariaLabel) return chip.ariaLabel
   return chip.kind === 'search' ? `Quitar búsqueda: ${chip.label}` : `Quitar filtro: ${chip.label}`
 }
 </script>
