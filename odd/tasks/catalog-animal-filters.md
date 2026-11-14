@@ -27,3 +27,4 @@ Branch `feat/catalog-animal-filters`.
 - L8 Full suite on feat/catalog-animal-filters: 1012 files/17307 tests, type-check 0. Merged into main.
 - L9 Owner: «si hermano, tu recomendacion.» → S4, T3 on feat/catalog-group-chip.
 - L10 T3 done (worker mwgrnkef-y-w9l8, RED 4 failures; view test proven by removing the argument): buildFacetChips(attributes, tokens, animalFacet) builds a group:<family> chip «<Grupo> (todas)» with every species token when the group is whole (membership from the unfiltered recipientFacet, as the strip), aria «Quitar filtro: <Grupo>, todas las especies»; CatalogListingActiveFilters ariaLabel override. Parent extended it to the phone CatalogFilterSheet (RED first: new spec failed; optional animalFacet prop, fallback findRecipientFacet(attributes), aria override). Not checked live (dev centro has no animal facet).
+- L11 Full suite on feat/catalog-group-chip: 1012 files/17317 tests. Merged into main.
