@@ -9,7 +9,12 @@ import {
   useCatalogFilterDraft,
   type CatalogFilterSelection,
 } from '../composables/useCatalogFilterDraft'
-import { buildFacetChips, buildFilterGroups, type FilterOption } from '../utils/filter-model'
+import {
+  buildFacetChips,
+  buildFilterGroups,
+  findRecipientFacet,
+  type FilterOption,
+} from '../utils/filter-model'
 import CatalogFilterGroup from './CatalogFilterGroup.vue'
 
 /**
@@ -27,6 +32,8 @@ const props = defineProps<{
   attributes: PublicCatalogAttributeFacetDto[]
   selectedCategoryId: string | null
   selectedTokens: string[]
+  /** The branch's unfiltered animal facet: a whole group chosen shows one «<Grupo> (todas)» chip. */
+  animalFacet?: PublicCatalogAttributeFacetDto | null
 }>()
 const emit = defineEmits<{
   'update:open': [open: boolean]
@@ -54,7 +61,13 @@ watch(
   },
   { immediate: true, flush: 'sync' },
 )
-const facetChips = computed(() => buildFacetChips(props.attributes, draft.tokens.value))
+const facetChips = computed(() =>
+  buildFacetChips(
+    props.attributes,
+    draft.tokens.value,
+    props.animalFacet ?? findRecipientFacet(props.attributes),
+  ),
+)
 const categoryChipLabel = computed(() =>
   draft.categoryId.value === null
     ? null
@@ -161,7 +174,7 @@ function focusTitle(event: Event) {
             :key="chip.key"
             type="button"
             class="catalog-chip"
-            :aria-label="`Quitar filtro: ${chip.label}`"
+            :aria-label="chip.ariaLabel ?? `Quitar filtro: ${chip.label}`"
             @click="draft.removeTokens(chip.tokens)"
           >
             {{ chip.label }}

@@ -2139,11 +2139,11 @@ describe('CatalogView public browse', () => {
         wrapper.get('#catalogo .catalog-sort').getComponent({ name: 'SelectMenu' })
       expect(wrapper.find('#catalogo select').exists()).toBe(false)
       expect(sortMenu().props('modelValue')).toBe('price_desc')
-      expect(sortMenu().props('items').map((option: { label: string }) => option.label)).toEqual([
-        'Novedades',
-        'Precio menor',
-        'Precio mayor',
-      ])
+      expect(
+        sortMenu()
+          .props('items')
+          .map((option: { label: string }) => option.label),
+      ).toEqual(['Novedades', 'Precio menor', 'Precio mayor'])
       expect(wrapper.text()).not.toContain('Relevancia')
 
       sortMenu().vm.$emit('update:modelValue', 'price_asc')
@@ -2254,6 +2254,104 @@ describe('CatalogView public browse', () => {
       // The order and the price list are not filters: they stay.
       expect(router.currentRoute.value.query).toEqual({ sort: 'price_asc', priceListId: 'list-1' })
       expect(wrapper.find('[aria-label="Filtros activos"]').exists()).toBe(false)
+    })
+
+    describe('whole animal group chip', () => {
+      const fishCodes = [
+        'ani.freshwater_group.bettas',
+        'ani.freshwater.guppy',
+        'ani.freshwater.neon_tetra',
+      ]
+      const fishTokens = fishCodes.map((code) => `animal.target:${code}`)
+      const animalFacets = [
+        {
+          code: 'animal.target',
+          label: 'Especie',
+          options: [
+            { code: 'ani.dom.dog', label: 'Perro', count: 5 },
+            { code: 'ani.dom.cat', label: 'Gato', count: 4 },
+            { code: fishCodes[0]!, label: 'Bettas', count: 1 },
+            { code: fishCodes[1]!, label: 'Guppy', count: 2 },
+            { code: fishCodes[2]!, label: 'Tetra neón', count: 2 },
+          ],
+        },
+        {
+          code: 'life.stage',
+          label: 'Etapa de vida',
+          options: [{ code: 'adult', label: 'Adulto', count: 3 }],
+        },
+      ]
+      const installAnimals = () =>
+        stubCatalogFetch(
+          createCatalogFetch({
+            products: (_slug, _price, url) =>
+              jsonResponse({
+                ...categoryPage(url.searchParams.has('categoryId')),
+                facets: { categories: categoryFacets, attributes: animalFacets },
+              }),
+          }),
+        )
+      const chipLabels = (wrapper: VueWrapper) =>
+        wrapper
+          .findAll('[aria-label="Filtros activos"] button')
+          .map((button) => button.attributes('aria-label') ?? button.text())
+      const facetQuery = (tokens: string[]) => tokens.map((token) => `facet=${token}`).join('&')
+
+      it('shows one «Peces (todas)» chip for a whole group and removing it clears only that group', async () => {
+        installAnimals()
+        const { wrapper, router } = await mountAt(
+          `/catalogo/centro?categoryId=${categoryId}&${facetQuery([
+            ...fishTokens,
+            'animal.target:ani.dom.dog',
+            'life.stage:adult',
+          ])}&q=croqueta&page=2&sort=price_asc`,
+        )
+        await flushPromises()
+        expect(chipLabels(wrapper)).toEqual([
+          'Quitar filtro: Café',
+          'Quitar filtro: Perro',
+          'Quitar filtro: Peces, todas las especies',
+          'Quitar filtro: Adulto',
+          'Quitar búsqueda: croqueta',
+          'Limpiar todo',
+        ])
+        expect(
+          wrapper.get('button[aria-label="Quitar filtro: Peces, todas las especies"]').text(),
+        ).toBe('Peces (todas)')
+
+        await chipButton(wrapper, 'Quitar filtro: Peces, todas las especies').trigger('click')
+        await flushPromises()
+        const query = router.currentRoute.value.query
+        expect(query.facet).toEqual(['animal.target:ani.dom.dog', 'life.stage:adult'])
+        expect(query.categoryId).toBe(categoryId)
+        expect(query.q).toBe('croqueta')
+        expect(query.sort).toBe('price_asc')
+        expect(query.page).toBeUndefined()
+      })
+
+      it('keeps one chip per species for a partial group', async () => {
+        installAnimals()
+        const { wrapper } = await mountAt(`/catalogo/centro?${facetQuery(fishTokens.slice(0, 2))}`)
+        await flushPromises()
+        expect(chipLabels(wrapper)).toEqual([
+          'Quitar filtro: Bettas',
+          'Quitar filtro: Guppy',
+          'Limpiar todo',
+        ])
+      })
+
+      it('keeps «Limpiar todo» dropping every filter', async () => {
+        installAnimals()
+        const { wrapper, router } = await mountAt(`/catalogo/centro?${facetQuery(fishTokens)}`)
+        await flushPromises()
+        await wrapper
+          .findAll('[aria-label="Filtros activos"] button')
+          .find((button) => button.text() === 'Limpiar todo')!
+          .trigger('click')
+        await flushPromises()
+        expect(router.currentRoute.value.query.facet).toBeUndefined()
+        expect(wrapper.find('[aria-label="Filtros activos"]').exists()).toBe(false)
+      })
     })
 
     it('turns an empty filtered listing into «no results» with its ways out', async () => {

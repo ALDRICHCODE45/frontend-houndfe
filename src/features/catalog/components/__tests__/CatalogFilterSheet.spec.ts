@@ -155,6 +155,32 @@ describe('CatalogFilterSheet', () => {
     expect(wrapper.emitted('apply')).toEqual([[{ categoryId: null, tokens: [] }]])
   })
 
+  it('shows one «Peces (todas)» draft chip when the whole group is chosen, and removing it clears the group', async () => {
+    const fish = {
+      code: 'animal.target',
+      label: 'Especie',
+      options: [
+        { code: 'ani.freshwater_group.guppy', label: 'Guppy', count: 2 },
+        { code: 'ani.freshwater_group.bettas', label: 'Bettas', count: 1 },
+        { code: 'ani.dom.dog', label: 'Perro', count: 3 },
+      ],
+    }
+    wrapper = mountSheet({
+      attributes: [fish],
+      animalFacet: fish,
+      selectedTokens: [
+        'animal.target:ani.freshwater_group.guppy',
+        'animal.target:ani.freshwater_group.bettas',
+      ],
+    })
+    await settle()
+    expect(byLabel('Quitar filtro: Peces, todas las especies')).toBeDefined()
+    expect(byLabel('Quitar filtro: Guppy')).toBeUndefined()
+    await press(byLabel('Quitar filtro: Peces, todas las especies'))
+    await press(footerPrimary())
+    expect(wrapper.emitted('apply')![0]![0]).toEqual({ categoryId: null, tokens: [] })
+  })
+
   it('removes a draft chip', async () => {
     wrapper = mountSheet()
     await settle()

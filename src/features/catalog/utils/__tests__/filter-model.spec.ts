@@ -127,7 +127,10 @@ describe('buildFilterGroups', () => {
   })
 
   it('does not gate the other groups while the animal strip is hidden (fewer than two animals)', () => {
-    const oneAnimal = { ...recipient, options: [{ code: 'ani.dom.dog', label: 'Perro', count: 13 }] }
+    const oneAnimal = {
+      ...recipient,
+      options: [{ code: 'ani.dom.dog', label: 'Perro', count: 13 }],
+    }
     const { groups, recipientHint } = buildFilterGroups({
       categories,
       attributes: [oneAnimal, stage],
@@ -177,5 +180,93 @@ describe('buildFacetChips', () => {
       },
       { kind: 'facet', key: 'facet-rest', label: 'Otros filtros', tokens: ['x.y:z'] },
     ])
+  })
+
+  describe('animal groups', () => {
+    const fish = [
+      { code: 'ani.freshwater_group.bettas', label: 'Bettas', count: 1 },
+      { code: 'ani.freshwater.guppy', label: 'Guppy', count: 2 },
+      { code: 'ani.freshwater.neon_tetra', label: 'Tetra neón', count: 2 },
+    ]
+    const species = {
+      code: 'animal.target',
+      label: 'Especie',
+      options: [
+        { code: 'ani.dom.dog', label: 'Perro', count: 26 },
+        { code: 'ani.dom.cat', label: 'Gato', count: 13 },
+        ...fish,
+        { code: 'ani.bird_pet.canary', label: 'Canario doméstico', count: 1 },
+        { code: 'ani.bird_pet.cockatiel', label: 'Ninfa', count: 1 },
+        // No products and not selected: not part of «the whole group».
+        { code: 'ani.freshwater.discus', label: 'Discos', count: 0 },
+      ],
+    }
+    const tk = (code: string) => `animal.target:${code}`
+    const fishTokens = fish.map((item) => tk(item.code))
+
+    it('shows one «<Grupo> (todas)» chip, carrying every token of the group, for a whole group', () => {
+      const chips = buildFacetChips(
+        [species, stage],
+        [...fishTokens, 'life.stage:life.dog.adult'],
+        species,
+      )
+      expect(chips).toEqual([
+        {
+          kind: 'facet',
+          key: 'group:peces',
+          label: 'Peces (todas)',
+          ariaLabel: 'Quitar filtro: Peces, todas las especies',
+          // Species come in the strip order (most products first), not the URL order.
+          tokens: [fishTokens[1]!, fishTokens[2]!, fishTokens[0]!],
+        },
+        {
+          kind: 'facet',
+          key: 'life.stage:life.dog.adult',
+          label: 'Adulto',
+          tokens: ['life.stage:life.dog.adult'],
+        },
+      ])
+    })
+
+    it('keeps one chip per species for a partial group and for single-species groups', () => {
+      const chips = buildFacetChips(
+        [species],
+        [fishTokens[0]!, fishTokens[1]!, tk('ani.dom.dog'), tk('ani.dom.cat')],
+        species,
+      )
+      expect(chips.map((chip) => chip.label)).toEqual(['Perro', 'Gato', 'Bettas', 'Guppy'])
+      expect(chips.every((chip) => chip.ariaLabel === undefined)).toBe(true)
+    })
+
+    it('builds the group chip next to the species chips of other groups', () => {
+      const chips = buildFacetChips(
+        [species],
+        [tk('ani.bird_pet.canary'), ...fishTokens, tk('ani.dom.dog')],
+        species,
+      )
+      expect(chips.map((chip) => chip.label)).toEqual([
+        'Perro',
+        'Peces (todas)',
+        'Canario doméstico',
+      ])
+    })
+
+    it('takes group membership from the given facet, not from the displayed one', () => {
+      // The filtered listing only lists two of the three fish; the branch has three.
+      const narrowed = {
+        ...species,
+        options: species.options.filter((o) => o.code !== fish[2]!.code),
+      }
+      const twoOfThree = buildFacetChips([narrowed], fishTokens.slice(0, 2), species)
+      expect(twoOfThree.map((chip) => chip.label)).toEqual(['Bettas', 'Guppy'])
+      const whole = buildFacetChips([narrowed], fishTokens, species)
+      expect(whole.map((chip) => chip.label)).toEqual(['Peces (todas)'])
+      expect([...whole[0]!.tokens].sort()).toEqual([...fishTokens].sort())
+    })
+
+    it('does not group without a group facet', () => {
+      const chips = buildFacetChips([species], fishTokens)
+      expect(chips.map((chip) => chip.label)).toEqual(['Bettas', 'Guppy', 'Tetra neón'])
+    })
   })
 })
