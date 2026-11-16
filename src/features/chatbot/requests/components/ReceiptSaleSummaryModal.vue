@@ -20,14 +20,17 @@ const { sale, isLoading, isError, isNotFound } = useSaleDetail(
   computed(() => (open.value ? props.saleId : '')),
 )
 
-const title = computed(() => (props.folio ? `Venta ${props.folio}` : 'Venta'))
+const title = computed(() => {
+  const folio = props.folio ?? sale.value?.folio
+  return folio ? `Venta ${folio}` : 'Venta'
+})
 </script>
 
 <template>
   <UModal
     v-model:open="open"
     :title="title"
-    description="Productos y totales de la venta que paga este comprobante"
+    description="Productos y totales de la venta"
     :ui="{ content: 'max-w-2xl' }"
   >
     <template #body>

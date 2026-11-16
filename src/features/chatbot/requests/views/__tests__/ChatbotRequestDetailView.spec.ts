@@ -51,7 +51,12 @@ async function mountView(detail: ChatbotRequestDetail | Error = makeDetail()) {
   else getDetail.mockResolvedValue(detail)
   const wrapper = mount(ChatbotRequestDetailView, {
     global: {
-      plugins: [[VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]],
+      plugins: [
+        [
+          VueQueryPlugin,
+          { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+        ],
+      ],
       stubs: {
         ...DETAIL_STUBS,
         // The frame is plain layout: render its three slots so the footer bar is reachable.
@@ -92,8 +97,19 @@ describe('ChatbotRequestDetailView — header and main column', () => {
     expect(wrapper.get('[data-testid="breadcrumb-inbox"]').text()).toBe('Solicitudes')
   })
 
+  it('names the context sale by its folio from the customer orders, never by its id', async () => {
+    const wrapper = await mountView(makeDetail({ context: { saleId: 'sale-1' } }))
+    const sale = wrapper.get('[data-testid="context-sale"]').text()
+    expect(sale).toContain('V-1042')
+    expect(sale).not.toContain('sale-1')
+    const unknown = await mountView(makeDetail({ context: { saleId: 'sale-9' } }))
+    expect(unknown.get('[data-testid="context-sale"]').text()).not.toContain('sale-9')
+  })
+
   it('shows the phone as the server sent it and no restriction note with read:CustomerPhone', async () => {
-    const wrapper = await mountView(makeDetail({ customer: makeCustomer({ phone: '+523312345678' }) }))
+    const wrapper = await mountView(
+      makeDetail({ customer: makeCustomer({ phone: '+523312345678' }) }),
+    )
     expect(wrapper.get('[data-testid="customer-phone"]').text()).toBe('+523312345678')
     expect(wrapper.find('[data-testid="phone-restricted"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="limited-view"]').exists()).toBe(false)
@@ -101,7 +117,9 @@ describe('ChatbotRequestDetailView — header and main column', () => {
 
   it('masks nothing itself but explains the restriction and the limited view without read:CustomerPhone', async () => {
     auth.perms.delete('read:CustomerPhone')
-    const wrapper = await mountView(makeDetail({ customer: makeCustomer({ phone: '+5233 **** 5678' }) }))
+    const wrapper = await mountView(
+      makeDetail({ customer: makeCustomer({ phone: '+5233 **** 5678' }) }),
+    )
     expect(wrapper.get('[data-testid="customer-phone"]').text()).toBe('+5233 **** 5678')
     expect(wrapper.find('[data-testid="phone-restricted"]').exists()).toBe(true)
     const limited = wrapper.get('[data-testid="limited-view"]').text()
@@ -117,7 +135,9 @@ describe('ChatbotRequestDetailView — header and main column', () => {
     })
     const withIt = await mountView()
     expect(getPage).toHaveBeenCalledWith('req-1', { limit: 50 }, { signal: expect.anything() })
-    expect(withIt.get('[data-testid="detail-conversation"]').text()).toContain('Hola, ¿tienen croquetas?')
+    expect(withIt.get('[data-testid="detail-conversation"]').text()).toContain(
+      'Hola, ¿tienen croquetas?',
+    )
     expect(withIt.text()).not.toContain('Disponible próximamente')
 
     getPage.mockClear()
@@ -130,7 +150,9 @@ describe('ChatbotRequestDetailView — header and main column', () => {
 
   it('shows «Todavía no hay mensajes» for a loaded empty conversation', async () => {
     const wrapper = await mountView()
-    expect(wrapper.get('[data-testid="conversation-empty"]').text()).toContain('Todavía no hay mensajes')
+    expect(wrapper.get('[data-testid="conversation-empty"]').text()).toContain(
+      'Todavía no hay mensajes',
+    )
   })
 
   it('opening the conversation does not fetch the detail again (its unread count is zeroed in cache)', async () => {
@@ -151,7 +173,10 @@ describe('ChatbotRequestDetailView — header and main column', () => {
 
   it('renders needs and context as plain text', async () => {
     const wrapper = await mountView(
-      makeDetail({ needs: '<b>Necesita</b> 6 piezas', context: { cartRef: 'cart-9', quantity: 6 } }),
+      makeDetail({
+        needs: '<b>Necesita</b> 6 piezas',
+        context: { cartRef: 'cart-9', quantity: 6 },
+      }),
     )
     expect(wrapper.get('[data-testid="request-needs"]').text()).toBe('<b>Necesita</b> 6 piezas')
     expect(wrapper.find('[data-testid="request-needs"] b').exists()).toBe(false)
@@ -160,7 +185,9 @@ describe('ChatbotRequestDetailView — header and main column', () => {
 
   it('shows the decision read view and, for a zone, the impact', async () => {
     const restock = await mountView()
-    expect(restock.get('[data-testid="request-decision"]').text()).toContain('Croquetas Premium Adulto 15 kg')
+    expect(restock.get('[data-testid="request-decision"]').text()).toContain(
+      'Croquetas Premium Adulto 15 kg',
+    )
 
     const zone = await mountView(
       makeDetail({
@@ -179,17 +206,25 @@ describe('ChatbotRequestDetailView — header and main column', () => {
         zoneImpact: { requests: 4, customers: 3, setVersion: 7 },
       }),
     )
-    expect(zone.get('[data-testid="zone-impact"]').text()).toContain('Esto resolverá 4 solicitudes de 3 clientes')
+    expect(zone.get('[data-testid="zone-impact"]').text()).toContain(
+      'Esto resolverá 4 solicitudes de 3 clientes',
+    )
   })
 
   it('has no decision block for a request without decision', async () => {
-    const wrapper = await mountView(makeDetail({ kind: 'CLARIFICATION', subtype: 'UNKNOWN_QUESTION', decision: null }))
+    const wrapper = await mountView(
+      makeDetail({ kind: 'CLARIFICATION', subtype: 'UNKNOWN_QUESTION', decision: null }),
+    )
     expect(wrapper.find('[data-testid="request-decision"]').exists()).toBe(false)
   })
 
-  it('links the customer\'s other open requests to their detail', async () => {
+  it("links the customer's other open requests to their detail", async () => {
     const wrapper = await mountView(
-      makeDetail({ otherOpenRequests: [makeRow({ id: 'req-2', folio: 'S-000131', summary: 'Caducidad del lote' })] }),
+      makeDetail({
+        otherOpenRequests: [
+          makeRow({ id: 'req-2', folio: 'S-000131', summary: 'Caducidad del lote' }),
+        ],
+      }),
     )
     const link = wrapper.get('[data-testid="other-open-link"]')
     expect(JSON.parse(link.attributes('data-to')!)).toEqual({
@@ -224,8 +259,14 @@ describe('ChatbotRequestDetailView — audit', () => {
   const detail = () =>
     makeDetail({
       audit: [
-        makeAuditEvent('CLAIMED', { id: 'e-2', actor: { kind: 'USER', id: 'u-1', displayName: 'Laura Méndez' } }),
-        makeAuditEvent('CREATED', { id: 'e-1', actor: { kind: 'SYSTEM', id: null, displayName: null } }),
+        makeAuditEvent('CLAIMED', {
+          id: 'e-2',
+          actor: { kind: 'USER', id: 'u-1', displayName: 'Laura Méndez' },
+        }),
+        makeAuditEvent('CREATED', {
+          id: 'e-1',
+          actor: { kind: 'SYSTEM', id: null, displayName: null },
+        }),
       ],
       auditNextCursor: 'cursor-1',
     })
@@ -262,8 +303,14 @@ describe('ChatbotRequestDetailView — audit', () => {
 
   it('asks for the next page while the audit still has a cursor', async () => {
     listAudit
-      .mockResolvedValueOnce({ items: [makeAuditEvent('CLAIMED', { id: 'e-2' })], nextCursor: 'c2' })
-      .mockResolvedValueOnce({ items: [makeAuditEvent('CREATED', { id: 'e-1' })], nextCursor: null })
+      .mockResolvedValueOnce({
+        items: [makeAuditEvent('CLAIMED', { id: 'e-2' })],
+        nextCursor: 'c2',
+      })
+      .mockResolvedValueOnce({
+        items: [makeAuditEvent('CREATED', { id: 'e-1' })],
+        nextCursor: null,
+      })
     const wrapper = await mountView(detail())
     await wrapper.get('[data-testid="audit-more"]').trigger('click')
     await flushPromises()
@@ -302,7 +349,9 @@ describe('ChatbotRequestDetailView — rail', () => {
   })
 
   it('says it is paused and when it resumes', async () => {
-    const wrapper = await mountView(makeDetail({ slaPaused: true, slaResumesAt: '2099-01-02T15:00:00.000Z' }))
+    const wrapper = await mountView(
+      makeDetail({ slaPaused: true, slaResumesAt: '2099-01-02T15:00:00.000Z' }),
+    )
     const indicator = wrapper.get('[data-testid="sla-panel"] [data-testid="sla-indicator"]')
     expect(indicator.attributes('data-tone')).toBe('pause')
     expect(indicator.text()).toContain('se reanuda')
@@ -310,7 +359,12 @@ describe('ChatbotRequestDetailView — rail', () => {
 
   it('says when it expired', async () => {
     const wrapper = await mountView(
-      makeDetail({ status: 'IN_PROGRESS', displayStatus: 'EXPIRED', slaLevel: 'OVERDUE', overdueAt: '2026-11-11T15:00:00.000Z' }),
+      makeDetail({
+        status: 'IN_PROGRESS',
+        displayStatus: 'EXPIRED',
+        slaLevel: 'OVERDUE',
+        overdueAt: '2026-11-11T15:00:00.000Z',
+      }),
     )
     expect(wrapper.get('[data-testid="overdue-note"]').text()).toContain('Sigue abierta')
   })
@@ -339,7 +393,9 @@ describe('ChatbotRequestDetailView — rail', () => {
     )
     const panel = wrapper.get('[data-testid="action-panel"]')
     expect(panel.get('[data-testid="action-RESOLVE"]').attributes('disabled')).toBeDefined()
-    expect(panel.get('[data-testid="denied-reason-RESOLVE"]').text()).toBe('La atiende Luis Ortega.')
+    expect(panel.get('[data-testid="denied-reason-RESOLVE"]').text()).toBe(
+      'La atiende Luis Ortega.',
+    )
   })
 
   it('puts the action bar in the footer for mobile, next to the rail panel for desktop', async () => {
@@ -348,12 +404,19 @@ describe('ChatbotRequestDetailView — rail', () => {
     const bar = footer.get('[data-testid="mobile-action-bar"]')
     expect(bar.get('[data-testid="bar-primary"]').text()).toContain('Atender')
     expect(bar.find('[data-testid="bar-more"]').exists()).toBe(true)
-    expect(wrapper.find('[data-slot="scroll"] [data-testid="mobile-action-bar"]').exists()).toBe(false)
+    expect(wrapper.find('[data-slot="scroll"] [data-testid="mobile-action-bar"]').exists()).toBe(
+      false,
+    )
   })
 
   it('has no footer bar for a closed request', async () => {
     const wrapper = await mountView(
-      makeDetail({ status: 'RESOLVED', displayStatus: 'RESOLVED', allowedActions: [], slaLevel: null }),
+      makeDetail({
+        status: 'RESOLVED',
+        displayStatus: 'RESOLVED',
+        allowedActions: [],
+        slaLevel: null,
+      }),
     )
     expect(wrapper.find('[data-testid="mobile-action-bar"]').exists()).toBe(false)
   })
@@ -497,7 +560,13 @@ describe('ChatbotRequestDetailView — reply and finish outcome (T7)', () => {
           needsReconciliation: false,
         },
       ],
-      audit: [makeAuditEvent('REPLIED', { data: { messageId: 'r-1' }, fromStatus: 'IN_PROGRESS', toStatus: 'RESOLVED' })],
+      audit: [
+        makeAuditEvent('REPLIED', {
+          data: { messageId: 'r-1' },
+          fromStatus: 'IN_PROGRESS',
+          toStatus: 'RESOLVED',
+        }),
+      ],
       ...overrides,
     })
 
@@ -520,7 +589,9 @@ describe('ChatbotRequestDetailView — reply and finish outcome (T7)', () => {
   })
 
   it('has no reply block while the clarification is unanswered or for a decision', async () => {
-    expect((await mountView(answered({ reply: null }))).find('[data-testid="reply-block"]').exists()).toBe(false)
+    expect(
+      (await mountView(answered({ reply: null }))).find('[data-testid="reply-block"]').exists(),
+    ).toBe(false)
     expect((await mountView()).find('[data-testid="reply-block"]').exists()).toBe(false)
   })
 
@@ -536,17 +607,29 @@ describe('ChatbotRequestDetailView — reply and finish outcome (T7)', () => {
         allowedActions: [],
         complaintOutcome: 'REPLACEMENT',
         audit: [
-          makeAuditEvent('FINISHED', { data: { complaintOutcome: 'REPLACEMENT' }, fromStatus: 'IN_PROGRESS', toStatus: 'RESOLVED' }),
+          makeAuditEvent('FINISHED', {
+            data: { complaintOutcome: 'REPLACEMENT' },
+            fromStatus: 'IN_PROGRESS',
+            toStatus: 'RESOLVED',
+          }),
         ],
       }),
     )
-    expect(wrapper.get('[data-testid="complaint-outcome"]').text()).toBe('Resultado de la queja: Reemplazo')
+    expect(wrapper.get('[data-testid="complaint-outcome"]').text()).toBe(
+      'Resultado de la queja: Reemplazo',
+    )
     expect(wrapper.get('[data-testid="audit-item"]').text()).toContain('Reemplazo')
   })
 
   it('shows no outcome line for a complaint closed by the system (null) or a non-complaint', async () => {
     const wrapper = await mountView(
-      makeDetail({ subtype: 'COMPLAINT', status: 'RESOLVED', displayStatus: 'RESOLVED', complaintOutcome: null, allowedActions: [] }),
+      makeDetail({
+        subtype: 'COMPLAINT',
+        status: 'RESOLVED',
+        displayStatus: 'RESOLVED',
+        complaintOutcome: null,
+        allowedActions: [],
+      }),
     )
     expect(wrapper.find('[data-testid="complaint-outcome"]').exists()).toBe(false)
   })
@@ -570,7 +653,10 @@ describe('ChatbotRequestDetailView — live conversation (handoff 20)', () => {
 
   it('mounts the chat for the attendee without read:ChatbotConversation and reads their session', async () => {
     auth.perms.delete('read:ChatbotConversation')
-    getPage.mockResolvedValue({ items: [makeMessage({ seq: 21, text: 'Hola, ¿sigue ahí?' })], hasMoreBefore: false })
+    getPage.mockResolvedValue({
+      items: [makeMessage({ seq: 21, text: 'Hola, ¿sigue ahí?' })],
+      hasMoreBefore: false,
+    })
     const wrapper = await mountView(liveDetail())
 
     expect(getPage).toHaveBeenCalledWith('req-1', { limit: 50 }, { signal: expect.anything() })
@@ -594,14 +680,18 @@ describe('ChatbotRequestDetailView — live conversation (handoff 20)', () => {
 
   it('keeps the limited-view note for a viewer who is not the attendee', async () => {
     auth.perms.delete('read:ChatbotConversation')
-    const wrapper = await mountView(liveDetail({ assignee: { id: 'u-9', displayName: 'Diego Ramírez' } }))
+    const wrapper = await mountView(
+      liveDetail({ assignee: { id: 'u-9', displayName: 'Diego Ramírez' } }),
+    )
     expect(wrapper.find('[data-testid="detail-conversation"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="limited-view"]').text()).toContain('conversación')
     expect(getPage).not.toHaveBeenCalled()
   })
 
   it('a reader with the permission who is not the attendee gets the read-only view', async () => {
-    const wrapper = await mountView(liveDetail({ assignee: { id: 'u-9', displayName: 'Diego Ramírez' }, allowedActions: [] }))
+    const wrapper = await mountView(
+      liveDetail({ assignee: { id: 'u-9', displayName: 'Diego Ramírez' }, allowedActions: [] }),
+    )
     expect(wrapper.find('[data-testid="live-composer"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="live-note"]').text()).toContain('Atiende Diego Ramírez')
   })
@@ -621,7 +711,19 @@ describe('ChatbotRequestDetailView — live conversation (handoff 20)', () => {
     const claim = vi.fn()
     Object.assign(chatbotRequestApi, { claim })
     claim.mockResolvedValue({
-      request: { id: 'req-1', folio: 'S-000123', kind: 'DECISION', subtype: 'COMPLAINT', status: 'IN_PROGRESS', displayStatus: 'IN_PROGRESS', version: 2, assignee: null, claimedAt: null, overdueAt: null, closedAt: null },
+      request: {
+        id: 'req-1',
+        folio: 'S-000123',
+        kind: 'DECISION',
+        subtype: 'COMPLAINT',
+        status: 'IN_PROGRESS',
+        displayStatus: 'IN_PROGRESS',
+        version: 2,
+        assignee: null,
+        claimedAt: null,
+        overdueAt: null,
+        closedAt: null,
+      },
     })
     const wrapper = await mountView(
       liveDetail({
@@ -629,7 +731,12 @@ describe('ChatbotRequestDetailView — live conversation (handoff 20)', () => {
         assignee: null,
         version: 5,
         allowedActions: ['CLAIM'],
-        liveSession: { state: 'WAITING', handoffEpoch: 3, lastStaffActivityAt: null, lastCustomerMessageAt: null },
+        liveSession: {
+          state: 'WAITING',
+          handoffEpoch: 3,
+          lastStaffActivityAt: null,
+          lastCustomerMessageAt: null,
+        },
       }),
     )
     await wrapper.get('[data-testid="banner-claim"]').trigger('click')
@@ -642,7 +749,9 @@ describe('ChatbotRequestDetailView — scheduled conversations (handoff 21)', ()
   const SCHEDULED = '2099-11-14T16:00:00.000Z'
 
   it('shows the booking and, when needsReschedule, the «Por reagendar» banner in the main column', async () => {
-    const wrapper = await mountView(makeDetail({ scheduledFor: SCHEDULED, scheduleVersion: 1, needsReschedule: true }))
+    const wrapper = await mountView(
+      makeDetail({ scheduledFor: SCHEDULED, scheduleVersion: 1, needsReschedule: true }),
+    )
     expect(wrapper.get('[data-testid="schedule-chip"]').text()).toContain('Agendada para')
     expect(wrapper.get('[data-testid="reschedule-banner"]').text()).toContain('Por reagendar')
   })
@@ -652,7 +761,9 @@ describe('ChatbotRequestDetailView — scheduled conversations (handoff 21)', ()
       makeDetail({
         scheduledFor: SCHEDULED,
         allowedActions: ['RESCHEDULE'],
-        deniedActions: [{ action: 'CLAIM', code: 'SCHEDULED_TOO_EARLY', claimableAt: '2099-11-14T15:55:00.000Z' }],
+        deniedActions: [
+          { action: 'CLAIM', code: 'SCHEDULED_TOO_EARLY', claimableAt: '2099-11-14T15:55:00.000Z' },
+        ],
       }),
     )
     const reason = wrapper.get('[data-testid="denied-reason-CLAIM"]').text()
@@ -665,4 +776,3 @@ describe('ChatbotRequestDetailView — scheduled conversations (handoff 21)', ()
     expect(wrapper.find('[data-testid="schedule-block"]').exists()).toBe(false)
   })
 })
-
