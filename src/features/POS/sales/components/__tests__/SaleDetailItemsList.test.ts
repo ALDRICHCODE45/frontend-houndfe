@@ -27,7 +27,7 @@ describe('SaleDetailItemsList', () => {
 
     const headers = wrapper.findAll('th')
     expect(headers).toHaveLength(5)
-    expect(headers.map(h => h.text().trim())).toEqual([
+    expect(headers.map((h) => h.text().trim())).toEqual([
       'Producto',
       'Cant.',
       'Precio unit.',
@@ -64,10 +64,12 @@ describe('SaleDetailItemsList', () => {
 
     // No avatar/img element anywhere in the table — receipt rows are text only.
     expect(wrapper.findAll('[data-testid^="item-image-"]')).toHaveLength(0)
-    expect(wrapper.findAll('img').filter((img) => {
-      // Filter out images that belong to badge components if any (none in this fixture).
-      return img.attributes('alt') !== 'Houndé'
-    })).toHaveLength(0)
+    expect(
+      wrapper.findAll('img').filter((img) => {
+        // Filter out images that belong to badge components if any (none in this fixture).
+        return img.attributes('alt') !== 'Houndé'
+      }),
+    ).toHaveLength(0)
   })
 
   it('renders one table row per item with a stable row testid', () => {
@@ -270,73 +272,71 @@ describe('SaleDetailItemsList', () => {
       props: {
         items: [
           {
-             discountCents: 0,
-             subtotalCents: 0,
-             rewardKind: 'buy_x_get_y',
-             rewardDiscountPercent: 100,
-           },
-
+            discountCents: 0,
+            subtotalCents: 0,
+            rewardKind: 'buy_x_get_y',
+            rewardDiscountPercent: 100,
+          },
         ],
       },
     })
 
-     const rewardBadge = wrapper.find('[data-testid="sale-item-reward-badge"]')
-     expect(rewardBadge.exists()).toBe(true)
-     expect(rewardBadge.text()).toContain('GRATIS')
-     const badges = wrapper.findComponent(SaleItemBadges)
-     expect(badges.props('rewardDiscountPercent')).toBe(100)
-     // Backend-provided NET subtotal must render verbatim — client MUST NOT recompute.
-     expect(wrapper.get('[data-testid="item-subtotal-0"]').text()).toContain('$0.00')
-   })
+    const rewardBadge = wrapper.find('[data-testid="sale-item-reward-badge"]')
+    expect(rewardBadge.exists()).toBe(true)
+    expect(rewardBadge.text()).toContain('GRATIS')
+    const badges = wrapper.findComponent(SaleItemBadges)
+    expect(badges.props('rewardDiscountPercent')).toBe(100)
+    // Backend-provided NET subtotal must render verbatim — client MUST NOT recompute.
+    expect(wrapper.get('[data-testid="item-subtotal-0"]').text()).toContain('$0.00')
+  })
 
-   it('renders a partial reward percent on the confirmed detail surface', () => {
-     const wrapper = mountWithUApp(SaleDetailItemsList, {
-       props: {
-         items: [
-           {
-             productName: 'Vitamina C',
-             variantName: '1000mg',
-             imageUrl: null,
-             unitPriceCents: 12000,
-             quantity: 1,
-             discountCents: 0,
-             subtotalCents: 6000,
-             rewardKind: 'buy_x_get_y',
-             rewardDiscountPercent: 50,
-           },
-         ],
-       },
-     })
+  it('renders a partial reward percent on the confirmed detail surface', () => {
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
+      props: {
+        items: [
+          {
+            productName: 'Vitamina C',
+            variantName: '1000mg',
+            imageUrl: null,
+            unitPriceCents: 12000,
+            quantity: 1,
+            discountCents: 0,
+            subtotalCents: 6000,
+            rewardKind: 'buy_x_get_y',
+            rewardDiscountPercent: 50,
+          },
+        ],
+      },
+    })
 
-     const rewardBadge = wrapper.find('[data-testid="sale-item-reward-badge"]')
-     expect(rewardBadge.text()).toContain('-50%')
-     expect(rewardBadge.text()).not.toContain('GRATIS')
-     expect(wrapper.findComponent(SaleItemBadges).props('rewardDiscountPercent')).toBe(50)
-   })
+    const rewardBadge = wrapper.find('[data-testid="sale-item-reward-badge"]')
+    expect(rewardBadge.text()).toContain('-50%')
+    expect(rewardBadge.text()).not.toContain('GRATIS')
+    expect(wrapper.findComponent(SaleItemBadges).props('rewardDiscountPercent')).toBe(50)
+  })
 
-   it('does NOT render a reward badge when the confirmed detail percent is null', () => {
-     const wrapper = mountWithUApp(SaleDetailItemsList, {
-       props: {
-         items: [
-           {
-             productName: 'Vitamina C',
-             variantName: null,
-             imageUrl: null,
-             unitPriceCents: 12000,
-             quantity: 1,
-             discountCents: 0,
-             subtotalCents: 12000,
-             rewardKind: 'buy_x_get_y',
-             rewardDiscountPercent: null,
-           },
-         ],
-       },
-     })
+  it('does NOT render a reward badge when the confirmed detail percent is null', () => {
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
+      props: {
+        items: [
+          {
+            productName: 'Vitamina C',
+            variantName: null,
+            imageUrl: null,
+            unitPriceCents: 12000,
+            quantity: 1,
+            discountCents: 0,
+            subtotalCents: 12000,
+            rewardKind: 'buy_x_get_y',
+            rewardDiscountPercent: null,
+          },
+        ],
+      },
+    })
 
-     expect(wrapper.find('[data-testid="sale-item-reward-badge"]').exists()).toBe(false)
-     expect(wrapper.findComponent(SaleItemBadges).props('rewardDiscountPercent')).toBeNull()
-   })
-
+    expect(wrapper.find('[data-testid="sale-item-reward-badge"]').exists()).toBe(false)
+    expect(wrapper.findComponent(SaleItemBadges).props('rewardDiscountPercent')).toBeNull()
+  })
 
   it('does NOT render a reward badge on a line without rewardKind', () => {
     const wrapper = mountWithUApp(SaleDetailItemsList, {
@@ -370,10 +370,10 @@ describe('SaleDetailItemsList', () => {
             unitPriceCents: 12000,
             quantity: 2,
             discountCents: 0,
-             subtotalCents: 0,
-             rewardKind: 'buy_x_get_y',
-             rewardDiscountPercent: 100,
-           },
+            subtotalCents: 0,
+            rewardKind: 'buy_x_get_y',
+            rewardDiscountPercent: 100,
+          },
 
           {
             productName: 'Paracetamol',
@@ -576,8 +576,22 @@ describe('SaleDetailItemsList', () => {
       const wrapper = mountWithUApp(SaleDetailItemsList, {
         props: {
           items: [
-            { productName: 'Jean Recto', imageUrl: null, unitPriceCents: 1000, quantity: 1, discountCents: 0, subtotalCents: 1000 },
-            { productName: 'Camisa', imageUrl: null, unitPriceCents: 2000, quantity: 2, discountCents: 0, subtotalCents: 4000 },
+            {
+              productName: 'Jean Recto',
+              imageUrl: null,
+              unitPriceCents: 1000,
+              quantity: 1,
+              discountCents: 0,
+              subtotalCents: 1000,
+            },
+            {
+              productName: 'Camisa',
+              imageUrl: null,
+              unitPriceCents: 2000,
+              quantity: 2,
+              discountCents: 0,
+              subtotalCents: 4000,
+            },
           ],
         },
       })
@@ -595,7 +609,14 @@ describe('SaleDetailItemsList', () => {
       const wrapper = mountWithUApp(SaleDetailItemsList, {
         props: {
           items: [
-            { productName: 'Solo', imageUrl: null, unitPriceCents: 100, quantity: 1, discountCents: 0, subtotalCents: 100 },
+            {
+              productName: 'Solo',
+              imageUrl: null,
+              unitPriceCents: 100,
+              quantity: 1,
+              discountCents: 0,
+              subtotalCents: 100,
+            },
           ],
         },
       })
@@ -632,5 +653,47 @@ describe('SaleDetailItemsList', () => {
     expect(badges.exists()).toBe(true)
     expect(badges.props('rewardKind')).toBe('advanced')
     expect(badges.props('rewardDiscountPercent')).toBe(50)
+  })
+
+  it('shows the variant without a trailing «·» when nothing follows it', () => {
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
+      props: {
+        items: [
+          {
+            productName: 'Collar antipulgas',
+            variantName: 'Talla M · Azul',
+            imageUrl: null,
+            unitPriceCents: 16000,
+            quantity: 2,
+            discountCents: 0,
+            subtotalCents: 32000,
+          },
+        ],
+      },
+    })
+    expect(wrapper.get('[data-testid="item-subtitle-0"]').text()).toBe('Talla M · Azul')
+  })
+
+  it('separates the numeric columns so «—» never touches the subtotal', () => {
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
+      props: {
+        items: [
+          {
+            productName: 'Croquetas',
+            variantName: null,
+            imageUrl: null,
+            unitPriceCents: 78000,
+            quantity: 2,
+            discountCents: 0,
+            subtotalCents: 156000,
+          },
+        ],
+      },
+    })
+    const cells = [
+      ...wrapper.findAll('th').slice(1),
+      ...wrapper.get('[data-testid="item-row-0"]').findAll('td').slice(1),
+    ]
+    for (const cell of cells) expect(cell.classes()).toContain('pl-4')
   })
 })

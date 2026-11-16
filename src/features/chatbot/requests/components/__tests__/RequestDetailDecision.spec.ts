@@ -21,7 +21,10 @@ vi.mock('@/features/auth/composables/useSafeTenantId', async () => {
   return { useSafeTenantId: () => computed(() => auth.tenantId) }
 })
 
+vi.mock('@/features/POS/sales/api/sale.api', () => ({ saleApi: { getById: vi.fn() } }))
+
 import RequestDetailDecision from '../RequestDetailDecision.vue'
+import { saleApi } from '@/features/POS/sales/api/sale.api'
 import { chatbotReceiptApi } from '../../api/chatbot-receipt.api'
 import { DETAIL_STUBS, makeDetail } from '../../utils/detail-fixture'
 import type { ChatbotRequestDetail } from '../../interfaces/chatbot-request.types'
@@ -30,6 +33,37 @@ const TZ = 'America/Mexico_City'
 const NOW = new Date('2026-11-11T17:05:00.000Z')
 
 const getFile = vi.mocked(chatbotReceiptApi.getFile)
+const getSale = vi.mocked(saleApi.getById)
+
+const modalStub = {
+  name: 'UModal',
+  props: ['open', 'title', 'description'],
+  emits: ['update:open'],
+  template:
+    '<div v-if="open" data-stub="modal" :data-title="title"><slot name="body" /><slot name="footer" /></div>',
+}
+
+const MODAL_STUBS = {
+  UModal: modalStub,
+  Modal: modalStub,
+  SaleDetailItemsList: {
+    props: ['items'],
+    template:
+      '<ul data-stub="sale-items"><li v-for="i in items" :key="i.id">{{ i.productName }}<template v-if="i.variantName"> · {{ i.variantName }}</template> ×{{ i.quantity }}</li></ul>',
+  },
+  SaleDetailTotalsCard: {
+    props: [
+      'subtotalCents',
+      'discountCents',
+      'totalCents',
+      'paidCents',
+      'debtCents',
+      'changeDueCents',
+    ],
+    template:
+      '<div data-stub="sale-totals">{{ subtotalCents }}|{{ discountCents }}|{{ totalCents }}|{{ paidCents }}|{{ debtCents }}|{{ changeDueCents }}</div>',
+  },
+}
 const createObjectURL = vi.fn<(blob: Blob) => string>()
 const revokeObjectURL = vi.fn<(url: string) => void>()
 let counter = 0
@@ -37,12 +71,13 @@ const blobUrl = (n: number) => `blob:${window.location.origin}/${n}`
 
 beforeEach(() => {
   getFile.mockReset()
+  getSale.mockReset()
   createObjectURL.mockReset()
   revokeObjectURL.mockReset()
   counter = 0
   createObjectURL.mockImplementation(() => blobUrl(++counter))
   vi.stubGlobal('URL', Object.assign(URL, { createObjectURL, revokeObjectURL }))
-  auth.perms = new Set(['read:ChatbotRequest', 'read:ReceiptEvidence'])
+  auth.perms = new Set(['read:ChatbotRequest', 'read:ReceiptEvidence', 'read:Sale'])
   auth.tenantId = 'tenant-1'
 })
 afterEach(() => {
@@ -54,17 +89,23 @@ function mountDecision(request: ChatbotRequestDetail) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return mount(RequestDetailDecision, {
     props: { request, timeZone: TZ, now: NOW },
-    global: { stubs: DETAIL_STUBS, plugins: [[VueQueryPlugin, { queryClient }]] },
+    global: {
+      stubs: { ...DETAIL_STUBS, ...MODAL_STUBS },
+      plugins: [[VueQueryPlugin, { queryClient }]],
+    },
   })
 }
 
-const httpError = (status: number) => Object.assign(new Error(`HTTP ${status}`), { response: { status, data: {} } })
+const httpError = (status: number) =>
+  Object.assign(new Error(`HTTP ${status}`), { response: { status, data: {} } })
 
 const panel = (w: ReturnType<typeof mountDecision>) => w.get('[data-testid="request-decision"]')
 
 describe('RequestDetailDecision', () => {
   it('renders nothing for a request without decision (clarification, conversation)', () => {
-    const wrapper = mountDecision(makeDetail({ kind: 'CLARIFICATION', subtype: 'UNKNOWN_QUESTION', decision: null }))
+    const wrapper = mountDecision(
+      makeDetail({ kind: 'CLARIFICATION', subtype: 'UNKNOWN_QUESTION', decision: null }),
+    )
     expect(wrapper.find('[data-testid="request-decision"]').exists()).toBe(false)
   })
 
@@ -156,9 +197,15 @@ describe('RequestDetailDecision', () => {
   })
 
   it('DELIVERY_ZONE: no impact line without zoneImpact or once the request is closed', () => {
-    expect(mountDecision(zone({ zoneImpact: null })).find('[data-testid="zone-impact"]').exists()).toBe(false)
     expect(
-      mountDecision(zone({ status: 'RESOLVED', displayStatus: 'RESOLVED' })).find('[data-testid="zone-impact"]').exists(),
+      mountDecision(zone({ zoneImpact: null }))
+        .find('[data-testid="zone-impact"]')
+        .exists(),
+    ).toBe(false)
+    expect(
+      mountDecision(zone({ status: 'RESOLVED', displayStatus: 'RESOLVED' }))
+        .find('[data-testid="zone-impact"]')
+        .exists(),
     ).toBe(false)
   })
 
@@ -222,12 +269,16 @@ describe('RequestDetailDecision', () => {
     expect(text).toContain('$1,840.00')
     expect(text).toContain('$0.00')
     expect(text).toContain('SPEI 4471290')
-    expect(wrapper.get('[data-testid="receipt-preview"]').text()).toContain('Cargando la vista previa')
+    expect(wrapper.get('[data-testid="receipt-preview"]').text()).toContain(
+      'Cargando la vista previa',
+    )
     await flushPromises()
 
     // Through the authenticated client, never as a relative <img src> on the app's own domain.
     expect(getFile).toHaveBeenCalledTimes(1)
-    expect(getFile).toHaveBeenCalledWith('/sales/sale-1/receipts/rec-1/preview', { signal: expect.anything() })
+    expect(getFile).toHaveBeenCalledWith('/sales/sale-1/receipts/rec-1/preview', {
+      signal: expect.anything(),
+    })
     const img = wrapper.get('[data-testid="receipt-preview"] img')
     expect(img.attributes('src')).toBe(blobUrl(1))
     expect(img.attributes('alt')).toBe('Comprobante enviado por el cliente')
@@ -251,7 +302,9 @@ describe('RequestDetailDecision', () => {
     expect(open).toHaveBeenCalledWith('about:blank', '_blank')
     await flushPromises()
 
-    expect(getFile).toHaveBeenLastCalledWith('/sales/sale-1/receipts/rec-1/file', { signal: undefined })
+    expect(getFile).toHaveBeenLastCalledWith('/sales/sale-1/receipts/rec-1/file', {
+      signal: undefined,
+    })
     expect(tab.opener).toBeNull()
     expect(tab.location.href).toBe(blobUrl(2))
     expect(tab.close).not.toHaveBeenCalled()
@@ -271,7 +324,9 @@ describe('RequestDetailDecision', () => {
 
     expect(tab.close).toHaveBeenCalledTimes(1)
     expect(tab.location.href).toBe('')
-    expect(wrapper.get('[data-testid="receipt-original-error"]').text()).toBe('No encontramos este archivo.')
+    expect(wrapper.get('[data-testid="receipt-original-error"]').text()).toBe(
+      'No encontramos este archivo.',
+    )
   })
 
   it('TRANSFER_RECEIPT: with the popup blocked the original still opens through a temporary link', async () => {
@@ -297,7 +352,9 @@ describe('RequestDetailDecision', () => {
     const wrapper = mountDecision(receipt())
     await flushPromises()
     expect(wrapper.find('[data-testid="receipt-preview"] img').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="receipt-preview"]').text()).toContain('No tienes permiso para ver este archivo.')
+    expect(wrapper.get('[data-testid="receipt-preview"]').text()).toContain(
+      'No tienes permiso para ver este archivo.',
+    )
   })
 
   it('TRANSFER_RECEIPT: without read:ReceiptEvidence nothing is fetched and the card says so', async () => {
@@ -307,7 +364,95 @@ describe('RequestDetailDecision', () => {
     expect(getFile).not.toHaveBeenCalled()
     expect(wrapper.find('[data-testid="receipt-preview"] img').exists()).toBe(false)
     expect(wrapper.find('[data-testid="receipt-original"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="receipt-preview"]').text()).toContain('No tienes permiso para ver el comprobante.')
+    expect(wrapper.get('[data-testid="receipt-preview"]').text()).toContain(
+      'No tienes permiso para ver el comprobante.',
+    )
+  })
+
+  it('TRANSFER_RECEIPT: the preview opens enlarged in a modal and closes again', async () => {
+    getFile.mockResolvedValue(new Blob(['p'], { type: 'image/jpeg' }))
+    const wrapper = mountDecision(receipt())
+    await flushPromises()
+    expect(wrapper.find('[data-stub="modal"]').exists()).toBe(false)
+
+    const zoom = wrapper.get('[data-testid="receipt-zoom"]')
+    expect(zoom.element.tagName).toBe('BUTTON')
+    expect(zoom.attributes('aria-label')).toBe('Ampliar comprobante')
+    await zoom.trigger('click')
+
+    const modal = wrapper.get('[data-stub="modal"]')
+    expect(modal.attributes('data-title')).toBe('Comprobante ampliado')
+    const big = modal.get('[data-testid="receipt-zoom-image"]')
+    expect(big.attributes('src')).toBe(blobUrl(1))
+    expect(big.attributes('alt')).toBe('Comprobante enviado por el cliente')
+    expect(getFile).toHaveBeenCalledTimes(1)
+
+    await wrapper.findComponent({ name: 'UModal' }).vm.$emit('update:open', false)
+    expect(wrapper.find('[data-stub="modal"]').exists()).toBe(false)
+  })
+
+  it('TRANSFER_RECEIPT: no zoom button while the preview has not loaded', async () => {
+    getFile.mockRejectedValueOnce(httpError(404))
+    const wrapper = mountDecision(receipt())
+    await flushPromises()
+    expect(wrapper.find('[data-testid="receipt-zoom"]').exists()).toBe(false)
+  })
+
+  it('TRANSFER_RECEIPT: «Ver venta» opens a summary with the products, variants and totals', async () => {
+    getFile.mockResolvedValue(new Blob(['p'], { type: 'image/jpeg' }))
+    getSale.mockResolvedValue({
+      id: 'sale-1',
+      folio: 'V-1042',
+      items: [
+        { id: 'i-1', productName: 'Croquetas Premium', variantName: '15 kg', quantity: 2 },
+        { id: 'i-2', productName: 'Collar', variantName: null, quantity: 1 },
+      ],
+      subtotalCents: 190000,
+      discountCents: 6000,
+      totalCents: 184000,
+      paidCents: 0,
+      debtCents: 184000,
+      changeDueCents: 0,
+    } as never)
+    const wrapper = mountDecision(receipt())
+    await flushPromises()
+    // The sale is read only when asked for.
+    expect(getSale).not.toHaveBeenCalled()
+
+    const open = wrapper.get('[data-testid="receipt-sale-open"]')
+    expect(open.text()).toBe('Ver venta')
+    await open.trigger('click')
+    expect(wrapper.get('[data-stub="modal"]').attributes('data-title')).toBe('Venta V-1042')
+    expect(wrapper.get('[data-testid="sale-summary"]').text()).toContain('Cargando la venta')
+    await flushPromises()
+
+    expect(getSale).toHaveBeenCalledWith('sale-1')
+    const items = wrapper.get('[data-stub="sale-items"]').text()
+    expect(items).toContain('Croquetas Premium · 15 kg ×2')
+    expect(items).toContain('Collar ×1')
+    expect(wrapper.get('[data-stub="sale-totals"]').text()).toBe('190000|6000|184000|0|184000|0')
+  })
+
+  it('TRANSFER_RECEIPT: the sale summary says so when the sale cannot be read', async () => {
+    getFile.mockResolvedValue(new Blob(['p'], { type: 'image/jpeg' }))
+    getSale.mockRejectedValue(httpError(500))
+    const wrapper = mountDecision(receipt())
+    await flushPromises()
+    await wrapper.get('[data-testid="receipt-sale-open"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-stub="sale-items"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="sale-summary"]').text()).toContain(
+      'No se pudo cargar la venta.',
+    )
+  })
+
+  it('TRANSFER_RECEIPT: without read:Sale there is no «Ver venta»', async () => {
+    auth.perms = new Set(['read:ChatbotRequest', 'read:ReceiptEvidence'])
+    getFile.mockResolvedValue(new Blob(['p'], { type: 'image/jpeg' }))
+    const wrapper = mountDecision(receipt())
+    await flushPromises()
+    expect(wrapper.find('[data-testid="receipt-sale-open"]').exists()).toBe(false)
+    expect(panel(wrapper).text()).toContain('V-1042')
   })
 
   it('TRANSFER_RECEIPT: shows the preview status instead of an image while there is none', () => {
@@ -323,7 +468,9 @@ describe('RequestDetailDecision', () => {
       }),
     )
     expect(wrapper.find('[data-testid="receipt-preview"] img').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="receipt-preview"]').text()).toContain('Generando la vista previa')
+    expect(wrapper.get('[data-testid="receipt-preview"]').text()).toContain(
+      'Generando la vista previa',
+    )
     expect(wrapper.find('[data-testid="receipt-original"]').exists()).toBe(false)
   })
 
@@ -360,16 +507,22 @@ describe('RequestDetailDecision', () => {
     expect(getFile).not.toHaveBeenCalled()
 
     const purged = mountDecision(receipt({ file: null }))
-    expect(purged.get('[data-testid="receipt-preview"]').text()).toContain('El archivo ya se eliminó')
+    expect(purged.get('[data-testid="receipt-preview"]').text()).toContain(
+      'El archivo ya se eliminó',
+    )
   })
 
   it('TRANSFER_RECEIPT: says so when the customer gave no amount, and flags a mismatch only when the server says so', () => {
-    const none = mountDecision(receipt({ declaredAmountCents: null, declaredAmountProvided: false }))
+    const none = mountDecision(
+      receipt({ declaredAmountCents: null, declaredAmountProvided: false }),
+    )
     expect(none.text()).toContain('No indicó monto')
     expect(none.find('[data-testid="receipt-mismatch"]').exists()).toBe(false)
 
     const mismatch = mountDecision(receipt({ mismatch: true }))
-    expect(mismatch.get('[data-testid="receipt-mismatch"]').text()).toContain('El monto no coincide')
+    expect(mismatch.get('[data-testid="receipt-mismatch"]').text()).toContain(
+      'El monto no coincide',
+    )
 
     const odd = mountDecision(receipt({ mismatch: { weird: true }, extracted: { a: 1 } }))
     expect(odd.find('[data-testid="receipt-mismatch"]').exists()).toBe(false)

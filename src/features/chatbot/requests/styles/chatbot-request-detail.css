@@ -460,6 +460,50 @@
   border: 1px solid var(--hf-border);
 }
 
+.chatbot-request-detail .rd-file__zoom {
+  position: relative;
+  display: inline-block;
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+  border-radius: var(--hf-radius-control);
+}
+
+.chatbot-request-detail .rd-file__zoom .rd-file__img {
+  display: block;
+}
+
+.chatbot-request-detail .rd-file__zoom-hint {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--hf-surface, #fff) 92%, transparent);
+  border: 1px solid var(--hf-border);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+  transition: transform 150ms ease;
+}
+
+.chatbot-request-detail .rd-file__zoom:hover .rd-file__zoom-hint {
+  transform: scale(1.08);
+}
+
+.chatbot-request-detail .rd-file__zoom:focus-visible {
+  outline: 2px solid var(--hf-focus, currentColor);
+  outline-offset: 2px;
+}
+
+.chatbot-request-detail .rd-sale-open {
+  margin-left: 8px;
+}
+
 .chatbot-request-detail .rd-file__note {
   display: flex;
   align-items: center;

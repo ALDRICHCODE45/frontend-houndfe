@@ -473,7 +473,7 @@ describe('RequestCommandHost — resolve RESTOCK and EXPIRATION', () => {
 })
 
 describe('RequestCommandHost — resolve TRANSFER_RECEIPT', () => {
-  const receipt = () =>
+  const receipt = (overrides: Record<string, unknown> = {}) =>
     makeDetail({
       subtype: 'TRANSFER_RECEIPT',
       status: 'IN_PROGRESS',
@@ -495,15 +495,25 @@ describe('RequestCommandHost — resolve TRANSFER_RECEIPT', () => {
         extracted: null,
         mismatch: null,
         resolution: null,
+        ...overrides,
       },
     })
+
+  it('confirm says the customer gave no amount instead of «declaró $0.00»', async () => {
+    const wrapper = mountHost(receipt({ declaredAmountCents: 0, declaredAmountProvided: false }))
+    await start(wrapper, 'RESOLVE')
+    expect(wrapper.text()).toContain('El cliente no indicó monto. Escribe lo que recibiste en la cuenta.')
+    expect(wrapper.text()).not.toContain('declaró')
+    expect(wrapper.text()).not.toContain('$0.00')
+  })
 
   it('confirm needs an amount of at least 1 cent and sends it in cents', async () => {
     api.resolve.mockResolvedValue(ok())
     const wrapper = mountHost(receipt())
     await start(wrapper, 'RESOLVE')
     expect(wrapper.find('[data-testid="resolve-claims"]').exists()).toBe(false)
-    expect(wrapper.text()).toContain('El cliente declaró')
+    expect(wrapper.text()).toContain('El cliente dijo que transfirió $1,840.00.')
+    expect(wrapper.text()).not.toContain('Debe ser mayor que')
 
     await type(wrapper, 'receipt-amount', '0')
     await submit(wrapper)
