@@ -1,18 +1,64 @@
-import { describe, expect, it } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+
+vi.mock('../../api/chatbot-receipt.api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../api/chatbot-receipt.api')>()),
+  chatbotReceiptApi: { getFile: vi.fn() },
+}))
+
+const auth = vi.hoisted(() => ({ perms: new Set<string>(), tenantId: 'tenant-1' }))
+vi.mock('@/features/auth/stores/useAuthStore', () => ({
+  useAuthStore: () => ({
+    get currentTenantId() {
+      return auth.tenantId
+    },
+    userCan: (action: string, subject: string) => auth.perms.has(`${action}:${subject}`),
+  }),
+}))
+vi.mock('@/features/auth/composables/useSafeTenantId', async () => {
+  const { computed } = await import('vue')
+  return { useSafeTenantId: () => computed(() => auth.tenantId) }
+})
+
 import RequestDetailDecision from '../RequestDetailDecision.vue'
+import { chatbotReceiptApi } from '../../api/chatbot-receipt.api'
 import { DETAIL_STUBS, makeDetail } from '../../utils/detail-fixture'
 import type { ChatbotRequestDetail } from '../../interfaces/chatbot-request.types'
 
 const TZ = 'America/Mexico_City'
 const NOW = new Date('2026-11-11T17:05:00.000Z')
 
+const getFile = vi.mocked(chatbotReceiptApi.getFile)
+const createObjectURL = vi.fn<(blob: Blob) => string>()
+const revokeObjectURL = vi.fn<(url: string) => void>()
+let counter = 0
+const blobUrl = (n: number) => `blob:${window.location.origin}/${n}`
+
+beforeEach(() => {
+  getFile.mockReset()
+  createObjectURL.mockReset()
+  revokeObjectURL.mockReset()
+  counter = 0
+  createObjectURL.mockImplementation(() => blobUrl(++counter))
+  vi.stubGlobal('URL', Object.assign(URL, { createObjectURL, revokeObjectURL }))
+  auth.perms = new Set(['read:ChatbotRequest', 'read:ReceiptEvidence'])
+  auth.tenantId = 'tenant-1'
+})
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+})
+
 function mountDecision(request: ChatbotRequestDetail) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return mount(RequestDetailDecision, {
     props: { request, timeZone: TZ, now: NOW },
-    global: { stubs: DETAIL_STUBS },
+    global: { stubs: DETAIL_STUBS, plugins: [[VueQueryPlugin, { queryClient }]] },
   })
 }
+
+const httpError = (status: number) => Object.assign(new Error(`HTTP ${status}`), { response: { status, data: {} } })
 
 const panel = (w: ReturnType<typeof mountDecision>) => w.get('[data-testid="request-decision"]')
 
@@ -155,8 +201,9 @@ describe('RequestDetailDecision', () => {
           mimeType: 'image/jpeg',
           sizeBytes: 219136,
           previewStatus: 'READY',
-          originalUrl: 'https://cdn.example.com/original.jpg',
-          previewUrl: 'https://cdn.example.com/preview.jpg',
+          // The backend sends API-relative paths (no host): the file needs the Bearer token.
+          originalUrl: '/sales/sale-1/receipts/rec-1/file',
+          previewUrl: '/sales/sale-1/receipts/rec-1/preview',
         },
         extracted: null,
         mismatch: null,
@@ -165,7 +212,9 @@ describe('RequestDetailDecision', () => {
       },
     } as Partial<ChatbotRequestDetail>)
 
-  it('TRANSFER_RECEIPT: sale, amounts, declared data and the preview image', () => {
+  it('TRANSFER_RECEIPT: sale, amounts, declared data and the preview image fetched with auth', async () => {
+    const preview = new Blob(['p'], { type: 'image/jpeg' })
+    getFile.mockResolvedValue(preview)
     const wrapper = mountDecision(receipt())
     const text = panel(wrapper).text()
     expect(text).toContain('Comprobante: datos de la solicitud')
@@ -173,13 +222,92 @@ describe('RequestDetailDecision', () => {
     expect(text).toContain('$1,840.00')
     expect(text).toContain('$0.00')
     expect(text).toContain('SPEI 4471290')
+    expect(wrapper.get('[data-testid="receipt-preview"]').text()).toContain('Cargando la vista previa')
+    await flushPromises()
+
+    // Through the authenticated client, never as a relative <img src> on the app's own domain.
+    expect(getFile).toHaveBeenCalledTimes(1)
+    expect(getFile).toHaveBeenCalledWith('/sales/sale-1/receipts/rec-1/preview', { signal: expect.anything() })
     const img = wrapper.get('[data-testid="receipt-preview"] img')
-    expect(img.attributes('src')).toBe('https://cdn.example.com/preview.jpg')
+    expect(img.attributes('src')).toBe(blobUrl(1))
     expect(img.attributes('alt')).toBe('Comprobante enviado por el cliente')
-    expect(wrapper.get('[data-testid="receipt-original"]').attributes('href')).toBe(
-      'https://cdn.example.com/original.jpg',
-    )
-    expect(wrapper.get('[data-testid="receipt-original"]').attributes('rel')).toContain('noopener')
+    // «Abrir original» is a button: an <a href> to the API would carry no Bearer token.
+    const original = wrapper.get('[data-testid="receipt-original"]')
+    expect(original.element.tagName).toBe('BUTTON')
+    expect(original.text()).toBe('Abrir original')
+    expect(wrapper.html()).not.toContain('/receipts/rec-1/file')
+  })
+
+  it('TRANSFER_RECEIPT: «Abrir original» fetches the original with auth and opens it in a new tab', async () => {
+    getFile.mockResolvedValueOnce(new Blob(['p'], { type: 'image/jpeg' }))
+    const wrapper = mountDecision(receipt())
+    await flushPromises()
+    const tab = { opener: {} as unknown, location: { href: '' }, close: vi.fn() }
+    const open = vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window)
+    getFile.mockResolvedValueOnce(new Blob(['o'], { type: 'image/jpeg' }))
+
+    await wrapper.get('[data-testid="receipt-original"]').trigger('click')
+    // The tab opens inside the click (popup blockers), before the download finishes.
+    expect(open).toHaveBeenCalledWith('about:blank', '_blank')
+    await flushPromises()
+
+    expect(getFile).toHaveBeenLastCalledWith('/sales/sale-1/receipts/rec-1/file', { signal: undefined })
+    expect(tab.opener).toBeNull()
+    expect(tab.location.href).toBe(blobUrl(2))
+    expect(tab.close).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="receipt-original-error"]').exists()).toBe(false)
+  })
+
+  it('TRANSFER_RECEIPT: a failed original download closes the tab and says why', async () => {
+    getFile.mockResolvedValueOnce(new Blob(['p'], { type: 'image/jpeg' }))
+    const wrapper = mountDecision(receipt())
+    await flushPromises()
+    const tab = { opener: {} as unknown, location: { href: '' }, close: vi.fn() }
+    vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window)
+    getFile.mockRejectedValueOnce(httpError(404))
+
+    await wrapper.get('[data-testid="receipt-original"]').trigger('click')
+    await flushPromises()
+
+    expect(tab.close).toHaveBeenCalledTimes(1)
+    expect(tab.location.href).toBe('')
+    expect(wrapper.get('[data-testid="receipt-original-error"]').text()).toBe('No encontramos este archivo.')
+  })
+
+  it('TRANSFER_RECEIPT: with the popup blocked the original still opens through a temporary link', async () => {
+    getFile.mockResolvedValueOnce(new Blob(['p'], { type: 'image/jpeg' }))
+    const wrapper = mountDecision(receipt())
+    await flushPromises()
+    vi.spyOn(window, 'open').mockReturnValue(null)
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    getFile.mockResolvedValueOnce(new Blob(['o'], { type: 'image/jpeg' }))
+
+    await wrapper.get('[data-testid="receipt-original"]').trigger('click')
+    await flushPromises()
+
+    expect(click).toHaveBeenCalledTimes(1)
+    const link = click.mock.contexts[0] as HTMLAnchorElement
+    expect(link.href).toBe(blobUrl(2))
+    expect(link.target).toBe('_blank')
+    expect(link.rel).toContain('noopener')
+  })
+
+  it('TRANSFER_RECEIPT: a preview that fails to load says why instead of a broken image', async () => {
+    getFile.mockRejectedValueOnce(httpError(403))
+    const wrapper = mountDecision(receipt())
+    await flushPromises()
+    expect(wrapper.find('[data-testid="receipt-preview"] img').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="receipt-preview"]').text()).toContain('No tienes permiso para ver este archivo.')
+  })
+
+  it('TRANSFER_RECEIPT: without read:ReceiptEvidence nothing is fetched and the card says so', async () => {
+    auth.perms = new Set(['read:ChatbotRequest'])
+    const wrapper = mountDecision(receipt())
+    await flushPromises()
+    expect(getFile).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="receipt-preview"] img').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="receipt-original"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="receipt-preview"]').text()).toContain('No tienes permiso para ver el comprobante.')
   })
 
   it('TRANSFER_RECEIPT: shows the preview status instead of an image while there is none', () => {
@@ -199,7 +327,7 @@ describe('RequestDetailDecision', () => {
     expect(wrapper.find('[data-testid="receipt-original"]').exists()).toBe(false)
   })
 
-  it('TRANSFER_RECEIPT: never puts an unsafe URL in the page, and says when the file was purged', () => {
+  it('TRANSFER_RECEIPT: never puts an unsafe URL in the page, and says when the file was purged', async () => {
     const unsafe = mountDecision(
       receipt({
         file: {
@@ -213,6 +341,23 @@ describe('RequestDetailDecision', () => {
     )
     expect(unsafe.find('img').exists()).toBe(false)
     expect(unsafe.find('[data-testid="receipt-original"]').exists()).toBe(false)
+
+    // The Bearer token only goes to the API's own receipt paths, never to a foreign host.
+    const foreign = mountDecision(
+      receipt({
+        file: {
+          mimeType: 'image/jpeg',
+          sizeBytes: 1,
+          previewStatus: 'READY',
+          originalUrl: 'https://evil.example.com/sales/sale-1/receipts/rec-1/file',
+          previewUrl: '//evil.example.com/sales/sale-1/receipts/rec-1/preview',
+        },
+      }),
+    )
+    await flushPromises()
+    expect(foreign.find('img').exists()).toBe(false)
+    expect(foreign.find('[data-testid="receipt-original"]').exists()).toBe(false)
+    expect(getFile).not.toHaveBeenCalled()
 
     const purged = mountDecision(receipt({ file: null }))
     expect(purged.get('[data-testid="receipt-preview"]').text()).toContain('El archivo ya se eliminó')
