@@ -142,8 +142,8 @@ function submit(): void {
           prefix="$"
           :help="
             declaredAmountCents != null
-              ? `El cliente declaró ${formatMoney(declaredAmountCents)}. Debe ser mayor que $0.00.`
-              : 'Debe ser mayor que $0.00.'
+              ? `El cliente dijo que transfirió ${formatMoney(declaredAmountCents)}.`
+              : 'El cliente no indicó monto. Escribe lo que recibiste en la cuenta.'
           "
           :error="errors.amountCents"
           :disabled="pending"

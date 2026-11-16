@@ -323,9 +323,11 @@ const sheetDescription = computed(() =>
       : `Solicitud ${folio.value}`,
 )
 
-const decisionAmount = computed(() =>
-  props.detail.decision?.subtype === 'TRANSFER_RECEIPT' ? props.detail.decision.declaredAmountCents : null,
-)
+// Only an amount the customer actually gave: without one the backend still sends 0.
+const decisionAmount = computed(() => {
+  const d = props.detail.decision
+  return d?.subtype === 'TRANSFER_RECEIPT' && d.declaredAmountProvided ? d.declaredAmountCents : null
+})
 const zipCode = computed(() => (props.detail.decision?.subtype === 'DELIVERY_ZONE' ? props.detail.decision.zipCode : ''))
 
 defineExpose({ start, pendingAction })
