@@ -11,9 +11,9 @@ import {
   formatMoney,
   previewStatusLabel,
   resolutionActionLabel,
-  safeUrl,
   zoneImpactText,
 } from '../utils/detail-format'
+import { useReceiptFile } from '../composables/useReceiptFile'
 import { formatWhen, SUBTYPE_LABELS } from '../utils/requestLabels'
 
 const props = defineProps<{
@@ -51,14 +51,20 @@ const impact = computed(() =>
 )
 
 const file = computed(() => receipt.value?.file ?? null)
-const previewUrl = computed(() => {
-  const f = file.value
-  return f && f.mimeType?.startsWith('image/') ? safeUrl(f.previewUrl) : null
-})
-const originalUrl = computed(() => safeUrl(file.value?.originalUrl))
+const receiptFile = useReceiptFile(
+  () => (file.value?.mimeType?.startsWith('image/') ? file.value.previewUrl : null),
+  () => file.value?.originalUrl,
+)
+const previewUrl = receiptFile.previewUrl
+const showOriginal = computed(() => receiptFile.canRead.value && receiptFile.hasOriginal.value)
 const previewMessage = computed(() => {
   const f = file.value
   if (!f) return 'El archivo ya se eliminó'
+  if (!receiptFile.canRead.value && (receiptFile.hasPreview.value || receiptFile.hasOriginal.value)) {
+    return 'No tienes permiso para ver el comprobante.'
+  }
+  if (receiptFile.previewLoading.value) return 'Cargando la vista previa…'
+  if (receiptFile.previewError.value) return receiptFile.previewError.value
   return f.previewStatus === 'READY' ? 'Vista previa no disponible' : previewStatusLabel(f.previewStatus)
 })
 const fileMeta = computed(() => {
@@ -161,16 +167,20 @@ const resolution = computed(() => {
           {{ previewMessage }}
         </p>
         <p v-if="fileMeta" class="rd-sub">{{ fileMeta }}</p>
-        <a
-          v-if="originalUrl"
+        <button
+          v-if="showOriginal"
+          type="button"
           class="rd-link"
           data-testid="receipt-original"
-          :href="originalUrl"
-          target="_blank"
-          rel="noopener noreferrer"
+          :disabled="receiptFile.opening.value"
+          :aria-busy="receiptFile.opening.value || undefined"
+          @click="receiptFile.openOriginal"
         >
           Abrir original
-        </a>
+        </button>
+        <p v-if="receiptFile.originalError.value" class="rd-sub" role="alert" data-testid="receipt-original-error">
+          {{ receiptFile.originalError.value }}
+        </p>
       </div>
     </template>
 

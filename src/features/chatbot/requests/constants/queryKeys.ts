@@ -42,4 +42,6 @@ export const chatbotRequestKeys = {
 export const chatbotMediaKeys = {
   all: (tenantId: string) => ['chatbot-media', tenantId] as const,
   file: (tenantId: string, mediaId: string) => ['chatbot-media', tenantId, mediaId] as const,
+  /** A transfer receipt file or preview, keyed by its API path. */
+  receipt: (tenantId: string, path: string) => ['chatbot-media', tenantId, 'receipt', path] as const,
 }
