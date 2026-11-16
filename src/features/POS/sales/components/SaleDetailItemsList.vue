@@ -25,8 +25,7 @@ const itemsView = computed(() =>
       item.originalPriceCents != null &&
       item.originalPriceCents !== item.unitPriceCents
 
-    const hasLineDiscount =
-      item.discountType != null && item.prePriceCentsBeforeDiscount != null
+    const hasLineDiscount = item.discountType != null && item.prePriceCentsBeforeDiscount != null
 
     return {
       ...item,
@@ -62,9 +61,13 @@ const itemsView = computed(() =>
         <div class="flex items-baseline justify-between gap-3 text-sm">
           <span class="text-(--hf-muted) tabular-nums">
             {{ item.quantity }} × {{ formatCentsMXN(item.unitPriceCents) }}
-            <span v-if="item.discountAmountCents"> · -{{ formatCentsMXN(item.discountAmountCents) }}</span>
+            <span v-if="item.discountAmountCents">
+              · -{{ formatCentsMXN(item.discountAmountCents) }}</span
+            >
           </span>
-          <span class="hf-figure font-semibold text-(--hf-heading)">{{ formatCentsMXN(item.subtotalCents) }}</span>
+          <span class="hf-figure font-semibold text-(--hf-heading)">{{
+            formatCentsMXN(item.subtotalCents)
+          }}</span>
         </div>
         <SaleItemBadges
           :portal-class="portalClass"
@@ -81,14 +84,18 @@ const itemsView = computed(() =>
         />
       </li>
     </ul>
-    <table v-else class="hf-plain-table sale-detail-items-table w-full text-sm" data-testid="items-table">
+    <table
+      v-else
+      class="hf-plain-table sale-detail-items-table w-full text-sm"
+      data-testid="items-table"
+    >
       <thead>
         <tr>
           <th class="py-2 text-left">Producto</th>
-          <th class="py-2 text-right">Cant.</th>
-          <th class="py-2 text-right">Precio unit.</th>
-          <th class="py-2 text-right">Desc.</th>
-          <th class="py-2 text-right">Subtotal</th>
+          <th class="py-2 pl-4 text-right">Cant.</th>
+          <th class="py-2 pl-4 text-right">Precio unit.</th>
+          <th class="py-2 pl-4 text-right">Desc.</th>
+          <th class="py-2 pl-4 text-right">Subtotal</th>
         </tr>
       </thead>
       <tbody>
@@ -99,10 +106,7 @@ const itemsView = computed(() =>
           class="align-top"
         >
           <td class="py-2">
-            <p
-              :data-testid="`item-name-${index}`"
-              class="font-semibold text-highlighted"
-            >
+            <p :data-testid="`item-name-${index}`" class="font-semibold text-highlighted">
               {{ item.productName }}
             </p>
             <p
@@ -110,7 +114,10 @@ const itemsView = computed(() =>
               :data-testid="`item-subtitle-${index}`"
               class="text-xs text-muted"
             >
-              <span v-if="item.variantName">{{ item.variantName }} · </span>
+              <span v-if="item.variantName"
+                >{{ item.variantName
+                }}<template v-if="item.priceOverridden || item.hasLineDiscount"> · </template></span
+              >
               <span
                 v-if="item.priceOverridden"
                 :data-testid="`item-original-price-${index}`"
@@ -143,23 +150,20 @@ const itemsView = computed(() =>
           </td>
           <td
             :data-testid="`item-quantity-${index}`"
-            class="py-2 text-right text-muted tabular-nums"
+            class="py-2 pl-4 text-right text-muted tabular-nums"
           >
             × {{ item.quantity }}
           </td>
-          <td class="py-2 text-right tabular-nums">
+          <td class="py-2 pl-4 text-right tabular-nums">
             {{ formatCentsMXN(item.unitPriceCents) }}
           </td>
-          <td
-            :data-testid="`item-discount-${index}`"
-            class="py-2 text-right tabular-nums"
-          >
+          <td :data-testid="`item-discount-${index}`" class="py-2 pl-4 text-right tabular-nums">
             <span v-if="item.discountAmountCents" class="text-muted">
               -{{ formatCentsMXN(item.discountAmountCents) }}
             </span>
             <span v-else>—</span>
           </td>
-          <td class="py-2 text-right">
+          <td class="py-2 pl-4 text-right">
             <p
               :data-testid="`item-subtotal-${index}`"
               class="font-semibold tabular-nums text-default"
