@@ -51,11 +51,28 @@ const currentUserId = computed(() => auth.user?.id ?? null)
 
 const { detail, isError, isNotFound, error, refetch } = useRequestDetail(requestId)
 
+/** The folio of the context sale: the receipt decision names it, or the customer's recent orders list it. */
+const contextSaleFolio = computed<string | null>(() => {
+  const d = detail.value
+  const saleId = d?.context?.saleId
+  if (!d || !saleId) return null
+  if (
+    d.decision?.subtype === 'TRANSFER_RECEIPT' &&
+    d.decision.saleId === saleId &&
+    d.decision.saleFolio
+  ) {
+    return d.decision.saleFolio
+  }
+  return d.customer?.recentOrders?.find((order) => order.saleId === saleId)?.folio ?? null
+})
+
 // ─── Section gates ────────────────────────────────────────────────────────────
 const canSeePhone = computed(() => auth.userCan('read', 'CustomerPhone'))
 const canReadConversation = computed(() => auth.userCan('read', 'ChatbotConversation'))
 /** Handoff 20 §5: the attendee reads their own live session even without `read:ChatbotConversation`. */
-const attendee = computed(() => (detail.value ? isAttendee(detail.value, currentUserId.value) : false))
+const attendee = computed(() =>
+  detail.value ? isAttendee(detail.value, currentUserId.value) : false,
+)
 const canSeeConversation = computed(() => canReadConversation.value || attendee.value)
 const limitedParts = computed(() => {
   const missing: string[] = []
@@ -86,7 +103,9 @@ const auditExpanded = ref(false)
 const audit = useRequestAudit(requestId, { enabled: auditExpanded })
 
 const auditEvents = computed(() =>
-  auditExpanded.value && audit.events.value.length > 0 ? audit.events.value : (detail.value?.audit ?? []),
+  auditExpanded.value && audit.events.value.length > 0
+    ? audit.events.value
+    : (detail.value?.audit ?? []),
 )
 const auditHasMore = computed(() =>
   auditExpanded.value
@@ -123,9 +142,16 @@ function onAction(action: ChatbotRequestAction): void {
 </script>
 
 <template>
-  <DetailPageFrame class="hf-theme hf-ui chatbot-request-detail" scroll-testid="request-detail-scroll">
+  <DetailPageFrame
+    class="hf-theme hf-ui chatbot-request-detail"
+    scroll-testid="request-detail-scroll"
+  >
     <template #header>
-      <RequestDetailHeader v-if="detail && pageState === 'content'" :request="detail" :current-user-id="currentUserId" />
+      <RequestDetailHeader
+        v-if="detail && pageState === 'content'"
+        :request="detail"
+        :current-user-id="currentUserId"
+      />
       <header v-else class="rd-header">
         <nav class="rd-crumbs" aria-label="Ruta">
           <span>Chatbot</span>
@@ -182,17 +208,30 @@ function onAction(action: ChatbotRequestAction): void {
 
           <RequestDetailSchedule :request="detail" @action="onAction" />
 
-          <div v-if="limitedParts.length" class="rd-alert rd-alert--info" role="note" data-testid="limited-view">
+          <div
+            v-if="limitedParts.length"
+            class="rd-alert rd-alert--info"
+            role="note"
+            data-testid="limited-view"
+          >
             <UIcon name="i-lucide-lock" aria-hidden="true" />
             <div>
               <strong>Vista limitada por tu rol</strong>
-              Sin {{ limitedParts.join(' ni ') }}. El resumen y las acciones permitidas siguen disponibles.
+              Sin {{ limitedParts.join(' ni ') }}. El resumen y las acciones permitidas siguen
+              disponibles.
             </div>
           </div>
 
           <div class="rd-two">
-            <RequestDetailCustomerCard :customer="detail.customer" :phone-restricted="!canSeePhone" />
-            <RequestDetailNeeds :needs="detail.needs" :context="detail.context" />
+            <RequestDetailCustomerCard
+              :customer="detail.customer"
+              :phone-restricted="!canSeePhone"
+            />
+            <RequestDetailNeeds
+              :needs="detail.needs"
+              :context="detail.context"
+              :sale-folio="contextSaleFolio"
+            />
           </div>
 
           <RequestDetailDecision v-if="detail.decision" :request="detail" />
@@ -211,8 +250,14 @@ function onAction(action: ChatbotRequestAction): void {
             @action="onAction"
             @window-state="liveWindow = $event"
           />
-          <RequestDetailOtherOpen :requests="detail.otherOpenRequests" :current-user-id="currentUserId" />
-          <RequestDetailDeliveries v-if="detail.deliveries.length > 0" :deliveries="detail.deliveries" />
+          <RequestDetailOtherOpen
+            :requests="detail.otherOpenRequests"
+            :current-user-id="currentUserId"
+          />
+          <RequestDetailDeliveries
+            v-if="detail.deliveries.length > 0"
+            :deliveries="detail.deliveries"
+          />
           <RequestDetailAudit
             :events="auditEvents"
             :has-more="auditHasMore"
