@@ -162,11 +162,16 @@ const backLabel = computed(() => {
     : 'Volver al catálogo'
 })
 
-/** The storefront URL of this page: what a WhatsApp message names. */
+/**
+ * The storefront URL of this page: what a WhatsApp message names. Empty while the route has no
+ * product (leaving the page renders once more with the next route's params, and resolving the
+ * named route without `productId` throws).
+ */
 const pageUrl = computed(() => {
+  if (!branchSlug.value || !productId.value) return ''
   const href = router.resolve({
     name: 'public-catalog-product',
-    params: { branchSlug: branchSlug.value ?? '', productId: productId.value ?? '' },
+    params: { branchSlug: branchSlug.value, productId: productId.value },
     query: priceListQuery.value,
   }).href
   return new URL(href, window.location.origin).href
