@@ -70,6 +70,38 @@ describe('RequestDetailNeeds — sale of the moment', () => {
     expect(context(withoutFolio).text()).not.toContain('1aacf6d7')
   })
 
+  it('without bot text summarizes a DELIVERY_ZONE or TRANSFER_RECEIPT decision, marked as generated', () => {
+    const wrapper = mountNeeds({
+      context: null,
+      decision: {
+        subtype: 'DELIVERY_ZONE',
+        zipCode: '55635',
+        neighborhood: 'San Juan',
+        municipality: 'Zumpango',
+        state: null,
+        requesterCount: 1,
+      },
+    })
+    const needs = wrapper.get('[data-testid="request-needs"]')
+    expect(needs.text()).toBe('Entrega en CP 55635, Col. San Juan, Zumpango. Lo pidió 1 cliente.')
+    expect(wrapper.get('[data-testid="request-needs-generated"]').text()).toBe('Resumen generado')
+    expect(wrapper.text()).not.toContain('El bot no dejó más detalles.')
+  })
+
+  it('keeps the bot text when there is one, and the quiet line for other subtypes', () => {
+    const bot = mountNeeds({
+      needs: 'Lo quiere el viernes.',
+      context: null,
+      decision: { subtype: 'DELIVERY_ZONE', zipCode: '1' },
+    })
+    expect(bot.get('[data-testid="request-needs"]').text()).toBe('Lo quiere el viernes.')
+    expect(bot.find('[data-testid="request-needs-generated"]').exists()).toBe(false)
+
+    const restock = mountNeeds({ needs: '  ', context: null, decision: { subtype: 'RESTOCK' } })
+    expect(restock.get('[data-testid="request-needs"]').text()).toBe('El bot no dejó más detalles.')
+    expect(restock.find('[data-testid="request-needs-generated"]').exists()).toBe(false)
+  })
+
   it('keeps the other context entries as they were', () => {
     const wrapper = mountNeeds({ context: { cartRef: 'C-9', quantity: 3 } })
     const text = context(wrapper).text()

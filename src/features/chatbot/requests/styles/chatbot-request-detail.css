@@ -239,6 +239,24 @@
   white-space: pre-wrap;
 }
 
+/* A summary the page built from the decision, not the bot's words: dashed, muted. */
+.chatbot-request-detail .rd-quote--generated {
+  border-left-style: dashed;
+  color: var(--hf-ink-muted, var(--hf-ink));
+}
+
+.chatbot-request-detail .rd-auto-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 0.75rem;
+}
+
+.chatbot-request-detail dd .rd-auto-note {
+  display: flex;
+}
+
 .chatbot-request-detail .rd-kv {
   display: grid;
   grid-template-columns: minmax(96px, 140px) minmax(0, 1fr);

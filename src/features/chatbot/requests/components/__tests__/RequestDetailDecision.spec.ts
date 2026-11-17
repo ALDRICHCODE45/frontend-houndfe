@@ -519,13 +519,36 @@ describe('RequestDetailDecision', () => {
     expect(none.text()).toContain('No indicó monto')
     expect(none.find('[data-testid="receipt-mismatch"]').exists()).toBe(false)
 
-    const mismatch = mountDecision(receipt({ mismatch: true }))
+    // The backend sends an object; only `flagged: true` raises the tag.
+    const mismatch = mountDecision(
+      receipt({ mismatch: { debtCents: 184000, declaredDiffCents: 4000, flagged: true } }),
+    )
     expect(mismatch.get('[data-testid="receipt-mismatch"]').text()).toContain(
       'El monto no coincide',
     )
+    const notFlagged = mountDecision(receipt({ mismatch: { debtCents: 184000, flagged: false } }))
+    expect(notFlagged.find('[data-testid="receipt-mismatch"]').exists()).toBe(false)
+    const legacy = mountDecision(receipt({ mismatch: true }))
+    expect(legacy.find('[data-testid="receipt-mismatch"]').exists()).toBe(false)
 
     const odd = mountDecision(receipt({ mismatch: { weird: true }, extracted: { a: 1 } }))
     expect(odd.find('[data-testid="receipt-mismatch"]').exists()).toBe(false)
+    expect(odd.find('[data-testid="receipt-extracted"]').exists()).toBe(false)
+  })
+
+  it('TRANSFER_RECEIPT: shows what the bot read on the image, marked as an automatic reading', () => {
+    const wrapper = mountDecision(
+      receipt({
+        extracted: { amountCents: 17800, bank: 'BanCoppel', reference: '167050', confidence: 0.9 },
+      }),
+    )
+    const row = wrapper.get('[data-testid="receipt-extracted"]')
+    expect(panel(wrapper).text()).toContain('Detectado en la imagen')
+    expect(row.text()).toContain('$178.00 · BanCoppel · ref. 167050 · confianza 90 %')
+    expect(row.text()).toContain('Lectura automática del bot')
+
+    const none = mountDecision(receipt({ extracted: null }))
+    expect(none.find('[data-testid="receipt-extracted"]').exists()).toBe(false)
   })
 
   it('shows the resolution of a closed decision: what was chosen, by whom and when', () => {
