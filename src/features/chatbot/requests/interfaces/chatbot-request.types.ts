@@ -408,6 +408,24 @@ export interface TransferReceiptFile {
   previewUrl: string | null
 }
 
+/** The bot's automatic reading of the receipt image (every field optional). */
+export interface TransferReceiptExtracted {
+  amountCents?: number
+  /** ISO date or date-time. */
+  date?: string
+  reference?: string
+  bank?: string
+  /** 0..1 */
+  confidence?: number
+}
+
+export interface TransferReceiptMismatch {
+  debtCents: number
+  declaredDiffCents?: number
+  extractedDiffCents?: number
+  flagged: boolean
+}
+
 export interface TransferReceiptDecision {
   subtype: 'TRANSFER_RECEIPT'
   receiptId: string
@@ -422,9 +440,10 @@ export interface TransferReceiptDecision {
   saleDebtCents: number
   /** `null` once purged. */
   file: TransferReceiptFile | null
-  /** Handoff 14 does not type these two. */
-  extracted: unknown
-  mismatch: unknown
+  /** `null` when the bot sent no reading; read through `readExtracted` (server JSON). */
+  extracted: TransferReceiptExtracted | null
+  /** Read through `isMismatchFlagged`. */
+  mismatch: TransferReceiptMismatch | null
   resolution: ChatbotRequestResolution
 }
 

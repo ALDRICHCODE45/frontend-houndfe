@@ -16,6 +16,7 @@ import {
   zoneImpactText,
 } from '../utils/detail-format'
 import { useReceiptFile } from '../composables/useReceiptFile'
+import { extractedReading, isMismatchFlagged } from '../utils/decision-summary'
 import { formatWhen, SUBTYPE_LABELS } from '../utils/requestLabels'
 
 const props = defineProps<{
@@ -68,6 +69,7 @@ const receiptFile = useReceiptFile(
 )
 const previewUrl = receiptFile.previewUrl
 const zoomOpen = ref(false)
+const extracted = computed(() => extractedReading(receipt.value?.extracted))
 const saleOpen = ref(false)
 const auth = useAuthStore()
 const canReadSale = computed(() => auth.userCan('read', 'Sale') && !!receipt.value?.saleId)
@@ -205,9 +207,19 @@ const resolution = computed(() => {
             · ref. {{ receipt.declaredReference }}</template
           >
         </dd>
+        <template v-if="extracted">
+          <dt>Detectado en la imagen</dt>
+          <dd data-testid="receipt-extracted">
+            {{ extracted }}
+            <span class="rd-sub rd-auto-note">
+              <UIcon name="i-lucide-scan-text" aria-hidden="true" />
+              Lectura automática del bot
+            </span>
+          </dd>
+        </template>
       </dl>
       <p
-        v-if="receipt.mismatch === true"
+        v-if="isMismatchFlagged(receipt.mismatch)"
         class="rd-tag rd-tag--warn"
         data-testid="receipt-mismatch"
       >

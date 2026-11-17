@@ -231,6 +231,7 @@ function onAction(action: ChatbotRequestAction): void {
               :needs="detail.needs"
               :context="detail.context"
               :sale-folio="contextSaleFolio"
+              :decision="detail.decision"
             />
           </div>
 
