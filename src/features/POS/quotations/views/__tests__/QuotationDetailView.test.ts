@@ -2785,3 +2785,48 @@ describe('QuotationDetailView — converted to sale is read-only (T3 / S5)', () 
     )
   })
 })
+
+// odd D3 — at 390 the detail scroller held content 527–748px wide: the grids had no
+// mobile track (auto track grows to the min-content of nowrap children) and the
+// columns / sections had no `min-w-0`. One column below lg, and every column and
+// section may shrink, on every status.
+describe('QuotationDetailView — one shrinkable column below lg (odd D3)', () => {
+  it.each([
+    ['DRAFT', {}],
+    ['SENT', {}],
+    ['CANCELLED', { cancelReason: 'CUSTOMER_REQUEST' }],
+    [
+      'CONVERTED_TO_SALE',
+      { saleId: 'sale-9', saleStatus: 'DRAFT', convertedAt: '2026-11-18T18:04:05.123Z', expiresAt: null },
+    ],
+  ] as const)('%s: grids are grid-cols-1 below lg and every column/section has min-w-0', async (status, extra) => {
+    state.quotation.value = makeQuotation({
+      status,
+      effectiveStatus: status,
+      ...(extra as Partial<QuotationResponseDto>),
+    })
+    const wrapper = mountView()
+    await flushPromises()
+
+    const layout = wrapper.find('[data-testid="quotation-detail-layout"]')
+    expect(layout.classes()).toEqual(expect.arrayContaining(['grid', 'grid-cols-1', 'lg:grid-cols-3']))
+
+    const settings = wrapper.find('[data-testid="quotation-detail-settings"]')
+    expect(settings.exists()).toBe(true)
+    expect(settings.classes()).toEqual(expect.arrayContaining(['grid', 'grid-cols-1', 'lg:grid-cols-3']))
+
+    for (const id of ['quotation-detail-main', 'quotation-detail-sidebar']) {
+      expect(wrapper.find(`[data-testid="${id}"]`).classes(), id).toContain('min-w-0')
+    }
+
+    // The view's own sections: direct children of the settings grid, main and sidebar.
+    const sections = ['quotation-detail-settings', 'quotation-detail-main', 'quotation-detail-sidebar'].flatMap(
+      (id) => Array.from(wrapper.find(`[data-testid="${id}"]`).element.querySelectorAll(':scope > section')),
+    )
+    expect(sections.length).toBeGreaterThan(3)
+    for (const section of sections) {
+      const label = section.getAttribute('data-testid') ?? section.textContent?.trim().slice(0, 40)
+      expect(section.classList.contains('min-w-0'), label).toBe(true)
+    }
+  })
+})

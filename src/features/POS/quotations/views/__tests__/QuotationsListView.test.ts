@@ -696,6 +696,14 @@ describe('QuotationsListView — column layout (premium tables T9)', () => {
     const labels = (table.props('columns') as Parameters<typeof columnLabel>[0][]).map(columnLabel)
     expect(labels).toEqual(['Cliente', 'Estado', 'Total', 'Expira', 'Creada', 'Acciones'])
   })
+
+  // odd D4: at 1440 a w-32 «Estado» column cut «Convertida en venta» to «Convertida…».
+  it('gives «Estado» room for «Convertida en venta» (w-44)', () => {
+    const table = mountView().getComponent(appDataTableStub)
+    const columns = table.props('columns') as Array<{ id?: string; meta?: { class?: { th?: string } } }>
+    const status = columns.find((column) => column.id === 'status')
+    expect(status?.meta?.class?.th?.split(' ')).toContain('w-44')
+  })
 })
 
 describe('QuotationsListView — AppDataTable wiring (REQ-QAF-011)', () => {

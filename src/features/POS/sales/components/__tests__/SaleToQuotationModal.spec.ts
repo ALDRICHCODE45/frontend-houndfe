@@ -45,11 +45,13 @@ const textareaStub = {
   emits: ['update:modelValue'],
   template: '<textarea :id="id" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
 }
+// Mirrors UModal → reka DialogContent: `content` props land on the dialog element
+// (they override reka's own aria-describedby) and the description slot is rendered.
 const modalStub = {
-  props: ['open', 'title'],
+  props: ['open', 'title', 'content'],
   emits: ['update:open'],
   template:
-    '<div v-if="open" data-testid="modal"><h2 data-testid="modal-title">{{ title }}</h2><slot name="body" /><slot name="footer" /></div>',
+    '<div v-if="open" role="dialog" data-testid="modal" v-bind="content"><h2 data-testid="modal-title">{{ title }}</h2><slot name="description" /><slot name="body" /><slot name="footer" /></div>',
 }
 const stubs = {
   UModal: modalStub,
@@ -302,5 +304,53 @@ describe('SaleToQuotationModal — success', () => {
     await wrapper.find('[data-testid="sale-to-quotation-stay"]').trigger('click')
     expect(wrapper.emitted('open-quotation')).toBeUndefined()
     expect(wrapper.emitted('update:open')).toEqual([[false]])
+  })
+})
+
+// odd D5 — the consequence was read twice (sr-only description + visible paragraph).
+// One accessible description: the dialog points at the visible paragraph, and the
+// sentence appears once in the dialog.
+describe('SaleToQuotationModal — accessible description (odd D5)', () => {
+  const CONSEQUENCE = 'La venta en curso se descarta y queda guardada como cotización.'
+
+  function occurrences(text: string, needle: string) {
+    return text.split(needle).length - 1
+  }
+
+  it('describes the confirm dialog with the visible consequence, said once', () => {
+    const wrapper = mountModal()
+    const dialog = wrapper.find('[role="dialog"]')
+    const describedBy = dialog.attributes('aria-describedby')
+
+    expect(describedBy).toBeTruthy()
+    const description = wrapper.find(`#${describedBy}`)
+    expect(description.exists()).toBe(true)
+    expect(description.text()).toBe(CONSEQUENCE)
+    expect(description.classes()).not.toContain('sr-only')
+    expect(occurrences(dialog.text(), CONSEQUENCE)).toBe(1)
+  })
+
+  it('describes the summary with its visible intro, said once', async () => {
+    state.convert.mockResolvedValue(
+      makeResult([
+        {
+          kind: 'ORDER_PROMOTION',
+          saleItemId: null,
+          productId: null,
+          variantId: null,
+          promotionId: 'p-1',
+          title: 'Buen Fin',
+          discountCents: 6201,
+        },
+      ]),
+    )
+    const wrapper = mountModal()
+    await submit(wrapper)
+    await flushPromises()
+
+    const dialog = wrapper.find('[role="dialog"]')
+    const description = wrapper.find(`#${dialog.attributes('aria-describedby')}`)
+    expect(description.attributes('data-testid')).toBe('sale-to-quotation-dropped-intro')
+    expect(occurrences(dialog.text(), 'La cotización no incluye algunos descuentos de la venta.')).toBe(0)
   })
 })

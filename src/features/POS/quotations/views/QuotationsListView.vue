@@ -304,7 +304,8 @@ const columns: TableColumn<QuotationResponseDto>[] = [
     accessorKey: 'status',
     header: 'Estado',
     enableSorting: false,
-    meta: { class: { th: 'w-32' } },
+    // w-44: «Convertida en venta» fits whole at 1440 (w-32 cut it — odd D4).
+    meta: { class: { th: 'w-44' } },
   },
   {
     id: 'totalCents',

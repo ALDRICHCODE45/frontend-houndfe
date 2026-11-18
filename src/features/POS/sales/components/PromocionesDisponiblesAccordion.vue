@@ -38,7 +38,8 @@
  * Why UAccordion:
  *   Matches the rest of the repo's collapsible patterns (ActionsAccordion,
  *   notifications). Single-item, default-open so the rows render on first
- *   paint. The trailing slot adds a count badge next to the chevron.
+ *   paint (`type="single"` needs a STRING default-value; an array left it
+ *   collapsed — odd D1). The trailing slot adds a count badge next to the chevron.
  *
  * odd T3b / S5: an automatic promotion vetoed by a quotation → sale conversion
  * (`isSuppressedFromQuotation`, merged in by `useApplicablePromotions`) reads
@@ -105,7 +106,7 @@ function handleRemove(promotionId: string) {
     :items="accordionItems"
     type="single"
     collapsible
-    :default-value="[ACCORDION_VALUE]"
+    :default-value="ACCORDION_VALUE"
     :unmount-on-hide="false"
     data-testid="promociones-disponibles-accordion"
     :ui="{

@@ -280,3 +280,22 @@ describe('PromocionesDisponiblesAccordion — suppressed by a quotation (odd T3b
     expect(wrapper.emitted('apply')).toEqual([['auto-1']])
   })
 })
+
+// odd D1 — the accordion is documented as «default-open» but loaded collapsed because
+// `type="single"` received an array `default-value`. The rows (and the suppressed
+// «No aplicada por venir de una cotización · Aplicar») must be open on first paint, no click.
+describe('PromocionesDisponiblesAccordion — opens on first paint (odd D1)', () => {
+  it('renders the trigger expanded and the content open without any click', async () => {
+    const { mergeSuppressedPromotions } = await import('../../composables/useSuppressedPromotions')
+    const promotions = mergeSuppressedPromotions(makePromotions(), [
+      { promotionId: 'auto-1', title: 'Buen Fin' },
+    ])
+    const wrapper = mountAccordion({ promotions })
+
+    const trigger = wrapper.find('[data-slot="trigger"]')
+    expect(trigger.attributes('aria-expanded')).toBe('true')
+    const item = wrapper.find('[data-slot="item"]')
+    expect(item.attributes('data-state')).toBe('open')
+    expect(item.find('[data-testid="promo-suppressed-note-auto-1"]').isVisible()).toBe(true)
+  })
+})

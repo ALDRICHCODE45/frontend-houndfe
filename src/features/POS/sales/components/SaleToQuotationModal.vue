@@ -40,6 +40,8 @@ const emit = defineEmits<{
 }>()
 
 const NOTES_ID = 'sale-to-quotation-notes'
+const CONSEQUENCE_ID = 'sale-to-quotation-consequence'
+const DROPPED_INTRO_ID = 'sale-to-quotation-dropped-intro'
 
 const { convert, startAttempt, isPending, failure } = useSaleToQuotation()
 
@@ -70,6 +72,12 @@ const dropped = computed(() => result.value?.droppedAdjustments ?? [])
 const showSummary = computed(() => result.value !== null && dropped.value.length > 0)
 const title = computed(() => (showSummary.value ? 'Cotización creada' : '¿Pasar esta venta a cotización?'))
 const modalUi = computed(() => (props.portalClass ? { content: props.portalClass } : undefined))
+// odd D5: the dialog is described by the VISIBLE paragraph (no sr-only copy of it), so
+// screen readers hear the consequence once. `content` props override reka's own
+// aria-describedby (DialogContentImpl merges $attrs after it).
+const modalContent = computed(() => ({
+  'aria-describedby': showSummary.value ? DROPPED_INTRO_ID : CONSEQUENCE_ID,
+}))
 
 function close() {
   emit('update:open', false)
@@ -106,17 +114,12 @@ function handleOpenChange(value: boolean) {
     :dismissible="!isPending"
     :close="isPending ? false : { class: 'size-11 justify-center' }"
     :ui="modalUi"
+    :content="modalContent"
     @update:open="handleOpenChange"
   >
-    <template #description>
-      <span class="sr-only">
-        {{ showSummary ? 'La cotización no incluye algunos descuentos de la venta.' : 'La venta en curso se descarta y queda guardada como cotización.' }}
-      </span>
-    </template>
-
     <template #body>
       <div v-if="showSummary" class="sale-to-quotation" data-testid="sale-to-quotation-summary">
-        <p class="sale-to-quotation__text" data-testid="sale-to-quotation-dropped-intro">
+        <p :id="DROPPED_INTRO_ID" class="sale-to-quotation__text" data-testid="sale-to-quotation-dropped-intro">
           La venta ya se descartó. Avísale al cliente que la cotización no incluye estos descuentos:
         </p>
         <ul class="sale-to-quotation__dropped" data-testid="sale-to-quotation-dropped">
@@ -138,7 +141,7 @@ function handleOpenChange(value: boolean) {
         novalidate
         @submit.prevent="handleSubmit"
       >
-        <p class="sale-to-quotation__consequence" data-testid="sale-to-quotation-consequence">
+        <p :id="CONSEQUENCE_ID" class="sale-to-quotation__consequence" data-testid="sale-to-quotation-consequence">
           La venta en curso se descarta y queda guardada como cotización.
         </p>
         <p class="sale-to-quotation__text" data-testid="sale-to-quotation-detail">
