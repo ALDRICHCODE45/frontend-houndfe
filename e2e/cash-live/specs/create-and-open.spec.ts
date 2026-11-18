@@ -53,9 +53,9 @@ import { createEvidenceCollector, type EvidenceKind } from '../support/evidence'
  * bind this one authorized validation run to the exact disposable resource; a
  * fixture from any other environment fails the preflight before a mutation.
  */
-const EXPECTED_BACKEND_ORIGIN = 'http://127.0.0.1:36383'
+const EXPECTED_BACKEND_ORIGIN = 'http://127.0.0.1:44071'
 const EXPECTED_FRONTEND_ORIGIN = 'http://127.0.0.1:4189'
-const EXPECTED_RESOURCE_ID = '7e3be777-25ef-4562-9383-68510f59b1da'
+const EXPECTED_RESOURCE_ID = 'd7e8a0a1-f01d-4c67-9d16-6ccb92e80281'
 
 /**
  * Authoritative cross-tenant negative contract for a cash id outside the
@@ -72,6 +72,22 @@ const ISO_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:
 
 /** The single opening fund exercised by this first flow (integer cents). */
 const OPENING_FUND_CENTS = 50_000
+/**
+ * The same fund as typed in the UI: «Fondo inicial (pesos)» parses PESOS
+ * (`pesosToCents`), so 50_000 cents is entered as `500.00`.
+ */
+const OPENING_FUND_PESOS_INPUT = '500.00'
+/** `formatCentsMXN(50_000)` as rendered by the confirm-then-open labels. */
+const OPENING_FUND_LABEL = /\$\s?500[.,]00/
+
+/**
+ * Current Caja DOM (CashRegistersPanel on AppDataTable, commit 431784d8): the
+ * empty list is the shared `EmptyState kind="empty"` inside the panel, and an
+ * openable row is reached by its `cash-register-open-<id>` name button.
+ */
+const REGISTERS_EMPTY_TITLE = 'Aún no hay cajas'
+const REGISTERS_EMPTY_SELECTOR = '.hf-empty-state[data-kind="empty"]'
+const REGISTER_ROW_SELECTOR = '[data-testid^="cash-register-open-"], [data-testid="cash-register-name"]'
 
 /** The permissions the first flow needs BEFORE the first mutation. */
 const CASHIER_REQUIRED_PERMISSIONS = [
@@ -216,6 +232,15 @@ function assertForeignSessionNotFound(body: unknown, sessionId: string): void {
   }
 }
 
+/** Best-effort UI screenshot (no credential is rendered by the app); never masks the outcome. */
+async function screenshotQuietly(page: Page, path: string): Promise<void> {
+  try {
+    await page.screenshot({ path, fullPage: true })
+  } catch {
+    // Deliberately swallowed: evidence must never change the journey outcome.
+  }
+}
+
 /** Best-effort context teardown; a close failure must never mask the journey outcome. */
 async function closeQuietly(context: LiveActorContext | undefined): Promise<void> {
   if (!context) return
@@ -267,9 +292,15 @@ test('creates a register and opens its first cash session (isolated live backend
     await page.goto('/pos/caja', { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT })
     await expect(page.getByTestId('cash-registers-panel')).toBeVisible({ timeout: UI_TIMEOUT })
 
-    // 2. The register list MUST be empty before any mutation.
+    // 2. The register list MUST be empty before any mutation: the AppDataTable
+    //    shared empty state (only rendered for a settled, successful, empty
+    //    list) is visible and no register row exists.
     step = { name: 'registers-empty', kind: 'ui' }
-    await expect(page.getByTestId('cash-registers-empty')).toBeVisible({ timeout: UI_TIMEOUT })
+    const registersPanel = page.getByTestId('cash-registers-panel')
+    await expect(
+      registersPanel.locator(REGISTERS_EMPTY_SELECTOR).filter({ hasText: REGISTERS_EMPTY_TITLE }),
+    ).toBeVisible({ timeout: UI_TIMEOUT })
+    await expect(registersPanel.locator(REGISTER_ROW_SELECTOR)).toHaveCount(0)
     collector.collect('registers-empty', 'ui', 'pass', 'register list empty before any mutation')
 
     // 3. Create one uniquely named fictitious register; capture status/id only.
@@ -296,15 +327,18 @@ test('creates a register and opens its first cash session (isolated live backend
 
     // 4. The UI reflects the created register.
     step = { name: 'register-visible', kind: 'ui' }
-    const registerItem = page.getByTestId(`cash-register-item-${registerId}`)
+    // An active register the cashier may open renders its name as the
+    // `cash-register-open-<id>` button (AppDataTable row).
+    const registerItem = page.getByTestId(`cash-register-open-${registerId}`)
     await expect(registerItem).toBeVisible({ timeout: UI_TIMEOUT })
-    await expect(registerItem.getByTestId('cash-register-name')).toHaveText(registerName)
+    await expect(registerItem).toHaveText(registerName)
+    await expect(page.getByTestId(`cash-register-status-${registerId}`)).toContainText('Activa')
     collector.collect('register-visible', 'ui', 'pass', 'created register rendered in the list')
 
     // 5. Persistence: a reload must show the register again.
     step = { name: 'register-persisted', kind: 'ui' }
     await page.reload({ waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT })
-    await expect(page.getByTestId(`cash-register-item-${registerId}`)).toBeVisible({
+    await expect(page.getByTestId(`cash-register-open-${registerId}`)).toHaveText(registerName, {
       timeout: UI_TIMEOUT,
     })
     collector.collect('register-persisted', 'ui', 'pass', 'created register visible after reload')
@@ -315,12 +349,20 @@ test('creates a register and opens its first cash session (isolated live backend
     await expect(page.getByTestId('cash-open-session')).toBeVisible({ timeout: UI_TIMEOUT })
     await expect(page.getByTestId('cash-open-register')).toContainText(registerName)
 
-    // 7. Fund 50_000 cents behind the EXPLICIT confirmation checkbox.
+    // 7. Fund 50_000 cents (typed as pesos) behind the EXPLICIT confirmation
+    //    action «Confirmar fondo de $X» (a button, never a checkbox).
     step = { name: 'confirm-opening-fund', kind: 'ui' }
-    await page.getByTestId('cash-opening-cents').fill(String(OPENING_FUND_CENTS))
+    await page.getByTestId('cash-opening-cents').fill(OPENING_FUND_PESOS_INPUT)
     const confirm = page.getByTestId('cash-opening-confirmed')
+    await expect(confirm).toContainText('Confirmar fondo de')
+    await expect(confirm).toContainText(OPENING_FUND_LABEL)
     await confirm.click()
-    await expect(confirm).toHaveAttribute('data-state', 'checked')
+    const confirmation = page.getByTestId('cash-opening-confirmation')
+    await expect(confirmation).toBeVisible({ timeout: UI_TIMEOUT })
+    await expect(confirmation).toContainText(OPENING_FUND_LABEL)
+    const openSubmit = page.getByTestId('cash-open-submit')
+    await expect(openSubmit).toContainText('Abrir caja con')
+    await expect(openSubmit).toContainText(OPENING_FUND_LABEL)
 
     // 8. Open the session; capture the POST structurally (status + id + OPEN).
     step = { name: 'open-session', kind: 'http' }
@@ -331,7 +373,7 @@ test('creates a register and opens its first cash session (isolated live backend
           response.url() === `${env.backendBaseUrl}/cash-registers/${registerId}/sessions`,
         { timeout: UI_TIMEOUT },
       ),
-      page.getByTestId('cash-open-submit').click(),
+      openSubmit.click(),
     ])
     expect(sessionResponse.status()).toBe(201)
     const sessionBody = (await sessionResponse.json()) as {
@@ -345,11 +387,14 @@ test('creates a register and opens its first cash session (isolated live backend
     expect(sessionBody.session?.status).toBe('OPEN')
     expect(sessionBody.session?.openingCents).toBe(OPENING_FUND_CENTS)
     expect(sessionBody.register?.id).toBe(registerId)
+    // The session id is a backend-issued resource id (not a credential). It is
+    // surfaced through the redacted collector so the follow-up foreign-session
+    // diagnostic can target it via CASH_LIVE_FOREIGN_SESSION_ID.
     collector.collect(
       'open-session',
       'http',
       'pass',
-      'POST /cash-registers/:id/sessions -> 201 OPEN',
+      `POST /cash-registers/:id/sessions -> 201 OPEN; sessionId=${sessionId}`,
     )
 
     // 9. Persistence through the public API: the created session is readable.
@@ -367,18 +412,34 @@ test('creates a register and opens its first cash session (isolated live backend
     expect(persistedSession?.status).toBe('OPEN')
     collector.collect('session-persisted', 'http', 'pass', 'GET /cash-sessions/:id -> 200 OPEN')
 
-    // 10. The UI detail shows the persisted OPEN session.
+    // 10. The UI detail shows the persisted OPEN session. The summary is
+    //     embedded in the shift card, which owns the status badge and the
+    //     register name (`cash-shift-status` / `cash-shift-register`).
     step = { name: 'session-detail-ui', kind: 'ui' }
-    await expect(page.getByTestId('cash-session-summary')).toBeVisible({ timeout: UI_TIMEOUT })
-    await expect(page.getByTestId('cash-session-status')).toHaveText('Abierta')
-    await expect(page.getByTestId('cash-session-opening')).toContainText(/500[.,]00/)
-    await expect(page.getByTestId('cash-session-register')).toHaveText(registerName)
+    const shiftCard = page.getByTestId('cash-workspace-shift-card')
+    await expect(shiftCard.getByTestId('cash-session-summary')).toBeVisible({
+      timeout: UI_TIMEOUT,
+    })
+    await expect(shiftCard.getByTestId('cash-shift-status')).toContainText('Abierta')
+    await expect(shiftCard.getByTestId('cash-session-opening')).toContainText(OPENING_FUND_LABEL)
+    await expect(shiftCard.getByTestId('cash-shift-register')).toHaveText(registerName)
+    // 259b6d05: after a resolved open the opening form unmounts, so no second
+    // «Abrir caja con $500.00» can be requested for the same register.
+    await expect(page.getByTestId('cash-open-session')).toHaveCount(0)
+    await expect(page.getByTestId('cash-open-submit')).toHaveCount(0)
+    collector.collect(
+      'open-form-dismissed',
+      'ui',
+      'pass',
+      'opening form and its submit are no longer rendered after the open',
+    )
     collector.collect(
       'session-detail-ui',
       'ui',
       'pass',
       'session summary shows OPEN with the opening fund',
     )
+    await screenshotQuietly(page, testInfo.outputPath('session-detail-ui.png'))
 
     // 11. Cross-tenant isolation: a read-only foreign GET of the created session
     //     fails closed with the documented tenant-scoping status.
@@ -399,10 +460,25 @@ test('creates a register and opens its first cash session (isolated live backend
       `GET /cash-sessions/:id as foreign tenant -> ${FOREIGN_TENANT_NEGATIVE_STATUS}`,
     )
 
-    // 12. Neither hardened context may have reached an unlisted origin.
+    // 12. Neither hardened context may have reached an unlisted origin. The
+    //     guard entries are already reduced to `METHOD origin` (no path, query
+    //     or credential); the distinct origins are recorded before asserting.
+    step = { name: 'outbound-guard', kind: 'ui' }
+    const blocked = [...live.guard.violations(), ...foreignLive.guard.violations()]
+    if (blocked.length > 0) {
+      const origins = [...new Set(blocked.map((entry) => entry.split(' ').slice(1).join(' ')))]
+      collector.collect(
+        'outbound-guard',
+        'ui',
+        'fail',
+        `${blocked.length} aborted request(s) to unlisted origins: ${origins.join(', ')}`,
+      )
+    }
     expect(live.guard.violations()).toEqual([])
     expect(foreignLive.guard.violations()).toEqual([])
+    collector.collect('outbound-guard', 'ui', 'pass', 'no request reached an unlisted origin')
   } catch (error) {
+    if (live) await screenshotQuietly(live.page, testInfo.outputPath(`failed-${step.name}.png`))
     const message =
       error instanceof CashLiveJourneyError
         ? error.message
@@ -414,6 +490,8 @@ test('creates a register and opens its first cash session (isolated live backend
     }
     throw new CashLiveJourneyError(message)
   } finally {
+    // Only the redacted, secret-asserted records reach stdout.
+    console.log(`[cash-live evidence] ${JSON.stringify(collector.records())}`)
     await closeQuietly(live)
     await closeQuietly(foreignLive)
     // Attach the redacted evidence; a failed attach must not change the outcome.

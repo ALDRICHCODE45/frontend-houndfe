@@ -17,7 +17,7 @@
  * itself performs exactly ONE GET and issues no mutating call.
  *
  * Preflight (BEFORE any browser context exists): the pinned receipt
- * (backend 36383 / resource 7e3be777… / frontend 4189), a foreign tenant
+ * (backend 44071 / resource d7e8a0a1… / frontend 4189), a foreign tenant
  * distinct from the operating tenant, the `read:CashSession` ability, and a
  * strict minimum token TTL of 300 seconds. An expired/insufficient token is
  * SKIPPED — never renewed.
@@ -155,11 +155,20 @@ test('diagnoses the foreign-tenant cash-session read with one read-only GET (iso
       secrets: [foreign.tokens.access],
     })
 
-    // Neither the diagnostic nor the app auto-fetch may reach an unlisted origin.
-    expect(live.guard.violations()).toEqual([])
-
     // Only a safe, redacted summary reaches stdout; the full record is on disk.
     console.log(persisted.summary)
+
+    // Neither the diagnostic nor the app auto-fetch may reach an unlisted origin.
+    // Guard entries are already reduced to `METHOD origin`; only the distinct
+    // origins are recorded (no paths, no tokens), as in create-and-open.
+    const blocked = live.guard.violations()
+    if (blocked.length > 0) {
+      const origins = [...new Set(blocked.map((entry) => entry.split(' ').slice(1).join(' ')))]
+      throw new CashLiveDiagnosticError(
+        `outbound-guard: ${blocked.length} aborted request(s) to unlisted origins: ${origins.join(', ')}`,
+      )
+    }
+    expect(live.guard.violations()).toEqual([])
   } catch (error) {
     failure =
       error instanceof CashLiveDiagnosticError

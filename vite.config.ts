@@ -1,13 +1,108 @@
 import { fileURLToPath, URL } from 'node:url'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { join } from 'node:path'
+import { createRequire } from 'node:module'
 
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import tailwindcss from '@tailwindcss/vite'
 import ui from '@nuxt/ui/vite'
 
+// ── Local icons (no runtime request to api.iconify.design) ──────────────────
+// In a Vue (non-Nuxt) app, <UIcon> renders through @iconify/vue, which fetches
+// any icon missing from its in-memory storage from the Iconify API. This plugin
+// serves the Lucide collection (@iconify-json/lucide) as a data-only virtual
+// module; src/core/shared/icons/local-icons.ts (imported first in src/main.ts)
+// registers it with addCollection() and blocks the Iconify API before mount.
+// The import is explicit (not injected) and @iconify/vue is in
+// optimizeDeps.include, so dev pre-bundles it on start: a late re-optimization
+// (cash-live runs with hmr off, so no reload) would otherwise leave Nuxt UI's
+// <UIcon> on a different @iconify/vue instance than the registration.
+// Build: only the `i-lucide-*` names referenced in src and in @nuxt/ui (its
+// default icons) are bundled. Dev: the whole collection, so new icons work
+// without a restart. Icon names must stay literal strings to be bundled.
+const LOCAL_ICONS_ID = 'virtual:hf-local-icons'
+const RESOLVED_LOCAL_ICONS_ID = `\0${LOCAL_ICONS_ID}`
+const LUCIDE_NAME_RE = /i-lucide-([a-z0-9]+(?:-[a-z0-9]+)*)/g
+
+type IconifyJson = {
+  prefix: string
+  icons: Record<string, { body: string; width?: number; height?: number }>
+  aliases?: Record<string, { parent: string }>
+  width?: number
+  height?: number
+}
+
+function collectLucideNames(dir: string, names: Set<string>) {
+  for (const entry of readdirSync(dir)) {
+    const path = join(dir, entry)
+    if (statSync(path).isDirectory()) {
+      collectLucideNames(path, names)
+    } else if (/\.(vue|ts|mjs|js)$/.test(entry)) {
+      for (const match of readFileSync(path, 'utf8').matchAll(LUCIDE_NAME_RE)) {
+        names.add(match[1]!)
+      }
+    }
+  }
+}
+
+function subsetCollection(json: IconifyJson, names: Set<string>): IconifyJson {
+  const icons: IconifyJson['icons'] = {}
+  const aliases: NonNullable<IconifyJson['aliases']> = {}
+  for (const name of names) {
+    let current = name
+    // Resolve alias chains down to the parent icon body.
+    while (json.aliases?.[current] && !json.icons[current]) {
+      aliases[current] = json.aliases[current]!
+      current = json.aliases[current]!.parent
+    }
+    if (json.icons[current]) icons[current] = json.icons[current]!
+  }
+  return { prefix: json.prefix, icons, aliases, width: json.width, height: json.height }
+}
+
+function localIcons(): Plugin {
+  const require = createRequire(import.meta.url)
+  const srcDir = fileURLToPath(new URL('./src', import.meta.url))
+  let isBuild = false
+  return {
+    name: 'hf:local-icons',
+    configResolved(config) {
+      isBuild = config.command === 'build'
+    },
+    resolveId(id) {
+      if (id === LOCAL_ICONS_ID) return RESOLVED_LOCAL_ICONS_ID
+    },
+    load(id) {
+      if (id !== RESOLVED_LOCAL_ICONS_ID) return
+      const lucide = JSON.parse(
+        readFileSync(require.resolve('@iconify-json/lucide/icons.json'), 'utf8'),
+      ) as IconifyJson
+      let collection = lucide
+      if (isBuild) {
+        const names = new Set<string>()
+        collectLucideNames(srcDir, names)
+        collectLucideNames(fileURLToPath(new URL('./node_modules/@nuxt/ui/dist', import.meta.url)), names)
+        collection = subsetCollection(lucide, names)
+        const missing = [...names].filter(
+          (name) => !collection.icons[name] && !collection.aliases?.[name],
+        )
+        if (missing.length) {
+          this.warn(`Lucide icons not found locally: ${missing.map((n) => `i-lucide-${n}`).join(', ')}`)
+        }
+      }
+      return `export default ${JSON.stringify(collection)}\n`
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
+  optimizeDeps: {
+    // Pre-bundled on start: never discovered late (see localIcons above).
+    include: ['@iconify/vue'],
+  },
   server: {
     hmr: process.env.RESPONSIVE_DISABLE_HMR === 'true' ? false : undefined,
   },
@@ -15,6 +110,7 @@ export default defineConfig({
     vue(),
     tailwindcss(),
     vueDevTools(),
+    localIcons(),
     ui({
       ui: {
         button: {

@@ -224,9 +224,9 @@ function captureError(run: () => unknown): Error {
 
 describe('foreign diagnostic — pinned receipt constants', () => {
   it('pins the authorized backend origin, frontend origin, resource and minimum TTL', () => {
-    expect(FOREIGN_DIAGNOSTIC_BACKEND_ORIGIN).toBe('http://127.0.0.1:36383')
+    expect(FOREIGN_DIAGNOSTIC_BACKEND_ORIGIN).toBe('http://127.0.0.1:44071')
     expect(FOREIGN_DIAGNOSTIC_FRONTEND_ORIGIN).toBe('http://127.0.0.1:4189')
-    expect(FOREIGN_DIAGNOSTIC_RESOURCE_ID).toBe('7e3be777-25ef-4562-9383-68510f59b1da')
+    expect(FOREIGN_DIAGNOSTIC_RESOURCE_ID).toBe('d7e8a0a1-f01d-4c67-9d16-6ccb92e80281')
     expect(FOREIGN_DIAGNOSTIC_MIN_TTL_SECONDS).toBe(300)
     expect(FOREIGN_DIAGNOSTIC_FILE_NAME).toBe('foreign-session-diagnostic.json')
   })

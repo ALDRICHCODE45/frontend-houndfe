@@ -10,6 +10,7 @@
     "test": "${RUN_TESTS:-} vitest run --dir src --maxWorkers=4",
     "test:related": "${RUN_TESTS:-} vitest related --run --dir src --maxWorkers=4",
     "test:unit": "vitest",
+    "test:cash-live:unit": "vitest run -c e2e/cash-live/vitest.config.ts",
     "test:responsive:harness": "${RUN_TESTS:-} playwright test --config=playwright.responsive.config.ts --grep @responsive-harness",
     "test:responsive:promotion-capacity": "${RUN_TESTS:-} playwright test --config=playwright.responsive.config.ts e2e/responsive/specs/promotion-capacity.spec.ts e2e/responsive/specs/promotion-capacity-requote.spec.ts e2e/responsive/specs/sale-cancellation.spec.ts e2e/responsive/specs/promotion-alerts.spec.ts",
     "test:responsive:human-decisions-demo": "${RUN_TESTS:-} playwright test --config=playwright.responsive.config.ts e2e/responsive/specs/human-decisions-offline-demo.spec.ts",
@@ -28,6 +29,7 @@
   "dependencies": {
     "@casl/ability": "^6.8.0",
     "@casl/vue": "^2.2.6",
+    "@iconify/vue": "5.0.0",
     "@internationalized/date": "^3.12.1",
     "@nuxt/ui": "^4.6.0",
     "@tanstack/vue-query": "^5.95.2",
@@ -46,6 +48,8 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@fontsource/geist": "^5.3.0",
+    "@iconify-json/lucide": "^1.2.156",
     "@playwright/test": "1.63.0",
     "@tailwindcss/vite": "^4.2.2",
     "@tsconfig/node24": "^24.0.4",

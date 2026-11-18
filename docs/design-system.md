@@ -75,7 +75,7 @@ Light and dark modes are designed as a pair. Never fix one mode by making the ot
 
 | Topic            | Rule                                                                                                                                                              |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Typeface         | Geist (Google Fonts, OFL) through `--hf-font`, with the existing system fallback; `--shell-font` and `--font-sans` follow it. Manrope and Inter are retired. Loading failure must leave the interface usable. Weights: 400 body, 500 medium labels, 600 names, titles and badges; 700 is not used for names or titles. |
+| Typeface         | Geist (OFL, bundled from `@fontsource/geist`) through `--hf-font`, with the existing system fallback; `--shell-font` and `--font-sans` follow it. Manrope and Inter are retired. Loading failure must leave the interface usable. Weights: 400 body, 500 medium labels, 600 names, titles and badges; 700 is not used for names or titles. |
 | Page title       | Target: 28–32px, weight 600, line-height around 1.25. One dominant heading per workspace.                                                                         |
 | Section title    | Target: 16–18px, weight 600. Do not imitate a second page title.                                                                                                  |
 | Operational text | Target: 14–16px. Table text must remain readable at normal zoom.                                                                                                  |
@@ -84,7 +84,7 @@ Light and dark modes are designed as a pair. Never fix one mode by making the ot
 | Cards / panels   | Existing foundation: 12px radius. Use border and restrained elevation rather than nested decorative cards.                                                        |
 | Controls         | Existing foundation: 6px radius and 44px minimum height. A wrapper must not create a second input box.                                                            |
 | Density          | Lists (`AppDataTable`) offer three row densities chosen by the user in the «Columnas» panel: Compacta 40px, Normal 48px, Cómoda 64px (default); see Patrones, Table layout. The user asked for premium tables (2026-11-07), and the chosen direction (artboard 01) includes the density control. Compacta and Normal hide only the secondary line, never data columns, and controls keep their 44px hit areas outside the row (the row ⋮ is 36px in compact rows). Forms and detail tables keep standard density with no toggle. |
-| Icons            | Contextual Lucide icons, consistent sizing. Decorative icons are not additional actions. Icon-only controls need accessible names.                                |
+| Icons            | Contextual Lucide icons, consistent sizing. Fonts and icons are bundled locally (`@fontsource/geist`, `@iconify-json/lucide` registered by `localIcons` in `vite.config.ts`, literal `i-lucide-*` names only); the app makes no runtime third-party requests (`local-assets-guard.spec.ts`). Decorative icons are not additional actions. Icon-only controls need accessible names.                                |
 
 Page width follows the task: data-heavy tables may use available width; forms may use a readable bounded column. Caja's 1320px page limit and 280px rail are local composition choices, not global constraints.
 

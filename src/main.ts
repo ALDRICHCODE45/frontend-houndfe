@@ -1,3 +1,4 @@
+import '@/core/shared/icons/local-icons'
 import './assets/main.css'
 
 import { createApp } from 'vue'
