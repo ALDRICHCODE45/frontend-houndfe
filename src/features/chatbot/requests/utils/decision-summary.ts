@@ -6,6 +6,7 @@
  */
 import type {
   ChatbotRequestDecision,
+  TransferReceiptDestinationCheck,
   TransferReceiptExtracted,
   TransferReceiptMismatch,
 } from '../interfaces/chatbot-request.types'
@@ -13,6 +14,12 @@ import { formatDate, formatMoney } from './detail-format'
 
 function text(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null
+}
+
+/** Text within the contract length; longer values break the contract and are dropped. */
+function boundedText(value: unknown, max: number): string | null {
+  const value_ = text(value)
+  return value_ && value_.length <= max ? value_ : null
 }
 
 function cents(value: unknown): number | null {
@@ -34,6 +41,14 @@ export function readExtracted(value: unknown): TransferReceiptExtracted | null {
   if (bank) reading.bank = bank
   const confidence = cents(raw.confidence)
   if (confidence !== null && confidence >= 0 && confidence <= 1) reading.confidence = confidence
+  const destinationBank = boundedText(raw.destinationBank, 80)
+  if (destinationBank) reading.destinationBank = destinationBank
+  const destinationName = boundedText(raw.destinationName, 120)
+  if (destinationName) reading.destinationName = destinationName
+  const last4 = text(raw.destinationAccountLast4)
+  if (last4 && /^\d{4}$/.test(last4)) reading.destinationAccountLast4 = last4
+  const originName = boundedText(raw.originName, 120)
+  if (originName) reading.originName = originName
   return Object.keys(reading).length > 0 ? reading : null
 }
 
@@ -51,6 +66,36 @@ export function extractedReading(value: unknown): string | null {
     reading.confidence !== undefined ? `confianza ${Math.round(reading.confidence * 100)} %` : null,
   ].filter((part): part is string => !!part)
   return parts.length ? parts.join(' · ') : null
+}
+
+/** «Beneficiario: … · Banco destino: … · Cuenta destino: ****9616» (handoff 22 labels); `null` when unread. */
+export function extractedDestination(value: unknown): string | null {
+  const reading = readExtracted(value)
+  if (!reading) return null
+  const parts = [
+    reading.destinationName ? `Beneficiario: ${reading.destinationName}` : null,
+    reading.destinationBank ? `Banco destino: ${reading.destinationBank}` : null,
+    reading.destinationAccountLast4
+      ? `Cuenta destino: ****${reading.destinationAccountLast4}`
+      : null,
+  ].filter((part): part is string => !!part)
+  return parts.length ? parts.join(' · ') : null
+}
+
+/** «Ordenante: …»; `null` when the bot did not read the payer. */
+export function extractedOrigin(value: unknown): string | null {
+  const origin = readExtracted(value)?.originName
+  return origin ? `Ordenante: ${origin}` : null
+}
+
+/** Handoff 22 §2: `match` / `mismatch` pass through; absent, old or any other value is `unknown`. */
+export function readDestinationCheck(value: unknown): TransferReceiptDestinationCheck {
+  return value === 'match' || value === 'mismatch' ? value : 'unknown'
+}
+
+/** Only `mismatch` raises the staff alert; `match` and `unknown` show nothing. */
+export function isDestinationMismatch(value: unknown): boolean {
+  return readDestinationCheck(value) === 'mismatch'
 }
 
 /** The backend sends `{ debtCents, declaredDiffCents?, extractedDiffCents?, flagged } | null`. */

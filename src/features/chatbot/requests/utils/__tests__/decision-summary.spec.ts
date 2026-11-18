@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  extractedDestination,
+  extractedOrigin,
   extractedReading,
   generatedNeeds,
+  isDestinationMismatch,
   isMismatchFlagged,
+  readDestinationCheck,
   readExtracted,
 } from '../decision-summary'
 import type { ChatbotRequestDecision } from '../../interfaces/chatbot-request.types'
@@ -151,5 +155,100 @@ describe('isMismatchFlagged', () => {
     expect(isMismatchFlagged(true)).toBe(false)
     expect(isMismatchFlagged(null)).toBe(false)
     expect(isMismatchFlagged({ weird: true })).toBe(false)
+  })
+})
+
+describe('readExtracted — destination fields (handoff 22)', () => {
+  it('keeps the destination and origin fields when well-typed', () => {
+    expect(
+      readExtracted({
+        destinationBank: ' BBVA MEXICO ',
+        destinationName: 'Abril Alejandra Vazquez Ramos',
+        destinationAccountLast4: '9616',
+        originName: 'Juan Pérez',
+      }),
+    ).toEqual({
+      destinationBank: 'BBVA MEXICO',
+      destinationName: 'Abril Alejandra Vazquez Ramos',
+      destinationAccountLast4: '9616',
+      originName: 'Juan Pérez',
+    })
+  })
+
+  it('ignores hostile or garbage values', () => {
+    expect(
+      readExtracted({
+        destinationBank: 42,
+        destinationName: '   ',
+        destinationAccountLast4: '96a6',
+        originName: { name: 'x' },
+      }),
+    ).toBeNull()
+    expect(readExtracted({ destinationAccountLast4: 9616 })).toBeNull()
+    expect(readExtracted({ destinationAccountLast4: '123456' })).toBeNull()
+    expect(readExtracted({ destinationName: 'x'.repeat(121) })).toBeNull()
+    expect(readExtracted({ destinationBank: 'x'.repeat(81) })).toBeNull()
+    expect(readExtracted({ originName: 'x'.repeat(121) })).toBeNull()
+  })
+})
+
+describe('extractedDestination / extractedOrigin', () => {
+  it('reads beneficiary · bank · masked account, and the payer', () => {
+    const value = {
+      destinationBank: 'BBVA MEXICO',
+      destinationName: 'Abril Vazquez',
+      destinationAccountLast4: '9616',
+      originName: 'Juan Pérez',
+    }
+    expect(extractedDestination(value)).toBe(
+      'Beneficiario: Abril Vazquez · Banco destino: BBVA MEXICO · Cuenta destino: ****9616',
+    )
+    expect(extractedOrigin(value)).toBe('Ordenante: Juan Pérez')
+  })
+
+  it('omits the missing parts and is null with nothing to show', () => {
+    expect(extractedDestination({ destinationAccountLast4: '9616' })).toBe(
+      'Cuenta destino: ****9616',
+    )
+    expect(extractedDestination({ destinationBank: 'BBVA', destinationAccountLast4: 'abcd' })).toBe(
+      'Banco destino: BBVA',
+    )
+    expect(extractedDestination({ amountCents: 100 })).toBeNull()
+    expect(extractedDestination(null)).toBeNull()
+    expect(extractedOrigin({ destinationName: 'Abril' })).toBeNull()
+    expect(extractedOrigin('x')).toBeNull()
+  })
+
+  it('the amount reading does not repeat the destination data', () => {
+    expect(extractedReading({ amountCents: 17800, destinationBank: 'BBVA' })).toBe('$178.00')
+    expect(extractedReading({ destinationBank: 'BBVA' })).toBeNull()
+  })
+})
+
+describe('readDestinationCheck / isDestinationMismatch', () => {
+  it('passes match and mismatch through and reads anything else as unknown', () => {
+    expect(readDestinationCheck('match')).toBe('match')
+    expect(readDestinationCheck('mismatch')).toBe('mismatch')
+    expect(readDestinationCheck('unknown')).toBe('unknown')
+    expect(readDestinationCheck(undefined)).toBe('unknown')
+    expect(readDestinationCheck(null)).toBe('unknown')
+    expect(readDestinationCheck('MISMATCH')).toBe('unknown')
+    expect(readDestinationCheck({ value: 'mismatch' })).toBe('unknown')
+  })
+
+  it('is a mismatch only for the exact value', () => {
+    expect(isDestinationMismatch('mismatch')).toBe(true)
+    expect(isDestinationMismatch('match')).toBe(false)
+    expect(isDestinationMismatch('unknown')).toBe(false)
+    expect(isDestinationMismatch(undefined)).toBe(false)
+    expect(isDestinationMismatch(true)).toBe(false)
+  })
+})
+
+describe('generatedNeeds — TRANSFER_RECEIPT destination', () => {
+  it('does not change with the destination check (staff hint only, shown as its own alert)', () => {
+    expect(generatedNeeds(receipt({ destinationCheck: 'mismatch' }))).toBe(
+      'Revisar comprobante de la venta A-202611-000002: total $178.00, debe $178.00, el cliente declaró $178.00, la imagen dice $178.00.',
+    )
   })
 })

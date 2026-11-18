@@ -257,6 +257,11 @@
   display: flex;
 }
 
+.chatbot-request-detail .rd-extracted-line {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
 .chatbot-request-detail .rd-kv {
   display: grid;
   grid-template-columns: minmax(96px, 140px) minmax(0, 1fr);
