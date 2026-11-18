@@ -15,7 +15,7 @@ import type { NotificationItem } from '../interfaces/notifications.types'
 import { useMarkAllRead } from '../composables/useMarkAllRead'
 import { useMarkRead } from '../composables/useMarkRead'
 import { useNotifications } from '../composables/useNotifications'
-import { countLabel, notificationDetailPath } from '../utils/notification-format'
+import { countLabel, notificationTargetPath } from '../utils/notification-format'
 import NotificationsList from './NotificationsList.vue'
 
 const props = defineProps<{
@@ -59,7 +59,7 @@ function markIfUnread(item: NotificationItem) {
 
 function openItem(item: NotificationItem) {
   markIfUnread(item)
-  const path = notificationDetailPath(item.requestId)
+  const path = notificationTargetPath(item)
   if (path) void router.push(path)
   close()
 }
@@ -69,7 +69,7 @@ function openItem(item: NotificationItem) {
   <USlideover
     :open="open"
     title="Notificaciones"
-    description="Tus avisos sobre solicitudes del chatbot"
+    description="Tus avisos de solicitudes del chatbot y de ventas"
     side="right"
     :close="{ 'aria-label': 'Cerrar notificaciones' }"
     :ui="{

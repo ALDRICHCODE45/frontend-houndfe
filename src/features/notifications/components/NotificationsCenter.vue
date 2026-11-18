@@ -8,7 +8,6 @@ import { useRouter } from 'vue-router'
 import { useNotificationAlerts } from '../composables/useNotificationAlerts'
 import { useNotificationsAccess } from '../composables/useNotificationsAccess'
 import { useUnreadCount } from '../composables/useUnreadCount'
-import { notificationDetailPath } from '../utils/notification-format'
 import NotificationsBell from './NotificationsBell.vue'
 import NotificationsPanel from './NotificationsPanel.vue'
 
@@ -21,10 +20,7 @@ const { tenantId } = useNotificationsAccess()
 useNotificationAlerts({
   count,
   tenantId,
-  onOpenRequest: (requestId) => {
-    const path = notificationDetailPath(requestId)
-    if (path) void router.push(path)
-  },
+  onOpen: (path) => void router.push(path),
 })
 </script>
 

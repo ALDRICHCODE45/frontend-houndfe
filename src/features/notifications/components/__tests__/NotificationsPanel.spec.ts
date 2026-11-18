@@ -161,6 +161,46 @@ describe('NotificationsPanel — opening a notice', () => {
     expect(onUpdateOpen).toHaveBeenCalledWith(false)
   })
 
+  it('a SALE_HOLD_REVIEW notice goes to the sale detail', async () => {
+    api.list.mockResolvedValue({
+      items: [
+        makeNotice('s', {
+          type: 'SALE_HOLD_REVIEW',
+          title: 'Apartado vencido: revisa la venta',
+          body: 'Venta W-000042 · Tiene un pago registrado',
+          requestId: null,
+          saleId: 'sale-42',
+          createdAt: new Date().toISOString(),
+        }),
+      ],
+      nextCursor: null,
+    })
+    const { router, onUpdateOpen } = await mountPanel()
+
+    expect(findText('.nt', 'Apartado vencido: revisa la venta')?.textContent).toContain('Tiene un pago registrado')
+    find('a[href="/pos/ventas/sale-42"]')!.click()
+    await flushPromises()
+
+    expect(api.markRead).toHaveBeenCalledWith('s')
+    expect(router.currentRoute.value.fullPath).toBe('/pos/ventas/sale-42')
+    expect(onUpdateOpen).toHaveBeenCalledWith(false)
+  })
+
+  it('a notice with neither request nor sale is marked and closes without navigating', async () => {
+    api.list.mockResolvedValue({
+      items: [makeNotice('x', { requestId: null, saleId: null, title: 'Sin destino', createdAt: new Date().toISOString() })],
+      nextCursor: null,
+    })
+    const { router, onUpdateOpen } = await mountPanel()
+
+    findText('button.nt-link', 'Sin destino')!.click()
+    await flushPromises()
+
+    expect(api.markRead).toHaveBeenCalledWith('x')
+    expect(router.currentRoute.value.fullPath).toBe('/')
+    expect(onUpdateOpen).toHaveBeenCalledWith(false)
+  })
+
   it('a notice that is already read is not marked again, but still opens', async () => {
     const { router, onUpdateOpen } = await mountPanel()
 

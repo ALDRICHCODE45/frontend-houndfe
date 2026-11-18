@@ -36,10 +36,10 @@ function firstNotice(): FakeNotification {
   return notice
 }
 
-function setup(onOpenRequest?: (requestId: string) => void) {
+function setup(onOpen?: (path: string) => void) {
   const count = ref<number | null>(2)
   const tenantId = ref('tenant-1')
-  const mounted = withQuery(() => useNotificationAlerts({ count, tenantId, onOpenRequest }))
+  const mounted = withQuery(() => useNotificationAlerts({ count, tenantId, onOpen }))
   return { count, tenantId, ...mounted }
 }
 const hide = () => vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
@@ -137,16 +137,56 @@ describe('useNotificationAlerts — browser notification', () => {
 
   it('clicking it focuses the window and opens the request', async () => {
     const focus = vi.spyOn(window, 'focus').mockImplementation(() => {})
-    const onOpenRequest = vi.fn()
+    const onOpen = vi.fn()
     hide()
-    const { count } = setup(onOpenRequest)
+    const { count } = setup(onOpen)
     count.value = 3
     await flushPromises()
 
     firstNotice().onclick?.()
     expect(focus).toHaveBeenCalled()
-    expect(onOpenRequest).toHaveBeenCalledWith('req-new')
+    expect(onOpen).toHaveBeenCalledWith('/chatbot/solicitudes/req-new')
     expect(firstNotice().close).toHaveBeenCalled()
+  })
+
+  it('a SALE_HOLD_REVIEW notice shows its copy and opens the sale detail', async () => {
+    vi.spyOn(window, 'focus').mockImplementation(() => {})
+    list.mockResolvedValue({
+      items: [
+        makeNotice('hold', {
+          type: 'SALE_HOLD_REVIEW',
+          title: 'Apartado vencido: revisa la venta',
+          body: 'Venta W-000042 · Comprobante pendiente de revisar',
+          requestId: null,
+          saleId: 'sale-42',
+        }),
+      ],
+      nextCursor: null,
+    })
+    const onOpen = vi.fn()
+    hide()
+    const { count } = setup(onOpen)
+    count.value = 3
+    await flushPromises()
+
+    expect(firstNotice().title).toBe('Apartado vencido: revisa la venta')
+    expect(firstNotice().options?.body).toBe('Venta W-000042 · Comprobante pendiente de revisar')
+    firstNotice().onclick?.()
+    expect(onOpen).toHaveBeenCalledWith('/pos/ventas/sale-42')
+  })
+
+  it('clicking a notice with neither request nor sale only focuses the window', async () => {
+    const focus = vi.spyOn(window, 'focus').mockImplementation(() => {})
+    list.mockResolvedValue({ items: [makeNotice('none', { requestId: null, saleId: null })], nextCursor: null })
+    const onOpen = vi.fn()
+    hide()
+    const { count } = setup(onOpen)
+    count.value = 3
+    await flushPromises()
+
+    firstNotice().onclick?.()
+    expect(focus).toHaveBeenCalled()
+    expect(onOpen).not.toHaveBeenCalled()
   })
 
   it('does not throw when the browser has no Notification API', async () => {

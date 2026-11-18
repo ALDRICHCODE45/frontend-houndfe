@@ -2,7 +2,8 @@
 /**
  * NotificationRow — one notice of the panel (design 02-panel-lateral `itemHTML`).
  *
- * The whole row leads to the request (`/chatbot/solicitudes/:requestId`); without a request it is a
+ * The whole row leads to the request (`/chatbot/solicitudes/:requestId`) or, for a sale notice
+ * (SALE_HOLD_REVIEW, BE handoff 24 §5), to the sale (`/pos/ventas/:saleId`); with neither it is a
  * button. A plain click emits `open` (the panel marks it read, navigates and closes); a modified
  * click (new tab) lets the browser follow the link and emits `mark` so it still counts as read.
  * `title` and `body` come from the server as plain text and are rendered as text, never HTML.
@@ -16,10 +17,10 @@ import {
   fullTime,
   isClosedNotice,
   notificationCauseText,
-  notificationDetailPath,
   notificationMeta,
   notificationReasonLabel,
   notificationRef,
+  notificationTargetPath,
   relativeTime,
 } from '../utils/notification-format'
 
@@ -31,7 +32,7 @@ const ref = computed(() => notificationRef(props.item))
 const reasonLabel = computed(() => notificationReasonLabel(props.item))
 const causeText = computed(() => notificationCauseText(props.item))
 const closed = computed(() => isClosedNotice(props.item))
-const path = computed(() => notificationDetailPath(props.item.requestId))
+const path = computed(() => notificationTargetPath(props.item))
 const unread = computed(() => props.item.readAt === null)
 const when = computed(() => relativeTime(props.item.createdAt, props.now))
 
