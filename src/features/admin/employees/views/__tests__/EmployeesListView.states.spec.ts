@@ -270,6 +270,33 @@ describe('EmployeesListView states — data', () => {
     await mark.trigger('click')
     expect(routerPush).not.toHaveBeenCalled()
   })
+
+  it('selects cards on mobile: a named mark per card, «Seleccionar todos» above, and the mark never opens the card', async () => {
+    isBelowBreakpoint.value = true
+    tableState.data.value = [
+      makeEmployee(),
+      makeEmployee({ id: 'emp-uuid-2', fullName: 'Bruno Díaz' }),
+    ]
+    const wrapper = mountView()
+    const all = wrapper.get('[data-testid="mobile-select-all"] button.hf-row-mark')
+    expect(all.attributes('aria-label')).toBe('Seleccionar todos los empleados')
+    const mark = wrapper.get('button.hf-row-mark[aria-label="Seleccionar a Ana García"]')
+    await mark.trigger('click')
+    expect(routerPush).not.toHaveBeenCalled()
+    expect(tableState.rowSelection.value).toEqual({ 0: true })
+    expect(all.attributes('aria-pressed')).toBe('mixed')
+    await all.trigger('click')
+    expect(tableState.rowSelection.value).toEqual({ 0: true, 1: true })
+  })
+
+  it('shows no card marks on mobile without a batch permission', () => {
+    isBelowBreakpoint.value = true
+    allow('create:Employee')
+    tableState.data.value = [makeEmployee()]
+    const wrapper = mountView()
+    expect(wrapper.find('button.hf-row-mark').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="mobile-select-all"]').exists()).toBe(false)
+  })
 })
 
 describe('EmployeesListView states — row menu', () => {

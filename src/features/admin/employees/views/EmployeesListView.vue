@@ -10,8 +10,9 @@
  *
  * Composition surface: useEmployeesList (useServerTable + the status filter),
  * useEmployeeColumns, useManagerResolution (batch, no N+1) and the lifecycle
- * dialogs. Batch delete / terminate / reactivate keep the table's selection
- * column and bulk bar (desktop table only).
+ * dialogs. Batch delete / terminate / reactivate use the table's selection
+ * column and bulk bar; on phone cards AppDataTable adds a row mark per card
+ * and «Seleccionar todos» above the list.
  *
  * Permission gate: route-level meta.permission ['read', 'Employee'].
  * Create is gated by create:Employee, edit/terminate/reactivate by update:Employee.
@@ -358,6 +359,8 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
           :active-filter-count="statusTab !== 'all' ? 1 : 0"
           display-mode="auto"
           mobile-render="cards"
+          :row-mark-label="(employee: Employee) => `Seleccionar a ${employee.fullName}`"
+          select-all-label="Seleccionar todos los empleados"
           add-button-text="Nuevo colaborador"
           add-button-icon="i-lucide-user-plus"
           empty="No se encontraron colaboradores"
