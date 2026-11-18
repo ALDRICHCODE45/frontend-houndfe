@@ -18,3 +18,4 @@ The remaining backlog after the pending sweep: editorial admin integration, the 
 
 ## Log
 - L1 Owner 2026-11-18 (verbatim): «la redireccion no se a que te refieres, lo demas hazlo ya.»
+- L2 Backend on the old route: the backfill never ran and is not needed (prod had 0 pending human decisions/zone requests/receipts); since the deploy every new decision is also created as a chatbot request in the same transaction (chatbot-request-wrapper.ts) and resolving from the new inbox syncs the old decision. Old endpoints stay alive until BE unit 13 (owner decides after the new inbox is proven). BE recommendation: FE redirect /pos/decisiones-pendientes → /chatbot/solicitudes is safe now.
