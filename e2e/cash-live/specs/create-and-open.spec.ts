@@ -53,9 +53,9 @@ import { createEvidenceCollector, type EvidenceKind } from '../support/evidence'
  * bind this one authorized validation run to the exact disposable resource; a
  * fixture from any other environment fails the preflight before a mutation.
  */
-const EXPECTED_BACKEND_ORIGIN = 'http://127.0.0.1:33721'
+const EXPECTED_BACKEND_ORIGIN = 'http://127.0.0.1:44071'
 const EXPECTED_FRONTEND_ORIGIN = 'http://127.0.0.1:4189'
-const EXPECTED_RESOURCE_ID = '09303049-565e-4aa5-9fc5-95212e471dfc'
+const EXPECTED_RESOURCE_ID = 'd7e8a0a1-f01d-4c67-9d16-6ccb92e80281'
 
 /**
  * Authoritative cross-tenant negative contract for a cash id outside the
