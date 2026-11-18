@@ -687,6 +687,8 @@ defineExpose({
           :page-size-options="pageSizeOptions"
           :bulk-actions="bulkActions"
           :enable-row-selection="canBatchDelete || canBatchEnd"
+          :row-mark-label="(p: { title?: string }) => `Seleccionar ${p.title ?? 'promoción'}`"
+          select-all-label="Seleccionar todas las promociones"
           :show-add-button="canCreate"
           :active-filter-count="activeFilterCount"
           :row-open="handleEdit"

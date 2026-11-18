@@ -129,19 +129,14 @@ describe('Quotations workspace visual adapter', () => {
     expect(count!.style.getPropertyValue('background-color')).toContain('var(--hf-on-action)')
   })
 
-  it('uses operational and supporting ink for product prices and variant counts', () => {
+  it('uses operational ink for product prices (no legacy --brand-* selector left)', () => {
     const price = exactRule(
       css,
       '.hf-theme.quotations-workspace-portal .quotations-product-search p.tabular-nums',
     )
-    const variants = exactRule(
-      css,
-      '.hf-theme.quotations-workspace-portal .quotations-product-search p[class~="text-(--brand-primary)"]',
-    )
     expect(price).toBeDefined()
-    expect(variants).toBeDefined()
     expect(price!.style.getPropertyValue('color')).toBe('var(--hf-ink)')
-    expect(variants!.style.getPropertyValue('color')).toBe('var(--hf-muted)')
+    expect(css).not.toContain('--brand-primary')
   })
 
   it('preserves the mobile add-action soft/solid distinction with the dark foreground pair', () => {
