@@ -18,7 +18,7 @@ Backlog sweep after the selection/design pass deploy: the small items, the mediu
 - T6a | S2 | worker | done 9a316912 — legacy palette guard + LoginOtpForm:67 + docs/design-system.md rollout (:5-29) and UCard theme (:109) + design/system.html section for selection primitives, Combobox, Segmented, SaveBar, ConfirmModal
 - T6b | S2 | worker | done — records: hf-ui-complete-audit A2–A6 closed/superseded, coverage.json, editorial-session-handoff next session
 - T8 | S1–S2 | worker | done — review follow-ups (L7): Caja movements on refetch error, cards select-all caption, orphan comment, promotions label type
-- T7 | S1–S2 | parent | full suite, type-check (vue-tsc --build), build, merge to main
+- T7 | S1–S2 | parent | done 1c070fe9 — full suite, type-check (vue-tsc --build), build, merge to main
 
 ## Pending (owner decides when)
 - P1 /pos/decisiones-pendientes redirect (needs backend backfill)
@@ -36,3 +36,4 @@ Backlog sweep after the selection/design pass deploy: the small items, the mediu
 - L8 T6b done (worker mwmb2m72-7-it7m): hf-ui-complete-audit A2–A6 closed (done/superseded) with L43; coverage.json 36/39 inventory routes verified (supersededBy), unverified: «/» (redirect), /pos/orders (removed), /pos/cotizaciones/nueva (creates a draft); routes added after the inventory never matrix-checked: /sistema/envios(/validaciones), /chatbot/solicitudes(/:id), /perfil, /catalogo/:branchSlug/p/:productId, /sistema/atencion-chatbot (procurement and /pos/reembolsos checked elsewhere). Editorial handoff next session = T12 only. Unbacked notes kept as written (L45 is 39 routes, not 46).
 - L9 Full suite on the branch (before T8): 1034 files / 17542 tests pass, eslint src 0, pnpm build 0. T8 launched (worker mwmbfyke-8-x7oc).
 - L10 T8 done (worker mwmbfyke-8-x7oc): related 83 files / 1143 tests, vue-tsc --build 0, eslint 0. Open advisories kept for later: R2-003 duplicated price-lists query, R2-004 duplicated cards selection filter, palette guard scope (.ts files, extra prefixes).
+- L11 Merged --no-ff into local main 1c070fe9 (19 ahead of origin/main, not pushed; owner pushes). T8 delta assess not due; build 0. T5 (Caja live run) still waits for the backend isolated server; P1–P3 pending.
