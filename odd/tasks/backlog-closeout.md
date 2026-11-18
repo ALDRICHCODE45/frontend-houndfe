@@ -9,13 +9,16 @@ The remaining backlog after the pending sweep: editorial admin integration, the 
 - S4 «lo demas hazlo ya»: review advisories — one shared price-lists query for PromotionForm and PromotionConditionsSection; one cards-mode selection filter in AppDataTable; the legacy palette guard also scans .ts class strings and the missing prefixes (divide, outline, placeholder, accent, shadow).
 - S5 «la redireccion no se a que te refieres»: explain /pos/decisiones-pendientes and let the owner decide.
 
+- S6 Backend N18 (BE aebb60ef, docs/frontend-handoff/22-receipt-destination-check.md): `destinationCheck: 'match' | 'mismatch' | 'unknown'` on receipt review items and TRANSFER_RECEIPT `decision`; 'mismatch' → «⚠ El destinatario no coincide con la cuenta del negocio», shown like the amount alert (mismatch?.flagged stays amount-only); 'unknown' = not verified, no alert; `extracted` adds destinationBank, destinationName, destinationAccountLast4, originName, shown with «Detectado en la imagen»; old receipts read 'unknown'; nothing is rejected automatically.
+
 ## Tasks
 - T1 | S4 | worker | done — review advisories
 - T2 | S3 | worker | browser matrix for the 7 routes (mocked API), then fixes
 - T3 | S1 | explore → plan | editorial admin T12
 - T4 | S2 | explore + backend → plan | POS «Pedido» tab
 - T6 | S5 | worker | redirect /pos/decisiones-pendientes → /chatbot/solicitudes and remove the old inbox screen from the FE (owner chose)
-- T5 | S1–S5 | parent | full suite, build, merge
+- T7 | S6 | worker | receipt destination check alert (BE handoff 22)
+- T5 | S1–S6 | parent | full suite, build, merge
 
 ## Log
 - L1 Owner 2026-11-18 (verbatim): «la redireccion no se a que te refieres, lo demas hazlo ya.»
