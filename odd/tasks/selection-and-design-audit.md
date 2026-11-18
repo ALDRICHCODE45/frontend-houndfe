@@ -19,7 +19,7 @@ Migrate every remaining checkbox to «Selección sin checkboxes» (docs/design-s
 - T6b | S2–S3 | worker | done — employees: admin/employees/components/*Panel.vue card stacks
 - T6c | S2–S3 | worker | done 8d03ffad — sales/customers: AssignCustomerSlideover nested cards, SaleDetail*Card, customer upsert section look (clients-visual.css, sales-pos-customer.css)
 - T6d | S1–S3 | worker | done — promotions leftovers: WhatsApp and capacity switches as whole-row HfSwitchRow, PromotionSummaryCard, customer/price-list multiple pickers
-- T6e | S1–S3 | worker | product siblings (ProductCatalogSettingsSection USwitch/UCard, PriceListSection, ProductPackagingSection, ProductImageGallery) + employees PendingApprovalsView
+- T6e | S1–S3 | worker | done — product siblings (ProductCatalogSettingsSection USwitch/UCard, PriceListSection, ProductPackagingSection, ProductImageGallery) + employees PendingApprovalsView
 - T7 | S1–S3 | verify + browser | live check light/dark, 1440/390; full suite
 
 ## Log
@@ -38,3 +38,4 @@ Migrate every remaining checkbox to «Selección sin checkboxes» (docs/design-s
 - L13 T6b done (worker mwlk1rem-c-s70g): employees 957/957; 9 panels on HfSectionCard (new copy «Vista rápida», «Saldo de vacaciones», «Solicitudes», counts beside headings); parent set the Personal tab gap to 16px. Left: PendingApprovalsView still UCard; Documentos expiry buttons not segmented (semantics).
 - L14 T6a done 4be5c38f (worker mwlk1rej-b-zhc3): products views/components 700/700, design-system 143; Presentaciones on HfSectionCard («Costo e impuestos», Neto/Bruto segmented), 7 HfSwitchRows, modals with titled sections. Parent: HfSwitchRow disabled by a fieldset now drops hover/shows not-allowed (CSS spec). Left → T6e: sibling components still UCard/USwitch; PendingApprovalsView UCard.
 - L15 T6c done 8d03ffad (worker mwlk26zp-e-8b22): sales/customers/chatbot components 2602 tests; AssignCustomer rows in one list with EmptyState, SaleDetail cards on HfSectionCard, customer form in section cards. New copy: «Contacto», «Direcciones», «Notas», «Datos fiscales», «Dirección de facturación» (owner to confirm). The list paint is not portal-scoped. Parent: docs now prefer HfSectionCard over UCard hooks; .sale-detail-section-title still used by PaymentsListSection (not dead).
+- L16 T6e done (worker mwlkizte-f-9vse): products + employees views 3498/3498 after the parent removed the dead UCard restyle block (product-detail.css) and .product-images-head rules, and widened the Presentaciones titles spec. Visible: catalog contexts one column of switch rows; image filter chips moved into the body; approvals dialog gains the X close.
