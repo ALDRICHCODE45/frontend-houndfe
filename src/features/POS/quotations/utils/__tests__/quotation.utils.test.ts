@@ -7,6 +7,9 @@ import {
   isCancellable,
   stepperIndexFromStatus,
   computeIva16,
+  isConvertedToSale,
+  isDeletable,
+  sumIncludedIvaCents,
 } from '../quotation.utils'
 import type { QuotationResponseDto } from '../../interfaces/quotation.types'
 
@@ -104,6 +107,35 @@ describe('quotation.utils', () => {
     })
   })
 
+  // Handoff 23 §3 / spec S5: CONVERTED_TO_SALE is terminal — not editable, sendable, cancellable
+  // or deletable; only DRAFT and CANCELLED can be deleted.
+  describe('CONVERTED_TO_SALE', () => {
+    it('reads «Convertida en venta» with a non-warning tone', () => {
+      expect(statusToLabel('CONVERTED_TO_SALE')).toBe('Convertida en venta')
+      expect(statusToTone('CONVERTED_TO_SALE')).toBe('success')
+    })
+
+    it('is not a draft (no edit, no send) and not cancellable', () => {
+      expect(isDraft('CONVERTED_TO_SALE')).toBe(false)
+      expect(isCancellable('CONVERTED_TO_SALE')).toBe(false)
+    })
+
+    it('isConvertedToSale is true only for CONVERTED_TO_SALE', () => {
+      expect(isConvertedToSale('CONVERTED_TO_SALE')).toBe(true)
+      for (const status of ['DRAFT', 'SENT', 'EXPIRED', 'CANCELLED'] as const) {
+        expect(isConvertedToSale(status)).toBe(false)
+      }
+    })
+
+    it('isDeletable is true only for DRAFT and CANCELLED', () => {
+      expect(isDeletable('DRAFT')).toBe(true)
+      expect(isDeletable('CANCELLED')).toBe(true)
+      for (const status of ['SENT', 'EXPIRED', 'CONVERTED_TO_SALE'] as const) {
+        expect(isDeletable(status)).toBe(false)
+      }
+    })
+  })
+
   // T-UI-07 — REQ-UI-003 status→step mapping. The 3-state stepper needs a
   // pure, isolated helper so the active/completed/future visual logic stays
   // in the component while the data mapping stays here in utils. The
@@ -144,9 +176,9 @@ describe('quotation.utils', () => {
     })
   })
 
-  // T-UI-12 — REQ-UI-009 client-side IVA 16% computation. The backend does
-  // NOT expose a `taxCents` field yet, so the UI computes `totalCents * 0.16`
-  // locally. This util is the SINGLE source of truth for that formula —
+  // T-UI-12 — REQ-UI-009 client-side IVA 16% estimate. The quotation's IVA
+  // comes from the response's `ivaBreakdown` (see sumIncludedIvaCents); this
+  // helper computes `totalCents * 0.16` locally. This util is the SINGLE source of truth for that formula —
   // any caller MUST import this instead of inlining the multiplication so a
   // future backend round-trip is a one-line swap.
   //
@@ -185,6 +217,57 @@ describe('quotation.utils', () => {
       expect(computeIva16(-1000)).toBe(0)
     })
   })
+
+  // T4 / S6 — docs/quotations-frontend.md §3.18: IVA incluido = sum of ivaBreakdown[].amountCents;
+  // empty or absent → null (show no IVA, never «IVA $0»). Unknown classifications are ignored.
+  describe('sumIncludedIvaCents', () => {
+    it('sums every known classification', () => {
+      expect(
+        sumIncludedIvaCents([
+          { classification: 'IVA_16', amountCents: 5000 },
+          { classification: 'IVA_8', amountCents: 360 },
+          { classification: 'IVA_0', amountCents: 0 },
+          { classification: 'IVA_EXENTO', amountCents: 0 },
+          { classification: 'NOT_TAXABLE', amountCents: 0 },
+        ]),
+      ).toBe(5360)
+    })
+
+    it('returns 0 (shown) when present lines are all zero', () => {
+      expect(sumIncludedIvaCents([{ classification: 'IVA_0', amountCents: 0 }])).toBe(0)
+    })
+
+    it('returns null when the breakdown is empty or absent', () => {
+      expect(sumIncludedIvaCents([])).toBeNull()
+      expect(sumIncludedIvaCents(undefined)).toBeNull()
+      expect(sumIncludedIvaCents(null)).toBeNull()
+    })
+
+    it('ignores entries with an unknown classification and keeps the known ones', () => {
+      const lines = [
+        { classification: 'IVA_16', amountCents: 1600 },
+        { classification: 'IVA_99', amountCents: 999 },
+      ] as unknown as Parameters<typeof sumIncludedIvaCents>[0]
+      expect(sumIncludedIvaCents(lines)).toBe(1600)
+    })
+
+    it('returns null when only unknown classifications are present', () => {
+      const lines = [{ classification: 'IVA_99', amountCents: 999 }] as unknown as Parameters<
+        typeof sumIncludedIvaCents
+      >[0]
+      expect(sumIncludedIvaCents(lines)).toBeNull()
+    })
+
+    it('ignores entries whose amountCents is not a non-negative integer', () => {
+      const lines = [
+        { classification: 'IVA_16', amountCents: 1600 },
+        { classification: 'IVA_8', amountCents: -5 },
+        { classification: 'IVA_8', amountCents: 1.5 },
+        { classification: 'IVA_8', amountCents: Number.NaN },
+      ] as unknown as Parameters<typeof sumIncludedIvaCents>[0]
+      expect(sumIncludedIvaCents(lines)).toBe(1600)
+    })
+  })
 })
 
 function makeQuotation(
@@ -203,8 +286,6 @@ function makeQuotation(
     subtotalCents: 0,
     discountCents: 0,
     totalCents: 0,
-    taxRate: null,
-    taxCents: null,
     customerNotes: null,
     manuallyEnded: false,
     items: [],

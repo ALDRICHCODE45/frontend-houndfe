@@ -45,6 +45,12 @@ import {
   type RefundSettlementRequest,
   type RefundSettlementResponse,
 } from '../interfaces/refund-settlement.types'
+// odd T3b / S5: the suppressedPromotions kept for a draft opened from a quotation follow the
+// draft's life (applied → that entry goes; charged / discarded → the whole list goes).
+import {
+  clearSuppressedPromotions,
+  forgetSuppressedPromotion,
+} from '../composables/useSuppressedPromotions'
 
 interface DomainErrorResponse {
   error?: string
@@ -194,6 +200,7 @@ export const saleApi = {
 
   async closeDraft(saleId: string): Promise<void> {
     await http.delete(`/sales/drafts/${saleId}`)
+    clearSuppressedPromotions(saleId)
   },
 
   async assignCustomer(saleId: string, payload: AssignCustomerPayload): Promise<Sale> {
@@ -245,6 +252,7 @@ export const saleApi = {
         },
       },
     )
+    clearSuppressedPromotions(saleId)
     return data
   },
 
@@ -420,12 +428,15 @@ export const saleApi = {
   },
 
   /** POST /sales/drafts/:saleId/manual-promotions/:promotionId body={}
-   * → opt-in (also un-vetoes if previously vetoed). Returns updated Sale. */
+   * → opt-in (also un-vetoes if previously vetoed). Returns updated Sale.
+   * Also the «Aplicar» of a promotion suppressed by a quotation conversion
+   * (handoff 23 §2): once the veto is cleared it leaves the stored list. */
   async applyManualPromotion(saleId: string, promotionId: string): Promise<Sale> {
     const { data } = await http.post<Sale>(
       `/sales/drafts/${saleId}/manual-promotions/${promotionId}`,
       {},
     )
+    forgetSuppressedPromotion(saleId, promotionId)
     return data
   },
 

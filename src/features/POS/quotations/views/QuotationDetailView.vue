@@ -39,6 +39,16 @@ import QuotationCancelDialog from '../components/QuotationCancelDialog.vue'
 import QuotationProgressStepper from '../components/QuotationProgressStepper.vue'
 import QuotationCustomerCard from '../components/QuotationCustomerCard.vue'
 import QuotationPromotionCard from '../components/QuotationPromotionCard.vue'
+import QuotationConvertDialog from '../components/QuotationConvertDialog.vue'
+import {
+  canConvertQuotation,
+  useConvertQuotationToSale,
+} from '../composables/useConvertQuotationToSale'
+import {
+  hasSaleLink,
+  useOpenQuotationSale,
+  type OpenQuotationSaleTarget,
+} from '../composables/useOpenQuotationSale'
 import { isExpired, statusToLabel, statusToTone } from '../utils/quotation.utils'
 
 declare const useToast: () => {
@@ -60,6 +70,10 @@ const createError = ref<unknown>(null)
 
 const canUpdateQuotation = computed(() => authStore.userCan('update', 'Quotation'))
 const canDeleteQuotation = computed(() => authStore.userCan('delete', 'Quotation'))
+// Handoff 23 §2: converting needs both permissions (403 otherwise → hide the action).
+const canConvertPermission = computed(
+  () => authStore.userCan('create', 'Sale') && authStore.userCan('update', 'Quotation'),
+)
 
 const isCreateRoute = computed(() => route.path === '/pos/cotizaciones/nueva')
 const quotationId = computed(() => {
@@ -251,43 +265,6 @@ const isProductSearchOpen = ref(false)
 // mid-edit. The mutation returns the full updated quotation, which
 // we splice into the detail + list caches so the rest of the app
 // (totals, lists, exports) sees the latest value.
-
-// T-UI-29 — IVA rate override. PATCH /quotations/drafts/:id/tax-rate
-// returns the full updated quotation with recalculated `taxRate` and
-// `taxCents`. We splice the response into the detail cache so the
-// sidebar (QuotationTotalsFooter) immediately reflects the new rate
-// and tax cents without a refetch.
-const setTaxRateMutation = useMutation<
-  QuotationResponseDto,
-  Error,
-  number,
-  { previous: QuotationResponseDto | undefined }
->({
-  mutationFn: (taxRate) => {
-    const id = quotationId.value
-    if (!id) throw new Error('Cannot update tax rate on a non-existent quotation')
-    return quotationApi.setTaxRate(id, taxRate)
-  },
-  onSuccess: (updated) => {
-    const detailKey = quotationQueryKeys.detail(tenantId.value, updated.id)
-    queryClient.setQueryData(detailKey, updated)
-    queryClient.invalidateQueries({ queryKey: detailKey })
-  },
-  onError: (error) => {
-    const err = error as { response?: { data?: { message?: string } }; message?: string }
-    const message = err.response?.data?.message ?? err.message ?? 'No se pudo actualizar el IVA'
-    useToast().add({ title: 'Error', description: message, color: 'error' })
-  },
-})
-
-/** Sidebar handler — wires QuotationTotalsFooter's `update:tax-rate`
- *  emit to the mutation. Defence-in-depth: the parent already passes
- *  `editable=isDraft`, but we double-check here so a stale UI can't
- *  bypass the DRAFT gate. */
-function handleTaxRateChange(taxRate: number): void {
-  if (!isDraft.value) return
-  setTaxRateMutation.mutate(taxRate)
-}
 
 const NOTES_MAX_LENGTH = 280
 const NOTES_SAVE_DEBOUNCE_MS = 300
@@ -776,8 +753,71 @@ function retryLoad(): void {
   else void refetch()
 }
 
-// ── Header actions (⋮ menu: cancel first, destructive last) ─────────────────
+// ── odd T3 / S4-S5: quotation → POS sale draft ──────────────────────────────
+const conversion = useConvertQuotationToSale()
+const isConvertDialogOpen = ref(false)
+
+const isConverted = computed(() => quotation.value?.status === 'CONVERTED_TO_SALE')
+/** Converted, but its sale draft was deleted from the POS (`saleId: null`): it can convert again. */
+const isSaleDiscarded = computed(() => isConverted.value && quotation.value?.saleId === null)
+
+const canConvert = computed(
+  () => !!quotation.value && canConvertPermission.value && canConvertQuotation(quotation.value),
+)
+const convertLabel = computed(() => (isSaleDiscarded.value ? 'Convertir de nuevo' : 'Convertir en venta'))
+/** DRAFT keeps «Enviar cotización» as its one primary, so there the action lives in the ⋮ menu. */
+const showConvertButton = computed(() => canConvert.value && !isDraft.value)
+
+const convertedAtFormatted = computed<string | null>(() => {
+  const at = quotation.value?.convertedAt
+  return at ? formatDate(at) : null
+})
+
+function openConvertDialog(): void {
+  if (!canConvert.value) return
+  conversion.reset()
+  isConvertDialogOpen.value = true
+}
+
+function closeConvertDialog(): void {
+  if (conversion.isPending.value) return
+  isConvertDialogOpen.value = false
+}
+
+async function handleConvertConfirm(): Promise<void> {
+  const id = quotation.value?.id
+  if (!id) return
+  const ok = await conversion.convert(id)
+  if (ok) isConvertDialogOpen.value = false
+}
+
+// odd T3b — «Ver venta» by the sale's live status (DRAFT → POS if it is mine, else a notice).
+const saleOpener = useOpenQuotationSale()
+const showSaleLink = computed(() => !!quotation.value && hasSaleLink(quotation.value))
+
+async function goToSale(target: OpenQuotationSaleTarget): Promise<void> {
+  isConvertDialogOpen.value = false
+  const opened = await saleOpener.open(target)
+  const notice = saleOpener.notice.value
+  if (!opened && notice) useToast().add({ title: notice, color: 'warning' })
+}
+
+function viewConvertedSale(): void {
+  const current = quotation.value
+  if (!current?.saleId) return
+  void goToSale({ saleId: current.saleId, saleStatus: current.saleStatus, quotationId: current.id })
+}
+
+/** QUOTATION_ALREADY_CONVERTED carries only the saleId: the status is read from the quotation. */
+function viewRejectedSale(saleId: string): void {
+  void goToSale({ saleId, quotationId: quotation.value?.id })
+}
+
+// ── Header actions (⋮ menu: convert and cancel first, destructive last) ─────
 const headerActions = computed<RowAction[]>(() => [
+  ...(canConvert.value && isDraft.value
+    ? [{ key: 'convert', label: 'Convertir en venta…', icon: 'i-lucide-shopping-cart' }]
+    : []),
   ...(isDraft.value && canUpdateQuotation.value
     ? [{ key: 'cancel', label: 'Cancelar cotización…', icon: 'i-lucide-ban' }]
     : []),
@@ -787,7 +827,8 @@ const headerActions = computed<RowAction[]>(() => [
 ])
 
 function onHeaderAction(key: string): void {
-  if (key === 'cancel') openCancelDialog()
+  if (key === 'convert') openConvertDialog()
+  else if (key === 'cancel') openCancelDialog()
   else if (key === 'delete') isDeleteConfirmOpen.value = true
 }
 </script>
@@ -859,6 +900,16 @@ function onHeaderAction(key: string): void {
               >
                 <UIcon name="i-lucide-file-text" class="h-4 w-4" />
                 <span>{{ isPdfLoading ? 'Generando…' : 'Previsualizar PDF' }}</span>
+              </button>
+              <button
+                v-if="showConvertButton"
+                type="button"
+                class="quotation-header-primary"
+                data-testid="convert-to-sale-button"
+                @click="openConvertDialog"
+              >
+                <UIcon name="i-lucide-shopping-cart" class="h-4 w-4" />
+                <span>{{ convertLabel }}</span>
               </button>
               <RowActionsMenu
                 :actions="headerActions"
@@ -938,17 +989,19 @@ function onHeaderAction(key: string): void {
           <!-- T-UI-03 — REQ-UI-002: 2-column Coco layout. The grid splits at the
                lg breakpoint into a left col-span-2 (main sections) and a right
                col-span-1 sticky sidebar (summary). Below lg, everything stacks
-               into a single column and the sticky behavior is dropped. -->
-          <div class="grid gap-4 lg:grid-cols-3" data-testid="quotation-detail-layout">
-            <div class="flex flex-col gap-4 lg:col-span-2" data-testid="quotation-detail-main">
-              <div class="grid gap-4 lg:grid-cols-3">
+               into a single column and the sticky behavior is dropped.
+               odd D3: `grid-cols-1` (minmax(0,1fr)) + `min-w-0` on every column and
+               section, else the auto track grows to nowrap min-content (overflow at 390). -->
+          <div class="grid grid-cols-1 gap-4 lg:grid-cols-3" data-testid="quotation-detail-layout">
+            <div class="flex min-w-0 flex-col gap-4 lg:col-span-2" data-testid="quotation-detail-main">
+              <div class="grid grid-cols-1 gap-4 lg:grid-cols-3" data-testid="quotation-detail-settings">
                 <!-- T-UI-16 — REQ-UI-005 customer card. Extracted into
                      QuotationCustomerCard so the avatar / email / phone /
                      "Cambiar cliente" affordance lives in one place. The card
                      is editable only in DRAFT (read-only otherwise). The
                      change-customer event opens the same AssignCustomerSlideover
                      that handled the old "Asignar cliente" button. -->
-                <section class="rounded-xl border border-default bg-default p-5">
+                <section class="min-w-0 rounded-xl border border-default bg-default p-5">
                   <p class="mb-3 text-sm font-medium text-muted">Cliente</p>
                   <QuotationCustomerCard
                     v-if="quotation.customer"
@@ -972,7 +1025,7 @@ function onHeaderAction(key: string): void {
                 </section>
 
                 <section
-                  class="rounded-xl border border-default bg-default p-5"
+                  class="min-w-0 rounded-xl border border-default bg-default p-5"
                   data-testid="price-list-section"
                 >
                   <p class="text-sm font-medium text-muted">Lista de precios</p>
@@ -1002,7 +1055,7 @@ function onHeaderAction(key: string): void {
                      same 3-col grid as Cliente + Lista so the three settings
                      share the row instead of stacking. -->
                 <section
-                  class="rounded-xl border border-default bg-default p-5"
+                  class="min-w-0 rounded-xl border border-default bg-default p-5"
                   data-testid="seller-section"
                 >
                   <p class="text-sm font-medium text-muted">Vendedor</p>
@@ -1052,7 +1105,7 @@ function onHeaderAction(key: string): void {
                    clearExpiry on the composable. -->
               <section
                 v-if="isDraft"
-                class="rounded-xl border border-default bg-default p-5"
+                class="min-w-0 rounded-xl border border-default bg-default p-5"
                 data-testid="expiry-section"
               >
                 <QuotationExpiryPicker
@@ -1068,7 +1121,7 @@ function onHeaderAction(key: string): void {
                    opens in a dedicated slideover (not inline) so the items list is
                    always visible and never hidden behind the search panel. -->
               <section
-                class="flex flex-col gap-4 rounded-xl border border-default bg-default p-5"
+                class="min-w-0 flex flex-col gap-4 rounded-xl border border-default bg-default p-5"
                 data-testid="items-section"
               >
                 <div class="flex items-center justify-between">
@@ -1118,7 +1171,7 @@ function onHeaderAction(key: string): void {
                         applies immediately on selection. The backend validates the type. -->
               <section
                 v-if="isDraft"
-                class="flex flex-col gap-4 rounded-xl border border-default bg-default p-5"
+                class="min-w-0 flex flex-col gap-4 rounded-xl border border-default bg-default p-5"
               >
                 <h2 class="text-base font-semibold text-highlighted">Promociones</h2>
 
@@ -1199,12 +1252,44 @@ function onHeaderAction(key: string): void {
                 </div>
               </section>
 
+              <!-- odd T3 / S5 — converted to sale: when, and the way to the sale. A discarded sale
+                   draft (saleId null) can be converted again from the header. -->
+              <section
+                v-if="isConverted"
+                class="min-w-0 quotation-banner"
+                data-testid="converted-banner"
+              >
+                <template v-if="isSaleDiscarded">
+                  <p class="font-semibold">Venta descartada</p>
+                  <p class="mt-1 text-muted">La venta que salió de esta cotización se eliminó.</p>
+                </template>
+                <template v-else>
+                  <p class="font-semibold">
+                    Convertida en venta<template v-if="convertedAtFormatted">
+                      el {{ convertedAtFormatted }}</template>
+                  </p>
+                  <button
+                    v-if="showSaleLink"
+                    type="button"
+                    class="quotation-inline-link mt-1"
+                    data-testid="converted-view-sale"
+                    :disabled="saleOpener.isPending.value"
+                    @click="viewConvertedSale"
+                  >Ver venta</button>
+                  <p
+                    v-if="saleOpener.notice.value"
+                    class="mt-1 text-muted"
+                    data-testid="converted-sale-notice"
+                  >{{ saleOpener.notice.value }}</p>
+                </template>
+              </section>
+
               <!-- S8 — CANCELLED detail banner (REQ-QTN-012). The backend stamps the
                    cancel reason; we surface it as a permanent notice so any saved
                    PDF copy / later access makes the cancellation traceable. -->
               <section
                 v-if="quotation?.status === 'CANCELLED' && cancelReasonLabel"
-                class="quotation-banner quotation-banner--danger"
+                class="min-w-0 quotation-banner quotation-banner--danger"
                 data-testid="cancel-reason-banner"
               >
                 <p class="font-semibold">Cotización cancelada</p>
@@ -1219,7 +1304,7 @@ function onHeaderAction(key: string): void {
                    persist this — the next GET will return status=EXPIRED for real. -->
               <section
                 v-if="isLazyExpired"
-                class="quotation-banner quotation-banner--warning"
+                class="min-w-0 quotation-banner quotation-banner--warning"
                 data-testid="lazy-expired-notice"
               >
                 <p class="font-semibold">Cotización expirada</p>
@@ -1231,7 +1316,7 @@ function onHeaderAction(key: string): void {
                    view is read-only first, and the generic notice second. -->
               <section
                 v-if="!isDraft"
-                class="rounded-xl border border-default bg-elevated p-5 text-sm text-muted"
+                class="min-w-0 rounded-xl border border-default bg-elevated p-5 text-sm text-muted"
                 data-testid="read-only-notice"
               >
                 Solo lectura. Esta cotización ya no admite cambios.
@@ -1243,7 +1328,7 @@ function onHeaderAction(key: string): void {
                  list. `lg:sticky` is no-op below lg so the sidebar flows on
                  mobile. -->
             <div
-              class="flex flex-col gap-4 lg:col-span-1 lg:sticky lg:top-4 lg:self-start"
+              class="flex min-w-0 flex-col gap-4 lg:col-span-1 lg:sticky lg:top-4 lg:self-start"
               data-testid="quotation-detail-sidebar"
             >
               <!-- T-UI-22/23 — REQ-UI-009 summary sidebar. Pass
@@ -1252,16 +1337,14 @@ function onHeaderAction(key: string): void {
                    / `save-draft` to the existing dialog + composable
                    actions. `priceListName` is optional and not yet
                    exposed by the backend, so we leave it null.
-                   T-UI-29 — the footer also accepts `update:tax-rate`
-                   so the cashier can override the IVA rate from the
-                   sidebar; we wire it to the dedicated
-                   setTaxRateMutation that hits PATCH /tax-rate. -->
+                   T4 / S6 — no IVA override: the footer only shows the
+                   IVA included from `ivaBreakdown` (PATCH /tax-rate is
+                   deprecated, docs/quotations-frontend.md §3.18). -->
               <QuotationTotalsFooter
                 :quotation="quotation"
                 :editable="isDraft && canUpdateQuotation"
                 @send="openSendDialog"
                 @save-draft="handleSaveDraftFromSidebar"
-                @update:tax-rate="handleTaxRateChange"
               />
 
               <!-- T-UI-21/22 / REQ-UI-010 — customer notes. The textarea is
@@ -1269,7 +1352,7 @@ function onHeaderAction(key: string): void {
                    backend via PATCH /quotations/drafts/:id/notes (debounced
                    300ms). Read-only when the quotation is not DRAFT. -->
               <section
-                class="flex flex-col gap-2 rounded-xl border border-default bg-default p-5"
+                class="min-w-0 flex flex-col gap-2 rounded-xl border border-default bg-default p-5"
                 data-testid="customer-notes-section"
               >
                 <div class="flex items-center justify-between">
@@ -1377,6 +1460,19 @@ function onHeaderAction(key: string): void {
             :cancel="handleCancel"
             @close="handleCancelDialogClose"
             @cancelled="handleCancelDialogClose"
+          />
+
+          <!-- odd T3 / S4 — convert to sale: confirm with the pricing rule, then the
+               rejection (if any) in Spanish. -->
+          <QuotationConvertDialog
+            :open="isConvertDialogOpen"
+            :pending="conversion.isPending.value"
+            :failure="conversion.failure.value"
+            :confirm-label="convertLabel"
+            portal-class="quotations-workspace-portal"
+            @confirm="handleConvertConfirm"
+            @close="closeConvertDialog"
+            @view-sale="viewRejectedSale"
           />
 
           <!-- Product search slideover — opens from the right, contains the
@@ -1542,6 +1638,33 @@ function onHeaderAction(key: string): void {
 .quotation-banner--danger > p:first-child { color: var(--hf-danger); }
 .quotation-banner--warning { background: var(--hf-warning-soft); }
 .quotation-banner--warning > p:first-child { color: var(--hf-warning); }
+
+.quotation-header-primary {
+  display: inline-flex;
+  min-height: var(--hf-control-height);
+  align-items: center;
+  gap: 8px;
+  border-radius: var(--hf-radius-control);
+  background: var(--hf-action);
+  padding: 0 16px;
+  color: var(--hf-on-action);
+  font-size: 14px;
+  font-weight: 600;
+}
+.quotation-header-primary:hover { filter: brightness(1.1); }
+.quotation-header-primary:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
+
+.quotation-inline-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--hf-action);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.quotation-inline-link:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
 
 .quotation-notes-counter {
   color: var(--hf-warning);

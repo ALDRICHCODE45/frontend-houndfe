@@ -42,6 +42,8 @@ const saleDetailSchema = z
     // odd sale-address-change-notice: the sale's own address (never the live one); null before
     // the field existed or for a sale without address.
     shippingAddress: SaleShippingAddressSnapshotSchema.nullish().transform((value) => value ?? null),
+    // Handoff 23 §3: present only when the sale came from a quotation; the key stays absent otherwise.
+    quotationId: z.string().optional(),
   })
   .passthrough()
 

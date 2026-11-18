@@ -569,6 +569,7 @@ watch(
               :sale="sale"
               :locked="isCanceled"
               @assign-seller="sellerSlideoverOpen = true"
+              @open-quotation="(quotationId: string) => router.push(`/pos/cotizaciones/${quotationId}`)"
             />
           </div>
           <div :class="sectionOrder.history" class="lg:order-none" data-testid="sale-detail-section-history">

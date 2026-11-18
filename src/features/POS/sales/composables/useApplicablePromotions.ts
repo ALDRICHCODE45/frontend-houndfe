@@ -14,6 +14,11 @@
 // Tenant source: useSafeTenantId — matches useSalesDrafts, useSaleComments,
 // useSellerAssignment, etc. (single tenant-resolution contract in this
 // module — NEVER reach into useAuthStore directly in composables).
+//
+// odd T3b / S5: `data` also carries the automatic promotions vetoed by a quotation → sale
+// conversion (`useSuppressedPromotions`, first, marked `suppressedFromQuotation`), so the existing
+// «Promociones disponibles» accordion offers them with «Aplicar». They are offered even while the
+// backend list is loading or failed; the cache itself keeps only the backend's response.
 import { computed, toValue } from 'vue'
 import type { MaybeRefOrGetter } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
@@ -21,6 +26,7 @@ import { saleApi } from '../api/sale.api'
 import { saleQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import type { ListApplicablePromotionsResponse } from '../interfaces/sale.types'
+import { mergeSuppressedPromotions, useSuppressedPromotions } from './useSuppressedPromotions'
 
 export function useApplicablePromotions(draftId: MaybeRefOrGetter<string | undefined>) {
   const tenantId = useSafeTenantId()
@@ -48,5 +54,15 @@ export function useApplicablePromotions(draftId: MaybeRefOrGetter<string | undef
     },
   })
 
-  return query
+  const suppressed = useSuppressedPromotions(draftId)
+  const data = computed<ListApplicablePromotionsResponse | undefined>(() => {
+    const response = query.data.value
+    if (suppressed.value.length === 0) return response
+    return {
+      saleId: response?.saleId ?? toValue(draftId) ?? '',
+      promotions: mergeSuppressedPromotions(response?.promotions ?? [], suppressed.value),
+    }
+  })
+
+  return { ...query, data }
 }

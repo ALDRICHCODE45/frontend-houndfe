@@ -260,3 +260,42 @@ describe('PromocionesDisponiblesAccordion C.3 — presentational contract', () =
     expect(wrapper.find('[data-testid="promo-hint-promo-a"]').exists()).toBe(false)
   })
 })
+// odd T3b / S5 — a promotion vetoed by the quotation → sale conversion reads why it is not applied
+// and keeps the normal «Aplicar» (which re-enables it).
+describe('PromocionesDisponiblesAccordion — suppressed by a quotation (odd T3b)', () => {
+  it('shows «No aplicada por venir de una cotización» under a suppressed promotion only', async () => {
+    const { mergeSuppressedPromotions } = await import('../../composables/useSuppressedPromotions')
+    const promotions = mergeSuppressedPromotions(makePromotions(), [
+      { promotionId: 'auto-1', title: null },
+    ])
+    const wrapper = mountAccordion({ promotions })
+
+    expect(wrapper.find('[data-testid="promo-title-auto-1"]').text()).toBe('Promoción')
+    expect(wrapper.find('[data-testid="promo-suppressed-note-auto-1"]').text()).toBe(
+      'No aplicada por venir de una cotización',
+    )
+    expect(wrapper.find('[data-testid="promo-suppressed-note-promo-a"]').exists()).toBe(false)
+
+    await wrapper.find('[data-testid="promo-apply-auto-1"]').trigger('click')
+    expect(wrapper.emitted('apply')).toEqual([['auto-1']])
+  })
+})
+
+// odd D1 — the accordion is documented as «default-open» but loaded collapsed because
+// `type="single"` received an array `default-value`. The rows (and the suppressed
+// «No aplicada por venir de una cotización · Aplicar») must be open on first paint, no click.
+describe('PromocionesDisponiblesAccordion — opens on first paint (odd D1)', () => {
+  it('renders the trigger expanded and the content open without any click', async () => {
+    const { mergeSuppressedPromotions } = await import('../../composables/useSuppressedPromotions')
+    const promotions = mergeSuppressedPromotions(makePromotions(), [
+      { promotionId: 'auto-1', title: 'Buen Fin' },
+    ])
+    const wrapper = mountAccordion({ promotions })
+
+    const trigger = wrapper.find('[data-slot="trigger"]')
+    expect(trigger.attributes('aria-expanded')).toBe('true')
+    const item = wrapper.find('[data-slot="item"]')
+    expect(item.attributes('data-state')).toBe('open')
+    expect(item.find('[data-testid="promo-suppressed-note-auto-1"]').isVisible()).toBe(true)
+  })
+})

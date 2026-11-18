@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { AxiosError } from 'axios'
 import { useQueryClient } from '@tanstack/vue-query'
+import { useRouter } from 'vue-router'
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import { useSalesDrafts } from '../composables/useSalesDrafts'
 import { useApplicablePromotions } from '../composables/useApplicablePromotions'
@@ -13,6 +14,9 @@ import PaymentModal from '../components/PaymentModal.vue'
 import PromotionCapacityRequoteModal from '../components/PromotionCapacityRequoteModal.vue'
 import PaymentSuccessModal from '../components/PaymentSuccessModal.vue'
 import AssignCustomerSlideover from '../components/AssignCustomerSlideover.vue'
+import SaleToQuotationModal from '../components/SaleToQuotationModal.vue'
+import { useSaleToQuotationPermission } from '../composables/useSaleToQuotation'
+import type { CreateQuotationFromSaleResponse } from '@/features/POS/quotations/interfaces/quotation.types'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import AppResponsiveDrawer from '@/core/shared/components/AppResponsiveDrawer.vue'
@@ -50,6 +54,7 @@ declare const useToast: () => {
     title: string
     description?: string
     color?: 'success' | 'error' | 'warning' | 'primary' | 'neutral'
+    actions?: Array<{ label: string; onClick?: () => void }>
   }) => void
 }
 
@@ -71,6 +76,7 @@ const CUSTOMER_PORTAL_CLASS = `${ENTRY_PORTAL_CLASS} sales-pos-customer`
 const toast = useToast()
 const queryClient = useQueryClient()
 const tenantId = useSafeTenantId()
+const router = useRouter()
 
 const {
   drafts,
@@ -180,13 +186,69 @@ function formatCents(cents: number): string {
 
 function openCartDrawer() {
   pendingCartCharge.value = false
+  pendingCartQuotation.value = false
   cartDrawerOpen.value = true
 }
 
 function handleCartAfterLeave() {
+  if (pendingCartQuotation.value) {
+    pendingCartQuotation.value = false
+    quotationDialogOpen.value = true
+    return
+  }
   if (!pendingCartCharge.value) return
   pendingCartCharge.value = false
   paymentModalOpen.value = true
+}
+
+// ── T2 (quotation-sale-conversion, S1 + S3): sale draft → quotation ────────
+// One dialog for both cart instances. The sale id is captured when it opens,
+// so the dialog survives the tab closing on success. Inside the mobile cart
+// the sheet closes first (no stacked overlays), like the charge flow.
+const canConvertToQuotation = useSaleToQuotationPermission()
+const quotationDialogOpen = ref(false)
+const quotationDialogSaleId = ref<string | null>(null)
+const quotationDialogItemCount = ref(0)
+const pendingCartQuotation = ref(false)
+
+function openSaleToQuotation() {
+  const draft = activeDraft.value
+  if (!canConvertToQuotation.value || !draft || draft.items.length === 0 || isMutating.value) return
+  quotationDialogSaleId.value = draft.id
+  quotationDialogItemCount.value = draft.items.length
+  if (cartDrawerOpen.value) {
+    pendingCartCharge.value = false
+    pendingCartQuotation.value = true
+    cartDrawerOpen.value = false
+    return
+  }
+  quotationDialogOpen.value = true
+}
+
+function openQuotation(quotationId: string) {
+  void router.push({ name: 'pos-quotation-detail', params: { id: quotationId } })
+}
+
+// The draft no longer exists (the composable already dropped it from the
+// drafts cache): close its tab the way a discarded draft closes. When the
+// cashier stays in the POS (a dropped-adjustments summary is showing) and no
+// sale is left, open a fresh one; when the quotation opens right away, the
+// POS creates it on the next visit.
+async function handleQuotationCreated(result: CreateQuotationFromSaleResponse) {
+  const remaining = drafts.value.filter((draft) => draft.id !== result.discardedSaleId)
+  if (activeTabId.value === result.discardedSaleId) {
+    activeTabId.value = remaining[0]?.id ?? null
+  }
+  const staying = result.droppedAdjustments.length > 0
+  toast.add({
+    title: 'Cotización creada',
+    description: 'La venta se guardó como cotización.',
+    color: 'success',
+    ...(staying
+      ? { actions: [{ label: 'Abrir cotización', onClick: () => openQuotation(result.quotation.id) }] }
+      : {}),
+  })
+  if (staying && remaining.length === 0) await handleCreateTab()
 }
 
 const isChargeTemporarilyBlocked = computed(() => Date.now() < inFlightUntil.value)
@@ -233,42 +295,73 @@ let initDone = false
 
 const itemImageMap = ref<Record<string, string>>({})
 
+// odd D6: the tab another screen asked for («Convertir en venta», «Ver venta» write the draft id
+// to `POS_ACTIVE_TAB_STORAGE_KEY` and open this route). Read once, when this view starts without a
+// tab. Rule: the requested id wins as soon as it is in the drafts list; while it is not, nothing
+// else is selected (a stale cached list must not open another draft) and the list is reread once;
+// only when that fresh read confirms it is absent does the normal fallback (first draft) apply.
+let requestedTabId: string | null = activeTabId.value
+  ? null
+  : localStorage.getItem(POS_ACTIVE_TAB_STORAGE_KEY)
+let requestedTabCheck: 'idle' | 'reading' | 'done' = 'idle'
+
+async function confirmRequestedTab() {
+  requestedTabCheck = 'reading'
+  try {
+    await refetchDrafts()
+  } catch {
+    // A failed read cannot confirm the draft: fall back below like an absent one.
+  }
+  requestedTabCheck = 'done'
+  await syncActiveTab(drafts.value)
+}
+
 // Restore active tab and hydrate images whenever drafts become available
 // This handles: initial load, page refresh, AND navigating back to this route
-watch(
-  drafts,
-  async (currentDrafts) => {
-    // Skip while still loading
-    if (isLoadingList.value) return
+async function syncActiveTab(currentDrafts: Sale[]) {
+  // Skip while still loading
+  if (isLoadingList.value) return
 
-    if (currentDrafts.length === 0 && !initDone) {
-      initDone = true
-      try {
-        await openNewTab()
-      } catch (error) {
-        const err = error as AxiosError<DomainApiError>
-        const message = err.response?.data?.message ?? 'No se pudo crear la venta inicial'
-        toast.add({ title: 'Error', description: message, color: 'error' })
-      }
+  if (requestedTabId) {
+    if (currentDrafts.some((d) => d.id === requestedTabId)) {
+      activeTabId.value = requestedTabId
+      requestedTabId = null
+    } else if (requestedTabCheck !== 'done') {
+      if (requestedTabCheck === 'idle') void confirmRequestedTab()
       return
+    } else {
+      requestedTabId = null
     }
+  }
 
-    // Restore active tab from localStorage (or pick first)
-    if (!activeTabId.value || !currentDrafts.some((d) => d.id === activeTabId.value)) {
-      const storedTabId = localStorage.getItem(POS_ACTIVE_TAB_STORAGE_KEY)
-      const validStoredTab = storedTabId && currentDrafts.some((d) => d.id === storedTabId)
-      activeTabId.value = validStoredTab ? storedTabId : (currentDrafts[0]?.id ?? null)
-    }
-
+  if (currentDrafts.length === 0 && !initDone) {
     initDone = true
-
-    // Hydrate images for cart items that don't have one
-    if (currentDrafts.length > 0) {
-      void hydrateItemImages(currentDrafts)
+    try {
+      await openNewTab()
+    } catch (error) {
+      const err = error as AxiosError<DomainApiError>
+      const message = err.response?.data?.message ?? 'No se pudo crear la venta inicial'
+      toast.add({ title: 'Error', description: message, color: 'error' })
     }
-  },
-  { immediate: true },
-)
+    return
+  }
+
+  // Restore active tab from localStorage (or pick first)
+  if (!activeTabId.value || !currentDrafts.some((d) => d.id === activeTabId.value)) {
+    const storedTabId = localStorage.getItem(POS_ACTIVE_TAB_STORAGE_KEY)
+    const validStoredTab = storedTabId && currentDrafts.some((d) => d.id === storedTabId)
+    activeTabId.value = validStoredTab ? storedTabId : (currentDrafts[0]?.id ?? null)
+  }
+
+  initDone = true
+
+  // Hydrate images for cart items that don't have one
+  if (currentDrafts.length > 0) {
+    void hydrateItemImages(currentDrafts)
+  }
+}
+
+watch(drafts, syncActiveTab, { immediate: true })
 
 // Watch activeTabId and persist to localStorage
 watch(activeTabId, (id) => {
@@ -1022,7 +1115,9 @@ async function handleChangePriceList(globalPriceListId: string | null) {
               :on-remove-item="handleRemoveItem"
               :on-apply-global-discount="handleApplyGlobalDiscount"
               :on-remove-global-discount="handleRemoveGlobalDiscount"
+              :can-convert-to-quotation="canConvertToQuotation"
               @charge-click="openPaymentModal"
+              @convert-to-quotation="openSaleToQuotation"
               @open-customer-assignment="handleOpenCustomerAssignment"
               @unassign-customer="handleUnassignCustomer"
               @remove-order-promo="handleVetoRequest"
@@ -1112,7 +1207,9 @@ async function handleChangePriceList(globalPriceListId: string | null) {
               :on-remove-item="handleRemoveItem"
               :on-apply-global-discount="handleApplyGlobalDiscount"
               :on-remove-global-discount="handleRemoveGlobalDiscount"
+              :can-convert-to-quotation="canConvertToQuotation"
               @charge-click="openPaymentModal"
+              @convert-to-quotation="openSaleToQuotation"
               @open-customer-assignment="handleOpenCustomerAssignment"
               @unassign-customer="handleUnassignCustomer"
               @remove-order-promo="handleVetoRequest"
@@ -1183,6 +1280,17 @@ async function handleChangePriceList(globalPriceListId: string | null) {
       :payment-status="latestChargeSuccess.paymentStatus"
       :confirmed-at="latestChargeSuccess.confirmedAt"
       :portal-class="ENTRY_PORTAL_CLASS"
+    />
+
+    <!-- T2 (quotation-sale-conversion): «Pasar a cotización». One instance
+         for the desktop and mobile carts; it keeps the captured sale id. -->
+    <SaleToQuotationModal
+      v-model:open="quotationDialogOpen"
+      :sale-id="quotationDialogSaleId"
+      :item-count="quotationDialogItemCount"
+      :portal-class="ENTRY_PORTAL_CLASS"
+      @converted="(result) => void handleQuotationCreated(result)"
+      @open-quotation="openQuotation"
     />
 
     <!-- promotions-in-sale C.5: auto-promo veto confirmation.

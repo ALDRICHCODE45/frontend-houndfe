@@ -280,3 +280,31 @@ describe('SaleDetailSalesDataCard — shipping address (odd sale-address-change-
     }
   })
 })
+
+// odd quotation-sale-conversion T3: a sale that came from a quotation says so, with a way back.
+describe('SaleDetailSalesDataCard — «Desde cotización» (T3 / S1)', () => {
+  it('shows «Desde cotización» with «Ver cotización» that emits open-quotation', async () => {
+    const wrapper = mountWithUApp(SaleDetailSalesDataCard, {
+      props: { sale: { ...baseSale, quotationId: 'q-1' } },
+      global: { stubs: globalStubs },
+    })
+    await nextTick()
+
+    const fact = wrapper.get('[data-testid="reflow-quotation"]')
+    expect(fact.get('dt').text()).toBe('Desde cotización')
+    const link = fact.get('[data-testid="open-quotation"]')
+    expect(link.text()).toBe('Ver cotización')
+    await link.trigger('click')
+    expect(wrapper.emitted('open-quotation')).toEqual([['q-1']])
+  })
+
+  it('a sale without quotationId shows nothing about quotations', async () => {
+    const wrapper = mountWithUApp(SaleDetailSalesDataCard, {
+      props: { sale: baseSale },
+      global: { stubs: globalStubs },
+    })
+    await nextTick()
+    expect(wrapper.find('[data-testid="reflow-quotation"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('cotización')
+  })
+})

@@ -45,7 +45,6 @@ const state = {
 const quotationApiMock = vi.hoisted(() => ({
   getPdfBlob: vi.fn(),
   updateNotes: vi.fn(),
-  setTaxRate: vi.fn(),
   deleteQuotation: vi.fn(),
   setSeller: vi.fn(),
 }))
@@ -146,6 +145,54 @@ vi.mock('../../composables/useQuotationDraft', () => ({
   }),
 }))
 
+// odd T3 — quotation → sale. The view drives the composable; its state is controlled here.
+const convertMock = vi.hoisted(() => ({
+  convert: vi.fn(),
+  pending: { value: false },
+  failure: { value: null as unknown },
+  reset: vi.fn(),
+}))
+
+vi.mock('../../composables/useConvertQuotationToSale', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../composables/useConvertQuotationToSale')>()
+  const { computed: vueComputed, ref: vueRef } = await import('vue')
+  return {
+    ...actual,
+    useConvertQuotationToSale: () => {
+      const failure = vueRef(convertMock.failure.value)
+      convertMock.failure = failure as unknown as { value: unknown }
+      const pending = vueRef(convertMock.pending.value)
+      convertMock.pending = pending as unknown as { value: boolean }
+      return {
+        convert: convertMock.convert,
+        isPending: vueComputed(() => pending.value),
+        failure,
+        reset: convertMock.reset,
+      }
+    },
+  }
+})
+
+// odd T3b — «Ver venta» resolution is unit-tested in useOpenQuotationSale.test.ts; the view only
+// passes the right target and surfaces the notice.
+const openSaleMock = vi.hoisted(() => ({
+  open: vi.fn(),
+  notice: { value: null as string | null },
+}))
+
+vi.mock('../../composables/useOpenQuotationSale', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../composables/useOpenQuotationSale')>()
+  const { computed: vueComputed, ref: vueRef } = await import('vue')
+  return {
+    ...actual,
+    useOpenQuotationSale: () => {
+      const notice = vueRef<string | null>(null)
+      openSaleMock.notice = notice
+      return { open: openSaleMock.open, notice, isPending: vueComputed(() => false) }
+    },
+  }
+})
+
 const availablePromotionsMock = vi.hoisted(() => ({
   manual: { promotions: [] as PromotionResponse[], isLoading: false, isError: false },
   automatic: { promotions: [] as PromotionResponse[], isLoading: false, isError: false },
@@ -205,8 +252,7 @@ function makeQuotation(overrides: Partial<QuotationResponseDto> = {}): Quotation
     subtotalCents: 0,
     discountCents: 0,
     totalCents: 0,
-    taxRate: null,
-    taxCents: null,
+    ivaBreakdown: [],
     customerNotes: null,
     manuallyEnded: false,
     items: [],
@@ -397,6 +443,22 @@ const stubs = {
     template:
       '<div v-if="open" data-testid="quotation-send-dialog"><button data-testid="send-dialog-stub-confirm" type="button" @click="(async () => { await send(true); $emit(\'sent\') })()">stub-send</button><button data-testid="send-dialog-stub-close" type="button" @click="$emit(\'close\')">stub-close</button></div>',
   },
+  QuotationConvertDialog: {
+    props: ['open', 'pending', 'failure', 'confirmLabel', 'portalClass'],
+    emits: ['confirm', 'close', 'view-sale'],
+    template: `
+      <div
+        v-if="open"
+        data-testid="quotation-convert-dialog"
+        :data-failure="failure?.code ?? ''"
+        :data-confirm-label="confirmLabel"
+      >
+        <button data-testid="convert-dialog-stub-confirm" type="button" @click="$emit('confirm')">stub-convert</button>
+        <button data-testid="convert-dialog-stub-close" type="button" @click="$emit('close')">stub-close</button>
+        <button data-testid="convert-dialog-stub-view-sale" type="button" @click="$emit('view-sale', failure?.saleId)">stub-view-sale</button>
+      </div>
+    `,
+  },
   QuotationCancelDialog: {
     props: ['quotation', 'open', 'cancel'],
     emits: ['close', 'cancelled'],
@@ -503,7 +565,6 @@ beforeEach(() => {
   state.isMutating.value = false
   quotationApiMock.getPdfBlob.mockReset()
   quotationApiMock.updateNotes.mockReset()
-  quotationApiMock.setTaxRate.mockReset()
   quotationApiMock.deleteQuotation.mockReset()
   quotationApiMock.setSeller.mockReset().mockResolvedValue(makeQuotation())
   productApiMock.getGlobalPriceLists.mockReset()
@@ -521,6 +582,11 @@ beforeEach(() => {
   route.params = { id: 'quotation-12345678' }
   route.query = {}
   routerPush.mockReset()
+  convertMock.convert.mockReset().mockResolvedValue(true)
+  openSaleMock.open.mockReset().mockResolvedValue(true)
+  convertMock.reset.mockReset()
+  convertMock.pending = { value: false }
+  convertMock.failure = { value: null }
 })
 
 describe('QuotationDetailView header', () => {
@@ -1287,89 +1353,34 @@ describe('QuotationDetailView — customer notes backend persistence (T-UI-21/22
   })
 })
 
-// T-UI-29 — IVA rate override wiring. The QuotationTotalsFooter stub
-// exposes two buttons that simulate the cashier picking a new rate;
-// the view must call quotationApi.setTaxRate with the chosen number,
-// splice the response into the detail cache, and refuse to call the
-// API when the quotation is not DRAFT.
-describe('QuotationDetailView — tax rate override (T-UI-29)', () => {
-  it('calls quotationApi.setTaxRate when the footer emits update:tax-rate in DRAFT', async () => {
-    state.quotation.value = makeQuotation({ taxRate: 0.16, taxCents: 1600 })
-    quotationApiMock.setTaxRate.mockResolvedValue(makeQuotation({ taxRate: 0.08, taxCents: 800 }))
-
+// T4 / S6 — the per-quotation IVA override is deprecated (docs/quotations-frontend.md §3.18:
+// «no uses este endpoint ni muestres un selector de tasa de IVA»). The view no longer wires
+// `update:tax-rate` and `quotationApi` has no tax-rate call, so a stray emit mutates nothing.
+describe('QuotationDetailView — no tax-rate override (T4 / S6)', () => {
+  it('mutates nothing when the footer emits a stray update:tax-rate', async () => {
+    state.quotation.value = makeQuotation()
     const wrapper = mountView()
     await flushPromises()
 
     await wrapper.get('[data-testid="stub-summary-iva-set"]').trigger('click')
-    await flushPromises()
-
-    expect(quotationApiMock.setTaxRate).toHaveBeenCalledTimes(1)
-    expect(quotationApiMock.setTaxRate).toHaveBeenCalledWith('quotation-12345678', 0.08)
-  })
-
-  it('forwards a 0 (Exento) selection to setTaxRate', async () => {
-    state.quotation.value = makeQuotation({ taxRate: 0.16, taxCents: 1600 })
-    quotationApiMock.setTaxRate.mockResolvedValue(makeQuotation({ taxRate: 0, taxCents: 0 }))
-
-    const wrapper = mountView()
-    await flushPromises()
-
     await wrapper.get('[data-testid="stub-summary-iva-set-exento"]').trigger('click')
     await flushPromises()
 
-    expect(quotationApiMock.setTaxRate).toHaveBeenCalledWith('quotation-12345678', 0)
+    for (const fn of Object.values(quotationApiMock)) expect(fn).not.toHaveBeenCalled()
+    expect(toastCalls).toEqual([])
   })
 
-  it('does NOT call setTaxRate when the status is not DRAFT', async () => {
-    state.quotation.value = makeQuotation({ status: 'SENT', taxRate: 0.16, taxCents: 1600 })
+  it('passes the quotation (with its ivaBreakdown) to the summary untouched', async () => {
+    const quotation = {
+      ...makeQuotation(),
+      ivaBreakdown: [{ classification: 'IVA_16', amountCents: 1600 }],
+    } as QuotationResponseDto
+    state.quotation.value = quotation
     const wrapper = mountView()
     await flushPromises()
 
-    // The footer stub gates the button on `editable`; in SENT the button
-    // doesn't exist, so we also assert that the view's handler short-
-    // circuits. Both layers must keep the SENT view immutable.
-    expect(wrapper.find('[data-testid="stub-summary-iva-set"]').exists()).toBe(false)
-    expect(quotationApiMock.setTaxRate).not.toHaveBeenCalled()
-  })
-
-  it('toasts an error message when setTaxRate rejects', async () => {
-    state.quotation.value = makeQuotation({ taxRate: 0.16, taxCents: 1600 })
-    quotationApiMock.setTaxRate.mockRejectedValueOnce({
-      response: { status: 409, data: { message: 'QUOTATION_NOT_DRAFT' } },
-    })
-
-    const wrapper = mountView()
-    await flushPromises()
-    await wrapper.get('[data-testid="stub-summary-iva-set"]').trigger('click')
-    await flushPromises()
-
-    // The view's onError surfaces the backend's `message` field in the toast
-    // description so the cashier sees the real reason (e.g. QUOTATION_NOT_DRAFT).
-    expect(toastCalls).toContainEqual(
-      expect.objectContaining({
-        title: 'Error',
-        description: 'QUOTATION_NOT_DRAFT',
-        color: 'error',
-      }),
-    )
-  })
-
-  it('falls back to a generic message when the backend error has no message', async () => {
-    state.quotation.value = makeQuotation({ taxRate: 0.16, taxCents: 1600 })
-    quotationApiMock.setTaxRate.mockRejectedValueOnce(new Error('boom'))
-
-    const wrapper = mountView()
-    await flushPromises()
-    await wrapper.get('[data-testid="stub-summary-iva-set"]').trigger('click')
-    await flushPromises()
-
-    expect(toastCalls).toContainEqual(
-      expect.objectContaining({
-        title: 'Error',
-        description: 'boom',
-        color: 'error',
-      }),
-    )
+    const footer = wrapper.findComponent(QuotationTotalsFooter)
+    expect(footer.props('quotation')).toStrictEqual(quotation)
   })
 })
 
@@ -2466,11 +2477,12 @@ describe('QuotationDetailView — page states (S10)', () => {
     expect(state.refetch).toHaveBeenCalledTimes(1)
   })
 
-  it('menu: cancel comes first and delete is the destructive item', () => {
+  it('menu: convert and cancel come first and delete is the destructive item, last', () => {
     const wrapper = mountView()
     const items = wrapper.findAll('[data-testid="header-actions-menu"] button')
-    expect(items.map((item) => item.attributes('data-action'))).toEqual(['cancel', 'delete'])
-    expect(items[1]!.attributes('data-destructive')).toBe('true')
+    // odd T3: a draft's «Convertir en venta…» joins the menu (its one primary is «Enviar»).
+    expect(items.map((item) => item.attributes('data-action'))).toEqual(['convert', 'cancel', 'delete'])
+    expect(items[2]!.attributes('data-destructive')).toBe('true')
   })
 })
 
@@ -2557,5 +2569,264 @@ describe('QuotationDetailView — review round 1', () => {
     state.quotation.value = makeQuotation({ vetoedPromotionIds: ['promo-9'] })
     const wrapper = mountView()
     expect(wrapper.get('[data-testid="vetoed-promo-promo-9"]').text()).not.toContain('>')
+  })
+})
+
+// ─── odd T3 — quotation → sale (S1, S4, S5) ──────────────────────────────────
+describe('QuotationDetailView — «Convertir en venta» (T3 / S4)', () => {
+  function allowOnly(granted: Array<[string, string]>): void {
+    authMock.userCan.mockImplementation((action: string, subject: string) =>
+      granted.some(([a, s]) => a === action && s === subject),
+    )
+  }
+
+  it('SENT: the header primary «Convertir en venta» opens the confirm dialog', async () => {
+    state.quotation.value = makeQuotation({ status: 'SENT', effectiveStatus: 'SENT', expiresAt: null })
+    const wrapper = mountView()
+    await flushPromises()
+
+    const button = wrapper.get('[data-testid="convert-to-sale-button"]')
+    expect(button.text()).toContain('Convertir en venta')
+    expect(wrapper.find('[data-testid="quotation-convert-dialog"]').exists()).toBe(false)
+    await button.trigger('click')
+    expect(wrapper.get('[data-testid="quotation-convert-dialog"]').attributes('data-confirm-label')).toBe(
+      'Convertir en venta',
+    )
+  })
+
+  it('confirming calls convert with the quotation id', async () => {
+    state.quotation.value = makeQuotation({ status: 'SENT', effectiveStatus: 'SENT', expiresAt: null })
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="convert-to-sale-button"]').trigger('click')
+    await wrapper.get('[data-testid="convert-dialog-stub-confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(convertMock.convert).toHaveBeenCalledWith('quotation-12345678')
+  })
+
+  it('DRAFT: «Convertir en venta…» lives in the ⋮ menu (the summary keeps the one primary)', async () => {
+    state.quotation.value = makeQuotation({ expiresAt: null })
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="convert-to-sale-button"]').exists()).toBe(false)
+    const item = wrapper.get('[data-testid="header-actions-menu"] [data-action="convert"]')
+    expect(item.text()).toBe('Convertir en venta…')
+    await item.trigger('click')
+    expect(wrapper.find('[data-testid="quotation-convert-dialog"]').exists()).toBe(true)
+  })
+
+  it('needs create:Sale AND update:Quotation', async () => {
+    for (const granted of [
+      [['update', 'Quotation']],
+      [['create', 'Sale']],
+    ] as Array<Array<[string, string]>>) {
+      allowOnly(granted)
+      for (const status of ['DRAFT', 'SENT'] as const) {
+        state.quotation.value = makeQuotation({ status, effectiveStatus: status, expiresAt: null })
+        const wrapper = mountView()
+        await flushPromises()
+        expect(wrapper.find('[data-testid="convert-to-sale-button"]').exists()).toBe(false)
+        expect(wrapper.find('[data-action="convert"]').exists()).toBe(false)
+        wrapper.unmount()
+      }
+    }
+  })
+
+  it.each(['EXPIRED', 'CANCELLED'] as const)('%s offers no conversion', async (status) => {
+    state.quotation.value = makeQuotation({ status, effectiveStatus: status, expiresAt: null })
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="convert-to-sale-button"]').exists()).toBe(false)
+    expect(wrapper.find('[data-action="convert"]').exists()).toBe(false)
+  })
+
+  it('a rejection reaches the dialog and «Ver venta» opens its sale (status read from the quotation)', async () => {
+    state.quotation.value = makeQuotation({ status: 'SENT', effectiveStatus: 'SENT', expiresAt: null })
+    convertMock.convert.mockImplementation(async () => {
+      convertMock.failure.value = { code: 'QUOTATION_ALREADY_CONVERTED', saleId: 'sale-7' }
+      return false
+    })
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="convert-to-sale-button"]').trigger('click')
+    await wrapper.get('[data-testid="convert-dialog-stub-confirm"]').trigger('click')
+    await flushPromises()
+
+    const dialog = wrapper.get('[data-testid="quotation-convert-dialog"]')
+    expect(dialog.attributes('data-failure')).toBe('QUOTATION_ALREADY_CONVERTED')
+    await wrapper.get('[data-testid="convert-dialog-stub-view-sale"]').trigger('click')
+    expect(openSaleMock.open).toHaveBeenCalledWith({
+      saleId: 'sale-7',
+      quotationId: 'quotation-12345678',
+    })
+    expect(wrapper.find('[data-testid="quotation-convert-dialog"]').exists()).toBe(false)
+  })
+
+  it('opening the dialog again clears the previous rejection', async () => {
+    state.quotation.value = makeQuotation({ status: 'SENT', effectiveStatus: 'SENT', expiresAt: null })
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="convert-to-sale-button"]').trigger('click')
+    expect(convertMock.reset).toHaveBeenCalled()
+  })
+})
+
+describe('QuotationDetailView — converted to sale is read-only (T3 / S5)', () => {
+  const convertedAt = '2026-11-18T18:04:05.123Z'
+  const expectedDate = new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(
+    new Date(convertedAt),
+  )
+
+  function converted(
+    saleId: string | null,
+    saleStatus: QuotationResponseDto['saleStatus'] = saleId ? 'DRAFT' : null,
+  ) {
+    return makeQuotation({
+      status: 'CONVERTED_TO_SALE',
+      effectiveStatus: 'CONVERTED_TO_SALE',
+      saleId,
+      saleStatus,
+      convertedAt,
+      expiresAt: null,
+    })
+  }
+
+  it.each(['DRAFT', 'CONFIRMED', 'CANCELED'] as const)(
+    'says «Convertida en venta el <fecha>» and «Ver venta» opens the %s sale by its status',
+    async (saleStatus) => {
+      state.quotation.value = converted('sale-9', saleStatus)
+      const wrapper = mountView()
+      await flushPromises()
+
+      const banner = wrapper.get('[data-testid="converted-banner"]')
+      expect(banner.text()).toContain(`Convertida en venta el ${expectedDate}`)
+      await banner.get('[data-testid="converted-view-sale"]').trigger('click')
+      expect(openSaleMock.open).toHaveBeenCalledWith({
+        saleId: 'sale-9',
+        saleStatus,
+        quotationId: 'quotation-12345678',
+      })
+    },
+  )
+
+  it('a DRAFT of another cashier: «Ver venta» shows the in-progress notice', async () => {
+    const notice = 'La venta está en curso en el punto de venta de quien la convirtió.'
+    openSaleMock.open.mockImplementation(async () => {
+      openSaleMock.notice.value = notice
+      return false
+    })
+    state.quotation.value = converted('sale-9', 'DRAFT')
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="converted-view-sale"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="converted-sale-notice"]').text()).toBe(notice)
+    expect(toastCalls).toContainEqual({ title: notice, color: 'warning' })
+    expect(routerPush).not.toHaveBeenCalled()
+  })
+
+  it('saleStatus null with a saleId: no «Ver venta» link', async () => {
+    state.quotation.value = converted('sale-9', null)
+    const wrapper = mountView()
+    await flushPromises()
+
+    const banner = wrapper.get('[data-testid="converted-banner"]')
+    expect(banner.text()).toContain('Convertida en venta')
+    expect(banner.find('[data-testid="converted-view-sale"]').exists()).toBe(false)
+  })
+
+  it('hides edit, send, cancel, delete and conversion; keeps the PDF', async () => {
+    state.quotation.value = converted('sale-9')
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="summary-send-btn"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="add-product-button"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="expiry-section"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="mobile-action-bar"]').exists()).toBe(false)
+    expect(wrapper.find('[data-action="cancel"]').exists()).toBe(false)
+    expect(wrapper.find('[data-action="delete"]').exists()).toBe(false)
+    expect(wrapper.find('[data-action="convert"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="convert-to-sale-button"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="preview-pdf-button"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="customer-notes-textarea"]').attributes('readonly')).toBeDefined()
+  })
+
+  it('shows the converted badge and the stepper ends on «Convertida en venta»', async () => {
+    state.quotation.value = converted('sale-9')
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="status-badge"]').text()).toBe('Convertida en venta')
+    expect(wrapper.get('[data-testid="stepper-step-2"]').text()).toContain('Convertida en venta')
+    expect(wrapper.get('[data-testid="stepper-step-2"]').attributes('data-state')).toBe('completed')
+  })
+
+  it('sale discarded (saleId null): «Venta descartada» and «Convertir de nuevo»', async () => {
+    state.quotation.value = converted(null)
+    const wrapper = mountView()
+    await flushPromises()
+
+    const banner = wrapper.get('[data-testid="converted-banner"]')
+    expect(banner.text()).toContain('Venta descartada')
+    expect(banner.find('[data-testid="converted-view-sale"]').exists()).toBe(false)
+    const button = wrapper.get('[data-testid="convert-to-sale-button"]')
+    expect(button.text()).toContain('Convertir de nuevo')
+    await button.trigger('click')
+    expect(wrapper.get('[data-testid="quotation-convert-dialog"]').attributes('data-confirm-label')).toBe(
+      'Convertir de nuevo',
+    )
+  })
+})
+
+// odd D3 — at 390 the detail scroller held content 527–748px wide: the grids had no
+// mobile track (auto track grows to the min-content of nowrap children) and the
+// columns / sections had no `min-w-0`. One column below lg, and every column and
+// section may shrink, on every status.
+describe('QuotationDetailView — one shrinkable column below lg (odd D3)', () => {
+  it.each([
+    ['DRAFT', {}],
+    ['SENT', {}],
+    ['CANCELLED', { cancelReason: 'CUSTOMER_REQUEST' }],
+    [
+      'CONVERTED_TO_SALE',
+      { saleId: 'sale-9', saleStatus: 'DRAFT', convertedAt: '2026-11-18T18:04:05.123Z', expiresAt: null },
+    ],
+  ] as const)('%s: grids are grid-cols-1 below lg and every column/section has min-w-0', async (status, extra) => {
+    state.quotation.value = makeQuotation({
+      status,
+      effectiveStatus: status,
+      ...(extra as Partial<QuotationResponseDto>),
+    })
+    const wrapper = mountView()
+    await flushPromises()
+
+    const layout = wrapper.find('[data-testid="quotation-detail-layout"]')
+    expect(layout.classes()).toEqual(expect.arrayContaining(['grid', 'grid-cols-1', 'lg:grid-cols-3']))
+
+    const settings = wrapper.find('[data-testid="quotation-detail-settings"]')
+    expect(settings.exists()).toBe(true)
+    expect(settings.classes()).toEqual(expect.arrayContaining(['grid', 'grid-cols-1', 'lg:grid-cols-3']))
+
+    for (const id of ['quotation-detail-main', 'quotation-detail-sidebar']) {
+      expect(wrapper.find(`[data-testid="${id}"]`).classes(), id).toContain('min-w-0')
+    }
+
+    // The view's own sections: direct children of the settings grid, main and sidebar.
+    const sections = ['quotation-detail-settings', 'quotation-detail-main', 'quotation-detail-sidebar'].flatMap(
+      (id) => Array.from(wrapper.find(`[data-testid="${id}"]`).element.querySelectorAll(':scope > section')),
+    )
+    expect(sections.length).toBeGreaterThan(3)
+    for (const section of sections) {
+      const label = section.getAttribute('data-testid') ?? section.textContent?.trim().slice(0, 40)
+      expect(section.classList.contains('min-w-0'), label).toBe(true)
+    }
   })
 })

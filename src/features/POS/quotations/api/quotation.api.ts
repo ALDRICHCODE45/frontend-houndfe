@@ -22,7 +22,20 @@
 
 import { http } from '@/core/shared/api/http'
 import type { AxiosError } from 'axios'
-import type { CancelReason, PaginatedQuotations, QuotationListParams, QuotationResponseDto } from '../interfaces/quotation.types'
+import { clearSuppressedPromotions } from '@/features/POS/sales/composables/useSuppressedPromotions'
+import type {
+  CancelReason,
+  ConvertQuotationToSaleResponse,
+  CreateQuotationFromSalePayload,
+  CreateQuotationFromSaleResponse,
+  PaginatedQuotations,
+  QuotationListParams,
+  QuotationResponseDto,
+} from '../interfaces/quotation.types'
+import {
+  parseConvertQuotationToSaleResponse,
+  parseCreateQuotationFromSaleResponse,
+} from '../interfaces/quotation-conversion.schema'
 
 // ─── PDF error surface ────────────────────────────────────────────────────────
 
@@ -312,18 +325,6 @@ export const quotationApi = {
     return data
   },
 
-  // ─── 3.13c setTaxRate ─────────────────────────────────────────────────────
-  /** PATCH /quotations/drafts/:id/tax-rate — override the IVA rate for this
-   *  draft (e.g. 0 = exento, 0.16 = 16%). Only works on DRAFT. Returns the
-   *  full updated quotation with recalculated taxCents. */
-  async setTaxRate(id: string, taxRate: number): Promise<QuotationResponseDto> {
-    const { data } = await http.patch<QuotationResponseDto>(
-      `/quotations/drafts/${id}/tax-rate`,
-      { taxRate } satisfies { taxRate: number },
-    )
-    return data
-  },
-
   // ─── 3.13d setSeller ──────────────────────────────────────────────────────
   /** PUT /quotations/drafts/:id/seller — assign (or replace) the seller.
    *  Backend is DRAFT-only; returns 409 otherwise. Returns the full
@@ -366,5 +367,40 @@ export const quotationApi = {
    *  deleted (409 QUOTATION_CANNOT_DELETE). */
   async deleteQuotation(id: string): Promise<void> {
     await http.delete(`/quotations/${id}`)
+  },
+
+  // ─── 3.20 conversion (backend handoff 23) ─────────────────────────────────
+  // Both routes need an `Idempotency-Key` owned by the caller: one key per press, reused only to
+  // retry the same request (same saleId/quotationId and notes). Rejections are thrown unchanged;
+  // decode them with `decodeQuotationConversionError` (utils/quotation-conversion.errors).
+
+  /** POST /quotations/from-sale/:saleId — POS DRAFT sale → new DRAFT quotation; the sale draft is
+   *  deleted in the same transaction. `customerNotes` is trimmed and a blank one is sent as null
+   *  (≤ 280 chars is validated by the backend: 400 → `VALIDATION`). */
+  async createFromSale(
+    saleId: string,
+    payload: CreateQuotationFromSalePayload,
+    idempotencyKey: string,
+  ): Promise<CreateQuotationFromSaleResponse> {
+    const body: CreateQuotationFromSalePayload = {}
+    if (payload.customerNotes !== undefined) {
+      body.customerNotes = payload.customerNotes?.trim() || null
+    }
+    const { data } = await http.post<unknown>(`/quotations/from-sale/${saleId}`, body, {
+      headers: { 'Idempotency-Key': idempotencyKey },
+    })
+    const parsed = parseCreateQuotationFromSaleResponse(data)
+    // odd T3b: the draft no longer exists; its kept suppressedPromotions go with it.
+    clearSuppressedPromotions(parsed.discardedSaleId)
+    return parsed
+  },
+
+  /** POST /quotations/:id/convert-to-sale — DRAFT/SENT, not expired quotation → POS sale draft at
+   *  the quoted prices; the quotation becomes CONVERTED_TO_SALE with `saleId`. No body. */
+  async convertToSale(id: string, idempotencyKey: string): Promise<ConvertQuotationToSaleResponse> {
+    const { data } = await http.post<unknown>(`/quotations/${id}/convert-to-sale`, null, {
+      headers: { 'Idempotency-Key': idempotencyKey },
+    })
+    return parseConvertQuotationToSaleResponse(data)
   },
 }

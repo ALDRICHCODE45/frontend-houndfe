@@ -31,6 +31,8 @@ export const QUOTATION_STATUS = {
   SENT: 'SENT',
   EXPIRED: 'EXPIRED',
   CANCELLED: 'CANCELLED',
+  // Handoff 23 §3: terminal; the quotation became a POS sale draft (`saleId`).
+  CONVERTED_TO_SALE: 'CONVERTED_TO_SALE',
 } as const
 
 // ─── CANCEL_REASONS (UPPERCASE, backend v1) ───────────────────────────────────
@@ -53,12 +55,14 @@ export const CANCEL_REASONS = {
 //   SENT       → success (committed / delivered)
 //   EXPIRED    → warning (lazy transition, no longer active)
 //   CANCELLED  → error   (terminal, rejected)
+//   CONVERTED_TO_SALE → success (terminal, won: it became a sale)
 
 export const QUOTATION_STATUS_TONE = {
   DRAFT: 'neutral',
   SENT: 'success',
   EXPIRED: 'warning',
   CANCELLED: 'error',
+  CONVERTED_TO_SALE: 'success',
 } as const
 
 export type QuotationStatusTone =
@@ -71,6 +75,7 @@ export const QUOTATION_STATUS_LABEL = {
   SENT: 'Enviada',
   EXPIRED: 'Expirada',
   CANCELLED: 'Cancelada',
+  CONVERTED_TO_SALE: 'Convertida en venta',
 } as const
 
 // ─── CANCEL_REASON_LABEL (reason → localized Spanish label) ──────────────────

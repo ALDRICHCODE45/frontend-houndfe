@@ -31,8 +31,7 @@ const mockQuotation = (overrides: Partial<QuotationResponseDto> = {}): Quotation
   subtotalCents: 0,
   discountCents: 0,
   totalCents: 0,
-  taxRate: null,
-  taxCents: null,
+  ivaBreakdown: [],
   customerNotes: null,
   manuallyEnded: false,
   items: [],
@@ -449,8 +448,7 @@ describe('quotationApi', () => {
       const response = mockQuotation({
         id: 'q-1',
         customerNotes: 'X',
-        taxRate: 0.16,
-        taxCents: 1600,
+        ivaBreakdown: [{ classification: 'IVA_16', amountCents: 1600 }],
         totalCents: 10000,
       })
       vi.mocked(http.patch).mockResolvedValue({ data: response })
@@ -458,8 +456,7 @@ describe('quotationApi', () => {
       const result = await quotationApi.updateNotes('q-1', 'X')
 
       expect(result.id).toBe('q-1')
-      expect(result.taxRate).toBe(0.16)
-      expect(result.taxCents).toBe(1600)
+      expect(result.ivaBreakdown).toEqual([{ classification: 'IVA_16', amountCents: 1600 }])
     })
 
     it('rejects with the original axios error on HTTP 409 (non-DRAFT)', async () => {
@@ -497,8 +494,7 @@ describe('quotationApi', () => {
         sellerUserId: 'user-7',
         seller: { id: 'user-7', name: 'Juan Pérez' },
         totalCents: 12_345,
-        taxRate: 0.16,
-        taxCents: 1_700,
+        ivaBreakdown: [{ classification: 'IVA_16', amountCents: 1_700 }],
       })
       vi.mocked(http.put).mockResolvedValue({ data: response })
 
@@ -506,7 +502,7 @@ describe('quotationApi', () => {
 
       expect(result.id).toBe('q-1')
       expect(result.totalCents).toBe(12_345)
-      expect(result.taxRate).toBe(0.16)
+      expect(result.ivaBreakdown).toEqual([{ classification: 'IVA_16', amountCents: 1_700 }])
     })
 
     it('rejects with the original axios error on HTTP 409 (non-DRAFT)', async () => {
@@ -524,93 +520,10 @@ describe('quotationApi', () => {
     })
   })
 
-  // ─── 3.13c setTaxRate ──────────────────────────────────────────────────────
+  // ─── T4 / S6 — PATCH /tax-rate is deprecated (docs/quotations-frontend.md §3.18) ──
 
-  describe('setTaxRate', () => {
-    it('PATCHes /quotations/drafts/:id/tax-rate with the taxRate number', async () => {
-      const response = mockQuotation({
-        id: 'q-1',
-        taxRate: 0.08,
-        taxCents: 800,
-        totalCents: 10800,
-      })
-      vi.mocked(http.patch).mockResolvedValue({ data: response })
-
-      const result = await quotationApi.setTaxRate('q-1', 0.08)
-
-      expect(http.patch).toHaveBeenCalledWith(
-        '/quotations/drafts/q-1/tax-rate',
-        { taxRate: 0.08 },
-      )
-      expect(result.taxRate).toBe(0.08)
-      expect(result.taxCents).toBe(800)
-    })
-
-    it('accepts 0 to mark the quotation as IVA-exempt (Exento)', async () => {
-      const response = mockQuotation({
-        id: 'q-1',
-        taxRate: 0,
-        taxCents: 0,
-        totalCents: 10000,
-      })
-      vi.mocked(http.patch).mockResolvedValue({ data: response })
-
-      const result = await quotationApi.setTaxRate('q-1', 0)
-
-      expect(http.patch).toHaveBeenCalledWith(
-        '/quotations/drafts/q-1/tax-rate',
-        { taxRate: 0 },
-      )
-      expect(result.taxRate).toBe(0)
-      expect(result.taxCents).toBe(0)
-    })
-
-    it.each([0, 0.08, 0.16, 0.21])(
-      'forwards the taxRate %s (the four backend-accepted values) verbatim',
-      async (rate) => {
-        const response = mockQuotation({ id: 'q-1', taxRate: rate, taxCents: 0 })
-        vi.mocked(http.patch).mockResolvedValue({ data: response })
-
-        await quotationApi.setTaxRate('q-1', rate)
-
-        expect(http.patch).toHaveBeenCalledWith(
-          '/quotations/drafts/q-1/tax-rate',
-          { taxRate: rate },
-        )
-      },
-    )
-
-    it('returns the full updated quotation (replace-cache-head pattern)', async () => {
-      const response = mockQuotation({
-        id: 'q-1',
-        taxRate: 0.16,
-        taxCents: 1600,
-        totalCents: 11600,
-        customerNotes: 'Net 30',
-      })
-      vi.mocked(http.patch).mockResolvedValue({ data: response })
-
-      const result = await quotationApi.setTaxRate('q-1', 0.16)
-
-      expect(result.id).toBe('q-1')
-      expect(result.taxRate).toBe(0.16)
-      expect(result.taxCents).toBe(1600)
-      expect(result.customerNotes).toBe('Net 30')
-    })
-
-    it('rejects with the original axios error on HTTP 400 (invalid rate)', async () => {
-      const apiError = { response: { status: 400, data: { message: 'INVALID_TAX_RATE' } } }
-      vi.mocked(http.patch).mockRejectedValue(apiError)
-
-      await expect(quotationApi.setTaxRate('q-1', 0.5)).rejects.toEqual(apiError)
-    })
-
-    it('rejects with the original axios error on HTTP 409 (non-DRAFT)', async () => {
-      const apiError = { response: { status: 409, data: { message: 'QUOTATION_NOT_DRAFT' } } }
-      vi.mocked(http.patch).mockRejectedValue(apiError)
-
-      await expect(quotationApi.setTaxRate('q-1', 0.16)).rejects.toEqual(apiError)
-    })
+  it('exposes no tax-rate override (setTaxRate removed)', () => {
+    expect('setTaxRate' in quotationApi).toBe(false)
   })
 
   // ─── 3.14 send ──────────────────────────────────────────────────────────────

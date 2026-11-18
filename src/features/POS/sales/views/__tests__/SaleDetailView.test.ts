@@ -61,9 +61,10 @@ vi.mock('../../components/AssignSellerSlideover.vue', () => ({
   default: { template: '<div />', props: ['open', 'saleId'], emits: ['update:open'] },
 }))
 
+const routerPush = vi.hoisted(() => vi.fn())
 vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { id: 'sale-1' } }),
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: routerPush }),
 }))
 
 const mockSaleDetail = vi.hoisted(() => ({ value: null as unknown }))
@@ -924,5 +925,28 @@ describe('SaleDetailView', () => {
       const header = wrapper.find('[data-testid="sale-detail-header"]')
       expect(header.exists()).toBe(true)
     })
+  })
+})
+
+// odd quotation-sale-conversion T3: «Desde cotización» opens the quotation detail.
+describe('SaleDetailView — sale from a quotation (T3)', () => {
+  beforeEach(() => {
+    routerPush.mockReset()
+  })
+
+  it('«Ver cotización» in the sales data card opens /pos/cotizaciones/:id', async () => {
+    mockSaleDetail.value = { ...defaultSale, quotationId: 'q-77' }
+    const wrapper = mountWithUApp(SaleDetailView, {
+      global: {
+        stubs: {
+          DebtPaymentModal: { template: '<div />' },
+          AssignSellerSlideover: { template: '<div />' },
+        },
+      },
+    })
+    await wrapper.vm.$nextTick()
+
+    await wrapper.get('[data-testid="open-quotation"]').trigger('click')
+    expect(routerPush).toHaveBeenCalledWith('/pos/cotizaciones/q-77')
   })
 })

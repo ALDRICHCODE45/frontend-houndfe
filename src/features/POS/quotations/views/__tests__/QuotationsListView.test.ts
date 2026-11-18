@@ -119,6 +119,60 @@ vi.mock('vue-router', async (importOriginal) => {
   }
 })
 
+// ─── Quotation → sale composable (odd T3) ─────────────────────────────────────
+
+const convertMock = vi.hoisted(() => ({
+  convert: vi.fn(),
+  reset: vi.fn(),
+  failure: { value: null as unknown },
+}))
+
+vi.mock('../../composables/useConvertQuotationToSale', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../composables/useConvertQuotationToSale')>()
+  const { computed: vueComputed, ref: vueRef } = await import('vue')
+  return {
+    ...actual,
+    useConvertQuotationToSale: () => {
+      const failure = vueRef(convertMock.failure.value)
+      convertMock.failure = failure as unknown as { value: unknown }
+      return {
+        convert: convertMock.convert,
+        isPending: vueComputed(() => false),
+        failure,
+        reset: convertMock.reset,
+      }
+    },
+  }
+})
+
+// odd T3b — «Ver venta» resolution is unit-tested in useOpenQuotationSale.test.ts; the list only
+// passes the right target and toasts the notice.
+const openSaleMock = vi.hoisted(() => ({
+  open: vi.fn(),
+  notice: { value: null as string | null },
+}))
+
+vi.mock('../../composables/useOpenQuotationSale', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../composables/useOpenQuotationSale')>()
+  const { computed: vueComputed, ref: vueRef } = await import('vue')
+  return {
+    ...actual,
+    useOpenQuotationSale: () => {
+      const notice = vueRef<string | null>(null)
+      openSaleMock.notice = notice
+      return { open: openSaleMock.open, notice, isPending: vueComputed(() => false) }
+    },
+  }
+})
+
+const { listToastCalls } = vi.hoisted(() => ({
+  listToastCalls: [] as Array<Record<string, unknown>>,
+}))
+
+vi.mock('@nuxt/ui/runtime/composables/useToast', () => ({
+  useToast: () => ({ add: (opts: Record<string, unknown>) => listToastCalls.push(opts) }),
+}))
+
 // ─── Toast mock ───────────────────────────────────────────────────────────────
 
 vi.mock('#app', () => ({
@@ -146,8 +200,7 @@ function makeQuotation(overrides: Partial<QuotationResponseDto> = {}): Quotation
     subtotalCents: 10000,
     discountCents: 0,
     totalCents: 10000,
-    taxRate: null,
-    taxCents: null,
+    ivaBreakdown: [],
     customerNotes: null,
     manuallyEnded: false,
     items: [],
@@ -340,6 +393,17 @@ const stubs = {
       </div>
     `,
   },
+  QuotationConvertDialog: {
+    props: ['open', 'pending', 'failure', 'confirmLabel', 'portalClass'],
+    emits: ['confirm', 'close', 'view-sale'],
+    template: `
+      <div v-if="open" data-testid="quotation-convert-dialog" :data-failure="failure?.code ?? ''" :data-portal-class="portalClass">
+        <button data-testid="convert-dialog-stub-confirm" @click="$emit('confirm')">stub-convert</button>
+        <button data-testid="convert-dialog-stub-close" @click="$emit('close')">stub-close</button>
+        <button data-testid="convert-dialog-stub-view-sale" @click="$emit('view-sale', failure?.saleId)">stub-view-sale</button>
+      </div>
+    `,
+  },
   UButton: {
     props: ['label', 'color', 'variant', 'icon', 'loading', 'disabled'],
     emits: ['click'],
@@ -377,6 +441,11 @@ function resetState() {
   authMock.userCan.mockReturnValue(true)
   routerPush.mockReset()
   routerReplace.mockReset()
+  convertMock.convert.mockReset().mockResolvedValue(true)
+  convertMock.reset.mockReset()
+  convertMock.failure = { value: null }
+  openSaleMock.open.mockReset().mockResolvedValue(true)
+  listToastCalls.length = 0
 }
 
 beforeEach(() => {
@@ -426,13 +495,22 @@ describe('QuotationsListView — header chrome (REQ-QAF-009)', () => {
 })
 
 describe('QuotationsListView — status tabs (REQ-QAF-010)', () => {
-  it('renders all five status tabs in the canonical order', () => {
+  it('renders all six status tabs in the canonical order', () => {
     const wrapper = mountView()
 
     const tabBar = wrapper.find('[data-testid="status-tabs"]')
     expect(tabBar.exists()).toBe(true)
     const labels = tabBar.findAll('button').map((b) => b.text().trim())
-    expect(labels).toEqual(['Todas', 'Borradores', 'Enviadas', 'Expiradas', 'Canceladas'])
+    expect(labels).toEqual(['Todas', 'Borradores', 'Enviadas', 'Expiradas', 'Canceladas', 'Convertidas'])
+  })
+
+  it('clicking "Convertidas" calls setStatusFilter("CONVERTED_TO_SALE") (odd T3 / S2)', async () => {
+    const wrapper = mountView()
+    const tab = wrapper
+      .findAll('[data-testid="status-tabs"] button')
+      .find((b) => b.text().trim() === 'Convertidas')!
+    await tab.trigger('click')
+    expect(composableState.setStatusFilter).toHaveBeenCalledWith('CONVERTED_TO_SALE')
   })
 
   it('clicking "Borradores" calls setStatusFilter("DRAFT")', async () => {
@@ -618,6 +696,14 @@ describe('QuotationsListView — column layout (premium tables T9)', () => {
     const labels = (table.props('columns') as Parameters<typeof columnLabel>[0][]).map(columnLabel)
     expect(labels).toEqual(['Cliente', 'Estado', 'Total', 'Expira', 'Creada', 'Acciones'])
   })
+
+  // odd D4: at 1440 a w-32 «Estado» column cut «Convertida en venta» to «Convertida…».
+  it('gives «Estado» room for «Convertida en venta» (w-44)', () => {
+    const table = mountView().getComponent(appDataTableStub)
+    const columns = table.props('columns') as Array<{ id?: string; meta?: { class?: { th?: string } } }>
+    const status = columns.find((column) => column.id === 'status')
+    expect(status?.meta?.class?.th?.split(' ')).toContain('w-44')
+  })
 })
 
 describe('QuotationsListView — AppDataTable wiring (REQ-QAF-011)', () => {
@@ -713,26 +799,26 @@ describe('QuotationsListView — mobile cards and row menu', () => {
     expect(routerPush).toHaveBeenCalledWith('/pos/cotizaciones/qtn-row-open')
   })
 
-  it('names the ⋮ menu after the quotation and orders Ver detalle before Eliminar…', () => {
+  it('names the ⋮ menu after the quotation and orders Ver detalle, Convertir en venta…, Eliminar…', () => {
     composableState.data.value = [makeQuotation({ id: 'qtn-menu', status: 'DRAFT' })]
     const wrapper = mountView()
     const menu = wrapper.getComponent({ name: 'RowActionsMenu' })
     expect(menu.props('rowLabel')).toBe('cotización de María Pérez')
     const actions = menu.props('actions') as Array<{ key: string, label: string, destructive?: boolean }>
-    expect(actions.map((a) => a.label)).toEqual(['Ver detalle', 'Eliminar…'])
-    expect(actions[1]!.destructive).toBe(true)
+    expect(actions.map((a) => a.label)).toEqual(['Ver detalle', 'Convertir en venta…', 'Eliminar…'])
+    expect(actions[2]!.destructive).toBe(true)
   })
 
-  it('offers only Ver detalle for SENT rows and when the user cannot delete', () => {
-    composableState.data.value = [makeQuotation({ id: 'qtn-sent', status: 'SENT', expiresAt: null })]
+  it('offers no Eliminar… for SENT rows and when the user cannot delete', () => {
+    composableState.data.value = [makeQuotation({ id: 'qtn-sent', status: 'SENT', effectiveStatus: 'SENT', expiresAt: null })]
     let wrapper = mountView()
-    expect((wrapper.getComponent({ name: 'RowActionsMenu' }).props('actions') as Array<{ label: string }>).map((a) => a.label)).toEqual(['Ver detalle'])
+    expect((wrapper.getComponent({ name: 'RowActionsMenu' }).props('actions') as Array<{ label: string }>).map((a) => a.label)).toEqual(['Ver detalle', 'Convertir en venta…'])
     wrapper.unmount()
 
     composableState.data.value = [makeQuotation({ id: 'qtn-draft', status: 'DRAFT' })]
     authMock.userCan.mockImplementation((action: unknown) => action !== 'delete')
     wrapper = mountView()
-    expect((wrapper.getComponent({ name: 'RowActionsMenu' }).props('actions') as Array<{ label: string }>).map((a) => a.label)).toEqual(['Ver detalle'])
+    expect((wrapper.getComponent({ name: 'RowActionsMenu' }).props('actions') as Array<{ label: string }>).map((a) => a.label)).toEqual(['Ver detalle', 'Convertir en venta…'])
   })
 
   it('opens the delete confirmation naming the customer when Eliminar… is chosen', async () => {
@@ -1115,3 +1201,95 @@ describe('QuotationsListView — review round 1', () => {
 // _PaginatedQuotations is intentionally imported to keep the type in scope for
 // any future helper that needs to construct a sample response in this file.
 type _PaginatedQuotationsUnused = PaginatedQuotations
+
+// ─── odd T3 — quotation → sale from the list (S1, S4, S5) ────────────────────
+
+describe('QuotationsListView — «Convertir en venta…» row action (T3 / S4)', () => {
+  function actionKeys(wrapper: ReturnType<typeof mountView>): string[] {
+    return (wrapper.getComponent({ name: 'RowActionsMenu' }).props('actions') as Array<{ key: string }>).map((a) => a.key)
+  }
+
+  it('needs create:Sale AND update:Quotation', () => {
+    composableState.data.value = [makeQuotation({ id: 'qtn-1', status: 'SENT', effectiveStatus: 'SENT', expiresAt: null })]
+    for (const denied of [['create', 'Sale'], ['update', 'Quotation']]) {
+      authMock.userCan.mockImplementation((action: unknown, subject: unknown) => !(action === denied[0] && subject === denied[1]))
+      const wrapper = mountView()
+      expect(actionKeys(wrapper)).not.toContain('convert')
+      wrapper.unmount()
+    }
+  })
+
+  it.each(['EXPIRED', 'CANCELLED'] as const)('%s rows offer no conversion', (status) => {
+    composableState.data.value = [makeQuotation({ id: 'qtn-1', status, effectiveStatus: status, expiresAt: null })]
+    expect(actionKeys(mountView())).not.toContain('convert')
+  })
+
+  it('a SENT row whose expiresAt passed offers no conversion', () => {
+    composableState.data.value = [makeQuotation({ id: 'qtn-1', status: 'SENT', effectiveStatus: 'SENT', expiresAt: '2020-01-01T00:00:00.000Z' })]
+    expect(actionKeys(mountView())).not.toContain('convert')
+  })
+
+  it('a converted row shows «Convertida en venta», offers «Ver venta» and no conversion', () => {
+    composableState.data.value = [makeQuotation({ id: 'qtn-1', status: 'CONVERTED_TO_SALE', effectiveStatus: 'CONVERTED_TO_SALE', saleId: 'sale-1', saleStatus: 'CONFIRMED', expiresAt: null })]
+    const wrapper = mountView()
+    expect(wrapper.text()).toContain('Convertida en venta')
+    expect(actionKeys(wrapper)).toEqual(['open', 'view-sale'])
+  })
+
+  it('a converted row whose sale no longer exists (saleStatus null) has no «Ver venta»', () => {
+    composableState.data.value = [makeQuotation({ id: 'qtn-1', status: 'CONVERTED_TO_SALE', effectiveStatus: 'CONVERTED_TO_SALE', saleId: 'sale-1', saleStatus: null, expiresAt: null })]
+    expect(actionKeys(mountView())).toEqual(['open'])
+  })
+
+  it.each(['DRAFT', 'CONFIRMED', 'CANCELED'] as const)('«Ver venta» on a converted row opens the %s sale by its status', async (saleStatus) => {
+    composableState.data.value = [makeQuotation({ id: 'qtn-1', status: 'CONVERTED_TO_SALE', effectiveStatus: 'CONVERTED_TO_SALE', saleId: 'sale-1', saleStatus, expiresAt: null })]
+    const wrapper = mountView()
+    await wrapper.get('[data-action="view-sale"]').trigger('click')
+    expect(openSaleMock.open).toHaveBeenCalledWith({ saleId: 'sale-1', saleStatus, quotationId: 'qtn-1' })
+  })
+
+  it('«Ver venta» on another cashier\'s DRAFT toasts the in-progress notice', async () => {
+    const notice = 'La venta está en curso en el punto de venta de quien la convirtió.'
+    openSaleMock.open.mockImplementation(async () => {
+      openSaleMock.notice.value = notice
+      return false
+    })
+    composableState.data.value = [makeQuotation({ id: 'qtn-1', status: 'CONVERTED_TO_SALE', effectiveStatus: 'CONVERTED_TO_SALE', saleId: 'sale-1', saleStatus: 'DRAFT', expiresAt: null })]
+    const wrapper = mountView()
+    await wrapper.get('[data-action="view-sale"]').trigger('click')
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(listToastCalls).toContainEqual({ title: notice, color: 'warning' })
+    expect(routerPush).not.toHaveBeenCalled()
+  })
+
+  it('choosing it opens the confirm dialog and confirming converts that row', async () => {
+    composableState.data.value = [makeQuotation({ id: 'qtn-conv', status: 'SENT', effectiveStatus: 'SENT', expiresAt: null })]
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="quotation-convert-dialog"]').exists()).toBe(false)
+
+    await wrapper.get('[data-action="convert"]').trigger('click')
+    expect(convertMock.reset).toHaveBeenCalled()
+    expect(wrapper.get('[data-testid="quotation-convert-dialog"]').attributes('data-portal-class')).toBe('quotations-list-portal')
+
+    await wrapper.get('[data-testid="convert-dialog-stub-confirm"]').trigger('click')
+    expect(convertMock.convert).toHaveBeenCalledWith('qtn-conv')
+  })
+
+  it('«Ver venta» from a rejection opens its sale (status read from the quotation)', async () => {
+    composableState.data.value = [makeQuotation({ id: 'qtn-conv', status: 'SENT', effectiveStatus: 'SENT', expiresAt: null })]
+    convertMock.convert.mockImplementation(async () => {
+      convertMock.failure.value = { code: 'QUOTATION_ALREADY_CONVERTED', saleId: 'sale-7' }
+      return false
+    })
+    const wrapper = mountView()
+    await wrapper.get('[data-action="convert"]').trigger('click')
+    await wrapper.get('[data-testid="convert-dialog-stub-confirm"]').trigger('click')
+    await Promise.resolve()
+
+    expect(wrapper.get('[data-testid="quotation-convert-dialog"]').attributes('data-failure')).toBe('QUOTATION_ALREADY_CONVERTED')
+    await wrapper.get('[data-testid="convert-dialog-stub-view-sale"]').trigger('click')
+    expect(openSaleMock.open).toHaveBeenCalledWith({ saleId: 'sale-7', quotationId: 'qtn-conv' })
+    expect(wrapper.find('[data-testid="quotation-convert-dialog"]').exists()).toBe(false)
+  })
+})

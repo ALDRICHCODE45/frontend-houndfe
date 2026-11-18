@@ -3,7 +3,7 @@
  * `QuotationProgressStepper.vue` — T-UI-10 / REQ-UI-003.
  *
  * Horizontal 3-state progress stepper for the quotation detail view:
- *   BORRADOR  →  ENVIADA  →  EXPIRADA/CANCELADA
+ *   BORRADOR  →  ENVIADA  →  EXPIRADA/CANCELADA (or CONVERTIDA EN VENTA, all steps done)
  *
  * The status→step index mapping is isolated in `stepperIndexFromStatus`
  * (see `../utils/quotation.utils.ts`) so this component owns only the
@@ -41,11 +41,9 @@ interface StepDefinition {
   label: string
 }
 
-const STEPS: readonly StepDefinition[] = [
-  { index: 0, label: 'Borrador' },
-  { index: 1, label: 'Enviada' },
-  { index: 2, label: 'Expirada o cancelada' },
-] as const
+const FINAL_STEP_LABEL = 'Expirada o cancelada'
+const CONVERTED_STEP_LABEL = 'Convertida en venta'
+const STEP_COUNT = 3
 
 const props = defineProps<{
   status: QuotationStatus
@@ -53,12 +51,25 @@ const props = defineProps<{
   compact?: boolean
 }>()
 
+const isConverted = computed(() => props.status === 'CONVERTED_TO_SALE')
+
 /**
- * -1 means "unknown status" (forward-compat for ACEPTADA/PEDIDO that
- * aren't part of this 3-state stepper). We render every node as future
- * so the cashier still sees the ladder but nothing is highlighted.
+ * -1 means "unknown status" (forward-compat for statuses outside this
+ * 3-state stepper): every node renders as future, nothing highlighted.
+ *
+ * T3 / S5 — CONVERTED_TO_SALE is the terminal, won state: the whole flow is done, so the index sits
+ * past the last step (every node and connector reads `completed`) and the last step is named
+ * «Convertida en venta». `stepperIndexFromStatus` keeps returning -1 for it (pure util, untouched).
  */
-const currentIndex = computed<number>(() => stepperIndexFromStatus(props.status))
+const currentIndex = computed<number>(() =>
+  isConverted.value ? STEP_COUNT : stepperIndexFromStatus(props.status),
+)
+
+const steps = computed<readonly StepDefinition[]>(() => [
+  { index: 0, label: 'Borrador' },
+  { index: 1, label: 'Enviada' },
+  { index: 2, label: isConverted.value ? CONVERTED_STEP_LABEL : FINAL_STEP_LABEL },
+])
 
 function stepState(index: number): StepState {
   const current = currentIndex.value
@@ -89,7 +100,7 @@ function connectorState(connectorIndex: number): ConnectorState {
     data-testid="quotation-stepper"
     aria-label="Progreso de la cotización"
   >
-    <li v-for="step in STEPS" :key="step.index" class="quotation-stepper-item">
+    <li v-for="step in steps" :key="step.index" class="quotation-stepper-item">
       <div
         class="quotation-stepper-step"
         :data-testid="`stepper-step-${step.index}`"
@@ -104,7 +115,7 @@ function connectorState(connectorIndex: number): ConnectorState {
 
       <!-- Connector line to the next step (skipped after the last node). -->
       <span
-        v-if="step.index < STEPS.length - 1"
+        v-if="step.index < steps.length - 1"
         aria-hidden="true"
         class="quotations-stepper-connector"
         :data-testid="`stepper-connector-${step.index}`"

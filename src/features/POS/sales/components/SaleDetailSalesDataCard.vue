@@ -13,7 +13,11 @@ const props = defineProps<{
   /** A cancelled sale is read-only: the seller cannot change (422 SALE_CANCELED). */
   locked?: boolean
 }>()
-const emit = defineEmits<{ 'assign-seller': [] }>()
+const emit = defineEmits<{
+  'assign-seller': []
+  /** odd quotation-sale-conversion T3: open the quotation this sale came from. */
+  'open-quotation': [quotationId: string]
+}>()
 
 // pos-price-list-tiers: resolve the active price list name. Mirrors the
 // pattern previously used by the deleted SaleDetailMetadataCard — fetch
@@ -58,6 +62,10 @@ const shippingAddressText = computed(() =>
 function openAssignSeller() {
   emit('assign-seller')
 }
+
+function openQuotation(quotationId: string) {
+  emit('open-quotation', quotationId)
+}
 </script>
 
 <template>
@@ -95,6 +103,21 @@ function openAssignSeller() {
         <dd class="sale-detail-fact-value flex flex-col gap-1">
           <span class="break-words" data-testid="sale-shipping-address">{{ shippingAddressText }}</span>
           <SaleAddressSourceNotice :address="sale.shippingAddress" />
+        </dd>
+      </div>
+      <div v-if="sale.quotationId" data-testid="reflow-quotation">
+        <dt class="sale-detail-fact-label">Desde cotización</dt>
+        <dd class="sale-detail-fact-value">
+          <UButton
+            variant="link"
+            color="neutral"
+            size="sm"
+            class="sale-detail-fact-action min-h-(--hf-control-height) p-0 md:min-h-0"
+            data-testid="open-quotation"
+            @click="openQuotation(sale.quotationId)"
+          >
+            Ver cotización
+          </UButton>
         </dd>
       </div>
       <div data-testid="reflow-price-list">

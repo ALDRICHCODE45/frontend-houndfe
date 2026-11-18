@@ -17,8 +17,7 @@ function makeQuotation(overrides: Partial<QuotationResponseDto> = {}): Quotation
     subtotalCents: 15000,
     discountCents: 1500,
     totalCents: 13500,
-    taxRate: null,
-    taxCents: null,
+    ivaBreakdown: [],
     customerNotes: null,
     manuallyEnded: false,
     items: [],
@@ -231,75 +230,6 @@ describe('QuotationTotalsFooter — RESUMEN sidebar (T-UI-22/23 / REQ-UI-009)', 
     expect(context.text()).not.toContain('lista')
   })
 
-  it('renders the IVA 16% row from backend taxCents + taxRate', () => {
-    // totalCents = 33500 → taxCents = 5360 ($53.60) per REQ-UI-009 scenario.
-    // The backend stamps the computed tax directly so the footer renders
-    // the value without any client-side math.
-    const wrapper = mount(QuotationTotalsFooter, {
-      props: {
-        quotation: makeQuotation({
-          totalCents: 33500,
-          taxRate: 0.16,
-          taxCents: 5360,
-        }),
-      },
-    })
-    const iva = wrapper.find('[data-testid="summary-iva-row"]')
-    expect(iva.exists()).toBe(true)
-    expect(iva.text()).toContain('IVA 16%')
-    expect(iva.text()).toContain('$53.60')
-  })
-
-  it('renders the IVA label dynamically from taxRate (e.g. 8% rate shows "IVA 8%")', () => {
-    const wrapper = mount(QuotationTotalsFooter, {
-      props: {
-        quotation: makeQuotation({
-          totalCents: 10000,
-          taxRate: 0.08,
-          taxCents: 800,
-        }),
-      },
-    })
-    const iva = wrapper.find('[data-testid="summary-iva-row"]')
-    expect(iva.exists()).toBe(true)
-    expect(iva.text()).toContain('IVA 8%')
-    expect(iva.text()).toContain('$8.00')
-  })
-
-  it('hides the IVA row when taxCents is null (no backend tax stamp)', () => {
-    const wrapper = mount(QuotationTotalsFooter, {
-      props: { quotation: makeQuotation({ totalCents: 33500 }) },
-    })
-    expect(wrapper.find('[data-testid="summary-iva-row"]').exists()).toBe(false)
-  })
-
-  it('hides the IVA row when taxRate is null (no backend tax stamp)', () => {
-    const wrapper = mount(QuotationTotalsFooter, {
-      props: {
-        quotation: makeQuotation({
-          totalCents: 33500,
-          taxCents: 5360,
-        }),
-      },
-    })
-    expect(wrapper.find('[data-testid="summary-iva-row"]').exists()).toBe(false)
-  })
-
-  it('renders IVA 16% as 0 when totalCents is 0 (and backend stamps taxCents=0)', () => {
-    const wrapper = mount(QuotationTotalsFooter, {
-      props: {
-        quotation: makeQuotation({
-          totalCents: 0,
-          taxRate: 0.16,
-          taxCents: 0,
-        }),
-      },
-    })
-    const iva = wrapper.find('[data-testid="summary-iva-row"]')
-    expect(iva.exists()).toBe(true)
-    expect(iva.text()).toContain('$0.00')
-  })
-
   it('renders the full-width "Enviar cotización" CTA when editable', () => {
     const wrapper = mount(QuotationTotalsFooter, {
       props: { quotation: makeQuotation(), editable: true },
@@ -368,203 +298,89 @@ describe('QuotationTotalsFooter — RESUMEN sidebar (T-UI-22/23 / REQ-UI-009)', 
   })
 })
 
-// T-UI-29 — DRAFT-only IVA rate selector. The sidebar swaps the static
-// "IVA X%" label for a USelectMenu when editable=true, exposing the four
-// backend-accepted rates (0, 0.08, 0.16, 0.21). Non-DRAFT quotations keep
-// the static label so historic read-only displays are unaffected.
-//
-// USelectMenu is registered globally via auto-imports. We drive selection
-// changes through the v-model on the parent (parent-owned state mirrors
-// the prop) so the test never has to click into the Reka UI dropdown —
-// the same approach the manual-promo picker uses in QuotationDetailView.
-describe('QuotationTotalsFooter — IVA rate selector (T-UI-29)', () => {
-  it('renders the USelectMenu in editable mode (DRAFT)', () => {
+// T4 / S6 — docs/quotations-frontend.md §3.18: the IVA comes from each product
+// (`ivaBreakdown`), prices include it, and the FE shows ONE «IVA incluido» row with the sum of
+// `amountCents`; an empty breakdown (no items, or an old quotation without snapshots) shows no IVA.
+// There is no tax-rate selector: PATCH /tax-rate is deprecated and never called.
+describe('QuotationTotalsFooter — IVA incluido (T4 / S6)', () => {
+  // Lines are typed loosely on purpose: the wire may bring a classification the FE does not know.
+  function withIva(
+    lines: Array<{ classification: string; amountCents: number }> | undefined,
+  ): QuotationResponseDto {
+    return { ...makeQuotation(), ivaBreakdown: lines } as QuotationResponseDto
+  }
+
+  it('renders one «IVA incluido» row with the sum of ivaBreakdown amountCents', () => {
     const wrapper = mount(QuotationTotalsFooter, {
       props: {
-        quotation: makeQuotation({ taxRate: 0.16, taxCents: 1600 }),
-        editable: true,
+        quotation: withIva([
+          { classification: 'IVA_16', amountCents: 5000 },
+          { classification: 'IVA_8', amountCents: 360 },
+          { classification: 'IVA_EXENTO', amountCents: 0 },
+        ]),
       },
     })
-    expect(wrapper.find('[data-testid="summary-iva-select"]').exists()).toBe(true)
+    const iva = wrapper.get('[data-testid="summary-iva-row"]')
+    expect(iva.text()).toContain('IVA incluido')
+    expect(wrapper.get('[data-testid="summary-iva-amount"]').text()).toBe('$53.60')
+    // No rates and no per-classification breakdown on screen.
+    expect(iva.text()).not.toMatch(/%|IVA_16|IVA_8|Exento/)
   })
 
-  it('does NOT render the USelectMenu when editable=false', () => {
+  it('shows $0.00 when the breakdown is present but every amount is 0 (IVA_0)', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: { quotation: withIva([{ classification: 'IVA_0', amountCents: 0 }]) },
+    })
+    expect(wrapper.get('[data-testid="summary-iva-amount"]').text()).toBe('$0.00')
+  })
+
+  it('shows no IVA when ivaBreakdown is empty (old quotation or no items) — not «IVA $0»', () => {
+    const wrapper = mount(QuotationTotalsFooter, { props: { quotation: withIva([]) } })
+    expect(wrapper.find('[data-testid="summary-iva-row"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('IVA')
+  })
+
+  it('ignores an unknown classification and sums only the known ones', () => {
     const wrapper = mount(QuotationTotalsFooter, {
       props: {
-        quotation: makeQuotation({ taxRate: 0.16, taxCents: 1600 }),
-        editable: false,
+        quotation: withIva([
+          { classification: 'IVA_16', amountCents: 1600 },
+          { classification: 'IVA_99', amountCents: 999 },
+        ]),
       },
     })
-    expect(wrapper.find('[data-testid="summary-iva-select"]').exists()).toBe(false)
-    // Falls back to the plain-text label that the spec pins for non-DRAFT.
-    expect(wrapper.find('[data-testid="summary-iva-row"]').text()).toContain('IVA 16%')
+    expect(wrapper.get('[data-testid="summary-iva-amount"]').text()).toBe('$16.00')
   })
 
-  it('does NOT render the USelectMenu when editable is omitted (default false)', () => {
+  it('shows no IVA when every line has an unknown classification', () => {
     const wrapper = mount(QuotationTotalsFooter, {
-      props: {
-        quotation: makeQuotation({ taxRate: 0.16, taxCents: 1600 }),
-      },
-    })
-    expect(wrapper.find('[data-testid="summary-iva-select"]').exists()).toBe(false)
-  })
-
-  it('hides the whole IVA row when taxRate is null even in editable mode', () => {
-    const wrapper = mount(QuotationTotalsFooter, {
-      props: {
-        quotation: makeQuotation({ taxRate: null, taxCents: null }),
-        editable: true,
-      },
+      props: { quotation: withIva([{ classification: 'IVA_99', amountCents: 999 }]) },
     })
     expect(wrapper.find('[data-testid="summary-iva-row"]').exists()).toBe(false)
+  })
+
+  it('shows no IVA when the payload has no ivaBreakdown at all', () => {
+    const wrapper = mount(QuotationTotalsFooter, { props: { quotation: withIva(undefined) } })
+    expect(wrapper.find('[data-testid="summary-iva-row"]').exists()).toBe(false)
+  })
+
+  it('offers no tax-rate selector, even on an editable draft', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: {
+        quotation: withIva([{ classification: 'IVA_16', amountCents: 1600 }]),
+        editable: true,
+      },
+    })
     expect(wrapper.find('[data-testid="summary-iva-select"]').exists()).toBe(false)
-  })
-
-  it('emits "update:tax-rate" when the underlying v-model is changed', async () => {
-    const wrapper = mount(QuotationTotalsFooter, {
-      props: {
-        quotation: makeQuotation({ taxRate: 0.16, taxCents: 1600 }),
-        editable: true,
-      },
-    })
-
-    // The parent mirrors `quotation.taxRate` into `selectedTaxRate`, so we
-    // update the prop to simulate the cashier picking "8%" via the dropdown.
-    await wrapper.setProps({
-      quotation: makeQuotation({ taxRate: 0.08, taxCents: 800 }),
-    })
-
-    // The USelectMenu has no external handle we can drive (jsdom can't open
-    // the Reka UI popover), so we exercise the same code path the v-model
-    // hits by patching the prop and asserting the new state propagates.
-    expect(wrapper.find('[data-testid="summary-iva-row"]').text()).toContain('$8.00')
-  })
-
-  it('forwards a selection of 0 (Exento) by toggling taxRate on the parent', async () => {
-    const wrapper = mount(QuotationTotalsFooter, {
-      props: {
-        quotation: makeQuotation({ taxRate: 0.16, taxCents: 1600 }),
-        editable: true,
-      },
-    })
-
-    await wrapper.setProps({
-      quotation: makeQuotation({ taxRate: 0, taxCents: 0 }),
-    })
-
-    const iva = wrapper.find('[data-testid="summary-iva-row"]')
-    // When taxRate=0 the row stays visible but shows "$0.00" as tax cents.
-    expect(iva.find('[data-testid="summary-iva-amount"]').text()).toBe('$0.00')
-  })
-
-  it('keeps the taxCents value visible in the right column alongside the select', () => {
-    const wrapper = mount(QuotationTotalsFooter, {
-      props: {
-        quotation: makeQuotation({ taxRate: 0.16, taxCents: 1600 }),
-        editable: true,
-      },
-    })
-    const iva = wrapper.find('[data-testid="summary-iva-row"]')
-    expect(iva.find('[data-testid="summary-iva-amount"]').text()).toBe('$16.00')
-  })
-
-  it('emits update:tax-rate when the wrapper component triggers handleTaxRateChange', async () => {
-    const wrapper = mount(QuotationTotalsFooter, {
-      props: {
-        quotation: makeQuotation({ taxRate: 0.16, taxCents: 1600 }),
-        editable: true,
-      },
-    })
-
-    // The USelectMenu auto-imported component renders inside the IVA row.
-    // jsdom can't open the Reka UI popover, so we drive the v-model path
-    // the same way the manual-promo picker does in QuotationDetailView:
-    // find the inner component, fire its `update:model-value` event, and
-    // confirm the parent re-emits it as `update:tax-rate`.
-    const select = wrapper.find('[data-testid="summary-iva-select"]')
-    expect(select.exists()).toBe(true)
-
-    // Use findAllComponents to grab the underlying USelectMenu instance
-    // regardless of how Vue's runtime infers its `name` option. The auto
-    // import registers the component under the U-prefixed alias but the
-    // underlying SFC filename is SelectMenu.vue, so we look it up by the
-    // data-testid attribute and walk up to its enclosing component.
-    const allComponents = wrapper.findAllComponents({ name: 'SelectMenu' })
-    const target = allComponents.length > 0 ? allComponents[0]! : null
-    expect(target).not.toBeNull()
-    target!.vm.$emit('update:model-value', 0.08)
-    await wrapper.vm.$nextTick()
-
-    const events = wrapper.emitted('update:tax-rate')
-    expect(events).toBeDefined()
-    expect(events![events!.length - 1]).toEqual([0.08])
-  })
-
-  it('passes the four spec-defined tax rate options via the parent items list', async () => {
-    // We expose the options list shape via the watcher + the v-model so the
-    // test can verify the rate options are well-formed. The full USelectMenu
-    // round-trip with the Reka UI popover is not exercised here — that's a
-    // Nuxt UI responsibility. We pin the contract at the component
-    // boundary: the parent hands us a taxRate, we mirror it into the
-    // select, the row keeps rendering taxCents.
-    const wrapper = mount(QuotationTotalsFooter, {
-      props: {
-        quotation: makeQuotation({ taxRate: 0.16, taxCents: 1600 }),
-        editable: true,
-      },
-    })
-
-    // Trigger the emit path and confirm the parent emits 0.08 cleanly —
-    // proving the option value (number, not string) is preserved through
-    // the v-model → @update:model-value → handleTaxRateChange → emit chain.
-    const target = wrapper.findAllComponents({ name: 'SelectMenu' })[0]
-    expect(target).toBeDefined()
-    target!.vm.$emit('update:model-value', 0.08)
-    await wrapper.vm.$nextTick()
-    let events = wrapper.emitted('update:tax-rate')
-    expect(events![events!.length - 1]).toEqual([0.08])
-
-    // Cycle through all four backend-accepted rates.
-    for (const rate of [0, 0.08, 0.16, 0.21]) {
-      target!.vm.$emit('update:model-value', rate)
-      await wrapper.vm.$nextTick()
-      events = wrapper.emitted('update:tax-rate')
-      expect(events![events!.length - 1]).toEqual([rate])
-    }
-
-    // Null/undefined model values are ignored (do not emit).
-    target!.vm.$emit('update:model-value', null)
-    await wrapper.vm.$nextTick()
-    events = wrapper.emitted('update:tax-rate')
-    expect(events![events!.length - 1]).toEqual([0.21])
-
-    target!.vm.$emit('update:model-value', undefined)
-    await wrapper.vm.$nextTick()
-    events = wrapper.emitted('update:tax-rate')
-    expect(events![events!.length - 1]).toEqual([0.21])
+    expect(wrapper.findAllComponents({ name: 'SelectMenu' })).toHaveLength(0)
+    expect(wrapper.get('[data-testid="summary-iva-row"]').text()).toContain('IVA incluido')
   })
 })
 
 // ─── Quotations workspace visual adaptation (T3 / S3 + S4) ───────────────────
-// The RESUMEN card is feature-owned, so its teleported IVA listbox repeats the
-// workspace portal marker and the primary CTA opts into the shared action
-// foreground pairing. Meanings (rates, totals, labels) stay unchanged.
+// The primary CTA opts into the shared action foreground pairing. Meanings (totals, labels)
+// stay unchanged.
 describe('QuotationTotalsFooter — workspace visual boundary (S3/S4)', () => {
-  it('marks the IVA listbox popup with the workspace portal boundary', () => {
-    const wrapper = mount(QuotationTotalsFooter, {
-      props: {
-        quotation: makeQuotation({ taxRate: 0.16, taxCents: 1600 }),
-        editable: true,
-      },
-    })
-
-    const select = wrapper.findAllComponents({ name: 'SelectMenu' })[0]
-    expect(select).toBeDefined()
-    expect(select!.props('ui')).toEqual({
-      content: 'hf-theme hf-ui quotations-workspace-portal',
-    })
-  })
-
   it('pairs the send CTA with the shared action foreground without changing its label', () => {
     const wrapper = mount(QuotationTotalsFooter, {
       props: { quotation: makeQuotation(), editable: true },
@@ -577,7 +393,10 @@ describe('QuotationTotalsFooter — workspace visual boundary (S3/S4)', () => {
 
   it('keeps the discount amount on the heading role', () => {
     const wrapper = mount(QuotationTotalsFooter, {
-      props: { quotation: makeQuotation({ discountCents: 1500, taxRate: 0.16, taxCents: 1600 }) },
+      props: { quotation: makeQuotation({
+          discountCents: 1500,
+          ivaBreakdown: [{ classification: 'IVA_16', amountCents: 1600 }],
+        }) },
     })
 
     expect(wrapper.find('[data-testid="discount-amount"]').classes().join(' ')).toMatch(

@@ -5,7 +5,12 @@
  * importable from any layer (composables, views, badge components).
  */
 
-import type { QuotationResponseDto, QuotationStatus } from '../interfaces/quotation.types'
+import type {
+  IvaBreakdownLine,
+  IvaClassification,
+  QuotationResponseDto,
+  QuotationStatus,
+} from '../interfaces/quotation.types'
 import {
   QUOTATION_STATUS_LABEL,
   QUOTATION_STATUS_TONE,
@@ -50,6 +55,19 @@ export function isCancellable(status: QuotationStatus): boolean {
   return status === 'DRAFT'
 }
 
+/** Handoff 23 §3: the quotation became a POS sale draft. Terminal and read-only (S5). */
+export function isConvertedToSale(status: QuotationStatus): boolean {
+  return status === 'CONVERTED_TO_SALE'
+}
+
+/**
+ * Delete predicate (backend §3.19): only DRAFT and CANCELLED; SENT, EXPIRED and
+ * CONVERTED_TO_SALE are permanent records (`422 QUOTATION_CANNOT_DELETE`).
+ */
+export function isDeletable(status: QuotationStatus): boolean {
+  return status === 'DRAFT' || status === 'CANCELLED'
+}
+
 /**
  * T-UI-08 — REQ-UI-003 status→step index mapping for the 3-state progress
  * stepper (BORRADOR → ENVIADA → EXPIRADA/CANCELADA).
@@ -85,13 +103,9 @@ export function stepperIndexFromStatus(status: QuotationStatus): number {
 /**
  * T-UI-12/13 — REQ-UI-009 client-side IVA 16% computation.
  *
- * Used as fallback when backend doesn't expose taxCents. The backend now
- * stamps `taxCents` + `taxRate` on the quotation response, so the
- * RESUMEN sidebar reads both directly from the DTO (`QuotationTotalsFooter`
- * only renders the row when both fields are non-null). This util is kept
- * available for any caller that still needs a local estimate — e.g. legacy
- * PDF rendering, exported CSVs, or unit tests that wire the helper
- * directly. New callers SHOULD prefer the backend values.
+ * Local estimate only. The quotation's IVA comes from the response's
+ * `ivaBreakdown` (see `sumIncludedIvaCents`); this helper is kept for
+ * callers that need a local 16% estimate.
  *
  * Rounding: `Math.round` follows standard half-away-from-zero semantics,
  * which matches the es-MX currency convention (no fractional cents on
@@ -104,4 +118,30 @@ export function stepperIndexFromStatus(status: QuotationStatus): number {
 export function computeIva16(totalCents: number): number {
   if (!Number.isFinite(totalCents) || totalCents <= 0) return 0
   return Math.round(totalCents * 0.16)
+}
+const IVA_CLASSIFICATIONS: readonly IvaClassification[] = [
+  'IVA_16',
+  'IVA_8',
+  'IVA_0',
+  'IVA_EXENTO',
+  'NOT_TAXABLE',
+]
+
+/**
+ * T4 / S6 — docs/quotations-frontend.md §3.18: the «IVA incluido» amount is the sum of
+ * `ivaBreakdown[].amountCents`. Returns `null` when there is nothing to show (breakdown empty or
+ * absent) — never «IVA $0» for an old quotation. Forward-compatible: entries with an unknown
+ * classification, or an amount that is not a non-negative integer, are ignored.
+ */
+export function sumIncludedIvaCents(
+  breakdown: readonly IvaBreakdownLine[] | null | undefined,
+): number | null {
+  const known = (breakdown ?? []).filter(
+    (line) =>
+      IVA_CLASSIFICATIONS.includes(line.classification) &&
+      Number.isSafeInteger(line.amountCents) &&
+      line.amountCents >= 0,
+  )
+  if (known.length === 0) return null
+  return known.reduce((sum, line) => sum + line.amountCents, 0)
 }

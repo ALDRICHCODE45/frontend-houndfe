@@ -166,3 +166,29 @@ describe('QuotationProgressStepper — visual states via data attributes', () =>
     expect(wrapper.get('[data-testid="stepper-step-2"]').attributes('data-state')).toBe('active')
   })
 })
+
+// T3 / S5 — CONVERTED_TO_SALE is the terminal, won state (stepperIndexFromStatus returns -1 for
+// it): the stepper shows the whole flow done, the last step named «Convertida en venta».
+describe('QuotationProgressStepper — converted to sale (T3 / S5)', () => {
+  it('marks every step and connector as completed', () => {
+    const wrapper = mountStepper('CONVERTED_TO_SALE')
+    for (let i = 0; i < 3; i++) {
+      expect(wrapper.get(`[data-testid="stepper-step-${i}"]`).attributes('data-state')).toBe('completed')
+    }
+    for (let i = 0; i < 2; i++) {
+      expect(wrapper.get(`[data-testid="stepper-connector-${i}"]`).attributes('data-state')).toBe('completed')
+    }
+  })
+
+  it('names the final step «Convertida en venta» instead of «Expirada o cancelada»', () => {
+    const wrapper = mountStepper('CONVERTED_TO_SALE')
+    expect(wrapper.get('[data-testid="stepper-step-2"]').text()).toContain('Convertida en venta')
+    expect(wrapper.text()).not.toContain('Expirada o cancelada')
+  })
+
+  it('keeps «Expirada o cancelada» for the other statuses', () => {
+    expect(mountStepper('CANCELLED').get('[data-testid="stepper-step-2"]').text()).toContain(
+      'Expirada o cancelada',
+    )
+  })
+})
