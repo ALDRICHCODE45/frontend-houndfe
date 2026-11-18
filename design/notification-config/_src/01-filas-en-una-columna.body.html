@@ -1,0 +1,16 @@
+<div id="band"></div>
+<div id="shell" style="flex:1;min-height:0;display:flex;flex-direction:column"></div>
+<aside class="notes" id="notes" hidden aria-label="Notas de diseño">
+  <h2>Notas · A · Filas en una columna</h2>
+  <ul>
+    <li>Contrato real: <code>GET/PUT /notification-config</code> con <code>enabled</code>, <code>recipientUserIds</code> y <code>enabledActions</code>; módulos y textos de <code>ACTION_REGISTRY</code>; usuarios de <code>AssignableUser</code> (solo id y nombre, por eso no hay correo ni rol en las filas).</li>
+    <li>Columna de 880 px, como Sistema › Catálogo online. Tres grupos sin tarjetas anidadas: una superficie por grupo, los módulos son bandas dentro de la superficie de acciones.</li>
+    <li>Toda la fila es el interruptor (<code>role="switch"</code>) con palabra de estado: Activado / Desactivado / En pausa.</li>
+    <li>Usuarios: filas seleccionables con marca redonda a la derecha (<code>listbox</code> multiselección, Espacio alterna), búsqueda y conteo en vivo. Si la cuenta crece a más de ~12 personas, se cambia por <code>HfCombobox</code> múltiple (dirección B).</li>
+    <li>«Activar todas» solo aparece en módulos con 2 o más acciones (hoy Promociones): es un botón <code>aria-pressed</code> con estado mixto. En módulos de una sola acción sería un duplicado de la fila.</li>
+    <li>Interruptor general apagado: las filas quedan <code>aria-disabled</code> (siguen enfocables) y cada una dice por qué; la selección se conserva.</li>
+    <li>Texto propuesto (no está en el registro): descripción de «Solicitud de validación». Decidir con el dueño.</li>
+    <li>Barra de guardado = <code>HfSaveBar</code>: estado a la izquierda, Descartar solo con cambios, un primario.</li>
+  </ul>
+</aside>
+<div class="sr-only" aria-live="polite" id="announce"></div>
