@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { hasSalesEntryToken } from '../utils/salesEntryPortal'
-import { ref, computed } from 'vue'
+import { ref, computed, useId } from 'vue'
 import SaleItemRow from './SaleItemRow.vue'
 import SaleTotalsFooter from './SaleTotalsFooter.vue'
 import PromocionesDisponiblesAccordion from './PromocionesDisponiblesAccordion.vue'
 import GlobalDiscountModal from './GlobalDiscountModal.vue'
 import PriceListSelector from './PriceListSelector.vue' // sdd/pos-price-list-tiers
 import '../styles/sales-pos-cart.css' // T11 (unit B): cart-only composition adapter.
+import '../styles/sale-to-quotation.css' // T2 (quotation-sale-conversion): «Pasar a cotización» trigger.
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import type {
   ApplicablePromotion,
@@ -46,6 +47,12 @@ const props = defineProps<{
    * default, so every consumer keeps its native defaults and prior paint.
    */
   portalClass?: string
+  /**
+   * T2 (quotation-sale-conversion): the user holds create:Quotation AND
+   * delete:Sale. Absent/false hides «Pasar a cotización» (the backend guard
+   * answers 403 otherwise); SalesView owns the check and the dialog.
+   */
+  canConvertToQuotation?: boolean
 }>()
 
 // ── Emits ─────────────────────────────────────────────────────────────────────
@@ -80,6 +87,7 @@ const emit = defineEmits<{
   'apply-manual-promo': [promotionId: string]
   'remove-manual-promo': [promotionId: string]
   'change-price-list': [globalPriceListId: string | null]
+  'convert-to-quotation': []
 }>()
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -165,6 +173,24 @@ const moreMenuItems = computed(() => {
 })
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
+
+// T2 (quotation-sale-conversion): why «Pasar a cotización» is unavailable, or
+// null when it can run. The trigger stays focusable (aria-disabled) and points
+// at this reason, so a keyboard or screen-reader user learns what is missing.
+// useId: the desktop and mobile-sheet instances can be mounted together.
+const QUOTATION_REASON_ID = `sale-to-quotation-reason-${useId()}`
+const quotationUnavailableReason = computed<string | null>(() => {
+  if (!props.activeDraft || props.activeDraft.items.length === 0) {
+    return 'Agrega productos para pasar la venta a cotización.'
+  }
+  if (props.isMutating) return 'Espera a que se guarde el cambio en la venta.'
+  return null
+})
+
+function handleConvertToQuotation() {
+  if (quotationUnavailableReason.value) return
+  emit('convert-to-quotation')
+}
 
 function handleConfirmCloseTab() {
   if (tabToClose.value) {
@@ -281,20 +307,34 @@ function handleConfirmPriceListChange() {
       class="shrink-0 flex flex-col md:flex-row md:flex-wrap md:items-center md:gap-2 md:px-2 md:py-2 sales-pos-cart-header"
       :class="{ 'sales-pos-price-list-band': isSalesEntryComposition }"
     >
-      <!-- Group 1: type toggle only; redundant inside the mobile sheet. -->
+      <!-- Group 1 (T2 quotation-sale-conversion): the old disabled
+           Venta/Pedido tabs became the «Pedido» flow itself, one real button
+           that turns this draft into a quotation. It keeps the group's slot
+           (`cart-type-toggle` on desktop) and gets its own row inside the
+           mobile sheet, so it is reachable on every layout. -->
       <div
-        v-if="!mobileSheet"
-        data-testid="cart-type-toggle"
+        v-if="!mobileSheet || canConvertToQuotation"
+        :data-testid="mobileSheet ? 'cart-quotation-action' : 'cart-type-toggle'"
         class="flex items-center gap-1 px-3 py-2 md:border-0 md:bg-transparent md:p-0 md:shrink-0"
       >
-        <UTabs
-          :items="[
-            { key: 'venta', label: 'Venta', content: false },
-            { key: 'pedido', label: 'Pedido', content: false, disabled: true },
-          ]"
-          :model-value="'venta'"
-          class="w-auto"
-        />
+        <template v-if="canConvertToQuotation">
+          <UButton
+            data-testid="sale-to-quotation-trigger"
+            class="sales-pos-quotation-trigger"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            icon="i-lucide-file-text"
+            label="Pasar a cotización"
+            :aria-disabled="quotationUnavailableReason ? 'true' : undefined"
+            :aria-describedby="quotationUnavailableReason ? QUOTATION_REASON_ID : undefined"
+            :title="quotationUnavailableReason ?? undefined"
+            @click="handleConvertToQuotation"
+          />
+          <span v-if="quotationUnavailableReason" :id="QUOTATION_REASON_ID" class="sr-only">
+            {{ quotationUnavailableReason }}
+          </span>
+        </template>
       </div>
 
       <!-- Spacer -->

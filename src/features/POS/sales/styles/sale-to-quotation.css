@@ -1,0 +1,76 @@
+/*
+ * T2 (quotation-sale-conversion): «Pasar a cotización» trigger in the POS cart
+ * header and its dialog. Colors only from --hf-* tokens; the trigger keeps the
+ * 44px hit area and stays focusable when unavailable (aria-disabled), so its
+ * reason is announced instead of the control vanishing from the tab order.
+ */
+
+.sales-pos-quotation-trigger {
+  min-height: 44px;
+}
+
+.sales-pos-quotation-trigger[aria-disabled='true'] {
+  color: var(--hf-muted);
+  cursor: not-allowed;
+}
+
+.sales-pos-quotation-trigger[aria-disabled='true']:hover {
+  background: transparent;
+}
+
+.sale-to-quotation {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sale-to-quotation__consequence {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--hf-ink);
+}
+
+.sale-to-quotation__text {
+  font-size: 13px;
+  color: var(--hf-muted);
+}
+
+.sale-to-quotation__dropped {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--hf-border);
+  border-radius: 12px;
+  background: var(--hf-warning-soft);
+}
+
+.sale-to-quotation__dropped-item {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  color: var(--hf-ink);
+}
+
+.sale-to-quotation__error {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--hf-danger-border);
+  border-radius: 12px;
+  background: var(--hf-danger-soft);
+  color: var(--hf-danger);
+  font-size: 13px;
+}
+
+.sale-to-quotation__error-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+
+.sale-to-quotation__error-lines {
+  margin-top: 4px;
+  padding-inline-start: 16px;
+  list-style: disc;
+}

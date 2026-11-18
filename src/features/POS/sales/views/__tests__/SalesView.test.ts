@@ -163,6 +163,23 @@ function resetApplicablePromotionsMock() {
 
 vi.mock('../../api/sale.api', () => ({ saleApi: { getProductDetail: vi.fn() } }))
 
+// T2 (quotation-sale-conversion): the «Pasar a cotización» permission and the
+// router used to open the new quotation. The dialog itself is stubbed below.
+const { canConvertToQuotation, routerPush } = vi.hoisted(() => ({
+  canConvertToQuotation: { value: true },
+  routerPush: vi.fn(),
+}))
+vi.mock('../../composables/useSaleToQuotation', async () => {
+  const { computed } = await import('vue')
+  return {
+    useSaleToQuotationPermission: () => computed(() => canConvertToQuotation.value),
+  }
+})
+vi.mock('vue-router', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('vue-router')>()
+  return { ...actual, useRouter: () => ({ push: routerPush }) }
+})
+
 vi.mock('../../composables/useDraftCustomerAssignment', () => ({
   DraftCustomerAssignmentError: class DraftCustomerAssignmentError extends Error {
     constructor(public readonly code: string) {
@@ -205,10 +222,12 @@ const globalStubs = {
       'appliedManualPromotionIds',
       'mobileSheet',
       'portalClass',
+      'canConvertToQuotation',
     ],
     // C.5: `remove-promo` (per-line) is now forwarded from ActiveSalePanel
     // alongside the existing `remove-order-promo` (order-level).
     emits: [
+      'convert-to-quotation',
       'charge-click',
       'unassign-customer',
       'remove-order-promo',
@@ -224,6 +243,19 @@ const globalStubs = {
       '<button data-testid="remove-line-promo" @click="$emit(\'remove-promo\', \'line-promo-uuid\')">remove-line-promo</button>' +
       '<p data-testid="applicable-promotions-count">{{ (applicablePromotions ?? []).length }}</p>' +
       '<p data-testid="is-loading-promotions">{{ isLoadingPromotions }}</p>' +
+      '<p data-testid="can-convert-to-quotation">{{ canConvertToQuotation }}</p>' +
+      '<button data-testid="convert-to-quotation" @click="$emit(\'convert-to-quotation\')">quote</button>' +
+      '</div>',
+  },
+  SaleToQuotationModal: {
+    name: 'SaleToQuotationModal',
+    props: ['open', 'saleId', 'itemCount', 'portalClass'],
+    emits: ['update:open', 'converted', 'open-quotation'],
+    template:
+      '<div data-testid="sale-to-quotation-modal">' +
+      '<p data-testid="sale-to-quotation-open">{{ open }}</p>' +
+      '<p data-testid="sale-to-quotation-sale-id">{{ saleId }}</p>' +
+      '<p data-testid="sale-to-quotation-item-count">{{ itemCount }}</p>' +
       '</div>',
   },
   PaymentModal: {
@@ -2044,5 +2076,143 @@ describe('SalesView four states (S10)', () => {
     expect(wrapper.find('[data-testid="sales-loading-skeleton"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="sales-error-state"]').exists()).toBe(false)
     wrapper.unmount()
+  })
+})
+
+// T2 (quotation-sale-conversion, S1 + S3): «Pasar a cotización» orchestration.
+// The panel emits, the view owns the single dialog, closes the converted tab
+// like a discarded draft and opens the new quotation.
+describe('SalesView T2 — sale draft → quotation', () => {
+  const makeSale = (id: string): Sale => ({
+    id,
+    userId: 'user-1',
+    status: 'DRAFT',
+    items: [
+      {
+        id: `${id}-item`,
+        productId: 'prod-1',
+        variantId: null,
+        productName: 'A',
+        variantName: null,
+        quantity: 1,
+        unitPriceCents: 10000,
+        unitPriceCurrency: 'MXN',
+      },
+    ],
+    createdAt: 'x',
+    updatedAt: 'x',
+  })
+  const result = (droppedAdjustments: unknown[] = []) => ({
+    quotation: { id: 'q-1' },
+    discardedSaleId: 'sale-1',
+    droppedAdjustments,
+  })
+  let wrappers: Array<{ unmount: () => void }> = []
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mobileViewport.value = false
+    isMutating.value = false
+    canConvertToQuotation.value = true
+    activeTabId.value = 'sale-1'
+    drafts.value = [makeSale('sale-1'), makeSale('sale-2')]
+  })
+
+  afterEach(() => {
+    for (const w of wrappers) w.unmount()
+    wrappers = []
+  })
+
+  function mountTracked() {
+    const wrapper = mountView()
+    wrappers.push(wrapper as unknown as { unmount: () => void })
+    return wrapper
+  }
+
+  it('passes the permission (create:Quotation + delete:Sale) to the panel', () => {
+    expect(mountTracked().get('[data-testid="can-convert-to-quotation"]').text()).toBe('true')
+    canConvertToQuotation.value = false
+    expect(mountTracked().get('[data-testid="can-convert-to-quotation"]').text()).toBe('false')
+  })
+
+  it('opens one dialog for the active draft', async () => {
+    const wrapper = mountTracked()
+    expect(wrapper.get('[data-testid="sale-to-quotation-open"]').text()).toBe('false')
+
+    await wrapper.get('[data-testid="convert-to-quotation"]').trigger('click')
+
+    expect(wrapper.findAll('[data-testid="sale-to-quotation-modal"]')).toHaveLength(1)
+    expect(wrapper.get('[data-testid="sale-to-quotation-open"]').text()).toBe('true')
+    expect(wrapper.get('[data-testid="sale-to-quotation-sale-id"]').text()).toBe('sale-1')
+    expect(wrapper.get('[data-testid="sale-to-quotation-item-count"]').text()).toBe('1')
+  })
+
+  it('does not open without the permission or for an empty draft', async () => {
+    canConvertToQuotation.value = false
+    const denied = mountTracked()
+    await denied.get('[data-testid="convert-to-quotation"]').trigger('click')
+    expect(denied.get('[data-testid="sale-to-quotation-open"]').text()).toBe('false')
+
+    canConvertToQuotation.value = true
+    drafts.value = [{ ...makeSale('sale-1'), items: [] }]
+    const empty = mountTracked()
+    await empty.get('[data-testid="convert-to-quotation"]').trigger('click')
+    expect(empty.get('[data-testid="sale-to-quotation-open"]').text()).toBe('false')
+  })
+
+  it('closes the mobile cart first and opens the dialog after it leaves', async () => {
+    mobileViewport.value = true
+    const wrapper = mountTracked()
+    await wrapper.get('[data-testid="mobile-cart-fab"]').trigger('click')
+    const drawer = wrapper.findComponent({ name: 'AppResponsiveDrawerStub' })
+
+    await wrapper.get('[data-testid="mobile-cart-drawer"]').get('[data-testid="convert-to-quotation"]').trigger('click')
+    expect(drawer.props('open')).toBe(false)
+    expect(wrapper.get('[data-testid="sale-to-quotation-open"]').text()).toBe('false')
+
+    drawer.vm.$emit('after:leave')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('[data-testid="sale-to-quotation-open"]').text()).toBe('true')
+    expect(wrapper.get('[data-testid="payment-modal-open"]').text()).toBe('false')
+  })
+
+  it('on converted moves to the next sale tab and confirms with a toast', async () => {
+    const wrapper = mountTracked()
+    await wrapper.get('[data-testid="convert-to-quotation"]').trigger('click')
+
+    wrapper.findComponent({ name: 'SaleToQuotationModal' }).vm.$emit('converted', result())
+    await flushPromises()
+
+    expect(activeTabId.value).toBe('sale-2')
+    expect(openNewTabMock).not.toHaveBeenCalled()
+    expect(addToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Cotización creada',
+        description: 'La venta se guardó como cotización.',
+        color: 'success',
+      }),
+    )
+  })
+
+  it('opens a fresh sale when the converted one was the last, if the cashier stays', async () => {
+    drafts.value = [makeSale('sale-1')]
+    const wrapper = mountTracked()
+    await wrapper.get('[data-testid="convert-to-quotation"]').trigger('click')
+
+    wrapper.findComponent({ name: 'SaleToQuotationModal' }).vm.$emit('converted', result([{ title: 'Promo X' }]))
+    await flushPromises()
+
+    expect(activeTabId.value).toBeNull()
+    expect(openNewTabMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens the new quotation', async () => {
+    const wrapper = mountTracked()
+    await wrapper.get('[data-testid="convert-to-quotation"]').trigger('click')
+
+    wrapper.findComponent({ name: 'SaleToQuotationModal' }).vm.$emit('open-quotation', 'q-1')
+    await flushPromises()
+
+    expect(routerPush).toHaveBeenCalledWith({ name: 'pos-quotation-detail', params: { id: 'q-1' } })
   })
 })
