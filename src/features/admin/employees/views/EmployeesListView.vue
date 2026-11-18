@@ -383,10 +383,14 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
           </template>
 
           <template #select-header="{ table }">
-            <SelectColumn :table="table" mode="header" />
+            <SelectColumn :table="table" mode="header" header-label="Seleccionar todos los empleados" />
           </template>
           <template #select-cell="{ row }">
-            <SelectColumn :row="row" mode="cell" />
+            <SelectColumn
+              :row="row"
+              mode="cell"
+              :label="(e: { fullName?: string }) => `Seleccionar a ${e.fullName ?? 'empleado'}`"
+            />
           </template>
 
           <template #colaborador-cell="{ row }">

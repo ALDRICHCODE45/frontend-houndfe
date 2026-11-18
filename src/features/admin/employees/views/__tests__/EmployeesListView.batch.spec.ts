@@ -23,9 +23,9 @@ describe('EmployeesListView batch operations', () => {
 
   it('renders reusable select column slots', () => {
     expect(source).toContain('<template #select-header="{ table }">')
-    expect(source).toContain('<SelectColumn :table="table" mode="header" />')
+    expect(source).toContain('<SelectColumn :table="table" mode="header" header-label="Seleccionar todos los empleados" />')
     expect(source).toContain('<template #select-cell="{ row }">')
-    expect(source).toContain('<SelectColumn :row="row" mode="cell" />')
+    expect(source).toMatch(/<SelectColumn\s+:row="row"\s+mode="cell"\s+:label=/)
   })
 
   it('wires all three batch confirmation modals', () => {
