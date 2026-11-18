@@ -17,8 +17,7 @@ function makeQuotation(overrides: Partial<QuotationResponseDto> = {}): Quotation
     subtotalCents: 15000,
     discountCents: 1500,
     totalCents: 13500,
-    taxRate: null,
-    taxCents: null,
+    ivaBreakdown: [],
     customerNotes: null,
     manuallyEnded: false,
     items: [],
@@ -304,11 +303,11 @@ describe('QuotationTotalsFooter — RESUMEN sidebar (T-UI-22/23 / REQ-UI-009)', 
 // `amountCents`; an empty breakdown (no items, or an old quotation without snapshots) shows no IVA.
 // There is no tax-rate selector: PATCH /tax-rate is deprecated and never called.
 describe('QuotationTotalsFooter — IVA incluido (T4 / S6)', () => {
+  // Lines are typed loosely on purpose: the wire may bring a classification the FE does not know.
   function withIva(
     lines: Array<{ classification: string; amountCents: number }> | undefined,
-    overrides: Partial<QuotationResponseDto> = {},
   ): QuotationResponseDto {
-    return { ...makeQuotation(overrides), ivaBreakdown: lines } as QuotationResponseDto
+    return { ...makeQuotation(), ivaBreakdown: lines } as QuotationResponseDto
   }
 
   it('renders one «IVA incluido» row with the sum of ivaBreakdown amountCents', () => {
@@ -341,26 +340,34 @@ describe('QuotationTotalsFooter — IVA incluido (T4 / S6)', () => {
     expect(wrapper.text()).not.toContain('IVA')
   })
 
+  it('ignores an unknown classification and sums only the known ones', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: {
+        quotation: withIva([
+          { classification: 'IVA_16', amountCents: 1600 },
+          { classification: 'IVA_99', amountCents: 999 },
+        ]),
+      },
+    })
+    expect(wrapper.get('[data-testid="summary-iva-amount"]').text()).toBe('$16.00')
+  })
+
+  it('shows no IVA when every line has an unknown classification', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: { quotation: withIva([{ classification: 'IVA_99', amountCents: 999 }]) },
+    })
+    expect(wrapper.find('[data-testid="summary-iva-row"]').exists()).toBe(false)
+  })
+
   it('shows no IVA when the payload has no ivaBreakdown at all', () => {
     const wrapper = mount(QuotationTotalsFooter, { props: { quotation: withIva(undefined) } })
     expect(wrapper.find('[data-testid="summary-iva-row"]').exists()).toBe(false)
   })
 
-  it('ignores the legacy taxRate/taxCents (no longer on the wire)', () => {
-    const wrapper = mount(QuotationTotalsFooter, {
-      props: { quotation: withIva([], { taxRate: 0.16, taxCents: 1600 }) },
-    })
-    expect(wrapper.find('[data-testid="summary-iva-row"]').exists()).toBe(false)
-    expect(wrapper.text()).not.toContain('IVA 16%')
-  })
-
   it('offers no tax-rate selector, even on an editable draft', () => {
     const wrapper = mount(QuotationTotalsFooter, {
       props: {
-        quotation: withIva([{ classification: 'IVA_16', amountCents: 1600 }], {
-          taxRate: 0.16,
-          taxCents: 1600,
-        }),
+        quotation: withIva([{ classification: 'IVA_16', amountCents: 1600 }]),
         editable: true,
       },
     })
@@ -386,7 +393,10 @@ describe('QuotationTotalsFooter — workspace visual boundary (S3/S4)', () => {
 
   it('keeps the discount amount on the heading role', () => {
     const wrapper = mount(QuotationTotalsFooter, {
-      props: { quotation: makeQuotation({ discountCents: 1500, taxRate: 0.16, taxCents: 1600 }) },
+      props: { quotation: makeQuotation({
+          discountCents: 1500,
+          ivaBreakdown: [{ classification: 'IVA_16', amountCents: 1600 }],
+        }) },
     })
 
     expect(wrapper.find('[data-testid="discount-amount"]').classes().join(' ')).toMatch(

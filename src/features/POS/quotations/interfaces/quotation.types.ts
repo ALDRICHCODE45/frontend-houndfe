@@ -91,6 +91,16 @@ export interface AppliedPromotion {
 
 // ─── Top-level DTO ────────────────────────────────────────────────────────────
 
+/** IVA classification of a quotation line's fiscal snapshot (docs/quotations-frontend.md §3.18).
+ *  `NOT_TAXABLE` = product with `chargeProductTaxes = false`. */
+export type IvaClassification = 'IVA_16' | 'IVA_8' | 'IVA_0' | 'IVA_EXENTO' | 'NOT_TAXABLE'
+
+export interface IvaBreakdownLine {
+  classification: IvaClassification
+  /** Integer cents, `>= 0` (may be `0`, e.g. `IVA_0`). */
+  amountCents: number
+}
+
 /** Compact seller reference embedded in the quotation response.
  *  Mirrors `SaleActorRef` (POS sales module) — id + display name only,
  *  no email/avatar in the wire. */
@@ -113,14 +123,12 @@ export interface QuotationResponseDto {
   discountCents: number
   totalCents: number
   /**
-   * Backend-computed IVA rate (e.g. `0.16` for 16%). `null` when the backend
-   * didn't stamp a tax (older payloads, tax-exempt line items, etc.).
-   * Pairs with `taxCents` — both must be non-null for the UI to render the
-   * IVA row in the RESUMEN sidebar.
+   * docs/quotations-frontend.md §3.18: IVA included per classification (only those present, in
+   * backend order). `[]` = show no IVA (no items, or an old quotation without fiscal snapshots).
+   * Optional only so fixtures from before the field existed still type-check. The legacy
+   * `taxRate`/`taxCents` are no longer on the wire.
    */
-  taxRate: number | null
-  /** Backend-computed IVA amount in cents. See `taxRate` for the null contract. */
-  taxCents: number | null
+  ivaBreakdown?: IvaBreakdownLine[]
   /** Free-form customer notes (max 280 chars). Edited via PATCH …/drafts/:id/notes. */
   customerNotes: string | null
   manuallyEnded: boolean

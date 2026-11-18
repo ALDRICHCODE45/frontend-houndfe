@@ -324,18 +324,6 @@ export const quotationApi = {
     return data
   },
 
-  // ─── 3.13c setTaxRate ─────────────────────────────────────────────────────
-  /** PATCH /quotations/drafts/:id/tax-rate — override the IVA rate for this
-   *  draft (e.g. 0 = exento, 0.16 = 16%). Only works on DRAFT. Returns the
-   *  full updated quotation with recalculated taxCents. */
-  async setTaxRate(id: string, taxRate: number): Promise<QuotationResponseDto> {
-    const { data } = await http.patch<QuotationResponseDto>(
-      `/quotations/drafts/${id}/tax-rate`,
-      { taxRate } satisfies { taxRate: number },
-    )
-    return data
-  },
-
   // ─── 3.13d setSeller ──────────────────────────────────────────────────────
   /** PUT /quotations/drafts/:id/seller — assign (or replace) the seller.
    *  Backend is DRAFT-only; returns 409 otherwise. Returns the full

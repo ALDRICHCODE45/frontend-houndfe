@@ -39,6 +39,7 @@
 import { computed } from 'vue'
 import type { QuotationResponseDto } from '../interfaces/quotation.types'
 import { formatCentsMXN } from '../utils/currency.utils'
+import { sumIncludedIvaCents } from '../utils/quotation.utils'
 
 const props = withDefaults(
   defineProps<{
@@ -78,28 +79,15 @@ const totalFormatted = computed(() => formatCentsMXN(props.quotation.totalCents)
  * the total never changes because of it. The amount to show is the sum of `ivaBreakdown[].amountCents`
  * in ONE «IVA incluido» row (no rates, no per-classification breakdown), exactly like the PDF.
  * `ivaBreakdown: []` (no items, or an old quotation without fiscal snapshots) means «do not show
- * IVA» — never «IVA $0». The legacy `taxRate`/`taxCents` are no longer on the wire and are ignored.
+ * IVA» — never «IVA $0». Unknown classifications are ignored (`sumIncludedIvaCents`).
  */
-interface IvaBreakdownLine {
-  classification: string
-  amountCents: number
-}
-
-const ivaBreakdown = computed<IvaBreakdownLine[]>(() => {
-  // `ivaBreakdown` is read defensively: the shared DTO type predates it.
-  const raw = (props.quotation as { ivaBreakdown?: unknown }).ivaBreakdown
-  if (!Array.isArray(raw)) return []
-  return raw.filter(
-    (line): line is IvaBreakdownLine =>
-      !!line && typeof line === 'object' && Number.isFinite((line as IvaBreakdownLine).amountCents),
-  )
-})
-
-const hasIva = computed<boolean>(() => ivaBreakdown.value.length > 0)
-
-const ivaFormatted = computed(() =>
-  formatCentsMXN(ivaBreakdown.value.reduce((sum, line) => sum + line.amountCents, 0)),
+const includedIvaCents = computed<number | null>(() =>
+  sumIncludedIvaCents(props.quotation.ivaBreakdown),
 )
+
+const hasIva = computed<boolean>(() => includedIvaCents.value !== null)
+
+const ivaFormatted = computed(() => formatCentsMXN(includedIvaCents.value ?? 0))
 
 /** Counts agree in number: "1 producto · 1 unidad", "2 productos · 3 unidades". */
 const legacyItemsCount = computed<string>(() => {

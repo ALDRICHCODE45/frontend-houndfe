@@ -45,7 +45,6 @@ const state = {
 const quotationApiMock = vi.hoisted(() => ({
   getPdfBlob: vi.fn(),
   updateNotes: vi.fn(),
-  setTaxRate: vi.fn(),
   deleteQuotation: vi.fn(),
   setSeller: vi.fn(),
 }))
@@ -233,8 +232,7 @@ function makeQuotation(overrides: Partial<QuotationResponseDto> = {}): Quotation
     subtotalCents: 0,
     discountCents: 0,
     totalCents: 0,
-    taxRate: null,
-    taxCents: null,
+    ivaBreakdown: [],
     customerNotes: null,
     manuallyEnded: false,
     items: [],
@@ -547,7 +545,6 @@ beforeEach(() => {
   state.isMutating.value = false
   quotationApiMock.getPdfBlob.mockReset()
   quotationApiMock.updateNotes.mockReset()
-  quotationApiMock.setTaxRate.mockReset()
   quotationApiMock.deleteQuotation.mockReset()
   quotationApiMock.setSeller.mockReset().mockResolvedValue(makeQuotation())
   productApiMock.getGlobalPriceLists.mockReset()
@@ -1337,9 +1334,9 @@ describe('QuotationDetailView — customer notes backend persistence (T-UI-21/22
 
 // T4 / S6 — the per-quotation IVA override is deprecated (docs/quotations-frontend.md §3.18:
 // «no uses este endpoint ni muestres un selector de tasa de IVA»). The view no longer wires
-// `update:tax-rate`, so even a stray emit never reaches PATCH /quotations/drafts/:id/tax-rate.
+// `update:tax-rate` and `quotationApi` has no tax-rate call, so a stray emit mutates nothing.
 describe('QuotationDetailView — no tax-rate override (T4 / S6)', () => {
-  it('never calls quotationApi.setTaxRate, even if the footer emits update:tax-rate', async () => {
+  it('mutates nothing when the footer emits a stray update:tax-rate', async () => {
     state.quotation.value = makeQuotation()
     const wrapper = mountView()
     await flushPromises()
@@ -1348,7 +1345,7 @@ describe('QuotationDetailView — no tax-rate override (T4 / S6)', () => {
     await wrapper.get('[data-testid="stub-summary-iva-set-exento"]').trigger('click')
     await flushPromises()
 
-    expect(quotationApiMock.setTaxRate).not.toHaveBeenCalled()
+    for (const fn of Object.values(quotationApiMock)) expect(fn).not.toHaveBeenCalled()
     expect(toastCalls).toEqual([])
   })
 
