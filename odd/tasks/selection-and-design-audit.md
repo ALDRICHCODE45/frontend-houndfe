@@ -18,7 +18,7 @@ Migrate every remaining checkbox to «Selección sin checkboxes» (docs/design-s
 - T6a | S2–S3 | worker | products: ProductDetailView UCard stack + VariantDetailModal → design-system section cards / switch rows
 - T6b | S2–S3 | worker | employees: admin/employees/components/*Panel.vue card stacks
 - T6c | S2–S3 | worker | sales/customers: AssignCustomerSlideover nested cards, SaleDetail*Card, customer upsert section look (clients-visual.css, sales-pos-customer.css)
-- T6d | S1–S3 | worker | promotions leftovers: WhatsApp and capacity switches as whole-row HfSwitchRow, PromotionSummaryCard, customer/price-list multiple pickers
+- T6d | S1–S3 | worker | done — promotions leftovers: WhatsApp and capacity switches as whole-row HfSwitchRow, PromotionSummaryCard, customer/price-list multiple pickers
 - T7 | S1–S3 | verify + browser | live check light/dark, 1440/390; full suite
 
 ## Log
@@ -33,3 +33,4 @@ Migrate every remaining checkbox to «Selección sin checkboxes» (docs/design-s
 - L9 T4c done (worker mwljasqq-9-aqd2): products/editorial/delivery-routes 1734/1734. Care publication: the consent is text in the confirmation panel and the final button «Confirmo la revisión y publico» emits review-v1 (two steps; any prop change closes the panel). Parent retargeted e2e/responsive delivery-route-assignment-safety to [role=option][data-value] + aria-disabled (not run). Picker list label/count copy inline.
 - L10 Residual grep: 0 <UCheckbox / type="checkbox" left in src (non-test). T6 split into T6a–T6d (disjoint surfaces), launched in parallel with T5.
 - L11 T5 done (worker mwljmp1k-a-oxq3): notifications 261/261 after removing the unused ActionsAccordion/ModuleAccordionItem (parent), vue-tsc 0, eslint 0; payload spec runs the real composables and pins the PUT body. Deviations: Guardar with no users stays clickable but does not save («falta elegir usuarios», focus to the list) since HfSaveBar has no disabled-save prop; no master icon / «Va al cliente» badge (HfSwitchRow label is text); users list one column. Browser check pending (T7).
+- L12 T6d done (worker mwlk1rep-d-p7zd): promotions 768/768. Bug found and fixed: promotion customer search never sent the typed text (v-model:query/searchable do not exist in Nuxt UI v4) → v-model:search-term + ignore-filter. Customers stay USelectMenu (HfCombobox has no async search). Price lists ≤ 12 → HfSelectableRows, more → HfCombobox multiple.
