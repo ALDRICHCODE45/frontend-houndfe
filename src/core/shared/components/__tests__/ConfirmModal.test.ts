@@ -14,7 +14,7 @@ vi.mock('@nuxt/ui/runtime/components/Modal.vue', () => ({
     props: ['open', 'title', 'dismissible', 'close'],
     emits: ['update:open'],
     template: `
-      <div data-testid="u-modal" :data-open="String(open)">
+      <div data-testid="u-modal" :data-open="String(open)" :data-close="JSON.stringify(close)">
         <slot name="body" />
         <slot name="footer" />
       </div>
@@ -170,5 +170,14 @@ describe('ConfirmModal footer on mobile', () => {
     for (const button of wrapper.findAll('button')) {
       expect(button.classes()).toEqual(expect.arrayContaining(['min-h-11', 'sm:min-h-0']))
     }
+  })
+})
+
+describe('ConfirmModal — close button', () => {
+  it('gives the ✕ a 44px target, and hides it while loading', () => {
+    const close = JSON.parse(mountModal().get('[data-testid="u-modal"]').attributes('data-close')!)
+    expect(close.class).toContain('size-11')
+    const loading = mountModal({ loading: true }).get('[data-testid="u-modal"]').attributes('data-close')
+    expect(loading).toBe('false')
   })
 })
