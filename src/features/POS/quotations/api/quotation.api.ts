@@ -22,6 +22,7 @@
 
 import { http } from '@/core/shared/api/http'
 import type { AxiosError } from 'axios'
+import { clearSuppressedPromotions } from '@/features/POS/sales/composables/useSuppressedPromotions'
 import type {
   CancelReason,
   ConvertQuotationToSaleResponse,
@@ -388,7 +389,10 @@ export const quotationApi = {
     const { data } = await http.post<unknown>(`/quotations/from-sale/${saleId}`, body, {
       headers: { 'Idempotency-Key': idempotencyKey },
     })
-    return parseCreateQuotationFromSaleResponse(data)
+    const parsed = parseCreateQuotationFromSaleResponse(data)
+    // odd T3b: the draft no longer exists; its kept suppressedPromotions go with it.
+    clearSuppressedPromotions(parsed.discardedSaleId)
+    return parsed
   },
 
   /** POST /quotations/:id/convert-to-sale — DRAFT/SENT, not expired quotation → POS sale draft at

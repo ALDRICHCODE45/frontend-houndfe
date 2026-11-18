@@ -5,6 +5,7 @@ import type {
   CreateQuotationFromSaleResponse,
   DroppedAdjustmentKind,
   QuotationResponseDto,
+  SuppressedPromotion,
   UnavailableLine,
   UnavailableLineReason,
 } from './quotation.types'
@@ -64,9 +65,27 @@ const fromSaleSchema = z.object({
     .transform((value) => value ?? []),
 })
 
+const suppressedPromotionSchema = z.object({
+  promotionId: z.string(),
+  title: z.string().nullish().transform((value) => value ?? null),
+})
+
+/** `suppressedPromotions` (handoff 23 §2): `[]` when absent; entries that break the shape are
+ *  skipped — the sale already exists, so a bad hint must not fail the conversion. */
+const suppressedPromotionsSchema = z
+  .array(z.unknown())
+  .nullish()
+  .transform((value): SuppressedPromotion[] =>
+    (value ?? []).flatMap((entry) => {
+      const result = suppressedPromotionSchema.safeParse(entry)
+      return result.success ? [result.data] : []
+    }),
+  )
+
 const toSaleSchema = z.object({
   quotation: quotationSchema,
   sale: saleSchema,
+  suppressedPromotions: suppressedPromotionsSchema,
 })
 
 export function parseCreateQuotationFromSaleResponse(value: unknown): CreateQuotationFromSaleResponse {
@@ -86,6 +105,7 @@ export function parseConvertQuotationToSaleResponse(value: unknown): ConvertQuot
     // SAFETY: both bodies pass through as received beyond the checked keys (see file comment).
     quotation: parsed.quotation as unknown as QuotationResponseDto,
     sale: parsed.sale as unknown as Sale,
+    suppressedPromotions: parsed.suppressedPromotions,
   }
 }
 

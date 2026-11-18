@@ -260,3 +260,23 @@ describe('PromocionesDisponiblesAccordion C.3 — presentational contract', () =
     expect(wrapper.find('[data-testid="promo-hint-promo-a"]').exists()).toBe(false)
   })
 })
+// odd T3b / S5 — a promotion vetoed by the quotation → sale conversion reads why it is not applied
+// and keeps the normal «Aplicar» (which re-enables it).
+describe('PromocionesDisponiblesAccordion — suppressed by a quotation (odd T3b)', () => {
+  it('shows «No aplicada por venir de una cotización» under a suppressed promotion only', async () => {
+    const { mergeSuppressedPromotions } = await import('../../composables/useSuppressedPromotions')
+    const promotions = mergeSuppressedPromotions(makePromotions(), [
+      { promotionId: 'auto-1', title: null },
+    ])
+    const wrapper = mountAccordion({ promotions })
+
+    expect(wrapper.find('[data-testid="promo-title-auto-1"]').text()).toBe('Promoción')
+    expect(wrapper.find('[data-testid="promo-suppressed-note-auto-1"]').text()).toBe(
+      'No aplicada por venir de una cotización',
+    )
+    expect(wrapper.find('[data-testid="promo-suppressed-note-promo-a"]').exists()).toBe(false)
+
+    await wrapper.find('[data-testid="promo-apply-auto-1"]').trigger('click')
+    expect(wrapper.emitted('apply')).toEqual([['auto-1']])
+  })
+})

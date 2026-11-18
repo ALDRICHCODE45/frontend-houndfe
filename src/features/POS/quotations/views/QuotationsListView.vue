@@ -47,6 +47,11 @@ import {
   canConvertQuotation,
   useConvertQuotationToSale,
 } from '../composables/useConvertQuotationToSale'
+import {
+  hasSaleLink,
+  useOpenQuotationSale,
+  type OpenQuotationSaleTarget,
+} from '../composables/useOpenQuotationSale'
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 
 declare const useToast: () => {
@@ -256,9 +261,25 @@ async function handleConfirmConvert(): Promise<void> {
   if (ok) convertState.value = { ...convertState.value, open: false }
 }
 
+// odd T3b — «Ver venta» by the sale's live status (DRAFT → POS if it is mine, else a notice).
+const saleOpener = useOpenQuotationSale()
+
+async function openSale(target: OpenQuotationSaleTarget): Promise<void> {
+  const opened = await saleOpener.open(target)
+  const notice = saleOpener.notice.value
+  if (!opened && notice) useToast().add({ title: notice, color: 'warning' })
+}
+
+/** QUOTATION_ALREADY_CONVERTED carries only the saleId: the status is read from the quotation. */
 function goToSale(saleId: string): void {
+  const quotationId = convertState.value.id
   convertState.value = { ...convertState.value, open: false }
-  void router.push(`/pos/ventas/${saleId}`)
+  void openSale({ saleId, quotationId })
+}
+
+function viewSale(quotation: QuotationResponseDto): void {
+  if (!quotation.saleId) return
+  void openSale({ saleId: quotation.saleId, saleStatus: quotation.saleStatus, quotationId: quotation.id })
 }
 
 // ─── Column definitions ───────────────────────────────────────────────────────
@@ -327,6 +348,9 @@ function actionsFor(quotation: QuotationResponseDto): RowAction[] {
 
   return [
     { key: 'open', label: 'Ver detalle', icon: 'i-lucide-eye' },
+    ...(quotation.status === QUOTATION_STATUS.CONVERTED_TO_SALE && hasSaleLink(quotation)
+      ? [{ key: 'view-sale', label: 'Ver venta', icon: 'i-lucide-receipt' }]
+      : []),
     ...(convertible ? [{ key: 'convert', label: convertLabel, icon: 'i-lucide-shopping-cart' }] : []),
     ...(canDelete.value && isDeletableStatus
       ? [{ key: 'delete', label: 'Eliminar…', icon: 'i-lucide-trash-2', destructive: true }]
@@ -336,6 +360,7 @@ function actionsFor(quotation: QuotationResponseDto): RowAction[] {
 
 function onAction(key: string, quotation: QuotationResponseDto): void {
   if (key === 'open') goToDetail(quotation)
+  else if (key === 'view-sale') viewSale(quotation)
   else if (key === 'convert') handleConvert(quotation)
   else if (key === 'delete') handleDelete(quotation)
 }

@@ -155,3 +155,74 @@ describe('useApplicablePromotions (promotions-in-sale A.5)', () => {
     expect(k1).toEqual(['sales', 'tenant-1', 'applicable-promotions', 'sale-1'])
   })
 })
+
+// odd T3b / S5 — the automatic promotions vetoed by a quotation → sale conversion are offered in
+// the same list (GET /sales/drafts does not expose vetoes; the conversion response is kept).
+describe('useApplicablePromotions × suppressed promotions (odd T3b)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+    vi.mocked(saleApi.listApplicablePromotions).mockResolvedValue(fixtureResponse('sale-1'))
+  })
+
+  async function mountAndRead(draftId: () => string | undefined) {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    let result: ReturnType<typeof useApplicablePromotions> | undefined
+    mount(
+      defineComponent({
+        setup() {
+          result = useApplicablePromotions(draftId)
+          return () => h('div')
+        },
+      }),
+      { global: { plugins: [[VueQueryPlugin, { queryClient }]] } },
+    )
+    return () => result!
+  }
+
+  it('prepends the stored suppressed promotions, marked and titled', async () => {
+    const { rememberSuppressedPromotions, isSuppressedFromQuotation } = await import(
+      '../useSuppressedPromotions'
+    )
+    rememberSuppressedPromotions('sale-1', [{ promotionId: 'auto-1', title: null }])
+
+    const read = await mountAndRead(() => 'sale-1')
+
+    await vi.waitFor(() => {
+      expect(read().data.value?.promotions.map((promo) => promo.id)).toEqual([
+        'auto-1',
+        'promo-1',
+        'promo-2',
+      ])
+    })
+    const first = read().data.value!.promotions[0]!
+    expect(first.title).toBe('Promoción')
+    expect(isSuppressedFromQuotation(first)).toBe(true)
+  })
+
+  it('drops an entry from the list once it is forgotten (applied)', async () => {
+    const { rememberSuppressedPromotions, forgetSuppressedPromotion } = await import(
+      '../useSuppressedPromotions'
+    )
+    rememberSuppressedPromotions('sale-1', [{ promotionId: 'auto-1', title: 'Orden auto' }])
+    const read = await mountAndRead(() => 'sale-1')
+    await vi.waitFor(() => expect(read().data.value?.promotions).toHaveLength(3))
+
+    forgetSuppressedPromotion('sale-1', 'auto-1')
+
+    await vi.waitFor(() => {
+      expect(read().data.value?.promotions.map((promo) => promo.id)).toEqual(['promo-1', 'promo-2'])
+    })
+  })
+
+  it('still offers the suppressed ones when the backend list fails', async () => {
+    const { rememberSuppressedPromotions } = await import('../useSuppressedPromotions')
+    rememberSuppressedPromotions('sale-1', [{ promotionId: 'auto-1', title: 'Orden auto' }])
+    vi.mocked(saleApi.listApplicablePromotions).mockRejectedValue(new Error('500'))
+
+    const read = await mountAndRead(() => 'sale-1')
+
+    await vi.waitFor(() => expect(read().isError.value).toBe(true))
+    expect(read().data.value?.promotions.map((promo) => promo.id)).toEqual(['auto-1'])
+  })
+})

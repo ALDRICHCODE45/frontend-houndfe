@@ -173,6 +173,26 @@ vi.mock('../../composables/useConvertQuotationToSale', async (importOriginal) =>
   }
 })
 
+// odd T3b — «Ver venta» resolution is unit-tested in useOpenQuotationSale.test.ts; the view only
+// passes the right target and surfaces the notice.
+const openSaleMock = vi.hoisted(() => ({
+  open: vi.fn(),
+  notice: { value: null as string | null },
+}))
+
+vi.mock('../../composables/useOpenQuotationSale', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../composables/useOpenQuotationSale')>()
+  const { computed: vueComputed, ref: vueRef } = await import('vue')
+  return {
+    ...actual,
+    useOpenQuotationSale: () => {
+      const notice = vueRef<string | null>(null)
+      openSaleMock.notice = notice
+      return { open: openSaleMock.open, notice, isPending: vueComputed(() => false) }
+    },
+  }
+})
+
 const availablePromotionsMock = vi.hoisted(() => ({
   manual: { promotions: [] as PromotionResponse[], isLoading: false, isError: false },
   automatic: { promotions: [] as PromotionResponse[], isLoading: false, isError: false },
@@ -563,6 +583,7 @@ beforeEach(() => {
   route.query = {}
   routerPush.mockReset()
   convertMock.convert.mockReset().mockResolvedValue(true)
+  openSaleMock.open.mockReset().mockResolvedValue(true)
   convertMock.reset.mockReset()
   convertMock.pending = { value: false }
   convertMock.failure = { value: null }
@@ -2622,7 +2643,7 @@ describe('QuotationDetailView — «Convertir en venta» (T3 / S4)', () => {
     expect(wrapper.find('[data-action="convert"]').exists()).toBe(false)
   })
 
-  it('a rejection reaches the dialog and «Ver venta» opens the sale detail', async () => {
+  it('a rejection reaches the dialog and «Ver venta» opens its sale (status read from the quotation)', async () => {
     state.quotation.value = makeQuotation({ status: 'SENT', effectiveStatus: 'SENT', expiresAt: null })
     convertMock.convert.mockImplementation(async () => {
       convertMock.failure.value = { code: 'QUOTATION_ALREADY_CONVERTED', saleId: 'sale-7' }
@@ -2638,7 +2659,11 @@ describe('QuotationDetailView — «Convertir en venta» (T3 / S4)', () => {
     const dialog = wrapper.get('[data-testid="quotation-convert-dialog"]')
     expect(dialog.attributes('data-failure')).toBe('QUOTATION_ALREADY_CONVERTED')
     await wrapper.get('[data-testid="convert-dialog-stub-view-sale"]').trigger('click')
-    expect(routerPush).toHaveBeenCalledWith('/pos/ventas/sale-7')
+    expect(openSaleMock.open).toHaveBeenCalledWith({
+      saleId: 'sale-7',
+      quotationId: 'quotation-12345678',
+    })
+    expect(wrapper.find('[data-testid="quotation-convert-dialog"]').exists()).toBe(false)
   })
 
   it('opening the dialog again clears the previous rejection', async () => {
@@ -2657,25 +2682,64 @@ describe('QuotationDetailView — converted to sale is read-only (T3 / S5)', () 
     new Date(convertedAt),
   )
 
-  function converted(saleId: string | null) {
+  function converted(
+    saleId: string | null,
+    saleStatus: QuotationResponseDto['saleStatus'] = saleId ? 'DRAFT' : null,
+  ) {
     return makeQuotation({
       status: 'CONVERTED_TO_SALE',
       effectiveStatus: 'CONVERTED_TO_SALE',
       saleId,
+      saleStatus,
       convertedAt,
       expiresAt: null,
     })
   }
 
-  it('says «Convertida en venta el <fecha>» and «Ver venta» opens the sale detail', async () => {
-    state.quotation.value = converted('sale-9')
+  it.each(['DRAFT', 'CONFIRMED', 'CANCELED'] as const)(
+    'says «Convertida en venta el <fecha>» and «Ver venta» opens the %s sale by its status',
+    async (saleStatus) => {
+      state.quotation.value = converted('sale-9', saleStatus)
+      const wrapper = mountView()
+      await flushPromises()
+
+      const banner = wrapper.get('[data-testid="converted-banner"]')
+      expect(banner.text()).toContain(`Convertida en venta el ${expectedDate}`)
+      await banner.get('[data-testid="converted-view-sale"]').trigger('click')
+      expect(openSaleMock.open).toHaveBeenCalledWith({
+        saleId: 'sale-9',
+        saleStatus,
+        quotationId: 'quotation-12345678',
+      })
+    },
+  )
+
+  it('a DRAFT of another cashier: «Ver venta» shows the in-progress notice', async () => {
+    const notice = 'La venta está en curso en el punto de venta de quien la convirtió.'
+    openSaleMock.open.mockImplementation(async () => {
+      openSaleMock.notice.value = notice
+      return false
+    })
+    state.quotation.value = converted('sale-9', 'DRAFT')
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="converted-view-sale"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="converted-sale-notice"]').text()).toBe(notice)
+    expect(toastCalls).toContainEqual({ title: notice, color: 'warning' })
+    expect(routerPush).not.toHaveBeenCalled()
+  })
+
+  it('saleStatus null with a saleId: no «Ver venta» link', async () => {
+    state.quotation.value = converted('sale-9', null)
     const wrapper = mountView()
     await flushPromises()
 
     const banner = wrapper.get('[data-testid="converted-banner"]')
-    expect(banner.text()).toContain(`Convertida en venta el ${expectedDate}`)
-    await banner.get('[data-testid="converted-view-sale"]').trigger('click')
-    expect(routerPush).toHaveBeenCalledWith('/pos/ventas/sale-9')
+    expect(banner.text()).toContain('Convertida en venta')
+    expect(banner.find('[data-testid="converted-view-sale"]').exists()).toBe(false)
   })
 
   it('hides edit, send, cancel, delete and conversion; keeps the PDF', async () => {

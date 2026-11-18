@@ -44,6 +44,11 @@ import {
   canConvertQuotation,
   useConvertQuotationToSale,
 } from '../composables/useConvertQuotationToSale'
+import {
+  hasSaleLink,
+  useOpenQuotationSale,
+  type OpenQuotationSaleTarget,
+} from '../composables/useOpenQuotationSale'
 import { isExpired, statusToLabel, statusToTone } from '../utils/quotation.utils'
 
 declare const useToast: () => {
@@ -786,9 +791,26 @@ async function handleConvertConfirm(): Promise<void> {
   if (ok) isConvertDialogOpen.value = false
 }
 
-function goToSale(saleId: string): void {
+// odd T3b — «Ver venta» by the sale's live status (DRAFT → POS if it is mine, else a notice).
+const saleOpener = useOpenQuotationSale()
+const showSaleLink = computed(() => !!quotation.value && hasSaleLink(quotation.value))
+
+async function goToSale(target: OpenQuotationSaleTarget): Promise<void> {
   isConvertDialogOpen.value = false
-  void router.push(`/pos/ventas/${saleId}`)
+  const opened = await saleOpener.open(target)
+  const notice = saleOpener.notice.value
+  if (!opened && notice) useToast().add({ title: notice, color: 'warning' })
+}
+
+function viewConvertedSale(): void {
+  const current = quotation.value
+  if (!current?.saleId) return
+  void goToSale({ saleId: current.saleId, saleStatus: current.saleStatus, quotationId: current.id })
+}
+
+/** QUOTATION_ALREADY_CONVERTED carries only the saleId: the status is read from the quotation. */
+function viewRejectedSale(saleId: string): void {
+  void goToSale({ saleId, quotationId: quotation.value?.id })
 }
 
 // ── Header actions (⋮ menu: convert and cancel first, destructive last) ─────
@@ -1245,12 +1267,18 @@ function onHeaderAction(key: string): void {
                       el {{ convertedAtFormatted }}</template>
                   </p>
                   <button
-                    v-if="quotation.saleId"
+                    v-if="showSaleLink"
                     type="button"
                     class="quotation-inline-link mt-1"
                     data-testid="converted-view-sale"
-                    @click="goToSale(quotation.saleId)"
+                    :disabled="saleOpener.isPending.value"
+                    @click="viewConvertedSale"
                   >Ver venta</button>
+                  <p
+                    v-if="saleOpener.notice.value"
+                    class="mt-1 text-muted"
+                    data-testid="converted-sale-notice"
+                  >{{ saleOpener.notice.value }}</p>
                 </template>
               </section>
 
@@ -1442,7 +1470,7 @@ function onHeaderAction(key: string): void {
             portal-class="quotations-workspace-portal"
             @confirm="handleConvertConfirm"
             @close="closeConvertDialog"
-            @view-sale="goToSale"
+            @view-sale="viewRejectedSale"
           />
 
           <!-- Product search slideover — opens from the right, contains the

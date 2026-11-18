@@ -7,7 +7,10 @@
  *     POS drafts (`saleQueryKeys.drafts`) are invalidated;
  *   - the new draft becomes the POS active tab: `SalesView` restores its tab from
  *     `POS_ACTIVE_TAB_STORAGE_KEY` when it mounts, and the draft is already one of the cashier's
- *     drafts (`GET /sales/drafts`), so writing the key and opening `/pos/ventas/nueva` selects it.
+ *     drafts (`GET /sales/drafts`), so writing the key and opening `/pos/ventas/nueva` selects it;
+ *   - `suppressedPromotions` (automatic promotions vetoed to keep the exact quoted total) is kept
+ *     for that draft (`rememberSuppressedPromotions`): GET /sales/drafts does not expose vetoes, and
+ *     «Promociones disponibles» offers them with «Aplicar» (odd T3b / S5).
  * On a rejection, `failure` holds the decoded code (`decodeQuotationConversionError`) and the
  * detail is refreshed (it may have been converted by someone else meanwhile); copy for the UI comes
  * from `conversionFailureCopy`.
@@ -18,6 +21,7 @@ import { useRouter } from 'vue-router'
 import { quotationQueryKeys, saleQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { POS_ACTIVE_TAB_STORAGE_KEY } from '@/features/POS/sales/constants/sale.constants'
+import { rememberSuppressedPromotions } from '@/features/POS/sales/composables/useSuppressedPromotions'
 import { quotationApi } from '../api/quotation.api'
 import type {
   QuotationConversionFailure,
@@ -182,6 +186,7 @@ export function useConvertQuotationToSale() {
     void queryClient.invalidateQueries({ queryKey: quotationQueryKeys.list(tenantId.value) })
     void queryClient.invalidateQueries({ queryKey: detailKey })
     void queryClient.invalidateQueries({ queryKey: saleQueryKeys.drafts(tenantId.value) })
+    rememberSuppressedPromotions(response.sale.id, response.suppressedPromotions ?? [])
     localStorage.setItem(POS_ACTIVE_TAB_STORAGE_KEY, response.sale.id)
     try {
       await router.push(POS_SALES_PATH)

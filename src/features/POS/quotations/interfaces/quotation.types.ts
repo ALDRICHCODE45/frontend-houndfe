@@ -10,11 +10,16 @@ import type {
   QUOTATION_STATUS,
 } from '../constants/quotation.constants'
 import type { Sale } from '@/features/POS/sales/interfaces/sale.types'
+import type { SuppressedPromotion } from '@/features/POS/sales/composables/useSuppressedPromotions'
+
+export type { SuppressedPromotion }
 
 export type QuotationStatus = (typeof QUOTATION_STATUS)[keyof typeof QUOTATION_STATUS]
 export type CancelReason = (typeof CANCEL_REASONS)[keyof typeof CANCEL_REASONS]
 export type PriceSource = 'PRICE_LIST' | 'TIER_PRICE' | 'CUSTOM' | 'PROMOTION'
 export type DiscountType = 'PERCENTAGE' | 'FIXED' | null
+/** Status of the sale a quotation became (sales contract: CANCELED with ONE L). */
+export type QuotationSaleStatus = 'DRAFT' | 'CONFIRMED' | 'CANCELED'
 
 // ─── Embedded entities (used in tests, not returned by backend) ──────────────
 
@@ -153,6 +158,12 @@ export interface QuotationResponseDto {
   saleId?: string | null
   /** Handoff 23 §3: ISO timestamp of the conversion; `null` when never converted. */
   convertedAt?: string | null
+  /**
+   * Handoff 23 §3: live status of the linked sale (`null` = no link, or the sale was deleted).
+   * Drives «Ver venta»: DRAFT → the POS draft (only its converter has it), CONFIRMED/CANCELED →
+   * sale detail, null → no link. Optional only for payloads from before the field existed.
+   */
+  saleStatus?: QuotationSaleStatus | null
   createdAt: string
   updatedAt: string
 }
@@ -240,6 +251,9 @@ export interface ConvertQuotationToSaleResponse {
   quotation: QuotationResponseDto
   /** POS draft (same shape as GET /sales/drafts) with `quotationId` set. */
   sale: Sale
+  /** Automatic promotions active today, vetoed on the new sale to keep the exact quoted total
+   *  (`[]` when none). GET /sales/drafts does not expose vetoes: keep this list. */
+  suppressedPromotions: SuppressedPromotion[]
 }
 
 /** Why a line cannot become a sale line. `UNKNOWN` = a reason this FE does not know yet. */

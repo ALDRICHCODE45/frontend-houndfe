@@ -145,6 +145,34 @@ vi.mock('../../composables/useConvertQuotationToSale', async (importOriginal) =>
   }
 })
 
+// odd T3b — «Ver venta» resolution is unit-tested in useOpenQuotationSale.test.ts; the list only
+// passes the right target and toasts the notice.
+const openSaleMock = vi.hoisted(() => ({
+  open: vi.fn(),
+  notice: { value: null as string | null },
+}))
+
+vi.mock('../../composables/useOpenQuotationSale', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../composables/useOpenQuotationSale')>()
+  const { computed: vueComputed, ref: vueRef } = await import('vue')
+  return {
+    ...actual,
+    useOpenQuotationSale: () => {
+      const notice = vueRef<string | null>(null)
+      openSaleMock.notice = notice
+      return { open: openSaleMock.open, notice, isPending: vueComputed(() => false) }
+    },
+  }
+})
+
+const { listToastCalls } = vi.hoisted(() => ({
+  listToastCalls: [] as Array<Record<string, unknown>>,
+}))
+
+vi.mock('@nuxt/ui/runtime/composables/useToast', () => ({
+  useToast: () => ({ add: (opts: Record<string, unknown>) => listToastCalls.push(opts) }),
+}))
+
 // ─── Toast mock ───────────────────────────────────────────────────────────────
 
 vi.mock('#app', () => ({
@@ -416,6 +444,8 @@ function resetState() {
   convertMock.convert.mockReset().mockResolvedValue(true)
   convertMock.reset.mockReset()
   convertMock.failure = { value: null }
+  openSaleMock.open.mockReset().mockResolvedValue(true)
+  listToastCalls.length = 0
 }
 
 beforeEach(() => {
@@ -1191,11 +1221,38 @@ describe('QuotationsListView — «Convertir en venta…» row action (T3 / S4)'
     expect(actionKeys(mountView())).not.toContain('convert')
   })
 
-  it('a converted row shows «Convertida en venta» and offers no conversion', () => {
-    composableState.data.value = [makeQuotation({ id: 'qtn-1', status: 'CONVERTED_TO_SALE', effectiveStatus: 'CONVERTED_TO_SALE', saleId: 'sale-1', expiresAt: null })]
+  it('a converted row shows «Convertida en venta», offers «Ver venta» and no conversion', () => {
+    composableState.data.value = [makeQuotation({ id: 'qtn-1', status: 'CONVERTED_TO_SALE', effectiveStatus: 'CONVERTED_TO_SALE', saleId: 'sale-1', saleStatus: 'CONFIRMED', expiresAt: null })]
     const wrapper = mountView()
     expect(wrapper.text()).toContain('Convertida en venta')
-    expect(actionKeys(wrapper)).toEqual(['open'])
+    expect(actionKeys(wrapper)).toEqual(['open', 'view-sale'])
+  })
+
+  it('a converted row whose sale no longer exists (saleStatus null) has no «Ver venta»', () => {
+    composableState.data.value = [makeQuotation({ id: 'qtn-1', status: 'CONVERTED_TO_SALE', effectiveStatus: 'CONVERTED_TO_SALE', saleId: 'sale-1', saleStatus: null, expiresAt: null })]
+    expect(actionKeys(mountView())).toEqual(['open'])
+  })
+
+  it.each(['DRAFT', 'CONFIRMED', 'CANCELED'] as const)('«Ver venta» on a converted row opens the %s sale by its status', async (saleStatus) => {
+    composableState.data.value = [makeQuotation({ id: 'qtn-1', status: 'CONVERTED_TO_SALE', effectiveStatus: 'CONVERTED_TO_SALE', saleId: 'sale-1', saleStatus, expiresAt: null })]
+    const wrapper = mountView()
+    await wrapper.get('[data-action="view-sale"]').trigger('click')
+    expect(openSaleMock.open).toHaveBeenCalledWith({ saleId: 'sale-1', saleStatus, quotationId: 'qtn-1' })
+  })
+
+  it('«Ver venta» on another cashier\'s DRAFT toasts the in-progress notice', async () => {
+    const notice = 'La venta está en curso en el punto de venta de quien la convirtió.'
+    openSaleMock.open.mockImplementation(async () => {
+      openSaleMock.notice.value = notice
+      return false
+    })
+    composableState.data.value = [makeQuotation({ id: 'qtn-1', status: 'CONVERTED_TO_SALE', effectiveStatus: 'CONVERTED_TO_SALE', saleId: 'sale-1', saleStatus: 'DRAFT', expiresAt: null })]
+    const wrapper = mountView()
+    await wrapper.get('[data-action="view-sale"]').trigger('click')
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(listToastCalls).toContainEqual({ title: notice, color: 'warning' })
+    expect(routerPush).not.toHaveBeenCalled()
   })
 
   it('choosing it opens the confirm dialog and confirming converts that row', async () => {
@@ -1211,7 +1268,7 @@ describe('QuotationsListView — «Convertir en venta…» row action (T3 / S4)'
     expect(convertMock.convert).toHaveBeenCalledWith('qtn-conv')
   })
 
-  it('«Ver venta» from a rejection opens the sale detail', async () => {
+  it('«Ver venta» from a rejection opens its sale (status read from the quotation)', async () => {
     composableState.data.value = [makeQuotation({ id: 'qtn-conv', status: 'SENT', effectiveStatus: 'SENT', expiresAt: null })]
     convertMock.convert.mockImplementation(async () => {
       convertMock.failure.value = { code: 'QUOTATION_ALREADY_CONVERTED', saleId: 'sale-7' }
@@ -1224,6 +1281,7 @@ describe('QuotationsListView — «Convertir en venta…» row action (T3 / S4)'
 
     expect(wrapper.get('[data-testid="quotation-convert-dialog"]').attributes('data-failure')).toBe('QUOTATION_ALREADY_CONVERTED')
     await wrapper.get('[data-testid="convert-dialog-stub-view-sale"]').trigger('click')
-    expect(routerPush).toHaveBeenCalledWith('/pos/ventas/sale-7')
+    expect(openSaleMock.open).toHaveBeenCalledWith({ saleId: 'sale-7', quotationId: 'qtn-conv' })
+    expect(wrapper.find('[data-testid="quotation-convert-dialog"]').exists()).toBe(false)
   })
 })

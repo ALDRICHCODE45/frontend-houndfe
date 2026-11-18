@@ -39,10 +39,19 @@
  *   Matches the rest of the repo's collapsible patterns (ActionsAccordion,
  *   notifications). Single-item, default-open so the rows render on first
  *   paint. The trailing slot adds a count badge next to the chevron.
+ *
+ * odd T3b / S5: an automatic promotion vetoed by a quotation → sale conversion
+ * (`isSuppressedFromQuotation`, merged in by `useApplicablePromotions`) reads
+ * «No aplicada por venir de una cotización» and keeps the normal «Aplicar»,
+ * which clears the veto (`POST /sales/drafts/:id/manual-promotions/:id`).
  */
 import { computed } from 'vue'
 import type { ApplicablePromotion } from '../interfaces/sale.types'
 import { buildBxgyHint } from '../utils/promotion.utils'
+import {
+  SUPPRESSED_PROMOTION_NOTE,
+  isSuppressedFromQuotation,
+} from '../composables/useSuppressedPromotions'
 
 const ACCORDION_VALUE = 'promociones'
 
@@ -159,6 +168,11 @@ function handleRemove(promotionId: string) {
                 :data-testid="`promo-hint-${promo.id}`"
                 class="text-xs text-muted"
               >{{ buildBxgyHint(promo.unitsNeeded) }}</span>
+              <span
+                v-if="isSuppressedFromQuotation(promo)"
+                :data-testid="`promo-suppressed-note-${promo.id}`"
+                class="text-xs text-muted"
+              >{{ SUPPRESSED_PROMOTION_NOTE }}</span>
             </div>
 
             <UButton

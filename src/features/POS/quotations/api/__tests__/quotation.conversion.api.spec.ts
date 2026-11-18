@@ -211,3 +211,70 @@ describe('quotation reads — saleId / convertedAt', () => {
     expect(http.get).toHaveBeenCalledWith('/quotations', { params: { status: 'CONVERTED_TO_SALE' } })
   })
 })
+
+// odd T3b / S5 — automatic promotions vetoed on the new sale (handoff 23 §2, `suppressedPromotions`).
+describe('convertToSale — suppressedPromotions', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('decodes the list, with a null title kept as null', async () => {
+    vi.mocked(http.post).mockResolvedValue({
+      data: {
+        ...convertBody,
+        suppressedPromotions: [
+          { promotionId: 'promo-auto', title: 'Orden auto' },
+          { promotionId: 'promo-gone', title: null },
+        ],
+      },
+    })
+
+    const result = await quotationApi.convertToSale('q-1', 'k')
+
+    expect(result.suppressedPromotions).toEqual([
+      { promotionId: 'promo-auto', title: 'Orden auto' },
+      { promotionId: 'promo-gone', title: null },
+    ])
+  })
+
+  it('reads a missing list as [] and skips malformed entries', async () => {
+    vi.mocked(http.post).mockResolvedValue({ data: convertBody })
+    expect((await quotationApi.convertToSale('q-1', 'k')).suppressedPromotions).toEqual([])
+
+    vi.mocked(http.post).mockResolvedValue({
+      data: { ...convertBody, suppressedPromotions: [{ title: 'sin id' }, { promotionId: 'ok' }] },
+    })
+    expect((await quotationApi.convertToSale('q-1', 'k')).suppressedPromotions).toEqual([
+      { promotionId: 'ok', title: null },
+    ])
+  })
+})
+
+describe('createFromSale — the discarded draft forgets its suppressed promotions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+  })
+
+  it('clears the stored list of discardedSaleId', async () => {
+    const { rememberSuppressedPromotions, readSuppressedPromotions } = await import(
+      '@/features/POS/sales/composables/useSuppressedPromotions'
+    )
+    rememberSuppressedPromotions('s-9', [{ promotionId: 'promo-auto', title: 'Orden auto' }])
+    vi.mocked(http.post).mockResolvedValue({ data: fromSaleBody })
+
+    await quotationApi.createFromSale('s-9', {}, 'k')
+
+    expect(readSuppressedPromotions('s-9')).toEqual([])
+  })
+})
+
+describe('quotation reads — saleStatus', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('passes saleStatus through getById', async () => {
+    vi.mocked(http.get).mockResolvedValue({
+      data: { ...convertBody.quotation, saleStatus: 'CONFIRMED' },
+    })
+    const read = await quotationApi.getById('q-1')
+    expect(read.saleStatus).toBe('CONFIRMED')
+  })
+})

@@ -148,6 +148,26 @@ describe('useConvertQuotationToSale — success (S4)', () => {
   })
 })
 
+describe('useConvertQuotationToSale — suppressedPromotions (odd T3b / S5)', () => {
+  it('keeps the vetoed automatic promotions for the new draft before opening the POS', async () => {
+    const { readSuppressedPromotions } = await import(
+      '@/features/POS/sales/composables/useSuppressedPromotions'
+    )
+    convertToSale.mockResolvedValue({
+      quotation: makeQuotation({ status: 'CONVERTED_TO_SALE', saleId: 'sale-9' }),
+      sale: { id: 'sale-9' },
+      suppressedPromotions: [{ promotionId: 'promo-auto', title: 'Orden auto' }],
+    })
+    const { convert } = useConvertQuotationToSale()
+
+    await convert('q-1')
+
+    expect(readSuppressedPromotions('sale-9')).toEqual([
+      { promotionId: 'promo-auto', title: 'Orden auto' },
+    ])
+  })
+})
+
 describe('useConvertQuotationToSale — rejections (S4)', () => {
   it('decodes the rejection into `failure`, does not navigate and refreshes the quotation', async () => {
     convertToSale.mockRejectedValue(
