@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
-import { refundReasonLabel } from '@/features/POS/refunds/utils/refundLabels'
+import { computed } from 'vue'
 import { formatSaleDate } from '../utils/saleDate.utils'
+import { saleCancelReasonLabel, saleCanceledByLabel } from '../utils/saleCancellation.utils'
 import type { SaleDetail } from '../interfaces/sale.types'
 
-// T20: the calm summary of a cancelled sale (handoff 06, «Cancelled sale detail»).
-defineProps<{ sale: SaleDetail }>()
+// T20: the calm summary of a cancelled sale (handoff 06, «Cancelled sale detail»). BE handoff 24
+// §4: HOLD_EXPIRED was cancelled by the system, shown as «Sistema».
+const props = defineProps<{ sale: SaleDetail }>()
+const canceledBy = computed(() => saleCanceledByLabel(props.sale))
 </script>
 
 <template>
@@ -17,9 +20,9 @@ defineProps<{ sale: SaleDetail }>()
       </div>
       <div v-if="sale.cancelReason">
         <dt class="sale-detail-fact-label">Motivo</dt>
-        <dd class="sale-detail-fact-value">{{ refundReasonLabel(sale.cancelReason) }}</dd>
+        <dd class="sale-detail-fact-value">{{ saleCancelReasonLabel(sale.cancelReason) }}</dd>
       </div>
     </dl>
-    <p v-if="sale.canceledBy" class="sale-detail-cancel-by">Cancelada por {{ sale.canceledBy.name }}</p>
+    <p v-if="canceledBy" class="sale-detail-cancel-by">Cancelada por {{ canceledBy }}</p>
   </HfSectionCard>
 </template>

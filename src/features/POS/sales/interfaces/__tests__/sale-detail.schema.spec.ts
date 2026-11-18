@@ -163,4 +163,48 @@ describe('parseSaleDetail', () => {
   it('rejects a non-string quotationId', () => {
     expect(() => parseSaleDetail({ ...base, quotationId: 42 })).toThrow()
   })
+
+  // BE handoff 24 §4: the sweep cancels an unpaid hold with HOLD_EXPIRED and no person.
+  it('reads a HOLD_EXPIRED cancellation with canceledBy null', () => {
+    const sale = parseSaleDetail({ ...canceled, cancelReason: 'HOLD_EXPIRED', canceledBy: null, refunds: [] })
+    expect(sale.cancelReason).toBe('HOLD_EXPIRED')
+    expect(sale.canceledBy).toBeNull()
+  })
+
+  // BE handoff 24 §1: additive `hold` on GET /sales/:id; null for sales without an intent.
+  const hold = {
+    paymentIntent: 'IN_STORE',
+    expiresAt: '2026-11-19T18:30:00.000Z',
+    reminderAt: '2026-11-19T15:30:00.000Z',
+    stage: 0,
+    version: 1,
+  }
+
+  it('reads the pay-in-store hold', () => {
+    expect(parseSaleDetail({ ...base, hold }).hold).toEqual(hold)
+  })
+
+  it('reads a hold without reminder (3 h or shorter)', () => {
+    expect(parseSaleDetail({ ...base, hold: { ...hold, reminderAt: null, stage: 2 } }).hold).toEqual({
+      ...hold,
+      reminderAt: null,
+      stage: 2,
+    })
+  })
+
+  it('reads a missing or null hold as null (older payload, POS sale)', () => {
+    expect(parseSaleDetail(base).hold).toBeNull()
+    expect(parseSaleDetail({ ...base, hold: null }).hold).toBeNull()
+  })
+
+  it.each([
+    ['an unknown intent', { paymentIntent: 'ONLINE' }],
+    ['a fractional version', { version: 1.5 }],
+    ['a missing expiry', { expiresAt: undefined }],
+    ['an unknown stage', { stage: 7 }],
+  ])('reads a malformed hold (%s) as null instead of breaking the detail', (_, patch) => {
+    const sale = parseSaleDetail({ ...base, hold: { ...hold, ...patch } })
+    expect(sale.hold).toBeNull()
+    expect(sale.folio).toBe('A-202611-000022')
+  })
 })

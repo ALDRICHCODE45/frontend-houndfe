@@ -16,6 +16,8 @@ export type NotificationType =
   | 'REQUEST_OVERDUE'
   | 'CONVERSATION_CUSTOMER_MESSAGE'
   | 'CONVERSATION_UNANSWERED'
+  /** BE handoff 24 §5: a pay-in-store hold reached its deadline with a partial payment or a pending receipt. */
+  | 'SALE_HOLD_REVIEW'
 
 /** Close causes of a REQUEST_CANCELLED notice (13 §2). A future cause still renders (no cause line). */
 export type NotificationCause =
@@ -33,8 +35,13 @@ export interface NotificationItem {
   type: NotificationType | (string & {})
   title: string
   body: string
-  /** `null` only for notices that are not about a request (none today). */
+  /** `null` for notices that are not about a request (SALE_HOLD_REVIEW). */
   requestId: string | null
+  /**
+   * BE handoff 24 §5: the sale a notice is about (SALE_HOLD_REVIEW); `null` on request notices.
+   * Optional: a backend before handoff 24 omits it.
+   */
+  saleId?: string | null
   /** ISO instant. For a notice held out of hours, the instant it was released. */
   createdAt: string
   /** ISO instant, `null` while unread. */
