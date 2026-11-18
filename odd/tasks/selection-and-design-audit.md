@@ -15,7 +15,10 @@ Migrate every remaining checkbox to «Selección sin checkboxes» (docs/design-s
 - T4b | S1 | worker | done 5d88546a — promotions PromotionForm, PromotionConditionsSection (switch rows + weekday toggle chips), VariantAccordionRow, FlatChecklistPanel (selectable rows)
 - T4c | S1 | worker | done — products ProductUpsertSlideover (switch rows), EditorialPublication (explicit confirm), EditorialCareReviewDrawer (toggle chips); delivery-routes EligibleSalesPicker (selectable rows)
 - T5 | S3 | design + worker | notifications settings redesign (canvas directions, then implement)
-- T6 | S2–S3 | workers | design-compliance pass on the screens T1 ranks lowest
+- T6a | S2–S3 | worker | products: ProductDetailView UCard stack + VariantDetailModal → design-system section cards / switch rows
+- T6b | S2–S3 | worker | employees: admin/employees/components/*Panel.vue card stacks
+- T6c | S2–S3 | worker | sales/customers: AssignCustomerSlideover nested cards, SaleDetail*Card, customer upsert section look (clients-visual.css, sales-pos-customer.css)
+- T6d | S1–S3 | worker | promotions leftovers: WhatsApp and capacity switches as whole-row HfSwitchRow, PromotionSummaryCard, customer/price-list multiple pickers
 - T7 | S1–S3 | verify + browser | live check light/dark, 1440/390; full suite
 
 ## Log
@@ -28,3 +31,4 @@ Migrate every remaining checkbox to «Selección sin checkboxes» (docs/design-s
 - L7 T4a done 9b034ece (worker mwljasql-7-dho1): 953/953 in roles/customers/cash/refunds/profile. Cash opening: «Confirmar fondo de $X» step → «Fondo de $X confirmado · Cambiar», submit «Abrir caja con $X», blocked until confirmed; editing the amount drops the confirmation. Roles: with a search active the subject header toggles only the visible permissions. Left: useRolePermissions unused helpers; customer section look lives in clients-visual.css / sales-pos-customer.css.
 - L8 T3 done 72548c51 (worker mwljasqi-6-7ism): SelectColumn → HfRowMark (header empty/all/mixed, Shift+click range, mark never opens the row, label/headerLabel), HfCombobox multiple trailing round mark, DateRangeFilter HfSwitchRow, fit rule on .hf-row-mark; related 203 files/2869 tests. Dropdown `type: checkbox` items (page size, tenant, theme) kept: Nuxt renders a check icon with menuitemcheckbox/aria-checked, no box. Parent follow-up: named row marks in EmployeesListView/PromotionsView, docs §Combobox and §Row mark updated (234/234). Not built: Space on a focused row (rows are not focusable).
 - L9 T4c done (worker mwljasqq-9-aqd2): products/editorial/delivery-routes 1734/1734. Care publication: the consent is text in the confirmation panel and the final button «Confirmo la revisión y publico» emits review-v1 (two steps; any prop change closes the panel). Parent retargeted e2e/responsive delivery-route-assignment-safety to [role=option][data-value] + aria-disabled (not run). Picker list label/count copy inline.
+- L10 Residual grep: 0 <UCheckbox / type="checkbox" left in src (non-test). T6 split into T6a–T6d (disjoint surfaces), launched in parallel with T5.
