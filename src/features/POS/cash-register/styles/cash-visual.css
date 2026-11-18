@@ -85,6 +85,12 @@
   order: -1;
 }
 
+/* With no shift in focus the card is an empty state, not a lead: below lg it
+ * sits after the task's lists so it never pushes them down. */
+.cash-workspace-shift--idle {
+  order: 1;
+}
+
 @media (min-width: 1024px) {
   .cash-workspace-grid {
     grid-template-columns: minmax(0, 1fr) var(--cash-rail);
@@ -92,6 +98,10 @@
   }
 
   .cash-workspace-context {
+    order: 0;
+  }
+
+  .cash-workspace-shift--idle {
     order: 0;
   }
 }
@@ -301,6 +311,18 @@
   border: 1px solid var(--hf-border);
   border-radius: var(--hf-radius-control);
   background: var(--hf-surface-muted);
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+/* Immutable original declaration: a neutral bordered box; blue stays for active/selection. */
+.cash-original {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  background: var(--hf-surface);
   color: var(--hf-muted);
   font-size: 0.8125rem;
   line-height: 1.5;

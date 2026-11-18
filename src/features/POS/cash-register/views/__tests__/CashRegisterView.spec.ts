@@ -1079,4 +1079,34 @@ describe('CashRegisterView · four states (S10)', () => {
     expect(api.getSession).toHaveBeenCalledTimes(1)
     expect(failed.wrapper.find('[data-testid="cash-shift-error"]').exists()).toBe(false)
   })
+
+  it('selected shift: one failed read shows one error with one Reintentar', async () => {
+    api.getSession.mockRejectedValueOnce(new Error('boom'))
+    const { wrapper } = mountView()
+    await flush()
+    await selectFirstSession(wrapper)
+    await navigate(wrapper, 'movimientos')
+
+    const shownAlerts = wrapper.findAll('[role="alert"]').filter((node) => isShown(node.element))
+    expect(shownAlerts).toHaveLength(1)
+    const retries = wrapper
+      .findAll('button')
+      .filter((button) => button.text().trim() === 'Reintentar' && isShown(button.element))
+    expect(retries).toHaveLength(1)
+    expect(wrapper.get('[data-testid="cash-shift-error"]').text()).toContain('Reintentar')
+  })
+
+  it('no shift in focus: the idle card is marked to sit after the lists on phones', async () => {
+    const { wrapper } = mountView()
+    await flush()
+    expect(wrapper.find('[data-testid="cash-workspace-no-shift"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="cash-workspace-shift"]').classes()).toContain(
+      'cash-workspace-shift--idle',
+    )
+
+    await selectFirstSession(wrapper)
+    expect(wrapper.get('[data-testid="cash-workspace-shift"]').classes()).not.toContain(
+      'cash-workspace-shift--idle',
+    )
+  })
 })

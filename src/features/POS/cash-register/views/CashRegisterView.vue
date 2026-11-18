@@ -446,6 +446,7 @@ function handleReleaseDrawer() {
       title="Caja"
       :tasks="visibleTasks"
       :active-task-id="activeTaskId"
+      :shift-idle="!selectedSessionId"
       @select-task="selectTask"
     >
       <template #shift>
@@ -533,7 +534,9 @@ function handleReleaseDrawer() {
           class="flex flex-col gap-6"
           data-testid="cash-task-movimientos"
         >
+          <!-- A failed detail read is told once, by the shift card with its Reintentar. -->
           <CashMovementsPanel
+            v-if="!detailQuery.isError.value"
             :detail="detailQuery.detail.value ?? null"
             :current-user-id="access.currentUserId.value"
             :can-cash-in="access.canCashIn.value"

@@ -163,6 +163,9 @@ describe('CashVerificationPanel', () => {
       /1,580[.,]00/,
     )
     expect(original.text()).toContain('original')
+    // A neutral surface: the blue wash of `.cash-note` is reserved for active/selection.
+    expect(original.classes()).toContain('cash-original')
+    expect(original.classes()).not.toContain('cash-note')
     // The verifier's own recount stays a distinct surface from the original facts.
     expect(wrapper.find('[data-testid="cash-count-form"]').exists()).toBe(true)
   })

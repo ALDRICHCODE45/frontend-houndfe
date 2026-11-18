@@ -17,10 +17,13 @@ withDefaults(
     title: string
     tasks?: CashWorkspaceTaskOption[]
     activeTaskId?: CashWorkspaceTaskId | null
+    /** No shift is in focus: below lg its card sits after the lists, not above them. */
+    shiftIdle?: boolean
   }>(),
   {
     tasks: () => [],
     activeTaskId: null,
+    shiftIdle: false,
   },
 )
 
@@ -38,7 +41,11 @@ const emit = defineEmits<{
     <div class="cash-workspace-grid">
       <div class="cash-workspace-main">
         <!-- Central selected-shift context, supplied by the view. -->
-        <div class="cash-workspace-shift" data-testid="cash-workspace-shift">
+        <div
+          class="cash-workspace-shift"
+          :class="{ 'cash-workspace-shift--idle': shiftIdle }"
+          data-testid="cash-workspace-shift"
+        >
           <slot name="shift" />
         </div>
 
