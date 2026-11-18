@@ -450,6 +450,10 @@ function handleEdit(promotion: PromotionResponse) {
   void router.push(`/pos/promociones/${promotion.id}`)
 }
 
+function promotionMarkLabel(promotion: PromotionResponse): string {
+  return `Seleccionar ${promotion.title}`
+}
+
 function handleEnd(promotion: PromotionResponse) {
   openConfirm(
     `¿Quieres finalizar la promoción "${promotion.title}"? Esta acción no se puede deshacer.`,
@@ -687,7 +691,7 @@ defineExpose({
           :page-size-options="pageSizeOptions"
           :bulk-actions="bulkActions"
           :enable-row-selection="canBatchDelete || canBatchEnd"
-          :row-mark-label="(p: { title?: string }) => `Seleccionar ${p.title ?? 'promoción'}`"
+          :row-mark-label="promotionMarkLabel"
           select-all-label="Seleccionar todas las promociones"
           :show-add-button="canCreate"
           :active-filter-count="activeFilterCount"

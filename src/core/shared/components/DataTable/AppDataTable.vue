@@ -1369,9 +1369,11 @@ defineExpose({
         <div v-else class="grid w-full min-w-0 max-w-full gap-3" data-testid="mobile-cards-list">
           <!-- Row marks (cards mode + selection): «Seleccionar todos» above, a leading mark per
                card in its own 44px column, outside the card so it never opens it. -->
-          <div
+          <!-- The <label> makes the caption part of the target (a click on the text activates the
+               mark); the mark's name is the same selectAllLabel, so the name contains the text. -->
+          <label
             v-if="showCardMarks"
-            class="flex min-w-0 items-center gap-1 text-sm text-muted"
+            class="flex min-w-0 cursor-pointer items-center gap-1 self-start text-sm text-muted"
             data-testid="mobile-select-all"
           >
             <HfRowMark
@@ -1379,8 +1381,10 @@ defineExpose({
               :label="props.selectAllLabel"
               @update:checked="toggleAllCards"
             />
-            <span aria-hidden="true">Seleccionar todos</span>
-          </div>
+            <span aria-hidden="true" data-testid="mobile-select-all-caption">{{
+              props.selectAllLabel
+            }}</span>
+          </label>
           <template v-for="(row, index) in props.data" :key="index">
             <div
               v-if="showCardMarks"

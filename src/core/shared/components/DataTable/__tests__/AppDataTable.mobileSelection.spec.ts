@@ -105,6 +105,21 @@ describe('AppDataTable cards mode with row selection', () => {
     expect(selectAll(wrapper).attributes('aria-label')).toBe('Seleccionar todos los empleados')
   })
 
+  it('shows selectAllLabel as the visible caption, inside the accessible name', () => {
+    const { wrapper } = mountCards({ selectAllLabel: 'Seleccionar todas las promociones' })
+    const caption = wrapper.get('[data-testid="mobile-select-all-caption"]')
+    expect(caption.text()).toBe('Seleccionar todas las promociones')
+    expect(selectAll(wrapper).attributes('aria-label')).toContain(caption.text())
+  })
+
+  it('toggles all cards from the caption too', async () => {
+    const { wrapper } = mountCards()
+    await wrapper.get('[data-testid="mobile-select-all-caption"]').trigger('click')
+    expect(wrapper.props('rowSelection')).toEqual({ 0: true, 1: true, 2: true })
+    await wrapper.get('[data-testid="mobile-select-all-caption"]').trigger('click')
+    expect(wrapper.props('rowSelection')).toEqual({})
+  })
+
   it('shows the bulk bar and hands the selected cards to the action', async () => {
     const onClick = vi.fn()
     const { wrapper } = mountCards({

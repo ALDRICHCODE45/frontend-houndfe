@@ -1096,6 +1096,40 @@ describe('CashRegisterView · four states (S10)', () => {
     expect(wrapper.get('[data-testid="cash-shift-error"]').text()).toContain('Reintentar')
   })
 
+  it('selected shift: a failed refetch keeps the loaded movements and still shows one Reintentar', async () => {
+    const movement = {
+      id: 'm-1',
+      kind: 'CASH_IN',
+      deltaCents: 20000,
+      method: 'CASH',
+      channelKey: 'CASH',
+      channelLabel: 'Efectivo',
+      sourceType: 'MANUAL',
+      sourceId: 'src-1',
+      actorUserId: 'user-2',
+      reason: 'Cambio adicional',
+      occurredAt: '2026-10-07T17:15:00.000Z',
+    }
+    api.getSession.mockResolvedValue({ ...DETAIL, movements: [movement] })
+    const { wrapper, queryClient } = mountView()
+    await flush()
+    await selectFirstSession(wrapper)
+    await navigate(wrapper, 'movimientos')
+    expect(wrapper.find('[data-testid="cash-movement-m-1"]').exists()).toBe(true)
+
+    api.getSession.mockRejectedValue(new Error('boom'))
+    await queryClient.refetchQueries()
+    await flush()
+
+    expect(wrapper.find('[data-testid="cash-shift-error"]').exists()).toBe(true)
+    const movements = wrapper.get('[data-testid="cash-task-movimientos"]')
+    expect(movements.find('[data-testid="cash-movement-m-1"]').exists()).toBe(true)
+    const retries = wrapper
+      .findAll('button')
+      .filter((button) => button.text().trim() === 'Reintentar' && isShown(button.element))
+    expect(retries).toHaveLength(1)
+  })
+
   it('no shift in focus: the idle card is marked to sit after the lists on phones', async () => {
     const { wrapper } = mountView()
     await flush()

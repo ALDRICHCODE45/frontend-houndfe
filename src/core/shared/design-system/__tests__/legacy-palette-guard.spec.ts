@@ -22,7 +22,6 @@ const ALLOWED_HITS = new Set([
   'src/core/shared/design-system/houndfe-ui.css :: --brand-primary',
   'src/core/shared/design-system/houndfe-ui.css :: --brand-action',
   'src/core/shared/design-system/houndfe-ui.css :: --brand-accent',
-  // Attribute selector naming an old class to repaint it muted; no template uses that class today.
 ])
 
 const COCO = /\bcoco-[a-z0-9-]+/g
