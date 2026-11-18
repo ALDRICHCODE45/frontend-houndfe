@@ -1,6 +1,8 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { _api, iconLoaded } from '@iconify/vue'
+import '@/core/shared/icons/local-icons'
 
 // The app must not request third-party origins at runtime: Geist is bundled
 // from @fontsource/geist, and every icon collection used as `i-<set>-*` is
@@ -57,5 +59,31 @@ describe('local assets guard: no runtime third-party requests', () => {
   it('@iconify/vue is a direct dependency so the local registration shares Nuxt UI\'s instance', () => {
     expect(declared).toHaveProperty(['@iconify/vue'])
     expect(declared).toHaveProperty(['@fontsource/geist'])
+  })
+
+  it('main.ts registers the local icons first, through an explicit src import', () => {
+    // An explicit import is visible to Vite's dependency scanner; a plugin
+    // `transform` injection is not, so dev discovered @iconify/vue late and
+    // Nuxt UI's <UIcon> ended up on another instance (live run 3, L16).
+    const firstImport = readFileSync('src/main.ts', 'utf8').match(/^import\s+['"]([^'"]+)['"]/m)?.[1]
+    expect(firstImport).toBe('@/core/shared/icons/local-icons')
+  })
+
+  it('vite pre-bundles @iconify/vue on start and never injects the registration', () => {
+    const config = readFileSync('vite.config.ts', 'utf8')
+    expect(config).toMatch(/optimizeDeps:\s*{[^}]*include:\s*\[[^\]]*'@iconify\/vue'/)
+    expect(config).not.toMatch(/transform\s*\(/)
+  })
+
+  it('the local collection is registered and the Iconify API never fetches', async () => {
+    expect(iconLoaded('lucide:user-x')).toBe(true)
+    const globalFetch = vi.spyOn(globalThis, 'fetch')
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const response = await _api.getFetch()!('https://api.iconify.design/lucide.json?icons=nope')
+    expect(response.status).toBe(404)
+    expect(globalFetch).not.toHaveBeenCalled()
+    expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('remote fetch blocked'))
+    globalFetch.mockRestore()
+    consoleError.mockRestore()
   })
 })
