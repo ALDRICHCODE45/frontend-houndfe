@@ -93,8 +93,8 @@ async function submitRejectedUpdate(error: unknown) {
   await flushPromises()
   const view = root.findComponent(ProductDetailView)
   await view.get('input[name="name"]').setValue('Nombre pendiente')
-  const label = view.findAll('label').find((item) => item.text() === 'Tiene variantes')!
-  const toggle = view.get(`[id="${label.attributes('for')}"]`)
+  const label = view.findAll('.hf-switch-row__label').find((item) => item.text() === 'Tiene variantes')!
+  const toggle = view.get(`[role="switch"][aria-labelledby="${label.attributes('id')}"]`)
   expect(toggle.attributes('aria-checked')).toBe('true')
   await toggle.trigger('click')
   const invalidate = vi.spyOn(queryClient, 'invalidateQueries')

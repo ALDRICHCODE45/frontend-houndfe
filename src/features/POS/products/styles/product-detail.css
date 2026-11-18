@@ -1,0 +1,148 @@
+/* Product detail and variant modal sections (docs/design-system.md §Section card,
+ * §Selección sin checkboxes, «Cards and balance»). Colors only from `--hf-*`, so
+ * light and dark follow the theme. */
+
+/* ── Switch rows inside a section card ─────────────────────────────────────
+ * Whole-row HfSwitchRow targets run edge to edge of the card (its padding is
+ * 16px, 24px from md), the text aligned with the card title, hairlines between
+ * rows. A note under a row (why it is locked, a save error) shares its inset. */
+.hf-ui .product-switch-list {
+  display: grid;
+  margin-inline: -16px;
+}
+.hf-ui .product-switch-list .hf-switch-row__button,
+.hf-ui .product-switch-list .product-switch-note {
+  padding-inline: 16px;
+}
+.hf-ui .product-switch-list > .hf-switch-row + .hf-switch-row,
+.hf-ui .product-switch-list > .product-switch-note + .hf-switch-row,
+.hf-ui .product-switch-list > li + li {
+  border-top: 1px solid var(--hf-border);
+}
+.hf-ui .product-switch-list:where(ul) {
+  margin-block: 0;
+  padding: 0;
+  list-style: none;
+}
+.hf-ui .product-switch-note {
+  margin: 0;
+  padding-block: 0 0.75rem;
+  font-size: 0.75rem;
+  color: var(--hf-muted);
+}
+.hf-ui .product-switch-note[role='alert'] {
+  color: var(--hf-danger);
+  font-weight: 500;
+}
+
+/* A section card body made of blocks (switch rows, a field grid, a table):
+ * 16px between blocks, a hairline before a block that starts a new topic. */
+.hf-ui .product-section-body {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.hf-ui .product-section-divider {
+  height: 0;
+  margin: 0 -16px;
+  border: 0;
+  border-top: 1px solid var(--hf-border);
+}
+
+@media (min-width: 768px) {
+  .hf-ui .product-switch-list,
+  .hf-ui .product-section-divider {
+    margin-inline: -24px;
+  }
+  .hf-ui .product-switch-list .hf-switch-row__button,
+  .hf-ui .product-switch-list .product-switch-note {
+    padding-inline: 24px;
+  }
+}
+
+/* Option groups of the variants: a quiet definition list, values as chips. */
+.hf-ui .product-variant-groups {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+.hf-ui .product-variant-groups dt {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--hf-muted);
+}
+.hf-ui .product-variant-groups dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 0;
+}
+.hf-ui .product-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--hf-surface-muted);
+  color: var(--hf-ink);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* ── Sections inside a modal ───────────────────────────────────────────────
+ * The modal is the one surface: its groups are titled sections split by a
+ * hairline, never cards inside the dialog. */
+.hf-ui .product-modal-sections {
+  display: grid;
+  min-width: 0;
+}
+.hf-ui .product-modal-section {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  padding-block: 20px;
+}
+.hf-ui .product-modal-section:first-child {
+  padding-top: 0;
+}
+.hf-ui .product-modal-section:last-child {
+  padding-bottom: 0;
+}
+.hf-ui .product-modal-section + .product-modal-section {
+  border-top: 1px solid var(--hf-border);
+}
+.hf-ui .product-modal-section__title {
+  margin: 0;
+  color: var(--hf-heading);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.hf-ui .product-field-hint {
+  margin: 4px 0 0;
+  font-size: 0.75rem;
+  color: var(--hf-muted);
+}
+
+/* ── Sibling sections that still render a UCard ────────────────────────────
+ * Catálogo online, Empaques, Listas de precios and Imágenes are their own
+ * components; in the Presentaciones stack they read as section cards too: one
+ * border, the card radius, no header divider or shadow, the same padding. */
+.hf-ui [data-product-task='presentations'] > [data-slot='root'].divide-y,
+.hf-ui [data-product-task='presentations'] > section > [data-slot='root'].divide-y {
+  border-radius: var(--hf-radius-card);
+  background-color: var(--hf-surface);
+  box-shadow: none;
+}
+.hf-ui [data-product-task='presentations'] > [data-slot='root'].divide-y > *,
+.hf-ui [data-product-task='presentations'] > section > [data-slot='root'].divide-y > * {
+  border-width: 0;
+}
+.hf-ui [data-product-task='presentations'] > [data-slot='root'].divide-y > [data-slot='header'],
+.hf-ui [data-product-task='presentations'] > section > [data-slot='root'].divide-y > [data-slot='header'] {
+  padding-bottom: 0;
+}
+.hf-ui [data-product-task='presentations'] > [data-slot='root'].divide-y > [data-slot='header'] + [data-slot='body'],
+.hf-ui [data-product-task='presentations'] > section > [data-slot='root'].divide-y > [data-slot='header'] + [data-slot='body'] {
+  padding-top: 16px;
+}

@@ -53,6 +53,8 @@ import HfFormField from '@/core/shared/components/form/HfFormField.vue'
 import HfSaveBar from '@/core/shared/components/form/HfSaveBar.vue'
 import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 import HfSegmented from '@/core/shared/components/form/HfSegmented.vue'
+import { HfSwitchRow } from '@/core/shared/components/selection'
+import '../styles/product-detail.css'
 import { useConfirm } from '@/core/shared/composables/useConfirm'
 import { useLeaveGuard } from '@/core/shared/composables/useLeaveGuard'
 import SatKeySelect from '../components/SatKeySelect.vue'
@@ -568,6 +570,11 @@ const unitItems = computed<HfComboboxItem[]>(() =>
 const TYPE_ITEMS: HfComboboxItem[] = [
   { label: 'Producto', value: 'PRODUCT' },
   { label: 'Servicio', value: 'SERVICE' },
+]
+/** Neto / Bruto: a short choice shown whole (Selección sin checkboxes → segmented control). */
+const PURCHASE_COST_MODE_ITEMS: HfComboboxItem[] = [
+  { label: 'Neto · sin impuestos', value: 'NET' },
+  { label: 'Bruto · con impuestos', value: 'GROSS' },
 ]
 const channelToggles = [
   { key: 'sellInPos', label: 'Vender en punto de venta', description: 'Aparece en la pantalla de venta' },
@@ -2333,13 +2340,14 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
             </HfSectionCard>
 
             <HfSectionCard id="product-identity-channels" title="Dónde se vende" :heading-level="2">
-              <ul class="product-toggle-list">
+              <ul class="product-switch-list product-toggle-list">
                 <li v-for="toggle in channelToggles" :key="toggle.key" class="product-toggle-row">
-                  <span class="product-toggle-row__text">
-                    <label :for="`product-${toggle.key}`" class="product-toggle-row__label">{{ toggle.label }}</label>
-                    <span class="product-toggle-row__description">{{ toggle.description }}</span>
-                  </span>
-                  <USwitch :id="`product-${toggle.key}`" v-model="formState[toggle.key]" />
+                  <HfSwitchRow
+                    v-model="formState[toggle.key]"
+                    :label="toggle.label"
+                    :description="toggle.description"
+                    :test-id="`product-${toggle.key}`"
+                  />
                 </li>
               </ul>
             </HfSectionCard>
@@ -2356,62 +2364,59 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
               />
             </div>
           </div>
-          <div v-show="activeTask === 'presentations'" data-product-task="presentations" class="space-y-6">
-          <UCard v-if="showInventoryFields">
-            <template #header>
-              <h2 class="text-base font-semibold">Precio de compra</h2>
-            </template>
-
-            <div class="space-y-4">
-              <URadioGroup
-                v-model="formState.purchaseCostMode"
-                orientation="horizontal"
-                :items="[
-                  { label: 'Neto', description: 'Sin impuestos', value: 'NET' },
-                  { label: 'Bruto', description: 'Con impuestos', value: 'GROSS' },
-                ]"
-              />
-
-              <USeparator class="my-4" />
-
-              <UFormField label="" name="purchaseCost">
-                <div class="relative w-full md:max-w-md">
-                  <span
-                    class="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-muted"
-                    >$</span
-                  >
-                  <UInput
-                    v-model="formState.purchaseCost"
-                    inputmode="decimal"
-                    placeholder="0.00"
-                    class="w-full"
-                    :ui="{ base: 'pl-7 pr-24' }"
+          <div v-show="activeTask === 'presentations'" data-product-task="presentations" class="space-y-4">
+          <HfSectionCard
+            id="product-cost-taxes"
+            :title="showInventoryFields ? 'Costo e impuestos' : 'Impuestos'"
+            :heading-level="2"
+          >
+            <div class="product-section-body">
+              <HfFieldGrid v-if="showInventoryFields">
+                <HfFormField label="Precio de compra" label-id="product-cost-mode-label" span="full">
+                  <HfSegmented
+                    :items="PURCHASE_COST_MODE_ITEMS"
+                    :model-value="formState.purchaseCostMode"
+                    labelledby="product-cost-mode-label"
+                    :disabled="isFormReadonly"
+                    @update:model-value="formState.purchaseCostMode = $event as ProductFormInput['purchaseCostMode']"
                   />
-                  <span
-                    class="pointer-events-none absolute right-3 top-1/2 z-10 -translate-y-1/2 text-xs text-muted"
-                    >por Unidad</span
-                  >
-                </div>
-              </UFormField>
-            </div>
-          </UCard>
+                </HfFormField>
 
-          <UCard>
-            <template #header>
-              <h2 class="text-base font-semibold">Impuestos</h2>
-            </template>
+                <UFormField v-slot="{ error }" name="purchaseCost" :error="false">
+                  <HfFormField label="Costo" for="product-purchase-cost" :error="fieldError(error)">
+                    <div class="relative w-full">
+                      <span
+                        class="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-muted"
+                        >$</span
+                      >
+                      <UInput
+                        id="product-purchase-cost"
+                        v-model="formState.purchaseCost"
+                        inputmode="decimal"
+                        placeholder="0.00"
+                        class="w-full"
+                        :ui="{ base: 'pl-7 pr-24' }"
+                      />
+                      <span
+                        class="pointer-events-none absolute right-3 top-1/2 z-10 -translate-y-1/2 text-xs text-muted"
+                        >por Unidad</span
+                      >
+                    </div>
+                  </HfFormField>
+                </UFormField>
+              </HfFieldGrid>
 
-            <div class="space-y-4">
-              <USwitch
-                v-model="formState.chargeProductTaxes"
-                label="Cobrar impuestos"
-                description="Aplicar IVA e IEPS a este producto"
-              />
+              <hr v-if="showInventoryFields" class="product-section-divider" />
 
-              <div
-                v-if="formState.chargeProductTaxes"
-                class="grid grid-cols-1 gap-4 md:grid-cols-2"
-              >
+              <div class="product-switch-list">
+                <HfSwitchRow
+                  v-model="formState.chargeProductTaxes"
+                  label="Cobrar impuestos"
+                  description="Aplicar IVA e IEPS a este producto"
+                />
+              </div>
+
+              <HfFieldGrid v-if="formState.chargeProductTaxes">
                 <UFormField label="IVA" name="ivaRate">
                   <USelect
                     v-model="formState.ivaRate"
@@ -2429,35 +2434,30 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                     class="w-full"
                   />
                 </UFormField>
-              </div>
+              </HfFieldGrid>
             </div>
-          </UCard>
+          </HfSectionCard>
 
-          <UCard v-if="showServiceDetailCard">
-            <template #header>
-              <h2 class="text-base font-semibold">Detalles del servicio</h2>
-            </template>
-
-            <div class="space-y-4">
-              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <UFormField
-                  label="Capacidad (informativo)"
-                  name="serviceDetail.capacity"
-                  description="Cantidad máxima de servicio simultáneo (referencia)."
-                >
-                  <UInputNumber
-                    v-model="formState.serviceDetail.capacity"
-                    :min="1"
-                    class="w-full md:max-w-xs"
-                    placeholder="Ej: 3"
-                  />
-                </UFormField>
-              </div>
+          <HfSectionCard v-if="showServiceDetailCard" id="product-service-detail" title="Detalles del servicio" :heading-level="2">
+            <HfFieldGrid>
+              <UFormField
+                label="Capacidad (informativo)"
+                name="serviceDetail.capacity"
+                description="Cantidad máxima de servicio simultáneo (referencia)."
+              >
+                <UInputNumber
+                  v-model="formState.serviceDetail.capacity"
+                  :min="1"
+                  class="w-full md:max-w-xs"
+                  placeholder="Ej: 3"
+                />
+              </UFormField>
 
               <UFormField
                 label="Notas del servicio"
                 name="serviceDetail.notes"
                 description="Información adicional que verá el equipo (máx. 500 caracteres)."
+                span="full"
               >
                 <UTextarea
                   v-model="formState.serviceDetail.notes"
@@ -2467,17 +2467,13 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                   placeholder="Ej: Paseo de 60 minutos por parque..."
                 />
               </UFormField>
-            </div>
-          </UCard>
+            </HfFieldGrid>
+          </HfSectionCard>
 
-          <UCard v-if="showInventoryCard">
-            <template #header>
-              <h2 class="text-base font-semibold">Inventario</h2>
-            </template>
-
-            <div class="space-y-4">
-              <div class="space-y-1">
-                <USwitch
+          <HfSectionCard v-if="showInventoryCard" id="product-inventory" title="Inventario" :heading-level="2">
+            <div class="product-section-body">
+              <div class="product-switch-list">
+                <HfSwitchRow
                   v-model="formState.useStock"
                   :disabled="useStockLocked"
                   label="Controlar inventario"
@@ -2485,14 +2481,14 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                 />
                 <p
                   v-if="useStockLocked"
-                  class="text-xs text-muted"
+                  class="product-switch-note"
                   data-testid="use-stock-locked-reason"
                 >
                   Hay existencias: ajusta el stock a 0 para desactivarlo.
                 </p>
                 <p
                   v-if="stockErrors.useStock"
-                  class="text-xs text-[var(--hf-danger)]"
+                  class="product-switch-note"
                   role="alert"
                   data-testid="use-stock-error"
                 >
@@ -2500,7 +2496,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                 </p>
               </div>
 
-              <div v-if="showManualStockFields" class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <HfFieldGrid v-if="showManualStockFields">
                 <UFormField label="Existencias" name="quantity">
                   <ReadOnlyStock
                     v-if="!isCreateMode"
@@ -2510,7 +2506,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                   />
                   <template v-else>
                     <UInputNumber v-model="formState.quantity" :min="0" class="w-full" />
-                    <p class="mt-1 text-xs text-muted">Unidades</p>
+                    <p class="product-field-hint">Unidades</p>
                   </template>
                   <p
                     v-if="stockErrors.quantity"
@@ -2524,33 +2520,31 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
 
                 <UFormField label="Existencias mínimas" name="minQuantity">
                   <UInputNumber v-model="formState.minQuantity" :min="0" class="w-full" />
-                  <p class="mt-1 text-xs text-muted">Unidades</p>
+                  <p class="product-field-hint">Unidades</p>
                 </UFormField>
+              </HfFieldGrid>
+
+              <hr class="product-section-divider" />
+
+              <div class="product-switch-list">
+                <HfSwitchRow
+                  v-if="showLotsCheckbox"
+                  v-model="formState.useLotsAndExpirations"
+                  label="Usar lotes y vencimientos"
+                  description="Agrupar unidades por lote y fecha de expiración"
+                />
+                <HfSwitchRow
+                  v-model="formState.hasVariants"
+                  label="Tiene variantes"
+                  description="Talles, colores u otras opciones"
+                />
               </div>
-
-              <USeparator class="my-4" />
-
-              <USwitch
-                v-if="showLotsCheckbox"
-                v-model="formState.useLotsAndExpirations"
-                label="Usar lotes y vencimientos"
-                description="Agrupar unidades por lote y fecha de expiración"
-              />
 
               <p v-if="showStockByVariantMessage" class="text-sm text-muted">
                 El stock se gestiona por variante
               </p>
-
-              <USeparator class="my-4" />
-
-              <USwitch
-                v-model="formState.hasVariants"
-                label="Tiene variantes"
-                description="Talles, colores u otras opciones"
-              />
             </div>
-          </UCard>
-
+          </HfSectionCard>
               <!-- WU5 REQ-14: advanced catalog section, rendered only with
                    update:Product (never with settings-read substituting it). -->
               <ProductCatalogSettingsSection
@@ -2570,54 +2564,47 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                 @toggle-context="toggleSupportedContext"
               />
 
-              <UCard v-if="showVariantsSection">
-            <template #header>
-              <div class="flex items-center justify-between gap-3">
-                <h2 class="text-base font-semibold">Variantes</h2>
-                <UButton
-                  label="Agregar variante"
-                  icon="i-lucide-plus"
-                  color="neutral"
-                  variant="outline"
-                  :disabled="!isCreateMode && !canUpdateProduct"
-                  @click="openAddVariantModal"
-                />
-              </div>
+          <HfSectionCard v-if="showVariantsSection" id="product-variants" title="Variantes" :heading-level="2">
+            <template #meta>
+              <UButton
+                label="Agregar variante"
+                icon="i-lucide-plus"
+                color="neutral"
+                variant="outline"
+                :disabled="!isCreateMode && !canUpdateProduct"
+                @click="openAddVariantModal"
+              />
             </template>
+
+            <div class="product-section-body">
 
             <!-- SERVICE: the "Tiene variantes" switch lives inside the
                  PRODUCT-only Inventario card. For SERVICE (no inventory) it
                  must be exposed here, otherwise pending variants are collected
                  but never attached to the create payload (hasVariants stays
                  false → buildFullCreatePayload skips base.variants). -->
-            <div v-if="isService(formState.type)" class="mb-4">
-              <USwitch
+            <div v-if="isService(formState.type)" class="product-switch-list">
+              <HfSwitchRow
                 v-model="formState.hasVariants"
                 label="Tiene variantes"
                 description="Opciones de tu servicio"
               />
             </div>
 
-            <div v-if="variantGroups.length > 0" class="mb-4 space-y-3">
-              <div
-                v-for="group in variantGroups"
-                :key="group.option"
-                class="rounded-md border border-default bg-elevated/20 p-3"
-              >
-                <p class="text-xs font-semibold text-muted">
-                  {{ group.option }}
-                </p>
-                <div class="mt-2 flex flex-wrap gap-2">
+            <dl v-if="variantGroups.length > 0" class="product-variant-groups">
+              <div v-for="group in variantGroups" :key="group.option">
+                <dt>{{ group.option }}</dt>
+                <dd>
                   <span
                     v-for="value in group.values"
                     :key="`${group.option}-${value}`"
-                    class="rounded-md bg-elevated px-2 py-0.5 text-xs font-medium"
+                    class="product-chip"
                   >
                     {{ value }}
                   </span>
-                </div>
+                </dd>
               </div>
-            </div>
+            </dl>
 
             <ProductVariantsTable
               :rows="variantTableRows"
@@ -2646,7 +2633,8 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                 />
               </template>
             </ProductVariantsTable>
-          </UCard>
+            </div>
+          </HfSectionCard>
 
           <ProductPackagingSection
             v-if="showPackaging"
@@ -2654,22 +2642,19 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
             :can-update="canUpdateProduct"
           />
 
-          <UCard v-if="showLotsSection">
-            <template #header>
-              <div class="flex items-center justify-between gap-3">
-                <h2 class="text-base font-semibold">Lotes</h2>
-                <UButton
-                  label="Agregar lote"
-                  icon="i-lucide-plus"
-                  color="neutral"
-                  variant="outline"
-                  :disabled="!isCreateMode && !canUpdateProduct"
-                  @click="isLotModalOpen = true"
-                />
-              </div>
+          <HfSectionCard v-if="showLotsSection" id="product-lots" title="Lotes" :heading-level="2">
+            <template #meta>
+              <UButton
+                label="Agregar lote"
+                icon="i-lucide-plus"
+                color="neutral"
+                variant="outline"
+                :disabled="!isCreateMode && !canUpdateProduct"
+                @click="isLotModalOpen = true"
+              />
             </template>
 
-            <div class="space-y-3">
+            <div class="product-section-body">
               <p
                 v-if="stockErrors.lots"
                 class="text-sm text-[var(--hf-danger)]"
@@ -2689,24 +2674,18 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                 @retry="refetchLots()"
               />
 
-              <USeparator class="my-4" />
+              <hr class="product-section-divider" />
 
               <UFormField label="Existencias mínimas" name="minQuantity">
                 <UInputNumber v-model="formState.minQuantity" :min="0" class="w-full md:max-w-xs" />
-                <p class="mt-1 text-xs text-muted">Unidades</p>
+                <p class="product-field-hint">Unidades</p>
               </UFormField>
             </div>
-          </UCard>
+          </HfSectionCard>
 
           <!-- Create mode: inline price list management -->
-          <UCard v-if="isCreateMode">
-            <template #header>
-              <div class="flex items-center justify-between gap-3">
-                <h2 class="text-base font-semibold">Listas de precios</h2>
-              </div>
-            </template>
-
-            <div class="space-y-4">
+          <HfSectionCard v-if="isCreateMode" id="product-pending-price-lists" title="Listas de precios" :heading-level="2">
+            <div class="product-section-body">
               <div v-if="isAddPriceListPickerOpen && availablePriceListOptions.length > 0" class="flex items-end gap-3">
                 <UFormField label="Agregar lista de precios" class="flex-1">
                   <USelect
@@ -2752,7 +2731,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                 @click="isAddPriceListPickerOpen = true"
               />
             </div>
-          </UCard>
+          </HfSectionCard>
 
           <!-- Edit mode: full price list management -->
           <PriceListSection
@@ -2878,11 +2857,9 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
       :content="{ class: 'hf-theme hf-ui sm:max-w-4xl' }"
     >
       <template #body>
-        <div class="space-y-4">
-          <UCard>
-            <template #header>
-              <h3 class="font-semibold">General</h3>
-            </template>
+        <div class="product-modal-sections">
+          <section class="product-modal-section" aria-labelledby="pending-variant-general-title">
+            <h3 id="pending-variant-general-title" class="product-modal-section__title">General</h3>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               <UFormField v-if="inventoryFieldsVisible(formState.type)" label="SKU">
                 <UInput v-model="pendingVariantDetailState.sku" placeholder="SKU" />
@@ -2916,15 +2893,17 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                 >
                   {{ pendingVariantCostError }}
                 </p>
-                <p class="mt-1 text-xs text-muted">Ingresa un valor para definir costo propio de esta variante</p>
+                <p class="product-field-hint">Ingresa un valor para definir costo propio de esta variante</p>
               </UFormField>
             </div>
-          </UCard>
+          </section>
 
-          <UCard v-if="inventoryFieldsVisible(formState.type)">
-            <template #header>
-              <h3 class="font-semibold">Existencias</h3>
-            </template>
+          <section
+            v-if="inventoryFieldsVisible(formState.type)"
+            class="product-modal-section"
+            aria-labelledby="pending-variant-stock-title"
+          >
+            <h3 id="pending-variant-stock-title" class="product-modal-section__title">Existencias</h3>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               <UFormField label="Cantidad">
                 <UInputNumber v-model="pendingVariantDetailState.quantity" :min="0" class="w-full" />
@@ -2933,19 +2912,17 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                 <UInputNumber v-model="pendingVariantDetailState.minQuantity" :min="0" class="w-full" />
               </UFormField>
             </div>
-          </UCard>
+          </section>
 
-          <UCard>
-            <template #header>
-              <h3 class="font-semibold">Precios</h3>
-            </template>
+          <section class="product-modal-section" aria-labelledby="pending-variant-prices-title">
+            <h3 id="pending-variant-prices-title" class="product-modal-section__title">Precios</h3>
             <ProductPriceMarginTable
               :rows="pendingVariantPriceRows"
               :cost-cents="pendingVariantCostCents"
               @update-price="updatePendingVariantDetailPrice"
               @action="handlePendingVariantPriceAction"
             />
-          </UCard>
+          </section>
         </div>
       </template>
 
@@ -2966,7 +2943,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
         <div class="space-y-4">
           <div class="flex flex-wrap items-center gap-2">
             <span class="font-medium">{{ pendingVariantDetailName }}</span>
-            <span class="rounded-md bg-elevated px-2 py-0.5 text-xs font-medium">{{ pendingVariantTierPriceListName }}</span>
+            <span class="product-chip">{{ pendingVariantTierPriceListName }}</span>
           </div>
 
           <div class="space-y-3">
@@ -3340,11 +3317,6 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
 }
 /* No column grows to its content's width (the Contenido chip row scrolls inside itself). */
 .product-workspace-grid > * { min-width: 0; }
-#product-detail-form :deep([data-slot='root'].divide-y) {
-  background: var(--hf-surface);
-  border-radius: var(--hf-radius-card);
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--hf-ink) 5%, transparent);
-}
 #product-detail-form :deep(h2) { color: var(--hf-heading); }
 .product-workspace-header :deep(button),
 #product-detail-form :deep(button[data-slot='base']:not([role])) {
@@ -3364,15 +3336,6 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
 .product-identity { display: grid; gap: 16px; min-width: 0; }
 .product-identity-save { position: sticky; bottom: 0; z-index: 5; margin-inline: -16px; }
 .product-identity-save :deep(.hf-save-bar) { position: static; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
-/* A calm list of switches: label and description on the left, the switch on the right, hairlines between. */
-.product-toggle-list { margin: 0; padding: 0; list-style: none; }
-.product-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 56px; padding: 10px 0; }
-.product-toggle-row + .product-toggle-row { border-top: 1px solid var(--hf-border); }
-.product-toggle-row:first-child { padding-top: 0; }
-.product-toggle-row:last-child { padding-bottom: 0; }
-.product-toggle-row__text { display: grid; gap: 2px; min-width: 0; }
-.product-toggle-row__label { color: var(--hf-ink); font-size: 14px; font-weight: 500; cursor: pointer; }
-.product-toggle-row__description { color: var(--hf-muted); font-size: 13px; }
 @media (min-width: 640px) {
   .product-identity-save { margin-inline: -24px; }
 }

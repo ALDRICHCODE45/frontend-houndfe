@@ -119,10 +119,12 @@ async function saveRejected(view: Awaited<ReturnType<typeof mountView>>, code: s
   await flushPromises()
 }
 
+/** A whole-row switch (HfSwitchRow) found by its visible label. */
 function switchByLabel(text: string): HTMLButtonElement {
-  const label = [...document.querySelectorAll('label')].find((l) => l.textContent?.trim() === text)!
-  return document.getElementById(label.getAttribute('for')!) as HTMLButtonElement
+  const label = [...document.querySelectorAll('.hf-switch-row__label')].find((l) => l.textContent?.trim() === text)!
+  return label.closest<HTMLButtonElement>('[role="switch"]')!
 }
+const isLocked = (el: HTMLElement) => el.getAttribute('aria-disabled') === 'true' || el.hasAttribute('disabled')
 
 beforeEach(() => {
   queryClient = new QueryClient({
@@ -213,7 +215,7 @@ describe('ProductDetailView — product save errors by code', () => {
 describe('ProductDetailView — "Controlar inventario" lock', () => {
   it('is disabled with a one-line reason while there is stock', async () => {
     await mountView({ quantity: 12 })
-    expect(switchByLabel('Controlar inventario').hasAttribute('disabled')).toBe(true)
+    expect(isLocked(switchByLabel('Controlar inventario'))).toBe(true)
     expect(byId('use-stock-locked-reason')!.textContent?.trim()).toBe(
       'Hay existencias: ajusta el stock a 0 para desactivarlo.',
     )
@@ -221,12 +223,12 @@ describe('ProductDetailView — "Controlar inventario" lock', () => {
 
   it('locks it too when only the variants hold stock', async () => {
     await mountView({ quantity: 0, variantStockTotal: 4, hasVariants: true })
-    expect(switchByLabel('Controlar inventario').hasAttribute('disabled')).toBe(true)
+    expect(isLocked(switchByLabel('Controlar inventario'))).toBe(true)
   })
 
   it('is enabled, with no reason, at zero stock', async () => {
     await mountView({ quantity: 0 })
-    expect(switchByLabel('Controlar inventario').hasAttribute('disabled')).toBe(false)
+    expect(isLocked(switchByLabel('Controlar inventario'))).toBe(false)
     expect(byId('use-stock-locked-reason')).toBeNull()
   })
 })
