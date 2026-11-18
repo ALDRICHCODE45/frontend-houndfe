@@ -1,11 +1,18 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, it, expect } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
 import PromotionForm from '../PromotionForm.vue'
 import type { PromotionFormState, PromotionType } from '../../interfaces/promotion.types'
 import { toCreatePayload } from '../../composables/usePromotionForm'
+
+/** A «Cómo se aplica» radio card by method value. */
+const method = (wrapper: Pick<VueWrapper, 'get'>, value: string) =>
+  wrapper.get(`[role="radio"][data-value="${value}"]`)
+/** The «Cómo se aplica» radiogroup (the one holding the AUTOMATIC card). */
+const methodGroup = (wrapper: Pick<VueWrapper, 'get'>) =>
+  method(wrapper, 'AUTOMATIC').element.closest<HTMLElement>('[role="radiogroup"]')!
 
 // ── Stubs ─────────────────────────────────────────────────────────────────────
 
@@ -167,14 +174,12 @@ describe('PromotionForm', () => {
   })
 
   // ── Method selector ──────────────────────────────────────────────────────
-  it('renders automatic method card', () => {
+  it('renders the automatic and manual method cards with their explanations', () => {
     const wrapper = mountForm('PRODUCT_DISCOUNT')
-    expect(wrapper.find('[data-testid="method-card-AUTOMATIC"]').exists()).toBe(true)
-  })
-
-  it('renders manual method card', () => {
-    const wrapper = mountForm('PRODUCT_DISCOUNT')
-    expect(wrapper.find('[data-testid="method-card-MANUAL"]').exists()).toBe(true)
+    expect(method(wrapper, 'AUTOMATIC').text()).toContain('Aplicar automáticamente')
+    expect(method(wrapper, 'AUTOMATIC').text()).toContain('Se aplicará si se cumplen las condiciones')
+    expect(method(wrapper, 'MANUAL').text()).toContain('Manualmente')
+    expect(method(wrapper, 'MANUAL').text()).toContain('Tú eliges si deseas aplicar el descuento')
   })
 
   // ── Type-specific sections ───────────────────────────────────────────────
@@ -220,48 +225,40 @@ describe('PromotionForm', () => {
   })
 
   // ── S18/S19: Method selection ────────────────────────────────────────────
-  // Method selection is verified via DOM class changes (selected style class)
-  // The form state is tested in usePromotionForm unit tests
-  it('S18: AUTOMATIC method card is selected by default (initial state)', () => {
+  // T8 D5: «Cómo se aplica» is an HfRadioCards radiogroup; the chosen card is
+  // aria-checked (hover only rings the mark, it never paints the selected look).
+  it('S18: «Cómo se aplica» is a radiogroup of two radio cards, AUTOMATIC chosen by default', () => {
     const wrapper = mountForm('PRODUCT_DISCOUNT')
-    const automaticCard = wrapper.find('[data-testid="method-card-AUTOMATIC"]')
-    // Selected card carries the owned selection hook (from PromotionForm.vue class binding)
-    expect(automaticCard.classes()).toContain('promotions-choice-selected')
+    const group = methodGroup(wrapper)
+    const labelId = group.getAttribute('aria-labelledby')!
+    expect(wrapper.get(`[id="${labelId}"]`).text()).toBe('Cómo se aplica')
+    const radios = [...group.querySelectorAll('[role="radio"]')]
+    expect(radios.map((radio) => radio.getAttribute('data-value'))).toEqual(['AUTOMATIC', 'MANUAL'])
+    expect(method(wrapper, 'AUTOMATIC').attributes('aria-checked')).toBe('true')
+    expect(method(wrapper, 'MANUAL').attributes('aria-checked')).toBe('false')
+    expect(method(wrapper, 'AUTOMATIC').attributes('tabindex')).toBe('0')
+    expect(method(wrapper, 'MANUAL').attributes('tabindex')).toBe('-1')
+    expect(wrapper.html()).not.toContain('promotions-choice')
   })
 
-  it('S18: AUTOMATIC method card loses selected style when MANUAL is clicked', async () => {
+  it('S18: AUTOMATIC is no longer checked when MANUAL is clicked', async () => {
     const wrapper = mountForm('PRODUCT_DISCOUNT')
-    await wrapper.find('[data-testid="method-card-MANUAL"]').trigger('click')
-    await wrapper.vm.$nextTick()
-    // AUTOMATIC card no longer selected
-    expect(wrapper.find('[data-testid="method-card-AUTOMATIC"]').classes()).not.toContain(
-      'promotions-choice-selected',
-    )
+    await method(wrapper, 'MANUAL').trigger('click')
+    expect(method(wrapper, 'AUTOMATIC').attributes('aria-checked')).toBe('false')
   })
 
-  it('S19: MANUAL method card shows selected style after click', async () => {
+  it('S19: MANUAL is checked after click', async () => {
     const wrapper = mountForm('PRODUCT_DISCOUNT')
-    const manualCard = wrapper.find('[data-testid="method-card-MANUAL"]')
-    // Not selected initially
-    expect(manualCard.classes()).not.toContain('promotions-choice-selected')
-    await manualCard.trigger('click')
-    await wrapper.vm.$nextTick()
-    // Now selected
-    expect(manualCard.classes()).toContain('promotions-choice-selected')
+    await method(wrapper, 'MANUAL').trigger('click')
+    expect(method(wrapper, 'MANUAL').attributes('aria-checked')).toBe('true')
   })
 
-  it('S19: clicking MANUAL then AUTOMATIC restores AUTOMATIC as selected', async () => {
+  it('S19: arrow keys move the choice between the radio cards', async () => {
     const wrapper = mountForm('PRODUCT_DISCOUNT')
-    await wrapper.find('[data-testid="method-card-MANUAL"]').trigger('click')
-    await wrapper.vm.$nextTick()
-    await wrapper.find('[data-testid="method-card-AUTOMATIC"]').trigger('click')
-    await wrapper.vm.$nextTick()
-    expect(wrapper.find('[data-testid="method-card-AUTOMATIC"]').classes()).toContain(
-      'promotions-choice-selected',
-    )
-    expect(wrapper.find('[data-testid="method-card-MANUAL"]').classes()).not.toContain(
-      'promotions-choice-selected',
-    )
+    await method(wrapper, 'AUTOMATIC').trigger('keydown', { key: 'ArrowDown' })
+    expect(method(wrapper, 'MANUAL').attributes('aria-checked')).toBe('true')
+    await method(wrapper, 'MANUAL').trigger('keydown', { key: 'ArrowUp' })
+    expect(method(wrapper, 'AUTOMATIC').attributes('aria-checked')).toBe('true')
   })
 
   // ── S25/S26: BUY_X_GET_Y preset autofill (REQ-10 locked table) ────────────
@@ -292,8 +289,8 @@ describe('PromotionForm', () => {
   // ── S44: Edit mode shows method as read-only badge ───────────────────────
   it('S44: in edit mode, method selector cards are hidden and readonly badge is shown', () => {
     const wrapper = mountForm('PRODUCT_DISCOUNT', { mode: 'edit' as const })
-    expect(wrapper.find('[data-testid="method-card-AUTOMATIC"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="method-card-MANUAL"]').exists()).toBe(false)
+    expect(wrapper.find('[role="radio"][data-value="AUTOMATIC"]').exists()).toBe(false)
+    expect(wrapper.find('[role="radio"][data-value="MANUAL"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="method-readonly"]').exists()).toBe(true)
   })
 
@@ -437,9 +434,16 @@ describe('PromotionForm — review round 1', () => {
 
   it('stacks the method cards on mobile so "Aplicar automáticamente" never overflows', () => {
     const wrapper = mountForm('PRODUCT_DISCOUNT')
-    const grid = wrapper.get('[data-testid="method-card-AUTOMATIC"]').element.parentElement!
-    expect(grid.className).toContain('grid-cols-1')
-    expect(grid.className).toContain('sm:grid-cols-2')
+    const grid = methodGroup(wrapper)
+    expect(grid.classList.contains('grid-cols-1')).toBe(true)
+    expect(grid.classList.contains('sm:grid-cols-2')).toBe(true)
+  })
+
+  // T8 D5: below lg the summary is not hidden; it follows the form in the stacked column.
+  it('shows the summary at every width (after the form below lg, the rail at lg)', () => {
+    const wrapper = mountForm('PRODUCT_DISCOUNT')
+    const rail = wrapper.get('[data-testid="summary-card"]').element.parentElement!
+    expect(rail.className).not.toMatch(/(^|\s)hidden(\s|$)/)
   })
 
   it('agrees the overlap alert count in number', () => {

@@ -57,6 +57,13 @@ const props = withDefaults(
 const FORM_PORTAL_BASE = 'hf-theme hf-ui hf-form-overlay clients-form-portal'
 const SELECT_PORTAL_BASE = 'hf-theme hf-ui clients-form-portal'
 
+/**
+ * Keyboard focus on the tab panel draws the shared ring (design-system: 2px --hf-focus,
+ * offset 2px). `outline-solid` is explicit: Nuxt's `focus:outline-none` sets the style var to none.
+ */
+const TAB_PANEL_CLASS =
+  'rounded-(--hf-radius-card) focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--hf-focus)'
+
 const contentClass = computed(() =>
   props.portalClass ? `${FORM_PORTAL_BASE} ${props.portalClass}` : FORM_PORTAL_BASE,
 )
@@ -273,7 +280,15 @@ function handleCancel() {
     @after-leave="resetForm"
   >
     <template #body>
-      <UTabs v-model="activeTab" :items="tabs" class="customer-tabs w-full" variant="link">
+      <!-- The tab panel is a Tab stop (Reka TabsContent, tabindex 0): it shows the
+           shared 2px --hf-focus ring instead of an invisible stop (T8 D9). -->
+      <UTabs
+        v-model="activeTab"
+        :items="tabs"
+        class="customer-tabs w-full"
+        variant="link"
+        :ui="{ content: TAB_PANEL_CLASS }"
+      >
         <template #content="{ item }">
           <!-- ── Tab: Datos básicos ─────────────────────────── -->
           <div v-if="item.value === 'basic'" class="pt-4">

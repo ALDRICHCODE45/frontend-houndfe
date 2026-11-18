@@ -34,17 +34,15 @@ function getIdTypeLabel(type: string | null | undefined): string {
 }
 
 // ── Date of birth formatter ───────────────────────────────────────────────────
+// A birth date is a calendar date: `new Date('1990-04-12')` is UTC midnight and
+// reads one day early west of UTC, so the Y-M-D parts build a local date (T8 D8).
+const DOB_FORMAT = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })
+
 function formatDob(dob: string | null | undefined): string {
   if (!dob) return '—'
-  try {
-    return new Intl.DateTimeFormat('es-MX', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-    }).format(new Date(dob))
-  } catch {
-    return dob
-  }
+  const parts = /^(\d{4})-(\d{2})-(\d{2})/.exec(dob)
+  const date = parts ? new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3])) : new Date(dob)
+  return Number.isNaN(date.getTime()) ? dob : DOB_FORMAT.format(date)
 }
 </script>
 

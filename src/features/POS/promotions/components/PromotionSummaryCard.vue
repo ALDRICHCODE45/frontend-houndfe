@@ -13,14 +13,25 @@ const props = defineProps<{
 
 // ── Computed summary ──────────────────────────────────────────────────────────
 
-const bullets = computed(() => buildPromotionSummaryBullets(props.formState))
+/** T8 D10: the price-list condition, which the shared bullet builder omits. */
+const priceListBullet = computed(() => {
+  const count = props.formState.hasPriceLists ? props.formState.priceListIds.length : 0
+  if (count === 0) return null
+  return count === 1 ? 'Solo con 1 lista de precio' : `Solo con ${count} listas de precio`
+})
+
+const bullets = computed(() => {
+  const list = buildPromotionSummaryBullets(props.formState)
+  return priceListBullet.value ? [...list, priceListBullet.value] : list
+})
 
 const typeConfig = computed(() => getTypeConfig(props.formState.type))
 </script>
 
 <template>
-  <!-- T6d/S2: a design-system section card (§Section card); the type icon is its meta. -->
-  <HfSectionCard title="Resumen" class="promotions-summary sticky top-6" data-testid="summary-card">
+  <!-- T6d/S2: a design-system section card (§Section card); the type icon is its meta.
+       Sticky only as the lg rail; below lg it follows the form (T8 D5). -->
+  <HfSectionCard title="Resumen" class="promotions-summary lg:sticky lg:top-6" data-testid="summary-card">
     <template #meta>
       <span class="promotions-accent-icon promotions-summary-icon" aria-hidden="true">
         <UIcon :name="typeConfig.icon" class="h-4 w-4" />

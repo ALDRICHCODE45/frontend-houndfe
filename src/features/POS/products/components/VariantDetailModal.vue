@@ -320,7 +320,14 @@ function handleCancel() {
 </script>
 
 <template>
-  <UModal v-model:open="modalOpen" :title="modalTitle" :content="{ class: 'hf-theme hf-ui sm:max-w-3xl' }">
+  <!-- The header end keeps the absolute close button's lane, so a wrapped title
+       never runs under the X at 390 (T8 D6). -->
+  <UModal
+    v-model:open="modalOpen"
+    :title="modalTitle"
+    :content="{ class: 'hf-theme hf-ui sm:max-w-3xl' }"
+    :ui="{ header: 'pe-14 sm:pe-14' }"
+  >
     <template #body>
       <!-- One surface: the modal's groups are titled sections split by hairlines, never cards. -->
       <div v-if="variant" class="product-modal-sections">

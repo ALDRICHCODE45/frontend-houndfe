@@ -111,13 +111,15 @@ const contextRows = computed(() =>
       <div class="grid min-w-0 gap-3" data-testid="supported-contexts">
         <h3 class="m-0 text-sm font-semibold text-(--hf-heading)">Contextos públicos soportados</h3>
 
-        <!-- supportsAll indicator (response-only, never sent) -->
+        <!-- supportsAll indicator (response-only, never sent). The backend derives it from an
+             empty supported list, so every row reads off: the note explains that state (T8 D10). -->
         <p
           v-if="props.supportsAllCatalogPriceLists"
           data-testid="supports-all-note"
           class="m-0 text-xs text-(--hf-muted)"
         >
-          Soporta todos los contextos públicos de la sucursal
+          Ningún contexto elegido: el producto se muestra en todos los contextos públicos de la
+          sucursal. Enciende uno o más para limitarlo.
         </p>
 
         <!-- Context switch rows: one calm list, the whole row is the target. -->

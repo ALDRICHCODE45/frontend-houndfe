@@ -139,14 +139,15 @@ describe('Promotions creation/edit workspace adapter', () => {
   })
 
   it('marks selection with action/active roles and keeps the identity accents neutral', () => {
-    expect(form).toContain('promotions-choice-selected')
-    expect(form).toContain('promotions-choice')
+    // T8 D5: the method cards are the shared HfRadioCards (hover never paints the selected look).
+    expect(form).toContain('<HfRadioCards')
+    expect(form).not.toContain('promotions-choice')
     expect(form).toContain('promotions-preset')
     expect(form).toContain('promotions-type-badge')
     expect(summary).toContain('promotions-accent-icon')
     expect(targets).toContain('promotions-segment')
     expect(variantRow).toContain('promotions-link')
-    expect(css).toContain('.promotions-workspace .promotions-choice-selected')
+    expect(css).not.toContain('promotions-choice')
     expect(css).toContain(".promotions-workspace .promotions-segment[aria-checked='true']")
     expect(css).toContain('.promotions-workspace .promotions-segment:focus-visible')
     // Color is reserved for status/urgency/action: the identity accents are neutral.

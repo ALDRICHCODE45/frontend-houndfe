@@ -82,3 +82,27 @@ describe('CustomerUpsertSlideover — section cards (T6c)', () => {
     wrapper.unmount()
   })
 })
+
+// T8 D9: the tab panel (Reka TabsContent, tabindex 0) is a Tab stop inside the
+// slideover body; it must show the shared focus ring instead of an invisible stop.
+describe('CustomerUpsertSlideover — the tab panel focus is visible (T8 D9)', () => {
+  it('gives the UTabs content the 2px --hf-focus ring on keyboard focus', () => {
+    let ui: { content?: string } | undefined
+    const capture = {
+      props: ['modelValue', 'items', 'ui'],
+      setup(props: { ui?: { content?: string } }) {
+        ui = props.ui
+      },
+      template: '<div />',
+    }
+    mount(CustomerUpsertSlideover, {
+      props: { mode: 'create', open: true },
+      global: { stubs: { ...stubs, UTabs: capture, Tabs: capture } },
+    })
+    const content = ui?.content ?? ''
+    expect(content).toContain('focus-visible:outline-solid')
+    expect(content).toContain('focus-visible:outline-2')
+    expect(content).toContain('focus-visible:outline-(--hf-focus)')
+    expect(content).toContain('focus-visible:outline-offset-2')
+  })
+})

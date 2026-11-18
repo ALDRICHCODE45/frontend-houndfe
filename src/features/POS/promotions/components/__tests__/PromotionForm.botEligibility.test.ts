@@ -133,11 +133,11 @@ describe('PromotionForm WhatsApp switch', () => {
   it('reacts to method changes and does not automatically re-enable the value', async () => {
     const { wrapper } = mountForm({ mode: 'create' })
     await botSwitch(wrapper).trigger('click')
-    await wrapper.get('[data-testid="method-card-MANUAL"]').trigger('click')
+    await wrapper.get('[role="radio"][data-value="MANUAL"]').trigger('click')
     expect(isDisabled(wrapper)).toBe(true)
     expect(wrapper.get('[role="status"]').text()).toMatch(/Se desactivó.*método.*Manual/i)
     expect((await submitted(wrapper)).botEligible).toBe(false)
-    await wrapper.get('[data-testid="method-card-AUTOMATIC"]').trigger('click')
+    await wrapper.get('[role="radio"][data-value="AUTOMATIC"]').trigger('click')
     expect(isDisabled(wrapper)).toBe(false)
     expect((await submitted(wrapper)).botEligible).toBe(false)
   })

@@ -98,23 +98,11 @@
   font-weight: 500;
 }
 
-/* Method cards, BUY_X_GET_Y presets and the target-type segments are
- * selections, so they use the action/active roles instead of gold. */
-.promotions-workspace .promotions-choice {
-  border-color: var(--hf-border);
-  background-color: var(--hf-surface);
-}
-
-.promotions-workspace .promotions-choice:hover,
+/* BUY_X_GET_Y presets and the target-type segments are selections, so they use
+ * the action/active roles instead of gold (the method cards are HfRadioCards). */
 .promotions-workspace .promotions-preset:hover {
   border-color: var(--hf-action);
   background-color: var(--hf-active-soft);
-}
-
-.promotions-workspace .promotions-choice-selected {
-  border-color: var(--hf-active);
-  background-color: var(--hf-active-soft);
-  box-shadow: 0 0 0 1px var(--hf-active);
 }
 
 .promotions-workspace .promotions-segment[aria-checked='true'] {

@@ -217,7 +217,8 @@ describe('PromotionConditionsSection', () => {
       const group = wrapper.get('[data-testid="customer-scope"]')
       expect(group.attributes('role')).toBe('radiogroup')
       const radios = group.findAll('[role="radio"]')
-      expect(radios.map((r) => r.text())).toEqual(['Solo clientes registrados', 'Clientes específicos'])
+      // T8 D5: short segment labels under «Qué clientes» so «Solo clientes regi…» never truncates at 390.
+      expect(radios.map((r) => r.text())).toEqual(['Registrados', 'Específicos'])
       expect(radios[0]!.attributes('aria-checked')).toBe('true')
       await radios[1]!.trigger('click')
       expect(lastEmit(wrapper)).toEqual({ ...state, customerScope: 'SPECIFIC' })

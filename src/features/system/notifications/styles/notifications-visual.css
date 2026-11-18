@@ -362,6 +362,13 @@
   .notifications-visual .nc-notice {
     padding: 0.75rem 1rem;
   }
+  /* Artboard 04: the text takes the row beside its icon; the link drops below it. */
+  .notifications-visual .nc-notice__text {
+    flex-basis: calc(100% - 1.5rem);
+  }
+  .notifications-visual .nc-notice__action {
+    margin: 0 0 -0.25rem 1.5rem;
+  }
   .notifications-visual .nc-mod {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -375,7 +382,13 @@
     width: 1.75rem;
     height: 1.75rem;
   }
+  /* The name never shrinks under «Activar todas»: when both do not fit, the
+   * button wraps to its own line at the band's end (it never covers the name). */
+  .notifications-visual .nc-mod__name {
+    flex: 1 0 auto;
+  }
   .notifications-visual .nc-mod__all {
     min-height: 44px;
+    margin-left: auto;
   }
 }

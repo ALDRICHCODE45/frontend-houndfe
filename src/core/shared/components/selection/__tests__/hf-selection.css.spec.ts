@@ -13,3 +13,11 @@ describe('hf-selection.css — a switch row disabled by its <fieldset> looks dis
     )
   })
 })
+
+describe('hf-selection.css — selectable rows never overlap in a height-capped list (T8 D1)', () => {
+  it('sizes every row to its content and packs them at the top, so a max-height scrolls instead of squeezing', () => {
+    const list = css.match(/\.hf-selectable-rows__list \{([^}]*)\}/)?.[1] ?? ''
+    expect(list).toMatch(/grid-auto-rows: max-content;/)
+    expect(list).toMatch(/align-content: start;/)
+  })
+})

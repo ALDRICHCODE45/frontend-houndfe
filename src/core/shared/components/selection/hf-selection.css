@@ -223,8 +223,13 @@
   display: grid;
   gap: 0.375rem;
 }
+/* Rows keep their content height and pack at the top: a consumer that caps the
+ * list (`max-height` + `overflow-y: auto`) scrolls it instead of squeezing the
+ * implicit rows below their content, which made long rows overlap. */
 .hf-selectable-rows__list {
   display: grid;
+  grid-auto-rows: max-content;
+  align-content: start;
   border: 1px solid var(--hf-border);
   border-radius: var(--hf-radius-card, 12px);
   background: var(--hf-surface);

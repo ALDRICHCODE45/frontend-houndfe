@@ -178,3 +178,22 @@ describe('HfSectionNav chip row', () => {
     expect(media('(max-width: 767px)')).toMatch(/\.hf-section-card\s*\{[^}]*scroll-margin-top: 80px/)
   })
 })
+
+describe('HfSaveBar at narrow widths (T8 D4)', () => {
+  it('wraps the action labels instead of truncating them («Guardar cambi…»)', () => {
+    const label = rule(".hf-save-bar__actions [data-slot='label']")
+    expect(label).toMatch(/white-space: normal;/)
+    expect(label).toMatch(/overflow: visible;/)
+    expect(label).toMatch(/text-overflow: clip;/)
+    expect(label).toMatch(/text-align: center;/)
+  })
+})
+
+describe('Placeholders in .hf-ui fields (T8 D9)', () => {
+  it('paint text-field and select placeholders in --hf-muted (≥ 4.5:1), not the dimmed mix', () => {
+    const placeholder = rule('.hf-ui :is(input, textarea)::placeholder')
+    expect(rule(".hf-ui [data-slot='placeholder']")).toBe(placeholder)
+    expect(placeholder).toMatch(/color: var\(--hf-muted\);/)
+    expect(placeholder).toMatch(/opacity: 1;/)
+  })
+})

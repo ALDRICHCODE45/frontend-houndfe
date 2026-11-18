@@ -112,9 +112,17 @@ function onPriceListsUpdate(next: readonly string[] | string | null) {
 // ── Customer scope helpers ────────────────────────────────────────────────────
 
 /** Once limited, the scope is one of the limiting options («Todos» is the switch off). */
+/**
+ * Under «Qué clientes» the segments carry short labels so the segmented control
+ * fits 390 without truncating «Solo clientes regi…» (T8 D5).
+ */
+const SHORT_SCOPE_LABELS: Partial<Record<CustomerScope, string>> = {
+  [CUSTOMER_SCOPE.REGISTERED_ONLY]: 'Registrados',
+  [CUSTOMER_SCOPE.SPECIFIC]: 'Específicos',
+}
 const limitedScopeOptions = CUSTOMER_SCOPE_OPTIONS.filter(
   (option) => option.value !== CUSTOMER_SCOPE.ALL,
-)
+).map((option) => ({ ...option, label: SHORT_SCOPE_LABELS[option.value] ?? option.label }))
 
 function onLimitCustomers(limited: boolean) {
   updateField('customerScope', limited ? CUSTOMER_SCOPE.REGISTERED_ONLY : CUSTOMER_SCOPE.ALL)

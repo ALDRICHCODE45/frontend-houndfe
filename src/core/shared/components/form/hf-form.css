@@ -354,6 +354,14 @@
   opacity: 1;
 }
 
+/* Text-field and select placeholders read in --hf-muted (≥ 4.5:1 light and dark);
+ * the Nuxt `text-dimmed` mix measured 3.12:1. A placeholder is still not a label. */
+.hf-ui :is(input, textarea)::placeholder,
+.hf-ui [data-slot='placeholder'] {
+  color: var(--hf-muted);
+  opacity: 1;
+}
+
 .hf-ui .hf-unit-field__dash {
   align-self: center;
   color: var(--hf-muted);
@@ -937,6 +945,15 @@
 .hf-ui .hf-save-bar__actions > * {
   justify-content: center;
   min-height: 44px;
+}
+
+/* Narrow bars (390, slideovers): a long primary («Guardar cambios») wraps inside
+ * its equal column instead of the Nuxt label truncating to «Guardar cambi…». */
+.hf-ui .hf-save-bar__actions [data-slot='label'] {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  text-align: center;
 }
 
 .hf-ui .hf-save-bar__discard {

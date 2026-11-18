@@ -90,3 +90,14 @@ describe('VariantDetailModal — sections, not cards', () => {
     expect(titles).toEqual(['General', 'Existencias', 'Catálogo online', 'Precios'])
   })
 })
+
+// T8 D6: at 390 the wrapped title ran under the absolute close button (top-4 end-4).
+describe('VariantDetailModal — the title never sits under the close button', () => {
+  it('reserves the close button lane on the header end at every width', async () => {
+    await mountModal()
+    const header = document.querySelector<HTMLElement>('[role="dialog"] [data-slot="header"]')
+    expect(header).not.toBeNull()
+    expect(header!.className).toMatch(/(^|\s)pe-14(\s|$)/)
+    expect(header!.className).toMatch(/(^|\s)sm:pe-14(\s|$)/)
+  })
+})

@@ -50,9 +50,13 @@ describe('ProductCatalogSettingsSection — advanced Catálogo online (REQ-14/RE
   it('shows the supportsAll indicator read-only only when the server reports it', () => {
     expect(mountSection().find('[data-testid="supports-all-note"]').exists()).toBe(false)
     const all = mountSection({ supportsAllCatalogPriceLists: true })
-    expect(all.find('[data-testid="supports-all-note"]').text()).toContain(
-      'Soporta todos los contextos públicos de la sucursal',
+    // T8 D10: «all» means no context is chosen (backend: empty list), so the note must
+    // explain the all-off rows instead of contradicting them.
+    const note = all.get('[data-testid="supports-all-note"]').text()
+    expect(note).toBe(
+      'Ningún contexto elegido: el producto se muestra en todos los contextos públicos de la sucursal. Enciende uno o más para limitarlo.',
     )
+    expect(note).not.toContain('Soporta todos')
   })
 
   it('renders public contexts as one list of switch rows and emits the per-ID toggle intent', async () => {

@@ -44,6 +44,22 @@ describe('Notificaciones presentation adapter (artboard 01 + 04)', () => {
     expect(css).toContain('.notifications-visual .nc-mod')
   })
 
+  // T8 D2/D3 (browser 390): the band never lets «Activar todas» cover the module
+  // name, and the paused notice stacks text above its link (artboard 04).
+  const narrow = css.slice(css.indexOf('@container nc-page (max-width: 600px)'))
+  const narrowRule = (selector: string) =>
+    narrow.match(new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\{([^}]*)\\}`))?.[1] ?? ''
+
+  it('keeps the module name at its full width so «Activar todas» wraps below it, never over it', () => {
+    expect(narrowRule('.notifications-visual .nc-mod__name')).toMatch(/flex: 1 0 auto;/)
+    expect(narrowRule('.notifications-visual .nc-mod__all')).toMatch(/margin-left: auto;/)
+  })
+
+  it('stacks the paused notice text above its «Activar notificaciones» link on narrow containers', () => {
+    expect(narrowRule('.notifications-visual .nc-notice__text')).toMatch(/flex-basis: calc\(100% - 1\.5rem\);/)
+    expect(narrowRule('.notifications-visual .nc-notice__action')).toMatch(/margin: 0 0 -0\.25rem 1\.5rem;/)
+  })
+
   it('uses the shared selection primitives and HfSaveBar, never UCheckbox, USwitch or USelectMenu', () => {
     const all = [view, ...components].join('\n')
     expect(all).toContain('HfSwitchRow')

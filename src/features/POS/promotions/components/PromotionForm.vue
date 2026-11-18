@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, useId, watch } from 'vue'
 import type {
   PromotionFormState,
   PromotionMethod,
@@ -33,7 +33,7 @@ import PromotionSummaryCard from './PromotionSummaryCard.vue'
 import PromotionCapacityField from './PromotionCapacityField.vue'
 import HfMoneyInput from '@/core/shared/components/form/HfMoneyInput.vue'
 import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
-import { HfSwitchRow } from '@/core/shared/components/selection'
+import { HfRadioCards, HfSwitchRow } from '@/core/shared/components/selection'
 import { parseDecimalInput } from '@/core/shared/utils/money-input.utils'
 
 // ── Props & emits ─────────────────────────────────────────────────────────────
@@ -139,6 +139,20 @@ watch(
 const typeConfig = getTypeConfig(props.type)
 
 // ── Method handler ────────────────────────────────────────────────────────────
+
+const methodLabelId = useId()
+const METHOD_CARDS = [
+  {
+    value: PROMOTION_METHOD.AUTOMATIC,
+    label: 'Aplicar automáticamente',
+    description: 'Se aplicará si se cumplen las condiciones',
+  },
+  {
+    value: PROMOTION_METHOD.MANUAL,
+    label: 'Manualmente',
+    description: 'Tú eliges si deseas aplicar el descuento',
+  },
+] as const
 
 function selectMethod(method: PromotionMethod) {
   formState.method = method
@@ -337,7 +351,7 @@ const overlapTitle = computed(() =>
 
             <!-- Method selector — read-only in edit mode -->
             <div>
-              <p class="mb-2 text-sm font-medium text-toned">Cómo se aplica</p>
+              <p :id="methodLabelId" class="mb-2 text-sm font-medium text-toned">Cómo se aplica</p>
               <!-- Edit mode: show read-only badge -->
               <div
                 v-if="mode === 'edit'"
@@ -361,37 +375,16 @@ const overlapTitle = computed(() =>
                 </span>
                 <span class="ml-1 text-xs text-muted">(no editable)</span>
               </div>
-              <!-- Create mode: interactive cards -->
-              <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <button
-                  v-for="m in [PROMOTION_METHOD.AUTOMATIC, PROMOTION_METHOD.MANUAL] as const"
-                  :key="m"
-                  type="button"
-                  :data-testid="`method-card-${m}`"
-                  class="promotions-choice flex cursor-pointer flex-col gap-1 rounded-xl border p-4 text-left transition-colors duration-200"
-                  :class="formState.method === m ? 'promotions-choice-selected' : 'border-default'"
-                  @click="selectMethod(m)"
-                >
-                  <div class="flex items-center gap-2">
-                    <UIcon
-                      :name="m === PROMOTION_METHOD.AUTOMATIC ? 'i-lucide-cpu' : 'i-lucide-hand'"
-                      class="h-4 w-4 text-toned"
-                    />
-                    <span class="text-sm font-medium text-highlighted">
-                      {{
-                        m === PROMOTION_METHOD.AUTOMATIC ? 'Aplicar automáticamente' : 'Manualmente'
-                      }}
-                    </span>
-                  </div>
-                  <p class="text-xs text-muted">
-                    {{
-                      m === PROMOTION_METHOD.AUTOMATIC
-                        ? 'Se aplicará si se cumplen las condiciones'
-                        : 'Tú eliges si deseas aplicar el descuento'
-                    }}
-                  </p>
-                </button>
-              </div>
+              <!-- Create mode: radio cards (T8 D5 — radiogroup/radio, roving focus;
+                   hover only rings the mark, it never paints the selected look). -->
+              <HfRadioCards
+                v-else
+                :model-value="formState.method"
+                :items="METHOD_CARDS"
+                :labelledby="methodLabelId"
+                class="grid-cols-1 sm:grid-cols-2"
+                @update:model-value="selectMethod($event as PromotionMethod)"
+              />
             </div>
 
             <div class="promotions-availability-fields">
@@ -760,8 +753,8 @@ const overlapTitle = computed(() =>
       </UForm>
     </div>
 
-    <!-- ── Summary sidebar ───────────────────────────────────────────────── -->
-    <div class="hidden lg:block">
+    <!-- ── Summary: the rail at lg, after the form in the stacked column below (T8 D5) ── -->
+    <div>
       <PromotionSummaryCard :form-state="formState" />
     </div>
   </div>
