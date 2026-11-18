@@ -17,7 +17,7 @@
  * itself performs exactly ONE GET and issues no mutating call.
  *
  * Preflight (BEFORE any browser context exists): the pinned receipt
- * (backend 36383 / resource 7e3be777… / frontend 4189), a foreign tenant
+ * (backend 44885 / resource eecfefbe… / frontend 4189), a foreign tenant
  * distinct from the operating tenant, the `read:CashSession` ability, and a
  * strict minimum token TTL of 300 seconds. An expired/insufficient token is
  * SKIPPED — never renewed.

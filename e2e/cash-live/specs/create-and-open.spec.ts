@@ -53,9 +53,9 @@ import { createEvidenceCollector, type EvidenceKind } from '../support/evidence'
  * bind this one authorized validation run to the exact disposable resource; a
  * fixture from any other environment fails the preflight before a mutation.
  */
-const EXPECTED_BACKEND_ORIGIN = 'http://127.0.0.1:36383'
+const EXPECTED_BACKEND_ORIGIN = 'http://127.0.0.1:44885'
 const EXPECTED_FRONTEND_ORIGIN = 'http://127.0.0.1:4189'
-const EXPECTED_RESOURCE_ID = '7e3be777-25ef-4562-9383-68510f59b1da'
+const EXPECTED_RESOURCE_ID = 'eecfefbe-5517-4c64-9477-f966fb976837'
 
 /**
  * Authoritative cross-tenant negative contract for a cash id outside the
@@ -216,6 +216,15 @@ function assertForeignSessionNotFound(body: unknown, sessionId: string): void {
   }
 }
 
+/** Best-effort UI screenshot (no credential is rendered by the app); never masks the outcome. */
+async function screenshotQuietly(page: Page, path: string): Promise<void> {
+  try {
+    await page.screenshot({ path, fullPage: true })
+  } catch {
+    // Deliberately swallowed: evidence must never change the journey outcome.
+  }
+}
+
 /** Best-effort context teardown; a close failure must never mask the journey outcome. */
 async function closeQuietly(context: LiveActorContext | undefined): Promise<void> {
   if (!context) return
@@ -345,11 +354,14 @@ test('creates a register and opens its first cash session (isolated live backend
     expect(sessionBody.session?.status).toBe('OPEN')
     expect(sessionBody.session?.openingCents).toBe(OPENING_FUND_CENTS)
     expect(sessionBody.register?.id).toBe(registerId)
+    // The session id is a backend-issued resource id (not a credential). It is
+    // surfaced through the redacted collector so the follow-up foreign-session
+    // diagnostic can target it via CASH_LIVE_FOREIGN_SESSION_ID.
     collector.collect(
       'open-session',
       'http',
       'pass',
-      'POST /cash-registers/:id/sessions -> 201 OPEN',
+      `POST /cash-registers/:id/sessions -> 201 OPEN; sessionId=${sessionId}`,
     )
 
     // 9. Persistence through the public API: the created session is readable.
@@ -379,6 +391,7 @@ test('creates a register and opens its first cash session (isolated live backend
       'pass',
       'session summary shows OPEN with the opening fund',
     )
+    await screenshotQuietly(page, testInfo.outputPath('session-detail-ui.png'))
 
     // 11. Cross-tenant isolation: a read-only foreign GET of the created session
     //     fails closed with the documented tenant-scoping status.
@@ -403,6 +416,7 @@ test('creates a register and opens its first cash session (isolated live backend
     expect(live.guard.violations()).toEqual([])
     expect(foreignLive.guard.violations()).toEqual([])
   } catch (error) {
+    if (live) await screenshotQuietly(live.page, testInfo.outputPath(`failed-${step.name}.png`))
     const message =
       error instanceof CashLiveJourneyError
         ? error.message
@@ -414,6 +428,8 @@ test('creates a register and opens its first cash session (isolated live backend
     }
     throw new CashLiveJourneyError(message)
   } finally {
+    // Only the redacted, secret-asserted records reach stdout.
+    console.log(`[cash-live evidence] ${JSON.stringify(collector.records())}`)
     await closeQuietly(live)
     await closeQuietly(foreignLive)
     // Attach the redacted evidence; a failed attach must not change the outcome.
