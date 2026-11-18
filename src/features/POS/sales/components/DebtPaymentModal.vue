@@ -28,6 +28,8 @@ import {
 import { PAYMENT_METHOD_CATEGORY_ICONS } from '@/core/shared/constants/payment-method-category'
 import HfMoneyInput from '@/core/shared/components/form/HfMoneyInput.vue'
 import { useCashSaleSession } from '@/features/POS/cash-register/composables/useCashSaleSession'
+import { useCashAccess } from '@/features/POS/cash-register/composables/useCashAccess'
+import { useCashRegisterNames } from '../composables/useCashRegisterNames'
 import CashSaleSessionPicker from './CashSaleSessionPicker.vue'
 
 const props = defineProps<{
@@ -93,7 +95,12 @@ const {
 // as is; several follow the POS picker rule (an explicit choice, never automatic); none blocks
 // the CASH payment. Card/transfer enter no drawer and go without a session, as before.
 const cashSaleSession = useCashSaleSession()
+const cashAccess = useCashAccess()
 const CAJA_PATH = '/pos/caja'
+// Only a user who may open a till (create:CashSession) is sent to Caja; anyone else would hit
+// a dead end there, so they are told who can take the cash instead.
+const canOpenCashSession = computed(() => cashAccess.canOpenSession.value)
+const registerNames = useCashRegisterNames()
 const hasCashEntry = computed(() => entries.value.some((entry) => entry.method === PAYMENT_METHOD.CASH))
 const openCashSessions = computed(() => cashSaleSession.availableSessions.value)
 const needsCashSessionPick = computed(() => openCashSessions.value.length > 1)
@@ -450,9 +457,15 @@ watch(catalogClearSignal, () => {
               role="alert"
               data-testid="debt-cash-session-missing"
             >
-              <p class="text-sm font-semibold text-(--hf-warning)">Abre tu caja para cobrar en efectivo.</p>
-              <p class="text-xs text-muted">Tarjeta y transferencia se pueden cobrar sin caja.</p>
+              <template v-if="canOpenCashSession">
+                <p class="text-sm font-semibold text-(--hf-warning)">Abre tu caja para cobrar en efectivo.</p>
+                <p class="text-xs text-muted">Tarjeta y transferencia se pueden cobrar sin caja.</p>
+              </template>
+              <p v-else class="text-sm font-semibold text-(--hf-warning)" data-testid="debt-cash-session-cannot-open">
+                No puedes abrir caja. Pide a un cajero que cobre en efectivo o cobra con tarjeta o transferencia.
+              </p>
               <UButton
+                v-if="canOpenCashSession"
                 data-testid="debt-cash-session-open-caja"
                 :to="CAJA_PATH"
                 color="neutral"
@@ -474,6 +487,8 @@ watch(catalogClearSignal, () => {
                 :page-count="cashSaleSession.pageCount.value"
                 :total="cashSaleSession.total.value"
                 :portal-class="portalClass"
+                :register-names="registerNames"
+                :allow-unbound="false"
                 @update:selected-id="cashSaleSession.selectSession($event)"
                 @update:page="cashSaleSession.setPage($event)"
               />

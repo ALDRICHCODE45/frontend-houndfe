@@ -25,7 +25,7 @@ import SaleDetailCancellationCard from '../components/SaleDetailCancellationCard
 import SaleDetailRefundsCard from '../components/SaleDetailRefundsCard.vue'
 import SaleDetailHoldCard from '../components/SaleDetailHoldCard.vue'
 import SaleHoldDeadlineDialog from '../components/SaleHoldDeadlineDialog.vue'
-import { isSaleHoldLive } from '../utils/saleHold.utils'
+import { isSaleHoldLive, saleHoldLine } from '../utils/saleHold.utils'
 import SettleRefundSlideover from '@/features/POS/refunds/components/SettleRefundSlideover.vue'
 import type { PendingRefundListRow } from '@/features/POS/refunds/composables/usePendingRefundsList'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
@@ -97,6 +97,11 @@ const canRegisterPayment = computed(
 // BE handoff 24 §1–§2: the live pay-in-store hold and its «Cambiar plazo» (`update:Sale`). Any
 // payment or a cancellation ends it, and the refetched sale hides it.
 const liveHold = computed(() => (sale.value && isSaleHoldLive(sale.value) ? sale.value.hold : null))
+// The card shows whenever the hold has something to say, «Apartado vencido · revisar» included
+// (a sale opened from the SALE_HOLD_REVIEW notice). «Cambiar plazo» only while the hold is
+// editable (§2: CONFIRMED + CREDIT; a PARTIAL sale gets SALE_HOLD_NOT_EDITABLE).
+const showHoldCard = computed(() => (sale.value ? saleHoldLine(sale.value) !== null : false))
+const canEditHold = computed(() => liveHold.value !== null && canUpdateSale.value)
 const holdDialogOpen = ref(false)
 
 // T20: a cancelled sale opens read-only, with its cancellation and refunds.
@@ -611,11 +616,11 @@ watch(
           </div>
           <!-- The hold decides what happens next, so on mobile it leads the page. -->
           <div
-            v-if="liveHold"
+            v-if="showHoldCard"
             class="order-first lg:order-none"
             data-testid="sale-detail-section-hold"
           >
-            <SaleDetailHoldCard :sale="sale" :can-edit="canUpdateSale" @edit="holdDialogOpen = true" />
+            <SaleDetailHoldCard :sale="sale" :can-edit="canEditHold" @edit="holdDialogOpen = true" />
           </div>
           <div :class="sectionOrder.totals" class="lg:order-none" data-testid="sale-detail-section-totals">
             <SaleDetailTotalsCard
@@ -648,7 +653,7 @@ watch(
         @success="debtModalOpen = false"
       />
       <SaleHoldDeadlineDialog
-        v-if="liveHold && canUpdateSale"
+        v-if="liveHold && canEditHold"
         v-model:open="holdDialogOpen"
         :sale-id="sale.id"
         :hold="liveHold"

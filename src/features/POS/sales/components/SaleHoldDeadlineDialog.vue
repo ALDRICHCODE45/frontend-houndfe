@@ -178,27 +178,41 @@ const modalUi = computed(() => (props.portalClass ? { content: props.portalClass
           Fecha límite actual: <span class="hf-figure">{{ currentLabel }}</span>
         </p>
         <HfFormField label="Nueva fecha límite" label-id="hold-deadline-label" :error="fieldError ?? undefined">
-          <UPopover
-            v-model:open="calendarOpen"
-            :content="{ align: 'start', side: 'bottom', sideOffset: 8 }"
-            :ui="{ content: portalClass ?? 'hf-theme hf-ui' }"
+          <!-- The segments stay typeable: only the trailing icon opens the calendar. -->
+          <UInputDate
+            id="hold-deadline"
+            class="hf-figure w-full"
+            granularity="minute"
+            :hour-cycle="24"
+            :model-value="fieldModel"
+            :min-value="minMoment"
+            aria-labelledby="hold-deadline-label"
+            aria-describedby="hold-deadline-label-message"
+            :aria-invalid="fieldError ? 'true' : 'false'"
+            @update:model-value="fieldChanged"
           >
-            <UInputDate
-              id="hold-deadline"
-              class="hf-figure w-full"
-              granularity="minute"
-              :hour-cycle="24"
-              :model-value="fieldModel"
-              :min-value="minMoment"
-              aria-labelledby="hold-deadline-label"
-              aria-describedby="hold-deadline-label-message"
-              :aria-invalid="fieldError ? 'true' : 'false'"
-              @update:model-value="fieldChanged"
-            />
-            <template #content>
-              <UCalendar class="p-2" :model-value="calendarModel" :min-value="minDay" @update:model-value="dayPicked" />
+            <template #trailing>
+              <UPopover
+                v-model:open="calendarOpen"
+                :content="{ align: 'end', side: 'bottom', sideOffset: 8 }"
+                :ui="{ content: portalClass ?? 'hf-theme hf-ui' }"
+              >
+                <UButton
+                  type="button"
+                  color="neutral"
+                  variant="link"
+                  size="sm"
+                  icon="i-lucide-calendar"
+                  aria-label="Abrir calendario"
+                  data-testid="hold-deadline-calendar"
+                  class="px-0"
+                />
+                <template #content>
+                  <UCalendar class="p-2" :model-value="calendarModel" :min-value="minDay" @update:model-value="dayPicked" />
+                </template>
+              </UPopover>
             </template>
-          </UPopover>
+          </UInputDate>
         </HfFormField>
         <UAlert v-if="alert" color="warning" variant="soft" :description="alert" />
       </form>

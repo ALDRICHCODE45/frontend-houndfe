@@ -198,3 +198,39 @@ describe('SaleHoldDeadlineDialog', () => {
     expect(wrapper.text()).toContain('Elige la fecha y hora límite.')
   })
 })
+
+// Live check D1: the calendar must not wrap the field, or a click on a segment opens it and
+// steals the focus (the typed digits are lost). Real field, popover and calendar here.
+describe('SaleHoldDeadlineDialog field and calendar', () => {
+  const modalStub = { template: '<div><slot name="body" /><slot name="footer" /></div>' }
+  function mountReal() {
+    return mount(SaleHoldDeadlineDialog, {
+      attachTo: document.body,
+      props: { open: true, saleId: 'sale-1', hold, now: () => now },
+      global: { stubs: { Modal: modalStub, UModal: modalStub } },
+    })
+  }
+
+  it('a click on a segment keeps the calendar closed; only the calendar button opens it', async () => {
+    const wrapper = mountReal()
+    try {
+      await flushPromises()
+      const field = wrapper.findComponent({ name: 'InputDate' })
+      const segment = field.find('[data-segment="hour"]')
+      expect(segment.exists()).toBe(true)
+      await segment.trigger('pointerdown')
+      await segment.trigger('click')
+      await flushPromises()
+      expect(wrapper.findComponent({ name: 'Calendar' }).exists()).toBe(false)
+
+      const trigger = wrapper.get('[data-testid="hold-deadline-calendar"]')
+      expect(trigger.attributes('aria-label')).toBe('Abrir calendario')
+      expect(field.element.contains(trigger.element)).toBe(true)
+      await trigger.trigger('click')
+      await flushPromises()
+      expect(wrapper.findComponent({ name: 'Calendar' }).exists()).toBe(true)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+})

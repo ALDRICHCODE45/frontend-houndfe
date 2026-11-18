@@ -88,6 +88,17 @@ vi.mock('@/features/POS/cash-register/composables/useCashSaleSession', () => ({
   }),
 }))
 
+// Live check D2: only a user who can open a till (create:CashSession) is sent to Caja.
+const cashCanOpen = ref(true)
+vi.mock('@/features/POS/cash-register/composables/useCashAccess', () => ({
+  useCashAccess: () => ({ canOpenSession: computed(() => cashCanOpen.value) }),
+}))
+
+// Live check D3: the picker labels each till by its register name.
+vi.mock('../../composables/useCashRegisterNames', () => ({
+  useCashRegisterNames: () => computed(() => ({ 'reg-1': 'Caja Principal' })),
+}))
+
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: vi.fn() }),
   useRoute: () => ({ params: {} }),
@@ -585,6 +596,7 @@ describe('DebtPaymentModal — cash session of a counter payment (BE handoff 24 
     cashCanRead.value = true
     cashFetching.value = false
     cashSelectedId.value = null
+    cashCanOpen.value = true
   })
 
   async function payWith(wrapper: ReturnType<typeof mountModal>, tile: string) {
@@ -622,6 +634,29 @@ describe('DebtPaymentModal — cash session of a counter payment (BE handoff 24 
     await confirm(wrapper).trigger('click')
     await flushPromises()
     expect(submitSafeMock).not.toHaveBeenCalled()
+  })
+
+  it('a user who cannot open a till is not sent to Caja and is told how to charge instead', async () => {
+    cashSessions.value = []
+    cashCanOpen.value = false
+    const wrapper = mountModal()
+    await payWith(wrapper, 'cash')
+    const notice = wrapper.get('[data-testid="debt-cash-session-missing"]')
+    expect(notice.text()).toContain(
+      'No puedes abrir caja. Pide a un cajero que cobre en efectivo o cobra con tarjeta o transferencia.',
+    )
+    expect(notice.text()).not.toContain('Abre tu caja para cobrar en efectivo.')
+    expect(notice.find('[data-testid="debt-cash-session-open-caja"]').exists()).toBe(false)
+    expect(confirm(wrapper).attributes('disabled')).toBeDefined()
+  })
+
+  it('the picker hides the unbound legacy choice and names the tills in the debt payment', async () => {
+    cashSessions.value = [openSession('sess-1'), openSession('sess-2')]
+    const wrapper = mountModal()
+    await payWith(wrapper, 'cash')
+    const picker = wrapper.findComponent({ name: 'CashSaleSessionPicker' })
+    expect(picker.props('allowUnbound')).toBe(false)
+    expect(picker.props('registerNames')).toEqual({ 'reg-1': 'Caja Principal' })
   })
 
   it('cash is blocked the same way when the user cannot read cash sessions', async () => {

@@ -523,8 +523,9 @@ watch(() => filtersCtl.serializedState.value, () => {
 .sale-card-head .sale-row-link { flex: 1; min-width: 0; padding-top: 2px; font-size: 15px; line-height: 1.4; }
 .sale-card .hf-row-secondary { padding-right: 8px; }
 .sale-card-notice { display: flex; width: fit-content; margin-top: 4px; }
-/* The live hold: a short muted second line that never pushes the row taller than one line. */
-.sale-hold-line { display: block; max-width: 16rem; overflow: hidden; color: var(--hf-muted); font-size: 12px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+/* The hold: a muted line under the customer that wraps (two lines at most for the full
+   «… vence jue 19 nov, 15:47») instead of being cut, and never widens the column. */
+.sale-hold-line { display: block; max-width: 16rem; color: var(--hf-muted); font-size: 12px; font-weight: 500; line-height: 1.35; white-space: normal; overflow-wrap: break-word; }
 .sale-card-hold { max-width: none; margin-top: 4px; white-space: normal; }
 /* Why a cancelled row was cancelled, when the system did it: a muted note beside «Cancelada». */
 .sale-cancel-note { margin-left: 6px; color: var(--hf-muted); font-size: 12px; font-weight: 500; white-space: nowrap; }

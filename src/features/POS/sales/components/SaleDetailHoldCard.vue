@@ -4,8 +4,9 @@ import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 import { saleHoldLine } from '../utils/saleHold.utils'
 import type { SaleDetail } from '../interfaces/sale.types'
 
-// BE handoff 24 §1–§2: the live pay-in-store hold of a bot pickup order. The parent renders it
-// only while `isSaleHoldLive`; «Cambiar plazo» needs `update:Sale` (the parent decides).
+// BE handoff 24 §1–§2: the pay-in-store hold of a bot pickup order. The parent renders it while
+// `saleHoldLine` has a line (the live deadline or «Apartado vencido · revisar»); «Cambiar plazo»
+// needs an editable hold and `update:Sale` (the parent decides).
 const props = defineProps<{ sale: SaleDetail; canEdit: boolean }>()
 const emit = defineEmits<{ edit: [] }>()
 

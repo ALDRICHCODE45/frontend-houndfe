@@ -16,6 +16,7 @@ import { normalizeReferenceInput } from '../utils/paymentEntries.utils'
 import { useSalePaymentMethods } from '../composables/useSalePaymentMethods'
 import { useCashSaleSession } from '@/features/POS/cash-register/composables/useCashSaleSession'
 import CashSaleSessionPicker from './CashSaleSessionPicker.vue'
+import { useCashRegisterNames } from '../composables/useCashRegisterNames'
 import HfMoneyInput from '@/core/shared/components/form/HfMoneyInput.vue'
 import {
   buildMergedMethodOptions,
@@ -155,6 +156,8 @@ const totalFormatted = computed(() => formatCentsMXN(props.totalCents))
 // id only when the cashier made an explicit selection. Nothing here auto-selects
 // a session, and a stale/invalid selection is blocked (never silently unbound).
 const cashSaleSession = useCashSaleSession()
+// Names each till in the picker («Caja Principal · abierta 9:12»), never by raw session id.
+const cashRegisterNames = useCashRegisterNames()
 const paidSumCents = computed(() => {
   return entries.value.reduce(
     (sum, entry) => sum + Math.max(0, entry.amountCents ?? 0),
@@ -774,6 +777,7 @@ const confirmButtonClass = computed(() =>
               :page-count="cashSaleSession.pageCount.value"
               :total="cashSaleSession.total.value"
               :portal-class="portalClass"
+              :register-names="cashRegisterNames"
               @update:selected-id="onSelectSession($event)"
               @update:page="cashSaleSession.setPage($event)"
             />

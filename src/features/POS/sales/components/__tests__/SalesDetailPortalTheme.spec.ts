@@ -68,6 +68,15 @@ vi.mock('@/features/POS/cash-register/composables/useCashSaleSession', () => ({
   }),
 }))
 
+// Live check D2/D3: DebtPaymentModal also reads canOpenSession (auth store) and the register
+// names (useQuery). Mocked so the modal still mounts without a QueryClient/Pinia.
+vi.mock('@/features/POS/cash-register/composables/useCashAccess', () => ({
+  useCashAccess: () => ({ canOpenSession: computed(() => false) }),
+}))
+vi.mock('../../composables/useCashRegisterNames', () => ({
+  useCashRegisterNames: () => computed(() => ({})),
+}))
+
 vi.mock('../../composables/useSellerAssignment', () => ({
   useSellerAssignment: () => ({ assignSeller: vi.fn(), isPending: ref(false) }),
 }))

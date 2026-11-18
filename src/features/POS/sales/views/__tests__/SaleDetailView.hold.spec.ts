@@ -184,6 +184,27 @@ describe('SaleDetailView — pay-in-store hold', () => {
     expect(wrapper.find('[data-testid="sale-detail-hold"]').exists()).toBe(false)
   })
 
+  // Live check G1: opened from the SALE_HOLD_REVIEW notice, an expired hold still explains itself.
+  it('an expired hold with a partial payment shows «Apartado vencido · revisar» and cannot be changed', () => {
+    const wrapper = mountView({
+      ...onlineHeld,
+      paymentStatus: 'PARTIAL',
+      paidCents: 9450,
+      debtCents: 35550,
+      hold: { ...hold, stage: 2 },
+    })
+    const section = wrapper.get('[data-testid="sale-detail-hold"]')
+    expect(section.get('[data-testid="sale-detail-hold-line"]').text()).toBe('Apartado vencido · revisar')
+    expect(wrapper.find('[data-testid="sale-detail-hold-edit"]').exists()).toBe(false)
+    expect(wrapper.findComponent({ name: 'SaleHoldDeadlineDialog' }).exists()).toBe(false)
+  })
+
+  it('an expired hold still unpaid (stage 2, CREDIT) shows the review line and stays editable', () => {
+    const wrapper = mountView({ ...onlineHeld, hold: { ...hold, stage: 2 } })
+    expect(wrapper.get('[data-testid="sale-detail-hold-line"]').text()).toBe('Apartado vencido · revisar')
+    expect(wrapper.find('[data-testid="sale-detail-hold-edit"]').exists()).toBe(true)
+  })
+
   it('a sale without a hold has no hold section', () => {
     expect(mountView({ ...onlineHeld, hold: null }).find('[data-testid="sale-detail-hold"]').exists()).toBe(false)
   })
