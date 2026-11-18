@@ -285,9 +285,9 @@ describe('Employees trays follow the canonical table workspace', () => {
     expect(expiring).toContain('ToolbarSelectFilter')
   })
 
-  it('pending: themes the review dialog and its card, and keeps the ⋮ menu', () => {
-    expect(pending).toContain(`:ui="{ content: '${formPortal}' }"`)
-    expect(pending).toMatch(/<UCard\b[^>]*employees-detail-section/)
+  it('pending: themes the review dialog (no card inside it since T6e), and keeps the ⋮ menu', () => {
+    expect(pending).toMatch(/content: '[^']*employees-form-portal/)
+    expect(pending).not.toMatch(/<UCard\b/)
     expect(pending).toContain('RowActionsMenu')
     expect(css).toContain('.employees-form-portal .employees-detail-section')
   })
