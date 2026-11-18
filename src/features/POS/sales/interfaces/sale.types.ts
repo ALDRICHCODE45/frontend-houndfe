@@ -95,12 +95,16 @@ export interface ConfirmedSaleRow {
   /** BE handoff 24 §1: the pay-in-store hold; null without one, absent on older payloads. */
   hold?: SaleHold | null
   /**
-   * Where the sale was made. GET /sales rows do not carry it yet (the detail does), so it is
-   * optional; the list reads it when present and otherwise infers ONLINE from a hold (only bot
-   * sales have one, BE handoff 24 §1).
+   * Where the sale was made (BE handoff 24 §1, T5: always present on GET /sales rows). Optional only
+   * for older payloads, where the list infers ONLINE from a hold (only bot sales have one).
    */
-  channel?: 'POS' | 'ONLINE' | null
+  channel?: SaleChannel
+  /** BE handoff 24 §1 (T5): `null` unless cancelled; HOLD_EXPIRED is the deadline sweep's cancel. */
+  cancelReason?: SaleDetailCancelReason | null
 }
+
+/** `POS` rung at the counter, `ONLINE` a chatbot sale. */
+export type SaleChannel = 'POS' | 'ONLINE'
 
 // ─── BE handoff 24: pay-in-store hold («Apartado») ────────────────────────────────────
 
@@ -480,6 +484,11 @@ export interface UpdatedPaymentReference {
 
 export interface DebtPaymentPayload {
   payments: PaymentEntry[]
+  /**
+   * BE handoff 24 §3: the caller's OPEN cash session the money goes into. Sent with CASH so the
+   * payment counts in that drawer; omitted (no key) for money that enters no drawer.
+   */
+  cashSessionId?: string
 }
 
 export interface DebtPaymentResponse {

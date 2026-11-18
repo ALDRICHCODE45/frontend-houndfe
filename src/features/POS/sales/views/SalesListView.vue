@@ -27,6 +27,7 @@ import { formatCentsMXN } from '../utils/currency.utils'
 import { extractFolioNumber } from '../utils/saleFolio.utils'
 import { isCanceledSale, saleDeliveryBadge, saleOpenDebtCents, salePaymentBadge } from '../utils/saleStatus.utils'
 import { saleHoldLine } from '../utils/saleHold.utils'
+import { saleRowCancelNote } from '../utils/saleCancellation.utils'
 import type { ConfirmedSaleRow } from '../interfaces/sale.types'
 import type { TableColumnTotal } from '@/core/shared/types/table.types'
 import { customerApi } from '@/features/POS/customers/api/customer.api'
@@ -146,8 +147,11 @@ const saleWhen = (sale: ConfirmedSaleRow) =>
 // BE handoff 24 §1: «Apartado · pagar en tienda · vence …» while the hold is live, else nothing.
 const holdLine = (sale: ConfirmedSaleRow) => saleHoldLine(sale)
 
-// «Canal»: the row's channel when the list sends it; a pay-in-store hold only exists on bot
-// (ONLINE) sales; otherwise the list cannot tell, so it says nothing rather than guess «Punto de venta».
+// BE handoff 24 §1: «Apartado vencido» next to «Cancelada» when the deadline sweep cancelled the sale.
+const cancelNote = (sale: ConfirmedSaleRow) => saleRowCancelNote(sale)
+
+// «Canal»: the row's `channel` (GET /sales rows carry it, BE handoff 24 §1). Older payloads without
+// it: a pay-in-store hold only exists on bot (ONLINE) sales; otherwise «—» rather than a guess.
 const CHANNEL_LABELS = { POS: 'Punto de venta', ONLINE: 'En línea' } as const
 function channelLabel(sale: ConfirmedSaleRow): string {
   if (sale.channel) return CHANNEL_LABELS[sale.channel]
@@ -396,6 +400,12 @@ watch(() => filtersCtl.serializedState.value, () => {
               :data-testid="isCanceledSale(row.original) ? 'sale-canceled-status' : 'sale-payment-status'"
               v-bind="salePaymentBadge(row.original)"
             />
+            <span
+              v-if="cancelNote(row.original)"
+              class="sale-cancel-note"
+              data-testid="sale-cancel-reason"
+              :title="cancelNote(row.original)!.title"
+            >{{ cancelNote(row.original)!.label }}</span>
           </template>
 
           <template #paymentMethods-cell="{ row }">
@@ -462,6 +472,12 @@ watch(() => filtersCtl.serializedState.value, () => {
               <p v-if="holdLine(row)" class="sale-hold-line sale-card-hold" data-testid="sale-hold-line">{{ holdLine(row) }}</p>
               <div class="sale-card-meta">
                 <StatusBadge v-bind="salePaymentBadge(row)" />
+                <span
+                  v-if="cancelNote(row)"
+                  class="sale-cancel-note"
+                  data-testid="sale-cancel-reason"
+                  :title="cancelNote(row)!.title"
+                >{{ cancelNote(row)!.label }}</span>
                 <StatusBadge v-if="saleDeliveryBadge(row)" v-bind="saleDeliveryBadge(row)!" />
                 <PaymentMethodPills
                   v-if="row.paymentMethods.length > 0"
@@ -510,6 +526,8 @@ watch(() => filtersCtl.serializedState.value, () => {
 /* The live hold: a short muted second line that never pushes the row taller than one line. */
 .sale-hold-line { display: block; max-width: 16rem; overflow: hidden; color: var(--hf-muted); font-size: 12px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 .sale-card-hold { max-width: none; margin-top: 4px; white-space: normal; }
+/* Why a cancelled row was cancelled, when the system did it: a muted note beside «Cancelada». */
+.sale-cancel-note { margin-left: 6px; color: var(--hf-muted); font-size: 12px; font-weight: 500; white-space: nowrap; }
 .sale-card-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .sale-card-debt { margin-top: 10px; color: var(--hf-warning); font-size: 13px; font-weight: 600; }
 .sale-card-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hf-border); color: var(--hf-muted); font-size: 13px; }

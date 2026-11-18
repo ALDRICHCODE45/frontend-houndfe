@@ -708,6 +708,25 @@ describe('SalesListView', () => {
       expect(wrapper.get('[data-testid="sale-canceled-status"]').text()).toBe('Cancelada')
     })
 
+    // BE handoff 24 §1 (T5): rows carry cancelReason; the deadline sweep's cancel says why.
+    it('a row cancelled with HOLD_EXPIRED shows «Apartado vencido» next to «Cancelada» (desktop and card)', () => {
+      mockState.data.value = [{ ...heldRow, status: 'CANCELED', cancelReason: 'HOLD_EXPIRED', hold: { ...hold, stage: 2 } }]
+      const wrapper = mountSalesList()
+      const notes = wrapper.findAll('[data-testid="sale-cancel-reason"]')
+      expect(notes.map((note) => note.text())).toEqual(['Apartado vencido', 'Apartado vencido'])
+      expect(notes[0]!.attributes('title')).toBe('Apartado vencido (no se pagó a tiempo)')
+      expect(wrapper.get('[data-testid="sale-canceled-status"]').text()).toBe('Cancelada')
+    })
+
+    it.each([
+      ['a staff reason', { status: 'CANCELED' as const, cancelReason: 'CUSTOMER_REQUEST' as const }],
+      ['no reason on an older payload', { status: 'CANCELED' as const }],
+      ['a confirmed sale', { cancelReason: null }],
+    ])('no «Apartado vencido» for %s', (_case, patch) => {
+      mockState.data.value = [{ ...initialRow, ...patch }]
+      expect(mountSalesList().find('[data-testid="sale-cancel-reason"]').exists()).toBe(false)
+    })
+
     it('a row without a hold has no hold line', () => {
       expect(holdLines(mountSalesList())).toHaveLength(0)
     })
@@ -715,8 +734,9 @@ describe('SalesListView', () => {
     it.each([
       ['the row says ONLINE', { channel: 'ONLINE' as const }, 'En línea'],
       ['the row says POS', { channel: 'POS' as const }, 'Punto de venta'],
-      ['a pay-in-store hold only exists on bot sales', { hold }, 'En línea'],
-      ['the row does not say', {}, '—'],
+      ['the row says POS even with a hold', { channel: 'POS' as const, hold }, 'Punto de venta'],
+      ['older payload: a pay-in-store hold only exists on bot sales', { hold }, 'En línea'],
+      ['older payload without channel or hold', {}, '—'],
     ])('Canal: %s', (_case, patch, label) => {
       mockState.data.value = [{ ...initialRow, ...patch }]
       expect(mountSalesList().get('[data-testid="sale-channel"]').text()).toBe(label)

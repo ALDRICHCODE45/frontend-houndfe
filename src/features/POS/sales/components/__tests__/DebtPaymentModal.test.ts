@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import DebtPaymentModal from '../DebtPaymentModal.vue'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import type { ActivePaymentMethodProjection, PaymentEntry } from '../../interfaces/sale.types'
+import type { CashSession } from '@/features/POS/cash-register/interfaces/cash.types'
 
 const submitSafeMock = vi.fn()
 const isSubmittingRef = ref(false)
@@ -44,6 +45,45 @@ vi.mock('../../composables/useSalePaymentMethods', () => ({
     isFetching: ref(false),
     isError: ref(false),
     error: ref(null),
+    refetch: vi.fn(),
+  }),
+}))
+
+// BE handoff 24 §3 (T2b): CASH counter payments send the user's OPEN cash session. The shared
+// POS source (useCashSaleSession) is faked: `cashSessions` are the own + OPEN rows it offers.
+const openSession = (id: string): CashSession => ({
+  id,
+  tenantId: 'tenant-1',
+  registerId: 'reg-1',
+  status: 'OPEN',
+  cashierUserId: 'user-1',
+  openingCents: 0,
+  frozenAt: null,
+  drawerReleasedAt: null,
+  blind: false,
+})
+const cashSessions = ref<CashSession[]>([openSession('sess-1')])
+const cashCanRead = ref(true)
+const cashFetching = ref(false)
+const cashSelectedId = ref<string | null>(null)
+const cashRevalidate = () => cashSessions.value.some((session) => session.id === cashSelectedId.value)
+vi.mock('@/features/POS/cash-register/composables/useCashSaleSession', () => ({
+  useCashSaleSession: () => ({
+    canReadSessions: computed(() => cashCanRead.value),
+    availableSessions: computed(() => (cashCanRead.value ? cashSessions.value : [])),
+    selectedId: cashSelectedId,
+    isSelectionEligible: computed(() => cashRevalidate()),
+    page: computed(() => 1),
+    pageSize: computed(() => 25),
+    total: computed(() => cashSessions.value.length),
+    pageCount: computed(() => 1),
+    isFetching: computed(() => cashFetching.value),
+    isError: computed(() => false),
+    selectSession: (id: string | null) => { cashSelectedId.value = id || null },
+    clearSelection: () => { cashSelectedId.value = null },
+    isSelectionScopeCurrent: () => cashSelectedId.value !== null,
+    revalidateSelection: cashRevalidate,
+    setPage: vi.fn(),
     refetch: vi.fn(),
   }),
 }))
@@ -128,6 +168,10 @@ describe('DebtPaymentModal', () => {
     externalErrorCodeRef.value = null
     shouldCloseRef.value = false
     catalogClearSignalRef.value = 0
+    cashSessions.value = [openSession('sess-1')]
+    cashCanRead.value = true
+    cashFetching.value = false
+    cashSelectedId.value = null
   })
 
   it('names the installed close and entry-removal buttons without submitting payments', async () => {
@@ -216,7 +260,7 @@ describe('DebtPaymentModal', () => {
 
     expect(submitSafeMock).toHaveBeenCalledTimes(1)
     expect(submitSafeMock.mock.calls[0]?.[0]).toEqual({
-      payload: { payments: [{ method: 'cash', amountCents: 80000 }] },
+      payload: { payments: [{ method: 'cash', amountCents: 80000 }], cashSessionId: 'sess-1' },
       idempotencyKey: expect.any(String),
     })
   })
@@ -523,5 +567,116 @@ describe('DebtPaymentModal S4B — custom payment method tiles (sdd custom-payme
     expect(wrapper.findAll('[data-testid^="payment-method-tile-custom-"]')).toHaveLength(0)
     expect(wrapper.findAll('[data-testid^="payment-method-tile-"]')).toHaveLength(4)
     expect(wrapper.text()).not.toContain('configura tu catálogo')
+  })
+})
+
+// BE handoff 24 §3 (T2b): a cash payment taken without a session is outside every till, so
+// CASH sends the user's OPEN session and is blocked without one; other methods go as before.
+describe('DebtPaymentModal — cash session of a counter payment (BE handoff 24 §3)', () => {
+  beforeEach(() => {
+    submitSafeMock.mockReset()
+    submitSafeMock.mockResolvedValue(undefined)
+    isSubmittingRef.value = false
+    externalErrorCodeRef.value = null
+    shouldCloseRef.value = false
+    catalogClearSignalRef.value = 0
+    projectionData.value = []
+    cashSessions.value = [openSession('sess-1')]
+    cashCanRead.value = true
+    cashFetching.value = false
+    cashSelectedId.value = null
+  })
+
+  async function payWith(wrapper: ReturnType<typeof mountModal>, tile: string) {
+    await wrapper.get(`[data-testid="payment-method-tile-${tile}"]`).trigger('click')
+    await flushPromises()
+    // Non-cash entries start at 0; give them an amount so only the session rule can block.
+    if (tile !== 'cash') {
+      await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
+      await flushPromises()
+    }
+  }
+  const confirm = (wrapper: ReturnType<typeof mountModal>) => wrapper.get('[data-testid="confirm-debt-payment"]')
+
+  it('cash with the one open session sends its id', async () => {
+    submitSafeMock.mockResolvedValue({ paymentStatus: 'PAID' })
+    const wrapper = mountModal()
+    await payWith(wrapper, 'cash')
+    expect(wrapper.find('[data-testid="debt-cash-session-missing"]').exists()).toBe(false)
+    await confirm(wrapper).trigger('click')
+    await flushPromises()
+    expect(submitSafeMock.mock.calls[0]?.[0].payload).toEqual({
+      payments: [{ method: 'cash', amountCents: 80000 }],
+      cashSessionId: 'sess-1',
+    })
+  })
+
+  it('cash without an open session is blocked with the message and a link to Caja', async () => {
+    cashSessions.value = []
+    const wrapper = mountModal()
+    await payWith(wrapper, 'cash')
+    const notice = wrapper.get('[data-testid="debt-cash-session-missing"]')
+    expect(notice.text()).toContain('Abre tu caja para cobrar en efectivo.')
+    expect(notice.get('[data-testid="debt-cash-session-open-caja"]').attributes('to')).toBe('/pos/caja')
+    expect(confirm(wrapper).attributes('disabled')).toBeDefined()
+    await confirm(wrapper).trigger('click')
+    await flushPromises()
+    expect(submitSafeMock).not.toHaveBeenCalled()
+  })
+
+  it('cash is blocked the same way when the user cannot read cash sessions', async () => {
+    cashCanRead.value = false
+    const wrapper = mountModal()
+    await payWith(wrapper, 'cash')
+    expect(wrapper.get('[data-testid="debt-cash-session-missing"]').text()).toContain('Abre tu caja para cobrar en efectivo.')
+    expect(confirm(wrapper).attributes('disabled')).toBeDefined()
+  })
+
+  it('waits for the sessions to load before blocking or sending', async () => {
+    cashSessions.value = []
+    cashFetching.value = true
+    const wrapper = mountModal()
+    await payWith(wrapper, 'cash')
+    expect(wrapper.find('[data-testid="debt-cash-session-missing"]').exists()).toBe(false)
+    expect(confirm(wrapper).attributes('disabled')).toBeDefined()
+  })
+
+  it('with several open sessions the user picks one (POS picker rule) before paying', async () => {
+    submitSafeMock.mockResolvedValue({ paymentStatus: 'PAID' })
+    cashSessions.value = [openSession('sess-1'), openSession('sess-2')]
+    const wrapper = mountModal()
+    await payWith(wrapper, 'cash')
+    expect(wrapper.findComponent({ name: 'CashSaleSessionPicker' }).exists()).toBe(true)
+    expect(confirm(wrapper).attributes('disabled')).toBeDefined()
+    wrapper.findComponent({ name: 'CashSaleSessionPicker' }).vm.$emit('update:selectedId', 'sess-2')
+    await flushPromises()
+    await confirm(wrapper).trigger('click')
+    await flushPromises()
+    expect(submitSafeMock.mock.calls[0]?.[0].payload.cashSessionId).toBe('sess-2')
+  })
+
+  it.each([['card_credit'], ['card_debit'], ['transfer']])(
+    'a %s payment goes without a session even when none is open',
+    async (tile) => {
+      submitSafeMock.mockResolvedValue({ paymentStatus: 'PAID' })
+      cashSessions.value = []
+      const wrapper = mountModal()
+      await payWith(wrapper, tile)
+      expect(wrapper.find('[data-testid="debt-cash-session-missing"]').exists()).toBe(false)
+      await confirm(wrapper).trigger('click')
+      await flushPromises()
+      const payload = submitSafeMock.mock.calls[0]?.[0].payload
+      expect(payload).not.toHaveProperty('cashSessionId')
+      expect(payload.payments[0].method).toBe(tile)
+    },
+  )
+
+  it('a card payment does not carry the open session either', async () => {
+    submitSafeMock.mockResolvedValue({ paymentStatus: 'PAID' })
+    const wrapper = mountModal()
+    await payWith(wrapper, 'transfer')
+    await confirm(wrapper).trigger('click')
+    await flushPromises()
+    expect(submitSafeMock.mock.calls[0]?.[0].payload).not.toHaveProperty('cashSessionId')
   })
 })

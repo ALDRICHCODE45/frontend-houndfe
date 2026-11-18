@@ -27,6 +27,8 @@ import {
 } from '../utils/paymentMethodTile.utils'
 import { PAYMENT_METHOD_CATEGORY_ICONS } from '@/core/shared/constants/payment-method-category'
 import HfMoneyInput from '@/core/shared/components/form/HfMoneyInput.vue'
+import { useCashSaleSession } from '@/features/POS/cash-register/composables/useCashSaleSession'
+import CashSaleSessionPicker from './CashSaleSessionPicker.vue'
 
 const props = defineProps<{
   open: boolean
@@ -85,6 +87,41 @@ const {
   catalogClearSignal,
 } = useDebtPayment(props.saleId)
 
+// BE handoff 24 §3: a CASH payment without `cashSessionId` is outside every till (the drawer shows
+// it as a surplus at close), so CASH goes into the user's OPEN session, read from the same source
+// as the POS charge (useCashSaleSession: own + OPEN + current tenant). One open session is used
+// as is; several follow the POS picker rule (an explicit choice, never automatic); none blocks
+// the CASH payment. Card/transfer enter no drawer and go without a session, as before.
+const cashSaleSession = useCashSaleSession()
+const CAJA_PATH = '/pos/caja'
+const hasCashEntry = computed(() => entries.value.some((entry) => entry.method === PAYMENT_METHOD.CASH))
+const openCashSessions = computed(() => cashSaleSession.availableSessions.value)
+const needsCashSessionPick = computed(() => openCashSessions.value.length > 1)
+const cashSessionId = computed<string | null>(() => {
+  const sessions = openCashSessions.value
+  if (sessions.length === 1) return sessions[0]!.id
+  if (sessions.length > 1 && cashSaleSession.isSelectionEligible.value) return cashSaleSession.selectedId.value
+  return null
+})
+const cashSessionLoading = computed(() => cashSaleSession.isFetching.value)
+const cashSessionLoadFailed = computed(
+  () => hasCashEntry.value && !cashSessionLoading.value && cashSaleSession.isError.value,
+)
+const cashSessionMissing = computed(
+  () =>
+    hasCashEntry.value &&
+    !cashSessionLoading.value &&
+    !cashSaleSession.isError.value &&
+    openCashSessions.value.length === 0,
+)
+const cashSessionBlocks = computed(() => hasCashEntry.value && cashSessionId.value === null)
+
+/** Live recheck at submit: several sessions need a still-valid explicit choice. */
+function resolveCashSessionForSubmit(): string | null {
+  if (needsCashSessionPick.value && !cashSaleSession.revalidateSelection()) return null
+  return cashSessionId.value
+}
+
 const receivedCents = computed(() => paidSum(entries.value))
 const remainingCents = computed(() => Math.max(0, props.debtCents - receivedCents.value))
 const aggregateError = computed(() => inlineAggregateError.value ?? validateAggregate(entries.value, props.debtCents) ?? null)
@@ -101,7 +138,13 @@ watch(entries, (current) => {
   if (Object.keys(kept).length !== Object.keys(amountTextErrors.value).length) amountTextErrors.value = kept
 })
 const canSubmit = computed(
-  () => entries.value.length > 0 && !aggregateError.value && !hasEntryErrors.value && !hasAmountTextErrors.value && !isSubmitting.value,
+  () =>
+    entries.value.length > 0 &&
+    !aggregateError.value &&
+    !hasEntryErrors.value &&
+    !hasAmountTextErrors.value &&
+    !cashSessionBlocks.value &&
+    !isSubmitting.value,
 )
 const canAddEntry = computed(() => entries.value.length < MAX_PAYMENT_ENTRIES)
 
@@ -122,6 +165,7 @@ function resetState() {
   amountTextErrors.value = {}
   idempotencyKey.value = newIdempotencyKey()
   inlineAggregateError.value = null
+  cashSaleSession.clearSelection()
   resetError()
 }
 
@@ -179,8 +223,11 @@ async function handleSubmit() {
     return { ...entry, reference: normalized }
   })
 
+  const sessionId = hasCashEntry.value ? resolveCashSessionForSubmit() : null
+  if (hasCashEntry.value && sessionId === null) return
+
   const result = await submitSafe({
-    payload: { payments: normalizedPayments },
+    payload: sessionId === null ? { payments: normalizedPayments } : { payments: normalizedPayments, cashSessionId: sessionId },
     idempotencyKey: idempotencyKey.value,
   })
 
@@ -195,6 +242,8 @@ watch(
   (open) => {
     if (!open) return
     resetState()
+    // Fresh own/OPEN sessions each time the sheet opens (a till may have opened meanwhile).
+    void cashSaleSession.refetch()
   },
 )
 
@@ -385,6 +434,53 @@ watch(catalogClearSignal, () => {
                 />
               </UFormField>
             </div>
+          </section>
+
+          <!-- BE handoff 24 §3: where the cash goes. Only with a CASH entry. -->
+          <section v-if="hasCashEntry" class="space-y-2" data-testid="debt-cash-session">
+            <p v-if="cashSessionLoading && openCashSessions.length === 0" class="text-xs text-muted">
+              Buscando tu caja abierta…
+            </p>
+            <p v-else-if="cashSessionLoadFailed" class="text-sm text-(--hf-danger)" data-testid="debt-cash-session-error">
+              No se pudo revisar tu caja. Reintenta para cobrar en efectivo.
+            </p>
+            <div
+              v-else-if="cashSessionMissing"
+              class="space-y-2 rounded-xl border border-default bg-elevated px-4 py-3"
+              role="alert"
+              data-testid="debt-cash-session-missing"
+            >
+              <p class="text-sm font-semibold text-(--hf-warning)">Abre tu caja para cobrar en efectivo.</p>
+              <p class="text-xs text-muted">Tarjeta y transferencia se pueden cobrar sin caja.</p>
+              <UButton
+                data-testid="debt-cash-session-open-caja"
+                :to="CAJA_PATH"
+                color="neutral"
+                variant="soft"
+                size="sm"
+                icon="i-lucide-wallet"
+              >
+                Ir a Caja
+              </UButton>
+            </div>
+            <template v-else-if="needsCashSessionPick">
+              <CashSaleSessionPicker
+                :sessions="openCashSessions"
+                :selected-id="cashSaleSession.selectedId.value"
+                :is-selection-eligible="cashSaleSession.isSelectionEligible.value"
+                :is-fetching="cashSaleSession.isFetching.value"
+                :is-error="cashSaleSession.isError.value"
+                :page="cashSaleSession.page.value"
+                :page-count="cashSaleSession.pageCount.value"
+                :total="cashSaleSession.total.value"
+                :portal-class="portalClass"
+                @update:selected-id="cashSaleSession.selectSession($event)"
+                @update:page="cashSaleSession.setPage($event)"
+              />
+              <p v-if="cashSessionId === null" class="text-xs text-muted" data-testid="debt-cash-session-pick">
+                Elige la caja donde entra el efectivo.
+              </p>
+            </template>
           </section>
         </div>
 
