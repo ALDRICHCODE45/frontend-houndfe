@@ -122,6 +122,8 @@ export interface SaleHold {
   stage: SaleHoldStage
   /** Send it back as `expectedVersion` when editing. */
   version: number
+  /** hold-expire-now L5: `= canceledAt`, only when the expiry (sweep or «Vencer apartado ahora») cancelled the sale. */
+  expiredAt?: string | null
 }
 
 /** Body of `PATCH /sales/:id/hold` (§2): ISO 8601 with time and offset, in the future. */
@@ -129,6 +131,21 @@ export interface UpdateSaleHoldPayload {
   expiresAt: string
   /** The `hold.version` shown to the user. */
   expectedVersion: number
+}
+
+/** Body of `POST /sales/:id/hold/expire` (BE handoff 24 §6). */
+export interface ExpireSaleHoldPayload {
+  /** The `hold.version` shown to the user. */
+  expectedVersion: number
+}
+
+/** §6: what the expiry did, the same decision as the automatic sweep. */
+export type SaleHoldExpireOutcome = 'CANCELLED' | 'REVIEW' | 'SETTLED'
+
+/** §6 response: the full sale detail plus `outcome` (null when the server sends an unknown one). */
+export interface ExpireSaleHoldResponse {
+  sale: SaleDetail
+  outcome: SaleHoldExpireOutcome | null
 }
 
 // sdd customer-sales-history S1 (handoff §2.5): folio/paymentStatus/confirmedAt

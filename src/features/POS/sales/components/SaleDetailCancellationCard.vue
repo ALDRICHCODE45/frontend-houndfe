@@ -8,6 +8,7 @@ import {
   saleCancelReasonLabel,
   saleCanceledByLabel,
 } from '../utils/saleCancellation.utils'
+import { saleHoldExpiredLine } from '../utils/saleHold.utils'
 import type { SaleDetail } from '../interfaces/sale.types'
 
 // T20: the calm summary of a cancelled sale (handoff 06, «Cancelled sale detail»). BE handoff 24
@@ -16,6 +17,8 @@ import type { SaleDetail } from '../interfaces/sale.types'
 const props = defineProps<{ sale: SaleDetail }>()
 const canceledBy = computed(() => saleCanceledByLabel(props.sale))
 const holdExpired = computed(() => isSaleHoldExpiredCancel(props.sale))
+// hold-expire-now L5: `hold.expiredAt` (= canceledAt) only when the expiry cancelled the sale.
+const expiredLine = computed(() => saleHoldExpiredLine(props.sale.hold))
 </script>
 
 <template>
@@ -33,6 +36,7 @@ const holdExpired = computed(() => isSaleHoldExpiredCancel(props.sale))
     <p v-if="holdExpired" class="sale-detail-cancel-explanation" data-testid="sale-detail-cancel-explanation">
       {{ SALE_HOLD_EXPIRED_EXPLANATION }}
     </p>
+    <p v-if="expiredLine" class="sale-detail-cancel-expired-at hf-figure" data-testid="sale-detail-hold-expired-at">{{ expiredLine }}</p>
     <p v-if="canceledBy" class="sale-detail-cancel-by">Cancelada por {{ canceledBy }}</p>
   </HfSectionCard>
 </template>

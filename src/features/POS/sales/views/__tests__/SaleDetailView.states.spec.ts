@@ -58,6 +58,10 @@ vi.mock('../../composables/useSaleComments', () => ({
 vi.mock('../../composables/useUpdatePaymentReference', () => ({
   useUpdatePaymentReference: () => ({ updateReference: vi.fn(), isPending: computed(() => false) }),
 }))
+// hold-expire-now T2: the detail also mounts «Vencer apartado ahora» (its own spec covers it).
+vi.mock('../../composables/useSaleHoldExpire', () => ({
+  useSaleHoldExpire: () => ({ expireHold: vi.fn(), resetAttempt: vi.fn(), isPending: computed(() => false) }),
+}))
 vi.mock('../../composables/useSaleCancellation', () => ({
   useSaleCancellation: () => ({ cancelSale: vi.fn(), isPending: computed(() => false) }),
 }))

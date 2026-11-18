@@ -54,3 +54,43 @@ describe('saleApi.updateHold', () => {
     ).rejects.toBe(error)
   })
 })
+
+// hold-expire-now L5 / BE handoff 24 §6: «Vencer apartado ahora».
+describe('saleApi.expireHold', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  const expired = { ...detail, status: 'CANCELED', cancelReason: 'HOLD_EXPIRED', hold: { ...detail.hold, stage: 2 } }
+
+  it('POSTs /sales/:id/hold/expire with only expectedVersion and the Idempotency-Key header', async () => {
+    vi.mocked(http.post).mockResolvedValue({ data: { ...expired, outcome: 'CANCELLED' } })
+
+    const result = await saleApi.expireHold('sale-1', { expectedVersion: 2, tenantId: 'x' } as never, 'key-1')
+
+    expect(http.post).toHaveBeenCalledTimes(1)
+    expect(http.post).toHaveBeenCalledWith(
+      '/sales/sale-1/hold/expire',
+      { expectedVersion: 2 },
+      { headers: { 'Idempotency-Key': 'key-1' } },
+    )
+    expect(result.outcome).toBe('CANCELLED')
+    expect(result.sale.cancelReason).toBe('HOLD_EXPIRED')
+    expect(result.sale.hold?.stage).toBe(2)
+  })
+
+  it.each(['CANCELLED', 'REVIEW', 'SETTLED'] as const)('reads the %s outcome', async (outcome) => {
+    vi.mocked(http.post).mockResolvedValue({ data: { ...detail, outcome } })
+    expect((await saleApi.expireHold('sale-1', { expectedVersion: 2 }, 'k')).outcome).toBe(outcome)
+  })
+
+  it('an unknown outcome reads null: the effect already happened, it is never an error', async () => {
+    vi.mocked(http.post).mockResolvedValue({ data: { ...detail, outcome: 'NEW' } })
+    expect((await saleApi.expireHold('sale-1', { expectedVersion: 2 }, 'k')).outcome).toBeNull()
+  })
+
+  it('encodes the sale id and rethrows the transport error unchanged', async () => {
+    const error = Object.assign(new Error('409'), { response: { status: 409, data: { error: 'HOLD_ALREADY_CLOSED' } } })
+    vi.mocked(http.post).mockRejectedValue(error)
+    await expect(saleApi.expireHold('a/b', { expectedVersion: 0 }, 'k')).rejects.toBe(error)
+    expect(vi.mocked(http.post).mock.calls[0]![0]).toBe('/sales/a%2Fb/hold/expire')
+  })
+})

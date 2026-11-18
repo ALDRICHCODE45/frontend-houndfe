@@ -9,6 +9,15 @@ import {
   saleHoldErrorNeedsReload,
   saleHoldLine,
   SALE_HOLD_ERROR_CODES,
+  canExpireSaleHold,
+  decodeSaleHoldExpireError,
+  saleHoldExpireDescription,
+  saleHoldExpireErrorMessage,
+  saleHoldExpireKeepsAttempt,
+  saleHoldExpireNeedsReload,
+  saleHoldExpireOutcomeTitle,
+  saleHoldExpiredLine,
+  SALE_HOLD_EXPIRE_ERROR_CODES,
 } from '../saleHold.utils'
 
 // BE handoff 24 §1 display rule and §2 errors.
@@ -118,6 +127,132 @@ describe('decodeSaleHoldError', () => {
       'SALE_NOT_PAY_IN_STORE',
       'SALE_HOLD_NOT_EDITABLE',
       'SALE_NOT_FOUND',
+    ])
+  })
+})
+
+// hold-expire-now L5 / BE handoff 24 §6: «Vencer apartado ahora».
+describe('canExpireSaleHold', () => {
+  it('is true for a pay-in-store hold, CONFIRMED, stage < 2 and not fully paid', () => {
+    expect(canExpireSaleHold(live)).toBe(true)
+    expect(canExpireSaleHold({ ...live, hold: { ...hold, stage: 1 } })).toBe(true)
+    expect(canExpireSaleHold({ ...live, paymentStatus: 'PARTIAL' })).toBe(true)
+  })
+
+  it.each([
+    ['no hold', { ...live, hold: null }],
+    ['hold absent', { status: 'CONFIRMED', paymentStatus: 'CREDIT' }],
+    ['another intent', { ...live, hold: { ...hold, paymentIntent: 'OTHER' as 'IN_STORE' } }],
+    ['cancelled', { ...live, status: 'CANCELED' }],
+    ['draft', { ...live, status: 'DRAFT' }],
+    ['stage 2', { ...live, hold: { ...hold, stage: 2 } }],
+    ['fully paid', { ...live, paymentStatus: 'PAID' }],
+    ['no payment status', { ...live, paymentStatus: null }],
+  ] as const)('is false when %s', (_label, sale) => {
+    expect(canExpireSaleHold(sale as Parameters<typeof canExpireSaleHold>[0])).toBe(false)
+  })
+})
+
+describe('saleHoldExpireDescription', () => {
+  it('unpaid: the sale is cancelled and the customer is told', () => {
+    expect(saleHoldExpireDescription(live)).toBe(
+      'La venta se cancela como plazo vencido y el cliente recibe el aviso.',
+    )
+  })
+
+  it('with a payment: the hold expires and the sale waits for review', () => {
+    expect(saleHoldExpireDescription({ ...live, paymentStatus: 'PARTIAL' })).toBe(
+      'El apartado vence y la venta queda para revisar; no se cancela porque tiene un pago registrado.',
+    )
+  })
+})
+
+describe('saleHoldExpireOutcomeTitle', () => {
+  it.each([
+    ['CANCELLED', 'Apartado vencido: la venta se canceló.'],
+    ['REVIEW', 'Apartado vencido: la venta quedó para revisar.'],
+    ['SETTLED', 'La venta ya estaba pagada; el apartado se cerró.'],
+    [null, 'Apartado vencido. Actualizamos la venta.'],
+  ] as const)('%s → %s', (outcome, title) => {
+    expect(saleHoldExpireOutcomeTitle(outcome)).toBe(title)
+  })
+})
+
+describe('saleHoldExpiredLine', () => {
+  it('«Venció el {fecha}» in the sucursal zone when the expiry cancelled the sale', () => {
+    expect(saleHoldExpiredLine({ ...hold, stage: 2, expiredAt: '2026-11-19T18:30:00.000Z' }, { now: NOW })).toBe(
+      'Venció el jue 19 nov, 12:30',
+    )
+  })
+
+  it('is null without expiredAt or hold', () => {
+    expect(saleHoldExpiredLine(hold)).toBeNull()
+    expect(saleHoldExpiredLine({ ...hold, expiredAt: null })).toBeNull()
+    expect(saleHoldExpiredLine(null)).toBeNull()
+    expect(saleHoldExpiredLine({ ...hold, expiredAt: 'nope' })).toBeNull()
+  })
+})
+
+describe('decodeSaleHoldExpireError', () => {
+  it.each([
+    [409, 'HOLD_VERSION_CONFLICT'],
+    [409, 'HOLD_ALREADY_CLOSED'],
+    [409, 'SALE_NOT_PAY_IN_STORE'],
+    [409, 'SALE_HOLD_NOT_EDITABLE'],
+    [404, 'SALE_NOT_FOUND'],
+    [409, 'IDEMPOTENCY_KEY_CONFLICT'],
+    [409, 'IDEMPOTENCY_KEY_IN_FLIGHT'],
+  ] as const)('%i %s', (status, code) => {
+    expect(decodeSaleHoldExpireError(httpError(status, { statusCode: status, error: code, message: 'x' }))).toBe(code)
+  })
+
+  it('400 with message IDEMPOTENCY_KEY_REQUIRED (Nest Bad Request body)', () => {
+    expect(
+      decodeSaleHoldExpireError(
+        httpError(400, { statusCode: 400, error: 'Bad Request', message: 'IDEMPOTENCY_KEY_REQUIRED' }),
+      ),
+    ).toBe('IDEMPOTENCY_KEY_REQUIRED')
+  })
+
+  it('403 FORBIDDEN, other 400 VALIDATION, 5xx/no response NETWORK, else UNKNOWN', () => {
+    expect(decodeSaleHoldExpireError(httpError(403, { statusCode: 403 }))).toBe('FORBIDDEN')
+    expect(decodeSaleHoldExpireError(httpError(400, { error: 'Bad Request', message: ['expectedVersion'] }))).toBe(
+      'VALIDATION',
+    )
+    expect(decodeSaleHoldExpireError(httpError(null))).toBe('NETWORK')
+    expect(decodeSaleHoldExpireError(httpError(502, {}))).toBe('NETWORK')
+    expect(decodeSaleHoldExpireError(httpError(409, { error: 'HOLD_EXPIRY_NOT_FUTURE' }))).toBe('UNKNOWN')
+    expect(decodeSaleHoldExpireError(new Error('bug'))).toBe('UNKNOWN')
+  })
+
+  it('has Spanish copy for every code', () => {
+    for (const code of SALE_HOLD_EXPIRE_ERROR_CODES) expect(saleHoldExpireErrorMessage(code)).toMatch(/\S/)
+    expect(saleHoldExpireErrorMessage('HOLD_VERSION_CONFLICT')).toBe(
+      'Alguien cambió el plazo del apartado. Actualizamos la venta; revisa y vuelve a intentar.',
+    )
+    expect(saleHoldExpireErrorMessage('HOLD_ALREADY_CLOSED')).toBe(
+      'El apartado ya estaba vencido o cerrado. Actualizamos la venta.',
+    )
+    expect(saleHoldExpireErrorMessage('IDEMPOTENCY_KEY_REQUIRED')).toBe(
+      'No pudimos enviar la solicitud. Intenta de nuevo.',
+    )
+    expect(saleHoldExpireErrorMessage('IDEMPOTENCY_KEY_CONFLICT')).toBe(
+      'Esa solicitud ya se usó con otros datos. Vuelve a intentarlo.',
+    )
+  })
+
+  it('reloads when the sale changed under us; keeps the attempt key only when the result is uncertain', () => {
+    expect(SALE_HOLD_EXPIRE_ERROR_CODES.filter(saleHoldExpireNeedsReload)).toEqual([
+      'HOLD_VERSION_CONFLICT',
+      'HOLD_ALREADY_CLOSED',
+      'SALE_NOT_PAY_IN_STORE',
+      'SALE_HOLD_NOT_EDITABLE',
+      'SALE_NOT_FOUND',
+    ])
+    expect(SALE_HOLD_EXPIRE_ERROR_CODES.filter(saleHoldExpireKeepsAttempt)).toEqual([
+      'IDEMPOTENCY_KEY_IN_FLIGHT',
+      'NETWORK',
+      'UNKNOWN',
     ])
   })
 })

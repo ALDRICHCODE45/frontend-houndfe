@@ -125,6 +125,10 @@ vi.mock('../../components/PaymentsListSection.vue', () => ({
 
 const cancelSaleMock = vi.fn()
 const cancelPendingRef = ref(false)
+// hold-expire-now T2: the detail also mounts «Vencer apartado ahora» (its own spec covers it).
+vi.mock('../../composables/useSaleHoldExpire', () => ({
+  useSaleHoldExpire: () => ({ expireHold: vi.fn(), resetAttempt: vi.fn(), isPending: computed(() => false) }),
+}))
 vi.mock('../../composables/useSaleCancellation', () => ({
   useSaleCancellation: () => ({
     cancelSale: cancelSaleMock,
