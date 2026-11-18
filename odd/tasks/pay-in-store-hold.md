@@ -13,9 +13,10 @@ Front end of the backend pay-in-store hold (BE handoff 24): show the hold on sal
 ## Tasks
 - T1 | S1–S6 | worker | done — data layer: types, parsers, PATCH hold API + error decoding, notification type + saleId
 - T2 | S2–S5 | worker | sales list + sale detail: hold badge/line, edit deadline dialog, charge online sales, HOLD_EXPIRED «Sistema»
-- T3 | S6 | worker | notifications: SALE_HOLD_REVIEW copy and link to the sale
+- T3 | S6 | worker | done — notifications: SALE_HOLD_REVIEW copy and link to the sale
 - T4 | S1–S6 | parent | full suite, build, live check when dev is up, merge
 
 ## Log
 - L1 Backend 2026-11-18: «Pagar en tienda» complete on BE local main (owner pushes); contract docs/frontend-handoff/24-pay-in-store-hold.md; both migrations applied on the dev DB :5434.
 - L2 T1 done (worker mwmlyf4s-13-vl3k): exports updateHold, isSaleHoldLive, saleHoldLine, decodeSaleHoldError/saleHoldErrorMessage/saleHoldErrorNeedsReload, saleCancelReasonLabel, saleCanceledByLabel, notificationMeta SALE_HOLD_REVIEW («Apartado vencido»), notificationTargetPath; 673 + 2392 related tests. S4 UI needs: canRegisterPayment must check update:Sale; SalesListView channel cell hardcodes «Punto de venta»; payments may send optional cashSessionId. Notes: contract example weekday wrong (19 nov 2026 is jueves); expired stage-2 CREDIT hold has no «venció» wording; list rows not parsed (hold typed only).
+- L3 T3 done (worker mwmmet2s-15-mjo5): notifications 158 tests; useNotificationAlerts onOpen(path); no per-type preference exists (only email/sound), none added; parent updated the panel description to «Tus avisos de solicitudes del chatbot y de ventas».
