@@ -203,7 +203,7 @@ describe('Identidad — sections and fields', () => {
   it('lists the three channel toggles as calm rows inside one card', async () => {
     await mountView()
     const rows = [...identity().querySelectorAll('.product-toggle-list .product-toggle-row')]
-    expect(rows.map((row) => row.querySelector('.product-toggle-row__label')?.textContent?.trim())).toEqual([
+    expect(rows.map((row) => row.querySelector('.hf-switch-row__label')?.textContent?.trim())).toEqual([
       'Vender en punto de venta',
       'Incluir en catálogo en línea',
       'Requerir receta médica',

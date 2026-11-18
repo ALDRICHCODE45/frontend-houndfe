@@ -31,6 +31,12 @@ const dialogs = () => Array.from(document.querySelectorAll<HTMLElement>('[role="
 const top = () => dialogs()[dialogs().length - 1]!
 const chipIn = (root: HTMLElement, group: string, text: string) => Array.from(Array.from(root.querySelectorAll<HTMLElement>('[data-testid="care-group"]'))
   .find(item => item.querySelector('legend')?.textContent?.trim() === group)!.querySelectorAll('label')).find(item => item.textContent?.trim() === text)!.querySelector('input')!
+// «Viene de» is a group of toggle chips (aria-pressed buttons), never a checkbox list.
+const referenceGroup = (root: HTMLElement) => Array.from(root.querySelectorAll<HTMLElement>('[role="group"].hf-toggle-chips'))
+  .find(item => document.getElementById(item.getAttribute('aria-labelledby') ?? '')?.textContent?.trim() === 'Viene de')!
+const referenceChip = (root: HTMLElement, text: string) => Array.from(referenceGroup(root).querySelectorAll<HTMLButtonElement>('button[aria-pressed]'))
+  .find(item => item.textContent?.trim() === text)!
+async function press(button: HTMLButtonElement) { button.click(); await tick() }
 const buttonIn = (root: HTMLElement, text: string) => Array.from(root.querySelectorAll<HTMLButtonElement>('button')).find(item => item.textContent?.trim() === text)!
 async function pickInput(input: HTMLInputElement) { input.checked = true; input.dispatchEvent(new Event('change', { bubbles: true })); await tick() }
 async function type(field: HTMLInputElement | HTMLTextAreaElement, value: string) { field.value = value; field.dispatchEvent(new Event('input', { bubbles: true })); await tick() }
@@ -78,11 +84,39 @@ describe('the care review drawer', () => {
     buttonIn(drawer(), 'Agregar aviso').click(); await tick()
     await type(top().querySelector('textarea')!, 'No ingerir')
     await pickInput(chipIn(top(), '¿Quién lo ve?', 'Mostrar al público'))
-    await pickInput(chipIn(top(), 'Viene de', 'Leyenda de uso externo'))
+    expect(top().querySelector('input[type="checkbox"], [role="checkbox"]')).toBeNull()
+    expect(referenceChip(top(), 'Leyenda de uso externo').getAttribute('aria-pressed')).toBe('false')
+    await press(referenceChip(top(), 'Leyenda de uso externo'))
+    expect(referenceChip(top(), 'Leyenda de uso externo').getAttribute('aria-pressed')).toBe('true')
     buttonIn(top(), 'Guardar').click(); await tick()
     expect(care(state)).toMatchObject({ warnings: [{ key: 'aviso-1', text: 'No ingerir', disclosure: 'public_required', requirementKeys: ['requisito-1'], evidence, handlingBasis: basis }] })
     expect(drawer().querySelector('[data-testid="care-warning"]')!.textContent).toContain('Mostrar al público')
     expect(drawer().querySelectorAll('fieldset fieldset')).toHaveLength(0)
+  })
+
+  it('keeps the «Viene de» picks in the order they were pressed, and unpressing drops one', async () => {
+    const { state } = await openPrepared()
+    await pickInput(chipIn(drawer(), '¿La etiqueta exige algo?', 'Sí, hay requisitos'))
+    for (const description of ['Primero', 'Segundo']) {
+      buttonIn(drawer(), 'Agregar requisito').click(); await tick()
+      await type(top().querySelector('textarea')!, description)
+      await pickInput(chipIn(top(), '¿Cómo se cumple?', 'Cumple'))
+      buttonIn(top(), 'Guardar').click(); await tick()
+    }
+    buttonIn(drawer(), 'Agregar aviso').click(); await tick()
+    await type(top().querySelector('textarea')!, 'Aviso')
+    await pickInput(chipIn(top(), '¿Quién lo ve?', 'Solo interna'))
+    await press(referenceChip(top(), 'Segundo'))
+    await press(referenceChip(top(), 'Primero'))
+    buttonIn(top(), 'Guardar').click(); await tick()
+    expect(care(state)).toMatchObject({ warnings: [{ requirementKeys: ['requisito-2', 'requisito-1'] }] })
+
+    drawer().querySelector<HTMLButtonElement>('[data-testid="care-warning"] button[aria-haspopup="menu"]')!.click(); await tick()
+    Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).find(item => item.textContent?.includes('Editar'))!.click(); await tick()
+    expect(referenceChip(top(), 'Segundo').getAttribute('aria-pressed')).toBe('true')
+    await press(referenceChip(top(), 'Segundo'))
+    buttonIn(top(), 'Guardar').click(); await tick()
+    expect(care(state)).toMatchObject({ warnings: [{ requirementKeys: ['requisito-1'] }] })
   })
 
   it('removes a requirement only after the modal, never the browser, and drops the warnings that cite it', async () => {
@@ -96,7 +130,7 @@ describe('the care review drawer', () => {
     buttonIn(drawer(), 'Agregar aviso').click(); await tick()
     await type(top().querySelector('textarea')!, 'Aviso')
     await pickInput(chipIn(top(), '¿Quién lo ve?', 'Solo interna'))
-    await pickInput(chipIn(top(), 'Viene de', 'Leyenda'))
+    await press(referenceChip(top(), 'Leyenda'))
     buttonIn(top(), 'Guardar').click(); await tick()
     drawer().querySelector<HTMLButtonElement>('[data-testid="care-requirement"] button[aria-haspopup="menu"]')!.click(); await tick()
     Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).find(item => item.textContent?.includes('Quitar'))!.click(); await tick()

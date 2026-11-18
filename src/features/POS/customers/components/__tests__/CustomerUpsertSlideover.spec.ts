@@ -813,10 +813,41 @@ describe('CustomerUpsertSlideover — Clients overlay presentation contract', ()
     }
   })
 
-  it('adds the clients-form-section hook to both existing grouped panels', () => {
+  it('assigns a price list with a whole-row switch that reveals the list field, never a checkbox', async () => {
     const wrapper = mountCreate()
     try {
-      expect(wrapper.findAll('.clients-form-section')).toHaveLength(2)
+      expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
+      const row = wrapper.get('[data-testid="customer-assign-price-list"]')
+      expect(row.element.tagName).toBe('BUTTON')
+      expect(row.attributes('role')).toBe('switch')
+      expect(row.attributes('aria-checked')).toBe('false')
+      expect(row.text()).toContain('Asignar una lista de precios')
+      // Basic tab: only the country code select until the switch is on.
+      const basicSelects = () => wrapper.findAll('select').length
+      const before = basicSelects()
+
+      await row.trigger('click')
+      expect(row.attributes('aria-checked')).toBe('true')
+      expect(basicSelects()).toBe(before + 1)
+
+      await row.trigger('click')
+      expect(row.attributes('aria-checked')).toBe('false')
+      expect(basicSelects()).toBe(before)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('groups the form in shared section cards without the elevated box look', () => {
+    const wrapper = mountCreate()
+    try {
+      const sections = wrapper.findAll('section.hf-section-card')
+      // Contacto, Precios, Direcciones, Notas (basic) + Datos fiscales,
+      // Dirección de facturación (billing); see CustomerUpsertSlideover.sections.spec.ts.
+      expect(sections).toHaveLength(6)
+      for (const section of sections) {
+        expect(section.classes()).not.toContain('bg-elevated/30')
+      }
     } finally {
       wrapper.unmount()
     }
@@ -855,8 +886,9 @@ describe('CustomerUpsertSlideover — Clients overlay presentation contract', ()
       const vm = wrapper.vm as unknown as { state: { showBillingAddress: boolean } }
       vm.state.showBillingAddress = true
       await nextTick()
+      // Nombre/Apellido (T6c), CP fiscal/RFC, números, CP/colonia, ciudad/estado.
       const stacked = wrapper.findAll('.grid-cols-1')
-      expect(stacked).toHaveLength(4)
+      expect(stacked).toHaveLength(5)
       for (const grid of stacked) {
         expect(grid.classes()).toContain('sm:grid-cols-2')
       }

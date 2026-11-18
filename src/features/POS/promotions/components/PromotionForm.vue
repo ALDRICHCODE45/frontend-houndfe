@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, useId, watch } from 'vue'
 import type {
   PromotionFormState,
   PromotionMethod,
@@ -32,6 +32,8 @@ import PromotionTargetItemsSection from './PromotionTargetItemsSection.vue'
 import PromotionSummaryCard from './PromotionSummaryCard.vue'
 import PromotionCapacityField from './PromotionCapacityField.vue'
 import HfMoneyInput from '@/core/shared/components/form/HfMoneyInput.vue'
+import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
+import { HfRadioCards, HfSwitchRow } from '@/core/shared/components/selection'
 import { parseDecimalInput } from '@/core/shared/utils/money-input.utils'
 
 // ── Props & emits ─────────────────────────────────────────────────────────────
@@ -137,6 +139,20 @@ watch(
 const typeConfig = getTypeConfig(props.type)
 
 // ── Method handler ────────────────────────────────────────────────────────────
+
+const methodLabelId = useId()
+const METHOD_CARDS = [
+  {
+    value: PROMOTION_METHOD.AUTOMATIC,
+    label: 'Aplicar automáticamente',
+    description: 'Se aplicará si se cumplen las condiciones',
+  },
+  {
+    value: PROMOTION_METHOD.MANUAL,
+    label: 'Manualmente',
+    description: 'Tú eliges si deseas aplicar el descuento',
+  },
+] as const
 
 function selectMethod(method: PromotionMethod) {
   formState.method = method
@@ -296,21 +312,19 @@ const overlapTitle = computed(() =>
         :state="formState"
         :schema="promotionFormSchema"
         :errors="apiErrors"
-        class="flex flex-col gap-6"
+        class="flex flex-col gap-4"
         @submit="onSubmit"
       >
         <!-- ── Card 1: Promoción (shared) ──────────────────────────────── -->
-        <UCard class="promotions-form-section">
-          <template #header>
-            <div class="flex items-center gap-3">
-              <div
-                data-testid="type-badge"
-                class="promotions-type-badge flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium"
-              >
-                <UIcon :name="typeConfig.icon" class="h-4 w-4" />
-                {{ typeConfig.label }}
-              </div>
-            </div>
+        <HfSectionCard title="Promoción">
+          <template #meta>
+            <span
+              data-testid="type-badge"
+              class="promotions-type-badge flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium"
+            >
+              <UIcon :name="typeConfig.icon" class="h-4 w-4" />
+              {{ typeConfig.label }}
+            </span>
           </template>
 
           <div class="flex flex-col gap-5">
@@ -337,7 +351,7 @@ const overlapTitle = computed(() =>
 
             <!-- Method selector — read-only in edit mode -->
             <div>
-              <p class="mb-2 text-sm font-medium text-toned">Cómo se aplica</p>
+              <p :id="methodLabelId" class="mb-2 text-sm font-medium text-toned">Cómo se aplica</p>
               <!-- Edit mode: show read-only badge -->
               <div
                 v-if="mode === 'edit'"
@@ -361,37 +375,16 @@ const overlapTitle = computed(() =>
                 </span>
                 <span class="ml-1 text-xs text-muted">(no editable)</span>
               </div>
-              <!-- Create mode: interactive cards -->
-              <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <button
-                  v-for="m in [PROMOTION_METHOD.AUTOMATIC, PROMOTION_METHOD.MANUAL] as const"
-                  :key="m"
-                  type="button"
-                  :data-testid="`method-card-${m}`"
-                  class="promotions-choice flex cursor-pointer flex-col gap-1 rounded-xl border p-4 text-left transition-colors duration-200"
-                  :class="formState.method === m ? 'promotions-choice-selected' : 'border-default'"
-                  @click="selectMethod(m)"
-                >
-                  <div class="flex items-center gap-2">
-                    <UIcon
-                      :name="m === PROMOTION_METHOD.AUTOMATIC ? 'i-lucide-cpu' : 'i-lucide-hand'"
-                      class="h-4 w-4 text-toned"
-                    />
-                    <span class="text-sm font-medium text-highlighted">
-                      {{
-                        m === PROMOTION_METHOD.AUTOMATIC ? 'Aplicar automáticamente' : 'Manualmente'
-                      }}
-                    </span>
-                  </div>
-                  <p class="text-xs text-muted">
-                    {{
-                      m === PROMOTION_METHOD.AUTOMATIC
-                        ? 'Se aplicará si se cumplen las condiciones'
-                        : 'Tú eliges si deseas aplicar el descuento'
-                    }}
-                  </p>
-                </button>
-              </div>
+              <!-- Create mode: radio cards (T8 D5 — radiogroup/radio, roving focus;
+                   hover only rings the mark, it never paints the selected look). -->
+              <HfRadioCards
+                v-else
+                :model-value="formState.method"
+                :items="METHOD_CARDS"
+                :labelledby="methodLabelId"
+                class="grid-cols-1 sm:grid-cols-2"
+                @update:model-value="selectMethod($event as PromotionMethod)"
+              />
             </div>
 
             <div class="promotions-availability-fields">
@@ -404,11 +397,15 @@ const overlapTitle = computed(() =>
                 :editing="mode === 'edit'"
                 @update:max-product-units="formState.maxProductUnits = $event"
               />
-              <UFormField name="botEligible" :description="botEligibilityFailed ? undefined : botEligibility.reason">
-                <USwitch
+              <!-- T6d/S1: a whole-row switch; the availability reason is its description
+                   (a failed read shows only the inline alert below, never twice). -->
+              <div class="promotions-bot-field">
+                <HfSwitchRow
                   v-model="formState.botEligible"
                   label="Disponible para el chatbot (WhatsApp)"
+                  :description="botEligibilityFailed ? undefined : botEligibility.reason"
                   :disabled="!botEligibility.supported"
+                  test-id="bot-eligible-switch"
                 />
                 <div
                   v-if="botEligibilityFailed"
@@ -429,20 +426,17 @@ const overlapTitle = computed(() =>
                 <p v-if="botEligibilityNotice" role="status" class="promotions-bot-notice">
                   {{ botEligibilityNotice }}
                 </p>
-              </UFormField>
+              </div>
             </div>
           </div>
-        </UCard>
+        </HfSectionCard>
 
         <!-- ── Card 2: PRODUCT_DISCOUNT ───────────────────────────────── -->
-        <UCard
+        <HfSectionCard
           v-if="type === PROMOTION_TYPE.PRODUCT_DISCOUNT"
-          class="promotions-form-section"
+          title="Valor del descuento"
           data-testid="product-discount-section"
         >
-          <template #header>
-            <h3 class="font-semibold text-highlighted">Valor del descuento</h3>
-          </template>
 
           <div class="flex flex-col gap-5">
             <!-- Discount type + value -->
@@ -504,17 +498,14 @@ const overlapTitle = computed(() =>
               />
             </div>
           </div>
-        </UCard>
+        </HfSectionCard>
 
         <!-- ── Card 2: ORDER_DISCOUNT ─────────────────────────────────── -->
-        <UCard
+        <HfSectionCard
           v-else-if="type === PROMOTION_TYPE.ORDER_DISCOUNT"
-          class="promotions-form-section"
+          title="Valor del descuento"
           data-testid="order-discount-section"
         >
-          <template #header>
-            <h3 class="font-semibold text-highlighted">Valor del descuento</h3>
-          </template>
 
           <div class="flex flex-col gap-5">
             <!-- Discount type + value -->
@@ -563,34 +554,37 @@ const overlapTitle = computed(() =>
               </UFormField>
             </div>
 
-            <!-- Min purchase toggle -->
-            <div>
-              <UCheckbox v-model="formState.hasMinPurchase" label="Añadir monto mínimo de compra" />
-              <div v-if="formState.hasMinPurchase" class="mt-3 pl-6">
-                <UFormField label="Monto mínimo ($)" name="minPurchaseAmountCents">
-                  <HfMoneyInput
-                    id="promotion-min-purchase"
-                    v-model="minPurchaseCents"
-                    data-testid="promotion-min-purchase"
-                    placeholder="Ej.: 1000"
-                    size="lg"
-                    @validation="amountErrors.minPurchase = $event"
-                  />
-                </UFormField>
+            <!-- Min purchase: a whole-row switch that reveals the amount -->
+            <div class="promotions-conditions">
+              <div class="promotions-condition">
+                <HfSwitchRow
+                  v-model="formState.hasMinPurchase"
+                  label="Añadir monto mínimo de compra"
+                  test-id="min-purchase-switch"
+                />
+                <div v-if="formState.hasMinPurchase" class="promotions-condition__body">
+                  <UFormField label="Monto mínimo ($)" name="minPurchaseAmountCents">
+                    <HfMoneyInput
+                      id="promotion-min-purchase"
+                      v-model="minPurchaseCents"
+                      data-testid="promotion-min-purchase"
+                      placeholder="Ej.: 1000"
+                      size="lg"
+                      @validation="amountErrors.minPurchase = $event"
+                    />
+                  </UFormField>
+                </div>
               </div>
             </div>
           </div>
-        </UCard>
+        </HfSectionCard>
 
         <!-- ── Card 2: BUY_X_GET_Y ───────────────────────────────────── -->
-        <UCard
+        <HfSectionCard
           v-else-if="type === PROMOTION_TYPE.BUY_X_GET_Y"
-          class="promotions-form-section"
+          title="Tipo de promoción"
           data-testid="buy-x-get-y-section"
         >
-          <template #header>
-            <h3 class="font-semibold text-highlighted">Tipo de promoción</h3>
-          </template>
 
           <div class="flex flex-col gap-5">
             <!-- Presets -->
@@ -645,17 +639,14 @@ const overlapTitle = computed(() =>
               />
             </div>
           </div>
-        </UCard>
+        </HfSectionCard>
 
         <!-- ── Card 2: ADVANCED ───────────────────────────────────────── -->
-        <UCard
+        <HfSectionCard
           v-else-if="type === PROMOTION_TYPE.ADVANCED"
-          class="promotions-form-section"
+          title="Condiciones"
           data-testid="advanced-section"
         >
-          <template #header>
-            <h3 class="font-semibold text-highlighted">Condiciones</h3>
-          </template>
 
           <div class="grid gap-6 lg:grid-cols-2">
             <!-- BUY side -->
@@ -727,7 +718,7 @@ const overlapTitle = computed(() =>
             :title="overlapTitle"
             description="Los objetivos de compra y obtención no pueden superponerse. El backend rechazará la promoción si los mismos productos aparecen en ambos lados."
           />
-        </UCard>
+        </HfSectionCard>
 
         <!-- ── Conditions section ──────────────────────────────────────── -->
         <PromotionConditionsSection
@@ -762,8 +753,8 @@ const overlapTitle = computed(() =>
       </UForm>
     </div>
 
-    <!-- ── Summary sidebar ───────────────────────────────────────────────── -->
-    <div class="hidden lg:block">
+    <!-- ── Summary: the rail at lg, after the form in the stacked column below (T8 D5) ── -->
+    <div>
       <PromotionSummaryCard :form-state="formState" />
     </div>
   </div>

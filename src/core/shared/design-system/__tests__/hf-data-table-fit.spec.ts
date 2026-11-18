@@ -15,7 +15,7 @@ const block = (selector: string) => {
 const ROOT = ".hf-ui .hf-data-table [data-slot='root']:has(table[data-slot='base'])"
 const TABLE = ".hf-ui .hf-data-table table[data-slot='base']"
 const CELLS = ".hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th'])"
-const CHECKBOX_CELLS = ".hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']):has([role='checkbox'])"
+const ROW_MARK_CELLS = ".hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']):has(.hf-row-mark)"
 const ACTIONS_CELLS = ".hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']).w-16"
 const PINNED_CELLS = ".hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th'])[data-pinned]"
 const BADGE_CELLS = ".hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']):has(.hf-status-badge)"
@@ -58,11 +58,14 @@ describe('data table widths are user-set on a fixed layout', () => {
     expect(actions).toMatch(/overflow: visible/)
   })
 
-  it('keeps the selection checkbox column at its own width', () => {
-    const checkbox = block(CHECKBOX_CELLS)
-    expect(checkbox).toMatch(/width: 3rem/)
-    expect(checkbox).toMatch(/max-width: 3rem/)
-    expect(checkbox).toMatch(/overflow: visible/)
+  it('keeps the selection (row mark) column at its own width, fitting the 44px mark', () => {
+    const mark = block(ROW_MARK_CELLS)
+    expect(mark).toMatch(/width: 3rem/)
+    expect(mark).toMatch(/max-width: 3rem/)
+    // 2px + 44px hit area + 2px = the 48px column (Selección sin checkboxes).
+    expect(mark).toMatch(/padding-inline: 0\.125rem/)
+    expect(mark).toMatch(/overflow: visible/)
+    expect(css).not.toMatch(/\.hf-data-table[^{]*\[role='checkbox'\]/)
   })
 
   it('never truncates a status badge', () => {

@@ -22,6 +22,7 @@
 
 import { computed } from 'vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
+import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import type { Employee } from '../interfaces/employee.types'
 import {
@@ -77,27 +78,24 @@ function jobLine(position: string | null | undefined, department: string | null 
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
+  <div class="employees-panel">
 
     <!-- ── Cadena de mando ────────────────────────────────────────────────── -->
-    <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
-      <div class="border-b border-default px-5 py-4">
-        <h2 class="text-base font-semibold text-highlighted">Cadena de mando</h2>
-      </div>
+    <HfSectionCard title="Cadena de mando" :heading-level="2">
 
       <!-- Loading -->
       <div
         v-if="isChainLoading"
-        class="flex flex-col gap-3 px-5 py-6"
+        class="employees-section-skeleton"
         aria-busy="true"
         data-testid="organigrama-chain-skeleton"
       >
         <span class="sr-only">Cargando</span>
-        <div v-for="i in 3" :key="i" class="h-12 animate-pulse rounded-lg bg-(--hf-surface-muted)" aria-hidden="true" />
+        <div v-for="i in 3" :key="i" class="hf-skeleton h-12 animate-pulse rounded-lg" aria-hidden="true" />
       </div>
 
       <!-- Error -->
-      <div v-else-if="isChainError" class="p-5" data-testid="organigrama-chain-error">
+      <div v-else-if="isChainError" data-testid="organigrama-chain-error">
         <EmptyState
           kind="error"
           title="No se pudo cargar la cadena de mando"
@@ -108,7 +106,7 @@ function jobLine(position: string | null | undefined, department: string | null 
       </div>
 
       <!-- Chain content (or empty) -->
-      <div v-else class="px-5 py-4">
+      <div v-else>
 
         <!-- Truncation notice — shown when backend returned the max 50 levels -->
         <p
@@ -160,32 +158,27 @@ function jobLine(position: string | null | undefined, department: string | null 
           </div>
         </div>
       </div>
-    </UCard>
+    </HfSectionCard>
 
     <!-- ── Reportes directos (subordinados) ──────────────────────────────── -->
-    <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
-      <div class="border-b border-default px-5 py-4">
-        <h2 class="text-base font-semibold text-highlighted">
-          Reportes directos
-          <span v-if="!isSubsLoading && subordinateEntries.length > 0" class="font-normal text-muted">
-            · {{ subordinateEntries.length }}
-          </span>
-        </h2>
-      </div>
+    <HfSectionCard title="Reportes directos" :heading-level="2">
+      <template v-if="!isSubsLoading && subordinateEntries.length > 0" #meta>
+        {{ subordinateEntries.length }} {{ subordinateEntries.length === 1 ? 'persona' : 'personas' }}
+      </template>
 
       <!-- Loading -->
       <div
         v-if="isSubsLoading"
-        class="flex flex-col gap-3 px-5 py-6"
+        class="employees-section-skeleton"
         aria-busy="true"
         data-testid="organigrama-subs-skeleton"
       >
         <span class="sr-only">Cargando</span>
-        <div v-for="i in 3" :key="i" class="h-12 animate-pulse rounded-lg bg-(--hf-surface-muted)" aria-hidden="true" />
+        <div v-for="i in 3" :key="i" class="hf-skeleton h-12 animate-pulse rounded-lg" aria-hidden="true" />
       </div>
 
       <!-- Error -->
-      <div v-else-if="isSubsError" class="p-5" data-testid="organigrama-subs-error">
+      <div v-else-if="isSubsError" data-testid="organigrama-subs-error">
         <EmptyState
           kind="error"
           title="No se pudieron cargar los reportes directos"
@@ -196,16 +189,16 @@ function jobLine(position: string | null | undefined, department: string | null 
       </div>
 
       <!-- Empty (valid: 0 direct reports) -->
-      <div v-else-if="subordinateEntries.length === 0" class="p-5">
+      <div v-else-if="subordinateEntries.length === 0">
         <EmptyState title="Sin reportes directos" icon="i-lucide-users" />
       </div>
 
       <!-- Subordinates list -->
-      <ul v-else class="divide-y divide-default">
+      <ul v-else class="employees-section-list">
         <li
           v-for="entry in subordinateEntries"
           :key="entry.id"
-          class="flex items-center gap-4 px-5 py-3"
+          class="flex items-center gap-4"
         >
           <EntityAvatar :name="entry.fullName" aria-hidden="true" />
           <div class="min-w-0 flex-1">
@@ -214,7 +207,7 @@ function jobLine(position: string | null | undefined, department: string | null 
           </div>
         </li>
       </ul>
-    </UCard>
+    </HfSectionCard>
 
   </div>
 </template>

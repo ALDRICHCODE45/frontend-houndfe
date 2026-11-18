@@ -8,6 +8,7 @@ import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { parseMoneyInput } from '@/core/shared/utils/money-input.utils'
 import '@/core/shared/components/form/hf-form.css'
+import '../styles/product-detail.css'
 import { centsToDecimalInput } from '../composables/useProductForm'
 import VariantPricingTable from './VariantPricingTable.vue'
 import type {
@@ -319,13 +320,19 @@ function handleCancel() {
 </script>
 
 <template>
-  <UModal v-model:open="modalOpen" :title="modalTitle" :content="{ class: 'hf-theme hf-ui sm:max-w-3xl' }">
+  <!-- The header end keeps the absolute close button's lane, so a wrapped title
+       never runs under the X at 390 (T8 D6). -->
+  <UModal
+    v-model:open="modalOpen"
+    :title="modalTitle"
+    :content="{ class: 'hf-theme hf-ui sm:max-w-3xl' }"
+    :ui="{ header: 'pe-14 sm:pe-14' }"
+  >
     <template #body>
-      <div v-if="variant" class="space-y-4">
-        <UCard>
-          <template #header>
-            <h3 class="font-semibold">General</h3>
-          </template>
+      <!-- One surface: the modal's groups are titled sections split by hairlines, never cards. -->
+      <div v-if="variant" class="product-modal-sections">
+        <section class="product-modal-section" aria-labelledby="variant-general-title">
+          <h3 id="variant-general-title" class="product-modal-section__title">General</h3>
 
           <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <UFormField v-if="showGeneralSkuBarcode" label="SKU">
@@ -374,15 +381,13 @@ function handleCancel() {
               <p v-if="costError" id="variant-cost-message" class="hf-form-field__message" data-tone="error">
                 {{ costError }}
               </p>
-              <p class="mt-1 text-xs text-muted">{{ productCostHint }}</p>
+              <p class="product-field-hint">{{ productCostHint }}</p>
             </UFormField>
           </div>
-        </UCard>
+        </section>
 
-        <UCard v-if="showInventoryCard">
-          <template #header>
-            <h3 class="font-semibold">Existencias</h3>
-          </template>
+        <section v-if="showInventoryCard" class="product-modal-section" aria-labelledby="variant-stock-title">
+          <h3 id="variant-stock-title" class="product-modal-section__title">Existencias</h3>
 
           <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <UFormField label="Cantidad">
@@ -404,12 +409,10 @@ function handleCancel() {
               />
             </UFormField>
           </div>
-        </UCard>
+        </section>
 
-        <UCard v-if="persistedCatalog">
-          <template #header>
-            <h3 class="font-semibold">Catálogo online</h3>
-          </template>
+        <section v-if="persistedCatalog" class="product-modal-section" aria-labelledby="variant-catalog-title">
+          <h3 id="variant-catalog-title" class="product-modal-section__title">Catálogo online</h3>
 
           <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <UFormField label="Publicación en catálogo">
@@ -436,15 +439,12 @@ function handleCancel() {
               @change="onCatalogStockChange"
             />
           </div>
-        </UCard>
+        </section>
 
-        <UCard>
-          <template #header>
-            <h3 class="font-semibold">Precios</h3>
-          </template>
-
+        <section class="product-modal-section" aria-labelledby="variant-prices-title">
+          <h3 id="variant-prices-title" class="product-modal-section__title">Precios</h3>
           <VariantPricingTable :product-id="productId" :variant="variant" :can-update="canUpdate" />
-        </UCard>
+        </section>
       </div>
     </template>
 

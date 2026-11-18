@@ -332,7 +332,7 @@ function goBack(): void {
 
             <!-- Personal + Emergency Contacts — WU-11 -->
             <template v-else-if="activeTab === 'personal'">
-              <div class="flex flex-col gap-6">
+              <div class="flex flex-col gap-4">
                 <PersonalPanel :employee="employee" />
                 <EmergencyContactsPanel
                   :employee="employee"

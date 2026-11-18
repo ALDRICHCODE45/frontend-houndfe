@@ -64,7 +64,7 @@ describe('generic publication and real lifecycle integration', () => {
     reads(true); await render()
     expect(wrapper.find('form').exists()).toBe(true)
     await button('Publicar borrador…').trigger('click')
-    await panel().get('input[type="checkbox"]').setValue(true)
+    expect(button('Confirmo la revisión y publico')).toBeDefined()
     if (kind === 'global') auth.isSuperAdmin = false
     else auth.permissionCodes = []
     await flushPromises()
@@ -73,10 +73,10 @@ describe('generic publication and real lifecycle integration', () => {
     auth.isSuperAdmin = kind === 'global'
     auth.permissionCodes = kind === 'global' ? [] : ['manage:all']
     await flushPromises()
-    expect(button('Publicar ahora')).toBeUndefined()
+    expect(button('Confirmo la revisión y publico')).toBeUndefined()
     await button('Publicar borrador…').trigger('click')
-    expect((panel().get('input[type="checkbox"]').element as HTMLInputElement).checked).toBe(false)
-    expect(button('Publicar ahora').attributes('disabled')).toBeDefined()
+    expect(panel().find('input[type="checkbox"], [role="checkbox"]').exists()).toBe(false)
+    expect(button('Confirmo la revisión y publico').attributes('disabled')).toBeUndefined()
     expect(http.post).not.toHaveBeenCalled()
   })
   it('publishes saved GET only with explicit confirmation and keeps receipt out of current comparison', async () => {
@@ -107,14 +107,15 @@ describe('generic publication and real lifecycle integration', () => {
     expect(panel().text()).toContain('Presentación exacta')
     expect(panel().text()).toContain('Ciclo 2 · revisión 3')
     await button('Publicar borrador…').trigger('click')
-    expect(button('Publicar ahora').attributes('disabled')).toBeDefined()
-    await panel().get('input[type="checkbox"]').setValue(true)
+    expect(button('Publicar ahora')).toBeUndefined()
+    expect(panel().text()).toContain('Revisé todas las revisiones de cuidado de este ciclo y revisión')
     await button('Cancelar').trigger('click')
+    expect(http.post).not.toHaveBeenCalled()
     reads(true, 4); await wrapper.get('[data-testid="refresh-retain"]').trigger('click'); await flushPromises()
     await button('Publicar borrador…').trigger('click')
-    expect((panel().get('input[type="checkbox"]').element as HTMLInputElement).checked).toBe(false)
-    await panel().get('input[type="checkbox"]').setValue(true)
-    await button('Publicar ahora').trigger('click'); await flushPromises()
+    expect(panel().find('input[type="checkbox"], [role="checkbox"]').exists()).toBe(false)
+    expect(http.post).not.toHaveBeenCalled()
+    await button('Confirmo la revisión y publico').trigger('click'); await flushPromises()
     expect(http.post.mock.calls[0]![1]).toEqual({ expectedCycle: 2, expectedRevision: 4 })
     expect(http.post.mock.calls[0]![2].headers['Editorial-Care-Confirmation']).toBe('review-v1')
   })

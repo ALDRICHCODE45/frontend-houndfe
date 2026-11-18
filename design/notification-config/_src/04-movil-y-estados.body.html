@@ -1,0 +1,19 @@
+<div id="band"></div>
+<div class="board">
+  <header class="board-head">
+    <h1>Móvil 390 y estados · dirección A (Filas en una columna)</h1>
+    <p>Cada teléfono es interactivo y tiene su propio estado. La columna se apila; las filas siguen siendo el interruptor completo, los módulos pasan a una banda con «Activar todas» a la derecha y la barra de guardado (HfSaveBar) queda fija abajo con Descartar y Guardar en columnas iguales.</p>
+  </header>
+  <div class="phones" id="phones"></div>
+</div>
+<aside class="notes" id="notes" hidden aria-label="Notas de diseño">
+  <h2>Notas · Móvil y estados</h2>
+  <ul>
+    <li>Cargando: el esqueleto tiene la forma real (fila general, 3 usuarios, 4 acciones), lavado de tinta al 16% sobre la superficie, <code>aria-busy</code> y texto para lector de pantalla.</li>
+    <li>Error al cargar: EmptyState de error con «Reintentar»; no se inventan valores por omisión ni se muestra la barra de guardado.</li>
+    <li>Desactivadas: las acciones conservan su valor, dicen «En pausa» o «No disponible…» y siguen enfocables (<code>aria-disabled</code>) para que el motivo se pueda leer.</li>
+    <li>Falta elegir usuarios: aviso bajo la lista, el índice de la barra lo repite («falta elegir usuarios») y Guardar queda deshabilitado con el motivo a la vista.</li>
+    <li>Error al guardar: el mensaje queda en la barra en rojo de peligro, los cambios se conservan y Guardar sirve para reintentar.</li>
+  </ul>
+</aside>
+<div class="sr-only" aria-live="polite" id="announce"></div>

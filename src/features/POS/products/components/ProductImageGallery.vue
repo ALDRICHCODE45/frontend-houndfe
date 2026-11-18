@@ -8,10 +8,15 @@ import '../styles/product-images.css'
  * says where it belongs. Files can be dropped anywhere on the card. Each file
  * shows its own progress, and a file that fails stays beside the strip with
  * what to do. Without edit rights there is no «Agregar», ⋯ or drop.
+ *
+ * T6e: the card is an HfSectionCard sibling of the Presentaciones section cards
+ * (count and «Solo lectura» beside the title, the chips as the first body row);
+ * the drop zone wraps it so the overlay covers the whole card.
  */
 import { computed, ref } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { productApi } from '../api/product.api'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
@@ -171,34 +176,32 @@ function capitalize(text: string): string {
 </script>
 
 <template>
-  <section ref="dropZoneRef" class="product-images" aria-labelledby="product-images-title" data-testid="product-images">
-    <UCard>
-      <template #header>
-        <div class="product-images-head">
-          <h3 id="product-images-title">Imágenes</h3>
-          <span
-            class="product-images-count"
-            :role="progressLabel ? 'status' : undefined"
-            data-testid="product-images-count"
-          >{{ progressLabel ?? countLabel }}</span>
-          <span v-if="isReadOnly" class="product-images-ro">
-            <UIcon name="i-lucide-lock" aria-hidden="true" />Solo lectura
-          </span>
-          <div v-if="variants.length > 0" class="product-images-chips" role="group" aria-label="Mostrar fotos de">
-            <button
-              v-for="opt in scopeOptions"
-              :key="opt.value"
-              type="button"
-              class="product-images-chip"
-              :aria-pressed="activeScope === opt.value"
-              @click="activeScope = opt.value"
-            >
-              <UIcon v-if="activeScope === opt.value" name="i-lucide-check" class="product-images-chip__check" aria-hidden="true" />
-              {{ opt.label }} <span class="product-images-chip__n">{{ opt.count }}</span>
-            </button>
-          </div>
-        </div>
+  <div ref="dropZoneRef" class="product-images" data-testid="product-images">
+    <HfSectionCard id="product-images" title="Imágenes" :heading-level="2">
+      <template #meta>
+        <span v-if="isReadOnly" class="product-images-ro">
+          <UIcon name="i-lucide-lock" aria-hidden="true" />Solo lectura
+        </span>
+        <span
+          class="product-images-count"
+          :role="progressLabel ? 'status' : undefined"
+          data-testid="product-images-count"
+        >{{ progressLabel ?? countLabel }}</span>
       </template>
+
+      <div v-if="variants.length > 0" class="product-images-chips mb-4" role="group" aria-label="Mostrar fotos de">
+        <button
+          v-for="opt in scopeOptions"
+          :key="opt.value"
+          type="button"
+          class="product-images-chip"
+          :aria-pressed="activeScope === opt.value"
+          @click="activeScope = opt.value"
+        >
+          <UIcon v-if="activeScope === opt.value" name="i-lucide-check" class="product-images-chip__check" aria-hidden="true" />
+          {{ opt.label }} <span class="product-images-chip__n">{{ opt.count }}</span>
+        </button>
+      </div>
 
       <!-- Failed read: never shown as an empty card -->
       <div
@@ -308,7 +311,7 @@ function capitalize(text: string): string {
           @discard="discard"
         />
       </template>
-    </UCard>
+    </HfSectionCard>
 
     <div v-if="isOverDropZone" class="product-images-drop" role="status" data-testid="product-images-drop">
       <UIcon name="i-lucide-upload" class="size-5" aria-hidden="true" />
@@ -317,7 +320,7 @@ function capitalize(text: string): string {
         Para una variante, elige su chip antes o suéltalas en su popover
       </small>
     </div>
-  </section>
+  </div>
 
   <ConfirmModal
     :open="pendingDelete !== null"

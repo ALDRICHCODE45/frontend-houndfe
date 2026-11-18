@@ -56,8 +56,9 @@ const DESTINATION_DETAIL_ROUTE = `${LIST_ROUTE}/${SYNTHETIC_ROUTE_IDS.destinatio
 const ELIGIBLE_SALES_PATH = '/delivery-routes/eligible-sales'
 const TRANSFER_PATH = `/delivery-routes/${SYNTHETIC_ROUTE_IDS.origin}/stops/${SYNTHETIC_STOP_IDS.originStop}/transfer`
 
+// The picker is a listbox of selectable rows (no checkbox): one `role="option"` per sale.
 const rowCheckbox = (page: import('@playwright/test').Page, saleId: string) =>
-  page.getByTestId(`eligible-sales-picker-row-checkbox-${saleId}`)
+  page.locator(`[role="option"][data-value="${saleId}"]`)
 
 const postsTo = (network: StrictNetworkController, path: string) =>
   network.requests().filter((request) => request.method === 'POST' && request.path === path)
@@ -150,12 +151,12 @@ test.describe('delivery-route create selector (S3/S2)', () => {
       const occupiedRow = page.getByTestId(
         `eligible-sales-picker-row-${SYNTHETIC_SALE_IDS.occupied}`,
       )
-      await expect(rowCheckbox(page, SYNTHETIC_SALE_IDS.occupied)).toBeDisabled()
+      await expect(rowCheckbox(page, SYNTHETIC_SALE_IDS.occupied)).toHaveAttribute('aria-disabled', 'true')
       await expect(occupiedRow).toContainText('Reservada en un borrador de ruta')
       const missingAddressRow = page.getByTestId(
         `eligible-sales-picker-row-${SYNTHETIC_SALE_IDS.missingAddress}`,
       )
-      await expect(rowCheckbox(page, SYNTHETIC_SALE_IDS.missingAddress)).toBeDisabled()
+      await expect(rowCheckbox(page, SYNTHETIC_SALE_IDS.missingAddress)).toHaveAttribute('aria-disabled', 'true')
       await expect(missingAddressRow).toContainText('Sin dirección de envío')
 
       // ── Select from page 1 ─────────────────────────────────────────────────

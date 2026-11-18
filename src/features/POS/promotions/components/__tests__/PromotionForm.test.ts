@@ -1,11 +1,18 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, it, expect } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
 import PromotionForm from '../PromotionForm.vue'
 import type { PromotionFormState, PromotionType } from '../../interfaces/promotion.types'
 import { toCreatePayload } from '../../composables/usePromotionForm'
+
+/** A «Cómo se aplica» radio card by method value. */
+const method = (wrapper: Pick<VueWrapper, 'get'>, value: string) =>
+  wrapper.get(`[role="radio"][data-value="${value}"]`)
+/** The «Cómo se aplica» radiogroup (the one holding the AUTOMATIC card). */
+const methodGroup = (wrapper: Pick<VueWrapper, 'get'>) =>
+  method(wrapper, 'AUTOMATIC').element.closest<HTMLElement>('[role="radiogroup"]')!
 
 // ── Stubs ─────────────────────────────────────────────────────────────────────
 
@@ -37,12 +44,6 @@ const FULL_STUBS = {
     emits: ['update:modelValue'],
     template:
       '<select :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="i in items" :key="i.value" :value="i.value">{{ i.label }}</option></select>',
-  },
-  UCheckbox: {
-    props: ['modelValue', 'label'],
-    emits: ['update:modelValue'],
-    template:
-      '<input type="checkbox" :checked="modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" />',
   },
   UBadge: {
     props: ['color'],
@@ -102,6 +103,8 @@ const FULL_STUBS = {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+const MIN_SWITCH = '[role="switch"][data-testid="min-purchase-switch"]'
 
 function makeQueryClient() {
   return new QueryClient({ defaultOptions: { queries: { retry: false, enabled: false } } })
@@ -171,14 +174,12 @@ describe('PromotionForm', () => {
   })
 
   // ── Method selector ──────────────────────────────────────────────────────
-  it('renders automatic method card', () => {
+  it('renders the automatic and manual method cards with their explanations', () => {
     const wrapper = mountForm('PRODUCT_DISCOUNT')
-    expect(wrapper.find('[data-testid="method-card-AUTOMATIC"]').exists()).toBe(true)
-  })
-
-  it('renders manual method card', () => {
-    const wrapper = mountForm('PRODUCT_DISCOUNT')
-    expect(wrapper.find('[data-testid="method-card-MANUAL"]').exists()).toBe(true)
+    expect(method(wrapper, 'AUTOMATIC').text()).toContain('Aplicar automáticamente')
+    expect(method(wrapper, 'AUTOMATIC').text()).toContain('Se aplicará si se cumplen las condiciones')
+    expect(method(wrapper, 'MANUAL').text()).toContain('Manualmente')
+    expect(method(wrapper, 'MANUAL').text()).toContain('Tú eliges si deseas aplicar el descuento')
   })
 
   // ── Type-specific sections ───────────────────────────────────────────────
@@ -224,48 +225,40 @@ describe('PromotionForm', () => {
   })
 
   // ── S18/S19: Method selection ────────────────────────────────────────────
-  // Method selection is verified via DOM class changes (selected style class)
-  // The form state is tested in usePromotionForm unit tests
-  it('S18: AUTOMATIC method card is selected by default (initial state)', () => {
+  // T8 D5: «Cómo se aplica» is an HfRadioCards radiogroup; the chosen card is
+  // aria-checked (hover only rings the mark, it never paints the selected look).
+  it('S18: «Cómo se aplica» is a radiogroup of two radio cards, AUTOMATIC chosen by default', () => {
     const wrapper = mountForm('PRODUCT_DISCOUNT')
-    const automaticCard = wrapper.find('[data-testid="method-card-AUTOMATIC"]')
-    // Selected card carries the owned selection hook (from PromotionForm.vue class binding)
-    expect(automaticCard.classes()).toContain('promotions-choice-selected')
+    const group = methodGroup(wrapper)
+    const labelId = group.getAttribute('aria-labelledby')!
+    expect(wrapper.get(`[id="${labelId}"]`).text()).toBe('Cómo se aplica')
+    const radios = [...group.querySelectorAll('[role="radio"]')]
+    expect(radios.map((radio) => radio.getAttribute('data-value'))).toEqual(['AUTOMATIC', 'MANUAL'])
+    expect(method(wrapper, 'AUTOMATIC').attributes('aria-checked')).toBe('true')
+    expect(method(wrapper, 'MANUAL').attributes('aria-checked')).toBe('false')
+    expect(method(wrapper, 'AUTOMATIC').attributes('tabindex')).toBe('0')
+    expect(method(wrapper, 'MANUAL').attributes('tabindex')).toBe('-1')
+    expect(wrapper.html()).not.toContain('promotions-choice')
   })
 
-  it('S18: AUTOMATIC method card loses selected style when MANUAL is clicked', async () => {
+  it('S18: AUTOMATIC is no longer checked when MANUAL is clicked', async () => {
     const wrapper = mountForm('PRODUCT_DISCOUNT')
-    await wrapper.find('[data-testid="method-card-MANUAL"]').trigger('click')
-    await wrapper.vm.$nextTick()
-    // AUTOMATIC card no longer selected
-    expect(wrapper.find('[data-testid="method-card-AUTOMATIC"]').classes()).not.toContain(
-      'promotions-choice-selected',
-    )
+    await method(wrapper, 'MANUAL').trigger('click')
+    expect(method(wrapper, 'AUTOMATIC').attributes('aria-checked')).toBe('false')
   })
 
-  it('S19: MANUAL method card shows selected style after click', async () => {
+  it('S19: MANUAL is checked after click', async () => {
     const wrapper = mountForm('PRODUCT_DISCOUNT')
-    const manualCard = wrapper.find('[data-testid="method-card-MANUAL"]')
-    // Not selected initially
-    expect(manualCard.classes()).not.toContain('promotions-choice-selected')
-    await manualCard.trigger('click')
-    await wrapper.vm.$nextTick()
-    // Now selected
-    expect(manualCard.classes()).toContain('promotions-choice-selected')
+    await method(wrapper, 'MANUAL').trigger('click')
+    expect(method(wrapper, 'MANUAL').attributes('aria-checked')).toBe('true')
   })
 
-  it('S19: clicking MANUAL then AUTOMATIC restores AUTOMATIC as selected', async () => {
+  it('S19: arrow keys move the choice between the radio cards', async () => {
     const wrapper = mountForm('PRODUCT_DISCOUNT')
-    await wrapper.find('[data-testid="method-card-MANUAL"]').trigger('click')
-    await wrapper.vm.$nextTick()
-    await wrapper.find('[data-testid="method-card-AUTOMATIC"]').trigger('click')
-    await wrapper.vm.$nextTick()
-    expect(wrapper.find('[data-testid="method-card-AUTOMATIC"]').classes()).toContain(
-      'promotions-choice-selected',
-    )
-    expect(wrapper.find('[data-testid="method-card-MANUAL"]').classes()).not.toContain(
-      'promotions-choice-selected',
-    )
+    await method(wrapper, 'AUTOMATIC').trigger('keydown', { key: 'ArrowDown' })
+    expect(method(wrapper, 'MANUAL').attributes('aria-checked')).toBe('true')
+    await method(wrapper, 'MANUAL').trigger('keydown', { key: 'ArrowUp' })
+    expect(method(wrapper, 'AUTOMATIC').attributes('aria-checked')).toBe('true')
   })
 
   // ── S25/S26: BUY_X_GET_Y preset autofill (REQ-10 locked table) ────────────
@@ -296,8 +289,8 @@ describe('PromotionForm', () => {
   // ── S44: Edit mode shows method as read-only badge ───────────────────────
   it('S44: in edit mode, method selector cards are hidden and readonly badge is shown', () => {
     const wrapper = mountForm('PRODUCT_DISCOUNT', { mode: 'edit' as const })
-    expect(wrapper.find('[data-testid="method-card-AUTOMATIC"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="method-card-MANUAL"]').exists()).toBe(false)
+    expect(wrapper.find('[role="radio"][data-value="AUTOMATIC"]').exists()).toBe(false)
+    expect(wrapper.find('[role="radio"][data-value="MANUAL"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="method-readonly"]').exists()).toBe(true)
   })
 
@@ -441,9 +434,16 @@ describe('PromotionForm — review round 1', () => {
 
   it('stacks the method cards on mobile so "Aplicar automáticamente" never overflows', () => {
     const wrapper = mountForm('PRODUCT_DISCOUNT')
-    const grid = wrapper.get('[data-testid="method-card-AUTOMATIC"]').element.parentElement!
-    expect(grid.className).toContain('grid-cols-1')
-    expect(grid.className).toContain('sm:grid-cols-2')
+    const grid = methodGroup(wrapper)
+    expect(grid.classList.contains('grid-cols-1')).toBe(true)
+    expect(grid.classList.contains('sm:grid-cols-2')).toBe(true)
+  })
+
+  // T8 D5: below lg the summary is not hidden; it follows the form in the stacked column.
+  it('shows the summary at every width (after the form below lg, the rail at lg)', () => {
+    const wrapper = mountForm('PRODUCT_DISCOUNT')
+    const rail = wrapper.get('[data-testid="summary-card"]').element.parentElement!
+    expect(rail.className).not.toMatch(/(^|\s)hidden(\s|$)/)
   })
 
   it('agrees the overlap alert count in number', () => {
@@ -524,7 +524,7 @@ describe('PromotionForm — typed amounts', () => {
   ])('ORDER_DISCOUNT sends a fixed value and a minimum typed as %j as %i cents', async (text, cents) => {
     const wrapper = mountWithDiscountType('ORDER_DISCOUNT', 'FIXED')
     await wrapper.get('[data-testid="promotion-discount-value"]').setValue(text)
-    await wrapper.get('[role="checkbox"]').trigger('click')
+    await wrapper.get(MIN_SWITCH).trigger('click')
     await wrapper.get('[data-testid="promotion-min-purchase"]').setValue(text)
     const payload = await submitted(wrapper)
     expect(payload.discountValue).toBe(cents)
@@ -572,14 +572,14 @@ describe('PromotionForm — typed amounts', () => {
   it('drops the minimum purchase error when the field is hidden and shown again', async () => {
     const wrapper = mountWithDiscountType('ORDER_DISCOUNT', 'FIXED')
     await wrapper.get('[data-testid="promotion-discount-value"]').setValue('150')
-    await wrapper.get('[role="checkbox"]').trigger('click')
+    await wrapper.get(MIN_SWITCH).trigger('click')
     await wrapper.get('[data-testid="promotion-min-purchase"]').setValue('1000')
     await wrapper.get('[data-testid="promotion-min-purchase"]').setValue('1,23,4')
     await wrapper.get('[data-testid="promotion-min-purchase"]').trigger('blur')
 
-    await wrapper.get('[role="checkbox"]').trigger('click')
+    await wrapper.get(MIN_SWITCH).trigger('click')
     await flushPromises()
-    await wrapper.get('[role="checkbox"]').trigger('click')
+    await wrapper.get(MIN_SWITCH).trigger('click')
     await flushPromises()
 
     expect((wrapper.get('[data-testid="promotion-min-purchase"]').element as HTMLInputElement).value).toBe('1000.00')
@@ -594,4 +594,54 @@ describe('PromotionForm — typed amounts', () => {
     await flushPromises()
     expect(wrapper.emitted('submit')).toBeUndefined()
   })
+
+  // T4b/S1: the minimum is a whole-row switch; the payload is the one the checkbox sent.
+  it('sends the same ORDER_DISCOUNT payload after turning the minimum on with its switch row', async () => {
+    const wrapper = mountWithDiscountType('ORDER_DISCOUNT', 'FIXED')
+    await wrapper.get('[data-testid="promotion-discount-value"]').setValue('150')
+    await wrapper.get(MIN_SWITCH).trigger('click')
+    await wrapper.get('[data-testid="promotion-min-purchase"]').setValue('1,000.50')
+    expect(await submitted(wrapper)).toEqual({
+      title: 'Promo de prueba',
+      method: 'AUTOMATIC',
+      maxProductUnits: null,
+      customerIds: [],
+      priceListIds: [],
+      daysOfWeek: [],
+      type: 'ORDER_DISCOUNT',
+      discountType: 'FIXED',
+      discountValue: 15000,
+      minPurchaseAmountCents: 100050,
+    })
+  })
+})
+
+describe('PromotionForm — selection without checkboxes (T4b)', () => {
+  it('shows the minimum purchase as a whole-row switch that reveals the amount', async () => {
+    const wrapper = mountForm('ORDER_DISCOUNT')
+    const row = wrapper.get(MIN_SWITCH)
+    expect(row.element.tagName).toBe('BUTTON')
+    expect(row.attributes('aria-checked')).toBe('false')
+    expect(row.text()).toContain('Añadir monto mínimo de compra')
+    expect(wrapper.find('[data-testid="promotion-min-purchase"]').exists()).toBe(false)
+
+    await row.trigger('click')
+    expect(wrapper.get(MIN_SWITCH).attributes('aria-checked')).toBe('true')
+    expect(wrapper.find('[data-testid="promotion-min-purchase"]').exists()).toBe(true)
+    expect(wrapper.html()).not.toMatch(/\bpl-6\b/)
+  })
+
+  it.each(['PRODUCT_DISCOUNT', 'ORDER_DISCOUNT', 'BUY_X_GET_Y', 'ADVANCED'] as const)(
+    '%s leaves no checkbox and groups its fields in section cards',
+    async (type) => {
+      const wrapper = mountForm(type)
+      if (type === 'ORDER_DISCOUNT') await wrapper.get(MIN_SWITCH).trigger('click')
+      // T6d: the WhatsApp option is a whole-row switch too, so no checkbox input is left at all.
+      expect(wrapper.findAll('[role="checkbox"], input[type="checkbox"]')).toHaveLength(0)
+      expect(wrapper.get('[role="switch"][data-testid="bot-eligible-switch"]').element.tagName).toBe('BUTTON')
+      const cards = wrapper.findAll('section.hf-section-card')
+      expect(cards.length).toBe(2)
+      expect(cards[0]!.find('[data-testid="type-badge"]').exists()).toBe(true)
+    },
+  )
 })

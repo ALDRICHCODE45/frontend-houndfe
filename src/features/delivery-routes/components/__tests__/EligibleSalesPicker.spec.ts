@@ -51,23 +51,6 @@ const UInputStub = defineComponent({
   },
 })
 
-const UCheckboxStub = defineComponent({
-  name: 'UCheckbox',
-  props: { modelValue: { type: Boolean, default: false }, disabled: Boolean },
-  emits: ['update:modelValue'],
-  setup(props, { emit, attrs }) {
-    return () =>
-      h('input', {
-        type: 'checkbox',
-        checked: props.modelValue,
-        disabled: props.disabled,
-        'aria-checked': String(props.modelValue),
-        ...attrs,
-        onChange: (e: Event) => emit('update:modelValue', (e.target as HTMLInputElement).checked),
-      })
-  },
-})
-
 const UButtonStub = defineComponent({
   name: 'UButton',
   props: { label: { type: String, default: '' }, disabled: Boolean, type: String },
@@ -98,8 +81,6 @@ const UAlertStub = defineComponent({
 const stubs = {
   UInput: UInputStub,
   Input: UInputStub,
-  UCheckbox: UCheckboxStub,
-  Checkbox: UCheckboxStub,
   UButton: UButtonStub,
   Button: UButtonStub,
   UAlert: UAlertStub,
@@ -348,10 +329,10 @@ describe('EligibleSalesPicker — unavailable rows are disabled with a reason', 
     const { wrapper } = mountPicker()
     await settle(() => expect(wrapper.find('[data-testid="eligible-sales-picker-row-sale-occupied"]').exists()).toBe(true))
 
-    const checkbox = wrapper.find('[data-testid="eligible-sales-picker-row-checkbox-sale-occupied"]')
-    expect(checkbox.attributes('disabled')).toBeDefined()
-    expect(wrapper.find('[data-testid="eligible-sales-picker-row-toggle-sale-occupied"]').attributes('disabled')).toBeDefined()
-    expect(wrapper.find('[data-testid="eligible-sales-picker-row-reason-sale-occupied"]').text()).toBeTruthy()
+    const option = wrapper.find('[role="option"][data-value="sale-occupied"]')
+    expect(option.attributes('aria-disabled')).toBe('true')
+    // The reason is inside the option, so it is read with the sale.
+    expect(option.find('[data-testid="eligible-sales-picker-row-reason-sale-occupied"]').text()).toBeTruthy()
   })
 
   it('explains INELIGIBLE reasons (missing address / delivery status)', async () => {
@@ -376,8 +357,8 @@ describe('EligibleSalesPicker — unavailable rows are disabled with a reason', 
     const { picker, wrapper } = mountPicker()
     await settle(() => expect(wrapper.find('[data-testid="eligible-sales-picker-row-sale-occupied"]').exists()).toBe(true))
 
-    await wrapper.find('[data-testid="eligible-sales-picker-row-checkbox-sale-occupied"]').trigger('change')
-    await wrapper.find('[data-testid="eligible-sales-picker-row-toggle-sale-occupied"]').trigger('click')
+    await wrapper.find('[role="option"][data-value="sale-occupied"]').trigger('keydown', { key: ' ' })
+    await wrapper.find('[role="option"][data-value="sale-occupied"]').trigger('click')
     await nextTick()
     expect(picker.emitted('update:selected')).toBeFalsy()
     expect(picker.emitted('update:modelValue')).toBeFalsy()
@@ -385,11 +366,42 @@ describe('EligibleSalesPicker — unavailable rows are disabled with a reason', 
 })
 
 describe('EligibleSalesPicker — selection + emit contract', () => {
+  it('lists the sales as selectable rows with a mark, never checkboxes (T4c S1)', async () => {
+    getMock.mockResolvedValue({ data: makeResponse([makeRow(), makeRow({ id: 'sale-2', folio: 'A-2' })]) })
+    const { wrapper } = mountPicker({ modelValue: ['sale-1'] })
+    await settle(() => expect(wrapper.find('[data-testid="eligible-sales-picker-row-sale-2"]').exists()).toBe(true))
+    const listbox = wrapper.get('[data-testid="eligible-sales-picker-list"] [role="listbox"]')
+    expect(listbox.attributes('aria-multiselectable')).toBe('true')
+    expect(listbox.attributes('aria-label')).toBeTruthy()
+    const options = listbox.findAll('[role="option"]')
+    expect(options.map((option) => option.attributes('aria-selected'))).toEqual(['true', 'false'])
+    expect(options[0]!.find('.hf-sel-mark').attributes('data-state')).toBe('checked')
+    expect(options[0]!.find('[data-testid="eligible-sales-picker-row-primary-sale-1"]').text()).toContain('Cliente A')
+    expect(wrapper.find('input[type="checkbox"], [role="checkbox"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('1 venta seleccionada')
+  })
+
+  it('keeps the click order in the payload and toggles with Space', async () => {
+    getMock.mockResolvedValue({ data: makeResponse([makeRow(), makeRow({ id: 'sale-2', folio: 'A-2' })]) })
+    const { picker, wrapper, selected } = mountPicker({ modelValue: ['sale-off-page'] })
+    await settle(() => expect(wrapper.find('[data-testid="eligible-sales-picker-row-sale-2"]').exists()).toBe(true))
+    await wrapper.find('[role="option"][data-value="sale-2"]').trigger('click')
+    await wrapper.find('[role="option"][data-value="sale-1"]').trigger('keydown', { key: ' ' })
+    await nextTick()
+    expect(selected.value).toEqual(['sale-off-page', 'sale-2', 'sale-1'])
+    const lastOf = (name: 'update:modelValue' | 'update:selected') => { const events = picker.emitted(name)!; return events[events.length - 1] }
+    expect(lastOf('update:modelValue')).toEqual([['sale-off-page', 'sale-2', 'sale-1']])
+    expect(lastOf('update:selected')).toEqual([['sale-off-page', 'sale-2', 'sale-1']])
+    await wrapper.find('[role="option"][data-value="sale-2"]').trigger('click')
+    await nextTick()
+    expect(selected.value).toEqual(['sale-off-page', 'sale-1'])
+  })
+
   it('emits the sale id when an available row is toggled on', async () => {
     const { picker, wrapper, selected } = mountPicker()
     await settle(() => expect(wrapper.find('[data-testid="eligible-sales-picker-row-sale-1"]').exists()).toBe(true))
 
-    await wrapper.find('[data-testid="eligible-sales-picker-row-toggle-sale-1"]').trigger('click')
+    await wrapper.find('[role="option"][data-value="sale-1"]').trigger('click')
     await nextTick()
     expect(selected.value).toEqual(['sale-1'])
     expect(picker.emitted('update:selected')![0]).toEqual([['sale-1']])
@@ -398,7 +410,7 @@ describe('EligibleSalesPicker — selection + emit contract', () => {
   it('removes the id when a selected available row is toggled off', async () => {
     const { selected, wrapper } = mountPicker({ modelValue: ['sale-1'] })
     await settle(() => expect(wrapper.find('[data-testid="eligible-sales-picker-row-sale-1"]').exists()).toBe(true))
-    await wrapper.find('[data-testid="eligible-sales-picker-row-toggle-sale-1"]').trigger('click')
+    await wrapper.find('[role="option"][data-value="sale-1"]').trigger('click')
     await nextTick()
     expect(selected.value).toEqual([])
   })
@@ -471,7 +483,7 @@ describe('EligibleSalesPicker — retained selection across search and pages', (
     })
     const { wrapper } = mountPicker()
     await settle(() => expect(wrapper.find('[data-testid="eligible-sales-picker-row-sale-1"]').exists()).toBe(true))
-    await wrapper.find('[data-testid="eligible-sales-picker-row-toggle-sale-1"]').trigger('click')
+    await wrapper.find('[role="option"][data-value="sale-1"]').trigger('click')
     await nextTick()
 
     await wrapper.find('[data-testid="eligible-sales-picker-search"] input').setValue('Z')
@@ -488,7 +500,7 @@ describe('EligibleSalesPicker — retained selection across search and pages', (
     })
     const { wrapper } = mountPicker()
     await settle(() => expect(wrapper.find('[data-testid="eligible-sales-picker-row-sale-1"]').exists()).toBe(true))
-    await wrapper.find('[data-testid="eligible-sales-picker-row-toggle-sale-1"]').trigger('click')
+    await wrapper.find('[role="option"][data-value="sale-1"]').trigger('click')
     await nextTick()
 
     getMock.mockResolvedValue({
@@ -610,8 +622,8 @@ describe('EligibleSalesPicker — append source preserves the legacy path (findi
     const { wrapper } = mountAppendIntegration()
     await settle(() => expect(wrapper.find('[data-testid="eligible-sales-picker-row-sale-1"]').exists()).toBe(true))
     expect(wrapper.find('[data-testid="eligible-sales-picker-row-reason-sale-1"]').exists()).toBe(false)
-    const toggle = wrapper.find('[data-testid="eligible-sales-picker-row-toggle-sale-1"]')
-    expect(toggle.attributes('disabled')).toBeUndefined()
+    const toggle = wrapper.find('[role="option"][data-value="sale-1"]')
+    expect(toggle.attributes('aria-disabled')).toBeUndefined()
   })
 })
 
@@ -630,7 +642,7 @@ describe('EligibleSalesPicker — append success invalidates eligible-sales (fin
     await settle(() => expect(wrapper.find('[data-testid="eligible-sales-picker-row-sale-1"]').exists()).toBe(true))
 
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
-    await wrapper.find('[data-testid="eligible-sales-picker-row-toggle-sale-1"]').trigger('click')
+    await wrapper.find('[role="option"][data-value="sale-1"]').trigger('click')
     await nextTick()
     const fetchesBefore = getMock.mock.calls.length
 
@@ -846,7 +858,7 @@ describe('EligibleSalesPicker — conflict reconciliation from fresh data (fix 2
     await nextTick()
     expect(selected.value).toEqual([])
 
-    await wrapper.find('[data-testid="eligible-sales-picker-row-toggle-sale-1"]').trigger('click')
+    await wrapper.find('[role="option"][data-value="sale-1"]').trigger('click')
     await nextTick()
     expect(selected.value).toEqual(['sale-1'])
     expect(lastValidity(picker).valid).toBe(true)

@@ -48,6 +48,52 @@ describe('CashOpenSessionForm', () => {
     expect(wrapper.get('[data-testid="cash-open-local-error"]').text()).toMatch(/confirma/i)
   })
 
+  it('confirms the fund with an explicit button that names the amount, never a checkbox', async () => {
+    const wrapper = await mountOpen()
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
+    expect(wrapper.find('[role="checkbox"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="cash-opening-cents"]').setValue('500.00')
+    const confirm = wrapper.get('[data-testid="cash-opening-confirmed"]')
+    expect(confirm.element.tagName).toBe('BUTTON')
+    expect(confirm.text()).toMatch(/Confirmar fondo de \$500\.00/)
+    expect(wrapper.get('[data-testid="cash-open-submit"]').text()).not.toMatch(/500/)
+
+    await confirm.trigger('click')
+    // The confirmed state replaces the button and the action names the amount.
+    expect(wrapper.find('[data-testid="cash-opening-confirmed"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="cash-opening-confirmation"]').text()).toMatch(
+      /Fondo de \$500\.00 confirmado/,
+    )
+    expect(wrapper.get('[data-testid="cash-open-submit"]').text()).toMatch(
+      /Abrir caja con \$500\.00/,
+    )
+  })
+
+  it('drops the confirmation when the amount changes after confirming', async () => {
+    const wrapper = await mountOpen()
+    await wrapper.get('[data-testid="cash-opening-cents"]').setValue('500.00')
+    await wrapper.get('[data-testid="cash-opening-confirmed"]').trigger('click')
+    await wrapper.get('[data-testid="cash-opening-cents"]').setValue('450.00')
+
+    expect(wrapper.find('[data-testid="cash-opening-confirmation"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="cash-opening-confirmed"]').text()).toMatch(/\$450\.00/)
+    await wrapper.get('[data-testid="cash-open-submit"]').trigger('click')
+    expect(wrapper.emitted('submit')).toBeUndefined()
+    expect(wrapper.get('[data-testid="cash-open-local-error"]').text()).toMatch(/confirma/i)
+  })
+
+  it('lets the cashier take the confirmation back with «Cambiar»', async () => {
+    const wrapper = await mountOpen()
+    await wrapper.get('[data-testid="cash-opening-cents"]').setValue('500.00')
+    await wrapper.get('[data-testid="cash-opening-confirmed"]').trigger('click')
+    await wrapper.get('[data-testid="cash-opening-unconfirm"]').trigger('click')
+
+    expect(wrapper.find('[data-testid="cash-opening-confirmation"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="cash-open-submit"]').trigger('click')
+    expect(wrapper.emitted('submit')).toBeUndefined()
+  })
+
   it('rejects an opening amount with more than two decimals', async () => {
     const wrapper = await mountOpen()
     await wrapper.get('[data-testid="cash-opening-cents"]').setValue('500.555')

@@ -5,9 +5,9 @@ import { PROMOTION_CAPACITY_MODE } from '../../interfaces/promotion.types'
 
 // ── Stubs ─────────────────────────────────────────────────────────────────────
 //
-// Nuxt UI's USwitch / UInputNumber are single-responsibility inputs. The stubs
-// keep the contract explicit: the switch emits a boolean, the number input
-// emits a number-or-null and never coerces strings silently.
+// The capacity switch is the shared HfSwitchRow (rendered for real: a whole-row
+// `role="switch"` button). UInputNumber is stubbed: the number input emits a
+// number-or-null and never coerces strings silently.
 // Nuxt UI v4 test gotcha: `unplugin-vue-components` rewrites `<UFormField>`
 // etc. to the INTERNAL component name (`FormField`, `Switch`, `InputNumber`),
 // so VTU stubs only match when BOTH the U-prefixed and internal keys are
@@ -16,13 +16,6 @@ const formFieldStub = {
   inheritAttrs: false,
   props: ['label', 'name', 'hint', 'error'],
   template: '<div data-testid="form-field" :data-name="name"><slot /></div>',
-}
-const switchStub = {
-  inheritAttrs: false,
-  props: ['modelValue', 'disabled', 'ariaLabel'],
-  emits: ['update:modelValue'],
-  template:
-    '<input type="checkbox" data-testid="capacity-switch" :checked="modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" />',
 }
 const inputNumberStub = {
   inheritAttrs: false,
@@ -35,8 +28,6 @@ const inputNumberStub = {
 const STUBS = {
   UFormField: formFieldStub,
   FormField: formFieldStub,
-  USwitch: switchStub,
-  Switch: switchStub,
   UInputNumber: inputNumberStub,
   InputNumber: inputNumberStub,
   PromotionCapacityStatus: {
@@ -53,8 +44,6 @@ const STUBS = {
 const STUBS_WITH_REAL_INPUT_NUMBER = {
   UFormField: formFieldStub,
   FormField: formFieldStub,
-  USwitch: switchStub,
-  Switch: switchStub,
   PromotionCapacityStatus: STUBS.PromotionCapacityStatus,
 }
 
@@ -72,17 +61,35 @@ function mountField(props: Record<string, unknown> = {}) {
   })
 }
 
+const CAPACITY_SWITCH = '[role="switch"][data-testid="capacity-switch"]'
+
 describe('PromotionCapacityField', () => {
   it('renders the switch off when unlimited', () => {
     const wrapper = mountField({ modelValue: PROMOTION_CAPACITY_MODE.UNLIMITED })
-    const input = wrapper.find('[data-testid="capacity-switch"]')
-    expect(input.exists()).toBe(true)
-    expect((input.element as HTMLInputElement).checked).toBe(false)
+    const row = wrapper.get(CAPACITY_SWITCH)
+    expect(row.attributes('aria-checked')).toBe('false')
+  })
+
+  // T6d/S1: the whole row (label + track) is one target, no bare USwitch.
+  it('is a whole-row switch whose label is part of the target', () => {
+    const wrapper = mountField({ modelValue: PROMOTION_CAPACITY_MODE.UNLIMITED })
+    const row = wrapper.get(CAPACITY_SWITCH)
+    expect(row.element.tagName).toBe('BUTTON')
+    expect(row.text()).toContain('Limitar la cantidad de unidades')
+    expect(row.element.closest('.hf-switch-row')).not.toBeNull()
+  })
+
+  it('keeps the row focusable but inert when disabled', async () => {
+    const wrapper = mountField({ modelValue: PROMOTION_CAPACITY_MODE.UNLIMITED, disabled: true })
+    const row = wrapper.get(CAPACITY_SWITCH)
+    expect(row.attributes('aria-disabled')).toBe('true')
+    await row.trigger('click')
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
   })
 
   it('emits limited when the user turns the switch on', async () => {
     const wrapper = mountField({ modelValue: PROMOTION_CAPACITY_MODE.UNLIMITED })
-    await wrapper.find('[data-testid="capacity-switch"]').setValue(true)
+    await wrapper.get(CAPACITY_SWITCH).trigger('click')
     const emitted = wrapper.emitted('update:modelValue')!
     expect(emitted[0]![0]).toBe(PROMOTION_CAPACITY_MODE.LIMITED)
   })
@@ -92,7 +99,7 @@ describe('PromotionCapacityField', () => {
       modelValue: PROMOTION_CAPACITY_MODE.LIMITED,
       maxProductUnits: 100,
     })
-    await wrapper.find('[data-testid="capacity-switch"]').setValue(false)
+    await wrapper.get(CAPACITY_SWITCH).trigger('click')
     const emitted = wrapper.emitted('update:modelValue')!
     expect(emitted[0]![0]).toBe(PROMOTION_CAPACITY_MODE.UNLIMITED)
   })
@@ -153,8 +160,7 @@ describe('PromotionCapacityField', () => {
       modelValue: PROMOTION_CAPACITY_MODE.UNCHANGED,
       maxProductUnits: 40,
     })
-    const input = wrapper.find('[data-testid="capacity-switch"]')
-    expect((input.element as HTMLInputElement).checked).toBe(true)
+    expect(wrapper.get(CAPACITY_SWITCH).attributes('aria-checked')).toBe('true')
   })
 
   it('shows read-only consumed context while editing', () => {

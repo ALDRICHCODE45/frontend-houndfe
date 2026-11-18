@@ -48,6 +48,33 @@ function expectShrinkContainment(classes: string[]) {
   expect(classes).toEqual(expect.arrayContaining(['w-full', 'min-w-0', 'max-w-full']))
 }
 
+describe('DataTablePagination — page size without a checkbox (Selección sin checkboxes)', () => {
+  it('lists the sizes as checkable menu items with a trailing check, never a box', async () => {
+    if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => {}
+    const wrapper = mount(DataTablePagination, {
+      attachTo: document.body,
+      props: { pageIndex: 0, pageSize: 20, pageCount: 3, totalCount: 25, showingFrom: 1, showingTo: 20 },
+      global: { stubs: { UPagination: paginationStub(), Pagination: paginationStub() } },
+    })
+    await wrapper.get('.hf-pagination-size').trigger('keydown', { key: 'Enter' })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    const items = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]'))
+    expect(items.map((item) => item.textContent?.trim())).toEqual([
+      '5 por página',
+      '10 por página',
+      '20 por página',
+      '50 por página',
+    ])
+    expect(items.map((item) => item.getAttribute('aria-checked'))).toEqual(['false', 'false', 'true', 'false'])
+    // One trailing check on the current size; no box, no checkbox role or input.
+    expect(items[2]!.querySelector('[data-slot="itemTrailing"] [data-slot="itemTrailingIcon"]')).not.toBeNull()
+    expect(items[0]!.querySelector('[data-slot="itemTrailingIcon"]')).toBeNull()
+    expect(document.querySelector('[role="checkbox"], input[type="checkbox"]')).toBeNull()
+    wrapper.unmount()
+    document.body.innerHTML = ''
+  })
+})
+
 describe('DataTablePagination — optional portal boundary', () => {
   it('themes only an explicitly opted-in page-size menu and preserves its event', async () => {
     const wrapper = mountPagination({ portalClass: 'hf-theme hf-ui clients-list-portal' })

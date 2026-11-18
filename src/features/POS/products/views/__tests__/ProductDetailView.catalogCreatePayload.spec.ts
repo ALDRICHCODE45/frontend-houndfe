@@ -2,7 +2,7 @@
  * REQ-17 acceptance: variant catalog omission on create.
  *
  * Exercises ProductDetailView through REAL DOM interaction:
- *   - Toggles "Tiene variantes" switch via label-scoped [role="switch"]
+ *   - Toggles the "Tiene variantes" whole-row [role="switch"] found by its label
  *   - Clicks actual 'Agregar variante' button (found by text)
  *   - Fills actual UForm inputs (option USelect, value UInput, quantity UInputNumber)
  *   - USelect option: hidden select[name="option"], set value + bubbling native `input` (NOT change)
@@ -167,19 +167,16 @@ function findButtonByText(wrapper: ReturnType<typeof mountWithUApp>, text: strin
 }
 
 /**
- * Find the unique "Tiene variantes" switch through Nuxt UI's label contract.
+ * Find the unique "Tiene variantes" whole-row switch (HfSwitchRow) by its label.
  */
 function findTieneVariantesSwitch(root: ParentNode): HTMLElement | null {
-  const labels = Array.from(root.querySelectorAll('label[data-slot="label"]')).filter(
+  const labels = Array.from(root.querySelectorAll('.hf-switch-row__label')).filter(
     (label) => label.textContent?.trim() === 'Tiene variantes',
   )
   if (labels.length !== 1) return null
 
-  const targetId = labels[0]!.getAttribute('for')
-  if (!targetId) return null
-
-  const switchEl = document.getElementById(targetId)
-  return switchEl?.getAttribute('role') === 'switch' ? switchEl : null
+  const switchEl = labels[0]!.closest<HTMLElement>('[role="switch"]')
+  return switchEl?.getAttribute('aria-labelledby') === labels[0]!.id ? switchEl : null
 }
 
 // ── REQ-17: inline variant omit catalog keys (create mode) ────────────────────

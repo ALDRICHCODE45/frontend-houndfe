@@ -95,9 +95,17 @@ const previewOpen = ref(false)
         </div>
         <div>
           <dt>Margen</dt>
+          <!-- --hf-* inks: Nuxt text-success read 2.22:1 (T8 D7). -->
           <dd
             class="hf-figure"
-            :class="marginPercent == null ? 'text-muted' : marginPercent >= 0 ? 'text-success' : 'text-error'"
+            data-summary="margin"
+            :class="
+              marginPercent == null
+                ? 'text-(--hf-muted)'
+                : marginPercent >= 0
+                  ? 'text-(--hf-success)'
+                  : 'text-(--hf-danger)'
+            "
           >
             {{ marginPercent == null ? '—' : `${marginPercent}%` }}
           </dd>

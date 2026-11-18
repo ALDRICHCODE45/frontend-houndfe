@@ -195,14 +195,168 @@
   outline-offset: -2px;
 }
 
+/* ── Detail panels: shared section cards (HfSectionCard) ─────────────────── */
+
+/* The panels stack HfSectionCards 16px apart. The card's own padding (16px,
+ * 24px from md) is mirrored here so lists can run flush with its edges. */
+.employees-detail .employees-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.employees-detail .hf-section-card {
+  --employees-section-pad: 16px;
+  min-width: 0;
+  color: var(--hf-ink);
+}
+
+@media (min-width: 768px) {
+  .employees-detail .hf-section-card {
+    --employees-section-pad: 24px;
+  }
+}
+
+/* A heading with actions (Nuevo, Subir, the expiry window) wraps on phones
+ * instead of squeezing the title. */
+.employees-detail .hf-section-card__head {
+  flex-wrap: wrap;
+}
+
+.employees-detail .hf-section-card__meta {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.employees-detail .hf-section-card__meta :where(button, a) {
+  min-height: var(--hf-form-control);
+}
+
+/* Read-only pairs: label above value, two columns from md, long values span. */
+.employees-detail .employees-dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px 32px;
+  margin: 0;
+}
+
+@media (min-width: 768px) {
+  .employees-detail .employees-dl {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .employees-detail .employees-dl__wide {
+    grid-column: 1 / -1;
+  }
+}
+
+.employees-detail .employees-dl__item {
+  min-width: 0;
+}
+
+.employees-detail .employees-dl dt {
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+}
+
+.employees-detail .employees-dl dd {
+  margin: 4px 0 0;
+  color: var(--hf-ink);
+  font-size: 0.875rem;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.employees-detail .employees-dl .employees-dl__empty {
+  color: var(--hf-muted);
+  font-weight: 400;
+}
+
+/* Links inside a value: action color only on hover; the underline says link. */
+.employees-detail .employees-link {
+  color: var(--hf-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--hf-border);
+  text-underline-offset: 2px;
+}
+
+.employees-detail .employees-link:hover {
+  color: var(--hf-action);
+  text-decoration-color: currentColor;
+}
+
+.employees-detail .employees-link:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+/* Key figures (Resumen, vacation balance): one neutral row of numbers. The
+ * column count is the panel's (`grid-cols-*`): Resumen stacks on phones so no
+ * figure is left alone in a row; the four balance figures pair up. */
+.employees-detail .employees-figures {
+  display: grid;
+  gap: 16px 24px;
+  margin: 0;
+}
+
+.employees-detail .employees-figures dt {
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+}
+
+.employees-detail .employees-figure {
+  margin: 4px 0 0;
+  color: var(--hf-heading);
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Pending days: urgency tone, with the label beside it (never color alone). */
+.employees-detail .employees-figure.employees-figure--warning {
+  color: var(--hf-warning);
+}
+
+.employees-detail .employees-figure-note {
+  margin: 2px 0 0;
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+}
+
+/* Lists and timelines inside a section run edge to edge under a hairline. */
+.employees-detail .employees-section-list {
+  margin: 0 calc(-1 * var(--employees-section-pad)) calc(-1 * var(--employees-section-pad));
+  padding: 0;
+  border-top: 1px solid var(--hf-border);
+  list-style: none;
+}
+
+.employees-detail .employees-section-list > li {
+  padding: 12px var(--employees-section-pad);
+}
+
+.employees-detail .employees-section-list > li + li {
+  border-top: 1px solid var(--hf-border);
+}
+
+/* Skeleton bars of a section (color from the shared `hf-skeleton` wash). */
+.employees-detail .employees-section-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 /* Expiry window of the documents tab: a small pressed-state group. */
 .employees-detail .employees-threshold-group {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: 4px;
 }
 
 .employees-detail .employees-threshold {
-  min-height: 32px;
+  min-height: var(--hf-form-control);
   border: 1px solid var(--hf-border);
   border-radius: var(--hf-radius-control);
   padding: 0 12px;

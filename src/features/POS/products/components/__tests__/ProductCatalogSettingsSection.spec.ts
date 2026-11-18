@@ -1,5 +1,6 @@
 // ProductCatalogSettingsSection.spec.ts — U6 composition and interaction coverage.
 
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { DOMWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
@@ -30,11 +31,14 @@ const mountAttachedSection = (props: Record<string, unknown> = {}) =>
   })
 
 describe('ProductCatalogSettingsSection — advanced Catálogo online (REQ-14/REQ-15)', () => {
-  it('renders one card with visible title and control labels, without a purpose paragraph', () => {
+  it('renders one section card with visible title and control labels, without a purpose paragraph', () => {
     const wrapper = mountSection()
 
-    expect(wrapper.find('[data-testid="catalog-settings-section"]').exists()).toBe(true)
-    expect(wrapper.findAllComponents({ name: 'Card' })).toHaveLength(1)
+    const section = wrapper.find('[data-testid="catalog-settings-section"]')
+    expect(section.exists()).toBe(true)
+    expect(section.classes()).toContain('hf-section-card')
+    expect(wrapper.findAll('.hf-section-card')).toHaveLength(1)
+    expect(wrapper.findAllComponents({ name: 'Card' })).toHaveLength(0)
     expect(wrapper.text()).toContain('Catálogo online')
     expect(wrapper.text()).not.toContain('Controla la visibilidad de precios y stock')
     expect(wrapper.text()).toContain('Ocultar precios')
@@ -46,19 +50,23 @@ describe('ProductCatalogSettingsSection — advanced Catálogo online (REQ-14/RE
   it('shows the supportsAll indicator read-only only when the server reports it', () => {
     expect(mountSection().find('[data-testid="supports-all-note"]').exists()).toBe(false)
     const all = mountSection({ supportsAllCatalogPriceLists: true })
-    expect(all.find('[data-testid="supports-all-note"]').text()).toContain(
-      'Soporta todos los contextos públicos de la sucursal',
+    // T8 D10: «all» means no context is chosen (backend: empty list), so the note must
+    // explain the all-off rows instead of contradicting them.
+    const note = all.get('[data-testid="supports-all-note"]').text()
+    expect(note).toBe(
+      'Ningún contexto elegido: el producto se muestra en todos los contextos públicos de la sucursal. Enciende uno o más para limitarlo.',
     )
+    expect(note).not.toContain('Soporta todos')
   })
 
-  it('renders public contexts as a responsive grid and emits the per-ID toggle intent', async () => {
+  it('renders public contexts as one list of switch rows and emits the per-ID toggle intent', async () => {
     const wrapper = mountSection({ supportedCatalogPriceListIds: ['pl_a'] })
     const list = wrapper.find('[data-testid="context-list"]')
     const toggle = wrapper.find('[data-testid="context-toggle"]')
 
-    expect(list.classes()).toContain('grid')
-    expect(list.classes()).toContain('grid-cols-1')
-    expect(list.classes()).toContain('sm:grid-cols-2')
+    expect(list.element.tagName).toBe('UL')
+    expect(list.classes()).toContain('product-switch-list')
+    expect(list.classes()).not.toContain('sm:grid-cols-2')
     expect(list.find('li').classes()).toContain('min-w-0')
     expect(toggle.attributes('role')).toBe('switch')
     expect(toggle.attributes('aria-checked')).toBe('true')
@@ -83,7 +91,9 @@ describe('ProductCatalogSettingsSection — advanced Catálogo online (REQ-14/RE
     expect(rows[1]!.text()).toContain('Lista B')
     expect(rows[1]!.text()).not.toContain('Lista predeterminada del catálogo')
     expect(
-      wrapper.findAll('[data-testid="context-list"] label').map((label) => label.text()),
+      wrapper
+        .findAll('[data-testid="context-list"] .hf-switch-row__label')
+        .map((label) => label.text()),
     ).toEqual(['Lista A', 'Lista B'])
   })
 
@@ -101,7 +111,9 @@ describe('ProductCatalogSettingsSection — advanced Catálogo online (REQ-14/RE
     expect(wrapper.find('[data-testid="contexts-gated-note"]').text()).toContain(
       'Configura los contextos públicos de la sucursal en Sistema > Catálogo online para habilitar esta selección',
     )
-    expect(wrapper.find('[data-testid="hide-price-switch"]').attributes('disabled')).toBeUndefined()
+    expect(
+      wrapper.find('[data-testid="hide-price-switch"]').attributes('aria-disabled'),
+    ).toBeUndefined()
     expect(
       wrapper.find('[data-testid="stock-override-mode"]').attributes('disabled'),
     ).toBeUndefined()
@@ -131,7 +143,7 @@ describe('ProductCatalogSettingsSection — advanced Catálogo online (REQ-14/RE
       expect(selector.attributes('disabled')).toBeDefined()
       expect(selector.attributes('aria-label')).toBe('Contextos públicos no disponibles')
       expect(
-        wrapper.find('[data-testid="hide-price-switch"]').attributes('disabled'),
+        wrapper.find('[data-testid="hide-price-switch"]').attributes('aria-disabled'),
       ).toBeUndefined()
       expect(
         wrapper.find('[data-testid="stock-override-mode"]').attributes('disabled'),
@@ -151,7 +163,7 @@ describe('ProductCatalogSettingsSection — advanced Catálogo online (REQ-14/RE
     expect(selector.attributes('aria-label')).toBe('Contextos públicos no disponibles')
   })
 
-  it('emits toggle-hide-price via the rendered USwitch', async () => {
+  it('emits toggle-hide-price via the rendered switch row', async () => {
     const wrapper = mountSection({ hidePriceInOnlineCatalog: false })
 
     await wrapper.find('[data-testid="hide-price-switch"]').trigger('click')
@@ -183,10 +195,19 @@ describe('ProductCatalogSettingsSection — advanced Catálogo online (REQ-14/RE
       supportedCatalogPriceListIds: ['pl_a'],
     })
 
-    expect(wrapper.find('[data-testid="hide-price-switch"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-testid="hide-price-switch"]').attributes('aria-disabled')).toBe('true')
     expect(wrapper.find('[data-testid="stock-override-mode"]').attributes('disabled')).toBeDefined()
     expect(wrapper.find('[data-testid="stock-override-qty"]').attributes('disabled')).toBeDefined()
-    expect(wrapper.find('[data-testid="context-toggle"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-testid="context-toggle"]').attributes('aria-disabled')).toBe('true')
+  })
+
+  it('a disabled section never emits from its switch rows', async () => {
+    const wrapper = mountSection({ disabled: true, supportedCatalogPriceListIds: ['pl_a'] })
+
+    await wrapper.find('[data-testid="hide-price-switch"]').trigger('click')
+    await wrapper.find('[data-testid="context-toggle"]').trigger('click')
+    expect(wrapper.emitted('toggle-hide-price')).toBeUndefined()
+    expect(wrapper.emitted('toggle-context')).toBeUndefined()
   })
 
   it('previews the product-scope global inheritance when the stock override is null', () => {
@@ -252,5 +273,51 @@ describe('ProductCatalogSettingsSection — advanced Catálogo online (REQ-14/RE
         Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView')
       }
     }
+  })
+})
+
+// T6e (S1–S3): the section sits on the design system like its ProductDetailView siblings.
+describe('ProductCatalogSettingsSection — design system structure', () => {
+  const source = readFileSync(
+    'src/features/POS/products/components/ProductCatalogSettingsSection.vue',
+    'utf8',
+  )
+  const template = source.slice(source.indexOf('<template>'), source.lastIndexOf('</template>'))
+
+  it('has no UCard or USwitch left in its template', () => {
+    expect(template).not.toMatch(/<UCard\b/)
+    expect(template).not.toMatch(/<USwitch\b/)
+  })
+
+  it('titles the section card «Catálogo online» as a 16px/600 heading', () => {
+    const wrapper = mountSection()
+    expect(wrapper.get('.hf-section-card__title').text()).toBe('Catálogo online')
+    expect(wrapper.get('.hf-section-card__title').element.tagName).toBe('H2')
+  })
+
+  it('renders every on/off row as a whole-row switch with its label and description inside', () => {
+    const wrapper = mountSection({
+      contexts: [
+        { priceListId: 'pl_a', name: 'Lista A', isCatalogDefault: true },
+        { priceListId: 'pl_b', name: 'Lista B', isCatalogDefault: false },
+      ],
+    })
+    const switches = wrapper.findAll('[role="switch"]')
+    expect(switches.map((el) => el.get('.hf-switch-row__label').text())).toEqual([
+      'Ocultar precios',
+      'Lista A',
+      'Lista B',
+    ])
+    for (const el of switches) {
+      expect(el.element.tagName).toBe('BUTTON')
+      expect(el.classes()).toContain('hf-switch-row__button')
+    }
+    expect(switches[0]!.get('.hf-switch-row__desc').text()).toBe(
+      'Los precios no serán visibles en el catálogo en línea',
+    )
+  })
+
+  it('keeps no palette or Nuxt default color utilities in its template', () => {
+    expect(template).not.toMatch(/\b(?:text|bg|border)-(?:muted|default|highlighted|elevated)\b/)
   })
 })

@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 import SaleDetailTimeline from './SaleDetailTimeline.vue'
 import SaleCommentInput from './SaleCommentInput.vue'
 import type { SaleTimelineEvent } from '../interfaces/sale.types'
 
-// sale-detail-redesign WU-B: thin UCard wrapper that composes the existing
-// Timeline + CommentInput children. No new contracts; pass-through props only
+// sale-detail-redesign WU-B: thin section wrapper that composes the existing
+// Timeline + CommentInput children (T6c: the shared HfSectionCard; the composer
+// sits under a hairline instead of a separate card footer). No new contracts; pass-through props only
 // so the unified HISTORIAL card behaves identically to the previous
 // UTabs #comentarios panel.
 defineProps<{
@@ -23,13 +25,7 @@ defineProps<{
 </script>
 
 <template>
-  <UCard>
-    <template #header>
-      <h3 class="sale-detail-section-title">
-        <UIcon name="i-lucide-clock" class="size-4" />
-        Historial
-      </h3>
-    </template>
+  <HfSectionCard title="Historial">
 
     <SaleDetailTimeline
       :timeline="timeline"
@@ -39,12 +35,13 @@ defineProps<{
       :on-delete-comment="onDeleteComment"
     />
 
-    <template #footer>
+    <!-- SaleCommentInput brings its own 12px top margin: 4 + 12 = 16px under the hairline. -->
+    <div class="mt-4 border-t border-(--hf-border) pt-1">
       <SaleCommentInput
         :is-pending="commentsPending"
         :portal-class="portalClass"
         :on-submit="onSubmitComment"
       />
-    </template>
-  </UCard>
+    </div>
+  </HfSectionCard>
 </template>

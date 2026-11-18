@@ -28,6 +28,7 @@ import type {
 export const ACTION_REGISTRY: readonly ModuleDescriptor[] = [
   {
     moduleKey: 'pos',
+    icon: 'i-lucide-shopping-cart',
     moduleLabel: 'Punto de venta',
     actions: [
       {
@@ -39,16 +40,21 @@ export const ACTION_REGISTRY: readonly ModuleDescriptor[] = [
   },
   {
     moduleKey: 'hr',
+    icon: 'i-lucide-briefcase',
     moduleLabel: 'Recursos humanos',
     actions: [
       {
         key: 'TIME_OFF_REQUESTED',
         label: 'Solicitud de validación',
+        // Proposed copy from design/notification-config/01 (owner-approved).
+        description:
+          'Envía un correo cuando alguien del equipo pide días libres y espera que los apruebes.',
       },
     ],
   },
   {
     moduleKey: 'delivery',
+    icon: 'i-lucide-truck',
     moduleLabel: 'Entregas',
     actions: [
       {
@@ -66,6 +72,7 @@ export const ACTION_REGISTRY: readonly ModuleDescriptor[] = [
     // members of the backend enum. The group is NOT part of the PUT body —
     // they are sent as individual keys inside `enabledActions`.
     moduleKey: 'promotions',
+    icon: 'i-lucide-tag',
     moduleLabel: 'Promociones',
     actions: [
       {

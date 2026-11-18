@@ -17,12 +17,6 @@ vi.mock('../../composables/usePromotionTargetNames', () => ({
   usePromotionTargetNames: () => ({ resolveTargetNames: vi.fn() }),
 }))
 
-const Switch = {
-  props: ['modelValue', 'disabled', 'label'],
-  emits: ['update:modelValue'],
-  template:
-    '<label>{{ label }}<input role="switch" type="checkbox" :checked="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.checked)" /></label>',
-}
 const stubs = {
   UCard: { template: '<div><slot name="header" /><slot /></div>' },
   UForm: {
@@ -34,8 +28,6 @@ const stubs = {
     props: ['name', 'label', 'description'],
     template: '<div :data-field="name">{{ label }}<slot />{{ description }}</div>',
   },
-  USwitch: Switch,
-  Switch,
   UInput: true,
   UInputNumber: true,
   USelect: true,
@@ -81,8 +73,11 @@ function mountForm({
   mounted.push({ wrapper, queryClient })
   return { wrapper, queryClient }
 }
+// T6d/S1: the WhatsApp option is a whole-row HfSwitchRow (rendered for real).
 const botSwitch = (wrapper: ReturnType<typeof mountForm>['wrapper']) =>
-  wrapper.get('input[role="switch"]')
+  wrapper.get('[role="switch"][data-testid="bot-eligible-switch"]')
+const isDisabled = (wrapper: ReturnType<typeof mountForm>['wrapper']) =>
+  botSwitch(wrapper).attributes('aria-disabled') === 'true'
 async function submitted(wrapper: ReturnType<typeof mountForm>['wrapper']) {
   await wrapper.get('form').trigger('submit')
   const events = wrapper.emitted('submit')!
@@ -98,30 +93,52 @@ beforeEach(() => {
 })
 
 describe('PromotionForm WhatsApp switch', () => {
+  it('is a whole-row switch: label and reason are one target, off by default in create', async () => {
+    const { wrapper } = mountForm({ mode: 'create', rules: [] })
+    const row = botSwitch(wrapper)
+    expect(row.element.tagName).toBe('BUTTON')
+    expect(row.attributes('aria-checked')).toBe('false')
+    expect(row.text()).toContain('Disponible para el chatbot (WhatsApp)')
+    expect(row.text()).toContain('No hay combinaciones disponibles')
+    await row.trigger('click')
+    expect(row.attributes('aria-checked')).toBe('false')
+    expect((await submitted(wrapper)).botEligible).toBe(false)
+  })
+  it('turns off with a second click and submits false', async () => {
+    const { wrapper } = mountForm({ mode: 'create' })
+    await botSwitch(wrapper).trigger('click')
+    expect(botSwitch(wrapper).attributes('aria-checked')).toBe('true')
+    await botSwitch(wrapper).trigger('click')
+    expect((await submitted(wrapper)).botEligible).toBe(false)
+  })
   it.each(['create', 'edit'] as const)(
     'enables matching combinations in %s and submits the selection',
     async (mode) => {
       const { wrapper } = mountForm({ mode })
       expect(wrapper.text()).toContain('Disponible para el chatbot (WhatsApp)')
-      expect(botSwitch(wrapper).attributes('disabled')).toBeUndefined()
-      await botSwitch(wrapper).setValue(true)
+      expect(isDisabled(wrapper)).toBe(false)
+      // Create starts off; edit hydrates the saved true. A click toggles the row.
+      const saved = mode === 'edit'
+      expect(botSwitch(wrapper).attributes('aria-checked')).toBe(String(saved))
+      if (!saved) await botSwitch(wrapper).trigger('click')
+      expect(botSwitch(wrapper).attributes('aria-checked')).toBe('true')
       expect((await submitted(wrapper)).botEligible).toBe(true)
     },
   )
   it('disables unsupported combinations with their reason', () => {
     const { wrapper } = mountForm({ mode: 'create', rules: [] })
-    expect(botSwitch(wrapper).attributes('disabled')).toBeDefined()
+    expect(isDisabled(wrapper)).toBe(true)
     expect(wrapper.text()).toContain('No hay combinaciones disponibles')
   })
   it('reacts to method changes and does not automatically re-enable the value', async () => {
     const { wrapper } = mountForm({ mode: 'create' })
-    await botSwitch(wrapper).setValue(true)
-    await wrapper.get('[data-testid="method-card-MANUAL"]').trigger('click')
-    expect(botSwitch(wrapper).attributes('disabled')).toBeDefined()
+    await botSwitch(wrapper).trigger('click')
+    await wrapper.get('[role="radio"][data-value="MANUAL"]').trigger('click')
+    expect(isDisabled(wrapper)).toBe(true)
     expect(wrapper.get('[role="status"]').text()).toMatch(/Se desactivó.*método.*Manual/i)
     expect((await submitted(wrapper)).botEligible).toBe(false)
-    await wrapper.get('[data-testid="method-card-AUTOMATIC"]').trigger('click')
-    expect(botSwitch(wrapper).attributes('disabled')).toBeUndefined()
+    await wrapper.get('[role="radio"][data-value="AUTOMATIC"]').trigger('click')
+    expect(isDisabled(wrapper)).toBe(false)
     expect((await submitted(wrapper)).botEligible).toBe(false)
   })
   it.each([
@@ -135,7 +152,7 @@ describe('PromotionForm WhatsApp switch', () => {
       const conditions = wrapper.getComponent({ name: 'PromotionConditionsSection' })
       conditions.vm.$emit('update:modelValue', { ...conditions.props('modelValue'), ...patch })
       await flushPromises()
-      expect(botSwitch(wrapper).attributes('disabled')).toBeDefined()
+      expect(isDisabled(wrapper)).toBe(true)
       expect(wrapper.get('[role="status"]').text()).toContain('Se desactivó')
       expect(await submitted(wrapper)).toMatchObject({ ...patch, botEligible: false })
     },
@@ -150,7 +167,7 @@ describe('PromotionForm WhatsApp switch', () => {
     expect((await submitted(wrapper)).botEligible).toBe(false)
     await wrapper.setProps({ initialData: botPromotion() })
     expect((await submitted(wrapper)).botEligible).toBe(true)
-    expect(botSwitch(wrapper).attributes('disabled')).toBeUndefined()
+    expect(isDisabled(wrapper)).toBe(false)
   })
   it('keeps saved true while loading, then evaluates after capabilities arrive', async () => {
     let resolve!: (value: { rules: BotEligibilityRule[] }) => void
@@ -161,7 +178,7 @@ describe('PromotionForm WhatsApp switch', () => {
         }),
     )
     const { wrapper } = mountForm({ pending: true })
-    expect(botSwitch(wrapper).attributes('disabled')).toBeDefined()
+    expect(isDisabled(wrapper)).toBe(true)
     expect(wrapper.text()).toContain('Consultando disponibilidad')
     expect((await submitted(wrapper)).botEligible).toBe(true)
     resolve({ rules: [] })
@@ -189,7 +206,7 @@ describe('PromotionForm WhatsApp switch', () => {
     const { wrapper, queryClient } = mountForm({ pending: true })
     await flushPromises()
     expect(wrapper.text()).toContain('No se pudo consultar')
-    expect(botSwitch(wrapper).attributes('disabled')).toBeDefined()
+    expect(isDisabled(wrapper)).toBe(true)
     expect((await submitted(wrapper)).botEligible).toBe(true)
     queryClient.setQueryData(promotionQueryKeys.botEligibilityCapabilities(tenant.value), {
       rules: [botRule],

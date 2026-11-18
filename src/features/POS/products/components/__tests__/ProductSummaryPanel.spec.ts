@@ -69,8 +69,21 @@ describe('ProductSummaryPanel', () => {
     expect(unknown.text()).toContain('—')
     unknown.unmount()
     const negative = mount(ProductSummaryPanel, { props: { ...props, marginPercent: -5 } })
-    expect(negative.find('.text-error').exists()).toBe(true)
+    expect(negative.get('[data-summary="margin"]').classes()).toContain('text-(--hf-danger)')
     negative.unmount()
+  })
+
+  // T8 D7: Nuxt `text-success` read 2.22:1; the margin uses the --hf-* inks (≥ 4.5:1 light and dark).
+  it('paints the margin with the --hf-success / --hf-danger / --hf-muted inks, never the Nuxt palette', () => {
+    const positive = mount(ProductSummaryPanel, { props })
+    const margin = positive.get('[data-summary="margin"]')
+    expect(margin.text()).toBe('38%')
+    expect(margin.classes()).toContain('text-(--hf-success)')
+    expect(margin.classes()).not.toContain('text-success')
+    positive.unmount()
+    const unknown = mount(ProductSummaryPanel, { props: { ...props, marginPercent: null } })
+    expect(unknown.get('[data-summary="margin"]').classes()).toContain('text-(--hf-muted)')
+    unknown.unmount()
   })
 
   it('speaks each checklist item state and keeps no permanent help paragraph', () => {

@@ -1,68 +1,38 @@
 <script setup lang="ts">
 /**
- * MasterToggle — USwitch wrapper for the master "Notificaciones" toggle.
- *
- * Thin component: takes a boolean model + optional label/description,
- * renders USwitch + a StatusBadge with the "Activadas"/"Desactivadas" copy.
+ * MasterToggle — the master «Notificaciones por correo» switch as a whole-row
+ * switch (HfSwitchRow, docs/design-system.md §Selección sin checkboxes) with
+ * the Activadas / Desactivadas state word (artboard notification-config/01).
  *
  * Props ↓ / Events ↑:
- *   - modelValue:   boolean
- *   - disabled?:    boolean — when true the switch is greyed
- *   - label?:       string — switch label text (default "Notificaciones")
- *   - description?: string — optional sub-text under the label (none by default)
+ *   - modelValue: boolean
+ *   - disabled?:  no update permission → `aria-disabled`, still focusable
  *   - Emits @update:modelValue with the next boolean
- *
- * Badge copy + tone live in `masterToggleState.ts` so the spec strings
- * are testable without mounting the component.
  */
 import { computed } from 'vue'
-import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { HfSwitchRow } from '@/core/shared/components/selection'
 import { computeMasterBadgeState } from './masterToggleState'
+import { NOTIFICATION_CONFIG_COPY } from '../copy'
 
-const props = withDefaults(
-  defineProps<{
-    modelValue: boolean
-    disabled?: boolean
-    label?: string
-    description?: string
-  }>(),
-  {
-    disabled: false,
-    label: 'Notificaciones',
-    description: undefined,
-  },
-)
+const props = withDefaults(defineProps<{ modelValue: boolean; disabled?: boolean }>(), {
+  disabled: false,
+})
 
-const emit = defineEmits<{
-  'update:modelValue': [value: boolean]
-}>()
+const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 
-const badge = computed(() => computeMasterBadgeState(props.modelValue))
-
-function onUpdate(next: boolean) {
-  emit('update:modelValue', next)
-}
+const stateWord = computed(() => computeMasterBadgeState(props.modelValue).label)
 </script>
 
 <template>
-  <div
-    class="flex items-center justify-between gap-4"
-    data-testid="master-toggle"
-    :data-enabled="modelValue"
-  >
-    <div class="flex flex-col gap-1">
-      <USwitch
-        :model-value="modelValue"
-        :disabled="disabled"
-        :label="label"
-        :description="description"
-        @update:model-value="onUpdate"
-      />
-    </div>
-    <StatusBadge
-      :label="badge.label"
-      :tone="badge.tone"
-      data-testid="master-toggle-badge"
+  <div class="nc-master" data-testid="master-toggle" :data-enabled="modelValue">
+    <HfSwitchRow
+      :model-value="modelValue"
+      :label="NOTIFICATION_CONFIG_COPY.masterLabel"
+      :description="NOTIFICATION_CONFIG_COPY.masterDescription"
+      :on-label="stateWord"
+      :off-label="stateWord"
+      :disabled="disabled"
+      @update:model-value="(value: boolean) => emit('update:modelValue', value)"
     />
   </div>
 </template>

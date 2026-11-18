@@ -137,4 +137,42 @@ describe('PromotionSummaryCard component', () => {
     })
     expect(wrapper.text()).toContain('15%')
   })
+
+  // T6d/S2: the summary is a design-system section card, not a UCard.
+  it('is an HfSectionCard titled «Resumen» that keeps the sticky rail at lg only', () => {
+    const wrapper = mount(PromotionSummaryCard, {
+      props: { formState: makeState({ method: 'AUTOMATIC' }) },
+      global: { stubs: { UIcon: { template: '<span />' } } },
+    })
+    const card = wrapper.get('section.hf-section-card')
+    expect(card.attributes('data-testid')).toBe('summary-card')
+    // T8 D5: below lg the card follows the form in the stacked column, so it is not sticky there.
+    expect(card.classes()).toEqual(expect.arrayContaining(['lg:sticky', 'lg:top-6']))
+    expect(card.classes()).not.toContain('sticky')
+    expect(card.get('.hf-section-card__title').text()).toBe('Resumen')
+    expect(card.attributes('aria-labelledby')).toBe(card.get('.hf-section-card__title').attributes('id'))
+  })
+
+  // T8 D10: the summary names the price-list condition too.
+  it.each([
+    [['pl-1'], 'Solo con 1 lista de precio'],
+    [['pl-1', 'pl-2'], 'Solo con 2 listas de precio'],
+  ])('includes the price-list condition for %j', (priceListIds, text) => {
+    const wrapper = mount(PromotionSummaryCard, {
+      props: { formState: makeState({ hasPriceLists: true, priceListIds }) },
+      global: { stubs: STUBS },
+    })
+    expect(wrapper.findAll('.promotions-summary-item').map((item) => item.text())).toContain(text)
+  })
+
+  it('omits the price-list condition while it is off or has no list chosen', () => {
+    for (const patch of [{ hasPriceLists: false, priceListIds: ['pl-1'] }, { hasPriceLists: true, priceListIds: [] }]) {
+      const wrapper = mount(PromotionSummaryCard, {
+        props: { formState: makeState(patch) },
+        global: { stubs: STUBS },
+      })
+      expect(wrapper.text()).not.toContain('lista de precio')
+      expect(wrapper.text()).not.toContain('listas de precio')
+    }
+  })
 })

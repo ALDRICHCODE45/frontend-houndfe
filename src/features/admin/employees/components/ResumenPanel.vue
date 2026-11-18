@@ -9,7 +9,8 @@
  *     The department is already in the detail header, so it is not repeated.
  *   - "Reporta a" section — manager with neutral avatar, name, position + department subtitle
  *
- * Figures are neutral (color is for status): muted label, semibold value.
+ * Figures are neutral (color is for status): muted label, semibold value,
+ * grouped in one section card (no card per figure).
  * Salary display guarded by hasSalary() — never renders undefined as "0".
  */
 
@@ -20,6 +21,7 @@ import { computeSeniority, formatHireDate } from '../composables/useEmployeeColu
 import type { Employee } from '../interfaces/employee.types'
 import type { ManagerInfo } from '../composables/useManagerResolution'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
+import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 
 const props = defineProps<{
   employee: Employee
@@ -47,61 +49,58 @@ const managerSubtitle = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
-    <!-- Key figures -->
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3" data-testid="employee-stat-grid">
-      <UCard class="employees-detail-section" :ui="{ body: 'p-4 sm:p-4' }">
-        <p class="text-sm text-muted">Antigüedad</p>
-        <p class="hf-figure mt-1 text-2xl font-semibold text-highlighted">{{ seniority }}</p>
-        <p class="text-sm text-muted">Desde {{ hireDateFormatted }}</p>
-      </UCard>
-
-      <!-- Current salary — only when canReadSalary and hasSalary -->
-      <UCard
-        v-if="canReadSalary && hasSalary(employee)"
-        class="employees-detail-section"
-        :ui="{ body: 'p-4 sm:p-4' }"
+  <div class="employees-panel">
+    <!-- Key figures: one section, the figures side by side -->
+    <HfSectionCard title="Vista rápida" :heading-level="2">
+      <dl
+        class="employees-figures grid-cols-1"
+        :class="canReadSalary && hasSalary(employee) ? 'sm:grid-cols-3' : 'sm:grid-cols-2'"
+        data-testid="employee-stat-grid"
       >
-        <p class="text-sm text-muted">Sueldo actual</p>
-        <p class="hf-figure mt-1 text-2xl font-semibold text-highlighted">{{ salaryDisplay }}</p>
-        <p class="text-sm text-muted">{{ employee.currentSalaryCurrency }}</p>
-      </UCard>
+        <div>
+          <dt>Antigüedad</dt>
+          <dd class="employees-figure hf-figure">{{ seniority }}</dd>
+          <dd class="employees-figure-note">Desde {{ hireDateFormatted }}</dd>
+        </div>
 
-      <UCard class="employees-detail-section" :ui="{ body: 'p-4 sm:p-4' }">
-        <p class="text-sm text-muted">Vacaciones</p>
-        <p class="hf-figure mt-1 text-2xl font-semibold text-highlighted">
-          {{ employee.annualVacationDays ?? '—' }}
-        </p>
-        <p class="text-sm text-muted">días al año</p>
-      </UCard>
-    </div>
+        <!-- Current salary — only when canReadSalary and hasSalary -->
+        <div v-if="canReadSalary && hasSalary(employee)">
+          <dt>Sueldo actual</dt>
+          <dd class="employees-figure hf-figure">{{ salaryDisplay }}</dd>
+          <dd class="employees-figure-note">{{ employee.currentSalaryCurrency }}</dd>
+        </div>
+
+        <div>
+          <dt>Vacaciones</dt>
+          <dd class="employees-figure hf-figure">{{ employee.annualVacationDays ?? '—' }}</dd>
+          <dd class="employees-figure-note">días al año</dd>
+        </div>
+      </dl>
+    </HfSectionCard>
 
     <!-- Manager section -->
-    <UCard class="employees-detail-section" :ui="{ body: 'p-5 sm:p-5' }">
-      <h2 class="mb-4 text-base font-semibold text-highlighted">Reporta a</h2>
-
+    <HfSectionCard title="Reporta a" :heading-level="2">
       <div v-if="managerDisplay !== '—' && managerDisplay" class="flex items-center gap-4">
         <EntityAvatar :name="managerDisplay" size="lg" aria-hidden="true" />
         <div class="min-w-0 flex-1">
           <p class="font-semibold text-highlighted">{{ managerDisplay }}</p>
           <p v-if="managerSubtitle" class="text-sm text-muted">{{ managerSubtitle }}</p>
-          <p v-if="managerInfo?.email" class="text-sm text-muted">{{ managerInfo.email }}</p>
+          <p v-if="managerInfo?.email" class="break-all text-sm text-muted">{{ managerInfo.email }}</p>
         </div>
       </div>
 
       <p v-else class="text-sm text-muted">Sin jefe directo</p>
-    </UCard>
+    </HfSectionCard>
 
     <!-- Responsibilities -->
-    <UCard
+    <HfSectionCard
       v-if="employee.currentResponsibilities"
-      class="employees-detail-section"
-      :ui="{ body: 'p-5 sm:p-5' }"
+      title="Responsabilidades"
+      :heading-level="2"
     >
-      <h2 class="mb-3 text-base font-semibold text-highlighted">Responsabilidades</h2>
       <p class="whitespace-pre-wrap text-sm leading-relaxed text-default">
         {{ employee.currentResponsibilities }}
       </p>
-    </UCard>
+    </HfSectionCard>
   </div>
 </template>

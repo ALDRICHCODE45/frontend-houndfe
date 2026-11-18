@@ -659,9 +659,11 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       expect(catalogHeading).toBeDefined()
       expect(variantsHeading).toBeDefined()
 
-      const inventoryCard = inventoryHeading!.element.closest('[data-slot="root"]')
-      const catalogCard = catalogHeading!.element.closest('[data-slot="root"]')
-      const variantsCard = variantsHeading!.element.closest('[data-slot="root"]')
+      // The view's own groups are HfSectionCard sections; the catalog section is its own UCard.
+      const card = '.hf-section-card, [data-slot="root"]'
+      const inventoryCard = inventoryHeading!.element.closest(card)
+      const catalogCard = catalogHeading!.element.closest(card)
+      const variantsCard = variantsHeading!.element.closest(card)
 
       expect(inventoryCard).toBeTruthy()
       expect(catalogCard).toBeTruthy()

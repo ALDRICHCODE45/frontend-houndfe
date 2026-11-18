@@ -12,7 +12,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-import { defineComponent, h, nextTick } from 'vue'
+import { nextTick } from 'vue'
 import FlatChecklistPanel from '../FlatChecklistPanel.vue'
 import type { PromotionTargetItemFormEntry } from '../../../interfaces/promotion.types'
 
@@ -29,21 +29,6 @@ const STUBS = {
   UIcon: {
     template: '<span />',
   },
-  UCheckbox: defineComponent({
-    name: 'UCheckbox',
-    props: { modelValue: { default: false } },
-    emits: ['update:modelValue'],
-    setup(props, { emit }) {
-      return () =>
-        h('input', {
-          type: 'checkbox',
-          'data-testid': 'checklist-checkbox',
-          checked: props.modelValue,
-          onChange: (e: Event) =>
-            emit('update:modelValue', (e.target as HTMLInputElement).checked),
-        })
-    },
-  }),
 }
 
 // ── productApi mocks ─────────────────────────────────────────────────────────
@@ -123,9 +108,9 @@ describe('FlatChecklistPanel', () => {
     const wrapper = mountPanel({ dataSource: 'CATEGORIES' })
     await flushPromises()
 
-    const firstRowButton = wrapper.find('[data-testid="checklist-row-button"]')
-    expect(firstRowButton.exists()).toBe(true)
-    await firstRowButton.trigger('click')
+    const firstRow = wrapper.find('[role="option"]')
+    expect(firstRow.exists()).toBe(true)
+    await firstRow.trigger('click')
     await nextTick()
 
     const emitted = wrapper.emitted('update:staged') as [
@@ -146,8 +131,7 @@ describe('FlatChecklistPanel', () => {
     })
     await flushPromises()
 
-    const rowButton = wrapper.find('[data-testid="checklist-row-button"]')
-    await rowButton.trigger('click')
+    await wrapper.get('[role="option"]').trigger('click')
     await nextTick()
 
     const emitted = wrapper.emitted('update:staged') as [
@@ -311,8 +295,7 @@ describe('FlatChecklistPanel', () => {
     const wrapper = mountPanel({ dataSource: 'PRODUCTS' })
     await flushPromises()
 
-    const rowButton = wrapper.find('[data-testid="checklist-row-button"]')
-    await rowButton.trigger('click')
+    await wrapper.get('[role="option"]').trigger('click')
     await nextTick()
 
     const emitted = wrapper.emitted('update:staged') as [
@@ -338,13 +321,61 @@ describe('FlatChecklistPanel', () => {
     })
     await flushPromises()
 
-    // Both rows rendered; the staged one is marked as checked. Nuxt UI's
-    // UCheckbox renders a <button role="checkbox">, so we query by role +
-    // aria-checked (its native checked-state attribute).
-    const checkboxes = wrapper.findAll('[role="checkbox"]')
-    expect(checkboxes.length).toBe(2)
-    // The first row (c1) is checked, the second is not.
-    expect(checkboxes[0]!.attributes('aria-checked')).toBe('true')
-    expect(checkboxes[1]!.attributes('aria-checked')).toBe('false')
+    // Both rows rendered as listbox options; the staged one is selected.
+    const options = wrapper.findAll('[role="option"]')
+    expect(options.length).toBe(2)
+    expect(options[0]!.attributes('aria-selected')).toBe('true')
+    expect(options[1]!.attributes('aria-selected')).toBe('false')
+  })
+
+  // ── Selección sin checkboxes (T4b, S1) ────────────────────────────────────
+
+  it('renders the rows as a multiselect listbox with marks, never a checkbox', async () => {
+    getCategoriesMock.mockResolvedValue([
+      { id: 'c1', name: 'Camisetas' },
+      { id: 'c2', name: 'Pantalones' },
+    ])
+    const wrapper = mountPanel({
+      dataSource: 'CATEGORIES',
+      staged: [{ targetId: 'c1', name: 'Camisetas' }],
+    })
+    await flushPromises()
+
+    const listbox = wrapper.get('[role="listbox"]')
+    expect(listbox.attributes('aria-multiselectable')).toBe('true')
+    expect(listbox.attributes('aria-label')).toBe('Categorías')
+    expect(wrapper.findAll('[role="checkbox"], input[type="checkbox"]')).toHaveLength(0)
+    expect(wrapper.text()).toContain('1 categoría seleccionada')
+  })
+
+  it('Space on a focused row toggles it like a click', async () => {
+    getBrandsMock.mockResolvedValue([{ id: 'b1', name: 'Nike' }])
+    const wrapper = mountPanel({ dataSource: 'BRANDS' })
+    await flushPromises()
+
+    await wrapper.get('[role="option"]').trigger('keydown', { key: ' ' })
+    const emitted = wrapper.emitted('update:staged') as [PromotionTargetItemFormEntry[]][]
+    expect(emitted[emitted.length - 1]![0]).toEqual([{ targetId: 'b1', name: 'Nike' }])
+  })
+
+  it('keeps staged entries hidden by the search, in order, when another row is toggled', async () => {
+    getCategoriesMock.mockResolvedValue([
+      { id: 'c1', name: 'Camisetas' },
+      { id: 'c2', name: 'Pantalones' },
+    ])
+    const wrapper = mountPanel({
+      dataSource: 'CATEGORIES',
+      staged: [{ targetId: 'c2', name: 'Pantalones' }],
+    })
+    await flushPromises()
+    await wrapper.get('input[data-testid="checklist-search"]').setValue('cami')
+    await nextTick()
+
+    await wrapper.get('[role="option"][data-value="c1"]').trigger('click')
+    const emitted = wrapper.emitted('update:staged') as [PromotionTargetItemFormEntry[]][]
+    expect(emitted[emitted.length - 1]![0]).toEqual([
+      { targetId: 'c2', name: 'Pantalones' },
+      { targetId: 'c1', name: 'Camisetas' },
+    ])
   })
 })

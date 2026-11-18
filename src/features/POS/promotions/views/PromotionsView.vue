@@ -733,13 +733,17 @@ defineExpose({
             />
           </template>
 
-          <!-- ── Selection checkboxes ───────────────────────────────────── -->
+          <!-- ── Selection row marks ──────────────────────────────────────── -->
           <template #select-header="{ table }">
-            <SelectColumn mode="header" :table="table" />
+            <SelectColumn mode="header" :table="table" header-label="Seleccionar todas las promociones" />
           </template>
 
           <template #select-cell="{ row }">
-            <SelectColumn mode="cell" :row="row" />
+            <SelectColumn
+              mode="cell"
+              :row="row"
+              :label="(p: { title?: string }) => `Seleccionar ${p.title ?? 'promoción'}`"
+            />
           </template>
 
           <!-- ── Sortable headers ───────────────────────────────────────── -->

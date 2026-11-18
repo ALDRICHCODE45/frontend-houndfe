@@ -33,6 +33,7 @@ import { computed, reactive, ref } from 'vue'
 import DateFieldPopover from '@/features/POS/sales/components/DateFieldPopover.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
+import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { EMPLOYEE_DOCUMENT_CATEGORY } from '../constants/employee.constants'
@@ -220,41 +221,37 @@ function onRowAction(key: string, entry: { id: string; title: string }): void {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
+  <div class="employees-panel">
 
     <!-- ── Documentos adjuntos ──────────────────────────────────────────────── -->
-    <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
-      <div class="flex items-center justify-between gap-3 border-b border-default px-5 py-4">
-        <h2 class="text-base font-semibold text-highlighted">
-          Documentos adjuntos
-          <span v-if="documentEntries.length > 0" class="font-normal text-muted">
-            · {{ documentEntries.length }}
-          </span>
-        </h2>
+    <HfSectionCard title="Documentos adjuntos" :heading-level="2">
+      <template v-if="documentEntries.length > 0 || canCreate" #meta>
+        <span v-if="documentEntries.length > 0">
+          {{ documentEntries.length }} {{ documentEntries.length === 1 ? 'archivo' : 'archivos' }}
+        </span>
         <UButton
           v-if="canCreate"
           icon="i-lucide-upload"
-          size="sm"
           variant="outline"
           color="neutral"
           label="Subir"
           @click="isUploadOpen = true"
         />
-      </div>
+      </template>
 
       <!-- Loading -->
       <div
         v-if="isLoading"
-        class="flex flex-col gap-3 px-5 py-6"
+        class="employees-section-skeleton"
         aria-busy="true"
         data-testid="documents-skeleton"
       >
         <span class="sr-only">Cargando</span>
-        <div v-for="i in 3" :key="i" class="h-16 animate-pulse rounded-lg bg-(--hf-surface-muted)" aria-hidden="true" />
+        <div v-for="i in 3" :key="i" class="hf-skeleton h-16 animate-pulse rounded-lg" aria-hidden="true" />
       </div>
 
       <!-- Error -->
-      <div v-else-if="isError" class="p-5" data-testid="documents-error">
+      <div v-else-if="isError" data-testid="documents-error">
         <EmptyState
           kind="error"
           title="No se pudieron cargar los documentos"
@@ -265,7 +262,7 @@ function onRowAction(key: string, entry: { id: string; title: string }): void {
       </div>
 
       <!-- Empty -->
-      <div v-else-if="documentEntries.length === 0" class="p-5" data-testid="documents-empty">
+      <div v-else-if="documentEntries.length === 0" data-testid="documents-empty">
         <EmptyState
           title="Aún no hay documentos"
           description="Aquí aparecerán los archivos del colaborador."
@@ -274,11 +271,11 @@ function onRowAction(key: string, entry: { id: string; title: string }): void {
       </div>
 
       <!-- Document list -->
-      <ul v-else class="divide-y divide-default">
+      <ul v-else class="employees-section-list">
         <li
           v-for="entry in documentEntries"
           :key="entry.id"
-          class="flex items-center gap-3 px-5 py-3"
+          class="flex items-center gap-3"
           data-testid="document-row"
         >
           <div class="min-w-0 flex-1">
@@ -317,12 +314,11 @@ function onRowAction(key: string, entry: { id: string; title: string }): void {
           />
         </li>
       </ul>
-    </UCard>
+    </HfSectionCard>
 
     <!-- ── Vencimientos ─────────────────────────────────────────────────────── -->
-    <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
-      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-default px-5 py-4">
-        <h2 class="text-base font-semibold text-highlighted">Vencimientos</h2>
+    <HfSectionCard title="Vencimientos" :heading-level="2">
+      <template #meta>
         <div class="employees-threshold-group" role="group" aria-label="Ventana de vencimiento">
           <button
             v-for="days in THRESHOLD_OPTIONS"
@@ -335,21 +331,21 @@ function onRowAction(key: string, entry: { id: string; title: string }): void {
             {{ computeExpiringThresholdLabel(days) }}
           </button>
         </div>
-      </div>
+      </template>
 
       <!-- Loading -->
       <div
         v-if="isLoading"
-        class="flex flex-col gap-3 px-5 py-6"
+        class="employees-section-skeleton"
         aria-busy="true"
         data-testid="expirations-skeleton"
       >
         <span class="sr-only">Cargando</span>
-        <div v-for="i in 2" :key="i" class="h-14 animate-pulse rounded-lg bg-(--hf-surface-muted)" aria-hidden="true" />
+        <div v-for="i in 2" :key="i" class="hf-skeleton h-14 animate-pulse rounded-lg" aria-hidden="true" />
       </div>
 
       <!-- Error -->
-      <div v-else-if="isError" class="p-5" data-testid="expirations-error">
+      <div v-else-if="isError" data-testid="expirations-error">
         <EmptyState
           kind="error"
           title="No se pudieron cargar los vencimientos"
@@ -360,7 +356,7 @@ function onRowAction(key: string, entry: { id: string; title: string }): void {
       </div>
 
       <!-- Empty -->
-      <div v-else-if="expiringEntries.length === 0" class="p-5" data-testid="expirations-empty">
+      <div v-else-if="expiringEntries.length === 0" data-testid="expirations-empty">
         <EmptyState
           title="Sin vencimientos próximos"
           :description="computeExpiringThresholdLabel(selectedThreshold)"
@@ -369,11 +365,11 @@ function onRowAction(key: string, entry: { id: string; title: string }): void {
       </div>
 
       <!-- Expiring docs: pending items that need action -->
-      <ul v-else class="divide-y divide-default">
+      <ul v-else class="employees-section-list">
         <li
           v-for="entry in expiringEntries"
           :key="entry.id"
-          class="flex flex-wrap items-center justify-between gap-2 px-5 py-3"
+          class="flex flex-wrap items-center justify-between gap-2"
           data-testid="expiring-row"
         >
           <div class="min-w-0">
@@ -387,7 +383,7 @@ function onRowAction(key: string, entry: { id: string; title: string }): void {
           />
         </li>
       </ul>
-    </UCard>
+    </HfSectionCard>
 
   </div>
 

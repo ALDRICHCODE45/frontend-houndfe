@@ -3,6 +3,7 @@
  * main photo plus a strip, and its states: with images, empty, dragging over,
  * uploading, a failed file, read-only and load error.
  */
+import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { flushPromises } from '@vue/test-utils'
@@ -267,5 +268,30 @@ describe('ProductImageGallery states', () => {
 
     await chips[3]!.trigger('click')
     expect(wrapper.text()).toContain('L aún no tiene fotos propias')
+  })
+})
+
+// T6e (S2–S3): «Imágenes» is a design-system section card like its siblings.
+describe('ProductImageGallery — design system structure', () => {
+  const source = readFileSync('src/features/POS/products/components/ProductImageGallery.vue', 'utf8')
+  const template = source.slice(source.indexOf('<template>'), source.lastIndexOf('</template>'))
+
+  it('has no UCard left in its template', () => {
+    expect(template).not.toMatch(/<UCard\b/)
+  })
+
+  it('is one section card titled «Imágenes» with the count beside the title, inside the drop zone', async () => {
+    api.getImages.mockResolvedValue([image('a', true)])
+    const wrapper = mountGallery()
+    await flushPromises()
+    const zone = wrapper.get('[data-testid="product-images"]')
+    const section = zone.get('.hf-section-card')
+    const title = section.get('.hf-section-card__title')
+    expect(title.text()).toBe('Imágenes')
+    expect(title.element.tagName).toBe('H2')
+    expect(title.attributes('id')).toBe('product-images-title')
+    expect(section.attributes('aria-labelledby')).toBe('product-images-title')
+    expect(section.get('.hf-section-card__meta [data-testid="product-images-count"]').text()).toBe('1 foto')
+    expect(zone.findAll('section')).toHaveLength(1)
   })
 })

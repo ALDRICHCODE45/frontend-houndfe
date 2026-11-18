@@ -4,6 +4,8 @@
  *
  * Rules enforced here (the backend re-checks all of them authoritatively):
  *   - `openingConfirmed` must be literally `true` before the command is sent;
+ *     it is set only by the explicit «Confirmar fondo de $X» action (never a
+ *     checkbox) and is bound to that amount: editing the amount drops it;
  *   - the opening amount must equal the RECEIVED amount of the chosen FLOAT
  *     (a received amount different from the declared one is valid);
  *   - a FLOAT whose source drawer is still unreleased blocks only the SAME
@@ -86,6 +88,28 @@ const floatMismatch = computed(() =>
   floatOpeningMismatch(selectedFloat.value?.receivedCents ?? null, parsedOpeningCents.value),
 )
 
+const openingLabel = computed(() =>
+  parsedOpeningCents.value === null ? null : formatCentsMXN(parsedOpeningCents.value),
+)
+
+// The confirmation belongs to the amount that was on screen when it was given.
+watch(parsedOpeningCents, () => {
+  openingConfirmed.value = false
+})
+
+function confirmOpening() {
+  if (parsedOpeningCents.value === null) {
+    localError.value = 'Ingresa el fondo inicial en pesos (por ejemplo 350.00).'
+    return
+  }
+  localError.value = null
+  openingConfirmed.value = true
+}
+
+function unconfirmOpening() {
+  openingConfirmed.value = false
+}
+
 const blocked = computed(
   () => !props.canOpen || !props.registerId || drawerAdvisory.value?.blocked === true,
 )
@@ -96,7 +120,9 @@ function submit() {
     return
   }
   if (!openingConfirmed.value) {
-    localError.value = 'Confirma explícitamente el fondo inicial.'
+    localError.value = openingLabel.value
+      ? `Confirma el fondo de ${openingLabel.value} antes de abrir la caja.`
+      : 'Confirma explícitamente el fondo inicial.'
     return
   }
   if (parsedOpeningCents.value === null) {
@@ -184,10 +210,41 @@ function submit() {
           />
         </UFormField>
 
-        <label class="flex items-center gap-2 text-sm text-default">
-          <UCheckbox v-model="openingConfirmed" data-testid="cash-opening-confirmed" />
-          Confirmo el fondo inicial declarado
-        </label>
+        <!-- Explicit confirmation of the amount (Selección sin checkboxes): a
+             button that names the fund, then a confirmed line with «Cambiar». -->
+        <div
+          v-if="openingConfirmed && openingLabel"
+          class="cash-note flex flex-wrap items-center gap-2"
+          role="status"
+          data-testid="cash-opening-confirmation"
+        >
+          <UIcon name="i-lucide-circle-check" class="size-5 shrink-0 text-success" aria-hidden="true" />
+          <span class="flex-1 font-semibold">Fondo de {{ openingLabel }} confirmado</span>
+          <UButton
+            type="button"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            class="min-h-11"
+            data-testid="cash-opening-unconfirm"
+            @click="unconfirmOpening"
+          >
+            Cambiar
+          </UButton>
+        </div>
+        <UButton
+          v-else
+          type="button"
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-check"
+          class="min-h-11 self-start"
+          :disabled="blocked"
+          data-testid="cash-opening-confirmed"
+          @click="confirmOpening"
+        >
+          {{ openingLabel ? `Confirmar fondo de ${openingLabel}` : 'Confirmar fondo inicial' }}
+        </UButton>
 
         <UAlert
           v-if="floatMismatch"
@@ -212,7 +269,7 @@ function submit() {
           data-testid="cash-open-submit"
           @click="submit"
         >
-          Abrir sesión
+          {{ openingConfirmed && openingLabel ? `Abrir caja con ${openingLabel}` : 'Abrir sesión' }}
         </UButton>
       </template>
     </div>

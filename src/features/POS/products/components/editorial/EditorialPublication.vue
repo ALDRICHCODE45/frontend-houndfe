@@ -12,24 +12,24 @@ const props = withDefaults(defineProps<{ state: EditorialContractState; canWrite
   needsReconciliation: boolean; vocabulary: EditorialContractVocabulary | null; context: EditorialContractContext | null }>(), { publicationAvailable: true })
 const emit = defineEmits<{ publish: [confirmation: 'review-v1' | null]; discard: [] }>()
 const confirmation = shallowRef<'publish' | 'discard' | null>(null)
-const careConfirmed = shallowRef(false)
 const care = computed(() => props.state.draft?.document.familyCode === 'care')
 const publishTrigger = useTemplateRef<HTMLButtonElement>('publishTrigger')
 const discardTrigger = useTemplateRef<HTMLButtonElement>('discardTrigger')
 const cancelButton = useTemplateRef<HTMLButtonElement>('cancelButton')
 async function openConfirmation(action: 'publish' | 'discard') {
   if (props.busy || props.needsReconciliation || (action === 'publish' ? !props.publicationAvailable || !props.canPublish : !props.canDiscard)) return
-  careConfirmed.value = false; confirmation.value = action
+  confirmation.value = action
   await nextTick(); cancelButton.value?.focus()
 }
 async function closeConfirmation(action: 'publish' | 'discard' | null) {
-  confirmation.value = null; careConfirmed.value = false
+  confirmation.value = null
   await nextTick(); (action === 'discard' ? discardTrigger.value : publishTrigger.value)?.focus()
 }
 // Scope changes remove/recreate the component. Any new GET/revision/cycle or
-// authority change resets both private confirmation and its actual DOM control.
+// authority change closes the open confirmation, so care consent (review-v1)
+// is only ever given by the explicit final button of a fresh confirmation.
 watch(() => [props.state, props.publicationAvailable, props.publishPermission, props.canWrite, props.canPublish, props.canDiscard, props.busy, props.needsReconciliation], () => {
-  confirmation.value = null; careConfirmed.value = false
+  confirmation.value = null
 }, { flush: 'sync' })
 const messages = computed(() => {
   const reasons: string[] = []
@@ -94,10 +94,13 @@ const comparison = computed(() => {
     row => `Hechos y revisiones de cuidado · ${subject(row.variantId)}`, 'Sin hechos')
   return rows
 })
+// Care drafts: the final button states the consent («Confirmo la revisión y publico»), so pressing it
+// inside the open confirmation is the explicit review-v1 confirmation (no box to tick).
+const confirmLabel = computed(() => confirmation.value === 'discard' ? 'Descartar borrador' : care.value ? 'Confirmo la revisión y publico' : 'Publicar ahora')
 function confirmAction() {
   if (props.busy || props.needsReconciliation) return
   const action = confirmation.value
-  if (action === 'publish' && props.publicationAvailable && props.publishPermission && props.canPublish && (!care.value || careConfirmed.value)) emit('publish', care.value ? 'review-v1' : null)
+  if (action === 'publish' && props.publicationAvailable && props.publishPermission && props.canPublish) emit('publish', care.value ? 'review-v1' : null)
   if (action === 'discard' && props.canWrite && props.canDiscard) emit('discard')
   void closeConfirmation(action)
 }
@@ -127,10 +130,10 @@ function confirmAction() {
       <h3 id="publication-confirm-title">{{ confirmation === 'publish' ? 'Publicar borrador guardado' : 'Descartar borrador guardado' }}</h3>
       <p v-if="confirmation === 'publish'">Se publicará la revisión {{ state.draft?.revision }} del borrador guardado {{ state.published ? 'y reemplazará la versión publicada.' : 'y será la primera versión publicada.' }} El borrador se cerrará.</p>
       <p v-else>El borrador guardado se eliminará en el servidor. La versión publicada no cambia. Tus cambios locales sin guardar también se perderán.</p>
-      <label v-if="confirmation === 'publish' && care" class="care-consent"><input v-model="careConfirmed" type="checkbox" :disabled="busy || !canPublish"> Revisé todas las revisiones de cuidado de este ciclo y revisión y confirmo su envío (review-v1). La elegibilidad se valida en el servidor.</label>
+      <p v-if="confirmation === 'publish' && care" id="publication-care-consent" class="care-consent">Revisé todas las revisiones de cuidado de este ciclo y revisión y confirmo su envío (review-v1). La elegibilidad se valida en el servidor.</p>
       <div class="editorial-actions">
         <button ref="cancelButton" type="button" class="editorial-button" @click="closeConfirmation(confirmation)">Cancelar</button>
-        <button type="button" :class="confirmation === 'publish' ? 'hf-primary-control' : 'editorial-button'" :disabled="busy || needsReconciliation || (confirmation === 'publish' ? !canPublish || (care && !careConfirmed) : !canDiscard)" @click="confirmAction">{{ confirmation === 'publish' ? 'Publicar ahora' : 'Descartar borrador' }}</button>
+        <button type="button" :class="confirmation === 'publish' ? 'hf-primary-control' : 'editorial-button'" :disabled="busy || needsReconciliation || (confirmation === 'publish' ? !canPublish : !canDiscard)" :aria-describedby="confirmation === 'publish' && care ? 'publication-care-consent' : undefined" @click="confirmAction">{{ confirmLabel }}</button>
       </div>
     </div>
     <details v-if="state.draft" class="editorial-details">
@@ -162,9 +165,9 @@ function confirmAction() {
 .editorial-button { padding: 8px 16px; border: 1px solid var(--hf-border); background: var(--hf-surface); color: var(--hf-ink); font-family: var(--hf-font); font-size: .875rem; cursor: pointer; }
 .editorial-button:hover:not(:disabled) { background: var(--hf-surface-muted); }
 .editorial-button:disabled, .hf-primary-control:disabled { cursor: default; opacity: .65; }
-.editorial-button:focus-visible, .hf-primary-control:focus-visible, .editorial-details summary:focus-visible, .care-consent input:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 3px; }
+.editorial-button:focus-visible, .hf-primary-control:focus-visible, .editorial-details summary:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 3px; }
 .confirmation { padding: 16px; background: var(--hf-warning-soft); border-radius: var(--hf-radius-control); }
-.care-consent { display: flex; align-items: center; gap: 12px; min-height: 44px; cursor: pointer; }
+.care-consent { padding-left: 12px; border-left: 3px solid var(--hf-warning); color: var(--hf-ink); font-weight: 500; }
 .publication-pending { padding: 16px; border-radius: var(--hf-radius-control); background: var(--hf-warning-soft); color: var(--hf-warning); }
 .warning { color: var(--hf-warning); }
 .editorial-details { min-width: 0; border-top: 1px solid var(--hf-border); }

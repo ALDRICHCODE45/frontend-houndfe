@@ -13,6 +13,7 @@
  */
 
 import type { Employee } from '../interfaces/employee.types'
+import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 
 defineProps<{
   employee: Employee
@@ -33,93 +34,75 @@ function getIdTypeLabel(type: string | null | undefined): string {
 }
 
 // ── Date of birth formatter ───────────────────────────────────────────────────
+// A birth date is a calendar date: `new Date('1990-04-12')` is UTC midnight and
+// reads one day early west of UTC, so the Y-M-D parts build a local date (T8 D8).
+const DOB_FORMAT = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })
+
 function formatDob(dob: string | null | undefined): string {
   if (!dob) return '—'
-  try {
-    return new Intl.DateTimeFormat('es-MX', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-    }).format(new Date(dob))
-  } catch {
-    return dob
-  }
+  const parts = /^(\d{4})-(\d{2})-(\d{2})/.exec(dob)
+  const date = parts ? new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3])) : new Date(dob)
+  return Number.isNaN(date.getTime()) ? dob : DOB_FORMAT.format(date)
 }
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
+  <div class="employees-panel">
     <!-- Personal info section -->
-    <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
-      <div class="border-b border-default px-5 py-4">
-        <h2 class="text-base font-semibold text-highlighted">Información personal</h2>
-      </div>
-
-      <dl class="grid grid-cols-1 gap-x-8 gap-y-5 p-5 sm:grid-cols-2">
-        <div>
-          <dt class="text-[13px] text-muted">Nombre completo</dt>
-          <dd class="mt-1 font-medium text-highlighted">{{ employee.fullName }}</dd>
+    <HfSectionCard title="Información personal" :heading-level="2">
+      <dl class="employees-dl">
+        <div class="employees-dl__item">
+          <dt>Nombre completo</dt>
+          <dd>{{ employee.fullName }}</dd>
         </div>
 
-        <div class="min-w-0">
-          <dt class="text-[13px] text-muted">Correo electrónico</dt>
-          <dd class="mt-1">
-            <a
-              v-if="employee.email"
-              :href="`mailto:${employee.email}`"
-              class="break-all font-medium text-default underline decoration-(--hf-border) underline-offset-2 hover:text-primary"
-            >
+        <div class="employees-dl__item">
+          <dt>Correo electrónico</dt>
+          <dd>
+            <a v-if="employee.email" :href="`mailto:${employee.email}`" class="employees-link break-all">
               {{ employee.email }}
             </a>
-            <span v-else class="text-muted">—</span>
+            <span v-else class="employees-dl__empty">—</span>
           </dd>
         </div>
 
-        <div>
-          <dt class="text-[13px] text-muted">Teléfono</dt>
-          <dd class="mt-1">
-            <a
-              v-if="employee.phone"
-              :href="`tel:${employee.phone}`"
-              class="font-medium text-default underline decoration-(--hf-border) underline-offset-2 hover:text-primary"
-            >
+        <div class="employees-dl__item">
+          <dt>Teléfono</dt>
+          <dd>
+            <a v-if="employee.phone" :href="`tel:${employee.phone}`" class="employees-link">
               {{ employee.phone }}
             </a>
-            <span v-else class="text-muted">—</span>
+            <span v-else class="employees-dl__empty">—</span>
           </dd>
         </div>
 
-        <div>
-          <dt class="text-[13px] text-muted">Fecha de nacimiento</dt>
-          <dd class="mt-1 font-medium text-default">{{ formatDob(employee.dateOfBirth) }}</dd>
+        <div class="employees-dl__item">
+          <dt>Fecha de nacimiento</dt>
+          <dd>{{ formatDob(employee.dateOfBirth) }}</dd>
         </div>
 
-        <div>
-          <dt class="text-[13px] text-muted">Documento de identidad</dt>
-          <dd v-if="employee.nationalId" class="mt-1 font-medium text-default">
+        <div class="employees-dl__item">
+          <dt>Documento de identidad</dt>
+          <dd v-if="employee.nationalId">
             <span class="text-[13px] font-normal text-muted">{{ getIdTypeLabel(employee.nationalIdType) }} · </span>
             {{ employee.nationalId }}
           </dd>
-          <dd v-else class="mt-1 text-muted">—</dd>
+          <dd v-else class="employees-dl__empty">—</dd>
         </div>
 
-        <div>
-          <dt class="text-[13px] text-muted">Número de empleado</dt>
-          <dd class="hf-figure mt-1 font-medium text-default">{{ employee.employeeNumber }}</dd>
+        <div class="employees-dl__item">
+          <dt>Número de empleado</dt>
+          <dd class="hf-figure">{{ employee.employeeNumber }}</dd>
         </div>
       </dl>
-    </UCard>
+    </HfSectionCard>
 
     <!-- Address section -->
-    <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
-      <div class="border-b border-default px-5 py-4">
-        <h2 class="text-base font-semibold text-highlighted">Domicilio</h2>
-      </div>
-
-      <dl class="grid grid-cols-1 gap-x-8 gap-y-5 p-5 sm:grid-cols-2">
-        <div>
-          <dt class="text-[13px] text-muted">Calle y número</dt>
-          <dd class="mt-1 font-medium text-default">
+    <HfSectionCard title="Domicilio" :heading-level="2">
+      <dl class="employees-dl">
+        <div class="employees-dl__item">
+          <dt>Calle y número</dt>
+          <dd>
             <template v-if="employee.street">
               {{ employee.street }}
               <template v-if="employee.exteriorNumber"> {{ employee.exteriorNumber }}</template>
@@ -129,31 +112,31 @@ function formatDob(dob: string | null | undefined): string {
           </dd>
         </div>
 
-        <div>
-          <dt class="text-[13px] text-muted">Código postal</dt>
-          <dd class="mt-1 font-medium text-default">{{ employee.zipCode ?? '—' }}</dd>
+        <div class="employees-dl__item">
+          <dt>Código postal</dt>
+          <dd>{{ employee.zipCode ?? '—' }}</dd>
         </div>
 
-        <div>
-          <dt class="text-[13px] text-muted">Colonia</dt>
-          <dd class="mt-1 font-medium text-default">{{ employee.neighborhood ?? '—' }}</dd>
+        <div class="employees-dl__item">
+          <dt>Colonia</dt>
+          <dd>{{ employee.neighborhood ?? '—' }}</dd>
         </div>
 
-        <div>
-          <dt class="text-[13px] text-muted">Municipio / Alcaldía</dt>
-          <dd class="mt-1 font-medium text-default">{{ employee.municipality ?? '—' }}</dd>
+        <div class="employees-dl__item">
+          <dt>Municipio / Alcaldía</dt>
+          <dd>{{ employee.municipality ?? '—' }}</dd>
         </div>
 
-        <div>
-          <dt class="text-[13px] text-muted">Ciudad</dt>
-          <dd class="mt-1 font-medium text-default">{{ employee.city ?? '—' }}</dd>
+        <div class="employees-dl__item">
+          <dt>Ciudad</dt>
+          <dd>{{ employee.city ?? '—' }}</dd>
         </div>
 
-        <div>
-          <dt class="text-[13px] text-muted">Estado</dt>
-          <dd class="mt-1 font-medium text-default">{{ employee.state ?? '—' }}</dd>
+        <div class="employees-dl__item">
+          <dt>Estado</dt>
+          <dd>{{ employee.state ?? '—' }}</dd>
         </div>
       </dl>
-    </UCard>
+    </HfSectionCard>
   </div>
 </template>

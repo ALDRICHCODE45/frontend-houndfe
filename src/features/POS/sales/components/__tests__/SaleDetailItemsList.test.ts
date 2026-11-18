@@ -148,8 +148,8 @@ describe('SaleDetailItemsList', () => {
     const quantity = wrapper.get('[data-testid="item-quantity-0"]')
     const subtotal = wrapper.get('[data-testid="item-subtotal-0"]')
 
-    expect(name.classes()).toEqual(expect.arrayContaining(['font-semibold', 'text-highlighted']))
-    expect(quantity.classes()).toEqual(expect.arrayContaining(['text-muted', 'tabular-nums']))
+    expect(name.classes()).toEqual(expect.arrayContaining(['font-semibold', 'text-(--hf-heading)']))
+    expect(quantity.classes()).toEqual(expect.arrayContaining(['text-(--hf-muted)', 'tabular-nums']))
     expect(subtotal.classes()).toEqual(expect.arrayContaining(['font-semibold', 'tabular-nums']))
   })
 

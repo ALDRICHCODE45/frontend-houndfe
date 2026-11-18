@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import '../styles/products-plain-table.css'
 import '@/core/shared/components/form/hf-form.css'
+/**
+ * PriceListSection — «Precios de venta» of a saved product (Presentaciones):
+ * inline price per list, margins, tier prices and the list modals.
+ *
+ * T6e: an HfSectionCard sibling of the Presentaciones section cards, colors only
+ * from --hf-* (margins in --hf-success / --hf-danger).
+ */
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { AxiosError } from 'axios'
 import { computed, reactive, ref, watch } from 'vue'
@@ -8,6 +15,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { z } from 'zod'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
+import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import { productApi } from '../api/product.api'
 import { currencyFormatter } from '@/core/shared/utils/currency.utils'
@@ -393,7 +401,7 @@ function shouldShowMargin(list: PriceList): boolean {
 }
 
 function marginClass(list: PriceList): string {
-  return (list.margin?.amountCents ?? 0) >= 0 ? 'text-success' : 'text-error'
+  return (list.margin?.amountCents ?? 0) >= 0 ? 'text-(--hf-success)' : 'text-(--hf-danger)'
 }
 
 function actionsFor(list: PriceList): RowAction[] {
@@ -427,21 +435,15 @@ function formatMarginAmount(list: PriceList): string {
 </script>
 
 <template>
-  <UCard>
-    <template #header>
-      <div class="flex items-center justify-between">
-        <h2 class="text-base font-semibold">Precios de venta</h2>
-      </div>
-    </template>
-
-    <div class="overflow-x-auto rounded-md border border-default">
-      <table class="hf-plain-table hf-plain-table--hover products-plain-table products-price-table min-w-full divide-y divide-default text-sm" data-stack>
+  <HfSectionCard id="product-price-lists" title="Precios de venta" :heading-level="2">
+    <div class="overflow-x-auto rounded-md border border-(--hf-border)">
+      <table class="hf-plain-table hf-plain-table--hover products-plain-table products-price-table min-w-full divide-y divide-(--hf-border) text-sm" data-stack>
         <thead>
           <tr>
             <th class="px-4 py-3 text-left font-semibold">Lista de precios</th>
             <th class="px-4 py-3 text-right font-semibold">
               Precio de venta
-              <span class="block text-xs font-normal text-muted">Con impuestos</span>
+              <span class="block text-xs font-normal text-(--hf-muted)">Con impuestos</span>
             </th>
             <th class="px-4 py-3 text-right font-semibold">Margen</th>
             <th class="px-4 py-3 text-right font-semibold">Ganancia</th>
@@ -449,7 +451,7 @@ function formatMarginAmount(list: PriceList): string {
           </tr>
         </thead>
 
-        <tbody class="divide-y divide-default">
+        <tbody class="divide-y divide-(--hf-border)">
           <tr v-if="isError && lists.length === 0">
             <td colspan="5" class="p-4">
               <EmptyState
@@ -469,14 +471,14 @@ function formatMarginAmount(list: PriceList): string {
           </template>
 
           <tr v-else-if="lists.length === 0">
-            <td colspan="5" class="px-4 py-3 text-muted">Sin listas de precios registradas.</td>
+            <td colspan="5" class="px-4 py-3 text-(--hf-muted)">Sin listas de precios registradas.</td>
           </tr>
 
           <template v-else>
             <template v-for="list in lists" :key="list.id">
               <!-- Main price row -->
               <tr>
-                <td class="px-4 py-3 font-semibold text-highlighted" data-area="name">{{ list.name }}</td>
+                <td class="px-4 py-3 font-semibold text-(--hf-heading)" data-area="name">{{ list.name }}</td>
 
                 <td class="px-4 py-3 text-right" data-area="price" data-label="Precio de venta con impuestos">
                   <InlinePriceInput
@@ -490,7 +492,7 @@ function formatMarginAmount(list: PriceList): string {
 
                 <td
                   class="hf-figure px-4 py-3 text-right"
-                  :class="shouldShowMargin(list) ? marginClass(list) : 'text-muted'"
+                  :class="shouldShowMargin(list) ? marginClass(list) : 'text-(--hf-muted)'"
                   data-area="margin"
                   data-label="Margen"
                 >
@@ -499,7 +501,7 @@ function formatMarginAmount(list: PriceList): string {
 
                 <td
                   class="hf-figure px-4 py-3 text-right"
-                  :class="shouldShowMargin(list) ? marginClass(list) : 'text-muted'"
+                  :class="shouldShowMargin(list) ? marginClass(list) : 'text-(--hf-muted)'"
                   data-area="gain"
                   data-label="Ganancia"
                 >
@@ -516,15 +518,15 @@ function formatMarginAmount(list: PriceList): string {
               </tr>
 
               <!-- Tier prices sub-rows -->
-              <tr v-for="tier in list.tierPrices" :key="tier.id" class="bg-elevated/20">
-                <td class="py-2 pl-8 pr-4 text-sm text-muted" data-area="name">{{ tier.minQuantity }} o más</td>
+              <tr v-for="tier in list.tierPrices" :key="tier.id">
+                <td class="py-2 pl-8 pr-4 text-sm text-(--hf-muted)" data-area="name">{{ tier.minQuantity }} o más</td>
                 <td class="hf-figure px-4 py-2 text-right text-sm" data-area="price">
                   $ {{ centsToDecimalInput(tier.priceCents) }}
-                  <span class="text-xs text-muted">por unidad</span>
+                  <span class="text-xs text-(--hf-muted)">por unidad</span>
                 </td>
                 <td
                   class="hf-figure px-4 py-2 text-right text-sm"
-                  :class="tier.margin ? ((tier.margin.amountCents ?? 0) >= 0 ? 'text-success' : 'text-error') : 'text-muted'"
+                  :class="tier.margin ? ((tier.margin.amountCents ?? 0) >= 0 ? 'text-(--hf-success)' : 'text-(--hf-danger)') : 'text-(--hf-muted)'"
                   data-area="margin"
                   data-label="Margen"
                 >
@@ -532,7 +534,7 @@ function formatMarginAmount(list: PriceList): string {
                 </td>
                 <td
                   class="hf-figure px-4 py-2 text-right text-sm"
-                  :class="tier.margin ? ((tier.margin.amountCents ?? 0) >= 0 ? 'text-success' : 'text-error') : 'text-muted'"
+                  :class="tier.margin ? ((tier.margin.amountCents ?? 0) >= 0 ? 'text-(--hf-success)' : 'text-(--hf-danger)') : 'text-(--hf-muted)'"
                   data-area="gain"
                   data-label="Ganancia"
                 >
@@ -550,18 +552,17 @@ function formatMarginAmount(list: PriceList): string {
       </table>
     </div>
 
-    <div class="mt-3">
+    <div v-if="canUpdate" class="mt-3">
       <UButton
-        v-if="canUpdate"
         label="Agregar lista de precios"
         icon="i-lucide-plus"
         variant="link"
-        class="min-h-11 text-[var(--hf-action)]"
+        class="min-h-11 text-(--hf-action)"
         size="sm"
         @click="openCreate"
       />
     </div>
-  </UCard>
+  </HfSectionCard>
 
   <!-- Create list modal (global) -->
   <UModal
@@ -590,7 +591,7 @@ function formatMarginAmount(list: PriceList): string {
           <UFormField label="Precio base" name="price">
             <UInput v-model="formState.price" placeholder="199.90" :disabled="isSaving" size="lg">
               <template #leading>
-                <span class="text-sm text-muted">$</span>
+                <span class="text-sm text-(--hf-muted)">$</span>
               </template>
             </UInput>
           </UFormField>
@@ -609,7 +610,7 @@ function formatMarginAmount(list: PriceList): string {
               />
             </div>
 
-            <div v-if="tierRows.length === 0" class="text-sm text-muted">
+            <div v-if="tierRows.length === 0" class="text-sm text-(--hf-muted)">
               Sin escalas de precio.
             </div>
 
@@ -632,7 +633,7 @@ function formatMarginAmount(list: PriceList): string {
                 <UFormField :label="index === 0 ? 'Precio' : undefined">
                   <UInput v-model="row.price" placeholder="150.00" :disabled="isSaving">
                     <template #leading>
-                      <span class="text-sm text-muted">$</span>
+                      <span class="text-sm text-(--hf-muted)">$</span>
                     </template>
                   </UInput>
                 </UFormField>
@@ -650,7 +651,7 @@ function formatMarginAmount(list: PriceList): string {
               </div>
             </div>
 
-            <p v-if="tierError" class="text-sm text-error">{{ tierError }}</p>
+            <p v-if="tierError" class="text-sm text-(--hf-danger)">{{ tierError }}</p>
           </div>
         </template>
       </UForm>
@@ -689,21 +690,22 @@ function formatMarginAmount(list: PriceList): string {
           <span class="font-medium">{{ selectedList?.name }}</span>
         </div>
 
-        <div class="space-y-3">
+        <!-- One row per tier, split by hairlines: never cards inside the dialog. -->
+        <div class="divide-y divide-(--hf-border) border-y border-(--hf-border)">
           <div
             v-for="(row, index) in tierModalRows"
             :key="row.key"
-            class="grid grid-cols-1 gap-3 rounded-md border border-default p-3 md:grid-cols-[1fr_1fr_auto]"
+            class="grid grid-cols-1 gap-3 py-3 md:grid-cols-[1fr_1fr_auto] md:items-start"
           >
             <div class="flex items-center gap-2">
               <UInputNumber v-model="row.minQuantity" :min="0" class="flex-1" />
-              <span class="shrink-0 text-xs text-muted">o más</span>
+              <span class="shrink-0 text-xs text-(--hf-muted)">o más</span>
             </div>
 
             <div>
               <div class="relative">
                 <span
-                  class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
+                  class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-(--hf-muted)"
                   >$</span
                 >
                 <UInput
@@ -716,7 +718,7 @@ function formatMarginAmount(list: PriceList): string {
                   :aria-describedby="tierModalErrors[row.key] ? `list-tier-${row.key}-message` : undefined"
                 />
                 <span
-                  class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted"
+                  class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-(--hf-muted)"
                   >por Unidad</span
                 >
               </div>

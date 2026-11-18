@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 import { refundReasonLabel } from '@/features/POS/refunds/utils/refundLabels'
 import { formatSaleDate } from '../utils/saleDate.utils'
 import type { SaleDetail } from '../interfaces/sale.types'
@@ -8,13 +9,7 @@ defineProps<{ sale: SaleDetail }>()
 </script>
 
 <template>
-  <UCard data-testid="sale-detail-cancellation">
-    <template #header>
-      <h3 class="sale-detail-section-title">
-        <UIcon name="i-lucide-circle-slash" class="size-4" aria-hidden="true" />
-        Cancelación
-      </h3>
-    </template>
+  <HfSectionCard title="Cancelación" data-testid="sale-detail-cancellation">
     <dl class="grid gap-x-8 gap-y-4 sm:grid-cols-2">
       <div v-if="sale.canceledAt">
         <dt class="sale-detail-fact-label">Fecha</dt>
@@ -26,5 +21,5 @@ defineProps<{ sale: SaleDetail }>()
       </div>
     </dl>
     <p v-if="sale.canceledBy" class="sale-detail-cancel-by">Cancelada por {{ sale.canceledBy.name }}</p>
-  </UCard>
+  </HfSectionCard>
 </template>

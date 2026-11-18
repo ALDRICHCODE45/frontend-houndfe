@@ -44,6 +44,25 @@ describe('HfCombobox footer', () => {
   })
 })
 
+describe('HfCombobox multiple mark (Selección sin checkboxes)', () => {
+  it('draws no checkbox box anymore', () => {
+    expect(css).not.toMatch(/hf-combobox__box/)
+  })
+
+  it('rests as an empty round ring and fills with --hf-active when checked', () => {
+    const mark = rule('.hf-combobox__mark')
+    expect(mark).toMatch(/border-radius: 999px/)
+    expect(mark).toMatch(/border: 1\.5px solid var\(--hf-muted\)/)
+    const checked = rule('.hf-combobox__mark[data-state=\'checked\']')
+    expect(checked).toMatch(/background-color: var\(--hf-active\)/)
+    expect(checked).toMatch(/border-color: var\(--hf-active\)/)
+  })
+
+  it('shows one indicator: the mark replaces the menu check on regular options', () => {
+    expect(rule('.hf-combobox__option--multi [data-slot=\'itemTrailingIcon\']')).toMatch(/display: none/)
+  })
+})
+
 describe('HfUnitField unit trigger', () => {
   it('lays the chevron out in the flow, 8px after the text, never over it', () => {
     const trailing = rule('.hf-combobox__trigger [data-slot=\'trailing\']')
@@ -157,5 +176,24 @@ describe('HfSectionNav chip row', () => {
     expect(rule('.hf-ui .hf-section-card')).toMatch(/scroll-margin-top: 24px/)
     expect(css).toMatch(/:has\(\.hf-section-nav--chips\) \.hf-section-card\s*\{[^}]*scroll-margin-top: 80px/)
     expect(media('(max-width: 767px)')).toMatch(/\.hf-section-card\s*\{[^}]*scroll-margin-top: 80px/)
+  })
+})
+
+describe('HfSaveBar at narrow widths (T8 D4)', () => {
+  it('wraps the action labels instead of truncating them («Guardar cambi…»)', () => {
+    const label = rule(".hf-save-bar__actions [data-slot='label']")
+    expect(label).toMatch(/white-space: normal;/)
+    expect(label).toMatch(/overflow: visible;/)
+    expect(label).toMatch(/text-overflow: clip;/)
+    expect(label).toMatch(/text-align: center;/)
+  })
+})
+
+describe('Placeholders in .hf-ui fields (T8 D9)', () => {
+  it('paint text-field and select placeholders in --hf-muted (≥ 4.5:1), not the dimmed mix', () => {
+    const placeholder = rule('.hf-ui :is(input, textarea)::placeholder')
+    expect(rule(".hf-ui [data-slot='placeholder']")).toBe(placeholder)
+    expect(placeholder).toMatch(/color: var\(--hf-muted\);/)
+    expect(placeholder).toMatch(/opacity: 1;/)
   })
 })

@@ -1,111 +1,56 @@
-// MasterToggle.spec.ts — STRICT-TDD tests for the master notifications
-// switch component.
-//
-// MasterToggle is a thin wrapper over USwitch with:
-//   - a state badge (Activadas / Desactivadas) per spec
-//   - data-testid hooks for integration tests
-//   - pure computed `computeMasterBadgeState` extracted for unit testing
-//
-// Per project rules: a thin component can have 1 prop + 1 emit; the badge
-// text is derived from a pure helper, not branched in the template.
+// MasterToggle.spec.ts — the master «Notificaciones» switch as a whole-row
+// switch (HfSwitchRow) with the Activadas / Desactivadas state word.
 
-import { describe, it, expect } from 'vitest'
-import { nextTick } from 'vue'
+import { describe, expect, it } from 'vitest'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import MasterToggle from '../MasterToggle.vue'
 import { computeMasterBadgeState } from '../masterToggleState'
 
 describe('computeMasterBadgeState (pure)', () => {
   it('returns "Activadas" with success tone when enabled=true', () => {
-    expect(computeMasterBadgeState(true)).toEqual({
-      label: 'Activadas',
-      tone: 'success',
-    })
+    expect(computeMasterBadgeState(true)).toEqual({ label: 'Activadas', tone: 'success' })
   })
 
   it('returns "Desactivadas" with neutral tone when enabled=false', () => {
-    expect(computeMasterBadgeState(false)).toEqual({
-      label: 'Desactivadas',
-      tone: 'neutral',
-    })
+    expect(computeMasterBadgeState(false)).toEqual({ label: 'Desactivadas', tone: 'neutral' })
   })
 })
 
-describe('MasterToggle — render', () => {
-  function mountToggle(props: Record<string, unknown> = {}) {
-    return mountWithUApp(MasterToggle, {
-      props: { modelValue: false, ...props },
-    })
-  }
+function mountToggle(props: Record<string, unknown> = {}) {
+  return mountWithUApp(MasterToggle, { props: { modelValue: false, ...props } })
+}
 
-  it('renders the "Activadas" badge when modelValue=true', () => {
-    const wrapper = mountToggle({ modelValue: true })
-    expect(wrapper.text()).toContain('Activadas')
+describe('MasterToggle', () => {
+  it('is one role=switch row named «Notificaciones por correo» with a description', () => {
+    const wrapper = mountToggle()
+    const row = wrapper.get('[role="switch"]')
+    expect(row.element.tagName).toBe('BUTTON')
+    expect(wrapper.get(`[id="${row.attributes('aria-labelledby')}"]`).text()).toBe(
+      'Notificaciones por correo',
+    )
+    expect(row.text()).toContain('Interruptor general')
   })
 
-  it('renders the "Desactivadas" badge when modelValue=false', () => {
+  it('reflects the state in aria-checked, the state word and data-enabled', () => {
+    const on = mountToggle({ modelValue: true })
+    expect(on.get('[role="switch"]').attributes('aria-checked')).toBe('true')
+    expect(on.get('.hf-switch-row__state').text()).toBe('Activadas')
+    expect(on.get('[data-testid="master-toggle"]').attributes('data-enabled')).toBe('true')
+    const off = mountToggle({ modelValue: false })
+    expect(off.get('.hf-switch-row__state').text()).toBe('Desactivadas')
+  })
+
+  it('emits the next value when the row is clicked', async () => {
     const wrapper = mountToggle({ modelValue: false })
-    expect(wrapper.text()).toContain('Desactivadas')
+    await wrapper.get('[role="switch"]').trigger('click')
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([true])
   })
 
-  it('says the state through a StatusBadge with the mapped tone', () => {
-    const on = mountToggle({ modelValue: true }).find('[data-testid="master-toggle-badge"]')
-    const off = mountToggle({ modelValue: false }).find('[data-testid="master-toggle-badge"]')
-    expect(on.classes()).toContain('hf-status-badge')
-    expect(on.attributes('data-tone')).toBe('success')
-    expect(off.attributes('data-tone')).toBe('neutral')
-  })
-
-  it('renders no help paragraph unless one is passed', () => {
-    const wrapper = mountToggle({ modelValue: true })
-    expect(wrapper.text()).not.toContain('recibirán notificaciones')
-  })
-
-  it('renders the description text from the label/description props', () => {
-    const wrapper = mountToggle({
-      modelValue: true,
-      label: 'Notificaciones',
-      description: 'Cuando estén activadas, los usuarios seleccionados recibirán notificaciones del sistema.',
-    })
-    expect(wrapper.text()).toContain('Notificaciones')
-    expect(wrapper.text()).toContain('recibirán notificaciones')
-  })
-})
-
-describe('MasterToggle — interaction', () => {
-  function mountToggle(props: Record<string, unknown> = {}) {
-    return mountWithUApp(MasterToggle, {
-      props: { modelValue: false, ...props },
-    })
-  }
-
-  it('emits @update:modelValue with true when the switch is flipped ON', async () => {
-    const wrapper = mountToggle({ modelValue: false })
-    const switchBtn = wrapper.find('button[role="switch"]')
-    expect(switchBtn.exists()).toBe(true)
-    await switchBtn.trigger('click')
-    await nextTick()
-
-    const events = wrapper.emitted('update:modelValue')
-    expect(events).toBeTruthy()
-    expect(events![events!.length - 1]).toEqual([true])
-  })
-
-  it('emits @update:modelValue with false when the switch is flipped OFF', async () => {
-    const wrapper = mountToggle({ modelValue: true })
-    const switchBtn = wrapper.find('button[role="switch"]')
-    await switchBtn.trigger('click')
-    await nextTick()
-
-    const events = wrapper.emitted('update:modelValue')
-    expect(events![events!.length - 1]).toEqual([false])
-  })
-
-  it('marks the switch as disabled when :disabled=true', () => {
-    const wrapper = mountToggle({ modelValue: false, disabled: true })
-    const switchBtn = wrapper.find('button[role="switch"]')
-    // USwitch surfaces `disabled` and a `data-disabled` marker.
-    expect(switchBtn.attributes('disabled')).toBeDefined()
-    expect(switchBtn.attributes('data-disabled')).toBe('')
+  it('is aria-disabled and silent when disabled', async () => {
+    const wrapper = mountToggle({ modelValue: true, disabled: true })
+    const row = wrapper.get('[role="switch"]')
+    expect(row.attributes('aria-disabled')).toBe('true')
+    await row.trigger('click')
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
   })
 })

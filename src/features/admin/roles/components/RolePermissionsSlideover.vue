@@ -10,6 +10,10 @@ import {
   getSubjectLabel,
 } from '../i18n/permissions'
 import type { GroupedPermissions, RoleTableRow } from '../interfaces/role.types'
+import {
+  HfSelectableRows,
+  type HfSelectableRowItem,
+} from '@/core/shared/components/selection'
 import '../styles/roles-visual.css'
 
 const props = withDefaults(
@@ -46,9 +50,6 @@ const {
   isSubjectExpanded,
   toggleSubjectExpanded,
   isPermissionSelected,
-  togglePermission,
-  isSubjectChecked,
-  toggleSubject,
   setSelectedPermissions,
   selectAll,
   clearAll,
@@ -108,6 +109,32 @@ function handleClose() {
 function getCode(subject: string, action: string) {
   return `${subject.toLowerCase()}:${action}`
 }
+
+type SubjectPermissions = readonly { id: string; action: string }[]
+
+function toRows(subject: string, permissions: SubjectPermissions): HfSelectableRowItem[] {
+  return permissions.map((permission) => ({
+    value: permission.id,
+    label: getPermissionLabel(subject, permission.action),
+    description: getPermissionDescriptionOrFallback(subject, permission.action),
+  }))
+}
+
+function permissionAction(permissions: SubjectPermissions, id: string) {
+  return permissions.find((permission) => permission.id === id)?.action ?? ''
+}
+
+function selectedIn(permissions: SubjectPermissions) {
+  return permissions.filter((permission) => isPermissionSelected(permission.id)).map((p) => p.id)
+}
+
+/** Replace the selection of the listed (visible) permissions; every other id stays. */
+function setSubjectSelection(permissions: SubjectPermissions, ids: string[]) {
+  const next = new Set(selectedPermissionIds.value)
+  for (const permission of permissions) next.delete(permission.id)
+  for (const id of ids) next.add(id)
+  setSelectedPermissions([...next])
+}
 </script>
 
 <template>
@@ -120,15 +147,16 @@ function getCode(subject: string, action: string) {
     :ui="{ content: '!max-w-2xl hf-theme hf-ui hf-form-overlay roles-form-portal' }"
   >
     <template #body>
-      <div class="space-y-4">
+      <div class="roles-perm">
         <UInput
           v-model="search"
           icon="i-lucide-search"
-          placeholder="Buscar permisos..."
+          placeholder="Buscar permisos…"
+          aria-label="Buscar permisos"
           class="w-full"
         />
 
-        <div class="flex flex-wrap items-center gap-2">
+        <div class="roles-perm-toolbar">
           <UButton
             label="Expandir todo"
             color="neutral"
@@ -152,76 +180,55 @@ function getCode(subject: string, action: string) {
           />
         </div>
 
-        <div class="space-y-3 overflow-y-auto pr-1">
-          <div
+        <div class="roles-perm-subjects">
+          <section
             v-for="[subject, permissions] in filteredSubjects"
             :key="subject"
-            class="border border-default rounded-xl"
+            class="roles-perm-subject"
           >
             <button
+              :id="`roles-perm-head-${subject}`"
               type="button"
-              class="flex items-center justify-between w-full p-3 cursor-pointer"
+              class="roles-perm-subject__head"
+              :aria-expanded="isSubjectExpanded(subject)"
+              :aria-controls="`roles-perm-body-${subject}`"
               @click="toggleSubjectExpanded(subject)"
             >
-              <div class="flex items-center gap-3 min-w-0">
-                <UCheckbox
-                  :model-value="isSubjectChecked(subject)"
-                  @click.stop
-                  @update:model-value="toggleSubject(subject)"
-                />
-                <span class="font-semibold truncate">{{ getSubjectLabel(subject) }}</span>
-                <UIcon
-                  :name="
-                    isSubjectExpanded(subject) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'
-                  "
-                  class="size-4 text-muted shrink-0"
-                />
-              </div>
-
+              <span class="roles-perm-subject__title">{{ getSubjectLabel(subject) }}</span>
               <span
-                class="hf-figure shrink-0 text-sm font-semibold"
-                :class="
-                  permissions.some((p) => isPermissionSelected(p.id))
-                    ? 'text-highlighted'
-                    : 'text-muted'
-                "
+                class="roles-perm-subject__count hf-figure"
+                :class="{ 'is-some': selectedIn(permissions).length > 0 }"
               >
-                {{ permissions.filter((p) => isPermissionSelected(p.id)).length }}/{{
-                  permissions.length
-                }}
+                {{ selectedIn(permissions).length }} de {{ permissions.length }}
               </span>
+              <UIcon
+                name="i-lucide-chevron-down"
+                class="roles-perm-subject__chevron"
+                aria-hidden="true"
+              />
             </button>
 
-            <div v-if="isSubjectExpanded(subject)" class="px-3 pb-3">
-              <div class="border-l border-default pl-3 sm:pl-4 space-y-1.5">
-                <label
-                  v-for="permission in permissions"
-                  :key="permission.id"
-                  class="w-full rounded-lg border border-default p-2.5 sm:p-3 flex items-start gap-3 cursor-pointer hover:bg-elevated/50 transition-colors"
-                >
-                  <UCheckbox
-                    :model-value="isPermissionSelected(permission.id)"
-                    @update:model-value="togglePermission(permission.id)"
-                    class="mt-0.5"
-                  />
-
-                  <div class="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1 sm:gap-3">
-                    <div class="min-w-0">
-                      <p class="text-sm font-medium text-highlighted">
-                        {{ getPermissionLabel(subject, permission.action) }}
-                      </p>
-                      <p class="text-xs sm:text-sm text-muted">
-                        {{ getPermissionDescriptionOrFallback(subject, permission.action) }}
-                      </p>
-                    </div>
-                    <code class="font-mono text-xs text-muted/70 sm:shrink-0 sm:text-right break-all">
-                      {{ getCode(subject, permission.action) }}
-                    </code>
-                  </div>
-                </label>
-              </div>
+            <div
+              v-if="isSubjectExpanded(subject)"
+              :id="`roles-perm-body-${subject}`"
+              class="roles-perm-subject__body"
+            >
+              <HfSelectableRows
+                :items="toRows(subject, permissions)"
+                :model-value="selectedIn(permissions)"
+                :label="`Permisos de ${getSubjectLabel(subject)}`"
+                :group-label="`Todos los permisos de ${getSubjectLabel(subject)}`"
+                :count-label="false"
+                @update:model-value="setSubjectSelection(permissions, $event)"
+              >
+                <template #option="{ item }">
+                  <span class="roles-perm-option__label">{{ item.label }}</span>
+                  <span class="hf-selectable-rows__desc">{{ item.description }}</span>
+                  <code class="roles-perm-option__code">{{ getCode(subject, permissionAction(permissions, item.value)) }}</code>
+                </template>
+              </HfSelectableRows>
             </div>
-          </div>
+          </section>
         </div>
       </div>
     </template>
@@ -252,3 +259,111 @@ function getCode(subject: string, action: string) {
     </template>
   </USlideover>
 </template>
+
+<style scoped>
+/* Permissions by subject: one quiet list of disclosure rows; an open subject
+ * shows its permissions as selectable rows (HfSelectableRows) with the subject
+ * header toggling them all. Colors only from `--hf-*`. */
+.roles-perm {
+  display: grid;
+  gap: 1rem;
+}
+
+.roles-perm-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.roles-perm-subjects {
+  display: grid;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card, 12px);
+  background: var(--hf-surface);
+  overflow: hidden;
+}
+
+.roles-perm-subject + .roles-perm-subject {
+  border-top: 1px solid var(--hf-border);
+}
+
+.roles-perm-subject__head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 52px;
+  padding: 0.625rem 1rem;
+  border: 0;
+  background: transparent;
+  color: var(--hf-ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.roles-perm-subject__head:hover {
+  background: color-mix(in srgb, var(--hf-surface-muted) 45%, var(--hf-surface));
+}
+
+.roles-perm-subject__head:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: -2px;
+}
+
+.roles-perm-subject__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roles-perm-subject__count {
+  flex: none;
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+}
+
+.roles-perm-subject__count.is-some {
+  font-weight: 600;
+  color: var(--hf-ink);
+}
+
+.roles-perm-subject__chevron {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  color: var(--hf-muted);
+  transition: transform 0.15s;
+}
+
+.roles-perm-subject__head[aria-expanded='true'] .roles-perm-subject__chevron {
+  transform: rotate(180deg);
+}
+
+.roles-perm-subject__body {
+  padding: 0 1rem 1rem;
+}
+
+.roles-perm-option__label {
+  font-size: 0.875rem;
+  color: var(--hf-ink);
+}
+
+.roles-perm-option__code {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.75rem;
+  color: var(--hf-muted);
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .roles-perm-subject__chevron {
+    transition: none;
+  }
+}
+</style>

@@ -74,16 +74,6 @@
   outline-offset: 2px;
 }
 
-/* The global UCard theme (vite.config.ts) paints literal white /
- * coco-neutral-900 roots that no semantic alias reaches, so each section card
- * carries an owned hook onto the surface and border roles. */
-.promotions-workspace .promotions-form-section {
-  background-color: var(--hf-surface);
-  border-radius: var(--hf-radius-card);
-  box-shadow: 0 0 0 1px var(--hf-border);
-  color: var(--hf-ink);
-}
-
 /* The type badge and the summary icon are neutral: color is reserved for
  * status, urgency and the single primary action. */
 .promotions-workspace .promotions-type-badge,
@@ -108,23 +98,11 @@
   font-weight: 500;
 }
 
-/* Method cards, BUY_X_GET_Y presets and the target-type segments are
- * selections, so they use the action/active roles instead of gold. */
-.promotions-workspace .promotions-choice {
-  border-color: var(--hf-border);
-  background-color: var(--hf-surface);
-}
-
-.promotions-workspace .promotions-choice:hover,
+/* BUY_X_GET_Y presets and the target-type segments are selections, so they use
+ * the action/active roles instead of gold (the method cards are HfRadioCards). */
 .promotions-workspace .promotions-preset:hover {
   border-color: var(--hf-action);
   background-color: var(--hf-active-soft);
-}
-
-.promotions-workspace .promotions-choice-selected {
-  border-color: var(--hf-active);
-  background-color: var(--hf-active-soft);
-  box-shadow: 0 0 0 1px var(--hf-active);
 }
 
 .promotions-workspace .promotions-segment[aria-checked='true'] {
@@ -138,8 +116,46 @@
   outline-offset: 2px;
 }
 
+/* Summary rail (T6d): an HfSectionCard; the type icon sits in its meta slot. */
+.promotions-workspace .promotions-summary-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--hf-radius-control);
+}
+
+.promotions-workspace .promotions-summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.promotions-workspace .promotions-summary-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--hf-ink);
+  font-size: 14px;
+  line-height: 20px;
+}
+
 .promotions-workspace .promotions-summary-check {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
   color: var(--hf-action);
+}
+
+.promotions-workspace .promotions-summary-empty {
+  margin: 0;
+  color: var(--hf-muted);
+  font-size: 14px;
 }
 
 .promotions-workspace .promotions-availability-fields {
@@ -195,6 +211,42 @@
 .promotions-form-portal .promotions-spinner {
   border-color: var(--hf-action);
   border-top-color: transparent;
+}
+
+/* ── Optional conditions: whole-row switches that reveal their field ─────── */
+
+/* Selección sin checkboxes: each condition is an HfSwitchRow; its field opens
+ * inside the same bordered group, under the row, never as an indented block. */
+.promotions-workspace .promotions-conditions {
+  display: grid;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background-color: var(--hf-surface);
+  overflow: hidden;
+}
+
+.promotions-workspace .promotions-condition + .promotions-condition {
+  border-top: 1px solid var(--hf-border);
+}
+
+.promotions-workspace .promotions-condition__body {
+  padding: 0.25rem 1rem 1rem;
+}
+
+.promotions-workspace .promotions-condition__hint {
+  margin: 0;
+  color: var(--hf-muted);
+  font-size: 14px;
+}
+
+/* Target pickers: the selectable rows scroll inside the dialog. */
+.promotions-form-portal .promotions-scroll-rows .hf-selectable-rows__list {
+  max-height: 18rem;
+  overflow-y: auto;
+}
+
+.promotions-form-portal .promotions-scroll-rows--compact .hf-selectable-rows__list {
+  max-height: 12rem;
 }
 
 /* ── Loading skeleton: shaped like the form's section cards ──────────────── */

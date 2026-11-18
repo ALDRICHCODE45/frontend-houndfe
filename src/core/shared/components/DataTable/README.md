@@ -4,7 +4,7 @@ Sistema completo de tablas con paginación, ordenamiento y filtrado del lado del
 
 ## Stack
 
-- **NuxtUI v4** — componentes UI (UTable, UButton, UCheckbox, UCard, UBadge, etc.)
+- **NuxtUI v4** — componentes UI (UTable, UButton, UCard, UBadge, etc.)
 - **TanStack Vue Table** — lógica de tabla headless (sorting, pagination, row selection)
 - **TanStack Vue Query** — data fetching con cache, refetch automático, keepPreviousData
 - **Vue Router** (opcional) — sincronización de estado con URL query params
@@ -18,7 +18,7 @@ Sistema completo de tablas con paginación, ordenamiento y filtrado del lado del
 ✅ **URL sync (opt-in)** — ?page=2&sort=name:asc&q=laptop  
 ✅ **Column visibility** — show/hide con localStorage persistence  
 ✅ **Column pinning** — left/right sticky columns  
-✅ **Row selection** — checkboxes + bulk actions  
+✅ **Row selection** — row marks (`HfRowMark`, sin checkboxes) + bulk actions  
 ✅ **Bulk actions** — sticky bottom bar con animación  
 ✅ **Loading states** — carousel animation en header + fetching indicator  
 ✅ **Slots para todo** — renderiza celdas y headers con template Vue puro
@@ -40,7 +40,7 @@ src/core/shared/
     ├── DataTableBulkActions.vue      # Sticky bottom bar
     ├── DataTableColumnHeader.ts      # Helper: createSimpleHeader
     ├── SortableHeader.vue            # Reusable sortable header button
-    ├── SelectColumn.vue              # Reusable select checkbox (header + cell)
+    ├── SelectColumn.vue              # Row-mark selection column (header + cell)
     └── index.ts                      # Exports
 ```
 
@@ -214,7 +214,7 @@ const bulkActions = [
         @add="handleAdd"
         @refresh="refresh"
       >
-        <!-- ── Select (checkbox header + cell) ─────────── -->
+        <!-- ── Select (row mark header + cell) ────────── -->
         <template #select-header="{ table }">
           <SelectColumn mode="header" :table="table" />
         </template>
@@ -322,7 +322,7 @@ In the view template — use the `SortableHeader` component:
 </template>
 ```
 
-### Select Checkbox Column (via template slots)
+### Select Column — row mark (via template slots)
 
 In the column definition:
 
@@ -345,6 +345,12 @@ In the view template — use the `SelectColumn` component:
   <SelectColumn mode="cell" :row="row" />
 </template>
 ```
+
+The mark is a 44px button with `aria-pressed` (header: empty → all → some = `mixed`, on the
+current page). Shift+click on a row applies its new state to the range since the last toggled
+row, and the mark's click never opens a clickable row. Name each row's mark with `label`, a
+string or a function of the row's original item returning e.g. «Seleccionar a Laura Méndez»
+(default `Seleccionar fila`).
 
 ### ⚠️ NUNCA uses h() con componentes NuxtUI
 
@@ -431,7 +437,7 @@ export interface BulkAction<T> {
 
 1. **Usa template slots para CUALQUIER componente NuxtUI** — `h()` + `resolveComponent()` no funciona en Vite + NuxtUI
 2. **Usa `SortableHeader` para headers con sort** — componente reutilizable, sin repetir código
-3. **Usa `SelectColumn` para checkboxes de selección** — header + cell en un solo componente
+3. **Usa `SelectColumn` para seleccionar filas** — row mark (`HfRowMark`, nunca un checkbox), header + cell en un solo componente
 4. **Usa `createSimpleHeader()` para headers estáticos** — retorna string puro, siempre funciona
 5. **Define queryKeys en constants/** — facilita invalidación de cache
 6. **Envuelve tablas en UCard** — con `px-6 py-5` para match con PF2 aesthetic

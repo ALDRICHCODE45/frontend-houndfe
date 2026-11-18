@@ -113,7 +113,7 @@ const menuModel = computed(() => {
   return special ?? values.value[0] ?? undefined
 })
 
-const optionClass = computed(() => ['hf-combobox__option', props.multiple && 'hf-combobox__option--box'])
+const optionClass = computed(() => ['hf-combobox__option', props.multiple && 'hf-combobox__option--multi'])
 const menuItems = computed(() => {
   const term = normalize(searchTerm.value.trim())
   const regular = props.items
@@ -227,20 +227,16 @@ function onUpdate(next: unknown) {
       <span v-else class="hf-combobox__placeholder">{{ placeholder }}</span>
     </span>
 
-    <template v-if="multiple" #item-leading="{ item }">
-      <UIcon
-        v-if="typeof item === 'object' && item !== null && 'icon' in item && item.icon"
-        :name="String(item.icon)"
-        data-slot="itemLeadingIcon"
-        class="hf-combobox__icon"
-      />
+    <!-- Multiple (Selección sin checkboxes): a trailing round mark on each regular option, an
+         empty ring at rest and a filled --hf-active check when chosen; the option keeps aria-selected. -->
+    <template v-if="multiple" #item-trailing="{ item }">
       <span
-        v-else-if="typeof item === 'object' && item !== null && 'value' in item && !isSpecialKey(String(item.value)) && !isActionKey(String(item.value))"
-        class="hf-combobox__box"
-        :data-checked="isChecked(item.value) || undefined"
+        v-if="typeof item === 'object' && item !== null && 'value' in item && !isSpecialKey(String(item.value)) && !isActionKey(String(item.value))"
+        class="hf-combobox__mark"
+        :data-state="isChecked(item.value) ? 'checked' : 'unchecked'"
         aria-hidden="true"
       >
-        <UIcon name="i-lucide-check" class="hf-combobox__box-icon" />
+        <UIcon name="i-lucide-check" class="hf-combobox__mark-icon" />
       </span>
     </template>
 

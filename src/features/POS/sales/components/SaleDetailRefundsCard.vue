@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { refundMethodLabel } from '@/features/POS/refunds/utils/refundLabels'
 import { formatCentsMXN } from '../utils/currency.utils'
@@ -20,13 +21,7 @@ const progress = (refund: SaleDetailRefund) =>
 </script>
 
 <template>
-  <UCard data-testid="sale-detail-refunds">
-    <template #header>
-      <h3 class="sale-detail-section-title">
-        <UIcon name="i-lucide-hand-coins" class="size-4" aria-hidden="true" />
-        Reembolsos
-      </h3>
-    </template>
+  <HfSectionCard title="Reembolsos" data-testid="sale-detail-refunds">
 
     <p v-if="refunds.length === 0" class="text-sm text-(--hf-muted)">No hay dinero por devolver.</p>
 
@@ -42,10 +37,10 @@ const progress = (refund: SaleDetailRefund) =>
           />
           <UButton
             v-else-if="canSettle"
-            size="sm"
             color="neutral"
             variant="outline"
             icon="i-lucide-hand-coins"
+            class="min-h-(--hf-control-height)"
             :aria-label="`Liquidar reembolso en ${refundMethodLabel(refund.method).toLocaleLowerCase('es-MX')}`"
             data-testid="sale-refund-settle"
             @click="emit('settle', refund.id)"
@@ -83,5 +78,5 @@ const progress = (refund: SaleDetailRefund) =>
         </div>
       </li>
     </ul>
-  </UCard>
+  </HfSectionCard>
 </template>

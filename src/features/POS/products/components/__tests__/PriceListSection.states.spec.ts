@@ -3,6 +3,7 @@
  * an unknown margin reads «—», and each figure cell carries its label for the
  * stacked phone layout.
  */
+import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DOMWrapper, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { defineComponent, h, type Component } from 'vue'
@@ -122,5 +123,30 @@ describe('PriceListSection — states', () => {
     const row = document.querySelector('tbody tr')!
     const labels = [...row.querySelectorAll('td[data-label]')].map((td) => td.getAttribute('data-label'))
     expect(labels).toEqual(['Precio de venta con impuestos', 'Margen', 'Ganancia'])
+  })
+})
+
+// T6e (S2–S3): «Precios de venta» is a design-system section card like its siblings.
+describe('PriceListSection — design system structure', () => {
+  const source = readFileSync('src/features/POS/products/components/PriceListSection.vue', 'utf8')
+  const template = source.slice(source.indexOf('<template>'), source.lastIndexOf('</template>'))
+
+  it('has no UCard left in its template', () => {
+    expect(template).not.toMatch(/<UCard\b/)
+  })
+
+  it('is one section card titled «Precios de venta» holding the price table', async () => {
+    await mountSection()
+    const sections = document.querySelectorAll('.hf-section-card')
+    expect(sections).toHaveLength(1)
+    const title = sections[0]!.querySelector('.hf-section-card__title')!
+    expect(title.textContent?.trim()).toBe('Precios de venta')
+    expect(title.tagName).toBe('H2')
+    expect(sections[0]!.querySelector('table.hf-plain-table')).not.toBeNull()
+  })
+
+  it('paints margins and gains with --hf-* roles, never Nuxt default colors', () => {
+    expect(source).not.toMatch(/['"\s]text-(?:success|error)\b/)
+    expect(template).not.toMatch(/\b(?:text|bg|border|divide)-(?:muted|default|highlighted|elevated)\b/)
   })
 })
