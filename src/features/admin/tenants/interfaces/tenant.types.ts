@@ -27,7 +27,7 @@ export interface TenantResponse {
 }
 
 // Table row (same as response for now)
-export interface TenantTableRow extends TenantResponse {}
+export type TenantTableRow = TenantResponse
 
 // Create request
 export interface CreateTenantRequest {

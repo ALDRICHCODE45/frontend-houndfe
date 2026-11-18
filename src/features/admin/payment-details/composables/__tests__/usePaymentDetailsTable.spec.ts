@@ -1,4 +1,3 @@
-// @ts-nocheck — composable binding tests use refs/computed freely.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ref, computed, type Ref } from 'vue'
 import type { ServerTableParams } from '@/core/shared/types/table.types'
@@ -82,7 +81,7 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
 // `paymentDetailsApi.list` is stubbed so the queryFn does not hit `http.get`.
 vi.mock('@/features/admin/payment-details/api/payment-details.api', async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import('../api/payment-details.api')>()
+    await importOriginal<typeof import('@/features/admin/payment-details/api/payment-details.api')>()
   return {
     ...actual,
     paymentDetailsApi: {

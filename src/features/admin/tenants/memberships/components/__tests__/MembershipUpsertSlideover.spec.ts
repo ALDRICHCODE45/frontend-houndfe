@@ -2,17 +2,49 @@ import { describe, it, expect, vi } from 'vitest'
 import { shallowMount } from '@vue/test-utils'
 import { ref } from 'vue'
 import MembershipUpsertSlideover from '../MembershipUpsertSlideover.vue'
-import { createMembershipSchema, updateMembershipSchema } from '../../interfaces/membership.types'
+import {
+  createMembershipSchema,
+  updateMembershipSchema,
+  type CreateMembershipFormValues,
+  type UpdateMembershipFormValues,
+} from '../../interfaces/membership.types'
+import type { EligibleUsersList } from '../../interfaces/eligible-user.types'
+import type { membershipsApi } from '../../api/memberships.api'
 
-const mockUseEligibleUsersQuery = vi.fn((..._args: any[]) => ({
-  users: ref<any[]>([]),
+type EligibleUser = EligibleUsersList['data'][number]
+type TenantRole = Awaited<ReturnType<typeof membershipsApi.getTenantRoles>>[number]
+
+/**
+ * Script-setup bindings the specs read through `wrapper.vm`. The component does
+ * not `defineExpose` them, so Vue Test Utils only types the public instance;
+ * this mirrors the component's own declarations for the bindings under test.
+ */
+interface SlideoverBindings {
+  schema: unknown
+  createState: CreateMembershipFormValues
+  editState: UpdateMembershipFormValues
+  userSearchTerm: string
+  isSingleCharSearch: boolean
+  userOptions: { label: string; value: string; email: string; avatar: { alt: string } }[]
+  roleOptions: { label: string; value: string }[]
+  title: string
+  formId: string
+  onSubmit: (event: { data: CreateMembershipFormValues | UpdateMembershipFormValues }) => void
+  notifyEligibleUsersSearchError: (error: {
+    message: string
+    response?: { status: number; data: { message?: string; code?: string } }
+  }) => void
+}
+
+const mockUseEligibleUsersQuery = vi.fn((..._args: unknown[]) => ({
+  users: ref<EligibleUser[]>([]),
   isLoading: ref(false),
   isError: ref(false),
-  error: ref(null),
+  error: ref<unknown>(null),
 }))
 
-const mockUseTenantRolesQuery = vi.fn((..._args: any[]) => ({
-  roles: ref<any[]>([]),
+const mockUseTenantRolesQuery = vi.fn((..._args: unknown[]) => ({
+  roles: ref<TenantRole[]>([]),
   isLoading: ref(false),
   isError: ref(false),
 }))
@@ -62,7 +94,7 @@ describe('MembershipUpsertSlideover', () => {
         },
       })
 
-      const vm = wrapper.vm as any
+      const vm = wrapper.vm as unknown as SlideoverBindings
       expect(vm.schema).toBe(createMembershipSchema)
     })
 
@@ -75,7 +107,7 @@ describe('MembershipUpsertSlideover', () => {
         },
       })
 
-      const vm = wrapper.vm as any
+      const vm = wrapper.vm as unknown as SlideoverBindings
       const payload = { userId: 'user-123', roleId: 'role-456' }
       vm.onSubmit({ data: payload })
 
@@ -92,7 +124,7 @@ describe('MembershipUpsertSlideover', () => {
         },
       })
 
-      const vm = wrapper.vm as any
+      const vm = wrapper.vm as unknown as SlideoverBindings
       expect(vm.createState).toBeDefined()
       expect(vm.createState.userId).toBeDefined()
       expect(vm.createState.roleId).toBeDefined()
@@ -107,7 +139,7 @@ describe('MembershipUpsertSlideover', () => {
         },
       })
 
-      const vm = wrapper.vm as any
+      const vm = wrapper.vm as unknown as SlideoverBindings
       vm.userSearchTerm = 'm'
       await wrapper.vm.$nextTick()
 
@@ -130,7 +162,7 @@ describe('MembershipUpsertSlideover', () => {
         },
       })
 
-      const vm = wrapper.vm as any
+      const vm = wrapper.vm as unknown as SlideoverBindings
       vm.userSearchTerm = 'mar'
 
       expect(mockUseEligibleUsersQuery).toHaveBeenCalled()
@@ -160,7 +192,7 @@ describe('MembershipUpsertSlideover', () => {
         },
       })
 
-      const vm = wrapper.vm as any
+      const vm = wrapper.vm as unknown as SlideoverBindings
       vm.notifyEligibleUsersSearchError({
         response: {
           status: 400,
@@ -194,7 +226,7 @@ describe('MembershipUpsertSlideover', () => {
         },
       })
 
-      const vm = wrapper.vm as any
+      const vm = wrapper.vm as unknown as SlideoverBindings
       expect(vm.schema).toBe(updateMembershipSchema)
     })
 
@@ -217,7 +249,7 @@ describe('MembershipUpsertSlideover', () => {
         },
       })
 
-      const vm = wrapper.vm as any
+      const vm = wrapper.vm as unknown as SlideoverBindings
       const payload = { roleId: 'role-789' }
       vm.onSubmit({ data: payload })
 
@@ -244,7 +276,7 @@ describe('MembershipUpsertSlideover', () => {
         },
       })
 
-      const vm = wrapper.vm as any
+      const vm = wrapper.vm as unknown as SlideoverBindings
       expect(vm.editState).toBeDefined()
       expect(vm.editState.roleId).toBeDefined()
     })
@@ -260,7 +292,7 @@ describe('MembershipUpsertSlideover', () => {
         },
       })
 
-      const vm = wrapper.vm as any
+      const vm = wrapper.vm as unknown as SlideoverBindings
       expect(vm.title).toBe('Agregar miembro')
     })
 
@@ -283,7 +315,7 @@ describe('MembershipUpsertSlideover', () => {
         },
       })
 
-      const vm = wrapper.vm as any
+      const vm = wrapper.vm as unknown as SlideoverBindings
       expect(vm.title).toBe('Editar rol del miembro')
     })
 
@@ -296,7 +328,7 @@ describe('MembershipUpsertSlideover', () => {
         },
       })
 
-      const vm = wrapper.vm as any
+      const vm = wrapper.vm as unknown as SlideoverBindings
       expect(vm.formId).toBe('create-membership-form')
     })
 
@@ -319,7 +351,7 @@ describe('MembershipUpsertSlideover', () => {
         },
       })
 
-      const vm = wrapper.vm as any
+      const vm = wrapper.vm as unknown as SlideoverBindings
       expect(vm.formId).toBe('edit-membership-form')
     })
 
@@ -349,7 +381,7 @@ describe('MembershipUpsertSlideover', () => {
         },
       })
 
-      const vm = wrapper.vm as any
+      const vm = wrapper.vm as unknown as SlideoverBindings
       // The role from the current membership MUST be present in roleOptions
       // even when the tenant roles query has not resolved yet,
       // so USelectMenu can render its label instead of the raw UUID.
@@ -358,7 +390,7 @@ describe('MembershipUpsertSlideover', () => {
           opt.value === 'abd93355-a3dc-4ae7-8f17-877ff3986d2c',
       )
       expect(matchingOption).toBeDefined()
-      expect(matchingOption.label).toBe('Super Admin')
+      expect(matchingOption?.label).toBe('Super Admin')
     })
 
     it('does not duplicate the membership role when it is also present in tenant roles', () => {
@@ -389,7 +421,7 @@ describe('MembershipUpsertSlideover', () => {
         },
       })
 
-      const vm = wrapper.vm as any
+      const vm = wrapper.vm as unknown as SlideoverBindings
       const adminMatches = vm.roleOptions.filter(
         (opt: { value: string }) => opt.value === 'role-1',
       )

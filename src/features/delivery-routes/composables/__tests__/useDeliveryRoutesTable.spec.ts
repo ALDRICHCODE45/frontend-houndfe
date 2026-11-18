@@ -1,6 +1,3 @@
-// @ts-nocheck — composable binding tests mock `useServerTable` directly; the real
-// generic impl is exercised by the table-utils path. Type-checking the mock against
-// the live impl is unnecessary.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ref, computed, type Ref } from 'vue'
 import type { ServerTableParams } from '@/core/shared/types/table.types'
@@ -81,7 +78,7 @@ const authMock = {
 // The full list is cached in its own query slot; the wrapper reads it through
 // `queryClient.fetchQuery`. The fake runs the provided queryFn so every
 // assertion still goes through `deliveryRoutesApi.list`.
-const fetchQueryMock = vi.fn((options: { queryKey: unknown[]; queryFn: () => unknown }) =>
+const fetchQueryMock = vi.fn((options: { queryKey: unknown[]; queryFn: () => unknown; staleTime?: number }) =>
   options.queryFn(),
 )
 const invalidateQueriesMock = vi.fn(async () => undefined)
@@ -250,7 +247,7 @@ describe('useDeliveryRoutesTable — useServerTable wrapper (design.md §6.2, RE
     vi.mocked(deliveryRoutesApi.list).mockResolvedValue([makeRoute()])
     await capturedQueryFn!({ pageIndex: 0, pageSize: 10 } as ServerTableParams)
     expect(fetchQueryMock).toHaveBeenCalledTimes(1)
-    const options = fetchQueryMock.mock.calls[0]![0] as { queryKey: unknown[]; staleTime: number }
+    const options = fetchQueryMock.mock.calls[0]![0]
     expect(options.queryKey.slice(0, 2)).toEqual([
       ...deliveryRouteQueryKeys.listPrefix('tenant-1'),
     ].slice(0, 2))

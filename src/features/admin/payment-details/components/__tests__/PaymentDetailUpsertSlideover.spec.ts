@@ -1,9 +1,13 @@
-// @ts-nocheck — component mount with Nuxt UI stubs; assertions use testids/text
-// and emitted payloads, not deep type contracts.
 import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import PaymentDetailUpsertSlideover from '../PaymentDetailUpsertSlideover.vue'
-import type { PaymentDetailTableRow } from '../../interfaces/payment-detail.types'
+import type {
+  CreatePaymentDetailFormValues,
+  UpdatePaymentDetailFormValues,
+  PaymentDetailTableRow,
+} from '../../interfaces/payment-detail.types'
+
+type PaymentDetailField = keyof CreatePaymentDetailFormValues
 
 /**
  * PaymentDetailUpsertSlideover — sdd payment-details-admin S4 (design.md §10.2)
@@ -96,8 +100,11 @@ function makeRow(overrides: Partial<PaymentDetailTableRow> = {}): PaymentDetailT
   }
 }
 
-function mountSlideover(props: Record<string, unknown>) {
-  return mount(PaymentDetailUpsertSlideover as never, {
+function mountSlideover(props: {
+  mode: 'create' | 'edit'
+  paymentDetail?: PaymentDetailTableRow | null
+}) {
+  return mount(PaymentDetailUpsertSlideover, {
     props: { open: true, ...props },
     global: { stubs },
   })
@@ -132,16 +139,16 @@ describe('PaymentDetailUpsertSlideover — REQ-PD-002: create emits only the 4 f
     const wrapper = mountSlideover({ mode: 'create' })
     const fieldNames = wrapper.findAll('[data-testid="form-field"]').map((f) => f.attributes('data-name'))
     const inputs = wrapper.findAll('[data-testid="input"]')
-    const values = {
+    const values: CreatePaymentDetailFormValues = {
       bankName: 'AFIRME',
       beneficiary: 'HUN F.E. COMERCIALIZADORA SA DE CV',
       clabe: '012180001234567890',
       accountNumber: '1234567890',
     }
-    for (let i = 0; i < inputs.length; i++) {
+    for (const [i, input] of inputs.entries()) {
       const name = fieldNames[i]
       if (name && name in values) {
-        await inputs[i].setValue(values[name])
+        await input.setValue(values[name as PaymentDetailField])
       }
     }
 
@@ -149,7 +156,7 @@ describe('PaymentDetailUpsertSlideover — REQ-PD-002: create emits only the 4 f
     // component's live reactive state.
     await wrapper.find('[data-testid="form"]').trigger('submit')
 
-    const createEvents = wrapper.emitted('create')
+    const createEvents = wrapper.emitted<[CreatePaymentDetailFormValues]>('create')
     expect(createEvents).toBeTruthy()
     expect(createEvents).toHaveLength(1)
     const payload = createEvents![0]![0]
@@ -170,9 +177,9 @@ describe('PaymentDetailUpsertSlideover — REQ-PD-003: edit prefills and emits o
     const wrapper = mountSlideover({ mode: 'edit', paymentDetail: row })
     const fieldNames = wrapper.findAll('[data-testid="form-field"]').map((f) => f.attributes('data-name'))
     const inputs = wrapper.findAll('[data-testid="input"]')
-    const values = {}
-    for (let i = 0; i < inputs.length; i++) {
-      values[fieldNames[i]] = inputs[i].element.value
+    const values: Record<string, string> = {}
+    for (const [i, input] of inputs.entries()) {
+      values[String(fieldNames[i])] = (input.element as HTMLInputElement).value
     }
     expect(values).toEqual({
       bankName: 'BBVA',
@@ -187,7 +194,7 @@ describe('PaymentDetailUpsertSlideover — REQ-PD-003: edit prefills and emits o
     const wrapper = mountSlideover({ mode: 'edit', paymentDetail: row })
     await wrapper.find('[data-testid="form"]').trigger('submit')
 
-    const editEvents = wrapper.emitted('edit')
+    const editEvents = wrapper.emitted<[UpdatePaymentDetailFormValues]>('edit')
     expect(editEvents).toBeTruthy()
     expect(editEvents).toHaveLength(1)
     const payload = editEvents![0]![0]

@@ -538,10 +538,23 @@ describe('permissions i18n — chatbot request subjects (ODD chatbot-requests-in
         expect(getPermissionDescription(subject, action).length).toBeGreaterThan(20)
         expect(getPermissionDescription(subject, action)).not.toContain(subject)
       }
-      for (const action of ['create', 'read', 'update', 'delete', 'manage', 'batch_delete']) {
-        if (action in copy.actions) continue
+      // Every other verb has no curated copy: the public helpers report the
+      // generic description and a fallback label that is none of the curated
+      // labels and names the subject through getSubjectLabel (never the code).
+      const uncuratedActions = ['create', 'read', 'update', 'delete', 'manage', 'batch_delete'].filter(
+        (action) => !(action in copy.actions),
+      )
+      expect(uncuratedActions.length).toBeGreaterThan(0)
+      const curatedLabels = Object.values(copy.actions)
+      for (const action of uncuratedActions) {
         expect(getPermissionDescription(subject, action)).toBe('')
-        expect(getPermissionLabel(subject, action)).toContain(copy.subject)
+        expect(getPermissionDescriptionOrFallback(subject, action)).toBe(
+          GENERIC_PERMISSION_DESCRIPTION,
+        )
+        const label = getPermissionLabel(subject, action)
+        expect(curatedLabels).not.toContain(label)
+        expect(label).toContain(getSubjectLabel(subject))
+        expect(label).not.toContain(subject)
       }
     },
   )

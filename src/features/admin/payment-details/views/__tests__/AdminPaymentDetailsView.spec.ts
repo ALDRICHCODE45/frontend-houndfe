@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { ref } from 'vue'
 import AdminPaymentDetailsView from '../AdminPaymentDetailsView.vue'
@@ -48,19 +47,30 @@ vi.mock('@nuxt/ui/runtime/composables/useToast', () => ({
 // ── Mutation capture harness ────────────────────────────────────────────────────
 // Each useMutation call returns a stable handle whose config (mutationFn,
 // onSuccess, onError) is captured so tests can invoke them directly.
-const mutationHandles = []
+type MutationCallbacks = {
+  onSuccess?: (...args: unknown[]) => unknown
+  onError?: (...args: unknown[]) => unknown
+}
+type MutationHandle = {
+  config: MutationCallbacks
+  mutate: Mock<(...args: unknown[]) => void>
+  mutateAsync: Mock<(...args: unknown[]) => Promise<unknown>>
+  isPending: { value: boolean }
+  lastArgs?: unknown[]
+}
+const mutationHandles: MutationHandle[] = []
 const invalidateQueriesMock = vi.fn()
 
 vi.mock('@tanstack/vue-query', () => ({
   useQuery: () => ({ data: ref([]), isLoading: ref(false) }),
-  useMutation: (config) => {
-    const handle = {
+  useMutation: (config: MutationCallbacks) => {
+    const handle: MutationHandle = {
       config,
-      mutate: vi.fn((...args) => {
+      mutate: vi.fn((...args: unknown[]) => {
         handle.lastArgs = args
         if (config?.onSuccess) void config.onSuccess(...args)
       }),
-      mutateAsync: vi.fn(async (...args) => {
+      mutateAsync: vi.fn(async (...args: unknown[]) => {
         handle.lastArgs = args
         if (config?.onSuccess) void config.onSuccess(...args)
         return args[0]
@@ -330,7 +340,7 @@ describe('AdminPaymentDetailsView — create mutation flow (REQ-PD-002/008)', ()
     await flushPromises()
 
     // Find the create mutation handle (first useMutation is create).
-    const createHandle = mutationHandles[0]
+    const createHandle = mutationHandles[0]!
     expect(createHandle).toBeTruthy()
     await createHandle.mutate({
       bankName: 'AFIRME',
@@ -348,9 +358,9 @@ describe('AdminPaymentDetailsView — create mutation flow (REQ-PD-002/008)', ()
   it('create error with DUPLICATE_CLABE toasts the specific domain message', async () => {
     const wrapper = mountView()
     await flushPromises()
-    const createHandle = mutationHandles[0]
+    const createHandle = mutationHandles[0]!
     // Invoke the onError handler with an axios-like error carrying the domain code.
-    createHandle.config.onError({
+    createHandle.config.onError!({
       response: { data: { error: 'DUPLICATE_CLABE' } },
     })
     expect(toastMock.add).toHaveBeenCalledWith(
@@ -361,8 +371,8 @@ describe('AdminPaymentDetailsView — create mutation flow (REQ-PD-002/008)', ()
   it('create error with ENTITY_NOT_FOUND toasts the specific domain message', async () => {
     const wrapper = mountView()
     await flushPromises()
-    const createHandle = mutationHandles[0]
-    createHandle.config.onError({
+    const createHandle = mutationHandles[0]!
+    createHandle.config.onError!({
       response: { data: { error: 'ENTITY_NOT_FOUND' } },
     })
     expect(toastMock.add).toHaveBeenCalledWith(
@@ -390,7 +400,7 @@ describe('AdminPaymentDetailsView — delete flow with ConfirmModal (REQ-PD-004/
     const wrapper = mountView()
     await flushPromises()
     // Third mutation is delete (create, update, delete).
-    const deleteHandle = mutationHandles[2]
+    const deleteHandle = mutationHandles[2]!
     expect(deleteHandle).toBeTruthy()
     await deleteHandle.mutate('pd-1')
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
@@ -404,8 +414,8 @@ describe('AdminPaymentDetailsView — delete flow with ConfirmModal (REQ-PD-004/
   it('delete error with ENTITY_NOT_FOUND toasts the domain message', async () => {
     const wrapper = mountView()
     await flushPromises()
-    const deleteHandle = mutationHandles[2]
-    deleteHandle.config.onError({ response: { data: { error: 'ENTITY_NOT_FOUND' } } })
+    const deleteHandle = mutationHandles[2]!
+    deleteHandle.config.onError!({ response: { data: { error: 'ENTITY_NOT_FOUND' } } })
     expect(toastMock.add).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'No encontrado', color: 'error' }),
     )

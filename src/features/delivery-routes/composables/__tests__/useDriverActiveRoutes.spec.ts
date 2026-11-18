@@ -14,10 +14,6 @@
 //
 // We mock `useQuery` so the spec owns the key shape and the queryFn signature
 // without mounting a real QueryClient — mirrors `useSalePaymentMethods.spec.ts`.
-
-// @ts-nocheck — composable binding tests mock TanStack's useQuery with a plain
-// object whose typing is intentionally loose; the production source is the
-// source of truth for the real Vue-Query binding.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // ─── Hoisted test state — vi.mock factories run BEFORE top-level statements,

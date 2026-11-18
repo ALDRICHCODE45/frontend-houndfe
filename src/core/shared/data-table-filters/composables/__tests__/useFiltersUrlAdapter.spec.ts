@@ -32,7 +32,7 @@ describe('useFiltersUrlAdapter', () => {
 
   it('loop guard ignores same canonical route updates', async () => {
     let adapter!: ReturnType<typeof useFiltersUrlAdapter>
-    let cb = vi.fn()
+    const cb = vi.fn()
     const Harness = defineComponent({ setup() { adapter = useFiltersUrlAdapter(schema); adapter.watch(cb); return () => null } })
     const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: Harness }] })
     await router.push('/?paymentStatus=PAID')

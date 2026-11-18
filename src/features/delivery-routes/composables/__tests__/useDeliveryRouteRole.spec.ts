@@ -1,12 +1,9 @@
-// @ts-nocheck — composable binding tests mock Pinia's defineStore with `useAuthStore: () => …`.
-// Type-checking the mock's `userCan` shape against the real impl is unnecessary; the
-// production source is the source of truth for both production and tests.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Hoisted auth mock — Pinia's defineStore wraps `useAuthStore`, but tests inject a
 // plain function so we can drive `userCan` deterministically per case.
 const authMock = {
-  userCan: vi.fn(),
+  userCan: vi.fn<(action: string, subject: string) => boolean>(),
   permissionCodes: vi.fn(),
 }
 

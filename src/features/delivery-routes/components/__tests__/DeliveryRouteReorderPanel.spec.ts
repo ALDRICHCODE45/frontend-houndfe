@@ -88,7 +88,7 @@ function makeRoute(
 //      so the panel's row template renders verbatim (data-testids preserved).
 //   3. Exposes the raw list via `data-list` for spec-level assertions.
 const draggableStub = defineComponent({
-  name: 'draggable',
+  name: 'DraggableStub',
   props: ['modelValue', 'itemKey', 'tag', 'handle', 'animation', 'ghostClass', 'chosenClass', 'dragClass'],
   emits: ['update:modelValue', 'end', 'start', 'change'],
   template: `

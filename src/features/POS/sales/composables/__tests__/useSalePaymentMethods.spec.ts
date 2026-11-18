@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ref, computed, type Ref } from 'vue'
 import { useQuery, type UseQueryReturnType } from '@tanstack/vue-query'
