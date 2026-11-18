@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef } from 'vue'
+import { computed, ref, shallowRef, useId } from 'vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { HfToggleChips, type HfToggleChipItem } from '@/core/shared/components/selection'
 import type { EditorialFactsEditingRow } from '../../utils/editorial-contract-facts-editing'
 import { appendEditorialFactsCareRow, removeEditorialFactsCareRow, replaceEditorialFactsCare } from '../../utils/editorial-contract-facts-edits'
 import type { PreparedEditorialCareInput } from '../../utils/editorial-contract-care-edits'
@@ -98,11 +99,17 @@ function saveItem() {
   }
   emit('update:row', next)
 }
-function toggleReference(key: string, event: Event) {
+// «Viene de» toggle chips. The chips emit in list order; the warning keeps the order the keys were
+// pressed in, so only the chip that changed is applied.
+const referencesLabelId = useId()
+const referenceItems = computed<HfToggleChipItem[]>(() =>
+  (prepared.value?.requirements ?? []).map(({ key, description }) => ({ value: key, label: description || key })))
+function setReferences(next: string[]) {
   const item = editing.value
   if (item?.kind !== 'warnings') return
-  const on = (event.target as HTMLInputElement).checked
-  editing.value = { ...item, requirementKeys: on ? [...item.requirementKeys.filter(entry => entry !== key), key] : item.requirementKeys.filter(entry => entry !== key) }
+  const added = next.filter(key => !item.requirementKeys.includes(key))
+  const kept = item.requirementKeys.filter(key => next.includes(key))
+  editing.value = { ...item, requirementKeys: [...kept, ...added] }
 }
 
 const removing = shallowRef<{ kind: 'requirements' | 'warnings'; index: number } | null>(null)
@@ -239,14 +246,10 @@ const requirementLabel = (key: string) => prepared.value?.requirements.find(entr
               </label>
             </div>
           </fieldset>
-          <fieldset v-if="prepared?.requirements.length" class="care__group" data-testid="care-group">
-            <legend class="care__label">Viene de</legend>
-            <div class="care__chips">
-              <label v-for="item in prepared.requirements" :key="item.key" class="care__chip" :data-checked="editing.requirementKeys.includes(item.key)">
-                <input type="checkbox" class="sr-only" :checked="editing.requirementKeys.includes(item.key)" @change="toggleReference(item.key, $event)">{{ item.description || item.key }}
-              </label>
-            </div>
-          </fieldset>
+          <div v-if="prepared?.requirements.length" class="care__group" data-testid="care-group">
+            <span :id="referencesLabelId" class="care__label">Viene de</span>
+            <HfToggleChips :items="referenceItems" :model-value="editing.requirementKeys" :labelledby="referencesLabelId" @update:model-value="setReferences" />
+          </div>
         </template>
       </div>
     </template>

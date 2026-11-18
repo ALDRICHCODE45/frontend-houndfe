@@ -22,6 +22,7 @@ import CategorySelect, { type CategorySelectItem } from './CategorySelect.vue'
 import { hasStockOnHand } from '../utils/productStockErrors'
 import ReadOnlyStock from './ReadOnlyStock.vue'
 import SatKeySelect from './SatKeySelect.vue'
+import { HfSwitchRow } from '@/core/shared/components/selection'
 
 const props = withDefaults(
   defineProps<{
@@ -289,30 +290,37 @@ function onSubmit(event: FormSubmitEvent<ProductFormValues>) {
           </UFormField>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
-          <div v-if="showInventoryFields" class="space-y-1">
-            <UCheckbox v-model="state.useStock" :disabled="useStockLocked" label="Usar stock" />
-            <p v-if="useStockLocked" class="text-xs text-muted" data-testid="use-stock-locked-reason">
-              Hay existencias: ajusta el stock a 0 para desactivarlo.
-            </p>
+        <!-- T4c: product options are whole-row switches (Selección sin checkboxes). -->
+        <div
+          role="group"
+          aria-label="Opciones del producto"
+          class="overflow-hidden rounded-lg border border-[var(--hf-border)] bg-[var(--hf-surface)] divide-y divide-[var(--hf-border)]"
+          data-testid="product-options"
+        >
+          <div v-if="showInventoryFields">
+            <HfSwitchRow
+              v-model="state.useStock"
+              label="Usar stock"
+              :disabled="useStockLocked"
+              disabled-reason="Hay existencias: ajusta el stock a 0 para desactivarlo."
+            />
             <p
               v-if="errors.useStock"
-              class="text-xs text-[var(--hf-danger)]"
+              class="px-4 pb-3 text-xs text-[var(--hf-danger)]"
               role="alert"
               data-testid="use-stock-error"
             >
               {{ errors.useStock }}
             </p>
           </div>
-          <UCheckbox v-model="state.sellInPos" label="Vender en POS" />
-          <!-- U9: the catalog opt-in is a switch; every other option stays a checkbox. -->
-          <USwitch
+          <HfSwitchRow v-model="state.sellInPos" label="Vender en POS" />
+          <HfSwitchRow
             v-model="state.includeInOnlineCatalog"
             label="Catálogo online"
             description="El producto se muestra en el catálogo público"
-            data-testid="include-in-online-catalog-switch"
+            test-id="include-in-online-catalog-switch"
           />
-          <UCheckbox v-model="state.chargeProductTaxes" label="Cobrar impuestos" />
+          <HfSwitchRow v-model="state.chargeProductTaxes" label="Cobrar impuestos" />
         </div>
 
         <!-- Más Opciones -->

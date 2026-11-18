@@ -67,9 +67,7 @@ vi.mock('vue-router', () => ({
 }))
 
 // NOTE: the slideover body/footer render through the document root, so the
-// rendered controls are queried through the document. `baseStubs.UCheckbox`
-// never matched the globally-registered `Checkbox` component, so the real
-// UCheckbox controls (role="checkbox") render and can be asserted.
+// rendered controls are queried through the document.
 const slideoverStub = {
   name: 'USlideover',
   props: ['ui'],
@@ -87,7 +85,6 @@ const baseStubs = {
   UInputNumber: { name: 'UInputNumber', template: '<input type="number" />' },
   UForm: { name: 'UForm', template: '<form><slot /></form>' },
   UFormField: { name: 'UFormField', template: '<div><slot /></div>' },
-  UCheckbox: { name: 'UCheckbox', template: '<input type="checkbox" />' },
   UTextarea: { name: 'UTextarea', template: '<textarea />' },
   CategorySelect: { name: 'CategorySelect', template: '<select />' },
   SatKeySelect: { name: 'SatKeySelect', template: '<select />' },
@@ -189,8 +186,7 @@ describe('ProductUpsertSlideover - WU-E SERVICE-hiding (behavioral)', () => {
           UInputNumber: { name: 'UInputNumber', template: '<input type="number" />' },
           UForm: { name: 'UForm', template: '<form><slot /></form>' },
           UFormField: { name: 'UFormField', template: '<div><slot /></div>' },
-          UCheckbox: { name: 'UCheckbox', template: '<input type="checkbox" />' },
-          UTextarea: { name: 'UTextarea', template: '<textarea />' },
+                  UTextarea: { name: 'UTextarea', template: '<textarea />' },
           UButton: buttonStub,
           Button: buttonStub,
           SatKeySelect: { name: 'SatKeySelect', template: '<select />' },
@@ -243,27 +239,24 @@ describe('ProductUpsertSlideover - WU-E SERVICE-hiding (behavioral)', () => {
     expect(vm.state.serviceDetail.notes).toBe('Walk')
   })
 
-  // U9: only the catalog-specific opt-in becomes a switch; the other product
-  // options stay checkboxes so the form semantics and payload are untouched.
-  it('renders the catalog opt-in as a labeled switch and keeps the other options as checkboxes', async () => {
+  // U9 + T4c: the catalog opt-in and every other product option are whole-row
+  // switches (HfSwitchRow); no checkbox remains and the form state is untouched.
+  it('renders the catalog opt-in as a labeled switch row, like every other option', async () => {
     const wrapper = mountSlide(productDetailPRODUCT, 'edit')
     await nextTick()
 
     const toggle = q('[data-testid="include-in-online-catalog-switch"]')
-    const switchRoot = toggle.element.closest('[data-slot="root"]')!
-    const label = switchRoot.querySelector('label')!
+    const label = document.getElementById(toggle.attributes('aria-labelledby')!)!
 
     expect(toggle.exists()).toBe(true)
     expect(toggle.attributes('role')).toBe('switch')
     expect(toggle.attributes('aria-checked')).toBe('true')
     expect(label.textContent).toContain('Catálogo online')
-    expect(switchRoot.textContent).toContain('El producto se muestra en el catálogo público')
-    // The visible label is wired to the rendered switch button.
-    expect(label.getAttribute('for')).toBe(toggle.attributes('id'))
-    // Usar stock, Vender en POS and Cobrar impuestos remain checkboxes.
-    expect(wrapper.findAllComponents({ name: 'Switch' })).toHaveLength(1)
-    expect(wrapper.findAllComponents({ name: 'Checkbox' })).toHaveLength(3)
-    expect(document.querySelectorAll('[role="checkbox"]')).toHaveLength(3)
+    expect(toggle.text()).toContain('El producto se muestra en el catálogo público')
+    // Usar stock, Vender en POS, Catálogo online and Cobrar impuestos are switch rows.
+    expect(document.querySelectorAll('.hf-switch-row [role="switch"]')).toHaveLength(4)
+    expect(wrapper.findAllComponents({ name: 'Checkbox' })).toHaveLength(0)
+    expect(document.querySelectorAll('[role="checkbox"], input[type="checkbox"]')).toHaveLength(0)
   })
 
   it('toggles the catalog opt-in through the rendered switch', async () => {

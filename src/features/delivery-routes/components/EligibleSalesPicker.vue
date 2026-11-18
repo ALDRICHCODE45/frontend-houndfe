@@ -26,6 +26,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { refDebounced } from '@vueuse/core'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import SaleAddressSourceNotice from '@/core/shared/components/SaleAddressSourceNotice.vue'
+import { HfSelectableRows, type HfSelectableRowItem } from '@/core/shared/components/selection'
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import { formatAddress } from '@/core/shared/utils/formatAddress'
@@ -243,8 +244,28 @@ function availabilityReason(row: EligibleSaleRow): string | null {
 // Legacy append: every row is selectable (no availability info to act on).
 const selectable = (row: EligibleSaleRow) =>
   isAuthoritative.value ? isEligibleSaleSelectable(row) : true
-const rowAriaLabel = (row: EligibleSaleRow) => `${rowCustomerName(row)} — ${row.folio ?? copy.noFolio}`
-const reasonId = (row: EligibleSaleRow) => `eligible-sales-reason-${row.id}`
+
+// ─── Selectable rows (HfSelectableRows) ──────────────────────────────────────
+// The rows are the current server page; selections from other pages/searches
+// stay in `modelValue`. The list emits in page order, so only the one row that
+// changed is applied through `toggle`, which keeps the click order the route
+// payload has always carried.
+const rowsById = computed(() => new Map(sales.value.map((row) => [row.id, row])))
+const rowItems = computed<HfSelectableRowItem[]>(() =>
+  sales.value.map((row) => ({
+    value: row.id,
+    label: `${rowCustomerName(row)} — ${row.folio ?? copy.noFolio}`,
+    disabled: !selectable(row),
+  })),
+)
+const listLabel = 'Ventas para la ruta'
+const selectionCountLabel = (selected: number) =>
+  selected === 1 ? '1 venta seleccionada' : `${selected} ventas seleccionadas`
+
+function onRowsUpdate(next: string[]): void {
+  const changed = sales.value.find((row) => props.modelValue.includes(row.id) !== next.includes(row.id))
+  if (changed) toggle(changed)
+}
 
 // ─── Pagination ──────────────────────────────────────────────────────────────
 const showPagination = computed(() => totalCount.value > 0 && pageCount.value > 1)
@@ -443,66 +464,57 @@ const errorMessage = computed(() =>
       </div>
     </div>
 
-    <!-- Results list -->
-    <ul
+    <!-- Results list: selectable rows with a mark (Selección sin checkboxes, T4c). -->
+    <div
       v-if="sales.length > 0 && !isError"
-      class="flex max-h-72 flex-col gap-1 overflow-y-auto"
+      class="eligible-sales-rows"
       data-testid="eligible-sales-picker-list"
     >
-      <li
-        v-for="row in sales"
-        :key="row.id"
-        :data-testid="`eligible-sales-picker-row-${row.id}`"
-        class="flex flex-col gap-1 rounded-lg border border-default p-2"
+      <HfSelectableRows
+        :items="rowItems"
+        :model-value="modelValue"
+        :label="listLabel"
+        :disabled="disabled"
+        :count-label="selectionCountLabel"
+        @update:model-value="onRowsUpdate"
       >
-        <div class="flex items-start gap-3">
-          <UCheckbox
-            :model-value="isSelected(row.id)"
-            :disabled="disabled || !selectable(row)"
-            :aria-label="rowAriaLabel(row)"
-            :aria-describedby="availabilityReason(row) ? reasonId(row) : undefined"
-            :data-testid="`eligible-sales-picker-row-checkbox-${row.id}`"
-            @update:model-value="toggle(row)"
-          />
-          <button
-            type="button"
-            class="flex min-w-0 flex-1 flex-col gap-0.5 text-left"
-            :disabled="disabled || !selectable(row)"
-            :data-testid="`eligible-sales-picker-row-toggle-${row.id}`"
-            @click="toggle(row)"
+        <template #option="{ item }">
+          <span
+            v-if="rowsById.get(item.value)"
+            :data-testid="`eligible-sales-picker-row-${item.value}`"
+            class="flex min-w-0 flex-col gap-0.5"
           >
             <span
-              :data-testid="`eligible-sales-picker-row-primary-${row.id}`"
+              :data-testid="`eligible-sales-picker-row-primary-${item.value}`"
               class="flex flex-col gap-0.5"
             >
-              <span class="truncate font-semibold text-highlighted">{{ rowCustomerName(row) }}</span>
+              <span class="truncate font-semibold text-highlighted">{{ rowCustomerName(rowsById.get(item.value)!) }}</span>
               <span
-                v-if="rowAddress(row)"
-                :data-testid="`eligible-sales-picker-row-address-${row.id}`"
+                v-if="rowAddress(rowsById.get(item.value)!)"
+                :data-testid="`eligible-sales-picker-row-address-${item.value}`"
                 class="truncate text-xs text-muted"
               >
-                {{ rowAddress(row) }}
+                {{ rowAddress(rowsById.get(item.value)!) }}
               </span>
-              <SaleAddressSourceNotice v-if="isAuthoritative" :address="row.shippingAddress" />
+              <SaleAddressSourceNotice v-if="isAuthoritative" :address="rowsById.get(item.value)!.shippingAddress" />
             </span>
             <span
-              :data-testid="`eligible-sales-picker-row-secondary-${row.id}`"
-              class="flex flex-wrap gap-x-2 text-xs text-muted"
+              :data-testid="`eligible-sales-picker-row-secondary-${item.value}`"
+              class="flex flex-wrap gap-x-2 text-xs font-normal text-muted"
             >
-              <span v-for="part in rowSecondaryParts(row)" :key="part">{{ part }}</span>
+              <span v-for="part in rowSecondaryParts(rowsById.get(item.value)!)" :key="part">{{ part }}</span>
             </span>
-          </button>
-        </div>
-        <p
-          v-if="availabilityReason(row)"
-          :id="reasonId(row)"
-          :data-testid="`eligible-sales-picker-row-reason-${row.id}`"
-          class="text-xs text-warning"
-        >
-          {{ availabilityReason(row) }}
-        </p>
-      </li>
-    </ul>
+            <span
+              v-if="availabilityReason(rowsById.get(item.value)!)"
+              :data-testid="`eligible-sales-picker-row-reason-${item.value}`"
+              class="text-xs font-normal text-warning"
+            >
+              {{ availabilityReason(rowsById.get(item.value)!) }}
+            </span>
+          </span>
+        </template>
+      </HfSelectableRows>
+    </div>
 
     <!-- Pagination (server-side) -->
     <div
@@ -622,3 +634,17 @@ const errorMessage = computed(() =>
     </p>
   </div>
 </template>
+
+<style scoped>
+/* Long pages scroll inside the list; the live count stays under it. */
+.eligible-sales-rows :deep(.hf-selectable-rows__list) {
+  max-height: 18rem;
+  overflow-y: auto;
+}
+.eligible-sales-rows :deep(.hf-selectable-rows__option) {
+  align-items: flex-start;
+}
+.eligible-sales-rows :deep(.hf-sel-mark) {
+  margin-top: 0.125rem;
+}
+</style>
