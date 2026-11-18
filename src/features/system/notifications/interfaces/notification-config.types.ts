@@ -87,5 +87,7 @@ export interface ActionDescriptor {
 export interface ModuleDescriptor {
   moduleKey: string
   moduleLabel: string
+  /** Lucide icon shown in the module label column. */
+  icon?: string
   actions: ActionDescriptor[]
 }

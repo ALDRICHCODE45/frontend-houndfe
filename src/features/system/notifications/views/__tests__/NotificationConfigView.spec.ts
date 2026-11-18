@@ -1,14 +1,14 @@
-// NotificationConfigView.spec.ts — STRICT-TDD tests for the view.
+// NotificationConfigView.spec.ts — the redesigned screen (artboards
+// design/notification-config/01 and 04): header with subtitle, groups
+// Estado / Usuarios a notificar / Acciones a notificar, whole-row switches,
+// users listbox, module «Activar todas», HfSaveBar and the page states.
 //
-// The view is a composition surface: it owns the composables, passes their
-// reactive state into the three cards (master / recipients / actions),
-// and renders a Save button. We test the integration between the
-// composables and the rendered components using mocks for the heavy
-// composables (the form composable has its own pure-helper tests; we
-// mount the real one with deps mocked at the boundary).
+// The composables are mocked at their boundary; the saved payload through
+// the real form composable is covered in NotificationConfigView.payload.spec.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { nextTick, reactive, ref, watchEffect } from 'vue'
+import { flushPromises } from '@vue/test-utils'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { mountWithUApp } from '@/test/mountWithUApp'
@@ -157,108 +157,188 @@ beforeEach(() => {
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 
-describe('NotificationConfigView — loading state (REQ-9)', () => {
-  it('renders USkeleton placeholders while the query is loading', () => {
-    queryMockState.isLoading.value = true
-    const wrapper = mountWithUApp(NotificationConfigView)
-    // USkeleton renders a `<span>` with the animate-pulse class. We check
-    // for any element carrying that class.
-    const skeletons = wrapper.findAll('.animate-pulse')
-    expect(skeletons.length).toBeGreaterThan(0)
-  })
-})
+const DATA: NotificationConfigForm = {
+  enabled: true,
+  recipientUserIds: ['u1'],
+  enabledActions: ['LOW_STOCK'],
+}
 
-describe('NotificationConfigView — four states (S10)', () => {
-  it('empty: a never-configured tenant renders the defaults, not an error or empty-state chrome', () => {
-    queryMockState.data.value = undefined
+function mountReady(data: NotificationConfigForm = DATA) {
+  queryMockState.data.value = { ...data }
+  assignableMockState.users.value = [
+    { id: 'u1', name: 'Ana Ruiz' },
+    { id: 'u2', name: 'Bruno Gil' },
+  ]
+  return mountWithUApp(NotificationConfigView)
+}
+
+const saveButton = (wrapper: ReturnType<typeof mountReady>) =>
+  wrapper.findAll('.hf-save-bar button').find((b) => b.text() === 'Guardar cambios')!
+const discardButton = (wrapper: ReturnType<typeof mountReady>) =>
+  wrapper.findAll('.hf-save-bar button').find((b) => b.text() === 'Descartar')
+
+describe('NotificationConfigView — layout (artboard 01)', () => {
+  it('has the page header with title and subtitle', () => {
+    const wrapper = mountReady()
+    expect(wrapper.get('.hf-page-title').text()).toBe('Configuración de notificaciones')
+    expect(wrapper.get('.hf-page-subtitle').text()).toBe(
+      'Elige qué avisos se envían por correo y a quién. Nada cambia hasta que guardas.',
+    )
+  })
+
+  it('renders three labelled groups: Estado, Usuarios a notificar, Acciones a notificar', () => {
+    const wrapper = mountReady()
+    const groups = wrapper.findAll('section[aria-labelledby]')
+    expect(
+      groups.map((g) => wrapper.get(`[id="${g.attributes('aria-labelledby')}"]`).text()),
+    ).toEqual(['Estado', 'Usuarios a notificar', 'Acciones a notificar'])
+  })
+
+  it('renders one module group per registry module with one switch row per action', () => {
+    const wrapper = mountReady()
+    expect(wrapper.findAll('[data-testid^="module-group-"]')).toHaveLength(ACTION_REGISTRY.length)
+    const expected = ACTION_REGISTRY.reduce((total, m) => total + m.actions.length, 0)
+    expect(wrapper.findAll('[data-testid^="action-row-"]')).toHaveLength(expected)
+    // Master + every action: all switch rows, no checkbox anywhere.
+    expect(wrapper.findAll('[role="switch"]')).toHaveLength(expected + 1)
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
+  })
+
+  it('shows «Activar todas» only on modules with two or more actions', () => {
+    const wrapper = mountReady()
+    const multi = ACTION_REGISTRY.filter((m) => m.actions.length >= 2).map((m) => m.moduleKey)
+    const found = wrapper
+      .findAll('[data-testid^="module-all-"]')
+      .map((b) => b.attributes('data-testid')!.replace('module-all-', ''))
+    expect(found).toEqual(multi)
+  })
+
+  it('counts the active actions in the actions group head', () => {
+    const wrapper = mountReady({ ...DATA, enabledActions: ['LOW_STOCK', 'PROMOTION_EXPIRING'] })
+    expect(wrapper.get('[data-testid="actions-count"]').text()).toBe('2 de 5 activadas')
+  })
+
+  it('shows the delivery summary under the master switch', () => {
+    const wrapper = mountReady()
+    expect(wrapper.get('[data-testid="delivery-summary"]').text()).toContain(
+      'Se envía 1 aviso por correo a 1 usuario',
+    )
+  })
+
+  it('a never-configured tenant renders the defaults, not an error', () => {
     const wrapper = mountWithUApp(NotificationConfigView)
-    expect(wrapper.find('[data-testid="master-toggle"]').attributes('data-enabled')).toBe('false')
-    expect(wrapper.find('[data-testid="recipient-chips"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="master-toggle"]').attributes('data-enabled')).toBe('false')
     expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
   })
 
-  it('loading: skeleton cards in the shape of the three sections and no footer', () => {
-    queryMockState.isLoading.value = true
-    const wrapper = mountWithUApp(NotificationConfigView)
-    expect(wrapper.findAll('.notifications-section')).toHaveLength(3)
-    expect(wrapper.findAll('.animate-pulse').length).toBeGreaterThan(0)
-    // Shaped like the content: the toggle row, the recipients select, the four module rows.
-    const skeleton = wrapper.get('[data-testid="notifications-loading"]')
-    expect(skeleton.attributes('aria-busy')).toBe('true')
-    expect(skeleton.findAll('[data-skeleton="master"]')).toHaveLength(1)
-    expect(skeleton.findAll('[data-skeleton="recipients"]')).toHaveLength(1)
-    expect(skeleton.findAll('[data-skeleton="module-row"]')).toHaveLength(4)
-    expect(wrapper.find('[data-testid="master-toggle"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="notifications-footer"]').exists()).toBe(false)
-  })
-
-  it('data: master, recipients and actions cards with the single primary Save', () => {
-    queryMockState.data.value = { enabled: true, recipientUserIds: [], enabledActions: [] }
-    const wrapper = mountWithUApp(NotificationConfigView)
-    for (const card of ['master', 'recipients', 'actions']) {
-      expect(wrapper.find(`[data-testid="notifications-card-${card}"]`).exists()).toBe(true)
+  it('has no bespoke promotion branches in the view or components (registry-only)', () => {
+    const files = [
+      '../NotificationConfigView.vue',
+      '../../components/ActionModuleGroup.vue',
+      '../../components/ActionRow.vue',
+      '../../components/MasterToggle.vue',
+      '../../components/RecipientSelect.vue',
+    ]
+    for (const relative of files) {
+      const source = readFileSync(fileURLToPath(new URL(relative, import.meta.url)), 'utf8')
+      expect(source).not.toMatch(/PROMOTION_|LOW_STOCK|DELIVERY_NEXT_STOP/)
     }
-    expect(wrapper.find('[data-testid="master-toggle-badge"]').attributes('data-tone')).toBe('success')
-    expect(wrapper.findAll('[data-testid="save-button"]')).toHaveLength(1)
-  })
-
-  it('error: EmptyState error with Reintentar that refetches, and no form or footer', async () => {
-    queryMockState.isError.value = true
-    queryMockState.error.value = new Error('boom')
-    const wrapper = mountWithUApp(NotificationConfigView)
-    const error = wrapper.find('[data-testid="notifications-error"]')
-    expect(error.attributes('data-kind')).toBe('error')
-    expect(error.attributes('role')).toBe('alert')
-    expect(wrapper.find('[data-testid="master-toggle"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="notifications-footer"]').exists()).toBe(false)
-    await wrapper.find('[data-testid="notifications-retry"]').trigger('click')
-    expect(queryMockState.refetch).toHaveBeenCalledTimes(1)
-  })
-
-  it('error with data already on screen keeps the form (a background refetch failure)', () => {
-    queryMockState.isError.value = true
-    queryMockState.data.value = { enabled: true, recipientUserIds: [], enabledActions: [] }
-    const wrapper = mountWithUApp(NotificationConfigView)
-    expect(wrapper.find('[data-testid="notifications-error"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="master-toggle"]').exists()).toBe(true)
-  })
-
-  it('says each thing once: no subtitle, no section descriptions and no repeated master heading', () => {
-    queryMockState.data.value = undefined
-    const wrapper = mountWithUApp(NotificationConfigView)
-    expect(wrapper.find('.hf-page-subtitle').exists()).toBe(false)
-    expect(wrapper.text()).not.toContain('Estos usuarios recibirán')
-    expect(wrapper.text()).not.toContain('Selecciona las acciones que dispararán')
-    expect(wrapper.find('[data-testid="notifications-card-master"] h2').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="notifications-card-master"]').attributes('aria-label')).toBe('Notificaciones')
-  })
-
-  it('mutes the read-only notice because nothing is pending for the user to fix', () => {
-    currentFormMock.canUpdate.value = false
-    const notice = mountWithUApp(NotificationConfigView).find('[data-testid="no-update-perm-notice"]')
-    expect(notice.classes()).toContain('text-muted')
-    expect(notice.classes()).not.toContain('text-warning')
   })
 })
 
-describe('NotificationConfigView — default render (REQ-3)', () => {
-  it('renders the master toggle in the OFF/empty state when never configured', () => {
-    // query still resolving (data undefined) — view MUST render defaults, NOT error.
-    queryMockState.data.value = undefined
-    const wrapper = mountWithUApp(NotificationConfigView)
-    // Master toggle wrapper exists.
-    expect(wrapper.find('[data-testid="master-toggle"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Desactivadas')
+describe('NotificationConfigView — whole-row switches', () => {
+  it('the master row writes form.enabled', async () => {
+    const wrapper = mountReady()
+    await nextTick()
+    await wrapper.get('[data-testid="master-toggle"] [role="switch"]').trigger('click')
+    expect(currentFormMock.form.enabled).toBe(false)
   })
 
-  it('renders the recipients card with no chips and the add prompt by default', () => {
-    queryMockState.data.value = undefined
-    const wrapper = mountWithUApp(NotificationConfigView)
-    expect(wrapper.find('[data-testid="recipient-chips"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="recipient-select-trigger"]').text()).toContain('Agregar usuarios')
+  it('an action row writes form.enabledActions', async () => {
+    const wrapper = mountReady()
+    await nextTick()
+    await wrapper.get('[data-testid="action-row-promotion-expiring"] [role="switch"]').trigger('click')
+    expect(currentFormMock.form.enabledActions).toEqual(['LOW_STOCK', 'PROMOTION_EXPIRING'])
   })
 
-  it('a failed users read shows its own error with Reintentar that refetches the users (T7)', async () => {
+  it('«Activar todas» writes every module action', async () => {
+    const wrapper = mountReady()
+    await nextTick()
+    await wrapper.get('[data-testid="module-all-promotions"]').trigger('click')
+    expect(currentFormMock.form.enabledActions).toEqual([
+      'LOW_STOCK',
+      'PROMOTION_EXPIRING',
+      'PROMOTION_NEAR_CAPACITY',
+    ])
+  })
+})
+
+describe('NotificationConfigView — master off', () => {
+  it('pauses every action row with its reason and says the actions are paused', async () => {
+    const wrapper = mountReady({ ...DATA, enabled: false })
+    await nextTick()
+    const rows = wrapper.findAll('[data-testid^="action-row-"] [role="switch"]')
+    expect(rows.every((r) => r.attributes('aria-disabled') === 'true')).toBe(true)
+    expect(wrapper.get('[data-testid="action-row-low-stock"]').text()).toContain('En pausa')
+    expect(wrapper.get('[data-testid="actions-paused"]').text()).toContain('Acciones en pausa.')
+    await rows[0]!.trigger('click')
+    expect(currentFormMock.form.enabledActions).toEqual(['LOW_STOCK'])
+  })
+
+  it('«Activar notificaciones» in the paused notice turns the master on', async () => {
+    const wrapper = mountReady({ ...DATA, enabled: false })
+    await nextTick()
+    await wrapper.get('[data-testid="actions-reactivate"]').trigger('click')
+    expect(currentFormMock.form.enabled).toBe(true)
+  })
+})
+
+describe('NotificationConfigView — users to notify', () => {
+  it('renders the users as a multiselect listbox with aria-selected and the count', async () => {
+    const wrapper = mountReady()
+    await nextTick()
+    const list = wrapper.get('[role="listbox"]')
+    expect(list.attributes('aria-multiselectable')).toBe('true')
+    expect(wrapper.findAll('[role="option"]').map((o) => o.attributes('aria-selected'))).toEqual([
+      'true',
+      'false',
+    ])
+    expect(wrapper.get('.hf-selectable-rows__count').text()).toBe('1 de 2 seleccionados')
+  })
+
+  it('a row click writes form.recipientUserIds', async () => {
+    const wrapper = mountReady()
+    await nextTick()
+    await wrapper.findAll('[role="option"]')[1]!.trigger('click')
+    expect(currentFormMock.form.recipientUserIds).toEqual(['u1', 'u2'])
+  })
+
+  it('shows the required error under the list when actions need users and none is chosen', async () => {
+    currentFormMock.zeroRecipientViolation.value = true
+    const wrapper = mountReady({ ...DATA, recipientUserIds: [] })
+    await nextTick()
+    expect(wrapper.get('[role="listbox"]').attributes('aria-invalid')).toBe('true')
+    expect(wrapper.get('.hf-selectable-rows__error').text()).toContain(
+      'Selecciona al menos un usuario a notificar',
+    )
+    expect(wrapper.get('.hf-selectable-rows__error').text()).toContain('Bajo inventario')
+  })
+
+  it('shows the server field error under the list', async () => {
+    currentFormMock.fieldErrors.recipients = 'Uno de los usuarios seleccionados no pertenece a esta cuenta'
+    const wrapper = mountReady()
+    await nextTick()
+    expect(wrapper.get('.hf-selectable-rows__error').text()).toContain('no pertenece a esta cuenta')
+  })
+
+  it('marks an unavailable user and keeps it', async () => {
+    const wrapper = mountReady({ ...DATA, recipientUserIds: ['u1', 'gone'] })
+    await nextTick()
+    expect(wrapper.get('[data-testid="recipient-stale-gone"]').text()).toContain('Usuario no disponible')
+    expect(currentFormMock.form.recipientUserIds).toEqual(['u1', 'gone'])
+  })
+
+  it('a failed users read shows its own error with Reintentar that refetches the users', async () => {
     queryMockState.data.value = { enabled: true, recipientUserIds: ['u1'], enabledActions: [] }
     assignableMockState.isError.value = true
     const wrapper = mountWithUApp(NotificationConfigView)
@@ -267,60 +347,136 @@ describe('NotificationConfigView — default render (REQ-3)', () => {
     await wrapper.get('[data-testid="recipient-retry"]').trigger('click')
     expect(assignableMockState.refetch).toHaveBeenCalledTimes(1)
   })
-
-  it('renders the actions accordion with the modules from the registry', () => {
-    queryMockState.data.value = undefined
-    const wrapper = mountWithUApp(NotificationConfigView)
-    expect(wrapper.find('[data-testid="actions-accordion"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Punto de venta')
-    expect(wrapper.text()).toContain('Bajo inventario')
-  })
 })
 
-describe('NotificationConfigView — Save button gating (REQ-6)', () => {
-  it('disables Save when canSave=false', () => {
-    queryMockState.data.value = undefined
-    currentFormMock.canSave.value = false
-    const wrapper = mountWithUApp(NotificationConfigView)
-    const saveBtn = wrapper.find('[data-testid="save-button"]')
-    expect(saveBtn.exists()).toBe(true)
-    expect(saveBtn.attributes('disabled')).toBeDefined()
-  })
-
-  it('enables Save when canSave=true', () => {
-    queryMockState.data.value = undefined
-    currentFormMock.canSave.value = true
-    const wrapper = mountWithUApp(NotificationConfigView)
-    const saveBtn = wrapper.find('[data-testid="save-button"]')
-    expect(saveBtn.attributes('disabled')).toBeUndefined()
-  })
-
-  it('shows the zero-recipient inline message when zeroRecipientViolation=true', () => {
-    queryMockState.data.value = undefined
-    currentFormMock.zeroRecipientViolation.value = true
-    const wrapper = mountWithUApp(NotificationConfigView)
-    expect(wrapper.text()).toContain('Selecciona al menos un usuario')
-  })
-
-  it('shows the "no update perm" notice when canUpdate=false', () => {
-    queryMockState.data.value = undefined
-    currentFormMock.canUpdate.value = false
-    const wrapper = mountWithUApp(NotificationConfigView)
-    expect(wrapper.text()).toContain('No tienes permisos para guardar')
-  })
-
-  it('calls form.save() when Save is clicked and canSave=true', async () => {
-    queryMockState.data.value = undefined
-    currentFormMock.canSave.value = true
-    const wrapper = mountWithUApp(NotificationConfigView)
-    const saveBtn = wrapper.find('[data-testid="save-button"]')
-    await saveBtn.trigger('click')
+describe('NotificationConfigView — HfSaveBar', () => {
+  it('clean: no Descartar and Guardar disabled', async () => {
+    const wrapper = mountReady()
     await nextTick()
+    expect(discardButton(wrapper)).toBeUndefined()
+    expect(saveButton(wrapper).attributes('disabled')).toBeDefined()
+  })
+
+  it('dirty: says how many changes and offers Descartar, which restores the loaded values', async () => {
+    const wrapper = mountReady()
+    await nextTick()
+    currentFormMock.form.enabled = false
+    currentFormMock.form.enabledActions = ['LOW_STOCK', 'PROMOTION_EXPIRING']
+    currentFormMock.canSave.value = true
+    await nextTick()
+    expect(wrapper.get('.hf-save-bar__status').text()).toContain('2 cambios sin guardar')
+    await discardButton(wrapper)!.trigger('click')
+    expect(currentFormMock.form.enabled).toBe(true)
+    expect(currentFormMock.form.enabledActions).toEqual(['LOW_STOCK'])
+    expect(currentFormMock.save).not.toHaveBeenCalled()
+  })
+
+  it('Guardar calls form.save() when the form can be saved', async () => {
+    const wrapper = mountReady()
+    await nextTick()
+    currentFormMock.form.enabled = false
+    currentFormMock.canSave.value = true
+    await nextTick()
+    await saveButton(wrapper).trigger('click')
+    await flushPromises()
     expect(currentFormMock.save).toHaveBeenCalledTimes(1)
   })
+
+  it('saving: says Guardando… and blocks both actions', async () => {
+    const wrapper = mountReady()
+    await nextTick()
+    currentFormMock.form.enabled = false
+    currentFormMock.isPending.value = true
+    await nextTick()
+    expect(wrapper.get('.hf-save-bar__status').text()).toContain('Guardando…')
+    expect(saveButton(wrapper).attributes('disabled')).toBeDefined()
+    expect(discardButton(wrapper)!.attributes('disabled')).toBeDefined()
+  })
+
+  it('error: a failed save says so in the bar and keeps the changes', async () => {
+    currentFormMock.save.mockRejectedValueOnce(new Error('network'))
+    const wrapper = mountReady()
+    await nextTick()
+    currentFormMock.form.enabled = false
+    currentFormMock.canSave.value = true
+    await nextTick()
+    await saveButton(wrapper).trigger('click')
+    await flushPromises()
+    expect(wrapper.get('.hf-save-bar__status').attributes('data-state')).toBe('error')
+    expect(wrapper.get('.hf-save-bar__status').text()).toContain('No se guardó')
+    expect(currentFormMock.form.enabled).toBe(false)
+  })
+
+  it('missing users: Guardar does not save and the bar says what is missing', async () => {
+    currentFormMock.zeroRecipientViolation.value = true
+    const wrapper = mountReady({ ...DATA, recipientUserIds: ['u1'] })
+    await nextTick()
+    currentFormMock.form.recipientUserIds = []
+    currentFormMock.canSave.value = false
+    await nextTick()
+    await saveButton(wrapper).trigger('click')
+    await flushPromises()
+    expect(currentFormMock.save).not.toHaveBeenCalled()
+    expect(wrapper.get('.hf-save-bar__status').text()).toContain('falta elegir usuarios')
+  })
 })
 
-describe('NotificationConfigView — composable wiring (REQ-3, REQ-7)', () => {
+describe('NotificationConfigView — page states', () => {
+  it('loading: a busy status with USkeleton shapes for the three groups and no form or bar', () => {
+    queryMockState.isLoading.value = true
+    const wrapper = mountWithUApp(NotificationConfigView)
+    const loading = wrapper.get('[data-testid="notifications-loading"]')
+    expect(loading.attributes('role')).toBe('status')
+    expect(loading.attributes('aria-busy')).toBe('true')
+    expect(loading.findAll('[data-skeleton="group"]')).toHaveLength(3)
+    expect(loading.findAll('.animate-pulse').length).toBeGreaterThan(0)
+    expect(wrapper.find('[role="switch"]').exists()).toBe(false)
+    expect(wrapper.find('.hf-save-bar').exists()).toBe(false)
+  })
+
+  it('error: EmptyState error with Reintentar that refetches, and no form or bar', async () => {
+    queryMockState.isError.value = true
+    const wrapper = mountWithUApp(NotificationConfigView)
+    const error = wrapper.get('[data-testid="notifications-error"]')
+    expect(error.attributes('data-kind')).toBe('error')
+    expect(error.attributes('role')).toBe('alert')
+    expect(wrapper.find('[role="switch"]').exists()).toBe(false)
+    expect(wrapper.find('.hf-save-bar').exists()).toBe(false)
+    await wrapper.get('[data-testid="notifications-retry"]').trigger('click')
+    expect(queryMockState.refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('error with data already on screen keeps the form (a background refetch failure)', () => {
+    queryMockState.isError.value = true
+    const wrapper = mountReady()
+    expect(wrapper.find('[data-testid="notifications-error"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="master-toggle"]').exists()).toBe(true)
+  })
+
+  it('no update permission: everything is visible but locked, the notice replaces the save bar', async () => {
+    currentFormMock.canUpdate.value = false
+    const wrapper = mountReady()
+    await nextTick()
+    expect(wrapper.find('.hf-save-bar').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="no-update-perm-notice"]').text()).toContain(
+      'No tienes permisos para guardar cambios',
+    )
+    const switches = wrapper.findAll('[role="switch"]')
+    expect(switches.every((s) => s.attributes('aria-disabled') === 'true')).toBe(true)
+    expect(
+      wrapper.findAll('[role="option"]').every((o) => o.attributes('aria-disabled') === 'true'),
+    ).toBe(true)
+    await switches[0]!.trigger('click')
+    expect(currentFormMock.form.enabled).toBe(true)
+  })
+
+  it('with update permission there is no read-only notice', () => {
+    const wrapper = mountReady()
+    expect(wrapper.find('[data-testid="no-update-perm-notice"]').exists()).toBe(false)
+  })
+})
+
+describe('NotificationConfigView — composable wiring', () => {
   it('passes the query data ref as the source to useNotificationConfigForm', async () => {
     const data: NotificationConfigResponse = {
       enabled: true,
@@ -332,110 +488,12 @@ describe('NotificationConfigView — composable wiring (REQ-3, REQ-7)', () => {
       recipientUserIds: [...data.recipients],
       enabledActions: [...data.enabledActions],
     }
-
     mountWithUApp(NotificationConfigView)
     await nextTick()
-
-    // After hydration the form snapshot reflects the source.
-    expect(currentFormMock.form.enabled).toBe(true)
-    expect(currentFormMock.form.recipientUserIds).toEqual(['u1'])
-    expect(currentFormMock.form.enabledActions).toEqual(['LOW_STOCK'])
-  })
-
-  it('passes query data and assignable list down to the components', async () => {
-    queryMockState.data.value = {
+    expect(currentFormMock.form).toEqual({
       enabled: true,
       recipientUserIds: ['u1'],
       enabledActions: ['LOW_STOCK'],
-    }
-    assignableMockState.users.value = [{ id: 'u1', name: 'Ana' }]
-    const wrapper = mountWithUApp(NotificationConfigView)
-    await nextTick()
-    // Master reflects enabled=true via the badge.
-    expect(wrapper.text()).toContain('Activadas')
-    // Recipients card shows Ana (assignable name resolution).
-    expect(wrapper.text()).toContain('Ana')
-  })
-})
-
-describe('NotificationConfigView — in-view permission gate (WU-12)', () => {
-  it('hides the no-update notice when canUpdate=true (default)', () => {
-    queryMockState.data.value = undefined
-    currentFormMock.canUpdate.value = true
-    const wrapper = mountWithUApp(NotificationConfigView)
-    expect(wrapper.text()).not.toContain('No tienes permisos para guardar')
-  })
-
-  it('renders the no-update notice when canUpdate=false', () => {
-    queryMockState.data.value = undefined
-    currentFormMock.canUpdate.value = false
-    const wrapper = mountWithUApp(NotificationConfigView)
-    expect(wrapper.text()).toContain('No tienes permisos para guardar')
-  })
-
-  it('keeps Save disabled when canUpdate=false even if other gates pass', () => {
-    queryMockState.data.value = undefined
-    currentFormMock.canUpdate.value = false
-    currentFormMock.isDirty.value = true
-    currentFormMock.canSave.value = false
-    const wrapper = mountWithUApp(NotificationConfigView)
-    const saveBtn = wrapper.find('[data-testid="save-button"]')
-    expect(saveBtn.attributes('disabled')).toBeDefined()
-  })
-})
-
-describe('NotificationConfigView — Promociones group (PCA-4)', () => {
-  function promotions() {
-    return ACTION_REGISTRY.find((m) => m.moduleKey === 'promotions')!
-  }
-
-  it('renders the Promociones module + both actions straight from the registry', () => {
-    queryMockState.data.value = undefined
-    const wrapper = mountWithUApp(NotificationConfigView)
-    expect(wrapper.text()).toContain(promotions().moduleLabel)
-    for (const action of promotions().actions) {
-      expect(wrapper.text()).toContain(action.label)
-    }
-  })
-
-  it('renders exactly one action row per registry action (data-driven, no duplicates)', () => {
-    queryMockState.data.value = undefined
-    const wrapper = mountWithUApp(NotificationConfigView)
-    const expected = ACTION_REGISTRY.reduce((total, m) => total + m.actions.length, 0)
-    expect(wrapper.findAll('[data-testid^="action-row-"]')).toHaveLength(expected)
-  })
-
-  it('renders both promotion toggles OFF by default (tenant default disabled)', () => {
-    queryMockState.data.value = undefined
-    const wrapper = mountWithUApp(NotificationConfigView)
-    expect(
-      wrapper.find('[data-testid="action-row-promotion-expiring"]').attributes('data-checked'),
-    ).toBe('false')
-    expect(
-      wrapper.find('[data-testid="action-row-promotion-near-capacity"]').attributes('data-checked'),
-    ).toBe('false')
-  })
-
-  it('keeps permission/save gating with the promotion group present', () => {
-    queryMockState.data.value = undefined
-    currentFormMock.canUpdate.value = false
-    currentFormMock.canSave.value = false
-    const wrapper = mountWithUApp(NotificationConfigView)
-    expect(wrapper.text()).toContain(promotions().moduleLabel)
-    expect(wrapper.find('[data-testid="save-button"]').attributes('disabled')).toBeDefined()
-    expect(wrapper.text()).toContain('No tienes permisos para guardar')
-  })
-
-  it('has NO bespoke promotion branches in the view/accordion/row sources (registry-only)', () => {
-    const files = [
-      '../NotificationConfigView.vue',
-      '../../components/ActionsAccordion.vue',
-      '../../components/ModuleAccordionItem.vue',
-      '../../components/ActionRow.vue',
-    ]
-    for (const relative of files) {
-      const source = readFileSync(fileURLToPath(new URL(relative, import.meta.url)), 'utf8')
-      expect(source).not.toMatch(/PROMOTION_/)
-    }
+    })
   })
 })
