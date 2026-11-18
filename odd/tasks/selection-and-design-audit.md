@@ -16,7 +16,7 @@ Migrate every remaining checkbox to «Selección sin checkboxes» (docs/design-s
 - T4c | S1 | worker | done — products ProductUpsertSlideover (switch rows), EditorialPublication (explicit confirm), EditorialCareReviewDrawer (toggle chips); delivery-routes EligibleSalesPicker (selectable rows)
 - T5 | S3 | design + worker | done — notifications settings redesign (canvas directions, then implement)
 - T6a | S2–S3 | worker | products: ProductDetailView UCard stack + VariantDetailModal → design-system section cards / switch rows
-- T6b | S2–S3 | worker | employees: admin/employees/components/*Panel.vue card stacks
+- T6b | S2–S3 | worker | done — employees: admin/employees/components/*Panel.vue card stacks
 - T6c | S2–S3 | worker | sales/customers: AssignCustomerSlideover nested cards, SaleDetail*Card, customer upsert section look (clients-visual.css, sales-pos-customer.css)
 - T6d | S1–S3 | worker | done — promotions leftovers: WhatsApp and capacity switches as whole-row HfSwitchRow, PromotionSummaryCard, customer/price-list multiple pickers
 - T7 | S1–S3 | verify + browser | live check light/dark, 1440/390; full suite
@@ -34,3 +34,4 @@ Migrate every remaining checkbox to «Selección sin checkboxes» (docs/design-s
 - L10 Residual grep: 0 <UCheckbox / type="checkbox" left in src (non-test). T6 split into T6a–T6d (disjoint surfaces), launched in parallel with T5.
 - L11 T5 done (worker mwljmp1k-a-oxq3): notifications 261/261 after removing the unused ActionsAccordion/ModuleAccordionItem (parent), vue-tsc 0, eslint 0; payload spec runs the real composables and pins the PUT body. Deviations: Guardar with no users stays clickable but does not save («falta elegir usuarios», focus to the list) since HfSaveBar has no disabled-save prop; no master icon / «Va al cliente» badge (HfSwitchRow label is text); users list one column. Browser check pending (T7).
 - L12 T6d done (worker mwlk1rep-d-p7zd): promotions 768/768. Bug found and fixed: promotion customer search never sent the typed text (v-model:query/searchable do not exist in Nuxt UI v4) → v-model:search-term + ignore-filter. Customers stay USelectMenu (HfCombobox has no async search). Price lists ≤ 12 → HfSelectableRows, more → HfCombobox multiple.
+- L13 T6b done (worker mwlk1rem-c-s70g): employees 957/957; 9 panels on HfSectionCard (new copy «Vista rápida», «Saldo de vacaciones», «Solicitudes», counts beside headings); parent set the Personal tab gap to 16px. Left: PendingApprovalsView still UCard; Documentos expiry buttons not segmented (semantics).
