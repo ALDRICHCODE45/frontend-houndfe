@@ -137,4 +137,17 @@ describe('PromotionSummaryCard component', () => {
     })
     expect(wrapper.text()).toContain('15%')
   })
+
+  // T6d/S2: the summary is a design-system section card, not a UCard.
+  it('is an HfSectionCard titled «Resumen» that keeps the sticky rail', () => {
+    const wrapper = mount(PromotionSummaryCard, {
+      props: { formState: makeState({ method: 'AUTOMATIC' }) },
+      global: { stubs: { UIcon: { template: '<span />' } } },
+    })
+    const card = wrapper.get('section.hf-section-card')
+    expect(card.attributes('data-testid')).toBe('summary-card')
+    expect(card.classes()).toEqual(expect.arrayContaining(['sticky', 'top-6']))
+    expect(card.get('.hf-section-card__title').text()).toBe('Resumen')
+    expect(card.attributes('aria-labelledby')).toBe(card.get('.hf-section-card__title').attributes('id'))
+  })
 })

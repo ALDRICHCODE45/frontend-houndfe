@@ -7,7 +7,8 @@ import { DAY_OPTIONS, CUSTOMER_SCOPE_OPTIONS } from '../composables/usePromotion
 import { CUSTOMER_SCOPE } from '../constants/promotion.constants'
 import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 import HfSegmented from '@/core/shared/components/form/HfSegmented.vue'
-import { HfSwitchRow, HfToggleChips } from '@/core/shared/components/selection'
+import HfCombobox from '@/core/shared/components/form/HfCombobox.vue'
+import { HfSelectableRows, HfSwitchRow, HfToggleChips } from '@/core/shared/components/selection'
 
 // ── Props & emits ─────────────────────────────────────────────────────────────
 
@@ -72,7 +73,7 @@ const { data: priceLists } = useQuery({
   enabled: () => props.modelValue.hasPriceLists,
 })
 
-// Map price lists to SelectMenu format
+// Map price lists to the picker's { value, label } items
 const priceListItems = computed(() =>
   (priceLists.value ?? []).map((pl) => ({
     value: pl.id,
@@ -89,10 +90,24 @@ const selectedCustomers = computed({
 
 // ── Price list helpers ────────────────────────────────────────────────────────
 
-const selectedPriceLists = computed({
-  get: () => props.modelValue.priceListIds,
-  set: (value) => updateField('priceListIds', value),
-})
+/**
+ * Up to about 12 lists show whole as selectable rows; past that the list needs
+ * search, so it is a multiple HfCombobox (design-system §Selección sin checkboxes).
+ */
+const PRICE_LIST_ROWS_MAX = 12
+const priceListsAsRows = computed(() => priceListItems.value.length <= PRICE_LIST_ROWS_MAX)
+
+/**
+ * The pickers emit the next set in list order; the payload keeps its previous
+ * order (kept ids in place, new ones appended), as the click-ordered menu did.
+ */
+function onPriceListsUpdate(next: readonly string[] | string | null) {
+  const picked = Array.isArray(next) ? next : next ? [next] : []
+  const current = props.modelValue.priceListIds
+  const kept = current.filter((id) => picked.includes(id))
+  const added = picked.filter((id) => !current.includes(id))
+  updateField('priceListIds', [...kept, ...added])
+}
 
 // ── Customer scope helpers ────────────────────────────────────────────────────
 
@@ -253,15 +268,18 @@ defineExpose({ updateField })
               data-testid="customer-search-section"
               class="flex flex-col gap-2"
             >
+              <!-- Customers stay a USelectMenu: HfCombobox filters a local list and has no
+                   server search, and this list is fetched as the user types. -->
               <USelectMenu
                 v-model="selectedCustomers"
-                v-model:query="customerSearchQuery"
+                v-model:search-term="customerSearchQuery"
                 multiple
+                ignore-filter
                 :items="customerItems"
                 value-key="value"
-                placeholder="Buscar clientes..."
-                searchable
-                searchable-placeholder="Escribe para buscar..."
+                placeholder="Buscar clientes…"
+                :search-input="{ placeholder: 'Escribe para buscar…', icon: 'i-lucide-search' }"
+                aria-label="Clientes específicos"
                 :ui="{ content: 'hf-theme hf-ui hf-form-overlay promotions-form-portal' }"
               />
             </div>
@@ -282,18 +300,25 @@ defineExpose({ updateField })
             data-testid="price-lists-select"
             class="promotions-condition__body flex flex-col gap-2"
           >
-            <USelectMenu
-              v-if="priceListItems.length > 0"
-              v-model="selectedPriceLists"
-              multiple
+            <p v-if="priceListItems.length === 0" class="promotions-condition__hint">
+              Cargando listas de precio…
+            </p>
+            <HfSelectableRows
+              v-else-if="priceListsAsRows"
+              :model-value="modelValue.priceListIds"
               :items="priceListItems"
-              value-key="value"
-              placeholder="Seleccionar listas de precio"
-              searchable
-              searchable-placeholder="Buscar..."
-              :ui="{ content: 'hf-theme hf-ui hf-form-overlay promotions-form-portal' }"
+              label="Listas de precio"
+              @update:model-value="onPriceListsUpdate"
             />
-            <p v-else class="text-sm text-muted">Cargando listas de precio...</p>
+            <HfCombobox
+              v-else
+              :model-value="modelValue.priceListIds"
+              :items="priceListItems"
+              multiple
+              label="Listas de precio"
+              placeholder="Elige listas de precio"
+              @update:model-value="onPriceListsUpdate"
+            />
           </div>
         </div>
 

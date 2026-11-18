@@ -632,8 +632,9 @@ describe('PromotionForm — selection without checkboxes (T4b)', () => {
     async (type) => {
       const wrapper = mountForm(type)
       if (type === 'ORDER_DISCOUNT') await wrapper.get(MIN_SWITCH).trigger('click')
-      // The WhatsApp USwitch keeps Reka's visually hidden form input (data-hidden); no visible box.
-      expect(wrapper.findAll('[role="checkbox"], input[type="checkbox"]:not([data-hidden])')).toHaveLength(0)
+      // T6d: the WhatsApp option is a whole-row switch too, so no checkbox input is left at all.
+      expect(wrapper.findAll('[role="checkbox"], input[type="checkbox"]')).toHaveLength(0)
+      expect(wrapper.get('[role="switch"][data-testid="bot-eligible-switch"]').element.tagName).toBe('BUTTON')
       const cards = wrapper.findAll('section.hf-section-card')
       expect(cards.length).toBe(2)
       expect(cards[0]!.find('[data-testid="type-badge"]').exists()).toBe(true)

@@ -49,8 +49,12 @@ const FULL_STUBS = {
   },
 }
 
-function mountSection(state: PromotionFormState = makeState()) {
+function mountSection(
+  state: PromotionFormState = makeState(),
+  priceLists?: { id: string; name: string }[],
+) {
   const queryClient = makeQueryClient()
+  if (priceLists) queryClient.setQueryData(['price-lists'], priceLists)
   return mount(PromotionConditionsSection, {
     props: { modelValue: state, mode: 'create' },
     global: {
@@ -255,6 +259,72 @@ describe('PromotionConditionsSection', () => {
         expect(card.element.tagName).toBe('SECTION')
         expect(card.classes()).toContain('hf-section-card')
       }
+    })
+  })
+
+  // T6d/S1: price lists are a local list, so they are selectable rows (≤ 12)
+  // or a multiple HfCombobox (more); customers keep a server-searched USelectMenu.
+  describe('multiple pickers (T6d)', () => {
+    const lastEmit = (wrapper: ReturnType<typeof mountSection>) => {
+      const emitted = wrapper.emitted('update:modelValue') as PromotionFormState[][]
+      return emitted[emitted.length - 1]![0]!
+    }
+    const lists = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({ id: `pl-${i + 1}`, name: `Lista ${i + 1}` }))
+    const PRICE_ROWS = '[data-testid="price-lists-select"] [role="listbox"][aria-multiselectable="true"]'
+
+    it('shows up to 12 price lists as selectable rows with their selection', () => {
+      const wrapper = mountSection(makeState({ hasPriceLists: true, priceListIds: ['pl-2'] }), lists(3))
+      const listbox = wrapper.get(PRICE_ROWS)
+      expect(listbox.attributes('aria-label')).toBe('Listas de precio')
+      const options = listbox.findAll('[role="option"]')
+      expect(options.map((o) => o.text())).toEqual(['Lista 1', 'Lista 2', 'Lista 3'])
+      expect(options.map((o) => o.attributes('aria-selected'))).toEqual(['false', 'true', 'false'])
+      expect(wrapper.text()).toContain('1 de 3 seleccionadas')
+      expect(wrapper.findAll('input[type="checkbox"], [role="checkbox"]')).toHaveLength(0)
+    })
+
+    it('toggling a price list row keeps the previous payload order (appends, removes in place)', async () => {
+      const state = makeState({ hasPriceLists: true, priceListIds: ['pl-3'] })
+      const wrapper = mountSection(state, lists(3))
+      await wrapper.get(`${PRICE_ROWS} [data-value="pl-1"]`).trigger('click')
+      expect(lastEmit(wrapper)).toEqual({ ...state, priceListIds: ['pl-3', 'pl-1'] })
+
+      await wrapper.setProps({ modelValue: { ...state, priceListIds: ['pl-3', 'pl-1'] } })
+      await wrapper.get(`${PRICE_ROWS} [data-value="pl-3"]`).trigger('click')
+      expect(lastEmit(wrapper)).toEqual({ ...state, priceListIds: ['pl-1'] })
+    })
+
+    it('moves to a multiple HfCombobox past 12 price lists', () => {
+      const wrapper = mountSection(makeState({ hasPriceLists: true }), lists(13))
+      expect(wrapper.find(PRICE_ROWS).exists()).toBe(false)
+      const combobox = wrapper.getComponent({ name: 'HfCombobox' })
+      expect(combobox.props('multiple')).toBe(true)
+      expect(combobox.props('items')).toHaveLength(13)
+    })
+
+    it('a price list picked in the combobox keeps the previous payload order', async () => {
+      const state = makeState({ hasPriceLists: true, priceListIds: ['pl-9'] })
+      const wrapper = mountSection(state, lists(13))
+      wrapper.getComponent({ name: 'HfCombobox' }).vm.$emit('update:modelValue', ['pl-2', 'pl-9'])
+      expect(lastEmit(wrapper)).toEqual({ ...state, priceListIds: ['pl-9', 'pl-2'] })
+    })
+
+    it('still says it is loading before the price lists arrive', () => {
+      const wrapper = mountSection(makeState({ hasPriceLists: true }))
+      expect(wrapper.get('[data-testid="price-lists-select"]').text()).toContain('Cargando listas de precio')
+    })
+
+    it('searches customers on the server: the typed term reaches the query and the menu does not filter', async () => {
+      const wrapper = mountSection(makeState({ customerScope: 'SPECIFIC' }))
+      const menu = wrapper
+        .get('[data-testid="customer-search-section"]')
+        .findComponent({ name: 'SelectMenu' })
+      expect(menu.props('multiple')).toBe(true)
+      expect(menu.props('ignoreFilter')).toBe(true)
+      menu.vm.$emit('update:searchTerm', 'ana')
+      await wrapper.vm.$nextTick()
+      expect(menu.props('searchTerm')).toBe('ana')
     })
   })
 })

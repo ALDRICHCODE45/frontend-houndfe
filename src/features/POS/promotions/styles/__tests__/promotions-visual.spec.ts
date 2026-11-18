@@ -154,33 +154,29 @@ describe('Promotions creation/edit workspace adapter', () => {
     expect(css).toContain('.promotions-workspace .promotions-chip')
   })
 
-  it('builds the form and its conditions from the shared section cards', () => {
-    // T4b/S2: the stacked UCards become HfSectionCard (design-system §Section card).
-    for (const source of [form, conditions]) {
+  it('builds the form, its conditions and the summary from the shared section cards', () => {
+    // T4b/T6d S2: the stacked UCards become HfSectionCard (design-system §Section card).
+    for (const source of [form, conditions, summary]) {
       expect(source).not.toMatch(/<UCard\b/)
       expect(source).toContain('<HfSectionCard')
       expect(source).not.toMatch(/\bpl-6\b/)
     }
   })
 
-  it('repaints every remaining section card over the global literal UCard theme', () => {
-    // vite.config.ts paints UCard roots with literal bg-white/dark:bg-coco-neutral-900,
-    // which no semantic alias reaches; each card needs the owned section hook.
-    for (const source of [summary]) {
-      const cards = source.match(/<UCard\b[^>]*>/g) ?? []
-      expect(cards.length).toBeGreaterThan(0)
-      for (const card of cards) expect(card).toContain('promotions-form-section')
-    }
-    expect(css).toContain('.promotions-workspace .promotions-form-section')
-    expect(css).toMatch(
-      /\.promotions-workspace \.promotions-form-section \{[^}]*background-color: var\(--hf-surface\)/,
-    )
+  it('paints the summary only with semantic tokens', () => {
+    // No Nuxt palette utilities left: the bullets and the empty hint use --hf-* roles.
+    expect(summary).not.toMatch(/\btext-(muted|dimmed|highlighted|toned)\b/)
+    expect(css).toMatch(/\.promotions-workspace \.promotions-summary-item\s*\{[^}]*color: var\(--hf-ink\)/s)
+    expect(css).toMatch(/\.promotions-workspace \.promotions-summary-empty\s*\{[^}]*color: var\(--hf-muted\)/s)
+    // The UCard repaint hook has no consumer left.
+    expect(css).not.toContain('.promotions-form-section')
   })
 
   it('themes every teleported form surface with the owned form portal marker', () => {
     const portal = "content: 'hf-theme hf-ui hf-form-overlay promotions-form-portal'"
     expect(form.split(portal).length - 1).toBe(4)
-    expect(conditions.split(portal).length - 1).toBe(4)
+    // Customers keep a server-searched USelectMenu; price lists are selectable rows (T6d).
+    expect(conditions.split(portal).length - 1).toBe(3)
     expect(targetModal).toContain(portal)
     expect(targetModal).toContain("width: 'max-w-2xl'")
   })

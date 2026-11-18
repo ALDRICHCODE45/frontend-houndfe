@@ -404,11 +404,15 @@ const overlapTitle = computed(() =>
                 :editing="mode === 'edit'"
                 @update:max-product-units="formState.maxProductUnits = $event"
               />
-              <UFormField name="botEligible" :description="botEligibilityFailed ? undefined : botEligibility.reason">
-                <USwitch
+              <!-- T6d/S1: a whole-row switch; the availability reason is its description
+                   (a failed read shows only the inline alert below, never twice). -->
+              <div class="promotions-bot-field">
+                <HfSwitchRow
                   v-model="formState.botEligible"
                   label="Disponible para el chatbot (WhatsApp)"
+                  :description="botEligibilityFailed ? undefined : botEligibility.reason"
                   :disabled="!botEligibility.supported"
+                  test-id="bot-eligible-switch"
                 />
                 <div
                   v-if="botEligibilityFailed"
@@ -429,7 +433,7 @@ const overlapTitle = computed(() =>
                 <p v-if="botEligibilityNotice" role="status" class="promotions-bot-notice">
                   {{ botEligibilityNotice }}
                 </p>
-              </UFormField>
+              </div>
             </div>
           </div>
         </HfSectionCard>

@@ -74,16 +74,6 @@
   outline-offset: 2px;
 }
 
-/* The global UCard theme (vite.config.ts) paints literal white /
- * coco-neutral-900 roots that no semantic alias reaches, so each section card
- * carries an owned hook onto the surface and border roles. */
-.promotions-workspace .promotions-form-section {
-  background-color: var(--hf-surface);
-  border-radius: var(--hf-radius-card);
-  box-shadow: 0 0 0 1px var(--hf-border);
-  color: var(--hf-ink);
-}
-
 /* The type badge and the summary icon are neutral: color is reserved for
  * status, urgency and the single primary action. */
 .promotions-workspace .promotions-type-badge,
@@ -138,8 +128,46 @@
   outline-offset: 2px;
 }
 
+/* Summary rail (T6d): an HfSectionCard; the type icon sits in its meta slot. */
+.promotions-workspace .promotions-summary-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--hf-radius-control);
+}
+
+.promotions-workspace .promotions-summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.promotions-workspace .promotions-summary-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--hf-ink);
+  font-size: 14px;
+  line-height: 20px;
+}
+
 .promotions-workspace .promotions-summary-check {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
   color: var(--hf-action);
+}
+
+.promotions-workspace .promotions-summary-empty {
+  margin: 0;
+  color: var(--hf-muted);
+  font-size: 14px;
 }
 
 .promotions-workspace .promotions-availability-fields {
@@ -215,6 +243,12 @@
 
 .promotions-workspace .promotions-condition__body {
   padding: 0.25rem 1rem 1rem;
+}
+
+.promotions-workspace .promotions-condition__hint {
+  margin: 0;
+  color: var(--hf-muted);
+  font-size: 14px;
 }
 
 /* Target pickers: the selectable rows scroll inside the dialog. */

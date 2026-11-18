@@ -3,8 +3,8 @@
  * PromotionCapacityField — optional, accessible cap editor (PCA-1).
  *
  * Single responsibility: let the merchant express the capacity tri-state
- * (unlimited / limited / untouched-and-preserved) with existing Nuxt UI
- * controls, and surface the server-owned consumption as read-only context.
+ * (unlimited / limited / untouched-and-preserved) with a whole-row switch
+ * (HfSwitchRow) and a number input, and surface the server-owned consumption as read-only context.
  *
  * The component never serializes anything and never derives a remaining
  * counter; it only emits the intent (`update:modelValue`) and the raw number
@@ -18,6 +18,7 @@ import {
   type PromotionCapacityMode,
 } from '../interfaces/promotion.types'
 import PromotionCapacityStatus from './PromotionCapacityStatus.vue'
+import { HfSwitchRow } from '@/core/shared/components/selection'
 
 const props = withDefaults(
   defineProps<{
@@ -90,18 +91,14 @@ function onNumberChange(value: number | null | undefined) {
 <template>
   <UFormField label="Cupo de unidades" name="maxProductUnits" hint="Opcional">
     <div class="flex flex-col gap-3">
-      <div class="flex min-h-11 items-center justify-between gap-4">
-        <div class="min-w-0">
-          <p class="text-sm font-medium text-toned">Limitar la cantidad de unidades</p>
-        </div>
-        <USwitch
-          data-testid="capacity-switch"
-          :model-value="hasCapacity"
-          :disabled="disabled"
-          aria-label="Limitar la cantidad de unidades de la promoción"
-          @update:model-value="onToggleLimited"
-        />
-      </div>
+      <!-- T6d/S1: the label and the track are one target (Selección sin checkboxes). -->
+      <HfSwitchRow
+        :model-value="hasCapacity"
+        label="Limitar la cantidad de unidades"
+        :disabled="disabled"
+        test-id="capacity-switch"
+        @update:model-value="onToggleLimited"
+      />
 
       <div v-if="hasCapacity" class="flex flex-col gap-2">
         <!-- PCA-5: `size="lg"` alone rendered the real spinbutton at 36px, so the
