@@ -3,14 +3,15 @@ import { useQueryClient } from '@tanstack/vue-query'
 import { notificationsApi } from '../api/notifications.api'
 import { notificationKeys } from '../constants/queryKeys'
 import type { NotificationItem } from '../interfaces/notifications.types'
+import { notificationTargetPath } from '../utils/notification-format'
 import { playNotificationSound } from '../utils/notification-sound'
 
 export interface UseNotificationAlertsOptions {
   /** Unread count of the bell; `null` while unknown. */
   count: Ref<number | null>
   tenantId: Ref<string>
-  /** The user clicked the browser notice: open this request. */
-  onOpenRequest?: (requestId: string) => void
+  /** The user clicked the browser notice: open its request or sale (`notificationTargetPath`). */
+  onOpen?: (path: string) => void
 }
 
 /**
@@ -84,7 +85,8 @@ export function useNotificationAlerts(options: UseNotificationAlertsOptions) {
       notice.onclick = () => {
         window.focus()
         notice.close()
-        if (latest?.requestId) options.onOpenRequest?.(latest.requestId)
+        const path = latest ? notificationTargetPath(latest) : null
+        if (path) options.onOpen?.(path)
       }
     } catch {
       // Some platforms refuse the constructor (e.g. mobile Chrome); the bell still has the notice.

@@ -23,6 +23,7 @@ import type {
   AssignShippingAddressPayload,
   AssignSellerPayload,
   SetDueDatePayload,
+  UpdateSaleHoldPayload,
   SaleComment,
   SaleCommentErrorCode,
   SaleCancellationRequest,
@@ -232,6 +233,18 @@ export const saleApi = {
   async setDueDate(saleId: string, payload: SetDueDatePayload): Promise<SaleDetail> {
     const { data } = await http.patch<SaleDetail>(`/sales/${saleId}/due-date`, payload)
     return data
+  },
+
+  // BE handoff 24 §2: change the pay-in-store deadline (`update:Sale`). The contract asks for no
+  // `Idempotency-Key`: `expectedVersion` guards concurrent edits. The body is rebuilt so an
+  // over-wide caller object never leaks onto the wire. Answers the full sale detail; errors are
+  // rethrown unchanged for `decodeSaleHoldError`.
+  async updateHold(saleId: string, payload: UpdateSaleHoldPayload): Promise<SaleDetail> {
+    const { data } = await http.patch<unknown>(`/sales/${encodeURIComponent(saleId)}/hold`, {
+      expiresAt: payload.expiresAt,
+      expectedVersion: payload.expectedVersion,
+    })
+    return parseSaleDetail(data)
   },
 
   async unassignShippingAddress(saleId: string): Promise<void> {

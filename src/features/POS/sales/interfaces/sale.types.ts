@@ -92,6 +92,43 @@ export interface ConfirmedSaleRow {
   // odd sale-address-change-notice: sale-time snapshot with its source status; null without
   // one. Optional so rows from before the field still type-check.
   shippingAddress?: SaleShippingAddressSnapshot | null
+  /** BE handoff 24 §1: the pay-in-store hold; null without one, absent on older payloads. */
+  hold?: SaleHold | null
+  /**
+   * Where the sale was made (BE handoff 24 §1, T5: always present on GET /sales rows). Optional only
+   * for older payloads, where the list infers ONLINE from a hold (only bot sales have one).
+   */
+  channel?: SaleChannel
+  /** BE handoff 24 §1 (T5): `null` unless cancelled; HOLD_EXPIRED is the deadline sweep's cancel. */
+  cancelReason?: SaleDetailCancelReason | null
+}
+
+/** `POS` rung at the counter, `ONLINE` a chatbot sale. */
+export type SaleChannel = 'POS' | 'ONLINE'
+
+// ─── BE handoff 24: pay-in-store hold («Apartado») ────────────────────────────────────
+
+/** `0` nothing sent yet, `1` reminder stage done, `2` hold over (set by the sweep). */
+export type SaleHoldStage = 0 | 1 | 2
+
+/** `hold` on GET /sales/:id and on every GET /sales row; the object stays on the sale as history. */
+export interface SaleHold {
+  /** Always `IN_STORE` when the hold exists. */
+  paymentIntent: 'IN_STORE'
+  /** The deadline (UTC ISO); render it in the sucursal time zone. */
+  expiresAt: string
+  /** `expiresAt − 3 h`, or `null` when the hold is 3 h or shorter. */
+  reminderAt: string | null
+  stage: SaleHoldStage
+  /** Send it back as `expectedVersion` when editing. */
+  version: number
+}
+
+/** Body of `PATCH /sales/:id/hold` (§2): ISO 8601 with time and offset, in the future. */
+export interface UpdateSaleHoldPayload {
+  expiresAt: string
+  /** The `hold.version` shown to the user. */
+  expectedVersion: number
 }
 
 // sdd customer-sales-history S1 (handoff §2.5): folio/paymentStatus/confirmedAt
@@ -283,8 +320,11 @@ export interface SaleDetail {
   // T20 (handoff 06, «Cancelled sale detail»): null / [] on a confirmed sale.
   // `parseSaleDetail` always fills them; optional so older fixtures type-check.
   canceledAt?: string | null
-  cancelReason?: SaleCancellationReason | null
-  /** Null when the user who cancelled no longer exists. */
+  cancelReason?: SaleDetailCancelReason | null
+  /**
+   * Null when the user who cancelled no longer exists, and for a HOLD_EXPIRED cancellation (the
+   * system cancelled it: show «Sistema», see `saleCanceledByLabel`).
+   */
   canceledBy?: SaleActorRef | null
   /** Oldest first, fully returned ones (`outstandingCents: 0`) included. */
   refunds?: SaleDetailRefund[]
@@ -293,6 +333,8 @@ export interface SaleDetail {
   shippingAddress?: SaleShippingAddressSnapshot | null
   /** Handoff 23 §3: the quotation this sale came from; absent when it did not come from one. */
   quotationId?: string
+  /** BE handoff 24 §1: the pay-in-store hold. `parseSaleDetail` fills null when absent. */
+  hold?: SaleHold | null
 }
 
 /** One refund obligation of a cancelled sale: the pending-list row without `saleId`. */
@@ -309,6 +351,16 @@ export type SaleDetailRefund = Omit<PendingRefundRow, 'saleId'>
 
 export type SaleCancellationReason =
   (typeof SALE_CANCELLATION_REASON)[keyof typeof SALE_CANCELLATION_REASON]
+
+/**
+ * BE handoff 24 §4: the deadline sweep cancels an unpaid hold with this reason. Staff and the bot
+ * cannot choose it (the API rejects it), so it is NOT part of `SaleCancellationReason` (the body of
+ * the staff cancel): it only appears on a read sale.
+ */
+export const SALE_HOLD_EXPIRED_REASON = 'HOLD_EXPIRED' as const
+
+/** Every reason a read sale can carry: the staff ones plus the system HOLD_EXPIRED. */
+export type SaleDetailCancelReason = SaleCancellationReason | typeof SALE_HOLD_EXPIRED_REASON
 
 export interface SaleCancellationRequest {
   reason: SaleCancellationReason
@@ -432,6 +484,11 @@ export interface UpdatedPaymentReference {
 
 export interface DebtPaymentPayload {
   payments: PaymentEntry[]
+  /**
+   * BE handoff 24 §3: the caller's OPEN cash session the money goes into. Sent with CASH so the
+   * payment counts in that drawer; omitted (no key) for money that enters no drawer.
+   */
+  cashSessionId?: string
 }
 
 export interface DebtPaymentResponse {

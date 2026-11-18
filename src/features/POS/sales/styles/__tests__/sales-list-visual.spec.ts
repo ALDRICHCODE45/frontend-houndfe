@@ -384,6 +384,15 @@ describe('Sales listing adapter — installed native popup ownership (S3/S4)', (
     expect(hasPortalMarker(menuContent)).toBe(true)
   })
 
+  // Live check (minor): at 1440 the hold line under «Cliente» was cut («ven…»). It wraps instead.
+  it('lets the hold line under the customer wrap instead of truncating it', () => {
+    const rule = /\.sale-hold-line\s*\{([^}]*)\}/.exec(view)?.[1] ?? ''
+    expect(rule).not.toBe('')
+    expect(rule).not.toMatch(/white-space:\s*nowrap/)
+    expect(rule).not.toMatch(/text-overflow:\s*ellipsis/)
+    expect(rule).toMatch(/white-space:\s*normal/)
+  })
+
   it('never paints the shared adapter root itself with the sales marker', () => {
     expect(sharedCss).not.toContain('sales-list-portal')
     expect(view).toMatch(new RegExp(ROOT_MARKER.replace(/ /g, '\\s+')))

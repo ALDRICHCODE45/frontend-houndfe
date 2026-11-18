@@ -27,7 +27,17 @@ const TYPE_META: Record<string, NotificationMeta> = {
   REQUEST_OVERDUE: { icon: 'i-lucide-triangle-alert', tone: 'danger', label: 'Vencida' },
   CONVERSATION_CUSTOMER_MESSAGE: { icon: 'i-lucide-message-circle', tone: 'info', label: 'Nuevo mensaje del cliente' },
   CONVERSATION_UNANSWERED: { icon: 'i-lucide-message-circle-warning', tone: 'warning', label: 'Cliente sin respuesta' },
+  SALE_HOLD_REVIEW: { icon: 'i-lucide-hourglass', tone: 'warning', label: 'Apartado vencido' },
 }
+
+/** BE handoff 24 §5: server copy of SALE_HOLD_REVIEW (the server sends it; kept for tests and fallbacks). */
+export const SALE_HOLD_REVIEW_TITLE = 'Apartado vencido: revisa la venta'
+
+/** The reason after «Venta <folio> · » in the SALE_HOLD_REVIEW body. */
+export const SALE_HOLD_REVIEW_BODY_REASONS = {
+  PARTIAL_PAYMENT: 'Tiene un pago registrado',
+  PENDING_RECEIPT: 'Comprobante pendiente de revisar',
+} as const
 
 /** Live-conversation notices (handoff 20): the unanswered one names its minutes from `level`. */
 const UNANSWERED_LEVELS: Record<number, NotificationMeta> = {
@@ -117,6 +127,16 @@ export function bellLabel(count: number, stale: boolean): string {
 /** Where a notice leads; `null` for a notice that is not about a request. */
 export function notificationDetailPath(requestId: string | null): string | null {
   return requestId ? `/chatbot/solicitudes/${encodeURIComponent(requestId)}` : null
+}
+
+/** Sale detail of a sale notice (BE handoff 24 §5); `null` without a sale. */
+export function notificationSalePath(saleId: string | null | undefined): string | null {
+  return saleId ? `/pos/ventas/${encodeURIComponent(saleId)}` : null
+}
+
+/** Where any notice leads: the sale when it carries `saleId` (SALE_HOLD_REVIEW), else its request. */
+export function notificationTargetPath(item: Pick<NotificationItem, 'requestId' | 'saleId'>): string | null {
+  return notificationSalePath(item.saleId) ?? notificationDetailPath(item.requestId)
 }
 
 const WEEKDAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']

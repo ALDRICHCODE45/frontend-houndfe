@@ -13,7 +13,7 @@ import type { CashSession } from '@/features/POS/cash-register/interfaces/cash.t
 const OPEN_UUID = '11111111-1111-4111-8111-111111111111'
 const OPEN_UUID_2 = '22222222-2222-4222-8222-222222222222'
 
-function session(id: string): CashSession {
+function session(id: string, patch: Partial<CashSession> = {}): CashSession {
   return {
     id,
     tenantId: 'tenant-1',
@@ -24,6 +24,7 @@ function session(id: string): CashSession {
     frozenAt: null,
     drawerReleasedAt: null,
     blind: false,
+    ...patch,
   }
 }
 
@@ -31,7 +32,7 @@ const selectStub = {
   props: ['modelValue', 'items', 'disabled', 'placeholder'],
   emits: ['update:modelValue'],
   template:
-    '<select data-testid="cash-session-select" :value="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.value)"><option value="">Sin caja (legacy)</option><option v-for="item in items" :key="item.value" :value="item.value">{{ item.label }}</option></select>',
+    '<select data-testid="cash-session-select" :value="modelValue" :disabled="disabled" :data-placeholder="placeholder" @change="$emit(\'update:modelValue\', $event.target.value)"><option value="">{{ placeholder }}</option><option v-for="item in items" :key="item.value" :value="item.value">{{ item.label }}</option></select>',
 }
 
 const buttonStub = {
@@ -110,10 +111,51 @@ describe('CashSaleSessionPicker', () => {
     expect(events?.[events.length - 1]?.[0]).toBeNull()
   })
 
-  it('warns when the explicit selection cannot be revalidated by the current rows', () => {
-    const wrapper = mountPicker({ selectedId: OPEN_UUID, isSelectionEligible: false })
+  it('warns when the explicit selection cannot be revalidated by the current rows, never with a raw id', () => {
+    const wrapper = mountPicker({
+      selectedId: OPEN_UUID,
+      isSelectionEligible: false,
+      registerNames: { 'r-1': 'Caja Principal' },
+    })
 
-    expect(wrapper.get('[data-testid="cash-session-stale"]').text()).toContain(OPEN_UUID)
+    const stale = wrapper.get('[data-testid="cash-session-stale"]').text()
+    expect(stale).toContain('Caja Principal')
+    expect(stale).not.toContain(OPEN_UUID)
+  })
+
+  // Live check D3: tills are named by register and opening time, never by raw session id.
+  it('labels each till by its register name and opening time in Mexico City, never by id', () => {
+    const wrapper = mountPicker({
+      sessions: [
+        session(OPEN_UUID, { openedAt: '2026-11-18T15:12:00.000Z' }),
+        session(OPEN_UUID_2, { registerId: 'r-2', openedAt: '2026-11-17T15:00:00.000Z' }),
+        session('33333333-3333-4333-8333-333333333333', { registerId: 'r-unknown' }),
+      ],
+      registerNames: { 'r-1': 'Caja Principal', 'r-2': 'Caja 2' },
+      now: () => new Date('2026-11-18T20:00:00.000Z'),
+    })
+
+    const labels = wrapper.get('[data-testid="cash-session-select"]').findAll('option').slice(1).map((o) => o.text())
+    expect(labels).toEqual(['Caja Principal · abierta 9:12', 'Caja 2 · abierta 17 nov, 9:00', 'Caja'])
+    expect(wrapper.text()).not.toContain(OPEN_UUID)
+  })
+
+  it('keeps the legacy unbound choice for the POS charge by default', () => {
+    const wrapper = mountPicker({ selectedId: OPEN_UUID, isSelectionEligible: true })
+    expect(wrapper.get('[data-testid="cash-session-select"]').attributes('data-placeholder')).toBe('Sin caja (legacy)')
+    expect(wrapper.get('[data-testid="cash-session-clear"]').text()).toContain('Cobrar sin vincular (legacy)')
+  })
+
+  it('without the unbound choice never offers to charge without a till', () => {
+    const picked = mountPicker({ selectedId: OPEN_UUID, isSelectionEligible: true, allowUnbound: false })
+    expect(picked.find('[data-testid="cash-session-clear"]').exists()).toBe(false)
+    expect(picked.get('[data-testid="cash-session-select"]').attributes('data-placeholder')).toBe('Elige una caja')
+
+    const failed = mountPicker({ isError: true, allowUnbound: false })
+    expect(failed.get('[data-testid="cash-session-error"]').text()).not.toMatch(/sin vincular|legacy/)
+    const stale = mountPicker({ selectedId: OPEN_UUID, isSelectionEligible: false, allowUnbound: false })
+    expect(stale.get('[data-testid="cash-session-stale"]').text()).not.toMatch(/sin vincular|legacy/)
+    expect(picked.text()).not.toMatch(/sin vincular|legacy/i)
   })
 
   it('shows loading, error and empty states', () => {

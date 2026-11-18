@@ -1,0 +1,37 @@
+// Step 4c: charge 000077 $189.00 in CASH as cashier@ (2 OPEN tills → explicit pick), then verify PAID and no hold.
+import { makeLog, open, settle, shot, BASE, logBodies } from './lib.mjs'
+const log = makeLog('step4c-charge-cash')
+const ID = '6e64f7bc-f7a8-48cb-8c5f-8902ef000233'
+const { browser, page, foreign } = await open(log, { role: 'cashier' })
+page.setDefaultTimeout(10000)
+logBodies(page, log)
+await page.goto(`${BASE}/pos/ventas/${ID}`, { waitUntil: 'domcontentloaded' })
+await settle(page, 1000)
+log('hold line before ' + JSON.stringify(await page.getByTestId('sale-detail-hold-line').innerText().catch(() => null)))
+await page.getByRole('button', { name: 'Registrar pago' }).first().click()
+await page.getByTestId('payment-method-tile-cash').click()
+await settle(page, 800)
+log('amount ' + JSON.stringify(await page.getByTestId('payment-amount-0').locator('input').inputValue().catch(() => page.getByTestId('payment-amount-0').inputValue().catch(() => null))))
+log('missing=' + (await page.getByTestId('debt-cash-session-missing').count()) + ' picker=' + (await page.getByTestId('cash-session-binding').count()) + ' pickMsg=' + JSON.stringify(await page.getByTestId('debt-cash-session-pick').innerText().catch(() => null)))
+log('confirm enabled before pick ' + (await page.getByTestId('confirm-debt-payment').isEnabled()))
+await shot(page, '16-cash-picker', log)
+await page.getByTestId('cash-session-select').click()
+await page.waitForTimeout(400)
+const opts = await page.getByRole('option').allInnerTexts()
+log('OPTIONS ' + JSON.stringify(opts.map((t) => t.trim())))
+// Options are labelled with the raw session id (D3); d3d46b66 is the OPEN session on «Caja Principal» (probe-sessions.log).
+await page.getByRole('option').filter({ hasText: 'd3d46b66' }).first().click()
+await page.waitForTimeout(400)
+log('confirm enabled after pick ' + (await page.getByTestId('confirm-debt-payment').isEnabled()))
+await shot(page, '17-cash-picked', log)
+const resp = page.waitForResponse((r) => r.request().method() === 'POST' && r.url().includes(`/sales/${ID}/payments`), { timeout: 15000 }).catch(() => null)
+await page.getByTestId('confirm-debt-payment').click()
+const r = await resp
+log('POST payments ' + (r ? r.status() : 'none'))
+if (r) { try { const b = await r.json(); log('RESULT ' + JSON.stringify({ paidCents: b.paidCents, debtCents: b.debtCents, paymentStatus: b.paymentStatus })) } catch {} }
+await settle(page, 1500)
+log('hold card count after ' + (await page.getByTestId('sale-detail-hold').count()))
+log('header badges ' + JSON.stringify((await page.locator('header, .sale-detail-header').first().innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 200)))
+await shot(page, '18-sale-77-paid', log)
+log('FOREIGN ' + JSON.stringify([...foreign]))
+await browser.close()

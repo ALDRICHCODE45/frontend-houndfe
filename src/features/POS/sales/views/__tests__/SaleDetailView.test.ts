@@ -104,6 +104,38 @@ vi.mock('../../composables/useSalePaymentMethods', () => ({
   }),
 }))
 
+// BE handoff 24 §3 (T2b): DebtPaymentModal reads the user's OPEN cash sessions (useCashSaleSession →
+// useQuery + auth store). Mocked with no session so the modal mounts without a QueryClient/Pinia.
+vi.mock('@/features/POS/cash-register/composables/useCashSaleSession', () => ({
+  useCashSaleSession: () => ({
+    canReadSessions: computed(() => false),
+    availableSessions: computed(() => []),
+    selectedId: ref<string | null>(null),
+    isSelectionEligible: computed(() => false),
+    page: computed(() => 1),
+    pageSize: computed(() => 25),
+    total: computed(() => 0),
+    pageCount: computed(() => 1),
+    isFetching: computed(() => false),
+    isError: computed(() => false),
+    selectSession: vi.fn(),
+    clearSelection: vi.fn(),
+    isSelectionScopeCurrent: () => false,
+    revalidateSelection: () => false,
+    setPage: vi.fn(),
+    refetch: vi.fn(),
+  }),
+}))
+
+// Live check D2/D3: DebtPaymentModal also reads canOpenSession (auth store) and the register
+// names (useQuery). Mocked so the modal still mounts without a QueryClient/Pinia.
+vi.mock('@/features/POS/cash-register/composables/useCashAccess', () => ({
+  useCashAccess: () => ({ canOpenSession: computed(() => false) }),
+}))
+vi.mock('../../composables/useCashRegisterNames', () => ({
+  useCashRegisterNames: () => computed(() => ({})),
+}))
+
 vi.mock('../../composables/useSaleComments', () => ({
   useSaleComments: () => ({
     addComment: vi.fn().mockResolvedValue(undefined),

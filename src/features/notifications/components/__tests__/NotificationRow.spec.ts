@@ -94,6 +94,40 @@ describe('NotificationRow', () => {
     expect(wrapper.emitted('open')).toHaveLength(1)
   })
 
+  describe('SALE_HOLD_REVIEW (BE handoff 24 §5)', () => {
+    const review = {
+      type: 'SALE_HOLD_REVIEW',
+      title: 'Apartado vencido: revisa la venta',
+      body: 'Venta W-000042 · Comprobante pendiente de revisar',
+      requestId: null,
+      saleId: 'sale-42',
+      folio: 'W-000042',
+    }
+
+    it('renders the server title and body with the «Apartado vencido» warning label', () => {
+      const wrapper = mountRow(review)
+      expect(wrapper.text()).toContain('Apartado vencido: revisa la venta')
+      expect(wrapper.text()).toContain('Venta W-000042 · Comprobante pendiente de revisar')
+      expect(wrapper.get('[data-testid="notification-type"]').text()).toBe('Apartado vencido')
+      // The folio is already in the body: no repeated ref line.
+      expect(wrapper.find('[data-testid="notification-ref"]').exists()).toBe(false)
+    })
+
+    it('links to the sale detail, not the request inbox', () => {
+      expect(mountRow(review).get('a').attributes('href')).toBe('/pos/ventas/sale-42')
+    })
+
+    it('a request notice with saleId null keeps its request link', () => {
+      expect(mountRow({ saleId: null }).get('a').attributes('href')).toBe('/chatbot/solicitudes/req-n1')
+    })
+
+    it('without request nor sale it is a button, no link', () => {
+      const wrapper = mountRow({ ...review, saleId: null })
+      expect(wrapper.find('a').exists()).toBe(false)
+      expect(wrapper.find('button').exists()).toBe(true)
+    })
+  })
+
   describe('structured fields (handoff 13 §3, 8c12ae09)', () => {
     it('shows folio and the subtype label as a meta line', () => {
       const wrapper = mountRow({ folio: 'S-000118', subtype: 'UNKNOWN_QUESTION' })

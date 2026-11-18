@@ -288,6 +288,26 @@ describe('SettleRefundSlideover', () => {
       )
     })
 
+    it('clicking a segment of the field never opens the calendar; only the calendar button does', async () => {
+      const { wrapper } = mountPanel()
+      await wrapper.get('[data-testid="settle-date-change"]').trigger('click')
+      await flushPromises()
+      const field = dateField(wrapper).element as HTMLElement
+      const segment = wrapper.get('.refund-date-custom').find('[data-slot="segment"]')
+      expect(segment.exists()).toBe(true)
+      await segment.trigger('pointerdown')
+      await segment.trigger('click')
+      await flushPromises()
+      expect(wrapper.findComponent({ name: 'Calendar' }).exists()).toBe(false)
+
+      const trigger = wrapper.get('[data-testid="settle-date-calendar"]')
+      expect(trigger.attributes('aria-label')).toBe('Abrir calendario')
+      expect(field.contains(trigger.element)).toBe(true)
+      await trigger.trigger('click')
+      await flushPromises()
+      expect(wrapper.findComponent({ name: 'Calendar' }).exists()).toBe(true)
+    })
+
     it('picking a day in the calendar keeps the time already chosen', async () => {
       const { wrapper } = mountPanel()
       await wrapper.get('[data-testid="settle-date-change"]').trigger('click')

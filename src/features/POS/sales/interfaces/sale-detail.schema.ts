@@ -1,14 +1,20 @@
 import { z } from 'zod'
 import { SALE_CANCELLATION_REASON } from '../constants/sale.constants'
 import { PENDING_REFUND_METHODS, PENDING_REFUND_REASONS } from './pending-refund.types'
-import type { SaleDetail } from './sale.types'
+import {
+  SALE_HOLD_EXPIRED_REASON,
+  type SaleDetail,
+  type SaleDetailCancelReason,
+  type SaleHold,
+} from './sale.types'
 import { SaleShippingAddressSnapshotSchema } from './sale-shipping-address.schema'
 
 /**
  * `GET /sales/:id` decoder (odd/handoff/06-refund-settlements.md, «Cancelled sale detail»).
  *
- * Non-strict on purpose: it checks only the cancellation fields and the shipping address, and
- * passes every other key through as received. A payload from before BE ae0e951 (no such fields)
+ * Non-strict on purpose: it checks only the cancellation fields, the shipping address and the
+ * pay-in-store `hold` (BE handoff 24; null when absent or malformed), and passes every other key
+ * through as received. A payload from before BE ae0e951 (no such fields)
  * reads as a confirmed sale: `null` and `refunds: []`; one without `shippingAddress` reads null.
  */
 
@@ -25,10 +31,29 @@ const refundSchema = z.object({
   createdAt: z.string(),
 })
 
-const cancelReasons = Object.values(SALE_CANCELLATION_REASON) as [
-  (typeof SALE_CANCELLATION_REASON)[keyof typeof SALE_CANCELLATION_REASON],
-  ...(typeof SALE_CANCELLATION_REASON)[keyof typeof SALE_CANCELLATION_REASON][],
+// BE handoff 24 §4: a read sale may also carry the system-only HOLD_EXPIRED.
+const cancelReasons: [SaleDetailCancelReason, ...SaleDetailCancelReason[]] = [
+  SALE_HOLD_EXPIRED_REASON,
+  ...Object.values(SALE_CANCELLATION_REASON),
 ]
+
+/** BE handoff 24 §1: the pay-in-store hold, exactly as the contract types it. */
+export const saleHoldSchema = z.object({
+  paymentIntent: z.literal('IN_STORE'),
+  expiresAt: z.string().min(1),
+  reminderAt: z.string().nullable(),
+  stage: z.union([z.literal(0), z.literal(1), z.literal(2)]),
+  version: z.number().int().nonnegative().safe(),
+}) satisfies z.ZodType<SaleHold>
+
+/**
+ * `hold` of a sale detail or list row: null when absent (older payload, POS sale) and when
+ * malformed. A broken hold only hides the badge; it never breaks the whole sale.
+ */
+export function parseSaleHold(value: unknown): SaleHold | null {
+  const parsed = saleHoldSchema.safeParse(value)
+  return parsed.success ? parsed.data : null
+}
 
 const saleDetailSchema = z
   .object({
@@ -44,6 +69,7 @@ const saleDetailSchema = z
     shippingAddress: SaleShippingAddressSnapshotSchema.nullish().transform((value) => value ?? null),
     // Handoff 23 §3: present only when the sale came from a quotation; the key stays absent otherwise.
     quotationId: z.string().optional(),
+    hold: z.unknown().transform(parseSaleHold),
   })
   .passthrough()
 

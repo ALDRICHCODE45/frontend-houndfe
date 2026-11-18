@@ -453,31 +453,45 @@ async function requestClose() {
                 </button>
               </div>
               <div v-else class="refund-date-custom">
-                <UPopover
-                  v-model:open="dateOpen"
-                  :content="{ align: 'start', side: 'bottom', sideOffset: 8 }"
-                  :ui="{ content: 'hf-theme hf-ui' }"
+                <!-- The segments stay typeable: only the trailing icon opens the calendar. -->
+                <UInputDate
+                  id="settle-date"
+                  class="min-w-0 flex-1 hf-figure"
+                  granularity="minute"
+                  :model-value="settledModel"
+                  :max-value="maxMoment"
+                  aria-labelledby="settle-date-label"
+                  aria-describedby="settle-date-label-message"
+                  :aria-invalid="shownErrors.settledAt ? 'true' : 'false'"
+                  @update:model-value="settledChanged"
                 >
-                  <UInputDate
-                    id="settle-date"
-                    class="min-w-0 flex-1 hf-figure"
-                    granularity="minute"
-                    :model-value="settledModel"
-                    :max-value="maxMoment"
-                    aria-labelledby="settle-date-label"
-                    aria-describedby="settle-date-label-message"
-                    :aria-invalid="shownErrors.settledAt ? 'true' : 'false'"
-                    @update:model-value="settledChanged"
-                  />
-                  <template #content>
-                    <UCalendar
-                      class="p-2"
-                      :model-value="calendarModel"
-                      :max-value="maxDay"
-                      @update:model-value="dayPicked"
-                    />
+                  <template #trailing>
+                    <UPopover
+                      v-model:open="dateOpen"
+                      :content="{ align: 'end', side: 'bottom', sideOffset: 8 }"
+                      :ui="{ content: 'hf-theme hf-ui' }"
+                    >
+                      <UButton
+                        type="button"
+                        color="neutral"
+                        variant="link"
+                        size="sm"
+                        icon="i-lucide-calendar"
+                        aria-label="Abrir calendario"
+                        data-testid="settle-date-calendar"
+                        class="px-0"
+                      />
+                      <template #content>
+                        <UCalendar
+                          class="p-2"
+                          :model-value="calendarModel"
+                          :max-value="maxDay"
+                          @update:model-value="dayPicked"
+                        />
+                      </template>
+                    </UPopover>
                   </template>
-                </UPopover>
+                </UInputDate>
                 <button type="button" class="refund-link" @click="form.settledAt = null">
                   Usar ahora
                 </button>

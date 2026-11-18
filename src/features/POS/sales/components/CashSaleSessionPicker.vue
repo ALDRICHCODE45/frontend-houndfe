@@ -11,11 +11,16 @@
  * Selecting a session is the ONLY way a charge becomes bound; clearing it
  * restores the legacy unbound charge. There is no automatic assignment of the
  * first, sole or previous session.
+ *
+ * Each till reads as its register name and opening time («Caja Principal · abierta 9:12»),
+ * never as a raw session id. `allowUnbound: false` (the debt payment, where every cash payment
+ * needs a till) drops every «sin caja / sin vincular» choice and copy.
  */
 import { computed } from 'vue'
 import type { CashSession } from '@/features/POS/cash-register/interfaces/cash.types'
+import { cashSessionLabel } from '../utils/cashSessionLabel.utils'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   /** The eligible rows of the CURRENT page (own + OPEN + current tenant). */
   sessions: CashSession[]
   /** The explicit selection held by the parent, or `null` when unbound. */
@@ -33,7 +38,18 @@ const props = defineProps<{
    * `ui.content`. Absent by default, so the listbox keeps its native defaults.
    */
   portalClass?: string
-}>()
+  /** Register names by id, to name each till. Unknown registers read «Caja». */
+  registerNames?: Record<string, string>
+  /** Whether charging without a till is a choice (POS charge: yes; debt payment: no). */
+  allowUnbound?: boolean
+  /** Injected clock (tests). */
+  now?: () => Date
+}>(), {
+  portalClass: undefined,
+  registerNames: () => ({}),
+  allowUnbound: true,
+  now: () => new Date(),
+})
 
 const emit = defineEmits<{
   'update:selectedId': [id: string | null]
@@ -47,17 +63,22 @@ const selectValue = computed<string>({
   },
 })
 
+function labelOf(session: CashSession): string {
+  return cashSessionLabel(session, props.registerNames, props.now())
+}
+
 const selectItems = computed(() =>
-  props.sessions.map((session) => ({ label: session.id, value: session.id })),
+  props.sessions.map((session) => ({ label: labelOf(session), value: session.id })),
 )
 
 /** A chosen id that the current rows cannot revalidate: warn, never fall back. */
 const isStaleSelection = computed(() => props.selectedId !== null && !props.isSelectionEligible)
 
-const selectedLabel = computed(
-  () =>
-    props.sessions.find((session) => session.id === props.selectedId)?.id ?? props.selectedId ?? '',
-)
+/** The chosen till by name; one the rows no longer carry reads as «La caja elegida». */
+const staleName = computed(() => {
+  const session = props.sessions.find((row) => row.id === props.selectedId)
+  return session ? `La caja elegida (${labelOf(session)})` : 'La caja elegida'
+})
 
 function clear() {
   emit('update:selectedId', null)
@@ -74,7 +95,7 @@ function clear() {
           :items="selectItems"
           :disabled="isFetching"
           :ui="portalClass ? { content: portalClass } : undefined"
-          placeholder="Sin caja (legacy)"
+          :placeholder="allowUnbound ? 'Sin caja (legacy)' : 'Elige una caja'"
           @update:model-value="selectValue = $event"
         />
 
@@ -82,7 +103,8 @@ function clear() {
           Cargando sesiones de caja…
         </p>
         <p v-else-if="isError" class="text-xs text-error" data-testid="cash-session-error">
-          No se pudieron cargar las sesiones de caja. Reintenta o cobra sin vincular.
+          <template v-if="allowUnbound">No se pudieron cargar las sesiones de caja. Reintenta o cobra sin vincular.</template>
+          <template v-else>No se pudieron cargar tus cajas abiertas.</template>
         </p>
         <p
           v-else-if="sessions.length === 0"
@@ -93,12 +115,11 @@ function clear() {
         </p>
 
         <p v-if="isStaleSelection" class="text-xs text-warning" data-testid="cash-session-stale">
-          La sesión elegida ({{ selectedLabel }}) ya no está disponible. Elige otra o cobra sin
-          vincular.
+          {{ staleName }} ya no está disponible. {{ allowUnbound ? 'Elige otra o cobra sin vincular.' : 'Elige otra.' }}
         </p>
 
         <UButton
-          v-if="selectedId !== null"
+          v-if="allowUnbound && selectedId !== null"
           data-testid="cash-session-clear"
           type="button"
           color="neutral"
