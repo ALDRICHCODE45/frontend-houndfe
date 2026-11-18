@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/vue-query'
 import { parseDate, CalendarDate } from '@internationalized/date'
 import type { CustomerScope, DayOfWeek, PromotionFormState } from '../interfaces/promotion.types'
 import { DAY_OPTIONS, CUSTOMER_SCOPE_OPTIONS } from '../composables/usePromotionForm'
+import { usePromotionPriceLists } from '../composables/usePromotionPriceLists'
 import { CUSTOMER_SCOPE } from '../constants/promotion.constants'
 import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 import HfSegmented from '@/core/shared/components/form/HfSegmented.vue'
@@ -64,14 +65,7 @@ const customerItems = computed(() =>
 
 // ── Price list search ─────────────────────────────────────────────────────────
 
-const { data: priceLists } = useQuery({
-  queryKey: ['price-lists'],
-  queryFn: async () => {
-    const { productApi } = await import('@/features/POS/products/api/product.api')
-    return productApi.getGlobalPriceLists()
-  },
-  enabled: () => props.modelValue.hasPriceLists,
-})
+const { data: priceLists } = usePromotionPriceLists(() => props.modelValue.hasPriceLists)
 
 // Map price lists to the picker's { value, label } items
 const priceListItems = computed(() =>

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, reactive, ref, useId, watch } from 'vue'
-import { useQuery } from '@tanstack/vue-query'
 import type {
   PromotionFormState,
   PromotionMethod,
@@ -19,6 +18,7 @@ import {
 } from '../composables/usePromotionForm'
 import { usePromotionTargetNames } from '../composables/usePromotionTargetNames'
 import { usePromotionBotEligibility } from '../composables/usePromotionBotEligibility'
+import { usePromotionPriceLists } from '../composables/usePromotionPriceLists'
 import { getTypeConfig } from '../utils/promotionStatusConfig.utils'
 import { computeOverlappingTargets } from '../utils/advancedTargets.utils'
 import {
@@ -192,17 +192,10 @@ function onConditionsUpdate(updated: PromotionFormState) {
 
 // ── Summary price-list names (T1/S1) ────────────────────────────────────────────────
 //
-// Same key, fetcher and gate as the condition picker in PromotionConditionsSection,
-// so this reads the list the picker already loaded (one request, shared cache) and
-// the summary card stays free of vue-query.
-const { data: priceLists } = useQuery({
-  queryKey: ['price-lists'],
-  queryFn: async () => {
-    const { productApi } = await import('@/features/POS/products/api/product.api')
-    return productApi.getGlobalPriceLists()
-  },
-  enabled: () => formState.hasPriceLists,
-})
+// Same query as the condition picker in PromotionConditionsSection, so this reads
+// the list the picker already loaded (one request, shared cache) and the summary
+// card stays free of vue-query.
+const { data: priceLists } = usePromotionPriceLists(() => formState.hasPriceLists)
 
 /** Names of the chosen price lists in pick order; unresolved ids are left out. */
 const priceListNames = computed(() => {

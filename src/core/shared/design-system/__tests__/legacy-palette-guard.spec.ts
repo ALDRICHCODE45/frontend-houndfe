@@ -27,14 +27,14 @@ const ALLOWED_HITS = new Set([
 const COCO = /\bcoco-[a-z0-9-]+/g
 const LEGACY_VARIABLE = /--(?:brand|light)-[a-z0-9-]+/g
 const RAW_PALETTE =
-  /\b(?:bg|text|border|ring|fill|stroke|from|to|via)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}\b/g
+  /\b(?:bg|text|border|ring|fill|stroke|from|to|via|divide|outline|placeholder|accent|shadow|decoration|caret)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}\b/g
 
 function files(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name)
     if (entry.isDirectory()) return entry.name === '__tests__' || entry.name === 'node_modules' ? [] : files(path)
     if (/\.(spec|test)\.[a-z]+$/.test(entry.name)) return []
-    return /\.(css|vue)$/.test(entry.name) ? [path] : []
+    return /\.(css|vue|ts)$/.test(entry.name) && !entry.name.endsWith('.d.ts') ? [path] : []
   })
 }
 
@@ -59,6 +59,19 @@ describe('legacy palette guard (A3)', () => {
       'ring-red-600',
     ])
     expect(
+      legacyPaletteIn(
+        "'divide-gray-200 outline-blue-500 placeholder-slate-400 accent-rose-600 shadow-black/5 shadow-zinc-900 decoration-amber-300 caret-sky-500'",
+      ),
+    ).toEqual([
+      'divide-gray-200',
+      'outline-blue-500',
+      'placeholder-slate-400',
+      'accent-rose-600',
+      'shadow-zinc-900',
+      'decoration-amber-300',
+      'caret-sky-500',
+    ])
+    expect(
       legacyPaletteIn('<p class="text-muted bg-elevated border-default text-[var(--hf-muted)] text-error">'),
     ).toEqual([])
     expect(legacyPaletteIn('color: var(--hf-muted); border-color: var(--hf-border);')).toEqual([])
@@ -67,6 +80,13 @@ describe('legacy palette guard (A3)', () => {
   it('every allowlisted path exists', () => {
     const hitPaths = [...ALLOWED_HITS].map((entry) => entry.split(' :: ')[0]!)
     expect([...ALLOWED, ...hitPaths].filter((path) => !existsSync(path))).toEqual([])
+  })
+
+  it('scans stylesheets, components and the .ts class strings, never tests or declarations', () => {
+    const scanned = files(ROOT)
+    expect(scanned.some((path) => path.endsWith('.ts'))).toBe(true)
+    expect(scanned.some((path) => path.endsWith('.vue'))).toBe(true)
+    expect(scanned.filter((path) => /\.(spec|test)\.ts$|\.d\.ts$/.test(path))).toEqual([])
   })
 
   it('no screen or stylesheet paints with the legacy or raw palette', () => {
