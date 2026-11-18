@@ -2,6 +2,8 @@
 
 Respuesta del frontend al diseño `houndfe-chatbot/docs/intervencion-humana-diseno.md` (commit `29c2b6f`). Solo mapeo y propuesta: no hay implementación ni contrato cerrado.
 
+> **Estado (2026-11-18, backlog-closeout T6):** la bandeja vieja ya no existe en el frontend. `/pos/decisiones-pendientes` redirige a `/chatbot/solicitudes` (sin query) y la pantalla `HumanDecisionsView` con sus paneles se eliminó; la bandeja nueva no reutilizó esos paneles. Toda decisión nueva también se crea como solicitud del chatbot y resolverla allí sincroniza la decisión vieja. Las referencias de abajo a la pantalla vieja son históricas.
+
 ## 1. Qué existe hoy y qué se reutiliza
 
 | Pieza del diseño | Hoy en el frontend | Propuesta |

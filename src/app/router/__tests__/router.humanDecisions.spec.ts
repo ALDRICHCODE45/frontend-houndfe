@@ -1,11 +1,9 @@
-// router.humanDecisions.spec.ts — STRICT-TDD tests for the HD3A POS inbox shell.
+// router.humanDecisions.spec.ts — the old human-decisions inbox URL is a redirect (backlog-closeout T6, S5).
 //
-// Route contract (ODD human-decisions-restock-inbox HD3A):
-//   path: /pos/decisiones-pendientes
-//   name: pos-human-decisions
-//   meta.layout: 'dashboard'
-//   meta.permission: ['read', 'HumanDecision']
-//   NO public, NO skipTenantCheck, NO requiresSuperAdmin.
+// Owner decision (L3): /pos/decisiones-pendientes redirects to Chatbot → Solicitudes. Every new decision
+// is also created as a chatbot request and resolving it there syncs the old decision (L2), so the old
+// screen is gone. The old inbox had no query semantics, so any query or hash is dropped. The target keeps
+// its own guard: read:ChatbotRequest, never read:HumanDecision.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -29,27 +27,13 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: () => mockAuthStore,
 }))
 
-// Shared-route stubs. The guard tests start at /login and land on /403 or the
-// not-found route; each of those is a lazy view too, and its cold transform was
-// charged to whichever test reached it first (a 5000ms timeout under suite
-// load). This spec asserts paths and metadata, never these components.
+// Shared-route and route-view stubs: this spec pins the route records, their metadata and the REAL
+// global guard, not the UI (lazy views otherwise pay a cold transform under suite load).
 vi.mock('@/features/auth/login/views/LoginView.vue', () => ({ default: { name: 'LoginView' } }))
 vi.mock('@/features/errors/views/ForbiddenView.vue', () => ({ default: { name: 'ForbiddenView' } }))
 vi.mock('@/features/errors/views/NotFoundView.vue', () => ({ default: { name: 'NotFoundView' } }))
-
-// Route-view stubs, the same isolation `router.cashRegister.spec.ts` uses. This
-// spec pins the route record, its metadata and the REAL global guard, not the
-// UI. Every test resets modules and navigates to the lazy route, so the first
-// one paid the cold transform of the whole inbox view graph and timed out at
-// 5000ms whenever the suite ran under load (it reproduced on the base commit,
-// not only after unrelated changes). The views keep their own unit coverage.
-// The identity assertions below still prove WHICH module each route resolves:
-// the router's lazy import and the test's import hit the same mocked path.
-vi.mock('@/features/POS/human-decisions/views/HumanDecisionsView.vue', () => ({
-  default: { name: 'HumanDecisionsView' },
-}))
-vi.mock('@/features/POS/human-decisions/views/HumanDecisionsOfflineDemoRouteView.vue', () => ({
-  default: { name: 'HumanDecisionsOfflineDemoRouteView' },
+vi.mock('@/features/chatbot/requests/views/ChatbotRequestsView.vue', () => ({
+  default: { name: 'ChatbotRequestsView' },
 }))
 
 function authenticate(userCan: (action: string, subject: string) => boolean) {
@@ -62,13 +46,12 @@ function authenticate(userCan: (action: string, subject: string) => boolean) {
   mockAuthStore.userCan.mockImplementation(userCan)
 }
 
-const readHumanDecision = (action: string, subject: string) =>
-  action === 'read' && subject === 'HumanDecision'
+const readChatbotRequest = (action: string, subject: string) =>
+  action === 'read' && subject === 'ChatbotRequest'
 
-describe('router — /pos/decisiones-pendientes (HD3A)', () => {
+describe('router — /pos/decisiones-pendientes redirects to /chatbot/solicitudes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.unstubAllEnvs()
     vi.resetModules()
     mockAuthStore.accessToken = null
     mockAuthStore.user = null
@@ -81,68 +64,46 @@ describe('router — /pos/decisiones-pendientes (HD3A)', () => {
     mockAuthStore.userCan.mockReturnValue(false)
   })
 
-  it('resolves exact route, dashboard layout and read:HumanDecision with no extra gates', async () => {
-    authenticate(readHumanDecision)
+  it('lands on the chatbot request inbox, which keeps its read:ChatbotRequest guard', async () => {
+    authenticate(readChatbotRequest)
     const { default: router } = await import('../index')
 
     await router.push('/pos/decisiones-pendientes')
     await router.isReady()
 
-    expect(router.currentRoute.value.path).toBe('/pos/decisiones-pendientes')
-    expect(router.currentRoute.value.name).toBe('pos-human-decisions')
-    expect(router.currentRoute.value.meta.layout).toBe('dashboard')
-    expect(router.currentRoute.value.meta.permission).toEqual(['read', 'HumanDecision'])
-    expect(router.currentRoute.value.meta.public).toBeUndefined()
-    expect(router.currentRoute.value.meta.skipTenantCheck).toBeUndefined()
-    expect(router.currentRoute.value.meta.requiresSuperAdmin).toBeUndefined()
+    expect(router.currentRoute.value.path).toBe('/chatbot/solicitudes')
+    expect(router.currentRoute.value.name).toBe('chatbot-requests')
+    expect(router.currentRoute.value.meta.permission).toEqual(['read', 'ChatbotRequest'])
+    expect(router.currentRoute.value.redirectedFrom?.path).toBe('/pos/decisiones-pendientes')
   })
 
-  it('lazy-resolves to HumanDecisionsView', async () => {
-    authenticate(readHumanDecision)
+  it('drops the old query and hash (the old inbox had none that map to the new list)', async () => {
+    authenticate(readChatbotRequest)
     const { default: router } = await import('../index')
 
-    await router.push('/pos/decisiones-pendientes')
+    await router.push('/pos/decisiones-pendientes?status=RESOLVED#hd-1')
     await router.isReady()
 
-    const raw = router.currentRoute.value.matched[0]!.components!.default as unknown
-    const resolved = typeof raw === 'function' ? await (raw as () => Promise<unknown>)() : raw
-    const component = (resolved as { default?: unknown }).default ?? resolved
-    const expected = (await import('@/features/POS/human-decisions/views/HumanDecisionsView.vue'))
-      .default
-    expect(component).toBe(expected)
+    expect(router.currentRoute.value.path).toBe('/chatbot/solicitudes')
+    expect(router.currentRoute.value.query).toEqual({})
+    expect(router.currentRoute.value.hash).toBe('')
   })
 
-  it('lazy-resolves the offline demo only with the exact DEV flag', async () => {
-    vi.stubEnv('VITE_HUMAN_DECISIONS_OFFLINE_DEMO', 'true')
-    authenticate(readHumanDecision)
+  it('no longer registers the old route or its view', async () => {
     const { default: router } = await import('../index')
 
-    await router.push('/pos/decisiones-pendientes')
-    await router.isReady()
-
-    const raw = router.currentRoute.value.matched[0]!.components!.default as unknown
-    const resolved = typeof raw === 'function' ? await (raw as () => Promise<unknown>)() : raw
-    const component = (resolved as { default?: unknown }).default ?? resolved
-    const expected = (
-      await import('@/features/POS/human-decisions/views/HumanDecisionsOfflineDemoRouteView.vue')
-    ).default
-    expect(component).toBe(expected)
+    expect(router.hasRoute('pos-human-decisions')).toBe(false)
+    const record = router.getRoutes().find((r) => r.path === '/pos/decisiones-pendientes')
+    expect(record?.redirect).toBeDefined()
+    expect(record?.components ?? null).toBeNull()
   })
 
-  it('redirects to /403 when read:HumanDecision is absent', async () => {
-    authenticate(() => false)
-    const { default: router } = await import('../index')
-
-    await router.push('/login')
-    await router.isReady()
-    await router.push('/pos/decisiones-pendientes')
-    await router.isReady()
-
-    expect(router.currentRoute.value.path).toBe('/403')
-  })
-
-  it('does not grant read access from update:HumanDecision alone', async () => {
-    authenticate((action, subject) => action === 'update' && subject === 'HumanDecision')
+  it.each([
+    ['the old read:HumanDecision permission', (a: string, s: string) => a === 'read' && s === 'HumanDecision'],
+    ['update:ChatbotRequest alone', (a: string, s: string) => a === 'update' && s === 'ChatbotRequest'],
+    ['no grants', () => false],
+  ])('sends %s to /403 through the target guard', async (_label, userCan) => {
+    authenticate(userCan)
     const { default: router } = await import('../index')
 
     await router.push('/login')
