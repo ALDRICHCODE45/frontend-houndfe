@@ -134,7 +134,7 @@ async function handleSelectUser(user: AssignableUser) {
 
           <div v-else-if="filteredUsers.length === 0" class="space-y-4">
             <div class="rounded-md border border-dashed border-default p-6 text-center">
-              <UIcon name="i-lucide-users-x" class="mx-auto size-8 text-muted mb-2" />
+              <UIcon name="i-lucide-user-x" class="mx-auto size-8 text-muted mb-2" />
               <p class="text-sm text-muted">
                 {{ debouncedSearch ? 'No se encontraron usuarios' : 'No hay usuarios asignables' }}
               </p>

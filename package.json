@@ -29,6 +29,7 @@
   "dependencies": {
     "@casl/ability": "^6.8.0",
     "@casl/vue": "^2.2.6",
+    "@iconify/vue": "5.0.0",
     "@internationalized/date": "^3.12.1",
     "@nuxt/ui": "^4.6.0",
     "@tanstack/vue-query": "^5.95.2",
@@ -47,6 +48,8 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@fontsource/geist": "^5.3.0",
+    "@iconify-json/lucide": "^1.2.156",
     "@playwright/test": "1.63.0",
     "@tailwindcss/vite": "^4.2.2",
     "@tsconfig/node24": "^24.0.4",

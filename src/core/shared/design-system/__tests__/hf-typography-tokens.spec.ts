@@ -6,20 +6,27 @@ const theme = read('src/core/shared/design-system/houndfe-theme.css')
 const shell = read('src/app/layouts/styles/unified-shell.css')
 const main = read('src/assets/main.css')
 
-const imports = (css: string) => css.match(/^@import url\([^)]*fonts\.googleapis\.com[^)]*\);?$/gm) ?? []
+const remoteImports = (css: string) => css.match(/^@import url\([^)]*https?:[^)]*\);?$/gm) ?? []
+const fontsourceImports = (css: string) => css.match(/^@import '@fontsource\/geist\/\d+\.css';$/gm) ?? []
 const declaration = (css: string, name: string) =>
   css.match(new RegExp(`^\\s*${name}:\\s*([^;]+);`, 'm'))?.[1]?.trim()
 
 describe('typography tokens: Geist replaces Manrope and Inter', () => {
+  it('main.css loads the bundled Geist weights 400, 500, 600 and 700', () => {
+    expect(fontsourceImports(main)).toEqual([
+      "@import '@fontsource/geist/400.css';",
+      "@import '@fontsource/geist/500.css';",
+      "@import '@fontsource/geist/600.css';",
+      "@import '@fontsource/geist/700.css';",
+    ])
+  })
+
   it.each([
     ['houndfe-theme.css', theme],
     ['unified-shell.css', shell],
     ['main.css', main],
-  ])('%s loads Geist from Google Fonts and no other family', (_name, css) => {
-    const fonts = imports(css)
-    expect(fonts).toHaveLength(1)
-    expect(fonts[0]).toContain('family=Geist:')
-    expect(fonts[0]).not.toMatch(/Manrope|Inter/)
+  ])('%s loads no font from a remote host', (_name, css) => {
+    expect(remoteImports(css)).toEqual([])
   })
 
   it('points --hf-font at Geist with the system fallbacks', () => {

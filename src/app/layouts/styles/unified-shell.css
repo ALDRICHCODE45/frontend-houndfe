@@ -23,8 +23,6 @@
  * a global font-family. The scoped `@import` below is a load fallback for
  * routes that do not already load the foundation stylesheet.
  */
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap');
-
 /* ── Palette (root + teleported portals) ────────────────────────────────── */
 
 /* Aliases of the foundation roles. `--hf-*` is resolved on the element, so the
