@@ -197,6 +197,36 @@
   border-top-color: transparent;
 }
 
+/* ── Optional conditions: whole-row switches that reveal their field ─────── */
+
+/* Selección sin checkboxes: each condition is an HfSwitchRow; its field opens
+ * inside the same bordered group, under the row, never as an indented block. */
+.promotions-workspace .promotions-conditions {
+  display: grid;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background-color: var(--hf-surface);
+  overflow: hidden;
+}
+
+.promotions-workspace .promotions-condition + .promotions-condition {
+  border-top: 1px solid var(--hf-border);
+}
+
+.promotions-workspace .promotions-condition__body {
+  padding: 0.25rem 1rem 1rem;
+}
+
+/* Target pickers: the selectable rows scroll inside the dialog. */
+.promotions-form-portal .promotions-scroll-rows .hf-selectable-rows__list {
+  max-height: 18rem;
+  overflow-y: auto;
+}
+
+.promotions-form-portal .promotions-scroll-rows--compact .hf-selectable-rows__list {
+  max-height: 12rem;
+}
+
 /* ── Loading skeleton: shaped like the form's section cards ──────────────── */
 
 .promotions-workspace .promotions-skeleton-section {

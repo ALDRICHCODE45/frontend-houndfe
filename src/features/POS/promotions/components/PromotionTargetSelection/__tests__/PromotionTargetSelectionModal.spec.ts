@@ -162,8 +162,9 @@ describe('PromotionTargetSelectionModal', () => {
     })
     await flushPromises()
 
-    const checkedBoxes = portalQueryAll('[role="checkbox"][aria-checked="true"]')
-    expect(checkedBoxes.length).toBe(1)
+    const selected = portalQueryAll('[role="option"][aria-selected="true"]')
+    expect(selected.length).toBe(1)
+    expect(portalQueryAll('[role="checkbox"], input[type="checkbox"]').length).toBe(0)
   })
 
   it('on close, hides the body (no FlatChecklistPanel rows rendered)', async () => {
@@ -174,9 +175,8 @@ describe('PromotionTargetSelectionModal', () => {
     })
     await flushPromises()
 
-    // Modal is closed — no checkboxes should be visible in the portal.
-    const checkedBoxes = portalQueryAll('[role="checkbox"]')
-    expect(checkedBoxes.length).toBe(0)
+    // Modal is closed — no rows should be visible in the portal.
+    expect(portalQueryAll('[role="option"]').length).toBe(0)
   })
 
   // ── Confirm (REQ-2) ──────────────────────────────────────────────────────
@@ -285,7 +285,7 @@ describe('PromotionTargetSelectionModal', () => {
       selectedItems: [{ targetId: 'c1', name: 'Camisetas' }],
     })
     await flushPromises()
-    expect(portalQueryAll('[role="checkbox"][aria-checked="true"]').length).toBe(1)
+    expect(portalQueryAll('[role="option"][aria-selected="true"]').length).toBe(1)
 
     // Second open with 2 items: the modal must RE-seed from the latest
     // selectedItems (not carry over the previous staged state). We assert

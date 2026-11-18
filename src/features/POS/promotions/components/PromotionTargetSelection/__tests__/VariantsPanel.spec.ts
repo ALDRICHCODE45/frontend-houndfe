@@ -169,7 +169,7 @@ describe('VariantsPanel', () => {
     expect(getVariantsMock).toHaveBeenCalledWith('p1')
   })
 
-  it('expanding Camisa reveals its variants with checkboxes', async () => {
+  it('expanding Camisa reveals its variants as selectable rows, never checkboxes', async () => {
     getVariantsMock.mockResolvedValueOnce([
       { id: 'v1', productId: 'p1', name: 'Talle M' },
       { id: 'v2', productId: 'p1', name: 'Talle L' },
@@ -185,10 +185,14 @@ describe('VariantsPanel', () => {
     expect(text).toContain('Talle M')
     expect(text).toContain('Talle L')
 
-    // The checkbox rendered for each variant. Nuxt UI's UCheckbox is a button
-    // with role="checkbox" + aria-checked, so we query by role.
-    const checkboxes = wrapper.findAll('[role="checkbox"]')
-    expect(checkboxes.length).toBe(2)
+    // Each variant is an option of a multiselect listbox named for the product.
+    const listbox = wrapper.get('[data-testid="variants-list-p1"] [role="listbox"]')
+    expect(listbox.attributes('aria-multiselectable')).toBe('true')
+    expect(listbox.attributes('aria-label')).toBe('Variantes de Camisa')
+    const options = listbox.findAll('[role="option"]')
+    expect(options.map((o) => o.attributes('aria-selected'))).toEqual(['false', 'false'])
+    expect(wrapper.findAll('[role="checkbox"], input[type="checkbox"]')).toHaveLength(0)
+    expect(wrapper.text()).toContain('0 de 2 seleccionadas')
   })
 
   it('toggling the same product row twice collapses the variants list', async () => {
@@ -212,7 +216,7 @@ describe('VariantsPanel', () => {
 
   // ── Per-variant toggle ─────────────────────────────────────────────────────
 
-  it('toggling a variant checkbox emits update:staged with the extended entry shape', async () => {
+  it('toggling a variant row emits update:staged with the extended entry shape', async () => {
     getVariantsMock.mockResolvedValueOnce([
       { id: 'v1', productId: 'p1', name: 'Talle M' },
     ])
@@ -223,9 +227,9 @@ describe('VariantsPanel', () => {
     await wrapper.find('[data-testid="product-toggle-p1"]').trigger('click')
     await flushPromises()
 
-    const variantButton = wrapper.find('[data-testid="variant-row-button-p1"]')
-    expect(variantButton.exists()).toBe(true)
-    await variantButton.trigger('click')
+    const variantRow = wrapper.find('[data-testid="variants-list-p1"] [role="option"][data-value="v1"]')
+    expect(variantRow.exists()).toBe(true)
+    await variantRow.trigger('click')
     await nextTick()
 
     const emitted = wrapper.emitted('update:staged') as [
@@ -256,8 +260,9 @@ describe('VariantsPanel', () => {
     await wrapper.find('[data-testid="product-toggle-p1"]').trigger('click')
     await flushPromises()
 
-    const variantButton = wrapper.find('[data-testid="variant-row-button-p1"]')
-    await variantButton.trigger('click')
+    const variantRow = wrapper.get('[data-testid="variants-list-p1"] [role="option"][data-value="v1"]')
+    expect(variantRow.attributes('aria-selected')).toBe('true')
+    await variantRow.trigger('click')
     await nextTick()
 
     const emitted = wrapper.emitted('update:staged') as [

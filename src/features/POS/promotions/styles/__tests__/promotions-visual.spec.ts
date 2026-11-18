@@ -154,10 +154,19 @@ describe('Promotions creation/edit workspace adapter', () => {
     expect(css).toContain('.promotions-workspace .promotions-chip')
   })
 
-  it('repaints every section card over the global literal UCard theme', () => {
+  it('builds the form and its conditions from the shared section cards', () => {
+    // T4b/S2: the stacked UCards become HfSectionCard (design-system §Section card).
+    for (const source of [form, conditions]) {
+      expect(source).not.toMatch(/<UCard\b/)
+      expect(source).toContain('<HfSectionCard')
+      expect(source).not.toMatch(/\bpl-6\b/)
+    }
+  })
+
+  it('repaints every remaining section card over the global literal UCard theme', () => {
     // vite.config.ts paints UCard roots with literal bg-white/dark:bg-coco-neutral-900,
     // which no semantic alias reaches; each card needs the owned section hook.
-    for (const source of [form, conditions, summary]) {
+    for (const source of [summary]) {
       const cards = source.match(/<UCard\b[^>]*>/g) ?? []
       expect(cards.length).toBeGreaterThan(0)
       for (const card of cards) expect(card).toContain('promotions-form-section')

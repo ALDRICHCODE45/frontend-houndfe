@@ -19,6 +19,7 @@ import { computed, ref } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { ProductVariant } from '@/features/POS/products/interfaces/product.types'
 import type { PromotionTargetItemFormEntry } from '../../interfaces/promotion.types'
+import { HfSelectableRows, type HfSelectableRowItem } from '@/core/shared/components/selection'
 
 const props = defineProps<{
   productId: string
@@ -57,8 +58,25 @@ function toggleExpand() {
   isExpanded.value = !isExpanded.value
 }
 
-function isStaged(variantId: string): boolean {
-  return props.staged.some((s) => s.targetId === variantId)
+// ── Selectable rows (Selección sin checkboxes) ────────────────────────────────
+
+const variantItems = computed<HfSelectableRowItem[]>(() =>
+  (variants.value ?? []).map((variant) => ({ value: variant.id, label: variant.name })),
+)
+
+/** Only this product's staged variants: the count reads «n de total». */
+const selectedVariantIds = computed(() => {
+  const ids = new Set((variants.value ?? []).map((variant) => variant.id))
+  return props.staged.filter((s) => ids.has(s.targetId)).map((s) => s.targetId)
+})
+
+/** Forward each toggled variant to the parent, which owns the staged list. */
+function onSelectionUpdate(next: string[]) {
+  const before = new Set(selectedVariantIds.value)
+  const after = new Set(next)
+  for (const variant of variants.value ?? []) {
+    if (before.has(variant.id) !== after.has(variant.id)) onToggleVariant(variant)
+  }
 }
 
 function onToggleVariant(variant: ProductVariant) {
@@ -155,32 +173,14 @@ async function onSelectAll() {
       >
         Cargando variantes...
       </p>
-      <div
+      <HfSelectableRows
         v-else-if="variants && variants.length > 0"
-        class="rounded-lg border border-default bg-default max-h-48 overflow-y-auto"
-      >
-        <div
-          v-for="variant in variants"
-          :key="variant.id"
-          class="flex items-center gap-2 px-3 py-2 text-sm hover:bg-elevated/60 transition-colors duration-150"
-          :data-testid="`variant-row-${productId}`"
-          :data-variant-id="variant.id"
-        >
-          <UCheckbox
-            :model-value="isStaged(variant.id)"
-            :aria-label="variant.name"
-            @update:model-value="() => onToggleVariant(variant)"
-          />
-          <button
-            type="button"
-            class="flex-1 cursor-pointer text-left"
-            :data-testid="`variant-row-button-${productId}`"
-            @click="onToggleVariant(variant)"
-          >
-            {{ variant.name }}
-          </button>
-        </div>
-      </div>
+        class="promotions-scroll-rows promotions-scroll-rows--compact"
+        :items="variantItems"
+        :model-value="selectedVariantIds"
+        :label="`Variantes de ${productName}`"
+        @update:model-value="onSelectionUpdate"
+      />
       <p
         v-else
         class="text-sm text-muted italic"

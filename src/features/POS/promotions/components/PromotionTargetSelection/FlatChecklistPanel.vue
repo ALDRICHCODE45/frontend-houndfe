@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import type { PromotionTargetItemFormEntry } from '../../interfaces/promotion.types'
 import { PROMOTION_TARGET_TYPE } from '../../constants/promotion.constants'
+import { HfSelectableRows, type HfSelectableRowItem } from '@/core/shared/components/selection'
 
 // ── Props & emits ─────────────────────────────────────────────────────────────
 
@@ -122,6 +123,22 @@ function toggleRow(row: ChecklistRow) {
   ])
 }
 
+// ── Selectable rows (Selección sin checkboxes) ───────────────────────────────
+
+const rowItems = computed<HfSelectableRowItem[]>(() =>
+  visibleRows.value.map((row) => ({ value: row.id, label: row.name })),
+)
+
+/** Every staged id, so entries hidden by the search keep their place. */
+const stagedIdList = computed(() => props.staged.map((s) => s.targetId))
+
+/** Apply the one toggled visible row through the same add/remove as before. */
+function onSelectionUpdate(next: string[]) {
+  const after = new Set(next)
+  const row = visibleRows.value.find((r) => stagedIds.value.has(r.id) !== after.has(r.id))
+  if (row) toggleRow(row)
+}
+
 // Exposed for parent tests/automation if ever needed.
 defineExpose({ toggleRow, isStaged })
 
@@ -134,6 +151,24 @@ const dataSourceLabel: Record<typeof props.dataSource, string> = {
 }
 
 const searchPlaceholder = computed(() => `Buscar ${dataSourceLabel[props.dataSource]}...`)
+
+const listLabel: Record<typeof props.dataSource, string> = {
+  [PROMOTION_TARGET_TYPE.CATEGORIES]: 'Categorías',
+  [PROMOTION_TARGET_TYPE.BRANDS]: 'Marcas',
+  [PROMOTION_TARGET_TYPE.PRODUCTS]: 'Productos',
+}
+
+const countNouns: Record<typeof props.dataSource, [string, string, string]> = {
+  [PROMOTION_TARGET_TYPE.CATEGORIES]: ['categoría', 'categorías', 'seleccionada'],
+  [PROMOTION_TARGET_TYPE.BRANDS]: ['marca', 'marcas', 'seleccionada'],
+  [PROMOTION_TARGET_TYPE.PRODUCTS]: ['producto', 'productos', 'seleccionado'],
+}
+
+/** Counts every staged entry, the ones hidden by the search included. */
+function countLabel(selected: number): string {
+  const [one, many, chosen] = countNouns[props.dataSource]
+  return selected === 1 ? `1 ${one} ${chosen}` : `${selected} ${many} ${chosen}s`
+}
 </script>
 
 <template>
@@ -146,36 +181,16 @@ const searchPlaceholder = computed(() => `Buscar ${dataSourceLabel[props.dataSou
       data-testid="checklist-search"
     />
 
-    <!-- Checklist rows. The checkbox sits OUTSIDE the row button so that
-         clicking the checkbox does NOT also trigger the row's click handler
-         (event bubbling would otherwise toggle the row twice). The label
-         for=id links the click target to the checkbox. -->
-    <div
+    <!-- Selectable rows: the whole row is the target, a round mark shows the state. -->
+    <HfSelectableRows
       v-if="visibleRows.length > 0"
-      class="rounded-lg border border-default bg-default max-h-72 overflow-y-auto"
-    >
-      <div
-        v-for="row in visibleRows"
-        :key="row.id"
-        class="flex w-full items-center gap-3 px-3 py-2 text-sm hover:bg-elevated/60 transition-colors duration-150"
-        :data-testid="`checklist-row`"
-        :data-row-id="row.id"
-      >
-        <UCheckbox
-          :model-value="isStaged(row.id)"
-          :aria-label="row.name"
-          @update:model-value="toggleRow(row)"
-        />
-        <button
-          type="button"
-          class="flex-1 cursor-pointer text-left"
-          :data-testid="`checklist-row-button`"
-          @click="toggleRow(row)"
-        >
-          {{ row.name }}
-        </button>
-      </div>
-    </div>
+      class="promotions-scroll-rows"
+      :items="rowItems"
+      :model-value="stagedIdList"
+      :label="listLabel[dataSource]"
+      :count-label="countLabel"
+      @update:model-value="onSelectionUpdate"
+    />
 
     <p
       v-else

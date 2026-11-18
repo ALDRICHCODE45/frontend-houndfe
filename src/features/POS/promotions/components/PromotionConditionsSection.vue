@@ -5,6 +5,9 @@ import { parseDate, CalendarDate } from '@internationalized/date'
 import type { CustomerScope, DayOfWeek, PromotionFormState } from '../interfaces/promotion.types'
 import { DAY_OPTIONS, CUSTOMER_SCOPE_OPTIONS } from '../composables/usePromotionForm'
 import { CUSTOMER_SCOPE } from '../constants/promotion.constants'
+import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
+import HfSegmented from '@/core/shared/components/form/HfSegmented.vue'
+import { HfSwitchRow, HfToggleChips } from '@/core/shared/components/selection'
 
 // ── Props & emits ─────────────────────────────────────────────────────────────
 
@@ -91,12 +94,36 @@ const selectedPriceLists = computed({
   set: (value) => updateField('priceListIds', value),
 })
 
+// ── Customer scope helpers ────────────────────────────────────────────────────
+
+/** Once limited, the scope is one of the limiting options («Todos» is the switch off). */
+const limitedScopeOptions = CUSTOMER_SCOPE_OPTIONS.filter(
+  (option) => option.value !== CUSTOMER_SCOPE.ALL,
+)
+
+function onLimitCustomers(limited: boolean) {
+  updateField('customerScope', limited ? CUSTOMER_SCOPE.REGISTERED_ONLY : CUSTOMER_SCOPE.ALL)
+}
+
 // ── Day of week helpers ───────────────────────────────────────────────────────
 
 function toggleDay(day: DayOfWeek) {
   const current = props.modelValue.daysOfWeek
   const updated = current.includes(day) ? current.filter((d) => d !== day) : [...current, day]
   updateField('daysOfWeek', updated)
+}
+
+/**
+ * The chips emit the next set in week order; the payload keeps its previous
+ * order (a new day is appended, a removed day leaves in place), so only the
+ * toggled day changes.
+ */
+function onDaysUpdate(next: string[]) {
+  const current = props.modelValue.daysOfWeek
+  const toggled =
+    next.find((day) => !current.includes(day as DayOfWeek)) ??
+    current.find((day) => !next.includes(day))
+  if (toggled) toggleDay(toggled as DayOfWeek)
 }
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
@@ -146,77 +173,77 @@ defineExpose({ updateField })
 <template>
   <div class="flex flex-col gap-4">
     <!-- ── Card 1: Vigencia ──────────────────────────────────────────────── -->
-    <UCard class="promotions-form-section" data-testid="vigencia-section">
-      <template #header>
-        <h3 class="font-semibold text-highlighted">Vigencia</h3>
-      </template>
-
-      <div class="flex flex-col gap-4">
-        <UCheckbox
-          :model-value="modelValue.hasVigencia"
-          label="Limitar su uso a ciertas fechas"
-          @update:model-value="updateField('hasVigencia', $event)"
-        />
-
-        <div v-if="modelValue.hasVigencia" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <UFormField label="Fecha de inicio" name="startDate">
-            <UPopover :ui="{ content: 'hf-theme hf-ui hf-form-overlay promotions-form-portal' }">
-              <UButton
-                :label="formattedStartDate || 'Seleccionar fecha'"
-                icon="i-lucide-calendar"
-                color="neutral"
-                variant="outline"
-                class="w-full justify-start"
-                data-testid="start-date-input"
-              />
-              <template #content>
-                <UCalendar v-model="startDateCalendar" />
-              </template>
-            </UPopover>
-          </UFormField>
-
-          <UFormField label="Fecha de fin" name="endDate">
-            <UPopover :ui="{ content: 'hf-theme hf-ui hf-form-overlay promotions-form-portal' }">
-              <UButton
-                :label="formattedEndDate || 'Seleccionar fecha'"
-                icon="i-lucide-calendar"
-                color="neutral"
-                variant="outline"
-                class="w-full justify-start"
-                data-testid="end-date-input"
-              />
-              <template #content>
-                <UCalendar v-model="endDateCalendar" />
-              </template>
-            </UPopover>
-          </UFormField>
-        </div>
-      </div>
-    </UCard>
-
-    <!-- ── Card 2: Condiciones adicionales ──────────────────────────────── -->
-    <UCard class="promotions-form-section" data-testid="conditions-section">
-      <template #header>
-        <h3 class="font-semibold text-highlighted">Condiciones adicionales</h3>
-      </template>
-
-      <div class="flex flex-col gap-5">
-        <!-- Customer scope -->
-        <div class="flex flex-col gap-3">
-          <UCheckbox
-            :model-value="modelValue.customerScope !== CUSTOMER_SCOPE.ALL"
-            label="Limitar a ciertos clientes"
-            @update:model-value="
-              updateField('customerScope', $event ? CUSTOMER_SCOPE.REGISTERED_ONLY : CUSTOMER_SCOPE.ALL)
-            "
+    <HfSectionCard title="Vigencia" data-testid="vigencia-section">
+      <div class="promotions-conditions">
+        <div class="promotions-condition">
+          <HfSwitchRow
+            :model-value="modelValue.hasVigencia"
+            label="Limitar su uso a ciertas fechas"
+            test-id="vigencia-switch"
+            @update:model-value="updateField('hasVigencia', $event)"
           />
 
-          <div v-if="modelValue.customerScope !== CUSTOMER_SCOPE.ALL" class="pl-6 flex flex-col gap-3">
-            <URadioGroup
+          <div
+            v-if="modelValue.hasVigencia"
+            class="promotions-condition__body grid grid-cols-1 gap-4 sm:grid-cols-2"
+          >
+            <UFormField label="Fecha de inicio" name="startDate">
+              <UPopover :ui="{ content: 'hf-theme hf-ui hf-form-overlay promotions-form-portal' }">
+                <UButton
+                  :label="formattedStartDate || 'Seleccionar fecha'"
+                  icon="i-lucide-calendar"
+                  color="neutral"
+                  variant="outline"
+                  class="w-full justify-start"
+                  data-testid="start-date-input"
+                />
+                <template #content>
+                  <UCalendar v-model="startDateCalendar" />
+                </template>
+              </UPopover>
+            </UFormField>
+
+            <UFormField label="Fecha de fin" name="endDate">
+              <UPopover :ui="{ content: 'hf-theme hf-ui hf-form-overlay promotions-form-portal' }">
+                <UButton
+                  :label="formattedEndDate || 'Seleccionar fecha'"
+                  icon="i-lucide-calendar"
+                  color="neutral"
+                  variant="outline"
+                  class="w-full justify-start"
+                  data-testid="end-date-input"
+                />
+                <template #content>
+                  <UCalendar v-model="endDateCalendar" />
+                </template>
+              </UPopover>
+            </UFormField>
+          </div>
+        </div>
+      </div>
+    </HfSectionCard>
+
+    <!-- ── Card 2: Condiciones adicionales ──────────────────────────────── -->
+    <HfSectionCard title="Condiciones adicionales" data-testid="conditions-section">
+      <div class="promotions-conditions">
+        <!-- Customer scope -->
+        <div class="promotions-condition">
+          <HfSwitchRow
+            :model-value="modelValue.customerScope !== CUSTOMER_SCOPE.ALL"
+            label="Limitar a ciertos clientes"
+            test-id="customers-switch"
+            @update:model-value="onLimitCustomers"
+          />
+
+          <div
+            v-if="modelValue.customerScope !== CUSTOMER_SCOPE.ALL"
+            class="promotions-condition__body flex flex-col gap-3"
+          >
+            <HfSegmented
               :model-value="modelValue.customerScope"
-              :items="CUSTOMER_SCOPE_OPTIONS"
-              value-key="value"
-              label-key="label"
+              :items="limitedScopeOptions"
+              label="Qué clientes"
+              data-testid="customer-scope"
               @update:model-value="updateField('customerScope', $event as CustomerScope)"
             />
 
@@ -242,17 +269,18 @@ defineExpose({ updateField })
         </div>
 
         <!-- Price lists -->
-        <div class="flex flex-col gap-3">
-          <UCheckbox
+        <div class="promotions-condition">
+          <HfSwitchRow
             :model-value="modelValue.hasPriceLists"
             label="Limitar a ciertas listas de precio"
+            test-id="price-lists-switch"
             @update:model-value="updateField('hasPriceLists', $event)"
           />
 
           <div
             v-if="modelValue.hasPriceLists"
             data-testid="price-lists-select"
-            class="pl-6 flex flex-col gap-2"
+            class="promotions-condition__body flex flex-col gap-2"
           >
             <USelectMenu
               v-if="priceListItems.length > 0"
@@ -270,28 +298,25 @@ defineExpose({ updateField })
         </div>
 
         <!-- Days of week -->
-        <div class="flex flex-col gap-3">
-          <UCheckbox
+        <div class="promotions-condition">
+          <HfSwitchRow
             :model-value="modelValue.hasDaysOfWeek"
             label="Limitar a ciertos días de la semana"
+            test-id="days-switch"
             @update:model-value="updateField('hasDaysOfWeek', $event)"
           />
 
-          <div
-            v-if="modelValue.hasDaysOfWeek"
-            data-testid="days-of-week-section"
-            class="pl-6 grid grid-cols-2 gap-2 sm:grid-cols-4"
-          >
-            <UCheckbox
-              v-for="dayOpt in DAY_OPTIONS"
-              :key="dayOpt.value"
-              :model-value="modelValue.daysOfWeek.includes(dayOpt.value)"
-              :label="dayOpt.label"
-              @update:model-value="toggleDay(dayOpt.value)"
+          <div v-if="modelValue.hasDaysOfWeek" class="promotions-condition__body">
+            <HfToggleChips
+              :model-value="modelValue.daysOfWeek"
+              :items="DAY_OPTIONS"
+              label="Días de la semana"
+              data-testid="days-of-week-section"
+              @update:model-value="onDaysUpdate"
             />
           </div>
         </div>
       </div>
-    </UCard>
+    </HfSectionCard>
   </div>
 </template>

@@ -38,12 +38,6 @@ const FULL_STUBS = {
     template:
       '<select :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="i in items" :key="i.value" :value="i.value">{{ i.label }}</option></select>',
   },
-  UCheckbox: {
-    props: ['modelValue', 'label'],
-    emits: ['update:modelValue'],
-    template:
-      '<input type="checkbox" :checked="modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" />',
-  },
   UBadge: {
     props: ['color'],
     template: '<span><slot /></span>',
@@ -102,6 +96,8 @@ const FULL_STUBS = {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+const MIN_SWITCH = '[role="switch"][data-testid="min-purchase-switch"]'
 
 function makeQueryClient() {
   return new QueryClient({ defaultOptions: { queries: { retry: false, enabled: false } } })
@@ -524,7 +520,7 @@ describe('PromotionForm — typed amounts', () => {
   ])('ORDER_DISCOUNT sends a fixed value and a minimum typed as %j as %i cents', async (text, cents) => {
     const wrapper = mountWithDiscountType('ORDER_DISCOUNT', 'FIXED')
     await wrapper.get('[data-testid="promotion-discount-value"]').setValue(text)
-    await wrapper.get('[role="checkbox"]').trigger('click')
+    await wrapper.get(MIN_SWITCH).trigger('click')
     await wrapper.get('[data-testid="promotion-min-purchase"]').setValue(text)
     const payload = await submitted(wrapper)
     expect(payload.discountValue).toBe(cents)
@@ -572,14 +568,14 @@ describe('PromotionForm — typed amounts', () => {
   it('drops the minimum purchase error when the field is hidden and shown again', async () => {
     const wrapper = mountWithDiscountType('ORDER_DISCOUNT', 'FIXED')
     await wrapper.get('[data-testid="promotion-discount-value"]').setValue('150')
-    await wrapper.get('[role="checkbox"]').trigger('click')
+    await wrapper.get(MIN_SWITCH).trigger('click')
     await wrapper.get('[data-testid="promotion-min-purchase"]').setValue('1000')
     await wrapper.get('[data-testid="promotion-min-purchase"]').setValue('1,23,4')
     await wrapper.get('[data-testid="promotion-min-purchase"]').trigger('blur')
 
-    await wrapper.get('[role="checkbox"]').trigger('click')
+    await wrapper.get(MIN_SWITCH).trigger('click')
     await flushPromises()
-    await wrapper.get('[role="checkbox"]').trigger('click')
+    await wrapper.get(MIN_SWITCH).trigger('click')
     await flushPromises()
 
     expect((wrapper.get('[data-testid="promotion-min-purchase"]').element as HTMLInputElement).value).toBe('1000.00')
@@ -594,4 +590,53 @@ describe('PromotionForm — typed amounts', () => {
     await flushPromises()
     expect(wrapper.emitted('submit')).toBeUndefined()
   })
+
+  // T4b/S1: the minimum is a whole-row switch; the payload is the one the checkbox sent.
+  it('sends the same ORDER_DISCOUNT payload after turning the minimum on with its switch row', async () => {
+    const wrapper = mountWithDiscountType('ORDER_DISCOUNT', 'FIXED')
+    await wrapper.get('[data-testid="promotion-discount-value"]').setValue('150')
+    await wrapper.get(MIN_SWITCH).trigger('click')
+    await wrapper.get('[data-testid="promotion-min-purchase"]').setValue('1,000.50')
+    expect(await submitted(wrapper)).toEqual({
+      title: 'Promo de prueba',
+      method: 'AUTOMATIC',
+      maxProductUnits: null,
+      customerIds: [],
+      priceListIds: [],
+      daysOfWeek: [],
+      type: 'ORDER_DISCOUNT',
+      discountType: 'FIXED',
+      discountValue: 15000,
+      minPurchaseAmountCents: 100050,
+    })
+  })
+})
+
+describe('PromotionForm — selection without checkboxes (T4b)', () => {
+  it('shows the minimum purchase as a whole-row switch that reveals the amount', async () => {
+    const wrapper = mountForm('ORDER_DISCOUNT')
+    const row = wrapper.get(MIN_SWITCH)
+    expect(row.element.tagName).toBe('BUTTON')
+    expect(row.attributes('aria-checked')).toBe('false')
+    expect(row.text()).toContain('Añadir monto mínimo de compra')
+    expect(wrapper.find('[data-testid="promotion-min-purchase"]').exists()).toBe(false)
+
+    await row.trigger('click')
+    expect(wrapper.get(MIN_SWITCH).attributes('aria-checked')).toBe('true')
+    expect(wrapper.find('[data-testid="promotion-min-purchase"]').exists()).toBe(true)
+    expect(wrapper.html()).not.toMatch(/\bpl-6\b/)
+  })
+
+  it.each(['PRODUCT_DISCOUNT', 'ORDER_DISCOUNT', 'BUY_X_GET_Y', 'ADVANCED'] as const)(
+    '%s leaves no checkbox and groups its fields in section cards',
+    async (type) => {
+      const wrapper = mountForm(type)
+      if (type === 'ORDER_DISCOUNT') await wrapper.get(MIN_SWITCH).trigger('click')
+      // The WhatsApp USwitch keeps Reka's visually hidden form input (data-hidden); no visible box.
+      expect(wrapper.findAll('[role="checkbox"], input[type="checkbox"]:not([data-hidden])')).toHaveLength(0)
+      const cards = wrapper.findAll('section.hf-section-card')
+      expect(cards.length).toBe(2)
+      expect(cards[0]!.find('[data-testid="type-badge"]').exists()).toBe(true)
+    },
+  )
 })

@@ -32,6 +32,8 @@ import PromotionTargetItemsSection from './PromotionTargetItemsSection.vue'
 import PromotionSummaryCard from './PromotionSummaryCard.vue'
 import PromotionCapacityField from './PromotionCapacityField.vue'
 import HfMoneyInput from '@/core/shared/components/form/HfMoneyInput.vue'
+import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
+import { HfSwitchRow } from '@/core/shared/components/selection'
 import { parseDecimalInput } from '@/core/shared/utils/money-input.utils'
 
 // ── Props & emits ─────────────────────────────────────────────────────────────
@@ -296,21 +298,19 @@ const overlapTitle = computed(() =>
         :state="formState"
         :schema="promotionFormSchema"
         :errors="apiErrors"
-        class="flex flex-col gap-6"
+        class="flex flex-col gap-4"
         @submit="onSubmit"
       >
         <!-- ── Card 1: Promoción (shared) ──────────────────────────────── -->
-        <UCard class="promotions-form-section">
-          <template #header>
-            <div class="flex items-center gap-3">
-              <div
-                data-testid="type-badge"
-                class="promotions-type-badge flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium"
-              >
-                <UIcon :name="typeConfig.icon" class="h-4 w-4" />
-                {{ typeConfig.label }}
-              </div>
-            </div>
+        <HfSectionCard title="Promoción">
+          <template #meta>
+            <span
+              data-testid="type-badge"
+              class="promotions-type-badge flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium"
+            >
+              <UIcon :name="typeConfig.icon" class="h-4 w-4" />
+              {{ typeConfig.label }}
+            </span>
           </template>
 
           <div class="flex flex-col gap-5">
@@ -432,17 +432,14 @@ const overlapTitle = computed(() =>
               </UFormField>
             </div>
           </div>
-        </UCard>
+        </HfSectionCard>
 
         <!-- ── Card 2: PRODUCT_DISCOUNT ───────────────────────────────── -->
-        <UCard
+        <HfSectionCard
           v-if="type === PROMOTION_TYPE.PRODUCT_DISCOUNT"
-          class="promotions-form-section"
+          title="Valor del descuento"
           data-testid="product-discount-section"
         >
-          <template #header>
-            <h3 class="font-semibold text-highlighted">Valor del descuento</h3>
-          </template>
 
           <div class="flex flex-col gap-5">
             <!-- Discount type + value -->
@@ -504,17 +501,14 @@ const overlapTitle = computed(() =>
               />
             </div>
           </div>
-        </UCard>
+        </HfSectionCard>
 
         <!-- ── Card 2: ORDER_DISCOUNT ─────────────────────────────────── -->
-        <UCard
+        <HfSectionCard
           v-else-if="type === PROMOTION_TYPE.ORDER_DISCOUNT"
-          class="promotions-form-section"
+          title="Valor del descuento"
           data-testid="order-discount-section"
         >
-          <template #header>
-            <h3 class="font-semibold text-highlighted">Valor del descuento</h3>
-          </template>
 
           <div class="flex flex-col gap-5">
             <!-- Discount type + value -->
@@ -563,34 +557,37 @@ const overlapTitle = computed(() =>
               </UFormField>
             </div>
 
-            <!-- Min purchase toggle -->
-            <div>
-              <UCheckbox v-model="formState.hasMinPurchase" label="Añadir monto mínimo de compra" />
-              <div v-if="formState.hasMinPurchase" class="mt-3 pl-6">
-                <UFormField label="Monto mínimo ($)" name="minPurchaseAmountCents">
-                  <HfMoneyInput
-                    id="promotion-min-purchase"
-                    v-model="minPurchaseCents"
-                    data-testid="promotion-min-purchase"
-                    placeholder="Ej.: 1000"
-                    size="lg"
-                    @validation="amountErrors.minPurchase = $event"
-                  />
-                </UFormField>
+            <!-- Min purchase: a whole-row switch that reveals the amount -->
+            <div class="promotions-conditions">
+              <div class="promotions-condition">
+                <HfSwitchRow
+                  v-model="formState.hasMinPurchase"
+                  label="Añadir monto mínimo de compra"
+                  test-id="min-purchase-switch"
+                />
+                <div v-if="formState.hasMinPurchase" class="promotions-condition__body">
+                  <UFormField label="Monto mínimo ($)" name="minPurchaseAmountCents">
+                    <HfMoneyInput
+                      id="promotion-min-purchase"
+                      v-model="minPurchaseCents"
+                      data-testid="promotion-min-purchase"
+                      placeholder="Ej.: 1000"
+                      size="lg"
+                      @validation="amountErrors.minPurchase = $event"
+                    />
+                  </UFormField>
+                </div>
               </div>
             </div>
           </div>
-        </UCard>
+        </HfSectionCard>
 
         <!-- ── Card 2: BUY_X_GET_Y ───────────────────────────────────── -->
-        <UCard
+        <HfSectionCard
           v-else-if="type === PROMOTION_TYPE.BUY_X_GET_Y"
-          class="promotions-form-section"
+          title="Tipo de promoción"
           data-testid="buy-x-get-y-section"
         >
-          <template #header>
-            <h3 class="font-semibold text-highlighted">Tipo de promoción</h3>
-          </template>
 
           <div class="flex flex-col gap-5">
             <!-- Presets -->
@@ -645,17 +642,14 @@ const overlapTitle = computed(() =>
               />
             </div>
           </div>
-        </UCard>
+        </HfSectionCard>
 
         <!-- ── Card 2: ADVANCED ───────────────────────────────────────── -->
-        <UCard
+        <HfSectionCard
           v-else-if="type === PROMOTION_TYPE.ADVANCED"
-          class="promotions-form-section"
+          title="Condiciones"
           data-testid="advanced-section"
         >
-          <template #header>
-            <h3 class="font-semibold text-highlighted">Condiciones</h3>
-          </template>
 
           <div class="grid gap-6 lg:grid-cols-2">
             <!-- BUY side -->
@@ -727,7 +721,7 @@ const overlapTitle = computed(() =>
             :title="overlapTitle"
             description="Los objetivos de compra y obtención no pueden superponerse. El backend rechazará la promoción si los mismos productos aparecen en ambos lados."
           />
-        </UCard>
+        </HfSectionCard>
 
         <!-- ── Conditions section ──────────────────────────────────────── -->
         <PromotionConditionsSection
