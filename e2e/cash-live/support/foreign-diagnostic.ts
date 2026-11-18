@@ -51,11 +51,11 @@ export class ForeignDiagnosticError extends Error {}
 // --- Pinned authorization receipt (no fixture import) -----------------------
 
 /** The single authorized backend origin for this diagnostic run. */
-export const FOREIGN_DIAGNOSTIC_BACKEND_ORIGIN = 'http://127.0.0.1:44885'
+export const FOREIGN_DIAGNOSTIC_BACKEND_ORIGIN = 'http://127.0.0.1:33721'
 /** The owned frontend origin (same-origin navigation target). */
 export const FOREIGN_DIAGNOSTIC_FRONTEND_ORIGIN = 'http://127.0.0.1:4189'
 /** The owned disposable resource id this run is bound to. */
-export const FOREIGN_DIAGNOSTIC_RESOURCE_ID = 'eecfefbe-5517-4c64-9477-f966fb976837'
+export const FOREIGN_DIAGNOSTIC_RESOURCE_ID = '09303049-565e-4aa5-9fc5-95212e471dfc'
 /** Strict minimum remaining token lifetime; below this the diagnostic skips. */
 export const FOREIGN_DIAGNOSTIC_MIN_TTL_SECONDS = 300
 /** The route the app auto-fetches: a stable, same-origin SPA route (never `/login`). */

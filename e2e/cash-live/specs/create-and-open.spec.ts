@@ -53,9 +53,9 @@ import { createEvidenceCollector, type EvidenceKind } from '../support/evidence'
  * bind this one authorized validation run to the exact disposable resource; a
  * fixture from any other environment fails the preflight before a mutation.
  */
-const EXPECTED_BACKEND_ORIGIN = 'http://127.0.0.1:44885'
+const EXPECTED_BACKEND_ORIGIN = 'http://127.0.0.1:33721'
 const EXPECTED_FRONTEND_ORIGIN = 'http://127.0.0.1:4189'
-const EXPECTED_RESOURCE_ID = 'eecfefbe-5517-4c64-9477-f966fb976837'
+const EXPECTED_RESOURCE_ID = '09303049-565e-4aa5-9fc5-95212e471dfc'
 
 /**
  * Authoritative cross-tenant negative contract for a cash id outside the
@@ -423,6 +423,16 @@ test('creates a register and opens its first cash session (isolated live backend
     await expect(shiftCard.getByTestId('cash-shift-status')).toContainText('Abierta')
     await expect(shiftCard.getByTestId('cash-session-opening')).toContainText(OPENING_FUND_LABEL)
     await expect(shiftCard.getByTestId('cash-shift-register')).toHaveText(registerName)
+    // 259b6d05: after a resolved open the opening form unmounts, so no second
+    // «Abrir caja con $500.00» can be requested for the same register.
+    await expect(page.getByTestId('cash-open-session')).toHaveCount(0)
+    await expect(page.getByTestId('cash-open-submit')).toHaveCount(0)
+    collector.collect(
+      'open-form-dismissed',
+      'ui',
+      'pass',
+      'opening form and its submit are no longer rendered after the open',
+    )
     collector.collect(
       'session-detail-ui',
       'ui',
@@ -450,9 +460,23 @@ test('creates a register and opens its first cash session (isolated live backend
       `GET /cash-sessions/:id as foreign tenant -> ${FOREIGN_TENANT_NEGATIVE_STATUS}`,
     )
 
-    // 12. Neither hardened context may have reached an unlisted origin.
+    // 12. Neither hardened context may have reached an unlisted origin. The
+    //     guard entries are already reduced to `METHOD origin` (no path, query
+    //     or credential); the distinct origins are recorded before asserting.
+    step = { name: 'outbound-guard', kind: 'ui' }
+    const blocked = [...live.guard.violations(), ...foreignLive.guard.violations()]
+    if (blocked.length > 0) {
+      const origins = [...new Set(blocked.map((entry) => entry.split(' ').slice(1).join(' ')))]
+      collector.collect(
+        'outbound-guard',
+        'ui',
+        'fail',
+        `${blocked.length} aborted request(s) to unlisted origins: ${origins.join(', ')}`,
+      )
+    }
     expect(live.guard.violations()).toEqual([])
     expect(foreignLive.guard.violations()).toEqual([])
+    collector.collect('outbound-guard', 'ui', 'pass', 'no request reached an unlisted origin')
   } catch (error) {
     if (live) await screenshotQuietly(live.page, testInfo.outputPath(`failed-${step.name}.png`))
     const message =
