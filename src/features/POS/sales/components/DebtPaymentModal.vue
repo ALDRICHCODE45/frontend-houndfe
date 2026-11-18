@@ -449,7 +449,7 @@ watch(catalogClearSignal, () => {
               Buscando tu caja abierta…
             </p>
             <p v-else-if="cashSessionLoadFailed" class="text-sm text-(--hf-danger)" data-testid="debt-cash-session-error">
-              No se pudo revisar tu caja. Reintenta para cobrar en efectivo.
+              No se pudo revisar tu caja, así que no puedes cobrar en efectivo por ahora.
             </p>
             <div
               v-else-if="cashSessionMissing"

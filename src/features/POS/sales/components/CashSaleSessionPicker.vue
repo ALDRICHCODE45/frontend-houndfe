@@ -104,7 +104,7 @@ function clear() {
         </p>
         <p v-else-if="isError" class="text-xs text-error" data-testid="cash-session-error">
           <template v-if="allowUnbound">No se pudieron cargar las sesiones de caja. Reintenta o cobra sin vincular.</template>
-          <template v-else>No se pudieron cargar tus cajas abiertas. Reintenta.</template>
+          <template v-else>No se pudieron cargar tus cajas abiertas.</template>
         </p>
         <p
           v-else-if="sessions.length === 0"
