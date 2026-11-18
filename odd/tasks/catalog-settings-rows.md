@@ -24,4 +24,4 @@ Redesign Sistema › Catálogo online after artboard design/catalog-settings/01-
 - L8 Owner: «integra a main por favor. y no, aun no hay que hacer esa migracion en todo el sistema, anotalo como pendiente por favor.» Merged --no-ff into local main (not pushed).
 
 ## Pending
-- P1 Migrate the remaining checkbox uses to «Selección sin checkboxes» (about 20 feature screens, the multiple HfCombobox options, the AppDataTable selection column, EditorialAttributeCell lists). Not authorized yet: owner decides when and in which order.
+- P1 DONE 2026-11-18 — migrated in odd/tasks/selection-and-design-audit.md (merge 86d6fafc).
