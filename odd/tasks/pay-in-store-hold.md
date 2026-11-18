@@ -15,7 +15,7 @@ Front end of the backend pay-in-store hold (BE handoff 24): show the hold on sal
 - T2 | S2–S5 | worker | done — sales list + sale detail: hold badge/line, edit deadline dialog, charge online sales, HOLD_EXPIRED «Sistema»
 - T3 | S6 | worker | done — notifications: SALE_HOLD_REVIEW copy and link to the sale
 - T2b | S2, S4, S5 | worker | done — list rows use channel + cancelReason; CASH counter payments send the open cash session or warn
-- T4 | S1–S6 | parent | full suite, build, live check when dev is up, merge
+- T4 | S1–S6 | parent | done (merged) | full suite, build, live check when dev is up, merge
 
 ## Log
 - L1 Backend 2026-11-18: «Pagar en tienda» complete on BE local main (owner pushes); contract docs/frontend-handoff/24-pay-in-store-hold.md; both migrations applied on the dev DB :5434.
@@ -30,3 +30,4 @@ Front end of the backend pay-in-store hold (BE handoff 24): show the hold on sal
 - L10 Live check on DEV: steps 1-4 PASS (list hold line, «En línea»/«Punto de venta», «Apartado vencido · revisar»; Cambiar plazo PATCH 200 v4→v5, past date blocked; notification opens the sale; manager blocked for cash, cashier with 2 tills → picker → POST payments 201 with cashSessionId → PAID, hold gone; card $94.50 without till 201). Defects: D1 SaleHoldDeadlineDialog.vue:181-200 calendar popover wraps the date field and steals typed digits (same in SettleRefundSlideover.vue:456); D2 DebtPaymentModal.vue:448-465 «Ir a Caja» dead end without create:CashSession; D3 CashSaleSessionPicker.vue:51,59 raw session ids, :77/:85 «legacy/sin vincular» copy contradicts L9; G1 SaleDetailView.vue:99,614 expired hold (stage 2) shows no hold card; minor: list hold line cut at 1440. Dev data: 000077 and 000078 now PAID (deadline PATCHed 4×, each notifies the customer on WhatsApp).
 - L11 D1/D2/D3/G1/minor fixed (worker mwmomh2l-18-1h41): calendar opens from a trailing «Abrir calendario» button (hold dialog + SettleRefundSlideover); D2 copy «No puedes abrir caja. Pide a un cajero que cobre en efectivo o cobra con tarjeta o transferencia.»; CashSaleSessionPicker allowUnbound prop (debt payment false), labels «Caja Principal · abierta 9:12» via useCashRegisterNames; hold card for any saleHoldLine; list hold line wraps. 2630 related tests.
 - L12 Final suite: 1038 files, 17663 pass + 1 fail (retryCopy.guard: two new messages ended in «Reintenta») → copy fixed («No se pudieron cargar tus cajas abiertas.», «No se pudo revisar tu caja, así que no puedes cobrar en efectivo por ahora.»), guard + sales components 827 pass. eslint 0, build 0.
+- L13 Native assess medium, review not due. Merged --no-ff into local main (owner pushes).
