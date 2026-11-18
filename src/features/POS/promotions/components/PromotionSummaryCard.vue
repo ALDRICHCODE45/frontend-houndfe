@@ -7,9 +7,17 @@ import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
-const props = defineProps<{
-  formState: PromotionFormState
-}>()
+const props = withDefaults(
+  defineProps<{
+    formState: PromotionFormState
+    /** Names of the chosen price lists, in pick order (the form owns the lookup). */
+    priceListNames?: readonly string[]
+  }>(),
+  { priceListNames: () => [] },
+)
+
+/** Names shown before the rest collapses into «y N más». */
+const PRICE_LIST_NAMES_SHOWN = 3
 
 // ── Computed summary ──────────────────────────────────────────────────────────
 
@@ -17,6 +25,13 @@ const props = defineProps<{
 const priceListBullet = computed(() => {
   const count = props.formState.hasPriceLists ? props.formState.priceListIds.length : 0
   if (count === 0) return null
+  // T1/S1: name the lists once every chosen one resolved; until then, the count.
+  const names = props.priceListNames
+  if (names.length === count) {
+    const shown = names.slice(0, PRICE_LIST_NAMES_SHOWN).join(', ')
+    const rest = count - PRICE_LIST_NAMES_SHOWN
+    return rest > 0 ? `Solo con: ${shown} y ${rest} más` : `Solo con: ${shown}`
+  }
   return count === 1 ? 'Solo con 1 lista de precio' : `Solo con ${count} listas de precio`
 })
 

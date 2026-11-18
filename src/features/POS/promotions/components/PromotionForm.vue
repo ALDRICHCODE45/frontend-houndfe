@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, useId, watch } from 'vue'
+import { useQuery } from '@tanstack/vue-query'
 import type {
   PromotionFormState,
   PromotionMethod,
@@ -188,6 +189,29 @@ function onGetTargetTypeChange(type: PromotionTargetType) {
 function onConditionsUpdate(updated: PromotionFormState) {
   Object.assign(formState, updated)
 }
+
+// ── Summary price-list names (T1/S1) ────────────────────────────────────────────────
+//
+// Same key, fetcher and gate as the condition picker in PromotionConditionsSection,
+// so this reads the list the picker already loaded (one request, shared cache) and
+// the summary card stays free of vue-query.
+const { data: priceLists } = useQuery({
+  queryKey: ['price-lists'],
+  queryFn: async () => {
+    const { productApi } = await import('@/features/POS/products/api/product.api')
+    return productApi.getGlobalPriceLists()
+  },
+  enabled: () => formState.hasPriceLists,
+})
+
+/** Names of the chosen price lists in pick order; unresolved ids are left out. */
+const priceListNames = computed(() => {
+  const byId = new Map((priceLists.value ?? []).map((pl) => [pl.id, pl.name]))
+  return formState.priceListIds.flatMap((id) => {
+    const name = byId.get(id)
+    return name ? [name] : []
+  })
+})
 
 // ── Submit ────────────────────────────────────────────────────────────────────
 
@@ -755,7 +779,7 @@ const overlapTitle = computed(() =>
 
     <!-- ── Summary: the rail at lg, after the form in the stacked column below (T8 D5) ── -->
     <div>
-      <PromotionSummaryCard :form-state="formState" />
+      <PromotionSummaryCard :form-state="formState" :price-list-names="priceListNames" />
     </div>
   </div>
 </template>

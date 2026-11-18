@@ -165,6 +165,31 @@ describe('PromotionSummaryCard component', () => {
     expect(wrapper.findAll('.promotions-summary-item').map((item) => item.text())).toContain(text)
   })
 
+  // T1/S1: with the names at hand the summary names the lists (first 3, then «y N más»).
+  it.each([
+    [['pl-1'], ['Mayoreo'], 'Solo con: Mayoreo'],
+    [['pl-1', 'pl-2'], ['Mayoreo', 'Veterinarias'], 'Solo con: Mayoreo, Veterinarias'],
+    [['a', 'b', 'c'], ['Mayoreo', 'Veterinarias', 'Clínicas'], 'Solo con: Mayoreo, Veterinarias, Clínicas'],
+    [['a', 'b', 'c', 'd'], ['Mayoreo', 'Veterinarias', 'Clínicas', 'Criadores'], 'Solo con: Mayoreo, Veterinarias, Clínicas y 1 más'],
+    [['a', 'b', 'c', 'd', 'e'], ['A', 'B', 'C', 'D', 'E'], 'Solo con: A, B, C y 2 más'],
+  ])('names the price lists %j', (priceListIds, priceListNames, text) => {
+    const wrapper = mount(PromotionSummaryCard, {
+      props: { formState: makeState({ hasPriceLists: true, priceListIds }), priceListNames },
+      global: { stubs: STUBS },
+    })
+    const items = wrapper.findAll('.promotions-summary-item').map((item) => item.text())
+    expect(items).toContain(text)
+    expect(wrapper.text()).not.toMatch(/listas? de precio/)
+  })
+
+  it('falls back to the count while the names are not loaded yet', () => {
+    const wrapper = mount(PromotionSummaryCard, {
+      props: { formState: makeState({ hasPriceLists: true, priceListIds: ['a', 'b'] }), priceListNames: ['Mayoreo'] },
+      global: { stubs: STUBS },
+    })
+    expect(wrapper.findAll('.promotions-summary-item').map((item) => item.text())).toContain('Solo con 2 listas de precio')
+  })
+
   it('omits the price-list condition while it is off or has no list chosen', () => {
     for (const patch of [{ hasPriceLists: false, priceListIds: ['pl-1'] }, { hasPriceLists: true, priceListIds: [] }]) {
       const wrapper = mount(PromotionSummaryCard, {
