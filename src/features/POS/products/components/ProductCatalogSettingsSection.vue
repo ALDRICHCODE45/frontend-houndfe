@@ -9,7 +9,7 @@
  * supportsAllCatalogPriceLists is response-only and never sent.
  *
  * UI redesign (U6): USwitch with label+description replaces the manual button-role
- * switch; UCheckbox replaces native checkboxes in a responsive list; OnlineStockOverrideFields
+ * switch; a responsive list replaced the native checkboxes (U9 made each a switch); OnlineStockOverrideFields
  * uses UFormField + USelectMenu + UInput; internal sections use spacing and dividers.
  * One UCard sibling of Inventario/Variantes with no nested cards.
  *
