@@ -51,3 +51,28 @@ export function stepLog(exchanges: readonly ExchangeLike[], from: number): strin
 export function exchangeLine(exchange: ExchangeLike): string {
   return `${exchange.method} ${exchange.path} -> ${exchange.status ?? 'pending'}`
 }
+
+/**
+ * App-shell reads the isolated editorial backend does not mount (run 2): tolerated ONLY as
+ * GET on these exact backend-relative paths (query already dropped) answering exactly 404.
+ * Any other method, status or path at ≥400 still fails the network step.
+ */
+export const UNSERVED_SHELL_READS: readonly string[] = Object.freeze([
+  '/sales/refunds/pending',
+  '/delivery-zone-validations',
+  '/notifications/unread-count',
+])
+export const UNSERVED_NOTE = 'unserved by the isolated backend'
+
+export function isUnservedShellRead(exchange: ExchangeLike): boolean {
+  return exchange.method === 'GET' && exchange.status === 404 && UNSERVED_SHELL_READS.includes(exchange.path)
+}
+
+/** Splits the ≥400 exchanges into allowlisted unserved shell reads and real failures. */
+export function classifyFailures(exchanges: readonly ExchangeLike[]): { unserved: ExchangeLike[]; failed: ExchangeLike[] } {
+  const atLeast400 = exchanges.filter(exchange => exchange.status !== null && exchange.status >= 400)
+  return {
+    unserved: atLeast400.filter(isUnservedShellRead),
+    failed: atLeast400.filter(exchange => !isUnservedShellRead(exchange)),
+  }
+}

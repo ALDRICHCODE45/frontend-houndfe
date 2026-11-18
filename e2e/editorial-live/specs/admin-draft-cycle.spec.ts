@@ -27,7 +27,7 @@ import {
   type ValidatedEditorialLiveFixture,
 } from '../support/fixture'
 import { openLiveEditorialContext, type LiveEditorialContext } from '../support/live-context'
-import { exchangeLine, GENERIC_PRODUCT_TITLE, readsProductName, savedStatusPattern, statusesOf, stepLog } from '../support/actor-expectations'
+import { classifyFailures, exchangeLine, GENERIC_PRODUCT_TITLE, UNSERVED_NOTE, readsProductName, savedStatusPattern, statusesOf, stepLog } from '../support/actor-expectations'
 import { ownershipPinMismatches } from '../support/ownership-pin'
 
 const UI_TIMEOUT = 30_000
@@ -173,7 +173,11 @@ test.describe.serial('editorial-live admin draft cycle (no publish)', () => {
         await live.audit.dispose()
         expect(live.audit.tenantViolations()).toEqual([])
         expect(live.audit.publicationAttempts()).toEqual([])
-        const failed = live.audit.exchanges().filter(exchange => exchange.status !== null && exchange.status >= 400)
+        // ≥400 fails, except the exact allowlist of GET app-shell reads answering 404 (isolated backend).
+        const { unserved, failed } = classifyFailures(live.audit.exchanges())
+        collector.collect(`${role}:unserved`, 'http', 'pass', unserved.length
+          ? unserved.map(exchange => `${exchangeLine(exchange)} (${UNSERVED_NOTE})`).join('; ')
+          : `none ${UNSERVED_NOTE}`)
         expect(failed.map(exchangeLine)).toEqual([])
         if (!readsName) {
           const productPathOnly = `/products/${encodeURIComponent(fixture.product.id)}`

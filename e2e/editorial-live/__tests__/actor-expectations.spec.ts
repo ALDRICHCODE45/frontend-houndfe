@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { exchangeLine, publishesEditorial, readsProductName, savedStatusPattern, statusesOf, stepLog } from '../support/actor-expectations'
+import { classifyFailures, exchangeLine, isUnservedShellRead, publishesEditorial, readsProductName, savedStatusPattern, statusesOf, stepLog } from '../support/actor-expectations'
 
 const READ = 'read:ProductEditorialDraft'
 const UPDATE = 'update:ProductEditorialDraft'
@@ -68,5 +68,36 @@ describe('statusesOf / stepLog', () => {
   it('prints the exchanges of a step from its start index', () => {
     expect(stepLog(log, 2)).toBe('GET /products/p/editorial/draft/readiness -> pending; PUT /products/p/editorial/draft -> 409')
     expect(stepLog(log, 4)).toBe('no backend request')
+  })
+})
+
+describe('unserved shell-read allowlist', () => {
+  const ex = (method: string, path: string, status: number | null) => ({ method, path, status })
+  it.each(['/sales/refunds/pending', '/delivery-zone-validations', '/notifications/unread-count'])('allows GET %s -> 404', path => {
+    expect(isUnservedShellRead(ex('GET', path, 404))).toBe(true)
+  })
+  it.each([
+    ['same path, 500', ex('GET', '/sales/refunds/pending', 500)],
+    ['same path, 403', ex('GET', '/notifications/unread-count', 403)],
+    ['same path, other method', ex('POST', '/delivery-zone-validations', 404)],
+    ['sub-path', ex('GET', '/delivery-zone-validations/x', 404)],
+    ['prefix look-alike', ex('GET', '/sales/refunds/pending-extra', 404)],
+    ['other path, 404', ex('GET', '/sales/refunds', 404)],
+    ['product, 404', ex('GET', '/products/p', 404)],
+    ['product, 403', ex('GET', '/products/p', 403)],
+    ['editorial read, 404', ex('GET', '/products/p/editorial', 404)],
+    ['editorial PUT, 409', ex('PUT', '/products/p/editorial/draft', 409)],
+    ['editorial discard, 500', ex('POST', '/products/p/editorial/draft/discard', 500)],
+    ['vocabulary, 400', ex('GET', '/catalog-editorial/vocabulary', 400)],
+  ])('rejects %s', (_label, exchange) => {
+    expect(isUnservedShellRead(exchange)).toBe(false)
+  })
+  it('classifies ≥400 exchanges; 2xx and pending are neither', () => {
+    const { unserved, failed } = classifyFailures([
+      ex('GET', '/sales/refunds/pending', 404), ex('GET', '/sales/refunds/pending', 500),
+      ex('PUT', '/products/p/editorial/draft', 200), ex('GET', '/products/p/editorial', null), ex('GET', '/products/p', 404),
+    ])
+    expect(unserved).toEqual([ex('GET', '/sales/refunds/pending', 404)])
+    expect(failed).toEqual([ex('GET', '/sales/refunds/pending', 500), ex('GET', '/products/p', 404)])
   })
 })

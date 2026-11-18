@@ -1,0 +1,391 @@
+{
+  "schemaVersion": 1,
+  "runId": "run-20261118-3",
+  "resourceId": "deaad4a9-e4b1-47b9-876f-4c9bd305a815",
+  "records": [
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-global:preflight",
+      "kind": "ui",
+      "verdict": "pass",
+      "summary": "pinned resource, unexpired token, global mode (no tenant)"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-global:open",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /products/:id -> 200; GET /products/:id/editorial -> 200; route kept"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-global:open:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /products/5a0afb23-1854-42a0-8859-77011058d686 -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-global:initialize",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "POST /products/:id/editorial/draft/initialize -> 201"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-global:initialize:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "POST /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/initialize -> 201; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-global:save",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "PUT /products/:id/editorial/draft -> 200 (response + audit); bar: ^\\s*(Listo para publicar|Completa lo pendiente para publicar)\\s*$; value kept after re-read"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-global:save:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; PUT /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft -> 200; GET /catalog-editorial/vocabulary -> pending"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-global:discard",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "POST /products/:id/editorial/draft/discard -> 200; UI back to «initialize»"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-global:discard:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; POST /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/discard -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> pending"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-global:unserved",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "none unserved by the isolated backend"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-global:network",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "20 backend requests; no tenant header/param/body key; no publish; no third-party origin"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-global:all:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /products/5a0afb23-1854-42a0-8859-77011058d686 -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; POST /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/initialize -> 201; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; PUT /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; POST /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/discard -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> pending"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-tenant:preflight",
+      "kind": "ui",
+      "verdict": "pass",
+      "summary": "pinned resource, unexpired token, product tenant"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-tenant:open",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /products/:id -> 200; GET /products/:id/editorial -> 200; route kept"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-tenant:open:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /sales/refunds/pending -> 404; GET /delivery-zone-validations -> 404; GET /notifications/unread-count -> 404; GET /products/5a0afb23-1854-42a0-8859-77011058d686 -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-tenant:initialize",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "POST /products/:id/editorial/draft/initialize -> 201"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-tenant:initialize:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "POST /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/initialize -> 201; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> pending"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-tenant:save",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "PUT /products/:id/editorial/draft -> 200 (response + audit); bar: ^\\s*(Listo para publicar|Completa lo pendiente para publicar)\\s*$; value kept after re-read"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-tenant:save:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "PUT /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft -> 200; GET /catalog-editorial/vocabulary -> pending"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-tenant:discard",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "POST /products/:id/editorial/draft/discard -> 200; UI back to «initialize»"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-tenant:discard:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; POST /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/discard -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> pending"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-tenant:unserved",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /sales/refunds/pending -> 404 (unserved by the isolated backend); GET /delivery-zone-validations -> 404 (unserved by the isolated backend); GET /notifications/unread-count -> 404 (unserved by the isolated backend)"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-tenant:network",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "23 backend requests; no tenant header/param/body key; no publish; no third-party origin"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "superadmin-tenant:all:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /sales/refunds/pending -> 404; GET /delivery-zone-validations -> 404; GET /notifications/unread-count -> 404; GET /products/5a0afb23-1854-42a0-8859-77011058d686 -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; POST /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/initialize -> 201; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; PUT /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; POST /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/discard -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> pending"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "manage-all:preflight",
+      "kind": "ui",
+      "verdict": "pass",
+      "summary": "pinned resource, unexpired token, product tenant"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "manage-all:open",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /products/:id -> 200; GET /products/:id/editorial -> 200; route kept"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "manage-all:open:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /sales/refunds/pending -> 404; GET /delivery-zone-validations -> 404; GET /notifications/unread-count -> 404; GET /products/5a0afb23-1854-42a0-8859-77011058d686 -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "manage-all:initialize",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "POST /products/:id/editorial/draft/initialize -> 201"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "manage-all:initialize:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "POST /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/initialize -> 201; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> pending"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "manage-all:save",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "PUT /products/:id/editorial/draft -> 200 (response + audit); bar: ^\\s*(Listo para publicar|Completa lo pendiente para publicar)\\s*$; value kept after re-read"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "manage-all:save:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "PUT /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft -> 200; GET /catalog-editorial/vocabulary -> pending"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "manage-all:discard",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "POST /products/:id/editorial/draft/discard -> 200; UI back to «initialize»"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "manage-all:discard:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; POST /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/discard -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> pending"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "manage-all:unserved",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /sales/refunds/pending -> 404 (unserved by the isolated backend); GET /delivery-zone-validations -> 404 (unserved by the isolated backend); GET /notifications/unread-count -> 404 (unserved by the isolated backend)"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "manage-all:network",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "23 backend requests; no tenant header/param/body key; no publish; no third-party origin"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "manage-all:all:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /sales/refunds/pending -> 404; GET /delivery-zone-validations -> 404; GET /notifications/unread-count -> 404; GET /products/5a0afb23-1854-42a0-8859-77011058d686 -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; POST /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/initialize -> 201; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; PUT /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; POST /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/discard -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> pending"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "editorial-only:preflight",
+      "kind": "ui",
+      "verdict": "pass",
+      "summary": "pinned resource, unexpired token, product tenant"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "editorial-only:open",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "no GET /products/:id (no read:Product), title «Producto»; GET /products/:id/editorial -> 200; route kept"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "editorial-only:open:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /notifications/unread-count -> 404; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "editorial-only:initialize",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "POST /products/:id/editorial/draft/initialize -> 201"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "editorial-only:initialize:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "POST /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/initialize -> 201; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> pending"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "editorial-only:save",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "PUT /products/:id/editorial/draft -> 200 (response + audit); bar: Guardado; value kept after re-read"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "editorial-only:save:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "PUT /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft -> 200; GET /catalog-editorial/vocabulary -> pending"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "editorial-only:discard",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "POST /products/:id/editorial/draft/discard -> 200; UI back to «initialize»"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "editorial-only:discard:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; POST /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/discard -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "editorial-only:unserved",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /notifications/unread-count -> 404 (unserved by the isolated backend)"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "editorial-only:network",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "20 backend requests; no tenant header/param/body key; no publish; no third-party origin"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-3",
+      "step": "editorial-only:all:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /notifications/unread-count -> 404; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; POST /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/initialize -> 201; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; PUT /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; POST /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/discard -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200"
+    }
+  ]
+}
