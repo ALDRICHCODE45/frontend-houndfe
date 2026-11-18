@@ -7,6 +7,7 @@ import type {
 } from '../../interfaces/quotation.types'
 
 const queryClientMock = {
+  getQueryData: vi.fn(),
   setQueryData: vi.fn(),
   invalidateQueries: vi.fn().mockResolvedValue(undefined),
 }

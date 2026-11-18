@@ -5,9 +5,11 @@
  * press (a second press while one is pending is ignored). On `201`:
  *   - the detail cache takes the converted quotation, and the quotation list, the detail and the
  *     POS drafts (`saleQueryKeys.drafts`) are invalidated;
- *   - the new draft becomes the POS active tab: `SalesView` restores its tab from
- *     `POS_ACTIVE_TAB_STORAGE_KEY` when it mounts, and the draft is already one of the cashier's
- *     drafts (`GET /sales/drafts`), so writing the key and opening `/pos/ventas/nueva` selects it;
+ *   - the new draft becomes the POS active tab: it is put into the POS drafts cache (appended, or
+ *     replaced when already there) BEFORE navigating, and its id is written to
+ *     `POS_ACTIVE_TAB_STORAGE_KEY`, so `SalesView` finds it when it mounts (odd D6: with only an
+ *     invalidation the POS read the stale list and opened the previous draft). The drafts stay
+ *     invalidated, so the POS still rereads the full list;
  *   - `suppressedPromotions` (automatic promotions vetoed to keep the exact quoted total) is kept
  *     for that draft (`rememberSuppressedPromotions`): GET /sales/drafts does not expose vetoes, and
  *     «Promociones disponibles» offers them with «Aplicar» (odd T3b / S5).
@@ -22,6 +24,7 @@ import { quotationQueryKeys, saleQueryKeys } from '@/core/shared/constants/query
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { POS_ACTIVE_TAB_STORAGE_KEY } from '@/features/POS/sales/constants/sale.constants'
 import { rememberSuppressedPromotions } from '@/features/POS/sales/composables/useSuppressedPromotions'
+import type { Sale } from '@/features/POS/sales/interfaces/sale.types'
 import { quotationApi } from '../api/quotation.api'
 import type {
   QuotationConversionFailure,
@@ -151,6 +154,14 @@ export function conversionFailureCopy(failure: QuotationConversionFailure): Conv
   }
 }
 
+/** The POS drafts list with `sale` in it: replaced in place when present, appended otherwise. */
+function withDraft(drafts: Sale[] | undefined, sale: Sale): Sale[] {
+  const current = drafts ?? []
+  return current.some((draft) => draft.id === sale.id)
+    ? current.map((draft) => (draft.id === sale.id ? sale : draft))
+    : [...current, sale]
+}
+
 export function useConvertQuotationToSale() {
   const queryClient = useQueryClient()
   const router = useRouter()
@@ -185,7 +196,12 @@ export function useConvertQuotationToSale() {
     queryClient.setQueryData(detailKey, response.quotation)
     void queryClient.invalidateQueries({ queryKey: quotationQueryKeys.list(tenantId.value) })
     void queryClient.invalidateQueries({ queryKey: detailKey })
-    void queryClient.invalidateQueries({ queryKey: saleQueryKeys.drafts(tenantId.value) })
+    const draftsKey = saleQueryKeys.drafts(tenantId.value)
+    queryClient.setQueryData(
+      draftsKey,
+      withDraft(queryClient.getQueryData<Sale[]>(draftsKey), response.sale),
+    )
+    void queryClient.invalidateQueries({ queryKey: draftsKey })
     rememberSuppressedPromotions(response.sale.id, response.suppressedPromotions ?? [])
     localStorage.setItem(POS_ACTIVE_TAB_STORAGE_KEY, response.sale.id)
     try {

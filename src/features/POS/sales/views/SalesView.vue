@@ -295,42 +295,73 @@ let initDone = false
 
 const itemImageMap = ref<Record<string, string>>({})
 
+// odd D6: the tab another screen asked for («Convertir en venta», «Ver venta» write the draft id
+// to `POS_ACTIVE_TAB_STORAGE_KEY` and open this route). Read once, when this view starts without a
+// tab. Rule: the requested id wins as soon as it is in the drafts list; while it is not, nothing
+// else is selected (a stale cached list must not open another draft) and the list is reread once;
+// only when that fresh read confirms it is absent does the normal fallback (first draft) apply.
+let requestedTabId: string | null = activeTabId.value
+  ? null
+  : localStorage.getItem(POS_ACTIVE_TAB_STORAGE_KEY)
+let requestedTabCheck: 'idle' | 'reading' | 'done' = 'idle'
+
+async function confirmRequestedTab() {
+  requestedTabCheck = 'reading'
+  try {
+    await refetchDrafts()
+  } catch {
+    // A failed read cannot confirm the draft: fall back below like an absent one.
+  }
+  requestedTabCheck = 'done'
+  await syncActiveTab(drafts.value)
+}
+
 // Restore active tab and hydrate images whenever drafts become available
 // This handles: initial load, page refresh, AND navigating back to this route
-watch(
-  drafts,
-  async (currentDrafts) => {
-    // Skip while still loading
-    if (isLoadingList.value) return
+async function syncActiveTab(currentDrafts: Sale[]) {
+  // Skip while still loading
+  if (isLoadingList.value) return
 
-    if (currentDrafts.length === 0 && !initDone) {
-      initDone = true
-      try {
-        await openNewTab()
-      } catch (error) {
-        const err = error as AxiosError<DomainApiError>
-        const message = err.response?.data?.message ?? 'No se pudo crear la venta inicial'
-        toast.add({ title: 'Error', description: message, color: 'error' })
-      }
+  if (requestedTabId) {
+    if (currentDrafts.some((d) => d.id === requestedTabId)) {
+      activeTabId.value = requestedTabId
+      requestedTabId = null
+    } else if (requestedTabCheck !== 'done') {
+      if (requestedTabCheck === 'idle') void confirmRequestedTab()
       return
+    } else {
+      requestedTabId = null
     }
+  }
 
-    // Restore active tab from localStorage (or pick first)
-    if (!activeTabId.value || !currentDrafts.some((d) => d.id === activeTabId.value)) {
-      const storedTabId = localStorage.getItem(POS_ACTIVE_TAB_STORAGE_KEY)
-      const validStoredTab = storedTabId && currentDrafts.some((d) => d.id === storedTabId)
-      activeTabId.value = validStoredTab ? storedTabId : (currentDrafts[0]?.id ?? null)
-    }
-
+  if (currentDrafts.length === 0 && !initDone) {
     initDone = true
-
-    // Hydrate images for cart items that don't have one
-    if (currentDrafts.length > 0) {
-      void hydrateItemImages(currentDrafts)
+    try {
+      await openNewTab()
+    } catch (error) {
+      const err = error as AxiosError<DomainApiError>
+      const message = err.response?.data?.message ?? 'No se pudo crear la venta inicial'
+      toast.add({ title: 'Error', description: message, color: 'error' })
     }
-  },
-  { immediate: true },
-)
+    return
+  }
+
+  // Restore active tab from localStorage (or pick first)
+  if (!activeTabId.value || !currentDrafts.some((d) => d.id === activeTabId.value)) {
+    const storedTabId = localStorage.getItem(POS_ACTIVE_TAB_STORAGE_KEY)
+    const validStoredTab = storedTabId && currentDrafts.some((d) => d.id === storedTabId)
+    activeTabId.value = validStoredTab ? storedTabId : (currentDrafts[0]?.id ?? null)
+  }
+
+  initDone = true
+
+  // Hydrate images for cart items that don't have one
+  if (currentDrafts.length > 0) {
+    void hydrateItemImages(currentDrafts)
+  }
+}
+
+watch(drafts, syncActiveTab, { immediate: true })
 
 // Watch activeTabId and persist to localStorage
 watch(activeTabId, (id) => {

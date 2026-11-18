@@ -2216,3 +2216,136 @@ describe('SalesView T2 — sale draft → quotation', () => {
     expect(routerPush).toHaveBeenCalledWith({ name: 'pos-quotation-detail', params: { id: 'q-1' } })
   })
 })
+
+// odd D6 (quotation-sale-conversion L15): «Convertir en venta» / «Ver venta» write the draft id to
+// `pos:active-tab` and open the POS. The requested id must win once it is in the drafts list; a
+// stale cached list without it must not make the POS silently select another draft. Fall back to
+// the first draft only when a fresh read confirms the requested id is gone.
+describe('SalesView D6 — requested active tab (pos:active-tab)', () => {
+  const STORAGE_KEY = 'pos:active-tab'
+  const makeSale = (id: string): Sale => ({
+    id,
+    userId: 'user-1',
+    status: 'DRAFT',
+    items: [],
+    createdAt: 'x',
+    updatedAt: 'x',
+  })
+  let wrappers: Array<{ unmount: () => void }> = []
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    refetchDraftsMock.mockReset()
+    isLoadingList.value = false
+    isListError.value = false
+    isMutating.value = false
+    // A fresh SalesView instance starts without a tab (useSalesDrafts creates the ref).
+    activeTabId.value = null
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    for (const w of wrappers) w.unmount()
+    wrappers = []
+    localStorage.clear()
+  })
+
+  function mountTracked() {
+    const wrapper = mountView()
+    wrappers.push(wrapper as unknown as { unmount: () => void })
+    return wrapper
+  }
+
+  // Earlier describes leave SalesView instances mounted on these shared refs; let them react to the
+  // new list first, then start this instance like a fresh visit (no tab, the requested id stored).
+  async function prepare(list: Sale[], storedId: string | null) {
+    drafts.value = list
+    await flushPromises()
+    activeTabId.value = null
+    localStorage.clear()
+    if (storedId) localStorage.setItem(STORAGE_KEY, storedId)
+  }
+
+  it('the requested draft is selected when the cached list already has it', async () => {
+    await prepare([makeSale('old-1'), makeSale('sale-9')], 'sale-9')
+
+    mountTracked()
+    await flushPromises()
+
+    expect(activeTabId.value).toBe('sale-9')
+    expect(refetchDraftsMock).not.toHaveBeenCalled()
+  })
+
+  it('a stale cached list without the requested draft selects nothing until the fresh list has it', async () => {
+    await prepare([makeSale('old-1'), makeSale('old-2')], 'sale-9')
+    let resolveRefetch: (value: Sale[]) => void = () => {}
+    refetchDraftsMock.mockImplementation(
+      () => new Promise<Sale[]>((resolve) => (resolveRefetch = resolve)),
+    )
+
+    mountTracked()
+    await flushPromises()
+
+    // Pending: never the previous draft, and the request is not overwritten.
+    expect(activeTabId.value).toBeNull()
+    expect(localStorage.getItem(STORAGE_KEY)).toBe('sale-9')
+    expect(refetchDraftsMock).toHaveBeenCalledTimes(1)
+
+    const fresh = [makeSale('old-1'), makeSale('old-2'), makeSale('sale-9')]
+    drafts.value = fresh
+    resolveRefetch(fresh)
+    await flushPromises()
+
+    expect(activeTabId.value).toBe('sale-9')
+    expect(localStorage.getItem(STORAGE_KEY)).toBe('sale-9')
+  })
+
+  it('the requested draft wins even when the fresh list arrives only through the refetch result', async () => {
+    await prepare([makeSale('old-1')], 'sale-9')
+    refetchDraftsMock.mockImplementation(async () => {
+      drafts.value = [makeSale('old-1'), makeSale('sale-9')]
+      return drafts.value
+    })
+
+    mountTracked()
+    await flushPromises()
+
+    expect(activeTabId.value).toBe('sale-9')
+  })
+
+  it('a stale empty list does not open a new sale while the requested draft is pending', async () => {
+    await prepare([], 'sale-9')
+    refetchDraftsMock.mockImplementation(async () => {
+      drafts.value = [makeSale('sale-9')]
+      return drafts.value
+    })
+
+    mountTracked()
+    await flushPromises()
+
+    expect(openNewTabMock).not.toHaveBeenCalled()
+    expect(activeTabId.value).toBe('sale-9')
+  })
+
+  it('falls back to the first draft when the fresh list confirms the requested one is gone', async () => {
+    await prepare([makeSale('old-1'), makeSale('old-2')], 'gone-1')
+    refetchDraftsMock.mockResolvedValue([makeSale('old-1'), makeSale('old-2')])
+
+    mountTracked()
+    await flushPromises()
+
+    expect(refetchDraftsMock).toHaveBeenCalledTimes(1)
+    expect(activeTabId.value).toBe('old-1')
+    expect(localStorage.getItem(STORAGE_KEY)).toBe('old-1')
+  })
+
+  it('normal POS: no stored id → first draft, no extra read', async () => {
+    await prepare([makeSale('old-1'), makeSale('old-2')], null)
+
+    mountTracked()
+    await flushPromises()
+
+    expect(activeTabId.value).toBe('old-1')
+    expect(refetchDraftsMock).not.toHaveBeenCalled()
+  })
+})
