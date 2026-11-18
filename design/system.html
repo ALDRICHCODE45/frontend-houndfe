@@ -194,6 +194,102 @@
   .foot-save { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--hf-border); font-size: 13px; }
   .foot-save .ok { color: var(--hf-success); font-weight: 600; }
 
+  /* Selection without checkboxes: src/core/shared/components/selection/hf-selection.css */
+  .sel-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .sel-grid + .sel-grid, .sel-block + .sel-block, .sel-grid + .sel-block, .sel-block + .sel-grid { margin-top: 16px; }
+  .sel-cap { margin-bottom: 8px; color: var(--hf-muted); font-size: 12px; font-weight: 600; }
+  .hf-sel-mark { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 999px; border: 1.5px solid var(--hf-muted); background-color: var(--hf-surface); color: var(--hf-on-action); }
+  .hf-sel-mark svg { width: 16px; height: 16px; }
+  .hf-sel-mark[data-state='checked'], .hf-sel-mark[data-state='mixed'] { border-color: var(--hf-active); background-color: var(--hf-active); }
+  .hf-sel-mark[data-state='unchecked'] svg { visibility: hidden; }
+  .sel-card { overflow: hidden; padding: 0; }
+  .hf-switch-row + .hf-switch-row { border-top: 1px solid var(--hf-border); }
+  .hf-switch-row__button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 12px 16px; border: 0; background: transparent; color: var(--hf-ink); font: inherit; text-align: left; cursor: pointer; }
+  .hf-switch-row__button[aria-disabled='true'] { cursor: not-allowed; }
+  .hf-switch-row__button[aria-disabled='true'] .hf-switch-row__label, .hf-switch-row__button[aria-disabled='true'] .hf-switch-row__track { opacity: 0.6; }
+  .hf-switch-row__text { display: grid; flex: 1; min-width: 0; gap: 2px; }
+  .hf-switch-row__label { font-size: 14px; font-weight: 500; color: var(--hf-ink); }
+  .hf-switch-row__desc, .hf-switch-row__reason { font-size: 13px; color: var(--hf-muted); }
+  .hf-switch-row__reason { display: inline-flex; align-items: center; gap: 4px; }
+  .hf-switch-row__state { flex: none; min-width: 68px; text-align: right; font-size: 12px; font-weight: 600; color: var(--hf-muted); }
+  .hf-switch-row__button[aria-checked='true'] .hf-switch-row__state { color: var(--hf-active); }
+  .hf-switch-row__track { position: relative; flex: none; width: 44px; height: 24px; border-radius: 999px; background-color: var(--hf-surface-muted); box-shadow: inset 0 0 0 1px var(--hf-muted); }
+  .hf-switch-row__track::after { content: ''; position: absolute; top: 4px; left: 4px; width: 16px; height: 16px; border-radius: 50%; background-color: var(--hf-muted); }
+  .hf-switch-row__button[aria-checked='true'] > .hf-switch-row__track { background-color: var(--hf-action); box-shadow: none; }
+  .hf-switch-row__button[aria-checked='true'] > .hf-switch-row__track::after { background-color: var(--hf-on-action); transform: translateX(20px); }
+  .hf-radio-cards { display: grid; gap: 8px; }
+  .hf-radio-card { border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); background: var(--hf-surface); }
+  .hf-radio-card[data-selected='true'] { border-color: var(--hf-active); background: var(--hf-active-soft); }
+  .hf-radio-card__button { display: flex; align-items: flex-start; gap: 12px; width: 100%; min-height: 48px; padding: 14px 16px; border: 0; border-radius: inherit; background: transparent; color: var(--hf-ink); font: inherit; text-align: left; cursor: pointer; }
+  .hf-radio-card__body { display: grid; flex: 1; min-width: 0; gap: 2px; }
+  .hf-radio-card__title { font-size: 14px; font-weight: 600; color: var(--hf-ink); }
+  .hf-radio-card[data-selected='true'] .hf-radio-card__title { color: var(--hf-active); }
+  .hf-radio-card__desc { font-size: 13px; color: var(--hf-muted); }
+  .hf-radio-card__tag { flex: none; font-size: 12px; font-weight: 600; color: var(--hf-active); }
+  .hf-selectable-rows { display: grid; gap: 6px; }
+  .hf-selectable-rows__list { display: grid; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); background: var(--hf-surface); overflow: hidden; }
+  .hf-selectable-rows__option, .hf-selectable-rows__group { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 8px 16px; border: 0; background: transparent; color: var(--hf-ink); font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+  .hf-selectable-rows__option + .hf-selectable-rows__option { border-top: 1px solid var(--hf-border); }
+  .hf-selectable-rows__group { border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); background: var(--hf-surface-muted); font-weight: 600; }
+  .hf-selectable-rows__option[aria-selected='true'] { background: var(--hf-active-soft); }
+  .hf-selectable-rows__option[aria-selected='true'] .hf-selectable-rows__label { font-weight: 600; }
+  .hf-selectable-rows__label { display: grid; flex: 1; min-width: 0; gap: 2px; }
+  .hf-selectable-rows__desc { font-size: 13px; font-weight: 400; color: var(--hf-muted); }
+  .hf-selectable-rows__count { font-size: 13px; color: var(--hf-muted); }
+  .hf-toggle-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .hf-toggle-chip, .hf-toggle-chips__clear { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border-radius: 999px; font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
+  .hf-toggle-chip { border: 1px solid var(--hf-muted); background: var(--hf-surface); color: var(--hf-ink); }
+  .hf-toggle-chip[aria-pressed='true'] { border-color: var(--hf-active); background: var(--hf-active-soft); color: var(--hf-active); font-weight: 600; }
+  .hf-toggle-chip svg { width: 16px; height: 16px; }
+  .hf-toggle-chips__clear { border: 0; background: transparent; color: var(--hf-action); }
+  .row-marks { display: flex; gap: 24px; }
+  .row-marks figure { margin: 0; text-align: center; font-size: 12px; color: var(--hf-muted); }
+  .hf-row-mark { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 999px; background: transparent; cursor: pointer; }
+  .hf-row-mark.is-area { box-shadow: inset 0 0 0 1px var(--hf-border); }
+  :is(.hf-switch-row__button, .hf-radio-card__button, .hf-selectable-rows__group, .hf-toggle-chip, .hf-toggle-chips__clear, .hf-row-mark, .hf-combobox__trigger, .hf-segmented__segment):focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
+  :is(.hf-selectable-rows__option, .hf-switch-row__button):focus-visible { outline: 2px solid var(--hf-focus); outline-offset: -2px; }
+  /* Form: src/core/shared/components/form/hf-form.css (md and up: 40px control, 36px option) */
+  .hf-combobox__trigger { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; height: 40px; padding: 0 10px 0 12px; border: 1px solid var(--hf-field-border); border-radius: var(--hf-radius-control); background-color: var(--hf-field); color: var(--hf-ink); font: inherit; font-size: 14px; text-align: start; cursor: pointer; }
+  .hf-combobox__value { display: flex; flex: 1; min-width: 0; align-items: center; gap: 4px; overflow: hidden; white-space: nowrap; }
+  .hf-combobox__chip { display: inline-flex; flex-shrink: 0; height: 24px; align-items: center; padding: 0 8px; border-radius: 4px; background-color: var(--hf-surface-muted); color: var(--hf-ink); font-size: 12px; font-weight: 500; }
+  .hf-combobox__chip--more { color: var(--hf-muted); font-weight: 600; }
+  .hf-combobox__chevron { flex-shrink: 0; width: 16px; height: 16px; color: var(--hf-muted); transform: rotate(180deg); }
+  .hf-combobox__content { margin-top: 4px; border: 1px solid var(--hf-border); border-radius: 8px; background-color: var(--hf-surface); box-shadow: 0 12px 32px -12px color-mix(in srgb, var(--hf-ink) 24%, transparent), 0 2px 6px color-mix(in srgb, var(--hf-ink) 8%, transparent); overflow: hidden; }
+  .hf-combobox__search { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 10px; border-bottom: 1px solid var(--hf-border); color: var(--hf-muted); font-size: 14px; }
+  .hf-combobox__viewport { padding: 4px; }
+  .hf-combobox__option { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 8px; border-radius: 4px; color: var(--hf-ink); font-size: 14px; }
+  .hf-combobox__option span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hf-combobox__option[aria-selected='true'] { font-weight: 500; }
+  .hf-combobox__option.hl { background-color: var(--hf-surface-muted); }
+  .hf-combobox__mark { display: inline-flex; flex-shrink: 0; width: 20px; height: 20px; align-items: center; justify-content: center; border: 1.5px solid var(--hf-muted); border-radius: 999px; background-color: var(--hf-surface); color: var(--hf-on-action); }
+  .hf-combobox__mark svg { width: 14px; height: 14px; visibility: hidden; }
+  .hf-combobox__mark[data-state='checked'] { border-color: var(--hf-active); background-color: var(--hf-active); }
+  .hf-combobox__mark[data-state='checked'] svg { visibility: visible; }
+  .hf-segmented { display: grid; grid-template-columns: repeat(var(--hf-segments, 2), minmax(0, 1fr)); gap: 2px; padding: 2px; border: 1px solid var(--hf-border); border-radius: 8px; background-color: var(--hf-surface-muted); }
+  .hf-segmented__segment { min-width: 0; min-height: 34px; padding: 0 6px; overflow: hidden; border: 1px solid transparent; border-radius: var(--hf-radius-control); background-color: transparent; color: var(--hf-muted); font-family: var(--hf-font); font-size: 13px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+  .hf-segmented__segment[aria-checked='true'] { border-color: var(--hf-border); background-color: var(--hf-surface); color: var(--hf-heading); font-weight: 600; box-shadow: 0 1px 2px color-mix(in srgb, var(--hf-ink) 5%, transparent); }
+  .hf-segmented__segment:disabled { color: color-mix(in srgb, var(--hf-muted) 70%, var(--hf-surface)); cursor: not-allowed; }
+  .save-bars { display: grid; gap: 8px; }
+  .hf-save-bar { display: flex; align-items: center; gap: 12px; padding: 12px 32px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); background-color: var(--hf-surface); }
+  .hf-save-bar__status { display: flex; min-width: 0; align-items: center; gap: 8px; margin-right: auto; color: var(--hf-muted); font-size: 13px; }
+  .hf-save-bar__status[data-state='dirty'] { color: var(--hf-ink); font-weight: 500; }
+  .hf-save-bar__status[data-state='error'] { color: var(--hf-danger); font-weight: 500; }
+  .hf-save-bar__dot { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; background-color: var(--hf-warning); }
+  .hf-save-bar__actions { display: flex; gap: 8px; flex: none; }
+  .btn-disabled-primary { border-color: var(--hf-border); background-color: var(--hf-page); color: var(--hf-muted); cursor: not-allowed; }
+  .hf-theme.dark .btn-disabled-primary { color: color-mix(in srgb, var(--hf-muted) 60%, var(--hf-page)); }
+  .btn-danger { background-color: var(--hf-danger); color: var(--hf-surface); }
+  /* ConfirmModal: UModal title + description/list body + Cancelar (outline) / confirm footer */
+  .modal-stage { display: grid; place-items: center; padding: 24px; border-radius: var(--hf-radius-card); background-color: color-mix(in srgb, var(--hf-page) 75%, var(--hf-ink)); }
+  .modal { width: 100%; max-width: 448px; border-radius: var(--hf-radius-card); background-color: var(--hf-surface); box-shadow: 0 0 0 1px var(--hf-border), 0 12px 32px -12px color-mix(in srgb, var(--hf-ink) 24%, transparent); }
+  .modal > * + * { border-top: 1px solid var(--hf-border); }
+  .modal-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 8px 8px 24px; }
+  .modal-h h3 { color: var(--hf-heading); font-size: 16px; font-weight: 600; }
+  .modal-b { padding: 16px 24px; font-size: 14px; }
+  .modal-b li { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; }
+  .modal-b ul { margin: 0; padding: 0; list-style: none; }
+  .modal-f { display: flex; justify-content: flex-end; gap: 12px; padding: 16px 24px; }
+
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 </head>
@@ -215,6 +311,10 @@
   <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></symbol>
   <symbol id="i-columns" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></symbol>
   <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-circle-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></symbol>
 </svg>
 
 <main class="board">
@@ -310,6 +410,94 @@
         <div><label class="lbl">Cantidad</label><input class="field is-focus" type="text" value="12" aria-label="Cantidad (con foco)"></div>
         <div><label class="lbl">Costo unitario</label><input class="field is-error" type="text" value="" aria-invalid="true" aria-label="Costo unitario (con error)"><p class="err">Falta el costo</p></div>
       </div>
+    </div>
+  </section>
+
+  <section aria-label="Selección y formularios">
+    <h2 class="sec-h">Selección y formularios · sin checkboxes</h2>
+    <div class="sel-grid">
+      <div>
+        <p class="sel-cap">HfSwitchRow · activado · desactivado · deshabilitado con motivo</p>
+        <div class="card sel-card">
+          <div class="hf-switch-row"><button class="hf-switch-row__button" type="button" role="switch" aria-checked="true"><span class="hf-switch-row__text"><span class="hf-switch-row__label">Vender sin existencias</span><span class="hf-switch-row__desc">Permite cobrar aunque el inventario esté en cero.</span></span><span class="hf-switch-row__state">Activado</span><span class="hf-switch-row__track" aria-hidden="true"></span></button></div>
+          <div class="hf-switch-row"><button class="hf-switch-row__button" type="button" role="switch" aria-checked="false"><span class="hf-switch-row__text"><span class="hf-switch-row__label">Pedir motivo de descuento</span></span><span class="hf-switch-row__state">Desactivado</span><span class="hf-switch-row__track" aria-hidden="true"></span></button></div>
+          <div class="hf-switch-row"><button class="hf-switch-row__button" type="button" role="switch" aria-checked="false" aria-disabled="true"><span class="hf-switch-row__text"><span class="hf-switch-row__label">Facturación automática</span><span class="hf-switch-row__reason"><svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg>Requiere administrador.</span></span><span class="hf-switch-row__state">Desactivado</span><span class="hf-switch-row__track" aria-hidden="true"></span></button></div>
+        </div>
+      </div>
+      <div>
+        <p class="sel-cap">HfRadioCards · una de 2–5 opciones explicadas</p>
+        <div class="hf-radio-cards" role="radiogroup" aria-label="Redondeo del total">
+          <div class="hf-radio-card" data-selected="true"><button class="hf-radio-card__button" type="button" role="radio" aria-checked="true"><span class="hf-sel-mark" data-state="checked" aria-hidden="true"><svg><use href="#i-check"/></svg></span><span class="hf-radio-card__body"><span class="hf-radio-card__title">Al peso más cercano</span><span class="hf-radio-card__desc">$148.60 se cobra como $149.00.</span></span><span class="hf-radio-card__tag">Actual</span></button></div>
+          <div class="hf-radio-card" data-selected="false"><button class="hf-radio-card__button" type="button" role="radio" aria-checked="false" tabindex="-1"><span class="hf-sel-mark" data-state="unchecked" aria-hidden="true"><svg><use href="#i-check"/></svg></span><span class="hf-radio-card__body"><span class="hf-radio-card__title">Sin redondeo</span><span class="hf-radio-card__desc">Se cobra el total exacto con centavos.</span></span></button></div>
+        </div>
+      </div>
+    </div>
+    <div class="sel-grid">
+      <div>
+        <p class="sel-cap">HfSelectableRows · marca a la derecha · encabezado mixto · conteo</p>
+        <div class="hf-selectable-rows">
+          <button class="hf-selectable-rows__group" type="button" aria-pressed="mixed"><span class="hf-selectable-rows__label">Todas las sucursales</span><span class="hf-sel-mark" data-state="mixed" aria-hidden="true"><svg><use href="#i-minus"/></svg></span></button>
+          <div class="hf-selectable-rows__list" role="listbox" aria-multiselectable="true" aria-label="Sucursales">
+            <div class="hf-selectable-rows__option" role="option" aria-selected="true" tabindex="0"><span class="hf-selectable-rows__label"><span>Centro</span><span class="hf-selectable-rows__desc">Av. Juárez 120</span></span><span class="hf-sel-mark" data-state="checked" aria-hidden="true"><svg><use href="#i-check"/></svg></span></div>
+            <div class="hf-selectable-rows__option" role="option" aria-selected="true" tabindex="-1"><span class="hf-selectable-rows__label"><span>Norte</span><span class="hf-selectable-rows__desc">Blvd. Colosio 455</span></span><span class="hf-sel-mark" data-state="checked" aria-hidden="true"><svg><use href="#i-check"/></svg></span></div>
+            <div class="hf-selectable-rows__option" role="option" aria-selected="false" tabindex="-1"><span class="hf-selectable-rows__label"><span>Bodega principal</span><span class="hf-selectable-rows__desc">Parque industrial, nave 3</span></span><span class="hf-sel-mark" data-state="unchecked" aria-hidden="true"><svg><use href="#i-check"/></svg></span></div>
+          </div>
+          <p class="hf-selectable-rows__count" aria-live="polite">2 de 3 seleccionadas</p>
+        </div>
+      </div>
+      <div>
+        <p class="sel-cap">HfToggleChips · filtros con aria-pressed</p>
+        <div class="hf-toggle-chips" role="group" aria-label="Estado">
+          <button class="hf-toggle-chip" type="button" aria-pressed="true"><svg aria-hidden="true"><use href="#i-check"/></svg>Pendientes</button>
+          <button class="hf-toggle-chip" type="button" aria-pressed="false">Pagadas</button>
+          <button class="hf-toggle-chip" type="button" aria-pressed="false">Canceladas</button>
+          <button class="hf-toggle-chips__clear" type="button">Limpiar (1)</button>
+        </div>
+        <p class="sel-cap" style="margin-top:16px">HfRowMark · marca de 24px en área de 44px</p>
+        <div class="row-marks">
+          <figure><button class="hf-row-mark is-area" type="button" aria-label="Seleccionar fila"><span class="hf-sel-mark" data-state="unchecked" aria-hidden="true"><svg><use href="#i-check"/></svg></span></button><figcaption>Vacía</figcaption></figure>
+          <figure><button class="hf-row-mark is-area" type="button" aria-label="Quitar fila de la selección"><span class="hf-sel-mark" data-state="checked" aria-hidden="true"><svg><use href="#i-check"/></svg></span></button><figcaption>Marcada</figcaption></figure>
+          <figure><button class="hf-row-mark is-area" type="button" aria-label="Seleccionar todas las filas"><span class="hf-sel-mark" data-state="mixed" aria-hidden="true"><svg><use href="#i-minus"/></svg></span></button><figcaption>Mixta</figcaption></figure>
+        </div>
+        <p class="sel-cap" style="margin-top:16px">HfSegmented · 2–4 opciones cortas</p>
+        <div class="hf-segmented" role="radiogroup" aria-label="Periodo" style="--hf-segments:3">
+          <button class="hf-segmented__segment" type="button" role="radio" aria-checked="false">Día</button><button class="hf-segmented__segment" type="button" role="radio" aria-checked="true">Semana</button><button class="hf-segmented__segment" type="button" role="radio" aria-checked="false" disabled>Mes</button>
+        </div>
+      </div>
+    </div>
+    <div class="sel-grid">
+      <div>
+        <p class="sel-cap">HfCombobox múltiple · fichas · marca redonda al final</p>
+        <button class="hf-combobox__trigger" type="button" aria-expanded="true" aria-label="Especies"><span class="hf-combobox__value"><span class="hf-combobox__chip">Perros</span><span class="hf-combobox__chip">Gatos</span><span class="hf-combobox__chip hf-combobox__chip--more">+1</span></span><svg class="hf-combobox__chevron" aria-hidden="true"><use href="#i-chevron"/></svg></button>
+        <div class="hf-combobox__content" role="listbox" aria-multiselectable="true" aria-label="Especies, ejemplo abierto">
+          <div class="hf-combobox__search"><svg class="ico-16" aria-hidden="true"><use href="#i-search"/></svg>Buscar especie</div>
+          <div class="hf-combobox__viewport">
+            <div class="hf-combobox__option" role="option" aria-selected="true"><span>Perros</span><span class="hf-combobox__mark" data-state="checked" aria-hidden="true"><svg><use href="#i-check"/></svg></span></div>
+            <div class="hf-combobox__option" role="option" aria-selected="true"><span>Gatos</span><span class="hf-combobox__mark" data-state="checked" aria-hidden="true"><svg><use href="#i-check"/></svg></span></div>
+            <div class="hf-combobox__option hl" role="option" aria-selected="true"><span>Aves</span><span class="hf-combobox__mark" data-state="checked" aria-hidden="true"><svg><use href="#i-check"/></svg></span></div>
+            <div class="hf-combobox__option" role="option" aria-selected="false"><span>Peces</span><span class="hf-combobox__mark" data-state="unchecked" aria-hidden="true"><svg><use href="#i-check"/></svg></span></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="sel-cap">ConfirmModal · lista de elementos · confirmación explícita</p>
+        <div class="modal-stage">
+          <div class="modal" role="dialog" aria-modal="false" aria-label="ConfirmModal, ejemplo abierto">
+            <div class="modal-h"><h3>Eliminar 2 promociones</h3><button class="btn btn-ghost btn-icon" type="button" aria-label="Cerrar"><svg class="ico-16" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+            <div class="modal-b"><ul><li><span>2x1 en arena</span><span class="meta">Activa</span></li><li><span>Collares −15%</span><span class="meta">Programada</span></li></ul></div>
+            <div class="modal-f"><button class="btn btn-outline" type="button">Cancelar</button><button class="btn btn-danger" type="button">Eliminar</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="sel-block">
+      <p class="sel-cap">HfSaveBar · con cambios · guardando · error</p>
+      <div class="save-bars">
+        <div class="hf-save-bar"><p class="hf-save-bar__status" data-state="dirty"><span class="hf-save-bar__dot" aria-hidden="true"></span>3 cambios sin guardar</p><div class="hf-save-bar__actions"><button class="btn btn-ghost" type="button">Descartar</button><button class="btn btn-primary" type="button">Guardar</button></div></div>
+        <div class="hf-save-bar"><p class="hf-save-bar__status" data-state="saving">Guardando…</p><div class="hf-save-bar__actions"><button class="btn btn-ghost" type="button" disabled>Descartar</button><button class="btn btn-disabled-primary" type="button" disabled aria-busy="true">Guardar</button></div></div>
+        <div class="hf-save-bar"><p class="hf-save-bar__status" data-state="error"><svg class="ico-16" aria-hidden="true"><use href="#i-circle-alert"/></svg>No se pudo guardar. Revisa tu conexión.</p><div class="hf-save-bar__actions"><button class="btn btn-ghost" type="button">Descartar</button><button class="btn btn-primary" type="button">Guardar</button></div></div>
+      </div>
+      <p class="meta" style="margin-top:8px">Abajo de md las acciones van en columnas iguales de 44px. Foco: anillo de 2px --hf-focus, nunca igual al seleccionado; el estado nunca depende solo del color.</p>
     </div>
   </section>
 

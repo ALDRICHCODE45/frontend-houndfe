@@ -64,7 +64,7 @@ function submit() {
             : 'El código puede haber vencido. Solicita otro o vuelve a iniciar sesión.'
         }}
       </p>
-      <p v-if="retrySeconds > 0" class="text-sm text-neutral-500">
+      <p v-if="retrySeconds > 0" class="text-sm text-muted">
         Espera {{ retrySeconds }} s para intentar de nuevo.
       </p>
       <UButton
