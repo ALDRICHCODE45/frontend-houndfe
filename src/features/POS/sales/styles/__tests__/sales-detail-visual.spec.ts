@@ -248,12 +248,12 @@ describe('Sales detail visual wiring', () => {
   })
 
   it('routes every owned overlay through the detail portal opt-in', () => {
-    // Four owned children receive the portal class; ConfirmModal keeps its
-    // existing shared `ui` opt-in and the action menu gets its own boundary.
+    // Five owned children receive the portal class (the pay-in-store deadline dialog is the
+    // fifth); ConfirmModal keeps its existing shared `ui` opt-in and the action menu gets its own boundary.
     const portalPropCount = (
       view.match(/portal-class="hf-theme hf-ui hf-form-overlay sales-detail-portal"/g) ?? []
     ).length
-    expect(portalPropCount).toBe(4)
+    expect(portalPropCount).toBe(5)
     expect(view).toContain(`:ui="{ content: '${PORTAL}' }"`)
     expect(view).toContain(":ui=\"{ content: 'hf-theme hf-ui sales-detail-portal' }\"")
   })

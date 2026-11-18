@@ -658,6 +658,71 @@ describe('SalesListView', () => {
     })
   })
 
+  // BE handoff 24 §1: the live pay-in-store hold of a bot pickup order, as a second line under the
+  // customer (desktop) and on the mobile card; the real channel in «Canal».
+  describe('pay-in-store hold and channel', () => {
+    const hold = {
+      paymentIntent: 'IN_STORE' as const,
+      expiresAt: '2026-11-19T18:30:00.000Z',
+      reminderAt: '2026-11-19T15:30:00.000Z',
+      stage: 0 as const,
+      version: 1,
+    }
+    const heldRow: ConfirmedSaleRow = {
+      ...initialRow,
+      paymentStatus: 'CREDIT',
+      debtCents: 127000,
+      deliveryStatus: 'PENDING',
+      hold,
+    }
+    const LINE = 'Apartado · pagar en tienda · vence jue 19 nov, 12:30'
+    const holdLines = (wrapper: VueWrapper) => wrapper.findAll('[data-testid="sale-hold-line"]')
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2026-11-18T21:00:00.000Z'))
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('shows the live hold under the customer and on the mobile card', () => {
+      mockState.data.value = [heldRow]
+      const wrapper = mountSalesList()
+      const lines = holdLines(wrapper)
+      expect(lines).toHaveLength(2)
+      expect(lines.map((line) => line.text())).toEqual([LINE, LINE])
+      expect(lines[0]!.attributes('title')).toBe(LINE)
+      expect(wrapper.get('[data-testid="sale-card"]').find('[data-testid="sale-hold-line"]').exists()).toBe(true)
+    })
+
+    it('hides the hold once anything is paid', () => {
+      mockState.data.value = [{ ...heldRow, paymentStatus: 'PARTIAL', debtCents: 50000 }]
+      expect(holdLines(mountSalesList())).toHaveLength(0)
+    })
+
+    it('a sale cancelled by the deadline (HOLD_EXPIRED) reads «Cancelada» with no hold line', () => {
+      mockState.data.value = [{ ...heldRow, status: 'CANCELED', hold: { ...hold, stage: 2 } }]
+      const wrapper = mountSalesList()
+      expect(holdLines(wrapper)).toHaveLength(0)
+      expect(wrapper.get('[data-testid="sale-canceled-status"]').text()).toBe('Cancelada')
+    })
+
+    it('a row without a hold has no hold line', () => {
+      expect(holdLines(mountSalesList())).toHaveLength(0)
+    })
+
+    it.each([
+      ['the row says ONLINE', { channel: 'ONLINE' as const }, 'En línea'],
+      ['the row says POS', { channel: 'POS' as const }, 'Punto de venta'],
+      ['a pay-in-store hold only exists on bot sales', { hold }, 'En línea'],
+      ['the row does not say', {}, '—'],
+    ])('Canal: %s', (_case, patch, label) => {
+      mockState.data.value = [{ ...initialRow, ...patch }]
+      expect(mountSalesList().get('[data-testid="sale-channel"]').text()).toBe(label)
+    })
+  })
+
   // The "Nueva venta" CTA is AppDataTable's toolbar button; the folio is the
   // row's text button on the shared row-primary pattern, with no gold classes.
   it('drives Nueva venta from the toolbar and keeps the folio on the row-primary button', () => {
@@ -1015,6 +1080,8 @@ describe('SalesListView — preserved invariants (REQ-16)', () => {
         seller: { id: 's-1', name: 'Grace Hopper' },
         debtCents: 5000,
         totalCents: 127000,
+        // «Canal» shows the row's channel; it is no longer a hard-coded «Punto de venta».
+        channel: 'POS',
       },
     ]
 

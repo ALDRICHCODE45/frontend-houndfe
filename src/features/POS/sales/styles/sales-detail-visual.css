@@ -251,3 +251,12 @@
 .sales-detail-visual .sale-detail-items-table td {
   padding: 12px;
 }
+
+/* ── Pay-in-store hold (BE handoff 24) ───────────────────────────────────── */
+
+/* The live «Apartado · pagar en tienda · vence …» line: a fact of the sale, not an alarm. */
+.sales-detail-visual .sale-detail-hold-line {
+  color: var(--hf-heading);
+  font-size: 14px;
+  font-weight: 500;
+}

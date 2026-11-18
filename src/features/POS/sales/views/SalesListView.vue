@@ -26,6 +26,7 @@ import { formatSaleDueDate } from '../utils/saleDate.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { extractFolioNumber } from '../utils/saleFolio.utils'
 import { isCanceledSale, saleDeliveryBadge, saleOpenDebtCents, salePaymentBadge } from '../utils/saleStatus.utils'
+import { saleHoldLine } from '../utils/saleHold.utils'
 import type { ConfirmedSaleRow } from '../interfaces/sale.types'
 import type { TableColumnTotal } from '@/core/shared/types/table.types'
 import { customerApi } from '@/features/POS/customers/api/customer.api'
@@ -141,6 +142,17 @@ function customerDisplay(sale: ConfirmedSaleRow) {
 }
 const saleWhen = (sale: ConfirmedSaleRow) =>
   sale.confirmedAt == null ? 'Fecha no disponible' : formatShortDateTime(sale.confirmedAt)
+
+// BE handoff 24 §1: «Apartado · pagar en tienda · vence …» while the hold is live, else nothing.
+const holdLine = (sale: ConfirmedSaleRow) => saleHoldLine(sale)
+
+// «Canal»: the row's channel when the list sends it; a pay-in-store hold only exists on bot
+// (ONLINE) sales; otherwise the list cannot tell, so it says nothing rather than guess «Punto de venta».
+const CHANNEL_LABELS = { POS: 'Punto de venta', ONLINE: 'En línea' } as const
+function channelLabel(sale: ConfirmedSaleRow): string {
+  if (sale.channel) return CHANNEL_LABELS[sale.channel]
+  return sale.hold ? CHANNEL_LABELS.ONLINE : '—'
+}
 
 // Predefined orderings (backend-safe) over the same `sorting` the headers and the views write.
 const SORT_OPTIONS = [
@@ -367,6 +379,12 @@ watch(() => filtersCtl.serializedState.value, () => {
           <template #customer-cell="{ row }">
             <span class="sale-customer" data-testid="sale-customer">{{ customerDisplay(row.original) }}</span>
             <SaleAddressSourceNotice compact :address="row.original.shippingAddress" />
+            <span
+              v-if="holdLine(row.original)"
+              class="sale-hold-line"
+              data-testid="sale-hold-line"
+              :title="holdLine(row.original)!"
+            >{{ holdLine(row.original) }}</span>
           </template>
 
           <template #confirmedAt-cell="{ row }">
@@ -422,7 +440,9 @@ watch(() => filtersCtl.serializedState.value, () => {
             {{ row.original.seller?.name ?? '' }}
           </template>
 
-          <template #channel-cell>Punto de venta</template>
+          <template #channel-cell="{ row }">
+            <span data-testid="sale-channel">{{ channelLabel(row.original) }}</span>
+          </template>
           <template #invoice-cell></template>
 
           <template #mobile-card="{ row }">
@@ -439,6 +459,7 @@ watch(() => filtersCtl.serializedState.value, () => {
               </div>
               <span class="hf-row-secondary" data-testid="sale-customer">{{ customerDisplay(row) }}</span>
               <SaleAddressSourceNotice compact class="sale-card-notice" :address="row.shippingAddress" />
+              <p v-if="holdLine(row)" class="sale-hold-line sale-card-hold" data-testid="sale-hold-line">{{ holdLine(row) }}</p>
               <div class="sale-card-meta">
                 <StatusBadge v-bind="salePaymentBadge(row)" />
                 <StatusBadge v-if="saleDeliveryBadge(row)" v-bind="saleDeliveryBadge(row)!" />
@@ -486,6 +507,9 @@ watch(() => filtersCtl.serializedState.value, () => {
 .sale-card-head .sale-row-link { flex: 1; min-width: 0; padding-top: 2px; font-size: 15px; line-height: 1.4; }
 .sale-card .hf-row-secondary { padding-right: 8px; }
 .sale-card-notice { display: flex; width: fit-content; margin-top: 4px; }
+/* The live hold: a short muted second line that never pushes the row taller than one line. */
+.sale-hold-line { display: block; max-width: 16rem; overflow: hidden; color: var(--hf-muted); font-size: 12px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.sale-card-hold { max-width: none; margin-top: 4px; white-space: normal; }
 .sale-card-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .sale-card-debt { margin-top: 10px; color: var(--hf-warning); font-size: 13px; font-weight: 600; }
 .sale-card-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hf-border); color: var(--hf-muted); font-size: 13px; }

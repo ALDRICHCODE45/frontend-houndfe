@@ -94,6 +94,12 @@ export interface ConfirmedSaleRow {
   shippingAddress?: SaleShippingAddressSnapshot | null
   /** BE handoff 24 §1: the pay-in-store hold; null without one, absent on older payloads. */
   hold?: SaleHold | null
+  /**
+   * Where the sale was made. GET /sales rows do not carry it yet (the detail does), so it is
+   * optional; the list reads it when present and otherwise infers ONLINE from a hold (only bot
+   * sales have one, BE handoff 24 §1).
+   */
+  channel?: 'POS' | 'ONLINE' | null
 }
 
 // ─── BE handoff 24: pay-in-store hold («Apartado») ────────────────────────────────────

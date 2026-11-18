@@ -23,6 +23,9 @@ import DebtPaymentModal from '../components/DebtPaymentModal.vue'
 import AssignSellerSlideover from '../components/AssignSellerSlideover.vue'
 import SaleDetailCancellationCard from '../components/SaleDetailCancellationCard.vue'
 import SaleDetailRefundsCard from '../components/SaleDetailRefundsCard.vue'
+import SaleDetailHoldCard from '../components/SaleDetailHoldCard.vue'
+import SaleHoldDeadlineDialog from '../components/SaleHoldDeadlineDialog.vue'
+import { isSaleHoldLive } from '../utils/saleHold.utils'
 import SettleRefundSlideover from '@/features/POS/refunds/components/SettleRefundSlideover.vue'
 import type { PendingRefundListRow } from '@/features/POS/refunds/composables/usePendingRefundsList'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
@@ -81,11 +84,20 @@ async function handleReferenceSubmit(payload: { paymentId: string; reference: st
   }
 }
 
+// BE handoff 24 §3: POST /sales/:id/payments needs `update:Sale`, and ONLINE (bot) sales are
+// chargeable at the counter like POS ones, so the channel plays no part here.
+const canUpdateSale = computed(() => authStore.userCan('update', 'Sale'))
 const canRegisterPayment = computed(
   () =>
-    sale.value?.paymentStatus !== SALE_PAYMENT_STATUS.PAID
+    canUpdateSale.value
+    && sale.value?.paymentStatus !== SALE_PAYMENT_STATUS.PAID
     && sale.value?.status === SALE_STATUS.CONFIRMED,
 )
+
+// BE handoff 24 §1–§2: the live pay-in-store hold and its «Cambiar plazo» (`update:Sale`). Any
+// payment or a cancellation ends it, and the refetched sale hides it.
+const liveHold = computed(() => (sale.value && isSaleHoldLive(sale.value) ? sale.value.hold : null))
+const holdDialogOpen = ref(false)
 
 // T20: a cancelled sale opens read-only, with its cancellation and refunds.
 const isCanceled = computed(() => sale.value?.status === SALE_STATUS.CANCELED)
@@ -597,6 +609,14 @@ watch(
               @settle="openSettle"
             />
           </div>
+          <!-- The hold decides what happens next, so on mobile it leads the page. -->
+          <div
+            v-if="liveHold"
+            class="order-first lg:order-none"
+            data-testid="sale-detail-section-hold"
+          >
+            <SaleDetailHoldCard :sale="sale" :can-edit="canUpdateSale" @edit="holdDialogOpen = true" />
+          </div>
           <div :class="sectionOrder.totals" class="lg:order-none" data-testid="sale-detail-section-totals">
             <SaleDetailTotalsCard
               :subtotal-cents="sale.subtotalCents"
@@ -626,6 +646,13 @@ watch(
         :debt-cents="sale.debtCents"
         portal-class="hf-theme hf-ui hf-form-overlay sales-detail-portal"
         @success="debtModalOpen = false"
+      />
+      <SaleHoldDeadlineDialog
+        v-if="liveHold && canUpdateSale"
+        v-model:open="holdDialogOpen"
+        :sale-id="sale.id"
+        :hold="liveHold"
+        portal-class="hf-theme hf-ui hf-form-overlay sales-detail-portal"
       />
       <AssignSellerSlideover
         v-model:open="sellerSlideoverOpen"
