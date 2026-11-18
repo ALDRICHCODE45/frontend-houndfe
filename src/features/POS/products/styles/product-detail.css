@@ -124,25 +124,3 @@
   color: var(--hf-muted);
 }
 
-/* ── Sibling sections that still render a UCard ────────────────────────────
- * Catálogo online, Empaques, Listas de precios and Imágenes are their own
- * components; in the Presentaciones stack they read as section cards too: one
- * border, the card radius, no header divider or shadow, the same padding. */
-.hf-ui [data-product-task='presentations'] > [data-slot='root'].divide-y,
-.hf-ui [data-product-task='presentations'] > section > [data-slot='root'].divide-y {
-  border-radius: var(--hf-radius-card);
-  background-color: var(--hf-surface);
-  box-shadow: none;
-}
-.hf-ui [data-product-task='presentations'] > [data-slot='root'].divide-y > *,
-.hf-ui [data-product-task='presentations'] > section > [data-slot='root'].divide-y > * {
-  border-width: 0;
-}
-.hf-ui [data-product-task='presentations'] > [data-slot='root'].divide-y > [data-slot='header'],
-.hf-ui [data-product-task='presentations'] > section > [data-slot='root'].divide-y > [data-slot='header'] {
-  padding-bottom: 0;
-}
-.hf-ui [data-product-task='presentations'] > [data-slot='root'].divide-y > [data-slot='header'] + [data-slot='body'],
-.hf-ui [data-product-task='presentations'] > section > [data-slot='root'].divide-y > [data-slot='header'] + [data-slot='body'] {
-  padding-top: 16px;
-}

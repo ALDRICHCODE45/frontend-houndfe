@@ -7,12 +7,9 @@
 
 /* ── Card ───────────────────────────────────────────────────────────────── */
 .product-images { position: relative; min-width: 0; }
-.product-images-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-height: 36px; }
-.product-images-head h3 { margin: 0; color: var(--hf-heading); font-size: 16px; font-weight: 600; }
 .product-images-count { color: var(--hf-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
 .product-images-ro { display: inline-flex; align-items: center; gap: 6px; color: var(--hf-muted); font-size: 12px; }
 .product-images-ro .iconify, .product-images-ro [class*='i-lucide'] { width: 14px; height: 14px; }
-.product-images-head .product-images-chips { margin-left: auto; }
 
 /* Toggle chips (Selección sin checkboxes): 36px pills, 44px on phones. */
 .product-images-chips { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
@@ -339,7 +336,6 @@
   .product-images-strip .product-images-tile--lead { --tile: 136px; }
   .product-images-strip .product-images-tile { --tile: 104px; }
   .product-images-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; contain: inline-size; }
-  .product-images-head .product-images-chips { flex-basis: 100%; margin-left: 0; }
   .product-images-chip { height: 44px; }
   .product-images-add:not(.product-images-add--empty) { display: none; }
   .product-images-upload-btn {

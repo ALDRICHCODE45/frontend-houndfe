@@ -6,6 +6,7 @@
  * replaced; the table, the cards, the StatusBadge, the ⋮ menu and the review
  * dialog are the real ones.
  */
+import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick, ref } from 'vue'
@@ -368,5 +369,43 @@ describe('PendingApprovalsView — premium table layout', () => {
     await nextTick()
     expect(localStorage.getItem(KEY)).toBeNull()
     expect((table.props() as Record<string, unknown>).density).toBe('comfortable')
+  })
+})
+
+// T6e (S2–S3): the tray and its review dialog sit on the design system, no UCard.
+describe('PendingApprovalsView — design system structure', () => {
+  const source = readFileSync('src/features/admin/employees/views/PendingApprovalsView.vue', 'utf8')
+  const template = source.slice(source.indexOf('<template>'), source.lastIndexOf('</template>'))
+
+  it('has no UCard left in its template', () => {
+    expect(template).not.toMatch(/<UCard\b/)
+  })
+
+  it('puts the table in one named table surface section', () => {
+    pending.data.value = [makeRequest()]
+    const wrapper = mountView()
+    const surface = wrapper.get('.hf-table-surface')
+    expect(surface.element.tagName).toBe('SECTION')
+    expect(surface.attributes('aria-label')).toBe('Solicitudes pendientes')
+    expect(surface.find('.hf-table-content').exists()).toBe(true)
+  })
+
+  it('titles the review dialog and summarizes the request as a description list, no card inside', async () => {
+    pending.data.value = [makeRequest()]
+    const wrapper = mountView()
+    await wrapper.get(MENU).trigger('click')
+    await flushPromises()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    ;(document.querySelector('[role="menuitem"]') as HTMLElement).click()
+    await flushPromises()
+
+    const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!
+    const titleId = dialog.getAttribute('aria-labelledby')!
+    expect(document.getElementById(titleId)?.textContent?.trim()).toBe('Aprobar solicitud de ausencia')
+    expect(dialog.querySelector('[data-slot="root"].employees-detail-section, .employees-detail-section')).toBeNull()
+    const summary = dialog.querySelector('dl[data-testid="pending-review-summary"]')!
+    expect(summary.textContent).toContain('Ana García')
+    const confirmButton = [...dialog.querySelectorAll('button')].find((b) => b.textContent?.includes('Confirmar aprobación'))!
+    expect(confirmButton.classList.contains('hf-primary-control')).toBe(true)
   })
 })

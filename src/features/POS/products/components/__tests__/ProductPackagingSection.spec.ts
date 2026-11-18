@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { shallowRef } from 'vue'
@@ -170,5 +171,31 @@ describe('ProductPackagingSection — save and remove', () => {
     expect(confirm).toHaveBeenLastCalledWith(expect.objectContaining({ tone: 'danger', title: '¿Quitar el empaque?' }))
     expect(state.remove.mutateAsync).toHaveBeenCalled()
     expect(toast.add).toHaveBeenCalledWith(expect.objectContaining({ title: 'Empaque quitado' }))
+  })
+})
+
+// T6e (S2–S3): «Empaque para envío» is a design-system section card like its siblings.
+describe('ProductPackagingSection — design system structure', () => {
+  const source = readFileSync('src/features/POS/products/components/ProductPackagingSection.vue', 'utf8')
+  const template = source.slice(source.indexOf('<template>'), source.lastIndexOf('</template>'))
+
+  it('has no UCard left in its template', () => {
+    expect(template).not.toMatch(/<UCard\b/)
+  })
+
+  it('is one section card titled «Empaque para envío» with Quitar and Editar beside the title', () => {
+    state.packaging.value = record
+    const wrapper = mountSection()
+    const section = wrapper.get('[data-testid="product-packaging-section"]')
+    expect(section.classes()).toContain('hf-section-card')
+    expect(section.get('.hf-section-card__title').text()).toBe('Empaque para envío')
+    expect(section.get('.hf-section-card__title').element.tagName).toBe('H2')
+    const meta = section.get('.hf-section-card__meta')
+    expect(meta.find('[data-testid="packaging-remove"]').exists()).toBe(true)
+    expect(meta.find('[data-testid="packaging-edit"]').exists()).toBe(true)
+  })
+
+  it('keeps the summary on --hf-* roles, never Nuxt default color utilities', () => {
+    expect(template).not.toMatch(/\b(?:text|bg|border)-(?:muted|default|highlighted|elevated)\b/)
   })
 })

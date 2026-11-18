@@ -43,6 +43,10 @@
  *   - Client-side full-array pagination via paginateRows / clampPage /
  *     pageAfterQueryChange.
  *   - `pagination.utils.ts` header unchanged.
+ *
+ * T6e (design system): the table sits in a plain `hf-table-surface` section (no
+ * UCard), and the review dialog is a titled UModal whose summary is a compact
+ * `<dl>` on the muted surface, never a card inside the dialog.
  */
 
 import { computed, ref, watch } from 'vue'
@@ -324,7 +328,7 @@ function rowLabelOf(request: TimeOffRequest): string {
       <h1 class="hf-page-title">Validaciones pendientes</h1>
     </header>
 
-    <UCard :ui="{ body: 'p-0 sm:p-0' }" class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm">
+    <section aria-label="Solicitudes pendientes" class="hf-table-surface w-full min-w-0 max-w-full">
       <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
         <AppDataTable
           v-model:pagination="pagination"
@@ -440,77 +444,80 @@ function rowLabelOf(request: TimeOffRequest): string {
           </template>
         </AppDataTable>
       </div>
-    </UCard>
+    </section>
 
     <!-- Review confirmation dialog -->
     <UModal
       v-model:open="isReviewDialogOpen"
+      :title="
+        reviewDecision === REVIEW_DECISION.APPROVED
+          ? 'Aprobar solicitud de ausencia'
+          : 'Rechazar solicitud de ausencia'
+      "
       :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
     >
-      <template #content>
-        <UCard v-if="reviewingRequest" class="employees-detail-section">
-          <template #header>
-            <h2 class="text-base font-semibold text-highlighted">
-              {{
-                reviewDecision === REVIEW_DECISION.APPROVED
-                  ? 'Aprobar solicitud de ausencia'
-                  : 'Rechazar solicitud de ausencia'
-              }}
-            </h2>
-          </template>
+      <template #body>
+        <div v-if="reviewingRequest" class="flex flex-col gap-4">
+          <!-- Summary: what is being decided, as a compact description list. -->
+          <dl
+            class="m-0 grid gap-1 rounded-md bg-(--hf-surface-muted) p-3 text-sm"
+            data-testid="pending-review-summary"
+          >
+            <dt class="sr-only">Colaborador</dt>
+            <dd class="m-0 font-semibold text-(--hf-heading)">
+              {{ resolveEmployeeName(reviewingRequest) }}
+            </dd>
+            <dt class="sr-only">Ausencia</dt>
+            <dd class="m-0 text-(--hf-muted)">
+              {{ formatTimeOffType(reviewingRequest.type) }} —
+              {{ formatTimeOffDateRange(reviewingRequest.startDate, reviewingRequest.endDate) }}
+              · <span class="hf-figure">{{ daysLabel(reviewingRequest) }}</span>
+            </dd>
+          </dl>
 
-          <div class="flex flex-col gap-4">
-            <!-- Summary -->
-            <div class="rounded-md bg-(--hf-surface-muted) p-3 text-sm">
-              <p class="font-medium text-highlighted">
-                {{ resolveEmployeeName(reviewingRequest) }}
-              </p>
-              <p class="text-muted">
-                {{ formatTimeOffType(reviewingRequest.type) }} —
-                {{ formatTimeOffDateRange(reviewingRequest.startDate, reviewingRequest.endDate) }}
-                · {{ daysLabel(reviewingRequest) }}
-              </p>
-            </div>
+          <!-- Reviewer notes -->
+          <UFormField label="Notas del revisor (opcional)">
+            <UTextarea
+              v-model="reviewerNotes"
+              :placeholder="
+                reviewDecision === REVIEW_DECISION.REJECTED
+                  ? 'Motivo del rechazo...'
+                  : 'Comentarios adicionales...'
+              "
+              :rows="3"
+              class="w-full"
+            />
+          </UFormField>
+        </div>
+      </template>
 
-            <!-- Reviewer notes -->
-            <UFormField label="Notas del revisor (opcional)">
-              <UTextarea
-                v-model="reviewerNotes"
-                :placeholder="
-                  reviewDecision === REVIEW_DECISION.REJECTED
-                    ? 'Motivo del rechazo...'
-                    : 'Comentarios adicionales...'
-                "
-                :rows="3"
-                class="w-full"
-              />
-            </UFormField>
-          </div>
-
-          <template #footer>
-            <div class="flex justify-end gap-2">
-              <UButton
-                variant="ghost"
-                color="neutral"
-                :disabled="isReviewingMutation"
-                @click="cancelReview"
-              >
-                Cancelar
-              </UButton>
-              <UButton
-                :color="reviewDecision === REVIEW_DECISION.APPROVED ? 'primary' : 'error'"
-                :loading="isReviewingMutation"
-                @click="confirmReview"
-              >
-                {{
-                  reviewDecision === REVIEW_DECISION.APPROVED
-                    ? 'Confirmar aprobación'
-                    : 'Confirmar rechazo'
-                }}
-              </UButton>
-            </div>
-          </template>
-        </UCard>
+      <template #footer>
+        <div class="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <UButton
+            variant="ghost"
+            color="neutral"
+            class="min-h-11 justify-center"
+            :disabled="isReviewingMutation"
+            @click="cancelReview"
+          >
+            Cancelar
+          </UButton>
+          <UButton
+            :color="reviewDecision === REVIEW_DECISION.APPROVED ? 'primary' : 'error'"
+            :class="[
+              'min-h-11 justify-center',
+              reviewDecision === REVIEW_DECISION.APPROVED ? 'hf-primary-control' : '',
+            ]"
+            :loading="isReviewingMutation"
+            @click="confirmReview"
+          >
+            {{
+              reviewDecision === REVIEW_DECISION.APPROVED
+                ? 'Confirmar aprobación'
+                : 'Confirmar rechazo'
+            }}
+          </UButton>
+        </div>
       </template>
     </UModal>
   </div>

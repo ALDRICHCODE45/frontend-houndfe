@@ -136,7 +136,9 @@ describe('ProductDetailView — design system structure', () => {
     const titles = [...presentations().querySelectorAll(':scope > .hf-section-card .hf-section-card__title')].map(
       (heading) => heading.textContent?.trim(),
     )
-    expect(titles).toEqual(['Costo e impuestos', 'Inventario', 'Variantes'])
+    // The sibling components (catálogo, empaque, precios) are section cards too since T6e.
+    expect(titles).toEqual(expect.arrayContaining(['Costo e impuestos', 'Inventario', 'Variantes']))
+    expect(titles).toEqual(expect.arrayContaining(['Catálogo online', 'Empaque para envío', 'Precios de venta']))
   })
 
   it('renders every on/off row it owns as a whole-row switch with its label inside', async () => {

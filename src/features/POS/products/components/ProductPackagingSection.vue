@@ -12,9 +12,13 @@
  * Props:
  *   productId — the saved product
  *   canUpdate — update:Product: edit and remove
+ *
+ * T6e: an HfSectionCard sibling of the Presentaciones section cards (Quitar and
+ * Editar beside the title), colors only from --hf-*.
  */
 import { computed, ref, shallowRef } from 'vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
+import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 import { useConfirm } from '@/core/shared/composables/useConfirm'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import PackagingFields from './PackagingFields.vue'
@@ -105,29 +109,33 @@ async function removePackaging() {
 </script>
 
 <template>
-  <UCard data-testid="product-packaging-section">
-    <template #header>
-      <div class="flex items-center justify-between gap-3">
-        <h2 class="text-base font-semibold">Empaque para envío</h2>
-        <div v-if="summary && !editing && canUpdate" class="flex items-center gap-2">
-          <UButton
-            label="Quitar"
-            icon="i-lucide-trash-2"
-            color="neutral"
-            variant="ghost"
-            :loading="remove.isPending.value"
-            data-testid="packaging-remove"
-            @click="removePackaging"
-          />
-          <UButton
-            label="Editar"
-            icon="i-lucide-pencil"
-            color="neutral"
-            variant="outline"
-            data-testid="packaging-edit"
-            @click="startEditing"
-          />
-        </div>
+  <HfSectionCard
+    id="product-packaging"
+    title="Empaque para envío"
+    :heading-level="2"
+    data-testid="product-packaging-section"
+  >
+    <template v-if="summary && !editing && canUpdate" #meta>
+      <div class="flex items-center gap-2">
+        <UButton
+          label="Quitar"
+          icon="i-lucide-trash-2"
+          color="neutral"
+          variant="ghost"
+          class="min-h-11"
+          :loading="remove.isPending.value"
+          data-testid="packaging-remove"
+          @click="removePackaging"
+        />
+        <UButton
+          label="Editar"
+          icon="i-lucide-pencil"
+          color="neutral"
+          variant="outline"
+          class="min-h-11"
+          data-testid="packaging-edit"
+          @click="startEditing"
+        />
       </div>
     </template>
 
@@ -166,7 +174,7 @@ async function removePackaging() {
           label="Cancelar"
           color="neutral"
           variant="ghost"
-          class="justify-center"
+          class="min-h-11 justify-center"
           :disabled="saving"
           @click="cancelEditing"
         />
@@ -182,20 +190,20 @@ async function removePackaging() {
 
     <dl
       v-else-if="summary"
-      class="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[max-content_1fr]"
+      class="m-0 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[max-content_1fr]"
       data-testid="packaging-summary"
     >
       <div class="contents">
-        <dt class="text-muted">Peso</dt>
-        <dd class="font-semibold tabular-nums text-highlighted">{{ summary.weight }}</dd>
+        <dt class="text-(--hf-muted)">Peso</dt>
+        <dd class="m-0 font-semibold tabular-nums text-(--hf-heading)">{{ summary.weight }}</dd>
       </div>
       <div class="contents">
-        <dt class="text-muted">Medidas (largo × ancho × alto)</dt>
-        <dd class="font-semibold tabular-nums text-highlighted">{{ summary.size }}</dd>
+        <dt class="text-(--hf-muted)">Medidas (largo × ancho × alto)</dt>
+        <dd class="m-0 font-semibold tabular-nums text-(--hf-heading)">{{ summary.size }}</dd>
       </div>
       <div class="contents">
-        <dt class="text-muted">Actualizado</dt>
-        <dd class="text-muted">{{ summary.updatedAt }}</dd>
+        <dt class="text-(--hf-muted)">Actualizado</dt>
+        <dd class="m-0 text-(--hf-muted)">{{ summary.updatedAt }}</dd>
       </div>
     </dl>
 
@@ -209,5 +217,5 @@ async function removePackaging() {
       action-test-id="packaging-add"
       @action="startEditing"
     />
-  </UCard>
+  </HfSectionCard>
 </template>
