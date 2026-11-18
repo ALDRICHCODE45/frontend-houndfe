@@ -54,7 +54,7 @@ function unpublishes(after: EditorialContractState = unpublished()) {
 
 beforeEach(() => {
   vi.resetAllMocks()
-  Object.assign(auth, { isSuperAdmin: false, permissionCodes: [read, update, publish] })
+  Object.assign(auth, { isSuperAdmin: false, currentTenant: { id: 't1' }, permissionCodes: [read, update, publish] })
   current = { snapshot: withDraft(), revision: R, care: false }
   confirm.mockResolvedValue(true)
   serve()
@@ -239,5 +239,52 @@ describe('refusals', () => {
     expect(unpublishCalls()).toHaveLength(1)
     expect(flow.retryable.value).toBe(false)
     expect(flow.message.value).toBe('No pudimos despublicar. Recarga la página e inténtalo de nuevo.')
+  })
+})
+
+/** Every URL, header name and param key the flow sent: none may name a tenant (S66: the token carries it). */
+function tenantTraces(): string[] {
+  return [...http.get.mock.calls, ...http.post.mock.calls, ...http.put.mock.calls].flatMap(([url, ...rest]) => [
+    String(url),
+    ...rest.flatMap(arg => {
+      const config = arg as { headers?: Record<string, unknown>; params?: Record<string, unknown> } | undefined
+      return [...Object.keys(config?.headers ?? {}), ...Object.keys(config?.params ?? {})]
+    }),
+  ]).filter(trace => /tenant/i.test(trace))
+}
+
+describe('admission (T12: Super Admin global and with tenant, manage:all, specific grants)', () => {
+  it.each([
+    ['Super Admin in global mode', { isSuperAdmin: true, currentTenant: null, permissionCodes: [] }],
+    ['Super Admin with a tenant', { isSuperAdmin: true, currentTenant: { id: 't1' }, permissionCodes: [] }],
+    ['manage:all of the tenant', { isSuperAdmin: false, currentTenant: { id: 't1' }, permissionCodes: ['manage:all'] }],
+    ['read + publish grants', { isSuperAdmin: false, currentTenant: { id: 't1' }, permissionCodes: [read, publish] }],
+  ])('%s is offered «Despublicar» and unpublishes, never sending a tenant', async (_actor, actor) => {
+    Object.assign(auth, actor)
+    http.post.mockImplementation(unpublishes())
+    const { flow } = await setup()
+    expect(flow.visible.value).toBe(true)
+    expect(await flow.unpublish()).toBe(true)
+    expect(unpublishCalls()).toHaveLength(1)
+    expect(tenantTraces()).toEqual([])
+  })
+  it('Super Admin in global mode keeps the content first when there is no draft', async () => {
+    Object.assign(auth, { isSuperAdmin: true, currentTenant: null, permissionCodes: [] })
+    current.snapshot = publishedOnly()
+    http.post.mockImplementation((url: string) => {
+      if (url === INITIALIZE) { current.snapshot = withDraft(); return Promise.resolve(success(withDraft(), 201, current.revision)) }
+      return unpublishes()()
+    })
+    const { flow } = await setup()
+    expect(flow.visible.value).toBe(true)
+    expect(await flow.unpublish()).toBe(true)
+    expect(http.post.mock.calls.map(([url]) => url)).toEqual([INITIALIZE, UNPUBLISH])
+    expect(tenantTraces()).toEqual([])
+  })
+  it('manage:all without a tenant is not global: nothing is read and «Despublicar» is hidden', async () => {
+    Object.assign(auth, { isSuperAdmin: false, currentTenant: null, permissionCodes: ['manage:all'] })
+    const { flow } = await setup()
+    expect(http.get).not.toHaveBeenCalled()
+    expect(flow.visible.value).toBe(false)
   })
 })

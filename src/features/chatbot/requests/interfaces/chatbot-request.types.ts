@@ -417,7 +417,22 @@ export interface TransferReceiptExtracted {
   bank?: string
   /** 0..1 */
   confidence?: number
+  /** Handoff 22 §3: present only when the bot read it. ≤ 80 chars. «Banco destino». */
+  destinationBank?: string
+  /** ≤ 120 chars. «Beneficiario». */
+  destinationName?: string
+  /** Exactly 4 digits. «Cuenta destino», shown as `****9616`. */
+  destinationAccountLast4?: string
+  /** ≤ 120 chars. «Ordenante». */
+  originName?: string
 }
+
+/**
+ * Handoff 22 §2: the destination of the receipt against the branch's active payment accounts,
+ * computed once at upload. Independent of `mismatch.flagged` (amount only); a staff hint, never a
+ * rejection. Any other value reads as `'unknown'` (through `readDestinationCheck`).
+ */
+export type TransferReceiptDestinationCheck = 'match' | 'mismatch' | 'unknown'
 
 export interface TransferReceiptMismatch {
   debtCents: number
@@ -444,6 +459,8 @@ export interface TransferReceiptDecision {
   extracted: TransferReceiptExtracted | null
   /** Read through `isMismatchFlagged`. */
   mismatch: TransferReceiptMismatch | null
+  /** Handoff 22: absent on an older backend. Read through `readDestinationCheck`. */
+  destinationCheck?: TransferReceiptDestinationCheck
   resolution: ChatbotRequestResolution
 }
 

@@ -257,6 +257,11 @@
   display: flex;
 }
 
+.chatbot-request-detail .rd-extracted-line {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
 .chatbot-request-detail .rd-kv {
   display: grid;
   grid-template-columns: minmax(96px, 140px) minmax(0, 1fr);
@@ -1119,4 +1124,10 @@
   .chatbot-request-detail .rc-log {
     max-height: 70vh;
   }
+}
+
+/* «Más acciones» (neutral outline) uses the app focus ring, not the library default. */
+.chatbot-request-detail .rd-bar__more:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
 }

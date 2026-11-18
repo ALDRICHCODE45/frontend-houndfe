@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "runId": "run-20261118-1",
+  "resourceId": "deaad4a9-e4b1-47b9-876f-4c9bd305a815",
+  "records": [
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-1",
+      "step": "superadmin-global:preflight",
+      "kind": "ui",
+      "verdict": "pass",
+      "summary": "pinned resource, unexpired token, global mode (no tenant)"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-1",
+      "step": "superadmin-global:open",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /products/:id -> 200; GET /products/:id/editorial -> 200; route kept"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-1",
+      "step": "superadmin-global:initialize",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "POST /products/:id/editorial/draft/initialize -> 201"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-1",
+      "step": "superadmin-global:save",
+      "kind": "http",
+      "verdict": "fail",
+      "summary": "step \"superadmin-global:save\" failed; the underlying error was suppressed so no credential can leak"
+    }
+  ]
+}

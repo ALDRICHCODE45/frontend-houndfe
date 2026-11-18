@@ -2,7 +2,7 @@
 //
 //   /chatbot/solicitudes      name chatbot-requests        read:ChatbotRequest, remembered as landing
 //   /chatbot/solicitudes/:id  name chatbot-request-detail  read:ChatbotRequest (email deep link)
-//   /pos/decisiones-pendientes keeps working (read:HumanDecision) without a nav entry.
+//   /pos/decisiones-pendientes redirects here (router.humanDecisions.spec.ts).
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -36,12 +36,6 @@ vi.mock('@/features/chatbot/requests/views/ChatbotRequestsView.vue', () => ({
 }))
 vi.mock('@/features/chatbot/requests/views/ChatbotRequestDetailView.vue', () => ({
   default: { name: 'ChatbotRequestDetailView' },
-}))
-vi.mock('@/features/POS/human-decisions/views/HumanDecisionsView.vue', () => ({
-  default: { name: 'HumanDecisionsView' },
-}))
-vi.mock('@/features/POS/human-decisions/views/HumanDecisionsOfflineDemoRouteView.vue', () => ({
-  default: { name: 'HumanDecisionsOfflineDemoRouteView' },
 }))
 
 function authenticate(userCan: (action: string, subject: string) => boolean) {
@@ -154,30 +148,6 @@ describe('router — chatbot request inbox (T2.U1)', () => {
     await router.push('/login')
     await router.isReady()
     await router.push('/chatbot/solicitudes')
-    await router.isReady()
-
-    expect(router.currentRoute.value.path).toBe('/403')
-  })
-
-  it('the old /pos/decisiones-pendientes route still resolves for read:HumanDecision (no nav entry, BE backfill pending)', async () => {
-    authenticate((action, subject) => action === 'read' && subject === 'HumanDecision')
-    const { default: router } = await import('../index')
-
-    await router.push('/pos/decisiones-pendientes')
-    await router.isReady()
-
-    expect(router.currentRoute.value.path).toBe('/pos/decisiones-pendientes')
-    expect(router.currentRoute.value.name).toBe('pos-human-decisions')
-    expect(router.currentRoute.value.meta.permission).toEqual(['read', 'HumanDecision'])
-  })
-
-  it('the old route is not opened by read:ChatbotRequest alone', async () => {
-    authenticate(readChatbotRequest)
-    const { default: router } = await import('../index')
-
-    await router.push('/login')
-    await router.isReady()
-    await router.push('/pos/decisiones-pendientes')
     await router.isReady()
 
     expect(router.currentRoute.value.path).toBe('/403')

@@ -1117,12 +1117,15 @@ watch(resizingColumnId, (now, before) => {
 
 // Selected count and rows for the bulk bar
 const selectedCount = computed(() => Object.keys(rowSelection.value).length)
+// Cards mode renders no UTable: rows are keyed by their index on the page, as in the table.
+function selectedCardRows(): T[] {
+  return props.data.filter((_, index) => rowSelection.value[index])
+}
 const selectedRows = computed<T[]>(() => {
   // The rows of the page change under the same selection (refetch): read them again.
   void props.data
   if (selectedCount.value === 0) return []
-  // Cards mode renders no UTable: rows are keyed by their index on the page, as in the table.
-  if (isCardsMode.value) return props.data.filter((_, index) => rowSelection.value[index])
+  if (isCardsMode.value) return selectedCardRows()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (tableApi.value?.getSelectedRowModel().rows ?? []).map((row: any) => row.original as T)
 })
@@ -1131,7 +1134,7 @@ const selectedRows = computed<T[]>(() => {
 const showCardMarks = computed(() => props.enableRowSelection && isCardsMode.value)
 const cardsSelectAllState = computed<boolean | 'mixed'>(() => {
   const total = props.data.length
-  const selected = props.data.filter((_, index) => rowSelection.value[index]).length
+  const selected = selectedCardRows().length
   if (total > 0 && selected === total) return true
   return selected > 0 ? 'mixed' : false
 })

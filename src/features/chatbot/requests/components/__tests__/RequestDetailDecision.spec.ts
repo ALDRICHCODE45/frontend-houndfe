@@ -551,6 +551,89 @@ describe('RequestDetailDecision', () => {
     expect(none.find('[data-testid="receipt-extracted"]').exists()).toBe(false)
   })
 
+  it('TRANSFER_RECEIPT: a destination mismatch raises its own alert, independent of the amount', () => {
+    // The ⚠ of the handoff copy is the triangle icon, as on «El monto no coincide».
+    const copy = 'El destinatario no coincide con la cuenta del negocio'
+    const mismatch = mountDecision(receipt({ destinationCheck: 'mismatch' }))
+    const tag = mismatch.get('[data-testid="receipt-destination-mismatch"]')
+    expect(tag.text()).toBe(copy)
+    expect(tag.classes()).toContain('rd-tag--warn')
+    // Never color-only: an icon (hidden from screen readers) plus the words.
+    expect(tag.find('svg[aria-hidden="true"]').exists()).toBe(true)
+    expect(mismatch.find('[data-testid="receipt-mismatch"]').exists()).toBe(false)
+
+    const both = mountDecision(
+      receipt({
+        destinationCheck: 'mismatch',
+        mismatch: { debtCents: 184000, declaredDiffCents: 4000, flagged: true },
+      }),
+    )
+    expect(both.find('[data-testid="receipt-destination-mismatch"]').exists()).toBe(true)
+    expect(both.find('[data-testid="receipt-mismatch"]').exists()).toBe(true)
+
+    const amountOnly = mountDecision(
+      receipt({
+        destinationCheck: 'match',
+        mismatch: { debtCents: 184000, declaredDiffCents: 4000, flagged: true },
+      }),
+    )
+    expect(amountOnly.find('[data-testid="receipt-mismatch"]').exists()).toBe(true)
+    expect(amountOnly.find('[data-testid="receipt-destination-mismatch"]').exists()).toBe(false)
+
+    for (const destinationCheck of ['match', 'unknown', undefined, null, 'MISMATCH', 1]) {
+      const wrapper = mountDecision(receipt({ destinationCheck }))
+      expect(wrapper.find('[data-testid="receipt-destination-mismatch"]').exists()).toBe(false)
+      expect(wrapper.text()).not.toContain('destinatario')
+      expect(wrapper.text()).not.toContain('verificado')
+    }
+  })
+
+  it('TRANSFER_RECEIPT: the image reading shows the destination and payer, omitting missing parts', () => {
+    const full = mountDecision(
+      receipt({
+        extracted: {
+          amountCents: 17800,
+          destinationBank: 'BBVA MEXICO',
+          destinationName: 'Abril Vazquez',
+          destinationAccountLast4: '9616',
+          originName: 'Juan Pérez',
+        },
+      }),
+    )
+    const row = full.get('[data-testid="receipt-extracted"]')
+    expect(row.text()).toContain('$178.00')
+    expect(full.get('[data-testid="receipt-extracted-destination"]').text()).toBe(
+      'Beneficiario: Abril Vazquez · Banco destino: BBVA MEXICO · Cuenta destino: ****9616',
+    )
+    expect(full.get('[data-testid="receipt-extracted-origin"]').text()).toBe(
+      'Ordenante: Juan Pérez',
+    )
+    expect(row.text()).toContain('Lectura automática del bot')
+
+    const destinationOnly = mountDecision(
+      receipt({ extracted: { destinationAccountLast4: '9616', originName: '  ' } }),
+    )
+    expect(destinationOnly.find('[data-testid="receipt-extracted-reading"]').exists()).toBe(false)
+    expect(destinationOnly.get('[data-testid="receipt-extracted-destination"]').text()).toBe(
+      'Cuenta destino: ****9616',
+    )
+    expect(destinationOnly.find('[data-testid="receipt-extracted-origin"]').exists()).toBe(false)
+    expect(destinationOnly.text()).toContain('Lectura automática del bot')
+
+    const garbage = mountDecision(
+      receipt({
+        extracted: {
+          destinationBank: 7,
+          destinationName: '<img src=x onerror=alert(1)>'.repeat(10),
+          destinationAccountLast4: '12ab',
+          originName: ['x'],
+        },
+      }),
+    )
+    expect(garbage.find('[data-testid="receipt-extracted"]').exists()).toBe(false)
+    expect(garbage.find('img[src="x"]').exists()).toBe(false)
+  })
+
   it('shows the resolution of a closed decision: what was chosen, by whom and when', () => {
     const request = makeDetail({
       status: 'RESOLVED',

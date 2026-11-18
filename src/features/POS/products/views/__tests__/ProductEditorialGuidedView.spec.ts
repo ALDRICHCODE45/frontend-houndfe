@@ -106,6 +106,8 @@ describe('guided standalone editorial workspace', () => {
 
 describe('guided editorial view — review round 1', () => {
   it('names the product and offers a back control instead of a generic page title', async () => {
+    // The product name comes from GET /products/:id, read only with read:Product.
+    auth.permissionCodes = [read, update, 'read:Product']
     await render()
     expect(wrapper.get('h1').text()).toBe('Collar ajustable')
     expect(wrapper.text()).not.toContain('Espacio editorial')

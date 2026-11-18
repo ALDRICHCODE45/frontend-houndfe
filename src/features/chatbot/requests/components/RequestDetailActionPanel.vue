@@ -210,6 +210,7 @@ function trigger(item: ActionItem): void {
       <UButton
         v-if="rest.length > 0"
         data-testid="bar-more"
+        class="rd-bar__more"
         color="neutral"
         variant="outline"
         :icon="primaryItem ? 'i-lucide-ellipsis' : undefined"

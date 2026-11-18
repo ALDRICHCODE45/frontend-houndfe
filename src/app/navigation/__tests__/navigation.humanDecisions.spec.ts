@@ -1,5 +1,5 @@
 // Chatbot → Solicitudes points at the request inbox (read:ChatbotRequest). The old human-decisions
-// route keeps working but has no nav entry until the BE backfill (handoff 12 §5).
+// URL is only a router redirect to it (backlog-closeout T6), so it never gets a nav entry.
 
 import { describe, expect, it } from 'vitest'
 import { navigationGroups, quickActions } from '../navigation.registry'
@@ -115,7 +115,7 @@ describe('navigation registry — Chatbot / Solicitudes', () => {
     ])
   })
 
-  it('leaves no nav entry for the old human-decisions route (the route itself keeps working)', () => {
+  it('leaves no nav entry for the old human-decisions URL (it only redirects)', () => {
     const all = navigationGroups.flatMap((g) => g.children)
     expect(all.some((c) => c.id === OLD_ENTRY_ID || c.to === OLD_PATH)).toBe(false)
   })

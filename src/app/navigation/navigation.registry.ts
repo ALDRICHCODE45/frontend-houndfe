@@ -102,7 +102,7 @@ export const navigationGroups: NavGroup[] = [
     icon: 'i-lucide-bot',
     defaultOpen: true,
     children: [
-      // The request inbox. /pos/decisiones-pendientes keeps working but has no entry until the BE backfill.
+      // The request inbox. The old /pos/decisiones-pendientes URL redirects here (no entry of its own).
       {
         id: 'chatbot-requests',
         label: 'Solicitudes',

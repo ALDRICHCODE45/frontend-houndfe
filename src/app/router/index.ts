@@ -50,11 +50,6 @@ const SaleDetailView = () => import('@/features/POS/sales/views/SaleDetailView.v
 // T19: pending refunds and their devoluciones (handoff 06). Its own path, so the Ventas
 // item does not light up and `/pos/ventas/:id` never captures it.
 const PendingRefundsView = () => import('@/features/POS/refunds/views/PendingRefundsView.vue')
-// ODD human-decisions-restock-inbox: production shell plus explicitly gated offline demo.
-const HumanDecisionsView = () =>
-  import.meta.env.DEV && import.meta.env.VITE_HUMAN_DECISIONS_OFFLINE_DEMO === 'true'
-    ? import('@/features/POS/human-decisions/views/HumanDecisionsOfflineDemoRouteView.vue')
-    : import('@/features/POS/human-decisions/views/HumanDecisionsView.vue')
 // Chatbot request inbox (T2.U1): list at /chatbot/solicitudes, detail as the email deep link.
 const ChatbotRequestsView = () => import('@/features/chatbot/requests/views/ChatbotRequestsView.vue')
 const ChatbotRequestDetailView = () =>
@@ -296,17 +291,13 @@ const router = createRouter({
       component: ProfileView,
       meta: { layout: 'dashboard' },
     },
-    // ─── Pending human decisions (ODD human-decisions-restock-inbox HD3A) ────
-    // Kept without a nav entry until the BE backfill (handoff 12 §5); the redirect is an owner decision.
+    // ─── Old pending human-decisions inbox (backlog-closeout T6, S5) ─────────
+    // Owner chose to redirect it to Chatbot → Solicitudes: every new decision is also a chatbot
+    // request and resolving it there syncs the old decision. The old screen had no query semantics,
+    // so query and hash are dropped; the target keeps its own read:ChatbotRequest guard.
     {
       path: '/pos/decisiones-pendientes',
-      name: 'pos-human-decisions',
-      component: HumanDecisionsView,
-      meta: {
-        layout: 'dashboard',
-        rememberAsLanding: true,
-        permission: ['read', 'HumanDecision'] as RoutePermission,
-      },
+      redirect: () => ({ path: '/chatbot/solicitudes', query: {}, hash: '' }),
     },
     {
       path: '/pos/promociones',

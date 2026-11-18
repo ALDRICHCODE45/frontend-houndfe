@@ -16,7 +16,13 @@ import {
   zoneImpactText,
 } from '../utils/detail-format'
 import { useReceiptFile } from '../composables/useReceiptFile'
-import { extractedReading, isMismatchFlagged } from '../utils/decision-summary'
+import {
+  extractedDestination,
+  extractedOrigin,
+  extractedReading,
+  isDestinationMismatch,
+  isMismatchFlagged,
+} from '../utils/decision-summary'
 import { formatWhen, SUBTYPE_LABELS } from '../utils/requestLabels'
 
 const props = defineProps<{
@@ -70,6 +76,9 @@ const receiptFile = useReceiptFile(
 const previewUrl = receiptFile.previewUrl
 const zoomOpen = ref(false)
 const extracted = computed(() => extractedReading(receipt.value?.extracted))
+const extractedTo = computed(() => extractedDestination(receipt.value?.extracted))
+const extractedFrom = computed(() => extractedOrigin(receipt.value?.extracted))
+const hasExtracted = computed(() => !!(extracted.value || extractedTo.value || extractedFrom.value))
 const saleOpen = ref(false)
 const auth = useAuthStore()
 const canReadSale = computed(() => auth.userCan('read', 'Sale') && !!receipt.value?.saleId)
@@ -207,10 +216,27 @@ const resolution = computed(() => {
             · ref. {{ receipt.declaredReference }}</template
           >
         </dd>
-        <template v-if="extracted">
+        <template v-if="hasExtracted">
           <dt>Detectado en la imagen</dt>
           <dd data-testid="receipt-extracted">
-            {{ extracted }}
+            <span
+              v-if="extracted"
+              class="rd-extracted-line"
+              data-testid="receipt-extracted-reading"
+              >{{ extracted }}</span
+            >
+            <span
+              v-if="extractedTo"
+              class="rd-extracted-line"
+              data-testid="receipt-extracted-destination"
+              >{{ extractedTo }}</span
+            >
+            <span
+              v-if="extractedFrom"
+              class="rd-extracted-line"
+              data-testid="receipt-extracted-origin"
+              >{{ extractedFrom }}</span
+            >
             <span class="rd-sub rd-auto-note">
               <UIcon name="i-lucide-scan-text" aria-hidden="true" />
               Lectura automática del bot
@@ -225,6 +251,14 @@ const resolution = computed(() => {
       >
         <UIcon name="i-lucide-triangle-alert" aria-hidden="true" />
         El monto no coincide
+      </p>
+      <p
+        v-if="isDestinationMismatch(receipt.destinationCheck)"
+        class="rd-tag rd-tag--warn"
+        data-testid="receipt-destination-mismatch"
+      >
+        <UIcon name="i-lucide-triangle-alert" aria-hidden="true" />
+        El destinatario no coincide con la cuenta del negocio
       </p>
       <div class="rd-file" data-testid="receipt-preview">
         <button

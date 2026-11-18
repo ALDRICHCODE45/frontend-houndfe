@@ -57,7 +57,7 @@ const sentHeaders = (call: number) => http.post.mock.calls[call]![2].headers as 
 
 beforeEach(() => {
   vi.resetAllMocks()
-  Object.assign(auth, { isSuperAdmin: false, permissionCodes: [read, update, publish] })
+  Object.assign(auth, { isSuperAdmin: false, currentTenant: { id: 't1' }, permissionCodes: [read, update, publish] })
   current = { snapshot: state(), readiness: ready(), revision: R, care: false }
   serve()
 })
@@ -233,5 +233,41 @@ describe('publish', () => {
     expect(await flow.publish()).toBe(false)
     expect(http.post).toHaveBeenCalledTimes(2)
     expect(flow.message.value).toBe('El catálogo de datos cambió mientras publicabas. Recarga la página e inténtalo de nuevo.')
+  })
+})
+
+/** Every URL, header name and param key the flow sent: none may name a tenant (S66: the token carries it). */
+function tenantTraces(): string[] {
+  return [...http.get.mock.calls, ...http.post.mock.calls, ...http.put.mock.calls].flatMap(([url, ...rest]) => [
+    String(url),
+    ...rest.flatMap(arg => {
+      const config = arg as { headers?: Record<string, unknown>; params?: Record<string, unknown> } | undefined
+      return [...Object.keys(config?.headers ?? {}), ...Object.keys(config?.params ?? {})]
+    }),
+  ]).filter(trace => /tenant/i.test(trace))
+}
+
+describe('admission (T12: Super Admin global and with tenant, manage:all, specific grants)', () => {
+  it.each([
+    ['Super Admin in global mode', { isSuperAdmin: true, currentTenant: null, permissionCodes: [] }],
+    ['Super Admin with a tenant', { isSuperAdmin: true, currentTenant: { id: 't1' }, permissionCodes: [] }],
+    ['manage:all of the tenant', { isSuperAdmin: false, currentTenant: { id: 't1' }, permissionCodes: ['manage:all'] }],
+    ['read + publish grants', { isSuperAdmin: false, currentTenant: { id: 't1' }, permissionCodes: [read, publish] }],
+  ])('%s reads readiness and publishes, never sending a tenant', async (_actor, actor) => {
+    Object.assign(auth, actor)
+    http.post.mockResolvedValue(publishedResponse())
+    const { flow } = await setup()
+    expect(readinessCalls()).toHaveLength(1)
+    expect(flow.visible.value).toBe(true)
+    expect(flow.canPublish.value).toBe(true)
+    expect(await flow.publish()).toBe(true)
+    expect(http.post.mock.calls[0]![0]).toBe('/products/p1/editorial/draft/publish')
+    expect(tenantTraces()).toEqual([])
+  })
+  it('manage:all without a tenant is not global: nothing is read and Publicar is hidden', async () => {
+    Object.assign(auth, { isSuperAdmin: false, currentTenant: null, permissionCodes: ['manage:all'] })
+    const { flow } = await setup()
+    expect(http.get).not.toHaveBeenCalled()
+    expect(flow.visible.value).toBe(false)
   })
 })
