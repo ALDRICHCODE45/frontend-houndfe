@@ -4,35 +4,13 @@
  * `supersedesDecisionId`, `applyBefore`, provider evidence) are intentionally absent.
  */
 
-import type { PaginatedResponse } from '@/core/shared/types/table.types'
 import type { ExpirationDecision } from './expiration-decision.types'
 
 export type HumanDecisionType = 'RESTOCK' | 'EXPIRATION'
 
-type HumanDecisionStatus = 'PENDING' | 'RESOLVED'
-
 type HumanDecisionActionCode =
   | 'PROVIDE_RESTOCK_ESTIMATE'
   | 'REPORT_RESTOCK_ESTIMATE_UNAVAILABLE'
-
-export type HumanDecisionErrorCode =
-  | 'VALIDATION_ERROR'
-  | 'UNAUTHORIZED'
-  | 'FORBIDDEN'
-  | 'NOT_FOUND'
-  | 'IDEMPOTENCY_CONFLICT'
-  | 'VERSION_CONFLICT'
-  | 'ALREADY_RESOLVED'
-  | 'CONFLICT'
-  | 'RATE_LIMITED'
-  | 'REQUEST_ERROR'
-  | 'INTERNAL_ERROR'
-
-export interface HumanDecisionErrorResponse {
-  statusCode: number
-  code: HumanDecisionErrorCode
-  message: string
-}
 
 type HumanDecisionStockObservation =
   | { observedStockAtRequest: number; stockObservedAt: string }
@@ -104,39 +82,3 @@ export interface ResolvedHumanDecision extends HumanDecisionBase {
 }
 
 export type HumanDecision = PendingHumanDecision | ResolvedHumanDecision | ExpirationDecision
-
-/** Resolve payloads ship in HD4; `restockDays` is an integer 1..365. */
-interface ResolveProvideRestockEstimatePayload {
-  action: 'PROVIDE_RESTOCK_ESTIMATE'
-  restockDays: number
-  expectedVersion: number
-  resolutionRequestId: string
-}
-
-interface ResolveReportRestockEstimateUnavailablePayload {
-  action: 'REPORT_RESTOCK_ESTIMATE_UNAVAILABLE'
-  expectedVersion: number
-  resolutionRequestId: string
-}
-
-export type HumanDecisionResolvePayload =
-  | ResolveProvideRestockEstimatePayload
-  | ResolveReportRestockEstimateUnavailablePayload
-
-export type HumanDecisionPageSize = 20 | 50
-
-export type HumanDecisionListFilter = 'ALL' | HumanDecisionStatus
-
-/** ALL has a server-owned composite order and must omit both sort fields. */
-export type HumanDecisionListParams = {
-  page: number
-  limit: HumanDecisionPageSize
-  search?: string
-} & (
-  | { status: 'ALL'; sortBy?: never; sortOrder?: never }
-  | { status: 'PENDING'; sortBy: 'createdAt'; sortOrder: 'asc' }
-  | { status: 'RESOLVED'; sortBy: 'resolvedAt'; sortOrder: 'desc' }
-)
-
-/** Response pagination is zero-based; rows and order belong to the server. */
-export type HumanDecisionListResponse = PaginatedResponse<HumanDecision>
