@@ -1595,3 +1595,13 @@ body.hf-app {
 .hf-ui :is(.hf-skeleton, .animate-pulse.bg-elevated) {
   background-color: color-mix(in srgb, var(--hf-ink) 16%, var(--hf-surface));
 }
+
+/* Placeholders read in --hf-muted (≥ 4.5:1 light and dark) on every screen, not only where
+ * hf-form.css is loaded: text fields, select placeholders and the empty dd / mm / aaaa date
+ * segments (the Nuxt default measured 3.12:1 in light). A placeholder is still not a label. */
+.hf-ui :is(input, textarea)::placeholder,
+.hf-ui [data-slot='placeholder'],
+.hf-ui [data-slot='segment'][data-placeholder] {
+  color: var(--hf-muted);
+  opacity: 1;
+}
