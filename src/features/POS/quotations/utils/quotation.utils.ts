@@ -50,6 +50,19 @@ export function isCancellable(status: QuotationStatus): boolean {
   return status === 'DRAFT'
 }
 
+/** Handoff 23 §3: the quotation became a POS sale draft. Terminal and read-only (S5). */
+export function isConvertedToSale(status: QuotationStatus): boolean {
+  return status === 'CONVERTED_TO_SALE'
+}
+
+/**
+ * Delete predicate (backend §3.19): only DRAFT and CANCELLED; SENT, EXPIRED and
+ * CONVERTED_TO_SALE are permanent records (`422 QUOTATION_CANNOT_DELETE`).
+ */
+export function isDeletable(status: QuotationStatus): boolean {
+  return status === 'DRAFT' || status === 'CANCELLED'
+}
+
 /**
  * T-UI-08 — REQ-UI-003 status→step index mapping for the 3-state progress
  * stepper (BORRADOR → ENVIADA → EXPIRADA/CANCELADA).

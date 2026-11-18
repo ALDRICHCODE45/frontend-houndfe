@@ -148,4 +148,19 @@ describe('parseSaleDetail', () => {
   it('rejects an unknown cancel reason', () => {
     expect(() => parseSaleDetail({ ...canceled, cancelReason: 'BECAUSE' })).toThrow()
   })
+
+  // Handoff 23 §3: `quotationId` only when the sale came from a quotation; the key is absent otherwise.
+  it('reads quotationId when the sale came from a quotation', () => {
+    expect(parseSaleDetail({ ...base, quotationId: 'q-1' }).quotationId).toBe('q-1')
+  })
+
+  it('keeps quotationId absent on a sale that did not come from a quotation', () => {
+    const sale = parseSaleDetail(base)
+    expect(sale.quotationId).toBeUndefined()
+    expect('quotationId' in sale).toBe(false)
+  })
+
+  it('rejects a non-string quotationId', () => {
+    expect(() => parseSaleDetail({ ...base, quotationId: 42 })).toThrow()
+  })
 })

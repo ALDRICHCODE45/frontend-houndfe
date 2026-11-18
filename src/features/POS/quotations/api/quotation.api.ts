@@ -22,7 +22,19 @@
 
 import { http } from '@/core/shared/api/http'
 import type { AxiosError } from 'axios'
-import type { CancelReason, PaginatedQuotations, QuotationListParams, QuotationResponseDto } from '../interfaces/quotation.types'
+import type {
+  CancelReason,
+  ConvertQuotationToSaleResponse,
+  CreateQuotationFromSalePayload,
+  CreateQuotationFromSaleResponse,
+  PaginatedQuotations,
+  QuotationListParams,
+  QuotationResponseDto,
+} from '../interfaces/quotation.types'
+import {
+  parseConvertQuotationToSaleResponse,
+  parseCreateQuotationFromSaleResponse,
+} from '../interfaces/quotation-conversion.schema'
 
 // ─── PDF error surface ────────────────────────────────────────────────────────
 
@@ -366,5 +378,37 @@ export const quotationApi = {
    *  deleted (409 QUOTATION_CANNOT_DELETE). */
   async deleteQuotation(id: string): Promise<void> {
     await http.delete(`/quotations/${id}`)
+  },
+
+  // ─── 3.20 conversion (backend handoff 23) ─────────────────────────────────
+  // Both routes need an `Idempotency-Key` owned by the caller: one key per press, reused only to
+  // retry the same request (same saleId/quotationId and notes). Rejections are thrown unchanged;
+  // decode them with `decodeQuotationConversionError` (utils/quotation-conversion.errors).
+
+  /** POST /quotations/from-sale/:saleId — POS DRAFT sale → new DRAFT quotation; the sale draft is
+   *  deleted in the same transaction. `customerNotes` is trimmed and a blank one is sent as null
+   *  (≤ 280 chars is validated by the backend: 400 → `VALIDATION`). */
+  async createFromSale(
+    saleId: string,
+    payload: CreateQuotationFromSalePayload,
+    idempotencyKey: string,
+  ): Promise<CreateQuotationFromSaleResponse> {
+    const body: CreateQuotationFromSalePayload = {}
+    if (payload.customerNotes !== undefined) {
+      body.customerNotes = payload.customerNotes?.trim() || null
+    }
+    const { data } = await http.post<unknown>(`/quotations/from-sale/${saleId}`, body, {
+      headers: { 'Idempotency-Key': idempotencyKey },
+    })
+    return parseCreateQuotationFromSaleResponse(data)
+  },
+
+  /** POST /quotations/:id/convert-to-sale — DRAFT/SENT, not expired quotation → POS sale draft at
+   *  the quoted prices; the quotation becomes CONVERTED_TO_SALE with `saleId`. No body. */
+  async convertToSale(id: string, idempotencyKey: string): Promise<ConvertQuotationToSaleResponse> {
+    const { data } = await http.post<unknown>(`/quotations/${id}/convert-to-sale`, null, {
+      headers: { 'Idempotency-Key': idempotencyKey },
+    })
+    return parseConvertQuotationToSaleResponse(data)
   },
 }

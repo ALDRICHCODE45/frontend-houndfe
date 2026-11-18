@@ -9,6 +9,7 @@ import type {
   CANCEL_REASONS,
   QUOTATION_STATUS,
 } from '../constants/quotation.constants'
+import type { Sale } from '@/features/POS/sales/interfaces/sale.types'
 
 export type QuotationStatus = (typeof QUOTATION_STATUS)[keyof typeof QUOTATION_STATUS]
 export type CancelReason = (typeof CANCEL_REASONS)[keyof typeof CANCEL_REASONS]
@@ -127,7 +128,8 @@ export interface QuotationResponseDto {
   appliedPromotions: AppliedPromotion[]
   vetoedPromotionIds: string[]
   optedInManualPromotionIds: string[]
-  /** Status with lazy EXPIRED applied server-side (DRAFT | SENT | EXPIRED | CANCELLED). */
+  /** Status with lazy EXPIRED applied server-side (DRAFT | SENT | EXPIRED | CANCELLED |
+   *  CONVERTED_TO_SALE — the lazy expiry never turns a converted quotation into EXPIRED). */
   effectiveStatus: QuotationStatus
   /** Raw UUID of the assigned seller. May be `''` in older payloads where
    *  no seller was assigned (the backend keeps it as a string to match the
@@ -135,6 +137,14 @@ export interface QuotationResponseDto {
   sellerUserId: string
   /** Resolved seller reference. `null` when `sellerUserId` is empty. */
   seller: QuotationSellerDto | null
+  /**
+   * Handoff 23 §3: the POS sale draft this quotation became. `null` when not converted, or when
+   * that draft was later deleted (status stays CONVERTED_TO_SALE and it can be converted again).
+   * Optional only so payloads/fixtures from before the field existed still type-check.
+   */
+  saleId?: string | null
+  /** Handoff 23 §3: ISO timestamp of the conversion; `null` when never converted. */
+  convertedAt?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -188,3 +198,98 @@ export interface PaginatedQuotations {
   data: QuotationResponseDto[]
   pagination: PaginatedQuotationsPagination
 }
+
+// ─── Quotation ↔ sale conversion (backend handoff 23) ────────────────────────
+
+/** What a quotation cannot carry over from the sale draft. `UNKNOWN` = a kind this FE does not know yet. */
+export type DroppedAdjustmentKind = 'ORDER_PROMOTION' | 'LINE_PROMOTION' | 'REWARD_PROMOTION' | 'UNKNOWN'
+
+/** One discount the customer no longer gets on the quotation; `discountCents` is what they stop saving. */
+export interface DroppedAdjustment {
+  kind: DroppedAdjustmentKind
+  saleItemId: string | null
+  productId: string | null
+  variantId: string | null
+  promotionId: string | null
+  title: string
+  discountCents: number
+}
+
+/** Body of POST /quotations/from-sale/:saleId. `customerNotes` ≤ 280 chars (backend 400 otherwise). */
+export interface CreateQuotationFromSalePayload {
+  customerNotes?: string | null
+}
+
+/** 201 of POST /quotations/from-sale/:saleId: the sale draft `discardedSaleId` no longer exists. */
+export interface CreateQuotationFromSaleResponse {
+  quotation: QuotationResponseDto
+  discardedSaleId: string
+  droppedAdjustments: DroppedAdjustment[]
+}
+
+/** 201 of POST /quotations/:id/convert-to-sale: open the POS with `sale.id`. */
+export interface ConvertQuotationToSaleResponse {
+  quotation: QuotationResponseDto
+  /** POS draft (same shape as GET /sales/drafts) with `quotationId` set. */
+  sale: Sale
+}
+
+/** Why a line cannot become a sale line. `UNKNOWN` = a reason this FE does not know yet. */
+export type UnavailableLineReason =
+  | 'PRODUCT_NOT_FOUND'
+  | 'VARIANT_NOT_FOUND'
+  | 'PRODUCT_NOT_SELLABLE'
+  | 'INSUFFICIENT_STOCK'
+  | 'UNKNOWN'
+
+/** Entry of `lines[]` on QUOTATION_LINES_UNAVAILABLE / SALE_LINES_UNAVAILABLE. */
+export interface UnavailableLine {
+  lineId: string
+  productId: string | null
+  variantId: string | null
+  productName: string
+  variantName: string | null
+  reason: UnavailableLineReason
+  requestedQuantity: number
+  /** Sellable stock for INSUFFICIENT_STOCK; `null` for the other reasons. */
+  availableQuantity: number | null
+}
+
+/** Decoded rejection of either conversion route (`decodeQuotationConversionError`). */
+export type QuotationConversionFailure =
+  // quotation → sale
+  | { code: 'QUOTATION_EXPIRED' }
+  | { code: 'QUOTATION_CANCELLED' }
+  | { code: 'QUOTATION_ALREADY_CONVERTED'; saleId: string | null }
+  | { code: 'QUOTATION_HAS_NO_ITEMS' }
+  | { code: 'QUOTATION_LINES_UNAVAILABLE'; lines: UnavailableLine[] }
+  /** 404: quotation not in this sucursal. */
+  | { code: 'ENTITY_NOT_FOUND' }
+  // sale → quotation
+  /** 403: the draft was opened by another cashier. */
+  | { code: 'SALE_UPDATE_FORBIDDEN' }
+  | { code: 'SALE_NOT_FOUND' }
+  | { code: 'SALE_NOT_DRAFT' }
+  | { code: 'SALE_HAS_NO_ITEMS' }
+  | { code: 'SALE_HAS_PAYMENTS' }
+  | { code: 'SALE_HAS_STOCK_MOVEMENTS' }
+  | { code: 'SALE_NOT_DISCARDABLE' }
+  | { code: 'SALE_LINES_UNAVAILABLE'; lines: UnavailableLine[] }
+  // common
+  /** 400: missing header — a client bug. */
+  | { code: 'IDEMPOTENCY_KEY_REQUIRED' }
+  /** 409: same key, different request — use a new key. */
+  | { code: 'IDEMPOTENCY_KEY_CONFLICT' }
+  /** 409: same key still running — wait and retry with the same key. */
+  | { code: 'IDEMPOTENCY_KEY_IN_FLIGHT' }
+  /** 400 class-validator (e.g. customerNotes > 280, bad UUID). */
+  | { code: 'VALIDATION' }
+  /** 403 without a domain code: missing one of the two required permissions. */
+  | { code: 'FORBIDDEN' }
+  /** No response (offline, timeout): the outcome is unknown; retry with the same key. */
+  | { code: 'NETWORK' }
+  /** 2xx whose body broke the contract (ZodError): the conversion happened; reload. */
+  | { code: 'RESPONSE_INVALID' }
+  | { code: 'UNKNOWN'; status: number | null; error: string | null }
+
+export type QuotationConversionFailureCode = QuotationConversionFailure['code']

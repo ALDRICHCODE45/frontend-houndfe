@@ -291,6 +291,8 @@ export interface SaleDetail {
   // odd sale-address-change-notice: sale-time snapshot with its source status. `parseSaleDetail`
   // fills null when absent; optional so older fixtures type-check.
   shippingAddress?: SaleShippingAddressSnapshot | null
+  /** Handoff 23 §3: the quotation this sale came from; absent when it did not come from one. */
+  quotationId?: string
 }
 
 /** One refund obligation of a cancelled sale: the pending-list row without `saleId`. */
@@ -608,6 +610,8 @@ export interface Sale {
   // promotions-in-sale: applied ORDER_DISCOUNT snapshot. Null when no order
   // promo applies; undefined on pre-deploy drafts.
   appliedOrderPromotion?: AppliedOrderPromotion | null
+  /** Handoff 23 §3: the quotation this draft came from; absent when it did not come from one. */
+  quotationId?: string
 }
 
 // promotions-in-sale: ORDER_DISCOUNT snapshot embedded in the Sale response.

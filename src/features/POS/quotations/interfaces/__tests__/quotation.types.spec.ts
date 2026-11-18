@@ -71,8 +71,12 @@ describe('QuotationListParams — REQ-QAF-006 widening', () => {
     expect(params.maxTotalCents).toBe(50000)
   })
 
-  it('keeps the union type of status narrow to the four backend values', () => {
-    expectTypeOf<QuotationStatus>().toEqualTypeOf<'DRAFT' | 'SENT' | 'EXPIRED' | 'CANCELLED'>()
+  it('keeps the union type of status narrow to the five backend values (handoff 23)', () => {
+    expectTypeOf<QuotationStatus>().toEqualTypeOf<
+      'DRAFT' | 'SENT' | 'EXPIRED' | 'CANCELLED' | 'CONVERTED_TO_SALE'
+    >()
+    const filter: QuotationListParams = { status: ['CONVERTED_TO_SALE'] }
+    expect(filter.status).toEqual(['CONVERTED_TO_SALE'])
   })
 
   it('all five fields stay optional (no required after widening)', () => {

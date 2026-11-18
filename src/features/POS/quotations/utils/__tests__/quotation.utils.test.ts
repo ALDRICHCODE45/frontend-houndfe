@@ -7,6 +7,8 @@ import {
   isCancellable,
   stepperIndexFromStatus,
   computeIva16,
+  isConvertedToSale,
+  isDeletable,
 } from '../quotation.utils'
 import type { QuotationResponseDto } from '../../interfaces/quotation.types'
 
@@ -101,6 +103,35 @@ describe('quotation.utils', () => {
       expect(isCancellable('SENT')).toBe(false)
       expect(isCancellable('EXPIRED')).toBe(false)
       expect(isCancellable('CANCELLED')).toBe(false)
+    })
+  })
+
+  // Handoff 23 §3 / spec S5: CONVERTED_TO_SALE is terminal — not editable, sendable, cancellable
+  // or deletable; only DRAFT and CANCELLED can be deleted.
+  describe('CONVERTED_TO_SALE', () => {
+    it('reads «Convertida en venta» with a non-warning tone', () => {
+      expect(statusToLabel('CONVERTED_TO_SALE')).toBe('Convertida en venta')
+      expect(statusToTone('CONVERTED_TO_SALE')).toBe('success')
+    })
+
+    it('is not a draft (no edit, no send) and not cancellable', () => {
+      expect(isDraft('CONVERTED_TO_SALE')).toBe(false)
+      expect(isCancellable('CONVERTED_TO_SALE')).toBe(false)
+    })
+
+    it('isConvertedToSale is true only for CONVERTED_TO_SALE', () => {
+      expect(isConvertedToSale('CONVERTED_TO_SALE')).toBe(true)
+      for (const status of ['DRAFT', 'SENT', 'EXPIRED', 'CANCELLED'] as const) {
+        expect(isConvertedToSale(status)).toBe(false)
+      }
+    })
+
+    it('isDeletable is true only for DRAFT and CANCELLED', () => {
+      expect(isDeletable('DRAFT')).toBe(true)
+      expect(isDeletable('CANCELLED')).toBe(true)
+      for (const status of ['SENT', 'EXPIRED', 'CONVERTED_TO_SALE'] as const) {
+        expect(isDeletable(status)).toBe(false)
+      }
     })
   })
 
