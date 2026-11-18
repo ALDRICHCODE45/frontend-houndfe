@@ -21,17 +21,33 @@ export function publishesEditorial(actor: ActorGrants): boolean {
 }
 
 /**
- * The save-bar status once a save is acknowledged and nothing is pending. Publishers get the
- * publish bar (EditorialPublishBar: readiness wording, never «Guardado»); everyone else keeps
- * HfSaveBar's «Guardado …».
+ * The settled save-bar status once a save is acknowledged and nothing is pending.
+ * EditorialWorkspace.vue `bar` (publish when publication.visible && draft && clean && not saving)
+ * swaps HfSaveBar for EditorialPublishBar for publishers; EditorialPublishBar `text` then reads
+ * «Revisando qué falta para publicar…» while readiness loads (transient, not accepted here) and
+ * settles on «Listo para publicar» or «Completa lo pendiente para publicar». An error message or
+ * «No pudimos revisar qué falta para publicar.» never matches. Everyone else keeps HfSaveBar's
+ * «Guardado …».
  */
+export const PUBLISH_BAR_SETTLED = /^\s*(Listo para publicar|Completa lo pendiente para publicar)\s*$/
 export function savedStatusPattern(actor: ActorGrants): RegExp {
-  return publishesEditorial(actor)
-    ? /^\s*(Revisando qué falta para publicar…|Listo para publicar|Completa lo pendiente para publicar)\s*$/
-    : /Guardado/
+  return publishesEditorial(actor) ? PUBLISH_BAR_SETTLED : /Guardado/
+}
+
+export interface ExchangeLike { readonly method: string; readonly path: string; readonly status: number | null }
+
+/** Statuses (null = no response yet) of every `method path` exchange, in order. */
+export function statusesOf(exchanges: readonly ExchangeLike[], method: string, path: string): (number | null)[] {
+  return exchanges.filter(exchange => exchange.method === method && exchange.path === path).map(exchange => exchange.status)
+}
+
+/** The redacted HTTP log of one step: the exchanges recorded from index `from` on. */
+export function stepLog(exchanges: readonly ExchangeLike[], from: number): string {
+  const lines = exchanges.slice(from).map(exchangeLine)
+  return lines.length ? lines.join('; ') : 'no backend request'
 }
 
 /** Redacted exchange log line: method, backend-relative path (query already dropped), status. */
-export function exchangeLine(exchange: { readonly method: string; readonly path: string; readonly status: number | null }): string {
+export function exchangeLine(exchange: ExchangeLike): string {
   return `${exchange.method} ${exchange.path} -> ${exchange.status ?? 'pending'}`
 }

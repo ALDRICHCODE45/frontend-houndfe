@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { exchangeLine, publishesEditorial, readsProductName, savedStatusPattern } from '../support/actor-expectations'
+import { exchangeLine, publishesEditorial, readsProductName, savedStatusPattern, statusesOf, stepLog } from '../support/actor-expectations'
 
 const READ = 'read:ProductEditorialDraft'
 const UPDATE = 'update:ProductEditorialDraft'
@@ -28,8 +28,12 @@ describe('publishesEditorial / savedStatusPattern', () => {
     expect(publishesEditorial({ isSuperAdmin: false, permissionCodes: [PUBLISH] })).toBe(false)
   })
 
-  it.each(['Revisando qué falta para publicar…', 'Listo para publicar', ' Completa lo pendiente para publicar '])('publishers accept the publish-bar wording «%s»', text => {
+  it.each(['Listo para publicar', ' Completa lo pendiente para publicar '])('publishers accept the settled publish-bar wording «%s»', text => {
     expect(savedStatusPattern(ACTORS.manageAll).test(text)).toBe(true)
+  })
+
+  it('publishers do not accept the transient readiness wording as settled', () => {
+    expect(savedStatusPattern(ACTORS.manageAll).test('Revisando qué falta para publicar…')).toBe(false)
   })
 
   it('publishers never accept an error or «Guardado» as the post-save state', () => {
@@ -47,5 +51,22 @@ describe('exchangeLine', () => {
   it('prints method, path and status, or pending', () => {
     expect(exchangeLine({ method: 'PUT', path: '/products/p/editorial/draft', status: 409 })).toBe('PUT /products/p/editorial/draft -> 409')
     expect(exchangeLine({ method: 'GET', path: '/x', status: null })).toBe('GET /x -> pending')
+  })
+})
+
+describe('statusesOf / stepLog', () => {
+  const log = [
+    { method: 'GET', path: '/products/p/editorial', status: 200 },
+    { method: 'PUT', path: '/products/p/editorial/draft', status: 200 },
+    { method: 'GET', path: '/products/p/editorial/draft/readiness', status: null },
+    { method: 'PUT', path: '/products/p/editorial/draft', status: 409 },
+  ]
+  it('collects the statuses of one method and path in order', () => {
+    expect(statusesOf(log, 'PUT', '/products/p/editorial/draft')).toEqual([200, 409])
+    expect(statusesOf(log, 'POST', '/products/p/editorial/draft')).toEqual([])
+  })
+  it('prints the exchanges of a step from its start index', () => {
+    expect(stepLog(log, 2)).toBe('GET /products/p/editorial/draft/readiness -> pending; PUT /products/p/editorial/draft -> 409')
+    expect(stepLog(log, 4)).toBe('no backend request')
   })
 })

@@ -1,0 +1,199 @@
+{
+  "schemaVersion": 1,
+  "runId": "run-20261118-2",
+  "resourceId": "deaad4a9-e4b1-47b9-876f-4c9bd305a815",
+  "records": [
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-global:preflight",
+      "kind": "ui",
+      "verdict": "pass",
+      "summary": "pinned resource, unexpired token, global mode (no tenant)"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-global:open",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /products/:id -> 200; GET /products/:id/editorial -> 200; route kept"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-global:open:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /products/5a0afb23-1854-42a0-8859-77011058d686 -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> pending"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-global:initialize",
+      "kind": "ui",
+      "verdict": "pass",
+      "summary": "draft already present (disposable product); initialize not needed"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-global:initialize:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "no backend request"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-global:save",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "PUT /products/:id/editorial/draft -> 200 (response + audit); bar: ^\\s*(Listo para publicar|Completa lo pendiente para publicar)\\s*$; value kept after re-read"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-global:save:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "PUT /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft -> 200; GET /catalog-editorial/vocabulary -> pending"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-global:discard",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "POST /products/:id/editorial/draft/discard -> 200; UI back to «initialize»"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-global:discard:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; POST /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/discard -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> pending"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-global:network",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "15 backend requests; no tenant header/param/body key; no publish; no third-party origin"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-global:all:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /products/5a0afb23-1854-42a0-8859-77011058d686 -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; PUT /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; POST /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/discard -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> pending"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-tenant:preflight",
+      "kind": "ui",
+      "verdict": "pass",
+      "summary": "pinned resource, unexpired token, product tenant"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-tenant:open",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /products/:id -> 200; GET /products/:id/editorial -> 200; route kept"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-tenant:open:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /sales/refunds/pending -> 404; GET /delivery-zone-validations -> 404; GET /notifications/unread-count -> 404; GET /products/5a0afb23-1854-42a0-8859-77011058d686 -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-tenant:initialize",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "POST /products/:id/editorial/draft/initialize -> 201"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-tenant:initialize:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "POST /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/initialize -> 201; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> pending"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-tenant:save",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "PUT /products/:id/editorial/draft -> 200 (response + audit); bar: ^\\s*(Listo para publicar|Completa lo pendiente para publicar)\\s*$; value kept after re-read"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-tenant:save:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "PUT /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft -> 200; GET /catalog-editorial/vocabulary -> pending"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-tenant:discard",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "POST /products/:id/editorial/draft/discard -> 200; UI back to «initialize»"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-tenant:discard:http",
+      "kind": "http",
+      "verdict": "pass",
+      "summary": "GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; POST /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/discard -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> pending"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-tenant:network",
+      "kind": "http",
+      "verdict": "fail",
+      "summary": "step \"superadmin-tenant:network\" failed; the underlying error was suppressed so no credential can leak"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-tenant:network:http",
+      "kind": "http",
+      "verdict": "fail",
+      "summary": "no backend request"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-tenant:all:http",
+      "kind": "http",
+      "verdict": "fail",
+      "summary": "GET /sales/refunds/pending -> 404; GET /delivery-zone-validations -> 404; GET /notifications/unread-count -> 404; GET /products/5a0afb23-1854-42a0-8859-77011058d686 -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; POST /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/initialize -> 201; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; PUT /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> 200; POST /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/discard -> 200; GET /catalog-editorial/vocabulary -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/context -> 200; GET /products/5a0afb23-1854-42a0-8859-77011058d686/editorial/draft/readiness -> pending"
+    },
+    {
+      "schemaVersion": 1,
+      "runId": "run-20261118-2",
+      "step": "superadmin-tenant:guard",
+      "kind": "http",
+      "verdict": "fail",
+      "summary": "third-party origin violations: 0; tenant traces: 0"
+    }
+  ]
+}

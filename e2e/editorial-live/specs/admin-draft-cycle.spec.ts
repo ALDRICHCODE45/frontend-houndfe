@@ -27,7 +27,7 @@ import {
   type ValidatedEditorialLiveFixture,
 } from '../support/fixture'
 import { openLiveEditorialContext, type LiveEditorialContext } from '../support/live-context'
-import { exchangeLine, GENERIC_PRODUCT_TITLE, readsProductName, savedStatusPattern } from '../support/actor-expectations'
+import { exchangeLine, GENERIC_PRODUCT_TITLE, readsProductName, savedStatusPattern, statusesOf, stepLog } from '../support/actor-expectations'
 import { ownershipPinMismatches } from '../support/ownership-pin'
 
 const UI_TIMEOUT = 30_000
@@ -87,6 +87,13 @@ test.describe.serial('editorial-live admin draft cycle (no publish)', () => {
       let live: LiveEditorialContext | undefined
       let step: { name: string; kind: EvidenceKind } = { name: `${role}:preflight`, kind: 'ui' }
       const record = (name: string, kind: EvidenceKind, summary: string) => collector.collect(`${role}:${name}`, kind, 'pass', summary)
+      // Per-step redacted HTTP log (METHOD /path -> status) for every actor, pass or fail.
+      let stepStart = 0
+      const begin = (name: string) => {
+        step = { name: `${role}:${name}`, kind: 'http' }
+        stepStart = live?.audit.exchanges().length ?? 0
+      }
+      const recordHttp = (name: string) => collector.collect(`${role}:${name}:http`, 'http', 'pass', stepLog(live?.audit.exchanges() ?? [], stepStart))
       try {
         preflight()
         const actor = actorOf(role)
@@ -97,7 +104,7 @@ test.describe.serial('editorial-live admin draft cycle (no publish)', () => {
 
         // 1. Open the editorial route: the guard admits the actor; the title lookup runs (200) only
         // for actors with read:Product, else the FE never asks and titles «Producto».
-        step = { name: `${role}:open`, kind: 'http' }
+        begin('open')
         const readsName = readsProductName(actor)
         const productPath = `${env.backendBaseUrl}/products/${encodeURIComponent(fixture.product.id)}`
         const productRead = readsName ? waitForBackend(page, 'GET', productPath) : null
@@ -109,9 +116,11 @@ test.describe.serial('editorial-live admin draft cycle (no publish)', () => {
         await expect(page.locator('#guided-editorial-title')).toHaveText(readsName ? fixture.product.name : GENERIC_PRODUCT_TITLE, { timeout: UI_TIMEOUT })
         await expect(page.locator('button.guided-back')).toHaveAttribute('aria-label', global ? 'Volver a sucursales' : 'Volver al producto')
         record('open', 'http', `${readsName ? 'GET /products/:id -> 200' : 'no GET /products/:id (no read:Product), title «Producto»'}; GET /products/:id/editorial -> 200; route kept`)
+        recordHttp('open')
 
-        // 2. Initialize when there is no draft yet.
-        step = { name: `${role}:initialize`, kind: 'http' }
+        // 2. Initialize only when there is no draft yet; an existing draft (e.g. left by run 1) skips
+        // straight to save and discard.
+        begin('initialize')
         const initialize = page.getByTestId('initialize')
         const title = page.locator('#editorial-title')
         await expect(initialize.or(title)).toBeVisible({ timeout: UI_TIMEOUT })
@@ -123,9 +132,11 @@ test.describe.serial('editorial-live admin draft cycle (no publish)', () => {
           record('initialize', 'ui', 'draft already present (disposable product); initialize not needed')
         }
         await expect(title).toBeEditable({ timeout: UI_TIMEOUT })
+        recordHttp('initialize')
 
-        // 3. Edit one field and save it; the follow-up GET shows the saved value.
-        step = { name: `${role}:save`, kind: 'http' }
+        // 3. Edit one field and save it. Persistence is proven by the PUT 200 (response and audit),
+        // independently of the bar copy; the bar is then checked per actor.
+        begin('save')
         const value = `Editorial live ${role} ${Date.now()}`
         await title.fill(value)
         const saveBar = page.getByTestId('editorial-save-bar')
@@ -134,13 +145,16 @@ test.describe.serial('editorial-live admin draft cycle (no publish)', () => {
           saveBar.getByRole('button', { name: 'Guardar', exact: true }).click(),
         ])
         expect(saved.status()).toBe(200)
+        const draftPath = `/products/${encodeURIComponent(fixture.product.id)}/editorial/draft`
+        await expect.poll(() => statusesOf(live!.audit.exchanges().slice(stepStart), 'PUT', draftPath), { timeout: UI_TIMEOUT }).toEqual([200])
         // Publishers (Super Admin, manage:all) get the publish bar once all is saved, not «Guardado».
         await expect(saveBar.locator('.hf-save-bar__status')).toHaveText(savedStatusPattern(actor), { timeout: UI_TIMEOUT })
         await expect(title).toHaveValue(value)
-        record('save', 'http', 'PUT /products/:id/editorial/draft -> 200; save bar settled, value kept after re-read')
+        record('save', 'http', `PUT /products/:id/editorial/draft -> 200 (response + audit); bar: ${savedStatusPattern(actor).source}; value kept after re-read`)
+        recordHttp('save')
 
         // 4. Discard behind its confirmation; the empty draft offers «initialize» again.
-        step = { name: `${role}:discard`, kind: 'http' }
+        begin('discard')
         await page.getByTestId('discard-draft').click()
         const dialog = page.getByRole('dialog')
         await expect(dialog).toContainText('¿Descartar el borrador?')
@@ -152,9 +166,10 @@ test.describe.serial('editorial-live admin draft cycle (no publish)', () => {
         await expect(initialize).toBeVisible({ timeout: UI_TIMEOUT })
         await expect(title).toHaveCount(0)
         record('discard', 'http', 'POST /products/:id/editorial/draft/discard -> 200; UI back to «initialize»')
+        recordHttp('discard')
 
         // 5. Network boundaries: no tenant override, no publication, no third-party origin, no failure.
-        step = { name: `${role}:network`, kind: 'http' }
+        begin('network')
         await live.audit.dispose()
         expect(live.audit.tenantViolations()).toEqual([])
         expect(live.audit.publicationAttempts()).toEqual([])
@@ -166,6 +181,7 @@ test.describe.serial('editorial-live admin draft cycle (no publish)', () => {
         }
         expect(live.guard.violations()).toEqual([])
         record('network', 'http', `${live.audit.exchanges().length} backend requests; no tenant header/param/body key; no publish; no third-party origin`)
+        collector.collect(`${role}:all:http`, 'http', 'pass', stepLog(live.audit.exchanges(), 0))
       } catch (error) {
         const message = error instanceof EditorialLiveJourneyError
           ? error.message
@@ -173,8 +189,10 @@ test.describe.serial('editorial-live admin draft cycle (no publish)', () => {
         try {
           collector.collect(step.name, step.kind, 'fail', message)
           // Redacted diagnosis: backend METHOD /path -> status only (no headers, bodies or query).
-          const log = live?.audit.exchanges().map(exchangeLine) ?? []
-          collector.collect(`${step.name}:exchanges`, 'http', 'fail', log.length ? log.join('; ') : 'no backend exchange recorded')
+          const all = live?.audit.exchanges() ?? []
+          collector.collect(`${step.name}:http`, 'http', 'fail', stepLog(all, stepStart))
+          collector.collect(`${role}:all:http`, 'http', 'fail', stepLog(all, 0))
+          if (live) collector.collect(`${role}:guard`, 'http', 'fail', `third-party origin violations: ${live.guard.violations().length}; tenant traces: ${live.audit.tenantViolations().length}`)
         } catch {
           // Evidence must never mask the journey failure.
         }
