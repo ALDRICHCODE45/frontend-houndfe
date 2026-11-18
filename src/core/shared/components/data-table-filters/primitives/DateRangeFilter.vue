@@ -3,6 +3,7 @@ import { CalendarDate, getLocalTimeZone, today } from '@internationalized/date'
 import { computed, shallowRef, watch } from 'vue'
 import './hf-filter-primitives.css'
 import { localEndOfDayUTC, localStartOfDayUTC } from '@/core/shared/utils/dateRangeBoundaries'
+import { HfSwitchRow } from '@/core/shared/components/selection'
 
 const props = withDefaults(defineProps<{
   label: string
@@ -195,13 +196,14 @@ const rangeLabel = computed(() => {
 
         <template v-if="props.includeNullOption">
           <USeparator />
-          <label class="flex cursor-pointer items-center gap-2 p-3 text-sm text-muted">
-            <UCheckbox
-              v-model="includeNullValue"
-              :data-testid="`include-null-${props.label}`"
-            />
-            <span>{{ props.includeNullOption }}</span>
-          </label>
+          <!-- Selección sin checkboxes: the whole row is the switch. -->
+          <HfSwitchRow
+            v-model="includeNullValue"
+            class="hf-date-range-include-null"
+            :label="props.includeNullOption"
+            :show-state="false"
+            :test-id="`include-null-${props.label}`"
+          />
         </template>
       </template>
     </UPopover>

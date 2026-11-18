@@ -254,12 +254,14 @@ body.hf-app {
   text-overflow: clip;
 }
 
-/* The selection column is only its checkbox. */
-.hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']):has([role='checkbox']) {
+/* The selection column is only its row mark (Selección sin checkboxes): the
+ * 44px hit area centred in the 48px column. */
+.hf-ui .hf-data-table :is(td[data-slot='td'], th[data-slot='th']):has(.hf-row-mark) {
   width: 3rem;
   min-width: 3rem;
   max-width: 3rem;
-  padding-inline: 0.75rem 0;
+  padding-inline: 0.125rem;
+  padding-block: 0;
   overflow: visible;
 }
 

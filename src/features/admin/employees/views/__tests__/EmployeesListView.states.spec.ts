@@ -256,6 +256,20 @@ describe('EmployeesListView states — data', () => {
     allow('create:Employee')
     expect(mountView().find('thead [role="checkbox"], thead input[type="checkbox"]').exists()).toBe(false)
   })
+
+  it('selects rows with a row mark, never a checkbox, and the mark does not open the row', async () => {
+    allow(...ALL)
+    tableState.data.value = [makeEmployee()]
+    const wrapper = mountView()
+    expect(wrapper.find('[role="checkbox"], input[type="checkbox"]').exists()).toBe(false)
+    const header = wrapper.find('thead button.hf-row-mark')
+    expect(header.exists()).toBe(true)
+    expect(header.attributes('aria-pressed')).toBe('false')
+    const mark = wrapper.get('tbody tr button.hf-row-mark')
+    expect(mark.attributes('aria-pressed')).toBe('false')
+    await mark.trigger('click')
+    expect(routerPush).not.toHaveBeenCalled()
+  })
 })
 
 describe('EmployeesListView states — row menu', () => {

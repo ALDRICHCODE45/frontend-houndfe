@@ -236,13 +236,24 @@ describe('HfCombobox multiple', () => {
     wrapper.unmount()
   })
 
-  it('gives every regular option a checkbox indicator and toggles values', async () => {
+  it('gives every regular option a trailing round mark (no checkbox) and toggles values', async () => {
     const wrapper = mountCombobox({ items: stages, multiple: true, modelValue: ['cachorro'], specialAnswers: specials })
     await open(wrapper)
+    // Selección sin checkboxes: no box, no checkbox role or input anywhere in the list.
+    expect(document.querySelector('.hf-combobox__box, [role="checkbox"], input[type="checkbox"]')).toBeNull()
     const regular = options().filter(option => !option.classList.contains('hf-combobox__special'))
-    expect(regular.every(option => option.querySelector('.hf-combobox__box'))).toBe(true)
+    const marks = regular.map(option => option.querySelector<HTMLElement>('[data-slot="itemTrailing"] .hf-combobox__mark'))
+    expect(marks.every(Boolean)).toBe(true)
+    expect(marks.every(mark => mark!.getAttribute('aria-hidden') === 'true')).toBe(true)
+    // The state stays on the option; the mark is only its picture.
+    const cachorro = regular.find(option => option.textContent?.includes('Cachorro'))!
+    expect(cachorro.getAttribute('aria-selected')).toBe('true')
+    expect(cachorro.querySelector('.hf-combobox__mark')!.getAttribute('data-state')).toBe('checked')
+    const junior = regular.find(option => option.textContent?.includes('Junior'))!
+    expect(junior.getAttribute('aria-selected')).not.toBe('true')
+    expect(junior.querySelector('.hf-combobox__mark')!.getAttribute('data-state')).toBe('unchecked')
     expect(options().filter(option => option.classList.contains('hf-combobox__special'))
-      .some(option => option.querySelector('.hf-combobox__box'))).toBe(false)
+      .some(option => option.querySelector('.hf-combobox__mark'))).toBe(false)
     regular.find(option => option.textContent?.includes('Adulto'))!.click()
     await tick()
     expect(wrapper.emitted('update:modelValue')).toEqual([[['cachorro', 'adulto']]])

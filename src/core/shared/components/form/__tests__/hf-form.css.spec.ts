@@ -44,6 +44,25 @@ describe('HfCombobox footer', () => {
   })
 })
 
+describe('HfCombobox multiple mark (Selección sin checkboxes)', () => {
+  it('draws no checkbox box anymore', () => {
+    expect(css).not.toMatch(/hf-combobox__box/)
+  })
+
+  it('rests as an empty round ring and fills with --hf-active when checked', () => {
+    const mark = rule('.hf-combobox__mark')
+    expect(mark).toMatch(/border-radius: 999px/)
+    expect(mark).toMatch(/border: 1\.5px solid var\(--hf-muted\)/)
+    const checked = rule('.hf-combobox__mark[data-state=\'checked\']')
+    expect(checked).toMatch(/background-color: var\(--hf-active\)/)
+    expect(checked).toMatch(/border-color: var\(--hf-active\)/)
+  })
+
+  it('shows one indicator: the mark replaces the menu check on regular options', () => {
+    expect(rule('.hf-combobox__option--multi [data-slot=\'itemTrailingIcon\']')).toMatch(/display: none/)
+  })
+})
+
 describe('HfUnitField unit trigger', () => {
   it('lays the chevron out in the flow, 8px after the text, never over it', () => {
     const trailing = rule('.hf-combobox__trigger [data-slot=\'trailing\']')

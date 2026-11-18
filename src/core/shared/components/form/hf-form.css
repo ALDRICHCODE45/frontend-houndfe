@@ -255,8 +255,8 @@
   color: var(--hf-active);
 }
 
-/* Multiple: the checkbox is the indicator; no second check at the end. */
-.hf-ui .hf-combobox__option--box [data-slot='itemTrailingIcon'] {
+/* Multiple: the round mark is the indicator; no second check at the end. */
+.hf-ui .hf-combobox__option--multi [data-slot='itemTrailingIcon'] {
   display: none;
 }
 
@@ -286,31 +286,35 @@
   font-weight: 400;
 }
 
-.hf-ui .hf-combobox__box {
+/* Multiple (Selección sin checkboxes): a trailing round mark, an empty 1.5px
+ * `--hf-muted` ring at rest (3:1 on the surface) and a filled `--hf-active`
+ * disc with a check when chosen, so the state never rests on color alone. */
+.hf-ui .hf-combobox__mark {
   display: inline-flex;
   flex-shrink: 0;
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--hf-field-border);
-  border-radius: 4px;
-  background-color: var(--hf-field);
+  border: 1.5px solid var(--hf-muted);
+  border-radius: 999px;
+  background-color: var(--hf-surface);
   color: var(--hf-on-action);
+  transition: background-color 0.15s, border-color 0.15s;
 }
 
-.hf-ui .hf-combobox__box-icon {
-  width: 12px;
-  height: 12px;
+.hf-ui .hf-combobox__mark-icon {
+  width: 14px;
+  height: 14px;
   visibility: hidden;
 }
 
-.hf-ui .hf-combobox__box[data-checked] {
-  border-color: var(--hf-action);
-  background-color: var(--hf-action);
+.hf-ui .hf-combobox__mark[data-state='checked'] {
+  border-color: var(--hf-active);
+  background-color: var(--hf-active);
 }
 
-.hf-ui .hf-combobox__box[data-checked] .hf-combobox__box-icon {
+.hf-ui .hf-combobox__mark[data-state='checked'] .hf-combobox__mark-icon {
   visibility: visible;
 }
 

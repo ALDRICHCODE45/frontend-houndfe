@@ -36,7 +36,6 @@ function mountComponent(modelValue: { from?: string; to?: string } = {}) {
         Button: { template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>' },
         UFormField: { props: ['error'], template: '<div><slot /><p data-testid="error">{{ error }}</p></div>' },
         FormField: { template: '<div><slot /></div>' },
-        UCheckbox: { props: ['modelValue'], emits: ['update:modelValue'], template: '<button v-bind="$attrs" @click="$emit(\'update:modelValue\', !modelValue)" />' },
         USeparator: { template: '<hr data-testid="separator-stub" />' },
       },
     },
@@ -231,7 +230,7 @@ describe('DateRangeFilter', () => {
     expect(start).toBe(end)
   })
 
-  it('renders includeNull checkbox only when popover opens and emits toggle', async () => {
+  it('renders the includeNull option as a switch row (no checkbox) only when the popover opens', async () => {
     const wrapper = mountComponent()
     await wrapper.setProps({ includeNullOption: 'Incluir ventas sin vencimiento', includeNullValue: false, label: 'vence_at' })
 
@@ -239,11 +238,19 @@ describe('DateRangeFilter', () => {
 
     await wrapper.find('[data-testid="popover-trigger"]').trigger('click')
     expect(wrapper.find('[data-testid="popover-content"]').find('[data-testid="include-null-vence_at"]').exists()).toBe(true)
+    const content = wrapper.find('[data-testid="popover-content"]')
+    expect(content.find('[role="checkbox"], input[type="checkbox"]').exists()).toBe(false)
+    const toggle = wrapper.get('[data-testid="include-null-vence_at"]')
+    expect(toggle.element.tagName).toBe('BUTTON')
+    expect(toggle.attributes('role')).toBe('switch')
+    expect(toggle.attributes('aria-checked')).toBe('false')
+    expect(toggle.text()).toContain('Incluir ventas sin vencimiento')
 
     await wrapper.find('[data-testid="include-null-vence_at"]').trigger('click')
     expect(wrapper.emitted('update:includeNullValue')?.[0]).toEqual([true])
 
     await wrapper.setProps({ includeNullValue: true })
+    expect(wrapper.get('[data-testid="include-null-vence_at"]').attributes('aria-checked')).toBe('true')
     await wrapper.find('[data-testid="include-null-vence_at"]').trigger('click')
     expect(wrapper.emitted('update:includeNullValue')?.[1]).toEqual([false])
   })
@@ -324,12 +331,6 @@ describe('DateRangeFilter — portal opt-in (T5)', () => {
             UFormField: {
               props: ['error'],
               template: '<div><slot /></div>',
-            },
-            UCheckbox: {
-              props: ['modelValue'],
-              emits: ['update:modelValue'],
-              template:
-                '<button v-bind="$attrs" @click="$emit(\'update:modelValue\', !modelValue)" />',
             },
             USeparator: { template: '<hr />' },
           },
