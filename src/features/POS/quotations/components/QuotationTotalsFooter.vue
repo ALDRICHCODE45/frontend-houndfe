@@ -5,8 +5,8 @@
  * Sticky right-sidebar Resumen card for the quotation detail view. Mirrors
  * the Coco reference layout (`docs/redesign/quotations-detail-comparison.md`):
  *   - Title "Resumen" + context subtitle (N productos · M unidades · lista X)
- *   - Subtotal (muted), Descuentos (heading ink, with a minus), IVA 16% (gray, computed),
- *     separator, TOTAL (large, bold, black).
+ *   - Subtotal (muted), Descuentos (heading ink, with a minus), IVA incluido (gray, from the
+ *     response's `ivaBreakdown`), separator, TOTAL (large, bold, black).
  *   - Full-width primary CTA "Enviar cotización" in --hf-action.
  *   - Secondary "Guardar borrador" outlined.
  *   - No expiry line: the date is said once, in the Expira field (draft) or the header.
@@ -24,7 +24,6 @@
  *   Events ↑
  *     send:            []
  *     save-draft:      []
- *     update:tax-rate: [taxRate: number]
  *
  * Testids:
  *   root:             quotation-totals-footer
@@ -32,13 +31,12 @@
  *   context:          summary-context
  *   subtotal:         subtotal-amount
  *   discount row:     discount-row | discount-amount
- *   iva row:          summary-iva-row
- *   iva select:       summary-iva-select (only when editable=true)
+ *   iva row:          summary-iva-row | summary-iva-amount
  *   total:            total-amount
  *   send button:      summary-send-btn
  *   draft button:     summary-save-draft-btn
  */
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import type { QuotationResponseDto } from '../interfaces/quotation.types'
 import { formatCentsMXN } from '../utils/currency.utils'
 
@@ -57,7 +55,6 @@ const props = withDefaults(
 const emit = defineEmits<{
   send: []
   'save-draft': []
-  'update:tax-rate': [taxRate: number]
 }>()
 
 // ── Derived values ────────────────────────────────────────────────────────────
@@ -76,23 +73,33 @@ const discountFormatted = computed(() => formatCentsMXN(props.quotation.discount
 
 const totalFormatted = computed(() => formatCentsMXN(props.quotation.totalCents))
 
-/** IVA — read straight from the backend (`taxCents` + `taxRate`). The row
- *  only renders when both fields are non-null; older payloads that don't
- *  stamp the tax leave the row out entirely. The label is built from the
- *  rate rounded to the nearest integer percentage so a `0.16` rate from
- *  the backend renders as "IVA 16%" without any client-side math. */
-const ivaPercentLabel = computed<string | null>(() => {
-  const rate = props.quotation.taxRate
-  if (rate === null || rate === undefined) return null
-  return `IVA ${Math.round(rate * 100)}%`
+/**
+ * T4 / S6 — IVA per product (docs/quotations-frontend.md §3.18). Prices already include IVA and
+ * the total never changes because of it. The amount to show is the sum of `ivaBreakdown[].amountCents`
+ * in ONE «IVA incluido» row (no rates, no per-classification breakdown), exactly like the PDF.
+ * `ivaBreakdown: []` (no items, or an old quotation without fiscal snapshots) means «do not show
+ * IVA» — never «IVA $0». The legacy `taxRate`/`taxCents` are no longer on the wire and are ignored.
+ */
+interface IvaBreakdownLine {
+  classification: string
+  amountCents: number
+}
+
+const ivaBreakdown = computed<IvaBreakdownLine[]>(() => {
+  // `ivaBreakdown` is read defensively: the shared DTO type predates it.
+  const raw = (props.quotation as { ivaBreakdown?: unknown }).ivaBreakdown
+  if (!Array.isArray(raw)) return []
+  return raw.filter(
+    (line): line is IvaBreakdownLine =>
+      !!line && typeof line === 'object' && Number.isFinite((line as IvaBreakdownLine).amountCents),
+  )
 })
 
-const ivaFormatted = computed(() => formatCentsMXN(props.quotation.taxCents ?? 0))
+const hasIva = computed<boolean>(() => ivaBreakdown.value.length > 0)
 
-const hasIva = computed<boolean>(
-  () => props.quotation.taxCents !== null && props.quotation.taxRate !== null,
+const ivaFormatted = computed(() =>
+  formatCentsMXN(ivaBreakdown.value.reduce((sum, line) => sum + line.amountCents, 0)),
 )
-
 
 /** Counts agree in number: "1 producto · 1 unidad", "2 productos · 3 unidades". */
 const legacyItemsCount = computed<string>(() => {
@@ -107,46 +114,6 @@ function handleSend(): void {
 
 function handleSaveDraft(): void {
   emit('save-draft')
-}
-
-// ── IVA rate selector (DRAFT only) ───────────────────────────────────────────
-// Backend accepts four tax rates per the spec (0, 0.08, 0.16, 0.21). The
-// select is mounted only when `editable=true` (DRAFT quotations); non-DRAFT
-// states render the plain-text label so the historic read-only display
-// stays untouched. The select's v-model is seeded from `quotation.taxRate`
-// so any change the parent makes via the backend (e.g. an applyDiscount
-// cascade) propagates back to the dropdown without a remount.
-
-interface TaxRateOption {
-  label: string
-  value: number
-}
-
-const TAX_RATE_OPTIONS: TaxRateOption[] = [
-  { label: '0% (Exento)', value: 0 },
-  { label: '8%', value: 0.08 },
-  { label: '16%', value: 0.16 },
-  { label: '21%', value: 0.21 },
-]
-
-const taxRateOptions = computed<TaxRateOption[]>(() => TAX_RATE_OPTIONS)
-
-/** Local mirror of `props.quotation.taxRate`. The parent owns the cache; we
- *  only mirror so the v-model has a stable ref to bind. Synced on every
- *  change of the upstream tax rate (initial mount + reactive updates). */
-const selectedTaxRate = ref<number>(props.quotation.taxRate ?? 0)
-
-watch(
-  () => props.quotation.taxRate,
-  (next) => {
-    if (next === null || next === undefined) return
-    selectedTaxRate.value = next
-  },
-)
-
-function handleTaxRateChange(value: number | null | undefined): void {
-  if (value === null || value === undefined) return
-  emit('update:tax-rate', value)
 }
 </script>
 
@@ -168,7 +135,7 @@ function handleTaxRateChange(value: number | null | undefined): void {
       </p>
     </div>
 
-    <!-- Rows: subtotal → discount → iva 16% → separator → TOTAL -->
+    <!-- Rows: subtotal → discount → IVA incluido → separator → TOTAL -->
     <div class="flex flex-col gap-2">
       <div class="flex items-center justify-between">
         <span class="text-sm text-muted">Subtotal</span>
@@ -189,32 +156,13 @@ function handleTaxRateChange(value: number | null | undefined): void {
         >
       </div>
 
-      <!-- T-UI-12/13 — IVA row. Rendered only when the backend stamps both
-           `taxRate` and `taxCents`; older payloads that don't expose the
-           tax leave the row out entirely. The label is dynamic — a 16%
-           rate renders as "IVA 16%", an 8% rate as "IVA 8%", etc.
-           Editable mode (DRAFT only) swaps the label for a USelectMenu
-           that emits `update:tax-rate` so the parent can PATCH the
-           draft with the new rate. Non-DRAFT states keep the static
-           label so the historic read-only display is unaffected. -->
+      <!-- T4 / S6 — «IVA incluido»: the sum of ivaBreakdown, hidden when it is empty. -->
       <div
         v-if="hasIva"
         class="flex items-center justify-between gap-2"
         data-testid="summary-iva-row"
       >
-        <USelectMenu
-          v-if="editable"
-          v-model="selectedTaxRate"
-          :items="taxRateOptions"
-          value-key="value"
-          label-key="label"
-          size="xs"
-          class="min-w-[140px]"
-          :ui="{ content: 'hf-theme hf-ui quotations-workspace-portal' }"
-          data-testid="summary-iva-select"
-          @update:model-value="handleTaxRateChange"
-        />
-        <span v-else class="text-sm text-muted">{{ ivaPercentLabel }}</span>
+        <span class="text-sm text-muted">IVA incluido</span>
         <span class="text-sm text-muted tabular-nums" data-testid="summary-iva-amount">{{
           ivaFormatted
         }}</span>

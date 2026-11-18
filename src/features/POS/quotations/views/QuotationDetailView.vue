@@ -39,6 +39,11 @@ import QuotationCancelDialog from '../components/QuotationCancelDialog.vue'
 import QuotationProgressStepper from '../components/QuotationProgressStepper.vue'
 import QuotationCustomerCard from '../components/QuotationCustomerCard.vue'
 import QuotationPromotionCard from '../components/QuotationPromotionCard.vue'
+import QuotationConvertDialog from '../components/QuotationConvertDialog.vue'
+import {
+  canConvertQuotation,
+  useConvertQuotationToSale,
+} from '../composables/useConvertQuotationToSale'
 import { isExpired, statusToLabel, statusToTone } from '../utils/quotation.utils'
 
 declare const useToast: () => {
@@ -60,6 +65,10 @@ const createError = ref<unknown>(null)
 
 const canUpdateQuotation = computed(() => authStore.userCan('update', 'Quotation'))
 const canDeleteQuotation = computed(() => authStore.userCan('delete', 'Quotation'))
+// Handoff 23 §2: converting needs both permissions (403 otherwise → hide the action).
+const canConvertPermission = computed(
+  () => authStore.userCan('create', 'Sale') && authStore.userCan('update', 'Quotation'),
+)
 
 const isCreateRoute = computed(() => route.path === '/pos/cotizaciones/nueva')
 const quotationId = computed(() => {
@@ -251,43 +260,6 @@ const isProductSearchOpen = ref(false)
 // mid-edit. The mutation returns the full updated quotation, which
 // we splice into the detail + list caches so the rest of the app
 // (totals, lists, exports) sees the latest value.
-
-// T-UI-29 — IVA rate override. PATCH /quotations/drafts/:id/tax-rate
-// returns the full updated quotation with recalculated `taxRate` and
-// `taxCents`. We splice the response into the detail cache so the
-// sidebar (QuotationTotalsFooter) immediately reflects the new rate
-// and tax cents without a refetch.
-const setTaxRateMutation = useMutation<
-  QuotationResponseDto,
-  Error,
-  number,
-  { previous: QuotationResponseDto | undefined }
->({
-  mutationFn: (taxRate) => {
-    const id = quotationId.value
-    if (!id) throw new Error('Cannot update tax rate on a non-existent quotation')
-    return quotationApi.setTaxRate(id, taxRate)
-  },
-  onSuccess: (updated) => {
-    const detailKey = quotationQueryKeys.detail(tenantId.value, updated.id)
-    queryClient.setQueryData(detailKey, updated)
-    queryClient.invalidateQueries({ queryKey: detailKey })
-  },
-  onError: (error) => {
-    const err = error as { response?: { data?: { message?: string } }; message?: string }
-    const message = err.response?.data?.message ?? err.message ?? 'No se pudo actualizar el IVA'
-    useToast().add({ title: 'Error', description: message, color: 'error' })
-  },
-})
-
-/** Sidebar handler — wires QuotationTotalsFooter's `update:tax-rate`
- *  emit to the mutation. Defence-in-depth: the parent already passes
- *  `editable=isDraft`, but we double-check here so a stale UI can't
- *  bypass the DRAFT gate. */
-function handleTaxRateChange(taxRate: number): void {
-  if (!isDraft.value) return
-  setTaxRateMutation.mutate(taxRate)
-}
 
 const NOTES_MAX_LENGTH = 280
 const NOTES_SAVE_DEBOUNCE_MS = 300
@@ -776,8 +748,54 @@ function retryLoad(): void {
   else void refetch()
 }
 
-// ── Header actions (⋮ menu: cancel first, destructive last) ─────────────────
+// ── odd T3 / S4-S5: quotation → POS sale draft ──────────────────────────────
+const conversion = useConvertQuotationToSale()
+const isConvertDialogOpen = ref(false)
+
+const isConverted = computed(() => quotation.value?.status === 'CONVERTED_TO_SALE')
+/** Converted, but its sale draft was deleted from the POS (`saleId: null`): it can convert again. */
+const isSaleDiscarded = computed(() => isConverted.value && quotation.value?.saleId === null)
+
+const canConvert = computed(
+  () => !!quotation.value && canConvertPermission.value && canConvertQuotation(quotation.value),
+)
+const convertLabel = computed(() => (isSaleDiscarded.value ? 'Convertir de nuevo' : 'Convertir en venta'))
+/** DRAFT keeps «Enviar cotización» as its one primary, so there the action lives in the ⋮ menu. */
+const showConvertButton = computed(() => canConvert.value && !isDraft.value)
+
+const convertedAtFormatted = computed<string | null>(() => {
+  const at = quotation.value?.convertedAt
+  return at ? formatDate(at) : null
+})
+
+function openConvertDialog(): void {
+  if (!canConvert.value) return
+  conversion.reset()
+  isConvertDialogOpen.value = true
+}
+
+function closeConvertDialog(): void {
+  if (conversion.isPending.value) return
+  isConvertDialogOpen.value = false
+}
+
+async function handleConvertConfirm(): Promise<void> {
+  const id = quotation.value?.id
+  if (!id) return
+  const ok = await conversion.convert(id)
+  if (ok) isConvertDialogOpen.value = false
+}
+
+function goToSale(saleId: string): void {
+  isConvertDialogOpen.value = false
+  void router.push(`/pos/ventas/${saleId}`)
+}
+
+// ── Header actions (⋮ menu: convert and cancel first, destructive last) ─────
 const headerActions = computed<RowAction[]>(() => [
+  ...(canConvert.value && isDraft.value
+    ? [{ key: 'convert', label: 'Convertir en venta…', icon: 'i-lucide-shopping-cart' }]
+    : []),
   ...(isDraft.value && canUpdateQuotation.value
     ? [{ key: 'cancel', label: 'Cancelar cotización…', icon: 'i-lucide-ban' }]
     : []),
@@ -787,7 +805,8 @@ const headerActions = computed<RowAction[]>(() => [
 ])
 
 function onHeaderAction(key: string): void {
-  if (key === 'cancel') openCancelDialog()
+  if (key === 'convert') openConvertDialog()
+  else if (key === 'cancel') openCancelDialog()
   else if (key === 'delete') isDeleteConfirmOpen.value = true
 }
 </script>
@@ -859,6 +878,16 @@ function onHeaderAction(key: string): void {
               >
                 <UIcon name="i-lucide-file-text" class="h-4 w-4" />
                 <span>{{ isPdfLoading ? 'Generando…' : 'Previsualizar PDF' }}</span>
+              </button>
+              <button
+                v-if="showConvertButton"
+                type="button"
+                class="quotation-header-primary"
+                data-testid="convert-to-sale-button"
+                @click="openConvertDialog"
+              >
+                <UIcon name="i-lucide-shopping-cart" class="h-4 w-4" />
+                <span>{{ convertLabel }}</span>
               </button>
               <RowActionsMenu
                 :actions="headerActions"
@@ -1199,6 +1228,32 @@ function onHeaderAction(key: string): void {
                 </div>
               </section>
 
+              <!-- odd T3 / S5 — converted to sale: when, and the way to the sale. A discarded sale
+                   draft (saleId null) can be converted again from the header. -->
+              <section
+                v-if="isConverted"
+                class="quotation-banner"
+                data-testid="converted-banner"
+              >
+                <template v-if="isSaleDiscarded">
+                  <p class="font-semibold">Venta descartada</p>
+                  <p class="mt-1 text-muted">La venta que salió de esta cotización se eliminó.</p>
+                </template>
+                <template v-else>
+                  <p class="font-semibold">
+                    Convertida en venta<template v-if="convertedAtFormatted">
+                      el {{ convertedAtFormatted }}</template>
+                  </p>
+                  <button
+                    v-if="quotation.saleId"
+                    type="button"
+                    class="quotation-inline-link mt-1"
+                    data-testid="converted-view-sale"
+                    @click="goToSale(quotation.saleId)"
+                  >Ver venta</button>
+                </template>
+              </section>
+
               <!-- S8 — CANCELLED detail banner (REQ-QTN-012). The backend stamps the
                    cancel reason; we surface it as a permanent notice so any saved
                    PDF copy / later access makes the cancellation traceable. -->
@@ -1252,16 +1307,14 @@ function onHeaderAction(key: string): void {
                    / `save-draft` to the existing dialog + composable
                    actions. `priceListName` is optional and not yet
                    exposed by the backend, so we leave it null.
-                   T-UI-29 — the footer also accepts `update:tax-rate`
-                   so the cashier can override the IVA rate from the
-                   sidebar; we wire it to the dedicated
-                   setTaxRateMutation that hits PATCH /tax-rate. -->
+                   T4 / S6 — no IVA override: the footer only shows the
+                   IVA included from `ivaBreakdown` (PATCH /tax-rate is
+                   deprecated, docs/quotations-frontend.md §3.18). -->
               <QuotationTotalsFooter
                 :quotation="quotation"
                 :editable="isDraft && canUpdateQuotation"
                 @send="openSendDialog"
                 @save-draft="handleSaveDraftFromSidebar"
-                @update:tax-rate="handleTaxRateChange"
               />
 
               <!-- T-UI-21/22 / REQ-UI-010 — customer notes. The textarea is
@@ -1377,6 +1430,19 @@ function onHeaderAction(key: string): void {
             :cancel="handleCancel"
             @close="handleCancelDialogClose"
             @cancelled="handleCancelDialogClose"
+          />
+
+          <!-- odd T3 / S4 — convert to sale: confirm with the pricing rule, then the
+               rejection (if any) in Spanish. -->
+          <QuotationConvertDialog
+            :open="isConvertDialogOpen"
+            :pending="conversion.isPending.value"
+            :failure="conversion.failure.value"
+            :confirm-label="convertLabel"
+            portal-class="quotations-workspace-portal"
+            @confirm="handleConvertConfirm"
+            @close="closeConvertDialog"
+            @view-sale="goToSale"
           />
 
           <!-- Product search slideover — opens from the right, contains the
@@ -1542,6 +1608,33 @@ function onHeaderAction(key: string): void {
 .quotation-banner--danger > p:first-child { color: var(--hf-danger); }
 .quotation-banner--warning { background: var(--hf-warning-soft); }
 .quotation-banner--warning > p:first-child { color: var(--hf-warning); }
+
+.quotation-header-primary {
+  display: inline-flex;
+  min-height: var(--hf-control-height);
+  align-items: center;
+  gap: 8px;
+  border-radius: var(--hf-radius-control);
+  background: var(--hf-action);
+  padding: 0 16px;
+  color: var(--hf-on-action);
+  font-size: 14px;
+  font-weight: 600;
+}
+.quotation-header-primary:hover { filter: brightness(1.1); }
+.quotation-header-primary:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
+
+.quotation-inline-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--hf-action);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.quotation-inline-link:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
 
 .quotation-notes-counter {
   color: var(--hf-warning);

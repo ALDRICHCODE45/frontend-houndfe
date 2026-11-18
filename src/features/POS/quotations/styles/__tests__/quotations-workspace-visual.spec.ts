@@ -292,6 +292,7 @@ describe('Quotations visual wiring', () => {
     expect(expiry).not.toContain('quotations-gold')
     expect(stepper).toContain('--hf-action')
     expect(itemRow).toContain('portal-class="quotations-workspace-portal"')
-    expect(totalsFooter).toContain('hf-theme hf-ui quotations-workspace-portal')
+    // T4 / S6: the summary has no IVA-rate listbox any more (deprecated override).
+    expect(totalsFooter).not.toContain('USelectMenu')
   })
 })

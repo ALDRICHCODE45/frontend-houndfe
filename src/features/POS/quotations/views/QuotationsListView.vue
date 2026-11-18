@@ -42,6 +42,11 @@ import { quotationApi } from '../api/quotation.api'
 import { quotationQueryKeys } from '@/core/shared/constants/query-keys'
 import { createQuotationFiltersSchema } from '../config/quotationFiltersSchema'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import QuotationConvertDialog from '../components/QuotationConvertDialog.vue'
+import {
+  canConvertQuotation,
+  useConvertQuotationToSale,
+} from '../composables/useConvertQuotationToSale'
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 
 declare const useToast: () => {
@@ -58,6 +63,10 @@ const router = useRouter()
 const authStore = useAuthStore()
 const canCreate = computed(() => authStore.userCan('create', 'Quotation'))
 const canDelete = computed(() => authStore.userCan('delete', 'Quotation'))
+// Handoff 23 §2: converting needs both permissions (403 otherwise → hide the action).
+const canConvertPermission = computed(
+  () => authStore.userCan('create', 'Sale') && authStore.userCan('update', 'Quotation'),
+)
 const tenantId = computed(() => authStore.currentTenantId || 'default')
 
 // Mobile detection — below md, DataTableFilters runs embedded inside the
@@ -131,6 +140,7 @@ const STATUS_TABS: StatusTab[] = [
   { label: 'Enviadas', value: QUOTATION_STATUS.SENT },
   { label: 'Expiradas', value: QUOTATION_STATUS.EXPIRED },
   { label: 'Canceladas', value: QUOTATION_STATUS.CANCELLED },
+  { label: 'Convertidas', value: QUOTATION_STATUS.CONVERTED_TO_SALE },
 ]
 
 /** The selected tab — the only status filter (the Filtros panel has no Estado). */
@@ -220,6 +230,37 @@ function handleConfirmDelete(): void {
   deleteMutation.mutate(id)
 }
 
+// ─── Convert to sale (odd T3 / S4) ────────────────────────────────────────────
+
+const conversion = useConvertQuotationToSale()
+const convertState = ref({ open: false, id: '', label: 'Convertir en venta' })
+
+function handleConvert(quotation: QuotationResponseDto): void {
+  conversion.reset()
+  convertState.value = {
+    open: true,
+    id: quotation.id,
+    label: quotation.status === QUOTATION_STATUS.CONVERTED_TO_SALE ? 'Convertir de nuevo' : 'Convertir en venta',
+  }
+}
+
+function closeConvertDialog(): void {
+  if (conversion.isPending.value) return
+  convertState.value = { ...convertState.value, open: false }
+}
+
+async function handleConfirmConvert(): Promise<void> {
+  const id = convertState.value.id
+  if (!id) return
+  const ok = await conversion.convert(id)
+  if (ok) convertState.value = { ...convertState.value, open: false }
+}
+
+function goToSale(saleId: string): void {
+  convertState.value = { ...convertState.value, open: false }
+  void router.push(`/pos/ventas/${saleId}`)
+}
+
 // ─── Column definitions ───────────────────────────────────────────────────────
 
 /**
@@ -280,8 +321,13 @@ function actionsFor(quotation: QuotationResponseDto): RowAction[] {
     quotation.status === QUOTATION_STATUS.DRAFT ||
     quotation.status === QUOTATION_STATUS.CANCELLED
 
+  const convertible = canConvertPermission.value && canConvertQuotation(quotation)
+  const convertLabel =
+    quotation.status === QUOTATION_STATUS.CONVERTED_TO_SALE ? 'Convertir de nuevo…' : 'Convertir en venta…'
+
   return [
     { key: 'open', label: 'Ver detalle', icon: 'i-lucide-eye' },
+    ...(convertible ? [{ key: 'convert', label: convertLabel, icon: 'i-lucide-shopping-cart' }] : []),
     ...(canDelete.value && isDeletableStatus
       ? [{ key: 'delete', label: 'Eliminar…', icon: 'i-lucide-trash-2', destructive: true }]
       : []),
@@ -290,6 +336,7 @@ function actionsFor(quotation: QuotationResponseDto): RowAction[] {
 
 function onAction(key: string, quotation: QuotationResponseDto): void {
   if (key === 'open') goToDetail(quotation)
+  else if (key === 'convert') handleConvert(quotation)
   else if (key === 'delete') handleDelete(quotation)
 }
 
@@ -495,6 +542,17 @@ const errorMessage = 'No se pudieron cargar las cotizaciones'
         :loading="deleteMutation.isPending.value"
         @update:open="(val) => { if (!val) confirmState.open = false }"
         @confirm="handleConfirmDelete"
+      />
+
+      <QuotationConvertDialog
+        :open="convertState.open"
+        :pending="conversion.isPending.value"
+        :failure="conversion.failure.value"
+        :confirm-label="convertState.label"
+        portal-class="quotations-list-portal"
+        @confirm="handleConfirmConvert"
+        @close="closeConvertDialog"
+        @view-sale="goToSale"
       />
     </UCard>
   </div>
