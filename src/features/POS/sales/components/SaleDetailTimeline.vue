@@ -150,27 +150,27 @@ async function deleteCommentForEvent(event: SaleTimelineEvent) {
       </div>
 
       <div class="flex-1 min-w-0">
-        <p class="font-medium">{{ eventLabel(event) }}</p>
+        <p class="font-medium text-(--hf-heading)">{{ eventLabel(event) }}</p>
         <p
           v-if="paymentSubtitle(event)"
-          class="text-sm text-muted"
+          class="text-sm text-(--hf-muted)"
           data-testid="timeline-payment-subtitle"
         >
           {{ paymentSubtitle(event) }}
         </p>
-        <div class="flex items-center justify-between">
-          <p v-if="actorLabel(event)" class="text-sm text-muted" data-testid="timeline-actor">
+        <div class="flex flex-wrap items-center justify-between gap-x-3">
+          <p v-if="actorLabel(event)" class="text-sm text-(--hf-muted)" data-testid="timeline-actor">
             {{ actorLabel(event) }}
           </p>
           <UTooltip
             :text="formatSaleDate(event.at)"
             :ui="{ content: 'hf-theme hf-ui sales-detail-portal' }"
           >
-            <p class="text-sm text-muted">{{ formatSaleDate(event.at) }}</p>
+            <p class="text-sm text-(--hf-muted)">{{ formatSaleDate(event.at) }}</p>
           </UTooltip>
         </div>
 
-        <p v-if="event.type === SALE_TIMELINE_EVENT_TYPE.COMMENT" class="mt-2 text-sm" data-testid="timeline-comment-body">
+        <p v-if="event.type === SALE_TIMELINE_EVENT_TYPE.COMMENT" class="mt-2 text-sm text-(--hf-ink)" data-testid="timeline-comment-body">
           {{ event.body }}
         </p>
 
@@ -181,15 +181,15 @@ async function deleteCommentForEvent(event: SaleTimelineEvent) {
         >
           <UTextarea v-model="editingBody" data-testid="comment-edit-textarea" />
           <div class="flex gap-2">
-            <UButton variant="ghost" size="xs" data-testid="comment-edit-cancel" @click="cancelEdit">Cancelar</UButton>
-            <UButton size="xs" :disabled="isPending || editingBody.trim().length === 0" data-testid="comment-edit-save" @click="saveEditForEvent(event)">
+            <UButton variant="ghost" size="xs" class="min-h-(--hf-control-height) md:min-h-8" data-testid="comment-edit-cancel" @click="cancelEdit">Cancelar</UButton>
+            <UButton size="xs" class="min-h-(--hf-control-height) md:min-h-8" :disabled="isPending || editingBody.trim().length === 0" data-testid="comment-edit-save" @click="saveEditForEvent(event)">
               Guardar
             </UButton>
           </div>
         </div>
         <div v-else-if="canManageComment(event)" class="mt-1 flex gap-2">
-          <UButton variant="link" color="neutral" size="xs" data-testid="comment-edit-trigger" @click="startEdit(event)">Editar</UButton>
-          <UButton variant="link" color="neutral" size="xs" data-testid="comment-delete-trigger" @click="deleteCommentForEvent(event)">Eliminar</UButton>
+          <UButton variant="link" color="neutral" size="xs" class="min-h-(--hf-control-height) md:min-h-8" data-testid="comment-edit-trigger" @click="startEdit(event)">Editar</UButton>
+          <UButton variant="link" color="neutral" size="xs" class="min-h-(--hf-control-height) md:min-h-8" data-testid="comment-delete-trigger" @click="deleteCommentForEvent(event)">Eliminar</UButton>
         </div>
       </div>
     </div>

@@ -79,9 +79,9 @@ describe('SaleDetailSalesDataCard', () => {
     }
   })
 
-  // WU-E: the data card wraps the reflow grid in a UCard with a header
+  // WU-E / T6c: the data card wraps the reflow grid in the shared section card
   // titled "Datos de la venta".
-  it('wraps the reflow grid in a UCard with "Datos de la venta" header', async () => {
+  it('wraps the reflow grid in a section card titled "Datos de la venta"', async () => {
     getGlobalPriceListsMock.mockResolvedValue([])
 
     const wrapper = mountWithUApp(SaleDetailSalesDataCard, {
@@ -90,11 +90,10 @@ describe('SaleDetailSalesDataCard', () => {
     })
     await nextTick()
 
-    expect(wrapper.text()).toContain('Datos de la venta')
-    // Header is rendered via #header slot (real UCard exposes data-slot="header")
-    const headers = wrapper.findAll('[data-slot="header"]')
-    const dataHeader = headers.find((h) => h.text().includes('Datos de la venta'))
-    expect(dataHeader).toBeDefined()
+    // T6c: the shared HfSectionCard heading, not a native card header slot.
+    expect(wrapper.get('section.hf-section-card .hf-section-card__title').text()).toBe(
+      'Datos de la venta',
+    )
   })
 
   // REQ-LAYOUT-006: extracted card owns the price-list fetch — invoked exactly

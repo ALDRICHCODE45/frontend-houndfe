@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 import { formatCentsMXN } from '../utils/currency.utils'
 
 const props = defineProps<{
@@ -26,57 +27,52 @@ const showChangeRow = computed(() => props.changeDueCents > 0)
 </script>
 
 <template>
-  <UCard>
-    <template #header>
-      <h3 class="sale-detail-section-title">
-        <UIcon name="i-lucide-receipt" class="size-4" />
-        Totales
-      </h3>
-    </template>
-
-    <div class="space-y-2 text-right">
-      <div class="flex items-center justify-between text-sm">
-        <span class="text-muted">Subtotal</span>
-        <span data-testid="totals-subtotal-value">{{ formatCentsMXN(subtotalCents) }}</span>
+  <!-- T6c: a key/value list (muted label left, tabular figure right) inside the
+       shared section card; hairlines separate the subtotal, total and payment groups. -->
+  <HfSectionCard title="Totales">
+    <dl class="grid gap-2 text-sm">
+      <div class="flex items-center justify-between gap-4">
+        <dt class="text-(--hf-muted)">Subtotal</dt>
+        <dd class="hf-figure text-(--hf-ink)" data-testid="totals-subtotal-value">
+          {{ formatCentsMXN(subtotalCents) }}
+        </dd>
       </div>
       <div
         v-if="discountCents > 0"
         data-testid="totals-discount-row"
-        class="flex items-center justify-between text-sm"
+        class="flex items-center justify-between gap-4"
       >
-        <span class="text-muted">Descuentos</span>
-        <span data-testid="totals-discount-value">{{ discountLabel }}</span>
+        <dt class="text-(--hf-muted)">Descuentos</dt>
+        <dd class="hf-figure text-(--hf-ink)" data-testid="totals-discount-value">{{ discountLabel }}</dd>
       </div>
 
-      <USeparator />
-
-      <div class="flex items-center justify-between">
-        <span class="text-muted">Total</span>
-        <span class="hf-figure text-2xl font-semibold text-(--hf-heading)" data-testid="totals-total-value">
+      <div class="flex items-center justify-between gap-4 border-y border-(--hf-border) py-3">
+        <dt class="font-semibold text-(--hf-heading)">Total</dt>
+        <dd class="hf-figure text-2xl font-semibold text-(--hf-heading)" data-testid="totals-total-value">
           {{ formatCentsMXN(totalCents) }}
-        </span>
+        </dd>
       </div>
 
-      <USeparator />
-
-      <div class="flex items-center justify-between text-sm" data-testid="totals-paid-row">
-        <span class="text-muted">Pagado</span>
-        <span>{{ formatCentsMXN(paidCents) }}</span>
+      <div class="flex items-center justify-between gap-4" data-testid="totals-paid-row">
+        <dt class="text-(--hf-muted)">Pagado</dt>
+        <dd class="hf-figure text-(--hf-ink)">{{ formatCentsMXN(paidCents) }}</dd>
       </div>
-      <div class="flex items-center justify-between text-sm" data-testid="totals-debt-row">
-        <span class="text-muted">Deuda</span>
-        <span :class="debtClass" class="font-semibold">
-          {{ formatCentsMXN(debtCents) }}
-        </span>
+      <div class="flex items-center justify-between gap-4" data-testid="totals-debt-row">
+        <dt class="text-(--hf-muted)">Deuda</dt>
+        <dd class="hf-figure">
+          <span :class="debtClass" class="font-semibold">
+            {{ formatCentsMXN(debtCents) }}
+          </span>
+        </dd>
       </div>
       <div
         v-if="showChangeRow"
-        class="flex items-center justify-between text-sm"
+        class="flex items-center justify-between gap-4"
         data-testid="totals-change-row"
       >
-        <span class="text-muted">Cambio</span>
-        <span>{{ formatCentsMXN(changeDueCents) }}</span>
+        <dt class="text-(--hf-muted)">Cambio</dt>
+        <dd class="hf-figure text-(--hf-ink)">{{ formatCentsMXN(changeDueCents) }}</dd>
       </div>
-    </div>
-  </UCard>
+    </dl>
+  </HfSectionCard>
 </template>

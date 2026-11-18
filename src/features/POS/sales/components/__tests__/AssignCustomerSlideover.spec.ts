@@ -622,3 +622,100 @@ describe('AssignCustomerSlideover', () => {
     wrapper.unmount()
   })
 })
+
+// ── T6c (S2–S3): one list surface, no card per row ──────────────────────────
+// Customer and address choices are rows of ONE bordered list (dividers between
+// rows), never a native UCard per row stacked inside the sheet.
+describe('AssignCustomerSlideover — list surface (T6c)', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    authStoreMock.userCan.mockReturnValue(true)
+    assignCustomerMock.mockResolvedValue(undefined)
+    setShippingAddressMock.mockResolvedValue(undefined)
+  })
+
+  it('has no native UCard in its source', async () => {
+    const { readFileSync } = await import('node:fs')
+    const source = readFileSync('src/features/POS/sales/components/AssignCustomerSlideover.vue', 'utf8')
+    expect(source).not.toMatch(/<UCard\b/)
+  })
+
+  it('renders the customers as rows of a single list surface', async () => {
+    const bob = makeCustomer({ id: 'customer-2', fullName: 'Bob Smith' })
+    customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([makeCustomer(), bob]))
+    const { wrapper, queryClient } = mountSlideover()
+    await flushPromises()
+    try {
+      const lists = document.body.querySelectorAll('.sales-pos-customer-list')
+      expect(lists).toHaveLength(1)
+      const rows = lists[0]!.querySelectorAll(':scope > .sales-pos-customer-card')
+      expect(Array.from(rows).map((row) => row.getAttribute('data-testid'))).toEqual([
+        'customer-row-customer-1',
+        'customer-row-customer-2',
+      ])
+      expect(document.body.querySelector('[data-slot="root"]:has(> [data-slot="body"])')).toBeNull()
+    } finally {
+      wrapper.unmount()
+      queryClient.clear()
+    }
+  })
+
+  it('renders «Sin dirección» and the addresses as rows of one list surface', async () => {
+    const ada = makeCustomer()
+    customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([ada]))
+    customerApiMock.getById.mockResolvedValueOnce(
+      makeCustomerDetail(ada, [makeAddress('address-1'), makeAddress('address-2')]),
+    )
+    const { wrapper, queryClient } = mountSlideover()
+    await flushPromises()
+    try {
+      getByTestId('customer-row-customer-1').click()
+      await flushPromises()
+      const lists = document.body.querySelectorAll('.sales-pos-customer-list')
+      expect(lists).toHaveLength(1)
+      const ids = Array.from(lists[0]!.querySelectorAll('.sales-pos-customer-card')).map((row) =>
+        row.getAttribute('data-testid'),
+      )
+      expect(ids).toEqual([
+        'skip-shipping-address',
+        'shipping-address-option-address-1',
+        'shipping-address-option-address-2',
+      ])
+      expect(document.body.querySelector('[data-slot="root"]:has(> [data-slot="body"])')).toBeNull()
+    } finally {
+      wrapper.unmount()
+      queryClient.clear()
+    }
+  })
+
+  it('shows the empty, no-match and error states with the shared EmptyState', async () => {
+    customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([]))
+    const { wrapper, queryClient } = mountSlideover()
+    await flushPromises()
+    try {
+      const empty = document.body.querySelector('.hf-empty-state')
+      expect(empty?.getAttribute('data-kind')).toBe('empty')
+      expect(empty?.textContent).toContain('Aún no hay clientes registrados')
+    } finally {
+      wrapper.unmount()
+      queryClient.clear()
+    }
+
+    customerApiMock.getPaginated.mockRejectedValueOnce(new Error('boom'))
+    const failed = mountSlideover()
+    await flushPromises()
+    try {
+      const error = document.body.querySelector('.hf-empty-state')
+      expect(error?.getAttribute('data-kind')).toBe('error')
+      expect(error?.getAttribute('role')).toBe('alert')
+      expect(error?.textContent).toContain('No se pudieron cargar los clientes.')
+    } finally {
+      failed.wrapper.unmount()
+      failed.queryClient.clear()
+    }
+  })
+})

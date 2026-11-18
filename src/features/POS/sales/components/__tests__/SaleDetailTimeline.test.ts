@@ -258,7 +258,7 @@ describe('SaleDetailTimeline', () => {
       const subtitle = wrapper.find('[data-testid="timeline-payment-subtitle"]')
       expect(subtitle.exists()).toBe(true)
       expect(subtitle.text()).toBe('Link')
-      expect(subtitle.classes()).toEqual(expect.arrayContaining(['text-muted']))
+      expect(subtitle.classes()).toEqual(expect.arrayContaining(['text-(--hf-muted)']))
     })
 
     it('keeps the legacy PAYMENT_RECEIVED label and renders NO sub-line', () => {

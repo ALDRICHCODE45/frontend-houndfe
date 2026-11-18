@@ -6,6 +6,7 @@ import { formatPaymentMethod } from '../utils/salePaymentMethod.utils'
 import type { SaleDetail } from '../interfaces/sale.types'
 import { formatAddress } from '@/core/shared/utils/formatAddress'
 import SaleAddressSourceNotice from '@/core/shared/components/SaleAddressSourceNotice.vue'
+import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 
 const props = defineProps<{
   sale: SaleDetail
@@ -60,13 +61,7 @@ function openAssignSeller() {
 </script>
 
 <template>
-  <UCard data-testid="sidebar-data-reflow">
-    <template #header>
-      <h3 class="sale-detail-section-title">
-        <UIcon name="i-lucide-clipboard-list" class="size-4" />
-        Datos de la venta
-      </h3>
-    </template>
+  <HfSectionCard title="Datos de la venta" data-testid="sidebar-data-reflow">
     <dl class="grid gap-x-8 gap-y-4 sm:grid-cols-2">
       <div data-testid="reflow-cajero">
         <dt class="sale-detail-fact-label">Cajero</dt>
@@ -83,7 +78,7 @@ function openAssignSeller() {
             variant="link"
             color="neutral"
             size="sm"
-            class="sale-detail-fact-action p-0"
+            class="sale-detail-fact-action min-h-(--hf-control-height) p-0 md:min-h-0"
             data-testid="assign-seller"
             @click="openAssignSeller"
           >
@@ -112,5 +107,5 @@ function openAssignSeller() {
         <dd v-else class="sale-detail-fact-value">{{ uniquePaymentMethods.join(' · ') }}</dd>
       </div>
     </dl>
-  </UCard>
+  </HfSectionCard>
 </template>

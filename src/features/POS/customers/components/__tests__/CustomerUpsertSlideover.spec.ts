@@ -838,21 +838,16 @@ describe('CustomerUpsertSlideover — Clients overlay presentation contract', ()
     }
   })
 
-  it('drops the elevated box look from the grouped panels', () => {
+  it('groups the form in shared section cards without the elevated box look', () => {
     const wrapper = mountCreate()
     try {
-      for (const section of wrapper.findAll('.clients-form-section')) {
+      const sections = wrapper.findAll('section.hf-section-card')
+      // Contacto, Precios, Direcciones, Notas (basic) + Datos fiscales,
+      // Dirección de facturación (billing); see CustomerUpsertSlideover.sections.spec.ts.
+      expect(sections).toHaveLength(6)
+      for (const section of sections) {
         expect(section.classes()).not.toContain('bg-elevated/30')
       }
-    } finally {
-      wrapper.unmount()
-    }
-  })
-
-  it('adds the clients-form-section hook to both existing grouped panels', () => {
-    const wrapper = mountCreate()
-    try {
-      expect(wrapper.findAll('.clients-form-section')).toHaveLength(2)
     } finally {
       wrapper.unmount()
     }
@@ -891,8 +886,9 @@ describe('CustomerUpsertSlideover — Clients overlay presentation contract', ()
       const vm = wrapper.vm as unknown as { state: { showBillingAddress: boolean } }
       vm.state.showBillingAddress = true
       await nextTick()
+      // Nombre/Apellido (T6c), CP fiscal/RFC, números, CP/colonia, ciudad/estado.
       const stacked = wrapper.findAll('.grid-cols-1')
-      expect(stacked).toHaveLength(4)
+      expect(stacked).toHaveLength(5)
       for (const grid of stacked) {
         expect(grid.classes()).toContain('sm:grid-cols-2')
       }

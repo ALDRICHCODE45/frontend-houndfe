@@ -96,14 +96,20 @@
   font-weight: 600;
 }
 
-/* ── Contact cards: hierarchy, states, touch + keyboard targets ───────────── */
+/* ── Contact rows: hierarchy, states, touch + keyboard targets ────────────── */
+
+/* T6c: customers and addresses are rows of ONE bordered list
+ * (`.sales-pos-customer-list`, painted in the template with `--hf-*`
+ * utilities), never a card per row. A row only owns its target height and its
+ * states; the list draws the border and the dividers. */
+.sales-pos-customer .sales-pos-customer-list {
+  border-color: var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background-color: var(--hf-surface);
+}
 
 .sales-pos-customer .sales-pos-customer-card {
   min-height: var(--hf-control-height);
-  border-width: 1px;
-  border-style: solid;
-  border-color: var(--hf-border);
-  border-radius: var(--hf-radius-card);
   background-color: var(--hf-surface);
 }
 
@@ -111,20 +117,17 @@
   background-color: var(--hf-surface-muted);
 }
 
+/* Rows sit flush inside the clipped list, so the ring is drawn inward. */
 .sales-pos-customer .sales-pos-customer-card:focus-visible {
   outline-width: 2px;
   outline-style: solid;
   outline-color: var(--hf-focus);
-  outline-offset: 2px;
+  outline-offset: -2px;
   background-color: var(--hf-surface-muted);
 }
 
 .sales-pos-customer .sales-pos-customer-card:active {
   background-color: var(--hf-active-soft);
-}
-
-.sales-pos-customer .sales-pos-customer-card-skip {
-  border-style: dashed;
 }
 
 .sales-pos-customer .sales-pos-customer-card-name {
@@ -222,16 +225,12 @@
   color: var(--hf-action);
 }
 
+/* T6c: the form groups are the shared HfSectionCard (surface, border, 16px/600
+ * heading from hf-form.css); the venta marker only pins the same roles. */
 .sales-pos-customer-form .sales-pos-customer-form-section {
   border-color: var(--hf-border);
   border-radius: var(--hf-radius-card);
-  background-color: var(--hf-surface-muted);
-}
-
-.sales-pos-customer-form .sales-pos-customer-form-section-title {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--hf-heading);
+  background-color: var(--hf-surface);
 }
 
 .sales-pos-customer-form .sales-pos-customer-form-label {
@@ -256,10 +255,9 @@
   font-weight: 600;
 }
 
+/* Address rows sit in one bordered list (dividers in the template). */
 .sales-pos-customer-form .sales-pos-customer-form-address-row {
   min-height: var(--hf-control-height);
-  border-color: var(--hf-border);
-  border-radius: var(--hf-radius-control);
   background-color: var(--hf-surface);
 }
 

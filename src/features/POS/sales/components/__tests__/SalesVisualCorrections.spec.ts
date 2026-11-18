@@ -10,6 +10,7 @@ import SaleTotalsFooter from '../SaleTotalsFooter.vue'
 import SaleItemBadges from '../SaleItemBadges.vue'
 import SaleDetailItemsList from '../SaleDetailItemsList.vue'
 import PaymentMethodPills from '../PaymentMethodPills.vue'
+import UCard from '@nuxt/ui/components/Card.vue'
 import type { Sale, SaleItem, SaleDetailItem } from '../../interfaces/sale.types'
 
 // Native owners, not tooltip/card stubs. Auto-unmount tracks the UApp root
@@ -144,8 +145,10 @@ describe('Sales native card surface — scoped paint, not boundary variables onl
     addPaint(readFileSync('src/features/POS/sales/styles/sales-detail-visual.css', 'utf8'))
     const marker = ref('hf-theme hf-ui sales-detail-visual')
     const fixture = defineComponent({
-      components: { SaleDetailItemsList }, setup: () => ({ marker }),
-      template: `<section :class="marker"><SaleDetailItemsList :items="[]" />
+      // T6c: the sale detail sections are HfSectionCard now, so an inline native
+      // UCard is the fixture that proves the adapter still repaints reached cards.
+      components: { UCard }, setup: () => ({ marker }),
+      template: `<section :class="marker"><UCard>Tarjeta</UCard>
         <div style="background-color: rgb(60, 70, 80)" data-testid="fact">Dato</div>
         <div class="bg-success" data-testid="status">Confirmado</div></section>`,
     })

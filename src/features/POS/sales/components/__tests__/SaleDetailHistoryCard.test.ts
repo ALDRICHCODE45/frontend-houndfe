@@ -30,10 +30,9 @@ const baseTimeline: SaleTimelineEvent[] = [
 ]
 
 describe('SaleDetailHistoryCard', () => {
-  // REQ-LAYOUT-002 / REQ-LAYOUT-007: the wrapper composes a single outer UCard
-  // titled "HISTORIAL" with Timeline in body and CommentInput in footer.
-  // The Timeline's own inner UCard (cosmetic, accepted per design D2) coexists.
-  it('renders the outer Historial UCard with Timeline body and CommentInput footer', () => {
+  // REQ-LAYOUT-002 / REQ-LAYOUT-007: the wrapper composes a single section
+  // titled "Historial" with the Timeline, then the CommentInput under a hairline.
+  it('renders the Historial section with the Timeline and the CommentInput after it', () => {
     const wrapper = mountWithUApp(SaleDetailHistoryCard, {
       props: {
         timeline: baseTimeline,
@@ -45,11 +44,8 @@ describe('SaleDetailHistoryCard', () => {
       },
     })
 
-    // The outer wrapper card carries the "Historial" title
-    // (Timeline's inner card uses lowercase "Historial").
-    const outerHeaders = wrapper.findAll('[data-slot="header"]')
-    const outerCardTitle = outerHeaders.find((h) => h.text() === 'Historial')
-    expect(outerCardTitle).toBeTruthy()
+    // T6c: the wrapper is the shared HfSectionCard titled "Historial".
+    expect(wrapper.get('section.hf-section-card .hf-section-card__title').text()).toBe('Historial')
 
     // Timeline events render in the body (real SaleDetailTimeline)
     const events = wrapper.findAll('[data-testid="timeline-event"]')
@@ -72,9 +68,7 @@ describe('SaleDetailHistoryCard', () => {
       },
     })
 
-    const outerHeaders = wrapper.findAll('[data-slot="header"]')
-    const outerCardTitle = outerHeaders.find((h) => h.text() === 'Historial')
-    expect(outerCardTitle).toBeDefined()
+    expect(wrapper.get('section.hf-section-card .hf-section-card__title').text()).toBe('Historial')
     expect(wrapper.findAll('[data-testid="timeline-event"]')).toHaveLength(0)
     expect(wrapper.get('[data-testid="sale-comment-input"]').text()).toContain('')
   })
@@ -116,10 +110,10 @@ describe('SaleDetailHistoryCard', () => {
     expect(wrapper.find('[data-testid="comment-open"]').exists()).toBe(true)
   })
 
-  // ── sale-detail-redesign WU-E — after dropping the internal UCard on
-  // SaleDetailTimeline, the HistoryCard wrapper is the ONLY UCard in the
-  // rendered DOM. Timeline body + composer footer both live inside it.
-  it('renders exactly one UCard wrapper with "Historial" header (no nested timeline card)', () => {
+  // ── sale-detail-redesign WU-E / T6c — the HistoryCard wrapper is the ONLY
+  // section in the rendered DOM (the shared HfSectionCard, no native UCard).
+  // Timeline body + composer both live inside it.
+  it('renders exactly one section card with "Historial" heading (no nested timeline card)', () => {
     const wrapper = mountWithUApp(SaleDetailHistoryCard, {
       props: {
         timeline: baseTimeline,
@@ -131,19 +125,13 @@ describe('SaleDetailHistoryCard', () => {
       },
     })
 
-    // Exactly one UCard root (the wrapper).
-    const roots = wrapper.findAll('[data-slot="root"]')
-    expect(roots).toHaveLength(1)
-    // Exactly one header slot, carrying the "Historial" title.
-    const headers = wrapper.findAll('[data-slot="header"]')
-    expect(headers).toHaveLength(1)
-    expect(headers[0]?.text()).toBe('Historial')
+    const sections = wrapper.findAll('section.hf-section-card')
+    expect(sections).toHaveLength(1)
+    expect(sections[0]!.get('.hf-section-card__title').text()).toBe('Historial')
+    expect(wrapper.findAll('[data-slot="header"]')).toHaveLength(0)
 
-    // Body still mounts timeline events; footer still mounts the composer.
-    expect(wrapper.findAll('[data-testid="timeline-event"]')).toHaveLength(2)
-    // wrapper.get() throws if missing; binding the result is enough to
-    // assert the testid is present without a redundant .exists() call.
-    const _composer = wrapper.get('[data-testid="sale-comment-input"]')
-    void _composer
+    // Body still mounts timeline events; the composer sits inside the same section.
+    expect(sections[0]!.findAll('[data-testid="timeline-event"]')).toHaveLength(2)
+    expect(sections[0]!.find('[data-testid="sale-comment-input"]').exists()).toBe(true)
   })
 })

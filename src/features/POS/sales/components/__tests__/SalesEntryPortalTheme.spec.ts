@@ -651,8 +651,11 @@ describe('AssignCustomerSlideover — reached sales flow keeps the opted-in boun
 
     const row = document.body.querySelector('[data-testid="customer-row-customer-1"]')!
     expect(row).not.toBeNull()
-    expect(row.getAttribute('data-slot')).toBe('root')
-    expect(cardPaint(row)).toBeDefined()
+    // T6c: rows are plain rows of ONE list surface painted with --hf-surface
+    // in the template (not portal-scoped), never a native card per row.
+    expect(row.getAttribute('data-slot')).toBeNull()
+    expect(row.parentElement!.classList.contains('sales-pos-customer-list')).toBe(true)
+    expect(row.parentElement!.classList.contains('bg-(--hf-surface)')).toBe(true)
     ;(row as HTMLElement).click()
     await flushPromises()
 
@@ -669,14 +672,13 @@ describe('AssignCustomerSlideover — reached sales flow keeps the opted-in boun
     expect(footerCta!.classList.contains('hf-primary-control')).toBe(false)
     expect(footerCta!.getAttribute('class')).not.toContain('brand-action')
     for (const testId of ['skip-shipping-address', 'shipping-address-option-address-1']) {
-      const card = document.body.querySelector(`[data-testid="${testId}"]`)!
-      expect(card.getAttribute('data-slot')).toBe('root')
-      expect(cardPaint(card)).toBeDefined()
+      const choice = document.body.querySelector(`[data-testid="${testId}"]`)!
+      expect(choice.getAttribute('data-slot')).toBeNull()
+      expect(choice.closest('.sales-pos-customer-list')).not.toBeNull()
+      // No native card root left for the portal-scoped card repaint to reach.
+      expect(cardPaint(choice)).toBeUndefined()
     }
-    const root = footerCta!.closest('.sales-entry-portal')!
-    root.classList.replace('sales-entry-portal', 'quotations-portal')
-    expect(cardPaint(document.body.querySelector('[data-testid="skip-shipping-address"]')!)).toBeUndefined()
-    root.classList.replace('quotations-portal', 'sales-entry-portal')
+    expect(document.body.querySelectorAll('.sales-pos-customer-list')).toHaveLength(1)
     expect(document.body.querySelectorAll('[class~="text-coco-gold-800"]')).toHaveLength(0)
     expect(document.body.textContent).toContain('Seleccionado')
     expect(document.body.textContent).toContain('Cambiar cliente')

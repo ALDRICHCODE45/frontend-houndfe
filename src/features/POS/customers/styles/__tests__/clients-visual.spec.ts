@@ -126,12 +126,12 @@ describe('Clients form overlay adapter (S1-S3)', () => {
   })
 
   it('styles sections, billing link and primary control inside the overlay only', () => {
-    const section = exactRule(css, '.clients-form-portal .clients-form-section')!
-    expect(section.style.getPropertyValue('background-color').trim()).toBe(
-      'var(--hf-surface-muted)',
-    )
-    expect(section.style.getPropertyValue('border')).toContain('--hf-border')
-    expect(section.style.getPropertyValue('border-radius').trim()).toBe('var(--hf-radius-card)')
+    // T6c: form groups are the shared HfSectionCard; no tinted local section panel.
+    expect(css).not.toContain('.clients-form-section')
+    const group = styleRules(css).find((rule) =>
+      splitTopLevel(rule.selectorText).includes('.clients-form-portal .clients-form-switch-group'),
+    )!
+    expect(group.style.getPropertyValue('background-color').trim()).toBe('var(--hf-surface)')
 
     const link = exactRule(css, '.clients-form-portal .clients-form-link')!
     expect(link.style.getPropertyValue('color').trim()).toBe('var(--hf-action)')
@@ -168,7 +168,7 @@ describe('Clients form overlay adapter (S1-S3)', () => {
     root.innerHTML = `
       <div data-slot="header"><h2 data-slot="title">Nuevo cliente</h2></div>
       <div data-slot="body">
-        <div class="clients-form-section">Precios</div>
+        <div class="clients-form-switch-group">Precios</div>
         <button class="clients-form-link" type="button">Mostrar dirección</button>
       </div>
       <div data-slot="footer"><button class="hf-primary-control" type="button">Crear cliente</button></div>`
@@ -185,14 +185,14 @@ describe('Clients form overlay adapter (S1-S3)', () => {
     const overlayRules = styleRules(css).filter((rule) =>
       rule.selectorText.includes('clients-form-portal'),
     )
-    const section = root.querySelector('.clients-form-section')!
+    const section = root.querySelector('.clients-form-switch-group')!
     const link = root.querySelector('.clients-form-link')!
     const primary = root.querySelector('.hf-primary-control')!
     expect(
       overlayRules.some(
         (rule) =>
           section.matches(rule.selectorText) &&
-          rule.style.getPropertyValue('background-color').trim() === 'var(--hf-surface-muted)',
+          rule.style.getPropertyValue('background-color').trim() === 'var(--hf-surface)',
       ),
     ).toBe(true)
     expect(
@@ -257,6 +257,6 @@ describe('Clients form overlay adapter (S1-S3)', () => {
     const selectors = selectorsOf(css)
     expect(selectors).toContain('.hf-theme.clients-visual')
     expect(selectors).toContain('.hf-theme.clients-list-portal')
-    expect(selectors).toContain('.clients-form-portal .clients-form-section')
+    expect(selectors).toContain('.clients-form-portal .clients-form-switch-group')
   })
 })

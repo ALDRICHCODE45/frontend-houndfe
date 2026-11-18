@@ -31,12 +31,14 @@
  * surface/text/font/border/focus roles from the shared `hf-ui` adapter. Only
  * the overlay's own hooks are styled here, never an element-blind data slot. */
 
-/* Grouped form panels stay quiet: one muted surface and one restrained border
- * instead of a second elevated card. */
-.clients-form-portal .clients-form-section {
-  background-color: var(--hf-surface-muted);
-  border: 1px solid var(--hf-border);
-  border-radius: var(--hf-radius-card);
+/* Form groups are the shared HfSectionCard (hf-form.css owns surface, border,
+ * radius and the 16px/600 heading), so no local section paint lives here. Inside
+ * a card, a switch row and the field it reveals share one bordered group, and
+ * address rows share one bordered list; both are drawn with `--hf-*` utilities
+ * in the template, so the venta path (which never loads this file) matches. */
+.clients-form-portal .clients-form-switch-group,
+.clients-form-portal .clients-form-address-list {
+  background-color: var(--hf-surface);
 }
 
 /* The billing disclosure toggle uses the action role and the shared focus

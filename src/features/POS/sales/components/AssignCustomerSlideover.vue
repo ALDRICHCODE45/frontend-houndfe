@@ -11,6 +11,7 @@ import { customerQueryKeys } from '@/core/shared/constants/query-keys'
 import { useDraftCustomerAssignment, DraftCustomerAssignmentError } from '../composables/useDraftCustomerAssignment'
 import AddressLocationStatus from '@/core/shared/components/AddressLocationStatus.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import { formatAddress } from '@/core/shared/utils/formatAddress'
 import { formatPhoneCountryCode } from '@/core/shared/utils/phone.utils'
 import type {
@@ -252,12 +253,12 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
   >
     <template #content>
       <div class="flex h-full flex-col" data-testid="assign-customer-slideover">
-        <div class="sales-pos-customer-header border-b border-default px-5 py-4">
+        <div class="sales-pos-customer-header border-b border-(--hf-border) px-5 py-4">
           <!-- Step 1: Customer Selection Header -->
           <div v-if="!selectedCustomer" class="flex items-center justify-between gap-3">
             <div>
-              <p class="sales-pos-customer-title text-lg font-semibold">Asignar cliente</p>
-              <p class="sales-pos-customer-subtitle text-sm text-muted">Selecciona un cliente</p>
+              <p class="sales-pos-customer-title text-lg font-semibold text-(--hf-heading)">Asignar cliente</p>
+              <p class="sales-pos-customer-subtitle text-sm text-(--hf-muted)">Selecciona un cliente</p>
             </div>
             <UButton
               class="sales-pos-customer-close"
@@ -274,7 +275,7 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
               <UAvatar :alt="selectedCustomer.fullName" size="sm" />
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2">
-                  <p class="sales-pos-customer-title text-lg font-semibold truncate">
+                  <p class="sales-pos-customer-title truncate text-lg font-semibold text-(--hf-heading)">
                     {{ selectedCustomer.fullName }}
                   </p>
                   <StatusBadge
@@ -286,7 +287,7 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
                 </div>
                 <p
                   v-if="isSaleCustomerPortal && selectedCustomerContact"
-                  class="sales-pos-customer-contact text-xs text-muted truncate"
+                  class="sales-pos-customer-contact truncate text-[13px] text-(--hf-muted)"
                 >
                   {{ selectedCustomerContact }}
                 </p>
@@ -357,44 +358,46 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
               <USkeleton v-for="idx in 3" :key="idx" class="h-16 w-full" />
             </div>
 
-            <div v-else-if="customersQuery.isError.value" class="rounded-md border border-error/50 p-4 text-sm text-error">
-              No se pudieron cargar los clientes.
-            </div>
+            <EmptyState
+              v-else-if="customersQuery.isError.value"
+              kind="error"
+              title="No se pudieron cargar los clientes."
+            />
 
-            <div v-else-if="filteredCustomers.length === 0" class="space-y-4">
-              <div class="rounded-md border border-dashed border-default p-6 text-center">
-                <UIcon name="i-lucide-user-search" class="mx-auto size-8 text-muted mb-2" />
-                <p class="text-sm text-muted">
-                  {{ debouncedSearch ? 'No se encontraron clientes' : 'Aún no hay clientes registrados' }}
-                </p>
-              </div>
-            </div>
+            <EmptyState
+              v-else-if="filteredCustomers.length === 0"
+              :kind="debouncedSearch ? 'no-match' : 'empty'"
+              :title="debouncedSearch ? 'No se encontraron clientes' : 'Aún no hay clientes registrados'"
+            />
 
-            <div v-else class="space-y-3">
-              <UCard
+            <!-- T6c: one bordered list surface; each customer is a row (divider
+                 between rows), never a card per row. -->
+            <div
+              v-else
+              class="sales-pos-customer-list overflow-hidden rounded-(--hf-radius-card) border border-(--hf-border) divide-y divide-(--hf-border) bg-(--hf-surface)"
+            >
+              <div
                 v-for="customer in filteredCustomers"
                 :key="customer.id"
                 :data-testid="`customer-row-${customer.id}`"
-                class="sales-pos-customer-card cursor-pointer transition-colors hover:bg-elevated/70"
+                class="sales-pos-customer-card flex min-h-14 cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-(--hf-surface-muted)"
                 :role="isSaleCustomerPortal ? 'button' : undefined"
                 :tabindex="isSaleCustomerPortal ? 0 : undefined"
                 @click="handleSelectCustomer(customer)"
                 @keydown.enter.prevent="handleSelectCustomer(customer)"
                 @keydown.space.prevent="handleSelectCustomer(customer)"
               >
-                <div class="flex items-center gap-3">
-                  <UAvatar :alt="customer.fullName" size="sm" />
-                  <div class="min-w-0 flex-1">
-                    <p class="sales-pos-customer-card-name font-medium truncate">
-                      {{ customer.fullName }}
-                    </p>
-                    <p class="sales-pos-customer-card-meta text-xs text-muted truncate">
-                      {{ customer.email ?? 'Sin email' }} · {{ formatCustomerPhone(customer) || 'Sin teléfono' }}
-                    </p>
-                  </div>
-                  <UIcon name="i-lucide-chevron-right" class="size-4 text-muted" />
+                <UAvatar :alt="customer.fullName" size="sm" />
+                <div class="min-w-0 flex-1">
+                  <p class="sales-pos-customer-card-name truncate text-sm font-semibold text-(--hf-heading)">
+                    {{ customer.fullName }}
+                  </p>
+                  <p class="sales-pos-customer-card-meta truncate text-[13px] text-(--hf-muted)">
+                    {{ customer.email ?? 'Sin email' }} · {{ formatCustomerPhone(customer) || 'Sin teléfono' }}
+                  </p>
                 </div>
-              </UCard>
+                <UIcon name="i-lucide-chevron-right" class="size-4 shrink-0 text-(--hf-muted)" aria-hidden="true" />
+              </div>
             </div>
           </template>
 
@@ -402,62 +405,66 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
           <template v-if="selectedCustomer">
             <div class="space-y-4">
               <div>
-                <h3 class="sales-pos-customer-section-title text-sm font-medium text-highlighted mb-3">
+                <h3 class="sales-pos-customer-section-title mb-3 text-sm font-semibold text-(--hf-heading)">
                   Dirección de envío
                 </h3>
 
-                <div class="space-y-2">
+                <!-- T6c: «Sin dirección» and the saved addresses are rows of one
+                     bordered list surface, never a card per choice. -->
+                <div
+                  class="sales-pos-customer-list overflow-hidden rounded-(--hf-radius-card) border border-(--hf-border) divide-y divide-(--hf-border) bg-(--hf-surface)"
+                >
                   <!-- No shipping address option -->
-                  <UCard
+                  <div
                     data-testid="skip-shipping-address"
-                    class="sales-pos-customer-card sales-pos-customer-card-skip cursor-pointer transition-colors hover:bg-elevated/70"
+                    class="sales-pos-customer-card sales-pos-customer-card-skip flex min-h-14 cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-(--hf-surface-muted)"
                     :role="isSaleCustomerPortal ? 'button' : undefined"
                     :tabindex="isSaleCustomerPortal ? 0 : undefined"
                     @click="handleAddressSelect(null)"
                     @keydown.enter.prevent="handleAddressSelect(null)"
                     @keydown.space.prevent="handleAddressSelect(null)"
                   >
-                    <div class="flex items-center gap-3">
-                      <UIcon name="i-lucide-circle-slash" class="sales-pos-customer-card-icon size-5 text-muted" />
-                      <div class="min-w-0 flex-1">
-                        <p class="sales-pos-customer-card-name font-medium">Sin dirección de envío</p>
-                        <p class="sales-pos-customer-card-meta text-xs text-muted">El cliente recogerá en persona</p>
-                      </div>
+                    <UIcon name="i-lucide-circle-slash" class="sales-pos-customer-card-icon size-5 shrink-0 text-(--hf-muted)" aria-hidden="true" />
+                    <div class="min-w-0 flex-1">
+                      <p class="sales-pos-customer-card-name text-sm font-semibold text-(--hf-heading)">Sin dirección de envío</p>
+                      <p class="sales-pos-customer-card-meta text-[13px] text-(--hf-muted)">El cliente recogerá en persona</p>
                     </div>
-                  </UCard>
+                  </div>
 
                   <!-- Existing addresses -->
-                  <div v-if="showAddressPicker" data-testid="shipping-address-picker" class="space-y-2">
-                    <UCard
+                  <div
+                    v-if="showAddressPicker"
+                    data-testid="shipping-address-picker"
+                    class="divide-y divide-(--hf-border)"
+                  >
+                    <div
                       v-for="address in addresses"
                       :key="address.id"
                       :data-testid="`shipping-address-option-${address.id}`"
-                      class="sales-pos-customer-card cursor-pointer transition-colors hover:bg-elevated/70"
+                      class="sales-pos-customer-card flex min-h-14 cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-(--hf-surface-muted)"
                       :role="isSaleCustomerPortal ? 'button' : undefined"
                       :tabindex="isSaleCustomerPortal ? 0 : undefined"
                       @click="handleAddressSelect(address.id)"
                       @keydown.enter.prevent="handleAddressSelect(address.id)"
                       @keydown.space.prevent="handleAddressSelect(address.id)"
                     >
-                      <div class="flex items-center gap-3">
-                        <UIcon name="i-lucide-map-pin" class="sales-pos-customer-card-icon size-5 text-muted" />
-                        <div class="min-w-0 flex-1">
-                          <p class="sales-pos-customer-card-name font-medium truncate">
-                            {{ formatAddress(address) }}
-                          </p>
-                          <p class="sales-pos-customer-card-meta flex flex-wrap items-center gap-x-3 text-xs text-muted">
-                            <span>{{ address.neighborhood ?? 'Sin colonia' }}</span>
-                            <AddressLocationStatus :address="address" />
-                          </p>
-                        </div>
+                      <UIcon name="i-lucide-map-pin" class="sales-pos-customer-card-icon size-5 shrink-0 text-(--hf-muted)" aria-hidden="true" />
+                      <div class="min-w-0 flex-1">
+                        <p class="sales-pos-customer-card-name truncate text-sm font-semibold text-(--hf-heading)">
+                          {{ formatAddress(address) }}
+                        </p>
+                        <p class="sales-pos-customer-card-meta flex flex-wrap items-center gap-x-3 text-[13px] text-(--hf-muted)">
+                          <span>{{ address.neighborhood ?? 'Sin colonia' }}</span>
+                          <AddressLocationStatus :address="address" />
+                        </p>
                       </div>
-                    </UCard>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <!-- Footer with actions -->
-              <div class="sales-pos-customer-footer flex items-center justify-between pt-3 border-t border-default">
+              <div class="sales-pos-customer-footer flex items-center justify-between gap-2 border-t border-(--hf-border) pt-4">
                 <UButton
                   v-if="canCreateCustomer"
                   data-testid="open-create-address"
@@ -482,7 +489,7 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
             <!-- The venta sheet already offers "Nuevo cliente" in the search step; the
                  other consumers keep this one reachable from the address step (outline,
                  so the sheet has no second solid button). -->
-            <div v-if="!isSaleCustomerPortal" class="border-t border-default p-4">
+            <div v-if="!isSaleCustomerPortal" class="border-t border-(--hf-border) pt-4">
               <UButton
                 v-if="canCreateCustomer"
                 data-testid="open-create-customer"

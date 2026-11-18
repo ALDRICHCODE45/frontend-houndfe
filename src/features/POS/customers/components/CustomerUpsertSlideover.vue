@@ -21,6 +21,7 @@ import type {
 } from '../interfaces/customer.types'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import { HfSwitchRow } from '@/core/shared/components/selection'
+import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 import AddressModal from './AddressModal.vue'
 import AddressLocationStatus from '@/core/shared/components/AddressLocationStatus.vue'
 import { formatAddress } from '@/core/shared/utils/formatAddress'
@@ -283,109 +284,105 @@ function handleCancel() {
               class="flex flex-col gap-4"
               @submit="onSubmit"
             >
-              <UFormField label="Nombre" name="firstName" :error="errors.firstName" required>
-                <UInput v-model="state.firstName" class="w-full" size="lg" placeholder="Ej: Juan" />
-              </UFormField>
+              <!-- T6c: every field lives in a shared section card (one surface
+                   per group, 16px/600 heading); no loose fields beside tinted boxes. -->
+              <HfSectionCard title="Contacto" class="sales-pos-customer-form-section">
+                <div class="flex flex-col gap-4">
+                  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <UFormField label="Nombre" name="firstName" :error="errors.firstName" required>
+                      <UInput v-model="state.firstName" class="w-full" size="lg" placeholder="Ej: Juan" />
+                    </UFormField>
 
-              <UFormField label="Apellido" name="lastName" :error="errors.lastName">
-                <UInput v-model="state.lastName" class="w-full" size="lg" placeholder="Ej: Pérez" />
-              </UFormField>
+                    <UFormField label="Apellido" name="lastName" :error="errors.lastName">
+                      <UInput v-model="state.lastName" class="w-full" size="lg" placeholder="Ej: Pérez" />
+                    </UFormField>
+                  </div>
 
-              <!-- Teléfono: código de país + número -->
-              <div>
-                <label class="sales-pos-customer-form-label mb-1.5 block text-sm font-medium">Teléfono</label>
-                <div class="sales-pos-customer-form-phone flex gap-2">
-                  <USelect
-                    v-model="state.phoneCountryCode"
-                    :items="COUNTRY_CODE_OPTIONS"
-                    size="lg"
-                    class="sales-pos-customer-form-country w-32 shrink-0"
-                    :ui="{ content: selectContentClass }"
-                  />
-                  <UFormField name="phone" :error="errors.phone" class="sales-pos-customer-form-phone-number flex-1">
+                  <!-- Teléfono: código de país + número -->
+                  <div>
+                    <label class="sales-pos-customer-form-label mb-1.5 block text-sm font-medium text-(--hf-ink)">Teléfono</label>
+                    <div class="sales-pos-customer-form-phone flex gap-2">
+                      <USelect
+                        v-model="state.phoneCountryCode"
+                        :items="COUNTRY_CODE_OPTIONS"
+                        size="lg"
+                        aria-label="Código de país"
+                        class="sales-pos-customer-form-country w-32 shrink-0"
+                        :ui="{ content: selectContentClass }"
+                      />
+                      <UFormField name="phone" :error="errors.phone" class="sales-pos-customer-form-phone-number flex-1">
+                        <UInput
+                          v-model="state.phone"
+                          class="w-full"
+                          size="lg"
+                          placeholder="55 1234 5678"
+                          inputmode="tel"
+                          aria-label="Teléfono"
+                        />
+                      </UFormField>
+                    </div>
+                  </div>
+
+                  <UFormField label="Correo electrónico" name="email" :error="errors.email">
                     <UInput
-                      v-model="state.phone"
+                      v-model="state.email"
                       class="w-full"
                       size="lg"
-                      placeholder="55 1234 5678"
-                      inputmode="tel"
+                      placeholder="juan@ejemplo.com"
+                      type="email"
                     />
                   </UFormField>
                 </div>
-              </div>
+              </HfSectionCard>
 
-              <UFormField label="Correo electrónico" name="email" :error="errors.email">
-                <UInput
-                  v-model="state.email"
-                  class="w-full"
-                  size="lg"
-                  placeholder="juan@ejemplo.com"
-                  type="email"
-                />
-              </UFormField>
-
-              <!-- Sección Precios -->
-              <!-- The switch row sits flush in the section (its own 1rem inset
-                   lines up with the title); the list field appears under it. -->
-              <div
-                class="clients-form-section sales-pos-customer-form-section overflow-hidden rounded-lg border"
-              >
-                <p class="sales-pos-customer-form-section-title px-4 pt-4 font-semibold">Precios</p>
-                <HfSwitchRow
-                  v-model="state.assignPriceList"
-                  label="Asignar una lista de precios al cliente"
-                  test-id="customer-assign-price-list"
-                />
-                <div v-if="state.assignPriceList" class="px-4 pb-4">
-                  <UFormField
-                    label="Lista de precios"
-                    name="globalPriceListId"
-                    :error="errors.globalPriceListId"
-                  >
-                    <USelect
-                      v-model="state.globalPriceListId"
-                      :items="priceListItems"
-                      placeholder="Seleccionar lista de precios"
-                      class="w-full"
-                      size="lg"
-                      :ui="{ content: selectContentClass }"
-                    />
-                  </UFormField>
-                </div>
-              </div>
-
-              <!-- Sección Dirección y Más -->
-              <div
-                class="clients-form-section sales-pos-customer-form-section rounded-lg border p-4"
-              >
-                <div class="sales-pos-customer-form-address-header mb-3 flex items-center justify-between">
-                  <p class="sales-pos-customer-form-section-title font-semibold">Dirección</p>
-                  <UButton
-                    label="+ Añadir dirección"
-                    class="sales-pos-customer-form-action sales-pos-customer-form-add-address"
-                    size="sm"
-                    color="neutral"
-                    variant="ghost"
-                    type="button"
-                    @click="openAddressModal"
+              <!-- The switch row and the field it reveals share one bordered group
+                   (the promotions «monto mínimo» pattern), never flush on the card edge. -->
+              <HfSectionCard title="Precios" class="sales-pos-customer-form-section">
+                <div
+                  class="clients-form-switch-group overflow-hidden rounded-(--hf-radius-card) border border-(--hf-border)"
+                >
+                  <HfSwitchRow
+                    v-model="state.assignPriceList"
+                    label="Asignar una lista de precios al cliente"
+                    test-id="customer-assign-price-list"
                   />
+                  <div v-if="state.assignPriceList" class="clients-form-switch-group__body px-4 pb-4 pt-1">
+                    <UFormField
+                      label="Lista de precios"
+                      name="globalPriceListId"
+                      :error="errors.globalPriceListId"
+                    >
+                      <USelect
+                        v-model="state.globalPriceListId"
+                        :items="priceListItems"
+                        placeholder="Seleccionar lista de precios"
+                        class="w-full"
+                        size="lg"
+                        :ui="{ content: selectContentClass }"
+                      />
+                    </UFormField>
+                  </div>
                 </div>
+              </HfSectionCard>
 
-                <!-- Pending addresses list (create mode) -->
-                <div v-if="mode === 'create' && pendingAddresses.length > 0" class="mb-3 space-y-2">
+              <HfSectionCard title="Direcciones" class="sales-pos-customer-form-section">
+                <!-- Pending addresses list (create mode): one bordered list, a row each -->
+                <div
+                  v-if="mode === 'create' && pendingAddresses.length > 0"
+                  class="clients-form-address-list mb-3 overflow-hidden rounded-(--hf-radius-card) border border-(--hf-border) divide-y divide-(--hf-border)"
+                >
                   <div
                     v-for="(addr, idx) in pendingAddresses"
                     :key="idx"
-                    class="sales-pos-customer-form-address-row flex items-center justify-between rounded-md border border-default bg-background px-3 py-2"
+                    class="sales-pos-customer-form-address-row flex min-h-14 items-center justify-between gap-3 py-2 pl-4 pr-1"
                   >
                     <div class="flex min-w-0 flex-col gap-0.5">
-                      <span class="sales-pos-customer-form-address-text truncate text-sm">{{ formatAddress(addr) }}</span>
+                      <span class="sales-pos-customer-form-address-text truncate text-sm text-(--hf-ink)">{{ formatAddress(addr) }}</span>
                       <AddressLocationStatus :address="addr" />
                     </div>
                     <UButton
                       icon="i-lucide-trash-2"
-                      class="sales-pos-customer-form-icon-action"
-                      size="xs"
+                      class="sales-pos-customer-form-icon-action min-h-(--hf-control-height) min-w-(--hf-control-height) justify-center"
                       color="error"
                       variant="ghost"
                       type="button"
@@ -398,16 +395,16 @@ function handleCancel() {
                 <!-- Existing addresses list (edit mode) -->
                 <div
                   v-if="mode === 'edit' && customer?.addresses && customer.addresses.length > 0"
-                  class="mb-3 space-y-2"
+                  class="clients-form-address-list mb-3 overflow-hidden rounded-(--hf-radius-card) border border-(--hf-border) divide-y divide-(--hf-border)"
                 >
                   <div
                     v-for="addr in customer.addresses"
                     :key="addr.id"
                     :data-testid="`address-row-${addr.id}`"
-                    class="sales-pos-customer-form-address-row flex items-center justify-between rounded-md border border-default bg-background px-3 py-2"
+                    class="sales-pos-customer-form-address-row flex min-h-14 items-center justify-between gap-3 py-2 pl-4 pr-1"
                   >
                     <div class="flex min-w-0 flex-col gap-0.5">
-                      <span class="sales-pos-customer-form-address-text truncate text-sm">{{ formatAddress(addr) }}</span>
+                      <span class="sales-pos-customer-form-address-text truncate text-sm text-(--hf-ink)">{{ formatAddress(addr) }}</span>
                       <AddressLocationStatus :address="addr" />
                     </div>
                     <RowActionsMenu
@@ -423,92 +420,108 @@ function handleCancel() {
                   v-if="
                     mode === 'create' ? pendingAddresses.length === 0 : !customer?.addresses?.length
                   "
-                  class="sales-pos-customer-form-empty text-sm text-muted"
+                  class="sales-pos-customer-form-empty mb-3 text-sm text-(--hf-muted)"
                 >
                   Sin direcciones añadidas
                 </p>
-              </div>
 
-              <UFormField label="Comentarios" name="comments" :error="errors.comments">
-                <UTextarea
-                  v-model="state.comments"
-                  class="w-full"
-                  :rows="3"
-                  placeholder="Notas adicionales sobre el cliente"
+                <UButton
+                  label="Añadir dirección"
+                  icon="i-lucide-plus"
+                  class="sales-pos-customer-form-action sales-pos-customer-form-add-address min-h-(--hf-control-height)"
+                  color="neutral"
+                  variant="outline"
+                  type="button"
+                  @click="openAddressModal"
                 />
-              </UFormField>
+              </HfSectionCard>
+
+              <HfSectionCard title="Notas" class="sales-pos-customer-form-section">
+                <UFormField label="Comentarios" name="comments" :error="errors.comments">
+                  <UTextarea
+                    v-model="state.comments"
+                    class="w-full"
+                    :rows="3"
+                    placeholder="Notas adicionales sobre el cliente"
+                  />
+                </UFormField>
+              </HfSectionCard>
             </UForm>
           </div>
 
           <!-- ── Tab: Datos de facturación ────────────────── -->
-          <div v-else-if="item.value === 'billing'" class="pt-4">
-            <div class="flex flex-col gap-4">
-              <UFormField label="Razón social" name="businessName" :error="errors.businessName">
-                <UInput
-                  v-model="state.businessName"
-                  class="w-full"
-                  size="lg"
-                  placeholder="Ej: ACME S.A. de C.V."
-                />
-              </UFormField>
-
-              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <UFormField
-                  label="Código postal fiscal"
-                  name="fiscalZipCode"
-                  :error="errors.fiscalZipCode"
-                >
+          <div v-else-if="item.value === 'billing'" class="flex flex-col gap-4 pt-4">
+            <HfSectionCard title="Datos fiscales" class="sales-pos-customer-form-section">
+              <div class="flex flex-col gap-4">
+                <UFormField label="Razón social" name="businessName" :error="errors.businessName">
                   <UInput
-                    v-model="state.fiscalZipCode"
+                    v-model="state.businessName"
                     class="w-full"
                     size="lg"
-                    placeholder="Ej: 03100"
+                    placeholder="Ej: ACME S.A. de C.V."
                   />
                 </UFormField>
 
-                <UFormField label="R.F.C." name="rfc" :error="errors.rfc">
-                  <UInput
-                    v-model="state.rfc"
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <UFormField
+                    label="Código postal fiscal"
+                    name="fiscalZipCode"
+                    :error="errors.fiscalZipCode"
+                  >
+                    <UInput
+                      v-model="state.fiscalZipCode"
+                      class="w-full"
+                      size="lg"
+                      placeholder="Ej: 03100"
+                    />
+                  </UFormField>
+
+                  <UFormField label="R.F.C." name="rfc" :error="errors.rfc">
+                    <UInput
+                      v-model="state.rfc"
+                      class="w-full"
+                      size="lg"
+                      placeholder="Ej: XAXX010101000"
+                    />
+                  </UFormField>
+                </div>
+
+                <UFormField label="Régimen fiscal" name="fiscalRegime" :error="errors.fiscalRegime">
+                  <USelect
+                    v-model="state.fiscalRegime"
+                    :items="FISCAL_REGIMES"
+                    placeholder="Seleccionar régimen fiscal"
                     class="w-full"
                     size="lg"
-                    placeholder="Ej: XAXX010101000"
+                    :ui="{ content: selectContentClass }"
                   />
                 </UFormField>
               </div>
+            </HfSectionCard>
 
-              <UFormField label="Régimen fiscal" name="fiscalRegime" :error="errors.fiscalRegime">
-                <USelect
-                  v-model="state.fiscalRegime"
-                  :items="FISCAL_REGIMES"
-                  placeholder="Seleccionar régimen fiscal"
-                  class="w-full"
-                  size="lg"
-                  :ui="{ content: selectContentClass }"
-                />
-              </UFormField>
-
+            <HfSectionCard title="Dirección de facturación" class="sales-pos-customer-form-section">
               <!-- Dirección de facturación (toggle) -->
-              <div>
-                <button
-                  type="button"
-                  class="clients-form-link sales-pos-customer-form-link flex items-center gap-1 text-sm font-medium hover:underline"
-                  @click="state.showBillingAddress = !state.showBillingAddress"
-                >
-                  <UIcon
-                    :name="
-                      state.showBillingAddress ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'
-                    "
-                    class="size-4"
-                  />
-                  {{
-                    state.showBillingAddress
-                      ? '- Ocultar dirección de facturación'
-                      : '+ Mostrar dirección de facturación'
-                  }}
-                </button>
-              </div>
+              <button
+                type="button"
+                class="clients-form-link sales-pos-customer-form-link flex min-h-(--hf-control-height) items-center gap-1 rounded-(--hf-radius-control) text-sm font-medium text-(--hf-action) hover:underline"
+                :aria-expanded="state.showBillingAddress"
+                @click="state.showBillingAddress = !state.showBillingAddress"
+              >
+                <UIcon
+                  :name="
+                    state.showBillingAddress ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'
+                  "
+                  class="size-4"
+                  aria-hidden="true"
+                />
+                {{
+                  state.showBillingAddress
+                    ? '- Ocultar dirección de facturación'
+                    : '+ Mostrar dirección de facturación'
+                }}
+              </button>
 
-              <div v-if="state.showBillingAddress" class="flex flex-col gap-4">
+              <div v-if="state.showBillingAddress" class="mt-4 flex flex-col gap-4">
                 <UFormField label="Calle" name="billingStreet" :error="errors.billingStreet">
                   <UInput
                     v-model="state.billingStreet"
@@ -609,7 +622,7 @@ function handleCancel() {
                   </UFormField>
                 </div>
               </div>
-            </div>
+            </HfSectionCard>
           </div>
         </template>
       </UTabs>

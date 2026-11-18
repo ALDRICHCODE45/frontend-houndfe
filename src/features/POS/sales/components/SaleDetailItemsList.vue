@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import { formatCentsMXN } from '../utils/currency.utils'
 import type { SaleDetailItem } from '../interfaces/sale.types'
+import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 import SaleItemBadges from './SaleItemBadges.vue'
 
 const props = defineProps<{
@@ -37,17 +38,12 @@ const itemsView = computed(() =>
 </script>
 
 <template>
-  <UCard>
-    <template #header>
-      <div class="flex items-center justify-between">
-        <h3 class="sale-detail-section-title">
-          <UIcon name="i-lucide-package" class="size-4" />
-          Productos
-        </h3>
-        <span class="text-[13px] text-(--hf-muted)" data-testid="items-count">
-          {{ items.length }} {{ items.length === 1 ? 'artículo' : 'artículos' }}
-        </span>
-      </div>
+  <!-- T6c: the shared section card; the count rides in its meta slot. -->
+  <HfSectionCard title="Productos">
+    <template #meta>
+      <span class="hf-figure" data-testid="items-count">
+        {{ items.length }} {{ items.length === 1 ? 'artículo' : 'artículos' }}
+      </span>
     </template>
     <ul v-if="mobile" class="divide-y divide-(--hf-border)" data-testid="items-compact">
       <li
@@ -106,13 +102,13 @@ const itemsView = computed(() =>
           class="align-top"
         >
           <td class="py-2">
-            <p :data-testid="`item-name-${index}`" class="font-semibold text-highlighted">
+            <p :data-testid="`item-name-${index}`" class="font-semibold text-(--hf-heading)">
               {{ item.productName }}
             </p>
             <p
               v-if="item.variantName || item.priceOverridden || item.hasLineDiscount"
               :data-testid="`item-subtitle-${index}`"
-              class="text-xs text-muted"
+              class="text-xs text-(--hf-muted)"
             >
               <span v-if="item.variantName"
                 >{{ item.variantName
@@ -150,7 +146,7 @@ const itemsView = computed(() =>
           </td>
           <td
             :data-testid="`item-quantity-${index}`"
-            class="py-2 pl-4 text-right text-muted tabular-nums"
+            class="py-2 pl-4 text-right text-(--hf-muted) tabular-nums"
           >
             × {{ item.quantity }}
           </td>
@@ -158,7 +154,7 @@ const itemsView = computed(() =>
             {{ formatCentsMXN(item.unitPriceCents) }}
           </td>
           <td :data-testid="`item-discount-${index}`" class="py-2 pl-4 text-right tabular-nums">
-            <span v-if="item.discountAmountCents" class="text-muted">
+            <span v-if="item.discountAmountCents" class="text-(--hf-muted)">
               -{{ formatCentsMXN(item.discountAmountCents) }}
             </span>
             <span v-else>—</span>
@@ -166,14 +162,14 @@ const itemsView = computed(() =>
           <td class="py-2 pl-4 text-right">
             <p
               :data-testid="`item-subtotal-${index}`"
-              class="font-semibold tabular-nums text-default"
+              class="font-semibold tabular-nums text-(--hf-heading)"
             >
               {{ formatCentsMXN(item.subtotalCents) }}
             </p>
             <p
               v-if="item.hasLineDiscount"
               :data-testid="`item-line-original-${index}`"
-              class="text-right text-xs text-muted line-through tabular-nums"
+              class="text-right text-xs text-(--hf-muted) line-through tabular-nums"
             >
               {{ formatCentsMXN((item.prePriceCentsBeforeDiscount ?? 0) * item.quantity) }}
             </p>
@@ -181,5 +177,5 @@ const itemsView = computed(() =>
         </tr>
       </tbody>
     </table>
-  </UCard>
+  </HfSectionCard>
 </template>
