@@ -27,14 +27,8 @@ import {
   type ValidatedEditorialLiveFixture,
 } from '../support/fixture'
 import { openLiveEditorialContext, type LiveEditorialContext } from '../support/live-context'
-
-/**
- * OWNERSHIP PIN — fill from the backend «ready» line before the first run. Until then every
- * test fails in the preflight, before any browser or mutation.
- */
-const PIN_PENDING = 'PENDING-BACKEND-READY-LINE'
-const EXPECTED_BACKEND_BASE_URL: string = PIN_PENDING // e.g. 'http://127.0.0.1:44xxx' (with base path, no trailing slash)
-const EXPECTED_RESOURCE_ID: string = PIN_PENDING
+import { exchangeLine, GENERIC_PRODUCT_TITLE, readsProductName, savedStatusPattern } from '../support/actor-expectations'
+import { ownershipPinMismatches } from '../support/ownership-pin'
 
 const UI_TIMEOUT = 30_000
 const NAV_TIMEOUT = 60_000
@@ -46,13 +40,13 @@ let fixture: ValidatedEditorialLiveFixture
 let collector: EvidenceCollector
 
 function preflight(): void {
-  if (EXPECTED_BACKEND_BASE_URL === PIN_PENDING || EXPECTED_RESOURCE_ID === PIN_PENDING) {
-    throw new EditorialLiveJourneyError('ownership pin not filled: set EXPECTED_BACKEND_BASE_URL and EXPECTED_RESOURCE_ID from the backend ready line')
-  }
-  expect(env.backendBaseUrl).toBe(EXPECTED_BACKEND_BASE_URL)
-  expect(fixture.backend.url).toBe(EXPECTED_BACKEND_BASE_URL)
-  expect(fixture.backend.resourceId).toBe(EXPECTED_RESOURCE_ID)
-  expect(fixture.metadata.resourceId).toBe(EXPECTED_RESOURCE_ID)
+  const mismatches = ownershipPinMismatches({
+    backendBaseUrl: env.backendBaseUrl,
+    fixtureBackendUrl: fixture.backend.url,
+    fixtureResourceId: fixture.backend.resourceId,
+    metadataResourceId: fixture.metadata.resourceId,
+  })
+  if (mismatches.length) throw new EditorialLiveJourneyError(`ownership pin: ${mismatches.join('; ')}`)
   expect(fixture.frontendOrigin).toBe(env.frontendOrigin)
   const now = Date.now()
   for (const actor of fixture.actors) expect(Date.parse(actor.expiresAt)).toBeGreaterThan(now)
@@ -101,17 +95,20 @@ test.describe.serial('editorial-live admin draft cycle (no publish)', () => {
         live = await openLiveEditorialContext(browser, env, actor)
         const page = live.page
 
-        // 1. Open the editorial route: the guard admits the actor and the title lookup succeeds.
+        // 1. Open the editorial route: the guard admits the actor; the title lookup runs (200) only
+        // for actors with read:Product, else the FE never asks and titles «Producto».
         step = { name: `${role}:open`, kind: 'http' }
-        const productRead = waitForBackend(page, 'GET', `${env.backendBaseUrl}/products/${encodeURIComponent(fixture.product.id)}`)
+        const readsName = readsProductName(actor)
+        const productPath = `${env.backendBaseUrl}/products/${encodeURIComponent(fixture.product.id)}`
+        const productRead = readsName ? waitForBackend(page, 'GET', productPath) : null
         const stateRead = waitForBackend(page, 'GET', editorialUrl())
         await page.goto(`/pos/products/${encodeURIComponent(fixture.product.id)}/editorial`, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT })
-        expect((await productRead).status()).toBe(200)
+        if (productRead) expect((await productRead).status()).toBe(200)
         expect((await stateRead).status()).toBe(200)
         await expect(page).toHaveURL(new RegExp(`/pos/products/${encodeURIComponent(fixture.product.id)}/editorial$`))
-        await expect(page.locator('#guided-editorial-title')).toHaveText(fixture.product.name, { timeout: UI_TIMEOUT })
+        await expect(page.locator('#guided-editorial-title')).toHaveText(readsName ? fixture.product.name : GENERIC_PRODUCT_TITLE, { timeout: UI_TIMEOUT })
         await expect(page.locator('button.guided-back')).toHaveAttribute('aria-label', global ? 'Volver a sucursales' : 'Volver al producto')
-        record('open', 'http', 'GET /products/:id -> 200; GET /products/:id/editorial -> 200; route kept')
+        record('open', 'http', `${readsName ? 'GET /products/:id -> 200' : 'no GET /products/:id (no read:Product), title «Producto»'}; GET /products/:id/editorial -> 200; route kept`)
 
         // 2. Initialize when there is no draft yet.
         step = { name: `${role}:initialize`, kind: 'http' }
@@ -137,9 +134,10 @@ test.describe.serial('editorial-live admin draft cycle (no publish)', () => {
           saveBar.getByRole('button', { name: 'Guardar', exact: true }).click(),
         ])
         expect(saved.status()).toBe(200)
-        await expect(saveBar.locator('.hf-save-bar__status')).toHaveText(/Guardado/, { timeout: UI_TIMEOUT })
+        // Publishers (Super Admin, manage:all) get the publish bar once all is saved, not «Guardado».
+        await expect(saveBar.locator('.hf-save-bar__status')).toHaveText(savedStatusPattern(actor), { timeout: UI_TIMEOUT })
         await expect(title).toHaveValue(value)
-        record('save', 'http', 'PUT /products/:id/editorial/draft -> 200; UI «Guardado», value kept after re-read')
+        record('save', 'http', 'PUT /products/:id/editorial/draft -> 200; save bar settled, value kept after re-read')
 
         // 4. Discard behind its confirmation; the empty draft offers «initialize» again.
         step = { name: `${role}:discard`, kind: 'http' }
@@ -161,7 +159,11 @@ test.describe.serial('editorial-live admin draft cycle (no publish)', () => {
         expect(live.audit.tenantViolations()).toEqual([])
         expect(live.audit.publicationAttempts()).toEqual([])
         const failed = live.audit.exchanges().filter(exchange => exchange.status !== null && exchange.status >= 400)
-        expect(failed.map(exchange => `${exchange.method} ${exchange.path} -> ${exchange.status}`)).toEqual([])
+        expect(failed.map(exchangeLine)).toEqual([])
+        if (!readsName) {
+          const productPathOnly = `/products/${encodeURIComponent(fixture.product.id)}`
+          expect(live.audit.exchanges().filter(exchange => exchange.method === 'GET' && exchange.path === productPathOnly)).toEqual([])
+        }
         expect(live.guard.violations()).toEqual([])
         record('network', 'http', `${live.audit.exchanges().length} backend requests; no tenant header/param/body key; no publish; no third-party origin`)
       } catch (error) {
@@ -170,6 +172,9 @@ test.describe.serial('editorial-live admin draft cycle (no publish)', () => {
           : `step "${step.name}" failed; the underlying error was suppressed so no credential can leak`
         try {
           collector.collect(step.name, step.kind, 'fail', message)
+          // Redacted diagnosis: backend METHOD /path -> status only (no headers, bodies or query).
+          const log = live?.audit.exchanges().map(exchangeLine) ?? []
+          collector.collect(`${step.name}:exchanges`, 'http', 'fail', log.length ? log.join('; ') : 'no backend exchange recorded')
         } catch {
           // Evidence must never mask the journey failure.
         }

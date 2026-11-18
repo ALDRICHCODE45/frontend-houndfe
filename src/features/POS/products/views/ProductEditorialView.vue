@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, shallowRef } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import EditorialWorkspace from '../components/editorial/EditorialWorkspace.vue'
@@ -28,8 +28,19 @@ function goToProducts() {
 // The name is context only: a failed lookup leaves the generic title, except a
 // missing product, which has no content to show. In global mode any failure is the generic
 // title: the editorial reads, not this lookup, decide whether there is something to edit.
-onMounted(async () => {
-  if (!productId.value) {
+// GET /products/:id needs read:Product (Super Admin and manage:all have it); editorial-only
+// grants do not, and the editorial payload carries no name, so they get «Producto» with no
+// lookup (no 403 noise). The decision waits for the permissions to hydrate.
+const canReadProduct = computed(() => authStore.isSuperAdmin === true ||
+  authStore.permissionCodes.includes('manage:all') || authStore.permissionCodes.includes('read:Product'))
+let nameRequested = false
+watch(() => authStore.permissionsLoaded, loaded => {
+  if (!loaded || nameRequested) return
+  nameRequested = true
+  void loadName()
+}, { immediate: true })
+async function loadName() {
+  if (!productId.value || !canReadProduct.value) {
     nameState.value = 'unnamed'
     return
   }
@@ -40,7 +51,7 @@ onMounted(async () => {
     const status = (error as { response?: { status?: number } } | null)?.response?.status
     nameState.value = status === 404 && !globalMode.value ? 'missing' : 'unnamed'
   }
-})
+}
 </script>
 
 <template>

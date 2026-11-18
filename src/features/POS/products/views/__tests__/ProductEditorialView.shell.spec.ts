@@ -11,7 +11,9 @@ import { success, vocabularyEnvelope, read, update } from '../../__tests__/edito
 
 const http = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn() }))
 vi.mock('@/core/shared/api/http', () => ({ http }))
-const auth = reactive({ isAuthenticated: true, authPhase: 'authenticated', user: { id: 'u' }, currentTenant: { id: 't' }, permissionsLoaded: true, permissionCodes: [read, update] })
+// read:Product: the name lookup runs only for actors who may read the product (editorial-only
+// actors get «Producto» without it; ProductEditorialView.globalMode.spec.ts).
+const auth = reactive({ isAuthenticated: true, authPhase: 'authenticated', user: { id: 'u' }, currentTenant: { id: 't' }, permissionsLoaded: true, permissionCodes: [read, update, 'read:Product'] })
 vi.mock('@/features/auth/stores/useAuthStore', () => ({ useAuthStore: () => auth }))
 const routerPush = vi.hoisted(() => vi.fn())
 vi.mock('vue-router', () => ({ useRoute: () => ({ params: { id: 'p1' } }), useRouter: () => ({ push: routerPush }) }))

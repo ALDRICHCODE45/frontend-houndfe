@@ -57,7 +57,7 @@ function sentTenantTraces(): string[] {
 
 beforeEach(() => {
   vi.resetAllMocks()
-  Object.assign(auth, { ...ACTORS.editorialOnly })
+  Object.assign(auth, { ...ACTORS.editorialOnly, permissionsLoaded: true })
   productGetById.mockResolvedValue({ name: 'Collar ajustable' })
   http.get.mockImplementation((url: string) => Promise.resolve(url.includes('vocabulary')
     ? { ...success(), data: vocabularyEnvelope() }
@@ -101,12 +101,41 @@ describe('«Volver» per admitted actor', () => {
 })
 
 describe('product title', () => {
-  it.each(Object.keys(ACTORS) as (keyof typeof ACTORS)[])('%s reads the name through GET /products/:id with no tenant in the request', async actor => {
+  it.each(['superadminGlobal', 'superadminTenant', 'manageAll'] as const)('%s reads the name through GET /products/:id with no tenant in the request', async actor => {
     Object.assign(auth, ACTORS[actor])
     await render()
     expect(productGetById).toHaveBeenCalledExactlyOnceWith('p1')
     expect(wrapper.get('h1').text()).toBe('Collar ajustable')
     expect(sentTenantTraces()).toEqual([])
+  })
+
+  // Live run 1 (2026-11-18): editorial-only has no read:Product by design, so GET /products/:id is a
+  // 403. The editorial payload carries no product name, so the title is «Producto» with no lookup.
+  it('editorial-only (no read:Product) never asks GET /products/:id and titles «Producto»', async () => {
+    Object.assign(auth, ACTORS.editorialOnly)
+    await render()
+    expect(productGetById).not.toHaveBeenCalled()
+    expect(wrapper.get('h1').text()).toBe('Producto')
+    expect(wrapper.find('[data-testid="editorial-title-skeleton"]').exists()).toBe(false)
+    expect(wrapper.findComponent(EditorialWorkspace).exists()).toBe(true)
+    expect(sentTenantTraces()).toEqual([])
+  })
+
+  it('editorial grants plus read:Product read the name', async () => {
+    Object.assign(auth, { ...ACTORS.editorialOnly, permissionCodes: [read, update, 'read:Product'] })
+    await render()
+    expect(productGetById).toHaveBeenCalledExactlyOnceWith('p1')
+    expect(wrapper.get('h1').text()).toBe('Collar ajustable')
+  })
+
+  it('waits for permissions before deciding, then reads the name once they allow it', async () => {
+    Object.assign(auth, { ...ACTORS.manageAll, permissionsLoaded: false, permissionCodes: [] })
+    await render()
+    expect(productGetById).not.toHaveBeenCalled()
+    Object.assign(auth, { permissionsLoaded: true, permissionCodes: ['manage:all'] })
+    await flushPromises()
+    expect(productGetById).toHaveBeenCalledExactlyOnceWith('p1')
+    expect(wrapper.get('h1').text()).toBe('Collar ajustable')
   })
 
   it.each([
