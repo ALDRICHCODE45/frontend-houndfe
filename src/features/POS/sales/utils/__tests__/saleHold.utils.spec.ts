@@ -46,10 +46,15 @@ describe('isSaleHoldLive / saleHoldLine', () => {
     expect(saleHoldLine(live, { now: NOW })).toBe('Apartado · pagar en tienda · vence jue 19 nov, 12:30')
   })
 
-  it('still shows a hold the sweep handed to staff (stage 2, still CREDIT): it stays editable', () => {
-    expect(saleHoldLine({ ...live, hold: { ...hold, stage: 2, reminderAt: null } }, { now: NOW })).toBe(
-      'Apartado · pagar en tienda · vence jue 19 nov, 12:30',
-    )
+  it('says «Apartado vencido · revisar» when the sweep handed it to staff (stage 2, still CREDIT); it stays editable', () => {
+    const expired = { ...live, hold: { ...hold, stage: 2 as const, reminderAt: null } }
+    expect(isSaleHoldLive(expired)).toBe(true)
+    expect(saleHoldLine(expired, { now: NOW })).toBe('Apartado vencido · revisar')
+  })
+
+  it('says «Apartado vencido · revisar» for an expired hold with a partial payment (stage 2, PARTIAL)', () => {
+    const partial = { ...live, paymentStatus: 'PARTIAL' as const, hold: { ...hold, stage: 2 as const } }
+    expect(saleHoldLine(partial, { now: NOW })).toBe('Apartado vencido · revisar')
   })
 
   it.each([

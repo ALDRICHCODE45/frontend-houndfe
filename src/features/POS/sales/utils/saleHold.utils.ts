@@ -66,8 +66,20 @@ export function isSaleHoldLive(sale: SaleHoldSubject): sale is SaleHoldSubject &
   )
 }
 
-/** «Apartado · pagar en tienda · vence {fecha}», or `null` when the badge must be hidden. */
+/** The deadline passed and the sweep handed the sale to staff (stage 2) without cancelling it. */
+export const SALE_HOLD_EXPIRED_REVIEW_LINE = 'Apartado vencido · revisar'
+
+/**
+ * «Apartado · pagar en tienda · vence {fecha}»; «Apartado vencido · revisar» once the sweep handed a
+ * still unpaid (CREDIT) or partly paid (PARTIAL) sale to staff; `null` when the badge must be hidden.
+ */
 export function saleHoldLine(sale: SaleHoldSubject, options: SaleHoldDisplayOptions = {}): string | null {
+  const awaitingReview =
+    sale.hold != null &&
+    sale.hold.stage === 2 &&
+    sale.status === SALE_STATUS.CONFIRMED &&
+    (sale.paymentStatus === SALE_PAYMENT_STATUS.CREDIT || sale.paymentStatus === SALE_PAYMENT_STATUS.PARTIAL)
+  if (awaitingReview) return SALE_HOLD_EXPIRED_REVIEW_LINE
   if (!isSaleHoldLive(sale)) return null
   const expiry = formatSaleHoldExpiry(sale.hold.expiresAt, options)
   return expiry ? `Apartado · pagar en tienda · vence ${expiry}` : null
