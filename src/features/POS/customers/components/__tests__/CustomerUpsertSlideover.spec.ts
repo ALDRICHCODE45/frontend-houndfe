@@ -813,6 +813,42 @@ describe('CustomerUpsertSlideover — Clients overlay presentation contract', ()
     }
   })
 
+  it('assigns a price list with a whole-row switch that reveals the list field, never a checkbox', async () => {
+    const wrapper = mountCreate()
+    try {
+      expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
+      const row = wrapper.get('[data-testid="customer-assign-price-list"]')
+      expect(row.element.tagName).toBe('BUTTON')
+      expect(row.attributes('role')).toBe('switch')
+      expect(row.attributes('aria-checked')).toBe('false')
+      expect(row.text()).toContain('Asignar una lista de precios')
+      // Basic tab: only the country code select until the switch is on.
+      const basicSelects = () => wrapper.findAll('select').length
+      const before = basicSelects()
+
+      await row.trigger('click')
+      expect(row.attributes('aria-checked')).toBe('true')
+      expect(basicSelects()).toBe(before + 1)
+
+      await row.trigger('click')
+      expect(row.attributes('aria-checked')).toBe('false')
+      expect(basicSelects()).toBe(before)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('drops the elevated box look from the grouped panels', () => {
+    const wrapper = mountCreate()
+    try {
+      for (const section of wrapper.findAll('.clients-form-section')) {
+        expect(section.classes()).not.toContain('bg-elevated/30')
+      }
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it('adds the clients-form-section hook to both existing grouped panels', () => {
     const wrapper = mountCreate()
     try {

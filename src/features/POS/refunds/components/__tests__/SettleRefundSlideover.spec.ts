@@ -222,7 +222,12 @@ describe('SettleRefundSlideover', () => {
     settle.submit.mockResolvedValueOnce(settledResponse(2555, 2000))
     const { wrapper } = mountPanel()
     expect(wrapper.find('[data-testid="settle-cash-session"]').exists()).toBe(true)
-    await wrapper.get('[data-testid="settle-cash-session"] input, [data-testid="settle-cash-session"] button').trigger('click')
+    expect(wrapper.find('[data-testid="settle-cash-session"] input[type="checkbox"]').exists()).toBe(false)
+    const row = wrapper.get('[data-testid="settle-cash-session"] button[role="switch"]')
+    expect(row.text()).toContain('Registrar como salida de mi caja')
+    expect(row.attributes('aria-checked')).toBe('false')
+    await row.trigger('click')
+    expect(row.attributes('aria-checked')).toBe('true')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
     expect(settle.submit).toHaveBeenCalledWith(

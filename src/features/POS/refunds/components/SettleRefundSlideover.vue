@@ -16,6 +16,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { parseDateTime, toCalendarDate, type CalendarDate, type CalendarDateTime } from '@internationalized/date'
 import HfCombobox from '@/core/shared/components/form/HfCombobox.vue'
 import HfFormField from '@/core/shared/components/form/HfFormField.vue'
+import { HfSwitchRow } from '@/core/shared/components/selection'
 import { confirmLeave, useLeaveGuard } from '@/core/shared/composables/useLeaveGuard'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import { calendarPartsToDateString } from '@/core/shared/utils/mexicoCityCalendar'
@@ -483,11 +484,12 @@ async function requestClose() {
               </div>
             </HfFormField>
 
-            <div v-if="showCashOption" data-testid="settle-cash-session">
-              <UCheckbox
+            <div v-if="showCashOption" class="refund-settle__cash" data-testid="settle-cash-session">
+              <HfSwitchRow
                 v-model="form.useCashSession"
                 label="Registrar como salida de mi caja"
                 description="La devolución aparece como salida de efectivo en tu caja abierta."
+                test-id="settle-cash-session-switch"
               />
             </div>
           </form>
@@ -522,3 +524,13 @@ async function requestClose() {
     </template>
   </USlideover>
 </template>
+
+<style scoped>
+/* The cash-out option is one switch row in its own quiet card. */
+.refund-settle__cash {
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card, 12px);
+  background: var(--hf-surface);
+  overflow: hidden;
+}
+</style>

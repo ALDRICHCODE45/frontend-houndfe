@@ -20,6 +20,7 @@ import type {
   UpdateCustomerPayload,
 } from '../interfaces/customer.types'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
+import { HfSwitchRow } from '@/core/shared/components/selection'
 import AddressModal from './AddressModal.vue'
 import AddressLocationStatus from '@/core/shared/components/AddressLocationStatus.vue'
 import { formatAddress } from '@/core/shared/utils/formatAddress'
@@ -324,15 +325,18 @@ function handleCancel() {
               </UFormField>
 
               <!-- Sección Precios -->
+              <!-- The switch row sits flush in the section (its own 1rem inset
+                   lines up with the title); the list field appears under it. -->
               <div
-                class="clients-form-section sales-pos-customer-form-section rounded-lg border border-default bg-elevated/30 p-4"
+                class="clients-form-section sales-pos-customer-form-section overflow-hidden rounded-lg border"
               >
-                <p class="sales-pos-customer-form-section-title mb-3 font-semibold">Precios</p>
-                <UCheckbox
+                <p class="sales-pos-customer-form-section-title px-4 pt-4 font-semibold">Precios</p>
+                <HfSwitchRow
                   v-model="state.assignPriceList"
                   label="Asignar una lista de precios al cliente"
+                  test-id="customer-assign-price-list"
                 />
-                <div v-if="state.assignPriceList" class="mt-3">
+                <div v-if="state.assignPriceList" class="px-4 pb-4">
                   <UFormField
                     label="Lista de precios"
                     name="globalPriceListId"
@@ -352,7 +356,7 @@ function handleCancel() {
 
               <!-- Sección Dirección y Más -->
               <div
-                class="clients-form-section sales-pos-customer-form-section rounded-lg border border-default bg-elevated/30 p-4"
+                class="clients-form-section sales-pos-customer-form-section rounded-lg border p-4"
               >
                 <div class="sales-pos-customer-form-address-header mb-3 flex items-center justify-between">
                   <p class="sales-pos-customer-form-section-title font-semibold">Dirección</p>
