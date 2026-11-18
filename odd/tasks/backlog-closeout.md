@@ -13,7 +13,7 @@ The remaining backlog after the pending sweep: editorial admin integration, the 
 
 ## Tasks
 - T1 | S4 | worker | done — review advisories
-- T2 | S3 | worker | browser matrix for the 7 routes (mocked API), then fixes
+- T2 | S3 | worker | done — browser matrix for the 7 routes (mocked API), then fixes
 - T3 | S1 | explore → plan | editorial admin T12
 - T4 | S2 | explore + backend → plan | POS «Pedido» tab
 - T6 | S5 | worker | redirect /pos/decisiones-pendientes → /chatbot/solicitudes and remove the old inbox screen from the FE (owner chose)
@@ -31,3 +31,4 @@ The remaining backlog after the pending sweep: editorial admin integration, the 
 - L8 T6 done 3fb8f0fe (worker mwme47uv-m-ao95): /pos/decisiones-pendientes redirects to /chatbot/solicitudes (query/hash dropped; target keeps read:ChatbotRequest, so read:HumanDecision-only users get /403); old inbox api/composables/views/components/styles deleted; kept human-decision types (query-keys) and humanDecisionPresentation (product-units spec). Leftovers → T6b: vitest.auth.owner.config.ts:28, e2e/responsive human-decisions specs, VITE_HUMAN_DECISIONS_OFFLINE_DEMO, http.ts opt-in, humanDecisionQueryKeys.
 - L9 T7 done (worker mwmehnpq-o-j7c3): chatbot 1341 tests; tag «El destinatario no coincide con la cuenta del negocio» (triangle icon, like the amount tag); lines «Beneficiario: X · Banco destino: Y · Cuenta destino: ****9616» and «Ordenante: Z». Not covered: receipt review queues (GET /sales/:id/receipts, /sales/receipts/pending) — the FE has no screen consuming them.
 - L10 T6b done (worker mwmeifxq-p-vpp5 + parent removed the three package.json scripts that pointed at the deleted specs). vite.config.ts keeps the generic RESPONSIVE_DISABLE_HMR read (harmless). One unidentified failure in a first src/core+src/app run (2199 tests), green on rerun — watch in the final suite.
+- L11 T2 done (worker mwmdy9n2-l-asr7, harness odd/evidence/backlog-closeout): 7 routes / 8 screens × 1440/390 × light/dark PASS except D1 (atención-chatbot date placeholder 3.12:1 light); 0 overflow, 0 checkboxes, 0 console errors, 0 non-local requests (bundled fonts/icons confirmed); catalog is light-only by design. Parent fixed D1 globally (houndfe-ui.css placeholder + [data-slot=segment][data-placeholder] → --hf-muted; 5.97 light / 8.19 dark measured by the worker) and the «Más acciones» focus ring (rd-bar__more). 666 related tests.
