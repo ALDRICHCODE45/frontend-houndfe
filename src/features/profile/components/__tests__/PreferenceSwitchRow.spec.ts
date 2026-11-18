@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import PreferenceSwitchRow from '../PreferenceSwitchRow.vue'
 import HfSwitchRow from '@/core/shared/components/selection/HfSwitchRow.vue'
 
-const base = { prefKey: 'soundEnabled', title: 'Sonido de avisos', description: 'Suena al llegar.', checked: true }
+const base = { prefKey: 'soundEnabled' as const, title: 'Sonido de avisos', description: 'Suena al llegar.', checked: true }
 
 describe('PreferenceSwitchRow', () => {
   it('is the shared HfSwitchRow with the profile test ids', () => {
