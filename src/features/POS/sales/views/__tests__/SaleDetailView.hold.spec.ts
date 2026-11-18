@@ -221,13 +221,33 @@ describe('SaleDetailView — pay-in-store hold', () => {
   })
 
   describe('cancelled by the deadline (HOLD_EXPIRED)', () => {
-    it('shows «Apartado vencido» cancelled by «Sistema» and no live hold', () => {
+    it('the header reads «Venta cancelada» with a «Plazo vencido» warning tag', () => {
+      const header = mountView(holdExpired).get('[data-testid="sale-detail-header"]')
+      const badges = header.findAll('.hf-status-badge')
+      expect(badges.map((badge) => badge.text())).toEqual(['Venta cancelada', 'Plazo vencido'])
+      expect(badges[0]!.attributes('data-tone')).toBe('neutral')
+      expect(badges[1]!.attributes('data-tone')).toBe('warning')
+      expect(badges[1]!.find('[data-icon="i-lucide-clock-alert"]').exists()).toBe(true)
+    })
+
+    it('the card explains the expiry, cancelled by «Sistema», and no live hold', () => {
       const wrapper = mountView(holdExpired)
       const block = wrapper.get('[data-testid="sale-detail-cancellation"]')
-      expect(block.text()).toContain('Apartado vencido (no se pagó a tiempo)')
+      expect(block.text()).toContain('Plazo vencido')
+      expect(block.get('[data-testid="sale-detail-cancel-explanation"]').text()).toBe(
+        'Cancelada porque venció el plazo del apartado sin pagarse',
+      )
       expect(block.text()).toContain('Cancelada por Sistema')
+      expect(block.text()).not.toContain('Apartado vencido')
       expect(wrapper.find('[data-testid="sale-detail-hold"]').exists()).toBe(false)
       expect(wrapper.find('[data-testid="register-payment-header"]').exists()).toBe(false)
+    })
+
+    it('a person who made it expire is named instead of «Sistema»', () => {
+      const block = mountView({ ...holdExpired, canceledBy: { id: 'u-2', name: 'Ana Ruiz' } })
+        .get('[data-testid="sale-detail-cancellation"]')
+      expect(block.text()).toContain('Cancelada por Ana Ruiz')
+      expect(block.text()).not.toContain('Sistema')
     })
   })
 })

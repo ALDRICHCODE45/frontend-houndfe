@@ -22,6 +22,12 @@ import PaymentsListSection from '../components/PaymentsListSection.vue'
 import DebtPaymentModal from '../components/DebtPaymentModal.vue'
 import AssignSellerSlideover from '../components/AssignSellerSlideover.vue'
 import SaleDetailCancellationCard from '../components/SaleDetailCancellationCard.vue'
+import {
+  SALE_HOLD_EXPIRED_EXPLANATION,
+  SALE_HOLD_EXPIRED_ICON,
+  SALE_HOLD_EXPIRED_TAG,
+  isSaleHoldExpiredCancel,
+} from '../utils/saleCancellation.utils'
 import SaleDetailRefundsCard from '../components/SaleDetailRefundsCard.vue'
 import SaleDetailHoldCard from '../components/SaleDetailHoldCard.vue'
 import SaleHoldDeadlineDialog from '../components/SaleHoldDeadlineDialog.vue'
@@ -106,6 +112,7 @@ const holdDialogOpen = ref(false)
 
 // T20: a cancelled sale opens read-only, with its cancellation and refunds.
 const isCanceled = computed(() => sale.value?.status === SALE_STATUS.CANCELED)
+const isHoldExpiredCancel = computed(() => !!sale.value && isSaleHoldExpiredCancel(sale.value))
 const canSettleRefunds = computed(() => authStore.userCan('update', 'SaleRefund'))
 
 // «Liquidar» reuses the refunds settle slideover. The row is rebuilt from the detail on every
@@ -387,10 +394,20 @@ watch(
                   <!-- A cancellation is neutral (design-system.md, Status badge). -->
                   <StatusBadge
                     v-if="isCanceled"
-                    label="Cancelada"
+                    :label="isHoldExpiredCancel ? 'Venta cancelada' : 'Cancelada'"
                     tone="neutral"
                     aria-prefix="Venta:"
                     data-testid="badge"
+                  />
+                  <!-- hold-expire-now S3: the deadline's cancel also says «Plazo vencido». -->
+                  <StatusBadge
+                    v-if="isHoldExpiredCancel"
+                    :label="SALE_HOLD_EXPIRED_TAG"
+                    tone="warning"
+                    urgent
+                    :icon="SALE_HOLD_EXPIRED_ICON"
+                    :aria-label="SALE_HOLD_EXPIRED_EXPLANATION"
+                    data-testid="badge-hold-expired"
                   />
                   <StatusBadge
                     v-if="!isCanceled"

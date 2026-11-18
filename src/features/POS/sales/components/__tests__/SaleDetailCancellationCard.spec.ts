@@ -19,14 +19,25 @@ describe('SaleDetailCancellationCard', () => {
     const wrapper = mountWithUApp(SaleDetailCancellationCard, {
       props: { sale: sale({ cancelReason: 'HOLD_EXPIRED', canceledBy: null }) },
     })
-    expect(wrapper.text()).toContain('Apartado vencido (no se pagó a tiempo)')
+    expect(wrapper.text()).toContain('Plazo vencido')
+    expect(wrapper.get('[data-testid="sale-detail-cancel-explanation"]').text()).toBe(
+      'Cancelada porque venció el plazo del apartado sin pagarse',
+    )
     expect(wrapper.get('.sale-detail-cancel-by').text()).toBe('Cancelada por Sistema')
+  })
+
+  it('names the person who made the hold expire instead of «Sistema»', () => {
+    const wrapper = mountWithUApp(SaleDetailCancellationCard, {
+      props: { sale: sale({ cancelReason: 'HOLD_EXPIRED', canceledBy: { id: 'u2', name: 'Luis' } }) },
+    })
+    expect(wrapper.get('.sale-detail-cancel-by').text()).toBe('Cancelada por Luis')
   })
 
   it('keeps the staff reason and the person', () => {
     const wrapper = mountWithUApp(SaleDetailCancellationCard, { props: { sale: sale({}) } })
     expect(wrapper.text()).toContain('Solicitud del cliente')
     expect(wrapper.get('.sale-detail-cancel-by').text()).toBe('Cancelada por Ana')
+    expect(wrapper.find('[data-testid="sale-detail-cancel-explanation"]').exists()).toBe(false)
   })
 
   it('shows no canceller when a staff cancellation lost its user', () => {

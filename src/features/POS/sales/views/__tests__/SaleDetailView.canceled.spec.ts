@@ -177,6 +177,12 @@ describe('SaleDetailView — cancelled sale', () => {
     expect(badges[0]!.attributes('data-tone')).toBe('neutral')
   })
 
+  it('a staff cancellation has no «Plazo vencido» tag nor the expiry explanation', () => {
+    const wrapper = mountView()
+    expect(wrapper.text()).not.toContain('Plazo vencido')
+    expect(wrapper.find('[data-testid="sale-detail-cancel-explanation"]').exists()).toBe(false)
+  })
+
   it('shows the cancellation: the date, the reason and who cancelled it', () => {
     const block = mountView().get('[data-testid="sale-detail-cancellation"]')
     expect(block.get('h3').text()).toBe('Cancelación')

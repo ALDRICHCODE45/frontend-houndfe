@@ -6,15 +6,15 @@ import {
 } from '../interfaces/sale.types'
 import { SALE_STATUS } from '../constants/sale.constants'
 
-// Staff reasons keep the wording of the refunds labels (odd/handoff/06 §7); HOLD_EXPIRED is the
-// wording of BE handoff 24 §4.
+// Staff reasons keep the wording of the refunds labels (odd/handoff/06 §7); HOLD_EXPIRED reads
+// «Plazo vencido», the owner's wording (hold-expire-now S1/S3).
 const CANCEL_REASON_LABELS: Record<SaleDetailCancelReason, string> = {
   CUSTOMER_REQUEST: 'Solicitud del cliente',
   ORDER_ERROR: 'Error en el pedido',
   OUT_OF_STOCK: 'Sin existencias',
   DUPLICATE_SALE: 'Venta duplicada',
   OTHER: 'Otro',
-  HOLD_EXPIRED: 'Apartado vencido (no se pagó a tiempo)',
+  HOLD_EXPIRED: 'Plazo vencido',
 }
 
 /** Spanish label of a cancelled sale's reason, the system HOLD_EXPIRED included. */
@@ -34,16 +34,27 @@ export function saleCanceledByLabel(sale: Pick<SaleDetail, 'cancelReason' | 'can
   return sale.cancelReason === SALE_HOLD_EXPIRED_REASON ? SALE_SYSTEM_ACTOR_LABEL : null
 }
 
-/** Short list note of a sale the deadline sweep cancelled (BE handoff 24 §1 list labels). */
-export const SALE_HOLD_EXPIRED_LIST_NOTE = 'Apartado vencido'
+/** The tag shown next to «Cancelada» on a sale the hold deadline cancelled (hold-expire-now S3). */
+export const SALE_HOLD_EXPIRED_TAG = 'Plazo vencido'
+
+/** Why a HOLD_EXPIRED sale was cancelled, in a sentence (detail card, list tag title). */
+export const SALE_HOLD_EXPIRED_EXPLANATION = 'Cancelada porque venció el plazo del apartado sin pagarse'
+
+/** Icon of the «Plazo vencido» tag, so the state is never told by colour alone. */
+export const SALE_HOLD_EXPIRED_ICON = 'i-lucide-clock-alert'
+
+/** A cancelled sale whose hold deadline passed unpaid (automatic sweep or «Vencer apartado ahora»). */
+export function isSaleHoldExpiredCancel(sale: Pick<SaleDetail, 'status' | 'cancelReason'>): boolean {
+  return sale.status === SALE_STATUS.CANCELED && sale.cancelReason === SALE_HOLD_EXPIRED_REASON
+}
 
 /**
- * The note shown next to «Cancelada» on a list row: «Apartado vencido» only for a cancelled row
- * whose `cancelReason` is HOLD_EXPIRED; null otherwise (staff reasons and older payloads).
+ * The tag shown next to «Cancelada» on a list row: «Plazo vencido» only for a cancelled row whose
+ * `cancelReason` is HOLD_EXPIRED; null otherwise (staff reasons and older payloads).
  */
 export function saleRowCancelNote(
   sale: Pick<ConfirmedSaleRow, 'status' | 'cancelReason'>,
 ): { label: string; title: string } | null {
   if (sale.status !== SALE_STATUS.CANCELED || sale.cancelReason !== SALE_HOLD_EXPIRED_REASON) return null
-  return { label: SALE_HOLD_EXPIRED_LIST_NOTE, title: saleCancelReasonLabel(sale.cancelReason) }
+  return { label: SALE_HOLD_EXPIRED_TAG, title: SALE_HOLD_EXPIRED_EXPLANATION }
 }
