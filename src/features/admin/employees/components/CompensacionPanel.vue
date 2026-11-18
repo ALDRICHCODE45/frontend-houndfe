@@ -28,6 +28,7 @@ import type { FormSubmitEvent } from '@nuxt/ui'
 import DateFieldPopover from '@/features/POS/sales/components/DateFieldPopover.vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import HfMoneyInput from '@/core/shared/components/form/HfMoneyInput.vue'
+import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 import { hasSalary } from '../interfaces/employee.types'
 import {
   AddPositionChangeDtoSchema,
@@ -195,53 +196,44 @@ function closePositionModal(): void {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
+  <div class="employees-panel">
 
     <!-- ── Sueldo actual (gated by canReadSalary) ────────────────────────── -->
     <template v-if="canReadSalary">
-      <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
-        <div class="flex items-center justify-between gap-3 border-b border-default px-5 py-4">
-          <h2 class="text-base font-semibold text-highlighted">Sueldo actual</h2>
+      <HfSectionCard title="Sueldo actual" :heading-level="2">
+        <template v-if="canCreateSalary" #meta>
           <UButton
-            v-if="canCreateSalary"
             icon="i-lucide-plus"
-            size="sm"
             variant="outline"
             color="neutral"
             label="Nuevo ajuste"
             @click="isSalaryModalOpen = true"
           />
-        </div>
+        </template>
 
         <!-- Current salary display -->
-        <div class="px-5 py-4">
-          <template v-if="hasSalary(employee)">
-            <p class="hf-figure text-3xl font-semibold text-highlighted">{{ currentSalaryDisplay }}</p>
-            <p class="mt-1 text-[13px] text-muted">{{ employee.currentSalaryCurrency }}</p>
-          </template>
-          <p v-else class="text-sm text-muted">Sin sueldo registrado</p>
-        </div>
-      </UCard>
+        <template v-if="hasSalary(employee)">
+          <p class="employees-figure hf-figure">{{ currentSalaryDisplay }}</p>
+          <p class="employees-figure-note">{{ employee.currentSalaryCurrency }}</p>
+        </template>
+        <p v-else class="text-sm text-muted">Sin sueldo registrado</p>
+      </HfSectionCard>
 
       <!-- Salary history timeline -->
-      <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
-        <div class="border-b border-default px-5 py-4">
-          <h2 class="text-base font-semibold text-highlighted">Historial de sueldos</h2>
-        </div>
-
+      <HfSectionCard title="Historial de sueldos" :heading-level="2">
         <!-- Loading -->
         <div
           v-if="isSalaryLoading"
-          class="flex flex-col gap-3 px-5 py-6"
+          class="employees-section-skeleton"
           aria-busy="true"
           data-testid="salary-history-skeleton"
         >
           <span class="sr-only">Cargando</span>
-          <div v-for="i in 3" :key="i" class="h-14 animate-pulse rounded-lg bg-(--hf-surface-muted)" aria-hidden="true" />
+          <div v-for="i in 3" :key="i" class="hf-skeleton h-14 animate-pulse rounded-lg" aria-hidden="true" />
         </div>
 
         <!-- Error -->
-        <div v-else-if="isSalaryError" class="p-5" data-testid="salary-history-error">
+        <div v-else-if="isSalaryError" data-testid="salary-history-error">
           <EmptyState
             kind="error"
             title="No se pudo cargar el historial de sueldos"
@@ -252,19 +244,19 @@ function closePositionModal(): void {
         </div>
 
         <!-- Empty -->
-        <div v-else-if="salaryEntries.length === 0" class="p-5" data-testid="salary-history-empty">
+        <div v-else-if="salaryEntries.length === 0" data-testid="salary-history-empty">
           <EmptyState title="Sin historial de sueldos" icon="i-lucide-receipt" />
         </div>
 
         <!-- Timeline -->
-        <div v-else class="divide-y divide-default">
-          <div
+        <ul v-else class="employees-section-list">
+          <li
             v-for="(entry, index) in salaryEntries"
             :key="entry.id"
-            class="flex items-start gap-4 px-5 py-4"
+            class="flex items-start gap-4"
           >
             <!-- Timeline dot: the latest entry is filled -->
-            <div class="mt-1.5 flex flex-col items-center">
+            <div class="mt-1.5 flex flex-col items-center" aria-hidden="true">
               <div
                 :class="[
                   'size-2.5 rounded-full',
@@ -290,48 +282,45 @@ function closePositionModal(): void {
                 {{ entry.reason }}
               </p>
             </div>
-          </div>
-        </div>
-      </UCard>
+          </li>
+        </ul>
+      </HfSectionCard>
     </template>
 
     <!-- Salary access denied notice (when user lacks read:EmployeeSalary) -->
-    <UCard v-else class="employees-detail-section" :ui="{ body: 'p-5 sm:p-5' }">
+    <HfSectionCard v-else title="Sueldo actual" :heading-level="2">
       <EmptyState
         kind="forbidden"
         title="Sin acceso a los sueldos"
         description="Tu rol no puede ver los sueldos de este colaborador."
       />
-    </UCard>
+    </HfSectionCard>
 
     <!-- ── Historial de posiciones ────────────────────────────────────────── -->
-    <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
-      <div class="flex items-center justify-between gap-3 border-b border-default px-5 py-4">
-        <h2 class="text-base font-semibold text-highlighted">Historial de posiciones</h2>
+    <HfSectionCard title="Historial de posiciones" :heading-level="2">
+      <template v-if="canUpdate" #meta>
         <UButton
-          v-if="canUpdate"
           icon="i-lucide-plus"
-          size="sm"
           variant="outline"
           color="neutral"
           label="Nuevo"
           @click="isPositionModalOpen = true"
         />
-      </div>
+      </template>
 
       <!-- Loading -->
       <div
         v-if="isPositionLoading"
-        class="flex flex-col gap-3 px-5 py-6"
+        class="employees-section-skeleton"
         aria-busy="true"
         data-testid="position-history-skeleton"
       >
         <span class="sr-only">Cargando</span>
-        <div v-for="i in 3" :key="i" class="h-14 animate-pulse rounded-lg bg-(--hf-surface-muted)" aria-hidden="true" />
+        <div v-for="i in 3" :key="i" class="hf-skeleton h-14 animate-pulse rounded-lg" aria-hidden="true" />
       </div>
 
       <!-- Error -->
-      <div v-else-if="isPositionError" class="p-5" data-testid="position-history-error">
+      <div v-else-if="isPositionError" data-testid="position-history-error">
         <EmptyState
           kind="error"
           title="No se pudo cargar el historial de posiciones"
@@ -342,18 +331,18 @@ function closePositionModal(): void {
       </div>
 
       <!-- Empty -->
-      <div v-else-if="positionEntries.length === 0" class="p-5" data-testid="position-history-empty">
+      <div v-else-if="positionEntries.length === 0" data-testid="position-history-empty">
         <EmptyState title="Sin historial de posiciones" icon="i-lucide-briefcase" />
       </div>
 
       <!-- Timeline -->
-      <div v-else class="divide-y divide-default">
-        <div
+      <ul v-else class="employees-section-list">
+        <li
           v-for="(entry, index) in positionEntries"
           :key="entry.id"
-          class="flex items-start gap-4 px-5 py-4"
+          class="flex items-start gap-4"
         >
-          <div class="mt-1.5 flex flex-col items-center">
+          <div class="mt-1.5 flex flex-col items-center" aria-hidden="true">
             <div
               :class="[
                 'size-2.5 rounded-full',
@@ -383,9 +372,9 @@ function closePositionModal(): void {
               {{ entry.reason }}
             </p>
           </div>
-        </div>
-      </div>
-    </UCard>
+        </li>
+      </ul>
+    </HfSectionCard>
 
   </div>
 

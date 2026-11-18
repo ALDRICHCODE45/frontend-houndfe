@@ -443,3 +443,37 @@ describe('CvPanel states', () => {
     expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
   })
 })
+
+describe('Detail panels presentation (design-system sections)', () => {
+  it('renders read-only panels as labelled section cards with h2 headings and one description list each', async () => {
+    const { default: PersonalPanel } = await import('../PersonalPanel.vue')
+    const { default: LaboralPanel } = await import('../LaboralPanel.vue')
+    const personal = mountPanel(PersonalPanel, { employee })
+    const sections = personal.findAll('section.hf-section-card')
+    expect(sections.map((s) => s.get('h2').text())).toEqual(['Información personal', 'Domicilio'])
+    for (const section of sections) {
+      expect(section.attributes('aria-labelledby')).toBe(section.get('h2').attributes('id'))
+      expect(section.findAll('dl.employees-dl')).toHaveLength(1)
+    }
+    const laboral = mountPanel(LaboralPanel, { employee, managerDisplay: '—' })
+    expect(laboral.get('section.hf-section-card h2').text()).toBe('Datos de empleo')
+    expect(laboral.find('.employees-detail-section').exists()).toBe(false)
+  })
+
+  it('groups the Resumen key figures in one section instead of a card per figure', async () => {
+    const { default: ResumenPanel } = await import('../ResumenPanel.vue')
+    const wrapper = mountPanel(ResumenPanel, { employee, managerDisplay: '—' })
+    const grid = wrapper.get('[data-testid="employee-stat-grid"]')
+    expect(grid.element.tagName).toBe('DL')
+    expect(grid.element.closest('section.hf-section-card')).not.toBeNull()
+    expect(grid.find('section').exists()).toBe(false)
+  })
+
+  it('keeps list sections flush: rows sit in the section list, the skeleton uses the shared wash', () => {
+    q.contacts.isLoading.value = true
+    const loading = mountPanel(EmergencyContactsPanel, { employee, canCreate: true, canUpdate: true, canDelete: true })
+    const bars = loading.findAll('[data-testid="contacts-skeleton"] .animate-pulse')
+    expect(bars.length).toBeGreaterThan(0)
+    for (const bar of bars) expect(bar.classes()).toContain('hf-skeleton')
+  })
+})

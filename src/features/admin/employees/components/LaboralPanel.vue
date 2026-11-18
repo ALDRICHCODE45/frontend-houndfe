@@ -22,6 +22,7 @@ import {
   CONTRACT_TYPE_LABELS,
   type Employee,
 } from '../interfaces/employee.types'
+import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 
 const props = defineProps<{
   employee: Employee
@@ -37,69 +38,64 @@ const contractLabel = computed(() => CONTRACT_TYPE_LABELS[props.employee.contrac
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
-    <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
-      <div class="border-b border-default px-5 py-4">
-        <h2 class="text-base font-semibold text-highlighted">Datos de empleo</h2>
-      </div>
-
-      <dl class="grid grid-cols-1 gap-x-8 gap-y-5 p-5 sm:grid-cols-2">
-        <div>
-          <dt class="text-[13px] text-muted">Puesto actual</dt>
-          <dd class="mt-1 font-medium text-highlighted">{{ employee.currentPosition ?? '—' }}</dd>
+  <div class="employees-panel">
+    <HfSectionCard title="Datos de empleo" :heading-level="2">
+      <dl class="employees-dl">
+        <div class="employees-dl__item">
+          <dt>Puesto actual</dt>
+          <dd>{{ employee.currentPosition ?? '—' }}</dd>
         </div>
 
-        <div>
-          <dt class="text-[13px] text-muted">Departamento</dt>
-          <dd class="mt-1 font-medium text-default">{{ employee.currentDepartment ?? '—' }}</dd>
+        <div class="employees-dl__item">
+          <dt>Departamento</dt>
+          <dd>{{ employee.currentDepartment ?? '—' }}</dd>
         </div>
 
-        <div>
-          <dt class="text-[13px] text-muted">Tipo de contrato</dt>
-          <dd class="mt-1 font-medium text-default">{{ contractLabel }}</dd>
+        <div class="employees-dl__item">
+          <dt>Tipo de contrato</dt>
+          <dd>{{ contractLabel }}</dd>
         </div>
 
-        <div>
-          <dt class="text-[13px] text-muted">Modalidad</dt>
-          <dd class="mt-1 font-medium text-default">{{ modalityLabel }}</dd>
+        <div class="employees-dl__item">
+          <dt>Modalidad</dt>
+          <dd>{{ modalityLabel }}</dd>
         </div>
 
-        <div>
-          <dt class="text-[13px] text-muted">Fecha de ingreso</dt>
-          <dd class="mt-1 font-medium text-default">{{ hireDateFormatted }}</dd>
+        <div class="employees-dl__item">
+          <dt>Fecha de ingreso</dt>
+          <dd>{{ hireDateFormatted }}</dd>
         </div>
 
-        <div>
-          <dt class="text-[13px] text-muted">Horario</dt>
-          <dd class="mt-1 font-medium text-default">{{ employee.currentSchedule ?? '—' }}</dd>
+        <div class="employees-dl__item">
+          <dt>Horario</dt>
+          <dd>{{ employee.currentSchedule ?? '—' }}</dd>
         </div>
 
         <!-- Jefe directo — linked if managerId exists -->
-        <div>
-          <dt class="text-[13px] text-muted">Jefe directo</dt>
-          <dd class="mt-1">
+        <div class="employees-dl__item">
+          <dt>Jefe directo</dt>
+          <dd>
             <RouterLink
               v-if="managerId"
               :to="{ name: 'admin-employee-detail', params: { id: managerId } }"
-              class="font-medium text-default underline decoration-(--hf-border) underline-offset-2 hover:text-primary"
+              class="employees-link"
             >
               {{ managerDisplay }}
             </RouterLink>
-            <span v-else class="text-muted">—</span>
+            <span v-else class="employees-dl__empty">—</span>
           </dd>
         </div>
       </dl>
-    </UCard>
+    </HfSectionCard>
 
-    <UCard
+    <HfSectionCard
       v-if="employee.currentResponsibilities"
-      class="employees-detail-section"
-      :ui="{ body: 'p-5 sm:p-5' }"
+      title="Responsabilidades"
+      :heading-level="2"
     >
-      <h2 class="mb-3 text-base font-semibold text-highlighted">Responsabilidades</h2>
       <p class="whitespace-pre-wrap text-sm leading-relaxed text-default">
         {{ employee.currentResponsibilities }}
       </p>
-    </UCard>
+    </HfSectionCard>
   </div>
 </template>

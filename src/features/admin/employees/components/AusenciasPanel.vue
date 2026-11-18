@@ -5,8 +5,9 @@
  * Ausencias tab panel for the Employee Detail View.
  *
  * Layout:
- *   1. Vacation balance card (year at a glance)
- *   2. Time-off list with a StatusBadge per request
+ *   0. Year select (drives the balance and the list) + "Solicitar ausencia"
+ *   1. "Saldo de vacaciones" section (year at a glance)
+ *   2. "Solicitudes" section: time-off list with a StatusBadge per request
  *      - Filter by year (current year default)
  *      - Per-row: dates and day count, then type and reason, then status
  *      - ⋮ menu: Revisar… (PENDING, gated by canReview = can('update', 'EmployeeTimeOff'))
@@ -40,6 +41,7 @@
 import { computed, reactive, ref } from 'vue'
 import DateFieldPopover from '@/features/POS/sales/components/DateFieldPopover.vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
+import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { TIME_OFF_STATUS, TIME_OFF_TYPE, REVIEW_DECISION } from '../constants/employee.constants'
@@ -261,38 +263,10 @@ function onRowAction(key: string, timeOffId: string): void {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
+  <div class="employees-panel">
 
-    <!-- Balance -->
-    <div
-      v-if="isLoadingBalance"
-      class="h-24 animate-pulse rounded-xl bg-(--hf-surface-muted)"
-      aria-busy="true"
-      data-testid="balance-skeleton"
-    />
-    <UCard v-else-if="balance" class="employees-detail-section" :ui="{ body: 'p-5 sm:p-5' }">
-      <dl class="grid grid-cols-2 gap-4 sm:grid-cols-4" data-testid="vacation-balance">
-        <div class="flex flex-col gap-0.5">
-          <dt class="text-[13px] text-muted">Asignadas</dt>
-          <dd class="hf-figure text-2xl font-semibold text-highlighted">{{ balance.entitlement }}</dd>
-        </div>
-        <div class="flex flex-col gap-0.5">
-          <dt class="text-[13px] text-muted">Usadas</dt>
-          <dd class="hf-figure text-2xl font-semibold text-highlighted">{{ balance.used }}</dd>
-        </div>
-        <div class="flex flex-col gap-0.5">
-          <dt class="text-[13px] text-muted">Pendientes</dt>
-          <dd class="hf-figure text-2xl font-semibold text-(--hf-warning)">{{ balance.pending }}</dd>
-        </div>
-        <div class="flex flex-col gap-0.5">
-          <dt class="text-[13px] text-muted">Disponibles</dt>
-          <dd class="hf-figure text-2xl font-semibold text-highlighted">{{ balance.remaining }}</dd>
-        </div>
-      </dl>
-    </UCard>
-
-    <!-- Controls row: year selector + request button -->
-    <div class="flex items-center justify-between gap-3">
+    <!-- Controls row: the year drives the balance and the list; request button -->
+    <div class="flex flex-wrap items-center justify-between gap-3">
       <USelect
         v-model="selectedYear"
         :items="yearOptions"
@@ -313,21 +287,53 @@ function onRowAction(key: string, timeOffId: string): void {
       </UButton>
     </div>
 
+    <!-- Balance -->
+    <HfSectionCard v-if="isLoadingBalance || balance" title="Saldo de vacaciones" :heading-level="2">
+      <div
+        v-if="isLoadingBalance"
+        class="hf-skeleton h-16 animate-pulse rounded-lg"
+        aria-busy="true"
+        data-testid="balance-skeleton"
+      />
+      <dl
+        v-else-if="balance"
+        class="employees-figures grid-cols-2 sm:grid-cols-4"
+        data-testid="vacation-balance"
+      >
+        <div>
+          <dt>Asignadas</dt>
+          <dd class="employees-figure hf-figure">{{ balance.entitlement }}</dd>
+        </div>
+        <div>
+          <dt>Usadas</dt>
+          <dd class="employees-figure hf-figure">{{ balance.used }}</dd>
+        </div>
+        <div>
+          <dt>Pendientes</dt>
+          <dd class="employees-figure employees-figure--warning hf-figure">{{ balance.pending }}</dd>
+        </div>
+        <div>
+          <dt>Disponibles</dt>
+          <dd class="employees-figure hf-figure">{{ balance.remaining }}</dd>
+        </div>
+      </dl>
+    </HfSectionCard>
+
     <!-- Time-off list -->
-    <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
+    <HfSectionCard title="Solicitudes" :heading-level="2">
       <!-- Loading -->
       <div
         v-if="isLoadingList"
-        class="flex flex-col gap-3 p-5"
+        class="employees-section-skeleton"
         aria-busy="true"
         data-testid="time-off-skeleton"
       >
         <span class="sr-only">Cargando</span>
-        <div v-for="n in 3" :key="n" class="h-14 animate-pulse rounded-lg bg-(--hf-surface-muted)" aria-hidden="true" />
+        <div v-for="n in 3" :key="n" class="hf-skeleton h-14 animate-pulse rounded-lg" aria-hidden="true" />
       </div>
 
       <!-- Error -->
-      <div v-else-if="isListError" class="p-5" data-testid="time-off-error">
+      <div v-else-if="isListError" data-testid="time-off-error">
         <EmptyState
           kind="error"
           title="No se pudieron cargar las ausencias"
@@ -338,7 +344,7 @@ function onRowAction(key: string, timeOffId: string): void {
       </div>
 
       <!-- Empty -->
-      <div v-else-if="timeOffList.length === 0" class="p-5" data-testid="time-off-empty">
+      <div v-else-if="timeOffList.length === 0" data-testid="time-off-empty">
         <EmptyState
           :title="`Sin ausencias en ${selectedYear}`"
           description="Aquí aparecerán las solicitudes del colaborador."
@@ -347,11 +353,11 @@ function onRowAction(key: string, timeOffId: string): void {
       </div>
 
       <!-- List -->
-      <ul v-else class="divide-y divide-default">
+      <ul v-else class="employees-section-list">
         <li
           v-for="item in timeOffList"
           :key="item.id"
-          class="flex items-center gap-3 px-5 py-3"
+          class="flex items-center gap-3"
           data-testid="time-off-row"
         >
           <div class="min-w-0 flex-1">
@@ -377,7 +383,7 @@ function onRowAction(key: string, timeOffId: string): void {
           />
         </li>
       </ul>
-    </UCard>
+    </HfSectionCard>
 
   </div>
 

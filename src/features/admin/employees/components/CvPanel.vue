@@ -29,6 +29,7 @@
 
 import { ref } from 'vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
+import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 import type { Employee } from '../interfaces/employee.types'
 import { downloadFile, uploadMultipart } from '@/core/shared/api/multipart'
 import { employeesApi } from '../api/employees.api'
@@ -113,14 +114,10 @@ async function handleFileSelected(event: Event): Promise<void> {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
+  <div class="employees-panel">
 
-    <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
-      <div class="border-b border-default px-5 py-4">
-        <h2 class="text-base font-semibold text-highlighted">Currículum vitae</h2>
-      </div>
-
-      <div class="p-5">
+    <HfSectionCard title="Currículum vitae" :heading-level="2">
+      <div>
 
         <!-- ── CV exists: download, and replace for who can update ──────── -->
         <div v-if="employee.cvFileId" class="flex flex-col gap-4">
@@ -181,7 +178,7 @@ async function handleFileSelected(event: Event): Promise<void> {
         </p>
 
       </div>
-    </UCard>
+    </HfSectionCard>
 
     <!-- Hidden file input for CV upload -->
     <input

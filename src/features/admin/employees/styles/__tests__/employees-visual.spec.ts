@@ -170,12 +170,50 @@ const panels = Object.fromEntries(
 )
 
 describe('Employee detail panels adapter', () => {
-  it('gives every panel card an owned section hook', () => {
+  it('groups every panel in shared section cards: no legacy UCard stack, no nested card', () => {
     for (const [name, source] of Object.entries(panels)) {
-      const cards = source.match(/<UCard\b/g)?.length ?? 0
-      const hooked = source.match(/<UCard\b[^>]*employees-detail-section/g)?.length ?? 0
-      expect(hooked, name).toBe(cards)
+      expect(source, name).not.toMatch(/<UCard\b/)
+      expect(source, name).toContain("import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'")
+      const cards = source.match(/<HfSectionCard\b/g)?.length ?? 0
+      expect(cards, name).toBeGreaterThan(0)
+      // Section headings stay h2 under the detail title (the page outline is unchanged).
+      expect(source.match(/<HfSectionCard\b[^>]*:heading-level="2"/g)?.length ?? 0, name).toBe(cards)
+      // No hand-built header strip inside a section: the card owns its heading.
+      expect(source, name).not.toMatch(/border-b border-default px-5 py-4/)
     }
+  })
+
+  it('lays read-only pairs and figures out with one shared description list', () => {
+    for (const name of ['PersonalPanel', 'LaboralPanel']) {
+      expect(panels[name], name).toContain('class="employees-dl"')
+      expect(panels[name], name).not.toMatch(/<dt class=/)
+    }
+    for (const name of ['ResumenPanel', 'AusenciasPanel']) {
+      expect(panels[name], name).toContain('employees-figures')
+    }
+    expect(css).toContain('.employees-detail .employees-dl')
+    expect(css).toContain('.employees-detail .employees-figures')
+  })
+
+  it('runs lists flush with the section edge and keeps the shared skeleton wash', () => {
+    for (const [name, source] of Object.entries(panels)) {
+      expect(source, name).not.toMatch(/animate-pulse[^"]*bg-\(--hf-surface-muted\)|bg-\(--hf-surface-muted\)[^"]*animate-pulse/)
+      for (const pulse of source.match(/class="[^"]*animate-pulse[^"]*"/g) ?? []) {
+        expect(pulse, name).toContain('hf-skeleton')
+      }
+    }
+    expect(css).toContain('.employees-detail .employees-section-list')
+  })
+
+  it('turns options on and off only with the shared switch row, never a box', () => {
+    for (const [name, source] of Object.entries(panels)) {
+      expect(source, name).not.toMatch(/<USwitch\b|<UCheckbox\b|type="checkbox"/)
+    }
+  })
+
+  it('gives section actions and the expiry window 44px touch targets', () => {
+    expect(css).toMatch(/\.employees-detail \.hf-section-card__meta[^{]*\{[^}]*min-height: var\(--hf-form-control\)/)
+    expect(css).toMatch(/\.employees-detail \.employees-threshold \{[^}]*min-height: var\(--hf-form-control\)/)
   })
 
   it('marks every teleport opened from a panel with an owned portal', () => {

@@ -28,6 +28,7 @@
 import { computed, reactive, ref } from 'vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
+import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import type { Employee, EmergencyContact } from '../interfaces/employee.types'
 import { CreateEmergencyContactDtoSchema } from '../interfaces/employee.types'
@@ -171,34 +172,31 @@ async function confirmDelete(): Promise<void> {
 </script>
 
 <template>
-  <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
-    <div class="flex items-center justify-between gap-3 border-b border-default px-5 py-4">
-      <h2 class="text-base font-semibold text-highlighted">Contactos de emergencia</h2>
+  <HfSectionCard title="Contactos de emergencia" :heading-level="2">
+    <template v-if="canCreate" #meta>
       <UButton
-        v-if="canCreate"
         icon="i-lucide-user-plus"
-        size="sm"
         variant="outline"
         color="neutral"
         @click="openCreate"
       >
         Agregar
       </UButton>
-    </div>
+    </template>
 
     <!-- Loading -->
     <div
       v-if="isLoading"
-      class="flex flex-col gap-3 p-5"
+      class="employees-section-skeleton"
       aria-busy="true"
       data-testid="contacts-skeleton"
     >
       <span class="sr-only">Cargando</span>
-      <div v-for="n in 2" :key="n" class="h-14 animate-pulse rounded-lg bg-(--hf-surface-muted)" aria-hidden="true" />
+      <div v-for="n in 2" :key="n" class="hf-skeleton h-14 animate-pulse rounded-lg" aria-hidden="true" />
     </div>
 
     <!-- Error -->
-    <div v-else-if="isError" class="p-5" data-testid="contacts-error">
+    <div v-else-if="isError" data-testid="contacts-error">
       <EmptyState
         kind="error"
         title="No se pudieron cargar los contactos"
@@ -209,7 +207,7 @@ async function confirmDelete(): Promise<void> {
     </div>
 
     <!-- Empty -->
-    <div v-else-if="contactEntries.length === 0" class="p-5" data-testid="contacts-empty">
+    <div v-else-if="contactEntries.length === 0" data-testid="contacts-empty">
       <EmptyState
         title="Sin contactos de emergencia"
         description="Agrega al menos un contacto."
@@ -218,11 +216,11 @@ async function confirmDelete(): Promise<void> {
     </div>
 
     <!-- Contact list -->
-    <ul v-else class="divide-y divide-default">
+    <ul v-else class="employees-section-list">
       <li
         v-for="entry in contactEntries"
         :key="entry.id"
-        class="flex items-center justify-between gap-3 px-5 py-3"
+        class="flex items-center justify-between gap-3"
         data-testid="contact-row"
       >
         <div class="min-w-0">
@@ -231,16 +229,13 @@ async function confirmDelete(): Promise<void> {
             {{ entry.relationship }}<template v-if="entry.isPrimary"> · Principal</template>
           </p>
           <div class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
-            <a
-              :href="`tel:${entry.phone}`"
-              class="text-default underline decoration-(--hf-border) underline-offset-2 hover:text-primary"
-            >
+            <a :href="`tel:${entry.phone}`" class="employees-link">
               {{ entry.phone }}
             </a>
             <a
               v-if="entry.email"
               :href="`mailto:${entry.email}`"
-              class="break-all text-default underline decoration-(--hf-border) underline-offset-2 hover:text-primary"
+              class="employees-link break-all"
             >
               {{ entry.email }}
             </a>
@@ -255,7 +250,7 @@ async function confirmDelete(): Promise<void> {
         />
       </li>
     </ul>
-  </UCard>
+  </HfSectionCard>
 
   <!-- Create / Edit form modal -->
   <UModal :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
