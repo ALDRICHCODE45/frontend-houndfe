@@ -9,8 +9,8 @@ the chatbot requests inbox (spec S5, tasks T4a/T4b). Wired in `src/main.ts` only
 | --- | --- | --- |
 | `VITE_REALTIME_SSE` | off | `true` or `1` enables the stream. Anything else, or unset: nothing connects (no fetch, no lock, no channel). |
 
-Keep it off until the production Traefik/Swarm check of handoff 17 passes; polling
-stays the source of truth meanwhile. `env.d.ts` at the repo root types it.
+Production builds it with `true` (Dokploy build-time argument, confirmed in the served
+bundle on 2026-11-17). Polling stays as the fallback while the stream is closed. `env.d.ts` at the repo root types it.
 
 Vite inlines `VITE_` variables at build time, so the flag is a Docker build argument
 (`ARG VITE_REALTIME_SSE=false` in the `Dockerfile`). In Dokploy set it under
