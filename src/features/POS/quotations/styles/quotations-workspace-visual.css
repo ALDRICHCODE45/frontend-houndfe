@@ -75,12 +75,6 @@
   color: var(--hf-ink);
 }
 
-.hf-theme.quotations-workspace-portal
-  .quotations-product-search
-  p[class~='text-(--brand-primary)'] {
-  color: var(--hf-muted);
-}
-
 .hf-theme.quotations-workspace-portal .quotations-product-search [data-testid='add-action'] {
   background-color: var(--hf-active-soft);
   color: var(--hf-action);

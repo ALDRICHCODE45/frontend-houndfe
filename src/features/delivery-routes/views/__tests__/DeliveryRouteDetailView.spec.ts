@@ -1056,7 +1056,7 @@ describe('DeliveryRouteDetailView — 404 ENTITY_NOT_FOUND / driver 403 → full
 
     describe('DeliveryRouteDetailView — TRIANGULATE: view SFC source invariants (S11a, REQ-DRC-103/104/107/108/109/110/112, REQ-DCS-007/009/010)', () => {
       it('view source invariants: no query-client/axios/fetch, single observer + single check-in instance + exactly one refetch (REQ-DRC-103/104/107/108/109/110/112)', () => {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const fs = require('node:fs') as typeof import('node:fs')
         const src = fs.readFileSync((DeliveryRouteDetailView as unknown as { __file: string }).__file, 'utf8').replace(/\/\*\*[\s\S]*?\*\//g, '')
         for (const re of [/\buseQueryClient\b/, /\brefetchQueries\b/, /\baxios\b/, /\bfetch\(['"`]/, /\binvalidateQueries\b/, /\bnew\s+QueryClient\b/]) expect(src).not.toMatch(re)

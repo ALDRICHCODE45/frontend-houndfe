@@ -446,6 +446,7 @@ function handleReleaseDrawer() {
       title="Caja"
       :tasks="visibleTasks"
       :active-task-id="activeTaskId"
+      :shift-idle="!selectedSessionId"
       @select-task="selectTask"
     >
       <template #shift>
@@ -533,7 +534,10 @@ function handleReleaseDrawer() {
           class="flex flex-col gap-6"
           data-testid="cash-task-movimientos"
         >
+          <!-- A failed detail read is told once, by the shift card with its Reintentar.
+               Hidden only while nothing loaded: a failed refetch keeps the cached movements. -->
           <CashMovementsPanel
+            v-if="!detailQuery.isError.value || detailQuery.detail.value"
             :detail="detailQuery.detail.value ?? null"
             :current-user-id="access.currentUserId.value"
             :can-cash-in="access.canCashIn.value"
@@ -544,7 +548,6 @@ function handleReleaseDrawer() {
             "
             :error-message="errorFor('movements')"
             :loading="detailQuery.isLoading.value"
-            :error="detailQuery.isError.value"
             @submit="handleMovement"
             @refresh="detailQuery.refetch()"
           />

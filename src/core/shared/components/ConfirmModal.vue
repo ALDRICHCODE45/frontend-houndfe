@@ -58,7 +58,7 @@ function handleCancel() {
     :open="props.open"
     :title="props.title"
     :dismissible="!props.loading"
-    :close="!props.loading"
+    :close="props.loading ? false : { class: 'size-11 justify-center' }"
     :ui="props.ui"
     @update:open="emit('update:open', $event)"
   >

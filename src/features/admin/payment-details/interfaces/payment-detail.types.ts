@@ -72,7 +72,7 @@ export interface PaymentDetailResponse {
  * separate interface lets future client-side projections ripple through
  * callers without forcing a rename of the backend DTO.
  */
-export interface PaymentDetailTableRow extends PaymentDetailResponse {}
+export type PaymentDetailTableRow = PaymentDetailResponse
 
 /**
  * CreatePaymentDetailRequest — POST /admin/payment-details payload.

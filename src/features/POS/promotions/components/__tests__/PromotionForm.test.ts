@@ -645,3 +645,35 @@ describe('PromotionForm — selection without checkboxes (T4b)', () => {
     },
   )
 })
+
+describe('PromotionForm — summary price-list names (T1/S1)', () => {
+  it('passes the chosen price-list names, in pick order, from the shared price-lists cache', async () => {
+    const queryClient = makeQueryClient()
+    queryClient.setQueryData(['price-lists'], [
+      { id: 'pl-1', name: 'Mayoreo' },
+      { id: 'pl-2', name: 'Veterinarias' },
+      { id: 'pl-3', name: 'Clínicas' },
+    ])
+    const wrapper = mount(PromotionForm, {
+      props: { type: 'PRODUCT_DISCOUNT', mode: 'create', initialData: null, loading: false },
+      global: {
+        plugins: [[VueQueryPlugin, { queryClient }]],
+        stubs: {
+          ...FULL_STUBS,
+          PromotionSummaryCard: {
+            name: 'PromotionSummaryCard',
+            props: ['formState', 'priceListNames'],
+            template: '<div data-testid="summary-card" />',
+          },
+        },
+      },
+    })
+    const conditions = wrapper.getComponent(FULL_STUBS.PromotionConditionsSection)
+    const state = conditions.props('modelValue') as PromotionFormState
+    conditions.vm.$emit('update:modelValue', { ...state, hasPriceLists: true, priceListIds: ['pl-2', 'pl-1'] })
+    await flushPromises()
+
+    const summary = wrapper.getComponent({ name: 'PromotionSummaryCard' })
+    expect(summary.props('priceListNames')).toEqual(['Veterinarias', 'Mayoreo'])
+  })
+})

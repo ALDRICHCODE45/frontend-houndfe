@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { ref } from 'vue'
 import AdminPaymentMethodsView from '../AdminPaymentMethodsView.vue'
@@ -281,19 +280,24 @@ vi.mock('@nuxt/ui/runtime/composables/useToast', () => ({
   useToast: () => toastMock,
 }))
 
-const mutationHandles: Array<{
-  config: { onSuccess?: (...args: unknown[]) => unknown; onError?: (...args: unknown[]) => unknown }
-  mutate: ReturnType<typeof vi.fn>
-  mutateAsync: ReturnType<typeof vi.fn>
+type MutationCallbacks = {
+  onSuccess?: (...args: unknown[]) => unknown
+  onError?: (...args: unknown[]) => unknown
+}
+type MutationHandle = {
+  config: MutationCallbacks
+  mutate: Mock<(...args: unknown[]) => void>
+  mutateAsync: Mock<(...args: unknown[]) => Promise<unknown>>
   isPending: { value: boolean }
   lastArgs?: unknown[]
-}> = []
+}
+const mutationHandles: MutationHandle[] = []
 const invalidateQueriesMock = vi.fn()
 
 vi.mock('@tanstack/vue-query', () => ({
   useQuery: () => ({ data: ref([]), isLoading: ref(false) }),
-  useMutation: (config: { onSuccess?: (...args: unknown[]) => unknown; onError?: (...args: unknown[]) => unknown }) => {
-    const handle = {
+  useMutation: (config: MutationCallbacks) => {
+    const handle: MutationHandle = {
       config,
       mutate: vi.fn((...args: unknown[]) => {
         handle.lastArgs = args

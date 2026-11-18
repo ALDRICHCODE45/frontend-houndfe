@@ -4,29 +4,27 @@ Use the accepted Caja visual language as the shared foundation, standardize tabl
 
 ## Current application rollout
 
-The complete HF audit is now explicitly authorized; track implementation and
-coverage in [`hf-ui-complete-audit.md`](../odd/tasks/hf-ui-complete-audit.md).
-`App.vue` installs `hf-theme hf-ui hf-app` on `body`, so routed content and
-body-targeted teleports inherit the same semantic defaults. Cleanup removes only
-markers installed by that App. Importing the stylesheet outside App still does
-not activate it. Nuxt cards and dashboard panels use semantic surface defaults.
-Legacy surface/text roles are rebound to HF at `.hf-ui`, where the referenced
-variables actually exist. Referenced Coco shade scales remain until their
-consumers migrate. Legacy actions with forced black foreground retain their HF
-gold background temporarily; feature-owned blue actions keep the matching
-`--hf-on-action` foreground. Do not flatten status colors into the action color.
+The HF design system is live app-wide. `App.vue` installs `hf-theme hf-ui hf-app`
+on `body`, so routed content and body-targeted teleports (dialogs, sheets, menus)
+share the same `--hf-*` roles and Nuxt semantic aliases. Audit closure and
+coverage are recorded in [`hf-ui-complete-audit.md`](../odd/tasks/hf-ui-complete-audit.md).
 
-This supersedes the historical opt-in-only rollout restrictions below, not their
-feature-composition or behavioral contracts. Feature markers still own layout,
-spacing and specialized variants; a global boundary does not override literal
-child colors or prove nested-overlay coverage. Isolated consumers still need an
-explicit boundary. Preserve destructive/status semantics and existing handlers.
+The Coco shade scales in `src/assets/main.css` stay only because Nuxt UI resolves
+its `primary`, `secondary`, `neutral` and `action` colors through them
+(`vite.config.ts`); screens never paint with them. The legacy `--brand-*` names
+survive only as compatibility aliases rebound to HF at `.hf-ui`.
 
-Current evidence: 74 tests across eight focused suites, full `pnpm build` and
-`git diff --check` passed. Actual product-editor category/SAT menus were checked
-at 390/1440px in light/dark: 44px triggers, 2px focus and horizontal containment.
-This is not all-route, all-state, contrast or slideover acceptance. Build warnings
-for generated `env(...)` CSS and chunks over 500kB remain recorded.
+Guards keep it that way: native controls (`native-controls-guard.spec.ts`, no
+native `<select>` or date/time inputs), field borders (`hf-field-border-guard.spec.ts`,
+`hf-soft-field-borders.spec.ts`, rest on `--hf-border`) and legacy palette
+(`legacy-palette-guard.spec.ts`, no `coco-*`, `--brand-*`/`--light-*` or raw Tailwind
+palette utilities outside `main.css` and the always-light catalog). «Selección sin
+checkboxes» is done: switch rows, radio cards, selectable rows, toggle chips,
+segmented controls and round row marks replace checkboxes everywhere (board
+`design/system.html`, «Selección y formularios»).
+
+Feature markers still own layout, spacing and specialized variants; preserve
+destructive/status semantics and existing handlers.
 
 ## Quick path
 
@@ -106,7 +104,7 @@ Page width follows the task: data-heavy tables may use available width; forms ma
 - **Responsive drawers:** inspect both breakpoint branches of a wrapper. Theme the native dialog content, not just an inner slot container, while preserving each branch's height, inset, radius, reduced-motion classes and prior `ui` defaults. Keep lifecycle event forwarding intact: a mobile cart closing before a payment sheet opens is workflow sequencing, not a styling detail.
 - **Independent nested forms:** a reused form that already owns an accepted theme boundary keeps that boundary. Do not silently repaint another module's form or merge its validation/state to make an enclosing workspace look uniform; any distinct redesign needs its own authorization.
 - **Effective child colors:** a portal marker supplies roles but does not replace literal child utilities. Inspect the reached header, active controls and their count badges, prices and secondary labels. Pair solid action backgrounds with `--hf-on-action`, including dark-mode and nested badges; preserve stock/error semantics. Use a feature-owned child boundary so the correction cannot repaint other consumers.
-- **Global card theme:** the app-wide `UCard` theme in `vite.config.ts` paints literal `bg-white dark:bg-coco-neutral-900` roots that no semantic alias reaches. Prefer `HfSectionCard` (`src/core/shared/components/form`), which paints `--hf-surface` and the border role itself; a `UCard` that has to stay needs a feature-owned section hook that does the same; table pages escape only because `hf-table-surface` repaints its card. Check dark mode, where the legacy tint is most visible.
+- **Global card theme:** the app-wide `UCard` root in `vite.config.ts` is `rounded-lg overflow-hidden shadow-sm bg-default`, and `bg-default` resolves to `--hf-surface` through `.hf-ui` (`--ui-bg`), so cards follow light and dark. For form and detail sections still prefer `HfSectionCard` (`src/core/shared/components/form`), which also owns the section header, spacing and border role; table pages use `hf-table-surface`.
 - **Legacy forced paint:** an important legacy utility cannot be repaired with ordinary scoped CSS. When a shared control explicitly opts into the new theme, select its semantic presentation conditionally while omission keeps the old classes. Do not add blanket important overrides or recolor unreachable workflow steps merely because their source appears nearby.
 - **Toolbar select filter:** a single-choice list filter (status, type) is `ToolbarSelectFilter` (`src/core/shared/components/DataTable/ToolbarSelectFilter.vue`), never a native `<select>` or a bare `<label>`. It is a `USelect` (size `sm`, `aria-label` = its title, 44px trigger) inside `FilterSectionCard`, so mobile gets a titled section in the Filtros sheet and desktop (md+) sits inline beside the search on the same row, as in Products. Pass `portal-class` with the feature's HF hook so the listbox is themed, and `test-id` for specs. The view owns the value and the default: wire `active-filter-count` (1 only away from the default) and `@clear-filters` (reset to the default) on the table or toolbar. Do not add feature CSS that moves `.hf-toolbar-filters` onto a second row. The inline layout is a class contract of `DataTableToolbar` and the select: the search (`w-full sm:max-w-sm`) and `.hf-toolbar-filters` (`min-w-0 flex-1`) share one `sm:flex-row` region, the actions are its sibling on the right (`md:flex-row md:justify-between`), the section card is `md:contents`, and the select is `md:w-44 md:shrink-0`, so it can never be squeezed out of the card. Specs pin it (`ToolbarSelectFilter.layout.spec.ts`); the real-browser check is that the filter's box lies inside the table card and the primary action sits on the search row. References: `PurchaseOrderView.vue`, `SupplierView.vue`; specs `ToolbarSelectFilter.spec.ts`.
 - **Editor overlay width:** a create/edit slideover is a right-side `USlideover` whose `ui.content` carries `hf-theme hf-ui hf-form-overlay <feature>-portal`. Nuxt UI caps it at `max-w-md`; a form that needs line cards or a wide table widens that cap explicitly with one `max-w-*` class on the same `ui.content` (purchase orders: `max-w-3xl`, 48rem), never above `max-w-4xl` (56rem). A record with lines or sections is a *record workspace* and takes the 48rem width as its standard (see Patrones, Wide record-workspace slideover). Content must never stretch to the viewport: line length stays scannable and a label stays near its value. A width class that exists only in a `.vue` file is generated by Tailwind's source scan, so verify the width in a real browser at 1440 (see **Evidence servers**).
@@ -437,6 +435,7 @@ Owner rule («no quiero que haya "checkboxes" típicos porque siento que no son 
   - **Many chip groups (public catalog facets):** never stack one group per row; eight stacked definitions pushed the products below the fold at 390 and 1440. On a phone every group shares ONE row that scrolls sideways (quiet 13px/600 label inline before its chips, hidden scrollbar, `contain: inline-size` so the page never widens), and `Limpiar filtros (n)` is a separate item placed before that scrolling row (never sticky or overlaid, so it never covers a group label or chip) so the way out stays visible; only the groups scroll. From 601px the groups flow side by side (label above its chips) and wrap, with `Limpiar filtros (n)` inline at the end at the chips' 36px height. Reference: `CatalogFacetFilters.vue`, `catalog.css`; spec `catalog-visual.spec.ts`.
 - **Segmented control**: 44px, selected segment `--hf-active-soft` with `--hf-active` and a check icon; arrows move and choose. Density in the «Columnas» panel is one.
 - **Row mark in tables** (`DataTable/SelectColumn.vue` wraps `HfRowMark`; pass `label` (string or `(row) => string`) and `headerLabel` so each mark is named): a round 24px mark inside a 44px hit area replaces the table checkbox, header included (empty → all → some, `aria-pressed="mixed"`); Space on the focused row selects, Enter opens, Shift+click selects a range; the bulk bar appears as today. `HfRowMark`: `checked` (`true` / `false` / `'mixed'`), `label` (`Seleccionar a Laura Méndez`), `@update:checked` and `@toggle(value, event)` for `shiftKey`; its click does not bubble to the row.
+  - **On phone cards** (`AppDataTable` `mobile-render="cards"` / `display-mode="cards"` with `enable-row-selection`): the table adds the marks itself, so every list with bulk actions stays selectable on a phone. Each card gets a leading mark in its own 44px column, outside the card, so tapping it never opens the card; a «Seleccionar todos» mark (empty → all → some = mixed, over the cards on the page) sits above the list; the bulk bar appears as on desktop. Name the marks with `row-mark-label` (`(row) => 'Seleccionar a Laura Méndez'`; default `Seleccionar fila N`) and `select-all-label` (default `Seleccionar todos`). Reference: `EmployeesListView.vue`; spec `AppDataTable.mobileSelection.spec.ts`.
 - **Accessibility checklist**: target ≥ 44px (the row, card, chip or the mark's area, never the painted icon alone); the label is part of the target; correct role and `aria-*`; full keyboard (Tab to the group, arrows inside radio groups, Space/Enter); focus ring 2px `--hf-focus` offset 2px, distinct from the selected look (rows flush inside a clipped list or card draw it inward, `-2px`); selected never by color only (mark, border, weight or text); 3:1 for the boundary of every non-text control; errors linked with `aria-describedby`.
 - **Migration**: the existing checkbox uses (the multiple `HfCombobox` options, the table selection column, `EditorialAttributeCell` lists and about twenty feature screens) move to these patterns screen by screen; new work never adds a checkbox.
 

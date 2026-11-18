@@ -217,7 +217,7 @@ function money(cents: number | null): string {
           <!-- Immutable original facts: never hidden from the verifier. -->
           <div
             v-if="originalLines.length > 0"
-            class="cash-note"
+            class="cash-original"
             data-testid="cash-verification-original"
           >
             <h3 class="cash-list-title">Declaración original</h3>

@@ -31,8 +31,8 @@ function mountPanel(
 ) {
   // pos-price-list-tiers: PriceListSelector uses useQuery for its price-
   // lists fetch. The shared QueryClient here exists only to satisfy that
-  // injection — none of these tests assert on the query, so we don't seed
-  // it (an empty cache is fine; the selector's UI renders regardless).
+  // injection — none of these tests assert on the query, so the cache stays
+  // unseeded (an empty cache is fine; the selector's UI renders regardless).
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   })

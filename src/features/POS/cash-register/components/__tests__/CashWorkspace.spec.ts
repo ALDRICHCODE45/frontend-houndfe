@@ -99,6 +99,15 @@ describe('CashWorkspace', () => {
     expect(wrapper.get('[data-testid="cash-workspace-operation"]').text()).toContain('operación')
   })
 
+  it('marks an idle shift region so it can drop below the lists on phones', () => {
+    expect(
+      render().get('[data-testid="cash-workspace-shift"]').classes(),
+    ).not.toContain('cash-workspace-shift--idle')
+    expect(
+      render({ shiftIdle: true }).get('[data-testid="cash-workspace-shift"]').classes(),
+    ).toContain('cash-workspace-shift--idle')
+  })
+
   it('falls back to the plain workspace title when no task is focused', () => {
     const wrapper = render({ tasks: [], activeTaskId: null })
 

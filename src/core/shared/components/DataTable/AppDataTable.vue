@@ -43,6 +43,7 @@ import DataTablePagination from './DataTablePagination.vue'
 import DataTableBulkActions from './DataTableBulkActions.vue'
 import { useClickableRow } from '../../composables/useClickableRow'
 import EmptyState from '../EmptyState.vue'
+import HfRowMark from '../selection/HfRowMark.vue'
 import {
   declaredCellClasses,
   findPrimaryColumnKey,
@@ -213,6 +214,13 @@ const props = withDefaults(
     mobileRender?: 'table' | 'cards'
     mobileBreakpoint?: 'sm' | 'md' | 'lg' | 'xl'
     /**
+     * Accessible name of each card's row mark in cards mode with `enableRowSelection`
+     * (`Seleccionar a Laura Méndez`). Default: `Seleccionar fila N`.
+     */
+    rowMarkLabel?: (row: T) => string
+    /** Accessible name of the «Seleccionar todos» mark above the cards. */
+    selectAllLabel?: string
+    /**
      * «Restablecer columnas» (`@reset-columns`). Bind the persisted layout's reset
      * (`useTablePreferences().reset` / `useServerTable().resetLayout`) so the table's defaults come
      * back. Without a listener the table clears order, pinning, visibility and widths itself.
@@ -256,6 +264,8 @@ const props = withDefaults(
     displayMode: 'auto',
     mobileRender: 'table',
     mobileBreakpoint: 'md',
+    rowMarkLabel: undefined,
+    selectAllLabel: 'Seleccionar todos',
     onResetColumns: undefined,
     totals: undefined,
   },
@@ -1111,9 +1121,32 @@ const selectedRows = computed<T[]>(() => {
   // The rows of the page change under the same selection (refetch): read them again.
   void props.data
   if (selectedCount.value === 0) return []
+  // Cards mode renders no UTable: rows are keyed by their index on the page, as in the table.
+  if (isCardsMode.value) return props.data.filter((_, index) => rowSelection.value[index])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (tableApi.value?.getSelectedRowModel().rows ?? []).map((row: any) => row.original as T)
 })
+
+// ── Row marks on the cards (cards mode + enableRowSelection) ───────────────
+const showCardMarks = computed(() => props.enableRowSelection && isCardsMode.value)
+const cardsSelectAllState = computed<boolean | 'mixed'>(() => {
+  const total = props.data.length
+  const selected = props.data.filter((_, index) => rowSelection.value[index]).length
+  if (total > 0 && selected === total) return true
+  return selected > 0 ? 'mixed' : false
+})
+function cardMarkLabel(row: T, index: number): string {
+  return props.rowMarkLabel?.(row) ?? `Seleccionar fila ${index + 1}`
+}
+function toggleCard(index: number, value: boolean) {
+  const next = { ...rowSelection.value }
+  if (value) next[index] = true
+  else delete next[index]
+  rowSelection.value = next
+}
+function toggleAllCards(value: boolean) {
+  rowSelection.value = value ? Object.fromEntries(props.data.map((_, index) => [index, true])) : {}
+}
 const showBulkBar = computed(
   () => props.enableRowSelection && (props.bulkActions.length > 0 || !!slots['bulk-summary']),
 )
@@ -1334,15 +1367,55 @@ defineExpose({
         </div>
 
         <div v-else class="grid w-full min-w-0 max-w-full gap-3" data-testid="mobile-cards-list">
-          <slot
-            v-for="(row, index) in props.data"
-            :key="index"
-            name="mobile-card"
-            :row="row"
-            :index="index"
-            :column-visibility="columnVisibility"
-            :is-column-visible="isVisible"
-          />
+          <!-- Row marks (cards mode + selection): «Seleccionar todos» above, a leading mark per
+               card in its own 44px column, outside the card so it never opens it. -->
+          <!-- The <label> makes the caption part of the target (a click on the text activates the
+               mark); the mark's name is the same selectAllLabel, so the name contains the text. -->
+          <label
+            v-if="showCardMarks"
+            class="flex min-w-0 cursor-pointer items-center gap-1 self-start text-sm text-muted"
+            data-testid="mobile-select-all"
+          >
+            <HfRowMark
+              :checked="cardsSelectAllState"
+              :label="props.selectAllLabel"
+              @update:checked="toggleAllCards"
+            />
+            <span aria-hidden="true" data-testid="mobile-select-all-caption">{{
+              props.selectAllLabel
+            }}</span>
+          </label>
+          <template v-for="(row, index) in props.data" :key="index">
+            <div
+              v-if="showCardMarks"
+              class="flex w-full min-w-0 items-start gap-1"
+              data-testid="mobile-card-selectable"
+            >
+              <HfRowMark
+                class="shrink-0"
+                :checked="!!rowSelection[index]"
+                :label="cardMarkLabel(row, index)"
+                @update:checked="toggleCard(index, $event)"
+              />
+              <div class="min-w-0 flex-1">
+                <slot
+                  name="mobile-card"
+                  :row="row"
+                  :index="index"
+                  :column-visibility="columnVisibility"
+                  :is-column-visible="isVisible"
+                />
+              </div>
+            </div>
+            <slot
+              v-else
+              name="mobile-card"
+              :row="row"
+              :index="index"
+              :column-visibility="columnVisibility"
+              :is-column-visible="isVisible"
+            />
+          </template>
         </div>
       </template>
     </template>

@@ -5,7 +5,7 @@ import { computed, defineComponent, h } from 'vue'
 import { saleApi } from '../../api/sale.api'
 import { useSaleComments } from '../useSaleComments'
 import { saleQueryKeys } from '@/core/shared/constants/query-keys'
-import { SaleCommentError } from '../../interfaces/sale.types'
+import { SaleCommentError, type SaleComment } from '../../interfaces/sale.types'
 
 vi.mock('../../api/sale.api', () => ({
   saleApi: {
@@ -91,7 +91,7 @@ describe('useSaleComments', () => {
 
   it('toggles isPending during mutation', async () => {
     const { composable } = mountComposable('sale-1')
-    let resolvePromise: ((value: any) => void) | null = null
+    let resolvePromise: ((value: SaleComment) => void) | null = null
     vi.mocked(saleApi.addComment).mockImplementationOnce(
       () =>
         new Promise((resolve) => {
@@ -104,7 +104,7 @@ describe('useSaleComments', () => {
     expect(composable.isPending.value).toBe(true)
 
     if (!resolvePromise) throw new Error('resolver not set')
-    ;(resolvePromise as (value: any) => void)({
+    ;(resolvePromise as (value: SaleComment) => void)({
       id: 'comment-1',
       saleId: 'sale-1',
       tenantId: 'tenant-1',

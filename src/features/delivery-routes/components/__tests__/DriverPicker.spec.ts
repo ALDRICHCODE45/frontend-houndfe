@@ -210,4 +210,20 @@ describe('DriverPicker — design-system portal (visual adaptation)', () => {
       expect(content).toContain(marker)
     }
   })
+
+  // The Nuxt `text-dimmed` placeholder measured 3.12:1 in light. The shared
+  // `.hf-ui [data-slot='placeholder']` rule lives in hf-form.css, which only
+  // loads with the Hf* form components — the delivery-route slideover renders
+  // none of them, so the picker pins --hf-muted (≥ 4.5:1 light and dark) itself.
+  it('paints the empty-trigger placeholder in --hf-muted, not text-dimmed', async () => {
+    vi.spyOn(usersApi, 'listAssignableDrivers').mockResolvedValue(ASSIGNABLE)
+    const wrapper = mountPicker()
+    await nextTick()
+    const placeholder = wrapper.find('[data-slot="placeholder"]')
+    expect(placeholder.exists()).toBe(true)
+    expect(placeholder.text()).toBe('Selecciona un repartidor')
+    const classes = placeholder.classes()
+    expect(classes).toContain('text-(--hf-muted)')
+    expect(classes).not.toContain('text-dimmed')
+  })
 })

@@ -98,6 +98,21 @@ describe('Caja presentation boundaries', () => {
     expect(adapter).toMatch(/@media \(min-width: 1024px\)\s*\{[^@]*\.cash-workspace-context\s*\{[^}]*order:\s*0/)
   })
 
+  it('drops an idle shift card below the lists before lg and restores it from lg', () => {
+    expect(adapter).toMatch(/\.cash-workspace-shift--idle\s*\{[^}]*order:\s*1/)
+    expect(adapter).toMatch(
+      /@media \(min-width: 1024px\)\s*\{[^@]*\.cash-workspace-shift--idle\s*\{[^}]*order:\s*0/,
+    )
+  })
+
+  it('paints the original declaration on a neutral surface, never a blue wash', () => {
+    const original = rules(adapter).find((rule) => rule.selectorText === '.cash-original')
+    expect(original).toBeDefined()
+    const background = original!.style.getPropertyValue('background')
+    expect(background).toBe('var(--hf-surface)')
+    expect(original!.cssText).not.toMatch(/surface-muted|active-soft|--hf-action/)
+  })
+
   it('stacks the reception facts in the rail so a label never wraps to a second line', () => {
     expect(adapter).toMatch(/\.cash-facts-rail\s*\{[^}]*grid-template-columns:\s*1fr/)
     expect(adapter).toMatch(/\.cash-facts-rail\s+\.cash-fact dt\s*\{[^}]*white-space:\s*nowrap/)

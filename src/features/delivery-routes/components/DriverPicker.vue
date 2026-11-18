@@ -24,6 +24,11 @@
  *
  * The trigger is the only place the selected driver's name shows: a chip
  * under it repeated the name (and a required driver has nothing to clear).
+ *
+ * The placeholder reads in --hf-muted (≥ 4.5:1 light and dark; Nuxt's
+ * `text-dimmed` measured 3.12:1). hf-form.css has the same `.hf-ui` rule, but
+ * it only loads with the Hf* form components and the route slideover renders
+ * none, so the picker sets the slot class itself.
  */
 import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
@@ -114,7 +119,7 @@ const errorMessage = computed(() =>
       :disabled="disabled"
       :placeholder="placeholder"
       :highlight="highlight"
-      :ui="{ content: 'hf-theme hf-ui delivery-routes-form-portal' }"
+      :ui="{ content: 'hf-theme hf-ui delivery-routes-form-portal', placeholder: 'text-(--hf-muted)' }"
       class="w-full"
       data-testid="driver-picker-trigger"
       @update:model-value="onUpdate"

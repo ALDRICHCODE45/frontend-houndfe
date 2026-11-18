@@ -86,7 +86,7 @@ export interface PaymentMethodResponse {
  * wrapping it in a separate interface lets future client-side projections
  * ripple through callers without forcing a rename of the backend DTO.
  */
-export interface PaymentMethodTableRow extends PaymentMethodResponse {}
+export type PaymentMethodTableRow = PaymentMethodResponse
 
 // ─── Request shapes ────────────────────────────────────────────────────────────
 
