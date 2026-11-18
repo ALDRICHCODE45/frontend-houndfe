@@ -16,7 +16,7 @@ Front end of the backend conversion (BE c25b8816): the POS «Pedido» tab turns 
 - T3 | S1, S4, S5 | worker | Quotations: «Convertir en venta», converted state read-only with link to the sale, status filter, rejections; sale detail «Desde cotización»
 - T4 | S6 | worker | remove the tax-rate override per the doc rule
 - T3b | S4, S5 | worker | done — «Ver venta» by saleStatus; suppressedPromotions kept and offered to reactivate in the POS
-- T5 | S1–S6 | parent | full suite, build, live check when the backend is deployed, merge
+- T5 | S1–S6 | parent | done (merged) | full suite, build, live check when the backend is deployed, merge
 
 ## Log
 - L1 Backend 2026-11-18: conversion ready on BE local main c25b8816 (independent verification); owner pushes; backend will say when deployed for a dev/prod check.
@@ -39,3 +39,4 @@ Front end of the backend conversion (BE c25b8816): the POS «Pedido» tab turns 
 - L18 D6 fixed (worker mwml0aet-11-ktj0): drafts cache seeded before router.push; SalesView requested-tab rule (wins once listed, never picks another draft while pending, falls back only after a fresh read proves it absent); 2777 related tests. Live re-check next (also qty-2 backend fix).
 - L19 Live re-check 2 on DEV: all PASS with no tab clicks — POS $558.09 → quotation e60549bc $620.10 (Buen Fin dropped −$62.01) → converted sale f6580543 opens directly as the active tab at $620.10 with Buen Fin suppressed (accordion open) → «Aplicar» $558.09 → qty 2 $1,116.18 (Buen Fin $124.02) → qty 3 Buen Fin $186.03 → qty 1 $558.09; «Ver venta» opens f6580543 directly. 56 API calls 200/201, no console errors. Charging still not live-checked (no open till).
 - L20 Backend: dev stopped. Next BE feature ready for the FE: «Pagar en tienda» (docs/frontend-handoff/24-pay-in-store-hold.md) — to start on its own branch after this merge.
+- L21 Final suite on the branch: 1030 files / 17549 tests, eslint 0, build 0. Native assess medium, review not due. Merged --no-ff into local main (owner pushes). Open: charging a converted sale and «Desde cotización» after charging not live-checked (no open till for the manager).
