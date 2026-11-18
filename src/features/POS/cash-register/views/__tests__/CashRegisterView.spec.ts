@@ -496,6 +496,102 @@ describe('CashRegisterView · stale results after a same-tenant user switch', ()
   })
 })
 
+// Live run 2 (2026-11-18): after a 201 OPEN the opening form stayed mounted for
+// the same register with the fund still confirmed and the submit enabled.
+describe('CashRegisterView · leaving the opening state after an open', () => {
+  const OPENED = {
+    ...SESSION,
+    id: 's-new',
+    status: 'OPEN',
+    cashierUserId: 'user-1',
+    openingCents: 50000,
+    frozenAt: null,
+    blind: false,
+  }
+
+  async function fillOpening(wrapper: ReturnType<typeof mountView>['wrapper']) {
+    await wrapper.get('[data-testid="cash-register-open-r-1"]').trigger('click')
+    await flush()
+    await wrapper.get('[data-testid="cash-opening-cents"]').setValue('500.00')
+    await wrapper.get('[data-testid="cash-opening-confirmed"]').trigger('click')
+  }
+
+  it('removes the opening form and focuses the new session after a resolved open', async () => {
+    api.getSession.mockImplementation((sessionId: string) =>
+      Promise.resolve(sessionId === 's-new' ? detailFor(OPENED) : DETAIL),
+    )
+    const { wrapper } = mountView()
+    await flush()
+    await fillOpening(wrapper)
+
+    api.openSession.mockResolvedValueOnce({ session: OPENED, register: REGISTER })
+    await wrapper.get('[data-testid="cash-open-submit"]').trigger('click')
+    await flush()
+    await flush()
+
+    // No opening form (and no submit) is left for the register just opened.
+    expect(wrapper.find('[data-testid="cash-open-session"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="cash-open-submit"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="cash-opening-confirmation"]').exists()).toBe(false)
+    // The new session is the focused shift: «Abierta» with its fund.
+    expect(api.getSession).toHaveBeenLastCalledWith('s-new')
+    const card = wrapper.get('[data-testid="cash-workspace-shift-card"]')
+    expect(card.get('[data-testid="cash-shift-status"]').text()).toContain('Abierta')
+    expect(card.get('[data-testid="cash-session-opening"]').text()).toContain('500.00')
+    expect(api.openSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the form, its values and the error after a rejected open', async () => {
+    const { wrapper } = mountView()
+    await flush()
+    await fillOpening(wrapper)
+
+    api.openSession.mockRejectedValueOnce(new Error('apertura rechazada'))
+    await wrapper.get('[data-testid="cash-open-submit"]').trigger('click')
+    await flush()
+    await flush()
+
+    expect(wrapper.find('[data-testid="cash-open-error"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="cash-open-register"]').text()).toContain('Caja principal')
+    expect(
+      (wrapper.get('[data-testid="cash-opening-cents"]').element as HTMLInputElement).value,
+    ).toBe('500.00')
+    expect(wrapper.get('[data-testid="cash-opening-confirmation"]').text()).toContain(
+      'Fondo de $500.00 confirmado',
+    )
+    expect(wrapper.find('[data-testid="cash-open-submit"]').exists()).toBe(true)
+    expect(
+      wrapper
+        .find('[data-testid="cash-workspace-shift-card"] [data-testid="cash-shift-status"]')
+        .exists(),
+    ).toBe(false)
+  })
+
+  it('sends the open exactly once when the submit is clicked twice quickly', async () => {
+    const { wrapper } = mountView()
+    await flush()
+    await fillOpening(wrapper)
+
+    const pending = deferred<unknown>()
+    api.openSession.mockReturnValueOnce(pending.promise)
+    const submit = wrapper.get('[data-testid="cash-open-submit"]')
+    // Two clicks in the same tick: the second lands before the pending render.
+    void submit.trigger('click')
+    await submit.trigger('click')
+    await flush()
+
+    expect(api.openSession).toHaveBeenCalledTimes(1)
+    // The repeat is absorbed quietly, not reported as a failure.
+    expect(wrapper.find('[data-testid="cash-open-error"]').exists()).toBe(false)
+
+    pending.resolve({ session: OPENED, register: REGISTER })
+    await flush()
+    await flush()
+    expect(api.openSession).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('[data-testid="cash-open-submit"]').exists()).toBe(false)
+  })
+})
+
 describe('CashRegisterView · receipt pending wiring and overlapping entry', () => {
   it('tracks the receipt target while pending, blocks a repeat and other command controls', async () => {
     const receipt = deferred<unknown>()

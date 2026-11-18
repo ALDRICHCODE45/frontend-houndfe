@@ -315,12 +315,21 @@ function handleUpdateRegister(id: string, payload: { name?: string; isActive?: b
 }
 
 function handleOpenSession(payload: { openingCents: number; openingHandoverId?: string }) {
+  // A repeat click while the open is in flight is absorbed quietly: the command
+  // layer would refuse it anyway, but that refusal is not a failure to report.
+  if (commands.activeCommand.value === 'open') return Promise.resolve()
   return withIdentityGuard('open', 'No se pudo abrir la sesión.', async () => {
     // Captured once, before the request: a stale promise must never select an
     // old session for the new user.
     const registerId = selectedRegisterId.value
     if (!registerId) return
     const opened = await commands.openSession(registerId, payload)
+    // Leave the opening state: the form is keyed on the selected register, so
+    // clearing it unmounts the form (and its confirmation) and no second open
+    // can be sent from it. The new shift becomes the focused one. A failed open
+    // throws above and keeps the form, its values and the error.
+    selectedRegisterId.value = null
+    openFloatId.value = null
     selectSession(opened.session.id)
     await Promise.all([sessions.refetch(), registers.refetch(), custody.refetch()])
   })
