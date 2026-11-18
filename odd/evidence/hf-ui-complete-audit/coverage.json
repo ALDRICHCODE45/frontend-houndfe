@@ -2,7 +2,7 @@
   "source": "src/app/router/index.ts:117-507",
   "routeRecords": 39,
   "renderingDestinations": 38,
-  "note": "39 route records, 38 rendering destinations. Partial entries name bounded observed controls; only complete route/state coverage may set verified=true.",
+  "note": "39 route records from the 2026-11-01 inventory. verified=true only where the system-redesign final recapture (L45) captured the route in all four modes, with supersededBy naming that record and any design-pass-2 task that rechecked it. Earlier partial evidence is kept. Routes added to the router after this inventory are listed in routesAddedAfterInventory and are not marked.",
   "routes": [
     {
       "route": "/",
@@ -34,235 +34,300 @@
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "notVerifiedReason": "Root resolver (RootRedirectView) only redirects; the system-redesign harness did not capture it."
     },
     {
       "route": "/login",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): login"
+      ]
     },
     {
       "route": "/select-tenant",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): select-tenant",
+        "odd/tasks/design-pass-2.md T9 137c36c8"
+      ]
     },
     {
       "route": "/pos/products",
       "kind": "rendering-destination",
       "inspected": true,
       "corrected": true,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
             "docs/redesign/product-selector-verification.md",
-            "docs/redesign/product-actions-verification.md"
+            "docs/redesign/product-actions-verification.md",
+            "odd/evidence/system-redesign/report.json"
           ]
         },
         {
           "mode": "dark-desktop",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
             "docs/redesign/product-selector-verification.md",
-            "docs/redesign/product-actions-verification.md"
+            "docs/redesign/product-actions-verification.md",
+            "odd/evidence/system-redesign/report.json"
           ]
         },
         {
           "mode": "light-mobile",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
             "docs/redesign/product-selector-verification.md",
-            "docs/redesign/product-actions-verification.md"
+            "docs/redesign/product-actions-verification.md",
+            "odd/evidence/system-redesign/report.json"
           ]
         },
         {
           "mode": "dark-mobile",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
             "docs/redesign/product-selector-verification.md",
-            "docs/redesign/product-actions-verification.md"
+            "docs/redesign/product-actions-verification.md",
+            "odd/evidence/system-redesign/report.json"
           ]
         }
       ],
       "controls": "Quick-create category/SAT keyboard selection, nested Escape, focus restoration and SAT clear checked at390/1440 light/dark; SAT full-width311/385px. Full-editor link navigation checked without saves. Remaining route/control states pending.",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): pos-products"
+      ]
     },
     {
       "route": "/pos/products/new",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): pos-product-create"
+      ]
     },
     {
       "route": "/pos/products/:id",
       "kind": "rendering-destination",
       "inspected": true,
       "corrected": true,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
             "summary-after-1440-light.png",
             "settled-category-select-1440-light.png",
             "settled-sat-select-1440-light.png",
             "docs/redesign/product-actions-verification.md",
-            "docs/redesign/confirmation-modal-verification.md"
+            "docs/redesign/confirmation-modal-verification.md",
+            "odd/evidence/system-redesign/report.json"
           ]
         },
         {
           "mode": "dark-desktop",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
             "summary-after-1440-dark.png",
             "settled-category-select-1440-dark.png",
             "settled-sat-select-1440-dark.png",
             "docs/redesign/product-actions-verification.md",
-            "docs/redesign/confirmation-modal-verification.md"
+            "docs/redesign/confirmation-modal-verification.md",
+            "odd/evidence/system-redesign/report.json"
           ]
         },
         {
           "mode": "light-mobile",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
             "summary-after-390-light.png",
             "settled-category-select-390-light.png",
             "settled-sat-select-390-light.png",
             "docs/redesign/product-actions-verification.md",
-            "docs/redesign/confirmation-modal-verification.md"
+            "docs/redesign/confirmation-modal-verification.md",
+            "odd/evidence/system-redesign/report.json"
           ]
         },
         {
           "mode": "dark-mobile",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
             "summary-after-390-dark.png",
             "settled-category-select-390-dark.png",
             "settled-sat-select-390-dark.png",
             "docs/redesign/product-actions-verification.md",
-            "docs/redesign/confirmation-modal-verification.md"
+            "docs/redesign/confirmation-modal-verification.md",
+            "odd/evidence/system-redesign/report.json"
           ]
         }
       ],
       "controls": "Operational summary, category/SAT menus, create-list and tier-save action paint and shared confirmation association/cancel-focus checked in four modes. No product/price/delete submissions; remaining editor states pending.",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): pos-product-detail",
+        "odd/tasks/design-pass-2.md T5 ffa17478"
+      ]
     },
     {
       "route": "/pos/products/:id/editorial",
       "kind": "rendering-destination",
       "inspected": true,
       "corrected": false,
-      "verified": false,
-      "blocked": "Authenticated vocabulary500 EDITORIAL_VOCABULARY_UNREPRESENTABLE; human STARTER_V1 disposition required. CORS resolved.",
+      "verified": true,
+      "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "blockedResolved": "Authenticated vocabulary500 EDITORIAL_VOCABULARY_UNREPRESENTABLE; human STARTER_V1 disposition required. CORS resolved. — resolved: vocabulary/state/context 200 (hf-ui-complete-audit L37), real flow verified in system-redesign L91.",
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): pos-product-editorial",
+        "odd/tasks/design-pass-2.md T6 137c36c8, T13 39e63677",
+        "odd/tasks/system-redesign.md T24 L91 (real flow against the backend :3003: bulk evidence, ready, POST publish 200; 42f206e1, 992d505a)",
+        "odd/tasks/design-pass-2.md L20 (backend repaired the four seed products; non-V2 state answers 409 EDITORIAL_STATE_UNREADABLE)"
+      ]
     },
     {
       "route": "/pos/orders",
@@ -294,391 +359,505 @@
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "notVerifiedReason": "Route removed from the router in 60eb0154 (2026-11-04); nothing to verify.",
+      "removedFromRouter": "60eb0154"
     },
     {
       "route": "/pos/customers",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): pos-customers"
+      ]
     },
     {
       "route": "/pos/caja",
       "kind": "rendering-destination",
       "inspected": true,
       "corrected": true,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
-            "docs/redesign/cash-recipient-verification.md"
+            "docs/redesign/cash-recipient-verification.md",
+            "odd/evidence/system-redesign/report.json"
           ]
         },
         {
           "mode": "dark-desktop",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
-            "docs/redesign/cash-recipient-verification.md"
+            "docs/redesign/cash-recipient-verification.md",
+            "odd/evidence/system-redesign/report.json"
           ]
         },
         {
           "mode": "light-mobile",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
-            "docs/redesign/cash-recipient-verification.md"
+            "docs/redesign/cash-recipient-verification.md",
+            "odd/evidence/system-redesign/report.json"
           ]
         },
         {
           "mode": "dark-mobile",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
-            "docs/redesign/cash-recipient-verification.md"
+            "docs/redesign/cash-recipient-verification.md",
+            "odd/evidence/system-redesign/report.json"
           ]
         }
       ],
       "controls": "Recipient picker: simulated GET session/list/detail/users, actual permissions unchanged. Four modes verify accessible name, keyboard selection, Escape/focus, settled horizontal containment and HF surfaces; zero mutation attempts. No live custody or complete-route claim. Commit ec0d58d.",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): pos-cash-register",
+        "odd/tasks/design-pass-2.md T4 cae59917, T12 f2ee3119"
+      ]
     },
     {
       "route": "/pos/caja/recepciones",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): pos-cash-reception",
+        "odd/tasks/design-pass-2.md T3 247738bd"
+      ]
     },
     {
       "route": "/pos/ventas",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): pos-sales-list"
+      ]
     },
     {
       "route": "/pos/ventas/nueva",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): pos-sales-new"
+      ]
     },
     {
       "route": "/pos/ventas/:id",
       "kind": "rendering-destination",
       "inspected": true,
       "corrected": true,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
             "docs/redesign/seller-picker-verification.md",
-            "docs/redesign/debt-dialog-verification.md"
+            "docs/redesign/debt-dialog-verification.md",
+            "odd/evidence/system-redesign/report.json"
           ]
         },
         {
           "mode": "dark-desktop",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
             "docs/redesign/seller-picker-verification.md",
-            "docs/redesign/debt-dialog-verification.md"
+            "docs/redesign/debt-dialog-verification.md",
+            "odd/evidence/system-redesign/report.json"
           ]
         },
         {
           "mode": "light-mobile",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
             "docs/redesign/seller-picker-verification.md",
-            "docs/redesign/debt-dialog-verification.md"
+            "docs/redesign/debt-dialog-verification.md",
+            "odd/evidence/system-redesign/report.json"
           ]
         },
         {
           "mode": "dark-mobile",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
             "docs/redesign/seller-picker-verification.md",
-            "docs/redesign/debt-dialog-verification.md"
+            "docs/redesign/debt-dialog-verification.md",
+            "odd/evidence/system-redesign/report.json"
           ]
         }
       ],
       "controls": "Seller picker names/Tab/native buttons/focus/containment checked in four real modes without assigning users. Debt dialog four-mode evidence uses an isolated GET-response fixture, zero financial mutation attempts; not live debt/payment proof.",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): pos-sale-detail"
+      ]
     },
     {
       "route": "/pos/decisiones-pendientes",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): pos-human-decisions",
+        "odd/tasks/design-pass-2.md T2 30fcf7bb"
+      ]
     },
     {
       "route": "/pos/promociones",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): pos-promotions"
+      ]
     },
     {
       "route": "/pos/promociones/crear/:type",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): pos-promotion-create"
+      ]
     },
     {
       "route": "/pos/promociones/:id",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): pos-promotion-detail"
+      ]
     },
     {
       "route": "/pos/cotizaciones",
       "kind": "rendering-destination",
       "inspected": true,
       "corrected": true,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
             "quotation-enum-1440-light.png",
-            "date-fixed-1440-light.png"
+            "date-fixed-1440-light.png",
+            "odd/evidence/system-redesign/report.json"
           ]
         },
         {
           "mode": "dark-desktop",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
             "quotation-enum-1440-dark.png",
-            "date-fixed-1440-dark.png"
+            "date-fixed-1440-dark.png",
+            "odd/evidence/system-redesign/report.json"
           ]
         },
         {
           "mode": "light-mobile",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
             "quotation-enum-390-light.png",
-            "date-fixed-390-light.png"
+            "date-fixed-390-light.png",
+            "odd/evidence/system-redesign/report.json"
           ]
         },
         {
           "mode": "dark-mobile",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
             "quotation-enum-390-dark.png",
-            "date-fixed-390-dark.png"
+            "date-fixed-390-dark.png",
+            "odd/evidence/system-redesign/report.json"
           ]
         }
       ],
       "controls": "Enum and date nested popups checked at390/1440 light/dark; async selection/removal and accessible names checked mobile-dark. Remaining states, numeric/multitext, full contrast and other controls pending.",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): pos-quotations-list"
+      ]
     },
     {
       "route": "/pos/cotizaciones/nueva",
@@ -710,623 +889,903 @@
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "notVerifiedReason": "Skipped by the system-redesign harness (opening it POSTs a draft quotation); its editor is covered through /pos/cotizaciones/:id only."
     },
     {
       "route": "/pos/cotizaciones/:id",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): pos-quotation-detail"
+      ]
     },
     {
       "route": "/admin/colaboradores",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): admin-employees-list"
+      ]
     },
     {
       "route": "/admin/colaboradores/:id",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): admin-employee-detail"
+      ]
     },
     {
       "route": "/admin/colaboradores/documentos-vencer",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): admin-employees-expiring-documents"
+      ]
     },
     {
       "route": "/admin/colaboradores/aprobaciones-pendientes",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): admin-employees-pending-approvals"
+      ]
     },
     {
       "route": "/admin/users",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): admin-users"
+      ]
     },
     {
       "route": "/admin/roles",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): admin-roles"
+      ]
     },
     {
       "route": "/admin/tenants",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): admin-tenants"
+      ]
     },
     {
       "route": "/admin/tenants/:tenantId/members",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): admin-tenant-members"
+      ]
     },
     {
       "route": "/admin/payment-details",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): admin-payment-details"
+      ]
     },
     {
       "route": "/admin/payment-methods",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): admin-payment-methods"
+      ]
     },
     {
       "route": "/pos/rutas-de-entrega",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): pos-delivery-routes-list"
+      ]
     },
     {
       "route": "/pos/rutas-de-entrega/:id",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): pos-delivery-route-detail",
+        "odd/tasks/design-pass-2.md T8 53871b08"
+      ]
     },
     {
       "route": "/sistema/configuracion/notificaciones",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): sistema-notification-config",
+        "odd/tasks/design-pass-2.md T7"
+      ]
     },
     {
       "route": "/system/catalog-settings",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): system-catalog-settings"
+      ]
     },
     {
       "route": "/dashboard",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): dashboard"
+      ]
     },
     {
       "route": "/catalogo/:branchSlug?",
       "kind": "rendering-destination",
       "inspected": true,
       "corrected": true,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
-            "docs/redesign/catalog-hf-overlays-verification.md"
+            "docs/redesign/catalog-hf-overlays-verification.md",
+            "odd/evidence/system-redesign/report.json"
           ]
         },
         {
           "mode": "dark-desktop",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
-            "docs/redesign/catalog-hf-overlays-verification.md"
+            "docs/redesign/catalog-hf-overlays-verification.md",
+            "odd/evidence/system-redesign/report.json"
           ]
         },
         {
           "mode": "light-mobile",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
-            "docs/redesign/catalog-hf-overlays-verification.md"
+            "docs/redesign/catalog-hf-overlays-verification.md",
+            "odd/evidence/system-redesign/report.json"
           ]
         },
         {
           "mode": "dark-mobile",
-          "status": "partial",
+          "status": "verified",
           "evidence": [
-            "docs/redesign/catalog-hf-overlays-verification.md"
+            "docs/redesign/catalog-hf-overlays-verification.md",
+            "odd/evidence/system-redesign/report.json"
           ]
         }
       ],
       "controls": "12settled branch/detail/missing-image/main-image-preview cases across390/1440 and light/dark host retain always-light catalog paint and containment. Variant/error/contrast/focus coverage remains partial.",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): public-catalog, public-catalog-branch"
+      ]
     },
     {
       "route": "/403",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): forbidden-403"
+      ]
     },
     {
       "route": "/:pathMatch(.*)*",
       "kind": "rendering-destination",
-      "inspected": false,
+      "inspected": true,
       "corrected": false,
-      "verified": false,
+      "verified": true,
       "blocked": null,
       "coverage": [
         {
           "mode": "light-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-desktop",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "light-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         },
         {
           "mode": "dark-mobile",
-          "status": "pending",
-          "evidence": []
+          "status": "verified",
+          "evidence": [
+            "odd/evidence/system-redesign/report.json"
+          ]
         }
       ],
       "controls": "inventory pending per route",
-      "variants": []
+      "variants": [],
+      "supersededBy": [
+        "odd/tasks/system-redesign.md L45 (final recapture c57484d3: odd/evidence/system-redesign/report.json as committed there, 594 shots, 0 failed, 0 overflow; data/empty/loading/error states where the route has them, 1440/390 light/dark); capture slug(s): not-found-404"
+      ]
+    }
+  ],
+  "closure": {
+    "date": "2026-11-18",
+    "record": "odd/tasks/hf-ui-complete-audit.md L43",
+    "verifiedRoutes": 36,
+    "notVerified": [
+      "/",
+      "/pos/orders",
+      "/pos/cotizaciones/nueva"
+    ],
+    "supersededBy": [
+      "odd/tasks/system-redesign.md L36, L45, T24 L91",
+      "odd/tasks/design-pass-2.md",
+      "odd/tasks/selection-and-design-audit.md L18, L19",
+      "odd/tasks/pending-small-medium.md T1, T2, T4, T6a"
+    ]
+  },
+  "currentRouterSource": "src/app/router/index.ts:140-616",
+  "routesAddedAfterInventory": [
+    {
+      "route": "/procurement/purchase-orders",
+      "addedIn": "5b38e7b2 (2026-11-02)",
+      "verified": false,
+      "note": "Captured in system-redesign L45 (slug procurement-purchase-orders) but outside this inventory; not marked."
+    },
+    {
+      "route": "/procurement/suppliers",
+      "addedIn": "9eb72eb2 (2026-11-02)",
+      "verified": false,
+      "note": "Captured in system-redesign L45 (slug procurement-suppliers) but outside this inventory; not marked."
+    },
+    {
+      "route": "/pos/reembolsos",
+      "addedIn": "1a0a8e86 (2026-11-05)",
+      "verified": false,
+      "note": "Reviewed in design-pass-2 T1 (cb603375); not in the system-redesign capture; not marked."
+    },
+    {
+      "route": "/sistema/envios",
+      "addedIn": "8df14c2c (2026-11-05)",
+      "verified": false
+    },
+    {
+      "route": "/sistema/envios/validaciones",
+      "addedIn": "8df14c2c (2026-11-05)",
+      "verified": false
+    },
+    {
+      "route": "/chatbot/solicitudes",
+      "addedIn": "f5d964c2 (2026-11-11)",
+      "verified": false
+    },
+    {
+      "route": "/chatbot/solicitudes/:id",
+      "addedIn": "f5d964c2 (2026-11-11)",
+      "verified": false
+    },
+    {
+      "route": "/perfil",
+      "addedIn": "84320468 (2026-11-11)",
+      "verified": false
+    },
+    {
+      "route": "/catalogo/:branchSlug/p/:productId",
+      "addedIn": "e1b14ff8 (2026-11-11)",
+      "verified": false
+    },
+    {
+      "route": "/sistema/atencion-chatbot",
+      "addedIn": "8c5a053b (2026-11-12)",
+      "verified": false
     }
   ]
 }

@@ -11,14 +11,20 @@ Keep one editorial implementation. Existing test data is not a reason to retain 
 - Frontend: one fresh authenticated load of product `feedfd3f-07d9-4a77-a805-289203624c8e` returned vocabulary, editorial state and context HTTP 200. Contenido and Revisar rendered a coherent uninitialized state.
 - No draft initialization, save, publication or replay was performed in that check. It does not prove the persisted end-to-end flow or every product.
 - The controlled browser was drained: the verification page closed, and the only remaining page was `about:blank`. This says nothing about human browsers or unrelated processes.
-- Backend reports vocabulary installation completed locally (73 definitions). Four legacy state slots and 23 receipts remain pending scoped retirement; do not infer readiness for those products.
+- Backend reports vocabulary installation completed locally (73 definitions). At the time of this handoff, four legacy state slots and 23 receipts were pending scoped retirement (see the update below).
+
+## State as of 2026-11-18
+
+The items this handoff left for the next session were closed later:
+
+- Persisted editorial flow verified against the backend (`odd/tasks/system-redesign.md` T24, L91): missing evidence → bulk source → ready → `POST publish` 200 → «Publicado · 5 nov».
+- Stored state the current contract cannot read answers 409 `EDITORIAL_STATE_UNREADABLE`; the frontend shows one clear message with no retry (`odd/tasks/design-pass-2.md` T13, `39e63677`).
+- The backend repaired the four seed products whose editorial read failed (`odd/tasks/design-pass-2.md` L20). That record does not say whether they are the same four legacy slots above or what happened to the 23 receipts; that is backend-owned state.
+- The broader HF audit is closed by reference in `odd/tasks/hf-ui-complete-audit.md` L43 and `odd/evidence/hf-ui-complete-audit/coverage.json`.
 
 ## Next session
 
-1. Coordinate the remaining legacy-state disposition and a fresh-client maintenance boundary with the backend owner. Do not reuse old requests or retired credentials.
-2. Once ready, agree on a test product and verify actual draft initialization, content edits, save, reload and review against the local runtime. These are persisted writes, not presentation fixtures.
-3. Keep publication/C3.3 separate until explicitly enabled. Backend S89 is also unfinished.
-4. Resume the broader HF audit from `odd/tasks/hf-ui-complete-audit.md` and `odd/evidence/hf-ui-complete-audit/coverage.json`; partial route coverage is not complete verification.
+Only the editorial admin integration remains: `T12-admin-integration` in `odd/tasks/editorial-single-contract.md` (pending; the owner decides when, see `odd/tasks/pending-small-medium.md` P2).
 
 ## Verification and review limits
 
