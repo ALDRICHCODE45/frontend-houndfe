@@ -140,6 +140,7 @@ export type AppSubject =
   | 'CashOut'
   | 'CashVerification'
   | 'CashHandover'
+  | 'CashClosing'
   // ODD shipping-settings T1: delivery zones (plus `validate` for the chatbot
   // zone validations) and the shipping settings (boxes, origin, opening hours).
   // The runtime half is APP_SUBJECTS in authorization/ability.ts.
