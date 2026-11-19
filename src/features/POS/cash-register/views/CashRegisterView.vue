@@ -12,9 +12,10 @@
  * independent verification, recipient custody, explicit FLOAT and a separate
  * drawer release).
  *
- * «Tu turno» is selected by default: the latest own session whose drawer is
- * not released, taken from the existing `GET /cash-sessions` read (no new API).
- * Any other selection stays explicit. Opening a task never dispatches a
+ * «Tu turno» is selected by default: `GET /cash-sessions?status=OPEN,COUNTING,
+ * SUBMITTED&drawerOpen=true&limit=1` (+ `cashierUserId=<me>` with audit, S7).
+ * Any other selection stays explicit. The supervisor list filters by exact
+ * status and pages with the backend total. Opening a task never dispatches a
  * command. Session panels are keyed by the identity + session and stay mounted
  * (`v-show`) so an in-progress draft survives moving between steps; drafts that
  * are not session-scoped are keyed by the identity scope (and the opening form
@@ -25,8 +26,10 @@
  * (SUBMITTED), before verification. S9 — while blind, after a cash in/out only
  * the confirmation of that last entry is shown, never a list.
  *
- * Not included here: «Cerrar caja», the corte and «Cortes» (T4 mounts them in
- * the marked slots), the recipients picker by name (T5).
+ * S5: «Cerrar caja» (supervisor, closer ≠ cashier) and the corte mount in their
+ * timeline steps; «Cortes» (read:CashClosing) opens the closings list in place,
+ * a row opens its corte. S6: the handover recipient is picked by name and role
+ * from `GET /cash-handovers/recipients`.
  */
 import { computed, ref, watch } from 'vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
@@ -35,7 +38,11 @@ import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { useCashAccess } from '../composables/useCashAccess'
 import { useCashRegisters } from '../composables/useCashRegisters'
-import { useCashSessionDetail, useCashSessions } from '../composables/useCashSessions'
+import {
+  useCashOwnShift,
+  useCashSessionDetail,
+  useCashSessions,
+} from '../composables/useCashSessions'
 import { useCashSessionCommands } from '../composables/useCashSessionCommands'
 import { useCashCustody } from '../composables/useCashCustody'
 import { useCashHandoverRecipients } from '../composables/useCashHandoverRecipients'
@@ -47,16 +54,15 @@ import {
   type CashIdentity,
 } from '../composables/cashRules'
 import type {
+  CashClosing,
   CashComparison,
   CashCountPayload,
-  CashSession,
   CashSessionListParams,
 } from '../interfaces/cash.types'
 import { CASH_SESSION_STATUS_LABELS, cashSessionStatusTone } from '../utils/cash-status'
 import {
   buildCashTimeline,
   nextCashAction,
-  pickOwnShift,
   type CashStepId,
   type CashTimelineInput,
 } from '../utils/cash-timeline'
@@ -69,18 +75,22 @@ import CashOwnShiftCard from '../components/CashOwnShiftCard.vue'
 import CashNextAction from '../components/CashNextAction.vue'
 import CashTimeline from '../components/CashTimeline.vue'
 import CashOpeningPanel from '../components/CashOpeningPanel.vue'
-import CashSessionsPanel from '../components/CashSessionsPanel.vue'
+import CashSessionsPanel, {
+  type CashSessionStatusFilter,
+} from '../components/CashSessionsPanel.vue'
 import CashMovementsPanel, { type CashLastMovement } from '../components/CashMovementsPanel.vue'
 import CashCountForm from '../components/CashCountForm.vue'
 import CashDeclarationNotesForm from '../components/CashDeclarationNotesForm.vue'
 import CashVerificationPanel from '../components/CashVerificationPanel.vue'
 import CashCustodyDiscovery from '../components/CashCustodyDiscovery.vue'
 import CashCustodyActions from '../components/CashCustodyActions.vue'
+import CashCloseStep from '../closing/CashCloseStep.vue'
+import CashClosingDetail from '../closing/CashClosingDetail.vue'
+import CashClosingsList from '../closing/CashClosingsList.vue'
 
 const access = useCashAccess()
 const registers = useCashRegisters()
 const commands = useCashSessionCommands()
-const recipients = useCashHandoverRecipients()
 const custody = useCashCustody()
 
 const selectedRegisterId = ref<string | null>(null)
@@ -92,19 +102,35 @@ const receivingId = ref<string | null>(null)
 // S9: the last manual entry recorded for the selected shift (POST response).
 const lastMovement = ref<CashLastMovement | null>(null)
 
-/** Session list filters (supervisor list): the existing `pendingOnly` and register params. */
-const pendingOnlyFilter = ref(false)
+/**
+ * Session list filters (supervisor list, S7): one exact `status` (handoff 25 §2)
+ * and the register; real paging with the backend `total`. Any filter change
+ * goes back to the first page.
+ */
+const SESSIONS_PAGE_SIZE = 25
+const statusFilter = ref<CashSessionStatusFilter>('ALL')
 const registerFilter = ref<string | null>(null)
-const filtersActive = computed(() => pendingOnlyFilter.value || Boolean(registerFilter.value))
+const sessionsPage = ref(1)
+watch([statusFilter, registerFilter], () => {
+  sessionsPage.value = 1
+})
 
 const sessionParams = computed<CashSessionListParams>(() => ({
-  page: 1,
-  limit: 25,
+  page: sessionsPage.value,
+  limit: SESSIONS_PAGE_SIZE,
   ...(registerFilter.value ? { registerId: registerFilter.value } : {}),
-  ...(pendingOnlyFilter.value ? { pendingOnly: true } : {}),
+  ...(statusFilter.value !== 'ALL' ? { status: [statusFilter.value] } : {}),
 }))
 
 const sessions = useCashSessions(sessionParams)
+/** «Tu turno» from its own filtered read (S7), never guessed from a list page. */
+const ownShiftQuery = useCashOwnShift()
+const ownShift = computed(() => ownShiftQuery.ownShift.value)
+
+/** The supervisor list and «Tu turno» move together after a lifecycle command. */
+function refreshSessions() {
+  return Promise.all([sessions.refetch(), ownShiftQuery.refetch()])
+}
 const registerNames = computed(() =>
   Object.fromEntries(registers.registers.value.map((register) => [register.id, register.name])),
 )
@@ -134,6 +160,10 @@ function invalidateSessionContext(): void {
   lastMovement.value = null
 }
 
+/** «Cortes» in place: the list, or one corte opened from it. */
+const cortesOpen = ref(false)
+const cortesClosingId = ref<string | null>(null)
+
 /**
  * The full session identity (tenant + user + permission generation + session
  * lifecycle generation). Everything sensitive this view holds locally is keyed
@@ -145,8 +175,7 @@ const identityScope = computed(
     `${access.identity.value.tenantId}|${access.identity.value.userId}|${access.identity.value.permissionFingerprint}|${access.identity.value.generation}`,
 )
 
-/** «Tu turno» as last read from the unfiltered list; the default selection runs once per identity. */
-const ownShift = ref<CashSession | null>(null)
+/** The default «Tu turno» selection runs once per identity. */
 let ownShiftDefaulted = false
 
 watch(identityScope, () => {
@@ -157,10 +186,12 @@ watch(identityScope, () => {
   receivingId.value = null
   declareComparison.value = null
   verifyComparison.value = null
-  ownShift.value = null
   ownShiftDefaulted = false
-  pendingOnlyFilter.value = false
+  statusFilter.value = 'ALL'
   registerFilter.value = null
+  sessionsPage.value = 1
+  cortesOpen.value = false
+  cortesClosingId.value = null
 })
 
 /** Remount the session-sensitive forms when the identity or the session changes. */
@@ -329,6 +360,48 @@ const { openPanelId, openPanel, closePanel, togglePanel } = useCashWorkspace({
   initialPanelId: 'apertura',
 })
 
+// Recipients are read only while the handover task is open (S6).
+const recipients = useCashHandoverRecipients({ active: () => openPanelId.value === 'entrega' })
+
+// A timeline task and «Cortes» never show at the same time.
+watch(openPanelId, (panelId) => {
+  if (panelId) cortesOpen.value = false
+})
+
+function toggleCortes() {
+  if (cortesOpen.value) {
+    cortesOpen.value = false
+    return
+  }
+  cortesClosingId.value = null
+  closePanel()
+  cortesOpen.value = true
+}
+
+function hideCortes() {
+  cortesOpen.value = false
+  cortesClosingId.value = null
+}
+
+/** Register and cashier options for the «Cortes» filters (names only, never ids). */
+const closingRegisters = computed(() =>
+  registers.registers.value.map((register) => ({ id: register.id, name: register.name })),
+)
+const closingCashiers = computed(() => {
+  const byId = new Map<string, string>()
+  const candidates = [...sessions.sessions.value, ...(ownShift.value ? [ownShift.value] : [])]
+  for (const item of candidates) {
+    const name = item.cashierDisplayName?.trim()
+    if (name && !byId.has(item.cashierUserId)) byId.set(item.cashierUserId, name)
+  }
+  return [...byId.entries()]
+    .map(([userId, displayName]) => ({ userId, displayName }))
+    .sort((a, b) => a.displayName.localeCompare(b.displayName, 'es'))
+})
+
+/** The corte of the selected shift: from its detail once closed. */
+const corteClosingId = computed(() => detailQuery.detail.value?.closing?.id ?? null)
+
 /**
  * What the summary card says while no shift is selected: the registers read
  * decides the next step. A failed read stays quiet there (the opening panel
@@ -363,11 +436,9 @@ const permissionNote = computed(() => {
 // Registered after the workspace model: with a cached list it runs at once and
 // selecting a shift closes the open panel.
 watch(
-  [() => sessions.sessions.value, () => sessions.isSuccess.value, filtersActive],
+  [ownShift, () => ownShiftQuery.isSuccess.value],
   () => {
-    if (!sessions.isSuccess.value || filtersActive.value) return
-    ownShift.value = pickOwnShift(sessions.sessions.value, access.currentUserId.value)
-    if (ownShiftDefaulted) return
+    if (!ownShiftQuery.isSuccess.value || ownShiftDefaulted) return
     ownShiftDefaulted = true
     if (ownShift.value && !selectedSessionId.value) selectSession(ownShift.value.id)
   },
@@ -390,6 +461,7 @@ function selectSession(sessionId: string) {
   declareComparison.value = null
   verifyComparison.value = null
   closePanel()
+  hideCortes()
 }
 
 /** Leave any selected shift and show the opening in place. */
@@ -400,6 +472,7 @@ function requestOpening() {
     declareComparison.value = null
     verifyComparison.value = null
   }
+  hideCortes()
   openPanel('apertura')
 }
 
@@ -436,7 +509,7 @@ function handleOpenSession(payload: { openingCents: number; openingHandoverId?: 
     selectedRegisterId.value = null
     openFloatId.value = null
     selectSession(opened.session.id)
-    await Promise.all([sessions.refetch(), registers.refetch(), custody.refetch()])
+    await Promise.all([refreshSessions(), registers.refetch(), custody.refetch()])
   })
 }
 
@@ -476,7 +549,7 @@ function handleFreeze() {
     const sessionId = selectedSessionId.value
     if (!sessionId) return
     await commands.startCount(sessionId)
-    await Promise.all([detailQuery.refetch(), sessions.refetch()])
+    await Promise.all([detailQuery.refetch(), refreshSessions()])
   })
 }
 
@@ -491,7 +564,7 @@ function handleDeclare(payload: CashCountPayload) {
     )
     if (result === null) return
     declareComparison.value = result.comparison
-    await Promise.all([detailQuery.refetch(), sessions.refetch()])
+    await Promise.all([detailQuery.refetch(), refreshSessions()])
   })
 }
 
@@ -513,7 +586,7 @@ function handleVerify(payload: CashCountPayload) {
     const result = await runForSelectedSession(sessionId, () => commands.verify(sessionId, payload))
     if (result === null) return
     verifyComparison.value = result.comparison
-    await Promise.all([detailQuery.refetch(), sessions.refetch()])
+    await Promise.all([detailQuery.refetch(), refreshSessions()])
   })
 }
 
@@ -549,8 +622,27 @@ function handleReleaseDrawer() {
     const sessionId = selectedSessionId.value
     if (!sessionId) return
     await commands.releaseDrawer(sessionId)
-    await Promise.all([detailQuery.refetch(), custody.refetch()])
+    await Promise.all([detailQuery.refetch(), custody.refetch(), refreshSessions()])
   })
+}
+
+/**
+ * The close already succeeded (useCashClose refreshed the slots); show the corte
+ * of THAT shift only while it is still the selected one.
+ */
+async function handleClosed(closing: CashClosing) {
+  const token = sessionContextToken
+  const sessionId = closing.sessionId
+  try {
+    await Promise.all([detailQuery.refetch(), refreshSessions()])
+  } catch {
+    // Best effort: the corte is already seeded from the close response.
+  }
+  if (isSameSessionContext(token, sessionId)) openPanel('corte')
+}
+
+function viewClosing() {
+  openPanel('corte')
 }
 </script>
 
@@ -571,7 +663,7 @@ function handleReleaseDrawer() {
           v-if="access.canReadSessions.value || access.canOpenSession.value"
           :session="ownShift"
           :register-name="ownShift ? (registerNames[ownShift.registerId] ?? null) : null"
-          :loading="sessions.isLoading.value"
+          :loading="ownShiftQuery.isLoading.value"
           :selected="Boolean(ownShift) && selectedSessionId === ownShift?.id"
           :opening-selected="!hasSelection && openPanelId === 'apertura'"
           :can-open="access.canOpenSession.value"
@@ -592,9 +684,11 @@ function handleReleaseDrawer() {
           :can-filter-by-cashier="sessions.canFilterByCashier.value"
           :can-open="access.canOpenSession.value"
           :total="sessions.total.value"
+          :page-size="SESSIONS_PAGE_SIZE"
           :show-filters="sessions.canFilterByCashier.value"
-          v-model:pending-only="pendingOnlyFilter"
+          v-model:status-filter="statusFilter"
           v-model:register-filter="registerFilter"
+          v-model:page="sessionsPage"
           @select="selectSession"
           @refresh="sessions.refetch()"
           @request-opening="requestOpening"
@@ -631,6 +725,48 @@ function handleReleaseDrawer() {
           {{ hasSelection ? (session ? registerName : 'Turno seleccionado') : 'Abre tu turno' }}
         </h2>
       </template>
+
+      <!-- «Cortes» (S5, read:CashClosing): the list in place, a row opens its corte. -->
+      <section
+        v-if="access.canReadClosings.value && cortesOpen"
+        class="cash-inplace"
+        aria-labelledby="cash-cortes-title"
+        data-testid="cash-task-cortes"
+      >
+        <header class="cash-inplace-head">
+          <h3 id="cash-cortes-title" class="cash-list-title" tabindex="-1">Cortes</h3>
+          <UButton
+            type="button"
+            color="neutral"
+            variant="ghost"
+            class="min-h-11"
+            data-testid="cash-closings-hide"
+            @click="hideCortes"
+          >
+            Ocultar
+          </UButton>
+        </header>
+        <template v-if="cortesClosingId">
+          <UButton
+            type="button"
+            color="neutral"
+            variant="ghost"
+            class="min-h-11 self-start"
+            icon="i-lucide-arrow-left"
+            data-testid="cash-closings-back"
+            @click="cortesClosingId = null"
+          >
+            Volver a cortes
+          </UButton>
+          <CashClosingDetail :closing-id="cortesClosingId" @back="cortesClosingId = null" />
+        </template>
+        <CashClosingsList
+          v-else
+          :registers="closingRegisters"
+          :cashiers="closingCashiers"
+          @open="cortesClosingId = $event"
+        />
+      </section>
 
       <EmptyState
         v-if="detailFailed"
@@ -894,9 +1030,18 @@ function handleReleaseDrawer() {
                 :drawer-released="Boolean(session?.drawerReleasedAt)"
                 :pending-receive-count="pendingReceiveCount"
                 :counted-cash-cents="countedCashCents"
-                :selector-entitled="recipients.entitled.value"
-                :assignable-users="recipients.assignableUsers.value"
-                :loading-recipients="recipients.isLoading.value"
+                :recipients="{
+                  FLOAT: recipients.state.value.FLOAT.items,
+                  WITHDRAWAL: recipients.state.value.WITHDRAWAL.items,
+                }"
+                :recipients-loading="{
+                  FLOAT: recipients.state.value.FLOAT.loading,
+                  WITHDRAWAL: recipients.state.value.WITHDRAWAL.loading,
+                }"
+                :recipients-error="{
+                  FLOAT: recipients.state.value.FLOAT.error,
+                  WITHDRAWAL: recipients.state.value.WITHDRAWAL.error,
+                }"
                 :current-user-id="access.currentUserId.value"
                 :busy="commands.isBusy.value"
                 :submitting="commands.activeCommand.value === 'declareHandover'"
@@ -904,6 +1049,7 @@ function handleReleaseDrawer() {
                 :error-message="errorFor('custody')"
                 @declare="handleDeclareHandover"
                 @release="handleReleaseDrawer"
+                @retry-recipients="recipients.refetch($event)"
               />
             </div>
           </template>
@@ -941,31 +1087,45 @@ function handleReleaseDrawer() {
             />
           </template>
 
-          <!-- T4 SLOT · «Cerrar caja»: components/close/** mounts the close step here
-               (POST /cash-sessions/:id/close, another person, create:CashClosing). -->
+          <!-- «Cerrar caja» (S5): another person with create:CashClosing; the backend decides. -->
           <template #panel-cierre>
-            <div class="cash-callout" data-testid="cash-close-slot" data-slot="t4-close">
-              <UIcon name="i-lucide-lock" class="cash-callout-icon" aria-hidden="true" />
-              <p>
-                <strong>La cierra un supervisor</strong><br />
-                <span class="cash-meta-wrap"
-                  >Con permiso de cierre y distinto de quien abrió la caja. Genera el corte con
-                  folio.</span
-                >
-              </p>
+            <div v-if="hasSelection" :key="sessionSectionKey" data-testid="cash-close-slot">
+              <CashCloseStep
+                v-if="detailQuery.detail.value"
+                :detail="detailQuery.detail.value"
+                :current-user-id="access.currentUserId.value"
+                :can-close="access.canClose.value"
+                @closed="handleClosed"
+                @view-closing="viewClosing"
+              />
             </div>
           </template>
 
-          <!-- T4 SLOT · «Corte de caja»: the corte detail and its PDF mount here. -->
+          <!-- «Corte de caja» (S5): the frozen snapshot of the closed shift and its PDF. -->
           <template #panel-corte>
-            <div class="cash-empty-note" data-testid="cash-corte-slot" data-slot="t4-corte">
-              <UIcon name="i-lucide-file-text" class="size-5" aria-hidden="true" />
-              <p>
-                <strong>El corte aparece al cerrar la caja</strong><br />
-                <span class="cash-meta-wrap"
-                  >Incluye folio, totales por canal, entregas, horarios, personas y notas.</span
-                >
-              </p>
+            <div :key="sessionSectionKey" data-testid="cash-corte-slot">
+              <CashClosingDetail
+                v-if="corteClosingId && access.canReadClosings.value"
+                :closing-id="corteClosingId"
+              />
+              <div v-else-if="corteClosingId" class="cash-callout" data-testid="cash-corte-forbidden">
+                <UIcon name="i-lucide-lock" class="cash-callout-icon" aria-hidden="true" />
+                <p>
+                  <strong>Corte {{ detailQuery.detail.value?.closing?.folio }}</strong><br />
+                  <span class="cash-meta-wrap"
+                    >Necesitas el permiso «Ver cortes» para ver el corte y su PDF.</span
+                  >
+                </p>
+              </div>
+              <div v-else class="cash-empty-note">
+                <UIcon name="i-lucide-file-text" class="size-5" aria-hidden="true" />
+                <p>
+                  <strong>El corte aparece al cerrar la caja</strong><br />
+                  <span class="cash-meta-wrap"
+                    >Incluye folio, totales por canal, entregas, horarios, personas y notas.</span
+                  >
+                </p>
+              </div>
             </div>
           </template>
         </CashTimeline>
@@ -1011,8 +1171,24 @@ function handleReleaseDrawer() {
           <UIcon name="i-lucide-chevron-right" class="size-4 shrink-0" aria-hidden="true" />
         </button>
 
-        <!-- T4 SLOT · «Cortes»: the closings list entry (read:CashClosing) mounts here. -->
-        <div data-testid="cash-closings-entry-slot" data-slot="t4-cortes" hidden />
+        <!-- «Cortes» (S5): the closings list of the sucursal (read:CashClosing). -->
+        <div v-if="access.canReadClosings.value" data-testid="cash-closings-entry-slot">
+          <button
+            type="button"
+            class="cash-recv"
+            :aria-expanded="cortesOpen"
+            aria-controls="cash-cortes-title"
+            data-testid="cash-closings-entry"
+            @click="toggleCortes"
+          >
+            <UIcon name="i-lucide-file-text" class="size-5 shrink-0" aria-hidden="true" />
+            <span class="cash-recv-text">
+              <span class="cash-strong">Cortes</span>
+              <span class="cash-meta-wrap">Cortes de caja con folio y PDF</span>
+            </span>
+            <UIcon name="i-lucide-chevron-right" class="size-4 shrink-0" aria-hidden="true" />
+          </button>
+        </div>
 
         <p class="cash-perm">
           <UIcon name="i-lucide-lock" class="size-3.5 shrink-0" aria-hidden="true" />

@@ -20,6 +20,7 @@ import { mountWithUApp } from '@/test/mountWithUApp'
 import { reactive } from 'vue'
 
 vi.mock('../../api/cash.api', () => ({
+  CASH_CLOSE_NOTES_MAX_LENGTH: 2000,
   cashApi: {
     listRegisters: vi.fn(),
     createRegister: vi.fn(),
@@ -37,6 +38,11 @@ vi.mock('../../api/cash.api', () => ({
     receiveHandover: vi.fn(),
     getCustody: vi.fn(),
     releaseDrawer: vi.fn(),
+    closeSession: vi.fn(),
+    listClosings: vi.fn(),
+    getClosing: vi.fn(),
+    getClosingPdf: vi.fn(),
+    listHandoverRecipients: vi.fn(),
   },
 }))
 
@@ -54,7 +60,9 @@ const auth = reactive({
 vi.mock('@/features/auth/stores/useAuthStore', () => ({ useAuthStore: () => auth }))
 
 import { cashApi } from '../../api/cash.api'
+import { usersApi } from '@/features/POS/users/api/user.api'
 import CashRegisterView from '../CashRegisterView.vue'
+import { CLOSING, ME, makeReadyDetail, makeSession } from '../../closing/__tests__/closingFixtures'
 
 const api = cashApi as unknown as Record<string, ReturnType<typeof vi.fn>>
 
@@ -258,6 +266,8 @@ beforeEach(() => {
     eligibleFloat: { items: [], page: 1, limit: 25, total: 0 },
   })
   api.getSession.mockResolvedValue(DETAIL)
+  api.listHandoverRecipients.mockResolvedValue([])
+  api.listClosings.mockResolvedValue({ items: [], page: 1, limit: 10, total: 0 })
 })
 
 describe('CashRegisterView · access state', () => {
@@ -1287,6 +1297,13 @@ describe('CashRegisterView · «Tu turno» timeline (direction A)', () => {
 
     expect(api.getSession).toHaveBeenCalledWith('s-own')
     expect(api.listSessions).toHaveBeenCalledWith({ page: 1, limit: 25 })
+    // S7: «Tu turno» comes from the status/drawerOpen filters, narrowed to me with audit.
+    expect(api.listSessions).toHaveBeenCalledWith({
+      status: ['OPEN', 'COUNTING', 'SUBMITTED'],
+      drawerOpen: true,
+      limit: 1,
+      cashierUserId: 'user-1',
+    })
     expect(wrapper.get('[data-testid="cash-step-movimientos"]').attributes('data-state')).toBe(
       'current',
     )
@@ -1419,15 +1436,189 @@ describe('CashRegisterView · «Tu turno» timeline (direction A)', () => {
     await wrapper.get('[data-testid="cash-session-open-s-1"]').trigger('click')
     await flush()
     expect(wrapper.get('[data-testid="cash-next-title"]').text()).toBe('Verificar conteo')
-    await wrapper.get('[data-testid="cash-sessions-pending-only"]').trigger('click')
+    await wrapper.get('[data-testid="cash-sessions-status-SUBMITTED"]').setValue()
     await flush()
-    expect(api.listSessions).toHaveBeenLastCalledWith({ page: 1, limit: 25, pendingOnly: true })
+    expect(api.listSessions).toHaveBeenCalledWith({ page: 1, limit: 25, status: ['SUBMITTED'] })
   })
+})
 
-  it('leaves marked slots for the T4 close step and the Cortes entry', async () => {
+// S7: supervisor list — exact status filter and real paging.
+describe('CashRegisterView · supervisor session list (S7)', () => {
+  it('maps each status choice to the exact status filter and back to «Todas»', async () => {
     const { wrapper } = mountView()
     await flush()
-    expect(wrapper.find('[data-testid="cash-close-slot"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="cash-closings-entry-slot"]').exists()).toBe(true)
+    for (const status of ['OPEN', 'COUNTING', 'SUBMITTED', 'CLOSED']) {
+      await wrapper.get(`[data-testid="cash-sessions-status-${status}"]`).setValue()
+      await flush()
+      expect(api.listSessions).toHaveBeenCalledWith({ page: 1, limit: 25, status: [status] })
+    }
+    api.listSessions.mockClear()
+    await wrapper.get('[data-testid="cash-sessions-status-ALL"]').setValue()
+    await flush()
+    const calls = api.listSessions.mock.calls.map(([params]) => params)
+    expect(calls.every((params) => !('pendingOnly' in params))).toBe(true)
+  })
+
+  it('pages with the real total and returns to page 1 when a filter changes', async () => {
+    api.listSessions.mockResolvedValue({ items: [SESSION], page: 1, limit: 25, total: 60 })
+    const { wrapper } = mountView()
+    await flush()
+    expect(wrapper.get('[data-testid="cash-sessions-page"]').text()).toBe('Página 1 de 3 · 60 sesiones')
+
+    await wrapper.get('[data-testid="cash-sessions-next"]').trigger('click')
+    await flush()
+    expect(api.listSessions).toHaveBeenCalledWith({ page: 2, limit: 25 })
+
+    await wrapper.get('[data-testid="cash-sessions-status-CLOSED"]').setValue()
+    await flush()
+    expect(api.listSessions).toHaveBeenLastCalledWith({ page: 1, limit: 25, status: ['CLOSED'] })
+  })
+})
+
+// S6: the handover recipient by name and role, never a raw UUID.
+describe('CashRegisterView · handover recipients (S6)', () => {
+  it('reads the recipients of the kind and offers them by name and role', async () => {
+    grant([...GRANTS, 'create:CashHandover'])
+    api.listHandoverRecipients.mockImplementation((kind: string) =>
+      Promise.resolve(
+        kind === 'FLOAT'
+          ? [{ userId: 'sup-1', displayName: 'Luis Supervisor', roleName: 'Supervisor' }]
+          : [],
+      ),
+    )
+    const own = { ...SESSION, id: 's-own', cashierUserId: 'user-1', status: 'SUBMITTED' }
+    api.listSessions.mockResolvedValue({ items: [own], page: 1, limit: 25, total: 1 })
+    api.getSession.mockResolvedValue(detailFor(own))
+    const { wrapper } = mountView()
+    await flush()
+    await flush()
+    expect(api.listHandoverRecipients).not.toHaveBeenCalled()
+
+    await navigate(wrapper, 'entrega')
+    await flush()
+    expect(api.listHandoverRecipients).toHaveBeenCalledWith('FLOAT')
+    const task = wrapper.get('[data-testid="cash-task-entrega"]')
+    expect(task.get('[data-testid="cash-handover-recipient-card-sup-1"]').text()).toContain('Supervisor')
+    expect(task.find('[data-testid="cash-handover-recipient-uuid"]').exists()).toBe(false)
+    expect(usersApi.listAssignable).not.toHaveBeenCalled()
+  })
+})
+
+// S5: «Cerrar caja», the corte and «Cortes» mount in the shell.
+describe('CashRegisterView · close, corte and Cortes (S5)', () => {
+  const CLOSE_GRANTS = [...GRANTS, 'create:CashClosing', 'read:CashClosing']
+
+  function mountReady(detail = makeReadyDetail()) {
+    auth.user = { id: ME }
+    grant(CLOSE_GRANTS)
+    api.listSessions.mockResolvedValue({ items: [detail.session], page: 1, limit: 25, total: 1 })
+    api.getSession.mockResolvedValue(detail)
+    api.getClosing.mockResolvedValue(CLOSING)
+    return mountView()
+  }
+
+  it('the supervisor closes from the «Cerrar caja» step and lands on the corte', async () => {
+    const ready = makeReadyDetail()
+    const { wrapper } = mountReady(ready)
+    await flush()
+    await selectSessionById(wrapper, ready.session.id)
+    await flush()
+
+    await navigate(wrapper, 'cierre')
+    const task = wrapper.get('[data-testid="cash-task-cierre"]')
+    expect(task.find('[data-testid="cash-close-step"]').exists()).toBe(true)
+
+    api.closeSession.mockResolvedValue(CLOSING)
+    api.getSession.mockResolvedValue({
+      ...ready,
+      session: makeSession({ status: 'CLOSED' }),
+      closing: { id: CLOSING.id, sessionId: CLOSING.sessionId, folio: CLOSING.folio, createdAt: CLOSING.createdAt },
+    })
+    await task.get('[data-testid="cash-close-submit"]').trigger('click')
+    await flush()
+    // ConfirmModal teleports to the body.
+    const confirm = [...document.body.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === 'Cerrar caja',
+    )
+    expect(confirm).toBeTruthy()
+    confirm!.click()
+    await flush()
+    await flush()
+    await flush()
+
+    expect(api.closeSession).toHaveBeenCalledWith(ready.session.id, {}, expect.any(String))
+    expect(taskShown(wrapper, 'corte')).toBe(true)
+    const corte = wrapper.get('[data-testid="cash-task-corte"]')
+    expect(corte.find('[data-testid="cash-closing-detail"]').exists()).toBe(true)
+    expect(corte.get('[data-testid="cash-closing-header"]').text()).toContain(CLOSING.folio)
+  })
+
+  it('the cashier never gets the close action in their own shift', async () => {
+    const ready = makeReadyDetail()
+    const { wrapper } = mountReady(ready)
+    auth.user = { id: ready.session.cashierUserId }
+    await flush()
+    await flush()
+    await selectSessionById(wrapper, ready.session.id)
+    await flush()
+    expect(wrapper.find('[data-testid="cash-close-submit"]').exists()).toBe(false)
+  })
+
+  it('a closed session shows its corte by the closing id', async () => {
+    const closed = makeReadyDetail({
+      session: makeSession({ status: 'CLOSED' }),
+      closing: { id: CLOSING.id, sessionId: CLOSING.sessionId, folio: CLOSING.folio, createdAt: CLOSING.createdAt },
+    })
+    const { wrapper } = mountReady(closed)
+    await flush()
+    await selectSessionById(wrapper, closed.session.id)
+    await flush()
+    await navigate(wrapper, 'corte')
+    await flush()
+    expect(api.getClosing).toHaveBeenCalledWith(CLOSING.id)
+    expect(
+      wrapper.get('[data-testid="cash-task-corte"]').find('[data-testid="cash-closing-detail"]').exists(),
+    ).toBe(true)
+  })
+
+  it('«Cortes» opens the list with read:CashClosing; a row opens the corte and back returns', async () => {
+    api.listClosings.mockResolvedValue({
+      items: [{ id: CLOSING.id, sessionId: CLOSING.sessionId, folio: CLOSING.folio, createdAt: CLOSING.createdAt }],
+      page: 1,
+      limit: 10,
+      total: 1,
+    })
+    const { wrapper } = mountReady()
+    await flush()
+    expect(api.listClosings).not.toHaveBeenCalled()
+
+    const entry = wrapper.get('[data-testid="cash-closings-entry"]')
+    expect(entry.attributes('aria-expanded')).toBe('false')
+    await entry.trigger('click')
+    await flush()
+    expect(entry.attributes('aria-expanded')).toBe('true')
+    expect(wrapper.find('[data-testid="cash-closings-list"]').exists()).toBe(true)
+    expect(api.listClosings).toHaveBeenCalled()
+
+    await wrapper.get('[data-testid="cash-closing-row-open"]').trigger('click')
+    await flush()
+    expect(wrapper.find('[data-testid="cash-closing-detail"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="cash-closings-list"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="cash-closings-back"]').trigger('click')
+    await flush()
+    expect(wrapper.find('[data-testid="cash-closings-list"]').exists()).toBe(true)
+
+    // Opening a timeline task leaves «Cortes».
+    await wrapper.get('[data-testid="cash-closings-hide"]').trigger('click')
+    await flush()
+    expect(wrapper.find('[data-testid="cash-closings-list"]').exists()).toBe(false)
+  })
+
+  it('hides «Cortes» without read:CashClosing', async () => {
+    const { wrapper } = mountView()
+    await flush()
+    expect(wrapper.find('[data-testid="cash-closings-entry"]').exists()).toBe(false)
+    expect(api.listClosings).not.toHaveBeenCalled()
   })
 })

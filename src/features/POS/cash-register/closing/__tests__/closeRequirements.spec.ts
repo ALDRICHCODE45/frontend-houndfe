@@ -188,7 +188,7 @@ describe('closeReadiness', () => {
     const r = closeReadiness(makeReadyDetail(), ME)
     expect(r.mode).toBe('ready')
     expect(r.blockingReason).toBeNull()
-    expect(r.notesRequired).toBe(false)
+    expect(r).not.toHaveProperty('notesRequired')
   })
 
   it('the cashier gets the cashier mode (no close action)', () => {
@@ -215,7 +215,7 @@ describe('closeReadiness', () => {
     ).toBe('closed')
   })
 
-  it('requires the closing note when the session has a difference', () => {
+  it('never requires a closing note, even with a difference (contract §5: only declaration/verification notes)', () => {
     const base = makeReadyDetail()
     const declaration = base.counts[0]!
     const lines = [{ channelKey: 'CASH', amountCents: 148000 }, declaration.lines[1]!]
@@ -226,7 +226,8 @@ describe('closeReadiness', () => {
     }
     const r = closeReadiness(detail, ME)
     expect(r.mode).toBe('ready')
-    expect(r.notesRequired).toBe(true)
+    expect(r.blockingReason).toBeNull()
+    expect(r).not.toHaveProperty('notesRequired')
     expect(r.differenceCents).toBe(-2000)
   })
 })

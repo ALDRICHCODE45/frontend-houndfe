@@ -7,7 +7,8 @@
  *   round mark, never checkboxes; pending rows say what is missing and who acts.
  * - The cashier never gets the action (closer ≠ cashier); without
  *   `create:CashClosing` the missing permission is named.
- * - Closing note: optional, required when the session has a difference (design).
+ * - Closing note: always optional (handoff 25 §5). A difference only needs the
+ *   declaration/verification notes, which the «Diferencia explicada» row checks.
  * - «Cerrar caja» disabled with the reason (aria-describedby), ConfirmModal,
  *   success → `closed` with the closing; any server error → one summary near the
  *   action in an alert region. The backend stays authoritative.
@@ -50,20 +51,17 @@ const cashierName = computed(
 )
 
 const notesTooLong = computed(() => notes.value.trim().length > CASH_CLOSE_NOTES_MAX_LENGTH)
-const notesMissing = computed(() => readiness.value.notesRequired && !notes.value.trim())
 
 const notesHint = computed(() => {
-  if (!readiness.value.notesRequired) return '(opcional)'
   const cents = readiness.value.differenceCents
-  if (cents === null || cents === 0) return '(obligatoria: hay una diferencia)'
+  if (cents === null || cents === 0) return '(opcional)'
   const kind = cents < 0 ? 'un faltante' : 'un sobrante'
-  return `(obligatoria: hay ${kind} de ${formatCentsMXN(Math.abs(cents))})`
+  return `(opcional · hay ${kind} de ${formatCentsMXN(Math.abs(cents))})`
 })
 
 /** The single explanation of a disabled «Cerrar caja». */
 const disabledReason = computed<string | null>(() => {
   if (readiness.value.mode === 'blocked') return readiness.value.blockingReason
-  if (notesMissing.value) return 'Escribe la nota de cierre: explica la diferencia antes de cerrar.'
   if (notesTooLong.value) {
     return `La nota de cierre admite hasta ${CASH_CLOSE_NOTES_MAX_LENGTH} caracteres.`
   }
@@ -181,7 +179,6 @@ async function confirmClose() {
           class="w-full"
           :maxlength="CASH_CLOSE_NOTES_MAX_LENGTH"
           placeholder="Por ejemplo: faltante de $20.00 explicado por la cajera en su declaración"
-          :aria-required="readiness.notesRequired ? 'true' : undefined"
           data-testid="cash-close-notes"
         />
       </div>

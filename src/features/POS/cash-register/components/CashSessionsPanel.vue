@@ -12,14 +12,14 @@
  *
  * Direction A puts the list in the side column: `variant="list"` always renders
  * the cards (the side is too narrow for a table). With `showFilters` (the
- * supervisor list, `read:CashSessionAudit`) it offers the existing list
- * filters: «Solo por verificar» (`pendingOnly`) and the register.
+ * supervisor list, `read:CashSessionAudit`) it offers the status filter (S7,
+ * handoff 25 §2: Todas / Abiertas / En conteo / Por verificar o cerrar /
+ * Cerradas) and the register. Paging uses the real `total` from the backend.
  */
-import { computed } from 'vue'
+import { computed, useId } from 'vue'
 import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
-import { HfSwitchRow } from '@/core/shared/components/selection'
 import { useClickableRow } from '@/core/shared/composables/useClickableRow'
 import { useTablePreferences } from '@/core/shared/composables/useTablePreferences'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
@@ -27,6 +27,17 @@ import type { TableColumn } from '@/core/shared/types/table.types'
 import type { CashSession } from '../interfaces/cash.types'
 import { CASH_SESSION_STATUS_LABELS, cashSessionStatusTone } from '../utils/cash-status'
 import { cashSessionPeriod } from '../utils/cash-display'
+
+/** Supervisor status filter. `ALL` sends no `status`; the others send one exact lifecycle. */
+export type CashSessionStatusFilter = 'ALL' | 'OPEN' | 'COUNTING' | 'SUBMITTED' | 'CLOSED'
+
+const CASH_SESSION_STATUS_FILTERS: Array<{ value: CashSessionStatusFilter; label: string }> = [
+  { value: 'ALL', label: 'Todas' },
+  { value: 'OPEN', label: 'Abiertas' },
+  { value: 'COUNTING', label: 'En conteo' },
+  { value: 'SUBMITTED', label: 'Por verificar o cerrar' },
+  { value: 'CLOSED', label: 'Cerradas' },
+]
 
 const props = withDefaults(
   defineProps<{
@@ -43,10 +54,13 @@ const props = withDefaults(
     /** `list`: always cards (side column). `table`: table on desktop, cards on mobile. */
     variant?: 'table' | 'list'
     title?: string
-    /** Offer the list filters (pendingOnly, register). */
+    /** Offer the list filters (status, register). */
     showFilters?: boolean
-    pendingOnly?: boolean
+    statusFilter?: CashSessionStatusFilter
     registerFilter?: string | null
+    /** Current page (1-based) and page size of the backend list. */
+    page?: number
+    pageSize?: number
   }>(),
   {
     sessions: () => [],
@@ -61,8 +75,10 @@ const props = withDefaults(
     variant: 'table',
     title: 'Sesiones de caja',
     showFilters: false,
-    pendingOnly: false,
+    statusFilter: 'ALL',
     registerFilter: null,
+    page: 1,
+    pageSize: 25,
   },
 )
 
@@ -70,9 +86,19 @@ const emit = defineEmits<{
   select: [sessionId: string]
   refresh: []
   'request-opening': []
-  'update:pendingOnly': [value: boolean]
+  'update:statusFilter': [value: CashSessionStatusFilter]
   'update:registerFilter': [value: string | null]
+  'update:page': [value: number]
 }>()
+
+const statusGroupName = `cash-sessions-status-${useId()}`
+const totalPages = computed(() => Math.max(1, Math.ceil(props.total / props.pageSize)))
+const showPager = computed(() => props.total > props.pageSize || props.page > 1)
+
+function goTo(next: number) {
+  const target = Math.min(Math.max(1, next), totalPages.value)
+  if (target !== props.page) emit('update:page', target)
+}
 
 const ALL_REGISTERS = '__all__'
 const registerFilterItems = computed(() => [
@@ -119,7 +145,7 @@ const layout = useTablePreferences({
 const { columnOrder, columnPinning, columnSizing, columnVisibility, density } = layout
 
 const data = computed(() => [...props.sessions])
-const filtered = computed(() => props.pendingOnly || Boolean(props.registerFilter))
+const filtered = computed(() => props.statusFilter !== 'ALL' || Boolean(props.registerFilter))
 const emptyState = computed(() =>
   filtered.value
     ? { title: 'Ninguna sesión coincide', description: 'Quita un filtro para ver más sesiones.' }
@@ -129,7 +155,6 @@ const emptyState = computed(() =>
         ...(props.canOpen ? { actionLabel: 'Abrir un turno' } : {}),
       },
 )
-const hiddenCount = computed(() => Math.max(props.total - props.sessions.length, 0))
 
 const registerName = (session: CashSession) => props.registerNames[session.registerId] ?? 'Caja'
 const statusLabel = (session: CashSession) => CASH_SESSION_STATUS_LABELS[session.status]
@@ -178,14 +203,28 @@ const { rowProps } = useClickableRow<CashSession>(open, { focusable: false })
     </header>
 
     <div v-if="showFilters" class="cash-session-filters" data-testid="cash-sessions-filters">
-      <HfSwitchRow
-        :model-value="pendingOnly"
-        label="Solo por verificar"
-        description="Sesiones congeladas o declaradas"
-        :show-state="false"
-        test-id="cash-sessions-pending-only"
-        @update:model-value="emit('update:pendingOnly', $event)"
-      />
+      <fieldset class="cash-status-filter" data-testid="cash-sessions-status-filter">
+        <legend class="cash-meta">Estado</legend>
+        <div class="cash-status-chips">
+          <label
+            v-for="option in CASH_SESSION_STATUS_FILTERS"
+            :key="option.value"
+            class="cash-status-chip"
+            :class="{ 'is-selected': statusFilter === option.value }"
+          >
+            <input
+              type="radio"
+              class="sr-only"
+              :name="statusGroupName"
+              :value="option.value"
+              :checked="statusFilter === option.value"
+              :data-testid="`cash-sessions-status-${option.value}`"
+              @change="emit('update:statusFilter', option.value)"
+            />
+            {{ option.label }}
+          </label>
+        </div>
+      </fieldset>
       <USelect
         v-if="Object.keys(registerNames).length > 1"
         v-model="registerFilterModel"
@@ -328,8 +367,88 @@ const { rowProps } = useClickableRow<CashSession>(open, { focusable: false })
       </template>
     </AppDataTable>
 
-    <p v-if="hiddenCount > 0" class="cash-list-note" data-testid="cash-sessions-total">
-      Mostrando {{ sessions.length }} de {{ total }} sesiones
-    </p>
+    <nav
+      v-if="showPager"
+      class="cash-sessions-pager"
+      aria-label="Páginas de sesiones"
+      data-testid="cash-sessions-pager"
+    >
+      <UButton
+        type="button"
+        color="neutral"
+        variant="outline"
+        class="min-h-11"
+        icon="i-lucide-chevron-left"
+        aria-label="Página anterior"
+        :disabled="page <= 1"
+        data-testid="cash-sessions-prev"
+        @click="goTo(page - 1)"
+      />
+      <span class="cash-meta" aria-live="polite" data-testid="cash-sessions-page"
+        >Página {{ page }} de {{ totalPages }} · {{ total }} {{ total === 1 ? 'sesión' : 'sesiones' }}</span
+      >
+      <UButton
+        type="button"
+        color="neutral"
+        variant="outline"
+        class="min-h-11"
+        icon="i-lucide-chevron-right"
+        aria-label="Página siguiente"
+        :disabled="page >= totalPages"
+        data-testid="cash-sessions-next"
+        @click="goTo(page + 1)"
+      />
+    </nav>
   </section>
 </template>
+
+<style scoped>
+.cash-status-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.cash-status-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.cash-status-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 0.875rem;
+  cursor: pointer;
+  border: 1px solid var(--hf-border);
+  border-radius: 9999px;
+  background-color: var(--hf-surface);
+  color: var(--hf-heading);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.cash-status-chip:hover {
+  border-color: var(--hf-action);
+}
+
+.cash-status-chip.is-selected {
+  border-color: var(--hf-action);
+  background-color: var(--hf-active-soft);
+  font-weight: 600;
+}
+
+.cash-status-chip:focus-within {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+.cash-sessions-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+</style>

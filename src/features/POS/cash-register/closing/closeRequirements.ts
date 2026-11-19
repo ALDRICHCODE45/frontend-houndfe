@@ -295,9 +295,11 @@ export interface CloseReadiness {
   requirements: CloseRequirement[]
   /** First pending requirement's sentence (in §5 order), or `null`. */
   blockingReason: string | null
-  /** FE rule from the design: a session with any difference needs a closing note. */
-  notesRequired: boolean
-  /** Physical-cash difference to name in the note label (verified when available). */
+  /**
+   * Physical-cash difference (verified when available). Informative only: the
+   * closing note is always optional (handoff 25 §5); a difference only needs the
+   * declaration/verification notes, checked by `discrepancyNotes`.
+   */
   differenceCents: number | null
 }
 
@@ -323,7 +325,6 @@ export function closeReadiness(
     mode,
     requirements,
     blockingReason: mode === 'blocked' ? (pending?.detail ?? null) : null,
-    notesRequired: facts.hasDifference === true,
     differenceCents,
   }
 }

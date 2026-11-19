@@ -92,14 +92,20 @@ describe('CashCloseStep', () => {
     )
   })
 
-  it('requires the closing note when there is a difference', async () => {
+  it('keeps the closing note optional even with a difference (contract §5)', async () => {
     const wrapper = mountStep({ detail: differenceDetail() })
-    expect(wrapper.get('[data-testid="cash-close-notes-label"]').text()).toMatch(/obligatoria/)
-    expect(wrapper.get('[data-testid="cash-close-submit"]').attributes('disabled')).toBeDefined()
-    expect(wrapper.get('[data-testid="cash-close-reason"]').text()).toMatch(/Escribe la nota de cierre/)
-
-    await wrapper.get('[data-testid="cash-close-notes"]').setValue('Faltante explicado')
+    const label = wrapper.get('[data-testid="cash-close-notes-label"]').text()
+    expect(label).toMatch(/opcional/)
+    expect(label).not.toMatch(/obligatoria/)
+    expect(wrapper.get('textarea').attributes('aria-required')).toBeUndefined()
     expect(wrapper.get('[data-testid="cash-close-submit"]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.get('[data-testid="cash-close-reason"]').text()).not.toMatch(/Escribe la nota de cierre/)
+
+    close.mockResolvedValue(CLOSING)
+    await wrapper.get('[data-testid="cash-close-submit"]').trigger('click')
+    await wrapper.get('[data-testid="confirm-modal-confirm"]').trigger('click')
+    await flushPromises()
+    expect(close).toHaveBeenCalledWith(expect.any(String), undefined)
   })
 
   it('the note stays optional without a difference', () => {

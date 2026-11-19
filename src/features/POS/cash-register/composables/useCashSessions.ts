@@ -19,6 +19,7 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { cashApi } from '../api/cash.api'
 import type {
+  CashSession,
   CashSessionDetail,
   CashSessionListParams,
   CashSessionListResponse,
@@ -109,6 +110,62 @@ export function useCashSessions(params: MaybeRefOrGetter<CashSessionListParams> 
     isSuccess: computed(() => listQuery.isSuccess.value),
     error: listQuery.error,
     refetch: listQuery.refetch,
+  }
+}
+
+/** Lifecycle states of a shift that can still be «Tu turno» (the drawer is held). */
+const OWN_SHIFT_STATUSES: CashSession['status'][] = ['OPEN', 'COUNTING', 'SUBMITTED']
+
+/**
+ * «Tu turno» (S7, handoff 25 §2): `GET /cash-sessions?status=OPEN,COUNTING,
+ * SUBMITTED&drawerOpen=true&limit=1`, newest first. Without
+ * `read:CashSessionAudit` the backend already scopes the list to my sessions;
+ * with it the scope is the branch, so `cashierUserId=<me>` narrows it. The row is
+ * still checked (mine, drawer held) before it is offered: the backend decides
+ * the filter, the UI never shows another person's shift as «Tu turno».
+ */
+export function useCashOwnShift() {
+  const access = useCashAccess()
+
+  const params = computed<CashSessionListParams>(() => ({
+    status: [...OWN_SHIFT_STATUSES],
+    drawerOpen: true,
+    limit: 1,
+    ...(access.canAuditSessions.value && access.currentUserId.value
+      ? { cashierUserId: access.currentUserId.value }
+      : {}),
+  }))
+
+  const query = useQuery<CashSessionListResponse>({
+    queryKey: computed(() => cashQueryKeys.sessionsList(access.identity.value, params.value)),
+    queryFn: () => cashApi.listSessions(params.value),
+    enabled: computed(
+      () =>
+        access.canReadSessions.value &&
+        access.identityReady.value &&
+        access.permissionsLoaded.value,
+    ),
+    refetchOnWindowFocus: false,
+    staleTime: 15_000,
+  })
+
+  const ownShift = computed<CashSession | null>(() => {
+    const me = access.currentUserId.value
+    const first = query.data.value?.items[0]
+    if (!me || !first) return null
+    if (first.cashierUserId !== me || first.drawerReleasedAt !== null) return null
+    if (!OWN_SHIFT_STATUSES.includes(first.status)) return null
+    return first
+  })
+
+  return {
+    ownShift,
+    params,
+    isLoading: computed(() => query.isLoading.value),
+    isError: computed(() => query.isError.value),
+    /** The read for the CURRENT key has loaded (drives the default selection). */
+    isSuccess: computed(() => query.isSuccess.value),
+    refetch: query.refetch,
   }
 }
 

@@ -320,7 +320,9 @@
   place-items: center;
   border-radius: 9999px;
   background: var(--hf-surface);
-  box-shadow: inset 0 0 0 2px var(--hf-field-border);
+  /* Upcoming step ring: a graphic, not a field (S16 guard). --hf-muted keeps it
+     at 3:1 against the surface (WCAG 1.4.11). */
+  box-shadow: inset 0 0 0 2px var(--hf-muted);
   color: var(--hf-muted);
 }
 

@@ -156,12 +156,18 @@ describe('CashSessionsPanel · selection and scope', () => {
     expect(wrapper.get('[data-testid="cash-session-open-s-1"]').text()).toBe('Caja')
   })
 
-  it('notes how many sessions are hidden only when the list is truncated', () => {
-    expect(mountPanel().find('[data-testid="cash-sessions-total"]').exists()).toBe(false)
-    const wrapper = mountPanel({ total: 40 })
-    expect(wrapper.get('[data-testid="cash-sessions-total"]').text()).toBe(
-      'Mostrando 2 de 40 sesiones',
-    )
+  it('pages with the real total: no pager when everything fits, prev/next otherwise', async () => {
+    expect(mountPanel().find('[data-testid="cash-sessions-pager"]').exists()).toBe(false)
+    const wrapper = mountPanel({ total: 40, pageSize: 25, page: 1 })
+    expect(wrapper.get('[data-testid="cash-sessions-page"]').text()).toBe('Página 1 de 2 · 40 sesiones')
+    expect(wrapper.get('[data-testid="cash-sessions-prev"]').attributes('disabled')).toBeDefined()
+    await wrapper.get('[data-testid="cash-sessions-next"]').trigger('click')
+    expect(wrapper.emitted('update:page')).toEqual([[2]])
+
+    const last = mountPanel({ total: 40, pageSize: 25, page: 2 })
+    expect(last.get('[data-testid="cash-sessions-next"]').attributes('disabled')).toBeDefined()
+    await last.get('[data-testid="cash-sessions-prev"]').trigger('click')
+    expect(last.emitted('update:page')).toEqual([[1]])
   })
 })
 
@@ -288,19 +294,27 @@ describe('CashSessionsPanel · side list and branch filters (direction A)', () =
     expect(wrapper.findAll('[data-testid="mobile-cards-list"] article')).toHaveLength(2)
   })
 
-  it('offers «Solo por verificar» as a switch, never a checkbox, and emits it', async () => {
+  it('offers the status filter as radio choices and emits the chosen status', async () => {
     const wrapper = mountPanel({ showFilters: true, title: 'Sesiones de la sucursal' })
     expect(wrapper.get('[data-testid="cash-sessions-title"]').text()).toBe('Sesiones de la sucursal')
+    const group = wrapper.get('[data-testid="cash-sessions-status-filter"]')
+    expect(group.element.tagName).toBe('FIELDSET')
+    expect(group.findAll('input[type="radio"]')).toHaveLength(5)
+    expect(group.text()).toContain('Todas')
+    expect(group.text()).toContain('Abiertas')
+    expect(group.text()).toContain('En conteo')
+    expect(group.text()).toContain('Por verificar o cerrar')
+    expect(group.text()).toContain('Cerradas')
     expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
-    const toggle = wrapper.get('[data-testid="cash-sessions-pending-only"]')
-    expect(toggle.attributes('role')).toBe('switch')
-    await toggle.trigger('click')
-    expect(wrapper.emitted('update:pendingOnly')).toEqual([[true]])
+    expect((wrapper.get('[data-testid="cash-sessions-status-ALL"]').element as HTMLInputElement).checked).toBe(true)
+
+    await wrapper.get('[data-testid="cash-sessions-status-SUBMITTED"]').setValue()
+    expect(wrapper.emitted('update:statusFilter')).toEqual([['SUBMITTED']])
   })
 
   it('shows no filters without the branch scope and says when a filter matches nothing', () => {
     expect(mountPanel().find('[data-testid="cash-sessions-filters"]').exists()).toBe(false)
-    const filtered = mountPanel({ sessions: [], showFilters: true, pendingOnly: true })
+    const filtered = mountPanel({ sessions: [], showFilters: true, statusFilter: 'CLOSED' })
     expect(filtered.text()).toContain('Ninguna sesión coincide')
   })
 })
