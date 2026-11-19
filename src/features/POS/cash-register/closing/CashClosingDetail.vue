@@ -215,7 +215,7 @@ async function runPdf(mode: 'view' | 'download') {
       <section class="cd-section" aria-labelledby="cd-channels-title">
         <h4 id="cd-channels-title" class="cd-h">Por canal</h4>
         <div class="cd-table-wrap" tabindex="0" role="region" aria-labelledby="cd-channels-title">
-          <table class="hf-plain-table cd-table">
+          <table class="hf-plain-table cd-table cd-table--stack">
             <thead>
               <tr>
                 <th scope="col">Canal</th>
@@ -227,11 +227,11 @@ async function runPdf(mode: 'view' | 'download') {
             </thead>
             <tbody>
               <tr v-for="channel in snapshot.channels" :key="channel.channelKey" data-testid="cash-closing-channel">
-                <td>{{ channel.channelLabel }}</td>
-                <td class="cd-num">{{ money(channel.expectedCents) }}</td>
-                <td class="cd-num">{{ money(channel.declaredCents) }}</td>
-                <td class="cd-num">{{ money(channel.verifiedCents) }}</td>
-                <td class="cd-num" :class="signedTone(channel.differenceCents)">{{ money(channel.differenceCents) }}</td>
+                <td data-label="Canal">{{ channel.channelLabel }}</td>
+                <td class="cd-num" data-label="Esperado">{{ money(channel.expectedCents) }}</td>
+                <td class="cd-num" data-label="Declarado">{{ money(channel.declaredCents) }}</td>
+                <td class="cd-num" data-label="Verificado">{{ money(channel.verifiedCents) }}</td>
+                <td class="cd-num" data-label="Diferencia" :class="signedTone(channel.differenceCents)">{{ money(channel.differenceCents) }}</td>
               </tr>
             </tbody>
           </table>
@@ -243,7 +243,7 @@ async function runPdf(mode: 'view' | 'download') {
         <h4 id="cd-handovers-title" class="cd-h">Entregas</h4>
         <p v-if="handovers.length === 0" class="cd-meta">Sin entregas en este turno.</p>
         <div v-else class="cd-table-wrap" tabindex="0" role="region" aria-labelledby="cd-handovers-title">
-          <table class="hf-plain-table cd-table">
+          <table class="hf-plain-table cd-table cd-table--stack">
             <thead>
               <tr>
                 <th scope="col">Entrega</th>
@@ -255,11 +255,11 @@ async function runPdf(mode: 'view' | 'download') {
             </thead>
             <tbody>
               <tr v-for="handover in handovers" :key="handover.handoverId" data-testid="cash-closing-handover">
-                <td>{{ CASH_HANDOVER_KIND_LABELS[handover.kind] }}</td>
-                <td>{{ closingPersonName(snapshot, handover.receiptActorUserId ?? handover.receiverUserId) }}</td>
-                <td class="cd-num">{{ money(handover.declaredCents) }}</td>
-                <td class="cd-num">{{ money(handover.receivedCents) }}</td>
-                <td>{{ formatShortDateTime(handover.receivedAt ?? handover.declaredAt) }}</td>
+                <td data-label="Entrega">{{ CASH_HANDOVER_KIND_LABELS[handover.kind] }}</td>
+                <td data-label="Recibió">{{ closingPersonName(snapshot, handover.receiptActorUserId ?? handover.receiverUserId) }}</td>
+                <td class="cd-num" data-label="Declarado">{{ money(handover.declaredCents) }}</td>
+                <td class="cd-num" data-label="Recibido">{{ money(handover.receivedCents) }}</td>
+                <td data-label="Hora">{{ formatShortDateTime(handover.receivedAt ?? handover.declaredAt) }}</td>
               </tr>
             </tbody>
           </table>
@@ -435,6 +435,52 @@ async function runPdf(mode: 'view' | 'download') {
   .cd-table td {
     padding-inline: 8px;
     font-size: 13px;
+  }
+}
+/* D5: in a narrow column (the timeline panel at 1440, phones) each row stacks
+   as label | value pairs, so every column is visible without clipping. The
+   header stays in the accessibility tree; the cells keep their table roles. */
+@container (max-width: 560px) {
+  .cd-table--stack thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .cd-table--stack,
+  .cd-table--stack tbody,
+  .cd-table--stack tr,
+  .cd-table--stack td {
+    display: block;
+    width: 100%;
+  }
+  .cd-table--stack tr {
+    padding: 4px 0;
+  }
+  .cd-table--stack tr + tr {
+    border-top: 1px solid var(--hf-border);
+  }
+  .cd-table--stack td {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 12px;
+    white-space: normal;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+  .cd-table--stack td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    color: var(--hf-muted);
+    font-weight: 500;
+    text-align: left;
+  }
+  .cd-table--stack td:first-child {
+    color: var(--hf-heading);
+    font-weight: 600;
   }
 }
 @media (prefers-reduced-motion: reduce) {

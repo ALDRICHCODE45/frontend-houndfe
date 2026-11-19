@@ -75,6 +75,18 @@ describe('CashClosingDetail', () => {
     expect(rows[1].text()).toContain('Tarjeta de débito')
   })
 
+  it('labels every cell with its column so narrow widths stack each row and no column is clipped (D5)', () => {
+    const wrapper = mountDetail()
+    for (const table of wrapper.findAll('table.cd-table')) {
+      expect(table.classes()).toContain('cd-table--stack')
+      const headers = table.findAll('thead th').map((th) => th.text())
+      for (const row of table.findAll('tbody tr')) {
+        expect(row.findAll('td').map((td) => td.attributes('data-label'))).toEqual(headers)
+      }
+    }
+    expect(wrapper.findAll('table.cd-table').length).toBe(2)
+  })
+
   it('sorts the unordered handovers by time', () => {
     const rows = mountDetail().findAll('[data-testid="cash-closing-handover"]')
     expect(rows.map((r) => r.text())).toEqual([

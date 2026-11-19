@@ -133,4 +133,28 @@ describe('Caja presentation boundaries', () => {
     expect(adapter).toMatch(/\.cash-facts-rail\s*\{[^}]*grid-template-columns:\s*1fr/)
     expect(adapter).toMatch(/\.cash-facts-rail\s+\.cash-fact dt\s*\{[^}]*white-space:\s*nowrap/)
   })
+
+  it('names the pending badge apart from the count form so the pill can never style the form (D1)', () => {
+    const all = rules(adapter)
+    expect(all.some((rule) => /\.cash-count(?![-\w])/.test(rule.selectorText))).toBe(false)
+    const badge = all.find((rule) => rule.selectorText === '.cash-pending-badge')
+    expect(badge?.style.getPropertyValue('height')).toBe('1.5rem')
+    const form = all.filter((rule) => rule.selectorText.includes('.cash-count-form'))
+    expect(form.every((rule) => !rule.style.getPropertyValue('height'))).toBe(true)
+  })
+
+  it('gives the timeline title the flexible column and wraps who does it below (D3)', () => {
+    const all = rules(adapter)
+    const head = all.find((rule) => rule.selectorText === '.cash-tl-head')!
+    expect(head.style.getPropertyValue('display')).toBe('grid')
+    expect(head.style.getPropertyValue('grid-template-columns')).toContain('minmax(0, 1fr)')
+    expect(all.find((rule) => rule.selectorText === '.cash-tl-text')!.style.getPropertyValue('grid-area')).toBe('text')
+    expect(all.find((rule) => rule.selectorText === '.cash-tl-who')!.style.getPropertyValue('grid-area')).toBe('who')
+  })
+
+  it('lays the count grids out by the form width, never the viewport, so they fit the timeline column (D1)', () => {
+    expect(adapter).toMatch(/\.cash-count-body\s*\{[^}]*container-type:\s*inline-size/)
+    expect(adapter).toMatch(/\.cash-denoms\s*\{[^}]*container-type:\s*inline-size/)
+    expect(adapter).not.toMatch(/@media[^{]*\{\s*\.cash-(channel|denom)-grid/)
+  })
 })

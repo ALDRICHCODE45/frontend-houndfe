@@ -300,7 +300,7 @@ watch(
 
 <template>
   <section
-    class="cash-count"
+    class="cash-count-form"
     :class="variant === 'card' ? 'cash-list-section' : 'flex flex-col gap-4'"
     data-testid="cash-count-form"
   >

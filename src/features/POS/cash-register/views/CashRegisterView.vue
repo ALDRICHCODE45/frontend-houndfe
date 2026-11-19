@@ -84,6 +84,7 @@ import CashDeclarationNotesForm from '../components/CashDeclarationNotesForm.vue
 import CashVerificationPanel from '../components/CashVerificationPanel.vue'
 import CashCustodyDiscovery from '../components/CashCustodyDiscovery.vue'
 import CashCustodyActions from '../components/CashCustodyActions.vue'
+import CashRegistersPanel from '../components/CashRegistersPanel.vue'
 import CashCloseStep from '../closing/CashCloseStep.vue'
 import CashClosingDetail from '../closing/CashClosingDetail.vue'
 import CashClosingsList from '../closing/CashClosingsList.vue'
@@ -108,7 +109,14 @@ const lastMovement = ref<CashLastMovement | null>(null)
  * goes back to the first page.
  */
 const SESSIONS_PAGE_SIZE = 25
-const statusFilter = ref<CashSessionStatusFilter>('ALL')
+/**
+ * D2: a supervisor (branch audit, no create:CashSession) starts on the sessions
+ * pending to verify or close; everyone else on «Todas».
+ */
+function defaultStatusFilter(): CashSessionStatusFilter {
+  return !access.canOpenSession.value && access.canAuditSessions.value ? 'SUBMITTED' : 'ALL'
+}
+const statusFilter = ref<CashSessionStatusFilter>(defaultStatusFilter())
 const registerFilter = ref<string | null>(null)
 const sessionsPage = ref(1)
 watch([statusFilter, registerFilter], () => {
@@ -187,7 +195,7 @@ watch(identityScope, () => {
   declareComparison.value = null
   verifyComparison.value = null
   ownShiftDefaulted = false
-  statusFilter.value = 'ALL'
+  statusFilter.value = defaultStatusFilter()
   registerFilter.value = null
   sessionsPage.value = 1
   cortesOpen.value = false
@@ -307,6 +315,17 @@ const isOwnShift = computed<boolean | null>(() => {
 })
 
 const hasSelection = computed(() => Boolean(selectedSessionId.value))
+/**
+ * D2: without create:CashSession and no shift in focus there is nothing to
+ * open: the main column is the supervisor view (pending sessions, «Cortes»,
+ * register management) instead of «Abre tu turno».
+ */
+const supervisorHome = computed(() => !hasSelection.value && !access.canOpenSession.value)
+const canManageRegisters = computed(
+  () =>
+    access.canReadRegisters.value &&
+    (access.canCreateRegister.value || access.canUpdateRegister.value),
+)
 const detailLoaded = computed(() => Boolean(detailQuery.detail.value))
 const detailLoading = computed(() => hasSelection.value && detailQuery.isLoading.value)
 /** One failed detail read is told once, in the main column, with its Reintentar. */
@@ -340,7 +359,10 @@ const timelineInput = computed<CashTimelineInput>(() => {
 })
 
 const steps = computed(() => buildCashTimeline(timelineInput.value))
-const nextAction = computed(() => nextCashAction(timelineInput.value))
+/** The sticky bar and «Siguiente paso» only offer what this user can do (D2). */
+const nextAction = computed(() =>
+  supervisorHome.value ? null : nextCashAction(timelineInput.value),
+)
 const registerName = computed(
   () =>
     detailQuery.detail.value?.register?.name ??
@@ -350,6 +372,7 @@ const registerName = computed(
 
 function isPanelReachable(panelId: CashPanelId): boolean {
   if (panelId === 'recepcion') return access.canReadCustody.value
+  if (supervisorHome.value) return false
   // While a selected shift loads, keep what is open: it belongs to that shift.
   if (hasSelection.value && !detailLoaded.value) return true
   return steps.value.find((step) => step.id === panelId)?.reachable ?? false
@@ -357,7 +380,7 @@ function isPanelReachable(panelId: CashPanelId): boolean {
 
 const { openPanelId, openPanel, closePanel, togglePanel } = useCashWorkspace({
   isReachable: isPanelReachable,
-  initialPanelId: 'apertura',
+  initialPanelId: access.canOpenSession.value ? 'apertura' : null,
 })
 
 // Recipients are read only while the handover task is open (S6).
@@ -376,6 +399,13 @@ function toggleCortes() {
   cortesClosingId.value = null
   closePanel()
   cortesOpen.value = true
+}
+
+/** Phones stack the list below the main column: jump to it and move focus there. */
+function jumpToSessions() {
+  const heading = document.getElementById('cash-sessions-title')
+  heading?.scrollIntoView({ block: 'start' })
+  heading?.focus({ preventScroll: true })
 }
 
 function hideCortes() {
@@ -660,7 +690,7 @@ function viewClosing() {
       <!-- ── Side: «Tu turno» + the session list ───────────────────────── -->
       <template #side>
         <CashOwnShiftCard
-          v-if="access.canReadSessions.value || access.canOpenSession.value"
+          v-if="access.canOpenSession.value || (access.canReadSessions.value && ownShift)"
           :session="ownShift"
           :register-name="ownShift ? (registerNames[ownShift.registerId] ?? null) : null"
           :loading="ownShiftQuery.isLoading.value"
@@ -716,13 +746,27 @@ function viewClosing() {
               >
             </span>
           </template>
+          <template v-else-if="supervisorHome">
+            <StatusBadge label="Supervisión" tone="neutral" />
+            <span>Ninguna sesión seleccionada</span>
+          </template>
           <template v-else-if="!hasSelection">
             <StatusBadge label="Sin turno" tone="neutral" />
             <span>Aún no hay turno abierto</span>
           </template>
         </p>
         <h2 id="cash-shift-heading" class="cash-head-title" data-testid="cash-head-title">
-          {{ hasSelection ? (session ? registerName : 'Turno seleccionado') : 'Abre tu turno' }}
+          {{
+            hasSelection
+              ? session
+                ? registerName
+                : 'Turno seleccionado'
+              : supervisorHome
+                ? access.canAuditSessions.value
+                  ? 'Sesiones de la sucursal'
+                  : 'Elige una sesión'
+                : 'Abre tu turno'
+          }}
         </h2>
       </template>
 
@@ -838,7 +882,78 @@ function viewClosing() {
           />
         </section>
 
+        <!-- D2: no shift to open — the supervisor view instead of «Abre tu turno». -->
+        <section
+          v-if="supervisorHome && !cortesOpen"
+          class="cash-supervisor-home"
+          aria-labelledby="cash-shift-heading"
+          data-testid="cash-supervisor-home"
+        >
+          <div class="cash-empty-note">
+            <UIcon name="i-lucide-list-checks" class="size-5" aria-hidden="true" />
+            <p>
+              <strong>{{
+                access.canAuditSessions.value
+                  ? 'Elige una sesión por verificar o cerrar'
+                  : 'Elige una sesión de la lista'
+              }}</strong
+              ><br />
+              <span class="cash-meta-wrap">{{
+                access.canAuditSessions.value
+                  ? 'La lista empieza en «Por verificar o cerrar». Al elegir una sesión ves sus pasos: verificar el conteo, recibir entregas y cerrar la caja.'
+                  : 'Al elegir una sesión ves sus pasos y lo que puedes hacer en cada uno.'
+              }}</span>
+            </p>
+          </div>
+          <div class="cash-supervisor-actions">
+            <UButton
+              v-if="access.canReadSessions.value"
+              type="button"
+              class="cash-supervisor-jump min-h-11"
+              icon="i-lucide-list"
+              data-testid="cash-supervisor-sessions"
+              @click="jumpToSessions"
+            >
+              Ver sesiones
+            </UButton>
+            <UButton
+              v-if="access.canReadClosings.value"
+              type="button"
+              color="neutral"
+              variant="outline"
+              class="min-h-11"
+              icon="i-lucide-file-text"
+              data-testid="cash-supervisor-cortes"
+              @click="toggleCortes"
+            >
+              Ver cortes
+            </UButton>
+          </div>
+          <details
+            v-if="canManageRegisters"
+            class="cash-manage"
+            data-testid="cash-supervisor-manage"
+          >
+            <summary class="cash-manage-summary">Administrar cajas</summary>
+            <CashRegistersPanel
+              :registers="registers.registers.value"
+              :selected-register-id="null"
+              :can-create="access.canCreateRegister.value"
+              :can-update="access.canUpdateRegister.value"
+              :can-open="false"
+              :loading="registers.isLoading.value"
+              :error="registers.isError.value"
+              :creating="registers.creating.value"
+              :updating="registers.updating.value"
+              @create="handleCreateRegister"
+              @update="handleUpdateRegister"
+              @refresh="registers.refetch()"
+            />
+          </details>
+        </section>
+
         <CashTimeline
+          v-if="!supervisorHome"
           :steps="steps"
           :open-id="openPanelId"
           :label="hasSelection ? `Pasos del turno de ${registerName}` : 'Pasos para abrir tu turno'"
@@ -1167,7 +1282,7 @@ function viewClosing() {
               }}
             </span>
           </span>
-          <span v-if="pendingForMe > 0" class="cash-count" aria-hidden="true">{{ pendingForMe }}</span>
+          <span v-if="pendingForMe > 0" class="cash-pending-badge" aria-hidden="true">{{ pendingForMe }}</span>
           <UIcon name="i-lucide-chevron-right" class="size-4 shrink-0" aria-hidden="true" />
         </button>
 
@@ -1197,7 +1312,17 @@ function viewClosing() {
       </template>
 
       <!-- Phones: the next action in a sticky bar outside the scrolling content. -->
-      <template v-if="nextAction && nextAction.kind === 'primary' && nextAction.stepId" #bar>
+      <!-- Hidden while its task, or «Cortes», is already open (e.g. «Ver corte» over the corte). -->
+      <template
+        v-if="
+          nextAction &&
+          nextAction.kind === 'primary' &&
+          nextAction.stepId &&
+          openPanelId !== nextAction.stepId &&
+          !cortesOpen
+        "
+        #bar
+      >
         <UButton
           v-if="nextAction.alt"
           type="button"

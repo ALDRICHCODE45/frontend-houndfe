@@ -45,6 +45,14 @@ function submitted(wrapper) {
 }
 
 describe('CashCountForm', () => {
+  it('roots on its own form class, never the «Por recibir» badge class (D1 guard)', () => {
+    const wrapper = mountWithUApp(CashCountForm, { props: { channels: CHANNELS } })
+    const root = wrapper.get('[data-testid="cash-count-form"]')
+    expect(root.classes()).toContain('cash-count-form')
+    expect(root.classes()).not.toContain('cash-count')
+    expect(root.classes()).not.toContain('cash-pending-badge')
+  })
+
   it('renders one field per frozen channel and no expected/difference input', () => {
     const wrapper = mountWithUApp(CashCountForm, { props: { channels: CHANNELS } })
     expect(wrapper.find('[data-testid="cash-count-input-CASH"]').exists()).toBe(true)

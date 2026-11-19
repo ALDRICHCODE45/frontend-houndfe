@@ -196,7 +196,9 @@ const { rowProps } = useClickableRow<CashSession>(open, { focusable: false })
 <template>
   <section class="cash-list-section" data-testid="cash-sessions-panel">
     <header class="cash-list-header">
-      <h2 class="cash-list-title" data-testid="cash-sessions-title">{{ title }}</h2>
+      <h2 id="cash-sessions-title" class="cash-list-title" tabindex="-1" data-testid="cash-sessions-title">
+        {{ title }}
+      </h2>
       <p v-if="!canFilterByCashier" class="cash-list-subtitle" data-testid="cash-sessions-scope-own">
         Solo ves tus propias sesiones.
       </p>

@@ -1622,3 +1622,100 @@ describe('CashRegisterView · close, corte and Cortes (S5)', () => {
     expect(api.listClosings).not.toHaveBeenCalled()
   })
 })
+
+// D2: a supervisor without create:CashSession never lands on «Abre tu turno».
+describe('CashRegisterView · supervisor without opening permission (D2)', () => {
+  const MANAGER_GRANTS = [
+    'create:CashClosing',
+    'create:CashVerification',
+    'create:CashRegister',
+    'read:CashClosing',
+    'read:CashSessionAudit',
+    'read:CashHandover',
+    'read:CashSession',
+    'read:CashRegister',
+    'update:CashHandover',
+    'update:CashRegister',
+  ]
+
+  it('lands on the branch sessions pending to verify or close, with no opening dead end', async () => {
+    grant(MANAGER_GRANTS)
+    const { wrapper } = mountView()
+    await flush()
+    await flush()
+
+    expect(wrapper.find('[data-testid="cash-supervisor-home"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="cash-head-title"]').text()).not.toBe('Abre tu turno')
+    expect(wrapper.get('[data-testid="cash-head-title"]').text()).toBe('Sesiones de la sucursal')
+    expect(wrapper.find('[data-testid="cash-opening-forbidden"]').exists()).toBe(false)
+    expect(taskShown(wrapper, 'apertura')).toBe(false)
+    expect(wrapper.text()).not.toContain('Abrir caja')
+    // The phone sticky bar never offers an action the user cannot do.
+    expect(wrapper.find('[data-testid="cash-workspace-bar"]').exists()).toBe(false)
+    // Default list: pending to verify or close.
+    expect(api.listSessions).toHaveBeenCalledWith({ page: 1, limit: 25, status: ['SUBMITTED'] })
+    expect(
+      (wrapper.get('[data-testid="cash-sessions-status-SUBMITTED"]').element as HTMLInputElement)
+        .checked,
+    ).toBe(true)
+  })
+
+  it('reaches «Cortes» and register management from the supervisor view', async () => {
+    grant(MANAGER_GRANTS)
+    const { wrapper } = mountView()
+    await flush()
+
+    const home = wrapper.get('[data-testid="cash-supervisor-home"]')
+    expect(home.find('[data-testid="cash-registers-panel"]').exists()).toBe(true)
+    // Phones: the list sits below; the jump targets its focusable heading.
+    expect(home.find('[data-testid="cash-supervisor-sessions"]').exists()).toBe(true)
+    expect(wrapper.get('#cash-sessions-title').attributes('tabindex')).toBe('-1')
+    await home.get('[data-testid="cash-supervisor-cortes"]').trigger('click')
+    await flush()
+    expect(wrapper.find('[data-testid="cash-closings-list"]').exists()).toBe(true)
+  })
+
+  it('a selected session puts only the supervisor action in the sticky bar', async () => {
+    grant(MANAGER_GRANTS)
+    const { wrapper } = mountView()
+    await flush()
+    await selectFirstSession(wrapper)
+    await flush()
+
+    const bar = wrapper.get('[data-testid="cash-workspace-bar"]')
+    expect(bar.text()).toContain('Verificar conteo')
+    expect(bar.text()).not.toContain('Abrir caja')
+    expect(wrapper.find('[data-testid="cash-supervisor-home"]').exists()).toBe(false)
+
+    // «Cortes» open: the bar does not offer a shift task over it.
+    await wrapper.get('[data-testid="cash-closings-entry"]').trigger('click')
+    await flush()
+    expect(wrapper.find('[data-testid="cash-workspace-bar"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="cash-closings-hide"]').trigger('click')
+    await flush()
+    expect(wrapper.find('[data-testid="cash-workspace-bar"]').exists()).toBe(true)
+
+    // Once its task is open, the bar no longer repeats it.
+    await navigate(wrapper, 'verificacion')
+    expect(wrapper.find('[data-testid="cash-workspace-bar"]').exists()).toBe(false)
+  })
+
+  it('a cashier who can open still lands on the opening (control)', async () => {
+    const { wrapper } = mountView()
+    await flush()
+    expect(wrapper.find('[data-testid="cash-supervisor-home"]').exists()).toBe(false)
+    expect(taskShown(wrapper, 'apertura')).toBe(true)
+    expect(wrapper.get('[data-testid="cash-head-title"]').text()).toBe('Abre tu turno')
+  })
+
+  it('without the branch audit it asks to pick a session, with no opening CTA', async () => {
+    grant(['read:CashSession', 'read:CashRegister'])
+    const { wrapper } = mountView()
+    await flush()
+    expect(wrapper.find('[data-testid="cash-supervisor-home"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="cash-head-title"]').text()).toBe('Elige una sesión')
+    expect(wrapper.find('[data-testid="cash-workspace-bar"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="cash-opening-forbidden"]').exists()).toBe(false)
+    expect(api.listSessions).toHaveBeenCalledWith({ page: 1, limit: 25 })
+  })
+})
