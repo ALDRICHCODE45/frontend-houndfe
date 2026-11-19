@@ -16,8 +16,12 @@
  *   error lands on the card (and the field) it belongs to.
  * - The date line says who handed the cash over and from which register, and
  *   the sender's notes follow; a missing name or note shows nothing.
+ * - Direction A receive cards: the kind as a title, «Recibir $X», and the
+ *   GOV.UK error pattern per card — one summary (role="alert", focused) that
+ *   links to the field, the same message quietly under that field. A receipt
+ *   whose item leaves the pending list is announced in a polite status.
  */
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, useId, watch } from 'vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
@@ -62,6 +66,11 @@ const emit = defineEmits<{
   refresh: []
 }>()
 
+const uid = useId()
+const amountId = (item: CashCustodyItem) => `${uid}-${item.id}-amount`
+const notesId = (item: CashCustodyItem) => `${uid}-${item.id}-notes`
+const status = ref('')
+
 const receivedInputs = ref<Record<string, string>>({})
 const notesInputs = ref<Record<string, string>>({})
 
@@ -71,6 +80,10 @@ interface ReceiptError {
   message: string
 }
 const receiptErrors = ref<Record<string, ReceiptError>>({})
+
+function kindTitle(kind: CashCustodyItem['kind']): string {
+  return kind === 'FLOAT' ? 'Fondo para el siguiente turno' : 'Retiro a resguardo'
+}
 
 function kindLabel(kind: CashCustodyItem['kind']): string {
   return kind === 'FLOAT' ? 'Fondo' : 'Retiro'
@@ -123,14 +136,42 @@ function differs(item: CashCustodyItem): boolean {
 const floatDiffers = (item: CashEligibleFloatItem) =>
   item.receivedCents !== null && item.receivedCents !== item.declaredCents
 
+function fieldIdFor(item: CashCustodyItem, field: ReceiptError['field']): string {
+  return field === 'amount' ? amountId(item) : notesId(item)
+}
+
+/** «Recibir $X» names what will be recorded: the typed amount, else the declared one. */
+function receiveLabel(item: CashCustodyItem): string {
+  return `Recibir ${formatCentsMXN(typedCents(item) ?? item.declaredCents)}`
+}
+
 function setReceiptError(item: CashCustodyItem, error: ReceiptError | null) {
   const next = { ...receiptErrors.value }
   if (error) next[item.id] = error
   else delete next[item.id]
   receiptErrors.value = next
+  if (error) {
+    void nextTick(() => {
+      document.querySelector<HTMLElement>(`[data-receipt-summary="${item.id}"]`)?.focus()
+    })
+  }
 }
 
+// A receipt that settles with its item gone from the pending list succeeded.
+watch(
+  () => [props.receivingId, props.pendingHandovers] as const,
+  ([receiving, pending], [wasReceiving, wasPending]) => {
+    if (!wasReceiving || receiving) return
+    if (pending.some((item) => item.id === wasReceiving)) return
+    const item = wasPending.find((entry) => entry.id === wasReceiving)
+    if (!item) return
+    const cents = typedCents(item) ?? item.declaredCents
+    status.value = `Recibiste ${formatCentsMXN(cents)}: ${kindTitle(item.kind).toLowerCase()}.`
+  },
+)
+
 function submitReceive(item: CashCustodyItem) {
+  status.value = ''
   const raw = (receivedInputs.value[item.id] ?? '').trim()
   let receivedCents: number
   try {
@@ -166,6 +207,8 @@ function submitReceive(item: CashCustodyItem) {
       <!-- A page that already names this section keeps the heading for the outline only. -->
       <h2 class="cash-list-title" :class="{ 'sr-only': !showHeading }">Mi custodia pendiente</h2>
     </header>
+
+    <p class="sr-only" role="status" aria-live="polite" data-testid="cash-custody-status">{{ status }}</p>
 
     <EmptyState
       v-if="!allowed"
@@ -223,7 +266,7 @@ function submitReceive(item: CashCustodyItem) {
 
       <template v-else>
         <section class="flex flex-col gap-3" data-testid="cash-custody-pending">
-          <h3 class="text-sm font-semibold text-highlighted">Entregas por recibir</h3>
+          <h3 class="cash-legend">Entregas por recibir</h3>
           <p
             v-if="pendingHandovers.length === 0"
             class="cash-meta"
@@ -234,17 +277,20 @@ function submitReceive(item: CashCustodyItem) {
           <article
             v-for="item in pendingHandovers"
             :key="item.id"
-            class="cash-card"
+            class="cash-card cash-receive-card"
             :data-testid="`cash-custody-pending-${item.id}`"
           >
             <div class="cash-card-heading">
               <div class="flex min-w-0 flex-col items-start gap-1">
-                <StatusBadge
-                  :label="kindLabel(item.kind)"
-                  :tone="kindTone(item.kind)"
-                  aria-prefix="Tipo:"
-                  :data-testid="`cash-custody-kind-${item.id}`"
-                />
+                <span class="flex flex-wrap items-center gap-2">
+                  <span class="cash-strong">{{ kindTitle(item.kind) }}</span>
+                  <StatusBadge
+                    :label="kindLabel(item.kind)"
+                    :tone="kindTone(item.kind)"
+                    aria-prefix="Tipo:"
+                    :data-testid="`cash-custody-kind-${item.id}`"
+                  />
+                </span>
                 <p class="cash-meta cash-custody-dateline" :data-testid="`cash-custody-declared-at-${item.id}`">
                   Entregado el
                   <time :datetime="item.declaredAt">{{
@@ -278,37 +324,76 @@ function submitReceive(item: CashCustodyItem) {
             </p>
 
             <template v-else>
+              <div
+                v-if="receiptErrors[item.id]"
+                class="cash-err-summary mt-3"
+                role="alert"
+                tabindex="-1"
+                :data-receipt-summary="item.id"
+                :data-testid="`cash-custody-summary-${item.id}`"
+              >
+                <p class="cash-err-summary-title">
+                  <UIcon name="i-lucide-circle-alert" class="size-4 shrink-0" aria-hidden="true" />
+                  Revisa antes de recibir
+                </p>
+                <ul>
+                  <li>
+                    <a :href="`#${fieldIdFor(item, receiptErrors[item.id]!.field)}`">{{
+                      receiptErrors[item.id]!.message
+                    }}</a>
+                  </li>
+                </ul>
+              </div>
               <!-- Stacked full width on a phone; one row from sm, top-aligned so a
                    field's own error can grow below it without moving the others. -->
               <div
                 class="cash-form-content mt-3 grid gap-3 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_auto] sm:items-start"
                 :data-testid="`cash-custody-fields-${item.id}`"
               >
-                <UFormField label="Monto recibido (pesos)" :error="fieldError(item, 'amount')">
+                <div class="cash-field">
+                  <label :for="amountId(item)" class="cash-label">Monto recibido (pesos)</label>
                   <UInput
+                    :id="amountId(item)"
                     v-model="receivedInputs[item.id]"
                     inputmode="decimal"
-                    class="w-full"
+                    autocomplete="off"
+                    class="cash-money-input w-full"
+                    placeholder="0.00"
+                    :aria-invalid="fieldError(item, 'amount') ? 'true' : undefined"
+                    :aria-describedby="fieldError(item, 'amount') ? `${amountId(item)}-error` : undefined"
                     :data-testid="`cash-custody-received-input-${item.id}`"
-                  />
-                  <template #error="{ error }">
-                    <span role="alert" data-testid="cash-custody-local-error">{{ error }}</span>
-                  </template>
-                </UFormField>
-                <UFormField
-                  label="Notas de recepción"
-                  :required="differs(item)"
-                  :error="fieldError(item, 'notes')"
-                >
+                  >
+                    <template #leading><span aria-hidden="true">$</span></template>
+                  </UInput>
+                  <p
+                    v-if="fieldError(item, 'amount')"
+                    :id="`${amountId(item)}-error`"
+                    class="cash-inline-error"
+                    data-testid="cash-custody-local-error"
+                  >{{ fieldError(item, 'amount') }}</p>
+                </div>
+                <div class="cash-field">
+                  <label :for="notesId(item)" class="cash-label">
+                    Notas de recepción
+                    <span class="cash-meta">{{ differs(item) ? '(obligatoria)' : '(obligatoria si el monto difiere)' }}</span>
+                  </label>
                   <UInput
+                    :id="notesId(item)"
                     v-model="notesInputs[item.id]"
                     class="w-full"
+                    placeholder="Por ejemplo: faltó un billete de $50"
+                    :aria-invalid="fieldError(item, 'notes') ? 'true' : undefined"
+                    :aria-describedby="fieldError(item, 'notes') ? `${notesId(item)}-error` : undefined"
+                    :aria-required="differs(item) ? 'true' : undefined"
                     :data-testid="`cash-custody-received-notes-${item.id}`"
                   />
-                  <template #error="{ error }">
-                    <span role="alert" data-testid="cash-custody-local-error">{{ error }}</span>
-                  </template>
-                </UFormField>
+                  <p
+                    v-if="fieldError(item, 'notes')"
+                    :id="`${notesId(item)}-error`"
+                    class="cash-inline-error"
+                    data-testid="cash-custody-local-error"
+                  >{{ fieldError(item, 'notes') }}</p>
+                </div>
                 <!-- The spacer matches a field label, so the button lines up with the inputs. -->
                 <div v-if="canReceive" class="cash-custody-receive">
                   <UButton
@@ -319,7 +404,7 @@ function submitReceive(item: CashCustodyItem) {
                     :data-testid="`cash-custody-receive-${item.id}`"
                     @click="submitReceive(item)"
                   >
-                    Recibir
+                    {{ receiveLabel(item) }}
                   </UButton>
                 </div>
               </div>
@@ -342,7 +427,7 @@ function submitReceive(item: CashCustodyItem) {
         </section>
 
         <section class="flex flex-col gap-3" data-testid="cash-custody-float">
-          <h3 class="text-sm font-semibold text-highlighted">Fondos disponibles</h3>
+          <h3 class="cash-legend">Fondos disponibles</h3>
           <p
             v-if="eligibleFloat.length === 0"
             class="cash-meta"
@@ -398,7 +483,7 @@ function submitReceive(item: CashCustodyItem) {
             </p>
             <p
               v-if="advisoryFor(item)"
-              class="mt-2 text-xs text-warning"
+              class="cash-note cash-note--warning mt-2"
               :data-testid="`cash-custody-float-drawer-${item.id}`"
             >
               {{ advisoryFor(item) }}

@@ -1088,3 +1088,191 @@
   font-size: 0.9375rem;
   font-weight: 600;
 }
+
+/* ── Count, denominations, verification and receive (direction A, T3b) ───── */
+
+.cash-count-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.cash-channel-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem 1rem;
+}
+
+@media (min-width: 640px) {
+  .cash-channel-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .cash-channel-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.cash-denoms {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background: var(--hf-surface);
+}
+
+.cash-denoms[open] {
+  display: flex;
+}
+
+.cash-denoms-summary {
+  display: flex;
+  min-height: 44px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+  cursor: pointer;
+}
+
+.cash-denoms-summary:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+.cash-denom-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .cash-denom-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.cash-denom {
+  display: grid;
+  grid-template-columns: 5.5rem 5.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 44px;
+}
+
+.cash-denom-value {
+  color: var(--hf-heading);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cash-denom-value small {
+  display: block;
+  color: var(--hf-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.cash-denom-input input {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.cash-denom-sub {
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+  text-align: right;
+}
+
+.cash-denom-extra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.cash-denom-total {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--hf-border);
+}
+
+.cash-match {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--hf-success);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.cash-big-money {
+  color: var(--hf-heading);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+/* Original declaration: read-only facts; the neutral `.cash-original` surface. */
+.cash-original {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.cash-original-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+}
+
+.cash-original-lines {
+  display: grid;
+  margin: 0;
+  border-top: 1px solid var(--hf-border);
+}
+
+.cash-original-line {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--hf-border);
+  color: var(--hf-ink);
+}
+
+.cash-compare {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--hf-border);
+}
+
+.cash-compare-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.75rem 1.25rem;
+  margin: 0;
+}
+
+/* A difference is a warning said in words (faltante / sobrante), never red. */
+.cash-diff {
+  color: var(--hf-warning);
+}
+
+.cash-receive-card {
+  display: flex;
+  flex-direction: column;
+}

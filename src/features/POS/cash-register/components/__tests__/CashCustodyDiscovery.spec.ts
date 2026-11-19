@@ -5,6 +5,7 @@
 // WITHDRAWAL, received != declared validity, and the no-reservation copy.
 import { describe, expect, it } from 'vitest'
 import { mountWithUApp } from '@/test/mountWithUApp'
+import { nextTick, reactive } from 'vue'
 import CashCustodyDiscovery from '../CashCustodyDiscovery.vue'
 
 const PENDING = [
@@ -275,7 +276,10 @@ describe('CashCustodyDiscovery · pending card presentation (T3 CR1–CR5)', () 
 
     const card = wrapper.get('[data-testid="cash-custody-pending-h-1"]')
     const error = card.get('[data-testid="cash-custody-local-error"]')
-    expect(error.attributes('role')).toBe('alert')
+    // The card's summary is the alert; the inline message repeats it quietly.
+    const summary = card.get('[data-testid="cash-custody-summary-h-1"]')
+    expect(summary.attributes('role')).toBe('alert')
+    expect(summary.get('a').text()).toBe(error.text())
     const notes = card.get('[data-testid="cash-custody-received-notes-h-1"]')
     expect(notes.attributes('aria-invalid')).toBe('true')
     // The message is the note field's own error, linked to the field.
@@ -434,5 +438,56 @@ describe('CashCustodyDiscovery · display fields (T12)', () => {
     expect(wrapper.find('[data-testid="cash-custody-float-notes-f-1"]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('sender-1')
     expect(wrapper.text()).not.toContain('r-other')
+  })
+})
+
+describe('CashCustodyDiscovery · receive cards (direction A)', () => {
+  it('links the card summary to the field in error and focuses it', async () => {
+    const wrapper = mountWithUApp(CashCustodyDiscovery, {
+      props: { allowed: true, currentUserId: 'me', canReceive: true, pendingHandovers: PENDING },
+      attachTo: document.body,
+    })
+    await wrapper.get('[data-testid="cash-custody-received-input-h-1"]').setValue('abc')
+    await wrapper.get('[data-testid="cash-custody-receive-h-1"]').trigger('click')
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    const summary = wrapper.get('[data-testid="cash-custody-summary-h-1"]')
+    const input = wrapper.get('[data-testid="cash-custody-received-input-h-1"]')
+    expect(summary.get('a').attributes('href')).toBe(`#${input.attributes('id')}`)
+    expect(document.activeElement).toBe(summary.element)
+    expect(wrapper.findAll('[data-testid="cash-custody-local-error"]')).toHaveLength(1)
+  })
+
+  it('names the amount in the receive button and the kind in the card title', () => {
+    const wrapper = mountWithUApp(CashCustodyDiscovery, {
+      props: { allowed: true, currentUserId: 'me', canReceive: true, pendingHandovers: PENDING },
+    })
+    expect(wrapper.get('[data-testid="cash-custody-receive-h-1"]').text()).toMatch(/Recibir \$300\.00/)
+    expect(wrapper.get('[data-testid="cash-custody-pending-h-1"]').text()).toContain('Fondo para el siguiente turno')
+  })
+
+  it('announces a receipt once the in-flight item leaves the pending list', async () => {
+    const props = reactive({
+      allowed: true,
+      currentUserId: 'me',
+      canReceive: true,
+      pendingHandovers: PENDING,
+      receivingId: 'h-1',
+    })
+    const wrapper = mountWithUApp(CashCustodyDiscovery, { props })
+    props.pendingHandovers = [PENDING[1]]
+    props.receivingId = null
+    await nextTick()
+    const status = wrapper.get('[data-testid="cash-custody-status"]')
+    expect(status.attributes('role')).toBe('status')
+    expect(status.text()).toMatch(/Recibiste \$300\.00/)
+  })
+
+  it('stays silent when the receipt failed and the item is still pending', async () => {
+    const props = reactive({ allowed: true, currentUserId: 'me', canReceive: true, pendingHandovers: PENDING, receivingId: 'h-1' })
+    const wrapper = mountWithUApp(CashCustodyDiscovery, { props })
+    props.receivingId = null
+    await nextTick()
+    expect(wrapper.get('[data-testid="cash-custody-status"]').text()).toBe('')
   })
 })

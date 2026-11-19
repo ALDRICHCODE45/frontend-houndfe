@@ -8,6 +8,7 @@
 // speak in pesos for money and in pieces for quantities — never centavos.
 import { describe, expect, it } from 'vitest'
 import { mountWithUApp } from '@/test/mountWithUApp'
+import { nextTick, reactive } from 'vue'
 import CashCountForm from '../CashCountForm.vue'
 
 const CHANNELS = [
@@ -246,10 +247,102 @@ describe('CashCountForm · no error before the person types (T4)', () => {
     const wrapper = mountWithUApp(CashCountForm, { props: { channels: CHANNELS } })
     expect(wrapper.find('[data-testid^="cash-count-error-"]').exists()).toBe(false)
     expect(wrapper.find('.text-error').exists()).toBe(false)
-    // The submit stays unavailable while channels are missing.
-    expect(wrapper.get('[data-testid="cash-count-submit"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-testid="cash-count-error-summary"]').exists()).toBe(false)
 
     await setChannel(wrapper, 'CASH', '10.00')
     expect(wrapper.find('[data-testid="cash-count-error-PM:card"]').exists()).toBe(true)
+  })
+})
+
+// T3b (direction A): one error summary (role=alert, focused, linking to each
+// field) and the SAME message next to the field; no second small red line.
+describe('CashCountForm · error summary and inline errors', () => {
+  it('on a failed attempt shows one focused summary that links to every field in error', async () => {
+    const wrapper = mountWithUApp(CashCountForm, {
+      props: { channels: CHANNELS },
+      attachTo: document.body,
+    })
+    await submit(wrapper)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    const summary = wrapper.get('[data-testid="cash-count-error-summary"]')
+    expect(summary.attributes('role')).toBe('alert')
+    expect(document.activeElement).toBe(summary.element)
+    const links = summary.findAll('a')
+    expect(links).toHaveLength(2)
+    for (const [index, key] of ['CASH', 'PM:card'].entries()) {
+      const input = wrapper.get(`[data-testid="cash-count-input-${key}"]`)
+      expect(links[index].attributes('href')).toBe(`#${input.attributes('id')}`)
+      expect(input.attributes('aria-invalid')).toBe('true')
+      const inline = wrapper.get(`[data-testid="cash-count-error-${key}"]`)
+      expect(inline.text()).toBe(links[index].text())
+      expect(input.attributes('aria-describedby')).toContain(inline.attributes('id'))
+    }
+    expect(wrapper.find('[data-testid="cash-count-local-error"]').exists()).toBe(false)
+    expect(wrapper.emitted('submit')).toBeUndefined()
+  })
+
+  it('puts the denomination mismatch in the summary and next to the counter, once each', async () => {
+    const wrapper = mountWithUApp(CashCountForm, { props: { channels: CHANNELS } })
+    await setChannel(wrapper, 'CASH', '50.00')
+    await setChannel(wrapper, 'PM:card', '0')
+    await addDenomination(wrapper)
+    await setDenomination(wrapper, 0, { amount: '50.00', quantity: '2' })
+    await submit(wrapper)
+
+    const inline = wrapper.get('[data-testid="cash-count-denomination-error"]')
+    const summary = wrapper.get('[data-testid="cash-count-error-summary"]')
+    expect(summary.text()).toContain(inline.text())
+    expect(wrapper.text().split(inline.text())).toHaveLength(3)
+  })
+
+  it('shows the server error inside the summary, not as a loose line', () => {
+    const wrapper = mountWithUApp(CashCountForm, {
+      props: { channels: CHANNELS, errorMessage: 'La sesión ya no está congelada.' },
+    })
+    const summary = wrapper.get('[data-testid="cash-count-error-summary"]')
+    expect(summary.get('[data-testid="cash-count-error"]').text()).toBe(
+      'La sesión ya no está congelada.',
+    )
+  })
+
+  it('counts by denomination: piece inputs per bill and coin, subtotal and a total that must match Efectivo', async () => {
+    const wrapper = mountWithUApp(CashCountForm, { props: { channels: CHANNELS } })
+    await setChannel(wrapper, 'CASH', '1200.00')
+    await setChannel(wrapper, 'PM:card', '0')
+    await wrapper.get('[data-testid="cash-count-denom-100000"]').setValue('1')
+    await wrapper.get('[data-testid="cash-count-denom-10000"]').setValue('2')
+
+    expect(wrapper.get('[data-testid="cash-count-denom-subtotal-10000"]').text()).toMatch(/200[.,]00/)
+    expect(wrapper.get('[data-testid="cash-count-denomination-sum"]').text()).toMatch(/1,200[.,]00/)
+    expect(wrapper.get('[data-testid="cash-count-denomination-match"]').text()).toMatch(
+      /Coincide con Efectivo/,
+    )
+    await submit(wrapper)
+    expect(submitted(wrapper)[0].denominations).toEqual([
+      { denominationCents: 100000, quantity: 1 },
+      { denominationCents: 10000, quantity: 2 },
+    ])
+  })
+
+  it('merges the $20 bill and the $20 coin into one denomination on the wire', async () => {
+    const wrapper = mountWithUApp(CashCountForm, { props: { channels: CHANNELS } })
+    await setChannel(wrapper, 'CASH', '60.00')
+    await setChannel(wrapper, 'PM:card', '0')
+    await wrapper.get('[data-testid="cash-count-denom-2000-billete"]').setValue('2')
+    await wrapper.get('[data-testid="cash-count-denom-2000-moneda"]').setValue('1')
+    await submit(wrapper)
+    expect(submitted(wrapper)[0].denominations).toEqual([{ denominationCents: 2000, quantity: 3 }])
+  })
+
+  it('announces a sent count through a polite status once the submit settles without error', async () => {
+    const props = reactive({ channels: CHANNELS, submitting: true, successLabel: 'Declaración enviada.' })
+    const wrapper = mountWithUApp(CashCountForm, { props })
+    props.submitting = false
+    await nextTick()
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    const status = wrapper.get('[data-testid="cash-count-status"]')
+    expect(status.attributes('role')).toBe('status')
+    expect(status.text()).toBe('Declaración enviada.')
   })
 })
