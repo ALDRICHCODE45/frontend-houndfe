@@ -15,3 +15,4 @@ Redesign of the whole Caja section (registers, opening, shift workspace, movemen
 
 ## Log
 - L1 Owner 2026-11-18: see S1 (verbatim).
+- L2 Owner chose «Sí, resincronizar y diseñar (recomendado)»: re-sync design/system.md from src/assets/main.css before the directions.
