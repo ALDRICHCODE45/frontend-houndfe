@@ -11,7 +11,7 @@ Staff can make a pay-in-store hold expire now (same effect as the automatic expi
 ## Tasks
 - T1 | S2, S4 | coordination | chatbot: current bot messages on deadline change / expiry; backend: manual expire endpoint, permission, customer notice
 - T2 | S2–S4 | worker | FE: «Vencer apartado ahora» (confirm dialog), dual state «Venta cancelada · Plazo vencido» in list and detail
-- T3 | S1–S4 | parent | suite, build, live check, merge
+- T3 | S1–S4 | parent | done (merged) | suite, build, live check, merge
 
 ## Log
 - L1 Owner 2026-11-18: see S1 (verbatim).
@@ -21,3 +21,4 @@ Staff can make a pay-in-store hold expire now (same effect as the automatic expi
 - L5 Backend (BE main 75a754b3, independent verify PASS, live on dev :3003; contract handoff 24 §6): POST /sales/:id/hold/expire {expectedVersion}, Idempotency-Key required, update:Sale; returns the sale detail + outcome CANCELLED (unpaid → HOLD_EXPIRED, canceledBy = the user) | REVIEW (payment or pending receipt → stage 2 + SALE_HOLD_REVIEW) | SETTLED (paid, closed without notices). Errors: SALE_NOT_FOUND 404, SALE_NOT_PAY_IN_STORE 409, HOLD_ALREADY_CLOSED 409, SALE_HOLD_NOT_EDITABLE 409, HOLD_VERSION_CONFLICT 409, IDEMPOTENCY_KEY_REQUIRED 400, IDEMPOTENCY_KEY_CONFLICT 409 (replay returns the first response). Show the button only when paymentIntent IN_STORE, status CONFIRMED, stage < 2 and the sale is not fully paid. Cancelled sales keep `hold`; hold.expiredAt (= canceledAt) only when cancelled by expiry. Dev: A-202611-000077 has a live hold; REVIEW scenario on request.
 - L6 «Vencer apartado ahora» done (worker mwmrox6x-1a-jjwm): sales 2129 tests; dialog «¿Vencer el apartado ahora?» confirm «Vencer apartado»; toasts per outcome; «Venció el …» in the cancellation card. Behaviour change: a partly paid hold at stage < 2 now shows the card (read-only line «… · tiene un pago registrado» + expire button) for update:Sale users. Next: live check on dev with A-202611-000077.
 - L7 Live check on DEV: sort select «Ordenar: Más recientes» PASS («Orden personalizado» not reachable from the UI; unit-tested); #80 (partial) expire → 200 REVIEW, «Apartado vencido · revisar»; #79 (unpaid) expire → 200, «Venta cancelada» + «Plazo vencido», «Venció el mié 18 nov, 18:02», «Cancelada por Manager Centro»; list (status CANCELED) shows both. Fixed: Pago cell badges wrap (sale-pay-cell). Left as is: «Deuda» declares enableSorting but has no header control on purpose (existing test: the backend only orders debt via «Mayor deuda primero»). Dev data: #79 CANCELED HOLD_EXPIRED (customer notice sent), #80 stage 2 REVIEW.
+- L8 Final suite: 1040 files / 17734 tests, eslint 0, build 0. Assess medium, review not due. Merged --no-ff into local main (owner pushes).
