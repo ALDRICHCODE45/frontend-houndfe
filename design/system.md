@@ -1,20 +1,21 @@
 # HoundFe design system snapshot
 
-Re-synced from the project sources on 2026-11-04; table rules re-synced on 2026-11-07 (premium tables). Every value below was read from the named source `path`; nothing is invented. Offline artboards use only these tokens plus `transparent`, `currentColor` and `color-mix` of them.
+Re-synced from the project sources on 2026-11-18 (Geist and Lucide bundled locally, placeholder ink, card slot, `--ui-text-inverted`, Caja theme boundaries); earlier syncs 2026-11-04 and 2026-11-07 (premium tables). Every value below was read from the named source `path`; nothing is invented. Offline artboards use only these tokens plus `transparent`, `currentColor` and `color-mix` of them.
 
 ## Sources
-- `src/core/shared/design-system/houndfe-theme.css`: authoritative `--hf-*` colors (light and `.dark`), font stack, card/control radius, control height.
+- `src/core/shared/design-system/houndfe-theme.css`: authoritative `--hf-*` colors (light and `.dark`), font stack, card/control radius, control height. The same values are declared on `.hf-theme`, `.hf-shell-toast`, `.cash-visual` and `.cash-workspace` (dark: the same selectors under `.dark`), so the Caja roots carry the HF roles on their own.
 - `src/core/shared/design-system/houndfe-ui.css`: the `.hf-ui` semantic adapter (Nuxt `--ui-*` aliases), primary pairing, fields, focus, page header, table surface and table layout (widths, pinned edge, resize handle, header grip and ⋯, drag, density, «Columnas» panel, saved cue, bulk bar, totals, views), status badge, row actions, empty state, skeleton.
 - `src/core/shared/components/DataTable/` (`AppDataTable.vue`, `columnLayout.utils.ts`, `tableLayout.ts`, `DataTableToolbar.vue`, `README.md`) and `src/core/shared/composables/` (`useTablePreferences.ts`, `useTableViews.ts`): default widths, shrink-to-fit, column menu, density presets, persisted layout and views.
 - `src/core/shared/design-system/hf-toast.css`: toast geometry and tones (colors come from `--hf-*` through the `--shell-*` aliases).
-- `src/assets/main.css`: Coco shade scales, legacy brand vocabulary, radius scale, `--font-sans`.
-- `vite.config.ts`: Nuxt UI color mapping and component slot defaults.
+- `src/assets/main.css`: Geist imports (`@fontsource/geist` 400, 500, 600, 700; local, `font-display: swap`), Coco shade scales, legacy brand vocabulary, radius scale, `--font-sans`, root `font-feature-settings`.
+- `vite.config.ts`: Nuxt UI color mapping, component slot defaults, and the `localIcons()` plugin (Lucide from `@iconify-json/lucide`, no Iconify API request).
+- `src/app/layouts/styles/unified-shell.css`: the `--shell-shadow*` values used by the toast.
 - `docs/design-system.md`, section Patrones: component rules.
 
 Legacy `coco-*` scales are compatibility surfaces. New work uses `--hf-*`.
 
 ## Colors: HF semantic roles
-Source: `src/core/shared/design-system/houndfe-theme.css` (23 tokens; light on `.hf-theme`, dark on `.dark .hf-theme`).
+Source: `src/core/shared/design-system/houndfe-theme.css` (23 tokens; light on `.hf-theme` / `.cash-visual` / `.cash-workspace` / `.hf-shell-toast`, dark on the same under `.dark`).
 
 | Token | Light | Dark | Usage |
 |---|---|---|---|
@@ -52,7 +53,7 @@ Derived (all in `houndfe-ui.css`):
 
 ## Colors: Nuxt UI mapping and legacy
 - Nuxt UI roles, `vite.config.ts` (4): primary `coco`, secondary `coco-navy`, neutral `coco-neutral`, action `coco-gold`.
-- Nuxt semantic aliases inside `.hf-ui`, `houndfe-ui.css` (16 `--ui-*`): `--ui-primary` = `--hf-action`; `--ui-error` = `--hf-danger`; `--ui-warning` = `--hf-warning`; `--ui-text-highlighted` = `--hf-heading`; `--ui-text` = `--hf-ink`; `--ui-text-toned` and `--ui-text-muted` = `--hf-muted`; `--ui-text-dimmed` = muted 70% over surface; `--ui-bg` and `--ui-bg-elevated` = `--hf-surface`; `--ui-bg-muted` and `--ui-bg-accented` = `--hf-surface-muted`; `--ui-border` and `--ui-border-muted` = `--hf-border`; `--ui-border-accented` = muted 45% over border; `--ui-radius` = `--hf-radius-control`.
+- Nuxt semantic aliases inside `.hf-ui`, `houndfe-ui.css` (17 `--ui-*`; `--ui-text-inverted` = `--hf-on-action` on `.bg-primary` and `.hf-primary-control`, so text on a solid primary follows the pair in both themes): `--ui-primary` = `--hf-action`; `--ui-error` = `--hf-danger`; `--ui-warning` = `--hf-warning`; `--ui-text-highlighted` = `--hf-heading`; `--ui-text` = `--hf-ink`; `--ui-text-toned` and `--ui-text-muted` = `--hf-muted`; `--ui-text-dimmed` = muted 70% over surface; `--ui-bg` and `--ui-bg-elevated` = `--hf-surface`; `--ui-bg-muted` and `--ui-bg-accented` = `--hf-surface-muted`; `--ui-border` and `--ui-border-muted` = `--hf-border`; `--ui-border-accented` = muted 45% over border; `--ui-radius` = `--hf-radius-control`.
 - Shade scales, `src/assets/main.css` (44 tokens, 11 shades each, 50 to 950):
   - `--color-coco-*`: 500 `#2442f6` (50 `#e9edff`, 950 `#040718`).
   - `--color-coco-neutral-*`: 900 `#2c2434` (50 `#f5f4f6`, 950 `#16121a`).
@@ -61,8 +62,9 @@ Derived (all in `houndfe-ui.css`):
 - Legacy brand vocabulary, `src/assets/main.css` (4): `--brand-primary` = `--hf-action`, `--brand-action` = `--hf-gold` (fallback `#f6bb13`), `--brand-accent` = `--hf-active`, `--brand-danger` `#ef4444`. Plus `--light-surface-page` `#f5f4f6` (sales entry only).
 
 ## Typography
-- Family: `--hf-font` = `'Geist', ui-sans-serif, system-ui, sans-serif`, `houndfe-theme.css`. `--font-sans` = `'Geist', system-ui, sans-serif`, `src/assets/main.css`. Offline artboards declare Geist only as a family name with the `--hf-font` fallback; no remote font.
-- Weights (3 in use), `docs/design-system.md` Typography: 400 body; 500 medium UI labels and menu items; 600 names, titles, column headings, badges, money. 700 is not used for names or titles. `main.css` loads 400 to 700.
+- Family: `--hf-font` = `'Geist', ui-sans-serif, system-ui, sans-serif`, `houndfe-theme.css`. `--font-sans` = `'Geist', system-ui, sans-serif`, `src/assets/main.css`. `--shell-font` = `var(--hf-font, 'Geist', ui-sans-serif, system-ui, sans-serif)`, `unified-shell.css`. The app bundles Geist from `@fontsource/geist` (no Google Fonts request since 2026-11-18). Offline artboards declare Geist only as a family name with the `--hf-font` fallback; no remote font.
+- Weights (3 in use), `docs/design-system.md` Typography: 400 body; 500 medium UI labels and menu items; 600 names, titles, column headings, badges, money. 700 is not used for names or titles. `main.css` loads 400, 500, 600 and 700.
+- Placeholder ink (`houndfe-ui.css`, end of file): input/textarea placeholders, select `[data-slot='placeholder']` and empty date segments paint `--hf-muted` with `opacity: 1` on every screen (the Nuxt default measured 3.12:1 in light). A placeholder is never the label.
 - Sizes (9), `docs/design-system.md` Typography, `houndfe-ui.css`, Patrones:
   - Page title `clamp(1.75rem, 1.55rem + 0.6vw, 2rem)` (28 to 32px), 600, line-height 1.25, letter-spacing -0.045em (`.hf-page-title`).
   - Page subtitle 0.875rem / 1.5, max 62ch (`.hf-page-subtitle`).
@@ -83,8 +85,8 @@ Derived (all in `houndfe-ui.css`):
 
 ## Shadows
 - Table surface (`houndfe-ui.css`): `0 1px 2px color-mix(in srgb, var(--hf-ink) 5%, transparent)`. Use sparingly; soft borders over shadows.
-- Toast (`hf-toast.css`): `0 12px 32px -12px var(--shell-shadow), 0 2px 6px var(--shell-shadow-soft)`; the `--shell-shadow*` values are not defined in the sources read.
-- Card slot default (`vite.config.ts`): `shadow-sm` with `rounded-lg overflow-hidden bg-default`.
+- Toast (`hf-toast.css`): `0 12px 32px -12px var(--shell-shadow), 0 2px 6px var(--shell-shadow-soft)`; `--shell-shadow` `rgb(15 23 42 / 0.28)` and `--shell-shadow-soft` `rgb(15 23 42 / 0.06)` (`unified-shell.css`). Literal rgb values: artboards use the `color-mix` ink shadows instead.
+- Card slot default (`vite.config.ts`): `rounded-lg overflow-hidden shadow-sm bg-default`; `bg-default` resolves to `--hf-surface` through `.hf-ui` (`--background-color-default`), so cards follow light and dark. Form and detail sections prefer `HfSectionCard` (`docs/design-system.md`).
 - Pinned edge, only while scrolled (`houndfe-ui.css`): `inset -1px 0 0 var(--hf-border), 8px 0 8px -6px color-mix(in srgb, var(--hf-ink) 14%, transparent)` on the left edge, mirrored on the right; 150ms fade.
 - Floating layers (`houndfe-ui.css`): bulk bar `0 12px 32px color-mix(in srgb, var(--hf-ink) 16%, transparent)`; drag ghost `0 8px 24px ... 16% ...`; saved cue without toolbar `0 2px 8px ... 10% ...`.
 - Focus: `2px solid var(--hf-focus)`, offset 2px (inset -2px on clickable rows).
@@ -131,10 +133,10 @@ Source for all: `docs/design-system.md` Patrones, plus the CSS file named.
 - **Warning ink**: warning text and markers paint `--hf-warning`. `.hf-ui` binds `--ui-warning` to `--hf-warning` (like `--ui-error` to `--hf-danger`), so `text-warning`, `color="warning"` and `bg-warning/N` follow the token in both themes; `text-(--hf-warning)` is equivalent. Never a palette yellow or amber for text (`text-yellow-*`, `text-amber-*`; guarded by `hf-warning-token.spec.ts`): Nuxt's default yellow-500 is about 1.9:1 on white. Warning badges stay the StatusBadge warning tone (warning on `--hf-warning-soft`).
 - **Inline notice with icon** (`SaleAddressSourceNotice`, the driver «Sin ubicación guardada» line, the map tile notice): 12px, 14px icon aligned to the first line (`items-start`, icon `margin-top: 1px`), so a wrapped line on 390px keeps the icon beside its first line. Warning (`--hf-warning`, 600) when the user should act or know the data moved on; muted 400 when it only explains a fallback.
 - **Map canvas** (`AddressMapPicker`): 224px high, 12px radius, `--hf-border`; the Leaflet container background is `--hf-surface-muted` (overrides Leaflet's fixed `#ddd`, which stayed light in dark mode when tiles failed). Tiles themselves are not themed. A tile failure keeps the canvas plus the muted notice «Parte del mapa no cargó.».
-- **Global**: Lucide-style inline icons; no emoji or external assets; same themed root (`hf-theme hf-ui`) for dialogs, sheets and menus; text always accompanies color; reduced motion respected.
+- **Global**: Lucide icons, bundled locally in the app (`localIcons()` in `vite.config.ts`, literal `i-lucide-*` names; guard `local-assets-guard.spec.ts`), inline SVG in artboards; no emoji or external assets; same themed root (`hf-theme hf-ui`) for dialogs, sheets and menus; text always accompanies color; reduced motion respected.
 
 ## Counts
-HF color roles 23 (x2 themes); derived mixes 6; Nuxt role mappings 4; `--ui-*` aliases 16; Coco shades 44; legacy brand 4 plus 1; font families 1 (2 declarations); weights 3; sizes 9; spacing steps 6; radius 2 HF plus 6 scale; shadows 3 plus focus ring.
+HF color roles 23 (x2 themes); derived mixes 6; Nuxt role mappings 4; `--ui-*` aliases 17; Coco shades 44; legacy brand 4 plus 1; font families 1 (3 declarations: `--hf-font`, `--font-sans`, `--shell-font`); weights 4 loaded, 3 in use; sizes 9; spacing steps 6; radius 2 HF plus 6 scale; shadows 3 plus 2 shell shadow values plus focus ring.
 
 ## Artboard self-check
 List colors and font families used; allowed: the tokens above, `transparent`, `currentColor`, `color-mix` of these tokens. Check both themes, focus ring, 390px behavior of mobile patterns, and no external requests.

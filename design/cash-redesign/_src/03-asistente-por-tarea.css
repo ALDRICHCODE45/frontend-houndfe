@@ -1,0 +1,31 @@
+/* C · task assistant layout */
+.c-app{grid-template-rows:56px 56px 1fr}
+.sbar{display:flex;align-items:center;gap:16px;padding:0 24px;background:var(--hf-surface);border-bottom:1px solid var(--hf-border);white-space:nowrap}
+.sb-sep{width:1px;height:24px;background:var(--hf-border)}
+.sb-btn{min-height:40px}
+.c-main{overflow:auto;padding:32px 24px 96px}
+.c-col{width:880px;margin:0 auto;display:grid;gap:16px;align-content:start}
+.hero-c{display:grid;gap:8px;padding:24px;border-radius:12px;background:var(--hf-surface);border:1px solid var(--hf-active);margin-top:8px}
+.hero-c.wait{border-color:var(--hf-border);background:var(--hf-surface-muted)}
+.next-k{color:var(--hf-muted);font-size:12px;font-weight:600}
+.c-next-t{color:var(--hf-heading);font-size:22px;font-weight:600;letter-spacing:-0.02em}
+.c-next-d{color:var(--hf-ink);max-width:62ch}
+.btn-lg{min-height:52px;padding:0 24px;font-size:15px}
+.c-h{margin-top:8px;color:var(--hf-muted);font-size:13px;font-weight:600}
+.tlist{display:grid;border:1px solid var(--hf-border);border-radius:12px;overflow:hidden;background:var(--hf-surface)}
+.tlist li+li{border-top:1px solid var(--hf-border)}
+.trow{display:flex;align-items:center;gap:16px;width:100%;min-height:64px;padding:10px 16px;border:0;background:transparent;text-align:left;cursor:pointer}
+.trow:hover{background:var(--row-hover)}
+.trow:focus-visible{outline-offset:-2px}
+.tr-ic{display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:8px;background:var(--hf-surface-muted);color:var(--hf-heading)}
+.tr-t{font-weight:600;color:var(--hf-heading)}
+.trow-later .tr-t,.trow-idle .tr-t{font-weight:500;color:var(--hf-ink)}
+.c-task-h{display:grid;gap:4px}
+.c-panel{padding:24px;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:12px}
+/* larger money entry in this direction */
+.c-panel .money-input .input{min-height:52px;font-size:18px}
+.c-panel .denom .input{min-height:48px;font-size:16px}
+.c-panel .btn-primary{min-height:52px;padding:0 24px;font-size:15px}
+.sbar>.meta{min-width:0;overflow:hidden;text-overflow:ellipsis;flex-shrink:1}
+.sbar>.btn,.sbar>.row{flex-shrink:0}
+.sbar>.sb-lbl{flex-shrink:0;overflow:visible}

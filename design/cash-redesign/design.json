@@ -1,0 +1,35 @@
+{
+  "title": "Caja · rediseño completo",
+  "brief": "Rediseño de toda la sección Caja del punto de venta (es-MX): inicio con el turno seleccionado por defecto, apertura en un solo lugar con confirmación explícita del fondo, entradas y salidas, conteo ciego con denominaciones, verificación por otra persona, entrega de efectivo y recepción, liberar cajón, cierre por supervisor y corte con PDF. Mismo backend y reglas (pesos en pantalla, centavos en la red, permisos por acción). Tres direcciones interactivas con controles de demostración (persona, momento del turno, tema) y un tablero de móvil 390 y estados para la recomendada. Datos de demostración, no de un cliente real. Investigación en BRIEF.md.",
+  "feature": "odd/tasks/cash-redesign.md",
+  "artboards": [
+    {
+      "file": "01-turno-linea-de-tiempo.html",
+      "title": "A · Turno como línea de tiempo (recomendada)",
+      "tradeoff": "Gana orientación: el turno completo (abrir → corte) se ve como una línea con quién hace cada paso, el siguiente paso arriba y cada tarea se abre en su lugar sin perder el contexto; lo mismo sirve en móvil como lista vertical. Pierde densidad: los formularios quedan en una columna central más angosta (canales en 2 columnas) y los pasos ya hechos ocupan alto; la lista de sesiones del supervisor es corta (no escala a muchas cajas sin búsqueda).",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "02-tablero-de-caja.html",
+      "title": "B · Tablero de caja",
+      "tradeoff": "Gana vista general: una tarjeta por tarea con su estado, una sola acción principal arriba y, para el supervisor, la sucursal con lo pendiente por caja. Pierde continuidad: cada tarea se abre en un panel lateral que tapa el tablero, nueve tarjetas pesan lo mismo visualmente y el orden del turno se explica aparte («Cómo avanza tu turno») en vez de verse en la estructura.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "03-asistente-por-tarea.html",
+      "title": "C · Asistente por tarea",
+      "tradeoff": "Gana foco y entrada cómoda: una tarea a la vez a todo el ancho, importes grandes (52px), barra de estado delgada con el siguiente paso siempre visible; ideal para tablet o mostrador táctil. Pierde contexto: para ver otra tarea hay que volver a la lista, el supervisor no ve varias cajas a la vez y lo hecho queda en una lista secundaria.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "04-movil-y-estados.html",
+      "title": "A · Móvil 390 y estados",
+      "tradeoff": "Muestra la dirección A en 390 px (turno, apertura con errores, conteo ciego, cierre, por recibir, corte) y los estados cargando, sin cajas, sin turno, error, sin permiso, ventana ciega y bloqueado. Es estático: el recorrido interactivo está en 01; las tablas del corte se desplazan en horizontal en 390 en vez de apilarse.",
+      "width": 1440,
+      "height": 3840
+    }
+  ]
+}
