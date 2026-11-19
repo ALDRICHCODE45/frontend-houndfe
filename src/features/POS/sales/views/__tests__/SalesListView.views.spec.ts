@@ -231,6 +231,39 @@ describe('SalesListView — saved views', () => {
     expect(wrapper.get('[data-testid="sales-sort-select"]').text()).toContain('Mayor deuda primero')
   })
 
+  // Owner bug: the sort select went blank after «Restablecer» or a header sort it has no option for.
+  it('shows the backend default «Más recientes» when nothing is sorted', async () => {
+    const wrapper = mountList()
+    await flushPromises()
+    state.sorting.value = []
+    await nextTick()
+
+    const select = wrapper.get('[data-testid="sales-sort-select"]')
+    expect(select.text()).toContain('Más recientes')
+    expect(select.text()).not.toContain('Orden personalizado')
+  })
+
+  it.each([
+    ['a header sort with no option (debt ascending)', [{ id: 'debtCents', desc: false }]],
+    ['a column the select does not offer (folio)', [{ id: 'folio', desc: true }]],
+  ])('says «Orden personalizado» for %s instead of a blank box', async (_case, sorting) => {
+    const wrapper = mountList()
+    await flushPromises()
+    state.sorting.value = sorting
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="sales-sort-select"]').text()).toContain('Orden personalizado')
+  })
+
+  it('labels the sort select «Ordenar:» on screen', async () => {
+    const wrapper = mountList()
+    await flushPromises()
+    const select = wrapper.get('[data-testid="sales-sort-select"]')
+    const label = wrapper.get('[data-testid="sales-sort-label"]')
+    expect(label.text()).toBe('Ordenar:')
+    expect(label.attributes('for')).toBe(select.attributes('id'))
+  })
+
   it('reopens on the last view with its status filter', async () => {
     const first = mountList()
     await flushPromises()

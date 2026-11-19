@@ -5,7 +5,12 @@
 import { isAxiosError } from 'axios'
 import { MEXICO_CITY_TIME_ZONE } from '@/core/shared/utils/mexicoCityCalendar'
 import { SALE_PAYMENT_STATUS, SALE_STATUS } from '../constants/sale.constants'
-import type { SaleHold, SalePaymentStatus, SaleStatus } from '../interfaces/sale.types'
+import type {
+  SaleHold,
+  SaleHoldExpireOutcome,
+  SalePaymentStatus,
+  SaleStatus,
+} from '../interfaces/sale.types'
 
 export interface SaleHoldDisplayOptions {
   /** Sucursal IANA zone; defaults to Mexico City (the app's zone). */
@@ -150,4 +155,156 @@ const RELOAD_CODES: ReadonlySet<SaleHoldErrorCode> = new Set([
 /** The sale changed under the user: refetch the detail (and list) before retrying. */
 export function saleHoldErrorNeedsReload(code: SaleHoldErrorCode): boolean {
   return RELOAD_CODES.has(code)
+}
+
+// ─── «Vencer apartado ahora»: POST /sales/:id/hold/expire (§6) ──────────────
+
+/**
+ * §6 button rule (the caller adds `update:Sale`): a pay-in-store hold on a CONFIRMED sale, not yet
+ * expired (`stage < 2`) and not fully paid (CREDIT or PARTIAL).
+ */
+export function canExpireSaleHold(sale: SaleHoldSubject): sale is SaleHoldSubject & { hold: SaleHold } {
+  return (
+    sale.hold != null
+    && sale.hold.paymentIntent === 'IN_STORE'
+    && sale.hold.stage < 2
+    && sale.status === SALE_STATUS.CONFIRMED
+    && (sale.paymentStatus === SALE_PAYMENT_STATUS.CREDIT || sale.paymentStatus === SALE_PAYMENT_STATUS.PARTIAL)
+  )
+}
+
+/**
+ * The card line: `saleHoldLine`, or, for a partly paid hold that can still be expired (the badge
+ * is gone after a payment, §1), «Apartado · vence {fecha} · tiene un pago registrado».
+ */
+export function saleHoldCardLine(sale: SaleHoldSubject, options: SaleHoldDisplayOptions = {}): string | null {
+  const line = saleHoldLine(sale, options)
+  if (line !== null || !canExpireSaleHold(sale)) return line
+  const expiry = formatSaleHoldExpiry(sale.hold.expiresAt, options)
+  return expiry ? `Apartado · vence ${expiry} · tiene un pago registrado` : 'Apartado · tiene un pago registrado'
+}
+
+/**
+ * What confirming does. The detail carries no transfer receipts, so an unpaid sale with a pending
+ * receipt reads as unpaid here; the server answers REVIEW then and the toast says so.
+ */
+export function saleHoldExpireDescription(sale: Pick<SaleHoldSubject, 'paymentStatus'>): string {
+  return sale.paymentStatus === SALE_PAYMENT_STATUS.PARTIAL
+    ? 'El apartado vence y la venta queda para revisar; no se cancela porque tiene un pago registrado.'
+    : 'La venta se cancela como plazo vencido y el cliente recibe el aviso.'
+}
+
+const OUTCOME_TITLES: Record<SaleHoldExpireOutcome, string> = {
+  CANCELLED: 'Apartado vencido: la venta se canceló.',
+  REVIEW: 'Apartado vencido: la venta quedó para revisar.',
+  SETTLED: 'La venta ya estaba pagada; el apartado se cerró.',
+}
+
+/** Success toast by `outcome`; an unknown one still reports the expiry. */
+export function saleHoldExpireOutcomeTitle(outcome: SaleHoldExpireOutcome | null): string {
+  return outcome ? OUTCOME_TITLES[outcome] : 'Apartado vencido. Actualizamos la venta.'
+}
+
+/** «Venció el {fecha}» from `hold.expiredAt` (set only when the expiry cancelled the sale). */
+export function saleHoldExpiredLine(
+  hold: SaleHold | null | undefined,
+  options: SaleHoldDisplayOptions = {},
+): string | null {
+  if (!hold?.expiredAt) return null
+  const when = formatSaleHoldExpiry(hold.expiredAt, options)
+  return when ? `Venció el ${when}` : null
+}
+
+export const SALE_HOLD_EXPIRE_ERROR_CODES = [
+  'HOLD_VERSION_CONFLICT',
+  'HOLD_ALREADY_CLOSED',
+  'SALE_NOT_PAY_IN_STORE',
+  'SALE_HOLD_NOT_EDITABLE',
+  'SALE_NOT_FOUND',
+  'IDEMPOTENCY_KEY_REQUIRED',
+  'IDEMPOTENCY_KEY_CONFLICT',
+  'IDEMPOTENCY_KEY_IN_FLIGHT',
+  'FORBIDDEN',
+  'VALIDATION',
+  'NETWORK',
+  'UNKNOWN',
+] as const
+
+export type SaleHoldExpireErrorCode = (typeof SALE_HOLD_EXPIRE_ERROR_CODES)[number]
+
+const EXPIRE_DOMAIN_CODES: ReadonlySet<string> = new Set([
+  'HOLD_VERSION_CONFLICT',
+  'HOLD_ALREADY_CLOSED',
+  'SALE_NOT_PAY_IN_STORE',
+  'SALE_HOLD_NOT_EDITABLE',
+  'SALE_NOT_FOUND',
+  'IDEMPOTENCY_KEY_CONFLICT',
+  'IDEMPOTENCY_KEY_IN_FLIGHT',
+])
+
+/**
+ * Classifies a failed `saleApi.expireHold`. IDEMPOTENCY_KEY_REQUIRED comes as Nest's plain
+ * `Bad Request` with the code in `message`.
+ */
+export function decodeSaleHoldExpireError(error: unknown): SaleHoldExpireErrorCode {
+  if (!isAxiosError(error)) return 'UNKNOWN'
+  const response = error.response
+  if (!response || response.status >= 500) return 'NETWORK'
+  const data = response.data as { error?: unknown; message?: unknown } | undefined
+  const code = data?.error
+  if (typeof code === 'string' && EXPIRE_DOMAIN_CODES.has(code)) return code as SaleHoldExpireErrorCode
+  const message = data?.message
+  if (message === 'IDEMPOTENCY_KEY_REQUIRED' || (Array.isArray(message) && message.includes('IDEMPOTENCY_KEY_REQUIRED')))
+    return 'IDEMPOTENCY_KEY_REQUIRED'
+  if (response.status === 403) return 'FORBIDDEN'
+  if (response.status === 400) return 'VALIDATION'
+  return 'UNKNOWN'
+}
+
+const EXPIRE_ERROR_MESSAGES: Record<SaleHoldExpireErrorCode, string> = {
+  HOLD_VERSION_CONFLICT:
+    'Alguien cambió el plazo del apartado. Actualizamos la venta; revisa y vuelve a intentar.',
+  HOLD_ALREADY_CLOSED: 'El apartado ya estaba vencido o cerrado. Actualizamos la venta.',
+  SALE_NOT_PAY_IN_STORE: 'Esta venta no tiene un apartado para pagar en tienda.',
+  SALE_HOLD_NOT_EDITABLE: 'La venta ya no está activa, así que el apartado no se puede vencer. Actualizamos la venta.',
+  SALE_NOT_FOUND: 'No encontramos esta venta.',
+  IDEMPOTENCY_KEY_REQUIRED: 'No pudimos enviar la solicitud. Intenta de nuevo.',
+  IDEMPOTENCY_KEY_CONFLICT: 'Esa solicitud ya se usó con otros datos. Vuelve a intentarlo.',
+  IDEMPOTENCY_KEY_IN_FLIGHT: 'Todavía estamos procesando la solicitud. Espera un momento e intenta de nuevo.',
+  FORBIDDEN: 'No tienes permiso para vencer el apartado.',
+  VALIDATION: 'No pudimos vencer el apartado. Actualiza la venta e intenta de nuevo.',
+  NETWORK: 'No pudimos vencer el apartado. Revisa tu conexión e intenta de nuevo.',
+  UNKNOWN: 'No pudimos vencer el apartado. Intenta de nuevo.',
+}
+
+/** es-MX copy of an expiry error; a server string is never shown. */
+export function saleHoldExpireErrorMessage(code: SaleHoldExpireErrorCode): string {
+  return EXPIRE_ERROR_MESSAGES[code]
+}
+
+const EXPIRE_RELOAD_CODES: ReadonlySet<SaleHoldExpireErrorCode> = new Set([
+  'HOLD_VERSION_CONFLICT',
+  'HOLD_ALREADY_CLOSED',
+  'SALE_NOT_PAY_IN_STORE',
+  'SALE_HOLD_NOT_EDITABLE',
+  'SALE_NOT_FOUND',
+])
+
+/** The sale changed under the user: refetch the detail and lists. */
+export function saleHoldExpireNeedsReload(code: SaleHoldExpireErrorCode): boolean {
+  return EXPIRE_RELOAD_CODES.has(code)
+}
+
+const EXPIRE_UNCERTAIN_CODES: ReadonlySet<SaleHoldExpireErrorCode> = new Set([
+  'IDEMPOTENCY_KEY_IN_FLIGHT',
+  'NETWORK',
+  'UNKNOWN',
+])
+
+/**
+ * The result is uncertain (the server may have applied it): retry with the SAME key so a replay
+ * answers the first response. Any definite 4xx consumes nothing, so the next press takes a new key.
+ */
+export function saleHoldExpireKeepsAttempt(code: SaleHoldExpireErrorCode): boolean {
+  return EXPIRE_UNCERTAIN_CODES.has(code)
 }

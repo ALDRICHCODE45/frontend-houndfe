@@ -22,10 +22,22 @@ import PaymentsListSection from '../components/PaymentsListSection.vue'
 import DebtPaymentModal from '../components/DebtPaymentModal.vue'
 import AssignSellerSlideover from '../components/AssignSellerSlideover.vue'
 import SaleDetailCancellationCard from '../components/SaleDetailCancellationCard.vue'
+import {
+  SALE_HOLD_EXPIRED_EXPLANATION,
+  SALE_HOLD_EXPIRED_ICON,
+  SALE_HOLD_EXPIRED_TAG,
+  isSaleHoldExpiredCancel,
+} from '../utils/saleCancellation.utils'
 import SaleDetailRefundsCard from '../components/SaleDetailRefundsCard.vue'
 import SaleDetailHoldCard from '../components/SaleDetailHoldCard.vue'
 import SaleHoldDeadlineDialog from '../components/SaleHoldDeadlineDialog.vue'
-import { isSaleHoldLive, saleHoldLine } from '../utils/saleHold.utils'
+import {
+  canExpireSaleHold,
+  isSaleHoldLive,
+  saleHoldExpireDescription,
+  saleHoldExpireKeepsAttempt,
+  saleHoldLine,
+} from '../utils/saleHold.utils'
 import SettleRefundSlideover from '@/features/POS/refunds/components/SettleRefundSlideover.vue'
 import type { PendingRefundListRow } from '@/features/POS/refunds/composables/usePendingRefundsList'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
@@ -34,6 +46,7 @@ import EmptyState from '@/core/shared/components/EmptyState.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { useSaleCancellation } from '../composables/useSaleCancellation'
+import { useSaleHoldExpire } from '../composables/useSaleHoldExpire'
 import '../styles/sales-detail-visual.css'
 
 declare const useToast: () => {
@@ -100,12 +113,38 @@ const liveHold = computed(() => (sale.value && isSaleHoldLive(sale.value) ? sale
 // The card shows whenever the hold has something to say, «Apartado vencido · revisar» included
 // (a sale opened from the SALE_HOLD_REVIEW notice). «Cambiar plazo» only while the hold is
 // editable (§2: CONFIRMED + CREDIT; a PARTIAL sale gets SALE_HOLD_NOT_EDITABLE).
-const showHoldCard = computed(() => (sale.value ? saleHoldLine(sale.value) !== null : false))
+// hold-expire-now T2 (§6): «Vencer apartado ahora» while CONFIRMED, stage < 2 and not fully paid,
+// so a partly paid hold (no badge after a payment) still shows the card to whoever can expire it.
+const canExpireHold = computed(() => !!sale.value && canExpireSaleHold(sale.value) && canUpdateSale.value)
+const showHoldCard = computed(
+  () => (sale.value ? saleHoldLine(sale.value) !== null : false) || canExpireHold.value,
+)
 const canEditHold = computed(() => liveHold.value !== null && canUpdateSale.value)
 const holdDialogOpen = ref(false)
 
+const { expireHold, resetAttempt: resetExpireAttempt, isPending: expirePending } = useSaleHoldExpire(saleId)
+const expireModalOpen = ref(false)
+const expireDescription = computed(() => (sale.value ? saleHoldExpireDescription(sale.value) : ''))
+
+function openExpireModal() {
+  resetExpireAttempt()
+  expireModalOpen.value = true
+}
+
+// Success closes; a sale that changed under the user (reloaded) closes too, since the dialog no
+// longer describes it. An uncertain failure stays open so «Vencer apartado» retries the same key.
+async function handleConfirmExpire() {
+  const version = sale.value?.hold?.version
+  if (version === undefined) return
+  const result = await expireHold(version)
+  if (result.ok || (result.code !== 'PENDING' && !saleHoldExpireKeepsAttempt(result.code))) {
+    expireModalOpen.value = false
+  }
+}
+
 // T20: a cancelled sale opens read-only, with its cancellation and refunds.
 const isCanceled = computed(() => sale.value?.status === SALE_STATUS.CANCELED)
+const isHoldExpiredCancel = computed(() => !!sale.value && isSaleHoldExpiredCancel(sale.value))
 const canSettleRefunds = computed(() => authStore.userCan('update', 'SaleRefund'))
 
 // «Liquidar» reuses the refunds settle slideover. The row is rebuilt from the detail on every
@@ -387,10 +426,20 @@ watch(
                   <!-- A cancellation is neutral (design-system.md, Status badge). -->
                   <StatusBadge
                     v-if="isCanceled"
-                    label="Cancelada"
+                    :label="isHoldExpiredCancel ? 'Venta cancelada' : 'Cancelada'"
                     tone="neutral"
                     aria-prefix="Venta:"
                     data-testid="badge"
+                  />
+                  <!-- hold-expire-now S3: the deadline's cancel also says «Plazo vencido». -->
+                  <StatusBadge
+                    v-if="isHoldExpiredCancel"
+                    :label="SALE_HOLD_EXPIRED_TAG"
+                    tone="warning"
+                    urgent
+                    :icon="SALE_HOLD_EXPIRED_ICON"
+                    :aria-label="SALE_HOLD_EXPIRED_EXPLANATION"
+                    data-testid="badge-hold-expired"
                   />
                   <StatusBadge
                     v-if="!isCanceled"
@@ -620,7 +669,13 @@ watch(
             class="order-first lg:order-none"
             data-testid="sale-detail-section-hold"
           >
-            <SaleDetailHoldCard :sale="sale" :can-edit="canEditHold" @edit="holdDialogOpen = true" />
+            <SaleDetailHoldCard
+              :sale="sale"
+              :can-edit="canEditHold"
+              :can-expire="canExpireHold"
+              @edit="holdDialogOpen = true"
+              @expire="openExpireModal"
+            />
           </div>
           <div :class="sectionOrder.totals" class="lg:order-none" data-testid="sale-detail-section-totals">
             <SaleDetailTotalsCard
@@ -674,6 +729,18 @@ watch(
         :ui="{ content: 'hf-theme hf-ui hf-form-overlay sales-detail-portal' }"
         @update:open="cancelModalOpen = $event"
         @confirm="handleConfirmCancellation"
+      />
+      <ConfirmModal
+        :open="expireModalOpen"
+        title="¿Vencer el apartado ahora?"
+        :description="expireDescription"
+        confirm-label="Vencer apartado"
+        cancel-label="Volver"
+        confirm-color="error"
+        :loading="expirePending"
+        :ui="{ content: 'hf-theme hf-ui hf-form-overlay sales-detail-portal' }"
+        @update:open="expireModalOpen = $event"
+        @confirm="handleConfirmExpire"
       />
       <!-- Mounted on the first «Liquidar», so reading a sale never loads cash sessions. -->
       <SettleRefundSlideover

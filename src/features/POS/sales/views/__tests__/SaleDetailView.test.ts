@@ -171,6 +171,10 @@ vi.mock('../../components/PaymentsListSection.vue', () => ({
 // PCA-3: the view now installs the cancellation mutation at setup. Like every
 // other sale composable above, mock it here so this spec stays
 // framework-light (no QueryClient/VueQueryPlugin needed).
+// hold-expire-now T2: the detail also mounts «Vencer apartado ahora» (its own spec covers it).
+vi.mock('../../composables/useSaleHoldExpire', () => ({
+  useSaleHoldExpire: () => ({ expireHold: vi.fn(), resetAttempt: vi.fn(), isPending: computed(() => false) }),
+}))
 vi.mock('../../composables/useSaleCancellation', () => ({
   useSaleCancellation: () => ({
     cancelSale: vi.fn().mockResolvedValue(undefined),

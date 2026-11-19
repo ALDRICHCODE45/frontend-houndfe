@@ -24,6 +24,8 @@ import type {
   AssignSellerPayload,
   SetDueDatePayload,
   UpdateSaleHoldPayload,
+  ExpireSaleHoldPayload,
+  ExpireSaleHoldResponse,
   SaleComment,
   SaleCommentErrorCode,
   SaleCancellationRequest,
@@ -245,6 +247,28 @@ export const saleApi = {
       expectedVersion: payload.expectedVersion,
     })
     return parseSaleDetail(data)
+  },
+
+  // BE handoff 24 §6 «Vencer apartado ahora» (`update:Sale`): runs the sweep's decision now. The
+  // caller owns the `Idempotency-Key` (one per attempt, reused only to retry that attempt); the
+  // body is rebuilt so only `expectedVersion` reaches the wire. Answers the full sale detail plus
+  // `outcome`; an unknown outcome reads null (the effect already happened). Errors are rethrown
+  // unchanged for `decodeSaleHoldExpireError`.
+  async expireHold(
+    saleId: string,
+    payload: ExpireSaleHoldPayload,
+    idempotencyKey: string,
+  ): Promise<ExpireSaleHoldResponse> {
+    const { data } = await http.post<unknown>(
+      `/sales/${encodeURIComponent(saleId)}/hold/expire`,
+      { expectedVersion: payload.expectedVersion },
+      { headers: { 'Idempotency-Key': idempotencyKey } },
+    )
+    const outcome = (data as { outcome?: unknown } | null)?.outcome
+    return {
+      sale: parseSaleDetail(data),
+      outcome: outcome === 'CANCELLED' || outcome === 'REVIEW' || outcome === 'SETTLED' ? outcome : null,
+    }
   },
 
   async unassignShippingAddress(saleId: string): Promise<void> {

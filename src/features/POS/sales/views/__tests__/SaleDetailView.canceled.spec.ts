@@ -54,6 +54,10 @@ vi.mock('../../composables/useSaleComments', () => ({
 vi.mock('../../composables/useUpdatePaymentReference', () => ({
   useUpdatePaymentReference: () => ({ updateReference: vi.fn(), isPending: computed(() => false) }),
 }))
+// hold-expire-now T2: the detail also mounts «Vencer apartado ahora» (its own spec covers it).
+vi.mock('../../composables/useSaleHoldExpire', () => ({
+  useSaleHoldExpire: () => ({ expireHold: vi.fn(), resetAttempt: vi.fn(), isPending: computed(() => false) }),
+}))
 vi.mock('../../composables/useSaleCancellation', () => ({
   useSaleCancellation: () => ({ cancelSale: vi.fn(), isPending: computed(() => false) }),
 }))
@@ -175,6 +179,12 @@ describe('SaleDetailView — cancelled sale', () => {
     const badges = mountView().findAll('[data-testid="sale-detail-header"] .hf-status-badge')
     expect(badges.map((badge) => badge.text())).toEqual(['Cancelada'])
     expect(badges[0]!.attributes('data-tone')).toBe('neutral')
+  })
+
+  it('a staff cancellation has no «Plazo vencido» tag nor the expiry explanation', () => {
+    const wrapper = mountView()
+    expect(wrapper.text()).not.toContain('Plazo vencido')
+    expect(wrapper.find('[data-testid="sale-detail-cancel-explanation"]').exists()).toBe(false)
   })
 
   it('shows the cancellation: the date, the reason and who cancelled it', () => {

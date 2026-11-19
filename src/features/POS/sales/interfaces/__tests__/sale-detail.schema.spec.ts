@@ -192,6 +192,13 @@ describe('parseSaleDetail', () => {
     })
   })
 
+  // hold-expire-now L5: hold.expiredAt (= canceledAt) only when the expiry cancelled the sale.
+  it('keeps hold.expiredAt when the expiry cancelled the sale', () => {
+    const expired = { ...hold, stage: 2, expiredAt: '2026-11-19T18:30:00.000Z' }
+    expect(parseSaleDetail({ ...base, hold: expired }).hold).toEqual(expired)
+    expect(parseSaleDetail({ ...base, hold: { ...hold, expiredAt: null } }).hold?.expiredAt).toBeNull()
+  })
+
   it('reads a missing or null hold as null (older payload, POS sale)', () => {
     expect(parseSaleDetail(base).hold).toBeNull()
     expect(parseSaleDetail({ ...base, hold: null }).hold).toBeNull()

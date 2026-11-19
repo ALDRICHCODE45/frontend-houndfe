@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, useId, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
 import { AppDataTable, DataTableViews } from '@/core/shared/components/DataTable'
@@ -27,7 +27,7 @@ import { formatCentsMXN } from '../utils/currency.utils'
 import { extractFolioNumber } from '../utils/saleFolio.utils'
 import { isCanceledSale, saleDeliveryBadge, saleOpenDebtCents, salePaymentBadge } from '../utils/saleStatus.utils'
 import { saleHoldLine } from '../utils/saleHold.utils'
-import { saleRowCancelNote } from '../utils/saleCancellation.utils'
+import { SALE_HOLD_EXPIRED_ICON, saleRowCancelNote } from '../utils/saleCancellation.utils'
 import type { ConfirmedSaleRow } from '../interfaces/sale.types'
 import type { TableColumnTotal } from '@/core/shared/types/table.types'
 import { customerApi } from '@/features/POS/customers/api/customer.api'
@@ -147,7 +147,7 @@ const saleWhen = (sale: ConfirmedSaleRow) =>
 // BE handoff 24 §1: «Apartado · pagar en tienda · vence …» while the hold is live, else nothing.
 const holdLine = (sale: ConfirmedSaleRow) => saleHoldLine(sale)
 
-// BE handoff 24 §1: «Apartado vencido» next to «Cancelada» when the deadline sweep cancelled the sale.
+// hold-expire-now S3: a «Plazo vencido» tag next to «Cancelada» when the hold deadline cancelled the sale.
 const cancelNote = (sale: ConfirmedSaleRow) => saleRowCancelNote(sale)
 
 // «Canal»: the row's `channel` (GET /sales rows carry it, BE handoff 24 §1). Older payloads without
@@ -167,10 +167,18 @@ const SORT_OPTIONS = [
   { label: 'Mayor deuda primero', value: 'debtCents:desc' },
   { label: 'Creación reciente', value: 'createdAt:desc' },
 ]
+// The backend orders by confirmedAt desc when no sortBy is sent (after «Restablecer» or a view
+// without sorting), so the select says so instead of going blank.
+const DEFAULT_SORT_VALUE = 'confirmedAt:desc'
+// A header sort the select has no option for (folio, debt ascending…) shows this placeholder.
+const CUSTOM_SORT_PLACEHOLDER = 'Orden personalizado'
+const sortSelectId = useId()
 const sortValue = computed({
   get: () => {
     const first = sorting.value[0]
-    return first ? `${first.id}:${first.desc ? 'desc' : 'asc'}` : undefined
+    if (!first) return DEFAULT_SORT_VALUE
+    const value = `${first.id}:${first.desc ? 'desc' : 'asc'}`
+    return SORT_OPTIONS.some((option) => option.value === value) ? value : undefined
   },
   set: (value: string | undefined) => {
     if (!value) return
@@ -345,15 +353,20 @@ watch(() => filtersCtl.serializedState.value, () => {
 
               <div class="hidden h-5 w-px shrink-0 bg-default md:block" aria-hidden="true" />
 
-              <!-- Region 2 — sort (predefined orderings, backend-safe). -->
-              <USelect
-                v-model="sortValue"
-                :items="SORT_OPTIONS"
-                aria-label="Ordenar ventas"
-                class="w-56 shrink-0"
-                data-testid="sales-sort-select"
-                :ui="{ content: 'hf-theme hf-ui sales-list-portal' }"
-              />
+              <!-- Region 2 — sort (predefined orderings, backend-safe), with a visible «Ordenar:». -->
+              <div class="flex shrink-0 items-center gap-2">
+                <label :for="sortSelectId" class="sales-sort-label" data-testid="sales-sort-label">Ordenar:</label>
+                <USelect
+                  :id="sortSelectId"
+                  v-model="sortValue"
+                  :items="SORT_OPTIONS"
+                  :placeholder="CUSTOM_SORT_PLACEHOLDER"
+                  aria-label="Ordenar ventas"
+                  class="w-52"
+                  data-testid="sales-sort-select"
+                  :ui="{ content: 'hf-theme hf-ui sales-list-portal' }"
+                />
+              </div>
             </div>
           </template>
 
@@ -396,16 +409,23 @@ watch(() => filtersCtl.serializedState.value, () => {
           </template>
 
           <template #paymentStatus-cell="{ row }">
-            <StatusBadge
-              :data-testid="isCanceledSale(row.original) ? 'sale-canceled-status' : 'sale-payment-status'"
-              v-bind="salePaymentBadge(row.original)"
-            />
-            <span
-              v-if="cancelNote(row.original)"
-              class="sale-cancel-note"
-              data-testid="sale-cancel-reason"
-              :title="cancelNote(row.original)!.title"
-            >{{ cancelNote(row.original)!.label }}</span>
+            <div class="sale-pay-cell">
+              <StatusBadge
+                :data-testid="isCanceledSale(row.original) ? 'sale-canceled-status' : 'sale-payment-status'"
+                v-bind="salePaymentBadge(row.original)"
+              />
+              <StatusBadge
+                v-if="cancelNote(row.original)"
+                class="sale-cancel-note"
+                data-testid="sale-cancel-reason"
+                tone="warning"
+                urgent
+                :icon="SALE_HOLD_EXPIRED_ICON"
+                :label="cancelNote(row.original)!.label"
+                :aria-label="cancelNote(row.original)!.title"
+                :title="cancelNote(row.original)!.title"
+              />
+            </div>
           </template>
 
           <template #paymentMethods-cell="{ row }">
@@ -472,12 +492,16 @@ watch(() => filtersCtl.serializedState.value, () => {
               <p v-if="holdLine(row)" class="sale-hold-line sale-card-hold" data-testid="sale-hold-line">{{ holdLine(row) }}</p>
               <div class="sale-card-meta">
                 <StatusBadge v-bind="salePaymentBadge(row)" />
-                <span
+                <StatusBadge
                   v-if="cancelNote(row)"
-                  class="sale-cancel-note"
                   data-testid="sale-cancel-reason"
+                  tone="warning"
+                  urgent
+                  :icon="SALE_HOLD_EXPIRED_ICON"
+                  :label="cancelNote(row)!.label"
+                  :aria-label="cancelNote(row)!.title"
                   :title="cancelNote(row)!.title"
-                >{{ cancelNote(row)!.label }}</span>
+                />
                 <StatusBadge v-if="saleDeliveryBadge(row)" v-bind="saleDeliveryBadge(row)!" />
                 <PaymentMethodPills
                   v-if="row.paymentMethods.length > 0"
@@ -527,8 +551,10 @@ watch(() => filtersCtl.serializedState.value, () => {
    «… vence jue 19 nov, 15:47») instead of being cut, and never widens the column. */
 .sale-hold-line { display: block; max-width: 16rem; color: var(--hf-muted); font-size: 12px; font-weight: 500; line-height: 1.35; white-space: normal; overflow-wrap: break-word; }
 .sale-card-hold { max-width: none; margin-top: 4px; white-space: normal; }
-/* Why a cancelled row was cancelled, when the system did it: a muted note beside «Cancelada». */
-.sale-cancel-note { margin-left: 6px; color: var(--hf-muted); font-size: 12px; font-weight: 500; white-space: nowrap; }
+/* «Cancelada» + «Plazo vencido» in the Pago cell: they wrap onto a second line instead of
+   spilling into Productos (the column stays narrow for every other status). */
+.sale-pay-cell { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }
+.sales-sort-label { color: var(--hf-muted); font-size: 13px; font-weight: 500; white-space: nowrap; }
 .sale-card-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .sale-card-debt { margin-top: 10px; color: var(--hf-warning); font-size: 13px; font-weight: 600; }
 .sale-card-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hf-border); color: var(--hf-muted); font-size: 13px; }

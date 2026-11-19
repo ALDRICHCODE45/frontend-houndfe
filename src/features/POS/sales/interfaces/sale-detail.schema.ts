@@ -44,6 +44,8 @@ export const saleHoldSchema = z.object({
   reminderAt: z.string().nullable(),
   stage: z.union([z.literal(0), z.literal(1), z.literal(2)]),
   version: z.number().int().nonnegative().safe(),
+  // hold-expire-now L5: only on a sale the expiry cancelled; absent or null otherwise.
+  expiredAt: z.string().nullish(),
 }) satisfies z.ZodType<SaleHold>
 
 /**

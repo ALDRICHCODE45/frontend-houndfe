@@ -708,23 +708,34 @@ describe('SalesListView', () => {
       expect(wrapper.get('[data-testid="sale-canceled-status"]').text()).toBe('Cancelada')
     })
 
-    // BE handoff 24 §1 (T5): rows carry cancelReason; the deadline sweep's cancel says why.
-    it('a row cancelled with HOLD_EXPIRED shows «Apartado vencido» next to «Cancelada» (desktop and card)', () => {
+    // BE handoff 24 §1 (T5) + hold-expire-now S3: the deadline sweep's cancel reads both
+    // «Cancelada» and a «Plazo vencido» warning tag with an icon (never colour alone).
+    it('a row cancelled with HOLD_EXPIRED shows «Cancelada» plus a «Plazo vencido» tag (desktop and card)', () => {
       mockState.data.value = [{ ...heldRow, status: 'CANCELED', cancelReason: 'HOLD_EXPIRED', hold: { ...hold, stage: 2 } }]
       const wrapper = mountSalesList()
-      const notes = wrapper.findAll('[data-testid="sale-cancel-reason"]')
-      expect(notes.map((note) => note.text())).toEqual(['Apartado vencido', 'Apartado vencido'])
-      expect(notes[0]!.attributes('title')).toBe('Apartado vencido (no se pagó a tiempo)')
+      const tags = wrapper.findAll('[data-testid="sale-cancel-reason"]')
+      expect(tags.map((tag) => tag.text())).toEqual(['Plazo vencido', 'Plazo vencido'])
+      for (const tag of tags) {
+        expect(tag.attributes('data-tone')).toBe('warning')
+        expect(tag.find('[data-icon="i-lucide-clock-alert"]').exists()).toBe(true)
+        expect(tag.attributes('title')).toBe('Cancelada porque venció el plazo del apartado sin pagarse')
+      }
       expect(wrapper.get('[data-testid="sale-canceled-status"]').text()).toBe('Cancelada')
+      const card = wrapper.get('[data-testid="sale-card"]')
+      expect(card.text()).toContain('Cancelada')
+      expect(card.find('[data-testid="sale-cancel-reason"]').exists()).toBe(true)
+      expect(wrapper.text()).not.toContain('Apartado vencido')
     })
 
     it.each([
       ['a staff reason', { status: 'CANCELED' as const, cancelReason: 'CUSTOMER_REQUEST' as const }],
       ['no reason on an older payload', { status: 'CANCELED' as const }],
       ['a confirmed sale', { cancelReason: null }],
-    ])('no «Apartado vencido» for %s', (_case, patch) => {
+    ])('no «Plazo vencido» tag for %s', (_case, patch) => {
       mockState.data.value = [{ ...initialRow, ...patch }]
-      expect(mountSalesList().find('[data-testid="sale-cancel-reason"]').exists()).toBe(false)
+      const wrapper = mountSalesList()
+      expect(wrapper.find('[data-testid="sale-cancel-reason"]').exists()).toBe(false)
+      expect(wrapper.text()).not.toContain('Plazo vencido')
     })
 
     it('a row without a hold has no hold line', () => {

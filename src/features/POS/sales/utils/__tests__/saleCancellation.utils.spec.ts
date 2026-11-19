@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { saleCancelReasonLabel, saleCanceledByLabel } from '../saleCancellation.utils'
+import { saleCancelReasonLabel, saleCanceledByLabel, saleRowCancelNote } from '../saleCancellation.utils'
 
 // BE handoff 24 §4: HOLD_EXPIRED is cancelled by the system (canceledBy null → «Sistema»).
 describe('saleCancelReasonLabel', () => {
@@ -9,7 +9,7 @@ describe('saleCancelReasonLabel', () => {
     ['OUT_OF_STOCK', 'Sin existencias'],
     ['DUPLICATE_SALE', 'Venta duplicada'],
     ['OTHER', 'Otro'],
-    ['HOLD_EXPIRED', 'Apartado vencido (no se pagó a tiempo)'],
+    ['HOLD_EXPIRED', 'Plazo vencido'],
   ] as const)('%s → %s', (reason, label) => {
     expect(saleCancelReasonLabel(reason)).toBe(label)
   })
@@ -28,5 +28,19 @@ describe('saleCanceledByLabel', () => {
   it('stays silent for a staff cancellation whose user no longer exists', () => {
     expect(saleCanceledByLabel({ cancelReason: 'CUSTOMER_REQUEST', canceledBy: null })).toBeNull()
     expect(saleCanceledByLabel({ cancelReason: null, canceledBy: null })).toBeNull()
+  })
+})
+
+describe('saleRowCancelNote', () => {
+  it('tags a HOLD_EXPIRED cancellation «Plazo vencido» and explains it', () => {
+    expect(saleRowCancelNote({ status: 'CANCELED', cancelReason: 'HOLD_EXPIRED' })).toEqual({
+      label: 'Plazo vencido',
+      title: 'Cancelada porque venció el plazo del apartado sin pagarse',
+    })
+  })
+
+  it('stays silent for staff reasons and confirmed sales', () => {
+    expect(saleRowCancelNote({ status: 'CANCELED', cancelReason: 'OTHER' })).toBeNull()
+    expect(saleRowCancelNote({ status: 'CONFIRMED', cancelReason: null })).toBeNull()
   })
 })
