@@ -8,6 +8,11 @@
  * PDF: fetched with the authenticated client as a Blob; «Ver PDF» opens a tab on
  * the click and points it at an object URL, «Descargar PDF» saves
  * corte-caja-<folio>.pdf. Object URLs are always revoked.
+ *
+ * «Abrió» comes from `snapshot.openedAt`. Cortes closed before it was frozen
+ * have `null`: then the session's `openedAt` is read (`GET /cash-sessions/:id`)
+ * only with `read:CashSession`; otherwise, or until it arrives, the line is
+ * omitted (never a blank label).
  */
 import { computed, onBeforeUnmount, ref } from 'vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
@@ -15,9 +20,16 @@ import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { cashApi } from '../api/cash.api'
 import { cashErrorInfo } from '../composables/cashErrorCopy'
+import { useCashAccess } from '../composables/useCashAccess'
+import { useCashSessionDetail } from '../composables/useCashSessions'
 import { useCashClosingDetail } from './useCashClosing'
 import { closingPdfFileName, downloadClosingPdf, normalizeBlobError, showClosingPdf } from './closingPdf'
-import { CASH_HANDOVER_KIND_LABELS, closingPersonName, sortedClosingHandovers } from './closingView'
+import {
+  CASH_HANDOVER_KIND_LABELS,
+  closingDifferenceLabel as differenceLabel,
+  closingPersonName,
+  sortedClosingHandovers,
+} from './closingView'
 
 const props = defineProps<{ closingId: string }>()
 defineEmits<{ back: [] }>()
@@ -38,11 +50,23 @@ function signedTone(cents: number | null | undefined): string {
   return 'cd-diff--off'
 }
 
-function differenceLabel(cents: number | null | undefined): string {
-  if (typeof cents !== 'number') return '—'
-  if (cents === 0) return `${formatCentsMXN(0)} · cuadra`
-  return `${formatCentsMXN(cents)} · ${cents < 0 ? 'faltante' : 'sobrante'}`
-}
+// «Abrió»: frozen in new cortes; old ones (null) fall back to the session, only if readable.
+const access = useCashAccess()
+const frozenOpenedAt = computed(() => snapshot.value?.openedAt?.trim() || null)
+const fallbackSessionId = computed(() =>
+  snapshot.value && !frozenOpenedAt.value && access.canReadSessions.value
+    ? closing.value?.sessionId || null
+    : null,
+)
+const { detail: fallbackSession } = useCashSessionDetail(fallbackSessionId)
+const openedAt = computed(() => {
+  if (frozenOpenedAt.value) return frozenOpenedAt.value
+  if (!fallbackSessionId.value) return null
+  const session = fallbackSession.value?.session
+  if (session?.id !== fallbackSessionId.value) return null
+  return session.openedAt?.trim() || null
+})
+const openedLabel = computed(() => (openedAt.value ? formatShortDateTime(openedAt.value) : ''))
 
 const facts = computed(() => {
   const s = snapshot.value
@@ -183,6 +207,10 @@ async function runPdf(mode: 'view' | 'download') {
       </p>
 
       <dl class="cd-facts" data-testid="cash-closing-facts">
+        <div v-if="openedLabel" class="cd-fact" data-testid="cash-closing-opened">
+          <dt>Abrió</dt>
+          <dd>{{ openedLabel }}</dd>
+        </div>
         <div v-for="[label, value] in facts" :key="label" class="cd-fact">
           <dt>{{ label }}</dt>
           <dd>{{ value }}</dd>

@@ -8,7 +8,6 @@ export { default as CashClosingsList } from './CashClosingsList.vue'
 export {
   useCashClose,
   useCashClosingDetail,
-  useCashClosingSummaries,
   useCashClosingsList,
 } from './useCashClosing'
 export {
@@ -31,6 +30,7 @@ export {
 export {
   CASH_HANDOVER_KIND_LABELS,
   closingDateRange,
+  closingDifferenceLabel,
   closingPersonName,
   sortedClosingHandovers,
 } from './closingView'

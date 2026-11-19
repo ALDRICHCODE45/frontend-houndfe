@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { cashApi } from '../cash.api'
 import { http } from '@/core/shared/api/http'
 import { csvParamsSerializer } from '@/core/shared/api/paramsSerializer'
-import { CLOSING } from '../../closing/__tests__/closingFixtures'
+import { CLOSING, CLOSING_ITEM } from '../../closing/__tests__/closingFixtures'
 
 vi.mock('@/core/shared/api/http', () => ({
   http: { post: vi.fn(), get: vi.fn(), put: vi.fn(), patch: vi.fn(), delete: vi.fn() },
@@ -101,7 +101,7 @@ describe('cashApi.closeSession (§5)', () => {
 
 describe('cashApi closings (§3, §6)', () => {
   it('lists closings with only the documented filters', async () => {
-    const page = { items: [{ id: CLOSING.id, sessionId: SESSION_ID, folio: CLOSING.folio, createdAt: CLOSING.createdAt }], page: 2, limit: 10, total: 11 }
+    const page = { items: [{ ...CLOSING_ITEM, sessionId: SESSION_ID }], page: 2, limit: 10, total: 11 }
     vi.mocked(http.get).mockResolvedValue({ data: page })
 
     const result = await cashApi.listClosings({
