@@ -1,65 +1,57 @@
 import { describe, expect, it } from 'vitest'
 import { nextTick, ref } from 'vue'
-import { CASH_WORKSPACE_TASKS, useCashWorkspace } from '../useCashWorkspace'
+import { CASH_PANEL_IDS, CASH_PANEL_TITLES, useCashWorkspace } from '../useCashWorkspace'
 
-// Presentation-only navigation model. It never selects a shift, never runs a
-// query and never invents a task outside the fixed catalog.
+// Presentation-only model for direction A: one task opens in place at a time.
+// It never selects a shift, never runs a query and never dispatches a command;
+// reachability is supplied by the view (timeline state + abilities).
 describe('useCashWorkspace', () => {
-  it('opens the default task and offers only the available tasks', () => {
-    const { activeTaskId, visibleTasks } = useCashWorkspace({
-      isAvailable: (id) => id !== 'recepcion',
-      defaultTaskId: 'apertura',
-    })
-
-    expect(activeTaskId.value).toBe('apertura')
-    expect(visibleTasks.value.map((task) => task.id)).not.toContain('recepcion')
-    expect(visibleTasks.value).toHaveLength(CASH_WORKSPACE_TASKS.length - 1)
+  it('starts with the panel the view asks for, or none', () => {
+    expect(useCashWorkspace().openPanelId.value).toBeNull()
+    expect(useCashWorkspace({ initialPanelId: 'apertura' }).openPanelId.value).toBe('apertura')
   })
 
-  it('falls back to the first offered task when the active one stops being available', async () => {
-    const available = ref(true)
-    const { activeTaskId, selectTask, visibleTasks } = useCashWorkspace({
-      isAvailable: (id) => (id === 'recepcion' ? available.value : true),
-      defaultTaskId: 'apertura',
+  it('opens one task in place at a time and hides it again', () => {
+    const { openPanelId, openPanel, togglePanel, closePanel } = useCashWorkspace()
+
+    openPanel('movimientos')
+    expect(openPanelId.value).toBe('movimientos')
+    openPanel('conteo')
+    expect(openPanelId.value).toBe('conteo')
+    togglePanel('conteo')
+    expect(openPanelId.value).toBeNull()
+    togglePanel('recepcion')
+    expect(openPanelId.value).toBe('recepcion')
+    closePanel()
+    expect(openPanelId.value).toBeNull()
+  })
+
+  it('does not force an order: any reachable task opens, an unreachable one is ignored', () => {
+    const { openPanelId, openPanel } = useCashWorkspace({
+      isReachable: (id) => id !== 'verificacion',
     })
 
-    selectTask('recepcion')
-    expect(activeTaskId.value).toBe('recepcion')
+    openPanel('liberar')
+    expect(openPanelId.value).toBe('liberar')
+    openPanel('verificacion')
+    expect(openPanelId.value).toBe('liberar')
+  })
 
-    available.value = false
+  it('closes the open task when it stops being reachable', async () => {
+    const reachable = ref(true)
+    const { openPanelId, openPanel } = useCashWorkspace({
+      isReachable: (id) => (id === 'movimientos' ? reachable.value : true),
+    })
+
+    openPanel('movimientos')
+    reachable.value = false
     await nextTick()
 
-    expect(visibleTasks.value.map((task) => task.id)).not.toContain('recepcion')
-    expect(activeTaskId.value).toBe('apertura')
+    expect(openPanelId.value).toBeNull()
   })
 
-  it('ignores a selection for a task that is not offered', () => {
-    const { activeTaskId, selectTask } = useCashWorkspace({
-      isAvailable: (id) => id !== 'verificacion',
-      defaultTaskId: 'apertura',
-    })
-
-    selectTask('verificacion')
-
-    expect(activeTaskId.value).toBe('apertura')
-  })
-
-  it('resolves scope-honest labels through labelFor', () => {
-    const { visibleTasks } = useCashWorkspace({
-      labelFor: (task) => (task.id === 'historial' ? 'Mis sesiones' : task.label),
-    })
-
-    const history = visibleTasks.value.find((task) => task.id === 'historial')
-    expect(history?.label).toBe('Mis sesiones')
-  })
-
-  it('keeps every catalog task to an id, a label and an icon: no per-task heading, description or hint', () => {
-    for (const task of CASH_WORKSPACE_TASKS) {
-      expect(task.label).toBeTruthy()
-      expect(task.icon).toBeTruthy()
-      expect(task).not.toHaveProperty('heading')
-      expect(task).not.toHaveProperty('description')
-      expect(task).not.toHaveProperty('hint')
-    }
+  it('names every panel for its in-place heading', () => {
+    for (const id of CASH_PANEL_IDS) expect(CASH_PANEL_TITLES[id]).toBeTruthy()
+    expect(CASH_PANEL_IDS).toContain('recepcion')
   })
 })

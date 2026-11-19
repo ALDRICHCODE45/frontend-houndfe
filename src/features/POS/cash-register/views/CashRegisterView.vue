@@ -1,50 +1,76 @@
 <script setup lang="ts">
 /**
- * Composition surface for the POS Caja workspace.
+ * Composition surface for the POS Caja shift timeline (direction A, S4).
  *
- * It wires composables to the task-focused workspace and its existing panels:
- * all feature logic lives in `../composables`, the task/context shell lives in
- * `../components/CashWorkspace*.vue`, and every operation contract is unchanged
- * (registers, session opening, manual movements, blind freeze/count, append-only
- * notes, independent verification, recipient custody discovery, explicit FLOAT
- * and drawer release).
+ * It wires composables to the presentational shell: «Tu turno» and the session
+ * list on the side, the selected shift's timeline in the middle (each task
+ * opens IN PLACE, the next action is highlighted without forcing an order) and
+ * the summary with «Por recibir» on the right. All feature logic lives in
+ * `../composables`, the timeline model in `../utils/cash-timeline`, and every
+ * operation contract is unchanged (registers, session opening with explicit
+ * fund confirmation, manual movements, blind freeze/count, append-only notes,
+ * independent verification, recipient custody, explicit FLOAT and a separate
+ * drawer release).
  *
- * Navigation only reveals one task at a time; it never selects a register or a
- * session, never dispatches a command and never implies a required order. Tasks
- * that need a session stay hidden until a shift is explicitly selected, and
- * panels are kept mounted with `v-show` so an in-progress draft survives moving
- * between tasks. Sensitive drafts that are not session-scoped are keyed by the
- * identity scope (and the opening form additionally by its register), so a new
- * actor, permission set or register never inherits another context's draft.
+ * «Tu turno» is selected by default: the latest own session whose drawer is
+ * not released, taken from the existing `GET /cash-sessions` read (no new API).
+ * Any other selection stays explicit. Opening a task never dispatches a
+ * command. Session panels are keyed by the identity + session and stay mounted
+ * (`v-show`) so an in-progress draft survives moving between steps; drafts that
+ * are not session-scoped are keyed by the identity scope (and the opening form
+ * additionally by its register), so a new actor, permission set or register
+ * never inherits another context's draft.
  *
- * Not included (out of authorized scope): sales binding, refund settlement,
- * closure/PDF and any live backend call.
+ * Owner decisions: S8 — the handover is offered right after the declaration
+ * (SUBMITTED), before verification. S9 — while blind, after a cash in/out only
+ * the confirmation of that last entry is shown, never a list.
+ *
+ * Not included here: «Cerrar caja», the corte and «Cortes» (T4 mounts them in
+ * the marked slots), the recipients picker by name (T5).
  */
 import { computed, ref, watch } from 'vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { useCashAccess } from '../composables/useCashAccess'
 import { useCashRegisters } from '../composables/useCashRegisters'
 import { useCashSessionDetail, useCashSessions } from '../composables/useCashSessions'
 import { useCashSessionCommands } from '../composables/useCashSessionCommands'
 import { useCashCustody } from '../composables/useCashCustody'
 import { useCashHandoverRecipients } from '../composables/useCashHandoverRecipients'
-import { useCashWorkspace, type CashWorkspaceTaskId } from '../composables/useCashWorkspace'
+import { useCashWorkspace, type CashPanelId } from '../composables/useCashWorkspace'
 import { CashIdentityError, cashErrorInfo } from '../composables/cashErrorCopy'
 import {
   requiredChannelIdentities,
   CASH_CHANNEL_KEY,
   type CashIdentity,
 } from '../composables/cashRules'
-import type { CashComparison, CashCountPayload } from '../interfaces/cash.types'
+import type {
+  CashComparison,
+  CashCountPayload,
+  CashSession,
+  CashSessionListParams,
+} from '../interfaces/cash.types'
+import { CASH_SESSION_STATUS_LABELS, cashSessionStatusTone } from '../utils/cash-status'
+import {
+  buildCashTimeline,
+  nextCashAction,
+  pickOwnShift,
+  type CashStepId,
+  type CashTimelineInput,
+} from '../utils/cash-timeline'
 import CashWorkspace from '../components/CashWorkspace.vue'
 import CashWorkspaceShiftCard, {
   type CashShiftContext,
 } from '../components/CashWorkspaceShiftCard.vue'
 import '../styles/cash-visual.css'
-import CashRegistersPanel from '../components/CashRegistersPanel.vue'
-import CashOpenSessionForm from '../components/CashOpenSessionForm.vue'
+import CashOwnShiftCard from '../components/CashOwnShiftCard.vue'
+import CashNextAction from '../components/CashNextAction.vue'
+import CashTimeline from '../components/CashTimeline.vue'
+import CashOpeningPanel from '../components/CashOpeningPanel.vue'
 import CashSessionsPanel from '../components/CashSessionsPanel.vue'
-import CashMovementsPanel from '../components/CashMovementsPanel.vue'
+import CashMovementsPanel, { type CashLastMovement } from '../components/CashMovementsPanel.vue'
 import CashCountForm from '../components/CashCountForm.vue'
 import CashDeclarationNotesForm from '../components/CashDeclarationNotesForm.vue'
 import CashVerificationPanel from '../components/CashVerificationPanel.vue'
@@ -63,11 +89,19 @@ const selectedSessionId = ref<string | null>(null)
 const openFloatId = ref<string | null>(null)
 // The custody receipt currently in flight, so a repeat click is blocked.
 const receivingId = ref<string | null>(null)
+// S9: the last manual entry recorded for the selected shift (POST response).
+const lastMovement = ref<CashLastMovement | null>(null)
 
-const sessionParams = computed(() => ({
+/** Session list filters (supervisor list): the existing `pendingOnly` and register params. */
+const pendingOnlyFilter = ref(false)
+const registerFilter = ref<string | null>(null)
+const filtersActive = computed(() => pendingOnlyFilter.value || Boolean(registerFilter.value))
+
+const sessionParams = computed<CashSessionListParams>(() => ({
   page: 1,
   limit: 25,
-  ...(selectedRegisterId.value ? { registerId: selectedRegisterId.value } : {}),
+  ...(registerFilter.value ? { registerId: registerFilter.value } : {}),
+  ...(pendingOnlyFilter.value ? { pendingOnly: true } : {}),
 }))
 
 const sessions = useCashSessions(sessionParams)
@@ -84,12 +118,12 @@ const declareComparison = ref<CashComparison | null>(null)
 const verifyComparison = ref<CashComparison | null>(null)
 
 /**
- * Monotonic token for the explicitly selected shift context. Every explicit
- * selection change — another register, another shift, or an identity reset —
- * invalidates it, so a late command result can only be applied to the exact
- * selection that started it and is never reused after A → B → A. The same
- * boundary drops the stored contextual feedback (errorScope/errorMessage), so a
- * banner from the previous context is never shown for the new one.
+ * Monotonic token for the explicitly selected shift context. Every selection
+ * change — another register, another shift, or an identity reset — invalidates
+ * it, so a late command result can only be applied to the exact selection that
+ * started it and is never reused after A → B → A. The same boundary drops the
+ * stored contextual feedback (errorScope/errorMessage and the S9 confirmation),
+ * so nothing from the previous context is shown for the new one.
  */
 let sessionContextToken = 0
 
@@ -97,6 +131,7 @@ function invalidateSessionContext(): void {
   sessionContextToken += 1
   errorScope.value = null
   errorMessage.value = null
+  lastMovement.value = null
 }
 
 /**
@@ -110,6 +145,10 @@ const identityScope = computed(
     `${access.identity.value.tenantId}|${access.identity.value.userId}|${access.identity.value.permissionFingerprint}|${access.identity.value.generation}`,
 )
 
+/** «Tu turno» as last read from the unfiltered list; the default selection runs once per identity. */
+const ownShift = ref<CashSession | null>(null)
+let ownShiftDefaulted = false
+
 watch(identityScope, () => {
   invalidateSessionContext()
   selectedRegisterId.value = null
@@ -118,6 +157,10 @@ watch(identityScope, () => {
   receivingId.value = null
   declareComparison.value = null
   verifyComparison.value = null
+  ownShift.value = null
+  ownShiftDefaulted = false
+  pendingOnlyFilter.value = false
+  registerFilter.value = null
 })
 
 /** Remount the session-sensitive forms when the identity or the session changes. */
@@ -197,6 +240,7 @@ async function runForSelectedSession<T>(
   }
 }
 
+
 const session = computed(() => detailQuery.detail.value?.session ?? null)
 const blind = computed(() => session.value?.blind === true)
 const isFrozenBlind = computed(() => blind.value && session.value?.status === 'COUNTING')
@@ -218,8 +262,9 @@ const countedCashCents = computed<number | null>(() => {
   )
 })
 
+const handovers = computed(() => detailQuery.detail.value?.handovers ?? [])
 const pendingReceiveCount = computed(
-  () => (detailQuery.detail.value?.handovers ?? []).filter((item) => !item.receivedAt).length,
+  () => handovers.value.filter((item) => !item.receivedAt).length,
 )
 
 /** `null` while there is no selected shift or no authenticated actor to compare with. */
@@ -230,48 +275,64 @@ const isOwnShift = computed<boolean | null>(() => {
   return cashier === current
 })
 
-/**
- * Task availability for the CURRENT abilities and the explicitly selected
- * shift. A task is offered only when it has something real to do; nothing is
- * fabricated and no task waits on another one.
- */
-function isTaskAvailable(taskId: CashWorkspaceTaskId): boolean {
-  switch (taskId) {
-    case 'apertura':
-      return access.canReadRegisters.value || access.canOpenSession.value
-    case 'historial':
-      return access.canReadSessions.value
-    case 'recepcion':
-      return access.canReadCustody.value
-    case 'conteo':
-      return (
-        Boolean(selectedSessionId.value) &&
-        access.canCount.value &&
-        (session.value?.status === 'OPEN' || isFrozenBlind.value)
-      )
-    case 'notas':
-      return Boolean(selectedSessionId.value) && access.canCount.value && isSubmitted.value
-    case 'movimientos':
-    case 'verificacion':
-    case 'custodia':
-      return Boolean(selectedSessionId.value)
-    default:
-      return false
+const hasSelection = computed(() => Boolean(selectedSessionId.value))
+const detailLoaded = computed(() => Boolean(detailQuery.detail.value))
+const detailLoading = computed(() => hasSelection.value && detailQuery.isLoading.value)
+/** One failed detail read is told once, in the main column, with its Reintentar. */
+const detailFailed = computed(() => hasSelection.value && detailQuery.isError.value)
+
+// ── Timeline ────────────────────────────────────────────────────────────────
+const timelineInput = computed<CashTimelineInput>(() => {
+  const current = session.value
+  if (!hasSelection.value || !current) {
+    return {
+      status: null,
+      perspective: 'cashier',
+      verified: false,
+      drawerReleased: false,
+      handoversDeclared: 0,
+      handoversPending: 0,
+      countedCashCents: null,
+    }
   }
+  return {
+    status: current.status,
+    perspective: isOwnShift.value === true ? 'cashier' : 'observer',
+    verified: (detailQuery.detail.value?.counts ?? []).some((count) => count.kind === 'VERIFICATION'),
+    drawerReleased: Boolean(current.drawerReleasedAt),
+    handoversDeclared: handovers.value.length,
+    handoversPending: pendingReceiveCount.value,
+    countedCashCents: countedCashCents.value,
+    cashierName: isOwnShift.value === true ? null : (current.cashierDisplayName ?? null),
+    canVerify: access.canVerifyIndependent.value,
+  }
+})
+
+const steps = computed(() => buildCashTimeline(timelineInput.value))
+const nextAction = computed(() => nextCashAction(timelineInput.value))
+const registerName = computed(
+  () =>
+    detailQuery.detail.value?.register?.name ??
+    (session.value ? registerNames.value[session.value.registerId] : undefined) ??
+    'Caja',
+)
+
+function isPanelReachable(panelId: CashPanelId): boolean {
+  if (panelId === 'recepcion') return access.canReadCustody.value
+  // While a selected shift loads, keep what is open: it belongs to that shift.
+  if (hasSelection.value && !detailLoaded.value) return true
+  return steps.value.find((step) => step.id === panelId)?.reachable ?? false
 }
 
-const { visibleTasks, activeTaskId, selectTask } = useCashWorkspace({
-  isAvailable: (taskId) => isTaskAvailable(taskId),
-  // The session list is the caller's own unless the audit grant widens it.
-  labelFor: (task) =>
-    task.id === 'historial' && !sessions.canFilterByCashier.value ? 'Mis sesiones' : task.label,
-  defaultTaskId: 'apertura',
+const { openPanelId, openPanel, closePanel, togglePanel } = useCashWorkspace({
+  isReachable: isPanelReachable,
+  initialPanelId: 'apertura',
 })
 
 /**
- * What the unselected "Tu turno" card reflects: the registers read decides the
- * next step. A failed read stays quiet here (the registers panel owns that
- * error), and without the grants to open a turn the card points at the sessions.
+ * What the summary card says while no shift is selected: the registers read
+ * decides the next step. A failed read stays quiet there (the opening panel
+ * owns that error), and without the grants to open a turn it points at the list.
  */
 const shiftContext = computed<CashShiftContext>(() => {
   if (registers.isLoading.value) return 'loading'
@@ -286,10 +347,38 @@ const shiftContext = computed<CashShiftContext>(() => {
   return selectedRegisterId.value ? 'register-chosen' : 'choose-register'
 })
 
+const pendingForMe = computed(() => custody.pendingHandovers.value.length)
+const pendingForMeCents = computed(() =>
+  custody.pendingHandovers.value.reduce((sum, item) => sum + item.declaredCents, 0),
+)
+
+const permissionNote = computed(() => {
+  if (access.canVerifyIndependent.value) {
+    return 'Tienes permiso de verificación y de auditoría de sesiones.'
+  }
+  return 'Verificar el conteo y cerrar la caja los hace otra persona con permiso.'
+})
+
+// ── Default «Tu turno» ──────────────────────────────────────────────────────
+// Registered after the workspace model: with a cached list it runs at once and
+// selecting a shift closes the open panel.
+watch(
+  [() => sessions.sessions.value, () => sessions.isSuccess.value, filtersActive],
+  () => {
+    if (!sessions.isSuccess.value || filtersActive.value) return
+    ownShift.value = pickOwnShift(sessions.sessions.value, access.currentUserId.value)
+    if (ownShiftDefaulted) return
+    ownShiftDefaulted = true
+    if (ownShift.value && !selectedSessionId.value) selectSession(ownShift.value.id)
+  },
+  { immediate: true },
+)
+
+const HANDOVER_KIND_LABELS = { FLOAT: 'Fondo para el siguiente turno', WITHDRAWAL: 'Retiro a resguardo' }
+
 function selectRegister(registerId: string) {
   invalidateSessionContext()
   selectedRegisterId.value = registerId
-  selectedSessionId.value = null
   openFloatId.value = null
   declareComparison.value = null
   verifyComparison.value = null
@@ -300,6 +389,22 @@ function selectSession(sessionId: string) {
   selectedSessionId.value = sessionId
   declareComparison.value = null
   verifyComparison.value = null
+  closePanel()
+}
+
+/** Leave any selected shift and show the opening in place. */
+function requestOpening() {
+  if (selectedSessionId.value) {
+    invalidateSessionContext()
+    selectedSessionId.value = null
+    declareComparison.value = null
+    verifyComparison.value = null
+  }
+  openPanel('apertura')
+}
+
+function onTimelineToggle(stepId: CashStepId) {
+  togglePanel(stepId)
 }
 
 function handleCreateRegister(name: string) {
@@ -347,10 +452,20 @@ function handleMovement(payload: {
       const sessionId = selectedSessionId.value
       if (!sessionId) return
       const body = { amountCents: payload.amountCents, reason: payload.reason }
-      if (payload.kind === 'CASH_IN') {
-        await commands.cashIn(sessionId, body)
-      } else {
-        await commands.cashOut(sessionId, body)
+      // S9: the POST response is the only trace of a blind entry; it belongs to
+      // the shift that was selected when it was sent, never to another one.
+      const result = await runForSelectedSession(sessionId, () =>
+        payload.kind === 'CASH_IN'
+          ? commands.cashIn(sessionId, body)
+          : commands.cashOut(sessionId, body),
+      )
+      if (result === null) return
+      lastMovement.value = {
+        id: result.id,
+        kind: payload.kind,
+        deltaCents: result.deltaCents,
+        occurredAt: result.occurredAt,
+        reason: payload.reason,
       }
     },
   )
@@ -444,78 +559,30 @@ function handleReleaseDrawer() {
     <EmptyState
       v-if="!access.canAnyCashRead.value"
       kind="forbidden"
-      title="Sin acceso a Caja"
-      description="Pide a la persona administradora que asigne los permisos de caja a tu rol."
+      title="No tienes acceso a Caja"
+      description="Pide a un encargado el permiso «Ver sesiones de caja»."
       data-testid="cash-access-denied"
     />
 
-    <CashWorkspace
-      v-else
-      :key="identityScope"
-      title="Caja"
-      :tasks="visibleTasks"
-      :active-task-id="activeTaskId"
-      :shift-idle="!selectedSessionId"
-      @select-task="selectTask"
-    >
-      <template #shift>
-        <CashWorkspaceShiftCard
-          :has-selection="Boolean(selectedSessionId)"
-          :detail="detailQuery.detail.value ?? null"
-          :loading="detailQuery.isLoading.value"
-          :error="detailQuery.isError.value"
-          :is-own-shift="isOwnShift"
-          :no-shift-context="shiftContext"
-          :opening-active="activeTaskId === 'apertura'"
-          @request-opening="selectTask('apertura')"
-          @retry="detailQuery.refetch()"
-        />
-      </template>
-
-      <!-- Apertura: cajas existentes y apertura de sesión. -->
-      <div
-        v-show="activeTaskId === 'apertura'"
-        class="flex flex-col gap-6"
-        data-testid="cash-task-apertura"
-      >
-        <CashRegistersPanel
-          v-if="access.canReadRegisters.value"
-          :registers="registers.registers.value"
-          :selected-register-id="selectedRegisterId"
-          :loading="registers.isLoading.value"
-          :error="registers.isError.value"
-          :can-create="access.canCreateRegister.value"
-          :can-update="access.canUpdateRegister.value"
+    <CashWorkspace v-else :key="identityScope" title="Caja">
+      <!-- ── Side: «Tu turno» + the session list ───────────────────────── -->
+      <template #side>
+        <CashOwnShiftCard
+          v-if="access.canReadSessions.value || access.canOpenSession.value"
+          :session="ownShift"
+          :register-name="ownShift ? (registerNames[ownShift.registerId] ?? null) : null"
+          :loading="sessions.isLoading.value"
+          :selected="Boolean(ownShift) && selectedSessionId === ownShift?.id"
+          :opening-selected="!hasSelection && openPanelId === 'apertura'"
           :can-open="access.canOpenSession.value"
-          :creating="registers.creating.value"
-          :updating="registers.updating.value"
-          @select="selectRegister"
-          @create="handleCreateRegister"
-          @update="handleUpdateRegister"
-          @refresh="registers.refetch()"
+          @select="selectSession"
+          @request-opening="requestOpening"
         />
 
-        <CashOpenSessionForm
-          v-if="access.canOpenSession.value"
-          :key="`open:${selectedRegisterId ?? 'none'}`"
-          :register-id="selectedRegisterId"
-          :register-name="
-            registers.registers.value.find((item) => item.id === selectedRegisterId)?.name ?? null
-          "
-          :eligible-float="custody.eligibleFloat.value"
-          :custody-visible="custody.allowed.value"
-          v-model:float-id="openFloatId"
-          :can-open="access.canOpenSession.value"
-          :submitting="commands.activeCommand.value === 'open'"
-          :error-message="errorFor('open')"
-          @submit="handleOpenSession"
-        />
-      </div>
-
-      <!-- Sesiones: la lista existente, alcance real del permiso. -->
-      <div v-show="activeTaskId === 'historial'" data-testid="cash-task-historial">
         <CashSessionsPanel
           v-if="access.canReadSessions.value"
+          variant="list"
+          :title="sessions.canFilterByCashier.value ? 'Sesiones de la sucursal' : 'Mis sesiones'"
           :sessions="sessions.sessions.value"
           :register-names="registerNames"
           :selected-session-id="selectedSessionId"
@@ -525,150 +592,454 @@ function handleReleaseDrawer() {
           :can-filter-by-cashier="sessions.canFilterByCashier.value"
           :can-open="access.canOpenSession.value"
           :total="sessions.total.value"
+          :show-filters="sessions.canFilterByCashier.value"
+          v-model:pending-only="pendingOnlyFilter"
+          v-model:register-filter="registerFilter"
           @select="selectSession"
           @refresh="sessions.refetch()"
-          @request-opening="selectTask('apertura')"
+          @request-opening="requestOpening"
         />
+      </template>
+
+      <!-- ── Main: the selected shift ─────────────────────────────────── -->
+      <template #head>
+        <p class="cash-head-meta">
+          <template v-if="hasSelection && session">
+            <StatusBadge
+              :label="CASH_SESSION_STATUS_LABELS[session.status]"
+              :tone="cashSessionStatusTone(session.status)"
+              data-testid="cash-head-status"
+            />
+            <StatusBadge
+              :label="session.drawerReleasedAt ? 'Cajón liberado' : 'Cajón sin liberar'"
+              tone="neutral"
+              aria-prefix="Cajón:"
+            />
+            <span>
+              {{ isOwnShift ? 'Tú' : (session.cashierDisplayName?.trim() || 'Otra persona') }}
+              <template v-if="session.openedAt">
+                · abierta {{ formatShortDateTime(session.openedAt) }}</template
+              >
+            </span>
+          </template>
+          <template v-else-if="!hasSelection">
+            <StatusBadge label="Sin turno" tone="neutral" />
+            <span>Aún no hay turno abierto</span>
+          </template>
+        </p>
+        <h2 id="cash-shift-heading" class="cash-head-title" data-testid="cash-head-title">
+          {{ hasSelection ? (session ? registerName : 'Turno seleccionado') : 'Abre tu turno' }}
+        </h2>
+      </template>
+
+      <EmptyState
+        v-if="detailFailed"
+        kind="error"
+        title="No se pudo cargar el turno"
+        description="Revisa la conexión e inténtalo de nuevo. No se perdió ningún dato: los movimientos ya registrados están guardados."
+        action-label="Reintentar"
+        data-testid="cash-shift-error"
+        @action="detailQuery.refetch()"
+      />
+
+      <div
+        v-if="detailLoading"
+        class="cash-tl-skeleton"
+        aria-hidden="true"
+        data-testid="cash-timeline-loading"
+      >
+        <div class="hf-skeleton h-24 w-full animate-pulse rounded-xl" />
+        <div v-for="n in 4" :key="n" class="flex items-center gap-3">
+          <div class="hf-skeleton size-6 animate-pulse rounded-full" />
+          <div class="flex flex-1 flex-col gap-2">
+            <div class="hf-skeleton h-3.5 w-2/3 animate-pulse rounded" />
+            <div class="hf-skeleton h-3 w-1/2 animate-pulse rounded" />
+          </div>
+        </div>
       </div>
 
-      <!-- Tareas que dependen de una sesión seleccionada explícitamente. -->
-      <div
-        v-if="selectedSessionId"
-        :key="sessionSectionKey"
-        class="flex flex-col gap-6"
-        data-testid="cash-session-tasks"
-      >
-        <div
-          v-show="activeTaskId === 'movimientos'"
-          class="flex flex-col gap-6"
-          data-testid="cash-task-movimientos"
-        >
-          <!-- A failed detail read is told once, by the shift card with its Reintentar.
-               Hidden only while nothing loaded: a failed refetch keeps the cached movements. -->
-          <CashMovementsPanel
-            v-if="!detailQuery.isError.value || detailQuery.detail.value"
-            :detail="detailQuery.detail.value ?? null"
-            :current-user-id="access.currentUserId.value"
-            :can-cash-in="access.canCashIn.value"
-            :can-cash-out="access.canCashOut.value"
-            :submitting="
-              commands.activeCommand.value === 'cashIn' ||
-              commands.activeCommand.value === 'cashOut'
-            "
-            :error-message="errorFor('movements')"
-            :loading="detailQuery.isLoading.value"
-            @submit="handleMovement"
-            @refresh="detailQuery.refetch()"
-          />
-        </div>
+      <template v-if="!hasSelection || detailLoaded">
+        <CashNextAction
+          v-if="nextAction && !(nextAction.stepId && openPanelId === nextAction.stepId)"
+          :action="nextAction"
+          :open-id="openPanelId"
+          @open="openPanel"
+        />
 
-        <div
-          v-show="activeTaskId === 'conteo'"
-          class="flex flex-col gap-6"
-          data-testid="cash-task-conteo"
+        <!-- «Por recibir» opens in place, above the timeline. -->
+        <section
+          v-if="access.canReadCustody.value"
+          v-show="openPanelId === 'recepcion'"
+          class="cash-inplace"
+          aria-labelledby="cash-recepcion-title"
+          data-testid="cash-task-recepcion"
         >
-          <div
-            v-if="session?.status === 'OPEN' && access.canCount.value"
-            class="flex flex-col gap-2"
-          >
+          <header class="cash-inplace-head">
+            <h3 id="cash-recepcion-title" class="cash-list-title" tabindex="-1">Por recibir</h3>
             <UButton
               type="button"
-              class="min-h-11 self-start"
-              :loading="commands.activeCommand.value === 'freeze'"
-              data-testid="cash-session-freeze"
-              @click="handleFreeze"
+              color="neutral"
+              variant="ghost"
+              class="min-h-11"
+              data-testid="cash-recepcion-hide"
+              @click="closePanel"
             >
-              Iniciar conteo (congelar)
+              Ocultar
             </UButton>
-            <p class="text-xs text-muted">
-              Congelar detiene los movimientos operativos; no libera el cajón.
-            </p>
-            <p v-if="errorFor('freeze')" class="text-sm text-error" data-testid="cash-freeze-error">
-              {{ errorFor('freeze') }}
-            </p>
-          </div>
-
-          <CashCountForm
-            v-if="isFrozenBlind && access.canCount.value"
-            :channels="countChannels"
-            :submitting="commands.activeCommand.value === 'declare'"
-            :error-message="errorFor('declare')"
-            @submit="handleDeclare"
-          />
-        </div>
-
-        <div
-          v-show="activeTaskId === 'notas'"
-          class="flex flex-col gap-6"
-          data-testid="cash-task-notas"
-        >
-          <CashDeclarationNotesForm
-            v-if="isSubmitted && access.canCount.value"
-            :submitting="commands.activeCommand.value === 'notes'"
-            :error-message="errorFor('notes')"
-            @submit="handleAppendNotes"
-          />
-        </div>
-
-        <div
-          v-show="activeTaskId === 'verificacion'"
-          class="flex flex-col gap-6"
-          data-testid="cash-task-verificacion"
-        >
-          <CashVerificationPanel
-            :detail="detailQuery.detail.value ?? null"
-            :can-verify="access.canVerifyIndependent.value"
+          </header>
+          <CashCustodyDiscovery
+            :allowed="custody.allowed.value"
+            :pending-handovers="custody.pendingHandovers.value"
+            :eligible-float="custody.eligibleFloat.value"
             :current-user-id="access.currentUserId.value"
-            :submitting="commands.activeCommand.value === 'verify'"
-            :comparison="verificationComparison"
-            :error-message="errorFor('verify')"
-            @submit="handleVerify"
+            :can-receive="access.canReceiveHandover.value"
+            :register-id="selectedRegisterId"
+            :loading="custody.isLoading.value"
+            :error="custody.isError.value"
+            :receiving-id="receivingId"
+            @receive="handleReceive"
+            @refresh="custody.refetch()"
           />
-        </div>
+        </section>
 
-        <div
-          v-show="activeTaskId === 'custodia'"
-          class="flex flex-col gap-6"
-          data-testid="cash-task-custodia"
+        <CashTimeline
+          :steps="steps"
+          :open-id="openPanelId"
+          :label="hasSelection ? `Pasos del turno de ${registerName}` : 'Pasos para abrir tu turno'"
+          @toggle="onTimelineToggle"
         >
-          <CashCustodyActions
-            :session-id="selectedSessionId"
-            :can-declare-handover="access.canDeclareHandover.value"
-            :can-release-drawer="access.canDeclareHandover.value"
-            :drawer-released="Boolean(session?.drawerReleasedAt)"
-            :pending-receive-count="pendingReceiveCount"
-            :counted-cash-cents="countedCashCents"
-            :selector-entitled="recipients.entitled.value"
-            :assignable-users="recipients.assignableUsers.value"
-            :loading-recipients="recipients.isLoading.value"
-            :current-user-id="access.currentUserId.value"
-            :busy="commands.isBusy.value"
-            :submitting="commands.activeCommand.value === 'declareHandover'"
-            :releasing="commands.activeCommand.value === 'releaseDrawer'"
-            :error-message="errorFor('custody')"
-            @declare="handleDeclareHandover"
-            @release="handleReleaseDrawer"
-          />
-        </div>
-      </div>
+          <!-- Abrir caja: register, fund and confirmation in one place. -->
+          <template #panel-apertura>
+            <div v-if="hasSelection && session" class="cash-callout cash-callout--ok">
+              <UIcon name="i-lucide-circle-check" class="cash-callout-icon" aria-hidden="true" />
+              <p>
+                <strong>{{ registerName }} abierta</strong><br />
+                <span class="cash-meta-wrap"
+                  >Fondo inicial {{ formatCentsMXN(session.openingCents) }} confirmado.</span
+                >
+              </p>
+            </div>
+            <CashOpeningPanel
+              v-else
+              v-model:float-id="openFloatId"
+              :registers="registers.registers.value"
+              :selected-register-id="selectedRegisterId"
+              :loading="registers.isLoading.value"
+              :error="registers.isError.value"
+              :can-read-registers="access.canReadRegisters.value"
+              :can-create="access.canCreateRegister.value"
+              :can-update="access.canUpdateRegister.value"
+              :can-open="access.canOpenSession.value"
+              :creating="registers.creating.value"
+              :updating="registers.updating.value"
+              :eligible-float="custody.eligibleFloat.value"
+              :custody-visible="custody.allowed.value"
+              :submitting="commands.activeCommand.value === 'open'"
+              :error-message="errorFor('open')"
+              :registers-error-message="errorFor('registers')"
+              @select="selectRegister"
+              @create="handleCreateRegister"
+              @update="handleUpdateRegister"
+              @refresh="registers.refetch()"
+              @submit="handleOpenSession"
+            />
+          </template>
 
-      <!-- Recepciones: solo la custodia destinada a la persona autenticada. -->
-      <div v-show="activeTaskId === 'recepcion'" data-testid="cash-task-recepcion">
-        <CashCustodyDiscovery
-          v-if="access.canReadCustody.value"
-          :allowed="custody.allowed.value"
-          :pending-handovers="custody.pendingHandovers.value"
-          :eligible-float="custody.eligibleFloat.value"
-          :current-user-id="access.currentUserId.value"
-          :can-receive="access.canReceiveHandover.value"
-          :register-id="selectedRegisterId"
-          :loading="custody.isLoading.value"
-          :error="custody.isError.value"
-          :receiving-id="receivingId"
-          @receive="handleReceive"
-          @refresh="custody.refetch()"
+          <template #panel-movimientos>
+            <CashMovementsPanel
+              v-if="hasSelection"
+              :key="sessionSectionKey"
+              :detail="detailQuery.detail.value ?? null"
+              :current-user-id="access.currentUserId.value"
+              :can-cash-in="access.canCashIn.value"
+              :can-cash-out="access.canCashOut.value"
+              :submitting="
+                commands.activeCommand.value === 'cashIn' ||
+                commands.activeCommand.value === 'cashOut'
+              "
+              :error-message="errorFor('movements')"
+              :loading="detailQuery.isLoading.value"
+              :last-movement="lastMovement"
+              @submit="handleMovement"
+              @refresh="detailQuery.refetch()"
+            />
+          </template>
+
+          <template #panel-conteo>
+            <div v-if="hasSelection" :key="sessionSectionKey" class="flex flex-col gap-4">
+              <div
+                v-if="session?.status === 'OPEN' && access.canCount.value"
+                class="flex flex-col gap-4"
+              >
+                <p>Inicia el conteo cuando termines de vender. A partir de ese momento:</p>
+                <ul class="cash-checklist">
+                  <li>
+                    <UIcon name="i-lucide-lock" class="cash-checklist-icon" aria-hidden="true" />
+                    <span
+                      ><strong>La caja se congela</strong><br /><span class="cash-meta-wrap"
+                        >No admite cobros en efectivo ni entradas o salidas. No libera el cajón.</span
+                      ></span
+                    >
+                  </li>
+                  <li>
+                    <UIcon name="i-lucide-eye-off" class="cash-checklist-icon" aria-hidden="true" />
+                    <span
+                      ><strong>Cuentas a ciegas</strong><br /><span class="cash-meta-wrap"
+                        >Declaras cada canal sin ver lo esperado; el cero también se declara.</span
+                      ></span
+                    >
+                  </li>
+                  <li>
+                    <UIcon name="i-lucide-shield-check" class="cash-checklist-icon" aria-hidden="true" />
+                    <span
+                      ><strong>Otra persona verifica</strong><br /><span class="cash-meta-wrap"
+                        >Recuenta tu efectivo después de que declares.</span
+                      ></span
+                    >
+                  </li>
+                </ul>
+                <p
+                  v-if="errorFor('freeze')"
+                  class="cash-inline-error"
+                  role="alert"
+                  data-testid="cash-freeze-error"
+                >
+                  <UIcon name="i-lucide-circle-alert" class="size-4 shrink-0" aria-hidden="true" />
+                  {{ errorFor('freeze') }}
+                </p>
+                <UButton
+                  type="button"
+                  class="min-h-11 self-end"
+                  :loading="commands.activeCommand.value === 'freeze'"
+                  data-testid="cash-session-freeze"
+                  @click="handleFreeze"
+                >
+                  Iniciar conteo y congelar caja
+                </UButton>
+              </div>
+              <div
+                v-else-if="session?.status === 'OPEN'"
+                class="cash-callout"
+                data-testid="cash-count-forbidden"
+              >
+                <UIcon name="i-lucide-lock" class="cash-callout-icon" aria-hidden="true" />
+                <p>
+                  <strong>No tienes permiso para contar o declarar</strong><br />
+                  <span class="cash-meta-wrap">Pide a un encargado el permiso «Contar y declarar».</span>
+                </p>
+              </div>
+              <div v-else class="cash-callout" data-testid="cash-count-frozen">
+                <UIcon name="i-lucide-lock" class="cash-callout-icon" aria-hidden="true" />
+                <p>
+                  <strong>La caja está congelada</strong><br />
+                  <span class="cash-meta-wrap">
+                    {{
+                      session?.frozenAt
+                        ? `Desde ${formatShortDateTime(session.frozenAt)} no admite cobros en efectivo ni movimientos.`
+                        : 'Ya no admite cobros en efectivo ni movimientos.'
+                    }}
+                  </span>
+                </p>
+              </div>
+            </div>
+          </template>
+
+          <template #panel-declaracion>
+            <div v-if="hasSelection" :key="sessionSectionKey" class="flex flex-col gap-4">
+              <CashCountForm
+                v-if="isFrozenBlind && access.canCount.value"
+                :channels="countChannels"
+                :submitting="commands.activeCommand.value === 'declare'"
+                :error-message="errorFor('declare')"
+                @submit="handleDeclare"
+              />
+              <CashDeclarationNotesForm
+                v-else-if="isSubmitted && access.canCount.value"
+                :submitting="commands.activeCommand.value === 'notes'"
+                :error-message="errorFor('notes')"
+                @submit="handleAppendNotes"
+              />
+              <div v-else class="cash-callout" data-testid="cash-declaration-unavailable">
+                <UIcon name="i-lucide-user" class="cash-callout-icon" aria-hidden="true" />
+                <p>
+                  <strong>La declaración la hace la persona responsable de la sesión</strong><br />
+                  <span class="cash-meta-wrap">Necesita el permiso «Contar y declarar».</span>
+                </p>
+              </div>
+            </div>
+          </template>
+
+          <!-- S8: the handover is open from SUBMITTED, before verification. -->
+          <template #panel-entrega>
+            <div v-if="hasSelection" :key="sessionSectionKey" class="flex flex-col gap-4">
+              <ul v-if="handovers.length > 0" class="cash-ho-list" data-testid="cash-handover-list">
+                <li v-for="item in handovers" :key="item.id" class="cash-ho-row">
+                  <span class="cash-strong">{{ HANDOVER_KIND_LABELS[item.kind] }}</span>
+                  <span class="hf-figure">{{ formatCentsMXN(item.declaredCents) }}</span>
+                  <StatusBadge
+                    :label="item.receivedAt ? 'Recibida' : 'Por recibir'"
+                    :tone="item.receivedAt ? 'success' : 'warning'"
+                  />
+                </li>
+              </ul>
+              <p v-if="isSubmitted && pendingReceiveCount > 0" class="cash-notice">
+                <UIcon name="i-lucide-clock" class="size-4 shrink-0" aria-hidden="true" />
+                Cada persona recibe desde su propia sesión, en «Por recibir». Después liberas el cajón.
+              </p>
+              <CashCustodyActions
+                section="handover"
+                :session-id="selectedSessionId"
+                :can-declare-handover="access.canDeclareHandover.value"
+                :can-release-drawer="access.canDeclareHandover.value"
+                :drawer-released="Boolean(session?.drawerReleasedAt)"
+                :pending-receive-count="pendingReceiveCount"
+                :counted-cash-cents="countedCashCents"
+                :selector-entitled="recipients.entitled.value"
+                :assignable-users="recipients.assignableUsers.value"
+                :loading-recipients="recipients.isLoading.value"
+                :current-user-id="access.currentUserId.value"
+                :busy="commands.isBusy.value"
+                :submitting="commands.activeCommand.value === 'declareHandover'"
+                :releasing="commands.activeCommand.value === 'releaseDrawer'"
+                :error-message="errorFor('custody')"
+                @declare="handleDeclareHandover"
+                @release="handleReleaseDrawer"
+              />
+            </div>
+          </template>
+
+          <template #panel-verificacion>
+            <CashVerificationPanel
+              v-if="hasSelection"
+              :key="sessionSectionKey"
+              :detail="detailQuery.detail.value ?? null"
+              :can-verify="access.canVerifyIndependent.value"
+              :current-user-id="access.currentUserId.value"
+              :submitting="commands.activeCommand.value === 'verify'"
+              :comparison="verificationComparison"
+              :error-message="errorFor('verify')"
+              @submit="handleVerify"
+            />
+          </template>
+
+          <template #panel-liberar>
+            <CashCustodyActions
+              v-if="hasSelection"
+              :key="sessionSectionKey"
+              section="release"
+              :session-id="selectedSessionId"
+              :can-declare-handover="access.canDeclareHandover.value"
+              :can-release-drawer="access.canDeclareHandover.value"
+              :drawer-released="Boolean(session?.drawerReleasedAt)"
+              :pending-receive-count="pendingReceiveCount"
+              :counted-cash-cents="countedCashCents"
+              :current-user-id="access.currentUserId.value"
+              :busy="commands.isBusy.value"
+              :releasing="commands.activeCommand.value === 'releaseDrawer'"
+              :error-message="errorFor('custody')"
+              @release="handleReleaseDrawer"
+            />
+          </template>
+
+          <!-- T4 SLOT · «Cerrar caja»: components/close/** mounts the close step here
+               (POST /cash-sessions/:id/close, another person, create:CashClosing). -->
+          <template #panel-cierre>
+            <div class="cash-callout" data-testid="cash-close-slot" data-slot="t4-close">
+              <UIcon name="i-lucide-lock" class="cash-callout-icon" aria-hidden="true" />
+              <p>
+                <strong>La cierra un supervisor</strong><br />
+                <span class="cash-meta-wrap"
+                  >Con permiso de cierre y distinto de quien abrió la caja. Genera el corte con
+                  folio.</span
+                >
+              </p>
+            </div>
+          </template>
+
+          <!-- T4 SLOT · «Corte de caja»: the corte detail and its PDF mount here. -->
+          <template #panel-corte>
+            <div class="cash-empty-note" data-testid="cash-corte-slot" data-slot="t4-corte">
+              <UIcon name="i-lucide-file-text" class="size-5" aria-hidden="true" />
+              <p>
+                <strong>El corte aparece al cerrar la caja</strong><br />
+                <span class="cash-meta-wrap"
+                  >Incluye folio, totales por canal, entregas, horarios, personas y notas.</span
+                >
+              </p>
+            </div>
+          </template>
+        </CashTimeline>
+      </template>
+
+      <!-- ── Context: summary, «Por recibir», Cortes entry ─────────────── -->
+      <template #context>
+        <CashWorkspaceShiftCard
+          :has-selection="hasSelection"
+          :detail="detailQuery.detail.value ?? null"
+          :loading="detailQuery.isLoading.value"
+          :error="false"
+          :is-own-shift="isOwnShift"
+          :no-shift-context="shiftContext"
+          :opening-active="openPanelId === 'apertura'"
+          @request-opening="requestOpening"
+          @retry="detailQuery.refetch()"
         />
-      </div>
+
+        <button
+          v-if="access.canReadCustody.value"
+          type="button"
+          class="cash-recv"
+          :aria-expanded="openPanelId === 'recepcion'"
+          aria-controls="cash-recepcion-title"
+          data-testid="cash-receive-entry"
+          @click="togglePanel('recepcion')"
+        >
+          <UIcon name="i-lucide-inbox" class="size-5 shrink-0" aria-hidden="true" />
+          <span class="cash-recv-text">
+            <span class="cash-strong">Por recibir</span>
+            <span class="cash-meta-wrap" data-testid="cash-receive-entry-label">
+              {{
+                custody.isLoading.value
+                  ? 'Cargando…'
+                  : pendingForMe > 0
+                    ? `${pendingForMe} ${pendingForMe === 1 ? 'entrega' : 'entregas'} por recibir · ${formatCentsMXN(pendingForMeCents)}`
+                    : 'Sin entregas por recibir'
+              }}
+            </span>
+          </span>
+          <span v-if="pendingForMe > 0" class="cash-count" aria-hidden="true">{{ pendingForMe }}</span>
+          <UIcon name="i-lucide-chevron-right" class="size-4 shrink-0" aria-hidden="true" />
+        </button>
+
+        <!-- T4 SLOT · «Cortes»: the closings list entry (read:CashClosing) mounts here. -->
+        <div data-testid="cash-closings-entry-slot" data-slot="t4-cortes" hidden />
+
+        <p class="cash-perm">
+          <UIcon name="i-lucide-lock" class="size-3.5 shrink-0" aria-hidden="true" />
+          {{ permissionNote }}
+        </p>
+      </template>
+
+      <!-- Phones: the next action in a sticky bar outside the scrolling content. -->
+      <template v-if="nextAction && nextAction.kind === 'primary' && nextAction.stepId" #bar>
+        <UButton
+          v-if="nextAction.alt"
+          type="button"
+          color="neutral"
+          variant="outline"
+          class="min-h-11 justify-center"
+          @click="openPanel(nextAction.alt.stepId)"
+        >
+          {{ nextAction.alt.label }}
+        </UButton>
+        <UButton
+          type="button"
+          class="min-h-11 justify-center"
+          @click="nextAction.stepId && openPanel(nextAction.stepId)"
+        >
+          {{ nextAction.label }}
+        </UButton>
+      </template>
     </CashWorkspace>
   </section>
 </template>

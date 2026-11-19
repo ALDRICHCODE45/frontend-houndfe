@@ -16,6 +16,10 @@
  *      Commands therefore require BOTH a writable session and the caller being
  *      the session's cashier; a non-owner never gets them, and a frozen session
  *      (`COUNTING`+) rejects them server-side (`CASH_SESSION_NOT_WRITABLE`).
+ *
+ *   3. LAST ENTRY (S9, owner L8). While blind, after a cash in/out the cashier
+ *      sees only the confirmation of that last entry — built from the POST
+ *      response the view hands in as `lastMovement` — never a list or a total.
  */
 import { computed, ref } from 'vue'
 import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
@@ -30,6 +34,15 @@ import { CASH_SESSION_STATUS_LABELS } from '../utils/cash-status'
 
 type CashMovement = CashSessionDetail['movements'][number]
 
+/** The last manual entry recorded from this screen (POST response + its reason). */
+export interface CashLastMovement {
+  id: string
+  kind: 'CASH_IN' | 'CASH_OUT'
+  deltaCents: number
+  occurredAt: string
+  reason: string
+}
+
 const props = withDefaults(
   defineProps<{
     detail?: CashSessionDetail | null
@@ -42,6 +55,8 @@ const props = withDefaults(
     /** The session detail is loading or failed: the history shows its skeleton or error. */
     loading?: boolean
     error?: boolean
+    /** S9: confirmation of the last entry recorded here; never a list. */
+    lastMovement?: CashLastMovement | null
   }>(),
   {
     detail: null,
@@ -52,6 +67,7 @@ const props = withDefaults(
     errorMessage: null,
     loading: false,
     error: false,
+    lastMovement: null,
   },
 )
 
@@ -131,6 +147,19 @@ const isOwner = computed(
   () => Boolean(props.currentUserId) && session.value?.cashierUserId === props.currentUserId,
 )
 
+const timeFormatter = new Intl.DateTimeFormat('es-MX', { hour: '2-digit', minute: '2-digit' })
+
+/** «Salida de $350.00 registrada a las 15:12 · motivo» — the only trace while blind. */
+const lastMovementText = computed(() => {
+  const last = props.lastMovement
+  if (!last) return null
+  const word = last.kind === 'CASH_IN' ? 'Entrada' : 'Salida'
+  const at = Number.isNaN(Date.parse(last.occurredAt))
+    ? ''
+    : ` a las ${timeFormatter.format(new Date(last.occurredAt))}`
+  return `${word} de ${formatCentsMXN(Math.abs(last.deltaCents))} registrada${at} · ${last.reason}`
+})
+
 const amountInput = ref('')
 const reasonInput = ref('')
 const localError = ref<string | null>(null)
@@ -188,14 +217,31 @@ function submit(kind: 'CASH_IN' | 'CASH_OUT') {
     </p>
 
     <template v-else>
-      <!-- HISTORY: hidden in the blind window, independent of the status. -->
+      <!-- S9: the only trace of a blind entry is its own confirmation. -->
       <p
+        v-if="lastMovementText"
+        class="cash-status-note"
+        role="status"
+        data-testid="cash-movement-last"
+      >
+        <UIcon name="i-lucide-check" class="size-4 shrink-0" aria-hidden="true" />
+        <span>{{ lastMovementText }}</span>
+      </p>
+      <!-- HISTORY: hidden in the blind window, independent of the status. -->
+      <div
         v-if="!showHistory && blind"
-        class="text-sm text-muted"
+        class="cash-callout"
         data-testid="cash-movements-history-hidden"
       >
-        Conteo ciego: el historial de movimientos no se muestra hasta enviar la declaración.
-      </p>
+        <UIcon name="i-lucide-eye-off" class="cash-callout-icon" aria-hidden="true" />
+        <p>
+          <strong>Conteo ciego</strong><br />
+          <span class="cash-meta-wrap"
+            >Durante tu turno no ves ventas, lo esperado ni la lista de movimientos. Se muestran al
+            enviar tu declaración. Lo que registres aquí sí cuenta para lo esperado.</span
+          >
+        </p>
+      </div>
       <div
         v-else-if="showHistory"
         data-testid="cash-movements-table"

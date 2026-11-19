@@ -11,6 +11,9 @@
  *   (`CASH_HANDOVER_SELF_WITHDRAWAL`); a same-person FLOAT is allowed.
  * - Drawer release is a separate event from the session status and is blocked
  *   while any handover is still unreceived.
+ * - `section` lets the timeline open each part in its own step: «Entregar el
+ *   efectivo» (`handover`, offered from SUBMITTED, before verification — S8)
+ *   and «Liberar el cajón» (`release`). The default shows both.
  */
 import { computed, ref } from 'vue'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
@@ -39,6 +42,8 @@ const props = withDefaults(
     /** Another cash command is in flight: every control here is disabled. */
     busy?: boolean
     errorMessage?: string | null
+    /** Which part to render: both (default), only the handover, or only the release. */
+    section?: 'all' | 'handover' | 'release'
   }>(),
   {
     sessionId: null,
@@ -55,6 +60,7 @@ const props = withDefaults(
     releasing: false,
     busy: false,
     errorMessage: null,
+    section: 'all',
   },
 )
 
@@ -69,6 +75,16 @@ const emit = defineEmits<{
   ]
   release: []
 }>()
+
+const showHandover = computed(() => props.section !== 'release')
+const showRelease = computed(() => props.section !== 'handover')
+const sectionTitle = computed(() =>
+  props.section === 'handover'
+    ? 'Entrega de efectivo'
+    : props.section === 'release'
+      ? 'Liberar cajón físico'
+      : 'Custodia y liberación de cajón',
+)
 
 const handoverKind = ref<CashHandoverKind>('FLOAT')
 const selectedRecipientId = ref<string | null>(null)
@@ -153,7 +169,7 @@ function submitRelease() {
 <template>
   <section class="cash-list-section" data-testid="cash-custody-actions">
     <header class="cash-list-header">
-      <h2 class="cash-list-title">Custodia y liberación de cajón</h2>
+      <h2 class="cash-list-title">{{ sectionTitle }}</h2>
     </header>
 
     <div class="flex flex-col gap-4">
@@ -163,7 +179,7 @@ function submitRelease() {
 
       <template v-else>
         <p
-          v-if="countedCashCents !== null"
+          v-if="showHandover && countedCashCents !== null"
           class="cash-meta"
           data-testid="cash-custody-actions-counted"
         >
@@ -171,7 +187,7 @@ function submitRelease() {
         </p>
 
         <form
-          v-if="canDeclareHandover"
+          v-if="showHandover && canDeclareHandover"
           class="flex flex-col gap-3"
           data-testid="cash-handover-form"
           @submit.prevent="submitDeclare"
@@ -277,12 +293,15 @@ function submitRelease() {
           </UButton>
         </form>
 
-        <p v-else class="cash-meta" data-testid="cash-handover-forbidden">
+        <p v-else-if="showHandover" class="cash-meta" data-testid="cash-handover-forbidden">
           No tienes permiso para declarar entregas de custodia.
         </p>
 
-        <div class="cash-note flex flex-col gap-2">
-          <h3 class="cash-list-title">Liberar cajón físico</h3>
+        <div v-if="showRelease" class="cash-note flex flex-col gap-2">
+          <h3 v-if="section === 'all'" class="cash-list-title">Liberar cajón físico</h3>
+          <p v-else class="cash-meta-wrap">
+            Libera el cajón cuando retires todo el efectivo. Es un paso aparte: no cierra la caja.
+          </p>
           <p
             v-if="releaseBlockedReason"
             class="cash-meta"

@@ -9,11 +9,17 @@
  * Under the register name, «cashier · period» tells apart two closed sessions
  * of the same register and fund; a missing value shows nothing. It rides in the
  * name column, which has the room: a column of its own cut the period at 1440.
+ *
+ * Direction A puts the list in the side column: `variant="list"` always renders
+ * the cards (the side is too narrow for a table). With `showFilters` (the
+ * supervisor list, `read:CashSessionAudit`) it offers the existing list
+ * filters: «Solo por verificar» (`pendingOnly`) and the register.
  */
 import { computed } from 'vue'
 import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { HfSwitchRow } from '@/core/shared/components/selection'
 import { useClickableRow } from '@/core/shared/composables/useClickableRow'
 import { useTablePreferences } from '@/core/shared/composables/useTablePreferences'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
@@ -34,6 +40,13 @@ const props = withDefaults(
     canFilterByCashier?: boolean
     canOpen?: boolean
     total?: number
+    /** `list`: always cards (side column). `table`: table on desktop, cards on mobile. */
+    variant?: 'table' | 'list'
+    title?: string
+    /** Offer the list filters (pendingOnly, register). */
+    showFilters?: boolean
+    pendingOnly?: boolean
+    registerFilter?: string | null
   }>(),
   {
     sessions: () => [],
@@ -45,6 +58,11 @@ const props = withDefaults(
     canFilterByCashier: false,
     canOpen: false,
     total: 0,
+    variant: 'table',
+    title: 'Sesiones de caja',
+    showFilters: false,
+    pendingOnly: false,
+    registerFilter: null,
   },
 )
 
@@ -52,7 +70,19 @@ const emit = defineEmits<{
   select: [sessionId: string]
   refresh: []
   'request-opening': []
+  'update:pendingOnly': [value: boolean]
+  'update:registerFilter': [value: string | null]
 }>()
+
+const ALL_REGISTERS = '__all__'
+const registerFilterItems = computed(() => [
+  { label: 'Todas las cajas', value: ALL_REGISTERS },
+  ...Object.entries(props.registerNames).map(([value, label]) => ({ label, value })),
+])
+const registerFilterModel = computed({
+  get: () => props.registerFilter ?? ALL_REGISTERS,
+  set: (value: string) => emit('update:registerFilter', value === ALL_REGISTERS ? null : value),
+})
 
 const right = { class: { th: 'text-right', td: 'text-right' } }
 // Totals row (premium tables S5): the count of sessions only. Opening funds are not added up:
@@ -89,11 +119,16 @@ const layout = useTablePreferences({
 const { columnOrder, columnPinning, columnSizing, columnVisibility, density } = layout
 
 const data = computed(() => [...props.sessions])
-const emptyState = computed(() => ({
-  title: 'Aún no hay sesiones',
-  description: 'Las sesiones que abras aparecerán aquí.',
-  ...(props.canOpen ? { actionLabel: 'Abrir un turno' } : {}),
-}))
+const filtered = computed(() => props.pendingOnly || Boolean(props.registerFilter))
+const emptyState = computed(() =>
+  filtered.value
+    ? { title: 'Ninguna sesión coincide', description: 'Quita un filtro para ver más sesiones.' }
+    : {
+        title: 'Aún no hay sesiones',
+        description: 'Las sesiones que abras aparecerán aquí.',
+        ...(props.canOpen ? { actionLabel: 'Abrir un turno' } : {}),
+      },
+)
 const hiddenCount = computed(() => Math.max(props.total - props.sessions.length, 0))
 
 const registerName = (session: CashSession) => props.registerNames[session.registerId] ?? 'Caja'
@@ -136,11 +171,30 @@ const { rowProps } = useClickableRow<CashSession>(open, { focusable: false })
 <template>
   <section class="cash-list-section" data-testid="cash-sessions-panel">
     <header class="cash-list-header">
-      <h2 class="cash-list-title">Sesiones de caja</h2>
+      <h2 class="cash-list-title" data-testid="cash-sessions-title">{{ title }}</h2>
       <p v-if="!canFilterByCashier" class="cash-list-subtitle" data-testid="cash-sessions-scope-own">
         Solo ves tus propias sesiones.
       </p>
     </header>
+
+    <div v-if="showFilters" class="cash-session-filters" data-testid="cash-sessions-filters">
+      <HfSwitchRow
+        :model-value="pendingOnly"
+        label="Solo por verificar"
+        description="Sesiones congeladas o declaradas"
+        :show-state="false"
+        test-id="cash-sessions-pending-only"
+        @update:model-value="emit('update:pendingOnly', $event)"
+      />
+      <USelect
+        v-if="Object.keys(registerNames).length > 1"
+        v-model="registerFilterModel"
+        :items="registerFilterItems"
+        aria-label="Filtrar por caja"
+        class="w-full"
+        data-testid="cash-sessions-register-filter"
+      />
+    </div>
 
     <AppDataTable
       v-model:column-order="columnOrder"
@@ -158,7 +212,7 @@ const { rowProps } = useClickableRow<CashSession>(open, { focusable: false })
       error-message="No se pudieron cargar las sesiones"
       :empty-state="emptyState"
       :row-open="open"
-      display-mode="auto"
+      :display-mode="variant === 'list' ? 'cards' : 'auto'"
       mobile-render="cards"
       class="hf-data-table cash-table-surface"
       @refresh="emit('refresh')"

@@ -64,46 +64,101 @@
   gap: 0.25rem;
 }
 
-/* ── Layout: main column + quiet task rail ───────────────────────────────── */
+/* ── Layout: direction A «Turno como línea de tiempo» ───────────────────── */
 
-.cash-workspace-grid {
+/* Phones (390): one column — the selected shift first (header, next step,
+ * timeline), then its summary and «Por recibir», then the session list. From
+ * lg: sessions | shift | summary, as on the desktop artboard. */
+.cash-a-grid {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.5rem;
 }
 
-.cash-workspace-main,
-.cash-workspace-context {
+.cash-a-side,
+.cash-a-main,
+.cash-a-ctx {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1rem;
 }
 
-/* Below lg the task strip leads the page (it is how the operator moves around),
- * above the shift card and the task; from lg it is the right-hand rail again. */
-.cash-workspace-context {
-  order: -1;
+.cash-a-main {
+  order: 0;
 }
 
-/* With no shift in focus the card is an empty state, not a lead: below lg it
- * sits after the task's lists so it never pushes them down. */
-.cash-workspace-shift--idle {
+.cash-a-ctx {
   order: 1;
 }
 
+.cash-a-side {
+  order: 2;
+}
+
 @media (min-width: 1024px) {
-  .cash-workspace-grid {
-    grid-template-columns: minmax(0, 1fr) var(--cash-rail);
+  .cash-a-grid {
+    grid-template-columns: minmax(15rem, 18rem) minmax(0, 1fr) minmax(16rem, 21rem);
     align-items: start;
   }
 
-  .cash-workspace-context {
+  .cash-a-side,
+  .cash-a-main,
+  .cash-a-ctx {
     order: 0;
   }
 
-  .cash-workspace-shift--idle {
-    order: 0;
+  .cash-a-side {
+    padding-right: 1rem;
+    border-right: 1px solid var(--hf-border);
   }
+}
+
+.cash-a-head {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.cash-head-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+}
+
+.cash-head-title {
+  color: var(--hf-heading);
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* The sticky action bar lives outside the scrolling regions, so it never
+ * covers the focused field (WCAG 2.4.11); the page keeps room for it. */
+.cash-mobile-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--hf-border);
+  background: var(--hf-surface);
+}
+
+@media (min-width: 1024px) {
+  .cash-mobile-bar {
+    display: none;
+  }
+}
+
+.cash-page {
+  scroll-padding-bottom: 5rem;
 }
 
 .cash-form-content {
@@ -111,72 +166,605 @@
   max-width: 42rem;
 }
 
-/* ── Task navigation ─────────────────────────────────────────────────────── */
+/* ── Side: «Tu turno» and the session list ───────────────────────────────── */
 
-/* Below lg the tasks are one scrolling strip: the fade on the right edge says
- * there is more, so no tab is cut off without a cue. */
-.cash-task-nav-list {
+.cash-own-shift {
   display: flex;
-  gap: 0.25rem;
-  margin: 0;
-  padding: 0 0 0.25rem;
-  list-style: none;
-  overflow-x: auto;
-  mask-image: linear-gradient(to right, #000 calc(100% - 1.5rem), transparent);
-}
-
-@media (min-width: 1024px) {
-  .cash-task-nav-list {
-    flex-direction: column;
-    padding-bottom: 0;
-    overflow: visible;
-    mask-image: none;
-  }
-}
-
-.cash-task {
-  display: flex;
-  width: 100%;
-  min-height: 44px;
-  align-items: center;
+  flex-direction: column;
   gap: 0.5rem;
-  padding: 0.5rem 0.625rem;
-  border: 1px solid transparent;
-  border-radius: var(--hf-radius-control);
-  background: transparent;
-  color: var(--hf-ink);
-  font-size: 0.875rem;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-  text-align: left;
 }
 
-.cash-task:hover {
+.cash-side-title {
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.cash-side-note {
+  padding-inline: 0.25rem;
+}
+
+.cash-sess {
+  display: grid;
+  gap: 0.125rem;
+  width: 100%;
+  min-height: 56px;
+  padding: 0.75rem;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background: var(--hf-surface);
+  color: var(--hf-ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.cash-sess:hover {
   background: var(--hf-surface-muted);
 }
 
-.cash-task:focus-visible {
+.cash-sess[aria-current='true'] {
+  border-color: var(--hf-active);
+  background: var(--hf-active-soft);
+}
+
+.cash-sess-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.cash-session-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* ── «Siguiente paso» ────────────────────────────────────────────────────── */
+
+.cash-next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 1.5rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background: var(--hf-surface);
+}
+
+.cash-next--primary {
+  border-color: var(--hf-active);
+  box-shadow: inset 4px 0 0 var(--hf-action);
+}
+
+.cash-next--wait {
+  background: var(--hf-surface-muted);
+}
+
+.cash-next-text {
+  display: grid;
+  flex: 1 1 16rem;
+  gap: 0.125rem;
+}
+
+.cash-next-kicker {
+  color: var(--hf-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.cash-next-title {
+  color: var(--hf-heading);
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.cash-next-why {
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.cash-next-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* ── Timeline ────────────────────────────────────────────────────────────── */
+
+.cash-tl {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cash-tl-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  padding-bottom: 0.25rem;
+}
+
+/* The connector: green once a step is done, neutral otherwise. */
+.cash-tl-item::before {
+  content: '';
+  position: absolute;
+  top: 2.25rem;
+  bottom: -0.25rem;
+  left: 0.6875rem;
+  width: 2px;
+  background: var(--hf-border);
+}
+
+.cash-tl-item:last-child::before {
+  display: none;
+}
+
+.cash-tl-item.is-done::before {
+  background: var(--hf-success);
+}
+
+.cash-tl-dot {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-top: 1rem;
+  place-items: center;
+  border-radius: 9999px;
+  background: var(--hf-surface);
+  box-shadow: inset 0 0 0 2px var(--hf-field-border);
+  color: var(--hf-muted);
+}
+
+.is-done > .cash-tl-dot {
+  background: var(--hf-success);
+  box-shadow: none;
+  color: var(--hf-surface);
+}
+
+.is-current > .cash-tl-dot {
+  background: var(--hf-action);
+  box-shadow: 0 0 0 4px var(--hf-active-soft);
+}
+
+.is-next > .cash-tl-dot {
+  background: var(--hf-active-soft);
+  box-shadow: inset 0 0 0 2px var(--hf-action);
+}
+
+.is-blocked > .cash-tl-dot {
+  box-shadow: inset 0 0 0 2px var(--hf-warning);
+  color: var(--hf-warning);
+}
+
+.cash-tl-body {
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: var(--hf-radius-card);
+}
+
+.cash-tl-head {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.375rem 0.5rem 0.375rem 0.25rem;
+}
+
+.cash-tl-icon {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  color: var(--hf-heading);
+}
+
+.cash-tl-text {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 0.125rem;
+}
+
+.cash-tl-title {
+  color: var(--hf-heading);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.is-upcoming .cash-tl-title {
+  color: var(--hf-ink);
+  font-weight: 500;
+}
+
+.cash-tl-meta {
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.cash-tl-who {
+  flex: 0 0 auto;
+  color: var(--hf-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.is-current .cash-tl-who,
+.is-highlighted .cash-tl-who {
+  color: var(--hf-active);
+}
+
+.is-highlighted:not(.is-open) > .cash-tl-body {
+  border-color: var(--hf-active);
+  background: var(--hf-active-soft);
+}
+
+.cash-tl-toggle {
+  flex: 0 0 auto;
+  min-height: 44px;
+}
+
+.is-open > .cash-tl-body {
+  margin-bottom: 0.75rem;
+  border-color: var(--hf-border);
+  background: var(--hf-surface);
+}
+
+.is-open .cash-tl-head {
+  padding: 0.5rem 0.75rem 0.5rem 1rem;
+  border-bottom: 1px solid var(--hf-border);
+}
+
+.cash-tl-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+/* Phones: the actor drops under the title so the step keeps one tap target. */
+@media (max-width: 639px) {
+  .cash-tl-head {
+    flex-wrap: wrap;
+  }
+
+  .cash-tl-who {
+    order: 3;
+    width: 100%;
+    padding-left: 1.75rem;
+  }
+
+  .cash-tl-panel {
+    padding: 1rem;
+  }
+}
+
+.cash-tl-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.cash-tl-toggle:focus-visible,
+.cash-sess:focus-visible,
+.cash-recv:focus-visible,
+.cash-manage-summary:focus-visible,
+.cash-err-summary:focus,
+.cash-a-main [tabindex='-1']:focus-visible {
   outline: 2px solid var(--hf-focus);
   outline-offset: 2px;
 }
 
-.cash-task-active {
-  border-color: var(--hf-border);
+/* ── Panels opened in place ──────────────────────────────────────────────── */
+
+.cash-inplace {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background: var(--hf-surface);
+}
+
+.cash-inplace-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.cash-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  background: var(--hf-surface-muted);
+  color: var(--hf-ink);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.cash-callout strong {
+  color: var(--hf-heading);
+}
+
+.cash-callout--ok .cash-callout-icon {
+  color: var(--hf-success);
+}
+
+.cash-callout-icon {
+  flex: 0 0 auto;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-top: 0.125rem;
+  color: var(--hf-heading);
+}
+
+.cash-notice,
+.cash-status-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0;
+  color: var(--hf-ink);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.cash-status-note {
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
   background: var(--hf-active-soft);
+  color: var(--hf-heading);
+  font-weight: 500;
+}
+
+.cash-empty-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  color: var(--hf-muted);
+  font-size: 0.875rem;
+}
+
+.cash-checklist {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cash-checklist li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.cash-checklist-icon {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.2rem;
+  color: var(--hf-heading);
+}
+
+.cash-ho-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+}
+
+.cash-ho-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 56px;
+  padding: 0.5rem 0.875rem;
+}
+
+.cash-ho-row + .cash-ho-row {
+  border-top: 1px solid var(--hf-border);
+}
+
+/* ── Forms: legends, money entry, error summary + inline errors ──────────── */
+
+.cash-opening,
+.cash-open-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.cash-fieldset {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.625rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.cash-legend,
+.cash-label {
+  color: var(--hf-heading);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.cash-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.cash-hint {
+  color: var(--hf-muted);
+  font-size: 0.75rem;
+}
+
+.cash-money-input input {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.cash-confirmed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--hf-active);
+  border-radius: var(--hf-radius-control);
+  background: var(--hf-active-soft);
+  color: var(--hf-heading);
+}
+
+.cash-form-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--hf-border);
+}
+
+/* One red, only for errors: the summary and the message under the field share it. */
+.cash-err-summary {
+  display: grid;
+  gap: 0.375rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--hf-danger-border);
+  border-radius: var(--hf-radius-control);
+  background: var(--hf-danger-soft);
+  color: var(--hf-danger);
+  font-size: 0.875rem;
+}
+
+.cash-err-summary-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.cash-err-summary ul {
+  margin: 0;
+  padding-left: 1.5rem;
+  list-style: disc;
+}
+
+.cash-err-summary a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.cash-inline-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  margin: 0;
+  color: var(--hf-danger);
+  font-size: 0.8125rem;
+}
+
+.cash-manage {
+  border-top: 1px solid var(--hf-border);
+  padding-top: 0.75rem;
+}
+
+.cash-manage-summary {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--hf-heading);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ── Context column ──────────────────────────────────────────────────────── */
+
+.cash-recv {
+  display: flex;
+  width: 100%;
+  min-height: 56px;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background: var(--hf-surface);
+  color: var(--hf-ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.cash-recv:hover {
+  background: var(--hf-surface-muted);
+}
+
+.cash-recv[aria-expanded='true'] {
+  border-color: var(--hf-active);
+}
+
+.cash-recv-text {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.cash-count {
+  display: grid;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  place-items: center;
+  padding: 0 0.375rem;
+  border-radius: 9999px;
+  background: var(--hf-action);
+  color: var(--hf-on-action);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.cash-perm {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  padding-inline: 0.25rem;
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+}
+
+.cash-strong {
   color: var(--hf-heading);
   font-weight: 600;
 }
 
-.cash-task-icon {
-  flex: 0 0 auto;
-  width: 1.1rem;
-  height: 1.1rem;
+.cash-meta-wrap {
   color: var(--hf-muted);
-}
-
-.cash-task-active .cash-task-icon {
-  color: var(--hf-active);
+  font-size: 0.8125rem;
+  line-height: 1.5;
 }
 
 /* ── Selected-turn card ──────────────────────────────────────────────────── */

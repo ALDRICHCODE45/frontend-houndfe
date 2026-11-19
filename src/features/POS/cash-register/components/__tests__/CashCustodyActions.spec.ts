@@ -185,3 +185,27 @@ describe('CashCustodyActions · declared money is entered in pesos', () => {
     )
   })
 })
+
+// Direction A: the handover and the release are separate timeline steps.
+describe('CashCustodyActions · timeline sections', () => {
+  it('renders only the handover in the «Entregar el efectivo» step', () => {
+    const wrapper = mountActions({ section: 'handover', countedCashCents: 150000 })
+    expect(wrapper.find('[data-testid="cash-handover-form"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="cash-custody-actions-counted"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="cash-drawer-release"]').exists()).toBe(false)
+  })
+
+  it('renders only the release in the «Liberar el cajón» step, still blocked by pending receipts', () => {
+    const wrapper = mountActions({ section: 'release', pendingReceiveCount: 1 })
+    expect(wrapper.find('[data-testid="cash-handover-form"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="cash-handover-forbidden"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="cash-drawer-release"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-testid="cash-drawer-release-blocked"]').text()).toMatch(/sin recibir/)
+  })
+
+  it('keeps both parts by default', () => {
+    const wrapper = mountActions()
+    expect(wrapper.find('[data-testid="cash-handover-form"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="cash-drawer-release"]').exists()).toBe(true)
+  })
+})

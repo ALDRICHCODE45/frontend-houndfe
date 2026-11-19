@@ -105,6 +105,8 @@ export function useCashSessions(params: MaybeRefOrGetter<CashSessionListParams> 
     isLoading: computed(() => listQuery.isLoading.value),
     isFetching: computed(() => listQuery.isFetching.value),
     isError: computed(() => listQuery.isError.value),
+    /** The list for the CURRENT key has loaded (drives the «Tu turno» default). */
+    isSuccess: computed(() => listQuery.isSuccess.value),
     error: listQuery.error,
     refetch: listQuery.refetch,
   }

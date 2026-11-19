@@ -280,3 +280,27 @@ describe('CashSessionsPanel · totals row', () => {
     expect(mountPanel().find('tfoot').exists()).toBe(false)
   })
 })
+
+describe('CashSessionsPanel · side list and branch filters (direction A)', () => {
+  it('always renders cards in the side list, even on desktop', () => {
+    const wrapper = mountPanel({ variant: 'list' })
+    expect(wrapper.find('tbody').exists()).toBe(false)
+    expect(wrapper.findAll('[data-testid="mobile-cards-list"] article')).toHaveLength(2)
+  })
+
+  it('offers «Solo por verificar» as a switch, never a checkbox, and emits it', async () => {
+    const wrapper = mountPanel({ showFilters: true, title: 'Sesiones de la sucursal' })
+    expect(wrapper.get('[data-testid="cash-sessions-title"]').text()).toBe('Sesiones de la sucursal')
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
+    const toggle = wrapper.get('[data-testid="cash-sessions-pending-only"]')
+    expect(toggle.attributes('role')).toBe('switch')
+    await toggle.trigger('click')
+    expect(wrapper.emitted('update:pendingOnly')).toEqual([[true]])
+  })
+
+  it('shows no filters without the branch scope and says when a filter matches nothing', () => {
+    expect(mountPanel().find('[data-testid="cash-sessions-filters"]').exists()).toBe(false)
+    const filtered = mountPanel({ sessions: [], showFilters: true, pendingOnly: true })
+    expect(filtered.text()).toContain('Ninguna sesión coincide')
+  })
+})
