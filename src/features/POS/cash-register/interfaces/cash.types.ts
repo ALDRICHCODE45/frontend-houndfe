@@ -458,6 +458,12 @@ export interface CashClosingSnapshot {
   verifiedAt: string | null
   closedAt: string
   closedByUserId: string
+  /**
+   * Session opening time, frozen at close. `null` for cortes closed before it
+   * was stored (the backend never fills it from the live session): read
+   * `GET /cash-sessions/:id` → `session.openedAt` instead.
+   */
+  openedAt: string | null
   registerName: string | null
   cashierName: string | null
   verifierName: string | null
@@ -473,8 +479,17 @@ export interface CashClosing extends CashClosingReference {
   snapshot: CashClosingSnapshot
 }
 
-/** `GET /cash-closings` item: identity only (no snapshot). */
-export type CashClosingListItem = CashClosingReference
+/**
+ * `GET /cash-closings` item (handoff 25 §3.1): identity plus the closed
+ * session's register and cashier with their CURRENT names (the detail keeps the
+ * names frozen at close) and the frozen cash difference declared − expected
+ * (negative = faltante, `null` when the snapshot has none). No snapshot.
+ */
+export interface CashClosingListItem extends CashClosingReference {
+  register: { id: string; name: string | null } | null
+  cashier: { userId: string; displayName: string | null } | null
+  differenceCents: number | null
+}
 
 /** 1-based paging; `cashierUserId` is the closed session's cashier (§3). */
 export interface CashClosingListParams {

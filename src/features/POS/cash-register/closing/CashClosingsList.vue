@@ -3,20 +3,19 @@
  * «Cortes» inside Caja (T4, S5/S7): paginated GET /cash-closings with register,
  * cashier (the closed session's cashier, §3) and date filters.
  *
- * The list items are identity-only `{ id, sessionId, folio, createdAt }`; caja,
- * cajero and diferencia come from each row's corte (cached, immutable, shared
- * with the detail). The parent supplies the filter options it already has; a
+ * Caja, cajero and diferencia come straight from each list item (§3.1: current
+ * names, frozen declared − expected difference); no corte is read per row. The
+ * difference is worded like the corte detail. The parent supplies the filter options it already has; a
  * filter without options is hidden. A row opens the detail (`open`).
  */
 import { computed, ref, useId, watch } from 'vue'
 import { CalendarDate } from '@internationalized/date'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
-import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { CashClosingListParams } from '../interfaces/cash.types'
 import { cashErrorInfo } from '../composables/cashErrorCopy'
-import { closingDateRange } from './closingView'
-import { useCashClosingSummaries, useCashClosingsList } from './useCashClosing'
+import { closingDateRange, closingDifferenceLabel } from './closingView'
+import { useCashClosingsList } from './useCashClosing'
 
 const props = withDefaults(
   defineProps<{
@@ -96,8 +95,6 @@ const params = computed<CashClosingListParams>(() => {
 })
 
 const list = useCashClosingsList(params)
-const rowIds = computed(() => list.items.value.map((item) => item.id))
-const { byId } = useCashClosingSummaries(rowIds)
 
 const totalPages = computed(() => Math.max(1, Math.ceil(list.total.value / props.pageSize)))
 const errorMessage = computed(() =>
@@ -106,25 +103,18 @@ const errorMessage = computed(() =>
 
 const rows = computed(() =>
   list.items.value.map((item) => {
-    const snapshot = byId.value.get(item.id)?.snapshot
-    const difference = snapshot?.comparison.verifiedVsExpectedDifferenceCents ??
-      snapshot?.comparison.declarationDifferenceCents
+    const difference = typeof item.differenceCents === 'number' ? item.differenceCents : null
     return {
       id: item.id,
       folio: item.folio,
-      register: snapshot?.registerName?.trim() || (snapshot ? '—' : ''),
-      cashier: snapshot?.cashierName?.trim() || (snapshot ? '—' : ''),
+      register: item.register?.name?.trim() || '—',
+      cashier: item.cashier?.displayName?.trim() || '—',
       date: formatShortDateTime(item.createdAt),
-      difference: typeof difference === 'number' ? difference : null,
-      loaded: Boolean(snapshot),
+      difference,
+      differenceText: closingDifferenceLabel(difference),
     }
   }),
 )
-
-function differenceText(cents: number | null): string {
-  if (cents === null) return '—'
-  return formatCentsMXN(cents)
-}
 
 function goTo(next: number) {
   page.value = Math.min(Math.max(1, next), totalPages.value)
@@ -255,16 +245,10 @@ function onRowKeydown(event: KeyboardEvent, id: string) {
                   {{ row.folio }}
                 </button>
               </td>
-              <td>
-                <span v-if="row.loaded">{{ row.register }}</span>
-                <span v-else class="cl-skel cl-skel--inline" aria-label="Cargando" />
-              </td>
-              <td>
-                <span v-if="row.loaded">{{ row.cashier }}</span>
-                <span v-else class="cl-skel cl-skel--inline" aria-label="Cargando" />
-              </td>
+              <td>{{ row.register }}</td>
+              <td>{{ row.cashier }}</td>
               <td>{{ row.date }}</td>
-              <td class="cl-num" :class="{ 'cl-diff--off': row.difference }">{{ differenceText(row.difference) }}</td>
+              <td class="cl-num" :class="{ 'cl-diff--off': row.difference }">{{ row.differenceText }}</td>
             </tr>
           </tbody>
         </table>
@@ -401,11 +385,6 @@ function onRowKeydown(event: KeyboardEvent, id: string) {
   height: 44px;
   border-radius: 6px;
   background: color-mix(in srgb, var(--hf-ink) 16%, var(--hf-surface));
-}
-.cl-skel--inline {
-  display: inline-block;
-  width: 6rem;
-  height: 12px;
 }
 @container (max-width: 720px) {
   .cl-filters {

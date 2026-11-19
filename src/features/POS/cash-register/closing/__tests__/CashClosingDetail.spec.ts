@@ -7,7 +7,7 @@
  * revoked); loading and error states.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import { flushPromises } from '@vue/test-utils'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import { CLOSING, cashError } from './closingFixtures'
@@ -20,6 +20,21 @@ const state = {
   refetch: vi.fn(),
 }
 vi.mock('../useCashClosing', () => ({ useCashClosingDetail: () => state }))
+
+// Old cortes (snapshot.openedAt null) fall back to the session read, only with read:CashSession.
+const access = { canReadSessions: ref(true) }
+vi.mock('../../composables/useCashAccess', () => ({ useCashAccess: () => access }))
+const sessionDetail = { detail: ref(null), isLoading: ref(false), isError: ref(false) }
+const sessionIdsRead = []
+vi.mock('../../composables/useCashSessions', async () => {
+  const { toValue, watchEffect } = await import('vue')
+  return {
+    useCashSessionDetail: (id) => {
+      watchEffect(() => sessionIdsRead.push(toValue(id)))
+      return sessionDetail
+    },
+  }
+})
 
 const getClosingPdf = vi.fn()
 vi.mock('../../api/cash.api', () => ({ cashApi: { getClosingPdf: (...a) => getClosingPdf(...a) } }))
@@ -39,6 +54,9 @@ beforeEach(() => {
   state.error.value = null
   state.refetch.mockReset()
   getClosingPdf.mockReset()
+  access.canReadSessions.value = true
+  sessionDetail.detail.value = null
+  sessionIdsRead.length = 0
   URL.createObjectURL = vi.fn(() => 'blob:corte')
   URL.revokeObjectURL = vi.fn()
 })
@@ -57,6 +75,44 @@ describe('CashClosingDetail', () => {
     expect(facts).toContain('Ana Cajera')
     expect(facts).toContain('Luis Supervisor')
     expect(facts).toMatch(/Cerró/)
+  })
+
+  it('shows «Abrió» from snapshot.openedAt without reading the session', () => {
+    const opened = mountDetail().get('[data-testid="cash-closing-opened"]')
+    expect(opened.text()).toMatch(/Abrió/)
+    expect(opened.text()).toMatch(/5 nov/)
+    expect(sessionIdsRead.filter(Boolean)).toEqual([])
+  })
+
+  it('old corte (openedAt null): falls back to the session openedAt when sessions are readable', async () => {
+    state.closing.value = { ...CLOSING, snapshot: { ...CLOSING.snapshot, openedAt: null } }
+    const wrapper = mountDetail()
+    expect(sessionIdsRead).toContain(CLOSING.sessionId)
+    // Never a blank label while the session read is pending.
+    expect(wrapper.find('[data-testid="cash-closing-opened"]').exists()).toBe(false)
+
+    sessionDetail.detail.value = { session: { id: CLOSING.sessionId, openedAt: '2026-11-04T15:30:00.000Z' } }
+    await nextTick()
+    const opened = wrapper.get('[data-testid="cash-closing-opened"]')
+    expect(opened.text()).toMatch(/Abrió/)
+    expect(opened.text()).toMatch(/4 nov/)
+  })
+
+  it('old corte without read:CashSession: omits «Abrió» and reads no session', () => {
+    access.canReadSessions.value = false
+    state.closing.value = { ...CLOSING, snapshot: { ...CLOSING.snapshot, openedAt: null } }
+    const wrapper = mountDetail()
+    expect(wrapper.find('[data-testid="cash-closing-opened"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toMatch(/Abrió/)
+    expect(sessionIdsRead.filter(Boolean)).toEqual([])
+  })
+
+  it('old corte whose session has no openedAt: omits «Abrió» (never blank)', async () => {
+    state.closing.value = { ...CLOSING, snapshot: { ...CLOSING.snapshot, openedAt: null } }
+    sessionDetail.detail.value = { session: { id: CLOSING.sessionId } }
+    const wrapper = mountDetail()
+    await nextTick()
+    expect(wrapper.text()).not.toMatch(/Abrió/)
   })
 
   it('shows the physical-cash totals and the two differences separately', () => {

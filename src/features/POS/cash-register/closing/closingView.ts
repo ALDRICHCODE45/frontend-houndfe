@@ -2,7 +2,18 @@
  * Display helpers for the corte (frozen snapshot, handoff 25 §6) and the
  * «Cortes» filters. Pure; never feed a display value back into a request.
  */
+import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import type { CashClosingHandover, CashClosingSnapshot } from '../interfaces/cash.types'
+
+/**
+ * A cash difference worded the same in the corte and the «Cortes» list:
+ * negative = faltante, positive = sobrante, zero = cuadra; no number = «—».
+ */
+export function closingDifferenceLabel(cents: number | null | undefined): string {
+  if (typeof cents !== 'number') return '—'
+  if (cents === 0) return `${formatCentsMXN(0)} · cuadra`
+  return `${formatCentsMXN(cents)} · ${cents < 0 ? 'faltante' : 'sobrante'}`
+}
 
 /** Snapshot handovers have no guaranteed order: by `declaredAt`, then id. Never mutates. */
 export function sortedClosingHandovers(handovers: readonly CashClosingHandover[]): CashClosingHandover[] {

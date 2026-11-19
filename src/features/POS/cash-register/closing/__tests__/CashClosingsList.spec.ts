@@ -7,8 +7,9 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref, toValue } from 'vue'
+import { flushPromises } from '@vue/test-utils'
 import { mountWithUApp } from '@/test/mountWithUApp'
-import { CLOSING, cashError } from './closingFixtures'
+import { CLOSING, CLOSING_ITEM, cashError } from './closingFixtures'
 
 let paramsSource
 const list = {
@@ -19,18 +20,23 @@ const list = {
   error: ref(null),
   refetch: vi.fn(),
 }
-const summaries = ref(new Map())
 vi.mock('../useCashClosing', () => ({
   useCashClosingsList: (params) => {
     paramsSource = params
     return list
   },
-  useCashClosingSummaries: () => ({ byId: summaries }),
+}))
+
+// Any corte read from the list would go through these: the list must use none (§3.1).
+const getClosing = vi.fn()
+const listClosings = vi.fn()
+vi.mock('../../api/cash.api', () => ({
+  cashApi: { getClosing: (...a) => getClosing(...a), listClosings: (...a) => listClosings(...a) },
 }))
 
 import CashClosingsList from '../CashClosingsList.vue'
 
-const ITEM = { id: CLOSING.id, sessionId: CLOSING.sessionId, folio: CLOSING.folio, createdAt: CLOSING.createdAt }
+const ITEM = CLOSING_ITEM
 
 /** Stand-ins for USelect / UInputDate so a spec can pick a value. */
 const selectStub = {
@@ -77,18 +83,57 @@ beforeEach(() => {
   list.isError.value = false
   list.error.value = null
   list.refetch.mockReset()
-  summaries.value = new Map([[CLOSING.id, CLOSING]])
+  getClosing.mockReset()
+  listClosings.mockReset()
 })
 
 describe('CashClosingsList', () => {
-  it('renders folio, caja, cajero, fecha and diferencia per row', () => {
-    const row = mountList().get('[data-testid="cash-closing-row"]')
-    const text = row.text()
+  it('renders folio, caja, cajero, fecha and diferencia straight from the item (no corte reads)', async () => {
+    const wrapper = mountList()
+    await flushPromises()
+    const text = wrapper.get('[data-testid="cash-closing-row"]').text()
     expect(text).toContain(CLOSING.folio)
     expect(text).toContain('Caja Mostrador 2')
     expect(text).toContain('Ana Cajera')
     expect(text).toMatch(/5 nov/)
-    expect(text).toContain('-$5.00')
+    expect(text).toMatch(/-\$5\.00 · faltante/)
+    expect(wrapper.find('[aria-label="Cargando"]').exists()).toBe(false)
+    expect(getClosing).not.toHaveBeenCalled()
+  })
+
+  it('uses the item names, not frozen snapshot names (current names, §3.1)', () => {
+    list.items.value = [
+      { ...ITEM, register: { id: 'r-9', name: 'Caja Renombrada' }, cashier: { userId: 'u-9', displayName: 'Ana B.' } },
+    ]
+    const text = mountList().get('[data-testid="cash-closing-row"]').text()
+    expect(text).toContain('Caja Renombrada')
+    expect(text).toContain('Ana B.')
+  })
+
+  it('shows «—» for a null difference, a missing register/cashier or a blank name', () => {
+    list.items.value = [{ ...ITEM, register: null, cashier: { userId: 'u-1', displayName: '  ' }, differenceCents: null }]
+    const cells = mountList()
+      .get('[data-testid="cash-closing-row"]')
+      .findAll('td')
+      .map((cell) => cell.text())
+    expect(cells[1]).toBe('—')
+    expect(cells[2]).toBe('—')
+    expect(cells[4]).toBe('—')
+  })
+
+  it('words the difference like the corte detail: sobrante and cuadra', () => {
+    list.items.value = [
+      { ...ITEM, id: 'a', differenceCents: 1250 },
+      { ...ITEM, id: 'b', differenceCents: 0 },
+    ]
+    const rows = mountList().findAll('[data-testid="cash-closing-row"]')
+    expect(rows[0].text()).toMatch(/\$12\.50 · sobrante/)
+    expect(rows[1].text()).toMatch(/\$0\.00 · cuadra/)
+  })
+
+  it('has no per-row corte read path left (useCashClosingSummaries is gone)', async () => {
+    const actual = await vi.importActual('../useCashClosing')
+    expect(actual).not.toHaveProperty('useCashClosingSummaries')
   })
 
   it('starts on page 1 with the page size and no filters', () => {

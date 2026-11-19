@@ -4,6 +4,7 @@
  */
 import type {
   CashClosing,
+  CashClosingListItem,
   CashSession,
   CashSessionDetail,
 } from '../../interfaces/cash.types'
@@ -174,6 +175,7 @@ export const CLOSING: CashClosing = {
     verifiedAt: '2026-11-05T22:18:00.000Z',
     closedAt: '2026-11-05T22:45:30.000Z',
     closedByUserId: '3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6f',
+    openedAt: '2026-11-05T14:00:00.000Z',
     registerName: 'Caja Mostrador 2',
     cashierName: 'Ana Cajera',
     verifierName: 'Luis Supervisor',
@@ -193,6 +195,17 @@ export const CLOSING: CashClosing = {
     },
     closingNotes: 'Cierre sin novedad',
   },
+}
+
+/** `GET /cash-closings` item for {@link CLOSING} (§3.1): current names + declared − expected. */
+export const CLOSING_ITEM: CashClosingListItem = {
+  id: CLOSING.id,
+  sessionId: CLOSING.sessionId,
+  folio: CLOSING.folio,
+  createdAt: CLOSING.createdAt,
+  register: { id: 'a1f3e0b2-3c4d-4e5f-8a9b-0c1d2e3f4a5b', name: 'Caja Mostrador 2' },
+  cashier: { userId: '7d2e9c10-4b8a-4f6e-9c1d-2a3b4c5d6e7f', displayName: 'Ana Cajera' },
+  differenceCents: -500,
 }
 
 /** A 422 axios-shaped rejection with the guard/domain envelope. */

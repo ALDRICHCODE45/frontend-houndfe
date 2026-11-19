@@ -17,7 +17,7 @@
  * like every cash slot, and only run with `read:CashClosing`.
  */
 import { computed, ref, toValue, type MaybeRefOrGetter } from 'vue'
-import { useQueries, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { cashApi } from '../api/cash.api'
 import type {
   CashClosing,
@@ -130,28 +130,4 @@ export function useCashClosingDetail(closingId: MaybeRefOrGetter<string | null>)
     error: query.error,
     refetch: query.refetch,
   }
-}
-
-/**
- * The list items carry only `{ id, sessionId, folio, createdAt }`; the row's
- * register, cashier and difference come from each corte (cached and shared with
- * the detail, immutable). One read per visible row.
- */
-export function useCashClosingSummaries(closingIds: MaybeRefOrGetter<string[]>) {
-  const access = useCashAccess()
-  const ids = computed(() => toValue(closingIds))
-  const queries = useQueries({
-    queries: computed(() => ids.value.map((id) => closingDetailQuery(access, id))),
-  })
-
-  const byId = computed(() => {
-    const map = new Map<string, CashClosing>()
-    for (const result of queries.value) {
-      const closing = result.data as CashClosing | undefined
-      if (closing) map.set(closing.id, closing)
-    }
-    return map
-  })
-
-  return { byId }
 }
