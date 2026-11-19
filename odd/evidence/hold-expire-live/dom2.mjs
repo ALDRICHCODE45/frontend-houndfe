@@ -1,0 +1,11 @@
+import { makeLog, open, settle, shot, BASE } from './lib.mjs'
+const log = makeLog('dom-probe2')
+const { browser, page } = await open(log)
+await page.goto(`${BASE}/pos/ventas`); await settle(page, 1200)
+const th = page.locator('thead th').filter({ has: page.locator('[data-column-id="debtCents"]') })
+log('buttons ' + JSON.stringify(await th.locator('button').evaluateAll((bs) => bs.map((b) => b.getAttribute('aria-label') + '|' + b.textContent))))
+await th.hover(); await th.locator('button').first().click({ force: true }); await page.waitForTimeout(600)
+log('POPUP ' + JSON.stringify(await page.locator('[role=menu],[role=dialog],[data-reka-popper-content-wrapper]').allInnerTexts()))
+log('ROLES ' + JSON.stringify(await page.locator('[role=menu] *[role]').evaluateAll((e) => e.map((x) => x.getAttribute('role') + ':' + x.textContent.trim()).slice(0, 20))))
+await shot(page, 'probe-deuda-menu', log)
+await browser.close()

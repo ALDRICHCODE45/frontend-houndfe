@@ -409,21 +409,23 @@ watch(() => filtersCtl.serializedState.value, () => {
           </template>
 
           <template #paymentStatus-cell="{ row }">
-            <StatusBadge
-              :data-testid="isCanceledSale(row.original) ? 'sale-canceled-status' : 'sale-payment-status'"
-              v-bind="salePaymentBadge(row.original)"
-            />
-            <StatusBadge
-              v-if="cancelNote(row.original)"
-              class="sale-cancel-note"
-              data-testid="sale-cancel-reason"
-              tone="warning"
-              urgent
-              :icon="SALE_HOLD_EXPIRED_ICON"
-              :label="cancelNote(row.original)!.label"
-              :aria-label="cancelNote(row.original)!.title"
-              :title="cancelNote(row.original)!.title"
-            />
+            <div class="sale-pay-cell">
+              <StatusBadge
+                :data-testid="isCanceledSale(row.original) ? 'sale-canceled-status' : 'sale-payment-status'"
+                v-bind="salePaymentBadge(row.original)"
+              />
+              <StatusBadge
+                v-if="cancelNote(row.original)"
+                class="sale-cancel-note"
+                data-testid="sale-cancel-reason"
+                tone="warning"
+                urgent
+                :icon="SALE_HOLD_EXPIRED_ICON"
+                :label="cancelNote(row.original)!.label"
+                :aria-label="cancelNote(row.original)!.title"
+                :title="cancelNote(row.original)!.title"
+              />
+            </div>
           </template>
 
           <template #paymentMethods-cell="{ row }">
@@ -549,8 +551,9 @@ watch(() => filtersCtl.serializedState.value, () => {
    «… vence jue 19 nov, 15:47») instead of being cut, and never widens the column. */
 .sale-hold-line { display: block; max-width: 16rem; color: var(--hf-muted); font-size: 12px; font-weight: 500; line-height: 1.35; white-space: normal; overflow-wrap: break-word; }
 .sale-card-hold { max-width: none; margin-top: 4px; white-space: normal; }
-/* «Plazo vencido» beside «Cancelada» in the table cell (the card's meta row has its own gap). */
-.sale-cancel-note { margin-left: 6px; white-space: nowrap; }
+/* «Cancelada» + «Plazo vencido» in the Pago cell: they wrap onto a second line instead of
+   spilling into Productos (the column stays narrow for every other status). */
+.sale-pay-cell { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }
 .sales-sort-label { color: var(--hf-muted); font-size: 13px; font-weight: 500; white-space: nowrap; }
 .sale-card-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .sale-card-debt { margin-top: 10px; color: var(--hf-warning); font-size: 13px; font-weight: 600; }
