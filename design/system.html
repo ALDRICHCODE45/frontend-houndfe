@@ -91,7 +91,8 @@
   .btn-primary { background-color: var(--hf-action); color: var(--hf-on-action); }
   .btn-outline { background-color: var(--hf-surface); color: var(--hf-ink); border-color: var(--hf-field-border); }
   .btn-ghost { background: transparent; color: var(--hf-muted); }
-  .btn-disabled { border-color: var(--hf-border); background-color: var(--hf-surface-muted); color: var(--hf-muted); cursor: not-allowed; }
+  .btn-disabled { border-color: var(--hf-border); background-color: var(--hf-page); color: var(--hf-muted); cursor: not-allowed; }
+  .dark .btn-disabled { color: color-mix(in srgb, var(--hf-muted) 60%, var(--hf-page)); }
   .btn-icon { width: var(--hf-control-height); min-width: var(--hf-control-height); padding: 0; }
   .btn:focus-visible, .field:focus-visible, .link:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
   .btn.is-focus { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
@@ -100,8 +101,9 @@
   /* Inputs */
   .fields { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
   label.lbl { display: block; margin-bottom: 4px; color: var(--hf-ink); font-size: 14px; font-weight: 500; }
-  .field { width: 100%; min-height: var(--hf-control-height); padding: 0 12px; border: 1px solid var(--hf-field-border); border-radius: var(--hf-radius-control); background-color: var(--hf-field); color: var(--hf-ink); font-family: var(--hf-font); font-size: 14px; }
-  .field::placeholder { color: var(--hf-muted); }
+  .field { width: 100%; min-height: var(--hf-control-height); padding: 0 12px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-control); background-color: var(--hf-field); color: var(--hf-ink); font-family: var(--hf-font); font-size: 14px; }
+  .field::placeholder { color: var(--hf-muted); opacity: 1; }
+  .field:hover, .field.is-hover { border-color: var(--hf-field-border); }
   .field.is-focus { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
   .field.is-error { border-color: var(--hf-danger); outline: 2px solid var(--hf-danger); outline-offset: 0; }
   .err { margin-top: 4px; color: var(--hf-danger); font-size: 13px; }
@@ -322,7 +324,7 @@
 <template id="panel">
   <header>
     <h1 class="sys-title" data-label></h1>
-    <p class="sys-sub">Tokens --hf-* y componentes base de HoundFe. Fuente de cada valor en design/system.md.</p>
+    <p class="sys-sub">Tokens --hf-* y componentes base de HoundFe. Fuente de cada valor en design/system.md. Sincronizado el 18 nov 2026: Geist y Lucide empaquetados localmente.</p>
   </header>
 
   <section aria-label="Colores">
@@ -406,7 +408,7 @@
       </div>
       <p class="meta" style="margin-top:8px">Un solo primario por vista. <a class="link" href="#">Los enlaces usan --hf-action con subrayado.</a></p>
       <div class="fields" style="margin-top:16px">
-        <div><label class="lbl">Proveedor</label><input class="field" type="text" placeholder="Buscar proveedor" aria-label="Proveedor"></div>
+        <div><label class="lbl">Proveedor</label><input class="field is-hover" type="text" placeholder="Buscar proveedor" aria-label="Proveedor (hover)"></div>
         <div><label class="lbl">Cantidad</label><input class="field is-focus" type="text" value="12" aria-label="Cantidad (con foco)"></div>
         <div><label class="lbl">Costo unitario</label><input class="field is-error" type="text" value="" aria-invalid="true" aria-label="Costo unitario (con error)"><p class="err">Falta el costo</p></div>
       </div>

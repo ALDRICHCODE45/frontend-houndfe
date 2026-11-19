@@ -15,15 +15,16 @@
  *     the owner's frozen blind window;
  *   - the declaration `comparison` is a normal/fallback union.
  *
- * Out of S1 scope: sales binding (`cashSessionId`) and closing/PDF. A closing
- * reference is modeled narrowly so a detail read stays type-honest, but its
- * frozen `snapshot` is intentionally not modeled here.
+ * Close + corte (`CashClosing`, frozen snapshot), the closings list, handover
+ * recipients and the `status` / `drawerOpen` session filters follow
+ * houndfe-backend `docs/frontend-handoff/25-cash-redesign.md`. Sales binding
+ * (`cashSessionId`) stays out of this module.
  */
 
 // ─── Enums and unions ────────────────────────────────────────────────────────
 
 /** `method` domain of every channel identity. */
-type CashMethod = 'CASH' | 'CARD_CREDIT' | 'CARD_DEBIT' | 'TRANSFER'
+export type CashMethod = 'CASH' | 'CARD_CREDIT' | 'CARD_DEBIT' | 'TRANSFER'
 
 /** `OPEN → COUNTING → SUBMITTED → CLOSED`; drawer release is a separate event. */
 export type CashSessionStatus = 'OPEN' | 'COUNTING' | 'SUBMITTED' | 'CLOSED'
@@ -110,6 +111,10 @@ export interface CashSessionListParams {
   to?: string
   cashierUserId?: string
   pendingOnly?: boolean
+  /** Exact lifecycle, any of (handoff 25 §2). Sent as a comma list; empty is not sent. */
+  status?: CashSessionStatus[]
+  /** `true` = drawer still held (`drawerReleasedAt: null`), `false` = released. */
+  drawerOpen?: boolean
 }
 
 export interface CashSessionListResponse {
@@ -366,11 +371,10 @@ export interface CashCustodyParams {
 // ─── Session detail ──────────────────────────────────────────────────────────
 
 /**
- * Minimal closing reference. S1 does not implement closing/PDF, so the frozen
- * `snapshot` is intentionally not modeled; never treat this as the full
- * `GET /cash-closings/:id` document.
+ * Closing reference embedded in a session detail. It carries no snapshot; the
+ * full document is {@link CashClosing} (`GET /cash-closings/:id`).
  */
-interface CashClosingReference {
+export interface CashClosingReference {
   id: string
   sessionId: string
   folio: string
@@ -388,4 +392,103 @@ export interface CashSessionDetail {
   channelSnapshot: CashChannelSnapshotLine[] | null
   /** Identity-only, present only for the owner's frozen blind window. */
   requiredChannels?: CashChannelIdentity[]
+}
+
+// ─── Handover recipients (handoff 25 §1) ─────────────────────────────────────
+
+/** `GET /cash-handovers/recipients?kind=` item: pick by name and role, send `userId`. */
+export interface CashHandoverRecipient {
+  userId: string
+  displayName: string
+  /** Role(s) in this sucursal that grant receipt, sorted and joined with ", ". */
+  roleName: string
+}
+
+export interface CashHandoverRecipientsResponse {
+  items: CashHandoverRecipient[]
+}
+
+// ─── Close and corte (handoff 25 §5, §6) ─────────────────────────────────────
+
+/** `POST /cash-sessions/:id/close` body: optional notes (trimmed, 1–2000 chars). */
+export interface CashClosePayload {
+  notes?: string
+}
+
+/** One frozen channel. `differenceCents` is declared − expected only. */
+export interface CashClosingChannel extends CashChannelIdentity {
+  expectedCents: number
+  declaredCents: number
+  verifiedCents: number | null
+  differenceCents: number
+}
+
+/** One frozen handover. No guaranteed order: sort by `declaredAt` in the UI. */
+export interface CashClosingHandover {
+  handoverId: string
+  kind: CashHandoverKind
+  declaredCents: number
+  receivedCents: number | null
+  senderUserId: string
+  receiverUserId: string | null
+  receiptActorUserId: string | null
+  declaredAt: string
+  receivedAt: string | null
+}
+
+/**
+ * Frozen snapshot (never recomputed). `expectedCents` / `declaredCents` /
+ * `verifiedCents` and `comparison` are PHYSICAL CASH totals only.
+ */
+export interface CashClosingSnapshot {
+  sessionId: string
+  tenantId: string
+  registerId: string
+  folio: string
+  cashierUserId: string
+  openingCents: number
+  expectedCents: number
+  declaredCents: number
+  verifiedCents: number | null
+  verifierUserId: string | null
+  channels: CashClosingChannel[]
+  handovers: CashClosingHandover[]
+  /** Original declaration (revision 1) time. */
+  countedAt: string
+  verifiedAt: string | null
+  closedAt: string
+  closedByUserId: string
+  registerName: string | null
+  cashierName: string | null
+  verifierName: string | null
+  closedByName: string | null
+  declarationNotes: string | null
+  verificationNotes: string | null
+  comparison: CashComparisonNormal
+  closingNotes: string | null
+}
+
+/** `POST /cash-sessions/:id/close` (201) and `GET /cash-closings/:id`. */
+export interface CashClosing extends CashClosingReference {
+  snapshot: CashClosingSnapshot
+}
+
+/** `GET /cash-closings` item: identity only (no snapshot). */
+export type CashClosingListItem = CashClosingReference
+
+/** 1-based paging; `cashierUserId` is the closed session's cashier (§3). */
+export interface CashClosingListParams {
+  page?: number
+  limit?: number
+  registerId?: string
+  cashierUserId?: string
+  from?: string
+  to?: string
+}
+
+export interface CashClosingListResponse {
+  items: CashClosingListItem[]
+  page: number
+  limit: number
+  total: number
 }

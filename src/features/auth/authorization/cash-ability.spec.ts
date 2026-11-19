@@ -15,6 +15,8 @@ const rows = [
   ['create', 'CashHandover'],
   ['read', 'CashHandover'],
   ['update', 'CashHandover'],
+  ['create', 'CashClosing'],
+  ['read', 'CashClosing'],
 ] as const
 
 afterEach(resetAbility)
@@ -30,5 +32,14 @@ describe('cash permission registry', () => {
     updateAbilityFromPermissionCodes(['update:Sale', 'read:CashSessionAudit'])
     expect(ability.can('update', 'Sale')).toBe(true)
     expect(ability.can('read', 'CashHandover')).toBe(false)
+  })
+
+  it('keeps closing read and close as separate grants', () => {
+    updateAbilityFromPermissionCodes(['read:CashClosing'])
+    expect(ability.can('read', 'CashClosing')).toBe(true)
+    expect(ability.can('create', 'CashClosing')).toBe(false)
+    updateAbilityFromPermissionCodes(['create:CashClosing', 'read:CashSessionAudit'])
+    expect(ability.can('create', 'CashClosing')).toBe(true)
+    expect(ability.can('read', 'CashClosing')).toBe(false)
   })
 })

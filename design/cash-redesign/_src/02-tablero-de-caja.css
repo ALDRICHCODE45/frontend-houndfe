@@ -1,0 +1,28 @@
+/* B · dashboard layout */
+.b-main{overflow:auto;padding:24px 32px 96px}
+.b-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px}
+.b-grid{display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:start}
+.hero{display:grid;grid-template-columns:1fr 320px;gap:24px;padding:20px 24px}
+.hero-main{display:grid;gap:6px;align-content:start}
+.hero-facts{display:grid;gap:12px;align-content:center;padding-left:24px;border-left:1px solid var(--hf-border)}
+.hero-facts div{display:flex;justify-content:space-between;gap:12px}
+.hero-facts dt{color:var(--hf-muted);font-size:13px}
+.hidden-amt{display:inline-flex;align-items:center;gap:6px;color:var(--hf-muted);font-size:13px;font-weight:500}
+.tgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.tcard{display:flex;flex-direction:column;gap:6px;padding:14px 16px 8px;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:12px;min-height:140px}
+.tcard.is-next{border-color:var(--hf-active);box-shadow:inset 0 3px 0 var(--hf-action)}
+.tc-ic{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:var(--hf-surface-muted);color:var(--hf-heading)}
+.tc-t{font-size:15px;font-weight:600;color:var(--hf-heading)}
+.is-later .tc-t{font-weight:500;color:var(--hf-ink)}
+.tc-d{flex:1}
+.tc-b{align-self:flex-start;margin-left:-12px;padding:0 12px}
+.how{display:grid;gap:8px;font-size:13px}
+.how li{display:flex;align-items:center;gap:10px}
+.how-n{display:grid;place-items:center;width:22px;height:22px;flex:none;border-radius:9999px;background:var(--hf-surface-muted);color:var(--hf-heading);font-size:12px;font-weight:600}
+.pr-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border-radius:8px;background:var(--hf-warning-soft)}
+.count{display:grid;place-items:center;min-width:24px;height:24px;padding:0 6px;border-radius:9999px;background:var(--hf-action);color:var(--hf-on-action);font-size:12px;font-weight:600}
+.ptable tr.sel td{background:var(--hf-active-soft)}
+.scrim{position:fixed;inset:0;background:color-mix(in srgb,var(--hf-ink) 32%,transparent);z-index:20}
+.sheet{position:fixed;top:0;right:0;bottom:0;width:768px;z-index:30;display:grid;grid-template-rows:auto 1fr;background:var(--hf-surface);border-left:1px solid var(--hf-border);box-shadow:var(--shadow-pop)}
+.sheet-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:20px 24px;border-bottom:1px solid var(--hf-border)}
+.sheet-body{overflow:auto;padding:24px 24px 96px}

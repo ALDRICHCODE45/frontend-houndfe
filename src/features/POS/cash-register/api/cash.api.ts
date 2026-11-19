@@ -17,12 +17,18 @@
  * leak `tenantId`, actor/receipt-actor fields, or a pre-submission
  * `expectedCents`/`differenceCents` oracle into the transport.
  *
- * Out of S1 scope: sales binding (`cashSessionId`) and closing/PDF.
+ * Close, closings list/detail, the corte PDF (blob through this authenticated
+ * client, never a public URL), handover recipients and the `status` /
+ * `drawerOpen` session filters follow `docs/frontend-handoff/25-cash-redesign.md`.
  */
 
 import { http } from '@/core/shared/api/http'
 import type {
   CashAnnotationNotesPayload,
+  CashClosePayload,
+  CashClosing,
+  CashClosingListParams,
+  CashClosingListResponse,
   CashCountPayload,
   CashCustody,
   CashCustodyParams,
@@ -31,7 +37,10 @@ import type {
   CashDrawerReleaseResponse,
   CashHandover,
   CashHandoverDeclarationPayload,
+  CashHandoverKind,
   CashHandoverReceivePayload,
+  CashHandoverRecipient,
+  CashHandoverRecipientsResponse,
   CashMovementPayload,
   CashMovementResponse,
   CashRegister,
@@ -90,7 +99,41 @@ function sessionListParams(params: CashSessionListParams): CashSessionListParams
   if (params.to !== undefined) query.to = params.to
   if (params.cashierUserId !== undefined) query.cashierUserId = params.cashierUserId
   if (params.pendingOnly !== undefined) query.pendingOnly = params.pendingOnly
+  // `status` travels as an array; the shared params serializer joins it into the
+  // comma list the backend accepts. Duplicates are dropped; an empty list is not
+  // sent (an empty `status=` is a 400).
+  if (params.status !== undefined && params.status.length > 0) {
+    query.status = [...new Set(params.status)]
+  }
+  if (params.drawerOpen !== undefined) query.drawerOpen = params.drawerOpen
   return query
+}
+
+/** Closings list: only the documented filters (`cashierUserId` = the session's cashier). */
+function closingListParams(params: CashClosingListParams): CashClosingListParams {
+  const query: CashClosingListParams = {}
+  if (params.page !== undefined) query.page = params.page
+  if (params.limit !== undefined) query.limit = params.limit
+  if (params.registerId !== undefined) query.registerId = params.registerId
+  if (params.cashierUserId !== undefined) query.cashierUserId = params.cashierUserId
+  if (params.from !== undefined) query.from = params.from
+  if (params.to !== undefined) query.to = params.to
+  return query
+}
+
+/** Backend bound for the close `notes` (trimmed). */
+export const CASH_CLOSE_NOTES_MAX_LENGTH = 2000
+
+/**
+ * Close body: only `notes`, trimmed. Blank notes are omitted (the backend
+ * rejects an empty or `null` note), so the body is `{}` without notes.
+ */
+function closeBody(payload: CashClosePayload): CashClosePayload {
+  const notes = typeof payload.notes === 'string' ? payload.notes.trim() : ''
+  if (notes.length > CASH_CLOSE_NOTES_MAX_LENGTH) {
+    throw new RangeError(`notes must be at most ${CASH_CLOSE_NOTES_MAX_LENGTH} characters`)
+  }
+  return notes ? { notes } : {}
 }
 
 /** Custody discovery accepts only `page`/`limit`; the recipient comes from the JWT. */
@@ -366,6 +409,65 @@ export const cashApi = {
       undefined,
       idempotencyConfig(idempotencyKey),
     )
+    return data
+  },
+
+  // ── Recipients (handoff 25 §1) ─────────────────────────────────────────────
+
+  /**
+   * GET /cash-handovers/recipients?kind= — who can receive this custody, by name
+   * and role (`create:CashHandover`, no `read:User`). WITHDRAWAL never lists the
+   * caller. The list is a hint; declaring/receiving still run every check.
+   */
+  async listHandoverRecipients(kind: CashHandoverKind): Promise<CashHandoverRecipient[]> {
+    const { data } = await http.get<CashHandoverRecipientsResponse>('/cash-handovers/recipients', {
+      params: { kind },
+    })
+    return data.items
+  },
+
+  // ── Close and corte (handoff 25 §5, §6) ────────────────────────────────────
+
+  /**
+   * POST /cash-sessions/:id/close — `create:CashClosing`, another person than
+   * the cashier. Returns the frozen closing document (folio + snapshot).
+   * Replaying the same key with the same body returns the stored document.
+   */
+  async closeSession(
+    id: string,
+    body: CashClosePayload,
+    idempotencyKey: string,
+  ): Promise<CashClosing> {
+    const { data } = await http.post<CashClosing>(
+      `/cash-sessions/${id}/close`,
+      closeBody(body),
+      idempotencyConfig(idempotencyKey),
+    )
+    return data
+  },
+
+  /** GET /cash-closings — `read:CashClosing`; the page envelope is returned untouched. */
+  async listClosings(params: CashClosingListParams = {}): Promise<CashClosingListResponse> {
+    const { data } = await http.get<CashClosingListResponse>('/cash-closings', {
+      params: closingListParams(params),
+    })
+    return data
+  },
+
+  /** GET /cash-closings/:id — immutable closing document. */
+  async getClosing(id: string): Promise<CashClosing> {
+    const { data } = await http.get<CashClosing>(`/cash-closings/${id}`)
+    return data
+  },
+
+  /**
+   * GET /cash-closings/:id/pdf — the frozen receipt as a Blob through the
+   * authenticated client (bearer + session discipline); never a public URL.
+   */
+  async getClosingPdf(id: string, options: { signal?: AbortSignal } = {}): Promise<Blob> {
+    const config: { responseType: 'blob'; signal?: AbortSignal } = { responseType: 'blob' }
+    if (options.signal) config.signal = options.signal
+    const { data } = await http.get<Blob>(`/cash-closings/${id}/pdf`, config)
     return data
   },
 }

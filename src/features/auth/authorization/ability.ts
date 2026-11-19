@@ -79,6 +79,7 @@ const APP_SUBJECTS: AppSubject[] = [
   'CashOut',
   'CashVerification',
   'CashHandover',
+  'CashClosing',
   // ODD shipping-settings T1: without these entries parsePermissionCode returns
   // null and the zone, validation and shipping settings grants drop silently.
   'DeliveryZone',

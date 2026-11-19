@@ -10,10 +10,17 @@
  * Reaching another cashier's session needs the wider `read:CashSessionAudit`
  * scope in addition to `create:CashVerification`, so `canVerify` is the derived
  * gate — never an automatically-granted ability.
+ *
+ * Direction A: the original declaration first, read-only on a neutral surface
+ * (no decorative tint), then the verifier's second count (the shared count form
+ * with its error summary, which also carries the server error), then the
+ * comparison, where a non-zero difference is said in words (faltante /
+ * sobrante) and never by color alone.
  */
 import { computed } from 'vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { blindSafeDetail, comparisonView, isSelfVerification } from '../composables/cashRules'
 import type {
   CashChannelIdentity,
@@ -128,6 +135,18 @@ const notesRequired = computed(() => {
 function money(cents: number | null): string {
   return cents === null ? '—' : formatCentsMXN(cents)
 }
+
+/** A difference in words: «$5.00 sobrante», «$5.00 faltante» or «Sin diferencia». */
+function difference(cents: number | null): string {
+  if (cents === null) return '—'
+  if (cents === 0) return 'Sin diferencia'
+  return `${formatCentsMXN(Math.abs(cents))} ${cents > 0 ? 'sobrante' : 'faltante'}`
+}
+
+const declaredAt = computed(() =>
+  originalDeclaration.value ? formatShortDateTime(originalDeclaration.value.createdAt) : null,
+)
+const cashierName = computed(() => session.value?.cashierDisplayName?.trim() || null)
 </script>
 
 <template>
@@ -136,125 +155,150 @@ function money(cents: number | null): string {
       <h2 class="cash-list-title">Verificación independiente</h2>
     </header>
 
-    <div class="flex flex-col gap-4">
-      <EmptyState
-        v-if="!canVerify"
-        kind="forbidden"
-        title="Sin permiso para verificar"
-        description="Necesitas permiso de verificación y acceso de auditoría a la sesión."
-        data-testid="cash-verification-forbidden"
-      />
+    <EmptyState
+      v-if="!canVerify"
+      kind="forbidden"
+      title="Sin permiso para verificar"
+      description="Necesitas permiso de verificación y acceso de auditoría a la sesión."
+      data-testid="cash-verification-forbidden"
+    />
 
-      <template v-else-if="!safeDetail">
-        <p class="text-sm text-muted" data-testid="cash-verification-no-session">
-          Selecciona una sesión declarada para verificarla.
+    <div v-else-if="!safeDetail" class="cash-callout" data-testid="cash-verification-no-session">
+      <UIcon name="i-lucide-clock" class="cash-callout-icon" aria-hidden="true" />
+      <p>Selecciona una sesión declarada para verificarla.</p>
+    </div>
+
+    <template v-else>
+      <div
+        v-if="selfVerification"
+        class="cash-callout"
+        data-testid="cash-verification-self"
+      >
+        <UIcon name="i-lucide-user" class="cash-callout-icon" aria-hidden="true" />
+        <p>
+          <strong>No puedes verificar tu propia sesión</strong><br />
+          <span class="cash-meta-wrap">La verificación la hace otra persona con permiso.</span>
         </p>
-      </template>
+      </div>
+
+      <div
+        v-else-if="!isSubmitted"
+        class="cash-callout"
+        data-testid="cash-verification-state"
+      >
+        <UIcon name="i-lucide-clock" class="cash-callout-icon" aria-hidden="true" />
+        <p>
+          <strong>Todavía no hay una declaración enviada</strong><br />
+          <span class="cash-meta-wrap"
+            >Solo se verifica una sesión declarada. Estado actual:
+            {{ statusLabel ?? session?.status }}.</span
+          >
+        </p>
+      </div>
 
       <template v-else>
-        <p
-          v-if="selfVerification"
-          class="cash-note cash-note--danger"
-          data-testid="cash-verification-self"
+        <!-- Immutable original facts, read-only, on a neutral surface. -->
+        <section
+          v-if="originalLines.length > 0"
+          class="cash-original"
+          aria-labelledby="cash-verification-original-title"
+          data-testid="cash-verification-original"
         >
-          No puedes verificar tu propia sesión: la verificación la hace otra persona.
-        </p>
+          <div class="cash-original-head">
+            <h3 id="cash-verification-original-title" class="cash-list-title">
+              Declaración original
+            </h3>
+            <span v-if="declaredAt || cashierName" class="cash-meta-wrap">
+              {{ [cashierName, declaredAt].filter(Boolean).join(' · ') }}
+            </span>
+          </div>
+          <dl class="cash-original-lines">
+            <div v-for="line in originalLines" :key="line.key" class="cash-original-line">
+              <dt>{{ line.label }}</dt>
+              <dd
+                class="cash-fact-value hf-figure"
+                :data-testid="`cash-verification-original-${line.key}`"
+              >
+                {{ formatCentsMXN(line.cents) }}
+              </dd>
+            </div>
+          </dl>
+          <p class="cash-meta-wrap">Recuenta sin mirar la diferencia; la verás al enviar.</p>
+        </section>
 
         <p
-          v-else-if="!isSubmitted"
+          v-if="notesRequired"
           class="cash-note cash-note--warning"
-          data-testid="cash-verification-state"
+          data-testid="cash-verification-notes-required"
         >
-          Solo se verifica una sesión declarada. Estado actual:
-          {{ statusLabel ?? session?.status }}.
+          La declaración tiene diferencia: el recuento requiere una nota que la explique.
         </p>
 
-        <template v-else>
-          <p v-if="!hasComparison" class="text-sm text-muted" data-testid="cash-verification-no-comparison">
-            Las diferencias aparecen cuando envías tu recuento.
-          </p>
-          <dl v-else class="cash-facts-grid">
+        <CashCountForm
+          :channels="channels"
+          :submitting="submitting"
+          :notes-required="notesRequired"
+          submit-label="Enviar verificación"
+          success-label="Verificación enviada."
+          heading="Tu recuento"
+          lede="Compara la declaración original con lo que cuentas tú. El cero debe ser explícito."
+          variant="flat"
+          :error-message="errorMessage"
+          error-test-id="cash-verification-error"
+          @submit="emit('submit', $event)"
+        />
+
+        <p
+          v-if="!hasComparison"
+          class="cash-meta-wrap"
+          data-testid="cash-verification-no-comparison"
+        >
+          Las diferencias aparecen cuando envías tu recuento.
+        </p>
+        <section v-else class="cash-compare" aria-labelledby="cash-verification-compare-title">
+          <h3 id="cash-verification-compare-title" class="cash-list-title">Comparación</h3>
+          <dl class="cash-compare-grid">
             <div class="cash-fact">
               <dt>Esperado</dt>
-              <dd class="cash-fact-value" data-testid="cash-verification-expected">
+              <dd class="cash-fact-value hf-figure" data-testid="cash-verification-expected">
                 {{ money(diff?.expectedCents ?? null) }}
               </dd>
             </div>
             <div class="cash-fact">
               <dt>Declarado</dt>
-              <dd class="cash-fact-value" data-testid="cash-verification-declared">
+              <dd class="cash-fact-value hf-figure" data-testid="cash-verification-declared">
                 {{ money(diff?.declaredCents ?? null) }}
               </dd>
             </div>
             <div class="cash-fact">
               <dt>Diferencia de declaración</dt>
-              <dd class="cash-fact-value" data-testid="cash-verification-declaration-difference">
-                {{ money(diff?.declarationDifferenceCents ?? null) }}
+              <dd
+                class="cash-fact-value hf-figure"
+                :class="{ 'cash-diff': (diff?.declarationDifferenceCents ?? 0) !== 0 }"
+                data-testid="cash-verification-declaration-difference"
+              >
+                {{ difference(diff?.declarationDifferenceCents ?? null) }}
               </dd>
             </div>
             <div class="cash-fact">
               <dt>Verificado</dt>
-              <dd class="cash-fact-value" data-testid="cash-verification-verified">
+              <dd class="cash-fact-value hf-figure" data-testid="cash-verification-verified">
                 {{ money(diff?.verifiedCents ?? null) }}
               </dd>
             </div>
             <div class="cash-fact">
               <dt>Diferencia de verificación (verificado − declarado)</dt>
-              <dd class="cash-fact-value" data-testid="cash-verification-verification-difference">
-                {{ money(diff?.verificationDifferenceCents ?? null) }}
+              <dd
+                class="cash-fact-value hf-figure"
+                :class="{ 'cash-diff': (diff?.verificationDifferenceCents ?? 0) !== 0 }"
+                data-testid="cash-verification-verification-difference"
+              >
+                {{ difference(diff?.verificationDifferenceCents ?? null) }}
               </dd>
             </div>
           </dl>
-
-          <p
-            v-if="notesRequired"
-            class="cash-note cash-note--warning"
-            data-testid="cash-verification-notes-required"
-          >
-            La declaración tiene diferencia: el recuento requiere una nota que la explique.
-          </p>
-
-          <!-- Immutable original facts: never hidden from the verifier. -->
-          <div
-            v-if="originalLines.length > 0"
-            class="cash-original"
-            data-testid="cash-verification-original"
-          >
-            <h3 class="cash-list-title">Declaración original</h3>
-            <dl class="mt-3 flex flex-col divide-y divide-[var(--hf-border)] border-t border-[var(--hf-border)]">
-              <div
-                v-for="line in originalLines"
-                :key="line.key"
-                class="flex items-center justify-between gap-3 py-2"
-              >
-                <dt>{{ line.label }}</dt>
-                <dd
-                  class="cash-fact-value hf-figure"
-                  :data-testid="`cash-verification-original-${line.key}`"
-                >
-                  {{ formatCentsMXN(line.cents) }}
-                </dd>
-              </div>
-            </dl>
-          </div>
-
-          <p v-if="errorMessage" class="text-sm text-error" data-testid="cash-verification-error">
-            {{ errorMessage }}
-          </p>
-
-          <CashCountForm
-            :channels="channels"
-            :submitting="submitting"
-            :notes-required="notesRequired"
-            submit-label="Enviar verificación"
-            heading="Tu recuento"
-            lede="Compara la declaración original con lo que cuentas tú. El cero debe ser explícito."
-            variant="flat"
-            error-message=""
-            @submit="emit('submit', $event)"
-          />
-        </template>
+        </section>
       </template>
-    </div>
+    </template>
   </section>
 </template>

@@ -475,3 +475,64 @@ describe('CashMovementsPanel · totals row', () => {
     expect(mountHistory().find('tfoot').exists()).toBe(false)
   })
 })
+
+// S9 (owner L8): while blind, after a cash in/out the cashier sees ONLY the
+// confirmation of that last entry (the POST response), never a list or a total.
+describe('CashMovementsPanel · blind window last-entry confirmation (S9)', () => {
+  const LAST = {
+    id: 'm-9',
+    kind: 'CASH_OUT',
+    deltaCents: -35000,
+    occurredAt: '2026-11-18T21:12:00.000Z',
+    reason: 'Compra de bolsas para mostrador',
+  }
+
+  it('confirms only the last entry through a polite status, with no history or total', () => {
+    const wrapper = mountWithUApp(CashMovementsPanel, {
+      props: {
+        detail: makeDetail({
+          session: makeSession({ status: 'OPEN', blind: true }),
+          movements: [ONE_MOVEMENT],
+        }),
+        currentUserId: 'cashier-1',
+        canCashIn: true,
+        canCashOut: true,
+        lastMovement: LAST,
+      },
+    })
+
+    const status = wrapper.get('[data-testid="cash-movement-last"]')
+    expect(status.attributes('role')).toBe('status')
+    expect(status.text()).toMatch(/Salida de \$350\.00 registrada/)
+    expect(status.text()).toContain('Compra de bolsas para mostrador')
+    expect(wrapper.find('[data-testid="cash-movements-table"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="cash-movement-m-1"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toMatch(/movimientos?\b.*\$200/i)
+  })
+
+  it('names an entry as «Entrada»', () => {
+    const wrapper = mountWithUApp(CashMovementsPanel, {
+      props: {
+        detail: makeDetail({ session: makeSession({ status: 'OPEN', blind: true }) }),
+        currentUserId: 'cashier-1',
+        canCashIn: true,
+        lastMovement: { ...LAST, kind: 'CASH_IN', deltaCents: 20000, reason: 'Cambio' },
+      },
+    })
+    expect(wrapper.get('[data-testid="cash-movement-last"]').text()).toMatch(
+      /Entrada de \$200\.00 registrada/,
+    )
+  })
+
+  it('shows no confirmation before any entry is recorded', () => {
+    const wrapper = mountWithUApp(CashMovementsPanel, {
+      props: {
+        detail: makeDetail({ session: makeSession({ status: 'OPEN', blind: true }) }),
+        currentUserId: 'cashier-1',
+        canCashIn: true,
+      },
+    })
+    expect(wrapper.find('[data-testid="cash-movement-last"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="cash-movements-history-hidden"]').exists()).toBe(true)
+  })
+})

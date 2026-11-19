@@ -1,0 +1,38 @@
+import { open, settle, shot, makeLog, BASE, logBodies } from './lib.mjs'
+const log = makeLog('step3-count')
+const { browser, page, issues } = await open(log, { role: 'cashier' })
+logBodies(page, log, ['amountCents', 'countedCents', 'channelKey', 'cents', 'quantity', 'denominationCents'])
+const fillTid = async (tid, v) => { const l = page.getByTestId(tid); const inner = l.locator('input, textarea'); await ((await inner.count()) ? inner.first() : l).fill(v) }
+await page.goto(`${BASE}/pos/caja`); await settle(page, 1200)
+log('title: ' + await page.getByTestId('cash-head-title').innerText())
+await page.getByTestId('cash-step-toggle-conteo').first().click(); await settle(page, 400)
+await shot(page, '08-cashier-iniciar-conteo-1440-light', log)
+await page.getByTestId('cash-session-freeze').click(); await settle(page, 1200)
+log('head: ' + (await page.locator('.cash-head-meta').innerText()).replace(/\s+/g, ' '))
+log('next: ' + (await page.getByTestId('cash-next-action').innerText().catch(() => 'none')).replace(/\s+/g, ' '))
+// open declaration panel
+if (!(await page.getByTestId('cash-count-form').isVisible().catch(() => false))) { await page.getByTestId('cash-step-toggle-declaracion').first().click(); await settle(page, 400) }
+const channels = await page.locator('[data-testid^="cash-count-row-"]').evaluateAll((els) => els.map((e) => e.dataset.testid.replace('cash-count-row-', '')))
+log('channels: ' + channels.join(','))
+// error path: empty submit
+await page.getByTestId('cash-count-submit').click(); await page.waitForTimeout(500)
+log('summary: ' + (await page.getByTestId('cash-count-error-summary').innerText().catch(() => 'NONE')).replace(/\s+/g, ' '))
+log('inline errors: ' + await page.locator('[data-testid^="cash-count-error-"]').count())
+log('focused: ' + await page.evaluate(() => document.activeElement?.getAttribute('data-testid') || document.activeElement?.className))
+await page.getByTestId('cash-count-error-summary').scrollIntoViewIfNeeded().catch(() => {})
+await shot(page, '09-cashier-count-empty-error-1440-light', log)
+// fill
+for (const c of channels) await fillTid(`cash-count-input-${c}`, /cash|efectivo/i.test(c) ? '550' : '0')
+await fillTid('cash-count-denom-50000', '1'); await fillTid('cash-count-denom-5000', '1')
+await page.waitForTimeout(300)
+log('denom sum: ' + (await page.getByTestId('cash-count-denomination-sum').innerText().catch(() => 'NONE')) + ' match=' + await page.getByTestId('cash-count-denomination-match').isVisible().catch(() => false))
+await page.locator('.cash-denoms').scrollIntoViewIfNeeded()
+await shot(page, '10-cashier-count-denominations-1440-light', log)
+await page.getByTestId('cash-count-submit').click(); await settle(page, 1500)
+log('head after declare: ' + (await page.locator('.cash-head-meta').innerText()).replace(/\s+/g, ' '))
+log('next: ' + (await page.getByTestId('cash-next-action').innerText().catch(() => 'none')).replace(/\s+/g, ' '))
+log('states: ' + (await page.locator('[data-testid^="cash-step-state-"]').allInnerTexts()).join(' | '))
+await page.evaluate(() => window.scrollTo(0, 0))
+await shot(page, '11-cashier-submitted-entregar-offered-1440-light', log)
+log('ISSUES ' + JSON.stringify(issues))
+await browser.close()

@@ -1,0 +1,85 @@
+import { open, settle, shot, makeLog, BASE, logBodies, SHOTS } from './lib.mjs'
+import { join } from 'node:path'
+import { statSync } from 'node:fs'
+const SID = 'd74d78fe-df73-4e91-a359-6e1a36090ba5'
+const log = makeLog('step7-supervisor')
+const { browser, page, issues } = await open(log, { role: 'manager' })
+logBodies(page, log, ['amountCents', 'channelKey', 'denominationCents', 'quantity'])
+const line = async (tid) => (await page.getByTestId(tid).innerText().catch(() => 'NONE')).replace(/\s+/g, ' ')
+await page.goto(`${BASE}/pos/caja`); await settle(page, 1500)
+log('sessions title: ' + await line('cash-sessions-title'))
+log('status options: ' + (await page.locator('[data-testid="cash-sessions-status-filter"] label').allInnerTexts()).join(' | '))
+await shot(page, '18-manager-sessions-1440-light', log)
+const statusInputs = await page.locator('[data-testid^="cash-sessions-status-"]').evaluateAll((els) => els.filter((e) => e.tagName === 'INPUT').map((e) => e.value))
+for (const v of statusInputs) {
+  await page.locator(`input[data-testid="cash-sessions-status-${v}"]`).check({ force: true }); await settle(page, 800)
+  const rows = await page.locator('[data-testid^="cash-session-status-"]').allInnerTexts()
+  log(`filter ${v}: ${rows.length} rows, statuses=${[...new Set(rows.map((r) => r.trim()))].join('/')}`)
+}
+await page.locator(`input[data-testid="cash-sessions-status-${statusInputs.find((v) => /SUBMITTED|declar/i.test(v)) ?? statusInputs[0]}"]`).check({ force: true }); await settle(page, 800)
+await shot(page, '19-manager-sessions-filter-submitted-1440-light', log)
+// select our session
+const openRow = page.locator(`[data-testid="cash-session-open-${SID}"]:visible`).first()
+log('row visible=' + await openRow.isVisible().catch(() => false))
+if (!(await openRow.isVisible().catch(() => false))) { await page.locator(`input[data-testid="cash-sessions-status-${statusInputs[0]}"]`).check({ force: true }); await settle(page, 800) }
+await page.locator(`[data-testid="cash-session-open-${SID}"]:visible`).first().click(); await settle(page, 1200)
+log('head: ' + (await page.locator('.cash-head-meta').innerText()).replace(/\s+/g, ' ') + ' / ' + await line('cash-head-title'))
+log('next: ' + await line('cash-next-action'))
+log('who: ' + (await page.locator('[data-testid^="cash-step-who-"]').allInnerTexts()).join(' | '))
+// Close BEFORE verification (requirement missing)
+await page.getByTestId('cash-step-toggle-cierre').first().click().catch((e) => log('cierre toggle: ' + e.message.slice(0, 80))); await settle(page, 600)
+log('close reqs (pre-verify): ' + (await page.locator('[data-testid^="cash-close-requirement-"]').evaluateAll((els) => els.map((e) => e.dataset.testid.replace('cash-close-requirement-', '') + '=' + e.dataset.state))).join(', '))
+log('close reason: ' + await line('cash-close-reason') + ' submit disabled=' + await page.getByTestId('cash-close-submit').isDisabled().catch(() => 'n/a'))
+await page.getByTestId('cash-close-step').scrollIntoViewIfNeeded().catch(() => {})
+await shot(page, '20-manager-close-blocked-before-verify-1440-light', log)
+// Verify
+await page.getByTestId('cash-step-toggle-verificacion').first().click(); await settle(page, 800)
+log('verification original: ' + await line('cash-verification-original'))
+const vin = page.getByTestId('cash-verification').locator('[data-testid^="cash-count-input-"]')
+log('verify inputs: ' + await vin.count())
+await page.getByTestId('cash-verification').scrollIntoViewIfNeeded()
+await shot(page, '21-manager-verify-form-1440-light', log)
+await page.getByTestId('cash-verification').getByTestId('cash-count-input-CASH').fill('550')
+await page.getByTestId('cash-verification').getByTestId('cash-count-submit').click(); await settle(page, 1500)
+log('verify err: ' + await line('cash-verification-error'))
+log('verified: ' + await line('cash-verification-verified') + ' diff: ' + await line('cash-verification-verification-difference'))
+await shot(page, '22-manager-verified-1440-light', log)
+// Close
+await page.getByTestId('cash-step-toggle-cierre').first().click().catch(() => {}); await settle(page, 800)
+if (!(await page.getByTestId('cash-close-step').isVisible().catch(() => false))) { await page.getByTestId('cash-next-primary').click().catch(() => {}); await settle(page, 600) }
+log('close reqs: ' + (await page.locator('[data-testid^="cash-close-requirement-"]').evaluateAll((els) => els.map((e) => e.dataset.testid.replace('cash-close-requirement-', '') + '=' + e.dataset.state))).join(', '))
+log('close reason: ' + await line('cash-close-reason') + ' submit=' + await line('cash-close-submit'))
+await page.getByTestId('cash-close-step').scrollIntoViewIfNeeded()
+await shot(page, '23-manager-close-checklist-1440-light', log)
+await page.getByTestId('cash-close-notes').fill('Cierre QA T6')
+await page.getByTestId('cash-close-submit').click(); await settle(page, 600)
+const dlg = page.getByRole('alertdialog').or(page.getByRole('dialog'))
+if (await dlg.isVisible().catch(() => false)) {
+  log('confirm dialog: ' + (await dlg.innerText()).replace(/\s+/g, ' '))
+  await shot(page, '24-manager-close-confirm-1440-light', log)
+  await dlg.getByRole('button', { name: /cerrar/i }).last().click(); await settle(page, 2000)
+}
+log('close err: ' + await line('cash-close-error'))
+log('closed: ' + await line('cash-close-closed'))
+const det = page.getByTestId('cash-closing-detail')
+if (!(await det.isVisible().catch(() => false))) { await page.getByTestId('cash-close-view-closing').click().catch(() => {}); await settle(page, 1500) }
+log('corte header: ' + await line('cash-closing-header'))
+log('corte totals: ' + await line('cash-closing-totals'))
+log('corte channels: ' + (await page.getByTestId('cash-closing-channel').allInnerTexts()).map((s) => s.replace(/\s+/g, ' ')).join(' || '))
+log('corte handovers: ' + (await page.getByTestId('cash-closing-handover').allInnerTexts()).map((s) => s.replace(/\s+/g, ' ')).join(' || '))
+log('corte facts: ' + await line('cash-closing-facts'))
+await det.scrollIntoViewIfNeeded().catch(() => {})
+await shot(page, '25-manager-corte-1440-light', log)
+await shot(page, '25b-manager-corte-full-1440-light', log, true)
+// PDF view (popup or new tab with blob)
+const popupP = page.context().waitForEvent('page', { timeout: 8000 }).catch(() => null)
+await page.getByTestId('cash-closing-pdf-view').click()
+const popup = await popupP
+log('pdf view popup: ' + (popup ? popup.url().slice(0, 30) : 'none') + ' err=' + await line('cash-closing-pdf-error'))
+if (popup) await popup.close()
+const dl = page.waitForEvent('download', { timeout: 10000 }).catch(() => null)
+await page.getByTestId('cash-closing-pdf-download').click()
+const d = await dl
+if (d) { const p = join(SHOTS, '..', d.suggestedFilename()); await d.saveAs(p); log(`download: ${d.suggestedFilename()} bytes=${statSync(p).size}`) } else log('download: none, err=' + await line('cash-closing-pdf-error'))
+log('ISSUES ' + JSON.stringify(issues))
+await browser.close()

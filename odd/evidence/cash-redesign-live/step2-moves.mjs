@@ -1,0 +1,27 @@
+import { open, settle, shot, makeLog, BASE, logBodies } from './lib.mjs'
+const log = makeLog('step2-moves')
+const { browser, page, issues } = await open(log, { role: 'cashier' })
+logBodies(page, log, ['amountCents'])
+await page.goto(`${BASE}/pos/caja`); await settle(page, 1200)
+log('title: ' + await page.getByTestId('cash-head-title').innerText())
+await page.getByTestId('cash-step-toggle-movimientos').first().click(); await settle(page, 400)
+const move = async (kind, amount, reason) => {
+  await page.getByTestId('cash-movement-amount').locator('input').or(page.getByTestId('cash-movement-amount')).first().fill(amount)
+  await page.getByTestId('cash-movement-reason').locator('textarea, input').or(page.getByTestId('cash-movement-reason')).first().fill(reason)
+  await page.getByTestId(kind === 'in' ? 'cash-in-submit' : 'cash-out-submit').click()
+  await settle(page, 800)
+  log(`after ${kind}: last=` + (await page.getByTestId('cash-movement-last').innerText().catch(() => 'NONE')).replace(/\s+/g, ' '))
+  log(`  table visible=${await page.getByTestId('cash-movements-table').isVisible().catch(() => false)} rows=${await page.locator('[data-testid^="cash-movement-card-"],[data-testid^="cash-movement-time-"]').count()} hiddenCallout=${await page.getByTestId('cash-movements-history-hidden').isVisible().catch(() => false)}`)
+}
+// empty reason first: inline validation
+await page.getByTestId('cash-movement-amount').locator('input').or(page.getByTestId('cash-movement-amount')).first().fill('100')
+await page.getByTestId('cash-in-submit').click(); await page.waitForTimeout(400)
+log('empty reason error: ' + (await page.getByTestId('cash-movement-local-error').innerText().catch(() => 'NONE')).replace(/\s+/g, ' '))
+await shot(page, '05-cashier-movement-reason-required-1440-light', log)
+await move('in', '100', 'Cambio QA T6')
+await shot(page, '06-cashier-cash-in-confirm-1440-light', log)
+await move('out', '50', 'Compra de garrafón QA T6')
+await page.getByTestId('cash-movement-last').scrollIntoViewIfNeeded()
+await shot(page, '07-cashier-cash-out-confirm-only-last-1440-light', log)
+log('ISSUES ' + JSON.stringify(issues))
+await browser.close()

@@ -1,0 +1,427 @@
+/* Caja redesign — shared data (es-MX demo data), state model and task panels.
+   Every direction composes these panels in its own layout. Data is illustrative, never a real tenant. */
+const $ = (sel, root = document) => root.querySelector(sel);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const mx = n => (n < 0 ? '−' : '') + '$' + Math.abs(n).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const mxs = n => (n > 0 ? '+' : '') + mx(n);
+
+/* ---- icons (Lucide paths, inline) ---- */
+const P = {
+  wallet: '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+  updown: '<path d="m21 16-4 4-4-4M17 20V4M3 8l4-4 4 4M7 4v16"/>',
+  calc: '<rect width="16" height="20" x="4" y="2" rx="2"/><path d="M8 6h8M16 14v4M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01"/>',
+  shield: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+  send: '<path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17"/><path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9"/><path d="m2 16 6 6"/><circle cx="16" cy="9" r="2.9"/><circle cx="6" cy="5" r="3"/>',
+  inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11"/>',
+  unlock: '<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>',
+  lock: '<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  alert: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>',
+  warn: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3M12 9v4M12 17h.01"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+  chev: '<path d="m9 18 6-6-6-6"/>',
+  chevd: '<path d="m6 9 6 6 6-6"/>',
+  back: '<path d="m15 18-6-6 6-6"/>',
+  user: '<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>',
+  dl: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
+  plus: '<path d="M5 12h14M12 5v14"/>',
+  minus: '<path d="M5 12h14"/>',
+  eyeoff: '<path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61M2 2l20 20"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>',
+  store: '<path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4M2 7h20"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  list: '<path d="M3 12h.01M3 18h.01M3 6h.01M8 12h13M8 18h13M8 6h13"/>',
+  refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  menu: '<path d="M4 12h16M4 6h16M4 18h16"/>',
+};
+const ic = (n, cls = '') => `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${P[n]}</svg>`;
+
+/* ---- demo data ---- */
+const D = {
+  store: 'Sucursal Centro', biz: 'Mascotas y Alimentos El Roble', date: 'miércoles 18 nov 2026',
+  me: { cajera: { name: 'Laura Méndez', ini: 'LM', role: 'Cajera' }, super: { name: 'Andrés Salazar', ini: 'AS', role: 'Encargado de turno' } },
+  register: 'Caja Principal', fund: 1500,
+  times: { open: '08:02', count: '16:05', declared: '16:21', verified: '16:34', handed: '16:40', released: '16:52', closed: '17:05' },
+  channels: [
+    { k: 'CASH', l: 'Efectivo', decl: 8742.5, exp: 8762.5 },
+    { k: 'CARD_CREDIT', l: 'Tarjeta de crédito', decl: 4310, exp: 4310 },
+    { k: 'CARD_DEBIT', l: 'Tarjeta de débito', decl: 2985.4, exp: 2985.4 },
+    { k: 'TRANSFER', l: 'Transferencia', decl: 1250, exp: 1250 },
+  ],
+  denoms: [[1000, 'billete', 2], [500, 'billete', 6], [200, 'billete', 12], [100, 'billete', 9], [50, 'billete', 5], [20, 'billete', 7], [20, 'moneda', 1], [10, 'moneda', 2], [5, 'moneda', 1], [2, 'moneda', 3], [1, 'moneda', 1], [0.5, 'moneda', 1]],
+  moves: [
+    { k: 'Cobros en efectivo', n: '46 ventas', a: 8214 },
+    { k: 'Cambio entregado', n: '31 ventas', a: -451.5 },
+    { k: 'Ingreso manual', n: '10:30 · Cambio de monedas desde caja fuerte', a: 200 },
+    { k: 'Retiro manual', n: '12:15 · Pago de garrafones de agua', a: -500 },
+    { k: 'Liquidación de reembolso', n: '14:48 · Venta V-10422', a: -200 },
+  ],
+  registers: [
+    { id: 'principal', name: 'Caja Principal', st: 'Disponible', tone: 't-success', d: 'Hay un fondo de $1,500.00 listo para recibir' },
+    { id: 'mostrador', name: 'Caja 2 · Mostrador', st: 'En uso', tone: 't-info', d: 'Turno abierto de Diego Ramírez desde 12:00', locked: true },
+    { id: 'estetica', name: 'Caja Estética', st: 'Cajón sin liberar', tone: 't-warning', d: 'Turno de ayer de Sofía Torres: falta liberar el cajón', locked: true },
+  ],
+  float: { from: 'Diego Ramírez', when: 'ayer, 21:10', reg: 'Caja Principal', a: 1500 },
+  handovers: [
+    { kind: 'Fondo para el siguiente turno', short: 'Fondo', to: 'Diego Ramírez', role: 'Cajero · turno de la tarde', a: 1500 },
+    { kind: 'Retiro a resguardo', short: 'Retiro', to: 'Andrés Salazar', role: 'Encargado de turno', a: 7242.5 },
+  ],
+  people: [['Andrés Salazar', 'Encargado de turno'], ['Diego Ramírez', 'Cajero'], ['Sofía Torres', 'Cajera'], ['Marisol Vega', 'Gerente de sucursal']],
+  sessions: [
+    { reg: 'Caja Principal', who: 'Laura Méndez', since: '08:02', mine: true },
+    { reg: 'Caja 2 · Mostrador', who: 'Diego Ramírez', since: '12:00', st: 'Abierta', tone: 't-success', next: 'En venta' },
+    { reg: 'Caja Estética', who: 'Sofía Torres', since: 'ayer 09:00', st: 'Declarada', tone: 't-info', next: 'Por verificar' },
+  ],
+  folio: 'CC-000184', closeNote: 'Faltante de $20.00: cambio mal entregado en la venta de las 13:40. Reportado por Laura al declarar.',
+};
+D.cashDecl = D.channels[0].decl; D.cashExp = D.channels[0].exp; D.diff = D.cashDecl - D.cashExp;
+D.totalDecl = D.channels.reduce((s, c) => s + c.decl, 0); D.totalExp = D.channels.reduce((s, c) => s + c.exp, 0);
+
+/* ---- state model ---- */
+const STAGES = ['sin-turno', 'abierta', 'congelada', 'declarada', 'verificada', 'entregada', 'liberada', 'cerrada'];
+const STAGE_LABEL = { 'sin-turno': 'Sin turno', abierta: 'Abierta · vendiendo', congelada: 'Congelada · contando', declarada: 'Declarada', verificada: 'Verificada', entregada: 'Entregas por recibir', liberada: 'Cajón liberado', cerrada: 'Cerrada · corte' };
+const STATUS = { // the session lifecycle badge (backend states only); drawer and verification are facts, not states
+  'sin-turno': null, abierta: ['Abierta', 't-success'], congelada: ['Congelada', 't-warning'], declarada: ['Declarada', 't-info'],
+  verificada: ['Declarada', 't-info'], entregada: ['Declarada', 't-info'], liberada: ['Declarada', 't-info'], cerrada: ['Cerrada', 't-neutral'],
+};
+const S = { role: 'cajera', stage: 'abierta', view: 'inicio', theme: 'light', fundChoice: 'float', fundConfirmed: false, movKind: 'out', register: 'principal', showErrors: false, lastMove: null };
+const idx = () => STAGES.indexOf(S.stage);
+const at = st => idx() >= STAGES.indexOf(st);
+const isCajera = () => S.role === 'cajera';
+const blind = () => isCajera() && !at('declarada'); // OPEN → COUNTING: no sales, expected, difference or movements for the cashier
+const PERMS = {
+  cajera: ['create:CashSession', 'create:CashCount', 'create:CashIn', 'create:CashOut', 'create:CashHandover', 'update:CashHandover', 'read:CashSession', 'read:CashHandover'],
+  super: ['create:CashSession', 'create:CashCount', 'create:CashIn', 'create:CashOut', 'create:CashHandover', 'update:CashHandover', 'read:CashSession', 'read:CashSessionAudit', 'create:CashVerification', 'create:CashClosing', 'read:CashClosing', 'read:CashHandover', 'read:User'],
+};
+const can = p => PERMS[S.role].includes(p);
+const me = () => D.me[S.role];
+
+/* Lifecycle steps. who: the person who acts. */
+const STEPS = [
+  { id: 'apertura', l: 'Abrir caja', who: 'cajera', icon: 'wallet', from: 'sin-turno', done: 'abierta' },
+  { id: 'movimientos', l: 'Vender y registrar entradas o salidas', who: 'cajera', icon: 'updown', from: 'abierta', done: 'congelada' },
+  { id: 'conteo', l: 'Iniciar conteo y declarar a ciegas', who: 'cajera', icon: 'calc', from: 'abierta', done: 'declarada', current: 'congelada' },
+  { id: 'verificacion', l: 'Verificar el conteo', who: 'super', icon: 'shield', from: 'declarada', done: 'verificada' },
+  { id: 'entrega', l: 'Entregar el efectivo', who: 'cajera', icon: 'send', from: 'verificada', done: 'entregada' },
+  { id: 'recepcion', l: 'Recibir las entregas', who: 'destinatarios', icon: 'inbox', from: 'entregada', done: 'liberada' },
+  { id: 'liberar', l: 'Liberar el cajón', who: 'cajera', icon: 'unlock', from: 'entregada', done: 'liberada' },
+  { id: 'cierre', l: 'Cerrar caja', who: 'super', icon: 'lock', from: 'liberada', done: 'cerrada' },
+  { id: 'corte', l: 'Corte de caja (PDF)', who: 'todos', icon: 'file', from: 'cerrada', done: null },
+];
+const WHO = { cajera: 'Cajera', super: 'Supervisor', destinatarios: 'Quien recibe', todos: 'Consulta' };
+function stepState(st) {
+  if (st.done && at(st.done)) return 'done';
+  if (st.id === 'corte') return at('cerrada') ? 'current' : 'upcoming';
+  if (st.id === 'movimientos') return S.stage === 'abierta' ? 'current' : 'upcoming';
+  if (st.id === 'conteo') return S.stage === 'congelada' ? 'current' : S.stage === 'abierta' ? 'next' : 'upcoming';
+  if (st.id === 'liberar') return S.stage === 'entregada' ? 'blocked' : 'upcoming';
+  return S.stage === st.from ? 'current' : 'upcoming';
+}
+const stepTime = { apertura: 'open', conteo: 'declared', verificacion: 'verified', entrega: 'handed', liberar: 'released', recepcion: 'released', cierre: 'closed' };
+function stepMeta(st) {
+  const s = stepState(st), t = D.times[stepTime[st.id]];
+  const by = { apertura: 'Laura Méndez', conteo: 'Laura Méndez', verificacion: 'Andrés Salazar', entrega: 'Laura Méndez', liberar: 'Laura Méndez', recepcion: '2 de 2 recibidas', cierre: 'Andrés Salazar' }[st.id];
+  if (s === 'done') return t ? `${t} · ${by}` : 'Hecho';
+  if (st.id === 'movimientos' && s === 'current') return blind() ? `En curso desde ${D.times.open} · ventas y totales ocultos hasta declarar` : `En curso desde ${D.times.open} · 5 movimientos visibles para auditoría`;
+  if (st.id === 'movimientos' && at('congelada')) return `Terminó a las ${D.times.count}`;
+  if (st.id === 'conteo' && s === 'next') return 'Cuando termines de vender';
+  if (st.id === 'conteo' && S.stage === 'congelada') return `Congelada a las ${D.times.count} · falta declarar`;
+  if (st.id === 'recepcion' && S.stage === 'entregada') return '0 de 2 recibidas';
+  if (st.id === 'liberar' && s === 'blocked') return 'Se habilita cuando se reciban las 2 entregas';
+  if (s === 'current' && st.who === 'super' && isCajera()) return 'Lo hace otra persona con permiso; no puedes ser tú';
+  if (st.id === 'cierre' && s === 'upcoming') return 'Supervisor, después de liberar el cajón';
+  return WHO[st.who];
+}
+
+/* Next action for the selected session, by role. kind: primary | wait */
+function nextAction() {
+  const c = isCajera();
+  const m = {
+    'sin-turno': c ? { kind: 'primary', label: 'Abrir caja', view: 'apertura', why: 'Elige la caja y confirma el fondo en una sola pantalla.' } : { kind: 'wait', label: 'Laura Méndez no tiene turno abierto', why: 'Puedes revisar otras sesiones o abrir tu propio turno.' },
+    abierta: c ? { kind: 'primary', label: 'Iniciar conteo', view: 'conteo', why: 'Cuando termines de vender. Congela la caja: ya no admite ventas en efectivo ni movimientos.', alt: { label: 'Registrar entrada o salida', view: 'movimientos' } } : { kind: 'wait', label: 'Laura Méndez está vendiendo', why: 'Como auditor ves los movimientos en vivo; ella no los ve hasta declarar.', alt: { label: 'Ver movimientos', view: 'movimientos' } },
+    congelada: c ? { kind: 'primary', label: 'Declarar conteo', view: 'conteo', why: 'Cuenta cada canal sin ver lo esperado. El cero también se declara.' } : { kind: 'wait', label: 'Laura Méndez está contando', why: `Caja congelada a las ${D.times.count}. Verificas cuando envíe la declaración.` },
+    declarada: c ? { kind: 'wait', label: 'Esperando verificación', why: 'La hace un supervisor con permiso; no puede ser la misma persona que declaró.', alt: { label: 'Agregar nota', view: 'conteo' } } : { kind: 'primary', label: 'Verificar conteo', view: 'verificacion', why: `Laura Méndez declaró ${mx(D.totalDecl)} a las ${D.times.declared}. Recuenta el efectivo.` },
+    verificada: c ? { kind: 'primary', label: 'Entregar efectivo', view: 'entrega', why: `Reparte los ${mx(D.cashDecl)} contados entre el fondo del siguiente turno y el retiro.` } : { kind: 'wait', label: 'Laura Méndez entrega el efectivo', why: 'Recibirás el retiro en «Por recibir».' },
+    entregada: c ? { kind: 'wait', label: 'Faltan 2 recepciones', why: 'Andrés Salazar y Diego Ramírez deben recibir lo que les entregaste. Después liberas el cajón.', alt: { label: 'Ver entregas', view: 'entrega' } } : { kind: 'primary', label: `Recibir retiro de ${mx(7242.5)}`, view: 'recibir', why: 'Laura Méndez te lo entregó a las 16:40. Cuenta antes de recibir.' },
+    liberada: c ? { kind: 'wait', label: 'Esperando cierre', why: `Liberaste el cajón a las ${D.times.released}. Un supervisor cierra la caja y genera el corte.` } : { kind: 'primary', label: 'Cerrar caja', view: 'cierre', why: 'Todo está listo. Hay un faltante de $20.00: la nota de cierre es obligatoria.' },
+    cerrada: { kind: 'primary', label: c ? 'Ver corte' : 'Descargar corte (PDF)', view: 'corte', why: `Folio ${D.folio}, cerrado a las ${D.times.closed} por Andrés Salazar.` },
+  };
+  return m[S.stage];
+}
+const pendingForMe = () => isCajera() ? (S.stage === 'entregada' ? 0 : 0) : (S.stage === 'entregada' ? 1 : 0);
+const pendingLabel = () => isCajera() ? 'Sin entregas por recibir' : (pendingForMe() ? `1 entrega por recibir · ${mx(7242.5)}` : 'Sin entregas por recibir');
+
+/* ---- small builders ---- */
+const badge = (t, tone, noicon) => `<span class="badge ${tone}${noicon ? ' noicon' : ''}">${t}</span>`;
+const statusBadge = () => { const s = STATUS[S.stage]; return s ? badge(s[0], s[1]) : badge('Sin turno', 't-neutral'); };
+const drawerBadge = () => at('liberada') ? badge('Cajón liberado', 't-neutral') : (at('abierta') ? badge('Cajón sin liberar', 't-neutral') : '');
+const btn = (label, { kind = 'outline', act, view, icon, dis, reason, cls = '' } = {}) =>
+  `<button type="button" class="btn btn-${kind} ${cls}" ${act ? `data-act="${act}"` : ''} ${view ? `data-view="${view}"` : ''} ${dis ? `aria-disabled="true" ${reason ? `aria-describedby="r-${act || view}"` : ''}` : ''}>${icon ? ic(icon) : ''}${label}</button>`;
+const moneyField = (id, label, val, { hint, err, lg, req } = {}) => `
+  <div class="field${err ? ' invalid' : ''}">
+    <label for="${id}">${label}</label>
+    <div class="money-input${lg ? ' lg' : ''}"><span class="cur" aria-hidden="true">$</span><input id="${id}" class="input" inputmode="decimal" autocomplete="off" value="${val}" ${err ? `aria-invalid="true" aria-describedby="${id}-e"` : hint ? `aria-describedby="${id}-h"` : ''} ${req ? 'required' : ''}><span class="unit" aria-hidden="true">MXN</span></div>
+    ${err ? `<p class="err" id="${id}-e">${ic('alert', 's14')}${err}</p>` : hint ? `<p class="hint" id="${id}-h">${hint}</p>` : ''}
+  </div>`;
+const PERM_NAME = { 'create:CashSession': 'Abrir caja', 'create:CashCount': 'Contar y declarar', 'create:CashIn / create:CashOut': 'Entradas y salidas', 'create:CashVerification': 'Verificar caja', 'create:CashHandover': 'Entregar efectivo y liberar cajón', 'update:CashHandover': 'Recibir entregas', 'create:CashClosing': 'Cerrar caja', 'read:CashClosing': 'Ver cortes' };
+const forbidden = (what, perm) => `<div class="callout">${ic('lock')}<div><b>No tienes permiso para ${what}</b><br><span class="meta">Pide a un encargado el permiso «${PERM_NAME[perm] || perm}». Lo demás de la caja sigue disponible.</span></div></div>`;
+const blindNote = (extra = '') => `<div class="callout">${ic('eyeoff')}<div><b>Conteo ciego</b><br><span class="meta">Durante tu turno no ves ventas, lo esperado ni la lista de movimientos. Se muestran al enviar tu declaración.${extra}</span></div></div>`;
+const kv = rows => `<dl class="kv">${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>`;
+
+/* ---- task panels (shared by A, B, C) ---- */
+function panelApertura() {
+  if (!can('create:CashSession')) return forbidden('abrir caja', 'create:CashSession');
+  if (at('abierta')) return `<div class="callout ok">${ic('check')}<div><b>Caja Principal abierta a las ${D.times.open}</b><br><span class="meta">Fondo inicial ${mx(D.fund)} confirmado por Laura Méndez, recibido de Diego Ramírez.</span></div></div>`;
+  const f = S.fundChoice === 'float';
+  const amt = f ? '1,500.00' : (S.showErrors ? '' : '1,000.00');
+  const regs = D.registers.map(r => `
+    <button type="button" class="rcard" role="radio" aria-checked="${S.register === r.id}" ${r.locked ? 'aria-disabled="true"' : `data-act="reg:${r.id}"`}>
+      <span class="mark">${ic('check')}</span>
+      <span class="grow"><span class="between"><span class="rc-title">${r.name}</span>${badge(r.st, r.tone)}</span><span class="rc-desc">${r.d}</span></span>
+    </button>`).join('');
+  const errs = S.showErrors ? `<div class="err-summary" role="alert" tabindex="-1"><h3>${ic('alert')}Revisa 2 datos antes de abrir</h3><ul><li><a href="#ap-amt">Ingresa el fondo inicial en pesos, por ejemplo 350.00</a></li><li><a href="#ap-confirm">Confirma el fondo inicial</a></li></ul></div>` : '';
+  return `
+  <form class="stack" onsubmit="return false" aria-labelledby="ap-h">
+    ${errs}
+    <fieldset class="stack-s" style="border:0;padding:0;margin:0"><legend class="lbl" style="margin-bottom:8px">1. Caja</legend>
+      <div class="rcards" role="radiogroup" aria-label="Caja">${regs}</div>
+      <p class="notice info">${ic('info', 's14')}Las cajas en uso o con cajón sin liberar no se pueden abrir.</p>
+    </fieldset>
+    <fieldset class="stack-s" style="border:0;padding:0;margin:0"><legend class="lbl" style="margin-bottom:8px">2. Fondo inicial</legend>
+      <div class="rcards cols-2" role="radiogroup" aria-label="Origen del fondo">
+        <button type="button" class="rcard" role="radio" aria-checked="${f}" data-act="fund:float"><span class="mark">${ic('check')}</span><span><span class="rc-title">Fondo recibido · ${mx(D.float.a)}</span><span class="rc-desc">De ${D.float.from}, ${D.float.when}</span></span></button>
+        <button type="button" class="rcard" role="radio" aria-checked="${!f}" data-act="fund:new"><span class="mark">${ic('check')}</span><span><span class="rc-title">Fondo nuevo</span><span class="rc-desc">Lo cuentas tú desde la caja fuerte</span></span></button>
+      </div>
+      ${moneyField('ap-amt', 'Fondo inicial (pesos)', amt, { lg: true, hint: f ? 'Debe coincidir con el fondo recibido.' : 'En pesos con hasta dos decimales, por ejemplo 350.00.', err: S.showErrors ? 'Ingresa el fondo inicial en pesos, por ejemplo 350.00.' : '' })}
+    </fieldset>
+    <div class="stack-s"><span class="lbl" id="ap-confirm-l">3. Confirma lo que cuentas en el cajón</span>
+      <button type="button" id="ap-confirm" class="btn ${S.fundConfirmed ? 'btn-confirmed' : 'btn-outline'} btn-block" aria-pressed="${S.fundConfirmed}" data-act="confirm">${S.fundConfirmed ? ic('check') + `Fondo confirmado: ${f ? '$1,500.00' : '$1,000.00'}` : `Confirmo que recibo ${f ? '$1,500.00' : '$1,000.00'}`}</button>
+      ${S.showErrors && !S.fundConfirmed ? `<p class="err">${ic('alert', 's14')}Confirma el fondo inicial.</p>` : ''}
+    </div>
+    <div class="between" style="padding-top:8px;border-top:1px solid var(--hf-border)">
+      <span class="meta" aria-live="polite">${S.fundConfirmed ? 'Todo listo para abrir.' : 'Falta confirmar el fondo.'}</span>
+      <button type="button" class="btn btn-primary" data-act="${S.fundConfirmed ? 'open' : 'open-err'}">Abrir Caja Principal</button>
+    </div>
+  </form>`;
+}
+
+function panelMovimientos() {
+  const frozen = at('congelada');
+  const formOk = can('create:CashIn') || can('create:CashOut');
+  const out = S.movKind === 'out';
+  const form = frozen
+    ? `<div class="callout">${ic('lock')}<div><b>La caja está congelada</b><br><span class="meta">Desde que iniciaste el conteo (${D.times.count}) ya no admite movimientos.</span></div></div>`
+    : !isCajera() ? `<div class="callout">${ic('info')}<div><b>Solo la persona responsable registra movimientos</b><br><span class="meta">Esta sesión es de Laura Méndez.</span></div></div>`
+    : !formOk ? forbidden('registrar entradas o salidas', 'create:CashIn / create:CashOut') : `
+    <form class="stack" onsubmit="return false">
+      <div class="field"><span class="lbl" id="mv-k">Tipo</span>
+        <div class="seg" role="radiogroup" aria-labelledby="mv-k"><button type="button" role="radio" aria-checked="${!out}" data-act="mov:in">Entrada de efectivo</button><button type="button" role="radio" aria-checked="${out}" data-act="mov:out">Salida de efectivo</button></div></div>
+      <div class="grid-amt">
+        ${moneyField('mv-a', 'Importe (pesos)', out ? '350.00' : '', { hint: 'Mayor a cero' })}
+        <div class="field"><label for="mv-r">Motivo <span class="meta">(obligatorio)</span></label><input id="mv-r" class="input" value="${out ? 'Compra de bolsas para mostrador' : ''}" placeholder="Por ejemplo: cambio de monedas desde caja fuerte"></div>
+      </div>
+      <div class="row" style="justify-content:flex-end">${btn(out ? 'Registrar salida de $350.00' : 'Registrar entrada', { kind: 'primary', act: 'move' })}</div>
+    </form>`;
+  const last = S.lastMove ? `<p class="notice info" role="status">${ic('check', 's14')}${S.lastMove}</p>` : '';
+  const list = blind()
+    ? blindNote(' Lo que registres aquí sí cuenta para lo esperado.')
+    : `<div class="card twrap" tabindex="0" role="region" aria-label="Tabla desplazable"><table class="ptable"><caption class="sr">Movimientos de efectivo de la sesión</caption><thead><tr><th>Concepto</th><th>Detalle</th><th class="num">Importe</th></tr></thead><tbody>
+        <tr><td>Fondo inicial</td><td class="meta">${D.times.open} · recibido de Diego Ramírez</td><td class="num">${mx(D.fund)}</td></tr>
+        ${D.moves.map(m => `<tr><td>${m.k}</td><td class="meta">${m.n}</td><td class="num">${mxs(m.a)}</td></tr>`).join('')}
+      </tbody><tfoot><tr><td colspan="2">Efectivo esperado</td><td class="num">${mx(D.cashExp)}</td></tr></tfoot></table></div>`;
+  return `<div class="stack">${form}${last}${list}</div>`;
+}
+
+function denomGrid(editable = true) {
+  const rows = D.denoms.map(([v, t, q], i) => `<div class="denom"><span class="dv">${mx(v).replace('.00', '')}<small>${t}</small></span>${editable ? `<input class="input" inputmode="numeric" aria-label="Piezas de ${t} de ${mx(v)}" value="${q}">` : `<span class="fig" style="text-align:right">${q}</span>`}<span class="sub">${mx(v * q)}</span></div>`).join('');
+  return `<div class="denoms" role="group" aria-label="Denominaciones de efectivo">${rows}</div>`;
+}
+function panelConteo() {
+  if (!can('create:CashCount')) return forbidden('contar o declarar', 'create:CashCount');
+  if (!isCajera() && !at('declarada')) return `<div class="callout">${ic('clock')}<div><b>${S.stage === 'congelada' ? 'Laura Méndez está contando' : 'Laura Méndez aún no inicia el conteo'}</b><br><span class="meta">La declaración la hace la persona responsable de la sesión.</span></div></div>`;
+  if (S.stage === 'abierta') return `
+    <div class="stack">
+      <p>Inicia el conteo cuando termines de vender. A partir de ese momento:</p>
+      <ul class="checklist">
+        <li><span class="ck wait">${ic('lock')}</span><span><span class="ck-t">La caja se congela</span><span class="ck-d">No admite cobros en efectivo ni entradas o salidas.</span></span></li>
+        <li><span class="ck wait">${ic('eyeoff')}</span><span><span class="ck-t">Cuentas a ciegas</span><span class="ck-d">Declaras cada canal sin ver lo esperado; el cero también se declara.</span></span></li>
+        <li><span class="ck wait">${ic('shield')}</span><span><span class="ck-t">Otra persona verifica</span><span class="ck-d">Un supervisor recuenta tu efectivo después de que declares.</span></span></li>
+      </ul>
+      <div class="row" style="justify-content:flex-end">${btn('Iniciar conteo y congelar caja', { kind: 'primary', act: 'freeze' })}</div>
+    </div>`;
+  if (S.stage === 'congelada') return `
+    <form class="stack" onsubmit="return false">
+      ${blindNote()}
+      <div class="stack-m"><h3 class="h-sec">Canales a declarar · 4</h3>
+        <div class="grid-4">
+          ${D.channels.map((c, i) => moneyField('ct-' + c.k, c.l, i === 0 ? '8,742.50' : c.decl.toLocaleString('es-MX', { minimumFractionDigits: 2 }), {})).join('')}
+        </div></div>
+      <details open class="card pad"><summary class="between" style="cursor:pointer;min-height:32px"><span class="h-sec">Denominaciones de Efectivo <span class="meta">(opcional)</span></span><span class="meta">Deben sumar el total de Efectivo</span></summary>
+        <div style="margin-top:12px">${denomGrid()}</div>
+        <div class="denom-total" style="margin-top:12px"><span class="strong">Total contado</span><span class="row"><span class="badge t-success">Coincide con Efectivo</span><span class="big-money">${mx(D.cashDecl)}</span></span></div>
+      </details>
+      <div class="field"><label for="ct-n">Notas <span class="meta">(opcional)</span></label><textarea id="ct-n" class="input" placeholder="Por ejemplo: un billete de $200 dañado aparte"></textarea></div>
+      <div class="between" style="padding-top:8px;border-top:1px solid var(--hf-border)"><span class="meta">Al enviar ya no podrás cambiar los importes; solo agregar notas.</span>${btn('Enviar declaración', { kind: 'primary', act: 'declare' })}</div>
+    </form>`;
+  // declared or later: expected and difference become visible
+  return `
+    <div class="stack">
+      ${isCajera() ? `<div class="callout ok">${ic('check')}<div><b>Declaración enviada a las ${D.times.declared}</b><br><span class="meta">Ahora ves lo esperado. Si hay diferencia, agrega una nota que la explique.</span></div></div>` : ''}
+      <div class="card twrap" tabindex="0" role="region" aria-label="Tabla desplazable"><table class="ptable"><caption class="sr">Declaración por canal</caption><thead><tr><th>Canal</th><th class="num">Declarado</th><th class="num">Esperado</th><th class="num">Diferencia</th></tr></thead><tbody>
+        ${D.channels.map(c => { const d = c.decl - c.exp; return `<tr class="${d ? 'pending' : ''}"><td>${c.l}</td><td class="num">${mx(c.decl)}</td><td class="num">${mx(c.exp)}</td><td class="num">${d ? `<span class="strong" style="color:var(--hf-warning)">${mx(d)} faltante</span>` : '<span class="meta">Sin diferencia</span>'}</td></tr>`; }).join('')}
+      </tbody><tfoot><tr><td>Total</td><td class="num">${mx(D.totalDecl)}</td><td class="num">${mx(D.totalExp)}</td><td class="num">${mx(D.diff)}</td></tr></tfoot></table></div>
+      <div class="field"><label for="ct-n2">Nota explicativa ${isCajera() && S.stage === 'declarada' ? '<span class="meta">(obligatoria por la diferencia)</span>' : ''}</label><textarea id="ct-n2" class="input">Cambio mal entregado en la venta de las 13:40.</textarea></div>
+      ${isCajera() && S.stage === 'declarada' ? `<div class="row" style="justify-content:flex-end">${btn('Guardar nota', { kind: 'outline', act: 'note' })}</div>` : ''}
+    </div>`;
+}
+
+function panelVerificacion() {
+  if (isCajera()) {
+    if (at('verificada')) return `<div class="callout ok">${ic('shield')}<div><b>Verificada por Andrés Salazar a las ${D.times.verified}</b><br><span class="meta">Recontó ${mx(D.cashDecl)} en efectivo: coincide con tu declaración.</span></div></div>`;
+    return `<div class="callout">${ic('user')}<div><b>La verificación la hace otra persona</b><br><span class="meta">Un supervisor con permiso de verificación recuenta tu efectivo. Tú no puedes verificar tu propia sesión.${S.stage === 'declarada' ? ' Ya puede hacerlo.' : ''}</span></div></div>`;
+  }
+  if (!can('create:CashVerification')) return forbidden('verificar', 'create:CashVerification');
+  if (!at('declarada')) return `<div class="callout">${ic('clock')}<div><b>Todavía no hay una declaración enviada</b><br><span class="meta">Podrás verificar cuando Laura Méndez declare su conteo.</span></div></div>`;
+  if (at('verificada')) return `<div class="callout ok">${ic('shield')}<div><b>Verificaste esta sesión a las ${D.times.verified}</b><br><span class="meta">Recuento ${mx(D.cashDecl)}: coincide con la declaración.</span></div></div>`;
+  return `
+    <form class="stack" onsubmit="return false">
+      <div class="between"><div><span class="meta">Declaración original de Laura Méndez · ${D.times.declared}</span><div class="big-money">${mx(D.cashDecl)} <span class="meta" style="font-size:13px;font-weight:400">en efectivo</span></div></div><span class="meta">Recuenta sin mirar la diferencia; la verás al enviar.</span></div>
+      <div class="grid-4">${D.channels.map((c, i) => moneyField('vf-' + c.k, c.l + ' (recuento)', i === 0 ? '8,742.50' : c.decl.toLocaleString('es-MX', { minimumFractionDigits: 2 }))).join('')}</div>
+      <details class="card pad"><summary class="between" style="cursor:pointer;min-height:32px"><span class="h-sec">Denominaciones del recuento <span class="meta">(opcional)</span></span>${ic('chevd')}</summary><div style="margin-top:12px">${denomGrid()}</div></details>
+      <div class="between" style="padding-top:8px;border-top:1px solid var(--hf-border)"><span class="meta">Queda registrado como verificación de Andrés Salazar.</span>${btn('Enviar verificación', { kind: 'primary', act: 'verify' })}</div>
+    </form>`;
+}
+
+function handoverRows(editable) {
+  return D.handovers.map((h, i) => `
+    <div class="ho-row">
+      <div><span class="rc-title">${h.kind}</span><span class="rc-desc">${i === 0 ? 'Se queda como fondo de la siguiente apertura' : 'Sale del cajón a resguardo'}</span></div>
+      ${editable ? `<div class="field"><label for="ho-p${i}" class="sr">Persona que recibe</label><button type="button" id="ho-p${i}" class="input" style="display:flex;align-items:center;justify-content:space-between;text-align:left" aria-haspopup="listbox">${h.to} <span class="meta">${h.role}</span>${ic('chevd')}</button></div>` : `<div><span class="strong">${h.to}</span><span class="rc-desc">${h.role}</span></div>`}
+      ${editable ? moneyField('ho-a' + i, `<span class="sr">Importe de ${h.short}</span>`, h.a.toLocaleString('es-MX', { minimumFractionDigits: 2 })) : `<div class="money" style="text-align:right">${mx(h.a)}</div>`}
+      ${!editable ? `<div style="text-align:right">${at('liberada') ? badge('Recibida', 't-success') : badge('Por recibir', 't-warning')}</div>` : ''}
+    </div>`).join('');
+}
+function panelEntrega() {
+  if (!can('create:CashHandover')) return forbidden('entregar efectivo', 'create:CashHandover');
+  if (!at('verificada')) return `<div class="callout">${ic('clock')}<div><b>Se habilita después de la verificación</b><br><span class="meta">Repartirás el efectivo contado entre el fondo del siguiente turno y el retiro.</span></div></div>`;
+  if (!isCajera()) return `<div class="stack"><div class="ho">${handoverRows(false)}</div></div>`;
+  if (at('entregada')) return `<div class="stack"><div class="ho">${handoverRows(false)}</div>${S.stage === 'entregada' ? `<p class="notice warn">${ic('clock', 's14')}Cada persona recibe desde su propia sesión, en «Por recibir». Después liberas el cajón.</p>` : ''}</div>`;
+  return `
+    <form class="stack" onsubmit="return false">
+      <div class="between"><span>Efectivo contado y verificado</span><span class="big-money">${mx(D.cashDecl)}</span></div>
+      <div class="ho">${handoverRows(true)}</div>
+      <div class="denom-total"><span class="strong">Por asignar</span><span class="row"><span class="badge t-success">Todo asignado</span><span class="big-money">$0.00</span></span></div>
+      <p class="notice info">${ic('info', 's14')}Las entregas deben sumar exactamente el efectivo contado. Eliges a la persona por su nombre.</p>
+      <div class="row" style="justify-content:flex-end">${btn('Declarar 2 entregas', { kind: 'primary', act: 'handover' })}</div>
+    </form>`;
+}
+function panelRecibir() {
+  if (!can('update:CashHandover')) return forbidden('recibir entregas', 'update:CashHandover');
+  const mine = !isCajera() && S.stage === 'entregada';
+  if (!mine) return `<div class="empty">${ic('inbox')}<h3>No tienes entregas por recibir</h3><p>Cuando alguien te entregue un fondo o un retiro aparecerá aquí, con quién lo envía y desde qué caja.</p></div>`;
+  return `
+    <div class="stack">
+      <div class="card pad stack-m">
+        <div class="between"><div><span class="rc-title">Retiro a resguardo · ${mx(7242.5)}</span><span class="rc-desc">De Laura Méndez · Caja Principal · hoy 16:40</span></div>${badge('Por recibir', 't-warning')}</div>
+        <div class="grid-amt">${moneyField('rc-a', 'Monto recibido (pesos)', '7,242.50', { hint: 'Cuéntalo antes de recibir' })}<div class="field"><label for="rc-n">Nota <span class="meta">(obligatoria si el monto difiere)</span></label><input id="rc-n" class="input" placeholder="Por ejemplo: faltó un billete de $50"></div></div>
+        <div class="row" style="justify-content:flex-end">${btn(`Recibir ${mx(7242.5)}`, { kind: 'primary', act: 'receive' })}</div>
+      </div>
+      <p class="meta">Solo la persona destinataria puede recibir su entrega.</p>
+    </div>`;
+}
+function panelLiberar() {
+  if (!can('create:CashHandover')) return forbidden('liberar el cajón', 'create:CashHandover');
+  if (at('liberada')) return `<div class="callout ok">${ic('unlock')}<div><b>Cajón liberado a las ${D.times.released}</b><br><span class="meta">Caja Principal queda disponible para la siguiente apertura.</span></div></div>`;
+  if (!isCajera()) return `<div class="callout">${ic('info')}<div><b>Lo libera la persona responsable</b><br><span class="meta">Laura Méndez, después de que se reciban las entregas.</span></div></div>`;
+  const ready = false;
+  return `
+    <div class="stack">
+      <p>Libera el cajón físico cuando retires todo el efectivo. Es un paso aparte: no cierra la caja.</p>
+      <ul class="checklist">
+        <li><span class="ck ${at('verificada') ? 'done' : 'wait'}">${ic('check')}</span><span><span class="ck-t">Conteo declarado y verificado</span></span></li>
+        <li><span class="ck ${at('entregada') ? 'done' : 'wait'}">${ic('check')}</span><span><span class="ck-t">Entregas declaradas</span></span></li>
+        <li><span class="ck ${at('entregada') ? 'todo' : 'wait'}">${ic('clock')}</span><span><span class="ck-t">Entregas recibidas · 0 de 2</span><span class="ck-d">Faltan Andrés Salazar y Diego Ramírez</span></span></li>
+      </ul>
+      <div class="row" style="justify-content:flex-end"><span class="meta" id="r-release">Se habilita cuando se reciban las 2 entregas.</span>${btn('Liberar cajón de Caja Principal', { kind: 'outline', act: 'release', dis: !ready, reason: true })}</div>
+    </div>`;
+}
+function panelCierre() {
+  if (isCajera()) return at('cerrada') ? `<div class="callout ok">${ic('lock')}<div><b>Caja cerrada por Andrés Salazar a las ${D.times.closed}</b><br><span class="meta">Corte ${D.folio} disponible.</span></div></div>` : `<div class="callout">${ic('user')}<div><b>La cierra un supervisor</b><br><span class="meta">Con permiso de cierre y distinto de quien abrió la caja. Genera el corte con folio.</span></div></div>`;
+  if (!can('create:CashClosing')) return forbidden('cerrar caja', 'create:CashClosing');
+  if (at('cerrada')) return `<div class="callout ok">${ic('lock')}<div><b>Cerraste Caja Principal a las ${D.times.closed}</b><br><span class="meta">Corte ${D.folio}.</span></div></div>`;
+  const ok = at('liberada');
+  const item = (done, t, d = '') => `<li><span class="ck ${done ? 'done' : 'todo'}">${ic(done ? 'check' : 'clock')}</span><span><span class="ck-t">${t}</span>${d ? `<span class="ck-d">${d}</span>` : ''}</span></li>`;
+  return `
+    <form class="stack" onsubmit="return false">
+      <ul class="checklist">
+        ${item(true, 'Cierra otra persona', 'Tú (Andrés Salazar) no abriste esta caja')}
+        ${item(at('declarada'), 'Declaración enviada', 'Laura Méndez · ' + D.times.declared)}
+        ${item(at('verificada'), 'Verificación hecha', 'Andrés Salazar · ' + D.times.verified)}
+        ${item(ok, 'Entregas recibidas y asignadas', ok ? '2 de 2' : '0 de 2')}
+        ${item(ok, 'Cajón liberado', ok ? D.times.released : 'Pendiente')}
+      </ul>
+      <div class="field"><label for="cl-n">Nota de cierre <span class="meta">(obligatoria: hay un faltante de $20.00)</span></label><textarea id="cl-n" class="input">${D.closeNote}</textarea></div>
+      <div class="between" style="padding-top:8px;border-top:1px solid var(--hf-border)"><span class="meta" id="r-close">${ok ? 'Al cerrar se genera el corte con folio. No se puede deshacer.' : 'Se habilita cuando todo lo anterior esté listo.'}</span>${btn('Cerrar Caja Principal', { kind: ok ? 'primary' : 'outline', act: 'close', dis: !ok, reason: !ok })}</div>
+    </form>`;
+}
+function panelCorte() {
+  if (!at('cerrada')) return `<div class="empty">${ic('file')}<h3>El corte aparece al cerrar la caja</h3><p>Incluye folio, totales por canal, entregas, horarios, personas y notas.</p></div>`;
+  const pdf = can('read:CashClosing');
+  return `
+    <article class="stack" aria-label="Corte de caja ${D.folio}">
+      <div class="between"><div><span class="meta">Corte de caja · ${D.store}</span><h3 class="h-detail">Folio ${D.folio}</h3></div>${pdf ? btn(`Descargar PDF`, { kind: 'primary', icon: 'dl', act: 'pdf' }) : `<span class="meta">${ic('lock', 's14')} Necesitas el permiso «Ver cortes» para el PDF</span>`}</div>
+      ${pdf ? `<p class="meta">Se descarga como corte-caja-${D.folio}.pdf</p>` : ''}
+      ${kv([['Caja', 'Caja Principal'], ['Abrió', `Laura Méndez · ${D.times.open}`], ['Verificó', `Andrés Salazar · ${D.times.verified}`], ['Cerró', `Andrés Salazar · ${D.times.closed}`], ['Fondo inicial', mx(D.fund)], ['Diferencia', `<span style="color:var(--hf-warning);font-weight:600">${mx(D.diff)} faltante</span>`]])}
+      <div class="card twrap" tabindex="0" role="region" aria-label="Tabla desplazable"><table class="ptable"><caption class="sr">Canales</caption><thead><tr><th>Canal</th><th class="num">Declarado</th><th class="num">Esperado</th><th class="num">Diferencia</th></tr></thead><tbody>${D.channels.map(c => `<tr><td>${c.l}</td><td class="num">${mx(c.decl)}</td><td class="num">${mx(c.exp)}</td><td class="num">${c.decl - c.exp ? mx(c.decl - c.exp) : '$0.00'}</td></tr>`).join('')}</tbody><tfoot><tr><td>Total</td><td class="num">${mx(D.totalDecl)}</td><td class="num">${mx(D.totalExp)}</td><td class="num">${mx(D.diff)}</td></tr></tfoot></table></div>
+      <div class="card twrap" tabindex="0" role="region" aria-label="Tabla desplazable"><table class="ptable"><caption class="sr">Entregas</caption><thead><tr><th>Entrega</th><th>Recibió</th><th class="num">Importe</th></tr></thead><tbody>${D.handovers.map(h => `<tr><td>${h.kind}</td><td>${h.to}</td><td class="num">${mx(h.a)}</td></tr>`).join('')}</tbody></table></div>
+      <div class="muted-panel"><b>Notas</b><br>${D.closeNote}</div>
+    </article>`;
+}
+const noShift = f => () => S.stage === 'sin-turno' ? `<div class="callout">${ic('wallet')}<div><b>${isCajera() ? 'Primero abre tu turno' : 'Laura Méndez no tiene turno abierto'}</b><br><span class="meta">Esta tarea se habilita cuando hay una caja abierta.</span></div></div>${isCajera() ? `<div class="row" style="justify-content:flex-end;margin-top:16px">${btn('Abrir caja', { kind: 'outline', view: 'apertura' })}</div>` : ''}` : f();
+const PANELS_RAW = { apertura: panelApertura, movimientos: panelMovimientos, conteo: panelConteo, verificacion: panelVerificacion, entrega: panelEntrega, recibir: panelRecibir, liberar: panelLiberar, cierre: panelCierre, corte: panelCorte };
+const PANELS = Object.fromEntries(Object.entries(PANELS_RAW).map(([k, f]) => [k, ['apertura', 'recibir'].includes(k) ? f : noShift(f)]));
+const TITLES = { apertura: 'Abrir caja', movimientos: 'Entradas y salidas', conteo: 'Conteo y declaración', verificacion: 'Verificación', entrega: 'Entrega de efectivo', recibir: 'Por recibir', liberar: 'Liberar cajón', cierre: 'Cerrar caja', corte: 'Corte de caja' };
+
+/* ---- actions ---- */
+function onAct(a) {
+  if (a.startsWith('reg:')) S.register = a.slice(4);
+  else if (a.startsWith('fund:')) { S.fundChoice = a.slice(5); S.fundConfirmed = false; }
+  else if (a.startsWith('mov:')) S.movKind = a.slice(4);
+  else if (a === 'confirm') { S.fundConfirmed = !S.fundConfirmed; S.showErrors = false; }
+  else if (a === 'open-err') S.showErrors = true;
+  else if (a === 'open') { S.stage = 'abierta'; S.view = 'inicio'; S.showErrors = false; }
+  else if (a === 'move') S.lastMove = `Salida de $350.00 registrada a las 15:12 · Compra de bolsas para mostrador`;
+  else if (a === 'freeze') S.stage = 'congelada';
+  else if (a === 'declare') S.stage = 'declarada';
+  else if (a === 'verify') S.stage = 'verificada';
+  else if (a === 'handover') S.stage = 'entregada';
+  else if (a === 'receive') S.stage = 'liberada';
+  else if (a === 'close') S.stage = 'cerrada';
+  else if (a === 'note' || a === 'pdf' || a === 'release') return;
+}
+function demoBar() {
+  return `<div class="demo" role="region" aria-label="Controles de la demostración (no son parte de la interfaz)">
+    <span class="dl">Demostración</span>
+    <div class="seg" role="radiogroup" aria-label="Persona"><button type="button" role="radio" aria-checked="${S.role === 'cajera'}" data-demo="role:cajera">Cajera</button><button type="button" role="radio" aria-checked="${S.role === 'super'}" data-demo="role:super">Supervisor</button></div>
+    <label class="sr" for="demo-stage">Momento del turno</label>
+    <select id="demo-stage" data-demo-stage>${STAGES.map(s => `<option value="${s}" ${S.stage === s ? 'selected' : ''}>${STAGE_LABEL[s]}</option>`).join('')}</select>
+    <div class="seg" role="radiogroup" aria-label="Tema"><button type="button" role="radio" aria-checked="${S.theme === 'light'}" data-demo="theme:light">Claro</button><button type="button" role="radio" aria-checked="${S.theme === 'dark'}" data-demo="theme:dark">Oscuro</button></div>
+  </div>`;
+}
+function wire(render) {
+  document.addEventListener('click', e => {
+    const d = e.target.closest('[data-demo]');
+    if (d) { const [k, v] = d.dataset.demo.split(':'); S[k] = v; if (k === 'role') S.view = 'inicio'; render(); return; }
+    const a = e.target.closest('[data-act]');
+    if (a && a.getAttribute('aria-disabled') !== 'true') { onAct(a.dataset.act); render(); if (a.dataset.act === 'open-err') $('.err-summary')?.focus(); return; }
+    const v = e.target.closest('[data-view]');
+    if (v && v.getAttribute('aria-disabled') !== 'true') { S.view = v.dataset.view; render(); const h = $('[data-focus-title]'); h && h.focus(); }
+  });
+  document.addEventListener('change', e => { if (e.target.matches('[data-demo-stage]')) { S.stage = e.target.value; S.fundConfirmed = false; S.showErrors = false; render(); } });
+}
+function boot(render) {
+  const q = new URLSearchParams(location.search);
+  ['role', 'stage', 'view', 'theme'].forEach(k => q.get(k) && (S[k] = q.get(k)));
+  wire(render); render();
+}

@@ -11,8 +11,16 @@
  *   - a FLOAT whose source drawer is still unreleased blocks only the SAME
  *     register until release;
  *   - `eligibleFloat` is a hint, never a reservation.
+ *
+ * Layout (direction A, «opening in one place»): the register is chosen right
+ * above this form (CashOpeningPanel); here come «2. Fondo inicial» (origin as
+ * radio cards: a received fund or a new one, then the amount in pesos) and
+ * «3. Confirma lo que cuentas» (the button names the amount). A failed attempt
+ * shows one error summary (role="alert", focused, linking to the field) plus
+ * the same message next to the field.
  */
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
+import { HfRadioCards, type HfRadioCardItem } from '@/core/shared/components/selection'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { centsToPesosInput, pesosToCents } from '../utils/cash-input'
@@ -110,11 +118,62 @@ function unconfirmOpening() {
   openingConfirmed.value = false
 }
 
+const NEW_FUND = '__new__'
+const formId = useId()
+const amountId = `${formId}-amount`
+const confirmId = `${formId}-confirm`
+const summary = useTemplateRef<HTMLElement>('summary')
+
+const floatItems = computed<HfRadioCardItem[]>(() => [
+  ...props.eligibleFloat.map((item) => ({
+    value: item.id,
+    label: `Fondo recibido · ${formatCentsMXN(item.receivedCents ?? item.declaredCents)}`,
+    description: [
+      item.senderDisplayName?.trim() ? `De ${item.senderDisplayName.trim()}` : null,
+      formatShortDateTime(item.receivedAt ?? item.declaredAt),
+    ]
+      .filter(Boolean)
+      .join(' · '),
+  })),
+  { value: NEW_FUND, label: 'Fondo nuevo', description: 'Lo cuentas tú desde la caja fuerte' },
+])
+
+const floatChoice = computed({
+  get: () => selectedFloatId.value ?? NEW_FUND,
+  set: (value: string) => {
+    selectedFloatId.value = value === NEW_FUND ? null : value
+  },
+})
+
+/** Which field the local error belongs to, for the summary link. */
+const localErrorField = computed(() =>
+  localError.value && /confirma/i.test(localError.value) ? confirmId : amountId,
+)
+
+const hasErrors = computed(() => Boolean(localError.value || props.errorMessage))
+
+async function focusSummary() {
+  await nextTick()
+  summary.value?.focus()
+}
+
+watch(
+  () => props.errorMessage,
+  (message) => {
+    if (message) void focusSummary()
+  },
+)
+
 const blocked = computed(
   () => !props.canOpen || !props.registerId || drawerAdvisory.value?.blocked === true,
 )
 
 function submit() {
+  submitChecked()
+  if (localError.value) void focusSummary()
+}
+
+function submitChecked() {
   if (!props.registerId) {
     localError.value = 'Elige una caja antes de abrir la sesión.'
     return
@@ -146,132 +205,152 @@ function submit() {
 </script>
 
 <template>
-  <section v-if="registerId" class="cash-list-section" data-testid="cash-open-session">
-    <header class="cash-list-header">
-      <h2 class="cash-list-title">Apertura de sesión</h2>
-    </header>
+  <section v-if="registerId" class="cash-open-form" data-testid="cash-open-session">
+    <p class="cash-meta-wrap">
+      Abrirás <strong class="cash-strong" data-testid="cash-open-register">{{ registerName ?? registerId }}</strong>
+    </p>
 
-    <div class="flex flex-col gap-4">
-      <template v-if="registerId">
-        <div class="cash-note">
-          <dl class="flex flex-wrap items-center justify-between gap-2">
-            <dt>Caja seleccionada</dt>
-            <dd class="cash-fact-value" data-testid="cash-open-register">
-              {{ registerName ?? registerId }}
-            </dd>
-          </dl>
-        </div>
+    <!-- One summary for every problem, focused on a failed attempt (GOV.UK pattern). -->
+    <div
+      v-if="hasErrors"
+      ref="summary"
+      class="cash-err-summary"
+      role="alert"
+      tabindex="-1"
+      data-testid="cash-open-error-summary"
+    >
+      <p class="cash-err-summary-title">
+        <UIcon name="i-lucide-circle-alert" class="size-4 shrink-0" aria-hidden="true" />
+        Revisa antes de abrir
+      </p>
+      <ul>
+        <li v-if="localError">
+          <a :href="`#${localErrorField}`">{{ localError }}</a>
+        </li>
+        <li v-if="errorMessage" data-testid="cash-open-error">{{ errorMessage }}</li>
+      </ul>
+    </div>
 
-        <UFormField v-if="custodyVisible" label="Fondo recibido (opcional)">
-          <USelect
-            v-model="selectedFloatId"
-            :items="[
-              { label: 'Ninguno: fondo nuevo', value: null },
-              ...eligibleFloat.map((item) => ({
-                label: `${formatCentsMXN(item.receivedCents ?? item.declaredCents)} · ${formatShortDateTime(item.receivedAt ?? item.declaredAt)}`,
-                value: item.id,
-              })),
-            ]"
-            class="w-full"
-            data-testid="cash-open-float-select"
-          />
-        </UFormField>
-        <p v-else class="cash-meta" data-testid="cash-open-float-unavailable">
-          Sin permiso de custodia no se listan tus fondos recibidos; puedes abrir con fondo nuevo.
-        </p>
+    <fieldset class="cash-fieldset">
+      <legend class="cash-legend">2. Fondo inicial</legend>
 
-        <div
-          v-if="selectedFloat"
-          class="cash-note"
-          data-testid="cash-open-float-facts"
-        >
-          <p data-testid="cash-open-float-received">
-            Recibido: {{ formatCentsMXN(selectedFloat.receivedCents ?? 0) }} (declarado
-            {{ formatCentsMXN(selectedFloat.declaredCents) }}).
-          </p>
-          <p data-testid="cash-open-float-hint">Es una referencia, no una reserva.</p>
-        </div>
-
-        <UAlert
-          v-if="drawerAdvisory"
-          :color="drawerAdvisory.blocked ? 'error' : 'warning'"
-          variant="subtle"
-          :description="drawerAdvisory.message"
-          data-testid="cash-open-drawer-advisory"
+      <div v-if="custodyVisible" data-testid="cash-open-float-select">
+        <HfRadioCards
+          v-model="floatChoice"
+          :items="floatItems"
+          label="Origen del fondo"
+          selected-label=""
         />
+      </div>
+      <p v-else class="cash-meta-wrap" data-testid="cash-open-float-unavailable">
+        Sin permiso de custodia no se listan tus fondos recibidos; puedes abrir con fondo nuevo.
+      </p>
 
-        <UFormField label="Fondo inicial (pesos)">
-          <UInput
-            v-model="openingCentsInput"
-            inputmode="decimal"
-            class="w-full"
-            placeholder="350.00"
-            data-testid="cash-opening-cents"
-          />
-        </UFormField>
+      <div v-if="selectedFloat" class="cash-note" data-testid="cash-open-float-facts">
+        <p data-testid="cash-open-float-received">
+          Recibido: {{ formatCentsMXN(selectedFloat.receivedCents ?? 0) }} (declarado
+          {{ formatCentsMXN(selectedFloat.declaredCents) }}).
+        </p>
+        <p data-testid="cash-open-float-hint">Es una referencia, no una reserva.</p>
+      </div>
 
-        <!-- Explicit confirmation of the amount (Selección sin checkboxes): a
-             button that names the fund, then a confirmed line with «Cambiar». -->
-        <div
-          v-if="openingConfirmed && openingLabel"
-          class="cash-note flex flex-wrap items-center gap-2"
-          role="status"
-          data-testid="cash-opening-confirmation"
+      <UAlert
+        v-if="drawerAdvisory"
+        :color="drawerAdvisory.blocked ? 'error' : 'warning'"
+        variant="subtle"
+        :description="drawerAdvisory.message"
+        data-testid="cash-open-drawer-advisory"
+      />
+
+      <div class="cash-field">
+        <label :for="amountId" class="cash-label">Fondo inicial (pesos)</label>
+        <UInput
+          :id="amountId"
+          v-model="openingCentsInput"
+          inputmode="decimal"
+          autocomplete="off"
+          size="xl"
+          class="cash-money-input w-full max-w-xs"
+          placeholder="350.00"
+          :aria-invalid="localError && localErrorField === amountId ? 'true' : undefined"
+          :aria-describedby="`${amountId}-hint`"
+          data-testid="cash-opening-cents"
         >
-          <UIcon name="i-lucide-circle-check" class="size-5 shrink-0 text-success" aria-hidden="true" />
-          <span class="flex-1 font-semibold">Fondo de {{ openingLabel }} confirmado</span>
-          <UButton
-            type="button"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            class="min-h-11"
-            data-testid="cash-opening-unconfirm"
-            @click="unconfirmOpening"
-          >
-            Cambiar
-          </UButton>
-        </div>
+          <template #leading><span aria-hidden="true">$</span></template>
+          <template #trailing><span class="cash-meta" aria-hidden="true">MXN</span></template>
+        </UInput>
+        <p :id="`${amountId}-hint`" class="cash-hint">
+          {{ selectedFloat ? 'Debe coincidir con el fondo recibido.' : 'En pesos con hasta dos decimales, por ejemplo 350.00. El cero también vale.' }}
+        </p>
+      </div>
+    </fieldset>
+
+    <div class="cash-fieldset">
+      <span class="cash-legend">3. Confirma lo que cuentas en el cajón</span>
+      <!-- Explicit confirmation of the amount (Selección sin checkboxes): a
+           button that names the fund, then a confirmed line with «Cambiar». -->
+      <div
+        v-if="openingConfirmed && openingLabel"
+        class="cash-confirmed"
+        role="status"
+        data-testid="cash-opening-confirmation"
+      >
+        <UIcon name="i-lucide-circle-check" class="size-5 shrink-0 text-success" aria-hidden="true" />
+        <span class="flex-1 font-semibold">Fondo de {{ openingLabel }} confirmado</span>
         <UButton
-          v-else
           type="button"
           color="neutral"
-          variant="outline"
-          icon="i-lucide-check"
-          class="min-h-11 self-start"
-          :disabled="blocked"
-          data-testid="cash-opening-confirmed"
-          @click="confirmOpening"
+          variant="ghost"
+          class="min-h-11"
+          data-testid="cash-opening-unconfirm"
+          @click="unconfirmOpening"
         >
-          {{ openingLabel ? `Confirmar fondo de ${openingLabel}` : 'Confirmar fondo inicial' }}
+          Cambiar
         </UButton>
+      </div>
+      <UButton
+        v-else
+        :id="confirmId"
+        type="button"
+        color="neutral"
+        variant="outline"
+        icon="i-lucide-check"
+        class="min-h-11 self-start"
+        :disabled="blocked"
+        data-testid="cash-opening-confirmed"
+        @click="confirmOpening"
+      >
+        {{ openingLabel ? `Confirmar fondo de ${openingLabel}` : 'Confirmar fondo inicial' }}
+      </UButton>
+    </div>
 
-        <UAlert
-          v-if="floatMismatch"
-          color="error"
-          variant="subtle"
-          description="El fondo inicial debe coincidir con el monto recibido del fondo."
-          data-testid="cash-open-float-mismatch"
-        />
+    <UAlert
+      v-if="floatMismatch"
+      color="error"
+      variant="subtle"
+      description="El fondo inicial debe coincidir con el monto recibido del fondo."
+      data-testid="cash-open-float-mismatch"
+    />
 
-        <p v-if="errorMessage" class="text-sm text-error" data-testid="cash-open-error">
-          {{ errorMessage }}
-        </p>
-        <p v-if="localError" class="text-sm text-error" data-testid="cash-open-local-error">
-          {{ localError }}
-        </p>
+    <p v-if="localError" class="cash-inline-error" data-testid="cash-open-local-error">
+      <UIcon name="i-lucide-circle-alert" class="size-4 shrink-0" aria-hidden="true" />
+      {{ localError }}
+    </p>
 
-        <UButton
-          type="button"
-          class="min-h-11 self-start"
-          :loading="submitting"
-          :disabled="blocked || submitting"
-          data-testid="cash-open-submit"
-          @click="submit"
-        >
-          {{ openingConfirmed && openingLabel ? `Abrir caja con ${openingLabel}` : 'Abrir sesión' }}
-        </UButton>
-      </template>
+    <div class="cash-form-footer">
+      <span class="cash-meta-wrap" aria-live="polite">
+        {{ openingConfirmed ? 'Todo listo para abrir.' : 'Falta confirmar el fondo.' }}
+      </span>
+      <UButton
+        type="button"
+        class="min-h-11"
+        :loading="submitting"
+        :disabled="blocked || submitting"
+        data-testid="cash-open-submit"
+        @click="submit"
+      >
+        {{ openingConfirmed && openingLabel ? `Abrir caja con ${openingLabel}` : 'Abrir sesión' }}
+      </UButton>
     </div>
   </section>
 </template>

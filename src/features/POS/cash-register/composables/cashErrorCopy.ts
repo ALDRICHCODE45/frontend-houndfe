@@ -11,6 +11,7 @@
  * discarded because the principal changed mid-flight.
  */
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
+import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 
 export const CASH_GENERIC_ERROR = 'No pudimos completar la operación.'
 
@@ -106,6 +107,18 @@ const CASH_ERROR_COPY: Record<string, string> = {
   CASH_CUSTODY_NOT_RECEIVED: 'Todavía hay entregas sin recibir.',
   CASH_DRAWER_NOT_RELEASED: 'Primero libera el cajón físico.',
   CASH_DRAWER_ALREADY_RELEASED: 'El cajón ya fue liberado.',
+  // Listing filters, closings and recipients (handoff 25 §1–§3).
+  LISTING_INVALID_ENUM_VALUE: 'Uno de los filtros no es válido. Quita los filtros y vuelve a buscar.',
+  CASH_QUERY_INVALID_PAGE: 'Esa página no existe. Vuelve a la primera página.',
+  CASH_QUERY_DATE_INVALID: 'Una de las fechas del filtro no es válida. Elige la fecha de nuevo.',
+  CASH_QUERY_RANGE_INVALID: 'La fecha final debe ser posterior a la inicial.',
+  CASH_CLOSING_NOT_FOUND: 'Ese corte no existe en esta sucursal.',
+  CASH_CLOSING_SNAPSHOT_INVALID:
+    'El corte guardado está dañado y no se puede mostrar. Avisa a un administrador del sistema.',
+  INSUFFICIENT_PERMISSIONS: 'No tienes permiso para esta acción. Pídelo a un administrador.',
+  CASH_ACTOR_INACTIVE: 'Tu usuario está inactivo: un administrador debe reactivarlo.',
+  CASH_TENANT_MEMBERSHIP_REQUIRED:
+    'No perteneces a esta sucursal: un administrador debe agregarte.',
 }
 
 export interface CashErrorInfo {
@@ -125,4 +138,120 @@ export function cashErrorInfo(error: unknown, fallback = CASH_GENERIC_ERROR): Ca
     return { code, message: CASH_ERROR_COPY[code] }
   }
   return { code, message: normalized.message }
+}
+
+// ─── Close (handoff 25 §5) ───────────────────────────────────────────────────
+
+export const CASH_CLOSE_GENERIC_ERROR = 'No pudimos cerrar la caja.'
+
+const CASH_CLOSE_INCONSISTENT =
+  'No pudimos cerrar la caja por un dato inconsistente de la sesión. Avisa a un administrador del sistema.'
+
+/**
+ * Close copy, in the backend check order (§5 rows 1–17). Each message says what
+ * is missing and who has to do it. These override the generic copy only for the
+ * close command: the same codes keep their existing copy in the other flows.
+ */
+const CASH_CLOSE_ERROR_COPY: Record<string, string> = {
+  Unauthorized: 'Tu sesión expiró. Inicia sesión de nuevo para cerrar la caja.',
+  INSUFFICIENT_PERMISSIONS:
+    'No tienes el permiso «Cerrar caja». Pídelo a un administrador.',
+  'Bad Request':
+    'La nota de cierre no es válida: escribe un texto de hasta 2000 caracteres o déjala vacía.',
+  INVALID_IDEMPOTENCY_KEY:
+    'No pudimos identificar este intento de cierre. Recarga la sesión e inténtalo de nuevo.',
+  CASH_IDEMPOTENCY_CONFLICT:
+    'Este intento de cierre ya se usó con otra nota. Recarga la sesión antes de cerrar de nuevo.',
+  CASH_ACTOR_INACTIVE:
+    'Tu usuario está inactivo: un administrador debe reactivarlo antes de cerrar la caja.',
+  CASH_TENANT_MEMBERSHIP_REQUIRED:
+    'No perteneces a esta sucursal: un administrador debe agregarte antes de cerrar la caja.',
+  CASH_SESSION_NOT_FOUND:
+    'Esta sesión de caja no existe en esta sucursal. Recarga la lista de sesiones.',
+  CASH_PERMISSION_DENIED:
+    'No tienes el permiso «Cerrar caja» para esta sesión. Pídelo a un administrador.',
+  CASH_SELF_CLOSING_FORBIDDEN:
+    'No puedes cerrar una caja que abriste: debe cerrarla otra persona con permiso de cierre.',
+  CASH_DRAWER_NOT_RELEASED:
+    'Falta liberar el cajón: la persona que abrió la caja debe liberarlo antes del cierre.',
+  CASH_VERIFICATION_REQUIRED:
+    'Falta la verificación: otra persona, distinta de quien abrió la caja, debe recontar y verificar antes del cierre.',
+  CASH_CUSTODY_NOT_RECEIVED:
+    'Falta recibir una entrega de efectivo: la persona destinataria debe confirmarla en «Por recibir» antes del cierre.',
+}
+
+/** Defensive codes the normal flow cannot reach (§5, after the table). */
+const CASH_CLOSE_DEFENSIVE = new Set([
+  'CASH_DECLARATION_NOT_FOUND',
+  'CASH_COUNT_MISSING_CHANNEL',
+  'CASH_HANDOVER_DUPLICATE_ALLOCATION',
+  'CASH_CENTS_OUT_OF_RANGE',
+  'CASH_ARITHMETIC_OVERFLOW',
+  'CASH_SNAPSHOT_SESSION_NOT_CLOSED',
+  'CASH_FOLIO_REQUIRED',
+  'CASH_IDENTITY_REQUIRED',
+  'CASH_DATE_INVALID',
+  'CASH_IDEMPOTENCY_KEY_REQUIRED',
+  'CASH_IDEMPOTENCY_KEY_TOO_LONG',
+])
+
+/** Top-level detail keys of the guard/domain envelope (never the message). */
+function errorDetails(error: unknown): Record<string, unknown> {
+  if (!error || typeof error !== 'object') return {}
+  const response = (error as { response?: { data?: unknown } }).response
+  const data = response?.data
+  return data && typeof data === 'object' && !Array.isArray(data)
+    ? (data as Record<string, unknown>)
+    : {}
+}
+
+function centsDetail(value: unknown): string | null {
+  return typeof value === 'number' && Number.isSafeInteger(value) ? formatCentsMXN(value) : null
+}
+
+function closeCopy(code: string, details: Record<string, unknown>): string | undefined {
+  switch (code) {
+    case 'CASH_SESSION_NOT_WRITABLE':
+      if (details.status === 'CLOSED') {
+        return 'Esta caja ya está cerrada: consulta su corte en «Cortes».'
+      }
+      if (details.status === 'OPEN' || details.status === 'COUNTING') {
+        return 'Falta la declaración: la persona que abrió la caja debe contar y enviar su declaración antes del cierre.'
+      }
+      return CASH_CLOSE_INCONSISTENT
+    case 'CASH_DISCREPANCY_NOTES_REQUIRED':
+      return details.stage === 'VERIFICATION'
+        ? 'Falta explicar la diferencia de la verificación: quien verificó debe dejar una nota antes del cierre.'
+        : 'Falta explicar la diferencia: la persona que abrió la caja debe agregar una nota a su declaración antes del cierre.'
+    case 'CASH_HANDOVER_ALLOCATION_MISMATCH': {
+      const allocated = centsDetail(details.allocatedCents)
+      const declared = centsDetail(details.declaredCents)
+      const amounts =
+        allocated && declared
+          ? `Las entregas suman ${allocated} y el efectivo declarado es ${declared}`
+          : 'Las entregas no suman el efectivo declarado'
+      return `${amounts}: la persona que abrió la caja debe declarar las entregas que faltan antes del cierre.`
+    }
+    default:
+      if (CASH_CLOSE_DEFENSIVE.has(code)) return CASH_CLOSE_INCONSISTENT
+      return CASH_CLOSE_ERROR_COPY[code]
+  }
+}
+
+/**
+ * Map a close failure to one Spanish sentence plus its code. Switches on the
+ * envelope `error` (and its detail keys), never on `message`; an unknown code or
+ * a network failure falls back to {@link CASH_CLOSE_GENERIC_ERROR}.
+ */
+export function cashCloseErrorInfo(error: unknown): CashErrorInfo {
+  if (error instanceof CashIdentityError || error instanceof CashCommandBusyError) {
+    return { message: error.message }
+  }
+  if (error instanceof RangeError) {
+    return { message: CASH_CLOSE_ERROR_COPY['Bad Request']! }
+  }
+  const normalized = normalizeApiError(error, CASH_CLOSE_GENERIC_ERROR)
+  const code = normalized.code
+  if (!code) return { message: CASH_CLOSE_GENERIC_ERROR }
+  return { code, message: closeCopy(code, errorDetails(error)) ?? CASH_CLOSE_GENERIC_ERROR }
 }

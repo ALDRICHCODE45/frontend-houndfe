@@ -130,6 +130,13 @@ export function useCashAccess() {
     canDeclareHandover: computed(() => can('create', 'CashHandover')),
     canReadCustody: computed(() => can('read', 'CashHandover')),
     canReceiveHandover: computed(() => can('update', 'CashHandover')),
+    /** Recipient discovery (`GET /cash-handovers/recipients`) is the sender's own grant. */
+    canListRecipients: computed(() => can('create', 'CashHandover')),
+
+    /** «Cerrar caja»: `create:CashClosing`. Closer ≠ cashier is enforced separately. */
+    canClose: computed(() => can('create', 'CashClosing')),
+    /** «Cortes»: list, detail and PDF (`read:CashClosing`). */
+    canReadClosings: computed(() => can('read', 'CashClosing')),
 
     /**
      * Independent verification needs the verify command PLUS the wider session
@@ -150,7 +157,8 @@ export function useCashAccess() {
         can('read', 'CashRegister') ||
         can('read', 'CashSession') ||
         can('read', 'CashSessionAudit') ||
-        can('read', 'CashHandover'),
+        can('read', 'CashHandover') ||
+        can('read', 'CashClosing'),
     ),
   }
 }

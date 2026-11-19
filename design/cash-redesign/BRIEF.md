@@ -1,0 +1,40 @@
+# Caja · rediseño: brief e investigación
+
+Feature: `odd/tasks/cash-redesign.md` (T2; S1, S2, with S3 kept). Map of the current Caja: L3 in that document. Backend facts the parent added (2026-11-18): the states only advance `OPEN → COUNTING → SUBMITTED → CLOSED`; verification and drawer release are facts, not states; there is an explicit close (`POST /cash-sessions/:id/close`, done by someone other than the cashier, `create:CashClosing`) that produces the Corte and its PDF; the cashier works blind from OPEN until they declare; the default «Tu turno» comes from `GET /cash-sessions?limit=1` with `drawerReleasedAt` null.
+
+## Job and success
+- **Cashier (Laura Méndez, Caja Principal):** know what to do next without being forced through a fixed order: open with the confirmed fund, sell, record cash in/out, count blind, hand over the cash, release the drawer.
+- **Supervisor (Andrés Salazar):** see which register needs them (verify, receive a withdrawal, close), act, and download the Corte.
+- **Success:** the shift is selected by default, the next action is obvious and the alternatives stay visible, every error sits next to its field plus one summary, people are picked by name and never by UUID, and «Por recibir» lives in one place.
+
+## Research: patterns we use
+Sources read on 2026-11-18. Square, Toast, Lightspeed and Loyverse help pages could not be read (rendered by JavaScript, or 404 at the URLs tried), so they are not cited.
+
+1. **The session lifecycle is explicit, and the screen always offers its next action.** Odoo POS: from the dashboard «New Session» opens *Opening Cash Control*, then «Open Session» (or «Continue Selling» when the session is already open); closing is its own *Closing Control* step. Shopify POS: a *register session* records the starting float, cash added or removed, and the final count. → Our timeline/cards/task list show every step, who does it, and one «Siguiente paso»; the other actions stay reachable. Sources: [Odoo 18 · Point of Sale](https://www.odoo.com/documentation/18.0/applications/sales/point_of_sale.html), [Shopify POS · Cash register management](https://help.shopify.com/en/manual/sell-in-person/shopify-pos/cash-register-management).
+2. **Opening in one place: register, starting float, confirm.** Odoo's opening control is a single screen before you sell. → One form: register (radio cards with their status and the reason a register cannot be opened), fund origin (received fund or new fund), amount in pesos, an explicit «Confirmo que recibo $1,500.00» button, then «Abrir Caja Principal».
+3. **Cash in/out is a quick action with an amount and a required reason.** Odoo: menu → *Cash In/Out* → amount and reason → Confirm. → Segmented «Entrada / Salida», pesos field, required reason, a submit label that names the amount, and a `role="status"` confirmation.
+4. **A denomination counter fills the counted total.** Odoo's closing control has a coins and bills calculator; the computed amount goes into *Counted* and the money details into the notes. → A denomination grid (bills $1,000 to $20, coins $20 to $0.50) with subtotals and a total that must equal Efectivo, shown as «Coincide con Efectivo».
+5. **Expected vs counted per payment method, with the difference explained.** Odoo shows expected amounts by payment method; Shopify reports compare the expected cash with what is in the drawer. → The same table (Declarado / Esperado / Diferencia) **only after the declaration** (blind rule), with the shortage marked in warning tone (not red) and a required note.
+6. **Closing is gated by rules, and the screen says which ones are missing.** Odoo may allow closing only when expected and counted cash match, otherwise you go through a *Payments Difference* confirmation. → «Cerrar caja» shows a requirements checklist (closed by someone else, declaration, verification, handovers received, drawer released, note for the difference). It is the only explanation of a disabled close.
+7. **Error summary plus inline errors with the same wording.** GOV.UK Design System: show an error summary on any validation error, move focus to it, link to each field, and use the same text next to the field. WCAG 2.2 SC 3.3.1 (Error Identification): identify the field in error and describe the error in text. → One `role="alert"` summary at the top of the form, with links, plus the message under the field (`aria-describedby`). Sources: [GOV.UK · Error summary](https://design-system.service.gov.uk/components/error-summary/), [WCAG 2.2 · 3.3.1](https://www.w3.org/WAI/WCAG22/Understanding/error-identification.html).
+8. **Status messages without moving focus.** WCAG 2.2 SC 4.1.3: status changes that do not take focus must be exposed through a role or property. → «Salida de $350.00 registrada…», «Fondo confirmado», «Cargando tu turno…» use `role="status"`; blocking failures use `role="alert"`. Source: [WCAG 2.2 · 4.1.3](https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html).
+9. **Targets and focus that stay visible.** WCAG 2.2 SC 2.5.8 sets a 24 px minimum target; SC 2.4.11 says the focused element must not be fully hidden by sticky content. → 44 px controls (52 px in C), rows of 56 to 64 px, a 2 px `--hf-focus` ring, and the mobile sticky bar placed outside the scrolling area so it never covers the focused field. Sources: [WCAG 2.2 · 2.5.8](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html), [WCAG 2.2 · 2.4.11](https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html).
+10. **Money entry that cannot be misread.** The label says «(pesos)», with a `$` prefix and a `MXN` suffix, `inputmode="decimal"`, right-aligned tabular figures, «up to two decimals» help, and an explicit zero; the cents conversion stays in `cash-input.ts` (S3).
+
+## What every direction keeps (S3)
+Blind window (no sales, expected amount, difference or movements for the cashier until they declare), explicit fund confirmation that names the amount, verifier ≠ cashier, closer ≠ cashier, a separate «Liberar cajón» (only after every handover is received), handovers that add up exactly to the counted cash, receipt only by the recipient, permissions per action (the action is hidden or shows a lock and the permission name, and the rest of the section keeps working), pesos in the UI and cents on the wire. Icons: one 16 px Lucide icon per task or state, in ink or heading color, never the only signal. Color: one red (`--hf-danger`) only for errors; a shortage is warning; status always carries text.
+
+## Directions
+- **A · Turno como línea de tiempo (recomendada):** session list · vertical timeline with the task opened in place · summary column.
+- **B · Tablero de caja:** shift header with one primary action · 9 task cards · side panel per task; the supervisor sees the branch's sessions.
+- **C · Asistente por tarea:** slim status bar with «Siguiente» · a list of tasks · one task at a time at full width with large money entry.
+- **04 · Móvil 390 y estados** (A): turno, apertura with errors, blind count, close, por recibir, corte; loading, no registers, no shift, error, no permission, blind window, locked.
+
+Every artboard has demo controls (person, moment of the shift, theme) that are not part of the UI.
+
+## Open questions
+1. **Close and Corte are new in the FE:** where should the Corte list live (in Caja or in Reportes), and does the PDF come from the backend (`read:CashClosing`) as is?
+2. **Order of handover and verification:** can the cashier declare handovers before verification? The designs put them after it.
+3. **Recipient without `read:User`:** today the field asks for a raw UUID. Could the backend expose the eligible recipients (name and role) from `cash-handovers/custody` or another endpoint? The designs assume picking by name.
+4. **Supervisor's session list:** it needs `read:CashSessionAudit` and a list of open sessions per branch. Is there pagination or a status filter?
+5. **What the cashier sees of their own entries and withdrawals:** with the blind rule the detail returns `movements: []`. The designs show only the confirmation of the last one recorded (the POST response), never a list or a total.

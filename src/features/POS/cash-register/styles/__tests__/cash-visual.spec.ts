@@ -86,23 +86,39 @@ describe('Caja presentation boundaries', () => {
     expect(declarations).not.toMatch(/\b(red|green|amber|blue|emerald|slate|gray)-\d{2,3}\b/)
   })
 
-  it('keeps the task strip inside 390px: compact tabs and a fade that hints at more to scroll', () => {
-    expect(adapter).toMatch(/\.cash-task-nav-list\s*\{[^}]*mask-image:\s*linear-gradient/)
-    expect(adapter).toMatch(/\.cash-task-nav-list\s*\{[^}]*overflow-x:\s*auto/)
-    // The fade is a mobile affordance: the desktop rail is a column and never masks.
-    expect(adapter).toMatch(/@media \(min-width: 1024px\)\s*\{\s*\.cash-task-nav-list\s*\{[^}]*mask-image:\s*none/)
-  })
-
-  it('puts the task strip above the content below lg and back in the rail from lg', () => {
-    expect(adapter).toMatch(/\.cash-workspace-context\s*\{[^}]*order:\s*-1/)
-    expect(adapter).toMatch(/@media \(min-width: 1024px\)\s*\{[^@]*\.cash-workspace-context\s*\{[^}]*order:\s*0/)
-  })
-
-  it('drops an idle shift card below the lists before lg and restores it from lg', () => {
-    expect(adapter).toMatch(/\.cash-workspace-shift--idle\s*\{[^}]*order:\s*1/)
+  it('stacks the shift first on phones and lays out sessions | shift | summary from lg', () => {
+    expect(adapter).toMatch(/\.cash-a-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/)
+    expect(adapter).toMatch(/\.cash-a-main\s*\{[^}]*order:\s*0/)
+    expect(adapter).toMatch(/\.cash-a-side\s*\{[^}]*order:\s*2/)
     expect(adapter).toMatch(
-      /@media \(min-width: 1024px\)\s*\{[^@]*\.cash-workspace-shift--idle\s*\{[^}]*order:\s*0/,
+      /@media \(min-width: 1024px\)\s*\{\s*\.cash-a-grid\s*\{[^}]*grid-template-columns:[^;]*minmax\(0, 1fr\)[^;]*;/,
     )
+  })
+
+  it('keeps the phone action bar sticky outside the content and hides it from lg', () => {
+    expect(adapter).toMatch(/\.cash-mobile-bar\s*\{[^}]*position:\s*sticky[^}]*bottom:\s*0/)
+    expect(adapter).toMatch(/@media \(min-width: 1024px\)\s*\{\s*\.cash-mobile-bar\s*\{[^}]*display:\s*none/)
+  })
+
+  it('gives the timeline toggles, session cards and «Por recibir» 44px targets and a visible focus ring', () => {
+    expect(adapter).toMatch(/\.cash-tl-toggle\s*\{[^}]*min-height:\s*44px/)
+    expect(adapter).toMatch(/\.cash-sess\s*\{[^}]*min-height:\s*56px/)
+    expect(adapter).toMatch(/\.cash-recv\s*\{[^}]*min-height:\s*56px/)
+    const focus = rules(adapter).find(
+      (rule) =>
+        rule.selectorText.includes('.cash-tl-toggle:focus-visible') &&
+        rule.selectorText.includes('.cash-sess:focus-visible'),
+    )
+    expect(focus?.style.getPropertyValue('outline')).toContain('--hf-focus')
+  })
+
+  it('says each step state with a dot shape and words, the red reserved for errors', () => {
+    expect(adapter).toMatch(/\.is-done > \.cash-tl-dot\s*\{[^}]*--hf-success/)
+    expect(adapter).toMatch(/\.is-blocked > \.cash-tl-dot\s*\{[^}]*--hf-warning/)
+    const danger = rules(adapter)
+      .filter((rule) => rule.cssText.includes('--hf-danger'))
+      .map((rule) => rule.selectorText)
+    expect(danger.every((selector) => /err|danger/.test(selector))).toBe(true)
   })
 
   it('paints the original declaration on a neutral surface, never a blue wash', () => {
@@ -116,5 +132,29 @@ describe('Caja presentation boundaries', () => {
   it('stacks the reception facts in the rail so a label never wraps to a second line', () => {
     expect(adapter).toMatch(/\.cash-facts-rail\s*\{[^}]*grid-template-columns:\s*1fr/)
     expect(adapter).toMatch(/\.cash-facts-rail\s+\.cash-fact dt\s*\{[^}]*white-space:\s*nowrap/)
+  })
+
+  it('names the pending badge apart from the count form so the pill can never style the form (D1)', () => {
+    const all = rules(adapter)
+    expect(all.some((rule) => /\.cash-count(?![-\w])/.test(rule.selectorText))).toBe(false)
+    const badge = all.find((rule) => rule.selectorText === '.cash-pending-badge')
+    expect(badge?.style.getPropertyValue('height')).toBe('1.5rem')
+    const form = all.filter((rule) => rule.selectorText.includes('.cash-count-form'))
+    expect(form.every((rule) => !rule.style.getPropertyValue('height'))).toBe(true)
+  })
+
+  it('gives the timeline title the flexible column and wraps who does it below (D3)', () => {
+    const all = rules(adapter)
+    const head = all.find((rule) => rule.selectorText === '.cash-tl-head')!
+    expect(head.style.getPropertyValue('display')).toBe('grid')
+    expect(head.style.getPropertyValue('grid-template-columns')).toContain('minmax(0, 1fr)')
+    expect(all.find((rule) => rule.selectorText === '.cash-tl-text')!.style.getPropertyValue('grid-area')).toBe('text')
+    expect(all.find((rule) => rule.selectorText === '.cash-tl-who')!.style.getPropertyValue('grid-area')).toBe('who')
+  })
+
+  it('lays the count grids out by the form width, never the viewport, so they fit the timeline column (D1)', () => {
+    expect(adapter).toMatch(/\.cash-count-body\s*\{[^}]*container-type:\s*inline-size/)
+    expect(adapter).toMatch(/\.cash-denoms\s*\{[^}]*container-type:\s*inline-size/)
+    expect(adapter).not.toMatch(/@media[^{]*\{\s*\.cash-(channel|denom)-grid/)
   })
 })

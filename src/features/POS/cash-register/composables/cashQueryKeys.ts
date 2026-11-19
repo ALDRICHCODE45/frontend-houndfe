@@ -17,7 +17,11 @@
  * principal's cached rows. The scope is cache-isolation only: it is never sent
  * to the backend, which resolves tenant and user from the JWT.
  */
-import type { CashSessionListParams } from '../interfaces/cash.types'
+import type {
+  CashClosingListParams,
+  CashHandoverKind,
+  CashSessionListParams,
+} from '../interfaces/cash.types'
 import type { CashIdentity } from './cashRules'
 
 /**
@@ -41,6 +45,15 @@ export const cashQueryKeys = {
     ['cash', ...scopeSegments(scope), 'sessions', 'detail', sessionId] as const,
   custody: (scope: CashCacheScope, page: number, limit: number) =>
     ['cash', ...scopeSegments(scope), 'custody', page, limit] as const,
+  closingsList: (scope: CashCacheScope, params: CashClosingListParams) =>
+    ['cash', ...scopeSegments(scope), 'closings', 'list', params] as const,
+  closingsListPrefix: (scope: CashCacheScope) =>
+    ['cash', ...scopeSegments(scope), 'closings', 'list'] as const,
+  /** A corte is immutable: the slot can be seeded from the close response. */
+  closingDetail: (scope: CashCacheScope, closingId: string) =>
+    ['cash', ...scopeSegments(scope), 'closings', 'detail', closingId] as const,
+  recipients: (scope: CashCacheScope, kind: CashHandoverKind) =>
+    ['cash', ...scopeSegments(scope), 'recipients', kind] as const,
   /** Prefix that matches every slot of one principal (used by invalidation). */
   principalPrefix: (scope: CashCacheScope) => ['cash', ...scopeSegments(scope)] as const,
 } as const

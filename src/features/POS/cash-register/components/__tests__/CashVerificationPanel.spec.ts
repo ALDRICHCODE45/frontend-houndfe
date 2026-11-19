@@ -209,3 +209,50 @@ describe('CashVerificationPanel', () => {
     expect(wrapper.text()).not.toMatch(/centavos/i)
   })
 })
+
+describe('CashVerificationPanel · direction A', () => {
+  const props = () => ({
+    detail: makeDetail({
+      counts: [
+        {
+          id: 'c-1',
+          kind: 'DECLARATION',
+          revision: 1,
+          actorUserId: 'cashier-1',
+          lines: [{ channelKey: 'CASH', amountCents: 158000 }],
+          denominations: null,
+          notes: null,
+          createdAt: '2026-10-07T18:40:00.000Z',
+        },
+      ],
+    }),
+    canVerify: true,
+    currentUserId: 'verifier-2',
+  })
+
+  it('reads the original declaration first, read-only, before the second count', () => {
+    const wrapper = mountWithUApp(CashVerificationPanel, { props: props() })
+    const original = wrapper.get('[data-testid="cash-verification-original"]')
+    expect(original.find('input').exists()).toBe(false)
+    const html = wrapper.html()
+    expect(html.indexOf('cash-verification-original')).toBeLessThan(html.indexOf('cash-count-form'))
+  })
+
+  it('shows a server error once, inside the recount summary', () => {
+    const wrapper = mountWithUApp(CashVerificationPanel, {
+      props: { ...props(), errorMessage: 'No puedes verificar tu propia sesión.' },
+    })
+    const error = wrapper.get('[data-testid="cash-verification-error"]')
+    expect(error.element.closest('[role="alert"]')).not.toBeNull()
+    expect(wrapper.text().split('No puedes verificar tu propia sesión.')).toHaveLength(2)
+  })
+
+  it('marks a non-zero difference in words (faltante / sobrante), never by color alone', () => {
+    const wrapper = mountWithUApp(CashVerificationPanel, {
+      props: { ...props(), comparison: COMPARISON },
+    })
+    expect(wrapper.get('[data-testid="cash-verification-declaration-difference"]').text()).toMatch(
+      /sobrante/,
+    )
+  })
+})

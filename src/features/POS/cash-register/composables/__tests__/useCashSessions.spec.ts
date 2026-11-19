@@ -37,7 +37,7 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({ useAuthStore: () => auth
 
 import { authStorage } from '@/features/auth/services/auth-storage'
 import { cashApi } from '../../api/cash.api'
-import { useCashSessionDetail, useCashSessions } from '../useCashSessions'
+import { useCashOwnShift, useCashSessionDetail, useCashSessions } from '../useCashSessions'
 
 const api = cashApi as unknown as { listSessions: Mock; getSession: Mock }
 
@@ -144,6 +144,78 @@ describe('useCashSessions · audit scope', () => {
       cashierUserId: 'other-cashier',
     })
     expect(result.canFilterByCashier.value).toBe(true)
+  })
+})
+
+// S7: «Tu turno» is read with the backend filters, never guessed from a page.
+describe('useCashOwnShift · «Tu turno» from the status/drawerOpen filters', () => {
+  const OWN = {
+    id: 's-own',
+    tenantId: 'tenant-1',
+    registerId: 'r-1',
+    status: 'OPEN',
+    cashierUserId: 'user-1',
+    openingCents: 0,
+    frozenAt: null,
+    drawerReleasedAt: null,
+    blind: true,
+  }
+
+  it('asks for the held drawer of the open/counting/submitted shift, one row, own scope', async () => {
+    api.listSessions.mockResolvedValue({ items: [OWN], page: 1, limit: 1, total: 1 })
+    const { result } = mountWithQuery(() => useCashOwnShift())
+    await flush()
+
+    expect(api.listSessions).toHaveBeenCalledTimes(1)
+    expect(api.listSessions.mock.calls[0]![0]).toEqual({
+      status: ['OPEN', 'COUNTING', 'SUBMITTED'],
+      drawerOpen: true,
+      limit: 1,
+    })
+    expect(result.ownShift.value?.id).toBe('s-own')
+    expect(result.isSuccess.value).toBe(true)
+  })
+
+  it('narrows to my own sessions with read:CashSessionAudit (the scope is the branch)', async () => {
+    auth.userCan.mockImplementation(() => true)
+    mountWithQuery(() => useCashOwnShift())
+    await flush()
+
+    expect(api.listSessions.mock.calls[0]![0]).toEqual({
+      status: ['OPEN', 'COUNTING', 'SUBMITTED'],
+      drawerOpen: true,
+      limit: 1,
+      cashierUserId: 'user-1',
+    })
+  })
+
+  it('never takes another person’s or a released session as «Tu turno»', async () => {
+    api.listSessions.mockResolvedValue({
+      items: [{ ...OWN, cashierUserId: 'user-9' }],
+      page: 1,
+      limit: 1,
+      total: 1,
+    })
+    const other = mountWithQuery(() => useCashOwnShift())
+    await flush()
+    expect(other.result.ownShift.value).toBeNull()
+
+    api.listSessions.mockResolvedValue({
+      items: [{ ...OWN, drawerReleasedAt: '2026-11-18T20:00:00.000Z' }],
+      page: 1,
+      limit: 1,
+      total: 1,
+    })
+    const released = mountWithQuery(() => useCashOwnShift())
+    await flush()
+    expect(released.result.ownShift.value).toBeNull()
+  })
+
+  it('does not read without read:CashSession', async () => {
+    auth.userCan.mockImplementation(() => false)
+    mountWithQuery(() => useCashOwnShift())
+    await flush()
+    expect(api.listSessions).not.toHaveBeenCalled()
   })
 })
 

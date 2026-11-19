@@ -1,94 +1,52 @@
 <script setup lang="ts">
 /**
- * Task-focused shell for the Caja workspace.
+ * Shell of the Caja shift timeline (direction A): three regions.
  *
- * Presentational only: it lays out the central selected-shift region, the
- * operation area and a quiet context column with the task cards. It owns no
- * query, command or business selection — clicking a task only announces the
- * requested task so the view can reveal that task's existing panel.
+ *   side    — «Tu turno» and the session list (the branch's sessions for a
+ *             supervisor, the own ones otherwise);
+ *   main    — the selected shift: its header, the «Siguiente paso» bar and the
+ *             timeline with each task opened in place;
+ *   context — the shift summary, «Por recibir» and the permission note.
  *
- * The page heading is always the workspace title, so it matches the breadcrumb;
- * the focused task is shown by the navigation, not by a second title.
+ * Presentational only: it owns no query, command or selection. The page
+ * heading is always the workspace title, so it matches the breadcrumb. Below
+ * lg the regions stack (main, context, side — the shift first, as on the 390
+ * artboard) and the optional `bar` slot is a
+ * sticky action bar placed OUTSIDE the scrolling content, so it never covers
+ * the focused field (WCAG 2.4.11).
  */
-import type { CashWorkspaceTaskId, CashWorkspaceTaskOption } from '../composables/useCashWorkspace'
-
-withDefaults(
-  defineProps<{
-    title: string
-    tasks?: CashWorkspaceTaskOption[]
-    activeTaskId?: CashWorkspaceTaskId | null
-    /** No shift is in focus: below lg its card sits after the lists, not above them. */
-    shiftIdle?: boolean
-  }>(),
-  {
-    tasks: () => [],
-    activeTaskId: null,
-    shiftIdle: false,
-  },
-)
-
-const emit = defineEmits<{
-  selectTask: [taskId: CashWorkspaceTaskId]
-}>()
+defineProps<{ title: string }>()
 </script>
 
 <template>
-  <section class="cash-workspace cash-visual flex flex-col gap-6" data-testid="cash-workspace">
+  <section class="cash-workspace cash-visual" data-testid="cash-workspace">
     <header class="cash-workspace-header">
       <h1 class="cash-page-title" data-testid="cash-workspace-heading">{{ title }}</h1>
     </header>
+    <div class="cash-a-grid">
+      <aside class="cash-a-side" aria-label="Sesiones" data-testid="cash-workspace-side">
+        <slot name="side" />
+      </aside>
 
-    <div class="cash-workspace-grid">
-      <div class="cash-workspace-main">
-        <!-- Central selected-shift context, supplied by the view. -->
-        <div
-          class="cash-workspace-shift"
-          :class="{ 'cash-workspace-shift--idle': shiftIdle }"
-          data-testid="cash-workspace-shift"
-        >
-          <slot name="shift" />
-        </div>
-
-        <!-- Operation area: the active task's existing panel. -->
-        <div class="cash-workspace-operation" data-testid="cash-workspace-operation">
-          <slot />
-        </div>
-      </div>
+      <main class="cash-a-main" aria-labelledby="cash-shift-heading" data-testid="cash-workspace-main">
+        <header class="cash-a-head" data-testid="cash-workspace-head">
+          <slot name="head" />
+        </header>
+        <slot />
+      </main>
 
       <aside
-        v-if="tasks.length > 0 || $slots.context"
-        class="cash-workspace-context"
+        v-if="$slots.context"
+        class="cash-a-ctx"
+        aria-label="Resumen del turno"
         data-testid="cash-workspace-context"
       >
-        <nav
-          v-if="tasks.length > 0"
-          class="cash-task-nav"
-          aria-label="Tareas de Caja"
-          data-testid="cash-workspace-nav"
-        >
-          <ul class="cash-task-nav-list">
-            <li v-for="task in tasks" :key="task.id">
-              <button
-                type="button"
-                class="cash-task"
-                :class="{ 'cash-task-active': task.id === activeTaskId }"
-                :aria-current="task.id === activeTaskId ? 'true' : undefined"
-                :data-testid="`cash-workspace-task-${task.id}`"
-                @click="emit('selectTask', task.id)"
-              >
-                <UIcon
-                  :name="task.icon"
-                  class="cash-task-icon"
-                  :data-testid="`cash-task-icon-${task.id}`"
-                  aria-hidden="true"
-                />
-                <span class="cash-task-label">{{ task.label }}</span>
-              </button>
-            </li>
-          </ul>
-        </nav>
         <slot name="context" />
       </aside>
+    </div>
+
+    <div v-if="$slots.bar" class="cash-mobile-bar" data-testid="cash-workspace-bar">
+      <slot name="bar" />
     </div>
   </section>
 </template>
