@@ -8,8 +8,6 @@ import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { StatusBadgeTone } from '@/core/shared/utils/badge.utils'
 import type { BackorderStaff, BackorderStatus } from '../interfaces/backorder.types'
 
-export const BACKORDERS_PATH = '/pos/pedidos-reposicion'
-
 /** Tabs in the owner's order (S1); `label` is the plural used by the tab, `badge` the singular. */
 export const BACKORDER_TABS: ReadonlyArray<{ status: BackorderStatus; label: string; badge: string }> = [
   { status: 'WAITING', label: 'En espera', badge: 'En espera' },

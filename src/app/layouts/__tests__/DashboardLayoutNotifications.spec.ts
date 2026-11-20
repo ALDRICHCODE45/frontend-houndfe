@@ -42,6 +42,9 @@ vi.mock('@/app/composables/useDashboard', () => ({
 vi.mock('@/features/POS/refunds/composables/usePendingRefundsCount', () => ({
   usePendingRefundsCount: () => ({ count: ref(0) }),
 }))
+vi.mock('@/features/POS/backorders/composables/useReservedBackordersCount', () => ({
+  useReservedBackordersCount: () => ({ count: ref(0) }),
+}))
 vi.mock('@/features/shipping/delivery-zones/composables/usePendingZoneValidationsCount', () => ({
   usePendingZoneValidationsCount: () => ({ count: ref(0) }),
 }))

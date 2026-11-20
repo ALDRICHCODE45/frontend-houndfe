@@ -11,6 +11,7 @@ import { useBreadcrumb } from '@/app/composables/useBreadcrumb'
 import { defineShortcuts } from '@nuxt/ui/runtime/composables/defineShortcuts.js'
 import { PENDING_REFUNDS_PATH, ZONE_VALIDATIONS_PATH } from '@/app/navigation/navigation.registry'
 import { usePendingRefundsCount } from '@/features/POS/refunds/composables/usePendingRefundsCount'
+import { BACKORDERS_PATH, useReservedBackordersCount } from '@/features/POS/backorders'
 import { usePendingZoneValidationsCount } from '@/features/shipping/delivery-zones/composables/usePendingZoneValidationsCount'
 import NotificationsHost from '@/features/notifications/components/NotificationsHost.vue'
 import { withNavBadges } from './navBadges'
@@ -35,6 +36,8 @@ const route = useRoute()
 
 // Pending refunds count on its nav entry; no request without SaleRefund read.
 const { count: pendingRefundsCount } = usePendingRefundsCount()
+// Apartados (counts.RESERVED) on «Pedidos por reposición»; no request without read:Backorder.
+const { count: reservedBackordersCount } = useReservedBackordersCount()
 // Pending chatbot zone validations; no request without validate:DeliveryZone.
 const { count: pendingZoneValidationsCount } = usePendingZoneValidationsCount()
 
@@ -71,6 +74,7 @@ function navigationFor(collapsed: boolean): NavigationMenuItem[] {
 
   const items = withNavBadges(getNavigationItems(collapsed), {
     [PENDING_REFUNDS_PATH]: pendingRefundsCount.value,
+    [BACKORDERS_PATH]: reservedBackordersCount.value,
     [ZONE_VALIDATIONS_PATH]: pendingZoneValidationsCount.value,
   })
 
