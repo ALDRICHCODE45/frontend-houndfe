@@ -42,6 +42,7 @@ import ProductVariantsTable, {
 import { productStatusConfig } from '../utils/productStatusConfig.utils'
 import { productStockTotal } from '../utils/productStockTotal'
 import {
+  backorderVariantBlockMessage,
   hasStockOnHand,
   productStockError,
   type ProductStockErrorField,
@@ -900,6 +901,8 @@ function mapDomainError(error: AxiosError<DomainApiError>): string {
   }
   const stockMessage = productStockError(error)?.message
   if (stockMessage) return stockMessage
+  const backorderMessage = backorderVariantBlockMessage(error)
+  if (backorderMessage) return backorderMessage
   return response.message ?? 'No pudimos completar la operación. Reintenta en unos segundos.'
 }
 

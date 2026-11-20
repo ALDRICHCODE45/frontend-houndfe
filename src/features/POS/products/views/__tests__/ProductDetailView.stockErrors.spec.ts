@@ -212,6 +212,47 @@ describe('ProductDetailView — product save errors by code', () => {
   })
 })
 
+describe('ProductDetailView — variants blocked by active backorders (restock backorder S11)', () => {
+  const COPY =
+    'No se pueden agregar variantes: el producto tiene pedidos por reposición en espera o apartados. Atiéndelos o cancélalos primero en Pedidos por reposición.'
+
+  it('PATCH hasVariants:true → 409 PRODUCT_HAS_ACTIVE_BACKORDERS shows the copy and keeps the form as it was', async () => {
+    const view = await mountView()
+    await saveRejected(view, 'PRODUCT_HAS_ACTIVE_BACKORDERS')
+    expect(toast).toHaveBeenCalledTimes(1)
+    expect(toast).toHaveBeenCalledWith({ title: 'Error al actualizar producto', description: COPY, color: 'error' })
+    expect(document.body.textContent).toContain(COPY)
+    expect(document.body.textContent).not.toContain(SERVER_MESSAGE)
+    // Nothing else moved: the name the user typed is still there for them to retry or discard.
+    expect((view.get('input[name="name"]').element as HTMLInputElement).value).toBe('Nombre nuevo')
+  })
+
+  it('POST variants → 409 PRODUCT_HAS_ACTIVE_BACKORDERS shows the copy, keeps the modal and its values', async () => {
+    api.createVariant.mockRejectedValueOnce(reject('PRODUCT_HAS_ACTIVE_BACKORDERS'))
+    const view = await mountView({ quantity: 0, hasVariants: true })
+    const add = view.findAll('button').find((b) => b.text().includes('Agregar variante'))!
+    await add.trigger('click')
+    await flushPromises()
+    const form = document.getElementById('variant-modal-form') as HTMLFormElement
+    const option = form.querySelector('select[name="option"]') as HTMLSelectElement
+    option.value = 'Color'
+    option.dispatchEvent(new Event('input', { bubbles: true }))
+    option.dispatchEvent(new Event('change', { bubbles: true }))
+    await nextTick()
+    const value = form.querySelector('input[name="value"]') as HTMLInputElement
+    value.value = 'Rojo'
+    value.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    form.requestSubmit()
+    await vi.waitFor(() => expect(api.createVariant).toHaveBeenCalledTimes(1))
+    await flushPromises()
+
+    expect(toast).toHaveBeenCalledWith({ title: 'Error al crear variante', description: COPY, color: 'error' })
+    expect(document.getElementById('variant-modal-form')).not.toBeNull()
+    expect((document.querySelector('input[name="value"]') as HTMLInputElement).value).toBe('Rojo')
+  })
+})
+
 describe('ProductDetailView — "Controlar inventario" lock', () => {
   it('is disabled with a one-line reason while there is stock', async () => {
     await mountView({ quantity: 12 })

@@ -48,3 +48,17 @@ export function hasStockOnHand(
   if (!product) return false
   return product.quantity > 0 || (product.variantStockTotal ?? 0) > 0
 }
+
+const BACKORDER_VARIANT_BLOCK_MESSAGE =
+  'No se pueden agregar variantes: el producto tiene pedidos por reposición en espera o apartados. Atiéndelos o cancélalos primero en Pedidos por reposición.'
+
+/**
+ * Restock backorders: `POST /products/:id/variants` and `PATCH /products/:id` with `hasVariants: true` answer
+ * 409 `PRODUCT_HAS_ACTIVE_BACKORDERS` while the product has WAITING/RESERVED backorders (nothing changes on the
+ * server). Switched on `error`; the copy tells the user where to go.
+ */
+export function backorderVariantBlockMessage(error: unknown): string | null {
+  const code = (error as { response?: { data?: { error?: unknown } } } | null | undefined)?.response?.data
+    ?.error
+  return code === 'PRODUCT_HAS_ACTIVE_BACKORDERS' ? BACKORDER_VARIANT_BLOCK_MESSAGE : null
+}
