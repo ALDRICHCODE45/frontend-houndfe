@@ -194,7 +194,9 @@ describe('http response interceptor', () => {
         refreshToken: 'new-refresh-token',
       })
       expect(applySessionRotationMock).toHaveBeenCalledWith({
-        generation: 0, accessToken: 'new-access-token', refreshToken: 'new-refresh-token',
+        generation: 0,
+        accessToken: 'new-access-token',
+        refreshToken: 'new-refresh-token',
       })
       expect(adapterSpy).toHaveBeenCalledTimes(1)
     },
@@ -386,39 +388,51 @@ describe('http response interceptor', () => {
     })
   })
 
-  it.each(['success', 'failure'])('isolates a late refresh %s from a newer session', async (outcome) => {
-    let resolve!: (value: unknown) => void
-    let reject!: (reason: unknown) => void
-    const refresh = new Promise((yes, no) => { resolve = yes; reject = no })
-    vi.mocked(axios.post).mockReturnValueOnce(refresh as ReturnType<typeof axios.post>)
-    const replay = vi.fn().mockResolvedValue({ data: {}, status: 200, headers: {} })
-    const pending = http.get('/protected-old', {
-      adapter: async (config) => {
-        if (config.headers.Authorization === 'Bearer new-session') return replay(config)
-        throw { config, response: { status: 401, data: {} } }
-      },
-    }).catch(error => error)
-    await vi.waitFor(() => expect(axios.post).toHaveBeenCalledOnce())
-    vi.mocked(authStorage.getSessionGeneration).mockReturnValue(1)
-    vi.mocked(authStorage.getAccessToken).mockReturnValue('new-session')
-    if (outcome === 'success') resolve({ data: { accessToken: 'old-rotated', refreshToken: 'old-refresh' } })
-    else reject(new Error('old refresh failure'))
-    await pending
-    expect(authStorage.setTokens).not.toHaveBeenCalled()
-    expect(authStorage.commitRotation).not.toHaveBeenCalled()
-    expect(setSessionFromTokensMock).not.toHaveBeenCalled()
-    expect(applySessionRotationMock).not.toHaveBeenCalled()
-    expect(authStorage.clear).not.toHaveBeenCalled()
-    expect(emitSessionExpired).not.toHaveBeenCalled()
-    expect(replay).not.toHaveBeenCalled()
-  })
+  it.each(['success', 'failure'])(
+    'isolates a late refresh %s from a newer session',
+    async (outcome) => {
+      let resolve!: (value: unknown) => void
+      let reject!: (reason: unknown) => void
+      const refresh = new Promise((yes, no) => {
+        resolve = yes
+        reject = no
+      })
+      vi.mocked(axios.post).mockReturnValueOnce(refresh as ReturnType<typeof axios.post>)
+      const replay = vi.fn().mockResolvedValue({ data: {}, status: 200, headers: {} })
+      const pending = http
+        .get('/protected-old', {
+          adapter: async (config) => {
+            if (config.headers.Authorization === 'Bearer new-session') return replay(config)
+            throw { config, response: { status: 401, data: {} } }
+          },
+        })
+        .catch((error) => error)
+      await vi.waitFor(() => expect(axios.post).toHaveBeenCalledOnce())
+      vi.mocked(authStorage.getSessionGeneration).mockReturnValue(1)
+      vi.mocked(authStorage.getAccessToken).mockReturnValue('new-session')
+      if (outcome === 'success')
+        resolve({ data: { accessToken: 'old-rotated', refreshToken: 'old-refresh' } })
+      else reject(new Error('old refresh failure'))
+      await pending
+      expect(authStorage.setTokens).not.toHaveBeenCalled()
+      expect(authStorage.commitRotation).not.toHaveBeenCalled()
+      expect(setSessionFromTokensMock).not.toHaveBeenCalled()
+      expect(applySessionRotationMock).not.toHaveBeenCalled()
+      expect(authStorage.clear).not.toHaveBeenCalled()
+      expect(emitSessionExpired).not.toHaveBeenCalled()
+      expect(replay).not.toHaveBeenCalled()
+    },
+  )
 
   it('never refreshes an old request whose 401 arrives after session replacement', async () => {
     let fail!: () => void
-    const adapter = vi.fn((config) => new Promise<never>((_resolve, reject) => {
-      fail = () => reject({ config, response: { status: 401, data: {} } })
-    }))
-    const pending = http.get('/old-request', { adapter }).catch(error => error)
+    const adapter = vi.fn(
+      (config) =>
+        new Promise<never>((_resolve, reject) => {
+          fail = () => reject({ config, response: { status: 401, data: {} } })
+        }),
+    )
+    const pending = http.get('/old-request', { adapter }).catch((error) => error)
     await vi.waitFor(() => expect(adapter).toHaveBeenCalledOnce())
     vi.mocked(authStorage.getSessionGeneration).mockReturnValue(1)
     fail()
@@ -430,7 +444,11 @@ describe('http response interceptor', () => {
 
   it('shares one current-scope rotation and replays both original requests with its token', async () => {
     let resolve!: (value: unknown) => void
-    vi.mocked(axios.post).mockReturnValueOnce(new Promise(yes => { resolve = yes }) as ReturnType<typeof axios.post>)
+    vi.mocked(axios.post).mockReturnValueOnce(
+      new Promise((yes) => {
+        resolve = yes
+      }) as ReturnType<typeof axios.post>,
+    )
     const replayed: string[] = []
     const adapter = vi.fn(async (config) => {
       if (config.headers.Authorization !== 'Bearer rotated') {
@@ -452,21 +470,29 @@ describe('http response interceptor', () => {
     expect(authStorage.clear).not.toHaveBeenCalled()
   })
 
-  it.each(['transport', 'invalid-context'])('retains current refresh failure handling: %s', async (kind) => {
-    const failure = new Error('refresh denied')
-    if (kind === 'transport') vi.mocked(axios.post).mockRejectedValueOnce(failure)
-    else {
-      vi.mocked(axios.post).mockResolvedValueOnce({ data: { accessToken: 'wrong-scope', refreshToken: 'r' } })
-      vi.mocked(authStorage.commitRotation).mockReturnValueOnce(null)
-    }
-    const replay = vi.fn()
-    const error = { config: { url: '/protected', headers: {}, adapter: replay }, response: { status: 401, data: {} } } as unknown as AxiosError
-    await expect(responseRejected(error)).rejects.toBeInstanceOf(Error)
-    expect(authStorage.clear).toHaveBeenCalledOnce()
-    expect(emitSessionExpired).toHaveBeenCalledWith('refresh-failed')
-    expect(applySessionRotationMock).not.toHaveBeenCalled()
-    expect(replay).not.toHaveBeenCalled()
-  })
+  it.each(['transport', 'invalid-context'])(
+    'retains current refresh failure handling: %s',
+    async (kind) => {
+      const failure = new Error('refresh denied')
+      if (kind === 'transport') vi.mocked(axios.post).mockRejectedValueOnce(failure)
+      else {
+        vi.mocked(axios.post).mockResolvedValueOnce({
+          data: { accessToken: 'wrong-scope', refreshToken: 'r' },
+        })
+        vi.mocked(authStorage.commitRotation).mockReturnValueOnce(null)
+      }
+      const replay = vi.fn()
+      const error = {
+        config: { url: '/protected', headers: {}, adapter: replay },
+        response: { status: 401, data: {} },
+      } as unknown as AxiosError
+      await expect(responseRejected(error)).rejects.toBeInstanceOf(Error)
+      expect(authStorage.clear).toHaveBeenCalledOnce()
+      expect(emitSessionExpired).toHaveBeenCalledWith('refresh-failed')
+      expect(applySessionRotationMock).not.toHaveBeenCalled()
+      expect(replay).not.toHaveBeenCalled()
+    },
+  )
 
   it('clears the session with missing-refresh-token for a normal JWT 401 without a refresh token', async () => {
     vi.mocked(authStorage.getRefreshToken).mockReturnValueOnce(null)
@@ -480,5 +506,187 @@ describe('http response interceptor', () => {
     expect(axios.post).not.toHaveBeenCalled()
     expect(authStorage.clear).toHaveBeenCalled()
     expect(emitSessionExpired).toHaveBeenCalledWith('missing-refresh-token')
+  })
+
+  // ── S2/S3: proactive refresh and no double refresh ───────────────────────
+  describe('proactive refresh and rotated-token replay', () => {
+    const b64 = (value: unknown) =>
+      btoa(JSON.stringify(value)).replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_')
+    const jwt = (claims: Record<string, unknown>) => `${b64({ alg: 'none' })}.${b64(claims)}.sig`
+    const expiringIn = (seconds: number, tag = 'old') =>
+      jwt({ tag, exp: Math.floor(Date.now() / 1000) + seconds })
+    const fresh = expiringIn(900, 'fresh')
+    const ok = (config: { url?: string }) => ({
+      data: config.url,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config,
+    })
+    const refreshResolves = () =>
+      vi.mocked(axios.post).mockResolvedValue({ data: { accessToken: fresh, refreshToken: 'r2' } })
+
+    /** Adapter that 401s every request not carrying `accepted`, counting those 401s. */
+    function strictAdapter(accepted: string) {
+      const seen = { unauthorized: 0, tokens: [] as string[] }
+      const adapter = vi.fn(async (config) => {
+        seen.tokens.push(config.headers.Authorization)
+        if (config.headers.Authorization === `Bearer ${accepted}`) return ok(config)
+        seen.unauthorized += 1
+        throw { config, response: { status: 401, data: {} } }
+      })
+      return { adapter, seen }
+    }
+
+    it('(a) refreshes once for concurrent requests with an expired token and never sees a 401', async () => {
+      vi.mocked(authStorage.getAccessToken).mockReturnValue(expiringIn(-30))
+      refreshResolves()
+      const { adapter, seen } = strictAdapter(fresh)
+
+      await Promise.all(['/a', '/b', '/c'].map((url) => http.get(url, { adapter })))
+
+      expect(axios.post).toHaveBeenCalledOnce()
+      expect(authStorage.commitRotation).toHaveBeenCalledOnce()
+      expect(applySessionRotationMock).toHaveBeenCalledOnce()
+      expect(seen.unauthorized).toBe(0)
+      expect(seen.tokens).toEqual(Array(3).fill(`Bearer ${fresh}`))
+      expect(authStorage.clear).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      ['already expired', expiringIn(-1), 1],
+      ['within the skew window', expiringIn(5), 1],
+      ['comfortably valid', expiringIn(600), 0],
+      ['without an exp claim', jwt({ sub: 'u' }), 0],
+      ['not a readable JWT', 'opaque-token', 0],
+    ])('(b) token %s -> %s proactive refresh(es)', async (_label, token, refreshes) => {
+      vi.mocked(authStorage.getAccessToken).mockReturnValue(token)
+      refreshResolves()
+      const adapter = vi.fn(async (config) => ok(config))
+
+      await http.get('/orders', { adapter })
+
+      expect(vi.mocked(axios.post).mock.calls.length).toBe(refreshes)
+      const sent = adapter.mock.calls[0]![0].headers.Authorization
+      expect(sent).toBe(refreshes ? `Bearer ${fresh}` : `Bearer ${token}`)
+    })
+
+    it.each(['transport', 'invalid-context'])(
+      '(c) a failed proactive refresh logs out once and rejects every request: %s',
+      async (kind) => {
+        vi.mocked(authStorage.getAccessToken).mockReturnValue(expiringIn(-30))
+        vi.mocked(authStorage.clear).mockImplementation(() => {
+          vi.mocked(authStorage.getSessionGeneration).mockReturnValue(1)
+        })
+        if (kind === 'transport') vi.mocked(axios.post).mockRejectedValue(new Error('denied'))
+        else {
+          refreshResolves()
+          vi.mocked(authStorage.commitRotation).mockReturnValue(null)
+        }
+        const adapter = vi.fn()
+
+        const results = await Promise.allSettled(
+          ['/a', '/b', '/c'].map((url) => http.get(url, { adapter })),
+        )
+
+        expect(results.map((result) => result.status)).toEqual(Array(3).fill('rejected'))
+        expect(axios.post).toHaveBeenCalledOnce()
+        expect(authStorage.clear).toHaveBeenCalledOnce()
+        expect(emitSessionExpired).toHaveBeenCalledExactlyOnceWith('refresh-failed')
+        expect(adapter).not.toHaveBeenCalled()
+      },
+    )
+
+    it.each(['/auth/refresh', '/auth/login', '/auth/register'])(
+      '(d) %s never triggers a proactive refresh',
+      async (url) => {
+        const token = expiringIn(-30)
+        vi.mocked(authStorage.getAccessToken).mockReturnValue(token)
+        const adapter = vi.fn(async (config) => ok(config))
+
+        await http.post(url, {}, { adapter })
+
+        expect(axios.post).not.toHaveBeenCalled()
+        expect(adapter.mock.calls[0]![0].headers.Authorization).toBe(`Bearer ${token}`)
+      },
+    )
+
+    it('(e) replays a late 401 sent with an already-rotated token without refreshing', async () => {
+      vi.mocked(authStorage.getAccessToken).mockReturnValue('old-access')
+      let fail!: () => void
+      const adapter = vi.fn((config) =>
+        adapter.mock.calls.length === 1
+          ? new Promise<never>((_resolve, reject) => {
+              fail = () => reject({ config, response: { status: 401, data: {} } })
+            })
+          : Promise.resolve(ok(config)),
+      )
+      const pending = http.get('/late', { adapter })
+      await vi.waitFor(() => expect(adapter).toHaveBeenCalledOnce())
+      expect(adapter.mock.calls[0]![0].headers.Authorization).toBe('Bearer old-access')
+
+      vi.mocked(authStorage.getAccessToken).mockReturnValue('rotated-access')
+      fail()
+      await pending
+
+      expect(axios.post).not.toHaveBeenCalled()
+      expect(adapter).toHaveBeenCalledTimes(2)
+      expect(adapter.mock.calls[1]![0].headers.Authorization).toBe('Bearer rotated-access')
+      expect(authStorage.commitRotation).not.toHaveBeenCalled()
+      expect(authStorage.clear).not.toHaveBeenCalled()
+    })
+
+    it('(e) replays a rotated-token 401 only once', async () => {
+      vi.mocked(authStorage.getAccessToken).mockReturnValue('old-access')
+      const adapter = vi.fn(async (config) => {
+        vi.mocked(authStorage.getAccessToken).mockReturnValue(
+          `rotated-${adapter.mock.calls.length}`,
+        )
+        throw { config, response: { status: 401, data: {} } }
+      })
+
+      await expect(http.get('/late', { adapter })).rejects.toMatchObject({
+        response: { status: 401 },
+      })
+
+      expect(adapter).toHaveBeenCalledTimes(2)
+      expect(axios.post).not.toHaveBeenCalled()
+    })
+
+    it('(f) a 401 sent with the current token starts exactly one refresh and replays', async () => {
+      vi.mocked(authStorage.getAccessToken).mockReturnValue('current')
+      refreshResolves()
+      const { adapter, seen } = strictAdapter(fresh)
+
+      await Promise.all([http.get('/a', { adapter }), http.get('/b', { adapter })])
+
+      expect(axios.post).toHaveBeenCalledOnce()
+      expect(seen.unauthorized).toBe(2)
+      expect(adapter).toHaveBeenCalledTimes(4)
+      expect(authStorage.commitRotation).toHaveBeenCalledOnce()
+    })
+
+    it('(g) rejects a request whose session changes during the proactive refresh', async () => {
+      vi.mocked(authStorage.getAccessToken).mockReturnValue(expiringIn(-30))
+      let settle!: (value: unknown) => void
+      vi.mocked(axios.post).mockReturnValueOnce(
+        new Promise((resolve) => {
+          settle = resolve
+        }) as ReturnType<typeof axios.post>,
+      )
+      const adapter = vi.fn()
+      const pending = http.get('/orders', { adapter }).catch((error: unknown) => error)
+      await vi.waitFor(() => expect(axios.post).toHaveBeenCalledOnce())
+
+      vi.mocked(authStorage.getSessionGeneration).mockReturnValue(1)
+      settle({ data: { accessToken: fresh, refreshToken: 'r2' } })
+
+      await expect(pending).resolves.toBeInstanceOf(axios.CanceledError)
+      expect(adapter).not.toHaveBeenCalled()
+      expect(authStorage.commitRotation).not.toHaveBeenCalled()
+      expect(applySessionRotationMock).not.toHaveBeenCalled()
+      expect(authStorage.clear).not.toHaveBeenCalled()
+      expect(emitSessionExpired).not.toHaveBeenCalled()
+    })
   })
 })
