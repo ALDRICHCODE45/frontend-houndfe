@@ -24,9 +24,6 @@ defineProps<{
 
 <template>
   <span class="hf-figure reserved-stock-label" data-testid="reserved-stock">
-    <span>Disponible {{ available }}</span>
-    <span aria-hidden="true"> · </span>
-    <span class="sr-only">, </span>
-    <span class="font-semibold text-(--hf-warning)">Apartado {{ reserved }}</span>
+    <span>Disponible {{ available }}</span> · <span class="font-semibold text-(--hf-warning)">Apartado {{ reserved }}</span>
   </span>
 </template>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { PosCatalogVariant } from '../interfaces/sale.types'
+import { hasReservedStock, reservedStockText } from '@/core/shared/components/ReservedStockLabel.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { hasSalesEntryToken } from '../utils/salesEntryPortal'
 
@@ -70,6 +71,19 @@ function formatPrice(priceDecimal: number): string {
 function isLowStock(variant: PosCatalogVariant): boolean {
   return variant.stock != null && variant.stock.quantity <= variant.stock.minQuantity
 }
+
+// Restock backorders: units held for «pedidos por reposición» are shown beside what is sellable, in the
+// warning tone (the stock is promised, not gone).
+function reservedOf(variant: PosCatalogVariant): number | null {
+  const reserved = variant.stock?.reservedForBackorders
+  return hasReservedStock(reserved) ? reserved : null
+}
+
+function stockLabel(variant: PosCatalogVariant): string {
+  const quantity = variant.stock?.quantity ?? 0
+  const reserved = reservedOf(variant)
+  return reserved != null ? reservedStockText(quantity, reserved) : `${quantity} unidades`
+}
 </script>
 
 <template>
@@ -133,8 +147,8 @@ function isLowStock(variant: PosCatalogVariant): boolean {
           <!-- Stock badge -->
           <div v-if="variant.stock != null" class="shrink-0">
             <StatusBadge
-              :tone="isLowStock(variant) ? 'warning' : 'success'"
-              :label="`${variant.stock.quantity} unidades`"
+              :tone="reservedOf(variant) != null || isLowStock(variant) ? 'warning' : 'success'"
+              :label="stockLabel(variant)"
               aria-prefix="Existencias:"
             />
           </div>

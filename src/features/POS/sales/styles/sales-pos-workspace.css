@@ -559,7 +559,16 @@
   color: var(--hf-warning);
 }
 
+/* Restock backorders: units are promised, not gone — warning tone, never red. */
+.sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-stock-line[data-sales-pos-stock='reserved'] {
+  color: var(--hf-warning);
+}
+
 .sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-stock-line[data-sales-pos-stock='low'] .sales-pos-product-stock-dot {
+  background-color: var(--hf-warning);
+}
+
+.sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-stock-line[data-sales-pos-stock='reserved'] .sales-pos-product-stock-dot {
   background-color: var(--hf-warning);
 }
 

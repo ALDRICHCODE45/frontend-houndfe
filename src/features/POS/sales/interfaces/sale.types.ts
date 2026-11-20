@@ -793,6 +793,12 @@ export interface PosCatalogStock {
   quantity: number
   minQuantity: number
   location?: string | null
+  /** Restock backorders (handoff 26): units on hand = available + reserved. Absent until served. */
+  stockOnHand?: number
+  /** Units held for RESERVED restock backorders; the counter cannot sell them. */
+  reservedForBackorders?: number
+  /** What the counter can sell now (= `quantity`). */
+  availableToSell?: number
 }
 
 export interface PosCatalogVariant {
@@ -856,6 +862,12 @@ interface PosProductDetailStock {
   quantity: number
   minQuantity: number
   location: string | null
+  /** Restock backorders (handoff 26): units on hand = available + reserved. Absent until served. */
+  stockOnHand?: number
+  /** Units held for RESERVED restock backorders; the counter cannot sell them. */
+  reservedForBackorders?: number
+  /** What the counter can sell now (= `quantity`). */
+  availableToSell?: number
 }
 
 interface PosProductDetailVariant {

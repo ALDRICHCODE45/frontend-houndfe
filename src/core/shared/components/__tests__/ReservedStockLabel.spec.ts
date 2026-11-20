@@ -5,8 +5,7 @@ import ReservedStockLabel, { hasReservedStock, reservedStockText } from '../Rese
 describe('ReservedStockLabel', () => {
   it('shows available and reserved separately', () => {
     const wrapper = mount(ReservedStockLabel, { props: { available: 3, reserved: 2 } })
-    expect(wrapper.get('[data-testid="reserved-stock"]').text()).toContain('Disponible 3')
-    expect(wrapper.get('[data-testid="reserved-stock"]').text()).toContain('Apartado 2')
+    expect(wrapper.get('[data-testid="reserved-stock"]').text()).toBe('Disponible 3 · Apartado 2')
   })
 
   it('uses the warning token for the reserved part, never red', () => {
