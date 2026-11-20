@@ -224,3 +224,7 @@ Known limit: deleting a variant that has any backorder (even finished) is refuse
 - `manager@houndfe.com` (Centro) has read/update:Backorder; `cashier@houndfe.com` has read.
 
 Backend session notes (2026-11-20): T5 in backend main 0c337060 on dev :3003 with independent verify approved. Samples BO-000001 WAITING (head, passedOverCount 1), BO-000002 RESERVED, BO-000003 WAITING, BO-000004 CONFIRMED (sale A-202611-000081), BO-000005 EXPIRED, BO-000006 CANCELLED by customer, BO-000007 CANCELLED by staff; GET /backorders total 7, counts {WAITING 2, RESERVED 1, CONFIRMED 1, EXPIRED 1, CANCELLED 2}. Product «Alimento Gato Senior 7 kg (demo reposición)»: stockOnHand 3, reservedForBackorders 2, availableToSell 1.
+
+### Variant delete (backend main cd6ea53d, 2026-11-20)
+
+Deleting a variant that has any backorder (even finished) answers `409` with the same envelope as `PRODUCT_HAS_ACTIVE_BACKORDERS`: `{ "statusCode": 409, "error": "VARIANT_HAS_BACKORDERS", "message": "La variante tiene pedidos por reposición", "timestamp": "…" }` (replaces the generic relation error). Owner decision: the backorder detail shows the customer's phone in full.
