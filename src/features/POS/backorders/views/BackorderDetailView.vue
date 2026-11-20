@@ -26,6 +26,7 @@ import {
   backorderStatusTone,
   backorderTimeline,
   canCancelBackorder,
+  chatbotRequestPath,
   productLabel,
 } from '../utils/backorderView'
 import '../styles/backorders.css'
@@ -48,6 +49,11 @@ const info = computed(() => (backorder.value ? backorderStatusInfo(backorder.val
 const price = computed(() => (backorder.value ? backorderPrice(backorder.value) : null))
 const timeline = computed(() => (backorder.value ? backorderTimeline(backorder.value) : []))
 const product = computed(() => (backorder.value ? productLabel(backorder.value) : null))
+const requestPath = computed(() => (backorder.value ? chatbotRequestPath(backorder.value) : null))
+const etaDays = computed(() => {
+  const days = backorder.value?.estimatedArrivalDays
+  return typeof days === 'number' ? `${days} ${days === 1 ? 'día' : 'días'} desde que se agendó` : null
+})
 const showCancel = computed(() => canUpdate.value && backorder.value !== undefined && canCancelBackorder(backorder.value))
 
 type PageState = 'forbidden' | 'loading' | 'not-found' | 'error' | 'content'
@@ -75,6 +81,11 @@ function openDialog() {
 async function confirmCancel(reason: string | undefined) {
   const current = backorder.value
   if (!current) return
+  // The page may have refetched while the dialog was open: never send for an order that is no longer cancellable.
+  if (!canUpdate.value || !canCancelBackorder(current)) {
+    dialogOpen.value = false
+    return
+  }
   dialogError.value = null
   const outcome = await cancel({ version: current.version, reason })
   if (outcome.status === 'cancelled') {
@@ -171,7 +182,7 @@ const goToList = () => void router.push(BACKORDERS_PATH)
           <dl class="bo-dl">
             <div><dt>Cantidad</dt><dd class="hf-figure">{{ backorder.quantity }}</dd></div>
             <div>
-              <dt>Precio final</dt>
+              <dt>{{ price.reserved ? 'Precio final' : 'Precio' }}</dt>
               <dd>
                 <span class="hf-figure bo-final">{{ price.final }}</span>
                 <span v-for="note in price.notes" :key="note" class="hf-row-secondary hf-figure">{{ note }}</span>
@@ -191,18 +202,17 @@ const goToList = () => void router.push(BACKORDERS_PATH)
                 <span v-if="info.warning" class="bo-warning" data-testid="backorder-info-warning">{{ info.warning }}</span>
               </dd>
             </div>
-            <div>
-              <dt>Llegada estimada</dt>
-              <dd>
-                <span>{{ backorder.estimatedArrivalDays }} {{ backorder.estimatedArrivalDays === 1 ? 'día' : 'días' }} desde que se agendó</span>
-                <span v-if="backorder.etaOverdue" class="bo-warning" data-testid="backorder-eta-overdue">Atrasado</span>
-              </dd>
-            </div>
           </dl>
           <ol class="bo-timeline" data-testid="backorder-timeline" aria-label="Fechas del pedido">
             <li v-for="entry in timeline" :key="entry.key">
               <span class="bo-timeline__label">{{ entry.label }}</span>
-              <span class="hf-figure">{{ entry.text }}</span>
+              <span class="bo-stack bo-stack--end">
+                <span class="hf-figure">{{ entry.text }}</span>
+                <template v-if="entry.key === 'estimatedAt'">
+                  <span v-if="etaDays" class="hf-row-secondary">{{ etaDays }}</span>
+                  <span v-if="backorder.etaOverdue" class="bo-warning" data-testid="backorder-eta-overdue">Atrasado</span>
+                </template>
+              </span>
             </li>
           </ol>
         </section>
@@ -211,14 +221,14 @@ const goToList = () => void router.push(BACKORDERS_PATH)
           <h2 id="bo-customer-title" class="bo-section-title">Cliente</h2>
           <dl class="bo-dl">
             <div><dt>Nombre</dt><dd>{{ backorder.customer.name }}</dd></div>
-            <div><dt>Teléfono</dt><dd class="hf-figure">{{ backorder.customer.phone }}</dd></div>
+            <div v-if="backorder.customer.phone"><dt>Teléfono</dt><dd class="hf-figure">{{ backorder.customer.phone }}</dd></div>
             <div><dt>Sucursal</dt><dd>{{ backorder.branchName }}</dd></div>
             <div><dt>Origen</dt><dd>Chatbot</dd></div>
           </dl>
         </section>
 
         <nav class="bo-links" aria-label="Enlaces del pedido">
-          <RouterLink :to="`/chatbot/solicitudes/${backorder.chatbotRequestId}`" class="bo-link">Ver solicitud del chatbot</RouterLink>
+          <RouterLink v-if="requestPath" :to="requestPath" class="bo-link">Ver solicitud del chatbot</RouterLink>
           <span v-if="backorder.saleId" class="bo-sale-link">
             <RouterLink :to="`/pos/ventas/${backorder.saleId}`" class="bo-link">Ver venta</RouterLink>
             <span v-if="backorder.saleStatus" class="hf-row-secondary">{{ SALE_STATUS_LABEL[backorder.saleStatus] }}</span>

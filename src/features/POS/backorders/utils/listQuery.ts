@@ -1,7 +1,7 @@
 /**
  * «Pedidos por reposición» list state ⇄ URL ⇄ API params (ODD restock-backorder S1, S3).
  *
- * The URL query is the single source of truth (like the chatbot inbox): tab, search, local days,
+ * The URL query is the single source of truth (like the chatbot inbox): status tab, search, local days,
  * sort and paging are read from it (`parseListQuery`) and written back without defaults
  * (`listQueryOf`). Only the params named in `listParamsOf` reach the API.
  */
@@ -34,7 +34,8 @@ export const DEFAULT_LIMIT = 20
 export const PAGE_SIZE_OPTIONS = [10, 20, 50]
 
 /** Query params of this screen; any other param of the URL is left alone. */
-export const LIST_QUERY_KEYS = ['tab', 'q', 'from', 'to', 'sort', 'order', 'page', 'limit'] as const
+/** `tab` is the legacy name of `status` (still read, never written). */
+export const LIST_QUERY_KEYS = ['status', 'tab', 'q', 'from', 'to', 'sort', 'order', 'page', 'limit'] as const
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/
 
@@ -48,9 +49,14 @@ function firstValue(value: unknown): string | null {
   return typeof raw === 'string' ? raw : null
 }
 
-function tabOf(value: string | null): BackorderStatus {
+function statusOf(value: string | null): BackorderStatus | null {
   const status = value?.toUpperCase()
-  return BACKORDER_TABS.find((tab) => tab.status === status)?.status ?? DEFAULT_TAB
+  return BACKORDER_TABS.find((tab) => tab.status === status)?.status ?? null
+}
+
+/** `status=<STATUS>` (the API's name, any case); the legacy `tab=` is accepted when `status` is absent or invalid. */
+function tabOf(query: Record<string, unknown>): BackorderStatus {
+  return statusOf(firstValue(query.status)) ?? statusOf(firstValue(query.tab)) ?? DEFAULT_TAB
 }
 
 const dayOf = (value: string | null) => (value && DAY.test(value) ? value : '')
@@ -61,7 +67,7 @@ function positiveInt(value: string | null, fallback: number): number {
 }
 
 export function parseListQuery(query: Record<string, unknown>): BackorderListState {
-  const tab = tabOf(firstValue(query.tab))
+  const tab = tabOf(query)
   const sort = firstValue(query.sort)
   // `reservedUntil` only orders Apartados; `status` is one value per tab, so it is never offered.
   const sortBy: BackorderSortBy =
@@ -82,7 +88,7 @@ export function parseListQuery(query: Record<string, unknown>): BackorderListSta
 /** The state as URL query, with every default left out. */
 export function listQueryOf(state: BackorderListState): Record<string, string> {
   const query: Record<string, string> = {}
-  if (state.tab !== DEFAULT_TAB) query.tab = state.tab.toLowerCase()
+  if (state.tab !== DEFAULT_TAB) query.status = state.tab
   const q = state.q.trim().slice(0, SEARCH_MAX_LENGTH)
   if (q) query.q = q
   if (state.from) query.from = state.from

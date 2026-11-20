@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { ref, toValue, type MaybeRefOrGetter, type Ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
-import { makeBackorder } from '../../interfaces/__tests__/backorder.fixture'
+import { makeBackorder, makeWaitingBackorder } from '../../interfaces/__tests__/backorder.fixture'
 import type { BackorderStaff } from '../../interfaces/backorder.types'
 import type { CancelBackorderOutcome } from '../../composables/useCancelBackorder'
 import { readBackorderError } from '../../utils/backorderErrors'
@@ -125,6 +125,7 @@ describe('BackorderDetailView — content (S3, S4)', () => {
     expect(t).toContain('Centro')
     expect(t).toMatch(/Apartado hasta 21 nov/)
     expect(t).toMatch(/7 días/)
+    expect(t.match(/Llegada estimada/g)).toHaveLength(1)
     expect(t).not.toContain(ID)
     expect(t).not.toContain('bbbbbbbb')
   })
@@ -159,6 +160,38 @@ describe('BackorderDetailView — content (S3, S4)', () => {
     expect(wrapper.find('[data-testid="backorder-info-warning"]').text()).toBe('Se lo saltaron 1 vez')
     expect(wrapper.find('[data-testid="backorder-eta-overdue"]').text()).toBe('Atrasado')
     expect(wrapper.find('[data-testid="backorder-eta-overdue"]').classes()).toContain('bo-warning')
+  })
+
+  it('a WAITING order shows the reference price with a note, no $0.00 and no «Vigente»', async () => {
+    detail.backorder.value = makeWaitingBackorder()
+    const { wrapper } = await mountDetail()
+    expect(text(wrapper)).toContain('$1,149.00')
+    expect(text(wrapper)).toContain('Precio al agendar')
+    expect(text(wrapper)).not.toMatch(/\$0\.00|Vigente/)
+  })
+
+  it('«Llegada estimada» appears once (the timeline carries the date, the days and «Atrasado»)', async () => {
+    detail.backorder.value = makeBackorder({ etaOverdue: true })
+    const { wrapper } = await mountDetail()
+    expect(text(wrapper).match(/Llegada estimada/g)).toHaveLength(1)
+    const entry = wrapper.findAll('[data-testid="backorder-timeline"] li').find((li) => li.text().includes('Llegada estimada'))!
+    expect(entry.text()).toMatch(/21 nov/)
+    expect(entry.text()).toContain('7 días desde que se agendó')
+    expect(entry.find('[data-testid="backorder-eta-overdue"]').text()).toBe('Atrasado')
+  })
+
+  it('without a phone the customer shows no phone row', async () => {
+    detail.backorder.value = makeBackorder({ customer: { id: 'c1', name: 'Rosa Elena Díaz', phone: null } })
+    const { wrapper } = await mountDetail()
+    expect(text(wrapper)).not.toContain('Teléfono')
+    expect(text(wrapper)).not.toContain('null')
+  })
+
+  it('without a chatbot request there is no «Ver solicitud del chatbot» link (never /chatbot/solicitudes/null)', async () => {
+    detail.backorder.value = makeBackorder({ chatbotRequestId: null })
+    const { wrapper } = await mountDetail()
+    expect(wrapper.findAll('a').some((a) => a.text() === 'Ver solicitud del chatbot')).toBe(false)
+    expect(wrapper.findAll('a').some((a) => (a.attributes('href') ?? '').includes('null'))).toBe(false)
   })
 
   it('links to the chatbot request and, with a sale, to the sale', async () => {
@@ -328,6 +361,17 @@ describe('BackorderDetailView — cancel flow (S5)', () => {
     await flushPromises()
     expect(wrapper.find('[data-testid="cancel-modal"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="backorder-notice"]').exists()).toBe(false)
+  })
+
+  it('re-checks that the order is still cancellable before sending (stale dialog)', async () => {
+    const { wrapper } = await mountDetail()
+    await openDialog(wrapper)
+    detail.backorder.value = makeBackorder({ status: 'CONFIRMED' })
+    await flushPromises()
+    await wrapper.find('[data-testid="cancel-dialog-confirm"]').trigger('click')
+    await flushPromises()
+    expect(cancelMock.cancel).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="cancel-modal"]').exists()).toBe(false)
   })
 
   it('«Volver» closes without sending anything, and reopening starts with an empty reason', async () => {

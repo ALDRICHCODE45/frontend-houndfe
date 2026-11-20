@@ -30,6 +30,7 @@ import {
   backorderPrice,
   backorderStatusLabel,
   backorderStatusTone,
+  chatbotRequestPath,
   productLabel,
 } from '../utils/backorderView'
 import {
@@ -123,16 +124,32 @@ const showingTo = computed(() => (list.total.value === 0 ? 0 : (state.value.page
 
 // ── Columns ──────────────────────────────────────────────────────────────────
 const right = { th: 'text-right', td: 'text-right' }
+// `minSize` is the floor the table shrinks to at 1440 with the sidebar: no-wrap columns keep room
+// for «BO-000012» and «16 nov, 22:45»; product and follow-up wrap (`bo-wrap`, product clamps to 2 lines).
 const columns = computed<TableColumn<BackorderStaff>[]>(() => [
-  { id: 'folio', header: 'Folio', enableSorting: false, size: 120 },
+  { id: 'folio', header: 'Folio', enableSorting: false, size: 120, minSize: 112 },
   { id: 'customer', header: 'Cliente', enableSorting: false, meta: { primary: true } },
-  { id: 'product', header: 'Producto', enableSorting: false, size: 240 },
-  { id: 'quantity', header: 'Cantidad', enableSorting: false, size: 96, meta: { class: right } },
-  { id: 'price', header: 'Precio final', enableSorting: false, size: 152, meta: { class: right } },
-  { id: 'scheduledAt', header: 'Agendado', enableSorting: true, size: 136 },
-  { id: 'eta', header: 'Llegada estimada', enableSorting: false, size: 168 },
+  {
+    id: 'product',
+    header: 'Producto',
+    enableSorting: false,
+    size: 248,
+    minSize: 192,
+    meta: { class: { th: '', td: 'bo-wrap' } },
+  },
+  { id: 'quantity', header: 'Cantidad', enableSorting: false, size: 96, minSize: 80, meta: { class: right } },
+  { id: 'price', header: 'Precio final', enableSorting: false, size: 152, minSize: 136, meta: { class: right } },
+  { id: 'scheduledAt', header: 'Agendado', enableSorting: true, size: 144, minSize: 128 },
+  { id: 'eta', header: 'Llegada estimada', enableSorting: false, size: 160, minSize: 128 },
   // Sortable only in Apartados (`sortBy=reservedUntil`); on the other tabs the order is by `scheduledAt`.
-  { id: 'info', header: 'Seguimiento', enableSorting: state.value.tab === 'RESERVED', size: 208 },
+  {
+    id: 'info',
+    header: 'Seguimiento',
+    enableSorting: state.value.tab === 'RESERVED',
+    size: 208,
+    minSize: 176,
+    meta: { class: { th: '', td: 'bo-wrap' } },
+  },
   { id: 'actions', header: 'Acciones', enableSorting: false, meta: { class: { th: 'w-16', td: 'w-16 text-right' } } },
 ])
 
@@ -147,7 +164,9 @@ const { columnOrder, columnPinning, columnSizing, columnVisibility, density } = 
 function actionsFor(row: BackorderStaff): RowAction[] {
   return [
     { key: 'open', label: 'Ver pedido', icon: 'i-lucide-eye' },
-    { key: 'request', label: 'Ver solicitud del chatbot', icon: 'i-lucide-message-square-text' },
+    ...(chatbotRequestPath(row)
+      ? [{ key: 'request', label: 'Ver solicitud del chatbot', icon: 'i-lucide-message-square-text' }]
+      : []),
     ...(row.saleId ? [{ key: 'sale', label: 'Ver venta', icon: 'i-lucide-receipt-text' }] : []),
   ]
 }
@@ -158,7 +177,10 @@ function open(row: BackorderStaff) {
 
 function onAction(key: string, row: BackorderStaff) {
   if (key === 'open') open(row)
-  else if (key === 'request') void router.push(`/chatbot/solicitudes/${row.chatbotRequestId}`)
+  else if (key === 'request') {
+    const path = chatbotRequestPath(row)
+    if (path) void router.push(path)
+  }
   else if (key === 'sale' && row.saleId) void router.push(`/pos/ventas/${row.saleId}`)
 }
 
@@ -249,7 +271,7 @@ const when = (iso: string) => formatShortDateTime(iso)
           <template #customer-cell="{ row }">
             <span class="bo-stack" data-testid="backorder-customer">
               <span class="hf-row-primary">{{ row.original.customer.name }}</span>
-              <span class="hf-row-secondary">{{ row.original.customer.phone }}</span>
+              <span v-if="row.original.customer.phone" class="hf-row-secondary">{{ row.original.customer.phone }}</span>
             </span>
           </template>
 
@@ -257,7 +279,7 @@ const when = (iso: string) => formatShortDateTime(iso)
             <span class="bo-product" data-testid="backorder-product">
               <BackorderProductThumb :src="row.original.productImageUrl" :alt="row.original.productName" />
               <span class="bo-stack">
-                <span class="hf-row-primary">{{ productLabel(row.original).name }}</span>
+                <span class="hf-row-primary bo-clamp">{{ productLabel(row.original).name }}</span>
                 <span v-if="productLabel(row.original).variant" class="hf-row-secondary">{{
                   productLabel(row.original).variant
                 }}</span>
@@ -314,11 +336,11 @@ const when = (iso: string) => formatShortDateTime(iso)
                   @select="onAction($event, row)"
                 />
               </div>
-              <p class="bo-card__customer">{{ row.customer.name }} · {{ row.customer.phone }}</p>
+              <p class="bo-card__customer">{{ [row.customer.name, row.customer.phone].filter(Boolean).join(' · ') }}</p>
               <div class="bo-product">
                 <BackorderProductThumb :src="row.productImageUrl" :alt="row.productName" />
                 <span class="bo-stack">
-                  <span class="hf-row-primary">{{ productLabel(row).name }}</span>
+                  <span class="hf-row-primary bo-clamp">{{ productLabel(row).name }}</span>
                   <span v-if="productLabel(row).variant" class="hf-row-secondary">{{ productLabel(row).variant }}</span>
                 </span>
               </div>

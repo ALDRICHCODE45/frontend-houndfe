@@ -47,22 +47,42 @@ export function canCancelBackorder(backorder: Pick<BackorderStaff, 'status'>): b
 }
 
 export interface BackorderPriceView {
+  /** The price to show: the final one once reserved, else the reference (scheduling) price. */
   final: string
-  /** Reference («al agendar») and current prices, only when they differ from the final one. */
+  /** Muted notes under it: «Precio al agendar» while nothing is reserved, else the comparison. */
   notes: string[]
+  /** `finalPriceCents` is set (the order has been reserved at least once). */
+  reserved: boolean
 }
 
+/**
+ * Current and final price are `null` until reservation (contract §2), so a WAITING order shows the
+ * reference price as «Precio al agendar» (never $0.00, never «Vigente»). Once final is known, the
+ * reference and current prices are listed only when they differ from it.
+ */
 export function backorderPrice(
   backorder: Pick<BackorderStaff, 'referencePriceCents' | 'currentPriceCents' | 'finalPriceCents'>,
 ): BackorderPriceView {
+  if (backorder.finalPriceCents === null || backorder.finalPriceCents === undefined) {
+    return {
+      final: formatCentsMXN(backorder.referencePriceCents),
+      notes: ['Precio al agendar'],
+      reserved: false,
+    }
+  }
   const notes: string[] = []
   if (backorder.referencePriceCents !== backorder.finalPriceCents) {
     notes.push(`Al agendar ${formatCentsMXN(backorder.referencePriceCents)}`)
   }
-  if (backorder.currentPriceCents !== backorder.finalPriceCents) {
+  if (backorder.currentPriceCents != null && backorder.currentPriceCents !== backorder.finalPriceCents) {
     notes.push(`Vigente ${formatCentsMXN(backorder.currentPriceCents)}`)
   }
-  return { final: formatCentsMXN(backorder.finalPriceCents), notes }
+  return { final: formatCentsMXN(backorder.finalPriceCents), notes, reserved: true }
+}
+
+/** Route of the chatbot request behind the order, or `null` when it has none. */
+export function chatbotRequestPath(backorder: Pick<BackorderStaff, 'chatbotRequestId'>): string | null {
+  return backorder.chatbotRequestId ? `/chatbot/solicitudes/${backorder.chatbotRequestId}` : null
 }
 
 export function productLabel(

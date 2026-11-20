@@ -44,3 +44,18 @@ export function makeBackorder(overrides: Partial<BackorderStaff> = {}): Backorde
 }
 
 export const countsFixture: BackorderCounts = { WAITING: 4, RESERVED: 2, CONFIRMED: 7, EXPIRED: 1, CANCELLED: 3 }
+
+/** A WAITING order as the server sends it: nothing reserved yet, so current/final price are null. */
+export function makeWaitingBackorder(overrides: Partial<BackorderStaff> = {}): BackorderStaff {
+  return makeBackorder({
+    status: 'WAITING',
+    queuePosition: 2,
+    currentPriceCents: null,
+    finalPriceCents: null,
+    referencePriceCents: 114900,
+    reservedAt: null,
+    reservedUntil: null,
+    reminderAt: null,
+    ...overrides,
+  })
+}

@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { flushPromises, mount } from '@vue/test-utils'
 import { ref, type Ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
-import { countsFixture, makeBackorder } from '../../interfaces/__tests__/backorder.fixture'
+import { countsFixture, makeBackorder, makeWaitingBackorder } from '../../interfaces/__tests__/backorder.fixture'
 import type { BackorderCounts, BackorderListParams, BackorderStaff } from '../../interfaces/backorder.types'
 
 const list = vi.hoisted(() => ({
@@ -177,11 +179,11 @@ describe('BackordersListView — status tabs (S1)', () => {
     expect(lastParams()).toMatchObject({ status: ['WAITING'], sortBy: 'scheduledAt', sortOrder: 'asc', page: 1 })
   })
 
-  it('a tab click writes ?tab= to the URL, queries that status and starts at page 1', async () => {
+  it('a tab click writes ?status= to the URL, queries that status and starts at page 1', async () => {
     const { wrapper, router } = await mountAt('/pos/pedidos-reposicion?page=3')
     await wrapper.findAll('[data-testid="backorder-tab"]')[1]!.trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.query).toEqual({ tab: 'reserved' })
+    expect(router.currentRoute.value.query).toEqual({ status: 'RESERVED' })
     expect(lastParams()).toMatchObject({ status: ['RESERVED'], sortBy: 'reservedUntil', sortOrder: 'asc', page: 1 })
     await wrapper.findAll('[data-testid="backorder-tab"]')[0]!.trigger('click')
     await flushPromises()
@@ -190,7 +192,7 @@ describe('BackordersListView — status tabs (S1)', () => {
 
   it('reads the tab from the URL and omits counts it does not have yet', async () => {
     list.counts.value = null
-    const { wrapper } = await mountAt('/pos/pedidos-reposicion?tab=cancelled')
+    const { wrapper } = await mountAt('/pos/pedidos-reposicion?status=CANCELLED')
     const tabs = wrapper.findAll('[data-testid="backorder-tab"]')
     expect(tabs[4]!.attributes('aria-pressed')).toBe('true')
     expect(tabs[4]!.text()).toBe('Cancelados')
@@ -232,14 +234,14 @@ describe('BackordersListView — filters, sort and paging in the URL', () => {
   })
 
   it('sorting: the table shows the tab default and clicks map to sortBy/order', async () => {
-    const { wrapper, router } = await mountAt('/pos/pedidos-reposicion?tab=reserved')
+    const { wrapper, router } = await mountAt('/pos/pedidos-reposicion?status=RESERVED')
     expect(wrapper.find('[data-testid="table"]').attributes('data-sort')).toBe('[{"id":"info","desc":false}]')
     await wrapper.find('[data-testid="sort-reserved"]').trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.query).toEqual({ tab: 'reserved', order: 'desc' })
+    expect(router.currentRoute.value.query).toEqual({ status: 'RESERVED', order: 'desc' })
     await wrapper.find('[data-testid="sort-clear"]').trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.query).toEqual({ tab: 'reserved' })
+    expect(router.currentRoute.value.query).toEqual({ status: 'RESERVED' })
   })
 
   it('only offers the sort on the columns the backend can order by', async () => {
@@ -265,11 +267,11 @@ describe('BackordersListView — filters, sort and paging in the URL', () => {
 
   it('«Quitar filtros» clears search and dates, keeps the tab; no-match is told apart from empty', async () => {
     list.items.value = []
-    const { wrapper, router } = await mountAt('/pos/pedidos-reposicion?tab=expired&q=zzz&from=2026-11-01')
+    const { wrapper, router } = await mountAt('/pos/pedidos-reposicion?status=EXPIRED&q=zzz&from=2026-11-01')
     expect(wrapper.find('[data-testid="table-empty"]').text()).toContain('no-match')
     await wrapper.find('[data-testid="clear-filters"]').trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.query).toEqual({ tab: 'expired' })
+    expect(router.currentRoute.value.query).toEqual({ status: 'EXPIRED' })
   })
 })
 
@@ -278,7 +280,7 @@ describe('BackordersListView — cells per status (S1)', () => {
     wrapper.find(`[data-testid="${id}"]`).text().replace(/\s+/g, ' ')
 
   it('shows folio, customer (name + phone), product, quantity, price, dates and ETA', async () => {
-    const { wrapper } = await mountAt('/pos/pedidos-reposicion?tab=reserved')
+    const { wrapper } = await mountAt('/pos/pedidos-reposicion?status=RESERVED')
     expect(text(wrapper, 'backorder-folio')).toBe('BO-000012')
     expect(text(wrapper, 'backorder-customer')).toContain('Rosa Elena Díaz')
     expect(text(wrapper, 'backorder-customer')).toContain('+525512345678')
@@ -290,6 +292,23 @@ describe('BackordersListView — cells per status (S1)', () => {
     expect(text(wrapper, 'backorder-scheduled')).toMatch(/14 nov/)
     expect(text(wrapper, 'backorder-eta')).toMatch(/21 nov/)
     expect(wrapper.find('[data-testid="backorder-eta-overdue"]').exists()).toBe(false)
+  })
+
+  it('a WAITING order (null current/final price) shows the reference price, no $0.00 and no «Vigente»', async () => {
+    list.items.value = [makeWaitingBackorder()]
+    const { wrapper } = await mountAt('/pos/pedidos-reposicion')
+    expect(text(wrapper, 'backorder-price')).toBe('$1,149.00Precio al agendar')
+    expect(wrapper.text()).not.toMatch(/\$0\.00|Vigente/)
+    expect(wrapper.find('[data-testid="backorder-card"]').text()).toContain('$1,149.00')
+    expect(wrapper.find('[data-testid="backorder-card"]').text()).not.toMatch(/\$0\.00|Vigente/)
+  })
+
+  it('without a phone the customer cell shows the name only', async () => {
+    list.items.value = [makeBackorder({ customer: { id: 'c1', name: 'Rosa Elena Díaz', phone: null } })]
+    const { wrapper } = await mountAt('/pos/pedidos-reposicion')
+    expect(text(wrapper, 'backorder-customer')).toBe('Rosa Elena Díaz')
+    expect(wrapper.find('[data-testid="backorder-card"]').text()).toContain('Rosa Elena Díaz')
+    expect(wrapper.find('[data-testid="backorder-card"]').text()).not.toContain('null')
   })
 
   it('an overdue ETA gets a warning word, never danger styling', async () => {
@@ -315,13 +334,13 @@ describe('BackordersListView — cells per status (S1)', () => {
   })
 
   it('RESERVED → «Apartado hasta …»', async () => {
-    const { wrapper } = await mountAt('/pos/pedidos-reposicion?tab=reserved')
+    const { wrapper } = await mountAt('/pos/pedidos-reposicion?status=RESERVED')
     expect(text(wrapper, 'backorder-info')).toMatch(/Apartado hasta 21 nov/)
   })
 
   it('CONFIRMED → «Ver venta» links to the sale', async () => {
     list.items.value = [makeBackorder({ status: 'CONFIRMED', saleId: 'sale-9', saleStatus: 'CONFIRMED' })]
-    const { wrapper } = await mountAt('/pos/pedidos-reposicion?tab=confirmed')
+    const { wrapper } = await mountAt('/pos/pedidos-reposicion?status=CONFIRMED')
     const link = wrapper.find('[data-testid="backorder-info"] a')
     expect(link.text()).toBe('Ver venta')
     expect(link.attributes('href')).toBe('/pos/ventas/sale-9')
@@ -336,15 +355,48 @@ describe('BackordersListView — cells per status (S1)', () => {
         cancelReason: 'Proveedor descontinuó',
       }),
     ]
-    const { wrapper } = await mountAt('/pos/pedidos-reposicion?tab=cancelled')
+    const { wrapper } = await mountAt('/pos/pedidos-reposicion?status=CANCELLED')
     expect(text(wrapper, 'backorder-info')).toContain('Canceló Ana Gómez')
     expect(text(wrapper, 'backorder-info')).toContain('Proveedor descontinuó')
   })
 })
 
+describe('BackordersListView — column sizing (no truncation at 1440)', () => {
+  type Col = { id: string; size?: number; minSize?: number; meta?: { class?: { td?: string } } }
+  const columns = async () => {
+    const { wrapper } = await mountAt('/pos/pedidos-reposicion')
+    return wrapper.findComponent({ name: 'AppDataTable' }).props('columns') as Col[]
+  }
+
+  it('folio and date columns have a no-wrap floor that fits «BO-000012» and «16 nov, 22:45»', async () => {
+    const byId = Object.fromEntries((await columns()).map((c) => [c.id, c]))
+    expect(byId.folio!.minSize).toBeGreaterThanOrEqual(112)
+    expect(byId.scheduledAt!.minSize).toBeGreaterThanOrEqual(128)
+    expect(byId.eta!.minSize).toBeGreaterThanOrEqual(128)
+  })
+
+  it('product and follow-up cells may wrap (2-line clamp, wrapping follow-up)', async () => {
+    const byId = Object.fromEntries((await columns()).map((c) => [c.id, c]))
+    expect(byId.info!.meta?.class?.td).toContain('bo-wrap')
+    expect(byId.product!.meta?.class?.td).toContain('bo-wrap')
+    expect(byId.product!.minSize).toBeGreaterThanOrEqual(192)
+    expect(byId.info!.minSize).toBeGreaterThanOrEqual(176)
+    const { wrapper } = await mountAt('/pos/pedidos-reposicion')
+    expect(wrapper.find('[data-testid="backorder-product"] .bo-clamp').exists()).toBe(true)
+  })
+
+  it('the tab row hides its scrollbar but keeps horizontal scroll', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/POS/backorders/styles/backorders.css'), 'utf8')
+    const block = css.slice(css.indexOf('.bo-tabs {'), css.indexOf('}', css.indexOf('.bo-tabs {')))
+    expect(block).toContain('overflow-x: auto')
+    expect(block).toContain('scrollbar-width: none')
+    expect(css).toContain('.bo-tabs::-webkit-scrollbar')
+  })
+})
+
 describe('BackordersListView — opening and row actions', () => {
   it('a row opens the detail', async () => {
-    const { wrapper, router } = await mountAt('/pos/pedidos-reposicion?tab=reserved')
+    const { wrapper, router } = await mountAt('/pos/pedidos-reposicion?status=RESERVED')
     await wrapper.find('[data-testid="row"]').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.path).toBe('/pos/pedidos-reposicion/3f6c1c52-5d0e-4b53-9d33-0d3f8c4a9a01')
@@ -365,8 +417,16 @@ describe('BackordersListView — opening and row actions', () => {
     expect(actions()).toEqual(['open', 'request', 'sale'])
   })
 
+  it('an order without a chatbot request has no «Ver solicitud» action (never /chatbot/solicitudes/null)', async () => {
+    list.items.value = [makeBackorder({ chatbotRequestId: null })]
+    const { wrapper } = await mountAt('/pos/pedidos-reposicion')
+    for (const menu of wrapper.findAll('[data-testid="row-actions"]')) {
+      expect(menu.findAll('button').map((b) => b.attributes('data-action'))).toEqual(['open'])
+    }
+  })
+
   it('renders a card at 390 with the same data (folio, customer, product, status cell)', async () => {
-    const { wrapper } = await mountAt('/pos/pedidos-reposicion?tab=reserved')
+    const { wrapper } = await mountAt('/pos/pedidos-reposicion?status=RESERVED')
     const card = wrapper.find('[data-testid="backorder-card"]')
     expect(card.text()).toContain('BO-000012')
     expect(card.text()).toContain('Rosa Elena Díaz')

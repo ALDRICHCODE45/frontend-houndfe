@@ -6,10 +6,14 @@
   width: max-content;
   gap: 4px;
   overflow-x: auto;
+  scrollbar-width: none;
   padding: 4px;
   border: 1px solid var(--hf-border);
   border-radius: 12px;
   background: var(--hf-surface-muted);
+}
+.bo-tabs::-webkit-scrollbar {
+  display: none;
 }
 .bo-tabs button {
   display: inline-flex;
@@ -326,4 +330,19 @@
   height: 96px;
   border-radius: 12px;
   background: color-mix(in srgb, var(--hf-ink) 12%, var(--hf-surface));
+}
+
+/* Cells that wrap instead of truncating (the table sets `whitespace-nowrap` on every td). */
+.hf-ui.bo-page td.bo-wrap {
+  white-space: normal;
+}
+/* Product name: up to two lines, then an ellipsis. */
+.hf-ui.bo-page .bo-clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }

@@ -23,9 +23,12 @@ export interface BackorderBot {
   variantId: string | null
   variantName: string | null
   quantity: number
+  /** Unit price at scheduling. */
   referencePriceCents: number
-  currentPriceCents: number
-  finalPriceCents: number
+  /** Contract §2 `int?`: set at reservation, so `null` while WAITING. */
+  currentPriceCents: number | null
+  /** Contract §2 `int?`: `min(reference, current)`, set at reservation; `null` while WAITING. */
+  finalPriceCents: number | null
   scheduledAt: string
   estimatedAt: string
   estimatedArrivalDays: number
@@ -44,7 +47,8 @@ export interface BackorderBot {
 export interface BackorderCustomer {
   id: string
   name: string
-  phone: string
+  /** A customer can have no phone on file (the chatbot's customers always do). */
+  phone: string | null
 }
 
 export interface BackorderCancelledBy {
@@ -58,7 +62,8 @@ export interface BackorderStaff extends BackorderBot {
   version: number
   customer: BackorderCustomer
   origin: 'CHATBOT'
-  chatbotRequestId: string
+  /** Contract §2 `UUID?`: only when the bot created the order through the wrapper request. */
+  chatbotRequestId: string | null
   productImageUrl: string | null
   priceListId: string | null
   confirmedAt: string | null

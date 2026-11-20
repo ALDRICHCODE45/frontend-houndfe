@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { makeBackorder } from '../../interfaces/__tests__/backorder.fixture'
+import { makeBackorder, makeWaitingBackorder } from '../../interfaces/__tests__/backorder.fixture'
 import {
   BACKORDER_TABS,
   backorderCancelCopy,
@@ -9,6 +9,7 @@ import {
   backorderStatusTone,
   backorderTimeline,
   canCancelBackorder,
+  chatbotRequestPath,
   isBackorderStatus,
   productLabel,
 } from '../backorderView'
@@ -44,16 +45,46 @@ describe('status vocabulary (S1, S4)', () => {
 describe('backorderPrice', () => {
   it('shows only the final price when reference and current equal it', () => {
     const row = makeBackorder({ referencePriceCents: 100000, currentPriceCents: 100000, finalPriceCents: 100000 })
-    expect(backorderPrice(row)).toEqual({ final: '$1,000.00', notes: [] })
+    expect(backorderPrice(row)).toEqual({ final: '$1,000.00', notes: [], reserved: true })
   })
 
   it('shows the reference («al agendar») when it differs, from S3\'s example', () => {
-    expect(backorderPrice(makeBackorder())).toEqual({ final: '$1,099.00', notes: ['Al agendar $1,149.00'] })
+    expect(backorderPrice(makeBackorder())).toEqual({
+      final: '$1,099.00',
+      notes: ['Al agendar $1,149.00'],
+      reserved: true,
+    })
   })
 
   it('shows both when neither equals the final price', () => {
     const row = makeBackorder({ referencePriceCents: 120000, currentPriceCents: 115000, finalPriceCents: 110000 })
     expect(backorderPrice(row).notes).toEqual(['Al agendar $1,200.00', 'Vigente $1,150.00'])
+  })
+})
+
+describe('backorderPrice with nulls (contract §2: current and final are set at reservation)', () => {
+  it('a WAITING order shows the reference price with a muted note, never $0.00 or «Vigente»', () => {
+    const view = backorderPrice(makeWaitingBackorder())
+    expect(view).toEqual({ final: '$1,149.00', notes: ['Precio al agendar'], reserved: false })
+    expect(JSON.stringify(view)).not.toMatch(/\$0\.00|Vigente/)
+  })
+
+  it('a null final price wins over a stray current price: no «Vigente» without a final', () => {
+    const view = backorderPrice(makeWaitingBackorder({ currentPriceCents: 109900 }))
+    expect(view.notes).toEqual(['Precio al agendar'])
+  })
+
+  it('compares reference and current only when both are known and differ from the final', () => {
+    expect(backorderPrice(makeBackorder({ currentPriceCents: null })).notes).toEqual(['Al agendar $1,149.00'])
+    expect(backorderPrice(makeBackorder()).reserved).toBe(true)
+  })
+})
+
+describe('chatbotRequestPath (contract: chatbotRequestId is UUID?)', () => {
+  it('links the request, or nothing when the order has none', () => {
+    expect(chatbotRequestPath(makeBackorder())).toBe('/chatbot/solicitudes/bbbbbbbb-0000-4000-8000-000000000003')
+    expect(chatbotRequestPath(makeBackorder({ chatbotRequestId: null }))).toBeNull()
+    expect(chatbotRequestPath(makeBackorder({ chatbotRequestId: '' }))).toBeNull()
   })
 })
 
