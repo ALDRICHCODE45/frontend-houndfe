@@ -94,6 +94,9 @@ const APP_SUBJECTS: AppSubject[] = [
   'ChatbotSettings',
   'ChatbotSettingsAllBranches',
   'ReceiptEvidence',
+  // ODD restock-backorder T1 (S2): without this entry parsePermissionCode returns null and the
+  // read/update:Backorder grants drop silently — the route and menu entry would never open.
+  'Backorder',
   'all',
 ]
 

@@ -158,6 +158,9 @@ export type AppSubject =
   | 'ChatbotSettings'
   | 'ChatbotSettingsAllBranches'
   | 'ReceiptEvidence'
+  // ODD restock-backorder T1 (S2): «Pedidos por reposición» (read; update = cancel). The runtime
+  // half is APP_SUBJECTS in authorization/ability.ts.
+  | 'Backorder'
   | 'all'
 
 interface EffectivePermission {
