@@ -43,6 +43,7 @@ import { productStatusConfig } from '../utils/productStatusConfig.utils'
 import { productStockTotal } from '../utils/productStockTotal'
 import {
   backorderVariantBlockMessage,
+  backorderVariantDeleteMessage,
   hasStockOnHand,
   productStockError,
   type ProductStockErrorField,
@@ -903,6 +904,8 @@ function mapDomainError(error: AxiosError<DomainApiError>): string {
   if (stockMessage) return stockMessage
   const backorderMessage = backorderVariantBlockMessage(error)
   if (backorderMessage) return backorderMessage
+  const variantDeleteMessage = backorderVariantDeleteMessage(error)
+  if (variantDeleteMessage) return variantDeleteMessage
   return response.message ?? 'No pudimos completar la operación. Reintenta en unos segundos.'
 }
 
@@ -1943,12 +1946,16 @@ async function handleDeleteVariant(variantId: string, variantName: string) {
   if (!canDeleteProduct.value) return
 
   openConfirm(`¿Quieres eliminar la variante ${variantName}?`, () => {
-    void deleteVariantMutation.mutateAsync(variantId).then(() => {
-      if (variantDetailModalVariant.value?.id === variantId) {
-        isVariantDetailModalOpen.value = false
-        variantDetailModalVariant.value = null
-      }
-    })
+    void deleteVariantMutation
+      .mutateAsync(variantId)
+      .then(() => {
+        if (variantDetailModalVariant.value?.id === variantId) {
+          isVariantDetailModalOpen.value = false
+          variantDetailModalVariant.value = null
+        }
+      })
+      // The mutation's onError already tells the user; the variant stays.
+      .catch(() => undefined)
   })
 }
 

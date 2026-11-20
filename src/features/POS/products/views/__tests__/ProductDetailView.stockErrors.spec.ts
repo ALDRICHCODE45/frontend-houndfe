@@ -13,6 +13,7 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import UApp from '@nuxt/ui/runtime/components/App.vue'
 import ProductDetailView from '../ProductDetailView.vue'
 import ProductLotsTable from '../../components/ProductLotsTable.vue'
+import ProductVariantsTable from '../../components/ProductVariantsTable.vue'
 
 const toast = vi.hoisted(() => vi.fn())
 vi.stubGlobal('useToast', () => ({ add: toast }))
@@ -39,6 +40,7 @@ const api = vi.hoisted(() => ({
   update: vi.fn(),
   removeLot: vi.fn(),
   createVariant: vi.fn(),
+  removeVariant: vi.fn(),
 }))
 vi.mock('../../api/product.api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../api/product.api')>()
@@ -250,6 +252,61 @@ describe('ProductDetailView — variants blocked by active backorders (restock b
     expect(toast).toHaveBeenCalledWith({ title: 'Error al crear variante', description: COPY, color: 'error' })
     expect(document.getElementById('variant-modal-form')).not.toBeNull()
     expect((document.querySelector('input[name="value"]') as HTMLInputElement).value).toBe('Rojo')
+  })
+})
+
+describe('ProductDetailView — variant delete blocked by backorders (restock backorder S13)', () => {
+  const COPY =
+    'No se puede eliminar la variante: tiene pedidos por reposición, aunque ya estén terminados. Se conserva para no perder su historial.'
+  const variant = {
+    id: 'var-1',
+    productId: 'prod-1',
+    name: 'Rojo',
+    option: 'Color',
+    value: 'Rojo',
+    sku: null,
+    barcode: null,
+    priceCents: 1000,
+    quantity: 3,
+    minQuantity: 0,
+    purchaseNetCostCents: null,
+    purchaseNetCostDecimal: null,
+    variantPrices: [],
+    createdAt: '2026-04-23T00:00:00.000Z',
+    updatedAt: '2026-04-23T00:00:00.000Z',
+  }
+
+  async function confirmDelete() {
+    const view = await mountView({ quantity: 0, hasVariants: true })
+    await vi.waitFor(() => expect(view.text()).toContain('Rojo'))
+    view.findComponent(ProductVariantsTable).vm.$emit('action', 'delete', 'var-1')
+    await flushPromises()
+    const confirm = [...document.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Eliminar')!
+    confirm.click()
+    await vi.waitFor(() => expect(api.removeVariant).toHaveBeenCalledWith('prod-1', 'var-1'))
+    await flushPromises()
+    return view
+  }
+
+  beforeEach(() => api.getVariants.mockResolvedValue([variant]))
+
+  it('409 VARIANT_HAS_BACKORDERS shows the copy, not the server wording, and the variant stays', async () => {
+    api.removeVariant.mockRejectedValueOnce(reject('VARIANT_HAS_BACKORDERS'))
+    const view = await confirmDelete()
+    expect(toast).toHaveBeenCalledTimes(1)
+    expect(toast).toHaveBeenCalledWith({ title: 'Error al eliminar variante', description: COPY, color: 'error' })
+    expect(document.body.textContent).not.toContain(SERVER_MESSAGE)
+    expect(view.text()).toContain('Rojo')
+  })
+
+  it('any other delete error keeps the server message', async () => {
+    api.removeVariant.mockRejectedValueOnce(reject('SOMETHING_ELSE', 500))
+    await confirmDelete()
+    expect(toast).toHaveBeenCalledWith({
+      title: 'Error al eliminar variante',
+      description: SERVER_MESSAGE,
+      color: 'error',
+    })
   })
 })
 
