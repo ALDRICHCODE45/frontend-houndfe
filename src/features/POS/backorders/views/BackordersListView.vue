@@ -123,40 +123,37 @@ const showingFrom = computed(() => (list.total.value === 0 ? 0 : (state.value.pa
 const showingTo = computed(() => (list.total.value === 0 ? 0 : (state.value.page - 1) * state.value.limit + list.items.value.length))
 
 // ── Columns ──────────────────────────────────────────────────────────────────
-const right = { th: 'text-right', td: 'text-right' }
-// `minSize` is the floor the table shrinks to at 1440 with the sidebar: no-wrap columns keep room
-// for «BO-000012» and «16 nov, 22:45»; product and follow-up wrap (`bo-wrap`, product clamps to 2 lines).
+// Order: the follow-up column (queue position, passed-over warning, reserve deadline) comes right after
+// the product. `minSize` is the floor the table shrinks to; the floors plus the 64px Acciones column
+// add up to 1008px, so at 1440 with the sidebar open (~1020px) nothing scrolls sideways:
+// folio 112 + cliente 128 + producto 160 + seguimiento 160 + precio 128 + agendado 120 + llegada 136 + 64.
+// Folio and the dates never wrap («BO-000012», «16 nov, 22:45»); name, product, follow-up and price may.
+const wrap = { th: '', td: 'bo-wrap' }
 const columns = computed<TableColumn<BackorderStaff>[]>(() => [
   { id: 'folio', header: 'Folio', enableSorting: false, size: 120, minSize: 112 },
-  { id: 'customer', header: 'Cliente', enableSorting: false, meta: { primary: true } },
-  {
-    id: 'product',
-    header: 'Producto',
-    enableSorting: false,
-    size: 248,
-    minSize: 192,
-    meta: { class: { th: '', td: 'bo-wrap' } },
-  },
-  { id: 'quantity', header: 'Cantidad', enableSorting: false, size: 96, minSize: 80, meta: { class: right } },
-  { id: 'price', header: 'Precio final', enableSorting: false, size: 152, minSize: 136, meta: { class: right } },
-  { id: 'scheduledAt', header: 'Agendado', enableSorting: true, size: 144, minSize: 128 },
-  { id: 'eta', header: 'Llegada estimada', enableSorting: false, size: 160, minSize: 128 },
+  { id: 'customer', header: 'Cliente', enableSorting: false, size: 176, minSize: 128, meta: { primary: true, class: wrap } },
+  { id: 'product', header: 'Producto', enableSorting: false, size: 208, minSize: 160, meta: { class: wrap } },
   // Sortable only in Apartados (`sortBy=reservedUntil`); on the other tabs the order is by `scheduledAt`.
+  { id: 'info', header: 'Seguimiento', enableSorting: state.value.tab === 'RESERVED', size: 200, minSize: 160, meta: { class: wrap } },
+  // «2 × $1,149.00»: the quantity leads the price (like the mobile card), so there is no Cantidad column.
   {
-    id: 'info',
-    header: 'Seguimiento',
-    enableSorting: state.value.tab === 'RESERVED',
-    size: 208,
-    minSize: 176,
-    meta: { class: { th: '', td: 'bo-wrap' } },
+    id: 'price',
+    header: 'Precio',
+    enableSorting: false,
+    size: 144,
+    minSize: 128,
+    meta: { class: { th: 'text-right', td: 'bo-wrap text-right' } },
   },
+  { id: 'scheduledAt', header: 'Agendado', enableSorting: true, size: 136, minSize: 120 },
+  { id: 'eta', header: 'Llegada estimada', enableSorting: false, size: 152, minSize: 136 },
   { id: 'actions', header: 'Acciones', enableSorting: false, meta: { class: { th: 'w-16', td: 'w-16 text-right' } } },
 ])
 
 // Column layout saved per user in this browser (order, pins, widths, visibility, density).
 const layout = useTablePreferences({
-  persistKey: 'pos-backorders',
-  columnIds: ['folio', 'customer', 'product', 'quantity', 'price', 'scheduledAt', 'eta', 'info', 'actions'],
+  // v2: the column set and order changed, so a layout saved under the old key must not reorder this one.
+  persistKey: 'pos-backorders-v2',
+  columnIds: ['folio', 'customer', 'product', 'info', 'price', 'scheduledAt', 'eta', 'actions'],
 })
 const { columnOrder, columnPinning, columnSizing, columnVisibility, density } = layout
 
@@ -270,7 +267,7 @@ const when = (iso: string) => formatShortDateTime(iso)
 
           <template #customer-cell="{ row }">
             <span class="bo-stack" data-testid="backorder-customer">
-              <span class="hf-row-primary">{{ row.original.customer.name }}</span>
+              <span class="hf-row-primary bo-clamp">{{ row.original.customer.name }}</span>
               <span v-if="row.original.customer.phone" class="hf-row-secondary">{{ row.original.customer.phone }}</span>
             </span>
           </template>
@@ -287,13 +284,9 @@ const when = (iso: string) => formatShortDateTime(iso)
             </span>
           </template>
 
-          <template #quantity-cell="{ row }">
-            <span class="hf-figure" data-testid="backorder-quantity">{{ row.original.quantity }}</span>
-          </template>
-
           <template #price-cell="{ row }">
             <span class="bo-stack bo-stack--end" data-testid="backorder-price">
-              <span class="hf-figure bo-final">{{ backorderPrice(row.original).final }}</span>
+              <span class="hf-figure bo-final">{{ row.original.quantity }} × {{ backorderPrice(row.original).final }}</span>
               <span v-for="note in backorderPrice(row.original).notes" :key="note" class="hf-row-secondary hf-figure">{{ note }}</span>
             </span>
           </template>

@@ -66,7 +66,6 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
           <slot name="folio-cell" :row="{ original: row }" />
           <slot name="customer-cell" :row="{ original: row }" />
           <slot name="product-cell" :row="{ original: row }" />
-          <slot name="quantity-cell" :row="{ original: row }" />
           <slot name="price-cell" :row="{ original: row }" />
           <slot name="scheduledAt-cell" :row="{ original: row }" />
           <slot name="eta-cell" :row="{ original: row }" />
@@ -279,13 +278,13 @@ describe('BackordersListView — cells per status (S1)', () => {
   const text = (wrapper: ReturnType<typeof mount>, id: string) =>
     wrapper.find(`[data-testid="${id}"]`).text().replace(/\s+/g, ' ')
 
-  it('shows folio, customer (name + phone), product, quantity, price, dates and ETA', async () => {
+  it('shows folio, customer (name + phone), product, quantity × price, dates and ETA', async () => {
     const { wrapper } = await mountAt('/pos/pedidos-reposicion?status=RESERVED')
     expect(text(wrapper, 'backorder-folio')).toBe('BO-000012')
     expect(text(wrapper, 'backorder-customer')).toContain('Rosa Elena Díaz')
     expect(text(wrapper, 'backorder-customer')).toContain('+525512345678')
     expect(text(wrapper, 'backorder-product')).toContain('Croquetas Adulto Raza Grande 18 kg')
-    expect(text(wrapper, 'backorder-quantity')).toBe('2')
+    expect(text(wrapper, 'backorder-price')).toMatch(/^2 × \$1,099\.00/)
     expect(text(wrapper, 'backorder-price')).toContain('$1,099.00')
     expect(text(wrapper, 'backorder-price')).toContain('Al agendar $1,149.00')
     expect(wrapper.find('[data-testid="backorder-price"] .hf-figure').exists()).toBe(true)
@@ -297,7 +296,7 @@ describe('BackordersListView — cells per status (S1)', () => {
   it('a WAITING order (null current/final price) shows the reference price, no $0.00 and no «Vigente»', async () => {
     list.items.value = [makeWaitingBackorder()]
     const { wrapper } = await mountAt('/pos/pedidos-reposicion')
-    expect(text(wrapper, 'backorder-price')).toBe('$1,149.00Precio al agendar')
+    expect(text(wrapper, 'backorder-price')).toBe('2 × $1,149.00Precio al agendar')
     expect(wrapper.text()).not.toMatch(/\$0\.00|Vigente/)
     expect(wrapper.find('[data-testid="backorder-card"]').text()).toContain('$1,149.00')
     expect(wrapper.find('[data-testid="backorder-card"]').text()).not.toMatch(/\$0\.00|Vigente/)
@@ -361,6 +360,45 @@ describe('BackordersListView — cells per status (S1)', () => {
   })
 })
 
+describe('BackordersListView — column layout at 1440 with the sidebar (~1020px)', () => {
+  const headers = async () => {
+    const { wrapper } = await mountAt('/pos/pedidos-reposicion')
+    return wrapper.findAll('[data-testid="column-header"]')
+  }
+
+  it('orders the columns Folio, Cliente, Producto, Seguimiento, Precio, Agendado, Llegada estimada, Acciones', async () => {
+    const cols = await headers()
+    expect(cols.map((c) => c.attributes('data-column'))).toEqual([
+      'folio', 'customer', 'product', 'info', 'price', 'scheduledAt', 'eta', 'actions',
+    ])
+    expect(cols.map((c) => c.text())).toEqual([
+      'Folio', 'Cliente', 'Producto', 'Seguimiento', 'Precio', 'Agendado', 'Llegada estimada', 'Acciones',
+    ])
+  })
+
+  it('has no separate Cantidad column: the quantity leads the price cell', async () => {
+    const cols = await headers()
+    expect(cols.some((c) => c.attributes('data-column') === 'quantity')).toBe(false)
+    expect(cols.some((c) => c.text() === 'Cantidad' || c.text() === 'Precio final')).toBe(false)
+  })
+
+  it('the floors of every column add up to at most 1020px, so nothing scrolls sideways', async () => {
+    const { wrapper } = await mountAt('/pos/pedidos-reposicion')
+    const columns = wrapper.findComponent({ name: 'AppDataTable' }).props('columns') as Array<{ id: string; minSize?: number }>
+    const ACTIONS = 64 // the locked Acciones column
+    const floors = columns.filter((c) => c.id !== 'actions').map((c) => c.minSize ?? 0)
+    expect(floors.every((floor) => floor > 0)).toBe(true)
+    expect(floors.reduce((sum, floor) => sum + floor, ACTIONS)).toBeLessThanOrEqual(1020)
+  })
+
+  it('the customer name may wrap to two lines instead of ellipsis', async () => {
+    const { wrapper } = await mountAt('/pos/pedidos-reposicion')
+    const columns = wrapper.findComponent({ name: 'AppDataTable' }).props('columns') as Array<{ id: string; meta?: { class?: { td?: string } } }>
+    expect(columns.find((c) => c.id === 'customer')!.meta?.class?.td).toContain('bo-wrap')
+    expect(wrapper.find('[data-testid="backorder-customer"] .bo-clamp').exists()).toBe(true)
+  })
+})
+
 describe('BackordersListView — column sizing (no truncation at 1440)', () => {
   type Col = { id: string; size?: number; minSize?: number; meta?: { class?: { td?: string } } }
   const columns = async () => {
@@ -371,16 +409,16 @@ describe('BackordersListView — column sizing (no truncation at 1440)', () => {
   it('folio and date columns have a no-wrap floor that fits «BO-000012» and «16 nov, 22:45»', async () => {
     const byId = Object.fromEntries((await columns()).map((c) => [c.id, c]))
     expect(byId.folio!.minSize).toBeGreaterThanOrEqual(112)
-    expect(byId.scheduledAt!.minSize).toBeGreaterThanOrEqual(128)
-    expect(byId.eta!.minSize).toBeGreaterThanOrEqual(128)
+    expect(byId.scheduledAt!.minSize).toBeGreaterThanOrEqual(120)
+    expect(byId.eta!.minSize).toBeGreaterThanOrEqual(120)
   })
 
   it('product and follow-up cells may wrap (2-line clamp, wrapping follow-up)', async () => {
     const byId = Object.fromEntries((await columns()).map((c) => [c.id, c]))
     expect(byId.info!.meta?.class?.td).toContain('bo-wrap')
     expect(byId.product!.meta?.class?.td).toContain('bo-wrap')
-    expect(byId.product!.minSize).toBeGreaterThanOrEqual(192)
-    expect(byId.info!.minSize).toBeGreaterThanOrEqual(176)
+    expect(byId.product!.minSize).toBeGreaterThanOrEqual(144)
+    expect(byId.info!.minSize).toBeGreaterThanOrEqual(144)
     const { wrapper } = await mountAt('/pos/pedidos-reposicion')
     expect(wrapper.find('[data-testid="backorder-product"] .bo-clamp').exists()).toBe(true)
   })
