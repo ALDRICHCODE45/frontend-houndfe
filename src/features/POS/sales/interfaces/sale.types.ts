@@ -552,6 +552,8 @@ export type ChargeDomainErrorCode =
   | 'SALE_ALREADY_CONFIRMED'
   | 'PRICE_OUT_OF_DATE'
   | 'STOCK_INSUFFICIENT_AT_CONFIRM'
+  // Restock backorders: 409 on charge when `available + reserved` covers the sale but units are held for backorders.
+  | 'STOCK_RESERVED_FOR_BACKORDER'
   | 'IDEMPOTENCY_KEY_CONFLICT'
   | 'IDEMPOTENCY_KEY_IN_FLIGHT'
   | 'IDEMPOTENCY_KEY_REQUIRED'
@@ -569,6 +571,13 @@ export type ChargeDomainErrorCode =
   // into the sales service (fail closed). Never expected in a deployed build:
   // a generic error with no retry, mapped in `salePaymentErrors.utils.ts`.
   | 'SALE_STOCK_UNAVAILABLE'
+
+/** Restock backorders: advisory notice on the touched line of an add-item / PATCH response only. Never persisted. */
+export interface SaleItemStockWarning {
+  code: 'STOCK_RESERVED_FOR_BACKORDER'
+  available: number
+  reserved: number
+}
 
 export interface SaleItem {
   id: string
@@ -605,6 +614,7 @@ export interface SaleItem {
   // optional + nullable keeps backward compat.
   rewardKind?: SaleRewardKind
   rewardDiscountPercent?: number | null
+  stockWarning?: SaleItemStockWarning
 }
 
 export interface SaleDraftCustomer {

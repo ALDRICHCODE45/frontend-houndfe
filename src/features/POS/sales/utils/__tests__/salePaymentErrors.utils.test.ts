@@ -20,6 +20,7 @@ const ALL_CHARGE_DOMAIN_ERROR_CODES: ChargeDomainErrorCode[] = [
   'SALE_ALREADY_CONFIRMED',
   'PRICE_OUT_OF_DATE',
   'STOCK_INSUFFICIENT_AT_CONFIRM',
+  'STOCK_RESERVED_FOR_BACKORDER',
   'IDEMPOTENCY_KEY_CONFLICT',
   'IDEMPOTENCY_KEY_IN_FLIGHT',
   'IDEMPOTENCY_KEY_REQUIRED',
@@ -123,4 +124,15 @@ describe('getSalePaymentErrorAction', () => {
       expect(action.message.length).toBeGreaterThan(0)
     },
   )
+})
+
+describe('STOCK_RESERVED_FOR_BACKORDER (restock backorder S7)', () => {
+  it('has its own action: reload the sale, a clear message that is not the confirm-time stock error', () => {
+    const reserved = getSalePaymentErrorAction('STOCK_RESERVED_FOR_BACKORDER')
+    const insufficient = getSalePaymentErrorAction('STOCK_INSUFFICIENT_AT_CONFIRM')
+    expect(reserved.type).toBe('refetch')
+    expect(reserved.message).toContain('apartadas para pedidos por reposición')
+    expect(reserved.message).not.toBe(insufficient.message)
+    expect(reserved.message).not.toMatch(/sin stock|insuficiente/i)
+  })
 })

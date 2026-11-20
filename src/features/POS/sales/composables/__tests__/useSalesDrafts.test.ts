@@ -587,6 +587,65 @@ describe('useSalesDrafts - pure cache update functions', () => {
     })
   })
 
+  describe('stockWarning (restock backorder S7)', () => {
+    const base: Sale = {
+      id: 'sale-1',
+      userId: 'user-1',
+      status: 'DRAFT',
+      items: [],
+      createdAt: '2026-04-21T10:00:00Z',
+      updatedAt: '2026-04-21T10:00:00Z',
+    }
+    const warned: Sale = {
+      ...base,
+      items: [
+        {
+          id: 'item-1',
+          productId: 'prod-1',
+          variantId: null,
+          productName: 'Alimento Gato',
+          variantName: null,
+          quantity: 3,
+          unitPriceCents: 100,
+          unitPriceCurrency: 'MXN',
+          stockWarning: { code: 'STOCK_RESERVED_FOR_BACKORDER', available: 2, reserved: 3 },
+        },
+      ],
+    }
+
+    it('returns the warning from addItem but never keeps it in the drafts cache', async () => {
+      vi.mocked(saleApi.listDrafts).mockResolvedValue([base])
+      vi.mocked(saleApi.addItem).mockResolvedValue(warned)
+      const { result, queryClient } = mountComposable(() => useSalesDrafts())
+      await vi.waitFor(() => expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual([base]))
+      result.activeTabId.value = 'sale-1'
+
+      const response = await result.addItem('prod-1', null, 3)
+
+      expect(response.items[0]?.stockWarning).toEqual({
+        code: 'STOCK_RESERVED_FOR_BACKORDER',
+        available: 2,
+        reserved: 3,
+      })
+      const cached = queryClient.getQueryData<Sale[]>(tenantDraftsKey)
+      expect(cached?.[0]?.items[0]).toMatchObject({ id: 'item-1', quantity: 3 })
+      expect(cached?.[0]?.items[0]).not.toHaveProperty('stockWarning')
+    })
+
+    it('does the same for updateQty (PATCH items/:itemId)', async () => {
+      vi.mocked(saleApi.listDrafts).mockResolvedValue([base])
+      vi.mocked(saleApi.updateItemQty).mockResolvedValue(warned)
+      const { result, queryClient } = mountComposable(() => useSalesDrafts())
+      await vi.waitFor(() => expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual([base]))
+      result.activeTabId.value = 'sale-1'
+
+      const response = await result.updateQty('item-1', 3)
+
+      expect(response.items[0]?.stockWarning?.reserved).toBe(3)
+      expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)?.[0]?.items[0]).not.toHaveProperty('stockWarning')
+    })
+  })
+
   describe('updateItemPrice mutation cache behavior', () => {
     it('replaces draft cache on successful updateItemPrice', async () => {
       const existingDraft: Sale = {

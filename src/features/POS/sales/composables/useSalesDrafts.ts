@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { saleApi } from '../api/sale.api'
+import { withoutStockWarnings } from '../utils/stockReservation.utils'
 import {
   analyticsQueryKeys,
   promotionQueryKeys,
@@ -55,7 +56,8 @@ export function reconcileDraftMutationInCache(currentSales: Sale[], updatedSale:
   const cachedSale = currentSales[index]
   if (index === -1 || !cachedSale) return currentSales
 
-  const reconciled: Sale = { ...updatedSale }
+  // The stock warning is advisory and only lives in that response (handoff 26): never cache it.
+  const reconciled: Sale = { ...withoutStockWarnings(updatedSale) }
 
   if (reconciled.customer === undefined) {
     reconciled.customer = cachedSale.customer

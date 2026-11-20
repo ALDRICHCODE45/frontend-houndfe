@@ -1,4 +1,5 @@
 import type { ChargeDomainErrorCode } from '../interfaces/sale.types'
+import { reservedForBackorderChargeMessage } from './stockReservation.utils'
 
 type SalePaymentUxActionType = 'inline' | 'retry' | 'refetch' | 'new-key' | 'generic'
 
@@ -55,6 +56,12 @@ const ERROR_ACTIONS: Record<ChargeDomainErrorCode, SalePaymentUxAction> = {
   STOCK_INSUFFICIENT_AT_CONFIRM: {
     type: 'refetch',
     message: 'No hay stock suficiente para confirmar. Recalculamos la venta.',
+  },
+  // Restock backorders: units held for «pedidos por reposición». Own message (never «sin stock»); the
+  // figures are added by the caller from the 409 body. The sale stays DRAFT.
+  STOCK_RESERVED_FOR_BACKORDER: {
+    type: 'refetch',
+    message: reservedForBackorderChargeMessage(undefined, undefined),
   },
   IDEMPOTENCY_KEY_CONFLICT: {
     type: 'new-key',
