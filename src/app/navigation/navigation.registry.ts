@@ -1,4 +1,5 @@
 import type { NavAction, NavGroup } from './navigation.types'
+import { BACKORDERS_PATH } from '@/features/POS/backorders/constants'
 
 /**
  * Single source of truth for the app module tree.
@@ -82,6 +83,14 @@ export const navigationGroups: NavGroup[] = [
         icon: 'i-lucide-file-text',
         to: '/pos/cotizaciones',
         permission: ['read', 'Quotation'],
+      },
+      // restock-backorder T1 (S1, S2): the shell decorates this entry with the RESERVED count.
+      {
+        id: 'pos-backorders',
+        label: 'Pedidos por reposición',
+        icon: 'i-lucide-package-check',
+        to: BACKORDERS_PATH,
+        permission: ['read', 'Backorder'],
       },
       // sdd delivery-routes S1a (REQ-AUTH-DR-005 + §9.2): sidebar entry
       // gated by read:DeliveryRoute. The route guard repeats the same
