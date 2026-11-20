@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   getProductStockCompactLabel,
+  getProductReservedStock,
   getProductStockDisplay,
   getProductStockTone,
   getStockTone,
@@ -152,5 +153,34 @@ describe('stock labels agree in number and have a compact form for cards', () =>
       ),
     ).toBe('En variantes')
     expect(getProductStockCompactLabel(makeProduct({ quantity: 7 }))).toBe('7 unidades')
+  })
+})
+
+describe('getProductReservedStock', () => {
+  it('is null when nothing is reserved or the fields are absent', () => {
+    expect(getProductReservedStock(makeProduct())).toBeNull()
+    expect(getProductReservedStock(makeProduct({ reservedForBackorders: 0, availableToSell: 5 }))).toBeNull()
+  })
+
+  it('returns available and reserved when units are held for backorders', () => {
+    const product = makeProduct({ quantity: 1, stockOnHand: 3, reservedForBackorders: 2, availableToSell: 1 })
+    expect(getProductReservedStock(product)).toEqual({ available: 1, reserved: 2 })
+  })
+
+  it('falls back to the sellable quantity when availableToSell is missing', () => {
+    expect(getProductReservedStock(makeProduct({ quantity: 4, reservedForBackorders: 2 }))).toEqual({
+      available: 4,
+      reserved: 2,
+    })
+  })
+
+  it('uses the variant total as available for a product with variants', () => {
+    const product = makeProduct({
+      hasVariants: true,
+      variantStockTotal: 7,
+      variantCount: 2,
+      reservedForBackorders: 3,
+    })
+    expect(getProductReservedStock(product)).toEqual({ available: 7, reserved: 3 })
   })
 })

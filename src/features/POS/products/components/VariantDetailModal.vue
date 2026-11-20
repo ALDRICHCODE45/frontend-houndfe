@@ -393,6 +393,7 @@ function handleCancel() {
             <UFormField label="Cantidad">
               <ReadOnlyStock
                 :value="variant.quantity"
+                :reserved="variant.reservedForBackorders"
                 label="Cantidad"
                 data-testid="variant-modal-stock-readonly"
               />

@@ -80,6 +80,22 @@ export const getProductStockCompactLabel = (product: Product): string => {
   return unitsLabel(product.quantity)
 }
 
+/**
+ * Restock backorders: the available/reserved split to show next to a product's stock, or null when
+ * nothing is reserved (or the backend does not send the fields) and the current UI stays as it is.
+ * A product with variants reports the variant total as available, like the list does today.
+ */
+export const getProductReservedStock = (
+  product: Product,
+): { available: number; reserved: number } | null => {
+  const reserved = product.reservedForBackorders
+  if (typeof reserved !== 'number' || reserved <= 0) return null
+  const available =
+    product.availableToSell ??
+    (product.hasVariants ? (product.variantStockTotal ?? product.quantity) : product.quantity)
+  return { available, reserved }
+}
+
 /** Only low or empty stock earns a badge; healthy stock reads as plain text. */
 export const stockNeedsAttention = (product: Product): boolean => {
   const tone = getProductStockTone(product)

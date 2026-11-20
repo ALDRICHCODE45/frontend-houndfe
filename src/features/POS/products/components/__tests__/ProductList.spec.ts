@@ -140,6 +140,48 @@ describe('ProductList — data', () => {
     wrapper.unmount()
   })
 
+  describe('reserved stock (restock backorder S6)', () => {
+    const reserved = { quantity: 1, stockOnHand: 3, reservedForBackorders: 2, availableToSell: 1 }
+
+    it('shows «Disponible 1 · Apartado 2» in the stock cell and no loud badge', () => {
+      const wrapper = mountList({ items: [{ ...product, ...reserved, minQuantity: 5 }] })
+      const cell = wrapper.get('td [data-testid="reserved-stock"]')
+      expect(cell.text().replace(/\s+/g, ' ')).toContain('Disponible 1')
+      expect(cell.text()).toContain('Apartado 2')
+      // Only the status badge: the low-stock tone badge would be a second, warning-less one.
+      expect(wrapper.findAll('.hf-status-badge')).toHaveLength(1)
+      wrapper.unmount()
+    })
+
+    it('does not paint an empty sellable stock red when units are reserved', () => {
+      const wrapper = mountList({
+        items: [{ ...product, quantity: 0, stockOnHand: 2, reservedForBackorders: 2, availableToSell: 0 }],
+      })
+      expect(wrapper.find('[data-tone="danger"]').exists()).toBe(false)
+      expect(wrapper.text()).toContain('Disponible 0')
+      expect(wrapper.text()).toContain('Apartado 2')
+      wrapper.unmount()
+    })
+
+    it('leaves the cell unchanged with reserved 0 or no fields', () => {
+      for (const extra of [{ reservedForBackorders: 0, availableToSell: 25, stockOnHand: 25 }, {}]) {
+        const wrapper = mountList({ items: [{ ...product, ...extra }] })
+        expect(wrapper.find('[data-testid="reserved-stock"]').exists()).toBe(false)
+        expect(wrapper.text()).toContain('25 unidades')
+        wrapper.unmount()
+      }
+    })
+
+    it('shows the same figures on the mobile card', () => {
+      isMobile.value = true
+      const wrapper = mountList({ items: [{ ...product, ...reserved }] })
+      const card = wrapper.get('[data-testid="product-card"]')
+      expect(card.get('[data-testid="reserved-stock"]').text()).toContain('Apartado 2')
+      isMobile.value = false
+      wrapper.unmount()
+    })
+  })
+
   it('opens the product from the whole row, but not from the ⋮ menu', async () => {
     const wrapper = mountList()
     expect(wrapper.get('tbody tr').classes()).toContain('hf-clickable-row')

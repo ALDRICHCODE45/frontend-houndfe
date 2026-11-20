@@ -42,6 +42,25 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
+describe('ProductVariantsTable reserved stock (restock backorder S6)', () => {
+  it('shows «Disponible N · Apartado M» for a saved variant with reserved units', () => {
+    const wrapper = mountTable({ rows: [{ ...row, quantity: 4, reservedForBackorders: 2 }] })
+    const cell = wrapper.get('[data-testid="variant-stock-readonly"]')
+    expect(cell.text()).toContain('Disponible 4')
+    expect(cell.text()).toContain('Apartado 2')
+    wrapper.unmount()
+  })
+
+  it('keeps the plain figure with reserved 0 or absent', () => {
+    for (const extra of [{ reservedForBackorders: 0 }, {}]) {
+      const wrapper = mountTable({ rows: [{ ...row, ...extra }] })
+      expect(wrapper.find('[data-testid="reserved-stock"]').exists()).toBe(false)
+      expect(wrapper.get('[data-testid="variant-stock-readonly"]').text()).toBe('10')
+      wrapper.unmount()
+    }
+  })
+})
+
 describe('ProductVariantsTable', () => {
   it('shows the name with only the codes it has under it', () => {
     const wrapper = mountTable()

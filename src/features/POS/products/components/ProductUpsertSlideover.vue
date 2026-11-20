@@ -249,6 +249,7 @@ function onSubmit(event: FormSubmitEvent<ProductFormValues>) {
             <ReadOnlyStock
               v-if="mode === 'edit'"
               :value="state.quantity"
+              :reserved="props.product?.reservedForBackorders"
               label="Stock"
               data-testid="product-stock-readonly"
             />

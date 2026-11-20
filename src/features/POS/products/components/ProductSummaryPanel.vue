@@ -6,6 +6,7 @@
  */
 import { computed, ref } from 'vue'
 import { useMediaQuery } from '@vueuse/core'
+import ReservedStockLabel, { hasReservedStock } from '@/core/shared/components/ReservedStockLabel.vue'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import ProductImageLightbox from './ProductImageLightbox.vue'
 
@@ -25,6 +26,8 @@ const props = defineProps<{
   costCents: number
   marginPercent: number | null
   stockTotal: number | null
+  /** Units held for restock backorders: shown with the available total only when above 0. */
+  reservedStock?: number | null
   checklist: ProductSummaryChecklistItem[]
   completedItems: number
   applicableItems: number
@@ -112,7 +115,14 @@ const previewOpen = ref(false)
         </div>
         <div>
           <dt>Stock</dt>
-          <dd class="hf-figure" data-summary="stock">{{ stockTotal ?? '—' }}</dd>
+          <dd class="hf-figure" data-summary="stock">
+            <ReservedStockLabel
+              v-if="stockTotal != null && hasReservedStock(reservedStock)"
+              :available="stockTotal"
+              :reserved="reservedStock"
+            />
+            <template v-else>{{ stockTotal ?? '—' }}</template>
+          </dd>
         </div>
       </dl>
 

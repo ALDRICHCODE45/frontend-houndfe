@@ -1999,6 +1999,7 @@ const variantTableRows = computed<ProductVariantRow[]>(() =>
         sku: variant.sku ?? '',
         barcode: variant.barcode ?? '',
         quantity: variant.quantity,
+        reservedForBackorders: variant.reservedForBackorders,
         priceCents: getPublicPrice(variant)?.priceCents ?? 0,
         deleteName: variant.name,
       })),
@@ -2501,6 +2502,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                   <ReadOnlyStock
                     v-if="!isCreateMode"
                     :value="formState.quantity"
+                    :reserved="product?.reservedForBackorders"
                     label="Existencias"
                     data-testid="product-detail-stock-readonly"
                   />
@@ -2763,6 +2765,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
           :cost-cents="previewCostCents"
           :margin-percent="previewMarginPercent"
           :stock-total="previewStockTotal"
+          :reserved-stock="isCreateMode ? null : product?.reservedForBackorders"
           :checklist="previewChecklistItems"
           :completed-items="previewCompletedItems"
           :applicable-items="previewApplicableChecklistItems.length"
@@ -3231,6 +3234,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
             <ReadOnlyStock
               v-if="!isCreateMode && editingVariantId"
               :value="variantState.quantity"
+              :reserved="findSavedVariant(editingVariantId)?.reservedForBackorders"
               label="Existencias"
               data-testid="variant-edit-stock-readonly"
             />

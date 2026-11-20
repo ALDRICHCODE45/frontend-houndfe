@@ -7,6 +7,7 @@ import {
   type TableDensity,
 } from '@/core/shared/components/DataTable'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
+import ReservedStockLabel from '@/core/shared/components/ReservedStockLabel.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { useClickableRow } from '@/core/shared/composables/useClickableRow'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
@@ -21,6 +22,7 @@ import type {
 import { useProductColumns } from '../composables/useProductColumns'
 import type { Product } from '../interfaces/product.types'
 import {
+  getProductReservedStock,
   getProductStockCompactLabel,
   getProductStockDisplay,
   getProductTypeBadge,
@@ -215,8 +217,13 @@ const rowOpen = computed(() => (props.canRead ? open : undefined))
     </template>
 
     <template #quantity-cell="{ row }">
+      <ReservedStockLabel
+        v-if="getProductReservedStock(row.original)"
+        class="block"
+        v-bind="getProductReservedStock(row.original)!"
+      />
       <StatusBadge
-        v-if="stockNeedsAttention(row.original)"
+        v-else-if="stockNeedsAttention(row.original)"
         :label="getProductStockDisplay(row.original).label"
         :tone="getProductStockDisplay(row.original).tone"
         aria-prefix="Stock:"
@@ -262,7 +269,7 @@ const rowOpen = computed(() => (props.canRead ? open : undefined))
             :tone="statusOf(row).tone"
           />
           <StatusBadge
-            v-if="stockNeedsAttention(row)"
+            v-if="!getProductReservedStock(row) && stockNeedsAttention(row)"
             :label="getProductStockCompactLabel(row)"
             :tone="getProductStockDisplay(row).tone"
             aria-prefix="Stock:"
@@ -271,7 +278,10 @@ const rowOpen = computed(() => (props.canRead ? open : undefined))
         <div class="product-card-footer">
           <span class="hf-figure">
             <span class="font-semibold">{{ formatCentsMXN(row.priceCents) }}</span>
-            <template v-if="!stockNeedsAttention(row)">
+            <template v-if="getProductReservedStock(row)">
+              · <ReservedStockLabel v-bind="getProductReservedStock(row)!" />
+            </template>
+            <template v-else-if="!stockNeedsAttention(row)">
               · {{ getProductStockCompactLabel(row) }}
             </template>
           </span>

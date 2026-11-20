@@ -57,6 +57,12 @@ export interface Product {
   chargeProductTaxes: boolean
   variantStockTotal: number | null
   variantCount: number | null
+  /** Restock backorders (handoff 26): units on hand = available + reserved. Absent until the backend serves them. */
+  stockOnHand?: number
+  /** Units held for RESERVED restock backorders; the counter cannot sell them. */
+  reservedForBackorders?: number
+  /** What the counter can sell now (= `quantity`). */
+  availableToSell?: number
   status: ProductStatus
   createdAt: string
   updatedAt: string
@@ -114,6 +120,12 @@ export interface ProductVariant {
   purchaseNetCostCents: number | null
   purchaseNetCostDecimal: number | null
   variantPrices: VariantPrice[]
+  /** Restock backorders (handoff 26): units on hand = available + reserved. Absent until the backend serves them. */
+  stockOnHand?: number
+  /** Units held for RESERVED restock backorders; the counter cannot sell them. */
+  reservedForBackorders?: number
+  /** What the counter can sell now (= `quantity`). */
+  availableToSell?: number
   // WU4 persisted-variant catalog fields (PATCH-only; absent on new/inline).
   catalogPublishMode?: CatalogPublishMode
   onlineStockPresentation?: OnlineStockPresentationMode | null
@@ -185,6 +197,12 @@ export interface ProductBackendResponse {
   chargeProductTaxes?: boolean
   variantStockTotal?: number | null
   variantCount?: number | null
+  /** Restock backorders (handoff 26): units on hand = available + reserved. Absent until the backend serves them. */
+  stockOnHand?: number
+  /** Units held for RESERVED restock backorders; the counter cannot sell them. */
+  reservedForBackorders?: number
+  /** What the counter can sell now (= `quantity`). */
+  availableToSell?: number
   status?: string | null
   priceCents?: number
   price?: {
@@ -223,6 +241,12 @@ export interface ProductVariantBackendResponse {
   purchaseNetCostCents?: number | null
   purchaseNetCostDecimal?: number | null
   variantPrices?: VariantPrice[]
+  /** Restock backorders (handoff 26): units on hand = available + reserved. Absent until the backend serves them. */
+  stockOnHand?: number
+  /** Units held for RESERVED restock backorders; the counter cannot sell them. */
+  reservedForBackorders?: number
+  /** What the counter can sell now (= `quantity`). */
+  availableToSell?: number
   // WU4 persisted-variant catalog fields (raw response surface).
   catalogPublishMode?: CatalogPublishMode
   onlineStockPresentation?: OnlineStockPresentationMode | null
