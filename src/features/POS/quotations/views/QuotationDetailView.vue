@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 // T3 / S3-S4 — owned visual adapter for the shared creation/detail workspace.
 // Imported only here so the list workspace and unmigrated screens keep their
@@ -814,7 +815,14 @@ function viewRejectedSale(saleId: string): void {
 }
 
 // ── Header actions (⋮ menu: convert and cancel first, destructive last) ─────
+/** Below sm the pinned header keeps only the title and ⋮ (owner, detail-page-frame T5): the
+ *  stepper scrolls with the page and «Previsualizar PDF» moves into the ⋮ menu. */
+const isMobile = useBreakpoints(breakpointsTailwind).smaller('sm')
+
 const headerActions = computed<RowAction[]>(() => [
+  ...(isMobile.value && quotation.value
+    ? [{ key: 'pdf', label: 'Previsualizar PDF', icon: 'i-lucide-file-text' }]
+    : []),
   ...(canConvert.value && isDraft.value
     ? [{ key: 'convert', label: 'Convertir en venta…', icon: 'i-lucide-shopping-cart' }]
     : []),
@@ -827,7 +835,8 @@ const headerActions = computed<RowAction[]>(() => [
 ])
 
 function onHeaderAction(key: string): void {
-  if (key === 'convert') openConvertDialog()
+  if (key === 'pdf') void handlePreviewPdf()
+  else if (key === 'convert') openConvertDialog()
   else if (key === 'cancel') openCancelDialog()
   else if (key === 'delete') isDeleteConfirmOpen.value = true
 }
@@ -843,18 +852,30 @@ function onHeaderAction(key: string): void {
     <template #header>
       <header class="border-b border-default bg-default px-4 sm:px-6">
         <div class="flex flex-col gap-4 px-4 py-3 sm:px-8 lg:px-10">
-          <button
-            type="button"
-            class="inline-flex w-fit items-center gap-2 text-sm font-medium text-muted hover:text-highlighted"
-            data-testid="back-button"
-            @click="goBack"
-          >
-            <span aria-hidden="true">←</span>
-            Cotizaciones
-          </button>
+          <div class="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              class="inline-flex w-fit items-center gap-2 text-sm font-medium text-muted hover:text-highlighted"
+              data-testid="back-button"
+              @click="goBack"
+            >
+              <span aria-hidden="true">←</span>
+              Cotizaciones
+            </button>
+            <!-- Mobile: ⋮ shares the back row so the status line and title keep the full width. -->
+            <RowActionsMenu
+              v-if="quotation && isMobile"
+              class="-my-3"
+              :actions="headerActions"
+              row-label="la cotización"
+              aria-label="Más acciones de la cotización"
+              portal-class="quotations-workspace-portal"
+              @select="onHeaderAction"
+            />
+          </div>
 
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div class="min-w-0">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="min-w-0 flex-1">
               <div
                 v-if="isLoading || isCreating"
                 class="quotation-skeleton-bar animate-pulse h-3.5 w-48"
@@ -887,11 +908,12 @@ function onHeaderAction(key: string): void {
             <!-- One outline action (PDF) and the ⋮ menu for the rest; the single
                  primary, "Enviar cotización", lives in the summary (sticky bar on mobile). -->
             <div
-              v-if="quotation"
+              v-if="quotation && (!isMobile || showConvertButton)"
               class="flex flex-wrap items-center gap-2"
               data-testid="detail-header-actions"
             >
               <button
+                v-if="!isMobile"
                 type="button"
                 class="quotation-outline-action"
                 :disabled="isPdfLoading"
@@ -912,6 +934,7 @@ function onHeaderAction(key: string): void {
                 <span>{{ convertLabel }}</span>
               </button>
               <RowActionsMenu
+                v-if="!isMobile"
                 :actions="headerActions"
                 row-label="la cotización"
                 aria-label="Más acciones de la cotización"
@@ -924,13 +947,15 @@ function onHeaderAction(key: string): void {
           <!-- REQ-UI-003: 3-state progress stepper placed below the status
                metadata so it reads as a secondary detail, not the primary
                visual anchor. Compact presentation — smaller nodes and text. -->
-          <QuotationProgressStepper v-if="quotation" :status="quotation.status" compact />
+          <QuotationProgressStepper v-if="quotation && !isMobile" :status="quotation.status" compact />
         </div>
       </header>
     </template>
 
     <div class="px-4 sm:px-6">
       <div class="flex flex-col gap-6 px-4 py-6 sm:px-8 lg:px-10">
+        <!-- Mobile: the stepper scrolls with the page instead of growing the pinned header. -->
+        <QuotationProgressStepper v-if="quotation && isMobile" :status="quotation.status" compact />
         <div
           v-if="isCreating || isLoading"
           class="quotation-skeleton"

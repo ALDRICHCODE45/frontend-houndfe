@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
 import { computed, ref } from 'vue'
@@ -2828,5 +2828,62 @@ describe('QuotationDetailView — one shrinkable column below lg (odd D3)', () =
       const label = section.getAttribute('data-testid') ?? section.textContent?.trim().slice(0, 40)
       expect(section.classList.contains('min-w-0'), label).toBe(true)
     }
+  })
+})
+
+// ─── odd detail-page-frame T5 — owner: «Fijar solo título y ⋮» on mobile ─────
+describe('QuotationDetailView — mobile header pins only the title and ⋮ (detail-page-frame T5)', () => {
+  function stubViewport(mobile: boolean): void {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: mobile && query.includes('max-width'),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    }))
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('mobile: the stepper and the PDF button leave the pinned header; the stepper scrolls with the page', async () => {
+    stubViewport(true)
+    const wrapper = mountView()
+    await flushPromises()
+
+    const header = wrapper.get('[data-slot="header"]')
+    expect(header.find('h1').exists()).toBe(true)
+    expect(header.find('[data-testid="header-actions-menu"]').exists()).toBe(true)
+    expect(header.find('[data-testid="preview-pdf-button"]').exists()).toBe(false)
+    expect(header.find('[data-testid="quotation-stepper"]').exists()).toBe(false)
+    expect(wrapper.get('[data-slot="scroll"]').find('[data-testid="quotation-stepper"]').exists()).toBe(true)
+  })
+
+  it('mobile: «Previsualizar PDF» is in the ⋮ menu, first, and downloads the PDF', async () => {
+    stubViewport(true)
+    quotationApiMock.getPdfBlob.mockResolvedValueOnce(new Blob(['pdf']))
+    const wrapper = mountView()
+    await flushPromises()
+
+    const items = wrapper.findAll('[data-testid="header-actions-menu"] [data-action]')
+    expect(items[0]?.attributes('data-action')).toBe('pdf')
+    expect(items[0]?.text()).toBe('Previsualizar PDF')
+    await items[0]!.trigger('click')
+    await flushPromises()
+    expect(quotationApiMock.getPdfBlob).toHaveBeenCalledTimes(1)
+  })
+
+  it('desktop: header keeps the PDF button and the stepper; the ⋮ menu has no PDF entry', async () => {
+    stubViewport(false)
+    const wrapper = mountView()
+    await flushPromises()
+
+    const header = wrapper.get('[data-slot="header"]')
+    expect(header.find('[data-testid="preview-pdf-button"]').exists()).toBe(true)
+    expect(header.find('[data-testid="quotation-stepper"]').exists()).toBe(true)
+    expect(wrapper.get('[data-slot="scroll"]').find('[data-testid="quotation-stepper"]').exists()).toBe(false)
+    expect(header.find('[data-action="pdf"]').exists()).toBe(false)
   })
 })
