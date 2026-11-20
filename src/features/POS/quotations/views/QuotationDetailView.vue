@@ -50,7 +50,7 @@ import {
   useOpenQuotationSale,
   type OpenQuotationSaleTarget,
 } from '../composables/useOpenQuotationSale'
-import { isExpired, statusToLabel, statusToTone } from '../utils/quotation.utils'
+import { isExpired, quotationPdfFileName, statusToLabel, statusToTone } from '../utils/quotation.utils'
 
 declare const useToast: () => {
   add: (options: {
@@ -583,7 +583,7 @@ async function handlePreviewPdf(): Promise<void> {
       // Popup blocked — fall back to a direct download via anchor click.
       const link = document.createElement('a')
       link.href = objectUrl
-      link.download = `cotizacion-${quotation.value.id}.pdf`
+      link.download = quotationPdfFileName(quotation.value.id)
       link.click()
       useToast().add({
         title: 'Cotización descargada',

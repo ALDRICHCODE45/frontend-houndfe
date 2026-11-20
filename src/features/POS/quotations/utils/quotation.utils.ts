@@ -145,3 +145,8 @@ export function sumIncludedIvaCents(
   if (known.length === 0) return null
   return known.reduce((sum, line) => sum + line.amountCents, 0)
 }
+
+/** PDF download name with the short folio shown to users: `cotizacion-COT-<first 8 hex of id>.pdf`. */
+export function quotationPdfFileName(id: string): string {
+  return `cotizacion-COT-${id.replace(/-/g, '').slice(0, 8)}.pdf`
+}

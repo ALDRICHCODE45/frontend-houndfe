@@ -1550,7 +1550,8 @@ describe('CashRegisterView · close, corte and Cortes (S5)', () => {
     expect(taskShown(wrapper, 'corte')).toBe(true)
     const corte = wrapper.get('[data-testid="cash-task-corte"]')
     expect(corte.find('[data-testid="cash-closing-detail"]').exists()).toBe(true)
-    expect(corte.get('[data-testid="cash-closing-header"]').text()).toContain(CLOSING.folio)
+    expect(corte.get('[data-testid="cash-closing-header"]').text()).toContain('CC-2f6d9c1e')
+    expect(corte.get('[data-testid="cash-closing-header"]').text()).not.toContain(CLOSING.folio)
   })
 
   it('the cashier never gets the close action in their own shift', async () => {

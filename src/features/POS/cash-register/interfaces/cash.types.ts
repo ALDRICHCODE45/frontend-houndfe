@@ -432,6 +432,10 @@ export interface CashClosingHandover {
   senderUserId: string
   receiverUserId: string | null
   receiptActorUserId: string | null
+  /** Names frozen with the corte (additive; absent on old cortes). Display only. */
+  senderName?: string | null
+  receiverName?: string | null
+  receiptActorName?: string | null
   declaredAt: string
   receivedAt: string | null
 }

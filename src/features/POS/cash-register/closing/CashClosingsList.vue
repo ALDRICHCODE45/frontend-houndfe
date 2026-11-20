@@ -14,7 +14,7 @@ import EmptyState from '@/core/shared/components/EmptyState.vue'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { CashClosingListParams } from '../interfaces/cash.types'
 import { cashErrorInfo } from '../composables/cashErrorCopy'
-import { closingDateRange, closingDifferenceLabel } from './closingView'
+import { closingDateRange, closingDifferenceLabel, displayClosingFolio } from './closingView'
 import { useCashClosingsList } from './useCashClosing'
 
 const props = withDefaults(
@@ -107,6 +107,7 @@ const rows = computed(() =>
     return {
       id: item.id,
       folio: item.folio,
+      folioLabel: displayClosingFolio(item.folio),
       register: item.register?.name?.trim() || '—',
       cashier: item.cashier?.displayName?.trim() || '—',
       date: formatShortDateTime(item.createdAt),
@@ -237,12 +238,12 @@ function onRowKeydown(event: KeyboardEvent, id: string) {
                 <button
                   type="button"
                   class="cl-open"
-                  :aria-label="`Ver corte ${row.folio}`"
+                  :aria-label="`Ver corte ${row.folioLabel}`"
                   data-testid="cash-closing-row-open"
                   @click.stop="emit('open', row.id)"
                   @keydown="onRowKeydown($event, row.id)"
                 >
-                  {{ row.folio }}
+                  {{ row.folioLabel }}
                 </button>
               </td>
               <td>{{ row.register }}</td>

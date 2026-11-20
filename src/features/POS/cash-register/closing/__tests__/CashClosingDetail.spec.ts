@@ -69,7 +69,7 @@ describe('CashClosingDetail', () => {
   it('shows the header by folio with register, people and times', () => {
     const wrapper = mountDetail()
     const header = wrapper.get('[data-testid="cash-closing-header"]')
-    expect(header.text()).toContain(`Folio ${CLOSING.folio}`)
+    expect(header.text()).toContain('Folio CC-2f6d9c1e')
     const facts = wrapper.get('[data-testid="cash-closing-facts"]').text()
     expect(facts).toContain('Caja Mostrador 2')
     expect(facts).toContain('Ana Cajera')
@@ -149,6 +149,35 @@ describe('CashClosingDetail', () => {
       expect.stringMatching(/Retiro[\s\S]*Luis Supervisor[\s\S]*\$495\.00/),
       expect.stringMatching(/Fondo[\s\S]*Ana Cajera[\s\S]*\$1,000\.00/),
     ])
+  })
+
+  it('«Recibió» shows the real name of a receiver who is not cashier/verifier/closer', () => {
+    const [first, second] = CLOSING.snapshot.handovers
+    state.closing.value = {
+      ...CLOSING,
+      snapshot: {
+        ...CLOSING.snapshot,
+        handovers: [
+          { ...first, receiverUserId: 'outsider-1', receiptActorUserId: 'outsider-1', receiverName: 'Rita Receptora', receiptActorName: 'Rita Receptora' },
+          { ...second, receiverUserId: 'outsider-2', receiptActorUserId: null, receiverName: 'Pedro Destino' },
+        ],
+      },
+    }
+    const text = mountDetail()
+      .findAll('[data-testid="cash-closing-handover"]')
+      .map((r) => r.text())
+      .join('|')
+    expect(text).toContain('Rita Receptora')
+    expect(text).toContain('Pedro Destino')
+    expect(text).not.toContain('Otra persona')
+    expect(text).not.toContain('outsider')
+  })
+
+  it('shows the folio shortened on screen for an old uuid folio, keeping the full one in the PDF file name', () => {
+    const wrapper = mountDetail()
+    expect(wrapper.get('[data-testid="cash-closing-header"]').text()).toContain('Folio CC-2f6d9c1e')
+    expect(wrapper.get('[data-testid="cash-closing-header"]').text()).not.toContain(CLOSING.folio)
+    expect(wrapper.text()).toContain(`corte-caja-${CLOSING.folio}.pdf`)
   })
 
   it('shows the declaration and closing notes', () => {

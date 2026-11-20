@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
+  quotationPdfFileName,
   isExpired,
   statusToTone,
   statusToLabel,
@@ -299,3 +300,12 @@ function makeQuotation(
     updatedAt: '2026-08-01T00:00:00.000Z',
   }
 }
+describe('quotationPdfFileName', () => {
+  it('uses the short COT folio (first 8 hex of the id)', () => {
+    expect(quotationPdfFileName('c55bed88-2aad-4b74-a4bd-2a8c4611e6ef')).toBe('cotizacion-COT-c55bed88.pdf')
+  })
+
+  it('does not change case', () => {
+    expect(quotationPdfFileName('C55BED88-2AAD-4B74-A4BD-2A8C4611E6EF')).toBe('cotizacion-COT-C55BED88.pdf')
+  })
+})

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { closingDateRange, closingPersonName, sortedClosingHandovers } from '../closingView'
+import {
+  closingDateRange,
+  closingHandoverReceiverName,
+  closingPersonName,
+  displayClosingFolio,
+  sortedClosingHandovers,
+} from '../closingView'
 import { CLOSING } from './closingFixtures'
 
 describe('sortedClosingHandovers', () => {
@@ -40,5 +46,57 @@ describe('closingDateRange', () => {
   it('omits empty ends', () => {
     expect(closingDateRange('', '')).toEqual({})
     expect(Object.keys(closingDateRange('2026-11-01', ''))).toEqual(['from'])
+  })
+})
+
+describe('closingHandoverReceiverName', () => {
+  const s = CLOSING.snapshot
+  const base = { ...s.handovers[0]!, receiverUserId: null, receiptActorUserId: null }
+
+  it('prefers the receipt actor name when that id is set', () => {
+    const h = { ...base, receiptActorUserId: 'u-actor', receiverUserId: 'u-recv', receiptActorName: '  Rosa Recibe ', receiverName: 'Otro Nombre' }
+    expect(closingHandoverReceiverName(s, h)).toBe('Rosa Recibe')
+  })
+
+  it('uses the receiver name when there is no receipt actor', () => {
+    const h = { ...base, receiverUserId: 'u-recv', receiverName: 'Rita Receptora' }
+    expect(closingHandoverReceiverName(s, h)).toBe('Rita Receptora')
+  })
+
+  it('a name only counts when its own id exists', () => {
+    const h = { ...base, receiptActorName: 'Fantasma', receiverName: 'Fantasma 2' }
+    expect(closingHandoverReceiverName(s, h)).toBe('—')
+    const h2 = { ...base, receiverUserId: 'u-recv', receiptActorName: 'Fantasma', receiverName: 'Rita' }
+    expect(closingHandoverReceiverName(s, h2)).toBe('Rita')
+  })
+
+  it('blank or missing name falls back to the snapshot lookup, then «Otra persona»', () => {
+    const known = { ...base, receiptActorUserId: s.cashierUserId, receiptActorName: '   ' }
+    expect(closingHandoverReceiverName(s, known)).toBe('Ana Cajera')
+    const unknown = { ...base, receiverUserId: 'u-unknown', receiverName: null }
+    expect(closingHandoverReceiverName(s, unknown)).toBe('Otra persona')
+    const missing = { ...base, receiverUserId: 'u-unknown' }
+    expect(closingHandoverReceiverName(s, missing)).toBe('Otra persona')
+  })
+
+  it('both ids null → «—»', () => {
+    expect(closingHandoverReceiverName(s, base)).toBe('—')
+  })
+})
+
+describe('displayClosingFolio', () => {
+  it('shortens an old uuid folio to its first 8 chars', () => {
+    expect(displayClosingFolio('CC-2f6d9c1e-8b7a-4c3d-9e2f-1a0b9c8d7e6f')).toBe('CC-2f6d9c1e')
+  })
+
+  it('preserves case of an uppercase uuid folio', () => {
+    expect(displayClosingFolio('CC-2F6D9C1E-8B7A-4C3D-9E2F-1A0B9C8D7E6F')).toBe('CC-2F6D9C1E')
+  })
+
+  it('leaves new numeric folios and arbitrary strings unchanged', () => {
+    expect(displayClosingFolio('CC-000124')).toBe('CC-000124')
+    expect(displayClosingFolio('CC-1000000')).toBe('CC-1000000')
+    expect(displayClosingFolio('algo raro')).toBe('algo raro')
+    expect(displayClosingFolio('')).toBe('')
   })
 })

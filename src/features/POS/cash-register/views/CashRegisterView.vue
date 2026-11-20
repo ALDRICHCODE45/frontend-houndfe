@@ -88,6 +88,7 @@ import CashRegistersPanel from '../components/CashRegistersPanel.vue'
 import CashCloseStep from '../closing/CashCloseStep.vue'
 import CashClosingDetail from '../closing/CashClosingDetail.vue'
 import CashClosingsList from '../closing/CashClosingsList.vue'
+import { displayClosingFolio } from '../closing/closingView'
 
 const access = useCashAccess()
 const registers = useCashRegisters()
@@ -1226,7 +1227,7 @@ function viewClosing() {
               <div v-else-if="corteClosingId" class="cash-callout" data-testid="cash-corte-forbidden">
                 <UIcon name="i-lucide-lock" class="cash-callout-icon" aria-hidden="true" />
                 <p>
-                  <strong>Corte {{ detailQuery.detail.value?.closing?.folio }}</strong><br />
+                  <strong>Corte {{ displayClosingFolio(detailQuery.detail.value?.closing?.folio ?? '') }}</strong><br />
                   <span class="cash-meta-wrap"
                     >Necesitas el permiso «Ver cortes» para ver el corte y su PDF.</span
                   >

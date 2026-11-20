@@ -150,7 +150,8 @@ describe('CashCloseStep', () => {
         closing: { id: CLOSING.id, sessionId: CLOSING.sessionId, folio: CLOSING.folio, createdAt: CLOSING.createdAt },
       }),
     })
-    expect(wrapper.get('[data-testid="cash-close-closed"]').text()).toContain(CLOSING.folio)
+    expect(wrapper.get('[data-testid="cash-close-closed"]').text()).toContain('CC-2f6d9c1e')
+    expect(wrapper.get('[data-testid="cash-close-closed"]').text()).not.toContain(CLOSING.folio)
     await wrapper.get('[data-testid="cash-close-view-closing"]').trigger('click')
     expect(wrapper.emitted('view-closing')?.[0]).toEqual([CLOSING.id])
   })

@@ -14,6 +14,7 @@
  *   action in an alert region. The backend stays authoritative.
  */
 import { computed, ref, useId } from 'vue'
+import { displayClosingFolio } from './closingView'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import type { CashClosing, CashSessionDetail } from '../interfaces/cash.types'
@@ -72,7 +73,7 @@ const canSubmit = computed(
   () => readiness.value.mode === 'ready' && !disabledReason.value && !isClosing.value,
 )
 
-const closedFolio = computed(() => props.detail.closing?.folio ?? null)
+const closedFolio = computed(() => props.detail.closing?.folio ? displayClosingFolio(props.detail.closing.folio) : null)
 
 function openConfirm() {
   if (!canSubmit.value) return
@@ -86,7 +87,7 @@ async function confirmClose() {
   try {
     const closing = await close(props.detail.session.id, notes.value.trim() || undefined)
     confirmOpen.value = false
-    statusMessage.value = `Caja cerrada. Corte ${closing.folio}.`
+    statusMessage.value = `Caja cerrada. Corte ${displayClosingFolio(closing.folio)}.`
     emit('closed', closing)
   } catch (error) {
     confirmOpen.value = false

@@ -27,7 +27,8 @@ import { closingPdfFileName, downloadClosingPdf, normalizeBlobError, showClosing
 import {
   CASH_HANDOVER_KIND_LABELS,
   closingDifferenceLabel as differenceLabel,
-  closingPersonName,
+  closingHandoverReceiverName,
+  displayClosingFolio,
   sortedClosingHandovers,
 } from './closingView'
 
@@ -168,11 +169,11 @@ async function runPdf(mode: 'view' | 'download') {
       @action="refetch()"
     />
 
-    <article v-else-if="closing && snapshot" class="cd-article" :aria-label="`Corte de caja ${closing.folio}`">
+    <article v-else-if="closing && snapshot" class="cd-article" :aria-label="`Corte de caja ${displayClosingFolio(closing.folio)}`">
       <header class="cd-header" data-testid="cash-closing-header">
         <div class="cd-header__title">
           <span class="cd-meta">Corte de caja · {{ snapshot.registerName || 'Caja' }}</span>
-          <h3 class="cd-folio">Folio {{ closing.folio }}</h3>
+          <h3 class="cd-folio">Folio {{ displayClosingFolio(closing.folio) }}</h3>
         </div>
         <div class="cd-actions">
           <UButton
@@ -284,7 +285,7 @@ async function runPdf(mode: 'view' | 'download') {
             <tbody>
               <tr v-for="handover in handovers" :key="handover.handoverId" data-testid="cash-closing-handover">
                 <td data-label="Entrega">{{ CASH_HANDOVER_KIND_LABELS[handover.kind] }}</td>
-                <td data-label="Recibió">{{ closingPersonName(snapshot, handover.receiptActorUserId ?? handover.receiverUserId) }}</td>
+                <td data-label="Recibió">{{ closingHandoverReceiverName(snapshot, handover) }}</td>
                 <td class="cd-num" data-label="Declarado">{{ money(handover.declaredCents) }}</td>
                 <td class="cd-num" data-label="Recibido">{{ money(handover.receivedCents) }}</td>
                 <td data-label="Hora">{{ formatShortDateTime(handover.receivedAt ?? handover.declaredAt) }}</td>

@@ -47,6 +47,32 @@ export function closingPersonName(
   return match?.[1]?.trim() ?? 'Otra persona'
 }
 
+/**
+ * Who received a handover, by name (never an id): the receipt actor's name when
+ * that id exists, else the receiver's name when that id exists. A missing or
+ * blank name falls back to {@link closingPersonName}; no ids at all → «—».
+ */
+export function closingHandoverReceiverName(
+  snapshot: Parameters<typeof closingPersonName>[0],
+  handover: Pick<
+    CashClosingHandover,
+    'receiptActorUserId' | 'receiverUserId' | 'receiptActorName' | 'receiverName'
+  >,
+): string {
+  const id = handover.receiptActorUserId || handover.receiverUserId || null
+  if (!id) return '—'
+  const name = handover.receiptActorUserId ? handover.receiptActorName : handover.receiverName
+  return name?.trim() || closingPersonName(snapshot, id)
+}
+
+const LEGACY_UUID_FOLIO = /^CC-([0-9a-f]{8})-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** Folio as shown on screen: old `CC-<uuid>` → `CC-<8 chars>` (like the PDF); anything else unchanged. */
+export function displayClosingFolio(folio: string): string {
+  const match = LEGACY_UUID_FOLIO.exec(folio)
+  return match ? `CC-${match[1]}` : folio
+}
+
 export const CASH_HANDOVER_KIND_LABELS = {
   WITHDRAWAL: 'Retiro',
   FLOAT: 'Fondo siguiente turno',
