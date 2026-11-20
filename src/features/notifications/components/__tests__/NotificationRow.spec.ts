@@ -128,6 +128,38 @@ describe('NotificationRow', () => {
     })
   })
 
+  describe('BACKORDER_* notices (ODD restock-backorder S8)', () => {
+    const backorder = {
+      type: 'BACKORDER_RESERVED',
+      title: 'Pedido por reposición apartado',
+      body: 'BO-000012 · Rosa tiene 24 h para confirmar',
+      requestId: null,
+      saleId: null,
+      backorderId: 'bo-12',
+    }
+
+    it('renders the server title and body with the «Pedido apartado» label', () => {
+      const wrapper = mountRow(backorder)
+      expect(wrapper.text()).toContain('Pedido por reposición apartado')
+      expect(wrapper.text()).toContain('BO-000012 · Rosa tiene 24 h para confirmar')
+      expect(wrapper.get('[data-testid="notification-type"]').text()).toBe('Pedido apartado')
+    })
+
+    it('links to the backorder detail', () => {
+      expect(mountRow(backorder).get('a').attributes('href')).toBe('/pos/pedidos-reposicion/bo-12')
+    })
+
+    it('the undelivered notice is a warning that says what to do', () => {
+      const wrapper = mountRow({ ...backorder, type: 'BACKORDER_NOTICE_UNDELIVERED', title: 'No se pudo avisar al cliente' })
+      expect(wrapper.get('[data-testid="notification-type"]').text()).toBe('Avisar al cliente')
+      expect(wrapper.get('.nt-tile').attributes('data-tone')).toBe('warning')
+    })
+
+    it('a request notice with backorderId null keeps its request link', () => {
+      expect(mountRow({ backorderId: null }).get('a').attributes('href')).toBe('/chatbot/solicitudes/req-n1')
+    })
+  })
+
   describe('structured fields (handoff 13 §3, 8c12ae09)', () => {
     it('shows folio and the subtype label as a meta line', () => {
       const wrapper = mountRow({ folio: 'S-000118', subtype: 'UNKNOWN_QUESTION' })

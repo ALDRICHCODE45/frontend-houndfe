@@ -2,6 +2,7 @@
  * Presentation helpers of the notifications feature. The contract sends `title` and `body` as
  * text; the label, icon and tone below are derived on the client from `type` (design 02-panel-lateral).
  */
+import { BACKORDERS_PATH } from '@/features/POS/backorders/constants'
 import { SUBTYPE_LABELS } from '@/features/chatbot/requests/utils/requestLabels'
 import type {
   NotificationCause,
@@ -28,7 +29,27 @@ const TYPE_META: Record<string, NotificationMeta> = {
   CONVERSATION_CUSTOMER_MESSAGE: { icon: 'i-lucide-message-circle', tone: 'info', label: 'Nuevo mensaje del cliente' },
   CONVERSATION_UNANSWERED: { icon: 'i-lucide-message-circle-warning', tone: 'warning', label: 'Cliente sin respuesta' },
   SALE_HOLD_REVIEW: { icon: 'i-lucide-hourglass', tone: 'warning', label: 'Apartado vencido' },
+  // Backorder notices (L11). A pending notice is never danger red; only the undelivered one asks for action.
+  BACKORDER_RESERVED: { icon: 'i-lucide-package-check', tone: 'info', label: 'Pedido apartado' },
+  BACKORDER_EXPIRED: { icon: 'i-lucide-package-x', tone: 'neutral', label: 'Pedido vencido' },
+  BACKORDER_NOTICE_UNDELIVERED: { icon: 'i-lucide-phone-missed', tone: 'warning', label: 'Avisar al cliente' },
 }
+
+/** Server copy of the BACKORDER_* notices (the server sends it; kept for tests and fallbacks). */
+export const BACKORDER_NOTICE_COPY = {
+  BACKORDER_RESERVED: {
+    title: 'Pedido por reposición apartado',
+    description: 'El cliente tiene 24 h para confirmarlo.',
+  },
+  BACKORDER_EXPIRED: {
+    title: 'Pedido por reposición vencido',
+    description: 'Las unidades pasaron al siguiente en la fila.',
+  },
+  BACKORDER_NOTICE_UNDELIVERED: {
+    title: 'No se pudo avisar al cliente',
+    description: 'Llámale para avisarle de su pedido por reposición.',
+  },
+} as const
 
 /** BE handoff 24 §5: server copy of SALE_HOLD_REVIEW (the server sends it; kept for tests and fallbacks). */
 export const SALE_HOLD_REVIEW_TITLE = 'Apartado vencido: revisa la venta'
@@ -134,9 +155,23 @@ export function notificationSalePath(saleId: string | null | undefined): string 
   return saleId ? `/pos/ventas/${encodeURIComponent(saleId)}` : null
 }
 
-/** Where any notice leads: the sale when it carries `saleId` (SALE_HOLD_REVIEW), else its request. */
-export function notificationTargetPath(item: Pick<NotificationItem, 'requestId' | 'saleId'>): string | null {
-  return notificationSalePath(item.saleId) ?? notificationDetailPath(item.requestId)
+/** Backorder detail of a BACKORDER_* notice (ODD restock-backorder S8); `null` without a backorder. */
+export function notificationBackorderPath(backorderId: string | null | undefined): string | null {
+  return backorderId ? `${BACKORDERS_PATH}/${encodeURIComponent(backorderId)}` : null
+}
+
+/**
+ * Where any notice leads: the backorder when it carries `backorderId`, else the sale (`saleId`,
+ * SALE_HOLD_REVIEW), else its request.
+ */
+export function notificationTargetPath(
+  item: Pick<NotificationItem, 'requestId'> & Partial<Pick<NotificationItem, 'saleId' | 'backorderId'>>,
+): string | null {
+  return (
+    notificationBackorderPath(item.backorderId) ??
+    notificationSalePath(item.saleId) ??
+    notificationDetailPath(item.requestId)
+  )
 }
 
 const WEEKDAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']

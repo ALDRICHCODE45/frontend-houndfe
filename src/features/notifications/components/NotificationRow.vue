@@ -2,9 +2,9 @@
 /**
  * NotificationRow — one notice of the panel (design 02-panel-lateral `itemHTML`).
  *
- * The whole row leads to the request (`/chatbot/solicitudes/:requestId`) or, for a sale notice
- * (SALE_HOLD_REVIEW, BE handoff 24 §5), to the sale (`/pos/ventas/:saleId`); with neither it is a
- * button. A plain click emits `open` (the panel marks it read, navigates and closes); a modified
+ * The whole row leads to the request (`/chatbot/solicitudes/:requestId`), for a sale notice
+ * (SALE_HOLD_REVIEW, BE handoff 24 §5) to the sale (`/pos/ventas/:saleId`), or for a BACKORDER_*
+ * notice to the backorder (`/pos/pedidos-reposicion/:backorderId`); with none it is a button. A plain click emits `open` (the panel marks it read, navigates and closes); a modified
  * click (new tab) lets the browser follow the link and emits `mark` so it still counts as read.
  * `title` and `body` come from the server as plain text and are rendered as text, never HTML.
  * The structured fields (folio, subtype, cause, reason, requestOpen) are optional: a backend that
