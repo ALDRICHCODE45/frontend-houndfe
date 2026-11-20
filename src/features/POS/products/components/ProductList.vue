@@ -222,13 +222,17 @@ const rowOpen = computed(() => (props.canRead ? open : undefined))
         class="block"
         v-bind="getProductReservedStock(row.original)!"
       />
+      <!-- Owner S13: the low-stock alert stays next to the reserved label. -->
       <StatusBadge
-        v-else-if="stockNeedsAttention(row.original)"
+        v-if="stockNeedsAttention(row.original)"
         :label="getProductStockDisplay(row.original).label"
         :tone="getProductStockDisplay(row.original).tone"
         aria-prefix="Stock:"
       />
-      <span v-else class="hf-figure block">{{ getProductStockDisplay(row.original).label }}</span>
+      <span
+        v-else-if="!getProductReservedStock(row.original)"
+        class="hf-figure block"
+      >{{ getProductStockDisplay(row.original).label }}</span>
     </template>
 
     <template #actions-cell="{ row }">
@@ -269,7 +273,7 @@ const rowOpen = computed(() => (props.canRead ? open : undefined))
             :tone="statusOf(row).tone"
           />
           <StatusBadge
-            v-if="!getProductReservedStock(row) && stockNeedsAttention(row)"
+            v-if="stockNeedsAttention(row)"
             :label="getProductStockCompactLabel(row)"
             :tone="getProductStockDisplay(row).tone"
             aria-prefix="Stock:"

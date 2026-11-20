@@ -143,23 +143,35 @@ describe('ProductList — data', () => {
   describe('reserved stock (restock backorder S6)', () => {
     const reserved = { quantity: 1, stockOnHand: 3, reservedForBackorders: 2, availableToSell: 1 }
 
-    it('shows «Disponible 1 · Apartado 2» in the stock cell and no loud badge', () => {
+    it('shows «Disponible 1 · Apartado 2» and the low-stock badge together (owner S13)', () => {
       const wrapper = mountList({ items: [{ ...product, ...reserved, minQuantity: 5 }] })
       const cell = wrapper.get('td [data-testid="reserved-stock"]')
       expect(cell.text().replace(/\s+/g, ' ')).toContain('Disponible 1')
       expect(cell.text()).toContain('Apartado 2')
-      // Only the status badge: the low-stock tone badge would be a second, warning-less one.
+      // Status badge plus the low-stock badge: the purchasing manager keeps the alert.
+      const lowStock = wrapper.get('td [aria-label^="Stock:"]')
+      expect(lowStock.text()).toContain('1 unidad')
+      expect(wrapper.findAll('.hf-status-badge')).toHaveLength(2)
+      wrapper.unmount()
+    })
+
+    it('shows only the label when the sellable stock is above the minimum', () => {
+      const wrapper = mountList({
+        items: [{ ...product, quantity: 20, stockOnHand: 22, reservedForBackorders: 2, availableToSell: 20, minQuantity: 5 }],
+      })
+      expect(wrapper.get('td [data-testid="reserved-stock"]').text()).toContain('Apartado 2')
       expect(wrapper.findAll('.hf-status-badge')).toHaveLength(1)
       wrapper.unmount()
     })
 
-    it('does not paint an empty sellable stock red when units are reserved', () => {
+    it('keeps the same low-stock rule when 0 are sellable and units are reserved', () => {
       const wrapper = mountList({
         items: [{ ...product, quantity: 0, stockOnHand: 2, reservedForBackorders: 2, availableToSell: 0 }],
       })
-      expect(wrapper.find('[data-tone="danger"]').exists()).toBe(false)
       expect(wrapper.text()).toContain('Disponible 0')
       expect(wrapper.text()).toContain('Apartado 2')
+      expect(wrapper.text()).toContain('0 unidades')
+      expect(wrapper.findAll('.hf-status-badge')).toHaveLength(2)
       wrapper.unmount()
     })
 
@@ -177,6 +189,16 @@ describe('ProductList — data', () => {
       const wrapper = mountList({ items: [{ ...product, ...reserved }] })
       const card = wrapper.get('[data-testid="product-card"]')
       expect(card.get('[data-testid="reserved-stock"]').text()).toContain('Apartado 2')
+      isMobile.value = false
+      wrapper.unmount()
+    })
+
+    it('keeps the low-stock badge on the mobile card next to the label (owner S13)', () => {
+      isMobile.value = true
+      const wrapper = mountList({ items: [{ ...product, ...reserved, minQuantity: 5 }] })
+      const card = wrapper.get('[data-testid="product-card"]')
+      expect(card.get('[aria-label^="Stock:"]').text()).toContain('1 unidad')
+      expect(card.get('[data-testid="reserved-stock"]').text()).toContain('Disponible 1')
       isMobile.value = false
       wrapper.unmount()
     })
