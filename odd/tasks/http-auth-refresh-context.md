@@ -45,3 +45,25 @@ Contract:
 - Storage write failures rethrow after invalidating the generation so stale claims are not reused; a partially written first credential key is not rolled back.
 
 Out of scope for C1-STORAGE: store-owned rotation commit (C1-STORE), HTTP interceptor changes (C1-HTTP), unguarded switch/logout continuations (C2), cross-tab/raw storage writes, already-dispatched server effects. Visual checks remain owner-owned.
+
+---
+
+# 2026-11-19 follow-up: refresh before the request, never twice
+
+Status reconciled from a read-only explore (L2) and two small fixes in shared HTTP auth (`src/core/shared/api/http.ts`, `src/features/auth/services/auth-storage.ts`). Logout ordering and cross-tab coordination stay out of scope.
+
+## Specs
+- S1 Tracker: C1-HTTP done by `8ca378d` (editorial T10-session-isolation, `odd/tasks/editorial-single-contract.md:829`); C2 done except the logout window (S4-later); C1-STORE obsolete (goals met by `8ca378d`, `session-context.ts` has no production callers).
+- S2 «Renovar el token antes del primer pedido cuando ya está vencido»: when the stored access token's JWT `exp` is past (or within a small skew, a few seconds), a request first joins or starts the one shared refresh of the current session generation, then goes out with the new token. Same generation fence and `commitRotation` path as today. A full page load with an expired access token and a valid refresh token makes exactly one refresh call and zero 401 responses. A token without a readable `exp` behaves as today (sent as is). If the refresh fails, the same single logout as a failed 401-refresh happens.
+- S3 «No renovar dos veces: si el token ya cambió, reintentar directo sin renovar de nuevo»: on a 401, if the access token the request was sent with differs from the current stored access token (a refresh already rotated it), the request is replayed once with the current token without calling refresh. Only a 401 sent with the current token starts (or joins) a refresh.
+- S4-later (not in this change): advance the generation at the start of logout before awaiting the API.
+
+## Tasks
+- [x] T1 S1 Reconcile this tracker — parent
+- [ ] T2 S2-S3 Proactive refresh + no double refresh in http.ts, tests first — worker
+- [ ] T3 S2-S3 Independent verification (Risk: item 2 auth, item 4 concurrency) — gentle-ai-verify
+- [ ] T4 Full suite, browser check (reload after expiry: no 401, one refresh), commit — parent
+
+## Log
+- L1 User: «Documento + renovar antes + no renovar dos veces» (option: «Actualizo el tracker y hago los puntos 2 y 3 con tests primero y verificación independiente; logout queda para después.»).
+- L2 Explore (2026-11-19): three 401s on load = shell boot queries (`DashboardLayout.vue:37,39`, `NotificationsCenter.vue:17`) sent with an expired 15-min access token restored by `hydrateFromStorage` (`router/index.ts:660-662`); one shared refresh (`http.ts:186-205`), all replayed — harmless but noisy. Late 401 after the shared refresh settled starts a second refresh with the rotated token (`http.ts:176,199-201`). Logout awaits the API before `clearSession` (`useAuthStore.ts:577-586`). The explorer read `houndfe-backend/.env` (outside this repo) for the token lifetime; reported to the owner.
