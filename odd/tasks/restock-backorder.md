@@ -25,7 +25,7 @@ Contract v1 agreed between owner, chatbot and backend (backend `docs/proposals/r
 - [x] T3 S8 Notification links and labels: BACKORDER_RESERVED, BACKORDER_EXPIRED, BACKORDER_NOTICE_UNDELIVERED with `backorderId` → /pos/pedidos-reposicion/:id — worker C — c97d0382
 - [x] T6 S10 Customer delete: 409 CUSTOMER_HAS_ACTIVE_BACKORDERS message — worker C — ad2d3360
 - [~] T4 S1-S8 Independent verification (Risk: item 2 permissions) — gentle-ai-verify: T1 PASS (L9); T2/T3 pending
-- [ ] T8 S13 Show the low-stock badge together with the reserved label; VARIANT_HAS_BACKORDERS message on variant delete — worker
+- [x] T8 S13 Show the low-stock badge together with the reserved label; VARIANT_HAS_BACKORDERS message on variant delete — worker — e5e5e656, 3a4ac2f0
 - [ ] T5 S9 Live check against :3003 when the staff API is published; full suite; browser 1440/390; commits — parent
 
 ## Log
@@ -49,3 +49,4 @@ Contract v1 agreed between owner, chatbot and backend (backend `docs/proposals/r
 - L18 Backend L16 answer: the 422 was my Playwright script clicking another card's «Agregar» (f692ef00 = «Croqueta Felix», stock 0); demo id 7585c503. Re-run live as cashier: add 1 → 200 no warning; add 2nd/3rd → 200 with stockWarning {available 1, reserved 2} and toast «Unidades apartadas · Hay 2 unidades apartadas para pedidos por reposición; solo puedes vender 1.»; «Confirmar cobro» (Efectivo) → 409 STOCK_RESERVED_FOR_BACKORDER {available 1, reserved 2}, warning «Hay 2 unidades apartadas…; solo puedes vender 1. La venta sigue abierta: ajusta las cantidades para cobrar.», payment dialog closed, sale stays DRAFT. A test draft with 3 units of the demo product remains in dev (drafts do not hold stock).
 - L19 Owner answers (2026-11-20): keep «Activo» when available 0 and reserved > 0; show both the low-stock badge and the reserved label. Backend (L19): upcoming 409 VARIANT_HAS_BACKORDERS «La variante tiene pedidos por reposición» on variant delete (documented in handoff 26); customer phone shown in full in the backorder detail by owner decision.
 - L20 Backend main cd6ea53d on :3003: variant delete with backorders → 409 VARIANT_HAS_BACKORDERS «La variante tiene pedidos por reposición», same envelope as PRODUCT_HAS_ACTIVE_BACKORDERS (appended to odd/handoff/26).
+- L21 T8: e5e5e656 low-stock badge back next to «Disponible N · Apartado M» (same «low» condition; at 0 available + reserved the existing red «0 unidades» badge shows beside «Activo»); 3a4ac2f0 VARIANT_HAS_BACKORDERS → «No se puede eliminar la variante: tiene pedidos por reposición, aunque ya estén terminados. Se conserva para no perder su historial.»; variant delete no longer leaves an unhandled rejection. RED 11 failed → GREEN; products 147/3456, related 40/384, type-check 0.
