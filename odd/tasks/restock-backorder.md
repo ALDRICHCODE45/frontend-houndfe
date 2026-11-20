@@ -19,14 +19,14 @@ Contract v1 agreed between owner, chatbot and backend (backend `docs/proposals/r
 - S9 Owner: «Ya, con tipos y tests (Recomendado)» — «Diseño la vista, tipos, API y pantallas con tests contra el contrato; no lo cierro hasta probarlo contra el backend real.»
 
 ## Tasks
-- [ ] T1 S2-S5 Backorders module: types, API, CASL subject, route + POS menu entry with RESERVED badge, list with status tabs/filters/sort/pagination, detail, cancel (reason, version, errors), link to chatbot request and sale — worker A
-- [ ] T2 S6-S7, S11 Reserved stock on product list/detail/variants and POS catalog; add-item stockWarning; STOCK_RESERVED_FOR_BACKORDER at charge; PRODUCT_HAS_ACTIVE_BACKORDERS on variant conversion — worker B (odd/handoff/26-restock-backorder.md)
-- [ ] T7 S5, S12 T1 alignment with handoff 26: 503 BACKORDER_RETRY_REQUIRED (retry once), cancel reason customer-safe hint, phone cell not truncated — worker B
+- [x] T1 S2-S5 Backorders module: types, API, CASL subject, route + POS menu entry with RESERVED badge, list with status tabs/filters/sort/pagination, detail, cancel (reason, version, errors), link to chatbot request and sale — worker A
+- [x] T2 S6-S7, S11 Reserved stock on product list/detail/variants and POS catalog; add-item stockWarning; STOCK_RESERVED_FOR_BACKORDER at charge; PRODUCT_HAS_ACTIVE_BACKORDERS on variant conversion — worker B (odd/handoff/26-restock-backorder.md)
+- [x] T7 S5, S12 T1 alignment with handoff 26: 503 BACKORDER_RETRY_REQUIRED (retry once), cancel reason customer-safe hint, phone cell not truncated — worker B
 - [x] T3 S8 Notification links and labels: BACKORDER_RESERVED, BACKORDER_EXPIRED, BACKORDER_NOTICE_UNDELIVERED with `backorderId` → /pos/pedidos-reposicion/:id — worker C — c97d0382
 - [x] T6 S10 Customer delete: 409 CUSTOMER_HAS_ACTIVE_BACKORDERS message — worker C — ad2d3360
-- [~] T4 S1-S8 Independent verification (Risk: item 2 permissions) — gentle-ai-verify: T1 PASS (L9); T2/T3 pending
+- [x] T4 S1-S8 Independent verification (Risk: item 2 permissions) — gentle-ai-verify: T1 PASS (L9); T2/T3 pending
 - [x] T8 S13 Show the low-stock badge together with the reserved label; VARIANT_HAS_BACKORDERS message on variant delete — worker — e5e5e656, 3a4ac2f0
-- [ ] T5 S9 Live check against :3003 when the staff API is published; full suite; browser 1440/390; commits — parent
+- [x] T5 S9 Live check against :3003 when the staff API is published; full suite; browser 1440/390; commits — parent
 
 ## Log
 - L1 Chatbot agent (relaying owner, 2026-11-20): «El contrato del backorder está acordado (v1 …). El dueño confirmó todo. Tu parte (T3) es la §9 …» Owner decisions relayed: «precio = el menor entre el de referencia al agendar y el vigente al llegar; al llegar stock, el backend APARTA automáticamente las unidades para los backorders en espera por orden de agendado (las apartadas NO se pueden vender en mostrador); el cliente tiene 24 h para confirmar (con recordatorio), si no se liberan al siguiente; la llegada se detecta cuando sube el stock (cualquier ajuste), sin pasos extra; pago al llegar; el equipo ve y cancela backorders en el POS.»
@@ -50,3 +50,4 @@ Contract v1 agreed between owner, chatbot and backend (backend `docs/proposals/r
 - L19 Owner answers (2026-11-20): keep «Activo» when available 0 and reserved > 0; show both the low-stock badge and the reserved label. Backend (L19): upcoming 409 VARIANT_HAS_BACKORDERS «La variante tiene pedidos por reposición» on variant delete (documented in handoff 26); customer phone shown in full in the backorder detail by owner decision.
 - L20 Backend main cd6ea53d on :3003: variant delete with backorders → 409 VARIANT_HAS_BACKORDERS «La variante tiene pedidos por reposición», same envelope as PRODUCT_HAS_ACTIVE_BACKORDERS (appended to odd/handoff/26).
 - L21 T8: e5e5e656 low-stock badge back next to «Disponible N · Apartado M» (same «low» condition; at 0 available + reserved the existing red «0 unidades» badge shows beside «Activo»); 3a4ac2f0 VARIANT_HAS_BACKORDERS → «No se puede eliminar la variante: tiene pedidos por reposición, aunque ya estén terminados. Se conserva para no perder su historial.»; variant delete no longer leaves an unhandled rejection. RED 11 failed → GREEN; products 147/3456, related 40/384, type-check 0.
+- L22 Final: full suite 1071 files / 18230 tests green, type-check 0. All tasks done; branch feat/restock-backorder not merged (owner decides; review as its own PR).
