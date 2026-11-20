@@ -153,3 +153,27 @@ export function backorderCancelCopy(status: BackorderStatus): string {
     ? 'Las unidades apartadas pasan al siguiente cliente en la fila. Esta acción no se puede deshacer.'
     : 'El cliente sale de la fila de espera. Esta acción no se puede deshacer.'
 }
+
+/** Empty state of each tab (nothing matched no filter, so the tab really has no orders). */
+export const BACKORDER_EMPTY_COPY: Record<BackorderStatus, { title: string; description: string }> = {
+  WAITING: {
+    title: 'No hay pedidos en espera',
+    description: 'Cuando un cliente agende un producto sin existencia, aparecerá aquí.',
+  },
+  RESERVED: {
+    title: 'No hay pedidos apartados',
+    description: 'Al llegar stock, las unidades se apartan por orden de agendado.',
+  },
+  CONFIRMED: {
+    title: 'Todavía no hay pedidos confirmados',
+    description: 'Aquí verás los pedidos que el cliente ya pagó, con su venta.',
+  },
+  EXPIRED: {
+    title: 'No hay pedidos vencidos',
+    description: 'Un apartado vence si el cliente no confirma en 24 horas.',
+  },
+  CANCELLED: {
+    title: 'No hay pedidos cancelados',
+    description: 'Aquí verás los pedidos que canceló el cliente o el equipo.',
+  },
+}
