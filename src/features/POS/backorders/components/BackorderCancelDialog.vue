@@ -64,7 +64,12 @@ function close() {
             class="w-full"
             placeholder="Por ejemplo: el proveedor descontinuó el producto"
             :disabled="pending"
+            aria-describedby="backorder-cancel-reason-hint"
           />
+          <!-- S12 (handoff 26 §4): the reason goes to the customer's bot, which may quote it. -->
+          <p id="backorder-cancel-reason-hint" class="bo-hint" data-testid="cancel-reason-hint">
+            El cliente puede ver este motivo.
+          </p>
           <span
             v-if="showCounter"
             class="bo-counter hf-figure"

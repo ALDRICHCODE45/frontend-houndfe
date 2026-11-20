@@ -120,6 +120,57 @@ describe('useCancelBackorder', () => {
     expect(spy).toHaveBeenCalledWith({ queryKey: backorderQueryKeys.all('tenant-1') })
   })
 
+  // Handoff 26 §4, §7 (S12): 503 BACKORDER_RETRY_REQUIRED = transient serialisation conflict, nothing changed.
+  describe('503 BACKORDER_RETRY_REQUIRED (S12)', () => {
+    const retryRequired = () => ({
+      response: { status: 503, data: { statusCode: 503, error: 'BACKORDER_RETRY_REQUIRED', message: 'BACKORDER_RETRY_REQUIRED' } },
+    })
+
+    it('retries the same request once, automatically, and succeeds', async () => {
+      cancel.mockRejectedValueOnce(retryRequired())
+      cancel.mockResolvedValueOnce(makeBackorder({ status: 'CANCELLED', version: 4 }))
+      const { result } = withQuery(() => useCancelBackorder(() => 'b1'))
+
+      const outcome = await result.cancel({ version: 3, reason: 'Sin proveedor' })
+
+      expect(outcome).toMatchObject({ status: 'cancelled' })
+      expect(cancel).toHaveBeenCalledTimes(2)
+      expect(cancel).toHaveBeenNthCalledWith(1, 'b1', { version: 3, reason: 'Sin proveedor' })
+      expect(cancel).toHaveBeenNthCalledWith(2, 'b1', { version: 3, reason: 'Sin proveedor' })
+    })
+
+    it('after a second 503 it stops (no loop) and says it was a momentary conflict', async () => {
+      cancel.mockRejectedValue(retryRequired())
+      const { result } = withQuery(() => useCancelBackorder(() => 'b1'))
+
+      const outcome = await result.cancel({ version: 3 })
+
+      expect(cancel).toHaveBeenCalledTimes(2)
+      expect(outcome).toMatchObject({
+        status: 'failed',
+        error: { code: 'BACKORDER_RETRY_REQUIRED', message: 'No se pudo cancelar por un conflicto momentáneo. Intenta de nuevo.' },
+      })
+    })
+
+    it('a 409 on the retry is handled like any 409 (refetch)', async () => {
+      cancel.mockRejectedValueOnce(retryRequired())
+      cancel.mockRejectedValueOnce({ response: { status: 409, data: { error: 'BACKORDER_NOT_CANCELLABLE', status: 'CANCELLED' } } })
+      const { result, client } = withQuery(() => useCancelBackorder(() => 'b1'))
+      const invalidate = vi.spyOn(client, 'invalidateQueries')
+
+      expect(await result.cancel({ version: 3 })).toMatchObject({ status: 'failed', error: { refetch: true } })
+      expect(invalidate).toHaveBeenCalled()
+      expect(cancel).toHaveBeenCalledTimes(2)
+    })
+
+    it('does not retry any other failure', async () => {
+      cancel.mockRejectedValue({ response: { status: 500, data: {} } })
+      const { result } = withQuery(() => useCancelBackorder(() => 'b1'))
+      await result.cancel({ version: 3 })
+      expect(cancel).toHaveBeenCalledTimes(1)
+    })
+  })
+
   it('on BACKORDER_NOT_CANCELLABLE refetches too; a generic failure does not', async () => {
     cancel.mockRejectedValueOnce({ response: { status: 409, data: { error: 'BACKORDER_NOT_CANCELLABLE', status: 'EXPIRED' } } })
     const { result, client } = withQuery(() => useCancelBackorder(() => 'b1'))

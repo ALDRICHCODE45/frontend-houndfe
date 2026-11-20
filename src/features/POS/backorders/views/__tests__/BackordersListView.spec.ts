@@ -423,6 +423,23 @@ describe('BackordersListView — column sizing (no truncation at 1440)', () => {
     expect(wrapper.find('[data-testid="backorder-product"] .bo-clamp').exists()).toBe(true)
   })
 
+  it('the phone stays on one line with no ellipsis (S12 / L9), in a column wide enough for it', async () => {
+    const { wrapper } = await mountAt('/pos/pedidos-reposicion')
+    const phone = wrapper.find('[data-testid="backorder-customer"] [data-testid="backorder-phone"]')
+    expect(phone.text()).toBe('+525512345678')
+    expect(phone.classes()).toContain('bo-phone')
+
+    const css = readFileSync(resolve(process.cwd(), 'src/features/POS/backorders/styles/backorders.css'), 'utf8')
+    const rule = css.slice(css.indexOf('.bo-phone'), css.indexOf('}', css.indexOf('.bo-phone')))
+    expect(rule).toContain('white-space: nowrap')
+    expect(rule).toContain('text-overflow: clip')
+    expect(rule).toContain('overflow: visible')
+
+    // 16 characters of tabular figures (the longest international number) plus the cell's 12px+12px padding.
+    const byId = Object.fromEntries((await columns()).map((c) => [c.id, c]))
+    expect(byId.customer!.minSize).toBeGreaterThanOrEqual(144)
+  })
+
   it('the tab row hides its scrollbar but keeps horizontal scroll', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/POS/backorders/styles/backorders.css'), 'utf8')
     const block = css.slice(css.indexOf('.bo-tabs {'), css.indexOf('}', css.indexOf('.bo-tabs {')))

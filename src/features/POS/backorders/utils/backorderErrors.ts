@@ -12,7 +12,11 @@ import { readApiErrorEnvelope } from '@/core/shared/utils/api-error-envelope'
 import type { BackorderStatus } from '../interfaces/backorder.types'
 import { backorderStatusLabel, isBackorderStatus } from './backorderView'
 
-export type BackorderErrorCode = 'VERSION_CONFLICT' | 'BACKORDER_NOT_CANCELLABLE' | 'BACKORDER_NOT_FOUND'
+export type BackorderErrorCode =
+  | 'VERSION_CONFLICT'
+  | 'BACKORDER_NOT_CANCELLABLE'
+  | 'BACKORDER_NOT_FOUND'
+  | 'BACKORDER_RETRY_REQUIRED'
 
 export interface BackorderErrorInfo {
   status: number | null
@@ -29,6 +33,9 @@ export interface BackorderErrorInfo {
 
 export const VERSION_CONFLICT_COPY = 'Otro usuario modificó este pedido; revisa los datos y vuelve a intentar.'
 const NOT_FOUND_COPY = 'Este pedido ya no existe en esta sucursal.'
+/** 503 `BACKORDER_RETRY_REQUIRED` (handoff 26 §7): a transient serialisation conflict; nothing changed. */
+export const RETRY_REQUIRED_CODE = 'BACKORDER_RETRY_REQUIRED'
+const RETRY_REQUIRED_COPY = 'No se pudo cancelar por un conflicto momentáneo. Intenta de nuevo.'
 const GENERIC_COPY = 'No pudimos cancelar el pedido. Intenta de nuevo.'
 const NETWORK_COPY = 'No pudimos conectar. Revisa tu conexión e intenta de nuevo.'
 
@@ -63,6 +70,9 @@ export function readBackorderError(err: unknown): BackorderErrorInfo {
   }
   if (envelope.code === 'BACKORDER_NOT_CANCELLABLE') {
     return { ...base, message: notCancellableCopy(currentStatus), refetch: true, notFound: false }
+  }
+  if (envelope.code === RETRY_REQUIRED_CODE) {
+    return { ...base, message: RETRY_REQUIRED_COPY, refetch: false, notFound: false }
   }
   if (envelope.code === 'BACKORDER_NOT_FOUND' || envelope.status === 404) {
     return { ...base, message: NOT_FOUND_COPY, refetch: false, notFound: true }

@@ -52,3 +52,18 @@ describe('readBackorderError (S5)', () => {
     )
   })
 })
+
+describe('readBackorderError — 503 BACKORDER_RETRY_REQUIRED (S12)', () => {
+  it('is its own error with the momentary-conflict copy; nothing to refetch', () => {
+    const info = readBackorderError(
+      httpError(503, { statusCode: 503, error: 'BACKORDER_RETRY_REQUIRED', message: 'BACKORDER_RETRY_REQUIRED' }),
+    )
+    expect(info).toMatchObject({
+      status: 503,
+      code: 'BACKORDER_RETRY_REQUIRED',
+      refetch: false,
+      notFound: false,
+      message: 'No se pudo cancelar por un conflicto momentáneo. Intenta de nuevo.',
+    })
+  })
+})

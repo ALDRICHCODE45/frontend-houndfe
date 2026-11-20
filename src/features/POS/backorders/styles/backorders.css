@@ -62,6 +62,12 @@
   font-weight: 500;
 }
 
+.bo-hint {
+  margin: 0;
+  color: var(--hf-muted);
+  font-size: 12px;
+}
+
 .bo-stack {
   display: flex;
   min-width: 0;
@@ -345,4 +351,12 @@
   overflow: hidden;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+/* The phone is a fact to read aloud or dial: one line, never cut with an ellipsis (the cell is wide enough;
+ * the name above it wraps instead). */
+.hf-ui.bo-page .bo-phone {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
 }

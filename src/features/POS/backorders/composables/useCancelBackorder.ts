@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/vue-query'
 import { backorderQueryKeys } from '@/core/shared/constants/query-keys'
 import { backordersApi } from '../api/backorders.api'
 import type { BackorderStaff, CancelBackorderBody } from '../interfaces/backorder.types'
-import { readBackorderError, type BackorderErrorInfo } from '../utils/backorderErrors'
+import { RETRY_REQUIRED_CODE, readBackorderError, type BackorderErrorInfo } from '../utils/backorderErrors'
 import { useBackorderAccess } from './useBackorderAccess'
 
 export type CancelBackorderOutcome =
@@ -16,6 +16,10 @@ export type CancelBackorderOutcome =
  * flight is ignored. Success, the two 409s and a 404 refresh the whole tenant prefix (list, tabs' counts,
  * nav badge, detail) so the screen shows the order as the server has it; the caller words the
  * outcome. Never throws.
+ *
+ * A 503 `BACKORDER_RETRY_REQUIRED` (S12, handoff 26 §7) changed nothing on the server: the very same
+ * request (same version and reason) is sent once more. If that fails too, it is reported as a failure
+ * (no loop); a 409 on the retry is handled like any 409.
  */
 export function useCancelBackorder(id: MaybeRefOrGetter<string>) {
   const client = useQueryClient()
@@ -28,7 +32,13 @@ export function useCancelBackorder(id: MaybeRefOrGetter<string>) {
     if (!canUpdate.value || isPending.value) return { status: 'ignored' }
     isPending.value = true
     try {
-      const backorder = await backordersApi.cancel(toValue(id), body)
+      let backorder: BackorderStaff
+      try {
+        backorder = await backordersApi.cancel(toValue(id), body)
+      } catch (err) {
+        if (readBackorderError(err).code !== RETRY_REQUIRED_CODE) throw err
+        backorder = await backordersApi.cancel(toValue(id), body)
+      }
       await refresh()
       return { status: 'cancelled', backorder }
     } catch (err) {

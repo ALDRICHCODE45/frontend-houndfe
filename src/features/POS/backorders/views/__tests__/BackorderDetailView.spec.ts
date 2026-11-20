@@ -298,6 +298,30 @@ describe('BackorderDetailView — cancel flow (S5)', () => {
     expect(wrapper.find('[data-testid="cancel-counter"]').text()).toBe('252 / 280')
   })
 
+  it('warns that the reason may be shown to the customer (S12)', async () => {
+    const { wrapper } = await mountDetail()
+    await openDialog(wrapper)
+    const hint = wrapper.find('[data-testid="cancel-reason-hint"]')
+    expect(hint.text()).toBe('El cliente puede ver este motivo.')
+    // Tied to the field, so assistive tech reads it with the textarea.
+    expect(wrapper.find('[data-testid="cancel-reason"]').attributes('aria-describedby')).toBe(hint.attributes('id'))
+  })
+
+  it('a momentary conflict (503 after the retry) keeps the dialog open with the retry message', async () => {
+    cancelMock.cancel.mockResolvedValue({
+      status: 'failed',
+      error: readBackorderError({ response: { status: 503, data: { error: 'BACKORDER_RETRY_REQUIRED' } } }),
+    })
+    const { wrapper } = await mountDetail()
+    await openDialog(wrapper)
+    await wrapper.find('[data-testid="cancel-dialog-confirm"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="cancel-modal"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="cancel-error"]').text()).toBe(
+      'No se pudo cancelar por un conflicto momentáneo. Intenta de nuevo.',
+    )
+  })
+
   it('sends the version it loaded and the reason, then closes with a success note', async () => {
     cancelMock.cancel.mockResolvedValue({ status: 'cancelled', backorder: makeBackorder({ status: 'CANCELLED' }) } satisfies CancelBackorderOutcome)
     const { wrapper } = await mountDetail()

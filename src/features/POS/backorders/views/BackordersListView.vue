@@ -125,16 +125,17 @@ const showingTo = computed(() => (list.total.value === 0 ? 0 : (state.value.page
 // ── Columns ──────────────────────────────────────────────────────────────────
 // Order: the follow-up column (queue position, passed-over warning, reserve deadline) comes right after
 // the product. `minSize` is the floor the table shrinks to; the floors plus the 64px Acciones column
-// add up to 1008px, so at 1440 with the sidebar open (~1020px) nothing scrolls sideways:
-// folio 112 + cliente 128 + producto 160 + seguimiento 160 + precio 128 + agendado 120 + llegada 136 + 64.
+// add up to 1016px, so at 1440 with the sidebar open (~1020px) nothing scrolls sideways:
+// folio 112 + cliente 144 + producto 160 + seguimiento 152 + precio 128 + agendado 120 + llegada 136 + 64.
+// Cliente is 144 so a 16-character international phone fits on one line (S12); the name wraps instead.
 // Folio and the dates never wrap («BO-000012», «16 nov, 22:45»); name, product, follow-up and price may.
 const wrap = { th: '', td: 'bo-wrap' }
 const columns = computed<TableColumn<BackorderStaff>[]>(() => [
   { id: 'folio', header: 'Folio', enableSorting: false, size: 120, minSize: 112 },
-  { id: 'customer', header: 'Cliente', enableSorting: false, size: 176, minSize: 128, meta: { primary: true, class: wrap } },
+  { id: 'customer', header: 'Cliente', enableSorting: false, size: 176, minSize: 144, meta: { primary: true, class: wrap } },
   { id: 'product', header: 'Producto', enableSorting: false, size: 208, minSize: 160, meta: { class: wrap } },
   // Sortable only in Apartados (`sortBy=reservedUntil`); on the other tabs the order is by `scheduledAt`.
-  { id: 'info', header: 'Seguimiento', enableSorting: state.value.tab === 'RESERVED', size: 200, minSize: 160, meta: { class: wrap } },
+  { id: 'info', header: 'Seguimiento', enableSorting: state.value.tab === 'RESERVED', size: 200, minSize: 152, meta: { class: wrap } },
   // «2 × $1,149.00»: the quantity leads the price (like the mobile card), so there is no Cantidad column.
   {
     id: 'price',
@@ -268,7 +269,11 @@ const when = (iso: string) => formatShortDateTime(iso)
           <template #customer-cell="{ row }">
             <span class="bo-stack" data-testid="backorder-customer">
               <span class="hf-row-primary bo-clamp">{{ row.original.customer.name }}</span>
-              <span v-if="row.original.customer.phone" class="hf-row-secondary">{{ row.original.customer.phone }}</span>
+              <span
+                v-if="row.original.customer.phone"
+                class="hf-row-secondary bo-phone hf-figure"
+                data-testid="backorder-phone"
+              >{{ row.original.customer.phone }}</span>
             </span>
           </template>
 
