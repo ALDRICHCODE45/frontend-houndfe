@@ -13,7 +13,7 @@ One shared frame for every detail page: header pinned at the top with no strip a
 - [x] T2 S1-S3 Shared DetailPageFrame (src/core/shared/components/DetailPageFrame.vue) (header slot pinned, full-width scroller, inner max-width, bottom slot) — parent
 - [x] T3 S1-S3 Migrate sale, product, promotion — worker — 4cc2a091
 - [x] T4 S3 Migrate quotation, employee, delivery route — worker
-- [x] T5 S1-S4 Design-system rule, browser checks (1440, 1920, 390, light/dark), full suite — parent (quotation mobile header: L12)
+- [x] T5 S1-S4 Design-system rule, browser checks (1440, 1920, 390, light/dark), full suite — parent (quotation mobile header: L12) — de78c386
 
 ## Log
 - L1 User: «hay algunas pantallas, en especial pantallas de "detalles" como detalles de ventas y detalles de productos, etc.. en las hay un error o algo molesto con lo que vengo lidiando desde hace tiempo, y eso es que no puede haber scroll completo de toda la pagina sin que haya un margin arriba, te explico: [Image#1] mira eso, si notas, arriba del header en donde dice el numero de la venta y esta el boton de accion para volver atras, hay un espacio en blanco, una linea que se ve muy mal, pero puedo hacer scroll por toda la pagina sin ningun problema, y ahora en el detalle del producto: [Image#2] si te das cuenta, no existe esa linea arriba del header con el nombre, el estado la fecha de actualizacion y el boton para volver, peroo para hacer scroll del detalle solo lo puedo hacer dentro de un ancho maximo, me sigues?? eso es el primer problema y el segundo es que en la vista mobile, hay algunas paginas que el breadcrum esta amontonado y se ve muy mal, por favor investigalo hermano. alguna duda?»
