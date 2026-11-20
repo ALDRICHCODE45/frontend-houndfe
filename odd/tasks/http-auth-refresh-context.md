@@ -60,10 +60,13 @@ Status reconciled from a read-only explore (L2) and two small fixes in shared HT
 
 ## Tasks
 - [x] T1 S1 Reconcile this tracker — parent
-- [ ] T2 S2-S3 Proactive refresh + no double refresh in http.ts, tests first — worker
-- [ ] T3 S2-S3 Independent verification (Risk: item 2 auth, item 4 concurrency) — gentle-ai-verify
-- [ ] T4 Full suite, browser check (reload after expiry: no 401, one refresh), commit — parent
+- [x] T2 S2-S3 Proactive refresh + no double refresh in http.ts, tests first — worker
+- [x] T3 S2-S3 Independent verification (Risk: item 2 auth, item 4 concurrency) — gentle-ai-verify: S2 PASS, S3 PASS
+- [x] T4 Full suite, browser check (reload after expiry: no 401, one refresh), commit — parent
 
 ## Log
 - L1 User: «Documento + renovar antes + no renovar dos veces» (option: «Actualizo el tracker y hago los puntos 2 y 3 con tests primero y verificación independiente; logout queda para después.»).
 - L2 Explore (2026-11-19): three 401s on load = shell boot queries (`DashboardLayout.vue:37,39`, `NotificationsCenter.vue:17`) sent with an expired 15-min access token restored by `hydrateFromStorage` (`router/index.ts:660-662`); one shared refresh (`http.ts:186-205`), all replayed — harmless but noisy. Late 401 after the shared refresh settled starts a second refresh with the rotated token (`http.ts:176,199-201`). Logout awaits the API before `clearSession` (`useAuthStore.ts:577-586`). The explorer read `houndfe-backend/.env` (outside this repo) for the token lifetime; reported to the owner.
+- L3 T2 (worker): http.ts async request interceptor refreshes when JWT exp is past or within ACCESS_TOKEN_EXPIRY_SKEW_MS (10 s) through one refreshSession(generation, refreshToken) shared with the 401 path; skipped for auth-free endpoints, verified-permissions, _retry, no readable exp, no refresh token. 401 sent with a Bearer that differs from the stored token → one replay without refresh. RED 8 failed / 37 passed; 13 new cases. Behavior notes: failed-refresh logout happens once inside the shared refresh (same effective behavior); expired token without refresh token goes out as before.
+- L4 T3 verify: S2 PASS, S3 PASS, no blockers. Non-blocking: no timeout on the raw refresh post and the proactive wait ignores config.signal (requests wait until refresh settles, like 401 waiters already did); clock ahead of server by > lifetime−10 s → one refresh per batch; realtime stream-client connects outside http and may still log a 401; untested mixes (proactive + 401 joining one refresh, superseded failed refresh not logging out) are handled in code.
+- L5 T4: prettier, eslint, type-check 0; full suite 1054 files / 17981 tests green. Browser (FE :5173 → BE :3003, manager@houndfe.com): stored access token exp set to the past, reload /pos/ventas → one POST /auth/refresh 200, then 8 boot requests 200, zero 401; new token valid 15 min.

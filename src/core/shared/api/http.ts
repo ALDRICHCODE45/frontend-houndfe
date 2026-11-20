@@ -5,6 +5,7 @@ import axios, {
 } from 'axios'
 import { getActivePinia } from 'pinia'
 import { authStorage, type SessionRotationReceipt } from '@/features/auth/services/auth-storage'
+import { decodeJwtClaims } from '@/features/auth/services/jwt.utils'
 import { emitSessionExpired } from '@/features/auth/services/session-events'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { csvParamsSerializer } from './paramsSerializer'
@@ -82,7 +83,75 @@ interface RetryableRequestConfig extends InternalAxiosRequestConfig {
 }
 
 const authFreePaths = ['/auth/login', '/auth/register', '/auth/refresh']
-let refreshFlight: { generation: number; promise: Promise<SessionRotationReceipt | null> } | null = null
+/** An access token expiring within this window is refreshed before the request is sent. */
+const ACCESS_TOKEN_EXPIRY_SKEW_MS = 10_000
+let refreshFlight: { generation: number; promise: Promise<SessionRotationReceipt | null> } | null =
+  null
+
+function isAuthFreeRequest(config?: AxiosRequestConfig) {
+  const url = config?.url ?? ''
+  const isTenantSelection =
+    config?.method?.toLowerCase() === 'post' && /^\/auth\/select-tenant\/?(?:[?#].*)?$/.test(url)
+  return isTenantSelection || authFreePaths.some((path) => url.includes(path))
+}
+
+/** True only for a readable JWT `exp` that is past or inside the skew window. */
+function isAccessTokenExpiring(token: string): boolean {
+  try {
+    const { exp } = decodeJwtClaims(token) as { exp?: unknown }
+    return (
+      typeof exp === 'number' &&
+      Number.isFinite(exp) &&
+      exp * 1000 <= Date.now() + ACCESS_TOKEN_EXPIRY_SKEW_MS
+    )
+  } catch {
+    return false
+  }
+}
+
+function bearerToken(config?: AxiosRequestConfig): string | null {
+  return /^Bearer (\S+)$/.exec(String(config?.headers?.Authorization ?? ''))?.[1] ?? null
+}
+
+/**
+ * Start (or join) the single refresh of `generation`. A superseded session resolves
+ * `null`; a failure of the still-current session logs out exactly once, here, so every
+ * joiner only has to reject.
+ */
+function refreshSession(
+  generation: number,
+  refreshToken: string,
+): Promise<SessionRotationReceipt | null> {
+  if (refreshFlight && refreshFlight.generation === generation) return refreshFlight.promise
+  const isCurrent = () => generation === authStorage.getSessionGeneration()
+  const flight = {
+    generation,
+    promise: axios
+      .post<{ accessToken: string; refreshToken: string }>(`${API_BASE_URL}/auth/refresh`, {
+        refreshToken,
+      })
+      .then((res) => {
+        if (!isCurrent()) return null
+        const receipt = authStorage.commitRotation(generation, res.data)
+        if (!receipt) throw new Error('Invalid session rotation')
+        const activePinia = getActivePinia()
+        if (activePinia) useAuthStore(activePinia).applySessionRotation(receipt)
+        return receipt
+      })
+      .catch((refreshError: unknown) => {
+        if (isCurrent()) {
+          authStorage.clear()
+          emitSessionExpired('refresh-failed')
+        }
+        throw refreshError
+      })
+      .finally(() => {
+        if (refreshFlight === flight) refreshFlight = null
+      }),
+  }
+  refreshFlight = flight
+  return flight.promise
+}
 
 export const http = axios.create({
   baseURL: API_BASE_URL,
@@ -91,7 +160,7 @@ export const http = axios.create({
   },
 })
 
-http.interceptors.request.use((config: RetryableRequestConfig) => {
+http.interceptors.request.use(async (config: RetryableRequestConfig) => {
   const generation = authStorage.getSessionGeneration()
   if (config._sessionGeneration !== undefined && config._sessionGeneration !== generation) {
     throw new axios.CanceledError('Session changed')
@@ -102,7 +171,21 @@ http.interceptors.request.use((config: RetryableRequestConfig) => {
       throw new Error('Verified permissions token missing')
     }
   } else {
-    const token = authStorage.getAccessToken()
+    let token = authStorage.getAccessToken()
+    const refreshToken = authStorage.getRefreshToken()
+    if (
+      token &&
+      refreshToken &&
+      !config._retry &&
+      !isAuthFreeRequest(config) &&
+      isAccessTokenExpiring(token)
+    ) {
+      const rotated = await refreshSession(generation, refreshToken)
+      if (!rotated || generation !== authStorage.getSessionGeneration() || config.signal?.aborted) {
+        throw new axios.CanceledError('Session changed')
+      }
+      token = rotated.accessToken
+    }
     if (token) config.headers.Authorization = `Bearer ${token}`
   }
 
@@ -123,14 +206,9 @@ http.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as RetryableRequestConfig | undefined
 
-    const requestUrl = originalRequest?.url ?? ''
     const jsonMessage = (error.response?.data as { message?: string } | undefined)?.message
 
-    const isTenantSelection =
-      originalRequest?.method?.toLowerCase() === 'post' &&
-      /^\/auth\/select-tenant\/?(?:[?#].*)?$/.test(requestUrl)
-    const isAuthFreePath =
-      isTenantSelection || authFreePaths.some((path) => requestUrl.includes(path))
+    const isAuthFreePath = isAuthFreeRequest(originalRequest)
 
     // This bootstrap belongs to an uncommitted login, never the persisted session.
     if (isVerifiedPermissionsRequest(originalRequest)) return Promise.reject(error)
@@ -173,6 +251,16 @@ http.interceptors.response.use(
     ) {
       originalRequest._retry = true
 
+      // The token this request carried was already rotated: replay once with the
+      // current one; only a 401 sent with the current token may refresh.
+      const sentToken = bearerToken(originalRequest)
+      const currentToken = authStorage.getAccessToken()
+      if (sentToken && currentToken && sentToken !== currentToken) {
+        originalRequest._sessionGeneration = generation
+        originalRequest.headers.Authorization = `Bearer ${currentToken}`
+        return http(originalRequest)
+      }
+
       const refreshToken = authStorage.getRefreshToken()
       if (!refreshToken) {
         authStorage.clear()
@@ -180,41 +268,12 @@ http.interceptors.response.use(
         return Promise.reject(error)
       }
 
-      try {
-        if (!refreshFlight || refreshFlight.generation !== generation) {
-          const flight = {
-            generation,
-            promise: axios
-              .post<{ accessToken: string; refreshToken: string }>(`${API_BASE_URL}/auth/refresh`, {
-                refreshToken,
-              })
-              .then((res) => {
-                if (!isCurrent()) return null
-                const receipt = authStorage.commitRotation(generation, res.data)
-                if (!receipt) throw new Error('Invalid session rotation')
-                const activePinia = getActivePinia()
-                if (activePinia) useAuthStore(activePinia).applySessionRotation(receipt)
-                return receipt
-              })
-              .finally(() => {
-                if (refreshFlight === flight) refreshFlight = null
-              }),
-          }
-          refreshFlight = flight
-        }
-
-        const tokens = await refreshFlight.promise
-        if (!tokens || !isCurrent() || originalRequest.signal?.aborted) return Promise.reject(error)
-        originalRequest._sessionGeneration = generation
-        originalRequest.headers.Authorization = `Bearer ${tokens.accessToken}`
-        return http(originalRequest)
-      } catch (refreshError) {
-        if (isCurrent()) {
-          authStorage.clear()
-          emitSessionExpired('refresh-failed')
-        }
-        return Promise.reject(refreshError)
-      }
+      // A failed refresh already logged out (once) inside `refreshSession`.
+      const tokens = await refreshSession(generation, refreshToken)
+      if (!tokens || !isCurrent() || originalRequest.signal?.aborted) return Promise.reject(error)
+      originalRequest._sessionGeneration = generation
+      originalRequest.headers.Authorization = `Bearer ${tokens.accessToken}`
+      return http(originalRequest)
     }
 
     return Promise.reject(error)
