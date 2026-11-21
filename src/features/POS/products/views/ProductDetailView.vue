@@ -42,6 +42,8 @@ import ProductVariantsTable, {
 import { productStatusConfig } from '../utils/productStatusConfig.utils'
 import { productStockTotal } from '../utils/productStockTotal'
 import {
+  backorderVariantBlockMessage,
+  backorderVariantDeleteMessage,
   hasStockOnHand,
   productStockError,
   type ProductStockErrorField,
@@ -900,6 +902,10 @@ function mapDomainError(error: AxiosError<DomainApiError>): string {
   }
   const stockMessage = productStockError(error)?.message
   if (stockMessage) return stockMessage
+  const backorderMessage = backorderVariantBlockMessage(error)
+  if (backorderMessage) return backorderMessage
+  const variantDeleteMessage = backorderVariantDeleteMessage(error)
+  if (variantDeleteMessage) return variantDeleteMessage
   return response.message ?? 'No pudimos completar la operación. Reintenta en unos segundos.'
 }
 
@@ -1940,12 +1946,16 @@ async function handleDeleteVariant(variantId: string, variantName: string) {
   if (!canDeleteProduct.value) return
 
   openConfirm(`¿Quieres eliminar la variante ${variantName}?`, () => {
-    void deleteVariantMutation.mutateAsync(variantId).then(() => {
-      if (variantDetailModalVariant.value?.id === variantId) {
-        isVariantDetailModalOpen.value = false
-        variantDetailModalVariant.value = null
-      }
-    })
+    void deleteVariantMutation
+      .mutateAsync(variantId)
+      .then(() => {
+        if (variantDetailModalVariant.value?.id === variantId) {
+          isVariantDetailModalOpen.value = false
+          variantDetailModalVariant.value = null
+        }
+      })
+      // The mutation's onError already tells the user; the variant stays.
+      .catch(() => undefined)
   })
 }
 
@@ -1999,6 +2009,7 @@ const variantTableRows = computed<ProductVariantRow[]>(() =>
         sku: variant.sku ?? '',
         barcode: variant.barcode ?? '',
         quantity: variant.quantity,
+        reservedForBackorders: variant.reservedForBackorders,
         priceCents: getPublicPrice(variant)?.priceCents ?? 0,
         deleteName: variant.name,
       })),
@@ -2501,6 +2512,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
                   <ReadOnlyStock
                     v-if="!isCreateMode"
                     :value="formState.quantity"
+                    :reserved="product?.reservedForBackorders"
                     label="Existencias"
                     data-testid="product-detail-stock-readonly"
                   />
@@ -2763,6 +2775,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
           :cost-cents="previewCostCents"
           :margin-percent="previewMarginPercent"
           :stock-total="previewStockTotal"
+          :reserved-stock="isCreateMode ? null : product?.reservedForBackorders"
           :checklist="previewChecklistItems"
           :completed-items="previewCompletedItems"
           :applicable-items="previewApplicableChecklistItems.length"
@@ -3231,6 +3244,7 @@ function handlePendingVariantPriceAction(key: string, priceListId: string) {
             <ReadOnlyStock
               v-if="!isCreateMode && editingVariantId"
               :value="variantState.quantity"
+              :reserved="findSavedVariant(editingVariantId)?.reservedForBackorders"
               label="Existencias"
               data-testid="variant-edit-stock-readonly"
             />

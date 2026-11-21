@@ -29,6 +29,8 @@ export interface ProductVariantRow {
   sku: string
   barcode: string
   quantity: number | undefined
+  /** Units held for restock backorders (saved rows): shown only when above 0. */
+  reservedForBackorders?: number
   priceCents: number
   /** Name used in the owner's delete confirmation. */
   deleteName: string
@@ -154,6 +156,7 @@ function actionsFor(): RowAction[] {
             <ReadOnlyStock
               v-if="!pending"
               :value="row.quantity ?? 0"
+              :reserved="row.reservedForBackorders"
               :label="`Existencias de ${row.label}`"
               compact
               hide-hint

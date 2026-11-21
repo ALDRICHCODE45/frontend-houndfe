@@ -297,3 +297,74 @@ describe('productApi advanced catalog round-trip (WU4)', () => {
     expect(Object.keys(vi.mocked(http.post).mock.calls[0]?.[1] as Record<string, unknown>)).toEqual(['quantity'])
   })
 })
+
+describe('productApi reserved stock fields (restock backorder S6/S11)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  const rawProduct = {
+    id: 'prod-1',
+    name: 'Alimento Gato',
+    quantity: 1,
+    minQuantity: 0,
+    useStock: true,
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+  }
+
+  it('maps stockOnHand, reservedForBackorders and availableToSell on GET /products', async () => {
+    vi.mocked(http.get).mockResolvedValue({
+      data: [{ ...rawProduct, stockOnHand: 3, reservedForBackorders: 2, availableToSell: 1 }],
+    })
+    const result = await productApi.getPaginated({ pageIndex: 0, pageSize: 10 } as never)
+    expect(result.data[0]).toMatchObject({ stockOnHand: 3, reservedForBackorders: 2, availableToSell: 1 })
+  })
+
+  it('maps them on GET /products/:id and on GET /products/:id/variants', async () => {
+    vi.mocked(http.get).mockResolvedValueOnce({
+      data: { ...rawProduct, stockOnHand: 3, reservedForBackorders: 2, availableToSell: 1 },
+    })
+    const detail = await productApi.getById('prod-1')
+    expect(detail).toMatchObject({ stockOnHand: 3, reservedForBackorders: 2, availableToSell: 1 })
+
+    vi.mocked(http.get).mockResolvedValueOnce({
+      data: [
+        {
+          id: 'v1',
+          name: 'Chico',
+          quantity: 4,
+          stockOnHand: 6,
+          reservedForBackorders: 2,
+          availableToSell: 4,
+          createdAt: 'x',
+          updatedAt: 'x',
+        },
+      ],
+    })
+    const variants = await productApi.getVariants('prod-1')
+    expect(variants[0]).toMatchObject({ stockOnHand: 6, reservedForBackorders: 2, availableToSell: 4 })
+  })
+
+  it('adds no stock keys when the backend does not send them (behaves as today)', async () => {
+    vi.mocked(http.get).mockResolvedValueOnce({ data: rawProduct })
+    const detail = await productApi.getById('prod-1')
+    expect(detail).not.toHaveProperty('stockOnHand')
+    expect(detail).not.toHaveProperty('reservedForBackorders')
+    expect(detail).not.toHaveProperty('availableToSell')
+
+    vi.mocked(http.get).mockResolvedValueOnce({
+      data: [{ id: 'v1', name: 'Chico', quantity: 4, createdAt: 'x', updatedAt: 'x' }],
+    })
+    const [variant] = await productApi.getVariants('prod-1')
+    expect(variant).not.toHaveProperty('reservedForBackorders')
+  })
+
+  it('does not call a product with only reserved units «Sin stock»: units are held, not gone', async () => {
+    vi.mocked(http.get).mockResolvedValueOnce({
+      data: { ...rawProduct, quantity: 0, stockOnHand: 2, reservedForBackorders: 2, availableToSell: 0 },
+    })
+    const detail = await productApi.getById('prod-1')
+    expect(detail.status).toBe('active')
+  })
+})

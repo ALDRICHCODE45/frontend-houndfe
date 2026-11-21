@@ -4,7 +4,12 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { hasStockOnHand, productStockError } from '../productStockErrors'
+import {
+  backorderVariantBlockMessage,
+  backorderVariantDeleteMessage,
+  hasStockOnHand,
+  productStockError,
+} from '../productStockErrors'
 
 const rejected = (error: unknown, message = 'Some English server message') => ({
   response: { data: { statusCode: 409, error, message } },
@@ -57,5 +62,45 @@ describe('hasStockOnHand', () => {
     expect(hasStockOnHand({ quantity: 0, variantStockTotal: 0 })).toBe(false)
     expect(hasStockOnHand(null)).toBe(false)
     expect(hasStockOnHand(undefined)).toBe(false)
+  })
+})
+
+describe('backorderVariantBlockMessage (restock backorder S11)', () => {
+  it('maps 409 PRODUCT_HAS_ACTIVE_BACKORDERS to the owner copy, not the server wording', () => {
+    const message = backorderVariantBlockMessage(
+      rejected('PRODUCT_HAS_ACTIVE_BACKORDERS', 'El producto tiene pedidos por reposición activos'),
+    )
+    expect(message).toBe(
+      'No se pueden agregar variantes: el producto tiene pedidos por reposición en espera o apartados. Atiéndelos o cancélalos primero en Pedidos por reposición.',
+    )
+  })
+
+  it.each([['PRODUCT_HAS_VARIANTS'], [undefined], [42]])('is null for %s', (code) => {
+    expect(backorderVariantBlockMessage(rejected(code))).toBeNull()
+  })
+
+  it('is null for a non-HTTP error', () => {
+    expect(backorderVariantBlockMessage(new Error('boom'))).toBeNull()
+    expect(backorderVariantBlockMessage(null)).toBeNull()
+  })
+})
+
+describe('backorderVariantDeleteMessage (restock backorder S13)', () => {
+  it('maps 409 VARIANT_HAS_BACKORDERS to the owner copy, not the server wording', () => {
+    const message = backorderVariantDeleteMessage(
+      rejected('VARIANT_HAS_BACKORDERS', 'La variante tiene pedidos por reposición'),
+    )
+    expect(message).toBe(
+      'No se puede eliminar la variante: tiene pedidos por reposición, aunque ya estén terminados. Se conserva para no perder su historial.',
+    )
+  })
+
+  it.each([['PRODUCT_HAS_ACTIVE_BACKORDERS'], ['PRODUCT_HAS_VARIANTS'], [undefined], [42]])('is null for %s', (code) => {
+    expect(backorderVariantDeleteMessage(rejected(code))).toBeNull()
+  })
+
+  it('is null for a non-HTTP error', () => {
+    expect(backorderVariantDeleteMessage(new Error('boom'))).toBeNull()
+    expect(backorderVariantDeleteMessage(undefined)).toBeNull()
   })
 })

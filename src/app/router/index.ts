@@ -50,6 +50,9 @@ const SaleDetailView = () => import('@/features/POS/sales/views/SaleDetailView.v
 // T19: pending refunds and their devoluciones (handoff 06). Its own path, so the Ventas
 // item does not light up and `/pos/ventas/:id` never captures it.
 const PendingRefundsView = () => import('@/features/POS/refunds/views/PendingRefundsView.vue')
+// «Pedidos por reposición» (ODD restock-backorder T1): the staff view of the restock queue.
+const BackordersListView = () => import('@/features/POS/backorders/views/BackordersListView.vue')
+const BackorderDetailView = () => import('@/features/POS/backorders/views/BackorderDetailView.vue')
 // Chatbot request inbox (T2.U1): list at /chatbot/solicitudes, detail as the email deep link.
 const ChatbotRequestsView = () => import('@/features/chatbot/requests/views/ChatbotRequestsView.vue')
 const ChatbotRequestDetailView = () =>
@@ -259,6 +262,27 @@ const router = createRouter({
         layout: 'dashboard',
         rememberAsLanding: true,
         permission: ['read', 'SaleRefund'] as RoutePermission,
+      },
+    },
+    // ─── Pedidos por reposición (ODD restock-backorder T1, S1-S2) ─────────────
+    // Both need read:Backorder; cancelling (update:Backorder) is gated inside the detail.
+    {
+      path: '/pos/pedidos-reposicion',
+      name: 'pos-backorders',
+      component: BackordersListView,
+      meta: {
+        layout: 'dashboard',
+        rememberAsLanding: true,
+        permission: ['read', 'Backorder'] as RoutePermission,
+      },
+    },
+    {
+      path: '/pos/pedidos-reposicion/:id',
+      name: 'pos-backorder-detail',
+      component: BackorderDetailView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'Backorder'] as RoutePermission,
       },
     },
     // ─── Chatbot request inbox (chatbot-requests-inbox T2.U1) ────────────────

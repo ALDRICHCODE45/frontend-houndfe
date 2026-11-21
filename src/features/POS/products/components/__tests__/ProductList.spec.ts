@@ -140,6 +140,70 @@ describe('ProductList — data', () => {
     wrapper.unmount()
   })
 
+  describe('reserved stock (restock backorder S6)', () => {
+    const reserved = { quantity: 1, stockOnHand: 3, reservedForBackorders: 2, availableToSell: 1 }
+
+    it('shows «Disponible 1 · Apartado 2» and the low-stock badge together (owner S13)', () => {
+      const wrapper = mountList({ items: [{ ...product, ...reserved, minQuantity: 5 }] })
+      const cell = wrapper.get('td [data-testid="reserved-stock"]')
+      expect(cell.text().replace(/\s+/g, ' ')).toContain('Disponible 1')
+      expect(cell.text()).toContain('Apartado 2')
+      // Status badge plus the low-stock badge: the purchasing manager keeps the alert.
+      const lowStock = wrapper.get('td [aria-label^="Stock:"]')
+      expect(lowStock.text()).toContain('1 unidad')
+      expect(wrapper.findAll('.hf-status-badge')).toHaveLength(2)
+      wrapper.unmount()
+    })
+
+    it('shows only the label when the sellable stock is above the minimum', () => {
+      const wrapper = mountList({
+        items: [{ ...product, quantity: 20, stockOnHand: 22, reservedForBackorders: 2, availableToSell: 20, minQuantity: 5 }],
+      })
+      expect(wrapper.get('td [data-testid="reserved-stock"]').text()).toContain('Apartado 2')
+      expect(wrapper.findAll('.hf-status-badge')).toHaveLength(1)
+      wrapper.unmount()
+    })
+
+    it('keeps the same low-stock rule when 0 are sellable and units are reserved', () => {
+      const wrapper = mountList({
+        items: [{ ...product, quantity: 0, stockOnHand: 2, reservedForBackorders: 2, availableToSell: 0 }],
+      })
+      expect(wrapper.text()).toContain('Disponible 0')
+      expect(wrapper.text()).toContain('Apartado 2')
+      expect(wrapper.text()).toContain('0 unidades')
+      expect(wrapper.findAll('.hf-status-badge')).toHaveLength(2)
+      wrapper.unmount()
+    })
+
+    it('leaves the cell unchanged with reserved 0 or no fields', () => {
+      for (const extra of [{ reservedForBackorders: 0, availableToSell: 25, stockOnHand: 25 }, {}]) {
+        const wrapper = mountList({ items: [{ ...product, ...extra }] })
+        expect(wrapper.find('[data-testid="reserved-stock"]').exists()).toBe(false)
+        expect(wrapper.text()).toContain('25 unidades')
+        wrapper.unmount()
+      }
+    })
+
+    it('shows the same figures on the mobile card', () => {
+      isMobile.value = true
+      const wrapper = mountList({ items: [{ ...product, ...reserved }] })
+      const card = wrapper.get('[data-testid="product-card"]')
+      expect(card.get('[data-testid="reserved-stock"]').text()).toContain('Apartado 2')
+      isMobile.value = false
+      wrapper.unmount()
+    })
+
+    it('keeps the low-stock badge on the mobile card next to the label (owner S13)', () => {
+      isMobile.value = true
+      const wrapper = mountList({ items: [{ ...product, ...reserved, minQuantity: 5 }] })
+      const card = wrapper.get('[data-testid="product-card"]')
+      expect(card.get('[aria-label^="Stock:"]').text()).toContain('1 unidad')
+      expect(card.get('[data-testid="reserved-stock"]').text()).toContain('Disponible 1')
+      isMobile.value = false
+      wrapper.unmount()
+    })
+  })
+
   it('opens the product from the whole row, but not from the ⋮ menu', async () => {
     const wrapper = mountList()
     expect(wrapper.get('tbody tr').classes()).toContain('hf-clickable-row')

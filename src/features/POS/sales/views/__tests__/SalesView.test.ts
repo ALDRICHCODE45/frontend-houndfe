@@ -63,6 +63,8 @@ vi.mock('../../utils/salePaymentErrors.utils', async (importOriginal) => {
 })
 
 const chargeDraft = vi.fn()
+const addItemMock = vi.fn()
+const updateQtyMock = vi.fn()
 const openNewTabMock = vi.fn()
 const refetchDraftsMock = vi.fn()
 const unassignCustomerMock = vi.fn()
@@ -108,8 +110,8 @@ vi.mock('../../composables/useSalesDrafts', () => ({
     openNewTab: openNewTabMock,
     closeTab: vi.fn(),
     switchTab: vi.fn(),
-    addItem: vi.fn(),
-    updateQty: vi.fn(),
+    addItem: addItemMock,
+    updateQty: updateQtyMock,
     clearItems: vi.fn(),
     updateItemPrice: vi.fn(),
     applyItemDiscount: vi.fn(),
@@ -211,7 +213,9 @@ const globalStubs = {
       })
       return {}
     },
-    template: '<div />',
+    emits: ['add-product'],
+    template:
+      '<div><button data-testid="add-product" @click="$emit(\'add-product\', \'prod-1\', null, null)">add</button></div>',
   },
   ActiveSalePanel: {
     name: 'ActiveSalePanel',
@@ -234,9 +238,11 @@ const globalStubs = {
       'remove-promo',
       'apply-manual-promo',
       'remove-manual-promo',
+      'update-qty',
     ],
     template:
       '<div>' +
+      '<button data-testid="update-qty" @click="$emit(\'update-qty\', \'item-1\', 3)">qty</button>' +
       '<button data-testid="charge-click" @click="$emit(\'charge-click\')">charge</button>' +
       '<button data-testid="unassign-customer" @click="$emit(\'unassign-customer\')">unassign</button>' +
       '<button data-testid="remove-order-promo" @click="$emit(\'remove-order-promo\', \'order-promo-uuid\')">remove-order-promo</button>' +
@@ -666,6 +672,105 @@ describe('SalesView charge orchestration', () => {
     expect(wrapper.get('[data-testid="external-error"]').text()).toBe('')
     expect(invalidateQueries).not.toHaveBeenCalled()
     expect(chargeDraft).toHaveBeenCalledTimes(1)
+  })
+
+  // Restock backorder S7: the counter sale never reads as «sin stock» when units are held for backorders.
+  describe('reserved for backorders (restock backorder S7)', () => {
+    const warnedSale = (): Sale => ({
+      ...drafts.value[0]!,
+      items: [
+        {
+          ...chargeableItem,
+          quantity: 3,
+          stockWarning: { code: 'STOCK_RESERVED_FOR_BACKORDER', available: 2, reserved: 3 },
+        },
+      ],
+    })
+
+    it('add-item: shows a non-blocking notice with the reserved and sellable units, not an error', async () => {
+      addItemMock.mockResolvedValueOnce(warnedSale())
+      const wrapper = mountView()
+      addToast.mockClear()
+
+      await wrapper.get('[data-testid="add-product"]').trigger('click')
+
+      await vi.waitFor(() => expect(addToast).toHaveBeenCalledTimes(1))
+      expect(addToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          description: 'Hay 3 unidades apartadas para pedidos por reposición; solo puedes vender 2.',
+          color: 'warning',
+        }),
+      )
+      expect(JSON.stringify(addToast.mock.calls)).not.toMatch(/sin stock|insuficiente/i)
+    })
+
+    it('PATCH quantity: shows the same notice and keeps the new quantity', async () => {
+      updateQtyMock.mockResolvedValueOnce(warnedSale())
+      const wrapper = mountView()
+      addToast.mockClear()
+
+      await wrapper.get('[data-testid="update-qty"]').trigger('click')
+
+      await vi.waitFor(() => expect(addToast).toHaveBeenCalledTimes(1))
+      expect(addToast.mock.calls[0]![0]).toMatchObject({ color: 'warning' })
+      expect(updateQtyMock).toHaveBeenCalledWith('item-1', 3)
+    })
+
+    it('says nothing when the response carries no warning', async () => {
+      addItemMock.mockResolvedValueOnce({ ...drafts.value[0]! })
+      const wrapper = mountView()
+      addToast.mockClear()
+
+      await wrapper.get('[data-testid="add-product"]').trigger('click')
+      await flushPromises()
+
+      expect(addToast).not.toHaveBeenCalled()
+    })
+
+    it('charge 409 STOCK_RESERVED_FOR_BACKORDER: clear message with both figures, sale stays open, not the confirm-time error', async () => {
+      chargeDraft.mockRejectedValueOnce({
+        response: {
+          status: 409,
+          data: {
+            statusCode: 409,
+            error: 'STOCK_RESERVED_FOR_BACKORDER',
+            message: 'STOCK_RESERVED_FOR_BACKORDER',
+            available: 2,
+            reserved: 3,
+          },
+        },
+      })
+      drafts.value = [{ ...drafts.value[0]!, items: [chargeableItem], totalCents: 10000 }]
+      const wrapper = mountView()
+
+      await wrapper.get('[data-testid="charge-click"]').trigger('click')
+      addToast.mockClear()
+      await wrapper.get('[data-testid="submit-charge"]').trigger('click')
+
+      await vi.waitFor(() => expect(addToast).toHaveBeenCalledTimes(1))
+      const toast = addToast.mock.calls[0]![0]
+      expect(toast.color).toBe('warning')
+      expect(toast.description).toContain('3 unidades apartadas para pedidos por reposición')
+      expect(toast.description).toContain('solo puedes vender 2')
+      expect(toast.description).not.toBe('No hay stock suficiente para confirmar. Recalculamos la venta.')
+      expect(JSON.stringify(toast)).not.toMatch(/sin stock|insuficiente/i)
+      expect(chargeDraft).toHaveBeenCalledTimes(1)
+    })
+
+    it('charge 409 without figures still gets the reserved message', async () => {
+      chargeDraft.mockRejectedValueOnce({
+        response: { status: 409, data: { error: 'STOCK_RESERVED_FOR_BACKORDER' } },
+      })
+      drafts.value = [{ ...drafts.value[0]!, items: [chargeableItem], totalCents: 10000 }]
+      const wrapper = mountView()
+
+      await wrapper.get('[data-testid="charge-click"]').trigger('click')
+      addToast.mockClear()
+      await wrapper.get('[data-testid="submit-charge"]').trigger('click')
+
+      await vi.waitFor(() => expect(addToast).toHaveBeenCalledTimes(1))
+      expect(addToast.mock.calls[0]![0].description).toContain('apartadas para pedidos por reposición')
+    })
   })
 
   it('keeps payment flow disabled while mutation is pending (S31)', async () => {

@@ -158,6 +158,28 @@ describe('ProductDetailView — read-only quantity on edit', () => {
     expect(payload).not.toHaveProperty('quantity')
   })
 
+  it('shows «Disponible · Apartado» for the product stock only when units are reserved', async () => {
+    api.getById.mockResolvedValue({
+      ...baseProduct,
+      quantity: 1,
+      stockOnHand: 3,
+      reservedForBackorders: 2,
+      availableToSell: 1,
+    })
+    const view = await mountView()
+    const stock = view.get('[data-testid="product-detail-stock-readonly"]')
+    expect(stock.text()).toContain('Disponible 1')
+    expect(stock.text()).toContain('Apartado 2')
+    expect(view.get('[data-summary="stock"]').text()).toContain('Apartado 2')
+  })
+
+  it('shows the same plain figure with reserved 0', async () => {
+    api.getById.mockResolvedValue({ ...baseProduct, reservedForBackorders: 0, availableToSell: 50, stockOnHand: 50 })
+    const view = await mountView()
+    expect(view.find('[data-testid="reserved-stock"]').exists()).toBe(false)
+    expect(view.get('[data-testid="product-detail-stock-readonly"]').text()).toContain('50')
+  })
+
   describe('with variants', () => {
     beforeEach(() => {
       api.getById.mockResolvedValue({ ...baseProduct, hasVariants: true, quantity: 24 })
@@ -176,6 +198,22 @@ describe('ProductDetailView — read-only quantity on edit', () => {
       view.findComponent(ProductVariantsTable).vm.$emit('commit-quantity', 'v1')
       await flushPromises()
       expect(api.updateVariant).not.toHaveBeenCalled()
+    })
+
+    it('shows reserved units per variant, in the table and in the edit modal', async () => {
+      api.getVariants.mockResolvedValue([
+        { ...variant('v1', 'Chico', 4), stockOnHand: 6, reservedForBackorders: 2, availableToSell: 4 },
+        variant('v2', 'Mediano', 9),
+      ])
+      const view = await mountView()
+      const cells = view.findAll('[data-testid="variant-stock-readonly"]')
+      expect(cells[0]!.text()).toContain('Apartado 2')
+      expect(cells[1]!.text()).toBe('9')
+      view.findComponent(ProductVariantsTable).vm.$emit('action', 'edit', 'v1')
+      await flushPromises()
+      const stock = document.querySelector('[data-testid="variant-edit-stock-readonly"]')!
+      expect(stock.textContent).toContain('Disponible 4')
+      expect(stock.textContent).toContain('Apartado 2')
     })
 
     it('edits a saved variant without quantity: read-only figure and a PATCH without the key', async () => {

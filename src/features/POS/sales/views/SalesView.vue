@@ -39,6 +39,11 @@ import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { promotionQueryKeys, saleQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { getSalePaymentErrorAction } from '../utils/salePaymentErrors.utils'
+import {
+  reservedForBackorderChargeMessage,
+  reservedForBackorderWarningMessage,
+  stockWarningsOf,
+} from '../utils/stockReservation.utils'
 import { applyCatalogChargeErrorAction } from '../utils/paymentMethodChargeErrors.utils' // sdd custom-payment-methods S5A
 import {
   collectExcludedPromotionLabels,
@@ -437,6 +442,19 @@ function parseStockError(message: string): string {
   return message
 }
 
+// Restock backorders: the add-item / PATCH response may flag the touched line. Advisory only (the line is
+// saved), so a warning toast, never an error and never «sin stock». Not stored anywhere.
+function notifyStockWarnings(sale: Sale | undefined): void {
+  if (!sale) return
+  for (const warning of stockWarningsOf(sale)) {
+    toast.add({
+      title: 'Unidades apartadas',
+      description: reservedForBackorderWarningMessage(warning.available, warning.reserved),
+      color: 'warning',
+    })
+  }
+}
+
 async function handleAddProduct(
   productId: string,
   variantId: string | null,
@@ -448,7 +466,7 @@ async function handleAddProduct(
   }
 
   try {
-    await addItem(productId, variantId, 1)
+    notifyStockWarnings(await addItem(productId, variantId, 1))
   } catch (error) {
     const err = error as AxiosError<DomainApiError>
     if (err.response?.status === 422) {
@@ -463,7 +481,7 @@ async function handleAddProduct(
 
 async function handleUpdateQty(itemId: string, quantity: number) {
   try {
-    await updateQty(itemId, quantity)
+    notifyStockWarnings(await updateQty(itemId, quantity))
   } catch (error) {
     const err = error as AxiosError<DomainApiError>
     if (err.response?.status === 422) {
@@ -614,7 +632,9 @@ async function handleChargeDraft(
     }
     return
   } catch (error) {
-    const err = error as AxiosError<DomainApiError & { error?: ChargeDomainErrorCode }>
+    const err = error as AxiosError<
+      DomainApiError & { error?: ChargeDomainErrorCode; available?: number; reserved?: number }
+    >
 
     // sdd custom-payment-methods S5A (REQ-CAT-011): catalog charge errors
     // resolve FIRST — clear/refetch/toast per design §8.2 — and
@@ -686,7 +706,13 @@ async function handleChargeDraft(
 
         toast.add({
           title: code === 'STOCK_INSUFFICIENT_AT_CONFIRM' ? 'Error' : 'Advertencia',
-          description: action.message,
+          description:
+            code === 'STOCK_RESERVED_FOR_BACKORDER'
+              ? reservedForBackorderChargeMessage(
+                  err.response?.data?.available,
+                  err.response?.data?.reserved,
+                )
+              : action.message,
           color: code === 'STOCK_INSUFFICIENT_AT_CONFIRM' ? 'error' : 'warning',
         })
       }

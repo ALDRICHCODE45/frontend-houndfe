@@ -72,12 +72,31 @@ function getBrandName(item: ProductBackendResponse): string {
   return item.brand?.name ?? item.brandName ?? 'Sin marca'
 }
 
+/**
+ * Restock backorder stock fields (handoff 26). Added only when the backend sends them, so a response
+ * without them maps exactly as before.
+ */
+function reservedStockFields(item: {
+  stockOnHand?: number
+  reservedForBackorders?: number
+  availableToSell?: number
+}): { stockOnHand?: number; reservedForBackorders?: number; availableToSell?: number } {
+  const fields: { stockOnHand?: number; reservedForBackorders?: number; availableToSell?: number } = {}
+  if (typeof item.stockOnHand === 'number') fields.stockOnHand = item.stockOnHand
+  if (typeof item.reservedForBackorders === 'number') fields.reservedForBackorders = item.reservedForBackorders
+  if (typeof item.availableToSell === 'number') fields.availableToSell = item.availableToSell
+  return fields
+}
+
 function mapStatus(item: ProductBackendResponse): Product['status'] {
   if (item.status === 'inactive') return 'inactive'
   if (item.status === 'out_of_stock') return 'out_of_stock'
   if (item.status === 'active') return 'active'
 
   if (!(item.useStock ?? true)) return 'active'
+
+  // Units held for backorders are promised, not gone: the product is not «Sin stock».
+  if ((item.reservedForBackorders ?? 0) > 0) return 'active'
 
   if (item.hasVariants && item.variantStockTotal != null) {
     return item.variantStockTotal > 0 ? 'active' : 'out_of_stock'
@@ -110,6 +129,7 @@ function mapProduct(item: ProductBackendResponse): Product {
     chargeProductTaxes: item.chargeProductTaxes ?? true,
     variantStockTotal: item.variantStockTotal ?? null,
     variantCount: item.variantCount ?? null,
+    ...reservedStockFields(item),
     ...fromProductRawAdvancedCatalog(item),
     status: mapStatus(item),
     createdAt: item.createdAt,
@@ -224,6 +244,7 @@ function mapVariant(productId: string, item: ProductVariantBackendResponse): Pro
       item.purchaseNetCostDecimal ??
       (item.purchaseNetCostCents != null ? item.purchaseNetCostCents / 100 : null),
     variantPrices: item.variantPrices ?? [],
+    ...reservedStockFields(item),
     ...fromVariantRawCatalog(item),
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,

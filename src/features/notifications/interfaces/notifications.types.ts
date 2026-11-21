@@ -18,6 +18,10 @@ export type NotificationType =
   | 'CONVERSATION_UNANSWERED'
   /** BE handoff 24 §5: a pay-in-store hold reached its deadline with a partial payment or a pending receipt. */
   | 'SALE_HOLD_REVIEW'
+  /** Backend L11 (ODD restock-backorder S8): a backorder became RESERVED, expired, or its notice to the customer was not delivered. */
+  | 'BACKORDER_RESERVED'
+  | 'BACKORDER_EXPIRED'
+  | 'BACKORDER_NOTICE_UNDELIVERED'
 
 /** Close causes of a REQUEST_CANCELLED notice (13 §2). A future cause still renders (no cause line). */
 export type NotificationCause =
@@ -42,6 +46,11 @@ export interface NotificationItem {
    * Optional: a backend before handoff 24 omits it.
    */
   saleId?: string | null
+  /**
+   * Backend L11 (ODD restock-backorder S8): the backorder a BACKORDER_* notice is about; `null` on
+   * every other notice. Optional: a backend before T2 omits it.
+   */
+  backorderId?: string | null
   /** ISO instant. For a notice held out of hours, the instant it was released. */
   createdAt: string
   /** ISO instant, `null` while unread. */

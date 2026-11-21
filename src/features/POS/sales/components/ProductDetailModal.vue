@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { hasSalesEntryToken } from '../utils/salesEntryPortal'
 import { ref, watch, computed } from 'vue'
+import ReservedStockLabel, {
+  hasReservedStock,
+  reservedStockText,
+} from '@/core/shared/components/ReservedStockLabel.vue'
 import { saleApi } from '../api/sale.api'
 import type { PosProductDetail } from '../interfaces/sale.types'
 
@@ -38,6 +42,11 @@ const displaySku = computed(() => activeVariant.value?.sku ?? detail.value?.sku 
 const displayBarcode = computed(() => activeVariant.value?.barcode ?? detail.value?.barcode ?? null)
 const displayPrice = computed(() => activeVariant.value?.price ?? detail.value?.price ?? null)
 const displayStock = computed(() => activeVariant.value?.stock ?? detail.value?.stock ?? null)
+// Restock backorders: units held for «pedidos por reposición», shown beside what is sellable.
+const displayReserved = computed(() => {
+  const reserved = displayStock.value?.reservedForBackorders
+  return hasReservedStock(reserved) ? reserved : null
+})
 
 // S12: the v0 detail composition is the Venta opt-in (exact token only).
 const isSalesEntry = computed(
@@ -58,7 +67,11 @@ const dataRows = computed(() => [
   { label: 'Código de barras', value: displayBarcode.value ?? 'No registrado' },
   {
     label: 'Stock',
-    value: displayStock.value ? `${displayStock.value.quantity} unidades` : 'No registrado',
+    value: displayStock.value
+      ? displayReserved.value != null
+        ? reservedStockText(displayStock.value.quantity, displayReserved.value)
+        : `${displayStock.value.quantity} unidades`
+      : 'No registrado',
     low: displayStock.value
       ? isLowStock(displayStock.value.quantity, displayStock.value.minQuantity)
       : false,
@@ -271,7 +284,10 @@ watch(
               {{ displayStock.quantity }}
             </p>
             <p v-else class="text-sm text-muted">N/A</p>
-            <p v-if="displayStock" class="text-[11px] text-muted">Unidades</p>
+            <p v-if="displayStock && displayReserved != null" class="text-[11px]" data-testid="detail-reserved-stock">
+              <ReservedStockLabel :available="displayStock.quantity" :reserved="displayReserved" />
+            </p>
+            <p v-else-if="displayStock" class="text-[11px] text-muted">Unidades</p>
           </div>
 
           <!-- Location -->
@@ -315,7 +331,16 @@ watch(
 
               <!-- Stock -->
               <div class="text-right shrink-0">
-                <p v-if="variant.stock" class="text-xs tabular-nums" :class="isLowStock(variant.stock.quantity, variant.stock.minQuantity) ? 'text-warning font-semibold' : 'text-muted'">
+                <p
+                  v-if="variant.stock && hasReservedStock(variant.stock.reservedForBackorders)"
+                  class="text-xs"
+                >
+                  <ReservedStockLabel
+                    :available="variant.stock.quantity"
+                    :reserved="variant.stock.reservedForBackorders!"
+                  />
+                </p>
+                <p v-else-if="variant.stock" class="text-xs tabular-nums" :class="isLowStock(variant.stock.quantity, variant.stock.minQuantity) ? 'text-warning font-semibold' : 'text-muted'">
                   {{ variant.stock.quantity }} u
                 </p>
               </div>

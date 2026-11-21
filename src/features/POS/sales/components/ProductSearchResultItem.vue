@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import ReservedStockLabel, {
+  hasReservedStock,
+  reservedStockText,
+} from '@/core/shared/components/ReservedStockLabel.vue'
 import type { PosCatalogItem } from '../interfaces/sale.types'
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -51,10 +55,18 @@ const stockFacts = computed(() => {
     .map((variant) => variant.stock)
     .filter((stock): stock is NonNullable<typeof stock> => stock != null)
   if (variantStocks.length === 0) return null
+  const reserved = variantStocks.reduce((sum, stock) => sum + (stock.reservedForBackorders ?? 0), 0)
   return {
     quantity: variantStocks.reduce((sum, stock) => sum + stock.quantity, 0),
     minQuantity: variantStocks.reduce((sum, stock) => sum + stock.minQuantity, 0),
+    ...(reserved > 0 ? { reservedForBackorders: reserved } : {}),
   }
+})
+
+// Restock backorders: units held for «pedidos por reposición» are shown next to what is sellable now.
+const reservedUnits = computed(() => {
+  const reserved = stockFacts.value?.reservedForBackorders
+  return hasReservedStock(reserved) ? reserved : null
 })
 
 const isStockLow = computed(
@@ -64,6 +76,7 @@ const isStockLow = computed(
 const stockLabel = computed(() => {
   if (!stockFacts.value) return null
   const { quantity } = stockFacts.value
+  if (reservedUnits.value != null) return reservedStockText(quantity, reservedUnits.value)
   return isStockLow.value ? `Solo ${quantity} disponibles` : `${quantity} disponibles`
 })
 
@@ -142,7 +155,7 @@ function isLowStock(item: PosCatalogItem): boolean {
         v-if="stockLabel"
         data-testid="card-stock-line"
         class="sales-pos-product-stock-line"
-        :data-sales-pos-stock="isStockLow ? 'low' : 'ok'"
+        :data-sales-pos-stock="reservedUnits != null ? 'reserved' : isStockLow ? 'low' : 'ok'"
       ><span class="sales-pos-product-stock-dot" aria-hidden="true" />{{ stockLabel }}</p>
       <button
         type="button"
@@ -239,6 +252,10 @@ function isLowStock(item: PosCatalogItem): boolean {
           Agregar
         </span>
       </div>
+
+      <p v-if="item.useStock && reservedUnits != null && stockFacts" class="text-[11px] text-(--hf-muted)">
+        <ReservedStockLabel :available="stockFacts.quantity" :reserved="reservedUnits" />
+      </p>
 
       <!-- Variant count badge -->
       <p v-if="item.hasVariants && item.variants.length > 0" class="text-[11px] text-(--hf-muted) font-medium">

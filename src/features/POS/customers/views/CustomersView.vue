@@ -16,6 +16,10 @@ import CustomerMobileCard from '../components/CustomerMobileCard.vue'
 import CustomerSalesHistorySlideover from '../components/CustomerSalesHistorySlideover.vue'
 import CustomerUpsertSlideover from '../components/CustomerUpsertSlideover.vue'
 import { useCustomerColumns } from '../composables/useCustomerColumns'
+import {
+  CUSTOMER_HAS_ACTIVE_BACKORDERS_MESSAGE,
+  isCustomerHasActiveBackordersError,
+} from '../utils/customerDeleteError'
 import { formatCustomerPhone } from '../utils/customerPhone.utils'
 import type {
   CreateCustomerAddressPayload,
@@ -236,6 +240,15 @@ const deleteMutation = useMutation({
     await queryClient.invalidateQueries({ queryKey: customerQueryKeys.paginated(tenantId.value) })
   },
   onError: (error) => {
+    // S10: the customer has a backorder WAITING or RESERVED; say what to do and keep it in the list.
+    if (isCustomerHasActiveBackordersError(error)) {
+      toast.add({
+        title: 'Cliente con pedido por reposición',
+        description: CUSTOMER_HAS_ACTIVE_BACKORDERS_MESSAGE,
+        color: 'warning',
+      })
+      return
+    }
     const { message } = mapDomainError(error as AxiosError<DomainApiError>)
     toast.add({ title: 'Error al eliminar cliente', description: message, color: 'error' })
   },
@@ -404,7 +417,7 @@ async function handleOpenEdit(customer: Customer) {
 async function handleDelete(customer: Customer) {
   // TODO: check canDeleteCustomer permission when available
   openConfirm(`¿Quieres eliminar al cliente ${customer.fullName}?`, () => {
-    void deleteMutation.mutateAsync(customer.id)
+    deleteMutation.mutate(customer.id)
   })
 }
 

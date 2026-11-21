@@ -46,7 +46,7 @@ const variant: ProductVariant = {
 let queryClient: QueryClient
 let root: VueWrapper | undefined
 
-async function mountModal() {
+async function mountModal(extra: Partial<ProductVariant> = {}) {
   root = mount(
     defineComponent({
       render: () =>
@@ -59,7 +59,7 @@ async function mountModal() {
               productPurchaseNetCostCents: 0,
               useStock: true,
               canUpdate: true,
-              variant,
+              variant: { ...variant, ...extra },
             }),
         }),
     }),
@@ -95,6 +95,17 @@ afterEach(() => {
 })
 
 describe('VariantDetailModal — read-only quantity', () => {
+  it('shows «Disponible · Apartado» when units are reserved for backorders, nothing extra otherwise', async () => {
+    await mountModal({ quantity: 4, stockOnHand: 6, reservedForBackorders: 2, availableToSell: 4 })
+    const stock = q('[data-testid="variant-modal-stock-readonly"]')
+    expect(stock.text()).toContain('Disponible 4')
+    expect(stock.text()).toContain('Apartado 2')
+    root?.unmount()
+    document.body.innerHTML = ''
+    await mountModal({ reservedForBackorders: 0 })
+    expect(document.querySelector('[data-testid="reserved-stock"]')).toBeNull()
+  })
+
   it('shows the stock as a read-only figure with the hint, not as an input', async () => {
     await mountModal()
     const stock = q('[data-testid="variant-modal-stock-readonly"]')

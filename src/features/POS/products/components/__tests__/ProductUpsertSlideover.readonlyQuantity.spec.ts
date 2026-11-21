@@ -57,9 +57,9 @@ const satStub = { name: 'SatKeySelect', template: '<div />' }
 const onCreate = vi.fn()
 const onEdit = vi.fn()
 
-function mountSlide(mode: 'create' | 'edit') {
+function mountSlide(mode: 'create' | 'edit', extra: Partial<ProductDetail> = {}) {
   return mountWithUApp(ProductUpsertSlideover, {
-    props: { mode, product: mode === 'edit' ? product : null, open: true, onCreate, onEdit },
+    props: { mode, product: mode === 'edit' ? { ...product, ...extra } : null, open: true, onCreate, onEdit },
     attachTo: document.body,
     global: { stubs: { SatKeySelect: satStub } },
   })
@@ -78,6 +78,20 @@ afterEach(() => {
 })
 
 describe('ProductUpsertSlideover — read-only quantity', () => {
+  it('shows «Disponible · Apartado» only when units are reserved for backorders', async () => {
+    mountSlide('edit', { quantity: 4, stockOnHand: 6, reservedForBackorders: 2, availableToSell: 4 })
+    await flushPromises()
+    const stock = document.querySelector('[data-testid="product-stock-readonly"]')!
+    expect(stock.textContent).toContain('Disponible 4')
+    expect(stock.textContent).toContain('Apartado 2')
+  })
+
+  it('keeps the plain figure with reserved 0', async () => {
+    mountSlide('edit', { reservedForBackorders: 0 })
+    await flushPromises()
+    expect(document.querySelector('[data-testid="reserved-stock"]')).toBeNull()
+  })
+
   it('shows the stock as a figure with the hint on edit, with no Stock input', async () => {
     mountSlide('edit')
     await flushPromises()

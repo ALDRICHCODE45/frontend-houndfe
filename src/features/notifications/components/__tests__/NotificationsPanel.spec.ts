@@ -186,6 +186,31 @@ describe('NotificationsPanel — opening a notice', () => {
     expect(onUpdateOpen).toHaveBeenCalledWith(false)
   })
 
+  it('a BACKORDER_RESERVED notice goes to the backorder detail', async () => {
+    api.list.mockResolvedValue({
+      items: [
+        makeNotice('b', {
+          type: 'BACKORDER_RESERVED',
+          title: 'Pedido por reposición apartado',
+          body: 'BO-000012 · Rosa tiene 24 h para confirmar',
+          requestId: null,
+          saleId: null,
+          backorderId: 'bo-12',
+          createdAt: new Date().toISOString(),
+        }),
+      ],
+      nextCursor: null,
+    })
+    const { router, onUpdateOpen } = await mountPanel()
+
+    find('a[href="/pos/pedidos-reposicion/bo-12"]')!.click()
+    await flushPromises()
+
+    expect(api.markRead).toHaveBeenCalledWith('b')
+    expect(router.currentRoute.value.fullPath).toBe('/pos/pedidos-reposicion/bo-12')
+    expect(onUpdateOpen).toHaveBeenCalledWith(false)
+  })
+
   it('a notice with neither request nor sale is marked and closes without navigating', async () => {
     api.list.mockResolvedValue({
       items: [makeNotice('x', { requestId: null, saleId: null, title: 'Sin destino', createdAt: new Date().toISOString() })],

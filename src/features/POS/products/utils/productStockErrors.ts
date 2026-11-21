@@ -48,3 +48,30 @@ export function hasStockOnHand(
   if (!product) return false
   return product.quantity > 0 || (product.variantStockTotal ?? 0) > 0
 }
+
+const BACKORDER_VARIANT_BLOCK_MESSAGE =
+  'No se pueden agregar variantes: el producto tiene pedidos por reposición en espera o apartados. Atiéndelos o cancélalos primero en Pedidos por reposición.'
+
+/**
+ * Restock backorders: `POST /products/:id/variants` and `PATCH /products/:id` with `hasVariants: true` answer
+ * 409 `PRODUCT_HAS_ACTIVE_BACKORDERS` while the product has WAITING/RESERVED backorders (nothing changes on the
+ * server). Switched on `error`; the copy tells the user where to go.
+ */
+export function backorderVariantBlockMessage(error: unknown): string | null {
+  const code = (error as { response?: { data?: { error?: unknown } } } | null | undefined)?.response?.data
+    ?.error
+  return code === 'PRODUCT_HAS_ACTIVE_BACKORDERS' ? BACKORDER_VARIANT_BLOCK_MESSAGE : null
+}
+
+const BACKORDER_VARIANT_DELETE_MESSAGE =
+  'No se puede eliminar la variante: tiene pedidos por reposición, aunque ya estén terminados. Se conserva para no perder su historial.'
+
+/**
+ * Restock backorders: `DELETE /products/:id/variants/:variantId` answers 409 `VARIANT_HAS_BACKORDERS` when the
+ * variant has any backorder, even a finished one (the variant stays). Switched on `error`, never on the message.
+ */
+export function backorderVariantDeleteMessage(error: unknown): string | null {
+  const code = (error as { response?: { data?: { error?: unknown } } } | null | undefined)?.response?.data
+    ?.error
+  return code === 'VARIANT_HAS_BACKORDERS' ? BACKORDER_VARIANT_DELETE_MESSAGE : null
+}

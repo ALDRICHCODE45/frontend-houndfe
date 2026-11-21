@@ -57,6 +57,7 @@ vi.mock('@/app/composables/useSidebar', async () => {
       children: [
         { label: 'Ventas', icon: 'i-lucide-shopping-cart', to: '/pos/ventas' },
         { label: 'Reembolsos pendientes', icon: 'i-lucide-rotate-ccw', to: '/pos/reembolsos' },
+        { label: 'Pedidos por reposición', icon: 'i-lucide-package-check', to: '/pos/pedidos-reposicion' },
         { label: 'Productos', icon: 'i-lucide-package', to: '/pos/products' },
       ],
     },
@@ -85,6 +86,13 @@ vi.mock('@/features/POS/refunds/composables/usePendingRefundsCount', async () =>
   const { ref } = await vi.importActual<typeof import('vue')>('vue')
   pendingRefunds.count = ref(0)
   return { usePendingRefundsCount: () => ({ count: pendingRefunds.count }) }
+})
+
+const reservedBackorders = vi.hoisted(() => ({ count: null as unknown as Ref<number> }))
+vi.mock('@/features/POS/backorders/composables/useReservedBackordersCount', async () => {
+  const { ref } = await vi.importActual<typeof import('vue')>('vue')
+  reservedBackorders.count = ref(0)
+  return { useReservedBackordersCount: () => ({ count: reservedBackorders.count }) }
 })
 
 const pendingZoneValidations = vi.hoisted(() => ({ count: null as unknown as Ref<number> }))
@@ -757,6 +765,26 @@ describe('DashboardLayout — pending refunds badge (T19)', () => {
     pendingRefunds.count.value = 0
     await nextTick()
     expect(entry()?.find('.hf-shell-nav-count').exists()).toBe(false)
+  })
+})
+
+describe('DashboardLayout — reserved backorders badge (ODD restock-backorder T1, S1)', () => {
+  afterEach(() => {
+    reservedBackorders.count.value = 0
+  })
+
+  it('shows counts.RESERVED on «Pedidos por reposición», keeps the others quiet and hides it at 0', async () => {
+    reservedBackorders.count.value = 2
+    const wrapper = await mountLayoutAt('/pos/pedidos-reposicion')
+    await openNavGroup(wrapper, 'POS')
+    const entry = (label: string) =>
+      wrapper.findAll('.hf-shell-nav [data-slot="link"]').find((link) => link.text().includes(label))
+    expect(entry('Pedidos por reposición')?.find('.hf-shell-nav-count').text()).toBe('2')
+    expect(entry('Reembolsos pendientes')?.find('.hf-shell-nav-count').exists()).toBe(false)
+
+    reservedBackorders.count.value = 0
+    await nextTick()
+    expect(entry('Pedidos por reposición')?.find('.hf-shell-nav-count').exists()).toBe(false)
   })
 })
 

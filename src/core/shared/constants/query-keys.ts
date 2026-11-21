@@ -9,6 +9,7 @@ import type {
 import type { BranchSalesSummaryQuery } from '@/features/analytics/interfaces/branch-sales-summary.types'
 import type { BranchSalesTimeseriesQuery } from '@/features/analytics/interfaces/branch-sales-timeseries.types'
 import type { PendingRefundsQuery } from '@/features/POS/sales/interfaces/pending-refund.types'
+import type { BackorderListParams } from '@/features/POS/backorders/interfaces/backorder.types'
 
 export const productQueryKeys = {
   paginated: (tenantId: string) => ['products', tenantId, 'paginated'] as const,
@@ -344,3 +345,16 @@ export const analyticsQueryKeys = {
 // `paymentMethods` slot is invalidated by S5A when the catalog surfaces a
 // `PAYMENT_METHOD_NOT_FOUND` or `INACTIVE_PAYMENT_METHOD` mid-charge so the
 // cashier sees the updated state on the next open.
+
+// ─── Backorders / «Pedidos por reposición» (ODD restock-backorder T1) ─────────
+//
+// Tenant is cache isolation only (the branch comes from the token). Everything lives under
+// `all(tenant)`, so one invalidation after a cancel refreshes the list, the nav badge count and
+// the detail. `reservedCount` is the lightest list page, read for `counts.RESERVED`.
+export const backorderQueryKeys = {
+  all: (tenantId: string) => ['backorders', tenantId] as const,
+  list: (tenantId: string, params: BackorderListParams = {}) =>
+    ['backorders', tenantId, 'list', params] as const,
+  reservedCount: (tenantId: string) => ['backorders', tenantId, 'reserved-count'] as const,
+  detail: (tenantId: string, id: string) => ['backorders', tenantId, 'detail', id] as const,
+}

@@ -47,6 +47,22 @@ const props = {
   completionPercent: 100,
 }
 
+describe('ProductSummaryPanel reserved stock (restock backorder S6)', () => {
+  it('shows available and reserved when units are held for backorders', () => {
+    const wrapper = mount(ProductSummaryPanel, { props: { ...props, stockTotal: 1, reservedStock: 2 } })
+    const stock = wrapper.get('[data-summary="stock"]')
+    expect(stock.text()).toContain('Disponible 1')
+    expect(stock.text()).toContain('Apartado 2')
+  })
+
+  it('keeps the plain total with reserved 0 or absent', () => {
+    for (const extra of [{ reservedStock: 0 }, {}]) {
+      const wrapper = mount(ProductSummaryPanel, { props: { ...props, ...extra } })
+      expect(wrapper.get('[data-summary="stock"]').text()).toBe('25')
+    }
+  })
+})
+
 describe('ProductSummaryPanel', () => {
   it('is a labelled aside with the four figures', () => {
     const wrapper = mount(ProductSummaryPanel, { props })
