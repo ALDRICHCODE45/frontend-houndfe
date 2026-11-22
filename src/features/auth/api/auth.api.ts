@@ -1,4 +1,8 @@
-import { http, type VerifiedLoginPermissionsConfig } from '@/core/shared/api/http'
+import {
+  http,
+  type ExplicitLogoutConfig,
+  type VerifiedLoginPermissionsConfig,
+} from '@/core/shared/api/http'
 import type {
   AuthLoginRequest,
   AuthMeResponse,
@@ -12,6 +16,9 @@ import type {
   SwitchTenantResponse,
   UserPermissionsResponse,
 } from '../interfaces/auth.types'
+
+/** A hung logout must not keep the user on a session that is already fenced. */
+const LOGOUT_TIMEOUT_MS = 10_000
 
 export const authApi = {
   async login(payload: AuthLoginRequest) {
@@ -68,8 +75,14 @@ export const authApi = {
     return data
   },
 
-  async logout() {
-    const { data } = await http.post<{ message: string }>('/auth/logout')
+  /** Sends exactly `accessToken`: the session is already fenced, so storage is not consulted. */
+  async logout(accessToken: string) {
+    const config: ExplicitLogoutConfig = {
+      explicitLogoutCredentials: true,
+      headers: { Authorization: `Bearer ${accessToken}` },
+      timeout: LOGOUT_TIMEOUT_MS,
+    }
+    const { data } = await http.post<{ message: string }>('/auth/logout', undefined, config)
     return data
   },
 }

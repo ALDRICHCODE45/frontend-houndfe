@@ -5,6 +5,7 @@ import { authApi } from '../api/auth.api'
 import { authStorage, type SessionRotationReceipt } from '../services/auth-storage'
 import { ability, resetAbility, updateAbilityFromPermissionCodes } from '../authorization/ability'
 import { decodeJwtClaims } from '../services/jwt.utils'
+import { sealSession } from '../services/session-seal'
 import { queryClient } from '@/core/shared/api/queryClient'
 import type {
   AppAction,
@@ -580,16 +581,40 @@ export const useAuthStore = defineStore('auth', () => {
     return ability.can(action, subject)
   }
 
-  async function logout() {
+  let logoutFlight: Promise<void> | null = null
+
+  // Fence first, then call the API with the tokens captured before the fence, so a 401 in
+  // that window can neither start nor join a refresh. Concurrent calls share one logout.
+  async function runLogout() {
     cancelLogin()
     const generation = loginGeneration
-    try {
-      if (accessToken.value) {
-        await authApi.logout()
+    const token = accessToken.value ? (authStorage.getAccessToken() ?? accessToken.value) : null
+    const fence = token ? sealSession() : null
+    if (token) {
+      try {
+        await authApi.logout(token)
+      } catch {
+        // Best effort (API failure or timeout): the local session ends either way.
       }
-    } finally {
-      if (generation === loginGeneration) clearSession()
     }
+    // A login or another clear that moved the session meanwhile owns it now.
+    if (
+      generation !== loginGeneration ||
+      (fence !== null && fence !== authStorage.getSessionGeneration())
+    ) {
+      return
+    }
+    clearSession()
+    queryClient.clear()
+  }
+
+  function logout(): Promise<void> {
+    if (logoutFlight) return logoutFlight
+    const flight = runLogout().finally(() => {
+      if (logoutFlight === flight) logoutFlight = null
+    })
+    logoutFlight = flight
+    return flight
   }
 
   return {

@@ -4,6 +4,7 @@ import axios from 'axios'
 import { createPinia, setActivePinia } from 'pinia'
 import { http } from '../http'
 import { authStorage } from '@/features/auth/services/auth-storage'
+import { isSessionSealed } from '@/features/auth/services/session-seal'
 import { emitSessionExpired } from '@/features/auth/services/session-events'
 
 const { setSessionFromTokensMock, applySessionRotationMock } = vi.hoisted(() => ({
@@ -20,6 +21,10 @@ vi.mock('@/features/auth/services/auth-storage', () => ({
     setTokens: vi.fn(),
     clear: vi.fn(),
   },
+}))
+
+vi.mock('@/features/auth/services/session-seal', () => ({
+  isSessionSealed: vi.fn(() => false),
 }))
 
 vi.mock('@/features/auth/services/session-events', () => ({
@@ -45,6 +50,7 @@ describe('http response interceptor', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(authStorage.getSessionGeneration).mockReturnValue(0)
+    vi.mocked(isSessionSealed).mockReturnValue(false)
     vi.mocked(authStorage.getAccessToken).mockReturnValue('access-token')
     vi.mocked(authStorage.commitRotation).mockImplementation((generation, tokens) => {
       const pair = tokens as { accessToken: string; refreshToken: string }
@@ -687,6 +693,106 @@ describe('http response interceptor', () => {
       expect(applySessionRotationMock).not.toHaveBeenCalled()
       expect(authStorage.clear).not.toHaveBeenCalled()
       expect(emitSessionExpired).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('session sealed by logout', () => {
+    const expired = () => {
+      const b64 = (value: unknown) => btoa(JSON.stringify(value)).replace(/=+$/, '')
+      return `${b64({ alg: 'none' })}.${b64({ exp: Math.floor(Date.now() / 1000) - 60 })}.sig`
+    }
+    const logoutConfig = (adapter: unknown) =>
+      ({
+        explicitLogoutCredentials: true,
+        headers: { Authorization: 'Bearer captured-access' },
+        adapter,
+      }) as import('../http').ExplicitLogoutConfig
+
+    beforeEach(() => {
+      vi.mocked(isSessionSealed).mockReturnValue(true)
+    })
+
+    it('never refreshes a 401 of a request stamped with the sealed generation', async () => {
+      const error = {
+        response: { status: 401, data: {} },
+        config: { url: '/orders', headers: { Authorization: 'Bearer access-token' } },
+      } as AxiosError
+      await expect(responseRejected(error)).rejects.toBe(error)
+      expect(axios.post).not.toHaveBeenCalled()
+      expect(authStorage.commitRotation).not.toHaveBeenCalled()
+      expect(authStorage.clear).not.toHaveBeenCalled()
+      expect(emitSessionExpired).not.toHaveBeenCalled()
+    })
+
+    it('cancels new requests, even with an expired token, instead of sending or refreshing', async () => {
+      vi.mocked(authStorage.getAccessToken).mockReturnValue(expired())
+      const adapter = vi.fn()
+      await expect(http.get('/orders', { adapter })).rejects.toBeInstanceOf(axios.CanceledError)
+      expect(adapter).not.toHaveBeenCalled()
+      expect(axios.post).not.toHaveBeenCalled()
+    })
+
+    it('still lets auth-free requests through', async () => {
+      const adapter = vi.fn().mockResolvedValue({ data: {}, status: 200, headers: {} })
+      await http.post('/auth/login', {}, { adapter })
+      expect(adapter).toHaveBeenCalledOnce()
+    })
+
+    it('sends the explicit logout token, not the stored one, and never proactively refreshes', async () => {
+      vi.mocked(authStorage.getAccessToken).mockReturnValue(expired())
+      const adapter = vi.fn().mockResolvedValue({ data: {}, status: 200, headers: {} })
+      await http.post('/auth/logout', undefined, logoutConfig(adapter))
+      expect(adapter.mock.calls[0]![0].headers.Authorization).toBe('Bearer captured-access')
+      expect(axios.post).not.toHaveBeenCalled()
+    })
+
+    it('rejects an explicit logout request without its token', async () => {
+      const adapter = vi.fn()
+      const config = { ...logoutConfig(adapter), headers: {} }
+      await expect(http.post('/auth/logout', undefined, config)).rejects.toThrow(
+        'Logout token missing',
+      )
+      expect(adapter).not.toHaveBeenCalled()
+    })
+
+    it.each([true, false])(
+      'does not refresh or expire a logout 401 (sealed: %s)',
+      async (sealed) => {
+        vi.mocked(isSessionSealed).mockReturnValue(sealed)
+        const error = {
+          response: { status: 401, data: {} },
+          config: {
+            url: '/auth/logout',
+            method: 'post',
+            explicitLogoutCredentials: true,
+            headers: { Authorization: 'Bearer captured-access' },
+          },
+        } as unknown as AxiosError
+        await expect(responseRejected(error)).rejects.toBe(error)
+        expect(axios.post).not.toHaveBeenCalled()
+        expect(authStorage.clear).not.toHaveBeenCalled()
+        expect(emitSessionExpired).not.toHaveBeenCalled()
+      },
+    )
+
+    it('ignores a refresh that settles after the logout fence', async () => {
+      vi.mocked(isSessionSealed).mockReturnValue(false)
+      vi.mocked(authStorage.getAccessToken).mockReturnValue(expired())
+      let settle!: (value: unknown) => void
+      vi.mocked(axios.post).mockReturnValueOnce(
+        new Promise((resolve) => {
+          settle = resolve
+        }) as ReturnType<typeof axios.post>,
+      )
+      const adapter = vi.fn()
+      const pending = http.get('/orders', { adapter }).catch((error: unknown) => error)
+      await vi.waitFor(() => expect(axios.post).toHaveBeenCalledOnce())
+      vi.mocked(authStorage.getSessionGeneration).mockReturnValue(1)
+      vi.mocked(isSessionSealed).mockReturnValue(true)
+      settle({ data: { accessToken: 'late', refreshToken: 'late-r' } })
+      await expect(pending).resolves.toBeInstanceOf(axios.CanceledError)
+      expect(authStorage.commitRotation).not.toHaveBeenCalled()
+      expect(adapter).not.toHaveBeenCalled()
     })
   })
 })

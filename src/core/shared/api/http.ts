@@ -6,6 +6,7 @@ import axios, {
 import { getActivePinia } from 'pinia'
 import { authStorage, type SessionRotationReceipt } from '@/features/auth/services/auth-storage'
 import { decodeJwtClaims } from '@/features/auth/services/jwt.utils'
+import { isSessionSealed } from '@/features/auth/services/session-seal'
 import { emitSessionExpired } from '@/features/auth/services/session-events'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { csvParamsSerializer } from './paramsSerializer'
@@ -23,6 +24,23 @@ function isVerifiedPermissionsRequest(config?: AxiosRequestConfig) {
       true &&
     config?.url === '/auth/me/permissions' &&
     (config.method ?? 'get').toLowerCase() === 'get'
+  )
+}
+
+/**
+ * The logout call of an already fenced (sealed) session. It carries the credentials captured
+ * before the fence in its own Authorization header, is never given stored ones and never
+ * starts a refresh, proactively or on a 401.
+ */
+export interface ExplicitLogoutConfig extends AxiosRequestConfig {
+  explicitLogoutCredentials: true
+}
+
+function isExplicitLogoutRequest(config?: AxiosRequestConfig) {
+  return (
+    (config as Partial<ExplicitLogoutConfig> | undefined)?.explicitLogoutCredentials === true &&
+    config?.url === '/auth/logout' &&
+    (config.method ?? 'get').toLowerCase() === 'post'
   )
 }
 
@@ -170,7 +188,16 @@ http.interceptors.request.use(async (config: RetryableRequestConfig) => {
     if (!/^Bearer \S+$/.test(String(config.headers.Authorization ?? ''))) {
       throw new Error('Verified permissions token missing')
     }
+  } else if (isExplicitLogoutRequest(config)) {
+    if (!/^Bearer \S+$/.test(String(config.headers.Authorization ?? ''))) {
+      throw new Error('Logout token missing')
+    }
   } else {
+    // A logout is ending this session: nothing else goes out with its tokens, so no 401
+    // (and no refresh) can come back for it. Auth-free calls such as a new login still pass.
+    if (isSessionSealed() && !isAuthFreeRequest(config)) {
+      throw new axios.CanceledError('Session ending')
+    }
     let token = authStorage.getAccessToken()
     const refreshToken = authStorage.getRefreshToken()
     if (
@@ -212,10 +239,14 @@ http.interceptors.response.use(
 
     // This bootstrap belongs to an uncommitted login, never the persisted session.
     if (isVerifiedPermissionsRequest(originalRequest)) return Promise.reject(error)
+    // The logout call never refreshes or expires the session it is ending.
+    if (isExplicitLogoutRequest(originalRequest)) return Promise.reject(error)
 
     const generation = originalRequest?._sessionGeneration ?? authStorage.getSessionGeneration()
     const isCurrent = () => generation === authStorage.getSessionGeneration()
-    if (!isCurrent() || originalRequest?.signal?.aborted) return Promise.reject(error)
+    if (!isCurrent() || isSessionSealed() || originalRequest?.signal?.aborted) {
+      return Promise.reject(error)
+    }
 
     // A Blob 401 (opted-in) hides its message from the synchronous read above:
     // recover it from a bounded JSON read so the tenant-context case is
