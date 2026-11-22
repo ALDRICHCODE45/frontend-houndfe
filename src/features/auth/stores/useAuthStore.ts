@@ -598,11 +598,24 @@ export const useAuthStore = defineStore('auth', () => {
     cancelLogin()
     let token = accessToken.value ? (authStorage.getAccessToken() ?? accessToken.value) : null
     let renewalFailed = false
+    // Who owned the session when it started; a failed renewal cannot rotate it.
+    let startedWith = accessToken.value
     if (token && isAccessTokenExpiring(token)) {
-      token = await renewAccessToken()
-      renewalFailed = token === null
+      const renewal = await renewAccessToken()
+      // A login, switch or clear committed meanwhile: a new session is not ours to end;
+      // if the old one was simply ended, only its cache is left to drop.
+      if (renewal.kind === 'session-changed') {
+        if (accessToken.value === null) queryClient.clear()
+        return
+      }
+      if (renewal.kind === 'renewed') {
+        token = renewal.token
+        startedWith = accessToken.value
+      } else if (renewal.kind === 'failed') {
+        token = null
+        renewalFailed = true
+      }
     }
-    const startedWith = accessToken.value
     const fence = token ? sealSession() : null
     try {
       if (token) {

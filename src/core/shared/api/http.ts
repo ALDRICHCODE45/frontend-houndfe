@@ -171,21 +171,33 @@ function refreshSession(
   return flight.promise
 }
 
+/** How a call to `renewAccessToken` ended. */
+export type AccessTokenRenewal =
+  | { kind: 'renewed'; token: string }
+  /** No refresh token: nothing to renew, the stored token can only be used as is. */
+  | { kind: 'unrenewable' }
+  /** The refresh was rejected or failed; the session was then ended here, as for any failed refresh. */
+  | { kind: 'failed' }
+  /** A login, switch or clear replaced the session meanwhile: it is not ours to touch. */
+  | { kind: 'session-changed' }
+
 /**
  * Renew the current session's access token through the shared refresh (same generation,
  * same `commitRotation` path) so a call that must reach the server, such as logout, does
- * not go out expired. Resolves the new token, or `null` when the refresh failed (the
- * session was then ended here, as for any failed refresh) or the session changed.
+ * not go out expired. Never throws.
  */
-export async function renewAccessToken(): Promise<string | null> {
+export async function renewAccessToken(): Promise<AccessTokenRenewal> {
   const refreshToken = authStorage.getRefreshToken()
-  if (!refreshToken) return null
+  if (!refreshToken) return { kind: 'unrenewable' }
+  const generation = authStorage.getSessionGeneration()
   try {
-    return (
-      (await refreshSession(authStorage.getSessionGeneration(), refreshToken))?.accessToken ?? null
-    )
+    const receipt = await refreshSession(generation, refreshToken)
+    if (!receipt || generation !== authStorage.getSessionGeneration()) {
+      return { kind: 'session-changed' }
+    }
+    return { kind: 'renewed', token: receipt.accessToken }
   } catch {
-    return null
+    return { kind: 'failed' }
   }
 }
 

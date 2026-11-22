@@ -188,12 +188,12 @@ describe('logout fences the session before awaiting the API', () => {
   })
 
   describe('expiring access token (F1)', () => {
-    const tokenExpiring = (seconds: number, tag: string) =>
+    const tokenExpiring = (seconds: number, tag: string, tenant = 'a') =>
       `e30.${btoa(
         JSON.stringify({
           sub: 'u',
-          tenantId: 'a',
-          tenantSlug: 'a',
+          tenantId: tenant,
+          tenantSlug: tenant,
           isSuperAdmin: false,
           tag,
           exp: Math.floor(Date.now() / 1000) + seconds,
@@ -230,6 +230,99 @@ describe('logout fences the session before awaiting the API', () => {
       await store.logout()
       expect(refresh).not.toHaveBeenCalled()
       expect(logoutSpy).toHaveBeenCalledWith(valid)
+    })
+
+    it('sends an expiring token as is when there is no refresh token to renew it', async () => {
+      const store = loggedInExpired()
+      localStorage.removeItem('hound.auth.refreshToken')
+      const logoutSpy = vi.spyOn(authApi, 'logout').mockResolvedValue({ message: 'ok' })
+      await store.logout()
+      expect(refresh).not.toHaveBeenCalled()
+      expect(logoutSpy).toHaveBeenCalledOnce()
+      expect(authStorage.getAccessToken()).toBeNull()
+      expect(store.accessToken).toBeNull()
+      expect(clearCache).toHaveBeenCalledOnce()
+    })
+
+    describe('a session that commits during the slow renewal (B1)', () => {
+      function slowRenewal() {
+        const reply = deferred<{ data: { accessToken: string; refreshToken: string } }>()
+        refresh.mockReturnValue(reply.promise)
+        return {
+          settle: () =>
+            reply.resolve({
+              data: { accessToken: tokenExpiring(900, 'late'), refreshToken: 'late-refresh' },
+            }),
+        }
+      }
+
+      it('keeps a login that committed while the logout was renewing', async () => {
+        const store = loggedInExpired()
+        const logoutSpy = vi.spyOn(authApi, 'logout').mockResolvedValue({ message: 'ok' })
+        const clear = vi.spyOn(authStorage, 'clear')
+        const renewal = slowRenewal()
+
+        const pending = store.logout()
+        await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce())
+        const next = tokenExpiring(900, 'new-login', 'b')
+        store.setSession({ ...session, accessToken: next, refreshToken: 'refresh-new' })
+        store.setPermissionCodes(['read:Product'])
+        renewal.settle()
+        await pending
+
+        expect(store.accessToken).toBe(next)
+        expect(authStorage.getAccessToken()).toBe(next)
+        expect(store.permissionCodes).toEqual(['read:Product'])
+        expect(logoutSpy).not.toHaveBeenCalled()
+        expect(clear).not.toHaveBeenCalled()
+        expect(clearCache).not.toHaveBeenCalled()
+        expect(expired).not.toHaveBeenCalled()
+        expect(isSessionSealed()).toBe(false)
+      })
+
+      it('only drops the cache when the session was simply ended during the renewal', async () => {
+        const store = loggedInExpired()
+        const logoutSpy = vi.spyOn(authApi, 'logout').mockResolvedValue({ message: 'ok' })
+        const renewal = slowRenewal()
+        const pending = store.logout()
+        await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce())
+        store.clearSession()
+        renewal.settle()
+        await pending
+        expect(store.accessToken).toBeNull()
+        expect(logoutSpy).not.toHaveBeenCalled()
+        expect(clearCache).toHaveBeenCalledOnce()
+        expect(isSessionSealed()).toBe(false)
+      })
+
+      it('keeps a tenant switch that committed while the logout was renewing', async () => {
+        const store = loggedInExpired()
+        const logoutSpy = vi.spyOn(authApi, 'logout').mockResolvedValue({ message: 'ok' })
+        const next = tokenExpiring(900, 'switched', 'b')
+        vi.spyOn(authApi, 'switchTenant').mockResolvedValue({
+          user,
+          accessToken: next,
+          refreshToken: 'refresh-b',
+        } as Awaited<ReturnType<typeof authApi.switchTenant>>)
+        vi.spyOn(authApi, 'mePermissions').mockResolvedValue({
+          permissions: [],
+          permissionCodes: ['read:Product'],
+        })
+        const renewal = slowRenewal()
+
+        const pending = store.logout()
+        await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce())
+        await store.switchTenant('b')
+        renewal.settle()
+        await pending
+
+        expect(store.accessToken).toBe(next)
+        expect(authStorage.getAccessToken()).toBe(next)
+        expect(store.permissionCodes).toEqual(['read:Product'])
+        expect(logoutSpy).not.toHaveBeenCalled()
+        expect(clearCache).toHaveBeenCalledOnce() // the switch's own clear, none from logout
+        expect(isSessionSealed()).toBe(false)
+      })
     })
 
     it('ends the session locally, once and without throwing, when the renewal fails', async () => {
