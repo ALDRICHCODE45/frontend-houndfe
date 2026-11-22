@@ -17,3 +17,8 @@ export function sealSession(): number {
 export function isSessionSealed(): boolean {
   return sealedGeneration !== null && sealedGeneration === authStorage.getSessionGeneration()
 }
+
+/** End the seal of `generation`; a seal of a newer generation is left alone. */
+export function releaseSeal(generation: number): void {
+  if (sealedGeneration === generation) sealedGeneration = null
+}

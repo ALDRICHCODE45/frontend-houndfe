@@ -5,7 +5,8 @@ import { authApi } from '../api/auth.api'
 import { authStorage, type SessionRotationReceipt } from '../services/auth-storage'
 import { ability, resetAbility, updateAbilityFromPermissionCodes } from '../authorization/ability'
 import { decodeJwtClaims } from '../services/jwt.utils'
-import { sealSession } from '../services/session-seal'
+import { releaseSeal, sealSession } from '../services/session-seal'
+import { isAccessTokenExpiring, renewAccessToken } from '@/core/shared/api/http'
 import { queryClient } from '@/core/shared/api/queryClient'
 import type {
   AppAction,
@@ -291,16 +292,21 @@ export const useAuthStore = defineStore('auth', () => {
 
   function clearSession() {
     cancelLogin()
+    resetSession()
+  }
+
+  // Ends the session state without cancelling a login that is already under way.
+  function resetSession(options?: { storage?: boolean }) {
     accessToken.value = null
     refreshToken.value = null
     user.value = null
-    authPhase.value = 'idle'
+    if (!loginBusy.value) authPhase.value = 'idle'
     currentTenant.value = null
     memberships.value = []
     isSuperAdmin.value = false
     tempToken.value = null
     clearPermissions({ persist: false })
-    authStorage.clear()
+    if (options?.storage !== false) authStorage.clear()
   }
 
   async function login(payload: AuthLoginRequest) {
@@ -583,29 +589,41 @@ export const useAuthStore = defineStore('auth', () => {
 
   let logoutFlight: Promise<void> | null = null
 
-  // Fence first, then call the API with the tokens captured before the fence, so a 401 in
-  // that window can neither start nor join a refresh. Concurrent calls share one logout.
+  // An expiring token is renewed first so the server can revoke the session, then the
+  // session is fenced and the API called with the tokens captured before the fence, so a
+  // 401 in that window can neither start nor join a refresh. Concurrent calls share one
+  // logout. The seal never outlives it: when it settles the old session is ended (unless
+  // someone ended or replaced it) without cancelling a login that is under way.
   async function runLogout() {
     cancelLogin()
-    const generation = loginGeneration
-    const token = accessToken.value ? (authStorage.getAccessToken() ?? accessToken.value) : null
+    let token = accessToken.value ? (authStorage.getAccessToken() ?? accessToken.value) : null
+    let renewalFailed = false
+    if (token && isAccessTokenExpiring(token)) {
+      token = await renewAccessToken()
+      renewalFailed = token === null
+    }
+    const startedWith = accessToken.value
     const fence = token ? sealSession() : null
-    if (token) {
-      try {
-        await authApi.logout(token)
-      } catch {
-        // Best effort (API failure or timeout): the local session ends either way.
+    try {
+      if (token) {
+        try {
+          await authApi.logout(token)
+        } catch {
+          // Best effort (API failure or timeout): the local session ends either way.
+        }
       }
+      // A session that started meanwhile (new tokens, or a moved generation) owns the cache.
+      const replaced =
+        accessToken.value !== null &&
+        (accessToken.value !== startedWith ||
+          (fence !== null && fence !== authStorage.getSessionGeneration()))
+      if (replaced) return
+      // A failed renewal already cleared storage; do not clear it a second time.
+      resetSession({ storage: !renewalFailed })
+      queryClient.clear()
+    } finally {
+      if (fence !== null) releaseSeal(fence)
     }
-    // A login or another clear that moved the session meanwhile owns it now.
-    if (
-      generation !== loginGeneration ||
-      (fence !== null && fence !== authStorage.getSessionGeneration())
-    ) {
-      return
-    }
-    clearSession()
-    queryClient.clear()
   }
 
   function logout(): Promise<void> {

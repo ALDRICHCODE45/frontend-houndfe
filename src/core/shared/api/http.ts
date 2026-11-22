@@ -114,7 +114,7 @@ function isAuthFreeRequest(config?: AxiosRequestConfig) {
 }
 
 /** True only for a readable JWT `exp` that is past or inside the skew window. */
-function isAccessTokenExpiring(token: string): boolean {
+export function isAccessTokenExpiring(token: string): boolean {
   try {
     const { exp } = decodeJwtClaims(token) as { exp?: unknown }
     return (
@@ -169,6 +169,24 @@ function refreshSession(
   }
   refreshFlight = flight
   return flight.promise
+}
+
+/**
+ * Renew the current session's access token through the shared refresh (same generation,
+ * same `commitRotation` path) so a call that must reach the server, such as logout, does
+ * not go out expired. Resolves the new token, or `null` when the refresh failed (the
+ * session was then ended here, as for any failed refresh) or the session changed.
+ */
+export async function renewAccessToken(): Promise<string | null> {
+  const refreshToken = authStorage.getRefreshToken()
+  if (!refreshToken) return null
+  try {
+    return (
+      (await refreshSession(authStorage.getSessionGeneration(), refreshToken))?.accessToken ?? null
+    )
+  } catch {
+    return null
+  }
 }
 
 export const http = axios.create({

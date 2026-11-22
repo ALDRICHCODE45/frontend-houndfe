@@ -186,4 +186,152 @@ describe('logout fences the session before awaiting the API', () => {
     expect(isSessionSealed()).toBe(false)
     expect(clearCache).not.toHaveBeenCalled()
   })
+
+  describe('expiring access token (F1)', () => {
+    const tokenExpiring = (seconds: number, tag: string) =>
+      `e30.${btoa(
+        JSON.stringify({
+          sub: 'u',
+          tenantId: 'a',
+          tenantSlug: 'a',
+          isSuperAdmin: false,
+          tag,
+          exp: Math.floor(Date.now() / 1000) + seconds,
+        }),
+      )}.sig`
+
+    function loggedInExpired() {
+      const store = useAuthStore()
+      store.setSession({ ...session, accessToken: tokenExpiring(-60, 'old') })
+      return store
+    }
+
+    it('renews once before the fence and sends the fresh token to the logout API', async () => {
+      const store = loggedInExpired()
+      const fresh = tokenExpiring(900, 'fresh')
+      refresh.mockResolvedValue({ data: { accessToken: fresh, refreshToken: 'refresh-b' } })
+      const logoutSpy = vi.spyOn(authApi, 'logout').mockResolvedValue({ message: 'ok' })
+
+      await store.logout()
+
+      expect(refresh).toHaveBeenCalledOnce()
+      expect(refresh.mock.calls[0]![1]).toEqual({ refreshToken: 'refresh-a' })
+      expect(logoutSpy).toHaveBeenCalledExactlyOnceWith(fresh)
+      expect(authStorage.getAccessToken()).toBeNull()
+      expect(store.accessToken).toBeNull()
+      expect(clearCache).toHaveBeenCalledOnce()
+    })
+
+    it('does not renew a token that is still valid', async () => {
+      const store = useAuthStore()
+      const valid = tokenExpiring(900, 'valid')
+      store.setSession({ ...session, accessToken: valid })
+      const logoutSpy = vi.spyOn(authApi, 'logout').mockResolvedValue({ message: 'ok' })
+      await store.logout()
+      expect(refresh).not.toHaveBeenCalled()
+      expect(logoutSpy).toHaveBeenCalledWith(valid)
+    })
+
+    it('ends the session locally, once and without throwing, when the renewal fails', async () => {
+      const store = loggedInExpired()
+      store.setPermissionCodes(['read:Order'])
+      refresh.mockRejectedValue(new Error('refresh rejected'))
+      const logoutSpy = vi.spyOn(authApi, 'logout').mockResolvedValue({ message: 'ok' })
+      const clear = vi.spyOn(authStorage, 'clear')
+
+      await expect(store.logout()).resolves.toBeUndefined()
+
+      expect(logoutSpy).not.toHaveBeenCalled()
+      expect(clear).toHaveBeenCalledOnce()
+      expect(expired).toHaveBeenCalledOnce()
+      expect(authStorage.getAccessToken()).toBeNull()
+      expect(store.accessToken).toBeNull()
+      expect(store.permissionCodes).toEqual([])
+      expect(ability.can('read', 'Order')).toBe(false)
+      expect(clearCache).toHaveBeenCalledOnce()
+      expect(isSessionSealed()).toBe(false)
+    })
+  })
+
+  describe('sessions that change during a pending logout', () => {
+    it('clears the query cache when a cancelled tenant switch ended the session first (F2)', async () => {
+      const store = loggedIn()
+      const reply = deferred<{ message: string }>()
+      vi.spyOn(authApi, 'logout').mockReturnValue(reply.promise)
+      vi.spyOn(authApi, 'switchTenant').mockRejectedValue(new axios.CanceledError('Session ending'))
+
+      const pending = store.logout()
+      await expect(store.switchTenant('b')).rejects.toBeDefined()
+      expect(store.accessToken).toBeNull()
+      expect(clearCache).not.toHaveBeenCalled()
+      reply.resolve({ message: 'ok' })
+      await pending
+
+      expect(clearCache).toHaveBeenCalledOnce()
+      expect(store.accessToken).toBeNull()
+      expect(isSessionSealed()).toBe(false)
+    })
+
+    it('ends the old session and releases the seal after a failed login (F3)', async () => {
+      const store = loggedIn()
+      const reply = deferred<{ message: string }>()
+      vi.spyOn(authApi, 'logout').mockReturnValue(reply.promise)
+      vi.spyOn(authApi, 'login').mockRejectedValue(new Error('bad credentials'))
+
+      const pending = store.logout()
+      await expect(store.login({ email: 'x@example.invalid', password: 'x' })).rejects.toThrow(
+        'bad credentials',
+      )
+      reply.resolve({ message: 'ok' })
+      await pending
+
+      expect(isSessionSealed()).toBe(false)
+      expect(authStorage.getAccessToken()).toBeNull()
+      expect(store.accessToken).toBeNull()
+      expect(store.permissionCodes).toEqual([])
+      expect(ability.can('read', 'Order')).toBe(false)
+      expect(clearCache).toHaveBeenCalledOnce()
+      http.defaults.adapter = vi.fn(((config) => Promise.resolve(ok(config))) as AxiosAdapter)
+      await expect(http.get('/orders')).resolves.toBeDefined()
+    })
+
+    it('keeps the OTP challenge of a login started during the logout (F3)', async () => {
+      const store = loggedIn()
+      const reply = deferred<{ message: string }>()
+      vi.spyOn(authApi, 'logout').mockReturnValue(reply.promise)
+      vi.spyOn(authApi, 'login').mockResolvedValue({
+        requiresOtp: true,
+        challengeId: 'challenge',
+        expiresIn: 300,
+        resendAfter: 30,
+      })
+
+      const pending = store.logout()
+      await store.login({ email: 'x@example.invalid', password: 'x' })
+      reply.resolve({ message: 'ok' })
+      await pending
+
+      expect(store.otpChallenge?.challengeId).toBe('challenge')
+      expect(isSessionSealed()).toBe(false)
+      expect(authStorage.getAccessToken()).toBeNull()
+      expect(store.accessToken).toBeNull()
+      expect(clearCache).toHaveBeenCalledOnce()
+    })
+
+    it('releases the seal without touching a new session that started meanwhile', async () => {
+      const store = loggedIn()
+      const reply = deferred<{ message: string }>()
+      vi.spyOn(authApi, 'logout').mockReturnValue(reply.promise)
+      const pending = store.logout()
+      store.setSession({ ...session, refreshToken: 'refresh-new' })
+      store.setPermissionCodes(['read:Product'])
+      reply.resolve({ message: 'ok' })
+      await pending
+      expect(isSessionSealed()).toBe(false)
+      expect(store.accessToken).toBe(accessToken)
+      expect(store.permissionCodes).toEqual(['read:Product'])
+      expect(authStorage.getRefreshToken()).toBe('refresh-new')
+      expect(clearCache).not.toHaveBeenCalled()
+    })
+  })
 })
