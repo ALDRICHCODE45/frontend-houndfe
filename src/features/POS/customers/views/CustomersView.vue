@@ -373,7 +373,7 @@ const isSubmitting = computed(
 )
 
 function handleAdd() {
-  // TODO: check canCreateCustomer permission when available
+  if (!canCreate.value) return
   editSession++
   loadingEdit = false
   isEditOpen.value = false
@@ -388,7 +388,7 @@ function handleSlideoverClose() {
 }
 
 async function handleOpenEdit(customer: Customer) {
-  // TODO: check canUpdateCustomer permission when available
+  if (!canUpdate.value) return
   const session = ++editSession
   loadingEdit = true
   isEditOpen.value = false
@@ -415,7 +415,7 @@ async function handleOpenEdit(customer: Customer) {
 }
 
 async function handleDelete(customer: Customer) {
-  // TODO: check canDeleteCustomer permission when available
+  if (!canDelete.value) return
   openConfirm(`¿Quieres eliminar al cliente ${customer.fullName}?`, () => {
     deleteMutation.mutate(customer.id)
   })
