@@ -63,8 +63,8 @@ Status reconciled from a read-only explore (L2) and two small fixes in shared HT
 - [x] T2 S2-S3 Proactive refresh + no double refresh in http.ts, tests first — worker
 - [x] T3 S2-S3 Independent verification (Risk: item 2 auth, item 4 concurrency) — gentle-ai-verify: S2 PASS, S3 PASS
 - [x] T4 Full suite, browser check (reload after expiry: no 401, one refresh), commit — parent
-- [ ] T5 S4 Logout fences the session before awaiting the API, tests first — worker
-- [ ] T6 S4 Independent verification (Risk: item 2 auth, item 4 concurrency) — gentle-ai-verify
+- [x] T5 S4 Logout fences the session before awaiting the API, tests first — worker — f4527bf5, 049f339b, e96adc46
+- [x] T6 S4 Independent verification (Risk: item 2 auth, item 4 concurrency) — gentle-ai-verify: PASS (mwsgykm9-7-2k7a)
 
 ## Log
 - L1 User: «Documento + renovar antes + no renovar dos veces» (option: «Actualizo el tracker y hago los puntos 2 y 3 con tests primero y verificación independiente; logout queda para después.»).
@@ -76,3 +76,4 @@ Status reconciled from a read-only explore (L2) and two small fixes in shared HT
 - L7 Owner (2026-11-22): «Ya desplegue hermano, adelante con todo lo que nos queda pendiente que mencionas.» — S4 now in scope.
 - L8 T5 worker f4527bf5 (session-seal, explicit logout token, one shared logout, queryClient.clear on logout, 10 s timeout, logout no longer rejects on API failure). T6 verify (mwsfn8px-3-qvlr): fence PASS; Customers guards f459fc6f PASS; type-check blocker came from 83629b38/c97d0382 test types, fixed on main abe29594 and merged in. Findings to fix (S4 correction): F1 logout with an expired access token sends it as is → 401 swallowed → server session/refresh token not revoked (before, the proactive refresh renewed it) — refresh once before sealing when the token is expiring; F2 tenant switch during a pending logout → switch cancelled, its catch clears and moves loginGeneration → logout returns without queryClient.clear(); F3 login() failing/OTP during a pending logout → cancelLogin moves loginGeneration, logout skips clearSession, storage generation never advances → seal stuck, every request cancelled until reload.
 - L9 Re-verify (mwsgjbms-5-d792) on 049f339b: F1-F3 PASS, earlier items hold; B1: a login (or switchTenant) that commits while logout is still renewing (before the seal) makes the refresh return null (session changed) → treated as renewal failure → new session wiped in memory (tokens stay in storage). Non-blocking: renewal failure clears storage twice in production (session-expired listener); old cache kept when a new login replaces the session (pre-existing).
+- L10 e96adc46: renewAccessToken → renewed | unrenewable | failed | session-changed; session-changed leaves the new session alone; unrenewable sends the stored token. Verify mwsgykm9-7-2k7a PASS (655 tests, vue-tsc --build 0). Residual, non-blocking, no realistic repro: microtask gap after `renewed` (hardening: carry the generation in `renewed`); tenantless super-admin fetchMe during logout can leave the old session (pre-existing); renewal failure clears storage twice via main.ts session-expired listener.
