@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AxiosError } from 'axios'
+import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import axios from 'axios'
 import { createPinia, setActivePinia } from 'pinia'
 import { http } from '../http'
@@ -522,7 +522,7 @@ describe('http response interceptor', () => {
     const expiringIn = (seconds: number, tag = 'old') =>
       jwt({ tag, exp: Math.floor(Date.now() / 1000) + seconds })
     const fresh = expiringIn(900, 'fresh')
-    const ok = (config: { url?: string }) => ({
+    const ok = (config: InternalAxiosRequestConfig): AxiosResponse => ({
       data: config.url,
       status: 200,
       statusText: 'OK',
