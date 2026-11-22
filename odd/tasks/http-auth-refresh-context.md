@@ -56,13 +56,15 @@ Status reconciled from a read-only explore (L2) and two small fixes in shared HT
 - S1 Tracker: C1-HTTP done by `8ca378d` (editorial T10-session-isolation, `odd/tasks/editorial-single-contract.md:829`); C2 done except the logout window (S4-later); C1-STORE obsolete (goals met by `8ca378d`, `session-context.ts` has no production callers).
 - S2 «Renovar el token antes del primer pedido cuando ya está vencido»: when the stored access token's JWT `exp` is past (or within a small skew, a few seconds), a request first joins or starts the one shared refresh of the current session generation, then goes out with the new token. Same generation fence and `commitRotation` path as today. A full page load with an expired access token and a valid refresh token makes exactly one refresh call and zero 401 responses. A token without a readable `exp` behaves as today (sent as is). If the refresh fails, the same single logout as a failed 401-refresh happens.
 - S3 «No renovar dos veces: si el token ya cambió, reintentar directo sin renovar de nuevo»: on a 401, if the access token the request was sent with differs from the current stored access token (a refresh already rotated it), the request is replayed once with the current token without calling refresh. Only a 401 sent with the current token starts (or joins) a refresh.
-- S4-later (not in this change): advance the generation at the start of logout before awaiting the API.
+- S4 «El ajuste del cierre de sesión (S4)»: logout advances the session generation (or otherwise fences the session) BEFORE awaiting the logout API, so a request that gets a 401 during logout never starts or joins a refresh and never rotates tokens; in-flight requests of the old session are cancelled/ignored as on tenant switch; the logout API call itself still carries the current access/refresh token it needs; logout still clears storage, permissions, query cache and navigates to login exactly once, also when the logout API fails.
 
 ## Tasks
 - [x] T1 S1 Reconcile this tracker — parent
 - [x] T2 S2-S3 Proactive refresh + no double refresh in http.ts, tests first — worker
 - [x] T3 S2-S3 Independent verification (Risk: item 2 auth, item 4 concurrency) — gentle-ai-verify: S2 PASS, S3 PASS
 - [x] T4 Full suite, browser check (reload after expiry: no 401, one refresh), commit — parent
+- [ ] T5 S4 Logout fences the session before awaiting the API, tests first — worker
+- [ ] T6 S4 Independent verification (Risk: item 2 auth, item 4 concurrency) — gentle-ai-verify
 
 ## Log
 - L1 User: «Documento + renovar antes + no renovar dos veces» (option: «Actualizo el tracker y hago los puntos 2 y 3 con tests primero y verificación independiente; logout queda para después.»).
@@ -71,3 +73,4 @@ Status reconciled from a read-only explore (L2) and two small fixes in shared HT
 - L4 T3 verify: S2 PASS, S3 PASS, no blockers. Non-blocking: no timeout on the raw refresh post and the proactive wait ignores config.signal (requests wait until refresh settles, like 401 waiters already did); clock ahead of server by > lifetime−10 s → one refresh per batch; realtime stream-client connects outside http and may still log a 401; untested mixes (proactive + 401 joining one refresh, superseded failed refresh not logging out) are handled in code.
 - L5 T4: prettier, eslint, type-check 0; full suite 1054 files / 17981 tests green. Browser (FE :5173 → BE :3003, manager@houndfe.com): stored access token exp set to the past, reload /pos/ventas → one POST /auth/refresh 200, then 8 boot requests 200, zero 401; new token valid 15 min.
 - L6 Re-verify on the committed range 89a819ca..83629b38 (task mwogfq9l-6-r9bc): S2 PASS, S3 PASS; post-verification change was Prettier formatting only (token-level comparison); 484 tests, type-check 0.
+- L7 Owner (2026-11-22): «Ya desplegue hermano, adelante con todo lo que nos queda pendiente que mencionas.» — S4 now in scope.
