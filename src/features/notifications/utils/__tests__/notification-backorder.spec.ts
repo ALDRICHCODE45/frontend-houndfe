@@ -77,7 +77,8 @@ describe('notificationBackorderPath / notificationTargetPath', () => {
   it.each(['BACKORDER_RESERVED', 'BACKORDER_EXPIRED', 'BACKORDER_NOTICE_UNDELIVERED'])(
     '%s opens the backorder detail',
     (type) => {
-      expect(notificationTargetPath({ ...reserved, type })).toBe('/pos/pedidos-reposicion/bo-12')
+      const item: NotificationItem = { ...reserved, type }
+      expect(notificationTargetPath(item)).toBe('/pos/pedidos-reposicion/bo-12')
     },
   )
 
