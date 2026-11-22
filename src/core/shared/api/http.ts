@@ -6,6 +6,7 @@ import axios, {
 import { getActivePinia } from 'pinia'
 import { authStorage, type SessionRotationReceipt } from '@/features/auth/services/auth-storage'
 import { decodeJwtClaims } from '@/features/auth/services/jwt.utils'
+import { isSessionSealed } from '@/features/auth/services/session-seal'
 import { emitSessionExpired } from '@/features/auth/services/session-events'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { csvParamsSerializer } from './paramsSerializer'
@@ -23,6 +24,23 @@ function isVerifiedPermissionsRequest(config?: AxiosRequestConfig) {
       true &&
     config?.url === '/auth/me/permissions' &&
     (config.method ?? 'get').toLowerCase() === 'get'
+  )
+}
+
+/**
+ * The logout call of an already fenced (sealed) session. It carries the credentials captured
+ * before the fence in its own Authorization header, is never given stored ones and never
+ * starts a refresh, proactively or on a 401.
+ */
+export interface ExplicitLogoutConfig extends AxiosRequestConfig {
+  explicitLogoutCredentials: true
+}
+
+function isExplicitLogoutRequest(config?: AxiosRequestConfig) {
+  return (
+    (config as Partial<ExplicitLogoutConfig> | undefined)?.explicitLogoutCredentials === true &&
+    config?.url === '/auth/logout' &&
+    (config.method ?? 'get').toLowerCase() === 'post'
   )
 }
 
@@ -96,7 +114,7 @@ function isAuthFreeRequest(config?: AxiosRequestConfig) {
 }
 
 /** True only for a readable JWT `exp` that is past or inside the skew window. */
-function isAccessTokenExpiring(token: string): boolean {
+export function isAccessTokenExpiring(token: string): boolean {
   try {
     const { exp } = decodeJwtClaims(token) as { exp?: unknown }
     return (
@@ -153,6 +171,36 @@ function refreshSession(
   return flight.promise
 }
 
+/** How a call to `renewAccessToken` ended. */
+export type AccessTokenRenewal =
+  | { kind: 'renewed'; token: string }
+  /** No refresh token: nothing to renew, the stored token can only be used as is. */
+  | { kind: 'unrenewable' }
+  /** The refresh was rejected or failed; the session was then ended here, as for any failed refresh. */
+  | { kind: 'failed' }
+  /** A login, switch or clear replaced the session meanwhile: it is not ours to touch. */
+  | { kind: 'session-changed' }
+
+/**
+ * Renew the current session's access token through the shared refresh (same generation,
+ * same `commitRotation` path) so a call that must reach the server, such as logout, does
+ * not go out expired. Never throws.
+ */
+export async function renewAccessToken(): Promise<AccessTokenRenewal> {
+  const refreshToken = authStorage.getRefreshToken()
+  if (!refreshToken) return { kind: 'unrenewable' }
+  const generation = authStorage.getSessionGeneration()
+  try {
+    const receipt = await refreshSession(generation, refreshToken)
+    if (!receipt || generation !== authStorage.getSessionGeneration()) {
+      return { kind: 'session-changed' }
+    }
+    return { kind: 'renewed', token: receipt.accessToken }
+  } catch {
+    return { kind: 'failed' }
+  }
+}
+
 export const http = axios.create({
   baseURL: API_BASE_URL,
   paramsSerializer: {
@@ -170,7 +218,16 @@ http.interceptors.request.use(async (config: RetryableRequestConfig) => {
     if (!/^Bearer \S+$/.test(String(config.headers.Authorization ?? ''))) {
       throw new Error('Verified permissions token missing')
     }
+  } else if (isExplicitLogoutRequest(config)) {
+    if (!/^Bearer \S+$/.test(String(config.headers.Authorization ?? ''))) {
+      throw new Error('Logout token missing')
+    }
   } else {
+    // A logout is ending this session: nothing else goes out with its tokens, so no 401
+    // (and no refresh) can come back for it. Auth-free calls such as a new login still pass.
+    if (isSessionSealed() && !isAuthFreeRequest(config)) {
+      throw new axios.CanceledError('Session ending')
+    }
     let token = authStorage.getAccessToken()
     const refreshToken = authStorage.getRefreshToken()
     if (
@@ -212,10 +269,14 @@ http.interceptors.response.use(
 
     // This bootstrap belongs to an uncommitted login, never the persisted session.
     if (isVerifiedPermissionsRequest(originalRequest)) return Promise.reject(error)
+    // The logout call never refreshes or expires the session it is ending.
+    if (isExplicitLogoutRequest(originalRequest)) return Promise.reject(error)
 
     const generation = originalRequest?._sessionGeneration ?? authStorage.getSessionGeneration()
     const isCurrent = () => generation === authStorage.getSessionGeneration()
-    if (!isCurrent() || originalRequest?.signal?.aborted) return Promise.reject(error)
+    if (!isCurrent() || isSessionSealed() || originalRequest?.signal?.aborted) {
+      return Promise.reject(error)
+    }
 
     // A Blob 401 (opted-in) hides its message from the synchronous read above:
     // recover it from a bounded JSON read so the tenant-context case is

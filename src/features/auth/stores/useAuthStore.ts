@@ -5,6 +5,8 @@ import { authApi } from '../api/auth.api'
 import { authStorage, type SessionRotationReceipt } from '../services/auth-storage'
 import { ability, resetAbility, updateAbilityFromPermissionCodes } from '../authorization/ability'
 import { decodeJwtClaims } from '../services/jwt.utils'
+import { releaseSeal, sealSession } from '../services/session-seal'
+import { isAccessTokenExpiring, renewAccessToken } from '@/core/shared/api/http'
 import { queryClient } from '@/core/shared/api/queryClient'
 import type {
   AppAction,
@@ -290,16 +292,21 @@ export const useAuthStore = defineStore('auth', () => {
 
   function clearSession() {
     cancelLogin()
+    resetSession()
+  }
+
+  // Ends the session state without cancelling a login that is already under way.
+  function resetSession(options?: { storage?: boolean }) {
     accessToken.value = null
     refreshToken.value = null
     user.value = null
-    authPhase.value = 'idle'
+    if (!loginBusy.value) authPhase.value = 'idle'
     currentTenant.value = null
     memberships.value = []
     isSuperAdmin.value = false
     tempToken.value = null
     clearPermissions({ persist: false })
-    authStorage.clear()
+    if (options?.storage !== false) authStorage.clear()
   }
 
   async function login(payload: AuthLoginRequest) {
@@ -580,16 +587,65 @@ export const useAuthStore = defineStore('auth', () => {
     return ability.can(action, subject)
   }
 
-  async function logout() {
+  let logoutFlight: Promise<void> | null = null
+
+  // An expiring token is renewed first so the server can revoke the session, then the
+  // session is fenced and the API called with the tokens captured before the fence, so a
+  // 401 in that window can neither start nor join a refresh. Concurrent calls share one
+  // logout. The seal never outlives it: when it settles the old session is ended (unless
+  // someone ended or replaced it) without cancelling a login that is under way.
+  async function runLogout() {
     cancelLogin()
-    const generation = loginGeneration
-    try {
-      if (accessToken.value) {
-        await authApi.logout()
+    let token = accessToken.value ? (authStorage.getAccessToken() ?? accessToken.value) : null
+    let renewalFailed = false
+    // Who owned the session when it started; a failed renewal cannot rotate it.
+    let startedWith = accessToken.value
+    if (token && isAccessTokenExpiring(token)) {
+      const renewal = await renewAccessToken()
+      // A login, switch or clear committed meanwhile: a new session is not ours to end;
+      // if the old one was simply ended, only its cache is left to drop.
+      if (renewal.kind === 'session-changed') {
+        if (accessToken.value === null) queryClient.clear()
+        return
       }
-    } finally {
-      if (generation === loginGeneration) clearSession()
+      if (renewal.kind === 'renewed') {
+        token = renewal.token
+        startedWith = accessToken.value
+      } else if (renewal.kind === 'failed') {
+        token = null
+        renewalFailed = true
+      }
     }
+    const fence = token ? sealSession() : null
+    try {
+      if (token) {
+        try {
+          await authApi.logout(token)
+        } catch {
+          // Best effort (API failure or timeout): the local session ends either way.
+        }
+      }
+      // A session that started meanwhile (new tokens, or a moved generation) owns the cache.
+      const replaced =
+        accessToken.value !== null &&
+        (accessToken.value !== startedWith ||
+          (fence !== null && fence !== authStorage.getSessionGeneration()))
+      if (replaced) return
+      // A failed renewal already cleared storage; do not clear it a second time.
+      resetSession({ storage: !renewalFailed })
+      queryClient.clear()
+    } finally {
+      if (fence !== null) releaseSeal(fence)
+    }
+  }
+
+  function logout(): Promise<void> {
+    if (logoutFlight) return logoutFlight
+    const flight = runLogout().finally(() => {
+      if (logoutFlight === flight) logoutFlight = null
+    })
+    logoutFlight = flight
+    return flight
   }
 
   return {

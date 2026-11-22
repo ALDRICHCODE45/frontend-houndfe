@@ -15,7 +15,8 @@ const api = vi.hoisted(() => ({
 }))
 vi.mock('../../api/customer.api', () => ({ customerApi: api }))
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
-  useAuthStore: () => ({ currentTenantId: 'tenant-test', userCan: () => false }),
+  // The handlers repeat the Customer permission checks, so the editor flows need the grants.
+  useAuthStore: () => ({ currentTenantId: 'tenant-test', userCan: () => true }),
 }))
 vi.mock('@/core/shared/composables/useServerTable', () => ({
   useServerTable: () => ({
