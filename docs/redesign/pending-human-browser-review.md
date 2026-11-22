@@ -1,6 +1,23 @@
 # Catálogo — revisión humana pendiente
 
-Estado: pendiente de revisión visual del usuario. Las pruebas técnicas y la inspección MCP del agente no equivalen a aprobación humana. No publicar ni desplegar por este registro.
+Estado (reconciliado 2026-11-22): V1–V5 y V7–V9 quedaron reemplazados por rediseños posteriores y se cierran sin revisión; siguen pendientes de revisión humana solo V6 y V10 (ver «Reconciliación 2026-11-22»). Estado original: pendiente de revisión visual del usuario. Las pruebas técnicas y la inspección MCP del agente no equivalen a aprobación humana. No publicar ni desplegar por este registro.
+
+## Reconciliación 2026-11-22
+
+El dueño pidió «Reconciliá y cerrá lo viejo». Ningún ítem tenía aprobación propia registrada.
+
+| Ítem | Estado | Por qué |
+| --- | --- | --- |
+| V1 Composición vs v0 | Reemplazado | Rediseño `public-catalog-v0-design` (0e6972a9, e1b14ff8, ec336b89; merge 1d64e51f). El dueño sobre el catálogo en vivo: «me gusta bastante» (`odd/tasks/catalog-animal-filters.md`). |
+| V2 Búsqueda y categorías compactas | Reemplazado | La barra de categorías se eliminó (0e6972a9); ahora menú «Categorías», barra lateral y hoja de filtros, luego filtros por animal. |
+| V3 Búsqueda combinada y limpieza | Reemplazado | Chips de filtros activos, «Limpiar todo» y hoja de filtros. |
+| V4 Paginación y lista de precios | Reemplazado | «Mostrando a–b de N», paginador numerado y selector solo con más de una lista. |
+| V5 Ficha y variantes en modal | Reemplazado | La ficha es una página `/catalogo/:branchSlug/p/:productId`; el modal se eliminó. |
+| V6 Mensajes de variantes del POS | **Pendiente** | Sin cambios desde 28a002d. Revisar a 390 y 1440, claro y oscuro: en `/pos/products/:id`, desactivar variantes en un producto que las tiene y leer el error; en el detalle de una venta, cancelar una venta cuyo producto ahora tiene variantes y leer «No se pudo cancelar la venta…». |
+| V7–V9 Editor editorial anterior | Reemplazado | V10 sustituyó ese runtime y el corte de contrato único lo reconstruyó (`odd/tasks/editorial-single-contract.md`). |
+| V10 Editor editorial de contrato único | **Pendiente** | La ruta sigue (`/pos/products/:id/editorial`); solo hubo aprobaciones técnicas o de merge; el artboard 03 aprueba la dirección, no la pantalla construida. Revisar a 390 claro y 1440 oscuro: diseño guiado, cambio de familia con confirmación, atributos, declaraciones y cuidados, historial y comparación, confirmación `review-v1`, Publicar/Descartar/Despublicar y «La elegibilidad se valida en el servidor». |
+
+Opcional: el catálogo público nuevo tampoco tiene una aceptación visual formal (`/catalogo/centro` y una ficha, a 390 y 1440). El voseo «Ingresá tus credenciales» del login ya no está en el código.
 
 ## Cuando puedas abrir el navegador
 
@@ -59,7 +76,7 @@ Capturas del último pulido: `artifacts/catalog-controls-polish/{320,390,768,144
 
 ## Criterio para próximos cambios de UI
 
-- V1–V5 siguen pendientes de revisión humana; la continuidad del desarrollo no equivale a aceptación visual.
+- V1–V5 se cerraron como reemplazados el 2026-11-22 (ver «Reconciliación 2026-11-22»); la continuidad del desarrollo no equivale a aceptación visual.
 - Cada cambio de UI debe comprobarse mediante Playwright MCP, tanto funcional como visualmente, siguiendo el design system y las reglas de UI existentes. Revisar composición, tipografía, espaciado, estados, foco/teclado y responsive; conservar evidencia y corregir defectos antes de entregar.
 - No reemplazar esta comprobación por tests unitarios, compilación o snapshots de accesibilidad sin inspección visual. Si el navegador no está disponible, declarar la comprobación pendiente, no presentar el cambio como validado.
 - Coordinación Playwright MCP del 2026-10-27: el perfil es compartido con Peopleflow y no tiene aislamiento por sesión. Tras el conflicto inicial, su agente confirmó «liberado» y cerró su propio navegador. Acuerdo: pedir turno por intercom, esperar liberación explícita, usar solo la sesión propia, cerrar mediante `browser_close` y avisar «liberado» al terminar. No cerrar sesiones ajenas ni borrar locks. Houndfe todavía no tomó el navegador; esta confirmación no constituye evidencia visual nueva.
