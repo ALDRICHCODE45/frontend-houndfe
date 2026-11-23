@@ -35,6 +35,11 @@ vi.mock('@/features/POS/sales/composables/useCustomerSalesHistory', () => ({
   },
 }))
 
+// Customer pets T4: a customer without pets — the pet filter stays hidden (see __tests__/…pets.spec.ts).
+vi.mock('../pets/usePets', () => ({
+  usePetsList: () => ({ data: shallowRef([]), refetch: vi.fn() }),
+}))
+
 function resolveQ(): string | undefined {
   if (historyQ == null) return undefined
   if (typeof historyQ === 'function') return (historyQ as () => string | undefined)()
