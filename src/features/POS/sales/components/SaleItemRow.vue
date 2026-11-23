@@ -9,6 +9,9 @@ import SaleItemBadges from './SaleItemBadges.vue'
 import PriceOverrideModal from './PriceOverrideModal.vue'
 import ItemDiscountModal from './ItemDiscountModal.vue'
 import ProductDetailModal from './ProductDetailModal.vue'
+import SaleLinePetLabel from './SaleLinePetLabel.vue'
+import SaleLinePetPicker from './SaleLinePetPicker.vue'
+import type { Pet } from '@/features/POS/customers/pets/pet.types'
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -37,8 +40,12 @@ const props = withDefaults(
        * dialogs keep their native defaults and prior paint.
        */
       portalClass?: string
+      /** Handoff 27 §5.2: ACTIVE pets of the sale customer; empty hides the line pet picker. */
+      pets?: Pet[]
+      onSetPet?: (itemId: string, petId: string | null) => Promise<unknown>
      }>(),
   {
+    pets: () => [],
     imageUrl: null,
     isUpdating: false,
     isDraft: true,
@@ -52,6 +59,14 @@ const props = withDefaults(
 )
 
 const imageBroken = ref(false)
+
+const showPetPicker = computed(
+  () => props.isDraft && props.pets.length > 0 && props.onSetPet !== undefined,
+)
+
+function handleSelectPet(petId: string | null) {
+  void props.onSetPet?.(props.item.id, petId)
+}
 
 // T11 (unit B): the exact v0 cart composition drops the nested rounded card in
 // favour of a divider-separated row. Omitting the opt-in reproduces the prior
@@ -337,6 +352,23 @@ function handleQtyCommit() {
           >{{ formatCentsMXN(item.prePriceCentsBeforeDiscount ?? 0) }}</span>
           <span class="sales-pos-cart-row-unit-current">{{ formatCentsMXN(item.unitPriceCents) }} c/u</span>
         </p>
+
+        <!-- Handoff 27 §5–§6: «Para: <nombre>» and the line pet picker. -->
+        <div
+          v-if="item.pet || showPetPicker"
+          data-testid="sale-item-pet-row"
+          class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1"
+        >
+          <SaleLinePetLabel v-if="item.pet" :pet="item.pet" />
+          <SaleLinePetPicker
+            v-if="showPetPicker"
+            :pets="pets"
+            :pet-id="item.pet?.id ?? null"
+            :disabled="isUpdating"
+            :portal-class="portalClass"
+            @select="handleSelectPet"
+          />
+        </div>
 
         <!-- Qty row: stepper + trash + actions dropdown (draft only) -->
         <div

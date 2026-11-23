@@ -182,6 +182,18 @@ vi.mock('vue-router', async (importOriginal) => {
   return { ...actual, useRouter: () => ({ push: routerPush }) }
 })
 
+// customer-pets T3: the line pet picker reads the customer's pets (its own spec covers it).
+const linePets = vi.hoisted(() => ({
+  pets: [{ id: 'p1', name: 'Bruno' }],
+  setLinePet: vi.fn(),
+  customerId: null as (() => string | null) | null,
+}))
+vi.mock('../../composables/useDraftLinePets', () => ({
+  useDraftLinePets: (_saleId: unknown, customerId: () => string | null) => {
+    linePets.customerId = customerId
+    return { pets: ref(linePets.pets), setLinePet: linePets.setLinePet, isPending: ref(false) }
+  },
+}))
 vi.mock('../../composables/useDraftCustomerAssignment', () => ({
   DraftCustomerAssignmentError: class DraftCustomerAssignmentError extends Error {
     constructor(public readonly code: string) {
@@ -227,6 +239,8 @@ const globalStubs = {
       'mobileSheet',
       'portalClass',
       'canConvertToQuotation',
+      'customerPets',
+      'onSetItemPet',
     ],
     // C.5: `remove-promo` (per-line) is now forwarded from ActiveSalePanel
     // alongside the existing `remove-order-promo` (order-level).
@@ -1033,6 +1047,16 @@ describe('SalesView C.4 — applicable-promotions data + manual-promo event wiri
       },
     ]
     activeTabId.value = 'sale-1'
+  })
+
+  // customer-pets T3 (handoff 27 §5.2): the line pet picker reads the draft customer's pets.
+  it('hands the draft customer pets and the line pet setter to ActiveSalePanel', () => {
+    const wrapper = mountView()
+    const panel = wrapper.findComponent({ name: 'ActiveSalePanel' })
+
+    expect(panel.props('customerPets')).toEqual(linePets.pets)
+    expect(panel.props('onSetItemPet')).toBe(linePets.setLinePet)
+    expect(linePets.customerId?.()).toBe(panel.props('activeDraft')?.customer?.id ?? null)
   })
 
   it('passes the applicable-promotions list (length) and loading flag to ActiveSalePanel', () => {

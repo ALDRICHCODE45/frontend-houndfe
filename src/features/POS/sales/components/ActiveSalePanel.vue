@@ -17,6 +17,7 @@ import type {
   Sale,
 } from '../interfaces/sale.types'
 import { SALE_STATUS } from '../constants/sale.constants' // sdd/magic-string-constants slice 3
+import type { Pet } from '@/features/POS/customers/pets/pet.types'
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -53,6 +54,9 @@ const props = defineProps<{
    * answers 403 otherwise); SalesView owns the check and the dialog.
    */
   canConvertToQuotation?: boolean
+  /** Handoff 27 §5.2: ACTIVE pets of the draft customer and the line pet write (SalesView owns both). */
+  customerPets?: Pet[]
+  onSetItemPet?: (itemId: string, petId: string | null) => Promise<unknown>
 }>()
 
 // ── Emits ─────────────────────────────────────────────────────────────────────
@@ -103,6 +107,9 @@ const priceListConfirmOpen = ref(false)
 const pendingPriceListId = ref<string | null>(null)
 
 // ── Computed ──────────────────────────────────────────────────────────────────
+
+// A line pet must belong to the sale customer: without a customer no line offers pets.
+const linePets = computed(() => (props.activeDraft?.customer ? (props.customerPets ?? []) : []))
 
 const hasGlobalDiscount = computed(() =>
   props.activeDraft?.items.some((item) => !!item.discountType) ?? false,
@@ -389,6 +396,8 @@ function handleConfirmPriceListChange() {
           :on-apply-discount="onApplyDiscount"
           :on-remove-discount="onRemoveDiscount"
           :on-remove-item="onRemoveItem"
+          :pets="linePets"
+          :on-set-pet="onSetItemPet"
           @update-qty="(itemId, quantity) => emit('update-qty', itemId, quantity)"
           @remove-promo="(promotionId) => emit('remove-promo', promotionId)"
         />

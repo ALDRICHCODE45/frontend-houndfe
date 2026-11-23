@@ -35,6 +35,7 @@ import {
   DraftCustomerAssignmentError,
   useDraftCustomerAssignment,
 } from '../composables/useDraftCustomerAssignment'
+import { useDraftLinePets } from '../composables/useDraftLinePets'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { promotionQueryKeys, saleQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
@@ -263,6 +264,12 @@ const {
   clearShippingAddress,
   isPending: isCustomerMutationPending,
 } = useDraftCustomerAssignment(activeDraftId)
+
+// Handoff 27 §5.2: ACTIVE pets of the draft customer for the line pet picker, and its write.
+const { pets: customerPets, setLinePet } = useDraftLinePets(
+  activeDraftId,
+  () => activeDraft.value?.customer?.id ?? null,
+)
 
 // 14a.1 (sales-screen-redesign — R6): template ref to ProductSearchPanel so
 // the global Ctrl+K / ⌘K shortcut can request focus on its UInput.
@@ -1139,6 +1146,8 @@ async function handleChangePriceList(globalPriceListId: string | null) {
               :on-apply-discount="handleApplyDiscount"
               :on-remove-discount="handleRemoveDiscount"
               :on-remove-item="handleRemoveItem"
+              :customer-pets="customerPets"
+              :on-set-item-pet="setLinePet"
               :on-apply-global-discount="handleApplyGlobalDiscount"
               :on-remove-global-discount="handleRemoveGlobalDiscount"
               :can-convert-to-quotation="canConvertToQuotation"
@@ -1231,6 +1240,8 @@ async function handleChangePriceList(globalPriceListId: string | null) {
               :on-apply-discount="handleApplyDiscount"
               :on-remove-discount="handleRemoveDiscount"
               :on-remove-item="handleRemoveItem"
+              :customer-pets="customerPets"
+              :on-set-item-pet="setLinePet"
               :on-apply-global-discount="handleApplyGlobalDiscount"
               :on-remove-global-discount="handleRemoveGlobalDiscount"
               :can-convert-to-quotation="canConvertToQuotation"
