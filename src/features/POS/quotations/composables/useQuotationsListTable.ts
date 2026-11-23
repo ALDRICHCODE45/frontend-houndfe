@@ -69,6 +69,26 @@ function resolveCustomerId(schemaValue: unknown): string[] | undefined {
   return undefined
 }
 
+/**
+ * The shared numeric-range serializer emits string bounds; direct callers may
+ * still pass numbers. Non-numeric or empty bounds are dropped.
+ */
+function resolveNumericBound(value: unknown): number | undefined {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined
+  if (typeof value !== 'string' || value.trim() === '') return undefined
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+function resolveTotalBounds(filters: Record<string, unknown>): { minTotalCents?: number; maxTotalCents?: number } {
+  const min = resolveNumericBound(filters.minTotalCents)
+  const max = resolveNumericBound(filters.maxTotalCents)
+  return {
+    ...(min !== undefined ? { minTotalCents: min } : {}),
+    ...(max !== undefined ? { maxTotalCents: max } : {}),
+  }
+}
+
 export function useQuotationsListTable(filters: Ref<Record<string, unknown>>) {
   const authStore = useAuthStore()
   const tenantId = computed(() => authStore.currentTenantId)
@@ -85,8 +105,7 @@ export function useQuotationsListTable(filters: Ref<Record<string, unknown>>) {
         ...(filters.value.createdTo ? { createdTo: filters.value.createdTo } : {}),
         ...(filters.value.expiresFrom ? { expiresFrom: filters.value.expiresFrom } : {}),
         ...(filters.value.expiresTo ? { expiresTo: filters.value.expiresTo } : {}),
-        ...(typeof filters.value.minTotalCents === 'number' ? { minTotalCents: filters.value.minTotalCents } : {}),
-        ...(typeof filters.value.maxTotalCents === 'number' ? { maxTotalCents: filters.value.maxTotalCents } : {}),
+        ...resolveTotalBounds(filters.value),
       }
       return quotationQueryKeys.list(tenantId.value, baseParams)
     },
@@ -102,8 +121,7 @@ export function useQuotationsListTable(filters: Ref<Record<string, unknown>>) {
         ...(filters.value.createdTo ? { createdTo: filters.value.createdTo } : {}),
         ...(filters.value.expiresFrom ? { expiresFrom: filters.value.expiresFrom } : {}),
         ...(filters.value.expiresTo ? { expiresTo: filters.value.expiresTo } : {}),
-        ...(typeof filters.value.minTotalCents === 'number' ? { minTotalCents: filters.value.minTotalCents } : {}),
-        ...(typeof filters.value.maxTotalCents === 'number' ? { maxTotalCents: filters.value.maxTotalCents } : {}),
+        ...resolveTotalBounds(filters.value),
       }
 
       // SAFETY: baseParams only holds keys of QuotationListParams, built above from typed sources.
