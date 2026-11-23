@@ -64,9 +64,9 @@ it('allows a historical birthdate draft and cancels without an employee mutation
   day.click()
   await flushPromises()
   expect(trigger.textContent).toContain('23 de septiembre de 1988')
-  const cancel = Array.from(document.querySelectorAll<HTMLButtonElement>('button'))
-    .find((element) => element.textContent?.trim() === 'Cancelar')!
-  cancel.click()
+  // The slideover has no footer cancel button; it is dismissed with its close control.
+  const close = document.querySelector<HTMLButtonElement>('button[aria-label="Close"], button[aria-label="Cerrar"]')!
+  close.click()
   await flushPromises()
   expect(wrapper!.findComponent(EmployeeEditSlideover).emitted('update:open')).toContainEqual([false])
   expect(update).not.toHaveBeenCalled()
