@@ -197,6 +197,7 @@ function handleClose() {
   <UModal
     :open="open"
     :title="address ? 'Editar dirección' : 'Añadir dirección'"
+    description="Completa los datos de la dirección. La ubicación en el mapa es opcional."
     :content="{
       class: modalContentClass,
     }"

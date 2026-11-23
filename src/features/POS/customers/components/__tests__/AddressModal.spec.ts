@@ -1,7 +1,9 @@
+/// <reference types="vite/client" />
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { computed, defineComponent, h, nextTick, ref } from 'vue'
 import AddressModal from '../AddressModal.vue'
+import { mountWithUApp } from '@/test/mountWithUApp'
 import {
   resetMapProvider,
   setMapProvider,
@@ -36,14 +38,14 @@ const formStub = {
 const formFieldStub = { name: 'UFormField', template: '<label><slot /></label>' }
 const inputStub = {
   name: 'UInput',
-  props: ['modelValue', 'disabled'],
+  props: ['modelValue', 'disabled', 'size'],
   emits: ['update:modelValue'],
   template:
     '<input :value="modelValue" :disabled="disabled" @input="$emit(\'update:modelValue\', $event.target.value)" />',
 }
 const selectStub = {
   name: 'USelect',
-  props: ['modelValue', 'items', 'disabled', 'ui'],
+  props: ['modelValue', 'items', 'disabled', 'ui', 'size'],
   emits: ['update:modelValue'],
   template:
     '<select :value="modelValue" :disabled="disabled" :data-ui-content="ui && ui.content" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="i in items" :key="i" :value="i">{{ i }}</option></select>',
@@ -570,6 +572,49 @@ describe('AddressModal — AddressMapPicker integration', () => {
       expect(modal.findComponent({ name: 'UModal' }).props('dismissible')).toBe(false)
       wrapper.unmount()
     })
+  })
+})
+
+describe('AddressModal — installed dialog accessibility', () => {
+  it.each([null, makeAddress()])('associates a meaningful description for create/edit (%s)', async (address) => {
+    const { UModal: _modal, Modal: _alias, ...formStubs } = stubs
+    const wrapper = mountWithUApp(AddressModal, {
+      props: { open: true, address },
+      attachTo: document.body,
+      global: { stubs: formStubs },
+    })
+    try {
+      await flushPromises()
+      const dialog = document.body.querySelector('[role="dialog"]')!
+      expect(dialog).not.toBeNull()
+      const title = document.getElementById(dialog.getAttribute('aria-labelledby')!)
+      expect(title?.textContent).toContain(address ? 'Editar dirección' : 'Añadir dirección')
+      const description = document.getElementById(dialog.getAttribute('aria-describedby')!)
+      expect(description).not.toBeNull()
+      expect(description?.textContent).toContain('Completa los datos de la dirección. La ubicación en el mapa es opcional.')
+    } finally {
+      wrapper.vm.$root?.$?.appContext.app.unmount()
+    }
+  })
+
+  it('preserves the sale-path portal opt-in and explicit busy cancellation contract', async () => {
+    const wrapper = mount(AddressModal, {
+      props: { open: true, loading: true, allowBusyCancellation: true, portalClass: 'sales-entry-portal' },
+      global: { stubs },
+    })
+    try {
+      const shell = wrapper.findComponent({ name: 'UModal' })
+      expect(shell.props('content').class).toContain('clients-form-portal sales-entry-portal')
+      expect(wrapper.find('select').attributes('data-ui-content')).toBe('hf-theme hf-ui clients-form-portal sales-entry-portal')
+      expect(shell.props('dismissible')).toBe(true)
+      expect(shell.props('close')).toBe(true)
+      await wrapper.findAll('button').find((button) => button.text() === 'Cancelar')!.trigger('click')
+      expect(wrapper.emitted('update:open')).toEqual([[false]])
+      expect(wrapper.emitted('close')).toEqual([[]])
+      expect(wrapper.emitted('save')).toBeUndefined()
+    } finally {
+      wrapper.unmount()
+    }
   })
 })
 
