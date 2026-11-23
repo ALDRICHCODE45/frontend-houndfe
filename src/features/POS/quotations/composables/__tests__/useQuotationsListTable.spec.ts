@@ -265,6 +265,29 @@ describe('useQuotationsListTable — query + filter wiring', () => {
     })
   })
 
+  it('parses the string bounds the numeric-range serializer emits', async () => {
+    const filters = ref<Record<string, unknown>>({ minTotalCents: '10000', maxTotalCents: '50000' })
+
+    mountComposable(() => useQuotationsListTable(filters))
+
+    await vi.waitFor(() => {
+      expect(quotationApi.list).toHaveBeenLastCalledWith(
+        expect.objectContaining({ minTotalCents: 10000, maxTotalCents: 50000 }),
+      )
+    })
+  })
+
+  it('drops empty or non-numeric bounds instead of sending them', async () => {
+    const filters = ref<Record<string, unknown>>({ minTotalCents: '', maxTotalCents: 'abc' })
+
+    mountComposable(() => useQuotationsListTable(filters))
+
+    await vi.waitFor(() => expect(quotationApi.list).toHaveBeenCalled())
+    const params = vi.mocked(quotationApi.list).mock.lastCall![0]
+    expect(params).not.toHaveProperty('minTotalCents')
+    expect(params).not.toHaveProperty('maxTotalCents')
+  })
+
   it('forwards the toolbar global filter as the search param', async () => {
     // The composable forwards the global filter from useServerTable via the
     // queryFn. We assert it surfacing as `search=juan` in the request.
