@@ -16,7 +16,7 @@ import CustomerMobileCard from '../components/CustomerMobileCard.vue'
 import CustomerPetsSlideover from '../components/CustomerPetsSlideover.vue'
 import CustomerSalesHistorySlideover from '../components/CustomerSalesHistorySlideover.vue'
 import CustomerUpsertSlideover from '../components/CustomerUpsertSlideover.vue'
-import { useCustomerColumns } from '../composables/useCustomerColumns'
+import { formatPetMatchHint, useCustomerColumns } from '../composables/useCustomerColumns'
 import {
   CUSTOMER_HAS_ACTIVE_BACKORDERS_MESSAGE,
   isCustomerHasActiveBackordersError,
@@ -640,18 +640,26 @@ function clearFilters() {
                   :name="row.original.fullName"
                   aria-hidden="true"
                 />
-                <button
-                  v-if="canUpdate"
-                  type="button"
-                  class="hf-row-primary text-left"
-                  data-testid="customer-name"
-                  @click="handleOpenEdit(row.original)"
-                >
-                  {{ row.original.fullName }}
-                </button>
-                <span v-else class="hf-row-primary" data-testid="customer-name">{{
-                  row.original.fullName
-                }}</span>
+                <div class="flex min-w-0 flex-col items-start">
+                  <button
+                    v-if="canUpdate"
+                    type="button"
+                    class="hf-row-primary text-left"
+                    data-testid="customer-name"
+                    @click="handleOpenEdit(row.original)"
+                  >
+                    {{ row.original.fullName }}
+                  </button>
+                  <span v-else class="hf-row-primary" data-testid="customer-name">{{
+                    row.original.fullName
+                  }}</span>
+                  <span
+                    v-if="formatPetMatchHint(row.original)"
+                    class="text-[13px] text-muted"
+                    data-testid="customer-pet-match"
+                    >{{ formatPetMatchHint(row.original) }}</span
+                  >
+                </div>
               </div>
             </template>
 

@@ -5,12 +5,15 @@ import { watchDebounced } from '@vueuse/core'
 import type { Customer } from '../interfaces/customer.types'
 import type { ConfirmedSaleRow } from '@/features/POS/sales/interfaces/sale.types'
 import { useCustomerSalesHistory } from '@/features/POS/sales/composables/useCustomerSalesHistory'
+import { usePetsList } from '../pets/usePets'
+import { readPetError } from '../pets/petErrors'
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import AppResponsiveDrawer from '@/core/shared/components/AppResponsiveDrawer.vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import SalesHistoryList from './SalesHistoryList.vue'
 import SalesHistoryMetrics from './SalesHistoryMetrics.vue'
+import SalesHistoryPetFilter from './SalesHistoryPetFilter.vue'
 
 declare const useToast: () => { add: (options: { title: string; description?: string; color?: 'error' }) => void }
 
@@ -20,12 +23,27 @@ const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 const page = shallowRef(1)
 const searchQuery = shallowRef('')
 const debouncedSearch = shallowRef<string | undefined>(undefined)
+const petId = shallowRef<string | null>(null)
+const petNotice = shallowRef<string | null>(null)
 
 watch(() => props.customer?.id, () => {
   page.value = 1
   searchQuery.value = ''
   debouncedSearch.value = undefined
+  petId.value = null
+  petNotice.value = null
 }, { flush: 'sync' })
+
+watch(petId, (selected) => {
+  page.value = 1
+  if (selected) petNotice.value = null
+}, { flush: 'sync' })
+
+// Customer pets §7: ACTIVE and ARCHIVED pets can filter the history (archived ones keep their sales).
+const petsQuery = usePetsList(() => props.customer?.id, 'ALL', () => props.open)
+const pets = computed(() => petsQuery.data.value ?? [])
+const selectedPet = computed(() => pets.value.find((pet) => pet.id === petId.value) ?? null)
+const isPetNotFound = (value: unknown) => !!value && readPetError(value).code === 'PET_NOT_FOUND'
 
 watchDebounced(
   searchQuery,
@@ -41,6 +59,7 @@ const history = useCustomerSalesHistory({
   page,
   open: () => props.open,
   q: () => debouncedSearch.value,
+  petId: () => petId.value,
 })
 const { response, isLoading, isFetching, isPageTransition, isError, error, refetch } = history
 
@@ -63,6 +82,14 @@ function httpStatus(value: unknown): number | undefined {
   return candidate?.response?.status ?? candidate?.status ?? candidate?.statusCode
 }
 
+// `404 PET_NOT_FOUND`: the pet was erased meanwhile — say so, go back to «Todas» and reload the pets.
+watch(error, (currentError) => {
+  if (!petId.value || !isPetNotFound(currentError)) return
+  petNotice.value = 'Esa mascota ya no existe. Mostramos todas las ventas del cliente.'
+  petId.value = null
+  void petsQuery.refetch()
+}, { flush: 'sync' })
+
 watch(error, (currentError) => {
   if (!currentError) {
     lastForbiddenError.value = null
@@ -80,7 +107,7 @@ watch(error, (currentError) => {
 }, { immediate: true })
 
 const normalizedError = computed(() =>
-  isError.value && error.value && httpStatus(error.value) !== 403
+  isError.value && error.value && httpStatus(error.value) !== 403 && !isPetNotFound(error.value)
     ? normalizeApiError(error.value, 'No se pudo cargar el historial de ventas.')
     : null,
 )
@@ -192,6 +219,21 @@ function selectSale(sale: ConfirmedSaleRow) {
               aria-label="Buscar ventas por folio"
               class="w-full"
             />
+            <SalesHistoryPetFilter
+              v-if="pets.length > 0"
+              v-model="petId"
+              :pets="pets"
+              class="mt-3"
+            />
+            <UAlert
+              v-if="petNotice"
+              data-testid="history-pet-notice"
+              color="warning"
+              variant="subtle"
+              icon="i-lucide-info"
+              :description="petNotice"
+              class="mt-3"
+            />
           </div>
           <EmptyState
             v-if="response.data.length === 0 && hasSearchQuery"
@@ -200,6 +242,13 @@ function selectSale(sale: ConfirmedSaleRow) {
             description="No se encontraron ventas que coincidan con la búsqueda."
             action-label="Limpiar filtros"
             @action="searchQuery = ''"
+          />
+          <EmptyState
+            v-else-if="response.data.length === 0 && selectedPet"
+            :title="`${selectedPet.name} aún no tiene ventas`"
+            description="No hay ventas confirmadas para esta mascota."
+            action-label="Ver todas"
+            @action="petId = null"
           />
           <EmptyState
             v-else-if="response.data.length === 0"
