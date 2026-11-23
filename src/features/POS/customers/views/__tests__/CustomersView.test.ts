@@ -89,11 +89,20 @@ vi.mock('../../components/CustomerSalesHistorySlideover.vue', () => ({
   },
 }))
 
+vi.mock('../../components/CustomerPetsSlideover.vue', () => ({
+  default: {
+    name: 'CustomerPetsSlideover',
+    template: '<div data-testid="pets-slideover" />',
+    props: ['open', 'customer'],
+    emits: ['update:open'],
+  },
+}))
+
 vi.mock('../../components/CustomerUpsertSlideover.vue', () => ({
   default: {
     name: 'CustomerUpsertSlideover',
     template: '<div />',
-    props: ['open', 'mode', 'loading', 'errors', 'customer', 'globalPriceLists', 'createdCategoryId', 'createdBrandId'],
+    props: ['open', 'mode', 'loading', 'errors', 'customer', 'globalPriceLists', 'createdCategoryId', 'createdBrandId', 'showPets'],
     emits: ['create', 'edit', 'createAddress', 'updateAddress', 'removeAddress', 'close', 'requestCreateCategory', 'requestCreateBrand'],
   },
 }))
@@ -452,7 +461,12 @@ describe('CustomersView — permission gating', () => {
 
   it('puts the destructive action last, after edit and history', async () => {
     const all = await actionsFor(() => true)
-    expect(all.map((i) => i.label)).toEqual(['Editar', 'Ver historial de ventas', 'Eliminar…'])
+    expect(all.map((i) => i.label)).toEqual([
+      'Editar',
+      'Mascotas',
+      'Ver historial de ventas',
+      'Eliminar…',
+    ])
     expect(all[all.length - 1]?.destructive).toBe(true)
   })
 
@@ -712,5 +726,38 @@ describe('CustomersView — column layout (premium tables T9)', () => {
     const table = mount(CustomersView).getComponent({ name: 'AppDataTable' })
     const labels = (table.props('columns') as Parameters<typeof columnLabel>[0][]).map(columnLabel)
     expect(labels).toEqual(['Nombre', 'Correo electrónico', 'Teléfono', 'Lista de precios', 'Acciones'])
+  })
+})
+
+// ── Customer pets (handoff 27): «Mascotas» entry, listing needs read:Customer ──
+describe('CustomersView — Mascotas entry', () => {
+  it('offers «Mascotas» only with read:Customer and opens the pets slideover for that customer', async () => {
+    customerAuthMock.userCan.mockImplementation(() => false)
+    mockState.data.value = [makeCustomer()]
+    const denied = mount(CustomersView)
+    await flushPromises()
+    expect(rowActions(denied).map((i) => i.key)).not.toContain('pets')
+
+    customerAuthMock.userCan.mockImplementation(
+      (action: string, subject: string) => action === 'read' && subject === 'Customer',
+    )
+    const customerB = makeCustomer({ id: 'cust-B', fullName: 'Bea B' })
+    mockState.data.value = [customerB]
+    const wrapper = mount(CustomersView)
+    await flushPromises()
+    expect(rowActions(wrapper).map((i) => i.key)).toEqual(['pets'])
+    selectRowAction(wrapper, 'pets')
+    await flushPromises()
+    const slideover = wrapper.getComponent({ name: 'CustomerPetsSlideover' })
+    expect(slideover.props('open')).toBe(true)
+    expect(slideover.props('customer')).toEqual(customerB)
+  })
+
+  it('opts the edit card into the «Mascotas» tab, never the create form', async () => {
+    const wrapper = mount(CustomersView)
+    await flushPromises()
+    const [create, edit] = wrapper.findAllComponents({ name: 'CustomerUpsertSlideover' })
+    expect(create!.props('showPets')).toBeFalsy()
+    expect(edit!.props('showPets')).toBe(true)
   })
 })
