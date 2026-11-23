@@ -167,3 +167,126 @@ describe('customer.api mapAddress — latitude/longitude normalization', () => {
     })
   })
 })
+
+// Handoff 27 §4: `GET /customers?search=` (server-side, pets included),
+// `matchedPetName` on list items and `activePetsCount` on the detail.
+describe('customer.api search, matchedPetName and activePetsCount (handoff 27 §4)', () => {
+  const row = (id: string, firstName: string, extra: Record<string, unknown> = {}) => ({
+    id,
+    firstName,
+    lastName: 'Pérez',
+    createdAt: '',
+    updatedAt: '',
+    ...extra,
+  })
+
+  it('sends the trimmed term as `search` and nothing else for it', async () => {
+    httpGet.mockResolvedValueOnce({ data: [] })
+    await customerApi.getPaginated({ pageIndex: 0, pageSize: 20, globalFilter: '  bruno  ' })
+    expect(httpGet).toHaveBeenCalledWith('/customers', {
+      params: { page: 1, limit: 20, search: 'bruno' },
+    })
+  })
+
+  it.each([undefined, '', '   '])('omits `search` for an empty term (%j)', async (globalFilter) => {
+    httpGet.mockResolvedValueOnce({ data: [] })
+    await customerApi.getPaginated({ pageIndex: 0, pageSize: 100, globalFilter })
+    expect(httpGet).toHaveBeenCalledWith('/customers', { params: { page: 1, limit: 100 } })
+  })
+
+  it('keeps every row the server matched, including customers matched only through a pet', async () => {
+    httpGet.mockResolvedValueOnce({
+      data: [
+        row('c-1', 'Ana', { matchedPetName: 'Bruno' }),
+        row('c-2', 'Bruno', { matchedPetName: null }),
+      ],
+    })
+    const result = await customerApi.getPaginated({
+      pageIndex: 0,
+      pageSize: 20,
+      globalFilter: 'bruno',
+    })
+    expect(result.data.map((customer) => customer.id)).toEqual(['c-1', 'c-2'])
+    expect(result.pagination.totalCount).toBe(2)
+  })
+
+  it('maps matchedPetName on list items, null when the backend sends null or omits it', async () => {
+    httpGet.mockResolvedValueOnce({
+      data: [
+        row('c-1', 'Ana', { matchedPetName: 'Bruno' }),
+        row('c-2', 'Luis', { matchedPetName: null }),
+        row('c-3', 'Eva'),
+      ],
+    })
+    const result = await customerApi.getPaginated({ pageIndex: 0, pageSize: 20, globalFilter: 'x' })
+    expect(result.data.map((customer) => customer.matchedPetName)).toEqual(['Bruno', null, null])
+  })
+
+  it('maps activePetsCount from GET /customers/:id and leaves it undefined when absent', async () => {
+    httpGet.mockResolvedValueOnce({ data: row('c-1', 'Ana', { activePetsCount: 3 }) })
+    expect((await customerApi.getById('c-1')).activePetsCount).toBe(3)
+    httpGet.mockResolvedValueOnce({ data: row('c-1', 'Ana', { activePetsCount: 0 }) })
+    expect((await customerApi.getById('c-1')).activePetsCount).toBe(0)
+    // Create/update responses do not carry it (§4.1): unknown, never a fake 0.
+    httpPatch.mockResolvedValueOnce({ data: row('c-1', 'Ana') })
+    expect((await customerApi.update('c-1', { firstName: 'Ana' })).activePetsCount).toBeUndefined()
+  })
+
+  // Differential check (Risk item 3): the exact inputs of every other caller.
+  const backendRows = [
+    row('c-1', 'Zoe', { email: 'z@x.com' }),
+    row('c-2', 'Ana', { phone: '5512' }),
+  ]
+
+  it.each([
+    [
+      'SalesListView / QuotationsListView',
+      { pageIndex: 0, pageSize: 100, sorting: [], globalFilter: '' },
+    ],
+    ['AssignCustomerSlideover (no term)', { pageIndex: 0, pageSize: 100, globalFilter: '' }],
+  ])(
+    '%s: empty term keeps the same params and every row in server order',
+    async (_caller, params) => {
+      httpGet.mockResolvedValueOnce({ data: backendRows })
+      const result = await customerApi.getPaginated(params)
+      expect(httpGet).toHaveBeenCalledWith('/customers', { params: { page: 1, limit: 100 } })
+      expect(result.data.map((customer) => customer.id)).toEqual(['c-1', 'c-2'])
+      expect(result.pagination).toEqual({
+        pageIndex: 0,
+        pageSize: 100,
+        totalCount: 2,
+        pageCount: 1,
+      })
+    },
+  )
+
+  it('PromotionConditionsSection: term goes to `search`, sorting params and local sort still apply', async () => {
+    httpGet.mockResolvedValueOnce({ data: backendRows })
+    const result = await customerApi.getPaginated({
+      pageIndex: 0,
+      pageSize: 20,
+      sorting: [{ id: 'firstName', desc: false }],
+      globalFilter: 'a',
+    })
+    expect(httpGet).toHaveBeenCalledWith('/customers', {
+      params: { page: 1, limit: 20, search: 'a', sortBy: 'firstName', sortOrder: 'asc' },
+    })
+    expect(result.data.map((customer) => customer.firstName)).toEqual(['Ana', 'Zoe'])
+  })
+
+  it('a paginated {data, meta} response is still passed through and mapped', async () => {
+    httpGet.mockResolvedValueOnce({
+      data: {
+        data: [row('c-1', 'Ana', { matchedPetName: 'Bruno' })],
+        meta: { page: 1, limit: 10, total: 1, totalPages: 1 },
+      },
+    })
+    const result = await customerApi.getPaginated({
+      pageIndex: 0,
+      pageSize: 10,
+      globalFilter: 'bruno',
+    })
+    expect(result.data[0]!.matchedPetName).toBe('Bruno')
+    expect(result.pagination).toEqual({ pageIndex: 0, pageSize: 10, totalCount: 1, pageCount: 1 })
+  })
+})

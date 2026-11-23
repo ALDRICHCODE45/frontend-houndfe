@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { useCustomerColumns } from '../useCustomerColumns'
+import { formatPetMatchHint, useCustomerColumns } from '../useCustomerColumns'
 
 type Column = { id?: string; accessorKey?: string; size?: number; enableSorting?: boolean; meta?: { class?: { th?: string; td?: string } } }
 
@@ -37,5 +37,11 @@ describe('useCustomerColumns', () => {
   it('shows a whole e-mail and phone by default; the name keeps the free space', () => {
     const sizes = Object.fromEntries(columns.map((column) => [keyOf(column), column.size]))
     expect(sizes).toMatchObject({ fullName: undefined, email: 240, phone: 168, globalPriceListName: 160 })
+  })
+
+  it('formats the pet-match hint «Bruno (mascota de Ana Pérez)» only when a pet matched', () => {
+    expect(formatPetMatchHint({ fullName: 'Ana Pérez', matchedPetName: 'Bruno' })).toBe('Bruno (mascota de Ana Pérez)')
+    expect(formatPetMatchHint({ fullName: 'Ana Pérez', matchedPetName: null })).toBeNull()
+    expect(formatPetMatchHint({ fullName: 'Ana Pérez' })).toBeNull()
   })
 })

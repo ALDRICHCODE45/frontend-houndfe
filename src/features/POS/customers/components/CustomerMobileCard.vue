@@ -12,6 +12,7 @@ import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import { useClickableRow } from '@/core/shared/composables/useClickableRow'
 import { formatCustomerPhone } from '../utils/customerPhone.utils'
+import { formatPetMatchHint } from '../composables/useCustomerColumns'
 import type { Customer } from '../interfaces/customer.types'
 
 const props = defineProps<{
@@ -31,6 +32,8 @@ const clickable = useClickableRow<Customer>((customer) => emit('open', customer)
   focusable: false,
 })
 const rowProps = computed(() => (props.openable ? clickable.rowProps(props.customer) : {}))
+
+const petMatchHint = computed(() => formatPetMatchHint(props.customer))
 
 const phone = computed(() =>
   formatCustomerPhone(props.customer.phoneCountryCode, props.customer.phone),
@@ -53,6 +56,9 @@ const phone = computed(() =>
         </button>
         <span v-else class="hf-row-primary customer-card-name" data-testid="customer-name">{{
           customer.fullName
+        }}</span>
+        <span v-if="petMatchHint" class="customer-card-pet" data-testid="customer-pet-match">{{
+          petMatchHint
         }}</span>
         <span v-if="customer.email" class="hf-row-secondary">{{ customer.email }}</span>
       </div>
@@ -94,6 +100,10 @@ const phone = computed(() =>
 }
 .customer-card-name {
   text-align: left;
+}
+.customer-card-pet {
+  color: var(--hf-muted);
+  font-size: 13px;
 }
 .customer-card-menu {
   flex-shrink: 0;

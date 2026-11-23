@@ -310,23 +310,67 @@ describe('AssignCustomerSlideover', () => {
     expect(pageText()).toContain('Bob Smith')
   })
 
-  it('filters list by search across firstName/lastName/email/phone case-insensitive', async () => {
-    customerApiMock.getPaginated.mockResolvedValueOnce(
-      makePaginatedResponse([
-        makeCustomer(),
-        makeCustomer({ id: 'customer-2', firstName: 'Bob', lastName: 'Smith', fullName: 'Bob Smith', email: 'BOB@MAIL.COM', phone: '9911223344' }),
-      ]),
-    )
+  // Handoff 27 §4: the picker searches on the server (`GET /customers?search=`), so a
+  // customer found through a pet name is listed even though no own field contains the term.
+  function typeSearch(value: string) {
+    const searchInput = getByTestId('customer-search-input') as HTMLInputElement
+    searchInput.value = value
+    searchInput.dispatchEvent(new Event('input'))
+  }
+  const afterDebounce = () => new Promise((resolve) => setTimeout(resolve, 250))
 
+  it('loads the list without a term exactly as before (shared cache with the sales lists)', async () => {
+    const { wrapper, queryClient } = mountSlideover()
+    await flushPromises()
+    expect(customerApiMock.getPaginated).toHaveBeenCalledExactlyOnceWith({ pageIndex: 0, pageSize: 100, globalFilter: '' })
+    expect(queryClient.getQueryData(customerQueryKeys.paginated('tenant-1'))).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it('sends the trimmed term to the server and lists what it returns, pet matches included', async () => {
+    const ana = makeCustomer({ id: 'customer-2', firstName: 'Ana', lastName: 'Pérez', fullName: 'Ana Pérez', email: null, phone: null, matchedPetName: 'Bruno' })
     const { wrapper } = mountSlideover()
     await flushPromises()
-
-    const searchInput = getByTestId('customer-search-input') as HTMLInputElement
-    searchInput.value = 'mail.com'
-    searchInput.dispatchEvent(new Event('input'))
+    customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([ana]))
+    typeSearch('  Bruno ')
+    await afterDebounce()
     await flushPromises()
+    expect(customerApiMock.getPaginated).toHaveBeenLastCalledWith({ pageIndex: 0, pageSize: 100, globalFilter: 'Bruno' })
+    expect(getByTestId('customer-row-customer-2').textContent).toContain('Ana Pérez')
+    expect(getByTestId('customer-pet-match').textContent?.trim()).toBe('Bruno (mascota de Ana Pérez)')
+    wrapper.unmount()
+  })
 
-    expect(pageText()).toContain('Bob Smith')
+  it('shows no pet hint for a customer matched on its own fields', async () => {
+    customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([makeCustomer({ matchedPetName: null })]))
+    const { wrapper } = mountSlideover()
+    await flushPromises()
+    expect(document.body.querySelector('[data-testid="customer-pet-match"]')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('debounces typing: only the last term reaches the server', async () => {
+    const { wrapper } = mountSlideover()
+    await flushPromises()
+    typeSearch('b')
+    typeSearch('br')
+    typeSearch('bru')
+    await afterDebounce()
+    await flushPromises()
+    const terms = customerApiMock.getPaginated.mock.calls.map(([params]) => params.globalFilter)
+    expect(terms).toEqual(['', 'bru'])
+    wrapper.unmount()
+  })
+
+  it('says «No se encontraron clientes» when the server finds nobody for the term', async () => {
+    customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([makeCustomer()]))
+    const { wrapper } = mountSlideover()
+    await flushPromises()
+    typeSearch('zzz')
+    await afterDebounce()
+    await flushPromises()
+    expect(pageText()).toContain('No se encontraron clientes')
+    wrapper.unmount()
   })
 
   it('selecting customer triggers assignCustomer but keeps slideover open for address picker', async () => {

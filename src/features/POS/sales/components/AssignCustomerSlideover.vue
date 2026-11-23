@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/vue-query'
 import '../styles/sales-pos-customer.css'
 import { customerApi } from '@/features/POS/customers/api/customer.api'
 import CustomerUpsertSlideover from '@/features/POS/customers/components/CustomerUpsertSlideover.vue'
@@ -8,6 +8,7 @@ import AddressModal from '@/features/POS/customers/components/AddressModal.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { customerQueryKeys } from '@/core/shared/constants/query-keys'
+import { formatPetMatchHint } from '@/features/POS/customers/composables/useCustomerColumns'
 import { useDraftCustomerAssignment, DraftCustomerAssignmentError } from '../composables/useDraftCustomerAssignment'
 import AddressLocationStatus from '@/core/shared/components/AddressLocationStatus.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
@@ -97,12 +98,14 @@ const selectedCustomerContact = computed(() => {
   return [customer.email ?? '', phone].filter(Boolean).join(' · ')
 })
 
-watch(searchInput, (value) => {
+// Debounced server term: a new keystroke cancels the pending one, so only the
+// last term is sent (a returned cleanup is ignored by `watch`; `onCleanup` is not).
+watch(searchInput, (value, _previous, onCleanup) => {
   const timeout = setTimeout(() => {
-    debouncedSearch.value = value.trim().toLowerCase()
+    debouncedSearch.value = value.trim()
   }, 200)
 
-  return () => clearTimeout(timeout)
+  onCleanup(() => clearTimeout(timeout))
 })
 
 watch(
@@ -118,32 +121,25 @@ watch(
   },
 )
 
+// Handoff 27 §4: the term is searched on the server (`GET /customers?search=`), which
+// also matches ACTIVE pet names. Without a term the key and request are the shared
+// ones the sales/quotation lists use; with a term the key gets a suffix under the
+// same prefix, so every `customerQueryKeys.paginated` invalidation still refreshes it.
 const customersQuery = useQuery({
-  queryKey: computed(() => customerQueryKeys.paginated(tenantId.value)),
-  queryFn: () => customerApi.getPaginated({ pageIndex: 0, pageSize: 100, globalFilter: '' }),
+  queryKey: computed(() =>
+    debouncedSearch.value
+      ? [...customerQueryKeys.paginated(tenantId.value), 'picker-search', debouncedSearch.value]
+      : customerQueryKeys.paginated(tenantId.value),
+  ),
+  queryFn: () =>
+    customerApi.getPaginated({ pageIndex: 0, pageSize: 100, globalFilter: debouncedSearch.value }),
   enabled: computed(() => props.open),
   staleTime: 30_000,
+  // Keep the previous rows while the next term loads instead of flashing skeletons.
+  placeholderData: keepPreviousData,
 })
 
-const customers = computed(() => customersQuery.data.value?.data ?? [])
-
-const filteredCustomers = computed(() => {
-  const search = debouncedSearch.value
-  if (!search) return customers.value
-
-  return customers.value.filter((customer) => {
-    const haystack = [
-      customer.firstName,
-      customer.lastName ?? '',
-      customer.email ?? '',
-      customer.phone ?? '',
-    ]
-      .join(' ')
-      .toLowerCase()
-
-    return haystack.includes(search)
-  })
-})
+const filteredCustomers = computed(() => customersQuery.data.value?.data ?? [])
 
 const addresses = computed(() => selectedCustomer.value?.addresses ?? [])
 const showAddressPicker = computed(() => addresses.value.length > 0)
@@ -391,6 +387,13 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
                 <div class="min-w-0 flex-1">
                   <p class="sales-pos-customer-card-name truncate text-sm font-semibold text-(--hf-heading)">
                     {{ customer.fullName }}
+                  </p>
+                  <p
+                    v-if="formatPetMatchHint(customer)"
+                    data-testid="customer-pet-match"
+                    class="sales-pos-customer-card-pet truncate text-[13px] text-(--hf-muted)"
+                  >
+                    {{ formatPetMatchHint(customer) }}
                   </p>
                   <p class="sales-pos-customer-card-meta truncate text-[13px] text-(--hf-muted)">
                     {{ customer.email ?? 'Sin email' }} · {{ formatCustomerPhone(customer) || 'Sin teléfono' }}

@@ -24,6 +24,11 @@ export interface CustomerBackendResponse {
   // Resolved relations
   globalPriceList?: { id: string; name: string } | null
   addresses?: CustomerAddressBackendResponse[]
+  // Handoff 27 §4: list items only. The ACTIVE pet name when the `search` term
+  // matched only through a pet; `null` otherwise or without a search.
+  matchedPetName?: string | null
+  // Handoff 27 §4.1: `GET /customers/:id` only (not on list, create or update).
+  activePetsCount?: number
   createdAt: string
   updatedAt: string
 }
@@ -59,6 +64,11 @@ export interface Customer {
   globalPriceListId: string | null
   globalPriceListName: string | null
   comments: string | null
+  /**
+   * Handoff 27 §4: set on every mapped list item («Bruno» or `null`). Optional in
+   * the type only so hand-built fixtures and detail entities stay valid.
+   */
+  matchedPetName?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -78,6 +88,11 @@ export interface CustomerDetail extends Customer {
   billingCity: string | null
   billingState: string | null
   addresses: CustomerAddress[]
+  /**
+   * Handoff 27 §4.1: number of ACTIVE pets, from `GET /customers/:id`. `undefined`
+   * means unknown (create/update responses do not carry it), never «0 pets».
+   */
+  activePetsCount?: number
 }
 
 export interface CustomerAddress {
