@@ -1,0 +1,34 @@
+/* C · Estado de cuenta */
+.stmt{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);overflow:hidden;min-width:0}
+.stmt .due{display:grid;gap:4px;align-content:start;padding:16px;background:var(--hf-warning-soft)}
+.stmt .due .lab{font-size:13px;font-weight:600;color:var(--hf-warning);display:flex;align-items:center;gap:6px}
+.stmt .due .big{font-size:28px;line-height:1.15;font-weight:600;letter-spacing:-0.03em;color:var(--hf-warning);font-variant-numeric:tabular-nums}
+.stmt .due p{font-size:13px;color:var(--hf-ink)}
+.stmt .due.clear{background:color-mix(in srgb,var(--hf-success) 12%,var(--hf-surface))}
+.stmt .due.clear .lab,.stmt .due.clear .big{color:var(--hf-success)}
+.stmt .rest{display:grid;align-content:start;padding:8px 16px;background:var(--hf-surface)}
+.ledger{display:grid}
+.ledger > div{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--hf-border);font-size:13px}
+.ledger > div:last-child{border-bottom:0}
+.ledger dt{color:var(--hf-muted)}
+.ledger dd{font-weight:600;color:var(--hf-heading);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ledger dd small{font-weight:400;color:var(--hf-muted)}
+.ledger.big > div{font-size:14px;padding:10px 0}
+.ledger.big dd{font-size:16px}
+.ledger .tot dt{color:var(--hf-ink);font-weight:600}
+.ledger .owe dd,.ledger .owe dt{color:var(--hf-warning);font-weight:600}
+.sec{display:grid;gap:8px;min-width:0}
+.overdue{display:inline-flex;align-items:center;gap:4px;color:var(--hf-warning);font-weight:600;font-size:13px}
+.overdue .icon{width:14px;height:14px}
+.t .act{width:112px;text-align:right;padding-right:8px}
+.t tr.owe-row td{background:color-mix(in srgb,var(--hf-warning-soft) 55%,var(--hf-surface))}
+.list{border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);overflow:hidden;background:var(--hf-surface)}
+.list a{display:grid;grid-template-columns:minmax(0,1fr) auto auto 16px;align-items:center;gap:12px;min-height:52px;padding:6px 12px;color:inherit;text-decoration:none;border-bottom:1px solid var(--hf-border)}
+.list li:last-child a{border-bottom:0}
+.list a:hover{background:var(--row-hover)}
+.list a:focus-visible{outline-offset:-2px}
+.list .f{font-weight:600;color:var(--hf-heading)}
+.list .d{font-size:13px;color:var(--hf-muted)}
+.list .m{font-weight:600;color:var(--hf-heading);font-variant-numeric:tabular-nums;min-width:92px;text-align:right}
+.list .canceled .f,.list .canceled .m{color:var(--hf-muted);text-decoration:line-through;text-decoration-thickness:1px}
+.list .icon{color:var(--hf-muted)}

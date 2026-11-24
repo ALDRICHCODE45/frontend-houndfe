@@ -1,0 +1,228 @@
+<div class="tools" role="group" aria-label="Opciones del artboard">
+  <span class="lbl">Móvil 390 y estados · A</span>
+  <span class="grow"></span>
+  <button type="button" id="t-notes" aria-expanded="false" aria-controls="notes"><svg class="icon sm" aria-hidden="true"><use href="#i-notes"/></svg>Notas y datos</button>
+  <button type="button" id="t-theme" aria-pressed="false"><svg class="icon sm" aria-hidden="true"><use href="#i-moon"/></svg><span>Tema claro</span></button>
+</div>
+<aside class="notes" id="notes" tabindex="-1" hidden aria-label="Notas del artboard">
+  <h2>Móvil 390 y estados · dirección A</h2>
+  <p>En el celular la tabla pasa a tarjetas: folio y total arriba, fecha, estado y saldo debajo; el detalle se abre dentro de la tarjeta. Sin tablas con scroll horizontal.</p>
+  <h3>Patrones</h3>
+  <ul>
+    <li>Cabecera: cerrar a la izquierda, nombre completo que se ajusta (17 px).</li>
+    <li>Cliente con saldo: aviso arriba con «Ver», que aplica el filtro «Con saldo».</li>
+    <li>Vendedor: el periodo es un botón que abre una hoja inferior; «Descargar PDF» queda fijo abajo.</li>
+    <li>Chips de 44 px; los nombres largos se cortan con «…» dentro del chip y se leen completos en la tarjeta.</li>
+  </ul>
+  <h3>Estados con copia real del código</h3>
+  <ul>
+    <li>«Esa mascota ya no existe. Mostramos todas las ventas del cliente.» (404 PET_NOT_FOUND)</li>
+    <li>Límite de filas y error de descarga: textos de <code>sellerReportPresentation.ts</code>.</li>
+    <li>Vendedor inactivo: texto de <code>SellerSalesReportContent.vue</code>.</li>
+  </ul>
+  <h3>Requiere backend</h3>
+  <ul><li>Ticket promedio del cliente.</li></ul>
+</aside>
+<main class="board">
+  <header class="board-head">
+    <h1>Móvil 390 y estados · A (recomendada)</h1>
+    <p>Los dos historiales en pantalla completa de 390 px, con la tabla convertida en tarjetas y una sola acción primaria fija abajo. Cada teléfono tiene su propio scroll.</p>
+  </header>
+  <div class="phones">
+    <h2 class="row-title">Historial del cliente</h2>
+    <section class="ph-wrap" aria-label="Cliente con saldo"><p><b>1 · Cliente con saldo y nombres largos</b> · el nombre y las mascotas largas se ajustan; el saldo va primero</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar historial de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Historial de ventas · <a class="link-inline" href="tel:+523312345678"><svg class="icon xs" aria-hidden="true"><use href="#i-phone"/></svg>33 1234 5678</a></p><h2>María Guadalupe Hernández de la Fuente Villaseñor</h2></div>
+    </header>
+  <div class="ph-body">
+    <div class="banner warn"><svg class="icon " aria-hidden="true"><use href="#i-alert"/></svg><div class="txt"><b>Debe $1,284.00</b><span>2 ventas por cobrar · 1 vencida el 20 nov</span></div><button class="btn sm" type="button">Ver</button></div>
+    <dl class="mk"><div><dt>Ventas</dt><dd>23<small>1 sin entregar</small></dd></div><div><dt>Total vendido</dt><dd>$18,460.50</dd></div>
+      <div class="full"><dt>Ticket promedio</dt><dd>— <small><span class="be"><svg class="icon " aria-hidden="true"><use href="#i-server"/></svg>requiere backend</span></small></dd></div></dl>
+    <div class="input"><svg class="icon sm" aria-hidden="true"><use href="#i-search"/></svg><input type="search" placeholder="Buscar por folio" aria-label="Buscar ventas por folio"></div>
+    <div class="chips" role="group" aria-label="Filtrar por estado" data-single><button type="button" class="chip" aria-pressed="true"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Todas</span></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Con saldo</span><small>2</small></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Sin entregar</span><small>1</small></button></div>
+    <div class="chips" role="group" aria-label="Filtrar ventas por mascota" data-single><span class="chips-label"><svg class="icon sm" aria-hidden="true"><use href="#i-paw"/></svg>Mascota</span><button type="button" class="chip" aria-pressed="true"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Todas</span></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Señor Bigotes</span></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Princesa Nala de Todos los Santos</span></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Canela</span><small>archivada</small></button></div>
+    <ul class="cards">
+      <li class="card owe-card"><div class="main">
+        <div class="l1"><a class="f" href="#venta">S-000412</a><span class="tot">$1,486.00</span></div>
+        <span class="d">22 nov 2026, 17:42 · Mostrador</span>
+        <div class="l3"><span class="badge warning">Impaga</span><span class="badge danger">No entregada</span><span class="owe">Debe $786.00 · vence 6 dic</span></div>
+      </div><button class="more" type="button" data-toggle-card aria-expanded="true" aria-controls="m1x"><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg><span data-lbl data-open="Ocultar detalle" data-closed="Ver productos y detalle">Ocultar detalle</span></button><div class="xp" id="m1x"><dl class="kv"><dt>Vendedor</dt><dd>Karla Méndez</dd><dt>Pago</dt><dd>Efectivo · Crédito</dd><dt>Entrega</dt><dd>No entregada</dd></dl>
+      <ul class="items"><li><span class="n">Croquetas Adulto Raza Mediana</span><span class="m">$1,089.00</span><span class="v">15 kg · 1 pza <span class="pet"><svg class="icon " aria-hidden="true"><use href="#i-paw"/></svg>Señor Bigotes</span></span></li>
+      <li><span class="n">Arena aglomerante sin aroma</span><span class="m">$289.00</span><span class="v">10 kg · 1 pza <span class="pet"><svg class="icon " aria-hidden="true"><use href="#i-paw"/></svg>Princesa Nala de Todos los Santos</span></span></li>
+      <li><span class="n">Premios dentales</span><span class="m">$108.00</span><span class="v">Mediano · 2 pzas</span></li></ul>
+      <div class="two"><a class="btn sm" href="#venta"><svg class="icon sm" aria-hidden="true"><use href="#i-open"/></svg>Abrir venta</a><button class="btn sm" type="button"><svg class="icon sm" aria-hidden="true"><use href="#i-wallet"/></svg>Cobrar $786.00</button></div></div></li>
+      <li class="card owe-card"><div class="main">
+        <div class="l1"><a class="f" href="#venta">S-000398</a><span class="tot">$498.00</span></div>
+        <span class="d">15 nov 2026, 11:08 · Mostrador</span>
+        <div class="l3"><span class="badge danger">Deuda</span><span class="owe">Debe $498.00 · venció 20 nov</span></div>
+      </div><button class="more" type="button" data-toggle-card aria-expanded="false" aria-controls="m2x"><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg><span data-lbl data-open="Ocultar detalle" data-closed="Ver productos y detalle">Ver productos y detalle</span></button><div class="xp" id="m2x" hidden><p class="d">Se carga al abrir.</p></div></li>
+      <li class="card"><div class="main">
+        <div class="l1"><a class="f" href="#venta">S-000377</a><span class="tot">$642.50</span></div>
+        <span class="d">8 nov 2026, 13:25 · Mostrador</span>
+        <div class="l3"><span class="badge success">Pagada</span></div>
+      </div><button class="more" type="button" data-toggle-card aria-expanded="false" aria-controls="m3x"><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg><span data-lbl data-open="Ocultar detalle" data-closed="Ver productos y detalle">Ver productos y detalle</span></button><div class="xp" id="m3x" hidden><p class="d">Se carga al abrir.</p></div></li>
+      <li class="card canceled"><div class="main">
+        <div class="l1"><a class="f" href="#venta">S-000344</a><span class="tot">$380.00</span></div>
+        <span class="d">26 oct 2026 · Solicitud del cliente</span>
+        <div class="l3"><span class="badge ">Cancelada</span></div>
+      </div></li>
+    </ul>
+  </div><div class="ph-bar"><div class="row"><p class="grow sub"><b class="fig" style="color:var(--hf-ink)">1–10</b> de 23 ventas</p>
+      <div class="ph-pager" role="navigation" aria-label="Páginas del historial"><button class="btn" type="button" disabled aria-label="Página anterior"><svg class="icon sm" aria-hidden="true"><use href="#i-chev-l"/></svg></button><span class="pg">1 de 3</span><button class="btn" type="button" aria-label="Página siguiente"><svg class="icon sm" aria-hidden="true"><use href="#i-chev-r"/></svg></button></div></div></div></div></section><section class="ph-wrap" aria-label="Cliente cargando"><p><b>2 · Cliente cargando</b> · cabecera, etiquetas y buscador reales; esqueleto con la forma de las tarjetas</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar historial de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Historial de ventas</p><h2>Ana Sofía Treviño Garza</h2></div>
+    </header>
+  <div class="ph-body" aria-busy="true">
+    <p class="sr" role="status">Cargando el historial de ventas…</p>
+    <dl class="mk" aria-hidden="true"><div><dt>Ventas</dt><dd><span class="sk" style="width:40px;height:20px"></span></dd></div><div><dt>Total vendido</dt><dd><span class="sk" style="width:96px;height:20px"></span></dd></div><div class="full"><dt>Saldo pendiente</dt><dd><span class="sk" style="width:96px;height:20px"></span></dd></div></dl>
+    <div class="input disabled"><svg class="icon sm" aria-hidden="true"><use href="#i-search"/></svg><input type="search" placeholder="Buscar por folio" aria-label="Buscar ventas por folio" disabled></div>
+    <ul class="cards" aria-hidden="true"><li class="card"><div class="main"><div class="l1"><span class="sk" style="width:90px;height:16px"></span><span class="sk" style="width:72px;height:16px"></span></div><span class="sk" style="width:160px;height:12px;margin-top:4px"></span><span class="sk" style="width:120px;height:20px;margin-top:4px"></span></div></li><li class="card"><div class="main"><div class="l1"><span class="sk" style="width:90px;height:16px"></span><span class="sk" style="width:72px;height:16px"></span></div><span class="sk" style="width:160px;height:12px;margin-top:4px"></span><span class="sk" style="width:120px;height:20px;margin-top:4px"></span></div></li><li class="card"><div class="main"><div class="l1"><span class="sk" style="width:90px;height:16px"></span><span class="sk" style="width:72px;height:16px"></span></div><span class="sk" style="width:160px;height:12px;margin-top:4px"></span><span class="sk" style="width:120px;height:20px;margin-top:4px"></span></div></li><li class="card"><div class="main"><div class="l1"><span class="sk" style="width:90px;height:16px"></span><span class="sk" style="width:72px;height:16px"></span></div><span class="sk" style="width:160px;height:12px;margin-top:4px"></span><span class="sk" style="width:120px;height:20px;margin-top:4px"></span></div></li></ul>
+  </div></div></section><section class="ph-wrap" aria-label="Cliente sin ventas"><p><b>3 · Cliente sin ventas</b> · ceros reales, sin buscador ni filtros que no sirven</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar historial de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Historial de ventas</p><h2>Jorge Alberto Cantú</h2></div>
+    </header>
+  <div class="ph-body">
+    <dl class="mk"><div><dt>Ventas</dt><dd>0</dd></div><div><dt>Total vendido</dt><dd>$0.00</dd></div><div class="full"><dt>Saldo pendiente</dt><dd>$0.00</dd></div></dl>
+    <div class="empty"><svg class="icon lg" aria-hidden="true"><use href="#i-inbox"/></svg><h3>Aún no hay ventas</h3><p>Cuando Jorge tenga ventas confirmadas, aparecerán aquí con su saldo y sus productos.</p></div>
+  </div></div></section><section class="ph-wrap" aria-label="Mascota sin ventas"><p><b>4 · Mascota sin ventas</b> · el filtro queda visible y se quita con un toque; las métricas siguen siendo del cliente</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar historial de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Historial de ventas</p><h2>Ana Sofía Treviño Garza</h2></div>
+    </header>
+  <div class="ph-body">
+    <dl class="mk"><div><dt>Ventas</dt><dd>23</dd></div><div><dt>Total vendido</dt><dd>$18,460.50</dd></div><div class="full hot"><dt>Saldo pendiente</dt><dd>$1,284.00<small>de todo el cliente, no cambia con la mascota</small></dd></div></dl>
+    <div class="input"><svg class="icon sm" aria-hidden="true"><use href="#i-search"/></svg><input type="search" placeholder="Buscar por folio" aria-label="Buscar ventas por folio"></div>
+    <div class="chips" role="group" aria-label="Filtrar ventas por mascota" data-single><span class="chips-label"><svg class="icon sm" aria-hidden="true"><use href="#i-paw"/></svg>Mascota</span><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Todas</span></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Bruno</span></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Mishi</span></button><button type="button" class="chip" aria-pressed="true"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Canela</span><small>archivada</small></button></div>
+    <p class="petsum" style="display:flex;gap:8px;align-items:center;padding:8px 12px;border-radius:8px;background:var(--hf-active-soft);color:var(--hf-active);font-size:13px"><svg class="icon sm" aria-hidden="true"><use href="#i-paw"/></svg>Canela: 0 ventas · $0.00</p>
+    <div class="empty"><svg class="icon lg" aria-hidden="true"><use href="#i-paw"/></svg><h3>Canela aún no tiene ventas</h3><p>No hay ventas confirmadas con productos para esta mascota archivada.</p><button class="btn" type="button">Ver todas las ventas</button></div>
+  </div></div></section><section class="ph-wrap" aria-label="Error al cargar"><p><b>5 · Error al cargar</b> · qué falló, que no se cambió nada y cómo reintentar</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar historial de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Historial de ventas</p><h2>Ana Sofía Treviño Garza</h2></div>
+    </header>
+  <div class="ph-body">
+    <div class="empty error" role="alert"><svg class="icon lg" aria-hidden="true"><use href="#i-triangle"/></svg><h3>No se pudo cargar el historial</h3><p>Puede ser un problema temporal de conexión. No se modificó ninguna venta.</p><button class="btn" type="button">Reintentar</button></div>
+  </div></div></section><section class="ph-wrap" aria-label="Mascota borrada"><p><b>6 · La mascota se borró</b> · aviso en contexto, vuelve a «Todas» y recarga las mascotas</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar historial de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Historial de ventas</p><h2>Ana Sofía Treviño Garza</h2></div>
+    </header>
+  <div class="ph-body">
+    <dl class="mk"><div><dt>Ventas</dt><dd>23</dd></div><div><dt>Total vendido</dt><dd>$18,460.50</dd></div><div class="full hot"><dt>Saldo pendiente</dt><dd>$1,284.00<small class="warn-ink">2 ventas por cobrar</small></dd></div></dl>
+    <div class="input"><svg class="icon sm" aria-hidden="true"><use href="#i-search"/></svg><input type="search" placeholder="Buscar por folio" aria-label="Buscar ventas por folio"></div>
+    <div class="chips" role="group" aria-label="Filtrar ventas por mascota" data-single><span class="chips-label"><svg class="icon sm" aria-hidden="true"><use href="#i-paw"/></svg>Mascota</span><button type="button" class="chip" aria-pressed="true"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Todas</span></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Bruno</span></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Mishi</span></button></div>
+    <p class="notice warn" role="status"><svg class="icon " aria-hidden="true"><use href="#i-info"/></svg><span>Esa mascota ya no existe. Mostramos todas las ventas del cliente.</span></p>
+    <ul class="cards">
+      <li class="card owe-card"><div class="main">
+        <div class="l1"><a class="f" href="#venta">S-000412</a><span class="tot">$1,486.00</span></div>
+        <span class="d">22 nov 2026, 17:42 · Mostrador</span>
+        <div class="l3"><span class="badge warning">Impaga</span><span class="owe">Debe $786.00 · vence 6 dic</span></div>
+      </div><button class="more" type="button" data-toggle-card aria-expanded="false" aria-controls="m6x"><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg><span data-lbl data-open="Ocultar detalle" data-closed="Ver productos y detalle">Ver productos y detalle</span></button><div class="xp" id="m6x" hidden><p class="d">Se carga al abrir.</p></div></li>
+      <li class="card owe-card"><div class="main">
+        <div class="l1"><a class="f" href="#venta">S-000398</a><span class="tot">$498.00</span></div>
+        <span class="d">15 nov 2026, 11:08 · Mostrador</span>
+        <div class="l3"><span class="badge danger">Deuda</span><span class="owe">Debe $498.00 · venció 20 nov</span></div>
+      </div><button class="more" type="button" data-toggle-card aria-expanded="false" aria-controls="m7x"><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg><span data-lbl data-open="Ocultar detalle" data-closed="Ver productos y detalle">Ver productos y detalle</span></button><div class="xp" id="m7x" hidden><p class="d">Se carga al abrir.</p></div></li>
+    </ul>
+  </div><div class="ph-bar"><div class="row"><p class="grow sub"><b class="fig" style="color:var(--hf-ink)">1–10</b> de 23 ventas</p>
+      <div class="ph-pager" role="navigation" aria-label="Páginas del historial"><button class="btn" type="button" disabled aria-label="Página anterior"><svg class="icon sm" aria-hidden="true"><use href="#i-chev-l"/></svg></button><span class="pg">1 de 3</span><button class="btn" type="button" aria-label="Página siguiente"><svg class="icon sm" aria-hidden="true"><use href="#i-chev-r"/></svg></button></div></div></div></div></section>
+    <h2 class="row-title">Reporte del vendedor</h2>
+    <section class="ph-wrap" aria-label="Reporte del vendedor"><p><b>7 · Reporte del vendedor</b> · nombre largo e inactivo; el PDF queda fijo abajo como única acción primaria</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar el reporte de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Reporte de ventas · <span class="badge ">Inactivo</span></p><h2>José Antonio Villarreal de los Santos Garza</h2></div>
+    </header>
+  <div class="ph-body">
+    <button type="button" class="period-btn" aria-label="Cambiar periodo: Este mes, 1 – 30 nov 2026, ambos incluidos"><svg class="icon " aria-hidden="true"><use href="#i-calendar"/></svg><span class="grow"><b>Este mes</b><small>1 – 30 nov 2026, ambos incluidos</small></span><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg></button>
+    <p class="notice warn"><svg class="icon " aria-hidden="true"><use href="#i-info"/></svg><span>Este vendedor está inactivo; el reporte muestra las ventas que ya tenía confirmadas.</span></p>
+    <dl class="mk"><div class="full"><dt>Ventas netas · 38 ventas</dt><dd>$52,318.00</dd></div><div><dt>Cobrado</dt><dd>$47,902.50</dd></div><div class="hot"><dt>Saldo pendiente</dt><dd>$4,415.50</dd></div><div class="full"><dt>Ticket promedio</dt><dd>$1,376.79</dd></div></dl>
+    <details class="notice info"><summary style="cursor:pointer;list-style:none;display:flex;gap:8px;align-items:flex-start;min-height:24px"><svg class="icon " aria-hidden="true"><use href="#i-info"/></svg><span>Vendedor asignado hoy; cobros y saldos actuales. <span class="link-inline">Qué significa</span></span></summary><p style="margin:4px 0 0 24px">Si una venta se reasigna a otro vendedor, también cambia en los periodos anteriores de este reporte.</p></details>
+    <div class="chips" role="group" aria-label="Filtrar por estado de pago" data-single><button type="button" class="chip" aria-pressed="true"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Todas</span></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Pagadas</span></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Parcial</span></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">A crédito</span></button></div>
+    <ul class="cards">
+      <li class="card"><div class="main">
+        <div class="l1"><a class="f" href="#venta">S-000352</a><span class="badge success">Pagada</span></div>
+        <span class="d">3 nov 2026, 09:14</span>
+        <dl class="figs"><div><dt>Total</dt><dd>$1,240.00</dd></div><div><dt>Pagado</dt><dd>$1,240.00</dd></div><div><dt>Saldo</dt><dd class="zero">$0.00</dd></div></dl>
+      </div></li>
+      <li class="card owe-card"><div class="main">
+        <div class="l1"><a class="f" href="#venta">S-000359</a><span class="badge warning">Parcial</span></div>
+        <span class="d">4 nov 2026, 16:02</span>
+        <dl class="figs"><div><dt>Total</dt><dd>$2,980.00</dd></div><div><dt>Pagado</dt><dd>$1,500.00</dd></div><div><dt>Saldo</dt><dd class="warn-ink">$1,480.00</dd></div></dl>
+      </div></li>
+      <li class="card owe-card"><div class="main">
+        <div class="l1"><a class="f" href="#venta">S-000368</a><span class="badge info">A crédito</span></div>
+        <span class="d">6 nov 2026, 18:20</span>
+        <dl class="figs"><div><dt>Total</dt><dd>$1,150.00</dd></div><div><dt>Pagado</dt><dd class="zero">$0.00</dd></div><div><dt>Saldo</dt><dd class="warn-ink">$1,150.00</dd></div></dl>
+      </div></li>
+    </ul>
+    <button class="btn block ghost" type="button" style="color:var(--hf-action)"><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg>Mostrar 35 ventas más</button>
+    <details class="disc"><summary><svg class="icon sm chev" aria-hidden="true"><use href="#i-chev-r"/></svg>Canceladas <span class="c">2 · no suman</span></summary><p class="sub" style="padding:4px 12px">S-000366 · $520.00 · cancelada 5 nov</p></details>
+  </div><div class="ph-bar"><p class="hint">El PDF se genera con una consulta nueva; puede diferir de lo que ves.</p><button class="btn primary block" type="button"><svg class="icon sm" aria-hidden="true"><use href="#i-download"/></svg>Descargar PDF</button></div></div></section><section class="ph-wrap" aria-label="Reporte cargando"><p><b>8 · Reporte cargando</b> · el periodo se ve pero no se cambia mientras carga; PDF deshabilitado con motivo</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar el reporte de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Reporte de ventas</p><h2>Luis Fernando Ortega</h2></div>
+    </header>
+  <div class="ph-body" aria-busy="true">
+    <p class="sr" role="status">Cargando el reporte de ventas…</p>
+    <button type="button" class="period-btn" disabled aria-label="Cambiar periodo: Este mes, 1 – 30 nov 2026, ambos incluidos"><svg class="icon " aria-hidden="true"><use href="#i-calendar"/></svg><span class="grow"><b>Este mes</b><small>1 – 30 nov 2026, ambos incluidos</small></span><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg></button>
+    <dl class="mk" aria-hidden="true"><div class="full"><dt>Ventas netas</dt><dd><span class="sk" style="width:120px;height:20px"></span></dd></div><div><dt>Cobrado</dt><dd><span class="sk" style="width:96px;height:20px"></span></dd></div><div><dt>Saldo pendiente</dt><dd><span class="sk" style="width:96px;height:20px"></span></dd></div></dl>
+    <ul class="cards" aria-hidden="true"><li class="card"><div class="main"><div class="l1"><span class="sk" style="width:90px;height:16px"></span><span class="sk" style="width:72px;height:16px"></span></div><span class="sk" style="width:160px;height:12px;margin-top:4px"></span><span class="sk" style="width:120px;height:20px;margin-top:4px"></span></div></li><li class="card"><div class="main"><div class="l1"><span class="sk" style="width:90px;height:16px"></span><span class="sk" style="width:72px;height:16px"></span></div><span class="sk" style="width:160px;height:12px;margin-top:4px"></span><span class="sk" style="width:120px;height:20px;margin-top:4px"></span></div></li><li class="card"><div class="main"><div class="l1"><span class="sk" style="width:90px;height:16px"></span><span class="sk" style="width:72px;height:16px"></span></div><span class="sk" style="width:160px;height:12px;margin-top:4px"></span><span class="sk" style="width:120px;height:20px;margin-top:4px"></span></div></li><li class="card"><div class="main"><div class="l1"><span class="sk" style="width:90px;height:16px"></span><span class="sk" style="width:72px;height:16px"></span></div><span class="sk" style="width:160px;height:12px;margin-top:4px"></span><span class="sk" style="width:120px;height:20px;margin-top:4px"></span></div></li></ul>
+  </div><div class="ph-bar"><p class="hint">Disponible cuando cargue el reporte.</p><button class="btn primary block" type="button" disabled><svg class="icon sm" aria-hidden="true"><use href="#i-download"/></svg>Descargar PDF</button></div></div></section><section class="ph-wrap" aria-label="Periodo sin ventas"><p><b>9 · Periodo sin ventas</b> · ceros reales y un atajo a un periodo más amplio</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar el reporte de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Reporte de ventas</p><h2>Luis Fernando Ortega</h2></div>
+    </header>
+  <div class="ph-body">
+    <button type="button" class="period-btn" aria-label="Cambiar periodo: Hoy, martes 24 nov 2026"><svg class="icon " aria-hidden="true"><use href="#i-calendar"/></svg><span class="grow"><b>Hoy</b><small>martes 24 nov 2026</small></span><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg></button>
+    <dl class="mk"><div class="full"><dt>Ventas netas · 0 ventas</dt><dd>$0.00</dd></div><div><dt>Cobrado</dt><dd>$0.00</dd></div><div><dt>Saldo pendiente</dt><dd>$0.00</dd></div></dl>
+    <div class="empty"><svg class="icon lg" aria-hidden="true"><use href="#i-inbox"/></svg><h3>Sin ventas confirmadas hoy</h3><p>Luis Fernando no tiene ventas confirmadas ni canceladas en este periodo.</p><button class="btn" type="button">Ver este mes</button></div>
+  </div><div class="ph-bar"><p class="hint">El PDF se genera con una consulta nueva; puede diferir de lo que ves.</p><button class="btn primary block" type="button"><svg class="icon sm" aria-hidden="true"><use href="#i-download"/></svg>Descargar PDF</button></div></div></section><section class="ph-wrap" aria-label="Límite de filas"><p><b>10 · Periodo demasiado grande</b> · error del servidor con la cifra exacta y la salida</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar el reporte de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Reporte de ventas</p><h2>Luis Fernando Ortega</h2></div>
+    </header>
+  <div class="ph-body">
+    <button type="button" class="period-btn" aria-label="Cambiar periodo: Personalizado, 1 ene – 30 nov 2026, ambos incluidos"><svg class="icon " aria-hidden="true"><use href="#i-calendar"/></svg><span class="grow"><b>Personalizado</b><small>1 ene – 30 nov 2026, ambos incluidos</small></span><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg></button>
+    <div class="empty error" role="alert"><svg class="icon lg" aria-hidden="true"><use href="#i-triangle"/></svg><h3>No se pudo cargar el reporte</h3><p>El reporte supera el límite de 1,000 filas: el periodo tiene 1,284 ventas. Reduce el periodo e inténtalo de nuevo.</p><button class="btn" type="button">Cambiar periodo</button></div>
+  </div><div class="ph-bar"><p class="hint">Elige un periodo con menos de 1,000 ventas para descargar el PDF.</p><button class="btn primary block" type="button" disabled><svg class="icon sm" aria-hidden="true"><use href="#i-download"/></svg>Descargar PDF</button></div></div></section><section class="ph-wrap" aria-label="Elegir periodo"><p><b>11 · Elegir periodo</b> · hoja inferior con atajos y fechas con el último día incluido; error junto al campo</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar el reporte de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Reporte de ventas</p><h2>Luis Fernando Ortega</h2></div>
+    </header>
+  <div class="ph-body">
+    <button type="button" class="period-btn" aria-label="Cambiar periodo: Este mes, 1 – 30 nov 2026, ambos incluidos"><svg class="icon " aria-hidden="true"><use href="#i-calendar"/></svg><span class="grow"><b>Este mes</b><small>1 – 30 nov 2026, ambos incluidos</small></span><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg></button>
+    <dl class="mk"><div class="full"><dt>Ventas netas · 38 ventas</dt><dd>$52,318.00</dd></div><div><dt>Cobrado</dt><dd>$47,902.50</dd></div><div class="hot"><dt>Saldo pendiente</dt><dd>$4,415.50</dd></div></dl>
+  </div>
+  <div class="sheet-scrim" aria-hidden="true"></div>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-t">
+    <span class="grab" aria-hidden="true"></span>
+    <h3 id="sh-t">Periodo del reporte</h3>
+    <div class="opts" role="radiogroup" aria-label="Periodos rápidos">
+      <button class="opt" role="radio" aria-checked="false" type="button"><span class="grow">Hoy <small>· 24 nov</small></span><span class="mark"></span></button>
+      <button class="opt" role="radio" aria-checked="false" type="button"><span class="grow">Últimos 7 días <small>· 18 – 24 nov</small></span><span class="mark"></span></button>
+      <button class="opt" role="radio" aria-checked="false" type="button"><span class="grow">Este mes <small>· 1 – 30 nov</small></span><span class="mark"></span></button>
+      <button class="opt" role="radio" aria-checked="false" type="button"><span class="grow">Mes anterior <small>· 1 – 31 oct</small></span><span class="mark"></span></button>
+      <button class="opt" role="radio" aria-checked="true" type="button"><span class="grow">Personalizado</span><span class="mark"><svg class="icon " aria-hidden="true"><use href="#i-check"/></svg></span></button>
+    </div>
+    <div class="two">
+      <div class="field"><label for="d1">Desde</label><div class="input"><input id="d1" value="10/11/2026" aria-describedby="dh"></div></div>
+      <div class="field"><label for="d2">Hasta (incluido)</label><div class="input" style="border-color:var(--hf-danger)"><input id="d2" value="05/11/2026" aria-invalid="true" aria-describedby="dh de"></div></div>
+    </div>
+    <p class="errline" id="de"><svg class="icon " aria-hidden="true"><use href="#i-alert"/></svg><span>«Hasta» debe ser igual o posterior a «Desde».</span></p>
+    <p class="hint" id="dh">Se incluyen los dos días. Máximo 366 días.</p>
+    <div class="two"><button class="btn" type="button">Cancelar</button><button class="btn primary" type="button" disabled>Aplicar</button></div>
+  </div></div></section><section class="ph-wrap" aria-label="PDF fallido"><p><b>12 · Actualizando y PDF fallido</b> · los datos anteriores quedan visibles mientras se actualiza; el error queda junto al botón</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar el reporte de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Reporte de ventas</p><h2>Luis Fernando Ortega</h2></div>
+    </header>
+  <div class="ph-body">
+    <button type="button" class="period-btn" aria-label="Cambiar periodo: Este mes, 1 – 30 nov 2026, ambos incluidos"><svg class="icon " aria-hidden="true"><use href="#i-calendar"/></svg><span class="grow"><b>Este mes</b><small>1 – 30 nov 2026, ambos incluidos</small></span><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg></button>
+    <dl class="mk"><div class="full"><dt>Ventas netas · 38 ventas</dt><dd>$52,318.00</dd></div><div><dt>Cobrado</dt><dd>$47,902.50</dd></div><div class="hot"><dt>Saldo pendiente</dt><dd>$4,415.50</dd></div><div class="full"><dt>Ticket promedio</dt><dd>$1,376.79</dd></div></dl>
+    <p class="notice info" role="status" aria-live="polite"><svg class="icon sm spin" aria-hidden="true"><use href="#i-loader"/></svg><span>Actualizando el reporte…</span></p>
+    <ul class="cards" style="opacity:.6">
+      <li class="card"><div class="main">
+        <div class="l1"><a class="f" href="#venta">S-000352</a><span class="badge success">Pagada</span></div>
+        <span class="d">3 nov 2026, 09:14</span>
+        <dl class="figs"><div><dt>Total</dt><dd>$1,240.00</dd></div><div><dt>Pagado</dt><dd>$1,240.00</dd></div><div><dt>Saldo</dt><dd class="zero">$0.00</dd></div></dl>
+      </div></li>
+      <li class="card owe-card"><div class="main">
+        <div class="l1"><a class="f" href="#venta">S-000359</a><span class="badge warning">Parcial</span></div>
+        <span class="d">4 nov 2026, 16:02</span>
+        <dl class="figs"><div><dt>Total</dt><dd>$2,980.00</dd></div><div><dt>Pagado</dt><dd>$1,500.00</dd></div><div><dt>Saldo</dt><dd class="warn-ink">$1,480.00</dd></div></dl>
+      </div></li>
+    </ul>
+  </div><div class="ph-bar"><p class="errline" role="alert"><svg class="icon " aria-hidden="true"><use href="#i-triangle"/></svg><span>No pudimos descargar el PDF del reporte. Inténtalo de nuevo en unos segundos.</span></p><button class="btn primary block" type="button"><svg class="icon sm" aria-hidden="true"><use href="#i-download"/></svg>Reintentar descarga</button></div></div></section>
+  </div>
+</main>

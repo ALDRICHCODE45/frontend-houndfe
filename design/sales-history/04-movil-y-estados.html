@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HoundFe · Historial de ventas · 04-movil-y-estados</title>
+<style>
+/* Historial de ventas (cliente y vendedor): shared tokens and components.
+   Source only: build.sh inlines this file into every artboard (the canvas serves only .html).
+   Every value comes from design/system.md (src/core/shared/design-system/*). */
+:root{
+--hf-page:#f5f6f8;--hf-surface:#ffffff;--hf-surface-muted:#e7eef7;--hf-field:#ffffff;--hf-field-border:#8593a3;
+--hf-ink:#24313d;--hf-heading:#173968;--hf-muted:#576574;--hf-border:#dce2e8;
+--hf-action:#2442f6;--hf-on-action:#ffffff;--hf-active:#2442f6;--hf-active-soft:#edf0ff;--hf-focus:#2442f6;
+--hf-gold:#f6bb13;--hf-gold-soft:#fff5d6;--hf-gold-ink:#443218;
+--hf-warning:#805511;--hf-warning-soft:#fff5d6;--hf-success:#236044;
+--hf-danger:#b42318;--hf-danger-soft:#fef3f2;--hf-danger-border:#f4b8b2;
+--hf-font:'Geist',ui-sans-serif,system-ui,sans-serif;
+--hf-radius-card:12px;--hf-radius-control:6px;--hf-control-height:44px;
+--table-head:color-mix(in srgb,var(--hf-ink) 4%,var(--hf-surface));
+--row-hover:color-mix(in srgb,var(--hf-surface-muted) 45%,var(--hf-surface));
+--skel:color-mix(in srgb,var(--hf-ink) 16%,var(--hf-surface));
+--shadow-soft:0 1px 2px color-mix(in srgb,var(--hf-ink) 5%,transparent);
+--shadow-pop:0 12px 32px -12px color-mix(in srgb,var(--hf-ink) 24%,transparent),0 2px 6px color-mix(in srgb,var(--hf-ink) 8%,transparent);
+color-scheme:light;
+}
+html.dark{
+--hf-page:#0e1520;--hf-surface:#192332;--hf-surface-muted:#202e43;--hf-field:#121d2c;--hf-field-border:#64758d;
+--hf-ink:#edf2fa;--hf-heading:#edf2fa;--hf-muted:#adbcd0;--hf-border:#354459;
+--hf-action:#91b0ff;--hf-on-action:#132344;--hf-active:#b3caff;--hf-active-soft:#223555;--hf-focus:#a6c1ff;
+--hf-gold:#f2c456;--hf-gold-soft:#3b311d;--hf-gold-ink:#f2cb71;
+--hf-warning:#f2cb71;--hf-warning-soft:#3b311d;--hf-success:#a2d9b9;
+--hf-danger:#ffb4ab;--hf-danger-soft:#3d2220;--hf-danger-border:#7a3f3b;
+--shadow-soft:0 1px 2px color-mix(in srgb,var(--hf-page) 40%,transparent);
+--shadow-pop:0 12px 32px -12px color-mix(in srgb,var(--hf-page) 90%,transparent),0 2px 6px color-mix(in srgb,var(--hf-page) 60%,transparent);
+color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--hf-page);color:var(--hf-ink);font:400 14px/1.5 var(--hf-font);font-feature-settings:"cv11","ss01"}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3,h4,p,ul,ol,dl,dd,figure{margin:0}
+ul,ol{padding:0;list-style:none}
+h1,h2,h3,h4{color:var(--hf-heading);font-weight:600}
+a{color:var(--hf-action)}
+:focus-visible{outline:2px solid var(--hf-focus);outline-offset:2px}
+.icon{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.icon.sm{width:16px;height:16px}.icon.xs{width:14px;height:14px}.icon.lg{width:24px;height:24px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.fig{font-variant-numeric:tabular-nums}
+.muted{color:var(--hf-muted)}
+.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.warn-ink{color:var(--hf-warning)}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* ── artboard tools (outside the mock) ───────────────────────────── */
+.tools{position:sticky;top:0;z-index:200;display:flex;flex-wrap:wrap;align-items:center;gap:4px;min-height:44px;padding:4px 16px;background:var(--hf-surface-muted);border-bottom:1px solid var(--hf-border)}
+.tools .grow{flex:1}
+.tools .lbl{font-size:12px;font-weight:600;color:var(--hf-muted);padding:0 8px}
+.tools button{height:32px;padding:0 10px;border:0;border-radius:8px;background:transparent;font-size:12px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap}
+.tools button:hover{background:var(--hf-surface)}
+.tools [aria-pressed="true"]{background:var(--hf-active-soft);color:var(--hf-active)}
+.notes{position:fixed;z-index:210;top:52px;right:16px;width:min(480px,calc(100vw - 32px));max-height:calc(100vh - 72px);overflow:auto;padding:16px;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:12px;box-shadow:var(--shadow-pop);font-size:13px}
+.notes h2{font-size:15px;margin-bottom:8px}.notes h3{font-size:13px;margin:16px 0 4px}
+.notes ul{display:grid;gap:4px;padding-left:16px;list-style:disc;color:var(--hf-muted)}
+.notes code{font-size:12px;color:var(--hf-ink)}
+.notes p{color:var(--hf-muted)}
+
+/* ── board frame ──────────────────────────────────────────────────── */
+.board{padding:24px 24px 48px;display:grid;gap:20px}
+.board-head{display:grid;gap:4px;max-width:1100px}
+.board-head h1{font-size:clamp(1.75rem,1.55rem + 0.6vw,2rem);line-height:1.25;letter-spacing:-0.045em}
+.board-head p{color:var(--hf-muted);max-width:90ch}
+.pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;align-items:start}
+.frame{display:grid;gap:8px;min-width:0}
+.caption{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--hf-muted)}
+.caption b{color:var(--hf-ink);font-weight:600}
+.caption .sep{color:var(--hf-border)}
+
+/* drawer (slideover) */
+.drawer{display:flex;flex-direction:column;min-width:0;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);box-shadow:var(--shadow-pop);overflow:hidden}
+.dh{display:flex;align-items:flex-start;gap:12px;padding:16px 16px 16px 20px;border-bottom:1px solid var(--hf-border)}
+.dh .who{flex:1;min-width:0;display:grid;gap:2px}
+.dh .meta{font-size:13px;color:var(--hf-muted);display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.dh h2{font-size:22px;line-height:1.25;letter-spacing:-0.02em;overflow-wrap:anywhere}
+.dh .acts{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.db{display:grid;gap:16px;padding:16px 20px 20px;min-width:0}
+.df{display:flex;align-items:center;gap:12px;padding:12px 20px;border-top:1px solid var(--hf-border);background:var(--hf-surface)}
+.df .grow{flex:1;min-width:0}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--hf-surface-muted);color:var(--hf-heading);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;flex-shrink:0}
+.icon-btn{width:44px;height:44px;border:0;border-radius:6px;background:transparent;color:var(--hf-muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.icon-btn:hover{background:var(--hf-surface-muted);color:var(--hf-ink)}
+.link-inline{display:inline-flex;align-items:center;gap:4px;color:var(--hf-action);font-weight:500;text-decoration:none;border-radius:4px}
+.link-inline:hover{text-decoration:underline}
+
+/* buttons */
+.btn{min-height:44px;padding:0 16px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-surface);color:var(--hf-ink);font-size:14px;font-weight:600;line-height:1.2;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;text-decoration:none}
+.btn:hover:not(:disabled){background:var(--hf-surface-muted)}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn.primary{background:var(--hf-action);border-color:var(--hf-action);color:var(--hf-on-action)}
+.btn.primary:hover:not(:disabled){background:color-mix(in srgb,var(--hf-action) 88%,var(--hf-ink))}
+.btn.sm{min-height:36px;padding:0 12px;font-size:13px}
+.btn:disabled{cursor:not-allowed;background:var(--hf-page);border-color:var(--hf-border);color:var(--hf-muted)}
+html.dark .btn:disabled{color:color-mix(in srgb,var(--hf-muted) 60%,var(--hf-page))}
+.btn.block{width:100%}
+
+/* fields */
+.field{display:grid;gap:4px;min-width:0}
+.field label,.field .lab{font-size:13px;font-weight:500;color:var(--hf-ink)}
+.input{position:relative;display:flex;align-items:center;min-height:44px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-field);min-width:0}
+.input:hover{border-color:var(--hf-field-border)}
+.input:focus-within{outline:2px solid var(--hf-focus);outline-offset:0;border-color:transparent}
+.input .icon{margin-left:12px;color:var(--hf-muted)}
+.input input{flex:1;min-width:0;height:42px;border:0;background:transparent;padding:0 12px;outline:0}
+.input input::placeholder{color:var(--hf-muted);opacity:1}
+.input.disabled{background:var(--hf-page)}
+
+/* toolbar row inside a drawer */
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;min-width:0}
+.toolbar .input{flex:1 1 220px;max-width:320px}
+
+/* toggle chips (HfToggleChips) */
+.chips{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.chip{min-height:36px;max-width:100%;padding:0 12px;border:1px solid var(--hf-muted);border-radius:999px;background:var(--hf-surface);color:var(--hf-ink);font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.chip .icon{width:14px;height:14px}
+.chip .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip small{color:var(--hf-muted);font-size:12px;font-weight:400}
+.chip:hover{background:var(--hf-surface-muted)}
+.chip[aria-pressed="true"]{background:var(--hf-active-soft);border-color:var(--hf-active);color:var(--hf-active);font-weight:600}
+.chip[aria-pressed="true"] small{color:var(--hf-active)}
+.chip .ck{display:none}
+.chip[aria-pressed="true"] .ck{display:inline}
+.chips-label{font-size:13px;font-weight:500;color:var(--hf-muted);display:inline-flex;align-items:center;gap:6px;min-height:36px}
+
+/* segmented control (HfSegmented) */
+.seg{display:inline-flex;flex-wrap:wrap;padding:2px;gap:2px;background:var(--hf-surface-muted);border-radius:8px;min-width:0}
+.seg button{min-height:40px;padding:0 12px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--hf-muted);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.seg button:hover{color:var(--hf-ink)}
+.seg button[aria-pressed="true"]{background:var(--hf-surface);border-color:var(--hf-border);color:var(--hf-heading);font-weight:600}
+.date-btn{min-height:44px;padding:0 12px;border:1px solid var(--hf-border);border-radius:6px;background:var(--hf-field);display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.date-btn:hover{border-color:var(--hf-field-border)}
+.date-btn .icon{color:var(--hf-muted)}
+
+/* badges (StatusBadge) */
+.badge{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;background:var(--hf-surface-muted);color:var(--hf-muted);max-width:100%}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+.badge.nodot::before{display:none}
+.badge.warning{background:var(--hf-warning-soft);color:var(--hf-warning)}
+.badge.info{background:var(--hf-active-soft);color:var(--hf-active)}
+.badge.success{background:color-mix(in srgb,var(--hf-success) 12%,var(--hf-surface));color:var(--hf-success)}
+.badge.danger{background:var(--hf-danger-soft);color:var(--hf-danger)}
+
+/* «requiere backend» annotation: gold accent, dashed, with a server icon. Never a real control. */
+.be{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border:1px dashed var(--hf-gold-ink);border-radius:6px;background:var(--hf-gold-soft);color:var(--hf-gold-ink);font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;vertical-align:middle}
+.be .icon{width:12px;height:12px}
+.be-zone{position:relative;border:1px dashed var(--hf-gold-ink);border-radius:8px;background:color-mix(in srgb,var(--hf-gold-soft) 45%,var(--hf-surface));padding:12px}
+.be-zone > .be{position:absolute;top:-11px;right:12px}
+.be-zone .ghost-txt{color:var(--hf-muted)}
+/* «ya en la API, no se usa hoy»: neutral annotation for params the endpoint already accepts */
+.api{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border:1px dashed var(--hf-muted);border-radius:6px;color:var(--hf-muted);font-size:12px;font-weight:500;white-space:nowrap;flex-shrink:0;vertical-align:middle}
+.api .icon{width:12px;height:12px}
+
+/* KPI strip: one aligned row of metrics, no nested cards */
+.kpis{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);background:var(--hf-surface);min-width:0}
+.kpis > div{display:grid;gap:2px;padding:12px 16px;min-width:0;border-left:1px solid var(--hf-border)}
+.kpis > div:first-child{border-left:0}
+.kpis dt{font-size:12px;color:var(--hf-muted);font-weight:500;white-space:nowrap}
+.kpis dd{font-size:16px;font-weight:600;color:var(--hf-heading);font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:-0.01em}
+.kpis dd small{display:block;font-size:12px;font-weight:500;color:var(--hf-muted);letter-spacing:0}
+.kpis .hot{background:var(--hf-warning-soft)}
+.kpis .hot dd{color:var(--hf-warning)}
+.kpis .hot:first-child{border-radius:12px 0 0 12px}
+.kpis .hot:last-child{border-radius:0 12px 12px 0}
+
+/* inline notice (12px, icon on first line) */
+.notice{display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.45;min-width:0}
+.notice .icon{width:16px;height:16px;margin-top:1px}
+.notice.warn{color:var(--hf-warning);font-weight:600}
+.notice.info{color:var(--hf-muted)}
+.banner{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-radius:var(--hf-radius-card);border:1px solid var(--hf-border);background:var(--hf-surface-muted);font-size:13px;min-width:0}
+.banner.warn{background:var(--hf-warning-soft);border-color:color-mix(in srgb,var(--hf-warning) 35%,var(--hf-warning-soft))}
+.banner .icon{margin-top:1px}
+.banner .txt{flex:1;min-width:0;display:grid;gap:2px}
+.banner b{color:var(--hf-heading);font-weight:600}
+.banner.warn b,.banner.warn .icon{color:var(--hf-warning)}
+
+/* table (hf-data-table look) */
+.tsurf{border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);background:var(--hf-surface);box-shadow:var(--shadow-soft);overflow:hidden;min-width:0}
+table.t{width:100%;border-collapse:collapse;table-layout:fixed}
+
+.t th{height:40px;padding:0 12px;background:var(--table-head);color:var(--hf-muted);font-size:13px;font-weight:600;text-align:left;border-bottom:1px solid var(--hf-border);white-space:nowrap}
+.t th.num{text-align:right}
+.t td{padding:10px 12px;border-bottom:1px solid var(--hf-border);vertical-align:middle;min-width:0}
+.t tbody tr:last-child td{border-bottom:0}
+.t tr.row{cursor:pointer}
+.t tr.row:hover td{background:var(--row-hover)}
+.t tr.row.open td{background:var(--hf-active-soft);border-bottom-color:transparent}
+.t .p{display:block;font-weight:600;color:var(--hf-heading);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.t .s{display:block;font-size:13px;color:var(--hf-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.t .s.warn{color:var(--hf-warning);font-weight:600}
+.t .p.warn-ink{color:var(--hf-warning)}
+.t .amt{font-weight:600;color:var(--hf-heading)}
+.t .zero{color:var(--hf-muted);font-weight:400}
+.t .cx{width:44px;padding:0 0 0 4px}
+.xbtn{width:36px;height:36px;border:0;border-radius:6px;background:transparent;color:var(--hf-muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.xbtn:hover{background:var(--hf-surface-muted);color:var(--hf-ink)}
+.xbtn .icon{transition:transform 150ms}
+tr.open .xbtn .icon,.xbtn[aria-expanded="true"] .icon{transform:rotate(90deg)}
+.t tr.canceled .p{color:var(--hf-muted);text-decoration:line-through;text-decoration-thickness:1px}
+.t tr.canceled .amt{color:var(--hf-muted);font-weight:500;text-decoration:line-through;text-decoration-thickness:1px}
+.t tr.expand td{background:var(--hf-active-soft);padding:0 12px 16px 56px}
+.t tfoot td{height:40px;padding:0 12px;background:var(--table-head);font-size:13px;font-weight:600;border-top:1px solid var(--hf-border);border-bottom:0}
+
+/* expanded sale detail */
+.xpanel{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:16px;padding:12px 16px;border-radius:8px;background:var(--hf-surface);border:1px solid var(--hf-border)}
+.xpanel h4{font-size:13px;margin-bottom:6px}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;font-size:13px}
+.kv dt{color:var(--hf-muted)}
+.kv dd{color:var(--hf-ink);font-weight:500;overflow-wrap:anywhere}
+.items{display:grid;gap:6px;font-size:13px}
+.items li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px}
+.items .n{font-weight:500;color:var(--hf-ink)}
+.items .v{grid-column:1;font-size:12px;color:var(--hf-muted);display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.items .m{grid-row:1;grid-column:2;text-align:right;font-variant-numeric:tabular-nums;font-weight:500}
+.pet{display:inline-flex;align-items:center;gap:4px;color:var(--hf-muted)}
+.pet .icon{width:12px;height:12px}
+.xacts{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding-top:12px;border-top:1px solid var(--hf-border)}
+.xacts .grow{flex:1}
+.loadnote{font-size:12px;color:var(--hf-muted);display:inline-flex;align-items:center;gap:4px}
+.loadnote .icon{width:12px;height:12px}
+
+/* pagination */
+.pager{display:flex;align-items:center;gap:4px}
+.pager button{min-width:36px;height:36px;padding:0 8px;border:1px solid var(--hf-border);border-radius:6px;background:var(--hf-surface);font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.pager button[aria-current="page"]{background:var(--hf-active-soft);border-color:var(--hf-active);color:var(--hf-active);font-weight:600}
+.pager button:disabled{color:var(--hf-muted);background:var(--hf-page);cursor:not-allowed}
+
+/* section heading inside a drawer */
+.sh{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;min-width:0}
+.sh h3{font-size:16px}
+.sh .c{font-size:13px;color:var(--hf-muted)}
+.sh .grow{flex:1}
+.sub{font-size:13px;color:var(--hf-muted)}
+
+/* disclosure */
+details.disc > summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;min-height:44px;padding:0 12px;border-radius:8px;font-weight:600;color:var(--hf-heading)}
+details.disc > summary::-webkit-details-marker{display:none}
+details.disc > summary:hover{background:var(--hf-surface-muted)}
+details.disc > summary .icon.chev{transition:transform 150ms;color:var(--hf-muted)}
+details.disc[open] > summary .icon.chev{transform:rotate(90deg)}
+details.disc > summary .c{font-weight:400;color:var(--hf-muted);font-size:13px}
+
+/* empty / error / skeleton */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px;padding:40px 16px;min-height:8rem}
+.empty .icon{width:24px;height:24px;color:var(--hf-muted)}
+.empty h3{font-size:15px}
+.empty p{font-size:13px;color:var(--hf-muted);max-width:28rem}
+.empty .btn{margin-top:8px}
+.empty.error{background:var(--hf-danger-soft);border:1px solid var(--hf-danger-border);border-radius:12px}
+.empty.error .icon,.empty.error h3{color:var(--hf-danger)}
+.sk{display:block;background:var(--skel);border-radius:6px}
+
+/* data-source legend chip used in notes */
+.legend{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--hf-muted)}
+@media (max-width:1100px){.pair{grid-template-columns:minmax(0,1fr)}}
+/* 04 · Móvil 390 y estados (dirección A) */
+.phones{display:grid;grid-template-columns:repeat(auto-fit,390px);gap:40px 48px;justify-content:center}
+.row-title{grid-column:1/-1;font-size:16px;padding-top:8px;border-top:1px solid var(--hf-border);margin-top:8px}
+.ph-wrap{display:grid;gap:8px;align-content:start}
+.ph-wrap > p{font-size:13px;color:var(--hf-muted)}
+.ph-wrap > p b{color:var(--hf-ink);font-weight:600}
+.phone{position:relative;width:390px;height:844px;display:flex;flex-direction:column;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:28px;overflow:hidden;box-shadow:var(--shadow-pop)}
+.ph-top{display:flex;align-items:flex-start;gap:4px;padding:12px 12px 12px 4px;border-bottom:1px solid var(--hf-border);flex-shrink:0}
+.ph-top .who{flex:1;min-width:0;display:grid;gap:2px;padding-top:4px}
+.ph-top .meta{font-size:13px;color:var(--hf-muted);display:flex;flex-wrap:wrap;gap:2px 8px;align-items:center}
+.ph-top h2{font-size:17px;line-height:1.3;letter-spacing:-0.02em;overflow-wrap:anywhere}
+.ph-body{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:12px 16px 16px}
+.ph-body > *{flex-shrink:0}
+.ph-bar{flex-shrink:0;display:grid;gap:8px;padding:12px 16px;border-top:1px solid var(--hf-border);background:var(--hf-surface)}
+.ph-bar .row{display:flex;align-items:center;gap:8px}
+.ph-bar .row .grow{flex:1;min-width:0}
+.phone .chip{min-height:44px}
+.phone .input{min-height:44px}
+.mk{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border:1px solid var(--hf-border);border-radius:12px;overflow:hidden}
+.mk > div{display:grid;gap:2px;padding:10px 12px;border-top:1px solid var(--hf-border);border-left:1px solid var(--hf-border);min-width:0}
+.mk > div:nth-child(-n+2){border-top:0}
+.mk > div:nth-child(odd){border-left:0}
+.mk > div.full{grid-column:1/-1;border-left:0}
+.mk dt{font-size:12px;color:var(--hf-muted);font-weight:500}
+.mk dd{font-size:17px;font-weight:600;color:var(--hf-heading);font-variant-numeric:tabular-nums;white-space:nowrap}
+.mk dd small{display:block;font-size:12px;font-weight:500;color:var(--hf-muted);white-space:normal}
+.mk .hot{background:var(--hf-warning-soft)}
+.mk .hot dd{color:var(--hf-warning)}
+.cards{display:grid;gap:8px}
+.card{border:1px solid var(--hf-border);border-radius:12px;background:var(--hf-surface);min-width:0}
+.card .main{position:relative;display:grid;gap:4px;padding:12px 16px}
+.card .l1{display:flex;align-items:baseline;justify-content:space-between;gap:12px;min-width:0}
+.card .f{font-weight:600;color:var(--hf-heading);text-decoration:none}
+.card .f::after{content:"";position:absolute;inset:0;border-radius:12px}
+.card .f:focus-visible{outline:none}
+.card .f:focus-visible::after{outline:2px solid var(--hf-focus);outline-offset:-2px}
+.card .tot{font-weight:600;color:var(--hf-heading);font-variant-numeric:tabular-nums;white-space:nowrap}
+.card .d{font-size:13px;color:var(--hf-muted)}
+.card .l3{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
+.card .owe{font-size:13px;font-weight:600;color:var(--hf-warning);font-variant-numeric:tabular-nums}
+.card .figs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:6px;padding-top:8px;border-top:1px solid var(--hf-border)}
+.card .figs dt{font-size:12px;color:var(--hf-muted)}
+.card .figs dd{font-size:14px;font-weight:600;color:var(--hf-heading);font-variant-numeric:tabular-nums}
+.card .figs dd.warn-ink{color:var(--hf-warning)}
+.card .figs dd.zero{color:var(--hf-muted);font-weight:400}
+.card.canceled .f,.card.canceled .tot{color:var(--hf-muted);text-decoration:line-through;text-decoration-thickness:1px}
+.card .more{position:relative;z-index:1;display:flex;align-items:center;gap:6px;width:100%;min-height:44px;padding:0 16px;border:0;border-top:1px solid var(--hf-border);background:transparent;color:var(--hf-action);font-size:13px;font-weight:600;cursor:pointer;border-radius:0 0 12px 12px}
+.card .more .icon{transition:transform 150ms}
+.card .more[aria-expanded="true"] .icon{transform:rotate(180deg)}
+.card .xp{display:grid;gap:10px;padding:0 16px 12px}
+.card .xp .kv{font-size:13px}
+.card.owe-card{border-color:color-mix(in srgb,var(--hf-warning) 35%,var(--hf-border))}
+.ph-pager{display:flex;align-items:center;gap:8px}
+.ph-pager .pg{font-size:13px;font-weight:600;color:var(--hf-ink);min-width:72px;text-align:center}
+.ph-pager button{width:44px;height:44px}
+.sheet-scrim{position:absolute;inset:0;background:color-mix(in srgb,var(--hf-ink) 32%,transparent);z-index:5}
+html.dark .sheet-scrim{background:color-mix(in srgb,var(--hf-page) 70%,transparent)}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:6;display:grid;gap:12px;padding:8px 16px 16px;background:var(--hf-surface);border-radius:18px 18px 0 0;box-shadow:var(--shadow-pop)}
+.sheet .grab{justify-self:center;width:36px;height:4px;border-radius:999px;background:var(--hf-border)}
+.sheet h3{font-size:16px}
+.opts{display:grid;border:1px solid var(--hf-border);border-radius:12px;overflow:hidden}
+.opt{display:flex;align-items:center;gap:12px;min-height:48px;padding:0 16px;border:0;border-top:1px solid var(--hf-border);background:var(--hf-surface);text-align:left;font-size:14px;font-weight:500;cursor:pointer}
+.opt:first-child{border-top:0}
+.opt .grow{flex:1}
+.opt small{color:var(--hf-muted);font-weight:400;font-size:13px}
+.mark{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--hf-muted);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.opt[aria-checked="true"]{background:var(--hf-active-soft)}
+.opt[aria-checked="true"] .mark{background:var(--hf-active);border-color:var(--hf-active);color:var(--hf-on-action)}
+.opt[aria-checked="true"] .mark .icon{width:14px;height:14px}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.hint{font-size:12px;color:var(--hf-muted)}
+.errline{display:flex;align-items:flex-start;gap:6px;font-size:13px;color:var(--hf-danger);font-weight:500}
+.errline .icon{width:16px;height:16px;margin-top:1px}
+.spin{animation:spin 900ms linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.period-btn{display:flex;align-items:center;gap:8px;width:100%;min-height:44px;padding:0 12px;border:1px solid var(--hf-border);border-radius:6px;background:var(--hf-field);text-align:left;cursor:pointer}
+.period-btn .grow{flex:1;min-width:0;display:grid}
+.period-btn b{font-size:14px;font-weight:600;color:var(--hf-heading)}
+.period-btn small{font-size:12px;color:var(--hf-muted)}
+.period-btn .icon{color:var(--hf-muted)}
+.phone .btn.sm{min-height:44px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+<symbol id="i-search-x" viewBox="0 0 24 24"><path d="m13.5 8.5-5 5"/><path d="m8.5 8.5 5 5"/><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+<symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+<symbol id="i-chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-chev-l" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+<symbol id="i-arrow-l" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
+<symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M13 16H8"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+<symbol id="i-calendar" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+<symbol id="i-triangle" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+<symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+<symbol id="i-paw" viewBox="0 0 24 24"><circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"/></symbol>
+<symbol id="i-server" viewBox="0 0 24 24"><rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/></symbol>
+<symbol id="i-wallet" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></symbol>
+<symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
+<symbol id="i-open" viewBox="0 0 24 24"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></symbol>
+<symbol id="i-truck" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+<symbol id="i-loader" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></symbol>
+<symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+<symbol id="i-notes" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+<symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></symbol>
+<symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol>
+<symbol id="i-store" viewBox="0 0 24 24"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></symbol>
+<symbol id="i-package" viewBox="0 0 24 24"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/></symbol>
+<symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
+<symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></symbol>
+<symbol id="i-sort" viewBox="0 0 24 24"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+</svg>
+<div class="tools" role="group" aria-label="Opciones del artboard">
+  <span class="lbl">Móvil 390 y estados · A</span>
+  <span class="grow"></span>
+  <button type="button" id="t-notes" aria-expanded="false" aria-controls="notes"><svg class="icon sm" aria-hidden="true"><use href="#i-notes"/></svg>Notas y datos</button>
+  <button type="button" id="t-theme" aria-pressed="false"><svg class="icon sm" aria-hidden="true"><use href="#i-moon"/></svg><span>Tema claro</span></button>
+</div>
+<aside class="notes" id="notes" tabindex="-1" hidden aria-label="Notas del artboard">
+  <h2>Móvil 390 y estados · dirección A</h2>
+  <p>En el celular la tabla pasa a tarjetas: folio y total arriba, fecha, estado y saldo debajo; el detalle se abre dentro de la tarjeta. Sin tablas con scroll horizontal.</p>
+  <h3>Patrones</h3>
+  <ul>
+    <li>Cabecera: cerrar a la izquierda, nombre completo que se ajusta (17 px).</li>
+    <li>Cliente con saldo: aviso arriba con «Ver», que aplica el filtro «Con saldo».</li>
+    <li>Vendedor: el periodo es un botón que abre una hoja inferior; «Descargar PDF» queda fijo abajo.</li>
+    <li>Chips de 44 px; los nombres largos se cortan con «…» dentro del chip y se leen completos en la tarjeta.</li>
+  </ul>
+  <h3>Estados con copia real del código</h3>
+  <ul>
+    <li>«Esa mascota ya no existe. Mostramos todas las ventas del cliente.» (404 PET_NOT_FOUND)</li>
+    <li>Límite de filas y error de descarga: textos de <code>sellerReportPresentation.ts</code>.</li>
+    <li>Vendedor inactivo: texto de <code>SellerSalesReportContent.vue</code>.</li>
+  </ul>
+  <h3>Requiere backend</h3>
+  <ul><li>Ticket promedio del cliente.</li></ul>
+</aside>
+<main class="board">
+  <header class="board-head">
+    <h1>Móvil 390 y estados · A (recomendada)</h1>
+    <p>Los dos historiales en pantalla completa de 390 px, con la tabla convertida en tarjetas y una sola acción primaria fija abajo. Cada teléfono tiene su propio scroll.</p>
+  </header>
+  <div class="phones">
+    <h2 class="row-title">Historial del cliente</h2>
+    <section class="ph-wrap" aria-label="Cliente con saldo"><p><b>1 · Cliente con saldo y nombres largos</b> · el nombre y las mascotas largas se ajustan; el saldo va primero</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar historial de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Historial de ventas · <a class="link-inline" href="tel:+523312345678"><svg class="icon xs" aria-hidden="true"><use href="#i-phone"/></svg>33 1234 5678</a></p><h2>María Guadalupe Hernández de la Fuente Villaseñor</h2></div>
+    </header>
+  <div class="ph-body">
+    <div class="banner warn"><svg class="icon " aria-hidden="true"><use href="#i-alert"/></svg><div class="txt"><b>Debe $1,284.00</b><span>2 ventas por cobrar · 1 vencida el 20 nov</span></div><button class="btn sm" type="button">Ver</button></div>
+    <dl class="mk"><div><dt>Ventas</dt><dd>23<small>1 sin entregar</small></dd></div><div><dt>Total vendido</dt><dd>$18,460.50</dd></div>
+      <div class="full"><dt>Ticket promedio</dt><dd>— <small><span class="be"><svg class="icon " aria-hidden="true"><use href="#i-server"/></svg>requiere backend</span></small></dd></div></dl>
+    <div class="input"><svg class="icon sm" aria-hidden="true"><use href="#i-search"/></svg><input type="search" placeholder="Buscar por folio" aria-label="Buscar ventas por folio"></div>
+    <div class="chips" role="group" aria-label="Filtrar por estado" data-single><button type="button" class="chip" aria-pressed="true"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Todas</span></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Con saldo</span><small>2</small></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Sin entregar</span><small>1</small></button></div>
+    <div class="chips" role="group" aria-label="Filtrar ventas por mascota" data-single><span class="chips-label"><svg class="icon sm" aria-hidden="true"><use href="#i-paw"/></svg>Mascota</span><button type="button" class="chip" aria-pressed="true"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Todas</span></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Señor Bigotes</span></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Princesa Nala de Todos los Santos</span></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Canela</span><small>archivada</small></button></div>
+    <ul class="cards">
+      <li class="card owe-card"><div class="main">
+        <div class="l1"><a class="f" href="#venta">S-000412</a><span class="tot">$1,486.00</span></div>
+        <span class="d">22 nov 2026, 17:42 · Mostrador</span>
+        <div class="l3"><span class="badge warning">Impaga</span><span class="badge danger">No entregada</span><span class="owe">Debe $786.00 · vence 6 dic</span></div>
+      </div><button class="more" type="button" data-toggle-card aria-expanded="true" aria-controls="m1x"><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg><span data-lbl data-open="Ocultar detalle" data-closed="Ver productos y detalle">Ocultar detalle</span></button><div class="xp" id="m1x"><dl class="kv"><dt>Vendedor</dt><dd>Karla Méndez</dd><dt>Pago</dt><dd>Efectivo · Crédito</dd><dt>Entrega</dt><dd>No entregada</dd></dl>
+      <ul class="items"><li><span class="n">Croquetas Adulto Raza Mediana</span><span class="m">$1,089.00</span><span class="v">15 kg · 1 pza <span class="pet"><svg class="icon " aria-hidden="true"><use href="#i-paw"/></svg>Señor Bigotes</span></span></li>
+      <li><span class="n">Arena aglomerante sin aroma</span><span class="m">$289.00</span><span class="v">10 kg · 1 pza <span class="pet"><svg class="icon " aria-hidden="true"><use href="#i-paw"/></svg>Princesa Nala de Todos los Santos</span></span></li>
+      <li><span class="n">Premios dentales</span><span class="m">$108.00</span><span class="v">Mediano · 2 pzas</span></li></ul>
+      <div class="two"><a class="btn sm" href="#venta"><svg class="icon sm" aria-hidden="true"><use href="#i-open"/></svg>Abrir venta</a><button class="btn sm" type="button"><svg class="icon sm" aria-hidden="true"><use href="#i-wallet"/></svg>Cobrar $786.00</button></div></div></li>
+      <li class="card owe-card"><div class="main">
+        <div class="l1"><a class="f" href="#venta">S-000398</a><span class="tot">$498.00</span></div>
+        <span class="d">15 nov 2026, 11:08 · Mostrador</span>
+        <div class="l3"><span class="badge danger">Deuda</span><span class="owe">Debe $498.00 · venció 20 nov</span></div>
+      </div><button class="more" type="button" data-toggle-card aria-expanded="false" aria-controls="m2x"><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg><span data-lbl data-open="Ocultar detalle" data-closed="Ver productos y detalle">Ver productos y detalle</span></button><div class="xp" id="m2x" hidden><p class="d">Se carga al abrir.</p></div></li>
+      <li class="card"><div class="main">
+        <div class="l1"><a class="f" href="#venta">S-000377</a><span class="tot">$642.50</span></div>
+        <span class="d">8 nov 2026, 13:25 · Mostrador</span>
+        <div class="l3"><span class="badge success">Pagada</span></div>
+      </div><button class="more" type="button" data-toggle-card aria-expanded="false" aria-controls="m3x"><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg><span data-lbl data-open="Ocultar detalle" data-closed="Ver productos y detalle">Ver productos y detalle</span></button><div class="xp" id="m3x" hidden><p class="d">Se carga al abrir.</p></div></li>
+      <li class="card canceled"><div class="main">
+        <div class="l1"><a class="f" href="#venta">S-000344</a><span class="tot">$380.00</span></div>
+        <span class="d">26 oct 2026 · Solicitud del cliente</span>
+        <div class="l3"><span class="badge ">Cancelada</span></div>
+      </div></li>
+    </ul>
+  </div><div class="ph-bar"><div class="row"><p class="grow sub"><b class="fig" style="color:var(--hf-ink)">1–10</b> de 23 ventas</p>
+      <div class="ph-pager" role="navigation" aria-label="Páginas del historial"><button class="btn" type="button" disabled aria-label="Página anterior"><svg class="icon sm" aria-hidden="true"><use href="#i-chev-l"/></svg></button><span class="pg">1 de 3</span><button class="btn" type="button" aria-label="Página siguiente"><svg class="icon sm" aria-hidden="true"><use href="#i-chev-r"/></svg></button></div></div></div></div></section><section class="ph-wrap" aria-label="Cliente cargando"><p><b>2 · Cliente cargando</b> · cabecera, etiquetas y buscador reales; esqueleto con la forma de las tarjetas</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar historial de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Historial de ventas</p><h2>Ana Sofía Treviño Garza</h2></div>
+    </header>
+  <div class="ph-body" aria-busy="true">
+    <p class="sr" role="status">Cargando el historial de ventas…</p>
+    <dl class="mk" aria-hidden="true"><div><dt>Ventas</dt><dd><span class="sk" style="width:40px;height:20px"></span></dd></div><div><dt>Total vendido</dt><dd><span class="sk" style="width:96px;height:20px"></span></dd></div><div class="full"><dt>Saldo pendiente</dt><dd><span class="sk" style="width:96px;height:20px"></span></dd></div></dl>
+    <div class="input disabled"><svg class="icon sm" aria-hidden="true"><use href="#i-search"/></svg><input type="search" placeholder="Buscar por folio" aria-label="Buscar ventas por folio" disabled></div>
+    <ul class="cards" aria-hidden="true"><li class="card"><div class="main"><div class="l1"><span class="sk" style="width:90px;height:16px"></span><span class="sk" style="width:72px;height:16px"></span></div><span class="sk" style="width:160px;height:12px;margin-top:4px"></span><span class="sk" style="width:120px;height:20px;margin-top:4px"></span></div></li><li class="card"><div class="main"><div class="l1"><span class="sk" style="width:90px;height:16px"></span><span class="sk" style="width:72px;height:16px"></span></div><span class="sk" style="width:160px;height:12px;margin-top:4px"></span><span class="sk" style="width:120px;height:20px;margin-top:4px"></span></div></li><li class="card"><div class="main"><div class="l1"><span class="sk" style="width:90px;height:16px"></span><span class="sk" style="width:72px;height:16px"></span></div><span class="sk" style="width:160px;height:12px;margin-top:4px"></span><span class="sk" style="width:120px;height:20px;margin-top:4px"></span></div></li><li class="card"><div class="main"><div class="l1"><span class="sk" style="width:90px;height:16px"></span><span class="sk" style="width:72px;height:16px"></span></div><span class="sk" style="width:160px;height:12px;margin-top:4px"></span><span class="sk" style="width:120px;height:20px;margin-top:4px"></span></div></li></ul>
+  </div></div></section><section class="ph-wrap" aria-label="Cliente sin ventas"><p><b>3 · Cliente sin ventas</b> · ceros reales, sin buscador ni filtros que no sirven</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar historial de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Historial de ventas</p><h2>Jorge Alberto Cantú</h2></div>
+    </header>
+  <div class="ph-body">
+    <dl class="mk"><div><dt>Ventas</dt><dd>0</dd></div><div><dt>Total vendido</dt><dd>$0.00</dd></div><div class="full"><dt>Saldo pendiente</dt><dd>$0.00</dd></div></dl>
+    <div class="empty"><svg class="icon lg" aria-hidden="true"><use href="#i-inbox"/></svg><h3>Aún no hay ventas</h3><p>Cuando Jorge tenga ventas confirmadas, aparecerán aquí con su saldo y sus productos.</p></div>
+  </div></div></section><section class="ph-wrap" aria-label="Mascota sin ventas"><p><b>4 · Mascota sin ventas</b> · el filtro queda visible y se quita con un toque; las métricas siguen siendo del cliente</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar historial de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Historial de ventas</p><h2>Ana Sofía Treviño Garza</h2></div>
+    </header>
+  <div class="ph-body">
+    <dl class="mk"><div><dt>Ventas</dt><dd>23</dd></div><div><dt>Total vendido</dt><dd>$18,460.50</dd></div><div class="full hot"><dt>Saldo pendiente</dt><dd>$1,284.00<small>de todo el cliente, no cambia con la mascota</small></dd></div></dl>
+    <div class="input"><svg class="icon sm" aria-hidden="true"><use href="#i-search"/></svg><input type="search" placeholder="Buscar por folio" aria-label="Buscar ventas por folio"></div>
+    <div class="chips" role="group" aria-label="Filtrar ventas por mascota" data-single><span class="chips-label"><svg class="icon sm" aria-hidden="true"><use href="#i-paw"/></svg>Mascota</span><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Todas</span></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Bruno</span></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Mishi</span></button><button type="button" class="chip" aria-pressed="true"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Canela</span><small>archivada</small></button></div>
+    <p class="petsum" style="display:flex;gap:8px;align-items:center;padding:8px 12px;border-radius:8px;background:var(--hf-active-soft);color:var(--hf-active);font-size:13px"><svg class="icon sm" aria-hidden="true"><use href="#i-paw"/></svg>Canela: 0 ventas · $0.00</p>
+    <div class="empty"><svg class="icon lg" aria-hidden="true"><use href="#i-paw"/></svg><h3>Canela aún no tiene ventas</h3><p>No hay ventas confirmadas con productos para esta mascota archivada.</p><button class="btn" type="button">Ver todas las ventas</button></div>
+  </div></div></section><section class="ph-wrap" aria-label="Error al cargar"><p><b>5 · Error al cargar</b> · qué falló, que no se cambió nada y cómo reintentar</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar historial de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Historial de ventas</p><h2>Ana Sofía Treviño Garza</h2></div>
+    </header>
+  <div class="ph-body">
+    <div class="empty error" role="alert"><svg class="icon lg" aria-hidden="true"><use href="#i-triangle"/></svg><h3>No se pudo cargar el historial</h3><p>Puede ser un problema temporal de conexión. No se modificó ninguna venta.</p><button class="btn" type="button">Reintentar</button></div>
+  </div></div></section><section class="ph-wrap" aria-label="Mascota borrada"><p><b>6 · La mascota se borró</b> · aviso en contexto, vuelve a «Todas» y recarga las mascotas</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar historial de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Historial de ventas</p><h2>Ana Sofía Treviño Garza</h2></div>
+    </header>
+  <div class="ph-body">
+    <dl class="mk"><div><dt>Ventas</dt><dd>23</dd></div><div><dt>Total vendido</dt><dd>$18,460.50</dd></div><div class="full hot"><dt>Saldo pendiente</dt><dd>$1,284.00<small class="warn-ink">2 ventas por cobrar</small></dd></div></dl>
+    <div class="input"><svg class="icon sm" aria-hidden="true"><use href="#i-search"/></svg><input type="search" placeholder="Buscar por folio" aria-label="Buscar ventas por folio"></div>
+    <div class="chips" role="group" aria-label="Filtrar ventas por mascota" data-single><span class="chips-label"><svg class="icon sm" aria-hidden="true"><use href="#i-paw"/></svg>Mascota</span><button type="button" class="chip" aria-pressed="true"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Todas</span></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Bruno</span></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Mishi</span></button></div>
+    <p class="notice warn" role="status"><svg class="icon " aria-hidden="true"><use href="#i-info"/></svg><span>Esa mascota ya no existe. Mostramos todas las ventas del cliente.</span></p>
+    <ul class="cards">
+      <li class="card owe-card"><div class="main">
+        <div class="l1"><a class="f" href="#venta">S-000412</a><span class="tot">$1,486.00</span></div>
+        <span class="d">22 nov 2026, 17:42 · Mostrador</span>
+        <div class="l3"><span class="badge warning">Impaga</span><span class="owe">Debe $786.00 · vence 6 dic</span></div>
+      </div><button class="more" type="button" data-toggle-card aria-expanded="false" aria-controls="m6x"><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg><span data-lbl data-open="Ocultar detalle" data-closed="Ver productos y detalle">Ver productos y detalle</span></button><div class="xp" id="m6x" hidden><p class="d">Se carga al abrir.</p></div></li>
+      <li class="card owe-card"><div class="main">
+        <div class="l1"><a class="f" href="#venta">S-000398</a><span class="tot">$498.00</span></div>
+        <span class="d">15 nov 2026, 11:08 · Mostrador</span>
+        <div class="l3"><span class="badge danger">Deuda</span><span class="owe">Debe $498.00 · venció 20 nov</span></div>
+      </div><button class="more" type="button" data-toggle-card aria-expanded="false" aria-controls="m7x"><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg><span data-lbl data-open="Ocultar detalle" data-closed="Ver productos y detalle">Ver productos y detalle</span></button><div class="xp" id="m7x" hidden><p class="d">Se carga al abrir.</p></div></li>
+    </ul>
+  </div><div class="ph-bar"><div class="row"><p class="grow sub"><b class="fig" style="color:var(--hf-ink)">1–10</b> de 23 ventas</p>
+      <div class="ph-pager" role="navigation" aria-label="Páginas del historial"><button class="btn" type="button" disabled aria-label="Página anterior"><svg class="icon sm" aria-hidden="true"><use href="#i-chev-l"/></svg></button><span class="pg">1 de 3</span><button class="btn" type="button" aria-label="Página siguiente"><svg class="icon sm" aria-hidden="true"><use href="#i-chev-r"/></svg></button></div></div></div></div></section>
+    <h2 class="row-title">Reporte del vendedor</h2>
+    <section class="ph-wrap" aria-label="Reporte del vendedor"><p><b>7 · Reporte del vendedor</b> · nombre largo e inactivo; el PDF queda fijo abajo como única acción primaria</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar el reporte de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Reporte de ventas · <span class="badge ">Inactivo</span></p><h2>José Antonio Villarreal de los Santos Garza</h2></div>
+    </header>
+  <div class="ph-body">
+    <button type="button" class="period-btn" aria-label="Cambiar periodo: Este mes, 1 – 30 nov 2026, ambos incluidos"><svg class="icon " aria-hidden="true"><use href="#i-calendar"/></svg><span class="grow"><b>Este mes</b><small>1 – 30 nov 2026, ambos incluidos</small></span><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg></button>
+    <p class="notice warn"><svg class="icon " aria-hidden="true"><use href="#i-info"/></svg><span>Este vendedor está inactivo; el reporte muestra las ventas que ya tenía confirmadas.</span></p>
+    <dl class="mk"><div class="full"><dt>Ventas netas · 38 ventas</dt><dd>$52,318.00</dd></div><div><dt>Cobrado</dt><dd>$47,902.50</dd></div><div class="hot"><dt>Saldo pendiente</dt><dd>$4,415.50</dd></div><div class="full"><dt>Ticket promedio</dt><dd>$1,376.79</dd></div></dl>
+    <details class="notice info"><summary style="cursor:pointer;list-style:none;display:flex;gap:8px;align-items:flex-start;min-height:24px"><svg class="icon " aria-hidden="true"><use href="#i-info"/></svg><span>Vendedor asignado hoy; cobros y saldos actuales. <span class="link-inline">Qué significa</span></span></summary><p style="margin:4px 0 0 24px">Si una venta se reasigna a otro vendedor, también cambia en los periodos anteriores de este reporte.</p></details>
+    <div class="chips" role="group" aria-label="Filtrar por estado de pago" data-single><button type="button" class="chip" aria-pressed="true"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Todas</span></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Pagadas</span></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">Parcial</span></button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck" aria-hidden="true"><use href="#i-check"/></svg><span class="t">A crédito</span></button></div>
+    <ul class="cards">
+      <li class="card"><div class="main">
+        <div class="l1"><a class="f" href="#venta">S-000352</a><span class="badge success">Pagada</span></div>
+        <span class="d">3 nov 2026, 09:14</span>
+        <dl class="figs"><div><dt>Total</dt><dd>$1,240.00</dd></div><div><dt>Pagado</dt><dd>$1,240.00</dd></div><div><dt>Saldo</dt><dd class="zero">$0.00</dd></div></dl>
+      </div></li>
+      <li class="card owe-card"><div class="main">
+        <div class="l1"><a class="f" href="#venta">S-000359</a><span class="badge warning">Parcial</span></div>
+        <span class="d">4 nov 2026, 16:02</span>
+        <dl class="figs"><div><dt>Total</dt><dd>$2,980.00</dd></div><div><dt>Pagado</dt><dd>$1,500.00</dd></div><div><dt>Saldo</dt><dd class="warn-ink">$1,480.00</dd></div></dl>
+      </div></li>
+      <li class="card owe-card"><div class="main">
+        <div class="l1"><a class="f" href="#venta">S-000368</a><span class="badge info">A crédito</span></div>
+        <span class="d">6 nov 2026, 18:20</span>
+        <dl class="figs"><div><dt>Total</dt><dd>$1,150.00</dd></div><div><dt>Pagado</dt><dd class="zero">$0.00</dd></div><div><dt>Saldo</dt><dd class="warn-ink">$1,150.00</dd></div></dl>
+      </div></li>
+    </ul>
+    <button class="btn block ghost" type="button" style="color:var(--hf-action)"><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg>Mostrar 35 ventas más</button>
+    <details class="disc"><summary><svg class="icon sm chev" aria-hidden="true"><use href="#i-chev-r"/></svg>Canceladas <span class="c">2 · no suman</span></summary><p class="sub" style="padding:4px 12px">S-000366 · $520.00 · cancelada 5 nov</p></details>
+  </div><div class="ph-bar"><p class="hint">El PDF se genera con una consulta nueva; puede diferir de lo que ves.</p><button class="btn primary block" type="button"><svg class="icon sm" aria-hidden="true"><use href="#i-download"/></svg>Descargar PDF</button></div></div></section><section class="ph-wrap" aria-label="Reporte cargando"><p><b>8 · Reporte cargando</b> · el periodo se ve pero no se cambia mientras carga; PDF deshabilitado con motivo</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar el reporte de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Reporte de ventas</p><h2>Luis Fernando Ortega</h2></div>
+    </header>
+  <div class="ph-body" aria-busy="true">
+    <p class="sr" role="status">Cargando el reporte de ventas…</p>
+    <button type="button" class="period-btn" disabled aria-label="Cambiar periodo: Este mes, 1 – 30 nov 2026, ambos incluidos"><svg class="icon " aria-hidden="true"><use href="#i-calendar"/></svg><span class="grow"><b>Este mes</b><small>1 – 30 nov 2026, ambos incluidos</small></span><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg></button>
+    <dl class="mk" aria-hidden="true"><div class="full"><dt>Ventas netas</dt><dd><span class="sk" style="width:120px;height:20px"></span></dd></div><div><dt>Cobrado</dt><dd><span class="sk" style="width:96px;height:20px"></span></dd></div><div><dt>Saldo pendiente</dt><dd><span class="sk" style="width:96px;height:20px"></span></dd></div></dl>
+    <ul class="cards" aria-hidden="true"><li class="card"><div class="main"><div class="l1"><span class="sk" style="width:90px;height:16px"></span><span class="sk" style="width:72px;height:16px"></span></div><span class="sk" style="width:160px;height:12px;margin-top:4px"></span><span class="sk" style="width:120px;height:20px;margin-top:4px"></span></div></li><li class="card"><div class="main"><div class="l1"><span class="sk" style="width:90px;height:16px"></span><span class="sk" style="width:72px;height:16px"></span></div><span class="sk" style="width:160px;height:12px;margin-top:4px"></span><span class="sk" style="width:120px;height:20px;margin-top:4px"></span></div></li><li class="card"><div class="main"><div class="l1"><span class="sk" style="width:90px;height:16px"></span><span class="sk" style="width:72px;height:16px"></span></div><span class="sk" style="width:160px;height:12px;margin-top:4px"></span><span class="sk" style="width:120px;height:20px;margin-top:4px"></span></div></li><li class="card"><div class="main"><div class="l1"><span class="sk" style="width:90px;height:16px"></span><span class="sk" style="width:72px;height:16px"></span></div><span class="sk" style="width:160px;height:12px;margin-top:4px"></span><span class="sk" style="width:120px;height:20px;margin-top:4px"></span></div></li></ul>
+  </div><div class="ph-bar"><p class="hint">Disponible cuando cargue el reporte.</p><button class="btn primary block" type="button" disabled><svg class="icon sm" aria-hidden="true"><use href="#i-download"/></svg>Descargar PDF</button></div></div></section><section class="ph-wrap" aria-label="Periodo sin ventas"><p><b>9 · Periodo sin ventas</b> · ceros reales y un atajo a un periodo más amplio</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar el reporte de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Reporte de ventas</p><h2>Luis Fernando Ortega</h2></div>
+    </header>
+  <div class="ph-body">
+    <button type="button" class="period-btn" aria-label="Cambiar periodo: Hoy, martes 24 nov 2026"><svg class="icon " aria-hidden="true"><use href="#i-calendar"/></svg><span class="grow"><b>Hoy</b><small>martes 24 nov 2026</small></span><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg></button>
+    <dl class="mk"><div class="full"><dt>Ventas netas · 0 ventas</dt><dd>$0.00</dd></div><div><dt>Cobrado</dt><dd>$0.00</dd></div><div><dt>Saldo pendiente</dt><dd>$0.00</dd></div></dl>
+    <div class="empty"><svg class="icon lg" aria-hidden="true"><use href="#i-inbox"/></svg><h3>Sin ventas confirmadas hoy</h3><p>Luis Fernando no tiene ventas confirmadas ni canceladas en este periodo.</p><button class="btn" type="button">Ver este mes</button></div>
+  </div><div class="ph-bar"><p class="hint">El PDF se genera con una consulta nueva; puede diferir de lo que ves.</p><button class="btn primary block" type="button"><svg class="icon sm" aria-hidden="true"><use href="#i-download"/></svg>Descargar PDF</button></div></div></section><section class="ph-wrap" aria-label="Límite de filas"><p><b>10 · Periodo demasiado grande</b> · error del servidor con la cifra exacta y la salida</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar el reporte de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Reporte de ventas</p><h2>Luis Fernando Ortega</h2></div>
+    </header>
+  <div class="ph-body">
+    <button type="button" class="period-btn" aria-label="Cambiar periodo: Personalizado, 1 ene – 30 nov 2026, ambos incluidos"><svg class="icon " aria-hidden="true"><use href="#i-calendar"/></svg><span class="grow"><b>Personalizado</b><small>1 ene – 30 nov 2026, ambos incluidos</small></span><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg></button>
+    <div class="empty error" role="alert"><svg class="icon lg" aria-hidden="true"><use href="#i-triangle"/></svg><h3>No se pudo cargar el reporte</h3><p>El reporte supera el límite de 1,000 filas: el periodo tiene 1,284 ventas. Reduce el periodo e inténtalo de nuevo.</p><button class="btn" type="button">Cambiar periodo</button></div>
+  </div><div class="ph-bar"><p class="hint">Elige un periodo con menos de 1,000 ventas para descargar el PDF.</p><button class="btn primary block" type="button" disabled><svg class="icon sm" aria-hidden="true"><use href="#i-download"/></svg>Descargar PDF</button></div></div></section><section class="ph-wrap" aria-label="Elegir periodo"><p><b>11 · Elegir periodo</b> · hoja inferior con atajos y fechas con el último día incluido; error junto al campo</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar el reporte de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Reporte de ventas</p><h2>Luis Fernando Ortega</h2></div>
+    </header>
+  <div class="ph-body">
+    <button type="button" class="period-btn" aria-label="Cambiar periodo: Este mes, 1 – 30 nov 2026, ambos incluidos"><svg class="icon " aria-hidden="true"><use href="#i-calendar"/></svg><span class="grow"><b>Este mes</b><small>1 – 30 nov 2026, ambos incluidos</small></span><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg></button>
+    <dl class="mk"><div class="full"><dt>Ventas netas · 38 ventas</dt><dd>$52,318.00</dd></div><div><dt>Cobrado</dt><dd>$47,902.50</dd></div><div class="hot"><dt>Saldo pendiente</dt><dd>$4,415.50</dd></div></dl>
+  </div>
+  <div class="sheet-scrim" aria-hidden="true"></div>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-t">
+    <span class="grab" aria-hidden="true"></span>
+    <h3 id="sh-t">Periodo del reporte</h3>
+    <div class="opts" role="radiogroup" aria-label="Periodos rápidos">
+      <button class="opt" role="radio" aria-checked="false" type="button"><span class="grow">Hoy <small>· 24 nov</small></span><span class="mark"></span></button>
+      <button class="opt" role="radio" aria-checked="false" type="button"><span class="grow">Últimos 7 días <small>· 18 – 24 nov</small></span><span class="mark"></span></button>
+      <button class="opt" role="radio" aria-checked="false" type="button"><span class="grow">Este mes <small>· 1 – 30 nov</small></span><span class="mark"></span></button>
+      <button class="opt" role="radio" aria-checked="false" type="button"><span class="grow">Mes anterior <small>· 1 – 31 oct</small></span><span class="mark"></span></button>
+      <button class="opt" role="radio" aria-checked="true" type="button"><span class="grow">Personalizado</span><span class="mark"><svg class="icon " aria-hidden="true"><use href="#i-check"/></svg></span></button>
+    </div>
+    <div class="two">
+      <div class="field"><label for="d1">Desde</label><div class="input"><input id="d1" value="10/11/2026" aria-describedby="dh"></div></div>
+      <div class="field"><label for="d2">Hasta (incluido)</label><div class="input" style="border-color:var(--hf-danger)"><input id="d2" value="05/11/2026" aria-invalid="true" aria-describedby="dh de"></div></div>
+    </div>
+    <p class="errline" id="de"><svg class="icon " aria-hidden="true"><use href="#i-alert"/></svg><span>«Hasta» debe ser igual o posterior a «Desde».</span></p>
+    <p class="hint" id="dh">Se incluyen los dos días. Máximo 366 días.</p>
+    <div class="two"><button class="btn" type="button">Cancelar</button><button class="btn primary" type="button" disabled>Aplicar</button></div>
+  </div></div></section><section class="ph-wrap" aria-label="PDF fallido"><p><b>12 · Actualizando y PDF fallido</b> · los datos anteriores quedan visibles mientras se actualiza; el error queda junto al botón</p><div class="phone"><header class="ph-top">
+      <button class="icon-btn" type="button" aria-label="Cerrar el reporte de ventas"><svg class="icon " aria-hidden="true"><use href="#i-x"/></svg></button>
+      <div class="who"><p class="meta">Reporte de ventas</p><h2>Luis Fernando Ortega</h2></div>
+    </header>
+  <div class="ph-body">
+    <button type="button" class="period-btn" aria-label="Cambiar periodo: Este mes, 1 – 30 nov 2026, ambos incluidos"><svg class="icon " aria-hidden="true"><use href="#i-calendar"/></svg><span class="grow"><b>Este mes</b><small>1 – 30 nov 2026, ambos incluidos</small></span><svg class="icon sm" aria-hidden="true"><use href="#i-chev-d"/></svg></button>
+    <dl class="mk"><div class="full"><dt>Ventas netas · 38 ventas</dt><dd>$52,318.00</dd></div><div><dt>Cobrado</dt><dd>$47,902.50</dd></div><div class="hot"><dt>Saldo pendiente</dt><dd>$4,415.50</dd></div><div class="full"><dt>Ticket promedio</dt><dd>$1,376.79</dd></div></dl>
+    <p class="notice info" role="status" aria-live="polite"><svg class="icon sm spin" aria-hidden="true"><use href="#i-loader"/></svg><span>Actualizando el reporte…</span></p>
+    <ul class="cards" style="opacity:.6">
+      <li class="card"><div class="main">
+        <div class="l1"><a class="f" href="#venta">S-000352</a><span class="badge success">Pagada</span></div>
+        <span class="d">3 nov 2026, 09:14</span>
+        <dl class="figs"><div><dt>Total</dt><dd>$1,240.00</dd></div><div><dt>Pagado</dt><dd>$1,240.00</dd></div><div><dt>Saldo</dt><dd class="zero">$0.00</dd></div></dl>
+      </div></li>
+      <li class="card owe-card"><div class="main">
+        <div class="l1"><a class="f" href="#venta">S-000359</a><span class="badge warning">Parcial</span></div>
+        <span class="d">4 nov 2026, 16:02</span>
+        <dl class="figs"><div><dt>Total</dt><dd>$2,980.00</dd></div><div><dt>Pagado</dt><dd>$1,500.00</dd></div><div><dt>Saldo</dt><dd class="warn-ink">$1,480.00</dd></div></dl>
+      </div></li>
+    </ul>
+  </div><div class="ph-bar"><p class="errline" role="alert"><svg class="icon " aria-hidden="true"><use href="#i-triangle"/></svg><span>No pudimos descargar el PDF del reporte. Inténtalo de nuevo en unos segundos.</span></p><button class="btn primary block" type="button"><svg class="icon sm" aria-hidden="true"><use href="#i-download"/></svg>Reintentar descarga</button></div></div></section>
+  </div>
+</main>
+<script>
+(() => {
+// Shared artboard behavior: theme, notes sheet, expandable rows, single-choice chips and segments.
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+
+const themeBtn = $('#t-theme');
+function paintTheme() {
+  const dark = document.documentElement.classList.contains('dark');
+  themeBtn.setAttribute('aria-pressed', String(dark));
+  themeBtn.lastChild.textContent = dark ? 'Tema oscuro' : 'Tema claro';
+}
+themeBtn?.addEventListener('click', () => { document.documentElement.classList.toggle('dark'); paintTheme(); });
+if (themeBtn) paintTheme();
+
+const notesBtn = $('#t-notes');
+const notes = $('#notes');
+notesBtn?.addEventListener('click', () => {
+  const open = notes.hidden;
+  notes.hidden = !open;
+  notesBtn.setAttribute('aria-expanded', String(open));
+  if (open) notes.focus();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && notes && !notes.hidden) { notes.hidden = true; notesBtn.setAttribute('aria-expanded', 'false'); notesBtn.focus(); }
+});
+
+// Expandable rows: the chevron button owns aria-expanded; clicking the row toggles too.
+function toggleRow(row) {
+  const btn = $('.xbtn', row);
+  const panel = document.getElementById(btn.getAttribute('aria-controls'));
+  const open = btn.getAttribute('aria-expanded') !== 'true';
+  btn.setAttribute('aria-expanded', String(open));
+  row.classList.toggle('open', open);
+  if (panel) panel.hidden = !open;
+}
+$$('tr.row').forEach((row) => {
+  row.addEventListener('click', (e) => {
+    if (e.target.closest('a, .btn, .chip')) return;
+    if ($('.xbtn', row)) toggleRow(row);
+  });
+});
+$$('[data-toggle-card]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const panel = document.getElementById(btn.getAttribute('aria-controls'));
+    const open = btn.getAttribute('aria-expanded') !== 'true';
+    btn.setAttribute('aria-expanded', String(open));
+    if (panel) panel.hidden = !open;
+    const lbl = btn.querySelector('[data-lbl]');
+    if (lbl) lbl.textContent = open ? lbl.dataset.open : lbl.dataset.closed;
+  });
+});
+
+// Single-choice chip groups and segmented controls (visual only; the data stays as drawn).
+$$('[data-single]').forEach((group) => {
+  group.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b || !group.contains(b)) return;
+    $$('button', group).forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    const target = group.dataset.single && document.getElementById(group.dataset.single);
+    if (target && b.dataset.show) {
+      $$('[data-view]', target).forEach((v) => { v.hidden = v.dataset.view !== b.dataset.show; });
+    }
+  });
+});
+
+})();
+</script>
+</body>
+</html>
