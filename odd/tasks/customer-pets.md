@@ -16,8 +16,8 @@ Owner, chatbot and backend agreed the contract (backend `docs/proposals/customer
 - [x] T2 S4 Customer search via `GET /customers?search=` + `matchedPetName` in the customers list and the POS customer picker — worker B — 239a8e2c (desktop hint in ff99efbc)
 - [x] T3 S2, S5 Pet on sale lines: line pet picker in the draft, «Para: X» in draft and sale detail, `petsCleared` notice, DELETE customer refetch, errors — worker C (after T1) — fdebc112
 - [x] T4 S6 Customer sales history filtered by pet (KPIs customer-wide) — worker D (after T1) — ff99efbc, merge 13c0f02c
-- [ ] T5 S1-S6 Independent verification (Risk: item 2 permission gating, item 1 real erasure) — gentle-ai-verify
-- [ ] T6 S7 Live check, full suite, browser, merge to local main — parent
+- [x] T5 S1-S6 Independent verification (Risk: item 2 permission gating, item 1 real erasure) — gentle-ai-verify
+- [x] T6 S7 Live check, full suite, browser, merge to local main — parent
 
 ## Log
 - L1 Owner (2026-11-23): «1. esta bien tu recomendacion para la v1. 2. si, esta bien, tu recomendacion.» then, asked how to start: «Arrancar ya, todo el v1 (Recomendado)».
@@ -33,3 +33,4 @@ Owner, chatbot and backend agreed the contract (backend `docs/proposals/customer
 - L11 Native review of the fix round 7142c394 alone (base 2e6091dc, risk + reliability, escalate item 2): APPROVED, authority burned (lineage review-5bf7511ebfa91c46). Advisory suggestions (tests only): R3-archive-errors-reset-untested (CustomerPetsSection.vue:92-95, reopening the archive dialog clears a stale reason error — untested); R3-picker-nonarchived-missing-untested (SaleLinePetPicker.vue:28, plain-name branch and no-duplicate case untested).
 - L12 T6 full checks: type-check 0, eslint 0, build OK; full suite 1 failure — native-controls-guard: CustomerPetFormModal used a native date input. Fixed with DateFieldPopover (min 1950-01-01; future dates still rejected by validatePetForm and the server); guard + customers 28 files / 322 tests green, type-check 0.
 - L13 Full suite after the date picker fix: 1092 files / 18400 tests green. Waiting for the owner's live browser check against :3003 (S7) before merging to local main.
+- L14 Owner (2026-11-24) after the live browser check against :3003 as admin: «Bien hemrnao, me parece perfecto, y la verdad es que todo me gusta demasiado, quedo increible. si quieres podemos mergearlo ya, faltaria la prueba con el chatbot real en produccion, pero eso lo hago despues». S7 accepted; merged to local main (owner pushes). Pending (owner): real chatbot test in production.
