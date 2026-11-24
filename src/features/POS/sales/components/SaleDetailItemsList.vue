@@ -5,6 +5,7 @@ import { formatCentsMXN } from '../utils/currency.utils'
 import type { SaleDetailItem } from '../interfaces/sale.types'
 import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 import SaleItemBadges from './SaleItemBadges.vue'
+import SaleLinePetLabel from './SaleLinePetLabel.vue'
 
 const props = defineProps<{
   items: SaleDetailItem[]
@@ -54,6 +55,7 @@ const itemsView = computed(() =>
       >
         <p class="line-clamp-2 text-sm font-semibold text-(--hf-heading)">{{ item.productName }}</p>
         <p v-if="item.variantName" class="text-[13px] text-(--hf-muted)">{{ item.variantName }}</p>
+        <SaleLinePetLabel v-if="item.pet" :pet="item.pet" />
         <div class="flex items-baseline justify-between gap-3 text-sm">
           <span class="text-(--hf-muted) tabular-nums">
             {{ item.quantity }} × {{ formatCentsMXN(item.unitPriceCents) }}
@@ -129,6 +131,7 @@ const itemsView = computed(() =>
                 {{ formatCentsMXN(item.prePriceCentsBeforeDiscount ?? 0) }}
               </span>
             </p>
+            <SaleLinePetLabel v-if="item.pet" :pet="item.pet" />
             <SaleItemBadges
               class="mt-1"
               :portal-class="portalClass"

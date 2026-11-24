@@ -13,9 +13,10 @@ import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { productApi } from '@/features/POS/products/api/product.api'
 import { customerApi } from '../api/customer.api'
 import CustomerMobileCard from '../components/CustomerMobileCard.vue'
+import CustomerPetsSlideover from '../components/CustomerPetsSlideover.vue'
 import CustomerSalesHistorySlideover from '../components/CustomerSalesHistorySlideover.vue'
 import CustomerUpsertSlideover from '../components/CustomerUpsertSlideover.vue'
-import { useCustomerColumns } from '../composables/useCustomerColumns'
+import { formatPetMatchHint, useCustomerColumns } from '../composables/useCustomerColumns'
 import {
   CUSTOMER_HAS_ACTIVE_BACKORDERS_MESSAGE,
   isCustomerHasActiveBackordersError,
@@ -48,6 +49,7 @@ const { columns } = useCustomerColumns()
 const canCreate = computed(() => authStore.userCan('create', 'Customer'))
 const canUpdate = computed(() => authStore.userCan('update', 'Customer'))
 const canDelete = computed(() => authStore.userCan('delete', 'Customer'))
+const canReadCustomer = computed(() => authStore.userCan('read', 'Customer'))
 const canReadSales = computed(() => authStore.userCan('read', 'Sale'))
 
 const {
@@ -476,10 +478,23 @@ function handleOpenHistory(customer: Customer) {
   isHistoryOpen.value = true
 }
 
+// ── Pets entry (handoff 27): listing needs read:Customer ────────────────────────
+const petsCustomer = shallowRef<Customer | null>(null)
+const isPetsOpen = shallowRef(false)
+
+function handleOpenPets(customer: Customer) {
+  if (!canReadCustomer.value) return
+  petsCustomer.value = customer
+  isPetsOpen.value = true
+}
+
 // ── Row actions (⋮ menu in the table, same menu on the mobile card) ──────────
 function actionsFor(): RowAction[] {
   return [
     ...(canUpdate.value ? [{ key: 'edit', label: 'Editar', icon: 'i-lucide-pencil' }] : []),
+    ...(canReadCustomer.value
+      ? [{ key: 'pets', label: 'Mascotas', icon: 'i-lucide-paw-print' }]
+      : []),
     ...(canReadSales.value
       ? [{ key: 'history', label: 'Ver historial de ventas', icon: 'i-lucide-receipt-text' }]
       : []),
@@ -491,6 +506,7 @@ function actionsFor(): RowAction[] {
 
 function handleRowAction(key: string, customer: Customer) {
   if (key === 'edit') void handleOpenEdit(customer)
+  else if (key === 'pets') handleOpenPets(customer)
   else if (key === 'history') handleOpenHistory(customer)
   else if (key === 'delete') void handleDelete(customer)
 }
@@ -538,6 +554,7 @@ function clearFilters() {
       :loading="isSubmitting"
       :errors="formErrors"
       :customer="selectedCustomer"
+      :show-pets="true"
       @edit="handleEditSubmit"
       @create-address="handleCreateAddress"
       @update-address="handleUpdateAddress"
@@ -557,6 +574,8 @@ function clearFilters() {
     />
 
     <CustomerSalesHistorySlideover v-model:open="isHistoryOpen" :customer="historyCustomer" />
+
+    <CustomerPetsSlideover v-model:open="isPetsOpen" :customer="petsCustomer" />
 
     <section
       class="hf-theme hf-ui clients-visual flex w-full min-w-0 flex-col gap-6"
@@ -621,18 +640,26 @@ function clearFilters() {
                   :name="row.original.fullName"
                   aria-hidden="true"
                 />
-                <button
-                  v-if="canUpdate"
-                  type="button"
-                  class="hf-row-primary text-left"
-                  data-testid="customer-name"
-                  @click="handleOpenEdit(row.original)"
-                >
-                  {{ row.original.fullName }}
-                </button>
-                <span v-else class="hf-row-primary" data-testid="customer-name">{{
-                  row.original.fullName
-                }}</span>
+                <div class="flex min-w-0 flex-col items-start">
+                  <button
+                    v-if="canUpdate"
+                    type="button"
+                    class="hf-row-primary text-left"
+                    data-testid="customer-name"
+                    @click="handleOpenEdit(row.original)"
+                  >
+                    {{ row.original.fullName }}
+                  </button>
+                  <span v-else class="hf-row-primary" data-testid="customer-name">{{
+                    row.original.fullName
+                  }}</span>
+                  <span
+                    v-if="formatPetMatchHint(row.original)"
+                    class="text-[13px] text-muted"
+                    data-testid="customer-pet-match"
+                    >{{ formatPetMatchHint(row.original) }}</span
+                  >
+                </div>
               </div>
             </template>
 

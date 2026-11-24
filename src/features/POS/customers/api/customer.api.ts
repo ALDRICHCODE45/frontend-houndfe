@@ -36,6 +36,7 @@ function mapCustomer(item: CustomerBackendResponse): Customer {
     globalPriceListId: item.globalPriceListId ?? item.globalPriceList?.id ?? null,
     globalPriceListName: item.globalPriceList?.name ?? null,
     comments: item.comments ?? null,
+    matchedPetName: item.matchedPetName ?? null,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   }
@@ -79,6 +80,7 @@ function mapCustomerDetail(item: CustomerBackendResponse): CustomerDetail {
     billingCity: item.billingCity ?? null,
     billingState: item.billingState ?? null,
     addresses: (item.addresses ?? []).map(mapAddress),
+    ...(typeof item.activePetsCount === 'number' ? { activePetsCount: item.activePetsCount } : {}),
   }
 }
 
@@ -101,18 +103,11 @@ function mapArrayResponse<T>(response: T[] | { data: T[] }): T[] {
   return Array.isArray(response) ? response : response.data
 }
 
-function applyLocalFilters(rows: Customer[], params: ServerTableParams): Customer[] {
-  let filtered = [...rows]
-
-  if (params.globalFilter) {
-    const search = params.globalFilter.toLowerCase().trim()
-    filtered = filtered.filter((row) => {
-      return [row.fullName, row.email ?? '', row.phone ?? '']
-        .join(' ')
-        .toLowerCase()
-        .includes(search)
-    })
-  }
+// The search term is filtered by the server (`GET /customers?search=`, handoff 27
+// §4), pets included, so it is never re-filtered here: a customer matched only
+// through a pet name has no own field containing the term. Only sorting is local.
+function applyLocalSorting(rows: Customer[], params: ServerTableParams): Customer[] {
+  const filtered = [...rows]
 
   if (params.sorting?.length) {
     const sort = params.sorting[0]
@@ -138,6 +133,8 @@ export const customerApi = {
   async getPaginated(params: ServerTableParams): Promise<PaginatedResponse<Customer>> {
     const page = params.pageIndex + 1
     const limit = params.pageSize
+    // Trimmed; omitted when empty so a caller without a term gets every customer.
+    const search = params.globalFilter?.trim() ?? ''
 
     const { data } = await http.get<CustomerBackendListResponse | CustomerBackendResponse[]>(
       '/customers',
@@ -145,12 +142,7 @@ export const customerApi = {
         params: {
           page,
           limit,
-          ...(params.globalFilter
-            ? {
-                search: params.globalFilter,
-                q: params.globalFilter,
-              }
-            : {}),
+          ...(search ? { search } : {}),
           ...(params.sorting?.[0]
             ? {
                 sortBy: params.sorting[0].id,
@@ -169,7 +161,7 @@ export const customerApi = {
     }
 
     const rows = data.map(mapCustomer)
-    const filteredRows = applyLocalFilters(rows, params)
+    const filteredRows = applyLocalSorting(rows, params)
     const totalCount = filteredRows.length
     const pageCount = Math.ceil(totalCount / params.pageSize) || 1
     const start = params.pageIndex * params.pageSize

@@ -440,11 +440,18 @@ export function useSalesDrafts() {
     productId: string,
     variantId: string | null,
     qty: number = 1,
+    // Handoff 27 §5.1: sent only when given; absent keeps the pet of a stacked line.
+    petId?: string | null,
   ): Promise<Sale> => {
     if (!activeTabId.value) throw new Error('No active tab')
     return await addItemMutation.mutateAsync({
       saleId: activeTabId.value,
-      payload: { productId, variantId, quantity: qty },
+      payload: {
+        productId,
+        variantId,
+        quantity: qty,
+        ...(petId !== undefined ? { petId } : {}),
+      },
     })
   }
 

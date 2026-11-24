@@ -23,6 +23,7 @@ import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActi
 import { HfSwitchRow } from '@/core/shared/components/selection'
 import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 import AddressModal from './AddressModal.vue'
+import CustomerPetsSection from './CustomerPetsSection.vue'
 import AddressLocationStatus from '@/core/shared/components/AddressLocationStatus.vue'
 import { formatAddress } from '@/core/shared/utils/formatAddress'
 
@@ -39,6 +40,8 @@ const props = withDefaults(
      * APPENDED to this wrapper's own portal class, never swapped for it.
      */
     portalClass?: string
+    /** Opt-in «Mascotas» tab (edit mode only); the sale path does not pass it. */
+    showPets?: boolean
   }>(),
   {
     loading: false,
@@ -46,6 +49,7 @@ const props = withDefaults(
     globalPriceLists: () => [],
     errors: () => ({}),
     portalClass: undefined,
+    showPets: false,
   },
 )
 
@@ -97,10 +101,31 @@ const { schema, state, resetForm, setState } = useCustomerForm()
 // ── Tabs ───────────────────────────────────────────────────
 const activeTab = ref('basic')
 
-const tabs = [
+const petsTabVisible = computed(() => props.showPets && props.mode === 'edit' && !!props.customer)
+
+/**
+ * `activePetsCount` of `GET /customers/:id` (handoff 27 §4.1), read loosely so the tab works whether
+ * or not the detail type declares it yet; the section reports the live count after each write.
+ */
+const liveActivePets = ref<number | null>(null)
+const detailActivePets = computed(() => {
+  const count = (props.customer as { activePetsCount?: unknown } | null)?.activePetsCount
+  return typeof count === 'number' ? count : null
+})
+const activePets = computed(() => liveActivePets.value ?? detailActivePets.value)
+
+const tabs = computed(() => [
   { label: 'Datos básicos', value: 'basic' },
   { label: 'Datos de facturación', value: 'billing' },
-]
+  ...(petsTabVisible.value
+    ? [
+        {
+          label: activePets.value === null ? 'Mascotas' : `Mascotas (${activePets.value})`,
+          value: 'pets',
+        },
+      ]
+    : []),
+])
 
 // ── Address modal ──────────────────────────────────────────
 const isAddressModalOpen = ref(false)
@@ -157,6 +182,7 @@ watch(
 
     activeTab.value = 'basic'
     pendingAddresses.value = []
+    liveActivePets.value = null
 
     if (mode === 'edit' && props.customer && customerId) {
       setState(customerToFormInput(props.customer))
@@ -464,6 +490,17 @@ function handleCancel() {
             </UForm>
           </div>
 
+          <!-- ── Tab: Mascotas (handoff 27) ─────────────────── -->
+          <div v-else-if="item.value === 'pets' && customer" class="flex flex-col gap-4 pt-4">
+            <HfSectionCard title="Mascotas" class="sales-pos-customer-form-section">
+              <CustomerPetsSection
+                :customer-id="customer.id"
+                :active-pets-count="detailActivePets"
+                @update:active-count="liveActivePets = $event"
+              />
+            </HfSectionCard>
+          </div>
+
           <!-- ── Tab: Datos de facturación ────────────────── -->
           <div v-else-if="item.value === 'billing'" class="flex flex-col gap-4 pt-4">
             <HfSectionCard title="Datos fiscales" class="sales-pos-customer-form-section">
@@ -682,7 +719,8 @@ function handleCancel() {
 <style scoped>
 .customer-tabs :deep([role='tablist']) {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
   width: 100%;
 }
 

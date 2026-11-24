@@ -691,6 +691,39 @@ describe('SaleDetailView', () => {
       )
     })
 
+    // customer-pets S2 (owner): «Para: <nombre>» shows in the sale detail, never on the printed
+    // ticket. The ticket is the server PDF; the POS asks for it by sale and format only.
+    it('a line with a pet shows «Para: Bruno» in the detail while the ticket request stays format-only', async () => {
+      vi.mocked(saleApi.getPdfBlob).mockResolvedValue(
+        new Blob(['%PDF'], { type: 'application/pdf' }),
+      )
+      const petLine = {
+        productName: 'Croquetas',
+        variantName: null,
+        imageUrl: null,
+        unitPriceCents: 10000,
+        quantity: 1,
+        discountCents: 0,
+        subtotalCents: 10000,
+        pet: { id: 'p1', name: 'Bruno', species: 'DOG', status: 'ACTIVE' },
+      }
+
+      const wrapper = mountWithDropdown({
+        ...defaultSale,
+        items: [petLine] as unknown as typeof defaultSale.items,
+      })
+      expect(wrapper.text()).toContain('Para: Bruno')
+
+      triggerPreviewPdf(wrapper, 'Recibo ticket')
+      await nextTick()
+      await nextTick()
+
+      const call = vi.mocked(saleApi.getPdfBlob).mock.calls[0]!
+      expect(call.slice(0, 2)).toEqual(['sale-1', 'receipt-ticket'])
+      expect(Object.keys(call[2] ?? {})).toEqual(['signal'])
+      expect(JSON.stringify(call[2])).not.toContain('Bruno')
+    })
+
     it('shows an info toast with download fallback when window.open returns null (popup blocked)', async () => {
       vi.mocked(saleApi.getPdfBlob).mockResolvedValue(
         new Blob(['%PDF'], { type: 'application/pdf' }),

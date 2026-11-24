@@ -1,9 +1,12 @@
-import { describe, it, expect } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { describe, it, expect, vi } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
 import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
 import PromotionConditionsSection from '../PromotionConditionsSection.vue'
 import type { PromotionFormState } from '../../interfaces/promotion.types'
 import { getInitialState } from '../../composables/usePromotionForm'
+
+const customerApi = vi.hoisted(() => ({ getPaginated: vi.fn() }))
+vi.mock('@/features/POS/customers/api/customer.api', () => ({ customerApi }))
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -326,6 +329,42 @@ describe('PromotionConditionsSection', () => {
       menu.vm.$emit('update:searchTerm', 'ana')
       await wrapper.vm.$nextTick()
       expect(menu.props('searchTerm')).toBe('ana')
+    })
+
+    it('says why a customer matched by a pet name (formatPetMatchHint)', async () => {
+      customerApi.getPaginated.mockResolvedValue({
+        data: [
+          {
+            id: 'c1',
+            firstName: 'Ana',
+            lastName: 'Pérez',
+            fullName: 'Ana Pérez',
+            matchedPetName: 'Bruno',
+          },
+          {
+            id: 'c2',
+            firstName: 'Bruno',
+            lastName: 'Díaz',
+            fullName: 'Bruno Díaz',
+            matchedPetName: null,
+          },
+        ],
+      })
+      const wrapper = mountSection(makeState({ customerScope: 'SPECIFIC' }))
+      const menu = wrapper
+        .get('[data-testid="customer-search-section"]')
+        .findComponent({ name: 'SelectMenu' })
+      menu.vm.$emit('update:searchTerm', 'bruno')
+      await vi.waitFor(async () => {
+        await flushPromises()
+        expect(menu.props('items')).toHaveLength(2)
+      })
+      const [byPet, byName] = menu.props('items') as { label: string; description?: string }[]
+      expect(byPet).toMatchObject({
+        label: 'Ana Pérez',
+        description: 'Bruno (mascota de Ana Pérez)',
+      })
+      expect(byName!.description).toBeUndefined()
     })
   })
 })

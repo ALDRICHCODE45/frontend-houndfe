@@ -20,6 +20,7 @@ import type {
   DebtPaymentPayload,
   DebtPaymentResponse,
   AssignCustomerPayload,
+  AssignCustomerResponse,
   AssignShippingAddressPayload,
   AssignSellerPayload,
   SetDueDatePayload,
@@ -34,6 +35,7 @@ import type {
   UpdatePaymentReferencePayload,
   UpdatedPaymentReference,
   ActivePaymentMethodProjection,
+  SetSaleItemPetPayload,
 } from '../interfaces/sale.types'
 import { SaleCommentError } from '../interfaces/sale.types'
 import { parseSaleDetail } from '../interfaces/sale-detail.schema'
@@ -155,6 +157,14 @@ export const saleApi = {
     return data
   },
 
+  // Handoff 27 §5.2: change (UUID) or clear (`null`) the pet of one line; answers the full draft.
+  async setItemPet(saleId: string, itemId: string, payload: SetSaleItemPetPayload): Promise<Sale> {
+    const { data } = await http.put<Sale>(`/sales/drafts/${saleId}/items/${itemId}/pet`, {
+      petId: payload.petId,
+    })
+    return data
+  },
+
   async getAvailablePrices(saleId: string, itemId: string): Promise<AvailablePricesResponse> {
     const { data } = await http.get<AvailablePricesResponse>(
       `/sales/drafts/${saleId}/items/${itemId}/available-prices`,
@@ -206,9 +216,16 @@ export const saleApi = {
     clearSuppressedPromotions(saleId)
   },
 
-  async assignCustomer(saleId: string, payload: AssignCustomerPayload): Promise<Sale> {
-    const { data } = await http.put<Sale>(`/sales/drafts/${saleId}/customer`, payload)
-    return data
+  // Handoff 27 §5.3: a response from before the field reads `petsCleared: false`.
+  async assignCustomer(
+    saleId: string,
+    payload: AssignCustomerPayload,
+  ): Promise<AssignCustomerResponse> {
+    const { data } = await http.put<Sale & { petsCleared?: unknown }>(
+      `/sales/drafts/${saleId}/customer`,
+      payload,
+    )
+    return { ...data, petsCleared: data.petsCleared === true }
   },
 
   async unassignCustomer(saleId: string): Promise<void> {

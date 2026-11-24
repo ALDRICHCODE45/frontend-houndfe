@@ -6,6 +6,7 @@ import type { CustomerScope, DayOfWeek, PromotionFormState } from '../interfaces
 import { DAY_OPTIONS, CUSTOMER_SCOPE_OPTIONS } from '../composables/usePromotionForm'
 import { usePromotionPriceLists } from '../composables/usePromotionPriceLists'
 import { CUSTOMER_SCOPE } from '../constants/promotion.constants'
+import { formatPetMatchHint } from '@/features/POS/customers/composables/useCustomerColumns'
 import HfSectionCard from '@/core/shared/components/form/HfSectionCard.vue'
 import HfSegmented from '@/core/shared/components/form/HfSegmented.vue'
 import HfCombobox from '@/core/shared/components/form/HfCombobox.vue'
@@ -55,12 +56,16 @@ const { data: customerResults } = useQuery({
     customerSearchQuery.value.length > 0,
 })
 
-// Map customers to SelectMenu format
+// Map customers to SelectMenu format; a match by pet name says why (handoff 27 §4).
 const customerItems = computed(() =>
-  (customerResults.value ?? []).map((customer) => ({
-    value: customer.id,
-    label: `${customer.firstName} ${customer.lastName ?? ''}`.trim(),
-  })),
+  (customerResults.value ?? []).map((customer) => {
+    const petHint = formatPetMatchHint(customer)
+    return {
+      value: customer.id,
+      label: `${customer.firstName} ${customer.lastName ?? ''}`.trim(),
+      ...(petHint ? { description: petHint } : {}),
+    }
+  }),
 )
 
 // ── Price list search ─────────────────────────────────────────────────────────

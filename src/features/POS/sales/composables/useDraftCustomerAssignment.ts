@@ -7,6 +7,11 @@ import { saleQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import type { DraftCustomerAssignmentErrorCode, Sale } from '../interfaces/sale.types'
 import { replaceSaleInCache } from './useSalesDrafts'
+import { PETS_CLEARED_NOTICE } from '../utils/saleLinePet.utils'
+
+declare const useToast: () => {
+  add: (options: { title: string; description?: string; color?: 'warning' }) => void
+}
 
 interface DomainErrorResponse {
   error?: string
@@ -46,8 +51,7 @@ export function useDraftCustomerAssignment(saleId: MaybeRefOrGetter<string>) {
   const tenantId = useSafeTenantId()
   const lastError = ref<DraftCustomerAssignmentError | null>(null)
   const draftsKey = computed(() => saleQueryKeys.drafts(tenantId.value))
-
-
+  const toast = useToast()
 
   const assignCustomerMutation = useMutation({
     mutationFn: async ({ customerId, preserveShipping }: { customerId: string; preserveShipping?: boolean }) => {
@@ -68,10 +72,14 @@ export function useDraftCustomerAssignment(saleId: MaybeRefOrGetter<string>) {
         throw parseAssignmentError(error) ?? error
       }
     },
-    onSuccess: async (updatedSale) => {
+    onSuccess: async ({ petsCleared, ...updatedSale }) => {
       lastError.value = null
       const drafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
       queryClient.setQueryData(draftsKey.value, replaceSaleInCache(drafts, updatedSale))
+      // Handoff 27 §5.3: the line pets belonged to the previous customer.
+      if (petsCleared) {
+        toast.add({ title: 'Cliente cambiado', description: PETS_CLEARED_NOTICE, color: 'warning' })
+      }
       // Customer-scoped promos depend on the assigned customer (backend
       // contract §5, §2.2, §5 line 51-54). Mirror the useSalesDrafts pattern
       // so the "Promociones disponibles" list re-reads after assign.
@@ -99,10 +107,17 @@ export function useDraftCustomerAssignment(saleId: MaybeRefOrGetter<string>) {
       const currentDraft = drafts.find((draft) => draft.id === resolvedSaleId)
 
       if (currentDraft) {
-        // Unassigning customer also clears shipping address (per backend behavior)
-        const updatedDraft: Sale = { ...currentDraft, customer: null, shippingAddress: null }
+        // Unassigning customer also clears shipping address and line pets (per backend behavior)
+        const updatedDraft: Sale = {
+          ...currentDraft,
+          customer: null,
+          shippingAddress: null,
+          items: currentDraft.items.map((item) => (item.pet ? { ...item, pet: null } : item)),
+        }
         queryClient.setQueryData(draftsKey.value, replaceSaleInCache(drafts, updatedDraft))
       }
+      // Handoff 27 §5.3: the 204 has no body; refetch the drafts to read the cleared lines.
+      void queryClient.invalidateQueries({ queryKey: draftsKey.value })
       // Customer-scoped promos no longer match when the customer is dropped.
       queryClient.invalidateQueries({
         queryKey: saleQueryKeys.applicablePromotions(tenantId.value, resolvedSaleId),

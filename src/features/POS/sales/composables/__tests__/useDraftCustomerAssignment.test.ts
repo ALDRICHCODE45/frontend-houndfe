@@ -81,7 +81,7 @@ function mountComposable(saleId: string) {
 describe('useDraftCustomerAssignment', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(saleApi.assignCustomer).mockResolvedValue(makeSale())
+    vi.mocked(saleApi.assignCustomer).mockResolvedValue({ ...makeSale(), petsCleared: false })
     vi.mocked(saleApi.unassignCustomer).mockResolvedValue(undefined)
     vi.mocked(saleApi.assignShippingAddress).mockResolvedValue(makeSale())
     vi.mocked(saleApi.unassignShippingAddress).mockResolvedValue(undefined)
@@ -101,7 +101,10 @@ describe('useDraftCustomerAssignment', () => {
       id: 'sale-1',
       customer
     })
-    vi.mocked(saleApi.assignCustomer).mockResolvedValueOnce(updatedSaleWithCustomer)
+    vi.mocked(saleApi.assignCustomer).mockResolvedValueOnce({
+      ...updatedSaleWithCustomer,
+      petsCleared: false,
+    })
 
     await composable.assignCustomer({ customerId: 'customer-1' })
 
@@ -367,7 +370,7 @@ describe('useDraftCustomerAssignment', () => {
       () =>
         new Promise<Sale>((resolve) => {
           resolvePromise = resolve
-        }),
+        }).then((sale) => ({ ...sale, petsCleared: false })),
     )
 
     const promise = composable.assignCustomer({ customerId: 'customer-1' })

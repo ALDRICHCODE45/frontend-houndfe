@@ -74,4 +74,13 @@ describe('CustomerMobileCard', () => {
     const wrapper = mountCard({ actions: [] })
     expect(wrapper.find('button[aria-haspopup="menu"]').exists()).toBe(false)
   })
+
+  // Handoff 27 §4: a customer found only through a pet says so.
+  it('shows «<pet> (mascota de <cliente>)» when the search matched a pet, and nothing otherwise', () => {
+    const matched = mountCard({ customer: { ...customer, matchedPetName: 'Bruno' } })
+    expect(matched.get('[data-testid="customer-pet-match"]').text()).toBe('Bruno (mascota de Juan Pérez)')
+    expect(matched.get('.hf-row-primary').text()).toBe('Juan Pérez')
+    expect(mountCard({ customer: { ...customer, matchedPetName: null } }).find('[data-testid="customer-pet-match"]').exists()).toBe(false)
+    expect(mountCard().find('[data-testid="customer-pet-match"]').exists()).toBe(false)
+  })
 })

@@ -1,4 +1,5 @@
 import type { CustomerAddress } from '@/features/POS/customers/interfaces/customer.types'
+import type { PetSpecies, PetStatus } from '@/features/POS/customers/pets/pet.types'
 
 import type {
   PAYMENT_METHOD,
@@ -228,6 +229,31 @@ export interface SaleDetailItem {
   // surface MUST render a promo-name chip through `SaleItemBadges`.
   // Optional + nullable keeps pre-deploy confirmed-sale responses parsing.
   promotionId?: string | null
+  /** Handoff 27 §6: the line's pet («Para: <nombre>»); absent on responses from before the field. */
+  pet?: SaleLinePet | null
+}
+
+/**
+ * Handoff 27 §6: `id`, `name`, `species` are the snapshot of the assignment; `status` is the pet's
+ * current one. `id` and `status` are null only when the customer (and so the pet) was deleted.
+ */
+export interface SaleLinePet {
+  id: string | null
+  name: string
+  species: PetSpecies
+  status: PetStatus | null
+}
+
+/** Handoff 27 §8: draft-route errors of the line pet. */
+export type SaleLinePetErrorCode =
+  | 'PET_NOT_FOUND'
+  | 'PET_CUSTOMER_MISMATCH'
+  | 'PET_ARCHIVED'
+  | 'SALE_ITEM_NOT_FOUND'
+
+/** `PUT /sales/drafts/:id/items/:itemId/pet`: a UUID assigns, `null` clears (required). */
+export interface SetSaleItemPetPayload {
+  petId: string | null
 }
 
 export interface SaleDetailPayment {
@@ -615,6 +641,8 @@ export interface SaleItem {
   rewardKind?: SaleRewardKind
   rewardDiscountPercent?: number | null
   stockWarning?: SaleItemStockWarning
+  /** Handoff 27 §6: the line's pet; absent on responses from before the field. */
+  pet?: SaleLinePet | null
 }
 
 export interface SaleDraftCustomer {
@@ -627,6 +655,9 @@ export interface AssignCustomerPayload {
   customerId: string
   shippingAddressId?: string | null
 }
+
+/** Handoff 27 §5.3: true only when some line really lost its pet because the customer changed. */
+export type AssignCustomerResponse = Sale & { petsCleared: boolean }
 
 export interface AssignShippingAddressPayload {
   shippingAddressId: string | null
@@ -737,6 +768,8 @@ export interface AddItemPayload {
   productId: string
   variantId?: string | null
   quantity: number
+  /** Handoff 27 §5.1: absent keeps the line's pet, a UUID assigns it, `null` clears it. */
+  petId?: string | null
 }
 
 export interface UpdateQtyPayload {

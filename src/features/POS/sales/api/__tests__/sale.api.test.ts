@@ -340,7 +340,8 @@ describe('saleApi', () => {
       const result = await saleApi.assignCustomer('sale-1', payload)
 
       expect(http.put).toHaveBeenCalledWith('/sales/drafts/sale-1/customer', payload)
-      expect(result).toEqual(updatedSale)
+      // Handoff 27 §5.3: a response without `petsCleared` reads false.
+      expect(result).toEqual({ ...updatedSale, petsCleared: false })
     })
 
     it('unassignCustomer should DELETE /sales/drafts/:id/customer', async () => {

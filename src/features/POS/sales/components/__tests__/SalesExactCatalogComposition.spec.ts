@@ -131,6 +131,10 @@ vi.mock('../../api/sale.api', () => ({
   saleApi: { getProductDetail: vi.fn(async () => ({ mainImage: null, variants: [] })) },
 }))
 
+// customer-pets T3: the line pet picker reads the customer's pets (its own spec covers it).
+vi.mock('../../composables/useDraftLinePets', () => ({
+  useDraftLinePets: () => ({ pets: ref([]), setLinePet: vi.fn(), isPending: ref(false) }),
+}))
 vi.mock('../../composables/useDraftCustomerAssignment', () => ({
   DraftCustomerAssignmentError: class DraftCustomerAssignmentError extends Error {
     constructor(public readonly code: string) {
