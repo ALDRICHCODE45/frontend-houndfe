@@ -3,9 +3,16 @@
 import { ref, watch } from 'vue'
 import type { Pet } from '../pets/pet.types'
 
-const props = withDefaults(defineProps<{ open: boolean; pet: Pet | null; loading?: boolean }>(), {
-  loading: false,
-})
+const props = withDefaults(
+  defineProps<{
+    open: boolean
+    pet: Pet | null
+    loading?: boolean
+    /** Per-field copy from the server 400 (`reason`). */
+    errors?: Record<string, string>
+  }>(),
+  { loading: false, errors: () => ({}) },
+)
 const emit = defineEmits<{ 'update:open': [value: boolean]; confirm: [reason: string] }>()
 
 const reason = ref('')
@@ -30,7 +37,7 @@ watch(
         <p class="text-sm text-(--hf-muted)">
           Úsalo cuando la mascota ya no está. Sus ventas se conservan y puedes restaurarla después.
         </p>
-        <UFormField label="Motivo (opcional)" name="reason">
+        <UFormField label="Motivo (opcional)" name="reason" :error="errors.reason">
           <UTextarea
             v-model="reason"
             data-testid="pet-archive-reason"

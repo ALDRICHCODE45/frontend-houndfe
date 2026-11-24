@@ -158,8 +158,21 @@ export function toUpdatePetPayload(pet: Pet, values: PetFormValues): UpdatePetPa
 const isWhole = (n: number | null, max: number) =>
   n === null || (Number.isInteger(n) && n >= 0 && n <= max)
 
-/** Client checks that mirror the server limits (§2); the server's 400 stays the authority. */
-export function validatePetForm(values: PetFormValues, today: string): Record<string, string> {
+/** A stored approximate age (MONTH/YEAR precision), kept when no new `approxAge` is typed. */
+function hasApproxAge(pet: Pet | null | undefined): boolean {
+  return !!pet?.birthDate && pet.birthDatePrecision !== 'EXACT'
+}
+
+/**
+ * Client checks that mirror the server limits (§2); the server's 400 stays the authority.
+ * `pet` is the one being edited: «Edad aproximada» left blank keeps its stored approximate age, and
+ * otherwise (new pet, or no approximate age yet) needs years or months instead of saving nothing.
+ */
+export function validatePetForm(
+  values: PetFormValues,
+  today: string,
+  pet: Pet | null = null,
+): Record<string, string> {
   const errors: Record<string, string> = {}
   const name = values.name.trim()
   if (!name) errors.name = 'Escribe el nombre de la mascota.'
@@ -177,6 +190,8 @@ export function validatePetForm(values: PetFormValues, today: string): Record<st
     (!isWhole(num(values.approxYears), 50) || !isWhole(num(values.approxMonths), 600))
   ) {
     errors.approxAge = 'Usa números enteros: hasta 50 años y 600 meses.'
+  } else if (values.ageMode === 'approx' && !approxAge(values) && !hasApproxAge(pet)) {
+    errors.approxAge = 'Escribe los años o meses aproximados.'
   }
   if (values.ageMode === 'date') {
     if (!values.birthDate) errors.birthDate = 'Elige la fecha de nacimiento.'

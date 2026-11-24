@@ -66,7 +66,13 @@ const base = {
     props: ['label', 'error'],
     template: '<label>{{ label }}<slot /><small v-if="error">{{ error }}</small></label>',
   },
-  Select: { props: ['modelValue', 'items'], template: '<select />' },
+  Select: {
+    props: ['modelValue', 'items'],
+    emits: ['update:modelValue'],
+    template:
+      '<select v-bind="$attrs" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="item in items" :key="item.value" :value="item.value">{{ item.label }}</option></select>',
+    inheritAttrs: false,
+  },
   Badge: { props: ['label'], template: '<span v-bind="$attrs">{{ label }}<slot /></span>' },
   Icon: { template: '<i />' },
 }
@@ -224,4 +230,105 @@ describe('CustomerPetsSection', () => {
     await flushPromises()
     expect(api.archive).toHaveBeenCalledWith('c1', 'p1', { version: 3, reason: 'Falleció' })
   })
+
+  it('«Edad aproximada» with no years nor months marks the age and does not create', async () => {
+    const wrapper = mountSection()
+    await flushPromises()
+    await wrapper.get('[data-testid="pets-add"]').trigger('click')
+    await wrapper.get('[data-testid="pet-form-name"]').setValue('Bruno')
+    await wrapper.get('[data-testid="pet-form-age-approx"]').trigger('click')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(api.create).not.toHaveBeenCalled()
+    expect(
+      wrapper.get('[data-testid="pet-form-years"]').element.closest('label')!.textContent,
+    ).toMatch(/años o meses/)
+  })
+
+  it('a 400 per-field error keeps the form open with the message on that field', async () => {
+    api.create.mockRejectedValue(fieldError('name'))
+    const wrapper = mountSection()
+    await flushPromises()
+    await wrapper.get('[data-testid="pets-add"]').trigger('click')
+    await wrapper.get('[data-testid="pet-form-name"]').setValue('Bruno')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.find('form').exists()).toBe(true)
+    expect(
+      wrapper.get('[data-testid="pet-form-name"]').element.closest('label')!.textContent,
+    ).toContain('Revisa el nombre (de 1 a 60 caracteres).')
+  })
+
+  it('a new submit attempt clears the previous server field errors', async () => {
+    api.create.mockRejectedValueOnce(fieldError('name')).mockRejectedValueOnce({
+      response: { status: 422, data: { statusCode: 422, error: 'PET_LIMIT_REACHED' } },
+    })
+    const wrapper = mountSection()
+    await flushPromises()
+    await wrapper.get('[data-testid="pets-add"]').trigger('click')
+    await wrapper.get('[data-testid="pet-form-name"]').setValue('Bruno')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Revisa el nombre')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(api.create).toHaveBeenCalledTimes(2)
+    expect(wrapper.find('form').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('Revisa el nombre')
+  })
+
+  it('a 400 on the archive reason shows the message next to the reason field', async () => {
+    api.archive.mockRejectedValue(fieldError('reason'))
+    const wrapper = mountSection()
+    await flushPromises()
+    await wrapper.get('[data-testid="pet-row-p1"] [data-action="archive"]').trigger('click')
+    await wrapper.get('[data-testid="pet-archive-reason"]').setValue('x')
+    await wrapper.get('[data-testid="pet-archive-confirm"]').trigger('click')
+    await flushPromises()
+    const field = wrapper.get('[data-testid="pet-archive-reason"]').element.closest('label')!
+    expect(field.textContent).toContain('El motivo admite hasta 280 caracteres.')
+  })
+
+  it('«Sin tamaño» clears a set size (PATCH sends size null)', async () => {
+    api.update.mockResolvedValue({ ...makePet({ size: null, version: 4 }), warnings: [] })
+    const wrapper = mountSection()
+    await flushPromises()
+    await wrapper.get('[data-testid="pet-row-p1"] [data-action="edit"]').trigger('click')
+    const select = wrapper.get('[data-testid="pet-form-size"]')
+    const none = select.findAll('option').find((option) => option.text() === 'Sin tamaño')
+    expect(none).toBeDefined()
+    await select.setValue(none!.element.value)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(api.update).toHaveBeenCalledWith('c1', 'p1', { version: 3, size: null })
+  })
+
+  it('erasing a pet that is already gone (PET_NOT_FOUND) is reported as done, not as an error', async () => {
+    api.remove.mockRejectedValue({
+      response: { status: 404, data: { statusCode: 404, error: 'PET_NOT_FOUND' } },
+    })
+    const wrapper = mountSection()
+    await flushPromises()
+    await wrapper.get('[data-testid="pet-row-p1"] [data-action="erase"]').trigger('click')
+    await wrapper.get('[data-testid="pet-erase-confirm"]').trigger('click')
+    await flushPromises()
+    expect(toast.add).not.toHaveBeenCalledWith(expect.objectContaining({ color: 'error' }))
+    expect(toast.add).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Datos de la mascota eliminados', color: 'success' }),
+    )
+    expect(wrapper.find('[data-testid="pet-erase-dialog"]').exists()).toBe(false)
+  })
 })
+
+function fieldError(property: string) {
+  return {
+    response: {
+      status: 400,
+      data: {
+        statusCode: 400,
+        error: 'Bad Request',
+        message: [{ property, children: [], constraints: { maxLength: 'too long' } }],
+      },
+    },
+  }
+}

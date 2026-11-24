@@ -17,18 +17,30 @@ export interface SaleLinePetErrorInfo {
   message: string
   /** The customer's active pets changed under the user: reload the picker list. */
   reloadPets: boolean
+  /** The draft changed under the user (the line is gone): refetch the drafts. */
+  reloadDraft: boolean
 }
 
 const CODE_COPY: Record<SaleLinePetErrorCode, Omit<SaleLinePetErrorInfo, 'code'>> = {
-  PET_NOT_FOUND: { message: 'Esa mascota ya no existe. Actualizamos la lista.', reloadPets: true },
+  PET_NOT_FOUND: {
+    message: 'Esa mascota ya no existe. Actualizamos la lista.',
+    reloadPets: true,
+    reloadDraft: false,
+  },
   PET_CUSTOMER_MISMATCH: {
     message: 'Esa mascota no es del cliente de esta venta.',
     reloadPets: false,
+    reloadDraft: false,
   },
-  PET_ARCHIVED: { message: 'Esa mascota está archivada. Actualizamos la lista.', reloadPets: true },
+  PET_ARCHIVED: {
+    message: 'Esa mascota está archivada. Actualizamos la lista.',
+    reloadPets: true,
+    reloadDraft: false,
+  },
   SALE_ITEM_NOT_FOUND: {
-    message: 'Ese producto ya no está en la venta. Recarga la venta.',
+    message: 'Ese producto ya no está en la venta. Actualizamos la venta.',
     reloadPets: false,
+    reloadDraft: true,
   },
 }
 
@@ -42,5 +54,6 @@ export function readSaleLinePetError(err: unknown): SaleLinePetErrorInfo {
     code: null,
     message: 'No se pudo cambiar la mascota de la línea. Intenta de nuevo.',
     reloadPets: false,
+    reloadDraft: false,
   }
 }

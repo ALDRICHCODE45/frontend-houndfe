@@ -364,6 +364,7 @@ function handleQtyCommit() {
             v-if="showPetPicker"
             :pets="pets"
             :pet-id="item.pet?.id ?? null"
+            :current-pet="item.pet"
             :disabled="isUpdating"
             :portal-class="portalClass"
             @select="handleSelectPet"

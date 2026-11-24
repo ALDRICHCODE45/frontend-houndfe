@@ -130,10 +130,11 @@ describe('useDraftLinePets', () => {
       }),
     )
     expect(queryClient.getQueryData<Sale[]>(draftsKey)).toEqual([makeDraft()])
+    expect(queryClient.getQueryState(draftsKey)?.isInvalidated).toBe(false)
     await vi.waitFor(() => expect(petApi.list).toHaveBeenCalledTimes(2))
   })
 
-  it('SALE_ITEM_NOT_FOUND: Spanish message, draft unchanged, pets not refetched', async () => {
+  it('SALE_ITEM_NOT_FOUND: Spanish message, the drafts are refetched, pets not', async () => {
     vi.mocked(saleApi.setItemPet).mockRejectedValue(apiError(422, 'SALE_ITEM_NOT_FOUND'))
     const { result, queryClient } = mountComposable()
     await vi.waitFor(() => expect(petApi.list).toHaveBeenCalledTimes(1))
@@ -142,10 +143,10 @@ describe('useDraftLinePets', () => {
 
     expect(toastAdd).toHaveBeenCalledWith(
       expect.objectContaining({
-        description: 'Ese producto ya no está en la venta. Recarga la venta.',
+        description: 'Ese producto ya no está en la venta. Actualizamos la venta.',
       }),
     )
-    expect(queryClient.getQueryData<Sale[]>(draftsKey)).toEqual([makeDraft()])
+    expect(queryClient.getQueryState(draftsKey)?.isInvalidated).toBe(true)
     expect(petApi.list).toHaveBeenCalledTimes(1)
   })
 })

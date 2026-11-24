@@ -2,6 +2,7 @@ import { computed, readonly, ref, toValue, type MaybeRefOrGetter } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
+import { customerQueryKeys } from '@/core/shared/constants/query-keys'
 import { petApi } from './pet.api'
 import { readPetError, type PetErrorInfo } from './petErrors'
 import type {
@@ -55,7 +56,7 @@ export type PetWriteOutcome =
 
 export type PetEraseOutcome =
   | { status: 'ignored' }
-  | { status: 'erased' }
+  | { status: 'erased'; alreadyGone?: true }
   | { status: 'failed'; error: PetErrorInfo }
 
 const byName = (a: Pet, b: Pet) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })
@@ -91,17 +92,31 @@ export function usePetMutations(customerId: MaybeRefOrGetter<string>) {
     }
   }
 
+  /** The customers search carries `matchedPetName` (§4): refresh it after a pet write. */
+  function refreshCustomerSearch() {
+    void client.invalidateQueries({ queryKey: customerQueryKeys.paginated(tenantId.value) })
+  }
+
   async function run<T>(
     allowed: boolean,
     write: () => Promise<T>,
     done: (value: T) => PetWriteOutcome | PetEraseOutcome,
+    /** An error that already is the desired end state; returns its outcome, or null to fail. */
+    recover?: (error: PetErrorInfo) => PetWriteOutcome | PetEraseOutcome | null,
   ) {
     if (!allowed || isPending.value) return { status: 'ignored' as const }
     isPending.value = true
     try {
-      return done(await write())
+      const outcome = done(await write())
+      refreshCustomerSearch()
+      return outcome
     } catch (err) {
       const error = readPetError(err)
+      const recovered = recover?.(error)
+      if (recovered) {
+        refreshCustomerSearch()
+        return recovered
+      }
       if (error.reload) await client.invalidateQueries({ queryKey: allKey() })
       return { status: 'failed' as const, error }
     } finally {
@@ -141,14 +156,22 @@ export function usePetMutations(customerId: MaybeRefOrGetter<string>) {
         () => petApi.restore(id(), pet.id, { version: pet.version }),
         saved,
       ) as Promise<PetWriteOutcome>,
-    erase: (pet: Pet) =>
-      run(
+    // A pet already gone (`PET_NOT_FOUND`) is what the erasure wanted: drop it and report it done.
+    erase: (pet: Pet) => {
+      const drop = () => setLists((list) => list.filter((item) => item.id !== pet.id))
+      return run(
         canDelete.value,
         () => petApi.remove(id(), pet.id, pet.version),
         () => {
-          setLists((list) => list.filter((item) => item.id !== pet.id))
+          drop()
           return { status: 'erased' }
         },
-      ) as Promise<PetEraseOutcome>,
+        (error) => {
+          if (error.code !== 'PET_NOT_FOUND') return null
+          drop()
+          return { status: 'erased', alreadyGone: true }
+        },
+      ) as Promise<PetEraseOutcome>
+    },
   }
 }

@@ -9,7 +9,7 @@ const selectStub = {
   props: ['modelValue', 'items', 'disabled', 'placeholder'],
   emits: ['update:modelValue'],
   template:
-    '<select data-testid="sale-line-pet-select" :value="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="item in items" :key="item.value" :value="item.value">{{ item.label }}</option></select>',
+    '<select data-testid="sale-line-pet-select" :value="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="item in items" :key="item.value" :value="item.value" :disabled="item.disabled">{{ item.label }}</option></select>',
 }
 
 const stubs = {
@@ -82,6 +82,27 @@ describe('SaleItemRow — line pet', () => {
     await select.setValue(none)
 
     expect(onSetPet).toHaveBeenCalledWith('item-1', null)
+  })
+
+  it("shows the line's archived pet as a disabled option, still offering «Sin mascota» and the active pets", async () => {
+    const onSetPet = vi.fn(async () => undefined)
+    const item = { ...line, pet: { id: 'p9', name: 'Kira', species: 'DOG', status: 'ARCHIVED' } }
+    const wrapper = mountRow({ item, pets, onSetPet })
+
+    const select = wrapper.get('[data-testid="sale-line-pet-select"]')
+    const options = select.findAll('option')
+    expect(options.map((option) => option.text())).toEqual([
+      'Sin mascota',
+      'Bruno',
+      'Luna',
+      'Kira (archivada)',
+    ])
+    expect(options[3]!.attributes('disabled')).toBeDefined()
+    expect(options[3]!.element.value).toBe('p9')
+    expect(select.findComponent(selectStub).props('modelValue')).toBe('p9')
+
+    await select.setValue('p1')
+    expect(onSetPet).toHaveBeenCalledWith('item-1', 'p1')
   })
 
   it('hides the picker when the customer has no active pets', () => {

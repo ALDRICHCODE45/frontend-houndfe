@@ -34,12 +34,34 @@ const SELECT_PORTAL = 'hf-theme hf-ui clients-form-portal'
 
 const state = reactive<PetFormValues>(emptyPetForm())
 const localErrors = ref<Record<string, string>>({})
-const fieldErrors = computed(() => ({ ...props.errors, ...localErrors.value }))
-
-const sizeItems = (Object.keys(PET_SIZE_LABELS) as PetSize[]).map((value) => ({
-  label: PET_SIZE_LABELS[value],
-  value,
+/** A new submit attempt hides the previous server errors until the owner sends new ones. */
+const serverErrorsStale = ref(false)
+watch(
+  () => props.errors,
+  () => {
+    serverErrorsStale.value = false
+  },
+)
+const fieldErrors = computed(() => ({
+  ...(serverErrorsStale.value ? {} : props.errors),
+  ...localErrors.value,
 }))
+
+// The select cannot hold null as a value: «Sin tamaño» maps to `size: null` (PATCH clears it).
+const NO_SIZE = '__sin-tamano__'
+const sizeItems = [
+  { label: 'Sin tamaño', value: NO_SIZE },
+  ...(Object.keys(PET_SIZE_LABELS) as PetSize[]).map((value) => ({
+    label: PET_SIZE_LABELS[value],
+    value,
+  })),
+]
+const sizeModel = computed({
+  get: () => state.size ?? NO_SIZE,
+  set: (value: string) => {
+    state.size = value === NO_SIZE ? null : (value as PetSize)
+  },
+})
 const AGE_MODES: { value: PetAgeMode; label: string }[] = [
   { value: 'none', label: 'Sin edad' },
   { value: 'approx', label: 'Edad aproximada' },
@@ -68,7 +90,8 @@ watch(
 )
 
 function onSubmit() {
-  localErrors.value = validatePetForm(state, today)
+  serverErrorsStale.value = true
+  localErrors.value = validatePetForm(state, today, props.pet)
   if (Object.keys(localErrors.value).length > 0) return
   emit('submit', { ...state })
 }
@@ -140,9 +163,9 @@ function onSubmit() {
           </UFormField>
           <UFormField label="Tamaño" name="size" :error="fieldErrors.size">
             <USelect
-              v-model="state.size"
+              v-model="sizeModel"
               :items="sizeItems"
-              placeholder="Sin tamaño"
+              data-testid="pet-form-size"
               class="w-full"
               size="lg"
               :ui="{ content: SELECT_PORTAL }"

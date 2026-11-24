@@ -26,6 +26,7 @@ describe('readSaleLinePetError', () => {
       code: 'PET_NOT_FOUND',
       message: 'Esa mascota ya no existe. Actualizamos la lista.',
       reloadPets: true,
+      reloadDraft: false,
     })
   })
 
@@ -34,6 +35,7 @@ describe('readSaleLinePetError', () => {
       code: 'PET_CUSTOMER_MISMATCH',
       message: 'Esa mascota no es del cliente de esta venta.',
       reloadPets: false,
+      reloadDraft: false,
     })
   })
 
@@ -42,14 +44,16 @@ describe('readSaleLinePetError', () => {
       code: 'PET_ARCHIVED',
       message: 'Esa mascota está archivada. Actualizamos la lista.',
       reloadPets: true,
+      reloadDraft: false,
     })
   })
 
-  it('SALE_ITEM_NOT_FOUND: the line is not in the draft anymore', () => {
+  it('SALE_ITEM_NOT_FOUND: the line is not in the draft anymore, the draft reloads', () => {
     expect(readSaleLinePetError(apiError(422, 'SALE_ITEM_NOT_FOUND'))).toEqual({
       code: 'SALE_ITEM_NOT_FOUND',
-      message: 'Ese producto ya no está en la venta. Recarga la venta.',
+      message: 'Ese producto ya no está en la venta. Actualizamos la venta.',
       reloadPets: false,
+      reloadDraft: true,
     })
   })
 
@@ -58,6 +62,7 @@ describe('readSaleLinePetError', () => {
       code: null,
       message: 'No se pudo cambiar la mascota de la línea. Intenta de nuevo.',
       reloadPets: false,
+      reloadDraft: false,
     })
   })
 })

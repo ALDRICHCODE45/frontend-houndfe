@@ -15,7 +15,8 @@ declare const useToast: () => {
 /**
  * Line pet picker of a POS draft (handoff 27 §5.2): the ACTIVE pets of the sale customer and the
  * `PUT …/items/:itemId/pet` write. A success replaces the draft from the response; a failure leaves
- * the draft as it was, shows the Spanish copy and reloads the pets when they changed underneath.
+ * the draft as it was, shows the Spanish copy and reloads the pets (or the drafts, when the line is
+ * gone) when they changed underneath.
  */
 export function useDraftLinePets(
   saleId: MaybeRefOrGetter<string | null | undefined>,
@@ -47,6 +48,9 @@ export function useDraftLinePets(
       const customer = toValue(customerId)
       if (error.reloadPets && customer) {
         void queryClient.invalidateQueries({ queryKey: petQueryKeys.all(tenantId.value, customer) })
+      }
+      if (error.reloadDraft) {
+        void queryClient.invalidateQueries({ queryKey: saleQueryKeys.drafts(tenantId.value) })
       }
       return false
     }

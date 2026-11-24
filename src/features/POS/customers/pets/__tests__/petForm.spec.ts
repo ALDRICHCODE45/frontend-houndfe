@@ -143,4 +143,15 @@ describe('validatePetForm', () => {
       ),
     ).toEqual({})
   })
+
+  it('approximate age with both numbers blank is an error, unless a stored one is kept', () => {
+    const blank = { ...emptyPetForm(), name: 'Bruno', ageMode: 'approx' as const }
+    expect(validatePetForm(blank, today)).toHaveProperty('approxAge')
+    expect(validatePetForm(blank, today, null)).toHaveProperty('approxAge')
+    const exact = makePet({ birthDate: '2024-03-15', birthDatePrecision: 'EXACT' })
+    expect(validatePetForm(blank, today, exact)).toHaveProperty('approxAge')
+    expect(validatePetForm(blank, today, makePet({ birthDate: null }))).toHaveProperty('approxAge')
+    // makePet() carries an approximate age (MONTH precision): blank keeps «~10 meses».
+    expect(validatePetForm(blank, today, makePet())).toEqual({})
+  })
 })

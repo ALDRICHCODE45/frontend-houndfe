@@ -100,6 +100,37 @@ describe('usePetMutations', () => {
     expect(client.getQueryData(activeKey)).toEqual([])
   })
 
+  it('a successful write refreshes the customers search so matchedPetName is not stale', async () => {
+    const { result, client } = setup()
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    const customersKey = ['customers', 't1', 'paginated']
+
+    api.create.mockResolvedValue({ ...makePet({ id: 'p3', name: 'Max' }), warnings: [] })
+    await result.create({ name: 'Max', species: 'DOG' })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: customersKey })
+
+    invalidate.mockClear()
+    api.remove.mockResolvedValue(undefined)
+    await result.erase(makePet())
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: customersKey })
+
+    invalidate.mockClear()
+    api.update.mockRejectedValue({
+      response: { status: 409, data: { statusCode: 409, error: 'PET_VERSION_CONFLICT' } },
+    })
+    await result.update(makePet(), { version: 3, name: 'Max' })
+    expect(invalidate).not.toHaveBeenCalledWith({ queryKey: customersKey })
+  })
+
+  it('erasing a pet that is already gone (PET_NOT_FOUND) counts as erased', async () => {
+    const { result, client } = setup([makePet()], [])
+    api.remove.mockRejectedValue({
+      response: { status: 404, data: { statusCode: 404, error: 'PET_NOT_FOUND' } },
+    })
+    expect(await result.erase(makePet())).toEqual({ status: 'erased', alreadyGone: true })
+    expect(client.getQueryData(activeKey)).toEqual([])
+  })
+
   it('PET_VERSION_CONFLICT reloads the pets from the server', async () => {
     const { result, client } = setup()
     const conflict = {

@@ -53,6 +53,7 @@ watch(
 const formOpen = ref(false)
 const editingPet = ref<Pet | null>(null)
 const formErrors = ref<Record<string, string>>({})
+const archiveErrors = ref<Record<string, string>>({})
 const archivingPet = ref<Pet | null>(null)
 const erasingPet = ref<Pet | null>(null)
 
@@ -88,6 +89,11 @@ function openForm(pet: Pet | null) {
   formOpen.value = true
 }
 
+function openArchive(pet: Pet | null) {
+  archiveErrors.value = {}
+  archivingPet.value = pet
+}
+
 function closeDialogs() {
   formOpen.value = false
   archivingPet.value = null
@@ -96,7 +102,7 @@ function closeDialogs() {
 
 function handleAction(key: string, pet: Pet) {
   if (key === 'edit') openForm(pet)
-  else if (key === 'archive') archivingPet.value = pet
+  else if (key === 'archive') openArchive(pet)
   else if (key === 'restore') void restore(pet)
   else if (key === 'erase') erasingPet.value = pet
 }
@@ -106,12 +112,16 @@ function report(outcome: PetWriteOutcome | PetEraseOutcome, success: string): bo
   if (outcome.status === 'ignored') return false
   if (outcome.status === 'failed') {
     const { error } = outcome
-    if (formOpen.value && Object.keys(error.fields).length > 0) formErrors.value = error.fields
+    const hasFields = Object.keys(error.fields).length > 0
+    if (formOpen.value && hasFields) formErrors.value = error.fields
+    else if (archivingPet.value && hasFields) archiveErrors.value = error.fields
     else if (error.reload) closeDialogs()
     toast.add({ title: 'No se pudo completar', description: error.message, color: 'error' })
     return false
   }
-  if (outcome.status === 'saved' && outcome.duplicateName) {
+  if (outcome.status === 'erased' && outcome.alreadyGone) {
+    toast.add({ title: success, description: 'Ya se habían eliminado.', color: 'success' })
+  } else if (outcome.status === 'saved' && outcome.duplicateName) {
     toast.add({
       title: `Ya hay otra mascota llamada ${outcome.pet.name}`,
       description: 'Se guardó de todos modos.',
@@ -125,6 +135,7 @@ function report(outcome: PetWriteOutcome | PetEraseOutcome, success: string): bo
 
 async function submitForm(values: PetFormValues) {
   const pet = editingPet.value
+  formErrors.value = {}
   const outcome = pet
     ? await mutations.update(pet, toUpdatePetPayload(pet, values))
     : await mutations.create(toCreatePetPayload(values))
@@ -133,6 +144,7 @@ async function submitForm(values: PetFormValues) {
 
 async function confirmArchive(reason: string) {
   if (!archivingPet.value) return
+  archiveErrors.value = {}
   if (report(await mutations.archive(archivingPet.value, reason), 'Mascota archivada'))
     archivingPet.value = null
 }
@@ -148,7 +160,7 @@ async function confirmErase() {
 }
 
 function archiveInstead() {
-  archivingPet.value = erasingPet.value
+  openArchive(erasingPet.value)
   erasingPet.value = null
 }
 </script>
@@ -237,6 +249,7 @@ function archiveInstead() {
       :open="!!archivingPet"
       :pet="archivingPet"
       :loading="pending"
+      :errors="archiveErrors"
       @update:open="!$event && (archivingPet = null)"
       @confirm="confirmArchive"
     />
