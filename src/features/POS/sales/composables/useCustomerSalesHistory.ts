@@ -1,14 +1,32 @@
-import { computed, toValue } from 'vue'
+import { computed, shallowRef, toValue, watch } from 'vue'
 import type { MaybeRefOrGetter } from 'vue'
 import { useQuery, keepPreviousData } from '@tanstack/vue-query'
 import { saleApi } from '../api/sale.api'
 import { saleQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import { SALE_DELIVERY_STATUS, SALE_PAYMENT_STATUS } from '../constants/sale.constants'
 import {
   SaleListSummarySchema,
   type ConfirmedSalesListResponse,
   type CustomerSalesHistoryParams,
+  type SaleDeliveryStatus,
+  type SaleListSummary,
+  type SalePaymentStatus,
+  type SalesListCounts,
 } from '../interfaces/sale.types'
+
+/** Sales history redesign T1: the single-choice status chips of the customer history. */
+export type CustomerHistoryStatusFilter = 'all' | 'with-debt' | 'not-delivered'
+
+type StatusParams = { paymentStatus?: SalePaymentStatus[]; deliveryStatus?: SaleDeliveryStatus[] }
+
+// L3 (backend 2026-11-24): both combine with `customerId` (+`petId`) by AND and leave `summary` and
+// `counts` customer-wide. Same values as the Ventas «Cobranza» / «Entregas» views.
+const STATUS_PARAMS: Record<CustomerHistoryStatusFilter, StatusParams> = {
+  all: {},
+  'with-debt': { paymentStatus: [SALE_PAYMENT_STATUS.PARTIAL, SALE_PAYMENT_STATUS.CREDIT] },
+  'not-delivered': { deliveryStatus: [SALE_DELIVERY_STATUS.PENDING as SaleDeliveryStatus] },
+}
 
 export interface UseCustomerSalesHistoryOptions {
   customerId: MaybeRefOrGetter<string | null | undefined>
@@ -17,11 +35,13 @@ export interface UseCustomerSalesHistoryOptions {
   q?: MaybeRefOrGetter<string | undefined>
   /** Customer pets §7: sales of one pet of this customer; only ever sent with the single `customerId`. */
   petId?: MaybeRefOrGetter<string | null | undefined>
+  /** «Con saldo» / «Sin entregar»; `'all'` (default) sends neither param. */
+  status?: MaybeRefOrGetter<CustomerHistoryStatusFilter | undefined>
 }
 
 // `petId` is new on `GET /sales` (handoff 27 §7). It is added here rather than in sale.types.ts so the
 // shared `ListSalesParams` stays untouched; it is omitted entirely when no pet is selected.
-type HistoryKeyParams = CustomerSalesHistoryParams & { petId?: string }
+type HistoryKeyParams = CustomerSalesHistoryParams & { petId?: string } & StatusParams
 type HistoryApiParams = Parameters<typeof saleApi.listConfirmed>[0] & { petId?: string }
 
 // Cache entries stamp the requesting customer so cross-customer placeholder
@@ -29,6 +49,14 @@ type HistoryApiParams = Parameters<typeof saleApi.listConfirmed>[0] & { petId?: 
 interface CustomerHistoryCacheEntry {
   ownerCustomerId: string
   response: ConfirmedSalesListResponse
+  /** `q` was sent: the backend narrows `summary` and `counts` to the search too (L3). */
+  narrowedAggregates: boolean
+}
+
+interface CustomerAggregates {
+  customerId: string
+  summary: SaleListSummary
+  counts: SalesListCounts
 }
 
 function httpStatus(error: unknown): number | undefined {
@@ -50,6 +78,7 @@ export function useCustomerSalesHistory(options: UseCustomerSalesHistoryOptions)
   const open = computed(() => toValue(options.open))
   const q = computed(() => toValue(options.q))
   const petId = computed(() => toValue(options.petId) || undefined)
+  const statusParams = computed(() => STATUS_PARAMS[toValue(options.status) ?? 'all'])
   const tenantId = computed(() => authStore.currentTenantId)
   const enabled = computed(
     () => open.value && Boolean(tenantId.value) && Boolean(customerId.value),
@@ -64,6 +93,7 @@ export function useCustomerSalesHistory(options: UseCustomerSalesHistoryOptions)
       sortOrder: 'desc',
       ...(normalizedQ && { q: normalizedQ }),
       ...(petId.value && { petId: petId.value }),
+      ...statusParams.value,
     }
   })
 
@@ -86,6 +116,7 @@ export function useCustomerSalesHistory(options: UseCustomerSalesHistoryOptions)
       const id = customerId.value as string
       const normalizedQ = q.value?.trim() || undefined
       const selectedPetId = petId.value
+      const selectedStatus = statusParams.value
       const apiParams: HistoryApiParams = {
         customerId: [id],
         // Exactly one customerId always travels with petId (never `PET_FILTER_REQUIRES_CUSTOMER`).
@@ -94,13 +125,15 @@ export function useCustomerSalesHistory(options: UseCustomerSalesHistoryOptions)
         limit: 10,
         sortBy: 'confirmedAt',
         sortOrder: 'desc',
+        // Never confirmedFrom/To or cashierUserId here: they would narrow the customer-wide KPIs.
+        ...selectedStatus,
       }
       if (normalizedQ) {
         apiParams.q = normalizedQ
       }
       const response = await saleApi.listConfirmed(apiParams)
       SaleListSummarySchema.parse(response.summary)
-      return { ownerCustomerId: id, response }
+      return { ownerCustomerId: id, response, narrowedAggregates: Boolean(normalizedQ) }
     },
   })
 
@@ -109,12 +142,38 @@ export function useCustomerSalesHistory(options: UseCustomerSalesHistoryOptions)
     return entry && entry.ownerCustomerId === customerId.value ? entry.response : undefined
   })
 
+  // The metric strip and the chip counts stay customer-wide (customer pets S6, L3): pet and status
+  // filters never narrow them, `q` does, so a searched response keeps the last unsearched aggregates.
+  const pinnedAggregates = shallowRef<CustomerAggregates | null>(null)
+  watch(
+    () => query.data.value,
+    (entry) => {
+      if (!entry || entry.narrowedAggregates) return
+      pinnedAggregates.value = {
+        customerId: entry.ownerCustomerId,
+        summary: entry.response.summary,
+        counts: entry.response.counts,
+      }
+    },
+    { immediate: true },
+  )
+  const customerAggregates = computed(() => {
+    const pinned = pinnedAggregates.value
+    if (pinned && pinned.customerId === customerId.value) return pinned
+    const current = response.value
+    return current ? { summary: current.summary, counts: current.counts } : undefined
+  })
+  const customerSummary = computed(() => customerAggregates.value?.summary)
+  const customerCounts = computed(() => customerAggregates.value?.counts)
+
   const isPageTransition = computed(
     () => response.value !== undefined && query.isFetching.value && !query.isLoading.value,
   )
 
   return {
     response,
+    customerSummary,
+    customerCounts,
     isLoading: query.isLoading,
     isFetching: query.isFetching,
     isPageTransition,

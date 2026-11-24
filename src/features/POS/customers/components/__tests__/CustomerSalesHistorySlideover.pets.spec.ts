@@ -5,7 +5,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, type VueWrapper } from '@vue/test-utils'
-import { nextTick, shallowRef } from 'vue'
+import { computed, nextTick, shallowRef } from 'vue'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import type { Customer } from '../../interfaces/customer.types'
@@ -22,8 +22,17 @@ vi.mock('vue-router', async (importOriginal) => ({
   useRouter: () => ({ push: vi.fn() }),
 }))
 
+vi.mock('@/features/auth/stores/useAuthStore', () => ({
+  useAuthStore: () => ({ currentTenantId: 'tenant-1', userCan: () => true }),
+}))
+
+const response$ = shallowRef<ConfirmedSalesListResponse>()
+/** The composable pins the customer-wide aggregates (its spec); here they are the first response's. */
+const wide = shallowRef<ConfirmedSalesListResponse>()
 const history = {
-  response: shallowRef<ConfirmedSalesListResponse>(),
+  response: response$,
+  customerSummary: computed(() => wide.value?.summary),
+  customerCounts: computed(() => wide.value?.counts),
   isLoading: shallowRef(false),
   isFetching: shallowRef(false),
   isPageTransition: shallowRef(false),
@@ -135,6 +144,7 @@ const chip = (label: string) => {
 describe('CustomerSalesHistorySlideover — pet filter', () => {
   beforeEach(() => {
     history.response.value = response()
+    wide.value = response()
     history.isError.value = false
     history.error.value = null
     history.refetch.mockClear()
