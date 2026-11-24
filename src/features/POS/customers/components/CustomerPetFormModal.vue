@@ -15,6 +15,7 @@ import {
   type PetFormValues,
 } from '../pets/petForm'
 import type { Pet, PetSize } from '../pets/pet.types'
+import DateFieldPopover from '@/features/POS/sales/components/DateFieldPopover.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -228,12 +229,12 @@ function onSubmit() {
             name="birthDate"
             :error="fieldErrors.birthDate"
           >
-            <UInput
-              v-model="state.birthDate"
-              data-testid="pet-form-birth-date"
-              type="date"
-              :max="today"
-              size="lg"
+            <DateFieldPopover
+              :model-value="state.birthDate || null"
+              testid="pet-form-birth-date"
+              placeholder="Elegir fecha de nacimiento"
+              min-iso="1950-01-01"
+              @update:model-value="(iso) => (state.birthDate = iso ?? '')"
             />
           </UFormField>
         </fieldset>
